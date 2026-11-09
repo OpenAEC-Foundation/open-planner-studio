@@ -1,8 +1,8 @@
 // Het nieuwe Rapport-tabblad achter de feature flag `reportRedesign` (issue #817). Eén werkroute van een
-// planner: tabblad openen, op het papier klikken om een stap te openen, een kolom toevoegen, Standaard en
-// ongedaan maken, de zijbalk inklappen, in een zwevend venster typen en via de zwevende knop exporteren.
-// De flag en een verouderde planning zijn fixtures (via de store), de rest zijn echte klikken en toetsen.
-// Het venster is 1280×720: de kleinste maat waarop melding, "Kolom toevoegen" en stapvoet in beeld moeten blijven.
+// planner: tabblad openen, op het papier klikken om een stap te openen, een kolom toevoegen, Herstel standaard
+// en ongedaan maken, de zijbalk inklappen, een zwevend venster verslepen, erin typen en via de zwevende knop
+// exporteren. De flag en een verouderde planning zijn fixtures (via de store), de rest zijn echte klikken en toetsen.
+// Het venster is 1280×720: de kleinste maat waarop melding, "Kolom toevoegen" en de stapkop in beeld moeten blijven.
 import { expect, seedProject, test } from './fixtures/ops';
 
 test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk inklappen', async ({ page, ops: _ops }) => {
@@ -50,7 +50,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-step-body="bars"]')).toBeVisible();
 
   // Statusdatumlijn zonder statusdatum: de melding verschijnt onder de keuze en komt helemaal in beeld; de
-  // stapvoet blijft zichtbaar. De keuze staat vooraf precies onderaan het scrollvak, zodat de klik niet
+  // stapkop met Herstel standaard blijft zichtbaar (de voetbalk is weg, check Ethan 9-11-2026). De keuze staat vooraf precies onderaan het scrollvak, zodat de klik niet
   // scrolt en alleen de app de melding in beeld kan brengen.
   await page.locator('[data-rs-step-body="bars"]').evaluate(el => {
     const seg = el.querySelector('[data-rs-segmented="statusLine"]')!;
@@ -59,7 +59,8 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-segmented="statusLine"] [data-rs-value="statusDate"]').click();
   await expect(page.locator('[data-rs-notice="no-status-date"]')).toBeInViewport({ ratio: 1 });
   await expect(page.locator('[data-rs-status-today]')).toBeInViewport({ ratio: 1 });
-  await expect(page.locator('[data-rs-step-foot="bars"]')).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('[data-rs-step="bars"] [data-rs-reset="bars"]')).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('[data-rs-step-foot]')).toHaveCount(0);
   // "Op vandaag zetten" rekent meteen door, zoals "Nu doorrekenen": er komt geen balk "niet doorgerekend".
   await page.locator('[data-rs-status-today]').click();
   await expect(page.locator('[data-rs-notice="no-status-date"]')).toHaveCount(0);
@@ -83,17 +84,35 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(stale).toHaveCount(0);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
 
-  // Kolom Kalenderdagen toevoegen via de kiezer, met het toetsenbord. De headless browser draait in het
-  // Engels; de kop volgt de taal van de app.
+  // Kolom Kalenderdagen toevoegen met het kolomvenster van de tabel (check Ethan 9-11-2026: dezelfde dialoog
+  // als in het tabblad Tabel): zoeken en klikken. De headless browser draait in het Engels; de kop volgt de
+  // taal van de app.
   const calendarDays = (await page.evaluate(() => document.documentElement.lang)).startsWith('nl') ? 'Kalenderdagen' : 'Calendar days';
+  const chooser = page.getByRole('dialog', { name: /^(Choose column|Kolom kiezen)$/ });
+  const addColumn = async (label: string) => {
+    await page.locator('[data-rs-add-column]').click();
+    await expect(chooser).toBeVisible();
+    await expect(chooser.getByRole('searchbox')).toBeFocused();
+    await page.keyboard.type(label);
+    // Het laatste treffer is de zoeklijst (daarboven kan "Laatst gebruikt" dezelfde kolom tonen).
+    await chooser.getByRole('menuitemcheckbox', { name: new RegExp(`^${label}$`) }).last().click();
+  };
   await page.locator('[data-rs-step-head="columns"]').click();
-  await page.locator('[data-rs-add-column]').click();
-  await page.keyboard.type(calendarDays);
-  await expect(page.locator('[data-rs-pick]').first()).toBeVisible();
-  await page.keyboard.press('Enter');
+  // De verplichte taaknaam: zijn kruisje staat uit, met de uitleg als tooltip; een klik doet niets.
+  const requiredX = page.locator('[data-rs-column="task.name"] [data-rs-required-slot]');
+  await expect(requiredX).toHaveAttribute('aria-disabled', 'true');
+  await expect(requiredX).toHaveAttribute('title', /(task name|taaknaam)/i);
+  await expect(requiredX.locator('svg')).toBeAttached();
+  const columnCount = await page.locator('[data-rs-column]').count();
+  await page.locator('[data-rs-column="task.name"]').hover();
+  // `force`: Playwright klikt zelf niet op een knop met `aria-disabled`; juist die klik mag niets doen.
+  await requiredX.click({ force: true });
+  await expect(page.locator('[data-rs-column]')).toHaveCount(columnCount);
+  await expect(page.locator('[data-rs-column="task.name"]')).toBeVisible();
+  await addColumn(calendarDays);
   await expect(page.locator('[data-rs-column="task.time.calendarDays"]')).toBeVisible();
-  // Na Enter is de kiezer dicht en staat de focus op "Kolom toevoegen", klaar voor de volgende.
-  await expect(page.locator('[data-rs-picker]')).toHaveCount(0);
+  // Na de keuze is het venster dicht en staat de focus op "Kolom toevoegen", klaar voor de volgende.
+  await expect(chooser).toHaveCount(0);
   await expect(page.locator('[data-rs-add-column]')).toBeFocused();
   await expect(page0.locator('text', { hasText: new RegExp(`^${calendarDays}$`) }).first()).toBeAttached();
   // Bewaard per apparaat, in de volgorde van de lijst.
@@ -105,9 +124,29 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').columns.at(-1)))
     .toBe('task.time.completion');
 
-  // Standaard op Kolommen, daarna A2 in Pagina, dan ongedaan maken: de kolommen komen terug, A2 blijft.
+  // Kolommen overnemen: het tabblad Tabel en de tabel naast de Gantt hebben elk een eigen indeling (check
+  // Ethan 9-11-2026: "die zijn verschillend"). Elke knop heeft zijn eigen Ongedaan maken.
   const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'));
-  await page.locator('[data-rs-reset="columns"]').click();
+  const surfaceIds = (id: 'full-task-grid' | 'gantt-task-grid') => page.evaluate(
+    surface => window.__OPS__!.store.getState().taskGridSurfaces[surface].columns.map(column => String(column.id)), id);
+  const tableIds = await surfaceIds('full-task-grid');
+  const ganttIds = await surfaceIds('gantt-task-grid');
+  expect(tableIds).not.toEqual(ganttIds);
+  const ownColumns = (await saved()).columns;
+  await page.locator('[data-rs-like-grid="table"]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(tableIds);
+  await expect(page.locator('[data-rs-undo]')).toContainText(/(Table tab|tabblad Tabel)/);
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(ownColumns);
+  await page.locator('[data-rs-like-grid="gantt"]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(ganttIds);
+  await expect(page.locator('[data-rs-undo]')).toContainText(/(next to the Gantt|naast de Gantt)/);
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(ownColumns);
+
+  // Herstel standaard in de kop van Kolommen, daarna A2 in Pagina, dan ongedaan maken: de kolommen komen
+  // terug, A2 blijft.
+  await page.locator('[data-rs-step="columns"] [data-rs-reset="columns"]').click();
   await expect(page.locator('[data-rs-column]')).toHaveCount(6);
   await page.locator('[data-rs-step-head="page"]').click();
   await page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A2"]').click();
@@ -120,7 +159,12 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   const zoomPct = async () => Number((await page.locator('[data-rs-zoom="value"]').innerText()).replace(/\D/g, ''));
   await page.locator('[data-rs-zoom="page"]').click();
   const openZoom = await zoomPct();
-  await page.locator('[data-rs-sidebar-toggle]').click();
+  // Inklappen en uitklappen hebben elk hun eigen icoon (check Ethan 9-11-2026).
+  const toggleIcon = () => page.locator('[data-rs-sidebar-toggle] svg').getAttribute('class');
+  const collapseIcon = await toggleIcon();
+  await page.locator('[data-rs-sidebar-toggle="collapse"]').click();
+  await expect(page.locator('[data-rs-sidebar-toggle="expand"]')).toBeVisible();
+  expect(await toggleIcon()).not.toBe(collapseIcon);
   await expect(page.locator('[data-rs-rail-step="columns"]')).toBeVisible();
   await expect(page.locator('[data-rs-export]')).toHaveCount(0);
   const fab = page.locator('[data-rs-fab-export]');
@@ -151,27 +195,52 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-popover]')).toHaveCount(0);
   // Via de stapknop: de focus staat op het eerste bedienelement van de stap, niet op "In de zijbalk".
   await page.locator('[data-rs-rail-step="columns"]').click();
-  await expect(page.locator('[data-rs-popover="columns"] [data-rs-add-column]')).toBeFocused();
-  // Standaard in het zwevende venster, dan Ongedaan maken in de werkbalk: het venster blijft open en de
-  // kolommen komen terug. De melding staat in de werkbalk, niet over een blad.
+  const popover = page.locator('[data-rs-popover="columns"]');
+  await expect(popover.locator('[data-rs-add-column]')).toBeFocused();
+  // Het venster versleep je aan zijn kop (check Ethan 9-11-2026). Het blijft rechts van de rand met de
+  // stapknoppen en boven de exportknop, ook als je het naar linksonder trekt.
+  const popBefore = (await popover.boundingBox())!;
+  const popHead = (await popover.locator('[data-rs-pop-drag]').boundingBox())!;
+  await page.mouse.move(popHead.x + 30, popHead.y + popHead.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(popHead.x + 230, popHead.y + popHead.height / 2 + 40, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await popover.boundingBox())!.x).toBeGreaterThan(popBefore.x + 150);
+  const dragged = (await popover.boundingBox())!;
+  await page.mouse.move(dragged.x + 30, dragged.y + popHead.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(0, 719, { steps: 6 });
+  await page.mouse.up();
+  const railRight = (await page.locator('.rs-sidebar').boundingBox())!;
+  const fabBox = (await fab.boundingBox())!;
+  await expect.poll(async () => (await popover.boundingBox())!.x).toBeGreaterThanOrEqual(railRight.x + railRight.width);
+  const corner = (await popover.boundingBox())!;
+  expect(corner.y + corner.height).toBeLessThanOrEqual(fabBox.y);
+  await expect(popover).toBeVisible();
+  // Herstel standaard in de kop van het zwevende venster, dan Ongedaan maken in de werkbalk: het venster blijft
+  // open en de kolommen komen terug. De melding staat in de werkbalk, niet over een blad.
+  await expect(popover.locator('.rs-pop-head [data-rs-reset="columns"]')).toBeVisible();
   await page.locator('[data-rs-popover="columns"] [data-rs-reset="columns"]').click();
   await expect(page.locator('[data-rs-popover="columns"] [data-rs-column]')).toHaveCount(6);
   await expect(page.locator('[data-rs-toolbar] [data-rs-undo]')).toBeVisible();
   await page.locator('[data-rs-undo-button]').click();
   await expect(page.locator('[data-rs-popover="columns"]')).toBeVisible();
   await expect(page.locator('[data-rs-popover="columns"] [data-rs-column]')).toHaveCount(7);
-  // Het venster groeit (kiezer open) en blijft binnen het scherm; de stapinhoud scrolt erin en de stapvoet
-  // blijft in beeld.
+  // Het kolomvenster opent ook vanuit het zwevende venster. Een klik erin (een categorie openen) sluit het
+  // zwevende venster niet; beide blijven binnen het scherm.
   await page.locator('[data-rs-popover="columns"] [data-rs-add-column]').click();
-  await expect(page.locator('[data-rs-picker-search]')).toBeVisible();
-  await expect.poll(() => page.locator('[data-rs-popover="columns"]').evaluate(el => {
+  await expect(chooser).toBeVisible();
+  await chooser.locator('.task-grid-column-chooser-category').first().click();
+  await expect(chooser).toBeVisible();
+  await expect(popover).toBeVisible();
+  await expect.poll(() => popover.evaluate(el => {
     const r = el.getBoundingClientRect();
     return r.top >= 0 && r.bottom <= window.innerHeight;
   })).toBe(true);
-  await expect(page.locator('[data-rs-step-foot="columns"]')).toBeInViewport({ ratio: 1 });
-  // Escape sluit eerst de kiezer, dan het venster.
+  // Escape sluit eerst het kolomvenster, dan het zwevende venster.
   await page.keyboard.press('Escape');
-  await expect(page.locator('[data-rs-picker-search]')).toHaveCount(0);
+  await expect(chooser).toHaveCount(0);
+  await expect(popover).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-rs-popover]')).toHaveCount(0);
 
@@ -188,9 +257,10 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await fab.click();
   expect((await download).suggestedFilename()).toMatch(/^Rapportstudio-.+\.pdf$/);
 
-  // Uitklappen: de knop in de zijbalk is terug, de zwevende knop weg.
-  await page.locator('[data-rs-sidebar-toggle]').click();
+  // Uitklappen: de knop in de zijbalk is terug, de zwevende knop weg; de knop heeft weer het icoon van inklappen.
+  await page.locator('[data-rs-sidebar-toggle="expand"]').click();
   await expect(page.locator('[data-rs-export]')).toBeVisible();
+  expect(await toggleIcon()).toBe(collapseIcon);
   await expect(fab).toHaveCount(0);
 
   // Een andere bron vernieuwt de opgeslagen instellingen: de host die pas na de start antwoordt (#818),
@@ -204,7 +274,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
     window.dispatchEvent(new StorageEvent('storage', { key: 'ops-reportSettings', oldValue, newValue, storageArea: localStorage, url: location.href }));
   }, patch);
   await page.locator('[data-rs-step-head="columns"]').click();
-  await page.locator('[data-rs-reset="columns"]').click();
+  await page.locator('[data-rs-step="columns"] [data-rs-reset="columns"]').click();
   await expect(page.locator('[data-rs-column]')).toHaveCount(6);
   await page.locator('[data-rs-step-head="page"]').click();
   await page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A3"]').click();
@@ -277,7 +347,9 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   const reportTypePicker = page.getByLabel(/^(Report type|Rapporttype)$/).first();
   const toOtherReportAndBack = async () => {
     await reportTypePicker.click();
-    await page.getByRole('option', { name: /(Milestone overview|Mijlpalen-overzicht)$/ }).click();
+    // De andere rapporten staan met hun eigen naam, zonder "Ander rapport:" ervoor (check Ethan 9-11-2026).
+    await expect(page.getByRole('option', { name: /^(Other report|Ander rapport)/ })).toHaveCount(0);
+    await page.getByRole('option', { name: /^(Milestone overview|Mijlpalen-overzicht)$/ }).click();
     await expect(studio).toHaveCount(0);
     await reportTypePicker.click();
     await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
@@ -384,11 +456,8 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   // en Afhankelijkheden uit. De layout "Korte tabel" heeft drie kolommen, relatielijnen aan, speling uit, een
   // basislijn en een voortgangslijn.
   await page.locator('[data-rs-step-head="columns"]').click();
-  await page.locator('[data-rs-reset="columns"]').click();
-  await page.locator('[data-rs-add-column]').click();
-  await page.keyboard.type(calendarDays);
-  await expect(page.locator('[data-rs-pick]').first()).toBeVisible();
-  await page.keyboard.press('Enter');
+  await page.locator('[data-rs-step="columns"] [data-rs-reset="columns"]').click();
+  await addColumn(calendarDays);
   await expect(page.locator('[data-rs-column]')).toHaveCount(7);
   await page.locator('[data-rs-step-head="bars"]').click();
   await page.locator('[data-rs-switch="showDeps"]').click();

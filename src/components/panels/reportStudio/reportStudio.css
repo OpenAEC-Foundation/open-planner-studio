@@ -1,8 +1,8 @@
 /* Het nieuwe Rapport-tabblad (feature flag `reportRedesign`, issue #817): zijbalk met stappen links,
    het interactieve papier rechts. Alleen themavariabelen en de zes tekstrollen; het papier zelf blijft
    wit in elk thema. De bediening gebruikt de onderdelen van de app (#817, ronde 5): `.btn`, `.input`,
-   `Select`, het app-vinkje, `.ops-note`, `.ops-textlink`, `.ui-card-header`, `.ui-pop`, `.ops-toast` en de
-   opties van `Select` in de kolomkiezer. "Actief" is overal het effen accent van het lint (`--theme-active`).
+   `Select`, het app-vinkje, `.ops-note`, `.ops-textlink`, `.ui-card-header`, `.ui-pop`, `.ops-toast` en het
+   kolomvenster van de tabel (`ColumnChooser`). "Actief" is overal het effen accent van het lint (`--theme-active`).
    Wat hier staat, is de indeling van het tabblad en wat de app niet heeft (stappen, segmenten, papier). */
 
 .rs-root {
@@ -78,8 +78,9 @@
 }
 
 /* Alle stapkoppen blijven in beeld: een dichte stap houdt zijn hoogte, de open stap krimpt tot de ruimte
-   die over is. Alleen zijn inhoud scrolt; de voet (Standaard, Verder) staat eronder en blijft in beeld. */
+   die over is. Alleen zijn inhoud scrolt; de kop met "Herstel standaard" blijft in beeld. */
 .rs-step {
+  position: relative;
   flex: none;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
@@ -223,34 +224,21 @@
 }
 .rs-pop .rs-step-body { padding: 12px 14px 10px; }
 
-.rs-step-foot {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 3px 12px 4px;
-  border-top: 1px solid var(--theme-border);
+/* "Herstel standaard" in de kop van de open stap: links van de punthaak, buiten de knop van de kop (een
+   knop in een knop kan niet). De titel houdt er ruimte voor. In het zwevende venster staat hij gewoon in de kop. */
+.rs-step > .rs-step-reset {
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 32px;
+  width: 24px;
+  height: 24px;
 }
-.rs-pop .rs-step-foot { padding: 6px 14px 8px; }
+.rs-step[data-open='true'] .rs-step-text { padding-inline-end: 30px; }
+.rs-pop-head .rs-step-reset { width: 24px; height: 24px; }
 
-/* `.ops-textlink` van de app ("Standaard", acties in een melding): uitgeschakeld zonder streep. */
+/* `.ops-textlink` van de app (acties in een melding): uitgeschakeld zonder streep. */
 .rs-root .ops-textlink:disabled,
 .rs-pop .ops-textlink:disabled { opacity: 0.45; text-decoration: none; }
-
-.rs-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-body);
-  line-height: 16px;
-  color: var(--theme-text-dim);
-  background: transparent;
-  padding: 4px 6px;
-  border-radius: var(--radius-sm);
-}
-.rs-next:hover { background: var(--theme-hover); color: var(--theme-text); }
-.rs-next:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 
 /* Groepjes binnen een stap */
 .rs-group { display: flex; flex-direction: column; gap: 4px; }
@@ -405,48 +393,24 @@
 }
 .rs-grip { color: var(--theme-text-muted); cursor: grab; display: inline-flex; }
 .rs-col-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* De kolomstap: knoppen boven de lijst, de toetsen als vaste regel eronder (dekt niets af). */
+/* De kolomstap: "Kolom toevoegen" (het kolomvenster van de tabel) en de twee knoppen om kolommen over te
+   nemen boven de lijst, de toetsen als vaste regel eronder (dekt niets af). */
 .rs-cols-editor { display: flex; flex-direction: column; gap: 6px; }
+.rs-add-anchor { display: flex; }
+.rs-add-anchor .rs-add { flex: 1 1 auto; min-width: 0; }
+.rs-cols-copy { display: flex; flex-direction: column; gap: 4px; }
 .rs-cols-tools { display: flex; flex-wrap: wrap; gap: 6px; }
-.rs-cols-tools .rs-add { flex: 1 1 auto; width: auto; min-width: 0; }
+.rs-cols-tools .btn { flex: 1 1 0; min-width: max-content; }
 .rs-cols-hint { margin-top: -2px; }
 .rs-col-name small { color: var(--theme-text-muted); font-size: var(--text-small); margin-inline-start: 6px; }
 .rs-col-actions { display: inline-flex; align-items: center; gap: 0; }
 .rs-col-actions .rs-icon-btn { width: 24px; height: 24px; }
+/* Het kruisje van de verplichte taaknaam: uitgeschakeld en grijs, met de uitleg als tooltip. */
+.rs-icon-btn[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
+.rs-icon-btn[aria-disabled='true']:hover { background: transparent; color: var(--theme-text-dim); }
 .rs-col:not(:hover):not(:focus-within):not([data-focus='true']) .rs-col-actions .rs-icon-btn[data-reveal] { opacity: 0; }
 
 .rs-add { justify-content: flex-start; }
-
-/* Kolomkiezer: het menu van `Select` (`.ops-select__menu`), met dezelfde opties (`.ops-select__option`). */
-.rs-picker {
-  border: 1px solid var(--theme-border);
-  border-radius: var(--radius-md);
-  background: var(--theme-dropdown-bg);
-  box-shadow: var(--shadow-pop);
-  overflow: hidden;
-}
-.rs-picker-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--theme-border);
-  color: var(--theme-text-muted);
-}
-.rs-picker-search input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--theme-text);
-  font-size: var(--text-body);
-  line-height: 18px;
-}
-.rs-picker-list { max-height: 248px; overflow-y: auto; padding: 4px; }
-.rs-picker-cat { padding: 8px 6px 3px; }
-.rs-picker-item { width: 100%; min-height: 28px; text-align: start; }
-.rs-picker-empty { padding: 10px; font-size: var(--text-small); color: var(--theme-text-dim); }
 
 /* Bezig met exporteren (de knoppen zijn `.btn--primary`). */
 .rs-root .btn[aria-busy='true'] { opacity: 0.85; cursor: progress; }
@@ -507,11 +471,16 @@
   color: var(--theme-text-muted);
   font-variant-numeric: tabular-nums;
 }
+/* Hooguit twee regels, zodat een lange stapnaam ("Taken en groepering") heel blijft. */
 .rs-rail-label {
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: var(--text-caption);
   line-height: 12px;
 }
@@ -551,7 +520,12 @@
   gap: 10px;
   padding: 10px 10px 8px 14px;
   border-bottom: 1px solid var(--theme-border);
+  /* Aan de kop versleep je het venster (`StepPopover`); de knoppen erin houden hun eigen wijzer. */
+  cursor: move;
+  user-select: none;
+  touch-action: none;
 }
+.rs-pop-head button { cursor: pointer; }
 .rs-pop-scroll { flex: 0 1 auto; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
 
 /* ---- Papier ------------------------------------------------------------------------------------ */
@@ -798,7 +772,8 @@
 /* Label en bediening op één regel (balkkleuren, tijdlijn over, auteur). */
 .rs-field-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .rs-field-row > .rs-field-label { flex: none; }
-.rs-range input[type='range'] { flex: 1; min-width: 0; accent-color: var(--theme-accent); }
+/* Het schuifje zelf heeft de stijl van alle schuifjes in de app (`input[type="range"]` in globals.css). */
+.rs-range input[type='range'] { flex: 1; min-width: 0; }
 .rs-range output { min-width: 44px; white-space: nowrap; text-align: end; font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--theme-text-dim); }
 .rs-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--theme-border); border-radius: var(--radius-md); background: var(--theme-surface); padding: 2px; }
 .rs-stepper output { min-width: 64px; text-align: center; font-size: var(--text-body); line-height: 16px; font-variant-numeric: tabular-nums; }
@@ -828,7 +803,8 @@
   background-position: 0 0;
 }
 
-/* Zijbalkknop: het B2-paneelicoon gespiegeld, want de zijbalk staat links (in rtl rechts, dus niet gespiegeld). */
+/* Zijbalk inklappen met B2: het paneelicoon gespiegeld, want de zijbalk staat links (in rtl rechts, dus niet
+   gespiegeld). Zonder B2 tekent de knop `PanelLeftClose`, uitklappen `PanelLeftOpen` (`ops-icon-inline-flip`). */
 .rs-panel-icon { transform: scaleX(-1); }
 [dir='rtl'] .rs-panel-icon { transform: none; }
 

@@ -3,7 +3,7 @@
 
 import { taskColumnLabel } from '@/engine/taskGrid/taskColumnRegistry';
 import { taskGridCellText, type TaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
-import type { TaskColumnCategory, TaskColumnDescriptor, TaskColumnId } from '@/types/taskGrid';
+import type { TaskColumnDescriptor, TaskColumnId } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { BuiltinPrintColumnKey, PrintTableColumn } from '@/services/print/printPreview';
 import { REPORT_DEFAULT_COLUMNS, REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN } from '@/utils/reportSettings';
@@ -136,8 +136,9 @@ export function placeReportColumn(ids: readonly string[], id: string, to: number
 }
 
 /**
- * "Zoals de tabel": de zichtbare kolommen van het taakraster naast de Gantt, in die volgorde. Alleen
- * kolommen die in dit project bestaan; de taaknaam komt vooraan als het raster hem verbergt.
+ * Kolommen overnemen van een tabel (het tabblad Tabel, de tabel naast de Gantt of een layout): de zichtbare
+ * kolommen in die volgorde. Alleen kolommen die in dit project bestaan; de taaknaam komt vooraan als die
+ * tabel hem verbergt.
  */
 export function reportColumnsFromGrid(gridColumnIds: readonly string[], available: ReadonlySet<string>): string[] {
   const ids: string[] = [];
@@ -153,8 +154,3 @@ export function reportColumnsFromGrid(gridColumnIds: readonly string[], availabl
 export function isDefaultReportColumns(ids: readonly string[]): boolean {
   return ids.length === REPORT_DEFAULT_COLUMNS.length && ids.every((id, i) => id === REPORT_DEFAULT_COLUMNS[i]);
 }
-
-/** De categorieën in de kolomkiezer, in de volgorde van het raster; technische kolommen achteraan. */
-export const REPORT_PICKER_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
-  'task', 'planning', 'progress', 'computed', 'constraints', 'resources', 'relations', 'baseline', 'custom', 'technical',
-];

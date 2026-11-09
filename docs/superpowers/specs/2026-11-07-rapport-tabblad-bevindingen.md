@@ -649,9 +649,9 @@ de toetsen en de `data-rs-*`-haken bleven gelijk. Ethan beoordeelt de tabel bij 
 
 | onderdeel | was | wordt | waarom |
 |---|---|---|---|
-| knop ("Nu doorrekenen", "Zoals de tabel", "Kolom toevoegen") | `.rs-btn`; "Kolom toevoegen" met een stippelrand | `.btn .btn--secondary .btn--sm` | de kleine knoppen van de layoutdialoog ("+ regel") en het eigenschappenpaneel |
+| knop ("Nu doorrekenen", "Tabblad Tabel" en "Tabel naast de Gantt" (vroeger één knop "Zoals de tabel"), "Kolom toevoegen") | `.rs-btn`; "Kolom toevoegen" met een stippelrand | `.btn .btn--secondary .btn--sm` | de kleine knoppen van de layoutdialoog ("+ regel") en het eigenschappenpaneel |
 | hoofdknop "PDF exporteren" | `.rs-primary` | `.btn .btn--primary`, volle breedte | de hoofdknop van een dialoog ("Opslaan") |
-| tekstlink ("Standaard", acties in een melding, "In de zijbalk") | `.rs-link`, oranje | `.ops-textlink`: onderstreept, in de kleur van de plek | "Lees meer" in een toast en in het paneel |
+| tekstlink (acties in een melding, "In de zijbalk"; "Standaard" werd na de check van Ethan een icoonknop in de stapkop) | `.rs-link`, oranje | `.ops-textlink`: onderstreept, in de kleur van de plek | "Lees meer" in een toast en in het paneel |
 | keuzelijst | `Select` met een eigen opvulling (`.rs-select`) | `Select`, dicht met `!py-1.5 !px-2.5`; ook de periode onder *Per resource* (`ReportingPeriodField` kreeg `compact`; het oude paneel blijft gelijk) | zoals de velden in het eigenschappenpaneel (`.input !px-2.5`) |
 | invoerveld (Bedrijf, datum bij de statuslijn, de periode bij *Aangepast*) | `.rs-input`; het datumveld had geen rand (`DateTextInput` verwacht `.input` van de plek); de periode had het datumveld van de browser | `.input !text-small !leading-4 !px-2.5 !py-1.5`, precies het veld van het eigenschappenpaneel; elke datum is `DateTextInput` (fixronde na council ronde 5) | idem; één soort datumveld in het tabblad |
 | schakelaar | eigen schuifje (`role="switch"`) | het vinkje van de app (`input[type=checkbox]`, `globals.css`) in een regel zoals `.settings-checkbox-row` | de app heeft nergens schuifjes; Instellingen, de layoutdialoog en het paneel gebruiken vinkjes |
@@ -664,10 +664,11 @@ de toetsen en de `data-rs-*`-haken bleven gelijk. Ethan beoordeelt de tabel bij 
 | balk boven het papier (niet doorgerekend, fout) | eigen gekleurde balk | `.ops-note` over de volle breedte | idem |
 | "Ongedaan maken" | zwarte pil | `.ops-toast.toast-info`, klein in de werkbalk, met `.ops-textlink` | de melding van het meldingskanaal |
 | zwevend venster | eigen: `--theme-surface`, `--radius-lg`, inzoomen | de popover van de app (`Popover`: `--theme-dropdown-bg`, rand, `--radius-md`) plus `.ui-pop` | het layoutmenu en de lijst van `Select` |
-| kolomkiezer | eigen lijst | het menu van `Select` (`--theme-dropdown-bg`, `--shadow-pop`); de opties zijn `.ops-select__option` met `is-highlighted` | dezelfde soort lijst als een keuzelijst |
+| kolomkiezer | eigen lijst | eerst het menu van `Select`; na de check van Ethan (9 november) het kolomvenster van de tabel zelf (`ColumnChooser`) | "dezelfde dialog als in het tabel tab" |
 | zwevende knop | eigen pil | `.btn .btn--primary`; alleen plaats, hoogte (40 px) en schaduw eigen | de plaats en de hoogte bepalen de vrije strook onder het papier (`FAB_RESERVE`) |
 | werkbalk boven het papier | eigen | blijft eigen; randen `--theme-border` | de app heeft geen werkbalk boven een werkvlak |
-| zoomknoppen, "Hele blad", "Breedte" | eigen; actief = zachte tint met een accentrand | de knoppen blijven; actief = `--theme-active` | de actieve lintknop |
+| zoomknoppen, "Hele blad", "Breedte" | eigen; actief = zachte tint met een accentrand | de knoppen blijven; actief = `--theme-active`; de iconen `view.zoom-in`/`-out` zoals in het lint, sinds de check van Ethan ook op 14 px | de actieve lintknop |
+| schuifje (breedte van de naamkolom, breedte per dag) | de tekening van de browser met `accent-color` | na de check van Ethan één stijl voor alle schuifjes in de app (`input[type="range"]` in `globals.css`): smalle baan zonder rand, effen accentknop | de browser zette in donker een lichte rand om de hele baan, ook om het oranje |
 | randknoppen (ingeklapt) | eigen; actief = zachte tint | indeling als een kleine lintknop; actief = `--theme-active` met `--theme-accent-on`; de stip wordt daar de tekstkleur | idem |
 | papiervlak (achter de bladen) | stippenraster | `--theme-bg`, effen (fixronde na council ronde 5) | de achtergrond van een gewoon werkvlak; de app heeft nergens een raster |
 | kolomrij, sleepgreep, papier, gebieden, paginakop | eigen | blijft eigen | de app heeft hier niets voor; het papier is wit in elk thema |
@@ -856,3 +857,79 @@ implementatie-subagent (Claude Opus 5.5) op `e6ffca7e2`. Bewijsbestanden (lokaal
    papier, de layout ongewijzigd bewaard) en drie gevallen in `check-report-layouts.ts`. Rood zonder de melding.
 
 Nieuwe knownbugs uit council ronde 6 en eerdere rapporten: 997, 999, 1000, 1001 en 1002 (`knownbugs.md`).
+
+## Check Ethan 9 november 2026
+
+Ethan bekeek het tabblad zelf (Engels, donker, Zuidas-voorbeeld). Zijn opmerkingen zijn opdrachten van de
+eigenaar; waar een eerder besluit hierboven iets anders zei, geldt dit. Gebouwd door de implementatie-subagent
+(Claude Opus 5.5) op `4cbd1dab3`. Schermafbeeldingen: `qa/817-rapport/r8-ethan/`.
+
+1. **Keuzelijst Rapporttype.** Ethan: "waarom heten die andere dingen other report? echt raar". De lijst toont nu
+   de naam van elk rapport ("Mijlpalen-overzicht", "Variance", …), met *Gantt-afdruk* bovenaan. De sleutel
+   `studio.otherReport` is weg; de Help zegt "met hun naam in de keuzelijst *Rapporttype*". Andere plekken met
+   "Ander rapport" waren er niet.
+2. **Zwevend venster.** Ethan: "ik wil deze kunnen draggen". De kop van het venster (`.rs-pop-head`) versleept het,
+   met dezelfde aanpak als het gidspaneel (`GuidePanel`: drempel van 4 px, pointer capture, een druk op een knop
+   blijft een klik). De app heeft geen gedeelde sleephulp: `Dialog` sleept niet en `GuidePanel` heeft de code in
+   het onderdeel zelf. Het venster blijft binnen het werkvlak (`workArea` in `studioChrome.tsx`: het tabblad zonder
+   de zijbalk) en boven de exportknop (knownbug 947). Ook de eerste plek gebruikt nu dat werkvlak in plaats van het
+   hele scherm. Een nieuwe plek (een andere stap, een klik op het papier) zet het venster weer naast dat deel.
+3. **Knop zijbalk in- en uitklappen.** Ethan: "waarom blijft dit hetzelfde icoon". Inklappen toont `PanelLeftClose`,
+   uitklappen `PanelLeftOpen` (beide als oude Lucide-vorm toegevoegd aan `LUCIDE_SHAPES`), in rtl gespiegeld
+   (`ops-icon-inline-flip`). Met de B2-iconen: inklappen het gespiegelde paneelicoon (`panel.right`), uitklappen de
+   punthaak `tree.expand`; B2 heeft geen paneelicoon met een richting.
+4. **Kolom toevoegen.** Ethan: "onder add column moet gewoon dezelfde dialog zijn als in het tabel tab enzo". De
+   eigen kiezer (`ColumnPicker`, `.rs-picker`) is weg. *Kolom toevoegen* opent nu `ColumnChooser`, het venster van
+   de tabel (zoeken, *Laatst gebruikt*, categorieën, *Herstel standaard*). `ColumnChooser` kreeg één prop,
+   `trigger`: een knop met tekst en een eigen omhulling in plaats van het plusje in de tabelkop. Zonder die prop is
+   alles zoals in de tabel (`table-column-controls.spec.ts` groen). De taaknaam staat in het venster aangevinkt en
+   uit, net als elke kolom die al in het rapport staat. *Herstel standaard* onderaan het venster zet alleen de
+   kolommen terug, met *Ongedaan maken*. Een klik in het venster sluit het zwevende venster niet.
+5. **Kolommen overnemen.** Ethan: "dit is misleidend, er moeten twee knoppen zijn, je hebt namelijk de indeling uit
+   de tabel tab en naast de gantt en die zijn verschillend". Onder *Kolommen overnemen van* staan nu *Tabblad Tabel*
+   (`taskGridSurfaces['full-task-grid']`) en *Tabel naast de Gantt* (`taskGridSurfaces['gantt-task-grid']`). Elke
+   knop zet de kolommen met een eigen *Ongedaan maken* (`applyWithUndo`, melding "Kolommen van het tabblad Tabel
+   overgenomen."). De oude knop had geen *Ongedaan maken*; dat is er nu bij.
+6. **Voetbalk van een stap.** Ethan: "deze balk mag weg". *Standaard* en *Verder: …* zijn weg uit alle stappen en uit
+   het zwevende venster. De pijltjes in de stapkoppen en een klik op een kop blijven de weg naar de volgende stap.
+7. **Terug naar standaard.** Ethan: "reset to default moet hier ergens". In de kop van de open stap staat links van
+   de punthaak een icoonknop *Herstel standaard* (het icoon en de tekst van *Herstel standaard* in het kolomvenster
+   van de tabel). In het zwevende venster staat hij in de kop van het venster. Dezelfde actie als de oude voetbalk,
+   met *Ongedaan maken* in de werkbalk; uit als de stap al op de standaard staat.
+8. **Verplichte taaknaam in de kolomlijst.** Ethan: "dit moet een uitgegrijst kruisje zijn." Op die plek staat nu het
+   kruisje van de andere rijen, grijs en uitgeschakeld (`aria-disabled`, zodat de tooltip "De taaknaam staat altijd
+   in het rapport" nog verschijnt). Een klik doet niets.
+9. **Schuifje naamkolombreedte.** Ethan: "waarom zit de witte rand ook om het oranje heen, dat ziet er vreemd uit".
+   De andere schuifjes van de app (voltooiing in het eigenschappenpaneel, het oude rapportpaneel) hadden dezelfde
+   tekening van de browser, met dezelfde rand. **Besluit (bouwer):** één stijl voor alle schuifjes in de app, net
+   als de vinkjes (`globals.css`, na het vinkjesblok): een baan van 4 px in `--theme-control-border` zonder rand,
+   een effen knop in `--theme-accent`, focus- en hoverring zoals het vinkje. Geen gevuld deel: Chromium en WebKit
+   hebben daar geen eigen onderdeel voor. Alternatief was alleen het tabblad een eigen schuifje geven; dan wijkt het
+   tabblad juist af van de rest. Beide schuifjes in het tabblad (naamkolom, breedte per dag) volgen dezelfde stijl.
+10. **Naam van stap 1.** Ethan: "hernoem naar tasks and grouping". Nl *Taken en groepering*, en *Tasks and grouping*,
+    ook in de rail, de samenvattingen, de melding na *Herstel standaard*, de tekst bij Eenh./d en Curve en de Help
+    (nl + en, vier artikelen). De labels in de rail mogen nu twee regels hebben. Op het papier heeft stap 1 geen
+    eigen deel, dus daar was geen label te veranderen.
+11. **Zoomknoppen.** Ethan: "waarom worden voor in en uitzoomen niet dezelfde icoontjes als in de rest van de app
+    gebruikt?". Het tabblad gebruikte al dezelfde iconen als het lint Beeld (`view.zoom-in`/`view.zoom-out`, Lucide
+    `ZoomIn`/`ZoomOut`). Het verschil was de maat: het lint tekent ze zonder B2 op 14 px, het tabblad op 16 px. Nu
+    ook 14 px (`lucide={{ size: 14 }}`). Andere zoomiconen heeft de app niet; als Ethan iets anders bedoelt, is dat
+    een vraag voor de volgende check.
+12. **Tekst bij Zoals de weergave.** Ethan: "of your current gantt chart, screen is veel te vaag". Nu "Met het filter,
+    de groepering, de sortering en de ingeklapte groepen van je huidige Gantt-diagram." (en: "… of your current Gantt
+    chart."). Hetzelfde vage "scherm" stond ook in de uitleg bij een layout ("Het scherm verandert niet"), bij andere
+    balkkleuren van een layout en bij *Balkkleuren*: daar staat nu "je Gantt-diagram" / "your Gantt chart".
+
+**Niet in deze ronde:** de opmerking "wat de fuck" bij de ingeklapte zijbalk (het knopje uitklappen, het bolletje
+voor "N pagina's"). Wat Ethan daar bedoelt, vraagt de orkestrator hem nog; alleen het icoon (punt 3) veranderde.
+
+**Bewijs.** `tests/browser/report-studio.spec.ts`, eerste blok uitgebreid: het uitgeschakelde kruisje van de
+taaknaam; *Kolom toevoegen* via het kolomvenster (zoeken, klikken, focus terug); beide knoppen *Kolommen overnemen*
+met hun eigen *Ongedaan maken* en de kolommen van de juiste tabel; *Herstel standaard* in de stapkop en in het
+zwevende venster; geen voetbalk; een ander icoon na inklappen en weer het eerste na uitklappen; het zwevende venster
+verslepen en naar linksonder trekken (blijft rechts van de rand en boven de exportknop); een klik in het
+kolomvenster sluit het zwevende venster niet, Escape sluit eerst het kolomvenster; geen "Other report" in de
+keuzelijst. Rood bij een mutatie (kopie in de scratchpad, met `cp` teruggezet): zonder de sleephandler faalt de
+stap "venster verslepen". Groen: `report-studio.spec.ts`, `resource-gantt-report.spec.ts`,
+`table-column-controls.spec.ts`, `check-report-layouts.ts`, `check-report-columns.ts`, `check-report-svg.ts`,
+`check-icon-family.ts`, `typecheck`, `lint:fast`, `verify:i18n`, `verify:docs`, `verify:text-roles`.

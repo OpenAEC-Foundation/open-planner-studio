@@ -80,7 +80,7 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 
 Dezelfde balken als de Gantt-afdruk, gegroepeerd per resource: wie doet wat en wanneer. Het blok *Overzicht* telt *Resources:*, *Toewijzingen:* en *Zonder resource:* (bij een periode ook *Buiten de periode:*). Het diagram deelt alle opties van de Gantt-afdruk, behalve *Volg weergave (filter, groepering, sortering)*, *Kritiek pad* en *Afhankelijkheden*: de rijen komen niet van het scherm, een taak kan onder meerdere resources staan, en de relaties worden er niet getekend. Het vinkje *Kritiek pad* is er verborgen en staat aan. Dit komt bij de opties van de Gantt-afdruk onder *Instellingen*, met deze vier vinkjes en de periode:
 
-Met het nieuwe tabblad Rapport is het Resourcediagram geen eigen rapport meer, maar een layout in de stap *Taken* van de Gantt-afdruk. De vier vinkjes en de periode staan daar onder *Per resource*. De kolommen *Eenh./d* en *Curve* zet je daar aan of uit; ze staan niet in de stap *Kolommen*. Zie [Het nieuwe tabblad Rapport](docs://howto-rapport-maken-en-afdrukken#het-nieuwe-tabblad-rapport-experimenteel).
+Met het nieuwe tabblad Rapport is het Resourcediagram geen eigen rapport meer, maar een layout in de stap *Taken en groepering* van de Gantt-afdruk. De vier vinkjes en de periode staan daar onder *Per resource*. De kolommen *Eenh./d* en *Curve* zet je daar aan of uit; ze staan niet in de stap *Kolommen*. Zie [Het nieuwe tabblad Rapport](docs://howto-rapport-maken-en-afdrukken#het-nieuwe-tabblad-rapport-experimenteel).
 
 **Elke resource op een nieuwe pagina** — Standaard: uit. Effect: elke resource begint op een nieuwe pagina, zodat je een blad per ploeg of medewerker kunt uitdelen. Uit geeft één doorlopend document.
 

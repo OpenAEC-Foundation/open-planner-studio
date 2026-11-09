@@ -31,7 +31,7 @@ import {
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
-import { StepHead, StepPopover, UndoToast } from './studioChrome';
+import { StepHead, StepPopover, StepReset, UndoToast } from './studioChrome';
 import { fieldsAreDefault, useStudioSettings, type StudioSettingKey } from './useStudioSettings';
 import { useStudioPrintOptions, type StudioFont } from './useStudioPrintOptions';
 import type { StudioRowSource } from './studioRowSource';
@@ -46,10 +46,11 @@ import { ReportingPeriodField, useResolvedPeriod } from '@/components/panels/rep
 import { useResourceTypeLabels } from '@/components/panels/reports/useResourceGanttLabels';
 import type { ResourceGanttReportOptions } from '@/utils/reportSettings';
 import { useReportColumnDomain } from './useReportColumnDomain';
-import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, reportColumnsNeedBuild, resolveReportColumns } from './reportColumns';
+import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, reportColumnsFromGrid, reportColumnsNeedBuild, resolveReportColumns } from './reportColumns';
 import type { PaperPick, PaperTarget } from './ReportPaperView';
 import { samePaperInfo, StudioPaper, type PaperInfo } from './StudioPaper';
-import { ColumnsEditor } from './ColumnsEditor';
+import { ColumnsEditor, type ReportColumnsSource } from './ColumnsEditor';
+import type { ColumnChooserLabels } from '@/components/task-grid/ColumnChooser';
 import { markReportInput } from './studioPerf';
 import './reportStudio.css';
 
@@ -82,7 +83,7 @@ const daySliderPos = (px: number) => Math.round(
 );
 const daySliderValue = (pos: number) => REPORT_MIN_DAY_WIDTH * (REPORT_MAX_ZOOM / REPORT_MIN_DAY_WIDTH) ** (pos / DAY_SLIDER_STEPS);
 
-/** Welke velden "Standaard" per stap terugzet. */
+/** Welke velden "Herstel standaard" per stap terugzet. */
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
   // De keuze (alle taken, weergave of layout; `reportType: 'resourceGantt'` hoort bij de layout
   // Resourcediagram) en de opties van het Resourcediagram.
@@ -149,7 +150,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const setStatusDate = useAppStore(s => s.setStatusDate);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const setOverlays = useAppStore(s => s.setOverlays);
-  const gridColumns = useAppStore(s => s.taskGridSurfaces['gantt-task-grid'].columns);
+  // De twee tabellen van de app, elk met een eigen kolomindeling: het tabblad Tabel en de tabel naast de Gantt
+  // (check Ethan 9-11-2026: "die zijn verschillend").
+  const tableGridColumns = useAppStore(s => s.taskGridSurfaces['full-task-grid'].columns);
+  const ganttGridColumns = useAppStore(s => s.taskGridSurfaces['gantt-task-grid'].columns);
+  const recentTaskColumns = useAppStore(s => s.recentTaskColumns);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
@@ -212,11 +217,17 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     [],
   );
   const paperKeyToId = useCallback((key: string) => builtinToId.get(key) ?? key, [builtinToId]);
-  const gridIds = useMemo(() => gridColumns.map(column => String(column.id)), [gridColumns]);
-  const categoryLabel = useCallback(
-    (category: TaskColumnCategory) => tTask(`taskGrid.category.${category}`, { defaultValue: category }),
-    [tTask],
-  );
+  // Het kolomvenster van de tabel, met dezelfde teksten als daar (`FullTaskGrid`).
+  const chooserLabels = useMemo<ColumnChooserLabels>(() => ({
+    addColumn: tTask('table.addColumn'),
+    title: tTask('table.chooseColumn'),
+    recent: tTask('table.recentColumns'),
+    search: tTask('taskGrid.controls.search'),
+    searchResults: tTask('taskGrid.controls.searchResults'),
+    noSearchResults: tTask('taskGrid.controls.noResults'),
+    category: (category: TaskColumnCategory) => tTask(`taskGrid.category.${category}`, { defaultValue: category }),
+    resetDefault: tCommon('view.columns.resetDefault'),
+  }), [tTask, tCommon]);
 
   // ---- Taken: alle taken, zoals de weergave, of een layout (#861) -----------------------------------
   const { layouts, loaded: layoutsLoaded } = useReportLayouts();
@@ -297,6 +308,15 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     patch({ resourceGantt: { ...resourceOptions, ...next } }, input);
   }, [patch, resourceOptions]);
 
+  // Kolommen overnemen van het tabblad Tabel of van de tabel naast de Gantt, elk met een eigen "Ongedaan
+  // maken" (check Ethan 9-11-2026). Alleen kolommen die dit project kent; de taaknaam komt vooraan als die
+  // tabel hem verbergt.
+  const copyColumns = useCallback((from: ReportColumnsSource) => {
+    const grid = from === 'table' ? tableGridColumns : ganttGridColumns;
+    const columns = reportColumnsFromGrid(grid.map(column => String(column.id)), availableColumnIds);
+    applyWithUndo('columns', { columns }, () => t(from === 'table' ? 'studio.columns.copiedTable' : 'studio.columns.copiedGantt'), `columns:${from}`);
+  }, [tableGridColumns, ganttGridColumns, availableColumnIds, applyWithUndo, t]);
+
   // ---- Papier ---------------------------------------------------------------------------------------
   const options = useStudioPrintOptions(settings, companyName, resolved.columns, hydrated ? loadedFont : null, rowSource);
   const paperMetrics = loadedFont?.metrics ?? null;
@@ -346,7 +366,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     }
   }, [rail, paperKeyToId, remember, setOpenStep]);
 
-  // Een stap openen via de kop, "Verder" of een stapknop: de kolom van een eerdere klik op het papier krijgt
+  // Een stap openen via de kop of een stapknop: de kolom van een eerdere klik op het papier krijgt
   // dan geen focus meer (die nam de focus weg van de kop of van het eerste bedienelement).
   const openStepDirect = useCallback((step: StudioStepId | null) => {
     setFocusColumn(null);
@@ -756,11 +776,13 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               ids={settings.columns}
               onChange={(ids, input) => patch({ columns: ids }, input)}
               available={domain.availableColumns}
-              gridIds={gridIds}
+              recentIds={recentTaskColumns}
+              chooserLabels={chooserLabels}
+              onCopy={copyColumns}
+              onReset={() => api.resetFields('columns', ['columns'], t('studio.steps.columns'))}
               focusId={focusColumn?.id ?? null}
               key={focusColumn?.seq ?? 0}
               labelFor={labelForId}
-              categoryLabel={categoryLabel}
             />
             {assignmentColumnsShown && (
               <p className="rs-hint" data-rs-assignment-columns-hint>
@@ -1040,43 +1062,31 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     }
   };
 
-  /** Standaard en Verder: onder de inhoud, buiten het scrollvak, dus altijd in beeld. */
-  const stepFooter = (step: StudioStepId, inPopover: boolean) => {
+  /** "Herstel standaard" voor één stap: in de kop van de open stap en van het zwevende venster. */
+  const stepReset = (step: StudioStepId) => {
     const keys = STEP_KEYS[step];
     const isDefault = step === 'columns'
       ? isDefaultReportColumns(settings.columns) && fieldsAreDefault(settings, ['truncateTaskNames', 'taskNameColumnWidth'])
       : step === 'headerFooter'
         ? fieldsAreDefault(settings, keys) && companyName === (project.company || '')
         : fieldsAreDefault(settings, keys);
-    const index = STEP_ORDER.indexOf(step);
-    const next = STEP_ORDER[index + 1];
     return (
-      <div className="rs-step-foot" data-rs-step-foot={step}>
-        <button
-          type="button"
-          className="ops-textlink"
-          disabled={isDefault}
-          onClick={() => {
-            const label = t(`studio.steps.${step}`);
-            if (step === 'headerFooter') {
-              // De bedrijfsnaam hoort bij deze stap: ongedaan maken zet ook hem terug.
-              const before = companyName;
-              api.resetFields(step, keys, label, () => setCompanyName(before));
-              setCompanyName(project.company || '');
-            } else {
-              api.resetFields(step, keys, label);
-            }
-          }}
-          data-rs-reset={step}
-        >
-          {t('studio.reset')}
-        </button>
-        {!inPopover && next && (
-          <button type="button" className="rs-next" onClick={() => { markReportInput('step'); openStepDirect(next); headRefs.current.get(next)?.focus(); }}>
-            {t('studio.next', { step: t(`studio.steps.${next}`) })}
-          </button>
-        )}
-      </div>
+      <StepReset
+        step={step}
+        label={t('studio.resetStep')}
+        disabled={isDefault}
+        onReset={() => {
+          const label = t(`studio.steps.${step}`);
+          if (step === 'headerFooter') {
+            // De bedrijfsnaam hoort bij deze stap: ongedaan maken zet ook hem terug.
+            const before = companyName;
+            api.resetFields(step, keys, label, () => setCompanyName(before));
+            setCompanyName(project.company || '');
+          } else {
+            api.resetFields(step, keys, label);
+          }
+        }}
+      />
     );
   };
 
@@ -1112,10 +1122,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       }}
       options={[
         { value: 'gantt', label: t('reportType.gantt') },
-        // Het Resourcediagram is geen eigen rapport meer: de layout Resourcediagram in de stap Taken (#861).
-        { value: 'milestones', label: `${t('studio.otherReport')}: ${t('reportType.milestones')}` },
-        { value: 'variance', label: `${t('studio.otherReport')}: ${t('reportType.variance')}` },
-        ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: `${t('studio.otherReport')}: ${t(`reportType.${type}`)}` })),
+        // Het Resourcediagram is geen eigen rapport meer: de layout Resourcediagram in de stap Taken en
+        // groepering (#861). De andere rapporten staan met hun eigen naam (check Ethan 9-11-2026).
+        { value: 'milestones', label: t('reportType.milestones') },
+        { value: 'variance', label: t('reportType.variance') },
+        ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: t(`reportType.${type}`) })),
       ]}
     />
   );
@@ -1131,8 +1142,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           <>
             <div className="rs-sidebar-head">
               <button type="button" className="rs-icon-btn" onClick={() => setSidebar('open')}
-                title={`${t('studio.expand')} (Ctrl+\\)`} aria-label={t('studio.expand')} data-rs-sidebar-toggle>
-                <Icon id="panel.right" size={16} className="rs-panel-icon" />
+                title={`${t('studio.expand')} (Ctrl+\\)`} aria-label={t('studio.expand')} data-rs-sidebar-toggle="expand">
+                {/* Uitklappen en inklappen hebben elk een eigen icoon (check Ethan 9-11-2026); in rtl gespiegeld. */}
+                <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" lucide={{ icon: 'PanelLeftOpen' }} />
               </button>
             </div>
             <nav className="rs-rail" aria-label={t('studio.steps.label')}>
@@ -1169,8 +1181,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <div className="min-w-0 flex-1">{reportTypeSelect}</div>
               <HelpButton articleId={REPORT_HELP_ARTICLE_ID} />
               <button type="button" className="rs-icon-btn" onClick={() => setSidebar('rail')}
-                title={`${t('studio.collapse')} (Ctrl+\\)`} aria-label={t('studio.collapse')} data-rs-sidebar-toggle>
-                <Icon id="panel.right" size={16} className="rs-panel-icon" />
+                title={`${t('studio.collapse')} (Ctrl+\\)`} aria-label={t('studio.collapse')} data-rs-sidebar-toggle="collapse">
+                <Icon id="panel.right" size={16} className="rs-panel-icon" lucide={{ icon: 'PanelLeftClose', className: 'ops-icon-inline-flip' }} />
               </button>
             </div>
             <div className="rs-steps" role="list" aria-label={t('studio.steps.label')}>
@@ -1191,13 +1203,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                       onKeyDown={onStepHeadKeyDown}
                       register={registerHead}
                     />
+                    {open && stepReset(step)}
                     {open && (
-                      <>
-                        <StudioStepScroll className="rs-step-body" id={`rs-step-${step}`} data-rs-step-body={step}>
-                          {stepContent(step)}
-                        </StudioStepScroll>
-                        {stepFooter(step, false)}
-                      </>
+                      <StudioStepScroll className="rs-step-body" id={`rs-step-${step}`} data-rs-step-body={step}>
+                        {stepContent(step)}
+                      </StudioStepScroll>
                     )}
                   </section>
                 );
@@ -1266,11 +1276,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           onOpenInSidebar={() => { const step = popover.step; setPopover(null); setOpenStep(step); patch({ sidebar: 'open' }, 'sidebar'); }}
           dataKey={popover.step}
           avoidRef={fabRef}
+          headAction={stepReset(popover.step)}
         >
           <StudioStepScroll className="rs-step-body rs-pop-scroll" data-rs-pop-body>
             {stepContent(popover.step)}
           </StudioStepScroll>
-          {stepFooter(popover.step, true)}
         </StepPopover>
       )}
 

@@ -383,14 +383,14 @@ export function ReportPaperView({
         <div className="rs-zoom" role="group" aria-label={t('studio.zoom.label')}>
           <button type="button" className="rs-icon-btn" onClick={() => stepZoom(-1)} disabled={scale <= ZOOM_MIN + 0.001}
             title={t('studio.zoom.out')} aria-label={t('studio.zoom.out')} data-rs-zoom="out">
-            <Icon id="view.zoom-out" size={16} />
+            <Icon id="view.zoom-out" size={16} lucide={{ size: 14 }} />
           </button>
           <output className="rs-zoom-value" aria-live="polite" title={t('studio.zoom.valueHint')} data-rs-zoom="value">
             {zoomLabel}
           </output>
           <button type="button" className="rs-icon-btn" onClick={() => stepZoom(1)} disabled={scale >= ZOOM_MAX - 0.001}
             title={t('studio.zoom.in')} aria-label={t('studio.zoom.in')} data-rs-zoom="in">
-            <Icon id="view.zoom-in" size={16} />
+            <Icon id="view.zoom-in" size={16} lucide={{ size: 14 }} />
           </button>
           <span className="rs-zoom-sep" aria-hidden="true" />
           <button type="button" className="rs-fit-btn" onClick={() => chooseFit('page')} aria-pressed={fitMode === 'page'}

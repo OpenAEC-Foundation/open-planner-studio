@@ -1,41 +1,44 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
+import { ColumnChooser, type ColumnChooserLabels } from '@/components/task-grid/ColumnChooser';
 import type { TaskGridAdapterColumn } from '@/engine/taskGrid/taskGridAdapter';
-import type { TaskColumnCategory } from '@/types/taskGrid';
+import type { TaskColumnId } from '@/types/taskGrid';
 import { REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN } from '@/utils/reportSettings';
-import {
-  addReportColumn, moveReportColumn, placeReportColumn, removeReportColumn, reportColumnsFromGrid, REPORT_PICKER_CATEGORY_ORDER,
-} from './reportColumns';
+import { addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn } from './reportColumns';
+
+/** Waar "Kolommen overnemen" de kolommen vandaan haalt: het tabblad Tabel of de tabel naast de Gantt. */
+export type ReportColumnsSource = 'table' | 'gantt';
 
 /**
  * De kolommen van de afdruk (stap Kolommen): de lijst in papiervolgorde, met slepen of Alt+↑/↓ om te
- * verplaatsen, Delete om weg te halen, en een zoekbare kiezer uit het kolomregister van het
- * taakraster. De taaknaam is verplicht en heeft een slot in plaats van een kruisje.
+ * verplaatsen en Delete om weg te halen. Toevoegen gaat met het kolomvenster van de tabel (`ColumnChooser`,
+ * check Ethan 9-11-2026: "dezelfde dialog als in het tabel tab"); twee knoppen nemen de kolommen van het
+ * tabblad Tabel of van de tabel naast de Gantt over. De taaknaam is verplicht: zijn kruisje staat uit.
  */
-export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labelFor, categoryLabel }: {
+export function ColumnsEditor({
+  ids, onChange, available, recentIds, chooserLabels, onCopy, onReset, focusId, labelFor,
+}: {
   ids: readonly string[];
   onChange: (ids: string[], input: string) => void;
   available: readonly TaskGridAdapterColumn[];
-  /** De zichtbare kolommen van het taakraster naast de Gantt (voor het merkje "in de tabel"). */
-  gridIds: readonly string[];
+  /** De laatst gebruikte kolommen van de tabel: de kiezer toont ze bovenaan, zoals in de tabel. */
+  recentIds: readonly TaskColumnId[];
+  /** De teksten van de kiezer: dezelfde als in de tabel. */
+  chooserLabels: ColumnChooserLabels;
+  /** Kolommen overnemen van het tabblad Tabel of van de tabel naast de Gantt (elk met Ongedaan maken). */
+  onCopy: (source: ReportColumnsSource) => void;
+  /** "Herstel standaard" onderaan de kiezer: de standaardkolommen, met Ongedaan maken. */
+  onReset: () => void;
   /** Een kolom die op het papier is aangeklikt: die rij licht op en krijgt focus. */
   focusId: string | null;
   labelFor: (id: string) => string;
-  categoryLabel: (category: TaskColumnCategory) => string;
 }) {
   const { t } = useTranslation('report');
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; over: number } | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const addRef = useRef<HTMLButtonElement>(null);
-  // Na sluiten van de kiezer: de focus terug op "Kolom toevoegen", zodat je met Enter meteen de volgende kiest.
-  const closePicker = (refocus: boolean) => {
-    setPickerOpen(false);
-    if (refocus) requestAnimationFrame(() => addRef.current?.focus());
-  };
 
   useEffect(() => {
     if (!focusId || !ids.includes(focusId)) return;
@@ -107,42 +110,59 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
     setDrag(null);
   };
 
-  const gridSet = useMemo(() => new Set(gridIds), [gridIds]);
   const full = ids.length >= REPORT_MAX_COLUMNS;
+  const visibleIds = new Set(ids as readonly TaskColumnId[]);
+  const isDefault = isDefaultReportColumns(ids);
   const dropLineAt = drag ? drag.over : -1;
   const dragFrom = drag ? ids.indexOf(drag.id) : -1;
   const showDropLine = (i: number) => drag !== null && dropLineAt === i && i !== dragFrom && i !== dragFrom + 1;
 
   return (
     <div className="rs-cols-editor">
-      {/* Toevoegen boven de lijst: op een laag scherm blijft de knop in beeld, ook bij veel kolommen. */}
-      {pickerOpen ? (
-        <ColumnPicker
-          ids={ids}
-          available={available}
-          gridSet={gridSet}
-          categoryLabel={categoryLabel}
-          onPick={id => { onChange(addReportColumn(ids, id), 'column-add'); setFlashId(id); closePicker(true); }}
-          onClose={() => closePicker(true)}
-        />
-      ) : (
+      {/* Toevoegen boven de lijst: op een laag scherm blijft de knop in beeld, ook bij veel kolommen. Na een
+          keuze sluit de kiezer en staat de focus weer op "Kolom toevoegen", zoals in de tabel. */}
+      <ColumnChooser
+        options={available}
+        recentIds={recentIds}
+        visibleIds={visibleIds}
+        labels={chooserLabels}
+        resetDisabled={isDefault}
+        onReset={() => { onReset(); return true; }}
+        onChoose={option => {
+          const id = String(option.id);
+          if (full || ids.includes(id)) return false;
+          onChange(addReportColumn(ids, id), 'column-add');
+          setFlashId(id);
+          return true;
+        }}
+        trigger={{
+          anchorClassName: 'rs-add-anchor',
+          className: 'btn btn--secondary btn--sm rs-add',
+          disabled: full,
+          content: (
+            <>
+              <Icon id="table.column-add-menu" size={14} />
+              {full ? t('studio.columns.full', { count: REPORT_MAX_COLUMNS }) : chooserLabels.addColumn}
+            </>
+          ),
+          data: { 'data-rs-add-column': true },
+        }}
+      />
+      <div className="rs-cols-copy" role="group" aria-labelledby="rs-cols-copy-label">
+        <span className="rs-field-label" id="rs-cols-copy-label">{t('studio.columns.copyLabel')}</span>
         <div className="rs-cols-tools">
-          <button ref={addRef} type="button" className="btn btn--secondary btn--sm rs-add" onClick={() => setPickerOpen(true)} disabled={full} data-rs-add-column>
-            <Icon id="table.column-add-menu" size={14} />
-            {full ? t('studio.columns.full', { count: REPORT_MAX_COLUMNS }) : t('studio.columns.add')}
-          </button>
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm"
-            onClick={() => onChange(reportColumnsFromGrid(gridIds, new Set(available.map(column => String(column.id)))), 'columns-like-grid')}
-            title={t('studio.columns.likeGridHint')}
-            data-rs-like-grid
-          >
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => onCopy('table')}
+            title={t('studio.columns.fromTableHint')} data-rs-like-grid="table">
             <Icon id="table.columns" size={14} />
-            {t('studio.columns.likeGrid')}
+            {t('studio.columns.fromTable')}
+          </button>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => onCopy('gantt')}
+            title={t('studio.columns.fromGanttHint')} data-rs-like-grid="gantt">
+            <Icon id="planning.gantt" size={14} />
+            {t('studio.columns.fromGantt')}
           </button>
         </div>
-      )}
+      </div>
 
       <div className="rs-cols" role="listbox" aria-label={t('studio.columns.listLabel')} aria-describedby="rs-cols-hint" data-rs-columns>
         {ids.map((id, i) => {
@@ -191,7 +211,12 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
                     <span aria-hidden="true">↓</span>
                   </button>
                   {required ? (
-                    <span className="rs-icon-btn" title={t('studio.columns.requiredHint')} aria-hidden="true" data-rs-required-slot />
+                    // Het kruisje van de andere rijen, uitgeschakeld (check Ethan 9-11-2026). `aria-disabled` in
+                    // plaats van `disabled`: zo toont de muis de uitleg nog als tooltip.
+                    <button type="button" className="rs-icon-btn" tabIndex={-1} aria-disabled="true"
+                      title={t('studio.columns.requiredHint')} aria-label={t('studio.columns.requiredHint')} data-rs-required-slot>
+                      <Icon id="list.item-remove" size={14} />
+                    </button>
                   ) : (
                     <button type="button" className="rs-icon-btn" tabIndex={-1}
                       onClick={() => onChange(removeReportColumn(ids, id), 'column-remove')}
@@ -209,111 +234,6 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
       {/* De toetsen als vaste regel onder de lijst: hij dekt niets af en niets verspringt als de focus de
           lijst verlaat. */}
       <p className="rs-hint rs-cols-hint" id="rs-cols-hint" data-rs-cols-hint>{t('studio.columns.keysHint')}</p>
-    </div>
-  );
-}
-
-/** Zoekbare kolomkiezer: typen filtert, ↑/↓ kiest, Enter voegt toe en sluit hem, Esc sluit. */
-function ColumnPicker({ ids, available, gridSet, categoryLabel, onPick, onClose }: {
-  ids: readonly string[];
-  available: readonly TaskGridAdapterColumn[];
-  gridSet: ReadonlySet<string>;
-  categoryLabel: (category: TaskColumnCategory) => string;
-  onPick: (id: string) => void;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation('report');
-  const [query, setQuery] = useState('');
-  const [active, setActive] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  const options = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase();
-    const taken = new Set(ids);
-    const order = new Map(REPORT_PICKER_CATEGORY_ORDER.map((c, i) => [c, i]));
-    return available
-      .filter(column => !taken.has(String(column.id)))
-      .filter(column => !q || column.label.toLocaleLowerCase().includes(q))
-      .sort((a, b) => {
-        // Eerst wat in de tabel staat, dan per categorie, dan op naam.
-        const ga = gridSet.has(String(a.id)) ? 0 : 1;
-        const gb = gridSet.has(String(b.id)) ? 0 : 1;
-        if (ga !== gb) return ga - gb;
-        const ca = order.get(a.category) ?? 99;
-        const cb = order.get(b.category) ?? 99;
-        return ca - cb || a.label.localeCompare(b.label);
-      });
-  }, [available, ids, query, gridSet]);
-
-  useEffect(() => { setActive(0); }, [query]);
-  useEffect(() => {
-    listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [active]);
-
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(i => Math.min(options.length - 1, i + 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(i => Math.max(0, i - 1)); }
-    else if (e.key === 'Enter') {
-      e.preventDefault();
-      const option = options[active];
-      if (option) onPick(String(option.id));
-    } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
-  };
-
-  let lastGroup = '';
-  return (
-    <div className="rs-picker" data-rs-picker>
-      <div className="rs-picker-search">
-        <Icon id="view.search" size={14} />
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={t('studio.columns.search')}
-          aria-label={t('studio.columns.search')}
-          role="combobox"
-          aria-expanded="true"
-          aria-controls="rs-picker-list"
-          aria-activedescendant={options[active] ? `rs-pick-${active}` : undefined}
-          data-rs-picker-search
-        />
-        <button type="button" className="rs-icon-btn" onClick={onClose} title={t('studio.close')} aria-label={t('studio.close')}>
-          <Icon id="ui.close" size={14} />
-        </button>
-      </div>
-      <div className="rs-picker-list" id="rs-picker-list" role="listbox" ref={listRef}>
-        {options.length === 0 && <div className="rs-picker-empty">{t('studio.columns.noMatch')}</div>}
-        {options.map((option, index) => {
-          const inGrid = gridSet.has(String(option.id));
-          const group = inGrid ? '__grid' : option.category;
-          const header = group !== lastGroup
-            ? <div className="ui-card-header rs-group-label rs-picker-cat" key={`g-${group}`}>{inGrid ? t('studio.columns.inGrid') : categoryLabel(option.category)}</div>
-            : null;
-          lastGroup = group;
-          return [
-            header,
-            <button
-              key={String(option.id)}
-              type="button"
-              role="option"
-              id={`rs-pick-${index}`}
-              aria-selected={index === active}
-              className={`ops-select__option rs-picker-item${index === active ? ' is-highlighted' : ''}`}
-              data-active={index === active ? 'true' : undefined}
-              data-index={index}
-              data-rs-pick={String(option.id)}
-              tabIndex={-1}
-              onMouseEnter={() => setActive(index)}
-              onClick={() => onPick(String(option.id))}
-            >
-              <span>{option.label}</span>
-            </button>,
-          ];
-        })}
-      </div>
     </div>
   );
 }

@@ -2784,3 +2784,70 @@ input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ============================================================================
+   Uniforme schuifjes (check Ethan 9-11-2026, Rapport-tabblad) — ÉÉN stijl voor ALLE
+   `input[type="range"]` in de app, net als de vinkjes hierboven. De eigen tekening van de browser
+   zette in een donker thema een lichte rand om de hele baan, ook om het oranje deel ("waarom zit de
+   witte rand ook om het oranje heen"). Nu: een smalle baan in de randkleur van een veld, zonder rand,
+   en een effen knop in het accent. Geen gevuld deel: Chromium en WebKit kennen daar geen eigen
+   onderdeel voor, en zo ziet het schuifje er in de browser en in de desktopapp hetzelfde uit.
+   ============================================================================ */
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border: none;
+  border-radius: 2px;
+  background: var(--theme-control-border);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border: none;
+  border-radius: 2px;
+  background: var(--theme-control-border);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: none;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  transition: box-shadow 0.12s ease;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: var(--theme-accent);
+}
+input[type="range"]:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+}
+input[type="range"]:hover::-moz-range-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+}
+input[type="range"]:focus-visible {
+  outline: none;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 30%, transparent);
+}
+input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 30%, transparent);
+}
+input[type="range"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

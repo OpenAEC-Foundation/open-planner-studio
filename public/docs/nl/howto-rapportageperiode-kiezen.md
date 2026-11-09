@@ -16,7 +16,7 @@ Werk je met een relatieve keuze, zoals *Volgende 4 weken* of *Afgelopen maand*, 
 
 ### 2. Kies een rapport met een periode
 
-Open het tabblad *Rapport* en kies bij *Rapporttype* een van de vijf rapporten. De keuzelijst *Rapportageperiode:* staat onder *Rapportopties*. Bij het Resourcediagram staat hij onder *Instellingen*, onder de vier vinkjes van dat rapport. In het nieuwe tabblad Rapport staat hij in de stap *Taken*, onder *Per resource*, als je daar het Resourcediagram of een andere layout per resource kiest.
+Open het tabblad *Rapport* en kies bij *Rapporttype* een van de vijf rapporten. De keuzelijst *Rapportageperiode:* staat onder *Rapportopties*. Bij het Resourcediagram staat hij onder *Instellingen*, onder de vier vinkjes van dat rapport. In het nieuwe tabblad Rapport staat hij in de stap *Taken en groepering*, onder *Per resource*, als je daar het Resourcediagram of een andere layout per resource kiest.
 
 Elk rapport onthoudt zijn eigen periode. Dit zijn de beginwaarden:
 
