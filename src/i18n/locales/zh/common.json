@@ -62,7 +62,9 @@
     "saveFailed": "保存失败",
     "ambiguousThousands": "“{{text}}”有歧义：是小数还是千位数？小数请用“{{separator}}”（1{{separator}}5），千位数请不加分隔符（1500）。数值未更改。",
     "siteSaveConflict": "未保存：站点上的“{{name}}”已被他人修改。你的更改仍在应用中。请选择“另存为”，将其保存为新文件。",
+    "siteSaveConflictCopy": "“{{original}}”在站点上已被其他人修改。因此，你的工作保存到了副本中：“{{name}}”。从现在起，保存会写入该副本。",
     "siteFileGone": "“{{name}}”已不在站点上。该文件已从“最近”中移除。",
+    "siteFileReadOnly": "“{{name}}”在站点上为只读。你可以查看和编辑，但保存会在站点上创建一个新文件。",
     "savedViaDownload": "已保存为下载文件：“{{name}}”现在位于您的下载文件夹中。当前环境不允许应用直接写入您选择的位置。",
     "browserCannotOverwrite": "此浏览器不允许应用写回“{{name}}”。因此每次保存时，应用都会再次询问文件的保存位置。在 Chrome、Edge 或桌面应用中不会出现这种情况。",
     "browserSavesAsDownload": "已作为下载保存：“{{name}}”位于你的下载文件夹中。此浏览器不允许应用写入自选位置，因此每次保存都会生成一个新的下载。在 Chrome、Edge 或桌面应用中，保存只会更新同一个文件。",
@@ -72,6 +74,10 @@
     "recoveryStorageBlocked": "恢复存储暂时被另一个打开的连接占用。现有副本会保留；此页面不会创建新的恢复副本。请自行保存工作，关闭其他运行本应用的标签页，然后重新加载此页面以再次尝试恢复。",
     "recoveryReadFailed": "无法读取恢复的文件",
     "recoveryRestoreFailed": "恢复失败",
+    "hostSettingsUnavailable": "站点的设置未加载。你在本次会话中更改的设置不会被保存。",
+    "hostThemeUntilRestart": "此主题在你重新启动规划器之前有效。之后，规划器会再次跟随 SuperCloud 的主题。",
+    "settingsLoadedLate": "你的设置已加载并应用。",
+    "settingsLoadedLateReverted": "你的设置已加载并应用。你在此期间所做的更改已被还原。",
     "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
     "scheduleFailed": "无法计算计划",
     "ifcParseFailed": "无法读取 IFC",
@@ -372,6 +378,9 @@
     "weekStartMonday": "星期一",
     "weekStartSunday": "星期日",
     "calculationSection": "计算",
+    "taskGridSection": "任务表",
+    "autoFitColumns": "自动调整列宽",
+    "autoFitColumnsHint": "任务表的每一列会在打开后以及每次确认编辑后，将宽度调整为该列中的值。此时，过长的列标题会被截断。如果你自行拖动某一列，它会保持你设定的宽度，直到你双击列边缘。",
     "autoCalcCPM": "自动计算",
     "autoCalcCPMHint": "计划过期时自动重新计算，无需等待按 F5。",
     "constructionModeSection": "施工模式",
@@ -686,6 +695,7 @@
       "droppedSequence": "关系被忽略：前置或后续任务缺失或不是叶任务",
       "hammockNoFinishDriver": "吊床任务没有完成驱动（无 FF/SF 前置任务）：其工期回落为零",
       "cappedTask": "完成日期被截断：日历没有为此任务留下可工作的窗口",
+      "externalLagCalendar": "外部延隔计入此任务的日历：另一侧的日历不在此文件中",
       "overallocation": "{{count}} 天过度分配（{{first}} – {{last}}）",
       "overallocationNonWorkingDay": "{{count}} 天过度分配（{{first}} – {{last}}）—— 该资源根据其日历在这些天不工作",
       "overallocationMixed": "{{count}} 天过度分配（{{first}} – {{last}}），其中 {{nonWorking}} 天该资源根据其日历不工作"
@@ -1246,6 +1256,7 @@
     "detailSteps": "资源能力阶段",
     "warnActuals_other": "{{count}} 项任务有实际开始/完成日期，这些日期也会一同移动。请确认这对进行中的项目是否合适。",
     "warnHardPins_other": "{{count}} 项任务设有强制（硬）约束；该锚定日期也会一同移动。",
+    "warnExternalKept_other": "{{count}} 个外部关系：锚点保留在源项目的日期上，因为这些项目不会随之移动。",
     "warnHolidayGap": "日历“{{name}}”生成的节假日覆盖 {{from}}–{{to}}；移动后的计划延续至 {{year}}。请重新生成节假日。",
     "warnCustomDateFields_other": "{{count}} 个已填写的日期自定义字段将保持原有日期。",
     "warnPast": "新的开始日期位于过去。",
@@ -1747,6 +1758,10 @@
   "fileDrop": {
     "title": "松开即可打开",
     "subtitle": "项目文件或导入"
+  },
+  "settingsDelay": {
+    "title": "设置未加载",
+    "body": "无法从服务器加载你的设置。你目前使用的是默认设置。一旦你的设置重新可用，就会自动应用。"
   },
   "dependentAnchorWarning": {
     "title": "其他项目的锚点变得更紧",

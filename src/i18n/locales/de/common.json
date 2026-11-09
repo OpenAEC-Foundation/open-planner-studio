@@ -77,7 +77,9 @@
     "saveFailed": "Speichern fehlgeschlagen",
     "ambiguousThousands": "„{{text}}“ ist mehrdeutig: Dezimalzahl oder Tausender? Geben Sie Dezimalstellen mit „{{separator}}“ (1{{separator}}5) und Tausender ohne Trennzeichen (1500) ein. Der Wert wurde nicht geändert.",
     "siteSaveConflict": "Nicht gespeichert: '{{name}}' wurde inzwischen auf der Website von jemand anderem geändert. Ihre Änderungen sind noch in der App. Wählen Sie „Speichern unter“, um sie als neue Datei zu behalten.",
+    "siteSaveConflictCopy": "'{{original}}' wurde inzwischen auf der Site von jemand anderem geändert. Ihre Arbeit wird daher in einer Kopie gespeichert: '{{name}}'. Ab jetzt schreibt Speichern in diese Kopie.",
     "siteFileGone": "'{{name}}' ist nicht mehr auf der Website. Die Datei wurde aus „Zuletzt verwendet“ entfernt.",
+    "siteFileReadOnly": "'{{name}}' ist auf der Site schreibgeschützt. Sie können die Datei ansehen und bearbeiten, aber Speichern legt eine neue Datei auf der Site an.",
     "savedViaDownload": "Als Download gespeichert: '{{name}}' liegt jetzt in Ihrem Download-Ordner. Diese Umgebung erlaubt der App nicht, direkt an den gewählten Ort zu schreiben.",
     "browserCannotOverwrite": "Dieser Browser lässt die App nicht in „{{name}}“ zurückschreiben. Deshalb fragt die App bei jedem Speichern erneut, wohin die Datei soll. In Chrome, Edge oder der Desktop-App passiert das nicht.",
     "browserSavesAsDownload": "Als Download gespeichert: „{{name}}“ liegt in deinem Download-Ordner. Dieser Browser lässt die App nicht an einen eigenen Ort schreiben, daher erzeugt jedes Speichern einen neuen Download. In Chrome, Edge oder der Desktop-App aktualisiert Speichern einfach dieselbe Datei.",
@@ -87,6 +89,10 @@
     "recoveryStorageBlocked": "Der Wiederherstellungsspeicher ist vorübergehend durch eine andere offene Verbindung blockiert. Vorhandene Kopien bleiben erhalten; diese Seite erstellt keine neuen Wiederherstellungskopien. Speichern Sie Ihre Änderungen selbst, schließen Sie andere Tabs mit dieser App und laden Sie diese Seite neu, um die Wiederherstellung erneut zu versuchen.",
     "recoveryReadFailed": "Wiederhergestellte Datei konnte nicht gelesen werden",
     "recoveryRestoreFailed": "Wiederherstellung fehlgeschlagen",
+    "hostSettingsUnavailable": "Die Einstellungen der Site wurden nicht geladen. Einstellungen, die Sie in dieser Sitzung ändern, werden nicht gespeichert.",
+    "hostThemeUntilRestart": "Dieses Design gilt, bis Sie den Planer neu starten. Danach folgt der Planer wieder dem Design von SuperCloud.",
+    "settingsLoadedLate": "Ihre Einstellungen wurden geladen und angewendet.",
+    "settingsLoadedLateReverted": "Ihre Einstellungen wurden geladen und angewendet. Was Sie in der Zwischenzeit geändert haben, wurde zurückgesetzt.",
     "recoveryDocumentsSkipped_one": "{{count}} Wiederherstellungsdatei konnte nicht geladen werden und wurde übersprungen.",
     "recoveryDocumentsSkipped_other": "{{count}} Wiederherstellungsdateien konnten nicht geladen werden und wurden übersprungen.",
     "scheduleFailed": "Terminplan konnte nicht berechnet werden",
@@ -469,6 +475,9 @@
     "weekStartMonday": "Montag",
     "weekStartSunday": "Sonntag",
     "calculationSection": "Berechnung",
+    "taskGridSection": "Vorgangstabelle",
+    "autoFitColumns": "Spalten automatisch anpassen",
+    "autoFitColumnsHint": "Jede Spalte der Vorgangstabelle passt ihre Breite an die Werte in dieser Spalte an, nach dem Öffnen und nach jeder bestätigten Bearbeitung. Eine lange Spaltenüberschrift wird dann abgeschnitten. Ziehen Sie selbst eine Spalte, behält sie Ihre Breite, bis Sie auf den Spaltenrand doppelklicken.",
     "autoCalcCPM": "Automatisch berechnen",
     "autoCalcCPMHint": "Berechnet den Terminplan automatisch neu, sobald er veraltet ist, statt auf F5 zu warten.",
     "constructionModeSection": "Baumodus",
@@ -786,6 +795,7 @@
       "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger fehlt oder ist kein Blattvorgang",
       "hammockNoFinishDriver": "Hammock ohne Ende-Treiber (kein FF/SF-Vorgänger): die Dauer fällt auf null zurück",
       "cappedTask": "Enddatum gekappt: der Kalender lässt kein arbeitsfähiges Fenster für diesen Vorgang",
+      "externalLagCalendar": "Externer Zeitabstand zählt im Kalender dieses Vorgangs: Der Kalender der anderen Seite ist nicht in dieser Datei enthalten",
       "overallocation": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}}) — die Ressource arbeitet an diesem/diesen Tag(en) laut Kalender nicht",
       "overallocationMixed": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}}), davon {{nonWorking}} Tag(e), an denen die Ressource laut Kalender nicht arbeitet"
@@ -1357,6 +1367,8 @@
     "warnActuals_other": "{{count}} Vorgänge haben Ist-Start-/Ist-Endtermine; diese verschieben sich mit. Prüfen Sie, ob das für ein laufendes Projekt korrekt ist.",
     "warnHardPins_one": "{{count}} Vorgang hat eine harte Muss-Einschränkung; diese Fixierung verschiebt sich mit.",
     "warnHardPins_other": "{{count}} Vorgänge haben eine harte Muss-Einschränkung; diese Fixierungen verschieben sich mit.",
+    "warnExternalKept_one": "{{count}} externe Beziehung: Der Anker bleibt auf dem Datum des Quellprojekts, weil sich dieses Projekt nicht mitverschiebt.",
+    "warnExternalKept_other": "{{count}} externe Beziehungen: Die Anker bleiben auf den Daten der Quellprojekte, weil sich diese Projekte nicht mitverschieben.",
     "warnHolidayGap": "Die generierten Feiertage des Kalenders „{{name}}“ decken {{from}}–{{to}} ab; der verschobene Terminplan läuft bis {{year}}. Generieren Sie die Feiertage neu.",
     "warnCustomDateFields_one": "{{count}} ausgefülltes benutzerdefiniertes Datumsfeld behält sein Datum.",
     "warnCustomDateFields_other": "{{count}} ausgefüllte benutzerdefinierte Datumsfelder behalten ihr Datum.",
@@ -1871,6 +1883,10 @@
   "fileDrop": {
     "title": "Zum Öffnen loslassen",
     "subtitle": "Projektdatei oder Import"
+  },
+  "settingsDelay": {
+    "title": "Einstellungen nicht geladen",
+    "body": "Ihre Einstellungen konnten nicht vom Server geladen werden. Sie arbeiten jetzt mit den Standardeinstellungen. Sobald Ihre Einstellungen wieder verfügbar sind, werden sie automatisch angewendet."
   },
   "dependentAnchorWarning": {
     "title": "Ankertermine anderer Projekte werden knapper",

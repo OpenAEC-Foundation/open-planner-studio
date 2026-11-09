@@ -77,7 +77,9 @@
     "saveFailed": "Kunne ikke gemme",
     "ambiguousThousands": "\"{{text}}\" er tvetydig: mener du et decimaltal eller et tusindtal? Skriv decimaler med \"{{separator}}\" (1{{separator}}5) og tusindtal uden skilletegn (1500). Værdien er ikke ændret.",
     "siteSaveConflict": "Ikke gemt: '{{name}}' er i mellemtiden ændret på webstedet af en anden. Dine ændringer findes stadig i appen. Vælg Gem som for at gemme dem som ny fil.",
+    "siteSaveConflictCopy": "'{{original}}' er i mellemtiden blevet ændret af en anden på webstedet. Dit arbejde er derfor gemt i en kopi: '{{name}}'. Gem skriver fra nu af til den kopi.",
     "siteFileGone": "'{{name}}' findes ikke længere på webstedet. Filen er fjernet fra Seneste.",
+    "siteFileReadOnly": "'{{name}}' er skrivebeskyttet på webstedet. Du kan se og redigere filen, men Gem opretter en ny fil på webstedet.",
     "savedViaDownload": "Gemt som download: '{{name}}' ligger nu i din downloadmappe. Dette miljø tillader ikke, at appen skriver direkte til den valgte placering.",
     "browserCannotOverwrite": "Denne browser tillader ikke appen at skrive tilbage til '{{name}}'. Derfor spørger appen hver gang du gemmer, hvor filen skal ligge. I Chrome, Edge eller desktop-appen sker det ikke.",
     "browserSavesAsDownload": "Gemt som download: '{{name}}' ligger i din downloadmappe. Denne browser tillader ikke appen at skrive til en egen placering, så hver gemning laver en ny download. I Chrome, Edge eller desktop-appen opdaterer Gem blot den samme fil.",
@@ -87,6 +89,10 @@
     "recoveryStorageBlocked": "Gendannelseslageret er midlertidigt blokeret af en anden åben forbindelse. Eksisterende kopier bliver liggende; denne side laver ingen nye gendannelseskopier. Gem dit arbejde selv, luk andre faner med denne app, og genindlæs denne side for at prøve gendannelse igen.",
     "recoveryReadFailed": "Den genoprettede fil kunne ikke læses",
     "recoveryRestoreFailed": "Gendannelse mislykkedes",
+    "hostSettingsUnavailable": "Webstedets indstillinger er ikke indlæst. Indstillinger, du ændrer i denne session, bliver ikke gemt.",
+    "hostThemeUntilRestart": "Dette tema gælder, indtil du genstarter planlæggeren. Derefter følger planlæggeren igen temaet i SuperCloud.",
+    "settingsLoadedLate": "Dine indstillinger er indlæst og taget i brug.",
+    "settingsLoadedLateReverted": "Dine indstillinger er indlæst og taget i brug. Det, du har ændret i mellemtiden, er blevet tilbagestillet.",
     "recoveryDocumentsSkipped_one": "{{count}} genoprettelsesfil kunne ikke indlæses og blev sprunget over.",
     "recoveryDocumentsSkipped_other": "{{count}} genoprettelsesfiler kunne ikke indlæses og blev sprunget over.",
     "scheduleFailed": "Tidsplanen kunne ikke beregnes",
@@ -469,6 +475,9 @@
     "weekStartMonday": "Mandag",
     "weekStartSunday": "Søndag",
     "calculationSection": "Beregning",
+    "taskGridSection": "Opgavetabel",
+    "autoFitColumns": "Tilpas kolonner automatisk",
+    "autoFitColumnsHint": "Hver kolonne i opgavetabellen tilpasser sin bredde til værdierne i kolonnen efter åbning og efter hver bekræftet redigering. En lang kolonneoverskrift bliver så afkortet. Trækker du selv i en kolonne, beholder den din bredde, indtil du dobbeltklikker på kolonnekanten.",
     "autoCalcCPM": "Beregn automatisk",
     "autoCalcCPMHint": "Genberegner tidsplanen automatisk, så snart den er forældet, i stedet for at vente på F5.",
     "constructionModeSection": "Byggetilstand",
@@ -786,6 +795,7 @@
       "droppedSequence": "Afhængighed ignoreret: foregående opgave eller efterfølgende opgave mangler, eller er ikke en bladopgave",
       "hammockNoFinishDriver": "Hængekøje uden slutbestemmende afhængighed (ingen FF/SF-foregående opgave). Varigheden sættes til nul",
       "cappedTask": "Slutdato begrænset: kalenderen efterlader ingen brugbar periode for opgaven",
+      "externalLagCalendar": "Ekstern forsinkelse tæller i kalenderen for denne opgave: kalenderen for den anden side findes ikke i denne fil",
       "overallocation": "Overallokeret på {{count}} dag(e) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Overallokeret på {{count}} dag(e) ({{first}} – {{last}}). Ressourcen arbejder ikke disse dage ifølge sin kalender",
       "overallocationMixed": "Overallokeret på {{count}} dag(e) ({{first}} – {{last}}), heraf {{nonWorking}} dag(e), hvor ressourcen ikke arbejder ifølge sin kalender"
@@ -1357,6 +1367,8 @@
     "warnActuals_other": "{{count}} opgaver har faktiske start-/slutdatoer. Disse forskydes med. Kontroller, at det er korrekt for et igangværende projekt.",
     "warnHardPins_one": "{{count}} opgave har en hård Mandatory-pin. Den forskydes med.",
     "warnHardPins_other": "{{count}} opgaver har en hård Mandatory-pin. Disse pins forskydes med.",
+    "warnExternalKept_one": "{{count}} ekstern afhængighed: ankeret bliver på datoen for kildeprojektet, fordi projektet ikke flytter med.",
+    "warnExternalKept_other": "{{count}} eksterne afhængigheder: ankrene bliver på datoerne for kildeprojekterne, fordi projekterne ikke flytter med.",
     "warnHolidayGap": "De genererede helligdage i kalenderen “{{name}}” dækker {{from}}–{{to}}. Den forskudte tidsplan løber til {{year}}. Generér helligdagene igen.",
     "warnCustomDateFields_one": "{{count}} udfyldt brugerdefineret datofelt beholder sin dato.",
     "warnCustomDateFields_other": "{{count}} udfyldte brugerdefinerede datofelter beholder deres dato.",
@@ -1871,6 +1883,10 @@
   "fileDrop": {
     "title": "Slip for at åbne",
     "subtitle": "Projektfil eller import"
+  },
+  "settingsDelay": {
+    "title": "Indstillinger ikke indlæst",
+    "body": "Dine indstillinger kunne ikke hentes fra serveren. Du arbejder nu med standardindstillingerne. Så snart dine indstillinger er tilgængelige igen, bliver de automatisk taget i brug."
   },
   "dependentAnchorWarning": {
     "title": "Ankerdatoer i andre projekter bliver strammere",

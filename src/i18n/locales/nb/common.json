@@ -77,7 +77,9 @@
     "saveFailed": "Kunne ikke lagre",
     "ambiguousThousands": "\"{{text}}\" er tvetydig: mener du et desimaltall eller tusentall? Skriv desimaler med \"{{separator}}\" (1{{separator}}5) og tusentall uten skilletegn (1500). Verdien er ikke endret.",
     "siteSaveConflict": "Ikke lagret: '{{name}}' er i mellomtiden endret av noen andre på siten. Endringene dine står fortsatt i appen. Velg «Lagre som» for å lagre dem som en ny fil.",
+    "siteSaveConflictCopy": "'{{original}}' er endret av noen andre på nettstedet i mellomtiden. Arbeidet ditt er derfor lagret i en kopi: '{{name}}'. Fra nå av skriver Lagre til den kopien.",
     "siteFileGone": "'{{name}}' finnes ikke lenger på siten. Filen er fjernet fra Nylige.",
+    "siteFileReadOnly": "'{{name}}' er skrivebeskyttet på nettstedet. Du kan se på og redigere filen, men Lagre oppretter en ny fil på nettstedet.",
     "savedViaDownload": "Lagret som nedlasting: '{{name}}' ligger nå i nedlastingsmappen din. Dette miljøet tillater ikke at appen skriver direkte til stedet du valgte.",
     "browserCannotOverwrite": "Denne nettleseren lar ikke appen skrive tilbake til '{{name}}'. Derfor spør appen hver gang du lagrer hvor filen skal lagres. Dette skjer ikke i Chrome, Edge eller skrivebordsappen.",
     "browserSavesAsDownload": "Lagret som nedlasting: '{{name}}' ligger i nedlastingsmappen din. Denne nettleseren lar ikke appen skrive til et eget sted, så hver lagring lager en ny nedlasting. I Chrome, Edge eller skrivebordsappen oppdaterer Lagre bare samme fil.",
@@ -87,6 +89,10 @@
     "recoveryStorageBlocked": "Gjenopprettingslagringen er midlertidig blokkert av en annen åpen forbindelse. Eksisterende kopier blir stående; denne siden lager ikke nye gjenopprettingskopier. Lagre innholdet ditt selv, lukk andre faner med denne appen og last siden på nytt for å prøve gjenoppretting igjen.",
     "recoveryReadFailed": "Den gjenopprettede filen kunne ikke leses",
     "recoveryRestoreFailed": "Gjenoppretting mislyktes",
+    "hostSettingsUnavailable": "Innstillingene for nettstedet er ikke lastet inn. Innstillinger du endrer i denne økten, blir ikke lagret.",
+    "hostThemeUntilRestart": "Dette temaet gjelder til du starter planleggeren på nytt. Deretter følger planleggeren temaet i SuperCloud igjen.",
+    "settingsLoadedLate": "Innstillingene dine er lastet inn og tatt i bruk.",
+    "settingsLoadedLateReverted": "Innstillingene dine er lastet inn og tatt i bruk. Det du endret i mellomtiden, er tilbakestilt.",
     "recoveryDocumentsSkipped_one": "{{count}} gjenopprettingsfil kunne ikke lastes og er hoppet over.",
     "recoveryDocumentsSkipped_other": "{{count}} gjenopprettingsfiler kunne ikke lastes og er hoppet over.",
     "scheduleFailed": "Tidsplanen kunne ikke beregnes",
@@ -469,6 +475,9 @@
     "weekStartMonday": "Mandag",
     "weekStartSunday": "Søndag",
     "calculationSection": "Beregning",
+    "taskGridSection": "Aktivitetstabell",
+    "autoFitColumns": "Tilpass kolonnene automatisk",
+    "autoFitColumnsHint": "Hver kolonne i aktivitetstabellen tilpasser bredden sin til verdiene i kolonnen, etter åpning og etter hver bekreftet redigering. En lang kolonneoverskrift blir da kuttet av. Drar du selv i en kolonne, beholder den din bredde til du dobbeltklikker på kolonnekanten.",
     "autoCalcCPM": "Beregne automatisk",
     "autoCalcCPMHint": "Omberegner tidsplanen automatisk så snart den blir utdatert, i stedet for å vente på F5.",
     "constructionModeSection": "Byggmodus",
@@ -786,6 +795,7 @@
       "droppedSequence": "Avhengighet ignorert: forgjenger eller etterfølger mangler, eller er ikke en bladaktivitet",
       "hammockNoFinishDriver": "Hengekøye uten sluttstyrende avhengighet (ingen FF/SF-forgjenger): varigheten settes til null",
       "cappedTask": "Sluttdato kappet: kalenderen gir ingen brukbart tidsvindu for aktiviteten",
+      "externalLagCalendar": "Ekstern forsinkelse teller i kalenderen for denne aktiviteten: kalenderen på den andre siden står ikke i denne filen",
       "overallocation": "Overallokering på {{count}} dag(er) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Overallokering på {{count}} dag(er) ({{first}} – {{last}}) — ressursen jobber ikke disse dagene ifølge kalenderen sin",
       "overallocationMixed": "Overallokering på {{count}} dag(er) ({{first}} – {{last}}), hvorav {{nonWorking}} dag(er) der ressursen ikke jobber ifølge kalenderen sin"
@@ -1357,6 +1367,8 @@
     "warnActuals_other": "{{count}} aktiviteter har faktiske start- og sluttdatoer; disse forskyves med. Kontroller at det stemmer for et pågående prosjekt.",
     "warnHardPins_one": "{{count}} aktivitet har en hard Mandatory-pin; den pinnen forskyves med.",
     "warnHardPins_other": "{{count}} aktiviteter har en hard Mandatory-pin; disse pinnene forskyves med.",
+    "warnExternalKept_one": "{{count}} kobling mellom prosjekter: ankeret blir på datoen til kildeprosjektet, fordi det prosjektet ikke flytter seg.",
+    "warnExternalKept_other": "{{count}} koblinger mellom prosjekter: ankrene blir på datoene til kildeprosjektene, fordi disse prosjektene ikke flytter seg.",
     "warnHolidayGap": "De genererte helligdagene i kalenderen «{{name}}» dekker {{from}}–{{to}}; den forskjøvede tidsplanen går til {{year}}. Generer helligdagene på nytt.",
     "warnCustomDateFields_one": "{{count}} utfylt egendefinert datofelt beholder datoen sin.",
     "warnCustomDateFields_other": "{{count}} utfylte egendefinerte datofelt beholder datoene sine.",
@@ -1871,6 +1883,10 @@
   "fileDrop": {
     "title": "Slipp for å åpne",
     "subtitle": "Prosjektfil eller import"
+  },
+  "settingsDelay": {
+    "title": "Innstillinger ikke lastet",
+    "body": "Innstillingene dine kunne ikke lastes fra serveren. Du arbeider nå med standardinnstillingene. Så snart innstillingene dine er tilgjengelige igjen, blir de tatt i bruk automatisk."
   },
   "dependentAnchorWarning": {
     "title": "Ankerdatoer i andre prosjekter blir strammere",

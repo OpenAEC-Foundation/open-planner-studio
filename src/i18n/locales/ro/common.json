@@ -92,7 +92,9 @@
     "saveFailed": "Salvarea a eșuat",
     "ambiguousThousands": "\"{{text}}\" este ambiguu: doriți un număr zecimal sau un număr cu mii? Tastați zecimalele cu \"{{separator}}\" (1{{separator}}5) și miile fără separator (1500). Valoarea nu a fost modificată.",
     "siteSaveConflict": "Nesalvat: „{{name}}” a fost modificat între timp pe site de altcineva. Modificările dvs. există încă în aplicație. Selectați „Salvare ca” pentru a le păstra ca fișier nou.",
+    "siteSaveConflictCopy": "„{{original}}” a fost între timp modificat pe site de altcineva. Modificările dumneavoastră sunt deci salvate într-o copie: „{{name}}”. De acum încolo, comanda Salvare scrie în acea copie.",
     "siteFileGone": "„{{name}}” nu mai există pe site. Fișierul a fost scos din Recente.",
+    "siteFileReadOnly": "„{{name}}” este doar pentru citire pe site. Îl puteți vedea și edita, dar Salvare creează un fișier nou pe site.",
     "savedViaDownload": "Salvat ca descărcare: „{{name}}” se află acum în folderul de descărcări. Acest mediu nu permite aplicației să scrie direct în locația aleasă.",
     "browserCannotOverwrite": "Acest browser nu permite aplicației să scrie înapoi în „{{name}}”. De aceea aplicația întreabă din nou, la fiecare salvare, unde trebuie pus fișierul. În Chrome, Edge sau aplicația desktop nu se întâmplă acest lucru.",
     "browserSavesAsDownload": "Salvat ca descărcare: „{{name}}” se află în folderul de descărcări. Acest browser nu permite aplicației să scrie într-o locație proprie, deci fiecare salvare creează o nouă descărcare. În Chrome, Edge sau aplicația desktop, Salvare actualizează pur și simplu același fișier.",
@@ -102,6 +104,10 @@
     "recoveryStorageBlocked": "Stocarea recuperării este blocată temporar de o altă conexiune deschisă. Copiile existente rămân; această pagină nu creează copii noi de recuperare. Salvați singur lucrarea, închideți celelalte file care rulează această aplicație și reîncărcați această pagină pentru a încerca din nou recuperarea.",
     "recoveryReadFailed": "Fișierul restaurat nu a putut fi citit",
     "recoveryRestoreFailed": "Restaurarea a eșuat",
+    "hostSettingsUnavailable": "Setările site-ului nu au fost încărcate. Setările pe care le modificați în această sesiune nu vor fi salvate.",
+    "hostThemeUntilRestart": "Această temă se aplică până la repornirea planificatorului. După aceea, planificatorul urmează din nou tema SuperCloud.",
+    "settingsLoadedLate": "Setările dumneavoastră au fost încărcate și aplicate.",
+    "settingsLoadedLateReverted": "Setările dumneavoastră au fost încărcate și aplicate. Modificările făcute între timp au fost anulate.",
     "recoveryDocumentsSkipped_one": "{{count}} fișier de restaurare nu a putut fi încărcat și a fost omis.",
     "recoveryDocumentsSkipped_few": "{{count}} fișiere de restaurare nu au putut fi încărcate și au fost omise.",
     "recoveryDocumentsSkipped_other": "{{count}} de fișiere de restaurare nu au putut fi încărcate și au fost omise.",
@@ -566,6 +572,9 @@
     "weekStartMonday": "Luni",
     "weekStartSunday": "Duminică",
     "calculationSection": "Calculare",
+    "taskGridSection": "Tabel de activități",
+    "autoFitColumns": "Ajustare automată a coloanelor",
+    "autoFitColumnsHint": "Fiecare coloană din tabelul de activități își ajustează lățimea după valorile din coloana respectivă, după deschidere și după fiecare modificare confirmată. Antetul unei coloane lungi este atunci trunchiat. Dacă trageți singur o coloană, aceasta își păstrează lățimea până faceți dublu clic pe marginea ei.",
     "autoCalcCPM": "Calculare automată",
     "autoCalcCPMHint": "Recalculează automat planificarea de îndată ce devine învechită, în loc să așteptați F5.",
     "constructionModeSection": "Mod construcții",
@@ -886,6 +895,7 @@
       "droppedSequence": "Dependență ignorată: predecesorul sau succesorul lipsește sau nu este o activitate frunză",
       "hammockNoFinishDriver": "Hamac fără legătură determinantă pentru sfârșit (niciun predecesor FF/SF): durata revine la zero",
       "cappedTask": "Dată de sfârșit limitată: calendarul nu lasă nicio fereastră de lucru pentru această activitate",
+      "externalLagCalendar": "Decalajul extern se numără în calendarul acestei activități: calendarul celeilalte părți nu se află în acest fișier",
       "overallocation": "Supraalocare în {{count}} zi(le) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Supraalocare în {{count}} zi(le) ({{first}} – {{last}}) — resursa nu lucrează în zi(le) conform calendarului său",
       "overallocationMixed": "Supraalocare în {{count}} zi(le) ({{first}} – {{last}}), dintre care {{nonWorking}} zi(le) în care resursa nu lucrează conform calendarului său"
@@ -1468,6 +1478,9 @@
     "warnHardPins_one": "{{count}} activitate are un pin Mandatory strict; acest pin se deplasează odată cu proiectul.",
     "warnHardPins_few": "{{count}} activități au pinuri Mandatory stricte; acestea se deplasează odată cu proiectul.",
     "warnHardPins_other": "{{count}} de activități au pinuri Mandatory stricte; acestea se deplasează odată cu proiectul.",
+    "warnExternalKept_one": "{{count}} legătură între proiecte: ancora rămâne la data proiectului sursă, deoarece acel proiect nu se deplasează odată cu acesta.",
+    "warnExternalKept_few": "{{count}} legături între proiecte: ancorele rămân la datele proiectelor sursă, deoarece acele proiecte nu se deplasează.",
+    "warnExternalKept_other": "{{count}} de legături între proiecte: ancorele rămân la datele proiectelor sursă, deoarece acele proiecte nu se deplasează.",
     "warnHolidayGap": "Sărbătorile generate ale calendarului „{{name}}” acoperă {{from}}–{{to}}; planificarea deplasată continuă până în {{year}}. Regenerați sărbătorile.",
     "warnCustomDateFields_one": "{{count}} câmp de dată personalizat completat rămâne la data sa.",
     "warnCustomDateFields_few": "{{count}} câmpuri de dată personalizate completate rămân la datele lor.",
@@ -1995,6 +2008,10 @@
   "fileDrop": {
     "title": "Eliberați pentru a deschide",
     "subtitle": "Fișier de proiect sau import"
+  },
+  "settingsDelay": {
+    "title": "Setările nu au fost încărcate",
+    "body": "Setările dumneavoastră nu au putut fi încărcate de pe server. Acum lucrați cu setările implicite. De îndată ce setările dumneavoastră sunt din nou disponibile, ele se aplică automat."
   },
   "dependentAnchorWarning": {
     "title": "Ancorele altor proiecte devin mai strânse",

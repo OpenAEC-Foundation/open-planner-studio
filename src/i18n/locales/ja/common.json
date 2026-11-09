@@ -62,7 +62,9 @@
     "saveFailed": "保存できませんでした",
     "ambiguousThousands": "「{{text}}」はあいまいです。小数ですか、千の位ですか？小数は「{{separator}}」（1{{separator}}5）、千の位は区切りなし（1500）で入力してください。値は変更されていません。",
     "siteSaveConflict": "保存されていません。サイト上の「{{name}}」は、その間に他のユーザーによって変更されました。変更内容はまだアプリ内にあります。「名前を付けて保存」で新しいファイルとして残せます。",
+    "siteSaveConflictCopy": "'{{original}}' はその間にサイト上で別の人によって変更されました。そのため、作業内容は「{{name}}」というコピーに保存されています。今後は「保存」でそのコピーに書き込まれます。",
     "siteFileGone": "「{{name}}」はサイト上にありません。このファイルは「最近」から削除されました。",
+    "siteFileReadOnly": "「{{name}}」はサイト上で読み取り専用です。表示と編集はできますが、「保存」を選ぶと、サイトに新しいファイルが作成されます。",
     "savedViaDownload": "ダウンロードとして保存しました。「{{name}}」はダウンロードフォルダーにあります。この環境では、アプリが選択した場所に直接書き込むことはできません。",
     "browserCannotOverwrite": "このブラウザーでは、アプリが「{{name}}」に上書き保存できません。そのため、保存するたびに保存先を尋ねます。Chrome、Edge、またはデスクトップアプリではこのようなことは起きません。",
     "browserSavesAsDownload": "ダウンロードとして保存しました：「{{name}}」はダウンロードフォルダーにあります。このブラウザーではアプリが任意の場所に書き込めないため、保存するたびに新しいダウンロードが作成されます。Chrome、Edge、またはデスクトップアプリでは、保存すると同じファイルが更新されます。",
@@ -72,6 +74,10 @@
     "recoveryStorageBlocked": "復元ストレージは、別の開いている接続により一時的にブロックされています。既存のコピーは残ります。このページでは新しい復元コピーは作成されません。作業を手動で保存し、このアプリを開いている他のタブを閉じてから、このページを再読み込みして復元を再度お試しください。",
     "recoveryReadFailed": "復元したファイルを読み込めませんでした",
     "recoveryRestoreFailed": "復元に失敗しました",
+    "hostSettingsUnavailable": "サイトの設定は読み込まれていません。このセッションで変更した設定は保存されません。",
+    "hostThemeUntilRestart": "このテーマは、プランナーを再起動するまで適用されます。その後、プランナーは再び SuperCloud のテーマに従います。",
+    "settingsLoadedLate": "設定を読み込み、適用しました。",
+    "settingsLoadedLateReverted": "設定を読み込み、適用しました。その間に変更した内容は元に戻されました。",
     "recoveryDocumentsSkipped_other": "{{count}} 件の復旧ファイルを読み込めなかったため、スキップされました。",
     "scheduleFailed": "スケジュールを計算できませんでした",
     "ifcParseFailed": "IFC を読み込めませんでした",
@@ -372,6 +378,9 @@
     "weekStartMonday": "月曜日",
     "weekStartSunday": "日曜日",
     "calculationSection": "計算",
+    "taskGridSection": "タスクテーブル",
+    "autoFitColumns": "列の幅を自動調整",
+    "autoFitColumnsHint": "タスクテーブルの各列は、開いたときと確定した編集のあとに、その列の値に合わせて幅が調整されます。その場合、長い列見出しは途中で切れます。列を自分でドラッグした場合は、列の境界をダブルクリックするまで指定した幅が保たれます。",
     "autoCalcCPM": "自動計算",
     "autoCalcCPMHint": "スケジュールが古くなったら、F5を待たずに自動的に再計算します。",
     "constructionModeSection": "建設モード",
@@ -686,6 +695,7 @@
       "droppedSequence": "関係を無視: 先行または後続が存在しないか、リーフタスクではありません",
       "hammockNoFinishDriver": "終了ドライバーのないハンモック（FF/SF の先行なし）: 期間はゼロになります",
       "cappedTask": "終了日が打ち切られました: カレンダーにこのタスクの作業可能な期間がありません",
+      "externalLagCalendar": "外部ラグは、このタスクのカレンダーで計算されます。反対側のカレンダーはこのファイルに含まれていません",
       "overallocation": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）",
       "overallocationNonWorkingDay": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）— このリソースはカレンダー上この日(々)は稼働しません",
       "overallocationMixed": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）、うち {{nonWorking}} 日はリソースがカレンダー上稼働しない日です"
@@ -1246,6 +1256,7 @@
     "detailSteps": "稼働可能量ステップ",
     "warnActuals_other": "{{count}} 件のタスクに実績開始日／実績終了日があり、これらも移動します。進行中のプロジェクトとして妥当か確認してください。",
     "warnHardPins_other": "{{count}} 件のタスクに厳格な「必須」制約があります。その固定日も移動します。",
+    "warnExternalKept_other": "{{count}} 件の外部関係: アンカーは元のプロジェクトの日付のままです。そのプロジェクトは一緒に移動しないためです。",
     "warnHolidayGap": "カレンダー「{{name}}」の生成済み祝日は {{from}}–{{to}} をカバーしていますが、移動後の工程は {{year}} 年まで続きます。祝日を再生成してください。",
     "warnCustomDateFields_other": "入力済みの日付型カスタムフィールド {{count}} 件は日付が変わりません。",
     "warnPast": "新しい開始日は過去の日付です。",
@@ -1747,6 +1758,10 @@
   "fileDrop": {
     "title": "ドロップして開く",
     "subtitle": "プロジェクトファイルまたはインポート"
+  },
+  "settingsDelay": {
+    "title": "設定が読み込まれていません",
+    "body": "設定をサーバーから読み込めませんでした。現在は既定の設定で作業しています。設定が再び利用できるようになると、自動的に適用されます。"
   },
   "dependentAnchorWarning": {
     "title": "他のプロジェクトのアンカーが厳しくなります",

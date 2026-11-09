@@ -107,7 +107,9 @@
     "saveFailed": "Nie udało się zapisać",
     "ambiguousThousands": "„{{text}}” jest niejednoznaczne: liczba dziesiętna czy tysiące? Wpisz część dziesiętną z „{{separator}}” (1{{separator}}5), a tysiące bez separatora (1500). Wartość nie została zmieniona.",
     "siteSaveConflict": "Nie zapisano: '{{name}}' został w międzyczasie zmieniony w witrynie przez kogoś innego. Twoje zmiany nadal są w aplikacji. Wybierz Zapisz jako, aby zachować je jako nowy plik.",
+    "siteSaveConflictCopy": "'{{original}}' zostało w międzyczasie zmienione w witrynie przez kogoś innego. Twoja praca znajduje się dlatego w kopii: '{{name}}'. Polecenie Zapisz od teraz zapisuje do tej kopii.",
     "siteFileGone": "'{{name}}' nie ma już w witrynie. Plik został usunięty z listy Ostatnie.",
+    "siteFileReadOnly": "'{{name}}' jest w witrynie tylko do odczytu. Możesz go oglądać i edytować, ale Zapisz utworzy nowy plik w witrynie.",
     "savedViaDownload": "Zapisano jako pobrany plik: '{{name}}' znajduje się teraz w folderze pobierania. To środowisko nie pozwala aplikacji zapisywać bezpośrednio w wybranej lokalizacji.",
     "browserCannotOverwrite": "Ta przeglądarka nie pozwala aplikacji zapisać ponownie do „{{name}}”. Dlatego przy każdym zapisie aplikacja ponownie pyta, gdzie zapisać plik. W Chrome, Edge ani w aplikacji desktopowej tak się nie dzieje.",
     "browserSavesAsDownload": "Zapisano jako pobieranie: „{{name}}” jest w folderze pobranych plików. Ta przeglądarka nie pozwala aplikacji zapisywać we własnym miejscu, więc każdy zapis tworzy nowe pobieranie. W Chrome, Edge lub aplikacji desktopowej Zapisz po prostu aktualizuje ten sam plik.",
@@ -117,6 +119,10 @@
     "recoveryStorageBlocked": "Zapis odzyskiwania jest tymczasowo zablokowany przez inne otwarte połączenie. Istniejące kopie zostają; ta strona nie tworzy nowych kopii odzyskiwania. Zapisz swoją pracę samodzielnie, zamknij inne karty z tą aplikacją i załaduj tę stronę ponownie, aby spróbować odzyskiwania jeszcze raz.",
     "recoveryReadFailed": "Nie udało się odczytać odzyskanego pliku",
     "recoveryRestoreFailed": "Nie udało się przywrócić",
+    "hostSettingsUnavailable": "Ustawienia witryny nie zostały wczytane. Ustawienia, które zmienisz w tej sesji, nie zostaną zapisane.",
+    "hostThemeUntilRestart": "Ten motyw obowiązuje do ponownego uruchomienia planera. Potem planer znowu korzysta z motywu SuperCloud.",
+    "settingsLoadedLate": "Twoje ustawienia zostały wczytane i zastosowane.",
+    "settingsLoadedLateReverted": "Twoje ustawienia zostały wczytane i zastosowane. Wszystko, co zmieniono w międzyczasie, zostało cofnięte.",
     "recoveryDocumentsSkipped_one": "{{count}} plik odzyskiwania nie mógł zostać wczytany i został pominięty.",
     "recoveryDocumentsSkipped_few": "{{count}} pliki odzyskiwania nie mogły zostać wczytane i zostały pominięte.",
     "recoveryDocumentsSkipped_many": "{{count}} plików odzyskiwania nie mogło zostać wczytanych i zostało pominiętych.",
@@ -663,6 +669,9 @@
     "weekStartMonday": "Poniedziałek",
     "weekStartSunday": "Niedziela",
     "calculationSection": "Obliczanie",
+    "taskGridSection": "Tabela zadań",
+    "autoFitColumns": "Automatycznie dopasowuj kolumny",
+    "autoFitColumnsHint": "Każda kolumna tabeli zadań dopasowuje swoją szerokość do wartości w tej kolumnie, po otwarciu i po każdej zatwierdzonej edycji. Długi nagłówek kolumny zostanie wtedy obcięty. Jeśli sam przeciągniesz kolumnę, zachowa ona twoją szerokość, dopóki nie klikniesz dwukrotnie krawędzi kolumny.",
     "autoCalcCPM": "Oblicz automatycznie",
     "autoCalcCPMHint": "Automatycznie przelicza harmonogram, gdy tylko stanie się nieaktualny, zamiast czekać na F5.",
     "constructionModeSection": "Tryb budowlany",
@@ -986,6 +995,7 @@
       "droppedSequence": "Relacja zignorowana: brakuje poprzednika lub następnika albo nie jest zadaniem liściem",
       "hammockNoFinishDriver": "Hamak bez sterownika końca (brak poprzednika FF/SF): czas trwania spada do zera",
       "cappedTask": "Data zakończenia obcięta: kalendarz nie zostawia dla tego zadania żadnego roboczego okna",
+      "externalLagCalendar": "Zewnętrzne opóźnienie liczy się w kalendarzu tego zadania: kalendarza drugiej strony nie ma w tym pliku.",
       "overallocation": "Przeciążenie przez {{count}} dni ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Przeciążenie przez {{count}} dni ({{first}} – {{last}}) — zasób nie pracuje w te dni według swojego kalendarza",
       "overallocationMixed": "Przeciążenie przez {{count}} dni ({{first}} – {{last}}), z czego {{nonWorking}} dni to dni, w które zasób nie pracuje według swojego kalendarza"
@@ -1579,6 +1589,10 @@
     "warnHardPins_few": "{{count}} zadania mają twarde ograniczenie Obowiązkowe; te kotwice również się przesuną.",
     "warnHardPins_many": "{{count}} zadań ma twarde ograniczenie Obowiązkowe; te kotwice również się przesuną.",
     "warnHardPins_other": "{{count}} zadania ma twarde ograniczenie Obowiązkowe; ta kotwica również się przesunie.",
+    "warnExternalKept_one": "{{count}} relacja zewnętrzna: kotwica zostaje na dacie projektu źródłowego, ponieważ ten projekt nie przesuwa się razem z nim.",
+    "warnExternalKept_few": "{{count}} relacje zewnętrzne: kotwice zostają na datach projektów źródłowych, ponieważ te projekty nie przesuwają się razem z nimi.",
+    "warnExternalKept_many": "{{count}} relacji zewnętrznych: kotwice zostają na datach projektów źródłowych, ponieważ te projekty nie przesuwają się razem z nimi.",
+    "warnExternalKept_other": "{{count}} relacji zewnętrznej: kotwica zostaje na dacie projektu źródłowego, ponieważ ten projekt nie przesuwa się razem z nim.",
     "warnHolidayGap": "Wygenerowane dni wolne kalendarza „{{name}}” obejmują {{from}}–{{to}}; przesunięty harmonogram sięga {{year}}. Wygeneruj dni wolne ponownie.",
     "warnCustomDateFields_one": "{{count}} wypełnione pole niestandardowe typu data zachowuje swoją datę.",
     "warnCustomDateFields_few": "{{count}} wypełnione pola niestandardowe typu data zachowują swoją datę.",
@@ -2119,6 +2133,10 @@
   "fileDrop": {
     "title": "Upuść, aby otworzyć",
     "subtitle": "Plik projektu lub import"
+  },
+  "settingsDelay": {
+    "title": "Nie wczytano ustawień",
+    "body": "Twoich ustawień nie udało się wczytać z serwera. Pracujesz teraz z ustawieniami domyślnymi. Gdy ustawienia znów będą dostępne, zostaną zastosowane automatycznie."
   },
   "dependentAnchorWarning": {
     "title": "Zakotwiczenia innych projektów stają się ciaśniejsze",

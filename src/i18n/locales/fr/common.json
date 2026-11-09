@@ -92,7 +92,9 @@
     "saveFailed": "Échec de l'enregistrement",
     "ambiguousThousands": "« {{text}} » est ambigu : nombre décimal ou milliers ? Saisissez les décimales avec « {{separator}} » (1{{separator}}5) et les milliers sans séparateur (1500). La valeur n’a pas été modifiée.",
     "siteSaveConflict": "Non enregistré : '{{name}}' a été modifié entre-temps sur le site par quelqu’un d’autre. Vos modifications sont toujours dans l’application. Choisissez Enregistrer sous pour les conserver dans un nouveau fichier.",
+    "siteSaveConflictCopy": "'{{original}}' a été modifié entre-temps sur le site par quelqu'un d'autre. Votre travail est donc enregistré dans une copie : '{{name}}'. À partir de maintenant, Enregistrer écrit dans cette copie.",
     "siteFileGone": "'{{name}}' n’est plus sur le site. Le fichier a été retiré de Récents.",
+    "siteFileReadOnly": "'{{name}}' est en lecture seule sur le site. Vous pouvez le consulter et le modifier, mais Enregistrer crée un nouveau fichier sur le site.",
     "savedViaDownload": "Enregistré sous forme de téléchargement : '{{name}}' se trouve maintenant dans votre dossier de téléchargements. Cet environnement ne permet pas à l'application d'écrire directement à l'emplacement choisi.",
     "browserCannotOverwrite": "Ce navigateur ne permet pas à l'application de réécrire dans « {{name}} ». C'est pourquoi l'application redemande l'emplacement du fichier à chaque enregistrement. Cela ne se produit pas dans Chrome, Edge ou l'application de bureau.",
     "browserSavesAsDownload": "Enregistré en téléchargement : « {{name}} » se trouve dans votre dossier de téléchargements. Ce navigateur ne permet pas à l'application d'écrire à un emplacement choisi ; chaque enregistrement crée donc un nouveau téléchargement. Dans Chrome, Edge ou l'application de bureau, Enregistrer met simplement à jour le même fichier.",
@@ -102,6 +104,10 @@
     "recoveryStorageBlocked": "Le stockage de récupération est temporairement bloqué par une autre connexion ouverte. Les copies existantes sont conservées ; cette page ne crée pas de nouvelles copies de récupération. Enregistrez vous-même vos modifications, fermez les autres onglets qui utilisent cette application, puis rechargez cette page pour réessayer la récupération.",
     "recoveryReadFailed": "Le fichier récupéré n'a pas pu être lu",
     "recoveryRestoreFailed": "Échec de la restauration",
+    "hostSettingsUnavailable": "Les paramètres du site n'ont pas été chargés. Les paramètres que vous modifiez dans cette session ne seront pas enregistrés.",
+    "hostThemeUntilRestart": "Ce thème reste actif jusqu'au redémarrage du planificateur. Ensuite, le planificateur reprend le thème de SuperCloud.",
+    "settingsLoadedLate": "Vos paramètres ont été chargés et appliqués.",
+    "settingsLoadedLateReverted": "Vos paramètres ont été chargés et appliqués. Les modifications effectuées entre-temps ont été annulées.",
     "recoveryDocumentsSkipped_one": "{{count}} fichier de récupération n'a pas pu être chargé et a été ignoré.",
     "recoveryDocumentsSkipped_many": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
     "recoveryDocumentsSkipped_other": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
@@ -566,6 +572,9 @@
     "weekStartMonday": "Lundi",
     "weekStartSunday": "Dimanche",
     "calculationSection": "Calcul",
+    "taskGridSection": "Tableau des tâches",
+    "autoFitColumns": "Ajuster automatiquement les colonnes",
+    "autoFitColumnsHint": "Chaque colonne du tableau des tâches adapte sa largeur aux valeurs de cette colonne, après l'ouverture et après chaque modification confirmée. Un long en-tête de colonne est alors tronqué. Si vous faites glisser vous-même une colonne, elle conserve votre largeur jusqu'à ce que vous double-cliquiez sur le bord de la colonne.",
     "autoCalcCPM": "Calculer automatiquement",
     "autoCalcCPMHint": "Recalcule automatiquement la planification dès qu'elle devient obsolète, au lieu d'attendre F5.",
     "constructionModeSection": "Mode construction",
@@ -886,6 +895,7 @@
       "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur est absent ou n'est pas une tâche feuille",
       "hammockNoFinishDriver": "Hamac sans driver de fin (aucun prédécesseur FF/SF) : sa durée retombe à zéro",
       "cappedTask": "Date de fin plafonnée : le calendrier ne laisse aucune fenêtre ouvrable pour cette tâche",
+      "externalLagCalendar": "Le décalage externe compte dans le calendrier de cette tâche : le calendrier du côté opposé ne figure pas dans ce fichier",
       "overallocation": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}}) — la ressource ne travaille pas ce(s) jour(s) selon son calendrier",
       "overallocationMixed": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}}), dont {{nonWorking}} jour(s) où la ressource ne travaille pas selon son calendrier"
@@ -1468,6 +1478,9 @@
     "warnHardPins_one": "{{count}} tâche a une contrainte Obligatoire stricte ; cet ancrage se décale aussi.",
     "warnHardPins_many": "{{count}} tâches ont une contrainte Obligatoire stricte ; ces ancrages se décalent aussi.",
     "warnHardPins_other": "{{count}} tâches ont une contrainte Obligatoire stricte ; ces ancrages se décalent aussi.",
+    "warnExternalKept_one": "{{count}} relation externe : l'ancre reste sur la date du projet source, car ce projet ne se déplace pas.",
+    "warnExternalKept_many": "{{count}} de relations externes : les ancres restent sur les dates des projets sources, car ces projets ne se déplacent pas.",
+    "warnExternalKept_other": "{{count}} relations externes : les ancres restent sur les dates des projets sources, car ces projets ne se déplacent pas.",
     "warnHolidayGap": "Les jours fériés générés du calendrier « {{name}} » couvrent {{from}}–{{to}} ; le planning décalé va jusqu’à {{year}}. Régénérez les jours fériés.",
     "warnCustomDateFields_one": "{{count}} champ personnalisé de type date renseigné conserve sa date.",
     "warnCustomDateFields_many": "{{count}} champs personnalisés de type date renseignés conservent leur date.",
@@ -1995,6 +2008,10 @@
   "fileDrop": {
     "title": "Déposez pour ouvrir",
     "subtitle": "Fichier de projet ou import"
+  },
+  "settingsDelay": {
+    "title": "Paramètres non chargés",
+    "body": "Vos paramètres n'ont pas pu être chargés depuis le serveur. Vous travaillez maintenant avec les paramètres par défaut. Dès que vos paramètres seront à nouveau disponibles, ils seront appliqués automatiquement."
   },
   "dependentAnchorWarning": {
     "title": "Les ancrages d'autres projets se resserrent",

@@ -62,7 +62,9 @@
     "saveFailed": "저장하지 못했습니다",
     "ambiguousThousands": "\"{{text}}\"은(는) 모호합니다. 소수입니까, 천 단위입니까? 소수는 \"{{separator}}\"(1{{separator}}5)로, 천 단위는 구분 기호 없이(1500) 입력하세요. 값이 변경되지 않았습니다.",
     "siteSaveConflict": "저장되지 않았습니다. 그사이 다른 사람이 사이트에서 '{{name}}' 파일을 변경했습니다. 변경 내용은 아직 앱에 있습니다. 새 파일로 보관하려면 다른 이름으로 저장을 선택하세요.",
+    "siteSaveConflictCopy": "'{{original}}'은(는) 그사이 다른 사람이 사이트에서 변경했습니다. 그래서 작업 내용은 사본 '{{name}}'에 저장되어 있습니다. 이제부터 저장하면 그 사본에 기록됩니다.",
     "siteFileGone": "'{{name}}' 파일이 더 이상 사이트에 없습니다. '최근'에서 제거되었습니다.",
+    "siteFileReadOnly": "'{{name}}'은(는) 사이트에서 읽기 전용입니다. 보고 편집할 수 있지만, 저장하면 사이트에 새 파일이 만들어집니다.",
     "savedViaDownload": "다운로드로 저장했습니다. '{{name}}' 파일이 다운로드 폴더에 있습니다. 이 환경에서는 앱이 선택한 위치에 직접 쓸 수 없습니다.",
     "browserCannotOverwrite": "이 브라우저에서는 앱이 '{{name}}'에 다시 쓸 수 없습니다. 그래서 저장할 때마다 파일을 어디에 둘지 다시 묻습니다. Chrome, Edge 또는 데스크톱 앱에서는 이런 일이 없습니다.",
     "browserSavesAsDownload": "다운로드로 저장됨: '{{name}}'이(가) 다운로드 폴더에 있습니다. 이 브라우저에서는 앱이 원하는 위치에 쓸 수 없으므로 저장할 때마다 새 다운로드가 만들어집니다. Chrome, Edge 또는 데스크톱 앱에서는 저장하면 같은 파일이 업데이트됩니다.",
@@ -72,6 +74,10 @@
     "recoveryStorageBlocked": "다른 열린 연결 때문에 복구 저장소가 일시적으로 차단되었습니다. 기존 복사본은 유지되며 이 페이지는 새 복구 복사본을 만들지 않습니다. 작업을 직접 저장하고, 이 앱을 실행 중인 다른 탭을 닫은 뒤 이 페이지를 다시 로드하여 복구를 다시 시도하세요.",
     "recoveryReadFailed": "복구된 파일을 읽을 수 없습니다",
     "recoveryRestoreFailed": "복원하지 못했습니다",
+    "hostSettingsUnavailable": "사이트의 설정을 불러오지 못했습니다. 이번 세션에서 바꾼 설정은 저장되지 않습니다.",
+    "hostThemeUntilRestart": "이 테마는 플래너를 다시 시작할 때까지 적용됩니다. 그 후에는 플래너가 다시 SuperCloud 테마를 따릅니다.",
+    "settingsLoadedLate": "설정을 불러와 적용했습니다.",
+    "settingsLoadedLateReverted": "설정을 불러와 적용했습니다. 그 사이 변경한 내용은 되돌려졌습니다.",
     "recoveryDocumentsSkipped_other": "복구 파일 {{count}}개를 불러올 수 없어 건너뛰었습니다.",
     "scheduleFailed": "일정을 계산할 수 없습니다",
     "ifcParseFailed": "IFC를 읽을 수 없습니다",
@@ -372,6 +378,9 @@
     "weekStartMonday": "월요일",
     "weekStartSunday": "일요일",
     "calculationSection": "계산",
+    "taskGridSection": "작업 표",
+    "autoFitColumns": "열 자동 맞춤",
+    "autoFitColumnsHint": "작업 표의 각 열은 그 열의 값에 맞춰 너비가 조정됩니다. 파일을 열 때와 확인한 편집을 마칠 때마다 이렇게 됩니다. 긴 열 머리글은 잘립니다. 열을 직접 끌어 너비를 바꾸면, 열 가장자리를 두 번 클릭하기 전까지 그 너비가 유지됩니다.",
     "autoCalcCPM": "자동 계산",
     "autoCalcCPMHint": "일정이 오래되면 F5를 기다리지 않고 자동으로 다시 계산합니다.",
     "constructionModeSection": "건설 모드",
@@ -686,6 +695,7 @@
       "droppedSequence": "관계 무시됨: 선행 또는 후속 작업이 없거나 리프 작업이 아닙니다",
       "hammockNoFinishDriver": "완료 드라이버가 없는 해먹(FF/SF 선행 없음): 기간이 0으로 돌아갑니다",
       "cappedTask": "완료일이 제한됨: 달력에 이 작업의 작업 가능한 기간이 없습니다",
+      "externalLagCalendar": "외부 지연은 이 작업의 달력에서 계산됩니다: 다른 쪽의 달력은 이 파일에 없습니다",
       "overallocation": "{{count}}일 동안 과다 할당({{first}} – {{last}})",
       "overallocationNonWorkingDay": "{{count}}일 동안 과다 할당({{first}} – {{last}}) — 이 리소스는 달력 상 이 날(들)에 근무하지 않습니다",
       "overallocationMixed": "{{count}}일 동안 과다 할당({{first}} – {{last}}), 그중 {{nonWorking}}일은 리소스가 달력 상 근무하지 않는 날입니다"
@@ -1246,6 +1256,7 @@
     "detailSteps": "가용량 단계",
     "warnActuals_other": "{{count}}개 작업에 실제 시작일/종료일이 있으며 함께 이동합니다. 진행 중인 프로젝트에 적절한지 확인하세요.",
     "warnHardPins_other": "{{count}}개 작업에 강제(하드) 필수 제약이 있습니다. 해당 고정일도 함께 이동합니다.",
+    "warnExternalKept_other": "외부 관계 {{count}}개: 앵커는 원본 프로젝트의 날짜에 그대로 남습니다. 그 프로젝트는 함께 이동하지 않기 때문입니다.",
     "warnHolidayGap": "달력 “{{name}}”의 생성된 공휴일은 {{from}}–{{to}}을 포함하지만, 이동된 일정은 {{year}}년까지 이어집니다. 공휴일을 다시 생성하세요.",
     "warnCustomDateFields_other": "입력된 날짜형 사용자 지정 필드 {{count}}개는 날짜가 유지됩니다.",
     "warnPast": "새 시작일이 과거입니다.",
@@ -1747,6 +1758,10 @@
   "fileDrop": {
     "title": "놓아서 열기",
     "subtitle": "프로젝트 파일 또는 가져오기"
+  },
+  "settingsDelay": {
+    "title": "설정을 불러오지 못함",
+    "body": "설정을 서버에서 불러오지 못했습니다. 지금은 기본 설정으로 작업하고 있습니다. 설정을 다시 사용할 수 있게 되면 자동으로 적용됩니다."
   },
   "dependentAnchorWarning": {
     "title": "다른 프로젝트의 앵커가 더 촉박해집니다",

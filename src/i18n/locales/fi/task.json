@@ -84,6 +84,7 @@
       "explicitSummary": "Nimenomainen yhteenvetotehtävä",
       "externalRelationData": "Ulkoisen riippuvuuden tiedot",
       "floatPath": "Pelivarapolku",
+      "calendarDays": "Kalenteripäivät",
       "freeFloat": "Vapaa pelivara",
       "hammock": "Riippumatto (johdettu kesto)",
       "interferingFloat": "Häiritsevä pelivara",

@@ -77,7 +77,9 @@
     "saveFailed": "Kaydetme başarısız",
     "ambiguousThousands": "\"{{text}}\" belirsiz: ondalık sayı mı, binler mi? Ondalıkları \"{{separator}}\" ile (1{{separator}}5), binleri ayırıcı olmadan (1500) yazın. Değer değiştirilmedi.",
     "siteSaveConflict": "Kaydedilmedi: '{{name}}' bu arada sitede başka biri tarafından değiştirildi. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosya olarak saklamak için Farklı kaydet komutunu kullanın.",
+    "siteSaveConflictCopy": "'{{original}}' sitede bu arada başka biri tarafından değiştirildi. Bu yüzden çalışmanız şu kopyada tutuluyor: '{{name}}'. Bundan sonra Kaydet bu kopyaya yazar.",
     "siteFileGone": "'{{name}}' artık sitede yok. Dosya Son açılanlar listesinden kaldırıldı.",
+    "siteFileReadOnly": "'{{name}}' sitede salt okunur. Görüntüleyebilir ve düzenleyebilirsiniz, ancak Kaydet sitede yeni bir dosya oluşturur.",
     "savedViaDownload": "İndirme olarak kaydedildi: '{{name}}' artık indirmeler klasörünüzde. Bu ortam uygulamanın seçtiğiniz konuma doğrudan yazmasına izin vermiyor.",
     "browserCannotOverwrite": "Bu tarayıcı, uygulamanın '{{name}}' dosyasına geri yazmasına izin vermiyor. Bu yüzden uygulama her kaydetmede dosyanın nereye kaydedileceğini yeniden sorar. Chrome, Edge veya masaüstü uygulamasında bu olmaz.",
     "browserSavesAsDownload": "İndirme olarak kaydedildi: '{{name}}' indirilenler klasörünüzde. Bu tarayıcı, uygulamanın kendi seçtiği bir yere yazmasına izin vermiyor; bu yüzden her kaydetme yeni bir indirme oluşturur. Chrome, Edge veya masaüstü uygulamasında Kaydet aynı dosyayı günceller.",
@@ -87,6 +89,10 @@
     "recoveryStorageBlocked": "Kurtarma depolaması, başka bir açık bağlantı tarafından geçici olarak engellendi. Mevcut kopyalar korunur; bu sayfa yeni kurtarma kopyaları oluşturmaz. Çalışmanızı kendiniz kaydedin, bu uygulamayı çalıştıran diğer sekmeleri kapatın ve kurtarmayı yeniden denemek için bu sayfayı yeniden yükleyin.",
     "recoveryReadFailed": "Kurtarılan dosya okunamadı",
     "recoveryRestoreFailed": "Geri yükleme başarısız",
+    "hostSettingsUnavailable": "Sitenin ayarları yüklenmedi. Bu oturumda ayarlarda yaptığınız değişiklikler kaydedilmez.",
+    "hostThemeUntilRestart": "Bu tema, planlayıcıyı yeniden başlatana kadar geçerli. Bundan sonra planlayıcı yine SuperCloud temasını izler.",
+    "settingsLoadedLate": "Ayarlarınız yüklendi ve uygulandı.",
+    "settingsLoadedLateReverted": "Ayarlarınız yüklendi ve uygulandı. Bu arada yaptığınız değişiklikler geri alındı.",
     "recoveryDocumentsSkipped_one": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "recoveryDocumentsSkipped_other": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "scheduleFailed": "Planlama hesaplanamadı",
@@ -469,6 +475,9 @@
     "weekStartMonday": "Pazartesi",
     "weekStartSunday": "Pazar",
     "calculationSection": "Hesaplama",
+    "taskGridSection": "Görev tablosu",
+    "autoFitColumns": "Sütunları otomatik ayarlama",
+    "autoFitColumnsHint": "Görev tablosunun her sütunu, açıldıktan sonra ve her onaylanan düzenlemeden sonra, genişliğini o sütundaki değerlere göre ayarlar. Uzun bir sütun başlığı bu durumda kesilir. Bir sütunu kendiniz sürüklerseniz, sütun kenarına çift tıklayana kadar sizin genişliğiniz kalır.",
     "autoCalcCPM": "Otomatik hesapla",
     "autoCalcCPMHint": "Plan güncel olmadığında F5'i beklemek yerine otomatik olarak yeniden hesaplar.",
     "constructionModeSection": "İnşaat modu",
@@ -786,6 +795,7 @@
       "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl eksik ya da yaprak görev değil",
       "hammockNoFinishDriver": "Bitiş driver'ı olmayan hamak (FF/SF öncülü yok): süresi sıfıra düşüyor",
       "cappedTask": "Bitiş tarihi sınırlandı: takvim bu görev için çalışılabilir bir pencere bırakmıyor",
+      "externalLagCalendar": "Dış gecikme bu görevin takviminde sayılır: karşı tarafın takvimi bu dosyada yer almıyor",
       "overallocation": "{{count}} gün aşırı atanmış ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "{{count}} gün aşırı atanmış ({{first}} – {{last}}) — kaynak bu gün(ler)de takvimine göre çalışmıyor",
       "overallocationMixed": "{{count}} gün aşırı atanmış ({{first}} – {{last}}), bunlardan {{nonWorking}} günde kaynak takvimine göre çalışmıyor"
@@ -1357,6 +1367,8 @@
     "warnActuals_other": "{{count}} görevin gerçek başlangıç/bitiş tarihi var; bu tarihler de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
     "warnHardPins_one": "{{count}} görevde katı Zorunlu kısıt var; bu sabitleme de kayar.",
     "warnHardPins_other": "{{count}} görevde katı Zorunlu kısıt var; bu sabitlemeler de kayar.",
+    "warnExternalKept_one": "{{count}} dış ilişki: çıpa, kaynak projenin tarihinde kalır, çünkü o proje birlikte kaymaz.",
+    "warnExternalKept_other": "{{count}} dış ilişki: çıpalar, kaynak projelerin tarihlerinde kalır, çünkü bu projeler birlikte kaymaz.",
     "warnHolidayGap": "“{{name}}” takviminin oluşturulan tatilleri {{from}}–{{to}} aralığını kapsıyor; kaydırılan plan {{year}} yılına kadar sürüyor. Tatilleri yeniden oluşturun.",
     "warnCustomDateFields_one": "Doldurulmuş {{count}} özel tarih alanı tarihini korur.",
     "warnCustomDateFields_other": "Doldurulmuş {{count}} özel tarih alanı tarihlerini korur.",
@@ -1871,6 +1883,10 @@
   "fileDrop": {
     "title": "Açmak için bırakın",
     "subtitle": "Proje dosyası veya içe aktarma"
+  },
+  "settingsDelay": {
+    "title": "Ayarlar yüklenmedi",
+    "body": "Ayarlarınız sunucudan yüklenemedi. Şu anda varsayılan ayarlarla çalışıyorsunuz. Ayarlarınız yeniden kullanılabilir olduğunda otomatik olarak uygulanır."
   },
   "dependentAnchorWarning": {
     "title": "Diğer projelerin bağlantı noktaları daralıyor",

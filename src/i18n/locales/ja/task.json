@@ -84,6 +84,7 @@
       "explicitSummary": "明示的なサマリータスク",
       "externalRelationData": "外部関係データ",
       "floatPath": "フロートパス",
+      "calendarDays": "暦日",
       "freeFloat": "自由余裕",
       "hammock": "ハンモック（派生期間）",
       "interferingFloat": "干渉余裕",

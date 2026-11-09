@@ -92,7 +92,9 @@
     "saveFailed": "Spremanje nije uspjelo",
     "ambiguousThousands": "\"{{text}}\" je dvosmislen: mislite li na decimalni broj ili na tisućice? Decimale upisujte s \"{{separator}}\" (1{{separator}}5), a tisućice bez razdjelnika (1500). Vrijednost nije promijenjena.",
     "siteSaveConflict": "Nije spremljeno: „{{name}}“ na lokaciji je u međuvremenu promijenila druga osoba. Vaše promjene su još u aplikaciji. Odaberite Spremi kao da biste ih spremili kao novu datoteku.",
+    "siteSaveConflictCopy": "Na platformi je u međuvremenu netko drugi promijenio „{{original}}“. Zato su vaše promjene spremljene u kopiji: „{{name}}“. Od sada naredba „Spremi“ zapisuje u tu kopiju.",
     "siteFileGone": "„{{name}}“ više nije na lokaciji. Datoteka je uklonjena s popisa „Nedavno“.",
+    "siteFileReadOnly": "„{{name}}“ je na platformi samo za čitanje. Pregledavati i uređivati možete, ali naredba „Spremi“ stvara novu datoteku na platformi.",
     "savedViaDownload": "Spremljeno kao preuzimanje: '{{name}}' sada je u vašoj mapi za preuzimanja. Ovo okruženje ne dopušta aplikaciji da izravno zapisuje na odabrano mjesto.",
     "browserCannotOverwrite": "Ovaj preglednik ne dopušta aplikaciji da zapisuje natrag u '{{name}}'. Zato aplikacija pri svakom spremanju ponovno pita gdje datoteka treba biti. U Chromeu, Edgeu ili desktop aplikaciji to se ne događa.",
     "browserSavesAsDownload": "Spremljeno kao preuzimanje: '{{name}}' je u vašoj mapi za preuzimanja. Ovaj preglednik ne dopušta aplikaciji da piše na vlastito mjesto, pa svako spremanje stvara novo preuzimanje. U Chromeu, Edgeu ili desktop aplikaciji Spremi jednostavno ažurira istu datoteku.",
@@ -102,6 +104,10 @@
     "recoveryStorageBlocked": "Spremište za oporavak privremeno je blokirano drugom otvorenom vezom. Postojeće kopije ostaju sačuvane; ova stranica ne izrađuje nove kopije za oporavak. Spremite rad sami, zatvorite druge kartice s ovom aplikacijom i ponovno učitajte ovu stranicu da biste ponovno pokušali oporavak.",
     "recoveryReadFailed": "Oporavljenu datoteku nije bilo moguće pročitati",
     "recoveryRestoreFailed": "Vraćanje nije uspjelo",
+    "hostSettingsUnavailable": "Postavke platforme nisu učitane. Sve postavke koje u ovoj sesiji promijenite neće biti spremljene.",
+    "hostThemeUntilRestart": "Ova tema vrijedi dok ponovno ne pokrenete planer. Nakon toga planer opet slijedi temu platforme SuperCloud.",
+    "settingsLoadedLate": "Vaše postavke su učitane i primijenjene.",
+    "settingsLoadedLateReverted": "Vaše postavke su učitane i primijenjene. Sve što ste u međuvremenu promijenili, vraćeno je na prijašnje stanje.",
     "recoveryDocumentsSkipped_one": "{{count}} datoteka za oporavak nije bilo moguće učitati i preskočena je.",
     "recoveryDocumentsSkipped_few": "{{count}} datoteke za oporavak nije bilo moguće učitati i preskočene su.",
     "recoveryDocumentsSkipped_other": "{{count}} datoteka za oporavak nije bilo moguće učitati i preskočeno je.",
@@ -566,6 +572,9 @@
     "weekStartMonday": "Ponedjeljak",
     "weekStartSunday": "Nedjelja",
     "calculationSection": "Izračunavanje",
+    "taskGridSection": "Tablica zadataka",
+    "autoFitColumns": "Automatski prilagodi širinu stupaca",
+    "autoFitColumnsHint": "Svaki stupac tablice zadataka prilagođava svoju širinu vrijednostima u tom stupcu, nakon otvaranja i nakon svake potvrđene izmjene. Predugo zaglavlje stupca se tada skraćuje. Ako stupac sami povučete, zadržava vašu širinu dok ne dvaput kliknete na rub stupca.",
     "autoCalcCPM": "Automatsko izračunavanje",
     "autoCalcCPMHint": "Automatski ponovno izračunava raspored čim zastari, umjesto da čekate F5.",
     "constructionModeSection": "Građevinski način rada",
@@ -886,6 +895,7 @@
       "droppedSequence": "Ovisnost zanemarena: prethodnik ili nasljednik nedostaje ili nije zadatak najniže razine.",
       "hammockNoFinishDriver": "Hamak bez odlučujuće ovisnosti završetka (nema FF/SF prethodnika): trajanje se vraća na nulu",
       "cappedTask": "Datum završetka je ograničen: kalendar ne ostavlja radni prozor za zadatak.",
+      "externalLagCalendar": "Vanjsko vrijeme odgode ubraja se u kalendar ovog zadatka: kalendar s druge strane nije u ovoj datoteci",
       "overallocation": "Dani s preopterećenjem resursa: {{count}} ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Dani s preopterećenjem resursa: {{count}} ({{first}} – {{last}}). Resurs prema svom kalendaru tih dana ne radi.",
       "overallocationMixed": "Dani s preopterećenjem resursa: {{count}} ({{first}} – {{last}}). Od toga su neradni dani prema kalendaru resursa: {{nonWorking}}."
@@ -1468,6 +1478,9 @@
     "warnHardPins_one": "{{count}} zadatak ima tvrdi Mandatory-pin; taj se pin pomiče zajedno.",
     "warnHardPins_few": "{{count}} zadatka imaju tvrde Mandatory-pinove; ti se pinovi pomiču zajedno.",
     "warnHardPins_other": "{{count}} zadataka ima tvrde Mandatory-pinove; ti se pinovi pomiču zajedno.",
+    "warnExternalKept_one": "{{count}} međuzavisnost projekata: sidro ostaje na datumu izvornog projekta, jer se taj projekt ne pomiče.",
+    "warnExternalKept_few": "{{count}} međuzavisnosti projekata: sidra ostaju na datumima izvornih projekata, jer se ti projekti ne pomiču.",
+    "warnExternalKept_other": "{{count}} međuzavisnosti projekata: sidra ostaju na datumima izvornih projekata, jer se ti projekti ne pomiču.",
     "warnHolidayGap": "Generirani praznici kalendara „{{name}}” obuhvaćaju {{from}}–{{to}}; premješteni raspored traje do {{year}}. Ponovno generirajte praznike.",
     "warnCustomDateFields_one": "{{count}} ispunjeno korisničko polje s datumom zadržava svoj datum.",
     "warnCustomDateFields_few": "{{count}} ispunjena korisnička polja s datumom zadržavaju svoj datum.",
@@ -1995,6 +2008,10 @@
   "fileDrop": {
     "title": "Otpustite za otvaranje",
     "subtitle": "Projektna datoteka ili uvoz"
+  },
+  "settingsDelay": {
+    "title": "Postavke nisu učitane",
+    "body": "Vaše postavke nisu se mogle učitati s poslužitelja. Sada radite sa zadanim postavkama. Čim vaše postavke ponovno budu dostupne, automatski će se primijeniti."
   },
   "dependentAnchorWarning": {
     "title": "Referentni datumi drugih projekata postaju tješnji",

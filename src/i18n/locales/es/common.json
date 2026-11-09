@@ -92,7 +92,9 @@
     "saveFailed": "No se pudo guardar",
     "ambiguousThousands": "«{{text}}» es ambiguo: ¿número decimal o miles? Escriba los decimales con «{{separator}}» (1{{separator}}5) y los miles sin separador (1500). El valor no se ha cambiado.",
     "siteSaveConflict": "No guardado: '{{name}}' fue modificado en el sitio por otra persona mientras tanto. Sus cambios siguen en la aplicación. Elija Guardar como para conservarlos como un archivo nuevo.",
+    "siteSaveConflictCopy": "'{{original}}' ha sido modificado en el sitio por otra persona mientras tanto. Por eso su trabajo se guarda en una copia: '{{name}}'. A partir de ahora, Guardar escribe en esa copia.",
     "siteFileGone": "'{{name}}' ya no está en el sitio. El archivo se ha quitado de Recientes.",
+    "siteFileReadOnly": "'{{name}}' es de solo lectura en el sitio. Puede verlo y editarlo, pero Guardar crea un archivo nuevo en el sitio.",
     "savedViaDownload": "Guardado como descarga: '{{name}}' está ahora en tu carpeta de descargas. Este entorno no permite que la aplicación escriba directamente en la ubicación elegida.",
     "browserCannotOverwrite": "Este navegador no permite que la aplicación vuelva a escribir en «{{name}}». Por eso la aplicación pregunta de nuevo dónde guardar el archivo cada vez que guardas. Esto no ocurre en Chrome, Edge ni en la aplicación de escritorio.",
     "browserSavesAsDownload": "Guardado como descarga: «{{name}}» está en tu carpeta de descargas. Este navegador no permite que la aplicación escriba en una ubicación propia, así que cada guardado crea una descarga nueva. En Chrome, Edge o la aplicación de escritorio, Guardar simplemente actualiza el mismo archivo.",
@@ -102,6 +104,10 @@
     "recoveryStorageBlocked": "El almacenamiento de recuperación está bloqueado temporalmente por otra conexión abierta. Las copias existentes se conservan; esta página no crea nuevas copias de recuperación. Guarde su trabajo usted mismo, cierre otras pestañas con esta aplicación y vuelva a cargar esta página para intentar la recuperación de nuevo.",
     "recoveryReadFailed": "No se pudo leer el archivo recuperado",
     "recoveryRestoreFailed": "No se pudo restaurar",
+    "hostSettingsUnavailable": "No se ha cargado la configuración del sitio. Los cambios de configuración que haga en esta sesión no se guardarán.",
+    "hostThemeUntilRestart": "Este tema se aplica hasta que reinicie el planificador. Después, el planificador vuelve a seguir el tema de SuperCloud.",
+    "settingsLoadedLate": "Su configuración se ha cargado y aplicado.",
+    "settingsLoadedLateReverted": "Su configuración se ha cargado y aplicado. Los cambios que hizo entretanto se han revertido.",
     "recoveryDocumentsSkipped_one": "{{count}} archivo de recuperación no se pudo cargar y se omitió.",
     "recoveryDocumentsSkipped_many": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
     "recoveryDocumentsSkipped_other": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
@@ -566,6 +572,9 @@
     "weekStartMonday": "Lunes",
     "weekStartSunday": "Domingo",
     "calculationSection": "Cálculo",
+    "taskGridSection": "Tabla de tareas",
+    "autoFitColumns": "Ajustar columnas automáticamente",
+    "autoFitColumnsHint": "Cada columna de la tabla de tareas ajusta su anchura a los valores de esa columna, al abrir y después de cada edición confirmada. Un encabezado de columna largo se corta entonces. Si arrastra una columna, conserva su anchura hasta que haga doble clic en el borde de la columna.",
     "autoCalcCPM": "Calcular automáticamente",
     "autoCalcCPMHint": "Recalcula la planificación automáticamente en cuanto queda desactualizada, en lugar de esperar a F5.",
     "constructionModeSection": "Modo construcción",
@@ -886,6 +895,7 @@
       "droppedSequence": "Relación ignorada: el predecesor o el sucesor falta o no es una tarea hoja",
       "hammockNoFinishDriver": "Hamaca sin driver de fin (sin predecesor FF/SF): su duración vuelve a cero",
       "cappedTask": "Fecha de fin limitada: el calendario no deja ninguna ventana laborable para esta tarea",
+      "externalLagCalendar": "El desfase externo cuenta en el calendario de esta tarea: el calendario del otro lado no está en este archivo",
       "overallocation": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}}) — el recurso no trabaja ese(os) día(s) según su calendario",
       "overallocationMixed": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}}), de los cuales {{nonWorking}} día(s) el recurso no trabaja según su calendario"
@@ -1468,6 +1478,9 @@
     "warnHardPins_one": "{{count}} tarea tiene una restricción Obligatoria estricta; ese anclaje se desplaza también.",
     "warnHardPins_many": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
     "warnHardPins_other": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
+    "warnExternalKept_one": "{{count}} relación externa: el ancla se queda en la fecha del proyecto de origen, porque ese proyecto no se desplaza.",
+    "warnExternalKept_many": "{{count}} de relaciones externas: los anclajes se quedan en las fechas de los proyectos de origen, porque esos proyectos no se desplazan.",
+    "warnExternalKept_other": "{{count}} relaciones externas: los anclajes se quedan en las fechas de los proyectos de origen, porque esos proyectos no se desplazan.",
     "warnHolidayGap": "Los festivos generados del calendario «{{name}}» cubren {{from}}–{{to}}; la planificación desplazada llega hasta {{year}}. Vuelva a generar los festivos.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de fecha rellenado conserva su fecha.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de fecha rellenados conservan su fecha.",
@@ -1995,6 +2008,10 @@
   "fileDrop": {
     "title": "Suelte para abrir",
     "subtitle": "Archivo de proyecto o importación"
+  },
+  "settingsDelay": {
+    "title": "Configuración no cargada",
+    "body": "No se pudo cargar su configuración desde el servidor. Ahora trabaja con la configuración predeterminada. En cuanto esté disponible de nuevo, se aplicará automáticamente."
   },
   "dependentAnchorWarning": {
     "title": "Los anclajes de otros proyectos se ajustan más",

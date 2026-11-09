@@ -92,7 +92,9 @@
     "saveFailed": "Salvataggio non riuscito",
     "ambiguousThousands": "«{{text}}» è ambiguo: numero decimale o migliaia? Scrivi i decimali con «{{separator}}» (1{{separator}}5) e le migliaia senza separatore (1500). Il valore non è stato modificato.",
     "siteSaveConflict": "Non salvato: '{{name}}' è stato modificato nel frattempo sul sito da qualcun altro. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle come nuovo file.",
+    "siteSaveConflictCopy": "'{{original}}' è stato modificato nel frattempo sul sito da qualcun altro. Il tuo lavoro si trova quindi in una copia: '{{name}}'. Da ora in poi, «Salva» scrive in quella copia.",
     "siteFileGone": "'{{name}}' non è più sul sito. Il file è stato rimosso da Recenti.",
+    "siteFileReadOnly": "'{{name}}' è di sola lettura sul sito. Puoi vederlo e modificarlo, ma «Salva» crea un nuovo file sul sito.",
     "savedViaDownload": "Salvato come download: '{{name}}' si trova ora nella cartella dei download. Questo ambiente non consente all'applicazione di scrivere direttamente nella posizione scelta.",
     "browserCannotOverwrite": "Questo browser non consente all'app di riscrivere su «{{name}}». Per questo l'app chiede di nuovo dove salvare il file a ogni salvataggio. Questo non accade in Chrome, Edge o nell'app desktop.",
     "browserSavesAsDownload": "Salvato come download: «{{name}}» si trova nella cartella dei download. Questo browser non consente all'app di scrivere in una posizione propria, quindi ogni salvataggio crea un nuovo download. In Chrome, Edge o nell'app desktop, Salva aggiorna semplicemente lo stesso file.",
@@ -102,6 +104,10 @@
     "recoveryStorageBlocked": "L'archiviazione del ripristino è bloccata temporaneamente da un'altra connessione aperta. Le copie esistenti restano; questa pagina non crea nuove copie di ripristino. Salva tu il lavoro, chiudi le altre schede con questa app e ricarica questa pagina per riprovare il ripristino.",
     "recoveryReadFailed": "Impossibile leggere il file ripristinato",
     "recoveryRestoreFailed": "Ripristino non riuscito",
+    "hostSettingsUnavailable": "Le impostazioni del sito non sono state caricate. Le impostazioni che modifichi in questa sessione non verranno salvate.",
+    "hostThemeUntilRestart": "Questo tema vale finché non riavvii il pianificatore. Dopodiché il pianificatore segue di nuovo il tema di SuperCloud.",
+    "settingsLoadedLate": "Le tue impostazioni sono state caricate e applicate.",
+    "settingsLoadedLateReverted": "Le tue impostazioni sono state caricate e applicate. Ciò che hai modificato nel frattempo è stato ripristinato.",
     "recoveryDocumentsSkipped_one": "{{count}} file di ripristino non è stato caricato ed è stato ignorato.",
     "recoveryDocumentsSkipped_many": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "recoveryDocumentsSkipped_other": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
@@ -566,6 +572,9 @@
     "weekStartMonday": "Lunedì",
     "weekStartSunday": "Domenica",
     "calculationSection": "Calcolo",
+    "taskGridSection": "Tabella attività",
+    "autoFitColumns": "Adatta automaticamente le colonne",
+    "autoFitColumnsHint": "Ogni colonna della tabella attività adatta la propria larghezza ai valori di quella colonna, dopo l'apertura e dopo ogni modifica confermata. Un'intestazione di colonna lunga viene quindi troncata. Se trascini tu una colonna, mantiene la tua larghezza finché non fai doppio clic sul bordo della colonna.",
     "autoCalcCPM": "Calcola automaticamente",
     "autoCalcCPMHint": "Ricalcola automaticamente la pianificazione non appena diventa obsoleta, invece di attendere F5.",
     "constructionModeSection": "Modalità cantiere",
@@ -886,6 +895,7 @@
       "droppedSequence": "Relazione ignorata: predecessore o successore mancante o non è un'attività foglia",
       "hammockNoFinishDriver": "Hammock senza driver di fine (nessun predecessore FF/SF): la durata torna a zero",
       "cappedTask": "Data di fine limitata: il calendario non lascia alcuna finestra lavorativa per questa attività",
+      "externalLagCalendar": "Il ritardo esterno conta nel calendario di questa attività: il calendario dell'altro lato non è presente in questo file",
       "overallocation": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}}) — la risorsa non lavora in questo/i giorno/i secondo il suo calendario",
       "overallocationMixed": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}}), di cui {{nonWorking}} giorno/i in cui la risorsa non lavora secondo il suo calendario"
@@ -1468,6 +1478,9 @@
     "warnHardPins_one": "{{count}} attività ha un vincolo Obbligatorio rigido; tale ancoraggio si sposta anch’esso.",
     "warnHardPins_many": "{{count}} attività hanno un vincolo Obbligatorio rigido; tali ancoraggi si spostano anch’essi.",
     "warnHardPins_other": "{{count}} attività hanno un vincolo Obbligatorio rigido; tali ancoraggi si spostano anch’essi.",
+    "warnExternalKept_one": "{{count}} relazione esterna: l'ancora resta sulla data del progetto di origine, perché quel progetto non si sposta.",
+    "warnExternalKept_many": "{{count}} relazioni esterne: le ancore restano sulle date dei progetti di origine, perché quei progetti non si spostano.",
+    "warnExternalKept_other": "{{count}} relazioni esterne: le ancore restano sulle date dei progetti di origine, perché quei progetti non si spostano.",
     "warnHolidayGap": "Le festività generate del calendario «{{name}}» coprono {{from}}–{{to}}; la pianificazione spostata arriva al {{year}}. Rigenera le festività.",
     "warnCustomDateFields_one": "{{count}} campo personalizzato di tipo data compilato mantiene la sua data.",
     "warnCustomDateFields_many": "{{count}} campi personalizzati di tipo data compilati mantengono la loro data.",
@@ -1995,6 +2008,10 @@
   "fileDrop": {
     "title": "Rilascia per aprire",
     "subtitle": "File di progetto o importazione"
+  },
+  "settingsDelay": {
+    "title": "Impostazioni non caricate",
+    "body": "Non è stato possibile caricare le tue impostazioni dal server. Ora lavori con le impostazioni predefinite. Appena le tue impostazioni tornano disponibili, vengono applicate automaticamente."
   },
   "dependentAnchorWarning": {
     "title": "Gli ancoraggi di altri progetti diventano più stretti",

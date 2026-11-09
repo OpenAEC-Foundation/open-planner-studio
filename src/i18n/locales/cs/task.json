@@ -84,6 +84,7 @@
       "explicitSummary": "Explicitní souhrnný úkol",
       "externalRelationData": "Data vazeb mezi projekty",
       "floatPath": "Cesta časové rezervy",
+      "calendarDays": "Kalendářní dny",
       "freeFloat": "Volná časová rezerva",
       "hammock": "Překlenovací úkol (odvozená doba trvání)",
       "interferingFloat": "Interferující časová rezerva",

@@ -77,7 +77,9 @@
     "saveFailed": "Kunde inte spara",
     "ambiguousThousands": "”{{text}}” är tvetydigt: menar du ett decimaltal eller tusental? Skriv decimaler med ”{{separator}}” (1{{separator}}5) och tusental utan skiljetecken (1500). Värdet har inte ändrats.",
     "siteSaveConflict": "Inte sparat: ”{{name}}” har ändrats på webbplatsen av någon annan under tiden. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem som en ny fil.",
+    "siteSaveConflictCopy": "”{{original}}” har på webbplatsen ändrats av någon annan under tiden. Ditt arbete har därför sparats i en kopia: ”{{name}}”. Spara skriver från och med nu till den kopian.",
     "siteFileGone": "”{{name}}” finns inte längre på webbplatsen. Filen har tagits bort från Senaste.",
+    "siteFileReadOnly": "”{{name}}” är skrivskyddad på webbplatsen. Du kan visa och redigera den, men Spara skapar en ny fil på webbplatsen.",
     "savedViaDownload": "Sparad som nedladdning: '{{name}}' finns nu i din nedladdningsmapp. Den här miljön tillåter inte att appen skriver direkt till platsen du valde.",
     "browserCannotOverwrite": "Den här webbläsaren tillåter inte att appen skriver tillbaka till '{{name}}'. Därför frågar appen varje gång du sparar var filen ska sparas. I Chrome, Edge eller skrivbordsappen händer detta inte.",
     "browserSavesAsDownload": "Sparad som nedladdning: '{{name}}' finns i din nedladdningsmapp. Den här webbläsaren tillåter inte att appen skriver till en egen plats, så varje gång du sparar skapas en ny nedladdning. I Chrome, Edge eller skrivbordsappen uppdaterar Spara samma fil helt enkelt.",
@@ -87,6 +89,10 @@
     "recoveryStorageBlocked": "Återställningslagringen är tillfälligt blockerad av en annan öppen anslutning. Befintliga kopior finns kvar; den här sidan skapar inga nya återställningskopior. Spara ditt arbete själv, stäng andra flikar med den här appen och ladda sidan om för att försöka återställa igen.",
     "recoveryReadFailed": "Den återställda filen kunde inte läsas",
     "recoveryRestoreFailed": "Kunde inte återställa",
+    "hostSettingsUnavailable": "Inställningarna för webbplatsen har inte lästs in. Inställningar som du ändrar under den här sessionen sparas inte.",
+    "hostThemeUntilRestart": "Det här temat gäller tills du startar om planeraren. Därefter följer planeraren åter temat i SuperCloud.",
+    "settingsLoadedLate": "Dina inställningar har lästs in och tillämpats.",
+    "settingsLoadedLateReverted": "Dina inställningar har lästs in och tillämpats. Det du ändrade under tiden har återställts.",
     "recoveryDocumentsSkipped_one": "{{count}} återställningsfil kunde inte läsas in och hoppades över.",
     "recoveryDocumentsSkipped_other": "{{count}} återställningsfiler kunde inte läsas in och hoppades över.",
     "scheduleFailed": "Tidsplanen kunde inte beräknas",
@@ -469,6 +475,9 @@
     "weekStartMonday": "Måndag",
     "weekStartSunday": "Söndag",
     "calculationSection": "Beräkning",
+    "taskGridSection": "Uppgiftstabell",
+    "autoFitColumns": "Anpassa kolumner automatiskt",
+    "autoFitColumnsHint": "Varje kolumn i uppgiftstabellen anpassar sin bredd efter värdena i kolumnen, efter att du har öppnat filen och efter varje bekräftad redigering. En lång kolumnrubrik kapas då av. Drar du själv i en kolumn behåller den din bredd tills du dubbelklickar på kolumnkanten.",
     "autoCalcCPM": "Beräkna automatiskt",
     "autoCalcCPMHint": "Beräknar om tidsplanen automatiskt så snart den blir inaktuell, i stället för att vänta på F5.",
     "constructionModeSection": "Byggläge",
@@ -786,6 +795,7 @@
       "droppedSequence": "Samband ignorerat: föregående eller efterföljande uppgift saknas eller är inte en lövuppgift",
       "hammockNoFinishDriver": "Hängmatta utan slutdrivande samband (inget FF/SF-föregående): varaktigheten sätts till noll",
       "cappedTask": "Slutdatum kapat: kalendern lämnar inget användbart fönster för uppgiften",
+      "externalLagCalendar": "Den externa fördröjningen räknas i kalendern för den här uppgiften: kalendern på andra sidan finns inte i den här filen",
       "overallocation": "Överbeläggning på {{count}} dag(ar) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Överbeläggning på {{count}} dag(ar) ({{first}} – {{last}}). Resursen arbetar inte dessa dagar enligt sin kalender",
       "overallocationMixed": "Överbeläggning på {{count}} dag(ar) ({{first}} – {{last}}), varav {{nonWorking}} dag(ar) då resursen inte arbetar enligt sin kalender"
@@ -1357,6 +1367,8 @@
     "warnActuals_other": "{{count}} uppgifter har verklig start och verkligt slut; de förskjuts med. Kontrollera att det stämmer för ett pågående projekt.",
     "warnHardPins_one": "{{count}} uppgift har en hård Mandatory-pin; den pinsen förskjuts med.",
     "warnHardPins_other": "{{count}} uppgifter har en hård Mandatory-pin; de pinsarna förskjuts med.",
+    "warnExternalKept_one": "{{count}} externt samband: ankaret stannar kvar på datumet för källprojektet, eftersom det projektet inte flyttar med.",
+    "warnExternalKept_other": "{{count}} externa samband: ankarna stannar kvar på datumen för källprojekten, eftersom de projekten inte flyttar med.",
     "warnHolidayGap": "De genererade helgdagarna i kalendern “{{name}}” täcker {{from}}–{{to}}; den förskjutna tidsplanen sträcker sig till {{year}}. Generera helgdagarna igen.",
     "warnCustomDateFields_one": "{{count}} ifyllt anpassat datumfält behåller sitt datum.",
     "warnCustomDateFields_other": "{{count}} ifyllda anpassade datumfält behåller sina datum.",
@@ -1871,6 +1883,10 @@
   "fileDrop": {
     "title": "Släpp för att öppna",
     "subtitle": "Projektfil eller import"
+  },
+  "settingsDelay": {
+    "title": "Inställningarna lästes inte in",
+    "body": "Dina inställningar kunde inte läsas in från servern. Du arbetar nu med standardinställningarna. Så snart dina inställningar är tillgängliga igen tillämpas de automatiskt."
   },
   "dependentAnchorWarning": {
     "title": "Ankardatum i andra projekt blir snävare",

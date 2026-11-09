@@ -107,7 +107,9 @@
     "saveFailed": "Uloženie zlyhalo",
     "ambiguousThousands": "„{{text}}“ je nejednoznačné: myslíte desatinné číslo, alebo tisíce? Desatinné čísla zapíšte so znakom „{{separator}}“ (1{{separator}}5) a tisíce bez oddeľovača (1500). Hodnota sa nezmenila.",
     "siteSaveConflict": "Neuložené: „{{name}}“ bol na webe medzitým zmenený iným používateľom. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť ako nový súbor, vyberte „Uložiť ako“.",
+    "siteSaveConflictCopy": "„{{original}}“ na webe medzitým zmenil niekto iný. Vaša práca je preto v kópii: „{{name}}“. Uložiť odteraz zapisuje do tejto kópie.",
     "siteFileGone": "„{{name}}“ už nie je na webe. Súbor bol odstránený zo zoznamu „Nedávne“.",
+    "siteFileReadOnly": "„{{name}}“ je na webe iba na čítanie. Môžete ho zobraziť a upraviť, ale Uložiť vytvorí na webe nový súbor.",
     "savedViaDownload": "Uložené ako stiahnutý súbor: „{{name}}“ je teraz v priečinku pre sťahovanie. Toto prostredie neumožňuje aplikácii zapisovať priamo na zvolené miesto.",
     "browserCannotOverwrite": "Tento prehliadač neumožňuje aplikácii zapisovať späť do „{{name}}“. Preto sa aplikácia pri každom uložení znova pýta, kam má súbor uložiť. V prehliadačoch Chrome alebo Edge a v desktopovej aplikácii sa to nedeje.",
     "browserSavesAsDownload": "Uložené ako stiahnutý súbor: „{{name}}“ je v priečinku pre sťahovanie. Tento prehliadač neumožňuje aplikácii zapisovať na vlastné miesto, takže každé uloženie vytvorí nové sťahovanie. V prehliadačoch Chrome alebo Edge a v desktopovej aplikácii príkaz Uložiť jednoducho aktualizuje ten istý súbor.",
@@ -117,6 +119,10 @@
     "recoveryStorageBlocked": "Úložisko obnovy je dočasne zablokované iným otvoreným pripojením. Existujúce kópie zostanú zachované; táto stránka nevytvorí nové kópie obnovy. Prácu uložte sami, zatvorte ostatné karty s touto aplikáciou a znovu načítajte túto stránku, aby sa obnova skúsila znova.",
     "recoveryReadFailed": "Obnovený súbor sa nepodarilo prečítať",
     "recoveryRestoreFailed": "Obnovenie zlyhalo",
+    "hostSettingsUnavailable": "Nastavenia webu sa nepodarilo načítať. Nastavenia, ktoré v tejto relácii zmeníte, sa neuložia.",
+    "hostThemeUntilRestart": "Táto téma platí, kým plánovač znovu nespustíte. Potom plánovač opäť použije tému SuperCloud.",
+    "settingsLoadedLate": "Vaše nastavenia sú načítané a použité.",
+    "settingsLoadedLateReverted": "Vaše nastavenia sú načítané a použité. Čo ste medzitým zmenili, bolo vrátené späť.",
     "recoveryDocumentsSkipped_one": "{{count}} súbor na obnovenie sa nepodarilo načítať a bol preskočený.",
     "recoveryDocumentsSkipped_few": "{{count}} súbory na obnovenie sa nepodarilo načítať a boli preskočené.",
     "recoveryDocumentsSkipped_many": "{{count}} súboru na obnovenie sa nepodarilo načítať a boli preskočené.",
@@ -663,6 +669,9 @@
     "weekStartMonday": "Pondelok",
     "weekStartSunday": "Nedeľa",
     "calculationSection": "Prepočítanie",
+    "taskGridSection": "Tabuľka úloh",
+    "autoFitColumns": "Automaticky prispôsobiť stĺpce",
+    "autoFitColumnsHint": "Každý stĺpec tabuľky úloh prispôsobí svoju šírku hodnotám v tomto stĺpci po otvorení a po každej potvrdenej úprave. Dlhé záhlavie stĺpca sa potom skráti. Ak stĺpec sami potiahnete, zachová si vašu šírku, kým na okraj stĺpca dvakrát nekliknete.",
     "autoCalcCPM": "Automatický prepočet",
     "autoCalcCPMHint": "Plán sa automaticky prepočíta hneď, ako zastará, namiesto čakania na F5.",
     "constructionModeSection": "Stavebný režim",
@@ -986,6 +995,7 @@
       "droppedSequence": "Závislosť sa ignoruje: predchádzajúca úloha alebo nasledujúca úloha chýba, alebo nie je úloha bez podúloh.",
       "hammockNoFinishDriver": "Hamak bez určujúcej závislosti dokončenia (bez predchádzajúcej úlohy FF/SF): trvanie sa vráti na nulu",
       "cappedTask": "Dátum dokončenia orezaný: kalendár nenechá pre túto úlohu žiadne pracovné okno",
+      "externalLagCalendar": "Externé oneskorenie sa počíta v kalendári tejto úlohy: kalendár druhej strany nie je v tomto súbore",
       "overallocation": "Preťaženie, počet dní: {{count}} ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Preťaženie, počet dní: {{count}} ({{first}} – {{last}}). Zdroj v tieto dni podľa svojho kalendára nepracuje.",
       "overallocationMixed": "Preťaženie, počet dní: {{count}} ({{first}} – {{last}}). Z toho v dňoch, keď zdroj podľa svojho kalendára nepracuje: {{nonWorking}}"
@@ -1579,6 +1589,10 @@
     "warnHardPins_few": "{{count}} úlohy majú tvrdý pin Mandatory; tieto piny sa posunú spolu s nimi.",
     "warnHardPins_many": "{{count}} úlohy majú tvrdý pin Mandatory; tieto piny sa posunú spolu s nimi.",
     "warnHardPins_other": "{{count}} úloh má tvrdý pin Mandatory; tieto piny sa posunú spolu s nimi.",
+    "warnExternalKept_one": "{{count}} prepojenie medzi projektmi: kotva zostane na dátume zdrojového projektu, lebo tento projekt sa neposúva.",
+    "warnExternalKept_few": "{{count}} prepojenia medzi projektmi: kotvy zostanú na dátumoch zdrojových projektov, lebo tieto projekty sa neposúvajú.",
+    "warnExternalKept_many": "{{count}} prepojenia medzi projektmi: kotvy zostanú na dátumoch zdrojových projektov, lebo tieto projekty sa neposúvajú.",
+    "warnExternalKept_other": "{{count}} prepojení medzi projektmi: kotvy zostanú na dátumoch zdrojových projektov, lebo tieto projekty sa neposúvajú.",
     "warnHolidayGap": "Vygenerované sviatky kalendára „{{name}}“ pokrývajú {{from}}–{{to}}; posunutý plán beží do {{year}}. Vygenerujte sviatky znova.",
     "warnCustomDateFields_one": "{{count}} vyplnené vlastné pole s dátumom zostane na svojom dátume.",
     "warnCustomDateFields_few": "{{count}} vyplnené vlastné polia s dátumom zostanú na svojom dátume.",
@@ -2119,6 +2133,10 @@
   "fileDrop": {
     "title": "Pustite na otvorenie",
     "subtitle": "Súbor projektu alebo import"
+  },
+  "settingsDelay": {
+    "title": "Nastavenia nie sú načítané",
+    "body": "Vaše nastavenia sa nepodarilo načítať zo servera. Teraz pracujete s predvolenými nastaveniami. Keď budú vaše nastavenia znovu dostupné, použijú sa automaticky."
   },
   "dependentAnchorWarning": {
     "title": "Kotvové dátumy iných projektov sa sprísňujú",

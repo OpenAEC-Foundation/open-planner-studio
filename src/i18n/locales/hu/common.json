@@ -77,7 +77,9 @@
     "saveFailed": "Mentés sikertelen",
     "ambiguousThousands": "„{{text}}” kétértelmű: decimális számra vagy ezresekre gondol? Tizedesjegyeket a(z) „{{separator}}” jellel írjon (1{{separator}}5), ezreseket elválasztójel nélkül (1500). Az érték nem változott.",
     "siteSaveConflict": "Nem mentve: „{{name}}” közben valaki más módosította a webhelyen. A módosításai még benne vannak az alkalmazásban. Válassza a „Mentés másként” parancsot, ha új fájlként szeretné megőrizni őket.",
+    "siteSaveConflictCopy": "„{{original}}” a webhelyen közben valaki más módosította. A módosításai ezért egy másolatban vannak: „{{name}}”. A „Mentés” mostantól erre a másolatra ír.",
     "siteFileGone": "A(z) „{{name}}” már nincs a webhelyen. Az alkalmazás eltávolította a fájlt a Legutóbbi listából.",
+    "siteFileReadOnly": "„{{name}}” csak olvasható a webhelyen. Megtekintheti és szerkesztheti, de a „Mentés” új fájlt hoz létre a webhelyen.",
     "savedViaDownload": "Letöltésként mentve: a(z) „{{name}}” most a letöltési mappában van. Ebben a környezetben az alkalmazás nem írhat közvetlenül a kiválasztott helyre.",
     "browserCannotOverwrite": "Ez a böngésző nem engedi, hogy az alkalmazás visszaírjon a(z) „{{name}}” fájlba. Ezért az alkalmazás minden mentéskor újra megkérdezi, hova kerüljön a fájl. Chrome-ban, Edge-ben vagy az asztali alkalmazásban ez nem fordul elő.",
     "browserSavesAsDownload": "Letöltésként mentve: a(z) „{{name}}” a letöltési mappában van. Ez a böngésző nem engedi, hogy az alkalmazás saját helyre írjon, ezért minden mentés új letöltést hoz létre. Chrome-ban, Edge-ben vagy az asztali alkalmazásban a Mentés ugyanazt a fájlt frissíti.",
@@ -87,6 +89,10 @@
     "recoveryStorageBlocked": "A helyreállítási tárolót egy másik nyitott kapcsolat átmenetileg zárolja. A meglévő másolatok megmaradnak; ez az oldal nem készít új helyreállítási másolatokat. Mentse a munkáját saját maga, zárja be az ezt az alkalmazást futtató többi lapot, majd töltse újra ezt az oldalt, hogy a helyreállítást újra megkísérelje.",
     "recoveryReadFailed": "A visszaállított fájl nem olvasható",
     "recoveryRestoreFailed": "Visszaállítás sikertelen",
+    "hostSettingsUnavailable": "A webhely beállításai nem töltődtek be. Az ebben a munkamenetben módosított beállításokat nem mentjük.",
+    "hostThemeUntilRestart": "Ez a téma addig marad érvényben, amíg újra nem indítja a tervezőt. Utána a tervező ismét a SuperCloud témáját követi.",
+    "settingsLoadedLate": "A beállításai betöltődtek és alkalmazásra kerültek.",
+    "settingsLoadedLateReverted": "A beállításai betöltődtek és alkalmazásra kerültek. Az időközben végzett módosítások visszaálltak.",
     "recoveryDocumentsSkipped_one": "{{count}} visszaállítási fájl nem tölthető be, ezért ki lett hagyva.",
     "recoveryDocumentsSkipped_other": "{{count}} visszaállítási fájl nem tölthető be, ezért ki lett hagyva.",
     "scheduleFailed": "Az ütemezés nem számítható ki",
@@ -469,6 +475,9 @@
     "weekStartMonday": "Hétfő",
     "weekStartSunday": "Vasárnap",
     "calculationSection": "Ütemezés-számítás",
+    "taskGridSection": "Tevékenységtáblázat",
+    "autoFitColumns": "Oszlopok automatikus igazítása",
+    "autoFitColumnsHint": "A tevékenységtáblázat minden oszlopa a benne lévő értékekhez igazítja a szélességét, megnyitás után és minden megerősített szerkesztés után. Ilyenkor a hosszú oszlopfejléc le lesz vágva. Ha kézzel húz át egy oszlopot, az megtartja az Ön által megadott szélességet, amíg az oszlop szélén duplán nem kattint.",
     "autoCalcCPM": "Automatikus ütemezés-számítás",
     "autoCalcCPMHint": "Automatikusan újraszámítja az ütemezést, amint az elavulttá válik, ahelyett, hogy az F5 billentyűre várna.",
     "constructionModeSection": "Építési mód",
@@ -786,6 +795,7 @@
       "droppedSequence": "Kapcsolat figyelmen kívül hagyva: az előd vagy az utód hiányzik, vagy nem levéltevékenység",
       "hammockNoFinishDriver": "Hangmat befejezést meghatározó kapcsolat nélkül (nincs FF/SF-előd): az időtartam nulla lesz",
       "cappedTask": "A befejezési dátum korlátozva: a naptár nem hagy munkával kitölthető időablakot a tevékenységnek",
+      "externalLagCalendar": "Külső késleltetés számít a tevékenység naptárában: a másik oldal naptára nincs ebben a fájlban",
       "overallocation": "Túlterhelés {{count}} napon ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Túlterhelés {{count}} napon ({{first}} – {{last}}) — az erőforrás ezeken a napokon a naptára szerint nem dolgozik",
       "overallocationMixed": "Túlterhelés {{count}} napon ({{first}} – {{last}}), ebből {{nonWorking}} napon az erőforrás a naptára szerint nem dolgozik"
@@ -1357,6 +1367,8 @@
     "warnActuals_other": "{{count}} tevékenységnek tényleges kezdés- és befejezési dátuma van; ezek is eltolódnak. Ellenőrizze, hogy ez helyes-e egy folyamatban lévő projektnél.",
     "warnHardPins_one": "{{count}} tevékenységnek kemény Mandatory-rögzítése van; ez a rögzítés is eltolódik.",
     "warnHardPins_other": "{{count}} tevékenységnek kemény Mandatory-rögzítése van; ezek a rögzítések is eltolódnak.",
+    "warnExternalKept_one": "{{count}} projektközi kapcsolat: a horgony a forrásprojekt dátumán marad, mert az a projekt nem tolódik vele együtt.",
+    "warnExternalKept_other": "{{count}} projektközi kapcsolat: a horgonyok a forrásprojektek dátumán maradnak, mert ezek a projektek nem tolódnak vele együtt.",
     "warnHolidayGap": "A(z) „{{name}}” naptár generált ünnepnapjai a(z) {{from}}–{{to}} időszakot fedik le. Az áthelyezett ütemezés {{year}}-ig tart. Generálja újra az ünnepnapokat.",
     "warnCustomDateFields_one": "{{count}} kitöltött egyéni dátummező megtartja a dátumát.",
     "warnCustomDateFields_other": "{{count}} kitöltött egyéni dátummező megtartja a dátumát.",
@@ -1871,6 +1883,10 @@
   "fileDrop": {
     "title": "Engedje el a megnyitáshoz",
     "subtitle": "Projektfájl vagy importálás"
+  },
+  "settingsDelay": {
+    "title": "Beállítások nem töltődtek be",
+    "body": "A beállításait nem sikerült betölteni a szerverről. Most az alapértelmezett beállításokkal dolgozik. Amint a beállításai ismét elérhetők, automatikusan alkalmazásra kerülnek."
   },
   "dependentAnchorWarning": {
     "title": "Más projektek horgonydátumai szorosabbá válnak",

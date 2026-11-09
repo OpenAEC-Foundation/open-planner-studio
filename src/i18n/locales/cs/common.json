@@ -107,7 +107,9 @@
     "saveFailed": "Uložení se nezdařilo",
     "ambiguousThousands": "„{{text}}“ je nejednoznačné: myslíte desetinné číslo, nebo tisíce? Desetinná čísla zadejte pomocí „{{separator}}“ (1{{separator}}5) a tisíce bez oddělovače (1500). Hodnota nebyla změněna.",
     "siteSaveConflict": "Neuloženo: někdo jiný mezitím změnil „{{name}}“ na webu. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, pokud je chcete uložit jako nový soubor.",
+    "siteSaveConflictCopy": "„{{original}}“ byl na webu mezitím změněn někým jiným. Vaše práce je proto uložena v kopii: „{{name}}“. Od této chvíle Uložit zapisuje do této kopie.",
     "siteFileGone": "„{{name}}“ už na webu není. Aplikace odebrala soubor ze seznamu Nedávné.",
+    "siteFileReadOnly": "„{{name}}“ je na webu jen pro čtení. Můžete ho zobrazit a upravovat, ale Uložit vytvoří na webu nový soubor.",
     "savedViaDownload": "Uloženo jako stažený soubor: „{{name}}“ je nyní ve složce Stažené. Toto prostředí neumožňuje aplikaci zapisovat přímo na zvolené místo.",
     "browserCannotOverwrite": "Tento prohlížeč neumožňuje aplikaci zapisovat zpět do „{{name}}“. Proto se aplikace při každém uložení znovu ptá, kam má soubor uložit. V prohlížečích Chrome a Edge nebo v desktopové aplikaci k tomu nedochází.",
     "browserSavesAsDownload": "Uloženo jako stažený soubor: „{{name}}“ je ve složce Stažené. Tento prohlížeč neumožňuje aplikaci zapisovat na vlastní místo, takže každé uložení vytvoří nové stažení. V prohlížečích Chrome a Edge nebo v desktopové aplikaci příkaz Uložit jen aktualizuje stejný soubor.",
@@ -117,6 +119,10 @@
     "recoveryStorageBlocked": "Úložiště obnovy je dočasně blokováno jiným otevřeným připojením. Stávající kopie zůstanou zachovány; tato stránka nevytvoří nové kopie obnovy. Uložte svou práci sami, zavřete jiné karty s touto aplikací a načtěte tuto stránku znovu, aby se obnova zopakovala.",
     "recoveryReadFailed": "Obnovený soubor se nepodařilo přečíst",
     "recoveryRestoreFailed": "Obnovení se nezdařilo",
+    "hostSettingsUnavailable": "Nastavení webu se nenačetlo. Nastavení, která v této relaci změníte, se neuloží.",
+    "hostThemeUntilRestart": "Tento motiv platí, dokud planner znovu nespustíte. Potom se planner opět řídí motivem SuperCloud.",
+    "settingsLoadedLate": "Vaše nastavení bylo načteno a použito.",
+    "settingsLoadedLateReverted": "Vaše nastavení bylo načteno a použito. Změny, které jste mezitím provedli, byly vráceny zpět.",
     "recoveryDocumentsSkipped_one": "{{count}} obnovovací soubor se nepodařilo načíst a byl přeskočen.",
     "recoveryDocumentsSkipped_few": "{{count}} obnovovací soubory se nepodařilo načíst a byly přeskočeny.",
     "recoveryDocumentsSkipped_many": "{{count}} obnovovacího souboru se nepodařilo načíst a byl přeskočen.",
@@ -663,6 +669,9 @@
     "weekStartMonday": "Pondělí",
     "weekStartSunday": "Neděle",
     "calculationSection": "Přepočítání",
+    "taskGridSection": "Tabulka úkolů",
+    "autoFitColumns": "Automaticky přizpůsobit sloupce",
+    "autoFitColumnsHint": "Každý sloupec tabulky úkolů přizpůsobí svou šířku hodnotám v tomto sloupci po otevření a po každé potvrzené úpravě. Dlouhý nadpis sloupce se pak zkrátí. Pokud sloupec přetáhnete sami, zachová si vaši šířku, dokud na okraj sloupce neuděláte dvojklik.",
     "autoCalcCPM": "Automaticky přepočítat",
     "autoCalcCPMHint": "Přepočítá plán automaticky, jakmile je zastaralý, místo čekání na F5.",
     "constructionModeSection": "Stavební režim",
@@ -986,6 +995,7 @@
       "droppedSequence": "Závislost ignorována: předchůdce nebo následník chybí, nebo není listový úkol",
       "hammockNoFinishDriver": "Překlenovací úkol bez hnací vazby dokončení (žádný předchůdce FF/SF): doba trvání klesne na nulu",
       "cappedTask": "Datum dokončení omezeno: kalendář nenechává pro úkol žádné pracovní okno",
+      "externalLagCalendar": "Prodleva vazby mezi projekty se počítá v kalendáři tohoto úkolu: kalendář druhé strany není v tomto souboru",
       "overallocation": "Přetížení v počtu dnů: {{count}} ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Přetížení v počtu dnů: {{count}} ({{first}} – {{last}}) — podle kalendáře zdroje jsou tyto dny nepracovní",
       "overallocationMixed": "Přetížení v počtu dnů: {{count}} ({{first}} – {{last}}), z toho nepracovních podle kalendáře zdroje: {{nonWorking}}"
@@ -1579,6 +1589,10 @@
     "warnHardPins_few": "{{count}} úkoly mají pevné ukotvení Mandatory; ukotvení se posunou spolu s nimi.",
     "warnHardPins_many": "{{count}} úkolu mají pevné ukotvení Mandatory; ukotvení se posunou spolu s nimi.",
     "warnHardPins_other": "{{count}} úkolů má pevné ukotvení Mandatory; ukotvení se posunou spolu s nimi.",
+    "warnExternalKept_one": "{{count}} vazba mezi projekty: kotva zůstává na datu zdrojového projektu, protože se tento projekt nepřesouvá.",
+    "warnExternalKept_few": "{{count}} vazby mezi projekty: kotvy zůstávají na datech zdrojových projektů, protože se tyto projekty nepřesouvají.",
+    "warnExternalKept_many": "{{count}} vazby mezi projekty: kotvy zůstávají na datech zdrojových projektů, protože se tyto projekty nepřesouvají.",
+    "warnExternalKept_other": "{{count}} vazeb mezi projekty: kotvy zůstávají na datech zdrojových projektů, protože se tyto projekty nepřesouvají.",
     "warnHolidayGap": "Vygenerované svátky kalendáře „{{name}}“ pokrývají období {{from}}–{{to}}; přesunutý plán sahá do roku {{year}}. Vygenerujte svátky znovu.",
     "warnCustomDateFields_one": "{{count}} vyplněné uživatelské datumové pole zůstane na svém datu.",
     "warnCustomDateFields_few": "{{count}} vyplněná uživatelská datumová pole zůstanou na svém datu.",
@@ -2119,6 +2133,10 @@
   "fileDrop": {
     "title": "Pusťte pro otevření",
     "subtitle": "Soubor projektu nebo import"
+  },
+  "settingsDelay": {
+    "title": "Nastavení nebylo načteno",
+    "body": "Vaše nastavení se nepodařilo načíst ze serveru. Nyní pracujete s výchozím nastavením. Jakmile bude nastavení opět k dispozici, použije se automaticky."
   },
   "dependentAnchorWarning": {
     "title": "Kotevní data jiných projektů se zpřísňují",

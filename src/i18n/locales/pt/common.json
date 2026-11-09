@@ -92,7 +92,9 @@
     "saveFailed": "Falha ao salvar",
     "ambiguousThousands": "\"{{text}}\" é ambíguo: número decimal ou milhares? Escreva decimais com \"{{separator}}\" (1{{separator}}5) e milhares sem separador (1500). O valor não foi alterado.",
     "siteSaveConflict": "Não guardado: '{{name}}' foi entretanto alterado no site por outra pessoa. As suas alterações continuam na aplicação. Escolha Guardar como para as manter num novo ficheiro.",
+    "siteSaveConflictCopy": "'{{original}}' foi entretanto alterado no site por outra pessoa. Por isso, o seu trabalho fica guardado numa cópia: '{{name}}'. A partir de agora, Guardar grava nessa cópia.",
     "siteFileGone": "'{{name}}' já não está no site. O ficheiro foi removido de Recentes.",
+    "siteFileReadOnly": "'{{name}}' está em só leitura no site. Pode vê-lo e editá-lo, mas Guardar cria um novo ficheiro no site.",
     "savedViaDownload": "Guardado como transferência: '{{name}}' está agora na sua pasta de transferências. Este ambiente não permite que a aplicação escreva diretamente no local escolhido.",
     "browserCannotOverwrite": "Este navegador não permite que a aplicação volte a gravar em «{{name}}». Por isso, a aplicação pergunta novamente onde guardar o ficheiro sempre que guarda. Isto não acontece no Chrome, no Edge nem na aplicação de ambiente de trabalho.",
     "browserSavesAsDownload": "Guardado como transferência: «{{name}}» está na sua pasta de transferências. Este navegador não permite que a aplicação grave num local próprio, por isso cada gravação cria uma nova transferência. No Chrome, no Edge ou na aplicação de ambiente de trabalho, Guardar atualiza simplesmente o mesmo ficheiro.",
@@ -102,6 +104,10 @@
     "recoveryStorageBlocked": "O armazenamento de recuperação está temporariamente bloqueado por outra ligação aberta. As cópias existentes são mantidas; esta página não cria novas cópias de recuperação. Guarde o seu trabalho manualmente, feche os outros separadores com esta aplicação e recarregue esta página para tentar a recuperação de novo.",
     "recoveryReadFailed": "Não foi possível ler o ficheiro recuperado",
     "recoveryRestoreFailed": "Falha na restauração",
+    "hostSettingsUnavailable": "As definições do site não foram carregadas. As definições que alterar nesta sessão não serão guardadas.",
+    "hostThemeUntilRestart": "Este tema aplica-se até reiniciar o planeador. Depois, o planeador volta a seguir o tema do SuperCloud.",
+    "settingsLoadedLate": "As suas definições foram carregadas e aplicadas.",
+    "settingsLoadedLateReverted": "As suas definições foram carregadas e aplicadas. O que alterou entretanto foi revertido.",
     "recoveryDocumentsSkipped_one": "{{count}} ficheiro de recuperação não pôde ser carregado e foi ignorado.",
     "recoveryDocumentsSkipped_many": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
     "recoveryDocumentsSkipped_other": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
@@ -566,6 +572,9 @@
     "weekStartMonday": "Segunda-feira",
     "weekStartSunday": "Domingo",
     "calculationSection": "Cálculo",
+    "taskGridSection": "Tabela de tarefas",
+    "autoFitColumns": "Ajustar colunas automaticamente",
+    "autoFitColumnsHint": "Cada coluna da tabela de tarefas ajusta a sua largura aos valores dessa coluna, depois de abrir e depois de cada edição confirmada. Um cabeçalho de coluna longo fica então cortado. Se arrastar uma coluna, ela mantém a sua largura até clicar duas vezes na margem da coluna.",
     "autoCalcCPM": "Calcular automaticamente",
     "autoCalcCPMHint": "Recalcula a planificação automaticamente assim que fica desatualizada, em vez de esperar por F5.",
     "constructionModeSection": "Modo construção",
@@ -886,6 +895,7 @@
       "droppedSequence": "Relação ignorada: o predecessor ou o sucessor está em falta ou não é uma tarefa folha",
       "hammockNoFinishDriver": "Hammock sem driver de fim (sem predecessor FF/SF): a duração volta a zero",
       "cappedTask": "Data de fim limitada: o calendário não deixa nenhuma janela útil para esta tarefa",
+      "externalLagCalendar": "O desfasamento externo conta para o calendário desta tarefa: o calendário do outro lado não está neste ficheiro",
       "overallocation": "Sobrealocado durante {{count}} dia(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Sobrealocado durante {{count}} dia(s) ({{first}} – {{last}}) — o recurso não trabalha nesse(s) dia(s) segundo o seu calendário",
       "overallocationMixed": "Sobrealocado durante {{count}} dia(s) ({{first}} – {{last}}), dos quais {{nonWorking}} dia(s) em que o recurso não trabalha segundo o seu calendário"
@@ -1468,6 +1478,9 @@
     "warnHardPins_one": "{{count}} tarefa tem uma restrição Obrigatória rígida; essa fixação desloca-se também.",
     "warnHardPins_many": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
     "warnHardPins_other": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
+    "warnExternalKept_one": "{{count}} relação externa: a âncora fica na data do projeto de origem, porque esse projeto não se desloca.",
+    "warnExternalKept_many": "{{count}} de relações externas: as âncoras ficam nas datas dos projetos de origem, porque esses projetos não se deslocam.",
+    "warnExternalKept_other": "{{count}} relações externas: as âncoras ficam nas datas dos projetos de origem, porque esses projetos não se deslocam.",
     "warnHolidayGap": "Os feriados gerados do calendário «{{name}}» abrangem {{from}}–{{to}}; o planeamento deslocado vai até {{year}}. Volte a gerar os feriados.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de data preenchido mantém a sua data.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de data preenchidos mantêm a sua data.",
@@ -1995,6 +2008,10 @@
   "fileDrop": {
     "title": "Largue para abrir",
     "subtitle": "Ficheiro de projeto ou importação"
+  },
+  "settingsDelay": {
+    "title": "Definições não carregadas",
+    "body": "As suas definições não puderam ser carregadas do servidor. Está agora a trabalhar com as definições padrão. Assim que as suas definições estiverem de novo disponíveis, serão aplicadas automaticamente."
   },
   "dependentAnchorWarning": {
     "title": "As ancoragens de outros projetos ficam mais apertadas",
