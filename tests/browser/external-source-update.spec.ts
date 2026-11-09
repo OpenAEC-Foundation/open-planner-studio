@@ -558,13 +558,29 @@ test('bron ook geopend met niet-opgeslagen wijzigingen: melding, anker uit het b
   const sourceBefore = await sourceState();
   expect(sourceBefore.dirty).toBe(true);
 
-  // Vernieuwen ⇒ het anker uit het opgeslagen bestand en de melding met de knop.
+  // Vernieuwen ⇒ het anker uit het opgeslagen bestand en de melding met de knop. Review #860, punt 3: de stapel
+  // is al vol (fixture: drie blijvende meldingen); de keuze wacht en verschijnt na het kruisje bij een andere.
   await tab(ownDocumentId).click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(ownDocumentId);
+  await page.evaluate(() => {
+    const S = window.__OPS__!.store.getState();
+    for (const n of S.ui.notifications) S.dismissNotification(n.id);
+    for (const name of ['A.ifc', 'B.ifc', 'C.ifc']) {
+      S.notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: name, dedupeKey: `vul-${name}` });
+    }
+  });
+  await expect(page.locator('.ops-toast')).toHaveCount(3);
   await page.getByRole('button', { name: 'Link', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Refresh all external relations' }).click();
-  await expect(notice).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.ribbon-relation-menu-status')).toContainText('1 anchor(s) refreshed');
   await page.keyboard.press('Escape');
+  await expect(notice).toHaveCount(0);
+  await page.locator('.ops-toast').first().getByRole('button', { name: 'Close notification' }).click();
+  await expect(notice).toHaveCount(1, { timeout: 15_000 });
+  await page.evaluate(() => {
+    const S = window.__OPS__!.store.getState();
+    for (const n of S.ui.notifications) if (n.dedupeKey?.startsWith('vul-')) S.dismissNotification(n.id);
+  });
   expect((await linkOf())!.anchorDate).toBe(savedAnchor);
 
   // De knop ⇒ het anker uit het geopende document, zonder versie, als één stap; de bron verandert niet.
@@ -586,6 +602,15 @@ test('bron ook geopend met niet-opgeslagen wijzigingen: melding, anker uit het b
   await expect.poll(async () => (await linkOf())!.anchorDate).toBe(savedAnchor);
   await page.keyboard.press('ControlOrMeta+y');
   await expect.poll(async () => (await linkOf())!.anchorDate).toBe(used.anchorDate);
+
+  // Review #860, punt 1: heen en terug naar het brontabblad zonder op te slaan ⇒ geen balk met de oude versie.
+  await tab(sourceDocumentId).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.name)).toBe('Installateur');
+  await tab(ownDocumentId).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(ownDocumentId);
+  await page.waitForTimeout(2_000);
+  await expect(page.locator(STRIP)).toHaveCount(0);
+  expect((await linkOf())!.anchorDate).toBe(used.anchorDate);
 
   // De bron opslaan (Ctrl+S, in hetzelfde OPFS-bestand) en terug naar het eigen project ⇒ de balk bij die versie,
   // ook al blijft het anker gelijk. *Accepteren* zet de echte versie.
@@ -611,4 +636,45 @@ test('bron ook geopend met niet-opgeslagen wijzigingen: melding, anker uit het b
   await expect(strip).toHaveCount(0);
   const accepted = (await linkOf())!;
   expect([accepted.anchorDate, accepted.sourceVersion]).toEqual([used.anchorDate, savedVersion]);
+
+  // Review #860, punt 2: een browser zonder onthouden handvat. De bron is weer gewijzigd (fixture); vernieuwen
+  // leest haar niet; *Bronbestanden kiezen…* leest het gekozen bestand en geeft dan de melding met de knop.
+  const chosenText = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    return (await (await root.getFileHandle('Installateur.ifc')).getFile()).text();
+  });
+  await tab(sourceDocumentId).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.name)).toBe('Installateur');
+  await page.evaluate((taskId) => {
+    const S = window.__OPS__!.store.getState();
+    const task = S.tasks.find(t => t.id === taskId)!;
+    S.updateTask(taskId, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration * 1.5 } });
+  }, created.sourceRef.taskId);
+  await tab(ownDocumentId).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(ownDocumentId);
+  await page.evaluate(async () => {
+    delete (window as unknown as { showOpenFilePicker?: unknown }).showOpenFilePicker;
+    await new Promise<void>((resolve) => {
+      const req = indexedDB.open('ops-external-sources', 1);
+      req.onsuccess = () => {
+        const tx = req.result.transaction('handles', 'readwrite');
+        tx.objectStore('handles').clear();
+        tx.oncomplete = () => { req.result.close(); resolve(); };
+      };
+    });
+  });
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Refresh all external relations' }).click();
+  await expect(page.locator('.ribbon-relation-menu-status')).toContainText('2 sources not read.');
+  await expect(notice).toHaveCount(0);
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.locator('[data-ops-external-sources-choose]').click();
+  await (await chooserPromise).setFiles({ name: 'Installateur.ifc', mimeType: 'application/octet-stream', buffer: Buffer.from(chosenText) });
+  await expect(page.locator('.ribbon-relation-menu-status')).toContainText('1 anchor(s) refreshed');
+  await page.keyboard.press('Escape');
+  await expect(notice).toHaveCount(1, { timeout: 15_000 });
+  expect((await linkOf())!.anchorDate).toBe(used.anchorDate);
+  await notice.locator('[data-ops-notification-action="refreshFromOpenDocument"]').click();
+  await expect.poll(async () => (await linkOf())!.anchorDate > used.anchorDate).toBe(true);
+  expect((await linkOf())!.sourceVersion).toBeUndefined();
 });
