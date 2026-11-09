@@ -1123,7 +1123,7 @@ const FLOAT_UNIT_NOTE = 'Float is in working days of the task calendar, also on 
  *  `number`, de handler eist gehele getallen (`requirePageArgs`); daarom staat "integer" hier. Zonder beide
  *  sleutels geeft `optionalPage` `null`, en de tool de hele lijst. */
 const optionalPageNote = (list: string): string =>
-  ` Page \`${list}\` with integer \`limit\` 1–1000 (default 50) and/or \`offset\` ≥ 0; neither = all.`;
+  ` Pages \`${list}\`: integer \`limit\` 1–1000 (default 50), \`offset\` ≥ 0; omit both for all.`;
 
 export const readTools: McpToolDef[] = [
   {
@@ -1216,8 +1216,8 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_list_resources',
     description:
-      'Paged resources (integer `limit` 1–1000, default 50; integer `offset` ≥ 0) with capacity and an assignment summary; field ' +
-      'names as in planner_manage_resources. `library.lockedFields` are the fields planner_manage_resources ' +
+      'Resources with capacity and an assignment summary, paged like planner_list_tasks; field names as in ' +
+      'planner_manage_resources. `library.lockedFields` are the fields planner_manage_resources ' +
       'refuses on that row.',
     kind: 'read',
     batchable: true,

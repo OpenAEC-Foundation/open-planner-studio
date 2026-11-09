@@ -24,15 +24,12 @@ export const externalLinkTools: McpToolDef[] = [
   {
     name: 'planner_refresh_external_links',
     description:
-      'Re-read the anchors of external relationships (links to a task in another project file) from their ' +
-      'source files, like "Refresh all external relations" in the app: each file once, read-only, not opened as a ' +
-      'document. Sets anchor date, `sourceMissing`, source version and read time in one undo step, then ' +
-      'recalculates. A link without a file path refreshes only via another link to the same source project ' +
-      '(`manualLinks`); a site link (site file id) is not read and keeps its anchor (`siteLinks`). FILE SCOPE: ' +
-      'only files inside the home folder (headless server: its working folder); an unread source keeps anchor ' +
-      'and path, even if another file has the same project id. `sources` says per file whether it was read; ' +
-      '`changes`: links whose anchor or missing status changed (`anchorBefore` → `anchorAfter`). A link on a ' +
-      'summary task (phase) applies to every task in it.',
+      'Re-read external relationship anchors (links to a task in another project file) from their source ' +
+      'files, like "Refresh all external relations" in the app: each file once, read-only, not opened. Updates ' +
+      'anchors and `sourceMissing` in one undo step, then recalculates. Reads only files inside the home folder ' +
+      '(headless server: its working folder); links to an unread file and site links (`siteLinks`) keep their ' +
+      'anchor. A link without a file path refreshes only via another link to the same source project ' +
+      '(`manualLinks`). Report `sources` (read per file) and `changes` (`anchorBefore` → `anchorAfter`).',
     kind: 'mutate',
     // Async (bestanden lezen vóór de transactie): past niet in een synchroon draaiboek.
     batchable: false,

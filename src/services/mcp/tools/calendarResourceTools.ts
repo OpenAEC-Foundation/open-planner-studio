@@ -998,9 +998,8 @@ const WORKTIME_SCHEMA = {
     byWeekday: {
       type: 'object',
       description:
-        'All seven keys "1" (Mon) … "7" (Sun) are required. Per day ascending, non-overlapping bands ' +
-        '{start, end} in MINUTES from midnight ([] = non-working): `start` 0–1439, `end` > `start` and ≤ 2880 ' +
-        '(counts on past midnight: 22:00–06:00 = 1320–1800).',
+        'All keys "1" (Mon)–"7" (Sun) required. Per day: ascending, non-overlapping {start,end} bands in ' +
+        'minutes from midnight; [] = off. 0 ≤ start ≤ 1439; start < end ≤ 2880 (22:00–06:00 = 1320–1800).',
       // Eén dagschema voor elke sleutel in plaats van zeven gelijke `properties` (#818). De handler toetst de
       // sleutels "1".."7" zelf (`workTimeReason`).
       additionalProperties: WORKTIME_DAY_SCHEMA,
@@ -1015,7 +1014,7 @@ const HOLIDAY_ITEM_SCHEMA = {
   properties: {
     name: { type: 'string' },
     startDate: { type: 'string' },
-    endDate: { type: 'string', description: 'Inclusive.' },
+    endDate: { type: 'string' },
   },
 } as const;
 
@@ -1028,7 +1027,7 @@ const updateCalendar: BatchStepTool = {
     '`holidays: []` = none. DAY + break: `hoursPerDay` is derived; edit hours/break. HOUR: `workDays` ' +
     'follows bands; `hoursPerDay` too unless it differed from the old modal band sum; explicit `hoursPerDay` ' +
     'wins. Duration units stay; dates can move; under FIXED_RATE (`workRule`), changed hours/day change day ' +
-    'durations.',
+    'durations. Holiday and exception `endDate`s are inclusive.',
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
@@ -1078,7 +1077,7 @@ const updateCalendar: BatchStepTool = {
                 properties: {
                   name: { type: 'string' },
                   startDate: { type: 'string' },
-                  endDate: { type: 'string', description: 'Inclusive.' },
+                  endDate: { type: 'string' },
                   bands: WORKTIME_DAY_SCHEMA,
                 },
               },
@@ -1412,7 +1411,7 @@ const manageAssignments: BatchStepTool = {
     '`add`: `taskId`, `resourceId`, `unitsPerDay` (+ `curve`/`remainingWorkMinutes`); `update`: ' +
     '`assignmentId` + `unitsPerDay`/`curve`/`remainingWorkMinutes` (other resource: remove + add); `move`: ' +
     '`assignmentId` to `taskId`; `remove`: `assignmentId`. Leaf tasks only, no milestones or duplicate ' +
-    'resources. Under FIXED_WORK/FIXED_RATE (`workRule`) units, `remainingWorkMinutes` or adding/removing a ' +
+    'resources. Under FIXED_WORK/FIXED_RATE (`workRule`) `unitsPerDay`, `remainingWorkMinutes` or adding/removing a ' +
     'resource can change the DURATION (reread the task); otherwise `remainingWorkMinutes` sets the units. ' +
     'MATERIAL never drives duration. One call = one undo step.',
   kind: 'mutate',
@@ -1611,7 +1610,7 @@ const levelResources: BatchStepTool = {
   description:
     'Level resource overloads by delaying tasks. Default `constrainToFloat: true` stays within total float ' +
     '(end fixed; remaining peaks in `unresolved`); `false` may move the end (`projectEndDelta`). Material is ' +
-    'never leveled. Try `dryRun: true` first. Resets earlier leveling itself, so reruns do not stack.',
+    'never leveled. Preview with `dryRun: true` first. Resets earlier leveling itself, so reruns do not stack.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1620,10 +1619,7 @@ const levelResources: BatchStepTool = {
     properties: {
       constrainToFloat: { type: 'boolean' },
       resourceIds: { type: 'array', items: { type: 'string' }, description: 'Omitted = all renewable resources.' },
-      dryRun: {
-        type: 'boolean',
-        description: 'Preview only; changes nothing.',
-      },
+      dryRun: { type: 'boolean' },
     },
   },
   batchStep: parsedBatchStep(parseLeveling, levelResourcesCore),
@@ -2045,7 +2041,8 @@ const moveProject: BatchStepTool = {
   name: 'planner_move_project',
   description:
     'Shift the whole schedule to start on `newStartDate`. Calendars stay, so the end can move by a different ' +
-    'number of days. External link anchors stay fixed. Baselines move only with `shiftBaselines: true`.',
+    'number of days. Resource `availabilitySteps[].from` and `statusDate` shift too. External link anchors ' +
+    'stay fixed. Baselines move only with `shiftBaselines: true`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -2121,7 +2118,7 @@ const saveBaseline: McpToolDef = {
   annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
-    properties: { name: { type: 'string', description: 'Default "Baseline N".' } },
+    properties: { name: { type: 'string' } },
   },
   async handler(args, ctx) {
     const a = (args ?? {}) as { name?: unknown };

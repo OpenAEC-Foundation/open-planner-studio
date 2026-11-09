@@ -80,7 +80,7 @@ tool en de gids.
 | Relatietype: lange of korte vorm (FS/FF/SS/SF) | schema: de enum noemt beide |
 | Verse planning bij leestools: eerst herberekenen, zonder undo-stap; `scheduleRecalculated: true` | één zin in tool get_project_info (de SuperCloud-export heeft geen instructies) + `MCP_INSTRUCTIONS`; `FRESH_NOTE` in zeven tools is weg (F1) |
 | Uitzonderingen op verse datums (`datesAsRecorded`, `scheduleStale` tijdens een bewerking, `scheduleError`) | antwoord: de envelop draagt dan `scheduleNote` of `scheduleError`. `datesAsRecorded` en `scheduleError` staan ook in `MCP_INSTRUCTIONS` |
-| Paginering: GEHELE `limit` 1–1000 (standaard 50), gehele `offset` ≥ 0; bij de optionele: een van beide zet paginering aan, geen van beide geeft alles | `optionalPageNote` / `OPTIONAL_PAGE_SCHEMA`: "Page `…` with integer `limit` 1–1000 (default 50) and/or `offset` ≥ 0; neither = all." (fixronde 4: "neither returns all" was dubbelzinnig; `optionalPage` geeft zonder beide sleutels de hele lijst; fixronde 7: kortere vorm) |
+| Paginering: GEHELE `limit` 1–1000 (standaard 50), gehele `offset` ≥ 0; bij de optionele: een van beide zet paginering aan, geen van beide geeft alles | `optionalPageNote` / `OPTIONAL_PAGE_SCHEMA`: "Pages `…`: integer `limit` 1–1000 (default 50), `offset` ≥ 0; omit both for all." (fixronde 4: "neither returns all" was dubbelzinnig; `optionalPage` geeft zonder beide sleutels de hele lijst; fixronde 7 en 8: kortere vorm) |
 | "One call = one undo step" bij de bulktools | tool manage_assignments (F34) en planner_batch; bij de andere bulktools weg: detail |
 | "Refused items are listed; valid ones apply" bij de bulktools | update_tasks: tool (F47); elders weg: antwoord (`itemRejections`) |
 
@@ -106,7 +106,7 @@ tool en de gids.
 | Voortgang vraagt een statusdatum; vraag hem aan de gebruiker, kies hem nooit zelf | tool (fixronde 1: "never set automatically" beschreef de app, niet de agent; SuperCloud heeft geen instructies) |
 | Werkelijke start- en einddatums van de gebruiker doorgeven | tool (fixronde 1: stond alleen in de oude instructies, en die krijgt SuperCloud niet) + `MCP_INSTRUCTIONS` |
 | Actuals na de statusdatum geweigerd | param `actualStart`/`actualFinish` ("≤ status date"); in de tool weg, dubbel (fixronde 4) |
-| `completion` > 0 leidt actualStart af, behalve als de geplande start na de statusdatum ligt: dan `actualStart` meegeven | tool |
+| `completion` > 0 leidt actualStart af, behalve als de geplande start na de statusdatum ligt: dan `actualStart` meegeven | tool: "Otherwise completion > 0 derives actualStart from the planned start; planned start after the status date: refused, pass `actualStart`." (fixronde 8: "(refused after the status date)" las als "voortgang na de statusdatum geweigerd"; `mcpValidation.ts` stap 11) |
 | Geen `duration` en geen `progress` op verzameltaken (afgeleid) | tool (F14, F46) |
 | Duurwijziging op een gestarte, niet afgeronde taak houdt het gedane werk (voorbeeld 10 d / 40 % → 12 d; `progressAdjusted`); korter dan het gedane werk wordt geweigerd | tool (F48; fixronde 3: "started, unfinished", zo werkt `workRuleApply.ts`) |
 | Overschreven restwerk (`remainingWorkRecomputed`) aan de gebruiker melden | tool |
@@ -188,10 +188,10 @@ tool en de gids.
 | `generate`-bereik in jaren | param `generate` |
 | Landcode exact uit de lijst; `none` wist gegenereerde dagen | schema enum + param `country` (test `cases-stille-noops`: "none") |
 | `bouwvak` alleen NL; weglaten = `geen` (geen bouwvak) | param `bouwvak`: "NL construction holiday; omitted = `geen` (none)." + enum (fixronde 7: de standaard was weg; `generateRegionalBreak` met `undefined` geeft `[]`; F29 van #836 rekent erop; proef (g)) |
-| `byWeekday`: alle zeven sleutels verplicht; banden {start, end} in minuten, oplopend, niet overlappend; `[]` = vrije dag; `start` 0–1439, `end` > `start` en ≤ 2880, telt door na middernacht (voorbeeld) | param `byWeekday`, één keer. Het dagschema is alleen `{type: array, items: {type: object, required: [start, end]}}`; het staat nog twee keer: als `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands` |
+| `byWeekday`: alle zeven sleutels verplicht; banden {start, end} in minuten, oplopend, niet overlappend; `[]` = vrije dag; `start` 0–1439, `end` > `start` en ≤ 2880, telt door na middernacht (voorbeeld) | param `byWeekday`, één keer. Het dagschema is alleen `{type: array, items: {type: object, required: [start, end]}}`; het staat nog twee keer: als `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands`; fixronde 8: Sols kortere vorm "All keys "1" (Mon)–"7" (Sun) required. Per day: ascending, non-overlapping {start,end} bands in minutes from midnight; [] = off. 0 ≤ start ≤ 1439; start < end ≤ 2880 (22:00–06:00 = 1320–1800)." |
 | `workStartHour`/`workEndHour` in UREN, pauzevelden in MINUTEN | params |
 | `workingExceptions`: complete lijst, vervangt; `bands` optioneel | param `workingExceptions` |
-| Datums inclusief | param `endDate` van feestdag- en uitzonderingsitems |
+| Datums inclusief | tool update_calendar: "Holiday and exception `endDate`s are inclusive." (fixronde 8: stond 3× als param `endDate`) |
 
 ## planner_manage_assignments
 
@@ -229,7 +229,7 @@ tool en de gids.
 |---|---|
 | `constrainToFloat: true` (standaard) binnen de speling, einde vast, overgebleven pieken in `unresolved`; `false` mag het einde verschuiven (`projectEndDelta`) | tool (F36) |
 | Materiaal nooit genivelleerd | tool |
-| Eerst `dryRun: true`; verandert niets | tool + param `dryRun` |
+| Eerst `dryRun: true`; verandert niets | tool + param `dryRun`; fixronde 8: param weg, de tool zegt "Preview with `dryRun: true` first." |
 | Nivelleren reset zichzelf; herhalen stapelt niet | tool |
 | `delays`, `shifts`, `recomputed` | weg: antwoord |
 | clear_leveling vóór level_resources is zinloos | dubbel: level_resources zegt "Resets earlier leveling itself" (fixronde 1; test `cases-mutate-cal-res` toetst nu die zin) |
@@ -249,7 +249,8 @@ tool en de gids.
 | `defaultWorkRule`: `null` = FIXED_DURATION_RATE; FIXED_WORK zet taken zonder eigen regel om naar uren, ook na terugschakelen | param `defaultWorkRule` |
 | move_project: hele planning; kalenders schuiven niet, dus het einde kan anders schuiven; baselines alleen met `shiftBaselines` | tool |
 | Ankers van externe koppelingen schuiven niet mee | tool: "External link anchors stay fixed" (fixronde 6: het antwoord legt het niet uit, en de externe voorganger wordt dan geschonden; `check-move-project.ts` 164–165) |
-| save_baseline: wordt de actieve baseline; niet in een batch | tool |
+| move_project: de beschikbaarheidsdatums van resources (`availabilitySteps[].from`) en de statusdatum schuiven mee | tool: "Resource `availabilitySteps[].from` and `statusDate` shift too." (fixronde 8: main zei "all tasks and resource dates move along"; route `moveProjectCore` → `projectSlice.ts` → `shiftResource` en `shiftProjectDates` in `moveProject.ts`; het antwoord toont het niet; proef (h)) |
+| save_baseline: wordt de actieve baseline; niet in een batch | tool; param `name` ("Default "Baseline N"") weg in fixronde 8: zegt geen aanroep |
 | Verouderde planning eerst herberekend (`recomputed`) | weg: antwoord |
 
 ## Basislijnen (list / activate / rename / delete)
@@ -321,7 +322,7 @@ tool en de gids.
 | MPP- en P6-bronvelden alleen-lezen | weg: schema (geen schrijfveld) |
 | get_critical_path: `drivingRelations` null vs `[]`; paginering over `criticalTasks` | tool |
 | `pathsMode`, `criticalPaths` alleen bij FREE_FLOAT | weg: antwoord |
-| list_resources: veldnamen gelijk aan manage_resources; `library.lockedFields` | tool |
+| list_resources: veldnamen gelijk aan manage_resources; `library.lockedFields` | tool; fixronde 8: paginering "paged like planner_list_tasks" (de weigering noemt het bereik) |
 | get_resource_histogram: samenvatting zonder filters (`peakLoad`, `overallocatedDayCount`), buckets met filters; weekoverhang | tool (F35) |
 | Onbekend id = fout; grens 10000 buckets | weg: antwoord (fout met uitweg) |
 | Bucketwaarden zijn Nederlands | enum + param `bucket` |
@@ -338,7 +339,7 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | regel | nieuwe plek |
 |---|---|
 | Max. 100 stappen | tool (test `cases-batch`: "100") + schema `maxItems` |
-| Eén undo-stap, één herberekening, één backup; gebruik voor een samenhangende reeks | tool (F3; de "wanneer"-zin stond eerst in `MCP_INSTRUCTIONS`) |
+| Eén undo-stap, één herberekening, één backup; gebruik voor een samenhangende reeks | tool (F3; de "wanneer"-zin stond eerst in `MCP_INSTRUCTIONS`); fixronde 8: Sols opening "For coherent changes: up to 100 ordered steps, one undo, recalculation and backup." |
 | Een falende stap ⇒ hele batch terug; weigeringen per item zacht (`rejections`) | tool |
 | tempId wordt in LATERE stappen van deze batch vervangen, nooit in vrije tekst | tool ("Later steps of this batch", fixronde 5) |
 | Args liggen vast: alleen een laatste leesstap is zinvol; ids vooraf opzoeken | tool (test `cases-batch`: "final") |
@@ -346,20 +347,20 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | `steps[].tool`: volledige naam | weg (fixronde 7): de naam staat in elke tool; een onbekende naam geeft een stapfout |
 | Rapport per stap bij een fout; "geen scripttaal" | weg: antwoord / volgt uit "args are fixed at submission" |
 
-## planner_refresh_external_links (nieuw uit #797; beschrijving 1.283 → 862 tekens)
+## planner_refresh_external_links (nieuw uit #797; beschrijving 1.283 → 862 → REFRESHLEN tekens)
 
 | regel | nieuwe plek |
 |---|---|
 | Ververst de ankers van externe relaties (koppelingen naar een taak in een ander projectbestand) uit hun bronbestanden, zoals "Alle externe relaties verversen" in de app | tool |
-| Elk bronbestand één keer, alleen lezen, niet geopend als document | tool: "each file once, read-only, not opened as a document" |
-| Zet per koppeling ankerdatum, `sourceMissing`, bronversie en leestijd, in één undo-stap | tool. "(the file's modification time)" bij de bronversie: weg, zegt geen aanroep |
+| Elk bronbestand één keer, alleen lezen, niet geopend als document | tool: "each file once, read-only, not opened" |
+| Zet per koppeling ankerdatum, `sourceMissing`, bronversie en leestijd, in één undo-stap | tool: "Updates anchors and `sourceMissing` in one undo step" (fixronde 8: bronversie en leestijd weg, zeggen geen aanroep) |
 | Koppeling zonder bestandspad (met de hand) ververst alleen als een andere koppeling hetzelfde bronproject leest; `manualLinks` telt ze | tool |
 | Koppeling naar een project op de site (site file id): niet gelezen, houdt haar anker; `siteLinks` telt ze | tool |
-| FILE SCOPE: alleen bronbestanden in de thuismap (headless server: de werkmap) | tool |
-| Een niet gelezen bron (buiten die map of onleesbaar) houdt anker en pad, ook als een ander bronbestand hetzelfde project-id heeft | tool |
+| FILE SCOPE: alleen bronbestanden in de thuismap (headless server: de werkmap) | tool: "Reads only files inside the home folder (headless server: its working folder)" |
+| Een niet gelezen bron (buiten die map of onleesbaar) houdt anker en pad, ook als een ander bronbestand hetzelfde project-id heeft | tool: "links to an unread file … keep their anchor". "even if another file has the same project id": weg in fixronde 8, want `sources` geeft per bestand de status (`read`, `outOfScope`, `unreadable` met reden) |
 | Antwoord: per bronbestand of het gelezen is (`sources`); aantal ververst en ontbrekend; `changes` = koppelingen waarvan anker of ontbreekstatus veranderde (`anchorBefore` → `anchorAfter`) | tool: `sources` en `changes`. De tellers `refreshed`/`missing`: weg, zelfverklarende velden |
 | Daarna wordt herberekend, zoals in de app | tool: "then recalculates" |
-| Een koppeling op een fase geldt voor elke taak in die fase | tool (gedeeld contract met #836) |
+| Een koppeling op een fase geldt voor elke taak in die fase | tool planner_get_task (gedeeld contract met #836); in fixronde 8 weg uit deze tool, want planner_get_task houdt hem |
 | Niet in een batch (`batchable: false`) | tool planner_batch (uitsluitingslijst) |
 | Wat een externe relatie is, dat de tools er geen maken, verversen vóór je datums meldt die ervan afhangen, en `sourceMissing: true` melden | de gids (#836), volgens het gedeelde contract |
 
@@ -437,7 +438,7 @@ Deze teksten komen per sessie bovenop `MCP_INSTRUCTIONS`.
 
 ## Afstemming met PR #836: de 53 feiten uit `artifacts/818-gids-zuinig/feiten-in-tools.md`
 
-Stand: deze branch na fixronde 7 en de merge van #797. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
+Stand: deze branch na fixronde 8. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
 F1–F52 stonden bij de vorige head (b0ef49262) deels niet meer in `tools/list`; de zestien die Sol in council-ronde 2 van
 #836 noemde, zijn gemarkeerd met *.
 

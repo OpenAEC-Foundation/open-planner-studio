@@ -443,8 +443,9 @@ const updateTasks: BatchStepTool = {
     'Always pair `duration` with `durationUnit` (omitted = days). Refused `fields` apply nothing; `progress` ' +
     'is independent, so an id may be both `updated` and in `itemRejections`. ' +
     `${TASK_FIELDS_DOC} \`progress\` needs the user's \`statusDate\` (planner_update_project; ask, never ` +
-    'invent it); pass the user\'s actual dates. Otherwise completion > 0 uses the planned start as ' +
-    'actualStart (refused after the status date). No `duration` or `progress` on summary tasks. On a ' +
+    'invent it); pass the user\'s actual dates. Otherwise completion > 0 derives actualStart from the planned ' +
+    'start; planned start after the status date: refused, pass `actualStart`. No `duration` or `progress` on ' +
+    'summary tasks. On a ' +
     'started, unfinished task a new duration keeps the work done (10 d at 40% → 12 d: 8 d left, 33%; ' +
     '`progressAdjusted`); less than the work done is refused. Report `remainingWorkRecomputed`. Hypothetical ' +
     'delay: change duration or constraint, not `progress`.',

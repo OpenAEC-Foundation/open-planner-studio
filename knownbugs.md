@@ -1096,9 +1096,9 @@ en noem het in je rapport of PR-tekst.
      geeft `deltaDays: -7`, `endDeltaDays: 0` en die note. Het einde blijft staan door het externe anker (externe
      ankers schuiven bewust niet mee), niet door de kalender. Een agent die de note doorgeeft, meldt de gebruiker een
      verkeerde oorzaak. Fixrichting: noem in de note ook externe ankers en vaste beperkingen als mogelijke oorzaak, of
-     bepaal de oorzaak per taak. Verwant: geen leestool toont `externalLinks` (alleen `taskFields.ts` noemt ze), dus
-     een agent ziet een anker alleen aan zijn effect en kan de gebruiker de ankerdatum niet noemen. Uit de blinde
-     proef van fixronde 6 op #838 (BEVESTIGD met de echte dispatcher, VERVOLG). — B
+     bepaal de oorzaak per taak. Uit de blinde proef van fixronde 6 op #838 (BEVESTIGD met de echte dispatcher,
+     VERVOLG). Sinds #797 toont `planner_get_task` de koppelingen (`externalLinks`), dus een agent kan de
+     ankerdatum nu wel lezen. — B
 
 ## Bestanden en herstel
 
