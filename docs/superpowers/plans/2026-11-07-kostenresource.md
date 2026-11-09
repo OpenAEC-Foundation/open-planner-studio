@@ -86,6 +86,10 @@ Bewust anders of preciezer dan hieronder, met de reden:
   (`cost`/`work`) van de bronresource. Past die niet bij het doeltype, dan weigert het raster met de celfout
   `assignmentKindMismatch` (geen overslaan met melding: in het raster is een celfout de regel). Een token zonder
   soort met een bedrag op een werkresource wordt ook geweigerd. `planTaskAssignmentSet` toetst hetzelfde. Toets: blok L.
+- **Review 5.** Eén tokenbouwer (`assignmentToken`) voor alle toewijzingskolommen; de soortfout komt vóór de
+  veldregels van COST (blok M en L8). De bibliotheek maakt een poolitem dat met "bestand" COST wordt schoon, en een
+  kopie van een COST-poolitem neemt geen kalender mee (blok N). `data.loadProject` weigert een toewijzing die niet
+  bij haar resourcetype past (blok O).
 
 ## 1. Datamodel
 
