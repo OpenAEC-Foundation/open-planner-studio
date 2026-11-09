@@ -21,6 +21,12 @@ import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
+import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
+import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
+import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
+import { createEmptyGridSelection, updateGridSelection } from '@/engine/taskGrid/selection';
+import { copyTaskGridSelection, planTaskGridPaste, type TaskGridClipboardEnvironment } from '@/engine/taskGrid/clipboard';
+import type { ResourceAssignment } from '@/types/resource';
 import { computeHistogramReport, computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -398,6 +404,61 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
   // De store-actie vindt de oude contour nog: loslaten verwijdert hem.
   S().setAssignmentContour(laborAssignment.id, null);
   eq('I5 loslaten vindt de oude contour ook met kosten erbij', S().tasks.find(t => t.id === taskId)!.timephasedContours ?? [], []);
+}
+
+// ── J. Plakken op een taak die dezelfde kostenresource al heeft (review 2, BLOKKEERT) ─────────────
+// Kopieer *Toegewezen resources* van A en plak op B: het bedrag van A komt op B, ook 0 en leeg. Het blijft
+// dezelfde toewijzing (zelfde id) en het raakt geen datum: geen stale, de sturing van B blijft staan.
+{
+  const { store, S, t1: a, t2: b, cost, labor } = fixture();
+  // Alleen de kostenresource op A, zodat het plakken geen werktoewijzing meeneemt.
+  S().unassignResource(costOf(S, a, labor)!.id);
+  const column = taskColumnId('assignment.resources');
+  const env = (taskId: string): TaskGridClipboardEnvironment => {
+    const s = S();
+    const byTask = new Map<string, ResourceAssignment[]>();
+    for (const x of s.assignments) byTask.set(x.taskId, [...(byTask.get(x.taskId) ?? []), x]);
+    const descriptors = buildTaskColumnRegistry({ projectId: s.project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [] });
+    const task = s.tasks.find(t => t.id === taskId)!;
+    const rowIndex = createTaskGridRowIndex([{ kind: 'task', rowKey: taskId, task, depth: 0, dimmed: false }]);
+    const selection = updateGridSelection(createEmptyGridSelection(), { rowKey: taskId, columnId: column }, rowIndex, [column], 'replace');
+    return {
+      selection, rowIndex, columns: [column], descriptors: new Map(descriptors.map(d => [d.id, d])), dateNotation: 'dmy',
+      context: {
+        projectId: s.project.id, tasksById: new Map(s.tasks.map(t => [t.id, t])),
+        relationIndex: buildTaskRelationIndex(s.tasks, s.sequences, s.cpmResult), assignmentsByTaskId: byTask,
+        resourcesById: new Map(s.resources.map(r => [r.id, r])), baselinesById: new Map(), scheduleStale: s.scheduleStale,
+      },
+    };
+  };
+  S().assignResource(a, cost, 1, undefined, 1250.55);
+  S().assignResource(b, cost, 1, undefined, 800);
+  S().runCPM();
+  const targetId = costOf(S, b, cost)!.id;
+  const cases: [string, number | undefined][] = [['bedrag', 1250.55], ['0', 0], ['leeg', undefined]];
+  for (const [label, amount] of cases) {
+    S().setAssignmentCost(costOf(S, a, cost)!.id, amount);
+    S().setAssignmentCost(targetId, 800);
+    S().runCPM();
+    seedSteering(store, b);
+    const copied = copyTaskGridSelection(env(a));
+    if (!copied.ok) throw new Error(JSON.stringify(copied));
+    const plan = planTaskGridPaste(copied.value, env(b));
+    if (!plan.ok) throw new Error(JSON.stringify(plan));
+    eq(`J1 ${label}: plakken lukt`, S().runGridMutation([plan.value]).ok, true);
+    const target = costOf(S, b, cost)!;
+    eq(`J2 ${label}: het bedrag van de bron staat op het doel`, target.costAmount ?? 'leeg', amount ?? 'leeg');
+    eq(`J3 ${label}: dezelfde toewijzing (zelfde id)`, target.id, targetId);
+    eq(`J4 ${label}: de planning wordt niet verouderd`, S().scheduleStale, false);
+    eq(`J5 ${label}: de sturing van het doel blijft`, steering(S().tasks.find(t => t.id === b)!), KEPT);
+  }
+  // Inzet-kolom op een taak met een kostentoewijzing: het bedrag blijft staan.
+  S().setAssignmentCost(targetId, 800);
+  const units = S().runGridMutation([{
+    kind: 'assignment-set', taskId: b, columnId: taskColumnId('assignment.unitsPerDay'),
+    tokens: S().assignments.filter(x => x.taskId === b).map(x => ({ assignmentId: x.id, resourceId: x.resourceId, unitsPerDay: x.unitsPerDay })),
+  }]);
+  eq('J6 inzetkolom: lukt en het bedrag blijft', [units.ok, costOf(S, b, cost)?.costAmount], [true, 800]);
 }
 
 if (diffs.length === 0) {

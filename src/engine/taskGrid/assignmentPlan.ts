@@ -1,4 +1,4 @@
-import { isCostResource, isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
+import { isCostResource, isValidCostAmount, isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
 import { groupBy } from '@/utils/collections';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
@@ -20,6 +20,9 @@ export type AssignmentPlanOperation =
       unitsPerDay: number;
       /** Vereist veld: undefined betekent een bestaande curve echt wissen. */
       curve: ResourceCurve | undefined;
+      /** Alleen voor een kostentoewijzing (issue #815): het nieuwe bedrag; `amount: undefined` wist
+       *  het. Afwezig ⇒ het bedrag blijft staan. Raakt geen datum. */
+      cost?: { amount: number | undefined };
     }
   | {
       kind: 'remove';
@@ -164,10 +167,17 @@ export function planTaskAssignmentSet({
       continue;
     }
     retainedAssignmentIds.add(existing.id);
-    if (existing.unitsPerDay !== token.unitsPerDay || existing.curve !== desiredCurve) {
+    // Een kostentoewijzing neemt het bedrag van het token over, ook 0 en leeg (plakken op een taak
+    // die dezelfde kostenresource al heeft, issue #815). Een ongeldig bedrag laat het staan.
+    const costChange = isCostResource(resourceIndex.get(token.resourceId))
+      && (token.costAmount === undefined || isValidCostAmount(token.costAmount))
+      && existing.costAmount !== token.costAmount
+      ? { cost: { amount: token.costAmount } }
+      : {};
+    if (existing.unitsPerDay !== token.unitsPerDay || existing.curve !== desiredCurve || 'cost' in costChange) {
       tokenOperations.push({
         kind: 'update', assignmentId: existing.id,
-        unitsPerDay: token.unitsPerDay, curve: desiredCurve,
+        unitsPerDay: token.unitsPerDay, curve: desiredCurve, ...costChange,
       });
     }
   }
@@ -240,6 +250,10 @@ export function applyTaskAssignmentPlan(
       if (!assignment) continue;
       assignment.unitsPerDay = operation.unitsPerDay;
       assignment.curve = operation.curve;
+      if (operation.cost) {
+        if (operation.cost.amount === undefined) delete assignment.costAmount;
+        else assignment.costAmount = operation.cost.amount;
+      }
     }
   }
   if (removedIds.size > 0) {
