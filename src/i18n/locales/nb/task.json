@@ -673,7 +673,14 @@
     "reviewAccept": "Godkjenn",
     "edit": "Rediger kobling mellom prosjekter…",
     "refreshSource": "Oppdater kilde",
-    "deleteRelation": "Slett avhengighet"
+    "deleteRelation": "Slett avhengighet",
+    "chooseSourceFile": "Velg kildefil…",
+    "chooseSourceFiles": "Velg kildefiler…",
+    "chooseSourceFailed": "Filen kan ikke leses.",
+    "unreadSources_one": "{{count}} kilde ble ikke lest.",
+    "unreadSources_other": "{{count}} kilder ble ikke lest.",
+    "chosenUnmatched_one": "{{count}} valgt fil hører ikke til noen kobling mellom prosjekter i denne planen.",
+    "chosenUnmatched_other": "{{count}} valgte filer hører ikke til noen kobling mellom prosjekter i denne planen."
   },
   "split": {
     "gapDays_one": "{{count}} arbeidsdag avbrudd",
@@ -691,5 +698,11 @@
     "timeHint": "Tomt: starten eller slutten av arbeidsdagen. Med et klokkeslett: nøyaktig det tidspunktet.",
     "later": "Et kvarter senere",
     "earlier": "Et kvarter tidligere"
+  },
+  "dependents": {
+    "title": "Avhengige prosjekter",
+    "successor": "Etterfølger der",
+    "predecessor": "Forgjenger der",
+    "anchor": "regner med {{date}}"
   }
 }

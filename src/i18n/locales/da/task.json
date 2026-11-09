@@ -673,7 +673,14 @@
     "reviewAccept": "Godkend",
     "edit": "Rediger ekstern afhængighed…",
     "refreshSource": "Opdater kilde",
-    "deleteRelation": "Slet afhængighed"
+    "deleteRelation": "Slet afhængighed",
+    "chooseSourceFile": "Vælg kildefil…",
+    "chooseSourceFiles": "Vælg kildefiler…",
+    "chooseSourceFailed": "Filen kan ikke læses.",
+    "unreadSources_one": "{{count}} kilde blev ikke læst.",
+    "unreadSources_other": "{{count}} kilder blev ikke læst.",
+    "chosenUnmatched_one": "{{count}} valgt fil hører ikke til nogen ekstern afhængighed i denne plan.",
+    "chosenUnmatched_other": "{{count}} valgte filer hører ikke til nogen ekstern afhængighed i denne plan."
   },
   "split": {
     "gapDays_one": "{{count}} arbejdsdag afbrydelse",
@@ -691,5 +698,11 @@
     "timeHint": "Tomt: start eller slut på arbejdsdagen. Med et klokkeslæt: præcis det tidspunkt.",
     "later": "Et kvarter senere",
     "earlier": "Et kvarter tidligere"
+  },
+  "dependents": {
+    "title": "Afhængige projekter",
+    "successor": "Efterfølgende opgave dér",
+    "predecessor": "Foregående opgave dér",
+    "anchor": "regner med {{date}}"
   }
 }

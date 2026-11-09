@@ -233,7 +233,10 @@
     "msProjectLostResourceRates_other": "Normaalihintoja ei tuotu {{count}} resurssilta.",
     "minuteModelConverted_one": "{{document}}: {{count}} tehtävällä on muunnoksen jälkeen eri alku tai loppu. Suurin siirtymä on {{days}} työpäivää. Ctrl+Z palauttaa tallennetut päivämäärät.",
     "minuteModelConverted_other": "{{document}}: {{count}} tehtävällä on muunnoksen jälkeen eri alku tai loppu. Suurin siirtymä on {{days}} työpäivää. Ctrl+Z palauttaa tallennetut päivämäärät.",
-    "minuteModelCalendarRepaired": "Kalenteri ”{{calendar}}” on korjattu: sen loppu tai tauko ei vastannut tallennettua työaikaa."
+    "minuteModelCalendarRepaired": "Kalenteri ”{{calendar}}” on korjattu: sen loppu tai tauko ei vastannut tallennettua työaikaa.",
+    "dependentProjectsFound": "Riippuvaiset projektit: {{projects}}. Linkit tähän projektiin: {{links}}.",
+    "dependentProjectsNone": "Projekteja, joilla on ulkoinen riippuvuus tähän aikatauluun, ei löytynyt.",
+    "dependentProjectsFailed": "Riippuvaisten projektien kansiota ei voitu lukea."
   },
   "scheduleErrors": {
     "cycle": "Kehäriippuvuus tehtävien välillä: {{path}}",
@@ -1718,5 +1721,15 @@
   "fileDrop": {
     "title": "Pudota avataksesi",
     "subtitle": "Projektitiedosto tai tuonti"
+  },
+  "dependentAnchorWarning": {
+    "title": "Muiden projektien ankkuripäivämäärät tiukkenevat",
+    "body": "Nämä projektit perustuvat tämän aikataulun päivämäärään. Tallennuksen jälkeen ne saavat tiukemman päivämäärän, kun ne päivittävät ulkoiset riippuvuutensa.",
+    "colProject": "Projekti",
+    "colTheirTask": "Heidän tehtävänsä",
+    "colOwnTask": "Tehtävä täällä",
+    "colAnchor": "Ankkuri: vanha → uusi",
+    "saveAnyway": "Tallenna silti",
+    "cancel": "Peruuta"
   }
 }

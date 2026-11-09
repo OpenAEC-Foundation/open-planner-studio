@@ -673,7 +673,14 @@
     "reviewAccept": "Kabul et",
     "edit": "Dış ilişkiyi düzenle…",
     "refreshSource": "Kaynağı yenile",
-    "deleteRelation": "İlişkiyi sil"
+    "deleteRelation": "İlişkiyi sil",
+    "chooseSourceFile": "Kaynak dosya seç…",
+    "chooseSourceFiles": "Kaynak dosyaları seç…",
+    "chooseSourceFailed": "Bu dosya okunamıyor.",
+    "unreadSources_one": "{{count}} kaynak okunmadı.",
+    "unreadSources_other": "{{count}} kaynak okunmadı.",
+    "chosenUnmatched_one": "Seçilen {{count}} dosya bu plandaki hiçbir dış bağlantıya ait değil.",
+    "chosenUnmatched_other": "Seçilen {{count}} dosya bu plandaki hiçbir dış bağlantıya ait değil."
   },
   "split": {
     "gapDays_one": "{{count}} iş günü kesinti",
@@ -691,5 +698,11 @@
     "timeHint": "Boş bırakırsanız iş günü başlangıcı veya bitişi kullanılır. Saat girerseniz tam o an kullanılır.",
     "later": "Çeyrek saat sonra",
     "earlier": "Çeyrek saat önce"
+  },
+  "dependents": {
+    "title": "Bağımlı projeler",
+    "successor": "Oradaki ardıl",
+    "predecessor": "Oradaki öncül",
+    "anchor": "{{date}} tarihini kullanır"
   }
 }

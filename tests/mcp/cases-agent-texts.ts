@@ -29,6 +29,7 @@ const RESPONSE_FIELDS = new Set([
   'scheduleStale', // McpEnvelope
   'becameLiteral', // planner_update_calendar, per item
   'summary', // planner_list_tasks, rij van een samenvattingstaak
+  'sourceMissing', // planner_get_task, per externe koppeling (externalLinks)
 ]);
 
 type Schema = { type?: unknown; properties?: Record<string, Schema>; items?: Schema; enum?: unknown[] };

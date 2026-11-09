@@ -673,7 +673,14 @@
     "reviewAccept": "پذیرفتن",
     "edit": "ویرایش رابطه خارجی…",
     "refreshSource": "به‌روزرسانی منبع",
-    "deleteRelation": "حذف رابطه"
+    "deleteRelation": "حذف رابطه",
+    "chooseSourceFile": "انتخاب فایل مبدأ…",
+    "chooseSourceFiles": "انتخاب فایل‌های مبدأ…",
+    "chooseSourceFailed": "این فایل خوانده نمی‌شود.",
+    "unreadSources_one": "{{count}} منبع خوانده نشد.",
+    "unreadSources_other": "{{count}} منبع خوانده نشد.",
+    "chosenUnmatched_one": "{{count}} فایل انتخاب‌شده به هیچ رابطه خارجی در این برنامه تعلق ندارد.",
+    "chosenUnmatched_other": "{{count}} فایل انتخاب‌شده به هیچ رابطه خارجی در این برنامه تعلق ندارند."
   },
   "split": {
     "gapDays_one": "{{count}} روز کاری وقفه",
@@ -691,5 +698,11 @@
     "timeHint": "خالی: شروع یا پایان روز کاری. با زمان: دقیقاً همان لحظه.",
     "later": "یک ربع ساعت بعد",
     "earlier": "یک ربع ساعت زودتر"
+  },
+  "dependents": {
+    "title": "پروژه‌های وابسته",
+    "successor": "پس‌نیاز در آن‌جا",
+    "predecessor": "پیش‌نیاز در آن‌جا",
+    "anchor": "از {{date}} استفاده می‌کند"
   }
 }

@@ -682,7 +682,16 @@
     "reviewAccept": "Прихвати",
     "edit": "Уреди спољну везу…",
     "refreshSource": "Освежи извор",
-    "deleteRelation": "Избриши зависност"
+    "deleteRelation": "Избриши зависност",
+    "chooseSourceFile": "Изабери изворну датотеку…",
+    "chooseSourceFiles": "Изабери изворне датотеке…",
+    "chooseSourceFailed": "Ова датотека не може да се прочита.",
+    "unreadSources_one": "{{count}} извор није прочитан.",
+    "unreadSources_few": "{{count}} извора нису прочитана.",
+    "unreadSources_other": "{{count}} извора није прочитано.",
+    "chosenUnmatched_one": "{{count}} изабрана датотека не припада ниједној спољној вези у овом плану.",
+    "chosenUnmatched_few": "{{count}} изабране датотеке не припадају ниједној спољној вези у овом плану.",
+    "chosenUnmatched_other": "{{count}} изабраних датотека не припада ниједној спољној вези у овом плану."
   },
   "split": {
     "gapDays_one": "{{count}} радни дан прекид",
@@ -704,5 +713,11 @@
     "timeHint": "Празно: почетак или крај радног дана. Са унетим временом: тачно тај тренутак.",
     "later": "Четврт сата касније",
     "earlier": "Четврт сата раније"
+  },
+  "dependents": {
+    "title": "Зависни пројекти",
+    "successor": "Наследник тамо",
+    "predecessor": "Претходник тамо",
+    "anchor": "рачуна на {{date}}"
   }
 }

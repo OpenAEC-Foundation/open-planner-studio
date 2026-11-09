@@ -664,7 +664,12 @@
     "reviewAccept": "수락",
     "edit": "외부 관계 편집…",
     "refreshSource": "소스 새로 고침",
-    "deleteRelation": "관계 삭제"
+    "deleteRelation": "관계 삭제",
+    "chooseSourceFile": "소스 파일 선택…",
+    "chooseSourceFiles": "소스 파일 선택…",
+    "chooseSourceFailed": "이 파일을 읽을 수 없습니다.",
+    "unreadSources_other": "소스 {{count}}개를 읽지 못했습니다.",
+    "chosenUnmatched_other": "선택한 파일 {{count}}개는 이 계획의 어떤 외부 링크에도 해당하지 않습니다."
   },
   "split": {
     "gapDays_other": "{{count}} 근무일 중단",
@@ -678,5 +683,11 @@
     "timeHint": "비워 두면 근무일의 시작 또는 끝입니다. 시간을 입력하면 정확히 그 시점입니다.",
     "later": "15분 뒤",
     "earlier": "15분 전"
+  },
+  "dependents": {
+    "title": "종속 프로젝트",
+    "successor": "상대 쪽 후속 작업",
+    "predecessor": "상대 쪽 선행 작업",
+    "anchor": "{{date}} 사용"
   }
 }

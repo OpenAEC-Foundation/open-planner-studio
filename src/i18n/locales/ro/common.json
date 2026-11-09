@@ -292,7 +292,10 @@
     "minuteModelConverted_one": "{{document}}: {{count}} activitate are după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
     "minuteModelConverted_few": "{{document}}: {{count}} activități au după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
     "minuteModelConverted_other": "{{document}}: {{count}} de activități au după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
-    "minuteModelCalendarRepaired": "Calendarul „{{calendar}}” a fost reparat: sfârșitul sau pauza nu corespundeau timpului de lucru salvat."
+    "minuteModelCalendarRepaired": "Calendarul „{{calendar}}” a fost reparat: sfârșitul sau pauza nu corespundeau timpului de lucru salvat.",
+    "dependentProjectsFound": "Proiecte dependente: {{projects}}. Legături către acest proiect: {{links}}.",
+    "dependentProjectsNone": "Nu s-au găsit proiecte cu o legătură externă către această planificare.",
+    "dependentProjectsFailed": "Folderul cu proiecte dependente nu a putut fi citit."
   },
   "scheduleErrors": {
     "cycle": "Dependență circulară între activități: {{path}}",
@@ -1800,5 +1803,15 @@
   "fileDrop": {
     "title": "Eliberați pentru a deschide",
     "subtitle": "Fișier de proiect sau import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ancorele altor proiecte devin mai strânse",
+    "body": "Aceste proiecte depind de o dată din această planificare. După salvare, primesc o dată mai strânsă când își reîmprospătează legăturile între proiecte.",
+    "colProject": "Proiect",
+    "colTheirTask": "Sarcina lor",
+    "colOwnTask": "Sarcina aici",
+    "colAnchor": "Ancoră: veche → nouă",
+    "saveAnyway": "Salvează oricum",
+    "cancel": "Anulare"
   }
 }

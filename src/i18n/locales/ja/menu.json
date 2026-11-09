@@ -217,7 +217,9 @@
     "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。作業区分を一時的に使用します。",
     "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。",
     "addLayout": "新規レイアウト",
-    "toggleRelations": "関係線"
+    "toggleRelations": "関係線",
+    "relationFindDependents": "依存プロジェクトを検索…",
+    "relationFindDependentsHint": "このスケジュールへの外部関係を持つプロジェクトをフォルダー内で検索します。"
   },
   "ifc": {
     "title": "IFC エディタ",

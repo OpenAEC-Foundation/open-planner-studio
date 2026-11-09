@@ -680,7 +680,14 @@
     "reviewAccept": "Accepteren",
     "edit": "Externe relatie bewerken…",
     "refreshSource": "Bron vernieuwen",
-    "deleteRelation": "Relatie verwijderen"
+    "deleteRelation": "Relatie verwijderen",
+    "chooseSourceFile": "Bronbestand kiezen…",
+    "chooseSourceFiles": "Bronbestanden kiezen…",
+    "chooseSourceFailed": "Dit bestand kan niet gelezen worden.",
+    "unreadSources_one": "{{count}} bron niet gelezen.",
+    "unreadSources_other": "{{count}} bronnen niet gelezen.",
+    "chosenUnmatched_one": "{{count}} gekozen bestand hoort bij geen externe relatie in dit plan.",
+    "chosenUnmatched_other": "{{count}} gekozen bestanden horen bij geen externe relatie in dit plan."
   },
   "split": {
     "gapDays_one": "{{count}} werkdag pauze",
@@ -698,5 +705,11 @@
     "timeHint": "Leeg: het begin of einde van de werkdag. Met een tijd: precies dat moment.",
     "later": "Een kwartier later",
     "earlier": "Een kwartier eerder"
+  },
+  "dependents": {
+    "title": "Afhankelijke projecten",
+    "successor": "Opvolger daar",
+    "predecessor": "Voorganger daar",
+    "anchor": "rekent op {{date}}"
   }
 }

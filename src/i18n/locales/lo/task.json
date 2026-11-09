@@ -664,7 +664,12 @@
     "reviewAccept": "ຍອມຮັບ",
     "edit": "ດັດແກ້ສາຍສຳພັນພາຍນອກ…",
     "refreshSource": "ໂຫຼດຕົ້ນທາງຄືນໃໝ່",
-    "deleteRelation": "ລຶບສາຍພົວພັນ"
+    "deleteRelation": "ລຶບສາຍພົວພັນ",
+    "chooseSourceFile": "ເລືອກໄຟລ໌ຕົ້ນທາງ…",
+    "chooseSourceFiles": "ເລືອກໄຟລ໌ຕົ້ນທາງ…",
+    "chooseSourceFailed": "ບໍ່ສາມາດອ່ານໄຟລ໌ນີ້ໄດ້.",
+    "unreadSources_other": "ບໍ່ໄດ້ອ່ານ {{count}} ແຫຼ່ງ.",
+    "chosenUnmatched_other": "ໄຟລ໌ທີ່ເລືອກ {{count}} ໄຟລ໌ບໍ່ກ່ຽວກັບການເຊື່ອມໂຍງພາຍນອກໃດໃນແຜນນີ້."
   },
   "split": {
     "gapDays_other": "ພັກ {{count}} ມື້ເຮັດວຽກ",
@@ -678,5 +683,11 @@
     "timeHint": "ວ່າງ: ຕອນເລີ່ມ ຫຼື ຕອນສິ້ນສຸດຂອງມື້ເຮັດວຽກ. ຖ້າໃສ່ເວລາ: ເວລານັ້ນພໍດີ.",
     "later": "15 ນາທີຕໍ່ມາ",
     "earlier": "15 ນາທີກ່ອນ"
+  },
+  "dependents": {
+    "title": "ໂຄງການທີ່ຂຶ້ນກັບ",
+    "successor": "ໜ້າວຽກຖັດໄປຢູ່ທີ່ນັ້ນ",
+    "predecessor": "ໜ້າວຽກກ່ອນໜ້າຢູ່ທີ່ນັ້ນ",
+    "anchor": "ໃຊ້ {{date}}"
   }
 }

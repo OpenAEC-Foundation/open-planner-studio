@@ -434,6 +434,80 @@ en noem het in je rapport of PR-tekst.
      dat pad dus niet. Voorstel: twee bronnen, de controle laten wachten op de tweede (vertraagde lezing), intussen
      *Later* voor de eerste, de controle laten eindigen, en controleren dat de eerste balk wegblijft. Uit de review
      van #811 ronde 3 (GPT-6.1-Sol, xhigh, op `6407277d5`, VERVOLG). — S
+970. **VERVOLG: *Bronbestand kiezen…* is niet getest in de echte desktop-app.**
+     Stap 1.8 opent op de desktop de kiezer van `@tauri-apps/plugin-dialog` (`open`, filter IFC) in
+     `chooseExternalSourceFile` (`src/state/slices/fileSlice.ts`); het pad gaat daarna door `parseExternalSource`.
+     De rechten (`dialog:default`, en de leesrechten die de kiezer geeft) zijn niet veranderd. Getest is alleen de
+     browserroute (`tests/browser/external-source-update.spec.ts`) en de store-regels; een Tauri-build is op aia nu
+     niet toegestaan (zie punt 883). Controle: in de desktop-app een koppeling maken via *Bronbestand kiezen…* met
+     een bestand buiten de recente bestanden, en zien dat de koppeling een pad krijgt en de balk werkt. — S
+971. **VERVOLG: een koppeling met pad is in de browser niet te vernieuwen, en een koppeling zonder pad mist *Bron vernieuwen*.**
+     Een koppeling die op de desktop gemaakt is, heeft een pad; de browser kan dat pad niet lezen en telt haar bij
+     *Alle externe relaties vernieuwen* als niet gelezen. *Bronbestanden kiezen…* raakt alleen koppelingen zonder
+     pad (een koppeling met pad wijst naar een bepaald bestand), dus die koppeling vernieuwt de planner alleen op de
+     desktop. Omgekeerd toont het rechtsklikmenu van de relatiecel *Bron vernieuwen* alleen bij een koppeling met pad
+     (`src/components/task-grid/FullTaskGrid.tsx`), dus een koppeling zonder pad vernieuwt de planner alleen via
+     *Alle externe relaties vernieuwen*. — B
+973. **VERVOLG: onthouden handvatten van bronbestanden worden nooit opgeruimd.**
+     `src/services/fileAccess/externalSourceHandles.ts` bewaart per project-id één handvat in IndexedDB
+     (`ops-external-sources`). Een handvat blijft staan als geen enkele koppeling het project nog gebruikt, en
+     ook als het bestand weg is. Dat kost alleen opslag; lezen gebeurt alleen voor een project met een koppeling.
+     Mogelijke oplossing: opruimen bij het verwijderen van de laatste koppeling, of na een leesfout. — B
+974. **VERVOLG: twee bronbestanden met hetzelfde project-id zijn in de browser niet te onderscheiden.**
+     Een koppeling zonder pad herkent haar bron alleen op project-id, en de app onthoudt één handvat per
+     project-id (het laatst gekozen bestand). Een kopie van een bronproject (zelfde project-id, ander bestand)
+     vervangt dus het handvat van het origineel. Op de desktop houdt het pad ze uit elkaar. Zo besloten in keuze 4
+     (`docs/relaties-tussen-projecten.md`, 5.4); stap 1.9 (site) houdt ze uit elkaar met `siteFileId`. — B
+975. **VERVOLG: *Afhankelijke projecten zoeken…* leest geen submappen.** Stap 1.11 leest alleen de `.ifc`-bestanden
+     direct in de gekozen map (`src/services/fileAccess/dependentFolder.ts`, `readDependentFolder`). Staan de
+     projecten van andere partijen elk in een eigen submap, dan vindt de app ze niet. Bewust zo gebouwd (opdracht
+     stap 1.11). Voorstel: een vinkje *Ook submappen*, met een grens op diepte en aantal bestanden. — S
+976. **VERVOLG: afhankelijke projecten zitten niet in de MCP-tools.** De zoekactie, het resultaat bij de taak en de
+     waarschuwing vóór opslaan bestaan alleen in de app. `planner_*` kan niet zoeken en ziet het resultaat niet; MCP
+     slaat op zonder waarschuwing (zoals AutoSave). Buiten stap 1.11 gehouden (opdracht). Voorstel: een leestool
+     die per taak de gevonden koppelingen geeft, en een veld in de opslaantools met de te krappe ankers. — S
+977. **VERVOLG: in Chromium zoekt de app bij openen alleen met blijvende maptoegang.** Het maphandvat staat per
+     project-id in IndexedDB; op de achtergrond leest de app het alleen bij `queryPermission` = `granted`
+     (`src/state/dependentProjectsSearch.ts`, `autoSearchDependentProjects`). Na een herstart van de browser is dat
+     meestal `prompt`, en dan gebeurt er niets tot de planner opnieuw zoekt. De knop opent dan de mapkiezer, die bij
+     de onthouden map begint. Voorstel: bij `prompt` een kleine balk *Afhankelijke projecten opnieuw zoeken* die met
+     één klik `requestPermission` vraagt. — S
+978. **VERVOLG: *Afhankelijke projecten zoeken…* is niet getest in de echte desktop-app.** De Tauri-route (mapkiezer
+     met `directory: true`, `readDir` en `readTextFile` op een map buiten de thuismap, `persisted-scope` na een
+     herstart, het pad als `OPS_ProjectSettings/DependentProjectsFolder`) is alleen gebouwd en getypecheckt. Getest
+     zijn de regels (`check-dependent-projects.ts`), de rondgang van het pad (`check-ifc-roundtrip.ts`) en de
+     browserroute met een stub van `showDirectoryPicker` (`external-source-update.spec.ts`). Testplan: map kiezen,
+     opslaan, app herstarten, het project openen en zien dat het blok *Afhankelijke projecten* vanzelf gevuld
+     wordt; ook met een map op een andere schijf. — S
+979. **VERVOLG: het zoekresultaat van afhankelijke projecten veroudert stil.** Het resultaat is van het moment van
+     zoeken (bij openen of met de knop). Slaat de andere planner daarna een nieuwe versie op, of vernieuwt hij zijn
+     ankers, dan rekent de waarschuwing vóór opslaan nog met de oude ankers, tot er opnieuw gezocht wordt. Zonder
+     cloud krijgt de andere planner ook geen bericht (keuze 3: alleen met de SuperCloud, deel 3). Voorstel: de
+     gevonden bestanden opnieuw lezen vlak vóór de waarschuwing (wijzigingstijd vergelijken), of de map bewaken
+     zoals stap 1.6. — S
+990. **VERVOLG: een late IndexedDB-fout kan de verbinding van een nieuwe poging uit de cache halen.** `openDb`
+     (`src/utils/idb.ts`) haalt een geblokkeerde aanvraag A uit de cache, zodat een nieuwe poging B kan starten. Komt
+     daarna alsnog `onerror` van A, dan verwijdert de foutafhandeling blind de cache-entry van B; de volgende aanroep
+     opent dan een derde verbinding (review #858, ronde 2, nagebootst). Geen dataverlies of gewoon optreden
+     aangetoond. Voorstel: alleen verwijderen als de cache nog naar deze aanvraag wijst, zoals `openDbStores` al
+     doet. — B
+991. **VERVOLG: de gedeeltelijke herkeuze van bronbestanden heeft geen test van de gebruikersroute.** De planning-check
+     test alleen `remainingUnreadSources`; het browserscenario kiest de enige bron zonder pad opnieuw. Niet getoetst:
+     twee bronnen zonder pad, alleen A kiezen ⇒ B blijft geteld en *Bronbestanden kiezen…* blijft; daarna B kiezen
+     ⇒ de knop verdwijnt (review #858, ronde 2). Voorstel: het bestaande browserblok in
+     `tests/browser/external-source-update.spec.ts` zo uitbreiden. — B
+995. **VERVOLG: een mislukte controle vóór opslaan valt stil terug op de oude datums.** `settleDependentAnchors`
+     (`fileSlice.ts`) vangt elke fout bij schrijven, teruglezen of doorrekenen van de kopie af en vergelijkt dan met
+     de huidige taken: de vergelijking die zonder F5 een te krap anker mist (review #857, ronde 1). Met een
+     ingespoten leesfout (vijf naar tien dagen, opslaan zonder F5): geen vraag, het bestand wordt geschreven, geen
+     melding (review #857, ronde 2). Geen gewoon project gevonden dat die fout vanzelf geeft. Voorstel: in die
+     fouttak niet vergelijken, maar melden dat de controle niet kon. — B
+996. **VERVOLG: gewoon opslaan kost extra tijd zodra er afhankelijke projecten gevonden zijn.** De controle vóór
+     opslaan schrijft het IFC, leest het terug en rekent het door op een kopie; daarna schrijft de opslagroute het
+     IFC nog eens. Gemeten in Node, 1000 taken: 486 ms extra (review #857, ronde 2); geschat bij 10.000 taken
+     ongeveer 2 s, op de hoofdthread. Het loopt alleen met minstens één gevonden koppeling, maar dan bij elke opslag
+     met de hand, ook als geen anker verandert. Voorstel: één IFC-tekst maken, die controleren en dezelfde tekst
+     wegschrijven, met een controle dat de documentstand na de asynchrone stappen nog geldt. — B
 
 ## Tabel, invoer en bediening
 
@@ -2007,6 +2081,28 @@ en noem het in je rapport of PR-tekst.
      actie uit en heeft geen blijvende gekozen stand (geen `aria-pressed`), dus het zijn gewone acties. De bronkeuzes
      met een gekozen stand houden wel 600. Wil een planner ze toch vet, dan volstaat `fontWeight: 600` zoals bij de
      bronkeuzes. Uit de review van #850 (GPT-6.1-Sol, xhigh, op `d40a68caa`, VERVOLG). — B
+
+879. **VERVOLG: de hook die de map van een bronbestand bewaakt, wordt niet getest.**
+     `tests/planning/check-external-source-watch.ts` test alleen de pure functies in
+     `src/engine/externalSourceWatch.ts` (`parentDir`, `externalSourceWatchTargets`, `watchEventTouchesSource`).
+     De hook `src/hooks/useExternalSourceWatch.ts` zelf heeft geen test: met een lege hook blijven alle 15 controles
+     groen. Niet gedekt zijn dus: één `watch` per map, opnieuw bewaken als de set bronbestanden verandert, stoppen
+     bij het sluiten, een melding over een bronbestand die `checkExternalSources` start, en een leesmelding
+     (`access`) die niets doet. Voorstel: een test met een nep-`watch` voor `@tauri-apps/plugin-fs`, en de echte
+     controle in de desktop-app (punt 883). Uit de review van #812 (GPT-6.1-Sol, xhigh, op `526207f85`,
+     VERVOLG). — B
+883. **VERVOLG: de bewaking van de bronmap is niet getest in de echte desktop-app.**
+     #812 zet de feature `watch` van `tauri-plugin-fs` aan (`src-tauri/Cargo.toml`) en bewaakt de map van elk
+     bronbestand (`src/hooks/useExternalSourceWatch.ts`). De toestemming is er: `fs:allow-home-read-recursive`
+     geeft `read-all`, met `watch` en `unwatch`, binnen de thuismap. Getest zijn alleen de pure functies
+     (`check-external-source-watch.ts`) en de CI-build van de app. De CI bewaart geen build, en op aia staat geen
+     desktop-app van OPS. Een build op aia is zwaar werk; daarvoor is toestemming van Ethan nodig, en tot zijn
+     besluit over de SSD van aia (14 november 2026) draait daar geen zwaar werk (Trias, 7 november). Plan voor
+     daarna: 1. één debug-build met `flock /tmp/ops-zwaar.lock nice -n 19 cargo build` in `src-tauri/`, met een
+     bestaande debug-target om crates te hergebruiken; geen release-build, geen installers. 2. De app op display
+     :0, met devUrl naar een dev-server van de branch via `ops-devserver`. 3. Een plan openen via `?open=` met een
+     koppeling naar een bronbestand onder `$HOME`, dat bestand wijzigen zonder het venster te wisselen, en binnen
+     enkele seconden de balk verwachten; bewijs met `xwd` vóór en na. Trias legt het aan Ethan voor. — S
 
 ## Wensen en open taken (geen bug)
 

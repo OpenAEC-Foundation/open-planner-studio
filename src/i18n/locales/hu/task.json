@@ -673,7 +673,14 @@
     "reviewAccept": "Elfogadás",
     "edit": "Projektközi kapcsolat szerkesztése…",
     "refreshSource": "Forrás frissítése",
-    "deleteRelation": "Kapcsolat törlése"
+    "deleteRelation": "Kapcsolat törlése",
+    "chooseSourceFile": "Forrásfájl kiválasztása…",
+    "chooseSourceFiles": "Forrásfájlok kiválasztása…",
+    "chooseSourceFailed": "Ez a fájl nem olvasható.",
+    "unreadSources_one": "{{count}} forrás nincs beolvasva.",
+    "unreadSources_other": "{{count}} forrás nincs beolvasva.",
+    "chosenUnmatched_one": "{{count}} kiválasztott fájl nem tartozik a terv egyik projektközi kapcsolatához sem.",
+    "chosenUnmatched_other": "{{count}} kiválasztott fájl nem tartozik a terv egyik projektközi kapcsolatához sem."
   },
   "split": {
     "gapDays_one": "{{count}} munkanap szünet",
@@ -691,5 +698,11 @@
     "timeHint": "Üresen hagyva: a munkanap eleje vagy vége. Időponttal: pontosan ez a pillanat.",
     "later": "Negyedórával később",
     "earlier": "Negyedórával korábban"
+  },
+  "dependents": {
+    "title": "Függő projektek",
+    "successor": "Ottani utód",
+    "predecessor": "Ottani előd",
+    "anchor": "ezzel számol: {{date}}"
   }
 }

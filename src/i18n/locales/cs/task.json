@@ -691,7 +691,18 @@
     "reviewAccept": "Přijmout",
     "edit": "Upravit vazbu mezi projekty…",
     "refreshSource": "Obnovit zdroj",
-    "deleteRelation": "Odstranit závislost"
+    "deleteRelation": "Odstranit závislost",
+    "chooseSourceFile": "Vybrat zdrojový soubor…",
+    "chooseSourceFiles": "Vybrat zdrojové soubory…",
+    "chooseSourceFailed": "Tento soubor nelze přečíst.",
+    "unreadSources_one": "{{count}} zdroj nebyl načten.",
+    "unreadSources_few": "{{count}} zdroje nebyly načteny.",
+    "unreadSources_many": "Nenačteno zdrojů: {{count}}.",
+    "unreadSources_other": "Nenačteno zdrojů: {{count}}.",
+    "chosenUnmatched_one": "{{count}} vybraný soubor nepatří k žádné vazbě mezi projekty v tomto plánu.",
+    "chosenUnmatched_few": "{{count}} vybrané soubory nepatří k žádné vazbě mezi projekty v tomto plánu.",
+    "chosenUnmatched_many": "Vybrané soubory ({{count}}) nepatří k žádné vazbě mezi projekty v tomto plánu.",
+    "chosenUnmatched_other": "Vybrané soubory ({{count}}) nepatří k žádné vazbě mezi projekty v tomto plánu."
   },
   "split": {
     "gapDays_one": "{{count}} pracovní den přerušení práce",
@@ -717,5 +728,11 @@
     "timeHint": "Prázdné: začátek nebo konec pracovního dne. S časem: přesně tento okamžik.",
     "later": "O čtvrt hodiny později",
     "earlier": "O čtvrt hodiny dříve"
+  },
+  "dependents": {
+    "title": "Závislé projekty",
+    "successor": "Následník tam",
+    "predecessor": "Předchůdce tam",
+    "anchor": "počítá s {{date}}"
   }
 }

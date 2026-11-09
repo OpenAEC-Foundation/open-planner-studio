@@ -691,7 +691,18 @@
     "reviewAccept": "Prijať",
     "edit": "Upraviť prepojenie medzi projektmi…",
     "refreshSource": "Obnoviť zdroj",
-    "deleteRelation": "Odstrániť závislosť"
+    "deleteRelation": "Odstrániť závislosť",
+    "chooseSourceFile": "Vybrať zdrojový súbor…",
+    "chooseSourceFiles": "Vybrať zdrojové súbory…",
+    "chooseSourceFailed": "Tento súbor nie je možné prečítať.",
+    "unreadSources_one": "{{count}} zdroj sa nenačítal.",
+    "unreadSources_few": "{{count}} zdroje sa nenačítali.",
+    "unreadSources_many": "Nenačítané zdroje: {{count}}.",
+    "unreadSources_other": "Nenačítané zdroje: {{count}}.",
+    "chosenUnmatched_one": "{{count}} vybraný súbor nepatrí k žiadnemu prepojeniu medzi projektmi v tomto pláne.",
+    "chosenUnmatched_few": "{{count}} vybrané súbory nepatria k žiadnemu prepojeniu medzi projektmi v tomto pláne.",
+    "chosenUnmatched_many": "Vybrané súbory ({{count}}) nepatria k žiadnemu prepojeniu medzi projektmi v tomto pláne.",
+    "chosenUnmatched_other": "Vybrané súbory ({{count}}) nepatria k žiadnemu prepojeniu medzi projektmi v tomto pláne."
   },
   "split": {
     "gapDays_one": "Prestávka: {{count}} pracovný deň",
@@ -717,5 +728,11 @@
     "timeHint": "Prázdne: začiatok alebo koniec pracovného dňa. S časom: presne ten okamih.",
     "later": "O štvrťhodinu neskôr",
     "earlier": "O štvrťhodinu skôr"
+  },
+  "dependents": {
+    "title": "Závislé projekty",
+    "successor": "Nasledujúca úloha tam",
+    "predecessor": "Predchádzajúca úloha tam",
+    "anchor": "počíta s {{date}}"
   }
 }

@@ -16,6 +16,8 @@ import { ExportProfileHint } from '@/components/common/ExportProfileHint';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsRecentFiles } from '@/services/fileAccess';
 import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
+import { isTauri } from '@/utils/platform';
+import { remainingUnreadSources } from '@/engine/externalLinks';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { TimeInput, TIME_STEP_MINUTES } from '@/components/common/TimeInput';
 import { useDisplayDate, useTimeNotation } from '@/hooks/displayDate';
@@ -52,6 +54,7 @@ import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
+import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 /**
@@ -370,10 +373,15 @@ export function RelationDropdown() {
   ));
   const setUI = useAppStore(s => s.setUI);
   const refreshAllExternalAnchors = useAppStore(s => s.refreshAllExternalAnchors);
+  const refreshFromChosenFiles = useAppStore(s => s.refreshExternalAnchorsFromChosenFiles);
+  // Stap 1.8: in de browser zonder host kan de planner de bronbestanden die niet gelezen zijn opnieuw kiezen.
+  // De app onthoudt welke bronnen zonder pad nog openstaan, en hoeveel bronnen met pad niet gelezen zijn.
+  const [unreadSources, setUnreadSources] = useState<{ projectIds: string[]; others: number }>({ projectIds: [], others: 0 });
+  const canChooseSources = unreadSources.projectIds.length > 0 && !isTauri() && !siteStorageAvailable();
   const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
 
   const items: Array<{
-    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal';
+    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal' | 'findDependents';
     label: string;
     disabled: boolean;
     title: string;
@@ -426,10 +434,27 @@ export function RelationDropdown() {
       onClick: () => {
         void (async () => {
           const result = await refreshAllExternalAnchors(buildImportLabels(tCommon));
-          setRefreshStatus(result.sources === 0
+          // Geen bron gaat stil verloren: de uitslag noemt hoeveel bronnen niet gelezen zijn.
+          setRefreshStatus(result.sources === 0 && result.unread === 0
             ? tTask('externalLinks.noSourcesToast')
-            : tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }));
+            : [
+                tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }),
+                ...(result.unread > 0 ? [tTask('externalLinks.unreadSources', { count: result.unread })] : []),
+              ].join(' '));
+          setUnreadSources({ projectIds: result.unreadProjectIds, others: result.unread - result.unreadProjectIds.length });
         })();
+      },
+    },
+    {
+      // Stap 1.11: wie hangt van deze planning af? Altijd beschikbaar; het resultaat komt als melding
+      // en staat bij de taken (eigenschappenpaneel).
+      key: 'findDependents',
+      label: tMenu('ribbon.relationFindDependents'),
+      disabled: false,
+      title: tMenu('ribbon.relationFindDependentsHint'),
+      onClick: () => {
+        setOpen(false);
+        void searchDependentProjectsManually(buildImportLabels(tCommon));
       },
     },
   ];
@@ -471,6 +496,32 @@ export function RelationDropdown() {
             </button>
           ))}
           {refreshStatus && <div className="ribbon-relation-menu-status" role="status">{refreshStatus}</div>}
+          {refreshStatus && canChooseSources && (
+            <button
+              type="button"
+              role="menuitem"
+              className="ribbon-relation-menu-item"
+              data-ops-external-sources-choose
+              onClick={() => {
+                void (async () => {
+                  const result = await refreshFromChosenFiles(buildImportLabels(tCommon));
+                  if (!result) return;
+                  // Wat niet gekozen is, blijft open: de melding telt het, en de knop blijft voor die bronnen.
+                  const remaining = remainingUnreadSources(unreadSources.projectIds, result.readProjectIds);
+                  const stillUnread = remaining.length + unreadSources.others;
+                  setRefreshStatus([
+                    tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }),
+                    ...(result.unmatched > 0 ? [tTask('externalLinks.chosenUnmatched', { count: result.unmatched })] : []),
+                    ...(stillUnread > 0 ? [tTask('externalLinks.unreadSources', { count: stillUnread })] : []),
+                  ].join(' '));
+                  setUnreadSources({ projectIds: remaining, others: unreadSources.others });
+                })();
+              }}
+            >
+              <span className="ribbon-relation-menu-mark" aria-hidden="true" />
+              <span>{tTask('externalLinks.chooseSourceFiles')}</span>
+            </button>
+          )}
         </div>
       </Popover>
       {externalTaskId && (

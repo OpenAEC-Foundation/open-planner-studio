@@ -682,7 +682,16 @@
     "reviewAccept": "Accepter",
     "edit": "Modifier la relation externe…",
     "refreshSource": "Actualiser la source",
-    "deleteRelation": "Supprimer la relation"
+    "deleteRelation": "Supprimer la relation",
+    "chooseSourceFile": "Choisir le fichier source…",
+    "chooseSourceFiles": "Choisir les fichiers source…",
+    "chooseSourceFailed": "Ce fichier ne peut pas être lu.",
+    "unreadSources_one": "{{count}} source non lue.",
+    "unreadSources_many": "{{count}} sources non lues.",
+    "unreadSources_other": "{{count}} sources non lues.",
+    "chosenUnmatched_one": "{{count}} fichier choisi ne correspond à aucune relation externe de ce planning.",
+    "chosenUnmatched_many": "{{count}} fichiers choisis ne correspondent à aucune relation externe de ce planning.",
+    "chosenUnmatched_other": "{{count}} fichiers choisis ne correspondent à aucune relation externe de ce planning."
   },
   "split": {
     "gapDays_one": "{{count}} jour ouvré de pause",
@@ -704,5 +713,11 @@
     "timeHint": "Vide : le début ou la fin du jour ouvré. Avec une heure : exactement ce moment.",
     "later": "Un quart d'heure plus tard",
     "earlier": "Un quart d'heure plus tôt"
+  },
+  "dependents": {
+    "title": "Projets dépendants",
+    "successor": "Successeur là-bas",
+    "predecessor": "Prédécesseur là-bas",
+    "anchor": "utilise {{date}}"
   }
 }

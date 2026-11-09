@@ -160,7 +160,10 @@ const NIET_PUBLIEK = {
   project: ['companyId', 'companyName', 'ifcSchema', 'ifcSchemaUnconfirmed',
     // P6 Project-ID van een P6 XML-import (eigenaarsbesluit 2026-10-13): bronidentiteit voor de
     // P6-export, geen extensie-invoer. `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
-    'p6ProjectCode'] as readonly string[],
+    'p6ProjectCode',
+    // De map met afhankelijke projecten (stap 1.11): een pad op deze computer, geen planningsdata.
+    // `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
+    'dependentProjectsFolder'] as readonly string[],
   // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
   // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
   calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
@@ -304,6 +307,7 @@ const VOL_PROJECT = {
   ifcSchema: 'IFC4',
   ifcSchemaUnconfirmed: 'IFC4',
   p6ProjectCode: 'OZB-05',
+  dependentProjectsFolder: '/projecten/Zuidas',
 } satisfies Required<Project>;
 
 const VOL_CALENDAR = {

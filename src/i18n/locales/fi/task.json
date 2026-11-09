@@ -673,7 +673,14 @@
     "reviewAccept": "Hyväksy",
     "edit": "Muokkaa ulkoista riippuvuutta…",
     "refreshSource": "Päivitä lähde",
-    "deleteRelation": "Poista riippuvuus"
+    "deleteRelation": "Poista riippuvuus",
+    "chooseSourceFile": "Valitse lähdetiedosto…",
+    "chooseSourceFiles": "Valitse lähdetiedostot…",
+    "chooseSourceFailed": "Tiedostoa ei voi lukea.",
+    "unreadSources_one": "{{count}} lähdettä ei luettu.",
+    "unreadSources_other": "{{count}} lähdettä ei luettu.",
+    "chosenUnmatched_one": "{{count}} valittu tiedosto ei kuulu mihinkään tämän suunnitelman ulkoiseen riippuvuuteen.",
+    "chosenUnmatched_other": "{{count}} valittua tiedostoa ei kuulu mihinkään tämän suunnitelman ulkoiseen riippuvuuteen."
   },
   "split": {
     "gapDays_one": "{{count}} työpäivä tauko",
@@ -691,5 +698,11 @@
     "timeHint": "Tyhjä: työpäivän alku tai loppu. Kellonajalla: täsmälleen tuo hetki.",
     "later": "Neljännestunti myöhemmin",
     "earlier": "Neljännestunti aiemmin"
+  },
+  "dependents": {
+    "title": "Riippuvaiset projektit",
+    "successor": "Seuraaja siellä",
+    "predecessor": "Edeltäjä siellä",
+    "anchor": "käyttää päivämäärää {{date}}"
   }
 }
