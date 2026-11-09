@@ -5,11 +5,15 @@
 # een `#id` dat twee keer voorkomt, of zonder entiteiten. Volgt de
 # uitzondering "live-schema van eigen herkomst sluit baselinebomen altijd uit" (spec §4.2 stap 1). Complexe instanties
 # (#n=(A()B())) telt hij als type COMPLEX, zonder verdere indeling.
-# Fase-0-voorproef (ontwerp #804 v9 §4.2). Draaien: python3 -I scripts/proef/classify-v9.py <bestand.ifc>
+# Fase-0-voorproef (ontwerp #804 v9 §4.2). Draaien: python3 -I scripts/proef/classify-v9.py <bestand.ifc> [--json]
+# Fase 0 (#804) voegt alleen `--json` toe: de klasse per #id, voor de vergelijking met de TS-indeling in
+# tests/planning/check-ifc-foreign-classify.ts. De indeling zelf is die van PR #839 (ontwerp v17, commit 35268d437).
 # Benaderingen: het register komt uit de 'OPS_*'-namen in ifcPsets.ts/ifcWriter.ts; de bekende propertynamen zijn alle
 # tekstliteralen in src/services/ifc/*.ts (een ruime overmaat). De bouw haalt beide uit één bron in de code.
 import re, sys, os, glob
 from collections import defaultdict, Counter
+AS_JSON = '--json' in sys.argv[1:]
+if AS_JSON: sys.argv.remove('--json')
 t = open(sys.argv[1], encoding='utf-8', errors='replace').read()
 ents, pos = {}, {}
 def fout(msg):
@@ -159,7 +163,10 @@ for i in ents:
             if ty.get(x) == 'IFCPROPERTYSINGLEVALUE' and pname_raw(x) == 'Baselines':
                 bl_keys |= set(re.findall(r'"name":"((?:[^"\\]|\\.)*)","createdAt":"([^"]*)"', ents[x][1]))
 own_base = {b for b in base & agg_sched if (name(b), args[b][6].strip("'")) in bl_keys and not tasks_of({b})}
-D = plans | live | own_base | (alltasks - excl) | {i for i in ents if ty[i] in RES or ty[i] == 'IFCWORKCALENDAR'}
+# v20: het eerste live-schema in de volgorde van het bestand is D (besluit wrakko, 9 november 2026); een ander
+# live-schema alleen bij eigen herkomst.
+live_d = ({min(live, key=lambda i: pos[i])} if live else set()) | {i for i in live if len(args[i]) > 1 and app_of(r1(i, 1)) == 'OPS'}
+D = plans | live_d | own_base | (alltasks - excl) | {i for i in ents if ty[i] in RES or ty[i] == 'IFCWORKCALENDAR'}
 D |= {i for i in ents if ty[i] == 'IFCRELSEQUENCE' and r1(i, 4) in D and r1(i, 5) in D}  # v6: IfcRelSequence is D
 proj = {i for i in ents if ty[i] == 'IFCPROJECT'}
 # Bekende namen voor OPS_CustomFields: de property-templates onder het eigen template
@@ -235,6 +242,8 @@ while todo:
 # (constant #-slot); die is dus een startpunt van Ext en wordt C.
 vreemde_herkomst = {i for i in D | R if len(args[i]) > 1 and app_of(r1(i, 1)) != 'OPS'}
 oh_starts = [r1(i, 1) for i in vreemde_herkomst if r1(i, 1) is not None]
+# v20: Creators (argument 7) van werkplan en werkschema is een constant #-slot; zijn doelen zijn startpunten van Ext.
+oh_starts += [x for i in D if ty[i] in ('IFCWORKPLAN', 'IFCWORKSCHEDULE') for x in rl(i, 7)]
 Ext, todo = set(), [i for i in ents if i not in Own] + oh_starts
 seen = set()
 while todo:
@@ -248,6 +257,11 @@ P = D | R | (Own - Ext)
 C = (Own & Ext) - D - R
 A = {i for i in ents if i not in Own and any(r in P for r in refs[i])}
 V = set(ents) - P - C - A
+if AS_JSON:
+    import json as _json
+    cls = {str(i): ('P' if i in P else 'C' if i in C else 'A' if i in A else 'V') for i in ents}
+    print(_json.dumps({'classes': cls, 'vreemde_leden': sorted(vreemd_lid), 'vreemde_herkomst': sorted(vreemde_herkomst)}))
+    sys.exit(0)
 print(f"{sys.argv[1].split('/')[-1]}: {len(ents)} entiteiten | P {len(P)} C {len(C)} A {len(A)} V {len(V)} | vreemde leden {len(vreemd_lid)} | vreemde herkomst {len(vreemde_herkomst)}")
 for nm, S_ in (('C', C), ('A', A), ('V', V)):
     if S_: print('  ', nm, dict(Counter(ty[x] for x in S_).most_common(8)))

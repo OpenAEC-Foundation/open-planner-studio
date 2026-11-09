@@ -1,7 +1,7 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 19 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
-4 van de review van PR #839 door Sol en Terra, §12).
+Status: ontwerp, versie 20 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
+4 van de review van PR #839 door Sol en Terra, §12; daarna de uitkomst van fase 0, met drie besluiten van wrakko, §11).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -115,7 +115,15 @@ regels letterlijk over:
   werkplan is vreemd en blijft byte-gelijk (§4.5). De writer schrijft het hele P-blok op de plek van het eerste P-stuk
   van de bron (§4.10). Het D-werkplan staat vóór elk ander werkplan, dus het blijft na opslaan het eerste (Opus en Sol,
   ronde 6: in v6 kwam het vreemde werkplan na opslaan vooraan, en koos de lezer het verkeerde);
-- de werkschema's en taken zoals de lezer ze nu kiest: alle `IfcTask` buiten de baselinebomen (`ifcReader.ts:1749`);
+- het live-schema dat de lezer kiest: het **eerste** `IfcWorkSchedule` in het bestand dat geen baseline is
+  (`ifcReader.ts:445`). Een ander live-schema is alleen D bij eigen herkomst (de oude writer schreef er soms meer; de
+  writer voegt die samen tot één, zoals nu). Een ander live-schema van vreemde herkomst is vreemd en blijft byte-gelijk:
+  de app voegt het niet samen met het eerste. Zijn relaties naar taken hebben een vreemde relating en zijn dus A (§4.6);
+  zijn taken blijven planning (regel hieronder). Het D-schema blijft het eerste bij opnieuw opslaan: het houdt zijn
+  `#id` en staat in het P-blok op de plek van het eerste P-stuk, dus vóór elk vreemd live-schema, net als het werkplan.
+  Een aggregatie werkplan→(D-schema, vreemd schema) is een gemengde relatie (§4.6). (Besluit wrakko, 9 november 2026,
+  na fase 0: in v19 werden alle live-schema's D, en voegde de writer twee schema's van Bonsai samen tot één.)
+- de taken zoals de lezer ze nu kiest: alle `IfcTask` buiten de baselinebomen (`ifcReader.ts:1749`);
   baselinebomen worden alleen uitgesloten als er een live-schema met minstens één taak is; anders zijn de
   baselinetaken de planning (`collectBaselineTaskStepIds`, `:3570-3612`, #336). Eén uitzondering: een live-schema van
   eigen herkomst sluit baselinebomen altijd uit, ook zonder taken. Anders werd een Bonsai-baselineboom D nadat de planner
@@ -154,12 +162,16 @@ anders niet (`IfcRelSequence` is D, stap 1):
   onbekende `OPS_AndereTool` is geen R.
 - **Properties in het register.** Per pset zegt het register welke properties eigen zijn: de properties die de lezer
   echt gebruikt. Dat is een vaste lijst namen, of een herkenner voor sleutels uit de data:
-  - `OPS_Assignments` is de enige pset met sleutels uit de data. Twee vormen: `<GlobalId van een resource>#n` en, van
-    writers tot en met v2026.7.3, de kale GlobalId (`ifcReader.ts:3458-3462, 3494`). De lezer zet de `#n`-sleutels per
+  - `OPS_Assignments` heeft sleutels uit de data in twee vormen: `<GlobalId van een resource>#n` en de kale GlobalId.
+    De kale vorm schreef alleen de writer op main tussen `e1ac01947` en `87ebd4d46` (3 juli 2026); geen release-tag heeft
+    hem, maar `live.yml` rolde main uit, dus zulke bestanden kunnen bestaan (fase 0; `ifcReader.ts:3458-3462, 3494`). De lezer zet de `#n`-sleutels per
     GlobalId op volgorde van `n` in een wachtrij en neemt er één per toewijzing van die resource aan de taak
     (`ifcReader.ts:3455-3470, 3489`). Regel: elke sleutel in GlobalId-vorm (kaal of met `#n`) is eigen, ook als het er
     meer zijn dan toewijzingen. Een andere naam (`VendorSecretNote`) is een vreemd lid. Een vreemde `#n`-sleutel zou de
     wachtrij verschuiven, want de lezer sorteert op `n` (`ifcReader.ts:3464, 3494`; proef van Opus, ronde 8).
+  - Ook andere psets hebben namen uit de data (fase 0): `OPS_XerSourceArchive` (`ByteChunk000000`,
+    `DiagnosticsChunk000000`, …) en `OPS_CustomFields`/`OPS_ActivityCodes` (namen uit `OPS_StructureMeta`, met terugval
+    op het eigen template). De herkenner volgt de lezer (`src/services/ifc/foreign/classify.ts`).
   - **Ongebruikte sleutels.** Een sleutel die de lezer niet gebruikt (meer `#n`-sleutels dan toewijzingen van die
     resource aan de taak, of een kale sleutel naast `#n`-sleutels: de lezer neemt de kale alleen als de wachtrij leeg is,
     `ifcReader.ts:3494-3496`) gaat nu bij opslaan verloren, want de writer schrijft één sleutel per toewijzing
@@ -280,6 +292,12 @@ Gevolgen:
 - Een model zonder planning: D en R zijn leeg, dus alles is V, ook het `IfcProject`. De lezer leest het `IfcProject`
   (er is er precies één) altijd als context, ook als het V is; de writer hangt de nieuwe planning eraan. Na het eerste
   opslaan verwijst een eigen R-stuk ernaar (`OPS_ProjectSettings`), en is het C.
+- Een eigen bestand van vóór 3 juli 2026 (writer vóór `87ebd4d46`, dus v2026.7.2 en ouder): niets wijst naar het
+  `IfcProject` (geen `OPS_ProjectSettings`, geen `IfcRelDeclares` of `IfcRelAggregates`). Project, eenheden en context zijn
+  dan V en de owner history is C; de rest is P (fase 0, `tests/planning/fixtures/oude-tags/`). Het `IfcProject` komt niet
+  in D, want dan zou de writer ook het project van een vreemd model herschrijven. Zo'n bestand gaat als een model zonder
+  planning: de writer hangt de planning aan dit project en schrijft geen tweede `IfcProject` (§4.4); na het eerste
+  opslaan is het project C (besluit wrakko, 9 november 2026).
 - Nagerekend met `scripts/proef/classify-v9.py`, dat deze vier stappen uitvoert (fase-0-voorproef, 7 november 2026):
   alle 35 bestanden in `public/examples/`, `examples/` en `docs/superpowers/evidence/` geven 100 % P, zonder vreemde
   leden en zonder vreemde herkomst; acht modellen uit IFC5-development (ook `TeklaHouse.ifc`, 19 MB, 224.496 entiteiten) geven 100 % V; een eigen
@@ -362,10 +380,11 @@ verdwijnen.
   - **Constant**: de writer schrijft een vaste waarde (vaak `$`) en de lezer leest het slot niet. Dan het brontoken.
     Voorbeelden: `LongDescription`, `WorkMethod`, `IfcWorkPlan.Name` bij vreemde herkomst. In een bestand van de huidige
     writer is het brontoken al de constante.
-  - **Verwijzing** (`OwnerHistory` bij eigen herkomst, `TaskTime`, `Creators`, `Recurrence`, `WorkingTimes`): altijd de
+  - **Verwijzing** (`OwnerHistory` bij eigen herkomst, `TaskTime`, `Recurrence`, `WorkingTimes`): altijd de
     eigen verwijzing van de writer.
   - Een brontoken met een `#` blijft alleen staan in een constant slot uit een vaste lijst: `OwnerHistory` bij vreemde
-    herkomst, `IfcConstructionResource.Usage`,
+    herkomst, `Creators` van werkplan en werkschema (de writer zet daar `$`, `ifcWriter.ts:208`; besluit wrakko,
+    9 november 2026, na fase 0), `IfcConstructionResource.Usage`,
     `BaseCosts` en `BaseQuantity` (de writer zet daar `$`, `ifcWriter.ts:1732`) en `IfcRelAssignsToProcess.QuantityInProcess`.
     Fase 2 maakt de lijst af met het schema. De doelen zijn startpunten van Ext (§4.2). Zo hangt de indeling niet af van
     keuzes die pas bij opslaan vallen.
@@ -395,10 +414,10 @@ verdwijnen.
 - Descriptortabellen: `IfcTask` en `IfcTaskTime` hebben ze al (`ifcTaskSlots.ts:94, 324`). Fase 2 maakt ze voor
   `IfcWorkPlan`/`IfcWorkSchedule` (nu index-helpers in `ifcWorkControlSlots.ts:45-86` en `workControlArgs` in de writer),
   `IfcWorkCalendar`, de resources en `IfcRelSequence`/`IfcLagTime` (nu vaste sjablonen, `ifcWriter.ts:1268, 1675`).
-- Wat dan nog verloren gaat, meldt de app bij openen in een lijst. Bekend: extra werkschema's worden samengevoegd tot
-  één; een tweede werkplan blijft als vreemd stuk staan, maar de app hangt er geen planning meer onder (zijn aggregatie
-  wordt een gemengde of A-relatie, §4.6); vreemde vormen van tijdsperioden; `Creators` van een werkplan. Zo presenteert
-  de app de overname niet als verliesvrij (les van IFCCAD).
+- Wat dan nog verloren gaat, meldt de app bij openen in een lijst. Bekend: een tweede werkplan blijft als vreemd stuk
+  staan, maar de app hangt er geen planning meer onder (zijn aggregatie wordt een gemengde of A-relatie, §4.6); vreemde
+  vormen van tijdsperioden. Zo presenteert de app de overname niet als verliesvrij (les van IFCCAD). Sinds v20 blijven
+  een tweede live-schema van vreemde herkomst (§4.2 stap 1) en `Creators` staan; zij staan niet meer in de lijst.
 
 ### 4.6 Koppelingen taak↔bouwdeel en toewijzingen
 
@@ -430,6 +449,22 @@ met de bestaande `parseSTEP` (een kleine set; de lezer kent `IfcRelAssignsToProd
   of pset. Bij (b) houdt het vreemde object de oude pset.
 - Zo staat een taak of schema nooit in twee `Nests`/`Decomposes`-relaties (die zijn SET [0:1]), en krijgt een object
   nooit twee psets met dezelfde naam.
+- **Bewaarde relaties gaan voor** (v20), zolang de plek van het lid in het domein niet verandert. De writer maakt dan
+  geen eigen `IfcRelAggregates` of `IfcRelNests` voor een D-object dat al als lid in een bewaarde relatie (A of V) van
+  hetzelfde type staat. Hij hangt aan het D-schema (eigen `IfcRelAssignsToControl`) geen taak die zelf, of via een
+  voorouder in het domein, in de `IfcRelAssignsToControl` of `IfcRelNests` van een ander live-schema staat. Zo blijven de
+  taken van een tweede schema van Bonsai in dat schema, en komt een nieuwe taak zonder zo'n voorouder onder het D-schema.
+  Voorbeeld (fase 0, `tests/fixtures/ifc-foreign/council/r6opus-twee-werkplannen.na.ifc`): het D-schema hangt al onder
+  een vreemd werkplan; de writer hangt het dan niet ook onder het D-werkplan.
+- **Verplaatsen uit een bewaarde relatie** (review van #863, Terra). Krijgt een taak in het domein een andere ouder, of
+  wordt ze een wortel-taak of juist niet meer, en staat ze als lid in een bewaarde relatie die haar oude plek vastlegt
+  (de `IfcRelNests` of `IfcRelAssignsToControl` van een ander live-schema, of een andere bewaarde `IfcRelNests`), dan
+  haalt de writer haar uit die relatie en schrijft hij de nieuwe plek als eigen relatie. Hetzelfde geldt voor een schema
+  in een bewaarde `IfcRelAggregates` als het domein het onder een ander werkplan zet. Die wijziging van het vreemde
+  stuk staat in de wijzigingslijst (§4.7) en gaat mee met undo: Ctrl+Z zet het lid terug, ook na opslaan, zoals bij
+  `detached`. Houdt de relatie geen leden over, dan vervalt ze, ook via de wijzigingslijst. Zonder deze regel bleef de
+  taak in de oude relatie en schreef de writer geen eigen nest; na heropenen ontbrak dan de gekozen ouder, want de lezer
+  leidt `parentId` af uit taak-naar-taak-nesting (`ifcReader.ts:2393`).
 
 ### 4.7 Een P-object is verwijderd
 
@@ -1084,7 +1119,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 |---|---|---|---|
 | 0 | **Haalbaarheidsproef** op het corpus (§10): scanner met inkomende verwijzingen, `selectPlanning`, indeling, de 100 %-P-poort, lezen als bytes, meting van tijd en geheugen (50/150/300 MB, Linux-WebKit en Chromium), controle met IfcOpenShell. Beantwoordt de vragen in §11. | 1 PR (tests en scripts) | — |
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
-| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
+| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11; in de eerste PR daarvan bewaart herstel elke volledige kandidaat met `pendingSha256` zolang die niet op het doel staat, ook bij een crash vóór stap 3, met een test voor een crash tijdens het herstel zelf: VERVOLG uit ronde 5 van #839, voor Terra blokkerend), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
 | 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
 
@@ -1115,9 +1150,11 @@ daarom staat alles achter de flags tot het compleet is.
 - **Poort: eigen bestanden = 100 % P en uitvoer zoals nu.** Elk `public/examples/*.ifc`, de echte writer-uitvoer in
   `tests/planning/fixtures/` (niet de fixtures met bewust hernoemde properties, zoals `werkdag-einde-tussenwaarde.ifc`, en
   niet die met een model), de uitvoer van de writer voor elk voorbeeldproject, en uitvoer van oudere release-tags geven
-  na indeling alleen P, zonder vreemde leden en zonder vreemde herkomst. Oude tags minstens één per formaatwissel: tot en
-  met v2026.7.3 (kale sleutels in `OPS_Assignments`), vóór 2026-07-03 (`IfcTask` met 12 argumenten), vóór 2026-09-28
-  (`'0.1'`, letterlijke tekst). Voor elk
+  na indeling alleen P, zonder vreemde leden en zonder vreemde herkomst. Oude uitvoer minstens één per formaatwissel: main
+  tussen `e1ac01947` en `87ebd4d46` (kale sleutels in `OPS_Assignments`; in geen tag), vóór 2026-07-03 (`IfcTask` met 12
+  argumenten), vóór 2026-09-28 (`'0.1'`, letterlijke tekst). Uitzondering: uitvoer van vóór `87ebd4d46` heeft een los
+  `IfcProject` (§4.2, Gevolgen); daar zijn project, eenheden en context V en de owner history C, met vaste aantallen in
+  de poort. Voor elk
   zulk bestand is de uitvoer van de nieuwe route byte-gelijk aan `writeIFC(readIFC(bestand))` van de huidige code, met een
   vaste klok. Extra gevallen: eigen bestand, statusdatum wijzigen, taak en baseline hernoemen, een toewijzing toevoegen:
   weer byte-gelijk aan de huidige writer.
@@ -1183,7 +1220,9 @@ daarom staat alles achter de flags tot het compleet is.
   - oud eigen bestand (`'0.1'`) met model, met een `\` in een JSON-pset en een `é` in een taaknaam: na openen, opslaan en
     herlezen dezelfde gegevens;
   - de herstelsnapshot en de MCP-backup bevatten geen bronbytes;
-  - de manifeststap faalt (`RecoveryStorageUnavailableError`): opslaan lukt toch;
+  - de manifeststap faalt (`RecoveryStorageUnavailableError`) op een route waar het manifest vrijblijvend is (zonder
+    vreemd deel, of in de browser): opslaan lukt toch. Bij het vervangen van een bestand met een vreemd deel in Tauri
+    stopt opslaan vóór stap 3; dat is test (i) hieronder (§4.10 stap 0, §4.14; VERVOLG uit ronde 5 van #839);
   - het bestand op schijf wordt vervangen terwijl een document met vreemd deel open is: opslaan schrijft niet en AutoSave
     stopt na één melding; bij een eigen bestand zonder vreemd deel verandert er niets;
   - MCP-backup van vóór een wijziging, na twee AutoSaves terugzetten: het model blijft;
@@ -1196,6 +1235,20 @@ daarom staat alles achter de flags tot het compleet is.
     stukken toevoegen: naast een gedeelde owner history schrijft de writer zijn eigen (simulatie van Opus, ronde 5: +1 tot
     +6, daarna gelijk);
   - een onbekende `OPS_AndereTool`-pset en een onbekende property binnen een bekende pset blijven staan;
+  - een eigen bestand van v2026.7.2 (los `IfcProject`): na openen en opslaan precies één `IfcProject`, en na een tweede
+    opslaan byte-gelijk (besluit wrakko, 9 november 2026);
+  - `bonsai-4d.ifc` met twee live-schema's: na opslaan staat het tweede schema byte-gelijk, met zijn relaties; zijn
+    taken staan niet ook in het D-schema; een nieuwe taak komt onder het eerste schema; heropenen kiest hetzelfde
+    D-schema; een tweede opslaan is byte-gelijk op de wijzigingslijst na;
+  - een werkplan of werkschema van vreemde herkomst met `Creators`: het token blijft byte-gelijk, en de persoon erachter
+    is C;
+  - `council/r6opus-twee-werkplannen.na.ifc` (het D-schema hangt onder een vreemd werkplan): na opslaan heeft geen object
+    twee `Decomposes` of `Nests`;
+  - fase 2: in `bonsai-4d.ifc` een taak van het tweede schema onder een taak van het eerste zetten, opslaan, heropenen:
+    de taak heeft de gekozen ouder, staat niet meer in de relatie van het tweede schema (wijzigingslijst), en geen object
+    heeft twee `Nests`; Ctrl+Z en opnieuw opslaan zetten haar terug in de relatie van het tweede schema, byte-gelijk; een
+    wortel-taak van het tweede schema die een kind wordt, gaat ook uit de `IfcRelAssignsToControl` van dat schema
+    (review van #863, Terra);
   - een gemengde `IfcRelAggregates` werkplan→(live-schema, Bonsai-baseline) en een gemengde `IfcRelNests`: geen dubbele
     `Decomposes`/`Nests` na opslaan, ook niet na een wijziging van de structuur;
   - een `LongDescription` op een taak in een verder eigen bestand blijft staan;
@@ -1302,7 +1355,17 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
 - de adapter van ifcx-explorer schrijft `IFCAPPLICATION(…,'OPS')` (`adapters.ts:358`); de app ziet zo'n STEP-bestand dan
   als eigen herkomst (§4.5, `ifcReader.ts:3804`). Voorstel: een eigen identificatie voor ifcx-explorer.
 
-**Vragen voor fase 0** (meting of proef, geen besluit):
+**Besluiten na fase 0** (wrakko, 9 november 2026; uitkomsten in `docs/superpowers/evidence/2026-11-ifc-fase0.md`). Het zijn
+technische keuzes die volgen uit het besluit van Ethan dat gegevens van andere programma's blijven staan; geen nieuwe
+productkeuze, en geen aparte council-ronde:
+
+- (a) een oud eigen bestand met een los `IfcProject` gaat als een model zonder planning (§4.2, Gevolgen; test in §10);
+- (b) `Creators` van werkplan en werkschema is een constant slot met een `#`-token (§4.5);
+- (c) alleen het eerste live-schema in de volgorde van het bestand is D; een ander live-schema van vreemde herkomst
+  blijft staan, met zijn relaties als A, en zijn taken blijven planning (§4.2 stap 1, §4.6).
+
+**Vragen voor fase 0** (beantwoord in het bewijsdocument; nog open: echte bestanden uit de Bonsai-GUI en uit Synchro, en
+de meting bij 150 en 300 MB en in WebKit):
 
 - Klopt `selectPlanning` op echte Bonsai- en Synchro-bestanden? Is "meerdere werkschema's samenvoegen" acceptabel, of
   wordt dat een besluit voor Ethan?
@@ -1488,6 +1551,16 @@ geschrapt, want die liet een nieuw bestand verdwijnen; zonder atomaire exclusiev
 staan en biedt hij *Opslaan als*. Na een crash tussen stap 3 en 4 blijft de nieuwe planning als herstelkopie staan.
 Bewerkingen die een lijst opnieuw opbouwen, geven het herkomstmerk door, en MCP en export laten het weg. Het commando
 eist dat precies één pad een eigen hulpbestand is. Zonder vastgelegd `pendingReplace` stopt het vervangen vóór stap 3.
+
+Na de merge van #839 en na fase 0 (versie 20; PR #863, 9 november): de testeis "de manifeststap faalt: opslaan lukt
+toch" geldt alleen waar het manifest vrijblijvend is (VERVOLG uit ronde 5); de eis voor herstelkandidaten staat in §8
+(fase 2). Drie besluiten van wrakko na fase 0 (§11): een oud eigen bestand met een los `IfcProject` gaat als model zonder
+planning; `Creators` is een constant `#`-slot; alleen het eerste live-schema is D, en de writer maakt geen eigen
+aggregatie, nest of schematoewijzing voor wat al in een bewaarde relatie staat. Na ronde 1 van de review van #863
+(Terra): verplaatst de planner een taak, dan haalt de writer haar uit de bewaarde relatie en schrijft hij de nieuwe plek
+(wijzigingslijst, undo). Ook rechtgezet: kale sleutels in
+`OPS_Assignments` stonden in geen tag; meer psets hebben namen uit de data. Poort na de wijziging: 2607 checks groen, met
+de vergelijking met `classify-v9.py`.
 
 ## 13. Bronnen
 

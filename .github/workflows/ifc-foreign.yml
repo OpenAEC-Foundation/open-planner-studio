@@ -1,0 +1,114 @@
+name: IFC vreemde inhoud (fase 0)
+
+# #804 fase 0 (ontwerp "Gebouwmodel behouden in IFC en IFCX", §8 en §10). Twee jobs:
+#   - corpus: IfcOpenShell valideert de geldige corpusbestanden, maak-corpus.py maakt ze byte-gelijk opnieuw, en de
+#     poort check-ifc-foreign-classify.ts draait met de vergelijking met scripts/proef/classify-v9.py (OPS_IFC_PYTHON=1).
+#     Draait op een PR en op main alleen als een pad hieronder wijzigt.
+#   - meting: tijd en geheugen van lezen, scanner, indeling en hashen bij 50/150/300 MB, in Node, Chromium en WebKit.
+#     Alleen handmatig (workflow_dispatch): te zwaar voor elke PR en voor aia09-mp50.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/services/ifc/**'
+      - 'tests/fixtures/ifc-foreign/**'
+      - 'tests/planning/check-ifc-foreign-classify.ts'
+      - 'scripts/proef/**'
+      - '.github/workflows/ifc-foreign.yml'
+  pull_request:
+    paths:
+      - 'src/services/ifc/**'
+      - 'tests/fixtures/ifc-foreign/**'
+      - 'tests/planning/check-ifc-foreign-classify.ts'
+      - 'scripts/proef/**'
+      - '.github/workflows/ifc-foreign.yml'
+  workflow_dispatch:
+    inputs:
+      mb:
+        description: 'Groottes in MB, met komma'
+        default: '50,150,300'
+        required: true
+      browsers:
+        description: 'Browsers (chromium, webkit), met komma; leeg = alleen Node'
+        default: 'chromium,webkit'
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ifc-foreign-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  IFCOPENSHELL_VERSION: '0.9.0.post1'
+
+jobs:
+  corpus:
+    name: corpus, IfcOpenShell en de poort tegen classify-v9.py
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies (npm ci)
+        run: npm ci
+      - name: IfcOpenShell installeren
+        run: python3 -m pip install "ifcopenshell==${IFCOPENSHELL_VERSION}"
+      - name: Corpus valideren (ifcopenshell.validate)
+        run: python3 -I scripts/proef/maak-corpus.py --valideer tests/fixtures/ifc-foreign
+      - name: Corpus reproduceerbaar (maak-corpus.py --controleer)
+        run: python3 -I scripts/proef/maak-corpus.py --controleer tests/fixtures/ifc-foreign
+      - name: Poort met de vergelijking met classify-v9.py
+        env:
+          OPS_IFC_PYTHON: '1'
+        run: bash tests/planning/run.sh check-ifc-foreign-classify.ts
+
+  meting:
+    name: meting scanner en indeling (${{ inputs.mb }} MB)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies (npm ci)
+        run: npm ci
+      - name: Browsers installeren
+        if: inputs.browsers != ''
+        env:
+          BROWSERS: ${{ inputs.browsers }}
+        run: |
+          for b in $(echo "$BROWSERS" | tr ',' ' '); do
+            if [ "$b" = chromium ]; then npx playwright install --with-deps --only-shell chromium; else npx playwright install --with-deps "$b"; fi
+          done
+      - name: Meten
+        env:
+          CI: 'true'
+          MB: ${{ inputs.mb }}
+          BROWSERS: ${{ inputs.browsers }}
+        run: |
+          args="--mb=$MB --out=meting-scanner.json"
+          if [ -n "$BROWSERS" ]; then args="$args --browser=$BROWSERS"; fi
+          node scripts/proef/meet-scanner.mjs $args
+          {
+            echo '### Meting scanner en indeling (#804 fase 0)'
+            echo '```json'
+            cat meting-scanner.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meting-scanner
+          path: meting-scanner.json
