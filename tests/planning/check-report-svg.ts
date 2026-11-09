@@ -19,11 +19,14 @@
 //     bladen die gevraagd worden (`createReportPaperRecorder`, rijvenster in `renderReport`). Elk blad uit
 //     zo'n gedeeltelijke opname is byte voor byte gelijk aan hetzelfde blad uit de volledige opname, met
 //     dezelfde bladindeling.
+//  7. Vaste schaal begint op de passende breedte: dezelfde bladindeling als "Op de breedte", ook als die
+//     breedte onder 1 px per dag ligt (vroeger klemde het tabblad op 1 en sprong A4 staand van 2 naar 6
+//     pagina's, en 5000 taken van 139 naar 695).
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { renderReport, type PrintOptions, type RenderReportResult } from '@/services/print/printPreview';
+import { fixedScaleStartDayWidth, renderReport, REPORT_MIN_DAY_WIDTH, type PrintOptions, type RenderReportResult } from '@/services/print/printPreview';
 import { computeTileLayout, footerLayoutWidthFor, footerRelayoutWidth, reportTileInput } from '@/services/print/tileLayout';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import {
@@ -464,6 +467,33 @@ for (const [label, options, rh, rf] of [
       `${label}: een blad uit een eerdere opname rekent niet opnieuw`,
     );
   }
+}
+
+// ── 7. Vaste schaal begint op de passende breedte ───────────────────────────────────────────────
+{
+  const cases: [string, PrintOptions][] = [
+    ['A4 staand', baseOptions({ paperSize: 'A4', orientation: 'portrait' })],
+    ['A4 staand, tijdlijn over 2', baseOptions({ paperSize: 'A4', orientation: 'portrait', timelineColumns: 2 })],
+    ['A3 liggend', baseOptions()],
+    ['A3 liggend, tijdlijn over 3', baseOptions({ timelineColumns: 3 })],
+  ];
+  for (const [label, options] of cases) {
+    const fit = recordReportPaper(project.tasks, project.sequences, project.calendar, project.project.name, options, true, true, metrics);
+    const dayWidth = fit.result.dayWidth ?? 0;
+    const start = fixedScaleStartDayWidth(dayWidth);
+    const scale = recordReportPaper(project.tasks, project.sequences, project.calendar, project.project.name,
+      { ...options, autoFit: false, customZoom: start }, true, true, metrics);
+    ok(dayWidth > 0 && Math.abs(start - dayWidth) < dayWidth * 1e-6, `${label}: vaste schaal begint op de passende breedte (${dayWidth} → ${start})`);
+    ok(scale.layout.cols === fit.layout.cols && scale.layout.rows === fit.layout.rows,
+      `${label}: zelfde bladen na de wissel (${fit.layout.rows}×${fit.layout.cols} → ${scale.layout.rows}×${scale.layout.cols})`);
+    if (label === 'A4 staand') {
+      ok(dayWidth < 1, `A4 staand: de passende breedte ligt onder 1 px per dag (${dayWidth}), dus de proef dekt de oude klem`);
+      const clamped = recordReportPaper(project.tasks, project.sequences, project.calendar, project.project.name,
+        { ...options, autoFit: false, customZoom: Math.max(1, Math.floor(dayWidth)) }, true, true, metrics);
+      ok(clamped.layout.cols > fit.layout.cols, `A4 staand: met de oude klem op 1 px meer bladen naast elkaar (${clamped.layout.cols}), de proef is gevoelig`);
+    }
+  }
+  ok(fixedScaleStartDayWidth(0.000_1) === REPORT_MIN_DAY_WIDTH, 'vaste schaal: nooit onder de kleinste breedte per dag');
 }
 
 if (failures > 0) {

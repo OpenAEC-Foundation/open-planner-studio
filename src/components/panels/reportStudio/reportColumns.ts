@@ -57,12 +57,20 @@ export function resolveReportColumns(
   domain: Pick<TaskGridAdapterDomain, 'descriptorsById' | 'context' | 'dateNotation' | 'labelForBoolean' | 'labelForText'> & Partial<TaskGridAdapterDomain>,
   tasks: readonly Task[],
   labelForColumn: (labelKey: string) => string,
+  /**
+   * Eerder opgebouwde registerkolommen voor dezelfde `domain`, `tasks` en `labelForColumn` (de aanroeper
+   * maakt een nieuwe cache als een van die drie verandert). Een kolom erbij bouwt dan alleen haar eigen
+   * celteksten op; dezelfde kolom blijft hetzelfde object, zodat ook de kolommeting haar herkent.
+   */
+  cache?: Map<string, PrintTableColumn>,
 ): ResolvedReportColumns {
   const columns: PrintTableColumn[] = [];
   const missing: string[] = [];
   for (const id of ids) {
     const builtin = BUILTIN_REPORT_COLUMNS[id];
     if (builtin) { columns.push({ key: id, builtin }); continue; }
+    const cached = cache?.get(id);
+    if (cached) { columns.push(cached); continue; }
     const descriptor = domain.descriptorsById.get(id as TaskColumnId);
     if (!descriptor) { missing.push(id); continue; }
     const cells = new Map<string, string>();
@@ -72,14 +80,16 @@ export function resolveReportColumns(
       if (text && text !== '—') cells.set(task.id, text);
     }
     const { fallback, max } = reportColumnWidthLimits(descriptor);
-    columns.push({
+    const column: PrintTableColumn = {
       key: id,
       header: taskColumnLabel(descriptor, labelForColumn),
       align: reportColumnAlign(descriptor),
       cells,
       fallbackWidth: fallback,
       maxWidth: max,
-    });
+    };
+    cache?.set(id, column);
+    columns.push(column);
   }
   return { columns, missing };
 }

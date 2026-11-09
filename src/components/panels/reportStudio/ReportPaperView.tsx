@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { hitPaperRegion, type PageRegions, type PaperRect, type PaperRegionId } from '@/services/print/reportPaper';
@@ -34,8 +34,14 @@ const PAGES_PAD_TOP = 30;
 /** CSS-px per PDF-punt: 96 per inch tegen 72 per inch. */
 const PX_PER_PT = 96 / 72;
 
-/** Hoe het blad in het venster past: het hele blad, de breedte, of een eigen zoom. */
-type PaperFit = { fit: 'page' | 'width' } | { scale: number };
+/**
+ * Hoe het blad in het venster past: het hele blad, de breedte van één blad, de hele rij bladen naast
+ * elkaar (alleen als de tijdlijn over meer bladen loopt), of een eigen zoom.
+ */
+type PaperFit = { fit: 'page' | 'width' | 'row' } | { scale: number };
+
+/** De hoek linksonder (in rtl rechtsonder) die de zwevende exportknop inneemt, gemeten vanaf de rand van het papiervlak. */
+export interface FabZone { width: number; height: number }
 
 function clampZoom(z: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
@@ -45,17 +51,26 @@ function pct(v: number, of: number): string {
   return `${(v / of) * 100}%`;
 }
 
+const EMPTY_PAGES: ReadonlySet<number> = new Set();
+
 /**
- * Het interactieve papier: de bladen als SVG (scherp op elke zoom). Standaard staat het hele blad in
- * beeld ("Hele blad"); "Breedte" vult de breedte van het venster. Zoomen met − en +, Ctrl+scrollen of
- * + / − / 0 (0 = hele blad). De delen van het blad lichten bij bewegen op; hun naam staat boven het
- * blad, zodat hij niets afdekt. Een klik op een deel opent de bijbehorende stap. Alleen bladen in (of
- * vlak bij) beeld krijgen hun SVG; de rest is een leeg vel van de juiste maat, zodat ook een planning
- * van honderden bladen direct scrolt.
+ * Het interactieve papier: de bladen als SVG (scherp op elke zoom). Standaard staat één heel blad in
+ * beeld ("Hele blad"); "Breedte" vult de breedte met één blad, en "Hele rij" zet alle bladen van een rij
+ * naast elkaar als de tijdlijn over meer bladen loopt. Zoomen met − en +, Ctrl+scrollen of + / − / 0
+ * (0 = hele blad). De delen van het blad lichten bij bewegen op; hun naam staat boven het blad, zodat hij
+ * niets afdekt. Een klik op een deel opent de bijbehorende stap.
+ *
+ * Snelheid bij honderden bladen: alleen bladen in (of vlak bij) beeld krijgen hun SVG, en de bladen
+ * die echt in beeld staan eerst; die vlak erbuiten volgen één frame later. De maat van een blad staat in
+ * een CSS-variabele op de lijst, dus een zoomstap rendert de bladen niet opnieuw.
+ *
+ * De zwevende exportknop (zijbalk ingeklapt) bedekt nooit inhoud: raakt een blad zijn hoek, dan stopt
+ * het scrollvak boven een vrije strook onderaan, waarin de knop zweeft. Anders loopt het papier tot
+ * onderaan door, en is "Hele blad" ingeklapt minstens zo groot als met de zijbalk open.
  */
 export function ReportPaperView({
   paper, stale, loading, selected, onPick, regionLabel, columnLabel, status, actions, onVisible,
-  bottomReserve = 0, hint,
+  fabZone = null, hint, banner,
 }: {
   paper: ReportPaperModel | null;
   /** De getoonde opname hoort bij oudere instellingen (de nieuwe wordt gemaakt). */
@@ -70,19 +85,21 @@ export function ReportPaperView({
   status: ReactNode;
   /** Rechts naast de zoomknoppen. */
   actions?: ReactNode;
-  /** De bladen in (of vlak bij) beeld, na elke wijziging. */
+  /** De bladen die echt in beeld staan, na elke wijziging (de volgende opname tekent hun rijen meteen). */
   onVisible?: (pages: readonly number[]) => void;
-  /** Ruimte (px) die onderaan vrij blijft voor de zwevende exportknop; "Hele blad" past erboven. */
-  bottomReserve?: number;
+  /** De hoek van de zwevende exportknop, of `null` als die er niet is. */
+  fabZone?: FabZone | null;
   /** Korte aanwijzing boven het eerste blad (eerste bezoek), met een knop om hem te sluiten. */
   hint?: { text: string; closeLabel: string; onClose: () => void } | null;
+  /** Balk tussen de werkbalk en het papier, of `null`. */
+  banner?: ReactNode;
 }) {
   const { t, i18n } = useTranslation('report');
+  const wrapRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [fit, setFit] = useState<PaperFit>({ fit: 'page' });
   const [hover, setHover] = useState<HoverState | null>(null);
-  const [visible, setVisible] = useState<ReadonlySet<number>>(() => new Set([0, 1]));
   const pendingScroll = useRef<{ ratio: number; px: number; py: number } | null>(null);
 
   const layout = paper?.layout;
@@ -92,29 +109,45 @@ export function ReportPaperView({
   const pageHeightPt = layout?.pageHeightPt ?? 841.89;
   const aspect = pageHeightPt / pageWidthPt;
   const realWidth = pageWidthPt * PX_PER_PT;
-  // Breedte = de bladen van één rij naast elkaar over de beschikbare breedte. Hele blad = ook de hoogte
-  // van één blad (met zijn titel) past, boven de vrije ruimte voor de exportknop.
-  const widthFit = Math.max(160, (viewport.width - 2 * PAGES_PAD - (cols - 1) * PAGE_GAP) / cols);
-  const heightFit = (viewport.height - PAGES_PAD_TOP - PAGES_PAD - bottomReserve) / aspect;
-  const pageFit = Math.max(120, Math.min(widthFit, heightFit));
-  const pageWidth = 'scale' in fit ? fit.scale * realWidth : fit.fit === 'page' ? pageFit : widthFit;
+  // "Hele rij" bestaat alleen als er meer bladen naast elkaar staan; anders is het "Breedte".
+  const fitMode = 'fit' in fit ? (fit.fit === 'row' && cols <= 1 ? 'width' : fit.fit) : null;
+  const availWidth = Math.max(0, viewport.width - 2 * PAGES_PAD);
+  const widthFor = (reserve: number): number => {
+    if ('scale' in fit) return fit.scale * realWidth;
+    if (fitMode === 'row') return Math.max(160, (availWidth - (cols - 1) * PAGE_GAP) / cols);
+    if (fitMode === 'width') return Math.max(160, availWidth);
+    // Hele blad: één blad past in breedte én hoogte (met zijn titel erboven).
+    const heightFit = (viewport.height - PAGES_PAD_TOP - PAGES_PAD - reserve) / aspect;
+    return Math.max(120, Math.min(Math.max(160, availWidth), heightFit));
+  };
+  // Raakt de rij bladen de hoek van de zwevende knop? De bladen staan gecentreerd; is de rij breder dan
+  // het venster, dan begint hij bij de marge.
+  const touchesFab = (width: number): boolean => {
+    if (!fabZone) return false;
+    const extent = cols * width + (cols - 1) * PAGE_GAP;
+    return Math.max(PAGES_PAD, (viewport.width - extent) / 2) < fabZone.width;
+  };
+  const freeWidth = widthFor(0);
+  const strip = fabZone && touchesFab(freeWidth) ? fabZone.height : 0;
+  const pageWidth = strip ? widthFor(strip) : freeWidth;
   const pageHeight = pageWidth * aspect;
   const scale = pageWidth / realWidth;
   // Laatste waarden voor de handlers hieronder, zonder dat die bij elke render nieuw worden.
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
-  const realWidthRef = useRef(realWidth);
-  realWidthRef.current = realWidth;
 
+  // De breedte uit het scrollvak (zonder schuifbalk), de hoogte uit het hele papiervlak: de strook voor
+  // de knop maakt het scrollvak lager, maar mag de maat van "Hele blad" niet terug laten veranderen.
   useEffect(() => {
+    const wrap = wrapRef.current;
     const node = viewportRef.current;
-    if (!node) return;
-    const observer = new ResizeObserver(entries => {
-      const rect = entries[0]?.contentRect;
-      if (!rect || rect.width <= 0) return;
-      const next = { width: Math.round(rect.width), height: Math.round(rect.height) };
+    if (!wrap || !node) return;
+    const observer = new ResizeObserver(() => {
+      const next = { width: Math.round(node.clientWidth), height: Math.round(wrap.clientHeight) };
+      if (next.width <= 0) return;
       setViewport(prev => (prev.width === next.width && prev.height === next.height ? prev : next));
     });
+    observer.observe(wrap);
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
@@ -133,7 +166,7 @@ export function ReportPaperView({
     setFit({ scale: target });
   }, []);
 
-  const chooseFit = useCallback((mode: 'page' | 'width') => setFit({ fit: mode }), []);
+  const chooseFit = useCallback((mode: 'page' | 'width' | 'row') => setFit({ fit: mode }), []);
 
   useLayoutEffect(() => {
     const node = viewportRef.current;
@@ -177,24 +210,53 @@ export function ReportPaperView({
     return () => node.removeEventListener('wheel', onWheel);
   }, [zoomTo]);
 
-  // Welke bladen staan in of vlak bij beeld.
+  // Welke bladen staan in beeld (`inView`), en welke vlak erbij (`near`, 400 px marge). Een blad in beeld
+  // krijgt zijn SVG direct; een blad vlak erbij één frame later, zodat een sprong of een nieuwe opname eerst
+  // het blad toont waar je naar kijkt.
+  const [inView, setInView] = useState<ReadonlySet<number>>(() => new Set([0]));
+  const [near, setNear] = useState<ReadonlySet<number>>(() => new Set([0, 1]));
+  const showPages = !!paper && !loading;
   useEffect(() => {
     const root = viewportRef.current;
-    if (!root || totalPages === 0) return;
-    const shown = new Set<number>();
-    const observer = new IntersectionObserver(entries => {
-      let changed = false;
-      for (const entry of entries) {
-        const index = Number((entry.target as HTMLElement).dataset.rsPage);
-        if (!Number.isInteger(index)) continue;
-        if (entry.isIntersecting && !shown.has(index)) { shown.add(index); changed = true; }
-        if (!entry.isIntersecting && shown.delete(index)) changed = true;
-      }
-      if (changed) setVisible(new Set(shown));
-    }, { root, rootMargin: '400px 400px' });
-    root.querySelectorAll<HTMLElement>('[data-rs-page]').forEach(node => observer.observe(node));
-    return () => observer.disconnect();
-  }, [totalPages, pageWidth, cols]);
+    if (!root || totalPages === 0 || !showPages) return;
+    const watch = (margin: string, apply: (pages: ReadonlySet<number>) => void) => {
+      const shown = new Set<number>();
+      const observer = new IntersectionObserver(entries => {
+        let changed = false;
+        for (const entry of entries) {
+          const index = Number((entry.target as HTMLElement).dataset.rsPage);
+          if (!Number.isInteger(index)) continue;
+          if (entry.isIntersecting && !shown.has(index)) { shown.add(index); changed = true; }
+          if (!entry.isIntersecting && shown.delete(index)) changed = true;
+        }
+        if (changed) apply(new Set(shown));
+      }, { root, rootMargin: margin });
+      root.querySelectorAll<HTMLElement>('[data-rs-page]').forEach(node => observer.observe(node));
+      return observer;
+    };
+    const exact = watch('0px', setInView);
+    const around = watch('400px 400px', setNear);
+    return () => { exact.disconnect(); around.disconnect(); };
+  }, [totalPages, cols, showPages]);
+
+  // De bladen vlak bij beeld, per opname: pas één frame nadat de bladen in beeld getekend zijn.
+  const paperId = paper?.id ?? -1;
+  const [nearDrawn, setNearDrawn] = useState<{ id: number; pages: ReadonlySet<number> }>({ id: -1, pages: EMPTY_PAGES });
+  useEffect(() => {
+    if (paperId < 0) return;
+    const have = nearDrawn.id === paperId ? nearDrawn.pages : EMPTY_PAGES;
+    if ([...near].every(page => have.has(page) || inView.has(page))) return;
+    let timer = 0;
+    const raf = requestAnimationFrame(() => {
+      timer = window.setTimeout(() => setNearDrawn({ id: paperId, pages: new Set(near) }), 0);
+    });
+    return () => { cancelAnimationFrame(raf); window.clearTimeout(timer); };
+  }, [paperId, near, inView, nearDrawn]);
+  const drawn = useMemo(() => {
+    const set = new Set(inView);
+    if (nearDrawn.id === paperId) for (const page of nearDrawn.pages) if (near.has(page)) set.add(page);
+    return set;
+  }, [inView, near, nearDrawn, paperId]);
 
   // Meting: het papier met de nieuwe stand is vastgelegd.
   useLayoutEffect(() => {
@@ -243,22 +305,21 @@ export function ReportPaperView({
   // Eén vaste functie in plaats van een vertaalde tekst per blad: bij 139 bladen kostte dat per render
   // 139 vertalingen, ook voor bladen die `memo` overslaat.
   const captionFor = useCallback((index: number) => t('studio.paper.sheet', { index: index + 1, total: totalPages }), [t, totalPages]);
-  const visiblePages = useMemo(() => [...visible].sort((a, b) => a - b), [visible]);
-  useEffect(() => { onVisible?.(visiblePages); }, [onVisible, visiblePages]);
-  // De bladen hangen niet af van `stale` of de werkbalk: zo kost een klik in de zijbalk geen render van
-  // honderd bladen (`memo` per blad slaat ze over, maar ook de lijst zelf kostte bij 139 bladen ±25 ms).
+  const drawnPages = useMemo(() => [...drawn].sort((a, b) => a - b), [drawn]);
+  const inViewPages = useMemo(() => [...inView].sort((a, b) => a - b), [inView]);
+  useEffect(() => { onVisible?.(inViewPages); }, [onVisible, inViewPages]);
+  // De bladen hangen niet af van `stale`, de werkbalk of de zoom (die staat in een CSS-variabele): zo kost
+  // een klik in de zijbalk of een zoomstap geen render van honderd bladen.
   const pageNodes = useMemo(() => {
     if (!paper || loading) return null;
-    // Eén render voor de rijen van alle bladen in beeld, vóór de bladen hun SVG vragen.
-    paper.prepare(visiblePages);
+    // Eén render voor de rijen van alle getekende bladen, vóór de bladen hun SVG vragen.
+    paper.prepare(drawnPages);
     return pages.map(index => (
       <PaperPage
         key={index}
         index={index}
-        width={pageWidth}
-        height={pageHeight}
-        svg={visible.has(index) ? paper.pageSvg(index) : null}
-        regions={visible.has(index) ? paper.pageRegions(index) : null}
+        svg={drawn.has(index) ? paper.pageSvg(index) : null}
+        regions={drawn.has(index) ? paper.pageRegions(index) : null}
         pageWidthPt={paper.layout.pageWidthPt}
         pageHeightPt={paper.layout.pageHeightPt}
         hover={hover && hover.page === index ? hover : null}
@@ -272,10 +333,10 @@ export function ReportPaperView({
         hint={index === 0 ? hint ?? null : null}
       />
     ));
-  }, [paper, loading, pages, visible, visiblePages, pageWidth, pageHeight, hover, selected, regionLabel, columnLabel,
+  }, [paper, loading, pages, drawn, drawnPages, hover, selected, regionLabel, columnLabel,
     onPageMove, onPageClick, onPick, captionFor, hint]);
   const zoomLabel = `${Math.round(scale * 100).toLocaleString(i18n.language)} %`;
-  const fitMode = 'fit' in fit ? fit.fit : null;
+  const sizeVars = { '--rs-page-w': `${pageWidth}px`, '--rs-page-h': `${pageHeight}px` } as CSSProperties;
 
   return (
     <div className="rs-paper-area">
@@ -305,41 +366,51 @@ export function ReportPaperView({
             title={t('studio.zoom.widthHint')} data-rs-zoom="width">
             {t('studio.zoom.width')}
           </button>
+          {cols > 1 && (
+            <button type="button" className="rs-fit-btn" onClick={() => chooseFit('row')} aria-pressed={fitMode === 'row'}
+              title={t('studio.zoom.rowHint', { count: cols })} data-rs-zoom="row">
+              {t('studio.zoom.row')}
+            </button>
+          )}
         </div>
         {actions}
       </div>
-      <div
-        ref={viewportRef}
-        className="rs-viewport"
-        tabIndex={0}
-        role="region"
-        aria-label={t('studio.paper.label', { count: totalPages })}
-        aria-roledescription={t('studio.paper.role')}
-        onKeyDown={onKeyDown}
-        data-report-preview-viewport
-        data-rs-viewport
-      >
-        {loading || !paper ? (
-          <div className="rs-pages">
-            <div className="rs-page-wrap" style={{ width: pageWidth, height: pageHeight }}>
-              <div className="rs-page" style={{ width: '100%', height: '100%' }} aria-hidden="true">
-                <div className="rs-page-skeleton" />
+      {banner}
+      <div ref={wrapRef} className="rs-viewport-wrap" data-rs-fab-strip={strip > 0 ? 'true' : undefined}>
+        <div
+          ref={viewportRef}
+          className="rs-viewport"
+          style={strip > 0 ? { bottom: strip } : undefined}
+          tabIndex={0}
+          role="region"
+          aria-label={t('studio.paper.label', { count: totalPages })}
+          aria-roledescription={t('studio.paper.role')}
+          onKeyDown={onKeyDown}
+          data-report-preview-viewport
+          data-rs-viewport
+        >
+          {loading || !paper ? (
+            <div className="rs-pages" style={sizeVars}>
+              <div className="rs-page-wrap">
+                <div className="rs-page" style={{ width: '100%', height: '100%' }} aria-hidden="true">
+                  <div className="rs-page-skeleton" />
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div
-            className="rs-pages"
-            style={{
-              ...(cols > 1 ? { display: 'grid', gridTemplateColumns: `repeat(${cols}, ${pageWidth}px)`, justifyContent: 'center', columnGap: PAGE_GAP } : null),
-              rowGap: PAGE_ROW_GAP,
-              paddingBottom: PAGES_PAD + bottomReserve,
-            }}
-            onMouseLeave={() => setHover(null)}
-          >
-            {pageNodes}
-          </div>
-        )}
+          ) : (
+            <div
+              className="rs-pages"
+              style={{
+                ...sizeVars,
+                ...(cols > 1 ? { display: 'grid', gridTemplateColumns: `repeat(${cols}, var(--rs-page-w))`, justifyContent: 'center', columnGap: PAGE_GAP } : null),
+                rowGap: PAGE_ROW_GAP,
+              }}
+              onMouseLeave={() => setHover(null)}
+            >
+              {pageNodes}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -348,12 +419,10 @@ export function ReportPaperView({
 const REGION_ORDER: readonly PaperRegionId[] = ['header', 'columns', 'chart', 'footer'];
 
 const PaperPage = memo(function PaperPage({
-  index, width, height, svg, regions, pageWidthPt: W, pageHeightPt: H, hover, selected, regionLabel, columnLabel,
+  index, svg, regions, pageWidthPt: W, pageHeightPt: H, hover, selected, regionLabel, columnLabel,
   onMove, onClick, onKeyPick, caption, hint,
 }: {
   index: number;
-  width: number;
-  height: number;
   svg: string | null;
   /** De klikbare delen van dit blad; `null` zolang het blad niet in beeld is. Bewust geen heel
    *  papiermodel als prop: React dev vergelijkt props diep, en dat kostte per blad seconden. */
@@ -395,7 +464,7 @@ const PaperPage = memo(function PaperPage({
     if (selected.column) selectedRects.push(...regions.columns.filter(c => c.key === selected.column));
   }
   return (
-    <div className="rs-page-wrap" style={{ width, height }} data-rs-page={index}>
+    <div className="rs-page-wrap" data-rs-page={index}>
       {/* Boven het blad: links de bladtitel, rechts de naam van het deel onder de muis (zo dekt hij niets
           van het blad af), of bij het eerste bezoek de aanwijzing dat je op het blad kunt klikken. */}
       <div className="rs-page-caption">

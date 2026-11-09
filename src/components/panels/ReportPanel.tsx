@@ -1589,15 +1589,17 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
             {/* Custom zoom slider (only when auto-fit is off) */}
             {!autoFit && (
               <ReportFieldRow label={t('zoom', { defaultValue: 'Zoom:' })}>
+                {/* Het nieuwe tabblad (#817) kan een breedte onder 1 px per dag bewaren; deze schuif kent
+                    alleen hele stappen vanaf 1 en toont zo'n waarde als 1 tot hij verschoven wordt. */}
                 <input
                   type="range"
                   min={REPORT_MIN_ZOOM}
                   max={REPORT_MAX_ZOOM}
-                  value={customZoom}
+                  value={Math.max(REPORT_MIN_ZOOM, Math.round(customZoom))}
                   onChange={e => setCustomZoom(Number(e.target.value))}
                   className="flex-1 min-w-0"
                 />
-                <span className="w-8 flex-shrink-0 text-right">{customZoom}</span>
+                <span className="w-8 flex-shrink-0 text-right">{Math.max(REPORT_MIN_ZOOM, Math.round(customZoom))}</span>
               </ReportFieldRow>
             )}
 

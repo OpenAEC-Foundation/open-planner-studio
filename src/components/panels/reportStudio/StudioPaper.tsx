@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useReportPaper, type ReportPaperInput } from './useReportPaper';
-import { ReportPaperView, type PaperPick, type PaperTarget } from './ReportPaperView';
+import { ReportPaperView, type FabZone, type PaperPick, type PaperTarget } from './ReportPaperView';
 
 /** Wat de zijbalk van het papier moet weten (samenvattingen, waarschuwingen). */
 export interface PaperInfo {
@@ -31,10 +31,12 @@ interface StudioPaperProps {
   statusItems: readonly string[];
   actions?: ReactNode;
   onInfo: (info: PaperInfo | null) => void;
-  /** Ruimte onderaan voor de zwevende exportknop (zijbalk ingeklapt). */
-  bottomReserve: number;
+  /** De hoek linksonder van de zwevende exportknop (zijbalk ingeklapt), of `null`. */
+  fabZone: FabZone | null;
   /** De aanwijzing boven het eerste blad, of `null`. */
   hint: { text: string; closeLabel: string; onClose: () => void } | null;
+  /** Balk boven het papier (verouderde planning, fout in de planning), of `null`. */
+  banner: ReactNode;
 }
 
 /**
@@ -43,11 +45,11 @@ interface StudioPaperProps {
  * tabelbreedte verandert (`onInfo`).
  */
 export const StudioPaper = memo(function StudioPaper({
-  input, loading, selected, onPick, regionLabel, columnLabel, statusItems, actions, onInfo, bottomReserve, hint,
+  input, loading, selected, onPick, regionLabel, columnLabel, statusItems, actions, onInfo, fabZone, hint, banner,
 }: StudioPaperProps) {
   const { t } = useTranslation('report');
   // De bladen in beeld: de volgende opname tekent meteen hun rijen (en de rest pas bij scrollen).
-  const visibleHint = useRef<readonly number[]>([0, 1]);
+  const visibleHint = useRef<readonly number[]>([0]);
   const onVisible = useCallback((pages: readonly number[]) => { visibleHint.current = pages; }, []);
   const { paper, stale } = useReportPaper(input, visibleHint);
 
@@ -62,9 +64,12 @@ export const StudioPaper = memo(function StudioPaper({
     onInfo(hasPaper ? { totalPages, rows, cols, tableWidth, headerHeight, dayWidth } : null);
   }, [onInfo, hasPaper, totalPages, rows, cols, tableWidth, headerHeight, dayWidth]);
 
+  // Het aantal pagina's staat alleen hier. Lopen de bladen ook naast elkaar, dan met de indeling erbij.
   const status = useMemo(() => (hasPaper ? (
     <>
-      <strong>{t('studio.pages', { count: totalPages })}</strong>
+      <strong data-rs-status-pages>
+        {cols > 1 ? t('studio.page.gridPages', { count: totalPages, rows, cols }) : t('studio.pages', { count: totalPages })}
+      </strong>
       {statusItems.map(item => (
         <span key={item} className="contents">
           <span>·</span>
@@ -73,7 +78,7 @@ export const StudioPaper = memo(function StudioPaper({
       ))}
       {stale && <span className="sr-only">{t('studio.updating')}</span>}
     </>
-  ) : <span>{t('studio.loading')}</span>), [hasPaper, totalPages, statusItems, stale, t]);
+  ) : <span>{t('studio.loading')}</span>), [hasPaper, totalPages, rows, cols, statusItems, stale, t]);
 
   return (
     <ReportPaperView
@@ -87,8 +92,9 @@ export const StudioPaper = memo(function StudioPaper({
       status={status}
       actions={actions}
       onVisible={onVisible}
-      bottomReserve={bottomReserve}
+      fabZone={fabZone}
       hint={hint}
+      banner={banner}
     />
   );
 });

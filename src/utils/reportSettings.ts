@@ -22,8 +22,8 @@
 
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
-import { parseBoolean, parseClampedInt, parseEnum } from '@/utils/settingParsers';
-import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
+import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
+import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_DAY_WIDTH } from '@/services/print/printPreview';
 import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
 } from '@/engine/reports/reportingPeriod';
@@ -192,7 +192,7 @@ export const REPORT_MAX_COLUMNS = 24;
 export type ReportSidebarMode = 'open' | 'rail';
 
 /** De stappen van het nieuwe Rapport-tabblad, in de volgorde van het papier. */
-export const REPORT_STUDIO_STEPS = ['tasks', 'columns', 'bars', 'page', 'headerFooter', 'export'] as const;
+export const REPORT_STUDIO_STEPS = ['tasks', 'columns', 'bars', 'page', 'headerFooter'] as const;
 export type ReportStudioStep = typeof REPORT_STUDIO_STEPS[number];
 
 export interface ReportSettings {
@@ -213,6 +213,7 @@ export interface ReportSettings {
   taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
+  /** Breedte per dag bij "Vaste schaal" (logische px). Mag een breuk zijn en onder 1 liggen (nieuwe tabblad). */
   customZoom: number;
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
@@ -329,8 +330,9 @@ const STUDIO_STEPS: readonly ReportSettings['studioStep'][] = [...REPORT_STUDIO_
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
 const FONT_SCALES: readonly number[] = REPORT_FONT_SCALES;
-/** Grenzen van de zoom-slider resp. de tijdlijnkolommen-Select in het paneel. */
-const ZOOM_MIN = REPORT_MIN_ZOOM;
+/** Grenzen van de breedte per dag resp. de tijdlijnkolommen-Select in het paneel. De ondergrens is die
+ *  van het nieuwe tabblad (onder 1 px per dag); het oude paneel toont zo'n waarde op zijn schuif als 1. */
+const ZOOM_MIN = REPORT_MIN_DAY_WIDTH;
 const ZOOM_MAX = REPORT_MAX_ZOOM;
 const TIMELINE_COLUMNS_MIN = 1;
 const TIMELINE_COLUMNS_MAX = 8;
@@ -429,7 +431,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     taskNameColumnWidth: parseClampedInt(s.taskNameColumnWidth, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_WIDTH_MAX) ?? d.taskNameColumnWidth,
     showBaselineOverlay: parseBoolean(s.showBaselineOverlay) ?? d.showBaselineOverlay,
     autoFit: parseBoolean(s.autoFit) ?? d.autoFit,
-    customZoom: parseClampedInt(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,
+    customZoom: parseClampedNumber(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,
     paperSize: parseEnum(PAPER_SIZES, s.paperSize) ?? d.paperSize,
     orientation: parseEnum(ORIENTATIONS, s.orientation) ?? d.orientation,
     repeatHeader: parseBoolean(s.repeatHeader) ?? d.repeatHeader,

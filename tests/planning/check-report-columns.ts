@@ -7,14 +7,17 @@
 //  4. Breedte: gemeten = langste tekst + opvulling, begrensd; zonder meting de vaste terugvalbreedte
 //     (het pad zonder meten is deterministisch).
 //  5. Opslag: een oude instelling zonder kolomlijst valt terug op de standaard, met de keuze Voltooiing;
-//     rommel valt terug; de taaknaam komt er altijd in.
+//     rommel valt terug; de taaknaam komt er altijd in. De breedte per dag mag een breuk onder 1 zijn; de
+//     vervallen stap "export" valt terug op stap 1.
+//  6. Caches voor 5000 taken: een kolom erbij meet alleen die kolom (zelfde breedtes als zonder cache), en
+//     dezelfde registerkolom blijft hetzelfde object.
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  renderReport, measureTableColumnWidths, buildPrintRows, AUTO_COLUMN_MIN_WIDTH,
-  CUSTOM_COLUMN_FALLBACK_WIDTH, type PrintOptions, type PrintTableColumn,
+  renderReport, measureTableColumnWidths, buildPrintRows, AUTO_COLUMN_MIN_WIDTH, createTableColumnMeasureCache,
+  CUSTOM_COLUMN_FALLBACK_WIDTH, REPORT_MAX_ZOOM, REPORT_MIN_DAY_WIDTH, type PrintOptions, type PrintTableColumn,
 } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -182,6 +185,31 @@ const CAL_DAYS = 'task.time.calendarDays';
   }
 }
 
+// ── 6. Caches voor een groot plan: alleen de nieuwe kolom meten ────────────────────────────────
+{
+  const labelFor = (key: string) => key.split('.').pop() ?? key;
+  const columnCache = new Map<string, PrintTableColumn>();
+  const first = resolveReportColumns([...REPORT_DEFAULT_COLUMNS, CAL_DAYS], domain, project.tasks, labelFor, columnCache);
+  const moved = resolveReportColumns([CAL_DAYS, ...REPORT_DEFAULT_COLUMNS], domain, project.tasks, labelFor, columnCache);
+  ok(first.columns.find(c => c.key === CAL_DAYS) === moved.columns.find(c => c.key === CAL_DAYS),
+    'cache: dezelfde registerkolom blijft hetzelfde object, ook op een andere plek');
+  const rows = buildPrintRows(project.tasks, undefined);
+  let calls = 0;
+  const meter = (text: string) => { calls++; return text.length * 6; };
+  const measureCache = createTableColumnMeasureCache();
+  const standard = first.columns.filter(c => c.key !== CAL_DAYS);
+  measureTableColumnWidths(rows, { showCompletion: true, tableColumns: standard }, meter, measureCache);
+  const fullCalls = calls;
+  calls = 0;
+  const added = measureTableColumnWidths(rows, { showCompletion: true, tableColumns: first.columns }, meter, measureCache);
+  const addCalls = calls;
+  eq(added, measureTableColumnWidths(rows, { showCompletion: true, tableColumns: first.columns }, meter), 'cache: dezelfde breedtes als zonder cache');
+  ok(addCalls > 0 && addCalls < fullCalls / 2, `cache: een kolom erbij meet alleen die kolom (${addCalls} tegen ${fullCalls} metingen)`);
+  calls = 0;
+  measureTableColumnWidths(rows, { showCompletion: true, tableColumns: moved.columns }, meter, measureCache);
+  eq(calls, 0, 'cache: een kolom verplaatsen meet niets opnieuw');
+}
+
 // ── 4. Breedte: meten en terugval ─────────────────────────────────────────────────────────────
 {
   const meter = (text: string) => text.length * 6;
@@ -245,6 +273,15 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq(saved.paperHintSeen, true, 'round-trip: aanwijzing gezien');
   eq(saved.columns, ['task.name', CAL_DAYS, 'task.wbsCode'], 'round-trip: kolomlijst met volgorde');
   eq(saved.sidebar, 'rail', 'round-trip: zijbalkstand');
+
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
+  const older = await loadReportSettings();
+  eq(older.studioStep, 'tasks', 'vervallen stap Opslaan (PDF) ⇒ stap 1');
+  eq(older.customZoom, 0.2034567, 'breedte per dag onder 1 px blijft precies bewaard (geen afronding)');
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ customZoom: 0.000_01 }));
+  eq((await loadReportSettings()).customZoom, REPORT_MIN_DAY_WIDTH, 'te kleine breedte per dag ⇒ de kleinste');
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ customZoom: 400 }));
+  eq((await loadReportSettings()).customZoom, REPORT_MAX_ZOOM, 'te grote breedte per dag ⇒ de grootste');
 
   const base = [...REPORT_DEFAULT_COLUMNS];
   eq(addReportColumn(base, CAL_DAYS), [...base, CAL_DAYS], 'toevoegen: achteraan');

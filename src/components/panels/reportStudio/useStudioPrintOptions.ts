@@ -4,7 +4,7 @@ import { useAppStore } from '@/state/appStore';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import {
-  buildPrintRows, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont,
+  buildPrintRows, createTableColumnMeasureCache, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont,
   type PrintOptions, type PrintTableColumn, type TableColumnWidths, type TableHeaderLabels,
 } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
@@ -94,26 +94,39 @@ export function useStudioPrintOptions(
   const fontStack = reportFontStack(font?.id ?? 'inter');
   const metrics = font?.metrics ?? null;
 
+  const printRows = useMemo(() => buildPrintRows(tasks, reportRows), [tasks, reportRows]);
+
   // Naamkolom: afkappen op de instelbare breedte, of zo breed als de langste naam (gemeten).
   const autoNameWidth = useMemo(() => {
     if (!metrics || settings.truncateTaskNames) return undefined;
-    return measureTaskNameColumnWidth(buildPrintRows(tasks, reportRows), (text, bold) => metrics.measure(text, nameCellFont(bold, fontStack)));
-  }, [metrics, settings.truncateTaskNames, tasks, reportRows, fontStack]);
+    return measureTaskNameColumnWidth(printRows, (text, bold) => metrics.measure(text, nameCellFont(bold, fontStack)));
+  }, [metrics, settings.truncateTaskNames, printRows, fontStack]);
+
+  // De meting per kolom blijft bewaard zolang rijen, opmaak, koppen en letter gelijk zijn. Een kolom
+  // erbij meet dan alleen die kolom over alle rijen, niet de hele tabel opnieuw (5000 taken: ±100 ms).
+  const measureCache = useMemo(
+    () => createTableColumnMeasureCache(),
+    // De afhankelijkheden zijn bewust de invoer van de meting, op de kolomlijst na.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [metrics, printRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
+      durationDisplay, durationSuffixes, calendar, calendars, fontStack],
+  );
 
   // De datakolommen en de registerkolommen, gemeten op de koppen en cellen van dít rapport.
   const columnWidths = useMemo<TableColumnWidths | undefined>(() => {
     if (!metrics) return undefined;
     return measureTableColumnWidths(
-      buildPrintRows(tasks, reportRows),
+      printRows,
       {
         showCompletion: settings.showCompletion, dateNotation, timeNotation, numberLocale: locale, tableHeaders,
         labels: { daySuffix }, durationDisplay, durationSuffixes, calendar, calendars, tableColumns,
         fontFamily: fontStack,
       },
       (text, font) => metrics.measure(text, font),
+      measureCache,
     );
-  }, [metrics, tasks, reportRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
-    durationDisplay, durationSuffixes, calendar, calendars, tableColumns, fontStack]);
+  }, [metrics, printRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
+    durationDisplay, durationSuffixes, calendar, calendars, tableColumns, fontStack, measureCache]);
 
   return useMemo<PrintOptions | null>(() => {
     if (!fontReady) return null;

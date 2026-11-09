@@ -74,9 +74,27 @@ const FOOTER_HEIGHT = 50;
 const MAX_DAILY_GRID_STEPS = 5_000;
 const MAX_DAILY_WEEKEND_STEPS = 5_000;
 
-/** Handmatige rapportzoom in logische pixels per dag. Eén pixel is de kleinste bruikbare stand. */
+/** Handmatige rapportzoom in logische pixels per dag. Eén pixel is de kleinste stand van de schuif in het
+ *  oude Rapport-paneel. */
 export const REPORT_MIN_ZOOM = 1;
 export const REPORT_MAX_ZOOM = 40;
+/**
+ * De kleinste breedte per dag die een rapport kan hebben (logische px). Het nieuwe Rapport-tabblad (#817)
+ * start "Vaste schaal" op de breedte die "passen" gaf; bij een lange planning is dat minder dan 1 px per
+ * dag (5000 taken op A3: ±0,2). Met {@link REPORT_MIN_ZOOM} als ondergrens sprong het rapport bij die wissel
+ * van 139 naar 695 pagina's. De opgeslagen instelling (`customZoom`) mag daarom tot deze grens.
+ */
+export const REPORT_MIN_DAY_WIDTH = 0.01;
+
+/**
+ * De breedte per dag waarop "Vaste schaal" begint, uit de breedte die "passen" gaf
+ * (`RenderReportResult.dayWidth`): precies die, een miljardste smaller. Zonder dat kan een afrondfout in
+ * de bladindeling (`cols = 1 + ceil(…)`) een extra kolom bladen geven. Geklemd op de grenzen van de
+ * instelling. Zo verandert het aantal pagina's niet bij de wissel (`check-report-svg.ts`, sectie 7).
+ */
+export function fixedScaleStartDayWidth(fitDayWidth: number): number {
+  return Math.min(REPORT_MAX_ZOOM, Math.max(REPORT_MIN_DAY_WIDTH, fitDayWidth * (1 - 1e-9)));
+}
 
 // Relatielijn-stub: de horizontale afstand die een relatielijn eerst rechtdoor loopt vóórdat hij
 // verticaal afknikt (en spiegelbeeldig links van de opvolger bij de "omheen"-route). Dit is de
@@ -656,6 +674,22 @@ export interface TableColumnMeasureInput extends CellTextOptions {
 }
 
 /**
+ * Gemeten breedtes per kolom (de breedste tekst, vóór marge en klem), om bij een kolom erbij of eraf niet
+ * alle kolommen over alle rijen opnieuw te meten. Geldig zolang de rijen, de opmaak, de koppen en de letter
+ * gelijk blijven: de aanroeper maakt dan een nieuwe cache (issue #817, 5000 taken).
+ */
+export interface TableColumnMeasureCache {
+  /** Ingebouwde kolommen, onder hun soort (`duration`, `start`, …). */
+  builtin: Map<string, number>;
+  /** Registerkolommen, onder hun celtekstenlijst (`PrintTableColumn.cells`). */
+  custom: WeakMap<object, number>;
+}
+
+export function createTableColumnMeasureCache(): TableColumnMeasureCache {
+  return { builtin: new Map(), custom: new WeakMap() };
+}
+
+/**
  * De ongeschaalde breedte per datakolom waarbij niets afgekapt wordt: per kolom het breedste van de
  * KOP (9 px vet) en alle CELLEN (8 px) die dit rapport toont, plus celmarge aan beide zijden.
  * Geklemd op [{@link AUTO_COLUMN_MIN_WIDTH}, `COL[key].max`].
@@ -669,6 +703,7 @@ export function measureTableColumnWidths(
   printRows: PrintRow[],
   input: TableColumnMeasureInput,
   measure: (text: string, font: string) => number,
+  cache?: TableColumnMeasureCache,
 ): TableColumnWidths {
   // De te meten kolommen, in tekenvolgorde: de zes meegeschaalde datakolommen en de registerkolommen.
   // Naam en curve hebben hun eigen meting (`measureTaskNameColumnWidth`/`measureCurveColumnWidth`).
@@ -678,12 +713,35 @@ export function measureTableColumnWidths(
   const headerFont = tableTextFont(true, input.fontFamily);
   const cellFont = tableTextFont(false, input.fontFamily);
   const needed = new Map<string, number>();
-  for (const slot of slots) needed.set(slot.key, measure(slotHeaderText(slot, input.tableHeaders), headerFont));
-  for (const row of printRows) {
-    const cells = taskTableCellTexts(row, input);
-    for (const slot of slots) {
-      const text = slot.kind === 'custom' ? customCellText(row, slot.spec) : cells[slot.kind as AutoColumnKey];
-      if (text) needed.set(slot.key, Math.max(needed.get(slot.key)!, measure(text, cellFont)));
+  // Uit de cache: een ingebouwde kolom onder haar soort, een registerkolom onder haar celtekstenlijst
+  // (die is per kolom hetzelfde object zolang taken en register niet veranderen).
+  const cacheKeyOf = (slot: TableColumnSlot): object | string => (slot.kind === 'custom' ? (slot.spec?.cells ?? slot.spec ?? slot.key) : slot.key);
+  const fromCache = (slot: TableColumnSlot): number | undefined => {
+    const key = cacheKeyOf(slot);
+    return typeof key === 'string' ? cache?.builtin.get(key) : cache?.custom.get(key);
+  };
+  const missing: TableColumnSlot[] = [];
+  for (const slot of slots) {
+    const cached = fromCache(slot);
+    if (cached !== undefined) needed.set(slot.key, cached);
+    else missing.push(slot);
+  }
+  if (missing.length > 0) {
+    for (const slot of missing) needed.set(slot.key, measure(slotHeaderText(slot, input.tableHeaders), headerFont));
+    const autoMissing = missing.some(slot => slot.kind !== 'custom');
+    for (const row of printRows) {
+      const cells = autoMissing ? taskTableCellTexts(row, input) : null;
+      for (const slot of missing) {
+        const text = slot.kind === 'custom' ? customCellText(row, slot.spec) : cells![slot.kind as AutoColumnKey];
+        if (text) needed.set(slot.key, Math.max(needed.get(slot.key)!, measure(text, cellFont)));
+      }
+    }
+    if (cache) {
+      for (const slot of missing) {
+        const key = cacheKeyOf(slot);
+        if (typeof key === 'string') cache.builtin.set(key, needed.get(slot.key)!);
+        else cache.custom.set(key, needed.get(slot.key)!);
+      }
     }
   }
 

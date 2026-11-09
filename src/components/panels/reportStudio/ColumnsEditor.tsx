@@ -114,8 +114,36 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
   const showDropLine = (i: number) => drag !== null && dropLineAt === i && i !== dragFrom && i !== dragFrom + 1;
 
   return (
-    <div className="rs-cols-editor flex flex-col gap-2">
-      <div className="rs-cols-wrap">
+    <div className="rs-cols-editor">
+      {/* Toevoegen boven de lijst: op een laag scherm blijft de knop in beeld, ook bij veel kolommen. */}
+      {pickerOpen ? (
+        <ColumnPicker
+          ids={ids}
+          available={available}
+          gridSet={gridSet}
+          categoryLabel={categoryLabel}
+          onPick={id => { onChange(addReportColumn(ids, id), 'column-add'); setFlashId(id); closePicker(true); }}
+          onClose={() => closePicker(true)}
+        />
+      ) : (
+        <div className="rs-cols-tools">
+          <button ref={addRef} type="button" className="rs-add" onClick={() => setPickerOpen(true)} disabled={full} data-rs-add-column>
+            <Icon id="table.column-add-menu" size={14} />
+            {full ? t('studio.columns.full', { count: REPORT_MAX_COLUMNS }) : t('studio.columns.add')}
+          </button>
+          <button
+            type="button"
+            className="rs-btn"
+            onClick={() => onChange(reportColumnsFromGrid(gridIds, new Set(available.map(column => String(column.id)))), 'columns-like-grid')}
+            title={t('studio.columns.likeGridHint')}
+            data-rs-like-grid
+          >
+            <Icon id="table.columns" size={14} />
+            {t('studio.columns.likeGrid')}
+          </button>
+        </div>
+      )}
+
       <div className="rs-cols" role="listbox" aria-label={t('studio.columns.listLabel')} aria-describedby="rs-cols-hint" data-rs-columns>
         {ids.map((id, i) => {
           const required = id === REPORT_REQUIRED_COLUMN;
@@ -178,39 +206,9 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
         })}
         {showDropLine(ids.length) && <div className="rs-drop-line" aria-hidden="true" />}
       </div>
-      {/* De toetsen alleen bij toetsenbordfocus in de lijst (CSS `:has`), als laag over de ruimte eronder:
-          zo verspringt er niets. Schermlezers lezen hem altijd via aria-describedby. */}
-      <p className="rs-hint rs-cols-hint" id="rs-cols-hint">{t('studio.columns.keysHint')}</p>
-      </div>
-
-      {pickerOpen ? (
-        <ColumnPicker
-          ids={ids}
-          available={available}
-          gridSet={gridSet}
-          categoryLabel={categoryLabel}
-          onPick={id => { onChange(addReportColumn(ids, id), 'column-add'); setFlashId(id); closePicker(true); }}
-          onClose={() => closePicker(true)}
-        />
-      ) : (
-        <button ref={addRef} type="button" className="rs-add" onClick={() => setPickerOpen(true)} disabled={full} data-rs-add-column>
-          <Icon id="table.column-add-menu" size={14} />
-          {full ? t('studio.columns.full', { count: REPORT_MAX_COLUMNS }) : t('studio.columns.add')}
-        </button>
-      )}
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          className="rs-btn"
-          onClick={() => onChange(reportColumnsFromGrid(gridIds, new Set(available.map(column => String(column.id)))), 'columns-like-grid')}
-          title={t('studio.columns.likeGridHint')}
-          data-rs-like-grid
-        >
-          <Icon id="table.columns" size={14} />
-          {t('studio.columns.likeGrid')}
-        </button>
-      </div>
+      {/* De toetsen als vaste regel onder de lijst: hij dekt niets af en niets verspringt als de focus de
+          lijst verlaat. */}
+      <p className="rs-hint rs-cols-hint" id="rs-cols-hint" data-rs-cols-hint>{t('studio.columns.keysHint')}</p>
     </div>
   );
 }

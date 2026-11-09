@@ -42,27 +42,13 @@
 .rs-sidebar-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 12px 10px 16px;
+  gap: 6px;
+  padding: 8px 8px 8px 12px;
   border-bottom: 1px solid var(--rs-line);
 }
 .rs-sidebar[data-mode='rail'] .rs-sidebar-head {
   padding: 10px 0;
   justify-content: center;
-}
-.rs-eyebrow {
-  font-size: var(--text-caption);
-  line-height: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--theme-text-muted);
-  font-weight: 600;
-}
-.rs-report-title {
-  font-family: var(--font-heading);
-  font-size: var(--text-heading);
-  line-height: 20px;
-  font-weight: 600;
 }
 
 .rs-icon-btn {
@@ -91,16 +77,16 @@
 .rs-steps {
   flex: 1;
   min-height: 0;
-  /* Alleen als zelfs de zes koppen niet passen (heel laag venster) scrolt de lijst als geheel. */
+  /* Alleen als zelfs de stapkoppen niet passen (heel laag venster) scrolt de lijst als geheel. */
   overflow-y: auto;
-  padding: 8px 8px 10px;
+  padding: 6px 6px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-/* Alle zes de stapkoppen blijven in beeld: een dichte stap houdt zijn hoogte, de open stap krimpt tot de
-   ruimte die over is en alleen zijn inhoud scrolt. */
+/* Alle stapkoppen blijven in beeld: een dichte stap houdt zijn hoogte, de open stap krimpt tot de ruimte
+   die over is. Alleen zijn inhoud scrolt; de voet (Standaard, Verder) staat eronder en blijft in beeld. */
 .rs-step {
   flex: none;
   border-radius: var(--radius-md);
@@ -108,20 +94,15 @@
 }
 .rs-step[data-open='true'] {
   flex: 0 1 auto;
-  min-height: 132px;
+  min-height: 150px;
   display: flex;
   flex-direction: column;
   background: var(--theme-surface-alt);
   border-color: var(--rs-line);
 }
 .rs-step[data-open='true'] > .rs-step-head { flex: none; }
-/* Laag venster (laptop, 720–768 px hoog): de dichte stappen tonen alleen hun titel, zodat de open stap
-   ruimte houdt. De samenvatting staat dan in de tooltip van de stapkop. */
-@media (max-height: 800px) {
-  .rs-step[data-open='false'] .rs-step-summary { display: none; }
-  .rs-step[data-open='false'] .rs-step-head { padding-block: 6px; }
-}
 .rs-step[data-open='true'] > .rs-step-body {
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -129,15 +110,25 @@
 
 .rs-step-head {
   display: grid;
-  grid-template-columns: 24px 1fr auto;
+  grid-template-columns: 22px 1fr auto;
   align-items: center;
   column-gap: 10px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-radius: var(--radius-md);
   text-align: start;
   background: transparent;
   color: inherit;
+}
+.rs-step-text { display: block; min-width: 0; }
+.rs-step[data-open='false'] .rs-step-head { padding-block: 4px; }
+/* Laag venster (laptop, 720–768 px hoog): een dichte stap zet zijn samenvatting kleiner naast de titel,
+   op één regel. Zo houdt de open stap ruimte en blijft het overzicht staan. */
+@media (max-height: 800px) {
+  .rs-step[data-open='false'] .rs-step-head { padding-block: 3px; }
+  .rs-step[data-open='false'] .rs-step-text { display: flex; align-items: baseline; gap: 8px; }
+  .rs-step[data-open='false'] .rs-step-title { flex: none; }
+  .rs-step[data-open='false'] .rs-step-summary { flex: 1; margin-top: 0; font-size: var(--text-caption); line-height: 12px; }
 }
 .rs-step-head:hover { background: var(--theme-hover); }
 .rs-step[data-open='true'] .rs-step-head:hover { background: transparent; }
@@ -176,18 +167,26 @@
 .rs-step[data-open='true'] .rs-step-num[data-changed='true']::after { display: none; }
 
 .rs-step-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: var(--text-large);
   line-height: 16px;
   font-weight: 600;
 }
+/* Open stap met een melding: het waarschuwingsteken naast de titel (dicht kleurt de samenvatting). */
+.rs-step-warn { flex: none; color: var(--theme-warning-text); }
 .rs-step-summary {
+  display: block;
+  min-width: 0;
   font-size: var(--text-small);
-  line-height: 14px;
+  line-height: 13px;
   color: var(--theme-text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 .rs-step-summary[data-warn='true'] { color: var(--theme-warning-text); }
 .rs-chevron {
@@ -199,20 +198,23 @@
 [dir='rtl'] .rs-step[data-open='true'] .rs-chevron { transform: rotate(90deg); }
 
 .rs-step-body {
-  padding: 2px 12px 12px 44px;
+  padding: 2px 12px 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
-.rs-pop .rs-step-body { padding: 12px 14px 14px; }
+.rs-pop .rs-step-body { padding: 12px 14px 10px; }
 
 .rs-step-foot {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 2px;
+  padding: 3px 12px 4px;
+  border-top: 1px solid var(--rs-line);
 }
+.rs-pop .rs-step-foot { padding: 6px 14px 8px; }
 
 .rs-link {
   font-size: var(--text-body);
@@ -241,7 +243,7 @@
 .rs-next:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 
 /* Groepjes binnen een stap */
-.rs-group { display: flex; flex-direction: column; gap: 6px; }
+.rs-group { display: flex; flex-direction: column; gap: 4px; }
 .rs-group-label {
   font-size: var(--text-caption);
   line-height: 12px;
@@ -261,8 +263,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 26px;
-  padding: 3px 6px;
+  min-height: 22px;
+  padding: 2px 6px;
   margin-inline: -6px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -270,6 +272,8 @@
   line-height: 16px;
 }
 .rs-switch:hover { background: var(--theme-hover); }
+/* Schakelaars onder elkaar staan dicht op elkaar (24 px per regel): zo past een hele stap op een gewoon scherm. */
+.rs-switch + .rs-switch { margin-top: -2px; }
 .rs-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .rs-switch-track {
   position: relative;
@@ -319,7 +323,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 26px;
+  min-height: 24px;
   padding: 3px 6px;
   border-radius: calc(var(--radius-md) - 2px);
   font-size: var(--text-body);
@@ -415,7 +419,7 @@
   grid-template-columns: 16px 1fr auto;
   align-items: center;
   gap: 8px;
-  min-height: 30px;
+  min-height: 28px;
   padding: 3px 4px 3px 6px;
   border-radius: var(--radius-sm);
   background: var(--theme-surface);
@@ -443,24 +447,11 @@
 }
 .rs-grip { color: var(--theme-text-muted); cursor: grab; display: inline-flex; }
 .rs-col-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* De toetsen onder de lijst alleen bij toetsenbordfocus in de lijst (`:focus-visible`); de lijst noemt ze
-   altijd via aria-describedby. Als laag over de ruimte eronder ("Kolom toevoegen"), zonder eigen plek:
-   anders verspringt die knop als de focus de lijst verlaat, midden in een klik. */
-.rs-cols-wrap { position: relative; }
-.rs-cols-hint {
-  position: absolute;
-  inset-inline: 0;
-  top: calc(100% + 4px);
-  z-index: 2;
-  display: none;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--theme-surface);
-  border: 1px solid var(--rs-line);
-  box-shadow: var(--shadow-sm);
-  pointer-events: none;
-}
-.rs-cols-wrap:has(.rs-cols :focus-visible) .rs-cols-hint { display: block; }
+/* De kolomstap: knoppen boven de lijst, de toetsen als vaste regel eronder (dekt niets af). */
+.rs-cols-editor { display: flex; flex-direction: column; gap: 6px; }
+.rs-cols-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-cols-tools .rs-add { flex: 1 1 auto; width: auto; min-width: 0; }
+.rs-cols-hint { margin-top: -2px; }
 .rs-col-name small { color: var(--theme-text-muted); font-size: var(--text-small); margin-inline-start: 6px; }
 .rs-col-actions { display: inline-flex; align-items: center; gap: 0; }
 .rs-col-actions .rs-icon-btn { width: 24px; height: 24px; }
@@ -471,7 +462,7 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  min-height: 30px;
+  min-height: 28px;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   border: 1px dashed var(--theme-text-muted);
@@ -575,19 +566,24 @@
 .rs-primary[aria-busy='true'] { opacity: 0.8; cursor: progress; }
 
 .rs-sidebar-foot {
-  padding: 10px 12px 12px;
+  padding: 8px 12px 10px;
   border-top: 1px solid var(--rs-line);
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.rs-foot-meta {
+/* Het bestand dat de knop maakt (de stand van het papier staat in de werkbalk boven het papier). */
+.rs-foot-file {
   display: flex;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   font-size: var(--text-small);
   line-height: 14px;
   color: var(--theme-text-dim);
 }
+.rs-foot-label { flex: none; }
+.rs-foot-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--theme-text); }
 
 /* Smalle rand */
 .rs-rail {
@@ -640,7 +636,8 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-accent) 55%, transparent);
 }
 .rs-rail-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
-.rs-rail-btn[data-changed='true']::after {
+.rs-rail-btn[data-changed='true']::after,
+.rs-rail-btn[data-warn='true']::after {
   content: '';
   position: absolute;
   top: 5px;
@@ -650,19 +647,8 @@
   border-radius: var(--radius-full);
   background: var(--theme-accent);
 }
-.rs-rail-sep { width: 24px; height: 1px; background: var(--rs-line); margin: 4px 0; }
-.rs-rail-primary {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--theme-accent);
-  color: var(--theme-accent-on);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.rs-rail-primary:hover { background: var(--theme-accent-hover); }
-.rs-rail-primary:focus-visible { outline: 2px solid var(--theme-text); outline-offset: 2px; }
+/* Een stap met een melding: de stip in de waarschuwingskleur, ook als de stap gewijzigd is. */
+.rs-rail-btn[data-warn='true']::after { background: var(--theme-warning-text); }
 
 /* Zwevend venster (stap naast het papier of naast de rand) */
 .rs-pop {
@@ -691,7 +677,7 @@
   padding: 10px 10px 8px 14px;
   border-bottom: 1px solid var(--rs-line);
 }
-.rs-pop-scroll { overflow-y: auto; min-height: 0; }
+.rs-pop-scroll { flex: 0 1 auto; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
 
 /* ---- Papier ------------------------------------------------------------------------------------ */
 
@@ -772,15 +758,21 @@
   border-color: color-mix(in srgb, var(--theme-accent) 55%, transparent);
 }
 
-.rs-viewport {
+/* Het papiervlak: de stippen staan op de omhulling, zodat de vrije strook voor de zwevende knop (onder het
+   scrollvak) er hetzelfde uitziet als de rest. */
+.rs-viewport-wrap {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  outline: none;
   position: relative;
   background:
     radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--theme-text-muted) 22%, transparent) 1px, transparent 0) 0 0 / 18px 18px,
     var(--theme-bg);
+}
+.rs-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  outline: none;
 }
 .rs-viewport:focus-visible { box-shadow: inset 0 0 0 2px var(--theme-accent); }
 .rs-pages {
@@ -793,7 +785,7 @@
   min-width: 100%;
   box-sizing: border-box;
 }
-.rs-page-wrap { position: relative; flex-shrink: 0; }
+.rs-page-wrap { position: relative; flex-shrink: 0; width: var(--rs-page-w); height: var(--rs-page-h); }
 .rs-page {
   position: relative;
   background: #ffffff;
@@ -971,14 +963,20 @@
 .rs-field-label { font-size: var(--text-small); line-height: 14px; color: var(--theme-text-dim); }
 .rs-range { display: flex; align-items: center; gap: 8px; }
 .rs-inline-date { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Keuzelijsten in de zijbalk: even hoog als de gesegmenteerde keuzes, zodat een stap op een gewoon scherm past. */
+.ops-select__trigger.rs-select { padding-block: 6px; padding-inline: 10px; }
+/* Label en bediening op één regel (balkkleuren, tijdlijn over, auteur). */
+.rs-field-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.rs-field-row > .rs-field-label { flex: none; }
 .rs-range input[type='range'] { flex: 1; min-width: 0; accent-color: var(--theme-accent); }
 .rs-range output { min-width: 44px; white-space: nowrap; text-align: end; font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--theme-text-dim); }
 .rs-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--rs-line); border-radius: var(--radius-md); background: var(--theme-surface); padding: 2px; }
 .rs-stepper output { min-width: 64px; text-align: center; font-size: var(--text-body); line-height: 16px; font-variant-numeric: tabular-nums; }
 
 /* Zijbalk ingeklapt: de knop "PDF exporteren" zweeft linksonder in het werkvlak, dezelfde actie als de
-   knop onderaan de open zijbalk (besluit eigenaar 7-11-2026). Het papier houdt onderaan vrije ruimte voor
-   hem (`FAB_RESERVE`), dus "Hele blad" past erboven en het laatste blad scrolt eronderuit. */
+   knop onderaan de open zijbalk (besluit eigenaar 7-11-2026). Raakt een blad zijn hoek, dan stopt het
+   scrollvak boven een vrije strook (`FAB_RESERVE`, `ReportPaperView`); zo bedekt hij nooit inhoud.
+   Afstand tot de rand = `FAB_INSET` in GanttReportStudio.tsx. */
 .rs-fab {
   position: absolute;
   inset-inline-start: calc(var(--rs-rail-w) + 16px);
@@ -1021,3 +1019,31 @@
 /* Zijbalkknop: het B2-paneelicoon gespiegeld, want de zijbalk staat links (in rtl rechts, dus niet gespiegeld). */
 .rs-panel-icon { transform: scaleX(-1); }
 [dir='rtl'] .rs-panel-icon { transform: none; }
+
+/* Balk boven het papier: de planning is niet doorgerekend, of heeft een fout. */
+.rs-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-warning-text) 35%, transparent);
+  background: color-mix(in srgb, var(--theme-warning-text) 10%, var(--theme-bg));
+  color: var(--theme-text);
+  font-size: var(--text-body);
+  line-height: 16px;
+}
+.rs-banner > svg { flex: none; color: var(--theme-warning-text); }
+.rs-banner-text { flex: 1; min-width: 0; }
+.rs-banner .rs-btn { flex: none; }
+.rs-banner[data-tone='error'] {
+  border-bottom-color: color-mix(in srgb, var(--error) 40%, transparent);
+  background: color-mix(in srgb, var(--error) 10%, var(--theme-bg));
+}
+.rs-banner[data-tone='error'] > svg { color: var(--error); }
+/* Exporteren met een fout in de planning: de balk licht even op. */
+.rs-banner-pulse { animation: rs-banner-pulse 900ms var(--rs-ease); }
+@keyframes rs-banner-pulse {
+  0%, 35% { filter: brightness(0.92); }
+  100% { filter: none; }
+}
+@media (prefers-reduced-motion: reduce) { .rs-banner-pulse { animation: none; } }

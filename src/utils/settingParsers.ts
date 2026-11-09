@@ -20,3 +20,9 @@ export function parseClampedInt(raw: unknown, min: number, max: number): number 
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
   return Math.min(max, Math.max(min, Math.round(raw)));
 }
+
+/** Vrij instelbaar getal met decimalen: alleen klemmen op [min,max], niet afronden. */
+export function parseClampedNumber(raw: unknown, min: number, max: number): number | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+  return Math.min(max, Math.max(min, raw));
+}
