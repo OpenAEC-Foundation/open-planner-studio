@@ -833,6 +833,60 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   browserStorage.removeItem('ops-mcpPort');
 }
 {
+  // D27 (review #851 ronde 2): "Kolommen automatisch aanpassen" schrijft niet tussen het toepassen van een
+  // laat antwoord van de host en het opnieuw laden van de store. In dat venster heeft de store nog de oude
+  // kopie; een gemeten breedte uit die kopie zou de bewaarde waarde van de host terugzetten (`writeLocal`
+  // laat alleen een `'user'`-schrijfactie op een vastgehouden sleutel vallen, en een automatische
+  // schrijfactie is `'start'`). Daarna, met de nieuwe store, schrijft het weer.
+  const { useAppStore } = await import('@/state/appStore');
+  const { bootstrapTaskGridPreferences } = await import('@/state/taskGridBootstrap');
+  const { createDefaultTaskGridPreferences } = await import('@/engine/taskGrid/preferences');
+  const { processLateSettings } = await import('@/hooks/useSiteHostPreferences');
+  const KEY = 'ops-taskGridPreferences';
+  const state = useAppStore.getState();
+  const prefs = (width: number) => {
+    const p = createDefaultTaskGridPreferences({
+      projectId: state.project.id,
+      activityCodeTypeIds: state.activityCodeTypes.map(type => type.id),
+      customFieldDefIds: state.customFieldDefs.map(def => def.id),
+    });
+    p.surfaces['full-task-grid'].columns[0].width = width;
+    return p;
+  };
+  const widthOf = (text: string | null | undefined) =>
+    (JSON.parse(text ?? 'null') as { surfaces: Record<string, { columns: { width: number }[] }> } | null)
+      ?.surfaces['full-task-grid'].columns[0].width ?? null;
+  const storeWidth = () => useAppStore.getState().taskGridSurfaces['full-task-grid'].columns[0].width;
+  const measured = (width: number) => useAppStore.getState().taskGridSurfaces['full-task-grid'].columns
+    .map((column, index) => index === 0 ? { ...column, width } : column);
+  browserStorage.setItem(KEY, JSON.stringify(prefs(60)));
+  useAppStore.getState().hydrateTaskGridPreferences(prefs(60));
+  const host = fakeHost({ [KEY]: JSON.stringify(prefs(777)) }, { hold: true });
+  const h = harness({ storage: browserStorage, host: host.settings, keys: [KEY] });
+  const pending = h.sync.hydrate(1000);
+  await settle();
+  await h.run(1000);
+  eq('D27 boven de grens', await pending, 'time-out');
+  host.release();
+  await settle();
+  eq('D27 het antwoord staat lokaal, de store heeft nog de oude kopie, de sleutel is vastgehouden',
+    [widthOf(browserStorage.getItem(KEY)), storeWidth(), h.sync.writeHeld(KEY)], [777, 60, true]);
+  useAppStore.getState().applyAutoFitTaskGridColumns('full-task-grid', measured(55));
+  eq('D27 automatisch aanpassen zet de waarde van de host niet terug (lokaal en store)',
+    [widthOf(browserStorage.getItem(KEY)), storeWidth()], [777, 60]);
+  await processLateSettings(useAppStore.getState().setUI, async () => { await bootstrapTaskGridPreferences(useAppStore); }, {
+    take: () => h.sync.takeApplied(),
+    settle: keys => h.sync.settle(keys),
+    release: () => h.sync.release(),
+    initLocale: async () => undefined,
+    language: () => 'en',
+  });
+  eq('D27 na het opnieuw laden heeft de store de breedte van de host', [storeWidth(), h.sync.writeHeld(KEY)], [777, false]);
+  useAppStore.getState().applyAutoFitTaskGridColumns('full-task-grid', measured(55));
+  eq('D27 daarna schrijft automatisch aanpassen weer, lokaal en in de store',
+    [widthOf(browserStorage.getItem(KEY)), storeWidth()], [55, 55]);
+}
+{
   // D25 (punt 2): een laat antwoord met dezelfde opgeslagen tekst als wat de gebruiker koos. Een gewone
   // start met dit antwoord geeft het thema en de taal van de host (`thema: dark`, `taal: fr`), want
   // die gaan voor. De app moet ze dus opnieuw toepassen, ook al veranderde er lokaal niets.

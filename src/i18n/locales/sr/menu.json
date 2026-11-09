@@ -154,6 +154,7 @@
     "barsGroup": "Траке",
     "manageBaselines": "Управљај основним линијама…",
     "statusDate": "Датум статуса",
+    "statusDateValue": "Датум статуса: {{date}}",
     "statusDateClear": "Обриши датум статуса",
     "statusDateTime": "Време датума статуса",
     "statusDateTimeLater": "Време касније",

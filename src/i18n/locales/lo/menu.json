@@ -152,6 +152,7 @@
     "barsGroup": "ແຖບໜ້າວຽກ",
     "manageBaselines": "ຈັດການແຜນຖານ…",
     "statusDate": "ວັນທີສະຖານະ",
+    "statusDateValue": "ວັນທີສະຖານະ: {{date}}",
     "statusDateClear": "ລ້າງວັນທີສະຖານະ",
     "statusDateTime": "ເວລາຂອງວັນທີສະຖານະ",
     "statusDateTimeLater": "ເວລາຕໍ່ມາ",

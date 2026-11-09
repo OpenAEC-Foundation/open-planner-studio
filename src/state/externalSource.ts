@@ -15,6 +15,8 @@ import { applyRecordedDatesOnLoad, prepareLoadedPayload } from './documentActiva
 export interface ExternalSourceRead extends ExternalSourceDoc {
   projectName: string;
   filePath: string;
+  /** De auteur uit de projectgegevens van de bron; de balk bij een nieuwe versie noemt hem (stap 1.5). */
+  author?: string;
 }
 
 /**
@@ -44,6 +46,7 @@ export function externalSourceFromImport(parsed: ImportResult, filePath: string)
     projectId: prepared.project.id,
     projectName: prepared.project.name,
     filePath,
+    ...(prepared.project.author?.trim() ? { author: prepared.project.author.trim() } : {}),
     tasks: prepared.tasks,
     lateDatesInFile: lateDatesInFile(payload.tasks, parsed),
   };

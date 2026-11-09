@@ -12,6 +12,12 @@ http://<host>:<poort>/?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark
   bijzondere tekens in de URL (`%20` voor een spatie).
 - `progressSheet=<pad>` werkt samen met `open=`: na het openen start de voortgangsimport met dat blad al
   ingelezen, zonder bestandskiezer.
+- `source=<pad>` maakt het bronbestand van een externe relatie leesbaar in de browser (ook meer dan één
+  keer). Een koppeling waarvan het bronpad dezelfde bestandsnaam heeft, leest dat repobestand. Zo werkt de
+  controle op een nieuwe versie van een bron (de balk onder het lint) ook op de dev-server, en ook
+  *Bron vernieuwen*. De versie is de `Last-Modified` van de dev-server: sla het repobestand opnieuw op
+  (of `touch` het) en keer terug naar het venster, dan ziet de app een nieuwe versie. Voorbeeld:
+  `?open=qa/balk/Aannemer.ifc&source=qa/balk/Installateur.ifc`.
 - `theme=light|dark|high-contrast` zet het thema voor deze sessie. De bewaarde voorkeur (`ops-theme`) blijft staan:
   een gewone herlaad zonder `theme=` toont weer het eigen thema. Kies je in de app zelf een thema, dan
   bewaart de app die keuze zoals altijd. `theme=` werkt ook zonder `open=`.
@@ -35,6 +41,9 @@ als Bestand › Openen na de bestandskiezer: formaatherkenning, bestandsnaam, me
 bestand komt binnen zoals in een browser zonder bestandshandle (Firefox/Safari): er is geen opslagdoel,
 dus Opslaan vraagt om een plek. Een onbekend pad of een fout bij het inlezen geeft de gewone melding
 "openen mislukt", met het pad erbij.
+
+`source=` vervangt vóór het openen twee acties in de store, `parseExternalSource` en `externalSourceVersion`,
+zoals de tests in `tests/planning/` dat ook doen. Een ander bronpad gaat naar de gewone actie.
 
 Code: `src/utils/devOpenLink.ts` (ophalen en openen), het effect in `src/App.tsx`, de effecten in
 `src/components/dialogs/ProgressImportDialog.tsx` en `src/components/ribbon/ai/AiConnectionGroup.tsx`, en

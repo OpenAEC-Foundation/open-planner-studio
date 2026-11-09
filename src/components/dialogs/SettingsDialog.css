@@ -200,7 +200,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   font-size: var(--text-body);
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
   min-width: 75px;
@@ -212,6 +212,7 @@
 }
 
 .settings-btn-primary {
+  font-weight: 600;
   background: var(--theme-accent);
   color: var(--theme-accent-on);
   border-color: var(--theme-accent);
