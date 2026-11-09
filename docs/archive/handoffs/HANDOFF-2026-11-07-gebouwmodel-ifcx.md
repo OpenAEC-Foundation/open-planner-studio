@@ -1,5 +1,8 @@
 # Handoff — gebouwmodel behouden + IFCX (#804)
 
+**AFGEWERKT voor het ontwerp (PR #839).** Ontwerp v15: Opus en Sol gaven een 9 (ronde 13, 9 november 2026). De bouw
+(fase 0–4) loopt in eigen PR's vanaf `main`; dit draaiboek is alleen nog van historisch belang.
+
 Bijgewerkt: zie git log van dit bestand. Dit bestand is de bron bij compactie en voor Trias. Houd het actueel bij elke stap.
 Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
@@ -75,6 +78,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 11 (v12) | 8 | 8 | — |
 | 12 (v13) | 8 | 8 | — |
 | 13 (v14) | 8 ("daarna 9") | 9 | — |
+| 13 (v15) | 9 | (9 op v14) | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -473,7 +477,7 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
    Alles verwerkt in spec **v10** (`e6f128ea3`). Wrakko ingelicht (2026-11-09 ~10:50).
    **Council ronde 9 loopt** (alleen Opus + Sol, brief `scratchpad/r9/brief.md`, diff `scratchpad/r9/v9-naar-v10.diff`):
    Sol via delegate_task (codex gpt-6.1-sol xhigh), Opus via native Agent (reviewer, xhigh). Doel weer 9.
-   Ronde 9: Opus 7, Sol 8 → v11. Ronde 10: Opus 8, Sol 8 → v12. Ronde 11: Opus 8, Sol 8 → v13. Ronde 12: Opus 8, Sol 8 → v14. Ronde 13: Opus 8 ("daarna 9"), Sol 9 → v15. **Opus bevestigt v15.**
+   Ronde 9: Opus 7, Sol 8 → v11. Ronde 10: Opus 8, Sol 8 → v12. Ronde 11: Opus 8, Sol 8 → v13. Ronde 12: Opus 8, Sol 8 → v14. Ronde 13: Opus 8 ("daarna 9"), Sol 9 → v15; Opus bevestigde v15 met een 9. **Doel gehaald.** Daarna: archief, #839 ready.
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.

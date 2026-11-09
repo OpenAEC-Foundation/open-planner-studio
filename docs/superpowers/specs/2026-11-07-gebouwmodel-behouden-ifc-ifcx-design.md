@@ -1,6 +1,7 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 15 (9 november 2026: besluiten van Ethan over IFCX en council-rondes 9 tot en met 13 verwerkt).
+Status: ontwerp, versie 15 (9 november 2026: besluiten van Ethan over IFCX en council-rondes 9 tot en met 13 verwerkt;
+Opus en Sol gaven een 9).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -650,8 +651,9 @@ is werk van fase 3 en staat in de schema's.
   fase 0, uitgangspunt kale UUID). Een bestaand pad blijft altijd zoals het in de bron staat, ook `/planning/work-0`.
   De identiteit van een object uit de bron: heeft het **hele** pad de eigen padvorm (uit fase 0: een UUID, eventueel met
   voorloop-`/`), dan die 128 bits; anders een UUID v5 van het hele pad (vaste namespace-UUID van de app). Zo krijgen
-  `/a/<uuid>` en `/b/<uuid>` verschillende ids. Geven twee paden toch dezelfde 128 bits (een UUID met en zonder
-  streepjes, of met hoofdletters), dan krijgt het tweede pad `-dup-N`, zoals bij dubbele GlobalIds in STEP. Die UUID is
+  `/a/<uuid>` en `/b/<uuid>` verschillende ids. Bestaat een id al (uit een pad of uit `openaec::ops::task`, bijvoorbeeld
+  omdat een ander programma een node kopieerde), dan krijgt het volgende object `-dup-N`, zoals bij dubbele ids in STEP
+  (`ifcReader.ts:1731-1734`). Die UUID is
   het domein-id en de GlobalId. `ifcSource` bewaart per
   domein-id het bronpad, en `detached` bewaart het bronpad van een verwijderd object (§6.6). De writer kiest het pad uit
   `ifcSource`, dan uit `detached`, en pas daarna een nieuw pad. Zo bevat geen domein-id een `/`, en blijft de identiteit
@@ -769,11 +771,12 @@ staan.
   `timeModel` is het huidige, zodat er geen omzetting van een oud bestand volgt (`minuteModel.ts:451-454`). De naam
   komt uit het afgesproken naamveld (§11; ifcx-explorer gebruikt nu `openaec::label`).
 - **Volgorde**: een volgnummer is de plaats van de taak onder haar ouder. Taken zonder volgnummer vullen de open plaatsen,
-  in de volgorde van hun eerste entry. Een volgnummer buiten de lijst komt achteraan. De writer geeft een volgnummer aan
-  precies de taken waarvan deze leesregel de plaats anders niet terugvindt (dezelfde gedeelde afleidfunctie als in
-  §5.2). Voorbeeld: taken `work-0..3` zonder volgnummer; de planner voegt N in tussen `work-1` en `work-2`. Alleen N
+  in de volgorde van hun eerste entry. Een volgnummer buiten de lijst komt achteraan. De writer laat een langste deelrij
+  van taken die in entryvolgorde en in domeinvolgorde gelijk staan zonder volgnummer, en geeft de andere taken een
+  volgnummer (langste stijgende deelrij, in n log n; dezelfde gedeelde afleidfunctie als in §5.2). Bij gelijke lengte
+  kiest hij eerst de taken die toch al een `openaec::ops::task` krijgen, daarna de latere entry. Voorbeeld: taken `work-0..3` zonder volgnummer; de planner voegt N in tussen `work-1` en `work-2`. Alleen N
   krijgt volgnummer 2; de andere vullen plaats 0, 1, 3 en 4. Taken die de planner niet aanraakte, houden hun onderlinge
-  volgorde en krijgen dus geen volgnummer.
+  volgorde en krijgen zo weinig mogelijk volgnummers.
 - **Opslaan**: de app schrijft de bekende velden van elk planningsattribuut uit het domein, in de vaste vorm (§5.3), en
   de onbekende velden als token (§6.2). Een veld dat de planner niet aanraakte, houdt zijn waarde, ook na opslaan,
   sluiten, heropenen en opnieuw opslaan.
@@ -900,6 +903,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 ## 7. Bestanden, dialogen en keuzes
 
 - `formatRegistry.ts`: formaat `ifcx` (`extensions: ['ifcx']`, `canBeSaveTarget: true`), gelezen als bytes.
+  Ook `parseExternalSource` (`fileSlice.ts:1500`, koppelingen tussen projecten) leest `.ifcx`.
 - Tauri-bestandskoppeling (`src-tauri/tauri.conf.json`) en de dialogfilters krijgen `.ifcx`.
 - *Projectinstellingen → Bestandsformaat*: `IFC 4.3 ADD2 (standaard)`, `IFC 4.3`, `IFC4`, `IFCX`. `IFC4X3_ADD2` blijft de
   standaard (#804).
@@ -1069,7 +1073,8 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
 - dat de app geen `bsi::ifc::class` en geen import van het IFC-kernschema schrijft (§5.2);
 - voorgangers als `openaec::planning::sequence` in plaats van één `predecessor` in de activity;
 - de WBS als veld `parent` in plaats van `children` (§5.2), en of de plaats onder de ouder ook in
-  `openaec::planning::` hoort (in IFC 4.3 heeft de volgorde betekenis; nu staat ze in `openaec::ops::task`, §5.5);
+  `openaec::planning::` hoort (in IFC 4.3 heeft de volgorde betekenis; nu staat ze in `openaec::ops::task`, §5.5); een
+  volgnummer is een vaste plaats, dus verwijdert een programma dat volgnummers bewaart een zus, dan schuift de taak op;
 - of `openaec::activity` onder de regel "oude naam blijven lezen" valt;
 - de adapter van ifcx-explorer schrijft `IFCAPPLICATION(…,'OPS')` (`adapters.ts:358`); de app ziet zo'n STEP-bestand dan
   als eigen herkomst (§4.5, `ifcReader.ts:3804`). Voorstel: een eigen identificatie voor ifcx-explorer.
@@ -1111,6 +1116,7 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
 | 11 (v12) | 8 | 8 | — |
 | 12 (v13) | 8 | 8 | — |
 | 13 (v14) | 8 ("daarna 9") | 9 | — |
+| 13 (v15) | 9 | (9 op v14) | — |
 
 Na ronde 1: één route met klassen; lezen en knippen als bytes; projectgegevens als context; tabel van alle routes;
 "bron ontbreekt"; IFCX-kop van een ander blijft; profielversie in `ops::document`; eigendom per attribuut; volgorde
@@ -1216,7 +1222,9 @@ verwijzingen zoeken op gedecodeerde tekenreeksen; melding bij een onbekend `open
 Na ronde 13 (versie 15; Sol 9, Opus 8 met "daarna 9"): volgnummer = plaats onder de ouder, taken zonder volgnummer vullen
 de open plaatsen; baselinepaden in de kaart; intern id in `openaec::ops::task` als het afwijkt; `elementLinks` in
 `detached`; onbekende velden tellen mee bij de zoekactie; `-dup-N` bij gelijke 128 bits; padvorm uit fase 0; geen
-import-alternatief voor schema's; tests voor volgorde en crashherstel.
+import-alternatief voor schema's; tests voor volgorde en crashherstel. Opus bevestigde versie 15 met een 9; daarna kwamen er alleen tekstpunten bij
+(algoritme voor de volgnummers, `-dup-N` ook voor ids uit `openaec::ops::task`, de vaste plaats op de lijst voor Bjorn).
+**Doel gehaald in ronde 13.**
 
 ## 13. Bronnen
 
