@@ -16,8 +16,12 @@ import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
-import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable } from '@/services/fileAccess/siteHost';
-import { openSiteFile, saveNewSiteFile, saveSiteFileVersion } from '@/services/fileAccess/siteBackend';
+import {
+  isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
+} from '@/services/fileAccess/siteHost';
+import {
+  latestSiteVersion, listSiteFiles, openSiteFile, readSiteSourceFile, saveNewSiteFile, saveSiteFileVersion,
+} from '@/services/fileAccess/siteBackend';
 import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAccess/siteDialogs';
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
@@ -47,11 +51,12 @@ import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSa
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import {
-  externalSourceKey, externalSourceKeyOfDoc, externalSourceLocatorOf, externalSourceScope, refreshExternalAnchors,
+  externalSourceKey, externalSourceKeyOfDoc, externalSourceLocatorOf, externalSourceScope, externalSourceScopeOf,
+  refreshExternalAnchors,
   refreshFromSources, type ExternalSourceDoc, type ExternalSourceLocator,
 } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
-import { readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
+import { readExternalSiteSource, readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
 import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
 import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -548,6 +553,21 @@ export interface FileSlice {
   /** De onthouden handvatten per project-id (browser zonder host); leeg op de desktop en met een site-host.
    *  Een eigen actie, zodat de tests nep-handvatten kunnen geven. */
   externalSourceHandles: () => Promise<Map<string, FileSystemFileHandle>>;
+  /**
+   * Stap 1.9: de projecten op de site die de koppeldialoog als bron aanbiedt: wat de host bij
+   * `list({ extensions: ['ifc'] })` teruggeeft ("dezelfde map"), zonder het eigen geopende bestand. `null`
+   * zonder host of als de site de lijst weigert.
+   */
+  listExternalSiteSources: () => Promise<SiteFileInfo[] | null>;
+  /** Stap 1.9: de nieuwste versie van een bron op de site (`versions(id)`), met label en auteur voor de balk.
+   *  `undefined` zonder host of als de site weigert. Leest de inhoud niet. */
+  externalSiteSourceVersion: (siteFileId: string) => Promise<SiteVersionInfo | undefined>;
+  /**
+   * Stap 1.9: leest een bron op de site (`open(id)`, de nieuwste versie), alleen-lezen, door de laadgrens. De
+   * bron is geen document en geen opslagdoel. `null` zonder host, of als lezen mislukt (`not-found`, geen
+   * recht, netwerk, onleesbaar bestand).
+   */
+  parseExternalSiteSource: (siteFileId: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   /** De bron achter een plek uit de balk (`ExternalSourceUpdate.locator`). Leest zonder toestemmingsvraag. */
   readExternalSourceAt: (locator: ExternalSourceLocator, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   /**
@@ -690,9 +710,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   /** De versie van een bron, zonder toestemmingsvraag. */
-  const sourceVersionAt = (locator: ExternalSourceLocator) => (locator.kind === 'path'
-    ? get().externalSourceVersion(locator.filePath)
-    : get().externalProjectSourceVersion(locator.projectId));
+  const sourceVersionAt = async (locator: ExternalSourceLocator) => {
+    if (locator.kind === 'site') return (await get().externalSiteSourceVersion(locator.siteFileId))?.version;
+    return locator.kind === 'path'
+      ? get().externalSourceVersion(locator.filePath)
+      : get().externalProjectSourceVersion(locator.projectId);
+  };
 
   /** Het onthouden handvat van een bron zonder pad (browser zonder host). */
   const sourceHandleFor = async (projectId: string): Promise<FileSystemFileHandle | null> =>
@@ -716,7 +739,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const documentId = get().activeDocumentId;
     // Per bron (`externalSourceKey`): waar de app hem leest en de versies in de koppelingen. Een koppeling
     // met een pad leest via dat pad (desktop); een koppeling zonder pad via het onthouden handvat van haar
-    // project-id (browser, stap 1.8). Een relatief pad kan de app niet lezen (zie `refreshAllExternalAnchors`).
+    // project-id (browser, stap 1.8); een koppeling met een site-id via de site (`versions(id)`, stap 1.9). Een
+    // relatief pad kan de app niet lezen (zie `refreshAllExternalAnchors`).
     const sources = new Map<string, { locator: ExternalSourceLocator; versions: Set<string | undefined> }>();
     for (const task of get().tasks) {
       for (const link of task.externalLinks ?? []) {
@@ -733,8 +757,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // Bronnen zonder balk: dezelfde versie als in de koppelingen, of al gelezen zonder wijziging.
     const settled = new Set<string>();
     for (const [key, { locator, versions }] of sources) {
-      // Zonder toestemmingsvraag: in de browser alleen een handvat met toestemming `granted` (keuze 6).
-      const version = await sourceVersionAt(locator);
+      // Zonder toestemmingsvraag: in de browser alleen een handvat met toestemming `granted` (keuze 6). Op de
+      // site de nieuwste versie uit `versions(id)`, met label en auteur.
+      const siteVersion = locator.kind === 'site' ? await get().externalSiteSourceVersion(locator.siteFileId) : undefined;
+      const version = locator.kind === 'site' ? siteVersion?.version : await sourceVersionAt(locator);
       if (get().activeDocumentId !== documentId) return;
       // Niet te lezen (geen toegang, bestand weg): een bestaande balk blijft staan, er komt geen nieuwe.
       if (!version) continue;
@@ -748,13 +774,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (get().activeDocumentId !== documentId) return;
       if (!src) continue;
       const tasks = get().tasks;
-      // Alleen de koppelingen naar dít bestand (met pad), of zonder pad naar dit project: een kopie met
-      // hetzelfde project-id elders telt niet mee.
-      const result = refreshExternalAnchors(tasks, src, locator.kind === 'path' ? 'file-path' : 'project-without-path');
+      // Alleen de koppelingen naar dít bestand (met pad of site-id), of zonder pad naar dit project: een kopie
+      // met hetzelfde project-id elders telt niet mee.
+      const result = refreshExternalAnchors(tasks, src, externalSourceScopeOf(locator));
       const changedLinks = externalAnchorChanges(tasks, result.tasks).length;
-      const readVersion = src.version ?? version;
+      // Op de site telt de versie uit `versions(id)`: de balk vergelijkt daarmee, ook als `open` geen versie gaf.
+      const readVersion = locator.kind === 'site' ? version : src.version ?? version;
       if (changedLinks === 0) {
-        settledSourceVersions.set(sourceKey(documentId, key), readVersion);
+        // Afgehandeld is de versie die de app echt las. Gaf `open(id)` een andere versie dan `versions(id)` (de
+        // site loopt achter), dan leest de volgende controle opnieuw (review #859 ronde 1).
+        settledSourceVersions.set(sourceKey(documentId, key), src.version ?? version);
         settled.add(key);
         continue;
       }
@@ -762,7 +791,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentId, key, locator,
         fileName: locator.kind === 'path' ? fileNameOf(locator.filePath) : src.fileName ?? src.projectName,
         version: readVersion,
-        ...(src.author ? { author: src.author } : {}), changedLinks,
+        ...(siteVersion ? { siteVersionLabel: siteVersion.label?.trim() || siteVersion.version } : {}),
+        // Op de site: wie de versie opsloeg (`versions`); anders de auteur uit de projectgegevens.
+        ...(siteVersion?.author?.trim() ? { author: siteVersion.author.trim() }
+          : src.author ? { author: src.author } : {}),
+        changedLinks,
       });
     }
     const current = get().ui.externalSourceUpdates;
@@ -1884,9 +1917,42 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return out;
     },
 
-    readExternalSourceAt: (locator, labels) => (locator.kind === 'path'
-      ? get().parseExternalSource(locator.filePath, labels)
-      : get().parseExternalProjectSource(locator.projectId, { prompt: false }, labels)),
+    listExternalSiteSources: async () => {
+      if (isTauri() || !siteStorageAvailable()) return null;
+      try {
+        const own = get().siteFileId;
+        return (await listSiteFiles(['ifc'])).filter(file => file.id !== own);
+      } catch (err) {
+        console.error('listExternalSiteSources:', err);
+        return null;
+      }
+    },
+
+    externalSiteSourceVersion: async (siteFileId) => {
+      if (isTauri() || !siteStorageAvailable()) return undefined;
+      try {
+        return (await latestSiteVersion(siteFileId)) ?? undefined;
+      } catch (err) {
+        console.warn('externalSiteSourceVersion: geen versie van de site:', siteFileId, err);
+        return undefined;
+      }
+    },
+
+    parseExternalSiteSource: async (siteFileId, labels) => {
+      if (isTauri() || !siteStorageAvailable()) return null;
+      try {
+        return await readExternalSiteSource(await readSiteSourceFile(siteFileId), labels);
+      } catch (err) {
+        console.error('parseExternalSiteSource: kon de bron op de site niet lezen:', siteFileId, err);
+        return null;
+      }
+    },
+
+    readExternalSourceAt: (locator, labels) => (locator.kind === 'site'
+      ? get().parseExternalSiteSource(locator.siteFileId, labels)
+      : locator.kind === 'path'
+        ? get().parseExternalSource(locator.filePath, labels)
+        : get().parseExternalProjectSource(locator.projectId, { prompt: false }, labels)),
 
     chooseExternalSourceFile: async (labels) => {
       if (isTauri()) {
@@ -1969,11 +2035,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let unusablePathCount = 0;
       // Bronnen zonder pad (stap 1.8, gekozen in de browser): op project-id, via het onthouden handvat.
       const projectIds = new Set<string>();
+      // Bronnen op de site (stap 1.9): op het site-id, via `open(id)`.
+      const siteFileIds = new Set<string>();
       for (const task of get().tasks) {
         for (const link of task.externalLinks ?? []) {
+          const locator = externalSourceLocatorOf(link.sourceRef);
+          if (locator?.kind === 'site') { siteFileIds.add(locator.siteFileId); continue; }
           const originalPath = link.sourceRef.filePath;
           if (!originalPath) {
-            const locator = externalSourceLocatorOf(link.sourceRef);
             if (locator?.kind === 'project') projectIds.add(locator.projectId);
             continue;
           }
@@ -2025,6 +2094,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       for (const path of readPaths) readKeys.add(path);
       // Na de bronnen met pad, zoals voorheen: een bron zonder pad ververst daarna alleen koppelingen zonder pad.
       sourceDocs.push(...projectDocs);
+      // Op de site de nieuwste versie. Geen host, geen recht, weg of netwerk ⇒ niet gelezen: de koppeling houdt
+      // haar anker (`refreshFromSources`) en telt mee in `unread`.
+      for (const siteFileId of siteFileIds) {
+        const src = await get().parseExternalSiteSource(siteFileId, labels);
+        if (!src) { unread++; continue; }
+        sourceDocs.push(src);
+        readKeys.add(externalSourceKey({ kind: 'site', siteFileId })!);
+      }
 
       if (get().activeDocumentId !== targetDocumentId) {
         return { refreshed: 0, missing: 0, sources: sourceDocs.length, unread, unreadProjectIds };

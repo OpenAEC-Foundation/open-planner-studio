@@ -614,15 +614,19 @@ export interface ExternalSourceUpdate {
   /** Het document waar de koppelingen in staan; de balk staat alleen bij dat document. */
   documentId: string;
   /** De sleutel per bron (`externalSourceKey`): het genormaliseerde pad voor een bron met pad, of
-   *  `project:<id>` voor een bron zonder pad (stap 1.8, browser). Stap 1.9 voegt een bron op de site toe. */
+   *  `project:<id>` voor een bron zonder pad (stap 1.8, browser), of `site:<id>` voor een bron op de site
+   *  (stap 1.9). */
   key: string;
-  /** Waar de app de bron leest: het pad zoals het in de koppeling staat, of het project-id (onthouden
-   *  handvat in de browser). */
+  /** Waar de app de bron leest: het pad zoals het in de koppeling staat, het project-id (onthouden
+   *  handvat in de browser) of het id op de site. */
   locator: ExternalSourceLocator;
   /** De bestandsnaam voor de tekst ("Installateur.ifc"). */
   fileName: string;
-  /** De versie van de bron: de wijzigingstijd van het bestand (ISO). */
+  /** De versie van de bron: de wijzigingstijd van het bestand (ISO), of op de site het versienummer. */
   version: string;
+  /** Op de site: het label van die versie voor de tekst (`SiteVersionInfo.label`, anders `version`). Gezet ⇒
+   *  de balk noemt het versienummer in plaats van een opslagtijd. */
+  siteVersionLabel?: string;
   /** De auteur uit de projectgegevens van de bron, als die er is. */
   author?: string;
   /** Hoeveel koppelingen een ander anker krijgen (of een brontaak die ontbreekt). Altijd ≥ 1. */

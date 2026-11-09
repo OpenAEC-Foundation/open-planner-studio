@@ -13,7 +13,7 @@ import { parseableHourSuffix } from '@/utils/durationFormat';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { EXTERNAL_LINKS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { isTauri } from '@/utils/platform';
-import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
+import { siteStorageAvailable, type SiteFileInfo } from '@/services/fileAccess/siteHost';
 import { rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 
 type Direction = ExternalLink['direction'];
@@ -94,6 +94,9 @@ export function buildManualExternalLinkSubmission({
  *     brontaak-datum (start/finish per richting+relType). Op de desktop geeft de kiezer een pad (zoals een
  *     recent bestand); in de browser zonder host leest de app het gekozen bestand meteen, zonder pad: de
  *     koppeling herkent haar bron dan op project-id, en Chromium onthoudt het handvat (stap 1.8).
+ *     Draait de app op een site (een host met opslag, stap 1.9), dan is de bronroute *Project op de site*: de
+ *     app vraagt de host om de lijst (`list`, "dezelfde map"), de planner kiest een project en daarna een taak.
+ *     De app leest de bron met `open(id)` alleen-lezen; de koppeling krijgt het site-id, geen pad.
  *  2. HANDMATIG (fallback): plak project-id/taak-id + een ankerdatum — werkt ook zonder bronbestand
  *     (en in de web-build waar bestand-lezen niet kan).
  */
@@ -109,6 +112,8 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
 
   const parseExternalSource = useAppStore((s) => s.parseExternalSource);
   const chooseExternalSourceFile = useAppStore((s) => s.chooseExternalSourceFile);
+  const listExternalSiteSources = useAppStore((s) => s.listExternalSiteSources);
+  const parseExternalSiteSource = useAppStore((s) => s.parseExternalSiteSource);
   const addExternalLink = useAppStore((s) => s.addExternalLink);
   const updateExternalLink = useAppStore((s) => s.updateExternalLink);
   const existing = tasks.find(task => task.id === taskId)?.externalLinks?.find(link => link.id === linkId);
@@ -131,6 +136,16 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   // *Bronbestand kiezen…* (stap 1.8): op de desktop altijd; in de browser alleen zonder host. Met een host
   // komt de bron van de site (stap 1.9).
   const canChooseFile = isTauri() || !siteStorageAvailable();
+  // Stap 1.9: met een host komt de bron van de site. Vastgelegd bij het openen van de dialoog.
+  const [siteMode] = useState(() => !isTauri() && siteStorageAvailable());
+  // De projecten op de site: `undefined` = wordt geladen, `null` = de site gaf geen lijst.
+  const [siteFiles, setSiteFiles] = useState<SiteFileInfo[] | null | undefined>(undefined);
+  useEffect(() => {
+    if (!siteMode) return;
+    let cancelled = false;
+    void listExternalSiteSources().then((files) => { if (!cancelled) setSiteFiles(files); });
+    return () => { cancelled = true; };
+  }, [listExternalSiteSources, siteMode]);
 
   const [direction, setDirection] = useState<Direction>(existing?.direction ?? 'predecessor');
   const [relType, setRelType] = useState<RelType>(existing?.relType ?? 'FS');
@@ -139,14 +154,14 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   );
   const existingRecentPath = existing?.sourceRef.filePath
     && recent.some(file => file.path === existing.sourceRef.filePath);
-  const [manual, setManual] = useState<boolean>(() => !existingRecentPath);
+  const [manual, setManual] = useState<boolean>(() => !existingRecentPath && !(siteMode && existing?.sourceRef.siteFileId));
   const modeInited = useRef(false);
   useEffect(() => {
     if (modeInited.current) return;
     if (existing) { modeInited.current = true; return; }
-    if (recent.length > 0) { setManual(false); modeInited.current = true; }
-  }, [existing, recent.length]);
-  const sourceTabEnabled = recent.length > 0 || canChooseFile;
+    if (recent.length > 0 || siteMode) { setManual(false); modeInited.current = true; }
+  }, [existing, recent.length, siteMode]);
+  const sourceTabEnabled = recent.length > 0 || canChooseFile || siteMode;
 
   // Bron-route
   const [sourceFile, setSourceFile] = useState<string>(existing?.sourceRef.filePath ?? '');
@@ -157,7 +172,12 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   const [picked, setPicked] = useState<{ source: ExternalSourceRead; handle: FileSystemFileHandle | null } | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [chooseFailed, setChooseFailed] = useState(false);
-  const source = picked?.source ?? readSource;
+  // Een project op de site (stap 1.9): het site-id en de gelezen bron.
+  const [siteFileId, setSiteFileId] = useState<string>(siteMode ? existing?.sourceRef.siteFileId ?? '' : '');
+  const [siteSource, setSiteSource] = useState<ExternalSourceRead | null>(null);
+  const [siteLoading, setSiteLoading] = useState(false);
+  const [siteReadFailed, setSiteReadFailed] = useState(false);
+  const source = picked?.source ?? (siteMode ? siteSource : readSource);
 
   const chooseFile = () => {
     setChooseFailed(false);
@@ -204,7 +224,10 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
 
   useEffect(() => {
     let cancelled = false;
-    if (manual || !sourceFile) { setSource(null); setSourceTaskId(''); return; }
+    // Een andere keuze: de vorige bron geldt niet meer (review #859 ronde 1). Anders bleef *Koppeling toevoegen*
+    // met de vorige bron, taak en het vorige anker beschikbaar zolang de nieuwe bron gelezen werd.
+    setSource(null);
+    if (manual || !sourceFile) { setSourceTaskId(''); setLoading(false); return; }
     setLoading(true);
     void parseExternalSource(sourceFile, buildImportLabels(tCommon)).then((res) => {
       if (cancelled || !externalLinkDialogDocumentIsCurrent(
@@ -220,7 +243,40 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
     return () => { cancelled = true; };
   }, [existing, manual, openedDocumentId, parseExternalSource, sourceFile, tCommon]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setSiteReadFailed(false);
+    // Een andere keuze: de vorige bron geldt niet meer (zie het effect hierboven).
+    setSiteSource(null);
+    if (!siteMode || manual || !siteFileId) { setSiteLoading(false); return; }
+    setSiteLoading(true);
+    void parseExternalSiteSource(siteFileId, buildImportLabels(tCommon)).then((res) => {
+      if (cancelled || !externalLinkDialogDocumentIsCurrent(openedDocumentId, useAppStore.getState().activeDocumentId)) return;
+      setSiteLoading(false);
+      setSiteSource(res);
+      setSiteReadFailed(!res);
+      setSourceTaskId(res?.tasks.some(task => task.id === existing?.sourceRef.taskId)
+        ? existing!.sourceRef.taskId
+        : res?.tasks[0]?.id ?? '');
+    });
+    return () => { cancelled = true; };
+  }, [existing, manual, openedDocumentId, parseExternalSiteSource, siteFileId, siteMode, tCommon]);
+  // De bestaande bron van deze koppeling staat in de keuzelijst, ook als de site haar niet meer noemt.
+  const siteOptions = useMemo(() => {
+    const files = (siteFiles ?? []).map(file => ({ id: file.id, name: file.name }));
+    const own = existing?.sourceRef.siteFileId;
+    if (own && !files.some(file => file.id === own)) {
+      files.unshift({ id: own, name: existing.sourceRef.projectName || own });
+    }
+    return files;
+  }, [existing, siteFiles]);
+
   const srcTask = source?.tasks.find((x) => x.id === sourceTaskId) ?? null;
+  // De gelezen bron hoort bij de keuze van nu, en er wordt niets meer gelezen of gekozen (review #859 ronde 1):
+  // een gekozen bestand (browser), het gekozen project op de site, of het gekozen pad.
+  const sourceIsCurrent = !loading && !choosing && !siteLoading && (picked
+    ? source === picked.source
+    : siteMode ? source?.siteFileId === siteFileId : source?.filePath === sourceFile);
   // Hetzelfde anker als "Bron vernieuwen" (`sourceAnchorDate`): een rekendatum, niet de getoonde
   // start; voor een externe opvolger de laatst toelaatbare datum van de brontaak.
   const anchorPreview = srcTask ? sourceAnchorDate({ direction, relType }, srcTask, source ?? undefined) : manualAnchor;
@@ -234,7 +290,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   const canAdd = !!ownerTask && (!linkId || !!existing) && parsedLag !== null && (manual
     ? manualProjectId.trim() !== '' && manualTaskId.trim() !== '' && manualAnchor.trim() !== ''
       && ((!sideChanged && !manualIdentityChanged) || manualAnchorTouched)
-    : !!srcTask);
+    : !!srcTask && sourceIsCurrent);
   const hourMode = ownerHourMode;
 
   /** Bewaart de koppeling en sluit; `false` = niets bewaard (dan blijft de dialoog open). */
@@ -263,6 +319,8 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
             taskName: srcTask!.name,
             // Een bron uit de browser heeft geen pad: de koppeling herkent haar op project-id (stap 1.8).
             ...(source!.filePath ? { filePath: source!.filePath } : {}),
+            // Een bron op de site: het vaste id op de site, geen pad (stap 1.9).
+            ...(source!.siteFileId ? { siteFileId: source!.siteFileId } : {}),
           },
           sourceMissing: false,
           // Herkomst (keuze 4): het anker komt uit deze versie van het bronbestand.
@@ -310,7 +368,8 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
               disabled={!sourceTabEnabled}
               onClick={() => setManual(false)}
               style={{ fontWeight: 600, opacity: !sourceTabEnabled ? 0.5 : undefined }}
-            >{t('externalLinks.sourceFile')}</button>
+              data-ops-external-source-tab
+            >{siteMode ? t('externalLinks.siteProject') : t('externalLinks.sourceFile')}</button>
             <button
               className={`btn btn--sm flex-1 ${manual ? 'btn--primary' : ''}`}
               onClick={() => setManual(true)}
@@ -333,6 +392,30 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
                   </select>
                 </label>
               )}
+              {siteMode && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-text-muted">{t('externalLinks.siteProjectPick')}</span>
+                  <select
+                    className="input"
+                    value={siteFileId}
+                    onChange={(e) => setSiteFileId(e.target.value)}
+                    disabled={siteFiles === undefined}
+                    data-ops-external-site-source
+                  >
+                    <option value="">—</option>
+                    {siteOptions.map((file) => <option key={file.id} value={file.id}>{file.name}</option>)}
+                  </select>
+                </label>
+              )}
+              {siteMode && siteFiles === null && (
+                <span className="!text-small" style={{ color: 'var(--error)' }} role="alert">{t('externalLinks.siteListFailed')}</span>
+              )}
+              {siteMode && siteFiles !== undefined && siteFiles !== null && siteOptions.length === 0 && (
+                <span className="!text-small text-text-muted">{t('externalLinks.siteNoProjects')}</span>
+              )}
+              {siteReadFailed && (
+                <span className="!text-small" style={{ color: 'var(--error)' }} role="alert">{t('externalLinks.chooseSourceFailed')}</span>
+              )}
               {canChooseFile && (
                 <div className="flex items-center gap-2">
                   <button
@@ -349,7 +432,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
                 <span className="!text-small" style={{ color: 'var(--error)' }} role="alert">{t('externalLinks.chooseSourceFailed')}</span>
               )}
               <p className="!text-small text-text-muted flex items-center gap-1"><Icon id="status.info" size={11} lucide={{ icon: 'FileDown' }} />{t('externalLinks.readOnlyNote')}</p>
-              {(loading || choosing) && <span className="text-text-muted">{t('externalLinks.loadingTasks')}</span>}
+              {(loading || choosing || siteLoading) && <span className="text-text-muted">{t('externalLinks.loadingTasks')}</span>}
               {source && (
                 <label className="flex flex-col gap-1">
                   <span className="text-text-muted">{t('externalLinks.sourceTask')}</span>
