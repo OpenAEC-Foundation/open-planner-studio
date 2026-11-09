@@ -738,9 +738,9 @@ test('registratie: zeven T20-tools met prefix, description, vier annotaties en J
   // Reviewfix: spec r65 zet destructiveHint op een GESLOTEN lijst — clear_leveling hoort er niet bij.
   assertEq(tools.find((t) => t.name === 'planner_clear_leveling').annotations.destructiveHint, false,
     'clear_leveling draagt GEEN destructiveHint (afgeleide, herberekenbare waarden)');
-  // clear_leveling wijst de AI erop dat level_resources zelfresettend is.
-  assert(/resets the delays ITSELF|pointless/i.test(tool('planner_clear_leveling').description),
-    'clear_leveling-beschrijving legt uit dat het vóór level_resources zinloos is');
+  // level_resources zegt zelf dat het eerdere nivellering wist; clear_leveling hoeft dat niet te herhalen (#818).
+  assert(/resets earlier leveling itself/i.test(tool('planner_level_resources').description),
+    'level_resources-beschrijving legt uit dat het zelf eerdere nivellering wist');
 });
 
 await run();

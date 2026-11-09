@@ -30,11 +30,10 @@ import { validate, progress } from '@/state/mcpValidation';
 import {
   parseProgress,
   parseTaskFields,
-  PROGRESS_FIELD_NAMES,
   TASK_FIELDS_DOC,
   SUMMARY_DURATION_READ_ONLY,
-  TASK_FIELD_NAMES,
   TASK_FIELD_SCHEMA_PROPERTIES,
+  TASK_FIELD_SCHEMA_PROPERTIES_BARE,
   type ProgressPatch,
   type TaskFieldContext,
   type TaskFieldPatch,
@@ -49,7 +48,6 @@ import { moveTaskVerdict } from '@/state/slices/taskSlice';
 // `dependencyTools.ts` en de leeskant in `readTools.ts`. Zie de kop van dat bestand.
 import {
   ANCESTOR_RELATION_REJECTION,
-  LAG_DOC,
   LAG_SCHEMA,
   lagPatchOf,
   parseLag,
@@ -96,12 +94,7 @@ import { hasMilestoneBlockingAssignments } from '@/engine/taskMilestoneTransitio
 // Die vorm is voor elke tool gelijk en staat daarom één keer in `helpers.ts` (`parsedBatchStep`).
 
 /** "Wordt fase" — gedeeld door add_tasks en move_task. */
-const PHASE_TRANSITION_DOC =
-  'If an existing task with resource assignments thereby gets its FIRST subtask (it becomes a phase), those ' +
-  'assignments move to the first new subtask that may carry them (not a milestone or phase); a milestone ' +
-  'that becomes a phase this way loses its milestone flag. The answer reports this in `phaseTransitions`. If ' +
-  'that cannot be done cleanly (no suitable subtask, or it already has the same resource), the whole call ' +
-  'fails (VALIDATION) and nothing changes.';
+const PHASE_TRANSITION_DOC = 'A task that gets its first subtask passes its assignments to the first eligible new leaf (`phaseTransitions`).';
 
 // =================================================================================================
 // planner_add_tasks
@@ -241,19 +234,9 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
 const addTasks: BatchStepTool = {
   name: 'planner_add_tasks',
   description:
-    'Create one or more tasks (nested WBS in one call). Every item has a client-chosen `tempId` (unique ' +
-    'within the call); `parentId` may be an existing task id or a `tempId` from the same call. A tempId MUST ' +
-    'start with `tmp-` or `tmp_` (e.g. `tmp-foundation`) — that is the RESERVED syntax by which later ' +
-    '`planner_batch` steps recognize their references; the schema now enforces that form everywhere, so the ' +
-    'same call works inside and outside a batch. `position` is the insertion index within the parent and is ' +
-    'silently clamped to [0, number of siblings]. Give the DURATION directly with `duration` and optionally ' +
-    '`durationUnit` (`days` = day measure, `hours` = hour measure). Without a duration a task gets the ' +
-    "project's default measure for new tasks: 5 working days in the day measure, 5 hours if the project " +
-    'chose the hour measure, and 5 working days in the hour measure in the P6 and MS Project profiles. A ' +
-    'milestone (`isMilestone`) has duration 0 by definition — `duration` > 0 is an error there. ' +
-    `${TASK_FIELDS_DOC} For add_tasks an unknown key is a HARD error (the whole call fails), not a per-item ` +
-    `refusal. ${PHASE_TRANSITION_DOC} Returns the complete tempId→realId map, the recalculated ` +
-    'earlyStart/earlyFinish per created task and the project end.',
+    'Create tasks, a nested WBS in one call (items in any order); `parentId` = a task id or a `tempId` from ' +
+    'this call. Without `duration`: the project default (normally 5 working days). One invalid item fails ' +
+    `the whole call. ${PHASE_TRANSITION_DOC} Returns \`created\` (tempId → id).`,
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -263,7 +246,6 @@ const addTasks: BatchStepTool = {
       tasks: {
         type: 'array',
         minItems: 1,
-        description: 'The tasks to create (created top-down; tempId parents may appear in any order).',
         items: {
           type: 'object',
           required: ['tempId', 'name'],
@@ -271,14 +253,10 @@ const addTasks: BatchStepTool = {
             tempId: {
               type: 'string',
               pattern: '^tmp[-_]',
-              description:
-                'Client-chosen temporary id, unique within the call; key in the returned map. MUST start ' +
-                'with `tmp-` or `tmp_` (reserved batch syntax, e.g. `tmp-foundation`): only then can ' +
-                'planner_batch safely replace references in later steps without ever hitting free text. This ' +
-                'requirement applies everywhere, also outside a batch (the schema enforces it).',
+              description: 'Unique in the call, e.g. `tmp-foundation`.',
             },
-            parentId: { type: 'string', description: 'Existing task id or a tempId from the same call; omitted = root.' },
-            position: { type: 'integer', description: 'Insertion index within the parent; silently clamped to [0, number of siblings].' },
+            parentId: { type: 'string', description: 'Omitted = root.' },
+            position: { type: 'integer', description: 'Index among siblings; clamped.' },
             // Exact dezelfde velden als `update_tasks.fields` — één allowlist voor aanmaken én wijzigen.
             ...TASK_FIELD_SCHEMA_PROPERTIES,
           },
@@ -462,30 +440,15 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
 const updateTasks: BatchStepTool = {
   name: 'planner_update_tasks',
   description:
-    'Change existing tasks. Per item: `fields` (name, DURATION plus `durationUnit`, constraints, deadline, ' +
-    'calendar, …; NO progress fields) and/or `progress` (progress path: ONLY `completion` in PERCENT 0–100, ' +
-    '`actualStart` and `actualFinish` as ISO dates — any other key, and an empty `progress` object, is ' +
-    `softly REFUSED per item, never silently ignored). ${TASK_FIELDS_DOC} A refused \`fields\` block leaves ` +
-    'the task completely UNCHANGED (never a half merge). Progress requires a project status date: without a ' +
-    'status date `progress` is refused per item — set it first with planner_update_project → `statusDate` ' +
-    '(the reporting date); the AI connection does not choose it itself. Progress > 0 derives the actualStart ' +
-    'from the planned start, EXCEPT when that planned start lies after the status date: then the item is ' +
-    'refused and you pass `actualStart` (≤ status date) yourself. Actuals after the project status date or ' +
-    'outside 0–100 are softly refused per item — valid items stay. A SUMMARY TASK (phase) has no progress of ' +
-    'its own: its completion, status, actualStart (earliest of the leaf tasks) and actualFinish (latest, ' +
-    'only once all leaf tasks are done) are derived on every recalculation, so `progress` on a phase is ' +
-    'softly refused — set it on the leaf tasks. A DURATION CHANGE on a running task (started, not yet ' +
-    'completed) keeps the work done the same, like MS Project: remaining duration = new duration − work done ' +
-    'and the percentage adjusts (10 d at 40% → 12 d ⇒ 8 d left, 33%); the result reports those tasks in ' +
-    '`progressAdjusted` (completion in percent, remaining in the task\'s own unit). A duration shorter than ' +
-    'the work done is softly refused per item. On every duration change (started or not) the remaining ' +
-    'duration follows and the assignments follow the task type (`workRule`), like P6: under a task type where work follows ' +
-    'the duration, remaining work = units × new remaining duration, also when the stored remaining work came ' +
-    'from the file and differed; such overwritten values are listed in the envelope field ' +
-    '`remainingWorkRecomputed` (hours before/after) — report them to the user. Lever tip: hypothetical overrun = duration or SNET constraint ' +
-    '(via `fields`); recorded progress = actuals with a status date (via `progress`). Note: one task id can ' +
-    'appear in both `updated` and the refusals at the same time (e.g. `fields` refused but `progress` ' +
-    'applied) — deliberate granularity.',
+    'Always pair `duration` with `durationUnit` (omitted = days). Refused `fields` apply nothing; `progress` ' +
+    'is independent, so an id may be both `updated` and in `itemRejections`. ' +
+    `${TASK_FIELDS_DOC} \`progress\` needs the user's \`statusDate\` (planner_update_project; ask, never ` +
+    'invent it); pass the user\'s actual dates. Otherwise completion > 0 derives actualStart from the planned ' +
+    'start; planned start after the status date: refused, pass `actualStart`. No `duration` or `progress` on ' +
+    'summary tasks. On a ' +
+    'started, unfinished task a new duration keeps the work done (10 d at 40% → 12 d: 8 d left, 33%; ' +
+    '`progressAdjusted`); less than the work done is refused. Report `remainingWorkRecomputed`. Hypothetical ' +
+    'delay: change duration or constraint, not `progress`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -502,22 +465,18 @@ const updateTasks: BatchStepTool = {
             id: { type: 'string' },
             fields: {
               type: 'object',
-              description:
-                `Fields to change (explicit allowlist: ${TASK_FIELD_NAMES.join(', ')}). Names mirror ` +
-                'planner_get_task. An unknown key is refused — never silently ignored.',
-              properties: { ...TASK_FIELD_SCHEMA_PROPERTIES },
+              // Wie alleen deze tool laadt, ziet de uitleg per veld niet (#818): één verwijzing plus de valkuil.
+              description: 'Fields of planner_add_tasks items (meaning per field there); `constraint` fixes a ' +
+                'date, `deadline` does not.',
+              properties: { ...TASK_FIELD_SCHEMA_PROPERTIES_BARE },
               additionalProperties: false,
             },
             progress: {
               type: 'object',
-              description:
-                `Progress path (explicit allowlist: ${PROGRESS_FIELD_NAMES.join(', ')}). An unknown key ` +
-                '(`percent`, `status`, …) is refused with a reason — never silently ignored — and so is an ' +
-                'empty `progress` object: give at least one of the three.',
               properties: {
-                completion: { type: 'number', minimum: 0, maximum: 100, description: 'Completion in PERCENT (0–100).' },
-                actualStart: { type: ['string', 'null'], description: 'ISO date; must not lie after the status date. null clears it. Required for progress on a task without an actual start whose planned start lies after the status date.' },
-                actualFinish: { type: ['string', 'null'], description: 'ISO date; ≥ actualStart and not after the status date. null clears it.' },
+                completion: { type: 'number', minimum: 0, maximum: 100, description: 'Percent.' },
+                actualStart: { type: ['string', 'null'], description: 'ISO date ≤ status date; null clears.' },
+                actualFinish: { type: ['string', 'null'], description: 'ISO date, ≥ actualStart and ≤ status date; null clears.' },
               },
               additionalProperties: false,
             },
@@ -631,13 +590,7 @@ function deleteTasksCore(ctx: McpContext, ids: string[]): MutationOutcome {
 const deleteTasks: BatchStepTool = {
   name: 'planner_delete_tasks',
   description:
-    'Delete tasks by id INCLUDING THEIR COMPLETE SUBTREE, plus all their relationships and assignments — ' +
-    'deleting one summary task can therefore take many more tasks with it than you gave. That is why the ' +
-    'tool reports what is REALLY gone: `deletedTaskIds` (all deleted tasks), `deletedTaskCount`, ' +
-    '`cascadedTaskIds` (the tasks deleted along without being asked) and ' +
-    '`removedDependencyCount`/`removedAssignmentCount`; `deleted` stays the requested ids. An id that ' +
-    'already disappeared through the cascade of another id from the same call counts as success. An id that ' +
-    'never existed is softly refused per item.',
+    'Delete tasks WITH their whole subtree, relationships and assignments; check `cascadedTaskIds`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
@@ -750,11 +703,8 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
 const moveTask: BatchStepTool = {
   name: 'planner_move_task',
   description:
-    'Move a task to a new parent (`newParentId: null` = root) and optionally a `position` (insertion index ' +
-    'within the parent; silently clamped to [0, number of siblings]). Placing a task under itself or one of ' +
-    'its own descendants is a hard error. A relationship on a summary task applies to all its subtasks: a ' +
-    'move that creates a circular dependency this way is a hard error (CYCLE) that rolls back the whole ' +
-    `call. ${PHASE_TRANSITION_DOC}`,
+    `Move a task under \`newParentId\` (null = root) at \`position\` (index among the siblings). Refused under ` +
+    `itself or a descendant, or when it creates a cycle. ${PHASE_TRANSITION_DOC}`,
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -762,8 +712,8 @@ const moveTask: BatchStepTool = {
     type: 'object',
     properties: {
       id: { type: 'string' },
-      newParentId: { type: ['string', 'null'], description: 'New parent id, or null for root level.' },
-      position: { type: 'integer', description: 'Insertion index within the parent; silently clamped to [0, number of siblings].' },
+      newParentId: { type: ['string', 'null'] },
+      position: { type: 'integer' },
     },
     required: ['id', 'newParentId'],
     additionalProperties: false,
@@ -892,16 +842,8 @@ function addDependenciesCore(
 const addDependencies: BatchStepTool = {
   name: 'planner_add_dependencies',
   description:
-    'Add NEW relationships between tasks. Per item: `predecessorId`, `successorId`, `type` (FINISH_START | ' +
-    'FINISH_FINISH | START_START | START_FINISH — the SHORT form FS/FF/SS/SF that the read tools return is ' +
-    `allowed too) and optionally \`lag\`. ${LAG_DOC} A summary task (a task WITH subtasks) as ` +
-    'predecessor/successor is ALLOWED — that relationship is passed on to the underlying leaf tasks in the ' +
-    'calculation. Unknown task ids, an already existing relationship, or an ancestor relationship (a task ' +
-    'linked to its own ancestor summary task) are softly refused per item; a circular dependency (across the ' +
-    'existing and proposed relationships, also via the subtasks of a summary task) is a hard error that ' +
-    'rolls back the whole call. DO YOU WANT TO CHANGE AN EXISTING RELATIONSHIP (other type, other lag, other ' +
-    'predecessor/successor)? Use planner_update_dependencies with the sequence id — NOT ' +
-    'remove-and-add-again: that loses the id and produces two undo steps.',
+    'Add relationships. A summary task as endpoint is ALLOWED (it applies to its leaf tasks). A link to an ' +
+    'own ancestor is refused; a cycle fails the whole call.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -978,16 +920,13 @@ function removeDependenciesCore(ctx: McpContext, ids: string[]): MutationOutcome
 const removeDependencies: BatchStepTool = {
   name: 'planner_remove_dependencies',
   description:
-    'Delete relationships PERMANENTLY by their sequence id (as get_project_overview / get_task return them). ' +
-    'An unknown id is softly refused per item. Returns the deleted ids and the new project end. Do you only ' +
-    'want to CHANGE a relationship (type, lag, predecessor/successor)? Use planner_update_dependencies — ' +
-    'deleting and adding again is not the route for that.',
+    'Delete relationships by seqId. To change one, use planner_update_dependencies instead.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
-    properties: { ids: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'Sequence-id\'s.' } },
+    properties: { ids: { type: 'array', minItems: 1, items: { type: 'string' } } },
     required: ['ids'],
     additionalProperties: false,
   },
@@ -1053,11 +992,8 @@ function historyStep(ctx: Parameters<McpToolDef['handler']>[1], dir: 'undo' | 'r
 const undo: McpToolDef = {
   name: 'planner_undo',
   description:
-    'Undo the last undoable change in the ACTIVE document (one step). ALWAYS check `undone` in the answer: ' +
-    'without an applicable session event the call stays `ok` but `undone` is false (with `reason`) — so `ok` ' +
-    'alone does not mean that anything was undone. `undoDepth`/`redoDepth` only give the remaining session ' +
-    'depth applicable to the active document. Global grid preferences count; events of other open documents ' +
-    'do not. The history is SHARED with the user. For what-if work: use duplicate_document, not undo.',
+    'Undo the last change in the ACTIVE document; check `undone`. The history is SHARED with the user (grid ' +
+    'settings too): for what-if work use planner_duplicate_document.',
   kind: 'other',
   batchable: false,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1068,10 +1004,7 @@ const undo: McpToolDef = {
 const redo: McpToolDef = {
   name: 'planner_redo',
   description:
-    'Redo the last undone change in the ACTIVE document (one step). ALWAYS check `redone` in the answer: ' +
-    'with an empty redo stack the call stays `ok` but `redone` is false (with `reason`). ' +
-    '`undoDepth`/`redoDepth` give the remaining session depth applicable to the active document. Global grid ' +
-    'preferences count; events of other documents do not. A new change only clears conflicting redo scopes.',
+    'Redo the last undone change in the ACTIVE document; check `redone`.',
   kind: 'other',
   batchable: false,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1130,17 +1063,10 @@ function splitsReport(st: AppState, taskId: string) {
 const setTaskSplits: BatchStepTool = {
   name: 'planner_set_task_splits',
   description:
-    'Set the INTERRUPTIONS of one task (work that is suspended and resumed later, e.g. two projects that ' +
-    'alternate) — rather than cutting the task into separate tasks. `interruptions` replaces the whole list; ' +
-    'an EMPTY list clears all interruptions. Positions are on the WORK axis, without pauses: `afterWorkDays: ' +
-    '5` = after five working days of work from the task start, `pauseDays: 3` = three working days of ' +
-    'standstill. An hour task (`durationUnit: "hours"`) uses `afterWorkHours`/`pauseHours`; the unit follows ' +
-    'the task and mixing day and hour keys is refused. Whole units only, no silent rounding. The work ' +
-    'duration stays the same; the task gets longer by the pauses. Not splittable: milestones, summary tasks, ' +
-    'hammocks, ELAPSEDTIME tasks, manually scheduled tasks, tasks shorter than two units, and non-editable ' +
-    'imported splits (those you can only clear). A position in work already performed is refused. ' +
-    'All-or-nothing: one wrong item ⇒ error answer with the index, nothing written. Read form: ' +
-    'planner_get_task returns the same `interruptions`.',
+    'Replace one task\'s work interruptions ([] clears) instead of splitting the task. Positions exclude ' +
+    'pauses and count WORK from task start: `{afterWorkDays: 5, pauseDays: 3}`; hour tasks use ' +
+    '`afterWorkHours`/`pauseHours`. Whole units only; pauses extend duration. No milestones, summary tasks, ' +
+    'hammocks, ELAPSEDTIME or manually scheduled tasks.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
@@ -1150,14 +1076,13 @@ const setTaskSplits: BatchStepTool = {
       taskId: { type: 'string' },
       interruptions: {
         type: 'array',
-        description: 'The complete new list of interruptions (empty = clear all), in any order.',
         items: {
           type: 'object',
           properties: {
-            afterWorkDays: { type: 'number', minimum: 0, description: 'Working days of work before the interruption (day task).' },
-            afterWorkHours: { type: 'number', minimum: 0, description: 'Working hours of work before the interruption (hour task).' },
-            pauseDays: { type: 'number', minimum: 0, description: 'Length of the interruption in working days (day task).' },
-            pauseHours: { type: 'number', minimum: 0, description: 'Length of the interruption in working hours (hour task).' },
+            afterWorkDays: { type: 'number', minimum: 0 },
+            afterWorkHours: { type: 'number', minimum: 0 },
+            pauseDays: { type: 'number', minimum: 0 },
+            pauseHours: { type: 'number', minimum: 0 },
           },
           additionalProperties: false,
         },

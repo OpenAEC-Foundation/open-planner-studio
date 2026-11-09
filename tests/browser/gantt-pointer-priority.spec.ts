@@ -178,6 +178,112 @@ for (const mode of ['Shift', 'dependency mode'] as const) {
   });
 }
 
+// Past een naam niet in de balk, dan staat hij rechts achter de balk. Bij de canvasrand schuift hij
+// over het eind van de balk (`drawOutsideBarName`). Daar wint de naam van elke greep: geen
+// balksleep, geen relatiesleep, wel selectie en het taakmenu (#842). Een gewone taak met een lange
+// naam gebruikt dezelfde tekenfunctie als een hammock of samenvatting, zonder drivers.
+test('Gantt pointer priority: naam over de balk bij de rand wint van balk- en relatiesleep', async ({ page, ops: _ops }) => {
+  // De eerste taak bepaalt de viewstart (`seedProject`); de twee testtaken liggen ver rechts ervan,
+  // zodat de test naar rechts kan schuiven (de scroll klemt op 0).
+  const [, targetId, longId] = await seedProject(page, [
+    { name: 'Naam anker', start: '2026-11-02', finish: '2026-11-04', durationDays: 3 },
+    { name: 'Naam doel', start: '2027-01-04', finish: '2027-01-06', durationDays: 3 },
+    { name: 'Lange naam die niet in de balk past en bij de rand over de balk schuift', start: '2027-01-18', finish: '2027-01-20', durationDays: 3 },
+  ]);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ showPropertiesPanel: false, rightPanelCollapsed: true });
+    s.setZoom(18);
+    s.setScroll(0, 0);
+  });
+  await expect(page.locator('[data-ops-rail="true"]')).toHaveCount(0);
+  const bounds = await canvasBounds(page);
+  const canvasRight = bounds.x + bounds.width;
+  // Schuif de lange balk tot zijn eind 20 px voor de canvasrand: rechts is dan geen ruimte meer.
+  const rightEdge = await barPoint(page, longId, 'right');
+  const scrollX = await page.evaluate(() => window.__OPS__!.store.getState().view.scrollX);
+  await page.evaluate(x => window.__OPS__!.store.getState().setScroll(x, 0), scrollX + rightEdge.x - (canvasRight - 20));
+  await expect.poll(async () => Math.round((await barPoint(page, longId, 'right')).x)).toBe(Math.round(canvasRight - 20));
+  const target = await barPoint(page, targetId);
+  expect(target.x).toBeGreaterThan(bounds.x);
+  // Binnen de balk, in de greep van de rechterrand, en onder de naam tegen de rand.
+  const onName = { x: canvasRight - 22, y: rightEdge.y };
+  const before = await state(page);
+
+  // 1. Slepen vanaf de naam verzet niets, maar selecteert de taak wel.
+  await page.mouse.move(onName.x, onName.y);
+  await page.mouse.down();
+  await page.mouse.move(onName.x - 60, onName.y, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([longId]);
+  let after = await state(page);
+  expect(taskDates(after)).toEqual(taskDates(before));
+  expect(after.undoDepth).toBe(before.undoDepth);
+
+  // 2. Shift-slepen vanaf de naam start geen relatie.
+  await page.keyboard.down('Shift');
+  await page.mouse.move(onName.x, onName.y);
+  await page.mouse.down();
+  await page.mouse.move(target.x, target.y, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await expect(page.locator('[data-ops-relation-popover]')).toHaveCount(0);
+  after = await state(page);
+  expect(after.sequences).toHaveLength(0);
+  expect(after.undoDepth).toBe(before.undoDepth);
+
+  // 3. Rechtsklik op de naam voorbij de balkgreep (balkeinde + 6 px) geeft het taakmenu, niet het
+  // menu voor lege ruimte. De naam eindigt 4 px voor de canvasrand.
+  await page.mouse.click(canvasRight - 8, onName.y, { button: 'right' });
+  await expect(page.getByRole('button', { name: 'Start relation from here', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New task', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Start relation from here', exact: true })).toHaveCount(0);
+
+  // Alleen het tekstvlak van de naam telt, niet de hele rij. Vlak onder de bovenkant van de rij
+  // (ruim boven de tekst) gedraagt de rij zich weer als vóór de naam.
+  const rowBox = await tableRow(page, longId).boundingBox();
+  expect(rowBox).not.toBeNull();
+  const aboveText = rowBox!.y + 3;
+  expect(aboveText).toBeLessThan(onName.y - 8);
+
+  // 4. Boven de tekst is de balk weer een greep: een sleep van 36 px (2 dagen bij zoom 18)
+  // verschuift de taak, als één undo-stap.
+  const barAbove = { x: canvasRight - 47, y: aboveText };
+  await page.mouse.move(barAbove.x, barAbove.y);
+  await page.mouse.down();
+  await page.mouse.move(barAbove.x - 36, barAbove.y, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => state(page).then(s => s.tasks.find(t => t.id === longId)?.scheduleStart)).not.toBe(
+    before.tasks.find(t => t.id === longId)?.scheduleStart,
+  );
+  after = await state(page);
+  expect(after.undoDepth).toBe(before.undoDepth + 1);
+  expect(after.tasks.find(t => t.id === targetId)?.scheduleStart).toBe(before.tasks.find(t => t.id === targetId)?.scheduleStart);
+
+  // 5. Lege ruimte boven een lange naam, links van de balk, is weer achtergrond. In de sleepmodus
+  // (standaard) maakt Ctrl daar een kaderselectie …
+  const emptyAbove = { x: canvasRight - 200, y: aboveText };
+  const movedRight = await barPoint(page, longId, 'left');
+  expect(emptyAbove.x).toBeLessThan(movedRight.x - 6 - 1);
+  await page.keyboard.down('Control');
+  await page.mouse.move(emptyAbove.x, emptyAbove.y);
+  await page.mouse.down();
+  await page.mouse.move(emptyAbove.x - 40, emptyAbove.y + 40, { steps: 4 });
+  await expect(page.getByTestId('box-select-rect')).toBeVisible();
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  await expect(page.getByTestId('box-select-rect')).toHaveCount(0);
+
+  // 6. … en zonder Ctrl pant hij de tijdlijn.
+  const scrollBefore = await page.evaluate(() => window.__OPS__!.store.getState().view.scrollX);
+  await page.mouse.move(emptyAbove.x, emptyAbove.y);
+  await page.mouse.down();
+  await page.mouse.move(emptyAbove.x - 80, emptyAbove.y, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().view.scrollX)).toBeGreaterThan(scrollBefore);
+});
+
 // Zonder deze annulering blijft een via de popover afgebroken relatie als onzichtbare
 // projectmutatie bestaan: zij verschijnt bij undo/redo en meldt ten onrechte succes.
 test('Gantt relationpopover Escape annuleert zonder relatie, undo-stap of melding', async ({ page, ops: _ops }) => {

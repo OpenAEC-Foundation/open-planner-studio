@@ -84,6 +84,7 @@
       "explicitSummary": "Eksplisitt hovedaktivitet",
       "externalRelationData": "Data for kobling mellom prosjekter",
       "floatPath": "Slakksti",
+      "calendarDays": "Kalenderdager",
       "freeFloat": "Fri slakk",
       "hammock": "Hengekøye (avledet varighet)",
       "interferingFloat": "Interfererende slakk",

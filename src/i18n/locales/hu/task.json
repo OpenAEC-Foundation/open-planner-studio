@@ -84,6 +84,7 @@
       "explicitSummary": "Kifejezett összefoglaló tevékenység",
       "externalRelationData": "Projektközi kapcsolat adatai",
       "floatPath": "Tartalékidő-útvonal",
+      "calendarDays": "Naptári napok",
       "freeFloat": "Szabad tartalékidő",
       "hammock": "Hangmat (származtatott időtartam)",
       "interferingFloat": "Interferáló tartalékidő",

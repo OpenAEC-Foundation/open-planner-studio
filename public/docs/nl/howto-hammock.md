@@ -15,7 +15,7 @@ De bouwkeet staat er zolang er gebouwd wordt, van het eerste grondwerk tot de op
 5. Kijk in het paneel *Eigenschappen* onder *Hammock (afgeleide duur)*: daar staan *Start-driver* met de taak en het type, en *Finish-driver* met de taak en het type. Een driver is een taak waar de hammock zijn begin of einde van afleidt.
 6. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*. De hammock loopt nu van de start van de startdriver tot het einde van de einddriver, en *Duur* toont de afgeleide duur.
 
-In de Gantt is een hammock een dunne blauwgroene balk met een haakje aan beide uiteinden.
+In de Gantt is een hammock een dunne blauwgroene balk met een haakje aan beide uiteinden. De naam staat achter de balk. Klik op de naam om de taak te selecteren. Bij de rechterrand schuift de naam naar links, zodat hij leesbaar blijft.
 
 Voorbeeld: *Bouwplaats* krijgt SS vanaf *Grondwerk* (maandag 7 juni 2027) en FF vanaf *Dakwerk* (klaar woensdag 23 juni). Na **Bereken** loopt de hammock van maandag 7 tot en met woensdag 23 juni: 13 werkdagen. Loopt het metselwerk 2 werkdagen uit, dan wordt het einde van *Dakwerk* vrijdag 25 juni en groeit de hammock mee naar 15 werkdagen.
 

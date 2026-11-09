@@ -46,6 +46,24 @@ import {
 } from './dayMeasureIo';
 import type { PerTaskWriteOptions } from './ifcPsets';
 
+/**
+ * W uit ontwerp #804 §4.2: de gesloten lijst van entiteittypen die deze writer schrijft. De indeling
+ * (`foreign/classify.ts`) volgt de eigen afsluiting alleen via deze typen. De poort
+ * (`check-ifc-foreign-classify.ts`) eist dat elk type in de uitvoer van de writer hier staat. Een nieuw
+ * type in de writer hoort dus ook hier. De resources komen uit `RESOURCE_TYPE_TO_IFC`, plus de
+ * leesalias `IFCCONSTRUCTIONPRODUCTRESOURCE` (de lezer maakt er een resource van, dus het is D).
+ */
+export const WRITER_ENTITY_TYPES: ReadonlySet<string> = new Set([
+  'IFCPERSON', 'IFCORGANIZATION', 'IFCPERSONANDORGANIZATION', 'IFCAPPLICATION', 'IFCOWNERHISTORY',
+  'IFCSIUNIT', 'IFCUNITASSIGNMENT', 'IFCCARTESIANPOINT', 'IFCAXIS2PLACEMENT3D', 'IFCGEOMETRICREPRESENTATIONCONTEXT',
+  'IFCPROJECT', 'IFCWORKPLAN', 'IFCWORKSCHEDULE', 'IFCWORKCALENDAR', 'IFCWORKTIME', 'IFCRECURRENCEPATTERN',
+  'IFCTIMEPERIOD', 'IFCTASK', 'IFCTASKTIME', 'IFCRELSEQUENCE', 'IFCLAGTIME',
+  'IFCRELNESTS', 'IFCRELASSIGNSTOCONTROL', 'IFCRELASSIGNSTOPROCESS', 'IFCRELAGGREGATES', 'IFCRELDECLARES',
+  'IFCRELDEFINESBYPROPERTIES', 'IFCPROPERTYSET', 'IFCPROPERTYSINGLEVALUE', 'IFCPROPERTYENUMERATEDVALUE',
+  'IFCPROPERTYSETTEMPLATE', 'IFCSIMPLEPROPERTYTEMPLATE', 'IFCPROPERTYENUMERATION',
+  ...Object.values(RESOURCE_TYPE_TO_IFC), 'IFCCONSTRUCTIONPRODUCTRESOURCE',
+]);
+
 /** De OUDE GlobalId-afleiding: een 32-bits hash, geen conforme IFC-GUID. De writer gebruikt hem niet
  *  meer (zie `ifcGuid128`); de lezer herberekent hem nog voor bestanden van vóór audit 2026-09-26,
  *  waarin een resource- of baseline-verwijzing alleen via deze hash terug te vinden is. */
@@ -109,7 +127,8 @@ function ifcRequiredStr(s: string): string {
   return s ? ifcStr(s) : "''";
 }
 
-function ifcDateTime(iso: string): string {
+/** Geëxporteerd voor de indeling van #804 (baselinekoppen vergelijken, `foreign/classify.ts`). */
+export function ifcDateTime(iso: string): string {
   if (!iso) return '$';
   // Ensure format: 'YYYY-MM-DDT07:00:00' (anker gedeeld met de reader via IFC_TIME_ANCHOR).
   if (iso.length === 10) return `'${iso}T${IFC_TIME_ANCHOR}'`;
@@ -410,7 +429,7 @@ export function writeIFC(input: WriteIFCInput): string {
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcRequiredStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
   if (!input.minuteModelPending) {
     const prop = addLine(ctx, '_time_model', `IFCPROPERTYSINGLEVALUE('TimeModel',$,IFCLABEL(${ifcStr(MINUTE_MODEL_TIME_MODEL)}),$)`);
-    const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},'OPS_Project',$,(#${prop}))`);
+    const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},${ifcStr(PSET.Project)},$,(#${prop}))`);
     addLine(ctx, '_time_model_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'time_model_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
   }
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xerSourceArchiveStorage);

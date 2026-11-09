@@ -1,6 +1,6 @@
 [package]
 name = "open-planner-studio"
-version = "2026.44.0"
+version = "2026.45.0"
 edition = "2021"
 
 [dependencies]

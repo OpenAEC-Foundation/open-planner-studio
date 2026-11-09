@@ -897,6 +897,16 @@ en noem het in je rapport of PR-tekst.
      gewone dagen, nachtdiensten zonder bedekking en gedeeltelijke bedekking. Onafhankelijk gemeten
      in review ronde 2 van PR #787 op `a032c00ad`. — B
 
+961. **`planner_update_calendar` neemt uurbanden met een gebroken minuut aan.** `bandListReason` in
+     `src/services/mcp/tools/calendarResourceTools.ts` toetst alleen `0 ≤ start < 1440`, `end > start` en
+     `end ≤ 2880`, met een eindig getal. Daardoor gaan `{start: 1439.5, end: 1440}` en `{start: 0, end: 0.5}`
+     erdoor. Het oude bandschema op `main` (vóór PR #838) noemde `start` 0–1439 en `end` minimaal 1, maar de
+     schemapoort toetst de binnenkant van array-items niet (DIEPTE-REGEL in `schemaValidate.ts`). Dat schema
+     hield deze banden dus ook nooit tegen. PR #838 haalt de grenzen per veld uit het schema en noemt ze één keer
+     in de beschrijving van `byWeekday`. Wat een band met een gebroken minuut verderop doet (rekenen, IFC), is
+     niet nagegaan. Voor later: weiger een niet-geheel `start` of `end` in `bandListReason`, met een reden. Gezien
+     in council-ronde 2 van PR #838. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -1085,6 +1095,26 @@ en noem het in je rapport of PR-tekst.
      met een heldere fout ("…needs Node.js 22 or newer…"). Welke Node Claude Desktop meelevert, is niet nagegaan.
      Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
      in review ronde 1 van #734 (GPT-6.1-Sol). — B
+
+962. **VERVOLG: `planner_manage_assignments` met `update` negeert een meegestuurde `resourceId` stil.**
+     De `update`-tak in `src/services/mcp/tools/calendarResourceTools.ts` (`case 'update'`, rond regel 1275 en 1388)
+     leest alleen `unitsPerDay`, `curve` en `remainingWorkMinutes`. Een andere sleutel, zoals `resourceId` of
+     `taskId`, geeft geen weigering. Scenario: "vervang Jan door Piet op taak X, 0,5 per dag" als
+     `{action: "update", assignmentId, resourceId: "<piet>", unitsPerDay: 0.5}` geeft `ok: true`; Jan blijft staan
+     met 0,5. De schemapoort vangt het niet, want de acties zijn array-items (DIEPTE-REGEL in `schemaValidate.ts`).
+     PR #838 noemt de velden van `update` in de toolbeschrijving ("other resource: remove + add"); de handler blijft
+     zoals hij is. Fixrichting: weiger per item een sleutel die bij de actie niet hoort, met de lijst geldige velden.
+     Uit council-ronde 4 op #838 (Opus 5.5, BEVESTIGD met de echte dispatcher, VERVOLG). — B
+963. **VERVOLG: `planner_move_project` geeft de kalender de schuld als een extern anker het einde vasthoudt.**
+     De `note` in `src/services/mcp/tools/calendarResourceTools.ts` (rond regel 2098) zegt bij elk verschil tussen
+     start- en eindverschuiving: "the calendar (holidays/construction holiday) intervenes". Scenario: Grondwerk 3 d →
+     Montage 2 d, Montage met een externe voorganger verankerd op 2026-06-05 16:00; `move_project` naar 2026-05-25
+     geeft `deltaDays: -7`, `endDeltaDays: 0` en die note. Het einde blijft staan door het externe anker (externe
+     ankers schuiven bewust niet mee), niet door de kalender. Een agent die de note doorgeeft, meldt de gebruiker een
+     verkeerde oorzaak. Fixrichting: noem in de note ook externe ankers en vaste beperkingen als mogelijke oorzaak, of
+     bepaal de oorzaak per taak. Uit de blinde proef van fixronde 6 op #838 (BEVESTIGD met de echte dispatcher,
+     VERVOLG). Sinds #797 toont `planner_get_task` de koppelingen (`externalLinks`), dus een agent kan de
+     ankerdatum nu wel lezen. — B
 
 ## Bestanden en herstel
 
@@ -1566,6 +1596,14 @@ en noem het in je rapport of PR-tekst.
      `sync.writeHeld(key)` aan de echte singleton. Uit de review van #833 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD,
      VERVOLG). — B
 
+960. **VERVOLG: `?icons=` telt tijdens het wachten op hostinstellingen als gebruikerswijziging.** [gemeld door de
+     bouwer van #833, niet nagespeeld] Sinds #844 roepen `createDefaultUI()` en het registeritem `featureFlags`
+     `loadFeatureFlags()` aan; met `?icons=b2` of `?icons=lucide` schrijft die `ops-featureFlags` met herkomst
+     `'user'`. Tijdens het wachten (#833) telt dat als een wijziging door de gebruiker, dus de melding na het late
+     antwoord kan onterecht "teruggezet" zeggen; tijdens het toepassen valt de schrijfactie weg (de store toont de
+     URL-keuze wel). De URL zet de keuze bij elke start opnieuw. Richting: schrijf een URL-afgeleide vlag met herkomst
+     `'start'`. — S
+
 872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
      laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;
      `tests/dev-server/build-platform-args.test.mjs` toetst alleen de argumenten. Of de bundel met `./` onder een
@@ -1582,6 +1620,26 @@ en noem het in je rapport of PR-tekst.
      `ensureReportFontLoaded` melden of het laden lukte, en meet opnieuw na een geslaagde nieuwe poging. Niet
      nagespeeld: het eerste fontverzoek laten mislukken en de export daarna laten slagen. Uit de review van #837
      (GPT-6.1-Sol, xhigh, ronde 2, op `dd8f60b0c`, VERMOED zekerheid hoog, VERVOLG). — S
+
+1006. **IfcOpenShell 0.9 opent een bestand met `FILE_SCHEMA(('IFC4X3'))` niet.** De writer van v2026.9.0 en ouder
+     schreef die kop. `ifcopenshell.open` (0.9.0.post1) weigert hem met "Unsupported schema"; met `IFC4X3_ADD2` in de
+     kop opent hetzelfde bestand wel. Onze eigen lezer opent beide. Opent een gebruiker zo'n oud bestand, dan vraagt
+     het eerste expliciete opslaan of het naar `IFC4X3_ADD2` gaat (#292, `ifcSchemaQuestion.ts`). Kiest de gebruiker
+     "schema houden", dan blijft de kop `IFC4X3` en kan Bonsai of een IfcOpenShell-script het bestand niet openen. De uitleg
+     bij `IFC_SCHEMAS` (`src/types/project.ts:515-520`) noemt juist samenvoegen met IfcOpenShell `MergeProjects` als
+     reden voor die keuze. Nagespeeld in `scripts/proef/maak-corpus.py` (de bron van `oud-eigen-0.1-plus-model.ifc`
+     opent daarom via een tijdelijke kopie met `IFC4X3_ADD2`). Niet nagegaan: andere pakketten dan IfcOpenShell.
+     Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
+     Gevonden in #804 fase 0. — B
+
+1007. **VERVOLG: de scanner weigert een `#id` boven 2147483647.** `readEntity` in
+     `src/services/ifc/foreign/stepScanner.ts:676` stopt bij `idValue > 0x7fffffff`; het statement valt dan terug op
+     `onbekend-statement` ("Onbekend statement in DATA"), een reden die niet zegt wat er mis is. ISO 10303-21 kent geen
+     bovengrens, en de voorproef `scripts/proef/classify-v9.py` leest zo'n id gewoon. Gevolg: een bestand met zo'n id
+     opent niet via de nieuwe route. Op geen bestand van de poort of het corpus komt het voor. Richting voor fase 1:
+     een eigen foutreden (`id-te-groot`) met een grensproef op 2147483647 en 2147483648, of ids tot 2^53 ondersteunen
+     (de index gebruikt nu int32). Uit de review van #863 (GPT-6.1-Sol, xhigh, ronde 1, op `e56238fc6`, BEVESTIGD,
+     VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -2316,17 +2374,15 @@ en noem het in je rapport of PR-tekst.
 
 851. **VERVOLG: wat er na de antwoordgrens van de site nog krap of ongepagineerd is.** Sinds #825 blijft elk antwoord
      van `window.__OPDS_APP__.run()` binnen 30.000 tekens: een leestool geeft `te_groot` met een uitweg, een wijziging
-     wordt ingekort. Drie restpunten: (1) `planner_get_planning_guide` met `part: "skill"` geeft 28.062 tekens, dicht
-     bij de grens; groeit een skill, dan heeft de site geen kleiner deel meer. Dat komt mede doordat de tekst van
-     `goed-plannen` er twee keer in staat (`skills[0].text` en het oude veld `skill`). (2) `criticalPaths` (alleen bij
-     floatPaths met FREE_FLOAT) blijft op elke pagina van `planner_get_critical_path` compleet. (3)
-     `planner_get_project_overview` heeft bewust geen paginering; de uitweg is `planner_list_tasks`. Gemeten in #825
-     met `installSiteAppTools`. (4) De controle vóór uitvoering (`linksTooLarge`) rekent met bovengrenzen: 29 tekens
-     per id, en elke `create: true` van `planner_update_calendar` telt als nieuw, ook als het id al bestaat. Een
-     aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij had gepast; een kleinere portie werkt wel. De
-     vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen door een reserve per aanroep. Besluit Ethan
-     7 november 2026: de preflight blijft zoals hij is. Voorstel: een `part` per skill, en `criticalPaths` alleen op
-     de eerste pagina. — B
+     wordt ingekort. Drie restpunten: (1) `criticalPaths` (alleen bij floatPaths met FREE_FLOAT) blijft op elke pagina
+     van `planner_get_critical_path` compleet. (2) `planner_get_project_overview` heeft bewust geen paginering; de
+     uitweg is `planner_list_tasks`. Gemeten in #825 met `installSiteAppTools`. (3) De controle vóór uitvoering
+     (`linksTooLarge`) rekent met bovengrenzen: 29 tekens per id, en elke `create: true` van `planner_update_calendar`
+     telt als nieuw, ook als het id al bestaat. Een aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij
+     had gepast; een kleinere portie werkt wel. De vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen
+     door een reserve per aanroep. Besluit Ethan 7 november 2026: de preflight blijft zoals hij is. Voorstel:
+     `criticalPaths` alleen op de eerste pagina. Het oude punt over de grootte van `planner_get_planning_guide` is
+     opgelost in #818. — B
 
 853. **VERVOLG: restpunten van het inkorten na fixronde 6 (#825).** Het compacte wijzigingsantwoord van
      `window.__OPDS_APP__.run()` kort steeds de grootste verzameling in. Drie restpunten: (1) Een regel van een lijst
@@ -2369,6 +2425,25 @@ en noem het in je rapport of PR-tekst.
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 
+900. **VERVOLG: elk verpakt toolresultaat draagt de data twee keer; SuperCloud en Claude Desktop zijn niet gemeten.**
+     `wrapToolResult` (`src/services/mcp/dispatcher.ts:76–82`) zet hetzelfde resultaat als JSON-tekst in
+     `content[0].text` en als `structuredContent` (een JSON-RPC-fout gaat er niet doorheen). Gemeten in #818 op
+     `planner_get_planning_guide` met `part: "both"`: 7.325 tekens data, 14.925 tekens over de lijn. De MCP-spec vraagt
+     die tekstkopie voor oudere clients ("SHOULD"); `tests/mcp/cases-protocol.ts:149–151` toetst hem. Op 9 november
+     2026 nagegaan met een proefserver die in de tekst en in `structuredContent` een andere markering geeft:
+     - Claude Code 2.1.319, gemeten (`claude -p`, de `tool_result` in het transcript): bij `isError: false` krijgt het
+       model alleen `structuredContent` als JSON, met en zonder `outputSchema`; bij `isError: true` alleen de tekst. De
+       data staat dus één keer in de context. De tekstkopie moet blijven: een weigering bereikt het model alleen zo.
+     - SuperCloud, alleen de code nagelezen: `run` van `window.__OPDS_APP__` (`src/services/mcp/siteAppTools.ts:559`)
+       geeft alleen `structuredContent` door en maakt bij een fout `CODE: melding` uit `code` en `error` (`:568`). De
+       tekstkopie verlaat de app dus niet. Wat de site daarna aan het model geeft, is niet gemeten.
+     - Claude Desktop: niet gemeten. Het staat niet op aia09-mp50, Trias kan niet bij de laptop van Ethan, en de pc
+       van Ethan reageerde niet.
+     Besluit (Trias, 9 november 2026): geen codewijziging, de tekstkopie blijft. Voorstel: meet de modelinvoer van
+     SuperCloud en Claude Desktop zodra dat kan; zet een van beide de data twee keer in de context, kies dan opnieuw.
+     — B (het dubbele antwoord, de meting in Claude Code, de code van `run`), S (de modelinvoer van SuperCloud en
+     Claude Desktop)
+
 940. **VERVOLG: het lint meet niet opnieuw als één groep zonder lintrender van breedte verandert.**
      `useRibbonAutoFit` (`src/components/layout/Ribbon/Ribbon.tsx`) meet bij een vensterwijziging en bij een
      render van het lint. Verandert alleen de inhoud van één groep van breedte, dan blijft de oude stand staan.
@@ -2405,3 +2480,86 @@ en noem het in je rapport of PR-tekst.
      toetsenbord. Na Escape in de popover van een ingeklapte groep staat de focus op de knop, maar dat zie je
      niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
      council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S
+
+964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
+     (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
+     elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
+     over de lijn ongeveer 750 tekens langer (`planner_get_project_info` 4.226 → 4.978, `planner_list_documents`
+     822 → 1.680), want de envelop staat er twee keer in (punt 900). Een XER-sessie van 30 aanroepen kost zo ruim
+     22.000 tekens over de lijn, ongeveer 11.000 als data. Voorstel: de tekst één keer per document, daarna alleen
+     de vlag `datesAsRecorded: true`. Uit council-ronde 7 van #836 (Claude Opus 5.5, xhigh, BEVESTIGD). — B
+
+958. **VERVOLG: na een bereikte mijlpaal start de opvolger op de dag dat de voorganger pas eindigt.** Gezien in
+     proef (h) van #836, met de echte dispatcher. Keten Ruwbouw → mijlpaal "Ruwbouw gereed" → Dak dicht, alle drie
+     FS; statusdatum 14 april 2027. Ruwbouw kreeg `actualFinish: "2027-04-14"` en eindigt op 14 april 16:00. De
+     mijlpaal kreeg `completion: 100` en `actualFinish: "2027-04-14"` (zonder tijd) en staat op 14 april 07:00.
+     Dak dicht start daardoor op 14 april 07:00, terwijl de gebruiker "het dak begint morgen" zei. Vóór de update
+     stond de mijlpaal op de werkdag ná Ruwbouw (7 april 07:00, na 6 april 16:00). Vermoeden: een datum zonder tijd wordt bij een
+     mijlpaal het begin van de dag, bij een taak het einde. Niet nagegaan in de code. Voorstel: bij een mijlpaal met
+     een FS-voorganger die dezelfde dag eindigt, de datum zonder tijd op het einde van die dag zetten, of melden.
+     — B (de start op 14 april, twee keer gezien), S (de oorzaak)
+
+959. **VERVOLG: het overzicht en het kritieke pad tonen geen `deadline`, dus een agent vindt de oorzaak van negatieve
+     float niet.** Een taak krijgt negatieve float door een `deadline` verderop in de keten. Alleen
+     `planner_get_task` geeft het veld (`src/services/mcp/tools/readTools.ts:645`). De rij van
+     `planner_get_project_overview` (`:354–377`), van `planner_list_tasks` (`:459–478`) en van
+     `planner_get_critical_path` (`:688–699`) heeft geen `deadline`, en `planner_list_tasks` heeft er geen filter
+     voor (`:133`). Zo ook op #838 `fb3ee39c6`. Gezien in proef (j) van #836, twee runs met de echte dispatcher:
+     Ruwbouw en Dak dicht hadden float −1 door de `deadline` op Dak dicht. Run 1 las alleen Ruwbouw en schreef
+     "Er staat nergens een deadline"; run 2 meldde de −1, maar zocht de deadline niet op. Voor `constraint` en
+     `constraint2` geldt hetzelfde (`:643–644`). In proef (k) van #836 had B een FNLT; run 1 en 2 lazen alleen
+     taak A en schreven dat er geen deadline of constraint was. Sinds fixronde 10 leest de agent elke taak met negatieve
+     float en haar opvolgers (`progress-update` §5); zo vond hij de FNLT wel (run 3 en 4). Voorstel: `deadline` en
+     `constraint` in de rij van het overzicht of van het kritieke pad. Besluit orkestrator: dit nummer, in #836; het
+     is een gedragswijziging in een tool, geen tekst. — B
+
+1003. **VERVOLG: de controle van de skillkop laat een `description` door die geen tekst is.** `checkSkillFrontmatter`
+     (`scripts/lib/agent-skills-check.ts:43`) leest elke waarde als tekst. `description: null`, `true` of `123` geeft
+     daardoor geen fout, terwijl een echte YAML-lezer er `null`, een boolean of een getal van maakt. De twee huidige
+     skills hebben een geldige tekstwaarde; de controle bewijst dus minder dan ze belooft. Voorstel: eis een niet-lege
+     tekst tussen aanhalingstekens (of een vast formaat met twee tekstvelden) en voeg deze drie gevallen als
+     negatieve test toe. Uit de eindreview van #836 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
+1004. **VERVOLG: bij `te_groot` op de voortgangsskill wijst de uitweg niet naar die skill.** Is `part: "progress-update"`
+     te groot voor de SuperCloud-limiet, dan adviseert de melding in `src/services/mcp/siteAppTools.ts:125` hetzelfde
+     part opnieuw, en de enige download-URL is die van de opbouwgids. `part: "guide"` past wel, maar bevat geen
+     voortgangsregels. De test (`tests/mcp/cases-site-app-tools.ts:295`) controleert bij een te grote voortgangsskill
+     alleen de opbouwroute. Nagespeeld met een voortgangsskill van 40.000 tekens. Met de huidige bestanden (±2.800
+     tekens) gebeurt dit niet. Voorstel: noem ook de publieke URL van `skills/progress-update/SKILL.md` en test de
+     uitweg vanuit dat part. Uit de eindreview van #836 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
+953. **VERVOLG: een externe opvolger kan de naam achter een balk bedekken.** `drawTaskBars` tekent de externe
+     ghost-balken (`drawExternalGhosts`) ná de balk en zijn naam (`src/engine/renderer/GanttRenderer.ts`, de lus in
+     `drawTaskBars`). Begint een externe opvolger vlak achter de balk, dan ligt de half doorzichtige ghost over het begin
+     van de naam. Dit geldt voor elke naam die `drawOutsideBarName` rechts achter een balk zet: taak, samenvatting en
+     hammock. Het is dus niet nieuw met #842. Voorstel: teken de naam ná de ghosts, of laat de naam voorbij een externe
+     opvolger beginnen. Uit de review van #842 (Terra, VERVOLG). — S
+
+954. **VERVOLG: geen browsertest voor dubbelklik en tooltip op de naam achter een balk.** Sinds #842 herkennen klik,
+     dubbelklik, tooltip en rechtsklik ook de naam rechts achter de balk (`GanttRenderer.getTaskNameAt`, gebruikt in
+     `useGanttPointerCoordinator.ts` en `GanttCanvas.tsx`). `tests/browser/gantt-pointer-priority.spec.ts` ("naam over
+     de balk bij de rand") bewijst met echte muisgebaren: slepen en Shift-slepen vanaf de naam verzetten niets, een klik
+     selecteert, een rechtsklik geeft het taakmenu. Een dubbelklik (taak openen), de taaktooltip en de cursor boven de
+     naam zijn alleen in de renderer-hittest (`check-gantt-label-ellipsis.ts`) gedekt. Voorstel: twee stappen in
+     hetzelfde scenario. Uit de review van #842 (GPT-6.1-Sol, xhigh, VERVOLG). — B
+
+955. **VERVOLG: in het tweede tijdlijnpaneel werkt alleen selectie op de naam achter een balk.** `handleSecondaryClick`
+     (`src/components/canvas/GanttCanvas.tsx`) selecteert via de balk of de naam (`getTaskNameAt`). Hover zoekt daar
+     alleen baselines (`handleSecondaryMouseMove`) en er is geen `onDoubleClick`: geen taaktooltip en geen taak openen,
+     ook niet op de balk zelf. Dat zat al in main. Voorstel: hover en dubbelklik van het hoofdpaneel ook in het tweede
+     paneel aansluiten. Uit de review van #842 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+956. **VERVOLG: een dubbelklik op de tijdschaal kan een bedekte taaknaam openen.** `onDoubleClick` in
+     `src/components/canvas/hooks/useGanttPointerCoordinator.ts` controleert de grens van de kop niet, en
+     `GanttRenderer.getTaskNameAt` rekent de rij uit de y-positie, ook onder de kop. Na verticaal scrollen ligt de naam
+     van een taak dan onder de tijdschaal. Proef: 21 taken, rijhoogte 28, kophoogte 60, `scrollY=20`; een dubbelklik op
+     (53, 54) opent taak S. Op main opent daar niets. Voorstel: `if (y < headerHeight) return;` vóór de hit-tests,
+     met `headerHeight` in de afhankelijkheden van de callback. Uit de review van #842 (GPT-6.1-Sol, xhigh, ronde 5,
+     BEVESTIGD, VERVOLG). — B
+
+957. **VERVOLG: de naam van een hammock of samenvatting verdwijnt ineens bij de linkerrand.** `drawHammockBar` en
+     `drawSummaryBar` (`src/engine/renderer/GanttRenderer.ts`) stoppen bij `x2 < 0`, nog vóór de naam. Bij een balkeinde
+     op x = 0 begint de naam op x = 14; bij x = -1 tekent de functie niets meer, terwijl de naam op x = 13 nog zichtbaar
+     zou zijn. Bij horizontaal scrollen springt de naam dus weg. Een gewone taakbalk stopt bij `x2 + spelingsband < 0`
+     (`drawTaskBar`); zonder speling geldt daar hetzelfde. Voorstel: laat de grens ook de naamruimte meetellen (`x2 + ARROW_STUB + OUTSIDE_LABEL_GAP +
+     naambreedte < 0`), of teken de naam los van de balk. Uit de review van #842 (Terra, ronde 5, BEVESTIGD, VERVOLG). — B

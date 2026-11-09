@@ -140,6 +140,7 @@
     "histogram": "Histogramme",
     "toggleHistogram": "Histogramme",
     "warningsPanel": "Panneau des avertissements",
+    "scheduleShiftPanel": "Tâches décalées",
     "prevResource": "Précédente",
     "nextResource": "Suivante",
     "leveling": "Nivellement",
@@ -326,7 +327,7 @@
     "exportTitle": "Exporter",
     "exportSubtitle": "Choisissez un format. Le projet sera converti et enregistré.",
     "progressImportCardTitle": "Mettre à jour l'avancement depuis une feuille",
-    "progressImportCardDesc": "Lisez une feuille CSV ou XLSX renvoyée et mettez à jour l'avancement, le début réel et la fin réelle.",
+    "progressImportCardDesc": "Lisez une feuille XLSX renvoyée et mettez à jour l'avancement, le début réel et la fin réelle.",
     "printTitle": "Imprimer",
     "printSubtitle": "Ouvrez l'écran de rapport pour l'aperçu avant impression et les paramètres.",
     "openPrintPreview": "Ouvrir l'aperçu avant impression",
@@ -394,6 +395,9 @@
     "mspdiDesc": "À ouvrir dans Microsoft Project. Structure WBS complète.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pour Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Pour Oracle Primavera P6, sous forme de fichier .xer.",
+    "experimentalBadge": "Expérimental",
     "profileHint": "Votre projet utilise actuellement le profil {{name}}. Nous recommandons le profil {{target}} pour une meilleure compatibilité avec ce format de fichier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard buildingSMART, dans le schéma IFC du projet (par défaut IFC 4.3 ADD2). Liaison 4D avec les modèles BIM.",
@@ -448,5 +452,18 @@
     "redo": "Rétablir",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière"
+  },
+  "native": {
+    "window": "Fenêtre",
+    "quit": "Quitter Open Planner Studio",
+    "about": "À propos de Open Planner Studio",
+    "services": "Services",
+    "hide": "Masquer Open Planner Studio",
+    "hideOthers": "Masquer les autres",
+    "showAll": "Tout afficher",
+    "closeWindow": "Fermer la fenêtre",
+    "cut": "Couper",
+    "fullscreen": "Basculer en plein écran",
+    "bringAllToFront": "Tout mettre au premier plan"
   }
 }

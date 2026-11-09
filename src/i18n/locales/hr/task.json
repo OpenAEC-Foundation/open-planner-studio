@@ -84,6 +84,7 @@
       "explicitSummary": "Izričit zadatak sažetka",
       "externalRelationData": "Podaci međuzavisnosti projekata",
       "floatPath": "Put vremenske rezerve",
+      "calendarDays": "Kalendarski dani",
       "freeFloat": "Slobodni hod",
       "hammock": "Hamak (izvedeno trajanje)",
       "interferingFloat": "Ometajuća vremenska rezerva",
