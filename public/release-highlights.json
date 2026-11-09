@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "product": "open-planner-studio",
-  "generated": "2026-11-07T06:11:27.383Z",
+  "generated": "2026-11-09T12:33:14.036Z",
   "releases": [
     {
       "version": "2026.45.0",
       "tag": "v2026.45.0",
       "stats": {
-        "daysSincePrevious": 7,
-        "commitsSincePrevious": 444,
-        "addedCodeLines": 26399
+        "daysSincePrevious": 9,
+        "commitsSincePrevious": 710,
+        "addedCodeLines": 43514
       },
       "highlights": {
         "nl": {
@@ -42,7 +42,7 @@
             {
               "category": "WERKRUIMTE",
               "title": "Rustiger beeld, duidelijker bediening",
-              "description": "Neutrale grijstinten, OpenAEC-iconen, herkenbare baselines en native macOS-menu’s.",
+              "description": "Neutrale grijstinten, herkenbare baselines en native macOS-menu’s.",
               "icon": "tasks"
             }
           ]
@@ -77,7 +77,7 @@
             {
               "category": "WORKSPACE",
               "title": "Calmer views, clearer controls",
-              "description": "Neutral greys, OpenAEC icons, distinct baselines and native macOS menus.",
+              "description": "Neutral greys, distinct baselines and native macOS menus.",
               "icon": "tasks"
             }
           ]
@@ -112,7 +112,7 @@
             {
               "category": "ESPACE DE TRAVAIL",
               "title": "Une interface plus lisible",
-              "description": "Gris neutres, icônes OpenAEC, références distinctes et menus natifs macOS.",
+              "description": "Gris neutres, références distinctes et menus natifs macOS.",
               "icon": "tasks"
             }
           ]
@@ -147,7 +147,7 @@
             {
               "category": "ARBEITSBEREICH",
               "title": "Ruhigere Ansicht, klare Bedienung",
-              "description": "Neutrale Grautöne, OpenAEC-Symbole, unterscheidbare Basispläne und native macOS-Menüs.",
+              "description": "Neutrale Grautöne, unterscheidbare Basispläne und native macOS-Menüs.",
               "icon": "tasks"
             }
           ]
@@ -182,7 +182,7 @@
             {
               "category": "ESPACIO DE TRABAJO",
               "title": "Vistas más claras y controles cómodos",
-              "description": "Grises neutros, iconos OpenAEC, líneas base distinguibles y menús nativos de macOS.",
+              "description": "Grises neutros, líneas base distinguibles y menús nativos de macOS.",
               "icon": "tasks"
             }
           ]
@@ -217,7 +217,7 @@
             {
               "category": "工作区",
               "title": "更清晰的视图和操作",
-              "description": "中性灰色、OpenAEC 图标、易区分的基线和 macOS 原生菜单。",
+              "description": "中性灰色、易区分的基线和 macOS 原生菜单。",
               "icon": "tasks"
             }
           ]
@@ -252,7 +252,7 @@
             {
               "category": "AREA DI LAVORO",
               "title": "Viste più chiare e comandi più comodi",
-              "description": "Grigi neutri, icone OpenAEC, baseline distinguibili e menu nativi macOS.",
+              "description": "Grigi neutri, baseline distinguibili e menu nativi macOS.",
               "icon": "tasks"
             }
           ]
@@ -287,7 +287,7 @@
             {
               "category": "ÁREA DE TRABALHO",
               "title": "Vistas mais claras e comandos simples",
-              "description": "Cinzentos neutros, ícones OpenAEC, linhas de base distintas e menus nativos do macOS.",
+              "description": "Cinzentos neutros, linhas de base distintas e menus nativos do macOS.",
               "icon": "tasks"
             }
           ]
@@ -322,7 +322,7 @@
             {
               "category": "OBSZAR ROBOCZY",
               "title": "Czytelniejsze widoki i obsługa",
-              "description": "Neutralne szarości, ikony OpenAEC, rozróżnialne plany bazowe i natywne menu macOS.",
+              "description": "Neutralne szarości, rozróżnialne plany bazowe i natywne menu macOS.",
               "icon": "tasks"
             }
           ]
@@ -357,7 +357,7 @@
             {
               "category": "ÇALIŞMA ALANI",
               "title": "Daha sade görünüm, daha açık denetimler",
-              "description": "Nötr griler, OpenAEC simgeleri, ayırt edilebilir temel planlar ve yerel macOS menüleri.",
+              "description": "Nötr griler, ayırt edilebilir temel planlar ve yerel macOS menüleri.",
               "icon": "tasks"
             }
           ]
@@ -392,7 +392,7 @@
             {
               "category": "مساحة العمل",
               "title": "عرض أهدأ وتحكم أوضح",
-              "description": "درجات رمادية محايدة وأيقونات OpenAEC وخطوط أساس مميزة وقوائم macOS الأصلية.",
+              "description": "درجات رمادية محايدة وخطوط أساس مميزة وقوائم macOS الأصلية.",
               "icon": "tasks"
             }
           ]
@@ -427,7 +427,7 @@
             {
               "category": "ワークスペース",
               "title": "落ち着いた表示と分かりやすい操作",
-              "description": "中立的なグレー、OpenAEC アイコン、区別しやすいベースライン、macOS ネイティブメニュー。",
+              "description": "中立的なグレー、区別しやすいベースライン、macOS ネイティブメニュー。",
               "icon": "tasks"
             }
           ]
@@ -462,7 +462,7 @@
             {
               "category": "작업 공간",
               "title": "차분한 화면과 명확한 조작",
-              "description": "중성 회색, OpenAEC 아이콘, 구분하기 쉬운 기준선과 macOS 기본 메뉴.",
+              "description": "중성 회색, 구분하기 쉬운 기준선과 macOS 기본 메뉴.",
               "icon": "tasks"
             }
           ]
@@ -497,7 +497,7 @@
             {
               "category": "محیط کار",
               "title": "نمای آرام‌تر و کنترل روشن‌تر",
-              "description": "خاکستری‌های خنثی، نمادهای OpenAEC، خطوط مبنای متمایز و منوهای بومی macOS.",
+              "description": "خاکستری‌های خنثی، خطوط مبنای متمایز و منوهای بومی macOS.",
               "icon": "tasks"
             }
           ]
@@ -532,7 +532,7 @@
             {
               "category": "РАБОЧАЯ ОБЛАСТЬ",
               "title": "Спокойный вид, понятное управление",
-              "description": "Нейтральные серые тона, значки OpenAEC, различимые базовые планы и встроенные меню macOS.",
+              "description": "Нейтральные серые тона, различимые базовые планы и встроенные меню macOS.",
               "icon": "tasks"
             }
           ]
@@ -567,7 +567,7 @@
             {
               "category": "РОБОЧА ОБЛАСТЬ",
               "title": "Спокійніший вигляд і зрозуміле керування",
-              "description": "Нейтральні сірі тони, піктограми OpenAEC, розрізнювані базові плани та вбудовані меню macOS.",
+              "description": "Нейтральні сірі тони, розрізнювані базові плани та вбудовані меню macOS.",
               "icon": "tasks"
             }
           ]
@@ -602,7 +602,7 @@
             {
               "category": "PRACOVNÍ PROSTOR",
               "title": "Klidnější vzhled a jasné ovládání",
-              "description": "Neutrální šedá, ikony OpenAEC, rozlišitelné směrné plány a nativní nabídky macOS.",
+              "description": "Neutrální šedá, rozlišitelné směrné plány a nativní nabídky macOS.",
               "icon": "tasks"
             }
           ]
@@ -637,7 +637,7 @@
             {
               "category": "PRACOVNÝ PRIESTOR",
               "title": "Pokojnejší vzhľad a jasné ovládanie",
-              "description": "Neutrálne sivé odtiene, ikony OpenAEC, odlíšiteľné základné plány a natívne menu macOS.",
+              "description": "Neutrálne sivé odtiene, odlíšiteľné základné plány a natívne menu macOS.",
               "icon": "tasks"
             }
           ]
@@ -672,7 +672,7 @@
             {
               "category": "РАДНИ ПРОСТОР",
               "title": "Мирнији приказ и јасније команде",
-              "description": "Неутралне сиве нијансе, OpenAEC иконе, разлучиви основни планови и изворни macOS менији.",
+              "description": "Неутралне сиве нијансе, разлучиви основни планови и изворни macOS менији.",
               "icon": "tasks"
             }
           ]
@@ -707,7 +707,7 @@
             {
               "category": "RADNI PROSTOR",
               "title": "Mirniji prikaz i jasnije kontrole",
-              "description": "Neutralne sive nijanse, ikone OpenAEC, prepoznatljivi osnovni planovi i izvorni izbornici macOS-a.",
+              "description": "Neutralne sive nijanse, prepoznatljivi osnovni planovi i izvorni izbornici macOS-a.",
               "icon": "tasks"
             }
           ]
@@ -742,7 +742,7 @@
             {
               "category": "РАБОТНО ПРОСТРАНСТВО",
               "title": "По-спокоен изглед и ясни контроли",
-              "description": "Неутрални сиви тонове, икони OpenAEC, различими базови планове и вградени менюта на macOS.",
+              "description": "Неутрални сиви тонове, различими базови планове и вградени менюта на macOS.",
               "icon": "tasks"
             }
           ]
@@ -777,7 +777,7 @@
             {
               "category": "MUNKATERÜLET",
               "title": "Nyugodtabb nézet, egyértelmű vezérlés",
-              "description": "Semleges szürkék, OpenAEC-ikonok, megkülönböztethető alaptervek és natív macOS-menük.",
+              "description": "Semleges szürkék, megkülönböztethető alaptervek és natív macOS-menük.",
               "icon": "tasks"
             }
           ]
@@ -812,7 +812,7 @@
             {
               "category": "SPAȚIU DE LUCRU",
               "title": "Vederi mai clare și comenzi simple",
-              "description": "Griuri neutre, pictograme OpenAEC, planuri de referință distincte și meniuri native macOS.",
+              "description": "Griuri neutre, planuri de referință distincte și meniuri native macOS.",
               "icon": "tasks"
             }
           ]
@@ -847,7 +847,7 @@
             {
               "category": "ARBETSUTRYMME",
               "title": "Lugnare vyer och tydligare reglage",
-              "description": "Neutrala gråtoner, OpenAEC-ikoner, urskiljbara baslinjer och inbyggda macOS-menyer.",
+              "description": "Neutrala gråtoner, urskiljbara baslinjer och inbyggda macOS-menyer.",
               "icon": "tasks"
             }
           ]
@@ -882,7 +882,7 @@
             {
               "category": "ARBEIDSOMRÅDE",
               "title": "Roligere visning og tydelige kontroller",
-              "description": "Nøytrale gråtoner, OpenAEC-ikoner, baselinjer som kan skilles fra hverandre, og innebygde macOS-menyer.",
+              "description": "Nøytrale gråtoner, baselinjer som kan skilles fra hverandre, og innebygde macOS-menyer.",
               "icon": "tasks"
             }
           ]
@@ -917,7 +917,7 @@
             {
               "category": "ARBEJDSOMRÅDE",
               "title": "Roligere visning og tydelig betjening",
-              "description": "Neutrale gråtoner, OpenAEC-ikoner, genkendelige basislinjer og indbyggede macOS-menuer.",
+              "description": "Neutrale gråtoner, genkendelige basislinjer og indbyggede macOS-menuer.",
               "icon": "tasks"
             }
           ]
@@ -952,7 +952,7 @@
             {
               "category": "TYÖTILA",
               "title": "Rauhallisempi näkymä ja selkeät toiminnot",
-              "description": "Neutraalit harmaat, OpenAEC-kuvakkeet, erottuvat perusaikataulut ja macOS:n omat valikot.",
+              "description": "Neutraalit harmaat, erottuvat perusaikataulut ja macOS:n omat valikot.",
               "icon": "tasks"
             }
           ]
@@ -987,7 +987,7 @@
             {
               "category": "ພື້ນທີ່ເຮັດວຽກ",
               "title": "ພາບທີ່ສະບາຍຕາ ແລະ ຄວບຄຸມງ່າຍ",
-              "description": "ສີເທົາກາງ, ໄອຄອນ OpenAEC, ແຜນຖານທີ່ແຍກໄດ້ຊັດ ແລະ ເມນູ macOS ແບບດັ້ງເດີມ.",
+              "description": "ສີເທົາກາງ, ແຜນຖານທີ່ແຍກໄດ້ຊັດ ແລະ ເມນູ macOS ແບບດັ້ງເດີມ.",
               "icon": "tasks"
             }
           ]

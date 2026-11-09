@@ -131,6 +131,7 @@ export function retainActiveDocument(loaded: ImportResult, active: ActiveDocumen
     ...(active.project.ifcSchema !== undefined ? { ifcSchema: active.project.ifcSchema } : {}),
     ...(active.project.ifcSchemaUnconfirmed !== undefined ? { ifcSchemaUnconfirmed: active.project.ifcSchemaUnconfirmed } : {}),
     ...(p6ProjectCode ? { p6ProjectCode } : {}),
+    ...(active.project.dependentProjectsFolder ? { dependentProjectsFolder: active.project.dependentProjectsFolder } : {}),
   };
 
   // Kalenders. Eerst gaat de kalender die de extensie meestuurt (`calendar`) de bibliotheek in, met de

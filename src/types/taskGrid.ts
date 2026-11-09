@@ -26,6 +26,9 @@ export interface TaskGridColumnPreference {
   id: TaskColumnId;
   width: number;
   pinned: boolean;
+  /** Door de gebruiker versleept: met de instelling "Kolommen automatisch aanpassen" blijft deze
+   *  breedte staan. Alleen aanwezig als `true`; een dubbelklik op de rand (optimale breedte) wist hem. */
+  manualWidth?: boolean;
 }
 
 export interface TaskGridSurfacePreferences {

@@ -13,6 +13,8 @@
     "dismiss": "Fechar notificação",
     "taskEditRevertBlocked": "Uma alteração do cliente MCP ou de uma extensão ocorreu entretanto. As alterações da tarefa feitas antes não foram revertidas e continuam como passos normais em Desfazer.",
     "openFailed": "Falha ao abrir o ficheiro",
+    "fileDropRefused": "Não aberto: {{names}}. A aplicação só abre IFC, XML, MPP, XER e CSV.",
+    "fileDropBlocked": "Não aberto: {{names}}. Feche primeiro a janela aberta.",
     "csvInvalidDate": "CSV não aberto: data não reconhecida \"{{value}}\" na linha CSV {{row}}, coluna \"{{column}}\". Use aaaa-mm-dd, dd-mm-aaaa ou dd/mm/aaaa.",
     "extGuideCallbackFailed": "Um passo da extensão {{name}} falhou. O guia continua.",
     "extHelpProjectOpenFailed": "Não foi possível abrir o ficheiro de projeto {{file}} da extensão {{name}}.",
@@ -414,7 +416,10 @@
       "capacitySteps_many": "{{count}} recursos com passos de capacidade: só a capacidade fixa segue",
       "capacitySteps_other": "{{count}} recursos com passos de capacidade: só a capacidade fixa segue",
       "projectDetails": "Autor e empresa do projeto"
-    }
+    },
+    "dependentProjectsFound": "Projetos dependentes: {{projects}}. Ligações a este projeto: {{links}}.",
+    "dependentProjectsNone": "Não foram encontrados projetos com uma relação externa a este cronograma.",
+    "dependentProjectsFailed": "Não foi possível ler a pasta com os projetos dependentes."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -851,6 +856,9 @@
     "missedDeadlines": "{{count}} prazo(s) ultrapassado(s)",
     "violatedConstraints": "{{count}} restrição(ões) violada(s)",
     "outOfSequence": "{{count}} relação(ões) fora de sequência",
+    "externalSuccessors_one": "{{count}} sucessor externo demasiado apertado",
+    "externalSuccessors_many": "{{count}} sucessores externos demasiado apertados",
+    "externalSuccessors_other": "{{count}} sucessores externos demasiado apertados",
     "overallocated": "{{count}} recurso(s) sobrealocado(s)",
     "summary_one": "{{count}} aviso",
     "summary_many": "{{count}} avisos",
@@ -869,6 +877,10 @@
       "scheduleError": "Não foi possível calcular o planeamento: {{message}}",
       "missedDeadline": "Prazo {{deadline}} ultrapassado — fim antecipado {{finish}}",
       "violatedConstraint": "A restrição {{constraint}} é ultrapassada pela lógica (folga negativa)",
+      "externalSuccessorViolatedSF": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): termina o mais tardar em {{anchor}}, esta tarefa só começa em {{own}}",
+      "externalSuccessorViolatedFF": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): termina o mais tardar em {{anchor}}, esta tarefa só termina em {{own}}",
+      "externalSuccessorViolatedSS": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): começa o mais tardar em {{anchor}}, esta tarefa só começa em {{own}}",
+      "externalSuccessorViolatedFS": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): começa o mais tardar em {{anchor}}, esta tarefa só termina em {{own}}",
       "outOfSequence": "Fora de sequência: o progresso do sucessor contradiz a relação",
       "truncatedLead": "Avanço truncado pelo início do projeto — a relação não é totalmente respeitada",
       "droppedSequence": "Relação ignorada: o predecessor ou o sucessor está em falta ou não é uma tarefa folha",
@@ -1449,7 +1461,6 @@
     "detailConstraints": "datas de restrição",
     "detailDeadlines": "prazos",
     "detailActuals": "datas reais",
-    "detailExternal": "âncoras externas",
     "detailSteps": "escalões de capacidade",
     "warnActuals_one": "{{count}} tarefa tem datas reais de início/fim; estas deslocam-se também. Verifique se isso está correto para um projeto em curso.",
     "warnActuals_many": "{{count}} tarefas têm datas reais de início/fim; estas deslocam-se também. Verifique se isso está correto para um projeto em curso.",
@@ -1457,9 +1468,6 @@
     "warnHardPins_one": "{{count}} tarefa tem uma restrição Obrigatória rígida; essa fixação desloca-se também.",
     "warnHardPins_many": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
     "warnHardPins_other": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
-    "warnExternal_one": "{{count}} relação externa: a sua âncora desloca-se, mas o projeto de origem não. Atualize a ligação após a mudança.",
-    "warnExternal_many": "{{count}} relações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
-    "warnExternal_other": "{{count}} relações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
     "warnHolidayGap": "Os feriados gerados do calendário «{{name}}» abrangem {{from}}–{{to}}; o planeamento deslocado vai até {{year}}. Volte a gerar os feriados.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de data preenchido mantém a sua data.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de data preenchidos mantêm a sua data.",
@@ -1983,5 +1991,19 @@
       "hammock": "Segue as tarefas ligadas",
       "unknown": "Motivo não apurado"
     }
+  },
+  "fileDrop": {
+    "title": "Largue para abrir",
+    "subtitle": "Ficheiro de projeto ou importação"
+  },
+  "dependentAnchorWarning": {
+    "title": "As ancoragens de outros projetos ficam mais apertadas",
+    "body": "Estes projetos dependem de uma data deste cronograma. Depois de guardar, recebem uma data mais apertada quando atualizarem as suas relações externas.",
+    "colProject": "Projeto",
+    "colTheirTask": "Tarefa deles",
+    "colOwnTask": "Tarefa aqui",
+    "colAnchor": "Ancoragem: antiga → nova",
+    "saveAnyway": "Guardar mesmo assim",
+    "cancel": "Cancelar"
   }
 }

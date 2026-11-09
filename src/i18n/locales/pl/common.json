@@ -13,6 +13,8 @@
     "dismiss": "Zamknij powiadomienie",
     "taskEditRevertBlocked": "W międzyczasie przyszła zmiana od klienta MCP lub rozszerzenia. Zmiany zadania wykonane wcześniej nie zostały cofnięte. Pozostają jako zwykłe kroki pod Cofnij.",
     "openFailed": "Nie udało się otworzyć pliku",
+    "fileDropRefused": "Nie otwarto: {{names}}. Aplikacja otwiera tylko pliki IFC, XML, MPP, XER i CSV.",
+    "fileDropBlocked": "Nie otwarto: {{names}}. Najpierw zamknij otwarte okno.",
     "csvInvalidDate": "Nie otwarto pliku CSV: nierozpoznana data \"{{value}}\" w wierszu CSV {{row}}, kolumna \"{{column}}\". Użyj formatu rrrr-mm-dd, dd-mm-rrrr lub dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozszerzenia {{name}} zakończył się błędem. Przewodnik działa dalej.",
     "extHelpProjectOpenFailed": "Nie udało się otworzyć pliku projektu {{file}} z rozszerzenia {{name}}.",
@@ -510,7 +512,10 @@
       "capacitySteps_many": "{{count}} zasobów ze stopniami zdolności: przenosi się tylko stała zdolność",
       "capacitySteps_other": "{{count}} zasobu ze stopniami zdolności: przenosi się tylko stała zdolność",
       "projectDetails": "Autor i firma projektu"
-    }
+    },
+    "dependentProjectsFound": "Projekty zależne: {{projects}}. Powiązania z tym projektem: {{links}}.",
+    "dependentProjectsNone": "Nie znaleziono projektów z relacją zewnętrzną do tego harmonogramu.",
+    "dependentProjectsFailed": "Nie można odczytać folderu z projektami zależnymi."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -949,6 +954,10 @@
     "missedDeadlines": "Przekroczone terminy: {{count}}",
     "violatedConstraints": "Naruszone ograniczenia: {{count}}",
     "outOfSequence": "Relacje poza kolejnością: {{count}}",
+    "externalSuccessors_one": "Zewnętrzne następniki ze zbyt małą rezerwą: {{count}}",
+    "externalSuccessors_few": "Zewnętrzne następniki ze zbyt małą rezerwą: {{count}}",
+    "externalSuccessors_many": "Zewnętrzne następniki ze zbyt małą rezerwą: {{count}}",
+    "externalSuccessors_other": "Zewnętrzne następniki ze zbyt małą rezerwą: {{count}}",
     "overallocated": "Przeciążone zasoby: {{count}}",
     "summary_one": "{{count}} ostrzeżenie",
     "summary_few": "{{count}} ostrzeżenia",
@@ -968,6 +977,10 @@
       "scheduleError": "Nie udało się obliczyć harmonogramu: {{message}}",
       "missedDeadline": "Przekroczono termin {{deadline}} — najwcześniejsze zakończenie {{finish}}",
       "violatedConstraint": "Ograniczenie {{constraint}} jest nadpisywane przez logikę (ujemny zapas)",
+      "externalSuccessorViolatedSF": "Za mała rezerwa dla zewnętrznego następnika {{task}} ({{project}}, {{relation}}): kończy się najpóźniej {{anchor}}, to zadanie rozpoczyna się dopiero {{own}}",
+      "externalSuccessorViolatedFF": "Za mała rezerwa dla zewnętrznego następnika {{task}} ({{project}}, {{relation}}): kończy się najpóźniej {{anchor}}, to zadanie kończy się dopiero {{own}}",
+      "externalSuccessorViolatedSS": "Za mała rezerwa dla zewnętrznego następnika {{task}} ({{project}}, {{relation}}): rozpoczyna się najpóźniej {{anchor}}, to zadanie rozpoczyna się dopiero {{own}}",
+      "externalSuccessorViolatedFS": "Za mała rezerwa dla zewnętrznego następnika {{task}} ({{project}}, {{relation}}): rozpoczyna się najpóźniej {{anchor}}, to zadanie kończy się dopiero {{own}}",
       "outOfSequence": "Poza kolejnością: postęp następnika przeczy relacji",
       "truncatedLead": "Wyprzedzenie obcięte przez start projektu — relacja nie jest w pełni zachowana",
       "droppedSequence": "Relacja zignorowana: brakuje poprzednika lub następnika albo nie jest zadaniem liściem",
@@ -1557,7 +1570,6 @@
     "detailConstraints": "daty ograniczeń",
     "detailDeadlines": "terminy",
     "detailActuals": "daty rzeczywiste",
-    "detailExternal": "kotwice zewnętrzne",
     "detailSteps": "progi dostępności",
     "warnActuals_one": "{{count}} zadanie ma rzeczywiste daty rozpoczęcia/zakończenia; one również się przesuną. Sprawdź, czy jest to właściwe dla trwającego projektu.",
     "warnActuals_few": "{{count}} zadania mają rzeczywiste daty rozpoczęcia/zakończenia; one również się przesuną. Sprawdź, czy jest to właściwe dla trwającego projektu.",
@@ -1567,10 +1579,6 @@
     "warnHardPins_few": "{{count}} zadania mają twarde ograniczenie Obowiązkowe; te kotwice również się przesuną.",
     "warnHardPins_many": "{{count}} zadań ma twarde ograniczenie Obowiązkowe; te kotwice również się przesuną.",
     "warnHardPins_other": "{{count}} zadania ma twarde ograniczenie Obowiązkowe; ta kotwica również się przesunie.",
-    "warnExternal_one": "{{count}} relacja zewnętrzna: jej kotwica przesuwa się, ale projekt źródłowy nie. Odśwież relację po przesunięciu.",
-    "warnExternal_few": "{{count}} relacje zewnętrzne: ich kotwice przesuwają się, ale projekty źródłowe nie. Odśwież relacje po przesunięciu.",
-    "warnExternal_many": "{{count}} relacji zewnętrznych: ich kotwice przesuwają się, ale projekty źródłowe nie. Odśwież relacje po przesunięciu.",
-    "warnExternal_other": "{{count}} relacji zewnętrznej: jej kotwica przesuwa się, ale projekt źródłowy nie. Odśwież relację po przesunięciu.",
     "warnHolidayGap": "Wygenerowane dni wolne kalendarza „{{name}}” obejmują {{from}}–{{to}}; przesunięty harmonogram sięga {{year}}. Wygeneruj dni wolne ponownie.",
     "warnCustomDateFields_one": "{{count}} wypełnione pole niestandardowe typu data zachowuje swoją datę.",
     "warnCustomDateFields_few": "{{count}} wypełnione pola niestandardowe typu data zachowują swoją datę.",
@@ -2107,5 +2115,19 @@
       "hammock": "Podąża za powiązanymi zadaniami",
       "unknown": "Powód nieustalony"
     }
+  },
+  "fileDrop": {
+    "title": "Upuść, aby otworzyć",
+    "subtitle": "Plik projektu lub import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Zakotwiczenia innych projektów stają się ciaśniejsze",
+    "body": "Te projekty zależą od daty z tego harmonogramu. Po zapisaniu otrzymają ciaśniejszą datę, gdy odświeżą swoje relacje zewnętrzne.",
+    "colProject": "Projekt",
+    "colTheirTask": "Ich zadanie",
+    "colOwnTask": "Zadanie tutaj",
+    "colAnchor": "Zakotwiczenie: stare → nowe",
+    "saveAnyway": "Zapisz mimo to",
+    "cancel": "Anuluj"
   }
 }

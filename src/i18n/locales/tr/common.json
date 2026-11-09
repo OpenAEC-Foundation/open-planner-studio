@@ -13,6 +13,8 @@
     "dismiss": "Bildirimi kapat",
     "taskEditRevertBlocked": "Bu sırada bir MCP-istemcisinden veya bir uzantıdan değişiklik geldi. Bundan önceki görev düzenlemeleri geri alınmadı ve Geri al altında normal adımlar olarak duruyor.",
     "openFailed": "Dosya açılamadı",
+    "fileDropRefused": "Açılmadı: {{names}}. Uygulama yalnızca IFC, XML, MPP, XER ve CSV dosyalarını açar.",
+    "fileDropBlocked": "Açılmadı: {{names}}. Önce açık pencereyi kapatın.",
     "csvInvalidDate": "CSV açılmadı: okunamayan tarih \"{{value}}\" CSV satır {{row}}, sütun \"{{column}}\" içinde. yyyy-aa-gg, gg-aa-yyyy veya gg/aa/yyyy biçimini kullanın.",
     "extGuideCallbackFailed": "{{name}} uzantısının bir adımı başarısız oldu. Rehber devam ediyor.",
     "extHelpProjectOpenFailed": "{{name}} uzantısının {{file}} proje dosyası açılamadı.",
@@ -318,7 +320,10 @@
       "capacitySteps_one": "{{count}} kaynakta kapasite basamağı var: yalnızca sabit kapasite korunur",
       "capacitySteps_other": "{{count}} kaynakta kapasite basamağı var: yalnızca sabit kapasite korunur",
       "projectDetails": "Projenin yazarı ve şirketi"
-    }
+    },
+    "dependentProjectsFound": "Bağımlı projeler: {{projects}}. Bu projeye bağlantılar: {{links}}.",
+    "dependentProjectsNone": "Bu planlamaya dış ilişkisi olan proje bulunamadı.",
+    "dependentProjectsFailed": "Bağımlı projelerin bulunduğu klasör okunamadı."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
@@ -753,6 +758,8 @@
     "missedDeadlines": "{{count}} son tarih aşıldı",
     "violatedConstraints": "{{count}} kısıtlama ihlal edildi",
     "outOfSequence": "{{count}} sıra dışı ilerleme",
+    "externalSuccessors_one": "{{count}} dış ardıl çok sıkı",
+    "externalSuccessors_other": "{{count}} dış ardıl çok sıkı",
     "overallocated": "{{count}} kaynak aşırı atanmış",
     "summary_one": "{{count}} uyarı",
     "summary_other": "{{count}} uyarı"
@@ -770,6 +777,10 @@
       "scheduleError": "Program hesaplanamadı: {{message}}",
       "missedDeadline": "Son tarih {{deadline}} kaçırıldı — erken bitiş {{finish}}",
       "violatedConstraint": "{{constraint}} kısıtlaması mantık tarafından aşılıyor (negatif bolluk)",
+      "externalSuccessorViolatedSF": "Dış ardıl {{task}} ({{project}}, {{relation}}) için çok sıkı: en geç {{anchor}} tarihinde bitiyor, bu görev ancak {{own}} tarihinde başlıyor",
+      "externalSuccessorViolatedFF": "Dış ardıl {{task}} ({{project}}, {{relation}}) için çok sıkı: en geç {{anchor}} tarihinde bitiyor, bu görev ancak {{own}} tarihinde bitiyor",
+      "externalSuccessorViolatedSS": "Dış ardıl {{task}} ({{project}}, {{relation}}) için çok sıkı: en geç {{anchor}} tarihinde başlıyor, bu görev ancak {{own}} tarihinde başlıyor",
+      "externalSuccessorViolatedFS": "Dış ardıl {{task}} ({{project}}, {{relation}}) için çok sıkı: en geç {{anchor}} tarihinde başlıyor, bu görev ancak {{own}} tarihinde bitiyor",
       "outOfSequence": "Sıra dışı: ardılın ilerlemesi ilişkiyle çelişiyor",
       "truncatedLead": "Öncelik proje başlangıcıyla kesildi — ilişki tam olarak uygulanmıyor",
       "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl eksik ya da yaprak görev değil",
@@ -1341,14 +1352,11 @@
     "detailConstraints": "kısıtlamalar",
     "detailDeadlines": "son tarihler",
     "detailActuals": "gerçek tarihler",
-    "detailExternal": "dış çıpalar",
     "detailSteps": "kapasite kademeleri",
     "warnActuals_one": "{{count}} görevin gerçek başlangıç/bitiş tarihi var; bu tarih de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
     "warnActuals_other": "{{count}} görevin gerçek başlangıç/bitiş tarihi var; bu tarihler de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
     "warnHardPins_one": "{{count}} görevde katı Zorunlu kısıt var; bu sabitleme de kayar.",
     "warnHardPins_other": "{{count}} görevde katı Zorunlu kısıt var; bu sabitlemeler de kayar.",
-    "warnExternal_one": "{{count}} dış ilişki: çıpası kayar, ancak kaynak proje kaymaz. Taşımadan sonra bağlantıyı yenileyin.",
-    "warnExternal_other": "{{count}} dış ilişki: çıpaları kayar, ancak kaynak projeler kaymaz. Taşımadan sonra bağlantıları yenileyin.",
     "warnHolidayGap": "“{{name}}” takviminin oluşturulan tatilleri {{from}}–{{to}} aralığını kapsıyor; kaydırılan plan {{year}} yılına kadar sürüyor. Tatilleri yeniden oluşturun.",
     "warnCustomDateFields_one": "Doldurulmuş {{count}} özel tarih alanı tarihini korur.",
     "warnCustomDateFields_other": "Doldurulmuş {{count}} özel tarih alanı tarihlerini korur.",
@@ -1859,5 +1867,19 @@
       "hammock": "Bağlı görevleri izler",
       "unknown": "Neden belirlenmedi"
     }
+  },
+  "fileDrop": {
+    "title": "Açmak için bırakın",
+    "subtitle": "Proje dosyası veya içe aktarma"
+  },
+  "dependentAnchorWarning": {
+    "title": "Diğer projelerin bağlantı noktaları daralıyor",
+    "body": "Bu projeler bu planlamadaki bir tarihe dayanır. Kaydettikten sonra dış ilişkilerini yenilediklerinde daha dar bir tarih alırlar.",
+    "colProject": "Proje",
+    "colTheirTask": "Oradaki görev",
+    "colOwnTask": "Buradaki görev",
+    "colAnchor": "Bağlantı noktası: eski → yeni",
+    "saveAnyway": "Yine de kaydet",
+    "cancel": "İptal"
   }
 }

@@ -154,6 +154,7 @@
     "barsGroup": "Palkit",
     "manageBaselines": "Hallitse perustason suunnitelmia…",
     "statusDate": "Raportointipäivä",
+    "statusDateValue": "Raportointipäivä: {{date}}",
     "statusDateClear": "Tyhjennä raportointipäivä",
     "statusDateTime": "Raportointipäivän aika",
     "statusDateTimeLater": "Myöhempi aika",
@@ -218,7 +219,9 @@
     "screenColorsMissingField": "Tätä kenttää ei ole tässä projektissa. Työlajia käytetään väliaikaisesti.",
     "screenColorsHint": "Muualla kuin tilassa Kriittinen polku punainen reunus merkitsee kriittisen polun.",
     "addLayout": "Uusi asettelu",
-    "toggleRelations": "Riippuvuusviivat"
+    "toggleRelations": "Riippuvuusviivat",
+    "relationFindDependents": "Etsi riippuvaiset projektit…",
+    "relationFindDependentsHint": "Etsi kansiosta projektit, joilla on ulkoinen riippuvuus tähän aikatauluun."
   },
   "ifc": {
     "title": "IFC-muokkain",

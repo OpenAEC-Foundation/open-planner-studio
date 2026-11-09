@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -8,7 +8,7 @@ import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
-import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { EXTENSIONS_ENABLED, FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
@@ -32,6 +32,10 @@ import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useSiteInitialFile } from '@/hooks/useSiteInitialFile';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
+import { useExternalSourceCheck } from '@/hooks/useExternalSourceCheck';
+import { useDependentProjectsAutoSearch } from '@/hooks/useDependentProjectsAutoSearch';
+import { installDependentAnchorAsker } from '@/state/dependentAnchorQuestionBridge';
+import { useExternalSourceWatch } from '@/hooks/useExternalSourceWatch';
 import { useExitRecordedDates } from '@/hooks/useExitRecordedDates';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
@@ -42,6 +46,7 @@ import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
@@ -49,7 +54,9 @@ import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
+import { ExternalSourceNotice } from '@/components/layout/ExternalSourceNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
+import { FileDropOverlay } from '@/components/layout/FileDropOverlay';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
 
 // Code-splitting: componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
@@ -78,17 +85,20 @@ const PhaseAssignmentDialog = lazy(() => import('@/components/dialogs/PhaseAssig
 const SiteOpenDialog = lazy(() => import('@/components/dialogs/SiteOpenDialog').then(m => ({ default: m.SiteOpenDialog })));
 const FormatNoticeDialog = lazy(() => import('@/components/dialogs/FormatNoticeDialog').then(m => ({ default: m.FormatNoticeDialog })));
 const SiteSaveDialog = lazy(() => import('@/components/dialogs/SiteSaveDialog').then(m => ({ default: m.SiteSaveDialog })));
+const DependentAnchorWarningDialog = lazy(() => import('@/components/dialogs/DependentAnchorWarningDialog').then(m => ({ default: m.DependentAnchorWarningDialog })));
 const IfcSchemaQuestionDialog = lazy(() => import('@/components/dialogs/IfcSchemaQuestionDialog').then(m => ({ default: m.IfcSchemaQuestionDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
 const MoveProjectDialog = lazy(() => import('@/components/dialogs/MoveProjectDialog').then(m => ({ default: m.MoveProjectDialog })));
+const ExternalSourceReviewDialog = lazy(() => import('@/components/dialogs/ExternalSourceReviewDialog').then(m => ({ default: m.ExternalSourceReviewDialog })));
 const ColumnsDialog = lazy(() => import('@/components/dialogs/ColumnsDialog').then(m => ({ default: m.ColumnsDialog })));
 const FilterDialog = lazy(() => import('@/components/dialogs/FilterDialog').then(m => ({ default: m.FilterDialog })));
 const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').then(m => ({ default: m.LayoutsDialog })));
 const ShortcutsDialog = lazy(() => import('@/components/dialogs/ShortcutsDialog').then(m => ({ default: m.ShortcutsDialog })));
 const BenchmarkDialog = lazy(() => import('@/components/dialogs/BenchmarkDialog').then(m => ({ default: m.BenchmarkDialog })));
 const StatsDialog = lazy(() => import('@/components/dialogs/StatsDialog').then(m => ({ default: m.StatsDialog })));
+const SettingsDelayDialog = lazy(() => import('@/components/dialogs/SettingsDelayDialog').then(m => ({ default: m.SettingsDelayDialog })));
 const PoolImportDialog = lazy(() => import('@/components/dialogs/PoolImportDialog').then(m => ({ default: m.PoolImportDialog })));
 const ProgressImportDialog = lazy(() => import('@/components/dialogs/ProgressImportDialog').then(m => ({ default: m.ProgressImportDialog })));
 const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDialog').then(m => ({ default: m.LibraryLinkDialog })));
@@ -127,6 +137,8 @@ function AppContent() {
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
+  const externalSourceReview = useAppStore(s => s.ui.externalSourceReview);
+  const pendingDependentAnchorWarning = useAppStore(s => s.ui.pendingDependentAnchorWarning !== null);
   const showProgressImportDialog = useAppStore(s => s.ui.showProgressImportDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
@@ -134,6 +146,7 @@ function AppContent() {
   const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
   const showBenchmarkDialog = useAppStore(s => s.ui.showBenchmarkDialog);
   const showStatsDialog = useAppStore(s => s.ui.showStatsDialog);
+  const showSettingsDelayDialog = useAppStore(s => s.ui.showSettingsDelayDialog);
   const pendingFormatNotice = useAppStore(s => s.ui.pendingFormatNotice);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
@@ -179,6 +192,9 @@ function AppContent() {
   // De schemavraag bij opslaan (issue #292): zonder deze registratie houdt opslaan stil het schema van
   // het bestand (de veilige terugval), maar dan krijgt de gebruiker de keuze niet.
   useEffect(() => { installIfcSchemaAsker(); }, []);
+  // De waarschuwing vóór opslaan over te krappe ankers van afhankelijke projecten (stap 1.11). Zonder
+  // deze registratie slaat de app zonder vraag op.
+  useEffect(() => { installDependentAnchorAsker(); }, []);
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
@@ -213,6 +229,11 @@ function AppContent() {
 
   // Automatisch berekenen: runCPM zodra de planning verouderd raakt (als de instelling aanstaat).
   useAutoCalcCPM();
+  // Stap 1.5: een nieuwe versie van een bron opmerken bij openen en als het venster weer actief wordt.
+  useExternalSourceCheck();
+  useDependentProjectsAutoSearch();
+  // Stap 1.6: in de desktop-app de map van elk bronbestand bewaken, zodat de balk meteen komt.
+  useExternalSourceWatch();
 
   // "Datums zoals opgeslagen": rekent één keer door zodra de modus via een BEWERKING
   // wordt verlaten — F5 en de strook zelf roepen runCPM al rechtstreeks aan, dit dekt de rest.
@@ -242,6 +263,13 @@ function AppContent() {
   useEffect(() => {
     applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
+
+  // Iconenfamilie op <html> (#844): zonder B2 gelden de CSS-regels van vóór #765 (`[data-icons="lucide"]`).
+  // Vóór de eerste paint, zodat er geen B2-kleur doorheen flitst.
+  const b2Icons = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'b2-icons'));
+  useLayoutEffect(() => {
+    document.documentElement.dataset.icons = b2Icons ? 'b2' : 'lucide';
+  }, [b2Icons]);
 
   // Lettertype-interface toepassen: de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css
@@ -315,6 +343,8 @@ function AppContent() {
         {/* Gebruikersmeldingen — óók in de presentatiemodus: hier is verder geen
             chrome, dus een stille opslaafout mag juist niet onzichtbaar worden. */}
         <NotificationHost />
+        {/* Slepen en neerzetten: ook hier, anders opent de browser een gesleept bestand zelf. */}
+        <FileDropOverlay />
       </div>
     );
   }
@@ -347,6 +377,9 @@ function AppContent() {
             `activeTab === 'file'`-vertakking (net als de meldingen hierboven), zodat de strook
             zichtbaar blijft in élke weergave — Gantt, tabel, rapport én Backstage. */}
         <RecordedDatesNotice />
+
+        {/* Nieuwe versie van een bron (stap 1.5): per bron een strook met Bekijken en Later. */}
+        <ExternalSourceNotice />
       </div>
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
@@ -441,21 +474,25 @@ function AppContent() {
         {showSettingsDialog && <SettingsDialog />}
         {showCalendarDialog && <CalendarDialog />}
         {showStructureDialog && <StructureDialog />}
-        {showFeedbackDialog && <FeedbackDialog />}
+        {/* Feedback en updates ontbreken in de platformbouw (#818, `buildFlags.ts`). */}
+        {FEEDBACK_AVAILABLE && showFeedbackDialog && <FeedbackDialog />}
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
+        {externalSourceReview !== null && <ExternalSourceReviewDialog />}
         {showColumnsDialog && activeTab !== 'table' && <ColumnsDialog />}
         {showFilterDialog && <FilterDialog />}
         {showLayoutsDialog && <LayoutsDialog />}
         {showShortcutsDialog && <ShortcutsDialog />}
         {showBenchmarkDialog && <BenchmarkDialog />}
         {showStatsDialog && <StatsDialog />}
+        {/* Ingebed (#818): de instellingen van de host kwamen niet op tijd; de app wacht verder. */}
+        {showSettingsDelayDialog && <SettingsDelayDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
         {/* Tutorialvraag na een voltooide rondleiding (eenmalig, `state/onboarding.ts`). Vóór de
             toestemmingsdialoog gemount: die stapelt er bij "Ja" bovenop. */}
         {EXTENSIONS_ENABLED && showTutorialOffer && <TutorialOfferDialog />}
-        <UpdateDialog />
+        {UPDATES_AVAILABLE && <UpdateDialog />}
         <PoolImportDialog />
         {/* Voorwaardelijk gemount — anders dan PoolImportDialog, die permanent
             gemount blijft en intern op `!open` teruggeeft. Bij deze dialoog is dat verschil van
@@ -479,6 +516,8 @@ function AppContent() {
         <SiteSaveDialog />
         {/* De schemavraag bij opslaan (issue #292): rendert alleen bij `ui.pendingIfcSchemaQuestion`. */}
         <IfcSchemaQuestionDialog />
+        {/* Te krappe ankers van afhankelijke projecten vóór opslaan (stap 1.11). */}
+        {pendingDependentAnchorWarning && <DependentAnchorWarningDialog />}
         {/* Uitleg na het openen van een ander formaat dan IFC; `key` = vinkje leeg bij elke nieuwe uitleg. */}
         {pendingFormatNotice && <FormatNoticeDialog key={pendingFormatNotice} kind={pendingFormatNotice} />}
         <LibraryLinkDialog />
@@ -494,7 +533,7 @@ function AppContent() {
         {/* Pas na de hele eerste-startervaring (`isOnboardingActive`): niet in het venster waarin de
             welkomst nog op komst is, niet onder de rondleiding (z 9997, zou de dialoog onklikbaar
             maken) en niet onder de tutorialvraag. */}
-        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
+        {UPDATES_AVAILABLE && justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
           && <JustUpdatedDialog />}
       </Suspense>
 
@@ -521,6 +560,10 @@ function AppContent() {
         <NotificationHost />
         <TooltipHost />
       </div>
+
+      {/* Slepen en neerzetten (#771): de laag "Laat los om te openen". Buiten het `inert`-blok: een
+          inert element krijgt geen sleep-events. */}
+      <FileDropOverlay />
     </div>
   );
 }

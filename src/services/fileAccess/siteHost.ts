@@ -23,6 +23,26 @@
  * beide (de parent alleen als die same-origin is). Anders mist de tool het startbestand als zijn
  * opstartcontrole al voorbij is.
  *
+ * ## Twee vormen: `storage` en de SuperCloud-vorm (#818)
+ *
+ * Een host levert de opslag op één van twee manieren. De tool kiest per host, bij elk gebruik:
+ *
+ *  1. De `storage`-vorm (hieronder beschreven): de vier functies staan op `host.storage`. Is
+ *     `host.storage` geldig, dan wint die altijd.
+ *  2. De SuperCloud-vorm: de functies staan direct op de host, met een andere vorm:
+ *     `open(id, version?)` geeft `{ id, name, version, readOnly, bytes }`, `save(bytes, { id?, name?,
+ *     expectedVersion? })` geeft `{ id, name, version }`, `list()` en `versions(id)`. Versies mogen een
+ *     getal zijn. `superCloudHost.ts` zet deze vorm om naar de `storage`-vorm; de rest van de tool
+ *     kent alleen die. Verschillen in gedrag:
+ *      - `readOnly: true` bij `open`: de tool opent het bestand zonder opslagdoel en meldt dat Opslaan
+ *        een nieuw bestand maakt (een `storage`-host mag `readOnly` ook meegeven).
+ *      - Een conflict geeft een KOPIE: `save` met `id` geeft een ander `id` terug. De tool maakt die
+ *        kopie het opslagdoel, telt het document als opgeslagen en meldt de naam van de kopie. Bij de
+ *        `storage`-vorm blijft een ander `id` een fout.
+ *      - De fout `code: 'VERSION_CONFLICT'` telt als `'conflict'`. De fout `soort_niet_toegestaan`
+ *        (Opslaan als met een vreemd formaat) toont de tool met de tekst van de host.
+ *     `initialFileId` en het event `openaec-host-ready` werken voor beide vormen gelijk.
+ *
  * ## Ingebed starten: geen welkomstvenster, de taal van de host
  *
  * Staat er een host (elk object op `window.openaecHost`, ook zonder `storage`), of is dit de
@@ -39,12 +59,34 @@
  * regiocode valt terug op de taal (`de-AT` wordt `de`). Kent de tool geen enkele, dan kiest hij zoals
  * buiten een host (bewaarde keuze, dan de browsertaal). De tool bewaart de taal van de host niet.
  *
- * Zet de host vóór de tool start. De tool kiest de taal één keer, vóór de eerste weergave, en kijkt
- * voor het welkomstvenster bij de start en nog eens vlak voordat het zou openen (na de herstelvraag).
- * Een latere host verandert de taal niet en sluit een venster dat al open staat niet, ook niet met het
- * event `openaec-host-ready`.
+ * Zet de host vóór de tool start. De tool kiest de taal vóór de eerste weergave, en kijkt voor het
+ * welkomstvenster bij de start en nog eens vlak voordat het zou openen (na de herstelvraag). Een
+ * venster dat al open staat, sluit een latere host niet.
  *
- * ## De vier functies
+ * ## Taal en thema tijdens de sessie, en instellingen (#818)
+ *
+ * Sinds #818 volgt de tool de host ook ná de start (dit vervangt "een latere host verandert de taal
+ * niet" uit #716):
+ *
+ * - `thema` (`'light'` of `'dark'`): de tool start in dat thema, als sessiethema (niet in
+ *   `ops-theme`). Het pre-paint-script `public/theme-prepaint.js` leest het al vóór de eerste paint.
+ * - Het event `openaec-host-preferences` (`SITE_HOST_PREFERENCES_EVENT`, op hetzelfde venster als
+ *   `openaec-host-ready`) meldt dat `taal` of `thema` op hetzelfde object veranderde. De tool neemt
+ *   dan over wat veranderde, zonder het te bewaren. Een keuze die de gebruiker in de app maakte,
+ *   blijft staan tot de host die waarde zelf wijzigt.
+ * - Komt de host pas later (`openaec-host-ready`), dan neemt de tool zijn taal en thema alsnog over,
+ *   en leest hij zijn instellingen als een laat antwoord.
+ * - `settings` (`get`, `set`, `delete`): de tool bewaart daar zijn blijvende `ops-`-instellingen, één
+ *   hostsleutel per `ops-`-sleutel. Hij leest ze vóór de app laadt: de start wacht daarop, hoogstens 5 s
+ *   (`HYDRATE_TIMEOUT_MS`). Op tijd: elke wijziging gaat daarna gebundeld naar de host. Te laat of een
+ *   afwijzing: de app start met standaardinstellingen, toont een pop-up en wacht op de achtergrond
+ *   verder, zonder iets naar de host te schrijven. Een laat antwoord wint en wordt live toegepast.
+ *   Details in `siteHostSettings.ts`.
+ *
+ * Code: `siteHostPreferences.ts` (lezen), `siteHostSettings.ts` (instellingen) en
+ * `src/hooks/useSiteHostPreferences.ts` (de luisteraars).
+ *
+ * ## De vier functies (de `storage`-vorm)
  *
  * - `list({ extensions })` — de bestanden die de tool kan openen. `extensions` zijn extensies zonder
  *   punt, in kleine letters (`['ifc', 'csv', 'xml', 'mpp', 'xer']`); de site mag erop filteren (de
@@ -65,7 +107,7 @@
  *
  * Alle vier geven een Promise terug. Een geweigerde Promise is een fout; de tool vangt hem af en
  * toont de tekst (`message`) van de site erbij. Twee foutcodes (`code`) hebben een eigen betekenis:
- *  - `'conflict'` bij `save`: zie hierboven.
+ *  - `'conflict'` bij `save`: zie hierboven (bij de SuperCloud-vorm ook `'VERSION_CONFLICT'`).
  *  - `'not-found'` bij `open`: het bestand bestaat niet (meer). Alleen dan haalt de tool het uit de
  *    recente bestanden; bij elke andere fout (netwerk, rechten, storing) blijft het daar staan.
  *
@@ -82,6 +124,10 @@
  */
 
 import { PLATFORM_BUILD } from '@/utils/buildFlags';
+import { isSuperCloudHost, superCloudStorage, type HostVersion } from './superCloudHost';
+
+/** Een bestand in de SuperCloud-vorm (#818): de versie mag een getal zijn. */
+export interface HostFileRef { id: string; name: string; version: HostVersion }
 
 /** Eén bestand op de site. */
 export interface SiteFileInfo {
@@ -112,18 +158,41 @@ export interface SiteVersionInfo {
 /** De opslag die de site aanbiedt. Zie de kop van deze module. */
 export interface SiteStorage {
   list(query?: { extensions?: string[] }): Promise<SiteFileInfo[]>;
-  open(id: string, version?: string): Promise<{ file: SiteFileInfo; data: Blob | ArrayBuffer | Uint8Array | string }>;
+  /** `readOnly: true` (optioneel): de site staat geen nieuwe versie toe; de tool opent het bestand dan
+   *  zonder opslagdoel (#818). */
+  open(id: string, version?: string): Promise<{ file: SiteFileInfo; data: Blob | ArrayBuffer | Uint8Array | string; readOnly?: boolean }>;
   save(request: { id?: string; name: string; data: Blob; baseVersion?: string }): Promise<SiteFileInfo>;
   versions(id: string): Promise<SiteVersionInfo[]>;
 }
 
+/** De instellingenopslag die de site kan aanbieden (#818): per sleutel een waarde. De tool bewaart er
+ *  tekst onder de naam van zijn `ops-`-sleutels; zie `siteHostSettings.ts`. */
+export interface SiteHostSettings {
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<unknown>;
+  delete(key: string): Promise<unknown>;
+}
+
 /** Wat de site op `window.openaecHost` zet. */
 export interface OpenAECHost {
+  /** De `storage`-vorm. Staat hij er (geldig), dan wint hij boven de functies hieronder. */
   storage?: SiteStorage;
+  /** De SuperCloud-vorm (#818): de functies direct op de host. Zie `superCloudHost.ts`. Alleen als
+   *  alle vier er zijn, telt de host als opslag. */
+  open?: (id: string, version?: HostVersion) => Promise<HostFileRef & { readOnly: boolean; bytes: ArrayBuffer | Uint8Array }>;
+  save?: (bytes: Uint8Array, options: { id?: string; name?: string; expectedVersion?: HostVersion }) => Promise<HostFileRef>;
+  list?: () => Promise<{ id: string; name: string; modified: string }[]>;
+  versions?: (id: string) => Promise<{ version: HostVersion; modified: string; author?: string }[]>;
   /** Open dit bestand (nieuwste versie) bij de start, als de tool nog een leeg document heeft. */
   initialFileId?: string;
   /** De taal van de site (bijv. `'nl'`); de tool start in die taal als hij hem kent (#716). */
   taal?: string;
+  /** Het thema van de site: `'light'` of `'dark'` (#818). De tool start erin en volgt een wijziging
+   *  (`openaec-host-preferences`), zonder het te bewaren. Zie `siteHostPreferences.ts`. */
+  thema?: string;
+  /** Opslag voor de instellingen van de tool, als de browser zelf niets bewaart (#818). Zie
+   *  `siteHostSettings.ts`. */
+  settings?: SiteHostSettings;
   /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
 }
@@ -166,8 +235,9 @@ function readHost(read: () => unknown): Record<string, unknown> | null {
   }
 }
 
-/** De kandidaat-hosts in volgorde: eerst het eigen venster, dan de parent (alleen in een iframe). */
-function candidateHosts(): Record<string, unknown>[] {
+/** De kandidaat-hosts in volgorde: eerst het eigen venster, dan de parent (alleen in een iframe).
+ *  Geëxporteerd voor `siteHostPreferences.ts` (thema en instellingen, #818). */
+export function candidateHosts(): Record<string, unknown>[] {
   if (typeof window === 'undefined') return [];
   // Desktop (Tauri) heeft nooit een site. Zo blijft de desktop-app gegarandeerd zoals hij was, ook
   // als er ooit per ongeluk iets op `window.openaecHost` staat.
@@ -185,12 +255,24 @@ function candidateHosts(): Record<string, unknown>[] {
 }
 
 /**
+ * De opslag van één host: `host.storage` als die geldig is, anders de adapter voor de SuperCloud-vorm
+ * als de host zelf de vier functies heeft (#818), anders `null`.
+ */
+function storageOf(host: Record<string, unknown>): SiteStorage | null {
+  if (isSiteStorage(host.storage)) return host.storage;
+  if (isSuperCloudHost(host)) return superCloudStorage(host);
+  return null;
+}
+
+/**
  * De opslag van de site, of `null` als er geen (geldige) is. Kijkt op het moment van aanroepen —
- * een site mag de host dus ook later zetten. Een host zonder vier functies telt als "geen site".
+ * een site mag de host dus ook later zetten. Een host zonder vier functies (onder `storage` of op de
+ * host zelf) telt als "geen site".
  */
 export function getSiteStorage(): SiteStorage | null {
   for (const host of candidateHosts()) {
-    if (isSiteStorage(host.storage)) return host.storage;
+    const storage = storageOf(host);
+    if (storage) return storage;
   }
   return null;
 }
@@ -206,7 +288,7 @@ export function siteStorageAvailable(): boolean {
  */
 export function siteInitialFileId(): string | null {
   for (const host of candidateHosts()) {
-    if (!isSiteStorage(host.storage)) continue;
+    if (!isSiteStorage(host.storage) && !isSuperCloudHost(host)) continue;
     const id = host.initialFileId;
     return typeof id === 'string' && id.length > 0 ? id : null;
   }

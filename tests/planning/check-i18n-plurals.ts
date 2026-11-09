@@ -58,13 +58,13 @@ const LOCALES: Record<string, Record<string, unknown>> = {
 
 /** Sleutels die met een `count` worden aangeroepen en dus per taal alle categorieën nodig hebben. */
 const PLURAL_KEYS = [
-  'affectedTasks', 'warnActuals', 'warnHardPins', 'warnExternal', 'warnCustomDateFields',
+  'affectedTasks', 'warnActuals', 'warnHardPins', 'warnExternalKept', 'warnCustomDateFields',
 ] as const;
 
 /** Sleutels van de "label: aantal"-detailregel — geen pluralisatie, wel verplicht aanwezig. */
 const LABEL_KEYS = [
   'affectedDetail', 'detailConstraints', 'detailDeadlines',
-  'detailActuals', 'detailExternal', 'detailSteps',
+  'detailActuals', 'detailSteps',
   // De kalender-ingreep heeft drie varianten: einde én duur verschoven (durationChanged), alleen
   // het einde (endShiftedOnly) of alleen de duur (durationOnly). Eén tekst die altijd beide noemt
   // levert in de laatste twee gevallen een lege mededeling op ("van 177 naar 177 werkdagen").

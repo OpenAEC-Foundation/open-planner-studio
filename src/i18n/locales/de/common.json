@@ -13,6 +13,8 @@
     "dismiss": "Benachrichtigung schließen",
     "taskEditRevertBlocked": "Eine Änderung durch den MCP-Client oder eine Erweiterung kam dazwischen. Die davor vorgenommenen Vorgangsänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter „Rückgängig“ erhalten.",
     "openFailed": "Datei konnte nicht geöffnet werden",
+    "fileDropRefused": "Nicht geöffnet: {{names}}. Die App öffnet nur IFC, XML, MPP, XER und CSV.",
+    "fileDropBlocked": "Nicht geöffnet: {{names}}. Schließen Sie zuerst das geöffnete Fenster.",
     "csvInvalidDate": "CSV nicht geöffnet: nicht erkennbares Datum „{{value}}“ in CSV-Zeile {{row}}, Spalte „{{column}}“. Verwenden Sie JJJJ-MM-TT, TT-MM-JJJJ oder TT/MM/JJJJ.",
     "extGuideCallbackFailed": "Ein Schritt der Erweiterung {{name}} ist fehlgeschlagen. Die Anleitung läuft weiter.",
     "extHelpProjectOpenFailed": "Die Projektdatei {{file}} der Erweiterung {{name}} konnte nicht geöffnet werden.",
@@ -318,7 +320,10 @@
       "capacitySteps_one": "{{count}} Ressource mit Kapazitätsstufen: Nur die feste Kapazität wird übernommen",
       "capacitySteps_other": "{{count}} Ressourcen mit Kapazitätsstufen: Nur die feste Kapazität wird übernommen",
       "projectDetails": "Autor und Unternehmen des Projekts"
-    }
+    },
+    "dependentProjectsFound": "Abhängige Projekte: {{projects}}. Verknüpfungen zu diesem Projekt: {{links}}.",
+    "dependentProjectsNone": "Keine Projekte mit einer externen Beziehung zu diesem Terminplan gefunden.",
+    "dependentProjectsFailed": "Der Ordner mit abhängigen Projekten konnte nicht gelesen werden."
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Vorgängen: {{path}}",
@@ -753,6 +758,8 @@
     "missedDeadlines": "{{count}} Stichtag(e) überschritten",
     "violatedConstraints": "{{count}} Einschränkung(en) verletzt",
     "outOfSequence": "{{count}} Beziehung(en) außerhalb der Reihenfolge",
+    "externalSuccessors_one": "{{count}} externer Nachfolger zu knapp",
+    "externalSuccessors_other": "{{count}} externe Nachfolger zu knapp",
     "overallocated": "{{count}} Ressource(n) überlastet",
     "summary_one": "{{count}} Warnung",
     "summary_other": "{{count}} Warnungen"
@@ -770,6 +777,10 @@
       "scheduleError": "Der Terminplan konnte nicht berechnet werden: {{message}}",
       "missedDeadline": "Stichtag {{deadline}} überschritten — frühestes Ende {{finish}}",
       "violatedConstraint": "Einschränkung {{constraint}} wird durch die Logik überschritten (negativer Puffer)",
+      "externalSuccessorViolatedSF": "Zu knapp für externen Nachfolger {{task}} ({{project}}, {{relation}}): er endet spätestens am {{anchor}}, diese Aufgabe beginnt erst am {{own}}",
+      "externalSuccessorViolatedFF": "Zu knapp für externen Nachfolger {{task}} ({{project}}, {{relation}}): er endet spätestens am {{anchor}}, diese Aufgabe endet erst am {{own}}",
+      "externalSuccessorViolatedSS": "Zu knapp für externen Nachfolger {{task}} ({{project}}, {{relation}}): er beginnt spätestens am {{anchor}}, diese Aufgabe beginnt erst am {{own}}",
+      "externalSuccessorViolatedFS": "Zu knapp für externen Nachfolger {{task}} ({{project}}, {{relation}}): er beginnt spätestens am {{anchor}}, diese Aufgabe endet erst am {{own}}",
       "outOfSequence": "Fortschritt außer Reihenfolge: der Fortschritt des Nachfolgers widerspricht der Beziehung",
       "truncatedLead": "Vorlauf durch den Projektstart gekappt — die Beziehung wird nicht vollständig eingehalten",
       "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger fehlt oder ist kein Blattvorgang",
@@ -1341,14 +1352,11 @@
     "detailConstraints": "Einschränkungsdaten",
     "detailDeadlines": "Deadlines",
     "detailActuals": "Ist-Daten",
-    "detailExternal": "externe Anker",
     "detailSteps": "Kapazitätsstufen",
     "warnActuals_one": "{{count}} Vorgang hat Ist-Start-/Ist-Endtermine; diese verschieben sich mit. Prüfen Sie, ob das für ein laufendes Projekt korrekt ist.",
     "warnActuals_other": "{{count}} Vorgänge haben Ist-Start-/Ist-Endtermine; diese verschieben sich mit. Prüfen Sie, ob das für ein laufendes Projekt korrekt ist.",
     "warnHardPins_one": "{{count}} Vorgang hat eine harte Muss-Einschränkung; diese Fixierung verschiebt sich mit.",
     "warnHardPins_other": "{{count}} Vorgänge haben eine harte Muss-Einschränkung; diese Fixierungen verschieben sich mit.",
-    "warnExternal_one": "{{count}} externe Beziehung: ihr Anker verschiebt sich mit, das Quellprojekt jedoch nicht. Aktualisieren Sie die Verknüpfung nach dem Verschieben.",
-    "warnExternal_other": "{{count}} externe Beziehungen: ihre Anker verschieben sich mit, die Quellprojekte jedoch nicht. Aktualisieren Sie die Verknüpfungen nach dem Verschieben.",
     "warnHolidayGap": "Die generierten Feiertage des Kalenders „{{name}}“ decken {{from}}–{{to}} ab; der verschobene Terminplan läuft bis {{year}}. Generieren Sie die Feiertage neu.",
     "warnCustomDateFields_one": "{{count}} ausgefülltes benutzerdefiniertes Datumsfeld behält sein Datum.",
     "warnCustomDateFields_other": "{{count}} ausgefüllte benutzerdefinierte Datumsfelder behalten ihr Datum.",
@@ -1859,5 +1867,19 @@
       "hammock": "Folgt den verknüpften Vorgängen",
       "unknown": "Grund nicht festgestellt"
     }
+  },
+  "fileDrop": {
+    "title": "Zum Öffnen loslassen",
+    "subtitle": "Projektdatei oder Import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankertermine anderer Projekte werden knapper",
+    "body": "Diese Projekte rechnen mit einem Termin aus diesem Terminplan. Nach dem Speichern erhalten sie einen knapperen Termin, sobald sie ihre externen Beziehungen aktualisieren.",
+    "colProject": "Projekt",
+    "colTheirTask": "Deren Vorgang",
+    "colOwnTask": "Vorgang hier",
+    "colAnchor": "Ankertermin: alt → neu",
+    "saveAnyway": "Trotzdem speichern",
+    "cancel": "Abbrechen"
   }
 }

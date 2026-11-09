@@ -81,7 +81,7 @@ export function MoveProjectDialog() {
     : endShifted ? 'endShiftedOnly'
     : 'durationOnly';
 
-  // Meeverschoven-detailregel. Bewust GEEN doorlopende zin met vijf tellingen erin: die kan per
+  // Meeverschoven-detailregel. Bewust GEEN doorlopende zin met vier tellingen erin: die kan per
   // telling enkelvoud of meervoud nodig hebben ("1 deadlines") en dat is met één sleutel niet op te
   // lossen. In de "label: aantal"-vorm congrueert het label niet met het getal, dus is de regel in
   // elke taal correct zonder pluralisatie. Nul-categorieën vallen weg — "0 deadlines" was ruis.
@@ -89,7 +89,6 @@ export function MoveProjectDialog() {
     ['detailConstraints', preview.impact.constraintCount],
     ['detailDeadlines', preview.impact.deadlineCount],
     ['detailActuals', preview.impact.actualCount],
-    ['detailExternal', preview.impact.externalLinkCount],
     ['detailSteps', preview.impact.availabilityStepCount],
   ] as const)
     .filter(([, n]) => n > 0)
@@ -244,7 +243,7 @@ export function MoveProjectDialog() {
                           <li>{t('moveProject.warnHardPins', { count: preview.impact.hardPinCount })}</li>
                         )}
                         {preview.impact.externalLinkCount > 0 && (
-                          <li>{t('moveProject.warnExternal', { count: preview.impact.externalLinkCount })}</li>
+                          <li>{t('moveProject.warnExternalKept', { count: preview.impact.externalLinkCount })}</li>
                         )}
                         {preview.holidayGapCalendars.map(g => (
                           <li key={`${g.name}-${g.year}`} style={{ color: 'var(--error)' }}>

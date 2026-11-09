@@ -93,6 +93,25 @@ ok('lead groter dan voorgangerduur blijft als waarschuwing zichtbaar',
   items[2]?.warnings.includes('lead-exceeds-duration') === true);
 eq('ontbrekende externe bron blijft zichtbaar als waarschuwing', items[3]?.warnings, ['source-missing']);
 ok('alle items tonen dat de berekening stale is', items.every(item => item.stale));
+// Herkomst (keuze 4): het celitem draagt de herkomst van het anker, ook al gaat `parsedToken` door het
+// klembordformaat zonder die velden. De tooltip leest haar daar.
+{
+  const withProvenance: ExternalLink = { ...externalLink, sourceVersion: '12', anchorReadAt: '2026-11-02T14:10:00.000Z',
+    sourceRef: { ...externalLink.sourceRef, siteFileId: 'site-1' } };
+  const E = task('E', '2.2', 'Inrichten', [withProvenance]);
+  const index = buildTaskRelationIndex([E], [], {
+    drivingSequenceIds: [], sequenceFreeFloat: {}, truncatedLeadSequenceIds: [], outOfSequenceSequenceIds: [],
+  });
+  const [item] = buildRelationCellItems({
+    ownerTaskId: E.id, direction: 'predecessor', entries: taskRelations(index, E.id, 'predecessor'),
+    context: { ...context, tasksById: new Map([[E.id, E]]), relationIndex: index },
+  });
+  eq('herkomst: het celitem draagt versie, leestijd en site-id',
+    [item?.provenance?.sourceVersion, item?.provenance?.anchorReadAt, item?.provenance?.sourceRef.siteFileId],
+    ['12', '2026-11-02T14:10:00.000Z', 'site-1']);
+  eq('herkomst: het token uit het klembordformaat (v1) draagt haar niet',
+    item?.parsedToken.kind === 'external' && 'sourceVersion' in item.parsedToken.external, false);
+}
 
 const analysisItems = buildTaskRelationAnalysisItems(D, context);
 const warningLabel = (key: string): string => ({

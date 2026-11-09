@@ -156,6 +156,7 @@
     "barsGroup": "Pruhy",
     "manageBaselines": "Spravovať pôvodné plány…",
     "statusDate": "Dátum kontroly stavu",
+    "statusDateValue": "Dátum kontroly stavu: {{date}}",
     "statusDateClear": "Vymazať dátum kontroly stavu",
     "statusDateTime": "Čas dátumu kontroly stavu",
     "statusDateTimeLater": "Čas neskôr",
@@ -220,7 +221,9 @@
     "screenColorsMissingField": "Toto pole v tomto projekte neexistuje. Dočasne sa používa druh prác.",
     "screenColorsHint": "Mimo kritickej cesty červený obrys označuje kritickú cestu.",
     "addLayout": "Vytvoriť rozloženie",
-    "toggleRelations": "Čiary závislostí"
+    "toggleRelations": "Čiary závislostí",
+    "relationFindDependents": "Nájsť závislé projekty…",
+    "relationFindDependentsHint": "Vyhľadať v priečinku projekty s prepojením na tento harmonogram."
   },
   "ifc": {
     "title": "Editor IFC",

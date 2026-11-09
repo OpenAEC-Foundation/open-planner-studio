@@ -13,6 +13,8 @@
     "dismiss": "Cerrar notificación",
     "taskEditRevertBlocked": "Un cambio del cliente MCP o de una extensión se produjo entretanto. Las modificaciones de tarea anteriores no se revirtieron y quedan como pasos normales en «Deshacer».",
     "openFailed": "No se pudo abrir el archivo",
+    "fileDropRefused": "No abierto: {{names}}. La aplicación solo abre IFC, XML, MPP, XER y CSV.",
+    "fileDropBlocked": "No abierto: {{names}}. Cierre primero la ventana abierta.",
     "csvInvalidDate": "CSV no abierto: fecha no reconocida «{{value}}» en la fila CSV {{row}}, columna «{{column}}». Use aaaa-mm-dd, dd-mm-aaaa o dd/mm/aaaa.",
     "extGuideCallbackFailed": "Un paso de la extensión {{name}} ha fallado. La guía continúa.",
     "extHelpProjectOpenFailed": "No se pudo abrir el archivo de proyecto {{file}} de la extensión {{name}}.",
@@ -414,7 +416,10 @@
       "capacitySteps_many": "{{count}} de recursos con escalones de capacidad: solo se incluye la capacidad fija",
       "capacitySteps_other": "{{count}} recursos con escalones de capacidad: solo se incluye la capacidad fija",
       "projectDetails": "Autor y empresa del proyecto"
-    }
+    },
+    "dependentProjectsFound": "Proyectos dependientes: {{projects}}. Vínculos a este proyecto: {{links}}.",
+    "dependentProjectsNone": "No se encontraron proyectos con una relación externa con esta programación.",
+    "dependentProjectsFailed": "No se pudo leer la carpeta de proyectos dependientes."
   },
   "scheduleErrors": {
     "cycle": "Relación circular entre tareas: {{path}}",
@@ -851,6 +856,9 @@
     "missedDeadlines": "{{count}} fecha(s) límite superada(s)",
     "violatedConstraints": "{{count}} restricción(es) incumplida(s)",
     "outOfSequence": "{{count}} relación(es) fuera de secuencia",
+    "externalSuccessors_one": "{{count}} sucesor externo demasiado ajustado",
+    "externalSuccessors_many": "{{count}} sucesores externos demasiado ajustados",
+    "externalSuccessors_other": "{{count}} sucesores externos demasiado ajustados",
     "overallocated": "{{count}} recurso(s) sobreasignado(s)",
     "summary_one": "{{count}} advertencia",
     "summary_many": "{{count}} advertencias",
@@ -869,6 +877,10 @@
       "scheduleError": "No se pudo calcular la programación: {{message}}",
       "missedDeadline": "Fecha límite {{deadline}} incumplida — fin más temprano {{finish}}",
       "violatedConstraint": "La restricción {{constraint}} es sobrepasada por la lógica (holgura negativa)",
+      "externalSuccessorViolatedSF": "Demasiado ajustado para el sucesor externo {{task}} ({{project}}, {{relation}}): termina a más tardar el {{anchor}}, esta tarea no comienza hasta el {{own}}",
+      "externalSuccessorViolatedFF": "Demasiado ajustado para el sucesor externo {{task}} ({{project}}, {{relation}}): termina a más tardar el {{anchor}}, esta tarea no termina hasta el {{own}}",
+      "externalSuccessorViolatedSS": "Demasiado ajustado para el sucesor externo {{task}} ({{project}}, {{relation}}): comienza a más tardar el {{anchor}}, esta tarea no comienza hasta el {{own}}",
+      "externalSuccessorViolatedFS": "Demasiado ajustado para el sucesor externo {{task}} ({{project}}, {{relation}}): comienza a más tardar el {{anchor}}, esta tarea no termina hasta el {{own}}",
       "outOfSequence": "Fuera de secuencia: el progreso del sucesor contradice la relación",
       "truncatedLead": "Adelanto truncado por el inicio del proyecto — la relación no se respeta por completo",
       "droppedSequence": "Relación ignorada: el predecesor o el sucesor falta o no es una tarea hoja",
@@ -1449,7 +1461,6 @@
     "detailConstraints": "fechas de restricción",
     "detailDeadlines": "fechas límite",
     "detailActuals": "fechas reales",
-    "detailExternal": "anclajes externos",
     "detailSteps": "escalones de capacidad",
     "warnActuals_one": "{{count}} tarea tiene fechas reales de inicio/fin; se desplazan también. Compruebe si es correcto para un proyecto en curso.",
     "warnActuals_many": "{{count}} tareas tienen fechas reales de inicio/fin; se desplazan también. Compruebe si es correcto para un proyecto en curso.",
@@ -1457,9 +1468,6 @@
     "warnHardPins_one": "{{count}} tarea tiene una restricción Obligatoria estricta; ese anclaje se desplaza también.",
     "warnHardPins_many": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
     "warnHardPins_other": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
-    "warnExternal_one": "{{count}} relación externa: su anclaje se desplaza, pero el proyecto de origen no. Actualice la relación después de mover.",
-    "warnExternal_many": "{{count}} relaciones externas: sus anclajes se desplazan, pero los proyectos de origen no. Actualice las relaciones después de mover.",
-    "warnExternal_other": "{{count}} relaciones externas: sus anclajes se desplazan, pero los proyectos de origen no. Actualice las relaciones después de mover.",
     "warnHolidayGap": "Los festivos generados del calendario «{{name}}» cubren {{from}}–{{to}}; la planificación desplazada llega hasta {{year}}. Vuelva a generar los festivos.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de fecha rellenado conserva su fecha.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de fecha rellenados conservan su fecha.",
@@ -1983,5 +1991,19 @@
       "hammock": "Sigue las tareas vinculadas",
       "unknown": "Motivo no establecido"
     }
+  },
+  "fileDrop": {
+    "title": "Suelte para abrir",
+    "subtitle": "Archivo de proyecto o importación"
+  },
+  "dependentAnchorWarning": {
+    "title": "Los anclajes de otros proyectos se ajustan más",
+    "body": "Estos proyectos dependen de una fecha de esta programación. Tras guardar, obtienen una fecha más ajustada cuando actualicen sus relaciones externas.",
+    "colProject": "Proyecto",
+    "colTheirTask": "Su tarea",
+    "colOwnTask": "Tarea aquí",
+    "colAnchor": "Anclaje: anterior → nuevo",
+    "saveAnyway": "Guardar de todos modos",
+    "cancel": "Cancelar"
   }
 }

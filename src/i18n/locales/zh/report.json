@@ -32,6 +32,7 @@
   "repeatHeader": "在每页重复页眉",
   "repeatFooter": "在每页重复页脚",
   "reportFontScaleLabel": "字号：",
+  "reportFontFamilyLabel": "字体：",
   "timelineColumnsLabel": "时间轴跨：",
   "timelineColumnsHint": "仅在自动适配时可用",
   "timelineColumns_other": "{{count}} 页",
@@ -429,5 +430,11 @@
       "riskHeading": "风险任务：延迟或负浮时",
       "riskEmpty": "没有延迟任务，也没有负浮时。"
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter（默认）",
+    "liberationSans": "Liberation Sans（类似 Arial）",
+    "carlito": "Carlito（类似 Calibri）",
+    "liberationSerif": "Liberation Serif（类似 Times New Roman）"
   }
 }

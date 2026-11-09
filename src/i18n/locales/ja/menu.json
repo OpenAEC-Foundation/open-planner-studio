@@ -153,6 +153,7 @@
     "barsGroup": "バー",
     "manageBaselines": "ベースラインを管理…",
     "statusDate": "状態日",
+    "statusDateValue": "状態日：{{date}}",
     "statusDateClear": "状態日を解除",
     "statusDateTime": "状態日の時刻",
     "statusDateTimeLater": "時刻を後ろへ",
@@ -217,7 +218,9 @@
     "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。作業区分を一時的に使用します。",
     "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。",
     "addLayout": "新規レイアウト",
-    "toggleRelations": "関係線"
+    "toggleRelations": "関係線",
+    "relationFindDependents": "依存プロジェクトを検索…",
+    "relationFindDependentsHint": "このスケジュールへの外部関係を持つプロジェクトをフォルダー内で検索します。"
   },
   "ifc": {
     "title": "IFC エディタ",

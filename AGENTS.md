@@ -186,8 +186,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   Updater and MCP bridge are Tauri-only; the browser does its own file I/O and recovery.
 - **Platform build.** `npm run build:platform -- --base /pad/` builds the bundle the OpenAEC app on Frappe serves
   under a sub-path (Vite mode `platform`, `.env.platform`, `build.manifest`, `dist-platform/`); `npm run build` gets
-  none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
-  AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
+  none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start,
+  AI mode and download stats are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
 - **Claude Desktop bundle = a switch plus the headless server.** `integrations/claude-desktop/` is an MCP Bundle
   (`.mcpb`, #730) with two programs. `server/index.mjs` (the switch, `src/proxy.ts`) reads `runtime.json` for
@@ -313,7 +313,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `settings`, `extensions`, `library`, `help`.
 - 28 locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa, ru, uk, cs, sk, sr, hr, bg, hu, ro, sv, nb, da, fi, lo`), each with four namespaces;
   `ar`/`fa` are RTL; `sr` is Serbian in Cyrillic script; `no`/`nn` in the browser pick `nb`. A missing plural form falls back to English, not to `_other`.
-- MCP: The 41 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
+- MCP: The 42 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
 
 ## Worktrees and self-testing
 

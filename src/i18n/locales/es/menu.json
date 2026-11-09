@@ -155,6 +155,7 @@
     "barsGroup": "Barras",
     "manageBaselines": "Gestionar líneas base…",
     "statusDate": "Fecha de estado",
+    "statusDateValue": "Fecha de estado: {{date}}",
     "statusDateClear": "Borrar fecha de estado",
     "statusDateTime": "Hora de la fecha de estado",
     "statusDateTimeLater": "Hora posterior",
@@ -219,7 +220,9 @@
     "screenColorsMissingField": "Este campo no existe en este proyecto. Se usa temporalmente la categoría de trabajo.",
     "screenColorsHint": "Fuera del modo Ruta crítica, un contorno rojo marca la ruta crítica.",
     "addLayout": "Nuevo diseño",
-    "toggleRelations": "Líneas de relación"
+    "toggleRelations": "Líneas de relación",
+    "relationFindDependents": "Buscar proyectos dependientes…",
+    "relationFindDependentsHint": "Buscar en una carpeta proyectos con una relación externa con esta programación."
   },
   "ifc": {
     "title": "Editor IFC",

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Select } from '@/components/common/Select';
 import type { ReportOrientation, ReportPaperSize } from '@/utils/reportSettings';
+import { isReportFontId, REPORT_FONT_IDS, type ReportFontId } from '@/services/pdf/reportFont';
 
 // Bouwstenen van de instellingenkaarten op het Rapport-tabblad: het Gantt-/resourcediagramblok in
 // `ReportPanel` en het optieblok van de tabelrapporten delen dezelfde kaart, rijen en keuzelijsten.
@@ -61,6 +62,37 @@ export function ReportCheckRow({ checked, onChange, label, spaced = false, input
 }
 
 const PAPER_OPTIONS = (['A4', 'A3', 'A2', 'A1'] as const).map(p => ({ value: p, label: p }));
+
+/** De labels van de keuzelijst *Lettertype*, één per letter uit het vaste setje (`reportFont.ts`). */
+const REPORT_FONT_LABEL_KEYS = {
+  inter: 'reportFontFamily.inter',
+  liberationSans: 'reportFontFamily.liberationSans',
+  carlito: 'reportFontFamily.carlito',
+  liberationSerif: 'reportFontFamily.liberationSerif',
+} as const satisfies Record<ReportFontId, string>;
+
+/**
+ * Keuzelijst *Lettertype* (issue #770). Eén keuze voor álle rapporten, dus hij staat overal waar ook
+ * Papier en Oriëntatie staan: in het Gantt-/resourcediagramblok en in het blok van de tabelrapporten.
+ */
+export function ReportFontSelect({ id, className, value, onChange }: {
+  id?: string;
+  className: string;
+  value: ReportFontId;
+  onChange: (font: ReportFontId) => void;
+}) {
+  const { t } = useTranslation('report');
+  return (
+    <Select
+      id={id}
+      className={className}
+      aria-label={t('reportFontFamilyLabel')}
+      value={value}
+      onChange={v => { if (isReportFontId(v)) onChange(v); }}
+      options={REPORT_FONT_IDS.map(font => ({ value: font, label: t(REPORT_FONT_LABEL_KEYS[font]) }))}
+    />
+  );
+}
 
 export function PaperSizeSelect({ id, className, value, onChange }: {
   id?: string;

@@ -13,6 +13,8 @@
     "dismiss": "Sulje ilmoitus",
     "taskEditRevertBlocked": "Muutos MCP-asiakkaalta tai laajennuksesta tuli väliin. Sitä edeltäneitä tehtävämuutoksia ei palautettu. Ne jäävät tavallisina vaiheina kohtaan Kumoa.",
     "openFailed": "Avaaminen epäonnistui",
+    "fileDropRefused": "Ei avattu: {{names}}. Sovellus avaa vain IFC-, XML-, MPP-, XER- ja CSV-tiedostoja.",
+    "fileDropBlocked": "Ei avattu: {{names}}. Sulje ensin avoinna oleva ikkuna.",
     "csvInvalidDate": "CSV-tiedostoa ei avattu: tunnistamaton päivämäärä ”{{value}}” CSV-rivillä {{row}}, sarake ”{{column}}”. Käytä muotoa vvvv-kk-pp, pp-kk-vvvv tai pp/kk/vvvv.",
     "extGuideCallbackFailed": "Laajennuksen {{name}} vaihe aiheutti virheen. Opastus jatkuu.",
     "extHelpProjectOpenFailed": "Laajennuksen {{name}} projektitiedostoa {{file}} ei voitu avata.",
@@ -318,7 +320,10 @@
       "capacitySteps_one": "{{count}} resurssi, jolla on kapasiteettiportaita: vain kiinteä kapasiteetti sisältyy",
       "capacitySteps_other": "{{count}} resurssia, joilla on kapasiteettiportaita: vain kiinteä kapasiteetti sisältyy",
       "projectDetails": "Projektin tekijä ja yritys"
-    }
+    },
+    "dependentProjectsFound": "Riippuvaiset projektit: {{projects}}. Linkit tähän projektiin: {{links}}.",
+    "dependentProjectsNone": "Projekteja, joilla on ulkoinen riippuvuus tähän aikatauluun, ei löytynyt.",
+    "dependentProjectsFailed": "Riippuvaisten projektien kansiota ei voitu lukea."
   },
   "scheduleErrors": {
     "cycle": "Kehäriippuvuus tehtävien välillä: {{path}}",
@@ -753,6 +758,8 @@
     "missedDeadlines": "Ylitetyt tavoitepäivät: {{count}}",
     "violatedConstraints": "Rikotut rajoitteet: {{count}}",
     "outOfSequence": "Järjestyksestä poikkeavat riippuvuudet: {{count}}",
+    "externalSuccessors_one": "Ulkoiset seuraajat liian tiukalla: {{count}}",
+    "externalSuccessors_other": "Ulkoiset seuraajat liian tiukalla: {{count}}",
     "overallocated": "Resurssien ylikuormitukset: {{count}}",
     "summary_one": "{{count}} varoitus",
     "summary_other": "{{count}} varoitusta"
@@ -770,6 +777,10 @@
       "scheduleError": "Aikataulua ei voitu laskea: {{message}}",
       "missedDeadline": "Tavoitepäivä {{deadline}} ylitetty — varhaisin valmistumispäivä {{finish}}",
       "violatedConstraint": "Logiikka ylittää rajoitteen {{constraint}} (negatiivinen pelivara)",
+      "externalSuccessorViolatedSF": "Liian tiukka ulkoiselle seuraajalle {{task}} ({{project}}, {{relation}}): se päättyy viimeistään {{anchor}}, tämä tehtävä alkaa vasta {{own}}",
+      "externalSuccessorViolatedFF": "Liian tiukka ulkoiselle seuraajalle {{task}} ({{project}}, {{relation}}): se päättyy viimeistään {{anchor}}, tämä tehtävä päättyy vasta {{own}}",
+      "externalSuccessorViolatedSS": "Liian tiukka ulkoiselle seuraajalle {{task}} ({{project}}, {{relation}}): se alkaa viimeistään {{anchor}}, tämä tehtävä alkaa vasta {{own}}",
+      "externalSuccessorViolatedFS": "Liian tiukka ulkoiselle seuraajalle {{task}} ({{project}}, {{relation}}): se alkaa viimeistään {{anchor}}, tämä tehtävä päättyy vasta {{own}}",
       "outOfSequence": "Järjestyksestä poikkeava edistyminen: seuraajan edistyminen on ristiriidassa riippuvuuden kanssa",
       "truncatedLead": "Limitys katkaistu projektin aloituspäivän vuoksi — riippuvuutta ei noudateta täysin",
       "droppedSequence": "Riippuvuus ohitettu: edeltäjä tai seuraaja puuttuu tai ei ole lehtitehtävä",
@@ -1341,14 +1352,11 @@
     "detailConstraints": "rajoitepäivämäärät",
     "detailDeadlines": "tavoitepäivät",
     "detailActuals": "todelliset päivämäärät",
-    "detailExternal": "ulkoiset ankkurit",
     "detailSteps": "kapasiteettivaiheet",
     "warnActuals_one": "{{count}} tehtävällä on toteutuneet alkamis- ja päättymispäivät. Ne siirtyvät mukana. Tarkista, onko tämä oikein käynnissä olevalle projektille.",
     "warnActuals_other": "{{count}} tehtävää: niillä on toteutuneet alkamis- ja päättymispäivät. Ne siirtyvät mukana. Tarkista, onko tämä oikein käynnissä olevalle projektille.",
     "warnHardPins_one": "{{count}} tehtävällä on kova Mandatory-pinni. Se siirtyy mukana.",
     "warnHardPins_other": "{{count}} tehtävää: niillä on kova Mandatory-pinni. Nämä pinnit siirtyvät mukana.",
-    "warnExternal_one": "{{count}} ulkoinen riippuvuus: ankkuri siirtyy mukana, mutta lähdeprojekti ei siirry. Riippuvuus kannattaa päivittää siirron jälkeen.",
-    "warnExternal_other": "{{count}} ulkoista riippuvuutta: niiden ankkurit siirtyvät mukana, mutta lähdeprojektit eivät siirry. Riippuvuudet kannattaa päivittää siirron jälkeen.",
     "warnHolidayGap": "Kalenterin “{{name}}” generoidut vapaapäivät kattavat {{from}}–{{to}}; siirretty aikataulu jatkuu vuoteen {{year}}. Generoi vapaapäivät uudelleen.",
     "warnCustomDateFields_one": "{{count}} täytetty mukautettu päivämääräkenttä säilyttää päivämääränsä.",
     "warnCustomDateFields_other": "{{count}} täytettyä mukautettua päivämääräkenttää säilyttävät päivämääränsä.",
@@ -1859,5 +1867,19 @@
       "hammock": "Seuraa kytkettyjä tehtäviä",
       "unknown": "Syytä ei ole selvitetty"
     }
+  },
+  "fileDrop": {
+    "title": "Pudota avataksesi",
+    "subtitle": "Projektitiedosto tai tuonti"
+  },
+  "dependentAnchorWarning": {
+    "title": "Muiden projektien ankkuripäivämäärät tiukkenevat",
+    "body": "Nämä projektit perustuvat tämän aikataulun päivämäärään. Tallennuksen jälkeen ne saavat tiukemman päivämäärän, kun ne päivittävät ulkoiset riippuvuutensa.",
+    "colProject": "Projekti",
+    "colTheirTask": "Heidän tehtävänsä",
+    "colOwnTask": "Tehtävä täällä",
+    "colAnchor": "Ankkuri: vanha → uusi",
+    "saveAnyway": "Tallenna silti",
+    "cancel": "Peruuta"
   }
 }

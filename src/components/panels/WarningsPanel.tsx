@@ -5,6 +5,8 @@ import { useAppStore } from '@/state/appStore';
 import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
 import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
 import { formatLagShort } from '@/utils/lagFormat';
+import { formatExternalLagShort } from '@/engine/taskGrid/relationFormat';
+import { effectiveExternalLinks } from '@/engine/scheduler/expandSummaryRelations';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import { localizeDecimalPoint } from '@/utils/reportNumber';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
@@ -56,6 +58,7 @@ export function WarningsPanel() {
     for (const task of tasks) m.set(task.id, task);
     return m;
   }, [tasks]);
+  const linksOf = useMemo(() => effectiveExternalLinks(tasks), [tasks]);
   const seqById = useMemo(() => {
     const m = new Map<string, Sequence>();
     for (const seq of sequences) m.set(seq.id, seq);
@@ -101,11 +104,31 @@ export function WarningsPanel() {
         finish: dateOfTask(warningTaskId(w), f.finish, 'end', true),
       });
       case 'violatedConstraint': return t('warnings.kind.violatedConstraint', { constraint: constraintLabel(f, warningTaskId(w)) });
+      case 'externalSuccessorViolated': {
+        const relType = f.relType ?? 'FS';
+        const taskId = warningTaskId(w);
+        // Ook een geërfde koppeling van de fase erboven (review #810).
+        const owner = taskId ? taskById.get(taskId) : undefined;
+        const link = owner ? linksOf(owner).find(l => l.id === f.externalLinkId) : undefined;
+        const lag = link
+          ? localizeDecimalPoint(formatExternalLagShort(link, parseableHourSuffix(t('duration.suffixHour'))), i18n.language)
+          : '';
+        // Het anker is de start (FS/SS) of het einde (FF/SF) van de externe opvolger; de eigen datum
+        // is het einde (FS/FF) of de start (SS/SF) van deze taak.
+        const anchorSide = relType === 'FS' || relType === 'SS' ? 'start' : 'end';
+        const ownStart = relType === 'SS' || relType === 'SF';
+        return t(`warnings.kind.externalSuccessorViolated${relType}`, {
+          task: f.externalTaskName ?? '', project: f.externalProjectName ?? '', relation: `${relType}${lag}`,
+          anchor: dateOfTask(taskId, f.anchor, anchorSide, false),
+          own: ownStart ? dateOfTask(taskId, f.start, 'start', true) : dateOfTask(taskId, f.finish, 'end', true),
+        });
+      }
       case 'outOfSequence': return t('warnings.kind.outOfSequence');
       case 'truncatedLead': return t('warnings.kind.truncatedLead');
       case 'droppedSequence': return t('warnings.kind.droppedSequence');
       case 'hammockNoFinishDriver': return t('warnings.kind.hammockNoFinishDriver');
       case 'cappedTask': return t('warnings.kind.cappedTask');
+      case 'externalLagCalendar': return t('warnings.kind.externalLagCalendar');
       case 'overallocation': {
         const count = f.days ?? 0;
         const nonWorking = f.nonWorkingDays ?? 0;
@@ -180,7 +203,7 @@ export function WarningsPanel() {
             className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-primary flex-shrink-0"
             title={tMenu('ribbon.calculateTitle')}
           >
-            <Icon id="solver.run" size={12} />
+            <Icon id="solver.run" size={12} lucide={{ icon: 'RefreshCw' }} />
             <span>{tMenu('ribbon.calculate')}</span>
           </button>
         )}
@@ -188,7 +211,7 @@ export function WarningsPanel() {
 
       {cpmResult && warnings.length === 0 ? (
         <div className="flex items-center gap-2 px-3 py-3 text-text-secondary" data-ops-warnings-empty>
-          <Icon id="status.success" size={14} style={{ color: 'var(--success)' }} />
+          <Icon id="status.success" size={14} style={{ color: 'var(--success)' }} lucide={{ icon: 'CheckCircle2' }} />
           <span>{t('warnings.empty')}</span>
         </div>
       ) : (
@@ -201,7 +224,7 @@ export function WarningsPanel() {
             const body = (
               <>
                 {error
-                  ? <Icon id="status.error" size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--error)' }} />
+                  ? <Icon id="status.error" size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--error)' }} lucide={{ icon: 'OctagonAlert' }} />
                   : <Icon id="status.warning" size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--theme-warning-text)' }} />}
                 <span className="flex-1 min-w-0 flex flex-col gap-0.5">
                   <span className="text-text-primary font-medium truncate">{label}</span>

@@ -13,6 +13,8 @@
     "dismiss": "Bezárás",
     "taskEditRevertBlocked": "Az MCP-kliens vagy egy bővítmény közben módosított. A korábbi tevékenység-módosításokat nem vontuk vissza; ezek normál lépésekként maradnak a Visszavonás alatt.",
     "openFailed": "A fájl megnyitása sikertelen",
+    "fileDropRefused": "Nem nyílt meg: {{names}}. Az alkalmazás csak IFC, XML, MPP, XER és CSV fájlt nyit meg.",
+    "fileDropBlocked": "Nem nyílt meg: {{names}}. Először zárja be a megnyitott ablakot.",
     "csvInvalidDate": "CSV nem nyílt meg: felismerhetetlen dátum: „{{value}}” a CSV {{row}}. sorában, „{{column}}” oszlopban. Használja az éééé-hh-nn, nn-hh-éééé vagy nn/hh/éééé formátumot.",
     "extGuideCallbackFailed": "A(z) {{name}} bővítmény egyik lépése hibát jelzett. Az útmutató folytatódik.",
     "extHelpProjectOpenFailed": "A(z) {{name}} bővítmény projektfájlja ({{file}}) nem nyitható meg.",
@@ -318,7 +320,10 @@
       "capacitySteps_one": "{{count}} erőforrás kapacitásfokozatokkal: csak a rögzített kapacitás kerül át",
       "capacitySteps_other": "{{count}} erőforrás kapacitásfokozatokkal: csak a rögzített kapacitás kerül át",
       "projectDetails": "A projekt szerzője és cége"
-    }
+    },
+    "dependentProjectsFound": "Függő projektek: {{projects}}. Kapcsolatok ehhez a projekthez: {{links}}.",
+    "dependentProjectsNone": "Nem található olyan projekt, amely külső kapcsolattal kötődik ehhez az ütemtervhez.",
+    "dependentProjectsFailed": "A függő projekteket tartalmazó mappa nem olvasható."
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -753,6 +758,8 @@
     "missedDeadlines": "{{count}} határidő lekésve",
     "violatedConstraints": "{{count}} korlátozás megsértve",
     "outOfSequence": "{{count}} sorrenden kívüli kapcsolat",
+    "externalSuccessors_one": "{{count}} külső utód túl szoros",
+    "externalSuccessors_other": "{{count}} külső utód túl szoros",
     "overallocated": "{{count}} erőforrás túlterhelve",
     "summary_one": "{{count}} figyelmeztetés",
     "summary_other": "{{count}} figyelmeztetés"
@@ -770,6 +777,10 @@
       "scheduleError": "Az ütemezést nem lehetett kiszámítani: {{message}}",
       "missedDeadline": "A {{deadline}} határidő lekésve — korai befejezés: {{finish}}",
       "violatedConstraint": "A(z) {{constraint}} korlátozást a logika felülírja (negatív tartalékidő)",
+      "externalSuccessorViolatedSF": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} fejeződik be, ez a feladat csak {{own}} kezdődik",
+      "externalSuccessorViolatedFF": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} fejeződik be, ez a feladat csak {{own}} fejeződik be",
+      "externalSuccessorViolatedSS": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} kezdődik, ez a feladat csak {{own}} kezdődik",
+      "externalSuccessorViolatedFS": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} kezdődik, ez a feladat csak {{own}} fejeződik be",
       "outOfSequence": "Sorrenden kívüli előrehaladás: az utód előrehaladása ellentmond a kapcsolatnak",
       "truncatedLead": "Az átfedést a projektkezdés csonkolja — a kapcsolat nincs teljesen kihasználva",
       "droppedSequence": "Kapcsolat figyelmen kívül hagyva: az előd vagy az utód hiányzik, vagy nem levéltevékenység",
@@ -1341,14 +1352,11 @@
     "detailConstraints": "korlátozás-dátumok",
     "detailDeadlines": "határidők",
     "detailActuals": "tényleges dátumok",
-    "detailExternal": "külső horgonyok",
     "detailSteps": "rendelkezésre állási lépcsők",
     "warnActuals_one": "{{count}} tevékenységnek tényleges kezdés- és befejezési dátuma van; ezek is eltolódnak. Ellenőrizze, hogy ez helyes-e egy folyamatban lévő projektnél.",
     "warnActuals_other": "{{count}} tevékenységnek tényleges kezdés- és befejezési dátuma van; ezek is eltolódnak. Ellenőrizze, hogy ez helyes-e egy folyamatban lévő projektnél.",
     "warnHardPins_one": "{{count}} tevékenységnek kemény Mandatory-rögzítése van; ez a rögzítés is eltolódik.",
     "warnHardPins_other": "{{count}} tevékenységnek kemény Mandatory-rögzítése van; ezek a rögzítések is eltolódnak.",
-    "warnExternal_one": "{{count}} projektközi kapcsolat: a horgony eltolódik, de a forrásprojekt nem. Áthelyezés után frissítse a projektközi kapcsolatot.",
-    "warnExternal_other": "{{count}} projektközi kapcsolat: a horgonyok eltolódnak, de a forrásprojektek nem. Áthelyezés után frissítse a projektközi kapcsolatokat.",
     "warnHolidayGap": "A(z) „{{name}}” naptár generált ünnepnapjai a(z) {{from}}–{{to}} időszakot fedik le. Az áthelyezett ütemezés {{year}}-ig tart. Generálja újra az ünnepnapokat.",
     "warnCustomDateFields_one": "{{count}} kitöltött egyéni dátummező megtartja a dátumát.",
     "warnCustomDateFields_other": "{{count}} kitöltött egyéni dátummező megtartja a dátumát.",
@@ -1859,5 +1867,19 @@
       "hammock": "A hozzá kapcsolt tevékenységeket követi",
       "unknown": "Az okot nem sikerült megállapítani"
     }
+  },
+  "fileDrop": {
+    "title": "Engedje el a megnyitáshoz",
+    "subtitle": "Projektfájl vagy importálás"
+  },
+  "dependentAnchorWarning": {
+    "title": "Más projektek horgonydátumai szorosabbá válnak",
+    "body": "Ezek a projektek ennek az ütemtervnek egy dátumára épülnek. Mentés után szorosabb dátumot kapnak, amikor frissítik projektközi kapcsolataikat.",
+    "colProject": "Projekt",
+    "colTheirTask": "Ottani feladat",
+    "colOwnTask": "Itteni feladat",
+    "colAnchor": "Horgonydátum: régi → új",
+    "saveAnyway": "Mentés mégis",
+    "cancel": "Mégse"
   }
 }

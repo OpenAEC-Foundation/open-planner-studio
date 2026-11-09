@@ -4,7 +4,7 @@ import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
-import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs } from '@/utils/settingsStore';
+import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveAutoFitColumns } from '@/utils/settingsStore';
 import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNoticeKinds';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
@@ -15,7 +15,7 @@ import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
-import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
 import { AppLogo } from '@/components/common/AppLogo';
@@ -65,6 +65,7 @@ export function SettingsPanelContent() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
+  const autoFitColumns = useAppStore(s => s.ui.autoFitColumns);
   const showClassicViewControls = useAppStore(s => s.ui.showClassicViewControls);
   const ribbonWheelSwitchesTabs = useAppStore(s => s.ui.ribbonWheelSwitchesTabs);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
@@ -83,7 +84,7 @@ export function SettingsPanelContent() {
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
   const featureFlags = useAppStore(s => s.ui.featureFlags);
-  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
+  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.hidden && !flag.writesNewIfcData);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const versionRef = useRef<HTMLButtonElement>(null);
@@ -309,6 +310,19 @@ export function SettingsPanelContent() {
               />
             </div>
 
+            <div className="settings-section">
+              <h3>{t('settings.taskGridSection')}</h3>
+              {/* Kolommen automatisch aanpassen: de breedte volgt de inhoud; een met de hand
+                  versleepte kolom blijft staan tot een dubbelklik op de rand. */}
+              <SettingToggle
+                label={t('settings.autoFitColumns')}
+                hint={t('settings.autoFitColumnsHint')}
+                checked={autoFitColumns}
+                onChange={checked => applySetting('autoFitColumns', checked, saveAutoFitColumns)}
+                inputProps={{ 'data-ops-auto-fit-columns': '' }}
+              />
+            </div>
+
             {/* Subkop die de Gantt-tijdlijninstellingen groepeert — geen eigen tab, wel een
                 herkenbare knip binnen Weergave. Werkdagen-as, kwartierzoom, taakbalksplitsing en
                 scroll/zoom-gedrag horen allemaal bij hoe de tijdlijn zich gedraagt. */}
@@ -487,13 +501,15 @@ export function SettingsPanelContent() {
             {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
                 van de stats-branch). Bewust een KNOP naast Benchmark in Geavanceerd en geen eigen
                 tabblad — de gemiddelde gebruiker heeft er niets aan. */}
-            <div className="settings-section">
-              <h3>{t('settings.statsSection')}</h3>
-              <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
-              <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
-                {t('settings.statsOpen')}
-              </button>
-            </div>
+            {DOWNLOAD_STATS_AVAILABLE && (
+              <div className="settings-section" data-ops-settings-stats>
+                <h3>{t('settings.statsSection')}</h3>
+                <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
+                <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
+                  {t('settings.statsOpen')}
+                </button>
+              </div>
+            )}
 
             {/* [Rondleiding]: derde herstart-ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
                 zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
@@ -526,21 +542,26 @@ export function SettingsPanelContent() {
                   {__APP_VERSION__}
                 </button>
               </div>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
-                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
-                }}
-              >
-                {t('updates.checkButton')}
-              </button>
-              <button
-                className="settings-link"
-                onClick={() => { void openWhatsNew(); }}
-              >
-                {t('updates.justUpdated.whatsNewButton')}
-              </button>
+              {/* Platformbouw (#818): geen update-check en geen releasegegevens van GitHub. */}
+              {UPDATES_AVAILABLE && (
+                <>
+                  <button
+                    className="settings-link"
+                    onClick={() => {
+                      // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
+                      setUI({ showSettingsDialog: false, showUpdateDialog: true });
+                    }}
+                  >
+                    {t('updates.checkButton')}
+                  </button>
+                  <button
+                    className="settings-link"
+                    onClick={() => { void openWhatsNew(); }}
+                  >
+                    {t('updates.justUpdated.whatsNewButton')}
+                  </button>
+                </>
+              )}
             </div>
             {experimentalSettingsVisible && (
               <div className="settings-section" data-ops-experimental-settings>

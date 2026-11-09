@@ -12,11 +12,11 @@ All tools an MCP client can call through the bridge, by group, with what they do
 
 ## Read: schedule
 
-- `planner_get_project_info` (read) — project details and key figures: the number of tasks, relations, resources and milestones, the status date, the project end and duration, whether the schedule is stale, the calculation profile and a summary of the calendars. A good first call.
+- `planner_get_project_info` (read) — project details and key figures: the number of tasks, relations, resources and milestones, the status date, the project end and duration, whether the schedule is stale, the calculation profile and a summary of the calendars. If the project has external relations, also their number and, per source project, how many links there are and how many miss their source task. A good first call.
 - `planner_get_project_overview` (read) — the whole WBS tree in one response: per task id, WBS, name, duration, early dates, progress, critical, and the outgoing relations with their relation id.
-- `planner_list_tasks` (read) — tasks with filters (critical, status, date window, tasks without relations) and paging.
-- `planner_get_task` (read) — one task in detail: dates, float, progress, constraints, deadline, calendar, assignments, predecessors and successors, interruptions.
-- `planner_get_critical_path` (read) — the critical tasks with their total float, and the relations that drive the path.
+- `planner_list_tasks` (read) — tasks with filters (critical, status, date window, tasks without relations, tasks with or without external relations) and paging. An external relation counts as a relation, also when it is on the phase above.
+- `planner_get_task` (read) — one task in detail: dates, float, progress, constraints, deadline, calendar, assignments, predecessors and successors, interruptions, and the external relations: the task's own links and those of the phase above, with the anchor and the source.
+- `planner_get_critical_path` (read) — the critical tasks with their total float, and the relations that drive the path. Optionally per page (`limit`, `offset`).
 - `planner_list_resources` (read) — resources with capacity, rate, calendar, crew, availability and a summary of their assignments. If a resource comes from a library, it shows which fields are fixed.
 - `planner_get_resource_histogram` (read) — load against capacity per resource, per day, week or month (week by default). With no window and no resources it gives a summary per resource; with a window or resources it gives the full series and the tasks that cause an overallocation.
 - `planner_get_calendars` (read) — all calendars with their full definition and how many tasks and resources use them.
@@ -24,8 +24,8 @@ All tools an MCP client can call through the bridge, by group, with what they do
 ## Read: baselines and variance
 
 - `planner_list_baselines` (read) — the saved baselines and which one is active.
-- `planner_compare_baseline` (read) — the current plan against the active baseline: only the tasks that differ and the difference in project end, in working days on the current project calendar. Without an active baseline it refuses.
-- `planner_analyze_delay` (read) — delay analysis against the active baseline: the difference in delivery and the critical tasks that have moved. Without an active baseline it refuses.
+- `planner_compare_baseline` (read) — the current plan against the active baseline: only the tasks that differ and the difference in project end, in working days on the current project calendar. Optionally per page (`limit`, `offset`). Without an active baseline it refuses.
+- `planner_analyze_delay` (read) — delay analysis against the active baseline: the difference in delivery and the critical tasks that have moved. Optionally per page (`limit`, `offset`). Without an active baseline it refuses.
 
 ## Tasks and structure
 
@@ -40,6 +40,7 @@ All tools an MCP client can call through the bridge, by group, with what they do
 - `planner_add_dependencies` (change, bulk) — create relations with a type (`FS`, `SS`, `FF`, `SF` or the long form) and lag, for example `+2d`.
 - `planner_update_dependencies` (change, bulk) — change the type, lag, predecessor or successor of an existing relation, by relation id. That is one step, instead of deleting and creating again.
 - `planner_remove_dependencies` (change, bulk) — delete relations by relation id.
+- `planner_refresh_external_links` (change) — refresh the anchors of the external relations from their source files, like *Refresh all external relations* in the app. The tool reads every source file once, without opening it as a document, and sets all new anchors in one step. Only sources inside your home folder. A link without a path is refreshed only when the same source project is read through another link. The answer says for each source file whether it was read, and which anchors changed. See [External relations to another project](docs://howto-externe-relaties).
 
 ## Project and calendars
 

@@ -26,6 +26,7 @@ import { ancestorIds, flattenOrder } from '@/utils/wbs';
 import type { ReadFreshResult } from '../freshness';
 import { McpStepError, runReadTool } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
+import { externalLinkView, externalRelationCount, inheritedExternalLinkViews } from './externalLinkFields';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { Task } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
@@ -129,7 +130,7 @@ function requireOnlyKeys(args: unknown, allowed: readonly string[], toolName: st
 }
 
 const PAGE_KEYS = ['limit', 'offset'] as const;
-const LIST_TASKS_KEYS = ['kritiek', 'status', 'van', 'tot', 'zonder_relaties', ...PAGE_KEYS] as const;
+const LIST_TASKS_KEYS = ['kritiek', 'status', 'van', 'tot', 'zonder_relaties', 'externe_relaties', ...PAGE_KEYS] as const;
 const HISTOGRAM_KEYS = ['resourceIds', 'van', 'tot', 'bucket'] as const;
 
 /** Gooit een `McpStepError` wanneer `v` gezet maar geen boolean is. */
@@ -180,6 +181,23 @@ function paginate<T>(items: T[], args: PageArgs): Paged<T> {
   return { items: page, total: items.length, has_more, next_offset: has_more ? nextOffset : null };
 }
 
+/**
+ * OPTIONELE paginering (#818) voor een leestool die zonder `limit`/`offset` zijn hele lijst geeft
+ * (kritiek pad, baselinevergelijking, vertraginganalyse). Zonder beide sleutels: null, en de tool
+ * antwoordt precies als voorheen. Met minstens één: `paginate` (default limit 50). Zo heeft de
+ * assistent van de site, die antwoorden boven ~30.000 tekens weigert, een uitweg die echt werkt.
+ */
+function optionalPage<T>(items: T[], args: PageArgs): Paged<T> | null {
+  requirePageArgs(args);
+  if (args.limit === undefined && args.offset === undefined) return null;
+  return paginate(items, args);
+}
+
+/** De paginavelden die een gepagineerd antwoord naast zijn lijst draagt (zelfde namen als list_tasks). */
+function pageFields(page: Paged<unknown>) {
+  return { total: page.total, has_more: page.has_more, next_offset: page.next_offset };
+}
+
 /** Alle taak-id's die in minstens één relatie voorkomen (als voorganger óf opvolger) — basis voor
  *  de wees-detectie (`zonder_relaties`). */
 function idsInAnySequence(sequences: Sequence[]): Set<string> {
@@ -210,6 +228,27 @@ function calendarSummary(cal: WorkCalendar) {
 }
 
 // ── 1. planner_get_project_info ──────────────────────────────────────────────────────────────────
+
+/** Per bronproject van de externe relaties: hoeveel koppelingen, en hoeveel daarvan hun brontaak missen. */
+function externalSourcesSummary(tasks: readonly Task[]) {
+  const bySource = new Map<string, { projectId: string; projectName?: string; filePath?: string; links: number; sourceMissing: number }>();
+  for (const task of tasks) {
+    for (const link of task.externalLinks ?? []) {
+      const ref = link.sourceRef;
+      const key = `${ref.projectId}\u0000${ref.filePath ?? ''}`;
+      const entry = bySource.get(key) ?? {
+        projectId: ref.projectId,
+        ...(ref.projectName ? { projectName: ref.projectName } : {}),
+        ...(ref.filePath ? { filePath: ref.filePath } : {}),
+        links: 0, sourceMissing: 0,
+      };
+      entry.links++;
+      if (link.sourceMissing) entry.sourceMissing++;
+      bySource.set(key, entry);
+    }
+  }
+  return bySource.size > 0 ? { externalSources: [...bySource.values()] } : {};
+}
 
 function getProjectInfo(s: AppState) {
   const tasks = s.tasks;
@@ -265,7 +304,9 @@ function getProjectInfo(s: AppState) {
       assignments: s.assignments.length,
       criticalTasks: criticalCount,
       ...(criticalUnknown > 0 ? { criticalUnrecordedTasks: criticalUnknown } : {}),
+      externalRelations: tasks.reduce((sum, t) => sum + (t.externalLinks?.length ?? 0), 0),
     },
+    ...externalSourcesSummary(tasks),
     schedule: {
       scheduleStale: s.scheduleStale,
       projectEnd: s.cpmResult?.projectEnd ?? null,
@@ -352,6 +393,7 @@ interface ListTasksArgs extends PageArgs {
   van?: unknown;
   tot?: unknown;
   zonder_relaties?: unknown;
+  externe_relaties?: unknown;
 }
 
 function listTasks(s: AppState, args: ListTasksArgs) {
@@ -359,6 +401,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   requireOnlyKeys(args, LIST_TASKS_KEYS, 'list_tasks');
   requireBool(args.kritiek, 'kritiek');
   requireBool(args.zonder_relaties, 'zonder_relaties');
+  requireBool(args.externe_relaties, 'externe_relaties');
   if (args.status !== undefined && !TASK_STATUSES.includes(args.status as string)) {
     throw new McpStepError('VALIDATION',
       `\`status\` must be one of ${TASK_STATUSES.join(', ')} (case-sensitive), got '${String(args.status)}'.`);
@@ -387,13 +430,21 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     const tot = typeof args.tot === 'string' ? args.tot : '9999-12-31';
     filtered = filtered.filter((t) => shownSpanOverlapsDays(t, van, tot));
   }
+  // Externe relaties tellen als logica, ook op een fase (zoals de berekening en de rapporten,
+  // `buildLogicIndex`): een taak die wacht op een ander project is geen wees.
+  const byId = new Map(s.tasks.map((t) => [t.id, t] as const));
+  const externalCount = (t: Task) => externalRelationCount(t, byId);
+  if (typeof args.externe_relaties === 'boolean') {
+    const want = args.externe_relaties;
+    filtered = filtered.filter((t) => (externalCount(t) > 0) === want);
+  }
   // Wees-detectie telt ook relaties op voorouders: die verbinden hun bladtaken met het netwerk.
   // Een relatie op een kind verbindt niet automatisch zijn ouder of zustertakken.
   if (args.zonder_relaties === true) {
     const inSeq = idsInAnySequence(s.sequences);
     const parentOf = new Map(s.tasks.map((t) => [t.id, t.parentId]));
     filtered = filtered.filter((t) => {
-      if (!isLeafTask(t) || inSeq.has(t.id)) return false;
+      if (!isLeafTask(t) || inSeq.has(t.id) || externalCount(t) > 0) return false;
       for (const id of ancestorIds(t.id, (id) => parentOf.get(id))) {
         if (inSeq.has(id)) return false;
       }
@@ -422,6 +473,8 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     else if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
     if (isSummaryTask(t)) row.summary = true;
+    const ext = externalCount(t);
+    if (ext > 0) row.ext = ext;
     return row;
   });
   return {
@@ -598,12 +651,20 @@ function getTask(s: AppState, args: GetTaskArgs) {
     assignments,
     predecessors,
     successors,
+    // Externe relaties (keuze 11): de eigen koppelingen, en die van de fasen erboven (die gelden voor
+    // elke taak in de fase).
+    externalLinks: (task.externalLinks ?? []).map(externalLinkView),
+    ...(() => {
+      const inherited = inheritedExternalLinkViews(task, taskById);
+      return inherited.length > 0 ? { inheritedExternalLinks: inherited } : {};
+    })(),
   };
 }
 
 // ── 5. planner_get_critical_path ─────────────────────────────────────────────────────────────────
 
-function getCriticalPath(s: AppState) {
+function getCriticalPath(s: AppState, args: PageArgs) {
+  requirePageArgs(args); // ook als er geen resultaat is: een foute pagina blijft een VALIDATION-fout
   const cpm = s.cpmResult;
   if (!cpm || cpm.error) {
     return {
@@ -637,12 +698,17 @@ function getCriticalPath(s: AppState) {
       totalFloat: unrecorded?.includes('totalFloat') ? null : (r?.totalFloat ?? 0),
     };
   });
+  // Optionele pagina over de kritieke taken; de relaties volgen de pagina via hun opvolger, zodat elke
+  // relatie op precies één pagina staat.
+  const page = optionalPage(criticalTasks, args);
+  const pageIds = page ? new Set(page.items.map((t) => t.id)) : null;
 
   // Driving-relaties GEFILTERD op paren waarvan BEIDE eindpunten kritiek zijn.
   const seqById = new Map(s.sequences.map((seq) => [seq.id, seq]));
   const drivingIds = knownDrivingSequenceIds(cpm);
   const drivingRelations = drivingIds?.map((id) => seqById.get(id))
     .filter((seq): seq is Sequence => !!seq && critSet.has(seq.predecessorId) && critSet.has(seq.successorId))
+    .filter((seq) => pageIds === null || pageIds.has(seq.successorId))
     .map((seq) => ({
       seqId: seq.id,
       predId: seq.predecessorId,
@@ -662,7 +728,8 @@ function getCriticalPath(s: AppState) {
     scheduleStale: s.scheduleStale,
     hasResult: true,
     projectEnd: cpm.projectEnd,
-    criticalTasks,
+    criticalTasks: page ? page.items : criticalTasks,
+    ...(page ? pageFields(page) : {}),
     drivingRelations,
     ...(drivingRelations === null ? {
       note: 'Driving relationships are unknown in Dates as recorded mode. Recalculate explicitly to determine them; ' +
@@ -934,7 +1001,7 @@ function getCalendars(s: AppState) {
 
 // ── 9. planner_compare_baseline ──────────────────────────────────────────────────────────────────
 
-function compareBaseline(s: AppState) {
+function compareBaseline(s: AppState, args: PageArgs) {
   const baseline = activeBaseline(s);
   if (!baseline) {
     // De weigering moet naar een BESTAANDE weg wijzen (de baselinetools in `baselineTools.ts`).
@@ -946,6 +1013,7 @@ function compareBaseline(s: AppState) {
   const currentEnd = s.cpmResult?.projectEnd || undefined;
   const variance = computeVariance(s.tasks, baseline, cal, currentEnd);
   const deviations = variance.rows.filter((r) => r.status !== 'onSchedule');
+  const page = optionalPage(deviations, args);
   return {
     baselineId: baseline.id,
     baselineName: baseline.name,
@@ -953,7 +1021,8 @@ function compareBaseline(s: AppState) {
     scheduleStale: s.scheduleStale,
     projectEndDelta: variance.projectEndDelta ?? null,
     deviationCount: deviations.length,
-    deviations: deviations.map(compactVarianceRow),
+    deviations: (page ? page.items : deviations).map(compactVarianceRow),
+    ...(page ? pageFields(page) : {}),
   };
 }
 
@@ -976,7 +1045,7 @@ function compactVarianceRow(r: VarianceRow) {
 
 // ── 10. planner_analyze_delay ────────────────────────────────────────────────────────────────────
 
-function analyzeDelay(s: AppState) {
+function analyzeDelay(s: AppState, args: PageArgs) {
   const baseline = activeBaseline(s);
   if (!baseline) {
     throw new McpStepError('VALIDATION',
@@ -1006,6 +1075,7 @@ function analyzeDelay(s: AppState) {
     }));
 
   const hasDelta = variance.projectEndDelta !== undefined;
+  const page = optionalPage(shifters, args);
   return {
     baselineId: baseline.id,
     baselineName: baseline.name,
@@ -1018,7 +1088,8 @@ function analyzeDelay(s: AppState) {
       : { note: 'The baseline has no calculated project end — the delivery impact is unknown (not 0). Save a new ' +
           'baseline (planner_save_baseline recalculates the schedule first) to measure this.' }),
     criticalShifterCount: shifters.length,
-    criticalShifters: shifters,
+    criticalShifters: page ? page.items : shifters,
+    ...(page ? pageFields(page) : {}),
   };
 }
 
@@ -1038,6 +1109,21 @@ const FRESH_NOTE =
 
 const NO_ARGS_SCHEMA = { type: 'object', properties: {}, additionalProperties: false } as const;
 
+/** Schema van een leestool met alleen OPTIONELE paginering (#818): zonder beide velden de hele lijst. */
+const OPTIONAL_PAGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    limit: { type: 'number', description: 'Optional: number per page (1-1000). Without limit and offset the whole list is returned.' },
+    offset: { type: 'number', description: 'Optional: start index (default 0).' },
+  },
+  additionalProperties: false,
+} as const;
+
+/** Zin in de beschrijving van zo'n tool. */
+const OPTIONAL_PAGE_NOTE =
+  ' Optional pagination: `limit` (integer 1..1000) and `offset` (≥ 0); with either one the list is paged ' +
+  '(default limit 50) and the answer adds `total`, `has_more` and `next_offset`. Without both, the whole list.';
+
 export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_project_info',
@@ -1056,7 +1142,9 @@ export const readTools: McpToolDef[] = [
       'the variant of convention `p6InProgressStartLagElapsed` and is always present. ' +
       '`schedulingOptions.leveling` (only for a file that carries them, e.g. a P6 XER) are the leveling ' +
       'settings of the source file: read and kept, NOT applied yet (no effect on the calculation); manual ' +
-      'leveling remains `planner_level_resources`.' + FRESH_NOTE,
+      'leveling remains `planner_level_resources`. `statistics.externalRelations` counts the links to tasks in ' +
+      'other project files; `externalSources` (only if there are any) lists per source project how many links ' +
+      'point to it and how many of them miss their source task.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1093,7 +1181,11 @@ export const readTools: McpToolDef[] = [
       'get_project_info), `status` (NOT_STARTED|STARTED|COMPLETED), `van`/`tot` (from/to; ISO date window: ' +
       'tasks overlapping [van,tot], per day and with both bounds inclusive — also an hour task that starts ' +
       'on the `tot` day), `zonder_relaties` (without relationships; bool — orphan detection: ONLY LEAF tasks ' +
-      'without relationships on themselves or any ancestor summary task; summary tasks are excluded). Pagination: `limit` (integer ' +
+      'without relationships on themselves or any ancestor summary task; summary tasks are excluded; an external ' +
+      'relationship counts as a relationship), `externe_relaties` (external relationships; bool — true: only tasks ' +
+      'with a link to a task in another project file, on themselves or on a summary task above them; false: only ' +
+      'tasks without). Each row with external relationships carries `ext` (how many apply to it, own plus ' +
+      'inherited from summary tasks). Pagination: `limit` (integer ' +
       '1..1000, default 50), `offset` (≥ 0); returns `total`, `has_more`, `next_offset`. Every filter is ' +
       'validated STRICTLY: a wrongly typed or out-of-domain value gives a clean error listing the allowed ' +
       'values — never silently a different set.' + FRESH_NOTE,
@@ -1106,7 +1198,8 @@ export const readTools: McpToolDef[] = [
         status: { type: 'string', enum: ['NOT_STARTED', 'STARTED', 'COMPLETED'] },
         van: { type: 'string', description: 'ISO date lower bound of the window' },
         tot: { type: 'string', description: 'ISO date upper bound of the window' },
-        zonder_relaties: { type: 'boolean', description: 'Only leaf tasks without relationships on themselves or any ancestor summary task (orphans)' },
+        zonder_relaties: { type: 'boolean', description: 'Only leaf tasks without relationships on themselves or any ancestor summary task (orphans); external relationships count' },
+        externe_relaties: { type: 'boolean', description: 'true: only tasks with an external relationship (own or on a summary task above them); false: only tasks without' },
         limit: { type: 'number', description: 'Number per page (default 50)' },
         offset: { type: 'number', description: 'Start index (default 0)' },
       },
@@ -1121,7 +1214,11 @@ export const readTools: McpToolDef[] = [
       'Detail of one task (`taskId` required): metadata, duration/durationType, early/late dates, total/free ' +
       'float, critical flag, progress (+actuals), constraints (primary/secondary) and deadline, the ' +
       'effective calendar, parent/children, all assignments (resource, units/day, curve) and ' +
-      'predecessors/successors (with type + lag). On a summary task (phase), progress, status and actuals ' +
+      'predecessors/successors (with type + lag), and `externalLinks`: the links to a task in another project ' +
+      'file (`direction` predecessor/successor, `type`, `lag`, the frozen `anchorDate` from the source, ' +
+      '`sourceMissing` and the `source` project and task). A link on a summary task (phase) applies to every task ' +
+      'in that phase; a task below it lists those under `inheritedExternalLinks`, with the phase in `fromTaskId`/' +
+      '`fromWbs`. Refresh the anchors with planner_refresh_external_links. On a summary task (phase), progress, status and actuals ' +
       'are DERIVED from the leaf tasks (read-only): actualStart = the earliest, actualFinish = the latest ' +
       'once all leaf tasks are done. An interrupted task carries `splitGaps` (raw) plus the readable ' +
       '`interruptions` — the same shape that planner_set_task_splits accepts; `splitsEditable: false` = an ' +
@@ -1164,12 +1261,14 @@ export const readTools: McpToolDef[] = [
       'these tasks+relationships is client work. `pathsMode` reports the situation: "merged" (one merged ' +
       'critical path — the normal case) or "parallel". Separate parallel chains (`criticalPaths`) are ONLY ' +
       'included when floatPaths with method FREE_FLOAT is active; otherwise there is by definition one ' +
-      'merged path and `criticalPaths` is missing.' + FRESH_NOTE,
+      'merged path and `criticalPaths` is missing.' + OPTIONAL_PAGE_NOTE + ' The pages run over ' +
+      '`criticalTasks`; a page lists the driving relationships whose successor is on that page, and ' +
+      '`criticalPaths` stays complete.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
-    inputSchema: NO_ARGS_SCHEMA,
+    inputSchema: OPTIONAL_PAGE_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_critical_path'); return getCriticalPath(s); }, FRESH),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, PAGE_KEYS, 'get_critical_path'); return getCriticalPath(s, (args ?? {}) as PageArgs); }, FRESH),
   },
   {
     name: 'planner_list_resources',
@@ -1256,12 +1355,12 @@ export const readTools: McpToolDef[] = [
       'onSchedule: late/early/new/dropped) plus `projectEndDelta`. No active baseline ⇒ clean VALIDATION ' +
       'error. YARDSTICK DISCLOSURE: deltas are working days on the CURRENT project calendar — after a ' +
       'calendar change the yardstick itself has changed (take magnitudes with a grain of salt; direction and ' +
-      'selection stay reliable).' + FRESH_NOTE,
+      'selection stay reliable).' + OPTIONAL_PAGE_NOTE + ' The pages run over `deviations`.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
-    inputSchema: NO_ARGS_SCHEMA,
+    inputSchema: OPTIONAL_PAGE_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'compare_baseline'); return compareBaseline(s); }, FRESH),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, PAGE_KEYS, 'compare_baseline'); return compareBaseline(s, (args ?? {}) as PageArgs); }, FRESH),
   },
   {
     name: 'planner_analyze_delay',
@@ -1271,11 +1370,11 @@ export const readTools: McpToolDef[] = [
       'would double-count a cascade). The critical shifters (variance ∩ critical path) with their individual ' +
       'deltas serve as localisation/explanation, not to be added up. If the baseline has no calculated ' +
       'project end, the tool reports that explicitly (`projectEndDeltaAvailable:false`) instead of ' +
-      'suggesting 0.' + FRESH_NOTE,
+      'suggesting 0.' + OPTIONAL_PAGE_NOTE + ' The pages run over `criticalShifters`.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
-    inputSchema: NO_ARGS_SCHEMA,
+    inputSchema: OPTIONAL_PAGE_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'analyze_delay'); return analyzeDelay(s); }, FRESH),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, PAGE_KEYS, 'analyze_delay'); return analyzeDelay(s, (args ?? {}) as PageArgs); }, FRESH),
   },
 ];

@@ -155,6 +155,7 @@
     "barsGroup": "Trake",
     "manageBaselines": "Upravljaj temeljnim planovima…",
     "statusDate": "Datum stanja",
+    "statusDateValue": "Datum stanja: {{date}}",
     "statusDateClear": "Ukloni datum stanja",
     "statusDateTime": "Vrijeme datuma stanja",
     "statusDateTimeLater": "Vrijeme kasnije",
@@ -219,7 +220,9 @@
     "screenColorsMissingField": "Ovo polje ne postoji u ovom projektu. Privremeno se koristi kategorija radova.",
     "screenColorsHint": "Izvan opcije Kritični put, crveni obrub označava kritični put.",
     "addLayout": "Novi izgled",
-    "toggleRelations": "Linije ovisnosti"
+    "toggleRelations": "Linije ovisnosti",
+    "relationFindDependents": "Pronađi ovisne projekte…",
+    "relationFindDependentsHint": "Pretraži mapu za projekte s vanjskom vezom prema ovom planu."
   },
   "ifc": {
     "title": "IFC uređivač",

@@ -148,7 +148,7 @@ export function CalendarGeneratorFields({
           disabled={preview.holidays.length === 0}
         >
           {preview.holidays.length > 0 ? (
-            expanded ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" />
+            expanded ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" lucide={{ className: undefined }} />
           ) : null}
           <span>
             {preview.holidays.length === 0

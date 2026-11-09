@@ -154,6 +154,7 @@
     "barsGroup": "Sávok",
     "manageBaselines": "Alapterv kezelése…",
     "statusDate": "Állapotdátum",
+    "statusDateValue": "Állapotdátum: {{date}}",
     "statusDateClear": "Állapotdátum törlése",
     "statusDateTime": "Az állapotdátum időpontja",
     "statusDateTimeLater": "Későbbi idő",
@@ -218,7 +219,9 @@
     "screenColorsMissingField": "Ez a mező nem létezik ebben a projektben. Átmenetileg a munkanem van használatban.",
     "screenColorsHint": "Ha nem a Kritikus út szerint színez, piros szegély jelöli a kritikus utat.",
     "addLayout": "Elrendezés létrehozása",
-    "toggleRelations": "Kapcsolatvonalak"
+    "toggleRelations": "Kapcsolatvonalak",
+    "relationFindDependents": "Függő projektek keresése…",
+    "relationFindDependentsHint": "Mappa keresése olyan projektekért, amelyek külső kapcsolattal kötődnek ehhez az ütemtervhez."
   },
   "ifc": {
     "title": "IFC-szerkesztő",

@@ -13,6 +13,8 @@
     "dismiss": "Fermer la notification",
     "taskEditRevertBlocked": "Une modification du client MCP ou d'une extension est intervenue entre-temps. Les modifications de tâche effectuées avant n'ont pas été annulées ; elles restent des étapes ordinaires sous « Annuler ».",
     "openFailed": "Échec de l'ouverture du fichier",
+    "fileDropRefused": "Non ouvert : {{names}}. L’application n’ouvre que les fichiers IFC, XML, MPP, XER et CSV.",
+    "fileDropBlocked": "Non ouvert : {{names}}. Fermez d’abord la fenêtre ouverte.",
     "csvInvalidDate": "CSV non ouvert : date illisible « {{value}} » à la ligne CSV {{row}}, colonne « {{column}} ». Utilisez aaaa-mm-jj, jj-mm-aaaa ou jj/mm/aaaa.",
     "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
     "extHelpProjectOpenFailed": "Le fichier de projet {{file}} de l’extension {{name}} n’a pas pu être ouvert.",
@@ -414,7 +416,10 @@
       "capacitySteps_many": "{{count}} de ressources avec des paliers de capacité : seule la capacité fixe est incluse",
       "capacitySteps_other": "{{count}} ressources avec des paliers de capacité : seule la capacité fixe est incluse",
       "projectDetails": "Auteur et entreprise du projet"
-    }
+    },
+    "dependentProjectsFound": "Projets dépendants : {{projects}}. Liens vers ce projet : {{links}}.",
+    "dependentProjectsNone": "Aucun projet trouvé ayant une relation externe avec ce planning.",
+    "dependentProjectsFailed": "Impossible de lire le dossier des projets dépendants."
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",
@@ -851,6 +856,9 @@
     "missedDeadlines": "{{count}} échéance(s) dépassée(s)",
     "violatedConstraints": "{{count}} contrainte(s) non respectée(s)",
     "outOfSequence": "{{count}} relation(s) hors séquence",
+    "externalSuccessors_one": "{{count}} successeur externe trop serré",
+    "externalSuccessors_many": "{{count}} successeurs externes trop serrés",
+    "externalSuccessors_other": "{{count}} successeurs externes trop serrés",
     "overallocated": "{{count}} ressource(s) en surallocation",
     "summary_one": "{{count}} avertissement",
     "summary_many": "{{count}} avertissements",
@@ -869,6 +877,10 @@
       "scheduleError": "Le planning n'a pas pu être calculé : {{message}}",
       "missedDeadline": "Échéance {{deadline}} dépassée — fin au plus tôt {{finish}}",
       "violatedConstraint": "La contrainte {{constraint}} est outrepassée par la logique (marge négative)",
+      "externalSuccessorViolatedSF": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il se termine au plus tard le {{anchor}}, cette tâche ne commence que le {{own}}",
+      "externalSuccessorViolatedFF": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il se termine au plus tard le {{anchor}}, cette tâche ne se termine que le {{own}}",
+      "externalSuccessorViolatedSS": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il commence au plus tard le {{anchor}}, cette tâche ne commence que le {{own}}",
+      "externalSuccessorViolatedFS": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il commence au plus tard le {{anchor}}, cette tâche ne se termine que le {{own}}",
       "outOfSequence": "Hors séquence : l'avancement du successeur contredit la relation",
       "truncatedLead": "Avance tronquée par le début du projet — la relation n'est pas pleinement respectée",
       "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur est absent ou n'est pas une tâche feuille",
@@ -1449,7 +1461,6 @@
     "detailConstraints": "dates de contrainte",
     "detailDeadlines": "échéances",
     "detailActuals": "dates réelles",
-    "detailExternal": "ancrages externes",
     "detailSteps": "paliers de capacité",
     "warnActuals_one": "{{count}} tâche a des dates de début/fin réelles ; elles se décalent aussi. Vérifiez que cela convient pour un projet en cours.",
     "warnActuals_many": "{{count}} tâches ont des dates de début/fin réelles ; elles se décalent aussi. Vérifiez que cela convient pour un projet en cours.",
@@ -1457,9 +1468,6 @@
     "warnHardPins_one": "{{count}} tâche a une contrainte Obligatoire stricte ; cet ancrage se décale aussi.",
     "warnHardPins_many": "{{count}} tâches ont une contrainte Obligatoire stricte ; ces ancrages se décalent aussi.",
     "warnHardPins_other": "{{count}} tâches ont une contrainte Obligatoire stricte ; ces ancrages se décalent aussi.",
-    "warnExternal_one": "{{count}} relation externe : son ancrage se décale, mais pas le projet source. Actualisez la relation après le déplacement.",
-    "warnExternal_many": "{{count}} relations externes : leurs ancrages se décalent, mais pas les projets sources. Actualisez les relations après le déplacement.",
-    "warnExternal_other": "{{count}} relations externes : leurs ancrages se décalent, mais pas les projets sources. Actualisez les relations après le déplacement.",
     "warnHolidayGap": "Les jours fériés générés du calendrier « {{name}} » couvrent {{from}}–{{to}} ; le planning décalé va jusqu’à {{year}}. Régénérez les jours fériés.",
     "warnCustomDateFields_one": "{{count}} champ personnalisé de type date renseigné conserve sa date.",
     "warnCustomDateFields_many": "{{count}} champs personnalisés de type date renseignés conservent leur date.",
@@ -1983,5 +1991,19 @@
       "hammock": "Suit les tâches reliées",
       "unknown": "Raison non établie"
     }
+  },
+  "fileDrop": {
+    "title": "Déposez pour ouvrir",
+    "subtitle": "Fichier de projet ou import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Les ancrages d'autres projets se resserrent",
+    "body": "Ces projets dépendent d'une date de ce planning. Après l'enregistrement, ils obtiennent une date plus serrée dès qu'ils actualisent leurs relations externes.",
+    "colProject": "Projet",
+    "colTheirTask": "Leur tâche",
+    "colOwnTask": "Tâche ici",
+    "colAnchor": "Ancrage : ancien → nouveau",
+    "saveAnyway": "Enregistrer quand même",
+    "cancel": "Annuler"
   }
 }

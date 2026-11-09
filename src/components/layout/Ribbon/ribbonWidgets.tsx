@@ -3,7 +3,7 @@ import { Fragment, useCallback, useMemo, useState, useRef, useEffect } from 'rea
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
@@ -16,9 +16,11 @@ import { ExportProfileHint } from '@/components/common/ExportProfileHint';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsRecentFiles } from '@/services/fileAccess';
 import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
+import { isTauri } from '@/utils/platform';
+import { remainingUnreadSources } from '@/engine/externalLinks';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { TimeInput, TIME_STEP_MINUTES } from '@/components/common/TimeInput';
-import { useTimeNotation } from '@/hooks/displayDate';
+import { useDisplayDate, useTimeNotation } from '@/hooks/displayDate';
 import { formatClock, parseClock } from '@/utils/displayTime';
 import { statusDateMinutes, withStatusTime } from '@/utils/statusDateTime';
 import { isHourModeCalendar } from '@/types/calendar';
@@ -44,7 +46,7 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { generateId } from '@/utils/id';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
-  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem,
+  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem, RibbonCollapsible, RibbonCollapsedTrigger, RibbonPopoverContent,
   encodeFieldRef, decodeFieldRef,
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
@@ -52,6 +54,8 @@ import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
+import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 /**
  * Ribbon-widgets: de "component-escape-hatch" uit de config-registry — de
@@ -61,17 +65,20 @@ import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
  */
 
 /**
- * Baselines & voortgang-groep: Save/Manage baseline-knoppen +
- * statusdatum + voortgangsmodus. In de normale lint-modus staan alle vier altijd
- * zichtbaar naast elkaar; in compacte modus is dat samen te
- * breed voor de Planning-tab (die met de andere groepen al bijna de volledige
- * 1280px in beslag neemt) — de vier controls overlappen dan buren en de inklap-pijl.
- * Daarom gaat de hele groep in compacte modus achter één knop met popover (zelfde
- * patroon als MilestoneDropdown/TemplatesDropdown hieronder).
+ * Baselines & voortgang-groep: knop Baselines beheren + statusdatum + voortgangsmodus.
+ *
+ * Volle breedte: de knop en beide velden staan naast elkaar. De groep heeft ook een ingeklapte
+ * vorm: één knop met een popover die dezelfde bediening bevat (zelfde patroon als
+ * MilestoneDropdown/TemplatesDropdown hieronder). Die vorm verschijnt
+ *  - bij het handmatig ingeklapte lint (`ui.ribbonCompact`): de vier bedieningen samen zijn te breed
+ *    voor de 40px-strip;
+ *  - bij een smal venster, via de automatische inpassing (`RibbonCollapsible`, `useRibbonAutoFit`):
+ *    een veld kan niet tot een icoon krimpen, dus de groep klapt als geheel in.
  */
 export function BaselinesProgressGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const compact = useRibbonDensity() !== 'full';
   const setUI = useAppStore(s => s.setUI);
   const statusDate = useAppStore(s => s.project.statusDate);
@@ -81,6 +88,7 @@ export function BaselinesProgressGroupContent() {
   // Tijdveld alleen als de solver de tijd van de statusdatum gebruikt: projectkalender in uur-modus
   // (besluit orkestrator 2026-10-19: toon wat de motor gebruikt). De schakelaar Urenplanning telt niet.
   const showTime = useAppStore(s => isHourModeCalendar(s.calendar));
+  const displayDate = useDisplayDate();
 
   const onManageBaselines = () => setUI({ showBaselineDialog: true });
 
@@ -88,7 +96,7 @@ export function BaselinesProgressGroupContent() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
       <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <Icon id="planning.status-date" size={16} />
+        <Icon id="planning.status-date" size={16} lucide={{ size: 14, style: { opacity: 0.6, flexShrink: 0 } }} />
         <DateTextInput
           value={statusDate ?? ''}
           onCommit={v => setStatusDate(v || undefined)}
@@ -101,75 +109,122 @@ export function BaselinesProgressGroupContent() {
           }}
         />
         {showTime && <StatusDateTimeField statusDate={statusDate} onCommit={setStatusDate} />}
-        {statusDate && (
-          <button
-            className="ribbon-btn small"
-            title={tMenu('ribbon.statusDateClear')}
-            aria-label={tMenu('ribbon.statusDateClear')}
-            onClick={() => setStatusDate(undefined)}
-            style={{ padding: 0 }}
-          >
-            <Icon id="planning.clear-status-date" size={16} />
-          </button>
-        )}
+        {/* De wisknop houdt ook zonder datum zijn plek (onzichtbaar en niet bedienbaar). Anders
+            hangt de groepsbreedte af van de waarde, en klapt de groep bij een vaste vensterbreedte
+            om door alleen een datum in te vullen of te wissen. */}
+        <button
+          className="ribbon-btn small"
+          title={statusDate ? tMenu('ribbon.statusDateClear') : undefined}
+          aria-label={tMenu('ribbon.statusDateClear')}
+          aria-hidden={statusDate ? undefined : true}
+          disabled={!statusDate}
+          tabIndex={statusDate ? undefined : -1}
+          onClick={event => {
+            // Met het toetsenbord gewist: de knop wordt onbedienbaar, dus de focus gaat naar het
+            // datumveld ernaast in plaats van naar `body` (anders valt hij uit de popover). Pas na de
+            // render: een veld met focus neemt de nieuwe (lege) waarde niet over.
+            const field = event.detail === 0 ? event.currentTarget.parentElement?.querySelector<HTMLInputElement>('input') : null;
+            setStatusDate(undefined);
+            if (field) setTimeout(() => field.focus(), 0);
+          }}
+          // `minWidth: 0`: een kleine knop is standaard 70 px breed; alleen het icoon past ruim in 22 px.
+          style={{ padding: b2IconsOn() ? 0 : 2, minWidth: 0, visibility: statusDate ? undefined : 'hidden' }}
+        >
+          <Icon id="planning.clear-status-date" size={16} lucide={{ size: 12 }} />
+        </button>
       </div>
     </div>
   );
 
-  const progressModeControl = (
+  const progressModeOptions: { value: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; label: string }[] = [
+    { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
+    { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
+  ];
+  // In de popover een native keuzelijst: een tweede geportalde RibbonDropdown binnen de popover
+  // is niet veilig (zie RibbonInlineSelect).
+  const progressModeControl = (inPopover: boolean) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
       <span className="ribbon-info">{tMenu('ribbon.progressMode')}</span>
-      <RibbonDropdown
-        value={progressMode ?? 'RETAINED_LOGIC'}
-        options={[
-          { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
-          { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
-        ]}
-        onChange={v => setProgressMode(v as 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE')}
-      />
+      {inPopover ? (
+        <RibbonInlineSelect
+          value={progressMode ?? 'RETAINED_LOGIC'}
+          options={progressModeOptions}
+          onChange={setProgressMode}
+          ariaLabel={tMenu('ribbon.progressMode')}
+        />
+      ) : (
+        <RibbonDropdown
+          value={progressMode ?? 'RETAINED_LOGIC'}
+          options={progressModeOptions}
+          onChange={setProgressMode}
+        />
+      )}
     </div>
   );
 
-  if (!compact) {
-    return (
-      <>
-        <RibbonButton icon={<Icon id="planning.baselines" size={24} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
-        {statusDateControl}
-        {progressModeControl}
-      </>
-    );
-  }
-
-  return (
+  const popover = (
     <Popover
       open={open}
       onClose={() => setOpen(false)}
       align="right"
+      panelRole="dialog"
+      panelAriaLabel={tMenu('ribbon.baselines')}
       panelStyle={{
         marginTop: 2, zIndex: 9999,
         padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200,
       }}
-      trigger={
+      trigger={compact ? (
         <RibbonCompactTrigger
-          icon={<Icon id="planning.progress-menu" size={16} />}
+          icon={<Icon id="planning.progress-menu" size={16} lucide={{ size: 14 }} />}
           title={tMenu('ribbon.baselines')}
           ariaLabel={tMenu('ribbon.baselines')}
           onClick={() => setOpen(o => !o)}
         />
-      }
+      ) : (
+        // Automatisch ingeklapt (smal venster): een grote knop zoals Mijlpaal ▾. De tooltip noemt
+        // de ingevulde statusdatum, zodat zichtbaar blijft wat er achter de knop staat.
+        <RibbonCollapsedTrigger
+          icon={<Icon id="planning.progress-menu" size={24} lucide={{ size: 20 }} />}
+          label={tMenu('ribbon.baselines')}
+          title={statusDate
+            ? `${tMenu('ribbon.baselines')}\n${tMenu('ribbon.statusDateValue', { date: showTime ? displayDate.dateTime(statusDate) : displayDate.date(statusDate) })}`
+            : tMenu('ribbon.baselines')}
+          open={open}
+          onClick={viaKeyboard => { setKeyboardOpen(viaKeyboard); setOpen(o => !o); }}
+        />
+      )}
     >
-      <button
-        className="ribbon-btn small"
-        style={{ width: '100%' }}
-        onClick={() => { onManageBaselines(); setOpen(false); }}
-      >
-        <span className="ribbon-btn-icon"><Icon id="planning.baselines" size={16} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
-      </button>
-      <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
-      {statusDateControl}
-      {progressModeControl}
+      <RibbonPopoverContent trap={!compact && keyboardOpen}>
+        <button
+          className="ribbon-btn small"
+          style={{ width: '100%' }}
+          onClick={() => { onManageBaselines(); setOpen(false); }}
+        >
+          <span className="ribbon-btn-icon"><Icon id="planning.baselines" size={16} lucide={{ size: 14 }} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
+        </button>
+        <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
+        {statusDateControl}
+        {progressModeControl(true)}
+      </RibbonPopoverContent>
     </Popover>
+  );
+
+  if (compact) return popover;
+
+  return (
+    <RibbonCollapsible
+      popoverOpen={open}
+      onHidden={() => setOpen(false)}
+      full={
+        <>
+          <RibbonButton icon={<Icon id="planning.baselines" size={24} lucide={{ size: 20 }} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
+          {statusDateControl}
+          {progressModeControl(false)}
+        </>
+      }
+      collapsed={popover}
+    />
   );
 }
 
@@ -267,8 +322,8 @@ export function MilestoneDropdown() {
       panelStyle={{ zIndex: 1000, minWidth: 200, padding: '4px 0' }}
       trigger={
         <button className="ribbon-btn" onClick={() => setOpen(!open)}>
-          <span className="ribbon-btn-icon"><Icon id="task.milestone-menu" size={24} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.milestone')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
+          <span className="ribbon-btn-icon"><Icon id="task.milestone-menu" size={24} lucide={{ size: 20 }} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.milestone')}{b2IconsOn() ? <Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /> : ' ▾'}</span>
         </button>
       }
     >
@@ -318,10 +373,15 @@ export function RelationDropdown() {
   ));
   const setUI = useAppStore(s => s.setUI);
   const refreshAllExternalAnchors = useAppStore(s => s.refreshAllExternalAnchors);
+  const refreshFromChosenFiles = useAppStore(s => s.refreshExternalAnchorsFromChosenFiles);
+  // Stap 1.8: in de browser zonder host kan de planner de bronbestanden die niet gelezen zijn opnieuw kiezen.
+  // De app onthoudt welke bronnen zonder pad nog openstaan, en hoeveel bronnen met pad niet gelezen zijn.
+  const [unreadSources, setUnreadSources] = useState<{ projectIds: string[]; others: number }>({ projectIds: [], others: 0 });
+  const canChooseSources = unreadSources.projectIds.length > 0 && !isTauri() && !siteStorageAvailable();
   const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
 
   const items: Array<{
-    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal';
+    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal' | 'findDependents';
     label: string;
     disabled: boolean;
     title: string;
@@ -374,10 +434,27 @@ export function RelationDropdown() {
       onClick: () => {
         void (async () => {
           const result = await refreshAllExternalAnchors(buildImportLabels(tCommon));
-          setRefreshStatus(result.sources === 0
+          // Geen bron gaat stil verloren: de uitslag noemt hoeveel bronnen niet gelezen zijn.
+          setRefreshStatus(result.sources === 0 && result.unread === 0
             ? tTask('externalLinks.noSourcesToast')
-            : tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }));
+            : [
+                tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }),
+                ...(result.unread > 0 ? [tTask('externalLinks.unreadSources', { count: result.unread })] : []),
+              ].join(' '));
+          setUnreadSources({ projectIds: result.unreadProjectIds, others: result.unread - result.unreadProjectIds.length });
         })();
+      },
+    },
+    {
+      // Stap 1.11: wie hangt van deze planning af? Altijd beschikbaar; het resultaat komt als melding
+      // en staat bij de taken (eigenschappenpaneel).
+      key: 'findDependents',
+      label: tMenu('ribbon.relationFindDependents'),
+      disabled: false,
+      title: tMenu('ribbon.relationFindDependentsHint'),
+      onClick: () => {
+        setOpen(false);
+        void searchDependentProjectsManually(buildImportLabels(tCommon));
       },
     },
   ];
@@ -397,8 +474,8 @@ export function RelationDropdown() {
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            <span className="ribbon-btn-icon"><Icon id="planning.relations-menu" size={24} /></span>
-            <span className="ribbon-btn-label">{tMenu('ribbon.relation')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
+            <span className="ribbon-btn-icon"><Icon id="planning.relations-menu" size={24} lucide={{ size: 20 }} /></span>
+            <span className="ribbon-btn-label">{tMenu('ribbon.relation')}{b2IconsOn() ? <Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /> : ' ▾'}</span>
           </button>
         }
       >
@@ -414,11 +491,37 @@ export function RelationDropdown() {
               className="ribbon-relation-menu-item"
               onClick={item.disabled ? undefined : item.onClick}
             >
-              <span className="ribbon-relation-menu-mark" aria-hidden="true">{item.active ? <Icon id="menu.item-checked" size={16} /> : null}</span>
+              <span className="ribbon-relation-menu-mark" aria-hidden="true">{item.active ? (b2IconsOn() ? <Icon id="menu.item-checked" size={16} /> : '✓') : null}</span>
               <span>{item.label}</span>
             </button>
           ))}
           {refreshStatus && <div className="ribbon-relation-menu-status" role="status">{refreshStatus}</div>}
+          {refreshStatus && canChooseSources && (
+            <button
+              type="button"
+              role="menuitem"
+              className="ribbon-relation-menu-item"
+              data-ops-external-sources-choose
+              onClick={() => {
+                void (async () => {
+                  const result = await refreshFromChosenFiles(buildImportLabels(tCommon));
+                  if (!result) return;
+                  // Wat niet gekozen is, blijft open: de melding telt het, en de knop blijft voor die bronnen.
+                  const remaining = remainingUnreadSources(unreadSources.projectIds, result.readProjectIds);
+                  const stillUnread = remaining.length + unreadSources.others;
+                  setRefreshStatus([
+                    tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }),
+                    ...(result.unmatched > 0 ? [tTask('externalLinks.chosenUnmatched', { count: result.unmatched })] : []),
+                    ...(stillUnread > 0 ? [tTask('externalLinks.unreadSources', { count: stillUnread })] : []),
+                  ].join(' '));
+                  setUnreadSources({ projectIds: remaining, others: unreadSources.others });
+                })();
+              }}
+            >
+              <span className="ribbon-relation-menu-mark" aria-hidden="true" />
+              <span>{tTask('externalLinks.chooseSourceFiles')}</span>
+            </button>
+          )}
         </div>
       </Popover>
       {externalTaskId && (
@@ -448,7 +551,7 @@ export function TemplatesDropdown() {
       panelStyle={{ zIndex: 1000, minWidth: 240, maxWidth: 360, padding: '4px 0' }}
       trigger={
         <button className="ribbon-btn small" onClick={() => setOpen(!open)}>
-          <span className="ribbon-btn-icon"><Icon id="wbs.templates" size={16} /></span>
+          <span className="ribbon-btn-icon"><Icon id="wbs.templates" size={16} lucide={{ size: 14 }} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.templates')}</span>
         </button>
       }
@@ -510,7 +613,7 @@ export function RecentFilesDropdown() {
           className="ribbon-btn small"
           onClick={() => setOpen(!open)}
         >
-          <span className="ribbon-btn-icon"><Icon id="project.recent" size={16} /></span>
+          <span className="ribbon-btn-icon"><Icon id="project.recent" size={16} lucide={{ size: 14 }} /></span>
           <span className="ribbon-btn-label">{tMenu('backstage.recent')}</span>
         </button>
       }
@@ -562,7 +665,7 @@ export function ExportDropdown() {
           className="ribbon-btn small"
           onClick={() => setOpen(!open)}
         >
-          <span className="ribbon-btn-icon"><Icon id="file.export-options" size={16} /></span>
+          <span className="ribbon-btn-icon"><Icon id="file.export-options" size={16} lucide={{ size: 14 }} /></span>
           <span className="ribbon-btn-label">{tMenu('backstage.export')}</span>
         </button>
       }
@@ -619,7 +722,7 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
                 icon={
                   <ExtensionIcon
                     raw={b.icon}
-                    fallback={<Icon id="extension.item" size={24} />}
+                    fallback={<Icon id="extension.item" size={24} lucide={{ size: 20 }} />}
                     style={{ display: 'inline-flex', width: 20, height: 20 }}
                   />
                 }
@@ -658,7 +761,7 @@ export function ResourceAssignDropdown() {
   const available = resources.filter(r => !assignedIds.has(r.id));
 
   if (!valid) {
-    return <RibbonButton icon={<Icon id="resource.assign" size={24} />} label={tMenu('ribbon.assignResource')} disabled />;
+    return <RibbonButton icon={<Icon id="resource.assign" size={24} lucide={{ size: 20 }} />} label={tMenu('ribbon.assignResource')} disabled />;
   }
 
   return (
@@ -668,8 +771,8 @@ export function ResourceAssignDropdown() {
       panelStyle={{ zIndex: 1000, minWidth: 200, maxHeight: 300, overflowY: 'auto', padding: '4px 0' }}
       trigger={
         <button className={`ribbon-btn${open ? ' active' : ''}`} onClick={() => setOpen(!open)}>
-          <span className="ribbon-btn-icon"><Icon id="resource.assign" size={24} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
+          <span className="ribbon-btn-icon"><Icon id="resource.assign" size={24} lucide={{ size: 20 }} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')}{b2IconsOn() ? <Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /> : ' ▾'}</span>
         </button>
       }
     >
@@ -769,7 +872,7 @@ export function ScreenColorsPopoverButton() {
           data-ops-bar-colors-toggle
           onClick={() => setOpen(o => !o)}
         >
-          <span className="ribbon-btn-icon"><Icon id="planning.bar-colors" size={16} /></span>
+          <span className="ribbon-btn-icon"><Icon id="planning.bar-colors" size={16} lucide={{ size: 14 }} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.screenColors')}</span>
         </button>
       }
@@ -851,7 +954,7 @@ export function GroupPopoverButton() {
           aria-label={tMenu('ribbon.group')}
           onClick={() => setOpen(o => !o)}
         >
-          <span className="ribbon-btn-icon"><Icon id="list.group-by" size={16} /></span>
+          <span className="ribbon-btn-icon"><Icon id="list.group-by" size={16} lucide={{ size: 14 }} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.group')}</span>
         </button>
       }
@@ -898,7 +1001,7 @@ export function SortPopoverButton() {
           aria-label={tMenu('ribbon.sort')}
           onClick={() => setOpen(o => !o)}
         >
-          <span className="ribbon-btn-icon"><Icon id="list.sort-fields" size={16} /></span>
+          <span className="ribbon-btn-icon"><Icon id="list.sort-fields" size={16} lucide={{ size: 14 }} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.sort')}</span>
         </button>
       }
@@ -936,6 +1039,7 @@ export function LayoutGroupContent() {
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const reload = useCallback(() => { void loadLayouts().then(setLayouts); }, []);
   useEffect(() => { reload(); }, [reload]);
+  useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
 
   // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de knoppenrij verversen.
   const prevOpenRef = useRef(showLayoutsDialog);
@@ -1006,7 +1110,7 @@ export function LayoutGroupContent() {
         );
       })}
       <RibbonButton
-        icon={<Icon id="layout.manage" size={24} />}
+        icon={<Icon id="layout.manage" size={24} lucide={{ size: 20 }} />}
         label={tMenu('ribbon.addLayout')}
         onClick={() => setUI({ showLayoutsDialog: true, layoutDialogTargetId: null })}
       />
@@ -1042,21 +1146,21 @@ export function PresentationGroupContent() {
   return (
     <RibbonButtonStack>
       <RibbonSmallButton
-        icon={presentationMode ? <Icon id="view.fullscreen-exit" size={16} /> : <Icon id="view.fullscreen" size={16} />}
+        icon={presentationMode ? <Icon id="view.fullscreen-exit" size={16} lucide={{ size: 14 }} /> : <Icon id="view.fullscreen" size={16} lucide={{ size: 14 }} />}
         label={tMenu('ribbon.presentationMode')}
         title={tMenu('ribbon.presentationMode')}
         onClick={() => setPresentationMode(!presentationMode)}
         active={presentationMode}
       />
       <RibbonSmallButton
-        icon={<Icon id="view.gantt-split" size={16} />}
+        icon={<Icon id="view.gantt-split" size={16} lucide={{ size: 14 }} />}
         label={tMenu('ribbon.splitView')}
         title={tMenu('ribbon.splitView')}
         onClick={toggleSplitView}
         active={!!splitView}
       />
       <RibbonSmallButton
-        icon={<Icon id="view.minimap" size={16} />}
+        icon={<Icon id="view.minimap" size={16} lucide={{ size: 14 }} />}
         label={tMenu('ribbon.miniMap')}
         title={tMenu('ribbon.miniMap')}
         onClick={toggleMiniMap}
@@ -1082,18 +1186,18 @@ export function TimeScaleGroupContent() {
 
   const zoomInOutButtons = (
     <>
-      <RibbonSmallButton icon={<Icon id="view.zoom-in" size={16} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
-      <RibbonSmallButton icon={<Icon id="view.zoom-out" size={16} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-in" size={16} lucide={{ size: 14 }} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-out" size={16} lucide={{ size: 14 }} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
     </>
   );
   const resetFitButtons = (
     <>
-      <RibbonSmallButton icon={<Icon id="view.zoom-default" size={16} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-default" size={16} lucide={{ size: 14 }} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
       {/* "Passend op project" ook hier: het canvas-contextmenu is onbereikbaar zodra de
           takentabel volledig gevuld is. `requestFitToProject` is dezelfde
           pendingFit-route als na het openen van een bestand — GanttCanvas kent de
           viewport-breedte en voert de echte berekening uit. */}
-      <RibbonSmallButton icon={<Icon id="view.fit" size={16} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
+      <RibbonSmallButton icon={<Icon id="view.fit" size={16} lucide={{ size: 14 }} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
     </>
   );
   const dropdown = (
@@ -1147,11 +1251,19 @@ export function TimeScaleGroupContent() {
 export function useColumnsButtonBinding() {
   const { t: tMenu } = useTranslation('menu');
   const setUI = useAppStore(s => s.setUI);
-  // Precies de conditie waaronder App.tsx de volledige Tabel-weergave (FullTaskGrid) mount.
-  const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table' && !s.ui.showResourcePanel);
+  // Precies de conditie waaronder App.tsx de volledige Tabel-weergave (FullTaskGrid) mount: alleen het
+  // volle, niet-gedockte resourcepaneel neemt de werkruimte over. Met Resourcedock aan staat de Tabel er gewoon.
+  const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table'
+    && !(s.ui.showResourcePanel && !s.ui.resourcePanelDocked));
+  const chooserOpen = useAppStore(s => s.ui.showColumnsDialog);
   return {
     title: tMenu(tableVisible ? 'ribbon.columnsHintTable' : 'ribbon.columnsHintGoToTable'),
-    onClick: () => setUI({ activeRibbonTab: 'table', showColumnsDialog: true }),
+    // Een tweede klik sluit de kiezer weer (Ethan, 7 november 2026). De kiezer telt deze knop daarom
+    // niet als klik ernaast (`COLUMNS_RIBBON_TOGGLE_SELECTOR`); anders sloot `mousedown` hem en
+    // opende de `click` hem meteen opnieuw.
+    onClick: () => setUI(tableVisible && chooserOpen
+      ? { showColumnsDialog: false }
+      : { activeRibbonTab: 'table', showColumnsDialog: true }),
   };
 }
 
@@ -1177,6 +1289,7 @@ function SavedFilterDropdown() {
   const loadFilterLayouts = useCallback(() => loadLayouts().then(all => all.filter(isFilterOnlyLayout)), []);
   const reload = useCallback(() => { void loadFilterLayouts().then(setSavedFilters); }, [loadFilterLayouts]);
   useEffect(() => { reload(); }, [reload]);
+  useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
   const dialogOpen = showFilterDialog || showLayoutsDialog;
   const previousDialogOpen = useRef(dialogOpen);
   useEffect(() => {
@@ -1210,13 +1323,13 @@ function SavedFilterDropdown() {
           title={tMenu('ribbon.filter')}
           aria-label={tMenu('ribbon.filter')}
         >
-          <span className="ribbon-btn-icon"><Icon id="list.filter" size={16} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.filter')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
+          <span className="ribbon-btn-icon"><Icon id="list.filter" size={16} lucide={{ size: 14 }} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.filter')}{b2IconsOn() ? <Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /> : ' ▾'}</span>
         </button>
       }
     >
       <button className="ribbon-btn small" style={{ width: '100%' }} onClick={() => { setUI({ showFilterDialog: true }); setOpen(false); }}>
-        <span className="ribbon-btn-icon"><Icon id="list.filter" size={16} /></span>
+        <span className="ribbon-btn-icon"><Icon id="list.filter" size={16} lucide={{ size: 14 }} /></span>
         <span className="ribbon-btn-label">{tMenu('ribbon.filter')}</span>
       </button>
       {filter !== null && (
@@ -1239,7 +1352,7 @@ export function DisplayGroupContent() {
 
   return (
     <div className="ribbon-display-grid icons">
-      <RibbonSmallButton icon={<Icon id="table.columns" size={16} />} label={tMenu('ribbon.columns')} title={columns.title} onClick={columns.onClick} />
+      <RibbonSmallButton icon={<Icon id="table.columns" size={16} lucide={{ size: 14 }} />} label={tMenu('ribbon.columns')} title={columns.title} onClick={columns.onClick} />
       <SavedFilterDropdown />
       <GroupPopoverButton />
       <SortPopoverButton />

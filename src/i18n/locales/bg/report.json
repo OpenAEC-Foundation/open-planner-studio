@@ -32,6 +32,7 @@
   "repeatHeader": "Повтаряне на горния колонтитул на всяка страница",
   "repeatFooter": "Повтаряне на долния колонтитул на всяка страница",
   "reportFontScaleLabel": "Размер на шрифта:",
+  "reportFontFamilyLabel": "Шрифт:",
   "timelineColumnsLabel": "Времева линия за:",
   "timelineColumnsHint": "Само с автоматично побиране",
   "timelineColumns_one": "{{count}} страница",
@@ -434,5 +435,11 @@
       "riskHeading": "Задачи в риск: закъснели или с отрицателен резерв",
       "riskEmpty": "Няма закъснели задачи и няма отрицателен резерв."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (по подразбиране)",
+    "liberationSans": "Liberation Sans (като Arial)",
+    "carlito": "Carlito (като Calibri)",
+    "liberationSerif": "Liberation Serif (като Times New Roman)"
   }
 }

@@ -13,6 +13,8 @@
     "dismiss": "Chiudi notifica",
     "taskEditRevertBlocked": "Una modifica del client MCP o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività fatte prima non sono state annullate e restano come normali passaggi sotto Annulla.",
     "openFailed": "Apertura del file non riuscita",
+    "fileDropRefused": "Non aperto: {{names}}. L’app apre solo IFC, XML, MPP, XER e CSV.",
+    "fileDropBlocked": "Non aperto: {{names}}. Chiudi prima la finestra aperta.",
     "csvInvalidDate": "CSV non aperto: data non riconosciuta \"{{value}}\" nella riga CSV {{row}}, colonna \"{{column}}\". Usa aaaa-mm-gg, gg-mm-aaaa o gg/mm/aaaa.",
     "extGuideCallbackFailed": "Un passaggio dell’estensione {{name}} non è riuscito. La guida continua.",
     "extHelpProjectOpenFailed": "Impossibile aprire il file di progetto {{file}} dell’estensione {{name}}.",
@@ -414,7 +416,10 @@
       "capacitySteps_many": "{{count}} risorse con passi di capacità: solo la capacità fissa è inclusa",
       "capacitySteps_other": "{{count}} risorse con passi di capacità: solo la capacità fissa è inclusa",
       "projectDetails": "Autore e azienda del progetto"
-    }
+    },
+    "dependentProjectsFound": "Progetti dipendenti: {{projects}}. Collegamenti a questo progetto: {{links}}.",
+    "dependentProjectsNone": "Nessun progetto trovato con una relazione esterna con questa pianificazione.",
+    "dependentProjectsFailed": "Impossibile leggere la cartella dei progetti dipendenti."
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",
@@ -851,6 +856,9 @@
     "missedDeadlines": "Scadenze superate: {{count}}",
     "violatedConstraints": "Vincoli violati: {{count}}",
     "outOfSequence": "Relazioni fuori sequenza: {{count}}",
+    "externalSuccessors_one": "Successori esterni troppo stretti: {{count}}",
+    "externalSuccessors_many": "Successori esterni troppo stretti: {{count}}",
+    "externalSuccessors_other": "Successori esterni troppo stretti: {{count}}",
     "overallocated": "{{count}} risorsa/e sovrassegnata/e",
     "summary_one": "{{count}} avviso",
     "summary_many": "{{count}} avvisi",
@@ -869,6 +877,10 @@
       "scheduleError": "Impossibile calcolare la pianificazione: {{message}}",
       "missedDeadline": "Scadenza {{deadline}} superata — fine anticipata {{finish}}",
       "violatedConstraint": "Il vincolo {{constraint}} è superato dalla logica (margine negativo)",
+      "externalSuccessorViolatedSF": "Troppo stretto per il successore esterno {{task}} ({{project}}, {{relation}}): termina al più tardi il {{anchor}}, questa attività inizia solo il {{own}}",
+      "externalSuccessorViolatedFF": "Troppo stretto per il successore esterno {{task}} ({{project}}, {{relation}}): termina al più tardi il {{anchor}}, questa attività termina solo il {{own}}",
+      "externalSuccessorViolatedSS": "Troppo stretto per il successore esterno {{task}} ({{project}}, {{relation}}): inizia al più tardi il {{anchor}}, questa attività inizia solo il {{own}}",
+      "externalSuccessorViolatedFS": "Troppo stretto per il successore esterno {{task}} ({{project}}, {{relation}}): inizia al più tardi il {{anchor}}, questa attività termina solo il {{own}}",
       "outOfSequence": "Fuori sequenza: l'avanzamento del successore contraddice la relazione",
       "truncatedLead": "Anticipo troncato dall'inizio del progetto — la relazione non è rispettata del tutto",
       "droppedSequence": "Relazione ignorata: predecessore o successore mancante o non è un'attività foglia",
@@ -1449,7 +1461,6 @@
     "detailConstraints": "date di vincolo",
     "detailDeadlines": "scadenze",
     "detailActuals": "date effettive",
-    "detailExternal": "ancoraggi esterni",
     "detailSteps": "scaglioni di capacità",
     "warnActuals_one": "{{count}} attività ha date effettive di inizio/fine; si spostano anch’esse. Verifica che sia corretto per un progetto in corso.",
     "warnActuals_many": "{{count}} attività hanno date effettive di inizio/fine; si spostano anch’esse. Verifica che sia corretto per un progetto in corso.",
@@ -1457,9 +1468,6 @@
     "warnHardPins_one": "{{count}} attività ha un vincolo Obbligatorio rigido; tale ancoraggio si sposta anch’esso.",
     "warnHardPins_many": "{{count}} attività hanno un vincolo Obbligatorio rigido; tali ancoraggi si spostano anch’essi.",
     "warnHardPins_other": "{{count}} attività hanno un vincolo Obbligatorio rigido; tali ancoraggi si spostano anch’essi.",
-    "warnExternal_one": "{{count}} relazione esterna: il suo ancoraggio si sposta, ma il progetto di origine no. Aggiorna la relazione dopo lo spostamento.",
-    "warnExternal_many": "{{count}} relazioni esterne: i loro ancoraggi si spostano, ma i progetti di origine no. Aggiorna le relazioni dopo lo spostamento.",
-    "warnExternal_other": "{{count}} relazioni esterne: i loro ancoraggi si spostano, ma i progetti di origine no. Aggiorna le relazioni dopo lo spostamento.",
     "warnHolidayGap": "Le festività generate del calendario «{{name}}» coprono {{from}}–{{to}}; la pianificazione spostata arriva al {{year}}. Rigenera le festività.",
     "warnCustomDateFields_one": "{{count}} campo personalizzato di tipo data compilato mantiene la sua data.",
     "warnCustomDateFields_many": "{{count}} campi personalizzati di tipo data compilati mantengono la loro data.",
@@ -1983,5 +1991,19 @@
       "hammock": "Segue le attività collegate",
       "unknown": "Motivo non stabilito"
     }
+  },
+  "fileDrop": {
+    "title": "Rilascia per aprire",
+    "subtitle": "File di progetto o importazione"
+  },
+  "dependentAnchorWarning": {
+    "title": "Gli ancoraggi di altri progetti diventano più stretti",
+    "body": "Questi progetti dipendono da una data di questa pianificazione. Dopo il salvataggio ricevono una data più stretta quando aggiornano le loro relazioni esterne.",
+    "colProject": "Progetto",
+    "colTheirTask": "Loro attività",
+    "colOwnTask": "Attività qui",
+    "colAnchor": "Ancoraggio: vecchio → nuovo",
+    "saveAnyway": "Salva comunque",
+    "cancel": "Annulla"
   }
 }

@@ -13,6 +13,8 @@
     "dismiss": "알림 닫기",
     "taskEditRevertBlocked": "MCP 클라이언트 또는 확장 프로그램의 변경이 그 사이에 들어왔습니다. 그 이전의 작업 편집은 되돌려지지 않았으며, 실행 취소 아래에 일반 단계로 남아 있습니다.",
     "openFailed": "파일을 열 수 없습니다",
+    "fileDropRefused": "열지 않았습니다: {{names}}. 이 앱은 IFC, XML, MPP, XER, CSV만 엽니다.",
+    "fileDropBlocked": "열지 않았습니다: {{names}}. 먼저 열려 있는 창을 닫으세요.",
     "csvInvalidDate": "CSV를 열지 않았습니다: CSV 행 {{row}}, 열 \"{{column}}\"의 날짜 \"{{value}}\"을(를) 인식할 수 없습니다. yyyy-mm-dd, dd-mm-yyyy 또는 dd/mm/yyyy 형식을 사용하세요.",
     "extGuideCallbackFailed": "확장 프로그램 {{name}}의 단계에서 오류가 발생했습니다. 안내는 계속됩니다.",
     "extHelpProjectOpenFailed": "확장 프로그램 {{name}}의 프로젝트 파일 {{file}}을(를) 열 수 없습니다.",
@@ -222,7 +224,10 @@
       "resourceTypes_other": "팀 또는 하도급업체 유형 리소스 {{count}}개는 P6 유형을 받고 자체 유형은 사라집니다",
       "capacitySteps_other": "용량 단계가 있는 리소스 {{count}}개: 고정 용량만 포함됩니다",
       "projectDetails": "프로젝트 작성자와 회사"
-    }
+    },
+    "dependentProjectsFound": "종속 프로젝트: {{projects}}. 이 프로젝트에 대한 링크: {{links}}.",
+    "dependentProjectsNone": "이 일정과 외부 관계가 있는 프로젝트를 찾지 못했습니다.",
+    "dependentProjectsFailed": "종속 프로젝트 폴더를 읽을 수 없습니다."
   },
   "scheduleErrors": {
     "cycle": "작업 간 순환 관계: {{path}}",
@@ -655,6 +660,7 @@
     "missedDeadlines": "기한 초과: {{count}}건",
     "violatedConstraints": "제약 조건 위반: {{count}}건",
     "outOfSequence": "순서 위반 관계: {{count}}건",
+    "externalSuccessors_other": "여유 부족 외부 후행: {{count}}건",
     "overallocated": "리소스 {{count}}개 과다 할당",
     "summary_other": "경고 {{count}}개"
   },
@@ -671,6 +677,10 @@
       "scheduleError": "일정을 계산할 수 없습니다: {{message}}",
       "missedDeadline": "기한 {{deadline}} 초과 — 빠른 완료 {{finish}}",
       "violatedConstraint": "제약 조건 {{constraint}}이(가) 논리에 의해 초과됨(음수 여유)",
+      "externalSuccessorViolatedSF": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 종료, 이 작업은 {{own}}에야 시작",
+      "externalSuccessorViolatedFF": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 종료, 이 작업은 {{own}}에야 종료",
+      "externalSuccessorViolatedSS": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 시작, 이 작업은 {{own}}에야 시작",
+      "externalSuccessorViolatedFS": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 시작, 이 작업은 {{own}}에야 종료",
       "outOfSequence": "순서 위반: 후속 작업의 진행이 관계와 모순됩니다",
       "truncatedLead": "리드가 프로젝트 시작에 의해 잘림 — 관계가 완전히 적용되지 않음",
       "droppedSequence": "관계 무시됨: 선행 또는 후속 작업이 없거나 리프 작업이 아닙니다",
@@ -1233,11 +1243,9 @@
     "detailConstraints": "제약 날짜",
     "detailDeadlines": "마감일",
     "detailActuals": "실제 날짜",
-    "detailExternal": "외부 앵커",
     "detailSteps": "가용량 단계",
     "warnActuals_other": "{{count}}개 작업에 실제 시작일/종료일이 있으며 함께 이동합니다. 진행 중인 프로젝트에 적절한지 확인하세요.",
     "warnHardPins_other": "{{count}}개 작업에 강제(하드) 필수 제약이 있습니다. 해당 고정일도 함께 이동합니다.",
-    "warnExternal_other": "외부 관계 {{count}}개: 앵커는 함께 이동하지만 원본 프로젝트는 이동하지 않습니다. 이동 후 링크를 새로 고치세요.",
     "warnHolidayGap": "달력 “{{name}}”의 생성된 공휴일은 {{from}}–{{to}}을 포함하지만, 이동된 일정은 {{year}}년까지 이어집니다. 공휴일을 다시 생성하세요.",
     "warnCustomDateFields_other": "입력된 날짜형 사용자 지정 필드 {{count}}개는 날짜가 유지됩니다.",
     "warnPast": "새 시작일이 과거입니다.",
@@ -1735,5 +1743,19 @@
       "hammock": "연결된 작업을 따름",
       "unknown": "이유가 확인되지 않음"
     }
+  },
+  "fileDrop": {
+    "title": "놓아서 열기",
+    "subtitle": "프로젝트 파일 또는 가져오기"
+  },
+  "dependentAnchorWarning": {
+    "title": "다른 프로젝트의 앵커가 더 촉박해집니다",
+    "body": "이 프로젝트들은 이 일정의 날짜에 의존합니다. 저장한 후 외부 관계를 새로 고치면 더 촉박한 날짜를 받게 됩니다.",
+    "colProject": "프로젝트",
+    "colTheirTask": "상대 작업",
+    "colOwnTask": "이쪽 작업",
+    "colAnchor": "앵커: 이전 → 새",
+    "saveAnyway": "그래도 저장",
+    "cancel": "취소"
   }
 }

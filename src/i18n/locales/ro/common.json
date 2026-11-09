@@ -13,6 +13,8 @@
     "dismiss": "Închidere notificare",
     "taskEditRevertBlocked": "O modificare făcută de clientul MCP sau de o extensie a intervenit între timp. Modificările activităților făcute înainte nu au fost anulate și rămân ca pași obișnuiți sub Anulare.",
     "openFailed": "Deschiderea fișierului a eșuat",
+    "fileDropRefused": "Nu s-a deschis: {{names}}. Aplicația deschide doar IFC, XML, MPP, XER și CSV.",
+    "fileDropBlocked": "Nu s-a deschis: {{names}}. Închideți mai întâi fereastra deschisă.",
     "csvInvalidDate": "CSV nu a fost deschis: dată nerecunoscută „{{value}}” în rândul CSV {{row}}, coloana „{{column}}”. Utilizați aaaa-ll-zz, zz-ll-aaaa sau zz/ll/aaaa.",
     "extGuideCallbackFailed": "Un pas al extensiei {{name}} a eșuat. Îndrumarea continuă.",
     "extHelpProjectOpenFailed": "Fișierul de proiect {{file}} din extensia {{name}} nu a putut fi deschis.",
@@ -414,7 +416,10 @@
       "capacitySteps_few": "{{count}} resurse cu trepte de capacitate: se include doar capacitatea fixă",
       "capacitySteps_other": "{{count}} de resurse cu trepte de capacitate: se include doar capacitatea fixă",
       "projectDetails": "Autorul și compania proiectului"
-    }
+    },
+    "dependentProjectsFound": "Proiecte dependente: {{projects}}. Legături către acest proiect: {{links}}.",
+    "dependentProjectsNone": "Nu s-au găsit proiecte cu o legătură externă către această planificare.",
+    "dependentProjectsFailed": "Folderul cu proiecte dependente nu a putut fi citit."
   },
   "scheduleErrors": {
     "cycle": "Dependență circulară între activități: {{path}}",
@@ -851,6 +856,9 @@
     "missedDeadlines": "{{count}} termen(e) limită depășit(e)",
     "violatedConstraints": "{{count}} restricție(i) încălcată(e)",
     "outOfSequence": "{{count}} dependență(e) în afara secvenței",
+    "externalSuccessors_one": "Succesori externi cu marjă insuficientă: {{count}}",
+    "externalSuccessors_few": "Succesori externi cu marjă insuficientă: {{count}}",
+    "externalSuccessors_other": "Succesori externi cu marjă insuficientă: {{count}}",
     "overallocated": "{{count}} resursă(e) supraalocată(e)",
     "summary_one": "{{count}} avertisment",
     "summary_few": "{{count}} avertismente",
@@ -869,6 +877,10 @@
       "scheduleError": "Planificarea nu a putut fi calculată: {{message}}",
       "missedDeadline": "Termen limită {{deadline}} depășit — sfârșit cel mai devreme {{finish}}",
       "violatedConstraint": "Restricția {{constraint}} este depășită de logica planificării (marjă negativă)",
+      "externalSuccessorViolatedSF": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): se termină cel târziu pe {{anchor}}, această activitate începe abia pe {{own}}",
+      "externalSuccessorViolatedFF": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): se termină cel târziu pe {{anchor}}, această activitate se termină abia pe {{own}}",
+      "externalSuccessorViolatedSS": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): începe cel târziu pe {{anchor}}, această activitate începe abia pe {{own}}",
+      "externalSuccessorViolatedFS": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): începe cel târziu pe {{anchor}}, această activitate se termină abia pe {{own}}",
       "outOfSequence": "În afara secvenței: progresul succesorului contrazice dependența",
       "truncatedLead": "Devans tăiat de începutul proiectului — dependența nu este folosită complet",
       "droppedSequence": "Dependență ignorată: predecesorul sau succesorul lipsește sau nu este o activitate frunză",
@@ -1449,7 +1461,6 @@
     "detailConstraints": "datele de restricție",
     "detailDeadlines": "termenele limită",
     "detailActuals": "datele reale",
-    "detailExternal": "ancore externe",
     "detailSteps": "etape de capacitate",
     "warnActuals_one": "{{count}} activitate are început efectiv și sfârșit efectiv; acestea se deplasează odată cu proiectul. Verificați dacă acest lucru este corect pentru un proiect în derulare.",
     "warnActuals_few": "{{count}} activități au început efectiv și sfârșit efectiv; acestea se deplasează odată cu proiectul. Verificați dacă acest lucru este corect pentru un proiect în derulare.",
@@ -1457,9 +1468,6 @@
     "warnHardPins_one": "{{count}} activitate are un pin Mandatory strict; acest pin se deplasează odată cu proiectul.",
     "warnHardPins_few": "{{count}} activități au pinuri Mandatory stricte; acestea se deplasează odată cu proiectul.",
     "warnHardPins_other": "{{count}} de activități au pinuri Mandatory stricte; acestea se deplasează odată cu proiectul.",
-    "warnExternal_one": "{{count}} legătură între proiecte: ancora se deplasează odată cu proiectul, dar proiectul sursă nu. Actualizați legătura după deplasare.",
-    "warnExternal_few": "{{count}} legături între proiecte: ancorele se deplasează odată cu proiectul, dar proiectele sursă nu. Actualizați legăturile după deplasare.",
-    "warnExternal_other": "{{count}} de legături între proiecte: ancorele se deplasează odată cu proiectul, dar proiectele sursă nu. Actualizați legăturile după deplasare.",
     "warnHolidayGap": "Sărbătorile generate ale calendarului „{{name}}” acoperă {{from}}–{{to}}; planificarea deplasată continuă până în {{year}}. Regenerați sărbătorile.",
     "warnCustomDateFields_one": "{{count}} câmp de dată personalizat completat rămâne la data sa.",
     "warnCustomDateFields_few": "{{count}} câmpuri de dată personalizate completate rămân la datele lor.",
@@ -1983,5 +1991,19 @@
       "hammock": "Urmează activitățile legate",
       "unknown": "Motivul nu a fost stabilit"
     }
+  },
+  "fileDrop": {
+    "title": "Eliberați pentru a deschide",
+    "subtitle": "Fișier de proiect sau import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ancorele altor proiecte devin mai strânse",
+    "body": "Aceste proiecte depind de o dată din această planificare. După salvare, primesc o dată mai strânsă când își reîmprospătează legăturile între proiecte.",
+    "colProject": "Proiect",
+    "colTheirTask": "Sarcina lor",
+    "colOwnTask": "Sarcina aici",
+    "colAnchor": "Ancoră: veche → nouă",
+    "saveAnyway": "Salvează oricum",
+    "cancel": "Anulare"
   }
 }

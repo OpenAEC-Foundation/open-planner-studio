@@ -13,6 +13,8 @@
     "dismiss": "Zavrieť oznámenie",
     "taskEditRevertBlocked": "Medzitým prišla zmena od klienta MCP alebo rozšírenia. Zmeny úloh vykonané skôr sa nevrátili späť. Zostávajú ako bežné kroky pod „Vrátiť späť“.",
     "openFailed": "Otvorenie súboru zlyhalo",
+    "fileDropRefused": "Neotvorené: {{names}}. Aplikácia otvára len IFC, XML, MPP, XER a CSV.",
+    "fileDropBlocked": "Neotvorené: {{names}}. Najprv zatvorte otvorené okno.",
     "csvInvalidDate": "CSV sa neotvoril: nerozpoznateľný dátum „{{value}}“ v riadku CSV {{row}}, stĺpci „{{column}}“. Použite formát rrrr-mm-dd, dd-mm-rrrr alebo dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozšírenia {{name}} zlyhal. Sprievodca pokračuje.",
     "extHelpProjectOpenFailed": "Súbor projektu {{file}} rozšírenia {{name}} sa nepodarilo otvoriť.",
@@ -510,7 +512,10 @@
       "capacitySteps_many": "{{count}} zdroja s krokmi kapacity: prenesie sa len pevná kapacita",
       "capacitySteps_other": "{{count}} zdrojov s krokmi kapacity: prenesie sa len pevná kapacita",
       "projectDetails": "Autor a firma projektu"
-    }
+    },
+    "dependentProjectsFound": "Závislé projekty: {{projects}}. Prepojenia na tento projekt: {{links}}.",
+    "dependentProjectsNone": "Nenašli sa žiadne projekty s prepojením na tento harmonogram.",
+    "dependentProjectsFailed": "Priečinok so závislými projektmi sa nepodarilo prečítať."
   },
   "scheduleErrors": {
     "cycle": "Kruhová závislosť medzi úlohami: {{path}}",
@@ -949,6 +954,10 @@
     "missedDeadlines": "Premeškané termíny: {{count}}",
     "violatedConstraints": "Porušené obmedzenia: {{count}}",
     "outOfSequence": "Závislosti mimo poradia: {{count}}",
+    "externalSuccessors_one": "Externé nasledujúce úlohy s nedostatočnou rezervou: {{count}}",
+    "externalSuccessors_few": "Externé nasledujúce úlohy s nedostatočnou rezervou: {{count}}",
+    "externalSuccessors_many": "Externé nasledujúce úlohy s nedostatočnou rezervou: {{count}}",
+    "externalSuccessors_other": "Externé nasledujúce úlohy s nedostatočnou rezervou: {{count}}",
     "overallocated": "Preťažené zdroje: {{count}}",
     "summary_one": "{{count}} upozornenie",
     "summary_few": "{{count}} upozornenia",
@@ -968,6 +977,10 @@
       "scheduleError": "Plán sa nepodarilo prepočítať: {{message}}",
       "missedDeadline": "Termín {{deadline}} bol premeškaný — skoré dokončenie {{finish}}",
       "violatedConstraint": "Logika plánu prekračuje obmedzenie {{constraint}} (záporná časová rezerva)",
+      "externalSuccessorViolatedSF": "Nedostatočná rezerva pre externú nasledujúcu úlohu {{task}} ({{project}}, {{relation}}): končí najneskôr {{anchor}}, táto úloha začína až {{own}}",
+      "externalSuccessorViolatedFF": "Nedostatočná rezerva pre externú nasledujúcu úlohu {{task}} ({{project}}, {{relation}}): končí najneskôr {{anchor}}, táto úloha končí až {{own}}",
+      "externalSuccessorViolatedSS": "Nedostatočná rezerva pre externú nasledujúcu úlohu {{task}} ({{project}}, {{relation}}): začína najneskôr {{anchor}}, táto úloha začína až {{own}}",
+      "externalSuccessorViolatedFS": "Nedostatočná rezerva pre externú nasledujúcu úlohu {{task}} ({{project}}, {{relation}}): začína najneskôr {{anchor}}, táto úloha končí až {{own}}",
       "outOfSequence": "Mimo poradia: postup nasledujúcej úlohy je v rozpore so závislosťou",
       "truncatedLead": "Predstih bol skrátený začiatkom projektu — závislosť nie je využitá v plnom rozsahu",
       "droppedSequence": "Závislosť sa ignoruje: predchádzajúca úloha alebo nasledujúca úloha chýba, alebo nie je úloha bez podúloh.",
@@ -1557,7 +1570,6 @@
     "detailConstraints": "dátumy obmedzení",
     "detailDeadlines": "termíny",
     "detailActuals": "skutočné dátumy",
-    "detailExternal": "externé kotvy",
     "detailSteps": "kroky kapacity",
     "warnActuals_one": "{{count}} úloha má skutočné dátumy začiatku a dokončenia; posunú sa spolu s ňou. Skontrolujte, či je to správne pre prebiehajúci projekt.",
     "warnActuals_few": "{{count}} úlohy majú skutočné dátumy začiatku a dokončenia; posunú sa spolu s nimi. Skontrolujte, či je to správne pre prebiehajúci projekt.",
@@ -1567,10 +1579,6 @@
     "warnHardPins_few": "{{count}} úlohy majú tvrdý pin Mandatory; tieto piny sa posunú spolu s nimi.",
     "warnHardPins_many": "{{count}} úlohy majú tvrdý pin Mandatory; tieto piny sa posunú spolu s nimi.",
     "warnHardPins_other": "{{count}} úloh má tvrdý pin Mandatory; tieto piny sa posunú spolu s nimi.",
-    "warnExternal_one": "{{count}} prepojenie medzi projektmi: jeho kotva sa posunie, ale zdrojový projekt nie. Po presune ho obnovte.",
-    "warnExternal_few": "{{count}} prepojenia medzi projektmi: ich kotvy sa posunú, ale zdrojové projekty nie. Po presune ich obnovte.",
-    "warnExternal_many": "{{count}} prepojenia medzi projektmi: ich kotvy sa posunú, ale zdrojové projekty nie. Po presune ich obnovte.",
-    "warnExternal_other": "{{count}} prepojení medzi projektmi: ich kotvy sa posunú, ale zdrojové projekty nie. Po presune ich obnovte.",
     "warnHolidayGap": "Vygenerované sviatky kalendára „{{name}}“ pokrývajú {{from}}–{{to}}; posunutý plán beží do {{year}}. Vygenerujte sviatky znova.",
     "warnCustomDateFields_one": "{{count}} vyplnené vlastné pole s dátumom zostane na svojom dátume.",
     "warnCustomDateFields_few": "{{count}} vyplnené vlastné polia s dátumom zostanú na svojom dátume.",
@@ -2107,5 +2115,19 @@
       "hammock": "Nasleduje prepojené úlohy",
       "unknown": "Dôvod nebol zistený"
     }
+  },
+  "fileDrop": {
+    "title": "Pustite na otvorenie",
+    "subtitle": "Súbor projektu alebo import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Kotvové dátumy iných projektov sa sprísňujú",
+    "body": "Tieto projekty počítajú s dátumom z tohto harmonogramu. Po uložení dostanú prísnejší dátum, keď obnovia svoje prepojenia medzi projektmi.",
+    "colProject": "Projekt",
+    "colTheirTask": "Ich úloha",
+    "colOwnTask": "Úloha tu",
+    "colAnchor": "Kotvový dátum: starý → nový",
+    "saveAnyway": "Napriek tomu uložiť",
+    "cancel": "Zrušiť"
   }
 }
