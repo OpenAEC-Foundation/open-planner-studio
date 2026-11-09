@@ -1,0 +1,419 @@
+// #804 fase 1a: IFC met een gebouwmodel openen achter de flag `ifcForeignContent` (ontwerp "Gebouwmodel behouden in IFC
+// en IFCX", §4.8, §4.9, §4.13 en §4.14). Headless tegen de echte store, met dezelfde open-route als Bestand → Openen
+// (`openOpenedFile`). Bewaakt:
+//   1. de flag: in de app altijd uit (`writesNewIfcData`), en met de flag leest de bestandslaag IFC als bytes;
+//   2. zonder flag blijft de modelweigering (knownbug 110);
+//   3. met de flag openen `bonsai-4d` en `eigen-plus-model` met dezelfde planning als de lezer op het eigen deel;
+//   4. een eigen bestand zonder model: wat Opslaan schrijft is byte-gelijk met en zonder flag;
+//   5. met de flag en een vreemd deel weigeren Opslaan, Opslaan als, de IFC-export en de pool-export, met de melding;
+//   6. de bronbytes en het model zitten niet in de herstelsnapshot, de MCP-backup en de undo-snapshot; het
+//      herstelmanifest krijgt geen opslagdoel; IFC-paneel (`applyProjectEdit`), kopie en undo houden de bron;
+//   7. afwijking 7 (spec §4.9, "v21, fase 1a"): weigert de scanner de bytes, dan de huidige route; ook de grens van
+//      knownbug 1007 (`#2147483647` mag, `#2147483648` niet) en het schema (IFC2X3 met model blijft geweigerd);
+//   8. de Worker en de terugval zonder Worker geven hetzelfde; een transportfout valt terug, een fout in de indeling niet.
+// Exit 0 = alles groen.
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+installBrowserStubs();
+const reseed = installDeterminism();
+const win = (globalThis as unknown as { window: Record<string, unknown> }).window;
+// De open-route meldt een weigering ook op de console; dat is hier verwacht.
+const realError = console.error;
+console.error = () => {};
+
+const { createAppStoreContext } = await import('@/state/appStoreFactory');
+const { FEATURE_FLAGS, ifcForeignContentEnabled } = await import('@/utils/featureFlags');
+const { binaryExtensions, readsAsBytes } = await import('@/services/formatRegistry');
+const { readIfcBytesDetailed, readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
+const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
+const { scanStep } = await import('@/services/ifc/foreign/stepScanner');
+const { classify, classOf } = await import('@/services/ifc/foreign/classify');
+const { readIFC } = await import('@/services/ifc/ifcReader');
+const { writeIFC } = await import('@/services/ifc/ifcWriter');
+const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
+const { recoverySnapshotInput, serializeRecoverySnapshot } = await import('@/services/recovery/recoverySnapshotInput');
+const { createAppBackupService } = await import('@/services/mcp/backupService');
+const { ifcSaveBlocked, recoverySaveTarget } = await import('@/state/ifcForeignGuard');
+const { capturePayload } = await import('@/state/documentContract');
+const { createSnapshot } = await import('@/state/snapshot');
+type Store = ReturnType<typeof createAppStoreContext>['store'];
+type ForeignScanWorker = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanWorker;
+
+let checks = 0;
+const diffs: string[] = [];
+const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
+const eq = (label: string, got: unknown, want: unknown) => {
+  checks++;
+  const g = JSON.stringify(got);
+  const w = JSON.stringify(want);
+  if (g !== w) diffs.push(`${label}: ${g?.slice(0, 240)} ≠ ${w?.slice(0, 240)}`);
+};
+const sha = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex');
+const fileBytes = (pad: string) => new Uint8Array(readFileSync(join(ROOT, pad)));
+const enc = new TextEncoder();
+const dec = (b: Uint8Array) => new TextDecoder('utf-8').decode(b);
+const FOREIGN = 'tests/fixtures/ifc-foreign';
+const SAVE_BLOCKED_KEY = 'notifications.ifcForeignSaveBlocked';
+
+// ── 1. De flag ──────────────────────────────────────────────────────────────────────────────────────────────────
+const flag = FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent');
+ok('flag: geregistreerd', flag !== undefined);
+ok('flag: in de app altijd uit, ook met een bewaarde true (writesNewIfcData)',
+  flag?.writesNewIfcData === true && !ifcForeignContentEnabled({ ifcForeignContent: true }));
+eq('flag: zonder flag leest de bestandslaag IFC als tekst', [binaryExtensions().includes('ifc'), readsAsBytes('plan.ifc')], [false, false]);
+eq('flag: met de flag als bytes (ook een onbekende extensie valt op IFC terug)',
+  [binaryExtensions({ ifcBytes: true }).includes('ifc'), readsAsBytes('plan.ifc', { ifcBytes: true }), readsAsBytes('plan', { ifcBytes: true })],
+  [true, true, true]);
+// Alleen in deze test: de flag bruikbaar maken, zoals het later zonder `writesNewIfcData` wordt.
+flag!.writesNewIfcData = false;
+ok('flag: met de testkeuze aan', ifcForeignContentEnabled({ ifcForeignContent: true }));
+
+/** Open `bytes` als Bestand → Openen in een verse store (of `into`), met dezelfde leeskeuze als de bestandslaag. */
+async function open(flagOn: boolean, name: string, bytes: Uint8Array, into?: Store): Promise<Store> {
+  reseed(0x804);
+  const store = into ?? createAppStoreContext().store;
+  store.setState(s => { s.ui.featureFlags = flagOn ? { ifcForeignContent: true } : {}; });
+  const asBytes = readsAsBytes(name, { ifcBytes: flagOn });
+  await store.getState().openOpenedFile({ name, content: asBytes ? '' : dec(bytes), ...(asBytes ? { bytes } : {}), ref: null });
+  return store;
+}
+const saved = (store: Store) => writeIFC(buildWriteIFCInput(store.getState()));
+const notices = (store: Store) => store.getState().ui.notifications.map(({ id: _id, ...rest }) => rest);
+const opened = (store: Store, name: string) => store.getState().filePath === name;
+
+/** De planning van een leesresultaat of een store, zonder sessie-id's: alles wat de writer schrijft. */
+function planningOf(r: Parameters<typeof writeIFC>[0]): string {
+  reseed(0x805);
+  return writeIFC(r);
+}
+
+/** De tekst van de stukken die geen V zijn: het eigen deel plus gedeelde context en toewijzingen (§4.9 punt 4), en het
+ *  enige `IfcProject` als context, ook als het V is (§4.2, Gevolgen). */
+function ownPartText(bytes: Uint8Array): string {
+  const scan = scanForeign(bytes);
+  if (!scan.ok) throw new Error(`scanner weigert: ${scan.reason}`);
+  const index = scanStep(bytes);
+  const projects = Array.from({ length: index.count }, (_, i) => i).filter(i => index.isEntity(i) && index.type(i) === 'IFCPROJECT');
+  const parts: Uint8Array[] = [];
+  for (let i = 0; i < scan.classes.length; i++) {
+    if (scan.classes[i] !== 4 || (projects.length === 1 && projects[0] === i)) parts.push(bytes.subarray(scan.chunkStarts[i], scan.chunkStarts[i + 1]));
+  }
+  return dec(Uint8Array.from(parts.flatMap(p => Array.from(p))));
+}
+
+/** De GlobalIds van het model (V) in een bestand: die mogen nergens in planning-uitvoer opduiken. Behalve die van het
+ *  `IfcProject`: de lezer leest het altijd als context (§4.2, Gevolgen), dus de planning houdt zijn GlobalId. */
+function modelGlobalIds(bytes: Uint8Array): string[] {
+  const index = scanStep(bytes);
+  const cls = classify(index);
+  const out: string[] = [];
+  for (let i = 0; i < index.count; i++) {
+    const gid = index.isEntity(i) && index.type(i) !== 'IFCPROJECT' ? index.globalId(i) : undefined;
+    if (gid && classOf(cls, i) === 'V') out.push(gid);
+  }
+  return out;
+}
+
+// ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────
+const bonsai = fileBytes(`${FOREIGN}/bonsai-4d.ifc`);
+const eigenPlus = fileBytes(`${FOREIGN}/eigen-plus-model.ifc`);
+for (const [name, bytes] of [['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus]] as const) {
+  const off = await open(false, name, bytes);
+  ok(`${name} zonder flag: geweigerd`, !opened(off, name));
+  ok(`${name} zonder flag: de modelweigering (knownbug 110)`, String(off.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+  eq(`${name} zonder flag: geen bron`, off.getState().ifcSource, null);
+
+  const on = await open(true, name, bytes);
+  const s = on.getState();
+  ok(`${name} met flag: geopend met het bestand als opslagdoel`, opened(on, name));
+  // Een oud document krijgt de melding van het minutenmodel, zoals zonder model; geen fout en geen weigering.
+  eq(`${name} met flag: geen fout na het openen`, notices(on).filter(n => n.severity === 'error'), []);
+  ok(`${name} met flag: bron met vreemd deel`, s.ifcSource?.foreign === true && s.ifcSource.bytes === bytes);
+  eq(`${name} met flag: bron-hash`, s.ifcSource?.sha256, sha(bytes));
+  ok(`${name} met flag: opslaan geweigerd`, ifcSaveBlocked(s));
+  // De lezer op het eigen deel (zonder V, met zijn eigen keuze van taken, via dezelfde open-route zonder flag) geeft
+  // dezelfde planning.
+  const reference = await open(false, name, enc.encode(ownPartText(bytes)));
+  ok(`${name}: het eigen deel opent zonder flag`, opened(reference, name));
+  eq(`${name} met flag: dezelfde planning als de lezer op het eigen deel`, sha(saved(on)), sha(saved(reference)));
+}
+{
+  // `eigen-plus-model` is `showcase-verbouwing-eengezinswoning.ifc` plus een model: dezelfde planning als de bron alleen.
+  const on = await open(true, 'eigen-plus-model.ifc', eigenPlus);
+  const showcase = await open(false, 'showcase.ifc', fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'));
+  eq('eigen-plus-model met flag: dezelfde planning als het eigen bestand zonder model',
+    sha(planningOf(buildWriteIFCInput(on.getState()))), sha(planningOf(buildWriteIFCInput(showcase.getState()))));
+  eq('eigen-plus-model met flag: aantal objecten in het vreemde deel (C + A + V)', on.getState().ifcSource?.foreignObjectCount, 13 + 0 + 77);
+  const b = await open(true, 'bonsai-4d.ifc', bonsai);
+  eq('bonsai-4d met flag: aantal objecten in het vreemde deel (C + A + V)', b.getState().ifcSource?.foreignObjectCount, 15 + 13 + 127);
+  const scan = scanForeign(bonsai);
+  eq('bonsai-4d met flag: de taken van selectPlanning', b.getState().tasks.length, scan.ok ? scan.selection.tasks.length : -1);
+}
+
+{
+  // De lezer volgt de taakkeuze van `selectPlanning` (`planningTaskStepIds`, §4.2 stap 1), ook waar hij zelf anders zou
+  // kiezen. Op het corpus is een taak buiten de keuze altijd V, dus het weglaten van V geeft daar al dezelfde taken;
+  // deze proef laat één taak buiten de keuze en eist dat de lezer hem niet leest.
+  const text = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  const stepIds: Record<string, string> = {};
+  const all = readIFC(text, {}, { stepIdsOut: stepIds });
+  const leaf = all.tasks.find(t => !all.tasks.some(c => c.parentId === t.id))!;
+  const taskSteps = Object.entries(stepIds).filter(([k]) => k.startsWith('task:'));
+  const leafStep = stepIds[`task:${leaf.id}`];
+  const chosen = new Set(taskSteps.map(([, v]) => v).filter(v => v !== leafStep));
+  const fewer = readIFC(text, {}, { planningTaskStepIds: chosen });
+  eq('keuze: de lezer leest precies de gekozen taken', [fewer.tasks.length, fewer.tasks.some(t => t.name === leaf.name && t.id === leaf.id)],
+    [all.tasks.length - 1, false]);
+}
+
+// ── 4. Eigen bestanden: met en zonder flag byte-gelijk ─────────────────────────────────────────────────────────
+/** Eigen bestanden met bewust een vreemd deel (zie OWN_EXCEPTIONS in check-ifc-foreign-classify.ts). Met de flag openen
+ *  ze met een vreemd deel en weigert opslaan; zonder flag `opensWithoutFlag`. */
+const OWN_FOREIGN: Record<string, { opensWithoutFlag: boolean }> = {
+  'tests/planning/fixtures/werkdag-einde-tussenwaarde.ifc': { opensWithoutFlag: true },
+  'tests/planning/fixtures/ifc-arity-oude-writer-merged.ifc': { opensWithoutFlag: false },
+  'tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc': { opensWithoutFlag: true },
+  'tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc': { opensWithoutFlag: true },
+};
+const listIfc = (dir: string, recursive = false): string[] => readdirSync(join(ROOT, dir)).sort().flatMap((n) => {
+  const pad = `${dir}/${n}`;
+  if (statSync(join(ROOT, pad)).isDirectory()) return recursive ? listIfc(pad, true) : [];
+  return n.endsWith('.ifc') ? [pad] : [];
+});
+const ownFiles = [...listIfc('public/examples'), ...listIfc('examples'), ...listIfc('tests/planning/fixtures', true)];
+let ownEqual = 0;
+let ownForeign = 0;
+for (const pad of ownFiles) {
+  const name = basename(pad);
+  const bytes = fileBytes(pad);
+  const off = await open(false, name, bytes);
+  const on = await open(true, name, bytes);
+  const foreign = OWN_FOREIGN[pad];
+  const src = on.getState().ifcSource;
+  if (foreign) {
+    ownForeign++;
+    ok(`${pad}: met flag geopend, met een vreemd deel en opslaan geweigerd`, opened(on, name) && src?.foreign === true && ifcSaveBlocked(on.getState()));
+    eq(`${pad}: zonder flag zoals nu`, opened(off, name), foreign.opensWithoutFlag);
+    if (foreign.opensWithoutFlag) {
+      eq(`${pad}: dezelfde planning met en zonder flag`, sha(saved(on)), sha(saved(off)));
+    }
+    continue;
+  }
+  eq(`${pad}: opslagdoel met en zonder flag`, on.getState().filePath, off.getState().filePath);
+  eq(`${pad}: meldingen met en zonder flag`, notices(on), notices(off));
+  if (!opened(off, name)) continue;
+  ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0);
+  ok(`${pad}: met flag opslaan toegestaan`, !ifcSaveBlocked(on.getState()));
+  eq(`${pad}: zonder flag geen bron`, off.getState().ifcSource, null);
+  const a = saved(on);
+  const b = saved(off);
+  eq(`${pad}: wat Opslaan schrijft is byte-gelijk met en zonder flag`, [sha(a), a.length], [sha(b), b.length]);
+  if (a === b) ownEqual++;
+}
+eq('eigen bestanden: elke uitzondering bestaat nog', Object.keys(OWN_FOREIGN).filter(p => !ownFiles.includes(p)), []);
+
+// ── 5. Opslaan met een vreemd deel: geweigerd, met de melding ──────────────────────────────────────────────────
+let pickerCalls = 0;
+win.showOpenFilePicker = () => { throw new Error('niet in deze test'); };
+win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('geannuleerd', 'AbortError'); };
+{
+  const store = await open(true, 'bonsai-4d.ifc', bonsai);
+  const S = () => store.getState();
+  S().addTask({ name: 'Nieuwe taak' });
+  const dirty = S().isDirty;
+  const blockedNotices = () => S().ui.notifications.filter(n => n.messageKey === SAVE_BLOCKED_KEY);
+  await S().saveFile();
+  eq('opslaan: Opslaan geweigerd met de melding', blockedNotices().length, 1);
+  eq('opslaan: de melding is info, blijft staan en vouwt samen', blockedNotices().map(n => [n.severity, n.sticky, n.dedupeKey]),
+    [['info', true, 'ifc-foreign-save-blocked']]);
+  await S().saveFileAs();
+  const ifcExport = await S().exportAs('ifc');
+  eq('opslaan: IFC-export telt als geannuleerd', ifcExport, { ok: true, warnings: [], cancelled: true });
+  const pool = await S().exportProjectWithPool();
+  eq('opslaan: pool-export telt als geannuleerd', pool, { ok: true, warnings: [], cancelled: true });
+  eq('opslaan: vier weigeringen, één melding', blockedNotices().length, 1);
+  eq('opslaan: geen opslagdialoog geopend', pickerCalls, 0);
+  eq('opslaan: het document blijft gewijzigd en houdt zijn doel', [S().isDirty, S().filePath], [dirty, 'bonsai-4d.ifc']);
+  // Andere formaten dragen alleen planning en blijven mogelijk: de CSV-export komt tot de opslagdialoog.
+  await S().exportAs('csv');
+  eq('opslaan: CSV-export komt tot de opslagdialoog, zonder nieuwe melding', [pickerCalls, blockedNotices().length], [1, 1]);
+  pickerCalls = 0;
+  // Zonder vreemd deel wordt niets geweigerd: Opslaan als komt tot de dialoog.
+  const own = await open(true, 'showcase.ifc', fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'));
+  await own.getState().saveFileAs();
+  eq('opslaan: een eigen bestand met flag komt tot de opslagdialoog, zonder melding',
+    [pickerCalls, own.getState().ui.notifications.filter(n => n.messageKey === SAVE_BLOCKED_KEY).length], [1, 0]);
+}
+
+// ── 6. Bronbytes buiten herstel, MCP-backup en undo ────────────────────────────────────────────────────────────
+{
+  const store = await open(true, 'bonsai-4d.ifc', bonsai);
+  const S = () => store.getState();
+  const source = S().ifcSource;
+  const modelIds = modelGlobalIds(bonsai);
+  ok('bron: het model heeft GlobalIds om op te zoeken', modelIds.length > 10);
+  const leaks = (text: string) => modelIds.filter(g => text.includes(g));
+  const snapshot = recoverySnapshotInput(S());
+  ok('herstel: de snapshotinvoer heeft geen bron', !('ifcSource' in snapshot.input) && !JSON.stringify(snapshot).includes('"bytes"'));
+  const recoveryText = serializeRecoverySnapshot(S());
+  eq('herstel: geen GlobalId van het model in de herstelsnapshot', leaks(recoveryText), []);
+  eq('herstel: het manifest krijgt geen opslagdoel bij een vreemd deel', recoverySaveTarget({ ...S(), siteFileId: 'site-1', siteFileVersion: 'v1' }),
+    { filePath: null, siteFileId: null, siteFileVersion: null });
+  eq('herstel: zonder vreemd deel het doel zoals vóór #804',
+    recoverySaveTarget({ ifcSource: null, filePath: 'a.ifc', siteFileId: 'site-1', siteFileVersion: 'v1' }),
+    { filePath: 'a.ifc', siteFileId: 'site-1', siteFileVersion: 'v1' });
+  eq('herstel: zonder site geen siteversie (zoals vóór #804)',
+    recoverySaveTarget({ ifcSource: null, filePath: 'a.ifc', siteFileId: null, siteFileVersion: 'v1' }),
+    { filePath: 'a.ifc', siteFileId: null, siteFileVersion: null });
+
+  // MCP-backup: de echte `getDoc` van de app (writer op de documentpayload), met een geheugen-fs.
+  const written = new Map<string, string>();
+  const backup = createAppBackupService({ store } as unknown as Parameters<typeof createAppBackupService>[0], {
+    getFs: async () => ({
+      appDataDir: async () => '/data',
+      join: async (...parts: string[]) => parts.join('/'),
+      mkdir: async () => {},
+      readDir: async () => [],
+      writeTextFile: async (p: string, c: string) => { written.set(p, c); },
+      remove: async () => {},
+    }),
+    autoBackupEnabled: async () => true,
+    now: () => 1,
+  });
+  let backupError = '';
+  try { await backup.makeManualBackup(); } catch (e) { backupError = (e as Error).message; }
+  eq('MCP-backup: gemaakt', [backupError, written.size], ['', 1]);
+  const backupText = [...written.values()].join('');
+  eq('MCP-backup: geen GlobalId van het model', leaks(backupText), []);
+
+  // Undo: buiten de snapshot, en een bewerking plus undo laat de bron staan.
+  ok('undo: de snapshot heeft geen bron', !('ifcSource' in createSnapshot(S())));
+  S().addTask({ name: 'Bewerking' });
+  S().undo();
+  ok('undo: de bron blijft na bewerking en undo', S().ifcSource === source && ifcSaveBlocked(S()));
+  // IFC-paneel: de tekst van het eigen deel toepassen op hetzelfde doel houdt de bron (anders schreef Ctrl+S het model weg).
+  const edited = readIFC(writeIFC(buildWriteIFCInput(S())));
+  S().applyProjectEdit(edited);
+  ok('IFC-paneel: een bewerking houdt de bron', S().ifcSource === source && ifcSaveBlocked(S()));
+  // Kopie: dezelfde bron, zonder opslagdoel; opslaan blijft geweigerd.
+  S().duplicateDocument();
+  ok('kopie: dezelfde bron, geen opslagdoel, opslaan geweigerd', S().ifcSource === source && S().filePath === null && ifcSaveBlocked(S()));
+  // Documentwissel: de bron hoort bij zijn document.
+  const copyId = S().activeDocumentId;
+  S().newDocument();
+  eq('nieuw document: geen bron', S().ifcSource, null);
+  S().switchDocument(copyId);
+  ok('documentwissel: de bron komt terug', S().ifcSource === source);
+  ok('documentpayload: de bron reist per referentie', capturePayload(S()).ifcSource === source);
+  // Een ander bestand openen op een eigen doel vervangt de bron.
+  await open(true, 'showcase.ifc', fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'), store);
+  ok('openen: een ander bestand krijgt zijn eigen bron', S().ifcSource !== source && S().ifcSource?.foreign === false);
+}
+
+// ── 7. Afwijking 7: weigert de scanner, dan de huidige route ───────────────────────────────────────────────────
+{
+  const showcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  /** Een losse persoon vlak vóór `ENDSEC;` van de DATA-sectie. */
+  const withPerson = (text: string, id: string) => {
+    const at = text.lastIndexOf('ENDSEC;');
+    return `${text.slice(0, at)}#${id}=IFCPERSON($,'Grens',$,$,$,$,$,$);\n${text.slice(at)}`;
+  };
+  // Grens van knownbug 1007: `#2147483647` scant, `#2147483648` niet.
+  const atLimit = enc.encode(withPerson(showcase, '2147483647'));
+  const r1 = await readIfcBytesDetailed(atLimit);
+  ok('grens: #2147483647 gaat door de bytes-route', r1.fallback === undefined && r1.result.ifcSource !== undefined);
+  ok('grens: de losse persoon is een vreemd deel', r1.result.ifcSource?.foreign === true);
+  const overLimit = enc.encode(withPerson(showcase, '2147483648'));
+  const r2 = await readIfcBytesDetailed(overLimit);
+  eq('afwijking 7: #2147483648 geeft de terugval van de scanner', r2.fallback && 'reason' in r2.fallback ? [r2.fallback.kind, r2.fallback.reason] : null,
+    ['scanner', 'id-te-groot']);
+  eq('afwijking 7: de terugval heeft geen bron', r2.result.ifcSource, undefined);
+  reseed(0x804);
+  const viaFallback = planningOf(r2.result);
+  reseed(0x804);
+  eq('afwijking 7: de terugval geeft wat readIFC nu geeft', sha(viaFallback), sha(planningOf(readIFC(dec(overLimit)))));
+  // Via de store: openen zoals nu, zonder bron, opslaan mag.
+  const store = await open(true, 'grens.ifc', overLimit);
+  ok('afwijking 7: de store opent het bestand zoals nu, zonder bron', opened(store, 'grens.ifc') && store.getState().ifcSource === null);
+  ok('afwijking 7: opslaan niet geweigerd', !ifcSaveBlocked(store.getState()));
+  // Een tweede weigering van de scanner: een dubbel `#id` (readIFC neemt de laatste).
+  const dup = enc.encode(withPerson(withPerson(showcase, '999998'), '999998'));
+  const r3 = await readIfcBytesDetailed(dup);
+  eq('afwijking 7: een dubbel #id geeft de terugval', r3.fallback?.kind, 'scanner');
+  // Een modelbestand dat de scanner weigert: de huidige route, dus de modelweigering.
+  const bonsaiOver = enc.encode(withPerson(dec(bonsai), '2147483648'));
+  let refusal = '';
+  try { await readIfcBytes(bonsaiOver); } catch (e) { refusal = (e as Error).message; }
+  ok('afwijking 7: een model dat de scanner weigert, blijft geweigerd', refusal.includes('building model'));
+  const bonsaiStore = await open(true, 'bonsai-over.ifc', bonsaiOver);
+  ok('afwijking 7: de store weigert het, met de modelweigering', !opened(bonsaiStore, 'bonsai-over.ifc')
+    && String(bonsaiStore.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+  // Schema (§4.11): IFC2X3 met model blijft geweigerd.
+  const ifc2x3 = fileBytes(`${FOREIGN}/model-ifc2x3.ifc`);
+  const r4 = await readIfcBytesDetailed(ifc2x3).catch((e: Error) => e);
+  ok('schema: IFC2X3 met model blijft geweigerd', r4 instanceof Error && r4.message.includes('building model'));
+  const r5 = await readIfcBytesDetailed(fileBytes(`${FOREIGN}/model-ifc4.ifc`));
+  ok('schema: IFC4 met model opent met een vreemd deel', r5.fallback === undefined && r5.result.ifcSource?.foreign === true);
+}
+
+// ── 8. Worker en terugval ──────────────────────────────────────────────────────────────────────────────────────
+{
+  const { foreignScanTransferables } = await import('@/services/ifc/foreign/foreignScan');
+  /** Een nep-Worker zoals de echte: kopie van de bytes via `structuredClone`, antwoord async met `transfer`, de indeling in
+   *  de "Worker". */
+  let terminated = 0;
+  const fakeWorker = (mode: 'ok' | 'transport' | 'indeling' | 'stil'): ForeignScanWorker => {
+    const w: ForeignScanWorker = {
+      onmessage: null, onerror: null, onmessageerror: null,
+      terminate: () => { terminated++; },
+      postMessage: (msg: { id: number; bytes: Uint8Array }) => {
+        const copy = structuredClone(msg);
+        setTimeout(() => {
+          if (mode === 'stil') return;
+          if (mode === 'transport') {
+            (w.onerror as unknown as (e: { message: string; preventDefault: () => void }) => void)?.({ message: 'start mislukt', preventDefault: () => {} });
+            return;
+          }
+          const deliver = (data: unknown, transfer: ArrayBuffer[] = []) =>
+            (w.onmessage as unknown as (e: { data: unknown }) => void)?.({ data: structuredClone(data, { transfer }) });
+          if (mode === 'indeling') { deliver({ id: copy.id, error: 'indeling faalt' }); return; }
+          // Zoals `foreignScan.worker.ts`: de typed arrays gaan over met `transfer`, niet als kopie.
+          const outcome = scanForeign(copy.bytes);
+          deliver({ id: copy.id, outcome }, foreignScanTransferables(outcome));
+        }, 0);
+      },
+    } as unknown as ForeignScanWorker;
+    return w;
+  };
+  const sourceOf = async (opts: Parameters<typeof readIfcBytesDetailed>[2]) => {
+    reseed(0x804);
+    const r = await readIfcBytesDetailed(bonsai, {}, opts);
+    const { bytes, ...rest } = r.result.ifcSource!;
+    return JSON.stringify({ planning: planningOf(r.result), bytes: sha(bytes), rest: { ...rest,
+      chunkStarts: Array.from(rest.chunkStarts), chunkIds: Array.from(rest.chunkIds), classes: Array.from(rest.classes) } });
+  };
+  const without = await sourceOf({ createWorker: () => null });
+  eq('Worker: met Worker hetzelfde als zonder', sha(await sourceOf({ createWorker: () => fakeWorker('ok') })), sha(without));
+  eq('Worker: een transportfout valt terug, met dezelfde uitkomst', sha(await sourceOf({ createWorker: () => fakeWorker('transport') })), sha(without));
+  eq('Worker: geen antwoord op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('stil'), timeoutMs: 20 })), sha(without));
+  eq('Worker: een fout bij het maken valt terug', sha(await sourceOf({ createWorker: () => { throw new Error('CSP'); } })), sha(without));
+  let failure = '';
+  try { await readIfcBytesDetailed(bonsai, {}, { createWorker: () => fakeWorker('indeling') }); } catch (e) { failure = (e as Error).message; }
+  eq('Worker: een fout in de indeling zelf valt niet terug', failure, 'indeling faalt');
+  eq('Worker: elke Worker is gestopt', terminated, 4);
+}
+
+console.error = realError;
+if (diffs.length > 0) {
+  console.log(`XX  ifc-foreign-open: ${diffs.length} afwijking(en) van ${checks}`);
+  for (const d of diffs.slice(0, 60)) console.log(`   - ${d}`);
+  process.exit(1);
+}
+console.log(`OK  ifc-foreign-open: alle checks groen (${checks}; ${ownEqual} eigen bestanden byte-gelijk met en zonder flag, `
+  + `${ownForeign} eigen bestanden met een bewust vreemd deel)`);
+process.exit(0);

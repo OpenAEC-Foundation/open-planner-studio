@@ -40,8 +40,9 @@ export interface ParityRun {
 
 const FIXED_NOW = Date.UTC(2026, 10, 9, 12, 0, 0);
 
-/** Vaste klok en een vaste reeks voor `Math.random` (mulberry32). Geeft een functie die de reeks opnieuw start. */
-function installDeterminism(): (seed: number) => void {
+/** Vaste klok en een vaste reeks voor `Math.random` (mulberry32). Geeft een functie die de reeks opnieuw start. Ook
+ *  gebruikt door `check-ifc-foreign-open.ts`. */
+export function installDeterminism(): (seed: number) => void {
   const RealDate = Date;
   class FixedDate extends RealDate {
     constructor(...a: unknown[]) {
@@ -62,7 +63,7 @@ function installDeterminism(): (seed: number) => void {
 }
 
 /** Een kale browseromgeving zoals `check-recent-open.ts`: geen Tauri, geen site, geheugenopslag. */
-function installBrowserStubs(): void {
+export function installBrowserStubs(): void {
   const g = globalThis as unknown as Record<string, unknown>;
   const win: Record<string, unknown> = {};
   win.parent = win;

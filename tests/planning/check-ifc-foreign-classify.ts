@@ -15,8 +15,10 @@
 //   6. Het corpus van vreemde bestanden (`tests/fixtures/ifc-foreign/`): de aantallen per klasse van
 //      `classify-v9.py`, plus inhoudelijke regels (een model zonder planning is 100 % V, de owner history van een
 //      ander is C, ...).
-//   7. `selectPlanning` kiest dezelfde taken, resources, relaties, kalenders, werkplan en schema als `readIFC`, op
-//      elk bestand dat `readIFC` opent. Eén bewuste uitzondering: een live-schema van eigen herkomst (§4.2 stap 1).
+//   7. `selectPlanning` kiest dezelfde taken, resources, relaties, kalenders, werkplan en schema als de lezer: `readIFC`
+//      op elk eigen bestand, en de bytes-route van fase 1a (`readIfcBytesDetailed`, de lezer volgt `selectPlanning`) op
+//      elk bestand van het corpus, ook met een model. Zonder uitzondering: de uitzondering voor een leeg live-schema van
+//      eigen herkomst (fix1, §4.2 stap 1) verviel met fase 1a. IFC2X3 met model blijft geweigerd (§4.11).
 //   8. Met OPS_IFC_PYTHON=1 (de workflow `ifc-foreign.yml`): de klasse per `#id`, de vreemde leden en de vreemde
 //      herkomst zijn gelijk aan `scripts/proef/classify-v9.py --json`, op elk bestand hierboven, op de uitvoer van
 //      `writeIFC(readIFC(x))` en op de synthetische weigeringen. Zonder die variabele slaat de check dit over.
@@ -34,6 +36,7 @@ import {
   REGISTER_PSET_NAMES, classOf, classify, isOwnAssignmentKey, type ChunkClass, type Classification,
 } from '@/services/ifc/foreign/classify';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { WRITER_ENTITY_TYPES, writeIFC } from '@/services/ifc/ifcWriter';
 import { PER_TASK_PSETS, PSET } from '@/services/ifc/ifcPsets';
 import type { ImportResult } from '@/services/importTypes';
@@ -465,10 +468,9 @@ const CORPUS: Record<string, number[]> = {
   'council/r8sol-lege-structuurmeta-met-templates.ifc': [1512, 1512, 0, 0, 0, 0, 0],
   'council/r8sol-zonder-lege-notitie-pset.ifc': [916, 915, 0, 0, 1, 0, 0],
 };
-/** Bestanden waarop `selectPlanning` bewust andere taken kiest dan `readIFC` van nu (§4.2 stap 1). */
-const SELECTION_EXCEPTIONS: Record<string, string> = {
-  'tests/fixtures/ifc-foreign/council/fix1-leeg-live-bl.ifc':
-    'een leeg live-schema van eigen herkomst sluit de Bonsai-baselineboom uit; readIFC leest die baselinetaak nu als planning',
+/** Corpusbestanden die de bytes-route weigert, met de reden. */
+const ROUTE_REFUSED: Record<string, string> = {
+  'model-ifc2x3.ifc': 'IFC2X3 met een model: de huidige route met de modelweigering (§4.11)',
 };
 
 interface Scanned { bytes: Uint8Array; index: StepIndex; cls: Classification }
@@ -631,17 +633,26 @@ for (const path of corpusFiles) {
   if (!s) continue;
   corpusScans.set(name, s);
   if (CORPUS[name]) eq(`${label}: aantallen (entiteiten, P, C, A, V, leden, herkomst)`, summary(s.index, s.cls), CORPUS[name]);
-  const read = tryRead(new TextDecoder().decode(s.bytes));
-  if (!read) continue;
-  corpusRead++;
-  const exception = SELECTION_EXCEPTIONS[rel(path)];
-  if (!exception) compareSelection(label, s, read);
-  else {
-    // De bewuste uitzondering: selectPlanning laat precies de baselinetaken weg die readIFC nu leest.
-    ok(`${label}: selectPlanning kiest minder taken dan readIFC (${exception})`, s.cls.selection.tasks.length < read.tasks.length);
-    eq(`${label}: alleen de taken verschillen`, [read.resources.length, read.sequences.length], [s.cls.selection.resources.length, s.cls.selection.sequences.length]);
+  if (tryRead(new TextDecoder().decode(s.bytes))) corpusRead++;
+  // 7. De lezer van fase 1a (bytes-route, met de flag): dezelfde keuze als selectPlanning, zonder terugval.
+  let route: Awaited<ReturnType<typeof readIfcBytesDetailed>> | Error;
+  try {
+    route = await readIfcBytesDetailed(s.bytes);
+  } catch (e) {
+    route = e instanceof Error ? e : new Error(String(e));
+  }
+  const refused = ROUTE_REFUSED[name];
+  if (refused) {
+    ok(`${label}: de bytes-route weigert (${refused})`, route instanceof Error && route.message.includes('building model'));
+  } else if (route instanceof Error) {
+    ok(`${label}: de bytes-route opent (${route.message.slice(0, 80)})`, false);
+  } else {
+    eq(`${label}: de bytes-route valt niet terug`, route.fallback ?? null, null);
+    ok(`${label}: de bytes-route geeft een bron`, route.result.ifcSource !== undefined);
+    compareSelection(`${label} (bytes-route)`, s, route.result);
   }
 }
+eq('corpus: elke weigering van de bytes-route bestaat nog', Object.keys(ROUTE_REFUSED).filter(n => !corpusScans.has(n)), []);
 {
   const get = (name: string) => corpusScans.get(name);
   // Een model zonder planning: alles V, niets in D.
@@ -726,7 +737,7 @@ const pythonNote = WITH_PYTHON ? `; ${pythonFiles} bestanden gelijk aan classify
 if (diffs.length === 0) {
   console.log(`OK  ifc-foreign-classify: alle checks groen (${checks}; eigen ${ownFullP}/${ownCount - exceptionsSeen.size} 100 % P plus `
     + `${exceptionsSeen.size} uitzonderingen, ${roundTrips} keer writeIFC(readIFC(x)) 100 % P, corpus ${corpusScans.size} bestanden, `
-    + `waarvan ${corpusRead} zonder model, selectPlanning = readIFC op ${selectionCompared} bestanden${pythonNote})`);
+    + `waarvan ${corpusRead} zonder model, selectPlanning = lezer op ${selectionCompared} bestanden (corpus via de bytes-route)${pythonNote})`);
   process.exit(0);
 } else {
   console.log(`XX  ifc-foreign-classify: ${diffs.length} afwijking(en) van ${checks}`);

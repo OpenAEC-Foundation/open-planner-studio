@@ -168,6 +168,7 @@ check-ifc-datumvorm.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-open.ts matrix
 check-ifc-foreign-pariteit.ts los
 check-ifc-globalid.ts matrix
 check-ifc-legacy-arity.ts matrix

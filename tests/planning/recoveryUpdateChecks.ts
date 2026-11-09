@@ -15,6 +15,7 @@ import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryFlush, flushRecoveryNow } from '@/services/recovery/recoveryFlush';
 import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
+import * as ifcForeignGuard from '@/state/ifcForeignGuard';
 import type { UpdateStatus } from '@/services/updater/updaterService';
 
 const ts = createRequire(import.meta.url)('typescript') as typeof Ts;
@@ -73,6 +74,8 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     '@/services/actualAutosave/actualAutoSave': {},
     '@/services/fileAccess/writeCoordinator': {},
     '@/state/recoveryManifestNotice': { notifyRecoveryError },
+    // #804 fase 1a: het herstelmanifest kiest het opslagdoel met de echte guard (productiecode).
+    '@/state/ifcForeignGuard': ifcForeignGuard,
   }, {
     setTimeout: (callback: () => void) => { timers.set(++timerId, callback); return timerId; },
     clearTimeout: (id: number) => timers.delete(id),

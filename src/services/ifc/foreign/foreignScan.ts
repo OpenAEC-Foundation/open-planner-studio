@@ -29,8 +29,12 @@ export interface ForeignScanResult {
   readonly chunkIds: Int32Array;
   /** Klasse per stuk: 0 = geen entiteit, 1 = P, 2 = C, 3 = A, 4 = V. */
   readonly classes: Uint8Array;
-  /** Codering per stuk (§4.9 punt 5): 1 = letterlijk. Alleen ingevuld voor P, C en A (wat de lezer krijgt). */
+  /** Codering per stuk (§4.9 punt 5): 1 = letterlijk. Alleen ingevuld voor wat de lezer krijgt: P, C, A en
+   *  `projectContext`. */
   readonly literal: Uint8Array;
+  /** Het stuk van het `IfcProject` als dat V is en er precies één is (een model zonder planning, of een eigen bestand
+   *  van vóór `87ebd4d46`), anders -1. De lezer leest het als context (§4.2, Gevolgen): naam, omschrijving en GlobalId. */
+  readonly projectContext: number;
   readonly selection: ForeignScanSelection;
   /** Aantal entiteiten per klasse. */
   readonly counts: { readonly P: number; readonly C: number; readonly A: number; readonly V: number };
@@ -62,13 +66,20 @@ export function scanForeign(bytes: Uint8Array): ForeignScanOutcome {
   const chunkStarts = new Uint32Array(n + 1);
   const chunkIds = new Int32Array(n);
   const literal = new Uint8Array(n);
+  let projects = 0;
+  let project = -1;
   for (let i = 0; i < n; i++) {
     chunkStarts[i] = index.start(i);
     const id = index.id(i);
     chunkIds[i] = id === '' ? -1 : Number(id);
     const c = cls.classes[i];
     if (c >= 1 && c <= 3 && index.literalText(i)) literal[i] = 1;
+    if (index.isEntity(i) && index.type(i) === 'IFCPROJECT') { projects++; project = i; }
   }
+  // §4.2, Gevolgen: de lezer leest het enige `IfcProject` altijd als context, ook als het V is. Alleen dat stuk, niet zijn
+  // eenheden of context: de lezer volgt van het project geen verwijzing.
+  const projectContext = projects === 1 && cls.classes[project] === 4 ? project : -1;
+  if (projectContext >= 0 && index.literalText(projectContext)) literal[projectContext] = 1;
   // Elk byte valt in precies één stuk (§4.1; de poort eist dat), dus het laatste stuk eindigt op de lengte van de bron.
   chunkStarts[n] = bytes.length;
   const sel = cls.selection;
@@ -78,6 +89,7 @@ export function scanForeign(bytes: Uint8Array): ForeignScanOutcome {
     chunkIds,
     classes: cls.classes,
     literal,
+    projectContext,
     selection: {
       workPlan: sel.workPlan,
       liveSchedule: sel.liveSchedules.length > 0 ? sel.liveSchedules[0] : -1,

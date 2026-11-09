@@ -6,7 +6,7 @@
  * Stappen:
  *  1. Scanner en indeling op de bytes, in een Worker (`foreignScanRunner.ts`).
  *  2. De lezer krijgt de tekst van de stukken P, C en A, met kop, `DATA;` en staart (§4.9 punt 4). Het model (V) zit er
- *     niet in. De lezer volgt de keuze van `selectPlanning` voor de taken (§4.2 stap 1) en de codering per stuk (§4.9
+ *     niet in, op het enige `IfcProject` na: dat leest de lezer altijd als context (§4.2, Gevolgen). De lezer volgt de keuze van `selectPlanning` voor de taken (§4.2 stap 1) en de codering per stuk (§4.9
  *     punt 5).
  *  3. De lezer legt de kaart domein-id → `#id` vast; een controle eist dat taken, resources, kalenders, werkplan en
  *     werkschema precies de keuze van `selectPlanning` zijn.
@@ -115,17 +115,19 @@ export async function readIfcBytesDetailed(
   return { result: { ...result, ifcSource } };
 }
 
-/** De bytes van de stukken die de lezer krijgt: kop, `DATA;`, staart (klasse 0) en P, C en A. Zonder V is dat de bron
- *  zelf (geen kopie). Stukgrenzen vallen op ASCII-bytes, dus het knippen breekt nooit een UTF-8-teken. */
+/** De bytes van de stukken die de lezer krijgt: kop, `DATA;`, staart (klasse 0), P, C en A, en het `IfcProject` als
+ *  context als dat V is (§4.2, Gevolgen; `projectContext`). Zonder V is dat de bron zelf (geen kopie). Stukgrenzen vallen
+ *  op ASCII-bytes, dus het knippen breekt nooit een UTF-8-teken. */
 function readerBytes(bytes: Uint8Array, scan: ForeignScanResult): Uint8Array {
-  const { classes, chunkStarts } = scan;
+  const { classes, chunkStarts, projectContext } = scan;
   if (scan.counts.V === 0) return bytes;
+  const skip = (i: number) => classes[i] === 4 && i !== projectContext;
   let size = 0;
-  for (let i = 0; i < classes.length; i++) if (classes[i] !== 4) size += chunkStarts[i + 1] - chunkStarts[i];
+  for (let i = 0; i < classes.length; i++) if (!skip(i)) size += chunkStarts[i + 1] - chunkStarts[i];
   const out = new Uint8Array(size);
   let at = 0;
   for (let i = 0; i < classes.length; i++) {
-    if (classes[i] === 4) continue;
+    if (skip(i)) continue;
     out.set(bytes.subarray(chunkStarts[i], chunkStarts[i + 1]), at);
     at += chunkStarts[i + 1] - chunkStarts[i];
   }

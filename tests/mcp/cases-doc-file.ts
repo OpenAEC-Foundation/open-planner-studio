@@ -22,6 +22,8 @@ import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, ex
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
+import { FEATURE_FLAGS } from '@/utils/featureFlags';
+import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
 // T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
 // builders uit tests/planning/mppFixtures.ts (M6-fixturebouwers, ook door check-mpp-import.ts's
@@ -32,6 +34,7 @@ import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAcc
 import { buildNestedCfb, encodeCompObjFileFormat, encodePropsEntries, encodePropsSingleByteEntry, buildVarMetaBytes, type CfbTreeNode } from '../planning/mppFixtures';
 
 const S = () => useAppStore.getState();
+const MCP_ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..');
 
 function makeCtx(over: McpContextOverrides = {}): McpContext {
   return makeMcpContext(appStoreContext, {
@@ -1023,6 +1026,50 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
   assertEq(ifc.format, 'IFC', 'IFC wordt als native formaat herkend');
   assertEq(S().filePath, ifcPath, 'een IFC-import neemt het bronpad wél over (opslaan = terugschrijven)');
   assertEq(ifc.filePath, ifcPath, 'en de respons meldt dat opslagdoel');
+});
+
+// #804 fase 1a: een document met een vreemd deel (gebouwmodel) gaat nog niet naar IFC; met de flag `ifcForeignContent`
+// leest import_schedule IFC als bytes, zoals Bestand → Openen.
+test('export_ifc: weigert een document met een vreemd deel, en import_schedule leest met de flag als bytes (#804 fase 1a)', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Met model');
+  const flag = FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!;
+  const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
+  const bonsaiPath = `${HOME}/bonsai-4d.ifc`;
+  setBinaryFile(bonsaiPath, bonsai);
+  files.set(bonsaiPath, new TextDecoder().decode(bonsai));
+  try {
+    // Zonder flag: tekst, en de modelweigering zoals nu.
+    const refused = await callErr('planner_import_schedule', { path: bonsaiPath });
+    assert(refused.error.includes('building model'), 'zonder flag blijft de modelweigering');
+    assertEq(readFileCalls.includes(bonsaiPath), false, 'zonder flag leest import_schedule IFC als tekst');
+
+    // Met de flag (alleen in deze test bruikbaar gemaakt): bytes, en het document krijgt de bron.
+    flag.writesNewIfcData = false;
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    const ctx = makeCtx();
+    const imported = await callOk('planner_import_schedule', { path: bonsaiPath }, ctx);
+    assertEq(readFileCalls.includes(bonsaiPath), true, 'met de flag leest import_schedule IFC als bytes');
+    assert(S().ifcSource?.foreign === true && S().ifcSource?.bytes === bonsai, 'het document houdt de bron met het vreemde deel');
+    assertEq(imported.filePath, bonsaiPath, 'het bestand is het opslagdoel');
+
+    const target = `${HOME}/export/model.ifc`;
+    const error = await callErr('planner_export_ifc', { path: target, overwrite: true }, ctx);
+    assertEq(error.code, 'VALIDATION', 'een vreemd deel ⇒ validatiefout');
+    assert(error.error.includes('building model') && error.error.includes('Other export formats'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(files.has(target), false, 'er is niets geschreven');
+
+    // Zonder vreemd deel schrijft export_ifc gewoon, ook met de flag.
+    loadSmallProject('Zonder model');
+    assertEq(S().ifcSource, null, 'een geladen planning zonder bestand heeft geen bron');
+    await callOk('planner_export_ifc', { path: target, overwrite: true });
+    assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
+  } finally {
+    flag.writesNewIfcData = true;
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+  }
 });
 
 // T8-spec-review (B1, blokkerend): .mpp moet ECHT via het BYTES-pad (`readFile`, niet
