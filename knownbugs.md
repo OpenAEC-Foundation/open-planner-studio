@@ -2515,6 +2515,50 @@ en noem het in je rapport of PR-tekst.
      `src/services/print/printPreview.ts`). Voorstel: een label dat maar voor een klein deel past, weglaten of
      binnen de rand schuiven. — B
 
+997. **VERVOLG: een tweede klik in een datumdeel blokkeert typen.** In `DateTextInput`
+     (`src/components/common/DateTextInput.tsx`, `onMouseUp` rond regel 518) selecteert een klik de inhoud van het
+     deel. Klik je in een deel dat al geselecteerd is, dan heft de browser die selectie pas ná de handler op: de
+     cursor staat dan op positie 1 en het volle deel (maxLength 2) weigert elk cijfer, zonder melding. Gezien in het
+     Rapport-tabblad bij de periode *Aangepast* (dag van *Van* typen, Tab, klik op de dag van *Tot*, "30062027"
+     typen: niets verandert) en in het eigenschappenpaneel bij *Start* (klik, nog een klik op hetzelfde deel, "15"
+     typen: ongewijzigd). Het zit dus in het datumveld van de hele app en staat al op `main`, niet uit #847. Oorzaak
+     afgeleid, gedrag nagespeeld (council ronde 6 van #817, Claude Opus 5.5, punt 1). Voorstel: de inhoud één frame
+     later selecteren (`requestAnimationFrame`), of een getypt cijfer in een vol deel het deel laten vervangen. — B
+
+999. **VERVOLG: de melding "Deze layout heeft andere kolommen…" zegt niet wélke, en blijft altijd staan.** In de
+     stap Taken van het Rapport-tabblad (`StudioNotice` met `data-rs-notice="layout-own"` in
+     `src/components/panels/reportStudio/GanttReportStudio.tsx`) staat alleen "Deze layout heeft andere kolommen en
+     balkopties dan het rapport." Welke kolommen of balkopties dat zijn, ziet de planner pas na de klik op
+     *Overnemen*. Houdt hij bewust zijn eigen kolommen, dan blijft het blok van drie regels staan zolang de layout
+     gekozen is. Gezien in council ronde 6 van #817 (Claude Opus 5.5, punt 4). Voorstel: de kolommen en de
+     balkopties noemen ("Deze layout heeft 3 kolommen: WBS, Taaknaam, Duur.") en een knop "Eigen houden" die de
+     melding voor deze layout sluit. — B
+
+1000. **VERVOLG: in een groot plan blijven de eerste kolom erbij en zoom naar 33 % boven 250 ms.** Gemeten op het
+     plan met 5000 taken (`qa/817-rapport/groot/plan-5000.ifc`) in het Rapport-tabblad: de eerste registerkolom
+     erbij (Kalenderdagen) 269–422 ms tot het laatste beeld (de lijst reageert binnen 48–60 ms), uitzoomen
+     50→33 % 226–265 ms (drie nieuwe bladen), ook bij load 0,7. Elke klik vraagt daarbij 10–40 MB tijdelijk
+     geheugen voor het knippen van de SVG-opname (`clipOpToWindow`, aangeroepen in
+     `src/services/print/reportPaper.ts`). In de dev-build groeit het aantal User Timing-regels van React met
+     ongeveer 1650 per ronde (alleen DEV). Bronnen: council ronde 6 van #817 (Claude Opus 5.5, punt 5) en de
+     bouwer van de fixronde na council ronde 5. Voorstel: de celteksten van een registerkolom in een worker of
+     in stukken opbouwen, en de geknipte opname per blad bewaren in plaats van per klik opnieuw te knippen. — B
+
+1001. **VERVOLG: een layout die op een lager niveau op resource groepeert (fase → resource) bandt op naam.** Alleen
+     een groepering met resource als laatste niveau, eventueel onder resourcetype, gaat in het Rapport-tabblad
+     door de resourcebouwer (`resourceBandShape` in `src/engine/reports/layoutReport.ts`), die per
+     resource-identiteit bandt. Elke andere groepering met resource, zoals fase → resource, volgt de
+     schermgroepering (`computeViewRows` in `src/engine/view/visibleRows.ts`, rond regel 128: `resourceNames`).
+     Twee resources met dezelfde naam lopen dan samen in één band. Gezien bij de bouw van de layouts in het
+     Rapport-tabblad (#861). Voorstel: de schermgroepering op resource-id laten banden, met `#n` voor
+     gelijknamigen zoals de resourcebouwer. — B
+
+1002. **VERVOLG: `verify:conventions` meldt dat `levelingDelayMinutes` omlaag moet worden herpind.** De poort
+     slaagt (exit 0) maar schrijft "te herpinnen (omlaag): levelingDelayMinutes 7→6 — draai met --write-baseline":
+     de pin in `scripts/verify-conventions.datagates.json` staat op 7, de code heeft er 6. Nagegaan op
+     `origin/main` (`ed2f919c5`, 9 november 2026): daar staat dezelfde melding, dus niet uit #847. Voorstel: in een
+     eigen kleine PR `node scripts/verify-conventions.mjs --write-baseline` draaien en de nieuwe pin committen. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is

@@ -29,8 +29,9 @@ import { DEFAULT_REPORT_SETTINGS, type ResourceGanttReportOptions } from '@/util
 import type { Task, TaskTime } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
-import type { Layout } from '@/types/view';
+import type { FieldRef, FilterNode, Layout } from '@/types/view';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
+import { missingFilterFields, type FieldCatalogCtx } from '@/components/viewControls/fieldCatalog';
 
 let failures = 0;
 const fail = (msg: string) => { console.log(`XX ${msg}`); failures++; };
@@ -139,7 +140,16 @@ const source = reportTaskSource({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resou
 eq('opslag: reportType resourceGantt ⇒ layout Resourcediagram', source, { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 const rd = builtinLayouts(tLabel).find(l => source.kind === 'layout' && l.id === source.id);
 ok(!!rd, 'de layout Resourcediagram staat in de meegeleverde layouts');
-eq('terug naar de opslag: de layout Resourcediagram ⇒ reportType resourceGantt', taskSourcePatch(source), { reportType: 'resourceGantt', layoutId: '', followView: false });
+eq('terug naar de opslag: de layout Resourcediagram ⇒ layoutId én reportType resourceGantt', taskSourcePatch(source), { reportType: 'resourceGantt', layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, followView: false });
+// Een ander rapport bekijken overschrijft alleen `reportType` (review Sol #847, ronde 4): de layout blijft.
+for (const reportType of ['milestones', 'gantt'] as const) {
+  eq(`uitstap: reportType ${reportType} met layoutId Resourcediagram ⇒ layout Resourcediagram`,
+    reportTaskSource({ ...taskSourcePatch(source), reportType }), { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
+}
+// Het oude paneel (flag uit) kiest het rapporttype Resourcediagram terwijl een eigen layout bewaard staat:
+// die latere keuze wint, zoals vóór deze fix.
+eq('flag uit: reportType resourceGantt wint van een bewaarde eigen layout',
+  reportTaskSource({ reportType: 'resourceGantt', layoutId: 'layout-x', followView: false }), { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 eq('een eigen layout ⇒ gantt + layoutId', taskSourcePatch({ kind: 'layout', id: 'layout-x' }), { reportType: 'gantt', layoutId: 'layout-x', followView: false });
 eq('Zoals de weergave', taskSourcePatch({ kind: 'view' }), { reportType: 'gantt', layoutId: '', followView: true });
 eq('Alle taken', reportTaskSource({ reportType: 'gantt', layoutId: '', followView: false }), { kind: 'all' });
@@ -270,6 +280,24 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
   eq('voortgangslijn gaat voor statusdatumlijn', layoutReportPatch({ ...layout, columns: undefined, overlays: { ...layout.overlays!, progressLine: true } }, available).statusLine, 'progress');
   eq('het Resourcediagram brengt niets mee (relaties staan daar toch uit)', layoutReportPatch(rd!, available), {});
   eq('een layout zonder delen brengt niets mee', layoutReportPatch({ id: 'x', name: 'X', filter: null }, available), {});
+}
+// Een filterveld dat het project niet heeft (review Sol #847, ronde 4): de stap Taken meldt het, het filter blijft.
+{
+  const ctx = {
+    activityCodeTypes: [{ id: 'ac-fase', name: 'Fase', values: [] }], customFieldDefs: [{ id: 'cf-zone', name: 'Zone', type: 'text' }],
+    resources: [], builtinLabels: {}, taskTypeLabels: {}, resourceLabel: 'Resource', activityCodeSuffix: '', customFieldSuffix: '',
+  } as unknown as FieldCatalogCtx;
+  const rule = (field: FieldRef): FilterNode => ({ kind: 'rule', field, operator: 'eq', value: 'A' });
+  const gone: FieldRef = { src: 'customField', defId: 'removed-custom-field' };
+  const goneCode: FieldRef = { src: 'activityCode', typeId: 'ac-weg' };
+  eq('bestaande velden: niets te melden', missingFilterFields({ kind: 'group', op: 'AND', children: [
+    rule({ src: 'builtin', key: 'name' }), rule({ src: 'builtin', key: 'activeDuring' }), rule({ src: 'customField', defId: 'cf-zone' }),
+    rule({ src: 'activityCode', typeId: 'ac-fase' }), rule({ src: 'resource' }), rule({ src: 'resourceType' }),
+  ] }, ctx), []);
+  eq('geen filter: niets te melden', missingFilterFields(null, ctx), []);
+  eq('een verwijderd eigen veld, ook diep in een groep en twee keer: één melding per veld', missingFilterFields({ kind: 'group', op: 'OR', children: [
+    rule(gone), { kind: 'group', op: 'AND', children: [rule({ src: 'builtin', key: 'name' }), rule(gone), rule(goneCode)] },
+  ] }, ctx), [gone, goneCode]);
 }
 
 console.log(failures === 0 ? 'check-report-layouts: alles groen' : `check-report-layouts: ${failures} fout(en)`);

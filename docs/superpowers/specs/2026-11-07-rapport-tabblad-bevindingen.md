@@ -585,7 +585,9 @@ bij een groepering op resource; met de flag uit verandert er niets.
    scherm zo groepeert. In *Balken* zijn beide schakelaars dan uitgeschakeld, met de uitleg "Een taak staat onder
    elke resource die eraan werkt …". De eigen keuze van de planner blijft bewaard voor een gewone afdruk
    (`studioRowPrintFields` in `studioRowSource.ts`).
-7. **Het Resourcediagram wordt bewaard als `reportType: 'resourceGantt'`, niet als layout-id.** Zo opent een
+7. **Het Resourcediagram wordt bewaard als `reportType: 'resourceGantt'`, niet als layout-id.** *Vervangen in de
+   fixronde na code-review 4* (zie daar): de keuze staat nu óók in `layoutId`, omdat een ander rapport bekijken
+   `reportType` overschrijft. Oorspronkelijk: zo opent een
    bewaarde keuze voor het oude rapporttype met de flag aan als de Gantt-afdruk met deze layout en met de bewaarde
    opties (`resourceGantt`), en toont het oude paneel met de flag uit nog steeds het Resourcediagram. Er is geen
    migratie nodig (`reportTaskSource` / `taskSourcePatch` in `reportLayouts.ts`). Een eigen layout staat in het
@@ -793,3 +795,64 @@ Ronde 5 op `c0e143d6d`: Opus 5.5 8,3, GPT-6.1-Sol 8,3 (doel 8,5). Gebouwd door d
 schermafbeeldingen in `qa/817-rapport/r6/shots/`): licht en donker; 1600×900, 1366×768, 1280×720; open en
 ingeklapt; een eigen layout (melding met beide knoppen in beeld op elke maat) en het Resourcediagram (hoverlabel,
 klik, uitleg in *Kolommen*, periode op *Aangepast*, *Kolommen overnemen* met *Ongedaan maken*).
+
+## Fixronde na code-review 4 (9 november 2026)
+
+Code-review ronde 4 (GPT-6.1-Sol, xhigh) op `9ac5ddaa4`: oordeel nee, door één BLOKKEERT-punt. Gebouwd door de
+implementatie-subagent (Claude Opus 5.5) op `e6ffca7e2`. Bewijsbestanden (lokaal, niet in git):
+`qa/817-rapport/r7-review4/`.
+
+1. **Een ander rapport bekijken wiste de layout Resourcediagram (BLOKKEERT, BEVESTIGD).** Route: in *Taken*
+   *Resourcediagram* kiezen, via *Rapporttype* naar *Mijlpalen-overzicht*, terug naar *Gantt-afdruk*. Daarna stond er
+   *Alle taken*, zonder banden en zonder periode. Oorzaak: `taskSourcePatch` bewaarde deze ene layout alleen als
+   `reportType: 'resourceGantt'` met een lege `layoutId`, en de rapportkeuze overschrijft `reportType`.
+   **Besluit** (vervangt besluit 7 van *Layouts en stijl*): de rijenbron staat altijd in `layoutId`, ook voor de
+   meegeleverde layout Resourcediagram (`builtin:resource-diagram`), los van het geopende rapporttype. Voorbeeld: na
+   de uitstap staat in de opslag `reportType: 'gantt'` en `layoutId: 'builtin:resource-diagram'`, en het tabblad
+   opent weer per resource, met de bewaarde periode. Waarom niet een extra veld: `layoutId` bestaat al, het oude
+   paneel schrijft het ongewijzigd terug, en de review vroeg uitdrukkelijk geen extra instellingenlaag.
+   - `reportType: 'resourceGantt'` blijft als invoer gelden (`reportTaskSource`): een oude opslag, of het rapporttype
+     *Resourcediagram* in het oude paneel met de flag uit, opent als deze layout. Die keuze wint ook van een eerder
+     bewaarde eigen layout, zoals vóór deze fix.
+   - De keuze voor de layout schrijft ook `reportType: 'resourceGantt'`, zodat het oude paneel met de flag uit dan
+     het Resourcediagram toont, zoals nu.
+   - Verlaat het tabblad de Gantt-afdruk via *Rapporttype*, dan schrijft het de rijenbron mee in `layoutId`
+     (`taskSourcePatch(source)` in de keuzelijst). Zo overleeft ook een oude opslag, die het Resourcediagram alleen
+     als `reportType` kende, een uitstap.
+   - Het oude paneel met de flag uit: wie daar het Resourcediagram verlaat, verlaat ook de layout Resourcediagram
+     (`layoutId` gaat dan leeg, `ReportPanel.tsx` bij de keuzelijst *Rapporttype*). Anders opende het nieuwe tabblad
+     later toch per resource, terwijl de planner in het oude paneel *Gantt-afdruk* had gekozen.
+   **Bewijs.** `tests/browser/report-studio.spec.ts`, eerste blok: *Resourcediagram*, periode *Aangepast* tot en met
+   18 september (alleen Ploeg A met Fundering storten), naar *Mijlpalen-overzicht* en terug. Gecontroleerd: de layout
+   gekozen, dezelfde tellingen met *Buiten de periode*, de periodekeuze *Aangepast*, de band "Ploeg A (1)" en geen
+   band Kraan. Daarna een oude opslag (`reportType: 'resourceGantt'`, `layoutId: ''`) via een `StorageEvent`: opent
+   als de layout en overleeft dezelfde uitstap. Rood zonder de fix (de bestanden gekopieerd, gemuteerd, met `cp`
+   teruggezet): de opslag mist `layoutId`; zonder die controle staat de layout na de terugweg niet meer gekozen
+   (`aria-checked` "false"). Alleen de normalisatie in de keuzelijst weg: de oude opslag gaat bij de uitstap
+   verloren. `check-report-layouts.ts` deel 1 legt de opslagregels vast.
+2. **Twee overnames, één herstelstap (VERVOLG, BEVESTIGD; nu meegenomen).** *Kolommen overnemen*, dan *Balkopties
+   overnemen*, dan *Ongedaan maken*: alleen de balkopties kwamen terug. `applyWithUndo` (`useStudioSettings.ts`)
+   kreeg een `mergeKey` (`layout:<id>`): een tweede overname uit dezelfde layout, terwijl het herstelpunt nog staat,
+   voegt zijn velden toe en elk veld houdt zijn eerste waarde. De melding zegt dan "Korte tabel: kolommen en
+   balkopties overgenomen." (`studio.tasks.appliedBoth`, nl + en). Eén herstelpunt, geen algemene undo-stapel. Een
+   overname uit een andere layout, of na *Standaard*, begint een nieuw herstelpunt. Bewijs: laatste stappen van het
+   eerste blok. Rood zonder het samenvoegen: na *Ongedaan maken* bleven de drie layoutkolommen staan.
+   Knownbug-nummer 998 (gereserveerd voor het geval dit niet lukte) is daarom niet gebruikt.
+3. **Export met de kolomlijst van vóór de laatste keuze (VERVOLG, VERMOED; nu BEVESTIGD en gerepareerd).** Een nieuwe
+   registerkolom komt via `useDeferredValue` één render later op het papier en in `options`. `columnsPending`
+   (`paperColumnIds !== settings.columns`) houdt nu de bestaande exportwacht vast, en het bestaande effect hervat
+   de export zodra het papier de kolom heeft. Geen tweede exportpad. Bewijs: een proef buiten de repo
+   (`qa/817-rapport/r7-review4/export-tussenstand.spec.ts`): Enter in de kolomkiezer en de klik op *PDF
+   exporteren* in dezelfde taak, met alleen microtaken ertussen. Op dat moment staat Kalenderdagen in de lijst en
+   nog niet op het papier. Zonder de fix mist de PDF Kalenderdagen (`pdftotext`), met de fix staat hij erin. Niet
+   in de spec: de controle vraagt `pdftotext`, en dat staat niet in de CI.
+4. **Een layout met een ontbrekend filterveld gaf 0 rijen zonder uitleg (VERVOLG, BEVESTIGD; nu meegenomen).**
+   `missingFilterFields` in de bestaande veldcatalogus (`src/components/viewControls/fieldCatalog.ts`) noemt de
+   velden in het filter die dit project niet heeft (een verwijderd eigen veld of een verwijderde activiteitcode).
+   De stap *Taken* toont dan onder de keuze een melding (`StudioNotice` `layout-missing-field`, tekst
+   `studio.tasks.layoutMissingField` met meervoud, nl + en). Het filter blijft zoals het is: stil weglaten zou juist
+   méér taken tonen. Help nl + en: `howto-rapport-maken-en-afdrukken` (punt *Wat een layout meeneemt*). Bewijs: een
+   stap in het eerste blok (layout met `customField: removed-custom-field`, `eq: A`: melding, nul taken op het
+   papier, de layout ongewijzigd bewaard) en drie gevallen in `check-report-layouts.ts`. Rood zonder de melding.
+
+Nieuwe knownbugs uit council ronde 6 en eerdere rapporten: 997, 999, 1000, 1001 en 1002 (`knownbugs.md`).

@@ -11,9 +11,11 @@ import { reportColumnsFromGrid } from './reportColumns';
 export type ReportTaskSource = { kind: 'all' } | { kind: 'view' } | { kind: 'layout'; id: string };
 
 /**
- * De keuze uit de bewaarde stand. `reportType: 'resourceGantt'` is de meegeleverde layout Resourcediagram:
- * zo opent een bewaarde keuze voor het oude rapporttype met de flag aan als Gantt-afdruk met die layout, en
- * toont het oude paneel (flag uit) bij die keuze nog steeds het Resourcediagram.
+ * De keuze uit de bewaarde stand. De rijenbron staat in `layoutId`, ook voor de meegeleverde layout
+ * Resourcediagram: zo overleeft de keuze een uitstap naar een ander rapport, dat alleen `reportType`
+ * overschrijft (review Sol #847, ronde 4). `reportType: 'resourceGantt'` blijft als invoer gelden: een
+ * opslag van vóór deze keuze, of een keuze voor het rapporttype Resourcediagram in het oude paneel (flag
+ * uit), opent als de layout Resourcediagram.
  */
 export function reportTaskSource(settings: Pick<ReportSettings, 'reportType' | 'layoutId' | 'followView'>): ReportTaskSource {
   if (settings.reportType === 'resourceGantt') return { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID };
@@ -21,10 +23,13 @@ export function reportTaskSource(settings: Pick<ReportSettings, 'reportType' | '
   return settings.followView ? { kind: 'view' } : { kind: 'all' };
 }
 
-/** De velden die een keuze in de stap Taken schrijft. */
+/**
+ * De velden die een keuze in de stap Taken schrijft. De layout Resourcediagram schrijft daarnaast
+ * `reportType: 'resourceGantt'`, zodat het oude paneel (flag uit) bij die keuze het Resourcediagram toont.
+ */
 export function taskSourcePatch(source: ReportTaskSource): Pick<ReportSettings, 'reportType' | 'layoutId' | 'followView'> {
   if (source.kind === 'layout' && source.id === RESOURCE_DIAGRAM_LAYOUT_ID) {
-    return { reportType: 'resourceGantt', layoutId: '', followView: false };
+    return { reportType: 'resourceGantt', layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, followView: false };
   }
   if (source.kind === 'layout') return { reportType: 'gantt', layoutId: source.id, followView: false };
   return { reportType: 'gantt', layoutId: '', followView: source.kind === 'view' };

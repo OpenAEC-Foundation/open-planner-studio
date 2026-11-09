@@ -22,9 +22,14 @@ export interface StudioSettingsApi {
   resetFields: (scope: string, keys: readonly StudioSettingKey[], label: string, restoreExtra?: () => void) => void;
   /**
    * Zet meerdere velden in één keer, als één stap die ongedaan te maken is (kolommen of balkopties van een
-   * layout overnemen, #861). `text` is de melding met "Ongedaan maken".
+   * layout overnemen, #861). `text` geeft de melding met "Ongedaan maken", bij de velden die dat herstelpunt
+   * terugzet. Staat er nog een herstelpunt met dezelfde `mergeKey` (een tweede overname uit dezelfde layout),
+   * dan voegt deze stap zijn velden daaraan toe: elk veld houdt zijn eerste waarde, en één keer "Ongedaan
+   * maken" zet beide overnames terug (review Sol #847, ronde 4).
    */
-  applyWithUndo: (scope: string, next: Partial<ReportSettings>, text: string) => void;
+  applyWithUndo: (
+    scope: string, next: Partial<ReportSettings>, text: (keys: readonly StudioSettingKey[]) => string, mergeKey: string,
+  ) => void;
   /** De laatste "Standaard" (of overgenomen deel van een layout) met zijn stap en naam, zolang hij nog ongedaan te maken is. */
   lastReset: { scope: string; label: string; text?: string } | null;
   undoReset: () => void;
@@ -39,6 +44,8 @@ interface PendingReset {
   /** Alleen de velden die Standaard terugzette, met hun waarde van vóór Standaard. */
   previous: Partial<ReportSettings>;
   restoreExtra?: () => void;
+  /** Overnames met dezelfde sleutel delen dit herstelpunt (`applyWithUndo`). */
+  mergeKey?: string;
 }
 
 /** Staan deze velden op de standaard? Arrays (kolommen) en objecten (de Resourcediagram-opties) op inhoud. */
@@ -140,14 +147,19 @@ export function useStudioSettings(): StudioSettingsApi {
     setSettings(next);
   }, []);
 
-  const applyWithUndo = useCallback((scope: string, nextValues: Partial<ReportSettings>, text: string) => {
+  const applyWithUndo = useCallback((
+    scope: string, nextValues: Partial<ReportSettings>, text: (keys: readonly StudioSettingKey[]) => string, mergeKey: string,
+  ) => {
     markReportInput('apply');
     const current = settingsRef.current;
-    const previous: Partial<ReportSettings> = {};
+    // Een tweede overname uit dezelfde layout: de velden van het open herstelpunt houden hun eerste waarde.
+    // Zonder samenvoegen zette "Ongedaan maken" alleen de laatste overname terug.
+    const pending = lastResetRef.current;
+    const previous: Partial<ReportSettings> = pending?.mergeKey === mergeKey ? { ...pending.previous } : {};
     for (const key of Object.keys(nextValues) as StudioSettingKey[]) {
-      (previous as Record<string, unknown>)[key] = current[key];
+      if (!(key in previous)) (previous as Record<string, unknown>)[key] = current[key];
     }
-    setLastReset({ scope, label: scope, text, previous });
+    setLastReset({ scope, label: scope, text: text(Object.keys(previous) as StudioSettingKey[]), previous, mergeKey });
     setSettings({ ...current, ...nextValues });
   }, []);
 

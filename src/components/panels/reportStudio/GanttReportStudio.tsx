@@ -22,6 +22,7 @@ import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
+import { missingFilterFields } from '@/components/viewControls/fieldCatalog';
 import { barColorFieldOptions, effectiveBarColorControl } from '@/components/viewControls/barColorFieldOptions';
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
@@ -83,8 +84,8 @@ const daySliderValue = (pos: number) => REPORT_MIN_DAY_WIDTH * (REPORT_MAX_ZOOM 
 
 /** Welke velden "Standaard" per stap terugzet. */
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
-  // De keuze (alle taken, weergave of layout; `reportType` draagt het Resourcediagram) en de opties van
-  // het Resourcediagram.
+  // De keuze (alle taken, weergave of layout; `reportType: 'resourceGantt'` hoort bij de layout
+  // Resourcediagram) en de opties van het Resourcediagram.
   tasks: ['followView', 'layoutId', 'reportType', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
   bars: ['showTaskNames', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
@@ -194,6 +195,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   // andere volgorde of een kolom die al in de cache staat, gaat direct: een extra render kost daar alleen tijd.
   const deferredColumnIds = useDeferredValue(settings.columns);
   const paperColumnIds = reportColumnsNeedBuild(settings.columns, domain, columnCache) ? deferredColumnIds : settings.columns;
+  // Het papier (en dus `options`) staat nog op de lijst van vóór de laatste keuze. Een export wacht daarop,
+  // anders legt hij de oude kolommen vast (review Sol #847, ronde 4).
+  const columnsPending = paperColumnIds !== settings.columns;
   const resolved = useMemo(
     () => resolveReportColumns(paperColumnIds, domain, tasks, labelForColumn, columnCache),
     [paperColumnIds, domain, tasks, labelForColumn, columnCache],
@@ -275,13 +279,19 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       const changed = keys.filter(differs);
       return changed.length > 0 ? Object.fromEntries(changed.map(key => [key, extra[key]])) as Partial<ReportSettings> : null;
     };
-    return { name: chosenLayout.name, columns: pick(LAYOUT_COLUMN_KEYS), bars: pick(LAYOUT_BAR_KEYS) };
+    return { id: chosenLayout.id, name: chosenLayout.name, columns: pick(LAYOUT_COLUMN_KEYS), bars: pick(LAYOUT_BAR_KEYS) };
   }, [chosenLayout, availableColumnIds, settings]);
-  // Eén deel overnemen, met één stap "Ongedaan maken" voor alleen dat deel (de keuze van de layout blijft).
+  // Eén deel overnemen, met "Ongedaan maken" voor alleen dat deel (de keuze van de layout blijft). Neemt de
+  // planner daarna ook het andere deel van dezelfde layout over, dan zet één "Ongedaan maken" beide terug.
   const takeOverFromLayout = useCallback((part: 'columns' | 'bars') => {
     const values = layoutDiff?.[part];
     if (!layoutDiff || !values) return;
-    applyWithUndo('tasks', values, t(part === 'columns' ? 'studio.tasks.appliedColumns' : 'studio.tasks.appliedBars', { layout: layoutDiff.name }));
+    const layout = layoutDiff.name;
+    applyWithUndo('tasks', values, keys => {
+      const columns = keys.some(key => LAYOUT_COLUMN_KEYS.includes(key));
+      const bars = keys.some(key => LAYOUT_BAR_KEYS.includes(key));
+      return t(columns && bars ? 'studio.tasks.appliedBoth' : columns ? 'studio.tasks.appliedColumns' : 'studio.tasks.appliedBars', { layout });
+    }, `layout:${layoutDiff.id}`);
   }, [layoutDiff, applyWithUndo, t]);
   const patchResourceOptions = useCallback((next: Partial<ResourceGanttReportOptions>, input: string) => {
     patch({ resourceGantt: { ...resourceOptions, ...next } }, input);
@@ -448,18 +458,19 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     // Net een andere letter gekozen: wachten tot hij geladen en gemeten is. Anders tekent de PDF de nieuwe
     // letter op de breedtes van de vorige en kapt hij namen af (zelfde reden als `measuredOnChosenFont`
     // in het oude paneel).
-    if (fontPending) {
+    // Net een kolom gekozen die eerst haar celteksten bouwt: wachten tot het papier haar heeft.
+    if (fontPending || columnsPending) {
       exportPendingRef.current = true;
       return;
     }
     void runExport();
-  }, [exportBusy, runExport, fontPending]);
+  }, [exportBusy, runExport, fontPending, columnsPending]);
 
   useEffect(() => {
-    if (!exportPendingRef.current || scheduleStale || fontPending) return;
+    if (!exportPendingRef.current || scheduleStale || fontPending || columnsPending) return;
     exportPendingRef.current = false;
     void runExport();
-  }, [scheduleStale, fontPending, runExport, options]);
+  }, [scheduleStale, fontPending, columnsPending, runExport, options]);
 
   // "Nu doorrekenen": dezelfde actie als F5 (en de knop Bereken). Het papier volgt vanzelf. Een gekozen
   // statusdatum rekent via dezelfde weg door: anders verschijnt meteen de balk "niet doorgerekend".
@@ -609,6 +620,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   // ---- Stapinhoud: één bron voor de zijbalk en het zwevende venster -----------------------------
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
+  // Een filterveld dat dit project niet heeft (verwijderd, of een layout uit een ander project): melden naast
+  // de keuze. Het filter blijft zoals het is; stil weglaten zou juist méér taken tonen.
+  const layoutMissingFields = useMemo(
+    () => (chosenLayout ? missingFilterFields(chosenLayout.filter, fieldCtx) : []),
+    [chosenLayout, fieldCtx],
+  );
   const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
 
   const stepContent = (step: StudioStepId): ReactNode => {
@@ -636,6 +653,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               ]}
             />
             {chosenLayout && <p className="rs-hint" data-rs-layout-hint>{t('studio.tasks.layoutHint')}</p>}
+            {layoutMissingFields.length > 0 && (
+              <StudioNotice dataKey="layout-missing-field">
+                {t('studio.tasks.layoutMissingField', { count: layoutMissingFields.length })}
+              </StudioNotice>
+            )}
             {layoutDiff && (layoutDiff.columns || layoutDiff.bars) && (
               <StudioNotice
                 tone="info"
@@ -1082,8 +1104,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       aria-label={t('reportType.label')}
       value="gantt"
       onChange={v => {
-        // Eerst bewaren, dan wisselen: het oude paneel leest het rapporttype bij het laden.
-        void saveReportSettings({ ...settings, reportType: v as ReportType }).then(() => onReportTypeChange(v as ReportType));
+        // Eerst bewaren, dan wisselen: het oude paneel leest het rapporttype bij het laden. De rijenbron gaat
+        // mee in `layoutId`, ook een Resourcediagram dat alleen als `reportType` bewaard was (een oude
+        // opslag): anders opent de terugweg met Alle taken (review Sol #847, ronde 4).
+        void saveReportSettings({ ...settings, ...taskSourcePatch(source), reportType: v as ReportType })
+          .then(() => onReportTypeChange(v as ReportType));
       }}
       options={[
         { value: 'gantt', label: t('reportType.gantt') },

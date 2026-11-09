@@ -30,6 +30,7 @@ import {
   type ReportSettings, type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
+import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 import { useCurveLabels, useResourceTypeLabels } from './reports/useResourceGanttLabels';
 import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
@@ -1349,7 +1350,15 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
           className="w-full min-w-0"
           aria-label={t('reportType.label')}
           value={reportType}
-          onChange={v => setReportType(v as ReportType)}
+          onChange={v => {
+            // Flag uit: wie het Resourcediagram verlaat, verlaat ook de layout Resourcediagram van het nieuwe
+            // tabblad (die staat sinds review Sol #847, ronde 4 ook in `layoutId`). Met de flag aan toont dit
+            // paneel nooit het Resourcediagram, dus een uitstap naar een ander rapport houdt de layout.
+            if (reportType === 'resourceGantt' && studioFieldsRef.current.layoutId === RESOURCE_DIAGRAM_LAYOUT_ID) {
+              studioFieldsRef.current = { ...studioFieldsRef.current, layoutId: '' };
+            }
+            setReportType(v as ReportType);
+          }}
           options={[
             { value: 'gantt', label: t('reportType.gantt') },
             // Met het nieuwe tabblad is het Resourcediagram een layout van de Gantt-afdruk (#861).

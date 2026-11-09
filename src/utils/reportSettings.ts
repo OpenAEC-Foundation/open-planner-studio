@@ -231,9 +231,10 @@ export interface ReportSettings {
   followView: boolean;
   /**
    * De layout waarvan het nieuwe Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
-   * ("Alle taken" of "Zoals de weergave", via `followView`). Het oude paneel leest dit veld niet. De
-   * meegeleverde layout Resourcediagram staat hier niet: die keuze is `reportType: 'resourceGantt'`, zodat
-   * het oude paneel (flag uit) dan ook het Resourcediagram toont.
+   * ("Alle taken" of "Zoals de weergave", via `followView`). Het oude paneel leest dit veld niet en schrijft
+   * het ongewijzigd terug. Ook de meegeleverde layout Resourcediagram staat hier, los van het geopende
+   * rapporttype (review Sol #847, ronde 4); die keuze zet daarnaast `reportType: 'resourceGantt'`, zodat het
+   * oude paneel (flag uit) dan het Resourcediagram toont. Zie `reportTaskSource`.
    */
   layoutId: string;
   previewQuality: ReportPreviewQuality;

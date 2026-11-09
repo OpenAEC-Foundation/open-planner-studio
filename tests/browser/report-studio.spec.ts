@@ -265,6 +265,58 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-option="showDeps"]')).not.toBeChecked();
   await expect.poll(async () => (await saved()).reportType).toBe('resourceGantt');
   expect(await screen()).toEqual(screenBefore);
+  // Een beperkte periode, dan via Rapporttype een ander rapport en terug (review Sol #847, ronde 4): de layout
+  // Resourcediagram, zijn banden en zijn periode blijven staan. Eerst kwam de terugweg op Alle taken uit, zonder
+  // banden en zonder periode. Alleen met een periode noemen de tellingen ook "Buiten de periode".
+  expect(await saved()).toMatchObject({ reportType: 'resourceGantt', layoutId: 'builtin:resource-diagram' });
+  const rdChoice = page.locator('[data-rs-layout="builtin:resource-diagram"]');
+  const resourceCounts = page.locator('[data-rs-resource-counts]');
+  const periodPicker = page.getByLabel(/^(Reporting period|Rapportageperiode)$/);
+  const reportTypePicker = page.getByLabel(/^(Report type|Rapporttype)$/).first();
+  const toOtherReportAndBack = async () => {
+    await reportTypePicker.click();
+    await page.getByRole('option', { name: /(Milestone overview|Mijlpalen-overzicht)$/ }).click();
+    await expect(studio).toHaveCount(0);
+    await reportTypePicker.click();
+    await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
+    await expect(studio).toBeVisible();
+  };
+  // De periode loopt tot en met 18 september: alleen Fundering storten (Ploeg A) valt erin, Wanden metselen niet.
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await periodPicker.click();
+  await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
+  const periodTo = page.locator('[data-ops-report-period="resourceGanttPeriod"]').getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
+  await periodTo.nth(0).fill('18');
+  await periodTo.nth(1).fill('09');
+  await periodTo.nth(2).fill('2026');
+  await page.keyboard.press('Enter');
+  const inPeriod = /:\s*1\D+:\s*1\D+:\s*0\D+:\s*\d+$/;
+  await expect(resourceCounts).toHaveText(inPeriod);
+  await expect(page0.locator('text', { hasText: /^Ploeg A \(1\)$/ }).first()).toBeAttached();
+  await expect(page0.locator('text', { hasText: /^Kraan/ })).toHaveCount(0);
+  const countsInPeriod = (await resourceCounts.textContent()) ?? '';
+  await toOtherReportAndBack();
+  await expect(rdChoice).toHaveAttribute('aria-checked', 'true');
+  await expect(resourceCounts).toHaveText(countsInPeriod);
+  await expect(periodPicker).toHaveAttribute('data-value', 'custom');
+  await expect(page0.locator('text', { hasText: /^Ploeg A \(1\)$/ }).first()).toBeAttached();
+  await expect(page0.locator('text', { hasText: /^Kraan/ })).toHaveCount(0);
+  expect(await saved()).toMatchObject({
+    reportType: 'gantt', layoutId: 'builtin:resource-diagram', resourceGantt: { period: { preset: 'custom', to: '2026-09-18' } },
+  });
+  await periodPicker.click();
+  await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
+  await expect(resourceCounts).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
+  // Een oude opslag kent het Resourcediagram alleen als rapporttype: die opent als de layout, en ook die keuze
+  // overleeft een uitstap naar een ander rapport.
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('');
+  await refreshStored({ reportType: 'resourceGantt', layoutId: '' });
+  await expect(rdChoice).toHaveAttribute('aria-checked', 'true');
+  await toOtherReportAndBack();
+  await expect(rdChoice).toHaveAttribute('aria-checked', 'true');
+  await expect(resourceCounts).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
+  await page.locator('[data-rs-step-head="bars"]').click();
   // Eenh./d en Curve staan op het papier achter de taaknaam (Per resource). De samenvatting van Kolommen telt
   // ze mee; het label boven het blad heet zoals de kop, en een klik gaat naar de schakelaar die ze aan- en
   // uitzet (fixronde na council ronde 5: het label was "Kolommen · units" en de klik opende Kolommen).
@@ -304,12 +356,26 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page0.locator('text', { hasText: /^Fundering storten$/ })).toHaveCount(0);
   expect(await saved()).toMatchObject({ reportType: 'gantt', layoutId: 'layout-rapport', followView: false });
   expect(await screen()).toEqual(screenBefore);
+  await expect(page.locator('[data-rs-notice="layout-missing-field"]')).toHaveCount(0);
+  // Het filter gebruikt een eigen veld dat dit project niet heeft (review Sol #847, ronde 4): nul rijen, en nu
+  // met een melding naast de keuze. Het filter blijft bewaard; niets verdwijnt stil.
+  const missingFieldLayout = {
+    id: 'layout-rapport', name: 'Een taak',
+    filter: { kind: 'rule', field: { src: 'customField', defId: 'removed-custom-field' }, operator: 'eq', value: 'A' },
+  };
+  await storeLayouts([missingFieldLayout]);
+  await expect(page.locator('[data-rs-notice="layout-missing-field"]')).toBeVisible();
+  await expect(page.locator('[data-rs-notice="layout-missing-field"]')).toContainText(/(not in this project|niet in dit project)/);
+  await expect(page0.locator('text', { hasText: /^(Fundering storten|Wanden metselen)$/ })).toHaveCount(0);
+  await expect(page.locator('[data-rs-layout="layout-rapport"]')).toHaveAttribute('aria-checked', 'true');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts') ?? '{}').layouts)).toEqual([missingFieldLayout]);
   // Verwijderd: terug naar Alle taken, met een melding.
   await storeLayouts([]);
   await expect(page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]')).toHaveAttribute('aria-checked', 'true');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
     .some(n => n.messageKey === 'notifications.reportLayoutGone'))).toBe(true);
   await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
+  await expect(page.locator('[data-rs-notice="layout-missing-field"]')).toHaveCount(0);
 
   // Een layout kiezen verandert alleen de rijen; kolommen en balkopties neem je over met een knop (fixronde na
   // council ronde 5, de scenario's van Opus en Sol). Eigen stand: de zes standaardkolommen plus Kalenderdagen,
@@ -393,6 +459,16 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-undo-button]').click();
   await expect.poll(own).toEqual(ownBefore);
   expect((await saved()).layoutId).toBe('layout-kort');
+  // Beide delen na elkaar overnemen, dan één keer Ongedaan maken: kolommen én balkopties komen terug (review Sol
+  // #847, ronde 4; eerst zette Ongedaan maken alleen de balkopties terug en bleven de drie kolommen staan).
+  await page.locator('[data-rs-take-over="columns"]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(shortColumns);
+  await page.locator('[data-rs-take-over="bars"]').click();
+  await expect.poll(own).toEqual({ columns: shortColumns, showDeps: true, showFloat: false, showBaselineOverlay: true, statusLine: 'progress' });
+  await expect(page.locator('[data-rs-undo]')).toContainText(/^Korte tabel: (columns and bar options applied|kolommen en balkopties overgenomen)\./);
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(own).toEqual(ownBefore);
+  await expect(page.locator('[data-rs-undo]')).toHaveCount(0);
   expect(await screen()).toEqual(screenBefore);
 });
 

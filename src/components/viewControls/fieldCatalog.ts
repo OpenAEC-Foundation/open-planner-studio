@@ -9,6 +9,7 @@
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource } from '@/types/resource';
 import type { BuiltinFieldKey, FieldRef, FilterOperator } from '@/state/slices/types';
+import type { FilterNode } from '@/types/view';
 
 export interface FieldCatalogCtx {
   activityCodeTypes: ActivityCodeType[];
@@ -106,6 +107,24 @@ export function groupFieldList(
     { src: 'resource' },
     { src: 'resourceType' },
   ];
+}
+
+/**
+ * De velden in een filter die dit project niet heeft: een eigen veld of activiteitcode die verwijderd is, of
+ * een layout uit een ander project. Zo'n regel vergelijkt met een lege waarde, dus het filter laat dan te
+ * weinig of te veel taken door. Elk veld één keer, in de volgorde van het filter. Het filter zelf blijft
+ * ongemoeid: de aanroeper meldt het verschil (Rapport-tabblad, review Sol #847, ronde 4).
+ */
+export function missingFilterFields(filter: FilterNode | null | undefined, ctx: FieldCatalogCtx): FieldRef[] {
+  const known = [...filterFieldList(ctx), ...sortFieldList(ctx)];
+  const missing: FieldRef[] = [];
+  const visit = (node: FilterNode) => {
+    if (node.kind === 'group') { node.children.forEach(visit); return; }
+    if (known.some(field => fieldsEqual(field, node.field)) || missing.some(field => fieldsEqual(field, node.field))) return;
+    missing.push(node.field);
+  };
+  if (filter) visit(filter);
+  return missing;
 }
 
 export function fieldLabel(field: FieldRef, ctx: FieldCatalogCtx): string {
