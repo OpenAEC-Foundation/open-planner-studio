@@ -2314,7 +2314,11 @@ en noem het in je rapport of PR-tekst.
      komen uit de lettermaten van het fontbestand; het afkappen tijdens het tekenen gebruikt de canvas-tekenaar
      (`measureText` in `src/services/pdf/canvasDraw2d.ts`). Sinds de fixronde na code-review 1 van #847 meet het
      canvas met `textRendering = 'geometricPrecision'` en Arabisch in Noto; dan is het verschil klein (gemeten:
-     Latijn 348,192 tegen 348,192 px, Arabisch 175,069 tegen 175,068 px). Over blijft wat het canvas met GSUB
+     Latijn 348,192 tegen 348,192 px, Arabisch 175,069 tegen 175,068 px). Sinds de fixronde na code-review 2
+     tekent het canvas ook een gemengde Latijns-Arabische naam even breed als de meting, in Chromium en WebKitGTK
+     2.52.6 (Carlito 414,377 tegen 414,377 px). WebKit kent canvas-`textRendering` en -`fontKerning` niet; daar
+     kernt het canvas Latijnse tekst wel (Inter "Stakeholder management" 108,844 tegen gemeten 109,002 px), dus
+     smaller dan de meting: dat kapt niet eerder af. Over blijft wat het canvas met GSUB
      anders tekent dan de meting telt (Inter "->", de Carlito-ligatuur "ti"): daar kan het oude voorbeeld een
      teken eerder of later afkappen dan de PDF. Afgeleid uit de code. Voorstel: de canvas-tekenaar laten meten met
      `ReportTextMetrics`, of het oude voorbeeld laten vervallen als de flag standaard aan gaat. — S

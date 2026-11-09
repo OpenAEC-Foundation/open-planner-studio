@@ -232,8 +232,9 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
 // systeemletter (183 px in plaats van 175 px) en liep hij over de volgende kolom. Gecontroleerd op de
 // werkelijk getekende tekst: in de SVG van het papier (`getBBox`, tegen de getekende kolomlijn) en, met de flag
 // uit, op het canvas van het oude voorbeeld (`fillText`, meegelezen). Daarna hetzelfde voor een lange
-// Latijnse naam (het canvas rondde letterbreedtes af en kapte die af terwijl afkappen uit stond) en voor een
-// Chinese naam zonder CJK-extensie.
+// Latijnse naam (het canvas rondde letterbreedtes af en kapte die af terwijl afkappen uit stond), voor een
+// Chinese naam zonder CJK-extensie, en voor een gemengde Latijns-Arabische naam in Inter en in Carlito
+// (ronde 2: de browser nam de spaties in het Latijnse deel uit Noto, de meting uit de rapportletter).
 test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het papier en in het oude voorbeeld', async ({ page, ops: _ops }) => {
   const arabic = 'أعمال البناء والتشييد وإدارة الموارد ومتابعة التنفيذ';
   const latin = 'Stakeholder management en afstemming met de gemeente over de bouwlogistiek';
@@ -252,14 +253,19 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het p
     Object.defineProperty(window, '__opsReportDrawn', { configurable: true, value: drawn });
   });
   // De breedte volgens de meting van papier en PDF (`loadReportTextMetrics`), op de letter van de naamcel.
-  const measured = (text: string, font: string) => page.evaluate(async ({ text, font }) => {
+  type FontId = 'inter' | 'carlito';
+  const measured = (text: string, font: string, id: FontId) => page.evaluate(async ({ text, font, id }) => {
     const { loadReportTextMetrics } = await import('/src/services/pdf/fontLoader.ts' as string);
-    return (await loadReportTextMetrics('inter', 'ltr')).measure(text, font) as number;
-  }, { text, font });
-  await page.evaluate(() => {
+    return (await loadReportTextMetrics(id, 'ltr')).measure(text, font) as number;
+  }, { text, font, id });
+  // De rapportletter van een getekende tekst, uit zijn letter (canvas) of familie (SVG).
+  const fontIdOf = (font: string): FontId => (font.includes('OpsReportCarlito') ? 'carlito' : 'inter');
+  const setFlag = (on: boolean) => page.evaluate(on => {
     const s = window.__OPS__!.store.getState();
-    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: true } });
-  });
+    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: on } });
+  }, on);
+  const rename = (name: string) => page.evaluate(({ id, name }) => window.__OPS__!.store.getState().updateTask(id, { name }), { id: taskId, name });
+  await setFlag(true);
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const page0 = page.locator('[data-report-page-svg="0"]');
   await expect(page0).toBeVisible();
@@ -286,12 +292,12 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het p
       font: `${style.fontWeight === '700' ? 'bold ' : ''}${style.fontSize} InterPDF`, family: style.fontFamily,
     };
   }, name);
-  const paperCell = async (name: string) => {
-    await expect.poll(() => nameCell(name).then(c => c !== null && Number.isFinite(c.border))).toBe(true);
+  const paperCell = async (name: string, id: FontId = 'inter') => {
+    await expect.poll(() => nameCell(name).then(c => c !== null && Number.isFinite(c.border) && fontIdOf(c.family) === id)).toBe(true);
     const cell = (await nameCell(name))!;
     // Dezelfde breedte als de meting (dus dezelfde letter), en de naam eindigt vóór de rechtermarge van de
     // kolom (2 px, `NAME_RIGHT_PAD`): niets loopt over de kolomlijn.
-    expect(Math.abs(cell.drawn - await measured(name, cell.font)), `getekend ${cell.drawn}`).toBeLessThan(0.1);
+    expect(Math.abs(cell.drawn - await measured(name, cell.font, id)), `getekend ${cell.drawn}`).toBeLessThan(0.1);
     expect(cell.end, `kolomlijn op ${cell.border}`).toBeLessThanOrEqual(cell.border - 2);
     return cell;
   };
@@ -303,43 +309,76 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het p
 
   // Het oude voorbeeld (flag uit) leest dezelfde opgeslagen naamweergave en meet met dezelfde meting. Het
   // canvas tekent de naam volledig, in Noto vooraan, en even breed als de meting.
-  const canvasName = (name: string) => page.evaluate(name => {
+  const canvasName = (name: string, id: FontId) => page.evaluate(({ name, id }) => {
     const drawn = (window as Window & { __opsReportDrawn?: { text: string; x: number; font: string; width: number }[] }).__opsReportDrawn ?? [];
-    const cells = drawn.filter(d => d.text === name || (d.text.endsWith('…') && name.startsWith(d.text.slice(0, 8))));
+    const cells = drawn.filter(d => (d.text === name || (d.text.endsWith('…') && name.startsWith(d.text.slice(0, 8))))
+      && (d.font.includes('OpsReportCarlito') ? 'carlito' : 'inter') === id);
     return cells.length === 0 ? null : cells.reduce((a, b) => (b.x < a.x ? b : a));
-  }, name);
+  }, { name, id });
   const clearDrawn = () => page.evaluate(() => {
     (window as Window & { __opsReportDrawn?: unknown[] }).__opsReportDrawn!.length = 0;
   });
-  const canvasCell = async (name: string) => {
-    await expect.poll(() => canvasName(name).then(c => c?.text ?? null), { timeout: 20_000 }).toBe(name);
-    const cell = (await canvasName(name))!;
-    expect(Math.abs(cell.width - await measured(name, cell.font)), `canvas ${cell.width}`).toBeLessThan(0.1);
+  const canvasCell = async (name: string, id: FontId = 'inter') => {
+    await expect.poll(() => canvasName(name, id).then(c => c?.text ?? null), { timeout: 20_000 }).toBe(name);
+    const cell = (await canvasName(name, id))!;
+    expect(Math.abs(cell.width - await measured(name, cell.font, id)), `canvas ${cell.width}`).toBeLessThan(0.1);
     return cell;
   };
   await expect.poll(async () => (await page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'))).truncateTaskNames).toBe(false);
   await clearDrawn();
-  await page.evaluate(() => {
-    const s = window.__OPS__!.store.getState();
-    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: false } });
-  });
+  await setFlag(false);
   await expect(page.locator('[data-tour-anchor="report-panel"] img').first()).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
   expect((await canvasCell(arabic)).font).toMatch(/^(bold )?[\d.]+px "?OpsReportArabic"?, /);
 
   // Een lange Latijnse naam, nu de langste: hetzelfde op het canvas en, met de flag weer aan, op het papier.
   await clearDrawn();
-  await page.evaluate(({ id, name }) => window.__OPS__!.store.getState().updateTask(id, { name }), { id: taskId, name: latin });
+  await rename(latin);
   await canvasCell(latin);
-  await page.evaluate(() => {
-    const s = window.__OPS__!.store.getState();
-    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: true } });
-  });
+  await setFlag(true);
   await expect(page0).toBeVisible();
   await paperCell(latin);
 
   // Een naam in een schrift dat geen meegeleverde letter heeft (Chinees zonder CJK-extensie): het scherm
   // tekent hem in een systeemletter en de PDF valt dan terug op raster. De meting volgt dan de browser, niet
-  // de lege glyph van Inter.
-  await page.evaluate(({ id }) => window.__OPS__!.store.getState().updateTask(id, { name: '地基浇筑与钢筋绑扎工程施工' }), { id: taskId });
-  await paperCell('地基浇筑与钢筋绑扎工程施工');
+  // de lege glyph van Inter. Op het papier en, met de flag uit, op het canvas.
+  const chinese = '地基浇筑与钢筋绑扎工程施工';
+  await rename(chinese);
+  await paperCell(chinese);
+  await clearDrawn();
+  await setFlag(false);
+  await canvasCell(chinese);
+
+  // Een gemengde naam: Latijn, een cijfer en Arabisch (review Sol #847, ronde 2). De browser kiest de letter
+  // per teken, ook in het Latijnse deel: elke spatie komt uit Noto. De PDF en de meting doen nu hetzelfde.
+  // Daarvoor mat Carlito 409,8 px en tekende de browser 414,4 px: de naam liep de volgende kolom in en het
+  // oude voorbeeld kapte hem af ("… bouwpla…"), terwijl afkappen uit stond. Eerst in Inter, dan in Carlito.
+  // Daartussen een naam met cijfers en leestekens: een stuk zonder letter ("2.3") kernt de browser als
+  // Latijn; de meting kernde het eerst als DFLT (Inter: 0,24 px smaller).
+  const mixed = 'Fase 1 أعمال البناء en afstemming met de gemeente over de bouwlogistiek en bereikbaarheid van de bouwplaats';
+  const mixedDigits = 'Fase 2.3 – أعمال (البناء) 50%, week 12/03: 3\u00A0dagen';
+  await clearDrawn();
+  await rename(mixed);
+  expect((await canvasCell(mixed)).font).toMatch(/^(bold )?[\d.]+px "?OpsReportArabic"?, /);
+  await clearDrawn();
+  await rename(mixedDigits);
+  await canvasCell(mixedDigits);
+  await setFlag(true);
+  await expect(page0).toBeVisible();
+  await paperCell(mixedDigits);
+  await rename(mixed);
+  await paperCell(mixed);
+  // Carlito kiezen in de stap Pagina, met een echte klik in de keuzelijst.
+  await page.locator('[data-rs-step-head="page"]').click();
+  const fontPicker = page.getByLabel(/^(Font:|Lettertype:)$/);
+  await fontPicker.click();
+  await page.getByRole('option', { name: /^Carlito/ }).click();
+  await expect(fontPicker).toContainText(/^Carlito/);
+  await expect.poll(async () => (await page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'))).reportFontFamily).toBe('carlito');
+  await expect.poll(() => page.evaluate(() => Array.from(document.fonts as unknown as Iterable<FontFace>)
+    .filter(face => face.family.replace(/"/g, '') === 'OpsReportCarlito' && face.status === 'loaded').map(face => face.weight).sort()), { timeout: 20_000 })
+    .toEqual(['400', '700']);
+  expect((await paperCell(mixed, 'carlito')).family).toMatch(/^"?OpsReportArabic"?, "?OpsReportCarlito"?, /);
+  await clearDrawn();
+  await setFlag(false);
+  expect((await canvasCell(mixed, 'carlito')).font).toMatch(/^(bold )?[\d.]+px "?OpsReportArabic"?, "?OpsReportCarlito"?, /);
 });

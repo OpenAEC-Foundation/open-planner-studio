@@ -97,11 +97,15 @@ export const ARABIC_REPORT_FAMILY = 'OpsReportArabic';
 
 /**
  * De tekens die de browser uit {@link ARABIC_REPORT_FAMILY} haalt (`unicode-range`): het Arabische schrift
- * en de neutrale tekens (spaties en algemene interpunctie, `isNeutralCp` in `bidiShape.ts`). Dat zijn de
- * tekens die de shaping-kern in een rechts-naar-linksrun in Noto zet; een neutraal teken dat Noto mist
- * (het lange streepje) valt in de browser door naar de volgende letter, net als in de PDF naar de
- * rapportletter. Cijfers en Latijn staan er bewust niet in: die tekent de PDF ook in een Arabische tekst
- * in de rapportletter.
+ * (`isArabicScriptCp` in `bidiShape.ts`) en de neutrale tekens (spaties en algemene interpunctie,
+ * `isNeutralCp`). Dat zijn precies de tekens die de shaping-kern in Noto zet, in elk stuk van de tekst en
+ * in beide richtingen (`fontClassFor`). De browser kiest de letter per teken: elk teken uit dit bereik dat
+ * Noto heeft, komt uit Noto; een neutraal teken dat Noto mist (streepjes, aanhalingstekens, het
+ * beletselteken) valt in de browser door naar de rapportletter, net als in de PDF. Cijfers en Latijn
+ * staan er bewust niet in: die tekent de PDF ook in een Arabische tekst in de rapportletter.
+ *
+ * Wijzig dit bereik alleen samen met die twee functies: dan kiezen scherm en PDF niet meer dezelfde letter
+ * en klopt de meting niet meer met wat de browser tekent (de gemengde naam in `report-studio.spec.ts`).
  */
 export const ARABIC_REPORT_UNICODE_RANGE = 'U+0009-000A, U+000D, U+0020, U+00A0, U+0600-06FF, U+0750-077F, U+08A0-08FF, U+2000-206F, U+FB50-FDFF, U+FE70-FEFF';
 
@@ -122,9 +126,10 @@ export function isRtlReportFont(font: string): boolean {
  * (de `unicode-range` beperkt Noto tot die tekens) en met kerning aan; zo komen ook de spaties uit Noto.
  * Elke andere tekst: `font` ongewijzigd (de vaste stack, zie {@link DEFAULT_REPORT_FONT_STACK}).
  *
- * Wat overblijft: een neutraal teken op een links-naar-rechtsniveau binnen zo'n tekst (de spatie in
- * "Fase 1" vóór een Arabisch woord) zet de PDF in de rapportletter en de browser in Noto. Dat scheelt
- * het verschil tussen twee spaties (Inter 0,281 em, Noto 0,260 em: 0,19 px bij 9 px).
+ * Dat geldt ook voor de spaties in het Latijnse deel van een gemengde tekst ("Fase 1 أعمال … en
+ * afstemming"): de browser kiest per teken en neemt ze uit Noto, en de shaping-kern doet sinds ronde 2
+ * van de review hetzelfde. Daarvoor zette de PDF ze in de rapportletter; bij Carlito liep zo'n naam
+ * ruim 4 px de volgende kolom in.
  */
 export function reportTextFont(text: string, font: string): string {
   return hasRtlText(text) ? rtlReportFont(font) : font;

@@ -26,6 +26,11 @@
 //  7. Vaste schaal begint op de passende breedte: dezelfde bladindeling als "Op de breedte", ook als die
 //     breedte onder 1 px per dag ligt (vroeger klemde het tabblad op 1 en sprong A4 staand van 2 naar 6
 //     pagina's, en 5000 taken van 139 naar 695).
+//  8. De letter per teken in een tekst met Arabisch is die van de browser: Noto voor elk teken uit de
+//     `unicode-range` van Noto dat Noto heeft, de rapportletter voor de rest; in elk stuk van de tekst en in
+//     beide richtingen. De browser kiest per teken, niet per bidi-run. Gaf de shaping-kern een spatie in
+//     het Latijnse deel van "Fase 1 أعمال … en afstemming" de rapportletter, dan tekende de browser hem in
+//     Noto en liep de naam bij Carlito ruim 4 px de volgende kolom in (review Sol #847, ronde 2).
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -40,7 +45,8 @@ import {
 import { createReportPaperRecorder, ganttTileOptions, recordReportPaper } from '@/services/print/reportPaperModel';
 import { hitPaperRegion, pageLabel, pageWindows, reportPageSvg, reportPaperRegions } from '@/services/print/reportPaper';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { reportFontStack } from '@/services/pdf/reportFont';
+import { ARABIC_REPORT_UNICODE_RANGE, reportFontStack } from '@/services/pdf/reportFont';
+import { layoutRuns } from '@/services/pdf/bidiShape';
 import fontkit from '@pdf-lib/fontkit';
 import {
   assembleReportMeasureFonts, createReportTextMetrics, fontVerticalMetrics, parseReportFont,
@@ -550,6 +556,36 @@ for (const [label, options, rh, rf] of [
     }
   }
   ok(fixedScaleStartDayWidth(0.000_1) === REPORT_MIN_DAY_WIDTH, 'vaste schaal: nooit onder de kleinste breedte per dag');
+}
+
+// ── 8. De letter per teken in een tekst met Arabisch: zoals de browser kiest ───────────────────────
+{
+  const ranges = ARABIC_REPORT_UNICODE_RANGE.split(',')
+    .map(r => r.trim().replace(/^U\+/i, '').split('-').map(h => parseInt(h, 16)));
+  const inNotoRange = (cp: number) => ranges.some(([a, b = a]) => cp >= a && cp <= b);
+  const names = [
+    'Fase 1 أعمال البناء en afstemming met de gemeente over de bouwlogistiek en bereikbaarheid van de bouwplaats',
+    // Cijfers, ASCII-leestekens, een gedachtestreepje, aanhalingstekens, een harde spatie en het
+    // beletselteken: Noto mist de streepjes, aanhalingstekens en het beletselteken (dan de rapportletter).
+    'Fase 2.3 – أعمال (البناء) 50% \u201Cgereed\u201D\u00A0…',
+    'أعمال البناء والتشييد وإدارة الموارد ومتابعة التنفيذ',
+  ];
+  for (const [label, fonts] of [['Inter', interFonts], ['Carlito', carlitoFonts]] as const) {
+    const noto = fonts.shaping!.arabicRegular;
+    for (const baseDir of ['ltr', 'rtl'] as const) {
+      for (const name of names) {
+        const wrong: string[] = [];
+        for (const run of layoutRuns(name, baseDir, fonts.shaping!, false, 9)) {
+          for (const ch of run.text) {
+            const cp = ch.codePointAt(0)!;
+            const browserNoto = inNotoRange(cp) && noto.hasGlyphForCodePoint!(cp);
+            if (browserNoto !== (run.fontKey === 'F2')) wrong.push(`${ch === ' ' ? 'spatie' : ch} (U+${cp.toString(16)}) in ${run.fontKey}`);
+          }
+        }
+        ok(wrong.length === 0, `letter per teken, ${label} ${baseDir}, "${name.slice(0, 24)}…": anders dan de browser: ${wrong.slice(0, 5).join(', ')}`);
+      }
+    }
+  }
 }
 
 if (failures > 0) {

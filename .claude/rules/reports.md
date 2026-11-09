@@ -87,8 +87,12 @@ Arabic als `@font-face` (familie `ARABIC_REPORT_FAMILY`, met `ARABIC_REPORT_UNIC
 en neutrale tekens). (2) Een tekst met Arabisch of Hebreeuws tekent het scherm met `reportTextFont`: Noto
 vóór de rapportletter en kerning aan, zoals de shaping-kern (`fontkit.layout`, met kerning) hem in de PDF
 zet; SVG via de letterklasse (`reportFontRule`), canvas in `CanvasDraw2D.withScreenFont`. De vaste stack
-zelf blijft gelijk (`check-report-font.ts` A0/C0). Over blijft alleen een neutraal teken op een
-links-naar-rechtsniveau in zo'n tekst (PDF: rapportletter, browser: Noto; 0,19 px per spatie bij 9 px Inter).
+zelf blijft gelijk (`check-report-font.ts` A0/C0). De browser kiest de letter per teken, niet per bidi-run; de
+shaping-kern doet hetzelfde (`fontClassFor`: een neutraal teken dat Noto heeft, gaat altijd naar Noto, ook in het
+Latijnse deel van een gemengde tekst) en kernt een stuk zonder letter ("2.3") als `latn`, zoals Chromium en
+WebKitGTK (review Sol #847, ronde 2). `ARABIC_REPORT_UNICODE_RANGE` en `isArabicScriptCp`/`isNeutralCp` horen
+bij elkaar; `check-report-svg.ts` punt 8 bewaakt dat. Over blijft alleen de SVG van Chromium: een leesteken na
+een Arabisch woord verliest de kerning met de Latijnse letter erna (0,36 px).
 (3) Een tekst met een teken dat geen meegeleverde letter heeft (`coversReportText`: Chinees zonder
 CJK-extensie, Lao, Hebreeuws in Inter) meet met het canvas (`createCanvasTextMetrics` als `uncovered` in
 `createReportTextMetrics`): het scherm tekent hem in een systeemletter en de PDF valt dan terug op raster.
@@ -96,7 +100,9 @@ CJK-extensie, Lao, Hebreeuws in Inter) meet met het canvas (`createCanvasTextMet
 instelling rondt Chromium op Linux elke letterbreedte af ("Stakeholder management" 115 tegen 109,0) en kapte
 het oude voorbeeld de langste naam af terwijl afkappen uit stond. Bewaking op de werkelijk getekende tekst:
 `tests/browser/report-studio.spec.ts` (SVG `getBBox` tegen de getekende kolomlijn, canvas `fillText`
-meegelezen; Arabisch, een lange Latijnse en een Chinese naam). Het canvas kapt nog af met zijn eigen meting
+meegelezen; Arabisch, een lange Latijnse, een Chinese en gemengde Latijns-Arabische namen in Inter en Carlito).
+WebKit (de desktopapp op Linux en macOS) kent canvas-`textRendering` en -`fontKerning` niet; daar kernt het canvas
+Latijnse tekst, dus tekent het smaller dan de meting. Het canvas kapt nog af met zijn eigen meting
 (GSUB-verschillen zoals Carlito "ti", knownbug 968); een CJK-extensie tekent alleen in de PDF (knownbug 967).
 
 **Rijvenster voor het papier** (issue #817). `renderReport` neemt een optioneel laatste argument
