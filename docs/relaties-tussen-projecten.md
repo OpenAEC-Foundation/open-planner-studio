@@ -482,10 +482,10 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.5 | Balk bij een nieuwe versie van een bron | #811 | gemerged in main |
 | 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
 | 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
-| 1.8 | *Bronbestand kiezen…* in de browser | — | in aanbouw |
+| 1.8 | *Bronbestand kiezen…* in de browser | #858 | open (niet gemerged) |
 | 1.9 | Een bron in dezelfde map op de site | — | nog niet gebouwd |
 | 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
-| 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | — | in aanbouw |
+| 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | #857 | open (niet gemerged) |
 
 Wat in de bouw anders liep dan hierboven staat:
 
