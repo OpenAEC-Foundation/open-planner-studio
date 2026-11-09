@@ -79,7 +79,15 @@ het canvas: dat rondt bij kleine letters af (Chromium op Linux: "Stakeholder man
 en dan kapte de PDF datums af die het scherm voluit toonde. Niet fontkit-`layout`/`widthOfTextAtSize`:
 GSUB kost bij Inter ruim 1 ms per tekst. Het verschil met de getekende glyphs (Inter "->", Carlito "ti")
 is klein en zit in papier én PDF. `check-report-svg.ts` (sectie 5) vergelijkt per tekstitem papier en
-echte PDF. De canvas-backend (oude rasterpreview, raster-terugval) meet nog met het canvas.
+echte PDF. De canvas-backend (oude rasterpreview, raster-terugval) meet nog met het canvas (knownbug 963).
+
+**Rijvenster voor het papier** (issue #817). `renderReport` neemt een optioneel laatste argument
+`rowWindow` (`ReportRowWindowRequest`): het krijgt het renderresultaat (maten liggen vast vóór het tekenen)
+en geeft een y-bereik terug. Dan tekent de render alleen de rijen daarin (plus een rij marge, en altijd de
+eerste en laatste rij); kop, tijdas, raster, statuslijn en voet tekenen altijd. Alleen het papier gebruikt
+dit (`createReportPaperRecorder` in `reportPaperModel.ts`); de PDF en de tests tekenen alles. Een blad uit
+een gedeeltelijke opname moet gelijk zijn aan hetzelfde blad uit de volledige: `check-report-svg.ts` sectie 6.
+Wie in `renderReport` iets tekent dat per rij werk doet, filtert het met `rowDrawn`.
 
 **De rapportletter is een parameter** (issue #770). De canvas-fontstack komt uit `PrintOptions.fontFamily`,
 de derde parameter van `makeTableRenderReport`/`makeSectionedRenderReport` en het `fontStack`-argument van

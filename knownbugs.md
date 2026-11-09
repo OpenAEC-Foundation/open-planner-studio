@@ -2252,3 +2252,37 @@ en noem het in je rapport of PR-tekst.
      toetsenbord. Na Escape in de popover van een ingeklapte groep staat de focus op de knop, maar dat zie je
      niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
      council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S
+
+960. **VERVOLG: de instellingen van het nieuwe Rapport-tabblad staan per apparaat, niet in het projectbestand.**
+     Kolommen, papier, stand, lettertype en de open stap staan in `ops-reportSettings` (`src/utils/reportSettings.ts`).
+     Een collega of een tweede apparaat ziet dus andere instellingen, en een rapport hoort niet bij een project.
+     Voorstel: de rapportinstellingen per project in het IFC (`DOCUMENT_FIELDS`, `ifcWriter`/`ifcReader`), met de
+     apparaatinstelling als standaard voor een nieuw project. Uit council ronde 1 van #817 (Claude Fable 5.1,
+     xhigh, VERVOLG). — B
+
+961. **VERVOLG: `GanttReportStudio.tsx` is te groot.** Het bestand
+     (`src/components/panels/reportStudio/GanttReportStudio.tsx`, ruim 1000 regels) bevat de stapinhoud van zes
+     stappen, de stapvoet, de zijbalk, de rand en het zwevende venster. Voorstel: per stap een eigen component en
+     de zijbalk en het venster apart. Uit council ronde 1 van #817 (Claude Fable 5.1, xhigh, VERVOLG). — B
+
+962. **VERVOLG: Chinese, Japanse of Koreaanse tekst kan op het papier anders afkappen dan in de PDF.**
+     `loadReportTextMetrics` (`src/services/pdf/fontLoader.ts`) bouwt de meting met de rapportletter, Inter en de
+     Arabische letter, maar zonder de CJK-letters die een extensie levert. De PDF tekent CJK met die letters
+     (`cjkFonts` in `src/services/pdf/pdfVectorDraw2d.ts`). Op het papier meet een CJK-taaknaam dus met de
+     lege-glyfbreedte van de rapportletter. Afgeleid uit de code, niet nagespeeld met een CJK-extensie. Voorstel:
+     de CJK-letters van de extensie ook aan `assembleReportMeasureFonts` geven. Gevonden in de fixronde na council
+     ronde 1 van #817. — S
+
+963. **VERVOLG: het oude rastervoorbeeld kapt nog af met de canvasmeting.** De kolombreedtes van het oude tabblad
+     komen sinds de fixronde van #817 uit de lettermaten van het fontbestand, maar het afkappen tijdens het tekenen
+     gebruikt de canvas-tekenaar (`measureText` in `src/services/pdf/canvasDraw2d.ts:137`). In het oude voorbeeld
+     kan een naam dus een teken eerder of later afkappen dan in de PDF. Het nieuwe tabblad heeft dit niet (SVG en
+     PDF meten met `measureReportText`). Afgeleid uit de code. Voorstel: de canvas-tekenaar laten meten met
+     `ReportTextMetrics`, of het oude voorbeeld laten vervallen als de flag standaard aan gaat. — S
+
+964. **VERVOLG: een maandlabel dat aan de rechterrand van een blad begint, toont alleen een streepje.** Gezien in
+     `qa/817-rapport/groot/plan-5000.ifc` (A3 liggend), op elk blad rechtsboven: "Februari 2040" begint 0,7 pt vóór
+     de rand van het printgebied. Papier en PDF tonen daarvan alleen het begin van de "F" (pdftotext leest "Februa",
+     omdat het de knipcontour negeert). Dat zat al in de tijdasrenderer (`drawTimelineHeader` in
+     `src/services/print/printPreview.ts`). Voorstel: een label dat maar voor een klein deel past, weglaten of
+     binnen de rand schuiven. — B

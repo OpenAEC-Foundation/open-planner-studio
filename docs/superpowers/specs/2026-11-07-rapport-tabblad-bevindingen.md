@@ -79,8 +79,9 @@ precies zoals het was. Aanzetten in de dev-server: `?flag=reportRedesign` in de 
   één regel samenvatting. Elke stap heeft "Standaard" met "Ongedaan maken". Waarschuwingen staan in de
   stap waar je ze oplost (bijv. "De tabel neemt 41 % van de breedte; de tijdlijn wordt smal").
 - **Zijbalk inklappen** tot een rand met stapiconen (Ctrl+\). Een klik op een icoon of op het papier
-  opent dezelfde stap als klein venster naast dat deel. Ingeklapt staat linksonder de ronde knop
-  "PDF exporteren"; die doet hetzelfde als de stap Opslaan.
+  opent dezelfde stap als klein venster naast dat deel. Ingeklapt staat linksonder de knop
+  "PDF exporteren" (met tekst sinds de fixronde, zie hieronder); die doet hetzelfde als de knop onderaan
+  de open zijbalk.
 - **Geen lint** op dit tabblad zolang de flag aan staat.
 - **Papier als SVG** via een derde `Draw2D`-backend (`src/services/pdf/svgDraw2d.ts`), met dezelfde
   `renderReport` en dezelfde bladindeling als de PDF (`reportTileInput`, `ganttTileOptions`). Zoomen met
@@ -156,3 +157,49 @@ dev-controles kosten daar niets.
 - Geen B2-iconen voor greep, slot en papierstand: die bestaan niet. Greep = CSS-puntjes, ↑/↓ als tekst,
   het slot is weg ("verplicht" als tekst).
 - De andere elf rapporten gebruiken het oude paneel.
+
+## Fixronde na council ronde 1 (9 november 2026)
+
+Council ronde 1: Opus 7,0, GPT-6.1-Sol 7,0, Fable 7,5 (doel 8,5 per lid). Besluiten van de bouwer
+(Claude Opus 5.5), per punt van de brief:
+
+1. **Papier = PDF.** Eén tekstmeting uit het fontbestand (`src/services/pdf/reportTextMeasure.ts`): de som
+   van de glyfbreedtes, zoals pdf-lib. Papier, kolombreedtes, PDF en het oude tabblad meten ermee. Canvas
+   `measureText` rondde per glyf af en gaf zo andere breedtes (bij datums vooral). `check-report-svg.ts`
+   vergelijkt nu per tekstitem de SVG-opname met de echte vector-PDF (tekst, x en basislijn), en is rood
+   met de oude meting. In de app: papier en gedownloade PDF hebben per blad dezelfde woorden en dezelfde
+   afgekapte items (A3 liggend en A4 staand met 7 kolommen, blad 1 en 2; groot plan blad 1, 70 en 139).
+2. **Focus in het zwevende venster**: de sluitfunctie zit in een ref; het effect loopt één keer per
+   geopende stap.
+3. **Standaard/Ongedaan maken** bewaart alleen de velden van die stap (en de bedrijfsnaam bij Kop en voet).
+   Ongedaan maken zet precies die terug. Een latere wijziging van een van die velden laat het ongedaan
+   maken vervallen: anders zou het die wijziging stil wissen.
+4. **Hele blad** is de standaard, **Breedte** de tweede keuze. De zoom telt ten opzichte van de ware
+   grootte van het papier (zoals een pdf-lezer). Na een wissel van formaat of stand: bovenaan blad 1.
+5. **Stapkoppen**: alle zes altijd in beeld, alleen de open stap scrolt. Onder 800 px vensterhoogte tonen
+   dichte stappen alleen hun titel (samenvatting in de tooltip). Gemeten op 1600×900, 1366×768, 1280×720.
+6. **Help** (nl/en) heeft een deel "Het nieuwe tabblad Rapport (experimenteel)". Boven blad 1 staat bij het
+   eerste bezoek "Klik op een deel van het blad om het in te stellen"; weg na de eerste klik of met ×.
+7. **Eén exportknop**: niet meer in stap 6. Ingeklapt zweeft linksonder "PDF exporteren" met tekst. Het
+   papier houdt onderaan 64 px vrij, dus "Hele blad" past erboven. De rand toont alleen stap 1–5.
+8. **Naamlabel** staat boven het blad, rechts in de titelregel. Het dekt niets af.
+9. **Toetsenhint** alleen bij toetsenbordfocus in de kolomlijst, als laag zonder eigen plek (anders
+   verspringt "Kolom toevoegen" midden in een klik). **Statusdatum**: "Op vandaag zetten" of een datum kiezen
+   in de melding zelf (het lint is op dit tabblad weg).
+10. **Kolomkiezer** sluit na Enter of een klik; de focus gaat terug naar "Kolom toevoegen".
+11. **Vaste schaal** start op de passende breedte per dag (naar beneden afgerond, `dayWidth` uit de render),
+    dus het aantal pagina's blijft gelijk. Per stand een korte uitleg; de melding bij veel pagina's noemt per
+    stand de juiste oplossing.
+12. **Open stap** markeert het papier alleen met een rand.
+13. **Rand**: stapnummer en kort label bij elk icoon.
+14. **Schuif**: label "Breedte van de naamkolom" en de waarde in millimeter op papier (0,75 pt per logische
+    px, maal de lettergrootte). Breedte per dag ook in mm. De kolomkop heet nu "Voortgang" (en "Progress"),
+    gelijk aan de kolomlijst; de balkoptie en samenvatting ook.
+15. **Open stap** staat in `ops-reportSettings` (`studioStep`): eerst stap 1, daarna de laatst gebruikte.
+16. **Snelheid**: zie "Snelheid na council ronde 1" hierboven.
+17. **Tabel te breed bij A4 staand**: de melding verscheen wel (69 % bij 7 kolommen), maar alleen in de stap
+    Kolommen. Wie in Pagina A4 staand kiest, zag hem niet. Nu staat hij ook in Pagina, met "Kolommen
+    aanpassen".
+
+Nieuwe VERVOLG-punten: `knownbugs.md` 960–964.
+
