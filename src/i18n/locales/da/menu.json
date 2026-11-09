@@ -218,7 +218,9 @@
     "screenColorsMissingField": "Dette felt findes ikke i dette projekt. Arbejdskategori bruges midlertidigt.",
     "screenColorsHint": "Når Kritisk vej ikke er valgt, markerer en rød kant den kritiske vej.",
     "addLayout": "Opret layout",
-    "toggleRelations": "Afhængighedslinjer"
+    "toggleRelations": "Afhængighedslinjer",
+    "relationFindDependents": "Find afhængige projekter…",
+    "relationFindDependentsHint": "Søg i en mappe efter projekter med en ekstern afhængighed til denne tidsplan."
   },
   "ifc": {
     "title": "IFC-editor",

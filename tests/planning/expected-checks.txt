@@ -59,6 +59,7 @@ check-dcma.ts matrix
 check-default-work-rule-switch.ts matrix
 check-dependency-presentation.ts matrix
 check-dependency-style.ts matrix
+check-dependent-projects.ts matrix
 check-dev-bridge-poller.ts matrix
 check-dev-open-link.ts matrix
 check-dialog-backdrop.ts matrix
@@ -96,6 +97,7 @@ check-external-provenance.ts matrix
 check-external-relation-format.ts matrix
 check-external-source-load.ts matrix
 check-external-source-update.ts matrix
+check-external-source-watch.ts matrix
 check-external-successor-late.ts matrix
 check-external-successor-violation.ts matrix
 check-external-summary.ts matrix

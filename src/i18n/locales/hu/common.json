@@ -233,7 +233,10 @@
     "msProjectLostResourceRates_other": "{{count}} erőforrás alapdíjai nem lettek átvéve.",
     "minuteModelConverted_one": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
     "minuteModelConverted_other": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
-    "minuteModelCalendarRepaired": "A(z) „{{calendar}}” naptár javítva lett: a befejezés vagy a szünet nem illett a mentett munkaidőhöz."
+    "minuteModelCalendarRepaired": "A(z) „{{calendar}}” naptár javítva lett: a befejezés vagy a szünet nem illett a mentett munkaidőhöz.",
+    "dependentProjectsFound": "Függő projektek: {{projects}}. Kapcsolatok ehhez a projekthez: {{links}}.",
+    "dependentProjectsNone": "Nem található olyan projekt, amely külső kapcsolattal kötődik ehhez az ütemtervhez.",
+    "dependentProjectsFailed": "A függő projekteket tartalmazó mappa nem olvasható."
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -1718,5 +1721,15 @@
   "fileDrop": {
     "title": "Engedje el a megnyitáshoz",
     "subtitle": "Projektfájl vagy importálás"
+  },
+  "dependentAnchorWarning": {
+    "title": "Más projektek horgonydátumai szorosabbá válnak",
+    "body": "Ezek a projektek ennek az ütemtervnek egy dátumára épülnek. Mentés után szorosabb dátumot kapnak, amikor frissítik projektközi kapcsolataikat.",
+    "colProject": "Projekt",
+    "colTheirTask": "Ottani feladat",
+    "colOwnTask": "Itteni feladat",
+    "colAnchor": "Horgonydátum: régi → új",
+    "saveAnyway": "Mentés mégis",
+    "cancel": "Mégse"
   }
 }

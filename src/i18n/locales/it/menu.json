@@ -219,7 +219,9 @@
     "screenColorsMissingField": "Questo campo non esiste in questo progetto. La categoria di lavoro viene usata temporaneamente.",
     "screenColorsHint": "Fuori dalla modalità Percorso critico, un contorno rosso indica il percorso critico.",
     "addLayout": "Nuovo layout",
-    "toggleRelations": "Linee di relazione"
+    "toggleRelations": "Linee di relazione",
+    "relationFindDependents": "Cerca progetti dipendenti…",
+    "relationFindDependentsHint": "Cerca in una cartella i progetti con una relazione esterna con questa pianificazione."
   },
   "ifc": {
     "title": "Editor IFC",

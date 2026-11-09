@@ -292,7 +292,10 @@
     "minuteModelConverted_one": "{{document}}: {{count}} tarefa tem um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
     "minuteModelConverted_many": "{{document}}: {{count}} de tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
     "minuteModelConverted_other": "{{document}}: {{count}} tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
-    "minuteModelCalendarRepaired": "Calendário «{{calendar}}» foi corrigido: o fim ou a pausa não correspondia ao tempo de trabalho guardado."
+    "minuteModelCalendarRepaired": "Calendário «{{calendar}}» foi corrigido: o fim ou a pausa não correspondia ao tempo de trabalho guardado.",
+    "dependentProjectsFound": "Projetos dependentes: {{projects}}. Ligações a este projeto: {{links}}.",
+    "dependentProjectsNone": "Não foram encontrados projetos com uma relação externa a este cronograma.",
+    "dependentProjectsFailed": "Não foi possível ler a pasta com os projetos dependentes."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -1800,5 +1803,15 @@
   "fileDrop": {
     "title": "Largue para abrir",
     "subtitle": "Ficheiro de projeto ou importação"
+  },
+  "dependentAnchorWarning": {
+    "title": "As ancoragens de outros projetos ficam mais apertadas",
+    "body": "Estes projetos dependem de uma data deste cronograma. Depois de guardar, recebem uma data mais apertada quando atualizarem as suas relações externas.",
+    "colProject": "Projeto",
+    "colTheirTask": "Tarefa deles",
+    "colOwnTask": "Tarefa aqui",
+    "colAnchor": "Ancoragem: antiga → nova",
+    "saveAnyway": "Guardar mesmo assim",
+    "cancel": "Cancelar"
   }
 }

@@ -437,7 +437,8 @@ const batch: McpToolDef = {
     'coherent changes. A failed step rolls back all; item refusals are soft (`rejections`). Later steps of ' +
     'this batch resolve exact tempIds (`tmp-…`) to real ids, except in free text. Args are fixed: read ids beforehand; ' +
     'only a final read is useful. Excludes planner_batch, undo/redo, document/file tools, ' +
-    'planner_save_baseline, planner_get_planning_guide and planner_inspect_xer_provenance.',
+    'planner_save_baseline, planner_get_planning_guide, planner_inspect_xer_provenance and ' +
+    'planner_refresh_external_links.',
   kind: 'batch',
   batchable: false,
   annotations: {

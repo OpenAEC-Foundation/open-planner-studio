@@ -26,6 +26,7 @@ import { ancestorIds, flattenOrder } from '@/utils/wbs';
 import type { ReadFreshResult } from '../freshness';
 import { McpStepError, runReadTool } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
+import { externalLinkView, externalRelationCount, inheritedExternalLinkViews } from './externalLinkFields';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { Task } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
@@ -129,7 +130,7 @@ function requireOnlyKeys(args: unknown, allowed: readonly string[], toolName: st
 }
 
 const PAGE_KEYS = ['limit', 'offset'] as const;
-const LIST_TASKS_KEYS = ['kritiek', 'status', 'van', 'tot', 'zonder_relaties', ...PAGE_KEYS] as const;
+const LIST_TASKS_KEYS = ['kritiek', 'status', 'van', 'tot', 'zonder_relaties', 'externe_relaties', ...PAGE_KEYS] as const;
 const HISTOGRAM_KEYS = ['resourceIds', 'van', 'tot', 'bucket'] as const;
 
 /** Gooit een `McpStepError` wanneer `v` gezet maar geen boolean is. */
@@ -228,6 +229,27 @@ function calendarSummary(cal: WorkCalendar) {
 
 // ── 1. planner_get_project_info ──────────────────────────────────────────────────────────────────
 
+/** Per bronproject van de externe relaties: hoeveel koppelingen, en hoeveel daarvan hun brontaak missen. */
+function externalSourcesSummary(tasks: readonly Task[]) {
+  const bySource = new Map<string, { projectId: string; projectName?: string; filePath?: string; links: number; sourceMissing: number }>();
+  for (const task of tasks) {
+    for (const link of task.externalLinks ?? []) {
+      const ref = link.sourceRef;
+      const key = `${ref.projectId}\u0000${ref.filePath ?? ''}`;
+      const entry = bySource.get(key) ?? {
+        projectId: ref.projectId,
+        ...(ref.projectName ? { projectName: ref.projectName } : {}),
+        ...(ref.filePath ? { filePath: ref.filePath } : {}),
+        links: 0, sourceMissing: 0,
+      };
+      entry.links++;
+      if (link.sourceMissing) entry.sourceMissing++;
+      bySource.set(key, entry);
+    }
+  }
+  return bySource.size > 0 ? { externalSources: [...bySource.values()] } : {};
+}
+
 function getProjectInfo(s: AppState) {
   const tasks = s.tasks;
   const leaves = tasks.filter(isLeafTask);
@@ -282,7 +304,9 @@ function getProjectInfo(s: AppState) {
       assignments: s.assignments.length,
       criticalTasks: criticalCount,
       ...(criticalUnknown > 0 ? { criticalUnrecordedTasks: criticalUnknown } : {}),
+      externalRelations: tasks.reduce((sum, t) => sum + (t.externalLinks?.length ?? 0), 0),
     },
+    ...externalSourcesSummary(tasks),
     schedule: {
       scheduleStale: s.scheduleStale,
       projectEnd: s.cpmResult?.projectEnd ?? null,
@@ -369,6 +393,7 @@ interface ListTasksArgs extends PageArgs {
   van?: unknown;
   tot?: unknown;
   zonder_relaties?: unknown;
+  externe_relaties?: unknown;
 }
 
 function listTasks(s: AppState, args: ListTasksArgs) {
@@ -376,6 +401,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   requireOnlyKeys(args, LIST_TASKS_KEYS, 'list_tasks');
   requireBool(args.kritiek, 'kritiek');
   requireBool(args.zonder_relaties, 'zonder_relaties');
+  requireBool(args.externe_relaties, 'externe_relaties');
   if (args.status !== undefined && !TASK_STATUSES.includes(args.status as string)) {
     throw new McpStepError('VALIDATION',
       `\`status\` must be one of ${TASK_STATUSES.join(', ')} (case-sensitive), got '${String(args.status)}'.`);
@@ -404,13 +430,21 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     const tot = typeof args.tot === 'string' ? args.tot : '9999-12-31';
     filtered = filtered.filter((t) => shownSpanOverlapsDays(t, van, tot));
   }
+  // Externe relaties tellen als logica, ook op een fase (zoals de berekening en de rapporten,
+  // `buildLogicIndex`): een taak die wacht op een ander project is geen wees.
+  const byId = new Map(s.tasks.map((t) => [t.id, t] as const));
+  const externalCount = (t: Task) => externalRelationCount(t, byId);
+  if (typeof args.externe_relaties === 'boolean') {
+    const want = args.externe_relaties;
+    filtered = filtered.filter((t) => (externalCount(t) > 0) === want);
+  }
   // Wees-detectie telt ook relaties op voorouders: die verbinden hun bladtaken met het netwerk.
   // Een relatie op een kind verbindt niet automatisch zijn ouder of zustertakken.
   if (args.zonder_relaties === true) {
     const inSeq = idsInAnySequence(s.sequences);
     const parentOf = new Map(s.tasks.map((t) => [t.id, t.parentId]));
     filtered = filtered.filter((t) => {
-      if (!isLeafTask(t) || inSeq.has(t.id)) return false;
+      if (!isLeafTask(t) || inSeq.has(t.id) || externalCount(t) > 0) return false;
       for (const id of ancestorIds(t.id, (id) => parentOf.get(id))) {
         if (inSeq.has(id)) return false;
       }
@@ -439,6 +473,8 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     else if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
     if (isSummaryTask(t)) row.summary = true;
+    const ext = externalCount(t);
+    if (ext > 0) row.ext = ext;
     return row;
   });
   return {
@@ -615,6 +651,13 @@ function getTask(s: AppState, args: GetTaskArgs) {
     assignments,
     predecessors,
     successors,
+    // Externe relaties (keuze 11): de eigen koppelingen, en die van de fasen erboven (die gelden voor
+    // elke taak in de fase).
+    externalLinks: (task.externalLinks ?? []).map(externalLinkView),
+    ...(() => {
+      const inherited = inheritedExternalLinkViews(task, taskById);
+      return inherited.length > 0 ? { inheritedExternalLinks: inherited } : {};
+    })(),
   };
 }
 
@@ -1089,7 +1132,8 @@ export const readTools: McpToolDef[] = [
       'Project metadata, counts (`criticalTasks`: leaf tasks), calendars, status date, `schedule.projectEnd`/' +
       '`projectDuration`. Reads of dates, float, critical path or load refresh a stale schedule first (no undo ' +
       'step; `scheduleRecalculated: true`). `statusDate` is the DATA DATE: it pushes unstarted work forward and ' +
-      'can set the project end. Imported `schedulingOptions.leveling` is inactive.',
+      'can set the project end. Imported `schedulingOptions.leveling` is inactive. `statistics.externalRelations` ' +
+      'counts links to tasks in other project files; `externalSources`: links and missing source tasks per source project.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1114,7 +1158,8 @@ export const readTools: McpToolDef[] = [
       'Paged task list (integer `limit` 1–1000, default 50; integer `offset` ≥ 0); filters combine with AND: `kritiek` (critical; ' +
       'summary tasks count too, marked `summary: true`), `status`, `van`/`tot` (ISO dates; tasks overlapping ' +
       'the window, both inclusive), `zonder_relaties` (leaf tasks without relationships, also none on an ' +
-      'ancestor).',
+      'ancestor; external ones count), `externe_relaties` (true: tasks with a link to another project file, own ' +
+      'or on a summary task above, count in `ext`; false: tasks without).',
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1125,6 +1170,7 @@ export const readTools: McpToolDef[] = [
         van: { type: 'string' },
         tot: { type: 'string' },
         zonder_relaties: { type: 'boolean' },
+        externe_relaties: { type: 'boolean' },
         limit: { type: 'number' },
         offset: { type: 'number' },
       },
@@ -1137,7 +1183,10 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_task',
     description:
       'One task in full: early/late dates, total and free float, assignments, relationships. ' + FLOAT_UNIT_NOTE +
-      ' `interruptions` is in planner_set_task_splits form; `calendar.effectiveId` is written as `calendarId` (unless ' +
+      ' `externalLinks`: links to a task in another project file, with the frozen `anchorDate` and ' +
+      '`sourceMissing`; refresh with planner_refresh_external_links. A link on a summary task (phase) applies to ' +
+      'every task in it (`inheritedExternalLinks`, with `fromTaskId`). `interruptions` is in ' +
+      'planner_set_task_splits form; `calendar.effectiveId` is written as `calendarId` (unless ' +
       '`calendar.isProjectDefault`). Not errors: NEGATIVE `totalFloat` puts late dates before early ones; a ' +
       'completed task with `actualFinish` in non-working time ends on the previous working day ' +
       '(`progress.actualFinishAdjusted`).',

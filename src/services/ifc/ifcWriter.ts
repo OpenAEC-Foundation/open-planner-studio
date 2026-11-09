@@ -777,6 +777,11 @@ function writeStructure(
     projSettingProps.push(addLine(ctx, '_ps_p6projectcode',
       `IFCPROPERTYSINGLEVALUE('P6ProjectCode',$,IFCTEXT(${ifcStr(project.p6ProjectCode)}),$)`));
   }
+  // De map met afhankelijke projecten (stap 1.11, keuze 7). Golden rule: alleen wanneer gezet.
+  if (project.dependentProjectsFolder) {
+    projSettingProps.push(addLine(ctx, '_ps_dependentfolder',
+      `IFCPROPERTYSINGLEVALUE('DependentProjectsFolder',$,IFCTEXT(${ifcStr(project.dependentProjectsFolder)}),$)`));
+  }
   if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_projset'))},#${ownerHistId},${ifcStr(PSET.ProjectSettings)},$,(${projSettingProps.map(i => `#${i}`).join(',')}))`);

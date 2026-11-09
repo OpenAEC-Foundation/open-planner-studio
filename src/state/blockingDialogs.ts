@@ -29,6 +29,9 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     // De schemavraag bij opslaan wacht op een keuze; de opslaanroute houdt intussen de
     // schrijfvergrendeling vast.
     ui.pendingIfcSchemaQuestion !== null ||
+    // De vraag over te krappe ankers van afhankelijke projecten (stap 1.11) wacht op een keuze; de
+    // opslaanroute houdt intussen de schrijfvergrendeling vast.
+    ui.pendingDependentAnchorWarning !== null ||
     // De sluitvraag ("wijzigingen opslaan?") is modaal, maar gebruikt geen `Dialog` en staat dus
     // niet op de dialoogstapel. Zonder deze vlag verwijderde Delete een taak terwijl de vraag
     // openstond, en zette *Opslaan* die verwijdering daarna in het bestand.

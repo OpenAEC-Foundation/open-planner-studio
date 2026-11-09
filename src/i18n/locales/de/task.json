@@ -604,6 +604,10 @@
     "pickRecent": "Eine zuletzt verwendete Datei wählen",
     "noRecent": "Keine zuletzt verwendeten Dateien",
     "readOnlyNote": "Die Quelldatei wird schreibgeschützt eingelesen — sie wird nicht als Dokument geöffnet.",
+    "siteProject": "Projekt auf der Website",
+    "siteProjectPick": "Projekt auf der Website wählen",
+    "siteNoProjects": "Keine anderen Projekte auf der Website.",
+    "siteListFailed": "Die Website hat keine Projektliste geliefert.",
     "loadingTasks": "Vorgänge werden geladen…",
     "sourceTask": "Quellvorgang",
     "direction": "Richtung",
@@ -645,11 +649,17 @@
     "newVersion_other": "{{file}} hat eine neue Version, gespeichert am {{saved}}. {{count}} Verknüpfungen ändern sich.",
     "newVersionAuthor_one": "{{file}} hat eine neue Version, gespeichert am {{saved}} (Autor: {{author}}). {{count}} Verknüpfung ändert sich.",
     "newVersionAuthor_other": "{{file}} hat eine neue Version, gespeichert am {{saved}} (Autor: {{author}}). {{count}} Verknüpfungen ändern sich.",
+    "newVersionSite_one": "{{file}} hat eine neue Version auf der Website (Version {{version}}). {{count}} Verknüpfung ändert sich.",
+    "newVersionSite_other": "{{file}} hat eine neue Version auf der Website (Version {{version}}). {{count}} Verknüpfungen ändern sich.",
+    "newVersionSiteAuthor_one": "{{file}} hat eine neue Version auf der Website (Version {{version}}, gespeichert von {{author}}). {{count}} Verknüpfung ändert sich.",
+    "newVersionSiteAuthor_other": "{{file}} hat eine neue Version auf der Website (Version {{version}}, gespeichert von {{author}}). {{count}} Verknüpfungen ändern sich.",
     "review": "Prüfen",
     "later": "Später",
     "reviewTitle": "Neue Version von {{file}}",
     "reviewSaved": "Gespeichert am {{saved}}.",
     "reviewSavedAuthor": "Gespeichert am {{saved}}. Autor: {{author}}.",
+    "reviewSavedSite": "Version {{version}} auf der Website.",
+    "reviewSavedSiteAuthor": "Version {{version}} auf der Website, gespeichert von {{author}}.",
     "reviewReading": "Quelle wird gelesen…",
     "reviewReadFailed": "Die Quelle konnte nicht gelesen werden. Der Terminplan bleibt unverändert.",
     "reviewNoChanges": "Keine Verknüpfung ändert sich mehr. Der Terminplan bleibt unverändert.",
@@ -673,7 +683,14 @@
     "reviewAccept": "Akzeptieren",
     "edit": "Externe Beziehung bearbeiten…",
     "refreshSource": "Quelle aktualisieren",
-    "deleteRelation": "Beziehung löschen"
+    "deleteRelation": "Beziehung löschen",
+    "chooseSourceFile": "Quelldatei auswählen…",
+    "chooseSourceFiles": "Quelldateien auswählen…",
+    "chooseSourceFailed": "Diese Datei kann nicht gelesen werden.",
+    "unreadSources_one": "{{count}} Quelle nicht gelesen.",
+    "unreadSources_other": "{{count}} Quellen nicht gelesen.",
+    "chosenUnmatched_one": "{{count}} ausgewählte Datei gehört zu keiner externen Verknüpfung in diesem Plan.",
+    "chosenUnmatched_other": "{{count}} ausgewählte Dateien gehören zu keiner externen Verknüpfung in diesem Plan."
   },
   "split": {
     "gapDays_one": "{{count}} Arbeitstag Unterbrechung",
@@ -691,5 +708,11 @@
     "timeHint": "Leer: Beginn oder Ende des Arbeitstags. Mit einer Uhrzeit: genau dieser Zeitpunkt.",
     "later": "Eine Viertelstunde später",
     "earlier": "Eine Viertelstunde früher"
+  },
+  "dependents": {
+    "title": "Abhängige Projekte",
+    "successor": "Nachfolger dort",
+    "predecessor": "Vorgänger dort",
+    "anchor": "rechnet mit {{date}}"
   }
 }

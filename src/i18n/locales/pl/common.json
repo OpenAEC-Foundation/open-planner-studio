@@ -351,7 +351,10 @@
     "minuteModelConverted_few": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
     "minuteModelConverted_many": "{{document}}: {{count}} zadań ma po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
     "minuteModelConverted_other": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
-    "minuteModelCalendarRepaired": "Kalendarz „{{calendar}}” został naprawiony: zakończenie lub przerwa nie odpowiadała zapisanym godzinom pracy."
+    "minuteModelCalendarRepaired": "Kalendarz „{{calendar}}” został naprawiony: zakończenie lub przerwa nie odpowiadała zapisanym godzinom pracy.",
+    "dependentProjectsFound": "Projekty zależne: {{projects}}. Powiązania z tym projektem: {{links}}.",
+    "dependentProjectsNone": "Nie znaleziono projektów z relacją zewnętrzną do tego harmonogramu.",
+    "dependentProjectsFailed": "Nie można odczytać folderu z projektami zależnymi."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -1882,5 +1885,15 @@
   "fileDrop": {
     "title": "Upuść, aby otworzyć",
     "subtitle": "Plik projektu lub import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Zakotwiczenia innych projektów stają się ciaśniejsze",
+    "body": "Te projekty zależą od daty z tego harmonogramu. Po zapisaniu otrzymają ciaśniejszą datę, gdy odświeżą swoje relacje zewnętrzne.",
+    "colProject": "Projekt",
+    "colTheirTask": "Ich zadanie",
+    "colOwnTask": "Zadanie tutaj",
+    "colAnchor": "Zakotwiczenie: stare → nowe",
+    "saveAnyway": "Zapisz mimo to",
+    "cancel": "Anuluj"
   }
 }

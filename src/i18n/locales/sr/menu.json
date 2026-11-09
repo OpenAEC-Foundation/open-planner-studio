@@ -219,7 +219,9 @@
     "screenColorsMissingField": "Ово поље не постоји у овом пројекту. Врста радова се привремено користи.",
     "screenColorsHint": "Ван критичног пута, црвена ивица означава критични пут.",
     "addLayout": "Нови изглед",
-    "toggleRelations": "Линије зависности"
+    "toggleRelations": "Линије зависности",
+    "relationFindDependents": "Пронађи зависне пројекте…",
+    "relationFindDependentsHint": "Претражи фасциклу за пројекте са спољном везом ка овом плану."
   },
   "ifc": {
     "title": "IFC уређивач",

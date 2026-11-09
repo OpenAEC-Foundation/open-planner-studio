@@ -219,7 +219,9 @@
     "screenColorsMissingField": "This field does not exist in this project. Work category is used temporarily.",
     "screenColorsHint": "Outside Critical path, a red outline marks the critical path.",
     "addLayout": "New layout",
-    "toggleRelations": "Relationship lines"
+    "toggleRelations": "Relationship lines",
+    "relationFindDependents": "Find dependent projects…",
+    "relationFindDependentsHint": "Search a folder for projects with an external relation to this schedule."
   },
   "ifc": {
     "title": "IFC Editor",

@@ -605,6 +605,10 @@
     "pickRecent": "Choose a recent file",
     "noRecent": "No recent files",
     "readOnlyNote": "The source file is read only — it is not opened as a document.",
+    "siteProject": "Project on the site",
+    "siteProjectPick": "Choose a project on the site",
+    "siteNoProjects": "No other projects on the site.",
+    "siteListFailed": "The site returned no list of projects.",
     "loadingTasks": "Loading tasks…",
     "sourceTask": "Source task",
     "direction": "Direction",
@@ -646,11 +650,17 @@
     "newVersion_other": "{{file}} has a new version, saved on {{saved}}. {{count}} links change.",
     "newVersionAuthor_one": "{{file}} has a new version, saved on {{saved}} (author: {{author}}). {{count}} link changes.",
     "newVersionAuthor_other": "{{file}} has a new version, saved on {{saved}} (author: {{author}}). {{count}} links change.",
+    "newVersionSite_one": "{{file}} has a new version on the site (version {{version}}). {{count}} link changes.",
+    "newVersionSite_other": "{{file}} has a new version on the site (version {{version}}). {{count}} links change.",
+    "newVersionSiteAuthor_one": "{{file}} has a new version on the site (version {{version}}, saved by {{author}}). {{count}} link changes.",
+    "newVersionSiteAuthor_other": "{{file}} has a new version on the site (version {{version}}, saved by {{author}}). {{count}} links change.",
     "review": "Review",
     "later": "Later",
     "reviewTitle": "New version of {{file}}",
     "reviewSaved": "Saved on {{saved}}.",
     "reviewSavedAuthor": "Saved on {{saved}}. Author: {{author}}.",
+    "reviewSavedSite": "Version {{version}} on the site.",
+    "reviewSavedSiteAuthor": "Version {{version}} on the site, saved by {{author}}.",
     "reviewReading": "Reading the source…",
     "reviewReadFailed": "The source could not be read. The schedule stays as it is.",
     "reviewNoChanges": "No link changes any more. The schedule stays as it is.",
@@ -674,7 +684,14 @@
     "reviewAccept": "Accept",
     "edit": "Edit external relationship…",
     "refreshSource": "Refresh source",
-    "deleteRelation": "Delete relationship"
+    "deleteRelation": "Delete relationship",
+    "chooseSourceFile": "Choose source file…",
+    "chooseSourceFiles": "Choose source files…",
+    "chooseSourceFailed": "This file cannot be read.",
+    "unreadSources_one": "{{count}} source not read.",
+    "unreadSources_other": "{{count}} sources not read.",
+    "chosenUnmatched_one": "{{count}} chosen file belongs to no external relation in this plan.",
+    "chosenUnmatched_other": "{{count}} chosen files belong to no external relation in this plan."
   },
   "split": {
     "gapDays_one": "{{count}} workday break",
@@ -692,5 +709,11 @@
     "timeHint": "Empty: the start or end of the workday. With a time: exactly that moment.",
     "later": "A quarter of an hour later",
     "earlier": "A quarter of an hour earlier"
+  },
+  "dependents": {
+    "title": "Dependent projects",
+    "successor": "Successor there",
+    "predecessor": "Predecessor there",
+    "anchor": "uses {{date}}"
   }
 }
