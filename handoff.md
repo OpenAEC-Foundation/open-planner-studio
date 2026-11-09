@@ -74,7 +74,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 10 (v11) | 8 | 8 | — |
 | 11 (v12) | 8 | 8 | — |
 | 12 (v13) | 8 | 8 | — |
-| 13 (v14) | … | … | — |
+| 13 (v14) | 8 ("daarna 9") | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -87,6 +87,17 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 13 (v14) — Opus 8 ("daarna 9"), Sol loopt
+
+Opus (`scratchpad/r13/opus/volgorde-proef.mjs`). Blokkeert fase 3–4: volgnummerregel ("taken met volgnummer gaan voor")
+zet nieuwe/verplaatste taak bovenaan in een planning van een ander → volgnummer = plaats onder de ouder; taken zonder
+volgnummer vullen open plaatsen in volgorde van eerste entry; volgnummer buiten de lijst achteraan; test toevoegen,
+invoegen, verplaatsen, verwijderen → opslaan → Ctrl+Z → opslaan, heropenen. Vervolg: baseline-taakpaden in kaart
+domein-id → pad; interne id in `openaec::ops::task` als die afwijkt (`externalLinks.ts:137-142`); `elementLinks` in
+`detached`; onbekende velden tellen mee in de zoekactie (`predecessor` is `Reference`, `lib.rs:72`); "nooit hetzelfde
+id" klopt niet bij streepjes/hoofdletters → `-dup-N`; UUID-regel koppelen aan padvorm uit fase 0. Eruit: entry-index
+bij tokens.
 
 ### Ronde 12 (v13) — Opus 8, Sol 8 — verwerkt in v14
 
