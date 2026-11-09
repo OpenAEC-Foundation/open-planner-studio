@@ -142,6 +142,10 @@ export function createDefaultUI(): UIState {
     showLevelingDialog: false,
     showBaselineDialog: false,
     showMoveProjectDialog: false,
+    externalSourceUpdates: [],
+    externalSourceReview: null,
+    dependentProjects: [],
+    pendingDependentAnchorWarning: null,
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,
@@ -156,6 +160,7 @@ export function createDefaultUI(): UIState {
     layoutDialogTargetId: null,
     showClassicViewControls: false,
     autoCalcCPM: false,
+    autoFitColumns: false,
     // Bouwmodus: default AAN = bouwgerichte defaults/framing.
     // App.tsx hydrateert bij opstart uit localStorage (loadConstructionMode).
     constructionMode: true,

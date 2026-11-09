@@ -204,7 +204,7 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
 // eindigt vr 12 juni 16:00; FS met 6 uur lag. Intern geeft dat ma 15 juni 14:00: een geldig eindmoment van
 // de mijlpaal. Extern gaf het di 16 juni 08:00 (P6/MS Project). Een mijlpaal zonder soort volgt bij FS de
 // gewone regel; ook die vergelijken we met intern, behalve onder OPS: daar zet regel B6 een mijlpaal zonder
-// interne voorganger op het einde van de dag, ook als een externe voorganger haar plaatst (knownbug 873).
+// interne voorganger op het einde van de dag, ook als een externe voorganger haar plaatst (knownbug 877).
 for (const base of ['ops', 'p6', 'msproject'] as const) {
   for (const kind of ['FINISH', undefined] as const) {
     const tag = `${base}/eindmijlpaal ${kind ?? 'zonder soort'}`;

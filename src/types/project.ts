@@ -598,6 +598,12 @@ export interface Project {
   /** P6 Project-ID (`<Project><Id>`), los van `name`. Afwezig ⇒ geen code. Lezen altijd via
    *  `documentProjectCode` (daar staan het besluit en de XER-route). */
   p6ProjectCode?: string;
+  /** De map waarin OPS de afhankelijke projecten van dit project zoekt (stap 1.11 van "relaties
+   *  tussen projecten", keuze 7, Ethan 2026-11-03): een absoluut pad op de desktop. Afwezig ⇒ geen map.
+   *  In de browser onthoudt OPS de map als handvat per project-id in IndexedDB, niet hier
+   *  (`services/fileAccess/dependentFolder.ts`). Round-tript via `OPS_ProjectSettings`
+   *  (`DependentProjectsFolder`), alleen wanneer gezet. */
+  dependentProjectsFolder?: string;
 }
 
 export interface ProjectStats {

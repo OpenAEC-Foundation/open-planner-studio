@@ -6,7 +6,7 @@ import { loadMcpPort, saveMcpPort } from '@/utils/settingsStore';
 import { ensureMcpToken, regenerateAndApplyMcpToken } from '@/services/mcp/server';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { AiConnectionDetailsDialog } from '@/components/dialogs/AiConnectionDetailsDialog';
-import { RibbonButton, RibbonCompactTrigger } from '@/components/layout/Ribbon/ribbonPrimitives';
+import { RibbonButton, RibbonCollapsedTrigger, RibbonCollapsible, RibbonCompactTrigger, RibbonPopoverContent } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { Popover } from '@/components/common/Popover';
 import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
@@ -58,6 +58,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 export function AiConnectionGroup() {
   const { t } = useTranslation('common');
+  const { t: tMenu } = useTranslation('menu');
   const compact = useRibbonDensity() !== 'full';
   const serverState = useAppStore(s => s.ui.aiServerStatus.state);
   const setAiServerStatus = useAppStore(s => s.setAiServerStatus);
@@ -69,6 +70,7 @@ export function AiConnectionGroup() {
   const [showDetails, setShowDetails] = useState(false);
   const { copiedKey: copied, copy } = useCopyFeedback(1500);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   // Poort mag alleen wijzigen zolang de bridge niet draait (de draaiende server bindt de poort).
   const portLocked = serverState === 'live';
@@ -175,65 +177,93 @@ export function AiConnectionGroup() {
     </>
   );
 
+  // Ingeklapte vorm: hele groep achter één knop + popover — zelfde patroon als
+  // BaselinesProgressGroupContent. Poort/token blijven functioneel identiek, alleen de trigger
+  // vervangt de brede tweeledige lay-out. Gebruikt bij het handmatig ingeklapte lint en, via
+  // RibbonCollapsible, bij een smal venster.
+  const popover = (
+    <Popover
+      open={popoverOpen}
+      onClose={() => setPopoverOpen(false)}
+      align="right"
+      panelRole="dialog"
+      panelAriaLabel={tMenu('ribbon.aiConnection')}
+      panelClassName="!text-body"
+      panelStyle={{
+        marginTop: 2, zIndex: 9999,
+        padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 260,
+      }}
+      trigger={compact ? (
+        <RibbonCompactTrigger
+          icon={<Icon id="ai.connection-menu" size={16} lucide={{ size: 14 }} />}
+          title={t('ai.connectHint')}
+          ariaLabel={t('ai.connect')}
+          onClick={() => setPopoverOpen(o => !o)}
+        />
+      ) : (
+        <RibbonCollapsedTrigger
+          icon={<Icon id="ai.connection-menu" size={24} lucide={{ size: 20 }} />}
+          // De naam van de groep (zoals in Office), niet "Verbinden": die knop staat al in het paneel
+          // en opent iets anders.
+          label={tMenu('ribbon.aiConnection')}
+          // Niet `ai.connectHint`: die beschrijft de knop Verbinden in het paneel, niet poort en token.
+          title={tMenu('ribbon.aiConnection')}
+          open={popoverOpen}
+          onClick={viaKeyboard => { setKeyboardOpen(viaKeyboard); setPopoverOpen(o => !o); }}
+        />
+      )}
+    >
+      <RibbonPopoverContent trap={!compact && keyboardOpen}>
+        {portControl}
+        {tokenControl}
+        <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
+        <button
+          className="ribbon-btn small"
+          style={{ width: '100%' }}
+          onClick={() => { setShowDetails(true); setPopoverOpen(false); }}
+        >
+          <span className="ribbon-btn-icon"><Icon id="ai.connection-details" size={16} lucide={{ size: 14 }} /></span>
+          <span className="ribbon-btn-label">{t('ai.connect')}</span>
+        </button>
+      </RibbonPopoverContent>
+    </Popover>
+  );
+
   if (compact) {
-    // Compacte modus: hele groep achter één knop + popover — zelfde patroon als
-    // BaselinesProgressGroupContent. Poort/token blijven functioneel identiek, alleen de trigger
-    // vervangt de brede tweeledige lay-out.
     return (
       <>
-        <Popover
-          open={popoverOpen}
-          onClose={() => setPopoverOpen(false)}
-          align="right"
-          panelClassName="!text-body"
-          panelStyle={{
-            marginTop: 2, zIndex: 9999,
-            padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 260,
-          }}
-          trigger={
-            <RibbonCompactTrigger
-              icon={<Icon id="ai.connection-menu" size={16} lucide={{ size: 14 }} />}
-              title={t('ai.connectHint')}
-              ariaLabel={t('ai.connect')}
-              onClick={() => setPopoverOpen(o => !o)}
-            />
-          }
-        >
-          {portControl}
-          {tokenControl}
-          <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
-          <button
-            className="ribbon-btn small"
-            style={{ width: '100%' }}
-            onClick={() => { setShowDetails(true); setPopoverOpen(false); }}
-          >
-            <span className="ribbon-btn-icon"><Icon id="ai.connection-details" size={16} lucide={{ size: 14 }} /></span>
-            <span className="ribbon-btn-label">{t('ai.connect')}</span>
-          </button>
-        </Popover>
+        {popover}
         {dialogs}
       </>
     );
   }
 
   return (
-    <div className="!text-body" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 240 }}>
-        {portControl}
-        {tokenControl}
-      </div>
+    <>
+      <RibbonCollapsible
+        popoverOpen={popoverOpen}
+        onHidden={() => setPopoverOpen(false)}
+        full={
+          <div className="!text-body" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 240 }}>
+              {portControl}
+              {tokenControl}
+            </div>
 
-      {/* Endpoint/header/configuratiefragment/koppelprompt staan in een dialoog — zie de
-          toelichting boven. Label volgt de intentie ("Verbinden"); de tooltip legt de inhoud uit. */}
-      <span title={t('ai.connectHint')}>
-        <RibbonButton
-          icon={<Icon id="ai.connection-details" size={24} lucide={{ size: 20 }} />}
-          label={t('ai.connect')}
-          onClick={() => setShowDetails(true)}
-        />
-      </span>
-
+            {/* Endpoint/header/configuratiefragment/koppelprompt staan in een dialoog — zie de
+                toelichting boven. Label volgt de intentie ("Verbinden"); de tooltip legt de inhoud uit. */}
+            <span title={t('ai.connectHint')}>
+              <RibbonButton
+                icon={<Icon id="ai.connection-details" size={24} lucide={{ size: 20 }} />}
+                label={t('ai.connect')}
+                onClick={() => setShowDetails(true)}
+              />
+            </span>
+          </div>
+        }
+        collapsed={popover}
+      />
       {dialogs}
-    </div>
+    </>
   );
 }

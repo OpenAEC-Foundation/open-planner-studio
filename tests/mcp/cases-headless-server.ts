@@ -22,7 +22,7 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { MCP_INSTRUCTIONS, MCP_SERVER_NAME, MCP_SERVER_VERSION, DEFAULT_PROTOCOL_VERSION } from '@/services/mcp/dispatcher';
-import { AGENT_GUIDE_PATH, AGENT_SKILLS, skillAssetPath } from '@/services/mcp/tools/guideTools';
+import { AGENT_GUIDE_PATH, AGENT_SKILLS, readingText, skillAssetPath } from '@/services/mcp/tools/guideTools';
 import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-server/src/host';
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
@@ -669,7 +669,7 @@ test('B stdio: initialize, tools/list gelijk aan de registry (namen, beschrijvin
   const instructions = stdio.getInstructions() ?? '';
   assert(instructions.startsWith(MCP_INSTRUCTIONS) && instructions.includes('Headless mode'), 'instructions = app + headless uitleg');
   const { tools } = await stdio.listTools();
-  assertEq(tools.length, 41, 'aantal tools');
+  assertEq(tools.length, 42, 'aantal tools');
   assertEq(canonical(tools), canonical(registryList()), 'tools/list = registry van de app (geen uitzonderingen)');
   assertEq(tools.map((t) => t.name), registryList().map((t) => t.name), 'dezelfde volgorde van tools');
 });
@@ -677,8 +677,18 @@ test('B stdio: initialize, tools/list gelijk aan de registry (namen, beschrijvin
 test('B stdio: gids en beide skills komen uit de bundel (niets ontbreekt)', async () => {
   const data = await ok(stdio, 'planner_get_planning_guide', { part: 'both' });
   assertEq(data.missing, undefined, 'niets ontbreekt');
-  assertEq(data.guide, readFileSync(join(PUBLIC, AGENT_GUIDE_PATH), 'utf8'), 'gids = public/agent/planning-guide.md');
+  // `both` is een installatiepart: de volle bestanden, mét frontmatter (#818, ronde 11).
+  const guideFile = readFileSync(join(PUBLIC, AGENT_GUIDE_PATH), 'utf8');
+  assertEq(data.guide, guideFile, 'gids = public/agent/planning-guide.md');
   assertEq(data.skills.map((s: { name: string }) => s.name), AGENT_SKILLS.map((s) => s.name), 'beide skills');
+  for (const s of data.skills as { name: 'goed-plannen' | 'progress-update'; text: string }[]) {
+    assertEq(s.text, readFileSync(join(PUBLIC, skillAssetPath(s.name)), 'utf8'), `skill ${s.name} = het bestand in public/`);
+  }
+  // Zonder `install` (standaard `guide`) is het antwoord leestekst (`readingText`, #818): zonder de eerste kop en
+  // zonder lege regels.
+  const read = await ok(stdio, 'planner_get_planning_guide', {});
+  assertEq(read.guide, readingText(guideFile), 'gids = public/agent/planning-guide.md als leestekst');
+  assert(guideFile.includes('\n\n') && !read.guide.includes('\n\n'), 'het bestand houdt zijn lege regels; het antwoord niet');
 });
 
 let firstTaskId = '';

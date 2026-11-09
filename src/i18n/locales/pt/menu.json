@@ -140,6 +140,7 @@
     "histogram": "Histograma",
     "toggleHistogram": "Histograma",
     "warningsPanel": "Painel de avisos",
+    "scheduleShiftPanel": "Deslocações",
     "prevResource": "Anterior",
     "nextResource": "Seguinte",
     "leveling": "Nivelamento",
@@ -154,6 +155,7 @@
     "barsGroup": "Barras",
     "manageBaselines": "Gerir linhas de base…",
     "statusDate": "Data de estado",
+    "statusDateValue": "Data de estado: {{date}}",
     "statusDateClear": "Limpar data de estado",
     "statusDateTime": "Hora da data de estado",
     "statusDateTimeLater": "Hora mais tarde",
@@ -218,7 +220,9 @@
     "screenColorsMissingField": "Este campo não existe neste projeto. A categoria de trabalho é usada temporariamente.",
     "screenColorsHint": "Fora do modo Caminho crítico, um contorno vermelho marca o caminho crítico.",
     "addLayout": "Novo layout",
-    "toggleRelations": "Linhas de relação"
+    "toggleRelations": "Linhas de relação",
+    "relationFindDependents": "Procurar projetos dependentes…",
+    "relationFindDependentsHint": "Procurar numa pasta projetos com uma relação externa a este cronograma."
   },
   "ifc": {
     "title": "Editor IFC",
@@ -325,7 +329,7 @@
     "exportTitle": "Exportar",
     "exportSubtitle": "Escolha um formato. O projeto será convertido e guardado.",
     "progressImportCardTitle": "Atualizar o progresso a partir de uma planilha",
-    "progressImportCardDesc": "Leia uma folha de cálculo CSV ou XLSX devolvida e atualize a conclusão, o início real e o fim real.",
+    "progressImportCardDesc": "Leia uma folha de cálculo XLSX devolvida e atualize a conclusão, o início real e o fim real.",
     "printTitle": "Imprimir",
     "printSubtitle": "Abra o ecrã de relatório para pré-visualização e definições de impressão.",
     "openPrintPreview": "Abrir pré-visualização",
@@ -393,6 +397,9 @@
     "mspdiDesc": "Abre no Microsoft Project. Estrutura WBS completa.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Para Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Para Oracle Primavera P6, como ficheiro .xer.",
+    "experimentalBadge": "Experimental",
     "profileHint": "O seu projeto usa atualmente o perfil {{name}}. Recomendamos que utilize o perfil {{target}} para obter a melhor compatibilidade com este formato de ficheiro.",
     "ifcLabel": "IFC",
     "ifcDesc": "Norma BuildingSMART, no esquema IFC do projeto (padrão: IFC 4.3 ADD2). Ligação 4D com modelos BIM.",
@@ -447,5 +454,18 @@
     "redo": "Refazer",
     "zoomIn": "Aproximar",
     "zoomOut": "Afastar"
+  },
+  "native": {
+    "window": "Janela",
+    "quit": "Sair do Open Planner Studio",
+    "about": "Acerca de Open Planner Studio",
+    "services": "Serviços",
+    "hide": "Ocultar Open Planner Studio",
+    "hideOthers": "Ocultar outras",
+    "showAll": "Mostrar tudo",
+    "closeWindow": "Fechar janela",
+    "cut": "Cortar",
+    "fullscreen": "Alternar ecrã completo",
+    "bringAllToFront": "Trazer tudo para a frente"
   }
 }

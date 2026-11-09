@@ -140,6 +140,7 @@
     "histogram": "Хистограм",
     "toggleHistogram": "Хистограм",
     "warningsPanel": "Панел са упозорењима",
+    "scheduleShiftPanel": "Померања",
     "prevResource": "Претходни",
     "nextResource": "Следећи",
     "leveling": "Нивелисање",
@@ -154,6 +155,7 @@
     "barsGroup": "Траке",
     "manageBaselines": "Управљај основним линијама…",
     "statusDate": "Датум статуса",
+    "statusDateValue": "Датум статуса: {{date}}",
     "statusDateClear": "Обриши датум статуса",
     "statusDateTime": "Време датума статуса",
     "statusDateTimeLater": "Време касније",
@@ -218,7 +220,9 @@
     "screenColorsMissingField": "Ово поље не постоји у овом пројекту. Врста радова се привремено користи.",
     "screenColorsHint": "Ван критичног пута, црвена ивица означава критични пут.",
     "addLayout": "Нови изглед",
-    "toggleRelations": "Линије зависности"
+    "toggleRelations": "Линије зависности",
+    "relationFindDependents": "Пронађи зависне пројекте…",
+    "relationFindDependentsHint": "Претражи фасциклу за пројекте са спољном везом ка овом плану."
   },
   "ifc": {
     "title": "IFC уређивач",
@@ -325,7 +329,7 @@
     "exportTitle": "Извези",
     "exportSubtitle": "Изаберите формат. Пројекат ће бити претворен и сачуван.",
     "progressImportCardTitle": "Ажурирај напредак из табеле",
-    "progressImportCardDesc": "Учитајте враћену CSV или XLSX табелу и ажурирајте завршеност, стварни почетак и стварни завршетак.",
+    "progressImportCardDesc": "Учитајте враћени Excel-лист (.xlsx) и ажурирајте завршеност, стварни почетак и стварни завршетак.",
     "printTitle": "Штампање",
     "printSubtitle": "Отворите екран извештаја за преглед штампе и подешавања.",
     "openPrintPreview": "Отвори преглед штампе",
@@ -393,6 +397,9 @@
     "mspdiDesc": "Отвара се у програму Microsoft Project. Потпуна структура САП.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "За Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "За Oracle Primavera P6, као .xer датотеку.",
+    "experimentalBadge": "Експериментално",
     "profileHint": "Ваш пројекат тренутно користи профил {{name}}. Препоручујемо профил {{target}} за најбољу компатибилност са овим форматом датотеке.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART стандард, у IFC шеми пројекта (подразумевано IFC 4.3 ADD2). 4D повезивање са BIM моделима.",
@@ -447,5 +454,18 @@
     "redo": "Понови",
     "zoomIn": "Увећај",
     "zoomOut": "Умањи"
+  },
+  "native": {
+    "window": "Прозор",
+    "quit": "Изађи из Open Planner Studio",
+    "about": "О програму Open Planner Studio",
+    "services": "Услуге",
+    "hide": "Сакриј Open Planner Studio",
+    "hideOthers": "Сакриј остале",
+    "showAll": "Прикажи све",
+    "closeWindow": "Затвори прозор",
+    "cut": "Исеци",
+    "fullscreen": "Преклопи цео екран",
+    "bringAllToFront": "Доведи све у први план"
   }
 }

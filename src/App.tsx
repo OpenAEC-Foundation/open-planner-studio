@@ -32,6 +32,10 @@ import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useSiteInitialFile } from '@/hooks/useSiteInitialFile';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
+import { useExternalSourceCheck } from '@/hooks/useExternalSourceCheck';
+import { useDependentProjectsAutoSearch } from '@/hooks/useDependentProjectsAutoSearch';
+import { installDependentAnchorAsker } from '@/state/dependentAnchorQuestionBridge';
+import { useExternalSourceWatch } from '@/hooks/useExternalSourceWatch';
 import { useExitRecordedDates } from '@/hooks/useExitRecordedDates';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
@@ -50,6 +54,7 @@ import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
+import { ExternalSourceNotice } from '@/components/layout/ExternalSourceNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 import { FileDropOverlay } from '@/components/layout/FileDropOverlay';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
@@ -80,11 +85,13 @@ const PhaseAssignmentDialog = lazy(() => import('@/components/dialogs/PhaseAssig
 const SiteOpenDialog = lazy(() => import('@/components/dialogs/SiteOpenDialog').then(m => ({ default: m.SiteOpenDialog })));
 const FormatNoticeDialog = lazy(() => import('@/components/dialogs/FormatNoticeDialog').then(m => ({ default: m.FormatNoticeDialog })));
 const SiteSaveDialog = lazy(() => import('@/components/dialogs/SiteSaveDialog').then(m => ({ default: m.SiteSaveDialog })));
+const DependentAnchorWarningDialog = lazy(() => import('@/components/dialogs/DependentAnchorWarningDialog').then(m => ({ default: m.DependentAnchorWarningDialog })));
 const IfcSchemaQuestionDialog = lazy(() => import('@/components/dialogs/IfcSchemaQuestionDialog').then(m => ({ default: m.IfcSchemaQuestionDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
 const MoveProjectDialog = lazy(() => import('@/components/dialogs/MoveProjectDialog').then(m => ({ default: m.MoveProjectDialog })));
+const ExternalSourceReviewDialog = lazy(() => import('@/components/dialogs/ExternalSourceReviewDialog').then(m => ({ default: m.ExternalSourceReviewDialog })));
 const ColumnsDialog = lazy(() => import('@/components/dialogs/ColumnsDialog').then(m => ({ default: m.ColumnsDialog })));
 const FilterDialog = lazy(() => import('@/components/dialogs/FilterDialog').then(m => ({ default: m.FilterDialog })));
 const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').then(m => ({ default: m.LayoutsDialog })));
@@ -130,6 +137,8 @@ function AppContent() {
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
+  const externalSourceReview = useAppStore(s => s.ui.externalSourceReview);
+  const pendingDependentAnchorWarning = useAppStore(s => s.ui.pendingDependentAnchorWarning !== null);
   const showProgressImportDialog = useAppStore(s => s.ui.showProgressImportDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
@@ -183,6 +192,9 @@ function AppContent() {
   // De schemavraag bij opslaan (issue #292): zonder deze registratie houdt opslaan stil het schema van
   // het bestand (de veilige terugval), maar dan krijgt de gebruiker de keuze niet.
   useEffect(() => { installIfcSchemaAsker(); }, []);
+  // De waarschuwing vóór opslaan over te krappe ankers van afhankelijke projecten (stap 1.11). Zonder
+  // deze registratie slaat de app zonder vraag op.
+  useEffect(() => { installDependentAnchorAsker(); }, []);
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
@@ -217,6 +229,11 @@ function AppContent() {
 
   // Automatisch berekenen: runCPM zodra de planning verouderd raakt (als de instelling aanstaat).
   useAutoCalcCPM();
+  // Stap 1.5: een nieuwe versie van een bron opmerken bij openen en als het venster weer actief wordt.
+  useExternalSourceCheck();
+  useDependentProjectsAutoSearch();
+  // Stap 1.6: in de desktop-app de map van elk bronbestand bewaken, zodat de balk meteen komt.
+  useExternalSourceWatch();
 
   // "Datums zoals opgeslagen": rekent één keer door zodra de modus via een BEWERKING
   // wordt verlaten — F5 en de strook zelf roepen runCPM al rechtstreeks aan, dit dekt de rest.
@@ -360,6 +377,9 @@ function AppContent() {
             `activeTab === 'file'`-vertakking (net als de meldingen hierboven), zodat de strook
             zichtbaar blijft in élke weergave — Gantt, tabel, rapport én Backstage. */}
         <RecordedDatesNotice />
+
+        {/* Nieuwe versie van een bron (stap 1.5): per bron een strook met Bekijken en Later. */}
+        <ExternalSourceNotice />
       </div>
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
@@ -459,6 +479,7 @@ function AppContent() {
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
+        {externalSourceReview !== null && <ExternalSourceReviewDialog />}
         {showColumnsDialog && activeTab !== 'table' && <ColumnsDialog />}
         {showFilterDialog && <FilterDialog />}
         {showLayoutsDialog && <LayoutsDialog />}
@@ -495,6 +516,8 @@ function AppContent() {
         <SiteSaveDialog />
         {/* De schemavraag bij opslaan (issue #292): rendert alleen bij `ui.pendingIfcSchemaQuestion`. */}
         <IfcSchemaQuestionDialog />
+        {/* Te krappe ankers van afhankelijke projecten vóór opslaan (stap 1.11). */}
+        {pendingDependentAnchorWarning && <DependentAnchorWarningDialog />}
         {/* Uitleg na het openen van een ander formaat dan IFC; `key` = vinkje leeg bij elke nieuwe uitleg. */}
         {pendingFormatNotice && <FormatNoticeDialog key={pendingFormatNotice} kind={pendingFormatNotice} />}
         <LibraryLinkDialog />

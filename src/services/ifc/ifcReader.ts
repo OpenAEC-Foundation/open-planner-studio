@@ -381,7 +381,7 @@ export function readIFC(
 
   const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
 
-  const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === 'OPS_Project')
+  const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === PSET.Project)
     .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
     .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === 'TimeModel')
     .map(e => parseTypedValue(e.args[2] || '')).find((value): value is string => typeof value === 'string');
@@ -2335,6 +2335,9 @@ function extractStructure(
         } else if (name === 'P6ProjectCode') {
           // P6 Project-ID (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.p6ProjectCode = v;
+        } else if (name === 'DependentProjectsFolder') {
+          // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
+          if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
         }
       }
       continue;

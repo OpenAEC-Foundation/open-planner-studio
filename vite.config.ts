@@ -17,14 +17,32 @@ import pkg from './package.json';
  * en `fs.realpathSync` gooit hard (ENOENT) als node_modules er op dat moment niet is. Zonder vangnet
  * zou dat een onbegrijpelijke configfout geven in plaats van een nette melding. Faalt hij, dan
  * blijft alleen de root over — exact het gedrag van vóór deze toevoeging.
+ *
+ * Is een pakketmap in die node_modules zelf weer een symlink naar een andere checkout (bijv.
+ * `node_modules/@fontsource`), dan ligt ook dat echte pad buiten de lijst. Daarom komen de echte
+ * paden van zulke gelinkte pakketten er ook bij.
  */
 function allowedFsRoots(): string[] {
   const root = path.resolve(__dirname);
   try {
-    return [root, fs.realpathSync(path.resolve(root, 'node_modules'))];
+    const modules = fs.realpathSync(path.resolve(root, 'node_modules'));
+    return [root, modules, ...linkedPackageRoots(modules)];
   } catch {
     return [root];
   }
+}
+
+function linkedPackageRoots(modules: string): string[] {
+  const roots = new Set<string>();
+  for (const name of fs.readdirSync(modules)) {
+    const entry = path.join(modules, name);
+    try {
+      if (fs.lstatSync(entry).isSymbolicLink()) roots.add(fs.realpathSync(entry));
+    } catch {
+      // Een kapotte link levert geen pad op; de rest blijft gelden.
+    }
+  }
+  return [...roots];
 }
 // @ts-expect-error — dev-port.mjs is plain JS zonder types
 import { worktreeRoot, readRecordedPort } from './scripts/dev-port.mjs';

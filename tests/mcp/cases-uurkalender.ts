@@ -231,6 +231,8 @@ test('ongeldige uurbanden ⇒ weigering met uitleg; de kalender blijft onaangero
     { naam: 'gelijk begin en eind', workTime: week({ '1': [{ start: 480, end: 480 }] }), verwacht: /does not lie after/i },
     { naam: 'overlappende banden', workTime: week({ '2': [{ start: 480, end: 720 }, { start: 600, end: 960 }] }), verwacht: /overlap or are out of order/i },
     { naam: 'start buiten de dag', workTime: week({ '3': [{ start: 1500, end: 1600 }] }), verwacht: /falls outside the day/i },
+    // Het schema noemt de grenzen alleen nog in tekst (#818); de handler weigert ook een negatieve start.
+    { naam: 'negatieve start', workTime: week({ '3': [{ start: -30, end: 480 }] }), verwacht: /falls outside the day/i },
     { naam: 'eind voorbij 2880', workTime: week({ '4': [{ start: 1400, end: 3000 }] }), verwacht: /exceeds 2880/i },
     { naam: 'ontbrekende weekdag', workTime: { byWeekday: { '1': [{ start: 480, end: 960 }] } }, verwacht: /must contain ALL weekdays/i },
     { naam: 'verkeerde dagsleutel', workTime: week({ '8': [] }), verwacht: /unknown day key/i },
@@ -337,6 +339,29 @@ test('uur→dag met bestaande urentaak ⇒ effectieve scalaire blokken behouden 
   assertEq(hourTask.time.durationMinutes, 240, 'exacte minuten blijven behouden');
   assert(!('workTime' in (calById(projId) as object)), 'de scalaire kalender heeft geen expliciete blokken');
   assertEq(S().calendar.workTime, calById(projId)!.workTime, 'projectkalender-cache blijft consistent');
+});
+
+// Speling staat in WERKDAGEN van de taakkalender, ook bij een uurtaak (`CPMSolver.signedFloat`: werkminuten ÷
+// (uren per dag × 60)). Zonder die eenheid in de beschrijving leest een agent `freeFloat: 0.5` als een half uur
+// (council-ronde 3 op #836). Deze stap bindt de zin in de beschrijving aan het gedrag.
+test('speling van een uurtaak staat in werkdagen: 4 uur naast een taak van 8 uur ⇒ 0.5', async () => {
+  reset();
+  const projId = S().project.calendarId;
+  S().ensureProjectCalendarInLibrary();
+  S().updateCalendar(projId, { workTime: bands8to16(), hoursPerDay: 8, workDays: [1, 2, 3, 4, 5] });
+  const kort = addTask('Vier uur', 1, 240);
+  const lang = addTask('Acht uur', 1, 480);
+  const eind = addTask('Gereed', 0);
+  S().addSequence({ predecessorId: kort, successorId: eind, type: 'FINISH_START', lagDays: 0 });
+  S().addSequence({ predecessorId: lang, successorId: eind, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  const data = okData(await call('planner_get_task', { taskId: kort }));
+  assertEq(data.durationUnit, 'hours', 'testvoorwaarde: een uurtaak');
+  assertEq(data.schedule.freeFloat, 0.5, 'vrije speling van 4 werkuren op een dag van 8 uur = 0.5 werkdag');
+  assertEq(data.schedule.totalFloat, 0.5, 'totale speling idem');
+  for (const name of ['planner_get_task', 'planner_get_critical_path']) {
+    assert(/Float is in working days/.test(toolDef(name).description), `${name} noemt de eenheid van de speling`);
+  }
 });
 
 // =================================================================================================
@@ -626,7 +651,8 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   assert(!!ongebruikt, 'een bibliotheek-kalender ZONDER taak/resource komt sinds de A2-fix terug uit IFC');
   assertEq(ongebruikt!.workTime?.byWeekday[1], [{ start: 480, end: 960 }], 'ongebruikte kalender behoudt ook zijn uurbanden');
   const description = toolDef('planner_update_calendar').description;
-  assert(/unused calendars survive IFC save\+reload/i.test(description), 'beschrijving noemt het huidige behoud van ongebruikte kalenders');
+  // Het behoud zelf bewijst de round-trip hierboven. De beschrijving noemt het sinds #818 niet meer (er gaat niets
+  // verloren, dus geen zin nodig), maar mag ook geen oude waarschuwing voor verlies terugkrijgen.
   assert(!/does NOT survive save\+reload/.test(description), 'geen achterhaalde waarschuwing voor kalenderverlies');
 
   // MÉT een taak eraan overleeft hij volledig — inclusief de uurbanden.

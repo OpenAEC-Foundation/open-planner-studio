@@ -4,7 +4,9 @@
 // voor die sessie (zie `devSessionTheme` in settingsStore.ts). `?tab=planning` opent die tab van het
 // lint. `?progressSheet=<pad>` opent daarna de voortgangsimport met dat blad al ingelezen. `?help=<artikel-id>`
 // (eventueel `%23<anker>`) opent Help op dat artikel. `?mcp=connect` opent de tab MCP met het venster
-// Verbindingsgegevens. Valt uit elke productiebouw: App.tsx, ProgressImportDialog.tsx en AiConnectionGroup.tsx
+// Verbindingsgegevens. `?source=<pad>` (ook meer dan één keer) maakt een bronbestand van een externe relatie
+// leesbaar in de browser: een koppeling waarvan het bronpad dezelfde bestandsnaam heeft, leest dat repobestand,
+// met de `Last-Modified` van de dev-server als versie. Valt uit elke productiebouw: App.tsx, ProgressImportDialog.tsx en AiConnectionGroup.tsx
 // importeren deze module alleen dynamisch achter `import.meta.env.DEV`.
 // Uitleg: `docs/dev-link.md`.
 import i18n from '@/i18n/config';
@@ -14,6 +16,7 @@ import { openedFromFile } from '@/services/fileAccess/webBackend';
 import type { OpenedFile } from '@/services/fileAccess';
 import { binaryExtensions } from '@/services/formatRegistry';
 import type { RibbonTab } from '@/state/slices/types';
+import { readExternalSource } from '@/state/externalSource';
 
 const RIBBON_TABS: readonly RibbonTab[] = ['file', 'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai'];
 
@@ -45,6 +48,55 @@ async function openDevFile(raw: string): Promise<void> {
   await useAppStore.getState().openOpenedFile(opened, buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
 }
 
+/**
+ * `?source=`: bronbestanden voor externe relaties uit de repo. De browser kan een bronpad als
+ * `/projecten/Installateur.ifc` niet lezen; deze link vervangt daarom `parseExternalSource` en
+ * `externalSourceVersion` in de store (zoals de tests dat doen). Een koppeling naar een bestand met dezelfde
+ * bestandsnaam leest het repobestand; elk ander pad gaat naar de gewone actie. De versie is de
+ * `Last-Modified` van de dev-server, dus een nieuwe versie maak je door het repobestand op te slaan.
+ */
+function installDevSources(raws: string[]): void {
+  const sources = raws.map(raw => {
+    const path = devFilePath(raw);
+    if (!path) throw new Error(`?source=${raw}: alleen een pad vanaf de repo-root, zonder ..`);
+    return { raw, url: `${import.meta.env.BASE_URL}${path}`, name: raw.split('/').pop()! };
+  });
+  const pick = (filePath: string) => {
+    const name = filePath.split(/[\\/]/).pop();
+    return sources.find(source => source.name === name);
+  };
+  const modified = (res: Response): string | undefined => {
+    const header = res.headers.get('last-modified');
+    const date = header ? new Date(header) : null;
+    return date && !isNaN(date.getTime()) ? date.toISOString() : undefined;
+  };
+  const { parseExternalSource, externalSourceVersion } = useAppStore.getState();
+  useAppStore.setState({
+    externalSourceVersion: async (filePath) => {
+      const source = pick(filePath);
+      if (!source) return externalSourceVersion(filePath);
+      const res = await fetch(source.url, { method: 'HEAD', cache: 'no-store' });
+      return res.ok ? modified(res) : undefined;
+    },
+    parseExternalSource: async (filePath, labels) => {
+      const source = pick(filePath);
+      if (!source) return parseExternalSource(filePath, labels);
+      try {
+        const res = await fetch(source.url, { cache: 'no-store' });
+        if (!res.ok || (res.headers.get('content-type') ?? '').includes('text/html')) throw new Error(`?source=${source.raw}: niet gevonden`);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        const text = new TextDecoder().decode(bytes);
+        const read = await readExternalSource(filePath, { readTextFile: async () => text, readFile: async () => bytes }, labels);
+        const version = modified(res);
+        return { ...read, ...(version ? { version } : {}), readAt: new Date().toISOString() };
+      } catch (err) {
+        console.error('[dev-link] source', err);
+        return null;
+      }
+    },
+  });
+}
+
 let pendingProgressSheet: OpenedFile | null = null;
 
 /** Het blad van `?progressSheet=`, één keer: de dialoog haalt het op zodra hij opent. */
@@ -72,9 +124,12 @@ export async function openDevLinkOnce(): Promise<void> {
   const tab = RIBBON_TABS.find(t => t === params.get('tab'));
   const help = params.get('help');
   const mcp = params.get('mcp');
-  if (started || (!raw && !tab && !help && mcp !== 'connect')) return;
+  const sources = params.getAll('source');
+  if (started || (!raw && !tab && !help && mcp !== 'connect' && sources.length === 0)) return;
   started = true;
   try {
+    // Vóór het openen: de controle bij openen leest de bron dan al via de repo.
+    if (sources.length > 0) installDevSources(sources);
     if (raw) {
       await openDevFile(raw);
       const sheet = params.get('progressSheet');

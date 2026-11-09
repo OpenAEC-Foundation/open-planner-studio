@@ -1788,8 +1788,6 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
     // blijft staat hieronder met reden én een fragment van de regel; een uitzondering die niets
     // meer vangt faalt ook (16n2), zodat de lijst niet stil veroudert.
     const UITZONDERINGEN: { file: string; fragment: string; reden: string }[] = [
-      { file: 'services/mcp/tools/documentTools.ts', fragment: 'a fresh undo stack and `isDirty: true`',
-        reden: 'tooltekst voor de AI-client (stringliteral), geen state' },
       { file: 'services/recovery/recoveryStore.ts', fragment: 'docs.push({ id, ifc, filePath: null, isDirty: true',
         reden: 'crashherstelmanifest; een hersteld document is te bewaren, de importvlag komt uit het IFC zelf' },
       { file: 'services/recovery/recoveryStore.ts', fragment: "docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true",

@@ -140,6 +140,7 @@
     "histogram": "Гистограмма",
     "toggleHistogram": "Гистограмма",
     "warningsPanel": "Панель предупреждений",
+    "scheduleShiftPanel": "Сдвиги задач",
     "prevResource": "Предыдущий",
     "nextResource": "Следующий",
     "leveling": "Выравнивание",
@@ -155,6 +156,7 @@
     "barsGroup": "Полосы",
     "manageBaselines": "Управлять базовыми планами…",
     "statusDate": "Дата отчета о состоянии",
+    "statusDateValue": "Дата отчета о состоянии: {{date}}",
     "statusDateClear": "Очистить дату отчета о состоянии",
     "statusDateTime": "Время даты отчета о состоянии",
     "statusDateTimeLater": "Время позже",
@@ -219,7 +221,9 @@
     "screenColorsMissingField": "Этого поля нет в проекте. Временно используется вид работ.",
     "screenColorsHint": "Вне режима «Критический путь» красная рамка отмечает критический путь.",
     "addLayout": "Создать макет",
-    "toggleRelations": "Линии связей"
+    "toggleRelations": "Линии связей",
+    "relationFindDependents": "Найти зависимые проекты…",
+    "relationFindDependentsHint": "Найти в папке проекты с внешней зависимостью от этого графика."
   },
   "ifc": {
     "title": "Редактор IFC",
@@ -327,7 +331,7 @@
     "exportTitle": "Экспорт",
     "exportSubtitle": "Выберите формат. Проект будет преобразован и сохранен.",
     "progressImportCardTitle": "Обновить ход выполнения из таблицы",
-    "progressImportCardDesc": "Прочитайте возвращенную таблицу CSV или XLSX и обновите процент завершения, фактическое начало и фактическое окончание.",
+    "progressImportCardDesc": "Прочитайте возвращенную таблицу Excel (.xlsx) и обновите процент завершения, фактическое начало и фактическое окончание.",
     "printTitle": "Печать",
     "printSubtitle": "Откройте экран отчета для предварительного просмотра и настроек печати.",
     "openPrintPreview": "Открыть предпросмотр печати",
@@ -395,6 +399,9 @@
     "mspdiDesc": "Открывается в Microsoft Project. Полная структура СДР.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Для Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Для Oracle Primavera P6, в виде файла .xer.",
+    "experimentalBadge": "Экспериментальная",
     "profileHint": "Ваш проект сейчас использует профиль «{{name}}». Мы рекомендуем профиль «{{target}}» для лучшей совместимости с этим форматом файла.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт BuildingSMART, в схеме IFC проекта (по умолчанию IFC 4.3 ADD2). 4D-связь с моделями BIM.",
@@ -449,5 +456,18 @@
     "redo": "Повторить",
     "zoomIn": "Увеличить",
     "zoomOut": "Уменьшить"
+  },
+  "native": {
+    "window": "Окно",
+    "quit": "Завершить Open Planner Studio",
+    "about": "О Open Planner Studio",
+    "services": "Службы",
+    "hide": "Скрыть Open Planner Studio",
+    "hideOthers": "Скрыть остальные",
+    "showAll": "Показать все",
+    "closeWindow": "Закрыть окно",
+    "cut": "Вырезать",
+    "fullscreen": "Переключить полноэкранный режим",
+    "bringAllToFront": "Все на передний план"
   }
 }
