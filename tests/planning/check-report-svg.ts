@@ -30,7 +30,8 @@ import { fixedScaleStartDayWidth, renderReport, REPORT_MIN_DAY_WIDTH, type Print
 import { computeTileLayout, footerLayoutWidthFor, footerRelayoutWidth, reportTileInput } from '@/services/print/tileLayout';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import {
-  opsInWindow, opsToSvg, opToSvg, SvgRecordingDraw2D, type SvgOp, type SvgTextMetrics,
+  clipOpToWindow, fontClassCss, opsInWindow, opsToSvg, opToSvg, REPORT_PAGE_TEXT_RULE, reportFontClass, reportFontRule,
+  SvgRecordingDraw2D, type SvgOp, type SvgTextMetrics,
 } from '@/services/pdf/svgDraw2d';
 import { createReportPaperRecorder, ganttTileOptions, recordReportPaper } from '@/services/print/reportPaperModel';
 import { hitPaperRegion, pageLabel, pageWindows, reportPageSvg, reportPaperRegions } from '@/services/print/reportPaper';
@@ -229,6 +230,16 @@ for (const [label, options, rh, rf] of [
   ok(label.text === `1 / ${total}` && svg0.includes(`>1 / ${total}</text>`), 'blad: paginanummer zoals de PDF');
   ok(svg0.includes('Bouw &amp; &lt;Co&gt; "BV"') && !svg0.includes('<Co>'), 'blad: tekst ge-escapet');
   ok(svg0.includes(`<rect width="${r2(layout.pageWidthPt)}" height="${r2(layout.pageHeightPt)}" fill="#ffffff"/>`), 'blad: wit papier, ook in donker thema');
+  // Het papier op het scherm zet de letterregels één keer in het document (`embedFontStyle: false`) en bewaart
+  // de vensterinhoud van kop en voet (`windowCache`); het blad blijft verder hetzelfde.
+  const bare = reportPageSvg(recording, layout, 0, { pageLabelFont: '8px InterPDF, sans-serif', embedFontStyle: false });
+  ok(svg0.includes('<style>') && !bare.includes('<style>') && bare === svg0.replace(/<style>[^<]*<\/style>/, ''),
+    'blad: zonder eigen <style> verder gelijk');
+  ok(svg0.includes(`class="${reportFontClass(recording.fonts[0])}"`), 'blad: tekst met de letterklasse van de letter zelf');
+  const windowCache = new Map<string, string[]>();
+  const cached = [0, 0, 1].map(i => reportPageSvg(recording, layout, i, { pageLabelFont: '8px InterPDF, sans-serif', windowCache }));
+  ok(cached[0] === svg0 && cached[1] === svg0 && cached[2] === reportPageSvg(recording, layout, 1, { pageLabelFont: '8px InterPDF, sans-serif' }) && windowCache.size > 0,
+    `blad: met bewaarde vensters dezelfde bladen (${windowCache.size} vensters bewaard)`);
 
   // Alleen de opdrachten van het blad: blad 2 (tweede tijdlijnkolom) heeft andere balken dan blad 1.
   const body0 = windows.find(w => w.srcY > 0 && w.dstY === layout.bodyTopPt)!;
@@ -259,6 +270,47 @@ for (const [label, options, rh, rf] of [
   ok(opsToSvg([line('M0 0L1 0', 'rgba(0,0,0,0.5)'), line('M0 1L1 1', 'rgba(0,0,0,0.5)')], 'f').length === 2,
     'samenvoegen: doorzichtige lijnen blijven los (overlap zou donkerder worden)');
   ok(opsToSvg([line('M0 0L1 0', '#cccccc', 1), line('M0 1L1 1', '#cccccc', 2)], 'f').length === 2, 'samenvoegen: andere lijndikte blijft los');
+  // Per kleurreeks: dun en dik om en om in één kleur geeft één pad per dikte, in de volgorde van eerste voorkomen.
+  const run = opsToSvg([line('M0 0L1 0', '#cccccc', 1), line('M0 1L1 1', '#cccccc', 2), line('M0 2L1 2', '#cccccc', 1), textOp,
+    line('M0 3L1 3', '#cccccc', 1)], 'f');
+  ok(run.length === 4 && run[0].startsWith('<path d="M0 0L1 0M0 2L1 2"') && run[1].includes('stroke-width="2"') && run[2].startsWith('<text'),
+    `samenvoegen: één kleurreeks, één pad per dikte; tekst breekt de reeks (${run.length}: ${run[0]})`);
+
+  // Afknippen op het venster (`clipOpToWindow`): binnen het venster blijft elk pixel gelijk.
+  {
+    const clip = (op: SvgOp) => clipOpToWindow(op, 0, 0, 100, 50);
+    const rect = clip({ k: 'rect', x: -100, y: 10, w: 300, h: 10, fill: '#ff0000', b: [-100, 10, 200, 20] });
+    ok(rect?.k === 'rect' && rect.x === -4 && rect.w === 108 && rect.y === 10 && rect.h === 10,
+      `afknippen: rechthoek tot het venster plus 4 px marge (${JSON.stringify(rect)})`);
+    ok(clip({ k: 'rect', x: 200, y: 0, w: 10, h: 10, fill: '#ff0000', b: [200, 0, 210, 10] }) === null, 'afknippen: rechthoek buiten het venster valt weg');
+    const dashedRect: SvgOp = { k: 'rect', x: -100, y: 0, w: 300, h: 10, stroke: '#000000', lw: 1, dash: '4 2', b: [-100.5, -0.5, 200.5, 10.5] };
+    ok(clip(dashedRect) === dashedRect, 'afknippen: gestreepte rand blijft heel (de strepen lopen rondom)');
+    const filled: SvgOp = { k: 'path', d: 'M-100 0L200 0L200 10Z', fill: '#0000ff', b: [-100, 0, 200, 10] };
+    ok(clip(filled) === filled, 'afknippen: gevuld pad blijft heel');
+    const inside: SvgOp = { k: 'path', d: 'M10 10L20 10', stroke: '#cccccc', lw: 1, b: [10, 9.5, 20, 10.5], pts: [[10, 10, 20, 10]] };
+    ok(clip(inside) === inside, 'afknippen: een lijn binnen het venster blijft dezelfde opdracht');
+    const grid = clip({ k: 'path', d: 'M50 -5000L50 5000', stroke: '#cccccc', lw: 1, b: [49.5, -5000, 50.5, 5000], pts: [[50, -5000, 50, 5000]] });
+    ok(grid?.k === 'path' && grid.d === 'M50 -5L50 55', `afknippen: rasterlijn over 10.000 px ingekort tot het venster (${grid?.k === 'path' ? grid.d : grid})`);
+    ok(clip({ k: 'path', d: 'M50 -100L50 0', stroke: '#cccccc', lw: 1, b: [49.5, -100, 50.5, 0], pts: [[50, -100, 50, 0]] }) === null,
+      'afknippen: een lijn die alleen de bovenrand raakt, valt weg (platte uiteinden tekenen daar niets)');
+    // Gestreepte relatielijn met een hoek: begin op een hele periode van het oude begin, de hoek blijft.
+    const dep = clip({ k: 'path', d: 'M-1000 10L50 10L50 1000', stroke: '#000000', lw: 1, dash: '6 4', b: [-1000.5, 9.5, 50.5, 1000], pts: [[-1000, 10, 50, 10, 50, 1000]] });
+    const depD = dep?.k === 'path' ? dep.d : '';
+    const startX = Number(/^M(-?[\d.]+) /.exec(depD)?.[1]);
+    ok(depD.includes('L50 10') && Number.isFinite(startX) && startX <= -5 && startX > -16 && (startX + 1000) % 10 === 0 && /L50 5[0-9](\.\d+)?$/.test(depD),
+      `afknippen: streeplijn begint op een hele periode (fase gelijk), de hoek blijft, het eind valt weg (${depD})`);
+    ok(dep?.k === 'path' && dep.pts === undefined, 'afknippen: een afgeknipte lijn draagt geen oude punten meer');
+  }
+
+  // Letterklassen: dezelfde letter geeft overal dezelfde klasse; één regel per letter plus de vaste tekstregel.
+  {
+    const font = 'bold 9px InterPDF, sans-serif';
+    ok(reportFontClass(font) === reportFontClass(font) && reportFontClass(font) !== reportFontClass('9px InterPDF, sans-serif'),
+      'letterklasse: volgt uit de letter zelf');
+    ok(/^rf[0-9a-z]+$/.test(reportFontClass(font)), `letterklasse: geldige CSS-naam (${reportFontClass(font)})`);
+    ok(reportFontRule(font) === `.${reportFontClass(font)}{font:${font}}`, 'letterregel: de canvas-letter als CSS-font');
+    ok(fontClassCss([font]).endsWith(REPORT_PAGE_TEXT_RULE), 'lettercss: met de vaste tekstregel');
+  }
   const stubMetrics: SvgTextMetrics = { measure: () => 1, baselineShift: () => 0 };
   const rec = new SvgRecordingDraw2D(10, 10, stubMetrics);
   rec.fillStyle = '#ff0000';

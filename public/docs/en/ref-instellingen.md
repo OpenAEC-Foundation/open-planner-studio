@@ -48,6 +48,8 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Scroll & zoom › Vertical, Horizontal, Zoom** — which key belongs to which wheel function. Only visible in the *Keys* mode. For each function you choose from *Scroll*, *Ctrl + scroll* or *Shift + scroll*. Default: *Vertical* is *Scroll*, *Zoom* is *Ctrl + scroll* and *Horizontal* is *Shift + scroll*. Effect: if you pick a key that is already in use, it swaps with the function that had it. Where: *Appearance*, under *Gantt › Scroll & zoom*.
 
+**Reports › Preview quality** — only with *New Report tab* (*Advanced › Experimental*). How sharp the previews of the Resource diagram look on screen. Choose from *Standard*, *High* and *Maximum*. Default: *High*. Effect: higher is sharper but slower; the PDF does not change. The paper of the Gantt chart is vector and always sharp, so the choice does not apply there. Without the new tab you choose the quality in the report itself. Where: *Appearance*, under *Reports*.
+
 ## Planning tab
 
 **Enable construction mode** — construction-oriented starting values for new projects. Default: on. Effect: on gives a new project the calendar *Bouwkalender NL* with the Dutch public holidays, lets you choose a builders' holiday when generating holidays, offers the phasing templates *Residential construction* and *Commercial / renovation* and gives new tasks the work category *Construction*. Off gives the calendar *Standaardkalender* without holidays, only the template *Empty* and the work category *Other*. A new task under a parent task that has a work category takes over that work category first; *Construction* or *Other* applies after that. Existing tasks and calendars do not change. Where: *Planning*.

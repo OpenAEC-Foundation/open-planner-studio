@@ -460,6 +460,8 @@
     "durationDisplayHours": "Always hours",
     "barSplitMode": "Task bars at interruptions",
     "barSplitModeHint": "For hour tasks only: split bars around breaks and non-working time. Actual task interruptions remain visible regardless of this setting.",
+    "reportSection": "Reports",
+    "reportPreviewQualityHint": "How sharp the previews of the resource chart look on screen. Higher is sharper but slower. The Gantt print is always sharp and the PDF does not change.",
     "barSplitNever": "Never split",
     "barSplitSelection": "Split when selected",
     "barSplitAlways": "Always split",

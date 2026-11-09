@@ -23,9 +23,11 @@ interface HoverState { page: number; target: PaperTarget; column?: string }
  * Zoom van het papier als deel van de ware grootte (1 = het blad op 96 px per inch, zoals een
  * pdf-lezer 100 % toont). Los van de Gantt-zoom (`ZOOM_STEP` in ganttViewport.ts): andere eenheid.
  */
-const ZOOM_MIN = 0.1;
+const ZOOM_MIN = 0.05;
 const ZOOM_MAX = 4;
-const PAPER_ZOOM_STOPS = [0.1, 0.15, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2, 3, 4];
+const PAPER_ZOOM_STOPS = [0.05, 0.075, 0.1, 0.15, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2, 3, 4];
+/** Kleinste bladbreedte bij "Hele rij": acht A3-bladen naast elkaar passen zo ook op een laptop. */
+const ROW_MIN_PAGE_W = 60;
 const PAGE_GAP = 20;
 /** Ruimte tussen twee rijen bladen: ruim genoeg voor de bladtitel en het naamlabel erboven. */
 const PAGE_ROW_GAP = 32;
@@ -71,7 +73,7 @@ const EMPTY_PAGES: ReadonlySet<number> = new Set();
  */
 export function ReportPaperView({
   paper, stale, loading, selected, onPick, regionLabel, columnLabel, status, actions, onVisible,
-  fabZone = null, hint, banner,
+  fabZone = null, hint, banner, notice,
 }: {
   paper: ReportPaperModel | null;
   /** De getoonde opname hoort bij oudere instellingen (de nieuwe wordt gemaakt). */
@@ -94,6 +96,11 @@ export function ReportPaperView({
   hint?: { text: string; closeLabel: string; onClose: () => void } | null;
   /** Balk tussen de werkbalk en het papier, of `null`. */
   banner?: ReactNode;
+  /**
+   * Korte melding in de werkbalk, tussen de stand en de zoomknoppen ("Ongedaan maken" na Standaard). In de
+   * werkbalk dekt hij geen blad af; onderaan lag hij over het paginanummer van blad 1.
+   */
+  notice?: ReactNode;
 }) {
   const { t, i18n } = useTranslation('report');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -115,7 +122,7 @@ export function ReportPaperView({
   const availWidth = Math.max(0, viewport.width - 2 * PAGES_PAD);
   const widthFor = (reserve: number): number => {
     if ('scale' in fit) return fit.scale * realWidth;
-    if (fitMode === 'row') return Math.max(160, (availWidth - (cols - 1) * PAGE_GAP) / cols);
+    if (fitMode === 'row') return Math.max(ROW_MIN_PAGE_W, (availWidth - (cols - 1) * PAGE_GAP) / cols);
     if (fitMode === 'width') return Math.max(160, availWidth);
     // Hele blad: één blad past in breedte én hoogte (met zijn titel erboven).
     const heightFit = (viewport.height - PAGES_PAD_TOP - PAGES_PAD - reserve) / aspect;
@@ -167,7 +174,16 @@ export function ReportPaperView({
     setFit({ scale: target });
   }, []);
 
-  const chooseFit = useCallback((mode: 'page' | 'width' | 'row') => setFit({ fit: mode }), []);
+  // "Hele blad" na scrollen: naar de bovenkant van het blad dat het meest in beeld stond, niet naar een
+  // plek die bij de oude maat hoorde (dan stond je midden in een ander blad).
+  const pendingPage = useRef<number | null>(null);
+  const chooseFit = useCallback((mode: 'page' | 'width' | 'row') => {
+    if (mode === 'page') {
+      const node = viewportRef.current;
+      pendingPage.current = node ? mostVisiblePage(node) : null;
+    }
+    setFit({ fit: mode });
+  }, []);
 
   useLayoutEffect(() => {
     const node = viewportRef.current;
@@ -177,6 +193,20 @@ export function ReportPaperView({
     node.scrollLeft = (node.scrollLeft + pending.px - PAGES_PAD) * pending.ratio + PAGES_PAD - pending.px;
     node.scrollTop = (node.scrollTop + pending.py - PAGES_PAD) * pending.ratio + PAGES_PAD - pending.py;
   }, [pageWidth]);
+
+  useLayoutEffect(() => {
+    const node = viewportRef.current;
+    const page = pendingPage.current;
+    pendingPage.current = null;
+    if (!node || page === null) return;
+    const wrap = node.querySelector<HTMLElement>(`[data-rs-page="${page}"]`);
+    if (!wrap) return;
+    const box = node.getBoundingClientRect();
+    const rect = wrap.getBoundingClientRect();
+    // Zoals blad 1 bij openen: de bladtitel net onder de bovenrand, het blad midden in beeld.
+    node.scrollTop = rect.top - box.top + node.scrollTop - PAGES_PAD_TOP;
+    node.scrollLeft = rect.left - box.left + node.scrollLeft - Math.max(0, (node.clientWidth - rect.width) / 2);
+  }, [pageWidth, fit]);
 
   // Ander papierformaat of andere stand: terug naar de bovenkant van blad 1. Anders sta je na een wissel
   // van A3 liggend naar A4 staand ergens midden in een ander blad.
@@ -349,6 +379,7 @@ export function ReportPaperView({
           <span className="rs-status-dot" aria-hidden="true" />
           {status}
         </div>
+        {notice}
         <div className="rs-zoom" role="group" aria-label={t('studio.zoom.label')}>
           <button type="button" className="rs-icon-btn" onClick={() => stepZoom(-1)} disabled={scale <= ZOOM_MIN + 0.001}
             title={t('studio.zoom.out')} aria-label={t('studio.zoom.out')} data-rs-zoom="out">
@@ -419,6 +450,22 @@ export function ReportPaperView({
       </div>
     </div>
   );
+}
+
+/** Het blad met het grootste stuk in beeld van het scrollvak, of `null` als er geen in beeld staat. */
+function mostVisiblePage(node: HTMLElement): number | null {
+  const box = node.getBoundingClientRect();
+  let best: number | null = null;
+  let bestArea = 0;
+  for (const wrap of node.querySelectorAll<HTMLElement>('[data-rs-page]')) {
+    const r = wrap.getBoundingClientRect();
+    if (r.bottom < box.top || r.top > box.bottom) continue;
+    const w = Math.min(r.right, box.right) - Math.max(r.left, box.left);
+    const h = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top);
+    const area = Math.max(0, w) * Math.max(0, h);
+    if (area > bestArea) { bestArea = area; best = Number(wrap.dataset.rsPage); }
+  }
+  return best;
 }
 
 const REGION_ORDER: readonly PaperRegionId[] = ['header', 'columns', 'chart', 'footer'];

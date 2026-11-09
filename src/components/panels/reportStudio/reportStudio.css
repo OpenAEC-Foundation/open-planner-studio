@@ -107,6 +107,17 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* Een open stap die scrolt, laat zien dat er meer is: een schaduw aan de kant waar nog inhoud staat. De
+   afdekkende verlopen scrollen mee (`local`) en verbergen de schaduw aan het begin en aan het eind. */
+.rs-step[data-open='true'] > .rs-step-body,
+.rs-pop-scroll {
+  background:
+    linear-gradient(var(--theme-surface) 40%, transparent) top / 100% 20px no-repeat local,
+    linear-gradient(transparent, var(--theme-surface) 60%) bottom / 100% 20px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--theme-text) 22%, transparent), transparent) top / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--theme-text) 22%, transparent), transparent) bottom / 100% 8px no-repeat scroll,
+    var(--theme-surface);
+}
 
 .rs-step-head {
   display: grid;
@@ -123,12 +134,24 @@
 .rs-step-text { display: block; min-width: 0; }
 .rs-step[data-open='false'] .rs-step-head { padding-block: 4px; }
 /* Laag venster (laptop, 720–768 px hoog): een dichte stap zet zijn samenvatting kleiner naast de titel,
-   op één regel. Zo houdt de open stap ruimte en blijft het overzicht staan. */
+   op hooguit twee regels. Zo houdt de open stap ruimte en blijft het overzicht staan. */
 @media (max-height: 800px) {
   .rs-step[data-open='false'] .rs-step-head { padding-block: 3px; }
   .rs-step[data-open='false'] .rs-step-text { display: flex; align-items: baseline; gap: 8px; }
   .rs-step[data-open='false'] .rs-step-title { flex: none; }
-  .rs-step[data-open='false'] .rs-step-summary { flex: 1; margin-top: 0; font-size: var(--text-caption); line-height: 12px; }
+  .rs-step[data-open='false'] .rs-step-summary {
+    flex: 1;
+    margin-top: 0;
+    font-size: var(--text-caption);
+    line-height: 12px;
+    /* Hooguit twee regels: zo past ook een lange samenvatting ("A3 liggend · 12 pagina's …") zonder dat
+       de stap hoger wordt dan twee regels. */
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
 }
 .rs-step-head:hover { background: var(--theme-hover); }
 .rs-step[data-open='true'] .rs-step-head:hover { background: transparent; }
@@ -906,24 +929,21 @@
   padding: 32px;
 }
 
+/* In de werkbalk boven het papier, tussen de stand en de zoomknoppen: zo dekt hij nooit een blad af. */
 .rs-undo {
-  position: absolute;
-  inset-inline-start: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  z-index: 20;
+  flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 10px 8px 14px;
+  gap: 10px;
+  padding: 4px 6px 4px 12px;
   border-radius: var(--radius-full);
   background: var(--theme-text);
   color: var(--theme-bg);
   font-size: var(--text-body);
   line-height: 16px;
-  box-shadow: var(--shadow-pop);
+  white-space: nowrap;
+  animation: rs-pop-in 120ms var(--rs-ease);
 }
-[dir='rtl'] .rs-undo { transform: translateX(50%); }
 .rs-undo button {
   color: inherit;
   font-weight: 600;

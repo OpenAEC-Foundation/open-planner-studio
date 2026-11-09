@@ -2268,6 +2268,17 @@ en noem het in je rapport of PR-tekst.
      dus niet met het papier, tot je de schuif aanraakt. Afgeleid uit de code. Voorstel: de schuif van het oude
      tabblad ook onder 1 laten gaan, of het oude tabblad laten vervallen als de flag standaard aan gaat. — B
 
+947. **VERVOLG: een groot zwevend venster ligt over de zwevende exportknop.** Ingeklapt, op 1280×720 of 1366×768,
+     groeit het venster van Kolommen (kiezer open) of Pagina (twee meldingen) tot 12 px boven de onderrand
+     (`StepPopover` in `src/components/panels/reportStudio/studioChrome.tsx`). De knop *PDF exporteren* linksonder
+     ligt er dan onder. Na sluiten is hij weer bereikbaar. Gezien in de schermafbeeldingen van de fixronde na
+     council ronde 3 van #817. Voorstel: het venster boven de strook van de knop laten eindigen. — B
+
+948. **VERVOLG: de melding "Ongedaan maken" in de werkbalk verbergt de stand op een smal papiervlak.** Met de
+     zijbalk open op 1280×720 toont de werkbalk 8 s lang alleen "2 pagina's"; papier, kolommen en rijen vallen weg
+     achter de melding (`notice` in `ReportPaperView.tsx`). Gezien in de schermafbeeldingen van de fixronde na council
+     ronde 3 van #817. Voorstel: de melding bij weinig ruimte onder de werkbalk laten zakken. — B
+
 965. **VERVOLG: de instellingen van het nieuwe Rapport-tabblad staan per apparaat, niet in het projectbestand.**
      Kolommen, papier, stand, lettertype en de open stap staan in `ops-reportSettings` (`src/utils/reportSettings.ts`).
      Een collega of een tweede apparaat ziet dus andere instellingen, en een rapport hoort niet bij een project.

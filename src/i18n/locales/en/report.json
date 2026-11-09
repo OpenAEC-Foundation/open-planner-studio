@@ -563,6 +563,17 @@
       "more": "More pages",
       "dayWidth": "Width per day",
       "perDay": "{{value}} per day",
+      "perWeek": "{{value}} per week",
+      "perMonth": "{{value}} per month",
+      "perYear": "{{value}} per year",
+      "spanDays_one": "≈ {{count}} day per page",
+      "spanDays_other": "≈ {{count}} days per page",
+      "spanWeeks_one": "≈ {{count}} week per page",
+      "spanWeeks_other": "≈ {{count}} weeks per page",
+      "spanMonths_one": "≈ {{count}} month per page",
+      "spanMonths_other": "≈ {{count}} months per page",
+      "spanYears_one": "≈ {{count}} year per page",
+      "spanYears_other": "≈ {{count}} years per page",
       "font": "Font",
       "fontScale": "Font size",
       "manyPages_one": "This report becomes {{count}} page. Choose larger paper or fewer pages across.",
@@ -574,8 +585,8 @@
       "manyPagesScaleMin_one": "This report will be {{count}} page. The width per day is already at its smallest. Choose larger paper or Fit to width.",
       "manyPagesScaleMin_other": "This report will be {{count}} pages. The width per day is already at its smallest. Choose larger paper or Fit to width.",
       "toColumns": "Adjust columns",
-      "gridPages_one": "{{count}} page ({{rows}} × {{cols}})",
-      "gridPages_other": "{{count}} pages ({{rows}} × {{cols}})"
+      "gridPages_one": "{{count}} page: {{cols}} across, {{rows}} down",
+      "gridPages_other": "{{count}} pages: {{cols}} across, {{rows}} down"
     },
     "headerFooter": {
       "company": "Company name in the header",

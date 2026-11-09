@@ -31,6 +31,7 @@ import {
   TIME_NOTATIONS,
   DURATION_DISPLAYS,
   BAR_SPLIT_MODES,
+  REPORT_PREVIEW_QUALITIES,
   UI_FONT_FAMILIES,
   UI_FONT_SCALES,
 } from '@/state/slices/types';
@@ -208,6 +209,9 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'allowMixedDayHour', field: 'allowMixedDayHour', parse: parseBoolean }),
   setting({ key: 'durationDisplay', field: 'durationDisplay', parse: parseEnum(DURATION_DISPLAYS) }),
   setting({ key: 'barSplitMode', field: 'barSplitMode', parse: parseEnum(BAR_SPLIT_MODES) }),
+
+  // Previewkwaliteit van de rasterrapporten (nieuwe Rapport-tabblad, issue #817).
+  setting({ key: 'reportPreviewQuality', field: 'reportPreviewQuality', parse: parseEnum(REPORT_PREVIEW_QUALITIES) }),
 
   // «alleen werkbare dagen tonen» — globale weergavevoorkeur, exact
   // het barSplitMode-patroon (1 sleutel → 1 UIState-veld).

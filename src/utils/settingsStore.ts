@@ -10,6 +10,7 @@ import type {
   TimeNotation,
   DurationDisplay,
   BarSplitMode,
+  ReportPreviewQualitySetting,
   FilterNode,
   SavedFilter,
   UIFontFamily,
@@ -645,6 +646,10 @@ export async function saveDurationDisplay(value: DurationDisplay): Promise<void>
 
 export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
   await setSetting('barSplitMode', value);
+}
+
+export async function saveReportPreviewQuality(value: ReportPreviewQualitySetting): Promise<void> {
+  await setSetting('reportPreviewQuality', value);
 }
 
 // «alleen werkbare dagen tonen» — globale weergavevoorkeur, zelfde

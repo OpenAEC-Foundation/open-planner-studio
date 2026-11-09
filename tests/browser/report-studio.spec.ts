@@ -58,6 +58,14 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-notice="no-status-date"]')).toBeInViewport({ ratio: 1 });
   await expect(page.locator('[data-rs-status-today]')).toBeInViewport({ ratio: 1 });
   await expect(page.locator('[data-rs-step-foot="bars"]')).toBeInViewport({ ratio: 1 });
+  // "Op vandaag zetten" rekent meteen door, zoals "Nu doorrekenen": er komt geen balk "niet doorgerekend".
+  await page.locator('[data-rs-status-today]').click();
+  await expect(page.locator('[data-rs-notice="no-status-date"]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return !!s.project.statusDate && !s.scheduleStale;
+  })).toBe(true);
+  await expect(page.locator('[data-rs-banner="stale"]')).toHaveCount(0);
   await page.locator('[data-rs-segmented="statusLine"] [data-rs-value="none"]').click();
   await expect(page.locator('[data-rs-notice="no-status-date"]')).toHaveCount(0);
 
@@ -142,7 +150,28 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   // Via de stapknop: de focus staat op het eerste bedienelement van de stap, niet op "In de zijbalk".
   await page.locator('[data-rs-rail-step="columns"]').click();
   await expect(page.locator('[data-rs-popover="columns"] [data-rs-add-column]')).toBeFocused();
+  // Standaard in het zwevende venster, dan Ongedaan maken in de werkbalk: het venster blijft open en de
+  // kolommen komen terug. De melding staat in de werkbalk, niet over een blad.
+  await page.locator('[data-rs-popover="columns"] [data-rs-reset="columns"]').click();
+  await expect(page.locator('[data-rs-popover="columns"] [data-rs-column]')).toHaveCount(6);
+  await expect(page.locator('[data-rs-toolbar] [data-rs-undo]')).toBeVisible();
+  await page.locator('[data-rs-undo-button]').click();
+  await expect(page.locator('[data-rs-popover="columns"]')).toBeVisible();
+  await expect(page.locator('[data-rs-popover="columns"] [data-rs-column]')).toHaveCount(7);
+  // Het venster groeit (kiezer open) en blijft binnen het scherm; de stapinhoud scrolt erin en de stapvoet
+  // blijft in beeld.
+  await page.locator('[data-rs-popover="columns"] [data-rs-add-column]').click();
+  await expect(page.locator('[data-rs-picker-search]')).toBeVisible();
+  await expect.poll(() => page.locator('[data-rs-popover="columns"]').evaluate(el => {
+    const r = el.getBoundingClientRect();
+    return r.top >= 0 && r.bottom <= window.innerHeight;
+  })).toBe(true);
+  await expect(page.locator('[data-rs-step-foot="columns"]')).toBeInViewport({ ratio: 1 });
+  // Escape sluit eerst de kiezer, dan het venster.
   await page.keyboard.press('Escape');
+  await expect(page.locator('[data-rs-picker-search]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-rs-popover]')).toHaveCount(0);
 
   // Typen in een zwevend venster: elke toets blijft in het veld (de focus sprong eerder na één letter weg).
   await page.locator('[data-rs-rail-step="headerFooter"]').click();

@@ -37,6 +37,8 @@ interface StudioPaperProps {
   hint: { text: string; closeLabel: string; onClose: () => void } | null;
   /** Balk boven het papier (verouderde planning, fout in de planning), of `null`. */
   banner: ReactNode;
+  /** Korte melding in de werkbalk ("Ongedaan maken" na Standaard), of `null`. */
+  notice?: ReactNode;
 }
 
 /**
@@ -45,7 +47,7 @@ interface StudioPaperProps {
  * tabelbreedte verandert (`onInfo`).
  */
 export const StudioPaper = memo(function StudioPaper({
-  input, loading, selected, onPick, regionLabel, columnLabel, statusItems, actions, onInfo, fabZone, hint, banner,
+  input, loading, selected, onPick, regionLabel, columnLabel, statusItems, actions, onInfo, fabZone, hint, banner, notice,
 }: StudioPaperProps) {
   const { t } = useTranslation('report');
   // De bladen in beeld: de volgende opname tekent meteen hun rijen (en de rest pas bij scrollen).
@@ -95,6 +97,7 @@ export const StudioPaper = memo(function StudioPaper({
       fabZone={fabZone}
       hint={hint}
       banner={banner}
+      notice={notice}
     />
   );
 });

@@ -54,6 +54,15 @@ const FAB_GAP = 12;
 const FAB_RESERVE = 64;
 /** Logische px naar millimeter op papier (96 px per inch, 25,4 mm per inch). */
 const MM_PER_PX = 25.4 / 96;
+const DAYS_PER_MONTH = 365.25 / 12;
+const DAYS_PER_YEAR = 365.25;
+/** De eenheden voor "Breedte per dag": de eerste waarin één eenheid minstens 1 mm breed is. */
+const DAY_UNITS = [
+  { key: 'perDay', days: 1 },
+  { key: 'perWeek', days: 7 },
+  { key: 'perMonth', days: DAYS_PER_MONTH },
+  { key: 'perYear', days: DAYS_PER_YEAR },
+] as const;
 /** De schuif voor de breedte per dag loopt logaritmisch: elke stap is hetzelfde deel breder. */
 const DAY_SLIDER_STEPS = 200;
 const daySliderPos = (px: number) => Math.round(
@@ -354,6 +363,18 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     recalculateReport('statusDate');
   }, [setStatusDate, recalculateReport]);
 
+  // Na "Standaard": de melding met "Ongedaan maken" in de werkbalk boven het papier (`ReportPaperView`).
+  const lastReset = api.lastReset;
+  const { undoReset, dismissReset } = api;
+  const undoNotice = useMemo(() => (lastReset ? (
+    <UndoToast
+      text={t('studio.resetDone', { step: lastReset.label })}
+      undoLabel={t('studio.undo')}
+      onUndo={undoReset}
+      onDismiss={dismissReset}
+    />
+  ) : null), [lastReset, t, undoReset, dismissReset]);
+
   // Boven het papier: de planning is niet doorgerekend (dan wijkt het papier af van de PDF, die eerst
   // doorrekent), of heeft een fout (dan lukt exporteren niet).
   const banner = scheduleStale ? (
@@ -434,7 +455,19 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   // Breedtes in millimeter op papier: de tabel staat op 0,75 pt per logische px, maal de lettergrootte.
   const mm = (px: number, fmt: Intl.NumberFormatOptions) => t('studio.mm', { value: (px * MM_PER_PX).toLocaleString(i18n.language, fmt) });
   const nameWidthText = mm(settings.taskNameColumnWidth * settings.reportFontScale / 100, { maximumFractionDigits: 0 });
-  const dayWidthText = t('studio.page.perDay', { value: mm(settings.customZoom, { maximumSignificantDigits: 2 }) });
+  // Breedte per dag in een leesbare eenheid: onder 1 mm per dag per week, maand of jaar (geen "0,0026 mm
+  // per dag"). Daarnaast hoeveel tijd er op één pagina past, op de breedte naast de tabel.
+  const dayUnit = DAY_UNITS.find(u => settings.customZoom * u.days * MM_PER_PX >= 1) ?? DAY_UNITS[DAY_UNITS.length - 1];
+  const dayWidthValue = t(`studio.page.${dayUnit.key}`, { value: mm(settings.customZoom * dayUnit.days, { maximumSignificantDigits: 2 }) });
+  const daysPerPage = settings.customZoom > 0 ? (printable - (paperInfo?.tableWidth ?? 0)) / settings.customZoom : 0;
+  const pageSpanText = daysPerPage >= 0.5 ? spanText(daysPerPage) : '';
+  const dayWidthText = pageSpanText ? `${dayWidthValue} · ${pageSpanText}` : dayWidthValue;
+  function spanText(days: number): string {
+    if (days < 14) return t('studio.page.spanDays', { count: Math.max(1, Math.round(days)) });
+    if (days < 63) return t('studio.page.spanWeeks', { count: Math.round(days / 7) });
+    if (days < 730) return t('studio.page.spanMonths', { count: Math.round(days / DAYS_PER_MONTH) });
+    return t('studio.page.spanYears', { count: Math.round(days / DAYS_PER_YEAR) });
+  }
 
   // Veel pagina's: het advies hangt af van waar de bladen vandaan komen. Eén blad breed ⇒ de rijen.
   const manyPages = totalPages >= MANY_PAGES && paperInfo !== null;
@@ -703,8 +736,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                     <input type="range" min={0} max={DAY_SLIDER_STEPS} value={daySliderPos(settings.customZoom)}
                       onChange={e => patch({ customZoom: daySliderValue(Number(e.target.value)) }, 'customZoom')}
                       aria-label={t('studio.page.dayWidth')} aria-valuetext={dayWidthText} data-rs-option="customZoom" />
-                    <output data-rs-value="customZoom">{dayWidthText}</output>
+                    <output data-rs-value="customZoom">{dayWidthValue}</output>
                   </div>
+                  {pageSpanText && <span className="rs-hint" data-rs-day-span>{pageSpanText}</span>}
                 </div>
               )}
               {manyPages && (
@@ -933,23 +967,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         )}
       </aside>
 
-      <StudioPaper
-        input={paperInput}
-        loading={!hydrated || !fontReady || !options}
-        selected={selected}
-        onPick={openStepFromPaper}
-        regionLabel={regionLabel}
-        columnLabel={columnLabelForPaper}
-        statusItems={statusItems}
-        actions={paperActions}
-        onInfo={onPaperInfo}
-        fabZone={fabZone}
-        hint={paperHint}
-        banner={banner}
-      />
-
       {/* Zijbalk ingeklapt: exporteren via de zwevende knop linksonder (besluit eigenaar 7-11-2026). Dezelfde
-          actie als de knop onderaan de open zijbalk. */}
+          actie als de knop onderaan de open zijbalk. In de DOM direct na de rand: zo komt hij in de tabvolgorde
+          meteen na de stapknoppen, vóór het papier. */}
       {rail && (
         <button
           ref={fabRef}
@@ -964,6 +984,23 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           <span>{exportLabel}</span>
         </button>
       )}
+
+      <StudioPaper
+        input={paperInput}
+        loading={!hydrated || !fontReady || !options}
+        selected={selected}
+        onPick={openStepFromPaper}
+        regionLabel={regionLabel}
+        columnLabel={columnLabelForPaper}
+        statusItems={statusItems}
+        actions={paperActions}
+        onInfo={onPaperInfo}
+        fabZone={fabZone}
+        hint={paperHint}
+        banner={banner}
+        notice={undoNotice}
+      />
+
 
       {popover && (
         <StepPopover
@@ -982,14 +1019,6 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         </StepPopover>
       )}
 
-      {api.lastReset && (
-        <UndoToast
-          text={t('studio.resetDone', { step: api.lastReset.label })}
-          undoLabel={t('studio.undo')}
-          onUndo={api.undoReset}
-          onDismiss={api.dismissReset}
-        />
-      )}
     </div>
   );
 

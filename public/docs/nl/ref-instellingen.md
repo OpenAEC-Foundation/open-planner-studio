@@ -48,6 +48,8 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Scrollen & zoomen › Verticaal, Horizontaal, Zoomen** — welke toets bij welke wielfunctie hoort. Alleen zichtbaar bij de modus *Toetsen*. Per functie kies je uit *Scrollen*, *Ctrl + scrollen* of *Shift + scrollen*. Standaard: *Verticaal* is *Scrollen*, *Zoomen* is *Ctrl + scrollen* en *Horizontaal* is *Shift + scrollen*. Effect: kies je een toets die al in gebruik is, dan wisselt hij met de functie die hem had. Waar: *Weergave*, onder *Gantt › Scrollen & zoomen*.
 
+**Rapporten › Previewkwaliteit** — alleen met *Nieuw tabblad Rapport* (*Geavanceerd › Experimenteel*). Hoe scherp de voorbeelden van het Resourcediagram op het scherm staan. Keuze uit *Standaard*, *Hoog* en *Maximaal*. Standaard: *Hoog*. Effect: hoger is scherper maar trager; de PDF verandert niet. Het papier van de Gantt-afdruk is vector en altijd scherp, dus daar geldt de keuze niet. Zonder het nieuwe tabblad kies je de kwaliteit in het rapport zelf. Waar: *Weergave*, onder *Rapporten*.
+
 ## Tabblad Planning
 
 **Bouwmodus inschakelen** — bouwgerichte beginwaarden voor nieuwe projecten. Standaard: aan. Effect: aan geeft een nieuw project de kalender *Bouwkalender NL* met de Nederlandse feestdagen, laat je bij het genereren van feestdagen een bouwvak kiezen, biedt de fasesjablonen *Woningbouw* en *Utiliteitsbouw / renovatie* aan en geeft nieuwe taken de werksoort *Bouw*. Uit geeft de kalender *Standaardkalender* zonder feestdagen, alleen het sjabloon *Leeg* en de werksoort *Overig*. Een nieuwe taak onder een bovenliggende taak met een werksoort neemt eerst die werksoort over; *Bouw* of *Overig* geldt daarna. Bestaande taken en kalenders veranderen niet. Waar: *Planning*.

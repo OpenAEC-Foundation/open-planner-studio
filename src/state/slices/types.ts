@@ -83,6 +83,10 @@ export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
 
+/** Previewkwaliteit van de rasterrapporten (resolutie: 100, 200 of 300 %). */
+export type ReportPreviewQualitySetting = '100' | '200' | '300';
+export const REPORT_PREVIEW_QUALITIES: ReportPreviewQualitySetting[] = ['100', '200', '300'];
+
 // 'system' is een VOORKEUR, geen tekenbaar thema: hij lost via `resolveUITheme`
 // (`@/utils/theme`) op naar 'dark' of 'light' op basis van `prefers-color-scheme`. Er is dus geen
 // `[data-theme="system"]`-blok in globals.css, en alles wat een thema toepast werkt met
@@ -764,6 +768,9 @@ export interface UIState {
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
+  // Previewkwaliteit van de rapporten met een rasterpreview (resourcediagram), alleen met de feature flag
+  // `reportRedesign`; zonder flag houdt het oude paneel zijn eigen keuze (besluit eigenaar 7-11-2026).
+  reportPreviewQuality: ReportPreviewQualitySetting; // persisted (default '200')
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT

@@ -563,6 +563,17 @@
       "more": "Meer pagina's",
       "dayWidth": "Breedte per dag",
       "perDay": "{{value}} per dag",
+      "perWeek": "{{value}} per week",
+      "perMonth": "{{value}} per maand",
+      "perYear": "{{value}} per jaar",
+      "spanDays_one": "≈ {{count}} dag per pagina",
+      "spanDays_other": "≈ {{count}} dagen per pagina",
+      "spanWeeks_one": "≈ {{count}} week per pagina",
+      "spanWeeks_other": "≈ {{count}} weken per pagina",
+      "spanMonths_one": "≈ {{count}} maand per pagina",
+      "spanMonths_other": "≈ {{count}} maanden per pagina",
+      "spanYears_one": "≈ {{count}} jaar per pagina",
+      "spanYears_other": "≈ {{count}} jaar per pagina",
       "font": "Lettertype",
       "fontScale": "Lettergrootte",
       "manyPages_one": "Dit rapport wordt {{count}} pagina. Kies groter papier of minder pagina's naast elkaar.",
@@ -574,8 +585,8 @@
       "manyPagesScaleMin_one": "Dit rapport wordt {{count}} pagina. De breedte per dag staat al op het kleinst. Kies groter papier of Op de breedte.",
       "manyPagesScaleMin_other": "Dit rapport wordt {{count}} pagina's. De breedte per dag staat al op het kleinst. Kies groter papier of Op de breedte.",
       "toColumns": "Kolommen aanpassen",
-      "gridPages_one": "{{count}} pagina ({{rows}} × {{cols}})",
-      "gridPages_other": "{{count}} pagina's ({{rows}} × {{cols}})"
+      "gridPages_one": "{{count}} pagina: {{cols}} naast elkaar, {{rows}} onder elkaar",
+      "gridPages_other": "{{count}} pagina's: {{cols}} naast elkaar, {{rows}} onder elkaar"
     },
     "headerFooter": {
       "company": "Bedrijfsnaam in de kop",

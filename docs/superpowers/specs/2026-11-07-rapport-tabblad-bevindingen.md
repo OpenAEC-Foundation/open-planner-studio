@@ -288,3 +288,105 @@ De council mat in ronde 2 hogere tijden (sprong 0,3–0,9 s, kolom toevoegen 317
 op de machine; de verhouding voor/na hierboven is op dezelfde machine en dezelfde last gemeten.
 
 Nieuwe VERVOLG-punten: `knownbugs.md` 945 en 946.
+
+## Fixronde na council ronde 3 (9 november 2026)
+
+Cijfers ronde 3: 8,7 / 8,4 / 8,3; doel 8,5 per lid. Per punt wat er veranderde.
+
+1. **CI.** `check-minute-model-routes.ts` telt nu twee keer `bereken` in `GanttReportStudio.tsx`: PDF exporteren
+   rekent een verouderde planning eerst door (`runCPM`), en "Nu doorrekenen" en een gekozen statusdatum gaan via
+   één callback `recalculateReport` naar `recalculate` (F5).
+2. **Zwevend venster binnen het scherm.** `StepPopover` (`studioChrome.tsx`) rekent zijn plek opnieuw uit bij elke
+   maatwijziging (`ResizeObserver`) en bij een kleiner venster. Groeit de inhoud (melding, kolomkiezer), dan schuift
+   het venster omhoog; is het hoger dan het scherm, dan scrolt de stapinhoud erin en blijft de stapvoet in beeld.
+   Gemeten ingeklapt op 1366×768 en 1280×720: Balken + Statusdatumlijn (melding), Kolommen met de kiezer open, en
+   Pagina met twee meldingen (groot plan, A4, kleinste dagbreedte). Overal valt het venster binnen het scherm
+   (onderrand 756/768 en 708/720).
+3. **Statusdatum rekent door.** "Op vandaag zetten" en een gekozen datum zetten de statusdatum en rekenen door via
+   `recalculateReport` (gelijk aan "Nu doorrekenen"). De balk "niet doorgerekend" komt dan niet.
+4. **Snelheid.** Zie "Snelheid na council ronde 3" hieronder.
+5. **Hele rij bij 8 bladen.** Kleinste bladbreedte bij "Hele rij" is 60 px (was 160); de kleinste zoom is 5 %
+   (was 10 %), met stappen 5 en 7,5 %. Gemeten: 8 bladen naast elkaar passen op 1366×768 met de zijbalk open
+   (103 px per blad) en op 1280×720 ingeklapt (125 px), zonder horizontaal scrollen.
+6. **Hele blad na scrollen.** "Hele blad" (knop of toets 0) gaat naar de bovenkant van het blad dat het meest in
+   beeld stond (`mostVisiblePage` in `ReportPaperView.tsx`), met de bladtitel net onder de bovenrand, zoals blad 1.
+7. **Aantal pagina's.** "12 pagina's: 6 naast elkaar, 2 onder elkaar" in plaats van "12 pagina's (2 × 6)".
+8. **Ongedaan maken sluit het zwevende venster niet** meer: een klik op de melding telt niet als klik buiten het
+   venster.
+9. **Breedte per dag leesbaar.** De eenheid is de eerste van dag, week, maand en jaar waarin één eenheid minstens
+   1 mm breed is ("4,2 mm per dag", "12 mm per jaar"; bij de kleinste breedte "0,97 mm per jaar"). Onder de schuif
+   staat hoeveel tijd er op één pagina past ("≈ 3 maanden per pagina"), op de bladbreedte naast de tabel.
+10. **Previewkwaliteit als app-instelling** (besluit Ethan, 7 november 2026). Inventaris: een rasterpreview hebben
+    alleen de Gantt-afdruk en het Resourcediagram in het oude paneel (`isGanttReportType` in
+    `src/utils/reportSettings.ts`); de tabelrapporten, mijlpalen en afwijkingen zijn DOM. Met het nieuwe tabblad is
+    de Gantt-afdruk vectorpapier: SVG schaalt zonder verlies, dus daar is geen kwaliteitskeuze nodig. Het
+    Resourcediagram opent ook met de flag in het oude paneel en houdt dus een rasterpreview. Daarom: een instelling
+    `reportPreviewQuality` (`settingsRegistry.ts`, `ops-reportPreviewQuality`, ook in `HOST_PERSISTED_KEYS`), in het
+    instellingenpaneel onder Weergave › Rapporten, alleen zichtbaar met de flag. Met de flag gebruikt het oude
+    paneel die instelling en toont het geen eigen keuze; zonder flag houdt het zijn eigen keuze, en die blijft ook
+    met de flag ongewijzigd bewaard. Help (nl/en) bijgewerkt in `howto-rapport-maken-en-afdrukken` en
+    `ref-instellingen`.
+11. **Kleine dingen.**
+    a. Op een laag venster (laptop) staan de samenvattingen van dichte stappen in `text-caption`, op hooguit twee
+       regels (line-clamp) in plaats van afgekapt op één regel.
+    b. De zwevende exportknop staat in de DOM direct na de rand: in de tabvolgorde komt hij meteen na de
+       stapknoppen, vóór de zoomknoppen en het papier.
+    c. Een open stap of zwevend venster dat scrolt, toont boven of onder een schaduw zolang er meer inhoud is
+       (CSS-achtergrond met `local` en `scroll`, licht en donker).
+    d. De melding "… staat weer op de standaard. Ongedaan maken" staat nu in de werkbalk boven het papier, tussen de
+       stand en de zoomknoppen. Onderaan lag hij over het paginanummer van blad 1. Hij blijft 8 s staan, ook als je
+       een andere stap opent (zo verwacht de bestaande browsertest het).
+
+### Snelheid na council ronde 3 (gemeten 9 november 2026, dev-server)
+
+**Meetmethode** (`scripts/measure-report-paper.mjs`, herhaalbaar: `node scripts/measure-report-paper.mjs --url
+<dev-server>`; het plan maakt het script zelf met `measure-large-plans-data.ts`, seed 0x5eed, 5000 taken, 139
+bladen A3). Eén keer laden op 1600×900, licht, nl, daarna één vaste route: sprongen naar 70, 30, 90, 50, 10 en 70 %
+van het document; op ±70 % de zoomstappen +, −, −, + en "Hele blad"; drie keer Kalenderdagen erbij (Enter in de
+kiezer) en weer weg; twee keer A2 ↔ A3; terug naar 70 % en vier keer de schakelaar Speling. Alles wordt in de
+browser gemeten: start is `event.timeStamp` van de klik of toets (bij een sprong `performance.now()` vlak voor
+`scrollTop`), eind is het tweede `requestAnimationFrame` nadat het nieuwe papier in de DOM staat (een nieuwe
+`data-rs-paper` en alle bladen in beeld met hun SVG; bij zoom en sprong alleen het laatste). Per handeling telt het
+script ook de frames waarin het blad in het midden van het beeld nog een skelet is. Headless Chromium (software-
+rasteren), dev-build met StrictMode, aia09-mp50.
+
+| handeling | voor (bf9610e6b, load 0,3–1,3) | na (load 0,8–1,1) |
+|---|---|---|
+| sprong (6×), skeletframes midden | 192, 548, 540, 138, 324, 300 ms; 1,1,1,1,1,2 | 170, 168, 141, 123, 134, 101 ms; 1,1,1,1,2,1 |
+| zoom + (2×) | 79, 288 ms | 71, 196 ms |
+| zoom − (2×) | 528, 265 ms | 169, 237 ms |
+| kolom erbij (3×) | 316, 242, 243 ms | 231, 144, 129 ms |
+| kolom weg (3×) | 254, 233, 218 ms | 146, 133, 128 ms |
+| A2 ↔ A3 (4×) | 296, 177, 178, 191 ms | 186, 160, 134, 148 ms |
+| Speling (4×) | 171, 120, 111, 184 ms | 152, 152, 148, 150 ms |
+
+**Oorzaak van de uitschieters.** De zoomuitschieters uit de council (1,3–1,9 s) en de trage sprongen waren echt.
+Een trace liet zien dat Chromium elk SVG-element over zijn hele omhullende rastert: een gestreepte relatielijn of
+een rasterlijn over de hele hoogte van het rapport (bij 5000 taken 100.000+ px) kostte per schermtegel tot 0,6 s,
+en blokkeerde ook de hoofdthread (`WaitForCommitCompletion`). Drie sprongen kostten zo ±12 s rasterwerk; na deze
+ronde ±0,45 s.
+
+**Wat er veranderde.**
+- Elke lijn en rechthoek wordt op het venster van het blad afgeknipt (`clipOpToWindow` in `svgDraw2d.ts`, plus
+  4 px marge). Van een veelpuntslijn vallen alleen begin en eind weg; een gestreepte lijn begint op een hele periode
+  van het oude begin, zodat de strepen op dezelfde plek blijven. Gevulde paden en gestreepte randen blijven heel.
+- Eén gedeelde stylesheet voor de letterregels (`paperFontRules.ts`, klasse uit de letter zelf:
+  `reportFontClass`) in plaats van een `<style>` per blad: elke nieuwe `<style>` liet de browser het hele document
+  opnieuw opmaken.
+- Kop en voet worden per opname één keer afgeknipt (`windowCache` in `reportPageSvg`).
+- Lijnen in één dekkende kleur worden per kleurreeks samengevoegd tot één pad per dikte.
+- De bladindeling zoekt de breekpunten met twee wijzers in plaats van per blad vanaf het begin (`tileLayout.ts`;
+  bij 5000 rijen en 100 bladen een half miljoen stappen minder).
+- Minder opzoekwerk bij het tekenen van relaties (`drawDependencies`) en een cache van de geparste balktijden per
+  taak (`barSpan.ts`).
+- De bladen in beeld renderen synchroon in de `IntersectionObserver` (`flushSync`): een sprong toont het blad in het
+  midden nu op één frame na direct (was soms twee).
+
+**Oordeel.** Doel was elke handeling onder 150 ms. Gehaald: sprong (mediaan 138 ms; 2 van 6 boven 150), kolom weg,
+Speling rond 150 ms. Niet gehaald: zoom (+ 196 ms, − 237 ms), de eerste kolom erbij (231 ms) en de eerste wissel
+A2 ↔ A3 (186 ms). De resterende tijd per klik in de dev-build: de React-render van de zijbalk 30–50 ms, de opname
+15–30 ms, de SVG 10–30 ms, inlezen en opmaken in de browser 20–30 ms. Een zoomstap rastert de bladen in beeld
+opnieuw (software-rasteren in headless Chromium). Een sprong toont het blad in het midden één frame als skelet, één
+keer twee. Niet gemeten: een productiebuild (zwaar op aia09-mp50, eerst toestemming nodig) en een echte GPU.
+
+Nieuwe VERVOLG-punten: `knownbugs.md` 947 en 948.

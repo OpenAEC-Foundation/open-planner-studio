@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
+import { isFeatureEnabled, REPORT_REDESIGN_FLAG } from '@/utils/featureFlags';
 import { useTranslation } from 'react-i18next';
 import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintPreviewPage, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
@@ -371,7 +372,13 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   const [followView, setFollowView] = useState(DEFAULT_REPORT_SETTINGS.followView);
   // Alleen de rasterkwaliteit. Deze waarde gaat bewust NIET in PrintOptions: PDF en paginering
   // mogen nooit veranderen door hoe scherp iemand de preview op zijn scherm leest.
-  const [previewQuality, setPreviewQuality] = useState(DEFAULT_REPORT_SETTINGS.previewQuality);
+  const [ownPreviewQuality, setPreviewQuality] = useState(DEFAULT_REPORT_SETTINGS.previewQuality);
+  // Met het nieuwe Rapport-tabblad (feature flag `reportRedesign`) is de kwaliteit een app-instelling
+  // (Instellingen → Weergave → Rapporten, besluit eigenaar 7-11-2026); dit paneel toont dan geen eigen keuze
+  // en bewaart zijn eigen waarde ongewijzigd voor het oude tabblad.
+  const redesign = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, REPORT_REDESIGN_FLAG));
+  const appPreviewQuality = useAppStore(s => s.ui.reportPreviewQuality);
+  const previewQuality = redesign ? appPreviewQuality : ownPreviewQuality;
 
   // Instellingenkolom horizontaal sleepbaar. Zelfde generieke
   // sleeppatroon als de rechterpaneel-splitter in App.tsx en de tabel/chart-splitter in
@@ -499,14 +506,14 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
-      paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
+      paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality: ownPreviewQuality,
       tableReports: tableOptions,
       resourceGantt: resourceGanttOptions,
       ...studioFieldsRef.current,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
-      orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
+      orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, ownPreviewQuality,
       tableOptions, resourceGanttOptions]);
 
   // Ná het opslaan-effect hierboven (zelfde commit, effecten lopen in volgorde): de keuze staat al in
@@ -1735,25 +1742,27 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
         {isGanttLike ? (
           <div className="flex h-full min-h-0 flex-col">
             {recordedDatesNote}
-            <div
-              className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-small leading-4"
-              style={{ background: 'var(--theme-bg)' }}
-              data-preview-zoom-control
-            >
-              <label htmlFor="report-preview-quality" className="text-text-secondary">{t('previewQuality.label')}</label>
-              <Select
-                id="report-preview-quality"
-                className="min-w-40"
-                aria-label={t('previewQuality.label')}
-                value={previewQuality}
-                onChange={value => setPreviewQuality(value as '100' | '200' | '300')}
-                options={[
-                  { value: '100', label: t('previewQuality.standard') },
-                  { value: '200', label: t('previewQuality.high') },
-                  { value: '300', label: t('previewQuality.maximum') },
-                ]}
-              />
-            </div>
+            {!redesign && (
+              <div
+                className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-small leading-4"
+                style={{ background: 'var(--theme-bg)' }}
+                data-preview-zoom-control
+              >
+                <label htmlFor="report-preview-quality" className="text-text-secondary">{t('previewQuality.label')}</label>
+                <Select
+                  id="report-preview-quality"
+                  className="min-w-40"
+                  aria-label={t('previewQuality.label')}
+                  value={previewQuality}
+                  onChange={value => setPreviewQuality(value as '100' | '200' | '300')}
+                  options={[
+                    { value: '100', label: t('previewQuality.standard') },
+                    { value: '200', label: t('previewQuality.high') },
+                    { value: '300', label: t('previewQuality.maximum') },
+                  ]}
+                />
+              </div>
+            )}
             <div ref={previewViewportRef} data-report-preview-viewport className="flex-1 min-h-0 overflow-auto p-4">
               <div className="flex flex-col items-center gap-4">
                 {Array.from({ length: previewLayout.totalPages }, (_, i) => {

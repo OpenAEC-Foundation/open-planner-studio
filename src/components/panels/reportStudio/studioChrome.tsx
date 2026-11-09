@@ -77,17 +77,30 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  // De plek volgt ook de maat van het venster: groeit de inhoud (een melding erbij, de kolomkiezer open)
+  // of wordt het scherm kleiner, dan schuift het venster omhoog tot het past. Is het hoger dan het scherm,
+  // dan houdt de CSS het op schermhoogte en scrolt de stapinhoud binnen het venster (`.rs-pop-scroll`).
   useLayoutEffect(() => {
     const node = ref.current;
     if (!node) return;
-    const w = node.offsetWidth;
-    const h = node.offsetHeight;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let left = anchor.x + 12;
-    if (left + w > vw - 12) left = Math.max(12, anchor.x - w - 12);
-    const top = Math.min(Math.max(12, anchor.y - 24), Math.max(12, vh - h - 12));
-    setPos({ left, top });
+    const place = () => {
+      const w = node.offsetWidth;
+      const h = node.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let left = anchor.x + 12;
+      if (left + w > vw - 12) left = Math.max(12, anchor.x - w - 12);
+      const top = Math.min(Math.max(12, anchor.y - 24), Math.max(12, vh - h - 12));
+      setPos(prev => (prev.left === left && prev.top === top ? prev : { left, top }));
+    };
+    place();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    observer?.observe(node);
+    window.addEventListener('resize', place);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', place);
+    };
   }, [anchor.x, anchor.y, dataKey]);
 
   // Eén keer per geopende stap: de focus op het eerste bedienelement van de stap (niet op "In de zijbalk"),
@@ -103,7 +116,7 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
     const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); } };
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (node && !node.contains(target) && !(target as HTMLElement).closest?.('[data-rs-rail-step], [data-rs-fab-export], .rs-page, .ui-select-menu, [role="listbox"]')) onCloseRef.current();
+      if (node && !node.contains(target) && !(target as HTMLElement).closest?.('[data-rs-rail-step], [data-rs-fab-export], [data-rs-undo], .rs-page, .ui-select-menu, [role="listbox"]')) onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('mousedown', onDown);

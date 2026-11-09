@@ -555,7 +555,7 @@ geen doelen of drempels. De nulmeting staat in `docs/superpowers/evidence/nulmet
 
 ## Handmatige hulpmiddelen (geen aanroeper)
 
-Deze vijf worden door geen npm-script, workflow, ander script of test aangeroepen; ze zijn alleen met
+Deze zes worden door geen npm-script, workflow, ander script of test aangeroepen; ze zijn alleen met
 de hand te draaien (en worden genoemd in bewijsdocumenten onder `docs/superpowers/evidence/`, of in
 het geval van `ops-test-client.mjs` nergens). Daarmee wijken ze af van de regel bovenaan.
 
@@ -565,6 +565,7 @@ het geval van `ops-test-client.mjs` nergens). Daarmee wijken ze af van de regel 
 | `bench-task-grid-product.mjs` | `node scripts/bench-task-grid-product.mjs --url URL --fixture PAD [--label NAAM] [--revision HASH] [--warmups 2] [--runs 9] [--tasks 10000] [--out PAD]` | productmeting van de klik op de linttab **Tabel** in een draaiende dev-build (hij heeft `window.__OPS__` nodig): serveert de IFC-fixture lokaal, start headless `/usr/bin/google-chrome` (hard pad) via CDP en rapporteert medianen als JSON. Zie `docs/superpowers/evidence/tabel-overhaul-performance.md` |
 | `verify-task-grid-spreadsheet.mjs` | `node scripts/verify-task-grid-spreadsheet.mjs <absoluut-soffice-pad>` | klembordcontract van het taakraster tegen een echte spreadsheet: bouwt TSV met de productie-serializer, laat LibreOffice Calc die naar XLSX en terug converteren en controleert met de productieparser dat alle cellen (incl. OPS-EXT/1-suffix) exact terugkomen. Vereist LibreOffice |
 | `ifc-schema-table.py` | `source <venv met ifcopenshell>/bin/activate; python -I scripts/ifc-schema-table.py > tests/planning/ifcSchemaTable.ts` | leidt de attribuut- en enumtabellen per IFC-schema (IFC4X3_ADD2, IFC4X3, IFC4) af voor de poort `tests/planning/check-ifc-schema.ts`. CI draait geen Python: draai het met de hand opnieuw na een nieuwe writer-entiteit (zie `docs/ifc-round-trip.md`) |
+| `measure-report-paper.mjs` | `node scripts/measure-report-paper.mjs --url URL [--out PAD]` | snelheid van het nieuwe Rapport-tabblad (#817) in een draaiende dev-build (hij heeft `window.__OPS__` nodig): maakt zo nodig het plan van 5000 taken met `measure-large-plans-data.ts` in `qa/report-paper/`, loopt in headless Chromium één vaste route (sprongen, zoom, kolom erbij en weg, A2 ↔ A3, Speling) en meet per handeling van het klik-event tot het eerste frame met het nieuwe papier; JSON naar `qa/report-paper/snelheid-<commit>.json`. Methode en uitkomst: `docs/superpowers/specs/2026-11-07-rapport-tabblad-bevindingen.md` |
 | `ops-test-client.mjs` | `node scripts/ops-test-client.mjs <ops-test-map> '<json-opdracht met id>'` | stuurt één opdracht naar het dev-only Tauri-testkanaal van `src/utils/devBridge.ts` (`<appDataDir>/ops-test/cmd.json`, atomair geschreven) en wacht maximaal 15 s op een `res.json` met hetzelfde id; exit 0 bij `ok: true`. Werkt alleen tegen een draaiende `npm run tauri:dev` |
 
 ## Platformbouw (OpenAEC-app op Frappe)
