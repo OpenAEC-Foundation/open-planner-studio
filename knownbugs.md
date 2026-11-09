@@ -2559,6 +2559,15 @@ en noem het in je rapport of PR-tekst.
      `origin/main` (`ed2f919c5`, 9 november 2026): daar staat dezelfde melding, dus niet uit #847. Voorstel: in een
      eigen kleine PR `node scripts/verify-conventions.mjs --write-baseline` draaien en de nieuwe pin committen. — B
 
+1005. **VERVOLG: de vaste browserroute bewaakt de exportwacht op nieuwe kolommen niet.** `GanttReportStudio.tsx`
+     wacht vóór een PDF-export tot een net gekozen kolom op het papier staat (`columnsPending`, rond :200, :462,
+     :470). Zonder die wacht kan de PDF de kolomlijst van vóór de laatste keuze krijgen. Code-review ronde 5 van #847
+     (GPT-6.1-Sol): met de twee `columnsPending`-voorwaarden weggehaald blijft `tests/browser/report-studio.spec.ts`
+     groen (exit 0); een losse proef die exporteert in dezelfde taak als de kolomkeuze wordt rood (de PDF mist
+     Kalenderdagen). Die proef leest de PDF met `pdftotext`, dat de CI niet heeft. Voorstel: neem de proef op in de
+     bestaande route en lees de kolomkoppen uit de PDF zonder `pdftotext` (bijv. met de PDF-tekstlaag via pdf.js of
+     de exportopties die de bouwer ontvangt). — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
