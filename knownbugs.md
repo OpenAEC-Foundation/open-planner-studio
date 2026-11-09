@@ -2421,3 +2421,14 @@ en noem het in je rapport of PR-tekst.
      mijlpaal het begin van de dag, bij een taak het einde. Niet nagegaan in de code. Voorstel: bij een mijlpaal met
      een FS-voorganger die dezelfde dag eindigt, de datum zonder tijd op het einde van die dag zetten, of melden.
      — B (de start op 14 april, twee keer gezien), S (de oorzaak)
+
+959. **VERVOLG: het overzicht en het kritieke pad tonen geen `deadline`, dus een agent vindt de oorzaak van negatieve
+     float niet.** Een taak krijgt negatieve float door een `deadline` verderop in de keten. Alleen
+     `planner_get_task` geeft het veld (`src/services/mcp/tools/readTools.ts:645`). De rij van
+     `planner_get_project_overview` (`:354–377`), van `planner_list_tasks` (`:459–478`) en van
+     `planner_get_critical_path` (`:688–699`) heeft geen `deadline`, en `planner_list_tasks` heeft er geen filter
+     voor (`:133`). Zo ook op #838 `fb3ee39c6`. Gezien in proef (j) van #836, twee runs met de echte dispatcher:
+     Ruwbouw en Dak dicht hadden float −1 door de `deadline` op Dak dicht. Run 1 las alleen Ruwbouw en schreef
+     "Er staat nergens een deadline"; run 2 meldde de −1, maar zocht de deadline niet op. Voorstel: `deadline` in
+     de rij van het overzicht of van het kritieke pad. Besluit orkestrator: dit nummer, in #836; het is een
+     gedragswijziging in een tool, geen tekst. — B
