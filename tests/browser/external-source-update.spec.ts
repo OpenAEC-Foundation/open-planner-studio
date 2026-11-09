@@ -7,11 +7,16 @@
 // op *Later* haalt de balk weg; geen van beide accepteert. Enter op *Accepteren* accepteert.
 // Review #811 ronde 2: F5 terwijl het venster open staat ⇒ het voorstel volgt de nieuwe berekening.
 //
+// Stap 1.11 (keuze 7 en keuze 3 zonder cloud): de andere kant. In het bronproject *Installateur* zoekt de
+// planner de afhankelijke projecten met een echte klik in het menu *Relatie*; het resultaat staat bij de
+// taak, en Ctrl+S vraagt eerst als ankers te krap worden. De mapkiezer zelf (`showDirectoryPicker`) is een
+// stub met *Aannemer.ifc* uit de fixtures; de regels staan in `tests/planning/check-dependent-projects.ts`.
+//
 // De fixtures zijn gewone IFC-bestanden van OPS: *Aannemer* heeft twee externe voorgangers naar
 // `/projecten/Installateur.ifc` met ankers uit een oudere versie (`sourceVersion` 1 november 2026);
 // *Installateur* heeft de auteur Anna de Vries. De dev-link `source=` laat de browser die bron uit de repo
 // lezen, met de `Last-Modified` van de dev-server als versie (`docs/dev-link.md`).
-import { utimesSync } from 'node:fs';
+import { readFileSync, utimesSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from './fixtures/ops';
 
@@ -393,4 +398,60 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
   await page.getByRole('menuitem', { name: 'Refresh all external relations' }).click();
   await expect(status).toContainText('2 sources not read.');
   expect((await linkOf())!.anchorDate).toBe('2027-01-04T07:00');
+});
+
+test('bronproject: afhankelijke projecten zoeken, het resultaat bij de taak en de vraag vóór opslaan', async ({ page, ops: _ops }) => {
+  test.setTimeout(90_000);
+  const aannemer = readFileSync(fileURLToPath(new URL('./fixtures/ifc/externe-bron/Aannemer.ifc', import.meta.url)), 'utf8');
+  await page.goto(`/?open=${DIR}/Installateur.ifc`);
+  await expect.poll(() => page.evaluate(() => window.__OPS__?.store.getState().cpmResult?.projectEnd ?? ''), { timeout: 30_000 }).not.toBe('');
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  // Fixture: de mapkiezer geeft een map "Zuidas" met Aannemer.ifc. De klikken op de knoppen blijven echt.
+  await page.evaluate((text) => {
+    const w = window as unknown as Record<string, unknown>;
+    const file = { kind: 'file', name: 'Aannemer.ifc', getFile: async () => new File([text], 'Aannemer.ifc') };
+    const dir = {
+      kind: 'directory', name: 'Zuidas',
+      values: async function* () { yield file; yield { kind: 'directory', name: 'archief' }; },
+      queryPermission: async () => 'granted',
+    };
+    w.showDirectoryPicker = async () => dir;
+  }, aannemer);
+  // Opslaan zonder bestandshandvat gaat in deze browser als download; zo zien we of er opgeslagen is.
+  let downloads = 0;
+  page.on('download', () => { downloads++; });
+
+  // Echte klik: Relatie ▾ › Afhankelijke projecten zoeken… ⇒ een melding met 1 project en 2 koppelingen.
+  await page.getByRole('button', { name: 'Link', exact: true }).first().click();
+  await page.getByRole('menuitem', { name: 'Find dependent projects…' }).click();
+  await expect(page.getByText('Dependent projects: 1. Links to this project: 2.')).toBeVisible({ timeout: 15_000 });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+
+  // Het resultaat staat bij de taak (eigenschappenpaneel), alleen-lezen.
+  await page.evaluate(() => {
+    const S = window.__OPS__!.store.getState();
+    S.selectTask(S.tasks.find(t => t.name === 'Installatie')!.id);
+  });
+  const section = page.locator('[data-ops-dependents]');
+  await expect(section).toHaveCount(1);
+  await expect(section).toContainText('Aannemer');
+  await expect(section).toContainText('Afbouw');
+  await expect(section).toContainText('Successor there');
+  await expect(section).toContainText('uses 2027-03-19 16:00');
+
+  // Ctrl+S ⇒ eerst de vraag: beide ankers worden later (onze taken zijn hun voorgangers).
+  const warning = page.locator('[data-ops-dependent-anchor-warning]');
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect(warning.locator('[data-ops-dependent-anchor-row]')).toHaveCount(2);
+  await expect(warning).toContainText('2027-03-19 16:00 → 2027-03-23 16:00');
+  // Annuleren ⇒ niets opgeslagen.
+  await warning.locator('[data-ops-dependent-anchor-choice="cancel"]').click();
+  await expect(warning).toHaveCount(0);
+  await page.waitForTimeout(1_000);
+  expect(downloads).toBe(0);
+  // Toch opslaan ⇒ de app slaat op.
+  await page.keyboard.press('ControlOrMeta+s');
+  await warning.locator('[data-ops-dependent-anchor-choice="save"]').click();
+  await expect(warning).toHaveCount(0);
+  await expect.poll(() => downloads).toBe(1);
 });

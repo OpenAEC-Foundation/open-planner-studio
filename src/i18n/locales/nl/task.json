@@ -709,5 +709,11 @@
     "timeHint": "Leeg: het begin of einde van de werkdag. Met een tijd: precies dat moment.",
     "later": "Een kwartier later",
     "earlier": "Een kwartier eerder"
+  },
+  "dependents": {
+    "title": "Afhankelijke projecten",
+    "successor": "Opvolger daar",
+    "predecessor": "Voorganger daar",
+    "anchor": "rekent op {{date}}"
   }
 }

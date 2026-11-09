@@ -725,5 +725,11 @@
     "timeHint": "Vacío: el inicio o el fin del día laborable. Con una hora: exactamente ese momento.",
     "later": "Un cuarto de hora más tarde",
     "earlier": "Un cuarto de hora antes"
+  },
+  "dependents": {
+    "title": "Proyectos dependientes",
+    "successor": "Sucesora allí",
+    "predecessor": "Predecesora allí",
+    "anchor": "usa {{date}}"
   }
 }

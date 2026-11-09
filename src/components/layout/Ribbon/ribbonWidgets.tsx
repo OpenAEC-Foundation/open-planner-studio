@@ -54,6 +54,7 @@ import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
+import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 /**
@@ -380,7 +381,7 @@ export function RelationDropdown() {
   const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
 
   const items: Array<{
-    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal';
+    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal' | 'findDependents';
     label: string;
     disabled: boolean;
     title: string;
@@ -442,6 +443,18 @@ export function RelationDropdown() {
               ].join(' '));
           setUnreadSources({ projectIds: result.unreadProjectIds, others: result.unread - result.unreadProjectIds.length });
         })();
+      },
+    },
+    {
+      // Stap 1.11: wie hangt van deze planning af? Altijd beschikbaar; het resultaat komt als melding
+      // en staat bij de taken (eigenschappenpaneel).
+      key: 'findDependents',
+      label: tMenu('ribbon.relationFindDependents'),
+      disabled: false,
+      title: tMenu('ribbon.relationFindDependentsHint'),
+      onClick: () => {
+        setOpen(false);
+        void searchDependentProjectsManually(buildImportLabels(tCommon));
       },
     },
   ];

@@ -292,7 +292,10 @@
     "minuteModelConverted_one": "{{document}}: {{count}} tarea tiene otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
     "minuteModelConverted_many": "{{document}}: {{count}} de tareas tienen otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
     "minuteModelConverted_other": "{{document}}: {{count}} tareas tienen otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
-    "minuteModelCalendarRepaired": "Se ha reparado el calendario «{{calendar}}»: el fin o la pausa no coincidían con el horario laboral guardado."
+    "minuteModelCalendarRepaired": "Se ha reparado el calendario «{{calendar}}»: el fin o la pausa no coincidían con el horario laboral guardado.",
+    "dependentProjectsFound": "Proyectos dependientes: {{projects}}. Vínculos a este proyecto: {{links}}.",
+    "dependentProjectsNone": "No se encontraron proyectos con una relación externa con esta programación.",
+    "dependentProjectsFailed": "No se pudo leer la carpeta de proyectos dependientes."
   },
   "scheduleErrors": {
     "cycle": "Relación circular entre tareas: {{path}}",
@@ -1800,5 +1803,15 @@
   "fileDrop": {
     "title": "Suelte para abrir",
     "subtitle": "Archivo de proyecto o importación"
+  },
+  "dependentAnchorWarning": {
+    "title": "Los anclajes de otros proyectos se ajustan más",
+    "body": "Estos proyectos dependen de una fecha de esta programación. Tras guardar, obtienen una fecha más ajustada cuando actualicen sus relaciones externas.",
+    "colProject": "Proyecto",
+    "colTheirTask": "Su tarea",
+    "colOwnTask": "Tarea aquí",
+    "colAnchor": "Anclaje: anterior → nuevo",
+    "saveAnyway": "Guardar de todos modos",
+    "cancel": "Cancelar"
   }
 }

@@ -217,7 +217,9 @@
     "screenColorsMissingField": "此项目中不存在该字段。暂时使用工作类别。",
     "screenColorsHint": "在关键路径模式之外，红色边框标示关键路径。",
     "addLayout": "新建布局",
-    "toggleRelations": "关系线"
+    "toggleRelations": "关系线",
+    "relationFindDependents": "查找依赖项目…",
+    "relationFindDependentsHint": "在文件夹中查找与此进度计划有外部关系的项目。"
   },
   "ifc": {
     "title": "IFC 编辑器",

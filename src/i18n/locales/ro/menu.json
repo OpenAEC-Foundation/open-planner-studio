@@ -219,7 +219,9 @@
     "screenColorsMissingField": "Acest câmp nu există în acest proiect. Categoria de lucrări se folosește temporar.",
     "screenColorsHint": "În afara opțiunii Drum critic, o margine roșie marchează drumul critic.",
     "addLayout": "Creare aspect",
-    "toggleRelations": "Linii de dependență"
+    "toggleRelations": "Linii de dependență",
+    "relationFindDependents": "Căutare proiecte dependente…",
+    "relationFindDependentsHint": "Căutare într-un folder a proiectelor cu o legătură externă către această planificare."
   },
   "ifc": {
     "title": "Editor IFC",
