@@ -209,7 +209,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     markReportInput('paper-click');
     // Wie op het papier klikt, kent de aanwijzing: die hoeft niet meer.
     remember({ paperHintSeen: true });
-    if (pick.column) setFocusColumn({ id: paperKeyToId(pick.column), seq: Date.now() });
+    // Een klik op een kolom zet de focus op die rij; een klik elders op het papier vergeet een eerdere kolom.
+    setFocusColumn(pick.column ? { id: paperKeyToId(pick.column), seq: Date.now() } : null);
     if (rail) {
       setPopover({ step, anchor: pick.anchor, from: 'paper' });
     } else {
@@ -218,10 +219,17 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     }
   }, [rail, paperKeyToId, remember, setOpenStep]);
 
+  // Een stap openen via de kop, "Verder" of een stapknop: de kolom van een eerdere klik op het papier krijgt
+  // dan geen focus meer (die nam de focus weg van de kop of van het eerste bedienelement).
+  const openStepDirect = useCallback((step: StudioStepId | null) => {
+    setFocusColumn(null);
+    setOpenStep(step);
+  }, [setOpenStep]);
+
   const toggleStep = useCallback((step: StudioStepId) => {
     markReportInput('step');
-    setOpenStep(openStepRef.current === step ? null : step);
-  }, [setOpenStep]);
+    openStepDirect(openStepRef.current === step ? null : step);
+  }, [openStepDirect]);
 
   const paperHint = useMemo(() => (hydrated && !settings.paperHintSeen ? {
     text: t('studio.paper.hint'),
@@ -641,7 +649,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 <StudioNotice
                   dataKey="table-wide-page"
                   actions={(
-                    <button type="button" className="rs-link" onClick={() => { markReportInput('step'); setOpenStep('columns'); }}>
+                    <button type="button" className="rs-link" onClick={() => { markReportInput('step'); openStepDirect('columns'); }}>
                       {t('studio.page.toColumns')}
                     </button>
                   )}
@@ -775,7 +783,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           {t('studio.reset')}
         </button>
         {!inPopover && next && (
-          <button type="button" className="rs-next" onClick={() => { markReportInput('step'); setOpenStep(next); headRefs.current.get(next)?.focus(); }}>
+          <button type="button" className="rs-next" onClick={() => { markReportInput('step'); openStepDirect(next); headRefs.current.get(next)?.focus(); }}>
             {t('studio.next', { step: t(`studio.steps.${next}`) })}
           </button>
         )}
@@ -850,6 +858,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   data-rs-rail-step={step}
                   onClick={e => {
                     markReportInput('step');
+                    setFocusColumn(null);
                     const rect = e.currentTarget.getBoundingClientRect();
                     setPopover(prev => (prev?.step === step ? null : { step, anchor: { x: rect.right + 8, y: rect.top }, from: 'rail' }));
                   }}

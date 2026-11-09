@@ -74,8 +74,9 @@ Het prototype staat achter de feature flag `reportRedesign` (standaard uit). Zon
 precies zoals het was. Aanzetten in de dev-server: `?flag=reportRedesign` in de testlink
 (`docs/dev-link.md`), of Instellingen › Geavanceerd › Experimenteel.
 
-- **Indeling.** Links een zijbalk met zes stappen in de volgorde van het papier: Taken, Kolommen,
-  Balken en tijdlijn, Pagina, Kop en voet, Opslaan (PDF). Eén stap tegelijk open; een dichte stap toont
+- **Indeling.** Links een zijbalk met vijf stappen in de volgorde van het papier: Taken, Kolommen,
+  Balken en tijdlijn, Pagina, Kop en voet. Onderaan de zijbalk staan de bestandsnaam en "PDF exporteren"
+  (tot de fixronde na council ronde 2 was er een zesde stap "Opslaan (PDF)"). Eén stap tegelijk open; een dichte stap toont
   één regel samenvatting. Elke stap heeft "Standaard" met "Ongedaan maken". Waarschuwingen staan in de
   stap waar je ze oplost (bijv. "De tabel neemt 41 % van de breedte; de tijdlijn wordt smal").
 - **Zijbalk inklappen** tot een rand met stapiconen (Ctrl+\). Een klik op een icoon of op het papier
@@ -208,3 +209,82 @@ Council ronde 1: Opus 7,0, GPT-6.1-Sol 7,0, Fable 7,5 (doel 8,5 per lid). Beslui
 
 Nieuwe VERVOLG-punten: `knownbugs.md` 965–969 (eerst 960–964; omgenummerd omdat die nummers met een andere PR botsten).
 
+## Fixronde na council ronde 2 (9 november 2026)
+
+Council ronde 2 gaf 8,0 (Opus), 8,2 (Sol) en 8,0 (Fable). Deze ronde gaat vooral over de zijbalk op gewone
+schermen. Besluiten per punt van de brief; waar een punt een besluit van de vorige fixronde vervangt, staat dat
+erbij.
+
+1. **Stappen passen.** Stap 6 "Opslaan (PDF)" is weg: hij had geen eigen actie. De bestandsnaam staat onderaan
+   de zijbalk boven de exportknop; "planning niet doorgerekend" staat boven het papier (punt 3). Verder:
+   compactere rijen (schakelaar 22 px, kolomrij 28 px, keuzelijsten 6 px binnenruimte), "Kolom toevoegen" en
+   "Zoals de tabel" boven de lijst, Standaard/Verder vast onder het scrollvak van de open stap. Een melding die
+   verschijnt, schuift het scrollvak tot hij helemaal in beeld is (`StudioNotice`, `scrollIntoView` met
+   `block: 'nearest'`, alleen na het openen van de stap). Een stap met een melding toont open een
+   waarschuwingsteken naast de titel. Onder 800 px vensterhoogte staat de samenvatting van een dichte stap
+   kleiner naast de titel in plaats van weg. Vervangt punt 5 van de vorige fixronde. Gemeten (licht en donker
+   gelijk), hoogte van het scrollvak van de open stap / nodig:
+
+   | venster | voor (b212e69a4) | na |
+   |---|---|---|
+   | 1600×900 | 290 px voor elke stap; Kolommen nodig 428, Balken 532, Pagina 451; stapvoet buiten beeld | elke stap past: Taken 137/137, Kolommen 359/359, Balken 369/369, Pagina 307/307, Kop en voet 194/194 |
+   | 1366×768 | 218 px; samenvattingen weg | 289 px; Kolommen, Balken en Pagina scrollen; stapvoet, "Kolom toevoegen" en 4 samenvattingen in beeld |
+   | 1280×720 | 170 px; "Kolom toevoegen" en stapvoet buiten beeld | 241 px; stapvoet, "Kolom toevoegen" en 4 samenvattingen in beeld |
+
+   Melding "Stel eerst een statusdatum in" (Balken) en "tabel te breed" (Pagina, A4 staand): op 1366×768 en
+   1280×720 helemaal in beeld, met "Op vandaag zetten", ook als de keuze onderaan het scrollvak stond.
+2. **Vaste schaal exact.** De dagbreedte mag onder 1 px (`REPORT_MIN_DAY_WIDTH` = 0,01 in
+   `src/services/print/printPreview.ts`; de opslag klemt en rondt niet meer af). De wissel naar vaste schaal
+   start op `fixedScaleStartDayWidth`: de passende breedte maal (1 − 10⁻⁹), zodat afronding nooit een blad
+   extra geeft. De schuif is logaritmisch (0,01 tot 40 px per dag). Gemeten: A4 staand 2 → 2, A4 liggend 3 → 3,
+   A3 liggend 2 → 2 pagina's; groot plan 139 → 139 (was 139 → 695). Bij de kleinste breedte geeft de melding geen
+   advies om de breedte kleiner te maken, maar "Op de breedte". Is het rapport al 1 blad breed, dan noemt de
+   melding de rijen: groter papier, of minder taken ("Zoals de weergave", fasen inklappen). Het oude tabblad
+   houdt `REPORT_MIN_ZOOM` = 1 voor zijn schuif; een kleinere bewaarde waarde tekent het wel (knownbugs 946).
+   Vervangt punt 11 van de vorige fixronde.
+3. **Planning niet doorgerekend.** Boven het papier een balk "De planning is niet doorgerekend. De PDF rekent
+   eerst door." met "Nu doorrekenen" (`recalculate`, gelijk aan F5). Na de klik verdwijnt de balk en werkt het
+   papier bij. Een rekenfout staat in dezelfde balk (rood). Help (nl/en) noemt de uitzondering.
+4. **Zwevende knop.** Het papier houdt geen vaste strook meer vrij. Raakt een blad de plek van de knop (bij
+   Breedte, ingezoomd of "Hele rij"), dan eindigt het scrollgebied 64 px boven de onderrand en staat de knop in
+   die strook. "Hele blad" ingeklapt is daardoor even groot als open (1600×900 58 %, 1366×768 46 %, 1280×720
+   42 %; was 58 → 52 %). Gemeten in licht en donker: bij Hele blad, Breedte, Breedte gescrold en ingezoomd
+   bedekt de knop op geen enkele maat een blad. Vervangt punt 7 van de vorige fixronde.
+5. **Elk gegeven één keer.** Uitgeklapt staat boven het papier alleen het aantal pagina's ("8 pagina's (2 × 4)"
+   bij meer bladen naast elkaar); papier en stand staan in de samenvatting van Pagina, kolommen en rijen in
+   die van hun stap. Ingeklapt (geen samenvattingen) toont de werkbalk papier, kolommen en rijen erbij. Binnen een
+   item komma's of haakjes ("Alle taken (57 rijen)"), tussen items de punt.
+6. **Toetsenhint** staat vast als één regel onder de kolomlijst. Vervangt punt 9 (eerste helft) van de vorige
+   fixronde.
+7. **Eerste focus in het zwevende venster** op het eerste bedienelement van de stap: Taken de gekozen optie,
+   Kolommen "Kolom toevoegen", Balken de eerste schakelaar, Pagina het gekozen papier, Kop en voet het eerste
+   veld. Daarbij gevonden en opgelost: na een klik op een kolom op het papier kreeg die kolom de focus ook bij
+   een latere opening van Kolommen via de kop of de rand.
+8. **Hele blad** toont altijd één blad passend (58 % bij 4 bladen naast elkaar op 1600×900, was een contactvel).
+   Het overzicht van een rij bladen heet "Hele rij" en staat alleen in de werkbalk bij meer dan 1 blad naast
+   elkaar (18 % bij 4 naast elkaar).
+9. **Snelheid bij 5000 taken.** Bladen in beeld tekenen direct, bladen tot 400 px buiten beeld één frame later.
+   De kolommeting staat in een cache per kolom (`createTableColumnMeasureCache`): een kolom erbij meet alleen
+   die kolom, verplaatsen meet niets. De kolomobjecten blijven gelijk (`resolveReportColumns` met cache). Zoomen
+   zet alleen CSS-variabelen voor de bladmaat; de bladen renderen niet opnieuw. Tabel hieronder.
+10. **Help sluiten → Start** komt niet uit deze PR: `closeBackstage` zet altijd Start. Knownbugs 945.
+
+### Snelheid na council ronde 2 (gemeten 9 november 2026, dev-server)
+
+5000 taken (`qa/817-rapport/groot/plan-5000.ifc`, 139 bladen A3), 1600×900, headless Chromium op aia09-mp50
+(load 1 tot 1,7), dev-build met StrictMode. Voor = commit b212e69a4, na = deze ronde. Per meting de losse
+klikken.
+
+| actie | voor | na |
+|---|---|---|
+| sprong naar 50/90/25/70 % van het document, tot alle bladen in beeld getekend | 211, 156, 208, 184 ms | 120, 132, 153, 181 ms |
+| zoomstap (+/−), tot twee frames later | 141, 140, 135, 124 ms | 60, 61, 70, 51 ms |
+| kolom toevoegen: terugkoppeling / papier | 87/178, 44/124, 58/149 ms | 49/130, 51/120, 45/99 ms |
+| kolom weghalen: terugkoppeling / papier | 44/128, 51/142, 105/225 ms | 30/96, 33/100, 33/87 ms |
+| A2 ↔ A3: terugkoppeling / papier | 48/246, 34/177, 40/206, 38/182 ms | 37/141, 35/143, 35/130, 36/146 ms |
+| schakelaar Speling: terugkoppeling / papier | 38/130, 39/122, 37/115, 40/135 ms | 37/94, 37/95, 37/94, 37/93 ms |
+
+De council mat in ronde 2 hogere tijden (sprong 0,3–0,9 s, kolom toevoegen 317–354 ms papier) onder meer last
+op de machine; de verhouding voor/na hierboven is op dezelfde machine en dezelfde last gemeten.
+
+Nieuwe VERVOLG-punten: `knownbugs.md` 945 en 946.

@@ -2253,6 +2253,21 @@ en noem het in je rapport of PR-tekst.
      niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
      council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S
 
+945. **VERVOLG: na Help sluiten sta je op Start, niet op het tabblad waar je Help opende.** Een helpknop
+     (`HelpButton`, bijv. op het Rapport-tabblad) roept `openHelpArticle` aan (`src/state/slices/uiSlice.ts:428`), dat
+     naar Bestand → Help gaat. Sluiten gaat via `closeBackstage` (`src/components/backstage/Backstage.tsx:48`), en
+     dat zet altijd `activeRibbonTab: 'start'`. Wie vanuit Rapport, Planning of een dialoog Help opent, moet dus
+     zelf terug naar dat tabblad. Dat zat al in main; deze PR wijzigt het niet. Voorstel: het tabblad onthouden bij
+     `openHelpArticle` en daar na sluiten naar terug. Uit council ronde 2 van #817 (Claude Fable 5.1, xhigh,
+     VERMOED), in de code bevestigd. — B
+
+946. **VERVOLG: het oude Rapport-tabblad toont een dagbreedte onder 1 px als 1.** Het nieuwe tabblad kan sinds de
+     fixronde na council ronde 2 van #817 een vaste schaal onder 1 px per dag bewaren (`customZoom` in
+     `ops-reportSettings`). Het oude tabblad (flag uit) tekent met die waarde, maar de schuif en het getal tonen
+     `Math.max(1, …)` (`src/components/panels/ReportPanel.tsx:1598`). Na een wissel van de flag klopt het getal
+     dus niet met het papier, tot je de schuif aanraakt. Afgeleid uit de code. Voorstel: de schuif van het oude
+     tabblad ook onder 1 laten gaan, of het oude tabblad laten vervallen als de flag standaard aan gaat. — B
+
 965. **VERVOLG: de instellingen van het nieuwe Rapport-tabblad staan per apparaat, niet in het projectbestand.**
      Kolommen, papier, stand, lettertype en de open stap staan in `ops-reportSettings` (`src/utils/reportSettings.ts`).
      Een collega of een tweede apparaat ziet dus andere instellingen, en een rapport hoort niet bij een project.
@@ -2261,7 +2276,7 @@ en noem het in je rapport of PR-tekst.
      xhigh, VERVOLG). — B
 
 966. **VERVOLG: `GanttReportStudio.tsx` is te groot.** Het bestand
-     (`src/components/panels/reportStudio/GanttReportStudio.tsx`, ruim 1000 regels) bevat de stapinhoud van zes
+     (`src/components/panels/reportStudio/GanttReportStudio.tsx`, ruim 1000 regels) bevat de stapinhoud van vijf
      stappen, de stapvoet, de zijbalk, de rand en het zwevende venster. Voorstel: per stap een eigen component en
      de zijbalk en het venster apart. Uit council ronde 1 van #817 (Claude Fable 5.1, xhigh, VERVOLG). — B
 
