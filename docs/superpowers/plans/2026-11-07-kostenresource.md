@@ -75,6 +75,11 @@ Bewust anders of preciezer dan hieronder, met de reden:
   over (ook 0 en leeg) als `update` met `cost` op dezelfde id; de andere toewijzingkolommen geven het bestaande
   bedrag mee. Toets: blok J in `check-cost-resource.ts`. De datumpoort bepaalt het kostenlidmaatschap per stand
   (vóór en na apart).
+- **Hele taken plakken (review 3, besluit orkestrator 2026-11-09).** Het taakklembord draagt `costResourceIds` (de
+  soort van de bronresource). `pasteTasks` slaat een toewijzing over als die soort niet past bij het type van de
+  doelresource, of als een geplakte mijlpaal werk zou dragen; de resource gaat ook uit `resourceIds`. Eén melding
+  (`notifications.assignmentsSkippedOnPaste`) noemt het aantal; de rest van de plakactie gaat door. Toets: blok K in
+  `check-cost-resource.ts`.
 
 ## 1. Datamodel
 
