@@ -129,20 +129,20 @@ export function planTaskAssignmentSet({
       return failure('assignmentResourceNotFound', taskId, token);
     }
     if (!isValidUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
+    // Zelfde regel en volgorde als `validateAssignmentTokens` (issue #815): eerst de soort van de bron
+    // tegen het doeltype (zonder soort hoort een bedrag alleen op een kostenresource), dan de veldregels.
+    const targetIsCost = isCostResource(resourceIndex.get(token.resourceId));
+    if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== targetIsCost
+      : token.costAmount !== undefined && !targetIsCost) {
+      return failure('assignmentKindMismatch', taskId, token.resourceId);
+    }
     // Kostenresource (issue #815): geen inzet (vast 1), geen curve en geen werk.
-    if (isCostResource(resourceIndex.get(token.resourceId))
+    if (targetIsCost
       && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM') || token.remainingWorkMinutes !== undefined)) {
       return failure('assignmentCostResource', taskId, token);
     }
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) {
       return failure('assignmentCurve', taskId, token);
-    }
-    // Zelfde regel als `validateAssignmentTokens` (issue #815): de soort van de bron moet passen bij
-    // het doeltype, en zonder soort hoort een bedrag alleen op een kostenresource.
-    const targetIsCost = isCostResource(resourceIndex.get(token.resourceId));
-    if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== targetIsCost
-      : token.costAmount !== undefined && !targetIsCost) {
-      return failure('assignmentKindMismatch', taskId, token.resourceId);
     }
     const desiredCurve = token.curve === 'UNIFORM' ? undefined : token.curve;
     if (desiredResourceIds.has(token.resourceId)) {

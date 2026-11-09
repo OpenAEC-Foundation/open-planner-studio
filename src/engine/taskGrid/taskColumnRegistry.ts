@@ -602,15 +602,21 @@ function structuredClipboardPayload(
 }
 
 function assignmentTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentToken[] {
-  return assignments(task, ctx).map(assignment => ({
+  return assignments(task, ctx).map(assignment => assignmentToken(assignment, ctx));
+}
+
+/** De ENE bouwer van een toewijzingstoken: elke kolom (resources, inzet, curve, werk) gebruikt hem, zodat
+ *  bedrag en soort overal meereizen. Een kolom voegt alleen haar eigen veld toe (issue #815). */
+function assignmentToken(assignment: ResourceAssignment, ctx: TaskColumnContext): TaskAssignmentToken {
+  return {
     assignmentId: assignment.id,
     resourceId: assignment.resourceId,
     unitsPerDay: assignment.unitsPerDay,
     curve: assignment.curve,
-    // Het bedrag reist mee bij plakken naar een andere taak (issue #815).
+    // Het bedrag reist mee bij plakken (issue #815); een ontbrekend bedrag betekent "leeg".
     ...(assignment.costAmount !== undefined ? { costAmount: assignment.costAmount } : {}),
     ...resourceKindOf(assignment, ctx),
-  }));
+  };
 }
 
 /** De soort van de resource van deze toewijzing, als die resource bekend is (issue #815). */
@@ -677,19 +683,20 @@ function validateAssignmentTokens(
     }
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) return failure(code, raw);
     const isCost = isCostResource(ctx.resourcesById.get(token.resourceId));
-    // Kostenresource (issue #815): inzet vast 1, geen curve, geen werk.
-    if (isCost && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM')
-      || token.remainingWorkMinutes !== undefined)) {
-      return failure('assignmentCostResource', raw);
-    }
     // De soort van de bron moet passen bij het type van de doelresource (issue #815). Zonder soort:
-    // een bedrag hoort alleen op een kostenresource, zodat er nooit stil een bedrag verdwijnt.
+    // een bedrag hoort alleen op een kostenresource, zodat er nooit stil een bedrag verdwijnt. Eerst
+    // de soort, dan de veldregels van COST: werk op een kostenresource is een soortfout.
     if (token.resourceKind !== undefined && token.resourceKind !== 'cost' && token.resourceKind !== 'work') {
       return failure(code, raw);
     }
     if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== isCost
       : token.costAmount !== undefined && !isCost) {
       return failure('assignmentKindMismatch', token.resourceId);
+    }
+    // Kostenresource (issue #815): inzet vast 1, geen curve, geen werk.
+    if (isCost && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM')
+      || token.remainingWorkMinutes !== undefined)) {
+      return failure('assignmentCostResource', raw);
     }
     // Een mijlpaal draagt alleen kostentoewijzingen (besluit Ethan 2026-11-07).
     if (task.isMilestone && !isCost) return failure('assignmentMilestoneWork', token.resourceId);
@@ -787,15 +794,11 @@ function assignmentWorkTokens(task: Task, ctx: TaskColumnContext): TaskAssignmen
   const hoursPerDay = ctx.effectiveHoursPerDay?.(task) ?? 8;
   const remaining = remainingMinutesOf(task, { hoursPerDay });
   return assignments(task, ctx).map(assignment => ({
-    assignmentId: assignment.id,
-    resourceId: assignment.resourceId,
-    unitsPerDay: assignment.unitsPerDay,
-    curve: assignment.curve,
+    ...assignmentToken(assignment, ctx),
     // Een kostentoewijzing heeft geen werk (issue #815).
     ...(isCostAssignment(assignment, ctx)
       ? {}
       : { remainingWorkMinutes: assignment.remainingWorkMinutes ?? remaining * assignment.unitsPerDay }),
-    ...resourceKindOf(assignment, ctx),
   }));
 }
 

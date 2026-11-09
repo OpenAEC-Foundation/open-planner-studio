@@ -75,9 +75,9 @@ function steering(task: Task) {
 }
 const KEPT = { gaps: [LEVELING_GAP], floor: '2026-06-10T17:00', anchor: '2026-06-01T08:00', walks: 1 };
 
-/** Een rasteromgeving voor één cel *Toegewezen resources* van `taskId` (klembordtests J en L). */
-function gridEnv(S: () => ReturnType<Store['getState']>, taskId: string): TaskGridClipboardEnvironment {
-  const column = taskColumnId('assignment.resources');
+/** Een rasteromgeving voor één cel van `taskId`, standaard *Toegewezen resources* (klembordtests J, L, M). */
+function gridEnv(S: () => ReturnType<Store['getState']>, taskId: string, columnId = 'assignment.resources'): TaskGridClipboardEnvironment {
+  const column = taskColumnId(columnId);
   const s = S();
   const byTask = new Map<string, ResourceAssignment[]>();
   for (const x of s.assignments) byTask.set(x.taskId, [...(byTask.get(x.taskId) ?? []), x]);
@@ -91,6 +91,7 @@ function gridEnv(S: () => ReturnType<Store['getState']>, taskId: string): TaskGr
       projectId: s.project.id, tasksById: new Map(s.tasks.map(t => [t.id, t])),
       relationIndex: buildTaskRelationIndex(s.tasks, s.sequences, s.cpmResult), assignmentsByTaskId: byTask,
       resourcesById: new Map(s.resources.map(r => [r.id, r])), baselinesById: new Map(), scheduleStale: s.scheduleStale,
+      taskTypesUnlocked: true, numberLocale: 'nl-NL',
     },
   };
 }
@@ -690,6 +691,47 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
     eq('L7 bedrag zonder soort op werk: geweigerd', r.ok ? [] : r.errors.map(e => e.code), ['assignmentKindMismatch']);
     const ok = S().runGridMutation([intent(doel, [{ resourceId: R, unitsPerDay: 1 }])]);
     eq('L7 zonder soort en zonder bedrag op werk: lukt', ok.ok, true);
+  }
+  // L8: werk met inzet 2 of curve BELL op een kostenresource is eerst een soortfout (review 5).
+  {
+    const { S, R, doel } = twoDocs('COST', 'COST');
+    for (const [label, token] of [
+      ['inzet 2', { resourceId: R, unitsPerDay: 2, resourceKind: 'work' as const }],
+      ['curve BELL', { resourceId: R, unitsPerDay: 1, curve: 'BELL' as const, resourceKind: 'work' as const }],
+    ] as const) {
+      const r = S().runGridMutation([intent(doel, [token])]);
+      eq(`L8 werk (${label}) op kosten: soortfout`, r.ok ? [] : r.errors.map(e => e.code), ['assignmentKindMismatch']);
+    }
+  }
+}
+
+// ── M. De cel *Resterend werk* plakken in *Toegewezen resources* van dezelfde taak (review 5) ─────────
+// Elke toewijzingskolom bouwt haar tokens met dezelfde basisbouwer, dus ook de werkkolom draagt het
+// bedrag. Het bedrag van de kostentoewijzing blijft staan, ook na IFC heropenen; het plakken verandert
+// niets, dus het maakt geen geschiedenisstap.
+{
+  const amounts: [string, number | undefined][] = [['1250,55', 1250.55], ['0', 0], ['leeg', undefined]];
+  for (const [label, amount] of amounts) {
+    const { S, t1, cost } = fixture();
+    S().assignResource(t1, cost, 1, undefined, amount);
+    S().runCPM();
+    const costAmount = () => costOf(S, t1, cost)?.costAmount ?? 'leeg';
+    const copied = copyTaskGridSelection(gridEnv(S, t1, 'assignment.remainingWork'));
+    if (!copied.ok) throw new Error(JSON.stringify(copied));
+    const plan = planTaskGridPaste(copied.value, gridEnv(S, t1));
+    if (!plan.ok) throw new Error(JSON.stringify(plan));
+    const history = S().historyEvents.length;
+    eq(`M1 ${label}: plakken lukt`, S().runGridMutation([plan.value]).ok, true);
+    eq(`M2 ${label}: het bedrag blijft`, costAmount(), amount ?? 'leeg');
+    const back = readIFC(serializeRecoverySnapshot(S()));
+    const backCost = back.resources.find(r => r.type === 'COST')!.id;
+    eq(`M3 ${label}: na IFC heropenen staat het bedrag er`,
+      back.assignments.filter(a => a.resourceId === backCost).map(a => a.costAmount ?? 'leeg'), [amount ?? 'leeg']);
+    // Er veranderde niets, dus er is ook geen stap om terug te draaien: undo en redo raken het bedrag niet.
+    eq(`M4 ${label}: plakken maakt geen geschiedenisstap`, S().historyEvents.length, history);
+    S().undo();
+    S().redo();
+    eq(`M5 ${label}: na undo en redo staat het bedrag er`, costAmount(), amount ?? 'leeg');
   }
 }
 
