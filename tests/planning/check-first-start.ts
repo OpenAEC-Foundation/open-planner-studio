@@ -5,7 +5,8 @@
 //  B. Alleen een VOLTOOIDE rondleiding opent de tutorialvraag, en alleen zolang die nog niet
 //     beantwoord is (`tourFinishPatch`); de overgang is één patch. In `TourOverlay` is Volgende/Klaar
 //     op de laatste stap de enige route naar `finish('completed')` (bron-assert).
-//  C. `tutorialOfferAnswered` is een blijvende instelling (register → `ops-tutorialOfferAnswered`).
+//  C. `tutorialOfferAnswered` is een blijvende instelling (register → `ops-tutorialOfferAnswered`), en elke
+//     instelling uit het register komt na bewaren en laden terug (C6, C7: Previewkwaliteit).
 //  D. De Ja-route (`startFirstTutorial`) met gemockte afhankelijkheden: al actief, aan het laden,
 //     uitgeschakeld, installeren (geïnstalleerd / geweigerd / mislukt / niet actief), geen entry,
 //     offline, geen tutorial, niet gestart. Het host-event gaat pas uit NA de installatie.
@@ -23,7 +24,7 @@ import { isOnboardingActive, tourFinishPatch } from '@/state/onboarding';
 import { openUpdateDialogWhenIdle } from '@/hooks/useUpdateCheck';
 import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { SETTINGS, loadAllSettings } from '@/utils/settingsRegistry';
-import { saveTutorialOfferAnswered } from '@/utils/settingsStore';
+import { saveReportPreviewQuality, saveTutorialOfferAnswered, setSetting } from '@/utils/settingsStore';
 import { startFirstTutorial, TUTORIALS_EXTENSION_ID, type FirstTutorialDeps } from '@/extensions/firstTutorial';
 import { HOST_EVENTS, emitExtensionEvent, type HostTutorialRequest } from '@/services/extensionEvents';
 import { enableExtension, whenExtensionSettled, type ExtensionStorage } from '@/extensions/extensionLoader';
@@ -110,6 +111,29 @@ const eq = (label: string, got: unknown, want: unknown) => {
   eq('C4 hydrateert als true', (await loadAllSettings()).tutorialOfferAnswered, true);
   localStorage.removeItem('ops-tutorialOfferAnswered');
   eq('C5 default in de store is onwaar', createAppStoreContext().store.getState().ui.tutorialOfferAnswered, false);
+
+  // C6. Elke instelling uit het register overleeft bewaren → laden, met haar standaard uit de store. De
+  // algemene lader leest JSON: een keuze als tekst die op een getal lijkt, komt als getal terug. Zo viel
+  // Previewkwaliteit na herladen terug op '200' (review Sol #847, ronde 2). De late host laadt via
+  // dezelfde `loadAllSettings` (`processLateSettings`), dus dit geldt ook daar.
+  const ui = createAppStoreContext().store.getState().ui as unknown as Record<string, unknown>;
+  const lost: string[] = [];
+  for (const d of SETTINGS) {
+    localStorage.removeItem(`ops-${d.key}`);
+    await setSetting(d.key, ui[d.field]);
+    const got = (await loadAllSettings() as Record<string, unknown>)[d.field];
+    if (JSON.stringify(got) !== JSON.stringify(ui[d.field])) lost.push(`${d.key}: ${JSON.stringify(ui[d.field])} → ${JSON.stringify(got)}`);
+    localStorage.removeItem(`ops-${d.key}`);
+  }
+  eq('C6 elke registerinstelling komt na bewaren en laden terug', lost, []);
+  // C7. Previewkwaliteit met elk van de drie keuzes, via de bewaarfunctie van het instellingenpaneel.
+  const qualities: unknown[] = [];
+  for (const q of ['100', '200', '300'] as const) {
+    await saveReportPreviewQuality(q);
+    qualities.push((await loadAllSettings()).reportPreviewQuality);
+  }
+  localStorage.removeItem('ops-reportPreviewQuality');
+  eq('C7 Previewkwaliteit 100/200/300 na bewaren en laden', qualities, ['100', '200', '300']);
 }
 
 // ── D. De Ja-route, gemockt ──────────────────────────────────────────────────────────────────

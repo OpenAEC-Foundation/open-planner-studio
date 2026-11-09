@@ -449,3 +449,74 @@ ongewijzigd (de council keurde hem goed).
 3. **VERVOLG uit dezelfde review.** De commentaren in `check-report-columns.ts` (sectie 1) en
    `check-report-svg.ts` (sectie 5) beloven niet meer dan ze doen: de eerste vergelijkt de huidige render met
    zichzelf, de tweede twee uitkomsten van dezelfde meting. De werkelijk getekende grens bewaakt de browserspec.
+
+## Fixronde na code-review 2 (9 november 2026)
+
+Code-review ronde 2 van GPT-6.1-Sol (xhigh) op `58bfe4cfd`: oordeel nee, door één BLOKKEERT-punt. De fix voor
+de instellingen uit ronde 1 was bevestigd, ook bij een late host. De UI bleef ongewijzigd.
+
+1. **Een gemengde Latijns-Arabische naam werd anders gemeten dan getekend.** Oorzaak: de browser kiest de letter
+   per teken, niet per bidi-run. Een tekst met Arabisch of Hebreeuws tekent het scherm met Noto vooraan, en de
+   `unicode-range` van Noto bevat de spaties. Elke spatie kwam dus uit Noto, ook in het Latijnse deel. De
+   shaping-kern van de PDF, en dus de meting, gaf een spatie op een links-naar-rechtsniveau de rapportletter. Per
+   spatie scheelt dat het verschil tussen twee spaties (Carlito 0,226 em, Noto 0,260 em), en dat telt op. Sols
+   naam in Carlito ("Fase 1 أعمال البناء en afstemming … van de bouwplaats") mat 409,797 px; Chromium tekende
+   414,406 px, tot x = 448,881 bij kolomlijn 447; WebKitGTK tot 448,391. Het oude voorbeeld kapte hem af
+   ("… bouwpla…"), terwijl afkappen uit stond.
+
+   Besluit (bouwer van deze fixronde, 9 november 2026, op grond van Sols rapport en eigen metingen in beide
+   engines): de PDF en de meting volgen de letterkeuze van de browser. `fontClassFor` (`bidiShape.ts`) geeft een
+   neutraal teken dat Noto heeft altijd Noto, in elk stuk van de tekst en in beide richtingen. Het scherm bleef
+   gelijk. Het alternatief was: Noto achter de rapportletter in de stack, zonder spaties in de `unicode-range`, en
+   de PDF de spaties in de rapportletter laten zetten. Waarom niet: (a) de browserkant is in beide engines gemeten
+   en geeft elke spatie uit Noto; (b) het alternatief verandert de PDF van elke Arabische naam (de spaties tussen
+   Arabische woorden) en splitst elke Arabische naam bij elke spatie in losse runs; (c) het hangt af van hoe elke
+   engine een spatie binnen een Arabische run aan een letter geeft, en dat is niet gemeten. Gevolg in de PDF:
+   alleen in een gemengde tekst komen de spaties (en ZWNJ/ZWJ) van het Latijnse deel nu uit Noto. Noto mist de
+   streepjes, aanhalingstekens en het beletselteken; die blijven in beide in de rapportletter. Kosten: een gemengde
+   naam heeft meer runs. De meting van Sols naam in Carlito gaat van ongeveer 1,4 naar 2,2 ms, eenmalig per tekst
+   (er is een cache).
+
+   Bij het nalopen van een naam met cijfers en leestekens bleek nog iets: fontkit kernde een stuk zonder letter
+   ("2.3") als script DFLT, Chromium en WebKitGTK als Latijn (Inter "2.3" op 9 px: 13,157 tegen 13,399 px).
+   `layoutRuns` geeft zo'n stuk nu het script `latn`.
+
+   Gemeten na de fix (dev-server, 9 px, 100 %, naam Volledig): vier rapportletters (Inter, Liberation Sans,
+   Carlito, Liberation Serif) × vijf namen (volledig Arabisch uit ronde 1, Hebreeuws, Sols gemengde naam, een
+   gemengde naam met cijfers en leestekens, Chinees), op het papier (SVG) en op het oude canvas (flag uit). In
+   WebKitGTK 2.52.6 is de tekening in alle 40 gevallen gelijk aan de meting, tot op 0,001 px. In Chromium 151 ook
+   (papier tot 0,04 px, canvas tot 0,001 px), op één naam na op het papier (zie "Wat overblijft"). Elke naam eindigt minstens 2,6 px vóór de kolomlijn, en het canvas
+   tekent elke naam volledig. Sols naam in Carlito: meting 414,377 px; Chromium tekent 414,406 px tot 448,881 bij
+   kolomlijn 452; WebKitGTK 414,377 px tot 448,391 bij 452; het canvas tekent hem in beide volledig.
+
+   Bewijs: de bestaande route in `tests/browser/report-studio.spec.ts` (het blok met de Arabische naam) heeft er
+   stappen bij: de Chinese naam ook op het canvas, Sols gemengde naam in Inter op canvas en papier, een gemengde naam
+   met cijfers en leestekens in Inter op canvas en papier, en daarna Carlito via een echte klik in de keuzelijst
+   van de stap Pagina, met Sols naam op papier en canvas. `check-report-svg.ts` punt 8 legt vast dat de
+   shaping-kern per teken dezelfde letter kiest als de browser (Inter en Carlito, beide richtingen, drie namen).
+   Rood zonder de fix, met een kopie in `/tmp` gemuteerd en met `cp` teruggezet: met de oude regel in
+   `fontClassFor` faalt de spec bij de eerste gemengde stap (Inter-canvas 466,712 tegen gemeten 469,580); met
+   alleen de Carlito-stappen geeft hij Sols getallen (getekend 414,406 tegen 409,797, einde 448,881 voorbij lijn
+   447, canvas "… bouwpla…"); punt 8 van de planningscheck noemt elke spatie in F0. Zonder het script `latn`
+   faalt de stap met "2.3" (canvas 0,242 px breder dan gemeten).
+
+   Wat overblijft: in de SVG van Chromium (niet op het canvas, niet in WebKitGTK) krijgt een leesteken dat op een
+   Arabisch woord volgt het script van dat woord. De kerning met de Latijnse letter erna valt dan weg: “gereed na
+   een Arabisch woord tekent 0,36 px breder dan gemeten (Inter en Carlito). Zo'n naam blijft binnen de vaste marge
+   van de naamkolom (+1 px en 2 px rechts); gemeten 3,36 px (Inter) en 3,47 px (Carlito) ruimte tot de kolomlijn. Niet gerepareerd: het volgt uit de scriptindeling
+   van Chromium. Knownbug 968 is bijgewerkt.
+
+2. **VERVOLG, nu meegenomen: de app-instelling Previewkwaliteit overleefde laden niet.** Oorzaak: de algemene
+   lader (`getSetting`) leest de opgeslagen tekst `300` als JSON, dus als het getal 300; de parser accepteerde
+   alleen de tekst `'300'`. Na herladen stond de store weer op `'200'`, ook via de late host, die dezelfde
+   `loadAllSettings` gebruikt. Wat er veranderde: `parseReportPreviewQuality` in `settingsRegistry.ts` zet een van
+   de drie getallen terug naar zijn tekst. De algemene opslag bleef gelijk. Bewijs: `check-first-start.ts` C6
+   (elke instelling uit het register komt na bewaren en laden terug, met haar standaard uit de store) en C7
+   (Previewkwaliteit 100, 200 en 300 via `saveReportPreviewQuality`). Rood zonder de fix: C6 meldt
+   `reportPreviewQuality: "200" → undefined`, C7 `[null, null, null]`. Bij C6 bleek dit de enige van de 41
+   registerinstellingen met deze fout.
+
+3. **VERVOLG uit dezelfde review: de fonttests draaiden alleen in Inter.** Gedekt door punt 1 (Carlito, gemengde
+   namen, de Chinese naam ook op het canvas) en punt 2 (bewaren en laden). Geen nieuwe testlaag. WebKit draait niet
+   in de browsersuite; de WebKit-getallen hierboven komen uit dezelfde meting als Sols proef (Python-GI met
+   WebKitGTK 2.52.6, tegen de dev-server).
