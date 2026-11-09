@@ -349,6 +349,21 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     refused.sources, refused.unread, refused.unreadProjectIds, refused.refreshed,
   ], [0, 2, ['installateur'], 0]);
   eq('6s een niet gelezen bron houdt haar anker', anchorOf(a).anchorDate, '2027-03-05T16:00');
+  // Beide bronnen gelezen, met een ander anker (in de app kan dat niet: de desktop leest geen handvat, de browser
+  // geen pad). De bron zonder pad mag de koppeling met pad niet raken: die houdt het anker van haar bestand.
+  // (Dat de bron met pad een koppeling zonder pad met hetzelfde project-id overneemt, is het gedrag van de
+  // desktop voor een handmatige koppeling; zie de gids.)
+  store.setState({
+    parseExternalSource: async (filePath: string) => ({
+      projectId: 'installateur', projectName: 'Installateur', filePath, tasks: [sourceTask('2027-03-08T16:00')], version: 'pad-v2',
+    }),
+    parseExternalProjectSource: async () => handleSource(),
+  });
+  const both = await S().refreshAllExternalAnchors();
+  eq('6t beide bronnen gelezen', [both.sources, both.unread], [2, 0]);
+  eq('6u de koppeling met pad houdt het anker en de versie van haar bestand', [
+    anchorOf(c).anchorDate, anchorOf(c).sourceVersion, anchorOf(c).sourceRef.filePath,
+  ], ['2027-03-08T16:00', 'pad-v2', PATH]);
 }
 
 // (7) Een bestand dat de planner in de browser koos: geen pad, de versie is `lastModified`.

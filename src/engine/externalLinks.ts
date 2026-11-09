@@ -197,6 +197,8 @@ export function refreshExternalAnchors(
   tasks: Task[],
   source: ExternalSourceDoc,
   matchScope: ExternalSourceMatchScope = 'project-or-path',
+  /** Koppelingen die deze verversing niet mag raken (`refreshFromSources`: een bronpad dat niet gelezen is). */
+  skip?: (link: ExternalLink) => boolean,
 ): RefreshResult {
   const srcById = new Map(source.tasks.map((t) => [t.id, t]));
   let refreshed = 0;
@@ -207,7 +209,7 @@ export function refreshExternalAnchors(
     if (!task.externalLinks || task.externalLinks.length === 0) return task;
     let taskChanged = false;
     const links = task.externalLinks.map((link): ExternalLink => {
-      if (!linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
+      if (skip?.(link) || !linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
 
       const srcTask = srcById.get(link.sourceRef.taskId);
       if (!srcTask) {
@@ -261,6 +263,72 @@ export function refreshExternalAnchors(
   });
 
   return { tasks: anyChanged ? outTasks : tasks, refreshed, missing, changed: anyChanged };
+}
+
+/**
+ * Ververst de koppelingen uit meerdere bronnen in één keer: *Alle externe relaties vernieuwen*
+ * (`refreshAllExternalAnchors`) en de MCP-tool `planner_refresh_external_links`. Puur, net als
+ * `refreshExternalAnchors`; elke bron ververst zijn eigen koppelingen op het vorige resultaat.
+ *
+ * Een IFC-kopie bewaart terecht zijn persistente project-id. Staan twee verschillende bronpaden met zo'n
+ * gedeelde id in dezelfde actie, dan is project-id alleen niet langer onderscheidend: de eerste bron zou
+ * anders beide koppelingen verversen en de tweede beide opnieuw. Alleen in die aantoonbaar ambigue groep
+ * eist de functie daarom het genormaliseerde bronpad. Een gewone verversing blijft project-id-primair,
+ * zodat een verplaatst bestand werkt.
+ * Een bron zonder pad (stap 1.8, gekozen in de browser) raakt alleen koppelingen zonder pad met haar
+ * project-id (`project-without-path`).
+ *
+ * `readPaths` (genormaliseerd, `normalizeExternalSourcePath`): de bronpaden die deze actie gelezen heeft. Een
+ * koppeling met een bruikbaar bronpad dat daar niet in staat, houdt haar anker en pad: anders zou de terugval
+ * op project-id haar het anker en het pad van een andere bron met hetzelfde project-id geven (review #813). Ze
+ * telt dan niet als ververst en niet als ontbrekend. Dat geldt voor een bron buiten de toegestane map of een
+ * onleesbare bron, en ook voor een koppeling die de planner tijdens het lezen naar een ander bronbestand
+ * zette: de set gaat over de gelezen bestanden, niet over de koppelingen van vóór het lezen. Zonder
+ * `readPaths` mag elke koppeling ververst worden.
+ */
+export function refreshFromSources(
+  tasks: Task[],
+  sources: readonly ExternalSourceDoc[],
+  readPaths?: ReadonlySet<string>,
+): RefreshResult {
+  const pathsByProjectId = new Map<string, Set<string>>();
+  for (const source of sources) {
+    const projectId = source.projectId.trim();
+    const sourcePath = normalizeExternalSourcePath(source.filePath ?? '');
+    if (!projectId || sourcePath === null) continue;
+    const sourcePaths = pathsByProjectId.get(projectId) ?? new Set<string>();
+    sourcePaths.add(sourcePath);
+    pathsByProjectId.set(projectId, sourcePaths);
+  }
+  const ambiguousProjectIds = new Set(
+    [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
+  );
+
+  const skip = readPaths === undefined ? undefined : (link: ExternalLink) => {
+    const path = normalizeExternalSourcePath(link.sourceRef.filePath ?? '');
+    return path !== null && !readPaths.has(path);
+  };
+
+  let out = tasks;
+  let refreshed = 0;
+  let missing = 0;
+  let changed = false;
+  for (const source of sources) {
+    const result = refreshExternalAnchors(
+      out,
+      source,
+      // Een bron zonder pad (de browser, stap 1.8) raakt alleen koppelingen zonder pad: een koppeling met een
+      // pad wijst naar een bepaald bestand en houdt haar anker als dat bestand niet gelezen is.
+      !source.filePath ? 'project-without-path'
+        : ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
+      skip,
+    );
+    out = result.tasks;
+    refreshed += result.refreshed;
+    missing += result.missing;
+    if (result.changed) changed = true;
+  }
+  return { tasks: out, refreshed, missing, changed };
 }
 
 /** De herkomst van een anker (keuze 4) in een vorm die de tooltip toont. `site`: een versienummer op de
