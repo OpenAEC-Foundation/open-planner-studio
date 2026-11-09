@@ -210,14 +210,19 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
 - **Open projecten rekenen samen.** Met de optie voor open-ended activiteiten op *Opened Projects*: "Schedules external
   relationships on the backward pass using the latest finish date of all opened projects and external relationship
   dates to calculate late dates of activities." GEZIEN (zelf nagelezen):
-  [Oracle P6 Help 90519](https://docs.oracle.com/cd/G18294_01/p6help/en/90519.htm). Daar ook: "Ignore relationships
-  to and from other projects option — Determines whether to ignore activity relationships between projects."
+  [Oracle P6 Help 90519](https://docs.oracle.com/cd/G18294_01/p6help/en/90519.htm). Op dezelfde pagina staat de
+  optie *Ignore relationships to and from other projects*: "Determines whether to ignore activity relationships
+  between projects."
 - **Automatisch herberekenen is een instelling.** "Schedule automatically when a change affects dates: Mark to
   calculate the schedule each time a significant change is made to an activity, relationship, or resource. If you
   clear this checkbox, changes to activities are reflected in the schedule after you calculate the schedule." GEZIEN
   (zelf nagelezen, 9 november 2026):
-  [Oracle P6, General tab - Schedule Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_schedule_options_dialog_box.htm).
-  Twee projecten openen is dus niet genoeg voor direct doorrekenen; dat gebeurt alleen met deze instelling aan.
+  [Oracle P6 Professional, General tab - Schedule Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_schedule_options_dialog_box.htm).
+  In P6 Professional is twee projecten openen dus niet genoeg voor direct doorrekenen; dat gebeurt alleen met deze
+  instelling aan. In P6 EPPM rekent *Schedule Now* alle geopende projecten samen ("This schedules all open projects at
+  the same time"), en *Project Scheduled Services* kan automatisch rekenen. GEZIEN (zelf nagelezen, 9 november 2026):
+  [Oracle P6 EPPM, Scheduling Projects](https://docs.oracle.com/cd/G18294_01/p6help/en/7878.htm). Of EPPM direct
+  herberekent bij elke wijziging, is niet vastgesteld.
 - **Relaties bij de activiteit.** "If multiple projects are open, you can create external relationships. You can also
   create new relationships and view or configure existing predecessor or successor relationships, from the
   Relationships detail window." GEZIEN (zelf nagelezen, 9 november 2026):
@@ -227,9 +232,15 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
   disk". GEZIEN (zelf nagelezen, 9 november 2026):
   [Oracle P6 Professional, Standalone Database FAQ](https://docs.oracle.com/cd/F88968_01/English/Installing/p6_pro_install_config_standalone/89396.htm).
   P6 EPPM werkt met een server.
-- **Gesloten projecten** tellen mee via *External Early Start* / *External Late Finish*, die als beperkingen werken.
-  GEZIEN in #792 (Eastwood Harris). Bij export naar XER blijven ze bewaard: "the module will preserve the external
-  activity dates". GEZIEN via de ophaaltool:
+- **Projecten die niet in de database staan.** Na een import zonder het bronproject houdt een activiteit de datums
+  van de verloren relatie in *External Early Start* / *External Late Finish*: "The early start date for imported
+  activities with external relationships to projects that do not exist in the database." GEZIEN (zelf nagelezen,
+  9 november 2026): [Oracle P6 Help 47222](https://docs.oracle.com/cd/G18294_01/p6help/en/47222.htm). Een gesloten
+  project in dezelfde database is een andere toestand; dat onderscheid maakt ook Eastwood Harris (#792). Bij export
+  naar XER blijven die datums alleen onder voorwaarden bewaard: het project is eerder geïmporteerd met relaties naar
+  projecten die niet in de database staan, en het is berekend met de optie *Ignore Relationships To and From Other
+  Projects*. Dan geldt: "the module will preserve the external activity dates". GEZIEN (zelf nagelezen, 9 november
+  2026):
   [Oracle P6 Admin, Export projects to an XER file](https://docs.oracle.com/cd/F51303_01/English/admin/p6_pro_importing_exporting/export_projects_to_an_xer_file.htm).
 - **Wie hangt van mij af.** Het rapport *Cross Project Relationships* in P6 EPPM "Lists the projects and associated
   activities that are predecessors or successors to the selected project, providing visibility into cross project
@@ -243,9 +254,6 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
   predecessor activity"). GEZIEN via de ophaaltool:
   [Oracle Primavera Cloud Data Dictionary](https://docs.oracle.com/cd/E80480_01/help/en/user/233316.htm). Of de cloud
   ze live doorrekent en of er meldingen zijn: niet gevonden.
-- **Een Oracle-cloudproduct (2020)** zegt over afhankelijkheden van andere projecten: "In this release, any date
-  changes made to the predecessor tasks will not change the dates in the current project." GEZIEN via de ophaaltool;
-  welk product het is, is niet zeker ([Oracle, Working with Project Dependencies](https://docs.oracle.com/cd/F12984_01/help/en/user/81703.htm)).
 
 ### 4.3 Asta Powerproject en andere
 
@@ -253,19 +261,18 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
   projectbestand. Planners zeggen dat het kan als meerdere projecten in één bestand staan: "you can have any number
   of open projects in one file and link tasks between projects." VERMOED: forum
   ([Planning Planet](https://planningplanet.com/index.php/comment/90826)).
-- **Asta Enterprise.** "allows multiple users to work collaboratively across project files … with all updates
-  synchronised in real-time." GEZIEN via de ophaaltool
-  ([Elecosoft](https://elecosoft.com/us/products/asta/asta-enterprise/)). Over doorrekenen tussen projecten of
-  meldingen zegt de pagina niets.
+- **Asta Enterprise.** Volgens Elecosoft werken meerdere gebruikers samen aan projectbestanden, en worden wijzigingen
+  meteen gesynchroniseerd. GEZIEN via de ophaaltool, uit twee pagina's: de
+  [startpagina van Elecosoft](https://elecosoft.com/us/) en de
+  [pagina van Asta Enterprise](https://elecosoft.com/us/products/asta/asta-enterprise/). Over doorrekenen tussen
+  projecten of meldingen zeggen die pagina's niets.
 - **Smartsheet.** Geen voorgangers over sheets heen; een celkoppeling is de omweg. VERMOED: community-berichten.
-- **Procore Scheduling.** De help over afhankelijkheden noemt geen afhankelijkheden tussen projecten. GEZIEN via de
-  ophaaltool, als negatief resultaat.
 
 ### 4.4 Samengevat
 
 | wat | MS Project (bestanden) | Project Server | P6 | OPS op 2 november 2026 |
 |---|---|---|---|---|
-| bron verandert → eigen plan weet het | bij openen, dialoog *Links Between Projects* | bij openen, rood uitroepteken | geopende projecten rekenen samen, direct als *Schedule automatically when a change affects dates* aanstaat; gesloten projecten via opgeslagen externe datums | alleen na *Bron vernieuwen* (desktop) |
+| bron verandert → eigen plan weet het | bij openen, dialoog *Links Between Projects* | bij openen, rood uitroepteken | geopende projecten rekenen samen (Professional: direct als *Schedule automatically when a change affects dates* aanstaat; EPPM: met *Schedule Now* of geplande diensten); een bronproject buiten de database via opgeslagen externe datums | alleen na *Bron vernieuwen* (desktop) |
 | zien wat er in het eigen plan verschuift vóór accepteren | niet vastgesteld (de help noemt "effects on your schedule") | niet gevonden | niet gevonden | nee |
 | bron ziet wie ervan afhangt | VERMOED: spooktaak als de bron de link kent | niet vastgesteld (de bron toont alleen de afnemer die een gewijzigde levering ziet) | ja: het rapport *Cross Project Relationships* (EPPM), en met de projecten open het venster *Relationships* | nee |
 | melding aan de andere planner | niet gevonden | bij openen een rood uitroepteken; een SharePoint-alert op de lijst met leveringen is in te stellen; een conflictmelding: niet gevonden | niet gevonden | nee |
@@ -276,7 +283,7 @@ De kolom *P6* geldt voor P6 Professional en P6 EPPM samen; waar ze verschillen, 
 *OPS op 2 november 2026* is de stand bij het onderzoek, vóór de bouw van deel 1. Wat sindsdien gebouwd is, staat in
 paragraaf 9.1.
 
-Geen enkel product dat ik vond, meldt een conflict actief aan de andere planner. Daar kan OPS beter zijn. Of een
+In de geraadpleegde bronnen vonden we geen actieve conflictmelding aan de andere planner. Daar kan OPS beter zijn. Of een
 product vóór het accepteren toont wat er in het eigen plan verschuift, is niet vastgesteld. Bij MS Project noemt de
 help wel "effects on your schedule"; wat dat precies is, weten we niet (4.1). Bij P6 vonden we zo'n stap niet.
 
@@ -310,7 +317,8 @@ Elk punt met een voorbeeld. *Aannemer.ifc* hangt af van *Installateur.ifc*: de r
    het eigen plan verschuift: "Accepteren verschuift 4 taken. Het einde van het project gaat van 18 juni naar
    25 juni 2027 (+5 werkdagen)." Daarna *Accepteren* (één undo-stap, met herberekening) of *Later*. Of MS Project bij
    het openen ook de verschuiving in het eigen plan toont, is niet vastgesteld (4.1). P6 rekent geopende projecten
-   samen door, direct als die instelling aanstaat; een voorbeeld vóór accepteren vonden we daar niet (4.2).
+   samen door (in P6 Professional direct als die instelling aanstaat); een voorbeeld vóór accepteren vonden we daar
+   niet (4.2).
 3. **De bron ziet wie ervan afhangt.** De installateur ziet bij *Installatie*: "Aannemer rekent hierop: Ruwbouw moet
    klaar zijn vóór de start, uiterlijk 15 maart 2027". In de Gantt staat een klein merkteken aan de balk. P6 toont
    relaties tussen projecten in een rapport en, met de projecten open, bij de activiteit; beide binnen één database
@@ -319,7 +327,7 @@ Elk punt met een voorbeeld. *Aannemer.ifc* hangt af van *Installateur.ifc*: de r
    dan ziet hij vóór het opslaan: "Na opslaan moet *Installatie* al starten 5 werkdagen vóórdat de ruwbouw van Aannemer
    klaar is." Na het opslaan krijgt de planner van de aannemer een melding met een link. De aannemer ziet na F5 ook zelf een
    regel: "De externe opvolger *Installatie* (Installateur) begint 5 werkdagen voordat deze taak klaar is" (voorstel 2
-   uit #792, knownbug 6). Geen enkel product in hoofdstuk 4 meldt een conflict actief aan de andere kant.
+   uit #792, knownbug 6). In de geraadpleegde bronnen vonden we geen actieve conflictmelding aan de andere planner.
 5. **De herkomst van elk anker.** De tooltip zegt: "Anker uit versie 12 van Installateur.ifc, gelezen op 2 november
    14:10". Zonder cloud: de wijzigingstijd van het bestand. Zo is achteraf te zien waarop een plan rekende.
 6. **Doorklikken.** Rechtsklik op de koppeling: *Bronproject openen bij deze taak*. In de SuperCloud opent de host
@@ -533,10 +541,11 @@ Wat in de bouw anders liep dan hierboven staat:
 - **1.4.** Bij SS en SF noemt de melding de werkelijke start als die er is, net als de controle. De algemene
   melding bij een harde pin zegt nog "negatieve speling", ook als de pin staat met speling nul; dat staat als
   VERVOLG in `knownbugs.md` (punt 882).
-- **1.5.** Verandert er bij een nieuwe versie geen enkel anker, dan komt er geen balk (paragraaf 5.4 zei: *Bekijken*
-  vindt geen verschil en zet de velden goed). Een balk zonder gevolg is ruis. De herkomst wordt bijgewerkt bij de
-  volgende *Accepteren* of *Vernieuwen*. Het venster *Bekijken* rekent opnieuw als de planner F5 drukt terwijl
-  het open staat.
+- **1.5.** Blijven bij een nieuwe versie alle ankerdatums en de status *brontaak ontbreekt* gelijk, dan komt er geen
+  balk (paragraaf 5.4 zei: *Bekijken* vindt geen verschil en zet de velden goed); een balk zonder gevolg is ruis.
+  Verdwijnt een brontaak of komt ze terug, dan komt er wel een balk, ook als de ankerdatum gelijk blijft. De herkomst
+  wordt bijgewerkt bij de volgende *Accepteren* of *Vernieuwen*. Het venster *Bekijken* rekent opnieuw als de planner F5
+  drukt terwijl het open staat.
 - **1.6.** De bewaking is niet getest in de echte desktop-app: een build op aia wacht op het besluit over de SSD
   (14 november 2026). Het testplan staat als VERVOLG in `knownbugs.md` (punt 883).
 - **1.8.** De knop *Bronbestand kiezen…* staat ook in de desktop-app (de bestandskiezer, niet alleen een recent
