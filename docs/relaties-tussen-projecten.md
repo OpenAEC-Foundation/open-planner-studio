@@ -483,9 +483,9 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
 | 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
 | 1.8 | *Bronbestand kiezen…* in de browser | #858 | open (niet gemerged) |
-| 1.9 | Een bron in dezelfde map op de site | — | nog niet gebouwd |
+| 1.9 | Een bron in dezelfde map op de site | #859 | open (niet gemerged), na #858 |
 | 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
-| 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | #857 | open (niet gemerged) |
+| 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | #857 | gemerged in main |
 
 Wat in de bouw anders liep dan hierboven staat:
 
@@ -505,6 +505,12 @@ Wat in de bouw anders liep dan hierboven staat:
   balk van 1.5 weg voor de bronnen die hij las, zoals de app. Alleen een koppeling naar een bron die echt gelezen is,
   wordt ververst; dat geldt ook voor *Alle externe relaties vernieuwen* in de app. Een koppeling die de planner tijdens
   het lezen naar een ander bronbestand zet, houdt haar nieuwe pad en anker.
+- **1.11.** Het zoekresultaat staat in het eigenschappenpaneel van de taak, onder *Afhankelijkheden*. De map staat in
+  het IFC-bestand als `OPS_ProjectSettings/DependentProjectsFolder`. De vraag vóór opslaan rekent op een kopie van het
+  bestand zoals het opgeslagen wordt, net als het afhankelijke project; het geopende document rekent niet. Mislukt
+  die controle, dan valt ze nog stil terug op de huidige datums (VERVOLG, `knownbugs.md` punt 995). Met gevonden
+  koppelingen kost elke opslag met de hand extra tijd, geschat 2 s bij 10.000 taken (VERVOLG, punt 996). Submappen,
+  de MCP-kant en een melding aan de andere planner zijn er nog niet (punten 975, 976 en 979).
 
 ## 10. Keuzes voor Ethan (alle besloten)
 
