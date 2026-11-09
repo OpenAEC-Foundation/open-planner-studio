@@ -481,7 +481,7 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.4 | Melding na F5 bij een te krappe externe opvolger | #810 | gemerged in main |
 | 1.5 | Balk bij een nieuwe versie van een bron | #811 | gemerged in main |
 | 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
-| 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
+| 1.7 | Verversen uit een geopend document | #860 | open (niet gemerged), wacht op het antwoord van Ethan over keuze 5 (14 november) |
 | 1.8 | *Bronbestand kiezen…* in de browser | #858 | gemerged in main |
 | 1.9 | Een bron in dezelfde map op de site | #859 | open (niet gemerged), na #858 |
 | 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
