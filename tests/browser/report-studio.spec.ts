@@ -190,4 +190,156 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-sidebar-toggle]').click();
   await expect(page.locator('[data-rs-export]')).toBeVisible();
   await expect(fab).toHaveCount(0);
+
+  // Een andere bron vernieuwt de opgeslagen instellingen: de host die pas na de start antwoordt (#818),
+  // of een ander tabblad. Het tabblad volgt, en de volgende klik schrijft de oude kopie niet terug (review
+  // Sol #847). Beginstand uit de review: A3 met de zes standaardkolommen; de nieuwe stand is A1 met alleen
+  // Taaknaam. De host stuurt precies zo'n `StorageEvent` (`siteHostSettings.ts`).
+  const refreshStored = (patch: Record<string, unknown>) => page.evaluate(next => {
+    const oldValue = localStorage.getItem('ops-reportSettings');
+    const newValue = JSON.stringify({ ...JSON.parse(oldValue ?? '{}'), ...next });
+    localStorage.setItem('ops-reportSettings', newValue);
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ops-reportSettings', oldValue, newValue, storageArea: localStorage, url: location.href }));
+  }, patch);
+  await page.locator('[data-rs-step-head="columns"]').click();
+  await page.locator('[data-rs-reset="columns"]').click();
+  await expect(page.locator('[data-rs-column]')).toHaveCount(6);
+  await page.locator('[data-rs-step-head="page"]').click();
+  await page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A3"]').click();
+  await expect.poll(async () => (await saved()).paperSize).toBe('A3');
+  await expect(page.locator('[data-rs-undo-button]')).toBeVisible();
+  await refreshStored({ paperSize: 'A1', columns: ['task.name'] });
+  await expect(page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A1"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(page0.locator('text', { hasText: /^Start$/ })).toHaveCount(0);
+  // Ongedaan maken zou de zes kolommen over de vernieuwde stand terugzetten: het verdwijnt.
+  await expect(page.locator('[data-rs-undo-button]')).toHaveCount(0);
+  await page.locator('[data-rs-segmented="orientation"] [data-rs-value="portrait"]').click();
+  await expect.poll(async () => (await saved()).orientation).toBe('portrait');
+  expect(await saved()).toMatchObject({ paperSize: 'A1', columns: ['task.name'], orientation: 'portrait' });
+
+  // Ook het rapporttype volgt: een ander rapport in de opslag opent het oude paneel voor dat rapport, de
+  // Gantt-afdruk weer het nieuwe tabblad. Het oude paneel laat de velden van het nieuwe tabblad staan.
+  await refreshStored({ reportType: 'milestones' });
+  await expect(studio).toHaveCount(0);
+  await refreshStored({ reportType: 'gantt' });
+  await expect(studio).toBeVisible();
+  await expect(page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A1"]')).toHaveAttribute('aria-checked', 'true');
+  expect(await saved()).toMatchObject({ reportType: 'gantt', paperSize: 'A1', columns: ['task.name'], orientation: 'portrait' });
+});
+
+// Een Arabische taaknaam bij naamweergave Volledig (review Sol #847). De meting van het papier en de PDF komt
+// uit Noto Sans Arabic; het scherm moet dezelfde letter tekenen, anders tekende de browser de naam in een
+// systeemletter (183 px in plaats van 175 px) en liep hij over de volgende kolom. Gecontroleerd op de
+// werkelijk getekende tekst: in de SVG van het papier (`getBBox`, tegen de getekende kolomlijn) en, met de flag
+// uit, op het canvas van het oude voorbeeld (`fillText`, meegelezen). Daarna hetzelfde voor een lange
+// Latijnse naam (het canvas rondde letterbreedtes af en kapte die af terwijl afkappen uit stond) en voor een
+// Chinese naam zonder CJK-extensie.
+test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het papier en in het oude voorbeeld', async ({ page, ops: _ops }) => {
+  const arabic = 'أعمال البناء والتشييد وإدارة الموارد ومتابعة التنفيذ';
+  const latin = 'Stakeholder management en afstemming met de gemeente over de bouwlogistiek';
+  const [taskId] = await seedProject(page, [
+    { name: arabic, start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ], 'Rapport Arabisch');
+  // Alleen meelezen: wat het canvas van het oude voorbeeld tekent, met de letter en breedte van dat moment.
+  await page.evaluate(() => {
+    const original = CanvasRenderingContext2D.prototype.fillText;
+    const drawn: { text: string; x: number; font: string; width: number }[] = [];
+    CanvasRenderingContext2D.prototype.fillText = function fillText(text: string, x: number, y: number, maxWidth?: number) {
+      if (this.font.includes('InterPDF')) drawn.push({ text: String(text), x, font: this.font, width: this.measureText(text).width });
+      if (maxWidth === undefined) original.call(this, text, x, y);
+      else original.call(this, text, x, y, maxWidth);
+    };
+    Object.defineProperty(window, '__opsReportDrawn', { configurable: true, value: drawn });
+  });
+  // De breedte volgens de meting van papier en PDF (`loadReportTextMetrics`), op de letter van de naamcel.
+  const measured = (text: string, font: string) => page.evaluate(async ({ text, font }) => {
+    const { loadReportTextMetrics } = await import('/src/services/pdf/fontLoader.ts' as string);
+    return (await loadReportTextMetrics('inter', 'ltr')).measure(text, font) as number;
+  }, { text, font });
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: true } });
+  });
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  const page0 = page.locator('[data-report-page-svg="0"]');
+  await expect(page0).toBeVisible();
+  await page.locator('[data-rs-step-head="columns"]').click();
+  await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="full"]').click();
+
+  // De naamcel in de tabel (de meest linkse tekst met de naam; de andere staat naast de balk), met de
+  // eerste getekende kolomlijn rechts ervan in hetzelfde venster.
+  const nameCell = (name: string) => page0.evaluate((svg, name) => {
+    const cells = [...svg.querySelectorAll('text')].filter(t => t.textContent === name);
+    if (cells.length === 0) return null;
+    const cell = cells.reduce((a, b) => (b.getBBox().x < a.getBBox().x ? b : a));
+    const box = cell.getBBox();
+    const borders: number[] = [];
+    for (const path of cell.ownerSVGElement!.querySelectorAll('path')) {
+      for (const m of (path.getAttribute('d') ?? '').matchAll(/M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)/g)) {
+        const [x1, y1, x2, y2] = m.slice(1).map(Number);
+        if (x1 === x2 && x1 > box.x + 1 && Math.min(y1, y2) <= box.y && Math.max(y1, y2) >= box.y + box.height) borders.push(x1);
+      }
+    }
+    const style = getComputedStyle(cell);
+    return {
+      end: box.x + box.width, border: Math.min(...borders), drawn: cell.getComputedTextLength(),
+      font: `${style.fontWeight === '700' ? 'bold ' : ''}${style.fontSize} InterPDF`, family: style.fontFamily,
+    };
+  }, name);
+  const paperCell = async (name: string) => {
+    await expect.poll(() => nameCell(name).then(c => c !== null && Number.isFinite(c.border))).toBe(true);
+    const cell = (await nameCell(name))!;
+    // Dezelfde breedte als de meting (dus dezelfde letter), en de naam eindigt vóór de rechtermarge van de
+    // kolom (2 px, `NAME_RIGHT_PAD`): niets loopt over de kolomlijn.
+    expect(Math.abs(cell.drawn - await measured(name, cell.font)), `getekend ${cell.drawn}`).toBeLessThan(0.1);
+    expect(cell.end, `kolomlijn op ${cell.border}`).toBeLessThanOrEqual(cell.border - 2);
+    return cell;
+  };
+  const arabicCell = await paperCell(arabic);
+  expect(arabicCell.family).toMatch(/^"?OpsReportArabic"?, /);
+  await expect.poll(() => page.evaluate(() => Array.from(document.fonts as unknown as Iterable<FontFace>)
+    .filter(face => face.family.replace(/"/g, '') === 'OpsReportArabic' && face.status === 'loaded').map(face => face.weight).sort()))
+    .toEqual(['400', '700']);
+
+  // Het oude voorbeeld (flag uit) leest dezelfde opgeslagen naamweergave en meet met dezelfde meting. Het
+  // canvas tekent de naam volledig, in Noto vooraan, en even breed als de meting.
+  const canvasName = (name: string) => page.evaluate(name => {
+    const drawn = (window as Window & { __opsReportDrawn?: { text: string; x: number; font: string; width: number }[] }).__opsReportDrawn ?? [];
+    const cells = drawn.filter(d => d.text === name || (d.text.endsWith('…') && name.startsWith(d.text.slice(0, 8))));
+    return cells.length === 0 ? null : cells.reduce((a, b) => (b.x < a.x ? b : a));
+  }, name);
+  const clearDrawn = () => page.evaluate(() => {
+    (window as Window & { __opsReportDrawn?: unknown[] }).__opsReportDrawn!.length = 0;
+  });
+  const canvasCell = async (name: string) => {
+    await expect.poll(() => canvasName(name).then(c => c?.text ?? null), { timeout: 20_000 }).toBe(name);
+    const cell = (await canvasName(name))!;
+    expect(Math.abs(cell.width - await measured(name, cell.font)), `canvas ${cell.width}`).toBeLessThan(0.1);
+    return cell;
+  };
+  await expect.poll(async () => (await page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'))).truncateTaskNames).toBe(false);
+  await clearDrawn();
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: false } });
+  });
+  await expect(page.locator('[data-tour-anchor="report-panel"] img').first()).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
+  expect((await canvasCell(arabic)).font).toMatch(/^(bold )?[\d.]+px "?OpsReportArabic"?, /);
+
+  // Een lange Latijnse naam, nu de langste: hetzelfde op het canvas en, met de flag weer aan, op het papier.
+  await clearDrawn();
+  await page.evaluate(({ id, name }) => window.__OPS__!.store.getState().updateTask(id, { name }), { id: taskId, name: latin });
+  await canvasCell(latin);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: true } });
+  });
+  await expect(page0).toBeVisible();
+  await paperCell(latin);
+
+  // Een naam in een schrift dat geen meegeleverde letter heeft (Chinees zonder CJK-extensie): het scherm
+  // tekent hem in een systeemletter en de PDF valt dan terug op raster. De meting volgt dan de browser, niet
+  // de lege glyph van Inter.
+  await page.evaluate(({ id }) => window.__OPS__!.store.getState().updateTask(id, { name: '地基浇筑与钢筋绑扎工程施工' }), { id: taskId });
+  await paperCell('地基浇筑与钢筋绑扎工程施工');
 });

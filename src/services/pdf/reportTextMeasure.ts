@@ -19,7 +19,10 @@
 // ingebedde letter zelf, op het scherm uit dezelfde bytes (`loadReportTextMetrics` in `fontLoader.ts`).
 
 import type { TextBaseline } from './draw2d';
-import { shapeAndPlace, stripBidiControls, type ShapeFontkitFont, type ShapingFonts } from './bidiShape';
+import {
+  isArabicScriptCp, isBidiControlCp, isNeutralCp, shapeAndPlace, stripBidiControls, type ShapeFontkitFont, type ShapingFonts,
+} from './bidiShape';
+import { hasRtlText } from './reportFont';
 
 /** Het deel van een fontkit-font dat de meting leest. */
 export interface MeasureFont {
@@ -61,28 +64,8 @@ export function parseReportFont(css: string): { bold: boolean; size: number } {
   return { bold, size: m ? parseFloat(m[1]) : 10 };
 }
 
-/**
- * RTL-codepoint? (Arabisch + Hebreeuws, incl. presentatievormen). De rapportletters dekken deze scripts
- * niet; tekst met zo'n teken gaat in de PDF door de shaping-kern.
- */
-export function isRtlCodepoint(cp: number): boolean {
-  return (
-    (cp >= 0x0590 && cp <= 0x05FF) || // Hebreeuws
-    (cp >= 0x0600 && cp <= 0x06FF) || // Arabisch
-    (cp >= 0x0750 && cp <= 0x077F) || // Arabic Supplement
-    (cp >= 0x08A0 && cp <= 0x08FF) || // Arabic Extended-A
-    (cp >= 0xFB50 && cp <= 0xFDFF) || // Arabic Presentation Forms-A
-    (cp >= 0xFE70 && cp <= 0xFEFF)    // Arabic Presentation Forms-B
-  );
-}
-
-export function hasRtlText(text: string): boolean {
-  for (const ch of text) {
-    const cp = ch.codePointAt(0);
-    if (cp !== undefined && isRtlCodepoint(cp)) return true;
-  }
-  return false;
-}
+// `isRtlCodepoint` en `hasRtlText` staan in `reportFont.ts` (ook het scherm kiest er zijn letter mee).
+export { hasRtlText, isRtlCodepoint } from './reportFont';
 
 /** Per font de advance (font-eenheden) per codepoint: een rapport tekent dezelfde tekens duizenden keren. */
 const advanceCache = new WeakMap<MeasureFont, Map<number, number>>();
@@ -178,6 +161,37 @@ export function measureReportText(fonts: ReportMeasureFonts, text: string, bold:
   return fontAdvanceWidth(bold ? fonts.bold : fonts.regular, plain, size);
 }
 
+/**
+ * Heeft elk teken van `text` een echte glyph in de letter waarmee {@link measureReportText} het meet?
+ * Dezelfde indeling als de dekkingspoort van de vector-PDF (`checkCoverage`/`checkCoverageComplex` in
+ * `pdfVectorDraw2d.ts`). Tekst met Arabisch of Hebreeuws (de shaping-kern): een Arabisch teken in Noto, een
+ * neutraal teken in de rapportletter of Noto, elk ander teken in de rapportletter. Andere tekst: elk teken in
+ * de rapportletter of een terugvalletter.
+ *
+ * WAAROM (review Sol #847): een teken dat geen van die letters heeft (Chinees zonder CJK-extensie, Lao,
+ * Hebreeuws in Inter) meet hier de breedte van de lege glyph, terwijl de browser het in een systeemletter
+ * tekent. De vector-PDF valt bij zo'n teken terug op raster, en dat tekent ook de browser. Voor zo'n tekst
+ * is de meting uit het fontbestand dus voor geen van beide juist; `createReportTextMetrics` meet hem dan
+ * met de meegegeven browsermeting.
+ */
+export function coversReportText(fonts: ReportMeasureFonts, text: string): boolean {
+  const shaping = hasRtlText(text) ? fonts.shaping : undefined;
+  const arabicHas = (cp: number) => shaping?.arabicRegular.hasGlyphForCodePoint?.(cp) ?? false;
+  const covered = (cp: number): boolean => {
+    const inMain = fonts.regular.hasGlyphForCodePoint(cp);
+    if (!shaping) return inMain || fallbackIndexFor(fonts, cp) >= 0;
+    if (isArabicScriptCp(cp)) return arabicHas(cp);
+    if (isNeutralCp(cp)) return inMain || arabicHas(cp);
+    return inMain;
+  };
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (cp === undefined || isBidiControlCp(cp)) continue; // stuurtekens worden niet getekend
+    if (!covered(cp)) return false;
+  }
+  return true;
+}
+
 /** Stijg- en daalhoogte van een letter als deel van een em (daalhoogte negatief), zoals de PDF ze leest. */
 export function fontVerticalMetrics(font: MeasureFont): { ascentEm: number; descentEm: number } {
   const upem = font.unitsPerEm || 1000;
@@ -208,8 +222,12 @@ export interface ReportTextMetrics {
 /**
  * De meting van het papier en van de kolombreedtes in het paneel: `measureReportText` met een cache per
  * letter en tekst (een rapport meet dezelfde datums en koppen honderden keren).
+ *
+ * `uncovered`: de meting voor een tekst die {@link coversReportText} niet dekt. In de app is dat de
+ * browsermeting (`loadReportTextMetrics` in `fontLoader.ts`): die tekst tekent het scherm in een
+ * systeemletter en de PDF als raster. Zonder deze meting (de headless checks) meet alles uit het fontbestand.
  */
-export function createReportTextMetrics(fonts: ReportMeasureFonts): ReportTextMetrics {
+export function createReportTextMetrics(fonts: ReportMeasureFonts, uncovered?: Pick<ReportTextMetrics, 'measure'>): ReportTextMetrics {
   const widths = new Map<string, Map<string, number>>();
   const shifts = new Map<string, { middle: number; bottom: number }>();
   return {
@@ -219,7 +237,9 @@ export function createReportTextMetrics(fonts: ReportMeasureFonts): ReportTextMe
       const cached = perFont.get(text);
       if (cached !== undefined) return cached;
       const { bold, size } = parseReportFont(font);
-      const width = measureReportText(fonts, text, bold, size);
+      const width = uncovered && !coversReportText(fonts, text)
+        ? uncovered.measure(text, font)
+        : measureReportText(fonts, text, bold, size);
       // Begrensd: een grote planning heeft duizenden unieke namen; die hoeven niet eeuwig te blijven.
       if (perFont.size > 50_000) perFont.clear();
       perFont.set(text, width);

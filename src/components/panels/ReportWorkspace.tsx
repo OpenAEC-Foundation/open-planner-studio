@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { useAppStore } from '@/state/appStore';
 import { isFeatureEnabled, REPORT_REDESIGN_FLAG } from '@/utils/featureFlags';
 import { loadReportSettings, type ReportType } from '@/utils/reportSettings';
@@ -11,6 +12,10 @@ const GanttReportStudio = lazy(() => import('./reportStudio/GanttReportStudio').
  * Met de flag krijgt de Gantt-afdruk het nieuwe tabblad (issue #817); de andere elf rapporttypen blijven
  * voorlopig in het oude paneel (besluit eigenaar 7-11-2026: de Gantt-afdruk is de kern). Beide kanten
  * bewaren het gekozen rapporttype in `ops-reportSettings` vóór ze wisselen.
+ *
+ * Vernieuwt een andere bron die sleutel (de host na de start, #818, of een ander tabblad), dan volgt de
+ * werkruimte het rapporttype daaruit: anders blijft het nieuwe tabblad staan terwijl de opgeslagen keuze
+ * een ander rapport is (review Sol #847).
  */
 export function ReportWorkspace() {
   const enabled = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, REPORT_REDESIGN_FLAG));
@@ -25,6 +30,10 @@ export function ReportWorkspace() {
     );
     return () => { cancelled = true; };
   }, [enabled]);
+
+  useStoredSettingRefresh('ops-reportSettings', () => {
+    if (enabled) void loadReportSettings().then(loaded => setType(loaded.reportType), () => {});
+  });
 
   if (!enabled) return <ReportPanel />;
   if (type === null) return <div className="flex-1 min-h-0" data-tour-anchor="report-panel" />;

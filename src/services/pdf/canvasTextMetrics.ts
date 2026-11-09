@@ -1,11 +1,17 @@
 import type { TextBaseline } from './draw2d';
+import { hasRtlText, rtlReportFont } from './reportFont';
 import { fontPx, type SvgTextMetrics } from './svgDraw2d';
 
 /**
- * Tekstmeting met het canvas van de browser: alleen nog de TERUGVAL als de lettermaten van het fontbestand
- * niet te laden zijn (`loadReportTextMetrics` in `fontLoader.ts`). Het canvas rondt bij kleine letters elke
- * letterbreedte af (in Chromium op Linux op hele pixels), dus deze meting wijkt af van de vector-PDF; zie de
- * kop van `reportTextMeasure.ts`.
+ * Tekstmeting met het canvas van de browser, voor twee gevallen (`loadReportTextMetrics` in `fontLoader.ts`):
+ * een tekst met een teken dat geen meegeleverde letter heeft (`coversReportText`; het scherm tekent die
+ * in een systeemletter en de PDF valt dan terug op raster), en als terugval als de lettermaten van het
+ * fontbestand niet te laden zijn.
+ *
+ * Dezelfde letter als het scherm: `reportTextFont` (Noto vooraan en kerning aan voor tekst met Arabisch of
+ * Hebreeuws, zoals het SVG-papier en `CanvasDraw2D` tekenen) en `textRendering = 'geometricPrecision'`
+ * zoals het papier. Zonder die laatste rondt Chromium op Linux bij kleine letters elke letterbreedte af op
+ * hele pixels ("Stakeholder management" in 9 px Inter: 115 in plaats van 109,0).
  *
  * De basislijnverschuiving volgt de vector-PDF (`PdfVectorDraw2D.place`): `middle` = halverwege
  * stijg- en daalhoogte van de letter, `bottom` = de daalhoogte. De maten komen uit de canvasmeting van
@@ -15,6 +21,7 @@ export function createCanvasTextMetrics(): SvgTextMetrics {
   const ctx = document.createElement('canvas').getContext('2d');
   if (!ctx) throw new Error('createCanvasTextMetrics: geen 2D-context');
   ctx.fontKerning = 'none';
+  ctx.textRendering = 'geometricPrecision';
   let currentFont = '';
   const widths = new Map<string, Map<string, number>>();
   const vertical = new Map<string, { ascent: number; descent: number }>();
@@ -32,7 +39,9 @@ export function createCanvasTextMetrics(): SvgTextMetrics {
       if (!perFont) { perFont = new Map(); widths.set(font, perFont); }
       const cached = perFont.get(text);
       if (cached !== undefined) return cached;
-      applyFont(font);
+      const rtl = hasRtlText(text);
+      applyFont(rtl ? rtlReportFont(font) : font);
+      ctx.fontKerning = rtl ? 'normal' : 'none';
       const width = ctx.measureText(text).width;
       // Begrensd: een grote planning heeft duizenden unieke namen; die hoeven niet eeuwig te blijven.
       if (perFont.size > 20_000) perFont.clear();
@@ -44,6 +53,7 @@ export function createCanvasTextMetrics(): SvgTextMetrics {
       let m = vertical.get(font);
       if (!m) {
         applyFont(font);
+        ctx.fontKerning = 'none';
         ctx.textBaseline = 'alphabetic';
         const probe = ctx.measureText('Hg');
         const size = fontPx(font);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, type ReportSettings,
 } from '@/utils/reportSettings';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { markReportInput } from './studioPerf';
 
 /** De velden die per stap bij "Standaard" horen. */
@@ -50,17 +51,27 @@ export function fieldsAreDefault(settings: ReportSettings, keys: readonly Studio
  *
  * Dezelfde valkuil als in `ReportPanel`: opslaan pas ná het laden, anders overschrijft de eerste render
  * de opgeslagen voorkeuren met de standaard.
+ *
+ * Een andere bron kan de opgeslagen stand vernieuwen: de host die pas na de start antwoordt (#818), of
+ * een ander tabblad. Elke wijziging schrijft het hele object terug, dus zonder opnieuw lezen zet de
+ * volgende klik de oude kopie over de nieuwe stand heen (review Sol #847). Daarom leest de hook bij elke
+ * `StorageEvent` op `ops-reportSettings` opnieuw (`useStoredSettingRefresh`), meteen in de gebeurtenis:
+ * via een effect kon een klik nog tussen de gebeurtenis en het opnieuw lezen vallen.
  */
 export function useStudioSettings(): StudioSettingsApi {
   const [settings, setSettings] = useState<ReportSettings>(DEFAULT_REPORT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
   const [lastReset, setLastReset] = useState<PendingReset | null>(null);
+  // De stand zoals hij net uit de opslag kwam: die hoeft niet terug (geen schrijfactie, en dus ook geen
+  // schrijfactie naar de host, voor een waarde die er al staat).
+  const fromStorageRef = useRef<ReportSettings | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void loadReportSettings().then(loaded => {
       if (cancelled) return;
+      fromStorageRef.current = loaded;
       setSettings(loaded);
       hydratedRef.current = true;
       setHydrated(true);
@@ -72,8 +83,17 @@ export function useStudioSettings(): StudioSettingsApi {
     return () => { cancelled = true; };
   }, []);
 
+  useStoredSettingRefresh('ops-reportSettings', () => {
+    void loadReportSettings().then(loaded => {
+      fromStorageRef.current = loaded;
+      setSettings(loaded);
+      // Ongedaan maken zou de stand van vóór Standaard over de vernieuwde stand terugzetten.
+      setLastReset(null);
+    }, () => {});
+  });
+
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    if (!hydratedRef.current || settings === fromStorageRef.current) return;
     void saveReportSettings(settings).catch(() => {});
   }, [settings]);
 

@@ -390,3 +390,62 @@ opnieuw (software-rasteren in headless Chromium). Een sprong toont het blad in h
 keer twee. Niet gemeten: een productiebuild (zwaar op aia09-mp50, eerst toestemming nodig) en een echte GPU.
 
 Nieuwe VERVOLG-punten: `knownbugs.md` 947 en 948.
+
+## Fixronde na code-review 1 (9 november 2026)
+
+Code-review van GPT-6.1-Sol (xhigh) op `86f0cc56c`: oordeel nee, door twee BLOKKEERT-punten. De UI bleef
+ongewijzigd (de council keurde hem goed).
+
+1. **Vernieuwde rapportinstellingen werden teruggeschreven naar de oude stand.** Oorzaak: `useStudioSettings`
+   las `ops-reportSettings` alleen bij het openen en schreef daarna bij elke wijziging het hele object terug;
+   `ReportWorkspace` las het rapporttype ook maar één keer. Vernieuwde de host de stand na de start (#818) of
+   deed een ander tabblad dat, dan zette één klik de oude kopie terug. Wat er veranderde:
+   - `useStudioSettings` leest bij elke `StorageEvent` op `ops-reportSettings` opnieuw
+     (`useStoredSettingRefresh`), meteen in de gebeurtenis en niet via een effect: anders kon een klik nog tussen
+     de gebeurtenis en het lezen vallen. Een stand die net uit de opslag kwam, schrijft de hook niet terug. Een
+     openstaand "Ongedaan maken" vervalt bij zo'n verversing; het zou de stand van vóór Standaard over de
+     vernieuwde stand zetten.
+   - `ReportWorkspace` volgt het rapporttype uit de vernieuwde stand.
+   - Het oude paneel (`ReportPanel`, flag uit) had de verversing al (`useStoredSettingRefresh`, sinds #818) en
+     laadt daarbij ook de velden van het nieuwe tabblad opnieuw; daar zat de fout niet.
+   - Het nieuwe tabblad houdt verder geen eigen kopie van een `ops-`-sleutel: de previewkwaliteit, datum- en
+     tijdnotatie en de balkkleuren komen uit de store, en die zet de host zelf bij (`processLateSettings`).
+   Bewijs: de werkroute in `tests/browser/report-studio.spec.ts` speelt Sols scenario (A3 met zes kolommen, de
+   opslag wordt A1 met alleen Taaknaam plus een `StorageEvent`, dan een klik op Staand, dan de opgeslagen waarde
+   lezen) en daarna een vernieuwd rapporttype. Zonder de verversing in `useStudioSettings` schrijft de klik
+   `paperSize: "A3"` met de zes oude kolommen terug; zonder de verversing in `ReportWorkspace` blijft het nieuwe
+   tabblad staan bij een ander rapporttype.
+
+2. **Arabische tekst werd met Noto Sans Arabic gemeten maar in een andere letter getekend.** Oorzaak: de meting
+   (papier, kolombreedtes, PDF) gebruikt Noto Sans Arabic, maar het scherm registreerde alleen de rapportletter en
+   Inter. De browser tekende Arabisch dus in een systeemletter: Sols naam meet 175,068 px en werd 183,016 px
+   getekend, tot x = 218,016 bij een kolomlijn op 214. In het oude voorbeeld (flag uit) kapte het canvas dezelfde
+   naam af. Bij het nalopen bleek hetzelfde voor elke lange Latijnse naam in het oude voorbeeld: het canvas rondt
+   op Linux elke letterbreedte af (115 px tegen 109,0 px) en kapte de langste naam af terwijl afkappen uit stond.
+   En een teken dat geen meegeleverde letter heeft (Chinees zonder CJK-extensie, Lao) mat de lege glyph van Inter.
+   Wat er veranderde (zie ook `.claude/rules/reports.md`, "Het scherm tekent met dezelfde letters als het meet"):
+   - `ensureReportFontLoaded` laadt ook Noto Sans Arabic als `@font-face` (familie `OpsReportArabic`, met een
+     `unicode-range` voor Arabisch schrift en neutrale tekens).
+   - Een tekst met Arabisch of Hebreeuws tekent het scherm met `reportTextFont` (`reportFont.ts`): Noto vóór de
+     rapportletter en kerning aan, zoals de shaping-kern hem in de PDF zet. SVG via de letterklasse, canvas in
+     `CanvasDraw2D`. De vaste letterstapel zelf bleef gelijk.
+   - Canvas en browsermeting zetten `textRendering = 'geometricPrecision'` (gemeten: 109,002 px tegen 109,0 px uit
+     het fontbestand).
+   - Een tekst die `coversReportText` niet dekt, meet met het canvas: die tekent het scherm in een systeemletter en
+     de PDF dan als raster.
+   Gemeten na de fix (headless Chromium, dev-server, Inter 9 px): Sols naam meet 175,068 px; het papier tekent
+   175,078 px (einde 210,078 bij kolomlijn 214), het canvas 175,069 px. Zonder kerning was het 175,703 px. Bewijs: een nieuwe route in `report-studio.spec.ts` meet de
+   werkelijk getekende tekst (`getBBox` en `getComputedTextLength` tegen de getekende kolomlijn, canvas via een
+   meelezende `fillText`) voor de Arabische naam, een lange Latijnse naam en een Chinese naam, op het papier en in
+   het oude voorbeeld. Rood zonder de fix, elk met een kopie in `/tmp` gemuteerd en met `cp` teruggezet: zonder
+   schermletter 183,016 px en einde 218,016 bij lijn 214; zonder kerning 175,703 px; zonder schermletter op het
+   canvas en zonder `geometricPrecision` kapt het oude voorbeeld de naam af ("… ومتابعة ا…",
+   "… over de bouwlo…"); zonder browsermeting meet de Chinese naam 76,8 px tegen 117 px getekend.
+   Wat overblijft: een neutraal teken op een links-naar-rechtsniveau in een Arabische tekst (de spatie in "Fase 1"
+   vóór een Arabisch woord) zet de PDF in de rapportletter en de browser in Noto: 0,19 px per spatie bij 9 px
+   Inter. Een CJK-extensie tekent alleen in de PDF (knownbug 967, bijgewerkt). Het canvas kapt nog af met zijn
+   eigen meting (knownbug 968, bijgewerkt).
+
+3. **VERVOLG uit dezelfde review.** De commentaren in `check-report-columns.ts` (sectie 1) en
+   `check-report-svg.ts` (sectie 5) beloven niet meer dan ze doen: de eerste vergelijkt de huidige render met
+   zichzelf, de tweede twee uitkomsten van dezelfde meting. De werkelijk getekende grens bewaakt de browserspec.

@@ -1,6 +1,7 @@
 // De kolomlijst van de Gantt-afdruk (issue #817, deel B). Bewaakt:
-//  1. Zonder kolomlijst tekent het rapport precies de vaste tabel van vóór #817; dezelfde lijst als
-//     expliciete ingebouwde kolommen geeft byte-gelijke tekenopdrachten.
+//  1. Zonder kolomlijst en met dezelfde lijst als expliciete ingebouwde kolommen geeft de render
+//     byte-gelijke tekenopdrachten, met de kolomgrenzen in de oude volgorde. Let op: dit vergelijkt de
+//     huidige render met zichzelf. Het legt het gedrag van vóór #817 (main) niet vast (review Sol #847).
 //  2. Volgorde: de kolommen staan op papier in de volgorde van de lijst, de taaknaam altijd erbij.
 //  3. Celtekst: een registerkolom (Kalenderdagen) toont per taak dezelfde tekst als de cel in het
 //     taakraster (`getCell`), via één bron (`taskGridCellText`).
@@ -92,7 +93,7 @@ const BUILTIN_DEFAULT: PrintTableColumn[] = [
   { key: 'task.time.finish', builtin: 'end' }, { key: 'task.time.completion', builtin: 'complete' },
 ];
 
-// ── 1. Zonder lijst = vaste tabel; expliciete standaardlijst = byte-gelijk ─────────────────────
+// ── 1. Zonder lijst = expliciete standaardlijst, byte-gelijk (de huidige render met zichzelf) ─────
 {
   const legacy = record(baseOptions());
   const explicit = record(baseOptions({ tableColumns: BUILTIN_DEFAULT }));

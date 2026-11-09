@@ -15,6 +15,10 @@
 //     datum wordt in de PDF afgekapt. Voor #817 mat het papier met het canvas van de browser; dat rondt
 //     bij kleine letters af (9 november 2026: "Stakeholder management" 115 tegen 109,0 in de PDF), dus
 //     het papier kapte namen af die de PDF voluit toonde, en de PDF kapte datums af ("30-03-2027 0…").
+//     Let op: de opgenomen grenzen van het papier en de plaatsing in de PDF komen uit dezelfde meting. Of de
+//     browser de tekst ook zo breed tekent (met dezelfde letter), meet deze check niet; een Arabische naam
+//     in een systeemletter bleef hier groen terwijl hij over de kolom liep (review Sol #847). Dat bewaakt
+//     `tests/browser/report-studio.spec.ts`: de getekende tekst (`getBBox`) tegen de getekende kolomlijn.
 //  6. Alleen de rijen van de bladen in beeld: het papier tekent bij een klik alleen de rijen van de
 //     bladen die gevraagd worden (`createReportPaperRecorder`, rijvenster in `renderReport`). Elk blad uit
 //     zo'n gedeeltelijke opname is byte voor byte gelijk aan hetzelfde blad uit de volledige opname, met

@@ -79,7 +79,25 @@ het canvas: dat rondt bij kleine letters af (Chromium op Linux: "Stakeholder man
 en dan kapte de PDF datums af die het scherm voluit toonde. Niet fontkit-`layout`/`widthOfTextAtSize`:
 GSUB kost bij Inter ruim 1 ms per tekst. Het verschil met de getekende glyphs (Inter "->", Carlito "ti")
 is klein en zit in papier én PDF. `check-report-svg.ts` (sectie 5) vergelijkt per tekstitem papier en
-echte PDF. De canvas-backend (oude rasterpreview, raster-terugval) meet nog met het canvas (knownbug 968).
+echte PDF; dat zijn twee uitkomsten van dezelfde meting.
+
+**Het scherm tekent met dezelfde letters als het meet** (review Sol #847). Een meting uit het fontbestand
+klopt alleen als de browser dezelfde letter tekent. Daarom: (1) `ensureReportFontLoaded` laadt ook Noto Sans
+Arabic als `@font-face` (familie `ARABIC_REPORT_FAMILY`, met `ARABIC_REPORT_UNICODE_RANGE`: Arabisch schrift
+en neutrale tekens). (2) Een tekst met Arabisch of Hebreeuws tekent het scherm met `reportTextFont`: Noto
+vóór de rapportletter en kerning aan, zoals de shaping-kern (`fontkit.layout`, met kerning) hem in de PDF
+zet; SVG via de letterklasse (`reportFontRule`), canvas in `CanvasDraw2D.withScreenFont`. De vaste stack
+zelf blijft gelijk (`check-report-font.ts` A0/C0). Over blijft alleen een neutraal teken op een
+links-naar-rechtsniveau in zo'n tekst (PDF: rapportletter, browser: Noto; 0,19 px per spatie bij 9 px Inter).
+(3) Een tekst met een teken dat geen meegeleverde letter heeft (`coversReportText`: Chinees zonder
+CJK-extensie, Lao, Hebreeuws in Inter) meet met het canvas (`createCanvasTextMetrics` als `uncovered` in
+`createReportTextMetrics`): het scherm tekent hem in een systeemletter en de PDF valt dan terug op raster.
+(4) Canvas en browsermeting zetten `textRendering = 'geometricPrecision'`, net als het papier: zonder die
+instelling rondt Chromium op Linux elke letterbreedte af ("Stakeholder management" 115 tegen 109,0) en kapte
+het oude voorbeeld de langste naam af terwijl afkappen uit stond. Bewaking op de werkelijk getekende tekst:
+`tests/browser/report-studio.spec.ts` (SVG `getBBox` tegen de getekende kolomlijn, canvas `fillText`
+meegelezen; Arabisch, een lange Latijnse en een Chinese naam). Het canvas kapt nog af met zijn eigen meting
+(GSUB-verschillen zoals Carlito "ti", knownbug 968); een CJK-extensie tekent alleen in de PDF (knownbug 967).
 
 **Rijvenster voor het papier** (issue #817). `renderReport` neemt een optioneel laatste argument
 `rowWindow` (`ReportRowWindowRequest`): het krijgt het renderresultaat (maten liggen vast vóór het tekenen)

@@ -2300,19 +2300,23 @@ en noem het in je rapport of PR-tekst.
      stappen, de stapvoet, de zijbalk, de rand en het zwevende venster. Voorstel: per stap een eigen component en
      de zijbalk en het venster apart. Uit council ronde 1 van #817 (Claude Fable 5.1, xhigh, VERVOLG). — B
 
-967. **VERVOLG: Chinese, Japanse of Koreaanse tekst kan op het papier anders afkappen dan in de PDF.**
-     `loadReportTextMetrics` (`src/services/pdf/fontLoader.ts`) bouwt de meting met de rapportletter, Inter en de
-     Arabische letter, maar zonder de CJK-letters die een extensie levert. De PDF tekent CJK met die letters
-     (`cjkFonts` in `src/services/pdf/pdfVectorDraw2d.ts`). Op het papier meet een CJK-taaknaam dus met de
-     lege-glyfbreedte van de rapportletter. Afgeleid uit de code, niet nagespeeld met een CJK-extensie. Voorstel:
-     de CJK-letters van de extensie ook aan `assembleReportMeasureFonts` geven. Gevonden in de fixronde na council
-     ronde 1 van #817. — S
+967. **VERVOLG: met een CJK-extensie kan Chinese, Japanse of Koreaanse tekst in de PDF anders afkappen dan op het
+     papier.** Sinds de fixronde na code-review 1 van #847 meet het papier een tekst die geen meegeleverde letter
+     dekt (`coversReportText` in `src/services/pdf/reportTextMeasure.ts`) met het canvas, dus met de systeemletter
+     die het scherm tekent; zonder extensie valt de PDF dan terug op raster en klopt alles. Met een CJK-extensie
+     tekent de vector-PDF CJK in de letter van de extensie (`cjkFonts` in `src/services/pdf/pdfVectorDraw2d.ts`),
+     en die kan andere breedtes hebben dan de systeemletter. Afgeleid uit de code, niet nagespeeld met een
+     CJK-extensie. Voorstel: de letter van de extensie ook als `@font-face` voor het scherm registreren en aan
+     `assembleReportMeasureFonts` geven, net als Noto Sans Arabic. Gevonden in de fixronde na council ronde 1
+     van #817. — S
 
 968. **VERVOLG: het oude rastervoorbeeld kapt nog af met de canvasmeting.** De kolombreedtes van het oude tabblad
-     komen sinds de fixronde van #817 uit de lettermaten van het fontbestand, maar het afkappen tijdens het tekenen
-     gebruikt de canvas-tekenaar (`measureText` in `src/services/pdf/canvasDraw2d.ts:137`). In het oude voorbeeld
-     kan een naam dus een teken eerder of later afkappen dan in de PDF. Het nieuwe tabblad heeft dit niet (SVG en
-     PDF meten met `measureReportText`). Afgeleid uit de code. Voorstel: de canvas-tekenaar laten meten met
+     komen uit de lettermaten van het fontbestand; het afkappen tijdens het tekenen gebruikt de canvas-tekenaar
+     (`measureText` in `src/services/pdf/canvasDraw2d.ts`). Sinds de fixronde na code-review 1 van #847 meet het
+     canvas met `textRendering = 'geometricPrecision'` en Arabisch in Noto; dan is het verschil klein (gemeten:
+     Latijn 348,192 tegen 348,192 px, Arabisch 175,069 tegen 175,068 px). Over blijft wat het canvas met GSUB
+     anders tekent dan de meting telt (Inter "->", de Carlito-ligatuur "ti"): daar kan het oude voorbeeld een
+     teken eerder of later afkappen dan de PDF. Afgeleid uit de code. Voorstel: de canvas-tekenaar laten meten met
      `ReportTextMetrics`, of het oude voorbeeld laten vervallen als de flag standaard aan gaat. — S
 
 969. **VERVOLG: een maandlabel dat aan de rechterrand van een blad begint, toont alleen een streepje.** Gezien in

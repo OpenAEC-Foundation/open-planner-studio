@@ -1,4 +1,5 @@
 import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type TextBaseline } from './draw2d';
+import { isRtlReportFont, reportTextFont } from './reportFont';
 
 /**
  * SVG-backend voor `Draw2D` (issue #817): het rapportpapier op het scherm als vectortekening.
@@ -172,7 +173,9 @@ export class SvgRecordingDraw2D implements Draw2D {
     const x0 = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
     const size = this.fontSize(this.font);
     this.ops.push({
-      k: 'text', x, y: baselineY, text, font: this.fontId(this.font), fill: this.fillStyle, anchor,
+      // De letter waarmee de browser deze tekst tekent: voor Arabisch of Hebreeuws Noto vooraan, zoals de
+      // PDF (`reportTextFont`). De meting hierboven krijgt de gewone letter; die kiest zelf.
+      k: 'text', x, y: baselineY, text, font: this.fontId(reportTextFont(text, this.font)), fill: this.fillStyle, anchor,
       // Ruime omhullende: boven de basislijn één letterhoogte, eronder een derde.
       b: [x0, baselineY - size, x0 + width, baselineY + size * 0.35],
     });
@@ -639,7 +642,8 @@ export function reportFontClass(font: string): string {
 
 /**
  * De vaste tekstregel van het papier. Kerning staat uit, net als in de canvas-backend en de PDF (die
- * tellen advances zonder kerning); `white-space: pre` houdt spaties zoals canvas ze tekent.
+ * tellen advances zonder kerning; tekst met Arabisch of Hebreeuws kernt wel, zie {@link reportFontRule});
+ * `white-space: pre` houdt spaties zoals canvas ze tekent.
  * `geometricPrecision`: zonder die regel zet Chromium kleine tekst (een blad op schermgrootte, 8 px ×
  * schaal) per teken op hele pixels, en dan vallen er gaten in woorden. Alleen voor tekst op een blad:
  * een `<style>` in een SVG geldt voor het hele document.
@@ -649,9 +653,16 @@ export const REPORT_PAGE_TEXT_RULE = 'svg[data-report-page-svg] text{font-kernin
 /**
  * De regel voor één letterklasse. `font` is de canvas-letter (`bold 9px InterPDF, …`); de
  * CSS-`font`-shorthand leest exact dezelfde schrijfwijze.
+ *
+ * De letter van een tekst met Arabisch of Hebreeuws (`rtlReportFont`) tekent met kerning: de PDF zet zo'n
+ * tekst via `fontkit.layout` en dat kernt. Die regel moet zwaarder wegen dan {@link REPORT_PAGE_TEXT_RULE},
+ * en blijft één regel (`insertRule` in `paperFontRules.ts` neemt er één tegelijk).
  */
 export function reportFontRule(font: string): string {
-  return `.${reportFontClass(font)}{font:${font}}`;
+  const cls = reportFontClass(font);
+  return isRtlReportFont(font)
+    ? `svg[data-report-page-svg] text.${cls}{font:${font};font-kerning:normal}`
+    : `.${cls}{font:${font}}`;
 }
 
 /** De letterklassen van een opname als CSS (`reportFontRule` per letter), met de vaste tekstregel. */

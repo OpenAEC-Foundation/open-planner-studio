@@ -64,6 +64,73 @@ export function isReportFontId(value: unknown): value is ReportFontId {
 }
 
 /**
+ * RTL-codepoint? (Arabisch + Hebreeuws, incl. presentatievormen). De rapportletters dekken deze scripts
+ * niet; tekst met zo'n teken gaat in de PDF door de shaping-kern (`bidiShape.ts`). Hier en niet in
+ * `reportTextMeasure.ts`: ook {@link reportTextFont} leest het, en dit bestand blijft zonder imports.
+ */
+export function isRtlCodepoint(cp: number): boolean {
+  return (
+    (cp >= 0x0590 && cp <= 0x05FF) || // Hebreeuws
+    (cp >= 0x0600 && cp <= 0x06FF) || // Arabisch
+    (cp >= 0x0750 && cp <= 0x077F) || // Arabic Supplement
+    (cp >= 0x08A0 && cp <= 0x08FF) || // Arabic Extended-A
+    (cp >= 0xFB50 && cp <= 0xFDFF) || // Arabic Presentation Forms-A
+    (cp >= 0xFE70 && cp <= 0xFEFF)    // Arabic Presentation Forms-B
+  );
+}
+
+export function hasRtlText(text: string): boolean {
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (cp !== undefined && isRtlCodepoint(cp)) return true;
+  }
+  return false;
+}
+
+/**
+ * De familie waaronder `fontLoader.ts` Noto Sans Arabic voor het scherm registreert (review Sol #847).
+ * De vector-PDF tekent Arabisch in die letter (de shaping-kern) en meet er ook mee; het scherm moet hem
+ * dus ook tekenen. Zonder deze familie tekende de browser Arabisch in een systeemletter: de meting gaf
+ * 175 px, de browser tekende 183 px en de naam liep over de volgende kolom.
+ */
+export const ARABIC_REPORT_FAMILY = 'OpsReportArabic';
+
+/**
+ * De tekens die de browser uit {@link ARABIC_REPORT_FAMILY} haalt (`unicode-range`): het Arabische schrift
+ * en de neutrale tekens (spaties en algemene interpunctie, `isNeutralCp` in `bidiShape.ts`). Dat zijn de
+ * tekens die de shaping-kern in een rechts-naar-linksrun in Noto zet; een neutraal teken dat Noto mist
+ * (het lange streepje) valt in de browser door naar de volgende letter, net als in de PDF naar de
+ * rapportletter. Cijfers en Latijn staan er bewust niet in: die tekent de PDF ook in een Arabische tekst
+ * in de rapportletter.
+ */
+export const ARABIC_REPORT_UNICODE_RANGE = 'U+0009-000A, U+000D, U+0020, U+00A0, U+0600-06FF, U+0750-077F, U+08A0-08FF, U+2000-206F, U+FB50-FDFF, U+FE70-FEFF';
+
+/** `font` (een canvas- en CSS-letter, `bold 9px InterPDF, …`) met {@link ARABIC_REPORT_FAMILY} vooraan. */
+export function rtlReportFont(font: string): string {
+  return font.replace(/(\d+(?:\.\d+)?px(?:\s*\/\s*\S+)?\s+)/, `$1"${ARABIC_REPORT_FAMILY}", `);
+}
+
+/** Is `font` een letter uit {@link rtlReportFont}? Dan tekent het scherm met kerning, zoals de shaping-kern. */
+export function isRtlReportFont(font: string): boolean {
+  return font.includes(`"${ARABIC_REPORT_FAMILY}"`);
+}
+
+/**
+ * De letter waarmee het scherm (SVG-papier, canvas) `text` tekent. Tekst met Arabisch of Hebreeuws gaat in
+ * de PDF door de shaping-kern: Arabische en neutrale tekens in Noto, de rest in de rapportletter, en met
+ * de kerning van `fontkit.layout`. Het scherm tekent zo'n tekst daarom met Noto vóór de rapportletter
+ * (de `unicode-range` beperkt Noto tot die tekens) en met kerning aan; zo komen ook de spaties uit Noto.
+ * Elke andere tekst: `font` ongewijzigd (de vaste stack, zie {@link DEFAULT_REPORT_FONT_STACK}).
+ *
+ * Wat overblijft: een neutraal teken op een links-naar-rechtsniveau binnen zo'n tekst (de spatie in
+ * "Fase 1" vóór een Arabisch woord) zet de PDF in de rapportletter en de browser in Noto. Dat scheelt
+ * het verschil tussen twee spaties (Inter 0,281 em, Noto 0,260 em: 0,19 px bij 9 px).
+ */
+export function reportTextFont(text: string, font: string): string {
+  return hasRtlText(text) ? rtlReportFont(font) : font;
+}
+
+/**
  * De canvas-fontstack van een rapportletter. Voor `inter` exact {@link DEFAULT_REPORT_FONT_STACK}
  * (byte-identiek aan vóór de keuzelijst). Voor een andere letter: die letter, dan Inter, dan de
  * generieke familie. Inter staat er bewust tussen: een teken dat de gekozen letter mist, tekent het
