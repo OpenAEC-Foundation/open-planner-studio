@@ -226,7 +226,7 @@ const editSource = (s: App) => {
   const bar = S().ui.externalSourceUpdates;
   eq('5a de balk bij de opgeslagen versie, met één koppeling', bar.map(u => [u.key, u.version, u.changedLinks]),
     [[normalizeExternalSourcePath(PATH), 'v3', 1]]);
-  const saved = await S().readExternalSourceAt(bar[0].locator);
+  const saved = bar[0] ? await S().readExternalSourceAt(bar[0].locator) : await S().parseExternalSource(PATH);
   eq('5b alleen de herkomst verandert', externalVersionOnlyChanges(S().tasks, (await import('@/engine/externalLinks'))
     .refreshExternalAnchors(S().tasks, saved!, 'file-path').tasks).map(c => [c.before.anchorDate, c.link.anchorDate, c.link.sourceVersion]),
   [['2027-03-10T16:00', '2027-03-10T16:00', 'v3']]);

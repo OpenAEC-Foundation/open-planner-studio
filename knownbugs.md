@@ -537,6 +537,26 @@ en noem het in je rapport of PR-tekst.
      ongeveer 2 s, op de hoofdthread. Het loopt alleen met minstens één gevonden koppeling, maar dan bij elke opslag
      met de hand, ook als geen anker verandert. Voorstel: één IFC-tekst maken, die controleren en dezelfde tekst
      wegschrijven, met een controle dat de documentstand na de asynchrone stappen nog geldt. — B
+985. **VERVOLG: `planner_refresh_external_links` kent het geopende brondocument niet (stap 1.7).** De MCP-tool
+     ververst altijd uit het bestand en meldt niet dat de bron ook open staat met niet-opgeslagen wijzigingen. Headless
+     heeft geen tabbladen; in de app kan het wel (`unsavedOpenSources` in `src/state/openSourceDocument.ts`). Bewust
+     buiten stap 1.7 gelaten (opdracht). Voorstel: in de app het veld `unsavedOpenSources` in de uitslag van de tool,
+     zonder de optie om met het geopende document te rekenen. — S
+986. **VERVOLG: een geopende bron die niet te lezen is, krijgt geen melding en geen knop.** `refreshAllExternalAnchors`
+     en `refreshExternalAnchorsFrom` (`src/state/slices/fileSlice.ts`) melden een geopend brondocument met
+     niet-opgeslagen wijzigingen alleen voor een bron die ze lazen: de melding zegt dat het anker uit de opgeslagen
+     versie komt. Is het bestand niet te lezen (geen toegang, weg), dan telt de uitslag het als niet gelezen, ook als
+     het document open staat. Voorstel: een eigen melding met de knop *Rekenen met het geopende document* voor zo'n
+     bron. — S
+987. **VERVOLG: twee geopende documenten met hetzelfde project-id geven geen melding (stap 1.7).** Bij een bron zonder
+     pad herkent `openSourceDocument` (`src/state/openSourceDocument.ts`) het geopende document op project-id. Passen
+     er twee (bijv. een kopie die ook open staat), dan kiest de app geen van beide: geen melding, het anker uit het
+     bestand. Voorstel: in de browser het onthouden bestandshandvat vergelijken met het handvat van het document
+     (`isSameEntry`). — S
+988. **VERVOLG: verversen uit een geopend document is niet getest in de echte desktop-app.** Stap 1.7 herkent een bron
+     met pad op het genormaliseerde pad van het document. `check-external-open-source.ts` toetst dat met een nep-lezer
+     en de browsertest met een bron zonder pad (OPFS). Niet getoetst: twee bestanden open in de Tauri-app, met een pad
+     in een andere schrijfwijze (hoofdletters op Windows, een symbolische link). — S
 
 ## Tabel, invoer en bediening
 
