@@ -201,14 +201,20 @@ async function measureBrowser(name, file) {
   } catch (e) {
     return { error: `playwright ontbreekt: ${e.message}` };
   }
+  // Alleen deze drie paden; de server leest nooit een pad uit het verzoek.
+  const routes = new Map([
+    ['/', join(work, 'index.html')],
+    ['/meet-browser.js', join(work, 'meet-browser.js')],
+    ['/data.ifc', file],
+  ]);
   const server = createServer((req, res) => {
-    const path = req.url === '/data.ifc' ? file : join(work, req.url === '/' ? 'index.html' : req.url.slice(1));
-    try {
-      res.writeHead(200, { 'content-length': statSync(path).size });
-      createReadStream(path).pipe(res);
-    } catch {
+    const path = routes.get(req.url ?? '');
+    if (!path) {
       res.writeHead(404).end();
+      return;
     }
+    res.writeHead(200, { 'content-length': statSync(path).size });
+    createReadStream(path).pipe(res);
   });
   await new Promise(done => server.listen(0, '127.0.0.1', done));
   const url = `http://127.0.0.1:${server.address().port}/`;

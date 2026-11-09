@@ -11,8 +11,10 @@
 //    sleutels kwamen in e1ac01947 en wisselden naar `#n` in 87ebd4d46, op dezelfde dag en vóór v2026.7.3.
 //  - v2026.7.2: de laatste tag met IfcTask met 12 argumenten (en '0.1'); schrijft nog geen OPS_Assignments.
 //  - v2026.9.0: de laatste tag met '0.1' (letterlijke tekst, vóór 2026-09-28), met `#n`-sleutels en 13 argumenten.
+//  - v2026.43.0: de huidige lay-out en codering; voor de vraag uit §11 of een oudere tag in een constant slot een
+//    andere waarde schrijft (evidence fase 0).
 //
-// Draaien: node scripts/proef/maak-oude-uitvoer.mjs   (licht: twee kleine esbuild-bundels)
+// Draaien: node scripts/proef/maak-oude-uitvoer.mjs   (licht: kleine esbuild-bundels)
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -35,6 +37,7 @@ const JOBS = [
     call: 'writeIFC(r.project, r.calendar, r.tasks, r.sequences, r.resources, r.assignments, r.activityCodeTypes, r.customFieldDefs)',
   },
   { tag: 'v2026.9.0', example: '10-villa-wassenaar.ifc', call: 'writeIFC({ ...r })' },
+  { tag: 'v2026.43.0', example: '10-villa-wassenaar.ifc', call: 'writeIFC({ ...r })' },
 ];
 
 // Vaste klok: de writer zet `new Date()` in de kop, de owner history en de werkplannen.
