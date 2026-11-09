@@ -154,6 +154,7 @@
     "barsGroup": "Barres",
     "manageBaselines": "Gérer les références…",
     "statusDate": "Date d'état",
+    "statusDateValue": "Date d'état : {{date}}",
     "statusDateClear": "Effacer la date d'état",
     "statusDateTime": "Heure de la date d'état",
     "statusDateTimeLater": "Heure plus tard",
@@ -218,7 +219,9 @@
     "screenColorsMissingField": "Ce champ n’existe pas dans ce projet. La catégorie de travaux est utilisée temporairement.",
     "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique.",
     "addLayout": "Nouvelle disposition",
-    "toggleRelations": "Lignes de liaison"
+    "toggleRelations": "Lignes de liaison",
+    "relationFindDependents": "Rechercher les projets dépendants…",
+    "relationFindDependentsHint": "Rechercher dans un dossier les projets ayant une relation externe avec ce planning."
   },
   "ifc": {
     "title": "Éditeur IFC",

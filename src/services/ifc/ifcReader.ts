@@ -2335,6 +2335,9 @@ function extractStructure(
         } else if (name === 'P6ProjectCode') {
           // P6 Project-ID (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.p6ProjectCode = v;
+        } else if (name === 'DependentProjectsFolder') {
+          // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
+          if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
         }
       }
       continue;

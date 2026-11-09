@@ -153,6 +153,7 @@
     "barsGroup": "Balken",
     "manageBaselines": "Baselines verwalten…",
     "statusDate": "Statusdatum",
+    "statusDateValue": "Statusdatum: {{date}}",
     "statusDateClear": "Statusdatum leeren",
     "statusDateTime": "Uhrzeit des Statusdatums",
     "statusDateTimeLater": "Uhrzeit später",
@@ -217,7 +218,9 @@
     "screenColorsMissingField": "Dieses Feld ist in diesem Projekt nicht vorhanden. Vorübergehend wird die Arbeitskategorie verwendet.",
     "screenColorsHint": "Außerhalb des Modus „Kritischer Pfad“ markiert ein roter Rand den kritischen Pfad.",
     "addLayout": "Neues Layout",
-    "toggleRelations": "Beziehungslinien"
+    "toggleRelations": "Beziehungslinien",
+    "relationFindDependents": "Abhängige Projekte suchen…",
+    "relationFindDependentsHint": "Einen Ordner nach Projekten mit einer externen Beziehung zu diesem Terminplan durchsuchen."
   },
   "ifc": {
     "title": "IFC-Editor",

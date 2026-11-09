@@ -58,4 +58,9 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'error',
     },
   },
+  {
+    // De oude Lucide-iconen zolang de B2-iconen achter de vlag `b2-icons` staan: alleen deze tabel mag lucide-react laden.
+    files: ['src/components/icons/lucideMapping.ts'],
+    rules: { 'no-restricted-imports': 'off' },
+  },
 );

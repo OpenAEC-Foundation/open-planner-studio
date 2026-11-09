@@ -13,6 +13,8 @@
     "dismiss": "Fermer la notification",
     "taskEditRevertBlocked": "Une modification du client MCP ou d'une extension est intervenue entre-temps. Les modifications de tâche effectuées avant n'ont pas été annulées ; elles restent des étapes ordinaires sous « Annuler ».",
     "openFailed": "Échec de l'ouverture du fichier",
+    "fileDropRefused": "Non ouvert : {{names}}. L’application n’ouvre que les fichiers IFC, XML, MPP, XER et CSV.",
+    "fileDropBlocked": "Non ouvert : {{names}}. Fermez d’abord la fenêtre ouverte.",
     "csvInvalidDate": "CSV non ouvert : date illisible « {{value}} » à la ligne CSV {{row}}, colonne « {{column}} ». Utilisez aaaa-mm-jj, jj-mm-aaaa ou jj/mm/aaaa.",
     "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
     "extHelpProjectOpenFailed": "Le fichier de projet {{file}} de l’extension {{name}} n’a pas pu être ouvert.",
@@ -290,7 +292,10 @@
     "minuteModelConverted_one": "{{document}} : {{count}} tâche a un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
     "minuteModelConverted_many": "{{document}} : {{count}} de tâches ont un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
     "minuteModelConverted_other": "{{document}} : {{count}} tâches ont un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
-    "minuteModelCalendarRepaired": "Le calendrier « {{calendar}} » a été réparé : la fin ou la pause ne correspondait pas aux horaires de travail enregistrés."
+    "minuteModelCalendarRepaired": "Le calendrier « {{calendar}} » a été réparé : la fin ou la pause ne correspondait pas aux horaires de travail enregistrés.",
+    "dependentProjectsFound": "Projets dépendants : {{projects}}. Liens vers ce projet : {{links}}.",
+    "dependentProjectsNone": "Aucun projet trouvé ayant une relation externe avec ce planning.",
+    "dependentProjectsFailed": "Impossible de lire le dossier des projets dépendants."
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",
@@ -725,6 +730,9 @@
     "missedDeadlines": "{{count}} échéance(s) dépassée(s)",
     "violatedConstraints": "{{count}} contrainte(s) non respectée(s)",
     "outOfSequence": "{{count}} relation(s) hors séquence",
+    "externalSuccessors_one": "{{count}} successeur externe trop serré",
+    "externalSuccessors_many": "{{count}} successeurs externes trop serrés",
+    "externalSuccessors_other": "{{count}} successeurs externes trop serrés",
     "overallocated": "{{count}} ressource(s) en surallocation",
     "summary_one": "{{count}} avertissement",
     "summary_many": "{{count}} avertissements",
@@ -743,6 +751,10 @@
       "scheduleError": "Le planning n'a pas pu être calculé : {{message}}",
       "missedDeadline": "Échéance {{deadline}} dépassée — fin au plus tôt {{finish}}",
       "violatedConstraint": "La contrainte {{constraint}} est outrepassée par la logique (marge négative)",
+      "externalSuccessorViolatedSF": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il se termine au plus tard le {{anchor}}, cette tâche ne commence que le {{own}}",
+      "externalSuccessorViolatedFF": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il se termine au plus tard le {{anchor}}, cette tâche ne se termine que le {{own}}",
+      "externalSuccessorViolatedSS": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il commence au plus tard le {{anchor}}, cette tâche ne commence que le {{own}}",
+      "externalSuccessorViolatedFS": "Trop serré pour le successeur externe {{task}} ({{project}}, {{relation}}) : il commence au plus tard le {{anchor}}, cette tâche ne se termine que le {{own}}",
       "outOfSequence": "Hors séquence : l'avancement du successeur contredit la relation",
       "truncatedLead": "Avance tronquée par le début du projet — la relation n'est pas pleinement respectée",
       "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur est absent ou n'est pas une tâche feuille",
@@ -1787,5 +1799,19 @@
     "actualWorkLost_one": "L'affectation de {{resource}} comporte déjà {{hours}} heure de travail réel. La supprimer fait perdre ce travail.",
     "actualWorkLost_many": "L'affectation de {{resource}} comporte déjà {{hours}} heures de travail réel. La supprimer fait perdre ce travail.",
     "actualWorkLost_other": "L'affectation de {{resource}} comporte déjà {{hours}} heures de travail réel. La supprimer fait perdre ce travail."
+  },
+  "fileDrop": {
+    "title": "Déposez pour ouvrir",
+    "subtitle": "Fichier de projet ou import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Les ancrages d'autres projets se resserrent",
+    "body": "Ces projets dépendent d'une date de ce planning. Après l'enregistrement, ils obtiennent une date plus serrée dès qu'ils actualisent leurs relations externes.",
+    "colProject": "Projet",
+    "colTheirTask": "Leur tâche",
+    "colOwnTask": "Tâche ici",
+    "colAnchor": "Ancrage : ancien → nouveau",
+    "saveAnyway": "Enregistrer quand même",
+    "cancel": "Annuler"
   }
 }

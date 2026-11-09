@@ -90,6 +90,8 @@
   justify-content: center;
   color: var(--theme-text-dim);
 }
+/* Zonder B2 (#844) de kleur van vóór #765. */
+:where(:root[data-icons="lucide"]) .ext-card-icon { color: var(--theme-accent); }
 
 .ext-card-icon svg { width: 24px; height: 24px; }
 .ext-card-quarantine-icon { color: #d97706; }

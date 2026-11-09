@@ -13,6 +13,8 @@
     "dismiss": "Închidere notificare",
     "taskEditRevertBlocked": "O modificare făcută de clientul MCP sau de o extensie a intervenit între timp. Modificările activităților făcute înainte nu au fost anulate și rămân ca pași obișnuiți sub Anulare.",
     "openFailed": "Deschiderea fișierului a eșuat",
+    "fileDropRefused": "Nu s-a deschis: {{names}}. Aplicația deschide doar IFC, XML, MPP, XER și CSV.",
+    "fileDropBlocked": "Nu s-a deschis: {{names}}. Închideți mai întâi fereastra deschisă.",
     "csvInvalidDate": "CSV nu a fost deschis: dată nerecunoscută „{{value}}” în rândul CSV {{row}}, coloana „{{column}}”. Utilizați aaaa-ll-zz, zz-ll-aaaa sau zz/ll/aaaa.",
     "extGuideCallbackFailed": "Un pas al extensiei {{name}} a eșuat. Îndrumarea continuă.",
     "extHelpProjectOpenFailed": "Fișierul de proiect {{file}} din extensia {{name}} nu a putut fi deschis.",
@@ -290,7 +292,10 @@
     "minuteModelConverted_one": "{{document}}: {{count}} activitate are după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
     "minuteModelConverted_few": "{{document}}: {{count}} activități au după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
     "minuteModelConverted_other": "{{document}}: {{count}} de activități au după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
-    "minuteModelCalendarRepaired": "Calendarul „{{calendar}}” a fost reparat: sfârșitul sau pauza nu corespundeau timpului de lucru salvat."
+    "minuteModelCalendarRepaired": "Calendarul „{{calendar}}” a fost reparat: sfârșitul sau pauza nu corespundeau timpului de lucru salvat.",
+    "dependentProjectsFound": "Proiecte dependente: {{projects}}. Legături către acest proiect: {{links}}.",
+    "dependentProjectsNone": "Nu s-au găsit proiecte cu o legătură externă către această planificare.",
+    "dependentProjectsFailed": "Folderul cu proiecte dependente nu a putut fi citit."
   },
   "scheduleErrors": {
     "cycle": "Dependență circulară între activități: {{path}}",
@@ -725,6 +730,9 @@
     "missedDeadlines": "{{count}} termen(e) limită depășit(e)",
     "violatedConstraints": "{{count}} restricție(i) încălcată(e)",
     "outOfSequence": "{{count}} dependență(e) în afara secvenței",
+    "externalSuccessors_one": "Succesori externi cu marjă insuficientă: {{count}}",
+    "externalSuccessors_few": "Succesori externi cu marjă insuficientă: {{count}}",
+    "externalSuccessors_other": "Succesori externi cu marjă insuficientă: {{count}}",
     "overallocated": "{{count}} resursă(e) supraalocată(e)",
     "summary_one": "{{count}} avertisment",
     "summary_few": "{{count}} avertismente",
@@ -743,6 +751,10 @@
       "scheduleError": "Planificarea nu a putut fi calculată: {{message}}",
       "missedDeadline": "Termen limită {{deadline}} depășit — sfârșit cel mai devreme {{finish}}",
       "violatedConstraint": "Restricția {{constraint}} este depășită de logica planificării (marjă negativă)",
+      "externalSuccessorViolatedSF": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): se termină cel târziu pe {{anchor}}, această activitate începe abia pe {{own}}",
+      "externalSuccessorViolatedFF": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): se termină cel târziu pe {{anchor}}, această activitate se termină abia pe {{own}}",
+      "externalSuccessorViolatedSS": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): începe cel târziu pe {{anchor}}, această activitate începe abia pe {{own}}",
+      "externalSuccessorViolatedFS": "Marjă insuficientă pentru succesorul extern {{task}} ({{project}}, {{relation}}): începe cel târziu pe {{anchor}}, această activitate se termină abia pe {{own}}",
       "outOfSequence": "În afara secvenței: progresul succesorului contrazice dependența",
       "truncatedLead": "Devans tăiat de începutul proiectului — dependența nu este folosită complet",
       "droppedSequence": "Dependență ignorată: predecesorul sau succesorul lipsește sau nu este o activitate frunză",
@@ -1787,5 +1799,19 @@
     "actualWorkLost_one": "Atribuirea pentru {{resource}} are deja {{hours}} oră de lucru real. Ștergerea elimină lucrul real.",
     "actualWorkLost_few": "Atribuirea pentru {{resource}} are deja {{hours}} ore de lucru real. Ștergerea elimină lucrul real.",
     "actualWorkLost_other": "Atribuirea pentru {{resource}} are deja {{hours}} de ore de lucru real. Ștergerea elimină lucrul real."
+  },
+  "fileDrop": {
+    "title": "Eliberați pentru a deschide",
+    "subtitle": "Fișier de proiect sau import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ancorele altor proiecte devin mai strânse",
+    "body": "Aceste proiecte depind de o dată din această planificare. După salvare, primesc o dată mai strânsă când își reîmprospătează legăturile între proiecte.",
+    "colProject": "Proiect",
+    "colTheirTask": "Sarcina lor",
+    "colOwnTask": "Sarcina aici",
+    "colAnchor": "Ancoră: veche → nouă",
+    "saveAnyway": "Salvează oricum",
+    "cancel": "Anulare"
   }
 }

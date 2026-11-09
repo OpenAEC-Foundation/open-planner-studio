@@ -13,6 +13,8 @@
     "dismiss": "알림 닫기",
     "taskEditRevertBlocked": "MCP 클라이언트 또는 확장 프로그램의 변경이 그 사이에 들어왔습니다. 그 이전의 작업 편집은 되돌려지지 않았으며, 실행 취소 아래에 일반 단계로 남아 있습니다.",
     "openFailed": "파일을 열 수 없습니다",
+    "fileDropRefused": "열지 않았습니다: {{names}}. 이 앱은 IFC, XML, MPP, XER, CSV만 엽니다.",
+    "fileDropBlocked": "열지 않았습니다: {{names}}. 먼저 열려 있는 창을 닫으세요.",
     "csvInvalidDate": "CSV를 열지 않았습니다: CSV 행 {{row}}, 열 \"{{column}}\"의 날짜 \"{{value}}\"을(를) 인식할 수 없습니다. yyyy-mm-dd, dd-mm-yyyy 또는 dd/mm/yyyy 형식을 사용하세요.",
     "extGuideCallbackFailed": "확장 프로그램 {{name}}의 단계에서 오류가 발생했습니다. 안내는 계속됩니다.",
     "extHelpProjectOpenFailed": "확장 프로그램 {{name}}의 프로젝트 파일 {{file}}을(를) 열 수 없습니다.",
@@ -172,7 +174,10 @@
     "msProjectLostFixedCosts_other": "작업 {{count}}개의 고정 비용을 가져오지 않았습니다.",
     "msProjectLostResourceRates_other": "리소스 {{count}}개의 단가를 가져오지 않았습니다.",
     "minuteModelConverted_other": "{{document}}: 변환 후 {{count}}개 작업의 시작 또는 완료일이 달라졌습니다. 가장 큰 이동은 {{days}}근무일입니다. Ctrl+Z를 누르면 저장된 날짜가 복원됩니다.",
-    "minuteModelCalendarRepaired": "달력 “{{calendar}}”의 종료 시각 또는 휴식 시간이 저장된 근무 시간과 맞지 않아 복구되었습니다."
+    "minuteModelCalendarRepaired": "달력 “{{calendar}}”의 종료 시각 또는 휴식 시간이 저장된 근무 시간과 맞지 않아 복구되었습니다.",
+    "dependentProjectsFound": "종속 프로젝트: {{projects}}. 이 프로젝트에 대한 링크: {{links}}.",
+    "dependentProjectsNone": "이 일정과 외부 관계가 있는 프로젝트를 찾지 못했습니다.",
+    "dependentProjectsFailed": "종속 프로젝트 폴더를 읽을 수 없습니다."
   },
   "scheduleErrors": {
     "cycle": "작업 간 순환 관계: {{path}}",
@@ -603,6 +608,7 @@
     "missedDeadlines": "기한 초과: {{count}}건",
     "violatedConstraints": "제약 조건 위반: {{count}}건",
     "outOfSequence": "순서 위반 관계: {{count}}건",
+    "externalSuccessors_other": "여유 부족 외부 후행: {{count}}건",
     "overallocated": "리소스 {{count}}개 과다 할당",
     "summary_other": "경고 {{count}}개"
   },
@@ -619,6 +625,10 @@
       "scheduleError": "일정을 계산할 수 없습니다: {{message}}",
       "missedDeadline": "기한 {{deadline}} 초과 — 빠른 완료 {{finish}}",
       "violatedConstraint": "제약 조건 {{constraint}}이(가) 논리에 의해 초과됨(음수 여유)",
+      "externalSuccessorViolatedSF": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 종료, 이 작업은 {{own}}에야 시작",
+      "externalSuccessorViolatedFF": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 종료, 이 작업은 {{own}}에야 종료",
+      "externalSuccessorViolatedSS": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 시작, 이 작업은 {{own}}에야 시작",
+      "externalSuccessorViolatedFS": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 시작, 이 작업은 {{own}}에야 종료",
       "outOfSequence": "순서 위반: 후속 작업의 진행이 관계와 모순됩니다",
       "truncatedLead": "리드가 프로젝트 시작에 의해 잘림 — 관계가 완전히 적용되지 않음",
       "droppedSequence": "관계 무시됨: 선행 또는 후속 작업이 없거나 리프 작업이 아닙니다",
@@ -1625,5 +1635,19 @@
     "blockedDuplicate": "이동할 수 없습니다: '{{child}}'에 {{resources}} 할당이 이미 있습니다.",
     "blockedNoChild": "이동할 수 없습니다: '{{phase}}'에는 할당을 담을 수 있는 하위 작업이 생기지 않습니다. 마일스톤이나 요약 작업만 가능합니다.",
     "actualWorkLost_other": "{{resource}}의 할당에는 이미 실제 작업 {{hours}}시간이 기록되어 있습니다. 삭제하면 그 실제 작업이 사라집니다."
+  },
+  "fileDrop": {
+    "title": "놓아서 열기",
+    "subtitle": "프로젝트 파일 또는 가져오기"
+  },
+  "dependentAnchorWarning": {
+    "title": "다른 프로젝트의 앵커가 더 촉박해집니다",
+    "body": "이 프로젝트들은 이 일정의 날짜에 의존합니다. 저장한 후 외부 관계를 새로 고치면 더 촉박한 날짜를 받게 됩니다.",
+    "colProject": "프로젝트",
+    "colTheirTask": "상대 작업",
+    "colOwnTask": "이쪽 작업",
+    "colAnchor": "앵커: 이전 → 새",
+    "saveAnyway": "그래도 저장",
+    "cancel": "취소"
   }
 }

@@ -13,6 +13,8 @@
     "dismiss": "Lukk melding",
     "taskEditRevertBlocked": "En endring fra MCP-klienten eller en utvidelse kom imellom. Aktivitetsendringene fra før er ikke tilbakeført og står som vanlige steg under «Angre».",
     "openFailed": "Kunne ikke åpne fil",
+    "fileDropRefused": "Ikke åpnet: {{names}}. Appen åpner bare IFC, XML, MPP, XER og CSV.",
+    "fileDropBlocked": "Ikke åpnet: {{names}}. Lukk det åpne vinduet først.",
     "csvInvalidDate": "CSV ikke åpnet: ugjenkjennelig dato «{{value}}» på CSV-rad {{row}}, kolonne «{{column}}». Bruk åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et steg fra utvidelsen {{name}} gav en feil. Veiledningen fortsetter.",
     "extHelpProjectOpenFailed": "Prosjektfilen {{file}} fra utvidelsen {{name}} kunne ikke åpnes.",
@@ -231,7 +233,10 @@
     "msProjectLostResourceRates_other": "Standardsatsene for {{count}} ressurser er ikke overtatt.",
     "minuteModelConverted_one": "{{document}}: {{count}} aktivitet har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
     "minuteModelConverted_other": "{{document}}: {{count}} aktiviteter har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
-    "minuteModelCalendarRepaired": "Kalenderen «{{calendar}}» er reparert: slutten eller pausen passet ikke til den lagrede arbeidstiden."
+    "minuteModelCalendarRepaired": "Kalenderen «{{calendar}}» er reparert: slutten eller pausen passet ikke til den lagrede arbeidstiden.",
+    "dependentProjectsFound": "Avhengige prosjekter: {{projects}}. Koblinger til dette prosjektet: {{links}}.",
+    "dependentProjectsNone": "Fant ingen prosjekter med en ekstern kobling til denne planen.",
+    "dependentProjectsFailed": "Mappen med avhengige prosjekter kunne ikke leses."
   },
   "scheduleErrors": {
     "cycle": "Sirkulær avhengighet mellom aktiviteter: {{path}}",
@@ -664,6 +669,8 @@
     "missedDeadlines": "{{count}} tidsfrist(er) oversittet",
     "violatedConstraints": "{{count}} begrensning(er) brutt",
     "outOfSequence": "{{count}} avhengighet(er) utenfor rekkefølge",
+    "externalSuccessors_one": "{{count}} ekstern etterfølger for knapp",
+    "externalSuccessors_other": "{{count}} eksterne etterfølgere for knappe",
     "overallocated": "{{count}} ressurs(er) med overallokering",
     "summary_one": "{{count}} advarsel",
     "summary_other": "{{count}} advarsler"
@@ -681,6 +688,10 @@
       "scheduleError": "Tidsplanen kunne ikke beregnes: {{message}}",
       "missedDeadline": "Tidsfrist {{deadline}} oversittet — tidligste slutt {{finish}}",
       "violatedConstraint": "Begrensning {{constraint}} overstyres av logikken (negativ slakk)",
+      "externalSuccessorViolatedSF": "For knapt for ekstern etterfølger {{task}} ({{project}}, {{relation}}): den slutter senest {{anchor}}, denne oppgaven starter først {{own}}",
+      "externalSuccessorViolatedFF": "For knapt for ekstern etterfølger {{task}} ({{project}}, {{relation}}): den slutter senest {{anchor}}, denne oppgaven slutter først {{own}}",
+      "externalSuccessorViolatedSS": "For knapt for ekstern etterfølger {{task}} ({{project}}, {{relation}}): den starter senest {{anchor}}, denne oppgaven starter først {{own}}",
+      "externalSuccessorViolatedFS": "For knapt for ekstern etterfølger {{task}} ({{project}}, {{relation}}): den starter senest {{anchor}}, denne oppgaven slutter først {{own}}",
       "outOfSequence": "Utenfor rekkefølge: fremdriften til etterfølgeren strider mot avhengigheten",
       "truncatedLead": "Ledetid kappet av prosjektstarten — avhengigheten er ikke fullt utnyttet",
       "droppedSequence": "Avhengighet ignorert: forgjenger eller etterfølger mangler, eller er ikke en bladaktivitet",
@@ -1706,5 +1717,19 @@
     "blockedNoChild": "Flytting er ikke mulig: '{{phase}}' får ingen delaktivitet som kan ha en tilordning, bare milepæler eller hovedaktiviteter.",
     "actualWorkLost_one": "Tilordningen av {{resource}} har allerede {{hours}} time med faktisk arbeid. Fjerning kaster det arbeidet bort.",
     "actualWorkLost_other": "Tilordningen av {{resource}} har allerede {{hours}} timer med faktisk arbeid. Fjerning kaster det arbeidet bort."
+  },
+  "fileDrop": {
+    "title": "Slipp for å åpne",
+    "subtitle": "Prosjektfil eller import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankerdatoer i andre prosjekter blir strammere",
+    "body": "Disse prosjektene regner med en dato fra denne planen. Etter lagring får de en strammere dato når de oppdaterer koblingene mellom prosjekter.",
+    "colProject": "Prosjekt",
+    "colTheirTask": "Deres aktivitet",
+    "colOwnTask": "Aktivitet her",
+    "colAnchor": "Ankerdato: gammel → ny",
+    "saveAnyway": "Lagre likevel",
+    "cancel": "Avbryt"
   }
 }

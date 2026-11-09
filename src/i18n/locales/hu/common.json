@@ -13,6 +13,8 @@
     "dismiss": "Bezárás",
     "taskEditRevertBlocked": "Az MCP-kliens vagy egy bővítmény közben módosított. A korábbi tevékenység-módosításokat nem vontuk vissza; ezek normál lépésekként maradnak a Visszavonás alatt.",
     "openFailed": "A fájl megnyitása sikertelen",
+    "fileDropRefused": "Nem nyílt meg: {{names}}. Az alkalmazás csak IFC, XML, MPP, XER és CSV fájlt nyit meg.",
+    "fileDropBlocked": "Nem nyílt meg: {{names}}. Először zárja be a megnyitott ablakot.",
     "csvInvalidDate": "CSV nem nyílt meg: felismerhetetlen dátum: „{{value}}” a CSV {{row}}. sorában, „{{column}}” oszlopban. Használja az éééé-hh-nn, nn-hh-éééé vagy nn/hh/éééé formátumot.",
     "extGuideCallbackFailed": "A(z) {{name}} bővítmény egyik lépése hibát jelzett. Az útmutató folytatódik.",
     "extHelpProjectOpenFailed": "A(z) {{name}} bővítmény projektfájlja ({{file}}) nem nyitható meg.",
@@ -231,7 +233,10 @@
     "msProjectLostResourceRates_other": "{{count}} erőforrás alapdíjai nem lettek átvéve.",
     "minuteModelConverted_one": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
     "minuteModelConverted_other": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
-    "minuteModelCalendarRepaired": "A(z) „{{calendar}}” naptár javítva lett: a befejezés vagy a szünet nem illett a mentett munkaidőhöz."
+    "minuteModelCalendarRepaired": "A(z) „{{calendar}}” naptár javítva lett: a befejezés vagy a szünet nem illett a mentett munkaidőhöz.",
+    "dependentProjectsFound": "Függő projektek: {{projects}}. Kapcsolatok ehhez a projekthez: {{links}}.",
+    "dependentProjectsNone": "Nem található olyan projekt, amely külső kapcsolattal kötődik ehhez az ütemtervhez.",
+    "dependentProjectsFailed": "A függő projekteket tartalmazó mappa nem olvasható."
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -664,6 +669,8 @@
     "missedDeadlines": "{{count}} határidő lekésve",
     "violatedConstraints": "{{count}} korlátozás megsértve",
     "outOfSequence": "{{count}} sorrenden kívüli kapcsolat",
+    "externalSuccessors_one": "{{count}} külső utód túl szoros",
+    "externalSuccessors_other": "{{count}} külső utód túl szoros",
     "overallocated": "{{count}} erőforrás túlterhelve",
     "summary_one": "{{count}} figyelmeztetés",
     "summary_other": "{{count}} figyelmeztetés"
@@ -681,6 +688,10 @@
       "scheduleError": "Az ütemezést nem lehetett kiszámítani: {{message}}",
       "missedDeadline": "A {{deadline}} határidő lekésve — korai befejezés: {{finish}}",
       "violatedConstraint": "A(z) {{constraint}} korlátozást a logika felülírja (negatív tartalékidő)",
+      "externalSuccessorViolatedSF": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} fejeződik be, ez a feladat csak {{own}} kezdődik",
+      "externalSuccessorViolatedFF": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} fejeződik be, ez a feladat csak {{own}} fejeződik be",
+      "externalSuccessorViolatedSS": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} kezdődik, ez a feladat csak {{own}} kezdődik",
+      "externalSuccessorViolatedFS": "Túl szoros a(z) {{task}} külső utód számára ({{project}}, {{relation}}): legkésőbb {{anchor}} kezdődik, ez a feladat csak {{own}} fejeződik be",
       "outOfSequence": "Sorrenden kívüli előrehaladás: az utód előrehaladása ellentmond a kapcsolatnak",
       "truncatedLead": "Az átfedést a projektkezdés csonkolja — a kapcsolat nincs teljesen kihasználva",
       "droppedSequence": "Kapcsolat figyelmen kívül hagyva: az előd vagy az utód hiányzik, vagy nem levéltevékenység",
@@ -1706,5 +1717,19 @@
     "blockedNoChild": "Az áthelyezés nem lehetséges: „{{phase}}” nem kap olyan altevékenységet, amely hozzárendelést képes hordozni, csak mérföldköveket vagy összefoglaló tevékenységeket.",
     "actualWorkLost_one": "A(z) {{resource}} hozzárendelésén már {{hours}} óra tényleges munka van rögzítve. A törlés ezt a munkát elveti.",
     "actualWorkLost_other": "A(z) {{resource}} hozzárendelésén már {{hours}} óra tényleges munka van rögzítve. A törlés ezt a munkát elveti."
+  },
+  "fileDrop": {
+    "title": "Engedje el a megnyitáshoz",
+    "subtitle": "Projektfájl vagy importálás"
+  },
+  "dependentAnchorWarning": {
+    "title": "Más projektek horgonydátumai szorosabbá válnak",
+    "body": "Ezek a projektek ennek az ütemtervnek egy dátumára épülnek. Mentés után szorosabb dátumot kapnak, amikor frissítik projektközi kapcsolataikat.",
+    "colProject": "Projekt",
+    "colTheirTask": "Ottani feladat",
+    "colOwnTask": "Itteni feladat",
+    "colAnchor": "Horgonydátum: régi → új",
+    "saveAnyway": "Mentés mégis",
+    "cancel": "Mégse"
   }
 }

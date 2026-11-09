@@ -13,6 +13,8 @@
     "dismiss": "Melding sluiten",
     "taskEditRevertBlocked": "Een wijziging van de MCP-client of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
+    "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, XML, MPP, XER en CSV.",
+    "fileDropBlocked": "Niet geopend: {{names}}. Sluit eerst het venster dat openstaat.",
     "csvInvalidDate": "CSV niet geopend: onleesbare datum \"{{value}}\" op CSV-rij {{row}}, kolom \"{{column}}\". Gebruik jjjj-mm-dd, dd-mm-jjjj of dd/mm/jjjj.",
     "extGuideCallbackFailed": "Een stap van de extensie {{name}} gaf een fout. De begeleiding gaat door.",
     "extHelpProjectOpenFailed": "Het projectbestand {{file}} van de extensie {{name}} kon niet worden geopend.",
@@ -89,6 +91,8 @@
     "recoveryRestoreFailed": "Herstellen mislukt",
     "hostSettingsUnavailable": "De instellingen van de site zijn niet geladen. Wat je deze sessie aan instellingen wijzigt, wordt niet bewaard.",
     "hostThemeUntilRestart": "Dit thema geldt tot je de planner opnieuw start. Daarna volgt de planner weer het thema van de SuperCloud.",
+    "settingsLoadedLate": "Je instellingen zijn geladen en toegepast.",
+    "settingsLoadedLateReverted": "Je instellingen zijn geladen en toegepast. Wat je in de tussentijd wijzigde, is teruggezet.",
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
     "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
     "scheduleFailed": "Planning kon niet worden berekend",
@@ -322,7 +326,10 @@
       "capacitySteps_one": "{{count}} resource met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "capacitySteps_other": "{{count}} resources met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "projectDetails": "Auteur en bedrijf van het project"
-    }
+    },
+    "dependentProjectsFound": "Afhankelijke projecten: {{projects}}. Koppelingen naar dit project: {{links}}.",
+    "dependentProjectsNone": "Geen projecten gevonden met een externe relatie naar deze planning.",
+    "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -468,6 +475,9 @@
     "weekStartMonday": "Maandag",
     "weekStartSunday": "Zondag",
     "calculationSection": "Berekenen",
+    "taskGridSection": "Taakraster",
+    "autoFitColumns": "Kolommen automatisch aanpassen",
+    "autoFitColumnsHint": "Elke kolom van de taaktabel past zijn breedte aan de waarden in die kolom aan, na het openen en na elke bevestigde bewerking. Een lange kolomkop wordt dan afgekapt. Sleep je zelf een kolom, dan houdt die jouw breedte tot je dubbelklikt op de kolomrand.",
     "autoCalcCPM": "Automatisch berekenen",
     "autoCalcCPMHint": "Herberekent de planning automatisch zodra deze verouderd raakt, in plaats van te wachten op F5.",
     "constructionModeSection": "Bouwmodus",
@@ -757,6 +767,8 @@
     "missedDeadlines": "{{count}} deadline(s) overschreden",
     "violatedConstraints": "{{count}} constraint(s) geschonden",
     "outOfSequence": "{{count}} out-of-sequence-relatie(s)",
+    "externalSuccessors_one": "{{count}} externe opvolger te krap",
+    "externalSuccessors_other": "{{count}} externe opvolgers te krap",
     "overallocated": "{{count}} resource(s) overbezet",
     "summary_one": "{{count}} waarschuwing",
     "summary_other": "{{count}} waarschuwingen"
@@ -774,11 +786,16 @@
       "scheduleError": "Planning kon niet worden berekend: {{message}}",
       "missedDeadline": "Deadline {{deadline}} overschreden — vroegste einde {{finish}}",
       "violatedConstraint": "Constraint {{constraint}} wordt door de logica overschreden (negatieve speling)",
+      "externalSuccessorViolatedSF": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die is uiterlijk klaar op {{anchor}}, deze taak begint pas op {{own}}",
+      "externalSuccessorViolatedFF": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die is uiterlijk klaar op {{anchor}}, deze taak is pas klaar op {{own}}",
+      "externalSuccessorViolatedSS": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die begint uiterlijk op {{anchor}}, deze taak begint pas op {{own}}",
+      "externalSuccessorViolatedFS": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die begint uiterlijk op {{anchor}}, deze taak is pas klaar op {{own}}",
       "outOfSequence": "Out-of-sequence: de voortgang van de opvolger spreekt de relatie tegen",
       "truncatedLead": "Lead afgekapt door de projectstart — de relatie is niet volledig benut",
       "droppedSequence": "Relatie genegeerd: voorganger of opvolger ontbreekt of is geen bladtaak",
       "hammockNoFinishDriver": "Hammock zonder eind-driver (geen FF/SF-voorganger): de duur valt terug op nul",
       "cappedTask": "Einddatum afgekapt: de kalender maakt het taakvenster onwerkbaar",
+      "externalLagCalendar": "Externe lag telt in de kalender van deze taak: de kalender van de andere kant staat niet in dit bestand",
       "overallocation": "Overbezet op {{count}} dag(en) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Overbezet op {{count}} dag(en) ({{first}} – {{last}}) — de resource werkt deze dag(en) niet volgens zijn kalender",
       "overallocationMixed": "Overbezet op {{count}} dag(en) ({{first}} – {{last}}), waarvan {{nonWorking}} dag(en) waarop de resource niet werkt volgens zijn kalender"
@@ -1862,5 +1879,23 @@
       "hammock": "Volgt de gekoppelde taken",
       "unknown": "Reden niet vastgesteld"
     }
+  },
+  "fileDrop": {
+    "title": "Laat los om te openen",
+    "subtitle": "Projectbestand of import"
+  },
+  "settingsDelay": {
+    "title": "Instellingen niet geladen",
+    "body": "Je instellingen konden niet van de server worden geladen. Je werkt nu met de standaardinstellingen. Zodra je instellingen weer beschikbaar zijn, worden ze automatisch toegepast."
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankers van andere projecten worden krapper",
+    "body": "Deze projecten rekenen op een datum uit deze planning. Na het opslaan krijgen ze een krappere datum zodra ze hun externe relaties vernieuwen.",
+    "colProject": "Project",
+    "colTheirTask": "Taak daar",
+    "colOwnTask": "Taak hier",
+    "colAnchor": "Anker: oud → nieuw",
+    "saveAnyway": "Toch opslaan",
+    "cancel": "Annuleren"
   }
 }

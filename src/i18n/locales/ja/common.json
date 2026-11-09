@@ -13,6 +13,8 @@
     "dismiss": "通知を閉じる",
     "taskEditRevertBlocked": "MCP クライアントまたは拡張機能による変更が途中で行われました。それ以前のタスク編集は元に戻されず、「元に戻す」の通常の手順として残っています。",
     "openFailed": "ファイルを開けませんでした",
+    "fileDropRefused": "開けませんでした: {{names}}。このアプリで開けるのは IFC、XML、MPP、XER、CSV だけです。",
+    "fileDropBlocked": "開けませんでした: {{names}}。先に開いているウィンドウを閉じてください。",
     "csvInvalidDate": "CSV を開けませんでした: CSV の {{row}} 行目、列「{{column}}」に読めない日付「{{value}}」があります。yyyy-mm-dd、dd-mm-yyyy、dd/mm/yyyy のいずれかで入力してください。",
     "extGuideCallbackFailed": "拡張機能 {{name}} のステップでエラーが発生しました。ガイドは続行します。",
     "extHelpProjectOpenFailed": "拡張機能 {{name}} のプロジェクトファイル {{file}} を開けませんでした。",
@@ -172,7 +174,10 @@
     "msProjectLostFixedCosts_other": "{{count}} 件のタスクの固定コストは取り込まれませんでした。",
     "msProjectLostResourceRates_other": "{{count}} 件のリソースの単価は取り込まれませんでした。",
     "minuteModelConverted_other": "{{document}}: 変換後に開始または終了が変わったタスクが{{count}}件あります。最も大きなずれは{{days}}稼働日です。Ctrl+Z で、記録された日付を元に戻せます。",
-    "minuteModelCalendarRepaired": "カレンダー「{{calendar}}」を修復しました。終了時刻または休憩が、保存されている稼働時間と合っていませんでした。"
+    "minuteModelCalendarRepaired": "カレンダー「{{calendar}}」を修復しました。終了時刻または休憩が、保存されている稼働時間と合っていませんでした。",
+    "dependentProjectsFound": "依存プロジェクト：{{projects}}。このプロジェクトへのリンク：{{links}}。",
+    "dependentProjectsNone": "このスケジュールへの外部関係を持つプロジェクトは見つかりませんでした。",
+    "dependentProjectsFailed": "依存プロジェクトのフォルダーを読み取れませんでした。"
   },
   "scheduleErrors": {
     "cycle": "タスク間に循環依存があります: {{path}}",
@@ -603,6 +608,7 @@
     "missedDeadlines": "期限超過: {{count}} 件",
     "violatedConstraints": "制約違反: {{count}} 件",
     "outOfSequence": "順序違反の関係: {{count}} 件",
+    "externalSuccessors_other": "余裕不足の外部後続: {{count}} 件",
     "overallocated": "{{count}} 件のリソースが過剰割り当て",
     "summary_other": "警告 {{count}} 件"
   },
@@ -619,6 +625,10 @@
       "scheduleError": "スケジュールを計算できませんでした: {{message}}",
       "missedDeadline": "期限 {{deadline}} を超過 — 最早終了 {{finish}}",
       "violatedConstraint": "制約 {{constraint}} がロジックによって上書きされています（負のフロート）",
+      "externalSuccessorViolatedSF": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に終了するが、このタスクの開始は {{own}}",
+      "externalSuccessorViolatedFF": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に終了するが、このタスクの終了は {{own}}",
+      "externalSuccessorViolatedSS": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に開始するが、このタスクの開始は {{own}}",
+      "externalSuccessorViolatedFS": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に開始するが、このタスクの終了は {{own}}",
       "outOfSequence": "順序違反: 後続タスクの進捗が関係と矛盾しています",
       "truncatedLead": "リードがプロジェクト開始で切り詰められました — 関係が完全には守られていません",
       "droppedSequence": "関係を無視: 先行または後続が存在しないか、リーフタスクではありません",
@@ -1625,5 +1635,19 @@
     "blockedDuplicate": "移動できません：「{{child}}」にはすでに {{resources}} が割り当てられています。",
     "blockedNoChild": "移動できません：「{{phase}}」に追加されるサブタスクは、マイルストーンかサマリータスクだけで、割り当てを持てません。",
     "actualWorkLost_other": "{{resource}} の割り当てには、すでに {{hours}} 時間の実績作業があります。削除すると、その実績作業は破棄されます。"
+  },
+  "fileDrop": {
+    "title": "ドロップして開く",
+    "subtitle": "プロジェクトファイルまたはインポート"
+  },
+  "dependentAnchorWarning": {
+    "title": "他のプロジェクトのアンカーが厳しくなります",
+    "body": "これらのプロジェクトはこのスケジュールの日付に依存しています。保存後、外部関係を更新するとより厳しい日付になります。",
+    "colProject": "プロジェクト",
+    "colTheirTask": "相手のタスク",
+    "colOwnTask": "こちらのタスク",
+    "colAnchor": "アンカー：旧 → 新",
+    "saveAnyway": "このまま保存",
+    "cancel": "キャンセル"
   }
 }

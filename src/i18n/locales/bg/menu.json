@@ -153,6 +153,7 @@
     "barsGroup": "Ленти на задачи",
     "manageBaselines": "Управлявай базови линии…",
     "statusDate": "Дата на състоянието",
+    "statusDateValue": "Дата на състоянието: {{date}}",
     "statusDateClear": "Изчисти дата на състоянието",
     "statusDateTime": "Час на датата на състоянието",
     "statusDateTimeLater": "По-късен час",
@@ -217,7 +218,9 @@
     "screenColorsMissingField": "Това поле не съществува в този проект. Вид работа се използва временно.",
     "screenColorsHint": "Извън „Критичен път“ червен контур маркира критичния път.",
     "addLayout": "Създай оформление",
-    "toggleRelations": "Линии на зависимостите"
+    "toggleRelations": "Линии на зависимостите",
+    "relationFindDependents": "Търсене на зависими проекти…",
+    "relationFindDependentsHint": "Търсене в папка на проекти с външна връзка към този график."
   },
   "ifc": {
     "title": "Редактор на IFC",

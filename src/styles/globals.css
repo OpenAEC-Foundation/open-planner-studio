@@ -545,6 +545,7 @@
   background: transparent;
   line-height: 1;
 }
+:where(:root[data-icons="lucide"]) .full-task-grid-disclosure { display: inline-block; }
 
 .full-task-grid-error {
   position: absolute;
@@ -1487,6 +1488,10 @@ button.task-grid-relation-reference {
      `panel`. Zo heeft de titelbalk een eigen tint naast het lint. */
   --theme-ribbon-tab-bg: var(--oa-panel);
   --theme-ribbon-content-bg: var(--oa-panel);
+  /* Scheidingslijn tussen de lintgroepen: de randkleur `border` (#474750). De rasterlijn
+     (`--theme-border-light`, #30303A) lag vrijwel gelijk aan het lint (`panel`, #33333C) en viel weg
+     (Ethan, 7 november 2026). In licht en hoog contrast blijft de lijn zoals hij was. */
+  --theme-ribbon-separator: var(--oa-border);
   --theme-docbar-bg: var(--oa-docbar);
   --theme-file-tab-bg: var(--oa-accent);
   --theme-file-tab-hover: var(--oa-accent-hover);
@@ -1571,6 +1576,8 @@ button.task-grid-relation-reference {
   --theme-ribbon-bg: var(--oa-panel);
   --theme-ribbon-tab-bg: var(--oa-panel);
   --theme-ribbon-content-bg: var(--oa-panel);
+  /* Scheidingslijn tussen de lintgroepen: ongewijzigd de rasterlijn; in licht is die goed zichtbaar. */
+  --theme-ribbon-separator: var(--theme-border-light);
   /* Neutraal grijs: `docbar` #E9E9EC en `frame` #F4F4F5 sinds v2026.45.0, zie boven. */
   --theme-docbar-bg: var(--oa-docbar);
   --theme-file-tab-bg: var(--oa-accent);
@@ -1682,6 +1689,7 @@ button.task-grid-relation-reference {
   --theme-ribbon-bg: linear-gradient(to bottom, #141414 0%, #0a0a0a 100%);
   --theme-ribbon-tab-bg: linear-gradient(to bottom, #141414 0%, #0d0d0d 100%);
   --theme-ribbon-content-bg: #0a0a0a;
+  --theme-ribbon-separator: var(--theme-border-light);
   /* De documentbalk hield hier de tint van de linttabs. */
   --theme-docbar-bg: linear-gradient(to bottom, #141414 0%, #0d0d0d 100%);
   --theme-file-tab-bg: #ffff00;
@@ -2226,6 +2234,8 @@ body {
   max-width: min(500px, 100%);
   animation: toast-in 0.3s ease-out;
 }
+/* Zonder B2 (#844) heeft een melding geen statusicoon. */
+:where(:root[data-icons="lucide"]) .ops-toast { padding-inline-start: var(--sp-6); }
 
 /* Het statusicoon vóór de tekst (info of fout), zodat het verschil ook zonder kleur te zien is. Het staat op de
    eerste tekstregel: regelhoogte 1,4 × 12 px is ongeveer 17 px, het icoon 16 px. */
@@ -2324,6 +2334,50 @@ body {
   }
 }
 
+/* Slepen en neerzetten (issue #771): de laag over het hele venster zolang er een bestand boven de app
+   hangt. Licht grijs in het lichte thema (de werkruimtekleur, geen crème; Ethan, 7 november 2026),
+   de donkere werkruimte in het donkere thema; hoog contrast volgt via dezelfde tokens. Boven alles,
+   ook de rondleiding (9997): tijdens een sleep is dit het enige wat telt. De laag zelf vangt de
+   sleep-events; de kaart niet, zodat er geen extra dragenter/dragleave tussen laag en kaart ontstaat. */
+.file-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: color-mix(in srgb, var(--theme-bg) 80%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/* Het neerzetvlak: een gestippelde accentrand rondom, binnen de rand van het venster. */
+.file-drop-overlay::before {
+  content: '';
+  position: absolute;
+  inset: var(--sp-4);
+  border: 2px dashed var(--theme-accent);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}
+
+.file-drop-overlay-card {
+  position: relative;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: min(360px, 100%);
+  padding: var(--sp-6) calc(var(--sp-6) * 1.5);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  text-align: center;
+}
+
 /* Onbepaalde voortgangsbalk (update-download zonder bekende totale grootte).
    Een smal segment dat heen en weer loopt over de track. */
 @keyframes ops-indeterminate {
@@ -2362,7 +2416,7 @@ body {
   padding: var(--sp-3) var(--sp-6);
   font-family: var(--font-body);
   font-size: var(--text-body);
-  font-weight: 600;
+  font-weight: 400;
   border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
@@ -2377,6 +2431,7 @@ body {
 .btn--lg  { padding: var(--sp-4) var(--sp-8); font-size: var(--text-large); }
 
 .btn--primary {
+  font-weight: 600;
   background: var(--theme-accent);
   color: var(--theme-accent-on);
 }
@@ -2452,6 +2507,8 @@ body {
   flex-shrink: 0;
   margin-top: 1px;
 }
+/* Zonder B2 (#844) de kleur van vóór #765. */
+:where(:root[data-icons="lucide"]) .ops-note > svg { color: var(--ops-note-accent, var(--theme-accent)); }
 .ops-note--warning {
   --ops-note-accent: var(--theme-warning-text);
 }

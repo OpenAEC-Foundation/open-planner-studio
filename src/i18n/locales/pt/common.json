@@ -13,6 +13,8 @@
     "dismiss": "Fechar notificação",
     "taskEditRevertBlocked": "Uma alteração do cliente MCP ou de uma extensão ocorreu entretanto. As alterações da tarefa feitas antes não foram revertidas e continuam como passos normais em Desfazer.",
     "openFailed": "Falha ao abrir o ficheiro",
+    "fileDropRefused": "Não aberto: {{names}}. A aplicação só abre IFC, XML, MPP, XER e CSV.",
+    "fileDropBlocked": "Não aberto: {{names}}. Feche primeiro a janela aberta.",
     "csvInvalidDate": "CSV não aberto: data não reconhecida \"{{value}}\" na linha CSV {{row}}, coluna \"{{column}}\". Use aaaa-mm-dd, dd-mm-aaaa ou dd/mm/aaaa.",
     "extGuideCallbackFailed": "Um passo da extensão {{name}} falhou. O guia continua.",
     "extHelpProjectOpenFailed": "Não foi possível abrir o ficheiro de projeto {{file}} da extensão {{name}}.",
@@ -290,7 +292,10 @@
     "minuteModelConverted_one": "{{document}}: {{count}} tarefa tem um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
     "minuteModelConverted_many": "{{document}}: {{count}} de tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
     "minuteModelConverted_other": "{{document}}: {{count}} tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
-    "minuteModelCalendarRepaired": "Calendário «{{calendar}}» foi corrigido: o fim ou a pausa não correspondia ao tempo de trabalho guardado."
+    "minuteModelCalendarRepaired": "Calendário «{{calendar}}» foi corrigido: o fim ou a pausa não correspondia ao tempo de trabalho guardado.",
+    "dependentProjectsFound": "Projetos dependentes: {{projects}}. Ligações a este projeto: {{links}}.",
+    "dependentProjectsNone": "Não foram encontrados projetos com uma relação externa a este cronograma.",
+    "dependentProjectsFailed": "Não foi possível ler a pasta com os projetos dependentes."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -725,6 +730,9 @@
     "missedDeadlines": "{{count}} prazo(s) ultrapassado(s)",
     "violatedConstraints": "{{count}} restrição(ões) violada(s)",
     "outOfSequence": "{{count}} relação(ões) fora de sequência",
+    "externalSuccessors_one": "{{count}} sucessor externo demasiado apertado",
+    "externalSuccessors_many": "{{count}} sucessores externos demasiado apertados",
+    "externalSuccessors_other": "{{count}} sucessores externos demasiado apertados",
     "overallocated": "{{count}} recurso(s) sobrealocado(s)",
     "summary_one": "{{count}} aviso",
     "summary_many": "{{count}} avisos",
@@ -743,6 +751,10 @@
       "scheduleError": "Não foi possível calcular o planeamento: {{message}}",
       "missedDeadline": "Prazo {{deadline}} ultrapassado — fim antecipado {{finish}}",
       "violatedConstraint": "A restrição {{constraint}} é ultrapassada pela lógica (folga negativa)",
+      "externalSuccessorViolatedSF": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): termina o mais tardar em {{anchor}}, esta tarefa só começa em {{own}}",
+      "externalSuccessorViolatedFF": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): termina o mais tardar em {{anchor}}, esta tarefa só termina em {{own}}",
+      "externalSuccessorViolatedSS": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): começa o mais tardar em {{anchor}}, esta tarefa só começa em {{own}}",
+      "externalSuccessorViolatedFS": "Demasiado apertado para o sucessor externo {{task}} ({{project}}, {{relation}}): começa o mais tardar em {{anchor}}, esta tarefa só termina em {{own}}",
       "outOfSequence": "Fora de sequência: o progresso do sucessor contradiz a relação",
       "truncatedLead": "Avanço truncado pelo início do projeto — a relação não é totalmente respeitada",
       "droppedSequence": "Relação ignorada: o predecessor ou o sucessor está em falta ou não é uma tarefa folha",
@@ -1787,5 +1799,19 @@
     "actualWorkLost_one": "A atribuição de {{resource}} já tem {{hours}} hora de trabalho real. Removê-la elimina esse trabalho.",
     "actualWorkLost_many": "A atribuição de {{resource}} já tem {{hours}} horas de trabalho real. Removê-la elimina esse trabalho.",
     "actualWorkLost_other": "A atribuição de {{resource}} já tem {{hours}} horas de trabalho real. Removê-la elimina esse trabalho."
+  },
+  "fileDrop": {
+    "title": "Largue para abrir",
+    "subtitle": "Ficheiro de projeto ou importação"
+  },
+  "dependentAnchorWarning": {
+    "title": "As ancoragens de outros projetos ficam mais apertadas",
+    "body": "Estes projetos dependem de uma data deste cronograma. Depois de guardar, recebem uma data mais apertada quando atualizarem as suas relações externas.",
+    "colProject": "Projeto",
+    "colTheirTask": "Tarefa deles",
+    "colOwnTask": "Tarefa aqui",
+    "colAnchor": "Ancoragem: antiga → nova",
+    "saveAnyway": "Guardar mesmo assim",
+    "cancel": "Cancelar"
   }
 }

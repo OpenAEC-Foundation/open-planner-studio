@@ -147,7 +147,11 @@
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.15s ease;
+  /* Alleen kleuren animeren, nooit maten. De automatische inpassing (Ribbon.tsx) meet de breedte
+     direct na het zetten van `data-ribbon-mini`; met `transition: all` las die meting nog de oude
+     maat (de overgang begint bij de oude waarde). Dan koos de automaat een stand die achteraf niet
+     paste, of verkleinde hij meer knoppen dan nodig. */
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   min-width: 54px;
   gap: 4px;
   height: 66px;
@@ -495,6 +499,26 @@
   letter-spacing: 0.06em;
 }
 
+/* Groep met invoervelden (RibbonCollapsible): beide vormen staan in de DOM, de automatische
+   inpassing kiest er één met `data-ribbon-collapsed` op de groep. De volle vorm gedraagt zich als
+   de groepsinhoud zelf (rij met 2px tussenruimte); de ingeklapte vorm is één grote knop met ▾ en
+   een popover. */
+.ribbon-collapse-full {
+  display: flex;
+  gap: 2px;
+  align-items: flex-start;
+}
+.ribbon-group:not([data-ribbon-collapsed]) [data-ribbon-collapse-part="collapsed"],
+.ribbon-group[data-ribbon-collapsed] [data-ribbon-collapse-part="full"] {
+  display: none;
+}
+/* Ingeklapt met een grote knop: die knop draagt de naam van de groep al (zoals in Office), dus
+   het groepslabel eronder vervalt. Wordt de knop zelf klein, dan staat de groep op
+   `data-ribbon-fully-mini` en komt het label gedraaid terug. */
+.ribbon-group[data-ribbon-collapsed]:not([data-ribbon-fully-mini]) .ribbon-group-label {
+  display: none;
+}
+
 /* File tab (backstage trigger) — altijd amber, opvallend links */
 .ribbon-tab--file {
   background: var(--theme-file-tab-bg);
@@ -568,6 +592,14 @@
   flex: 0 0 16px;
   display: inline-flex;
 }
+/* Zonder B2 (#844) het vinkje als teken, zoals vóór #765. */
+:where(:root[data-icons="lucide"]) .ribbon-relation-menu-mark {
+  width: 14px;
+  flex: 0 0 14px;
+  display: inline;
+  font-weight: 700;
+  text-align: center;
+}
 
 .ribbon-relation-menu-status {
   max-width: 300px;
@@ -592,10 +624,11 @@
   white-space: nowrap;
 }
 
-/* Separator between groups */
+/* Scheidingslijn tussen de groepen. De kleur komt per thema uit `--theme-ribbon-separator` (globals.css): in donker
+   de randkleur van de huisstijl, in licht en hoog contrast de rasterlijn zoals eerst (Ethan, 7 november 2026). */
 .ribbon-separator {
   width: 1px;
-  background: var(--theme-border-light);
+  background: var(--theme-ribbon-separator);
   margin: 8px 2px;
   align-self: stretch;
 }
@@ -712,6 +745,10 @@
 .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
   width: 24px;
   height: 24px;
+}
+:where(:root[data-icons="lucide"]) .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .ribbon-split-large:has(> .ribbon-split-top[data-ribbon-mini]) .ribbon-split-bottom .ribbon-btn-label {

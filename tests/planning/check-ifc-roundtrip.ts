@@ -320,8 +320,10 @@ const TM = {
   externalLinks: [{
     id: 'e1', direction: 'predecessor', relType: 'FS', lagDays: 2, lagMinutes: 120,
     anchorDate: '2026-07-01',
-    sourceRef: { projectId: 'p2', projectName: 'Ander project', taskId: 't9', taskName: 'Levering', filePath: '/x/ander.ifc' },
+    sourceRef: { projectId: 'p2', projectName: 'Ander project', taskId: 't9', taskName: 'Levering', filePath: '/x/ander.ifc', siteFileId: 'site-b7c1' },
     sourceMissing: false,
+    // Herkomst (keuze 4, Ethan 2026-11-03): versie van de bron en het moment van lezen.
+    sourceVersion: '12', anchorReadAt: '2026-11-02T14:10:00.000Z',
   } satisfies Required<ExternalLink>],
   deadline: '2026-07-22',
   calendarId: 'libcal',
@@ -452,6 +454,7 @@ const project = {
   defaultWorkRule: 'FIXED_RATE', // taaktypes-etappe: OPS_ProjectSettings/DefaultWorkRule
   companyId: 'c-fixture', companyName: 'Fixture Bouw BV',
   p6ProjectCode: 'OZB-14 1st Update', // P6 XML-projectcode: OPS_ProjectSettings/P6ProjectCode
+  dependentProjectsFolder: '/projecten/Zuidas \\ fase \'2\'', // stap 1.11: OPS_ProjectSettings/DependentProjectsFolder
   schedulingOptions: SCHED_OPTS,
   // Rekenprofiel (C2): een EIGEN profiel op p6-basis met twee afwijkingen (één uit, één per-bestand
   // aan) — onderscheidend van de default (afwezig ≡ ops) én van de kale p6-basis.
@@ -811,6 +814,7 @@ const PROJECT_CANON = {
   ifcSchema: KEEP,
   ifcSchemaUnconfirmed: KEEP,
   p6ProjectCode: KEEP, // P6 Project-ID los van de naam (eigen toetsen: check-p6xml-project-code)
+  dependentProjectsFolder: KEEP, // stap 1.11: de map met afhankelijke projecten (OPS_ProjectSettings)
 } satisfies CanonSpec<Project>;
 
 const BASELINE_TASK_CANON = {

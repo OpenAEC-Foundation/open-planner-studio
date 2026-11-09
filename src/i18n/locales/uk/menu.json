@@ -155,6 +155,7 @@
     "barsGroup": "Смуги",
     "manageBaselines": "Керувати базовими планами…",
     "statusDate": "Дата звітування про стан",
+    "statusDateValue": "Дата звітування про стан: {{date}}",
     "statusDateClear": "Очистити дату звітування про стан",
     "statusDateTime": "Час дати звітування про стан",
     "statusDateTimeLater": "Час пізніше",
@@ -219,7 +220,9 @@
     "screenColorsMissingField": "Цього поля немає в цьому проєкті. Тимчасово використовується вид робіт.",
     "screenColorsHint": "Поза варіантом «Критичний шлях» червона рамка позначає критичний шлях.",
     "addLayout": "Новий макет",
-    "toggleRelations": "Лінії залежностей"
+    "toggleRelations": "Лінії залежностей",
+    "relationFindDependents": "Знайти залежні проєкти…",
+    "relationFindDependentsHint": "Знайти в теці проєкти із зовнішньою залежністю від цього графіка."
   },
   "ifc": {
     "title": "Редактор IFC",

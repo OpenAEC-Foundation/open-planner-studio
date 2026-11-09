@@ -1,7 +1,7 @@
 import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
-import { MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
+import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
 import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
@@ -112,7 +112,7 @@ export function createDefaultUI(): UIState {
     modifierMap: { plain: 'vertical', ctrl: 'zoom', shift: 'horizontal' },
     debugTerminalEnabled: false,
     experimentalSettingsVisible: false,
-    featureFlags: {},
+    featureFlags: loadFeatureFlags(),
     debugTerminalOpen: false,
     documentChromeStyle: 'tabs',
     ribbonCompact: false,
@@ -142,6 +142,10 @@ export function createDefaultUI(): UIState {
     showLevelingDialog: false,
     showBaselineDialog: false,
     showMoveProjectDialog: false,
+    externalSourceUpdates: [],
+    externalSourceReview: null,
+    dependentProjects: [],
+    pendingDependentAnchorWarning: null,
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,
@@ -156,6 +160,7 @@ export function createDefaultUI(): UIState {
     layoutDialogTargetId: null,
     showClassicViewControls: false,
     autoCalcCPM: false,
+    autoFitColumns: false,
     // Bouwmodus: default AAN = bouwgerichte defaults/framing.
     // App.tsx hydrateert bij opstart uit localStorage (loadConstructionMode).
     constructionMode: true,
@@ -175,6 +180,7 @@ export function createDefaultUI(): UIState {
     showShortcutsDialog: false,
     showBenchmarkDialog: false,
     showStatsDialog: false,
+    showSettingsDelayDialog: false,
     pendingExtensionConsent: null,
     pendingActualStartQuestion: null,
     pendingPhaseAssignmentQuestion: null,

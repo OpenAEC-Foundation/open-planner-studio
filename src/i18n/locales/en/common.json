@@ -13,6 +13,8 @@
     "dismiss": "Close notification",
     "taskEditRevertBlocked": "A change by the MCP client or an extension came in between. The task edits made before it were not reverted and remain as ordinary steps under Undo.",
     "openFailed": "Failed to open file",
+    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, XML, MPP, XER and CSV.",
+    "fileDropBlocked": "Not opened: {{names}}. Close the open dialog first.",
     "csvInvalidDate": "CSV not opened: unrecognised date \"{{value}}\" in CSV row {{row}}, column \"{{column}}\". Use yyyy-mm-dd, dd-mm-yyyy or dd/mm/yyyy.",
     "extGuideCallbackFailed": "A step from the extension {{name}} failed. The guide continues.",
     "extHelpProjectOpenFailed": "The project file {{file}} from the extension {{name}} could not be opened.",
@@ -89,6 +91,8 @@
     "recoveryRestoreFailed": "Restore failed",
     "hostSettingsUnavailable": "The site settings did not load. Settings you change in this session will not be saved.",
     "hostThemeUntilRestart": "This theme applies until you restart the planner. After that, the planner follows the SuperCloud theme again.",
+    "settingsLoadedLate": "Your settings have been loaded and applied.",
+    "settingsLoadedLateReverted": "Your settings have been loaded and applied. Anything you changed in the meantime has been reverted.",
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",
@@ -322,7 +326,10 @@
       "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
       "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
       "projectDetails": "Project author and company"
-    }
+    },
+    "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
+    "dependentProjectsNone": "No projects found with an external relation to this schedule.",
+    "dependentProjectsFailed": "The folder with dependent projects could not be read."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -468,6 +475,9 @@
     "weekStartMonday": "Monday",
     "weekStartSunday": "Sunday",
     "calculationSection": "Calculation",
+    "taskGridSection": "Task grid",
+    "autoFitColumns": "Fit columns automatically",
+    "autoFitColumnsHint": "Every column of the task grid fits its width to the values in that column, after opening and after each confirmed edit. A long column header is then cut off. If you drag a column yourself, it keeps your width until you double-click the column edge.",
     "autoCalcCPM": "Calculate automatically",
     "autoCalcCPMHint": "Automatically recalculates the schedule as soon as it becomes out of date, instead of waiting for F5.",
     "constructionModeSection": "Construction mode",
@@ -757,6 +767,8 @@
     "missedDeadlines": "{{count}} deadline(s) missed",
     "violatedConstraints": "{{count}} constraint(s) violated",
     "outOfSequence": "{{count}} out-of-sequence relation(s)",
+    "externalSuccessors_one": "{{count}} external successor too tight",
+    "externalSuccessors_other": "{{count}} external successors too tight",
     "overallocated": "{{count}} resource(s) overallocated",
     "summary_one": "{{count}} warning",
     "summary_other": "{{count}} warnings"
@@ -774,11 +786,16 @@
       "scheduleError": "The schedule could not be calculated: {{message}}",
       "missedDeadline": "Deadline {{deadline}} missed — early finish {{finish}}",
       "violatedConstraint": "Constraint {{constraint}} is overridden by the logic (negative float)",
+      "externalSuccessorViolatedSF": "Too tight for external successor {{task}} ({{project}}, {{relation}}): it finishes no later than {{anchor}}, this task starts only on {{own}}",
+      "externalSuccessorViolatedFF": "Too tight for external successor {{task}} ({{project}}, {{relation}}): it finishes no later than {{anchor}}, this task finishes only on {{own}}",
+      "externalSuccessorViolatedSS": "Too tight for external successor {{task}} ({{project}}, {{relation}}): it starts no later than {{anchor}}, this task starts only on {{own}}",
+      "externalSuccessorViolatedFS": "Too tight for external successor {{task}} ({{project}}, {{relation}}): it starts no later than {{anchor}}, this task finishes only on {{own}}",
       "outOfSequence": "Out of sequence: the successor's progress contradicts the relation",
       "truncatedLead": "Lead truncated by the project start — the relation is not fully honoured",
       "droppedSequence": "Relation ignored: predecessor or successor is missing or is not a leaf task",
       "hammockNoFinishDriver": "Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero",
       "cappedTask": "Finish date capped: the calendar leaves no workable window for this task",
+      "externalLagCalendar": "External lag counts in this task's calendar: the calendar of the other side is not in this file",
       "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Overallocated on {{count}} day(s) ({{first}} – {{last}}) — the resource does not work these day(s) per its calendar",
       "overallocationMixed": "Overallocated on {{count}} day(s) ({{first}} – {{last}}), of which {{nonWorking}} day(s) the resource does not work per its calendar"
@@ -1862,5 +1879,23 @@
       "hammock": "Follows the linked tasks",
       "unknown": "Reason not established"
     }
+  },
+  "fileDrop": {
+    "title": "Drop to open",
+    "subtitle": "Project file or import"
+  },
+  "settingsDelay": {
+    "title": "Settings not loaded",
+    "body": "Your settings could not be loaded from the server. You are now working with the default settings. As soon as your settings are available again, they will be applied automatically."
+  },
+  "dependentAnchorWarning": {
+    "title": "Anchors of other projects get tighter",
+    "body": "These projects depend on a date from this schedule. After saving, they get a tighter date when they refresh their external relations.",
+    "colProject": "Project",
+    "colTheirTask": "Their task",
+    "colOwnTask": "Task here",
+    "colAnchor": "Anchor: old → new",
+    "saveAnyway": "Save anyway",
+    "cancel": "Cancel"
   }
 }

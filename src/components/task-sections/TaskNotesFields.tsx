@@ -114,7 +114,7 @@ export function TaskNotesFields({ task, onChange }: {
         style={{ color: 'var(--theme-accent)' }}
         data-ops-note-add
       >
-        <Icon id="task.note-add" size={10} className="text-text-secondary" />
+        <Icon id="task.note-add" size={10} className="text-text-secondary" lucide={{ className: undefined }} />
         {t('properties.notes.add')}
       </button>
     </>

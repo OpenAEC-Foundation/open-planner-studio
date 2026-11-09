@@ -31,6 +31,8 @@ Click the minus sign in the column header (*Remove: Deadline*). Or right-click t
 
 Drag the edge at the right of the column header to the left or right. Double-click that edge, or choose *Auto fit* in the menu of the header (right mouse button), to make the column wide enough for its content, up to a maximum of 480 pixels. If the edge has focus, the arrow keys widen or narrow it step by step.
 
+Do you want the app to do this for you? Then turn on *Fit columns automatically* under *Settings › Task grid*. All columns then fit their width to their values, after you open a project and after each confirmed edit (not while you type). The column header does not count: a long header is cut off, like with the default widths. A column you drag yourself keeps your width. Double-click the edge of that column to let it fit automatically again.
+
 ### Pinning columns
 
 Right-click the header and choose *Pin*. Pinned columns jump to the front and stay on the left when you scroll horizontally. That works as long as together they are not wider than the window. *Unpin* puts them back in the row.

@@ -13,6 +13,8 @@
     "dismiss": "بستن اعلان",
     "taskEditRevertBlocked": "تغییری از کلاینت MCP یا از یک افزونه در این میان رسید. ویرایش‌های وظیفه‌ای که پیش از آن انجام شده بودند برگردانده نشدند و به‌صورت گام‌های عادی زیر «واگرد» باقی مانده‌اند.",
     "openFailed": "باز کردن فایل ناموفق بود",
+    "fileDropRefused": "باز نشد: {{names}}. برنامه فقط IFC، XML، MPP، XER و CSV را باز می‌کند.",
+    "fileDropBlocked": "باز نشد: {{names}}. ابتدا پنجرهٔ باز را ببندید.",
     "csvInvalidDate": "فایل CSV باز نشد: تاریخ ناخوانا «{{value}}» در ردیف CSV {{row}}، ستون «{{column}}». از yyyy-mm-dd، dd-mm-yyyy یا dd/mm/yyyy استفاده کنید.",
     "extGuideCallbackFailed": "یکی از مراحل افزونه {{name}} با خطا روبه‌رو شد. راهنما ادامه می‌یابد.",
     "extHelpProjectOpenFailed": "فایل پروژه {{file}} از افزونه {{name}} باز نشد.",
@@ -231,7 +233,10 @@
     "msProjectLostResourceRates_other": "نرخ‌های {{count}} منبع وارد نشدند.",
     "minuteModelConverted_one": "{{document}}: {{count}} وظیفه پس از تبدیل، شروع یا پایان متفاوتی دارد؛ بزرگ‌ترین جابه‌جایی {{days}} روز کاری است. Ctrl+Z تاریخ‌های ذخیره‌شده را بازمی‌گرداند.",
     "minuteModelConverted_other": "{{document}}: {{count}} وظیفه پس از تبدیل، شروع یا پایان متفاوتی دارند؛ بزرگ‌ترین جابه‌جایی {{days}} روز کاری است. Ctrl+Z تاریخ‌های ذخیره‌شده را بازمی‌گرداند.",
-    "minuteModelCalendarRepaired": "تقویم «{{calendar}}» اصلاح شد: پایان یا استراحت آن با ساعات کاری ذخیره‌شده هماهنگ نبود."
+    "minuteModelCalendarRepaired": "تقویم «{{calendar}}» اصلاح شد: پایان یا استراحت آن با ساعات کاری ذخیره‌شده هماهنگ نبود.",
+    "dependentProjectsFound": "پروژه‌های وابسته: {{projects}}. پیوندها به این پروژه: {{links}}.",
+    "dependentProjectsNone": "هیچ پروژه‌ای با رابطه خارجی به این برنامه پیدا نشد.",
+    "dependentProjectsFailed": "پوشه پروژه‌های وابسته خوانده نشد."
   },
   "scheduleErrors": {
     "cycle": "رابطه چرخشی بین وظایف: {{path}}",
@@ -664,6 +669,8 @@
     "missedDeadlines": "مهلت‌های گذشته: {{count}}",
     "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}",
     "outOfSequence": "روابط خارج از توالی: {{count}}",
+    "externalSuccessors_one": "پسنیازهای خارجی با فرصت ناکافی: {{count}}",
+    "externalSuccessors_other": "پسنیازهای خارجی با فرصت ناکافی: {{count}}",
     "overallocated": "منابع بیش‌تخصیص‌یافته: {{count}}",
     "summary_one": "{{count}} هشدار",
     "summary_other": "{{count}} هشدار"
@@ -681,6 +688,10 @@
       "scheduleError": "زمان‌بندی محاسبه نشد: {{message}}",
       "missedDeadline": "مهلت {{deadline}} از دست رفته — پایان زودهنگام {{finish}}",
       "violatedConstraint": "محدودیت {{constraint}} توسط منطق نقض می‌شود (شناوری منفی)",
+      "externalSuccessorViolatedSF": "فرصت ناکافی برای پسنیاز خارجی {{task}} ({{project}}، {{relation}}): حداکثر تا {{anchor}} تمام می‌شود، این کار تازه در {{own}} شروع می‌شود",
+      "externalSuccessorViolatedFF": "فرصت ناکافی برای پسنیاز خارجی {{task}} ({{project}}، {{relation}}): حداکثر تا {{anchor}} تمام می‌شود، این کار تازه در {{own}} تمام می‌شود",
+      "externalSuccessorViolatedSS": "فرصت ناکافی برای پسنیاز خارجی {{task}} ({{project}}، {{relation}}): حداکثر تا {{anchor}} شروع می‌شود، این کار تازه در {{own}} شروع می‌شود",
+      "externalSuccessorViolatedFS": "فرصت ناکافی برای پسنیاز خارجی {{task}} ({{project}}، {{relation}}): حداکثر تا {{anchor}} شروع می‌شود، این کار تازه در {{own}} تمام می‌شود",
       "outOfSequence": "خارج از توالی: پیشرفت پس‌نیاز با رابطه در تناقض است",
       "truncatedLead": "پیش‌افت با شروع پروژه بریده شد — رابطه به‌طور کامل رعایت نمی‌شود",
       "droppedSequence": "رابطه نادیده گرفته شد: پیشین یا پس‌نیاز وجود ندارد یا کار برگ نیست",
@@ -1706,5 +1717,19 @@
     "blockedNoChild": "انتقال ممکن نیست: «{{phase}}» زیروظیفه‌ای نمی‌گیرد که بتواند تخصیص داشته باشد، فقط نقطه‌های عطف یا وظیفه‌های خلاصه.",
     "actualWorkLost_one": "روی تخصیص {{resource}} از قبل {{hours}} ساعت کار انجام‌شده ثبت شده است. حذف آن، این کار را از بین می‌برد.",
     "actualWorkLost_other": "روی تخصیص {{resource}} از قبل {{hours}} ساعت کار انجام‌شده ثبت شده است. حذف آن، این کار را از بین می‌برد."
+  },
+  "fileDrop": {
+    "title": "برای باز کردن رها کنید",
+    "subtitle": "فایل پروژه یا وارد کردن"
+  },
+  "dependentAnchorWarning": {
+    "title": "لنگرهای پروژه‌های دیگر تنگ‌تر می‌شوند",
+    "body": "این پروژه‌ها به تاریخی از این برنامه وابسته‌اند. پس از ذخیره، وقتی روابط خارجی خود را به‌روزرسانی کنند، تاریخ تنگ‌تری می‌گیرند.",
+    "colProject": "پروژه",
+    "colTheirTask": "وظیفه آن‌ها",
+    "colOwnTask": "وظیفه این‌جا",
+    "colAnchor": "لنگر: قدیم ← جدید",
+    "saveAnyway": "در هر حال ذخیره شود",
+    "cancel": "لغو"
   }
 }

@@ -152,6 +152,7 @@
     "barsGroup": "ແຖບໜ້າວຽກ",
     "manageBaselines": "ຈັດການແຜນຖານ…",
     "statusDate": "ວັນທີສະຖານະ",
+    "statusDateValue": "ວັນທີສະຖານະ: {{date}}",
     "statusDateClear": "ລ້າງວັນທີສະຖານະ",
     "statusDateTime": "ເວລາຂອງວັນທີສະຖານະ",
     "statusDateTimeLater": "ເວລາຕໍ່ມາ",
@@ -216,7 +217,9 @@
     "screenColorsMissingField": "ບໍ່ມີຫ້ອງຂໍ້ມູນນີ້ໃນໂຄງການນີ້. ລະບົບຈະໃຊ້ໝວດວຽກຊົ່ວຄາວ.",
     "screenColorsHint": "ນອກຈາກເສັ້ນທາງວິກິດແລ້ວ, ຂອບສີແດງຈະໝາຍບອກເສັ້ນທາງວິກິດໄວ້.",
     "addLayout": "ໂຄງຮ່າງການຈັດວາງໃໝ່",
-    "toggleRelations": "ເສັ້ນສາຍພົວພັນ"
+    "toggleRelations": "ເສັ້ນສາຍພົວພັນ",
+    "relationFindDependents": "ຊອກຫາໂຄງການທີ່ຂຶ້ນກັບ…",
+    "relationFindDependentsHint": "ຊອກຫາໃນໂຟນເດີສຳລັບໂຄງການທີ່ມີສາຍສຳພັນພາຍນອກກັບແຜນງານນີ້."
   },
   "ifc": {
     "title": "ຕົວແກ້ໄຂ IFC",

@@ -13,6 +13,8 @@
     "dismiss": "إغلاق الإشعار",
     "taskEditRevertBlocked": "جاء تغيير من عميل MCP أو من إضافة في أثناء ذلك. لم يتم التراجع عن تعديلات المهمة التي سبقته، وهي باقية كخطوات عادية ضمن «تراجع».",
     "openFailed": "تعذّر فتح الملف",
+    "fileDropRefused": "لم يُفتح: {{names}}. يفتح التطبيق ملفات IFC وXML وMPP وXER وCSV فقط.",
+    "fileDropBlocked": "لم يُفتح: {{names}}. أغلق النافذة المفتوحة أولًا.",
     "csvInvalidDate": "لم يُفتح ملف CSV: التاريخ «{{value}}» غير مفهوم في صف CSV {{row}}، عمود «{{column}}». استخدم yyyy-mm-dd أو dd-mm-yyyy أو dd/mm/yyyy.",
     "extGuideCallbackFailed": "فشلت خطوة من الإضافة {{name}}. يستمر الدليل.",
     "extHelpProjectOpenFailed": "تعذّر فتح ملف المشروع {{file}} من الإضافة {{name}}.",
@@ -467,7 +469,10 @@
     "minuteModelConverted_few": "{{document}}: {{count}} مهام لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
     "minuteModelConverted_many": "{{document}}: {{count}} مهمة لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
     "minuteModelConverted_other": "{{document}}: {{count}} مهمة لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
-    "minuteModelCalendarRepaired": "تم إصلاح التقويم «{{calendar}}»: لم تتوافق النهاية أو الاستراحة مع أوقات العمل المحفوظة."
+    "minuteModelCalendarRepaired": "تم إصلاح التقويم «{{calendar}}»: لم تتوافق النهاية أو الاستراحة مع أوقات العمل المحفوظة.",
+    "dependentProjectsFound": "المشاريع التابعة: {{projects}}. الروابط إلى هذا المشروع: {{links}}.",
+    "dependentProjectsNone": "لم يُعثر على مشاريع لها علاقة خارجية بهذا الجدول الزمني.",
+    "dependentProjectsFailed": "تعذّرت قراءة مجلد المشاريع التابعة."
   },
   "scheduleErrors": {
     "cycle": "تبعية دائرية بين المهام: {{path}}",
@@ -908,6 +913,12 @@
     "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
     "violatedConstraints": "القيود المخالفة: {{count}}",
     "outOfSequence": "العلاقات خارج التسلسل: {{count}}",
+    "externalSuccessors_zero": "خلفاء خارجيون بهامش غير كافٍ: {{count}}",
+    "externalSuccessors_one": "خلفاء خارجيون بهامش غير كافٍ: {{count}}",
+    "externalSuccessors_two": "خلفاء خارجيون بهامش غير كافٍ: {{count}}",
+    "externalSuccessors_few": "خلفاء خارجيون بهامش غير كافٍ: {{count}}",
+    "externalSuccessors_many": "خلفاء خارجيون بهامش غير كافٍ: {{count}}",
+    "externalSuccessors_other": "خلفاء خارجيون بهامش غير كافٍ: {{count}}",
     "overallocated": "الموارد المحمَّلة بشكل زائد: {{count}}",
     "summary_zero": "{{count}} تحذير",
     "summary_one": "تحذير واحد",
@@ -929,6 +940,10 @@
       "scheduleError": "تعذّر حساب الجدول: {{message}}",
       "missedDeadline": "تم تجاوز الموعد النهائي {{deadline}} — النهاية المبكرة {{finish}}",
       "violatedConstraint": "القيد {{constraint}} يتجاوزه المنطق (فائض سالب)",
+      "externalSuccessorViolatedSF": "هامش غير كافٍ للخلف الخارجي {{task}} ({{project}}، {{relation}}): ينتهي في موعد أقصاه {{anchor}}، وهذه المهمة لا تبدأ إلا في {{own}}",
+      "externalSuccessorViolatedFF": "هامش غير كافٍ للخلف الخارجي {{task}} ({{project}}، {{relation}}): ينتهي في موعد أقصاه {{anchor}}، وهذه المهمة لا تنتهي إلا في {{own}}",
+      "externalSuccessorViolatedSS": "هامش غير كافٍ للخلف الخارجي {{task}} ({{project}}، {{relation}}): يبدأ في موعد أقصاه {{anchor}}، وهذه المهمة لا تبدأ إلا في {{own}}",
+      "externalSuccessorViolatedFS": "هامش غير كافٍ للخلف الخارجي {{task}} ({{project}}، {{relation}}): يبدأ في موعد أقصاه {{anchor}}، وهذه المهمة لا تنتهي إلا في {{own}}",
       "outOfSequence": "خارج التسلسل: تقدم اللاحق يناقض العلاقة",
       "truncatedLead": "تم اقتطاع التقديم ببداية المشروع — العلاقة غير مطبَّقة بالكامل",
       "droppedSequence": "تم تجاهل العلاقة: السابق أو اللاحق مفقود أو ليس مهمة ورقية",
@@ -2030,5 +2045,19 @@
     "actualWorkLost_few": "يحتوي تعيين {{resource}} بالفعل على {{hours}} ساعات من العمل الفعلي. الحذف يفقد هذا العمل.",
     "actualWorkLost_many": "يحتوي تعيين {{resource}} بالفعل على {{hours}} ساعة من العمل الفعلي. الحذف يفقد هذا العمل.",
     "actualWorkLost_other": "يحتوي تعيين {{resource}} بالفعل على {{hours}} ساعة من العمل الفعلي. الحذف يفقد هذا العمل."
+  },
+  "fileDrop": {
+    "title": "أفلِت للفتح",
+    "subtitle": "ملف مشروع أو استيراد"
+  },
+  "dependentAnchorWarning": {
+    "title": "تصبح مراسي المشاريع الأخرى أضيق",
+    "body": "تعتمد هذه المشاريع على تاريخ من هذا الجدول الزمني. بعد الحفظ، ستحصل على تاريخ أضيق عندما تحدّث علاقاتها الخارجية.",
+    "colProject": "المشروع",
+    "colTheirTask": "مهمتهم",
+    "colOwnTask": "المهمة هنا",
+    "colAnchor": "المرساة: القديمة ← الجديدة",
+    "saveAnyway": "الحفظ على أي حال",
+    "cancel": "إلغاء"
   }
 }

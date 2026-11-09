@@ -13,6 +13,8 @@
     "dismiss": "Stänga meddelandet",
     "taskEditRevertBlocked": "En ändring från MCP-klienten eller ett tillägg kom emellan. Uppgiftsändringarna som gjordes före den har inte ångrats och finns kvar som vanliga steg under Ångra.",
     "openFailed": "Det gick inte att öppna filen",
+    "fileDropRefused": "Öppnades inte: {{names}}. Appen öppnar bara IFC, XML, MPP, XER och CSV.",
+    "fileDropBlocked": "Öppnades inte: {{names}}. Stäng det öppna fönstret först.",
     "csvInvalidDate": "CSV:n öppnades inte: oläsbart datum ”{{value}}” på CSV-rad {{row}}, kolumn ”{{column}}”. Använd åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Ett steg från tillägget {{name}} gav ett fel. Guiden fortsätter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} från tillägget {{name}} kunde inte öppnas.",
@@ -231,7 +233,10 @@
     "msProjectLostResourceRates_other": "Standardkostnaderna för {{count}} resurser har inte tagits över.",
     "minuteModelConverted_one": "{{document}}: {{count}} uppgift har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
     "minuteModelConverted_other": "{{document}}: {{count}} uppgifter har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
-    "minuteModelCalendarRepaired": "Kalendern ”{{calendar}}” har reparerats: slutet eller rasten stämde inte med den sparade arbetstiden."
+    "minuteModelCalendarRepaired": "Kalendern ”{{calendar}}” har reparerats: slutet eller rasten stämde inte med den sparade arbetstiden.",
+    "dependentProjectsFound": "Beroende projekt: {{projects}}. Kopplingar till detta projekt: {{links}}.",
+    "dependentProjectsNone": "Inga projekt med ett externt samband till denna tidplan hittades.",
+    "dependentProjectsFailed": "Mappen med beroende projekt kunde inte läsas."
   },
   "scheduleErrors": {
     "cycle": "Cirkulärt samband mellan uppgifter: {{path}}",
@@ -664,6 +669,8 @@
     "missedDeadlines": "{{count}} måldatum passerades",
     "violatedConstraints": "{{count}} restriktion(er) bröts",
     "outOfSequence": "{{count}} samband med framdrift i fel ordning",
+    "externalSuccessors_one": "{{count}} extern efterföljande uppgift för snäv",
+    "externalSuccessors_other": "{{count}} externa efterföljande uppgifter för snäva",
     "overallocated": "{{count}} resurs(er) med överbeläggning",
     "summary_one": "{{count}} varning",
     "summary_other": "{{count}} varningar"
@@ -681,6 +688,10 @@
       "scheduleError": "Tidsplanen kunde inte beräknas: {{message}}",
       "missedDeadline": "Måldatum {{deadline}} passerades. Tidigaste slut {{finish}}",
       "violatedConstraint": "Restriktionen {{constraint}} överskrids av logiken (negativt slack)",
+      "externalSuccessorViolatedSF": "För snävt för extern efterföljande uppgift {{task}} ({{project}}, {{relation}}): den slutar senast {{anchor}}, den här uppgiften startar först {{own}}",
+      "externalSuccessorViolatedFF": "För snävt för extern efterföljande uppgift {{task}} ({{project}}, {{relation}}): den slutar senast {{anchor}}, den här uppgiften slutar först {{own}}",
+      "externalSuccessorViolatedSS": "För snävt för extern efterföljande uppgift {{task}} ({{project}}, {{relation}}): den startar senast {{anchor}}, den här uppgiften startar först {{own}}",
+      "externalSuccessorViolatedFS": "För snävt för extern efterföljande uppgift {{task}} ({{project}}, {{relation}}): den startar senast {{anchor}}, den här uppgiften slutar först {{own}}",
       "outOfSequence": "Framdrift i fel ordning: framdriften för den efterföljande uppgiften strider mot sambandet",
       "truncatedLead": "Överlapp kapat av projektstarten. Sambandet utnyttjas inte fullt ut",
       "droppedSequence": "Samband ignorerat: föregående eller efterföljande uppgift saknas eller är inte en lövuppgift",
@@ -1706,5 +1717,19 @@
     "blockedNoChild": "Det går inte att flytta: ”{{phase}}” får ingen underuppgift som kan bära en tilldelning, bara milstolpar eller sammanfattningsuppgifter.",
     "actualWorkLost_one": "Tilldelningen för {{resource}} har redan {{hours}} timme verkligt arbete. Om du tar bort den försvinner arbetet.",
     "actualWorkLost_other": "Tilldelningen för {{resource}} har redan {{hours}} timmar verkligt arbete. Om du tar bort den försvinner arbetet."
+  },
+  "fileDrop": {
+    "title": "Släpp för att öppna",
+    "subtitle": "Projektfil eller import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankardatum i andra projekt blir snävare",
+    "body": "Dessa projekt räknar med ett datum från denna tidplan. Efter sparandet får de ett snävare datum när de uppdaterar sina externa samband.",
+    "colProject": "Projekt",
+    "colTheirTask": "Deras aktivitet",
+    "colOwnTask": "Aktivitet här",
+    "colAnchor": "Ankardatum: gammalt → nytt",
+    "saveAnyway": "Spara ändå",
+    "cancel": "Avbryt"
   }
 }

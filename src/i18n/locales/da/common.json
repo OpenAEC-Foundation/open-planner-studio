@@ -13,6 +13,8 @@
     "dismiss": "Luk meddelelse",
     "taskEditRevertBlocked": "En ændring fra MCP-klienten eller en udvidelse kom imellem. De opgaveændringer før den er ikke fortrudt og står som almindelige trin under Fortryd.",
     "openFailed": "Kunne ikke åbne filen",
+    "fileDropRefused": "Ikke åbnet: {{names}}. Appen åbner kun IFC, XML, MPP, XER og CSV.",
+    "fileDropBlocked": "Ikke åbnet: {{names}}. Luk det åbne vindue først.",
     "csvInvalidDate": "CSV er ikke åbnet: ugyldig dato „{{value}}“ i CSV-række {{row}}, kolonne „{{column}}“. Brug åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et trin fra udvidelsen {{name}} gav en fejl. Vejledningen fortsætter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} fra udvidelsen {{name}} kunne ikke åbnes.",
@@ -231,7 +233,10 @@
     "msProjectLostResourceRates_other": "Standardsatserne for {{count}} ressourcer er ikke overtaget.",
     "minuteModelConverted_one": "{{document}}: {{count}} opgave har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
     "minuteModelConverted_other": "{{document}}: {{count}} opgaver har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
-    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ er repareret: slutningen eller pausen passede ikke til den gemte arbejdstid."
+    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ er repareret: slutningen eller pausen passede ikke til den gemte arbejdstid.",
+    "dependentProjectsFound": "Afhængige projekter: {{projects}}. Koblinger til dette projekt: {{links}}.",
+    "dependentProjectsNone": "Der blev ikke fundet projekter med en ekstern afhængighed til denne tidsplan.",
+    "dependentProjectsFailed": "Mappen med afhængige projekter kunne ikke læses."
   },
   "scheduleErrors": {
     "cycle": "Cirkulær afhængighed mellem opgaver: {{path}}",
@@ -664,6 +669,8 @@
     "missedDeadlines": "{{count}} deadline(s) overskredet",
     "violatedConstraints": "{{count}} begrænsning(er) overtrådt",
     "outOfSequence": "{{count}} afhængighed(er) med fremdrift uden for rækkefølge",
+    "externalSuccessors_one": "{{count}} ekstern efterfølgende opgave for stram",
+    "externalSuccessors_other": "{{count}} eksterne efterfølgende opgaver for stramme",
     "overallocated": "{{count}} ressource(r) overallokeret",
     "summary_one": "{{count}} advarsel",
     "summary_other": "{{count}} advarsler"
@@ -681,6 +688,10 @@
       "scheduleError": "Tidsplanen kunne ikke beregnes: {{message}}",
       "missedDeadline": "Deadline {{deadline}} overskredet. Tidligste slutdato {{finish}}",
       "violatedConstraint": "Begrænsning {{constraint}} overstyres af logikken (negativ slæk)",
+      "externalSuccessorViolatedSF": "For stramt for ekstern efterfølgende opgave {{task}} ({{project}}, {{relation}}): den slutter senest {{anchor}}, denne opgave starter først {{own}}",
+      "externalSuccessorViolatedFF": "For stramt for ekstern efterfølgende opgave {{task}} ({{project}}, {{relation}}): den slutter senest {{anchor}}, denne opgave slutter først {{own}}",
+      "externalSuccessorViolatedSS": "For stramt for ekstern efterfølgende opgave {{task}} ({{project}}, {{relation}}): den starter senest {{anchor}}, denne opgave starter først {{own}}",
+      "externalSuccessorViolatedFS": "For stramt for ekstern efterfølgende opgave {{task}} ({{project}}, {{relation}}): den starter senest {{anchor}}, denne opgave slutter først {{own}}",
       "outOfSequence": "Uden for rækkefølge: fremdriften i den efterfølgende opgave strider mod afhængigheden",
       "truncatedLead": "Forskud afkortet af projektstartdatoen. Afhængigheden er ikke fuldt udnyttet",
       "droppedSequence": "Afhængighed ignoreret: foregående opgave eller efterfølgende opgave mangler, eller er ikke en bladopgave",
@@ -1706,5 +1717,19 @@
     "blockedNoChild": "Flytning er ikke mulig: »{{phase}}« får ingen underopgave, der kan bære en tildeling, kun milepæle eller hovedopgaver.",
     "actualWorkLost_one": "Tildelingen af {{resource}} har allerede {{hours}} time faktisk arbejde. Hvis du fjerner den, går det arbejde tabt.",
     "actualWorkLost_other": "Tildelingen af {{resource}} har allerede {{hours}} timer faktisk arbejde. Hvis du fjerner den, går det arbejde tabt."
+  },
+  "fileDrop": {
+    "title": "Slip for at åbne",
+    "subtitle": "Projektfil eller import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankerdatoer i andre projekter bliver strammere",
+    "body": "Disse projekter regner med en dato fra denne tidsplan. Efter lagring får de en strammere dato, når de opdaterer deres eksterne afhængigheder.",
+    "colProject": "Projekt",
+    "colTheirTask": "Deres opgave",
+    "colOwnTask": "Opgave her",
+    "colAnchor": "Ankerdato: gammel → ny",
+    "saveAnyway": "Gem alligevel",
+    "cancel": "Annuller"
   }
 }

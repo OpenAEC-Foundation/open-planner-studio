@@ -152,6 +152,7 @@
     "barsGroup": "막대",
     "manageBaselines": "기준선 관리…",
     "statusDate": "상태 날짜",
+    "statusDateValue": "상태 날짜: {{date}}",
     "statusDateClear": "상태 날짜 지우기",
     "statusDateTime": "상태 날짜 시간",
     "statusDateTimeLater": "시간 늦추기",
@@ -216,7 +217,9 @@
     "screenColorsMissingField": "이 필드는 이 프로젝트에 없습니다. 공종을 임시로 사용합니다.",
     "screenColorsHint": "주공정 경로 모드 외에는 빨간 테두리가 주공정 경로를 표시합니다.",
     "addLayout": "새 레이아웃",
-    "toggleRelations": "관계선"
+    "toggleRelations": "관계선",
+    "relationFindDependents": "종속 프로젝트 찾기…",
+    "relationFindDependentsHint": "이 일정과 외부 관계가 있는 프로젝트를 폴더에서 찾습니다."
   },
   "ifc": {
     "title": "IFC 편집기",

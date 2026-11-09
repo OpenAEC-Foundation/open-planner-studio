@@ -13,6 +13,8 @@
     "dismiss": "Zatvori obavijest",
     "taskEditRevertBlocked": "Promjena od MCP-klijenta ili proširenja stigla je u međuvremenu. Izmjene zadataka prije nje nisu poništene i ostaju kao obični koraci pod Poništi.",
     "openFailed": "Otvaranje datoteke nije uspjelo",
+    "fileDropRefused": "Nije otvoreno: {{names}}. Aplikacija otvara samo IFC, XML, MPP, XER i CSV.",
+    "fileDropBlocked": "Nije otvoreno: {{names}}. Najprije zatvorite otvoreni prozor.",
     "csvInvalidDate": "CSV nije otvoren: nepoznat datum \"{{value}}\" u CSV retku {{row}}, stupcu \"{{column}}\". Upotrijebite gggg-mm-dd, dd-mm-gggg ili dd/mm/gggg.",
     "extGuideCallbackFailed": "Jedan korak proširenja {{name}} javio je grešku. Vodič se nastavlja.",
     "extHelpProjectOpenFailed": "Projektnu datoteku {{file}} iz proširenja {{name}} nije bilo moguće otvoriti.",
@@ -290,7 +292,10 @@
     "minuteModelConverted_one": "{{document}}: {{count}} zadatak ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
     "minuteModelConverted_few": "{{document}}: {{count}} zadatka imaju nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
     "minuteModelConverted_other": "{{document}}: {{count}} zadataka ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
-    "minuteModelCalendarRepaired": "Kalendar „{{calendar}}“ je popravljen: završetak ili pauza nisu odgovarali spremljenom radnom vremenu."
+    "minuteModelCalendarRepaired": "Kalendar „{{calendar}}“ je popravljen: završetak ili pauza nisu odgovarali spremljenom radnom vremenu.",
+    "dependentProjectsFound": "Ovisni projekti: {{projects}}. Veze prema ovom projektu: {{links}}.",
+    "dependentProjectsNone": "Nisu pronađeni projekti s vanjskom vezom prema ovom planu.",
+    "dependentProjectsFailed": "Mapu s ovisnim projektima nije moguće pročitati."
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -725,6 +730,9 @@
     "missedDeadlines": "Propušteni rokovi za dovršetak: {{count}}",
     "violatedConstraints": "Prekršena ograničenja: {{count}}",
     "outOfSequence": "Ovisnosti izvan redoslijeda: {{count}}",
+    "externalSuccessors_one": "Vanjski nasljednici s nedovoljnom rezervom: {{count}}",
+    "externalSuccessors_few": "Vanjski nasljednici s nedovoljnom rezervom: {{count}}",
+    "externalSuccessors_other": "Vanjski nasljednici s nedovoljnom rezervom: {{count}}",
     "overallocated": "Preopterećenja resursa: {{count}}",
     "summary_one": "{{count}} upozorenje",
     "summary_few": "{{count}} upozorenja",
@@ -743,6 +751,10 @@
       "scheduleError": "Raspored nije bilo moguće izračunati: {{message}}",
       "missedDeadline": "Rok za dovršetak {{deadline}} je propušten. Najraniji završetak: {{finish}}",
       "violatedConstraint": "Logika nadjačava ograničenje {{constraint}} (negativna vremenska rezerva)",
+      "externalSuccessorViolatedSF": "Nedovoljna rezerva za vanjskog nasljednika {{task}} ({{project}}, {{relation}}): završava najkasnije {{anchor}}, ovaj zadatak počinje tek {{own}}",
+      "externalSuccessorViolatedFF": "Nedovoljna rezerva za vanjskog nasljednika {{task}} ({{project}}, {{relation}}): završava najkasnije {{anchor}}, ovaj zadatak završava tek {{own}}",
+      "externalSuccessorViolatedSS": "Nedovoljna rezerva za vanjskog nasljednika {{task}} ({{project}}, {{relation}}): počinje najkasnije {{anchor}}, ovaj zadatak počinje tek {{own}}",
+      "externalSuccessorViolatedFS": "Nedovoljna rezerva za vanjskog nasljednika {{task}} ({{project}}, {{relation}}): počinje najkasnije {{anchor}}, ovaj zadatak završava tek {{own}}",
       "outOfSequence": "Izvan redoslijeda: napredak nasljednika proturječi ovisnosti.",
       "truncatedLead": "Vrijeme preklapanja skraćeno zbog datuma početka projekta. Ovisnost nije u potpunosti primijenjena.",
       "droppedSequence": "Ovisnost zanemarena: prethodnik ili nasljednik nedostaje ili nije zadatak najniže razine.",
@@ -1787,5 +1799,19 @@
     "actualWorkLost_one": "Na dodjeli za {{resource}} već je evidentirano {{hours}} sat stvarnog rada. Brisanjem se taj rad gubi.",
     "actualWorkLost_few": "Na dodjeli za {{resource}} već je evidentirano {{hours}} sata stvarnog rada. Brisanjem se taj rad gubi.",
     "actualWorkLost_other": "Na dodjeli za {{resource}} već je evidentirano {{hours}} sati stvarnog rada. Brisanjem se taj rad gubi."
+  },
+  "fileDrop": {
+    "title": "Otpustite za otvaranje",
+    "subtitle": "Projektna datoteka ili uvoz"
+  },
+  "dependentAnchorWarning": {
+    "title": "Referentni datumi drugih projekata postaju tješnji",
+    "body": "Ovi projekti računaju na datum iz ovog plana. Nakon spremanja dobivaju tješnji datum kada osvježe svoje međuzavisnosti.",
+    "colProject": "Projekt",
+    "colTheirTask": "Njihov zadatak",
+    "colOwnTask": "Zadatak ovdje",
+    "colAnchor": "Referentni datum: stari → novi",
+    "saveAnyway": "Ipak spremi",
+    "cancel": "Odustani"
   }
 }

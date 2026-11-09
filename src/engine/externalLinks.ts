@@ -21,6 +21,9 @@ export interface ExternalSourceDoc {
   projectId: string;
   /** Bestandspad — secundair match-anker/label wanneer de projectId (nog) niet overeenkomt. */
   filePath?: string;
+  /** Het vaste id van de bron op de site (stap 1.9). Gezet ⇒ deze bron raakt alleen koppelingen met
+   *  datzelfde `sourceRef.siteFileId` (`site-file`). */
+  siteFileId?: string;
   projectName?: string;
   /** Brontaken; de anker-datum leest uit hun datums volgens {@link sourceAnchorDate}: de vroege voor
    *  een voorganger, de late voor een opvolger. */
@@ -30,6 +33,11 @@ export interface ExternalSourceDoc {
    *  bestand ze niet had. Ontbreekt dit veld (een bron die de aanroeper zelf opbouwde), dan tellen de
    *  late datums van `tasks`; ontbreekt alleen de taak, dan droeg het bestand voor haar niets. */
   lateDatesInFile?: Readonly<Record<string, LateDatesInFile>>;
+  /** De versie van de bron bij het lezen: het versienummer op de site of de wijzigingstijd van het
+   *  bestand (ISO, UTC). Afwezig ⇒ onbekend; de verversing schrijft dan geen versie. */
+  version?: string;
+  /** Wanneer de bron gelezen werd (ISO, UTC). Afwezig ⇒ de verversing schrijft geen leestijd. */
+  readAt?: string;
 }
 
 /** Of het bronbestand voor een taak een late start en een late finish droeg. */
@@ -52,7 +60,74 @@ export interface RefreshResult {
 /** Normaal blijft de persistente project-id primair en is het pad alleen fallback. De bulkverversing
  * gebruikt `file-path` uitsluitend wanneer twee tegelijk gelezen bronnen dezelfde project-id
  * claimen; zo worden kopieën uit elkaar gehouden zonder een verplaatst enkel bronbestand te breken. */
-export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
+export type ExternalSourceMatchScope = 'project-or-path' | 'file-path' | 'project-without-path' | 'site-file';
+
+/**
+ * Waar de app een bron leest (stap 1.8). Een koppeling met een bruikbaar pad (`normalizeExternalSourcePath`)
+ * leest haar bron via dat pad (desktop). Een koppeling zonder pad (gekozen in de browser) herkent haar bron
+ * op project-id; de browser leest die via een onthouden bestandshandvat. Een koppeling met `siteFileId`
+ * (stap 1.9, gekozen op de site) leest haar bron via de site, ook als ze een pad heeft: het id op de site is
+ * de vaste identiteit van dat bestand. Een koppeling met een relatief pad heeft geen bron die de app kan
+ * lezen (`null`).
+ */
+export type ExternalSourceLocator =
+  | { kind: 'path'; filePath: string }
+  | { kind: 'project'; projectId: string }
+  | { kind: 'site'; siteFileId: string };
+
+export function externalSourceLocatorOf(
+  ref: Pick<ExternalLink['sourceRef'], 'projectId' | 'filePath' | 'siteFileId'>,
+): ExternalSourceLocator | null {
+  const siteFileId = ref.siteFileId?.trim();
+  if (siteFileId) return { kind: 'site', siteFileId };
+  if (ref.filePath) return normalizeExternalSourcePath(ref.filePath) === null ? null : { kind: 'path', filePath: ref.filePath };
+  const projectId = ref.projectId.trim();
+  return projectId ? { kind: 'project', projectId } : null;
+}
+
+/** Het voorvoegsel van een bronsleutel zonder pad. Een genormaliseerd pad begint met `/` of met een
+ *  stationsletter en dubbele punt (`c:/`); `project:` en later `site:` botsen daar nooit mee. */
+const PROJECT_KEY_PREFIX = 'project:';
+/** Het voorvoegsel van de sleutel van een bron op de site (stap 1.9). */
+const SITE_KEY_PREFIX = 'site:';
+
+/**
+ * De sleutel van een bron in de balk (`ExternalSourceUpdate.key`) en in alles wat daarop sleutelt: het
+ * genormaliseerde pad voor een bron met pad, `project:<id>` voor een bron zonder pad, `site:<id>` voor een
+ * bron op de site. Zo blijft de sleutel van een bron met pad gelijk aan die van stap 1.5.
+ */
+export function externalSourceKey(locator: ExternalSourceLocator): string | null {
+  if (locator.kind === 'path') return normalizeExternalSourcePath(locator.filePath);
+  return locator.kind === 'site'
+    ? `${SITE_KEY_PREFIX}${locator.siteFileId}`
+    : `${PROJECT_KEY_PREFIX}${locator.projectId}`;
+}
+
+/** De sleutel van een gelezen bron: op de site het site-id, met pad het pad, zonder pad het project-id. */
+export function externalSourceKeyOfDoc(source: Pick<ExternalSourceDoc, 'projectId' | 'filePath' | 'siteFileId'>): string | null {
+  const locator = externalSourceLocatorOf(source);
+  return locator ? externalSourceKey(locator) : null;
+}
+
+/** De bronnen zonder pad die na *Bronbestanden kiezen…* nog niet gelezen zijn (review #858): de eerder niet
+ *  gelezen project-id's min die van de gekozen bestanden. */
+export function remainingUnreadSources(unreadProjectIds: readonly string[], readProjectIds: readonly string[]): string[] {
+  const read = new Set(readProjectIds);
+  return unreadProjectIds.filter(projectId => !read.has(projectId));
+}
+
+/** Welke koppelingen één gelezen bron mag verversen bij de balk (*Bekijken*, *Accepteren*): op de site alleen
+ *  de koppelingen met hetzelfde site-id; met pad alleen de koppelingen naar dat pad; zonder pad alleen de
+ *  koppelingen zonder pad met hetzelfde project-id. */
+export function externalSourceScope(source: Pick<ExternalSourceDoc, 'filePath' | 'siteFileId'>): ExternalSourceMatchScope {
+  if (source.siteFileId) return 'site-file';
+  return source.filePath ? 'file-path' : 'project-without-path';
+}
+
+/** Dezelfde regel als {@link externalSourceScope}, voor een plek uit de balk (`ExternalSourceUpdate.locator`). */
+export function externalSourceScopeOf(locator: ExternalSourceLocator): ExternalSourceMatchScope {
+  return locator.kind === 'site' ? 'site-file' : locator.kind === 'path' ? 'file-path' : 'project-without-path';
+}
 
 /** Is deze kant van de brontaak al gebeurd? Een gestarte kant heeft een werkelijke start (of de taak is
  *  voltooid), een gebeurde finish hoort bij een voltooide taak. Voor een bladtaak is dat precies
@@ -102,6 +177,20 @@ export function linkMatchesSource(
   source: ExternalSourceDoc,
   matchScope: ExternalSourceMatchScope = 'project-or-path',
 ): boolean {
+  // Een bron op de site (stap 1.9) raakt alleen koppelingen met hetzelfde site-id. Andersom wijst een koppeling
+  // met een site-id naar dat ene bestand op de site: een bron met pad of uit de browser, ook met hetzelfde
+  // project-id (een kopie), mag haar niet raken.
+  const linkSiteId = link.sourceRef.siteFileId?.trim();
+  if (matchScope === 'site-file') {
+    const sourceSiteId = source.siteFileId?.trim();
+    return !!linkSiteId && !!sourceSiteId && linkSiteId === sourceSiteId;
+  }
+  if (linkSiteId) return false;
+  // Een bron zonder pad (de browser, stap 1.8): alleen koppelingen zonder pad, op project-id. Een koppeling
+  // met een pad wijst naar een bepaald bestand; een ander bestand met hetzelfde project-id mag haar niet raken.
+  if (matchScope === 'project-without-path') {
+    return !link.sourceRef.filePath && !!link.sourceRef.projectId && link.sourceRef.projectId === source.projectId;
+  }
   if (matchScope === 'project-or-path'
     && link.sourceRef.projectId
     && link.sourceRef.projectId === source.projectId) return true;
@@ -109,6 +198,28 @@ export function linkMatchesSource(
   const linkPath = normalizeExternalSourcePath(link.sourceRef.filePath);
   const sourcePath = normalizeExternalSourcePath(source.filePath);
   return linkPath !== null && sourcePath !== null && linkPath === sourcePath;
+}
+
+/**
+ * De herkomst van het anker (keuze 4) van een bestaande koppeling, op een nieuwe vorm van diezelfde
+ * koppeling. Routes die een koppeling opnieuw opbouwen uit een vorm zonder herkomst (de relatiecel: het
+ * klembordformaat v1 draagt `sourceVersion`, `anchorReadAt` en `siteFileId` niet) zetten haar zo terug.
+ * Dezelfde brontaak (project-id, taak-id en bestandspad) ⇒ de site-id blijft. Ook hetzelfde anker ⇒ versie
+ * en leestijd blijven: het anker komt dan nog steeds uit die versie van de bron. Een ander anker komt niet
+ * meer uit de bron, en dan valt de herkomst weg. Wat de nieuwe vorm zelf al draagt, wint.
+ */
+export function withKeptAnchorProvenance<T extends Omit<ExternalLink, 'id'>>(next: T, old: ExternalLink | undefined): T {
+  if (!old) return next;
+  const a = old.sourceRef;
+  const b = next.sourceRef;
+  if (a.projectId !== b.projectId || a.taskId !== b.taskId || (a.filePath ?? '') !== (b.filePath ?? '')) return next;
+  const out: T = { ...next };
+  if (a.siteFileId !== undefined && b.siteFileId === undefined) out.sourceRef = { ...b, siteFileId: a.siteFileId };
+  if (next.anchorDate === old.anchorDate) {
+    if (next.sourceVersion === undefined && old.sourceVersion !== undefined) out.sourceVersion = old.sourceVersion;
+    if (next.anchorReadAt === undefined && old.anchorReadAt !== undefined) out.anchorReadAt = old.anchorReadAt;
+  }
+  return out;
 }
 
 /**
@@ -122,6 +233,8 @@ export function refreshExternalAnchors(
   tasks: Task[],
   source: ExternalSourceDoc,
   matchScope: ExternalSourceMatchScope = 'project-or-path',
+  /** Koppelingen die deze verversing niet mag raken (`refreshFromSources`: een bronpad dat niet gelezen is). */
+  skip?: (link: ExternalLink) => boolean,
 ): RefreshResult {
   const srcById = new Map(source.tasks.map((t) => [t.id, t]));
   let refreshed = 0;
@@ -132,7 +245,7 @@ export function refreshExternalAnchors(
     if (!task.externalLinks || task.externalLinks.length === 0) return task;
     let taskChanged = false;
     const links = task.externalLinks.map((link): ExternalLink => {
-      if (!linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
+      if (skip?.(link) || !linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
 
       const srcTask = srcById.get(link.sourceRef.taskId);
       if (!srcTask) {
@@ -151,10 +264,18 @@ export function refreshExternalAnchors(
         taskName: srcTask.name,
         filePath: source.filePath ?? link.sourceRef.filePath,
       };
+      const nextAnchor = anchorDate || link.anchorDate;
+      // Herkomst (keuze 4): het anker komt nu uit deze versie van de bron. Dezelfde versie en hetzelfde
+      // anker ⇒ niets nieuws; dan blijft ook de oude leestijd staan, zodat verversen zonder wijziging het
+      // document niet verandert. Heeft de koppeling nog geen leestijd, dan neemt ze een nieuwe één keer
+      // over, ook als de versie onbekend is (beide `undefined`).
+      const sameProvenance = (source.version ?? undefined) === link.sourceVersion && nextAnchor === link.anchorDate
+        && (link.anchorReadAt !== undefined || source.readAt === undefined);
       // Geen daadwerkelijke wijziging ⇒ referentie behouden (byte-/render-stabiel).
       if (
         link.anchorDate === anchorDate &&
         link.sourceMissing === false &&
+        sameProvenance &&
         link.sourceRef.projectId === nextRef.projectId &&
         link.sourceRef.projectName === nextRef.projectName &&
         link.sourceRef.taskName === nextRef.taskName &&
@@ -163,7 +284,14 @@ export function refreshExternalAnchors(
         return link;
       }
       taskChanged = true;
-      return { ...link, anchorDate: anchorDate || link.anchorDate, sourceMissing: false, sourceRef: nextRef };
+      const next: ExternalLink = { ...link, anchorDate: nextAnchor, sourceMissing: false, sourceRef: nextRef };
+      if (!sameProvenance) {
+        delete next.sourceVersion;
+        delete next.anchorReadAt;
+        if (source.version !== undefined) next.sourceVersion = source.version;
+        if (source.readAt !== undefined) next.anchorReadAt = source.readAt;
+      }
+      return next;
     });
     if (!taskChanged) return task;
     anyChanged = true;
@@ -173,16 +301,116 @@ export function refreshExternalAnchors(
   return { tasks: anyChanged ? outTasks : tasks, refreshed, missing, changed: anyChanged };
 }
 
+/**
+ * Ververst de koppelingen uit meerdere bronnen in één keer: *Alle externe relaties vernieuwen*
+ * (`refreshAllExternalAnchors`) en de MCP-tool `planner_refresh_external_links`. Puur, net als
+ * `refreshExternalAnchors`; elke bron ververst zijn eigen koppelingen op het vorige resultaat.
+ *
+ * Een IFC-kopie bewaart terecht zijn persistente project-id. Staan twee verschillende bronpaden met zo'n
+ * gedeelde id in dezelfde actie, dan is project-id alleen niet langer onderscheidend: de eerste bron zou
+ * anders beide koppelingen verversen en de tweede beide opnieuw. Alleen in die aantoonbaar ambigue groep
+ * eist de functie daarom het genormaliseerde bronpad. Een gewone verversing blijft project-id-primair,
+ * zodat een verplaatst bestand werkt.
+ * Een bron zonder pad (stap 1.8, gekozen in de browser) raakt alleen koppelingen zonder pad met haar
+ * project-id (`project-without-path`). Een bron op de site (stap 1.9) raakt alleen koppelingen met haar
+ * site-id (`site-file`); een koppeling met een site-id raakt geen andere bron. Staat haar bron niet in
+ * `sources` (niet gelezen: geen site, geen recht, netwerk), dan houdt ze haar anker.
+ *
+ * `readPaths` (genormaliseerd, `normalizeExternalSourcePath`): de bronpaden die deze actie gelezen heeft. Een
+ * koppeling met een bruikbaar bronpad dat daar niet in staat, houdt haar anker en pad: anders zou de terugval
+ * op project-id haar het anker en het pad van een andere bron met hetzelfde project-id geven (review #813). Ze
+ * telt dan niet als ververst en niet als ontbrekend. Dat geldt voor een bron buiten de toegestane map of een
+ * onleesbare bron, en ook voor een koppeling die de planner tijdens het lezen naar een ander bronbestand
+ * zette: de set gaat over de gelezen bestanden, niet over de koppelingen van vóór het lezen. Zonder
+ * `readPaths` mag elke koppeling ververst worden.
+ */
+export function refreshFromSources(
+  tasks: Task[],
+  sources: readonly ExternalSourceDoc[],
+  readPaths?: ReadonlySet<string>,
+): RefreshResult {
+  const pathsByProjectId = new Map<string, Set<string>>();
+  for (const source of sources) {
+    const projectId = source.projectId.trim();
+    const sourcePath = normalizeExternalSourcePath(source.filePath ?? '');
+    if (!projectId || sourcePath === null || source.siteFileId) continue;
+    const sourcePaths = pathsByProjectId.get(projectId) ?? new Set<string>();
+    sourcePaths.add(sourcePath);
+    pathsByProjectId.set(projectId, sourcePaths);
+  }
+  const ambiguousProjectIds = new Set(
+    [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
+  );
+
+  // Alleen een koppeling die via haar pad leest: een koppeling met een site-id leest via de site, ook als ze nog
+  // een oud pad draagt (review #859 ronde 1).
+  const skip = readPaths === undefined ? undefined : (link: ExternalLink) => {
+    const locator = externalSourceLocatorOf(link.sourceRef);
+    if (locator?.kind !== 'path') return false;
+    const path = normalizeExternalSourcePath(locator.filePath);
+    return path !== null && !readPaths.has(path);
+  };
+
+  let out = tasks;
+  let refreshed = 0;
+  let missing = 0;
+  let changed = false;
+  for (const source of sources) {
+    const result = refreshExternalAnchors(
+      out,
+      source,
+      // Een bron zonder pad (de browser, stap 1.8) raakt alleen koppelingen zonder pad: een koppeling met een
+      // pad wijst naar een bepaald bestand en houdt haar anker als dat bestand niet gelezen is.
+      externalSourceScope(source) !== 'file-path' ? externalSourceScope(source)
+        : ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
+      skip,
+    );
+    out = result.tasks;
+    refreshed += result.refreshed;
+    missing += result.missing;
+    if (result.changed) changed = true;
+  }
+  return { tasks: out, refreshed, missing, changed };
+}
+
+/** De herkomst van een anker (keuze 4) in een vorm die de tooltip toont. `site`: een versienummer op de
+ *  site (`sourceRef.siteFileId` gezet); `file`: de wijzigingstijd van het bronbestand; `read`: alleen de
+ *  leestijd is bekend; `none`: niets bekend (een oudere koppeling of een anker dat de planner invulde). */
+export type ExternalAnchorProvenance =
+  | { kind: 'site'; version: string; readAt?: Date }
+  | { kind: 'file'; modified: Date; readAt?: Date }
+  | { kind: 'read'; readAt: Date }
+  | { kind: 'none' };
+
+export function externalAnchorProvenance(
+  link: Pick<ExternalLink, 'sourceVersion' | 'anchorReadAt' | 'sourceRef'>,
+): ExternalAnchorProvenance {
+  const time = (iso: string | undefined): Date | undefined => {
+    if (!iso) return undefined;
+    const date = new Date(iso);
+    return isNaN(date.getTime()) ? undefined : date;
+  };
+  const readAt = time(link.anchorReadAt);
+  const withRead = readAt ? { readAt } : {};
+  if (link.sourceVersion) {
+    if (link.sourceRef.siteFileId) return { kind: 'site', version: link.sourceVersion, ...withRead };
+    const modified = time(link.sourceVersion);
+    if (modified) return { kind: 'file', modified, ...withRead };
+  }
+  return readAt ? { kind: 'read', readAt } : { kind: 'none' };
+}
+
 const DIRECTIONS: readonly string[] = ['predecessor', 'successor'];
 const RELATION_TYPES: readonly string[] = ['FS', 'SS', 'FF', 'SF'];
-const OPTIONAL_SOURCE_FIELDS = ['projectName', 'taskName', 'filePath'] as const;
+const OPTIONAL_SOURCE_FIELDS = ['projectName', 'taskName', 'filePath', 'siteFileId'] as const;
+const OPTIONAL_PROVENANCE_FIELDS = ['sourceVersion', 'anchorReadAt'] as const;
 
 /**
  * De externe koppelingen uit een opgeslagen bestand (`OPS_ExternalLink`), in een vorm die de app
  * aankan. Een koppeling zonder geldige richting, type, anker (tekst) of bron (project-id als tekst,
  * taak-id niet leeg) valt weg: zulke data liet laden, rekenen en de relatiecel vastlopen. Een
  * ontbrekend of dubbel id krijgt een eigen id per taak, een ontbrekende bronstatus wordt "bron
- * ontbreekt", een ongeldige lag en een bronveld dat geen tekst is vervallen. Onbekende extra velden
+ * ontbreekt", een ongeldige lag en een bron- of herkomstveld dat geen tekst is vervallen. Onbekende extra velden
  * blijven staan, zodat een nieuwere versie van de app bij opslaan niets verliest.
  * Geen geldige koppeling ⇒ `undefined` (de taak heeft er dan geen).
  */
@@ -215,6 +443,7 @@ export function storedExternalLinks(value: unknown): ExternalLink[] | undefined 
     for (const key of ['lagDays', 'lagMinutes'] as const) {
       if (key in link && !isValidExternalLagValue(key, link[key])) delete link[key];
     }
+    for (const key of OPTIONAL_PROVENANCE_FIELDS) if (key in link && typeof link[key] !== 'string') delete link[key];
     links.push(link as unknown as ExternalLink);
   });
   return links.length > 0 ? links : undefined;

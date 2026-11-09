@@ -76,7 +76,7 @@ import { OVERLAY_SCROLLBAR_SIZE } from '@/engine/taskGrid/scrollExtent';
 import { GANTT_WORKSPACE_SPLITTER_GRIP } from './ganttSplitter';
 import type { GanttTooltipState, HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 import { shownFinish, shownStart } from '@/utils/taskDates';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 
 // Basisgeometrie op Tekengrootte 100%: de component leidt hieruit de EFFECTIEVE
 // `rowHeight`/`headerHeight` af (× ui.uiFontScale/100) — gebruik binnen de component die geschaalde
@@ -822,7 +822,7 @@ export function GanttCanvas({
               // Hoort bij de grafiek: rechtsboven in de plot, dus in ar/fa (kiezer rechts) vóór de
               // kiezer in plaats van eroverheen — dezelfde indeling als de renderer.
               <div
-                className="absolute top-1 !text-small px-1.5 py-0.5 rounded pointer-events-none inline-flex items-center gap-1"
+                className={`absolute top-1 !text-small px-1.5 py-0.5 rounded pointer-events-none${b2IconsOn() ? ' inline-flex items-center gap-1' : ''}`}
                 data-ops-histogram-stale-hint
                 style={{
                   right: `calc(${histogramPlotInsets(histogramPickerWidth, histogramPickerSide).right}px + 0.5rem)`,
@@ -831,7 +831,7 @@ export function GanttCanvas({
                   opacity: 0.9,
                 }}
               >
-                <Icon id="status.warning" size={16} />{tCommon('resource.histogram.staleHint')}
+                {b2IconsOn() ? <Icon id="status.warning" size={16} /> : '⚠ '}{tCommon('resource.histogram.staleHint')}
               </div>
             )}
             {histogramInteraction.tooltip && (
