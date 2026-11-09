@@ -47,7 +47,7 @@ export const GUIDE_PUBLIC_BASE = 'https://open-planner-studio.open-aec.com';
 /** Pad van de agentgids binnen `public/` (dus ook in `dist/` en de Tauri-bundel). Bewust NIET onder
  *  `public/docs/`: daar staan alleen Help-artikelen (verify:docs, helpviewer, wiki). */
 export const AGENT_GUIDE_PATH = 'agent/planning-guide.md';
-/** Publieke download-URL van de agentgids (ook in `MCP_INSTRUCTIONS`). */
+/** Publieke download-URL van de agentgids (o.a. de uitweg bij `te_groot` in `siteAppTools.ts`). */
 export const AGENT_GUIDE_URL = `${GUIDE_PUBLIC_BASE}/${AGENT_GUIDE_PATH}`;
 
 /** De agent-skills, in de volgorde waarin de tool ze levert. `goed-plannen` behoudt zijn
@@ -86,8 +86,8 @@ export const GUIDE_PARTS = {
 
 export type GuidePart = keyof typeof GUIDE_PARTS;
 
-/** Zonder `part`: alleen de gids. Wie zonder keuze leest, gaat meestal opbouwen of herstructureren (zo noemt
- *  `MCP_INSTRUCTIONS` de tool, en daar staat ook `part: "progress-update"` voor voortgang). De gids heeft de hele
+/** Zonder `part`: alleen de gids. Wie zonder keuze leest, gaat meestal opbouwen of herstructureren (zo noemt de
+ *  beschrijving van deze tool hem; voor voortgang noemt die `part: "progress-update"`). De gids heeft de hele
  *  volgorde; de skill `goed-plannen` zegt alleen deze tool te lezen, dus die hoeft niet mee (#818, ronde 4). */
 export const DEFAULT_GUIDE_PART: GuidePart = 'guide';
 

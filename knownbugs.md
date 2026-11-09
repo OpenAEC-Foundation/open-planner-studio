@@ -2361,8 +2361,8 @@ en noem het in je rapport of PR-tekst.
 
 900. **VERVOLG: elk antwoord van `tools/call` draagt de data twee keer.** `wrapToolResult` in
      `src/services/mcp/dispatcher.ts` zet hetzelfde resultaat als JSON-tekst in `content[0].text` en als
-     `structuredContent`. Gemeten in #818 op `planner_get_planning_guide` met `part: "both"`: 7.353 tekens data,
-     14.976 tekens over de lijn. De MCP-spec vraagt die tekstkopie voor oudere clients ("SHOULD"); of een client beide
+     `structuredContent`. Gemeten in #818 op `planner_get_planning_guide` met `part: "both"`: 6.871 tekens data,
+     14.004 tekens over de lijn. De MCP-spec vraagt die tekstkopie voor oudere clients ("SHOULD"); of een client beide
      aan het model geeft, verschilt per client en is niet nagegaan. Voorstel: meet per client (Claude Code, Claude
      Desktop, SuperCloud) wat het model krijgt, en kies dan of de tekstkopie korter kan. — B (het dubbele antwoord),
      S (de tokenkosten per client)
@@ -2411,3 +2411,13 @@ en noem het in je rapport of PR-tekst.
      822 → 1.680), want de envelop staat er twee keer in (punt 900). Een XER-sessie van 30 aanroepen kost zo ruim
      22.000 tekens over de lijn, ongeveer 11.000 als data. Voorstel: de tekst één keer per document, daarna alleen
      de vlag `datesAsRecorded: true`. Uit council-ronde 7 van #836 (Claude Opus 5.5, xhigh, BEVESTIGD). — B
+
+965. **VERVOLG: na een bereikte mijlpaal start de opvolger op de dag dat de voorganger pas eindigt.** Gezien in
+     proef (h) van #836, met de echte dispatcher. Keten Ruwbouw → mijlpaal "Ruwbouw gereed" → Dak dicht, alle drie
+     FS; statusdatum 14 april 2027. Ruwbouw kreeg `actualFinish: "2027-04-14"` en eindigt op 14 april 16:00. De
+     mijlpaal kreeg `completion: 100` en `actualFinish: "2027-04-14"` (zonder tijd) en staat op 14 april 07:00.
+     Dak dicht start daardoor op 14 april 07:00, terwijl de gebruiker "het dak begint morgen" zei. Vóór de update
+     stond de mijlpaal op de werkdag ná Ruwbouw (7 april 07:00, na 6 april 16:00). Vermoeden: een datum zonder tijd wordt bij een
+     mijlpaal het begin van de dag, bij een taak het einde. Niet nagegaan in de code. Voorstel: bij een mijlpaal met
+     een FS-voorganger die dezelfde dag eindigt, de datum zonder tijd op het einde van die dag zetten, of melden.
+     — B (de start op 14 april, twee keer gezien), S (de oorzaak)
