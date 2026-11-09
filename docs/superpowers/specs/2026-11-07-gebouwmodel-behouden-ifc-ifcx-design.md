@@ -1,6 +1,6 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 11 (9 november 2026: besluiten van Ethan over IFCX en council-ronde 9 verwerkt).
+Status: ontwerp, versie 12 (9 november 2026: besluiten van Ethan over IFCX en council-rondes 9 en 10 verwerkt).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -605,20 +605,26 @@ route, ook als een eigen bestand via een synchronisatiemap is gewijzigd (doel 5)
 
 ### 5.1 Kop, versie en imports
 
-- **Eigen bestand** (geen vreemde entries): `ifcxVersion: "ifcx_alpha"`, `dataVersion: "1.0.0"` (de versie van deze
-  dataset, zoals IFC5 het bedoelt), `id: "urn:openaec:planner:<project-uuid>"`, `author`, `timestamp` (ISO 8601).
-- **Bestand met vreemde entries**: de kop blijft byte-gelijk, ook `timestamp`.
+- **Door de app begonnen**: een nieuw document, of een bron waarvan `header.id` begint met `urn:openaec:planner:`. De app
+  schrijft de kop: `ifcxVersion: "ifcx_alpha"`, `dataVersion: "1.0.0"` (de versie van deze dataset, zoals IFC5 het
+  bedoelt), `id: "urn:openaec:planner:<project-uuid>"`, `author`, `timestamp` (ISO 8601).
+- **Elke andere bron**: de kop blijft byte-gelijk, ook `id`, `timestamp` en extra kopvelden (ifcx-explorer leest
+  bijvoorbeeld `openaecComposition`, `graph.rs:78`, en weigert een andere `id` in een pakket, `package.rs:104`).
 - `ifcxVersion` anders dan `ifcx_alpha`: openen geweigerd, met de gevonden waarde in de melding.
-- **Versie van het OPS-profiel**: alleen `openaec::ops::document.formatVersion` op de planwortel. Een hogere hoofdversie dan de app
+- **Versie van het OPS-profiel**: alleen `openaec::ops::document.formatVersion` op het werkplan. Een hogere hoofdversie dan de app
   kent: openen geweigerd ("gemaakt met een nieuwere versie van Open Planner Studio"). Een hogere tussenversie: openen
   mag; onbekende `openaec::ops::`-attributen blijven als vreemde bijdrage staan (§6.2). Regel voor het profiel: een
   tussenversie voegt alleen nieuwe attributen toe, nooit velden binnen een bestaand attribuut. Vindt de lezer toch een
   onbekend veld in een bekend `openaec::ops::`-attribuut, dan behandelt hij het bestand als een nieuwere hoofdversie en
-  weigert hij het. Voor de gedeelde `openaec::planning::`-attributen geldt een andere regel (§5.3).
-- `imports` en `schemas` van de bron blijven staan. De app voegt `ifc@v5a` toe als die ontbreekt (voor `bsi::ifc::class`).
-  Zij voegt de schema's toe die ze gebruikt, alleen als ze er nog niet zijn: `openaec::ops::*` zelf geschreven, en
-  `openaec::planning::*` als letterlijke kopie van de gedeelde bron (§5.3). Staat de URI van die gedeelde bron al in
-  `imports`, dan voegt ze geen kopie toe. Lezen heeft geen netwerk nodig.
+  weigert hij het. Voor de gedeelde `openaec::planning::`-attributen geldt een andere regel (§5.3). Schrijft de app een
+  nieuwe gedeelde naam (§5.3), dan gaat de hoofdversie van het profiel omhoog: een oudere app weigert het bestand dan
+  met een melding, in plaats van een lege planning te tonen.
+- `imports` en `schemas` van de bron blijven staan. In een document dat de app begon, voegt zij toe wat ontbreekt:
+  `ifc@v5a` (voor `bsi::ifc::class`), de `openaec::ops::`-schema's en de `openaec::planning::`-schema's als letterlijke
+  kopie van de gedeelde bron (§5.3), tenzij de URI van die bron al in `imports` staat. In een andere bron voegt zij
+  alleen de `openaec::ops::`-schema's toe, en de gedeelde schema's alleen als het bestand nog geen
+  `openaec::planning::`-attribuut had. Geen nieuwe imports: ifcx-explorer eist dat elke import in het pakket bestaat
+  (`MISSING_IMPORT`, `graph.rs:24`). Lezen heeft geen netwerk nodig.
 
 ### 5.2 Namespace, paden en nodes
 
@@ -640,7 +646,11 @@ is werk van fase 3 en staat in de schema's.
   Het domein-id van een object uit de bron is zijn pad. De GlobalId: de 128 bits van het laatste segment als dat een UUID
   of 32 hexadecimale tekens is, anders een UUID v5 van het pad (vaste namespace-UUID van de app). Zo blijft de identiteit
   gelijk na elke ronde, ook bij opslaan als STEP.
-- **Planningspad**: een pad met een bekend `openaec::planning::`-attribuut (gesloten lijst, zie de tabel).
+- **Verwijzingen** tussen objecten (ouder, voorganger en opvolger, toewijzing, baseline) staan in IFCX altijd als pad.
+  Interne ids die STEP als id bewaart (`OPS_TaskIdentity`, `TaskGuids` in `OPS_Baselines`, `ifcReader.ts:3618-3660`)
+  worden bij schrijven naar IFCX het pad van het object en bij lezen weer het domein-id (= het pad).
+- **Planningspad**: een pad met een bekend `openaec::planning::`-attribuut (gesloten lijst, zie de tabel). De app maakt
+  geen pad met alleen `openaec::ops::`-attributen.
 
 | Planningsgegeven | Node | Attributen |
 |---|---|---|
@@ -653,6 +663,7 @@ is werk van fase 3 en staat in de schema's.
 | Toewijzing | `<toew-uuid>` | `openaec::planning::assignment` |
 | Baseline | `<bl-uuid>` | `openaec::planning::baseline` |
 
+- `bsi::ifc::class` schrijft de app alleen in een document dat zij begon (§5.1), op een nieuw pad.
 - De app schrijft een `openaec::ops::`-attribuut alleen waar ze echt eigen gegevens heeft. De tabel noemt de
   attributen die er zeker zijn; een relatie, kalender of resource met app-gegevens krijgt `openaec::ops::sequence`,
   `…::calendar` of `…::resource`. Een leeg attribuut alleen als merkteken bestaat niet: eigendom hangt niet af van
@@ -672,12 +683,22 @@ is werk van fase 3 en staat in de schema's.
   af te spreken, §11). De app neemt ze byte-gelijk over of verwijst er met `imports` naar. Een eigen afwijkende kopie
   zou ifcx-explorer laten weigeren (`SCHEMA_CONFLICT`, `crates/ifcx-project/src/graph.rs:81-84`).
 - **Elke wijziging krijgt een nieuwe naam**, ook een toevoeging van een veld. Dezelfde naam heeft dus altijd hetzelfde
-  schema. De lezer blijft oude namen lezen (advies Bjorn, 9 november 2026).
+  schema. De lezer blijft oude namen lezen. (Bjorn adviseerde op 9 november 2026 "oude naam blijven lezen" bij een
+  andere structuur; dat ook een toevoeging een nieuwe naam krijgt, komt uit council-ronde 9 en staat op de lijst voor
+  Bjorn.) Een nieuwe naam verhoogt de hoofdversie van het profiel (§5.1).
 - **Vaste vorm per veld.** Elk gedeeld veld heeft één vaste waardevorm in het schema; de app schrijft altijd die vorm.
-  Voorbeeld: ifcx-explorer leest `start` en `endExclusive` als datum zonder tijd (`viewer/src/studios/adapters.ts:403-407`).
-  Draagt de vorm niet alles wat de app weet (het uur), dan staat de precieze waarde in `openaec::ops::`. Bij lezen geldt
-  de precieze waarde alleen als hij past bij het gedeelde veld (zelfde datum); anders wint het gedeelde veld, want dan
-  heeft een ander programma de taak verschoven.
+  Voorbeeld: ifcx-explorer leest `start` en `endExclusive` als datum zonder tijd en eist een venster van minstens één
+  hele dag (`viewer/src/studios/adapters.ts:403-407`).
+- **Projectie.** Draagt de vorm niet alles wat de app weet (het uur), dan staat de precieze waarde in `openaec::ops::`,
+  en ligt per gedeeld veld één projectie vast van de precieze waarde naar de vaste vorm. Voor de datums (projectkalender,
+  tijd van de app):
+  - `start` = de datum van het startmoment;
+  - `endExclusive` = de datum van het eindmoment als dat precies 00:00 is, anders die datum plus één dag (dus
+    1 juni 07:00–16:00 geeft 1 juni tot 2 juni; ma 08:00 tot wo 17:00 geeft ma tot do);
+  - een mijlpaal (eind = start): `endExclusive` = startdatum plus één dag (op de lijst voor Bjorn, §11).
+- **Leesregel.** De precieze waarde geldt alleen als haar projectie gelijk is aan het gedeelde veld; anders heeft een
+  ander programma het veld veranderd en wint het gedeelde veld. Een datum zonder precieze waarde leest de app als 00:00
+  van die datum, voor eigen en vreemde taken gelijk (zoals de brug van ifcx-explorer, `adapters.ts:406-407`).
 - `openaec::planning::activity` heeft in elk geval `start` en `endExclusive` met de betekenis uit ifcx-explorer
   (`crates/ifcx-reference/src/lib.rs:96-102`). `status` betekent daar de rijpheid van de gegevens (`example`, `source`,
   `derived`), niet de voortgang; wat de app daar schrijft, spreken we af met Bjorn. Voorgangers staan in
@@ -686,6 +707,8 @@ is werk van fase 3 en staat in de schema's.
 - **Onbekend veld in een gedeeld attribuut** (een ander programma voegde het toe): de lezer weigert het bestand niet.
   Het veld blijft als byte-gelijk token in hetzelfde attribuut staan (§6.2). Een bekend veld met een ongeldige waarde
   (verkeerd type of vorm) geeft wel een weigering, met pad en veld in de melding.
+- **Naam van een taak**: het afgesproken naamveld in `openaec::planning::activity` gaat voor op `openaec::label`. De app
+  schrijft een nieuwe naam in dat veld; `openaec::label` is vreemd en blijft staan.
 - **Afwezige velden blijven afwezig.** Een bekend optioneel veld dat in de bron ontbrak, schrijft de app niet zolang
   het domein de waarde na openen houdt. Velden buiten de afgesproken kern zijn optioneel.
 
@@ -705,28 +728,31 @@ planner opent het bestand, ziet de tien taken in de Gantt, verschuift er een en 
 staan.
 
 - **Welke objecten**: zoals `selectPlanning` in STEP (§4.2). Het eerste werkplan in bestandsvolgorde is de planning;
-  elke activity buiten een baselineboom wordt een taak, ongeacht het werkplan (`ifcReader.ts:1749`); kalenders en
+  elke activity wordt een taak, ongeacht het werkplan (zoals `ifcReader.ts:1749`), behalve de activities waarnaar een
+  `openaec::planning::baseline` verwijst; kalenders en
   resources allemaal. Een ander werkplan wordt geen domeinobject; zijn attributen zijn dus vreemd (§6.2) en blijven
   staan. **Geen werkplan in de bron** (zo schrijft ifcx-explorer nu: 22 taken, nul werkplannen): de app maakt bij
   opslaan een nieuw werkplanpad.
 - **Afbeelding op het importcontract.** Een taak zonder `openaec::ops::task` leest de app zoals de bestaande brug van
   ifcx-explorer haar nu al aanlevert (`adapters.ts:375-417`): handmatig gepland, met `start` en `endExclusive` als vaste
-  datums en de duur als verstreken tijd. Openen verandert die datums dus niet. Verder: `recordedTimesOrigin` krijgt een
-  nieuwe waarde `'ifcx'` (een verse import, `isFreshImportOrigin`); `recordedFields` volgt uit de aanwezige velden; het
+  datums en de duur als verstreken tijd. Openen verandert die datums dus niet. Verder: `recordedTimesOrigin` is `'ifc'`
+  (al "verse import van een ander programma", `isFreshImportOrigin`); `recordedFields` volgt uit de aanwezige velden; het
   `timeModel` is het huidige, zodat er geen omzetting van een oud bestand volgt (`minuteModel.ts:451-454`). De naam
   komt uit het afgesproken naamveld (§11; ifcx-explorer gebruikt nu `openaec::label`). De volgorde van taken zonder
   volgnummer is de volgorde van hun eerste entry; taken met een volgnummer gaan voor.
-- **Opslaan**: de app schrijft de bekende velden van elk planningsattribuut uit het domein, volgens §6.2 (brontoken als
-  het veld onveranderd is). Zo verandert een veld dat de planner niet aanraakte niet van vorm, ook niet na opslaan,
+- **Opslaan**: de app schrijft de bekende velden van elk planningsattribuut uit het domein, in de vaste vorm (§5.3), en
+  de onbekende velden als token (§6.2). Een veld dat de planner niet aanraakte, houdt zijn waarde, ook na opslaan,
   sluiten, heropenen en opnieuw opslaan.
+- **Voorgangers**: zolang de afspraak met Bjorn er niet is (§11), heeft de testfixture haar `predecessor`-velden
+  omgezet naar `openaec::planning::sequence`-nodes; een `predecessor` in de activity is een onbekend veld.
 - **Verwijderen**: verwijdert de planner zo'n taak, dan gaan de planningsattributen weg; andere attributen op het pad
   blijven byte-gelijk staan (§6.2, laatste punt).
 - **Melding bij openen**: heeft het gekozen werkplan geen `openaec::ops::document` (of is er geen werkplan), dan toont
   de app één keer: "Deze planning komt uit <author uit de kop>. Gegevens die Open Planner Studio niet kent, blijven bij
   opslaan in het bestand." Na opslaan heeft het werkplan dat attribuut en komt de melding niet terug.
-- **Grens**: een programma dat geen vreemde IFCX bewaart (IFCCAD bewaart alleen zijn eigen deel,
+- **Grens**: een programma dat geen vreemde IFCX terugschrijft (IFCCAD kan dat nog niet,
   `docs/experiments/ifccad-document-lifecycle.md:281-288`), laat bij een rondgang de `openaec::ops::`-gegevens vallen.
-  De planning in `openaec::planning::` blijft; de app leest die dan zoals hierboven.
+  Wat het van `openaec::planning::` terugschrijft, leest de app zoals hierboven.
 
 ## 6. IFCX: alles wat geen planning is, behouden
 
@@ -745,18 +771,23 @@ Eigendom hangt alleen af van wat de app als domeinobject leest, nooit van een me
 hetzelfde vóór en na opslaan, en na heropenen.
 
 - **Eigen bijdragen**: bekende `openaec::planning::`- en `openaec::ops::`-attributen op een pad dat een domeinobject wordt
-  (§5.5), zonder hun onbekende velden; en `bsi::ifc::class` in een entry die ook een ander eigen attribuut heeft.
+  (§5.5), zonder hun onbekende velden; en `bsi::ifc::class` met een planningsklasse (`IfcWorkPlan`, `IfcWorkSchedule`,
+  `IfcTask`, `IfcRelSequence`, `IfcWorkCalendar`, een resource-subtype) in een entry die ook een ander eigen attribuut
+  heeft.
 - **Vreemde bijdragen**: al het andere. Ook een bekend attribuut op een pad dat geen domeinobject wordt (een tweede
   werkplan, een losse `openaec::ops::task` zonder activity), een onbekend attribuut in de bekende namespaces,
-  `openaec::activity`, `children`, `inherits`, en `bsi::ifc::class` in een entry zonder ander eigen attribuut.
-- **Velden en tokens**: per (pad, attribuut) bewaart de app het ruwe token van elk veld en de waarde na openen. Is de
-  waarde in het domein nog gelijk aan de waarde na openen, dan schrijft de writer het brontoken; anders de waarde in de
-  vaste vorm (§5.3). Dit geldt voor elk pad, ook voor eigen bestanden: daar is het brontoken gelijk aan wat de writer
-  schrijft. Onbekende velden zijn byte-gelijke tokens in hetzelfde attribuut, in hun oorspronkelijke volgorde, na de
-  bekende velden. Vervalt het attribuut (object verwijderd), dan vervallen ze mee. Dit is dezelfde regel als
-  "domeinslot: brontoken als hij onveranderd is" bij STEP (§4.5).
-- **`bsi::ifc::class`**: een bestaande class blijft als token waar hij staat. De app voegt alleen een class toe op een
-  pad dat in de bron nog geen class had.
+  `openaec::activity`, `children`, `inherits`, en elke andere `bsi::ifc::class`.
+- **Meer bijdragen van hetzelfde attribuut op één pad**: IFC5 laat het laatste hele attribuutobject winnen
+  (`compose.ts`). Alle bijdragen van een eigen attribuut op een pad zijn eigen. De writer schrijft het attribuut één
+  keer, op de plek van de laatste bijdrage; de eerdere bijdragen vervallen, want ze hadden geen effect. De onbekende
+  velden komen uit de laatste bijdrage; elk token houdt de index van zijn entry.
+- **Velden**: bekende velden schrijft de writer uit het domein in de vaste vorm (§5.3). Omdat de lezer elke andere vorm
+  weigert, geeft een onveranderd veld dezelfde waarde; een brontoken per bekend veld is niet nodig. Per (pad, attribuut)
+  bewaart de app de waarde na openen van elk bekend veld, alleen om te weten of een afwezig veld afwezig blijft (§5.3).
+  Onbekende velden zijn byte-gelijke tokens in hetzelfde attribuut, in hun oorspronkelijke volgorde, na de bekende
+  velden. Vervalt het attribuut (object verwijderd), dan vervallen ze mee.
+- **`bsi::ifc::class`**: een bestaande class blijft als token waar hij staat. De app voegt alleen een class toe volgens
+  §5.2.
 - Een entry zonder eigen bijdragen: **byte-gelijk**, op zijn plek.
 - Een entry met alleen eigen bijdragen: opnieuw geschreven, **op dezelfde plek**.
 - Een gemengde entry: de app schrijft hem op zijn plek terug zonder de eigen bijdragen, en zet de eigen bijdragen in een
@@ -768,6 +799,10 @@ hetzelfde vóór en na opslaan, en na heropenen.
 - De app schrijft alleen op planningspaden die een domeinobject zijn, en op nieuwe paden.
 - Vervalt een planningspad (taak verwijderd), dan blijven vreemde bijdragen op dat pad byte-gelijk staan, zonder melding
   (een node met alleen vreemde attributen is geldige IFCX). Dat sluit aan bij §4.7 regel 4.
+- **Inkomende verwijzingen**: wijst een vreemde `children` of `inherits` naar een pad dat na verwijderen geen entry meer
+  zou hebben, dan schrijft de app op de plek van de eerste vervallen entry een lege entry `{"path":"…"}`. Het pad blijft
+  dan bestaan; ifcx-explorer weigert anders met `MISSING_REFERENCE` (`graph.rs:188-194`). Ctrl+Z na opslaan zet de taak
+  terug op dat pad.
 
 Voorbeeld van een gemengde entry, vóór en na opslaan (de taak is hernoemd):
 
@@ -779,14 +814,16 @@ wordt
 {"path":"0f2c…","attributes":{"openaec::label":"F1"}},
 {"path":"0f2c…","attributes":{"openaec::planning::activity":{"name":"Fundering en kelder"},"openaec::ops::task":{…},"bsi::ifc::class":{…}}}
 ```
-(De class komt erbij omdat het pad in de bron geen class had.)
+(In een document dat de app begon, komt de class erbij als het pad in de bron geen class had; in een bron van een ander
+programma niet.)
 
 ### 6.3 Controles
 
 1. **Vreemd deel**: elke entry zonder eigen bijdragen is byte-gelijk en staat in dezelfde volgorde; elke gemengde entry
    heeft dezelfde vreemde tokens; elk onbekend veld in een eigen attribuut staat byte-gelijk in hetzelfde attribuut op
-   hetzelfde pad, zolang het object bestaat; elk onveranderd veld heeft zijn brontoken; kop, `imports` en `schemas` van
-   de bron zijn byte-gelijk op de eigen toevoegingen na.
+   hetzelfde pad, zolang het object bestaat; elk doel van een vreemde `children` of `inherits` dat in de bron bestond,
+   bestaat nog als pad; kop (behalve in een document dat de app begon), `imports` en `schemas` van de bron zijn
+   byte-gelijk op de toevoegingen uit §5.1 na.
 2. **Planning**: twee herlezingen, zoals §4.10.
 3. **Compositie per pad**: neem bron en uitvoer, haal alle eigen bijdragen eruit en stel per pad de platte node samen
    volgens IFC5 (`FlattenCompositionInput`: per pad de attributen, `children` en `inherits` in volgorde, latere bijdrage
@@ -810,10 +847,10 @@ in dit bestand".
 
 `ifcSource` werkt bij IFCX zoals bij STEP (§4.8, §4.14), met deze inhoud: de bronbytes, sha256, de grenzen van `header`,
 `imports`, `schemas` en elke entry (§6.1), per entry de eigen en vreemde bijdragen (§6.2), per (pad, attribuut) de
-brontokens en waarden na openen van de bekende velden en de tokens van de onbekende velden (één structuur, §6.2),
-`elementLinks` (§6.4), `foreign`, grootte en wijzigingstijd. De veldtokens gaan ook in `detached` (undo na opslaan),
-zoals `sourceSlots` en `foreignMembers` bij STEP. `foreign` is waar als er een vreemde bijdrage is, een onbekend veld,
-of een brontoken dat afwijkt van wat de writer zonder bron zou schrijven. Een onbekend veld in een
+waarden na openen van de bekende velden en de tokens van de onbekende velden met hun entry-index (één structuur, §6.2),
+`elementLinks` (§6.4), `foreign`, grootte en wijzigingstijd. De tokens van onbekende velden gaan ook in `detached`
+(undo na opslaan), zoals `sourceSlots` en `foreignMembers` bij STEP. `foreign` is waar als er een vreemde bijdrage of
+een onbekend veld is, of als de kop van een ander is (§5.1); dat is dezelfde betekenis als bij STEP. Een onbekend veld in een
 `openaec::ops::`-attribuut maakt het bestand onleesbaar (§5.1). Manifest 6, de twee stappen bij opslaan, "bron
 ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden ongewijzigd.
 
@@ -835,8 +872,8 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 | 0 | **Haalbaarheidsproef** op het corpus (§10): scanner met inkomende verwijzingen, `selectPlanning`, indeling, de 100 %-P-poort, lezen als bytes, meting van tijd en geheugen (50/150/300 MB, Linux-WebKit en Chromium), controle met IfcOpenShell. Beantwoordt de vragen in §11. | 1 PR (tests en scripts) | — |
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
 | 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6 en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
-| 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer (ook planning van een ander programma, §5.5), writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
-| 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, brontokens per veld en onbekende velden, de compositiecontrole per pad, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
+| 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
+| 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de compositiecontrole per pad, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
 
 Hoe moeilijk: dit is groot werk, ongeveer 15 tot 19 PR's. Het knippen zelf is niet het lastige deel. Het lastige deel is
 waar de planning en de rest elkaar raken: de indeling, vreemde gegevens op taken, gemengde relaties, verwijderen en
@@ -930,17 +967,24 @@ daarom staat alles achter de flags tot het compleet is.
   worden tegengehouden; `planningCanon` met dubbele namen en WBS-codes.
 - `check-ifcx-roundtrip.ts`: elk voorbeeldproject IFC → IFCX → IFC zonder verschil volgens `planningCanon`; de veldentest
   uit §5.4; de compositiecontrole; planning van een ander programma openen, één taak verschuiven, opslaan: alleen de
-  velden van die taak veranderen, onbekende velden en ongewijzigde brontokens zijn byte-gelijk, afwezige velden blijven
+  velden van die taak veranderen, onbekende velden zijn byte-gelijk, ongewijzigde velden houden hun waarde, afwezige velden blijven
   afwezig, een bestaande class blijft waar hij stond; **openen → opslaan → sluiten → heropenen → opslaan**: tweede uitvoer
-  byte-gelijk aan de eerste, brontokens en vreemde compositie gelijk; openen zonder bewerken en opslaan verandert geen
-  datum; de taak verwijderen laat de vreemde attributen op het pad staan; Ctrl+Z na opslaan zet de onbekende velden
+  byte-gelijk aan de eerste, vreemde compositie gelijk; `planningCanon(open(x)) === planningCanon(open(save(open(x))))`
+  met een taak binnen één dag, een einde op 00:00, een handmatige taak en een eindmijlpaal; openen zonder bewerken en
+  opslaan verandert geen datum; een taak uit ifcx-explorer hernoemen, opslaan, heropenen: nieuwe naam, `openaec::label`
+  ongewijzigd; een taak met een vreemde `children`-verwijzing ernaar verwijderen, opslaan, heropenen: lege entry, geen
+  `MISSING_REFERENCE`, Ctrl+Z zet haar terug; twee activity-bijdragen op één pad met verschillende onbekende velden:
+  één bijdrage op de plek van de laatste, met haar onbekende velden; een bron van een ander programma krijgt geen class
+  en geen import, en haar kop blijft byte-gelijk; de taak verwijderen laat de vreemde attributen op het pad staan; Ctrl+Z na opslaan zet de onbekende velden
   terug; `openaec::activity` blijft byte-gelijk en wordt niet gelezen; `work-packages.ifcx` met de attribuutnaam
-  omgezet naar `openaec::planning::activity` (22 taken, paden `/planning/work-N`, geen werkplan) opent, is te bewerken,
+  omgezet naar `openaec::planning::activity` en `predecessor` omgezet naar sequence-nodes (22 taken, paden
+  `/planning/work-N`, geen werkplan) opent, is te bewerken,
   krijgt een nieuw werkplan en houdt zijn paden; een tweede werkplan en een losse `openaec::ops::task` blijven
   byte-gelijk.
 - **Onafhankelijke controle in CI** (eigen workflow, zoals `headless-api.yml`): IfcOpenShell leest invoer en uitvoer en
   vergelijkt alle niet-P-entiteiten op `#id`, type en attributen, plus `ifcopenshell.validate`. De validator van
-  IFC5-development controleert de IFCX-uitvoer.
+  IFC5-development controleert de eigen attributen van de IFCX-uitvoer (vreemde attributen kunnen hun schema via een
+  import hebben die de validator niet oplost).
 
 ## 11. Open punten
 
@@ -958,7 +1002,9 @@ Beide besluiten zijn genomen (Ethan, 9 november 2026):
 - waar de gedeelde schema's van `openaec::planning::` staan (één bron, URI voor `imports`);
 - de vaste vorm van elk gedeeld veld (datum zonder tijd voor `start` en `endExclusive`?);
 - wat `status` betekent en wat de app er schrijft;
-- waar de naam van een taak staat (`openaec::label` of een veld in de activity);
+- het naamveld in de activity, met voorrang op `openaec::label` (§5.3);
+- de projectie van precieze tijden naar `start` en `endExclusive`, en hoe een mijlpaal eruitziet (§5.3);
+- dat elke wijziging van een gedeeld schema, ook een toevoeging, een nieuwe naam krijgt (§5.3);
 - voorgangers als `openaec::planning::sequence` in plaats van één `predecessor` in de activity;
 - de WBS als veld `parent` in plaats van `children` (§5.2);
 - of `openaec::activity` onder de regel "oude naam blijven lezen" valt;
@@ -997,6 +1043,7 @@ Beide besluiten zijn genomen (Ethan, 9 november 2026):
 | 7 (v7) | 7 | 8 | 9 |
 | 8 (v8) | 9 | 9 | 9 |
 | 9 (v10) | 7 | 8 | — |
+| 10 (v11) | 8 | 8 | — |
 
 Na ronde 1: één route met klassen; lezen en knippen als bytes; projectgegevens als context; tabel van alle routes;
 "bron ontbreekt"; IFCX-kop van een ander blijft; profielversie in `ops::document`; eigendom per attribuut; volgorde
@@ -1066,6 +1113,12 @@ Na de besluiten van 9 november (versie 10): twee namespaces (`openaec::planning:
 eigendom in IFCX op planningspad en eigen pad in plaats van op namespace; planning van een ander programma lezen en
 bewerken met brontokens per veld; onbekende velden in gedeelde attributen bewaard; geen kopie in `openaec::activity`.
 Ethan besliste op 9 november dat de council voorlopig uit Opus en Sol bestaat; Fable alleen op echt belangrijke momenten.
+
+Na ronde 10 (versie 12): projectie per datumveld met leesregel (00:00) en test op heropenen; kop van een andere bron
+blijft byte-gelijk, geen class en geen import in een bron van een ander programma; class alleen eigen als planningsklasse;
+lege entry voor een pad met vreemde inkomende verwijzingen; meer bijdragen van één attribuut: één bijdrage op de plek van
+de laatste; bekende velden zonder brontoken; verwijzingen als pad; nieuwe gedeelde naam verhoogt de hoofdversie;
+naamveld gaat voor op `openaec::label`; `recordedTimesOrigin 'ifc'`; §5.5 in fase 4.
 
 Na ronde 9 (versie 11): eigendom alleen op domeinobject, geen merkteken (zelfde eigendom na heropenen); brontoken per veld
 voor elk pad als het veld onveranderd is; één bron en vaste vorm per veld voor de gedeelde schema's, elke wijziging een

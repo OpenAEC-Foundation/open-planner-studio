@@ -71,7 +71,8 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 7 (v7) | 7 | 8 | 9 |
 | 8 (v8) | 9 | 9 | 9 |
 | 9 (v10) | 7 | 8 | — (Ethan: voorlopig zonder Fable) |
-| 10 (v11) | 8 | … | — |
+| 10 (v11) | 8 | 8 | — |
+| 11 (v12) | … | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -85,7 +86,7 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 10 (v11) — Opus 8, Sol loopt
+### Ronde 10 (v11) — Opus 8, Sol 8 — verwerkt in v12
 
 Opus 8 (proef `scratchpad/r10/opus/vaste-vorm-proef.mjs`). Fase 0–2 ja. Blokkeert fase 3–4: (O1) "precieze waarde geldt
 bij zelfde datum" fout voor `endExclusive` en mijlpalen (ma 08:00–wo 17:00 → exclusief do; eindmijlpaal vr 17:00 → za
@@ -101,6 +102,16 @@ Opus r9, niet Bjorn; (O5) voorrang naamveld activity boven `openaec::label`; (O6
 IFCX gelijk aan STEP; (O10) §5.5 hoort in fase 4 (gemengde entries); (O11) tekst: planwortel, baselineboom, validator
 alleen eigen attributen, IFCCAD-zin, geen paden met alleen `openaec::ops::`. Eruit: `'ifcx'`-origin (bestaande `'ifc'`
 volstaat); brontokens voor bekende velden → waardevergelijking; controle 3 eventueel.
+
+Sol 8 (`scratchpad/r10/sol/bewijs.txt`). Blokkeert: (S1) verwijderde taak met vreemde `children`/`inherits` ernaar →
+`MISSING_REFERENCE` (`graph.rs:188-194`) → lege entry behouden + test. Vervolg: (S2) = O1 projectie (1 juni 07:00–16:00);
+(S3) twee bijdragen van hetzelfde attribuut op één pad → tokens met entry-index, welke bijdrage de writer bijwerkt.
+
+v12 (2026-11-09): projectie per datumveld + leesregel 00:00 + test heropenen; kop eigen alleen als `id` begint met
+`urn:openaec:planner:`; geen class/import in bron van een ander; class eigen alleen als planningsklasse; lege entry bij
+inkomende vreemde verwijzing; meer bijdragen → één op plek van de laatste; bekende velden zonder brontoken; verwijzingen
+als pad; nieuwe gedeelde naam → hoofdversie omhoog; naamveld voor `openaec::label`; `'ifc'`-origin; §5.5 in fase 4;
+Bjorn-lijst uitgebreid.
 
 ### Ronde 9 (v10, alleen IFCX-besluiten) — Opus 7, Sol 8 — verwerkt in v11
 
@@ -395,7 +406,7 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
    Alles verwerkt in spec **v10** (`e6f128ea3`). Wrakko ingelicht (2026-11-09 ~10:50).
    **Council ronde 9 loopt** (alleen Opus + Sol, brief `scratchpad/r9/brief.md`, diff `scratchpad/r9/v9-naar-v10.diff`):
    Sol via delegate_task (codex gpt-6.1-sol xhigh), Opus via native Agent (reviewer, xhigh). Doel weer 9.
-   Ronde 9: Opus 7, Sol 8 → v11. **Ronde 10 loopt** (Opus + Sol op v11).
+   Ronde 9: Opus 7, Sol 8 → v11. Ronde 10: Opus 8, Sol 8 → v12. **Ronde 11 loopt** (Opus + Sol op v12).
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.
