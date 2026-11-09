@@ -68,13 +68,10 @@ export function classOf(c: Classification, i: number): ChunkClass | undefined {
 }
 
 /**
- * Herkenner voor de sleutels van `OPS_Assignments` (ontwerp #804 §4.2): elke sleutel in GlobalId-vorm is
- * eigen, kaal (writers tot en met v2026.7.3) of met `#n`, ook als het er meer zijn dan toewijzingen.
- *
- * LET OP: deze regel is nog in review (#839: extra sleutels in `OPS_Assignments` is een van de vier
- * blokkerende punten in de opslagregels). Fase 0 gebruikt hem alleen voor de 100 %-P-poort op eigen
- * bestanden. Er zijn bewust geen tests of verwachte uitkomsten voor vreemde of extra sleutels. Pas deze
- * functie aan zodra de spec is bijgewerkt.
+ * Herkenner voor de sleutels van `OPS_Assignments` (ontwerp #804 v19 §4.2): elke sleutel in GlobalId-vorm is eigen,
+ * kaal of met `#n`, ook als het er meer zijn dan toewijzingen. Een andere naam (`VendorSecretNote`) is een vreemd lid.
+ * Kale sleutels schreef alleen main tussen e1ac01947 en 87ebd4d46 (3 juli 2026); het ontwerp zegt "tot en met
+ * v2026.7.3", maar geen release-tag schreef ze (zie het evidence-document van fase 0).
  */
 export function isOwnAssignmentKey(name: string): boolean {
   return /^[0-9A-Za-z_$]{22}(#\d+)?$/.test(name);

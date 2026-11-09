@@ -7,6 +7,7 @@ vast, zodat CI kan controleren dat de gecommitte bestanden reproduceerbaar zijn:
 
     python3 scripts/proef/maak-corpus.py tests/fixtures/ifc-foreign      # schrijft het corpus
     python3 scripts/proef/maak-corpus.py --controleer tests/fixtures/ifc-foreign   # exit 1 bij een verschil
+    python3 scripts/proef/maak-corpus.py --valideer tests/fixtures/ifc-foreign     # ifcopenshell.validate op GELDIG
 
 Elk bestand is van ons zelf (geen externe voorbeeldbestanden; zie README.md in die map). Een paar bestanden zijn
 tekstbewerkingen van een gemaakt bestand (CRLF met commentaar, Latin-1, complexe instanties, dubbele GlobalIds); die
@@ -36,12 +37,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 VAST_TIJDSTIP = 1767268800  # 2026-01-01T12:00:00Z
 VAST_STEMPEL = '2026-01-01T12:00:00'
 
-# Bestanden die `ifcopenshell.validate` zonder fouten moeten doorstaan (de rest is bewust ongeldig of een oude eigen
-# lay-out: zie README.md).
+# Bestanden die `ifcopenshell.validate` moeten doorstaan (de rest is bewust ongeldig of een oude eigen lay-out: zie
+# README.md). Alleen de meldingen in TOEGESTAAN mogen er zijn.
 GELDIG = [
     'model-ifc4.ifc', 'model-ifc4x3.ifc', 'model-ifc2x3.ifc', 'bonsai-4d.ifc', 'twee-werkplannen.ifc',
     'eigen-plus-model.ifc',
 ]
+# `create_baseline` van IfcOpenShell kopieert per baselinetaak de hele owner history, ook persoon, organisatie en
+# IfcApplication (via een diepe kopie). Dan staan er vijf IfcApplications met dezelfde identifier en naam: dat schendt de
+# uniciteitsregels UR1 en UR2. Het is gedrag van IfcOpenShell 0.9.0.post1 zelf, dus het hoort in het corpus.
+TOEGESTAAN = {
+    'bonsai-4d.ifc': {'IfcApplication.UR1', 'IfcApplication.UR2'},
+}
 
 
 class VasteGuids:
@@ -286,9 +293,34 @@ def maak(map_):
     tekstbewerking(map_, 'bonsai-4d.ifc', 'dubbele-globalids.ifc', dubbele_globalids)
 
 
+def valideer(map_):
+    """`ifcopenshell.validate` op GELDIG; exit 1 bij een melding die niet in TOEGESTAAN staat."""
+    import re
+    import ifcopenshell.validate
+    fout = 0
+    for naam in GELDIG:
+        log = ifcopenshell.validate.json_logger()
+        ifcopenshell.validate.validate(os.path.join(map_, naam), log)
+        regels = []
+        for melding in log.statements:
+            tekst = str(melding.get('message', ''))
+            m = re.search(r'Rule ([\w.]+):', tekst)
+            regels.append(m.group(1) if m else tekst.strip().splitlines()[0][:120])
+        rest = [r for r in regels if r not in TOEGESTAAN.get(naam, set())]
+        if rest:
+            fout += 1
+            print(f'XX  {naam}: {len(rest)} melding(en) van ifcopenshell.validate: {sorted(set(rest))}')
+        else:
+            extra = f' (toegestaan: {sorted(set(regels))})' if regels else ''
+            print(f'OK  {naam}: geldig{extra}')
+    return 1 if fout else 0
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     doel = args[0] if args else os.path.join(ROOT, 'tests/fixtures/ifc-foreign')
+    if '--valideer' in sys.argv:
+        return valideer(doel)
     if '--controleer' not in sys.argv:
         maak(doel)
         return 0
