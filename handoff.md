@@ -71,7 +71,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 7 (v7) | 7 | 8 | 9 |
 | 8 (v8) | 9 | 9 | 9 |
 | 9 (v10) | 7 | 8 | — (Ethan: voorlopig zonder Fable) |
-| 10 (v11) | … | … | — |
+| 10 (v11) | 8 | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -84,6 +84,23 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 10 (v11) — Opus 8, Sol loopt
+
+Opus 8 (proef `scratchpad/r10/opus/vaste-vorm-proef.mjs`). Fase 0–2 ja. Blokkeert fase 3–4: (O1) "precieze waarde geldt
+bij zelfde datum" fout voor `endExclusive` en mijlpalen (ma 08:00–wo 17:00 → exclusief do; eindmijlpaal vr 17:00 → za
+00:00) → projectie per gedeeld veld (moment → vaste vorm), precieze waarde wint als projectie gelijk is; leesregel datum
+zonder tijd = 00:00; test `planningCanon(open(x)) === planningCanon(open(save(open(x))))` met handmatige taak +
+eindmijlpaal. (O2) class + `ifc@v5a` toevoegen aan bron van een ander breekt ifcx-explorer (`MISSING_IMPORT`,
+`graph.rs:24`; kernschema heet daar `"id": "ifc"`) → class en `ifc@v5a` alleen in een bestand dat de app zelf begon.
+(O3) kopregel: bestand met alleen planning van een ander = "eigen bestand" → kop vervangen (`DOCUMENT_ID_MISMATCH`
+`package.rs:104`, `openaecComposition` `graph.rs:78`) → kop uit een IFCX-bron blijft altijd byte-gelijk.
+Vervolg: (O4) nieuwe gedeelde naam → hoofdversie `openaec::ops::` omhoog; bronvermelding "elke wijziging nieuwe naam" is
+Opus r9, niet Bjorn; (O5) voorrang naamveld activity boven `openaec::label`; (O6) `predecessor` in importcontract (5/22);
+(O7) class alleen eigen als planningsklasse; (O8) id = pad vs id-verwijzingen (baselines `TaskGuids`); (O9) `foreign`
+IFCX gelijk aan STEP; (O10) §5.5 hoort in fase 4 (gemengde entries); (O11) tekst: planwortel, baselineboom, validator
+alleen eigen attributen, IFCCAD-zin, geen paden met alleen `openaec::ops::`. Eruit: `'ifcx'`-origin (bestaande `'ifc'`
+volstaat); brontokens voor bekende velden → waardevergelijking; controle 3 eventueel.
 
 ### Ronde 9 (v10, alleen IFCX-besluiten) — Opus 7, Sol 8 — verwerkt in v11
 
