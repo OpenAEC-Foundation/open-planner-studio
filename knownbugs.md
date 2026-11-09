@@ -2389,13 +2389,24 @@ en noem het in je rapport of PR-tekst.
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 
-900. **VERVOLG: elk antwoord van `tools/call` draagt de data twee keer.** `wrapToolResult` in
-     `src/services/mcp/dispatcher.ts` zet hetzelfde resultaat als JSON-tekst in `content[0].text` en als
-     `structuredContent`. Gemeten in #818 op `planner_get_planning_guide` met `part: "both"`: 7.325 tekens data,
-     14.925 tekens over de lijn. De MCP-spec vraagt die tekstkopie voor oudere clients ("SHOULD"); of een client beide
-     aan het model geeft, verschilt per client en is niet nagegaan. Voorstel: meet per client (Claude Code, Claude
-     Desktop, SuperCloud) wat het model krijgt, en kies dan of de tekstkopie korter kan. — B (het dubbele antwoord),
-     S (de tokenkosten per client)
+900. **VERVOLG: elk verpakt toolresultaat draagt de data twee keer; SuperCloud en Claude Desktop zijn niet gemeten.**
+     `wrapToolResult` (`src/services/mcp/dispatcher.ts:76–82`) zet hetzelfde resultaat als JSON-tekst in
+     `content[0].text` en als `structuredContent` (een JSON-RPC-fout gaat er niet doorheen). Gemeten in #818 op
+     `planner_get_planning_guide` met `part: "both"`: 7.325 tekens data, 14.925 tekens over de lijn. De MCP-spec vraagt
+     die tekstkopie voor oudere clients ("SHOULD"); `tests/mcp/cases-protocol.ts:149–151` toetst hem. Op 9 november
+     2026 nagegaan met een proefserver die in de tekst en in `structuredContent` een andere markering geeft:
+     - Claude Code 2.1.319, gemeten (`claude -p`, de `tool_result` in het transcript): bij `isError: false` krijgt het
+       model alleen `structuredContent` als JSON, met en zonder `outputSchema`; bij `isError: true` alleen de tekst. De
+       data staat dus één keer in de context. De tekstkopie moet blijven: een weigering bereikt het model alleen zo.
+     - SuperCloud, alleen de code nagelezen: `run` van `window.__OPDS_APP__` (`src/services/mcp/siteAppTools.ts:559`)
+       geeft alleen `structuredContent` door en maakt bij een fout `CODE: melding` uit `code` en `error` (`:568`). De
+       tekstkopie verlaat de app dus niet. Wat de site daarna aan het model geeft, is niet gemeten.
+     - Claude Desktop: niet gemeten. Het staat niet op aia09-mp50, Trias kan niet bij de laptop van Ethan, en de pc
+       van Ethan reageerde niet.
+     Besluit (Trias, 9 november 2026): geen codewijziging, de tekstkopie blijft. Voorstel: meet de modelinvoer van
+     SuperCloud en Claude Desktop zodra dat kan; zet een van beide de data twee keer in de context, kies dan opnieuw.
+     — B (het dubbele antwoord, de meting in Claude Code, de code van `run`), S (de modelinvoer van SuperCloud en
+     Claude Desktop)
 
 940. **VERVOLG: het lint meet niet opnieuw als één groep zonder lintrender van breedte verandert.**
      `useRibbonAutoFit` (`src/components/layout/Ribbon/Ribbon.tsx`) meet bij een vensterwijziging en bij een
