@@ -416,4 +416,86 @@ for (const [label, pathB] of [['outOfScope', '/elders/Installateur-B.ifc'], ['un
   });
 }
 
+// --- 6. Review #813, ronde 3: de koppelingen van NU tellen, niet die van vóór het lezen -----------------
+//
+// Letterlijk: twee koppelingen naar bron A. Terwijl de tool bron A leest, zet de planner de koppeling van
+// Via B naar bron B (zelfde project-id, buiten de gebruikersmap, anker vr 12 maart 2027 16:00). Bron B is
+// niet gelezen; de koppeling houdt haar nieuwe pad en anker, en Via B begint ma 15 maart (niet ma 8 maart).
+test('refresh: een koppeling die tijdens het lezen naar een andere bron gaat, houdt haar nieuwe pad en anker', async () => {
+  S().newProject();
+  S().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
+  const viaA = S().addTask({ name: 'Via A', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
+  const viaB = S().addTask({ name: 'Via B', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
+  const pathB = '/elders/Installateur-B.ifc';
+  const fields = (filePath: string, anchorDate: string): Omit<ExternalLink, 'id'> => ({
+    direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate, sourceMissing: false,
+    sourceRef: { projectId: readA.projectId, projectName: 'Installateur', taskId: installAId, taskName: 'Installatie', filePath },
+  });
+  const linkA = S().addExternalLink(viaA, fields(SOURCE_A, '2027-03-01T16:00'));
+  const linkB = S().addExternalLink(viaB, fields(SOURCE_A, '2027-03-01T16:00'));
+  S().runCPM();
+  const linkOf = (taskId: string, linkId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks!.find(l => l.id === linkId)!;
+  const startOf = (taskId: string) => S().tasks.find(t => t.id === taskId)!.time.earlyStart;
+
+  let moved = false;
+  onRead = () => {
+    if (moved) return;
+    moved = true;
+    assert(S().updateExternalLink(viaB, linkB, fields(pathB, '2027-03-12T16:00')), 'de planner zet Via B naar bron B');
+  };
+  let data: any;
+  try {
+    data = await ok('planner_refresh_external_links');
+  } finally {
+    onRead = null;
+  }
+  assert(moved, 'de koppeling is tijdens het lezen gewijzigd');
+  assertEq(data.sources.map((x: any) => [x.path, x.status]), [[SOURCE_A, 'read']], 'alleen bron A gelezen');
+  assertEq(linkOf(viaA, linkA).anchorDate, '2027-03-05T16:00', 'Via A: het anker uit bron A');
+  assertEq([linkOf(viaB, linkB).anchorDate, linkOf(viaB, linkB).sourceRef.filePath, linkOf(viaB, linkB).sourceMissing],
+    ['2027-03-12T16:00', pathB, false], 'Via B: het nieuwe pad en anker blijven');
+  assertEq(startOf(viaB), '2027-03-15T07:00', 'Via B begint ma 15 maart');
+  assertEq(data.refreshed, 1, 'alleen de koppeling van Via A is ververst');
+  assertEq(data.changes.map((c: any) => c.linkId), [linkA], 'alleen Via A staat in changes');
+});
+
+// Een geweigerde verversing laat de balk (#811) staan: de transactie rolt de koppelingen terug, en de balk
+// staat buiten de documentsnapshot. Letterlijk: het plan heeft een kringverwijzing, dus het doorrekenen aan
+// het eind van de transactie weigert (CYCLE).
+test('refresh: een geweigerde verversing (kringverwijzing) laat de balk staan', async () => {
+  S().newProject();
+  S().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
+  const p = S().addTask({ name: 'P', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
+  const q = S().addTask({ name: 'Q', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
+  const linkP = S().addExternalLink(p, {
+    direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-01T16:00', sourceMissing: false,
+    sourceRef: { projectId: readA.projectId, projectName: 'Installateur', taskId: installAId, taskName: 'Installatie', filePath: SOURCE_A },
+  });
+  // De store-route weigert een kring; zet hem rechtstreeks, zoals een ingelezen plan hem kan hebben.
+  useAppStore.setState(state => {
+    state.sequences.push(
+      { id: 'kring-pq', predecessorId: p, successorId: q, type: 'FINISH_START', lagDays: 0 },
+      { id: 'kring-qp', predecessorId: q, successorId: p, type: 'FINISH_START', lagDays: 0 },
+    );
+  });
+  S().setUI({
+    externalSourceUpdates: [{
+      documentId: S().activeDocumentId, path: normalizeExternalSourcePath(SOURCE_A)!, filePath: SOURCE_A,
+      fileName: 'Installateur-A.ifc', version: '2027-02-01T09:00:00.000Z', changedLinks: 1,
+    }],
+    externalSourceReview: normalizeExternalSourcePath(SOURCE_A)!,
+  });
+  const steps = appliedSteps();
+  try {
+    const e = await err('planner_refresh_external_links');
+    assertEq(e.code, 'CYCLE', `CYCLE, kreeg ${e.code}: ${e.error}`);
+    assertEq(S().tasks.find(t => t.id === p)!.externalLinks!.find(l => l.id === linkP)!.anchorDate, '2027-03-01T16:00', 'anker teruggerold');
+    assertEq(appliedSteps(), steps, 'geen undo-stap');
+    assertEq(S().ui.externalSourceUpdates.map(u => u.filePath), [SOURCE_A], 'de balk blijft staan');
+    assertEq(S().ui.externalSourceReview, normalizeExternalSourcePath(SOURCE_A), 'de bekijkdialoog blijft open');
+  } finally {
+    S().setUI({ externalSourceUpdates: [], externalSourceReview: null });
+  }
+});
+
 await run();

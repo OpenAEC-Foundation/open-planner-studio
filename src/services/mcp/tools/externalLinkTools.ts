@@ -72,21 +72,20 @@ export const externalLinkTools: McpToolDef[] = [
       const home = await fs.homeDir();
       const sources: ExternalSourceDoc[] = [];
       const report: SourceReport[] = [];
-      // Bronpaden die niet gelezen zijn: hun koppelingen blijven staan (`refreshFromSources`, review #813).
-      const unreadPaths = new Set<string>();
-      // Gelezen bronpaden: hun balk (#811) gaat weg na de verversing, zoals bij *Alle externe relaties vernieuwen*.
+      // Gelezen bronpaden. Alleen hun koppelingen worden ververst (`refreshFromSources`, review #813): een
+      // koppeling naar een bron die niet gelezen is, houdt haar anker en pad. Dat geldt ook voor een koppeling
+      // die de planner tijdens het lezen naar een ander bronbestand zette. Hun balk (#811) gaat weg na een
+      // geslaagde verversing, zoals bij *Alle externe relaties vernieuwen*.
       const readPaths = new Set<string>();
       for (const [normalized, filePath] of paths) {
         const scope = checkScope(home, filePath);
         if (!scope.ok) {
-          unreadPaths.add(normalized);
           report.push({ path: filePath, status: 'outOfScope', reason: scope.reason });
           continue;
         }
         try {
           const escaped = await fs.confine?.(scope.path);
           if (escaped) {
-            unreadPaths.add(normalized);
             report.push({ path: filePath, status: 'outOfScope', reason: escaped });
             continue;
           }
@@ -105,7 +104,6 @@ export const externalLinkTools: McpToolDef[] = [
           readPaths.add(normalized);
           report.push({ path: filePath, status: 'read', projectName: source.projectName });
         } catch (e) {
-          unreadPaths.add(normalized);
           report.push({
             path: filePath,
             status: e instanceof ScopeEscapeError ? 'outOfScope' : 'unreadable',
@@ -114,10 +112,13 @@ export const externalLinkTools: McpToolDef[] = [
         }
       }
 
-      return runMutateTool(ctx, 'mutate', () => {
+      // Het document van de transactie (de drift-guard van `runMutateTool` bindt het).
+      let documentId = null as string | null;
+      const res = await runMutateTool(ctx, 'mutate', () => {
         const s = ctx.app.store.getState();
-        const result = refreshFromSources(s.tasks, sources, unreadPaths);
-        s.dropExternalSourceUpdates(s.activeDocumentId, readPaths);
+        documentId = s.activeDocumentId;
+        // Tegen de koppelingen van NU, niet die van vóór het lezen: `readPaths` gaat over de gelezen bestanden.
+        const result = refreshFromSources(s.tasks, sources, readPaths);
         const changes: Array<{ taskId: string; taskName: string; linkId: string; anchorBefore: string; anchorAfter: string; sourceMissing: boolean }> = [];
         if (result.changed) {
           const beforeById = new Map(s.tasks.map(task => [task.id, task] as const));
@@ -149,6 +150,11 @@ export const externalLinkTools: McpToolDef[] = [
           },
         };
       });
+      // De balk pas weg als de verversing echt in het document staat. Een geweigerde transactie (bijvoorbeeld
+      // een kringverwijzing bij het doorrekenen) rolt de koppelingen terug, maar niet de balk: die staat
+      // buiten de documentsnapshot (`createMcpTransactions`).
+      if (res.ok && documentId !== null) ctx.app.store.getState().dropExternalSourceUpdates(documentId, readPaths);
+      return res;
     },
   },
 ];

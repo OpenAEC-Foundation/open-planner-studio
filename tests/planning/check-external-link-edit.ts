@@ -199,6 +199,37 @@ for (const ownCalendar of [false, true]) {
     [linkOf(viaB).anchorDate, linkOf(viaB).sourceRef.filePath], ['2026-05-15T16:00', '/projecten/B.ifc']);
 }
 
+// Review #813, ronde 3: de koppelingen van NU tellen. Twee koppelingen naar bron A; terwijl de app bron A
+// leest, zet de planner de koppeling van Via B naar bron B (zelfde project-id, niet gelezen). Via B houdt haar
+// nieuwe pad en anker; zonder deze regel kreeg ze het anker en het pad van bron A.
+{
+  S().newProject();
+  const viaA = S().addTask({ name: 'Via A' });
+  const viaB = S().addTask({ name: 'Via B' });
+  const ref = (filePath: string) => ({ projectId: 'gedeelde-bron', taskId: 'Y', filePath });
+  const link = (id: string, filePath: string, anchorDate: string) => ({
+    id, direction: 'predecessor' as const, relType: 'FS' as const, anchorDate, sourceRef: ref(filePath), sourceMissing: false,
+  });
+  S().updateTask(viaA, { externalLinks: [link('a', '/projecten/A.ifc', '2020-01-01T16:00')] });
+  S().updateTask(viaB, { externalLinks: [link('b', '/projecten/A.ifc', '2020-01-01T16:00')] });
+  const reads: string[] = [];
+  useAppStore.setState({
+    parseExternalSource: async (filePath: string) => {
+      reads.push(filePath);
+      const { id: _id, ...fields } = link('b', '/projecten/B.ifc', '2026-05-15T16:00');
+      S().updateExternalLink(viaB, 'b', fields);
+      return { projectId: 'gedeelde-bron', projectName: 'Bron', filePath, tasks: [stubbedSourceTask('Y')] };
+    },
+  });
+  const result = await S().refreshAllExternalAnchors();
+  const linkOf = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
+  eq('#813 ronde 3: alleen bron A is gelezen', reads, ['/projecten/A.ifc']);
+  eq('#813 ronde 3: alleen Via A is ververst', [result.sources, result.refreshed], [1, 1]);
+  ok('#813 ronde 3: Via A kreeg het anker uit bron A', linkOf(viaA).anchorDate !== '2020-01-01T16:00');
+  eq('#813 ronde 3: Via B houdt haar nieuwe pad en anker',
+    [linkOf(viaB).anchorDate, linkOf(viaB).sourceRef.filePath], ['2026-05-15T16:00', '/projecten/B.ifc']);
+}
+
 if (diffs.length) {
   console.error(`XX external-link-edit: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(` - ${diff}`);

@@ -228,15 +228,18 @@ export function refreshExternalAnchors(
  * eist de functie daarom het genormaliseerde bronpad. Een gewone verversing blijft project-id-primair,
  * zodat een verplaatst bestand werkt.
  *
- * `unreadPaths` (genormaliseerd, `normalizeExternalSourcePath`): bronpaden van deze actie die niet gelezen zijn
- * (buiten de toegestane map, of onleesbaar). Een koppeling naar zo'n pad houdt haar anker en pad: anders zou
- * de terugval op project-id haar het anker en het pad van een andere bron met hetzelfde project-id geven
- * (review #813). Ze telt dan niet als ververst en niet als ontbrekend.
+ * `readPaths` (genormaliseerd, `normalizeExternalSourcePath`): de bronpaden die deze actie gelezen heeft. Een
+ * koppeling met een bruikbaar bronpad dat daar niet in staat, houdt haar anker en pad: anders zou de terugval
+ * op project-id haar het anker en het pad van een andere bron met hetzelfde project-id geven (review #813). Ze
+ * telt dan niet als ververst en niet als ontbrekend. Dat geldt voor een bron buiten de toegestane map of een
+ * onleesbare bron, en ook voor een koppeling die de planner tijdens het lezen naar een ander bronbestand
+ * zette: de set gaat over de gelezen bestanden, niet over de koppelingen van vóór het lezen. Zonder
+ * `readPaths` mag elke koppeling ververst worden.
  */
 export function refreshFromSources(
   tasks: Task[],
   sources: readonly ExternalSourceDoc[],
-  unreadPaths: ReadonlySet<string> = new Set(),
+  readPaths?: ReadonlySet<string>,
 ): RefreshResult {
   const pathsByProjectId = new Map<string, Set<string>>();
   for (const source of sources) {
@@ -251,9 +254,9 @@ export function refreshFromSources(
     [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
   );
 
-  const skip = unreadPaths.size === 0 ? undefined : (link: ExternalLink) => {
+  const skip = readPaths === undefined ? undefined : (link: ExternalLink) => {
     const path = normalizeExternalSourcePath(link.sourceRef.filePath ?? '');
-    return path !== null && unreadPaths.has(path);
+    return path !== null && !readPaths.has(path);
   };
 
   let out = tasks;

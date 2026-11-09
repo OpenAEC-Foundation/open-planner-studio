@@ -1743,13 +1743,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
       // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
       const sourceDocs: ExternalSourceDoc[] = [];
-      // Onleesbare bronpaden: hun koppelingen blijven staan, ook als een andere bron hetzelfde project-id
-      // heeft (`refreshFromSources`, review #813). Gelezen bronpaden: hun balk gaat weg (`dropSourceUpdates`).
-      const unreadPaths = new Set<string>();
+      // Gelezen bronpaden. Alleen hun koppelingen worden ververst: een koppeling naar een onleesbare bron,
+      // of een koppeling die de planner tijdens het lezen naar een ander bronbestand zette, houdt haar anker
+      // en pad, ook als een gelezen bron hetzelfde project-id heeft (`refreshFromSources`, review #813).
+      // Hun balk (#811) gaat weg (`dropSourceUpdates`).
       const readPaths = new Set<string>();
       for (const [normalized, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
-        if (!src) { unreadPaths.add(normalized); continue; } // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
+        if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
         sourceDocs.push(src);
         readPaths.add(normalized);
       }
@@ -1762,7 +1763,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `missing` begint bij `unusablePathCount` (zie hierboven): een link met een pad dat nooit een bron
       // kon worden telt mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar de
       // betreffende taak niet meer bevatte.
-      const result = refreshFromSources(get().tasks, sourceDocs, unreadPaths);
+      const result = refreshFromSources(get().tasks, sourceDocs, readPaths);
       const { tasks, refreshed, changed: anyChanged } = result;
       const missing = unusablePathCount + result.missing;
 
