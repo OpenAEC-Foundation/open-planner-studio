@@ -550,14 +550,21 @@ bij een groepering op resource; met de flag uit verandert er niets.
    alleen voor het rapport". Voorbeeld: de layout *Alleen kritiek* (alleen een filter) geeft de kritieke taken in de
    WBS-boom, ook als het scherm op resource groepeert. `computeLayoutReportRows` in
    `src/engine/reports/layoutReport.ts`.
-2. **Rijen volgen de layout live; kolommen en schakelaars neemt het rapport één keer over, bij het kiezen.** De
-   brief zegt dat de planner daarna in *Kolommen* verder kan aanpassen; live overnemen zou die aanpassing bij elke
-   wijziging van de layout wissen. Het overnemen is één stap *Ongedaan maken* boven het papier, met de tekst
-   "<layout>: kolommen en balken overgenomen." (`applyWithUndo` in `useStudioSettings.ts`, `chooseSource` in
-   `GanttReportStudio.tsx`). Alleen wat echt verandert telt; verandert er niets, dan is er ook geen
-   ongedaan-maakstap. `layoutReportPatch` in `reportLayouts.ts`: `columns` → de rapportkolommen (de taaknaam blijft
-   verplicht, onbekende kolommen vallen weg); `showRelations` → *Afhankelijkheden*; `overlays` → basislijn,
-   speling en statuslijn (voortgangslijn gaat voor statusdatumlijn).
+2. **Rijen volgen de layout live; kolommen, relatielijnen en balkopties neemt het rapport alleen over met een
+   knop.** *Vervangen in de fixronde na council ronde 5* (besluit van de orkestrator, 9 november 2026, op voorstel
+   van Opus 5.5 en GPT-6.1-Sol in council ronde 5). Eerst nam het rapport ze één keer over bij het kiezen. Dan wiste
+   een andere keuze (ook met de pijltjes, of terug naar *Alle taken*) stil de eigen kolommen en balkopties, en zette
+   een klik op de al gekozen layout ze opnieuw. Nu verandert een keuze alleen de rijen (filter, groepering,
+   sortering), en een klik op de al gekozen keuze doet niets (`chooseSource` in `GanttReportStudio.tsx`). Heeft de
+   gekozen layout andere kolommen of balkopties dan het rapport, dan toont de stap *Taken* een melding met de knoppen
+   *Kolommen overnemen* en *Balkopties overnemen* (`layoutDiff`, `takeOverFromLayout`). Elke knop is één stap
+   *Ongedaan maken* voor alleen dat deel ("Korte tabel: kolommen overgenomen."); de layoutkeuze blijft staan. Alleen
+   wat echt verschilt telt: zonder verschil geen melding en geen knop. Onder de keuze staat een blijvende uitleg: "De
+   rijen volgen de layout live: het filter, de groepering en de sortering. Kolommen en balkopties van de layout neem
+   je alleen over met een knop. Het scherm verandert niet." Wat de knoppen zetten (`layoutReportPatch` in
+   `reportLayouts.ts`): `columns` → de rapportkolommen (de taaknaam blijft verplicht, onbekende kolommen vallen weg);
+   `showRelations` → *Afhankelijkheden*; `overlays` → basislijn, speling en statuslijn (voortgangslijn gaat voor
+   statusdatumlijn).
 3. **Balkkleuren gaan niet vanzelf mee.** De keuze *Balkkleuren* is één instelling voor rapport én scherm
    (`ui.barColorSelection`; de Help zegt dat al). Vanzelf overnemen zou het scherm veranderen, en dat mag niet.
    Kleurt de gekozen layout anders, dan toont de stap *Taken* een melding met de knop *Balkkleuren overnemen*.
@@ -644,7 +651,7 @@ de toetsen en de `data-rs-*`-haken bleven gelijk. Ethan beoordeelt de tabel bij 
 | hoofdknop "PDF exporteren" | `.rs-primary` | `.btn .btn--primary`, volle breedte | de hoofdknop van een dialoog ("Opslaan") |
 | tekstlink ("Standaard", acties in een melding, "In de zijbalk") | `.rs-link`, oranje | `.ops-textlink`: onderstreept, in de kleur van de plek | "Lees meer" in een toast en in het paneel |
 | keuzelijst | `Select` met een eigen opvulling (`.rs-select`) | `Select`, dicht met `!py-1.5 !px-2.5`; ook de periode onder *Per resource* (`ReportingPeriodField` kreeg `compact`; het oude paneel blijft gelijk) | zoals de velden in het eigenschappenpaneel (`.input !px-2.5`) |
-| invoerveld (Bedrijf, datum bij de statuslijn) | `.rs-input`; het datumveld had geen rand (`DateTextInput` verwacht `.input` van de plek) | `.input !text-small !leading-4 !px-2.5 !py-1.5`, precies het veld van het eigenschappenpaneel | idem |
+| invoerveld (Bedrijf, datum bij de statuslijn, de periode bij *Aangepast*) | `.rs-input`; het datumveld had geen rand (`DateTextInput` verwacht `.input` van de plek); de periode had het datumveld van de browser | `.input !text-small !leading-4 !px-2.5 !py-1.5`, precies het veld van het eigenschappenpaneel; elke datum is `DateTextInput` (fixronde na council ronde 5) | idem; één soort datumveld in het tabblad |
 | schakelaar | eigen schuifje (`role="switch"`) | het vinkje van de app (`input[type=checkbox]`, `globals.css`) in een regel zoals `.settings-checkbox-row` | de app heeft nergens schuifjes; Instellingen, de layoutdialoog en het paneel gebruiken vinkjes |
 | segmenten (papier, stand, statuslijn, passen, lettergrootte) | eigen; actief = verhoogd vlak met een accentrand | blijft eigen; rand en veld van `Select`, actief = `--theme-active` met `--theme-accent-on` | de app heeft geen segmentknop; "actief" volgt de actieve lintknop (`.ribbon-btn.active`) |
 | keuzekaart (Taken) | eigen kaart met `--rs-soft` | rand en gekozen stand van `.settings-theme-card` (de themakeuze in Instellingen); een layout is een korte kaart op één regel | dezelfde soort keuze: één uit een paar kaarten |
@@ -660,6 +667,7 @@ de toetsen en de `data-rs-*`-haken bleven gelijk. Ethan beoordeelt de tabel bij 
 | werkbalk boven het papier | eigen | blijft eigen; randen `--theme-border` | de app heeft geen werkbalk boven een werkvlak |
 | zoomknoppen, "Hele blad", "Breedte" | eigen; actief = zachte tint met een accentrand | de knoppen blijven; actief = `--theme-active` | de actieve lintknop |
 | randknoppen (ingeklapt) | eigen; actief = zachte tint | indeling als een kleine lintknop; actief = `--theme-active` met `--theme-accent-on`; de stip wordt daar de tekstkleur | idem |
+| papiervlak (achter de bladen) | stippenraster | `--theme-bg`, effen (fixronde na council ronde 5) | de achtergrond van een gewoon werkvlak; de app heeft nergens een raster |
 | kolomrij, sleepgreep, papier, gebieden, paginakop | eigen | blijft eigen | de app heeft hier niets voor; het papier is wit in elk thema |
 
 Eigen tokens: `--rs-soft`, `--rs-soft-strong`, `--rs-line` en `--rs-ease` zijn weg. Over blijven de breedtes
@@ -700,3 +708,88 @@ leek grijs).
   `qa/817-rapport/r5/voor/`.
 - Groen: `typecheck`, `lint:fast`, `verify:text-roles`, `check-icon-accent-text.ts`, `check-theme-contrast.ts`,
   `check-icon-family.ts`, `report-studio.spec.ts` en `resource-gantt-report.spec.ts`.
+
+## Fixronde na council ronde 5 (9 november 2026)
+
+Ronde 5 op `c0e143d6d`: Opus 5.5 8,3, GPT-6.1-Sol 8,3 (doel 8,5). Gebouwd door de implementatie-subagent (Opus 5.5).
+
+1. **Een layout kiezen verandert alleen de rijen (BLOKKEERT, Opus; Sol 2).** Besluit 2 van *Layouts en stijl* is
+   vervangen (zie daar). Gebouwd: `chooseSource`, `layoutDiff` en `takeOverFromLayout` in `GanttReportStudio.tsx`;
+   de melding `layout-own` met *Kolommen overnemen* en *Balkopties overnemen* in de stap *Taken*, onder de blijvende
+   uitleg; `applyWithUndo` in `useStudioSettings.ts` zet bij ongedaan maken alleen dat deel terug. De uitzondering
+   bij groeperen op resource blijft: relatielijnen uit op het papier (`studioRowPrintFields`), de eigen keuze bij
+   *Afhankelijkheden* blijft bewaard. Help nl + en: `howto-rapport-maken-en-afdrukken` (punten *Wat een layout
+   meeneemt* en *Per resource*), `howto-layouts-gebruiken`, `ref-rapporttypes`.
+   **Bewijs.** `tests/browser/report-studio.spec.ts`, eerste blok, nieuwe stappen met precies de scenario's van de
+   council: zeven eigen kolommen (met Kalenderdagen) en *Afhankelijkheden* uit; een eigen layout *Korte tabel*
+   (drie kolommen, relatielijnen aan, basislijn en voortgangslijn aan) kiezen ⇒ kolommen en balkopties gelijk, geen
+   *Ongedaan maken*, wel de melding en de uitleg; terug naar *Alle taken* ⇒ gelijk; met de pijltjes door alle keuzes
+   ⇒ gelijk; Sol: een klik op de al gekozen layout na een eigen wijziging ⇒ de bewaarde stand gelijk, geen *Ongedaan maken*; *Kolommen
+   overnemen* ⇒ drie kolommen, de knop weg, *Ongedaan maken* ⇒ weer zeven en de layout blijft gekozen; *Balkopties
+   overnemen* ⇒ de opties van de layout, *Ongedaan maken* ⇒ de eigen opties; het scherm ongewijzigd. Rood op
+   `c0e143d6d`: dezelfde stappen als zachte controles (`qa/817-rapport/r6/bewijs/report-studio.soft.spec.ts`, uitvoer
+   `spec-rood-c0e143d6d.out`) geven 15 fouten, waaronder 7 → 3 kolommen na het kiezen, na *Alle taken* en na de
+   pijltjes, een melding *Ongedaan maken* na het kiezen, geen melding `layout-own`, en bij de tweede klik van Sol
+   *Speling* opnieuw uit. Groen op de nieuwe code.
+2. **Toewijzingskolommen (Opus 2).** Het hoverlabel heet nu "Kolommen · Eenh./d" en "Kolommen · Curve"
+   (`columnLabelForPaper`, dezelfde koppen als op het papier). Een klik op zo'n kolom opent *Taken* en zet de focus
+   op *Eenheden/dag en curve tonen* (`openStepFromPaper` met `focusOption`; `StudioSwitch` kreeg `focusSeq`). De
+   samenvatting telt ze mee ("8 kolommen: WBS, Taaknaam, Eenh./d, Curve, …"; `paperColumnLabels`). In *Kolommen*
+   staat waar je ze aan- of uitzet, met de knop *Naar Per resource* (`data-rs-to-resource-options`). Bewijs: de
+   stappen in de spec (rood op `c0e143d6d`: "1 column: Task name", "Columns · units", stap en focus fout) en
+   `qa/817-rapport/r6/shots/resourcediagram-*`, `kolommen-toewijzing-uitleg-*`.
+3. **Speling in het grote plan (Sol 1).** Gemeten met `scripts/measure-report-paper.mjs` (5000 taken, dev-server,
+   drie rondes op dezelfde pagina; het script meet nu ook geheugen na opruimen, DOM-knopen en luisteraars per ronde,
+   en kan een CPU- en geheugenprofiel van de Speling-klikken maken: `--rounds`, `--profile`).
+   - **Vóór, op `c0e143d6d`, rustige machine** (`voor-3rondes`, `voor-dom`): Speling mediaan 163–170 ms, max
+     204–215 ms, terugkoppeling max 44–45 ms. Geen groei over de rondes: geheugen na opruimen 144,3 / 145,1 /
+     144,8 MB, DOM 5777 knopen en 559 luisteraars na elke ronde. Er is dus geen lek en geen cache die groeit. Per klik
+     ontstaat 10–40 MB tijdelijk geheugen (vooral `clipOpToWindow` en de SVG-opbouw); dat ruimt de browser op.
+   - **Oorzaak van Sol's 660–1929 ms: de machine, niet de app (VERMOED, sterk gesteund).** Tijdens een eigen run
+     (`na1`) startten andere sessies zware runs (load 0,7 → 11, swap vol). Toen liep Speling op tot 1963 ms met
+     terugkoppeling 801 ms, en een kolom erbij tot 10,7 s; ook stappen die niets met Speling te maken hebben, werden
+     8–13 keer trager (`record` 1487 ms tegen ±30). Dat is hetzelfde patroon als bij Sol. In dezelfde ronde op een
+     rustige machine bleef Speling onder 220 ms.
+   - **Echte uitschieter: de eerste keer een kolom erbij.** Kalenderdagen bouwt dan zijn celteksten voor 5000 taken
+     op (`resolveReportColumns` → `taskCalendarDaySpan`, ±50–65 ms in de browser); de terugkoppeling kwam pas na
+     140–156 ms. Nu loopt alleen dan het papier één render achter op de lijst (`useDeferredValue` met
+     `reportColumnsNeedBuild` in `GanttReportStudio.tsx`/`reportColumns.ts`): de kolom staat meteen in de lijst en het
+     papier volgt. Een kolom weg, een andere volgorde of een kolom uit de cache gaat direct. Een eerste poging die
+     altijd uitstelde, maakte elke kolomwijziging ±60 ms trager; die is vervangen. Een cache per datum in
+     `calendarDaySpan.ts` helpt weinig (4485 verschillende datums op 10.000) en is niet gebouwd.
+   - **Na** (`na3`, load 1–2): Speling mediaan 164 ms, max 170 ms, terugkoppeling max 40 ms. Kolom erbij mediaan
+     181 ms, terugkoppeling max 60 ms (was 140–156). Geheugen na opruimen 145,0 / 145,4 / 146,1 MB, DOM 5777 / 559 na
+     elke ronde. `na2` (load nog 4–27 van een piek) gaf één Speling-klik van 271 ms met `record` 53 ms; de rest
+     onder 200.
+   - **Wat boven ±250 ms blijft**: de eerste Kalenderdagen (288 ms tot het laatste beeld, papier 274 ms; de
+     terugkoppeling is 48 ms) en *Uitzoomen* van 50 naar 33 % (max 249–256 ms, vóór 266–286 ms: drie nieuwe bladen in
+     beeld). Beide staan als VERVOLG in het eindrapport.
+   Uitkomsten in `qa/817-rapport/r6/snelheid/` (`voor-*`, `na1`–`na3`, met de profielen).
+4. **Kleine stijl en tekst (Opus 3, Sol 3–4).**
+   - Het papiervlak is effen `--theme-bg`, zonder stippenraster (`.rs-viewport-wrap` in `reportStudio.css`).
+   - *Rapportageperiode* zonder dubbele punt, in de stijl van de andere veldlabels (`studio.reportingPeriod`,
+     `ReportingPeriodField` met `compact`).
+   - Eén soort datumveld: bij *Aangepast* gebruikt de periode in het nieuwe tabblad `DateTextInput`, zoals de datum
+     bij de statuslijn. Het oude paneel houdt het datumveld van de browser. Help nl + en:
+     `howto-rapportageperiode-kiezen`.
+   - **Knownbug 947 opgelost.** `StepPopover` krijgt de zwevende exportknop als `avoidRef`: ligt het venster er
+     horizontaal boven, dan eindigt het 8 px boven de knop en scrolt de inhoud (`studioChrome.tsx`, `place()`). De
+     kolomkiezer zit in het venster en volgt dus mee. Gemeten op 1600×900, 1366×768 en 1280×720, licht en donker,
+     ingeklapt: de vensters van *Taken*, *Kolommen* met de kiezer open, *Balken* en *Pagina* na *Standaard* liggen
+     nergens over de knop, staan helemaal in beeld en de knop blijft klikbaar (`qa/817-rapport/r6/shots/metingen.json`).
+     947 is uit `knownbugs.md` gehaald.
+   - **Hele blad bij acht bladen breed, ingeklapt (42 → 36 %): niet veranderd, met reden.** Bij meer bladen naast
+     elkaar is de rij breder dan het venster en begint hij links, in de hoek van de zwevende knop. Dan houdt het papier
+     de strook van de knop vrij (punt 4 van de fixronde na council ronde 2: de knop bedekt nooit een blad), en wordt
+     het blad 64 px lager. Bij één blad breed staat het blad in het midden en blijft het even groot. Alternatieven
+     zijn de knop over de hoek van het eerste blad laten liggen, of de knop verplaatsen; beide gaan tegen eerdere
+     besluiten in. Het verschil is klein en alleen bij meer bladen breed.
+   - De Help zegt niet meer dat *Kritiek pad* "alleen de balken" kleurt. *Kritiek pad* kleurt de kritieke
+     relatielijnen rood en zet het kritieke pad in de legenda; de kleur van de balken komt uit *Balkkleuren*
+     (`printPreview.ts`, commentaar bij `drawDependencies`). Ook de uitleg onder *Kritiek pad* in *Balken*
+     (`studio.bars.criticalSub`) en bij groeperen op resource (`relationsOffBands`) zegt dat.
+
+**Zelf gecontroleerd in de app** (`qa/817-rapport/r6/shots-r6.mjs`, uitkomst `shots/metingen.json` en de
+schermafbeeldingen in `qa/817-rapport/r6/shots/`): licht en donker; 1600×900, 1366×768, 1280×720; open en
+ingeklapt; een eigen layout (melding met beide knoppen in beeld op elke maat) en het Resourcediagram (hoverlabel,
+klik, uitleg in *Kolommen*, periode op *Aangepast*, *Kolommen overnemen* met *Ongedaan maken*).

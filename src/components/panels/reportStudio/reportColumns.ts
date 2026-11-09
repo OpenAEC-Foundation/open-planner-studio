@@ -47,6 +47,15 @@ export interface ResolvedReportColumns {
   missing: string[];
 }
 
+/** Moet `resolveReportColumns` voor deze lijst nog een registerkolom opbouwen (geen ingebouwde, niet in de cache)? */
+export function reportColumnsNeedBuild(
+  ids: readonly string[],
+  domain: Pick<TaskGridAdapterDomain, 'descriptorsById'>,
+  cache: ReadonlyMap<string, PrintTableColumn>,
+): boolean {
+  return ids.some(id => !BUILTIN_REPORT_COLUMNS[id] && !cache.has(id) && domain.descriptorsById.has(id as TaskColumnId));
+}
+
 /**
  * Zet een lijst registerkolom-id's om in de kolommen van de afdruk. Een ingebouwde kolom krijgt alleen
  * haar soort; een registerkolom haar kop (dezelfde als in het raster), uitlijning, breedtegrenzen en de

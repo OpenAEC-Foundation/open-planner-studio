@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconId } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
@@ -45,7 +45,7 @@ import { ReportingPeriodField, useResolvedPeriod } from '@/components/panels/rep
 import { useResourceTypeLabels } from '@/components/panels/reports/useResourceGanttLabels';
 import type { ResourceGanttReportOptions } from '@/utils/reportSettings';
 import { useReportColumnDomain } from './useReportColumnDomain';
-import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, resolveReportColumns } from './reportColumns';
+import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, reportColumnsNeedBuild, resolveReportColumns } from './reportColumns';
 import type { PaperPick, PaperTarget } from './ReportPaperView';
 import { samePaperInfo, StudioPaper, type PaperInfo } from './StudioPaper';
 import { ColumnsEditor } from './ColumnsEditor';
@@ -188,9 +188,15 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [domain, tasks, labelForColumn],
   );
+  // Een nieuwe registerkolom bouwt eerst haar celteksten en meting voor alle taken op (5000 taken: ±100 ms).
+  // Alleen dan loopt het papier één render achter op de lijst in de stap: de kolom staat meteen in de lijst en
+  // het papier volgt daarna (fixronde na council ronde 5: terugkoppeling onder 100 ms). Een kolom weg, een
+  // andere volgorde of een kolom die al in de cache staat, gaat direct: een extra render kost daar alleen tijd.
+  const deferredColumnIds = useDeferredValue(settings.columns);
+  const paperColumnIds = reportColumnsNeedBuild(settings.columns, domain, columnCache) ? deferredColumnIds : settings.columns;
   const resolved = useMemo(
-    () => resolveReportColumns(settings.columns, domain, tasks, labelForColumn, columnCache),
-    [settings.columns, domain, tasks, labelForColumn, columnCache],
+    () => resolveReportColumns(paperColumnIds, domain, tasks, labelForColumn, columnCache),
+    [paperColumnIds, domain, tasks, labelForColumn, columnCache],
   );
   const columnLabels = useMemo(
     () => new Map(domain.availableColumns.map(column => [String(column.id), column.label] as const)),

@@ -2410,13 +2410,6 @@ en noem het in je rapport of PR-tekst.
      dus niet met het papier, tot je de schuif aanraakt. Afgeleid uit de code. Voorstel: de schuif van het oude
      tabblad ook onder 1 laten gaan, of het oude tabblad laten vervallen als de flag standaard aan gaat. — B
 
-947. **VERVOLG: een zwevend venster ligt over de zwevende exportknop.** Ingeklapt, op 1280×720 of 1366×768, ligt
-     bijna elk venster van een stap over de knop *PDF exporteren* linksonder: Kolommen met de kiezer open, Balken zonder
-     melding, Pagina na Standaard. Pagina met twee meldingen doet het ook op 1600×900 (`StepPopover` in
-     `src/components/panels/reportStudio/studioChrome.tsx`). Na sluiten is de knop weer bereikbaar. Gezien in de
-     fixronde na council ronde 3 van #817 en door Fable 5.1 en GPT-6.1-Sol in council ronde 4. Voorstel: het venster
-     boven de strook van de knop laten eindigen, of rechts van de knop laten beginnen. — B
-
 948. **VERVOLG: de melding "Ongedaan maken" in de werkbalk verbergt de stand op een smal papiervlak.** Met de
      zijbalk open op 1280×720 toont de werkbalk 8 s lang alleen "2 pagina's"; papier, kolommen en rijen vallen weg
      achter de melding (`notice` in `ReportPaperView.tsx`). Gezien in de schermafbeeldingen van de fixronde na council
