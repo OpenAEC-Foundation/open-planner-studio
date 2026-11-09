@@ -1626,6 +1626,27 @@ en noem het in je rapport of PR-tekst.
      verloren gaan, ook niet bij een onbekend schema; anders is 1c niet klaar. Richting: deel ook dit bestand in, en
      weiger of meld zoals §4.11. Uit #864 (fase 1a). — B
 
+1012. **Niets toetst na de build dat de XER-lezer alleen op verzoek laadt.** `tests/planning/check-xer-chunk-boundary.ts`
+     leest alleen de bron: een import uit `@/services/xer/` mag alleen met `await import(` in `formatRegistry.ts` en
+     `src/services/ifc/ifcReadWithXer.ts`. De gebouwde importgrafiek toetst hij niet. De Ubuntu-build van `a11864e19`
+     heeft wel een apart `xer-reader-BduM2EPR.js` (302 kB), maar geen check eist na de build dat de startbundel dat stuk
+     alleen dynamisch laadt. Een statische import via een omweg (een andere module die de lezer opnieuw exporteert) of
+     een wijziging in de Vite-instelling valt zo niet op. Richting: een gerichte controle van de gebouwde importrelaties
+     in CI, bijvoorbeeld op `build.manifest` of de chunkgrafiek van Rollup: het XER-stuk staat niet in de statische
+     imports van de ingang. Uit de review van #864 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, ronde 1, op `a11864e19`,
+     BEVESTIGD, VERVOLG). — B
+
+1013. **Een check met `void main()` die blijft hangen, eindigt stil met exit 0.** Lost een `await` in `main()` nooit op,
+     dan stopt Node zodra er niets meer te doen is, zonder rapport en met exit 0; de suite telt dat als groen. Een
+     check met een `await` op het hoogste niveau heeft dit niet (Node geeft dan exit 13). Gezien in
+     `tests/planning/check-web-save-fallback.ts`: op main (`2a66df33c`) bleef hij hangen bij stap 7e (de wissel kwam
+     vóór de dialoog, dus de nep-dialoog kreeg nooit antwoord), en de stappen 7e tot en met 10 draaiden nooit. #864
+     (fixronde 1) repareert die check en geeft hem een vangnet (`beforeExit`: geen rapport ⇒ rood). Dezelfde vorm,
+     zonder vangnet, hebben nog: `tests/planning/check-ifc-building-model-guard.ts`, `check-text-asset.ts`,
+     `check-wbs-auto-on-open.ts`, `check-xml-adapter-fidelity.ts` en `tests/library/check-i18n-plurals.ts`. Niet
+     nagegaan of die nu hangen. Richting: hetzelfde vangnet, of een `await` op het hoogste niveau. Gevonden in #864
+     (fixronde 1). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

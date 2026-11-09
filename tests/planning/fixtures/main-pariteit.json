@@ -11,7 +11,48 @@
    "filePath": "03-kantoorgebouw-zuidas.ifc",
    "opslaanSha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
    "opslaanLengte": 86375,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": [
+      {
+       "severity": "info",
+       "messageKey": "notifications.browserCannotOverwrite",
+       "params": {
+        "name": "03-kantoorgebouw-zuidas.ifc"
+       },
+       "helpArticleId": "uitleg-bestanden",
+       "durationMs": 15000,
+       "count": 1
+      }
+     ]
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "kopie-03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "public/examples/05-brugvervanging-n279.ifc",
@@ -19,7 +60,37 @@
    "filePath": "05-brugvervanging-n279.ifc",
    "opslaanSha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
    "opslaanLengte": 52233,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
+       "lengte": 52233
+      }
+     ],
+     "filePath": "05-brugvervanging-n279.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
+       "lengte": 52233
+      }
+     ],
+     "filePath": "kopie-05-brugvervanging-n279.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "public/examples/08-zorgcentrum-de-linde.ifc",
@@ -27,7 +98,37 @@
    "filePath": "08-zorgcentrum-de-linde.ifc",
    "opslaanSha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
    "opslaanLengte": 70190,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
+       "lengte": 70190
+      }
+     ],
+     "filePath": "08-zorgcentrum-de-linde.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
+       "lengte": 70190
+      }
+     ],
+     "filePath": "kopie-08-zorgcentrum-de-linde.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "public/examples/10-villa-wassenaar.ifc",
@@ -35,7 +136,37 @@
    "filePath": "10-villa-wassenaar.ifc",
    "opslaanSha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
    "opslaanLengte": 59137,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "kopie-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "public/examples/15-datacentrum-agriport.ifc",
@@ -43,7 +174,37 @@
    "filePath": "15-datacentrum-agriport.ifc",
    "opslaanSha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
    "opslaanLengte": 56905,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
+       "lengte": 56905
+      }
+     ],
+     "filePath": "15-datacentrum-agriport.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
+       "lengte": 56905
+      }
+     ],
+     "filePath": "kopie-15-datacentrum-agriport.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "public/examples/showcase-appartementencomplex.ifc",
@@ -51,7 +212,37 @@
    "filePath": "showcase-appartementencomplex.ifc",
    "opslaanSha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
    "opslaanLengte": 481752,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
+       "lengte": 481752
+      }
+     ],
+     "filePath": "showcase-appartementencomplex.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
+       "lengte": 481752
+      }
+     ],
+     "filePath": "kopie-showcase-appartementencomplex.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "public/examples/showcase-rijwoningen-de-akkers.ifc",
@@ -59,7 +250,37 @@
    "filePath": "showcase-rijwoningen-de-akkers.ifc",
    "opslaanSha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
    "opslaanLengte": 169883,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
+       "lengte": 169883
+      }
+     ],
+     "filePath": "showcase-rijwoningen-de-akkers.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
+       "lengte": 169883
+      }
+     ],
+     "filePath": "kopie-showcase-rijwoningen-de-akkers.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "public/examples/showcase-verbouwing-eengezinswoning.ifc",
@@ -67,7 +288,37 @@
    "filePath": "showcase-verbouwing-eengezinswoning.ifc",
    "opslaanSha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
    "opslaanLengte": 32622,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "kopie-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/01-grachtenpand-amsterdam.ifc",
@@ -75,7 +326,37 @@
    "filePath": "01-grachtenpand-amsterdam.ifc",
    "opslaanSha256": "9cf4a88992f69ac6b7080bb51c07346aee6b216d7c97e4fcb118fae239972097",
    "opslaanLengte": 62158,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "9cf4a88992f69ac6b7080bb51c07346aee6b216d7c97e4fcb118fae239972097",
+       "lengte": 62158
+      }
+     ],
+     "filePath": "01-grachtenpand-amsterdam.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "9cf4a88992f69ac6b7080bb51c07346aee6b216d7c97e4fcb118fae239972097",
+       "lengte": 62158
+      }
+     ],
+     "filePath": "kopie-01-grachtenpand-amsterdam.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/02-renovatie-basisschool.ifc",
@@ -83,7 +364,37 @@
    "filePath": "02-renovatie-basisschool.ifc",
    "opslaanSha256": "a0f42e5b2384ffeb0085180f00a803a7ec2dd7debc6f3229fc96cc52cb948c34",
    "opslaanLengte": 40443,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "a0f42e5b2384ffeb0085180f00a803a7ec2dd7debc6f3229fc96cc52cb948c34",
+       "lengte": 40443
+      }
+     ],
+     "filePath": "02-renovatie-basisschool.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "a0f42e5b2384ffeb0085180f00a803a7ec2dd7debc6f3229fc96cc52cb948c34",
+       "lengte": 40443
+      }
+     ],
+     "filePath": "kopie-02-renovatie-basisschool.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/03-kantoorgebouw-zuidas.ifc",
@@ -91,7 +402,37 @@
    "filePath": "03-kantoorgebouw-zuidas.ifc",
    "opslaanSha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
    "opslaanLengte": 86375,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "kopie-03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/04-appartementen-eindhoven.ifc",
@@ -99,7 +440,37 @@
    "filePath": "04-appartementen-eindhoven.ifc",
    "opslaanSha256": "0c28eca5d25bd0070c218da639a175c078dbef4c7ba6fbadee00c1eb69095a1b",
    "opslaanLengte": 53781,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "0c28eca5d25bd0070c218da639a175c078dbef4c7ba6fbadee00c1eb69095a1b",
+       "lengte": 53781
+      }
+     ],
+     "filePath": "04-appartementen-eindhoven.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "0c28eca5d25bd0070c218da639a175c078dbef4c7ba6fbadee00c1eb69095a1b",
+       "lengte": 53781
+      }
+     ],
+     "filePath": "kopie-04-appartementen-eindhoven.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/05-brugvervanging-n279.ifc",
@@ -107,7 +478,37 @@
    "filePath": "05-brugvervanging-n279.ifc",
    "opslaanSha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
    "opslaanLengte": 52233,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
+       "lengte": 52233
+      }
+     ],
+     "filePath": "05-brugvervanging-n279.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
+       "lengte": 52233
+      }
+     ],
+     "filePath": "kopie-05-brugvervanging-n279.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/06-parkeergarage-utrecht.ifc",
@@ -115,7 +516,37 @@
    "filePath": "06-parkeergarage-utrecht.ifc",
    "opslaanSha256": "6113f8fba34d0a2c879890ad964c6453db98bc1e20abf0c64fdecba42319ce49",
    "opslaanLengte": 47626,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "6113f8fba34d0a2c879890ad964c6453db98bc1e20abf0c64fdecba42319ce49",
+       "lengte": 47626
+      }
+     ],
+     "filePath": "06-parkeergarage-utrecht.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "6113f8fba34d0a2c879890ad964c6453db98bc1e20abf0c64fdecba42319ce49",
+       "lengte": 47626
+      }
+     ],
+     "filePath": "kopie-06-parkeergarage-utrecht.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/07-industriehal-venlo.ifc",
@@ -123,7 +554,37 @@
    "filePath": "07-industriehal-venlo.ifc",
    "opslaanSha256": "e43f82bf50201178026a829722867b2ff0354e94721b2e43e1f1bbaf5120b4fb",
    "opslaanLengte": 39656,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "e43f82bf50201178026a829722867b2ff0354e94721b2e43e1f1bbaf5120b4fb",
+       "lengte": 39656
+      }
+     ],
+     "filePath": "07-industriehal-venlo.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "e43f82bf50201178026a829722867b2ff0354e94721b2e43e1f1bbaf5120b4fb",
+       "lengte": 39656
+      }
+     ],
+     "filePath": "kopie-07-industriehal-venlo.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/08-zorgcentrum-de-linde.ifc",
@@ -131,7 +592,37 @@
    "filePath": "08-zorgcentrum-de-linde.ifc",
    "opslaanSha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
    "opslaanLengte": 70190,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
+       "lengte": 70190
+      }
+     ],
+     "filePath": "08-zorgcentrum-de-linde.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
+       "lengte": 70190
+      }
+     ],
+     "filePath": "kopie-08-zorgcentrum-de-linde.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/09-rioolvervanging-delft.ifc",
@@ -139,7 +630,37 @@
    "filePath": "09-rioolvervanging-delft.ifc",
    "opslaanSha256": "fc3cc493662fab1fe870560067c2615b75dd164a7b60d4f569a8d08be9706aad",
    "opslaanLengte": 29860,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "fc3cc493662fab1fe870560067c2615b75dd164a7b60d4f569a8d08be9706aad",
+       "lengte": 29860
+      }
+     ],
+     "filePath": "09-rioolvervanging-delft.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "fc3cc493662fab1fe870560067c2615b75dd164a7b60d4f569a8d08be9706aad",
+       "lengte": 29860
+      }
+     ],
+     "filePath": "kopie-09-rioolvervanging-delft.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/10-villa-wassenaar.ifc",
@@ -147,7 +668,37 @@
    "filePath": "10-villa-wassenaar.ifc",
    "opslaanSha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
    "opslaanLengte": 59137,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "kopie-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/11-sporthal-amstelveen.ifc",
@@ -155,7 +706,37 @@
    "filePath": "11-sporthal-amstelveen.ifc",
    "opslaanSha256": "8fd568697aa0602332e339290973aa516429c1738f8808dc57c8ac50b5268853",
    "opslaanLengte": 38718,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "8fd568697aa0602332e339290973aa516429c1738f8808dc57c8ac50b5268853",
+       "lengte": 38718
+      }
+     ],
+     "filePath": "11-sporthal-amstelveen.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "8fd568697aa0602332e339290973aa516429c1738f8808dc57c8ac50b5268853",
+       "lengte": 38718
+      }
+     ],
+     "filePath": "kopie-11-sporthal-amstelveen.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/12-windturbine-offshore.ifc",
@@ -163,7 +744,37 @@
    "filePath": "12-windturbine-offshore.ifc",
    "opslaanSha256": "6cb09ad46294d06456bcb32e4e670e2f0ace3932a6a7d78f9498a07681edd1d2",
    "opslaanLengte": 44065,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "6cb09ad46294d06456bcb32e4e670e2f0ace3932a6a7d78f9498a07681edd1d2",
+       "lengte": 44065
+      }
+     ],
+     "filePath": "12-windturbine-offshore.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "6cb09ad46294d06456bcb32e4e670e2f0ace3932a6a7d78f9498a07681edd1d2",
+       "lengte": 44065
+      }
+     ],
+     "filePath": "kopie-12-windturbine-offshore.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/13-supermarkt-albert-heijn.ifc",
@@ -171,7 +782,37 @@
    "filePath": "13-supermarkt-albert-heijn.ifc",
    "opslaanSha256": "17fdcae5c6747ead8e60981e631f15a75f6f290fd0f44ead02c252da13b54ac9",
    "opslaanLengte": 28634,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "17fdcae5c6747ead8e60981e631f15a75f6f290fd0f44ead02c252da13b54ac9",
+       "lengte": 28634
+      }
+     ],
+     "filePath": "13-supermarkt-albert-heijn.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "17fdcae5c6747ead8e60981e631f15a75f6f290fd0f44ead02c252da13b54ac9",
+       "lengte": 28634
+      }
+     ],
+     "filePath": "kopie-13-supermarkt-albert-heijn.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/14-fietstunnel-arnhem.ifc",
@@ -179,7 +820,37 @@
    "filePath": "14-fietstunnel-arnhem.ifc",
    "opslaanSha256": "d9d41338a76c0b785672fbee9ea47808e024e0c50f00615f2a73b466da989339",
    "opslaanLengte": 36078,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "d9d41338a76c0b785672fbee9ea47808e024e0c50f00615f2a73b466da989339",
+       "lengte": 36078
+      }
+     ],
+     "filePath": "14-fietstunnel-arnhem.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "d9d41338a76c0b785672fbee9ea47808e024e0c50f00615f2a73b466da989339",
+       "lengte": 36078
+      }
+     ],
+     "filePath": "kopie-14-fietstunnel-arnhem.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/15-datacentrum-agriport.ifc",
@@ -187,7 +858,37 @@
    "filePath": "15-datacentrum-agriport.ifc",
    "opslaanSha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
    "opslaanLengte": 56905,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
+       "lengte": 56905
+      }
+     ],
+     "filePath": "15-datacentrum-agriport.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
+       "lengte": 56905
+      }
+     ],
+     "filePath": "kopie-15-datacentrum-agriport.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/16-dijkversterking-markermeerdijk.ifc",
@@ -195,7 +896,37 @@
    "filePath": "16-dijkversterking-markermeerdijk.ifc",
    "opslaanSha256": "fb7d880cb1f1f27459df6ddb167d5bd20ecdfa9315803ccac6111f5ca4e732cd",
    "opslaanLengte": 40328,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "fb7d880cb1f1f27459df6ddb167d5bd20ecdfa9315803ccac6111f5ca4e732cd",
+       "lengte": 40328
+      }
+     ],
+     "filePath": "16-dijkversterking-markermeerdijk.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "fb7d880cb1f1f27459df6ddb167d5bd20ecdfa9315803ccac6111f5ca4e732cd",
+       "lengte": 40328
+      }
+     ],
+     "filePath": "kopie-16-dijkversterking-markermeerdijk.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/17-hotel-scheveningen.ifc",
@@ -203,7 +934,37 @@
    "filePath": "17-hotel-scheveningen.ifc",
    "opslaanSha256": "87416a44df7b2994fe4b94d9c84f6d887e31aacd4ab6070be14df4d77fdab852",
    "opslaanLengte": 51902,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "87416a44df7b2994fe4b94d9c84f6d887e31aacd4ab6070be14df4d77fdab852",
+       "lengte": 51902
+      }
+     ],
+     "filePath": "17-hotel-scheveningen.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "87416a44df7b2994fe4b94d9c84f6d887e31aacd4ab6070be14df4d77fdab852",
+       "lengte": 51902
+      }
+     ],
+     "filePath": "kopie-17-hotel-scheveningen.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/18-station-uitbreiding-breda.ifc",
@@ -211,7 +972,37 @@
    "filePath": "18-station-uitbreiding-breda.ifc",
    "opslaanSha256": "64ee61ee51711aa3caa52e8c3682db55ff5802296ea695e37400a77d9a3a2bd0",
    "opslaanLengte": 47607,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "64ee61ee51711aa3caa52e8c3682db55ff5802296ea695e37400a77d9a3a2bd0",
+       "lengte": 47607
+      }
+     ],
+     "filePath": "18-station-uitbreiding-breda.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "64ee61ee51711aa3caa52e8c3682db55ff5802296ea695e37400a77d9a3a2bd0",
+       "lengte": 47607
+      }
+     ],
+     "filePath": "kopie-18-station-uitbreiding-breda.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/19-basisschool-ikc.ifc",
@@ -219,7 +1010,37 @@
    "filePath": "19-basisschool-ikc.ifc",
    "opslaanSha256": "6b8678bba49622aa85378b12a40ed976333a551327a42020fdb28331a463bb24",
    "opslaanLengte": 45500,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "6b8678bba49622aa85378b12a40ed976333a551327a42020fdb28331a463bb24",
+       "lengte": 45500
+      }
+     ],
+     "filePath": "19-basisschool-ikc.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "6b8678bba49622aa85378b12a40ed976333a551327a42020fdb28331a463bb24",
+       "lengte": 45500
+      }
+     ],
+     "filePath": "kopie-19-basisschool-ikc.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/20-woonwijk-almere.ifc",
@@ -227,7 +1048,37 @@
    "filePath": "20-woonwijk-almere.ifc",
    "opslaanSha256": "df2142ac39f62e3008d7a7403bebd628a30e5baf061280f59aa74e3f0614be87",
    "opslaanLengte": 87152,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "df2142ac39f62e3008d7a7403bebd628a30e5baf061280f59aa74e3f0614be87",
+       "lengte": 87152
+      }
+     ],
+     "filePath": "20-woonwijk-almere.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "df2142ac39f62e3008d7a7403bebd628a30e5baf061280f59aa74e3f0614be87",
+       "lengte": 87152
+      }
+     ],
+     "filePath": "kopie-20-woonwijk-almere.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/showcase-appartementencomplex.ifc",
@@ -235,7 +1086,37 @@
    "filePath": "showcase-appartementencomplex.ifc",
    "opslaanSha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
    "opslaanLengte": 481752,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
+       "lengte": 481752
+      }
+     ],
+     "filePath": "showcase-appartementencomplex.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
+       "lengte": 481752
+      }
+     ],
+     "filePath": "kopie-showcase-appartementencomplex.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/showcase-groot-terrein-onderaannemer.ifc",
@@ -243,7 +1124,37 @@
    "filePath": "showcase-groot-terrein-onderaannemer.ifc",
    "opslaanSha256": "2bf514be3f493b78aaf31ca11080e44736cec896b0919fdca4bb617d61c8609a",
    "opslaanLengte": 12804,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "2bf514be3f493b78aaf31ca11080e44736cec896b0919fdca4bb617d61c8609a",
+       "lengte": 12804
+      }
+     ],
+     "filePath": "showcase-groot-terrein-onderaannemer.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "2bf514be3f493b78aaf31ca11080e44736cec896b0919fdca4bb617d61c8609a",
+       "lengte": 12804
+      }
+     ],
+     "filePath": "kopie-showcase-groot-terrein-onderaannemer.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/showcase-rijwoningen-de-akkers.ifc",
@@ -251,7 +1162,37 @@
    "filePath": "showcase-rijwoningen-de-akkers.ifc",
    "opslaanSha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
    "opslaanLengte": 169883,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
+       "lengte": 169883
+      }
+     ],
+     "filePath": "showcase-rijwoningen-de-akkers.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
+       "lengte": 169883
+      }
+     ],
+     "filePath": "kopie-showcase-rijwoningen-de-akkers.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "examples/showcase-verbouwing-eengezinswoning.ifc",
@@ -259,7 +1200,37 @@
    "filePath": "showcase-verbouwing-eengezinswoning.ifc",
    "opslaanSha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
    "opslaanLengte": 32622,
-   "meldingen": []
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "kopie-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ]
   },
   {
    "pad": "tests/fixtures/ifc-foreign/bonsai-4d.ifc",

@@ -9,7 +9,9 @@
 //
 // Per bestand: een verse store, dezelfde open-route als Bestand → Openen (`openOpenedFile`), en dan wat Opslaan schrijft
 // (`writeIFC(buildWriteIFCInput(state))`, zoals `writeActiveDocument`). Een geweigerd bestand geeft de melding van het
-// meldingenkanaal. Vaste klok, een vaste reeks "willekeurige" getallen en dezelfde volgorde van `generateId` maken de
+// meldingenkanaal. Daarna (fixronde 1, VERVOLG van Terra) de echte acties Opslaan en Opslaan als, met hun guards en de
+// bestandslaag van de browser (`showSaveFilePicker` → `createWritable`), met een handle in het geheugen als naad: die API
+// bestaat op main ook. Vaste klok, een vaste reeks "willekeurige" getallen en dezelfde volgorde van `generateId` maken de
 // uitvoer deterministisch; de tijdzone zet de aanroeper (Europe/Amsterdam).
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -30,6 +32,24 @@ export interface ParityOutput {
   /** Wat Opslaan schrijft; afwezig als het openen mislukte. */
   saved?: string;
   notices: ParityNotice[];
+  /** De echte acties Opslaan en Opslaan als (alleen na een geslaagd openen). */
+  actions?: ParityAction[];
+}
+
+/** Uitkomst van één echte opslagactie. */
+export interface ParityAction {
+  action: 'saveFile' | 'saveFileAs';
+  /** `klaar`, of `hangt` als de actie na de wachttijd nog wacht (bijv. op een vraag). */
+  outcome: 'klaar' | 'hangt';
+  /** Hoe vaak de opslagdialoog kwam. */
+  pickerCalls: number;
+  /** Wat de bestandslaag schreef, in volgorde. */
+  writes: string[];
+  /** Opslagdoel en `isDirty` na de actie. */
+  filePath: string | null;
+  isDirty: boolean;
+  /** Meldingen die de actie gaf. */
+  notices: ParityNotice[];
 }
 
 export interface ParityRun {
@@ -39,6 +59,55 @@ export interface ParityRun {
 }
 
 const FIXED_NOW = Date.UTC(2026, 10, 9, 12, 0, 0);
+
+/** Een FSA-handle in het geheugen: wat `createWritable` krijgt, komt in `writes`. */
+function memoryHandle(name: string, writes: string[]): unknown {
+  let data = '';
+  const handle = {
+    kind: 'file', name,
+    isSameEntry: async (other: unknown) => other === handle,
+    getFile: async () => new File([data], name),
+    createWritable: async () => {
+      let buffer = '';
+      return {
+        write: async (chunk: unknown) => { buffer += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk as Uint8Array); },
+        close: async () => { data = buffer; writes.push(buffer); },
+      };
+    },
+    queryPermission: async () => 'granted',
+    requestPermission: async () => 'granted',
+  };
+  return handle;
+}
+
+/** De echte opslagactie op `store`, met een handle in het geheugen als gekozen bestand. */
+async function runAction(
+  store: { getState(): { saveFile(): Promise<void>; saveFileAs(): Promise<void>; filePath: string | null; isDirty: boolean;
+    ui: { notifications: { id: string }[] } } },
+  action: ParityAction['action'], name: string,
+): Promise<ParityAction> {
+  const win = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  const writes: string[] = [];
+  let pickerCalls = 0;
+  // De bestandslaag kiest de FSA-route als `showOpenFilePicker` bestaat (`hasFSA`); openen gebeurt hier niet.
+  win.showOpenFilePicker = () => { throw new Error('niet in de pariteitsproef'); };
+  win.showSaveFilePicker = async () => { pickerCalls++; return memoryHandle(name, writes); };
+  const before = new Set(store.getState().ui.notifications.map(n => n.id));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const outcome = await Promise.race([
+    store.getState()[action]().then(() => 'klaar' as const),
+    new Promise<'hangt'>((resolve) => { timer = setTimeout(() => resolve('hangt'), 10_000); }),
+  ]);
+  clearTimeout(timer);
+  delete win.showSaveFilePicker;
+  delete win.showOpenFilePicker;
+  const state = store.getState();
+  return {
+    action, outcome, pickerCalls, writes, filePath: state.filePath, isDirty: state.isDirty,
+    notices: state.ui.notifications.filter(n => !before.has(n.id))
+      .map(({ id: _id, ...rest }) => JSON.parse(JSON.stringify(rest)) as ParityNotice),
+  };
+}
 
 /** Vaste klok en een vaste reeks voor `Math.random` (mulberry32). Geeft een functie die de reeks opnieuw start. Ook
  *  gebruikt door `check-ifc-foreign-open.ts`. */
@@ -94,12 +163,19 @@ export async function runParity(inputs: readonly ParityInput[]): Promise<ParityR
     await S().openOpenedFile({ name: input.name, content: input.text, ref: null });
     const state = S();
     const opened = state.filePath === input.name;
-    results.push({
+    const result: ParityOutput = {
       name: input.name,
       filePath: opened ? state.filePath : null,
       ...(opened ? { saved: writeIFC(buildWriteIFCInput(state)) } : {}),
       notices: state.ui.notifications.map(({ id: _id, ...rest }) => JSON.parse(JSON.stringify(rest)) as ParityNotice),
-    });
+    };
+    if (opened) {
+      result.actions = [
+        await runAction(store, 'saveFile', input.name),
+        await runAction(store, 'saveFileAs', `kopie-${input.name}`),
+      ];
+    }
+    results.push(result);
   }
   return { binaryExtensions: binaryExtensions(), results };
 }
@@ -127,6 +203,16 @@ export interface ParityFixtureEntry {
   opslaanSha256?: string;
   opslaanLengte?: number;
   meldingen: ParityNotice[];
+  /** De echte acties Opslaan en Opslaan als (fixronde 1): per actie de uitkomst, met SHA-256 en lengte per write. */
+  acties?: {
+    actie: ParityAction['action'];
+    uitkomst: ParityAction['outcome'];
+    dialogen: number;
+    writes: { sha256: string; lengte: number }[];
+    filePath: string | null;
+    isDirty: boolean;
+    meldingen: ParityNotice[];
+  }[];
 }
 
 export interface ParityFixture {
@@ -167,7 +253,13 @@ export async function parityFixture(root: string, basis: string): Promise<{ fixt
       filePath: r.filePath,
       ...(r.saved !== undefined ? { opslaanSha256: sha256(r.saved), opslaanLengte: r.saved.length } : {}),
       meldingen: r.notices,
+      ...(r.actions ? { acties: r.actions.map(a => ({
+        actie: a.action, uitkomst: a.outcome, dialogen: a.pickerCalls,
+        writes: a.writes.map(w => ({ sha256: sha256(w), lengte: w.length })),
+        filePath: a.filePath, isDirty: a.isDirty, meldingen: a.notices,
+      })) } : {}),
     };
+    r.actions?.forEach((a, i) => a.writes.forEach((w, j) => saved.set(`${pad}.${a.action}-${i}-${j}.ifc`, w)));
   });
   return { fixture: { basis, binaryExtensions: run.binaryExtensions, bestanden }, saved };
 }

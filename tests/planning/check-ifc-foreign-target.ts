@@ -411,10 +411,11 @@ let oldRecoveryText = '';
     await restored.getState().saveFileAs();
     eq('Tauri herstel: Opslaan als naar het oude pad geweigerd', [unchanged(), restored.getState().filePath], [sha(bonsai), null]);
     ok('Tauri herstel: met de melding "op te slaan"', modelNotices(restored).some(n => n.messageKey === TARGET_SAVE));
+    const restoredMarks = [restored.getState().foreignSourceMark].filter((m): m is ForeignSourceMark => m !== null);
     eq('Tauri: de route herkent een pad met dezelfde identiteit, en niet een ander bestand', [
-      await isForeignSourceTarget({ kind: 'path', path: join(dir, 'link.ifc') }, [restored.getState().foreignSourceMark as ForeignSourceMark],
+      await isForeignSourceTarget({ kind: 'path', path: join(dir, 'link.ifc') }, restoredMarks,
         { identityFs: { stat: async (p) => { const st = (await import('node:fs')).statSync(p); return { isFile: true, dev: st.dev, ino: st.ino }; } } }),
-      await isForeignSourceTarget({ kind: 'path', path: join(dir, 'eigen.ifc') }, [restored.getState().foreignSourceMark as ForeignSourceMark]),
+      await isForeignSourceTarget({ kind: 'path', path: join(dir, 'eigen.ifc') }, restoredMarks),
     ], [true, false]);
   } finally {
     ipc.dispose();

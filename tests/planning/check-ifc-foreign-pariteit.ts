@@ -7,7 +7,10 @@
 //  - dezelfde invoer (anders: de fixture opnieuw maken met het script);
 //  - een eigen voorbeeld: hetzelfde opslagdoel en byte-gelijk wat Opslaan schrijft (SHA-256 en lengte);
 //  - een bestand met een gebouwmodel: geweigerd, met dezelfde melding in het meldingenkanaal;
-//  - dezelfde meldingen na het openen, en dezelfde keuze tekst of bytes in de bestandslaag (`binaryExtensions()`).
+//  - dezelfde meldingen na het openen, en dezelfde keuze tekst of bytes in de bestandslaag (`binaryExtensions()`);
+//  - (fixronde 1, VERVOLG van Terra) een eigen voorbeeld: de echte acties Opslaan en Opslaan als, met guards en de
+//    bestandslaag van de browser (handle in het geheugen), geven dezelfde dialogen, dezelfde bytes (SHA-256 en lengte),
+//    hetzelfde opslagdoel en dezelfde meldingen als op main.
 // Bij een verschil schrijft de check de uitvoer van de branch naar een tijdelijke map; `--uitvoer <map>` van het script
 // geeft die van main, om te diffen.
 //
@@ -26,7 +29,11 @@ const fixture = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/main
 const realError = console.error;
 console.error = () => {};
 const { parityFixture } = await import('./ifcPariteitKern');
+// De open-route en de opslagacties melden ook op de console; dat is hier verwacht.
+const realWarn = console.warn;
+console.warn = () => {};
 const { fixture: got, saved } = await parityFixture(ROOT, fixture.basis);
+console.warn = realWarn;
 console.error = realError;
 
 const diffs: string[] = [];
@@ -41,6 +48,7 @@ eq('dezelfde bestanden', got.bestanden.map(b => b.pad), fixture.bestanden.map(b 
 let outDir: string | undefined;
 let own = 0;
 let refused = 0;
+let actions = 0;
 for (const want of fixture.bestanden) {
   const have = got.bestanden.find(b => b.pad === want.pad);
   if (!have) continue;
@@ -52,6 +60,14 @@ for (const want of fixture.bestanden) {
   eq(`${want.pad}: opslagdoel na openen`, have.filePath, want.filePath);
   eq(`${want.pad}: meldingen`, have.meldingen, want.meldingen);
   eq(`${want.pad}: wat Opslaan schrijft (sha256, lengte)`, [have.opslaanSha256, have.opslaanLengte], [want.opslaanSha256, want.opslaanLengte]);
+  eq(`${want.pad}: de echte acties Opslaan en Opslaan als`, have.acties, want.acties);
+  if (want.filePath !== null) {
+    // Niet leeg: beide acties kwamen tot de dialoog en schreven precies één keer.
+    checks++;
+    const real = (want.acties ?? []).every(a => a.uitkomst === 'klaar' && a.dialogen === 1 && a.writes.length === 1 && !a.isDirty);
+    if (!real || want.acties?.length !== 2) diffs.push(`${want.pad}: de fixture heeft geen twee geslaagde opslagacties`);
+    else actions += 2;
+  }
   if (have.opslaanSha256 !== want.opslaanSha256 && saved.has(want.pad)) {
     outDir ??= mkdtempSync(join(tmpdir(), 'ops-pariteit-branch-'));
     const target = join(outDir, want.pad);
@@ -72,5 +88,6 @@ if (diffs.length > 0) {
   if (outDir) console.log(`..  uitvoer van de branch: ${outDir} (main: node scripts/proef/maak-main-pariteit.mjs --uitvoer <map>)`);
   process.exit(1);
 }
-console.log(`OK  ifc-foreign-pariteit: alle checks groen (${checks}; ${own} eigen bestanden byte-gelijk aan main ${fixture.basis}, ${refused} modelbestanden met dezelfde weigering)`);
+console.log(`OK  ifc-foreign-pariteit: alle checks groen (${checks}; ${own} eigen bestanden byte-gelijk aan main ${fixture.basis}, `
+  + `${actions} echte opslagacties gelijk, ${refused} modelbestanden met dezelfde weigering)`);
 process.exit(0);

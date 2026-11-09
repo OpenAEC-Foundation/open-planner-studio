@@ -1061,9 +1061,16 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(files.has(target), false, 'er is niets geschreven');
 
-    // Zonder vreemd deel schrijft export_ifc gewoon, ook met de flag.
+    // Zonder vreemd deel schrijft export_ifc gewoon, ook met de flag. Het modeldocument blijft open in een ander tabblad.
+    S().newDocument();
     loadSmallProject('Zonder model');
     assertEq(S().ifcSource, null, 'een geladen planning zonder bestand heeft geen bron');
+    // Fixronde 1: niet over het bronbestand van het andere open document met een vreemd deel.
+    const sourceError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
+    assertEq(sourceError.code, 'VALIDATION', 'het bronbestand van een document met een vreemd deel ⇒ validatiefout');
+    assert(sourceError.error.includes('source file of an open document') && sourceError.error.includes('another path'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'het modelbestand is niet veranderd');
     await callOk('planner_export_ifc', { path: target, overwrite: true });
     assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
   } finally {
