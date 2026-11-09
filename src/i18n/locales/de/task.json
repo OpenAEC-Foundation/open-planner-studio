@@ -673,7 +673,14 @@
     "reviewAccept": "Akzeptieren",
     "edit": "Externe Beziehung bearbeiten…",
     "refreshSource": "Quelle aktualisieren",
-    "deleteRelation": "Beziehung löschen"
+    "deleteRelation": "Beziehung löschen",
+    "chooseSourceFile": "Quelldatei auswählen…",
+    "chooseSourceFiles": "Quelldateien auswählen…",
+    "chooseSourceFailed": "Diese Datei kann nicht gelesen werden.",
+    "unreadSources_one": "{{count}} Quelle nicht gelesen.",
+    "unreadSources_other": "{{count}} Quellen nicht gelesen.",
+    "chosenUnmatched_one": "{{count}} ausgewählte Datei gehört zu keiner externen Verknüpfung in diesem Plan.",
+    "chosenUnmatched_other": "{{count}} ausgewählte Dateien gehören zu keiner externen Verknüpfung in diesem Plan."
   },
   "split": {
     "gapDays_one": "{{count}} Arbeitstag Unterbrechung",

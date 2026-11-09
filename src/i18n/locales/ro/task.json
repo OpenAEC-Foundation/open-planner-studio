@@ -682,7 +682,16 @@
     "reviewAccept": "Acceptă",
     "edit": "Editare legătură între proiecte…",
     "refreshSource": "Reîmprospătare sursă",
-    "deleteRelation": "Ștergere dependență"
+    "deleteRelation": "Ștergere dependență",
+    "chooseSourceFile": "Alege fișierul sursă…",
+    "chooseSourceFiles": "Alege fișierele sursă…",
+    "chooseSourceFailed": "Acest fișier nu poate fi citit.",
+    "unreadSources_one": "{{count}} sursă nu a fost citită.",
+    "unreadSources_few": "{{count}} surse nu au fost citite.",
+    "unreadSources_other": "{{count}} de surse nu au fost citite.",
+    "chosenUnmatched_one": "{{count}} fișier ales nu aparține niciunei legături între proiecte din acest plan.",
+    "chosenUnmatched_few": "{{count}} fișiere alese nu aparțin niciunei legături între proiecte din acest plan.",
+    "chosenUnmatched_other": "{{count}} de fișiere alese nu aparțin niciunei legături între proiecte din acest plan."
   },
   "split": {
     "gapDays_one": "întrerupere de {{count}} zi lucrătoare",

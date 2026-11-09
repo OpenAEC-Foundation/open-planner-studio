@@ -664,7 +664,12 @@
     "reviewAccept": "承認",
     "edit": "外部関係を編集…",
     "refreshSource": "ソースを更新",
-    "deleteRelation": "依存関係を削除"
+    "deleteRelation": "依存関係を削除",
+    "chooseSourceFile": "ソースファイルを選択…",
+    "chooseSourceFiles": "ソースファイルを選択…",
+    "chooseSourceFailed": "このファイルは読み込めません。",
+    "unreadSources_other": "{{count}} 件のソースを読み込めませんでした。",
+    "chosenUnmatched_other": "選択した {{count}} 件のファイルは、この計画のどの外部リンクにも該当しません。"
   },
   "split": {
     "gapDays_other": "{{count}} 稼働日の中断",

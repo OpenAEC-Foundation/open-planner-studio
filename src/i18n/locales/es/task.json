@@ -682,7 +682,16 @@
     "reviewAccept": "Aceptar",
     "edit": "Editar relación externa…",
     "refreshSource": "Actualizar origen",
-    "deleteRelation": "Eliminar relación"
+    "deleteRelation": "Eliminar relación",
+    "chooseSourceFile": "Elegir archivo de origen…",
+    "chooseSourceFiles": "Elegir archivos de origen…",
+    "chooseSourceFailed": "No se puede leer este archivo.",
+    "unreadSources_one": "{{count}} origen no leído.",
+    "unreadSources_many": "{{count}} orígenes no leídos.",
+    "unreadSources_other": "{{count}} orígenes no leídos.",
+    "chosenUnmatched_one": "{{count}} archivo elegido no corresponde a ningún enlace externo de este plan.",
+    "chosenUnmatched_many": "{{count}} archivos elegidos no corresponden a ningún enlace externo de este plan.",
+    "chosenUnmatched_other": "{{count}} archivos elegidos no corresponden a ningún enlace externo de este plan."
   },
   "split": {
     "gapDays_one": "{{count}} día laborable de pausa",
