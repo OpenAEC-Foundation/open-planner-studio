@@ -251,7 +251,10 @@ export function useGanttPointerCoordinator(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     if (y < headerHeight) return;
-    const task = renderer.getRelationSourceAt(x, y);
+    // De naam achter de balk hoort bij de taak; staat hij over de balk (bij de canvasrand), dan wint
+    // de naam, net als bij mousedown.
+    const nameTask = renderer.getTaskNameAt(x, y);
+    const task = nameTask ?? renderer.getRelationSourceAt(x, y);
     if (!task) {
       // Lege ruimte: het korte menu met "Nieuwe taak" en "Nieuwe mijlpaal", op de datum onder de
       // cursor (review 2026-10-06, punt 1).
@@ -272,7 +275,7 @@ export function useGanttPointerCoordinator(
     // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
     // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.
     let splitGapIndex: number | null = null;
-    if (task.splitGaps && task.splitGaps.length > 0) {
+    if (!nameTask && task.splitGaps && task.splitGaps.length > 0) {
       const gap = renderer.getSplitGapAt(x, y);
       const bounds = gap ? null : renderer.getTaskBarBounds(x, y);
       const index = gap?.task.id === task.id
@@ -304,7 +307,8 @@ export function useGanttPointerCoordinator(
 
   /*
    * De karakteriseringsmatrix bewaakt deze ene volgorde:
-   * 1 actief gebaar weigert een tweede; 2 middelklik pant overal; 3 header stopt; 4 relatie wint
+   * 1 actief gebaar weigert een tweede; 2 middelklik pant overal; 3 header stopt; 3b de naam achter
+   * de balk is geen grijpvlak en wint van alles hierna; 4 relatie wint
    * van balkdrag; 4b splits-modus kaapt de balk en valt nooit door naar de balkdrag;
    * 5 Ctrl/Cmd-balk blijft selectie; 6 balkbody/rand sleept; 7 drag-achtergrond pant;
    * 8 iedere overige achtergrondroute start kaderselectie.
@@ -331,6 +335,14 @@ export function useGanttPointerCoordinator(
 
     // 3. Onder de timelineheader bestaat geen taakgebaar.
     if (y < headerHeight) return;
+
+    // 3b. De naam achter de balk is geen grijpvlak: geen relatie-, splits- of balksleep, geen pan
+    // of kaderselectie. Hij wint ook waar hij bij de canvasrand over de balk staat. De
+    // click-handler selecteert de taak (ook met Ctrl/Cmd of Shift).
+    if (renderer.getTaskNameAt(x, y)) {
+      event.preventDefault();
+      return;
+    }
 
     // 4. Shift/dependency-mode gebruikt uitsluitend de publieke relatiehittest en wint van drag.
     if (event.shiftKey || dependencyMode) {
@@ -377,12 +389,6 @@ export function useGanttPointerCoordinator(
     if (gapHit) {
       event.preventDefault();
       selectTask(gapHit.task.id, false);
-      return;
-    }
-    // De naam rechts achter de balk is geen grijpvlak, maar ook geen achtergrond: geen sleep, pan
-    // of kaderselectie. De click-handler selecteert de taak (ook met Ctrl/Cmd of Shift).
-    if (!hit && renderer.getTaskNameAt(x, y)) {
-      event.preventDefault();
       return;
     }
 
@@ -444,6 +450,19 @@ export function useGanttPointerCoordinator(
       setTooltip(null);
       return;
     }
+    // Zelfde voorrang als mousedown (3b): op de naam geen sleep- of relatiecursor, wel de
+    // taaktooltip (in de splits-modus staat die uit).
+    const nameTask = renderer.getTaskNameAt(x, y);
+    if (nameTask) {
+      setHoverCursor('default');
+      if (splitMode) {
+        splitGesture.clearHover();
+        setTooltip(null);
+      } else {
+        setTooltip({ x: event.clientX, y: event.clientY, task: nameTask });
+      }
+      return;
+    }
     const hit = renderer.getTaskBarBounds(x, y);
     // In de splits-modus staat de gewone taak-tooltip uit: de geleidelijn met datum IS de
     // terugkoppeling, en twee zwevende doosjes boven elkaar leest niemand.
@@ -478,14 +497,14 @@ export function useGanttPointerCoordinator(
       setHoverCursor('default');
       return;
     }
-    const hoveredTask = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
+    const hoveredTask = renderer.getRelationSourceAt(x, y);
     if (hoveredTask) {
       setTooltip({ x: event.clientX, y: event.clientY, task: hoveredTask });
     } else {
       setTooltip(null);
     }
-    // Een pauze of een naam is geen grijpvlak én geen achtergrond: gewone cursor, geen pan-grijphand.
-    if (renderer.getSplitGapAt(x, y) || renderer.getTaskNameAt(x, y)) {
+    // Een pauze is geen grijpvlak én geen achtergrond: gewone cursor, geen pan-grijphand.
+    if (renderer.getSplitGapAt(x, y)) {
       setHoverCursor('default');
       return;
     }

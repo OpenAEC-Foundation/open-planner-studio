@@ -2397,9 +2397,16 @@ en noem het in je rapport of PR-tekst.
      hammock. Het is dus niet nieuw met #842. Voorstel: teken de naam ná de ghosts, of laat de naam voorbij een externe
      opvolger beginnen. Uit de review van #842 (Terra, VERVOLG). — S
 
-954. **VERVOLG: geen browsertest klikt op de naam achter een balk.** Sinds #842 herkennen klik, dubbelklik en tooltip
-     ook de naam rechts achter de balk (`GanttRenderer.getTaskNameAt`, gebruikt in `useGanttPointerCoordinator.ts` en
-     `GanttCanvas.tsx`). `tests/planning/check-gantt-label-ellipsis.ts` bewijst de hittest in de renderer, maar niet de
-     koppeling met de echte muis: een klik op de naam selecteert de taak, een dubbelklik opent hem, een mousedown op de
-     naam start geen sleep, pan of kaderselectie. Voorstel: één stap in een bestaand Gantt-scenario met een hammock.
-     Uit de review van #842 (GPT-6.1-Sol, xhigh, VERVOLG). — B
+954. **VERVOLG: geen browsertest voor dubbelklik en tooltip op de naam achter een balk.** Sinds #842 herkennen klik,
+     dubbelklik, tooltip en rechtsklik ook de naam rechts achter de balk (`GanttRenderer.getTaskNameAt`, gebruikt in
+     `useGanttPointerCoordinator.ts` en `GanttCanvas.tsx`). `tests/browser/gantt-pointer-priority.spec.ts` ("naam over
+     de balk bij de rand") bewijst met echte muisgebaren: slepen en Shift-slepen vanaf de naam verzetten niets, een klik
+     selecteert, een rechtsklik geeft het taakmenu. Een dubbelklik (taak openen), de taaktooltip en de cursor boven de
+     naam zijn alleen in de renderer-hittest (`check-gantt-label-ellipsis.ts`) gedekt. Voorstel: twee stappen in
+     hetzelfde scenario. Uit de review van #842 (GPT-6.1-Sol, xhigh, VERVOLG). — B
+
+955. **VERVOLG: in het tweede tijdlijnpaneel werkt alleen selectie op de naam achter een balk.** `handleSecondaryClick`
+     (`src/components/canvas/GanttCanvas.tsx`) selecteert via de balk of de naam (`getTaskNameAt`). Hover zoekt daar
+     alleen baselines (`handleSecondaryMouseMove`) en er is geen `onDoubleClick`: geen taaktooltip en geen taak openen,
+     ook niet op de balk zelf. Dat zat al in main. Voorstel: hover en dubbelklik van het hoofdpaneel ook in het tweede
+     paneel aansluiten. Uit de review van #842 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
