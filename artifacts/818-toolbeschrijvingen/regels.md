@@ -346,7 +346,7 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | `steps[].tool`: volledige naam | weg (fixronde 7): de naam staat in elke tool; een onbekende naam geeft een stapfout |
 | Rapport per stap bij een fout; "geen scripttaal" | weg: antwoord / volgt uit "args are fixed at submission" |
 
-## planner_refresh_external_links (nieuw uit #797, 1.401 → 1.038 tekens)
+## planner_refresh_external_links (nieuw uit #797; beschrijving 1.283 → 862 tekens)
 
 | regel | nieuwe plek |
 |---|---|
