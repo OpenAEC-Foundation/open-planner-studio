@@ -1,4 +1,5 @@
 import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
+import { MAX_NOTIFICATIONS, removeNotifications, showWaitingNotifications } from '../notificationQueue';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
@@ -63,14 +64,7 @@ export interface UiSlice {
 
 /** Maximum aantal gelijktijdig zichtbare meldingen; bij overschrijding valt de oudste weg
  *  (fouten voorrang op info, zie `notify`). */
-export const MAX_NOTIFICATIONS = 3;
-
-/** Er is ruimte in de stapel: wachtende keuzes (`holdUntilRoom`) verschijnen, oudste eerst (review #860). */
-function showWaitingNotifications(ui: Pick<UIState, 'notifications' | 'waitingNotifications'>): void {
-  while (ui.notifications.length < MAX_NOTIFICATIONS && ui.waitingNotifications.length > 0) {
-    ui.notifications.push(ui.waitingNotifications.shift()!);
-  }
-}
+export { MAX_NOTIFICATIONS };
 
 // Module-scope teller voor stabiele, deterministische id's. BEWUST géén Date.now()/Math.random():
 // de headless planning-suite (tests/planning) moet op de meldingen-volgorde kunnen asserteren.
@@ -397,6 +391,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           if (n.refusal !== undefined) existing.refusal = n.refusal;
           existing.detailKey = n.detailKey;
           existing.detailParams = n.detailParams;
+          // Ook bij samenvouwen: is er ruimte, dan verschijnen de wachtende keuzes (review #860 ronde 2).
+          showWaitingNotifications(s.ui);
           return;
         }
       }
@@ -444,11 +440,9 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   dismissNotification: (id) =>
     set((s) => {
-      const idx = s.ui.notifications.findIndex((x) => x.id === id);
-      if (idx >= 0) s.ui.notifications.splice(idx, 1);
       const waiting = s.ui.waitingNotifications.findIndex((x) => x.id === id);
       if (waiting >= 0) s.ui.waitingNotifications.splice(waiting, 1);
-      showWaitingNotifications(s.ui);
+      removeNotifications(s.ui, (x) => x.id === id);
     }),
 
   openHelpArticle: (articleId) =>

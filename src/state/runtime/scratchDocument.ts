@@ -67,7 +67,8 @@ export interface ScratchRunResult<T> {
 /** Lees en leeg `ui.notifications` van de scratch-context, in `NotifyInput`-vorm (rand (b) hierboven:
  *  niemand rendert dit kanaal, dus de inhoud gaat terug naar de aanroeper in plaats van te verdwijnen). */
 function harvestNotifications(store: AppStore): NotifyInput[] {
-  const raw = store.getState().ui.notifications;
+  // Ook de wachtende keuzes (`holdUntilRoom`): die horen net zo goed bij de scratch-run.
+  const raw = [...store.getState().ui.notifications, ...store.getState().ui.waitingNotifications];
   const out: NotifyInput[] = raw.map((n) => ({
     severity: n.severity,
     messageKey: n.messageKey,
@@ -78,7 +79,7 @@ function harvestNotifications(store: AppStore): NotifyInput[] {
     helpArticleId: n.helpArticleId,
     ...(n.refusal ? { refusal: true } : {}),
   }));
-  if (raw.length > 0) store.setState((s) => { s.ui.notifications = []; });
+  if (raw.length > 0) store.setState((s) => { s.ui.notifications = []; s.ui.waitingNotifications = []; });
   return out;
 }
 

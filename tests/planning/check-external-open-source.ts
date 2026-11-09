@@ -16,6 +16,9 @@
 // 6. Gesloten, opgeslagen of een ander actief document ⇒ niets, met een melding.
 // 7. `externalSourceFromOpenDocument` per soort bron: met pad het pad van de koppeling, op de site het site-id,
 //    zonder pad geen pad; nooit een versie.
+// 8. Review #860: na de knop is de gelezen opgeslagen versie afgehandeld (4i); *Bronbestanden kiezen…* geeft dezelfde
+//    melding (9); een keuze blijft bewaard als de stapel vol is (10); een lopende controle publiceert geen balk voor
+//    een versie die intussen afgehandeld is, ook op de site (11, 12); wissen en samenvouwen vullen de stapel aan (13).
 import { createAppStoreContext } from '@/state/appStore';
 import { externalVersionOnlyChanges } from '@/engine/externalRefreshPreview';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -27,6 +30,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { capturePayload, type DocumentPayload } from '@/state/documentContract';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { NotificationAction } from '@/state/slices/types';
+import { refusalNotice } from '@/state/refusalNotice';
 import type { ExternalLink, Task } from '@/types/task';
 
 let checks = 0;
@@ -370,6 +374,116 @@ const editSource = (s: App) => {
     .filter(n => n.action?.kind === 'refreshFromOpenDocument').map(n => n.params?.file).sort();
   eq('10f vier geopende, gewijzigde bronnen ⇒ vier keuzes bewaard', files(), ['Bron2.ifc', 'Bron3.ifc', 'Bron4.ifc', 'Installateur.ifc']);
   void extra;
+}
+
+// (11) Review #860 ronde 2: een broncontrole die al loopt (de lezing wacht op het bestand), overlapt met vernieuwen
+// en de knop. De knop handelt de opgeslagen versie af; de controle mag die versie daarna niet als balk publiceren.
+const choose = async (S: App['S']) => {
+  const n = S().ui.notifications.find(x => x.action?.kind === 'refreshFromOpenDocument');
+  const action = n?.action;
+  if (!n || action?.kind !== 'refreshFromOpenDocument') return null;
+  S().dismissNotification(n.id);
+  const { kind: _k, labelKey: _l, ...request } = action;
+  void _k; void _l;
+  await S().refreshExternalAnchorsFromOpenDocument(request);
+  return request;
+};
+/** Laat de eerste lezing via `name` wachten tot `release()`; `started` belooft dat ze begonnen is. */
+const gateFirstRead = <F extends (...args: never[]) => Promise<unknown>>(read: F) => {
+  let first = true;
+  let release!: () => void;
+  let started!: () => void;
+  const hasStarted = new Promise<void>(r => { started = r; });
+  const gate = new Promise<void>(r => { release = r; });
+  const wrapped = (async (...args: Parameters<F>) => {
+    const out = await read(...args);
+    if (first) { first = false; started(); await gate; }
+    return out;
+  }) as unknown as F;
+  return { wrapped, hasStarted, release: () => release() };
+};
+{
+  const s = await app();
+  const { S, store, a } = s;
+  editSource(s);
+  s.disk.version = 'v2';
+  const gated = gateFirstRead(S().parseExternalSource);
+  store.setState({ parseExternalSource: gated.wrapped });
+  const checking = S().checkExternalSources();
+  await gated.hasStarted;
+  await S().refreshAllExternalAnchors();
+  const request = await choose(S);
+  eq('11a de knop is gebruikt: het anker uit het geopende document', [request?.savedVersion, linkOf(S, a).anchorDate], ['v2', '2027-03-10T16:00']);
+  gated.release();
+  await checking;
+  eq('11b de lopende controle publiceert geen balk voor de afgehandelde versie', S().ui.externalSourceUpdates.length, 0);
+  await S().checkExternalSources();
+  eq('11c ook een volgende controle niet; het anker blijft', [S().ui.externalSourceUpdates.length, linkOf(S, a).anchorDate], [0, '2027-03-10T16:00']);
+  s.disk.version = 'v3';
+  await S().checkExternalSources();
+  eq('11d een volgende opgeslagen versie geeft wel weer een balk', S().ui.externalSourceUpdates.map(u => u.version), ['v3']);
+}
+
+// (12) Hetzelfde op de site: de bron is een document van de site en de koppeling draagt het site-id.
+{
+  const s = await app('project');
+  const { S, store, a } = s;
+  S().switchDocument(s.sourceDocumentId);
+  store.setState({ siteFileId: 'site-bron', siteFileVersion: 'v1' });
+  S().switchDocument(s.targetDocumentId);
+  const task = S().tasks.find(t => t.id === a)!;
+  S().updateTask(a, { externalLinks: task.externalLinks!.map(l => ({ ...l, sourceRef: { ...l.sourceRef, siteFileId: 'site-bron' } })) });
+  const diskRead = S().parseExternalSource;
+  const siteRead = async (id: string) => {
+    const read = await diskRead(PATH);
+    const { filePath: _path, ...rest } = read!;
+    void _path;
+    return { ...rest, siteFileId: id };
+  };
+  store.setState({ parseExternalSiteSource: siteRead, externalSiteSourceVersion: async () => ({ version: s.disk.version }) });
+  editSource(s);
+  s.disk.version = 'v2';
+  await S().refreshAllExternalAnchors();
+  const plain = await choose(S);
+  await S().checkExternalSources();
+  eq('12a op de site, gewone route: de knop, daarna geen balk', [plain?.locator, plain?.savedVersion, S().ui.externalSourceUpdates.length],
+    [{ kind: 'site', siteFileId: 'site-bron' }, 'v2', 0]);
+  s.disk.version = 'v3';
+  const gated = gateFirstRead(siteRead);
+  store.setState({ parseExternalSiteSource: gated.wrapped });
+  const checking = S().checkExternalSources();
+  await gated.hasStarted;
+  await S().refreshAllExternalAnchors();
+  const request = await choose(S);
+  gated.release();
+  await checking;
+  eq('12b op de site, met een lopende controle: geen balk voor de afgehandelde versie', [request?.savedVersion, S().ui.externalSourceUpdates.length], ['v3', 0]);
+  await S().checkExternalSources();
+  eq('12c ook een volgende controle niet', S().ui.externalSourceUpdates.length, 0);
+}
+
+// (13) Review #860 ronde 2, VERVOLG: wissen en aanvullen via één helper. Drie weigeringen vullen de stapel; de keuze
+// wacht. Een documentwissel wist de weigeringen ⇒ de keuze verschijnt meteen. En bij samenvouwen (nog eens
+// vernieuwen) vult de stapel zich ook aan.
+{
+  const s = await app();
+  const { S } = s;
+  editSource(s);
+  for (const n of S().ui.notifications) S().dismissNotification(n.id);
+  for (const key of ['w1', 'w2', 'w3']) S().notify(refusalNotice({ messageKey: 'notifications.relationDuplicate', dedupeKey: key }));
+  await S().refreshAllExternalAnchors();
+  const choices = () => S().ui.notifications.filter(n => n.action?.kind === 'refreshFromOpenDocument').length;
+  eq('13a de stapel is vol met weigeringen ⇒ de keuze wacht', [choices(), S().ui.waitingNotifications.length], [0, 1]);
+  S().switchDocument(s.sourceDocumentId);
+  eq('13b de documentwissel wist de weigeringen ⇒ de keuze verschijnt', [choices(), S().ui.waitingNotifications.length], [1, 0]);
+  S().switchDocument(s.targetDocumentId);
+  // Opzet: een lege stapel met een wachtende keuze (zoals na rechtstreeks wissen vóór deze ronde).
+  {
+    const n = [...S().ui.notifications, ...S().ui.waitingNotifications].find(x => x.action?.kind === 'refreshFromOpenDocument');
+    s.store.setState(st => { st.ui.notifications = []; st.ui.waitingNotifications = n ? [n] : []; });
+  }
+  await S().refreshAllExternalAnchors();
+  eq('13c samenvouwen bij nog eens vernieuwen ⇒ de wachtende keuze verschijnt', [choices(), S().ui.waitingNotifications.length], [1, 0]);
 }
 
 if (failures.length > 0) {

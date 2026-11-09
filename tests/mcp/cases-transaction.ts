@@ -399,4 +399,54 @@ test('succes en rollback breken B-coalescing maar laten A-coalescing doorlopen',
     'B-rollback mag de lopende A-coalescereeks evenmin breken');
 });
 
+// Review #860 ronde 2: een melding kan tijdens een MCP-transactie tussen `ui.notifications` en de wachtrij van keuzes
+// (`ui.waitingNotifications`, `holdUntilRoom`) verhuizen. De terugrol herstelt beide lijsten samen: geen keuze dubbel,
+// geen keuze weg.
+{
+  const lists = (context: AppStoreContext) => ({
+    shown: context.store.getState().ui.notifications.map(n => n.id),
+    waiting: context.store.getState().ui.waitingNotifications.map(n => n.id),
+  });
+  const failingCycle = (context: AppStoreContext) => {
+    const S = () => context.store.getState();
+    const a = S().addTask({ name: 'kring-A' });
+    const b = S().addTask({ name: 'kring-B' });
+    S().runCPM();
+    return () => {
+      const tx = createMcpTransactions(context);
+      return tx.run(() => {
+        tx.draft.addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+        tx.draft.addSequence({ predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+      });
+    };
+  };
+  const choice = (context: AppStoreContext, file: string) => context.store.getState().notify({
+    severity: 'info', messageKey: 'notifications.externalOpenSourceUnsaved', params: { file },
+    sticky: true, holdUntilRoom: true, dedupeKey: `keuze-${file}`, replaceOnDedupe: true,
+  });
+
+  test('MCP-terugrol: drie zichtbare keuzes en één wachtende ⇒ na de mislukte transactie precies dezelfde lijsten', () => {
+    const ctx = createAppStoreContext();
+    const fail = failingCycle(ctx);
+    for (const file of ['Bron1.ifc', 'Bron2.ifc', 'Bron3.ifc', 'Bron4.ifc']) choice(ctx, file);
+    const before = lists(ctx);
+    assertEq(before.waiting.length, 1, 'voorwaarde: één keuze wacht');
+    const res = fail();
+    assert(!res.ok, 'voorwaarde: de transactie faalt op de kring');
+    assertEq(lists(ctx), before, 'zichtbaar en wachtend zoals vóór de transactie, geen keuze dubbel');
+  });
+
+  test('MCP-terugrol: een wachtende keuze bij een lege stapel blijft bestaan', () => {
+    const ctx = createAppStoreContext();
+    const fail = failingCycle(ctx);
+    for (const file of ['Bron1.ifc', 'Bron2.ifc', 'Bron3.ifc', 'Bron4.ifc']) choice(ctx, file);
+    // Opzet: de stapel is leeg en één keuze wacht (zoals na rechtstreeks wissen vóór review #860 ronde 2).
+    ctx.store.setState((s) => { s.ui.notifications = []; });
+    const before = lists(ctx);
+    const res = fail();
+    assert(!res.ok, 'voorwaarde: de transactie faalt op de kring');
+    assertEq(lists(ctx), before, 'de wachtende keuze is na de terugrol niet weg');
+  });
+}
+
 await run();

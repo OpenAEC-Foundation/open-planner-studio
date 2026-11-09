@@ -860,6 +860,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         changedLinks,
       });
     }
+    // Vlak vóór het publiceren (review #860 ronde 2): een versie die tijdens deze controle afgehandeld werd (de
+    // knop *Rekenen met het geopende document* of *Later*) krijgt geen balk meer.
+    // De lezing hierboven wacht op het bestand of de site; intussen kan de planner gekozen hebben.
+    for (const [key, update] of found) {
+      if (settledSourceVersions.get(sourceKey(documentId, key)) !== update.version) continue;
+      found.delete(key);
+      settled.add(key);
+    }
     const current = get().ui.externalSourceUpdates;
     const next = [
       ...current.filter(u => u.documentId !== documentId
