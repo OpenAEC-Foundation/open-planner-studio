@@ -72,7 +72,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 8 (v8) | 9 | 9 | 9 |
 | 9 (v10) | 7 | 8 | — (Ethan: voorlopig zonder Fable) |
 | 10 (v11) | 8 | 8 | — |
-| 11 (v12) | … | … | — |
+| 11 (v12) | 8 | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -85,6 +85,21 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 11 (v12) — Opus 8, Sol loopt
+
+Opus 8 (proef `scratchpad/r11/opus/v12-proef.mjs`, nabouw `graph.rs` + IFC5 `Validate`). Fase 0–2 ja. Blokkeert fase 3:
+(B1) baseline-uitzondering gooit eigen taken weg (eigen baseline verwijst naar levende taken, `src/types/baseline.ts:2-5`,
+`ifcWriter.ts:951-955`) → schrappen: elke activity is een taak. (B2) import `ifc@v5a` in eigen document → `MISSING_IMPORT`
+(kernschema heet bij ifcx-explorer `"id": "ifc"`, IFCCAD eigen URN) → app schrijft geen class en geen import; class altijd
+vreemd; test laadt eigen uitvoer met nabouw ifcx-explorer. Vervolg: (B3) lege entry voor elk verwijderd pad dat nog als
+JSON-tekst in de uitvoer staat (ook `Reference`-velden, `openaec::links`, eigen baseline na `removeTaskSubtrees`,
+`taskTree.ts:186-200`); (B4) gedeelde schema's per naam toevoegen (`Missing schema openaec::planning::workplan`);
+(B5) `openaec::ops::task` alleen als domein afwijkt van importcontract; (B6) tekst: class-zinnen, `recordedTimesOrigin`
+per document, weigering alleen op domeinpaden, leesregel bij automatisch geplande taak, schrijfregel oude naam,
+`openaec::ops::`-schemanaam per hoofdversie (`SCHEMA_CONFLICT`), `CHECKSUM_MISMATCH` (`package.rs:100`) bij Grens.
+Eruit: class/import, baseline-uitzondering, aparte children/inherits-regel, controle 3 (volgt uit controle 1), waarden na
+openen alleen voor afwezige velden.
 
 ### Ronde 10 (v11) — Opus 8, Sol 8 — verwerkt in v12
 
