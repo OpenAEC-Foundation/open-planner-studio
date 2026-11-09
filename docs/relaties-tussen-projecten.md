@@ -194,12 +194,16 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
   to explicitly update the deliverable dates." Een rood uitroepteken toont de wijziging; *Accept Change from Server*
   neemt haar over. GEZIEN (zelf nagelezen):
   [Microsoft Project blog (archief, 2007), Managing cross project dependencies with deliverables](https://learn.microsoft.com/en-us/archive/blogs/project/managing-cross-project-dependencies-with-deliverables).
-  Dit is de enige functie die ik vond waarin de andere kant iets merkt, en dan pas bij het openen.
+  De leveringen staan in een SharePoint-lijst. Daarop kan een gebruiker zelf alerts en RSS-feeds instellen: "Users can
+  easily setup alerts, create RSS feeds". GEZIEN (zelf nagelezen, 9 november 2026), zelfde bron. Een afnemer kan zo
+  een bericht krijgen over een gewijzigde levering, zonder zijn plan te openen. Een automatische melding van een
+  conflict is dat niet. Dit is de enige functie die ik vond waarin de andere kant iets merkt.
 - **Project Online stopt.** "Microsoft Project Online will retire on September 30, 2026." VERMOED: gezien in een kopie
   van het Microsoft 365 Message Center ([MC1478955](https://mc.merill.net/message/MC1478955)), niet bij Microsoft zelf.
 - **Project for the web / Planner.** Geen afhankelijkheden tussen plannen. VERMOED: een forumantwoord, niet van
   Microsoft ([Tech Community](https://techcommunity.microsoft.com/discussions/project/project-for-the-web----how-to-link-tasks-between-different-projects-/4385836)).
-- **Een melding aan de andere planner** (e-mail, waarschuwing) bij een verschuiving: niet gevonden.
+- **Een automatische melding aan de andere planner** (e-mail, waarschuwing) bij een conflict of een verschuiving,
+  buiten de SharePoint-alerts van Project Server hierboven: niet gevonden.
 
 ### 4.2 Primavera P6
 
@@ -247,8 +251,8 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
 |---|---|---|---|---|
 | bron verandert → eigen plan weet het | bij openen, dialoog *Links Between Projects* | bij openen, rood uitroepteken | live als beide open zijn; anders opgeslagen externe datums | alleen na *Bron vernieuwen* (desktop) |
 | zien wat er in het eigen plan verschuift vóór accepteren | niet vastgesteld (de help noemt "effects on your schedule") | niet gevonden | n.v.t. (rekent direct) | nee |
-| bron ziet wie ervan afhangt | VERMOED: spooktaak als de bron de link kent | de leverancier ziet de afhankelijkheden | ja, rapport *Cross Project Relationships* | nee |
-| melding aan de andere planner | niet gevonden | niet gevonden (alleen bij openen) | niet gevonden | nee |
+| bron ziet wie ervan afhangt | VERMOED: spooktaak als de bron de link kent | niet vastgesteld (de bron toont alleen de afnemer die een gewijzigde levering ziet) | ja, rapport *Cross Project Relationships* | nee |
+| melding aan de andere planner | niet gevonden | bij openen een rood uitroepteken; een SharePoint-alert op de lijst met leveringen is in te stellen; een conflictmelding: niet gevonden | niet gevonden | nee |
 | werkt zonder server | ja | nee | nee (database) | ja |
 | werkt in de browser | nee | deels (PWA) | EPPM web | alleen handmatig |
 
@@ -297,7 +301,7 @@ Elk punt met een voorbeeld. *Aannemer.ifc* hangt af van *Installateur.ifc*: de r
    dan ziet hij vóór het opslaan: "Na opslaan moet *Installatie* al starten 5 werkdagen vóórdat de ruwbouw van Aannemer
    klaar is." Na het opslaan krijgt de planner van de aannemer een melding met een link. De aannemer ziet na F5 ook zelf een
    regel: "De externe opvolger *Installatie* (Installateur) begint 5 werkdagen voordat deze taak klaar is" (voorstel 2
-   uit #792, knownbug 6). Geen enkel product in hoofdstuk 4 meldt actief aan de andere kant.
+   uit #792, knownbug 6). Geen enkel product in hoofdstuk 4 meldt een conflict actief aan de andere kant.
 5. **De herkomst van elk anker.** De tooltip zegt: "Anker uit versie 12 van Installateur.ifc, gelezen op 2 november
    14:10". Zonder cloud: de wijzigingstijd van het bestand. Zo is achteraf te zien waarop een plan rekende.
 6. **Doorklikken.** Rechtsklik op de koppeling: *Bronproject openen bij deze taak*. In de SuperCloud opent de host
@@ -533,14 +537,16 @@ Wat in de bouw anders liep dan hierboven staat:
   wordt ververst; dat geldt ook voor *Alle externe relaties vernieuwen* in de app. Een koppeling die de planner tijdens
   het lezen naar een ander bronbestand zet, houdt haar nieuwe pad en anker.
 - **1.11.** Het zoekresultaat staat in het eigenschappenpaneel van de taak, onder *Afhankelijkheden*. Alleen de
-  desktop-app zet de map in het IFC-bestand, als `OPS_ProjectSettings/DependentProjectsFolder` (het absolute pad).
-  Chromium onthoudt het maphandvat alleen lokaal, in IndexedDB per project-id, en zoekt bij openen alleen vanzelf als de
-  toestemming al gegeven is (VERVOLG, `knownbugs.md` punt 977). Andere browsers onthouden niets. Een bestand dat in de
-  browser is opgeslagen, neemt de map dus niet mee naar een andere computer. De vraag vóór opslaan rekent op een kopie
-  van het bestand zoals het opgeslagen wordt, net als het afhankelijke project; het geopende document rekent niet.
-  Mislukt die controle, dan valt ze nog stil terug op de huidige datums (VERVOLG, `knownbugs.md` punt 995). Met gevonden
-  koppelingen kost elke opslag met de hand extra tijd, geschat 2 s bij 10.000 taken (VERVOLG, punt 996). Submappen, de
-  MCP-kant en een melding aan de andere planner zijn er nog niet (punten 975, 976 en 979).
+  desktop-app schrijft een gekozen map in het IFC-bestand, als `OPS_ProjectSettings/DependentProjectsFolder` (het
+  absolute pad). Een map die de planner in Chromium kiest, onthoudt OPS alleen lokaal, als handvat in IndexedDB per
+  project-id; bij openen zoekt OPS daar alleen vanzelf als de toestemming al gegeven is (VERVOLG, `knownbugs.md` punt
+  977). Andere browsers onthouden niets. Een in de browser gekozen map reist dus niet mee met het bestand. Een
+  desktoppad dat al in het bestand staat, blijft bij opslaan in de browser wel in het IFC staan; de browser zoekt er
+  niet mee. De vraag vóór opslaan rekent op een kopie van het bestand zoals het opgeslagen wordt, net als het
+  afhankelijke project; het geopende document rekent niet. Mislukt die controle, dan valt ze nog stil terug op de
+  huidige datums (VERVOLG, `knownbugs.md` punt 995). Met gevonden koppelingen kost elke opslag met de hand extra tijd,
+  geschat 2 s bij 10.000 taken (VERVOLG, punt 996). Submappen, de MCP-kant en een melding aan de andere planner zijn er
+  nog niet (punten 975, 976 en 979).
 
 ## 10. Keuzes voor Ethan (alle besloten)
 
@@ -571,7 +577,8 @@ Voorbeeld: de aannemer opent zijn planning. De installateur sloeg gisteren een n
 
 Advies: optie 1 als standaard, met optie 2 als instelling per project. Een plan verschuift dan nooit zonder dat de
 planner het ziet, en wie dat wil, kan het automatisch laten gaan. MS Project kent dezelfde twee standen
-("Automatically accept new external data"), maar zonder de gevolgen te tonen.
+("Automatically accept new external data"); of MS Project daarbij de gevolgen in het eigen plan toont, is niet
+vastgesteld (4.1).
 
 **Besluit (3 november 2026, Ethan):** "Advies". Er verschijnt een balk met de versie, wie hem opsloeg en hoeveel
 koppelingen veranderen. *Bekijken* toont de gevolgen. De planner kiest *Accepteren* of *Later*. Er wordt niets
