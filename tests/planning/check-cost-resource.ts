@@ -31,6 +31,8 @@ import { computeHistogramReport, computeResourceLoad } from '@/engine/scheduler/
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { contouredAssignmentIds } from '@/engine/contour/curveState';
 import { contourSiblings, costResourceIds } from '@/types/resource';
+import { toExtAssignment, toExtCalendar, toExtProject, toExtResource, toExtSequence, toExtTask } from '@/extensions/extMappers';
+import { loadExtensionProject } from '@/extensions/retainActiveDocument';
 import { legacyCpmOptions } from './legacySolveOptions';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { serializeRecoverySnapshot } from '@/services/recovery/recoverySnapshotInput';
@@ -769,6 +771,31 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
   eq('N4 kopie van een oud COST-poolitem: geen werkvelden en geen meereizende kalender',
     [copied.resource.maxUnits, copied.resource.calendarId ?? null, copied.resource.availabilitySteps ?? null,
       copied.resource.costPerHour ?? null, copied.travelingCalendar ?? null], [1, null, null, null, null]);
+}
+
+// ── O. Extensie `data.loadProject`: een toewijzing moet passen bij het type van haar resource (review 5) ──
+// Een snapshot waarin alleen het type is gewisseld, wordt geweigerd met een fout, vóór er iets laadt.
+{
+  for (const sourceType of ['COST', 'LABOR'] as const) {
+    const { store, S, t1, cost, labor } = fixture();
+    const r = sourceType === 'COST' ? cost : labor;
+    if (sourceType === 'COST') S().assignResource(t1, cost, 1, undefined, 1250.55);
+    else S().setAssignmentWork(costOf(S, t1, labor)!.id, 480);
+    const s = S();
+    const ext = {
+      project: toExtProject(s.project), calendar: toExtCalendar(s.calendar), tasks: s.tasks.map(x => toExtTask(x)),
+      sequences: s.sequences.map(toExtSequence), resources: s.resources.map(toExtResource), assignments: s.assignments.map(toExtAssignment),
+    };
+    loadExtensionProject(store, ext);
+    eq(`O1 ${sourceType}: een passende snapshot laadt`, S().resources.find(x => x.id === r)?.type, sourceType);
+    const bad = structuredClone(ext);
+    bad.resources.find(x => x.id === r)!.type = sourceType === 'COST' ? 'LABOR' : 'COST';
+    const before = JSON.stringify({ resources: S().resources, assignments: S().assignments });
+    let refused = false;
+    try { loadExtensionProject(store, bad); } catch { refused = true; }
+    eq(`O2 ${sourceType}: alleen het type gewisseld wordt geweigerd`, refused, true);
+    eq(`O3 ${sourceType}: er is niets geladen`, JSON.stringify({ resources: S().resources, assignments: S().assignments }), before);
+  }
 }
 
 if (diffs.length === 0) {

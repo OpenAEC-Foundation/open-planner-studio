@@ -133,6 +133,9 @@ zonder extra permissie, geen schrijfmethode. Extensies die haar gebruiken declar
 `1.6.0` — kostenresource (#815): `ExtResource.type` kan `COST` zijn (een vast bedrag per toewijzing, geen
 tarief, capaciteit of kalender) en `ExtAssignment.costAmount` draagt dat begrote bedrag. Een extensie die
 op `COST` of `costAmount` rekent, declareert `apiVersion: "1.6"`.
+`loadProject(result)` weigert met een fout, vóór er iets laadt, een toewijzing die niet bij het type van
+haar resource past: `costAmount` op een werk- of materiaalresource, of inzet ≠ 1, een curve of werk op een
+kostenresource.
 
 > **Migratie (audit P16):**
 > - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Een nieuwe installatie met een manifest dat haar (of een andere onbekende waarde) noemt, wordt geweigerd. Alleen al opgeslagen legacy-installaties blijven werken: daar worden onbekende permissies weggefilterd met een waarschuwing.
