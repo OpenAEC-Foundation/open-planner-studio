@@ -663,7 +663,7 @@
     "reviewReading": "Leser kilden…",
     "reviewReadFailed": "Kilden kunne ikke leses. Planen forblir uendret.",
     "reviewNoChanges": "Ingen koblinger endres lenger. Planen forblir uendret.",
-    "reviewVersionOnly": "Et anker som forblir det samme, kom ikke fra en lagret versjon. Godkjenn registrerer denne versjonen som opphav.",
+    "reviewVersionOnly": "Et anker som forblir det samme, har ennå ingen registrert kildeversjon. Godkjenn registrerer denne versjonen som opphav.",
     "reviewLinksTitle": "Koblinger",
     "reviewColTask": "Aktivitet",
     "reviewColExternal": "Ekstern aktivitet",

@@ -43,9 +43,9 @@ export function externalAnchorChanges(before: readonly Task[], after: readonly T
 
 /**
  * De koppelingen waarvan alleen de herkomst een echte versie krijgt: het anker en de status *brontaak ontbreekt*
- * blijven gelijk, maar het anker kwam niet uit een opgeslagen versie (wel een leestijd, geen `sourceVersion`) en
+ * blijven gelijk, maar het anker heeft nog geen vastgelegde bronversie (wel een leestijd, geen `sourceVersion`) en
  * na verversen wel. Zo'n anker komt uit een geopend document met niet-opgeslagen wijzigingen (stap 1.7, keuze 5)
- * of uit een lezing zonder versie. Is de bron daarna opgeslagen, dan meldt de balk die versie (stap 1.5), en
+ * of uit een lezing zonder versie (die wel een opgeslagen bestand kan zijn geweest). Is de bron daarna opgeslagen, dan meldt de balk die versie (stap 1.5), en
  * *Accepteren* zet haar als herkomst (keuze 4). Een oudere koppeling zonder leestijd telt niet: daar wist de app
  * nooit waar het anker vandaan kwam.
  */

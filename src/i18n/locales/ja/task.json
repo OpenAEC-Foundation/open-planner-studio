@@ -655,7 +655,7 @@
     "reviewReading": "ソースを読み込んでいます…",
     "reviewReadFailed": "ソースを読み込めませんでした。スケジュールは変わりません。",
     "reviewNoChanges": "変更されるリンクはなくなりました。スケジュールは変わりません。",
-    "reviewVersionOnly": "変わらないアンカーは、保存済みのバージョンから取得されたものではありません。承認すると、このバージョンが出所として記録されます。",
+    "reviewVersionOnly": "変わらないアンカーには、まだ記録されたソースのバージョンがありません。承認すると、このバージョンが出所として記録されます。",
     "reviewLinksTitle": "リンク",
     "reviewColTask": "タスク",
     "reviewColExternal": "外部タスク",

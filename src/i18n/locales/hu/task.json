@@ -663,7 +663,7 @@
     "reviewReading": "A forrás beolvasása…",
     "reviewReadFailed": "A forrás nem olvasható be. Az ütemterv változatlan marad.",
     "reviewNoChanges": "Már egyetlen kapcsolat sem változik. Az ütemterv változatlan marad.",
-    "reviewVersionOnly": "Egy változatlan horgony nem mentett verzióból származott. Az Elfogadás ezt a verziót rögzíti eredetként.",
+    "reviewVersionOnly": "Egy változatlan horgonynak még nincs rögzített forrásverziója. Az Elfogadás ezt a verziót rögzíti eredetként.",
     "reviewLinksTitle": "Kapcsolatok",
     "reviewColTask": "Tevékenység",
     "reviewColExternal": "Projektközi tevékenység",

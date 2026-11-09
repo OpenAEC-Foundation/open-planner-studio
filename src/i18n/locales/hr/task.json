@@ -671,7 +671,7 @@
     "reviewReading": "Učitavanje izvora…",
     "reviewReadFailed": "Izvor se nije mogao učitati. Plan ostaje nepromijenjen.",
     "reviewNoChanges": "Nijedna se međuzavisnost više ne mijenja. Plan ostaje nepromijenjen.",
-    "reviewVersionOnly": "Referentni datum koji ostaje isti nije potekao iz spremljene verzije. Prihvati bilježi ovu verziju kao njegovo podrijetlo.",
+    "reviewVersionOnly": "Referentni datum koji ostaje isti još nema zabilježenu verziju izvora. Prihvati bilježi ovu verziju kao njegovo podrijetlo.",
     "reviewLinksTitle": "Međuzavisnosti",
     "reviewColTask": "Zadatak",
     "reviewColExternal": "Zadatak u drugom projektu",

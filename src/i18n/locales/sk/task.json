@@ -679,7 +679,7 @@
     "reviewReading": "Načítava sa zdroj…",
     "reviewReadFailed": "Zdroj sa nepodarilo načítať. Plán zostáva bez zmeny.",
     "reviewNoChanges": "Žiadne prepojenie sa už nemení. Plán zostáva bez zmeny.",
-    "reviewVersionOnly": "Kotva, ktorá zostáva rovnaká, nepochádzala z uloženej verzie. Prijať zaznamená túto verziu ako jej pôvod.",
+    "reviewVersionOnly": "Kotva, ktorá zostáva rovnaká, zatiaľ nemá zaznamenanú verziu zdroja. Prijať zaznamená túto verziu ako jej pôvod.",
     "reviewLinksTitle": "Prepojenia",
     "reviewColTask": "Úloha",
     "reviewColExternal": "Úloha v inom projekte",

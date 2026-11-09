@@ -671,7 +671,7 @@
     "reviewReading": "Se citește sursa…",
     "reviewReadFailed": "Sursa nu a putut fi citită. Planificarea rămâne neschimbată.",
     "reviewNoChanges": "Nu se mai modifică nicio legătură. Planificarea rămâne neschimbată.",
-    "reviewVersionOnly": "O ancoră care rămâne la fel nu provenea dintr-o versiune salvată. Acceptă înregistrează această versiune ca proveniență.",
+    "reviewVersionOnly": "O ancoră care rămâne la fel nu are încă o versiune a sursei înregistrată. Acceptă înregistrează această versiune ca proveniență.",
     "reviewLinksTitle": "Legături",
     "reviewColTask": "Activitate",
     "reviewColExternal": "Activitate externă",

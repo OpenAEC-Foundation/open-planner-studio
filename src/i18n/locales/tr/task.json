@@ -663,7 +663,7 @@
     "reviewReading": "Kaynak okunuyor…",
     "reviewReadFailed": "Kaynak okunamadı. Plan olduğu gibi kalır.",
     "reviewNoChanges": "Artık değişen bağlantı yok. Plan olduğu gibi kalır.",
-    "reviewVersionOnly": "Aynı kalan bir bağlantı noktası kaydedilmiş bir sürümden gelmedi. Kabul et, bu sürümü kaynağı olarak kaydeder.",
+    "reviewVersionOnly": "Aynı kalan bir bağlantı noktasının henüz kaydedilmiş bir kaynak sürümü yok. Kabul et, bu sürümü kaynağı olarak kaydeder.",
     "reviewLinksTitle": "Bağlantılar",
     "reviewColTask": "Görev",
     "reviewColExternal": "Dış görev",

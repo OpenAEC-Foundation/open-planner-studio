@@ -671,7 +671,7 @@
     "reviewReading": "A ler a origem…",
     "reviewReadFailed": "Não foi possível ler a origem. O planeamento mantém-se.",
     "reviewNoChanges": "Já não muda nenhuma ligação. O planeamento mantém-se.",
-    "reviewVersionOnly": "Uma ancoragem que se mantém não veio de uma versão guardada. Aceitar regista esta versão como proveniência.",
+    "reviewVersionOnly": "Uma ancoragem que se mantém ainda não tem uma versão de origem registada. Aceitar regista esta versão como proveniência.",
     "reviewLinksTitle": "Ligações",
     "reviewColTask": "Tarefa",
     "reviewColExternal": "Tarefa externa",

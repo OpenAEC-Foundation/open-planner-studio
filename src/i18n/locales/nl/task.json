@@ -664,7 +664,7 @@
     "reviewReading": "De bron wordt gelezen…",
     "reviewReadFailed": "De bron kon niet worden gelezen. Het plan blijft zoals het is.",
     "reviewNoChanges": "Geen koppeling verandert meer. Het plan blijft zoals het is.",
-    "reviewVersionOnly": "Een anker dat gelijk blijft, kwam niet uit een opgeslagen versie. Accepteren legt deze versie vast als herkomst.",
+    "reviewVersionOnly": "Een anker dat gelijk blijft, heeft nog geen vastgelegde bronversie. Accepteren legt deze versie vast als herkomst.",
     "reviewLinksTitle": "Koppelingen",
     "reviewColTask": "Taak",
     "reviewColExternal": "Externe taak",

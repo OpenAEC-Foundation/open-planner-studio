@@ -671,7 +671,7 @@
     "reviewReading": "Leyendo el origen…",
     "reviewReadFailed": "No se pudo leer el origen. La planificación no cambia.",
     "reviewNoChanges": "Ya no cambia ningún enlace. La planificación no cambia.",
-    "reviewVersionOnly": "Un anclaje que no cambia no procedía de una versión guardada. Aceptar registra esta versión como procedencia.",
+    "reviewVersionOnly": "Un anclaje que no cambia aún no tiene una versión de origen registrada. Aceptar registra esta versión como procedencia.",
     "reviewLinksTitle": "Enlaces",
     "reviewColTask": "Tarea",
     "reviewColExternal": "Tarea externa",

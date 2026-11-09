@@ -538,10 +538,12 @@ en noem het in je rapport of PR-tekst.
      met de hand, ook als geen anker verandert. Voorstel: één IFC-tekst maken, die controleren en dezelfde tekst
      wegschrijven, met een controle dat de documentstand na de asynchrone stappen nog geldt. — B
 985. **VERVOLG: `planner_refresh_external_links` kent het geopende brondocument niet (stap 1.7).** De MCP-tool
-     ververst altijd uit het bestand en meldt niet dat de bron ook open staat met niet-opgeslagen wijzigingen. Headless
-     heeft geen tabbladen; in de app kan het wel (`unsavedOpenSources` in `src/state/openSourceDocument.ts`). Bewust
-     buiten stap 1.7 gelaten (opdracht). Voorstel: in de app het veld `unsavedOpenSources` in de uitslag van de tool,
-     zonder de optie om met het geopende document te rekenen. — S
+     ververst altijd uit het opgeslagen bestand, net als de standaardactie in de app; het anker is dus niet
+     tegenstrijdig. Wel mist MCP de waarschuwing dat de bron ook open staat met niet-opgeslagen wijzigingen, en de
+     keuze om met het geopende document te rekenen (`src/services/mcp/tools/externalLinkTools.ts`, review #860 ronde
+     1). Headless heeft geen tabbladen; in de app kan het wel (`unsavedOpenSources` in
+     `src/state/openSourceDocument.ts`). Bewust buiten stap 1.7 gelaten (opdracht). Voorstel: in de app een veld met
+     die bronnen in de uitslag van de tool, en eventueel een argument om met het geopende document te rekenen. — B
 986. **VERVOLG: een geopende bron die niet te lezen is, krijgt geen melding en geen knop.** `refreshAllExternalAnchors`
      en `refreshExternalAnchorsFrom` (`src/state/slices/fileSlice.ts`) melden een geopend brondocument met
      niet-opgeslagen wijzigingen alleen voor een bron die ze lazen: de melding zegt dat het anker uit de opgeslagen
