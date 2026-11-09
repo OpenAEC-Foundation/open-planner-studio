@@ -36,6 +36,20 @@ Example: the site project finishes on Friday 18 June 2027. You link *Groundwork*
 - Hover over the link to see where the anchor comes from. The line *Anchor origin* shows the modification time of the source file and when the app read the anchor, for example *source file of Nov 2, 2026 14:05, read on Nov 2, 2026 14:10*. So you can see afterwards which version of the other project your schedule used. If you fill in the anchor yourself, it has no origin and the line is missing.
 - If you change the type or direction so that the anchor needs another side of the external task (start instead of finish, or the other way round), the app asks for a new anchor with a manual link: *Choose a new anchor: the relationship type now uses the other side of the source task.* With a link that has a source file, the app reads the anchor again itself.
 
+## Who depends on your schedule
+
+An external relation is stored in the project that needs the date. If you plan the source project yourself, you do not see by itself who depends on your tasks. For that you find the dependent projects.
+
+1. Choose *Link ▾ › Find dependent projects…*.
+2. Choose the folder with the project files of the other parties, for example `Projects/Zuidas`. The app reads the IFC files directly in that folder read-only, without subfolders. In a browser without a folder picker (such as Firefox or Safari) you choose one or more files instead.
+3. The app reports the result, for example *Dependent projects: 2. Links to this project: 3.* Open documents count as well, with their unsaved changes. Your own file does not count.
+
+The app recognises a link by the Project id of this project, not by the file path. Select a task: in the properties panel, under *Dependencies*, there is the block *Dependent projects*. For each link you see the project and the task there, whether that task is your *Successor there* or *Predecessor there*, the type, and the date that project uses.
+
+The app remembers the folder with this project. In the desktop app the path is stored as a project setting in the IFC file, so save the project. In Chrome and Edge the browser remembers the folder. When you open the project later, the app searches again by itself, in the background and without a notification. In the browser that only happens if you gave the browser lasting access to the folder; otherwise you choose the folder again.
+
+**Warning before saving.** If you have searched for dependent projects and then choose *Save* or *Save as*, the app calculates the date of each link found again from your current schedule. If that date gets tighter for the other project, you first see the window *Anchors of other projects get tighter*, with the project, *Their task*, *Task here* and *Anchor: old → new* for each link. Tighter means: if your task is their predecessor, a later date; if your task is their successor, an earlier date. More room gives no warning. Choose *Save anyway* or *Cancel*. Automatic saving and crash recovery do not ask this. The other planner gets no message; they only see the new date when they refresh their external relations.
+
 ## Pitfalls and what the app does
 
 **The other project does not move along.** If the external task changes date, your schedule keeps calculating on the old anchor until you accept the new version, refresh the anchor or change it. With the manual route you change the anchor date yourself, by right-clicking the link and choosing *Edit external relationship…*.

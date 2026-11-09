@@ -76,7 +76,7 @@ export async function searchDependentProjectsManually(labels?: ImportLabels): Pr
     ? { severity: 'info', messageKey: 'notifications.dependentProjectsNone', dedupeKey: 'dependent-projects', replaceOnDedupe: true }
     : {
       severity: 'info', messageKey: 'notifications.dependentProjectsFound',
-      params: { count: summary.projects, links: summary.links },
+      params: { projects: summary.projects, links: summary.links },
       dedupeKey: 'dependent-projects', replaceOnDedupe: true,
     });
 }
