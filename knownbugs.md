@@ -2412,7 +2412,7 @@ en noem het in je rapport of PR-tekst.
      22.000 tekens over de lijn, ongeveer 11.000 als data. Voorstel: de tekst één keer per document, daarna alleen
      de vlag `datesAsRecorded: true`. Uit council-ronde 7 van #836 (Claude Opus 5.5, xhigh, BEVESTIGD). — B
 
-965. **VERVOLG: na een bereikte mijlpaal start de opvolger op de dag dat de voorganger pas eindigt.** Gezien in
+958. **VERVOLG: na een bereikte mijlpaal start de opvolger op de dag dat de voorganger pas eindigt.** Gezien in
      proef (h) van #836, met de echte dispatcher. Keten Ruwbouw → mijlpaal "Ruwbouw gereed" → Dak dicht, alle drie
      FS; statusdatum 14 april 2027. Ruwbouw kreeg `actualFinish: "2027-04-14"` en eindigt op 14 april 16:00. De
      mijlpaal kreeg `completion: 100` en `actualFinish: "2027-04-14"` (zonder tijd) en staat op 14 april 07:00.
