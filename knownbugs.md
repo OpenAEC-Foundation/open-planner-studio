@@ -1616,15 +1616,6 @@ en noem het in je rapport of PR-tekst.
      Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
      Gevonden in #804 fase 0. — B
 
-1007. **VERVOLG: de scanner weigert een `#id` boven 2147483647.** `readEntity` in
-     `src/services/ifc/foreign/stepScanner.ts:676` stopt bij `idValue > 0x7fffffff`; het statement valt dan terug op
-     `onbekend-statement` ("Onbekend statement in DATA"), een reden die niet zegt wat er mis is. ISO 10303-21 kent geen
-     bovengrens, en de voorproef `scripts/proef/classify-v9.py` leest zo'n id gewoon. Gevolg: een bestand met zo'n id
-     opent niet via de nieuwe route. Op geen bestand van de poort of het corpus komt het voor. Richting voor fase 1:
-     een eigen foutreden (`id-te-groot`) met een grensproef op 2147483647 en 2147483648, of ids tot 2^53 ondersteunen
-     (de index gebruikt nu int32). Uit de review van #863 (GPT-6.1-Sol, xhigh, ronde 1, op `e56238fc6`, BEVESTIGD,
-     VERVOLG). — B
-
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

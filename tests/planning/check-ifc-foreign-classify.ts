@@ -278,6 +278,22 @@ function scanSynthetic(label: string, text: string | Uint8Array): StepIndex | St
   }
 }
 {
+  // Knownbug 1007, grensproef: #2147483647 (2^31 − 1) is het grootste id dat de scanner aanneemt; een verwijzing naar
+  // #2147483648 telt als verwijzing zonder doel.
+  const text = stepFile([
+    "#2147483647=IFCPERSON($,'P',$,$,$,$,$,$);",
+    '#1=IFCPERSONANDORGANIZATION(#2147483647,#2147483648,$);',
+  ].join('\n'));
+  const idx = scanSynthetic('grens-id', text);
+  if (idx instanceof StepScanError) ok(`grens-id: onverwacht geweigerd (${idx.reason})`, false);
+  else {
+    coverage('grens-id', idx, bytesOf(text).length);
+    eq('grens-id: ids', [idx.id(2), idx.id(3)], ['2147483647', '1']);
+    eq('grens-id: verwijzingen', [idx.id(idx.refAt(3, 0)), idx.refAt(3, 1), idx.danglingRefCount], ['2147483647', -1, 1]);
+    eq('grens-id: chunkOf', idx.chunkOf('2147483647'), 2);
+  }
+}
+{
   // Een verwijzing naar een `#id` dat niet bestaat.
   const idx = scanSynthetic('los-eind', stepFile('#1=IFCPERSONANDORGANIZATION(#7,#8,$);'));
   if (idx instanceof StepScanError) ok(`los-eind: onverwacht geweigerd (${idx.reason})`, false);
@@ -301,6 +317,11 @@ const REFUSALS: { label: string; text: string; reason: StepScanReason }[] = [
   { label: 'kleine-letters', text: stepFile("#1=IfcPerson($,'P',$,$,$,$,$,$);"), reason: 'onbekend-statement' },
   { label: 'dubbel-id', text: stepFile(`${ENT}\n${ENT}`), reason: 'dubbel-id' },
   { label: 'geen-entiteiten', text: `${KOP}DATA;\nENDSEC;\nEND-ISO-10303-21;\n`, reason: 'geen-entiteiten' },
+  // Knownbug 1007: een `#id` boven 2^31 − 1 krijgt een eigen reden; een misvormd statement met zo'n id blijft
+  // `onbekend-statement` (eerst de vorm, dan het id, net als classify-v9.py).
+  { label: 'id-te-groot', text: stepFile("#2147483648=IFCPERSON($,'P',$,$,$,$,$,$);"), reason: 'id-te-groot' },
+  { label: 'id-te-groot-na-goed', text: stepFile(`${ENT}\n#99999999999999999999=IFCORGANIZATION($,'O',$,$,$);`), reason: 'id-te-groot' },
+  { label: 'id-te-groot-misvormd', text: stepFile("#2147483648=IfcPerson($,'P',$,$,$,$,$,$);"), reason: 'onbekend-statement' },
 ];
 for (const r of REFUSALS) {
   const got = scanSynthetic(`weigering ${r.label}`, r.text);

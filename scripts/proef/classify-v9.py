@@ -2,7 +2,7 @@
 # Review #839: één scanner die tekst kent (ook '' en commentaar binnen tekst) voor statements, secties en entiteiten;
 # entiteiten mogen over meer regels lopen. Weigert (exit 1) invoer zonder STEP-kop of END-ISO-10303-21, met tekst of
 # commentaar zonder einde, secties in een andere volgorde (ook HEADER of DATA zonder ENDSEC), een onbekend statement,
-# een `#id` dat twee keer voorkomt, of zonder entiteiten. Volgt de
+# een `#id` dat twee keer voorkomt, een `#id` boven 2147483647 (knownbug 1007), of zonder entiteiten. Volgt de
 # uitzondering "live-schema van eigen herkomst sluit baselinebomen altijd uit" (spec §4.2 stap 1). Complexe instanties
 # (#n=(A()B())) telt hij als type COMPLEX, zonder verdere indeling.
 # Fase-0-voorproef (ontwerp #804 v9 §4.2). Draaien: python3 -I scripts/proef/classify-v9.py <bestand.ifc> [--json]
@@ -67,6 +67,8 @@ for st, body in sts[2:-1]:
     if not (m or m2): fout(f'onbekend statement in DATA: {body[:40]!r}')
     n_id = int((m or m2).group(1))
     if n_id in ents: fout(f'#{n_id} komt twee keer voor')
+    # Knownbug 1007: de TS-scanner rekent in int32 en weigert een `#id` boven 2^31 − 1 met de reden `id-te-groot`.
+    if n_id > 2147483647: fout(f'#{n_id} is groter dan 2147483647 (id-te-groot)')
     ents[n_id] = (m.group(2), m.group(3)) if m else ('COMPLEX', m2.group(2)); pos[n_id] = st
 if staat == 'kop': fout('HEADER zonder ENDSEC')
 if staat == 'data': fout('DATA zonder ENDSEC')

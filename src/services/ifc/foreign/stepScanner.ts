@@ -1,9 +1,9 @@
 /**
- * STEP-scanner op bytes (#804 fase 0, ontwerp "Gebouwmodel behouden" §4.1 en §4.2).
+ * STEP-scanner op bytes (#804, ontwerp "Gebouwmodel behouden" §4.1 en §4.2).
  *
- * Fase 0 is een haalbaarheidsproef: deze module wordt nog nergens in de app aangeroepen. Alleen
- * de poort `tests/planning/check-ifc-foreign-classify.ts` en de meting `scripts/proef/meet-scanner.mjs`
- * gebruiken haar.
+ * Fase 0 bouwde en meette haar (poort `tests/planning/check-ifc-foreign-classify.ts`, meting
+ * `scripts/proef/meet-scanner.mjs`). Sinds fase 1a gebruikt de app haar in de bytes-route achter de flag
+ * `ifcForeignContent` (`foreignScan.ts`, in een Worker); zonder die flag roept de app haar niet aan.
  *
  * De scanner knipt een STEP-bestand in **stukken**. Een stuk is een entiteit-instantie van `#` tot en met
  * de `;` die haar afsluit, plus alle tekst ervóór sinds het vorige stuk (witruimte, regeleinden, ook
@@ -22,13 +22,14 @@
  * `scripts/proef/classify-v9.py` (ontwerp v18): geen `ISO-10303-21;` vooraan of `END-ISO-10303-21;` achteraan,
  * tekst of commentaar zonder einde, een laatste statement zonder `;`, secties in een andere volgorde (HEADER met
  * ENDSEC, dan een of meer DATA-secties met ENDSEC), een onbekend statement, een `#id` dat twee keer voorkomt, of geen
- * entiteiten. Sleutelwoorden en typenamen staan in hoofdletters (ISO 10303-21). Daarmee is de scanner strenger dan
+ * entiteiten. Ook een `#id` boven 2147483647 weigert hij, met een eigen reden (`id-te-groot`, knownbug 1007): de index
+ * rekent in int32. Sleutelwoorden en typenamen staan in hoofdletters (ISO 10303-21). Daarmee is de scanner strenger dan
  * `parseSTEP` in `ifcReader.ts`: die zoekt `DATA;` hoofdletterongevoelig, valt bij een ongebalanceerde apostrof terug
  * op een regel-verankerde zoektocht, en laat bij een dubbel `#id` de laatste winnen. Quotes (`''`) en commentaar
  * volgen wel dezelfde regels, zodat scanner en lezer op geldige invoer dezelfde entiteiten zien. Bekend verschil: de
  * lezer slaat een complexe instantie over (`readEntity` geeft -1), de scanner maakt er een stuk van.
  */
-import { decodeStepText } from '../ifcReader';
+import { decodeStepText } from '../stepText';
 
 /** Het type van een complexe instantie `#n=(A(..)B(..));`. */
 export const COMPLEX_TYPE = '(COMPLEX)';
@@ -340,6 +341,12 @@ export class StepIndex {
     return { identifier: this.#text(i, args[3]), version: this.#text(i, args[1]) };
   }
 
+  /**
+   * Codering van de tekst in dit stuk (§4.9 punt 5): `true` = letterlijk (een eigen bestand met versie `'0.1'`),
+   * `false` = de norm (ISO 10303-21). De lezer van fase 1a decodeert hiermee per stuk; de indeling gebruikt het niet.
+   */
+  literalText(i: number): boolean { return this.#literal(i); }
+
   // ── Intern ──────────────────────────────────────────────────────────────────────────────
 
   /** De argumenten op het hoogste niveau als ruwe tekst (UTF-8 gedecodeerd, commentaar weg). */
@@ -453,6 +460,7 @@ export const STEP_INDEX_FIELDS: ReadonlySet<string> = new Set([
   'kind', 'isEntity', 'start', 'end', 'entityStart', 'type', 'id', 'chunkOf',
   'outStart', 'outEnd', 'outTarget', 'outArg', 'inStart', 'inEnd', 'inSource', 'inArg', 'refsAt', 'refAt',
   'argCount', 'globalId', 'name', 'templateType', 'workControl', 'propertyText', 'enumValues', 'application',
+  'literalText',
 ]);
 
 /** Positie van `Name` per type (§4.2: psets, templates, properties, property-templates, werkschema's). */
@@ -562,6 +570,9 @@ export type StepScanReason =
   /** Een statement dat in deze sectie niet past (geen entiteit in DATA, geen kopentiteit in HEADER). */
   | 'onbekend-statement'
   | 'dubbel-id'
+  /** Een `#id` boven 2147483647 (2^31 − 1): de index rekent in int32 (knownbug 1007). De verwijzing naar zo'n id telt
+   *  als verwijzing naar een stuk dat niet bestaat. */
+  | 'id-te-groot'
   | 'geen-entiteiten';
 
 /** Ongeschikte of onvolledige STEP-invoer. `at` is de byte-positie van het statement, of -1. */
@@ -667,15 +678,19 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   const pendingArgs: number[] = [];
   let lastId = -1;
   let lastType = 0;
+  /** Het laatst gelezen `#id` was groter dan 2^31 − 1. De entiteit wordt verder gewoon gelezen, zodat een
+   *  misvormd statement met zo'n id dezelfde reden krijgt als in `classify-v9.py` (eerst de vorm, dan het id). */
+  let lastIdTooLarge = false;
   const readEntity = (at: number): number => {
     pendingRefs.length = 0; pendingArgs.length = 0;
     let i = at + 1;
     let idValue = 0;
+    lastIdTooLarge = false;
     while (i < n && isDigit(b[i])) {
-      idValue = idValue * 10 + (b[i] - 48);
-      if (idValue > 0x7fffffff) return -1;
+      if (idValue <= 0x7fffffff) idValue = idValue * 10 + (b[i] - 48);
       i++;
     }
+    if (idValue > 0x7fffffff) { lastIdTooLarge = true; idValue = -1; }
     if (i === at + 1 || isWord(b[i])) return -1;
     lastId = idValue;
     i = skipBlank(b, i);
@@ -784,6 +799,13 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     const skimming = headIssue !== undefined || headerIssue !== undefined || sectionIssue !== undefined;
     if (!skimming && state === S_DATA && b[i] === CH_HASH) {
       const next = readEntity(i);
+      if (next > 0 && lastIdTooLarge) {
+        // Knownbug 1007: een eigen reden in plaats van `onbekend-statement`. Het statement is verder goed gevormd.
+        sectionIssue = new StepScanError('id-te-groot', 'Een #id is groter dan 2147483647.', st);
+        i = next;
+        lastIsEnd = false;
+        continue;
+      }
       if (next > 0) {
         pushChunk(KIND_ENTITEIT, pending, next, i, lastType, lastId);
         for (let k = 0; k < pendingRefs.length; k++) { refRaw.push(pendingRefs[k]); outArg.push(pendingArgs[k]); }
