@@ -770,7 +770,7 @@ export function GanttCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     if (y < headerHeight) return;
-    const task = renderer.getRelationSourceAt(x, y);
+    const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
     if (task) selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey);
     else deselectAll();
   }, [secondaryCanvasRef, secondaryRendererRef, selectTask, deselectAll, headerHeight]);
