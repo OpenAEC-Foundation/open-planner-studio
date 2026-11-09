@@ -25,10 +25,9 @@ export const externalLinkTools: McpToolDef[] = [
     name: 'planner_refresh_external_links',
     description:
       'Re-read external relationship anchors (links to a task in another project file) from their source ' +
-      'files, like "Refresh all external relations" in the app: each file once, read-only, not opened. Updates ' +
-      'anchors and `sourceMissing` in one undo step, then recalculates. Reads only files inside the home folder ' +
-      '(headless server: its working folder); links to an unread file and site links (`siteLinks`) keep their ' +
-      'anchor. A link without a file path refreshes only via another link to the same source project ' +
+      'files: read-only, not opened. Updates anchors and `sourceMissing` in one undo step, then recalculates. ' +
+      'Reads only files inside the home folder; links to an unread file and site links (`siteLinks`) keep ' +
+      'their anchor. A link without a file path refreshes only via another link to the same source project ' +
       '(`manualLinks`). Report `sources` (read per file) and `changes` (`anchorBefore` → `anchorAfter`).',
     kind: 'mutate',
     // Async (bestanden lezen vóór de transactie): past niet in een synchroon draaiboek.

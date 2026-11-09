@@ -47,7 +47,7 @@ export const DEFAULT_PROTOCOL_VERSION = '2025-06-18';
 // staat in zijn eigen beschrijving; de uitleg per principe in de agentgids.
 export const MCP_INSTRUCTIONS = [
   'You edit a real construction schedule people rely on.',
-  '- Start with milestones and delivery. Tasks: about a day to two weeks; summaries have no own duration.',
+  '- Start with milestones and delivery. Tasks: about a day to two weeks.',
   '- Use relationships (Finish-to-start default): each task needs a predecessor and successor except the first task and final milestone. Constraints only for user-given hard external dates; never negative lag.',
   '- Changes/reads recalculate; check the result with planner_get_project_info and planner_get_critical_path. With `datesAsRecorded: true` in the envelope, say the dates are as recorded. `scheduleError`: fix it first; a change that leaves it is rolled back.',
   '- Progress needs the user\'s status date: never invent it; pass their actual dates.',

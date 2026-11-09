@@ -179,8 +179,7 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_duplicate_document',
     description:
-      'Copy the ACTIVE document into a new active tab, for what-if variants. Name: `name` or "<name> (variant ' +
-      'N)". Later calls go to the copy: switch back before making another variant. Leave closing to the user.',
+      'Copy the ACTIVE document into a new active tab, for what-if variants. Later calls go to the copy: switch back before making another variant. Leave closing to the user.',
     kind: 'document',
     batchable: false,
     inputSchema: {

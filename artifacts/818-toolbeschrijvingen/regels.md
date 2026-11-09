@@ -90,8 +90,8 @@ tool en de gids.
 |---|---|
 | Geneste WBS in één aanroep; items in elke volgorde | tool |
 | `parentId` = bestaand id of tempId uit dezelfde aanroep; weggelaten = wortel | tool + param `parentId` |
-| `tempId` uniek in de aanroep; latere batchstappen mogen hem gebruiken | param `tempId` ("later steps of the same planner_batch", fixronde 5: "later planner_batch steps" kon als een latere batch gelezen worden) |
-| `position` = index tussen de broers | param `position`; dat hij geklemd wordt: weg (de taak komt altijd ergens geldig) |
+| `tempId` uniek in de aanroep; latere batchstappen mogen hem gebruiken | param `tempId` ("later steps of the same planner_batch", fixronde 5: "later planner_batch steps" kon als een latere batch gelezen worden); fixronde 9: param "Unique in the call, e.g. `tmp-foundation`." — het voorvoegsel dwingt `pattern` af; latere batchstappen zegt planner_batch ("Later steps of this batch resolve exact tempIds") |
+| `position` = index tussen de broers | param `position`; dat hij geklemd wordt: weg (de taak komt altijd ergens geldig); fixronde 9: "Index among siblings; clamped." |
 | Zonder `duration`: projectstandaard (5 werkdagen; 5 uur bij uurmaat in het OPS-profiel) | tool, als "normally 5 working days": de agent hoort zelf een duur te geven |
 | Eén ongeldig item laat de hele aanroep falen (alles-of-niets) | tool |
 | Antwoord: `created` (tempId → id) | tool; datums en projecteinde: antwoord |
@@ -189,8 +189,8 @@ tool en de gids.
 | Landcode exact uit de lijst; `none` wist gegenereerde dagen | schema enum + param `country` (test `cases-stille-noops`: "none") |
 | `bouwvak` alleen NL; weglaten = `geen` (geen bouwvak) | param `bouwvak`: "NL construction holiday; omitted = `geen` (none)." + enum (fixronde 7: de standaard was weg; `generateRegionalBreak` met `undefined` geeft `[]`; F29 van #836 rekent erop; proef (g)) |
 | `byWeekday`: alle zeven sleutels verplicht; banden {start, end} in minuten, oplopend, niet overlappend; `[]` = vrije dag; `start` 0–1439, `end` > `start` en ≤ 2880, telt door na middernacht (voorbeeld) | param `byWeekday`, één keer. Het dagschema is alleen `{type: array, items: {type: object, required: [start, end]}}`; het staat nog twee keer: als `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands`; fixronde 8: Sols kortere vorm "All keys "1" (Mon)–"7" (Sun) required. Per day: ascending, non-overlapping {start,end} bands in minutes from midnight; [] = off. 0 ≤ start ≤ 1439; start < end ≤ 2880 (22:00–06:00 = 1320–1800)." |
-| `workStartHour`/`workEndHour` in UREN, pauzevelden in MINUTEN | params |
-| `workingExceptions`: complete lijst, vervangt; `bands` optioneel | param `workingExceptions` |
+| `workStartHour`/`workEndHour` in UREN, pauzevelden in MINUTEN | params; fixronde 9: `simpleBreakDurationMinutes` "0 = no break." (de naam zegt "Minutes") |
+| `workingExceptions`: complete lijst, vervangt; `bands` optioneel | param `workingExceptions`: "`bands` as one `workTime` day (minutes from midnight)" (fixronde 9: de eenheid stond er niet meer; `{start: 7, end: 12}` gaat zonder weigering door, `bandListReason`, en werkt dan 00:07–00:12) |
 | Datums inclusief | tool update_calendar: "Holiday and exception `endDate`s are inclusive." (fixronde 8: stond 3× als param `endDate`) |
 
 ## planner_manage_assignments
@@ -202,7 +202,7 @@ tool en de gids.
 | Onder FIXED_WORK/FIXED_RATE veranderen eenheden of een extra resource de DUUR; onder de standaardregel zet `remainingWorkMinutes` de eenheden | tool: "units, `remainingWorkMinutes` or adding/removing a resource can change the DURATION (reread the task); otherwise `remainingWorkMinutes` sets the units. MATERIAL never drives duration." (fixronde 7: "can" en de materiaalregel van main terug, `drivesDuration` in `workRuleApply.ts`; fixronde 6: `remainingWorkMinutes` ontbrak in de lijst; `applyWorkEdit` rekent de duur opnieuw, test `cases-work-rule`. "otherwise" dekt ook FIXED_DURATION_WORK) |
 | Lees de taak opnieuw voor de nieuwe duur | tool |
 | `unitsPerDay`: 1 = één persoon voltijd | param `unitsPerDay` |
-| `remainingWorkMinutes` in werkminuten | param; "alleen gewone bladtaak op werktijd, materiaal telt niet": antwoord / detail |
+| `remainingWorkMinutes` in werkminuten | param; "alleen gewone bladtaak op werktijd, materiaal telt niet": antwoord / detail; fixronde 9: "Work minutes." (de naam zegt "remaining") |
 | `curve` weggelaten = UNIFORM | param `curve` |
 | Dubbele resource ook binnen één aanroep geweigerd | volgt uit "no … duplicate resources" |
 | Eén aanroep = één undo-stap | tool (F34) |
@@ -250,6 +250,7 @@ tool en de gids.
 | move_project: hele planning; kalenders schuiven niet, dus het einde kan anders schuiven; baselines alleen met `shiftBaselines` | tool |
 | Ankers van externe koppelingen schuiven niet mee | tool: "External link anchors stay fixed" (fixronde 6: het antwoord legt het niet uit, en de externe voorganger wordt dan geschonden; `check-move-project.ts` 164–165) |
 | move_project: de beschikbaarheidsdatums van resources (`availabilitySteps[].from`) en de statusdatum schuiven mee | tool: "Resource `availabilitySteps[].from` and `statusDate` shift too." (fixronde 8: main zei "all tasks and resource dates move along"; route `moveProjectCore` → `projectSlice.ts` → `shiftResource` en `shiftProjectDates` in `moveProject.ts`; het antwoord toont het niet; proef (h)) |
+| move_project: elke datum schuift mee: taken met actuals, constraints (ook `constraint2` en een harde pin) en deadlines, `statusDate`, `endDate`, resource `availabilitySteps[].from`; kalenders en externe ankers blijven | tool: "Shift every date to start on `newStartDate`: tasks (incl. actuals, constraints, deadlines), `statusDate`, `endDate`, resource `availabilitySteps[].from`. Calendars and external link anchors stay, so the end can move by a different number of days." (fixronde 9, vorm van Opus: de oude tekst noemde actuals, constraints, deadlines en `endDate` niet; verdicttabel in `src/engine/moveProject.ts`, ook de datum onder een harde pin schuift; test `check-move-project.ts`) |
 | save_baseline: wordt de actieve baseline; niet in een batch | tool; param `name` ("Default "Baseline N"") weg in fixronde 8: zegt geen aanroep |
 | Verouderde planning eerst herberekend (`recomputed`) | weg: antwoord |
 
@@ -272,7 +273,7 @@ tool en de gids.
 | `notCalculated`, `calculationError`, `datesAsRecorded` per rij | weg: antwoord (zelfverklarende velden) |
 | new_document: wordt actief, latere aanroepen gaan daarheen; kopie via duplicate | tool |
 | Zonder wizard, standaardkalender | weg: detail |
-| duplicate_document: voor what-if; naamregel; latere aanroepen gaan naar de kopie, eerst terugschakelen; sluiten laat je aan de gebruiker | tool |
+| duplicate_document: voor what-if; naamregel; latere aanroepen gaan naar de kopie, eerst terugschakelen; sluiten laat je aan de gebruiker | tool; de naamregel ("`name` or "<name> (variant N)"") is weg in fixronde 9: zegt geen aanroep |
 | De kopie heeft geen bestandspad en een eigen undo-geschiedenis | weg: detail |
 | switch_document: lost DOC_DRIFT op | tool |
 | Ids per document (bij switch_document) | dubbel: update_calendar en import_schedule zeggen het; een taak-id uit een ander document geeft NOT_FOUND (fixronde 1) |
@@ -308,7 +309,7 @@ tool en de gids.
 | list_tasks: filters met AND; `kritiek` telt verzameltaken mee (`summary: true`); venster inclusief; `zonder_relaties` alleen bladtaken | tool (test `cases-read`) |
 | get_task: vroege en late datums, totale en vrije speling | tool (F38) |
 | get_task en get_critical_path: speling in werkdagen van de taakkalender, ook bij een uurtaak; ELAPSEDTIME in kalenderdagen | tool, één gedeelde zin `FLOAT_UNIT_NOTE` (fixronde 3, council-ronde 3 op #836: main zei het in de gids en in het voorbeeld van get_task; #836 haalt het uit de gids). Code: `CPMSolver.signedFloat`. Test `cases-uurkalender`: 4 uur naast 8 uur ⇒ `freeFloat` 0.5 |
-| get_task: `interruptions` in de vorm van set_task_splits; `effectiveId` → `calendarId`; negatieve speling; `actualFinishAdjusted` | tool (test `cases-statusdatum`) |
+| get_task: `interruptions` in de vorm van set_task_splits; `effectiveId` → `calendarId`; negatieve speling; `actualFinishAdjusted` | tool (test `cases-statusdatum`); fixronde 9: de `interruptions`-zin is weg, want planner_set_task_splits neemt een parameter met dezelfde naam en vorm |
 | get_task: `externalLinks` (koppelingen naar een taak in een ander projectbestand) met richting, type, wachttijd, bevroren `anchorDate`, `sourceMissing` en bron (#797) | tool: "`externalLinks`: links to a task in another project file, with the frozen `anchorDate`; `sourceMissing: true` = source task not found, the link keeps its anchor" (de betekenis van `sourceMissing` op verzoek van council-ronde 7 van #836; `src/types/task.ts`: de koppeling rekent dan op het gecachte anker). Richting, type, wachttijd en bron: weg, zelfverklarende velden in het antwoord. Gedeeld contract met #836: deze regel blijft in de tool |
 | get_task: een koppeling op een fase geldt voor elke taak in die fase; zo'n taak toont haar onder `inheritedExternalLinks`, met de fase in `fromTaskId`/`fromWbs` (#797) | tool: "A link on a summary task (phase) applies to every task in it (`inheritedExternalLinks`, with `fromTaskId`)". `fromWbs`: weg, zelfverklarend. Gedeeld contract met #836 |
 | get_task: ververs de ankers met planner_refresh_external_links (#797) | tool |
@@ -322,7 +323,7 @@ tool en de gids.
 | MPP- en P6-bronvelden alleen-lezen | weg: schema (geen schrijfveld) |
 | get_critical_path: `drivingRelations` null vs `[]`; paginering over `criticalTasks` | tool |
 | `pathsMode`, `criticalPaths` alleen bij FREE_FLOAT | weg: antwoord |
-| list_resources: veldnamen gelijk aan manage_resources; `library.lockedFields` | tool; fixronde 8: paginering "paged like planner_list_tasks" (de weigering noemt het bereik) |
+| list_resources: veldnamen gelijk aan manage_resources; `library.lockedFields` | tool; fixronde 8: paginering "paged like planner_list_tasks" (de weigering noemt het bereik); fixronde 9: de `library.lockedFields`-zin is weg, want planner_manage_resources noemt de vaste velden ("Library locks name/type/…") |
 | get_resource_histogram: samenvatting zonder filters (`peakLoad`, `overallocatedDayCount`), buckets met filters; weekoverhang | tool (F35) |
 | Onbekend id = fout; grens 10000 buckets | weg: antwoord (fout met uitweg) |
 | Bucketwaarden zijn Nederlands | enum + param `bucket` |
@@ -347,16 +348,16 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | `steps[].tool`: volledige naam | weg (fixronde 7): de naam staat in elke tool; een onbekende naam geeft een stapfout |
 | Rapport per stap bij een fout; "geen scripttaal" | weg: antwoord / volgt uit "args are fixed at submission" |
 
-## planner_refresh_external_links (nieuw uit #797; beschrijving 1.283 → 862 → 601 tekens (fixronde 8))
+## planner_refresh_external_links (nieuw uit #797; beschrijving 1.283 → 862 → 601 → 497 tekens (fixronde 8 en 9))
 
 | regel | nieuwe plek |
 |---|---|
-| Ververst de ankers van externe relaties (koppelingen naar een taak in een ander projectbestand) uit hun bronbestanden, zoals "Alle externe relaties verversen" in de app | tool |
+| Ververst de ankers van externe relaties (koppelingen naar een taak in een ander projectbestand) uit hun bronbestanden, zoals "Alle externe relaties verversen" in de app | tool; fixronde 9: de vergelijking met de app is weg |
 | Elk bronbestand één keer, alleen lezen, niet geopend als document | tool: "each file once, read-only, not opened" |
 | Zet per koppeling ankerdatum, `sourceMissing`, bronversie en leestijd, in één undo-stap | tool: "Updates anchors and `sourceMissing` in one undo step" (fixronde 8: bronversie en leestijd weg, zeggen geen aanroep) |
 | Koppeling zonder bestandspad (met de hand) ververst alleen als een andere koppeling hetzelfde bronproject leest; `manualLinks` telt ze | tool |
 | Koppeling naar een project op de site (site file id): niet gelezen, houdt haar anker; `siteLinks` telt ze | tool |
-| FILE SCOPE: alleen bronbestanden in de thuismap (headless server: de werkmap) | tool: "Reads only files inside the home folder (headless server: its working folder)" |
+| FILE SCOPE: alleen bronbestanden in de thuismap (headless server: de werkmap) | tool: "Reads only files inside the home folder" (fixronde 9: "headless server: its working folder" weg, want `headlessInstructions` in `headless/mcp-server/src/host.ts` zegt dat "home folder" daar de werkmap is) |
 | Een niet gelezen bron (buiten die map of onleesbaar) houdt anker en pad, ook als een ander bronbestand hetzelfde project-id heeft | tool: "links to an unread file … keep their anchor". "even if another file has the same project id": weg in fixronde 8, want `sources` geeft per bestand de status (`read`, `outOfScope`, `unreadable` met reden) |
 | Antwoord: per bronbestand of het gelezen is (`sources`); aantal ververst en ontbrekend; `changes` = koppelingen waarvan anker of ontbreekstatus veranderde (`anchorBefore` → `anchorAfter`) | tool: `sources` en `changes`. De tellers `refreshed`/`missing`: weg, zelfverklarende velden |
 | Daarna wordt herberekend, zoals in de app | tool: "then recalculates" |
@@ -372,7 +373,7 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | Zonder `includeRawRows` alleen id/code/label | tool |
 | Met `includeRawRows` vrije tekst; niet voor summary en rawSource | param `includeRawRows` |
 | Elke pagina onder 256 kB, BEHALVE rawSource (max. 8 chunks van ~256 kB base64, samen ~2,1 MB) | param `limit` ("rawSource ≤ 8 chunks of ~256 kB"); de algemene 256 kB-grens: antwoord (VALIDATION met de grens). Fixronde 6: de zin in de tool is weg; `cases-xer-provenance` toetst nu param `limit` |
-| rawSource vraagt `includeRawSource: true` ÉN `includeResourceNames: true`; taskSourceRowsByProject vraagt `projectId` | params `includeRawSource` en `includeResourceNames` (fixronde 1: de tweede vlag was weg; `{section: "rawSource", includeRawSource: true}` werd geweigerd) |
+| rawSource vraagt `includeRawSource: true` ÉN `includeResourceNames: true`; taskSourceRowsByProject vraagt `projectId` | params `includeRawSource` en `includeResourceNames` (fixronde 1: de tweede vlag was weg; `{section: "rawSource", includeRawSource: true}` werd geweigerd); fixronde 9: param `includeRawSource` "Required for rawSource." (param `includeResourceNames` zegt "required for rawSource" zelf, test) |
 | Resourcenamen verborgen; eerst toestemming, want persoonsgegevens gaan naar de AI-aanbieder | tool; param `includeResourceNames` verwijst ernaar ("see above") |
 | Afkapgrenzen (200/2.000 tekens, 200 cellen), `archiveIssue`-codes, `sourcePresent` | weg: antwoord |
 
@@ -386,7 +387,7 @@ principe in de agentgids.
 |---|---|
 | Echte planning waar iemand op vertrouwt | instructies ("people rely on", fixronde 5) |
 | Begin bij mijlpalen en opleverdatum | instructies (test: "milestone") |
-| Taken van een dag tot twee weken; verzameltaken geen eigen duur | instructies (test: "two weeks") |
+| Taken van een dag tot twee weken; verzameltaken geen eigen duur | instructies (test: "two weeks"); fixronde 9: "summaries have no own duration" weg (geen test eist het; planner_update_tasks weigert `duration` op een verzameltaak) |
 | Waarom (te fijn onbeheersbaar, te grof onstuurbaar) | weg: gids |
 | Relaties, geen vaste datums; FS standaard; elke taak een voorganger en opvolger; constraints alleen voor harde externe datums; nooit negatieve lag | instructies (test: "Finish-to-start", "negative lag") |
 | Hoogstens een paar procent constraints | weg: gids |
@@ -438,7 +439,7 @@ Deze teksten komen per sessie bovenop `MCP_INSTRUCTIONS`.
 
 ## Afstemming met PR #836: de 53 feiten uit `artifacts/818-gids-zuinig/feiten-in-tools.md`
 
-Stand: deze branch na fixronde 8. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
+Stand: deze branch na fixronde 9. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
 F1–F52 stonden bij de vorige head (b0ef49262) deels niet meer in `tools/list`; de zestien die Sol in council-ronde 2 van
 #836 noemde, zijn gemarkeerd met *.
 

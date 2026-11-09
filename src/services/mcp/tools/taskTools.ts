@@ -252,11 +252,10 @@ const addTasks: BatchStepTool = {
             tempId: {
               type: 'string',
               pattern: '^tmp[-_]',
-              description: 'Your own id, unique in the call, e.g. `tmp-foundation`; later steps of the same ' +
-                'planner_batch may use it.',
+              description: 'Unique in the call, e.g. `tmp-foundation`.',
             },
             parentId: { type: 'string', description: 'Omitted = root.' },
-            position: { type: 'integer', description: 'Index among the siblings; clamped to the valid range.' },
+            position: { type: 'integer', description: 'Index among siblings; clamped.' },
             // Exact dezelfde velden als `update_tasks.fields` — één allowlist voor aanmaken én wijzigen.
             ...TASK_FIELD_SCHEMA_PROPERTIES,
           },

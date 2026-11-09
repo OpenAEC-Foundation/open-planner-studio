@@ -890,7 +890,7 @@ const inputSchema = {
     projectId: { type: 'string', description: 'Required for taskSourceRowsByProject (`selector.availableProjectIds`).' },
     limit: { type: 'number', description: 'Default 50; rawSource ≤ 8 chunks of ~256 kB, with includeRawRows ≤ 100.' },
     offset: { type: 'number' },
-    includeRawSource: { type: 'boolean', description: 'Required for rawSource, together with `includeResourceNames`.' },
+    includeRawSource: { type: 'boolean', description: 'Required for rawSource.' },
     includeRawRows: {
       type: 'boolean',
       description:

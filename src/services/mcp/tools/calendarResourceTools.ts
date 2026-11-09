@@ -1064,13 +1064,13 @@ const updateCalendar: BatchStepTool = {
             },
             simpleBreakDurationMinutes: {
               type: 'integer', minimum: 0, maximum: 1440,
-              description: 'MINUTES; 0 = no break.',
+              description: '0 = no break.',
             },
             workingExceptions: {
               type: 'array',
               description:
-                'Extra WORKING days; the complete list, replaces the existing one. `bands` as one `workTime` day; ' +
-                'omitted = normal hours.',
+                'Extra WORKING days; the complete list, replaces the existing one. `bands` as one `workTime` day ' +
+                '(minutes from midnight); omitted = normal hours.',
               items: {
                 type: 'object',
                 required: ['name', 'startDate', 'endDate'],
@@ -1436,8 +1436,7 @@ const manageAssignments: BatchStepTool = {
             remainingWorkMinutes: {
               type: 'number',
               exclusiveMinimum: 0,
-              description:
-                'Remaining work in WORK minutes (8 h = 480).',
+              description: 'Work minutes.',
             },
           },
         },
@@ -2040,9 +2039,9 @@ function moveProjectCore(ctx: McpContext, p: { newStartDate: string; shiftBaseli
 const moveProject: BatchStepTool = {
   name: 'planner_move_project',
   description:
-    'Shift the whole schedule to start on `newStartDate`. Calendars stay, so the end can move by a different ' +
-    'number of days. Resource `availabilitySteps[].from` and `statusDate` shift too. External link anchors ' +
-    'stay fixed. Baselines move only with `shiftBaselines: true`.',
+    'Shift every date to start on `newStartDate`: tasks (incl. actuals, constraints, deadlines), `statusDate`, ' +
+    '`endDate`, resource `availabilitySteps[].from`. Calendars and external link anchors stay, so the end can ' +
+    'move by a different number of days. Baselines only with `shiftBaselines: true`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },

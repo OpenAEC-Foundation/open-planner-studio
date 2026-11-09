@@ -1186,8 +1186,7 @@ export const readTools: McpToolDef[] = [
       ' `externalLinks`: links to a task in another project file, with the frozen `anchorDate`; ' +
       '`sourceMissing: true` = source task not found, the link keeps its anchor. Refresh with ' +
       'planner_refresh_external_links. A link on a summary task (phase) applies to every task in it ' +
-      '(`inheritedExternalLinks`, with `fromTaskId`). `interruptions` is in ' +
-      'planner_set_task_splits form; `calendar.effectiveId` is written as `calendarId` (unless ' +
+      '(`inheritedExternalLinks`, with `fromTaskId`). `calendar.effectiveId` is written as `calendarId` (unless ' +
       '`calendar.isProjectDefault`). Not errors: NEGATIVE `totalFloat` puts late dates before early ones; a ' +
       'completed task with `actualFinish` in non-working time ends on the previous working day ' +
       '(`progress.actualFinishAdjusted`).',
@@ -1217,8 +1216,7 @@ export const readTools: McpToolDef[] = [
     name: 'planner_list_resources',
     description:
       'Resources with capacity and an assignment summary, paged like planner_list_tasks; field names as in ' +
-      'planner_manage_resources. `library.lockedFields` are the fields planner_manage_resources ' +
-      'refuses on that row.',
+      'planner_manage_resources.',
     kind: 'read',
     batchable: true,
     inputSchema: {
