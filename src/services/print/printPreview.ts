@@ -488,8 +488,8 @@ function groupBandLabel(row: PrintRow): string {
  * De naamkolombreedte (ongeschaald) waarbij géén enkele rij afgekapt wordt: per rij de gemeten
  * tekstbreedte plus inspringing en celpadding, precies het spiegelbeeld van de `nameAvail`-som in
  * `drawTaskTable`. `measure` meet op de ongeschaalde letter uit {@link nameCellFont}; de aanroeper
- * (het rapportpaneel) levert die vanuit een canvas met het geladen Inter-font, zodat preview,
- * raster-PDF en vector-PDF alle drie hetzelfde getal krijgen. Geklemd op
+ * (het rapportpaneel) levert de meting van de vector-PDF (`loadReportTextMetrics`, de lettermaten uit
+ * het fontbestand), zodat het papier en de PDF hetzelfde getal krijgen. Geklemd op
  * [{@link NAME_COLUMN_WIDTH_MIN}, {@link NAME_COLUMN_AUTO_MAX}].
  */
 export function measureTaskNameColumnWidth(
@@ -598,10 +598,10 @@ export interface TableColumnMeasureInput extends CellTextOptions {
  * KOP (9 px vet) en alle CELLEN (8 px) die dit rapport toont, plus celmarge aan beide zijden.
  * Geklemd op [{@link AUTO_COLUMN_MIN_WIDTH}, `COL[key].max`].
  *
- * `measure` meet op de geladen rapportletter (`input.fontFamily`, standaard Inter) — de aanroeper (het rapportpaneel) levert dat vanuit een
- * canvas, om dezelfde reden als bij {@link measureTaskNameColumnWidth}: `measurePrintReport`
- * (paginering) heeft geen canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster- en
- * vector-render. Kolommen die niet in de tabel staan worden weggelaten in plaats van gemeten.
+ * `measure` meet op de geladen rapportletter (`input.fontFamily`, standaard Inter) — de aanroeper (het
+ * rapportpaneel) levert de meting van de vector-PDF (`loadReportTextMetrics`), om dezelfde reden als bij
+ * {@link measureTaskNameColumnWidth}: `measurePrintReport` (paginering) heeft die meting niet en zou anders
+ * een ándere tabelbreedte uitrekenen dan de render. Kolommen die niet in de tabel staan worden weggelaten in plaats van gemeten.
  */
 export function measureTableColumnWidths(
   printRows: PrintRow[],

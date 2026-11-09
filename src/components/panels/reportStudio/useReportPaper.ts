@@ -6,7 +6,7 @@ import type { PrintOptions } from '@/services/print/printPreview';
 import type { TileLayout } from '@/services/print/tileLayout';
 import { recordReportPaper } from '@/services/print/reportPaperModel';
 import { reportPageSvg, reportPaperRegions, type PageRegions } from '@/services/print/reportPaper';
-import { studioTextMetrics } from './useStudioPrintOptions';
+import type { ReportTextMetrics } from '@/services/pdf/reportTextMeasure';
 import { timeReportStep } from './studioPerf';
 
 export interface ReportPaperModel {
@@ -31,6 +31,8 @@ export interface ReportPaperInput {
   calendar: WorkCalendar;
   projectName: string;
   options: PrintOptions | null;
+  /** Dezelfde meting als de vector-PDF en de kolombreedtes (`loadReportTextMetrics`). */
+  metrics: ReportTextMetrics | null;
   repeatHeader: boolean;
   repeatFooter: boolean;
   rtl: boolean;
@@ -55,11 +57,11 @@ const PAGE_LABEL_FONT = '8px InterPDF, sans-serif';
 export function useReportPaper(input: ReportPaperInput): ReportPaperModel | null {
   const deferred = useAfterPaint(input);
   const model = useMemo(() => {
-    const { tasks, sequences, calendar, projectName, options, repeatHeader, repeatFooter, rtl } = deferred;
-    if (!options) return null;
+    const { tasks, sequences, calendar, projectName, options, metrics, repeatHeader, repeatFooter, rtl } = deferred;
+    if (!options || !metrics) return null;
     return timeReportStep('ops-report:record', () => {
       const { result, layout, recording } = recordReportPaper(
-        tasks, sequences, calendar, projectName, options, repeatHeader, repeatFooter, studioTextMetrics(),
+        tasks, sequences, calendar, projectName, options, repeatHeader, repeatFooter, metrics,
       );
       const svgCache = new Map<number, string>();
       const regionCache = new Map<number, PageRegions>();

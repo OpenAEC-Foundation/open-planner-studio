@@ -71,6 +71,16 @@ de render óók gebruikt — anders meet je "Duur" en teken je iets anders. Bij 
 haar eigen vertaalde kop niet kwijt kan groeit mee, versmallen niet — `mode: 'fit-width'` schaalt een
 smallere tabel juist gróter, en celinhoud hoort in een vrije-tekstkolom wél af te kappen.
 
+**Eén tekstmeting voor papier, paneel en vector-PDF** (issue #817, `src/services/pdf/reportTextMeasure.ts`).
+`PdfVectorDraw2D.measureText`, het SVG-papier van het nieuwe tabblad en de kolommeting in beide panelen
+(`loadReportTextMetrics` in `fontLoader.ts`) tellen de advance-breedtes uit het fontbestand op
+(`measureReportText`: shaping-kern voor RTL, stukken per terugvalletter, anders de rapportletter). Niet
+het canvas: dat rondt bij kleine letters af (Chromium op Linux: "Stakeholder management" 115 tegen 109,0)
+en dan kapte de PDF datums af die het scherm voluit toonde. Niet fontkit-`layout`/`widthOfTextAtSize`:
+GSUB kost bij Inter ruim 1 ms per tekst. Het verschil met de getekende glyphs (Inter "->", Carlito "ti")
+is klein en zit in papier én PDF. `check-report-svg.ts` (sectie 5) vergelijkt per tekstitem papier en
+echte PDF. De canvas-backend (oude rasterpreview, raster-terugval) meet nog met het canvas.
+
 **De rapportletter is een parameter** (issue #770). De canvas-fontstack komt uit `PrintOptions.fontFamily`,
 de derde parameter van `makeTableRenderReport`/`makeSectionedRenderReport` en het `fontStack`-argument van
 de meethulpen (`nameCellFont`, `tableTextFont`, `curveCellFont`, `TableColumnMeasureInput.fontFamily`);

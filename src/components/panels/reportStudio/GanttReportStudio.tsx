@@ -5,8 +5,8 @@ import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
 import { HelpButton } from '@/components/common/HelpButton';
 import { REPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
-import { ensureReportFontLoaded } from '@/services/pdf/fontLoader';
-import { DEFAULT_REPORT_FONT_ID, type ReportFontId } from '@/services/pdf/reportFont';
+import { ensureReportFontLoaded, loadReportTextMetrics } from '@/services/pdf/fontLoader';
+import { DEFAULT_REPORT_FONT_ID } from '@/services/pdf/reportFont';
 import { saveBytesDialog } from '@/services/fileAccess';
 import { buildGanttReportPdf } from '@/services/print/exportGanttReportPdf';
 import { NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
@@ -25,7 +25,7 @@ import { saveReportSettings, TABLE_REPORT_TYPES, type ReportSettings, type Repor
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioSwitch } from './studioPrimitives';
 import { fieldsAreDefault, useStudioSettings, type StudioSettingKey } from './useStudioSettings';
-import { useStudioPrintOptions } from './useStudioPrintOptions';
+import { useStudioPrintOptions, type StudioFont } from './useStudioPrintOptions';
 import { useReportColumnDomain } from './useReportColumnDomain';
 import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, resolveReportColumns } from './reportColumns';
 import type { PaperPick, PaperTarget } from './ReportPaperView';
@@ -100,18 +100,20 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const rtl = RTL_LOCALES.includes(i18n.language as Locale);
 
   // De rapportletter (#770). Meten en tekenen gebeuren op de letter die al geladen is; na een wissel
-  // blijft het papier op de vorige letter staan tot de nieuwe geladen is (`ensureReportFontLoaded`
-  // wijst nooit af). Zo meet het papier nooit op een letter die nog niet in de browser staat.
-  const [loadedFont, setLoadedFont] = useState<ReportFontId | null>(null);
+  // blijft het papier op de vorige letter staan tot de nieuwe geladen is (beide laders wijzen nooit af).
+  // Twee dingen per letter: de `@font-face` waarmee de browser de SVG-tekst tekent, en de lettermaten
+  // uit hetzelfde fontbestand waarmee het papier, de kolombreedtes en de PDF meten (`reportTextMeasure.ts`).
+  const [loadedFont, setLoadedFont] = useState<StudioFont | null>(null);
   const chosenFont = settings.reportFontFamily;
   useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
-    void ensureReportFontLoaded(chosenFont).then(() => { if (!cancelled) setLoadedFont(chosenFont); });
+    void Promise.all([ensureReportFontLoaded(chosenFont), loadReportTextMetrics(chosenFont, rtl ? 'rtl' : 'ltr')])
+      .then(([, metrics]) => { if (!cancelled) setLoadedFont({ id: chosenFont, metrics }); });
     return () => { cancelled = true; };
-  }, [hydrated, chosenFont]);
+  }, [hydrated, chosenFont, rtl]);
   const fontReady = loadedFont !== null;
-  const fontPending = loadedFont !== chosenFont;
+  const fontPending = loadedFont?.id !== chosenFont;
 
   // De bedrijfsnaam komt uit het project en wordt bewust niet per apparaat bewaard (zie reportSettings.ts).
   const [companyName, setCompanyName] = useState(project.company || '');
@@ -140,10 +142,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   // ---- Papier ---------------------------------------------------------------------------------------
   const options = useStudioPrintOptions(settings, companyName, resolved.columns, hydrated ? loadedFont : null);
+  const paperMetrics = loadedFont?.metrics ?? null;
   const paperInput = useMemo(() => ({
-    tasks, sequences, calendar, projectName, options,
+    tasks, sequences, calendar, projectName, options, metrics: paperMetrics,
     repeatHeader: settings.repeatHeader, repeatFooter: settings.repeatFooter, rtl,
-  }), [tasks, sequences, calendar, projectName, options, settings.repeatHeader, settings.repeatFooter, rtl]);
+  }), [tasks, sequences, calendar, projectName, options, paperMetrics, settings.repeatHeader, settings.repeatFooter, rtl]);
   // Het papier zelf rekent in `StudioPaper`; de zijbalk krijgt alleen de maten die hij toont.
   const [paperInfo, setPaperInfo] = useState<PaperInfo | null>(null);
   const onPaperInfo = useCallback((next: PaperInfo | null) => {
@@ -234,7 +237,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         tasks: cur.tasks, sequences: cur.sequences, calendar: cur.calendar, projectName: cur.projectName,
         options: cur.options, repeatHeader: cur.settings.repeatHeader, repeatFooter: cur.settings.repeatFooter,
         // Dezelfde letter als waarop `options` gemeten is.
-        fontId: cur.loadedFont ?? DEFAULT_REPORT_FONT_ID,
+        fontId: cur.loadedFont?.id ?? DEFAULT_REPORT_FONT_ID,
       });
       await saveBytesDialog(`${cur.fileBase}-${t('fileSuffix.gantt')}.pdf`, bytes,
         [{ name: 'PDF Document', extensions: ['pdf'] }], { mime: 'application/pdf' });

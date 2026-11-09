@@ -11,16 +11,14 @@ import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@/types/baseline';
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
-import { createCanvasTextMetrics } from '@/services/pdf/canvasTextMetrics';
-import type { SvgTextMetrics } from '@/services/pdf/svgDraw2d';
+import type { ReportTextMetrics } from '@/services/pdf/reportTextMeasure';
 import type { ReportSettings } from '@/utils/reportSettings';
 import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
 
-let sharedMetrics: SvgTextMetrics | null = null;
-/** Eén meetcanvas voor het hele tabblad (kolombreedtes én de SVG-opname): metingen worden onthouden. */
-export function studioTextMetrics(): SvgTextMetrics {
-  if (!sharedMetrics) sharedMetrics = createCanvasTextMetrics();
-  return sharedMetrics;
+/** De rapportletter die geladen is, met zijn meting (dezelfde als de vector-PDF, `loadReportTextMetrics`). */
+export interface StudioFont {
+  id: ReportFontId;
+  metrics: ReportTextMetrics;
 }
 
 /**
@@ -29,14 +27,16 @@ export function studioTextMetrics(): SvgTextMetrics {
  * (`tableColumns`, issue #817 deel B). De kolombreedtes en (bij niet afkappen) de naamkolom worden hier
  * gemeten op de geladen rapportletter — meten hoort in het paneel, niet in de printlaag (`reports.md`).
  *
- * `fontId`: de rapportletter die geladen is (#770); `null` zolang er nog geen letter geladen is, dan geeft
- * de hook geen opties. Meten, tekenen en de PDF gebruiken dezelfde stack (`reportFontStack`).
+ * `font`: de rapportletter die geladen is (#770), met de meting van de PDF; `null` zolang er nog geen
+ * letter geladen is, dan geeft de hook geen opties. Meten, tekenen en de PDF gebruiken dezelfde stack
+ * (`reportFontStack`) en dezelfde meting (`reportTextMeasure.ts`), dus een kolom die hier past, past ook
+ * in de PDF.
  */
 export function useStudioPrintOptions(
   settings: ReportSettings,
   companyName: string,
   tableColumns: readonly PrintTableColumn[],
-  fontId: ReportFontId | null,
+  font: StudioFont | null,
 ): PrintOptions | null {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
@@ -90,20 +90,19 @@ export function useStudioPrintOptions(
   }), [t]);
 
   const reportRows = settings.followView ? viewRows : undefined;
-  const fontReady = fontId !== null;
-  const fontStack = reportFontStack(fontId ?? 'inter');
+  const fontReady = font !== null;
+  const fontStack = reportFontStack(font?.id ?? 'inter');
+  const metrics = font?.metrics ?? null;
 
   // Naamkolom: afkappen op de instelbare breedte, of zo breed als de langste naam (gemeten).
   const autoNameWidth = useMemo(() => {
-    if (!fontReady || settings.truncateTaskNames) return undefined;
-    const metrics = studioTextMetrics();
+    if (!metrics || settings.truncateTaskNames) return undefined;
     return measureTaskNameColumnWidth(buildPrintRows(tasks, reportRows), (text, bold) => metrics.measure(text, nameCellFont(bold, fontStack)));
-  }, [fontReady, settings.truncateTaskNames, tasks, reportRows, fontStack]);
+  }, [metrics, settings.truncateTaskNames, tasks, reportRows, fontStack]);
 
   // De datakolommen en de registerkolommen, gemeten op de koppen en cellen van dít rapport.
   const columnWidths = useMemo<TableColumnWidths | undefined>(() => {
-    if (!fontReady) return undefined;
-    const metrics = studioTextMetrics();
+    if (!metrics) return undefined;
     return measureTableColumnWidths(
       buildPrintRows(tasks, reportRows),
       {
@@ -113,7 +112,7 @@ export function useStudioPrintOptions(
       },
       (text, font) => metrics.measure(text, font),
     );
-  }, [fontReady, tasks, reportRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
+  }, [metrics, tasks, reportRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
     durationDisplay, durationSuffixes, calendar, calendars, tableColumns, fontStack]);
 
   return useMemo<PrintOptions | null>(() => {

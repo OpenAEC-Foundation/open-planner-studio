@@ -1,4 +1,6 @@
 import { REPORT_FONTS, type ReportFontId } from './reportFont';
+import { assembleReportMeasureFonts, createReportTextMetrics, type ReportFontkitFont, type ReportTextMetrics } from './reportTextMeasure';
+import { createCanvasTextMetrics } from './canvasTextMetrics';
 
 /**
  * Font-loader voor de gevendorde rapportletters (statische glyf-TTF's, gewicht 400/700) en voor
@@ -134,4 +136,52 @@ export async function ensureReportFontLoaded(id: ReportFontId = 'inter'): Promis
   } catch (err) {
     console.warn(`[fontLoader] Rapportletter '${id}' niet geladen; het canvas valt terug op de volgende letter in de stack:`, err);
   }
+}
+
+const metricLoads = new Map<string, Promise<ReportTextMetrics>>();
+
+/**
+ * De tekstmeting van het rapportpapier en van de kolombreedtes in het paneel (issue #817): dezelfde
+ * meting als de vector-PDF (`measureReportText`), uit dezelfde fontbytes, met dezelfde terugvalletters
+ * (Inter achter een andere rapportletter, Noto Sans Arabic voor tekst van rechts naar links). Zo meten
+ * papier, paneel en PDF hetzelfde getal en kappen ze gelijk af. Zie de kop van `reportTextMeasure.ts`
+ * waarom dat niet de canvas-meting van de browser is.
+ *
+ * fontkit wordt pas hier geladen (een eigen chunk, net als de PDF-export). Eén lading per letter en
+ * schrijfrichting. Wijst nooit af: lukt het laden niet (bijvoorbeeld offline in de browser), dan meet
+ * het canvas, zoals vóór deze meting. De PDF-export haalt de bytes zelf op en valt dan terug op raster.
+ */
+export function loadReportTextMetrics(id: ReportFontId = 'inter', baseDir: 'ltr' | 'rtl' = 'ltr'): Promise<ReportTextMetrics> {
+  const key = `${id}|${baseDir}`;
+  let pending = metricLoads.get(key);
+  if (pending) return pending;
+  pending = (async () => {
+    try {
+      const [{ default: fontkit }, regular, bold, arabicRegular, arabicBold, interRegular, interBold] = await Promise.all([
+        import('@pdf-lib/fontkit'),
+        getReportFontBytes(id, 400),
+        getReportFontBytes(id, 700),
+        getArabicFontBytes(400),
+        getArabicFontBytes(700),
+        id === 'inter' ? Promise.resolve(null) : getInterFontBytes(400),
+        id === 'inter' ? Promise.resolve(null) : getInterFontBytes(700),
+      ]);
+      const fonts = assembleReportMeasureFonts(
+        bytes => fontkit.create(bytes) as unknown as ReportFontkitFont,
+        { regular, bold },
+        {
+          interFallback: interRegular && interBold ? { regular: interRegular, bold: interBold } : undefined,
+          arabic: { regular: arabicRegular, bold: arabicBold },
+          baseDir,
+        },
+      );
+      return createReportTextMetrics(fonts);
+    } catch (err) {
+      metricLoads.delete(key);
+      console.warn(`[fontLoader] Lettermaten van '${id}' niet geladen; het papier meet met het canvas:`, err);
+      return createCanvasTextMetrics();
+    }
+  })();
+  metricLoads.set(key, pending);
+  return pending;
 }

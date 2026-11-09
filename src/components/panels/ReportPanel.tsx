@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintPreviewPage, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
+import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintPreviewPage, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { documentFileBase } from '@/utils/documents';
@@ -10,7 +10,7 @@ import { documentProjectCode } from '@/utils/documentProjectCode';
 import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
 import { computeTileLayout, footerLayoutWidthFor } from '@/services/print/tileLayout';
-import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes } from '@/services/pdf/fontLoader';
+import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes, loadReportTextMetrics } from '@/services/pdf/fontLoader';
 import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
@@ -558,21 +558,19 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // rapportletter (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
   // De meting gebeurt hier en niet in de printlaag: `measurePrintReport` (paginering) heeft geen
   // canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster-/vector-render.
+  // Meten met de lettermaten van het fontbestand, dezelfde meting als de vector-PDF
+  // (`reportTextMeasure.ts`); het canvas rondt bij kleine letters af en meet dan te smal voor de PDF.
+  const measureBaseDir: 'ltr' | 'rtl' = RTL_LOCALES.includes(i18n.language as Locale) ? 'rtl' : 'ltr';
   useEffect(() => {
     if (truncateTaskNames) return;
     let cancelled = false;
-    void ensureReportFontLoaded(reportFontFamily).then(() => {
+    void Promise.all([ensureReportFontLoaded(reportFontFamily), loadReportTextMetrics(reportFontFamily, measureBaseDir)]).then(([, metrics]) => {
       if (cancelled) return;
-      const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setAutoNameColumn({ font: reportFontFamily, width: NAME_COLUMN_WIDTH_DEFAULT }); return; }
       const rows = buildPrintRows(tasks, reportRows);
-      setAutoNameColumn({ font: reportFontFamily, width: measureTaskNameColumnWidth(rows, (text, bold) => {
-        ctx.font = nameCellFont(bold, reportFont);
-        return ctx.measureText(text).width;
-      }) });
+      setAutoNameColumn({ font: reportFontFamily, width: measureTaskNameColumnWidth(rows, (text, bold) => metrics.measure(text, nameCellFont(bold, reportFont))) });
     });
     return () => { cancelled = true; };
-  }, [truncateTaskNames, tasks, reportRows, reportFontFamily, reportFont]);
+  }, [truncateTaskNames, tasks, reportRows, reportFontFamily, reportFont, measureBaseDir]);
 
   // Curvekolom van het resourcediagram: zo breed als de langste curvenaam die dít rapport toont,
   // gemeten op de geladen rapportletter — om dezelfde reden hier en niet in de
@@ -587,22 +585,20 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       return;
     }
     let cancelled = false;
-    void ensureReportFontLoaded(reportFontFamily).then(() => {
+    void Promise.all([ensureReportFontLoaded(reportFontFamily), loadReportTextMetrics(reportFontFamily, measureBaseDir)]).then(([, metrics]) => {
       if (cancelled) return;
-      const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setCurveColumn({ font: reportFontFamily, width: undefined }); return; }
       const cellLabels = new Set<string>();
       for (const a of resourceGantt.assignmentByRowKey.values()) {
         cellLabels.add(a.curve === null ? '—' : (curveLabels[a.curve] ?? a.curve));
       }
-      const measure = (font: string) => (text: string) => { ctx.font = font; return ctx.measureText(text).width; };
+      const measure = (font: string) => (text: string) => metrics.measure(text, font);
       setCurveColumn({ font: reportFontFamily, width: Math.max(
         measureCurveColumnWidth([curveHeaderLabel], measure(curveCellFont(true, reportFont))),
         measureCurveColumnWidth(cellLabels, measure(curveCellFont(false, reportFont))),
       ) });
     });
     return () => { cancelled = true; };
-  }, [curveColumnNeeded, resourceGantt, curveLabels, curveHeaderLabel, reportFontFamily, reportFont]);
+  }, [curveColumnNeeded, resourceGantt, curveLabels, curveHeaderLabel, reportFontFamily, reportFont, measureBaseDir]);
 
   // De vertaalde kolomkoppen: ÉÉN object voor de meting hieronder en voor de render, zodat een
   // kolom gemeten wordt op exact de kop die getekend wordt.
@@ -632,10 +628,8 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   const columnWidths = measuredColumns?.widths;
   useEffect(() => {
     let cancelled = false;
-    void ensureReportFontLoaded(reportFontFamily).then(() => {
+    void Promise.all([ensureReportFontLoaded(reportFontFamily), loadReportTextMetrics(reportFontFamily, measureBaseDir)]).then(([, metrics]) => {
       if (cancelled) return;
-      const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setMeasuredColumns({ font: reportFontFamily, widths: undefined }); return; }
       const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
       setMeasuredColumns({ font: reportFontFamily, widths: measureTableColumnWidths(
         rows,
@@ -647,12 +641,12 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
           // Meten op dezelfde letter als de render (`options.fontFamily` hieronder).
           fontFamily: reportFont,
         },
-        (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
+        (text, font) => metrics.measure(text, font),
       ) });
     });
     return () => { cancelled = true; };
   }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, timeNotation, i18n.language, tableHeaders,
-    daySuffix, durationDisplay, durationSuffixes, calendar, calendars, reportFontFamily, reportFont]);
+    daySuffix, durationDisplay, durationSuffixes, calendar, calendars, reportFontFamily, reportFont, measureBaseDir]);
 
   // Staan alle metingen die de Gantt-render gebruikt op de gekozen letter? Na het wisselen van letter
   // lopen ze asynchroon (eerst het font laden); tot dan horen de breedtes bij de vórige letter. Een
@@ -1223,10 +1217,9 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       // Kolomkoppen worden gemeten zoals de DOM-tabel zichzelf opmeet ("Duration (wd)" past in geen
       // enkele taal in een vaste 70 px). De meting loopt op de geladen rapportletter — hetzelfde
       // font dat de PDF inbedt — zodat wat hier past ook daar past. (Al geladen bovenaan `runExport`.)
-      const headerCtx = document.createElement('canvas').getContext('2d');
-      const measureHeader = headerCtx
-        ? (text: string, font: string) => { headerCtx.font = font; return headerCtx.measureText(text).width; }
-        : undefined;
+      // Met de lettermaten van het fontbestand, dezelfde meting als de vector-PDF (`reportTextMeasure.ts`).
+      const headerMetrics = await loadReportTextMetrics(reportFontFamily, exportBaseDir);
+      const measureHeader = (text: string, font: string) => headerMetrics.measure(text, font);
 
       // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
       // rijtype, en een samengevoegde union-spec zou TS niet meer aan één Row-type kunnen binden.

@@ -2,16 +2,14 @@ import type { TextBaseline } from './draw2d';
 import { fontPx, type SvgTextMetrics } from './svgDraw2d';
 
 /**
- * Tekstmeting voor de SVG-backend in de browser: dezelfde `measureText` als de canvas-backend
- * (`CanvasDraw2D`, kerning uit), zodat afkappen, woordafbreking en labelplaatsing op het SVG-papier
- * precies zo uitvallen als in de rasterpreview en de PDF.
+ * Tekstmeting met het canvas van de browser: alleen nog de TERUGVAL als de lettermaten van het fontbestand
+ * niet te laden zijn (`loadReportTextMetrics` in `fontLoader.ts`). Het canvas rondt bij kleine letters elke
+ * letterbreedte af (in Chromium op Linux op hele pixels), dus deze meting wijkt af van de vector-PDF; zie de
+ * kop van `reportTextMeasure.ts`.
  *
  * De basislijnverschuiving volgt de vector-PDF (`PdfVectorDraw2D.place`): `middle` = halverwege
  * stijg- en daalhoogte van de letter, `bottom` = de daalhoogte. De maten komen uit de canvasmeting van
  * dezelfde letter (`fontBoundingBoxAscent/Descent`); zonder die maten de verhouding van Inter.
- *
- * Een meting wordt per letter en tekst onthouden: een rapport tekent dezelfde datums, duren en koppen
- * honderden keren.
  */
 export function createCanvasTextMetrics(): SvgTextMetrics {
   const ctx = document.createElement('canvas').getContext('2d');

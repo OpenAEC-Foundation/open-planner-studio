@@ -7,8 +7,8 @@ import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type
  * PNG per pagina. Die is korrelig, je kunt er niet op inzoomen en een klik weet niet wat er staat.
  * Deze backend neemt precies dezelfde tekenaanroepen van `renderReport` op als de canvas- en de
  * PDF-backend, en zet ze om naar SVG-elementen. Daardoor is het papier op het scherm scherp op elke
- * zoom en blijft het gelijk aan de PDF: dezelfde renderer, dezelfde tekstmeting (de canvas van het
- * gevendorde Inter, net als de rasterpreview) en dezelfde bladindeling (`TileLayout`).
+ * zoom en blijft het gelijk aan de PDF: dezelfde renderer, dezelfde tekstmeting (de lettermaten uit het
+ * fontbestand, `reportTextMeasure.ts`, ook in de vector-PDF) en dezelfde bladindeling (`TileLayout`).
  *
  * De opname is één keer per instellingenwijziging; daarna haalt `reportPageSvg` per zichtbaar blad
  * alleen de opdrachten op die in de vensters van dat blad vallen (een ruimtelijke index op y). Zo

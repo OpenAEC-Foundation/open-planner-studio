@@ -9,6 +9,12 @@
 //     opdrachten van dat blad, het paginanummer zoals de PDF; tekst ge-escapet.
 //  4. Klikbare delen: kop, kolommen, balken en voet liggen waar de render ze tekent; een klik in de
 //     tabel weet de kolom.
+//  5. Papier = PDF, ook in het afkappen: dezelfde opname naar SVG (met de meting van het papier) en naar
+//     de echte vector-PDF (`paginateVectorToPdfBytes` met de ingebedde TTF's), met kolombreedtes zoals het
+//     paneel ze meet. Per tekstitem dezelfde tekst ná het afkappen, op dezelfde plek en basislijn. Geen
+//     datum wordt in de PDF afgekapt. Voor #817 mat het papier met het canvas van de browser; dat rondt
+//     bij kleine letters af (9 november 2026: "Stakeholder management" 115 tegen 109,0 in de PDF), dus
+//     het papier kapte namen af die de PDF voluit toonde, en de PDF kapte datums af ("30-03-2027 0…").
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -17,12 +23,21 @@ import { renderReport, type PrintOptions, type RenderReportResult } from '@/serv
 import { computeTileLayout, footerLayoutWidthFor, footerRelayoutWidth, reportTileInput } from '@/services/print/tileLayout';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import {
-  fontPx, opsInWindow, opsToSvg, opToSvg, SvgRecordingDraw2D, type SvgOp, type SvgTextMetrics,
+  opsInWindow, opsToSvg, opToSvg, SvgRecordingDraw2D, type SvgOp, type SvgTextMetrics,
 } from '@/services/pdf/svgDraw2d';
 import { ganttTileOptions, recordReportPaper } from '@/services/print/reportPaperModel';
 import { hitPaperRegion, pageLabel, pageWindows, reportPageSvg, reportPaperRegions } from '@/services/print/reportPaper';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { reportFontStack } from '@/services/pdf/reportFont';
+import fontkit from '@pdf-lib/fontkit';
+import {
+  assembleReportMeasureFonts, createReportTextMetrics, fontVerticalMetrics, parseReportFont,
+  type ReportFontFiles, type ReportFontkitFont, type ReportMeasureFonts,
+} from '@/services/pdf/reportTextMeasure';
+import { paginateVectorToPdfBytes } from '@/services/print/paginateVector';
+import { buildPrintRows, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont } from '@/services/print/printPreview';
+import type { PdfVectorDraw2D } from '@/services/pdf/pdfVectorDraw2d';
+import type { Task } from '@/types/task';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -31,16 +46,17 @@ const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
 const ok = (cond: boolean, msg: string) => { if (!cond) fail(msg); };
 const near = (a: number, b: number, eps = 0.011) => Math.abs(a - b) <= eps;
 
-// Vaste tekstmeting: breedte per teken naar lettergrootte, basislijn vast per soort.
-const metrics: SvgTextMetrics = {
-  measure: (text, font) => text.length * fontPx(font) * 0.55,
-  baselineShift: (font, baseline) => {
-    const size = fontPx(font);
-    if (baseline === 'middle') return size * 0.36;
-    if (baseline === 'bottom') return -size * 0.24;
-    return 0;
-  },
-};
+// De echte meting van het papier: de lettermaten uit de gevendorde TTF's, samengesteld zoals de app dat
+// doet (`loadReportTextMetrics` → `assembleReportMeasureFonts`), dezelfde als de vector-PDF.
+const ttf = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
+const FONT_DIR = 'src/services/pdf/fonts';
+const INTER: ReportFontFiles = { regular: ttf(`${FONT_DIR}/Inter-Regular.ttf`), bold: ttf(`${FONT_DIR}/Inter-Bold.ttf`) };
+const CARLITO: ReportFontFiles = { regular: ttf(`${FONT_DIR}/Carlito-Regular.ttf`), bold: ttf(`${FONT_DIR}/Carlito-Bold.ttf`) };
+const ARABIC: ReportFontFiles = { regular: ttf(`${FONT_DIR}/NotoSansArabic-Regular.ttf`), bold: ttf(`${FONT_DIR}/NotoSansArabic-Bold.ttf`) };
+const fkCreate = (bytes: Uint8Array) => (fontkit as unknown as { create(b: Uint8Array): ReportFontkitFont }).create(bytes);
+const interFonts: ReportMeasureFonts = assembleReportMeasureFonts(fkCreate, INTER, { arabic: ARABIC, baseDir: 'ltr' });
+const carlitoFonts: ReportMeasureFonts = assembleReportMeasureFonts(fkCreate, CARLITO, { interFallback: INTER, arabic: ARABIC, baseDir: 'ltr' });
+const metrics: SvgTextMetrics = createReportTextMetrics(interFonts);
 
 // ── Opnemende Draw2D die dezelfde regels van de canvas-API volgt ───────────────────────────────
 type Expected =
@@ -268,6 +284,123 @@ for (const [label, options, rh, rf] of [
   const regions1 = reportPaperRegions(paper.result, layout, 1);
   ok(!regions1.regions.some(r => r.id === 'chart' && r.rects.some(rr => rr.x < layout.marginPt + 1 && rr.w > layout.pageWidthPt / 2)),
     'blad 2: de balken beginnen na de herhaalde tabelstrook');
+}
+
+// ── 5. Papier = PDF, ook in het afkappen ─────────────────────────────────────────────────────────
+{
+  interface DrawnText { text: string; font: string }
+  /** Een Draw2D die elke `fillText` noteert en verder alles aan de echte backend doorgeeft. */
+  const noteTexts = <T extends object>(target: T, notes: DrawnText[]): T => new Proxy(target, {
+    get(t, prop) {
+      if (prop === 'fillText') {
+        return (text: string, x: number, y: number) => {
+          if (text) notes.push({ text, font: (t as unknown as Draw2D).font });
+          (t as unknown as Draw2D).fillText(text, x, y);
+        };
+      }
+      const v = Reflect.get(t, prop, t) as unknown;
+      return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+    },
+    set(t, prop, value) { return Reflect.set(t, prop, value, t); },
+  });
+
+  // Het paneel meet de kolommen op de koppen en cellen van dít rapport, met de meting van het papier
+  // (`useStudioPrintOptions`), en geeft ze door als `columnWidths` (en bij "Volledig" de naambreedte).
+  const studioOptions = (fonts: ReportMeasureFonts, tasks: Task[], over: Partial<PrintOptions>, fullNames: boolean): PrintOptions => {
+    const m = createReportTextMetrics(fonts);
+    const options = baseOptions(over);
+    const rows = buildPrintRows(tasks, undefined);
+    const columnWidths = measureTableColumnWidths(rows, {
+      showCompletion: options.showCompletion ?? false, numberLocale: 'nl', calendar: project.calendar, calendars: [project.calendar],
+      fontFamily: options.fontFamily, tableColumns: options.tableColumns,
+    }, (text, font) => m.measure(text, font));
+    const taskNameColumnWidth = fullNames
+      ? measureTaskNameColumnWidth(rows, (text, bold) => m.measure(text, nameCellFont(bold, options.fontFamily)))
+      : 130;
+    return { ...options, columnWidths, taskNameColumnWidth };
+  };
+
+  // Lastige namen: een lange naam, de pijl die Inter met GSUB tot één teken maakt, een teken dat Carlito
+  // mist (komt uit Inter), en Arabisch (door de shaping-kern).
+  const carlitoMissing = [0x2300, 0x2316, 0x2192, 0x2264, 0x2713].find(cp => !carlitoFonts.regular.hasGlyphForCodePoint(cp) && interFonts.regular.hasGlyphForCodePoint(cp));
+  const leaves = project.tasks.filter(t => t.childIds.length === 0);
+  const renamed = new Map<string, string>([
+    [leaves[1].id, 'Stakeholder management en afstemming met de gemeente over de bouwlogistiek'],
+    [leaves[2].id, 'Afstemming -> opdrachtgever'],
+    [leaves[3].id, `Peil ${String.fromCodePoint(carlitoMissing ?? 0x2264)} 0,00 controleren`],
+    [leaves[4].id, 'تسليم المفتاح'],
+  ]);
+  const tasks: Task[] = project.tasks.map(t => (renamed.has(t.id) ? { ...t, name: renamed.get(t.id)! } : t));
+  ok(carlitoMissing !== undefined, 'fixture: een teken dat Carlito mist en Inter heeft');
+
+  const variants: [string, ReportMeasureFonts, ReportFontFiles, Partial<PrintOptions>, boolean, boolean][] = [
+    ['standaard (A3 liggend, namen afkappen)', interFonts, INTER, {}, false, true],
+    ['namen volledig', interFonts, INTER, {}, true, true],
+    ['A4 staand, tijdlijn over 2', interFonts, INTER, { paperSize: 'A4', orientation: 'portrait', timelineColumns: 2 }, false, true],
+    ['vaste schaal, zonder herhaling', interFonts, INTER, { autoFit: false, customZoom: 18 }, false, false],
+    ['Carlito met Inter als terugval', carlitoFonts, CARLITO, { fontFamily: reportFontStack('carlito') }, true, true],
+  ];
+  const subsetFont = async (bytes: Uint8Array) => bytes;
+  for (const [label, fonts, files, over, fullNames, repeat] of variants) {
+    const options = studioOptions(fonts, tasks, over, fullNames);
+    const m = createReportTextMetrics(fonts);
+    const paper = recordReportPaper(tasks, project.sequences, project.calendar, project.project.name, options, repeat, repeat, m);
+    const svgTexts = paper.recording.ops.filter((op): op is Extract<SvgOp, { k: 'text' }> => op.k === 'text');
+
+    // De echte vector-PDF, met dezelfde keuzes als `buildGanttReportPdf`. De laatste render telt (een
+    // smallere herhaalde voet geeft een tweede render, net als op het papier).
+    const passes: { notes: DrawnText[]; d2d?: PdfVectorDraw2D }[] = [];
+    await paginateVectorToPdfBytes(
+      (make, footerLayoutWidth) => {
+        const pass: { notes: DrawnText[]; d2d?: PdfVectorDraw2D } = { notes: [] };
+        passes.push(pass);
+        return renderReport((w, h) => {
+          const d2d = make(w, h) as PdfVectorDraw2D;
+          pass.d2d = d2d;
+          return noteTexts(d2d, pass.notes);
+        }, tasks, project.sequences, project.calendar, project.project.name, { ...options, footerLayoutWidth });
+      },
+      { ...ganttTileOptions(options, repeat, repeat), baseDir: 'ltr', subsetFont, fallbackFonts: files === INTER ? [] : [{ id: 'inter', bytes: INTER }] },
+      files,
+      ARABIC,
+    );
+    const last = passes[passes.length - 1];
+    const placements = last?.d2d?.texts ?? [];
+    ok(!!last && last.notes.length === placements.length, `${label}: PDF-meting heeft voor elke tekst één plaatsing (${last?.notes.length} ↔ ${placements.length})`);
+    ok(svgTexts.length === last.notes.length, `${label}: papier en PDF tekenen evenveel teksten (${svgTexts.length} ↔ ${last.notes.length})`);
+    const n = Math.min(svgTexts.length, last.notes.length);
+    let textDiffs = 0;
+    let placeDiffs = 0;
+    const textExamples: string[] = [];
+    const placeExamples: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const svg = svgTexts[i];
+      const pdf = last.notes[i];
+      const place = placements[i];
+      if (svg.text !== pdf.text) {
+        textDiffs++;
+        if (textExamples.length < 4) textExamples.push(`"${svg.text}" ↔ "${pdf.text}"`);
+        continue;
+      }
+      if (!place) continue;
+      const { bold, size } = parseReportFont(pdf.font);
+      const baseline = place.y0 + fontVerticalMetrics(bold ? fonts.bold : fonts.regular).ascentEm * size;
+      if (!near(svg.b[0], place.x0) || !near(svg.b[2], place.x1) || !near(svg.y, baseline)) {
+        placeDiffs++;
+        if (placeExamples.length < 4) placeExamples.push(`"${svg.text}" x ${svg.b[0].toFixed(3)}–${svg.b[2].toFixed(3)} y ${svg.y.toFixed(3)} ↔ x ${place.x0.toFixed(3)}–${place.x1.toFixed(3)} y ${baseline.toFixed(3)}`);
+      }
+    }
+    ok(textDiffs === 0, `${label}: ${textDiffs} tekst(en) anders afgekapt op papier dan in de PDF: ${textExamples.join(' · ')}`);
+    ok(placeDiffs === 0, `${label}: ${placeDiffs} tekst(en) op een andere plek of basislijn: ${placeExamples.join(' · ')}`);
+    // Datums horen in de PDF nooit afgekapt te zijn: het paneel meet hun kolom op dezelfde maat.
+    const cutDates = last.notes.filter(t => /^\d{2}-\d{2}-/.test(t.text) && t.text.endsWith('…'));
+    ok(cutDates.length === 0, `${label}: ${cutDates.length} afgekapte datum(s) in de PDF (${cutDates.slice(0, 3).map(t => t.text).join(', ')})`);
+    if (label.startsWith('standaard')) {
+      ok(svgTexts.some(t => t.text.startsWith('Stakeholder') && t.text.endsWith('…')), 'standaard: de lange naam wordt afgekapt (op papier en dus ook in de PDF)');
+      ok(svgTexts.some(t => /^\d{2}-\d{2}-\d{4}/.test(t.text)), 'standaard: er staan datums in de tabel');
+    }
+    if (fullNames) ok(svgTexts.some(t => t.text === renamed.get(leaves[1].id)), `${label}: met "Volledig" staat de lange naam er heel`);
+  }
 }
 
 if (failures > 0) {
