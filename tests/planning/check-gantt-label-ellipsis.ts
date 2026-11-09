@@ -262,6 +262,15 @@ if (rectKort && rectLang) {
     // … maar wordt geen sleep- of relatiegreep.
     ok('naam is geen sleepgreep', r2.getTaskBarBounds(naamX, midY(rSmal)) === null);
     ok('naam is geen relatiegreep', r2.getRelationSourceAt(naamX, midY(rSmal)) === null);
+    // Alleen het tekstvlak telt (body 11 px: een halve lettergrootte + 1 px boven en onder het
+    // midden), niet de hele rij. Boven en onder de naam is de randbalk weer gewoon een greep.
+    for (const dy of [-10, 10]) {
+      const kant = dy < 0 ? 'boven' : 'onder';
+      ok(`naam-hittest: ${kant} de tekst geeft niets`, r2.getTaskNameAt(SMAL_W - 10, midY(rRand) + dy) === null);
+      ok(`naam-hittest: ${kant} de tekst is de randbalk een sleepgreep`, r2.getTaskBarBounds(rRand.right - 3, midY(rRand) + dy)?.task.id === 'ham-rand');
+      ok(`naam-hittest: ${kant} de tekst is de randbalk een relatiegreep`, r2.getRelationSourceAt(rRand.right - 3, midY(rRand) + dy)?.id === 'ham-rand');
+    }
+    ok('naam-hittest: net binnen het tekstvlak telt wel', r2.getTaskNameAt(SMAL_W - 10, midY(rRand) + 6)?.id === 'ham-rand');
   }
   // De eerste scène tekende geen naam ver weg: daar herkent de hittest ook niets.
   ok('naam-hittest: lege rij geeft niets', renderer.getTaskNameAt(5, HDRH + ROWH * 10) === null);

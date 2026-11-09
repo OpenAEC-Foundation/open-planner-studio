@@ -35,7 +35,7 @@ import {
   BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenBars, widenShortRuns,
   type BaselineBar, type BaselineMilestone, type BaselineSlot,
 } from './baselineStrip';
-import { canvasFont, type TextRole } from './textRoles';
+import { canvasFont, TEXT_ROLE_PX, type TextRole } from './textRoles';
 import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
 
 /** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
@@ -371,10 +371,11 @@ export class GanttRenderer {
    *  stuk en een pauze op het scherm hetzelfde betekenen als onder de muis. Per `render()` geleegd;
    *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
   private splitSegmentsByTask = new Map<string, { x1: number; x2: number }[]>();
-  /** Horizontale plek van de naam die de laatste render RECHTS ACHTER een balk tekende
+  /** Tekstvlak (canvas-px) van de naam die de laatste render RECHTS ACHTER een balk tekende
    *  (`drawOutsideBarName`), per taak-id. Zo herkennen klik, dubbelklik en tooltip ook de naam
-   *  (`getTaskNameAt`); de sleepgrepen van de balk blijven even groot. */
-  private outsideNameSpans = new Map<string, { left: number; right: number }>();
+   *  (`getTaskNameAt`). Alleen het vlak van de tekst zelf, niet de hele rij: boven en onder de naam
+   *  blijven balkgrepen, baselinestrook en achtergrond bereikbaar. */
+  private outsideNameSpans = new Map<string, { left: number; right: number; top: number; bottom: number }>();
   /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
    *  hit-testen en de sleep-duurbadge. */
   private readonly bar: BarLayout;
@@ -1427,7 +1428,10 @@ export class GanttRenderer {
     if (!label) return;
     const labelWidth = ctx.measureText(label).width;
     const x = Math.max(4, Math.min(preferredX, edge - labelWidth));
-    this.outsideNameSpans.set(taskId, { left: x, right: x + labelWidth });
+    // Tekst staat op `textBaseline = 'middle'`: het tekstvlak ligt een halve lettergrootte (+1 px)
+    // boven en onder `textY`.
+    const half = Math.ceil(Math.round(TEXT_ROLE_PX.body * (this.opts.fontScale ?? 1)) / 2) + 1;
+    this.outsideNameSpans.set(taskId, { left: x, right: x + labelWidth, top: textY - half, bottom: textY + half });
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineWidth = OUTSIDE_LABEL_KNOCKOUT;
@@ -2549,14 +2553,16 @@ export class GanttRenderer {
     return row?.kind === 'task' ? row.task : null;
   }
 
-  /** Hit test: staat `canvasX`/`canvasY` op de naam die de laatste render rechts achter de balk
-   *  tekende (`drawOutsideBarName`)? Alleen voor selectie, openen en tooltip; sleep- en
-   *  relatiegrepen lezen deze naam bewust niet (`getTaskBarBounds`, `getRelationSourceAt`). */
+  /** Hit test: staat `canvasX`/`canvasY` in het tekstvlak van de naam die de laatste render rechts
+   *  achter de balk tekende (`drawOutsideBarName`)? Alleen voor selectie, openen, menu en tooltip;
+   *  sleep- en relatiegrepen lezen deze naam bewust niet (`getTaskBarBounds`, `getRelationSourceAt`).
+   *  Boven en onder de tekst geeft hij niets, ook binnen de rij. */
   getTaskNameAt(canvasX: number, canvasY: number): Task | null {
     const task = this.getTaskAtY(canvasY);
     if (!task) return null;
     const span = this.outsideNameSpans.get(task.id);
-    return span && canvasX >= span.left && canvasX <= span.right ? task : null;
+    return span && canvasX >= span.left && canvasX <= span.right && canvasY >= span.top && canvasY <= span.bottom
+      ? task : null;
   }
 
   /** Hit test: get the row index for a Y position */

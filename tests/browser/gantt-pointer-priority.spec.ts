@@ -238,6 +238,50 @@ test('Gantt pointer priority: naam over de balk bij de rand wint van balk- en re
   await expect(page.getByRole('button', { name: 'Start relation from here', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New task', exact: true })).toHaveCount(0);
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Start relation from here', exact: true })).toHaveCount(0);
+
+  // Alleen het tekstvlak van de naam telt, niet de hele rij. Vlak onder de bovenkant van de rij
+  // (ruim boven de tekst) gedraagt de rij zich weer als vóór de naam.
+  const rowBox = await tableRow(page, longId).boundingBox();
+  expect(rowBox).not.toBeNull();
+  const aboveText = rowBox!.y + 3;
+  expect(aboveText).toBeLessThan(onName.y - 8);
+
+  // 4. Boven de tekst is de balk weer een greep: een sleep van 36 px (2 dagen bij zoom 18)
+  // verschuift de taak, als één undo-stap.
+  const barAbove = { x: canvasRight - 47, y: aboveText };
+  await page.mouse.move(barAbove.x, barAbove.y);
+  await page.mouse.down();
+  await page.mouse.move(barAbove.x - 36, barAbove.y, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => state(page).then(s => s.tasks.find(t => t.id === longId)?.scheduleStart)).not.toBe(
+    before.tasks.find(t => t.id === longId)?.scheduleStart,
+  );
+  after = await state(page);
+  expect(after.undoDepth).toBe(before.undoDepth + 1);
+  expect(after.tasks.find(t => t.id === targetId)?.scheduleStart).toBe(before.tasks.find(t => t.id === targetId)?.scheduleStart);
+
+  // 5. Lege ruimte boven een lange naam, links van de balk, is weer achtergrond. In de sleepmodus
+  // (standaard) maakt Ctrl daar een kaderselectie …
+  const emptyAbove = { x: canvasRight - 200, y: aboveText };
+  const movedRight = await barPoint(page, longId, 'left');
+  expect(emptyAbove.x).toBeLessThan(movedRight.x - 6 - 1);
+  await page.keyboard.down('Control');
+  await page.mouse.move(emptyAbove.x, emptyAbove.y);
+  await page.mouse.down();
+  await page.mouse.move(emptyAbove.x - 40, emptyAbove.y + 40, { steps: 4 });
+  await expect(page.getByTestId('box-select-rect')).toBeVisible();
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  await expect(page.getByTestId('box-select-rect')).toHaveCount(0);
+
+  // 6. … en zonder Ctrl pant hij de tijdlijn.
+  const scrollBefore = await page.evaluate(() => window.__OPS__!.store.getState().view.scrollX);
+  await page.mouse.move(emptyAbove.x, emptyAbove.y);
+  await page.mouse.down();
+  await page.mouse.move(emptyAbove.x - 80, emptyAbove.y, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().view.scrollX)).toBeGreaterThan(scrollBefore);
 });
 
 // Zonder deze annulering blijft een via de popover afgebroken relatie als onzichtbare
