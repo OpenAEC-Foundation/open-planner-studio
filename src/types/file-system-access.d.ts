@@ -2,7 +2,7 @@
 //
 // TypeScript 5.9.3's lib.dom.d.ts kent FileSystemHandle / FileSystemFileHandle /
 // FileSystemWritableFileStream al, maar NIET:
-//   - Window.showOpenFilePicker / showSaveFilePicker
+//   - Window.showOpenFilePicker / showSaveFilePicker / showDirectoryPicker
 //   - FileSystemHandle.queryPermission / requestPermission
 //   - DataTransferItem.getAsFileSystemHandle
 //   - de picker-optietypes
@@ -48,7 +48,20 @@ interface DataTransferItem {
   getAsFileSystemHandle?(): Promise<FileSystemHandle | null>;
 }
 
+// De bestanden in een map (stap 1.11, *Afhankelijke projecten zoeken…*). In lib.dom staat dit pas
+// met de lib `DOM.AsyncIterable`; die laden we niet.
+interface FileSystemDirectoryHandle {
+  values(): AsyncIterableIterator<FileSystemHandle>;
+}
+
+interface DirectoryPickerOptions {
+  mode?: 'read' | 'readwrite';
+  id?: string;
+  startIn?: FileSystemHandle;
+}
+
 interface Window {
+  showDirectoryPicker?(options?: DirectoryPickerOptions): Promise<FileSystemDirectoryHandle>;
   showOpenFilePicker?(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
   showSaveFilePicker?(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
 }

@@ -669,7 +669,7 @@ test('B stdio: initialize, tools/list gelijk aan de registry (namen, beschrijvin
   const instructions = stdio.getInstructions() ?? '';
   assert(instructions.startsWith(MCP_INSTRUCTIONS) && instructions.includes('Headless mode'), 'instructions = app + headless uitleg');
   const { tools } = await stdio.listTools();
-  assertEq(tools.length, 41, 'aantal tools');
+  assertEq(tools.length, 42, 'aantal tools');
   assertEq(canonical(tools), canonical(registryList()), 'tools/list = registry van de app (geen uitzonderingen)');
   assertEq(tools.map((t) => t.name), registryList().map((t) => t.name), 'dezelfde volgorde van tools');
 });

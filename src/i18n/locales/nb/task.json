@@ -604,6 +604,10 @@
     "pickRecent": "Velg en nylig fil",
     "noRecent": "Ingen nylige filer",
     "readOnlyNote": "Kildefilen leses inn som skrivebeskyttet. Den åpnes ikke som dokument.",
+    "siteProject": "Prosjekt på nettstedet",
+    "siteProjectPick": "Velg et prosjekt på nettstedet",
+    "siteNoProjects": "Ingen andre prosjekter på nettstedet.",
+    "siteListFailed": "Nettstedet returnerte ingen prosjektliste.",
     "loadingTasks": "Laster aktiviteter…",
     "sourceTask": "Kildeaktivitet",
     "direction": "Retning",
@@ -645,11 +649,17 @@
     "newVersion_other": "{{file}} har en ny versjon, lagret {{saved}}. {{count}} koblinger endres.",
     "newVersionAuthor_one": "{{file}} har en ny versjon, lagret {{saved}} (forfatter: {{author}}). {{count}} kobling endres.",
     "newVersionAuthor_other": "{{file}} har en ny versjon, lagret {{saved}} (forfatter: {{author}}). {{count}} koblinger endres.",
+    "newVersionSite_one": "{{file}} har en ny versjon på nettstedet (versjon {{version}}). {{count}} kobling endres.",
+    "newVersionSite_other": "{{file}} har en ny versjon på nettstedet (versjon {{version}}). {{count}} koblinger endres.",
+    "newVersionSiteAuthor_one": "{{file}} har en ny versjon på nettstedet (versjon {{version}}, lagret av {{author}}). {{count}} kobling endres.",
+    "newVersionSiteAuthor_other": "{{file}} har en ny versjon på nettstedet (versjon {{version}}, lagret av {{author}}). {{count}} koblinger endres.",
     "review": "Se gjennom",
     "later": "Senere",
     "reviewTitle": "Ny versjon av {{file}}",
     "reviewSaved": "Lagret {{saved}}.",
     "reviewSavedAuthor": "Lagret {{saved}}. Forfatter: {{author}}.",
+    "reviewSavedSite": "Versjon {{version}} på nettstedet.",
+    "reviewSavedSiteAuthor": "Versjon {{version}} på nettstedet, lagret av {{author}}.",
     "reviewReading": "Leser kilden…",
     "reviewReadFailed": "Kilden kunne ikke leses. Planen forblir uendret.",
     "reviewNoChanges": "Ingen koblinger endres lenger. Planen forblir uendret.",
@@ -673,7 +683,14 @@
     "reviewAccept": "Godkjenn",
     "edit": "Rediger kobling mellom prosjekter…",
     "refreshSource": "Oppdater kilde",
-    "deleteRelation": "Slett avhengighet"
+    "deleteRelation": "Slett avhengighet",
+    "chooseSourceFile": "Velg kildefil…",
+    "chooseSourceFiles": "Velg kildefiler…",
+    "chooseSourceFailed": "Filen kan ikke leses.",
+    "unreadSources_one": "{{count}} kilde ble ikke lest.",
+    "unreadSources_other": "{{count}} kilder ble ikke lest.",
+    "chosenUnmatched_one": "{{count}} valgt fil hører ikke til noen kobling mellom prosjekter i denne planen.",
+    "chosenUnmatched_other": "{{count}} valgte filer hører ikke til noen kobling mellom prosjekter i denne planen."
   },
   "split": {
     "gapDays_one": "{{count}} arbeidsdag avbrudd",
@@ -691,5 +708,11 @@
     "timeHint": "Tomt: starten eller slutten av arbeidsdagen. Med et klokkeslett: nøyaktig det tidspunktet.",
     "later": "Et kvarter senere",
     "earlier": "Et kvarter tidligere"
+  },
+  "dependents": {
+    "title": "Avhengige prosjekter",
+    "successor": "Etterfølger der",
+    "predecessor": "Forgjenger der",
+    "anchor": "regner med {{date}}"
   }
 }

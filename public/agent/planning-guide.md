@@ -37,6 +37,7 @@
 - FS default (~9 in 10). SS + lag only for real overlap, paired with FF. SF: almost never.
 - SS/SF between tasks, not phases.
 - Few lags; no negative lag (split the predecessor, or SS). No calendar-day lag: a visible `"ELAPSEDTIME"` curing task.
+- External relationship (to a task in another project file, on a frozen anchor date): only the user adds one, in the app. Before reporting dates it drives: planner_refresh_external_links. Report a link with `sourceMissing: true`.
 - Gaps: planner_list_tasks `zonder_relaties: true`. No successor = no `rels` on the leaf or its summary in planner_get_project_overview (except the final milestone).
 
 ## Constraints and dates

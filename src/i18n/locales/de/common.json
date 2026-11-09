@@ -233,7 +233,10 @@
     "msProjectLostResourceRates_other": "Die Tarife von {{count}} Ressourcen wurden nicht übernommen.",
     "minuteModelConverted_one": "{{document}}: {{count}} Vorgang hat nach der Umwandlung einen anderen Anfang oder ein anderes Ende; die größte Verschiebung beträgt {{days}} Arbeitstage. Strg+Z setzt die gespeicherten Daten zurück.",
     "minuteModelConverted_other": "{{document}}: {{count}} Vorgänge haben nach der Umwandlung einen anderen Anfang oder ein anderes Ende; die größte Verschiebung beträgt {{days}} Arbeitstage. Strg+Z setzt die gespeicherten Daten zurück.",
-    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ wurde korrigiert: das Ende oder die Pause passte nicht zur gespeicherten Arbeitszeit."
+    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ wurde korrigiert: das Ende oder die Pause passte nicht zur gespeicherten Arbeitszeit.",
+    "dependentProjectsFound": "Abhängige Projekte: {{projects}}. Verknüpfungen zu diesem Projekt: {{links}}.",
+    "dependentProjectsNone": "Keine Projekte mit einer externen Beziehung zu diesem Terminplan gefunden.",
+    "dependentProjectsFailed": "Der Ordner mit abhängigen Projekten konnte nicht gelesen werden."
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Vorgängen: {{path}}",
@@ -1718,5 +1721,15 @@
   "fileDrop": {
     "title": "Zum Öffnen loslassen",
     "subtitle": "Projektdatei oder Import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankertermine anderer Projekte werden knapper",
+    "body": "Diese Projekte rechnen mit einem Termin aus diesem Terminplan. Nach dem Speichern erhalten sie einen knapperen Termin, sobald sie ihre externen Beziehungen aktualisieren.",
+    "colProject": "Projekt",
+    "colTheirTask": "Deren Vorgang",
+    "colOwnTask": "Vorgang hier",
+    "colAnchor": "Ankertermin: alt → neu",
+    "saveAnyway": "Trotzdem speichern",
+    "cancel": "Abbrechen"
   }
 }

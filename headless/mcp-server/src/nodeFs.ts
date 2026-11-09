@@ -421,7 +421,7 @@ export async function createNodeFileFs(
   }
 
   /** Metadata van een bestaand doel, ook gebonden aan de ligging van zijn map. */
-  async function statChecked(target: string): Promise<{ id: Identity; isFile: boolean } | null> {
+  async function statChecked(target: string): Promise<{ id: Identity; isFile: boolean; mtime: Date } | null> {
     const c = await check(target);
     if (!c.file) return null;
     return inDir(c.dir, target, () => {
@@ -432,7 +432,7 @@ export async function createNodeFileFs(
         throw changed(target);
       }
       if (info.isSymbolicLink()) throw changed(target);
-      return { id: idOf(info), isFile: info.isFile() };
+      return { id: idOf(info), isFile: info.isFile(), mtime: info.mtime };
     });
   }
 
@@ -448,7 +448,7 @@ export async function createNodeFileFs(
       // "onbekend" en weigert de export het.
       if (!info) throw new Error(`failed to get metadata of path: ${p} with error: No such file or directory (os error 2)`);
       const safe = (n: bigint): number | null => (n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : null);
-      return { isFile: info.isFile, dev: safe(info.id.dev), ino: safe(info.id.ino) };
+      return { isFile: info.isFile, dev: safe(info.id.dev), ino: safe(info.id.ino), mtime: info.mtime };
     },
     readTextFile: async (p) => {
       const bytes = await readChecked(p);
