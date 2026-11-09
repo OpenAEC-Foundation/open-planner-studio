@@ -51,6 +51,8 @@ Dit hoofdstuk beschrijft de app vóór de bouw (2 november 2026). Wat sindsdien 
 
 ## 3. Hoe OPS nu in de SuperCloud draait
 
+Dit hoofdstuk beschrijft de stand van 2 november 2026, vóór de bouw. Wat OPS sindsdien kan, staat in paragraaf 9.1.
+
 Labels: **GEZIEN** = ik las het zelf in de genoemde bron. **VERMOED** = afgeleid, of uit een bron die ik niet zelf
 kon lezen.
 
@@ -67,7 +69,7 @@ kon lezen.
 
 De desktop-app kan ook met de SuperCloud werken via de sync-client `openaec-cloud-desktop`: die zet de bestanden in
 een gewone lokale map. GEZIEN in `open-office-studio/docs/supercloud.md`. Voor OPS is dat gewoon werken met
-bestanden op schijf (stand B in hoofdstuk 6).
+bestanden op schijf (stand B in hoofdstuk 7).
 
 ### 3.2 Het hostcontract van OPS
 
@@ -93,7 +95,8 @@ Voor relaties tussen projecten mist dit contract vier dingen:
 
 `list` en `open` zijn er wel. In de werkplek is `list` waarschijnlijk beperkt tot de map van het geopende bestand
 (zie 3.3). Met de bestaande vier functies kan OPS dus al een bronproject lezen dat in dezelfde map staat, en met
-`versions(id)` zien of het een nieuwe versie heeft. OPS gebruikt dat nog niet.
+`versions(id)` zien of het een nieuwe versie heeft. Op 2 november 2026 gebruikte OPS dat nog niet; stap 1.9 bouwde
+het (paragraaf 9.1).
 
 ### 3.3 Het werkplekprotocol
 
@@ -174,7 +177,11 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
 - **De dialoog *Links Between Projects*** opent bij het openen van een plan met externe links en heeft een kolom
   *Differences*: "Differences usually include a new start or finish date for the external predecessor or external
   successor." Met *Accept* en *All*, en de optie "Automatically accept new external data". GEZIEN (zelf nagelezen),
-  zelfde bron. De dialoog toont dus de nieuwe datum van de externe taak, niet wat er in het eigen plan verschuift.
+  zelfde bron. Volgens dezelfde pagina toont MS Project bij het openen ook de gevolgen: "When you open a plan that
+  has external links, the external predecessors, external successors, and effects on your schedule are displayed,
+  and you can choose to accept any or all changes." GEZIEN (zelf nagelezen, 9 november 2026). Wat die gevolgen zijn
+  (alleen de nieuwe datum in *Differences*, of ook wat er in het eigen plan verschuift), is niet vastgesteld: we hebben
+  MS Project niet zelf gedraaid.
 - **Masterproject.** Een ingevoegd subproject is gekoppeld: "changes in the subproject are reflected in the master
   project, and vice-versa". GEZIEN via de ophaaltool:
   [MS Support, Link projects to create a master project](https://support.microsoft.com/en-us/project/link-projects-to-create-a-master-project-in-project-desktop).
@@ -236,17 +243,21 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
 
 ### 4.4 Samengevat
 
-| wat | MS Project (bestanden) | Project Server | P6 | OPS nu |
+| wat | MS Project (bestanden) | Project Server | P6 | OPS op 2 november 2026 |
 |---|---|---|---|---|
 | bron verandert → eigen plan weet het | bij openen, dialoog *Links Between Projects* | bij openen, rood uitroepteken | live als beide open zijn; anders opgeslagen externe datums | alleen na *Bron vernieuwen* (desktop) |
-| zien wat er in het eigen plan verschuift vóór accepteren | nee, alleen de nieuwe datum van de externe taak | nee | n.v.t. (rekent direct) | nee |
+| zien wat er in het eigen plan verschuift vóór accepteren | niet vastgesteld (de help noemt "effects on your schedule") | niet gevonden | n.v.t. (rekent direct) | nee |
 | bron ziet wie ervan afhangt | VERMOED: spooktaak als de bron de link kent | de leverancier ziet de afhankelijkheden | ja, rapport *Cross Project Relationships* | nee |
 | melding aan de andere planner | niet gevonden | niet gevonden (alleen bij openen) | niet gevonden | nee |
 | werkt zonder server | ja | nee | nee (database) | ja |
 | werkt in de browser | nee | deels (PWA) | EPPM web | alleen handmatig |
 
-Geen enkel product dat ik vond, meldt een conflict actief aan de andere planner. Geen enkel product toont vóór
-het accepteren wat er in het eigen plan verschuift. Daar kan OPS beter zijn.
+De kolom *OPS op 2 november 2026* is de stand bij het onderzoek, vóór de bouw van deel 1. Wat sindsdien gebouwd is,
+staat in paragraaf 9.1.
+
+Geen enkel product dat ik vond, meldt een conflict actief aan de andere planner. Daar kan OPS beter zijn. Of een
+product vóór het accepteren toont wat er in het eigen plan verschuift, is alleen bij P6 duidelijk (nee, P6 rekent
+direct). Bij MS Project noemt de help wel "effects on your schedule"; wat dat precies is, is niet vastgesteld (4.1).
 
 ## 5. Ontwerp: wat in beide standen geldt
 
@@ -276,8 +287,9 @@ Elk punt met een voorbeeld. *Aannemer.ifc* hangt af van *Installateur.ifc*: de r
    venster weer actief wordt.
 2. **Eerst de gevolgen, dan accepteren.** *Bekijken* toont per koppeling het oude en het nieuwe anker, en wat er in
    het eigen plan verschuift: "Accepteren verschuift 4 taken. Het einde van het project gaat van 18 juni naar
-   25 juni 2027 (+5 werkdagen)." Daarna *Accepteren* (één undo-stap, met herberekening) of *Later*. MS Project toont
-   alleen de nieuwe datum van de externe taak; P6 rekent meteen door zonder voorbeeld.
+   25 juni 2027 (+5 werkdagen)." Daarna *Accepteren* (één undo-stap, met herberekening) of *Later*. Of MS Project bij
+   het openen ook de verschuiving in het eigen plan toont, is niet vastgesteld (4.1); P6 rekent meteen door zonder
+   voorbeeld.
 3. **De bron ziet wie ervan afhangt.** De installateur ziet bij *Installatie*: "Aannemer rekent hierop: Ruwbouw moet
    klaar zijn vóór de start, uiterlijk 15 maart 2027". In de Gantt staat een klein merkteken aan de balk. P6 heeft
    alleen een rapport, en alleen binnen één database.
@@ -328,8 +340,10 @@ Ethan keurde de drie velden goed op 3 november 2026 (keuze 4).
 
 Het lijstje "wie hangt van mij af" komt niet in het IFC: in de SuperCloud houdt de host het bij, zonder cloud zoekt OPS
 het op (6.4 en 7.3). Wel in het IFC komt de map waarin OPS zonder cloud zoekt: een projectinstelling, één per project
-(keuze 7, besloten op 3 november 2026). Ook die is optioneel; een oudere versie laat haar staan zoals de andere
-projectinstellingen.
+(keuze 7, besloten op 3 november 2026). Ook die is optioneel: een oudere versie opent het bestand gewoon. Maar een
+oudere versie bewaart haar niet. De reader en de writer van zo'n versie kennen in `OPS_ProjectSettings` alleen hun
+eigen velden. Slaat een planner het bestand op met een versie van vóór stap 1.11 (tot en met 2026.44.0), dan is de
+map weg en kiest hij haar opnieuw.
 
 ## 6. Stand A: in de SuperCloud
 
@@ -417,7 +431,8 @@ alleen het vangnet (keuze 6, besloten).
 Een knop *Afhankelijke projecten zoeken…* leest de IFC-bestanden in een gekozen map alleen-lezen en zoekt koppelingen
 naar dit project (op project-id). Geopende documenten tellen ook mee. Het resultaat staat bij de taken, net als in de
 SuperCloud. In de browser: een map kiezen in Chromium, of een paar bestanden kiezen in andere browsers. OPS onthoudt de
-map als projectinstelling, zodat de controle bij elk openen vanzelf gaat (keuze 7, besloten).
+map als projectinstelling, zodat de controle bij elk openen vanzelf gaat (keuze 7, besloten). Hoe dat in de browser
+uitpakt, staat bij stap 1.11 in paragraaf 9.1.
 
 ### 7.4 Meldingen
 
@@ -517,12 +532,15 @@ Wat in de bouw anders liep dan hierboven staat:
   balk van 1.5 weg voor de bronnen die hij las, zoals de app. Alleen een koppeling naar een bron die echt gelezen is,
   wordt ververst; dat geldt ook voor *Alle externe relaties vernieuwen* in de app. Een koppeling die de planner tijdens
   het lezen naar een ander bronbestand zet, houdt haar nieuwe pad en anker.
-- **1.11.** Het zoekresultaat staat in het eigenschappenpaneel van de taak, onder *Afhankelijkheden*. De map staat in
-  het IFC-bestand als `OPS_ProjectSettings/DependentProjectsFolder`. De vraag vóór opslaan rekent op een kopie van het
-  bestand zoals het opgeslagen wordt, net als het afhankelijke project; het geopende document rekent niet. Mislukt
-  die controle, dan valt ze nog stil terug op de huidige datums (VERVOLG, `knownbugs.md` punt 995). Met gevonden
-  koppelingen kost elke opslag met de hand extra tijd, geschat 2 s bij 10.000 taken (VERVOLG, punt 996). Submappen,
-  de MCP-kant en een melding aan de andere planner zijn er nog niet (punten 975, 976 en 979).
+- **1.11.** Het zoekresultaat staat in het eigenschappenpaneel van de taak, onder *Afhankelijkheden*. Alleen de
+  desktop-app zet de map in het IFC-bestand, als `OPS_ProjectSettings/DependentProjectsFolder` (het absolute pad).
+  Chromium onthoudt het maphandvat alleen lokaal, in IndexedDB per project-id, en zoekt bij openen alleen vanzelf als de
+  toestemming al gegeven is (VERVOLG, `knownbugs.md` punt 977). Andere browsers onthouden niets. Een bestand dat in de
+  browser is opgeslagen, neemt de map dus niet mee naar een andere computer. De vraag vóór opslaan rekent op een kopie
+  van het bestand zoals het opgeslagen wordt, net als het afhankelijke project; het geopende document rekent niet.
+  Mislukt die controle, dan valt ze nog stil terug op de huidige datums (VERVOLG, `knownbugs.md` punt 995). Met gevonden
+  koppelingen kost elke opslag met de hand extra tijd, geschat 2 s bij 10.000 taken (VERVOLG, punt 996). Submappen, de
+  MCP-kant en een melding aan de andere planner zijn er nog niet (punten 975, 976 en 979).
 
 ## 10. Keuzes voor Ethan (alle besloten)
 
