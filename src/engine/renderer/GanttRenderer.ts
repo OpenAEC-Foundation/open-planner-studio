@@ -372,10 +372,13 @@ export class GanttRenderer {
    *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
   private splitSegmentsByTask = new Map<string, { x1: number; x2: number }[]>();
   /** Tekstvlak (canvas-px) van de naam die de laatste render RECHTS ACHTER een balk tekende
-   *  (`drawOutsideBarName`), per taak-id. Zo herkennen klik, dubbelklik en tooltip ook de naam
-   *  (`getTaskNameAt`). Alleen het vlak van de tekst zelf, niet de hele rij: boven en onder de naam
-   *  blijven balkgrepen, baselinestrook en achtergrond bereikbaar. */
-  private outsideNameSpans = new Map<string, { left: number; right: number; top: number; bottom: number }>();
+   *  (`drawOutsideBarName`), per RIJ-index, net als `baselineHits`: bij groeperen op resource staat
+   *  dezelfde taak in meer rijen, elk met een eigen naam. Zo herkennen klik, dubbelklik en tooltip
+   *  ook de naam (`getTaskNameAt`). Alleen het vlak van de tekst zelf, niet de hele rij: boven en
+   *  onder de naam blijven balkgrepen, baselinestrook en achtergrond bereikbaar. */
+  private outsideNameSpans = new Map<number, { left: number; right: number; top: number; bottom: number }>();
+  /** Rij-index die `drawTaskBars` nu tekent; `drawOutsideBarName` bewaart zijn tekstvlak daaronder. */
+  private drawingRowIndex = -1;
   /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
    *  hit-testen en de sleep-duurbadge. */
   private readonly bar: BarLayout;
@@ -1327,6 +1330,7 @@ export class GanttRenderer {
       }
       const task = row.task;
       const isSelected = this.opts.selectedTaskIds.includes(task.id);
+      this.drawingRowIndex = i;
 
       let overrideColor: string | undefined;
       let dimmed = false;
@@ -1416,7 +1420,7 @@ export class GanttRenderer {
    * en rechts, eigenaar 10-10-2026) en verdwijnt ook niet. De afdruk valt wel terug naar links
    * (`printPreview.drawBarLabel`); daar schuift niets.
    */
-  private drawOutsideBarName(taskId: string, name: string, color: string, barRight: number, textY: number): void {
+  private drawOutsideBarName(name: string, color: string, barRight: number, textY: number): void {
     const ctx = this.ctx;
     const edge = this.opts.canvasWidth - 4;
     const preferredX = barRight + GanttRenderer.ARROW_STUB + OUTSIDE_LABEL_GAP;
@@ -1427,11 +1431,13 @@ export class GanttRenderer {
     const label = this.ellipsize(name, maxWidth);
     if (!label) return;
     const labelWidth = ctx.measureText(label).width;
-    const x = Math.max(4, Math.min(preferredX, edge - labelWidth));
+    // Geen ondergrens: ligt de balk links buiten beeld, dan gaat de naam mee (`labelWidth` is
+    // hooguit `edge - 4`, dus de rechtergrens houdt de naam nooit links van x = 4 vast).
+    const x = Math.min(preferredX, edge - labelWidth);
     // Tekst staat op `textBaseline = 'middle'`: het tekstvlak ligt een halve lettergrootte (+1 px)
     // boven en onder `textY`.
     const half = Math.ceil(Math.round(TEXT_ROLE_PX.body * (this.opts.fontScale ?? 1)) / 2) + 1;
-    this.outsideNameSpans.set(taskId, { left: x, right: x + labelWidth, top: textY - half, bottom: textY + half });
+    this.outsideNameSpans.set(this.drawingRowIndex, { left: x, right: x + labelWidth, top: textY - half, bottom: textY + half });
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineWidth = OUTSIDE_LABEL_KNOCKOUT;
@@ -1741,7 +1747,7 @@ export class GanttRenderer {
         }
       } else {
         if (isDone && greyTones && width >= checkSize * 2.2 + 10) drawCheck(x1 + (width - checkSize * 2.2) / 2);
-        this.drawOutsideBarName(task.id, task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY);
+        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY);
       }
     }
     return resourceAccentHeight;
@@ -1788,7 +1794,7 @@ export class GanttRenderer {
     }
 
     // Net als bij samenvattingstaken staat de naam altijd achter de dunne balk.
-    this.drawOutsideBarName(task.id, task.name, this.colors.text, x1 + width, y + height / 2);
+    this.drawOutsideBarName(task.name, this.colors.text, x1 + width, y + height / 2);
   }
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
@@ -1839,7 +1845,7 @@ export class GanttRenderer {
 
     // Naam ALTIJD rechts achter de balk, ook als hij erin zou passen (issue #729): op de dunne
     // fasebalk is een naam slecht leesbaar, en zo staat hij op dezelfde plek als op de afdruk.
-    this.drawOutsideBarName(task.id, task.name, completion >= 1 ? this.colors.textSecondary : this.colors.text, x1 + width, y + height / 2);
+    this.drawOutsideBarName(task.name, completion >= 1 ? this.colors.textSecondary : this.colors.text, x1 + width, y + height / 2);
   }
 
   /** Schermpositie (canvas-x) van de mijlpaal-ruit voor `task`, of `null` als er niets is om op te
@@ -2558,9 +2564,11 @@ export class GanttRenderer {
    *  sleep- en relatiegrepen lezen deze naam bewust niet (`getTaskBarBounds`, `getRelationSourceAt`).
    *  Boven en onder de tekst geeft hij niets, ook binnen de rij. */
   getTaskNameAt(canvasX: number, canvasY: number): Task | null {
-    const task = this.getTaskAtY(canvasY);
-    if (!task) return null;
-    const span = this.outsideNameSpans.get(task.id);
+    const rowIndex = this.getRowIndex(canvasY);
+    const row = this.rows[rowIndex];
+    if (row?.kind !== 'task') return null;
+    const task = row.task;
+    const span = this.outsideNameSpans.get(rowIndex);
     return span && canvasX >= span.left && canvasX <= span.right && canvasY >= span.top && canvasY <= span.bottom
       ? task : null;
   }

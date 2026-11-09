@@ -272,6 +272,78 @@ if (rectKort && rectLang) {
     }
     ok('naam-hittest: net binnen het tekstvlak telt wel', r2.getTaskNameAt(SMAL_W - 10, midY(rRand) + 6)?.id === 'ham-rand');
   }
+  // ── Groeperen op resource: dezelfde taak staat in twee rijen, elk met een eigen naam. Beide
+  // namen moeten werken, niet alleen de laatst getekende (review #842, ronde 4). Twee rijen per
+  // taak: een randbalk (naam over de balk) en een smalle balk (naam naast de balk).
+  {
+    const dubbelRows: ViewRow[] = [
+      { kind: 'task', rowKey: 'res-a/ham-rand', task: hamRand, depth: 1, dimmed: false },
+      { kind: 'task', rowKey: 'res-a/ham-smal', task: hamSmal, depth: 1, dimmed: false },
+      { kind: 'task', rowKey: 'res-b/ham-rand', task: hamRand, depth: 1, dimmed: false },
+      { kind: 'task', rowKey: 'res-b/ham-smal', task: hamSmal, depth: 1, dimmed: false },
+    ];
+    const { ctx: ctx3 } = makeCtx();
+    const r3 = new GanttRenderer(ctx3, {
+      rows: dubbelRows,
+      sequences: [],
+      calendar: st.calendar,
+      view: { ...st.view, scrollX: 0, scrollY: 0, zoom: ZOOM, viewStartDate: FIXED_START },
+      selectedTaskIds: [],
+      showStatusDateLine: false,
+      showProgressLine: false,
+      canvasWidth: SMAL_W,
+      canvasHeight: H,
+      rowHeight: ROWH,
+      headerHeight: HDRH,
+    });
+    r3.render();
+    // `getTaskBarRect` geeft het EERSTE voorkomen (rij 0 en 1); het tweede ligt twee rijen lager.
+    const randA = r3.getTaskBarRect('ham-rand');
+    const smalA = r3.getTaskBarRect('ham-smal');
+    ok('resourcegroepen: opzet, beide balken hebben een geometrie', randA !== null && smalA !== null);
+    if (randA && smalA) {
+      const mid = (r: { top: number; bottom: number }) => (r.top + r.bottom) / 2;
+      const naamW3 = NAAM.length * CHAR_W;
+      for (const [label, dy] of [['eerste groep', 0], ['tweede groep', 2 * ROWH]] as const) {
+        ok(`resourcegroepen, ${label}: naam over de randbalk herkend`, r3.getTaskNameAt(SMAL_W - 10, mid(randA) + dy)?.id === 'ham-rand');
+        ok(`resourcegroepen, ${label}: naam naast de smalle balk herkend`,
+          r3.getTaskNameAt(smalA.right + OUTSIDE_GAP + naamW3 / 2, mid(smalA) + dy)?.id === 'ham-smal');
+      }
+    }
+  }
+
+  // ── Balk links buiten beeld, met spelingsband nog in beeld: de balk blijft in de tekenronde, maar
+  // de naam gaat mee naar links. Hij blijft niet los aan de linkerrand staan (review #842, ronde 4).
+  {
+    const links: Task = {
+      ...lang, id: 'links',
+      time: { ...tijd('2025-12-29', '2025-12-31'), lateFinish: '2026-01-09', totalFloat: 5, isCritical: false },
+    } as Task;
+    const { ctx: ctx4, texts: texts4 } = makeCtx();
+    const r4 = new GanttRenderer(ctx4, {
+      rows: [{ kind: 'task', rowKey: links.id, task: links, depth: 0, dimmed: false }],
+      sequences: [],
+      calendar: st.calendar,
+      view: { ...st.view, scrollX: 0, scrollY: 0, zoom: ZOOM, viewStartDate: FIXED_START },
+      selectedTaskIds: [],
+      showStatusDateLine: false,
+      showProgressLine: false,
+      canvasWidth: SMAL_W,
+      canvasHeight: H,
+      rowHeight: ROWH,
+      headerHeight: HDRH,
+    });
+    r4.render();
+    const rLinks = r4.getTaskBarRect('links');
+    ok(`links buiten beeld: opzet, de balk eindigt links van het beeld (${rLinks?.right})`, rLinks !== null && rLinks.right + OUTSIDE_GAP < 0);
+    if (rLinks) {
+      const t = texts4.filter(rijY(rLinks));
+      ok(`links buiten beeld: de naam staat op zijn eigen plek achter de balk (${JSON.stringify(t.map(x => [x.text.slice(0, 8), x.x]))})`,
+        t.length === 1 && Math.abs(t[0].x - (rLinks.right + OUTSIDE_GAP)) < 0.001);
+      ok('links buiten beeld: geen naam los aan de linkerrand', !t.some(x => x.x >= 0 && x.x <= 4.001));
+    }
+  }
+
   // De eerste scène tekende geen naam ver weg: daar herkent de hittest ook niets.
   ok('naam-hittest: lege rij geeft niets', renderer.getTaskNameAt(5, HDRH + ROWH * 10) === null);
 }
