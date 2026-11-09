@@ -71,6 +71,10 @@ Bewust anders of preciezer dan hieronder, met de reden:
   histogram, nivelleerder, contourdialoog, paneel, resourcediagram, rasterwaarschuwing, `setAssignmentContour` en de
   werkregelbrug. Reden: de legacy-terugval telt de lijstlengte, dus een kostentoewijzing veranderde de betekenis van
   een oude contour. Toets: blok I in `check-cost-resource.ts`.
+- **Plakken op een bestaande kostentoewijzing (review 2).** `planTaskAssignmentSet` neemt het bedrag van het token
+  over (ook 0 en leeg) als `update` met `cost` op dezelfde id; de andere toewijzingkolommen geven het bestaande
+  bedrag mee. Toets: blok J in `check-cost-resource.ts`. De datumpoort bepaalt het kostenlidmaatschap per stand
+  (vóór en na apart).
 
 ## 1. Datamodel
 
