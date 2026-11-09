@@ -5,7 +5,7 @@ PR #836 (#818) haalt deze feiten uit de agentgids (`public/agent/planning-guide.
 feiten horen in de toolbeschrijving, regels over meerdere tools in de gids.
 
 De kolom "Waar nu" geldt voor `tools/list` zoals PR #838 (`perf/818-toolbeschrijvingen-zuinig`, head
-`dca82ea0c`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
+`dca82ea0c` voor de rijen 1–66, `a25c9f173` voor de rijen 63 en 67–73) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
 
 - **tools/list**: in de beschrijving van de tool ("desc") of van een parameter ("schema `x`"). Een agent ziet
   dat vóór de eerste aanroep.
@@ -81,14 +81,17 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 60 | Bij een open dialoog (`DIALOG_OPEN`) weigeren ook de leestools, behalve `planner_get_planning_guide` | elke leestool | alleen in de foutmelding ("A dialog is open (…); close it first …"). De gids noemt de guard |
 | 61 | Een mijlpaal is een taak met `isMilestone: true` (duur 0) | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `isMilestone` en `duration` |
 | 62 | Werk dat stopt en later doorgaat: één taak met onderbrekingen | `planner_set_task_splits` | tools/list, desc ("instead of splitting it into tasks") |
-| 63 | Voor voortgang `part: "progress-update"` | `planner_get_planning_guide` | tools/list, desc; ook initialize (#838) |
+| 63 | Voor voortgang `part: "progress-update"` | `planner_get_planning_guide` | tools/list, desc (`src/services/mcp/tools/guideTools.ts`). Niet meer in initialize: #838 (`a25c9f173`) haalt die herhaling weg |
 | 64 | Een leeg document met `planner_new_document`, een wat-als-variant met `planner_duplicate_document` | `planner_new_document`, `planner_duplicate_document` | tools/list, desc van beide |
 | 65 | Een kring na `scheduleError` breek je door een relatie te wijzigen of weg te halen | `planner_update_dependencies`, `planner_remove_dependencies` | tools/list: de tools zelf; dat een kring wordt geweigerd staat bij F22. De koppeling met `scheduleError` staat er niet letterlijk; weg uit de gids (besluit orkestrator, ronde 5: de toolnamen wijzen zichzelf) |
 | 66 | In één item van `planner_update_tasks` gaat `fields` vóór `progress`; een nieuwe duur samen met een nieuw percentage geeft dus een andere rest dan na elkaar (`updateTasksCore`, `taskTools.ts`) | `planner_update_tasks` | niet in tools/list (de desc zegt alleen dat `progress` los staat van `fields`). De skill progress-update houdt de volgorde: de duur na de voortgang (§4, ronde 6) |
 | 67 | `planner_get_task` toont de externe relaties van een taak in `externalLinks` (richting, type, lag, de bevroren `anchorDate`, `sourceMissing`, de bron), en die van een fase erboven in `inheritedExternalLinks` | `planner_get_task` | tools/list op main (#797): desc, `src/services/mcp/tools/readTools.ts:1214–1221`. Volgens het gedeelde contract houdt #838 dit. De gids houdt alleen wat een externe relatie is |
 | 68 | Een externe relatie op een samenvattingstaak (fase) geldt voor elke taak in die fase | `planner_get_task`, `planner_refresh_external_links` | tools/list op main (#797): desc van beide, `readTools.ts:1219–1220` en `src/services/mcp/tools/externalLinkTools.ts:37–38` |
 | 69 | Taken met een externe relatie (eigen of op een fase erboven) vind je met `planner_list_tasks` `externe_relaties: true` | `planner_list_tasks` | tools/list op main (#797): schema `externe_relaties`, `readTools.ts:1202` |
-| 70 | `sourceMissing: true`: de brontaak staat niet meer in het bronbestand | `planner_get_task`, `planner_refresh_external_links` | tools/list op main (#797): desc van `planner_refresh_external_links` ("whether the source task is missing", `externalLinkTools.ts:29–30`) en het veld in de desc van `planner_get_task`. De gids houdt: zo'n koppeling melden |
+| 70 | `sourceMissing: true`: de brontaak staat niet meer in het bronbestand | `planner_get_task`, `planner_refresh_external_links` | tools/list op main (#797): desc van `planner_refresh_external_links` ("whether the source task is missing", `externalLinkTools.ts:29–30`) en het veld in de desc van `planner_get_task`; in #838 (`a25c9f173`) zegt die desc het zelf ("`sourceMissing: true` = source task not found, the link keeps its anchor", `readTools.ts:1187`). De gids houdt: zo'n koppeling melden |
+| 71 | `zonder_relaties` telt een externe relatie mee (eigen of op een fase erboven) | `planner_list_tasks` | tools/list op main: schema `zonder_relaties` ("external relationships count", `src/services/mcp/tools/readTools.ts:1201`; code `:446`); in #838 (`a25c9f173`) in de desc ("external ones count", `readTools.ts:1161`) |
+| 72 | `statistics.externalRelations` telt de koppelingen naar taken in andere projectbestanden; `externalSources` (alleen als die er zijn) geeft per bronproject het aantal koppelingen en de ontbrekende brontaken | `planner_get_project_info` | tools/list op main: desc, `readTools.ts:1145–1147` (antwoord `:307–309`); in #838 (`a25c9f173`) desc `:1135–1136`. De skill progress-update leest `statistics.externalRelations` om te beslissen of hij ververst |
+| 73 | `rels` in `planner_get_project_overview` toont alleen interne relaties; een externe opvolger staat er niet in | `planner_get_project_overview` | niet in tools/list (code: `readTools.ts:329`, `:350`). De gids zegt het bij de gaten ("or an external successor") |
 
 Wat de teksten bewust houden, ook al staat het deels ook in een toolbeschrijving: herberekenen, `planner_batch`
 voor een samenhangende reeks, `duration` altijd met `durationUnit`, de toestemming vóór een wijziging bij

@@ -161,8 +161,8 @@ test('zonder argumenten: alleen de gids, zonder kop; met part goed-plannen ook d
   assertEq(gp.install, SKILL_INSTALL_HINT, 'één installatietekst voor alle skills');
   assertEq(
     gp.install,
-    'From https://open-planner-studio.open-aec.com/skills/<name>/SKILL.md (<name>: goed-plannen, progress-update) ' +
-      'to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md',
+    'Install https://open-planner-studio.open-aec.com/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md ' +
+      '(project or ~/); names: goed-plannen, progress-update.',
     'installatietekst: het volle bestand van de publieke URL, met beide skillnamen',
   );
   assertEq([...fetched].sort(), ['/agent/planning-guide.md', '/skills/goed-plannen/SKILL.md'], 'gids en opbouwskill');

@@ -96,8 +96,8 @@ export const DEFAULT_GUIDE_PART: GuidePart = 'guide';
  *  skillnamen: bij `goed-plannen` komt alleen die skill mee, maar wie installeert, wil ook `progress-update`
  *  (dat part zelf krijgt geen `install`). */
 export const SKILL_INSTALL_HINT =
-  `From ${GUIDE_PUBLIC_BASE}/skills/<name>/SKILL.md (<name>: ${AGENT_SKILLS.map((s) => s.name).join(', ')}) ` +
-  'to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md';
+  `Install ${GUIDE_PUBLIC_BASE}/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md (project or ~/); ` +
+  `names: ${AGENT_SKILLS.map((s) => s.name).join(', ')}.`;
 
 /**
  * De tekst om te LEZEN: zonder frontmatter (`---`-blok op regel 1) en zonder de eerste kop (`# …`), met

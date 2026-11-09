@@ -14,12 +14,13 @@ User facts only; never guess actual dates. `tools/list` wins.
 ## 1. Orient
 
 - Before editing, record planner_get_project_info (`statusDate`, `projectEnd`, `unstartedIgnoresStatusDate`) and planner_get_critical_path.
-- planner_list_baselines: none active ⇒ ask the user: activate an older one (planner_activate_baseline) or save a new one? Never save one yourself: it would measure from today.
+- Links to other project files (`statistics.externalRelations`): then planner_refresh_external_links (a change); report its `changes` and `sourceMissing`.
+- planner_list_baselines: none active ⇒ ask: activate older (planner_activate_baseline) or save new? Never save unasked; it measures from now.
 
 ## 2. Ask the user
 
-- Reporting date (= status date); actual start of started tasks, actual finish of finished ones, percent and remaining estimate of running ones; milestones reached, with date.
-- Unreported tasks due by the reporting date: find them before you set the status date (it pushes them past it): planner_list_tasks `status: "NOT_STARTED"`, `tot` = reporting date.
+- Reporting/status date; actual start/finish of started/finished tasks; % and remaining estimate of running tasks; reached milestones + date.
+- Before setting the status date (it pushes unstarted work), ask about unreported due tasks: planner_list_tasks `status: "NOT_STARTED"`, `tot` = reporting date.
 
 ## 3. One planner_batch
 
@@ -45,4 +46,4 @@ User's remaining ≠ duration × (1 − completion/100) ⇒ `fields.duration` = 
 
 ## 7. Report
 
-Report: status date; started/finished/running tasks; end vs previous update/baseline; critical path and changes; delay location (`criticalShifters`, never sum); missed deadlines/negative float; unreported/out-of-sequence work; assumptions/omissions. New baseline only on request after scope change.
+Status date; started/finished/running tasks; end vs previous update/baseline; critical path and changes; delay location (`criticalShifters`, never sum); missed deadlines/negative float; unreported/out-of-sequence work; assumptions/omissions. New baseline only on request after scope change.
