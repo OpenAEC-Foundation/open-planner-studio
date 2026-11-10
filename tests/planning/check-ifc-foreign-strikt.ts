@@ -365,8 +365,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     const b = h.find(q => q.name === 'Easter' && q.startDate.startsWith('2027'))!;
     [a.name, b.name] = [b.name, a.name];
   });
-  // Een andere datum zonder wissen: de sleutel van de feestdag veranderde, dus gaat de bronwaarde niet over (en niet stil
-  // weg: zonder zekere wissing telt een verdwenen lid niet als gewist, `deletedExceptionItems`).
+  // Een andere datum zonder wissen: de sleutel van de feestdag veranderde, dus gaat de bronwaarde niet over.
   await proof('BLOKKEERT 3, plek 27', 'Good Friday 2027 een dag later (geen wissing)', bytes, 'niet-eenduidig', (x) => {
     const h = x.calendar.holidays![gfAt(x, '2027')]; h.startDate = '2027-03-27'; h.endDate = '2027-03-27';
   });
@@ -374,6 +373,12 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     const h = x.calendar.holidays!;
     h.splice(h.findIndex(q => q.name === 'Christmas' && q.startDate.startsWith('2028')), 1);
     h.push({ name: 'Extra', startDate: '2029-01-02', endDate: '2029-01-02' } as never);
+  });
+  // Wissen plus een nieuwe feestdag: het aantal blijft gelijk, dus is Good Friday 2027 niet zeker gewist (de planner kan
+  // haar ook veranderd hebben). Het paren op plek koppelt haar aan de nieuwe feestdag; de lijst is niet stabiel.
+  await proof('BLOKKEERT 3, plek 27', 'Good Friday 2027 gewist en een nieuwe feestdag achteraan (geen zekere wissing)', bytes, 'niet-eenduidig', (x) => {
+    drop('2027')(x);
+    x.calendar.holidays!.push({ name: 'Extra', startDate: '2029-01-02', endDate: '2029-01-02' } as never);
   });
   // Bij twijfel weigeren: wist de planner alleen 2028, dan is uit de uitvoer niet te zien of 2027 bleef, of dat hij 2027
   // wiste en 2028 naar 2027 zette (de uitvoer is dan bijna gelijk). Dan weigert de merge ook.
@@ -458,6 +463,61 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     await proof('BLOKKEERT 4', 'getal: idem, de vrijdag een uur langer (het patroon blijft)', interval, 'schrijft', (x) => { x.calendar.workTime = week({ start: 420, end: 780 }); }, has('(5),$,$,1,$,'));
     await proof('BLOKKEERT 4', 'getal: de planner maakt de week gelijk', interval, 'niet-gedragen', uniform);
     await proof('BLOKKEERT 4', 'zonder bronwaarde: de week gelijk maken schrijft', latin1(perDayText), 'schrijft', uniform);
+  }
+  // Zoektocht punt 2: twee werkende uitzonderingen met dezelfde naam, elk met een eigen patroon en tijdblok. Het patroon
+  // van de eerste heeft Interval 1. Wist de planner de eerste en zet hij de tweede op haar datum, dan paart de overgebleven
+  // uitzondering op de eerste; haar patroon mag de bronwaarde niet erven (`inheritAmbiguity`).
+  const exc = cloneDomain(eigenOpened);
+  exc.calendar.workingExceptions = [
+    { name: 'Zaterdag', startDate: '2027-06-05', endDate: '2027-06-05', bands: [{ start: 420, end: 720 }] },
+    { name: 'Zaterdag', startDate: '2027-06-12', endDate: '2027-06-12', bands: [{ start: 480, end: 780 }] },
+  ];
+  const excText = text(await settle(latin1(withLines(writeIFC(exc), REVIT_WALL))));
+  const firstExc = /^#\d+=IFCWORKTIME\('Zaterdag',\.PREDICTED\.,\$,#(\d+),'2027-06-05','2027-06-05'\);$/m.exec(excText);
+  ok('zoektocht 2: de eerste werkende uitzondering heeft een eigen patroon', firstExc !== null);
+  if (firstExc) {
+    const pat = new RegExp(`^#${firstExc[1]}=IFCRECURRENCEPATTERN\\(\\.DAILY\\.,\\$,\\$,\\$,\\$,\\$,\\$,(\\(#\\d+\\))\\);$`, 'm').exec(excText);
+    ok('zoektocht 2: het patroon van de eerste uitzondering', pat !== null);
+    if (pat) {
+      const interval = latin1(excText.replace(pat[0], `#${firstExc[1]}=IFCRECURRENCEPATTERN(.DAILY.,$,$,$,$,1,$,${pat[1]});`));
+      const at = (x: Domain, day: string) => x.calendar.workingExceptions!.findIndex(w => w.startDate === day);
+      await proof('zoektocht 2', 'werkende uitzondering: Interval 1 op het patroon, zonder bewerking', interval, 'schrijft', undefined, has('(.DAILY.,$,$,$,$,1,$,'));
+      const wipeMove = (x: Domain) => {
+        x.calendar.workingExceptions!.splice(at(x, '2027-06-05'), 1);
+        const w = x.calendar.workingExceptions![at(x, '2027-06-12')];
+        w.startDate = '2027-06-05'; w.endDate = '2027-06-05';
+      };
+      const moved = await proof('zoektocht 2', 'werkende uitzondering: de eerste gewist en de tweede op haar datum', interval, 'niet-eenduidig', wipeMove);
+      ok(`${moved.label}: het patroon met de bronwaarde paart niet eenduidig (${moved.details.slice(0, 2).join(' | ')})`,
+        moved.details.some(x => /^niet-eenduidig: IFCRECURRENCEPATTERN #\d+/.test(x)));
+      // Zonder bronwaarde schrijven dezelfde bewerkingen. `WorkingExceptionIds` (de STEP-ids van de uitzonderingen) krijgt
+      // dan de waarde van de writer: de merge nummert die stukken opnieuw (`ID_LIST_PROPS`). Tot fixronde 4 weigerde het
+      // wissen van een werkende uitzondering daarop, en na plek 6 ook een ander blok werktijd.
+      const ids = (out: Uint8Array) => {
+        const v = /'WorkingExceptionIds',\$,IFCTEXT\('(\[[^']*\])'\)/.exec(text(out))?.[1];
+        const want = JSON.stringify(linesOfType(out, 'IFCWORKTIME').filter(l => l.includes("IFCWORKTIME('Zaterdag'")).map(l => /^#(\d+)=/.exec(l)![1]));
+        return v === want ? undefined : `WorkingExceptionIds ${v}, de uitzonderingen ${want}`;
+      };
+      await proof('zoektocht 2', 'zonder bronwaarde: de eerste gewist en de tweede op haar datum', latin1(excText), 'schrijft', wipeMove, ids);
+      await proof('zoektocht 2', 'zonder bronwaarde: de eerste werkende uitzondering gewist', latin1(excText), 'schrijft', (x) => { x.calendar.workingExceptions!.splice(at(x, '2027-06-05'), 1); }, ids);
+      await proof('zoektocht 2', 'zonder bronwaarde: de tweede werkende uitzondering een uur langer', latin1(excText), 'schrijft', (x) => {
+        x.calendar.workingExceptions![at(x, '2027-06-12')].bands = [{ start: 480, end: 840 }];
+      }, ids);
+    }
+  }
+  // Zoektocht punt 2: de werktijdgroepen van die week paren op hun naam (`Standard work week (Fri)`). Een bronwaarde op de
+  // groep van de vrijdag blijft zolang de groep dezelfde dagen heeft; krijgt de groep andere dagen, dan weigert de merge.
+  const friday = /^#(\d+)=IFCWORKTIME\('Standard work week \(Fri\)',\.PREDICTED\.,\$,(#\d+),\$,\$\);$/m.exec(perDayText);
+  ok('zoektocht 2: de werkweek per dag heeft een werktijd voor de vrijdag', friday !== null);
+  if (friday) {
+    const measured = latin1(perDayText.replace(friday[0], `#${friday[1]}=IFCWORKTIME('Standard work week (Fri)',.MEASURED.,$,${friday[2]},$,$);`));
+    const short = { start: 420, end: 720 };
+    await proof('zoektocht 2', 'werktijdgroep: .MEASURED. op de vrijdag, de vrijdag een uur langer', measured, 'schrijft', (x) => { x.calendar.workTime = week({ start: 420, end: 780 }); },
+      has("IFCWORKTIME('Standard work week (Fri)',.MEASURED.,"));
+    await proof('zoektocht 2', 'werktijdgroep: de donderdag kort en de vrijdag gewoon', measured, 'niet-eenduidig', (x) => {
+      x.calendar.workTime = { byWeekday: { ...week(band).byWeekday, 4: [short] } };
+    });
+    await proof('zoektocht 2', 'werktijdgroep: de week gelijk', measured, 'niet-gedragen', (x) => { x.calendar.workTime = week(band); });
   }
   // ProjectStartDate: de lezer leest de eerste tien tekens.
   const settings = /^#(\d+)=IFCPROPERTYSINGLEVALUE\('ProjectStartDate',\$,(IFC(?:TEXT|DATE))\('(\d{4}-\d\d-\d\d)'\),\$\);$/m.exec(eigen);

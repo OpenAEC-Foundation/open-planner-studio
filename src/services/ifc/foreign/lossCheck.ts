@@ -93,7 +93,6 @@
  */
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
-import type { WorkCalendar } from '@/types/calendar';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
 import { PER_TASK_PSET_BY_NAME, PROP, PSET } from '../ifcPsets';
@@ -144,6 +143,8 @@ export interface LossDiff {
  * `tekst`: wijzigt de planner dat veld, dan geldt zijn waarde.
  */
 export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'leeg';
+/** Properties waarvan de waarde een lijst STEP-ids van de writer is (`ifcWriter.ts`, `writeCalendarGenerationMeta`). */
+const ID_LIST_PROPS: ReadonlySet<string> = new Set([PROP.Calendar.WorkingExceptionIds]);
 /** De soorten waarbij een wijziging van de planner weigert in plaats van de bron te vervangen. */
 const PARTIAL_KINDS: ReadonlySet<SlotKind> = new Set<SlotKind>(['lijst', 'json', 'samengesteld']);
 
@@ -769,25 +770,16 @@ function unstableLists(input: LossCheckInput, p0: Pairing, p1: Pairing): void {
  * De stukken van een uitzondering die de planner wiste (fixronde 5, BLOKKEERT 3 en 4): een lid van de uitzonderingen van
  * een kalender zonder regel in O1, terwijl de uitzonderingen van die kalender in het domein veranderden, met de stukken die
  * alleen daaronder hangen. Hun bronwaarden gaan met de feestdag weg; elk ander verdwenen stuk met een bronwaarde weigert.
- * Alleen wissen verklaart een verdwenen uitzondering: verdwenen er meer leden dan het domein er minder heeft, dan kreeg een
- * uitzondering een andere naam of datum (of kwam er een bij terwijl een andere verdween). Dan is geen van de verdwenen leden
- * zeker gewist, en weigert elke bronwaarde ervan.
+ * Een lid zonder regel komt alleen voor als de lijst korter werd: het paren op plek koppelt de overige leden, ook een
+ * uitzondering met een andere naam of datum (die paart dan niet eenduidig, `unstableLists`).
  */
 function deletedExceptionItems(input: LossCheckInput, p1: Pairing, changed: ChangedScopes): Set<number> {
   const { index } = input;
   const out = new Set<number>();
-  type Calendars = { readonly calendar: WorkCalendar; readonly resourceCalendars?: readonly WorkCalendar[] };
   for (const [c, members] of exceptionLists(input)) {
     const key = objectKey(input, c);
     if (!key || !['holidays', 'workingExceptions', '*'].some(f => changed.keys.has(`${key}#${f}`))) continue;
-    const count = (d: Calendars) => {
-      const cal = [d.calendar, ...(d.resourceCalendars ?? [])].filter(x => `cal:${x.id}` === key);
-      return cal.length === 1 ? cal[0].holidays.length + (cal[0].workingExceptions?.length ?? 0) : undefined;
-    };
-    const before = count(input.pristine);
-    const now = count(input.domain);
     const stack = members.filter(m => p1.pairedOut.get(m) === undefined);
-    if (before === undefined || now === undefined || stack.length > before - now) continue;
     while (stack.length > 0) {
       const x = stack.pop()!;
       if (out.has(x)) continue;
@@ -1068,7 +1060,11 @@ function planRestores(input: LossCheckInput, p0: Pairing, diffs: readonly LossDi
     const props = COMPOSITE_PROPS[psetNameOf(index, d.chunk)];
     const composite = COMPOSITE_SLOTS[line.type]?.includes(d.outArg) === true
       || (line.type === 'IFCPROPERTYSINGLEVALUE' && d.outArg === 2 && !!props && (props.includes('*') || props.includes(index.name(d.chunk) ?? '')));
-    const kind = slotKind(line.type, d.outArg, token, line.args[d.outArg], text(d.chunk), composite);
+    // Een lijst STEP-ids die de writer uit zijn eigen nummering schrijft (`WorkingExceptionIds`), is geen waarde die de
+    // lezer deels draagt: de merge nummert die stukken opnieuw, dus de bronwaarde is na een bewerking van het veld nooit
+    // de goede (fixronde 5, plek 6). Ze vervalt dan; zonder bewerking zet (b) haar terug zoals tot nu.
+    const idList = line.type === 'IFCPROPERTYSINGLEVALUE' && d.outArg === 2 && ID_LIST_PROPS.has(index.name(d.chunk) ?? '');
+    const kind = idList ? 'tekst' : slotKind(line.type, d.outArg, token, line.args[d.outArg], text(d.chunk), composite);
     const sourceRefs = new Set(refsOutsideText(token).map(id => index.chunkOf(String(id))));
     const writerRefsKept = refsOutsideText(line.args[d.outArg]).every(r => {
       const c = sourceChunkOf(input, r, p0);
