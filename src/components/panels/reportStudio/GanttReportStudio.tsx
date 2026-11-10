@@ -774,12 +774,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 {t('studio.columns.wideWarning', { share: sharePct })}
               </StudioNotice>
             )}
-            {columnsFollowView && (
-              <StudioNotice tone="info" dataKey="columns-follow-view">{t('studio.columns.followsView')}</StudioNotice>
-            )}
             <ColumnsEditor
               ids={columnIds}
-              readOnly={columnsFollowView}
+              readOnlyHint={columnsFollowView ? t('studio.columns.followsView') : undefined}
               onChange={(ids, input) => patch({ columns: ids }, input)}
               available={domain.availableColumns}
               recentIds={recentTaskColumns}

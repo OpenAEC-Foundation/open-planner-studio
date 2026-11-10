@@ -540,7 +540,7 @@
       "remove": "Weghalen",
       "required": "verplicht",
       "requiredHint": "De taaknaam staat altijd in het rapport",
-      "followsView": "Deze kolommen volgen de tabel naast de Gantt, omdat je bij Taken en groepering ‘Zoals de weergave’ koos. Wijzig ze in die tabel, of kies ‘Alle taken’ of een layout voor eigen kolommen."
+      "followsView": "Deze kolommen volgen de tabel naast de Gantt\nJe koos bij Taken en groepering ‘Zoals de weergave’. Wijzig de kolommen in die tabel, of kies ‘Alle taken’ of een layout voor eigen kolommen."
     },
     "bars": {
       "onBars": "Op de balken",

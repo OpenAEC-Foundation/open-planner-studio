@@ -17,12 +17,14 @@ export type ReportColumnsSource = 'table' | 'gantt';
  * tabblad Tabel of van de tabel naast de Gantt over. De taaknaam is verplicht: zijn kruisje staat uit.
  */
 export function ColumnsEditor({
-  ids, onChange, available, recentIds, chooserLabels, onCopy, onReset, focusId, labelFor, readOnly = false,
+  ids, onChange, available, recentIds, chooserLabels, onCopy, onReset, focusId, labelFor, readOnlyHint,
 }: {
   ids: readonly string[];
-  /** Alleen tonen (*Zoals de weergave*: de kolommen volgen de tabel naast de Gantt). Geen toevoegen, overnemen,
-   *  slepen, verplaatsen of weghalen; met de pijltjes door de lijst lopen kan wel. */
-  readOnly?: boolean;
+  /** Alleen tonen, met deze uitleg (*Zoals de weergave*: de kolommen volgen de tabel naast de Gantt). De rijen
+   *  staan grijs en tonen de uitleg meteen als tooltip, bij de muis en bij focus (check Ethan 10-11-2026: "mag
+   *  uitgegrijsd", de melding erboven "kan in een instant tooltip"). Geen toevoegen, overnemen, slepen,
+   *  verplaatsen of weghalen; met de pijltjes door de lijst lopen kan wel. */
+  readOnlyHint?: string;
   onChange: (ids: string[], input: string) => void;
   available: readonly TaskGridAdapterColumn[];
   /** De laatst gebruikte kolommen van de tabel: de kiezer toont ze bovenaan, zoals in de tabel. */
@@ -38,6 +40,7 @@ export function ColumnsEditor({
   labelFor: (id: string) => string;
 }) {
   const { t } = useTranslation('report');
+  const readOnly = readOnlyHint !== undefined;
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -170,7 +173,8 @@ export function ColumnsEditor({
       </>)}
 
       <div className="rs-cols" role="listbox" aria-label={t('studio.columns.listLabel')}
-        aria-describedby={readOnly ? undefined : 'rs-cols-hint'} data-rs-columns data-readonly={readOnly ? 'true' : undefined}>
+        aria-describedby={readOnly ? undefined : 'rs-cols-hint'} aria-readonly={readOnly || undefined}
+        data-rs-columns data-readonly={readOnly ? 'true' : undefined}>
         {ids.map((id, i) => {
           const required = id === REPORT_REQUIRED_COLUMN;
           const tabbable = (activeId ?? ids[0]) === id;
@@ -188,6 +192,9 @@ export function ColumnsEditor({
                 data-flash={flashId === id ? 'true' : undefined}
                 onFocus={() => setActiveId(id)}
                 onKeyDown={e => onRowKeyDown(e, id, i)}
+                title={readOnlyHint}
+                data-tooltip-instant={readOnly || undefined}
+                data-tooltip-lead={readOnly || undefined}
               >
                 {!readOnly && (
                 <span

@@ -540,7 +540,7 @@
       "remove": "Remove",
       "required": "required",
       "requiredHint": "The task name is always in the report",
-      "followsView": "These columns follow the table next to the Gantt, because you chose ‘As in the view’ under Tasks and grouping. Change them in that table, or choose ‘All tasks’ or a layout for your own columns."
+      "followsView": "These columns follow the table next to the Gantt\nYou chose ‘As in the view’ under Tasks and grouping. Change the columns in that table, or choose ‘All tasks’ or a layout for your own columns."
     },
     "bars": {
       "onBars": "On the bars",

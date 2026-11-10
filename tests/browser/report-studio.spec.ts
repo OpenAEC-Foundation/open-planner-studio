@@ -151,14 +151,22 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-head="tasks"]').click();
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="view"]').click();
   await page.locator('[data-rs-step-head="columns"]').click();
-  await expect(page.locator('[data-rs-notice="columns-follow-view"]')).toBeVisible();
+  // Grijs, zonder melding erboven; de uitleg staat in een tooltip die meteen verschijnt (check Ethan 10-11-2026).
   await expect.poll(listedColumns).toEqual(ganttIds);
+  await expect(page.locator('[data-rs-notice="columns-follow-view"]')).toHaveCount(0);
+  const nameOpacity = () => page.locator('[data-rs-column] .rs-col-name').first().evaluate(el => Number(getComputedStyle(el).opacity));
+  expect(await nameOpacity()).toBeLessThan(0.6);
+  await page.locator(`[data-rs-column="${ganttIds[0]}"]`).hover();
+  await expect(page.locator('.ops-tooltip strong')).toHaveText(/^(These columns follow the table next to the Gantt|Deze kolommen volgen de tabel naast de Gantt)$/);
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.ops-tooltip')).toHaveCount(0);
   await expect(page.locator('[data-rs-add-column]')).toHaveCount(0);
   await expect(page.locator('[data-rs-like-grid]')).toHaveCount(0);
   await expect(page.locator('[data-rs-grip]')).toHaveCount(0);
   await expect(page.locator('[data-rs-remove]')).toHaveCount(0);
   // Delete en Alt+pijl op een rij veranderen niets.
   await page.locator(`[data-rs-column="${ganttIds[ganttIds.length - 1]}"]`).focus();
+  await expect(page.locator('.ops-tooltip strong')).toHaveText(/^(These columns follow the table next to the Gantt|Deze kolommen volgen de tabel naast de Gantt)$/);
   await page.keyboard.press('Delete');
   await page.keyboard.press('Alt+ArrowUp');
   await expect.poll(listedColumns).toEqual(ganttIds);
@@ -180,8 +188,9 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await page.locator('[data-rs-step-head="columns"]').click();
   await expect.poll(listedColumns).toEqual(ownColumns);
-  await expect(page.locator('[data-rs-notice="columns-follow-view"]')).toHaveCount(0);
   await expect(page.locator('[data-rs-add-column]')).toBeVisible();
+  expect(await nameOpacity()).toBe(1);
+  await expect(page.locator('[data-rs-column]').first()).not.toHaveAttribute('title');
 
   // Herstel standaard in de kop van Kolommen, daarna A2 in Pagina, dan ongedaan maken: de kolommen komen
   // terug, A2 blijft.
