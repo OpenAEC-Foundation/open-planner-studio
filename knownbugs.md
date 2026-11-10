@@ -2819,6 +2819,12 @@ en noem het in je rapport of PR-tekst.
      openen herstelt het. Code-review ronde 6 van #847 (GPT-6.1-Sol): bevestigd met een taalfixture. Voorstel: reken
      de plaats opnieuw uit (of zet het venster terug) als `dir` verandert. — B
 
+1064. **VERVOLG: de regressiestap voor schuifjes bij geforceerde kleuren meet de breedte van de focusrand niet.**
+     `tests/browser/auto-calc-after-edit.spec.ts:80` controleert alleen dat `outlineStyle` niet `none` is. Met een
+     tijdelijke regel die de focusrand 0 px breed maakt, blijft de stap groen. De huidige focusrand is wel zichtbaar
+     (1 px). Code-review ronde 7 van #847 (GPT-6.1-Sol). Voorstel: controleer in dezelfde stap ook een positieve
+     `outlineWidth`. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
