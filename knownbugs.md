@@ -2724,3 +2724,28 @@ en noem het in je rapport of PR-tekst.
      zou zijn. Bij horizontaal scrollen springt de naam dus weg. Een gewone taakbalk stopt bij `x2 + spelingsband < 0`
      (`drawTaskBar`); zonder speling geldt daar hetzelfde. Voorstel: laat de grens ook de naamruimte meetellen (`x2 + ARROW_STUB + OUTSIDE_LABEL_GAP +
      naambreedte < 0`), of teken de naam los van de balk. Uit de review van #842 (Terra, ronde 5, BEVESTIGD, VERVOLG). — B
+
+1071. **VERVOLG: oude Lucide-configuratie na het standaard maken van B2.** `vite.config.ts` bevat nog de
+      bundelregel voor `lucide-react`; `eslint.config.js` maakt nog een uitzondering voor het verwijderde
+      `src/components/icons/lucideMapping.ts`. Beide zijn ongebruikt. Voorstel: verwijder die twee blokken;
+      behoud het algemene verbod op nieuwe Lucide-imports. Uit de review van B2 standaard, Terra xhigh,
+      BEVESTIGD en zelf in de bron nagezien. — B
+
+1072. **VERVOLG: iconencheck dekt de verdwenen URL-keuze niet.** `tests/planning/check-icon-family.ts`
+      noemt ontwikkel-URL's, maar zet geen `?icons=` en controleert de uitkomst van `loadFeatureFlags()` niet.
+      De check tekent wel elk B2-id in twee maten na beide oude opslagwaarden. De URL-route is uit de bron
+      verwijderd. Voorstel: beperk de omschrijving of controleer de opslaguitkomst en de oude URL-invoer.
+      Uit de review van B2 standaard, Terra xhigh, BEVESTIGD en zelf in de bron nagezien. — B
+
+1073. **VERVOLG: voorbeeldextensie heeft een eigen lijsticoon zonder B2-id.**
+      `examples/extensions/voorbeeld-takenlijst-importer/manifest.json` levert een eigen SVG met drie regels
+      en punten; `ExtensionManagerPanel.tsx` toont hem op de extensiekaart. De vorm lijkt op Lucide, maar
+      die herkomst is niet bewezen (VERMOED, zekerheid midden). Eigen SVG's horen bij het extensiecontract;
+      de B2-id-tabel mist geen tekening. Geen ontwerp vervangen zonder besluit. Uit de review van B2
+      standaard, Terra xhigh; de SVG en de aanroep zijn zelf nagezien. — S
+
+1074. **VERVOLG: constante klassetekst staat nog als template-expressie.** De aanwijzing voor een verouderd
+      histogram in `src/components/canvas/GanttCanvas.tsx` voegt de constante tekst
+      `inline-flex items-center gap-1` nog via een template-expressie toe. Voorstel: één gewone klassetekst.
+      De getekende UI verandert daardoor niet. Uit de review van B2 standaard, Terra xhigh,
+      BEVESTIGD en zelf in de bron nagezien. — B
