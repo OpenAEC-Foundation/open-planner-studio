@@ -79,14 +79,15 @@ export type MergePhase2Kind =
    *  (twee gelijke psets: de uitvoer heeft er één, plek 26). Zonder betrouwbare identiteit is niet te zeggen bij welke regel
    *  die waarde hoort (`lossCheck.ts`, `ambiguous`). */
   | 'niet-eenduidig'
-  /** Een P-stuk heeft een duur die de lezer deels of anders leest (`partialDuration`, na de STEP-decodering): dagen vóór
-   *  een tijddeel (`P2DT12H`, knownbug 1027; tijdelijk, besluit van Trias van 10 november 2026; de fix staat sinds #871 in
-   *  main), jaren, maanden of weken (knownbug 1028), een decimale komma (`P1,5D`, knownbug 1029; tijdelijk, besluit van
-   *  Trias van 10 november 2026), of een vorm buiten ISO 8601 (`p3d`, `P1E1D`, `PT1H1H`; knownbug 1030). */
+  /** Een P-stuk heeft een duur die de lezer deels of anders leest (`partialDuration`, na de STEP-decodering): jaren,
+   *  maanden of weken (knownbug 1028), een decimale komma (`P1,5D`, knownbug 1029; tijdelijk, besluit van Trias van
+   *  10 november 2026), een vorm buiten ISO 8601 (`p3d`, `P1E1D`, `PT1H1H`; knownbug 1030), een speling met een tijddeel
+   *  (`PT28H`), of een lag in werktijd met dagen vóór `T` (`P1DT2H`; beide knownbug 1033). Dagen vóór `T` in een taakduur
+   *  leest de lezer sinds #871 goed (knownbug 1027 opgelost; fixronde 5b). */
   | 'duur-deels-gelezen'
   /** Een P-stuk heeft een datum-tijd of tijd die de lezer anders leest (`partialDateTime`, na de STEP-decodering): met een
    *  tijdzone (`Z`, `+02:00`; de lezer laat die weg), seconden die niet 0 zijn, een spatie in plaats van `T`, of een uur van
-   *  één cijfer (knownbug 1030; fixronde 5, zoektocht punt 4). */
+   *  één cijfer (knownbug 1031; fixronde 5, zoektocht punt 4). */
   | 'tijd-deels-gelezen'
   /** De uitvoer heeft een pset zonder bronstuk die niet in ons eigen register staat (`ifcPsets.ts`). Alleen een eigen
    *  registerpset mag erbij komen (fixronde 5, plek 34, besluit van Trias van 10 november 2026). */
@@ -292,11 +293,13 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   // weigert de merge.
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i) || !isP(i)) continue;
-    for (const text of durationTexts(index, i)) {
-      const part = partialDuration(text);
-      if (part === 'dagen') {
-        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft dagen vóór T (knownbug 1027)`
-          + '. Tijdelijk: de fix staat sinds #871 in main; deze weigering valt weg op besluit van Trias.');
+    for (const at of durationTexts(index, i)) {
+      const { text } = at;
+      const part = partialDuration(text, at);
+      if (part === 'speling') {
+        caseAt('duur-deels-gelezen', i, `${label(i)}: de speling '${text}' heeft een tijddeel; de lezer leest een speling alleen in hele dagen (knownbug 1033)`);
+      } else if (part === 'lag-dagen') {
+        caseAt('duur-deels-gelezen', i, `${label(i)}: de lag in werktijd '${text}' heeft dagen vóór T; de lezer telt die dagen als 24 uur werktijd, en 'P1D' als één werkdag (knownbug 1033)`);
       } else if (part === 'jaren') {
         caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft jaren, maanden of weken; de lezer leest die niet (knownbug 1028)`);
       } else if (part === 'komma') {
@@ -310,9 +313,9 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
       const part = partialDateTime(text, time);
       const what = time ? 'de tijd' : 'de datum-tijd';
       if (part === 'zone') {
-        caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 1030)`);
+        caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 1031)`);
       } else if (part === 'vorm') {
-        caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1030)`);
+        caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031)`);
       }
     }
   }

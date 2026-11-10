@@ -1811,20 +1811,6 @@ en noem het in je rapport of PR-tekst.
      (`includeEffectiveScalarBands` in `writeCalendar`). Met de flag weigert de merge (`check-ifc-foreign-strikt.ts`,
      plek 2). — B
 
-1027. **De lezer leest een duur met dagen en uren (`P2DT12H`) als alleen de uren.** `isoDurationToMinutes`
-     (`src/services/subdayIo.ts:111`) leest alleen het deel na `T`, dus `P2DT12H` geeft 720 minuten; de takenroute
-     (`src/services/ifc/ifcReader.ts:1503`) gebruikt die waarde, en `parseDurationDays`
-     (`src/services/ifc/ifcReader.ts:1319`) leest bij een `D` alleen de dagen. Voor de lag bestaat een verdedigende tak
-     (`isoDurationLeadingDaysMinutes`, `ifcReader.ts:1362`), voor de taakduur niet. De eigen writer schrijft nooit dagen
-     vóór `T`, dus alleen bestanden van een ander programma. Proef: `public/examples/showcase-appartementencomplex.ifc` met
-     de duur van 'CPT soundings & soil investigation' op `P2DT12H`: na openen `durationMinutes` 720 en
-     `scheduleDuration` 1,5 (bij 8 uur per dag); in `eigen-plus-model.ifc` (`#50`) 720 minuten en een uurkalender van 9
-     uur. Met de flag zet de merge `P2DT12H` terug zolang de planner de duur niet wijzigt (fixronde 3 van #867, sectie
-     5h); de planner ziet dan 12 uur. Richting: dagen en tijd samen lezen, zoals de lag. Uit #867 (fase 1b, fixronde 3).
-     Sinds fixronde 4 weigert de merge een eigen bestand met zo'n duur (`duur-deels-gelezen`), tijdelijk tot de fix van
-     deze knownbug in main staat. Die fix staat sinds #871 (`9ee06bb71`) in main; de tijdelijke weigering en dit punt
-     vallen weg op besluit van Trias (fixronde 5 van #867). — B
-
 1028. **De lezer leest geen jaren, maanden of weken in een taakduur.** `parseDurationDays`
      (`src/services/ifc/ifcReader.ts:1319`) zoekt alleen een getal voor `D`, en anders voor `H`. Proef op
      `public/examples/showcase-appartementencomplex.ifc` met de duur van 'CPT soundings & soil investigation' (`#55`):
@@ -1845,20 +1831,55 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-foreign-strikt.ts`). Richting: de komma lezen als decimaalteken, in dezelfde functie als 1028. Uit #867
      (fase 1b, fixronde 5). — B
 
-1030. **De lezer leest een duur, datum-tijd of tijd buiten de vorm die hij kent zonder melding anders.** Dezelfde twee
-     functies als 1029 zoeken een getal voor `D` of `H` ergens in de tekst, zonder de vorm te toetsen. Proef als bij 1029,
-     ook op main: `p3d` en `P3d` geven 0 dagen (de kleine letter valt weg), `P1E1D` geeft 10 dagen (een exponent kent ISO
-     8601 niet), `PT1H1H` geeft 60 minuten (het tweede uur valt weg), `PT30M12H` geeft 750 minuten (de volgorde is
-     ongeldig), en `P`, `PT` en een lege tekst geven 0. Bij datum-tijden en tijden (de taaktijd van 'CPT soundings & soil
-     investigation' en het tijdblok `07:00:00`–`12:00:00` in dezelfde showcase): een tijdzone (`2027-03-01T07:00:00Z`,
-     `+02:00`) laat de lezer weg (`parseImportedInstant` in `src/services/importDates.ts:29`, `clockToMinutes` in
-     `src/services/subdayIo.ts:65`), terwijl een ander programma `Z` als UTC leest, een of twee uur anders; seconden die
-     niet 0 zijn vallen weg; na een spatie in plaats van `T` (`2027-03-01 07:00:00`) leest de lezer 00:00; en de korte vorm
-     `20270301T070000` of een uur van één cijfer (`T7:00:00`) laat het openen stoppen met `Invalid time value` in plaats
-     van een melding. Een ander programma weigert zo'n waarde, of leest haar anders. Alleen bestanden van een ander
-     programma. Met de flag weigert de merge zo'n waarde (`duur-deels-gelezen`, `tijd-deels-gelezen`; fixronde 5 van #867).
-     Richting: bij openen de vorm toetsen en een ongeldige waarde melden in plaats van stil een getal te nemen; voor een
-     tijdzone kiezen of de lezer haar omrekent of meldt. Uit #867 (fase 1b, fixronde 5). — B
+1030. **De lezer leest een duur buiten de vorm die hij kent zonder melding anders.** Dezelfde twee functies als 1029
+     (`parseDurationDays` in `src/services/ifc/ifcReader.ts`, `isoDurationToMinutes` in `src/services/subdayIo.ts:111`)
+     zoeken een getal voor `D` of `H` ergens in de tekst, zonder de vorm te toetsen. Ook op main: ja, proef op `9ee06bb71`
+     met `public/examples/showcase-appartementencomplex.ifc` en de duur van 'CPT soundings & soil investigation' (`#55`):
+     `p3d` en `P3d` geven 0 dagen (de kleine letter valt weg), `P1E1D` geeft 10 dagen (een exponent kent ISO 8601 niet),
+     `PT1H1H` geeft 60 minuten (het tweede uur valt weg), `PT30M12H` geeft 750 minuten (de volgorde is ongeldig), en `P`,
+     `PT` en een lege tekst geven 0. Een ander programma weigert zo'n waarde, of leest haar anders. Alleen bestanden van een
+     ander programma. Met de flag weigert de merge zo'n duur (`duur-deels-gelezen`; fixronde 5 van #867,
+     `check-ifc-foreign-strikt.ts`). Richting: bij openen de vorm toetsen en een ongeldige duur melden in plaats van stil een
+     getal te nemen. Uit #867 (fase 1b, fixronde 5; gesplitst in fixronde 5b). — B
+
+1031. **De lezer leest een datum-tijd of tijd met tijdzone of seconden zonder melding anders.** `parseImportedInstant`
+     (`src/services/importDates.ts:29`) laat een tijdzone en seconden weg, en `clockToMinutes`
+     (`src/services/subdayIo.ts:65`) leest alleen uren en minuten aan het begin van de tekst. Ook op main: ja, voor de
+     datum-tijd met een proef op `9ee06bb71` (de showcase, `ScheduleStart` van `#55`): `2027-03-01T07:00:00Z` en
+     `2027-03-01T07:00:00+02:00` geven `2027-03-01T07:00`, terwijl een ander programma `Z` als UTC leest, een of twee uur
+     anders; `2027-03-01T07:00:30` geeft `07:00` (de seconden vallen weg); `2027-03-01 07:00:00` (een spatie in plaats van
+     `T`) geeft 00:00; en de korte vorm `20270301T070000` en een uur van één cijfer (`2027-03-01T7:00:00`) laten het openen
+     stoppen met `Invalid time value` in plaats van een melding. Voor een tijd in een tijdblok (`IfcTimePeriod`) niet met een
+     proef: in de showcase las de lezer de werktijd 7–16, wat er ook in het tijdblok stond (ook met een urentaak).
+     `clockToMinutes` is op main gelijk aan deze branch (code gelezen). Alleen bestanden van een ander programma. Met de flag weigert de merge zo'n waarde
+     (`tijd-deels-gelezen`; fixronde 5 van #867, `check-ifc-foreign-strikt.ts`). Richting: bij openen de vorm toetsen en
+     een ongeldige waarde melden; voor een tijdzone kiezen of de lezer haar omrekent of meldt. Uit #867 (fase 1b, fixronde
+     5; gesplitst uit 1030 in fixronde 5b, besluit van Trias van 10 november 2026). — B
+
+1032. **VERVOLG: de merge weigert te vaak als de planner één feestdag of toewijzing wist.** Wist de planner één lid van
+     een lijst (een feestdag van de kalender, een toewijzing van een taak), dan weigert de merge met `niet-eenduidig` als een
+     ander lid van die lijst een waarde van een ander programma heeft, ook als die waarde veilig kon blijven staan.
+     `unstableLists` in `src/services/ifc/foreign/lossCheck.ts` maakt dan elk gekoppeld lid onzeker: naam plus datum of
+     positie is geen identiteit (fixronde 5 van #867, BLOKKEERT 3). Proef in `tests/planning/check-ifc-foreign-strikt.ts`
+     op `tests/fixtures/ifc-foreign/eigen-plus-model.ifc`: met `'BEWAAR-21'` op Good Friday 2027 weigert "alleen Good
+     Friday 2028 gewist"; met `'BEWAAR-DIT'` op toewijzing `#109` weigert "alleen #110 gewist". Dat is te streng, maar
+     veilig ("bij twijfel weigeren"), en in het corpus geeft het geen extra weigering (telling van fixronde 5). Besluit van
+     Trias (10 november 2026): zo laten. Richting: fase 2: koppelen op een echte identiteit. Uit #867 (fase 1b,
+     fixronde 5b). — B
+
+1033. **De lezer leest een speling met een tijddeel, en een lag in werktijd met dagen vóór `T`, anders.** Een speling
+     (`FreeFloat`, `TotalFloat` van een `IfcTaskTime`) leest `parseDurationDays` (`src/services/ifc/ifcReader.ts`) alleen in
+     hele dagen: met dagen alleen de dagen, zonder dagen de uren naar boven afgerond op hele dagen, en minuten niet. Een lag
+     in werktijd met dagen vóór `T` telt `isoDurationLeadingDaysMinutes` (`ifcReader.ts`) als 24 uur werktijd per dag,
+     terwijl `P1D` één werkdag is. #871 loste dit niet op: dat ging over de taakduur en de restduur. Ook op main: ja, proef
+     op `9ee06bb71` met de showcase (een kalender van 8 uur per dag): de speling `P2DT12H` geeft 2 dagen, `PT28H` geeft 4 en
+     `PT90M` geeft 0, waar `P0Y0M3.5D` 3,5 geeft; de lag `#631` in werktijd geeft voor `P1D` 1 werkdag, maar voor `P1DT0H`
+     1440 minuten werktijd (drie werkdagen) en voor `P1DT2H` 1560 minuten. De eigen writer schrijft een speling in hele
+     dagen en een lag zonder dagen vóór `T`, dus alleen bestanden van een ander programma. Met de flag weigert de merge
+     zo'n speling en zo'n lag (`duur-deels-gelezen`; fixronde 5b van #867, `check-ifc-foreign-strikt.ts`). In kalendertijd
+     is een dag 24 uur; daar leest de lezer de lag goed, en de merge schrijft. Richting: een speling lezen zoals de taakduur
+     (minuten, met de minuten per dag van de taak), en in werktijd de dagen vóór `T` tellen als werkdagen. Uit #867 (fase
+     1b, fixronde 5b). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul

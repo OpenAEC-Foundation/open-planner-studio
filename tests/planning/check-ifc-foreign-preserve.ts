@@ -813,9 +813,10 @@ const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only
     bytes: enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,", "'2.1',$,'ON HOLD',$,"))) },
   { label: 'B1 (Terra): IfcTaskTime.DurationType', keep: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,/, detail: /^IFCTASKTIME #50, argument 3: \.NOTDEFINED\. → \.WORKTIME\./, only: /^IFCTASKTIME #50\b/,
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace('.WORKTIME.', '.NOTDEFINED.'))) },
-  // Een duur met dagen vóór T leest de lezer als alleen het tijddeel (knownbug 1027): sinds fixronde 4 weigert de merge
-  // dat als benoemd geval, tot de fix van 1027 in main staat (sectie 7).
-  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', kind: 'duur-deels-gelezen', detail: /^IFCTASKTIME #50: de duur 'P2DT12H' heeft dagen vóór T \(knownbug 1027\)\. Tijdelijk: de fix staat sinds #871 in main; deze weigering valt weg op besluit van Trias\.$/,
+  // Een duur met dagen vóór T: sinds #871 leest de lezer de dagen mee (knownbug 1027 opgelost; in fixronde 4 en 5 weigerde
+  // de merge haar als `duur-deels-gelezen`). Maar een duur met een tijddeel maakt de kalender van dit bestand een
+  // uurkalender, en `OPS_Calendar` wordt dan anders: `niet-gedragen`, zoals bij `PT12H` (fixronde 5b).
+  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', detail: /^IFCPROPERTYSET #40 \(OPS_Calendar\), argument 4: \(#39\) → /,
     only: /^IFC(TASKTIME #50|PROPERTYSET #40|PROPERTYSINGLEVALUE #39)\b/,
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace("'P0Y0M2D'", "'P2DT12H'"))) },
   { label: 'B1 (Sol): IfcWorkSchedule #43.PredefinedType', keep: /#43=IFCWORKSCHEDULE\([^;]*,\.ACTUAL\.\);/, detail: /^IFCWORKSCHEDULE #43, argument 13: \.ACTUAL\. → \.PLANNED\./, only: /^IFCWORKSCHEDULE #43\b/,
@@ -932,7 +933,8 @@ const KINDS: readonly {
   {
     // Een bestand met een uurkalender (de showcase), zodat de kalender gelijk blijft. `PT90M` leest de lezer goed (90
     // minuten); de writer schrijft `PT1H30M0S`, met andere onderdelen. (b) laat de bron staan zolang de planner de duur
-    // niet wijzigt. (Tot fixronde 4 stond hier `P2DT12H`; dat weigert nu, sectie 7.)
+    // niet wijzigt. (Tot fixronde 4 stond hier `P2DT12H`; in fixronde 4 en 5 weigerde dat, sinds fixronde 5b staat het in
+    // `check-ifc-foreign-strikt.ts`.)
     kind: 'duur', label: 'IfcTaskTime.ScheduleDuration PT90M',
     bytes: enc.encode(replaceIn(showcaseApp, T55, T55.replace("'P0Y0M3D'", "'PT90M'"))),
     keep: /IFCTASKTIME\('CPT soundings & soil investigation Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT90M'/,

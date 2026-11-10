@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
+import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -150,15 +150,51 @@ ok(`${p2.label}: een deel van \`time\` zonder slot verklaart geen tijdslot (${p2
 await proof('plek 3', 'fix3: elke taak hernoemd (zonder wissen)', fix3, 'schrijft', (x) => { for (const t of x.tasks) t.name = `${t.name} *`; });
 await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x) => { x.project.name = 'Andere naam'; });
 
-// ── B2: een duur met dagen vóór T (knownbug 1027), en een duur met weken (knownbug 1028) ──
+// ── B2: een duur met dagen vóór T (knownbug 1027, opgelost met #871), en een duur met weken (knownbug 1028) ──
+// Sinds #871 (`9ee06bb71`) leest de lezer de dagen vóór `T` mee, met de minuten per dag van de taak: `P2DT12H` is bij 8 uur
+// per dag 1680 minuten. In fixronde 4 en 5 weigerde de merge zo'n duur tijdelijk; sinds fixronde 5b (besluit van Trias van
+// 10 november 2026) schrijft hij. De regressietest: zonder bewerking blijft elk argument van de taaktijd byte-gelijk, ook
+// de duur zelf, en is een tweede ronde byte-gelijk aan de eerste; na een andere bewerking van de taak leest de herlezing
+// dezelfde minuten als de lezer. Twee dingen zijn wel anders, ook in de showcase zonder `P2DT12H`: de merge geeft de eigen
+// stukken een nieuw `#id`, en een urentaak krijgt de nulduur in haar eigen vorm (`RemainingTime` `P0Y0M0D` wordt
+// `PT0H0M0S`, net als bij `PT90M`; elk onderdeel is gelijk).
 const T55 = "#55=IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D'";
 ok('B2: de taaktijd #55 staat in de showcase', showcase.includes(T55));
 const cpt = (o: Opened) => o.tasks.find(q => q.name === 'CPT soundings & soil investigation')!;
 const p2dt12h = latin1(showcase.replace(T55, T55.replace("'P0Y0M3D'", "'P2DT12H'")));
-await proof('B2, plek 7', 'Terra m1: P2DT12H, de duur expliciet op 720 en de taak hernoemd', p2dt12h, 'duur-deels-gelezen', (x, o) => {
+/** Elk argument van taaktijd #55 uit de bron staat byte-gelijk in de uitvoer, op de nulduur van een urentaak na (zie hierboven).
+ *  #55 heeft geen komma binnen een waarde. */
+const sameTaskTime = (src: Uint8Array) => {
+  const a = /^#55=IFCTASKTIME\((.*)\);$/m.exec(text(src))![1].split(',');
+  return (out: Uint8Array) => {
+    const m = /^#\d+=IFCTASKTIME\(('CPT soundings & soil investigation Time',.*)\);$/m.exec(text(out));
+    if (!m) return 'mist de taaktijd van de taak';
+    const b = m[1].split(',');
+    const diff = a.flatMap((v, k) => (v === b[k] || (k === 18 && v === "'P0Y0M0D'" && b[k] === "'PT0H0M0S'") ? [] : [`argument ${k}: ${v} → ${b[k]}`]));
+    return diff.length === 0 && a.length === b.length ? undefined : `de taaktijd is anders: ${diff.slice(0, 3).join(', ')}`;
+  };
+};
+/** Een tweede ronde zonder bewerking is byte-gelijk aan de eerste. */
+const secondRoundSame = async (label: string, r: Result) => {
+  if (!r.out) return;
+  const o = await openForeign(r.out);
+  const second = await tryMerge(cloneDomain(o), o.ifcSource!);
+  ok(`${label}: een tweede ronde is byte-gelijk aan de eerste`, second.ok && sameBytes(second.bytes, r.out));
+};
+await proof('B2, plek 7', 'Terra m1: P2DT12H, de duur expliciet op 720 en de taak hernoemd: schrijft de nieuwe duur', p2dt12h, 'schrijft', (x, o) => {
   const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 720; q.name = 'Hernoemd';
-});
-await proof('B2', 'P2DT12H zonder bewerking', p2dt12h, 'duur-deels-gelezen');
+}, (out) => has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT12H0M0S'/)(out) ?? has("'P2DT12H'", false)(out));
+await secondRoundSame('regressie 1027 · P2DT12H zonder bewerking',
+  await proof('regressie 1027', 'P2DT12H zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk', p2dt12h, 'schrijft', undefined, sameTaskTime(p2dt12h)));
+{
+  const before = cpt(await openForeign(p2dt12h)).time.durationMinutes;
+  ok(`regressie 1027: de lezer leest P2DT12H als 1680 minuten (kreeg ${before})`, before === 1680);
+  const r = await proof('regressie 1027', 'P2DT12H, de taak hernoemd: schrijft en houdt P2DT12H', p2dt12h, 'schrijft', (x, o) => {
+    x.tasks.find(z => z.id === cpt(o).id)!.name = 'Hernoemd';
+  }, has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'P2DT12H'/));
+  const after = r.out ? (await openForeign(r.out)).tasks.find(q => q.name === 'Hernoemd')?.time.durationMinutes : undefined;
+  ok(`regressie 1027: de herlezing leest dezelfde minuten als de lezer (${before} → ${after})`, after === before);
+}
 await proof('B2', 'P0Y0M3D (dagen zonder tijddeel) schrijft', latin1(showcase), 'schrijft', (x, o) => { x.tasks.find(z => z.id === cpt(o).id)!.name = 'Hernoemd'; },
   has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'P0Y0M3D'/));
 await proof('B2', 'P1W (weken: de lezer leest geen weken, knownbug 1028)', latin1(showcase.replace(T55, T55.replace("'P0Y0M3D'", "'P1W'"))), 'duur-deels-gelezen');
@@ -169,9 +205,13 @@ await proof('B2', 'P1W (weken: de lezer leest geen weken, knownbug 1028)', latin
 const t55 = (dur: string, src = showcase) => latin1(src.replace(T55, T55.replace("'P0Y0M3D'", `'${dur}'`)));
 const rename55 = (x: Domain, o: Opened) => { x.tasks.find(z => z.id === cpt(o).id)!.name = 'Hernoemd'; };
 const m1 = (x: Domain, o: Opened) => { const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 720; q.name = 'Hernoemd'; };
+// Sinds fixronde 5b leest de lezer `P2DT12H` goed (knownbug 1027 opgelost), dus ook de gecodeerde vormen: ze schrijven.
+// De toets blijft na de decodering kijken: de komma (BLOKKEERT 2) en de vorm (zoektocht 4) ziet hij ook gecodeerd.
 for (const dur of ['P2\\X2\\0044\\X0\\T12H', 'P2\\X\\44T12H', 'P2\\X4\\00000044\\X0\\T12H']) {
-  await proof('BLOKKEERT 1, plek 7', `Sol en Terra: ${dur} (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd`, t55(dur), 'duur-deels-gelezen', m1);
-  await proof('BLOKKEERT 1, plek 7', `${dur} zonder bewerking`, t55(dur), 'duur-deels-gelezen');
+  await proof('BLOKKEERT 1, plek 7', `Sol en Terra: ${dur} (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd: schrijft de nieuwe duur`, t55(dur), 'schrijft', m1,
+    has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT12H0M0S'/));
+  await secondRoundSame(`BLOKKEERT 1 · ${dur} zonder bewerking`,
+    await proof('BLOKKEERT 1, plek 7', `${dur} zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk`, t55(dur), 'schrijft', undefined, sameTaskTime(t55(dur))));
 }
 await proof('BLOKKEERT 1', 'P0Y0M\\X\\33D (P0Y0M3D in STEP-codering), de taak hernoemd: schrijft', t55('P0Y0M\\X\\33D'), 'schrijft', rename55);
 // De oude letterlijke codering (een eigen bestand van versie 0.1): de lezer decodeert dan niet en leest de tekst zoals hij
@@ -199,7 +239,77 @@ for (const dur of ['PT90M', 'PT3600S', 'PT0.5H', 'P0DT12H', 'P0Y0M-2D', '-P2D'])
   await proof('zoektocht 4', `'${dur}', de taak hernoemd: schrijft`, t55(dur), 'schrijft', rename55);
 }
 
-// ── Fixronde 5, zoektocht punt 4: een datum-tijd of tijd die de lezer anders leest (knownbug 1030) ──
+// ── Fixronde 5b: dagen vóór T per duurslot na #871; de speling en de lag in werktijd (knownbug 1033) ──
+// Gemeten per slot van `IfcTaskTime` en voor de lag, met dezelfde lengte in drie vormen op een kalender van 8 uur per dag
+// (`P2DT12H`, `PT28H`, `P0Y0M3.5D`). Taakduur, restduur en werkelijke duur leest de lezer sinds #871 goed: die schrijven, en
+// de herlezing leest hetzelfde. Een mijlpaal en een taak in kalendertijd ook: `P2DT12H` leest hij daar als `PT28H` en
+// `PT60H`. De speling leest hij alleen in hele dagen (`parseDurationDays`): `P2DT12H` als 2, `PT28H` als 4 en `PT90M` als
+// 0. Een lag in werktijd met dagen vóór `T` telt hij als 24 uur werktijd per dag, terwijl `P1D` één werkdag is. Die twee
+// weigeren (knownbug 1033). Ook de ongetypte duur van een lag, die de lezer ook leest, valt nu onder de toets.
+const L55 = /^#55=IFCTASKTIME\((.*)\);$/m.exec(showcase);
+ok('5b: de regel van taaktijd #55 staat in de showcase', !!L55);
+/** De showcase met slots van taaktijd #55 vervangen (#55 heeft geen komma binnen een waarde). */
+const slot55 = (set: Record<number, string>, src = showcase) => {
+  const a = L55![1].split(',');
+  for (const [k, v] of Object.entries(set)) a[Number(k)] = v;
+  return latin1(src.replace(L55![0], () => `#55=IFCTASKTIME(${a.join(',')});`));
+};
+const reread = async (r: Result) => (r.out ? (await openForeign(r.out)).tasks.find(q => q.name === 'Hernoemd')?.time : undefined);
+const IN_PROGRESS = { 17: '$', 19: '0.5' };
+{
+  const r1 = await proof('5b', "ActualDuration 'P2DT12H', de taak hernoemd: schrijft", slot55({ 15: "'P2DT12H'" }), 'schrijft', rename55, has(/IFCTASKTIME\('Hernoemd Time',(?:[^,]*,){14}'P2DT12H'/));
+  const t1 = await reread(r1);
+  ok(`5b: ActualDuration 'P2DT12H' is na herlezen 3,5 dagen (kreeg ${t1?.actualDuration})`, t1?.actualDuration === 3.5);
+  const r2 = await proof('5b', "RemainingTime 'P2DT12H' van een dagtaak in uitvoering, de taak hernoemd: schrijft", slot55({ ...IN_PROGRESS, 4: "'P0Y0M5D'", 18: "'P2DT12H'" }), 'schrijft', rename55);
+  const t2 = await reread(r2);
+  ok(`5b: de restduur 'P2DT12H' van een dagtaak is na herlezen 3,5 dagen (kreeg ${t2?.remainingTime})`, t2?.remainingTime === 3.5);
+  const r3 = await proof('5b', "RemainingTime 'P2DT12H' van een urentaak in uitvoering, de taak hernoemd: schrijft", slot55({ ...IN_PROGRESS, 4: "'PT40H'", 18: "'P2DT12H'" }), 'schrijft', rename55);
+  const t3 = await reread(r3);
+  ok(`5b: de restduur 'P2DT12H' van een urentaak is na herlezen 1680 minuten (kreeg ${t3?.remainingMinutes})`, t3?.remainingMinutes === 1680);
+  const r4 = await proof('5b', "kalendertijd: ScheduleDuration 'P2DT12H', de taak hernoemd: schrijft", slot55({ 3: '.ELAPSEDTIME.', 4: "'P2DT12H'" }), 'schrijft', rename55);
+  const t4 = await reread(r4);
+  ok(`5b: 'P2DT12H' in kalendertijd is na herlezen 3600 minuten, als 'PT60H' (kreeg ${t4?.durationMinutes})`, t4?.durationMinutes === 3600);
+  // Een mijlpaal: `P2DT0H` leest de lezer als `PT16H` (960 minuten), niet als `P2D` (0). Dat verschil tussen de dagvorm en
+  // de urenvorm staat in knownbug 1042 (#871) en hangt niet af van de dagen vóór `T`.
+  const T56 = "#56=IFCTASK('3rXhB$Ss9iyKAT8OUYn2nh',#6,'CPT soundings & soil investigation',$,$,'2.1',$,$,$,.F.,";
+  ok('5b: de taak #56 staat in de showcase', showcase.includes(T56));
+  const milestone = showcase.replace(T56, () => T56.replace('.F.,', '.T.,'));
+  const r5 = await proof('5b', "mijlpaal: ScheduleDuration 'P2DT0H', de taak hernoemd: schrijft", slot55({ 4: "'P2DT0H'" }, milestone), 'schrijft', rename55);
+  const t5 = await reread(r5);
+  const pt16 = cpt(await openForeign(slot55({ 4: "'PT16H'" }, milestone))).time.durationMinutes;
+  ok(`5b: een mijlpaal met 'P2DT0H' leest na herlezen als 'PT16H' (${t5?.durationMinutes} en ${pt16})`, t5?.durationMinutes === 960 && pt16 === 960);
+}
+// De speling: alleen hele dagen, zonder tijddeel.
+for (const [k, name] of [[11, 'FreeFloat'], [12, 'TotalFloat']] as const) {
+  for (const dur of ['P2DT12H', 'PT28H', 'PT90M', 'P0DT4H']) {
+    await proof('5b, knownbug 1033', `${name} '${dur}' (de lezer leest een speling in hele dagen), de taak hernoemd`, slot55({ [k]: `'${dur}'` }), 'duur-deels-gelezen', rename55, undefined,
+      /^duur-deels-gelezen: IFCTASKTIME #55: de speling '/);
+  }
+  for (const dur of ['P0Y0M3.5D', 'P2DT0H', 'PT0H']) {
+    await proof('5b', `${name} '${dur}', de taak hernoemd: schrijft`, slot55({ [k]: `'${dur}'` }), 'schrijft', rename55);
+  }
+}
+// De lag (#631, SS tussen twee taken van de showcase). In werktijd met dagen vóór `T` weigert hij; in kalendertijd niet.
+const LAG631 = "#631=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P2D'),.WORKTIME.);";
+ok('5b: de lag #631 staat in de showcase', showcase.includes(LAG631));
+const lag631 = (value: string, unit = '.WORKTIME.') => latin1(showcase.replace(LAG631, () => `#631=IFCLAGTIME('Lag',.PREDICTED.,$,${value},${unit});`));
+const lagAt = (o: Opened) => o.sequences.filter(q => q.lagMinutes !== undefined || (q.lagDays !== 2 && q.lagDays !== 0) || (q.lagUnit !== undefined && q.lagUnit !== 'WORKTIME'));
+const LAG_DAYS = /^duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd '/;
+await proof('5b, knownbug 1033', "lag in werktijd IFCDURATION('P1DT2H'), de taak hernoemd", lag631("IFCDURATION('P1DT2H')"), 'duur-deels-gelezen', rename55, undefined, LAG_DAYS);
+await proof('5b, knownbug 1033', "lag in werktijd IFCDURATION('P1DT0H'), de taak hernoemd", lag631("IFCDURATION('P1DT0H')"), 'duur-deels-gelezen', rename55, undefined, LAG_DAYS);
+await proof('5b, knownbug 1033', "lag zonder DurationType (werktijd) IFCDURATION('P1DT2H'), de taak hernoemd", lag631("IFCDURATION('P1DT2H')", '$'), 'duur-deels-gelezen', rename55, undefined, LAG_DAYS);
+await proof('5b, knownbug 1033', "ongetypte lag in werktijd 'P1DT2H', de taak hernoemd", lag631("'P1DT2H'"), 'duur-deels-gelezen', rename55, undefined, LAG_DAYS);
+await proof('5b, knownbug 1029', "ongetypte lag 'P1,5D' (de lezer leest 5 dagen), de taak hernoemd", lag631("'P1,5D'"), 'duur-deels-gelezen', rename55, undefined,
+  /^duur-deels-gelezen: IFCLAGTIME #631: de duur 'P1,5D' heeft een decimale komma/);
+{
+  const r = await proof('5b', "lag in kalendertijd IFCDURATION('P1DT2H'), de taak hernoemd: schrijft", lag631("IFCDURATION('P1DT2H')", '.ELAPSEDTIME.'), 'schrijft', rename55, has("IFCDURATION('P1DT2H'),.ELAPSEDTIME."));
+  const lags = r.out ? lagAt(await openForeign(r.out)) : [];
+  ok(`5b: de lag 'P1DT2H' in kalendertijd is na herlezen 1560 minuten (${JSON.stringify(lags.map(q => q.lagMinutes))})`, lags.length === 1 && lags[0].lagMinutes === 1560);
+}
+await proof('5b', "lag in werktijd IFCDURATION('PT26H'), de taak hernoemd: schrijft", lag631("IFCDURATION('PT26H')"), 'schrijft', rename55);
+await proof('5b', "ongetypte lag in werktijd 'PT10H', de taak hernoemd: schrijft", lag631("'PT10H'"), 'schrijft', rename55);
+
+// ── Fixronde 5, zoektocht punt 4: een datum-tijd of tijd die de lezer anders leest (knownbug 1031) ──
 // De lezer laat een tijdzone weg (`parseImportedInstant`, `clockToMinutes`) en leest geen seconden. Na een spatie in plaats
 // van `T` leest hij de tijd niet (00:00). Een ander programma leest `Z` als UTC, dus een uur of twee anders.
 {

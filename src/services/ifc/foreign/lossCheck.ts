@@ -67,7 +67,8 @@
  *     geen waarde; de verwijzing gaat naar de tegenhanger of de kopie, en die is zelf veld voor veld gelijk.
  *   - `duur` (`sameDuration`): een ISO 8601-duur met nul-onderdelen erbij of eraf (`PT12H` en `PT12H0M0S`), alleen in een
  *     duurslot of een `IFCDURATION`. Elk onderdeel is exact gelijk, dus de duur is gelijk; `P1D` en `PT24H` zijn niet
- *     gelijk. Een duur waarvan de lezer een deel weglaat, weigert de merge vooraf (`partialDuration`, knownbug 1027/1028).
+ *     gelijk. Een duur waarvan de lezer een deel weglaat, weigert de merge vooraf (`partialDuration`, knownbugs 1028 tot en met
+ *     1030 en 1033).
  *  GlobalId van een eigen hulpstuk (besluit 1, `ownAuxGuid`): de writer geeft een P-stuk zonder vast id elke keer een
  *  nieuwe GlobalId (knownbug 1023). Dat mag alleen als het stuk P is, eigen herkomst heeft (§4.5), en geen stuk dat niet
  *  P is ernaar wijst; de toets gaat dat zelf na in de inkomende verwijzingen van de index. Een stuk met een vast id (een
@@ -1854,12 +1855,22 @@ export function sameDuration(a: string, b: string): boolean {
 }
 
 /** Hoe de lezer een duur deels of verkeerd leest (zie `partialDuration`). */
-export type PartialDuration = 'dagen' | 'jaren' | 'komma' | 'vorm';
+export type PartialDuration = 'jaren' | 'komma' | 'vorm' | 'speling' | 'lag-dagen';
+
+/** Waar een duur staat, voor de regels die van het slot afhangen (`partialDuration`). */
+export interface DurationText {
+  /** De duur zoals de lezer haar ziet: na de STEP-decodering. */
+  readonly text: string;
+  /** Een speling (`FreeFloat`, `TotalFloat` van een `IfcTaskTime`). */
+  readonly float: boolean;
+  /** De waarde van een `IfcLagTime` in werktijd (`DurationType` is niet `.ELAPSEDTIME.`). */
+  readonly workLag: boolean;
+}
 
 /**
  * Een duur waarvan de lezer een deel weglaat of die hij anders leest dan ISO 8601 (fixronde 4, BLOKKEERT 2; fixronde 5,
- * BLOKKEERT 2 en de zoektocht), of `undefined`. De tekst is de tekst zoals de lezer haar ziet: na de STEP-decodering
- * (`durationTexts`).
+ * BLOKKEERT 2 en de zoektocht; fixronde 5b), of `undefined`. De tekst is de tekst zoals de lezer haar ziet: na de
+ * STEP-decodering (`durationTexts`).
  *  - `vorm`: geen duur in de vorm van ISO 8601 met hoofdletters, onderdelen in de vaste volgorde en elk onderdeel één keer
  *    (`p3d`, `P1E1D`, `PT1H1H`, `PT30M12H`, `P`, een lege tekst). De lezer leest die stil als iets anders (`p3d` als 0 dagen,
  *    `P1E1D` als 10 dagen, `PT1H1H` als 60 minuten; knownbug 1030). Het oude teken bij het getal (`P0Y0M-2D`) leest hij goed;
@@ -1867,11 +1878,18 @@ export type PartialDuration = 'dagen' | 'jaren' | 'komma' | 'vorm';
  *    (knownbug 1029);
  *  - `jaren`: jaren, maanden of weken die niet nul zijn (`P1W`, `P0Y2M3D`). De lezer (`parseDurationDays`, `ifcReader.ts`)
  *    leest alleen de dagen, of met een tijddeel alleen dat tijddeel (knownbug 1028);
- *  - `dagen`: een tijddeel (`T…`) en dagen die niet nul zijn (`P2DT12H`, `P0Y0M2DT4H`). De lezer (`isoDurationToMinutes`,
- *    `subdayIo.ts:111`) leest dan alleen het deel na `T`: `P2DT12H` wordt 720 minuten (knownbug 1027).
- * Een duur met alleen dagen (`P0Y0M3D`) of alleen een tijddeel (`PT12H`, `P0DT12H`) met een decimale punt leest hij goed.
+ *  - `speling`: een speling met een tijddeel dat niet nul is (`P2DT12H`, `PT28H`, `PT90M`). De lezer (`parseDurationDays`)
+ *    leest een speling alleen in hele dagen: met dagen alleen de dagen (`P2DT12H` wordt 2), zonder dagen de uren naar
+ *    boven afgerond op hele dagen (`PT28H` wordt 4 bij 8 uur per dag), en minuten niet (`PT90M` wordt 0; knownbug 1033);
+ *  - `lag-dagen`: een lag in werktijd met dagen vóór een tijddeel (`P1DT2H`, `P1DT0H`). De lezer telt die dagen als 24 uur
+ *    werktijd (`isoDurationLeadingDaysMinutes`), maar `P1D` als één werkdag: `P1DT0H` is dan drie werkdagen bij 8 uur per
+ *    dag (knownbug 1033). In kalendertijd is een dag 24 uur, dus daar leest hij de lag goed.
+ * Dagen vóór `T` in een taakduur, een restduur en een werkelijke duur leest de lezer sinds #871 (`9ee06bb71`) goed: de
+ * dagen tellen mee met de minuten per dag van de taak (knownbug 1027 is opgelost; fixronde 5b, besluit van Trias van
+ * 10 november 2026). Een duur met alleen dagen (`P0Y0M3D`) of alleen een tijddeel (`PT12H`, `P0DT12H`) met een decimale
+ * punt leest hij goed.
  */
-export function partialDuration(text: string): PartialDuration | undefined {
+export function partialDuration(text: string, at: Pick<DurationText, 'float' | 'workLag'> = { float: false, workLag: false }): PartialDuration | undefined {
   const t = text.trim();
   const n = '(-?\\d+(?:[.,]\\d+)?)';
   const m = new RegExp(`^-?P(?:${n}Y)?(?:${n}M)?(?:${n}W)?(?:${n}D)?(?:(T)(?:${n}H)?(?:${n}M)?(?:${n}S)?)?$`).exec(t);
@@ -1880,22 +1898,33 @@ export function partialDuration(text: string): PartialDuration | undefined {
   if (t.includes(',')) return 'komma';
   const nonZero = (v: string | undefined) => v !== undefined && decimalKey(v) !== '0' && decimalKey(v) !== '-0';
   if (nonZero(m[1]) || nonZero(m[2]) || nonZero(m[3])) return 'jaren';
-  if (m[5] && nonZero(m[4])) return 'dagen';
+  if (at.float && (nonZero(m[6]) || nonZero(m[7]) || nonZero(m[8]))) return 'speling';
+  if (at.workLag && m[5] && nonZero(m[4])) return 'lag-dagen';
   return undefined;
 }
 
+/** De slots met een speling in een `IfcTaskTime`: `FreeFloat` en `TotalFloat` (fixronde 5b, knownbug 1033). */
+const FLOAT_SLOTS: readonly number[] = [11, 12];
+
 /**
- * Slots met een ISO 8601-duur (`DURATION_SLOTS`) en elke `IFCDURATION('…')` in een argument van stuk `i`, als tekst zoals
- * de lezer haar ziet: met de STEP-decodering van dat stuk (`tokenText`, dezelfde regel als de lezer, ook voor de oude
- * letterlijke codering; fixronde 5, BLOKKEERT 1). Zo is `'P2\X2\0044\X0\T12H'` de duur `P2DT12H`.
+ * Slots met een ISO 8601-duur (`DURATION_SLOTS`), elke `IFCDURATION('…')` in een argument van stuk `i`, en de ongetypte
+ * duur in `LagValue` van een `IfcLagTime` (de lezer leest die ook, voor bestanden van een ander programma; fixronde 5b),
+ * als tekst zoals de lezer haar ziet: met de STEP-decodering van dat stuk (`tokenText`, dezelfde regel als de lezer, ook
+ * voor de oude letterlijke codering; fixronde 5, BLOKKEERT 1). Zo is `'P2\X2\0044\X0\T12H'` de duur `P2DT12H`. Per duur
+ * ook of het een speling is en of het een lag in werktijd is (`DurationText`).
  */
-export function durationTexts(index: StepIndex, i: number): string[] {
-  const out: string[] = [];
-  const slots = DURATION_SLOTS[index.type(i)] ?? [];
-  (index.argTokens(i) ?? []).forEach((token, k) => {
+export function durationTexts(index: StepIndex, i: number): DurationText[] {
+  const out: DurationText[] = [];
+  const type = index.type(i);
+  const slots = DURATION_SLOTS[type] ?? [];
+  const tokens = index.argTokens(i) ?? [];
+  const lag = type === 'IFCLAGTIME';
+  const workLag = lag && !/ELAPSEDTIME/i.test(tokens[4] ?? '');
+  tokens.forEach((token, k) => {
     const t = token.trim();
-    if (slots.includes(k) && t.startsWith("'")) out.push(index.tokenText(i, t));
-    for (const m of t.matchAll(/IFCDURATION\s*\(\s*('(?:[^']|'')*')\s*\)/gi)) out.push(index.tokenText(i, m[1]));
+    const at = { float: type === 'IFCTASKTIME' && FLOAT_SLOTS.includes(k), workLag: workLag && k === 3 };
+    if ((slots.includes(k) || (lag && k === 3)) && t.startsWith("'")) out.push({ text: index.tokenText(i, t), ...at });
+    for (const m of t.matchAll(/IFCDURATION\s*\(\s*('(?:[^']|'')*')\s*\)/gi)) out.push({ text: index.tokenText(i, m[1]), ...at });
   });
   return out;
 }
