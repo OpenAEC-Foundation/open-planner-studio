@@ -1732,6 +1732,19 @@ en noem het in je rapport of PR-tekst.
      indeling samen kosten bij 300 MB 4,7 s (zelfde run, meting van de scanner). Richting: de index van het openen bewaren of de klassen uit
      `ifcSource` hergebruiken, en alleen de stukken parsen die de merge leest. Uit #867 (fase 1b). — B
 
+1022. **VERVOLG: auteur of bedrijf wijzigen geeft `merge-needs-phase2` als de eerste owner history gedeeld is.** Met de flag
+     aan, een eigen project (P) en een owner history die ook vreemde stukken gebruiken (C), leest de lezer auteur en
+     bedrijf uit die eerste owner history (`src/services/ifc/ifcReader.ts:1419`). De writer schrijft de vier projectvelden
+     alleen als het project niet P is (BLOKKEERT 1 van fixronde 1). Een gewijzigde auteur komt dus niet terug, en de
+     merge weigert met `projectgegevens` (`src/services/ifc/foreign/lossCheck.ts:560`). Zonder wijziging schrijft de
+     merge gewoon. Gemeten met een gewijzigde auteur: 8 eigen bestanden in `tests/fixtures/ifc-foreign/council/` die zonder
+     wijziging schrijven, weigeren dan, namelijk `fix1-leeg-live`, `fix1-leeg-live-bl`, `r4-k2`, `r4-k3`,
+     `r5-eigen-plus-bonsai-baseline`, `r5sol-gedeelde-calendar-pset`, `r6sol-twee-werkplannen` en
+     `r7sol-twee-werkplannen-bronplek`. Proef: `check-ifc-foreign-preserve.ts`, "auteur
+     wijzigen bij een gedeelde owner history". Richting: op de bytes-route auteur en bedrijf lezen uit de owner history
+     van het IfcProject of het werkplan (dat schrijft de writer zelf), of de vier velden ook bij een gedeelde owner
+     history in `OPS_ProjectSettings` zetten. Uit #867 (fase 1b, fixronde 1). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

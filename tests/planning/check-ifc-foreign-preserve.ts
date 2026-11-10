@@ -687,6 +687,15 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   const main = enc.encode(writeIFC(cloneDomain(plain as Opened)));
   ok(`${label}: Opslaan is de gewone writer, gelijk aan de lezer van main`, sameBytes(saved, main));
 }
+{
+  // De merge schrijft de vier velden alleen als het project van de bron niet P is (`projectSourceId`). In r4-k1 is het
+  // project P (de writer schrijft het opnieuw); in eigen-plus-model is het C (het model hangt eronder).
+  for (const [label, src, want] of [['r4-k1 (project P)', r4, false], ['eigen-plus-model (project C)', eigen, true]] as const) {
+    const opened = await openForeign(enc.encode(src));
+    const saved = text(concat(writeIfcMerge(cloneDomain(opened), opened.ifcSource!)));
+    eq(`${label}: de merge schrijft ProjectName in OPS_ProjectSettings`, saved.includes("IFCPROPERTYSINGLEVALUE('ProjectName'"), want);
+  }
+}
 
 // ── 6. De invarianten zelf ──
 {
