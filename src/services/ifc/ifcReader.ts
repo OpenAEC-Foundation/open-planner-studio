@@ -1337,36 +1337,6 @@ function parseDurationDays(s: string, hoursPerDay: number): number {
   return 0;
 }
 
-/**
- * Het dag-deel (`P{d}D`, VÓÓR een eventuele `T`) van een ISO-8601-duur, in minuten. Bewust LOKAAL
- * (niet in `subdayIo.ts`'s `isoDurationToMinutes`, die andere aanroepers heeft): alleen voor de
- * verdedigende lag-leestak hierboven, voor bestanden van andere tools — onze eigen schrijver
- * (`minutesToIsoDuration`) emitteert nooit een dag-component vóór `T`.
- *
- * Geïnterpreteerd als KALENDERTIJD (1D = 1440 minuten), niet als werkdag × hoursPerDay: ISO 8601 is
- * kalendertijd (`CPMSolver.resolveElapsedMinutes` rekent een ELAPSEDTIME-dag-lag ook ×24×60), en de
- * kalender van de voorganger is hier nog niet bekend (sequences worden vóór de kalendertoewijzing
- * geëxtraheerd). Bij een WORKTIME-lag is `lagMinutes` in dit randgeval dus licht ruw — bewust, want
- * het dag-deel laten verdwijnen is strikt slechter.
- *
- * Geen dag-component vóór `T` ⇒ 0.
- */
-function isoDurationLeadingDaysMinutes(iso: string): number {
-  const MIN_PER_CALENDAR_DAY = 1440;
-  const clean = iso.trim();
-  const neg = clean.startsWith('-');
-  const tIdx = clean.indexOf('T');
-  const datePart = tIdx >= 0 ? clean.slice(0, tIdx) : '';
-  // Zelfde getalvorm als `parseDurationDays`: een decimale fractie mag (ISO 8601; een kaal `(\d+)`
-  // leest bij `P1.5DT2H` alleen de cijfers ná de punt, 5 dagen). Het resultaat
-  // blijft een hele minuut, zoals `isoDurationToMinutes` levert.
-  const dayMatch = datePart.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
-  if (!dayMatch) return 0;
-  const days = parseFloat(dayMatch[1]);
-  if (!Number.isFinite(days)) return 0;
-  return Math.round((neg && days > 0 ? -days : days) * MIN_PER_CALENDAR_DAY);
-}
-
 function parseTaskType(s: string): TaskType {
   // IFC-specifieke normalisatie: STEP-enum-punten strippen (`.CONSTRUCTION.` → `CONSTRUCTION`).
   const clean = s.replace(/\./g, '').trim();
@@ -2030,10 +2000,10 @@ function extractSequences(
           if (timeMinutes != null) {
             // GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
             // eigen schrijver emitteert nooit een dag-component vóór de `T` (zie `minutesToIsoDuration`),
-            // maar deze soepel-lezen-tak bestaat juist voor andermans bestanden. Zonder dit zou het
-            // dag-deel stil verdwijnen (`isoDurationLeadingDaysMinutes` hieronder). Samen optellen i.p.v.
-            // kiezen voorkomt dataverlies aan beide kanten.
-            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
+            // maar deze soepel-lezen-tak bestaat juist voor andermans bestanden. `isoDurationToMinutes` telt
+            // het dag-deel mee (1D = 1440 min, `isoDurationLeadingDaysMinutes` in subdayIo.ts): geen
+            // dataverlies aan beide kanten.
+            lagMinutes = timeMinutes;
             lagDays = 0;
           } else {
             lagMinutes = undefined;
@@ -2044,7 +2014,7 @@ function extractSequences(
           const raw = stripQuotes(lagValue);
           const timeMinutes = isoDurationToMinutes(raw);
           if (timeMinutes != null) {
-            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
+            lagMinutes = timeMinutes;
             lagDays = 0;
           } else {
             lagMinutes = undefined;

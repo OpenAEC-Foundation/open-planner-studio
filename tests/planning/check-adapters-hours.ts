@@ -246,7 +246,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 // deze follow-up verdween bij zo'n gemengde vorm stilzwijgend óf het dag-deel (nieuwe B1-volgorde:
 // lagMinutes eerst) óf het uur-deel (oude volgorde: parseDurationDays zag alleen de D). De keuze nu:
 // dag- én uurdeel samen in `lagMinutes`, kalendertijd-interpretatie (1D = 1440 min) — onderbouwing in
-// `isoDurationLeadingDaysMinutes` (ifcReader.ts). Bewijst ook dat de twee bestaande (pure) vormen
+// `isoDurationLeadingDaysMinutes` (subdayIo.ts). Bewijst ook dat de twee bestaande (pure) vormen
 // (kaal-uur, kaal-dag) ONGEWIJZIGD blijven.
 {
   const dayCalMix: WorkCalendar = {
@@ -304,6 +304,32 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`gemengd ${iso}: lagMinutes ${want} (${why})`, back?.lagMinutes, want);
     eq(`gemengd ${iso}: lagDays blijft 0`, back?.lagDays, 0);
   }
+}
+
+// ── Knownbug 1027: een TAAKduur met dagen vóór de `T` (`P2DT12H`) uit een vreemd bestand ────────────────
+// `isoDurationToMinutes` las alleen het deel na `T`: `P2DT12H` werd 720 minuten (12 uur, 1,5 werkdag) in plaats van
+// 2,5 dag. Nu telt het dag-deel mee zoals bij de lag: 1D = 1440 minuten, dus 3600. Ook de rest (`RemainingTime`).
+// Het voorbeeld van de knownbug: `showcase-appartementencomplex.ifc` met de duur van 'CPT soundings & soil
+// investigation' op `P2DT12H`. Een eigen bestand (geen dagen vóór `T`) leest ongewijzigd.
+{
+  const own = readFileSync('public/examples/showcase-appartementencomplex.ifc', 'utf8');
+  const cpt = (text: string) => readIFC(text).tasks.find(t => t.name === 'CPT soundings & soil investigation')!.time;
+  const slot = "IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D',";
+  assert(own.includes(slot), 'setup: de taak heeft de duur P0Y0M3D');
+  const mixed = cpt(own.replace(slot, slot.replace("'P0Y0M3D'", "'P2DT12H'")));
+  eq('1027: P2DT12H is een urentaak van 3600 minuten (2,5 dag), niet 720', [mixed.durationUnit, mixed.durationMinutes], ['hours', 3600]);
+  // De rest, op een lopende urentaak (6 uur, rest 3 uur): `PT3H0M0S` → `P1DT2H`.
+  const running = mk('t-rest', 'Rest', '1', '2026-07-06T08:00', '2026-07-06T14:00', 360);
+  running.status = 'STARTED';
+  running.time = { ...running.time, actualStart: '2026-07-06T08:00', completion: 0.5, remainingMinutes: 180 };
+  const restIfc = writeIFC({ project, calendar: H8, tasks: [running], sequences: [], resources: [], assignments: [] });
+  assert(restIfc.includes(",'PT3H0M0S',"), 'setup: de rest staat als PT3H0M0S');
+  eq('1027: rest P1DT2H is 1560 minuten (1440 + 120), niet 120',
+    readIFC(restIfc.replace(",'PT3H0M0S',", ",'P1DT2H',")).tasks[0].time.remainingMinutes, 1560);
+  const pureHours = cpt(own.replace(slot, slot.replace("'P0Y0M3D'", "'PT12H0M0S'")));
+  eq('1027: kale PT12H0M0S blijft 720 minuten', pureHours.durationMinutes, 720);
+  eq('1027: eigen bestand ongewijzigd (P0Y0M3D blijft een dagtaak van 3 dagen)',
+    [cpt(own).durationUnit, cpt(own).scheduleDuration, cpt(own).durationMinutes], ['days', 3, undefined]);
 }
 
 // ── Statusdatum MÉT tijd (uur-modus, `Project.statusDate`) round-trippt door IFC ─────────────────
