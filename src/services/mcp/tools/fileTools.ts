@@ -34,9 +34,11 @@ import { ScopeEscapeError } from '../fileScopeError';
 
 import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
-import { writeIFC } from '@/services/ifc/ifcWriter';
+import { writeIFCWithChoices } from '@/services/ifc/ifcWriter';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
-import { buildExportIFCInput } from '@/state/ifcSaveInput';
+import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
+import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
 import { extensionOf } from '@/utils/filePath';
@@ -365,14 +367,33 @@ export const fileTools: McpToolDef[] = [
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
       const input = buildExportIFCInput(state);
-      const content = writeIFC(input);
+      const { content, literalCalendarIds } = writeIFCWithChoices(input);
       const ifcSchema = projectIfcSchema(input.project);
       const question = ifcSchemaQuestionFor(state.project);
-      try {
-        await fs.writeTextFile(path, content);
-      } catch (e) {
-        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
-      }
+      // Knownbug 1026 (review #872 ronde 3 en 4, Terra): een export over het eigen bestand legt de letterlijke kalenders
+      // vast, zoals Opslaan; een aantoonbaar ander bestand niet (`exportHitsOwnFile`). Schrijven en vastleggen staan onder
+      // dezelfde lock als Opslaan en AutoSave, zodat AutoSave er niet tussendoor de ankertekst schrijft.
+      const writeError = await runProjectFileWrite(async () => {
+        // Review #872 ronde 5 (Terra): wachten op de lock is ook een await. Pauze, alleen-lezen, dialoog en documentdrift
+        // winnen; en is het document intussen veranderd (een opslag in de wachtrij), dan zou deze tekst oud zijn.
+        const waitBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
+        if (waitBlocked) return waitBlocked;
+        const now = ctx.app.store.getState();
+        if (now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now)
+          || now.filePath !== state.filePath || now.fileHandle !== state.fileHandle || now.siteFileId !== state.siteFileId) {
+          return toolError(ctx, 'VALIDATION', 'The document changed while the export waited for another save. Nothing was written. Retry the export.');
+        }
+        try {
+          await fs.writeTextFile(path, content);
+        } catch (e) {
+          return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+        if (literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
+          ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, literalCalendarIds);
+        }
+        return null;
+      });
+      if (writeError) return writeError;
       return {
         ok: true,
         envelope: buildEnvelope(ctx),

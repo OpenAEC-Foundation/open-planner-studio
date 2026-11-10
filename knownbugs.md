@@ -1738,6 +1738,64 @@ en noem het in je rapport of PR-tekst.
      Richting: het bestaande `HERE` gebruiken (`join(HERE, '..', '..', 'public', 'examples', …)`). Uit #871
      (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
+1045. **VERVOLG: crashherstel telt een letterlijke keuze die nooit naar het eigen bestand is opgeslagen.** De herstelkopie
+     wordt met de writer geschreven; bij een urentaak staat daar `LiteralTimes` in. Na herstel leest de app die kopie als
+     een geopend bestand en neemt de kalender op in `ifcLiteralCalendarIds`, ook als het eigen bestand hem nooit letterlijk
+     had. Volgens het besluit van Trias (10 november 2026) telt een kalender die letterlijk werd maar nooit zo is
+     opgeslagen niet. Gevolg: na herstel, wissen van de urentaak en opslaan blijft de kalender letterlijk; er gaan geen
+     tijden verloren. De hersteltest (`tests/planning/check-recovery-content.ts`, regel 324) sluit het veld helemaal uit, en
+     een positieve controle voor een kalender die bij het openen al letterlijk was, ontbreekt. Richting: de keuze apart in
+     het herstelmanifest bewaren, of bij herstel alleen de keuze van het eigen bestand nemen; en de positieve test. Uit #872
+     (ronde 2 en 3, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1046. **VERVOLG: vier gaten in de tests van knownbug 1026.** In `tests/planning/check-ifc-literaltimes-behoud.ts`:
+     (1) §5 test geen kalender-id dat na IFC Toepassen een andere kalender wordt (Sols proef met verwisselde id's gaf
+     16:00, dus goed, maar staat niet als test); (2) de pariteit in §3 vergelijkt opslaan met en zonder het nieuwe veld,
+     niet met de writer van main (Sols proef: zes gevallen met dezelfde SHA-256); (3) §6c roept `serializeForSave` en
+     `markAutoSaveVersionSaved` zelf aan in plaats van de AutoSave-controller (§7c gebruikt de echte controller wel);
+     (4) de MCP-test in `tests/mcp/cases-doc-file.ts` controleert dat `planner_export_ifc` onder de schrijflock schrijft
+     en vastlegt, maar start geen echte AutoSave ertegen (de app-routes doen dat wel, §7c); (5) §7i test de
+     download-terugval na een geweigerde kiezer alleen met IFC-tekst, niet met bytes (`saveBytesDialog`) en niet met het
+     voortgangsblad (dat terecht geen broncontrole krijgt).
+     Daarnaast, alleen vermoed (Terra, ronde 8, VERMOED, zekerheid midden): na de doelcontrole wacht de web-route nog op
+     `createWritable()` (`src/services/fileAccess/webBackend.ts`) en schrijft dan de eerder gemaakte inhoud. Verandert de
+     planning in die wachttijd, dan krijgt de export misschien oude inhoud. Niet nagegaan of dat in een echte browser kan.
+     Uit #872 (ronde 1 tot 8, GPT-6.1-Sol en GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+
+1047. **VERVOLG: een export naar een ander bestand op Windows kan als "het eigen bestand" tellen.**
+     `exportHitsOwnFile` (`src/state/savedLiteralCalendars.ts`) telt een onbekende bestandsidentiteit als hetzelfde
+     bestand. Op Windows geeft plugin-fs geen `dev` en `ino` (`src/services/fileAccess/fileIdentity.ts`), dus elke
+     IFC-export naar een ander bestand legt de letterlijke kalenders vast: naar een bestaand bestand, en ook naar een
+     nieuw bestand (de controle komt na het schrijven, dan bestaat het al; Sol, ronde 5). Daarna blijft de kalender letterlijk
+     in het eigen bestand, ook als hij daar nooit zo stond. Er gaan geen tijden verloren (de writer schrijft echte tijden),
+     maar het wijkt af van het besluit van Trias. Richting: de identiteit op Windows betrouwbaar maken, of de afwijking
+     vastleggen met een test. Uit #872 (ronde 4 en 5, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1048. **VERVOLG: IFC Toepassen bewaart een letterlijke keuze die nog nooit is opgeslagen.** IFC Toepassen
+     (`fileSlice.ts`, de samenvoeging met `mergeLiteralCalendarIds`) neemt de letterlijke kalenders uit de toegepaste
+     tekst over. Voeg een urentaak toe, pas de gegenereerde IFC-tekst toe, wis de taak en sla voor het eerst op: de
+     kalender blijft letterlijk, hoewel hij nooit zo is opgeslagen. De samenvoeging zelf was een eis van de review (de
+     keuze wordt nooit kleiner); de twee regels botsen hier. Geen tijdverlies. Richting: bij Toepassen alleen de keuze van
+     vóór het toepassen houden, plus wat de toegepaste tekst al uit het eigen bestand had; en een test voor deze
+     volgorde. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+
+1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock en weigert het eigen projectbestand niet.** Het
+     tweede bestand van `exportProjectWithPool` (`src/state/slices/fileSlice.ts`) en de export in
+     `src/components/backstage/LibrarySection.tsx` schrijven buiten `runProjectFileWrite` en controleren alleen op een
+     vreemd deel (`foreignTargetCheck`). Kiest de planner het eigen projectbestand als doel van de bibliotheek, dan schrijft
+     de app de bibliotheek eroverheen; een AutoSave kan er tussendoor schrijven. Bestond al op main. Richting: het eigen
+     projectbestand als doel van de bibliotheek weigeren, en de write onder dezelfde lock als de andere projectwrites.
+     Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1051. **VERVOLG: het ontwikkelpad `saveToPathWithIO` legt de letterlijke kalenders niet vast.**
+     `src/utils/devBridge.ts:89` schrijft met `writeIFC`, zonder `recordLiteralCalendarsWritten`. Gezien (GPT-6.1-Sol):
+     `showcase-verbouwing-eengezinswoning.ifc`, een urentaak toevoegen, via dit pad naar het eigen bestand schrijven, de
+     taak wissen en opnieuw schrijven: `LiteralTimes` verdwijnt en 19 eindtijden verschuiven (`1. Preparation` van
+     16:00 naar 07:00). Alleen in de ontwikkel- en benchmarkomgeving; de productie-app laadt dit pad niet
+     (`src/main.tsx:75`). Richting: `writeIFCWithChoices`, `exportHitsOwnFile` en `recordLiteralCalendarsWritten`, zoals
+     de export. Het pad schrijft bovendien buiten de gedeelde schrijflock (`runProjectFileWrite`), dus een AutoSave of
+     export kan er tussendoor schrijven (ronde 7, GPT-6.1-Sol). Uit #872 (ronde 4, GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

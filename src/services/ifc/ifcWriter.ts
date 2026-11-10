@@ -342,6 +342,13 @@ export type WriteIFCInput = ImportResult & {
 };
 
 export function writeIFC(input: WriteIFCInput): string {
+  return writeIFCWithChoices(input).content;
+}
+
+/** `writeIFC`, plus de kalenders die de writer letterlijk schreef (`LiteralTimes`). Opslaan naar het eigen bestand voegt
+ *  die toe aan `DocumentPayload.ifcLiteralCalendarIds` (knownbug 1026): wat eenmaal letterlijk in het bestand stond,
+ *  blijft letterlijk. */
+export function writeIFCWithChoices(input: WriteIFCInput): { content: string; literalCalendarIds: string[] } {
   const {
     project, calendar, tasks: sourceTasks, sequences, resources, assignments,
     activityCodeTypes = [],
@@ -359,10 +366,12 @@ export function writeIFC(input: WriteIFCInput): string {
     withheldTaskTimeFields = undefined,
     recordedSourceFormat = undefined,
     ifcGlobalIds = undefined,
+    ifcLiteralCalendarIds = undefined,
     xerSourceArchiveStorage = 'embedded',
     recoveryForeignSource = undefined,
   } = input;
-  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
+  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines },
+    ifcLiteralCalendarIds ? { keepLiteralCalendarIds: ifcLiteralCalendarIds } : {});
   const { tasks, baselines } = writeView;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
@@ -622,7 +631,9 @@ export function writeIFC(input: WriteIFCInput): string {
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
-  return header + ctx.lines.join('\n') + footer;
+  // De projectkalender staat ook in de bibliotheek: één keer per id.
+  const written = [...new Set([calendar, ...resourceCalendars].map(cal => cal.id))].filter(id => writeView.literalCalendarIds.has(id));
+  return { content: header + ctx.lines.join('\n') + footer, literalCalendarIds: written };
 }
 
 /** Eén self-contained Pset met manifest én deterministisch geordende bytes. */

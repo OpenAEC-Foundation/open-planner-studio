@@ -130,6 +130,8 @@ export interface ProjectSlice {
   xerArchiveIssue: XerArchiveIssue | null;
   /** Zie `DocumentPayload.ifcGlobalIds`. */
   ifcGlobalIds: Readonly<Record<string, string>> | null;
+  /** Zie `DocumentPayload.ifcLiteralCalendarIds` (knownbug 1026). */
+  ifcLiteralCalendarIds: string[] | null;
   /** Metadata van het project, als één undo-stap. Een `ifcSchema` in de patch gaat eerst via
    *  `setIfcSchema` (geen undo-stap, zie `state/ifcSchemaChoice.ts`). */
   setProject: (project: Partial<Project>) => void;
@@ -223,6 +225,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   importPristine: false,
   xerArchiveIssue: null,
   ifcGlobalIds: null,
+  ifcLiteralCalendarIds: null,
 
   setIfcSchema: (schema) => {
     let changed = false;
