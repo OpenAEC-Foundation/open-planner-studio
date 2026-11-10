@@ -1754,8 +1754,13 @@ en noem het in je rapport of PR-tekst.
      niet met de writer van main (Sols proef: zes gevallen met dezelfde SHA-256); (3) §6c roept `serializeForSave` en
      `markAutoSaveVersionSaved` zelf aan in plaats van de AutoSave-controller (§7c gebruikt de echte controller wel);
      (4) de MCP-test in `tests/mcp/cases-doc-file.ts` controleert dat `planner_export_ifc` onder de schrijflock schrijft
-     en vastlegt, maar start geen echte AutoSave ertegen (de app-routes doen dat wel, §7c).
-     Uit #872 (ronde 1 tot 5, GPT-6.1-Sol en GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+     en vastlegt, maar start geen echte AutoSave ertegen (de app-routes doen dat wel, §7c); (5) §7i test de
+     download-terugval na een geweigerde kiezer alleen met IFC-tekst, niet met bytes (`saveBytesDialog`) en niet met het
+     voortgangsblad (dat terecht geen broncontrole krijgt).
+     Daarnaast, alleen vermoed (Terra, ronde 8, VERMOED, zekerheid midden): na de doelcontrole wacht de web-route nog op
+     `createWritable()` (`src/services/fileAccess/webBackend.ts`) en schrijft dan de eerder gemaakte inhoud. Verandert de
+     planning in die wachttijd, dan krijgt de export misschien oude inhoud. Niet nagegaan of dat in een echte browser kan.
+     Uit #872 (ronde 1 tot 8, GPT-6.1-Sol en GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
 
 1047. **VERVOLG: een export naar een ander bestand op Windows kan als "het eigen bestand" tellen.**
      `exportHitsOwnFile` (`src/state/savedLiteralCalendars.ts`) telt een onbekende bestandsidentiteit als hetzelfde
@@ -1773,6 +1778,14 @@ en noem het in je rapport of PR-tekst.
      keuze wordt nooit kleiner); de twee regels botsen hier. Geen tijdverlies. Richting: bij Toepassen alleen de keuze van
      vóór het toepassen houden, plus wat de toegepaste tekst al uit het eigen bestand had; en een test voor deze
      volgorde. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+
+1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock en weigert het eigen projectbestand niet.** Het
+     tweede bestand van `exportProjectWithPool` (`src/state/slices/fileSlice.ts`) en de export in
+     `src/components/backstage/LibrarySection.tsx` schrijven buiten `runProjectFileWrite` en controleren alleen op een
+     vreemd deel (`foreignTargetCheck`). Kiest de planner het eigen projectbestand als doel van de bibliotheek, dan schrijft
+     de app de bibliotheek eroverheen; een AutoSave kan er tussendoor schrijven. Bestond al op main. Richting: het eigen
+     projectbestand als doel van de bibliotheek weigeren, en de write onder dezelfde lock als de andere projectwrites.
+     Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
 1051. **VERVOLG: het ontwikkelpad `saveToPathWithIO` legt de letterlijke kalenders niet vast.**
      `src/utils/devBridge.ts:89` schrijft met `writeIFC`, zonder `recordLiteralCalendarsWritten`. Gezien (GPT-6.1-Sol):
