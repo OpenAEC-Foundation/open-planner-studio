@@ -2913,8 +2913,11 @@ en noem het in je rapport of PR-tekst.
 1071. **VERVOLG: oude Lucide-configuratie na het standaard maken van B2.** `vite.config.ts` bevat nog de
       bundelregel voor `lucide-react`; `eslint.config.js` maakt nog een uitzondering voor het verwijderde
       `src/components/icons/lucideMapping.ts`. Beide zijn ongebruikt. Voorstel: verwijder die twee blokken;
-      behoud het algemene verbod op nieuwe Lucide-imports. Uit de review van B2 standaard, Terra xhigh,
-      BEVESTIGD en zelf in de bron nagezien. — B
+      behoud het algemene verbod op nieuwe Lucide-imports. Ook het commentaar bij `.rs-panel-icon` in
+      `src/components/panels/reportStudio/reportStudio.css` beschrijft nog de verwijderde Lucide-route;
+      de CSS zelf spiegelt B2 correct en herstelt de richting bij RTL. Voorstel: verwijder alleen die oude
+      uitleg. Uit de reviews van B2 standaard en de merge met main, Terra xhigh, BEVESTIGD en zelf in
+      de bron nagezien. — B
 
 1072. **VERVOLG: iconencheck dekt de verdwenen URL-keuze niet.** `tests/planning/check-icon-family.ts`
       noemt ontwikkel-URL's, maar zet geen `?icons=` en controleert de uitkomst van `loadFeatureFlags()` niet.
