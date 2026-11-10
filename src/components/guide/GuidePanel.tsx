@@ -280,7 +280,7 @@ export function GuidePanel() {
         >
           <Icon id="guide.expand" size={14} />
           <span data-ops-guide-progress>{progress}</span>
-          {view.done && <Icon id="status.success" size={12} data-ops-guide-done-badge lucide={{ icon: 'CheckCircle2', className: 'guide-panel-done' }} />}
+          {view.done && <Icon id="status.success" size={12} data-ops-guide-done-badge />}
         </button>
       </div>
     );
@@ -324,7 +324,7 @@ export function GuidePanel() {
           <span data-ops-guide-progress>{progress}</span>
           {view.done && (
             <span className="guide-panel-done" data-ops-guide-done-badge>
-              <Icon id="status.success" size={12} lucide={{ icon: 'CheckCircle2' }} /> {t('extGuide.stepDone')}
+              <Icon id="status.success" size={12} /> {t('extGuide.stepDone')}
             </span>
           )}
         </div>

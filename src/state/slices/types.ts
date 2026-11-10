@@ -201,6 +201,8 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
+  // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
+  | 'notifications.reportLayoutGone'
   // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
   | 'notifications.fileDropRefused'
   | 'notifications.fileDropBlocked'
@@ -219,6 +221,7 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'
+  | 'notifications.ifcExportChangedWhileWaiting'
   | 'notifications.ifcForeignTargetAutoSave'
   | 'notifications.ifcUnreadableTargetSave'
   | 'notifications.ifcUnreadableTargetExport'

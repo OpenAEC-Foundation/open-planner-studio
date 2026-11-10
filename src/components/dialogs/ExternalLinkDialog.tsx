@@ -431,7 +431,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
               {chooseFailed && (
                 <span className="!text-small" style={{ color: 'var(--error)' }} role="alert">{t('externalLinks.chooseSourceFailed')}</span>
               )}
-              <p className="!text-small text-text-muted flex items-center gap-1"><Icon id="status.info" size={11} lucide={{ icon: 'FileDown' }} />{t('externalLinks.readOnlyNote')}</p>
+              <p className="!text-small text-text-muted flex items-center gap-1"><Icon id="status.info" size={11} />{t('externalLinks.readOnlyNote')}</p>
               {(loading || choosing || siteLoading) && <span className="text-text-muted">{t('externalLinks.loadingTasks')}</span>}
               {source && (
                 <label className="flex flex-col gap-1">

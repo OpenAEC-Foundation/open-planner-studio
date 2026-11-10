@@ -1,4 +1,5 @@
 import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type TextBaseline } from './draw2d';
+import { hasRtlText, rtlReportFont } from './reportFont';
 
 /** Eén geclipt venster van het logische rapport op een bestaand pagina-canvas. */
 export interface CanvasDrawWindow {
@@ -69,8 +70,13 @@ export class CanvasDraw2D implements Draw2D {
       ctx.scale(renderScale, renderScale);
     }
     // Kerning uit zodat canvas-`measureText`/rendering pixel-WYSIWYG is t.o.v. de pdf-lib-vector-export,
-    // die advances telt zónder kerning.
+    // die advances telt zónder kerning (tekst met Arabisch of Hebreeuws: zie `withScreenFont`).
     ctx.fontKerning = 'none';
+    // Letterbreedtes zoals het fontbestand ze geeft, zoals op het SVG-papier (review Sol #847). Zonder deze
+    // instelling rondt Chromium op Linux bij kleine letters elke letterbreedte af op hele pixels: "Stakeholder
+    // management" in 9 px Inter meet dan 115 in plaats van 109,0. De naamkolom is op 109,0 gemeten (de meting
+    // van de PDF), dus dan kapte dit voorbeeld de langste naam af terwijl afkappen uit stond.
+    ctx.textRendering = 'geometricPrecision';
     this.ctx = ctx;
   }
 
@@ -133,6 +139,30 @@ export class CanvasDraw2D implements Draw2D {
   }
 
   // ---- tekst ----
-  fillText(text: string, x: number, y: number): void { this.ctx.fillText(text, x, y); }
-  measureText(text: string): { width: number } { return this.ctx.measureText(text); }
+  fillText(text: string, x: number, y: number): void {
+    if (hasRtlText(text)) this.withScreenFont(() => this.ctx.fillText(text, x, y));
+    else this.ctx.fillText(text, x, y);
+  }
+
+  measureText(text: string): { width: number } {
+    return hasRtlText(text) ? this.withScreenFont(() => this.ctx.measureText(text)) : this.ctx.measureText(text);
+  }
+
+  /**
+   * Tekst met Arabisch of Hebreeuws tekent de PDF via de shaping-kern: Arabisch en neutrale tekens in Noto
+   * Sans Arabic, met kerning. Het canvas tekent hem daarom met Noto vooraan en kerning aan, net als het
+   * SVG-papier (`reportTextFont` in `reportFont.ts`); daarna weer de gewone letter.
+   */
+  private withScreenFont<T>(run: () => T): T {
+    const ctx = this.ctx;
+    const font = ctx.font;
+    ctx.font = rtlReportFont(font);
+    ctx.fontKerning = 'normal';
+    try {
+      return run();
+    } finally {
+      ctx.font = font;
+      ctx.fontKerning = 'none';
+    }
+  }
 }

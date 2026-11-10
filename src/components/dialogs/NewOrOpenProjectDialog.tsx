@@ -28,7 +28,7 @@ export function NewOrOpenProjectDialog() {
       </div>
       <div className="p-3 flex flex-col gap-2">
         <button className="btn btn--primary justify-start gap-2" onClick={create} data-ops-new-project-choice>
-          <Icon id="file.new" size={16} lucide={{ icon: 'FilePlus2' }} />{t('documents.newProject')}
+          <Icon id="file.new" size={16} />{t('documents.newProject')}
         </button>
         <button className="btn btn--secondary justify-start gap-2" onClick={open} data-ops-open-project-choice>
           <Icon id="file.open" size={16} />{t('documents.openExistingProject')}

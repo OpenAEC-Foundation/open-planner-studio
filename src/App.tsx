@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -46,7 +46,6 @@ import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
-import { isFeatureEnabled } from '@/utils/featureFlags';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
@@ -67,7 +66,7 @@ import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/Documen
 // Elke lazy-render zit in een <Suspense fallback={null}> — een dialoog/overlay die 1 frame later
 // verschijnt is prima.
 const IFCPanel = lazy(() => import('@/components/panels/IFCPanel').then(m => ({ default: m.IFCPanel })));
-const ReportPanel = lazy(() => import('@/components/panels/ReportPanel').then(m => ({ default: m.ReportPanel })));
+const ReportWorkspace = lazy(() => import('@/components/panels/ReportWorkspace').then(m => ({ default: m.ReportWorkspace })));
 const TaskDialog = lazy(() => import('@/components/dialogs/TaskDialog').then(m => ({ default: m.TaskDialog })));
 const ProjectInfoDialog = lazy(() => import('@/components/dialogs/ProjectInfoDialog').then(m => ({ default: m.ProjectInfoDialog })));
 const SettingsDialog = lazy(() => import('@/components/dialogs/SettingsDialog').then(m => ({ default: m.SettingsDialog })));
@@ -264,13 +263,6 @@ function AppContent() {
     applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
 
-  // Iconenfamilie op <html> (#844): zonder B2 gelden de CSS-regels van vóór #765 (`[data-icons="lucide"]`).
-  // Vóór de eerste paint, zodat er geen B2-kleur doorheen flitst.
-  const b2Icons = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'b2-icons'));
-  useLayoutEffect(() => {
-    document.documentElement.dataset.icons = b2Icons ? 'b2' : 'lucide';
-  }, [b2Icons]);
-
   // Lettertype-interface toepassen: de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css
   // (die expliciet `calc(<n>px * var(--ui-font-scale, 1))` gebruiken). De familie overschrijft de
@@ -424,7 +416,7 @@ function AppContent() {
               <Suspense fallback={null}>
                 {activeTab === 'table' && <FullTaskGrid />}
                 {activeTab === 'ifc' && <IFCPanel />}
-                {activeTab === 'report' && <ReportPanel />}
+                {activeTab === 'report' && <ReportWorkspace />}
               </Suspense>
             )}
           </div>

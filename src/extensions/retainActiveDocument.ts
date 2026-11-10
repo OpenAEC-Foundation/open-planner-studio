@@ -16,6 +16,8 @@
  *    documentkalender met hetzelfde id erover, zoals de kalenderdialoog ze bij een bewerking laat staan;
  *  - `activityCodeTypes` en `customFieldDefs`: niet (taken dragen alleen de waarden) ⇒ van het document;
  *  - `ifcGlobalIds`: niet ⇒ van het document;
+ *  - `ifcLiteralCalendarIds` (de LiteralTimes-keuze, knownbug 1026): niet ⇒ van het document. Anders schreef een
+ *    ongewijzigde lees-wijzig-laad de eindtijden weer als `T07:00:00` (review #872 ronde 1);
  *  - IFC-schema (`project.ifcSchema`) en de open schemavraag (`project.ifcSchemaUnconfirmed`): niet
  *    (eigenschappen van het bestand, `NIET_PUBLIEK` in check-ext-contract) ⇒ van het document. Anders
  *    vroeg de app na een extensie-load niets meer en schreef ze een IFC4-bestand stil als IFC 4.3 ADD2,
@@ -108,7 +110,7 @@ function mergeCustomTaskTypes(
 /** Het deel van het actieve document dat deze stap leest. */
 export type ActiveDocument = Pick<AppState,
   'project' | 'tasks' | 'sequences' | 'assignments' | 'customTaskTypes' | 'calendars' | 'baselines' | 'activeBaselineId' | 'activityCodeTypes' | 'customFieldDefs' | 'ifcGlobalIds'
-  | 'xerImportMetadata'>;
+  | 'ifcLiteralCalendarIds' | 'xerImportMetadata'>;
 
 /** Alleen voor hetzelfde project-id; die keuze maakt `loadExtensionProject`. Bij een ander id gaat het
  *  resultaat ongewijzigd door, precies zoals vóór deze stap. */
@@ -160,6 +162,7 @@ export function retainActiveDocument(loaded: ImportResult, active: ActiveDocumen
     customFieldDefs: active.customFieldDefs,
     customTaskTypes: mergeCustomTaskTypes(loaded.customTaskTypes ?? [], active.customTaskTypes),
     ...(active.ifcGlobalIds ? { ifcGlobalIds: active.ifcGlobalIds } : {}),
+    ...(active.ifcLiteralCalendarIds ? { ifcLiteralCalendarIds: active.ifcLiteralCalendarIds } : {}),
   });
 }
 

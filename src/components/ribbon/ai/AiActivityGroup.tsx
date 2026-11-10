@@ -15,7 +15,7 @@ export function AiActivityGroup() {
 
   return (
     <RibbonButton
-      icon={<Icon id="panel.ai-activity" size={24} lucide={{ size: 20 }} />}
+      icon={<Icon id="panel.ai-activity" size={24} />}
       label={t('aiActivity.panelButton')}
       active={open}
       onClick={() => setUI({ aiActivityOpen: !open })}

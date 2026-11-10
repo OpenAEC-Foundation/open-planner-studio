@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '@/components/icons';
@@ -88,6 +89,20 @@ export interface ColumnChooserLabels {
  *  en dicht. Een klik daarop is dus geen klik naast de kiezer. */
 export const COLUMNS_RIBBON_TOGGLE_SELECTOR = '[data-ops-ribbon-item="tableColumns"]';
 
+/**
+ * Een knop met tekst in plaats van het plusje in de tabelkop: het Rapport-tabblad opent dezelfde kiezer met
+ * "Kolom toevoegen" boven zijn kolomlijst (#817). Zonder deze prop blijft de kiezer precies zoals in de tabel.
+ */
+export interface ColumnChooserTrigger {
+  /** Klasse van de omhulling, in plaats van de vaste plek rechts in de tabelkop. */
+  anchorClassName: string;
+  className: string;
+  content: ReactNode;
+  disabled?: boolean;
+  /** Extra `data-*`-attributen op de knop (voor tests). */
+  data?: Record<`data-${string}`, string | boolean>;
+}
+
 export interface ColumnChooserProps {
   options: readonly TaskGridColumnOption[];
   recentIds: readonly TaskColumnId[];
@@ -104,6 +119,8 @@ export interface ColumnChooserProps {
   /** Selector van een knop buiten de tabel die de kiezer ook open en dicht zet (de lintknop
    *  Kolommen). Een klik daarop telt niet als klik ernaast; die knop sluit de kiezer zelf. */
   externalToggleSelector?: string;
+  /** Zie `ColumnChooserTrigger`. */
+  trigger?: ColumnChooserTrigger;
 }
 
 /**
@@ -142,6 +159,7 @@ export function ColumnChooser({
   open: controlledOpen,
   onOpenChange,
   externalToggleSelector,
+  trigger: triggerSpec,
 }: ColumnChooserProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -350,17 +368,19 @@ export function ColumnChooser({
     : null;
 
   return (
-    <div ref={triggerContainerRef} className="task-grid-column-chooser-anchor">
+    <div ref={triggerContainerRef} className={triggerSpec?.anchorClassName ?? 'task-grid-column-chooser-anchor'}>
       <button
         ref={triggerRef}
         type="button"
-        className="task-grid-add-column"
-        aria-label={labels.addColumn}
+        className={triggerSpec?.className ?? 'task-grid-add-column'}
+        aria-label={triggerSpec ? undefined : labels.addColumn}
         aria-haspopup="dialog"
         aria-expanded={open}
+        disabled={triggerSpec?.disabled}
         onClick={openChooser}
+        {...triggerSpec?.data}
       >
-        <Icon id="table.column-add-menu" size={15} aria-hidden="true" />
+        {triggerSpec ? triggerSpec.content : <Icon id="table.column-add-menu" size={15} aria-hidden="true" />}
       </button>
       {panel}
     </div>

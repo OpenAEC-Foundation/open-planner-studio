@@ -1596,14 +1596,6 @@ en noem het in je rapport of PR-tekst.
      `sync.writeHeld(key)` aan de echte singleton. Uit de review van #833 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD,
      VERVOLG). — B
 
-960. **VERVOLG: `?icons=` telt tijdens het wachten op hostinstellingen als gebruikerswijziging.** [gemeld door de
-     bouwer van #833, niet nagespeeld] Sinds #844 roepen `createDefaultUI()` en het registeritem `featureFlags`
-     `loadFeatureFlags()` aan; met `?icons=b2` of `?icons=lucide` schrijft die `ops-featureFlags` met herkomst
-     `'user'`. Tijdens het wachten (#833) telt dat als een wijziging door de gebruiker, dus de melding na het late
-     antwoord kan onterecht "teruggezet" zeggen; tijdens het toepassen valt de schrijfactie weg (de store toont de
-     URL-keuze wel). De URL zet de keuze bij elke start opnieuw. Richting: schrijf een URL-afgeleide vlag met herkomst
-     `'start'`. — S
-
 872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
      laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;
      `tests/dev-server/build-platform-args.test.mjs` toetst alleen de argumenten. Of de bundel met `./` onder een
@@ -1842,6 +1834,103 @@ en noem het in je rapport of PR-tekst.
      de bytes-route terugvallen op de gewone route als de grammatica een model ziet en de scanner geen vreemd deel telt;
      vóór fase 1b. Uit #870 (ronde 12, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
+1045. **VERVOLG: crashherstel telt een letterlijke keuze die nooit naar het eigen bestand is opgeslagen.** De herstelkopie
+     wordt met de writer geschreven; bij een urentaak staat daar `LiteralTimes` in. Na herstel leest de app die kopie als
+     een geopend bestand en neemt de kalender op in `ifcLiteralCalendarIds`, ook als het eigen bestand hem nooit letterlijk
+     had. Volgens het besluit van Trias (10 november 2026) telt een kalender die letterlijk werd maar nooit zo is
+     opgeslagen niet. Gevolg: na herstel, wissen van de urentaak en opslaan blijft de kalender letterlijk; er gaan geen
+     tijden verloren. De hersteltest (`tests/planning/check-recovery-content.ts`, regel 324) sluit het veld helemaal uit, en
+     een positieve controle voor een kalender die bij het openen al letterlijk was, ontbreekt. Richting: de keuze apart in
+     het herstelmanifest bewaren, of bij herstel alleen de keuze van het eigen bestand nemen; en de positieve test. Uit #872
+     (ronde 2 en 3, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1046. **VERVOLG: vier gaten in de tests van knownbug 1026.** In `tests/planning/check-ifc-literaltimes-behoud.ts`:
+     (1) §5 test geen kalender-id dat na IFC Toepassen een andere kalender wordt (Sols proef met verwisselde id's gaf
+     16:00, dus goed, maar staat niet als test); (2) de pariteit in §3 vergelijkt opslaan met en zonder het nieuwe veld,
+     niet met de writer van main (Sols proef: zes gevallen met dezelfde SHA-256); (3) §6c roept `serializeForSave` en
+     `markAutoSaveVersionSaved` zelf aan in plaats van de AutoSave-controller (§7c gebruikt de echte controller wel);
+     (4) de MCP-test in `tests/mcp/cases-doc-file.ts` controleert dat `planner_export_ifc` onder de schrijflock schrijft
+     en vastlegt, maar start geen echte AutoSave ertegen (de app-routes doen dat wel, §7c); (5) §7i test de
+     download-terugval na een geweigerde kiezer alleen met IFC-tekst, niet met bytes (`saveBytesDialog`) en niet met het
+     voortgangsblad (dat terecht geen broncontrole krijgt).
+     Daarnaast, alleen vermoed (Terra, ronde 8, VERMOED, zekerheid midden): na de doelcontrole wacht de web-route nog op
+     `createWritable()` (`src/services/fileAccess/webBackend.ts`) en schrijft dan de eerder gemaakte inhoud. Verandert de
+     planning in die wachttijd, dan krijgt de export misschien oude inhoud. Niet nagegaan of dat in een echte browser kan.
+     Uit #872 (ronde 1 tot 8, GPT-6.1-Sol en GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+
+1047. **VERVOLG: een export naar een ander bestand op Windows kan als "het eigen bestand" tellen.**
+     `exportHitsOwnFile` (`src/state/savedLiteralCalendars.ts`) telt een onbekende bestandsidentiteit als hetzelfde
+     bestand. Op Windows geeft plugin-fs geen `dev` en `ino` (`src/services/fileAccess/fileIdentity.ts`), dus elke
+     IFC-export naar een ander bestand legt de letterlijke kalenders vast: naar een bestaand bestand, en ook naar een
+     nieuw bestand (de controle komt na het schrijven, dan bestaat het al; Sol, ronde 5). Daarna blijft de kalender letterlijk
+     in het eigen bestand, ook als hij daar nooit zo stond. Er gaan geen tijden verloren (de writer schrijft echte tijden),
+     maar het wijkt af van het besluit van Trias. Richting: de identiteit op Windows betrouwbaar maken, of de afwijking
+     vastleggen met een test. Uit #872 (ronde 4 en 5, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1048. **VERVOLG: IFC Toepassen bewaart een letterlijke keuze die nog nooit is opgeslagen.** IFC Toepassen
+     (`fileSlice.ts`, de samenvoeging met `mergeLiteralCalendarIds`) neemt de letterlijke kalenders uit de toegepaste
+     tekst over. Voeg een urentaak toe, pas de gegenereerde IFC-tekst toe, wis de taak en sla voor het eerst op: de
+     kalender blijft letterlijk, hoewel hij nooit zo is opgeslagen. De samenvoeging zelf was een eis van de review (de
+     keuze wordt nooit kleiner); de twee regels botsen hier. Geen tijdverlies. Richting: bij Toepassen alleen de keuze van
+     vóór het toepassen houden, plus wat de toegepaste tekst al uit het eigen bestand had; en een test voor deze
+     volgorde. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+
+1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock en weigert het eigen projectbestand niet.** Het
+     tweede bestand van `exportProjectWithPool` (`src/state/slices/fileSlice.ts`) en de export in
+     `src/components/backstage/LibrarySection.tsx` schrijven buiten `runProjectFileWrite` en controleren alleen op een
+     vreemd deel (`foreignTargetCheck`). Kiest de planner het eigen projectbestand als doel van de bibliotheek, dan schrijft
+     de app de bibliotheek eroverheen; een AutoSave kan er tussendoor schrijven. Bestond al op main. Richting: het eigen
+     projectbestand als doel van de bibliotheek weigeren, en de write onder dezelfde lock als de andere projectwrites.
+     Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1051. **VERVOLG: het ontwikkelpad `saveToPathWithIO` legt de letterlijke kalenders niet vast.**
+     `src/utils/devBridge.ts:89` schrijft met `writeIFC`, zonder `recordLiteralCalendarsWritten`. Gezien (GPT-6.1-Sol):
+     `showcase-verbouwing-eengezinswoning.ifc`, een urentaak toevoegen, via dit pad naar het eigen bestand schrijven, de
+     taak wissen en opnieuw schrijven: `LiteralTimes` verdwijnt en 19 eindtijden verschuiven (`1. Preparation` van
+     16:00 naar 07:00). Alleen in de ontwikkel- en benchmarkomgeving; de productie-app laadt dit pad niet
+     (`src/main.tsx:75`). Richting: `writeIFCWithChoices`, `exportHitsOwnFile` en `recordLiteralCalendarsWritten`, zoals
+     de export. Het pad schrijft bovendien buiten de gedeelde schrijflock (`runProjectFileWrite`), dus een AutoSave of
+     export kan er tussendoor schrijven (ronde 7, GPT-6.1-Sol). Uit #872 (ronde 4, GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1250. **VERVOLG: de CSV-export schrijft een breuklag met een komma, en een oudere app-versie leest die verkeerd.**
+     `src/services/csv/csvWriter.ts:104` zet in de kolom `Predecessors` de punt van `formatLagShort` om naar een komma.
+     Die cel is tekst, dus de punt veroorzaakte #873 niet; in die lijst is de komma ook het scheidingsteken, daarom
+     kreeg `csvReader.ts:176` een extra regex. Gezien (nieuwe schrijver, oude lezer): `1FS+1,5u` wordt een lag van 1 dag
+     plus een niet-bestaande voorganger "5u"; `1FS+12,5e%` wordt 12 dagen. Alleen een melding in de console. Het taakraster
+     toont dezelfde notatie met een punt (`relationCell.ts:175`). Richting: regel 104 terug naar de punt en de
+     verwachting in `check-csv-import.ts` mee; de normalisatie in de lezer mag blijven voor handinvoer (zet de regex dan
+     als constante naast `PREDECESSOR_TOKEN`). Uit de review van #876 (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
+
+1251. **VERVOLG: een getal in e-notatie komt verkeerd terug uit de CSV.** `csvWriter.ts:144,155` maken van
+     `toString()` met een komma bijvoorbeeld `"1,5e-7"`; `csvReader.ts:221` stopt bij de `e` en leest 1,5. Ook
+     `-2.220446049250313e-16` komt terug als −2,22 dagen speling. De solver maakt zulke waarden vrijwel zeker niet; een
+     geïmporteerde vastgelegde speling of duur mogelijk wel (niet nagegaan). Richting: één hulpje voor vaste notatie dat
+     ook de drie `.replace('.', ',')` vervangt, of de lezer een exponent laten toestaan. Uit de review van #876
+     (Opus 5.5, xhigh, mechanisme BEVESTIGD, voorkomen VERMOED laag, VERVOLG). — B
+
+1252. **VERVOLG: de CSV-export past met de komma niet bij een spreadsheet met Engelse (VS) of Zwitserse instelling.**
+     Sinds #876 schrijft de export decimalen met een komma, bij het vaste scheidingsteken `;`. LibreOffice met en-US
+     maakt van `"6,5"` tekst (gezien); Excel of Power Query met en-US leest het vermoedelijk als 65 (niet getest).
+     de-CH (`;` en een decimale punt) heeft hetzelfde probleem. Bij één vaste `;`-export is dat niet te vermijden;
+     een keuze voor het scheidingsteken of de landinstelling bij exporteren is een productbesluit. Uit de review van
+     #876 (Opus 5.5, xhigh, VERMOED midden, VERVOLG). — S
+
+1253. **VERVOLG: de gids over exportformaten noemt de decimale komma in de CSV niet.**
+     `public/docs/nl/ref-import-exportformaten.md:133` en de Engelse versie beschrijven scheidingsteken, BOM en
+     kolomkoppen, maar niet het decimaalteken. Eén zin in nl en en volstaat; zie ook 1254. Uit de review van #876
+     (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
+
+1254. **VERVOLG: een getypte komma-lag zonder eenheid in de CSV wordt een tweede voorganger.** `3FS+1,5` geeft de
+     relaties "3FS+1" en "5"; bestaat taak 5, dan ontstaat stil een verkeerde relatie. Dat gedrag bestond al en de test
+     legt het vast (`check-csv-import.ts:274`), maar met de komma als gewone notatie typen Nederlandse gebruikers het
+     vaker. Richting: noemen in de gids (1253) of een melding bij inlezen. Uit de review van #876 (Opus 5.5, xhigh,
+     BEVESTIGD, VERVOLG). — B
+
+1255. **VERVOLG: opruimen in de CSV-test van #876.** `tests/planning/check-csv-import.ts:246` schrijft de hele CSV
+     naar elke CI-log (`console.log('Issue 873 CSV…')`); regel 253 bewijst het citeren van een komma niet, want de `;`
+     in die tekst laat al citeren (`cells[4] === '"6,5"'` bewijst het wel); regel 267 herhaalt de implementatie
+     (`formatLagShort(...).replace('.', ',')`). Uit de review van #876 (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -2010,6 +2099,13 @@ en noem het in je rapport of PR-tekst.
      (staand of liggend). Een Japanse planner ziet dus naast *Papier* een veld "Overzicht" met de keuzes
      liggend en staand. Voorstel: `向き：`, via de vertaalstraat (`--update`, zodat de bron-hash mee verandert).
      Gezien bij het opzoeken van de bestaande woorden voor de keuzelijst *Lettertype* (#770). — B
+
+1079. **VERVOLG: de kop *Totaal* in het resourcepaneel geeft bij een kostenresource nog de uitleg over uren × tarief.**
+     `src/components/panels/ResourcePanel.tsx:141`: de kop heeft voor elke resource de tooltip "Belaste eenheden ×
+     uren/dag × tarief (herbereken met F5)". Een kostenresource telt in die kolom de bedragen op zijn toewijzingen
+     op, en die som telt meteen mee. De cel zelf heeft sinds #874 een eigen tooltip; de kop niet. Voorstel: een
+     koptekst die beide berekeningen noemt, of een neutrale tekst. Stond al op main. Uit de review van #874
+     (GPT-6.1-Terra, xhigh, op `c38ac7d9e`, VERVOLG). — B
 
 ## Tests
 
@@ -2356,9 +2452,15 @@ en noem het in je rapport of PR-tekst.
      vastgesteld of de echte SuperCloud de nieuwste eerst levert. Voorstel: neem de volgorde op in het
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
+906. **VERVOLG: het nieuwe Rapport-tabblad bouwt de `PrintOptions` van de Gantt-afdruk opnieuw op.**
+     `src/components/panels/reportStudio/useStudioPrintOptions.ts` herhaalt de koppeling uit `ReportPanel.tsx`
+     (instellingen naar `PrintOptions`, kolommen meten, kalender). Een wijziging in de ene komt niet vanzelf in de
+     andere, zolang de flag `reportRedesign` bestaat. Voorstel: haal de oude Gantt-route uit `ReportPanel` weg in de
+     PR die de flag standaard aanzet, of zet beide op één gedeelde hook. Gezien bij de bouw van #817. — B
 
 915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
-     laadt `/?icons=b2` opnieuw, nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende. Dat zijn vijf
+     laadt `/` opnieuw (vroeger `/?icons=b2`), nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende;
+     sinds B2 standaard is daar geen reden meer voor. Dat zijn vijf
      extra appstarts voor vijf tests, zonder aangetoonde fout. Voorstel: geef de fixture een start-URL, standaard
      `/`; dan vallen acht herhaalde opstartregels uit deze spec weg. Uit de review van #852 (GPT-6.1-Sol, xhigh,
      op `321cb166a`, VERVOLG). — B
@@ -2466,11 +2568,6 @@ en noem het in je rapport of PR-tekst.
 
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
-
-590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Bij de
-     merge met main in #765 kwamen `Copy` en `Check` in `PromptBlock.tsx` toch terug (review van Sol, ronde 2); die zijn
-     weer OpenAEC-iconen, en ESLint weigert nu een nieuwe import (`no-restricted-imports` in `eslint.config.js`). Weghalen
-     raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. — B
 
 591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
@@ -2688,6 +2785,186 @@ en noem het in je rapport of PR-tekst.
      niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
      council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S
 
+945. **VERVOLG: na Help sluiten sta je op Start, niet op het tabblad waar je Help opende.** Een helpknop
+     (`HelpButton`, bijv. op het Rapport-tabblad) roept `openHelpArticle` aan (`src/state/slices/uiSlice.ts:428`), dat
+     naar Bestand → Help gaat. Sluiten gaat via `closeBackstage` (`src/components/backstage/Backstage.tsx:48`), en
+     dat zet altijd `activeRibbonTab: 'start'`. Wie vanuit Rapport, Planning of een dialoog Help opent, moet dus
+     zelf terug naar dat tabblad. Dat zat al in main; deze PR wijzigt het niet. Voorstel: het tabblad onthouden bij
+     `openHelpArticle` en daar na sluiten naar terug. Uit council ronde 2 van #817 (Claude Fable 5.1, xhigh,
+     VERMOED), in de code bevestigd. — B
+
+946. **VERVOLG: het oude Rapport-tabblad toont een dagbreedte onder 1 px als 1.** Het nieuwe tabblad kan sinds de
+     fixronde na council ronde 2 van #817 een vaste schaal onder 1 px per dag bewaren (`customZoom` in
+     `ops-reportSettings`). Het oude tabblad (flag uit) tekent met die waarde, maar de schuif en het getal tonen
+     `Math.max(1, …)` (`src/components/panels/ReportPanel.tsx:1598`). Na een wissel van de flag klopt het getal
+     dus niet met het papier, tot je de schuif aanraakt. Afgeleid uit de code. Voorstel: de schuif van het oude
+     tabblad ook onder 1 laten gaan, of het oude tabblad laten vervallen als de flag standaard aan gaat. — B
+
+948. **VERVOLG: de melding "Ongedaan maken" in de werkbalk verbergt de stand op een smal papiervlak.** Met de
+     zijbalk open op 1280×720 toont de werkbalk 8 s lang alleen "2 pagina's"; papier, kolommen en rijen vallen weg
+     achter de melding (`notice` in `ReportPaperView.tsx`). Gezien in de schermafbeeldingen van de fixronde na council
+     ronde 3 van #817. Voorstel: de melding bij weinig ruimte onder de werkbalk laten zakken. — B
+
+949. **Een maandlabel in de tijdas van de Gantt-afdruk loopt door in de volgende maand, en het label van die maand
+     ontbreekt.** Op blad 1 van `examples/03-kantoorgebouw-zuidas.ifc` staat "Februari 2027" boven de kolommen van maart,
+     en "Maart 2027" staat er niet. De februaricel is daar één week breed. Het label loopt dan door in maart, en het
+     label van maart valt weg zodat ze niet overlappen (`src/services/print/printPreview.ts` rond 2453–2461). Ook
+     september en december 2027 en maart 2028 ontbreken. Het oude tabblad toont hetzelfde; het komt niet uit #817. Een
+     planner kan zo een maand verkeerd lezen. Gezien door Opus 5.5 in council ronde 4 van #817. Voorstel: het label
+     afkappen op de breedte van de eigen cel (of afkorten, bijv. "Feb"), en het volgende label altijd tonen. — B
+
+932. **VERVOLG: in de SVG van Chromium telt de afwijking bij een leesteken na een Arabisch woord op.** Chromium geeft een
+     leesteken direct na een Arabisch woord het script van dat woord; de kerning met de Latijnse letter erna valt weg.
+     Eén `أعمال “gereed”` tekent ~0,36 px breder dan gemeten. Twaalf herhalingen in één taaknaam meten in Inter 753,473 px
+     en tekenen 757,781 px; de SVG-naam eindigt op x=792,814 bij kolomlijn 792 (Carlito: 731,262 bij 730). WebKitGTK en het
+     oude canvas blijven binnen de kolom. Een vaste marge verschuift alleen de grens (`svgDraw2d.ts` rond 661,
+     `printPreview.ts` rond 523). Uit code-review ronde 3 van #847 (GPT-6.1-Sol, xhigh, op `dc06b8e8c`, VERVOLG).
+     Voorstel: de claim in het besluitenbestand beperken en deze herhaling in de geometriecontrole opnemen. — B
+
+933. **VERVOLG: tekst met ZWJ of ZWNJ wordt ruimer gemeten dan getekend.** `AV\u200cAV أعمال AV\u200dAV` meet in
+     Liberation Serif 72,753 px; Chromium tekent op canvas 71,594 px, WebKitGTK op canvas en SVG 70,433 px.
+     `AV\u200dAVأعمال` meet in Inter 44,325 px, Chromium tekent 43,710 px. De meting is ruimer, dus er loopt niets over,
+     maar `.claude/rules/reports.md` (rond 94) zegt te stellig dat alleen de Chromium-SVG afwijkt (`bidiShape.ts` rond 208
+     en 408, `reportTextMeasure.ts` rond 148). Bestaande schuld, niet nieuw. Uit code-review ronde 3 van #847
+     (GPT-6.1-Sol, xhigh, VERVOLG). Voorstel: de werkelijke glyphplaatsing toetsen bij het verdere fontwerk. — B
+
+934. **De tekstlaag van een PDF-rapport is niet trouw aan de bron voor Arabisch en voor sommige ligaturen.**
+     `pdfVectorDraw2d.ts:547–571` zet de geshapte glyphs rechtstreeks in de PDF (vooral regel 566). `pdftotext` geeft de
+     Arabische naam dan niet als de oorspronkelijke tekst terug, en met Carlito wordt `bouwlogistiek` in een gemengde naam
+     `bouwlogis ek`. Op het blad staat het woord wel goed; kopiëren en zoeken in de PDF gaan mis. Zat al in main en
+     verandert niet door #847 (24 PDF's per letter en richting byte-gelijk uitgelezen op merge-base en #847). Uit
+     code-review ronde 3 van #847 (GPT-6.1-Sol, xhigh). Voorstel: de geshapte glyphs koppelen aan de logische brontekst
+     (ToUnicode/ActualText), met een eigen controle op de uitgelezen tekst. — B
+
+935. **VERVOLG: tabelrapporten in de DOM tekenen Arabisch in een systeemletter.** De rapporten die als HTML-tabel op het
+     scherm staan, laden Noto Sans Arabic niet, terwijl de PDF die letter wel gebruikt. Er meet daar niets uit het
+     fontbestand, dus er loopt niets over, maar de letter op het scherm wijkt af van de PDF. Gezien bij de fix na
+     code-review 1 van #847. Voorstel: dezelfde `@font-face` met `unicode-range` als het nieuwe papier gebruiken. — S
+
+936. **VERVOLG: restpunten van de council voor het nieuwe Rapport-tabblad (#817).** Uit council ronde 4 van #847:
+     (a) bij een stapwissel rendert React alle bladen opnieuw, omdat `selected` naar elk blad gaat
+     (`ReportPaperView.tsx` rond 360); bij 5000 taken kosten stap openen en inklappen 150–230 ms in de dev-build;
+     (b) de samenvattingen in de zijbalk zijn op een laptop 9 px; (c) na *Op vandaag zetten* en *Ongedaan maken* valt de
+     focus terug naar het begin van de pagina; (d) `scripts/measure-report-paper.mjs` stopt bij zoom zodra het getal
+     verandert en meet het hertekenen niet mee (voorstel: Event Timing); (e) de scrollschaduw van een open stap valt in
+     Kolommen onder de rijen. — B
+
+965. **VERVOLG: de instellingen van het nieuwe Rapport-tabblad staan per apparaat, niet in het projectbestand.**
+     Kolommen, papier, stand, lettertype en de open stap staan in `ops-reportSettings` (`src/utils/reportSettings.ts`).
+     Een collega of een tweede apparaat ziet dus andere instellingen, en een rapport hoort niet bij een project.
+     Voorstel: de rapportinstellingen per project in het IFC (`DOCUMENT_FIELDS`, `ifcWriter`/`ifcReader`), met de
+     apparaatinstelling als standaard voor een nieuw project. Uit council ronde 1 van #817 (Claude Fable 5.1,
+     xhigh, VERVOLG). — B
+
+966. **VERVOLG: `GanttReportStudio.tsx` is te groot.** Het bestand
+     (`src/components/panels/reportStudio/GanttReportStudio.tsx`, ruim 1000 regels) bevat de stapinhoud van vijf
+     stappen, de stapvoet, de zijbalk, de rand en het zwevende venster. Voorstel: per stap een eigen component en
+     de zijbalk en het venster apart. Uit council ronde 1 van #817 (Claude Fable 5.1, xhigh, VERVOLG). — B
+
+967. **VERVOLG: met een CJK-extensie kan Chinese, Japanse of Koreaanse tekst in de PDF anders afkappen dan op het
+     papier.** Sinds de fixronde na code-review 1 van #847 meet het papier een tekst die geen meegeleverde letter
+     dekt (`coversReportText` in `src/services/pdf/reportTextMeasure.ts`) met het canvas, dus met de systeemletter
+     die het scherm tekent; zonder extensie valt de PDF dan terug op raster en klopt alles. Met een CJK-extensie
+     tekent de vector-PDF CJK in de letter van de extensie (`cjkFonts` in `src/services/pdf/pdfVectorDraw2d.ts`),
+     en die kan andere breedtes hebben dan de systeemletter. Afgeleid uit de code, niet nagespeeld met een
+     CJK-extensie. Voorstel: de letter van de extensie ook als `@font-face` voor het scherm registreren en aan
+     `assembleReportMeasureFonts` geven, net als Noto Sans Arabic. Gevonden in de fixronde na council ronde 1
+     van #817. — S
+
+968. **VERVOLG: het oude rastervoorbeeld kapt nog af met de canvasmeting.** De kolombreedtes van het oude tabblad
+     komen uit de lettermaten van het fontbestand; het afkappen tijdens het tekenen gebruikt de canvas-tekenaar
+     (`measureText` in `src/services/pdf/canvasDraw2d.ts`). Sinds de fixronde na code-review 1 van #847 meet het
+     canvas met `textRendering = 'geometricPrecision'` en Arabisch in Noto; dan is het verschil klein (gemeten:
+     Latijn 348,192 tegen 348,192 px, Arabisch 175,069 tegen 175,068 px). Sinds de fixronde na code-review 2
+     tekent het canvas ook een gemengde Latijns-Arabische naam even breed als de meting, in Chromium en WebKitGTK
+     2.52.6 (Carlito 414,377 tegen 414,377 px). WebKit kent canvas-`textRendering` en -`fontKerning` niet; daar
+     kernt het canvas Latijnse tekst wel (Inter "Stakeholder management" 108,844 tegen gemeten 109,002 px), dus
+     smaller dan de meting: dat kapt niet eerder af. Over blijft wat het canvas met GSUB
+     anders tekent dan de meting telt (Inter "->", de Carlito-ligatuur "ti"): daar kan het oude voorbeeld een
+     teken eerder of later afkappen dan de PDF. Afgeleid uit de code. Voorstel: de canvas-tekenaar laten meten met
+     `ReportTextMetrics`, of het oude voorbeeld laten vervallen als de flag standaard aan gaat. — S
+
+969. **VERVOLG: een maandlabel dat aan de rechterrand van een blad begint, toont alleen een streepje.** Gezien in
+     `qa/817-rapport/groot/plan-5000.ifc` (A3 liggend), op elk blad rechtsboven: "Februari 2040" begint 0,7 pt vóór
+     de rand van het printgebied. Papier en PDF tonen daarvan alleen het begin van de "F" (pdftotext leest "Februa",
+     omdat het de knipcontour negeert). Dat zat al in de tijdasrenderer (`drawTimelineHeader` in
+     `src/services/print/printPreview.ts`). Voorstel: een label dat maar voor een klein deel past, weglaten of
+     binnen de rand schuiven. — B
+
+997. **VERVOLG: een tweede klik in een datumdeel blokkeert typen.** In `DateTextInput`
+     (`src/components/common/DateTextInput.tsx`, `onMouseUp` rond regel 518) selecteert een klik de inhoud van het
+     deel. Klik je in een deel dat al geselecteerd is, dan heft de browser die selectie pas ná de handler op: de
+     cursor staat dan op positie 1 en het volle deel (maxLength 2) weigert elk cijfer, zonder melding. Gezien in het
+     Rapport-tabblad bij de periode *Aangepast* (dag van *Van* typen, Tab, klik op de dag van *Tot*, "30062027"
+     typen: niets verandert) en in het eigenschappenpaneel bij *Start* (klik, nog een klik op hetzelfde deel, "15"
+     typen: ongewijzigd). Het zit dus in het datumveld van de hele app en staat al op `main`, niet uit #847. Oorzaak
+     afgeleid, gedrag nagespeeld (council ronde 6 van #817, Claude Opus 5.5, punt 1). Voorstel: de inhoud één frame
+     later selecteren (`requestAnimationFrame`), of een getypt cijfer in een vol deel het deel laten vervangen. — B
+
+999. **VERVOLG: de melding "Deze layout heeft andere kolommen…" zegt niet wélke, en blijft altijd staan.** In de
+     stap Taken van het Rapport-tabblad (`StudioNotice` met `data-rs-notice="layout-own"` in
+     `src/components/panels/reportStudio/GanttReportStudio.tsx`) staat alleen "Deze layout heeft andere kolommen en
+     balkopties dan het rapport." Welke kolommen of balkopties dat zijn, ziet de planner pas na de klik op
+     *Overnemen*. Houdt hij bewust zijn eigen kolommen, dan blijft het blok van drie regels staan zolang de layout
+     gekozen is. Gezien in council ronde 6 van #817 (Claude Opus 5.5, punt 4). Voorstel: de kolommen en de
+     balkopties noemen ("Deze layout heeft 3 kolommen: WBS, Taaknaam, Duur.") en een knop "Eigen houden" die de
+     melding voor deze layout sluit. — B
+
+1000. **VERVOLG: in een groot plan blijven de eerste kolom erbij en zoom naar 33 % boven 250 ms.** Gemeten op het
+     plan met 5000 taken (`qa/817-rapport/groot/plan-5000.ifc`) in het Rapport-tabblad: de eerste registerkolom
+     erbij (Kalenderdagen) 269–422 ms tot het laatste beeld (de lijst reageert binnen 48–60 ms), uitzoomen
+     50→33 % 226–265 ms (drie nieuwe bladen), ook bij load 0,7. Elke klik vraagt daarbij 10–40 MB tijdelijk
+     geheugen voor het knippen van de SVG-opname (`clipOpToWindow`, aangeroepen in
+     `src/services/print/reportPaper.ts`). In de dev-build groeit het aantal User Timing-regels van React met
+     ongeveer 1650 per ronde (alleen DEV). Bronnen: council ronde 6 van #817 (Claude Opus 5.5, punt 5) en de
+     bouwer van de fixronde na council ronde 5. Voorstel: de celteksten van een registerkolom in een worker of
+     in stukken opbouwen, en de geknipte opname per blad bewaren in plaats van per klik opnieuw te knippen. — B
+
+1001. **VERVOLG: een layout die op een lager niveau op resource groepeert (fase → resource) bandt op naam.** Alleen
+     een groepering met resource als laatste niveau, eventueel onder resourcetype, gaat in het Rapport-tabblad
+     door de resourcebouwer (`resourceBandShape` in `src/engine/reports/layoutReport.ts`), die per
+     resource-identiteit bandt. Elke andere groepering met resource, zoals fase → resource, volgt de
+     schermgroepering (`computeViewRows` in `src/engine/view/visibleRows.ts`, rond regel 128: `resourceNames`).
+     Twee resources met dezelfde naam lopen dan samen in één band. Gezien bij de bouw van de layouts in het
+     Rapport-tabblad (#861). Voorstel: de schermgroepering op resource-id laten banden, met `#n` voor
+     gelijknamigen zoals de resourcebouwer. — B
+
+1002. **VERVOLG: `verify:conventions` meldt dat `levelingDelayMinutes` omlaag moet worden herpind.** De poort
+     slaagt (exit 0) maar schrijft "te herpinnen (omlaag): levelingDelayMinutes 7→6 — draai met --write-baseline":
+     de pin in `scripts/verify-conventions.datagates.json` staat op 7, de code heeft er 6. Nagegaan op
+     `origin/main` (`ed2f919c5`, 9 november 2026): daar staat dezelfde melding, dus niet uit #847. Voorstel: in een
+     eigen kleine PR `node scripts/verify-conventions.mjs --write-baseline` draaien en de nieuwe pin committen. — B
+
+1005. **VERVOLG: de vaste browserroute bewaakt de exportwacht op nieuwe kolommen niet.** `GanttReportStudio.tsx`
+     wacht vóór een PDF-export tot een net gekozen kolom op het papier staat (`columnsPending`, rond :200, :462,
+     :470). Zonder die wacht kan de PDF de kolomlijst van vóór de laatste keuze krijgen. Code-review ronde 5 van #847
+     (GPT-6.1-Sol): met de twee `columnsPending`-voorwaarden weggehaald blijft `tests/browser/report-studio.spec.ts`
+     groen (exit 0); een losse proef die exporteert in dezelfde taak als de kolomkeuze wordt rood (de PDF mist
+     Kalenderdagen). Die proef leest de PDF met `pdftotext`, dat de CI niet heeft. Voorstel: neem de proef op in de
+     bestaande route en lees de kolomkoppen uit de PDF zonder `pdftotext` (bijv. met de PDF-tekstlaag via pdf.js of
+     de exportopties die de bouwer ontvangt). — B
+
+1062. **VERVOLG: zoeken en Enter in de kolomkiezer van de stap Kolommen voegt geen kolom toe.** Sinds *Kolom toevoegen*
+     het kolomvenster van de tabel gebruikt (`ColumnsEditor.tsx:124`, `ColumnChooser.tsx:300` en `:316`), laat Enter in
+     het zoekveld de kiezer open en voegt de enige treffer niet toe. De oude eigen kiezer van #847 deed dat wel. De
+     treffer is nog met Tab en Enter bereikbaar. Code-review ronde 6 van #847 (GPT-6.1-Terra): bevestigd in de app met
+     `Calendar days`. Voorstel: geef de gedeelde kiezer een Enter-route naar de eerste treffer (dan ook in de tabel) en
+     controleer die in de bestaande route van `tests/browser/report-studio.spec.ts`. — B
+
+1063. **VERVOLG: een versleept stapvenster houdt zijn plaats bij een taalwissel naar een RTL-taal.** De plaats van het
+     zwevende stapvenster (`studioChrome.tsx:147`) volgt een wisseling van de schrijfrichting terwijl het open staat
+     niet. Na een taalwissel naar bijv. Arabisch bedekte het venster de zijbalk en de exportknop; sluiten en opnieuw
+     openen herstelt het. Code-review ronde 6 van #847 (GPT-6.1-Sol): bevestigd met een taalfixture. Voorstel: reken
+     de plaats opnieuw uit (of zet het venster terug) als `dir` verandert. — B
+
+1064. **VERVOLG: de regressiestap voor schuifjes bij geforceerde kleuren meet de zichtbaarheid maar half.**
+     `tests/browser/auto-calc-after-edit.spec.ts:80` controleert alleen `appearance` en dat `outlineStyle` niet `none`
+     is. Met een tijdelijke regel die de focusrand 0 px breed maakt, blijft de stap groen. De stap meet ook niet of de
+     schuif zichtbaar is, of hij de focus echt heeft en of Pijl Links de waarde verandert. In de app zelf zijn baan,
+     knop en focusrand (1 px) wel zichtbaar. Code-review ronde 7 van #847 (GPT-6.1-Sol en GPT-6.1-Terra). Voorstel:
+     controleer in dezelfde stap een positieve `outlineWidth`, `toBeFocused()`, `toBeVisible()` en de
+     waardeverandering. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
@@ -2770,3 +3047,68 @@ en noem het in je rapport of PR-tekst.
      zou zijn. Bij horizontaal scrollen springt de naam dus weg. Een gewone taakbalk stopt bij `x2 + spelingsband < 0`
      (`drawTaskBar`); zonder speling geldt daar hetzelfde. Voorstel: laat de grens ook de naamruimte meetellen (`x2 + ARROW_STUB + OUTSIDE_LABEL_GAP +
      naambreedte < 0`), of teken de naam los van de balk. Uit de review van #842 (Terra, ronde 5, BEVESTIGD, VERVOLG). — B
+
+1071. **VERVOLG: oude Lucide-configuratie na het standaard maken van B2.** `vite.config.ts` bevat nog de
+      bundelregel voor `lucide-react`; `eslint.config.js` maakt nog een uitzondering voor het verwijderde
+      `src/components/icons/lucideMapping.ts`. Beide zijn ongebruikt. Voorstel: verwijder die twee blokken;
+      behoud het algemene verbod op nieuwe Lucide-imports. Ook het commentaar bij `.rs-panel-icon` in
+      `src/components/panels/reportStudio/reportStudio.css` beschrijft nog de verwijderde Lucide-route;
+      de CSS zelf spiegelt B2 correct en herstelt de richting bij RTL. Voorstel: verwijder alleen die oude
+      uitleg. Uit de reviews van B2 standaard en de merge met main, Terra xhigh, BEVESTIGD en zelf in
+      de bron nagezien. — B
+
+1072. **VERVOLG: iconencheck dekt de verdwenen URL-keuze niet.** `tests/planning/check-icon-family.ts`
+      noemt ontwikkel-URL's, maar zet geen `?icons=` en controleert de uitkomst van `loadFeatureFlags()` niet.
+      De check tekent wel elk B2-id in twee maten na beide oude opslagwaarden. De URL-route is uit de bron
+      verwijderd. Voorstel: beperk de omschrijving of controleer de opslaguitkomst en de oude URL-invoer.
+      Bovendien controleert het bestaande RTL-scenario in `tests/browser/tabstrip-scroll-arrows.spec.ts`
+      alleen de id van de pijlen, niet hun berekende spiegeltransformatie. De aanroep en CSS spiegelen nu wel.
+      Voorstel: voeg een transformatiecontrole toe aan hetzelfde scenario. Uit de reviews van B2 standaard,
+      Terra en Sol xhigh, BEVESTIGD en zelf in de bron nagezien. — B
+
+1073. **VERVOLG: voorbeeldextensie heeft een eigen lijsticoon zonder B2-id.**
+      `examples/extensions/voorbeeld-takenlijst-importer/manifest.json` levert een eigen SVG met drie regels
+      en punten; `ExtensionManagerPanel.tsx` toont hem op de extensiekaart. De vorm lijkt op Lucide, maar
+      die herkomst is niet bewezen (VERMOED, zekerheid midden). Eigen SVG's horen bij het extensiecontract;
+      de B2-id-tabel mist geen tekening. Geen ontwerp vervangen zonder besluit. Uit de review van B2
+      standaard, Terra xhigh; de SVG en de aanroep zijn zelf nagezien. — S
+
+1074. **VERVOLG: constante klassetekst staat nog als template-expressie.** De aanwijzing voor een verouderd
+      histogram in `src/components/canvas/GanttCanvas.tsx` voegt de constante tekst
+      `inline-flex items-center gap-1` nog via een template-expressie toe. Voorstel: één gewone klassetekst.
+      De getekende UI verandert daardoor niet. Uit de review van B2 standaard, Terra xhigh,
+      BEVESTIGD en zelf in de bron nagezien. Meer restanten van dezelfde ombouw (review Opus xhigh op
+      `ae7e288b2`, BEVESTIGD): `{(…)}` in `BaselineOverlaySplitButton.tsx:85`, `DataGridCore.tsx:629` en
+      `FullTaskGrid.tsx:945`; `{<>…</>}` in `BaselineDialog.tsx:121`; `{<button…>}` in
+      `TaskConstraintFields.tsx:107`; `('var(--theme-text)')` in `TaskDependenciesSection.tsx:348`;
+      `(<Icon …/>)` in `ribbonWidgets.tsx:494`. — B
+
+1075. **VERVOLG: twee CSS-waarschuwingssymbolen lopen buiten B2 om.** `src/styles/globals.css` bevat
+      bij `.alert--warning::before` en `.badge--amber::before` de paden van Lucide `triangle-alert` 0.575.0.
+      Deze staan onder meer bij voortgang importeren (`ProgressImportDialog.tsx`) en afwijkende
+      rekenprofielen (`SchedulingProfileSection.tsx`). Zelf vergeleken met de openbare Lucide-bron.
+      Dit stond al op main en geeft geen nieuw functioneel probleem. Voorstel: later de bestaande B2
+      `status.warning` gebruiken; geen nieuw ontwerp maken. Uit de review van B2 standaard, Sol xhigh,
+      BEVESTIGD. — B
+
+1200. **VERVOLG: verouderd commentaar na B2 standaard.** `tests/browser/ribbon-toggles.spec.ts:111` (de tak
+      `( ▾)?` is dood), `tests/browser/tabstrip-sluitknop-midden.spec.ts:28`, `tests/planning/check-icon-accent-text.ts:176`
+      (het commentaar hoort bij een `continue` die weg is) en `src/components/viewControls/layoutIcons.tsx:30`
+      ("Vóór B2 … 20 px"). Voorstel: commentaar bijwerken of weghalen. Uit de review van B2 standaard, Opus, BEVESTIGD. — B
+
+1201. **VERVOLG: opruimwerk na B2 standaard.** De parameter `stored` van `loadFeatureFlags`
+      (`src/utils/settingsStore.ts`) geeft zijn invoer ongewijzigd terug; het registeritem kan gewoon
+      `parseFeatureFlagValues` gebruiken. De lus over opgeslagen waarden in `tests/planning/check-icon-family.ts`
+      tekent twee keer hetzelfde, want `Icon` leest geen vlag meer. `masterFor` met de alias `ICONS` in
+      `src/components/icons/Icon.tsx` kan één uitdrukking worden. `plain` in `tests/browser/statusbar-rows.spec.ts`
+      haalt nog een ⚠-teken weg dat de statusbalk niet meer toont. Uit de review van B2 standaard, Opus,
+      BEVESTIGD. — B
+
+1202. **VERVOLG: twee schermafbeeldingen boven de richtlijn.** `artifacts/b2-standaard/rapport-licht.png` (167 KB)
+      en `rapport-donker.png` (161 KB); de richtlijn is ongeveer 150 KB. Voorstel: verkleinen. Uit de review van
+      B2 standaard, Opus, BEVESTIGD. — B
+
+1203. **VERVOLG: statusbalktest herkent het Gantt-canvas niet zelf.** `tests/browser/statusbar-rows.spec.ts` wacht tot
+      het klikpunt twee keer gelijk is en op een canvas ligt. Dat bewijst geen rust bij een latere indelingswijziging,
+      en elk canvas telt mee, niet alleen de Gantt. Voorstel: controleer dat het element bij het Gantt-canvas hoort,
+      of klik opnieuw als de selectie ontbreekt. Uit de review van B2 standaard, ronde 2, Opus, VERMOED (laag). — S

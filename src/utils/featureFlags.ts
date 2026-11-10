@@ -10,13 +10,20 @@ export interface FeatureFlag {
   writesNewIfcData: boolean;
 }
 
+/**
+ * Het nieuwe Rapport-tabblad (issue #817): zijbalk met stappen, interactief SVG-papier, kolommen uit het
+ * kolomregister, geen lint op het tabblad. Schrijft niets nieuws in IFC (de rapportinstellingen staan per
+ * apparaat in `ops-reportSettings`).
+ */
+export const REPORT_REDESIGN_FLAG = 'reportRedesign';
+
 /** Voeg hier tijdelijke functies toe; de demo maakt de verborgen bediening zichtbaar toetsbaar. */
 export const FEATURE_FLAGS: FeatureFlag[] = [
   {
-    id: 'b2-icons',
-    nameKey: 'settings.experimentalSection',
+    id: REPORT_REDESIGN_FLAG,
+    nameKey: 'settings.featureReportRedesign',
+    descriptionKey: 'settings.featureReportRedesignHint',
     writesNewIfcData: false,
-    hidden: true,
   },
   // Demo-flag: alleen titelbalkdecoratie, zonder nieuwe documentgegevens.
   {

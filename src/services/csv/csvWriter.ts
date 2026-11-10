@@ -13,7 +13,7 @@ const DELIMITER = ';';
 const BOM = '\uFEFF';
 
 export function escapeCSV(value: string): string {
-  if (value.includes(DELIMITER) || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+  if (value.includes(DELIMITER) || value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
@@ -101,7 +101,7 @@ export function writeCSV(
     // het uurteken van de app-taal (`lagHourSuffix`), % / e% = procent van de voorgangerduur. Via
     // `lagMinutes`, anders verdwijnt elke uur-lag (en in een uurproject óók elke dag-lag, die daar in
     // minuten staat) stil uit de export.
-    const lag = formatLagShort(seq, lagHourSuffix);
+    const lag = formatLagShort(seq, lagHourSuffix).replace('.', ',');
     const predStr = `${predTask.wbsCode}${abbrev}${lag}`;
     if (!predMap.has(seq.successorId)) {
       predMap.set(seq.successorId, []);
@@ -141,7 +141,7 @@ export function writeCSV(
       escapeCSV(task.wbsCode),
       String(depthById.get(task.id) ?? 1),
       escapeCSV(task.name),
-      task.time.scheduleDuration.toString(),
+      escapeCSV(task.time.scheduleDuration.toString().replace('.', ',')),
       shownStart(task),
       shownFinish(task),
       escapeCSV(predecessors),
@@ -152,7 +152,7 @@ export function writeCSV(
       task.time.actualStart || '',
       task.time.actualFinish || '',
       unrecorded?.includes('isCritical') ? '' : (task.time.isCritical ? 'Yes' : 'No'),
-      unrecorded?.includes('totalFloat') ? '' : task.time.totalFloat.toString(),
+      unrecorded?.includes('totalFloat') ? '' : escapeCSV(task.time.totalFloat.toString().replace('.', ',')),
       escapeCSV(task.description),
     ];
     rows.push(row.join(DELIMITER));

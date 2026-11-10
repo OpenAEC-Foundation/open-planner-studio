@@ -77,6 +77,8 @@ Layouts die niet dezelfde onderdelen vastleggen kunnen samen aan staan. Heb je e
 
 **Inspringen en uitspringen staan uit.** Zolang er een filter, groepering of sortering aan staat, is de getoonde volgorde niet de volgorde van de planning. *Inspringen* en *Uitspringen* zijn dan uitgeschakeld met de tooltip *Niet beschikbaar tijdens filteren/groeperen/sorteren*. Zet de layout uit om de structuur weer aan te passen, zoals beschreven in [Structuur aanpassen](docs://howto-structuur-aanpassen).
 
+**Een layout op papier verandert je scherm niet.** In het nieuwe tabblad Rapport kies je een layout in de stap *Taken en groepering*. Die geldt dan alleen voor het rapport: de layoutknoppen en je Gantt-diagram blijven zoals ze zijn. De rijen volgen de layout: wijzig je de layout later, dan volgt het rapport. Kolommen en balkopties van de layout neem je alleen over met een knop. Zie [Het nieuwe tabblad Rapport](docs://howto-rapport-maken-en-afdrukken#het-nieuwe-tabblad-rapport-experimenteel).
+
 **De statusbalk telt niet mee.** Bij *Taken:* in de statusbalk staat het aantal taken van het hele project, ook als een filter er maar een deel van toont.
 
 **Layouts staan op je apparaat, niet in het project.** Je layouts en de kolommen bewaart de app voor al je projecten op dit apparaat. De overlays uit een layout (baseline, voortgangslijn en de rest) gelden voor al je projecten. Het filter, de groepering en de sortering die op dit moment aan staan, horen bij het geopende project, maar komen niet in het projectbestand: na opslaan en heropenen is het beeld weer schoon. Ze maken het project ook niet "gewijzigd".

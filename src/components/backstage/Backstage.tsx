@@ -107,13 +107,13 @@ export function Backstage() {
     <div className="backstage" role="region" aria-label={tMenu('backstage.fileMenu')}>
       <aside className="backstage-sidebar" aria-label={tMenu('backstage.fileNav')}>
         <button className="backstage-back" onClick={() => leave(closeBackstage)} data-ops-backstage-back>
-          <Icon id="nav.back" size={16} className="ops-icon-inline-flip" lucide={{ className: undefined }} /> {tMenu('backstage.back')}
+          <Icon id="nav.back" size={16} className="ops-icon-inline-flip" /> {tMenu('backstage.back')}
         </button>
 
         {/* Actie-items: triggeren actie en sluiten backstage */}
         <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.new" size={14} />} label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
         <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.open" size={14} />} label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
-        <NavItem icon={<Icon id="project.recent" size={14} lucide={{ icon: 'Clock' }} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
+        <NavItem icon={<Icon id="project.recent" size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
         {/* data-tour-anchor (tourstap 6): voorbeelden-navitem. */}
         <NavItem icon={<Icon id="file.examples" size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
         <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.save" size={14} />} label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
@@ -139,7 +139,7 @@ export function Backstage() {
 
         {/* Help/documentatie-viewer: Backstage-NavItem als primaire ingang, in het "leer de app
             kennen"-rijtje naast de rondleiding-herstart hieronder. */}
-        <NavItem icon={<Icon id="ui.help" size={14} lucide={{ icon: 'LifeBuoy' }} />} label={tMenu('backstage.help')} active={section === 'help'} onClick={() => goTo('help')} />
+        <NavItem icon={<Icon id="ui.help" size={14} />} label={tMenu('backstage.help')} active={section === 'help'} onClick={() => goTo('help')} />
 
         <div className="backstage-nav-divider" />
 
@@ -642,7 +642,7 @@ function ImportSection() {
           disabled={!hasTasks}
           data-ops-progress-import-card
         >
-          <span className="backstage-export-icon"><Icon id="planning.progress-sheet-import" size={20} lucide={{ icon: 'ClipboardCheck' }} /></span>
+          <span className="backstage-export-icon"><Icon id="planning.progress-sheet-import" size={20} /></span>
           <span className="backstage-export-info">
             <h4>{tMenu('backstage.progressImportCardTitle')}</h4>
             <p>{tMenu('backstage.progressImportCardDesc')}</p>

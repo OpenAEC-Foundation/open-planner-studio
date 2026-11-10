@@ -78,6 +78,7 @@
     "ifcForeignSaveBlocked": "This file contains a building model; saving is not possible yet.",
     "ifcForeignTargetSave": "This file also contains a building model. Choose another file to save to.",
     "ifcForeignTargetExport": "This file also contains a building model. Choose another file to export to.",
+    "ifcExportChangedWhileWaiting": "The schedule changed while the export was waiting for another save. Nothing was exported. Export again.",
     "ifcForeignTargetAutoSave": "Autosave has stopped: this file also contains a building model. Choose another file to save to.",
     "ifcUnreadableTargetSave": "The app cannot read this file properly; it may contain a building model. Choose another file to save to.",
     "ifcUnreadableTargetExport": "The app cannot read this file properly; it may contain a building model. Choose another file to export to.",
@@ -343,7 +344,8 @@
     "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
     "dependentProjectsNone": "No projects found with an external relation to this schedule.",
     "dependentProjectsFailed": "The folder with dependent projects could not be read.",
-    "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library."
+    "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library.",
+    "reportLayoutGone": "The report's layout no longer exists. The report shows all tasks again."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -453,6 +455,8 @@
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
     "ifcForeignContent": "Open IFC with a building model",
     "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. Saving such a file is not possible yet.",
+    "featureReportRedesign": "New Report tab",
+    "featureReportRedesignHint": "The Gantt print with steps in a sidebar and clickable paper. The other reports stay as they are.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
@@ -947,6 +951,7 @@
     "costPerHour": "Rate/hour",
     "total": "Total",
     "totalHint": "Loaded units × hours/day × rate (recalculate with F5)",
+    "costTotalHint": "Sum of the amounts on all assignments",
     "unitOfMeasure": "Unit",
     "unitOnlyMaterial": "Only applies to resources of type Material.",
     "parent": "Crew",

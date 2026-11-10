@@ -281,6 +281,8 @@ async function saveDataDialogWeb(
   }
   // Terugval: download. Geen herbruikbare ref — dit is de enige route die in élke omgeving werkt,
   // dus het bestand raakt hoe dan ook bij de gebruiker. `viaDownload` laat de aanroeper dat zeggen.
+  // Review #872 ronde 7 (Terra): ook na een geweigerde kiezer, dus na een `await`: eerst de controle van de aanroeper.
+  if (opts?.refuseDownload?.()) return null;
   downloadBlob(defaultName, data, opts?.mime);
   return { ref: null, name: defaultName, viaDownload: true };
 }

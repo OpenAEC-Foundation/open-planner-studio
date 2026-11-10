@@ -946,7 +946,7 @@ function ResourceRow({
               title={t('resource.availabilityStepsEditor.title')}
               className="p-0.5 rounded hover:bg-surface-hover text-text-secondary flex-shrink-0"
             >
-              {stepsOpen ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} className="ops-icon-inline-flip" lucide={{ className: undefined }} />}
+              {stepsOpen ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} className="ops-icon-inline-flip" />}
               {stepCount > 0 && <span className="!text-caption ml-0.5">{stepCount}</span>}
             </button>
           </div>
@@ -1009,7 +1009,7 @@ function ResourceRow({
           )}
         </td>
         {costLabel !== undefined && (
-          <td className="px-2 py-1 text-right tabular-nums" title={t('resource.totalHint')} data-ops-resource-total={resource.id}>
+          <td className="px-2 py-1 text-right tabular-nums" title={t(isCost ? 'resource.costTotalHint' : 'resource.totalHint')} data-ops-resource-total={resource.id}>
             {costLabel}
           </td>
         )}

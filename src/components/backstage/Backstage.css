@@ -69,8 +69,6 @@
   color: var(--theme-text-dim);
   flex-shrink: 0;
 }
-/* Zonder B2 (#844) de kleur van vóór #765. */
-:where(:root[data-icons="lucide"]) .backstage-nav-icon { color: var(--theme-accent); }
 
 .backstage-nav-divider {
   height: 1px;
@@ -138,7 +136,6 @@
   color: var(--theme-text-dim);
   flex-shrink: 0;
 }
-:where(:root[data-icons="lucide"]) .backstage-recent-thumb { color: var(--theme-accent); }
 .backstage-recent-info { flex: 1; min-width: 0; }
 .backstage-recent-name {
   font-size: var(--text-body);
@@ -206,7 +203,6 @@
   flex-shrink: 0;
   background: transparent;
 }
-:where(:root[data-icons="lucide"]) .backstage-export-icon { color: var(--theme-accent); }
 .backstage-export-info { flex: 1; }
 .backstage-export-info h4 {
   margin: 0;

@@ -545,7 +545,6 @@
   background: transparent;
   line-height: 1;
 }
-:where(:root[data-icons="lucide"]) .full-task-grid-disclosure { display: inline-block; }
 
 .full-task-grid-error {
   position: absolute;
@@ -2234,8 +2233,6 @@ body {
   max-width: min(500px, 100%);
   animation: toast-in 0.3s ease-out;
 }
-/* Zonder B2 (#844) heeft een melding geen statusicoon. */
-:where(:root[data-icons="lucide"]) .ops-toast { padding-inline-start: var(--sp-6); }
 
 /* Het statusicoon vóór de tekst (info of fout), zodat het verschil ook zonder kleur te zien is. Het staat op de
    eerste tekstregel: regelhoogte 1,4 × 12 px is ongeveer 17 px, het icoon 16 px. */
@@ -2507,8 +2504,6 @@ body {
   flex-shrink: 0;
   margin-top: 1px;
 }
-/* Zonder B2 (#844) de kleur van vóór #765. */
-:where(:root[data-icons="lucide"]) .ops-note > svg { color: var(--ops-note-accent, var(--theme-accent)); }
 .ops-note--warning {
   --ops-note-accent: var(--theme-warning-text);
 }
@@ -2783,4 +2778,75 @@ input[type="checkbox"]:focus-visible {
 input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ============================================================================
+   Uniforme schuifjes (check Ethan 9-11-2026, Rapport-tabblad) — ÉÉN stijl voor ALLE
+   `input[type="range"]` in de app, net als de vinkjes hierboven. De eigen tekening van de browser
+   zette in een donker thema een lichte rand om de hele baan, ook om het oranje deel ("waarom zit de
+   witte rand ook om het oranje heen"). Nu: een smalle baan in de randkleur van een veld, zonder rand,
+   en een effen knop in het accent. Geen gevuld deel: Chromium en WebKit kennen daar geen eigen
+   onderdeel voor, en zo ziet het schuifje er in de browser en in de desktopapp hetzelfde uit.
+   ============================================================================ */
+/* Alleen buiten geforceerde systeemkleuren: daar tekent de browser het schuifje zelf, met baan, knop en
+   focusrand in systeemkleuren. Met `appearance: none` bleef er dan niets zichtbaars over (review r6). */
+@media (forced-colors: none) {
+  input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border: none;
+    border-radius: 2px;
+    background: var(--theme-control-border);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border: none;
+    border-radius: 2px;
+    background: var(--theme-control-border);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: none;
+    border-radius: 50%;
+    background: var(--theme-accent);
+    transition: box-shadow 0.12s ease;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--theme-accent);
+  }
+  input[type="range"]:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+  }
+  input[type="range"]:hover::-moz-range-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+  }
+  input[type="range"]:focus-visible {
+    outline: none;
+  }
+  input[type="range"]:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  }
+  input[type="range"]:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  }
+  input[type="range"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
