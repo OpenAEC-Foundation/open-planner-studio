@@ -1852,6 +1852,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         ? { preferDownloads: true, mime, refuseTarget }
         : { refuseTarget };
       const writeAndRecord = async () => {
+        // Review #872 ronde 6 (Terra): zonder bestandskiezer (Firefox, Safari) gaat de export als download, zonder
+        // doel en dus zonder `refuseTarget`. Daarom ook meteen na het wachten op de lock: is het document veranderd, dan
+        // niets schrijven of downloaden.
+        if (ext === 'ifc' && refuseChangedExport(state)) return null;
         const written = typeof payload === 'string'
           ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
           : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
@@ -1945,6 +1949,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`); ronde 5:
       // direct vóór de write kijken of het document nog gelijk is (`refuseChangedExport`).
       const outcome = await runProjectFileWrite(async () => {
+        if (refuseChangedExport(state)) return null; // ook zonder doel (download), zie `exportAs`
         const written = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
         if (written) await recordOwnFileExport(state, written, project.literalCalendarIds);
         return written;
@@ -1957,7 +1962,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);
       if (!poolContent) return { ok: true, warnings: [] };
-      const poolOutcome = await saveFileDialog(`${base}-${exportFileSuffix('library')}.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
+      // Review #872 ronde 6 (Terra): de bibliotheek is een ander bestand. De broncontrole van het project hoort er niet bij:
+      // de eerste write legde misschien net de letterlijke kalenders vast, en dan weigerde zij de bibliotheek.
+      const poolOutcome = await saveFileDialog(`${base}-${exportFileSuffix('library')}.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget: foreignCheck });
       // Het projectbestand bestaat dan al; annuleren van het tweede bestand is geen voltooide export.
       if (!poolOutcome) return { ok: true, warnings: [], cancelled: true };
       noticeIfDownloaded(poolOutcome);

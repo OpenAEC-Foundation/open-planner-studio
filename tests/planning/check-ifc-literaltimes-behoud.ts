@@ -378,6 +378,62 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       eq(`7f ${route}: de keuze werd vastgelegd terwijl de export wachtte: niets geschreven, geannuleerd`,
         [file.text() === before, 'cancelled' in result && result.cancelled === true], [true, true]);
     }
+    {
+      // 7g. Review #872 ronde 6 (Terra): zonder bestandskiezer (Firefox, Safari) gaat de export als download, zonder doel.
+      //     Verandert het document terwijl de export op de lock wacht, dan geen download van de oude inhoud. Zonder
+      //     wijziging wel.
+      const { runProjectFileWrite } = await import('@/services/fileAccess/writeCoordinator');
+      const g = globalThis as unknown as Record<string, unknown>;
+      const saved = { document: g.document, picker: win.showSaveFilePicker, open: win.showOpenFilePicker };
+      let downloads = 0;
+      g.document = { createElement: () => ({ href: '', download: '', click() { downloads++; } }) };
+      const url = URL as unknown as Record<string, unknown>;
+      const savedUrl = { create: url.createObjectURL, revoke: url.revokeObjectURL };
+      url.createObjectURL = () => 'blob:test';
+      url.revokeObjectURL = () => { /* niets */ };
+      delete win.showSaveFilePicker;
+      delete win.showOpenFilePicker;
+      try {
+        for (const change of [true, false]) {
+          const { S } = await openOwn();
+          S().addTask({ name: 'Gewone taak' });
+          let release!: () => void;
+          const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+          downloads = 0;
+          const exporting = run(S);
+          await new Promise(r => setTimeout(r, 20));
+          if (change) S().addTask({ name: 'Tussendoor' });
+          release();
+          await hold;
+          const result = await exporting;
+          eq(`7g ${route}, download ${change ? 'na een wijziging tijdens het wachten: geen download, geannuleerd' : 'zonder wijziging: gedownload'}`,
+            [downloads, 'cancelled' in result && result.cancelled === true], change ? [0, true] : [1, false]);
+        }
+      } finally {
+        g.document = saved.document;
+        url.createObjectURL = savedUrl.create;
+        url.revokeObjectURL = savedUrl.revoke;
+        win.showSaveFilePicker = saved.picker;
+        win.showOpenFilePicker = saved.open;
+      }
+    }
+  }
+  {
+    // 7h. Review #872 ronde 6 (Terra): project met bibliotheek over het eigen bestand, met een kalender die voor het eerst
+    //     letterlijk wordt. De eerste write legt de keuze vast; de bibliotheek (een ander bestand) moet daarna gewoon
+    //     geschreven worden.
+    const { store, file, S } = await openOwn();
+    addHourTask(store);
+    store.setState(s => { s.project.companyId = 'bedrijf-1'; });
+    store.setState({ exportPoolIFC: () => 'ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n' });
+    const pool = fakeHandle('bibliotheek.ifc', '');
+    const picks = [file.handle, pool.handle];
+    win.showSaveFilePicker = async () => picks.shift();
+    const result = await S().exportProjectWithPool();
+    eq('7h project met bibliotheek: geslaagd, project letterlijk en vastgelegd, bibliotheek geschreven, geen melding',
+      [result.ok && !('cancelled' in result && result.cancelled === true), file.text().includes(LITERAL), S().ifcLiteralCalendarIds,
+        pool.text().startsWith('ISO-10303-21;'), S().ui.notifications.some(n => n.messageKey === 'notifications.ifcExportChangedWhileWaiting')],
+      [true, true, [S().calendar.id], true, false]);
   }
   delete win.showSaveFilePicker;
   delete win.showOpenFilePicker;
