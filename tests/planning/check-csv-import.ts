@@ -19,7 +19,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { payloadFromImport } from '@/state/documentContract';
 import { CsvDateImportError, readCSV } from '@/services/csv/csvReader';
-import { writeCSV } from '@/services/csv/csvWriter';
+import { escapeCSV, writeCSV } from '@/services/csv/csvWriter';
 import { parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { formatLagShort, parseLagInput } from '@/utils/lagFormat';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -151,7 +151,7 @@ const lagsByLink = (r: ImportResult) => {
   const csv = writeCSV(noProject, noCalendar, tasks, seqs, [], []);
   const predCol = csv.split('\r\n').slice(1, 10).map(r => r.split(';')[7]);
   eq('3a Predecessors-kolom in de korte lag-notatie van de app',
-    predCol, ['', '1FS+2u', '2FS+3eu', '3FS+16u', '4SS-1.5u', '5FS+3d', '6SS-1d', '7FF+3ed', '8FS-25e%']);
+    predCol, ['', '1FS+2u', '2FS+3eu', '3FS+16u', '"4SS-1,5u"', '5FS+3d', '6SS-1d', '7FF+3ed', '8FS-25e%']);
   const back = lagsByLink(readCSV(csv));
   for (const s of seqs) {
     const key = `${s.predecessorId.slice(1)}>${s.successorId.slice(1)}`;
@@ -210,9 +210,9 @@ const lagsByLink = (r: ImportResult) => {
   eq('4a ";": Total Float "1,5" ⇒ 1.5', nl[0].time.totalFloat, 1.5);
   eq('4a ";": "2,5 dagen" ⇒ 2.5 (eenheidstekst achter het getal blijft toegestaan)', nl[1].time.scheduleDuration, 2.5);
 
-  // 4b. Onze eigen export schrijft een decimale PUNT met ";" — die blijft gewoon werken.
+  // 4b. Onze eigen export schrijft een decimale komma met ";".
   const own = writeCSV(noProject, noCalendar, [task('t1', '1', 'Half', { scheduleDuration: 2.5 })], [], [], []);
-  eq('4b eigen export "2.5" ⇒ 2.5', readCSV(own).tasks[0].time.scheduleDuration, 2.5);
+  eq('4b eigen export "2,5" ⇒ 2.5', readCSV(own).tasks[0].time.scheduleDuration, 2.5);
   eq('4b "5 days" ⇒ 5 (oud parseFloat-gedrag)', readCSV(csvOf(H, [['1', 'A', '5 days', '0', '0']])).tasks[0].time.scheduleDuration, 5);
 
   // 4c. ","-bestand: een komma kan alleen in een GEQUOTE cel staan; "2,5" is daar ook een decimaal.
@@ -230,6 +230,51 @@ const lagsByLink = (r: ImportResult) => {
 
   // 4e. Kop zonder %, fractie met komma.
   eq('4e ";": "Completion" = "0,5" ⇒ fractie 50 %', readCSV(csvOf(['WBS', 'Name', 'Completion'], [['1', 'A', '0,5']])).tasks[0].time.completion, 0.5);
+}
+
+// Issue 873: getallen volgen de puntkomma-conventie, zonder WBS-codes te wijzigen.
+{
+  const source = task('t873', '1.1.2.4.2', '52 uur', {
+    scheduleDuration: 52 / 8, totalFloat: -1.25, completion: 0.334,
+  });
+  const successor = task('t874', '2', 'Vervolg');
+  const seqs: Sequence[] = [
+    { id: 's873', predecessorId: source.id, successorId: successor.id,
+      type: 'FINISH_START', lagDays: 1.25 },
+  ];
+  const csv = writeCSV(noProject, noCalendar, [source, successor], seqs, [], []);
+  console.log('Issue 873 CSV:\n' + csv);
+  const cells = csv.split('\r\n')[1].split(';');
+  eq('873 duur 52 / 8 als gequote decimale komma', cells[4], '"6,5"');
+  eq('873 negatieve speling met komma', cells[15], '"-1,25"');
+  eq('873 percentage blijft hele procenten', cells[11], '33');
+  eq('873 boomniveau blijft geheel', cells[2], '1');
+  eq('873 WBS blijft letterlijk', cells[1], '1.1.2.4.2');
+  eq('873 komma en quotes veilig', escapeCSV('6,5; "dagen"'), '"6,5; ""dagen"""');
+  eq('873 nieuwe export teruglezen duur', readCSV(csv).tasks[0].time.scheduleDuration, 6.5);
+  eq('873 nieuwe export teruglezen speling', readCSV(csv).tasks[0].time.totalFloat, -1.25);
+  eq('873 oude punt-export blijft leesbaar', readCSV(csvOf(
+    ['WBS', 'Name', 'Duration (days)', 'Total Float'],
+    [['1.1.2.4.2', '52 uur', '6.5', '-1.25']],
+  )).tasks.map(t => [t.time.scheduleDuration, t.time.totalFloat]), [[6.5, -1.25]]);
+  for (const fields of [
+    { lagDays: 1.25 }, { lagDays: -1.25 },
+    { lagDays: 0, lagMinutes: 90 },
+    { lagDays: 0, lagPercent: 12.5, lagUnit: 'ELAPSEDTIME' as const },
+  ]) {
+    const links = [{ ...seqs[0], ...fields }];
+    const text = writeCSV(noProject, noCalendar, [source, successor], links, [], [], []);
+    ok('873 lag schrijft komma: ' + JSON.stringify(fields), text.includes(
+      '1.1.2.4.2FS' + formatLagShort(links[0]).replace('.', ',')));
+    eq('873 lag rondgang: ' + JSON.stringify(fields), lagOf(readCSV(text).sequences[0]), lagOf(links[0]));
+  }
+  const legacyList = readCSV(csvOf(['WBS', 'Name', 'Predecessors'], [
+    ['1', 'A', ''], ['2', 'B', ''], ['3', 'C', '1FS+1,2'],
+  ]));
+  eq('873 oude lijst zonder spatie blijft twee relaties', legacyList.sequences.map(s => s.lagDays), [1, 0]);
+  const multiple = writeCSV(noProject, noCalendar, [source, successor, task('third', '3', 'Derde')],
+    [...seqs, { ...seqs[0], id: 's874', predecessorId: 'third', lagDays: -2.5 }], [], []);
+  eq('873 meerdere decimale voorgangers', readCSV(multiple).sequences.map(s => s.lagDays), [1.25, -2.5]);
 }
 
 // 5. (audit 2026-09-26) Meerregelige cel, taaktype-naam met scheidingsteken, decimale komma in de

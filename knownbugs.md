@@ -1596,14 +1596,6 @@ en noem het in je rapport of PR-tekst.
      `sync.writeHeld(key)` aan de echte singleton. Uit de review van #833 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD,
      VERVOLG). — B
 
-960. **VERVOLG: `?icons=` telt tijdens het wachten op hostinstellingen als gebruikerswijziging.** [gemeld door de
-     bouwer van #833, niet nagespeeld] Sinds #844 roepen `createDefaultUI()` en het registeritem `featureFlags`
-     `loadFeatureFlags()` aan; met `?icons=b2` of `?icons=lucide` schrijft die `ops-featureFlags` met herkomst
-     `'user'`. Tijdens het wachten (#833) telt dat als een wijziging door de gebruiker, dus de melding na het late
-     antwoord kan onterecht "teruggezet" zeggen; tijdens het toepassen valt de schrijfactie weg (de store toont de
-     URL-keuze wel). De URL zet de keuze bij elke start opnieuw. Richting: schrijf een URL-afgeleide vlag met herkomst
-     `'start'`. — S
-
 872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
      laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;
      `tests/dev-server/build-platform-args.test.mjs` toetst alleen de argumenten. Of de bundel met `./` onder een
@@ -1795,6 +1787,45 @@ en noem het in je rapport of PR-tekst.
      (`src/main.tsx:75`). Richting: `writeIFCWithChoices`, `exportHitsOwnFile` en `recordLiteralCalendarsWritten`, zoals
      de export. Het pad schrijft bovendien buiten de gedeelde schrijflock (`runProjectFileWrite`), dus een AutoSave of
      export kan er tussendoor schrijven (ronde 7, GPT-6.1-Sol). Uit #872 (ronde 4, GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1250. **VERVOLG: de CSV-export schrijft een breuklag met een komma, en een oudere app-versie leest die verkeerd.**
+     `src/services/csv/csvWriter.ts:104` zet in de kolom `Predecessors` de punt van `formatLagShort` om naar een komma.
+     Die cel is tekst, dus de punt veroorzaakte #873 niet; in die lijst is de komma ook het scheidingsteken, daarom
+     kreeg `csvReader.ts:176` een extra regex. Gezien (nieuwe schrijver, oude lezer): `1FS+1,5u` wordt een lag van 1 dag
+     plus een niet-bestaande voorganger "5u"; `1FS+12,5e%` wordt 12 dagen. Alleen een melding in de console. Het taakraster
+     toont dezelfde notatie met een punt (`relationCell.ts:175`). Richting: regel 104 terug naar de punt en de
+     verwachting in `check-csv-import.ts` mee; de normalisatie in de lezer mag blijven voor handinvoer (zet de regex dan
+     als constante naast `PREDECESSOR_TOKEN`). Uit de review van #876 (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
+
+1251. **VERVOLG: een getal in e-notatie komt verkeerd terug uit de CSV.** `csvWriter.ts:144,155` maken van
+     `toString()` met een komma bijvoorbeeld `"1,5e-7"`; `csvReader.ts:221` stopt bij de `e` en leest 1,5. Ook
+     `-2.220446049250313e-16` komt terug als −2,22 dagen speling. De solver maakt zulke waarden vrijwel zeker niet; een
+     geïmporteerde vastgelegde speling of duur mogelijk wel (niet nagegaan). Richting: één hulpje voor vaste notatie dat
+     ook de drie `.replace('.', ',')` vervangt, of de lezer een exponent laten toestaan. Uit de review van #876
+     (Opus 5.5, xhigh, mechanisme BEVESTIGD, voorkomen VERMOED laag, VERVOLG). — B
+
+1252. **VERVOLG: de CSV-export past met de komma niet bij een spreadsheet met Engelse (VS) of Zwitserse instelling.**
+     Sinds #876 schrijft de export decimalen met een komma, bij het vaste scheidingsteken `;`. LibreOffice met en-US
+     maakt van `"6,5"` tekst (gezien); Excel of Power Query met en-US leest het vermoedelijk als 65 (niet getest).
+     de-CH (`;` en een decimale punt) heeft hetzelfde probleem. Bij één vaste `;`-export is dat niet te vermijden;
+     een keuze voor het scheidingsteken of de landinstelling bij exporteren is een productbesluit. Uit de review van
+     #876 (Opus 5.5, xhigh, VERMOED midden, VERVOLG). — S
+
+1253. **VERVOLG: de gids over exportformaten noemt de decimale komma in de CSV niet.**
+     `public/docs/nl/ref-import-exportformaten.md:133` en de Engelse versie beschrijven scheidingsteken, BOM en
+     kolomkoppen, maar niet het decimaalteken. Eén zin in nl en en volstaat; zie ook 1254. Uit de review van #876
+     (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
+
+1254. **VERVOLG: een getypte komma-lag zonder eenheid in de CSV wordt een tweede voorganger.** `3FS+1,5` geeft de
+     relaties "3FS+1" en "5"; bestaat taak 5, dan ontstaat stil een verkeerde relatie. Dat gedrag bestond al en de test
+     legt het vast (`check-csv-import.ts:274`), maar met de komma als gewone notatie typen Nederlandse gebruikers het
+     vaker. Richting: noemen in de gids (1253) of een melding bij inlezen. Uit de review van #876 (Opus 5.5, xhigh,
+     BEVESTIGD, VERVOLG). — B
+
+1255. **VERVOLG: opruimen in de CSV-test van #876.** `tests/planning/check-csv-import.ts:246` schrijft de hele CSV
+     naar elke CI-log (`console.log('Issue 873 CSV…')`); regel 253 bewijst het citeren van een komma niet, want de `;`
+     in die tekst laat al citeren (`cells[4] === '"6,5"'` bewijst het wel); regel 267 herhaalt de implementatie
+     (`formatLagShort(...).replace('.', ',')`). Uit de review van #876 (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -2324,7 +2355,8 @@ en noem het in je rapport of PR-tekst.
      PR die de flag standaard aanzet, of zet beide op één gedeelde hook. Gezien bij de bouw van #817. — B
 
 915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
-     laadt `/?icons=b2` opnieuw, nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende. Dat zijn vijf
+     laadt `/` opnieuw (vroeger `/?icons=b2`), nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende;
+     sinds B2 standaard is daar geen reden meer voor. Dat zijn vijf
      extra appstarts voor vijf tests, zonder aangetoonde fout. Voorstel: geef de fixture een start-URL, standaard
      `/`; dan vallen acht herhaalde opstartregels uit deze spec weg. Uit de review van #852 (GPT-6.1-Sol, xhigh,
      op `321cb166a`, VERVOLG). — B
@@ -2432,11 +2464,6 @@ en noem het in je rapport of PR-tekst.
 
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
-
-590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Bij de
-     merge met main in #765 kwamen `Copy` en `Check` in `PromptBlock.tsx` toch terug (review van Sol, ronde 2); die zijn
-     weer OpenAEC-iconen, en ESLint weigert nu een nieuwe import (`no-restricted-imports` in `eslint.config.js`). Weghalen
-     raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. — B
 
 591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
@@ -2916,3 +2943,68 @@ en noem het in je rapport of PR-tekst.
      zou zijn. Bij horizontaal scrollen springt de naam dus weg. Een gewone taakbalk stopt bij `x2 + spelingsband < 0`
      (`drawTaskBar`); zonder speling geldt daar hetzelfde. Voorstel: laat de grens ook de naamruimte meetellen (`x2 + ARROW_STUB + OUTSIDE_LABEL_GAP +
      naambreedte < 0`), of teken de naam los van de balk. Uit de review van #842 (Terra, ronde 5, BEVESTIGD, VERVOLG). — B
+
+1071. **VERVOLG: oude Lucide-configuratie na het standaard maken van B2.** `vite.config.ts` bevat nog de
+      bundelregel voor `lucide-react`; `eslint.config.js` maakt nog een uitzondering voor het verwijderde
+      `src/components/icons/lucideMapping.ts`. Beide zijn ongebruikt. Voorstel: verwijder die twee blokken;
+      behoud het algemene verbod op nieuwe Lucide-imports. Ook het commentaar bij `.rs-panel-icon` in
+      `src/components/panels/reportStudio/reportStudio.css` beschrijft nog de verwijderde Lucide-route;
+      de CSS zelf spiegelt B2 correct en herstelt de richting bij RTL. Voorstel: verwijder alleen die oude
+      uitleg. Uit de reviews van B2 standaard en de merge met main, Terra xhigh, BEVESTIGD en zelf in
+      de bron nagezien. — B
+
+1072. **VERVOLG: iconencheck dekt de verdwenen URL-keuze niet.** `tests/planning/check-icon-family.ts`
+      noemt ontwikkel-URL's, maar zet geen `?icons=` en controleert de uitkomst van `loadFeatureFlags()` niet.
+      De check tekent wel elk B2-id in twee maten na beide oude opslagwaarden. De URL-route is uit de bron
+      verwijderd. Voorstel: beperk de omschrijving of controleer de opslaguitkomst en de oude URL-invoer.
+      Bovendien controleert het bestaande RTL-scenario in `tests/browser/tabstrip-scroll-arrows.spec.ts`
+      alleen de id van de pijlen, niet hun berekende spiegeltransformatie. De aanroep en CSS spiegelen nu wel.
+      Voorstel: voeg een transformatiecontrole toe aan hetzelfde scenario. Uit de reviews van B2 standaard,
+      Terra en Sol xhigh, BEVESTIGD en zelf in de bron nagezien. — B
+
+1073. **VERVOLG: voorbeeldextensie heeft een eigen lijsticoon zonder B2-id.**
+      `examples/extensions/voorbeeld-takenlijst-importer/manifest.json` levert een eigen SVG met drie regels
+      en punten; `ExtensionManagerPanel.tsx` toont hem op de extensiekaart. De vorm lijkt op Lucide, maar
+      die herkomst is niet bewezen (VERMOED, zekerheid midden). Eigen SVG's horen bij het extensiecontract;
+      de B2-id-tabel mist geen tekening. Geen ontwerp vervangen zonder besluit. Uit de review van B2
+      standaard, Terra xhigh; de SVG en de aanroep zijn zelf nagezien. — S
+
+1074. **VERVOLG: constante klassetekst staat nog als template-expressie.** De aanwijzing voor een verouderd
+      histogram in `src/components/canvas/GanttCanvas.tsx` voegt de constante tekst
+      `inline-flex items-center gap-1` nog via een template-expressie toe. Voorstel: één gewone klassetekst.
+      De getekende UI verandert daardoor niet. Uit de review van B2 standaard, Terra xhigh,
+      BEVESTIGD en zelf in de bron nagezien. Meer restanten van dezelfde ombouw (review Opus xhigh op
+      `ae7e288b2`, BEVESTIGD): `{(…)}` in `BaselineOverlaySplitButton.tsx:85`, `DataGridCore.tsx:629` en
+      `FullTaskGrid.tsx:945`; `{<>…</>}` in `BaselineDialog.tsx:121`; `{<button…>}` in
+      `TaskConstraintFields.tsx:107`; `('var(--theme-text)')` in `TaskDependenciesSection.tsx:348`;
+      `(<Icon …/>)` in `ribbonWidgets.tsx:494`. — B
+
+1075. **VERVOLG: twee CSS-waarschuwingssymbolen lopen buiten B2 om.** `src/styles/globals.css` bevat
+      bij `.alert--warning::before` en `.badge--amber::before` de paden van Lucide `triangle-alert` 0.575.0.
+      Deze staan onder meer bij voortgang importeren (`ProgressImportDialog.tsx`) en afwijkende
+      rekenprofielen (`SchedulingProfileSection.tsx`). Zelf vergeleken met de openbare Lucide-bron.
+      Dit stond al op main en geeft geen nieuw functioneel probleem. Voorstel: later de bestaande B2
+      `status.warning` gebruiken; geen nieuw ontwerp maken. Uit de review van B2 standaard, Sol xhigh,
+      BEVESTIGD. — B
+
+1200. **VERVOLG: verouderd commentaar na B2 standaard.** `tests/browser/ribbon-toggles.spec.ts:111` (de tak
+      `( ▾)?` is dood), `tests/browser/tabstrip-sluitknop-midden.spec.ts:28`, `tests/planning/check-icon-accent-text.ts:176`
+      (het commentaar hoort bij een `continue` die weg is) en `src/components/viewControls/layoutIcons.tsx:30`
+      ("Vóór B2 … 20 px"). Voorstel: commentaar bijwerken of weghalen. Uit de review van B2 standaard, Opus, BEVESTIGD. — B
+
+1201. **VERVOLG: opruimwerk na B2 standaard.** De parameter `stored` van `loadFeatureFlags`
+      (`src/utils/settingsStore.ts`) geeft zijn invoer ongewijzigd terug; het registeritem kan gewoon
+      `parseFeatureFlagValues` gebruiken. De lus over opgeslagen waarden in `tests/planning/check-icon-family.ts`
+      tekent twee keer hetzelfde, want `Icon` leest geen vlag meer. `masterFor` met de alias `ICONS` in
+      `src/components/icons/Icon.tsx` kan één uitdrukking worden. `plain` in `tests/browser/statusbar-rows.spec.ts`
+      haalt nog een ⚠-teken weg dat de statusbalk niet meer toont. Uit de review van B2 standaard, Opus,
+      BEVESTIGD. — B
+
+1202. **VERVOLG: twee schermafbeeldingen boven de richtlijn.** `artifacts/b2-standaard/rapport-licht.png` (167 KB)
+      en `rapport-donker.png` (161 KB); de richtlijn is ongeveer 150 KB. Voorstel: verkleinen. Uit de review van
+      B2 standaard, Opus, BEVESTIGD. — B
+
+1203. **VERVOLG: statusbalktest herkent het Gantt-canvas niet zelf.** `tests/browser/statusbar-rows.spec.ts` wacht tot
+      het klikpunt twee keer gelijk is en op een canvas ligt. Dat bewijst geen rust bij een latere indelingswijziging,
+      en elk canvas telt mee, niet alleen de Gantt. Voorstel: controleer dat het element bij het Gantt-canvas hoort,
+      of klik opnieuw als de selectie ontbreekt. Uit de review van B2 standaard, ronde 2, Opus, VERMOED (laag). — S

@@ -53,7 +53,7 @@ export function ExtensionConsentDialog() {
       panelProps={{ 'data-ops-ext-consent': true }}
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <Icon id="status.warning" size={16} className="text-critical" lucide={{ icon: 'ShieldAlert' }} />
+        <Icon id="status.warning" size={16} className="text-critical" />
         <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('extConsent.title')}
         </span>
@@ -89,7 +89,7 @@ export function ExtensionConsentDialog() {
         {/* De kern van de vraag. */}
         <div className="flex flex-col gap-2">
           <div className="font-semibold flex items-center gap-1.5">
-            <Icon id="status.warning" size={13} className="text-critical" lucide={{ icon: 'ShieldAlert' }} />
+            <Icon id="status.warning" size={13} className="text-critical" />
             {t('extConsent.riskHeading')}
           </div>
           <p className="text-text-secondary">{t('extConsent.riskBody')}</p>

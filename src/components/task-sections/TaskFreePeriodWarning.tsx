@@ -5,7 +5,7 @@ import { useDisplayDate } from '@/hooks/displayDate';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { findLongFreePeriods } from '@/engine/scheduler/freePeriods';
 import { shownFinish, shownStart } from '@/utils/taskDates';
-import { b2IconsOn, Icon } from '@/components/icons';
+import { Icon } from '@/components/icons';
 
 /**
  * Waarschuwing "deze taak loopt over een lange vrije periode".
@@ -42,8 +42,8 @@ export function TaskFreePeriodWarning({ taskId }: { taskId: string }) {
   return (
     <>
       {periods.map((p, i) => (
-        <div key={`${p.start}-${p.end}-${i}`} className={b2IconsOn() ? '!text-body flex items-start gap-1' : '!text-body'} style={{ color: 'var(--theme-warning-text)' }} data-ops-free-period-warning>
-          {b2IconsOn() ? <Icon id="status.warning" size={16} /> : '⚠ '}
+        <div key={`${p.start}-${p.end}-${i}`} className="!text-body flex items-start gap-1" style={{ color: 'var(--theme-warning-text)' }} data-ops-free-period-warning>
+          <Icon id="status.warning" size={16} />
           <span>{p.name
             ? t('properties.longFreePeriodWarningNamed', { name: p.name, days: p.days, start: dd.date(p.start), end: dd.date(p.end) })
             : t('properties.longFreePeriodWarning', { days: p.days, start: dd.date(p.start), end: dd.date(p.end) })}</span>

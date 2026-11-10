@@ -23,11 +23,6 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     descriptionKey: 'settings.featureReportRedesignHint',
     writesNewIfcData: false,
   },
-  {
-    id: 'b2-icons',
-    nameKey: 'settings.experimentalSection',
-    writesNewIfcData: false,
-  },
   // Demo-flag: alleen titelbalkdecoratie, zonder nieuwe documentgegevens.
   {
     id: 'demo-topbar-animation',

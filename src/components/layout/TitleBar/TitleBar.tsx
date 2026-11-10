@@ -177,7 +177,7 @@ export function TitleBar() {
             disabled={questionPending || !undoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) undo(); }}
           >
-            <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" lucide={{ className: undefined }} />
+            <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" />
           </button>
           <button
             className="quick-access-btn"
@@ -185,7 +185,7 @@ export function TitleBar() {
             disabled={questionPending || !redoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) redo(); }}
           >
-            <Icon id="edit.redo" size={16} className="ops-icon-inline-flip" lucide={{ className: undefined }} />
+            <Icon id="edit.redo" size={16} className="ops-icon-inline-flip" />
           </button>
 
           <div className="quick-access-separator" />
