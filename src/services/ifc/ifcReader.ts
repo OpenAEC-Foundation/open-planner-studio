@@ -24,6 +24,7 @@ import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
+import { lagValueSlot } from './ifcLagTimeSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
@@ -2043,23 +2044,21 @@ function extractSequences(
     if (lagRef) {
       const lagEntity = entityMap.get(lagRef);
       if (lagEntity && lagEntity.type === 'IFCLAGTIME') {
-        const lagValue = (lagEntity.args[3] || '').trim();
+        // Welk slot de waarde draagt, kiest `lagValueSlot` (gedeeld met de verliesbewaking van de merge).
+        const lagValue = lagValueSlot(lagEntity.args);
         const durType = (lagEntity.args[4] || '').trim();
-        // Een STEP-REAL mag een exponent dragen (`5.E-1`). De writer schrijft altijd een decimale
-        // punt (`1.` voor 100 %); dat las `[\d.]+` al.
-        const ratioMatch = lagValue.match(/^IFCRATIOMEASURE\s*\(\s*(-?[\d.]+(?:E[+-]?\d+)?)\s*\)$/i);
-        const durMatch = lagValue.match(/^IFCDURATION\s*\(\s*(.+?)\s*\)$/i);
-        if (ratioMatch) {
+        if (lagValue.kind === 'ratio') {
           // Ratio → procent; afronden tegen floating-point-ruis (0.33*100 = 33.000000000000004).
-          lagPercent = Math.round(parseFloat(ratioMatch[1]) * 100 * 1e6) / 1e6;
-        } else if (durMatch) {
+          lagPercent = Math.round(parseFloat(lagValue.text) * 100 * 1e6) / 1e6;
+        } else if (lagValue.kind === 'duur' || lagValue.kind === 'tekst') {
           // EERST `lagMinutes` proberen (discriminator (c), subdayIo/mspdiReader-conventie "geen
           // dag-afronding"). Een duur MET tijdcomponent (`PT2H0M0S`) is minuut-precies ⇒ `lagDays`
           // blijft 0, nooit de grove uur→dag-ceil van `parseDurationDays` (die zou een correcte
           // `lagMinutes` stilzwijgend overschrijven met een afgeronde dag, 2u → +1d).
           // Alleen een PUUR dag-duur (`P{d}D`, geen `T`) levert `isoDurationToMinutes === null` en
-          // valt terug op `parseDurationDays`.
-          const raw = stripQuotes(durMatch[1]);
+          // valt terug op `parseDurationDays`. Een ongetypte duur-string (`tekst`, soepel lezen van
+          // andermans bestanden) gaat langs dezelfde weg.
+          const raw = stripQuotes(lagValue.text);
           const timeMinutes = isoDurationToMinutes(raw);
           if (timeMinutes != null) {
             // GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
@@ -2071,22 +2070,11 @@ function extractSequences(
             lagDays = 0;
           } else {
             lagMinutes = undefined;
-            lagDays = parseDurationDays(durMatch[1], hoursPerDay);
-          }
-        } else if (lagValue.startsWith("'")) {
-          // Ongetypte duur-string (soepel lezen van andermans bestanden) — zelfde volgorde als hierboven.
-          const raw = stripQuotes(lagValue);
-          const timeMinutes = isoDurationToMinutes(raw);
-          if (timeMinutes != null) {
-            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
-            lagDays = 0;
-          } else {
-            lagMinutes = undefined;
-            lagDays = parseDurationDays(lagValue, hoursPerDay);
+            lagDays = parseDurationDays(lagValue.text, hoursPerDay);
           }
         } else {
           // Legacy-lay-out: de duur staat in arg 5.
-          lagDays = parseDurationDays(lagEntity.args[4] || '', hoursPerDay);
+          lagDays = parseDurationDays(lagValue.text, hoursPerDay);
         }
         if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }

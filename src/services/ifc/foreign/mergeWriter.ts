@@ -39,8 +39,9 @@
 import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
-import { classify, type Classification } from './classify';
-import { changedScopes, dateTimeTexts, decimalKey, durationTexts, lossCheck, partialDateTime, partialDuration, pristineFromScan, type LossDiff } from './lossCheck';
+import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
+import { DURATION_SLOT_LABEL, durationForm, durationHint } from './durationForms';
+import { changedScopes, dateTimeTexts, decimalKey, durationTexts, lossCheck, partialDateTime, pristineFromScan, type LossDiff } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
@@ -79,11 +80,12 @@ export type MergePhase2Kind =
    *  (twee gelijke psets: de uitvoer heeft er één, plek 26). Zonder betrouwbare identiteit is niet te zeggen bij welke regel
    *  die waarde hoort (`lossCheck.ts`, `ambiguous`). */
   | 'niet-eenduidig'
-  /** Een P-stuk heeft een duur die de lezer deels of anders leest (`partialDuration`, na de STEP-decodering): jaren,
-   *  maanden of weken (knownbug 1028), een decimale komma (`P1,5D`, knownbug 1029; tijdelijk, besluit van Trias van
-   *  10 november 2026), een vorm buiten ISO 8601 (`p3d`, `P1E1D`, `PT1H1H`; knownbug 1030), een speling met een tijddeel
-   *  (`PT28H`), of een lag in werktijd met dagen vóór `T` (`P1DT2H`; beide knownbug 1033). Dagen vóór `T` in een taakduur
-   *  leest de lezer sinds #871 goed (knownbug 1027 opgelost; fixronde 5b). */
+  /** Een P-stuk heeft een duur in een vorm die niet op de lijst staat van vormen die de lezer in dat slot exact leest
+   *  (`durationForms.ts`, na de STEP-decodering; fixronde 6). Bijvoorbeeld jaren, maanden of weken (knownbug 1028), een
+   *  decimale komma (`P1,5D`, knownbug 1029; tijdelijk, besluit van Trias van 10 november 2026), een vorm buiten ISO 8601
+   *  (`p3d`, `P1E1D`, `PT1H1H`; knownbug 1030), een speling met een tijddeel (`PT28H`), een lag in werktijd met dagen vóór
+   *  `T` (`P1DT2H`; beide knownbug 1033), een minteken in een deel (`PT-2H`, knownbug 1034), een tijddeel dat niet op een
+   *  hele minuut valt (`PT90S`, knownbug 1035), of een tijddeel in de oude lagvorm. */
   | 'duur-deels-gelezen'
   /** Een P-stuk heeft een datum-tijd of tijd die de lezer anders leest (`partialDateTime`, na de STEP-decodering): met een
    *  tijdzone (`Z`, `+02:00`; de lezer laat die weg), seconden die niet 0 zijn, een spatie in plaats van `T`, of een uur van
@@ -293,21 +295,12 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   // weigert de merge.
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i) || !isP(i)) continue;
-    for (const at of durationTexts(index, i)) {
-      const { text } = at;
-      const part = partialDuration(text, at);
-      if (part === 'speling') {
-        caseAt('duur-deels-gelezen', i, `${label(i)}: de speling '${text}' heeft een tijddeel; de lezer leest een speling alleen in hele dagen (knownbug 1033)`);
-      } else if (part === 'lag-dagen') {
-        caseAt('duur-deels-gelezen', i, `${label(i)}: de lag in werktijd '${text}' heeft dagen vóór T; de lezer telt die dagen als 24 uur werktijd, en 'P1D' als één werkdag (knownbug 1033)`);
-      } else if (part === 'jaren') {
-        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft jaren, maanden of weken; de lezer leest die niet (knownbug 1028)`);
-      } else if (part === 'komma') {
-        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft een decimale komma; de lezer leest alleen de cijfers na de komma`
-          + ' (knownbug 1029). Tijdelijk, tot de fix van knownbug 1029 in main staat.');
-      } else if (part === 'vorm') {
-        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft geen vorm van ISO 8601 die de lezer kent; hij leest haar anders (knownbug 1030)`);
-      }
+    // De duur: alleen een vorm van de lijst (`durationForms.ts`) mag blijven; al het andere weigert (fixronde 6).
+    for (const { text, slot } of durationTexts(index, i)) {
+      if (durationForm(text, slot)) continue;
+      const temporary = text.includes(',') ? ' Tijdelijk, tot de fix van knownbug 1029 in main staat.' : '';
+      caseAt('duur-deels-gelezen', i, `${label(i)}: ${DURATION_SLOT_LABEL[slot]} '${text}' staat niet op de lijst van vormen die de lezer`
+        + ` exact leest: ${durationHint(text, slot)}.${temporary}`);
     }
     for (const { text, time } of dateTimeTexts(index, i)) {
       const part = partialDateTime(text, time);
@@ -488,7 +481,8 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
       const pset = index.refAt(r, 5);
       if (pset < 0 || index.type(pset) !== 'IFCPROPERTYSET') continue;
       const name = index.name(pset) ?? '';
-      if (!REGISTER_PSETS.has(name)) continue;
+      // Alleen bij een pset van het register is een gemengde pset mogelijk.
+      if (!REGISTER_PSET_NAMES.has(name)) continue;
       for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x])) {
         const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
         const want = sourceProps(index, pset);
@@ -706,8 +700,6 @@ function refsInText(text: string): number[] {
   return out;
 }
 
-/** De pset-namen van het register: alleen bij die psets is een gemengde pset (§4.6 b) mogelijk. */
-const REGISTER_PSETS: ReadonlySet<string> = new Set(Object.values(PSET));
 
 function unquote(token: string | undefined): string {
   const t = (token ?? '').trim();
