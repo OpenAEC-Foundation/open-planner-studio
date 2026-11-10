@@ -19,6 +19,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
+import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -129,11 +130,25 @@ const eigenPlus = fileBytes(`${FOREIGN}/eigen-plus-model.ifc`);
 const twoData = fileBytes(`${FOREIGN}/council/fix3-twee-data.ifc`);
 // Sol en Terra (review van #870): dezelfde, met parameters bij beide sectiekoppen. Vóór de fix: `no-data-section`.
 const twoDataParam = enc.encode(paramDataFile(dec(twoData)));
-for (const [name, bytes] of [
-  ['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData], ['fix3-param.ifc', twoDataParam],
-  // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`), ook gemengd, en op een model in de enige sectie.
+// De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`), ook gemengd, en op een model in de enige sectie.
+// Ronde 10 (besluit Trias): `readIFC` leest precies zoals main, dus alleen `DATA;` is een sectiekop. Een vorm waarin
+// main een `DATA;` vindt aan het begin van de eerste sectie, gaat door de lus hieronder. De andere opent met de flag
+// aan niet (hieronder apart): geen `DATA;`, of alleen het `DATA;` van de tweede sectie (de varianten `-eerste`; main leest
+// dan alleen die sectie, met de wand, en weigert het model).
+const kopVormen = [
+  ['fix3-param.ifc', twoDataParam] as const,
   ...dataKopBestanden(dec(twoData), 'scanner').map(([name, text]) => [`fix3-${name}.ifc`, enc.encode(text)] as const),
   ...dataKopBestanden(dec(eigenPlus), 'scanner').map(([name, text]) => [`eigen-plus-${name}.ifc`, enc.encode(text)] as const),
+];
+const mainVindtData = (_name: string, bytes: Uint8Array) => {
+  // Vóór het `DATA;` van main staat alleen de `ENDSEC` die de kop sluit: dan begint daar de eerste datasectie.
+  const text = dec(bytes);
+  const at = indexOfStepDataSection(text);
+  return at >= 0 && (text.slice(0, at).match(/ENDSEC/gi) ?? []).length === 1;
+};
+for (const [name, bytes] of [
+  ['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData],
+  ...kopVormen.filter(([name, bytes]) => mainVindtData(name, bytes)),
 ] as const) {
   const off = await open(false, name, bytes);
   ok(`${name} zonder flag: geweigerd`, !opened(off, name));
@@ -153,6 +168,18 @@ for (const [name, bytes] of [
   const reference = await open(false, name, enc.encode(ownPartText(bytes)));
   ok(`${name}: het eigen deel opent zonder flag`, opened(reference, name));
   eq(`${name} met flag: dezelfde planning als de lezer op het eigen deel`, sha(saved(on)), sha(saved(reference)));
+}
+// Ronde 10: een kopvorm zonder `DATA;` aan het begin van de eerste sectie voor main. Zonder flag weigert de modelweigering (de grammatica ziet de wand);
+// met de flag leest de lezer van het eigen deel zoals main: geen datasectie, of alleen de tweede (met de wand). Het
+// bestand opent dan niet, zonder bron: niets om op te slaan, dus niets kwijt (besluit Ethan: de flag moet veilig zijn).
+for (const [name, bytes] of kopVormen.filter(([name, bytes]) => !mainVindtData(name, bytes))) {
+  const off = await open(false, name, bytes);
+  ok(`${name} zonder flag: geweigerd`, !opened(off, name));
+  ok(`${name} zonder flag: de modelweigering (knownbug 110)`, String(off.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+  const on = await open(true, name, bytes);
+  ok(`${name} met flag: opent niet (zoals main)`, !opened(on, name));
+  eq(`${name} met flag: geen bron`, on.getState().ifcSource, null);
+  ok(`${name} met flag: een foutmelding`, notices(on).some(n => n.severity === 'error'));
 }
 // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop; het model blijft herkend. De scanner
 // van de flag weigert een tekst met één apostrof (`tekst-zonder-einde`) en valt terug op de gewone route: ook dan geweigerd.

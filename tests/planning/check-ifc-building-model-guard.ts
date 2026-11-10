@@ -10,6 +10,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildImportLabels } from '@/i18n/importLabels';
+import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 import { brokenHeaderDataFiles, brokenNameFiles, DATA_KOP_VORMEN, metDataKop } from './ifcDoelBestanden';
 import nl from '@/i18n/locales/nl/common.json';
 import en from '@/i18n/locales/en/common.json';
@@ -78,7 +79,10 @@ async function main(): Promise<void> {
     for (const vorm of DATA_KOP_VORMEN) {
       eq(`kopvorm ${vorm.id}: een wand in de enige sectie wordt geweigerd`, rejected(metDataKop(add("#900001=IFCWALL('x',$);"), vorm)), true);
       eq(`kopvorm ${vorm.id}: eigen-plus-model wordt geweigerd`, rejected(metDataKop(eigenPlus, vorm)), true);
-      eq(`kopvorm ${vorm.id}: de showcase opent niet (zoals main)`, readReason(metDataKop(showcase, vorm)), 'no-data-section');
+      // Zoals main: alleen een `DATA;` dat main vindt, opent (`stepDataSection.ts` is gelijk aan main).
+      const formed = metDataKop(showcase, vorm);
+      eq(`kopvorm ${vorm.id}: de showcase opent alleen met een DATA; voor main`, readReason(formed),
+        indexOfStepDataSection(formed) >= 0 ? 'geopend' : 'no-data-section');
     }
   }
   // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop. Zoals op main: dezelfde planning,

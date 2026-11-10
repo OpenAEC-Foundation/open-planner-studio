@@ -290,14 +290,18 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   const early = await measure(front);
   eq('stroom: model vooraan stopt na het eerste stuk en sluit de bron', [early.result, early.pulled, early.cancelled], ['model', 1, 1]);
   const full = await measure(none);
-  // Ronde 10: een geldig bestand leest de lezer daarna ook volgens de regel van main. Hij houdt hoogstens 16 MiB vast;
-  // dit bestand is groter, dus leest hij het deel vanaf `DATA;` opnieuw.
-  eq('stroom: zonder model leest hij alles (groter dan het geheugen: twee keer) en sluit de bron', [full.result, full.cancelled,
-    full.pulled > Math.ceil(none.length / CHUNK), full.pulled <= 2 * Math.ceil(none.length / CHUNK)], ['no-model', 1, true, true]);
-  const small = ifc("#1=IFCTASK('1',$,'Taak met een naam',$,$,$,$,$,$,.F.,$,$,$);\n".repeat(Math.ceil((3 * CHUNK) / 64)));
-  const smallRead = await measure(small);
-  eq('stroom: een geldig bestand van 3 MiB zonder model: één keer gelezen', [smallRead.result, smallRead.pulled, smallRead.cancelled],
-    ['no-model', Math.ceil(small.length / CHUNK), 1]);
+  // Ronde 10: een geldig bestand leest de lezer daarna ook volgens de regel van main. Het deel vanaf `DATA;` houdt hij
+  // vast tot 16 MiB (`RETAIN_BYTES`): dit bestand (15 MiB) leest hij één keer.
+  eq('stroom: zonder model leest hij alles één keer en sluit de bron', [full.result, full.pulled, full.cancelled],
+    ['no-model', Math.ceil(none.length / CHUNK), 1]);
+  // Groter dan 16 MiB: hij laat het vastgehouden deel los en leest de bron opnieuw vanaf `DATA;`.
+  const extra = "#1=IFCTASK('1',$,'Taak met een naam',$,$,$,$,$,$,.F.,$,$,$);\n".repeat(Math.ceil((2 * CHUNK) / 64));
+  const huge = ifc(filler + extra);
+  const hugeRead = await measure(huge);
+  eq('stroom: een geldig bestand van 17 MiB zonder model: de bron opnieuw gelezen, no-model', [hugeRead.result, hugeRead.cancelled,
+    hugeRead.pulled > Math.ceil(huge.length / CHUNK), hugeRead.pulled <= 2 * Math.ceil(huge.length / CHUNK)], ['no-model', 1, true, true]);
+  eq('stroom: een geldig bestand van 17 MiB met een wand achteraan: model', scanTargetBytes(ifc(filler + extra
+    + "#9=IFCWALL('x',$);\n")), 'model');
   // Een leesfout gaat door naar de aanroeper (die telt hem als niet leesbaar), en de bron gaat toch dicht.
   let closed = 0;
   let error = '';
