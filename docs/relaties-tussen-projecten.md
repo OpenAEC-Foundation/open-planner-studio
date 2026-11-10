@@ -561,8 +561,9 @@ Wat in de bouw anders liep dan hierboven staat:
   anker zonder melding uit het geopende document, gelezen op een kopie; de herkomst heeft dan alleen een leestijd.
   Lukt dat lezen niet, dan telt de bron als niet gelezen; de app valt niet terug op het bestand. Met het vinkje aan
   toont de automatische controle alleen een balk als de ankers uit het geopende document afwijken, en zolang de bron
-  open is met wijzigingen, komt er voor die bron geen balk voor de opgeslagen versie. *Later* onthoudt de versie en het voorstel, zodat dezelfde ankers niet
-  via de andere route terugkomen. De MCP-tool leest altijd het opgeslagen bestand (`knownbugs.md` punt 985). Als
+  open is met wijzigingen, komt er voor die bron geen balk voor de opgeslagen versie. *Later* onthoudt de versie en
+  het voorstel, zodat dezelfde ankers niet via de andere route terugkomen. De MCP-tool leest altijd het opgeslagen
+  bestand (`knownbugs.md` punt 985). Als
   VERVOLG staan: het vinkje omzetten start geen controle (punt 1066), elke controle leest elk geopend brondocument
   opnieuw (punt 1067), de tekst van de balk (punt 1068), *Later* op de twee routes (punt 1069) en het moment van
   kijken bij *Alle externe relaties vernieuwen* (punt 1070). De route is niet getest in de echte desktop-app (punt
