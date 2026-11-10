@@ -22,7 +22,10 @@
 //   9. een verschiltest: willekeurige STEP-achtige bestanden geven in elke stukgrootte "model" precies als `readIFC`
 //      weigert met `building-model`;
 //  10. de pariteitstabel: elk bestand uit deze check, de scanner tegen `readIFC`. Afwijken mag alleen in de besloten
-//      gevallen (een complexe instantie met een producttype; commentaar vóór de kop), en dan alleen naar "model".
+//      gevallen (een complexe instantie met een producttype; commentaar vóór de kop), en dan alleen naar "model";
+//  11. meer DATA-secties (ISO 10303-21): een wand in de tweede sectie (`council/fix3-twee-data.ifc`, ook met een
+//      sectiekop `DATA((…),(…));`) is een model, voor `readIFC` en voor de scanner. Vóór deze fix stopten beide bij de
+//      eerste `ENDSEC;`: het bestand opende zonder melding, en opslaan wiste de wand.
 // Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -321,7 +324,10 @@ const OWN = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezi
     ['een wand na een entiteit zonder puntkomma', "#1=IFCTASK('a',$)\n#9=IFCWALL('x',$);\n"],
     ['een wand na een string zonder einde in een entiteit', "#1=IFCTASK('a,$);\n#9=IFCWALL('x',$);\n"],
     ['een wand na een lege #', "# #=IFCWALL('x',$);\n#9=IFCWALL('x',$);\n"],
-    ['een wand na ENDSEC; (readIFC stopt daar)', "#1=IFCTASK('1',$);\nENDSEC;\n#9=IFCWALL('x',$);\n"],
+    ['een wand na ENDSEC; (readIFC leest alle DATA-secties)', "#1=IFCTASK('1',$);\nENDSEC;\n#9=IFCWALL('x',$);\n"],
+    ['een wand in een tweede DATA-sectie', "#1=IFCTASK('1',$);\nENDSEC;\nDATA;\n#9=IFCWALL('x',$);\n"],
+    ['een wand in een tweede DATA-sectie met sectiekop',
+      "#1=IFCTASK('1',$);\nENDSEC;\nDATA(('deel 2'),('IFC4'));\n#9=IFCWALL('x',$);\n"],
     ['een wand na endsec; in kleine letters', "endsec;\n#9=IFCWALL('x',$);\n"],
     ['een wand na ENDSEC; in een string', "#1=IFCTASK('ENDSEC;',$);\n#9=IFCWALL('x',$);\n"],
     ['een wand na ENDSE ENDSEC;', "ENDSE ENDSEC;\n#9=IFCWALL('x',$);\n"],
@@ -350,8 +356,13 @@ const OWN = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezi
   }
   // Een paar uitkomsten met de hand vastgelegd (zodat de randen niet alleen "gelijk aan readIFC" zijn).
   eq('rand: de wand binnen een entiteit zonder einde is een model', readOutcome(ifc(edges[0][1])), 'building-model');
-  eq('rand: na ENDSEC; telt niets meer', readOutcome(ifc(edges[4][1])) === 'building-model', false);
-  eq('rand: na commentaar zonder einde telt niets meer', readOutcome(ifc(edges[9][1])) === 'building-model', false);
+  eq('rand: na ENDSEC; telt de wand mee (alle DATA-secties)', readOutcome(ifc(edges[4][1])), 'building-model');
+  for (const name of ['een wand in een tweede DATA-sectie', 'een wand in een tweede DATA-sectie met sectiekop']) {
+    const data = edges.find(e => e[0] === name)![1];
+    eq(`rand: ${name} is een model`, [readOutcome(ifc(data)), scanTargetBytes(ifc(data))], ['building-model', 'model']);
+  }
+  eq('rand: na commentaar zonder einde telt niets meer',
+    readOutcome(ifc(edges.find(e => e[0] === 'een wand na commentaar zonder einde')![1])) === 'building-model', false);
   eq('rand: na terugspoelen telt de string-toestand van het weghalen van commentaar',
     readOutcome(ifc(edges.find(e => e[0].startsWith('een entiteit zonder einde terwijl'))![1])), 'building-model');
   // Kapotte kop met een `DATA;` op codeniveau verderop (de apostrof keert de strings om): `readIFC` leest vanaf dat
@@ -510,6 +521,13 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   eq('verschiltest: genoeg bestanden met en zonder model', [models > samples / 10, samples - models > samples / 10], [true, true]);
   console.log(`..  verschiltest: ${samples} bestanden, ${models} met model; uitkomst van readIFC: `
     + [...outcomes].map(([o, n]) => `${o} ${n}`).join(', ') + (outside > 0 ? ` (${outside} fout na de modelpoort)` : ''));
+}
+
+// ── 11. Meer DATA-secties: het bestand van de sessie IFCX ──────────────────────────────────────────────────────────
+{
+  const bytes = new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc')));
+  eq('fix3-twee-data: readIFC weigert als model (de wand #99999 staat in de tweede DATA-sectie)', readOutcome(bytes), 'building-model');
+  every('fix3-twee-data: de scanner zegt model', bytes, 'model');
 }
 
 // ── 10. De pariteitstabel ──────────────────────────────────────────────────────────────────────────────────────────

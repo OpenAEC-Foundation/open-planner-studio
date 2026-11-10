@@ -27,6 +27,7 @@
 //      Sol's bestand (kapotte kop, `#30=\nIFCWALL(`) als doel: Opslaan als, CSV-export en AutoSave schrijven niet, de
 //      bestaande tekst blijft, A blijft gewijzigd; per route (handle en Tauri-pad, ook met `seek`). Een eigen bestand met
 //      `#900000=IFCWALL(` in commentaar of `#9=IFCWALL(` in een meerregelige string als doel: er komt een write.
+//      Ook `council/fix3-twee-data.ifc` (een wand in de tweede DATA-sectie) als doel: geen write.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -1087,6 +1088,9 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     { name: 'terra-groot', bytes: enc.encode(terraFile(modelText).replace('HEADER;', `HEADER;${longComment}`)), model: true },
     { name: 'commentaar', bytes: enc.encode(commentFile(ownText)), model: false },
     { name: 'string', bytes: enc.encode(stringFile(ownText)), model: false },
+    // Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las de doelcontrole (zoals `readIFC`) maar
+    // tot de eerste `ENDSEC;` en gaf hij "no-model": Opslaan als schreef de planning over het model heen.
+    { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), model: true },
   ];
   const cancelled = { ok: true, warnings: [], cancelled: true };
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.

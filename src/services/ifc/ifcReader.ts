@@ -938,7 +938,6 @@ const CH_LPAREN = 40;  // (
 const CH_RPAREN = 41;  // )
 const CH_SEMI = 59;    // ;
 const CH_EQ = 61;      // =
-const CH_E = 69;       // E
 
 /** Woordteken (`\w`): letters, cijfers, `_`. */
 function isWordCode(c: number): boolean {
@@ -1109,7 +1108,7 @@ function indexOfDataSection(content: string): number {
 // `readEntity` als stroom van bytes; ze moet "model" zeggen precies als `readIFC` met `building-model` weigert. Delen kon
 // niet zonder deze functies om te bouwen tot een stroomlezer (ze werken op de hele tekst, met terugspringen).
 // `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
-// Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, `ENDSEC;`), wijzig ze daar ook.
+// Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, alle DATA-secties), wijzig ze daar ook.
 function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
   // 1. Begin van de datasectie — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee.
@@ -1128,9 +1127,11 @@ function parseSTEP(content: string): StepEntity[] {
   //    notitie of naam met Windows-regeleinden kwam na opslaan en openen anders terug).
   const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length));
 
-  // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`). Het afsluitende `ENDSEC;`
-  //    van de datasectie wordt hier op CODE-niveau herkend — ongevoelig voor `ENDSEC;` in een
-  //    taaknaam. Één pas, geen aparte zoek-pas over de sectie.
+  // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`), tot het einde van de tekst. Één pas, geen
+  //    aparte zoek-pas over de sectie. ISO 10303-21 staat meer DATA-secties toe (`ENDSEC;` gevolgd door een nieuw
+  //    `DATA;` of `DATA(…);`). Daarom stopt de lus NIET bij `ENDSEC;`: een entiteit in een tweede sectie (bijvoorbeeld
+  //    een wand) telt mee, zodat de modelweigering hem ziet en opslaan hem niet stil wist. Tussen de secties en na
+  //    `END-ISO-10303-21;` staat in een geldig bestand geen `#id=TYPE(…);`, dus dat leest niets extra's.
   for (let i = 0; i < clean.length;) {
     const c = clean.charCodeAt(i);
     if (c === CH_QUOTE) { i = skipQuotedOrComment(clean, i); continue; }
@@ -1139,7 +1140,6 @@ function parseSTEP(content: string): StepEntity[] {
       i = next > 0 ? next : i + 1;
       continue;
     }
-    if (c === CH_E && clean.startsWith('ENDSEC;', i)) break;
     i++;
   }
 

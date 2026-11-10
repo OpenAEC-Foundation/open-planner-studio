@@ -3,7 +3,8 @@
 // (`openOpenedFile`). Bewaakt:
 //   1. de flag: in de app altijd uit (`writesNewIfcData`), en met de flag leest de bestandslaag IFC als bytes;
 //   2. zonder flag blijft de modelweigering (knownbug 110);
-//   3. met de flag openen `bonsai-4d` en `eigen-plus-model` met dezelfde planning als de lezer op het eigen deel;
+//   3. met de flag openen `bonsai-4d`, `eigen-plus-model` en `council/fix3-twee-data` (een wand in de tweede DATA-sectie)
+//      met dezelfde planning als de lezer op het eigen deel; zonder flag weigert ook dat laatste;
 //   4. een eigen bestand zonder model: wat Opslaan schrijft is byte-gelijk met en zonder flag;
 //   5. met de flag en een vreemd deel weigeren Opslaan, Opslaan als, de IFC-export en de pool-export, met de melding;
 //   6. de bronbytes en het model zitten niet in de herstelsnapshot, de MCP-backup en de undo-snapshot; het
@@ -122,7 +123,10 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────
 const bonsai = fileBytes(`${FOREIGN}/bonsai-4d.ifc`);
 const eigenPlus = fileBytes(`${FOREIGN}/eigen-plus-model.ifc`);
-for (const [name, bytes] of [['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus]] as const) {
+// Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las `readIFC` maar tot de eerste `ENDSEC;`:
+// zonder flag opende het bestand dan zonder melding, en opslaan wiste de wand.
+const twoData = fileBytes(`${FOREIGN}/council/fix3-twee-data.ifc`);
+for (const [name, bytes] of [['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData]] as const) {
   const off = await open(false, name, bytes);
   ok(`${name} zonder flag: geweigerd`, !opened(off, name));
   ok(`${name} zonder flag: de modelweigering (knownbug 110)`, String(off.getState().ui.notifications[0]?.detail ?? '').includes('building model'));

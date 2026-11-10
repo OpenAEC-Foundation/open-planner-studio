@@ -41,6 +41,18 @@ async function main(): Promise<void> {
   eq('gewone planning opent', readIFC(planning).tasks.length, 1);
   eq('geen tekstmatch in commentaar', readIFC(add('/* #900001=IFCWALL($); */')).tasks.length, 1);
   eq('geen tekstmatch in propertywaarde', readIFC(add("#900001=IFCPROPERTYSINGLEVALUE('test',$,IFCTEXT('#9=IFCWALL($);'),$);")).tasks.length, 1);
+  // Meer DATA-secties (ISO 10303-21): een wand in een tweede sectie telt mee. Vóór deze fix stopte de lezer bij de eerste
+  // `ENDSEC;`: zo'n bestand opende zonder melding, en opslaan wiste de wand.
+  const second = (record: string) => planning.replace(/ENDSEC;(\s*END-ISO-10303-21;)/, `ENDSEC;\nDATA;\n${record}\nENDSEC;$1`);
+  eq('weigert een wand in een tweede DATA-sectie', rejected(second("#900001=IFCWALL('x',$);")), true);
+  eq('weigert een wand in een tweede DATA-sectie met sectiekop',
+    rejected(second("#900001=IFCWALL('x',$);").replace(/\nDATA;\n#900001/, "\nDATA(('deel 2'),('IFC4X3_ADD2'));\n#900001")), true);
+  eq('een tweede DATA-sectie zonder model opent', readIFC(second("#900001=IFCPROPERTYSINGLEVALUE('x',$,IFCTEXT('y'),$);")).tasks.length, 1);
+  let twoDataReason: string | undefined;
+  try {
+    await parseOpenedFile({ name: 'fix3-twee-data.ifc', text: readFileSync(resolve('tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8') });
+  } catch (error) { twoDataReason = error instanceof IfcParseError ? error.reason : 'andere fout'; }
+  eq('fix3-twee-data (wand in de tweede DATA-sectie): de open-pijplijn zonder flag weigert', twoDataReason, 'building-model');
   // De echte opgeslagen voorbeelden bewaken context, taken, resources, kalenders en lege modellen.
   for (const file of readdirSync(resolve('public/examples')).filter(f => f.endsWith('.ifc'))) {
     const content = readFileSync(resolve('public/examples', file), 'utf8');

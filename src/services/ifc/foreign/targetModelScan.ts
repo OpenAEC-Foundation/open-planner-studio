@@ -12,7 +12,8 @@
 //     het bestand opnieuw vanaf het eerste regel-verankerde `DATA;` (de tweede lezing);
 //  3. na `DATA;`: commentaar weg, zoals `stripStepComments`;
 //  4. de lus van `parseSTEP` met `readEntity`: op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen
-//     (`#id = TYPE (…) ;`, met haakjes op diepte, strings en commentaar in de argumenten), bij `ENDSEC;` stoppen.
+//     (`#id = TYPE (…) ;`, met haakjes op diepte, strings en commentaar in de argumenten), tot het einde van het
+//     bestand: `parseSTEP` leest alle DATA-secties (ISO 10303-21 staat er meer toe), dus ook na `ENDSEC;`.
 //     Mislukt een entiteit, dan leest `readIFC` verder vanaf het teken na de `#`; deze lezer spoelt daarvoor terug
 //     (uit het geheugen, of door de bron opnieuw te lezen vanaf die positie).
 // Stap 3 en 4 zijn een tweede vorm van de regels in `ifcReader.ts` (`stripStepComments`, `parseSTEP`, `readEntity`):
@@ -22,7 +23,7 @@
 //
 // De uitkomst en wat hij betekent (fixronde 3: een scan zonder uitkomst is geen vrijbrief):
 //  - 'model': een entiteit met een modeltype op de route van `readIFC`. Niet schrijven.
-//  - 'no-model': de lezer las het HELE bestand (ook na `ENDSEC;`) zonder modelentiteit. Schrijven mag.
+//  - 'no-model': de lezer las het HELE bestand (alle DATA-secties) zonder modelentiteit. Schrijven mag.
 //  - 'not-ifc': het bestand begint niet met `ISO-10303-21;` (CSV, XML, JSON, een leeg bestand). Schrijven mag.
 // Een andere uitkomst bestaat niet: 'no-model' komt alleen aan het einde van het bestand. Stopt het lezen vóór het einde
 // (een leesfout), dan is er geen uitkomst; de aanroeper telt dat als "niet leesbaar".
@@ -68,9 +69,6 @@ const HEADER = Array.from(STEP_HEADER, c => c.charCodeAt(0));
 const HEAD_PROBE = 64;
 /** Zoveel bytes van een type houdt de lezer vast; elk modeltype is korter. */
 const TYPE_MAX = 96;
-/** `ENDSEC;` (hoofdlettergevoelig, zoals `parseSTEP`), met de KMP-tabel: na `ENDSE` past alleen `E` opnieuw. */
-const ENDSEC = [0x45, 0x4e, 0x44, 0x53, 0x45, 0x43, 0x3b];
-const ENDSEC_FAIL = [0, 0, 0, 0, 1, 0, 0];
 /** Zoveel houdt de lezer vast voor terugspoelen; daarboven leest hij de bron opnieuw vanaf die positie. */
 const RETAIN_BYTES = 16 << 20;
 const RETAIN_CHUNKS = 4096;
@@ -80,12 +78,11 @@ ARG_PLAIN[QUOTE] = 0;
 ARG_PLAIN[SLASH] = 0;
 ARG_PLAIN[OPEN] = 0;
 ARG_PLAIN[CLOSE] = 0;
-/** Bytes die tussen entiteiten niets doen, zolang er geen deel van `ENDSEC;` loopt (alleen `'`, `/`, `#` en `E` tellen). */
+/** Bytes die tussen entiteiten niets doen (alleen `'`, `/` en `#` tellen). */
 const CODE_PLAIN = new Uint8Array(256).fill(1);
 CODE_PLAIN[QUOTE] = 0;
 CODE_PLAIN[SLASH] = 0;
 CODE_PLAIN[HASH] = 0;
-CODE_PLAIN[0x45] = 0; // E
 /** `isWordCode` als tabel. */
 const WORD = new Uint8Array(256);
 for (let b = 0; b < 256; b++) {
@@ -124,7 +121,7 @@ const enum First { Space, Slash, Comment, CommentStar, Keyword, Done }
 /** Commentaar weghalen (`stripStepComments`). */
 const enum Strip { Code, Slash, Str, StrQuote, Comment, CommentStar }
 /** De lus van `parseSTEP`. */
-const enum Loop { Code, Str, StrQuote, Entity, Done }
+const enum Loop { Code, Str, StrQuote, Entity }
 /** `readEntity`. */
 const enum Ent { Id0, Id, SpaceId, Eq, Type, SpaceType, Args, ArgStr, ArgStrQuote, ArgSlash, ArgComment, ArgCommentStar, End }
 
@@ -164,7 +161,6 @@ export class TargetModelScanner {
   private strip = Strip.Code;
   private slashAt = 0;
   private loop = Loop.Code;
-  private endsec = 0;
   private ent = Ent.Id0;
   private entAt = 0;
   private entStrip = Strip.Code;
@@ -436,7 +432,6 @@ export class TargetModelScanner {
     this.phase = Phase.Data;
     this.strip = Strip.Code;
     this.loop = Loop.Code;
-    this.endsec = 0;
   }
 
   /** Alles gelezen (vanaf de laatste positie). `true` = er is verder te lezen (terugspoelen, de tweede lezing). */
@@ -520,7 +515,7 @@ export class TargetModelScanner {
           this.typeLength = length;
           if (i === n) break;
         }
-      } else if (this.strip === Strip.Code && this.loop === Loop.Code && this.endsec === 0) {
+      } else if (this.strip === Strip.Code && this.loop === Loop.Code) {
         while (i < n && CODE_PLAIN[chunk[i]] === 1) i++;
         if (i === n) break;
       } else if (this.strip === Strip.Str
@@ -541,9 +536,6 @@ export class TargetModelScanner {
         const j = chunk.indexOf(STAR, i);
         if (j < 0) { i = n; break; }
         i = j;
-      } else if (this.loop === Loop.Done) {
-        i = n; // na `ENDSEC;` leest `readIFC` niets meer; deze lezer leest het bestand wel uit
-        break;
       }
       this.dataByte(chunk[i], base + i);
       i++;
@@ -600,18 +592,11 @@ export class TargetModelScanner {
         if (u === QUOTE) { this.loop = Loop.Str; return; }
         this.loop = Loop.Code;
         break;
-      case Loop.Done:
-        return;
       case Loop.Code:
         break;
     }
-    if (u === QUOTE) { this.endsec = 0; this.loop = Loop.Str; return; }
-    if (u === HASH) { this.endsec = 0; this.startEntity(at); return; }
-    let k = this.endsec;
-    while (k > 0 && u !== ENDSEC[k]) k = ENDSEC_FAIL[k - 1];
-    if (u === ENDSEC[k]) k++;
-    if (k === ENDSEC.length) { this.loop = Loop.Done; k = 0; }
-    this.endsec = k;
+    if (u === QUOTE) { this.loop = Loop.Str; return; }
+    if (u === HASH) this.startEntity(at);
   }
 
   private startEntity(at: number): void {
@@ -745,14 +730,12 @@ export class TargetModelScanner {
   private entityDone(): void {
     if (isModelType(this.type, this.typeLength, this.typeHash)) { this.found(); return; }
     this.loop = Loop.Code;
-    this.endsec = 0;
   }
 
   /** `readEntity` geeft -1: `parseSTEP` gaat verder op het teken na de `#`, in de toestand van toen. */
   private entityFailed(): void {
     this.strip = this.entStrip;
     this.loop = Loop.Code;
-    this.endsec = 0;
     this.complex = false;
     this.moveTo(this.entAt + 1);
   }
