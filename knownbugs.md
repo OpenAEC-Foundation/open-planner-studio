@@ -2819,11 +2819,13 @@ en noem het in je rapport of PR-tekst.
      openen herstelt het. Code-review ronde 6 van #847 (GPT-6.1-Sol): bevestigd met een taalfixture. Voorstel: reken
      de plaats opnieuw uit (of zet het venster terug) als `dir` verandert. — B
 
-1064. **VERVOLG: de regressiestap voor schuifjes bij geforceerde kleuren meet de breedte van de focusrand niet.**
-     `tests/browser/auto-calc-after-edit.spec.ts:80` controleert alleen dat `outlineStyle` niet `none` is. Met een
-     tijdelijke regel die de focusrand 0 px breed maakt, blijft de stap groen. De huidige focusrand is wel zichtbaar
-     (1 px). Code-review ronde 7 van #847 (GPT-6.1-Sol). Voorstel: controleer in dezelfde stap ook een positieve
-     `outlineWidth`. — B
+1064. **VERVOLG: de regressiestap voor schuifjes bij geforceerde kleuren meet de zichtbaarheid maar half.**
+     `tests/browser/auto-calc-after-edit.spec.ts:80` controleert alleen `appearance` en dat `outlineStyle` niet `none`
+     is. Met een tijdelijke regel die de focusrand 0 px breed maakt, blijft de stap groen. De stap meet ook niet of de
+     schuif zichtbaar is, of hij de focus echt heeft en of Pijl Links de waarde verandert. In de app zelf zijn baan,
+     knop en focusrand (1 px) wel zichtbaar. Code-review ronde 7 van #847 (GPT-6.1-Sol en GPT-6.1-Terra). Voorstel:
+     controleer in dezelfde stap een positieve `outlineWidth`, `toBeFocused()`, `toBeVisible()` en de
+     waardeverandering. — B
 
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
