@@ -656,6 +656,22 @@ const SEARCH: readonly { label: string; bytes: Uint8Array; kind: string; detail:
     bytes: showcaseWithWall('#1572=', "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask,IfcProcedure',(#1569,#1570,#1571));") },
   { label: 'IfcPropertyEnumeration: Unit', kind: 'constant-slot', detail: /^IFCPROPERTYENUMERATION #1573, argument 2/,
     bytes: showcaseWithWall('#1573=', "#1573=IFCPROPERTYENUMERATION('Tower',(IFCLABEL('A'),IFCLABEL('B'),IFCLABEL('C'),IFCLABEL('GEN')),#7);") },
+  { label: 'IfcPropertyEnumeratedValue: Description', kind: 'constant-slot', detail: /^IFCPROPERTYENUMERATEDVALUE #1579, argument 1/,
+    bytes: showcaseWithWall('#1579=', "#1579=IFCPROPERTYENUMERATEDVALUE('Tower',IFCTEXT('Uitleg van een ander'),(IFCLABEL('GEN')),$);") },
+  { label: 'IfcRelDeclares: Name', kind: 'constant-slot', detail: /^IFCRELDECLARES #1578, argument 2/,
+    bytes: showcaseWithWall('#1578=', "#1578=IFCRELDECLARES('0a64cPJBj3TA5$K6E0K85k',#6,'Templates',$,#13,(#1572,#1577));") },
+  { label: 'IfcRelAssignsToControl: Name', kind: 'constant-slot', detail: /^IFCRELASSIGNSTOCONTROL #174, argument 2/,
+    bytes: enc.encode(replaceLine(eigen, '#174=', "#174=IFCRELASSIGNSTOCONTROL('3zl3akoXTe88uDKhkyNOSy',#6,'Schema',$,(#47,#49,#51,#53,#55,#57,#59,#61,#63,#65,#67,#69,#71,#73,#75,#77,#79,#81,#83,#85),$,#43);")) },
+  { label: 'IfcRelDefinesByProperties: Name', kind: 'constant-slot', detail: /^IFCRELDEFINESBYPROPERTIES #261, argument 2/,
+    bytes: enc.encode(replaceLine(eigen, '#261=', "#261=IFCRELDEFINESBYPROPERTIES('3UIq0yU221UujFF9jqIDdV',#6,'Analyse',$,(#47),#260);")) },
+  { label: 'IfcOrganization: Identification', kind: 'constant-slot', detail: /^IFCORGANIZATION #2, argument 0/,
+    bytes: enc.encode(replaceLine(r4, '#2=', "#2=IFCORGANIZATION('KvK 123',$,$,$,$);")) },
+  { label: 'IfcSIUnit: Prefix', kind: 'constant-slot', detail: /^IFCSIUNIT #7, argument 2/,
+    bytes: enc.encode(replaceLine(r4, '#7=', '#7=IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);')) },
+  { label: 'IfcCartesianPoint van de context: Coordinates', kind: 'constant-slot', detail: /^IFCCARTESIANPOINT #10, argument 0/,
+    bytes: enc.encode(replaceLine(r4, '#10=', '#10=IFCCARTESIANPOINT((1.,0.,0.));')) },
+  { label: 'IfcAxis2Placement3D van de context: RefDirection', kind: 'constant-slot', detail: /^IFCAXIS2PLACEMENT3D #11, argument 2/,
+    bytes: enc.encode(withLines(replaceLine(r4, '#11=', '#11=IFCAXIS2PLACEMENT3D(#10,$,#9002);'), ['#9002=IFCDIRECTION((1.,0.,0.));'])) },
 ];
 // Zonder wijziging schrijft de merge elk van deze bestanden (de proef meet dus alleen de ene waarde).
 await roundTrip('zoektocht: eigen-plus-model zonder wijziging', enc.encode(eigen));
