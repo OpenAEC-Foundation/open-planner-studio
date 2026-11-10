@@ -1955,6 +1955,28 @@ en noem het in je rapport of PR-tekst.
      in de vorm van de writer schrijven, of de kalender niet letterlijk maken en de breuk in de oude vorm schrijven. Uit
      #867 (fase 1b, fixronde 7). — B
 
+1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
+     van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
+     grammatica, dus de route met de bronbytes leest het niet, en de oude route weigert het model (knownbug 110,
+     `building-model`). Zonder model opent het en slaat het op zoals op main. Proef: de telling
+     (`check-ifc-foreign-merge-telling.ts`, `REFUSED_AT_OPEN`) met
+     `tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc` plus een wand. Een
+     programma dat een model toevoegt, schrijft meestal een eigen kop; dan speelt dit niet. Uit #867 (fase 1b, fixronde
+     7, na de merge met main). — B
+
+1104. **VERVOLG: een taak wissen in een eigen bestand van v2026.7.4 tot v2026.7.14 met een baseline en een model, laat de
+     merge weigeren.** Die versies schreven de taken in `OPS_Baselines` met hun interne id, zonder `TaskGuids` (die kwam
+     in `69da76cd5`, v2026.7.14). De lezer zoekt de taak dan via de hash van dat id. De merge zet de bron-JSON terug ((b)),
+     want de planner wijzigde de baseline niet. Wist de planner een taak die in de baseline staat, dan vindt de lezer haar
+     niet meer, en houdt die regel van de baseline het oude interne id; zonder (b) houdt hij het id uit het domein. Na
+     herlezen verschilt alleen het id van die losse regel, maar de merge weigert dan (`niet-gedragen`, "zouden na
+     herlezen een andere planning geven (baselines)"). Proef: de telling, `oude-tags/v2026.7.12-data-…` plus een wand,
+     `taak-wissen` 3 van 3 geweigerd; zonder bewerking schrijft hij. Bestanden met `TaskGuids` (v2026.7.14 en later)
+     wissen wel (`eigen-plus-model.ifc`, 20 van 20). Richting: in de herleestoets een regel van een baseline zonder taak
+     vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Open
+     vraag aan Trias: mag de merge hier weigeren (de planner wijzigde de baseline niet zelf)? Uit #867 (fase 1b, fixronde
+     7, na de merge met main). — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een

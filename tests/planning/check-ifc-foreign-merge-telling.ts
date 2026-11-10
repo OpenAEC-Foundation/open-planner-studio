@@ -83,7 +83,12 @@ let merges = 0;
 
 /** Bestanden die al bij openen geweigerd worden, met de reden (VERVOLG van Terra, fixronde 1 van #867): IFC2X3 valt
  *  buiten de bytes-route, en de huidige route weigert een model (knownbug 110). Elke andere fout bij openen is rood. */
-const REFUSED_AT_OPEN: Readonly<Record<string, IfcParseErrorReason>> = { 'model-ifc2x3.ifc': 'building-model' };
+const REFUSED_AT_OPEN: Readonly<Record<string, IfcParseErrorReason>> = {
+  'model-ifc2x3.ifc': 'building-model',
+  // De kop van v2026.7.12 breekt de grammatica (een rauwe apostrof in FILE_NAME); met de wand erbij weigert de oude route
+  // het model. Zonder wand opent het (knownbug 1103).
+  [`${OLD_OWN}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`]: 'building-model',
+};
 const refusedAtOpen: string[] = [];
 
 /** Zonder bewerking, per eigen bestand: de meldingen `niet-gedragen`. */
@@ -114,7 +119,7 @@ for (const file of files) {
     }
   } catch (e) {
     const want = REFUSED_AT_OPEN[file];
-    if (want !== undefined && e instanceof IfcParseError && e.reason === want) { refusedAtOpen.push(file); continue; }
+    if (want !== undefined && e instanceof IfcParseError && e.reason === want) { refusedAtOpen.push(shown); continue; }
     others.push(`${shown} · openen: ${e instanceof IfcParseError ? `IfcParseError ${e.reason}` : (e as Error).message.slice(0, 160)}`);
     continue;
   }

@@ -279,6 +279,10 @@ export interface WriterMergeIds {
    *  `LiteralTimes` (de vorm van OPS vóór het minutenmodel bij een urentaak: blokken plus `IsHourCalendar .F.`): de writer
    *  schrijft die blokken weer, zonder de kalender letterlijk te maken (fixronde 7 van #867, bevinding 6). */
   readonly sourceBandCalendarIds?: ReadonlySet<string>;
+  /** Baseline-id → GlobalId van zijn kop in de bron, als dat niet de huidige vorm heeft: OPS tot en met v2026.9.x hashte
+   *  de kop zonder zout (`ifcGuid('baseline_ws_' + id)`). De writer geeft de kop dat GlobalId terug (bronslot), zodat hij
+   *  via `baselineHeads` ook zijn id houdt (fixronde 7 van #867). */
+  readonly sourceBaselineHeadGuids?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -462,6 +466,7 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
   });
   const { tasks, baselines } = writeView;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
+  for (const [baselineId, guid] of merge?.sourceBaselineHeadGuids ?? []) preservedGuids.set('baseline_ws_' + baselineId, guid);
   const ctx: WriteContext = {
     literalCalendarIds: writeView.literalCalendarIds, milestonesAtDayEnd: writeView.atDayEnd,
     lines: [], nextId: merge?.firstId ?? 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),

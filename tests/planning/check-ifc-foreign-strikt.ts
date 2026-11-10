@@ -17,6 +17,9 @@ import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
+import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { IfcParseError } from '@/services/ifc/ifcErrors';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installDeterminism();
@@ -175,6 +178,27 @@ await proof('plek 2', 'fix3: wissen + elke andere taak een veld in `time` zonder
 // Zonder de wissing schrijven dezelfde bewerkingen ook.
 await proof('plek 3', 'fix3: elke taak hernoemd (zonder wissen)', fix3, 'schrijft', (x) => { for (const t of x.tasks) t.name = `${t.name} *`; });
 await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x) => { x.project.name = 'Andere naam'; });
+
+// ── fix3 als doel (na de merge met main, #870 en #881) ──
+// De wand #99999 staat in de tweede DATA-sectie. De doelcontrole zegt 'model', en openen zonder de flag weigert
+// (`building-model`); dan kan Opslaan als het model niet overschrijven. Hetzelfde geldt voor de uitvoer van de merge: die
+// houdt de wand, dus ook over die uitvoer schrijft de gewone route niet.
+{
+  const openRefusal = (bytes: Uint8Array) => {
+    try { readIFC(text(bytes)); return 'opent'; } catch (e) { return e instanceof IfcParseError ? e.reason : String(e); }
+  };
+  const raw = read('tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc');
+  ok(`fix3 als doel: de doelcontrole zegt ${scanTargetBytes(raw)}, verwacht model`, scanTargetBytes(raw) === 'model');
+  ok(`fix3: openen zonder de flag geeft ${openRefusal(raw)}, verwacht building-model`, openRefusal(raw) === 'building-model');
+  for (const [label, edit] of [['zonder bewerking', undefined], ['projectnaam', (x: Domain) => { x.project.name = 'Andere naam'; }]] as const) {
+    await proof('doel', `fix3: merge ${label}, de uitvoer als doel`, fix3, 'schrijft', edit, (out) => {
+      if (!text(out).includes("=IFCWALL('0wall00000000000000000',")) return 'de wand is weg';
+      if (scanTargetBytes(out) !== 'model') return `de doelcontrole zegt ${scanTargetBytes(out)}, verwacht model`;
+      if (openRefusal(out) !== 'building-model') return `openen zonder de flag geeft ${openRefusal(out)}, verwacht building-model`;
+      return undefined;
+    });
+  }
+}
 
 // ── B2: een duur met dagen vóór T (knownbug 1027, opgelost met #871), en een duur met weken (knownbug 1028) ──
 // Sinds #871 (`9ee06bb71`) leest de lezer de dagen vóór `T` mee, met de minuten per dag van de taak: `P2DT12H` is bij 8 uur

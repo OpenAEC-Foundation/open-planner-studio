@@ -12,13 +12,16 @@
 //  - BLOKKEERT 2: resources met 9 argumenten (OPS tot `4f5008614`, was knownbug 1024);
 //  - BLOKKEERT 3: een werktijd als uurbreuk (`'7.5:00:00'`, OPS tot `32b6222de`);
 //  - BLOKKEERT 4: dagen met 17 cijfers en met een exponent (OPS tot `b738a5096`), per slot;
-//  - bevinding 6: een urentaak van vóór `LiteralTimes` (v2026.7.7, v2026.9.0 en v2026.43.0).
+//  - bevinding 6: een urentaak van vóór `LiteralTimes` (v2026.7.7, v2026.9.0 en v2026.43.0);
+//  - na de merge met main: de bestanden van v2026.7.12 (de baselinekop houdt het GlobalId van de bron; knownbug 1103 en
+//    1104).
 // Of elk eigen bestand zonder bewerking schrijft, telt `check-ifc-foreign-merge-telling.ts` (per bestand).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { cloneDomain, mergeProblems, openForeign, settle, tryMerge, type Domain, type Opened } from './ifcMergeKern';
+import { cloneDomain, mergeProblems, openForeign, plannerEdits, settle, tryMerge, type Domain, type Opened } from './ifcMergeKern';
+import { IfcParseError } from '@/services/ifc/ifcErrors';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installDeterminism();
@@ -277,6 +280,27 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     const t = hourTask(d) as unknown as Record<string, unknown>;
     for (const k of Object.keys(t)) if (typeof t[k] === 'string' && (t[k] as string).startsWith('2027-03-01T')) t[k] = (t[k] as string).replace('2027-03-01', '2027-03-02');
   }, both(calendar, has("'2027-03-02T07:00:00','2027-03-02T11:00:00'")));
+}
+
+// ── Na de merge met main: v2026.7.12 ──
+// OPS tot en met v2026.9.x gaf de kop van een baseline het GlobalId `ifcGuid('baseline_ws_' + id)`, zonder zout. De writer
+// geeft die kop het GlobalId van de bron terug (`sourceBaselineHeadGuids`); anders weigerde het bestand zonder bewerking.
+{
+  const src = walled(`${OLD}/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc`);
+  const head = has("=IFCWORKSCHEDULE('fZpd3PzHHVE7QnlVVp6Jo9',");
+  await proof('v2026.7.12', 'data, zonder bewerking (de baselinekop houdt zijn GlobalId)', src, 'schrijft', undefined, head);
+  await proof('v2026.7.12', 'data, een taak hernoemd', src, 'schrijft', (d) => { leaves(d)[1].name = 'Hernoemd'; }, head);
+  // Knownbug 1104: een taak uit de baseline wissen weigert nog (de bron-JSON heeft het interne id, zonder `TaskGuids`).
+  await proof('v2026.7.12', 'data, een taak uit de baseline gewist (knownbug 1104)', src, 'niet-gedragen', (d, o) => {
+    plannerEdits(o, 1).find(e => e.kind === 'taak-wissen')!.apply(d);
+  });
+  // Knownbug 1103: de kop breekt de grammatica; met de wand erbij weigert de oude route het model.
+  const ohara = readText(`${OLD}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`);
+  ok('v2026.7.12: ohara zonder wand opent', await openForeign(latin1(ohara)).then(() => true, () => false));
+  const refused = await openForeign(latin1(walled(`${OLD}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`)))
+    .then(() => 'opent', (e: unknown) => (e instanceof IfcParseError ? e.reason : String(e)));
+  ok(`v2026.7.12: ohara met wand weigert bij openen (building-model), kreeg ${refused}`, refused === 'building-model');
+  rows.push(`| v2026.7.12 · ohara met wand, openen (knownbug 1103) | ${refused === 'building-model' ? 'weigert (building-model)' : refused} |`);
 }
 
 console.log('| proef | uitkomst |');

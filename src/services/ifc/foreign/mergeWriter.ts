@@ -36,7 +36,7 @@
  *
  * Fase 1b: alleen tests gebruiken deze writer. Opslaan met een vreemd deel blijft geweigerd tot 1c.
  */
-import { writeIFC, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
+import { ifcGuid, writeIFC, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
@@ -329,6 +329,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     const written = writeIfcMergeLines(input, {
       ...plan, sourceTaskTimes: sourceTaskTimes(pristine, input, index, source), sourceDayLagIds: sourceDayLagIds(pristine, input, index, source),
       sourceBandCalendarIds: sourceBandCalendarIds(pristine, input, index, source),
+      sourceBaselineHeadGuids: legacyBaselineHeadGuids(input, baselineHeads),
     });
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
@@ -922,6 +923,20 @@ function sourceDayLagIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
  * van v2026.7.7 tot en met v2026.43.0 de kalender van een urentaak (fixronde 7 van #867, bevinding 6). Schrijft de writer
  * daar andere blokken dan de bron, dan weigert de verliesbewaking nog steeds.
  */
+/**
+ * De baselines waarvan de kop in de bron het GlobalId van OPS tot en met v2026.9.x heeft (`ifcGuid('baseline_ws_' + id)`,
+ * zonder zout; het zout kwam in `0768132bb`). De huidige writer hasht met het project-id als zout; zonder deze lijst kreeg
+ * de kop een ander GlobalId en weigerde de merge een ongewijzigd eigen bestand (fixronde 7 van #867, v2026.7.12).
+ */
+function legacyBaselineHeadGuids(domain: WriteIFCInput, baselineHeads: ReadonlyMap<string, number>): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const b of domain.baselines ?? []) {
+    const guid = ifcGuid('baseline_ws_' + b.id);
+    if (baselineHeads.has(guid)) out.set(b.id, guid);
+  }
+  return out;
+}
+
 function sourceBandCalendarIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlySet<string> {
   const before = new Map([pristine.calendar, ...(pristine.resourceCalendars ?? [])].map(c => [c.id, c]));
   const out = new Set<string>();
