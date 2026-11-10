@@ -3,7 +3,7 @@
 // - `openForeign`: een bestand openen zoals de app met de flag: een eigen store-context (`appStoreFactory.ts`, zoals de
 //   headless kern), `openOpenedFile` met de bytes, en dan het domein zoals Opslaan het aan de writer geeft
 //   (`buildWriteIFCInput`) plus `ifcSource`. Dat is de toestand die 1c de merge geeft: na de lezer, de omzetting naar het
-//   minutenmodel en de herberekening bij openen (vervolg-PR van #867, knownbug 1105). `openForeignRaw` is de oude
+//   minutenmodel en de herberekening bij openen (vervolg-PR van #867, #886). `openForeignRaw` is de oude
 //   testroute (de lezer direct), alleen nog voor de vergelijking in de telling.
 // - `mergeProblems`: de invarianten van de merge-writer op uitvoer tegen bron (ontwerp §4.10, de eerste drie alinea's):
 //   kop en staart byte-gelijk; elk niet-P-stuk met hetzelfde `#id`, dezelfde bytes en in dezelfde volgorde; geen ander
@@ -67,7 +67,7 @@ function loadStore(): Promise<StoreModules> {
 }
 
 /**
- * Openen zoals Bestand → Openen met de flag (knownbug 1105): een verse store, de flag aan, `openOpenedFile` met de bytes
+ * Openen zoals Bestand → Openen met de flag (#886): een verse store, de flag aan, `openOpenedFile` met de bytes
  * (de bytes-route; zonder `Worker` in Node valt hij terug op de scan in dezelfde draad), en dan wat Opslaan aan de writer
  * geeft (`buildWriteIFCInput`) met `ifcSource` erbij. Weigert de app het bestand, dan gooit dit de fout die
  * `openOpenedFile` meldde (die vangt hij zelf en meldt hem via het meldingenkanaal en `console.error`).
@@ -103,7 +103,7 @@ export function reopenPlain(d: Domain): Promise<Opened> {
  * De planning die de planner zag, zoals de app haar na openen laat zien: het domein zelf, zonder writer of lezer ertussen,
  * geopend in een eigen store (`openAsDocument`: de omzetting naar het minutenmodel, die op een domein van de app niets meer
  * omzet, en de herberekening bij openen). Een merge die schrijft, moet na heropenen via de app precies dit geven
- * (vervolg-PR van #867, knownbug 1105).
+ * (vervolg-PR van #867, #886).
  */
 export async function shownAfterOpen(d: Domain): Promise<Opened> {
   const { store, buildWriteIFCInput } = await storeWith(d);
@@ -264,7 +264,7 @@ export function doubleMemberships(bytes: Uint8Array): string[] {
  *  zonder taak zonder haar id. */
 export function canon(d: Domain, reseed: (seed: number) => void): string {
   reseed(0x1b04);
-  // Een baselineregel zonder taak telt zonder haar id (knownbug 1104, `orphanRowsWithoutId`).
+  // Een baselineregel zonder taak telt zonder haar id (#886, `orphanRowsWithoutId`).
   return writeIFC(orphanRowsWithoutId(d));
 }
 

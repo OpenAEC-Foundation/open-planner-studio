@@ -105,10 +105,10 @@ export type MergePhase2Kind =
    *  (`id-te-groot`). */
   | 'id-te-groot'
   /** Een veld dat alleen de omzetting naar het minutenmodel bij openen veranderde, schrijft de merge in de vorm van de bron
-   *  (`sourceForm.ts`, knownbug 1105). Na herlezen en dezelfde omzetting geeft het dan een andere waarde dan de planner
+   *  (`sourceForm.ts`, #886). Na herlezen en dezelfde omzetting geeft het dan een andere waarde dan de planner
    *  zag: de omzetting hangt af van een veld dat de planner wel wijzigde. */
   | 'bronvorm-leest-anders'
-  /** Vóór een eigen stuk (P) staat tekst buiten zijn tokens (commentaar) met een `#` en cijfers (knownbug 1106). De scanner
+  /** Vóór een eigen stuk (P) staat tekst buiten zijn tokens (commentaar) met een `#` en cijfers (#886). De scanner
    *  hangt commentaar aan het volgende stuk; volgens de norm (stuurtekens vallen overal weg, ook in `*⏎/`) kan daarin een
    *  stuk staan. De merge schrijft een P-stuk opnieuw, zonder dat commentaar: zo'n stuk ging dan verloren, en een
    *  verwijzing van een ander stuk ernaar wees daarna naar niets. */
@@ -331,7 +331,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
-  // Een verstopt stuk vóór een P-stuk (knownbug 1106): het commentaar ervóór gaat met het P-stuk weg.
+  // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i) || !isP(i)) continue;
     const hidden = highestHashNumber(source.bytes, index.start(i), index.entityStart(i));
@@ -653,7 +653,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   const scan = foreignScanFrom(index, cls, source.bytes);
   const pristine = await pristineFromScan(scan, source.bytes);
   // "De planner wijzigde dit veld" betekent: het wijkt af van wat de app na het openen liet zien (`source.opened`), niet van
-  // de lezing van de bron (knownbug 1105). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
+  // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   const form = sourceFormWhereUnchanged(input, source.opened, pristine);
   const domain = form.input;
@@ -725,7 +725,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     }
   }
 
-  // De herleestoets van de vorm van de bron (knownbug 1105): wat de omzetting bij openen maakte, moet na herlezen en
+  // De herleestoets van de vorm van de bron (#886): wat de omzetting bij openen maakte, moet na herlezen en
   // dezelfde omzetting weer geven wat de planner zag.
   if (cases.length === 0 && form.checked.length > 0) {
     const problems = sourceFormProblems(form.checked, input, await read(lines.filter(l => !l.drop).map(l => l.text)));

@@ -116,7 +116,9 @@ for (const want of fixture.bestanden.filter(b => b.filePath === null && b.pad !=
 }
 // Fixronde 1 van #867: twee eigen voorbeelden met `ProjectName` in OPS_ProjectSettings erbij (34 in plaats van 32).
 // Fixronde 6: een eigen voorbeeld met `P2DT12H` erbij (`fixtures/duur-dagen-en-tijd/`, 35).
-eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [35, 6, 1]);
+// Vervolg-PR van #867 (#886): de 11 bestanden uit `fixtures/oude-tags/` en de villa met `AnchorsFromOpenDocuments`
+// (`fixtures/ankers-uit-open-documenten/`) erbij, 47.
+eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [47, 6, 1]);
 
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ifc-foreign-pariteit: ${d}`);

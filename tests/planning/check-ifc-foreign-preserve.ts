@@ -1171,7 +1171,7 @@ async function lossSetup(bytes: Uint8Array) {
   const run = (lines0: OutLine[], lines1: OutLine[], edit: (d: Domain) => void, ownerOut: number | undefined = owner) => {
     const edited = cloneDomain(opened);
     edit(edited);
-    // Zoals de merge: wat alleen het openen veranderde, in de vorm van de bron (`sourceForm.ts`, knownbug 1105).
+    // Zoals de merge: wat alleen het openen veranderde, in de vorm van de bron (`sourceForm.ts`, #886).
     const domain = sourceFormWhereUnchanged(edited, source.opened, pristine).input;
     const found: string[] = [];
     const { edits } = lossCheck({

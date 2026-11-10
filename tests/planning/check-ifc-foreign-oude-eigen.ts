@@ -21,8 +21,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { cloneDomain, mergeProblems, openForeign, plannerEdits, settle, shownAfterOpen, tryMerge, type Domain, type Opened } from './ifcMergeKern';
+import {
+  cloneDomain, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, settle, shownAfterOpen, tryMerge, type Domain,
+  type EditKind, type Opened,
+} from './ifcMergeKern';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { writeIFC } from '@/services/ifc/ifcWriter';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installDeterminism();
@@ -83,11 +87,17 @@ function sameAs(d: Opened, back: Opened): string | undefined {
       if (JSON.stringify(want) !== JSON.stringify(got)) out.push(`${t.name}.${k}: ${JSON.stringify(want)} → ${JSON.stringify(got)}`);
     }
   }
+  // Op id, en anders op voorganger en opvolger: een nieuwe relatie krijgt bij heropenen het id van de lezer.
+  const SEQ_FIELDS = ['lagDays', 'lagMinutes', 'lagPercent', 'lagUnit', 'type'] as const;
   const seqs = new Map(back.sequences.map(q => [q.id, q]));
+  const fresh = d.sequences.filter(q => !seqs.has(q.id));
+  const unclaimed = back.sequences.filter(b => !d.sequences.some(q => q.id === b.id));
   for (const q of d.sequences) {
-    const b = seqs.get(q.id);
-    if (!b) { out.push(`relatie ${q.id} ontbreekt`); continue; }
-    for (const k of ['lagDays', 'lagMinutes', 'lagPercent', 'lagUnit', 'type'] as const) {
+    const at = fresh.includes(q) ? unclaimed.findIndex(b => b.predecessorId === q.predecessorId && b.successorId === q.successorId
+      && SEQ_FIELDS.every(k => JSON.stringify(q[k]) === JSON.stringify(b[k]))) : -1;
+    const b = seqs.get(q.id) ?? (at >= 0 ? unclaimed.splice(at, 1)[0] : undefined);
+    if (!b) { out.push(`relatie ${q.id} (${q.predecessorId} → ${q.successorId}) ontbreekt`); continue; }
+    for (const k of SEQ_FIELDS) {
       if (JSON.stringify(q[k]) !== JSON.stringify(b[k])) out.push(`relatie ${q.id}.${k}: ${JSON.stringify(q[k])} → ${JSON.stringify(b[k])}`);
     }
   }
@@ -297,7 +307,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   // Knownbug 1104 (opgelost in de vervolg-PR van #867): een taak uit de baseline wissen. De bron-JSON heeft het interne id,
   // zonder `TaskGuids`; de regel van de gewiste taak houdt met (b) dat id, en wijst net als in de vorm van de writer naar geen
   // taak (`orphanRowsWithoutId`). De bron-JSON blijft staan.
-  await proof('v2026.7.12', 'data, een taak uit de baseline gewist (knownbug 1104)', src, 'schrijft', (d, o) => {
+  await proof('v2026.7.12', 'data, een taak uit de baseline gewist (#886)', src, 'schrijft', (d, o) => {
     plannerEdits(o, 1).find(e => e.kind === 'taak-wissen')!.apply(d);
   }, head);
   // Knownbug 1103: de kop breekt de grammatica; met de wand erbij weigert de oude route het model.
@@ -307,6 +317,33 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     .then(() => 'opent', (e: unknown) => (e instanceof IfcParseError ? e.reason : String(e)));
   ok(`v2026.7.12: ohara met wand weigert bij openen (building-model), kreeg ${refused}`, refused === 'building-model');
   rows.push(`| v2026.7.12 · ohara met wand, openen (knownbug 1103) | ${refused === 'building-model' ? 'weigert (building-model)' : refused} |`);
+}
+
+// ── Een werkende uitzondering in een kalender (`WorkingExceptionIds`) ──
+// De oude eigenschap `WorkingExceptionIds` noemt de werkende uitzonderingen van een kalender bij het `#id` van hun
+// `IFCWORKTIME`; OPS v2026.8.1 tot en met v2026.43.x lezen alleen die (daarna gaat `WorkingExceptionKeysV1` voor, knownbug
+// 112). De merge geeft elk eigen stuk een nieuw id. De lijst moet dan naar de nieuwe ids wijzen, en een bewerking die de
+// nummering van de writer verschuift (een relatie of taak erbij, een taak gewist) is geen wijziging van de kalender
+// (#886). Het bestand van de oude writer, en hetzelfde bestand zoals de writer van nu het schrijft.
+{
+  const exceptionIds = (out: string) => {
+    const ids = /'WorkingExceptionIds',\$,IFCTEXT\('\[([^\]]*)\]'\)/.exec(out)?.[1];
+    if (ids === undefined) return 'geen WorkingExceptionIds in de uitvoer';
+    const bad = ids.replace(/"/g, '').split(',').filter(id => !new RegExp(`^#${id}=IFCWORKTIME\\(`, 'm').test(out));
+    return bad.length === 0 ? undefined : `WorkingExceptionIds wijst naar ${bad.map(id => `#${id}`).join(', ')}: geen werktijd`;
+  };
+  const rel = 'tests/planning/fixtures/ifc-arity-oude-writer.ifc';
+  const now = withLines(writeIFC(cloneDomain(await openForeignRaw(latin1(readText(rel))))), REVIT_WALL);
+  ok('werkende uitzondering: de writer van nu schrijft WorkingExceptionIds', now.includes("'WorkingExceptionIds',$,IFCTEXT('[\""));
+  const edit = (kind: EditKind) => (d: Domain, o: Opened) => {
+    [...plannerEdits(o, 1), ...ordinaryEdits(o)].find(e => e.kind === kind)!.apply(d);
+  };
+  for (const [label, src] of [['oude writer', walled(rel)], ['writer van nu', now]] as const) {
+    await proof('werkende uitzondering', `${label}, zonder bewerking`, src, 'schrijft', undefined, exceptionIds);
+    for (const kind of ['relatie-erbij', 'taak-erbij', 'taak-wissen'] as const) {
+      await proof('werkende uitzondering', `${label}, ${kind}`, src, 'schrijft', edit(kind), exceptionIds);
+    }
+  }
 }
 
 console.log('| proef | uitkomst |');

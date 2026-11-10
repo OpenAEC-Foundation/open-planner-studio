@@ -1,5 +1,5 @@
 /**
- * Wat de planner niet wijzigde, in de vorm van de bron (knownbug 1105; vervolg-PR van #867, "de merge via de route van de
+ * Wat de planner niet wijzigde, in de vorm van de bron (#886; vervolg-PR van #867, "de merge via de route van de
  * app").
  *
  * De app opent een bestand via de store: de lezer, de omzetting naar het minutenmodel (een datum wordt een tijdstip, vast
@@ -118,7 +118,7 @@ function leafValue(planning: { tasks: readonly Task[]; baselines?: readonly Base
 }
 
 /**
- * Een regel van een baseline waarvan de taak niet (meer) in de planning staat, zonder zijn taak-id (knownbug 1104). Wist de
+ * Een regel van een baseline waarvan de taak niet (meer) in de planning staat, zonder zijn taak-id (#886). Wist de
  * planner een taak uit een baseline van OPS v2026.7.4 tot v2026.7.14 (zonder `TaskGuids`), dan houdt die regel met de
  * bron-JSON het oude interne id, en in de vorm van de writer het id uit het domein. Beide wijzen naar geen taak; de planning
  * is dezelfde. De herleestoets van (b) (`mergeWriter.ts`) en die van de bronvorm vergelijken zo'n regel daarom zonder id.

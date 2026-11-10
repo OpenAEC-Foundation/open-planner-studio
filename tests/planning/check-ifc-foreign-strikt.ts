@@ -1003,7 +1003,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (knownbug 1102)', notDefined, 'niet-gedragen', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
 }
 
-// ── Knownbug 1106 (vervolg-PR van #867): een verstopt stuk vóór een eigen stuk ──
+// ── #886 (vervolg-PR van #867): een verstopt stuk vóór een eigen stuk ──
 // De scanner hangt commentaar vóór een entiteit aan het volgende stuk. Volgens de norm vallen stuurtekens overal weg, ook
 // in `*⏎/`; dan staat in `/* a *⏎/ #402=…; /* b */` een stuk. De merge schrijft een P-stuk opnieuw, zonder dat commentaar,
 // dus weigert hij als vóór een P-stuk buiten de tokens een `#` met een getal staat (`verstopt-stuk`). Proeven uit review
@@ -1011,17 +1011,17 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
 {
   const before47 = (src: string, inserted: string) => { const at = src.indexOf('#47=IFCTASK'); return src.slice(0, at) + inserted + src.slice(at); };
   const hidden = "/* a *\n/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',$,IFCLABEL('x'),$); /* b */\n";
-  ok('1106: de pset van de wand heeft (#397,#398)', eigen.includes('(#397,#398));'));
-  await proof('1106', 'een verstopt stuk vóór een eigen taak', latin1(before47(eigen, hidden)), 'verstopt-stuk');
-  await proof('1106', 'idem, en een V-stuk wijst ernaar', latin1(before47(eigen, hidden).replace('(#397,#398));', '(#397,#398,#402));')), 'verstopt-stuk');
-  await proof('1106', 'commentaar met #12 vóór een eigen taak', latin1(before47(eigen, '/* zie #12 */\n')), 'verstopt-stuk');
-  await proof('1106', 'gewoon commentaar vóór een eigen taak', latin1(before47(eigen, '/* gewoon commentaar */\n')), 'schrijft');
+  ok('verstopt stuk: de pset van de wand heeft (#397,#398)', eigen.includes('(#397,#398));'));
+  await proof('verstopt stuk', 'een verstopt stuk vóór een eigen taak', latin1(before47(eigen, hidden)), 'verstopt-stuk');
+  await proof('verstopt stuk', 'idem, en een V-stuk wijst ernaar', latin1(before47(eigen, hidden).replace('(#397,#398));', '(#397,#398,#402));')), 'verstopt-stuk');
+  await proof('verstopt stuk', 'commentaar met #12 vóór een eigen taak', latin1(before47(eigen, '/* zie #12 */\n')), 'verstopt-stuk');
+  await proof('verstopt stuk', 'gewoon commentaar vóór een eigen taak', latin1(before47(eigen, '/* gewoon commentaar */\n')), 'schrijft');
   // `\S\'` in een string van een eigen stuk (VERMOED van review ronde 8, knownbug 1050): de lezer leest het anders dan de
   // norm, en het bestand opent met de flag niet (de modelweigering op de tekst van de lezer). De merge krijgt het dus niet.
   const escaped = eigen.replace("'Start of refurbishment',$,", "'Start of refurbishment','a\\S\\'',");
-  ok("1106: de bron heeft \\S\\' in de omschrijving van #47", escaped !== eigen);
+  ok("verstopt stuk: de bron heeft \\S\\' in de omschrijving van #47", escaped !== eigen);
   const refused = await openForeign(latin1(escaped)).then(() => 'opent', (e: unknown) => (e instanceof IfcParseError ? e.reason : String(e)));
-  ok(`1106: \\S\\' in een eigen string opent met de flag niet (${refused})`, refused === 'building-model');
+  ok(`verstopt stuk: \\S\\' in een eigen string opent met de flag niet (${refused})`, refused === 'building-model');
 }
 
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──

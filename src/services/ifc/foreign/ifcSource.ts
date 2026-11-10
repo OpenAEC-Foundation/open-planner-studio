@@ -39,7 +39,7 @@ export interface IfcSource {
   readonly lineEnding: '\r\n' | '\n';
   /**
    * Het domein zoals de app het na het openen liet zien, in de vorm van de writer (`buildWriteIFCInput`): na de lezer,
-   * de omzetting naar het minutenmodel en de herberekening bij openen (knownbug 1105). De store zet het bij het openen
+   * de omzetting naar het minutenmodel en de herberekening bij openen (#886). De store zet het bij het openen
    * van een bron met een vreemd deel (`applyLoadedProject`). De merge leest er af wat de planner wijzigde: een veld dat
    * gelijk is aan `opened`, wijzigde hij niet, ook als de omzetting het anders maakte dan de lezing van de bron
    * (`sourceForm.ts`). Ontbreekt het (de bytes-route zonder store), dan is de lezing van de bron wat de app liet zien.

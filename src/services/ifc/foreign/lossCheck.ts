@@ -148,6 +148,21 @@ export interface LossDiff {
 export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'leeg';
 /** Properties waarvan de waarde een lijst STEP-ids van de writer is (`ifcWriter.ts`, `writeCalendarGenerationMeta`). */
 const ID_LIST_PROPS: ReadonlySet<string> = new Set([PROP.Calendar.WorkingExceptionIds]);
+/** Is dit slot de waarde van zo'n property? */
+const isIdListSlot = (index: StepIndex, chunk: number, type: string, outArg: number) =>
+  type === 'IFCPROPERTYSINGLEVALUE' && outArg === 2 && ID_LIST_PROPS.has(index.name(chunk) ?? '');
+/** De ids in de waarde van zo'n property (`IFCTEXT('["40","41"]')`), of `undefined` als het geen lijst ids is.
+ *  `decode` leest de string (met de quotes). */
+function textIdList(token: string, decode: (quoted: string) => string): number[] | undefined {
+  const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/i.exec(token.trim());
+  if (!m) return undefined;
+  try {
+    const v: unknown = JSON.parse(decode(m[1]));
+    return Array.isArray(v) && v.every(x => typeof x === 'string' && /^\d{1,10}$/.test(x)) ? v.map(Number) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 /** De soorten waarbij een wijziging van de planner weigert in plaats van de bron te vervangen. */
 const PARTIAL_KINDS: ReadonlySet<SlotKind> = new Set<SlotKind>(['lijst', 'json', 'samengesteld']);
 
@@ -877,6 +892,15 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     return sameNumber(a, b);
   };
 
+  /** Een lijst STEP-ids in een tekst (`ID_LIST_PROPS`): de ids zijn verwijzingen. De merge geeft elk eigen stuk een nieuw
+   *  id; elk id van de bron moet in de uitvoer als zijn tegenhanger staan, in dezelfde volgorde (#886). */
+  const sameIdList = (s: number, a: string, b: string): boolean => {
+    const xs = textIdList(a, q => index.tokenText(s, q));
+    const ys = textIdList(b, outDecode);
+    if (!xs || !ys) return same(s, a, b, false);
+    return xs.length === ys.length && xs.every((x, i) => allowed(index.chunkOf(String(x))).includes(ys[i]));
+  };
+
   /** Toevoeging (smal): de properties van een pset (`HasProperties`). Elke property van de bron moet erin staan, in
    *  dezelfde volgorde. Alleen een pset met eigen herkomst mag er properties bij krijgen (nieuwe gegevens uit het domein),
    *  en alleen met een naam die de bron in die pset niet had (anders is het een andere waarde, geen toevoeging). */
@@ -924,7 +948,9 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       if (saveField(s, o, type, k2)) continue;
       const bt = b[k2].trim();
       if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
-      const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt) : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
+      const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
+        : isIdListSlot(index, s, type, k2) ? sameIdList(s, at, bt)
+        : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
       if (!ok) push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }
     // Een slot dat alleen de nieuwe lay-out heeft, moet leeg zijn (of (b) zet er `$` terug).
@@ -1078,9 +1104,11 @@ function planRestores(input: LossCheckInput, p0: Pairing, diffs: readonly LossDi
     const composite = COMPOSITE_SLOTS[line.type]?.includes(d.outArg) === true
       || (line.type === 'IFCPROPERTYSINGLEVALUE' && d.outArg === 2 && !!props && (props.includes('*') || props.includes(index.name(d.chunk) ?? '')));
     // Een lijst STEP-ids die de writer uit zijn eigen nummering schrijft (`WorkingExceptionIds`), is geen waarde die de
-    // lezer deels draagt: de merge nummert die stukken opnieuw, dus de bronwaarde is na een bewerking van het veld nooit
-    // de goede (fixronde 5, plek 6). Ze vervalt dan; zonder bewerking zet (b) haar terug zoals tot nu.
-    const idList = line.type === 'IFCPROPERTYSINGLEVALUE' && d.outArg === 2 && ID_LIST_PROPS.has(index.name(d.chunk) ?? '');
+    // lezer deels draagt. Wijst elk id naar de tegenhanger van hetzelfde stuk, dan is er geen verschil (`sameIdList`) en
+    // geldt de lijst van de writer, met de nieuwe ids (#886). Komt hij hier toch, dan wijst de bron naar een stuk zonder
+    // tegenhanger; (b) zet de bronwaarde terug zolang de planner het veld niet wijzigde, en bij een bewerking van het veld
+    // vervalt ze (fixronde 5, plek 6).
+    const idList = isIdListSlot(index, d.chunk, line.type, d.outArg);
     const kind = idList ? 'tekst' : slotKind(line.type, d.outArg, token, line.args[d.outArg], text(d.chunk), composite);
     const sourceRefs = new Set(refsOutsideText(token).map(id => index.chunkOf(String(id))));
     const writerRefsKept = refsOutsideText(line.args[d.outArg]).every(r => {

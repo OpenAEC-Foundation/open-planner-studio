@@ -1512,7 +1512,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes))
         : null;
       if (conversion) activation.payload = conversion.after;
-      // #804 (knownbug 1105): wat de app na het openen laat zien, voor de merge-writer. Die leest er af welk veld de
+      // #804 (#886): wat de app na het openen laat zien, voor de merge-writer. Die leest er af welk veld de
       // planner wijzigde (`IfcSource.opened`, `sourceForm.ts`). Alleen bij een eigen bron met een vreemd deel, dus alleen
       // met de flag; zonder bron of met de bron van het vorige document (IFC-editor, `loadState`) verandert er niets.
       if (ownSource && !editing && hasForeignContent(ownSource) && activation.payload.ifcSource === ownSource) {

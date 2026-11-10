@@ -1944,16 +1944,29 @@ en noem het in je rapport of PR-tekst.
      met 9 argumenten uit die knownbug zijn opgelost in #867, fixronde 7). Richting: een lege lijst lezen als "geen
      notities" en de pset dan als bronstuk laten staan, of de lege lijst schrijven. Uit #867 (fase 1b, fixronde 7). — B
 
-1102. **VERVOLG: wijzigt de planner een gebroken dag in een oud eigen bestand met een model, dan weigert de merge.** In een
-     eigen bestand van vóór het minutenmodel (OPS tot en met v2026.43.0) met een model erbij, zet de planner de duur van een
-     taak van een halve dag op 1,5 dag. De writer schrijft die breuk als `PT…` met een record in `DayMeasureDurations`, en
-     dan wordt de kalender letterlijk (`LiteralTimes`). De oude datums van de andere taken (het einde als `…T07:00:00` van
-     de dag erna) lezen dan anders, en de merge weigert (`niet-gedragen`). Proef: `check-ifc-foreign-oude-eigen.ts`,
-     BLOKKEERT 1, "de duur zelf op 1,5 dag"; met 2 dagen schrijft hij wel. Zonder die wijziging blijft de duur in de vorm van
-     de bron (fixronde 7 van #867). Weigeren mag hier volgens het besluit van Trias, want de planner wijzigde het veld
-     zelf. Eerst als 1100 genoteerd; dat nummer gebruikte #881 al. Richting (1c): bij een eigen bestand de hele planning
-     in de vorm van de writer schrijven, of de kalender niet letterlijk maken en de breuk in de oude vorm schrijven. Hoort
-     bij de vervolg-PR van knownbug 1105. Uit #867 (fase 1b, fixronde 7). — B
+1102. **VERVOLG (aan Trias gevraagd of dit BLOKKEERT vóór 1c): in een oud eigen bestand met een model weigert de merge na
+     een bewerking waarna de writer een kalender letterlijk maakt.** Een eigen bestand van vóór het minutenmodel (OPS tot
+     en met v2026.43.0) heeft zijn datums per dag. Wat de planner niet wijzigde, schrijft de merge in die vorm terug
+     (`src/services/ifc/foreign/sourceForm.ts`, #886). Maakt de writer een kalender letterlijk (`minuteModelWriteView` in
+     `src/services/ifc/minuteModelWrite.ts`), dan schrijft hij elke datum op die kalender als tijdstip en de werktijden
+     anders; de vorm van de bron leest dan niet meer gelijk, en de merge weigert (`niet-gedragen`, `niet-eenduidig`). Een
+     gewone opslag maakt de kalender in die gevallen ook letterlijk. Er gaat niets verloren; de merge weigert te veel.
+     Drie aanleidingen, gemeten via de route van de app:
+     - een gebroken duur: de planner zet een halve dag op 1,5 dag (`check-ifc-foreign-oude-eigen.ts`, BLOKKEERT 1);
+     - een taak op kalendertijd (DurationType `.ELAPSEDTIME.`; `check-ifc-foreign-strikt.ts`, de proeven "kalendertijd");
+     - F5 na een duurwijziging: het einde van een samenvatting valt op het begin van de dag van een startmijlpaal
+       (`…T07:00`), en dat past op geen daganker.
+     In de telling (`check-ifc-foreign-merge-telling.ts`) weigert doorrekenen daardoor in 10 oude eigen bestanden
+     (`oude-tags/` main-df9, v2026.7.2, v2026.7.7-urentaak, v2026.9.0, v2026.9.0-17-cijfers, v2026.43.0, -halve-dag en
+     -urentaak, `h7-tijden-oude-writer.ifc`, `oud-eigen-0.1-plus-model.ifc`); in v2026.7.12-data en v2026.9.0-urentaak
+     schrijft het. Niet opgelost in #886: op een kalender die niet letterlijk is, leest de lezer elke datum op dagniveau,
+     dus zo'n tijdstip komt alleen terug als de hele kalender letterlijk wordt. Dan moet de merge ook datums die de planner
+     niet wijzigde in de vorm van de writer schrijven, en dat botst met de regel dat zo'n veld de bronwaarde houdt. Dat
+     vraagt een besluit, of een andere lezer (die blijft in #886 onaangeroerd). Richting (1c): wordt een kalender in de
+     merge letterlijk, dan alle datums op die kalender in de vorm van de writer schrijven en dat als verklaard tellen
+     zolang herlezen dezelfde planning geeft (zoals de herleestoets van de bronvorm). Vraag aan Trias: F5 is gewoon werk,
+     dus een planner met een oud bestand loopt hier na 1c tegenaan. Uit #867 (fase 1b, fixronde 7); breder beschreven in
+     #886. — B
 
 1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
      van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
@@ -1965,62 +1978,35 @@ en noem het in je rapport of PR-tekst.
      november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
      met main). — B
 
-1104. **BLOKKEERT voor 1c: een taak wissen in een eigen bestand van v2026.7.4 tot v2026.7.14 met een baseline en een model, laat de
-     merge weigeren.** Die versies schreven de taken in `OPS_Baselines` met hun interne id, zonder `TaskGuids` (die kwam
-     in `69da76cd5`, v2026.7.14). De lezer zoekt de taak dan via de hash van dat id. De merge zet de bron-JSON terug ((b)),
-     want de planner wijzigde de baseline niet. Wist de planner een taak die in de baseline staat, dan vindt de lezer haar
-     niet meer, en houdt die regel van de baseline het oude interne id; zonder (b) houdt hij het id uit het domein. Na
-     herlezen verschilt alleen het id van die losse regel, maar de merge weigert dan (`niet-gedragen`, "zouden na
-     herlezen een andere planning geven (baselines)"). Proef: de telling, `oude-tags/v2026.7.12-data-…` plus een wand:
-     `taak-wissen` 20 van 20 geweigerd, de andere bewerkingen schrijven, en zonder bewerking schrijft hij; ook
-     `check-ifc-foreign-oude-eigen.ts`. Bestanden met `TaskGuids` (v2026.7.14 en later)
-     wissen wel (`eigen-plus-model.ifc`, 20 van 20). Richting: in de herleestoets een regel van een baseline zonder taak
-     vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Besluit
-     van Trias (wrakko, 10 november 2026): in 1b mag de merge hier weigeren, want de merge-writer is nog niet aangesloten;
-     het is een harde eis voor 1c: 1c gaat niet naar main zolang een eigen bestand van v2026.7.4 tot v2026.7.14 met een
-     baseline en een model weigert bij het wissen van een baselinetaak. Hoort bij de vervolg-PR van knownbug 1105. Uit
-     #867 (fase 1b, fixronde 7, na de merge met main). — B
+1108. **VERVOLG: drie oude eigen fixtures weigeren met een wand erbij zonder bewerking, ook met de lezer direct.** Sinds
+     #886 loopt de telling (`check-ifc-foreign-merge-telling.ts`) ook over `tests/planning/fixtures/*.ifc`, met een wand.
+     Drie eigen bestanden schrijven daar zonder bewerking niet, op de route van de app en op de oude testroute (de lezer
+     direct); het komt dus niet uit de route van de app:
+     - `h7-kalender-oude-writer.ifc`: de bronwaarden van werkplan en werkschema geven na herlezen een andere planning;
+     - `ifc-arity-oude-writer-merged.ifc`: een werktijd zonder eenduidige tegenhanger (`niet-eenduidig`);
+     - `xer-archief-herschreven.ifc`: `SchemaVersion` van het XER-bronarchief komt niet terug.
+     Geen verlies: de merge weigert getypeerd. De telling noemt ze in `OWN_MAY_REFUSE`. Richting: per bestand nagaan of
+     het een vorm is die OPS zelf schreef, en zo ja die vorm dragen, zoals fixronde 7 van #867 deed voor de oude eigen
+     bestanden. Uit #886. — B
 
-1105. **BLOKKEERT vóór 1c: de merge-writer weigert oude eigen bestanden zonder bewerking als de app ze opent.** De
-     merge-checks openen met `openForeign` (`tests/planning/ifcMergeKern.ts:35`): de lezer direct. De app opent via de
-     store, waar bij elk openen de omzetting naar het minutenmodel draait (`src/state/documentContract.ts:554`); in 1c
-     krijgt de merge die toestand. Bij een oud eigen bestand worden de datums dan tijdstippen, en de writer maakt de
-     kalender letterlijk (`src/services/ifc/minuteModelWrite.ts:87`). De verliesbewaking vergelijkt met de ruwe lezing
-     van de bron (`src/services/ifc/foreign/mergeWriter.ts:634`) en weigert (`niet-gedragen`, `niet-eenduidig`). Gemeten
-     met een wand erbij, zonder bewerking: via de route van de app weigeren `oude-tags/v2026.43.0-10-villa-wassenaar.ifc`,
-     `v2026.43.0-halve-dag`, `v2026.7.7-urentaak`, `h7-tijden-oude-writer.ifc` en `ifc-arity-oude-writer.ifc`, die via
-     de testroute schrijven (12 tegenover 18 bestanden). De 32 huidige voorbeelden schrijven via beide routes, en met de
-     flag uit slaat main ze gewoon op. Geen verlies: de merge weigert te veel. Besluit van Trias (wrakko, 10 november
-     2026), letterlijk: "Optie 2 [...]. Voorwaarden:
-     - #867 krijgt nu in fixronde 8 alleen het dubbele #id (1100, hoogste #id uit de hele tekst) en de kleine punten.
-       Daarna een kleine ronde 8.
-     - De nieuwe PR "de merge via de route van de app" start direct na de merge van #867, vanaf main, en moet in main
-       staan vóór 1c begint. Zet dat als harde eis in knownbugs.md en in de PR-tekst van #867.
-     - In die PR openen alle merge- en verliestoetsen via de route van de app (openOpenedFile met de flag). Draai de hele
-       telling en alle verliestoetsen daar opnieuw. Vindt dat ergens echt verlies in plaats van te veel weigeren, dan is
-       dat een BLOKKEERT in die PR [...].
-     - Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
-       pariteitstest op de huidige main met de oude-tags."
-     Harde eis: deze PR start direct na de merge van #867, vanaf main, en moet in main staan vóór 1c begint. Uit #867
-     (review ronde 7, Claude Opus 5.5, BEVESTIGD). — B
+1109. **VERVOLG: voortgang invoeren in `b5-lopend-oude-writer.ifc` met een model laat de merge weigeren.** De planner zet
+     een taak op begonnen, 50 %. De merge zet de duur en de rest van die taak in de vorm van de bron terug ((b)), en
+     herlezen zou dan een andere rest geven (`niet-gedragen`: "de bronwaarden (2: IFCTASKTIME #29 argument 4, IFCTASKTIME
+     #29 argument 18) zouden na herlezen een andere planning geven"). Geen verlies, wel te veel weigeren, en alleen om de
+     taak die de planner zelf bijwerkte. Alleen dit bestand (een lopende taak van de writer uit fase B5) laat het zien; in
+     elk ander eigen bestand van de telling schrijft voortgang. Proef: de telling, `fixtures/b5-lopend-oude-writer.ifc +
+     wand`, `voortgang`. Richting: na een bewerking van de voortgang de rest in de vorm van de writer schrijven. Uit
+     #886. — B
 
-1106. **BLOKKEERT vóór 1c: een verstopt stuk vóór een eigen stuk gaat bij de merge verloren.** De scanner hangt
-     commentaar vóór een entiteit aan het volgende stuk (`src/services/ifc/foreign/stepScanner.ts`, kop). Staat
-     `/* a *⏎/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',…); /* b */` vlak vóór een eigen stuk (P), dan leest de scanner
-     dat als commentaar van dat stuk. De merge laat elk P-stuk met zijn commentaar weg en schrijft het eigen stuk
-     opnieuw (`src/services/ifc/foreign/mergeWriter.ts`, `assemble`): `VerstoptX` staat niet in de uitvoer. Volgens de
-     norm (stuurtekens vallen overal weg) was het een entiteit. Gemeten in de review van #867, ronde 8, op
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met het stuk vóór `#47=IFCTASK`: het bestand opent met de flag, de
-     merge schrijft, en `#402` is daarna een nieuwe `IFCPERSON` van de writer. Geen dubbel `#id`, wel verlies. Een
-     verstopte wand op die plek weigert bij openen (#881); het treft dus alleen stukken die geen modeltype zijn. Bij een
-     eigen bestand zonder model laat de gewone writer zo'n stuk ook vallen (knownbug 1050), maar een bestand met een
-     model weigert zonder flag bij openen: daar verliest main niets. Zodra de merge-writer een aanroeper krijgt, is dit
-     verlies met de flag aan; volgens het besluit van Ethan (via Trias, 10 november 2026) is dat een BLOKKEERT. In #867
-     nog niet: de merge heeft geen aanroeper, en opslaan blijft geweigerd (`src/state/ifcForeignGuard.ts`). VERMOED
-     (midden, niet gedraaid): wijst een V-stuk naar zo'n verstopt stuk, dan wijst die verwijzing na de merge naar niets.
-     Richting: de merge weigert als de tekst van een P-stuk buiten zijn tokens een `#` met cijfers bevat
-     (`highestHashNumber` over het commentaar ervóór). Hoort bij de vervolg-PR van knownbug 1105. Uit #867 (review ronde
-     8, Claude Opus 5.5, BEVESTIGD). — B
+1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
+     writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
+     (`writeTaskTypeMeta` in `src/services/ifc/ifcWriter.ts`). Wist de planner de enige taak met zo'n type, dan staat de
+     pset niet meer in de uitvoer, en de merge weigert (`niet-gedragen`: "IFCPROPERTYSET (OPS_TaskTypes): ontbreekt in de
+     uitvoer na de bewerking"). Geen verlies: een gewone opslag laat de pset dan ook weg, en de weigering gaat over de taak
+     die de planner wiste. Gezien in de telling op `fixtures/ifc-arity-oude-writer.ifc + wand` (`taak-wissen`: 2 van de 5
+     geweigerd; bij één nagegaan dat dit de oorzaak is), nadat de lijst ids in `WorkingExceptionIds` niet meer weigerde.
+     Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Uit #886.
+     — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul

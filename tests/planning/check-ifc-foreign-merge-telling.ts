@@ -23,7 +23,7 @@
 // varianten met een halve dag, dagen met 17 cijfers, een urentaak en `7.5:00:00` (in h7). Besluit van Trias: een eigen
 // OPS-bestand weigert nooit zonder bewerking. De check is rood als een eigen bestand zonder bewerking weigert, behalve de
 // bestanden in `OWN_MAY_REFUSE`, met hun reden. Per eigen bestand drukt hij de uitkomst af.
-// Vervolg-PR van #867 (knownbug 1105): elk bestand opent via de route van de app (`openForeign`: de store met de flag,
+// Vervolg-PR van #867 (#886): elk bestand opent via de route van de app (`openForeign`: de store met de flag,
 // `openOpenedFile`, dan `buildWriteIFCInput` plus `ifcSource`), en ook de vergelijking zonder vreemd deel gaat via die
 // route. Per eigen bestand staat de uitkomst zonder bewerking naast die van de oude testroute (de lezer direct,
 // `openForeignRaw`). Met `OPS_TELLING_OUDE_ROUTE=1` draait de telling elke bewerking ook op de oude route en drukt per

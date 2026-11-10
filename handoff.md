@@ -8,9 +8,11 @@ van fase 1 naar `docs/archive/handoffs/` (bij fase 0 ging dat mis: zie `HANDOFF-
 Het ontwerp (versie 20) en fase 0 zijn gemerged in main. Fase 0 bewees dat de app bij een eigen bestand precies het eigen
 deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met een gebouwmodel, achter een flag: eerst
 lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
-Het lezen (1a) is gemerged in main. Het schrijven (1b, #867) is na zeven fixrondes klaar voor review ronde 7: de writer
-laat het gebouwmodel staan en zet de planning ertussen. Bij twijfel weigert hij. Een eigen bestand van OPS, ook van een
-oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, na de controles.
+Het lezen (1a) en het schrijven (1b, #867) zijn gemerged in main: de writer laat het gebouwmodel staan en zet de
+planning ertussen, en bij twijfel weigert hij. De vervolg-PR #886 (draft) toetst die writer nu op de toestand die de app
+na openen heeft, en lost op wat dat liet zien: een oud eigen bestand schrijft weer zonder bewerking, taak wissen in een
+bestand van v2026.7.12 schrijft, en een verstopt stuk vóór een eigen stuk laat de merge weigeren. Na de review van #886
+volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 
 ## Bronnen
 
@@ -51,8 +53,8 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
    met een producttype; een scan zonder uitkomst; een modelbestand dat `readIFC` om een andere reden niet opent, zoals
    afgekapt of met een NUL-byte vóór de kop, omdat `First.Space` alle bytes `<= 0x20` overslaat), en de pariteitstest
    in `tests/planning/check-ifc-target-model-scan.ts` neemt die gevallen expliciet op.
-3. **1b-vervolg: de merge via de route van de app** (knownbug 1105, BLOKKEERT vóór 1c). Besluit van Trias (wrakko, 10
-   november 2026), de vier voorwaarden letterlijk:
+3. **1b-vervolg: de merge via de route van de app** (knownbug 1105, BLOKKEERT vóór 1c; PR #886, branch
+   `feat/804-fase1b-vervolg-app-route`). Besluit van Trias (wrakko, 10 november 2026), de vier voorwaarden letterlijk:
    - "#867 krijgt nu in fixronde 8 alleen het dubbele #id (1100, hoogste #id uit de hele tekst) en de kleine punten.
      Daarna een kleine ronde 8."
    - "De nieuwe PR "de merge via de route van de app" start direct na de merge van #867, vanaf main, en moet in main
@@ -88,14 +90,17 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
    bij 300 MB terug naar ongeveer het niveau van ronde 1 van #867 (merge 6,7 s, piek 1,2 GB; na fixronde 2 13,0 s en
    1,7 GB). Anders is 1c niet klaar.
    **Eis voor 1c** (wrakko, 10 november 2026; knownbug 1104): 1c gaat niet naar main zolang een eigen bestand van
-   v2026.7.4 tot v2026.7.14 met een baseline en een model weigert bij het wissen van een baselinetaak.
+   v2026.7.4 tot v2026.7.14 met een baseline en een model weigert bij het wissen van een baselinetaak. Opgelost in
+   #886; de proeven staan in `check-ifc-foreign-oude-eigen.ts` en in de telling.
    **Eis voor 1c** (Ethan via wrakko, 10 november 2026): de merge-writer aansluiten mag alleen als hij met de flag aan
    op elke opslagroute (Opslaan, Opslaan als, AutoSave en herstel, export, MCP, headless) veilig is, met een test met
    de flag aan.
    **Voor 1c** (review ronde 6 van #867, VERMOED laag): `writeIfcMerge` geeft `literalCalendarIds` niet terug;
    `writeIFCWithChoices` doet dat wel. Na het aansluiten moet de sessie een nieuw letterlijke kalender onthouden.
-   **Voor 1c** (knownbug 1102): een gebroken dag wijzigen in een oud eigen bestand met een model weigert; de richting
-   staat in de knownbug.
+   **Voor 1c** (knownbug 1102): in een oud eigen bestand met een model weigert de merge na een bewerking waarna de
+   writer een kalender letterlijk maakt (een gebroken dag, een taak op kalendertijd, F5 waarna een samenvatting op het
+   begin van een startmijlpaal eindigt). Geen verlies, wel te veel weigeren; aan Trias gevraagd of het BLOKKEERT vóór 1c
+   is, omdat F5 gewoon werk is. De richting staat in de knownbug.
    **Voor 1c** (review van #881, knownbug 1100, VERMOED midden): V-bytes kunnen een entiteit bevatten die de scanner
    niet ziet; een nieuw `#id` van de writer mag daar niet mee botsen. Ronde 7 van #867 toetst dit.
    **Bij voorkeur in 1c** (wrakko, 10 november 2026; knownbug 1023, VERVOLG): stabiele GlobalIds voor onze eigen
@@ -161,6 +166,14 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
   (een dubbel `#id` naast een entiteit die de scanner niet ziet, knownbug 1100; oude eigen bestanden weigeren via de
   route van de app). Fixronde 8: het eerste nieuwe id begint boven het hoogste `#<cijfers>` in elk stuk dat de merge
   letterlijk overneemt, ook in commentaar en strings; de route van de app gaat naar de vervolg-PR (knownbug 1105).
+- 2026-11-10: #867 gemerged in main (`a4783fc35`). Vervolg-PR #886 vanaf main: de testkern opent via de store met de flag
+  (`openForeign`); de meting vooraf vond geen echt verlies, wel te veel weigeren en te ruim schrijven (tussenrapport in de
+  PR). Daarna: wat alleen het openen veranderde, gaat in de vorm van de bron (`sourceForm.ts`, knownbug 1105); een
+  baselineregel zonder taak telt zonder id (knownbug 1104); tekst met `#cijfers` vóór een eigen stuk weigert
+  (`verstopt-stuk`, knownbug 1106); de velden per slot komen uit één tabel in `lossCheck.ts`; de pariteit is opnieuw
+  gemaakt op `a4783fc35`, met de oude-tags. De telling loopt nu ook over de fixtures met gewone bewerkingen; daaruit:
+  de lijst ids in `WorkingExceptionIds` telt via de koppeling (een relatie erbij weigerde, en zonder bewerking wees de
+  lijst naar een id dat niet meer bestond). Knownbug 1102 is breder beschreven en blijft open; 1108, 1109 en 1110 zijn nieuw.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -171,8 +184,6 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
 
 ## Volgende stappen
 
-1. De kleine ronde 8 van #867, dan de merge.
-2. De vervolg-PR "de merge via de route van de app" (knownbug 1105), direct na de merge van #867, vanaf `main`; hij moet
-   in main staan vóór 1c begint.
-3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
-4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
+1. Review van #886 (de merge via de route van de app); Trias beslist of knownbug 1102 BLOKKEERT vóór 1c.
+2. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
+3. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
