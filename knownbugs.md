@@ -1719,6 +1719,25 @@ en noem het in je rapport of PR-tekst.
      eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
      en de lange variant in de test. Uit #864 (fase 1a). — S
 
+1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
+     (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
+     zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
+     mijlpaal van 0 dagen, `P2DT0H` een mijlpaal van 960 minuten (2 dagen), en de planner rekent die als taak met duur.
+     Richting: beide vormen gelijk behandelen, met een test voor een gemarkeerde mijlpaal met duur. Uit #871
+     (GPT-6.1-Terra, xhigh, BEVESTIGD, VERVOLG). — B
+
+1043. **VERVOLG: bij `P1DT` wordt de duur `null`.** Bij een onvolledig tijddeel geeft `isoDurationToMinutes` `null`; de
+     code van #871 in `applyTaskTimeRecords` (`src/services/ifc/ifcReader.ts`) schrijft die waarde met een
+     TypeScript-assertie (`!`) toch weg als `durationMinutes`. Proef van Terra: `null` en een afgeleide duur van 0, waar
+     de bestaande dagwaarde had moeten blijven. `P1DT` is geen geldige ISO 8601-duur. Richting: een echte `null`-controle
+     vóór de toekenning, in plaats van de `!`. Uit #871 (GPT-6.1-Terra, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1044. **VERVOLG: de test van knownbug 1027 werkt alleen vanuit de map van de repo.**
+     `tests/planning/check-adapters-hours.ts:317` leest `public/examples/showcase-appartementencomplex.ifc` met een
+     relatief pad. Vanuit `/tmp` geeft de gerichte run `ENOENT` (exit 1); vanuit de repo is hij groen (318 controles).
+     Richting: het bestaande `HERE` gebruiken (`join(HERE, '..', '..', 'public', 'examples', …)`). Uit #871
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
