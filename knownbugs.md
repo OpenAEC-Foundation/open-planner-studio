@@ -552,6 +552,73 @@ en noem het in je rapport of PR-tekst.
      ongeveer 2 s, op de hoofdthread. Het loopt alleen met minstens één gevonden koppeling, maar dan bij elke opslag
      met de hand, ook als geen anker verandert. Voorstel: één IFC-tekst maken, die controleren en dezelfde tekst
      wegschrijven, met een controle dat de documentstand na de asynchrone stappen nog geldt. — B
+985. **VERVOLG: `planner_refresh_external_links` volgt het vinkje *Ankers uit geopende documenten halen* niet
+     (stap 1.7).** De MCP-tool ververst altijd uit het opgeslagen bestand, ook als het vinkje in het project aan staat
+     en de bron open is met niet-opgeslagen wijzigingen (`src/services/mcp/tools/externalLinkTools.ts`). Ze meldt ook
+     niet dat de bron open staat met niet-opgeslagen wijzigingen. Headless heeft geen tabbladen; in de app kan het
+     wel (`openSourceDocument` en `externalSourceFromOpenDocument` in `src/state/openSourceDocument.ts`). Bewust buiten
+     stap 1.7 gelaten (opdracht). Voorstel: in de app het vinkje volgen, en in de uitslag van de tool zeggen welke
+     bronnen uit een geopend document kwamen. — B
+986. **VERVOLG: een geopende bron die niet te lezen is, krijgt geen melding (vinkje uit).** `refreshAllExternalAnchors`
+     en `refreshExternalAnchorsFrom` (`src/state/slices/fileSlice.ts`) melden een geopend brondocument met
+     niet-opgeslagen wijzigingen alleen voor een bron die ze lazen: de melding zegt dat het anker uit de opgeslagen
+     versie komt. Is het bestand niet te lezen (geen toegang, weg), dan telt de uitslag het als niet gelezen, ook als
+     het document open staat. Met het vinkje *Ankers uit geopende documenten halen* aan leest de app zo'n bron uit
+     het geopende document. Voorstel: bij het vinkje uit in de melding noemen dat het vinkje de bron wel kan lezen. — S
+987. **VERVOLG: twee geopende documenten met hetzelfde project-id geven geen melding (stap 1.7).** Bij een bron zonder
+     pad herkent `openSourceDocument` (`src/state/openSourceDocument.ts`) het geopende document op project-id. Passen
+     er twee (bijv. een kopie die ook open staat), dan kiest de app geen van beide: geen melding, het anker uit het
+     bestand. Voorstel: in de browser het onthouden bestandshandvat vergelijken met het handvat van het document
+     (`isSameEntry`). — S
+988. **VERVOLG: verversen uit een geopend document is niet getest in de echte desktop-app.** Stap 1.7 herkent een bron
+     met pad op het genormaliseerde pad van het document. `check-external-open-source.ts` toetst dat met een nep-lezer
+     en de browsertest met een bron zonder pad (OPFS). Niet getoetst: twee bestanden open in de Tauri-app, met een pad
+     in een andere schrijfwijze (hoofdletters op Windows, een symbolische link). — S
+1066. **VERVOLG: het vinkje *Ankers uit geopende documenten halen* omzetten start geen controle.** Toepassen in
+     *Projectinstellingen* (`applyProjectInfo`) laat de balken staan zoals ze zijn. Een balk uit een geopend
+     document blijft na *uit* staan, en na *aan* komt de balk pas bij de volgende controle (document openen, wisselen
+     of terug in het venster; `useExternalSourceCheck`). *Bekijken* op zo'n oude balk na *uit* leest niets
+     (`readExternalSourceUpdate` geeft `null`, want die volgt het vinkje); de volgende controle haalt de balk weg.
+     Nagespeeld in de review na de ombouw van #860 (proef P4, Claude Opus 5.5, xhigh). Voorstel: na het omzetten van
+     het vinkje de controle starten (`checkExternalSources`). — B
+1067. **VERVOLG: met het vinkje aan leest elke controle elk geopend brondocument met wijzigingen opnieuw.**
+     `checkExternalSourcesOnce` (`src/state/slices/fileSlice.ts`) schrijft het geopende document per bron naar een
+     IFC-tekst, leest die en rekent hem door (`externalSourceFromOpenDocument`), bij elk openen, wisselen en terugkeren
+     naar het venster. Bij een groot bronproject kost dat tijd op de hoofdthread. Niet gemeten. Schatting van de
+     review na de ombouw van #860: volgens de nulmeting (`docs/superpowers/evidence/2026-11-02-snelheid.md`) kost
+     openen bij 5.000 taken ongeveer 1,9 s en opslaan 0,39 s, dus per controle ruim 2 s op de hoofdthread. Voorstel:
+     het voorstel per brondocument onthouden zolang dat document niet verandert (bijv. op de referentie van zijn
+     takenlijst). — S
+1068. **VERVOLG: de balk uit een geopend document zegt dat de niet-opgeslagen wijzigingen de ankers veranderen, ook
+     als het verschil uit een opgeslagen versie komt.** Met het vinkje aan vergelijkt de controle het geopende
+     document met het plan. Wijkt een opgeslagen versie van de bron al af van het plan, en heeft de bron daarna ook
+     wijzigingen die nog niet opgeslagen zijn (bijv. alleen een andere taaknaam), dan zegt de balk "… is open met
+     niet-opgeslagen wijzigingen die de ankers veranderen" (`ExternalSourceNotice.tsx`, sleutel
+     `externalLinks.newOpenDocument`). *Bekijken* heet dan nog "Nieuwe versie van {{file}}" (de titel in
+     `ExternalSourceReviewDialog.tsx`). Na de fix voor *Later* (review na de ombouw van #860) blijft dit over als de
+     planner geen *Later* koos op de gewone balk: de bron is opgeslagen en daarna weer gewijzigd voordat het plan
+     controleerde, of de planner zette een *Accepteren* terug met Ctrl+Z. Een derde route (proef Q5 in de tweede
+     review na de ombouw): *Later* op de gewone balk voor v2, dan *Later* op een balk uit het geopende document met
+     een ander anker, dan met Ctrl+Z in de bron terug naar het anker van v2 zonder op te slaan. De balk uit het
+     geopende document komt dan terug met deze tekst, terwijl het verschil uit de opgeslagen v2 komt. Voorstel: een
+     neutrale tekst ("De ankers uit het geopende document {{file}} wijken af van je planning.") en een eigen titel
+     voor *Bekijken*. — B
+1069. **VERVOLG: *Later* op een balk uit een geopend document wist *Later* op een opgeslagen versie.**
+     `dismissExternalSourceUpdate` (`src/state/slices/fileSlice.ts`) zet ook bij een balk uit een geopend document
+     `settledSourceVersions` op `update.version`, en dat is daar de vingerafdruk `open:…`. Proef Q5 (tweede review
+     na de ombouw van #860, Claude Opus 5.5): bron opgeslagen als v2, *Later*; bron gewijzigd naar een ander anker,
+     balk uit het geopende document, weer *Later*; bron met Ctrl+Z terug naar het anker van v2 en gesloten zonder
+     opslaan. Dan komt de balk voor v2 terug, hoewel de planner daar al *Later* koos. De gids zegt dat de balk pas
+     terugkomt bij een volgende versie. Zeldzaam (twee keer *Later* en daarna de wijzigingen weggooien), en B
+     verandert niets zonder klik. Voorstel: `settledSourceVersions` alleen zetten als `update.openDocumentId`
+     ontbreekt, met een test zoals Q5. — B
+1070. **VERVOLG: *Alle externe relaties vernieuwen* kijkt na het lezen opnieuw welke bronnen open zijn.** Sinds de
+     hulpfunctie `readPreferringOpen` (`src/state/slices/fileSlice.ts`) legt de app de geopende documenten niet
+     meer vast vóór `await readExternalProjectSources`; `openDirtySource` kijkt daarna opnieuw. Was een bron aan
+     het begin open met wijzigingen en daarna niet meer (bijv. het vinkje of de bron veranderde tijdens een
+     toestemmingsvraag in de browser), dan telt die bron als niet gelezen, waar de app vroeger de momentopname
+     las. Niet nagespeeld; het gevolg is een eerlijke melding "niet gelezen". Voorstel: de geopende documenten
+     weer vóór de eerste `await` vastleggen. — S
 
 ## Tabel, invoer en bediening
 

@@ -8,6 +8,8 @@ import { NoticeStrip } from './NoticeStrip';
  * `docs/relaties-tussen-projecten.md`): per bron van het actieve document één strook met de versie, de
  * auteur (als die er is) en het aantal koppelingen dat verandert. *Bekijken* opent het venster met de
  * gevolgen; *Later* haalt de strook weg tot er weer een nieuwe versie is. De app neemt niets vanzelf over.
+ * Met het vinkje *Ankers uit geopende documenten halen* (stap 1.7) kan de strook ook uit een geopend brondocument
+ * met niet-opgeslagen wijzigingen komen: dan zonder versie en auteur.
  */
 export function ExternalSourceNotice() {
   const { t, i18n } = useTranslation('task');
@@ -24,9 +26,13 @@ export function ExternalSourceNotice() {
       {own.map(update => {
         // Op de site (stap 1.9) noemt de balk het versienummer; anders de wijzigingstijd van het bestand.
         const site = update.siteVersionLabel !== undefined;
-        const saved = site ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
+        // Uit een geopend document (stap 1.7) is `version` een vingerafdruk, geen tijd: dan geen opslagtijd.
+        const saved = site || update.openDocumentId !== undefined ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
         const params = { file: update.fileName, saved, version: update.siteVersionLabel, count: update.changedLinks, author: update.author };
-        const text = site
+        // Stap 1.7, vinkje aan: de balk komt uit het geopende document met niet-opgeslagen wijzigingen (geen versie).
+        const text = update.openDocumentId !== undefined
+          ? t('externalLinks.newOpenDocument', { file: update.fileName })
+          : site
           ? (update.author ? t('externalLinks.newVersionSiteAuthor', params) : t('externalLinks.newVersionSite', params))
           : (update.author ? t('externalLinks.newVersionAuthor', params) : t('externalLinks.newVersion', params));
         return (

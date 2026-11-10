@@ -2382,6 +2382,9 @@ function extractStructure(
         } else if (name === 'DependentProjectsFolder') {
           // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
           if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
+        } else if (name === 'AnchorsFromOpenDocuments') {
+          // Ankers uit geopende documenten halen (spiegel van writeStructure, stap 1.7).
+          if (v === true) project.anchorsFromOpenDocuments = true;
         }
       }
       continue;

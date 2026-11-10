@@ -241,6 +241,8 @@
     "endDate": "Befejezési dátum",
     "defaultWorkRule": "Alapértelmezett tevékenységtípus",
     "defaultWorkRuleHint": "A(z) „Projektalapbeállítás” értékre állított tevékenységek ezt a választást követik. A saját tevékenységtípussal rendelkező tevékenységek megtartják a választásukat.",
+    "anchorsFromOpenDocuments": "Horgonyok átvétele a megnyitott dokumentumokból",
+    "anchorsFromOpenDocumentsHint": "Ha egy forrásprojekt nem mentett módosításokkal van megnyitva, a horgonyok abból a megnyitott dokumentumból származnak. Alapértelmezés szerint ki van kapcsolva.",
     "calc": {
       "title": "Számítás",
       "subtitle": "Ütemezési beállítások ehhez a projekthez — a fájlban tárolódnak, nem az alkalmazásban.",

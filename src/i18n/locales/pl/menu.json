@@ -243,6 +243,8 @@
     "endDate": "Data zakończenia",
     "defaultWorkRule": "Domyślny typ zadania",
     "defaultWorkRuleHint": "Zadania ustawione na „Domyślna dla projektu” korzystają z tego wyboru. Zadania z własnym typem zadania zachowują swój wybór.",
+    "anchorsFromOpenDocuments": "Pobieraj kotwice z otwartych dokumentów",
+    "anchorsFromOpenDocumentsHint": "Jeśli projekt źródłowy jest otwarty z niezapisanymi zmianami, kotwice pochodzą z tego otwartego dokumentu. Domyślnie wyłączone.",
     "calc": {
       "title": "Obliczenia",
       "subtitle": "Opcje harmonogramowania dla tego projektu — zapisywane wraz z plikiem, nie z aplikacją.",

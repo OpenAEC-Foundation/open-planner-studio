@@ -95,6 +95,7 @@
     "settingsLoadedLateReverted": "Настройките ви са заредени и приложени. Всичко, което сте променили междувременно, е върнато назад.",
     "recoveryDocumentsSkipped_one": "{{count}} файл за възстановяване не можа да се зареди и е пропуснат.",
     "recoveryDocumentsSkipped_other": "{{count}} файла за възстановяване не можаха да се заредят и са пропуснати.",
+    "externalOpenSourceUnsaved": "{{file}} има незапазени промени; котвата идва от запазената версия.",
     "scheduleFailed": "Графикът не можа да се изчисли",
     "ifcParseFailed": "IFC не можа да се прочете",
     "templateSaved": "Клонът е запазен като шаблон „{{name}}“",

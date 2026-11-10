@@ -111,6 +111,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} ficheiro de recuperação não pôde ser carregado e foi ignorado.",
     "recoveryDocumentsSkipped_many": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
     "recoveryDocumentsSkipped_other": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
+    "externalOpenSourceUnsaved": "{{file}} tem alterações não guardadas; a ancoragem vem da versão guardada.",
     "scheduleFailed": "Não foi possível calcular o planeamento",
     "ifcParseFailed": "Não foi possível ler o IFC",
     "templateSaved": "Ramo guardado como modelo '{{name}}'",

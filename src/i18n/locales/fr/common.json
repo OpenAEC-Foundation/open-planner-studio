@@ -111,6 +111,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} fichier de récupération n'a pas pu être chargé et a été ignoré.",
     "recoveryDocumentsSkipped_many": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
     "recoveryDocumentsSkipped_other": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
+    "externalOpenSourceUnsaved": "{{file}} contient des modifications non enregistrées ; l'ancrage provient de la version enregistrée.",
     "scheduleFailed": "Le planning n'a pas pu être calculé",
     "ifcParseFailed": "IFC n'a pas pu être lu",
     "templateSaved": "Branche enregistrée comme modèle '{{name}}'",

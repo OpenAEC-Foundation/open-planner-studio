@@ -111,6 +111,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} датотека за опоравак није могла да се учита и прескочена је.",
     "recoveryDocumentsSkipped_few": "{{count}} датотеке за опоравак нису могле да се учитају и прескочене су.",
     "recoveryDocumentsSkipped_other": "{{count}} датотека за опоравак нису могле да се учитају и прескочене су.",
+    "externalOpenSourceUnsaved": "{{file}} има несачуване измене; сидро потиче из сачуване верзије.",
     "scheduleFailed": "Распоред није могао да се израчуна",
     "ifcParseFailed": "IFC није могао да се прочита",
     "templateSaved": "Грана је сачувана као шаблон „{{name}}“",

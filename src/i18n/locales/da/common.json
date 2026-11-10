@@ -95,6 +95,7 @@
     "settingsLoadedLateReverted": "Dine indstillinger er indlæst og taget i brug. Det, du har ændret i mellemtiden, er blevet tilbagestillet.",
     "recoveryDocumentsSkipped_one": "{{count}} genoprettelsesfil kunne ikke indlæses og blev sprunget over.",
     "recoveryDocumentsSkipped_other": "{{count}} genoprettelsesfiler kunne ikke indlæses og blev sprunget over.",
+    "externalOpenSourceUnsaved": "{{file}} har ændringer, der ikke er gemt; ankeret kommer fra den gemte version.",
     "scheduleFailed": "Tidsplanen kunne ikke beregnes",
     "ifcParseFailed": "IFC kunne ikke læses",
     "templateSaved": "Gren gemt som skabelon '{{name}}'",

@@ -100,6 +100,7 @@
     "settingsLoadedLateReverted": "Je instellingen zijn geladen en toegepast. Wat je in de tussentijd wijzigde, is teruggezet.",
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
     "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
+    "externalOpenSourceUnsaved": "{{file}} heeft niet-opgeslagen wijzigingen; het anker komt uit de opgeslagen versie.",
     "scheduleFailed": "Planning kon niet worden berekend",
     "ifcParseFailed": "IFC kon niet worden gelezen",
     "templateSaved": "Tak bewaard als sjabloon '{{name}}'",

@@ -54,22 +54,24 @@ export function ExternalSourceReviewDialog() {
   // De bron met pad (desktop), zonder pad (browser, onthouden handvat; stap 1.8) of op de site (`open(id)`,
   // stap 1.9). Het object
   // `locator` blijft hetzelfde zolang de balk dezelfde is.
+  // Komt de balk uit een geopend document (stap 1.7), dan leest de app dat document (`readExternalSourceUpdate`).
   const locator = update?.locator;
   const documentId = update?.documentId;
   const version = update?.version;
+  const openDocumentId = update?.openDocumentId;
   useEffect(() => {
     if (!locator || !documentId) return;
     let cancelled = false;
     setState({ kind: 'reading' });
     void (async () => {
-      const src = await useAppStore.getState().readExternalSourceAt(locator, buildImportLabels(tCommon));
+      const src = await useAppStore.getState().readExternalSourceUpdate({ locator, openDocumentId }, buildImportLabels(tCommon));
       if (cancelled) return;
       if (!src) { setState({ kind: 'failed' }); return; }
       if (useAppStore.getState().activeDocumentId !== documentId) return;
       setState({ kind: 'read', source: src });
     })();
     return () => { cancelled = true; };
-  }, [locator, documentId, version, tCommon]);
+  }, [locator, documentId, version, openDocumentId, tCommon]);
 
   // Het voorstel volgt de stand van het document. Rekent de planner opnieuw (F5) terwijl het venster open
   // staat, dan vergelijkt het met de nieuwe berekening, met de al gelezen bron (review #811 ronde 2).
@@ -98,7 +100,9 @@ export function ExternalSourceReviewDialog() {
   const projectEnd = (value: string) => dd.dateTime(momentLabel(calendarClock(calendar), value, 'end'));
   // Op de site (stap 1.9) het versienummer; anders de wijzigingstijd van het bestand.
   const siteVersion = update.siteVersionLabel;
-  const saved = siteVersion !== undefined ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
+  // Uit een geopend document (stap 1.7): geen opslagtijd.
+  const saved = siteVersion !== undefined || update.openDocumentId !== undefined
+    ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
 
   const ready = source && preview && preview.changes.length > 0 ? { source, preview } : null;
   const onAccept = () => {
@@ -141,7 +145,9 @@ export function ExternalSourceReviewDialog() {
       />
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         <div style={{ color: 'var(--theme-text-dim)' }}>
-          {siteVersion !== undefined
+          {update.openDocumentId !== undefined
+            ? t('externalLinks.reviewOpenDocument')
+            : siteVersion !== undefined
             ? (update.author
               ? t('externalLinks.reviewSavedSiteAuthor', { version: siteVersion, author: update.author })
               : t('externalLinks.reviewSavedSite', { version: siteVersion }))

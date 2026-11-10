@@ -95,6 +95,7 @@
     "settingsLoadedLateReverted": "Ayarlarınız yüklendi ve uygulandı. Bu arada yaptığınız değişiklikler geri alındı.",
     "recoveryDocumentsSkipped_one": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "recoveryDocumentsSkipped_other": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
+    "externalOpenSourceUnsaved": "{{file}} kaydedilmemiş değişiklikler içeriyor; bağlantı noktası kaydedilmiş sürümden alınır.",
     "scheduleFailed": "Planlama hesaplanamadı",
     "ifcParseFailed": "IFC okunamadı",
     "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi",

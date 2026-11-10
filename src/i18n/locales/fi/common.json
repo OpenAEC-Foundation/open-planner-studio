@@ -95,6 +95,7 @@
     "settingsLoadedLateReverted": "Asetukset on ladattu ja otettu käyttöön. Sillä välin tekemäsi muutokset on palautettu.",
     "recoveryDocumentsSkipped_one": "{{count}} palautustiedostoa ei voitu ladata ja se ohitettiin.",
     "recoveryDocumentsSkipped_other": "{{count}} palautustiedostoa ei voitu ladata ja ne ohitettiin.",
+    "externalOpenSourceUnsaved": "Tiedostossa {{file}} on tallentamattomia muutoksia; ankkuri tulee tallennetusta versiosta.",
     "scheduleFailed": "Aikataulua ei voitu laskea",
     "ifcParseFailed": "IFC-tiedostoa ei voitu lukea",
     "templateSaved": "Haara tallennettiin mallina '{{name}}'",

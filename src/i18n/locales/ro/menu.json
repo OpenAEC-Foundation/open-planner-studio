@@ -242,6 +242,8 @@
     "endDate": "Data de sfârșit",
     "defaultWorkRule": "Tip de activitate implicit",
     "defaultWorkRuleHint": "Activitățile cu valoarea implicită „Standard de proiect” urmează această alegere. Activitățile cu un tip de activitate propriu își păstrează alegerea.",
+    "anchorsFromOpenDocuments": "Preia ancorele din documentele deschise",
+    "anchorsFromOpenDocumentsHint": "Dacă un proiect sursă este deschis cu modificări nesalvate, ancorele provin din acel document deschis. Dezactivat implicit.",
     "calc": {
       "title": "Calcul",
       "subtitle": "Opțiunile de calcul pentru acest proiect se păstrează în fișier, nu în aplicație.",

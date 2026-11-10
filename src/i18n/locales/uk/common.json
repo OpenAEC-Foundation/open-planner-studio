@@ -127,6 +127,7 @@
     "recoveryDocumentsSkipped_few": "{{count}} файли відновлення не вдалося завантажити, тому їх пропущено.",
     "recoveryDocumentsSkipped_many": "{{count}} файлів відновлення не вдалося завантажити, тому їх пропущено.",
     "recoveryDocumentsSkipped_other": "{{count}} файла відновлення не вдалося завантажити, тому їх пропущено.",
+    "externalOpenSourceUnsaved": "У {{file}} є незбережені зміни; опорна дата береться зі збереженої версії.",
     "scheduleFailed": "Не вдалося розрахувати графік",
     "ifcParseFailed": "Не вдалося прочитати IFC",
     "templateSaved": "Гілку збережено як шаблон «{{name}}»",

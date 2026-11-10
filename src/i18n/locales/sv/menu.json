@@ -241,6 +241,8 @@
     "endDate": "Slutdatum",
     "defaultWorkRule": "Standarduppgiftstyp",
     "defaultWorkRuleHint": "Uppgifter som står på ”Projektstandard” följer detta val. Uppgifter med en egen uppgiftstyp behåller sitt val.",
+    "anchorsFromOpenDocuments": "Hämta ankare från öppna dokument",
+    "anchorsFromOpenDocumentsHint": "Om ett källprojekt är öppet med osparade ändringar kommer ankarna från det öppna dokumentet. Av som standard.",
     "calc": {
       "title": "Beräkning",
       "subtitle": "Beräkningsinställningar för det här projektet – sparas med filen, inte i appen.",

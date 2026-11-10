@@ -100,6 +100,7 @@
     "settingsLoadedLateReverted": "Your settings have been loaded and applied. Anything you changed in the meantime has been reverted.",
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
+    "externalOpenSourceUnsaved": "{{file}} has unsaved changes; the anchor comes from the saved version.",
     "scheduleFailed": "Schedule could not be calculated",
     "ifcParseFailed": "IFC could not be read",
     "templateSaved": "Branch saved as template '{{name}}'",

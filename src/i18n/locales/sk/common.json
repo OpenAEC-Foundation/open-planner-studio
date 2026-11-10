@@ -127,6 +127,7 @@
     "recoveryDocumentsSkipped_few": "{{count}} súbory na obnovenie sa nepodarilo načítať a boli preskočené.",
     "recoveryDocumentsSkipped_many": "{{count}} súboru na obnovenie sa nepodarilo načítať a boli preskočené.",
     "recoveryDocumentsSkipped_other": "{{count}} súborov na obnovenie sa nepodarilo načítať a boli preskočené.",
+    "externalOpenSourceUnsaved": "{{file}} má neuložené zmeny; kotva pochádza z uloženej verzie.",
     "scheduleFailed": "Plán sa nepodarilo prepočítať",
     "ifcParseFailed": "IFC sa nepodarilo prečítať",
     "templateSaved": "Vetva uložená ako šablóna „{{name}}“",

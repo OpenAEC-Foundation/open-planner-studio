@@ -95,6 +95,7 @@
     "settingsLoadedLateReverted": "A beállításai betöltődtek és alkalmazásra kerültek. Az időközben végzett módosítások visszaálltak.",
     "recoveryDocumentsSkipped_one": "{{count}} visszaállítási fájl nem tölthető be, ezért ki lett hagyva.",
     "recoveryDocumentsSkipped_other": "{{count}} visszaállítási fájl nem tölthető be, ezért ki lett hagyva.",
+    "externalOpenSourceUnsaved": "A(z) {{file}} nem mentett módosításokat tartalmaz; a horgony a mentett verzióból származik.",
     "scheduleFailed": "Az ütemezés nem számítható ki",
     "ifcParseFailed": "Az IFC nem olvasható be",
     "templateSaved": "Ág mentve sablonként: „{{name}}”",
