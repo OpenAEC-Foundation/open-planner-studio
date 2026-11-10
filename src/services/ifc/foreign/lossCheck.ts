@@ -1896,33 +1896,47 @@ export function durationTexts(index: StepIndex, i: number): DurationText[] {
   return out;
 }
 
-/** De slots met een datum-tijd (`IfcDateTime`) of een tijd (`IfcTime`) die de lezer leest (fixronde 5, zoektocht punt 4). */
-const DATETIME_SLOTS: Readonly<Record<string, { readonly slots: readonly number[]; readonly time: boolean }>> = {
-  IFCTASKTIME: { slots: [5, 6, 7, 8, 9, 10, 14, 16, 17], time: false },
-  IFCTIMEPERIOD: { slots: [0, 1], time: true },
+/** Wat in een datumslot staat: een datum-tijd (`IfcDateTime`), een tijd (`IfcTime`) of een datum (`IfcDate`). */
+export type DateTimeKind = 'datum-tijd' | 'tijd' | 'datum';
+
+/**
+ * De slots met een datum-tijd, tijd of datum die de lezer leest (fixronde 5, zoektocht punt 4; fixronde 6, zoektocht 2):
+ * de taaktijd, de tijdblokken, en het begin en einde van een feestdag of uitzondering (`IfcWorkTime`, argument 5 en 6).
+ * Die laatste leest de lezer met `parseDateFromIFC`: de eerste tien tekens, zonder toets. Het begin en einde van werkplan
+ * en werkschema leest hij ook zo, als datum van het project; daar schrijft OPS zelf een tijd achter
+ * (`2027-03-01T07:00:00`) die de lezer bewust niet leest. Die staan dus niet in deze toets (zoektocht 3 in de PR-tekst).
+ */
+const DATETIME_SLOTS: Readonly<Record<string, { readonly slots: readonly number[]; readonly kind: DateTimeKind }>> = {
+  IFCTASKTIME: { slots: [5, 6, 7, 8, 9, 10, 14, 16, 17], kind: 'datum-tijd' },
+  IFCTIMEPERIOD: { slots: [0, 1], kind: 'tijd' },
+  IFCWORKTIME: { slots: [4, 5], kind: 'datum' },
 };
 
-/** Waarom de lezer een datum-tijd of tijd anders leest dan haar tekst zegt: een tijdzone (`zone`, de lezer laat haar weg,
- *  `parseImportedInstant` en `clockToMinutes`), of een andere vorm (`vorm`: seconden die niet 0 zijn, die de lezer
- *  weglaat; een spatie in plaats van `T`, waarna hij de tijd niet leest; een uur van één cijfer). */
+/** Waarom de lezer een datum-tijd, tijd of datum anders leest dan haar tekst zegt: een tijdzone (`zone`, de lezer laat
+ *  haar weg, `parseImportedInstant` en `clockToMinutes`), of een andere vorm (`vorm`: seconden die niet 0 zijn, die de
+ *  lezer weglaat; een spatie in plaats van `T`, waarna hij de tijd niet leest; een uur van één cijfer; bij een datum alles
+ *  behalve `JJJJ-MM-DD`, want de lezer neemt de eerste tien tekens). */
 export type PartialDateTime = 'zone' | 'vorm';
 
-/** Leest de lezer deze datum-tijd (of, met `time`, deze tijd) anders dan haar tekst zegt? Zie `PartialDateTime`. */
-export function partialDateTime(text: string, time: boolean): PartialDateTime | undefined {
+/** Leest de lezer deze waarde anders dan haar tekst zegt? Een lijst van vormen die mogen; zie `PartialDateTime`. */
+export function partialDateTime(text: string, kind: DateTimeKind): PartialDateTime | undefined {
   const t = text.trim();
   const clock = '\\d\\d:\\d\\d(?::00(?:\\.0+)?)?';
-  if (new RegExp(time ? `^${clock}$` : `^\\d{4}-\\d\\d-\\d\\d(?:T${clock})?$`).test(t)) return undefined;
+  const date = '\\d{4}-\\d\\d-\\d\\d';
+  const allowed = kind === 'tijd' ? `^${clock}$` : kind === 'datum' ? `^${date}$` : `^${date}(?:T${clock})?$`;
+  if (new RegExp(allowed).test(t)) return undefined;
+  if (kind === 'datum') return 'vorm';
   return /\d:\d\d(?::\d\d(?:\.\d+)?)?(?:[Zz]|[+-]\d\d(?::?\d\d)?)$/.test(t) ? 'zone' : 'vorm';
 }
 
-/** De datum-tijden en tijden van een stuk zoals de lezer ze ziet: na dezelfde tekstdecodering (`tokenText`). */
-export function dateTimeTexts(index: StepIndex, i: number): { readonly text: string; readonly time: boolean }[] {
+/** De datum-tijden, tijden en datums van een stuk zoals de lezer ze ziet: na dezelfde tekstdecodering (`tokenText`). */
+export function dateTimeTexts(index: StepIndex, i: number): { readonly text: string; readonly kind: DateTimeKind }[] {
   const at = DATETIME_SLOTS[index.type(i)];
   if (!at) return [];
-  const out: { text: string; time: boolean }[] = [];
+  const out: { text: string; kind: DateTimeKind }[] = [];
   (index.argTokens(i) ?? []).forEach((token, k) => {
     const t = token.trim();
-    if (at.slots.includes(k) && t.startsWith("'")) out.push({ text: index.tokenText(i, t), time: at.time });
+    if (at.slots.includes(k) && t.startsWith("'")) out.push({ text: index.tokenText(i, t), kind: at.kind });
   });
   return out;
 }

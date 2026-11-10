@@ -1880,6 +1880,30 @@ en noem het in je rapport of PR-tekst.
      is een dag 24 uur; daar leest de lezer de lag goed, en de merge schrijft. Richting: een speling lezen zoals de taakduur
      (minuten, met de minuten per dag van de taak), en in werktijd de dagen vóór `T` tellen als werkdagen. Uit #867 (fase
      1b, fixronde 5b). — B
+     VERVOLG (fixronde 6 van #867): de lijst van duurvormen die de merge laat staan
+     (`src/services/ifc/foreign/durationForms.ts`) laat in een speling alleen dagen toe. Ook `PT8H` op een kalender van 8 uur
+     per dag weigert dus, terwijl de lezer dat exact als 1 dag leest: de lijst kent de kalender niet. Zeldzaam (de eigen
+     writer schrijft een speling altijd in dagen) en veilig. Komt mee met de fix van de speling hierboven.
+
+1034. **De lezer leest een minteken in het tijddeel van een duur als plus.** `isoDurationToMinutes`
+     (`src/services/subdayIo.ts:111`) leest uren, minuten en seconden elk met een eigen teken, telt ze op en neemt daarvan de
+     absolute waarde; het teken komt alleen van een `-` vóór de `P`. ISO 8601 kent geen teken binnen een duur. Ook op main:
+     ja, proef op `4a8f76d9f` met `public/examples/showcase-appartementencomplex.ifc`: de taakduur van 'CPT soundings & soil
+     investigation' (`#55`) en de lag `#631` in werktijd geven voor `PT-2H` allebei +120 minuten, net als voor `PT2H`
+     (`-PT2H` geeft -120). Een ander programma weigert `PT-2H` of leest -2 uur. Alleen bestanden van een ander programma: de
+     eigen writer zet het teken vóór de `P` (`minutesToIsoDuration`). Met de flag weigert de merge zo'n duur
+     (`duur-deels-gelezen`; fixronde 6 van #867, `check-ifc-foreign-strikt.ts` en `check-ifc-duurvormen.ts`), ook als de
+     planner de waarde op 120 minuten zet. Richting: bij openen de vorm toetsen en een teken binnen de duur melden. Uit #867
+     (fase 1b, fixronde 6). — B
+
+1035. **De lezer rondt een tijddeel af op hele minuten.** `isoDurationToMinutes` (`src/services/subdayIo.ts:111`) rekent
+     seconden en uren met een breuk om naar minuten en rondt af (`Math.round`). Ook op main: ja, proef op `4a8f76d9f` met
+     de showcase (taakduur `#55` en lag `#631`): `PT90S` geeft 2 minuten (1,5), `PT30S` geeft 1 (een halve minuut) en
+     `PT0.01H` geeft 1 (0,6 minuut). Een ander programma leest de seconden. Alleen bestanden van een ander programma: de
+     eigen writer schrijft hele minuten (`PT{h}H{m}M0S`). Met de flag weigert de merge een tijddeel dat niet op een hele
+     minuut valt (`duur-deels-gelezen`; fixronde 6 van #867), ook als de planner de waarde op 2 minuten zet; `PT120S` en
+     `PT0.25H` schrijven. Richting: seconden bewaren (het minutenmodel kent geen seconden), of bij openen melden dat de
+     duur is afgerond. Uit #867 (fase 1b, fixronde 6). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul

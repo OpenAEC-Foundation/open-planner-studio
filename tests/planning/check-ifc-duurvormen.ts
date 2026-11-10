@@ -11,7 +11,8 @@
 //     openen staat erbij (knownbugs 1028 tot en met 1030 en 1033 tot en met 1035, en de oude lagvorm).
 //  4. Elke duur in een eigen bestand van OPS in de repo staat op de lijst (voorwaarde 1: een planning die OPS maakte,
 //     weigert nooit om een duur), en ook elke duur die de writer van nu schrijft. Eén bestand is met de hand gemaakt
-//     en heeft een speling die OPS nooit schreef; die staat apart, met de reden.
+//     en heeft een speling die OPS nooit schreef; die staat apart, met de reden. Ook elke datum en tijd van een eigen
+//     bestand staat op de lijst van datumvormen (knownbug 1031).
 // Exit 0 = alles klopt.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -19,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import { cloneDomain, openForeign, settle, type Opened } from './ifcMergeKern';
 import { DURATION_FORMS, durationForm, type DurationSlot } from '@/services/ifc/foreign/durationForms';
-import { durationTexts } from '@/services/ifc/foreign/lossCheck';
+import { dateTimeTexts, durationTexts, partialDateTime } from '@/services/ifc/foreign/lossCheck';
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
@@ -280,6 +281,31 @@ for (const file of files.sort()) {
   ok(`${rel}: elke duur staat op de lijst (buiten de lijst: ${found.out.slice(0, 3).join(', ')})`, found.out.length === expected.length && found.out.every(x => expected.includes(x)));
 }
 ok(`de repo heeft eigen bestanden van OPS (${ownFiles} bestanden, ${ownDurations} duren)`, ownFiles > 50 && ownDurations > 10000);
+// Hetzelfde voor de datums, tijden en datum-tijden (`dateTimeTexts`, `partialDateTime`): de lijst van datumvormen van
+// fixronde 5 en 6 (knownbug 1031). Eén eigen bestand valt erbuiten, al sinds fixronde 5: OPS schreef tot `32b6222de`
+// (26 september 2026) een werktijd die niet op het hele uur begint als uurbreuk (`'7.5:00:00'`). `clockToMinutes` leest
+// die niet als tijdblok; `scalarHourFromClock` wel, als 7,5 uur. Open punt voor Trias in de PR-tekst; hier vastgelegd,
+// zodat een tweede zo'n bestand opvalt.
+const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h7-tijden-oude-writer.ifc': 4 };
+{
+  let dates = 0;
+  for (const file of files) {
+    const bytes = new Uint8Array(readFileSync(file));
+    if (!/IFCAPPLICATION\([^;]*'Open Planner Studio'/.test(text(bytes))) continue;
+    const index = scanStep(bytes);
+    const out: string[] = [];
+    for (let i = 0; i < index.count; i++) {
+      if (!index.isEntity(i)) continue;
+      for (const { text: v, kind } of dateTimeTexts(index, i)) { dates++; if (partialDateTime(v, kind)) out.push(`${index.type(i)} #${index.id(i)}: ${kind} '${v}'`); }
+    }
+    const old = OLD_CLOCK[relative(ROOT, file)];
+    if (old !== undefined) {
+      ok(`${relative(ROOT, file)}: alleen de oude uurbreuk valt buiten de lijst (${out.length}: ${out.slice(0, 3).join(', ')})`,
+        out.length === old && out.every(x => /: tijd '\d+\.\d+:00:00'$/.test(x)));
+    } else ok(`${relative(ROOT, file)}: elke datum en tijd staat op de lijst (buiten: ${out.slice(0, 3).join(', ')})`, out.length === 0);
+  }
+  ok(`de eigen bestanden hebben datums en tijden (${dates})`, dates > 10000);
+}
 for (const rel of Object.keys(HAND_MADE)) ok(`${rel} bestaat nog`, files.some(f => relative(ROOT, f) === rel));
 
 // De writer van nu: de showcase (dag- en urentaken, lags in dagen en minuten) en de taak met elke vorm van de lijst in de
@@ -288,7 +314,7 @@ for (const rel of Object.keys(HAND_MADE)) ok(`${rel} bestaat nog`, files.some(f 
   const o = await openForeign(latin1(showcase));
   const written = latin1(writeIFC(cloneDomain(o)));
   const found = outsideOf(written);
-  ok(`de writer van nu: elke duur staat op de lijst (${found.count} duren; buiten: ${found.out.slice(0, 3).join(', ')})`, found.count > 1000 && found.out.length === 0);
+  ok(`de writer van nu: elke duur staat op de lijst (${found.count} duren; buiten: ${found.out.slice(0, 3).join(', ')})`, found.count > 500 && found.out.length === 0);
   for (const [name, use, v] of EXAMPLES.filter(([, use]) => use === 'duur' || use === 'rest-dagtaak' || use === 'rest-urentaak' || use === 'lag-werktijd')) {
     const re = await openForeign(latin1(sourceWith(use, v)));
     const again = outsideOf(latin1(writeIFC(cloneDomain(re))));

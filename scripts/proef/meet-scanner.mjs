@@ -153,7 +153,7 @@ if (!source) {
   let outcome = 'geschreven';
   let parts: Uint8Array[] = [];
   t0 = t();
-  try { parts = writeIfcMerge(opened.result, source); } catch (e) {
+  try { parts = await writeIfcMerge(opened.result, source); } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     outcome = 'merge-needs-phase2: ' + [...new Set(e.cases.map(c => c.kind))].join(', ');
   }
@@ -293,6 +293,19 @@ const BASE_TEXT = readFileSync(probe, 'utf8').split('\n')
   .filter(line => { const m = /^#(\d+)=/.exec(line); return !m || Number(m[1]) <= maxExampleId; }).join('\n');
 rmSync(probe, { force: true });
 
+// De weg van de weigering (fixronde 6 van #867): het gezette voorbeeld met een model, en de eerste taakduur met een
+// decimale komma (`P1,5D`, die de lezer als 5 dagen leest, knownbug 1029). De merge moet dan getypeerd weigeren
+// (`merge-needs-phase2`) in plaats van te stoppen met een andere fout. Eén klein bestand, voor elke grootte gelijk.
+const refusalFile = join(work, 'voorbeeld-met-komma.ifc');
+const commaText = BASE_TEXT.replace(/^(#\d+=IFCTASKTIME\(.*?,\.(?:WORK|ELAPSED)TIME\.,)'P0Y0M\d+D'/m, "$1'P1,5D'");
+if (commaText === BASE_TEXT) throw new Error('geen taakduur P0Y0M…D in het voorbeeld');
+makeFile(0, refusalFile, 'model', commaText);
+const refusalRun = spawnSync(process.execPath, [join(work, 'meet-merge.mjs'), refusalFile], { encoding: 'utf8', maxBuffer: 1 << 24 });
+const mergeRefusal = refusalRun.status === 0 ? JSON.parse(refusalRun.stdout.trim().split('\n').pop())
+  : { error: (refusalRun.stderr || '').trim().split('\n').slice(-3).join(' ') };
+rmSync(refusalFile, { force: true });
+console.log(JSON.stringify({ mergeRefusal }));
+
 // ── Meten ────────────────────────────────────────────────────────────────────────────────────────────────────────
 const results = [];
 for (const mb of sizes) {
@@ -372,12 +385,15 @@ async function measureBrowser(name, file, fn = '__meet') {
   }
 }
 
-if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', settled: true, node: process.version, results }, null, 2)}\n`);
+if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', settled: true, node: process.version, mergeRefusal, results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
 
 // Het resultaatbestand komt er altijd, ook met fouten erin. Maar mislukte een gevraagde meting (Node of een browser),
 // dan eindigt het script met een foutcode, zodat de job in CI rood wordt (review van #863, Sol en Terra).
-const failed = results.flatMap(row => [
+const failed = [
+  // De weigering moet getypeerd zijn (zie boven).
+  ...(String(mergeRefusal.outcome ?? '').startsWith('merge-needs-phase2') ? [] : [`weigering: ${mergeRefusal.error ?? mergeRefusal.outcome ?? 'geen resultaat'}`]),
+  ...results.flatMap(row => [
   // De merge-writer moet het eigen-plus-model-bestand schrijven (een eigen planning, geen vreemde herkomst).
   ...(row.merge?.error !== undefined ? [`${row.mb} MB merge: ${row.merge.error}`]
     : row.merge?.outcome !== 'geschreven' ? [`${row.mb} MB merge: ${row.merge?.outcome ?? 'geen resultaat'}`] : []),
@@ -392,7 +408,8 @@ const failed = results.flatMap(row => [
     const results = env === 'node' ? [got.result, got.blobResult] : [got.result];
     return results.every(r => r === want) ? [] : [`${row.mb} MB doel ${variant} ${env}: ${results.join('/')} ≠ ${want}`];
   })),
-]);
+  ]),
+];
 if (failed.length > 0) {
   console.error(`Mislukte metingen:\n  ${failed.join('\n  ')}`);
   process.exitCode = 1;

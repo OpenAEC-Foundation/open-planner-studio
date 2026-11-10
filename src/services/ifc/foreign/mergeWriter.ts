@@ -87,9 +87,10 @@ export type MergePhase2Kind =
    *  `T` (`P1DT2H`; beide knownbug 1033), een minteken in een deel (`PT-2H`, knownbug 1034), een tijddeel dat niet op een
    *  hele minuut valt (`PT90S`, knownbug 1035), of een tijddeel in de oude lagvorm. */
   | 'duur-deels-gelezen'
-  /** Een P-stuk heeft een datum-tijd of tijd die de lezer anders leest (`partialDateTime`, na de STEP-decodering): met een
-   *  tijdzone (`Z`, `+02:00`; de lezer laat die weg), seconden die niet 0 zijn, een spatie in plaats van `T`, of een uur van
-   *  één cijfer (knownbug 1031; fixronde 5, zoektocht punt 4). */
+  /** Een P-stuk heeft een datum-tijd, tijd of datum die de lezer anders leest (`partialDateTime`, na de STEP-decodering):
+   *  met een tijdzone (`Z`, `+02:00`; de lezer laat die weg), seconden die niet 0 zijn, een spatie in plaats van `T`, of een
+   *  uur van één cijfer (knownbug 1031; fixronde 5, zoektocht punt 4); of een begin of einde van een feestdag of
+   *  uitzondering (`IfcWorkTime`) dat geen kale datum is (`2027-03-26T12:00:00`, `2027-3-26`; fixronde 6, zoektocht 2). */
   | 'tijd-deels-gelezen'
   /** De uitvoer heeft een pset zonder bronstuk die niet in ons eigen register staat (`ifcPsets.ts`). Alleen een eigen
    *  registerpset mag erbij komen (fixronde 5, plek 34, besluit van Trias van 10 november 2026). */
@@ -302,11 +303,13 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
       caseAt('duur-deels-gelezen', i, `${label(i)}: ${DURATION_SLOT_LABEL[slot]} '${text}' staat niet op de lijst van vormen die de lezer`
         + ` exact leest: ${durationHint(text, slot)}.${temporary}`);
     }
-    for (const { text, time } of dateTimeTexts(index, i)) {
-      const part = partialDateTime(text, time);
-      const what = time ? 'de tijd' : 'de datum-tijd';
+    for (const { text, kind } of dateTimeTexts(index, i)) {
+      const part = partialDateTime(text, kind);
+      const what = kind === 'tijd' ? 'de tijd' : kind === 'datum' ? 'de datum' : 'de datum-tijd';
       if (part === 'zone') {
         caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 1031)`);
+      } else if (part === 'vorm' && kind === 'datum') {
+        caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' is geen datum in de vorm JJJJ-MM-DD; de lezer neemt de eerste tien tekens (knownbug 1031)`);
       } else if (part === 'vorm') {
         caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031)`);
       }
