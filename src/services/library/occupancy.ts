@@ -39,7 +39,7 @@
 // bewuste vereenvoudigingen: géén pool-kalendercheck op de capaciteit (de belasting
 // landt per document al uitsluitend op werkdagen van dát document), en binnen-document-
 // overbezetting telt gewoon mee in de som (de vraag is bedrijfsbreed).
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import { resourceHasLoad, type Resource, type ResourceAssignment } from '@/types/resource';
 import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -253,8 +253,11 @@ export function computeLibraryOccupancy(
   for (const doc of docs) {
     if (doc.companyId !== companyId) continue;
 
-    // Alleen resources met een stempel naar déze bibliotheek én een nog bestaand poolitem.
+    // Alleen resources met een stempel naar déze bibliotheek én een nog bestaand poolitem. Een
+    // kostenresource (issue #815) heeft geen belasting en dus geen bezetting, ook niet als
+    // ongetelde boeking.
     const stampedResources = doc.resources.filter(r =>
+      resourceHasLoad(r) &&
       r.libraryOrigin !== undefined &&
       r.libraryOrigin.companyId === companyId &&
       poolItemIds.has(r.libraryOrigin.libraryItemId));
@@ -324,6 +327,7 @@ export function computeLibraryOccupancy(
 
   // Poolvolgorde als deterministische rijvolgorde; ongeboekte items slaan we over.
   for (const poolItem of pool.resources) {
+    if (!resourceHasLoad(poolItem)) continue; // kostenresource: geen bezetting (issue #815).
     const bucket = perItem.get(poolItem.id);
     if (!bucket) continue;
 

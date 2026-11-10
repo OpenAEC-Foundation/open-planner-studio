@@ -14,11 +14,12 @@
 import type { AppSliceFactory } from './types';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
-import type { ResourceAssignment } from '@/types/resource';
+import { isCostResource, type ResourceAssignment } from '@/types/resource';
+import type { TaskAssignmentResourceKind } from '@/types/taskGrid';
 import { subtreeCollector } from '@/state/taskTree';
 import { generateId } from '@/utils/id';
 import {
-  assignInsertedWbsCodes, insertRemappedRelations, normalizeInsertedBranch, notifyReferencesCleared,
+  assignInsertedWbsCodes, insertRemappedRelations, normalizeInsertedBranch, notifyAssignmentsSkipped, notifyReferencesCleared,
   notifyRelationsSkipped,
 } from '@/state/insertedBranch';
 import {
@@ -47,6 +48,11 @@ export interface TaskClipboard {
   tasks: Task[];
   sequences: Sequence[];
   assignments: ResourceAssignment[];
+  /** Per resource van `assignments` de soort in het brondocument (issue #815). Het klembord is
+   *  app-globaal: in het doel kan dezelfde id een ander type hebben. Plakken toetst de soort hiertegen,
+   *  niet aan `costAmount` of `curve` (een kostentoewijzing kan zonder bedrag). Een resource die in de
+   *  bron ontbrak, staat er niet in: die soort is onbekend en de toewijzing wordt niet geplakt. */
+  resourceKinds: Record<string, TaskAssignmentResourceKind>;
 }
 
 export interface SelectionSlice {
@@ -182,15 +188,19 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         seq => idSet.has(seq.predecessorId) && idSet.has(seq.successorId),
       );
       const assignments = s.assignments.filter(a => idSet.has(a.taskId));
+      const usedResourceIds = new Set(assignments.map(a => a.resourceId));
+      const resourceKinds: Record<string, TaskAssignmentResourceKind> = {};
+      for (const r of s.resources) if (usedResourceIds.has(r.id)) resourceKinds[r.id] = isCostResource(r) ? 'cost' : 'work';
 
       // Deep-clone: het klembord blijft geldig na latere edits/undo van de bron.
-      s.taskClipboard = JSON.parse(JSON.stringify({ tasks, sequences, assignments }));
+      s.taskClipboard = JSON.parse(JSON.stringify({ tasks, sequences, assignments, resourceKinds }));
     }),
 
   pasteTasks: () => {
     const newRootIds: string[] = [];
     let skippedRelations: string[] = [];
     let clearedReferences = 0;
+    let skippedAssignments = 0;
     set((s) => {
       const clip = s.taskClipboard;
       if (!clip || clip.tasks.length === 0) return;
@@ -198,7 +208,29 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       runtime.beginUndoable(s);
 
       const copiedIds = new Set(clip.tasks.map(t => t.id));
-      const resourceExists = new Set(s.resources.map(r => r.id));
+      const targetById = new Map(s.resources.map(r => [r.id, r] as const));
+      const taskById = new Map(clip.tasks.map(t => [t.id, t] as const));
+      // Een toewijzing past alleen als de soort (kosten of werk) van de bronresource bekend is en gelijk
+      // aan die van de doelresource, en een mijlpaal draagt alleen kosten (issue #815). Anders overslaan
+      // en melden, zoals een verwijzing die in het doel niet bestaat. Een resource die in het doel niet
+      // bestaat, valt stil weg (het oude gedrag).
+      const fitting: ResourceAssignment[] = [];
+      // Per bron-taak de resources van een overgeslagen toewijzing: die gaan ook uit `resourceIds`.
+      const skippedResourceIds = new Map<string, Set<string>>();
+      for (const a of clip.assignments) {
+        const target = targetById.get(a.resourceId);
+        if (!target) continue;
+        const targetIsCost = isCostResource(target);
+        const sourceKind = clip.resourceKinds?.[a.resourceId];
+        if (sourceKind === (targetIsCost ? 'cost' : 'work') && (targetIsCost || !taskById.get(a.taskId)?.isMilestone)) {
+          fitting.push(a);
+          continue;
+        }
+        skippedAssignments++;
+        const ids = skippedResourceIds.get(a.taskId) ?? new Set<string>();
+        ids.add(a.resourceId);
+        skippedResourceIds.set(a.taskId, ids);
+      }
 
       // Geplakte roots komen als sibling van de (eerst) geselecteerde taak;
       // zonder selectie op rootniveau.
@@ -221,8 +253,8 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
           id: newId,
           parentId: parentInClip ? idMap.get(src.parentId!)! : targetParentId,
           childIds: src.childIds.filter(c => copiedIds.has(c)).map(c => idMap.get(c)!),
-          // Verweesde resourceverwijzingen overslaan.
-          resourceIds: src.resourceIds.filter(r => resourceExists.has(r)),
+          // Verweesde resourceverwijzingen overslaan, en de resources van overgeslagen toewijzingen.
+          resourceIds: src.resourceIds.filter(r => targetById.has(r) && !skippedResourceIds.get(src.id)?.has(r)),
         };
         s.tasks.push(task);
       }
@@ -238,10 +270,9 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       // voortleven. Zie `insertRemappedRelations`.
       skippedRelations = insertRemappedRelations(s, clip.sequences, idMap);
 
-      // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan overslaan).
+      // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan of niet passen overslaan).
       // Spread behoudt óók het optionele curve-veld — net als bij sequences hierboven.
-      for (const a of clip.assignments) {
-        if (!resourceExists.has(a.resourceId)) continue;
+      for (const a of fitting) {
         s.assignments.push({
           ...a,
           id: generateId('asgn'),
@@ -264,6 +295,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
     notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-paste');
     notifyReferencesCleared(get().notify, clearedReferences);
+    notifyAssignmentsSkipped(get().notify, skippedAssignments);
     return newRootIds;
   },
 });

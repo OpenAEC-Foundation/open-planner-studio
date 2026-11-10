@@ -6,6 +6,7 @@ import {
 } from '@/hooks/recoveryPaths';
 import { writeBytesFileAtomic, writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
+import { parseForeignSourceTarget, sameForeignSourceTarget, type ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
 import { checkRecoveryDocumentIds, checkRecoveryDocuments, checkRecoveryManifestVersion, RecoveryManifestError, RECOVERY_MANIFEST_VERSION } from './recoveryManifest';
 export { RECOVERY_MANIFEST_VERSION, RecoveryManifestError } from './recoveryManifest';
 
@@ -22,6 +23,8 @@ export interface RecoveryDocContent {
   /** Zie `RecoveryDocMetadata.siteFileId`. */
   siteFileId?: string | null;
   siteFileVersion?: string | null;
+  /** Zie `RecoveryDocMetadata.foreignSource`. */
+  foreignSource?: ForeignSourceTarget | null;
 }
 
 /**
@@ -76,6 +79,11 @@ export interface RecoveryDocMetadata {
    */
   siteFileId?: string | null;
   siteFileVersion?: string | null;
+  /**
+   * Het doel van de bron met een vreemd deel (#804 fase 1a, fixronde 1). Afwezig: geen kenmerk. Zie
+   * `RecoveryManifestDoc.foreignSource`.
+   */
+  foreignSource?: ForeignSourceTarget | null;
 }
 
 /**
@@ -111,9 +119,10 @@ export function fullRecoverySave(
 ): RecoverySaveInput {
   return {
     activeDocumentId,
-    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded, xerArchive, siteFileId, siteFileVersion }) => ({
+    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded, xerArchive, siteFileId, siteFileVersion, foreignSource }) => ({
       id, filePath, isDirty, datesAsRecorded, ...(xerArchive ? { xerArchive } : {}),
       ...siteMetaFields({ siteFileId, siteFileVersion }),
+      ...foreignSourceMetaFields({ foreignSource }),
     })),
     upserts: docs,
     ...(archives ? { archives } : {}),
@@ -185,6 +194,24 @@ export function siteMetaFields(record: object | null | undefined):
   const { siteFileId, siteFileVersion } = recoverySiteMeta(record);
   if (!siteFileId) return {};
   return siteFileVersion ? { siteFileId, siteFileVersion } : { siteFileId };
+}
+
+/**
+ * Het doel van een bron met een vreemd deel zoals het in een manifestregel hoort (#804 fase 1a, fixronde 1): weggelaten
+ * zonder kenmerk, zodat een regel zonder kenmerk dezelfde velden heeft als vóór de fixronde. Soepel gelezen: een
+ * ongeldige vorm telt als afwezig. Geen eigen versienummer, net als de site-velden.
+ */
+export function foreignSourceMetaFields(record: object | null | undefined): { foreignSource?: ForeignSourceTarget } {
+  const foreignSource = parseForeignSourceTarget((record as { foreignSource?: unknown } | null | undefined)?.foreignSource);
+  return foreignSource ? { foreignSource } : {};
+}
+
+/** Zijn twee recordmetadata gelijk wat het doel van de vreemde bron betreft? Afwezig en `null` zijn gelijk. */
+export function sameRecoveryForeignSource(
+  a: { foreignSource?: ForeignSourceTarget | null },
+  b: { foreignSource?: ForeignSourceTarget | null },
+): boolean {
+  return sameForeignSourceTarget(a.foreignSource, b.foreignSource);
 }
 
 /**
@@ -365,6 +392,7 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
         datesAsRecorded: d.datesAsRecorded ?? false,
         ...(typeof d.xerArchive === 'string' ? { xerArchive: d.xerArchive } : {}),
         ...siteMetaFields(d),
+        ...foreignSourceMetaFields(d),
       });
     }
   }
@@ -503,7 +531,8 @@ function checkedUpserts(input: RecoverySaveInput): Map<string, RecoveryDocConten
     if (document.filePath !== metadata.filePath || document.isDirty !== metadata.isDirty
       || document.datesAsRecorded !== metadata.datesAsRecorded
       || (document.xerArchive ?? null) !== (metadata.xerArchive ?? null)
-      || !sameRecoverySiteMeta(document, metadata)) {
+      || !sameRecoverySiteMeta(document, metadata)
+      || !sameRecoveryForeignSource(document, metadata)) {
       throw new Error(`Recovery: upsertmetadata voor ${JSON.stringify(document.id)} wijkt af van het manifest.`);
     }
     upserts.set(document.id, document);
@@ -542,6 +571,7 @@ export function planTauriV3RecoverySave(
         datesAsRecorded: metadata.datesAsRecorded,
         ...(metadata.xerArchive ? { xerArchive: metadata.xerArchive } : {}),
         ...siteMetaFields(metadata),
+        ...foreignSourceMetaFields(metadata),
       });
       writes.push({ name: ifc, ifc: changed.ifc });
       continue;
@@ -558,6 +588,7 @@ export function planTauriV3RecoverySave(
       isDirty: metadata.isDirty, datesAsRecorded: metadata.datesAsRecorded,
       ...(metadata.xerArchive ? { xerArchive: metadata.xerArchive } : {}),
       ...siteMetaFields(metadata),
+      ...foreignSourceMetaFields(metadata),
     });
   }
 
@@ -759,6 +790,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
             ...(typeof d.xerArchive === 'string' ? { xerArchive: d.xerArchive } : {}),
             // Een manifest van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
             ...siteMetaFields(d),
+            ...foreignSourceMetaFields(d),
           });
         } catch (err) {
           console.error('Recovery: kon documentsnapshot niet lezen:', d.id, err);
@@ -1316,6 +1348,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
               datesAsRecorded: document.datesAsRecorded,
               ...(document.xerArchive ? { xerArchive: document.xerArchive } : {}),
               ...siteMetaFields(document),
+              ...foreignSourceMetaFields(document),
             })),
             addedAt: now,
           };
@@ -1439,6 +1472,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
         datesAsRecorded: document.datesAsRecorded ?? false,
         // Een webrecord van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
         ...siteMetaFields(document),
+        ...foreignSourceMetaFields(document),
         mtime: new Date(rec.addedAt),
         ...(typeof document.xerArchive === 'string' ? { xerArchive: document.xerArchive } : {}),
       });

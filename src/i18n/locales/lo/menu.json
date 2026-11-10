@@ -140,6 +140,7 @@
     "histogram": "ຮິສໂຕແກຣມ",
     "toggleHistogram": "ຮິສໂຕແກຣມ",
     "warningsPanel": "ແຜງແຈ້ງເຕືອນ",
+    "scheduleShiftPanel": "ການເລື່ອນໜ້າວຽກ",
     "prevResource": "ກ່ອນໜ້າ",
     "nextResource": "ຖັດໄປ",
     "leveling": "ການປັບສົມດຸນຊັບພະຍາກອນ",
@@ -152,6 +153,7 @@
     "barsGroup": "ແຖບໜ້າວຽກ",
     "manageBaselines": "ຈັດການແຜນຖານ…",
     "statusDate": "ວັນທີສະຖານະ",
+    "statusDateValue": "ວັນທີສະຖານະ: {{date}}",
     "statusDateClear": "ລ້າງວັນທີສະຖານະ",
     "statusDateTime": "ເວລາຂອງວັນທີສະຖານະ",
     "statusDateTimeLater": "ເວລາຕໍ່ມາ",
@@ -216,7 +218,9 @@
     "screenColorsMissingField": "ບໍ່ມີຫ້ອງຂໍ້ມູນນີ້ໃນໂຄງການນີ້. ລະບົບຈະໃຊ້ໝວດວຽກຊົ່ວຄາວ.",
     "screenColorsHint": "ນອກຈາກເສັ້ນທາງວິກິດແລ້ວ, ຂອບສີແດງຈະໝາຍບອກເສັ້ນທາງວິກິດໄວ້.",
     "addLayout": "ໂຄງຮ່າງການຈັດວາງໃໝ່",
-    "toggleRelations": "ເສັ້ນສາຍພົວພັນ"
+    "toggleRelations": "ເສັ້ນສາຍພົວພັນ",
+    "relationFindDependents": "ຊອກຫາໂຄງການທີ່ຂຶ້ນກັບ…",
+    "relationFindDependentsHint": "ຊອກຫາໃນໂຟນເດີສຳລັບໂຄງການທີ່ມີສາຍສຳພັນພາຍນອກກັບແຜນງານນີ້."
   },
   "ifc": {
     "title": "ຕົວແກ້ໄຂ IFC",
@@ -234,6 +238,8 @@
     "company": "ບໍລິສັດ",
     "startDate": "ວັນທີເລີ່ມຕົ້ນ",
     "endDate": "ວັນທີສິ້ນສຸດ",
+    "defaultWorkRule": "ຄ່າເລີ່ມຕົ້ນຂອງປະເພດໜ້າວຽກ",
+    "defaultWorkRuleHint": "ໜ້າວຽກທີ່ຕັ້ງເປັນ “ຄ່າເລີ່ມຕົ້ນຂອງໂຄງການ” ຈະເຮັດຕາມຄ່ານີ້. ໜ້າວຽກທີ່ມີປະເພດໜ້າວຽກຂອງຕົນເອງ ຍັງຄົງການເລືອກຂອງຕົນໄວ້.",
     "calc": {
       "title": "ການຄິດໄລ່",
       "subtitle": "ຕົວເລືອກການຄິດໄລ່ສຳລັບໂຄງການນີ້ — ບັນທຶກໄວ້ກັບໄຟລ໌ ບໍ່ແມ່ນກັບແອັບ.",
@@ -319,7 +325,7 @@
     "exportTitle": "ສົ່ງອອກ",
     "exportSubtitle": "ເລືອກຮູບແບບໄຟລ໌. ໂຄງການຈະຖືກແປງ ແລະ ບັນທຶກ.",
     "progressImportCardTitle": "ອັບເດດຄວາມຄືບໜ້າຈາກສະເປຣດຊີດ",
-    "progressImportCardDesc": "ອ່ານໄຟລ໌ CSV ຫຼື XLSX ທີ່ສົ່ງກັບມາ ແລ້ວອັບເດດເປີເຊັນສຳເລັດ, ວັນເລີ່ມຕົວຈິງ ແລະ ວັນສຳເລັດຕົວຈິງ.",
+    "progressImportCardDesc": "ອ່ານຊີດ Excel (.xlsx) ທີ່ສົ່ງກັບມາ ແລ້ວອັບເດດເປີເຊັນສຳເລັດ, ວັນເລີ່ມຕົວຈິງ ແລະ ວັນສຳເລັດຕົວຈິງ.",
     "printTitle": "ພິມ",
     "printSubtitle": "ເປີດໜ້າຈໍລາຍງານເພື່ອສະແດງຕົວຢ່າງກ່ອນພິມ ແລະ ຕັ້ງຄ່າ.",
     "openPrintPreview": "ເປີດການສະແດງຕົວຢ່າງກ່ອນພິມ",
@@ -387,6 +393,9 @@
     "mspdiDesc": "ເປີດໃນ Microsoft Project ໄດ້. ຮັກສາໂຄງສ້າງ WBS ຄົບຖ້ວນ.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "ສຳລັບ Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "ສຳລັບ Oracle Primavera P6, ເປັນໄຟລ໌ .xer.",
+    "experimentalBadge": "ທົດລອງ",
     "profileHint": "ໂປຣເຈັກຂອງທ່ານກຳລັງໃຊ້ໂປຣໄຟລ໌ “{{name}}” ຢູ່ຕອນນີ້. ພວກເຮົາແນະນຳໃຫ້ໃຊ້ໂປຣໄຟລ໌ “{{target}}” ເພື່ອຄວາມເຂົ້າກັນໄດ້ທີ່ດີທີ່ສຸດກັບຮູບແບບໄຟລ໌ນີ້.",
     "ifcLabel": "IFC",
     "ifcDesc": "ມາດຕະຖານ BuildingSMART, ໃນ schema IFC ຂອງໂຄງການ (ຄ່າເລີ່ມຕົ້ນ IFC 4.3 ADD2). ການເຊື່ອມໂຍງ 4D ກັບໂມເດວ BIM.",
@@ -441,5 +450,18 @@
     "redo": "ເຮັດຄືນ",
     "zoomIn": "ຊູມເຂົ້າ",
     "zoomOut": "ຊູມອອກ"
+  },
+  "native": {
+    "window": "ໜ້າຕ່າງ",
+    "quit": "ອອກຈາກ Open Planner Studio",
+    "about": "ກ່ຽວກັບ Open Planner Studio",
+    "services": "ບໍລິການ",
+    "hide": "ເຊື່ອງ Open Planner Studio",
+    "hideOthers": "ເຊື່ອງອື່ນໆ",
+    "showAll": "ສະແດງທັງໝົດ",
+    "closeWindow": "ປິດໜ້າຕ່າງ",
+    "cut": "ຕັດ",
+    "fullscreen": "ສະຫຼັບໂໝດເຕັມຈໍ",
+    "bringAllToFront": "ນຳທຸກໜ້າຕ່າງມາໄວ້ດ້ານໜ້າ"
   }
 }

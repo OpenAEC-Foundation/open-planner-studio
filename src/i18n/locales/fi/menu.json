@@ -140,6 +140,7 @@
     "histogram": "Histogrammi",
     "toggleHistogram": "Histogrammi",
     "warningsPanel": "Varoituspaneeli",
+    "scheduleShiftPanel": "Siirretyt tehtävät",
     "prevResource": "Edellinen",
     "nextResource": "Seuraava",
     "leveling": "Tasaaminen",
@@ -153,6 +154,7 @@
     "barsGroup": "Palkit",
     "manageBaselines": "Hallitse perustason suunnitelmia…",
     "statusDate": "Raportointipäivä",
+    "statusDateValue": "Raportointipäivä: {{date}}",
     "statusDateClear": "Tyhjennä raportointipäivä",
     "statusDateTime": "Raportointipäivän aika",
     "statusDateTimeLater": "Myöhempi aika",
@@ -217,7 +219,9 @@
     "screenColorsMissingField": "Tätä kenttää ei ole tässä projektissa. Työlajia käytetään väliaikaisesti.",
     "screenColorsHint": "Muualla kuin tilassa Kriittinen polku punainen reunus merkitsee kriittisen polun.",
     "addLayout": "Uusi asettelu",
-    "toggleRelations": "Riippuvuusviivat"
+    "toggleRelations": "Riippuvuusviivat",
+    "relationFindDependents": "Etsi riippuvaiset projektit…",
+    "relationFindDependentsHint": "Etsi kansiosta projektit, joilla on ulkoinen riippuvuus tähän aikatauluun."
   },
   "ifc": {
     "title": "IFC-muokkain",
@@ -235,6 +239,8 @@
     "company": "Yritys",
     "startDate": "Aloituspäivä",
     "endDate": "Loppupäivä",
+    "defaultWorkRule": "Oletustehtävätyyppi",
+    "defaultWorkRuleHint": "Tehtävät, joiden tehtävätyyppi on ”Projektin oletus”, noudattavat tätä valintaa. Tehtävät, joilla on oma tehtävätyyppi, säilyttävät oman valintansa.",
     "calc": {
       "title": "Laskenta",
       "subtitle": "Laskenta-asetukset tälle projektille — tallennetaan tiedostoon, ei sovellukseen.",
@@ -321,7 +327,7 @@
     "exportTitle": "Vienti",
     "exportSubtitle": "Valitse muoto. Projekti muunnetaan ja tallennetaan.",
     "progressImportCardTitle": "Päivitä edistyminen taulukosta",
-    "progressImportCardDesc": "Lue palautettu CSV- tai XLSX-taulukko ja päivitä valmiusaste, toteutunut alkamispäivä ja toteutunut valmistumispäivä.",
+    "progressImportCardDesc": "Lue palautettu Excel-taulukko (.xlsx) sisään ja päivitä valmiusaste, toteutunut alkamispäivä ja toteutunut valmistumispäivä.",
     "printTitle": "Tulostus",
     "printSubtitle": "Avaa raporttinäkymä tulostuksen esikatselua ja asetuksia varten.",
     "openPrintPreview": "Avaa tulostuksen esikatselu",
@@ -389,6 +395,9 @@
     "mspdiDesc": "Avattavissa ohjelmassa Microsoft Project. Täysi WBS-rakenne.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6 -ohjelmalle.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Oracle Primavera P6 -ohjelmistoa varten, .xer-tiedostona.",
+    "experimentalBadge": "Kokeellinen",
     "profileHint": "Projektissa käytetään tällä hetkellä profiilia {{name}}. Tämän tiedostomuodon kanssa parhaaseen yhteensopivuuteen suositellaan profiilia {{target}}.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standardi, projektin IFC-skeemassa (oletuksena IFC 4.3 ADD2). 4D-yhteys BIM-malleihin.",
@@ -443,5 +452,18 @@
     "redo": "Tee uudelleen",
     "zoomIn": "Lähennä",
     "zoomOut": "Loitonna"
+  },
+  "native": {
+    "window": "Ikkuna",
+    "quit": "Lopeta Open Planner Studio",
+    "about": "Tietoja: Open Planner Studio",
+    "services": "Palvelut",
+    "hide": "Piilota Open Planner Studio",
+    "hideOthers": "Piilota muut",
+    "showAll": "Näytä kaikki",
+    "closeWindow": "Sulje ikkuna",
+    "cut": "Leikkaa",
+    "fullscreen": "Vaihda kokonäyttötilaan",
+    "bringAllToFront": "Tuo kaikki eteen"
   }
 }

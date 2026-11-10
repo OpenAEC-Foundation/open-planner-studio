@@ -63,6 +63,7 @@ const RESOURCE_TYPE_KEY = {
   MATERIAL: 'resource.type.material',
   SUBCONTRACTOR: 'resource.type.subcontractor',
   CREW: 'resource.type.crew',
+  COST: 'resource.type.cost',
 } as const satisfies Record<ResourceType, string>;
 
 const pct = (c: number) => `${Math.round(c * 100)}%`;
@@ -570,7 +571,9 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
     taskDateCol('start', t('tableReports.common.start'), r => r.start, 'start', dd),
     taskDateCol('finish', t('tableReports.common.finish'), r => r.finish, 'end', dd),
     remainingCol(t, dd),
-    { key: 'units', header: t(`${p}.units`), width: 75, align: 'right', text: r => dd.num(r.unitsPerDay) },
+    { key: 'units', header: t(`${p}.units`), width: 75, align: 'right',
+      // Kostenresource (#815): het bedrag (of "—") in plaats van een inzet.
+      text: r => r.resourceType === 'COST' ? (r.costAmount !== undefined ? dd.num(r.costAmount) : '—') : dd.num(r.unitsPerDay) },
     completionCol(t),
     { key: 'critical', header: t('tableReports.common.critical'), width: 60, align: 'left', text: r => (r.isCritical ? t('tableReports.common.yes') : ''), color: r => (r.isCritical ? REPORT_COLORS.error : undefined), bold: r => r.isCritical },
     statusCol(t, r => t(`tableReports.progress.status_${r.state}`), r => PROGRESS_COLOR[r.state], 110),

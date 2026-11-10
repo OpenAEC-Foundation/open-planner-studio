@@ -470,7 +470,10 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   // dus een rawSource-pagina (tot 8 chunks) past nooit onder de 256 kB-responsgrens — de
   // toolbeschrijving mag rawSource daar niet onder scharen.
   assert(Math.ceil(first.chunkSizeBytes / 3) * 4 * 8 > 256 * 1024, 'volle rawSource-pagina > 256 kB bij echte chunkgrootte');
-  assert(/EXCEPT rawSource/.test(getTool(TOOL)?.description ?? ''), 'beschrijving zondert rawSource uit van de 256 kB-grens');
+  // Sinds #818 noemt param `limit` de grootte van een rawSource-pagina; de algemene 256 kB-grens meldt het
+  // antwoord zelf (VALIDATION met de grens), dus die zin staat niet meer in de toolbeschrijving.
+  const limitDesc = String(((getTool(TOOL)?.inputSchema as any)?.properties?.limit?.description) ?? '');
+  assert(/rawSource ≤ 8 chunks of ~256 kB/.test(limitDesc), `param limit noemt de grootte van een rawSource-pagina: ${limitDesc}`);
 });
 
 test('invalid args worden runtime geweigerd zonder storemutatie', () => {
@@ -969,10 +972,11 @@ test('resourcenamen: toolbeschrijving laat de AI-client eerst de gebruiker om to
   assert(!!option, 'includeResourceNames staat in het invoerschema');
   assertEq(option.type, 'boolean', 'boolean');
   assertEq(option.default, false, 'standaard false');
-  for (const text of [tool.description, option.description as string]) {
-    assert(/ask the user for (explicit )?permission/i.test(text), 'toestemmingsinstructie aan de AI-client');
-    assert(/AI provider/i.test(text), 'legt uit waarom: namen gaan naar de AI-aanbieder');
-  }
+  // De regel staat één keer volledig, in de toolbeschrijving (eigenaarsbesluit 22-09); de optie verwijst ernaar (#818).
+  assert(/ask the user for (explicit )?permission/i.test(tool.description), 'toestemmingsinstructie aan de AI-client');
+  assert(/AI provider/i.test(tool.description), 'legt uit waarom: namen gaan naar de AI-aanbieder');
+  assert(/permission/i.test(option.description as string), 'de optie noemt de toestemming');
+  assert(/required for rawSource/i.test(option.description as string), 'de optie zegt dat rawSource haar ook vraagt');
 });
 
 await run();

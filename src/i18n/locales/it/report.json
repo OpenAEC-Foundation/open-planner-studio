@@ -32,6 +32,7 @@
   "repeatHeader": "Ripeti intestazione su ogni pagina",
   "repeatFooter": "Ripeti piè di pagina su ogni pagina",
   "reportFontScaleLabel": "Dimensione carattere:",
+  "reportFontFamilyLabel": "Carattere:",
   "timelineColumnsLabel": "Cronologia su:",
   "timelineColumnsHint": "Solo con adattamento automatico",
   "timelineColumns_one": "{{count}} pagina",
@@ -439,5 +440,11 @@
       "riskHeading": "Attività a rischio: in ritardo o con margine negativo",
       "riskEmpty": "Nessuna attività in ritardo e nessun margine negativo."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (predefinito)",
+    "liberationSans": "Liberation Sans (come Arial)",
+    "carlito": "Carlito (come Calibri)",
+    "liberationSerif": "Liberation Serif (come Times New Roman)"
   }
 }

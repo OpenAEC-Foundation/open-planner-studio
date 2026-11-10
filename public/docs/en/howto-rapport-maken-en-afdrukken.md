@@ -42,10 +42,11 @@ The ribbon of the Report tab has no Calculate button, but F5 works here just fin
 
 ### 4. Adjust the report
 
-Under *Settings* are the choices for the Gantt chart and the Resource diagram. Look-ahead, Critical & near-critical, Progress report, Schedule health, Resource loading, Resource assignments and WBS summary only have *Paper:* and *Orientation:*, plus a *Report options* block with the choices of that report. The Milestone overview and the Variance have no choices of their own. For the period of a report see [Choosing the reporting period](docs://howto-rapportageperiode-kiezen).
+Under *Settings* are the choices for the Gantt chart and the Resource diagram. Look-ahead, Critical & near-critical, Progress report, Schedule health, Resource loading, Resource assignments and WBS summary only have *Paper:*, *Orientation:* and *Font:*, plus a *Report options* block with the choices of that report. The Milestone overview and the Variance have no choices of their own. For the period of a report see [Choosing the reporting period](docs://howto-rapportageperiode-kiezen).
 
 - *Paper:* and *Orientation:* determine the sheet. By default this is A3 landscape, which is handy for a construction schedule, but not every printer prints A3. If you have an A4 printer, choose A4 now: the app then lays out the pages for A4, instead of you having to shrink them later.
 - With the Resource diagram, the checkbox *Each resource on a new page* gives a sheet per crew.
+- *Font:* chooses the font of all reports: *Inter* (default), *Liberation Sans* (like Arial), *Carlito* (like Calibri) or *Liberation Serif* (like Times New Roman). The choice applies to every report, like the paper.
 - *Font size:* (90% to 125%) makes text and table larger or smaller. A larger font leaves less room for the timeline.
 - *Follow view (filter, grouping, sort)* only appears for the Gantt chart. By default the whole task tree goes on paper. With this checkbox the report draws exactly the rows you see on screen, including collapsed phases, for example only the critical tasks from a layout. How to make such a view is in [Creating and using a layout](docs://howto-layouts-gebruiken).
 - *Show baseline overlay* shows the active baseline next to the current bars. With *Status line:* you choose a *Status date line* or a *Progress line*.
@@ -84,7 +85,7 @@ Open the PDF in your PDF reader and print it there. If you print an A3 PDF on an
 
 **Paper currently applies to all reports.** There is one choice for *Paper:* and *Orientation:*, shared by all reports. The Milestone overview and the Variance have no paper choice of their own: they use what you set in another report, A3 landscape by default. So choose the paper first in a report that offers it, for example the Gantt chart, and then go back.
 
-**The settings apply to all projects.** Paper, font size, period and the other choices are remembered by the app on this device, for all your projects. They do not belong to the project file.
+**The settings apply to all projects.** Paper, font, font size, period and the other choices are remembered by the app on this device, for all your projects. They do not belong to the project file.
 
 ## See also
 

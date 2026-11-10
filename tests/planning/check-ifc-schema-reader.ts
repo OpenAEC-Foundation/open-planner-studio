@@ -132,9 +132,15 @@ function firstDiff(a: unknown, b: unknown, path = ''): string | undefined {
   const rich = buildRichSchemaProject(ROOT);
   // Een lege tekstwaarde schrijft de writer als `IFCTEXT('')`; de oude writer schreef het ongeldige
   // `IFCTEXT($)`, dat als "geen waarde" las. Een bewuste verbetering, dus hier niet in de vergelijking.
+  // De oude indeling is van vóór de kostenresource (#815) en draagt geen ObjectType op een resource
+  // (de omzetting hieronder zet daar `$`); een kostenresource kan daar dus niet in staan.
+  const costIds = new Set(rich.resources.filter(r => r.type === 'COST').map(r => r.id));
   const input: ImportResult = {
     ...rich,
+    resources: rich.resources.filter(r => !costIds.has(r.id)),
+    assignments: rich.assignments.filter(a => !costIds.has(a.resourceId)),
     tasks: rich.tasks.map(t => {
+      t = costIds.size > 0 ? { ...t, resourceIds: t.resourceIds.filter(id => !costIds.has(id)) } : t;
       if (t.customFields?.['sf-text'] !== '') return t;
       const { 'sf-text': _drop, ...customFields } = t.customFields;
       void _drop;

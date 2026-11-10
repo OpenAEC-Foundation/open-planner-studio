@@ -14,7 +14,7 @@ Two terms. **Max units** is the capacity per work day: 1 is one person or machin
 
 1. Choose *Resources › Manage › New resource*. The resource panel takes over the workspace and an empty row appears at the bottom of the table. You can also open the panel with *Resources › Manage › Resources* and then choose *New resource in project*.
 2. Type the name, for example *Bricklayer*.
-3. Choose the *Type*: *Labor* (the default), *Equipment*, *Material*, *Subcontractor* or *Crew*.
+3. Choose the *Type*: *Labor* (the default), *Equipment*, *Material*, *Subcontractor*, *Crew* or *Cost*. A cost resource only carries a fixed amount per assignment; see [Assigning a fixed amount](docs://howto-vast-bedrag-toekennen).
 4. Fill in the other fields if needed. Everything has a default: *Max units* is 1 and *Calendar* is *Project calendar*. *Rate/hour* is empty. You can only fill in *Unit* for the type *Material*, for example m³.
 5. Press Enter or click outside the row. The resource is in the table. With Enter, an empty row opens below it straight away for the next one. Press Esc when you are done.
 
@@ -51,7 +51,7 @@ You can undo creating, editing and deleting with *Undo* (Ctrl+Z).
 
 ## Pitfalls and what the app does then
 
-**Only the type *Material* makes a difference for the calculation.** Labor, Equipment, Subcontractor and Crew are treated the same. Material does not count towards a task's duration and is not leveled. In the histogram the *All resources* row does not count material either.
+**Only the types *Material* and *Cost* make a difference for the calculation.** Labor, Equipment, Subcontractor and Crew are treated the same. Cost counts nowhere: not for the duration, the load, the histogram or leveling. Material does not count towards a task's duration and is not leveled. In the histogram the *All resources* row does not count material either.
 
 **No name, no resource.** An empty row disappears without a trace.
 

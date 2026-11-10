@@ -92,6 +92,8 @@ For a deviation you have two choices:
 
 **Briefly you see *1 item updated from the library*.** When you open a project and when you switch tabs, the app compares the copies with the library. It silently updates an unedited copy that is behind. With more copies it says *N items updated from the library*. If a copy differs, it gets the marker *differs — decide*. On a tab switch the *Link resource library* window never opens by itself.
 
+**The library switches the type between *Cost* and another type.** If the resource has assignments in your project, the type in the project stays as it is, with its fields, assignments and amounts. The resource then shows as deviating from the library, and on *Update* the app tells you why. Without assignments the project takes the new type. See [Assigning a fixed amount](docs://howto-vast-bedrag-toekennen).
+
 **You delete a resource from the library.** The app first asks *Remove 'Bricklayer' from the library? This applies to all projects and cannot be undone.* The copies in your projects stay and keep working. They get the marker *no longer in the library* and are fully editable. With *Remove from project* you take a copy out of the project.
 
 **Under Resource library you choose another library or *none (standalone project)*.** The origin stamps of the previous library disappear. The resources stay in the project as ordinary project resources. With another library, the app looks again for resources with the same name.

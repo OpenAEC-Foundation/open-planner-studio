@@ -20,6 +20,7 @@ import type { EnsureBackupFn, McpToolDef } from './contracts';
 import type { AppStoreContext } from '@/state/appStoreFactory';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { foreignSourceBackupRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { DEFAULT_PROJECT_FILE_BASE } from '@/utils/documents';
 
 /** Submap-wortel onder `appDataDir` waarin per document een backup-submap komt. */
@@ -308,8 +309,12 @@ function realDeps(app: AppStoreContext): BackupDeps {
       const state = app.store.getState();
       const found = state.getOpenDocumentPayloads().find((d) => d.id === docId);
       if (!found) return null;
+      // #804 fase 1a, fixronde 3: kwam het document uit een bestand met een vreemd deel, dan gaat het kenmerk mee
+      // (vingerafdruk en doel, pset `OPS_RecoveryForeignSource`; geen bronbytes, geen handle). Open je de backup, dan
+      // weigert Opslaan als of een export naar die bron nog steeds (`applyLoadedProject`).
+      const recoveryForeignSource = foreignSourceBackupRecord(found.payload.foreignSourceMark);
       return {
-        ifc: writeIFC(buildWriteIFCInput(found.payload)),
+        ifc: writeIFC({ ...buildWriteIFCInput(found.payload), ...(recoveryForeignSource ? { recoveryForeignSource } : {}) }),
         projectName: found.payload.project.name,
         filePath: found.payload.filePath,
       };

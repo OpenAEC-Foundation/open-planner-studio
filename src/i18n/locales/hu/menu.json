@@ -140,6 +140,7 @@
     "histogram": "Hisztogram",
     "toggleHistogram": "Hisztogram",
     "warningsPanel": "Figyelmeztetések panel",
+    "scheduleShiftPanel": "Eltolások",
     "prevResource": "Előző",
     "nextResource": "Következő",
     "leveling": "Kiegyenlítés",
@@ -153,6 +154,7 @@
     "barsGroup": "Sávok",
     "manageBaselines": "Alapterv kezelése…",
     "statusDate": "Állapotdátum",
+    "statusDateValue": "Állapotdátum: {{date}}",
     "statusDateClear": "Állapotdátum törlése",
     "statusDateTime": "Az állapotdátum időpontja",
     "statusDateTimeLater": "Későbbi idő",
@@ -217,7 +219,9 @@
     "screenColorsMissingField": "Ez a mező nem létezik ebben a projektben. Átmenetileg a munkanem van használatban.",
     "screenColorsHint": "Ha nem a Kritikus út szerint színez, piros szegély jelöli a kritikus utat.",
     "addLayout": "Elrendezés létrehozása",
-    "toggleRelations": "Kapcsolatvonalak"
+    "toggleRelations": "Kapcsolatvonalak",
+    "relationFindDependents": "Függő projektek keresése…",
+    "relationFindDependentsHint": "Mappa keresése olyan projektekért, amelyek külső kapcsolattal kötődnek ehhez az ütemtervhez."
   },
   "ifc": {
     "title": "IFC-szerkesztő",
@@ -235,6 +239,8 @@
     "company": "Cég",
     "startDate": "Kezdési dátum",
     "endDate": "Befejezési dátum",
+    "defaultWorkRule": "Alapértelmezett tevékenységtípus",
+    "defaultWorkRuleHint": "A(z) „Projektalapbeállítás” értékre állított tevékenységek ezt a választást követik. A saját tevékenységtípussal rendelkező tevékenységek megtartják a választásukat.",
     "calc": {
       "title": "Számítás",
       "subtitle": "Ütemezési beállítások ehhez a projekthez — a fájlban tárolódnak, nem az alkalmazásban.",
@@ -321,7 +327,7 @@
     "exportTitle": "Exportálás",
     "exportSubtitle": "Válasszon formátumot. A projekt át lesz alakítva és mentve lesz.",
     "progressImportCardTitle": "Előrehaladás frissítése táblázatból",
-    "progressImportCardDesc": "Olvassa be a visszaküldött CSV- vagy XLSX-táblázatot, és frissítse az elkészültséget, a tényleges kezdést és a tényleges befejezést.",
+    "progressImportCardDesc": "Olvassa be a visszaküldött Excel-táblázatot (.xlsx), és frissítse az elkészültséget, a tényleges kezdést és a tényleges befejezést.",
     "printTitle": "Nyomtatás",
     "printSubtitle": "Nyissa meg a jelentésnézetet a nyomtatási előnézethez és a beállításokhoz.",
     "openPrintPreview": "Nyomtatási előnézet megnyitása",
@@ -389,6 +395,9 @@
     "mspdiDesc": "Megnyitható a Microsoft Project-ben. Teljes WBS-szerkezet.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6-hoz.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Oracle Primavera P6-hoz, .xer fájlként.",
+    "experimentalBadge": "Kísérleti",
     "profileHint": "A projekt jelenleg a {{name}} profillal számol. Ehhez a fájlformátumhoz a legjobb kompatibilitás érdekében a {{target}} profil használatát javasoljuk.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-szabvány, a projekt IFC-sémájában (alapértelmezés: IFC 4.3 ADD2). 4D-összekapcsolás BIM-modellekkel.",
@@ -443,5 +452,18 @@
     "redo": "Megismétlés",
     "zoomIn": "Nagyítás",
     "zoomOut": "Kicsinyítés"
+  },
+  "native": {
+    "window": "Ablak",
+    "quit": "Kilépés: Open Planner Studio",
+    "about": "Az Open Planner Studio névjegye",
+    "services": "Szolgáltatások",
+    "hide": "Open Planner Studio elrejtése",
+    "hideOthers": "Többi elrejtése",
+    "showAll": "Összes megjelenítése",
+    "closeWindow": "Ablak bezárása",
+    "cut": "Kivágás",
+    "fullscreen": "Teljes képernyő váltása",
+    "bringAllToFront": "Összes előtérbe hozása"
   }
 }

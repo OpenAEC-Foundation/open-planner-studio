@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import type { HistogramRenderer } from '@/engine/renderer/HistogramRenderer';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import { resourceIsLevelable, type Resource, type ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import { computedFinish, computedStart } from '@/utils/taskDates';
 
@@ -153,7 +153,7 @@ export function useGanttHistogramInteraction(
       if (selectedResourceId && assignment.resourceId !== selectedResourceId) continue;
       if (!selectedResourceId) {
         const resource = resourceIndex.current!.byId.get(assignment.resourceId);
-        if (!resource || resource.type === 'MATERIAL') continue;
+        if (!resource || !resourceIsLevelable(resource)) continue;
       }
       const task = taskIndex.current.byId.get(assignment.taskId);
       if (!task) continue;

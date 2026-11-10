@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Panel ostrzeżeń",
+    "scheduleShiftPanel": "Przesunięcia",
     "prevResource": "Poprzedni",
     "nextResource": "Następny",
     "leveling": "Bilansowanie",
@@ -155,6 +156,7 @@
     "barsGroup": "Paski",
     "manageBaselines": "Zarządzaj planem bazowym…",
     "statusDate": "Data statusu",
+    "statusDateValue": "Data statusu: {{date}}",
     "statusDateClear": "Wyczyść datę statusu",
     "statusDateTime": "Godzina daty statusu",
     "statusDateTimeLater": "Godzina później",
@@ -219,7 +221,9 @@
     "screenColorsMissingField": "To pole nie istnieje w tym projekcie. Tymczasowo używany jest rodzaj robót.",
     "screenColorsHint": "Poza trybem Ścieżka krytyczna czerwony obrys oznacza ścieżkę krytyczną.",
     "addLayout": "Nowy układ",
-    "toggleRelations": "Linie relacji"
+    "toggleRelations": "Linie relacji",
+    "relationFindDependents": "Znajdź projekty zależne…",
+    "relationFindDependentsHint": "Przeszukaj folder w poszukiwaniu projektów z relacją zewnętrzną do tego harmonogramu."
   },
   "ifc": {
     "title": "Edytor IFC",
@@ -237,6 +241,8 @@
     "company": "Firma",
     "startDate": "Data rozpoczęcia",
     "endDate": "Data zakończenia",
+    "defaultWorkRule": "Domyślny typ zadania",
+    "defaultWorkRuleHint": "Zadania ustawione na „Domyślna dla projektu” korzystają z tego wyboru. Zadania z własnym typem zadania zachowują swój wybór.",
     "calc": {
       "title": "Obliczenia",
       "subtitle": "Opcje harmonogramowania dla tego projektu — zapisywane wraz z plikiem, nie z aplikacją.",
@@ -325,7 +331,7 @@
     "exportTitle": "Eksport",
     "exportSubtitle": "Wybierz format. Projekt zostanie przekonwertowany i zapisany.",
     "progressImportCardTitle": "Aktualizuj postęp z arkusza",
-    "progressImportCardDesc": "Wczytaj zwrócony arkusz CSV lub XLSX i zaktualizuj ukończenie, rzeczywiste rozpoczęcie i rzeczywiste zakończenie.",
+    "progressImportCardDesc": "Wczytaj zwrócony arkusz Excel (.xlsx) i zaktualizuj ukończenie, rzeczywiste rozpoczęcie i rzeczywiste zakończenie.",
     "printTitle": "Drukowanie",
     "printSubtitle": "Otwórz ekran raportu, aby wyświetlić podgląd wydruku i ustawienia.",
     "openPrintPreview": "Otwórz podgląd wydruku",
@@ -393,6 +399,9 @@
     "mspdiDesc": "Otwierane w Microsoft Project. Pełna struktura WBS.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Dla Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Dla Oracle Primavera P6, jako plik .xer.",
+    "experimentalBadge": "Eksperymentalne",
     "profileHint": "Twój projekt obecnie korzysta z profilu {{name}}. Zalecamy użycie profilu {{target}}, aby zapewnić najlepszą zgodność z tym formatem pliku.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, w schemacie IFC projektu (domyślnie IFC 4.3 ADD2). Powiązanie 4D z modelami BIM.",
@@ -447,5 +456,18 @@
     "redo": "Ponów",
     "zoomIn": "Powiększ",
     "zoomOut": "Pomniejsz"
+  },
+  "native": {
+    "window": "Okno",
+    "quit": "Zakończ Open Planner Studio",
+    "about": "Informacje o Open Planner Studio",
+    "services": "Usługi",
+    "hide": "Ukryj Open Planner Studio",
+    "hideOthers": "Ukryj inne",
+    "showAll": "Pokaż wszystkie",
+    "closeWindow": "Zamknij okno",
+    "cut": "Wytnij",
+    "fullscreen": "Przełącz pełny ekran",
+    "bringAllToFront": "Przenieś wszystko na wierzch"
   }
 }

@@ -1,4 +1,4 @@
-import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
+import { isCostResource, isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { TimephasedContourPeriod } from '@/types/task';
 import { generateId } from '@/utils/id';
@@ -8,8 +8,9 @@ import {
   clearTimephasedWindow, clearLevelingGaps, taskCalendarHoursPerDay, taskWorkMinutesOf, hourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import {
-  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, insertResource,
-  purgeResource, relocateAssignment, removeAssignment,
+  acceptedAssignmentPatch, acceptedCostAmount, acceptedCostResourcePatch, applyAssignmentCost, applyAssignmentPatch,
+  contoursAfterEdit, insertAssignment, insertResource, isCostAssignment, purgeResource, relocateAssignment,
+  removeAssignment, settleCostResourceFields,
 } from '../assignmentMutations';
 import {
   commitTrianglePlan, planWorkEdit,
@@ -57,8 +58,15 @@ export interface ResourceSlice {
   addResource: (res: Omit<Resource, 'id'>) => string;
   updateResource: (id: string, updates: Partial<Resource>) => void;
   removeResource: (id: string) => void;
-  /** Leaf-only: geen-op op mijlpalen/samenvattingstaken — geen assignment, geen snapshot. */
-  assignResource: (taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve) => void;
+  /** Leaf-only: geen-op op samenvattingstaken en (behalve voor een kostenresource) op mijlpalen —
+   *  geen assignment, geen snapshot. Een kostenresource (issue #815) krijgt altijd inzet 1 en geen
+   *  curve; `costAmount` (eindig, ≥ 0) is het begrote bedrag. */
+  assignResource: (taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve, costAmount?: number) => void;
+  /** Zet (`number`, eindig en ≥ 0) of wist (`undefined`) het begrote bedrag van een toewijzing aan
+   *  een kostenresource (issue #815). Undoable en `isDirty`, maar GEEN `scheduleStale` en geen
+   *  werkregel of sturingstrigger: een bedrag raakt geen datum. Weigert stil (geen snapshot) bij
+   *  onbekend id, een werk-/materiaaltoewijzing, een ongeldig bedrag of een ongewijzigd bedrag. */
+  setAssignmentCost: (assignmentId: string, amount: number | undefined) => void;
   /** Wijzig eenheden/curve van een bestaande toewijzing (inline-bewerken in de UI). */
   updateAssignment: (assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>) => void;
   unassignResource: (assignmentId: string) => void;
@@ -130,9 +138,14 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         patch = { ...patch };
         delete patch.maxUnits;
       }
+      // Kostenregels (issue #815): geen typewissel over de COST-grens met toewijzingen, en geen
+      // tarief/kalender/stappen/eenheid/ploeg/max. eenheden op een kostenresource. De UI biedt die
+      // keuzes niet aan; hier weigeren-met-behoud als vangnet.
+      patch = acceptedCostResourcePatch(s, s.resources[idx], patch).patch;
       if (Object.keys(patch).length === 0) return;
       runtime.beginUndoable(s);
       Object.assign(s.resources[idx], patch);
+      settleCostResourceFields(s.resources[idx]);
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
@@ -156,21 +169,28 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },
 
-  assignResource: (taskId, resourceId, unitsPerDay, curve) => {
+  assignResource: (taskId, resourceId, unitsPerDay, curve, costAmount) => {
     // Verlies van MSP-sturing — zie `taskSlice.ts`'s `updateTask` voor de discipline (buiten
     // de Immer-producer, `notify` doet zelf een `set()`).
     let lostTimephasedGuidance = false;
     set((s) => {
       // Leaf-only, geen-milestone-assignment-regel: vroege return, geen snapshot.
       const task = s.tasks.find(t => t.id === taskId);
-      if (!task || task.isMilestone || isSummaryTask(task)) return;
+      if (!task || isSummaryTask(task)) return;
       // Onbekend (of null/undefined — JS-callers via de dev-bridge omzeilen de compiler)
       // resourceId: stil weigeren, geen snapshot (zoals removeResource). Een
       // toewijzing zonder bestaande resource vergiftigt anders élke writeIFC/auto-save
       // (guidOf leest resourceId.length).
-      if (!s.resources.some(r => r.id === resourceId)) return;
+      const resource = s.resources.find(r => r.id === resourceId);
+      if (!resource) return;
+      // Een mijlpaal draagt alleen kostentoewijzingen (issue #815, besluit Ethan 2026-11-07).
+      // Een mijlpaal draagt alleen kostenresources (issue #815, besluit Ethan 2026-11-07).
+      if (task.isMilestone && !isCostResource(resource)) return;
       // Weigeren: 0/negatieve eenheden/dag is geen geldige toewijzing.
       if (!isValidUnits(unitsPerDay)) return;
+      const cost = isCostResource(resource);
+      const amount = cost ? acceptedCostAmount(costAmount) : undefined;
+      if (amount === false) return;
       // Eén resource kan per taak maar één assignment dragen. Zonder deze guard kan dezelfde
       // invariant via de bestaande eigenschappen-/lint-route alsnog worden omzeild.
       if (s.assignments.some(a => a.taskId === taskId && a.resourceId === resourceId)) return;
@@ -179,7 +199,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // Het lichaam (en de invalidatie van MSP-sturing en nivelleergaten) deelt deze actie met
       // `createMcpTransactions.ts`'s `draft.assignResource`, zie `assignmentMutations.ts`.
       const id = generateId('asgn');
-      const outcome = insertAssignment(s, task, { id, taskId, resourceId, unitsPerDay, curve });
+      // Kostenresource: inzet vast 1, geen curve, eventueel een bedrag.
+      const outcome = insertAssignment(s, task, cost
+        ? { id, taskId, resourceId, unitsPerDay: 1, ...(amount !== undefined ? { costAmount: amount } : {}) }
+        : { id, taskId, resourceId, unitsPerDay, curve });
       lostTimephasedGuidance = outcome.lostTaskIds.length > 0;
       runtime.finishMutation(s, { stale: outcome.durationChanged });
     });
@@ -195,7 +218,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       const idx = s.assignments.findIndex(a => a.id === assignmentId);
       if (idx < 0) return;
-      const patch = acceptedAssignmentPatch(updates);
+      const patch = acceptedAssignmentPatch(updates, isCostAssignment(s, s.assignments[idx]));
       if (!patch) return;
       runtime.beginUndoable(s);
       const outcome = applyAssignmentPatch(s, s.assignments[idx], patch);
@@ -212,6 +235,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       const a = s.assignments.find(x => x.id === assignmentId);
       if (!a) return;
+      if (isCostAssignment(s, a)) return; // een kostentoewijzing heeft geen werk (issue #815).
       const task = s.tasks.find(t => t.id === a.taskId);
       if (!task) return;
       if (typeof remainingWorkMinutes !== 'number' || !Number.isFinite(remainingWorkMinutes) || remainingWorkMinutes <= 0) return;
@@ -249,6 +273,19 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     get().recomputeResourceLoad();
   },
 
+  setAssignmentCost: (assignmentId, amount) => {
+    set((s) => {
+      const a = s.assignments.find(x => x.id === assignmentId);
+      if (!a || !isCostAssignment(s, a)) return;
+      const accepted = acceptedCostAmount(amount);
+      if (accepted === false || a.costAmount === accepted) return;
+      runtime.beginUndoable(s);
+      applyAssignmentCost(a, accepted);
+      // Geen `stale`: een bedrag raakt geen datum, geen werk en geen sturing.
+      runtime.finishMutation(s);
+    });
+  },
+
   unassignResource: (assignmentId) => {
     // Verlies van MSP-sturing — zie `assignResource` hierboven.
     let lostTimephasedGuidance = false;
@@ -275,8 +312,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const assignment = s.assignments.find(a => a.id === assignmentId);
       if (!assignment) return;
       const newTask = s.tasks.find(t => t.id === newTaskId);
-      // Zelfde milestone/summary-guard als assignResource — geen toewijzing op zulke taken.
-      if (!newTask || newTask.isMilestone || isSummaryTask(newTask)) return;
+      // Zelfde milestone/summary-guard als assignResource — geen toewijzing op zulke taken, behalve
+      // een kostentoewijzing op een mijlpaal (issue #815).
+      if (!newTask || isSummaryTask(newTask)) return;
+      if (newTask.isMilestone && !isCostAssignment(s, assignment)) return;
       // Weiger dubbele resource-op-taak (dekt ook het degenererende geval newTaskId === oude taskId:
       // de bestaande toewijzing zelf telt al mee als "al op de doeltaak").
       const alreadyOnTarget = s.assignments.some(

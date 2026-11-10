@@ -13,6 +13,8 @@
     "dismiss": "Melding sluiten",
     "taskEditRevertBlocked": "Een wijziging van de MCP-client of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
+    "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, XML, MPP, XER en CSV.",
+    "fileDropBlocked": "Niet geopend: {{names}}. Sluit eerst het venster dat openstaat.",
     "csvInvalidDate": "CSV niet geopend: onleesbare datum \"{{value}}\" op CSV-rij {{row}}, kolom \"{{column}}\". Gebruik jjjj-mm-dd, dd-mm-jjjj of dd/mm/jjjj.",
     "extGuideCallbackFailed": "Een stap van de extensie {{name}} gaf een fout. De begeleiding gaat door.",
     "extHelpProjectOpenFailed": "Het projectbestand {{file}} van de extensie {{name}} kon niet worden geopend.",
@@ -73,6 +75,10 @@
     "xmlUnknownSchedule": "Onbekend XML-planningsformaat. Open een MS Project-XML (Project) of Primavera P6-XML (APIBusinessObjects).",
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",
+    "ifcForeignSaveBlocked": "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.",
+    "ifcForeignTargetSave": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
+    "ifcForeignTargetExport": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om naar te exporteren.",
+    "ifcForeignTargetAutoSave": "Automatisch opslaan is gestopt: dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
     "ambiguousThousands": "\"{{text}}\" is dubbelzinnig: bedoel je een decimaal getal of duizendtallen? Typ decimalen met \"{{separator}}\" (1{{separator}}5) en duizendtallen zonder scheidingsteken (1500). De waarde is niet gewijzigd.",
     "siteSaveConflict": "Niet opgeslagen: '{{name}}' is op de site intussen door iemand anders gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze als nieuw bestand te bewaren.",
     "siteSaveConflictCopy": "'{{original}}' is op de site intussen door iemand anders gewijzigd. Je werk staat daarom in een kopie: '{{name}}'. Opslaan schrijft vanaf nu naar die kopie.",
@@ -89,6 +95,8 @@
     "recoveryRestoreFailed": "Herstellen mislukt",
     "hostSettingsUnavailable": "De instellingen van de site zijn niet geladen. Wat je deze sessie aan instellingen wijzigt, wordt niet bewaard.",
     "hostThemeUntilRestart": "Dit thema geldt tot je de planner opnieuw start. Daarna volgt de planner weer het thema van de SuperCloud.",
+    "settingsLoadedLate": "Je instellingen zijn geladen en toegepast.",
+    "settingsLoadedLateReverted": "Je instellingen zijn geladen en toegepast. Wat je in de tussentijd wijzigde, is teruggezet.",
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
     "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
     "scheduleFailed": "Planning kon niet worden berekend",
@@ -108,6 +116,8 @@
     "mppSourceScheduleNotes_other": "Dit MS Project-bestand bevat {{count}} taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.",
     "exportSplitsLost_one": "{{count}} taak met onderbrekingen is zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
     "exportSplitsLost_other": "{{count}} taken met onderbrekingen zijn zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
+    "exportCostResourcesLost_one": "{{count}} kostenresource is niet geëxporteerd, met haar toewijzingen en bedragen: dit formaat krijgt kostenresources pas in een volgende versie.",
+    "exportCostResourcesLost_other": "{{count}} kostenresources zijn niet geëxporteerd, met hun toewijzingen en bedragen: dit formaat krijgt kostenresources pas in een volgende versie.",
     "exportP6Truncated_one": "{{count}} naam of code is ingekort tot de lengte die P6 toestaat.",
     "exportP6Truncated_other": "{{count}} namen of codes zijn ingekort tot de lengte die P6 toestaat.",
     "exportInvalidXmlChars_one": "{{count}} teken dat in XML niet mag, is in de export vervangen door �.",
@@ -142,6 +152,8 @@
     "dragDatesAreActual": "'{{name}}' is gereed: begin en einde zijn de werkelijke datums en verschuiven niet. Wijzig die via de voortgang.",
     "referencesClearedOnPaste_one": "{{count}} verwijzing bestond niet in dit document en is leeggemaakt (een taakkalender, eigen werksoort, activity code of gebruikersveld uit het brondocument).",
     "referencesClearedOnPaste_other": "{{count}} verwijzingen bestonden niet in dit document en zijn leeggemaakt (taakkalenders, eigen werksoorten, activity codes of gebruikersvelden uit het brondocument).",
+    "assignmentsSkippedOnPaste_one": "{{count}} toewijzing is niet geplakt: de resource is hier een ander soort (kosten of werk), of een mijlpaal draagt alleen kosten.",
+    "assignmentsSkippedOnPaste_other": "{{count}} toewijzingen zijn niet geplakt: de resource is hier een ander soort (kosten of werk), of een mijlpaal draagt alleen kosten.",
     "milestoneRefusedAssignments": "'{{task}}' heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} taak heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} taken hebben resource-toewijzingen en kunnen geen mijlpaal worden. Verwijder eerst de toewijzingen.",
@@ -290,6 +302,8 @@
       "noteStatus_other": "{{count}} afgevinkte notities: de notities gaan mee, de vinkjes niet",
       "resourceTypes_one": "{{count}} resource van het type ploeg of onderaannemer is arbeid geworden",
       "resourceTypes_other": "{{count}} resources van het type ploeg of onderaannemer zijn arbeid geworden",
+      "costResources_one": "{{count}} kostenresource is weggelaten, met haar toewijzingen en bedragen",
+      "costResources_other": "{{count}} kostenresources zijn weggelaten, met hun toewijzingen en bedragen",
       "libraryLinks_one": "{{count}} koppeling met de resourcebibliotheek",
       "libraryLinks_other": "{{count}} koppelingen met de resourcebibliotheek",
       "holidayNames_one": "{{count}} naam van een vrije dag (de dag zelf gaat mee)",
@@ -322,7 +336,11 @@
       "capacitySteps_one": "{{count}} resource met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "capacitySteps_other": "{{count}} resources met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "projectDetails": "Auteur en bedrijf van het project"
-    }
+    },
+    "dependentProjectsFound": "Afhankelijke projecten: {{projects}}. Koppelingen naar dit project: {{links}}.",
+    "dependentProjectsNone": "Geen projecten gevonden met een externe relatie naar deze planning.",
+    "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen.",
+    "costTypeChangeRefused": "De resourcebibliotheek wil het type wisselen tussen kosten en een ander type. De resource heeft toewijzingen in dit project, dus het type blijft zoals het is. De resource staat nu als afwijkend van de bibliotheek."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -430,6 +448,8 @@
     "experimentalHide": "Verbergen",
     "demoTopbarAnimation": "Demo: animatie in de bovenbalk",
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
+    "ifcForeignContent": "IFC met gebouwmodel openen",
+    "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Opslaan van zo'n bestand is nog niet mogelijk.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
@@ -468,6 +488,9 @@
     "weekStartMonday": "Maandag",
     "weekStartSunday": "Zondag",
     "calculationSection": "Berekenen",
+    "taskGridSection": "Taakraster",
+    "autoFitColumns": "Kolommen automatisch aanpassen",
+    "autoFitColumnsHint": "Elke kolom van de taaktabel past zijn breedte aan de waarden in die kolom aan, na het openen en na elke bevestigde bewerking. Een lange kolomkop wordt dan afgekapt. Sleep je zelf een kolom, dan houdt die jouw breedte tot je dubbelklikt op de kolomrand.",
     "autoCalcCPM": "Automatisch berekenen",
     "autoCalcCPMHint": "Herberekent de planning automatisch zodra deze verouderd raakt, in plaats van te wachten op F5.",
     "constructionModeSection": "Bouwmodus",
@@ -757,6 +780,8 @@
     "missedDeadlines": "{{count}} deadline(s) overschreden",
     "violatedConstraints": "{{count}} constraint(s) geschonden",
     "outOfSequence": "{{count}} out-of-sequence-relatie(s)",
+    "externalSuccessors_one": "{{count}} externe opvolger te krap",
+    "externalSuccessors_other": "{{count}} externe opvolgers te krap",
     "overallocated": "{{count}} resource(s) overbezet",
     "summary_one": "{{count}} waarschuwing",
     "summary_other": "{{count}} waarschuwingen"
@@ -774,11 +799,16 @@
       "scheduleError": "Planning kon niet worden berekend: {{message}}",
       "missedDeadline": "Deadline {{deadline}} overschreden — vroegste einde {{finish}}",
       "violatedConstraint": "Constraint {{constraint}} wordt door de logica overschreden (negatieve speling)",
+      "externalSuccessorViolatedSF": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die is uiterlijk klaar op {{anchor}}, deze taak begint pas op {{own}}",
+      "externalSuccessorViolatedFF": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die is uiterlijk klaar op {{anchor}}, deze taak is pas klaar op {{own}}",
+      "externalSuccessorViolatedSS": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die begint uiterlijk op {{anchor}}, deze taak begint pas op {{own}}",
+      "externalSuccessorViolatedFS": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die begint uiterlijk op {{anchor}}, deze taak is pas klaar op {{own}}",
       "outOfSequence": "Out-of-sequence: de voortgang van de opvolger spreekt de relatie tegen",
       "truncatedLead": "Lead afgekapt door de projectstart — de relatie is niet volledig benut",
       "droppedSequence": "Relatie genegeerd: voorganger of opvolger ontbreekt of is geen bladtaak",
       "hammockNoFinishDriver": "Hammock zonder eind-driver (geen FF/SF-voorganger): de duur valt terug op nul",
       "cappedTask": "Einddatum afgekapt: de kalender maakt het taakvenster onwerkbaar",
+      "externalLagCalendar": "Externe lag telt in de kalender van deze taak: de kalender van de andere kant staat niet in dit bestand",
       "overallocation": "Overbezet op {{count}} dag(en) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Overbezet op {{count}} dag(en) ({{first}} – {{last}}) — de resource werkt deze dag(en) niet volgens zijn kalender",
       "overallocationMixed": "Overbezet op {{count}} dag(en) ({{first}} – {{last}}), waarvan {{nonWorking}} dag(en) waarop de resource niet werkt volgens zijn kalender"
@@ -904,7 +934,8 @@
       "equipment": "Materieel",
       "material": "Materiaal",
       "subcontractor": "Onderaannemer",
-      "crew": "Ploeg"
+      "crew": "Ploeg",
+      "cost": "Kosten"
     },
     "name": "Naam",
     "typeLabel": "Type",
@@ -1029,7 +1060,9 @@
       "documents": "Documenten",
       "selectHint": "Selecteer een resource om het histogram te zien."
     },
-    "color": "Kleur"
+    "color": "Kleur",
+    "notForCost": "Geldt niet voor een kostenresource: die heeft alleen een vast bedrag per toewijzing.",
+    "costTypeLocked": "Deze resource heeft toewijzingen. Verwijder die eerst om te wisselen tussen een kostenresource en een ander type."
   },
   "calendar": {
     "library": {
@@ -1862,5 +1895,23 @@
       "hammock": "Volgt de gekoppelde taken",
       "unknown": "Reden niet vastgesteld"
     }
+  },
+  "fileDrop": {
+    "title": "Laat los om te openen",
+    "subtitle": "Projectbestand of import"
+  },
+  "settingsDelay": {
+    "title": "Instellingen niet geladen",
+    "body": "Je instellingen konden niet van de server worden geladen. Je werkt nu met de standaardinstellingen. Zodra je instellingen weer beschikbaar zijn, worden ze automatisch toegepast."
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankers van andere projecten worden krapper",
+    "body": "Deze projecten rekenen op een datum uit deze planning. Na het opslaan krijgen ze een krappere datum zodra ze hun externe relaties vernieuwen.",
+    "colProject": "Project",
+    "colTheirTask": "Taak daar",
+    "colOwnTask": "Taak hier",
+    "colAnchor": "Anker: oud → nieuw",
+    "saveAnyway": "Toch opslaan",
+    "cancel": "Annuleren"
   }
 }

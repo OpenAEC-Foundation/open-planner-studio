@@ -17,11 +17,14 @@
 // Dit is ook DE plek van de werkregel-nazorg: momentopname van de werkdriehoek vóór de wijziging
 // (`captureTriangle` + oude werkminuten + `hourInputFinishBasis`), de regel na de wijziging
 // (`settleAssignmentAdded`/`settleAssignmentRemoved`/`settleUnitsEdit`) en bij een gewijzigde
-// taakduur de duurnazorg (`settleDurationAftermath`). DAARNA volgt onvoorwaardelijk de
-// toewijzingen-trigger (`invalidateForAssignmentChange`). De uitkomst zegt welke taken MSP-sturing
+// taakduur de duurnazorg (`settleDurationAftermath`). DAARNA volgt de toewijzingen-trigger
+// (`invalidateForAssignmentChange`), behalve voor een kostenresource (issue #815): een bedrag erbij
+// of eraf raakt geen datum en wist dus nooit vensters, duur-walks of nivelleergaten. De uitkomst zegt welke taken MSP-sturing
 // verloren en of er een taakduur veranderde (⇒ de slice markeert de planning verouderd).
 import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
-import { isValidUnits, type Resource, type ResourceAssignment } from '@/types/resource';
+import {
+  clearCostResourceFields, COST_RESOURCE_CLEARED_FIELDS, contourSiblings, costResourceIds, isCostResource, isValidCostAmount, isValidUnits, type Resource, type ResourceAssignment,
+} from '@/types/resource';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import type { WorkCalendar } from '@/types/calendar';
@@ -97,13 +100,93 @@ class OutcomeBuilder {
 
 export type AssignmentPatch = Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>;
 
+/** Gaat een typewissel van `current` naar `nextType` over de COST-grens (naar of van kosten)? */
+export function crossesCostBoundary(current: Pick<Resource, 'type'>, nextType: Resource['type'] | undefined): boolean {
+  return nextType !== undefined && nextType !== current.type && (current.type === 'COST' || nextType === 'COST');
+}
+
+/** Heeft resource `id` toewijzingen in dit document? */
+export function resourceHasAssignments(s: Pick<AssignmentState, 'assignments'>, id: string): boolean {
+  return s.assignments.some(a => a.resourceId === id);
+}
+
+/** Waarom een resourcepatch (deels) niet mag (issue #815). */
+export type CostResourcePatchRefusal =
+  /** Typewissel naar of van COST terwijl de resource toewijzingen heeft. */
+  | 'typeChangeWithAssignments'
+  /** Tarief, kalender, stappen, eenheid, ploeg of max. eenheden ≠ 1 op een kostenresource. */
+  | 'costResourceField';
+
+/**
+ * De kostenregels op een resourcepatch (issue #815, plan §1): een typewissel over de COST-grens
+ * mag niet zolang de resource toewijzingen heeft (anders zou inzet/werk stil in een bedrag vertaald
+ * moeten worden en terug), en een (wordende) kostenresource krijgt geen tarief, kalender, stappen,
+ * eenheid, ploeg of max. eenheden ≠ 1. Geeft de patch zonder die sleutels terug plus wat er weg viel;
+ * de store weigert met behoud (rest gaat door), de MCP-draft gooit bij een weigering.
+ */
+export function acceptedCostResourcePatch(
+  s: Pick<AssignmentState, 'assignments'>,
+  resource: Resource,
+  updates: Partial<Resource>,
+): { patch: Partial<Resource>; refused: CostResourcePatchRefusal[] } {
+  const refused: CostResourcePatchRefusal[] = [];
+  let patch = updates;
+  const drop = (key: keyof Resource) => {
+    if (patch === updates) patch = { ...updates };
+    delete patch[key];
+  };
+  if (crossesCostBoundary(resource, patch.type) && resourceHasAssignments(s, resource.id)) {
+    drop('type');
+    refused.push('typeChangeWithAssignments');
+  }
+  const effectiveType = patch.type ?? resource.type;
+  if (effectiveType === 'COST') {
+    let dropped = false;
+    // Velden die een kostenresource nooit draagt; `maxUnits` mag alleen 1 zijn.
+    for (const key of COST_RESOURCE_CLEARED_FIELDS) {
+      if (patch[key] !== undefined) { drop(key); dropped = true; }
+    }
+    if ('maxUnits' in patch && patch.maxUnits !== 1) { drop('maxUnits'); dropped = true; }
+    if (dropped) refused.push('costResourceField');
+  }
+  return { patch, refused };
+}
+
+/** Na een geaccepteerde patch: een kostenresource draagt de werkvelden niet (wist ze in-place). */
+export function settleCostResourceFields(resource: Resource): void {
+  if (isCostResource(resource)) clearCostResourceFields(resource);
+}
+
+/** Is `assignment` een toewijzing aan een kostenresource (issue #815)? */
+export function isCostAssignment(s: Pick<AssignmentState, 'resources'>, assignment: Pick<ResourceAssignment, 'resourceId'>): boolean {
+  return isCostResource(s.resources.find(r => r.id === assignment.resourceId));
+}
+
+/** De ongewijzigde invoer voor `setAssignmentCost`: een geldig bedrag (eindig, ≥ 0) of `undefined`
+ *  (wissen). `false` ⇒ weigeren. */
+export function acceptedCostAmount(amount: unknown): number | undefined | false {
+  if (amount === undefined) return undefined;
+  return isValidCostAmount(amount) ? amount : false;
+}
+
+/** Zet of wist het begrote bedrag van een kostentoewijzing (issue #815). Raakt geen datum, geen
+ *  werk en geen sturing: geen werkregel, geen trigger. `false` ⇒ niets veranderd. */
+export function applyAssignmentCost(assignment: ResourceAssignment, amount: number | undefined): boolean {
+  if (assignment.costAmount === amount) return false;
+  if (amount === undefined) delete assignment.costAmount;
+  else assignment.costAmount = amount;
+  return true;
+}
+
 /** Voegt een nieuwe resource toe, met automatische kleur bij aanmaak — de eerste vrije
  *  paletkleur, tenzij de aanroeper zelf al een kleur meegaf (de resource-editor kan dat). Kleurloze
  *  resources vallen in de weergave terug op de deterministische hash — dit veld is dus puur gemak,
  *  geen vereiste. */
 export function insertResource(s: AssignmentState, res: Omit<Resource, 'id'>, id: string): void {
   const color = res.color ?? nextFreePaletteColor(s.resources);
-  s.resources.push({ ...res, id, color });
+  const resource: Resource = { ...res, id, color };
+  settleCostResourceFields(resource); // kostenresource: geen tarief, kalender, eenheid, … (issue #815).
+  s.resources.push(resource);
 }
 
 /** Verwijdert resource `id`, al zijn toewijzingen, de verweesde `task.resourceIds`-verwijzingen en
@@ -126,6 +209,8 @@ export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' |
       const task = s.tasks.find(t => t.id === a.taskId);
       return task ? [{ assignmentId: a.id, capture: captureAssignmentTask(s, task) }] : [];
     });
+  // Een kostenresource (issue #815) wist geen sturing: zijn toewijzingen zijn geen trigger.
+  const cost = isCostResource(s.resources.find(r => r.id === id));
   s.resources = s.resources.filter(r => r.id !== id);
   s.assignments = s.assignments.filter(a => a.resourceId !== id);
   const out = new OutcomeBuilder();
@@ -136,7 +221,7 @@ export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' |
   for (const task of s.tasks) {
     const idx = task.resourceIds.indexOf(id);
     if (idx >= 0) task.resourceIds.splice(idx, 1);
-    if (affected.has(task)) out.invalidate(task);
+    if (affected.has(task) && !cost) out.invalidate(task);
   }
   for (const r of s.resources) {
     if (r.parentId !== id) continue;
@@ -164,8 +249,8 @@ export function insertAssignment(s: AssignmentState, task: Task, assignment: Res
   if (!task.resourceIds.includes(assignment.resourceId)) task.resourceIds.push(assignment.resourceId);
   const out = new OutcomeBuilder();
   out.settled(s, capture, settleAssignmentAdded(task, s.assignments, capture.triangle, assignment).durationChanged);
-  // "Toewijzingen" hoort bij de invalidatie-triggerset, zie `taskDefaults.ts`.
-  out.invalidate(task);
+  // "Toewijzingen" hoort bij de invalidatie-triggerset, zie `taskDefaults.ts` (kosten niet).
+  if (!isCostAssignment(s, assignment)) out.invalidate(task);
   return out.build();
 }
 
@@ -177,7 +262,7 @@ export function removeAssignment(s: AssignmentState, removed: ResourceAssignment
   const out = new OutcomeBuilder();
   if (capture) out.settled(s, capture, settleAssignmentRemoved(capture.task, s.assignments, capture.triangle, removed.id).durationChanged);
   pruneTaskResourceRef(s, removed.taskId, removed.resourceId);
-  if (task) out.invalidate(task);
+  if (task && !isCostAssignment(s, removed)) out.invalidate(task);
   return out.build();
 }
 
@@ -196,14 +281,18 @@ export function relocateAssignment(s: AssignmentState, assignment: ResourceAssig
   out.settled(s, newCapture, settleAssignmentAdded(newTask, s.assignments, newCapture.triangle, assignment).durationChanged);
   pruneTaskResourceRef(s, oldTaskId, assignment.resourceId);
   if (!newTask.resourceIds.includes(assignment.resourceId)) newTask.resourceIds.push(assignment.resourceId);
-  if (oldTask) out.invalidate(oldTask);
-  out.invalidate(newTask);
+  if (!isCostAssignment(s, assignment)) {
+    if (oldTask) out.invalidate(oldTask);
+    out.invalidate(newTask);
+  }
   return out.build();
 }
 
 /** Weigeren-met-behoud: een ongeldige eenheden/dag valt uit de patch, een
  *  gelijktijdige curvewijziging gaat door. `null` ⇒ er blijft niets te doen. */
-export function acceptedAssignmentPatch(updates: AssignmentPatch): AssignmentPatch | null {
+export function acceptedAssignmentPatch(updates: AssignmentPatch, isCost = false): AssignmentPatch | null {
+  // Een kostentoewijzing heeft geen inzet en geen curve (issue #815).
+  if (isCost) return null;
   let patch = updates;
   if ('unitsPerDay' in patch && !isValidUnits(patch.unitsPerDay)) {
     patch = { ...patch };
@@ -240,7 +329,10 @@ export function contoursAfterEdit(
   assignment: ResourceAssignment,
   periods: TimephasedContourPeriod[] | null,
 ): { contours: TaskTimephasedContour[] | undefined } | null {
-  const siblings = s.assignments.filter(x => x.taskId === assignment.taskId);
+  // Een kostentoewijzing heeft geen urenverdeling (issue #815).
+  if (isCostAssignment(s, assignment)) return null;
+  // Zelfde koppellijst als histogram en nivelleerder: zonder kostentoewijzingen (`contourSiblings`).
+  const siblings = contourSiblings(s.assignments.filter(x => x.taskId === assignment.taskId), costResourceIds(s.resources));
   const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignment.id);
   if (periods === null && idx < 0) return null;
   const list = task.timephasedContours ? [...task.timephasedContours] : [];

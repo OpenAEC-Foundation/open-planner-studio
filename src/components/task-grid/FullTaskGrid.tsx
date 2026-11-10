@@ -81,11 +81,11 @@ import type { GridMutationOptions } from '@/state/gridTransaction';
 import { localTodayIso } from '@/utils/dateUtils';
 import type {
   CellEditIntent, CellValidationError, GridIntent, GridResult, TaskColumnCategory, TaskColumnId,
-  TaskGridSurfaceId,
+  TaskGridColumnPreference, TaskGridSurfaceId,
 } from '@/types/taskGrid';
 import { askActualStart } from '@/state/actualStartQuestion';
 import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 
 interface EditingCell {
   documentId: string;
@@ -342,6 +342,9 @@ export function TaskGridSurface({
   const notifyStructureLocked = useAppStore(state => state.notifyStructureLocked);
   const runGridMutation = useAppStore(state => state.runGridMutation);
   const commitTaskGridColumns = useAppStore(state => state.commitTaskGridColumns);
+  const applyAutoFitTaskGridColumns = useAppStore(state => state.applyAutoFitTaskGridColumns);
+  // Pas aanpassen als de opgeslagen kolomvoorkeuren geladen zijn; eerder staan er standaardkolommen.
+  const autoFitColumns = useAppStore(state => state.ui.autoFitColumns && state.taskGridAutoWriteAllowed);
   const setTaskGridScrollX = useAppStore(state => state.setTaskGridScrollX);
   const recordRecentTaskColumn = useAppStore(state => state.recordRecentTaskColumn);
   const constructionMode = useAppStore(state => state.ui.constructionMode);
@@ -927,6 +930,10 @@ export function TaskGridSurface({
     return computeTaskGridAutoFitWidth({
       columnId,
       headerText: option.label,
+      // Met de instelling "Kolommen automatisch aanpassen" aan telt de kop niet mee: de kop kapt
+      // af met een ellips (zoals bij de standaardbreedtes), de waarden bepalen de breedte. Ook de
+      // dubbelklik volgt dan deze regel, anders sprong de kolom na het loslaten weer terug.
+      includeHeader: !autoFitColumns,
       rows: rowIndex.taskRows.map(row => {
         const value = descriptor.read(row.task, adapter.context);
         const visibleText = adapter.getCell(row.rowKey, columnId)?.text ?? '';
@@ -945,7 +952,13 @@ export function TaskGridSurface({
       cache: autoFitCacheRef.current,
       measureText: text => context2d.measureText(text).width,
     });
-  }, [activeDocumentId, adapter, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
+  }, [activeDocumentId, adapter, autoFitColumns, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
+
+  // Automatisch gemeten breedtes: wel bewaard, geen eigen undo-stap (de gebruiker koos ze niet).
+  const applyAutoFit = useCallback(
+    (columns: readonly TaskGridColumnPreference[]) => applyAutoFitTaskGridColumns(surfaceId, columns),
+    [applyAutoFitTaskGridColumns, surfaceId],
+  );
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {
     const base = adapter.getCell(row.rowKey, column.id);
@@ -982,9 +995,11 @@ export function TaskGridSurface({
               onPointerDown={event => event.stopPropagation()}
               onClick={event => { event.stopPropagation(); toggleCollapse(summary.id); }}
             >
-              {collapsedTaskIds.includes(summary.id)
-                ? <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
-                : <Icon id="tree.collapse" size={16} />}
+              {b2IconsOn()
+                ? (collapsedTaskIds.includes(summary.id)
+                  ? <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
+                  : <Icon id="tree.collapse" size={16} />)
+                : (collapsedTaskIds.includes(summary.id) ? '▸' : '▾')}
             </button>
           )}
           {body}
@@ -1244,6 +1259,9 @@ export function TaskGridSurface({
         onRecordRecentColumn={recordRecentTaskColumn}
         beforeColumnAction={finishEditing}
         onComputeAutoFitWidth={computeAutoFitWidth}
+        autoFitColumns={autoFitColumns}
+        autoFitPaused={editing !== null}
+        onApplyAutoFit={applyAutoFit}
         chooserOpen={surfaceId === 'full-task-grid' ? showColumnsDialog : undefined}
         onChooserOpenChange={surfaceId === 'full-task-grid'
           ? open => setUI({ showColumnsDialog: open })

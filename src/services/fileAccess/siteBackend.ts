@@ -108,6 +108,40 @@ export async function listSiteVersions(id: string): Promise<SiteVersionInfo[]> {
   return Array.isArray(versions) ? versions.filter((v) => v && typeof v.version === 'string') : [];
 }
 
+// ── Een bron van een externe relatie (stap 1.9) ─────────────────────────────────────────────────
+
+/** Een bestand op de site als bron van een externe relatie: alleen-lezen, nooit een opslagdoel. */
+export interface SiteSourceFile {
+  id: string;
+  name: string;
+  /** De gelezen versie (`file.version`); afwezig als de site er geen gaf. */
+  version?: string;
+  text(): Promise<string>;
+  bytes(): Promise<Uint8Array>;
+}
+
+/** Leest de nieuwste versie van een bestand op de site als bron (`open(id)`). Anders dan `openSiteFile` mag
+ *  het antwoord alleen-lezen zijn of zonder versie: de bron wordt nooit opgeslagen. Gooit bij een fout van de
+ *  site (ook `not-found`) of zonder opslag. */
+export async function readSiteSourceFile(id: string): Promise<SiteSourceFile> {
+  const answer = await requireStorage().open(id);
+  const name = nonEmpty(answer?.file?.name) ?? id;
+  const version = nonEmpty(answer?.file?.version);
+  const data = answer?.data;
+  return {
+    id, name, ...(version ? { version } : {}),
+    text: () => siteDataToText(data),
+    bytes: () => siteDataToBytes(data),
+  };
+}
+
+/** De nieuwste versie van een bestand op de site (`versions(id)`, nieuwste eerst), of `null` als de site
+ *  geen versie gaf. Gooit bij een fout of zonder opslag. */
+export async function latestSiteVersion(id: string): Promise<SiteVersionInfo | null> {
+  const [latest] = await listSiteVersions(id);
+  return latest ?? null;
+}
+
 // ── Opslaan ────────────────────────────────────────────────────────────────────────────────────
 
 /** Wat een geslaagde opslag oplevert: het bestand en de net geschreven versie (de nieuwe basis). */

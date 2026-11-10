@@ -29,6 +29,7 @@ import {
 } from '@/utils/effectiveWorkTime';
 import { holidayIssue } from '@/utils/holidayRange';
 import { effHoursPerDay } from '@/utils/taskDuration';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 /** Rode rand voor een ongeldige feestdagdatum; `DateTextInput` legt `style` op de omrande groep. */
 const INVALID_DATE_STYLE = { borderColor: 'var(--error)' } as const;
@@ -168,6 +169,8 @@ export function CalendarForm({
   }, [onScalarTimeValidityChange, scalarTimeIssues]);
 
   useEffect(() => { void loadWorkTimePresets().then(setOwnPresets); }, []);
+  // Nieuwere eigen presets in de opslag (de host na de start, #818, of een ander tabblad): opnieuw laden.
+  useStoredSettingRefresh('ops-workTimePresets', () => { void loadWorkTimePresets().then(setOwnPresets); });
 
   // Preset toepassen ⇒ workTime + shift + scalar-fallback in één patch (buffer-model). Optionele
   // `description`-override (zie `applyBuiltinPreset` hieronder) — alleen meegegeven wanneer de

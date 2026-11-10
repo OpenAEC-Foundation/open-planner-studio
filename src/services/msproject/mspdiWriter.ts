@@ -314,6 +314,14 @@ export function writeMSPDIWithReport(
   activeBaselineId: string | null = null,
   customTaskTypes: readonly CustomTaskType[] = [],
 ): { xml: string; invalidXmlChars: number } {
+  // Kostenresources en hun toewijzingen gaan in deze versie niet mee (issue #815, deel 1): de
+  // MSPDI-lezer kent `<Type>2</Type>` nog niet en de geldschaal van `<Cost>` is niet bewezen. Een
+  // export die de eigen app bij openen verkeerd leest, mag niet. Melding: `exportCostResourcesLostNotice`.
+  const costIds = new Set(resources.filter(r => r.type === 'COST').map(r => r.id));
+  if (costIds.size > 0) {
+    resources = resources.filter(r => !costIds.has(r.id));
+    assignments = assignments.filter(a => !costIds.has(a.resourceId));
+  }
   // Elke taakdatum gaat met zijn echte tijd (I8, F5b): een einde 16:00 blijft 16:00, niet het anker 08:00.
   // Een veld zonder tijd krijgt zijn moment volgens D1–D7, zoals de laadgrens; dat geldt ook voor een kale
   // start op een letterlijke kalender (knownbug 256, MSPDI-deel). Welke kalenders letterlijk zijn (T17),

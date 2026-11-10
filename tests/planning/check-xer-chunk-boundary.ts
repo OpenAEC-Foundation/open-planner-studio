@@ -6,6 +6,9 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 const root = join(here, '..', '..');
 const srcRoot = join(root, 'src');
 const allowed = join('src', 'services', 'formatRegistry.ts');
+// #804 fase 1a: `readIFCWithXerReconstruction` staat in een eigen module, want formatRegistry én de bytes-route gebruiken
+// hem (in formatRegistry gaf dat een importkring). Ook daar alleen met `await import(`.
+const alsoLazy = join('src', 'services', 'ifc', 'ifcReadWithXer.ts');
 // Alleen de parsermap is lazy. Het bytearchief is een algemene service omdat
 // de IFC-reader/-writer die zonder de parserchunk moet kunnen gebruiken.
 const marker = '@/services/xer/';
@@ -39,6 +42,7 @@ for (const file of walk(srcRoot)) {
     }
     if (!line.includes(marker)) continue;
     if (rel === allowed && line.includes('await import(')) dynamicImportFound = true;
+    else if (rel === alsoLazy && line.includes('await import(')) continue;
     else if (rel === p6xmlBridge && /^import\b/.test(line)) continue;
     else diffs.push(`${rel}:${index + 1} bevat een statische XER-import buiten de lazy registryrand`);
   }

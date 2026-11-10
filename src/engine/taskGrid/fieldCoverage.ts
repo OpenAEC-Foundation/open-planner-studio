@@ -154,6 +154,8 @@ export const EXTERNAL_LINK_FIELD_COVERAGE = {
   anchorDate: field('technical', 'relation.externalTechnical'),
   sourceRef: field('technical', 'relation.externalTechnical'),
   sourceMissing: field('technical', 'relation.externalTechnical'),
+  sourceVersion: field('technical', 'relation.externalTechnical'),
+  anchorReadAt: field('technical', 'relation.externalTechnical'),
 } satisfies Record<keyof ExternalLink, FieldCoverage>;
 
 export const ASSIGNMENT_FIELD_COVERAGE = {
@@ -171,6 +173,9 @@ export const ASSIGNMENT_FIELD_COVERAGE = {
   plannedWorkMinutes: field('technical', 'assignment.plannedWork'),
   actualWorkMinutes: field('technical', 'assignment.actualWork'),
   remainingWorkMinutes: field('technical', 'assignment.remainingWork'),
+  // Bedrag van een kostenresource (#815): reist mee in de toewijzingstokens van de resourcekolom;
+  // een eigen bedragkolom komt later.
+  costAmount: field('composite', 'assignment.resources'),
 } satisfies Record<keyof ResourceAssignment, FieldCoverage>;
 
 export const BASELINE_TASK_FIELD_COVERAGE = {
@@ -222,6 +227,7 @@ export const EXTERNAL_SOURCE_FIELD_COVERAGE = {
   taskId: field('technical', 'relation.externalTechnical'),
   taskName: field('technical', 'relation.externalTechnical'),
   filePath: field('technical', 'relation.externalTechnical'),
+  siteFileId: field('technical', 'relation.externalTechnical'),
 } satisfies Record<keyof ExternalSourceRef, FieldCoverage>;
 
 export interface NamedFieldCoverage {

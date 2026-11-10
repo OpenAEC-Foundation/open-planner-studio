@@ -11,7 +11,7 @@ import type {
   RelationTokenSource,
 } from '@/engine/taskGrid/relationPlan';
 import type { CellValidationError, GridResult, TaskColumnContext } from '@/types/taskGrid';
-import type { Task } from '@/types/task';
+import type { ExternalLink, Task } from '@/types/task';
 import { formatLagShort } from '@/utils/lagFormat';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 
@@ -127,6 +127,9 @@ export interface RelationCellItem {
   stale: boolean;
   warnings: readonly string[];
   parsedToken: ParsedRelationToken;
+  /** Alleen extern: de herkomst van het anker (keuze 4). `parsedToken` gaat door het klembordformaat (v1)
+   *  en draagt haar niet; de tooltip leest haar hier. */
+  provenance?: Pick<ExternalLink, 'sourceRef' | 'sourceVersion' | 'anchorReadAt'>;
 }
 
 export function buildRelationCellItems(input: {
@@ -159,6 +162,11 @@ export function buildRelationCellItems(input: {
         stale: input.context.scheduleStale,
         warnings: input.context.relationIndex.warningsByExternalLinkId.get(entry.link.id) ?? [],
         parsedToken: { kind: 'external', external: parsed.value, relationId: entry.link.id, source },
+        provenance: {
+          sourceRef: entry.link.sourceRef,
+          ...(entry.link.sourceVersion !== undefined ? { sourceVersion: entry.link.sourceVersion } : {}),
+          ...(entry.link.anchorReadAt !== undefined ? { anchorReadAt: entry.link.anchorReadAt } : {}),
+        },
       };
     }
 

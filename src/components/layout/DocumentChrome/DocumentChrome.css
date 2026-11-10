@@ -109,6 +109,7 @@
   cursor: pointer; color: var(--theme-text-dim); margin-top: 2px;
 }
 .ops-rail-add:hover { border-color: var(--theme-accent); color: var(--theme-text); }
+:where(:root[data-icons="lucide"]) .ops-rail-add:hover { color: var(--theme-accent); }
 
 /* Rail flyout (hover) */
 .ops-flyout {

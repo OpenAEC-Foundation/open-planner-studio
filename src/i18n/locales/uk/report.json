@@ -32,6 +32,7 @@
   "repeatHeader": "Повторювати заголовок на кожній сторінці",
   "repeatFooter": "Повторювати нижній колонтитул на кожній сторінці",
   "reportFontScaleLabel": "Розмір шрифту:",
+  "reportFontFamilyLabel": "Шрифт:",
   "timelineColumnsLabel": "Часова шкала на:",
   "timelineColumnsHint": "Лише з автопідгонкою",
   "timelineColumns_one": "{{count}} сторінка",
@@ -444,5 +445,11 @@
       "riskHeading": "Завдання під ризиком: запізнення або від'ємний резерв часу",
       "riskEmpty": "Немає завдань із запізненням і без від'ємного резерву часу."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (стандартний)",
+    "liberationSans": "Liberation Sans (як Arial)",
+    "carlito": "Carlito (як Calibri)",
+    "liberationSerif": "Liberation Serif (як Times New Roman)"
   }
 }

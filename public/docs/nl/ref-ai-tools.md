@@ -12,10 +12,10 @@ Alle tools die een MCP-client via de bridge kan aanroepen, per groep, met wat ze
 
 ## Lezen: planning
 
-- `planner_get_project_info` (lezen) — projectgegevens en kengetallen: aantal taken, relaties, resources en mijlpalen, de statusdatum, het projecteinde en de projectduur, of de planning verouderd is, het rekenprofiel en een samenvatting van de kalenders. Een goede eerste aanroep.
+- `planner_get_project_info` (lezen) — projectgegevens en kengetallen: aantal taken, relaties, resources en mijlpalen, de statusdatum, het projecteinde en de projectduur, of de planning verouderd is, het rekenprofiel en een samenvatting van de kalenders. Heeft het project externe relaties, dan ook hun aantal en per bronproject hoeveel koppelingen er zijn en hoeveel hun brontaak missen. Een goede eerste aanroep.
 - `planner_get_project_overview` (lezen) — de hele WBS-boom in één antwoord: per taak id, WBS, naam, duur, vroege datums, voortgang, kritiek, en de uitgaande relaties met hun relatie-id.
-- `planner_list_tasks` (lezen) — taken met filters (kritiek, status, datumvenster, taken zonder relaties) en paginering.
-- `planner_get_task` (lezen) — één taak in detail: datums, speling, voortgang, constraints, deadline, kalender, toewijzingen, voorgangers en opvolgers, onderbrekingen.
+- `planner_list_tasks` (lezen) — taken met filters (kritiek, status, datumvenster, taken zonder relaties, taken met of zonder externe relaties) en paginering. Een externe relatie telt als relatie, ook als ze op de fase erboven ligt.
+- `planner_get_task` (lezen) — één taak in detail: datums, speling, voortgang, constraints, deadline, kalender, toewijzingen, voorgangers en opvolgers, onderbrekingen, en de externe relaties: de eigen koppelingen en die van de fase erboven, met het anker en de bron.
 - `planner_get_critical_path` (lezen) — de kritieke taken met hun totale speling, en de relaties die het pad bepalen. Desgewenst per pagina (`limit`, `offset`).
 - `planner_list_resources` (lezen) — resources met capaciteit, tarief, kalender, ploeg, beschikbaarheid en een samenvatting van hun toewijzingen. Komt een resource uit een bibliotheek, dan staat erbij welke velden vastliggen.
 - `planner_get_resource_histogram` (lezen) — belasting tegenover capaciteit per resource, per dag, week of maand (standaard week). Zonder venster en zonder resources geeft hij een samenvatting per resource; met een venster of resources de volledige reeksen en de taken die een overbezetting veroorzaken.
@@ -40,6 +40,7 @@ Alle tools die een MCP-client via de bridge kan aanroepen, per groep, met wat ze
 - `planner_add_dependencies` (wijzigen, bulk) — relaties leggen met type (`FS`, `SS`, `FF`, `SF` of de lange vorm) en lag, bijvoorbeeld `+2d`.
 - `planner_update_dependencies` (wijzigen, bulk) — type, lag, voorganger of opvolger van een bestaande relatie wijzigen, op het relatie-id. Dat is één stap, in plaats van verwijderen en opnieuw leggen.
 - `planner_remove_dependencies` (wijzigen, bulk) — relaties verwijderen op relatie-id.
+- `planner_refresh_external_links` (wijzigen) — de ankers van de externe relaties verversen uit hun bronbestanden, zoals *Alle externe relaties vernieuwen* in de app. De tool leest elk bronbestand één keer, zonder het als document te openen, en zet alle nieuwe ankers in één stap. Alleen bronnen binnen je gebruikersmap. Een koppeling zonder pad wordt alleen ververst als hetzelfde bronproject via een andere koppeling gelezen wordt. Het antwoord noemt per bronbestand of het gelezen is, en welke ankers veranderd zijn. Zie [Externe relaties naar een ander project](docs://howto-externe-relaties).
 
 ## Project en kalenders
 
@@ -49,8 +50,8 @@ Alle tools die een MCP-client via de bridge kan aanroepen, per groep, met wat ze
 
 ## Resources en inzet
 
-- `planner_manage_resources` (wijzigen, bulk) — resources aanmaken, wijzigen of verwijderen: naam, type (arbeid, materieel, materiaal, onderaannemer of ploeg), omschrijving, maximale inzet, kosten per uur, eenheid, kalender, ploeg en beschikbaarheid in de tijd. Verwijderen met toewijzingen weigert hij totdat de MCP-client het uitdrukkelijk bevestigt. Bij een resource uit een bibliotheek zijn naam, type, omschrijving, uurtarief en eenheid vast.
-- `planner_manage_assignments` (wijzigen, bulk) — toewijzingen toevoegen, wijzigen, verplaatsen of verwijderen: inzet per werkdag, curve en resterend werk. Alleen op een bladtaak, en dezelfde resource maar één keer per taak. Wat een inzetwijziging met de duur doet, hangt af van het taaktype van de taak, zoals in [Taaktype kiezen](docs://howto-werkregel-kiezen).
+- `planner_manage_resources` (wijzigen, bulk) — resources aanmaken, wijzigen of verwijderen: naam, type (arbeid, materieel, materiaal, onderaannemer, ploeg of kosten), omschrijving, maximale inzet, kosten per uur, eenheid, kalender, ploeg en beschikbaarheid in de tijd. Verwijderen met toewijzingen weigert hij totdat de MCP-client het uitdrukkelijk bevestigt. Bij een resource uit een bibliotheek zijn naam, type, omschrijving, uurtarief en eenheid vast.
+- `planner_manage_assignments` (wijzigen, bulk) — toewijzingen toevoegen, wijzigen, verplaatsen of verwijderen: inzet per werkdag, curve en resterend werk, of bij een kostenresource alleen een vast bedrag (`costAmount`). Alleen op een bladtaak (op een mijlpaal alleen een kostenresource), en dezelfde resource maar één keer per taak. Wat een inzetwijziging met de duur doet, hangt af van het taaktype van de taak, zoals in [Taaktype kiezen](docs://howto-werkregel-kiezen).
 - `planner_level_resources` (wijzigen) — overbezetting nivelleren. Standaard binnen de speling, zodat de einddatum blijft staan; met `constrainToFloat: false` mag het einde opschuiven. Met een proefrun krijgt de MCP-client eerst een voorbeeld zonder iets te wijzigen. Materiaal slaat hij over. Zie [Overbezetting oplossen](docs://howto-overbezetting-oplossen).
 - `planner_clear_leveling` (wijzigen) — alle nivelleervertragingen wissen.
 

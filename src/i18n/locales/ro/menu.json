@@ -140,6 +140,7 @@
     "histogram": "Histogramă",
     "toggleHistogram": "Histogramă",
     "warningsPanel": "Panoul Avertismente",
+    "scheduleShiftPanel": "Deplasări",
     "prevResource": "Anterior",
     "nextResource": "Următor",
     "leveling": "Redistribuire",
@@ -154,6 +155,7 @@
     "barsGroup": "Bare",
     "manageBaselines": "Gestionare referințe…",
     "statusDate": "Data raportului de stare",
+    "statusDateValue": "Data raportului de stare: {{date}}",
     "statusDateClear": "Golire data raportului de stare",
     "statusDateTime": "Ora datei raportului de stare",
     "statusDateTimeLater": "Ora mai târziu",
@@ -218,7 +220,9 @@
     "screenColorsMissingField": "Acest câmp nu există în acest proiect. Categoria de lucrări se folosește temporar.",
     "screenColorsHint": "În afara opțiunii Drum critic, o margine roșie marchează drumul critic.",
     "addLayout": "Creare aspect",
-    "toggleRelations": "Linii de dependență"
+    "toggleRelations": "Linii de dependență",
+    "relationFindDependents": "Căutare proiecte dependente…",
+    "relationFindDependentsHint": "Căutare într-un folder a proiectelor cu o legătură externă către această planificare."
   },
   "ifc": {
     "title": "Editor IFC",
@@ -236,6 +240,8 @@
     "company": "Companie",
     "startDate": "Data de început",
     "endDate": "Data de sfârșit",
+    "defaultWorkRule": "Tip de activitate implicit",
+    "defaultWorkRuleHint": "Activitățile cu valoarea implicită „Standard de proiect” urmează această alegere. Activitățile cu un tip de activitate propriu își păstrează alegerea.",
     "calc": {
       "title": "Calcul",
       "subtitle": "Opțiunile de calcul pentru acest proiect se păstrează în fișier, nu în aplicație.",
@@ -323,7 +329,7 @@
     "exportTitle": "Exportare",
     "exportSubtitle": "Alegeți un format. Aplicația convertește și salvează proiectul.",
     "progressImportCardTitle": "Actualizare progres din foaie de calcul",
-    "progressImportCardDesc": "Citiți o foaie CSV sau XLSX returnată și actualizați procentul de finalizare, începutul efectiv și sfârșitul efectiv.",
+    "progressImportCardDesc": "Citiți o foaie Excel (.xlsx) returnată și actualizați procentul de finalizare, începutul efectiv și sfârșitul efectiv.",
     "printTitle": "Imprimare",
     "printSubtitle": "Deschideți ecranul rapoartelor pentru previzualizare la imprimare și setări.",
     "openPrintPreview": "Deschidere previzualizare la imprimare",
@@ -391,6 +397,9 @@
     "mspdiDesc": "Se deschide în Microsoft Project. Structură WBS completă.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pentru Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Pentru Oracle Primavera P6, ca fișier .xer.",
+    "experimentalBadge": "Experimental",
     "profileHint": "Proiectul dumneavoastră utilizează în prezent profilul {{name}}. Vă recomandăm profilul {{target}} pentru cea mai bună compatibilitate cu acest format de fișier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, în schema IFC a proiectului (implicit IFC 4.3 ADD2). Legătură 4D cu modele BIM.",
@@ -445,5 +454,18 @@
     "redo": "Refacere",
     "zoomIn": "Mărire",
     "zoomOut": "Micșorare"
+  },
+  "native": {
+    "window": "Fereastră",
+    "quit": "Ieșire din Open Planner Studio",
+    "about": "Despre Open Planner Studio",
+    "services": "Servicii",
+    "hide": "Ascundere Open Planner Studio",
+    "hideOthers": "Ascundere altele",
+    "showAll": "Afișare totală",
+    "closeWindow": "Închidere fereastră",
+    "cut": "Decupare",
+    "fullscreen": "Comutare ecran complet",
+    "bringAllToFront": "Aducere tot în față"
   }
 }

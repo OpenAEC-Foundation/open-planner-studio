@@ -19,8 +19,9 @@ import {
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
+import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
 import {
-  IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
+  IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
 import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
@@ -45,6 +46,24 @@ import {
   type ExactMinutesKey, type ExactMinutesRecord,
 } from './dayMeasureIo';
 import type { PerTaskWriteOptions } from './ifcPsets';
+
+/**
+ * W uit ontwerp #804 §4.2: de gesloten lijst van entiteittypen die deze writer schrijft. De indeling
+ * (`foreign/classify.ts`) volgt de eigen afsluiting alleen via deze typen. De poort
+ * (`check-ifc-foreign-classify.ts`) eist dat elk type in de uitvoer van de writer hier staat. Een nieuw
+ * type in de writer hoort dus ook hier. De resources komen uit `RESOURCE_TYPE_TO_IFC`, plus de
+ * leesalias `IFCCONSTRUCTIONPRODUCTRESOURCE` (de lezer maakt er een resource van, dus het is D).
+ */
+export const WRITER_ENTITY_TYPES: ReadonlySet<string> = new Set([
+  'IFCPERSON', 'IFCORGANIZATION', 'IFCPERSONANDORGANIZATION', 'IFCAPPLICATION', 'IFCOWNERHISTORY',
+  'IFCSIUNIT', 'IFCUNITASSIGNMENT', 'IFCCARTESIANPOINT', 'IFCAXIS2PLACEMENT3D', 'IFCGEOMETRICREPRESENTATIONCONTEXT',
+  'IFCPROJECT', 'IFCWORKPLAN', 'IFCWORKSCHEDULE', 'IFCWORKCALENDAR', 'IFCWORKTIME', 'IFCRECURRENCEPATTERN',
+  'IFCTIMEPERIOD', 'IFCTASK', 'IFCTASKTIME', 'IFCRELSEQUENCE', 'IFCLAGTIME',
+  'IFCRELNESTS', 'IFCRELASSIGNSTOCONTROL', 'IFCRELASSIGNSTOPROCESS', 'IFCRELAGGREGATES', 'IFCRELDECLARES',
+  'IFCRELDEFINESBYPROPERTIES', 'IFCPROPERTYSET', 'IFCPROPERTYSINGLEVALUE', 'IFCPROPERTYENUMERATEDVALUE',
+  'IFCPROPERTYSETTEMPLATE', 'IFCSIMPLEPROPERTYTEMPLATE', 'IFCPROPERTYENUMERATION',
+  ...Object.values(RESOURCE_TYPE_TO_IFC), 'IFCCONSTRUCTIONPRODUCTRESOURCE',
+]);
 
 /** De OUDE GlobalId-afleiding: een 32-bits hash, geen conforme IFC-GUID. De writer gebruikt hem niet
  *  meer (zie `ifcGuid128`); de lezer herberekent hem nog voor bestanden van vóór audit 2026-09-26,
@@ -109,7 +128,8 @@ function ifcRequiredStr(s: string): string {
   return s ? ifcStr(s) : "''";
 }
 
-function ifcDateTime(iso: string): string {
+/** Geëxporteerd voor de indeling van #804 (baselinekoppen vergelijken, `foreign/classify.ts`). */
+export function ifcDateTime(iso: string): string {
   if (!iso) return '$';
   // Ensure format: 'YYYY-MM-DDT07:00:00' (anker gedeeld met de reader via IFC_TIME_ANCHOR).
   if (iso.length === 10) return `'${iso}T${IFC_TIME_ANCHOR}'`;
@@ -312,6 +332,13 @@ export type WriteIFCInput = ImportResult & {
    * `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`.
    */
   xerSourceArchiveStorage?: 'embedded' | 'recovery-reference';
+  /**
+   * #804 fase 1a (fixronde 1): de vingerafdruk van een bron met een vreemd deel (pset `OPS_RecoveryForeignSource`).
+   * UITSLUITEND voor crashherstel-snapshots (`recoverySnapshotInput`) en, met het doel erbij, voor een MCP-backup
+   * (`backupService.ts`, fixronde 3): zo weet het herstelde of uit een backup geopende document dat het uit een
+   * modelbestand kwam, zonder de bronbytes. Opslaan en export schrijven hem nooit (`buildWriteIFCInput`).
+   */
+  recoveryForeignSource?: ForeignSourceRecord;
 };
 
 export function writeIFC(input: WriteIFCInput): string {
@@ -333,6 +360,7 @@ export function writeIFC(input: WriteIFCInput): string {
     recordedSourceFormat = undefined,
     ifcGlobalIds = undefined,
     xerSourceArchiveStorage = 'embedded',
+    recoveryForeignSource = undefined,
   } = input;
   const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
   const { tasks, baselines } = writeView;
@@ -410,10 +438,27 @@ export function writeIFC(input: WriteIFCInput): string {
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcRequiredStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
   if (!input.minuteModelPending) {
     const prop = addLine(ctx, '_time_model', `IFCPROPERTYSINGLEVALUE('TimeModel',$,IFCLABEL(${ifcStr(MINUTE_MODEL_TIME_MODEL)}),$)`);
-    const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},'OPS_Project',$,(#${prop}))`);
+    const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},${ifcStr(PSET.Project)},$,(#${prop}))`);
     addLine(ctx, '_time_model_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'time_model_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
   }
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xerSourceArchiveStorage);
+  if (recoveryForeignSource) {
+    // Alleen in een herstelsnapshot of MCP-backup (zie `WriteIFCInput.recoveryForeignSource`): lengte en SHA-256, geen
+    // bytes. Een backup schrijft ook het doel (een herstelsnapshot heeft dat in het manifest).
+    const props = [
+      addLine(ctx, '_recovery_foreign_sha', `IFCPROPERTYSINGLEVALUE('Sha256',$,IFCTEXT(${ifcStr(recoveryForeignSource.sha256)}),$)`),
+      addLine(ctx, '_recovery_foreign_len', `IFCPROPERTYSINGLEVALUE('ByteLength',$,IFCINTEGER(${recoveryForeignSource.byteLength}),$)`),
+    ];
+    const target = recoveryForeignSource.target;
+    if (target?.filePath) {
+      props.push(addLine(ctx, '_recovery_foreign_path', `IFCPROPERTYSINGLEVALUE('SourcePath',$,IFCTEXT(${ifcStr(target.filePath)}),$)`));
+    }
+    if (target?.siteFileId) {
+      props.push(addLine(ctx, '_recovery_foreign_site', `IFCPROPERTYSINGLEVALUE('SourceSiteFileId',$,IFCTEXT(${ifcStr(target.siteFileId)}),$)`));
+    }
+    const pset = addLine(ctx, '_recovery_foreign_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'recovery_foreign'))},#${ownerHistId},${ifcStr(PSET.RecoveryForeignSource)},$,(${props.map(p => `#${p}`).join(',')}))`);
+    addLine(ctx, '_recovery_foreign_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'recovery_foreign_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
+  }
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden).
@@ -776,6 +821,11 @@ function writeStructure(
   if (project.p6ProjectCode) {
     projSettingProps.push(addLine(ctx, '_ps_p6projectcode',
       `IFCPROPERTYSINGLEVALUE('P6ProjectCode',$,IFCTEXT(${ifcStr(project.p6ProjectCode)}),$)`));
+  }
+  // De map met afhankelijke projecten (stap 1.11, keuze 7). Golden rule: alleen wanneer gezet.
+  if (project.dependentProjectsFolder) {
+    projSettingProps.push(addLine(ctx, '_ps_dependentfolder',
+      `IFCPROPERTYSINGLEVALUE('DependentProjectsFolder',$,IFCTEXT(${ifcStr(project.dependentProjectsFolder)}),$)`));
   }
   if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',
@@ -1729,7 +1779,11 @@ function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): v
   // alleen GlobalId, Name en Description, dus voor hem maakt het aantal niet uit.
   // PredefinedType `.NOTDEFINED.`: `.USERDEFINED.` (wat oudere versies bedoelden) eist een ObjectType
   // (regel CorrectPredefinedType), en OPS kent geen verfijning onder de vijf soorten.
-  const entity = `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,$,$,.NOTDEFINED.)`;
+  // Kostenresource (issue #815): materiaalentiteit met ObjectType 'COST' en `.USERDEFINED.` (route 1
+  // van `docs/ifc-round-trip.md`); de lezer zet die combinatie terug naar COST.
+  const entity = res.type === 'COST'
+    ? `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},${ifcStr(COST_RESOURCE_OBJECT_TYPE)},$,$,$,$,$,.USERDEFINED.)`
+    : `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,$,$,.NOTDEFINED.)`;
   addLine(ctx, `res_${res.id}`, entity);
 }
 
@@ -1902,7 +1956,7 @@ function writeTimephasedMeta(
     const windows: Record<string, {
       workWindowStart?: string; workWindowFinish?: string; curveValues?: number[];
       plannedWorkMinutes?: number; actualWorkMinutes?: number; remainingWorkMinutes?: number;
-      plannedUnitsPerDay?: number;
+      plannedUnitsPerDay?: number; costAmount?: number;
     }> = {};
     list.forEach((a, index) => {
       // `curveValues` (de exacte 21-punts P6-/MSPDI-curve) reist in hetzelfde JSON-blob mee — een
@@ -1912,7 +1966,7 @@ function writeTimephasedMeta(
       // van `OPS_Assignments` blijft ongewijzigd.
       if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
         && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined
-        && a.plannedUnitsPerDay === undefined) return;
+        && a.plannedUnitsPerDay === undefined && a.costAmount === undefined) return;
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
@@ -1923,6 +1977,9 @@ function writeTimephasedMeta(
         ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
         ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
         ...(a.plannedUnitsPerDay !== undefined ? { plannedUnitsPerDay: a.plannedUnitsPerDay } : {}),
+        // Het begrote bedrag van een kostentoewijzing (issue #815): hoort bij de toewijzing, niet bij
+        // de resource, en `IfcRelAssignsToProcess` draagt geen psets — dus in hetzelfde blob.
+        ...(a.costAmount !== undefined ? { costAmount: a.costAmount } : {}),
       };
     });
     if (Object.keys(windows).length === 0) continue;

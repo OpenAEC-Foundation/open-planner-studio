@@ -17,12 +17,16 @@ import type {
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { LayoutOverlays } from '@/types/view';
-import type { FeatureFlagValues } from '@/utils/featureFlags';
+import { parseFeatureFlagValues, type FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
 import { siteHostTheme } from '@/services/fileAccess/siteHostPreferences';
-import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
+import {
+  noteSiteHostSettingChanged, siteHostSettingWriteHeld, type SettingWriteOrigin,
+} from '@/services/fileAccess/siteHostSettings';
+
+export type { SettingWriteOrigin };
 import {
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -58,11 +62,22 @@ export function readLocal(key: string): string | null {
 }
 
 let warnedSettingsWrite = false;
-export function writeLocal(key: string, value: string): void {
+/**
+ * Schrijf een instelling. `origin`: `'start'` voor een schrijfactie die de app zelf doet, zonder keuze
+ * van de gebruiker (een migratie, of een standaardwaarde die een ontbrekende sleutel vult). Dat telt
+ * alleen ingebed, zolang de tool op een laat antwoord van de host wacht (#818, `SettingWriteOrigin` in
+ * `siteHostSettings.ts`). Gewone schrijfacties laten het weg.
+ *
+ * Ingebed, terwijl de app een laat antwoord van de host toepast: een schrijfactie van de gebruiker op
+ * een sleutel die nog niet is toegepast, valt weg (`siteHostSettingWriteHeld`). Die komt van een oude
+ * kopie (bijv. een scrolltimer van vóór het antwoord) en zou de bewaarde waarde terugzetten.
+ */
+export function writeLocal(key: string, value: string, origin: SettingWriteOrigin = 'user'): void {
+  if (origin === 'user' && siteHostSettingWriteHeld(key)) return;
   try {
     localStorage.setItem(key, value);
     // Ingebed met `settings` van de host (#818): ook daar bewaren, gebundeld.
-    noteSiteHostSettingChanged(key);
+    noteSiteHostSettingChanged(key, origin);
   } catch (error) {
     if (!warnedSettingsWrite) {
       warnedSettingsWrite = true;
@@ -71,10 +86,11 @@ export function writeLocal(key: string, value: string): void {
   }
 }
 
-export function removeLocal(key: string): void {
+export function removeLocal(key: string, origin: SettingWriteOrigin = 'user'): void {
+  if (origin === 'user' && siteHostSettingWriteHeld(key)) return; // zie `writeLocal`
   try {
     localStorage.removeItem(key);
-    noteSiteHostSettingChanged(key);
+    noteSiteHostSettingChanged(key, origin);
   } catch { /* opslag geblokkeerd: niets te verwijderen */ }
 }
 
@@ -84,14 +100,14 @@ export async function getSetting<T>(key: string): Promise<T | undefined> {
   try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
 }
 
-export async function setSetting<T>(key: string, value: T): Promise<void> {
-  writeLocal(`ops-${key}`, typeof value === 'string' ? value : JSON.stringify(value));
+export async function setSetting<T>(key: string, value: T, origin: SettingWriteOrigin = 'user'): Promise<void> {
+  writeLocal(`ops-${key}`, typeof value === 'string' ? value : JSON.stringify(value), origin);
 }
 
 export async function syncSettingToLocalStorage(storeKey: string, localStorageKey: string): Promise<void> {
   const value = readLocal(`ops-${storeKey}`);
   if (value) {
-    writeLocal(localStorageKey, value);
+    writeLocal(localStorageKey, value, 'start'); // bij de start (`initLocale`), geen keuze van de gebruiker
   }
 }
 
@@ -164,8 +180,8 @@ export async function initTheme(): Promise<UITheme> {
 
   const migrated = THEME_MIGRATION[saved] ?? 'dark';
   if (migrated !== saved) {
-    // Persisteer de migratie zodat dit een eenmalige conversie is
-    writeLocal('ops-theme', migrated);
+    // Persisteer de migratie zodat dit een eenmalige conversie is (geen keuze van de gebruiker)
+    writeLocal('ops-theme', migrated, 'start');
   }
   return migrated;
 }
@@ -216,6 +232,28 @@ export async function saveExperimentalSettingsVisible(value: boolean): Promise<v
 
 export async function saveFeatureFlags(value: FeatureFlagValues): Promise<void> {
   await setSetting('featureFlags', value);
+}
+
+/** De iconenkeuze geldt vanaf de eerste render. De URL wijzigt alleen deze bestaande vlag. */
+export function loadFeatureFlags(stored?: FeatureFlagValues): FeatureFlagValues {
+  let flags: FeatureFlagValues = stored ?? {};
+  if (!stored) {
+    try {
+      flags = parseFeatureFlagValues(JSON.parse(readLocal('ops-featureFlags') ?? 'null')) ?? {};
+    } catch { /* Ongeldige opslag: alle experimentele functies uit. */ }
+  }
+  const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location?.search ?? '');
+  // Het ontwikkelblad beoordeelt B2. Ook de latere instellingen-hydratatie houdt die keuze vast.
+  const reviewSheet = import.meta.env.DEV ? params.get('iconen') : null;
+  const family = reviewSheet === 'status' || reviewSheet === 'dock' ? 'b2' : params.get('icons');
+  if (family === 'b2' || family === 'lucide') {
+    const enabled = family === 'b2';
+    if (flags['b2-icons'] !== enabled) {
+      flags = { ...flags, 'b2-icons': enabled };
+      writeLocal('ops-featureFlags', JSON.stringify(flags));
+    }
+  }
+  return flags;
 }
 
 // Breedte van de takentabel links in de Gantt (ui.leftPanelWidth); begrensd
@@ -337,8 +375,9 @@ export async function loadTaskGridPreferences(
 
 export async function saveTaskGridPreferences(
   preferences: PersistedTaskGridPreferencesV1,
+  origin: SettingWriteOrigin = 'user',
 ): Promise<void> {
-  await setSetting('taskGridPreferences', preferences);
+  await setSetting('taskGridPreferences', preferences, origin);
 }
 
 // Layouts: app-globaal in localStorage, géén Tauri-store. Parse-guard: corrupte JSON
@@ -474,16 +513,17 @@ export async function loadLayouts(): Promise<Layout[]> {
   if (await getSetting<boolean>('savedFiltersMigrated')) return layouts;
   const savedFilters = await loadSavedFilters();
   const merged = migrateSavedFilters(layouts, savedFilters);
-  if (merged.length !== layouts.length) await saveLayouts(merged);
-  await setSetting('savedFiltersMigrated', true);
+  // Een eenmalige migratie, ook als een dialoog dit pas later aanroept: geen keuze van de gebruiker.
+  if (merged.length !== layouts.length) await saveLayouts(merged, 'start');
+  await setSetting('savedFiltersMigrated', true, 'start');
   return merged;
 }
 
-export async function saveLayouts(layouts: Layout[]): Promise<void> {
+export async function saveLayouts(layouts: Layout[], origin: SettingWriteOrigin = 'user'): Promise<void> {
   const normalized = normalizeLayouts(layouts);
   if (!normalized) return;
   const payload: PersistedTaskGridLayoutsV1 = { version: 1, layouts: normalized };
-  await setSetting('taskGridLayouts', payload);
+  await setSetting('taskGridLayouts', payload, origin);
 }
 
 // Opgeslagen filters: net als layouts app-breed op dit apparaat, maar bewust alleen
@@ -534,6 +574,10 @@ export async function saveShowClassicViewControls(value: boolean): Promise<void>
 
 export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
+}
+
+export async function saveAutoFitColumns(value: boolean): Promise<void> {
+  await setSetting('autoFitColumns', value);
 }
 
 // Bouwmodus (bouw-agnostische modus): app-instelling onder de 3-plekken-regel

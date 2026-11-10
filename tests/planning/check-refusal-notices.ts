@@ -167,6 +167,10 @@ const REFUSAL_KEYS = [
   'milestoneRefusedAssignmentsMany', 'milestoneRefusedSummaryMany',
   'phaseRefusedNoAssignableChild', 'phaseRefusedDuplicateResource', 'taskEditRevertBlocked', 'pasteSkippedReadOnly',
   'relationsSkippedOnInsert', 'schedulingTemplateLimit', 'phaseQuestionOutdated', 'ambiguousThousands',
+  'ifcForeignSaveBlocked',
+  'ifcForeignTargetSave',
+  'ifcForeignTargetExport',
+  'ifcForeignTargetAutoSave',
 ];
 const NOT_A_REFUSAL: Record<string, string> = {
   mppInvalidContainer: 'echte importfout (ongeldige bestandsstructuur), geen documentgebonden bewerkingsweigering',
@@ -177,6 +181,7 @@ const NOT_A_REFUSAL: Record<string, string> = {
   scheduleFailed: 'storing (planning onberekenbaar)', ifcParseFailed: 'storing (bestand onleesbaar)',
   librarySaveFailed: 'storing (opslag)', schedulingTemplateStorageFailed: 'storing (opslag vol)',
   schedulingTemplateDeleteFailed: 'storing (opslag vol)',
+  dependentProjectsFailed: 'storing (map met afhankelijke projecten niet te lezen, stap 1.11), echte fout',
   xerImportEmptyProjectsSkipped: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
   summaryRelationsDropped: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
   p6xmlImportUnassignedActivities: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',

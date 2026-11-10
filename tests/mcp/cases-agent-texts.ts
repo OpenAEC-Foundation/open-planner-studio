@@ -2,8 +2,9 @@
 // agent volgt die letterlijk, dus een hernoemde tool of parameter mag daar niet stil blijven staan.
 // Deze goedkope poort houdt de teksten tegen de ECHTE registry:
 //   1. elke `planner_[a-z_]+` in de teksten is een geregistreerde tool;
-//   2. "`planner_x` `param`" (of "`planner_x` with `param`"): `param` (ook een pad als
-//      `fields.calendarId`) bestaat in het inputSchema van precies die tool;
+//   2. "`planner_x` `param`" (of "`planner_x` with `param`"; de toolnaam mag ook zonder backticks staan,
+//      zoals in de teksten sinds #818): `param` (ook een pad als `fields.calendarId`) bestaat in het
+//      inputSchema van precies die tool;
 //   3. elke backtick-span in de vorm `sleutel: waarde` (ook JSON-achtig, meerdere paren): de sleutel is
 //      een parameter uit een inputSchema of een bekend antwoordveld, en een tekstwaarde staat in de enum
 //      van die parameter als hij er een heeft.
@@ -29,6 +30,7 @@ const RESPONSE_FIELDS = new Set([
   'scheduleStale', // McpEnvelope
   'becameLiteral', // planner_update_calendar, per item
   'summary', // planner_list_tasks, rij van een samenvattingstaak
+  'sourceMissing', // planner_get_task, per externe koppeling (externalLinks)
 ]);
 
 type Schema = { type?: unknown; properties?: Record<string, Schema>; items?: Schema; enum?: unknown[] };
@@ -95,12 +97,15 @@ function realRegistry(): Registry {
 }
 
 /** Toets één tekst; geeft de afwijkingen terug (leeg = in orde). */
+/** "planner_x `param`" of "planner_x with `param`", met of zonder backticks rond de toolnaam. */
+const TOOL_PARAM = /`?\b(planner_[a-z_]*[a-z])\b`?\s+(?:with\s+)?`([A-Za-z_][\w.]*)/g;
+
 function checkAgentText(label: string, text: string, reg: Registry): string[] {
   const diffs: string[] = [];
   for (const m of text.matchAll(/\bplanner_[a-z_]*[a-z]\b/g)) {
     if (!reg.tools.has(m[0])) diffs.push(`${label}: tool ${m[0]} bestaat niet in de registry`);
   }
-  for (const m of text.matchAll(/`(planner_[a-z_]+)`\s+(?:with\s+)?`([A-Za-z_][\w.]*)/g)) {
+  for (const m of text.matchAll(TOOL_PARAM)) {
     const schema = reg.tools.get(m[1]);
     if (!schema) continue; // al gemeld
     if (!resolvePath(schema, m[2].split('.'))) diffs.push(`${label}: ${m[1]} heeft geen parameter ${m[2]}`);
@@ -131,14 +136,15 @@ test('elke tool- en parameternaam in de agentteksten bestaat in de registry', ()
   assertEq(diffs, [], 'agentteksten wijken af van de tools');
 });
 
-test('de poort ziet echt iets: de teksten noemen tientallen tools en parameters', () => {
+test('de poort ziet echt iets: de teksten noemen tools en parameters', () => {
   const text = agentFiles().map((f) => readFileSync(f, 'utf8')).join('\n');
   const tools = new Set([...text.matchAll(/\bplanner_[a-z_]*[a-z]\b/g)].map((m) => m[0]));
-  assert(tools.size >= 30, `te weinig toolnamen gevonden (${tools.size}) — scant de poort nog wel?`);
-  const adjacent = [...text.matchAll(/`(planner_[a-z_]+)`\s+(?:with\s+)?`([A-Za-z_][\w.]*)/g)].length;
+  const adjacent = [...text.matchAll(TOOL_PARAM)].length;
   const pairs = [...text.matchAll(/`\s*\{?\s*"?[A-Za-z_]\w*"?\s*:[^`]*`/g)].length;
-  assert(adjacent >= 10, `te weinig "tool + parameter"-plekken (${adjacent})`);
-  assert(pairs >= 15, `te weinig "sleutel: waarde"-spans (${pairs})`);
+  // Sinds #818 zijn de teksten kort; deze ondergrenzen vangen alleen een scan die niets meer vindt.
+  assert(tools.size >= 1, `geen toolnamen gevonden (${tools.size}) — scant de poort nog wel?`);
+  assert(adjacent >= 1, `geen "tool + parameter"-plekken gevonden (${adjacent})`);
+  assert(pairs >= 1, `geen "sleutel: waarde"-spans gevonden (${pairs})`);
 });
 
 test('mutatie: een verzonnen tool, parameter, pad of enumwaarde ⇒ rood', () => {
@@ -146,6 +152,8 @@ test('mutatie: een verzonnen tool, parameter, pad of enumwaarde ⇒ rood', () =>
   const cases: [string, RegExp][] = [
     ['Call `planner_run_cpm` first.', /planner_run_cpm bestaat niet/],
     ['Set `planner_update_project` `statusDay` first.', /geen parameter statusDay/],
+    ['Set planner_update_project `statusDay` first.', /geen parameter statusDay/],
+    ['Use planner_list_tasks with `orphan` filter.', /geen parameter orphan/],
     ['Attach with `planner_update_tasks` `fields.calendar`.', /geen parameter fields\.calendar/],
     ['Use `planner_list_tasks` with `orphans: true`.', /geen parameter orphans/],
     ['Set `durationType: "CALENDARDAYS"`.', /staat in geen enum van durationType/],

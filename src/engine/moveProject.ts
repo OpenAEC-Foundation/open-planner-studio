@@ -145,6 +145,10 @@ const EXTERNAL_LINK_VERDICTS = {
   anchorDate: 'keep',
   sourceRef: 'n/a',
   sourceMissing: 'n/a',           // betekent "bron niet vindbaar", NIET "anker verouderd" — niet zetten
+  // Herkomst (keuze 4): de versie van de bron en het moment van lezen. Dat zijn feiten over de bron,
+  // geen planningsdatums; ze blijven staan.
+  sourceVersion: 'keep',
+  anchorReadAt: 'keep',
 } satisfies Record<keyof ExternalLink, MoveVerdict>;
 
 const PROJECT_VERDICTS = {
@@ -163,6 +167,7 @@ const PROJECT_VERDICTS = {
   ifcSchema: 'n/a',               // schema van de bestandskop, geen datum
   ifcSchemaUnconfirmed: 'n/a',    // open schemavraag bij opslaan, geen datum
   p6ProjectCode: 'n/a',            // P6 Project-ID, geen datum
+  dependentProjectsFolder: 'n/a',  // map met afhankelijke projecten, geen datum
 } satisfies Record<keyof Project, MoveVerdict>;
 
 const RESOURCE_VERDICTS = {

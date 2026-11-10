@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import { resourceCostTotals } from '@/utils/resourceCostTotals';
 import { Icon } from '@/components/icons';
-import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
+import { RESOURCE_TYPES as ALL_RESOURCE_TYPES, isCostResource, type Resource, type ResourceType, type AvailabilityStep } from '@/types/resource';
 import { localTodayIso } from '@/utils/dateUtils';
 import { ResourceCalendarDialog } from '@/components/dialogs/ResourceCalendarDialog';
 import { UnitsInput } from '@/components/common/UnitsInput';
@@ -15,7 +16,7 @@ import { controlKindOf, liveGridNavDirection } from '@/utils/gridNavigation';
 import { StatusBanner } from './StatusBanner';
 import { CommitColorInput } from '@/components/common/CommitInput';
 
-const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
+const RESOURCE_TYPES = ALL_RESOURCE_TYPES;
 
 /**
  * Kolomsleutels van de resourcetabel, in weergavevolgorde — de "velden"-as van de rasternavigatie.
@@ -52,6 +53,7 @@ const TYPE_KEY = {
   MATERIAL: 'resource.type.material',
   SUBCONTRACTOR: 'resource.type.subcontractor',
   CREW: 'resource.type.crew',
+  COST: 'resource.type.cost',
 } as const satisfies Record<ResourceType, string>;
 
 const NEW_CAL = '__new';
@@ -104,27 +106,50 @@ const cellStatic = 'block !text-body !px-1.5 !py-1 w-full truncate text-text-sec
 const TH = 'text-left px-2 py-1.5 font-semibold border-b border-border';
 const TH_RIGHT = 'text-right px-2 py-1.5 font-semibold border-b border-border';
 
-/** Kop van de pool- en de projecttabel. Het project toont "Totaal" (kosten) en altijd de
- *  ploegkolom; de pool heeft geen totaal en toont de ploegkolom pas zodra hij resources heeft. */
-function ResourceTableHead({ showTotal, showParent }: { showTotal: boolean; showParent: boolean }) {
+/** Kolommen van de pool- en de projecttabel, in volgorde. Het project toont "Totaal" (kosten) en
+ *  altijd de ploegkolom; de pool heeft geen totaal en toont de ploegkolom pas zodra hij resources
+ *  heeft. Kop, somregel en de breedte van de subrijen tellen allemaal uit deze ene lijst. */
+type ResourceColumn = 'color' | 'name' | 'type' | 'maxUnits' | 'calendar' | 'costPerHour' | 'total' | 'unit' | 'parent' | 'actions';
+function resourceColumns(showTotal: boolean, showParent: boolean): ResourceColumn[] {
+  return [
+    'color', 'name', 'type', 'maxUnits', 'calendar', 'costPerHour',
+    ...(showTotal ? ['total' as const] : []),
+    'unit',
+    ...(showParent ? ['parent' as const] : []),
+    'actions',
+  ];
+}
+
+const PROJECT_COLUMNS = resourceColumns(true, true);
+const TOTAL_INDEX = PROJECT_COLUMNS.indexOf('total');
+
+function ResourceTableHead({ columns }: { columns: ResourceColumn[] }) {
   const { t } = useTranslation('common');
+  const cell = (col: ResourceColumn) => {
+    switch (col) {
+      case 'color':
+        return (
+          <th key={col} className="border-b border-border px-1 py-1.5" style={{ width: 44 }} title={t('resource.color')} aria-label={t('resource.color')}>
+            <span className="block h-2.5 w-full rounded-sm" style={{ background: 'var(--theme-border)' }} />
+          </th>
+        );
+      case 'name': return <th key={col} className={TH} style={{ minWidth: 160 }}>{t('resource.name')}</th>;
+      case 'type': return <th key={col} className={TH} style={{ width: 130 }}>{t('resource.typeLabel')}</th>;
+      case 'maxUnits': return <th key={col} className={TH_RIGHT} style={{ width: 110 }}>{t('resource.maxUnits')}</th>;
+      case 'calendar': return <th key={col} className={TH} style={{ width: 160 }}>{t('resource.calendarId')}</th>;
+      case 'costPerHour': return <th key={col} className={TH_RIGHT} style={{ width: 90 }}>{t('resource.costPerHour')}</th>;
+      case 'total': return <th key={col} className={TH_RIGHT} style={{ width: 100 }} title={t('resource.totalHint')} data-ops-resource-total-head>{t('resource.total')}</th>;
+      case 'unit': return <th key={col} className={TH} style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>;
+      case 'parent': return <th key={col} className={TH} style={{ width: 120 }}>{t('resource.parent')}</th>;
+      // In beide tabellen dezelfde breedte — er kan een "Naar de bibliotheek"-tekstknop in staan,
+      // niet alleen het losmaak-/verwijder-icoon.
+      case 'actions': return <th key={col} className="border-b border-border" style={{ width: 190 }} />;
+    }
+  };
   return (
     <thead>
       <tr className="sticky top-0 z-10" style={{ background: 'var(--theme-surface-alt)' }}>
-        <th className="border-b border-border px-1 py-1.5" style={{ width: 44 }} title={t('resource.color')} aria-label={t('resource.color')}>
-          <span className="block h-2.5 w-full rounded-sm" style={{ background: 'var(--theme-border)' }} />
-        </th>
-        <th className={TH} style={{ minWidth: 160 }}>{t('resource.name')}</th>
-        <th className={TH} style={{ width: 130 }}>{t('resource.typeLabel')}</th>
-        <th className={TH_RIGHT} style={{ width: 110 }}>{t('resource.maxUnits')}</th>
-        <th className={TH} style={{ width: 160 }}>{t('resource.calendarId')}</th>
-        <th className={TH_RIGHT} style={{ width: 90 }}>{t('resource.costPerHour')}</th>
-        {showTotal && <th className={TH_RIGHT} style={{ width: 100 }} title={t('resource.totalHint')}>{t('resource.total')}</th>}
-        <th className={TH} style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>
-        {showParent && <th className={TH} style={{ width: 120 }}>{t('resource.parent')}</th>}
-        {/* In beide tabellen dezelfde breedte — er kan een "Naar de
-            bibliotheek"-tekstknop in staan, niet alleen het losmaak-/verwijder-icoon. */}
-        <th className="border-b border-border" style={{ width: 190 }} />
+        {columns.map(cell)}
       </tr>
     </thead>
   );
@@ -241,15 +266,17 @@ export function ResourcePanel() {
     const { variant, draft } = pendingNew;
     const trimmed = draft.name.trim();
     if (trimmed === '') { setPendingNew(null); return null; } // geen naam: geen spoor.
+    // Een kostenresource (issue #815) krijgt geen inzet-, tarief-, kalender- of ploegvelden.
+    const cost = draft.type === 'COST';
     const base = {
       name: trimmed,
       description: '',
       type: draft.type,
-      maxUnits: draft.maxUnits,
-      calendarId: draft.calendarId,
-      costPerHour: draft.costPerHour,
+      maxUnits: cost ? 1 : draft.maxUnits,
+      calendarId: cost ? undefined : draft.calendarId,
+      costPerHour: cost ? undefined : draft.costPerHour,
       unitOfMeasure: draft.type === 'MATERIAL' ? draft.unitOfMeasure : undefined,
-      parentId: draft.parentId,
+      parentId: cost ? undefined : draft.parentId,
       color: draft.color,
     };
     let newId: string | null = null;
@@ -258,7 +285,7 @@ export function ResourcePanel() {
       // `addPoolResource` strip `calendarId`/`parentId` (pool-lokale verwijzingen worden daar
       // bewust niet uit een payload overgenomen). Zonder deze naslag zou een kalender- of
       // ploegkeuze uit de concept-rij stil verdwijnen.
-      if (newId && (draft.calendarId || draft.parentId)) {
+      if (newId && !cost && (draft.calendarId || draft.parentId)) {
         updatePoolResource(project.companyId, newId, { calendarId: draft.calendarId, parentId: draft.parentId });
       }
     } else if (variant === 'project') {
@@ -383,6 +410,7 @@ export function ResourcePanel() {
   // eerste/laatste-CREW-mutatie. De SELECT-opties (`poolCrews`) blijven wél op echte CREW-resources.
   const poolCrews = pool ? pool.resources.filter(r => r.type === 'CREW') : [];
   const poolShowParentColumn = (pool?.resources.length ?? 0) > 0;
+  const poolColumns = resourceColumns(false, poolShowParentColumn);
 
   const numberFmt = useMemo(
     () => new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -395,14 +423,12 @@ export function ResourcePanel() {
   // undefined = "—" (geen tarief of belasting).
   // Puur een PROJECT-grootheid (leunt op resourceLoadResult van dit project) — de pool heeft hier
   // bewust geen equivalent (zie "Totaal" hieronder).
-  const costByResource = useMemo(() => {
-    const map: Record<string, number | undefined> = {};
-    for (const r of resources) {
-      const hours = resourceLoadResult?.hours[r.id];
-      map[r.id] = hours === undefined || r.costPerHour == null ? undefined : hours * r.costPerHour;
-    }
-    return map;
-  }, [resources, resourceLoadResult]);
+  // Een kostenresource (issue #815) telt de bedragen van zijn toewijzingen op; zonder enig bedrag "—".
+  // Kolom "Totaal": uren × tarief, of de som van de bedragen voor een kostenresource (#815).
+  const costByResource = useMemo(
+    () => resourceCostTotals(resources, assignments, resourceLoadResult?.hours),
+    [resources, assignments, resourceLoadResult],
+  );
 
   const grandTotal = useMemo(() => {
     const vals = Object.values(costByResource).filter((v): v is number => v !== undefined);
@@ -544,7 +570,7 @@ export function ResourcePanel() {
             <div className="p-4 text-text-secondary">{t('companyLibrary.noResources')}</div>
           ) : (
             <table className="w-full border-collapse">
-              <ResourceTableHead showTotal={false} showParent={poolShowParentColumn} />
+              <ResourceTableHead columns={poolColumns} />
               <tbody>
                 {pool.resources.map(r => {
                   const stepsOpen = expandedSteps === r.id;
@@ -554,7 +580,7 @@ export function ResourcePanel() {
                       key={r.id}
                       resource={r}
                       variant="pool"
-                      colCount={poolShowParentColumn ? 9 : 8}
+                      colCount={poolColumns.length}
                       crews={poolCrews}
                       calendarOptions={pool.calendars}
                       stepsOpen={stepsOpen}
@@ -601,7 +627,7 @@ export function ResourcePanel() {
           )
         ) : (
           <table className="w-full border-collapse">
-            <ResourceTableHead showTotal showParent />
+            <ResourceTableHead columns={PROJECT_COLUMNS} />
             <tbody>
               {resources.map(r => {
                 const stepsOpen = expandedSteps === r.id;
@@ -612,12 +638,13 @@ export function ResourcePanel() {
                     key={r.id}
                     resource={r}
                     variant="project"
-                    colCount={10}
+                    colCount={PROJECT_COLUMNS.length}
                     crews={crews}
                     calendarOptions={resourceCalendars}
                     stepsOpen={stepsOpen}
                     stepCount={stepCount}
                     showParentColumn
+                    hasAssignments={assignmentCount(r.id) > 0}
                     costLabel={cost === undefined ? '—' : numberFmt.format(cost)}
                     confirmingDelete={confirmDelete === r.id}
                     confirmMessage={confirmDelete === r.id ? t('resource.panel.confirmDelete', { name: r.name || r.id, count: assignmentCount(r.id) }) : ''}
@@ -640,10 +667,9 @@ export function ResourcePanel() {
             {grandTotal !== undefined && (
               <tfoot>
                 <tr className="border-t border-border font-semibold">
-                  <td className="px-2 py-1.5 text-text-secondary" colSpan={4}>{t('resource.total')}</td>
-                  <td className="px-2 py-1.5 text-right" />
-                  <td className="px-2 py-1.5 text-right">{numberFmt.format(grandTotal)}</td>
-                  <td colSpan={3} />
+                  <td className="px-2 py-1.5 text-text-secondary" colSpan={TOTAL_INDEX}>{t('resource.total')}</td>
+                  <td className="px-2 py-1.5 text-right" data-ops-resource-grand-total>{numberFmt.format(grandTotal)}</td>
+                  <td colSpan={PROJECT_COLUMNS.length - TOTAL_INDEX - 1} />
                 </tr>
               </tfoot>
             )}
@@ -671,7 +697,7 @@ export function ResourcePanel() {
  */
 function ResourceRow({
   resource, variant, colCount, crews, calendarOptions, stepsOpen, stepCount, costLabel,
-  showParentColumn = true,
+  showParentColumn = true, hasAssignments = false,
   confirmingDelete, confirmMessage,
   onToggleSteps, onPatch, onRequestRemove, onConfirmRemove, onCancelRemove,
   onCalendarChange, onEditCalendar, onAssignToProject, onUnlink, onPromoteToLibrary,
@@ -689,6 +715,8 @@ function ResourceRow({
    *  projectberekening, zie de toelichting bovenaan dit bestand). */
   costLabel?: string;
   showParentColumn?: boolean;
+  /** Heeft deze resource toewijzingen? Dan mag het type niet naar of van COST (issue #815). */
+  hasAssignments?: boolean;
   confirmingDelete: boolean;
   confirmMessage: string;
   onToggleSteps: () => void;
@@ -719,6 +747,9 @@ function ResourceRow({
     [i18n.language],
   );
   const isMaterial = resource.type === 'MATERIAL';
+  // Kostenresource (issue #815): geen max. eenheden, stappen, kalender, tarief, eenheid of ploeg.
+  const isCost = isCostResource(resource);
+  const notForCost = <span className={cellStatic} title={t('resource.notForCost')} data-ops-resource-not-for-cost>—</span>;
   const isPool = variant === 'pool';
   // Projectweergave-markeringen: 'deviated'/'removed' komen uit de
   // openingsclassificatie (onOpenStatusForResource) — null/'in-sync'/'behind'/'unbound'
@@ -882,7 +913,15 @@ function ResourceRow({
               className={cellInput}
             >
               {RESOURCE_TYPES.map(rt => (
-                <option key={rt} value={rt}>{t(TYPE_KEY[rt])}</option>
+                // Met toewijzingen geen wissel naar of van kosten: inzet en werk worden geen bedrag.
+                <option
+                  key={rt}
+                  value={rt}
+                  disabled={hasAssignments && rt !== resource.type && (rt === 'COST' || isCost)}
+                  title={hasAssignments && rt !== resource.type && (rt === 'COST' || isCost) ? t('resource.costTypeLocked') : undefined}
+                >
+                  {t(TYPE_KEY[rt])}
+                </option>
               ))}
             </select>
           )}
@@ -890,7 +929,9 @@ function ResourceRow({
         <td className="px-2 py-1">
           {/* Max.eenheden (+ de tijd-gefaseerde stappen hieronder) en de
               kalenderkeuze (verderop) zijn projectinzet, GEEN bibliotheekafspraak — dus ALTIJD een
-              echt invoerveld, nooit `cellStatic`, ook niet op een geërfde/locked resource. */}
+              echt invoerveld, nooit `cellStatic`, ook niet op een geërfde/locked resource. Een
+              kostenresource heeft ze niet ("—"). */}
+          {isCost ? notForCost : (
           <div className="flex items-center gap-1 justify-end">
             <UnitsInput
               value={resource.maxUnits}
@@ -905,12 +946,14 @@ function ResourceRow({
               title={t('resource.availabilityStepsEditor.title')}
               className="p-0.5 rounded hover:bg-surface-hover text-text-secondary flex-shrink-0"
             >
-              {stepsOpen ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} className="ops-icon-inline-flip" />}
+              {stepsOpen ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} className="ops-icon-inline-flip" lucide={{ className: undefined }} />}
               {stepCount > 0 && <span className="!text-caption ml-0.5">{stepCount}</span>}
             </button>
           </div>
+          )}
         </td>
         <td className="px-2 py-1">
+          {isCost ? notForCost : (
           <div className="flex items-center gap-1 min-w-0">
             {/* KalenderKEUZE is PROJECTINZET, geen
                 bibliotheekafspraak — welke kalender aan deze resource hangt is een keuze van dit ene
@@ -945,9 +988,10 @@ function ResourceRow({
               <Icon id="calendar.edit" size={12} />
             </button>
           </div>
+          )}
         </td>
         <td className="px-2 py-1">
-          {locked ? (
+          {isCost ? notForCost : locked ? (
             <span className={cellStatic + ' text-right'} title={t('resource.inheritedFieldHint')}>
               {resource.costPerHour != null ? numberFmt.format(resource.costPerHour) : '—'}
             </span>
@@ -970,7 +1014,7 @@ function ResourceRow({
           </td>
         )}
         <td className="px-2 py-1">
-          {locked ? (
+          {isCost ? notForCost : locked ? (
             <span className={cellStatic} title={t('resource.inheritedFieldHint')}>
               {isMaterial ? (resource.unitOfMeasure || '—') : '—'}
             </span>
@@ -988,6 +1032,7 @@ function ResourceRow({
         </td>
         {showParentColumn && (
           <td className="px-2 py-1">
+            {isCost ? notForCost : (
             <select
               value={resource.parentId ?? ''}
               onChange={e => onPatch({ parentId: e.target.value || undefined })}
@@ -999,6 +1044,7 @@ function ResourceRow({
                 <option key={c.id} value={c.id}>{c.name || c.id}</option>
               ))}
             </select>
+            )}
           </td>
         )}
         <td className="px-1 py-1 text-center">
@@ -1137,6 +1183,9 @@ function PendingNewRow({
 }) {
   const { t } = useTranslation('common');
   const isMaterial = draft.type === 'MATERIAL';
+  // Kostenresource (issue #815): de inzet- en tariefvelden staan uit (de store wist ze ook).
+  const isCost = draft.type === 'COST';
+  const costTitle = isCost ? t('resource.notForCost') : undefined;
 
   /** Eén toetsbeleid voor de hele rij — dezelfde regels als de echte rijen (`useLiveGridNav`),
    *  zodat ↑/↓ in de dropdowns en de spinner gewoon hun eigen betekenis houden. */
@@ -1206,14 +1255,18 @@ function PendingNewRow({
       </td>
       <td className="px-2 py-1">
         <div className="flex items-center gap-1 justify-end">
-          <UnitsInput
-            value={draft.maxUnits}
-            ariaLabel={t('resource.maxUnits')}
-            onCommit={n => onChange({ maxUnits: n })}
-            gridCell={cell('maxUnits')['data-ops-grid-cell']}
-            onKeyDown={onKeyDown}
-            className={cellInput + ' text-right'}
-          />
+          {isCost ? (
+            <span className={cellStatic} title={costTitle} data-ops-resource-not-for-cost>—</span>
+          ) : (
+            <UnitsInput
+              value={draft.maxUnits}
+              ariaLabel={t('resource.maxUnits')}
+              onCommit={n => onChange({ maxUnits: n })}
+              gridCell={cell('maxUnits')['data-ops-grid-cell']}
+              onKeyDown={onKeyDown}
+              className={cellInput + ' text-right'}
+            />
+          )}
         </div>
       </td>
       <td className="px-2 py-1">
@@ -1221,7 +1274,9 @@ function PendingNewRow({
           value={draft.calendarId ?? ''}
           onChange={e => onChange({ calendarId: e.target.value || undefined })}
           {...cell('calendar')}
-          className={cellInput}
+          disabled={isCost}
+          title={costTitle}
+          className={cellInput + ' disabled:opacity-30'}
         >
           <option value="">{isPool ? t('resource.noCalendar') : t('resource.projectCalendar')}</option>
           {calendarOptions.map(c => (
@@ -1242,7 +1297,9 @@ function PendingNewRow({
             if (Number.isFinite(n)) onChange({ costPerHour: n });
           }}
           {...cell('cost')}
-          className={cellInput + ' text-right'}
+          disabled={isCost}
+          title={costTitle}
+          className={cellInput + ' text-right disabled:opacity-30'}
         />
       </td>
       {/* "Totaal" is een berekening over de belasting — die bestaat pas als de resource bestaat. */}
@@ -1263,7 +1320,9 @@ function PendingNewRow({
             value={draft.parentId ?? ''}
             onChange={e => onChange({ parentId: e.target.value || undefined })}
             {...cell('parent')}
-            className={cellInput}
+            disabled={isCost}
+            title={costTitle}
+            className={cellInput + ' disabled:opacity-30'}
           >
             <option value="">{t('resource.noParent')}</option>
             {crews.map(c => (

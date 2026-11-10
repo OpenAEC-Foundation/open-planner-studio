@@ -67,9 +67,17 @@ export interface ExternalLink {
   lagMinutes?: number;                       // zelfde eenheid-conventie als Sequence
   /** Bevroren driving-datum van de andere kant (P6 External Dates). */
   anchorDate: string;                        // date-only (dag) of datetime (uur)
-  sourceRef: { projectId: string; projectName?: string; taskId: string; taskName?: string; filePath?: string };
+  /** `siteFileId`: het vaste id van het bronbestand op de site (stand A, `docs/relaties-tussen-projecten.md`
+   *  5.4); optioneel, alleen bij een bron uit de SuperCloud. */
+  sourceRef: { projectId: string; projectName?: string; taskId: string; taskName?: string; filePath?: string; siteFileId?: string };
   /** true ⇒ bronproject niet beschikbaar; de link rekent op de gecachte anchorDate (ghost). */
   sourceMissing: boolean;
+  /** Herkomst van het anker (keuze 4, Ethan 2026-11-03): de versie van de bron bij het lezen. Op de site
+   *  het versienummer; bij een bestand de wijzigingstijd (ISO, UTC). Afwezig ⇒ onbekend (een oudere
+   *  koppeling, of een anker dat de planner zelf invulde). */
+  sourceVersion?: string;
+  /** Herkomst van het anker: wanneer OPS het anker uit de bron las (ISO, UTC). Afwezig ⇒ onbekend. */
+  anchorReadAt?: string;
 }
 
 export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';

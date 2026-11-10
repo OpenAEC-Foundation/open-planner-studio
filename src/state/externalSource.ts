@@ -5,16 +5,22 @@ import type { ExternalSourceDoc, LateDatesInFile } from '@/engine/externalLinks'
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import type { Task } from '@/types/task';
-import { parseOpenedFile, readFormatInput, type FormatIO } from '@/services/formatRegistry';
+import { parseOpenedFile, readFormatInput, type FormatIO, type FormatReadOptions } from '@/services/formatRegistry';
 import { activeImportResult, type ImportLabels, type ImportResult } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
+import type { SiteSourceFile } from '@/services/fileAccess/siteBackend';
 import { payloadFromImport } from './documentContract';
 import { applyRecordedDatesOnLoad, prepareLoadedPayload } from './documentActivation';
 
 /** Een ingelezen bron, met de velden die de verversing en de dialoog lezen. */
 export interface ExternalSourceRead extends ExternalSourceDoc {
   projectName: string;
-  filePath: string;
+  /** Het pad waarmee de app de bron las (desktop). Een bron uit de browser heeft geen pad (stap 1.8). */
+  filePath?: string;
+  /** De bestandsnaam voor de tekst ("Installateur.ifc"). Afwezig ⇒ de tekst noemt de projectnaam. */
+  fileName?: string;
+  /** De auteur uit de projectgegevens van de bron; de balk bij een nieuwe versie noemt hem (stap 1.5). */
+  author?: string;
 }
 
 /**
@@ -44,6 +50,8 @@ export function externalSourceFromImport(parsed: ImportResult, filePath: string)
     projectId: prepared.project.id,
     projectName: prepared.project.name,
     filePath,
+    fileName: filePath.split(/[\\/]/).pop() || filePath,
+    ...(prepared.project.author?.trim() ? { author: prepared.project.author.trim() } : {}),
     tasks: prepared.tasks,
     lateDatesInFile: lateDatesInFile(payload.tasks, parsed),
   };
@@ -82,7 +90,61 @@ export async function readExternalSource(
   filePath: string,
   io: FormatIO,
   labels?: ImportLabels,
+  readOptions?: FormatReadOptions,
 ): Promise<ExternalSourceRead> {
-  const input = await readFormatInput(filePath, io);
-  return externalSourceFromImport(activeImportResult(await parseOpenedFile(input, labels)), filePath);
+  const input = await readFormatInput(filePath, io, readOptions);
+  return externalSourceFromImport(activeImportResult(await parseOpenedFile(input, labels, readOptions)), filePath);
+}
+
+/** Het deel van een `File` dat de bronlezer gebruikt; de tests geven een eigen object. */
+export interface ExternalSourceFile {
+  name: string;
+  lastModified: number;
+  text(): Promise<string>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+/**
+ * Leest een bestand dat de planner in de browser koos (stap 1.8). De bron heeft geen pad: de koppeling
+ * herkent haar op project-id. De versie is de wijzigingstijd van het bestand (`lastModified`, ISO), net als
+ * op de desktop; de leestijd is nu. Fouten gaan naar de aanroeper.
+ */
+export async function readExternalSourceFile(
+  file: ExternalSourceFile, labels?: ImportLabels, readOptions?: FormatReadOptions,
+): Promise<ExternalSourceRead> {
+  const io: FormatIO = {
+    readTextFile: () => file.text(),
+    readFile: async () => new Uint8Array(await file.arrayBuffer()),
+  };
+  const input = await readFormatInput(file.name, io, readOptions);
+  const { filePath: _path, ...read } = externalSourceFromImport(activeImportResult(await parseOpenedFile(input, labels, readOptions)), file.name);
+  void _path;
+  const modified = new Date(file.lastModified);
+  return {
+    ...read,
+    fileName: file.name,
+    ...(isNaN(modified.getTime()) ? {} : { version: modified.toISOString() }),
+    readAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Leest een bron van de site (stap 1.9), alleen-lezen, door dezelfde laadgrens als openen. De bron heeft geen
+ * pad: de koppeling herkent haar op het vaste id op de site (`siteFileId`). De versie is de versie op de site;
+ * de leestijd is nu. Fouten gaan naar de aanroeper.
+ */
+export async function readExternalSiteSource(
+  file: SiteSourceFile, labels?: ImportLabels, readOptions?: FormatReadOptions,
+): Promise<ExternalSourceRead> {
+  const io: FormatIO = { readTextFile: () => file.text(), readFile: () => file.bytes() };
+  const input = await readFormatInput(file.name, io, readOptions);
+  const { filePath: _path, ...read } = externalSourceFromImport(activeImportResult(await parseOpenedFile(input, labels, readOptions)), file.name);
+  void _path;
+  return {
+    ...read,
+    siteFileId: file.id,
+    fileName: file.name,
+    ...(file.version ? { version: file.version } : {}),
+    readAt: new Date().toISOString(),
+  };
 }

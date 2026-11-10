@@ -291,10 +291,11 @@ eq('ontbrekende baselinetaak legt de lege cel uit',
   baselineStart.tooltip?.(missingBaselineValue, taskWithoutBaseline, ctx),
   'Niet aanwezig in deze baseline');
 
+// Elk token draagt de soort van de bronresource (#815, `resourceKind`): hier drie ploegen, dus werk.
 const expectedAssignmentTokens = [
-  { assignmentId: 'a-1', resourceId: 'r-1', unitsPerDay: 1 },
-  { assignmentId: 'a-2', curve: 'FRONT_LOADED', resourceId: 'r-2', unitsPerDay: 0.5 },
-  { assignmentId: 'a-3', resourceId: 'r-3', unitsPerDay: 2 },
+  { assignmentId: 'a-1', resourceId: 'r-1', resourceKind: 'work', unitsPerDay: 1 },
+  { assignmentId: 'a-2', curve: 'FRONT_LOADED', resourceId: 'r-2', resourceKind: 'work', unitsPerDay: 0.5 },
+  { assignmentId: 'a-3', resourceId: 'r-3', resourceKind: 'work', unitsPerDay: 2 },
 ];
 for (const id of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.curve']) {
   const column = registry.find(candidate => candidate.id === id)!;
@@ -315,14 +316,16 @@ for (const id of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.
 }
 
 const assignedResources = registry.find(column => column.id === 'assignment.resources')!;
-eq('Assignmenteditor blijft gesloten op summary en mijlpaal', [
+// Sinds #815 mag een kostenresource op een mijlpaal: de editor staat daar open, de validatie weigert
+// er werk en materiaal (`assignmentMilestoneWork`, check-cost-resource.ts D11–D12).
+eq('Assignmenteditor gesloten op summary, open op mijlpaal (alleen kosten)', [
   (assignedResources.readOnly as (task: Task, ctx: TaskColumnContext) => boolean)(
     { ...task, childIds: ['kind'] }, ctx,
   ),
   (assignedResources.readOnly as (task: Task, ctx: TaskColumnContext) => boolean)(
     { ...task, isMilestone: true }, ctx,
   ),
-], [true, true]);
+], [true, false]);
 const workWindowStart = registry.find(column => column.id === 'assignment.workWindowStart')!;
 eq('Werkvenster toont resource-label en volledige waarde in plaats van alleen een telling',
   workWindowStart.format(workWindowStart.read(task, ctx), task, ctx),

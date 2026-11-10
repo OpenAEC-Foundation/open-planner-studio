@@ -140,6 +140,7 @@
     "histogram": "المدرج التكراري",
     "toggleHistogram": "المدرج التكراري",
     "warningsPanel": "لوحة التحذيرات",
+    "scheduleShiftPanel": "المهام المُزاحة",
     "prevResource": "السابق",
     "nextResource": "التالي",
     "leveling": "موازنة الموارد",
@@ -157,6 +158,7 @@
     "barsGroup": "أشرطة المهام",
     "manageBaselines": "إدارة خطوط الأساس…",
     "statusDate": "تاريخ الحالة",
+    "statusDateValue": "تاريخ الحالة: {{date}}",
     "statusDateClear": "مسح تاريخ الحالة",
     "statusDateTime": "وقت تاريخ الحالة",
     "statusDateTimeLater": "وقت لاحق",
@@ -221,7 +223,9 @@
     "screenColorsMissingField": "هذا الحقل غير موجود في هذا المشروع. تُستخدم فئة العمل مؤقتًا.",
     "screenColorsHint": "خارج وضع المسار الحرج، يشير الإطار الأحمر إلى المسار الحرج.",
     "addLayout": "تخطيط جديد",
-    "toggleRelations": "خطوط العلاقات"
+    "toggleRelations": "خطوط العلاقات",
+    "relationFindDependents": "البحث عن المشاريع التابعة…",
+    "relationFindDependentsHint": "البحث في مجلد عن مشاريع لها علاقة خارجية بهذا الجدول الزمني."
   },
   "ifc": {
     "title": "محرر IFC",
@@ -239,6 +243,8 @@
     "company": "الشركة",
     "startDate": "تاريخ البداية",
     "endDate": "تاريخ النهاية",
+    "defaultWorkRule": "نوع المهمة الافتراضي",
+    "defaultWorkRuleHint": "تتبع المهام المضبوطة على “الافتراضي للمشروع” هذا الاختيار. المهام ذات نوع المهمة الخاص بها تحتفظ باختيارها.",
     "calc": {
       "title": "الحساب",
       "subtitle": "خيارات الجدولة لهذا المشروع — تُحفظ مع الملف، وليس مع التطبيق.",
@@ -329,7 +335,7 @@
     "exportTitle": "تصدير",
     "exportSubtitle": "اختر صيغة. سيتم تحويل المشروع وحفظه.",
     "progressImportCardTitle": "تحديث التقدّم من ورقة بيانات",
-    "progressImportCardDesc": "اقرأ ورقة CSV أو XLSX مُعادة وحدّث نسبة الإنجاز والبداية الفعلية والنهاية الفعلية.",
+    "progressImportCardDesc": "اقرأ ورقة Excel (.xlsx) مُعادة وحدّث نسبة الإنجاز والبداية الفعلية والنهاية الفعلية.",
     "printTitle": "طباعة",
     "printSubtitle": "افتح شاشة التقرير لمعاينة الطباعة والإعدادات.",
     "openPrintPreview": "فتح معاينة الطباعة",
@@ -397,6 +403,9 @@
     "mspdiDesc": "يُفتح في Microsoft Project. هيكل WBS كامل.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "لبرنامج Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "لـ Oracle Primavera P6، كملف .xer.",
+    "experimentalBadge": "تجريبي",
     "profileHint": "يعمل مشروعك حاليًا بملف التعريف {{name}}. ننصح باستخدام ملف التعريف {{target}} لتحقيق أفضل توافق مع تنسيق الملف هذا.",
     "ifcLabel": "IFC",
     "ifcDesc": "معيار BuildingSMART، وفق مخطط IFC الخاص بالمشروع (افتراضي: IFC 4.3 ADD2). ربط رباعي الأبعاد مع نماذج BIM.",
@@ -451,5 +460,18 @@
     "redo": "إعادة",
     "zoomIn": "تكبير",
     "zoomOut": "تصغير"
+  },
+  "native": {
+    "window": "نافذة",
+    "quit": "إنهاء Open Planner Studio",
+    "about": "حول Open Planner Studio",
+    "services": "الخدمات",
+    "hide": "إخفاء Open Planner Studio",
+    "hideOthers": "إخفاء الآخرين",
+    "showAll": "إظهار الكل",
+    "closeWindow": "إغلاق النافذة",
+    "cut": "قص",
+    "fullscreen": "تبديل ملء الشاشة",
+    "bringAllToFront": "إحضار الكل إلى الأمام"
   }
 }

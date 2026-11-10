@@ -37,6 +37,8 @@ import { PROJECT_INFO_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
+import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 // De fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven voor bestaande importers.
 import { createDefaultProject } from '../defaults';
@@ -115,6 +117,10 @@ export interface ProjectSlice {
   xerImportMetadata: XerImportMetadata | null;
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
+  /** Zie `DocumentPayload.ifcSource` (#804 fase 1a). */
+  ifcSource: IfcSource | null;
+  /** Zie `DocumentPayload.foreignSourceMark` (#804 fase 1a, fixronde 1). */
+  foreignSourceMark: ForeignSourceMark | null;
   /** Werkregel-UI ontsloten voor dit document; zie DOCUMENT_FIELDS. */
   taskTypesVisible: boolean;
   /** Zie `DocumentPayload.importPristine`. */
@@ -211,6 +217,8 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   xerImportMetadata: null,
   xerSourceArchive: null,
   xerSourceProjectId: null,
+  ifcSource: null,
+  foreignSourceMark: null,
   taskTypesVisible: false,
   importPristine: false,
   xerArchiveIssue: null,

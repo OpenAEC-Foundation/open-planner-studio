@@ -59,6 +59,7 @@ export const HOST_PERSISTED_KEYS: readonly string[] = [
   'ops-showMiniMap',
   'ops-showClassicViewControls',
   'ops-autoCalcCPM',
+  'ops-autoFitColumns',
   'ops-dateNotation',
   'ops-timeNotation',
   'ops-uiFontFamily',

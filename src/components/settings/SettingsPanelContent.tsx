@@ -4,7 +4,7 @@ import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
-import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs } from '@/utils/settingsStore';
+import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveAutoFitColumns } from '@/utils/settingsStore';
 import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNoticeKinds';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
@@ -65,6 +65,7 @@ export function SettingsPanelContent() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
+  const autoFitColumns = useAppStore(s => s.ui.autoFitColumns);
   const showClassicViewControls = useAppStore(s => s.ui.showClassicViewControls);
   const ribbonWheelSwitchesTabs = useAppStore(s => s.ui.ribbonWheelSwitchesTabs);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
@@ -83,7 +84,7 @@ export function SettingsPanelContent() {
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
   const featureFlags = useAppStore(s => s.ui.featureFlags);
-  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
+  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.hidden && !flag.writesNewIfcData);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const versionRef = useRef<HTMLButtonElement>(null);
@@ -306,6 +307,19 @@ export function SettingsPanelContent() {
                 checked={ribbonWheelSwitchesTabs}
                 onChange={checked => applySetting('ribbonWheelSwitchesTabs', checked, saveRibbonWheelSwitchesTabs)}
                 inputProps={{ 'data-ops-ribbon-wheel-setting': '' }}
+              />
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.taskGridSection')}</h3>
+              {/* Kolommen automatisch aanpassen: de breedte volgt de inhoud; een met de hand
+                  versleepte kolom blijft staan tot een dubbelklik op de rand. */}
+              <SettingToggle
+                label={t('settings.autoFitColumns')}
+                hint={t('settings.autoFitColumnsHint')}
+                checked={autoFitColumns}
+                onChange={checked => applySetting('autoFitColumns', checked, saveAutoFitColumns)}
+                inputProps={{ 'data-ops-auto-fit-columns': '' }}
               />
             </div>
 

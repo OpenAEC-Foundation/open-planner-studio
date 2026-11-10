@@ -6,7 +6,7 @@
 // kalenders en twee baselines (examples/showcase-appartementencomplex.ifc). Daarop twee lagen:
 //  1. Breedte van de writer (vroeger `fixtures/ifc-arity-rich.ts`): een werkende uitzondering met banden
 //     op de projectkalender, bibliotheekkalenders met de ploegen SECOND/THIRD/USERDEFINED (een
-//     tweeploegen-uurkalender), extra resources van alle vijf soorten (een ploeg met leden,
+//     tweeploegen-uurkalender), extra resources van alle zes soorten (ook kosten, #815) (een ploeg met leden,
 //     capaciteitsstap, bibliotheekstempel), toewijzingen met curves, werkvelden en een timephased-
 //     venster, een eigen taaktype, activity codes met kleur, een constraint, deadline en notitie, een
 //     kalenderwandeling, voortgang, alle vier relatiesoorten met elke lag-vorm, een extra baseline, een
@@ -83,7 +83,7 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   const unused = day('cal-rich-eigen', 'Eigen rooster', 'USERDEFINED');
   r.resourceCalendars = [...(r.resourceCalendars ?? []), twoShift, night, unused];
 
-  // ── Resources: alle vijf soorten, ploeg met leden, kalender, capaciteitsstap, bibliotheekstempel ──
+  // ── Resources: alle zes soorten (ook kosten), ploeg met leden, kalender, capaciteitsstap, bibliotheekstempel ──
   const extra: Resource[] = [
     {
       id: 'res-rich-kraan', name: 'Torenkraan', type: 'EQUIPMENT', description: 'Kraan met capaciteitsstap',
@@ -105,6 +105,8 @@ function addWriterBreadth(base: ImportResult): ImportResult {
       parentId: 'res-rich-ploeg', calendarId: twoShift.id,
     },
     { id: 'res-rich-schilder', name: 'Schilder (ploeg)', type: 'LABOR', description: '', maxUnits: 2, parentId: 'res-rich-ploeg' },
+    // Kostenresource (#815): IFCCONSTRUCTIONMATERIALRESOURCE met ObjectType 'COST' en .USERDEFINED.
+    { id: 'res-rich-leges', name: 'Leges', type: 'COST', description: 'Vast bedrag', maxUnits: 1 },
   ];
   r.resources = [...r.resources, ...extra];
 
@@ -124,6 +126,7 @@ function addWriterBreadth(base: ImportResult): ImportResult {
     }),
     assign('asg-rich-4', leaf(3), 'res-rich-stukadoor', { curve: 'BACK_LOADED' }),
     assign('asg-rich-5', leaf(3), 'res-rich-schilder', { unitsPerDay: 2 }),
+    assign('asg-rich-6', leaf(3), 'res-rich-leges', { costAmount: 1250.5 }),
   ];
 
   // ── Structuur: eigen velden (alle zes soorten), activity codes, eigen taaktype ────────────────────

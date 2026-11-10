@@ -1,6 +1,7 @@
 import { sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
+import { foreignSourceTargetOf } from '@/services/ifc/foreign/foreignSourceMark';
 import {
-  sameRecoverySiteMeta, siteMetaFields,
+  foreignSourceMetaFields, sameRecoveryForeignSource, sameRecoverySiteMeta, siteMetaFields,
   type RecoveryArchiveSupplier, type RecoveryDocContent, type RecoveryDocMetadata, type RecoverySaveInput,
 } from './recoveryStore';
 import { decodeXerSourceArchive } from '@/services/xerSourceArchive';
@@ -39,6 +40,9 @@ function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
     id, filePath, isDirty, datesAsRecorded,
     ...(sha ? { xerArchive: sha } : {}),
     ...siteMetaFields(document),
+    // #804 fase 1a, fixronde 1: het doel van een bron met een vreemd deel volgt uit de bron zelf, net als `xerArchive`,
+    // zodat manifest en snapshot (de vingerafdruk) per constructie bij elkaar horen. Zonder kenmerk: weggelaten.
+    ...foreignSourceMetaFields({ foreignSource: foreignSourceTargetOf(document.source.foreignSourceMark) }),
   };
 }
 
@@ -68,7 +72,8 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
       && (value.xerArchive ?? null) === (other.xerArchive ?? null)
       // Het site-doel en zijn basisversie zijn ook manifestmetadata: een opslag op de site (nieuwe
       // versie) of een nieuw doel geeft zonder inhoudswijziging een manifest-only schrijfactie.
-      && sameRecoverySiteMeta(value, other);
+      && sameRecoverySiteMeta(value, other)
+      && sameRecoveryForeignSource(value, other);
   });
 }
 

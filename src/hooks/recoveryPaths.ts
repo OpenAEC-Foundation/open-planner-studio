@@ -137,6 +137,13 @@ export interface RecoveryManifestDoc {
    */
   siteFileId?: string | null;
   siteFileVersion?: string | null;
+  /**
+   * #804 fase 1a, fixronde 1: kwam dit document uit een IFC-bestand met een vreemd deel, dan het doel van die bron (het
+   * oude pad of site-bestand; `RecoveryDocMeta.foreignSource`). Na herstel weigeren Opslaan als en een export naar dat
+   * bestand. De vingerafdruk staat in de snapshot (`OPS_RecoveryForeignSource`). Optioneel zoals de site-velden: een
+   * ouder manifest kent het niet (geen kenmerk), zonder versienummer.
+   */
+  foreignSource?: { filePath?: string | null; siteFileId?: string | null };
 }
 
 export interface RecoveryManifest {

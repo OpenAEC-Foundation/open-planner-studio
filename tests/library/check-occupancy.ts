@@ -156,6 +156,19 @@ function pool(resources: Resource[]): CompanyPool {
   assert(anyStale === false, 'case 1: geen stale documenten ⇒ anyStale false');
 }
 
+// ── Case 1b (#815): een kostenresource heeft geen bezetting, ook niet over twee documenten ─────────
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2), poolRes('lib-cost', 'Leges', 1, { type: 'COST' })]);
+  const mkDoc = (id: string) => doc(id, {
+    resources: [stamped(`${id}-r1`, 'lib-1'), stamped(`${id}-rc`, 'lib-cost', 'c1', { type: 'COST' })],
+    tasks: [task(`${id}-t1`, '2026-08-03', '2026-08-05', 3)],
+    assignments: [assign(`${id}-a1`, `${id}-t1`, `${id}-r1`, 1), { ...assign(`${id}-ac`, `${id}-t1`, `${id}-rc`, 1), costAmount: 100 }],
+  });
+  const { rows } = computeLibraryOccupancy('c1', p, [mkDoc('d1'), mkDoc('d2')]);
+  assert(rows.every(r => r.libraryItemId !== 'lib-cost'), `case 1b: geen rij voor de kostenresource (kreeg ${JSON.stringify(rows.map(r => r.libraryItemId))})`);
+  assert(rows.some(r => r.libraryItemId === 'lib-1'), 'case 1b: de werkresource staat er wel');
+}
+
 // ── Case 2 (§10.2): zelfde overlap maar som ≤ capaciteit; grens som == capaciteit is GEEN conflict ─
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);

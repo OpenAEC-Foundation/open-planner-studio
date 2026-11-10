@@ -140,6 +140,7 @@
     "histogram": "Histogramme",
     "toggleHistogram": "Histogramme",
     "warningsPanel": "Panneau des avertissements",
+    "scheduleShiftPanel": "Tâches décalées",
     "prevResource": "Précédente",
     "nextResource": "Suivante",
     "leveling": "Nivellement",
@@ -154,6 +155,7 @@
     "barsGroup": "Barres",
     "manageBaselines": "Gérer les références…",
     "statusDate": "Date d'état",
+    "statusDateValue": "Date d'état : {{date}}",
     "statusDateClear": "Effacer la date d'état",
     "statusDateTime": "Heure de la date d'état",
     "statusDateTimeLater": "Heure plus tard",
@@ -218,7 +220,9 @@
     "screenColorsMissingField": "Ce champ n’existe pas dans ce projet. La catégorie de travaux est utilisée temporairement.",
     "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique.",
     "addLayout": "Nouvelle disposition",
-    "toggleRelations": "Lignes de liaison"
+    "toggleRelations": "Lignes de liaison",
+    "relationFindDependents": "Rechercher les projets dépendants…",
+    "relationFindDependentsHint": "Rechercher dans un dossier les projets ayant une relation externe avec ce planning."
   },
   "ifc": {
     "title": "Éditeur IFC",
@@ -236,6 +240,8 @@
     "company": "Entreprise",
     "startDate": "Date de début",
     "endDate": "Date de fin",
+    "defaultWorkRule": "Type de tâche par défaut",
+    "defaultWorkRuleHint": "Les tâches définies sur « Valeur par défaut du projet » suivent ce choix. Les tâches ayant leur propre type de tâche conservent leur choix.",
     "calc": {
       "title": "Calcul",
       "subtitle": "Options de planification pour ce projet — stockées avec le fichier, pas avec l'application.",
@@ -323,7 +329,7 @@
     "exportTitle": "Exporter",
     "exportSubtitle": "Choisissez un format. Le projet sera converti et enregistré.",
     "progressImportCardTitle": "Mettre à jour l'avancement depuis une feuille",
-    "progressImportCardDesc": "Lisez une feuille CSV ou XLSX renvoyée et mettez à jour l'avancement, le début réel et la fin réelle.",
+    "progressImportCardDesc": "Lisez une feuille XLSX renvoyée et mettez à jour l'avancement, le début réel et la fin réelle.",
     "printTitle": "Imprimer",
     "printSubtitle": "Ouvrez l'écran de rapport pour l'aperçu avant impression et les paramètres.",
     "openPrintPreview": "Ouvrir l'aperçu avant impression",
@@ -391,6 +397,9 @@
     "mspdiDesc": "À ouvrir dans Microsoft Project. Structure WBS complète.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pour Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Pour Oracle Primavera P6, sous forme de fichier .xer.",
+    "experimentalBadge": "Expérimental",
     "profileHint": "Votre projet utilise actuellement le profil {{name}}. Nous recommandons le profil {{target}} pour une meilleure compatibilité avec ce format de fichier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard buildingSMART, dans le schéma IFC du projet (par défaut IFC 4.3 ADD2). Liaison 4D avec les modèles BIM.",
@@ -445,5 +454,18 @@
     "redo": "Rétablir",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière"
+  },
+  "native": {
+    "window": "Fenêtre",
+    "quit": "Quitter Open Planner Studio",
+    "about": "À propos de Open Planner Studio",
+    "services": "Services",
+    "hide": "Masquer Open Planner Studio",
+    "hideOthers": "Masquer les autres",
+    "showAll": "Tout afficher",
+    "closeWindow": "Fermer la fenêtre",
+    "cut": "Couper",
+    "fullscreen": "Basculer en plein écran",
+    "bringAllToFront": "Tout mettre au premier plan"
   }
 }

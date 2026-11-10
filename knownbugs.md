@@ -23,8 +23,6 @@ en noem het in je rapport of PR-tekst.
 3. **Constraint en deadline op een fase** zijn invulbaar (paneel, Taak bewerken), maar de motor negeert ze. — B
 4. **Harde MFO ver vóór de eerste taak** kan een start vóór de projectstart geven. — S
 5. **Afgekapte lead** (FS −5 vanaf de eerste taak): vrije speling 2 bij totale speling 0 (vrij > totaal). — S
-6. **Externe opvolger met te krap anker** geeft alleen negatieve speling, geen melding over een geschonden
-   constraint. — B
 7. **Hammock zonder finish-driver**: de melding zegt "nul-lengte", het Duur-veld toont 1 dag. — S
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
@@ -374,6 +372,186 @@ en noem het in je rapport of PR-tekst.
      store-commit, undo-opslag en herberekening tijdens toepassen apart profileren. Ruwe gegevens en
      [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
      staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+846. **VERVOLG: een externe SF-voorganger kent geen ondergrens voor de finish.** Een interne SF-relatie met lag
+     legt naast de startgrens ook een ondergrens op de finish (`forwardFinishFloor` in
+     `src/engine/scheduler/relationMath.ts`). Een externe SF-voorganger rekent alleen de startgrens
+     (`externalForwardBound` in `CPMSolver.ts`). Gezien in `tests/planning/check-external-lag-calendar.ts`: onder
+     P6, met lagkalender *24-uurs* en 2 dagen lag eindigt de taak met de interne relatie op wo 10 juni 08:00 en met de
+     externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
+     Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
+     (`docs/relaties-tussen-projecten.md`). — B
+877. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
+     (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.ts:2770` in de voorwaartse stap, `noPreds`) ziet een taak
+     zonder interne voorganger als een losse mijlpaal en zet haar op het blokeinde: een FINISH-mijlpaal, of een
+     mijlpaal zonder opvolger. Een externe voorganger telt daar niet mee. Een mijlpaal zonder soort, gezien in
+     `tests/planning/check-external-lag-calendar.ts`: projectkalender 08–16, eigen kalender 08–14, anker vr 12 juni
+     16:00, FS met 6 uur lag ⇒ intern di 16 juni 08:00, extern di 16 juni 14:00. Een FINISH-mijlpaal: kalender
+     ma–vr 08–16, externe SS-voorganger, anker ma 8 juni 08:00, lag 2 dagen ⇒ intern wo 10 juni 08:00, extern wo
+     10 juni 16:00. Ouder dan keuze 9. Voorstel: een externe voorganger telt in B6 als voorganger. Gevonden bij de
+     fix van de review van #808; het tweede geval uit de review van #808 ronde 2 (GPT-6.1-Sol, xhigh, op
+     `2cdf664d0`, VERVOLG). — B
+874. **VERVOLG: de geëiste finish van een dagtaak na een FF-lag staat op twee plekken.** `dayTaskRequiredFinish`
+     (`src/engine/scheduler/relationMath.ts`) heeft één aanroeper, de externe voorganger; de interne FF-tak in
+     `forwardHour` houdt dezelfde twee stappen (`previousBlockEndIfSame`, dan `workdayFinishNotBefore`) apart.
+     Voorstel: de interne tak laten aanroepen wat de externe gebruikt, met de batterijen `cases-hours-blokgrenzen`
+     en `cases-advanced-cpm` als bewijs. Uit de review van #808 (GPT-6.1-Sol, xhigh, op `446809cc2`, VERVOLG). — B
+875. **VERVOLG: de externe lagkalender is niet getest met verwijderen, meer koppelingen en ongedaan maken.**
+     `tests/planning/check-external-lag-calendar.ts` test de vier lagkalenders, alle types, mijlpalen en een korte
+     vrijdag met één koppeling op de solver. Een koppeling verwijderen (de melding verdwijnt), twee koppelingen op
+     één taak en ongedaan maken in de store ontbreken. Uit de review van #808 (GPT-6.1-Sol, xhigh, op
+     `446809cc2`, VERVOLG). — S
+876. **VERVOLG: in een keten in kalendertijd verliest een interne SS-relatie met lag 0 de grens van een externe
+     opvolger.** Projectkalender ma–vr 08–16, geen pins. P duurt 1 uur kalendertijd (ELAPSEDTIME) en begint zo 7 juni
+     22:00. P heeft een interne SS-relatie met lag 0 naar L. L duurt 24 uur kalendertijd en heeft een externe
+     FS-opvolger met lag 0 en anker ma 8 juni 20:00, buiten de werktijd. L krijgt terecht −120 minuten speling. P
+     krijgt late start ma 08:00, +600 minuten speling, en is niet kritiek; P had uiterlijk zo 20:00 moeten beginnen.
+     Oorzaak: de interne SS-terugrekening (`src/engine/scheduler/relationMath.ts:615`, `shiftLagPred`) schuift de
+     grens bij lag 0 naar het volgende werkmoment, ook als de voorganger in kalendertijd telt. Fout onder OPS, P6 en
+     MS Project met de lagkalenders *Voorganger*, *Opvolger* en *Projectkalender*; met *24-uurs* klopt het. Ook zo op
+     main (`c26e8a226`): geen gevolg van #808. Een fix raakt de gewone relatierekening van alle profielen en vraagt
+     `measure:profiles` met het P6-corpus. Uit de review van #808 ronde 3 na de merge met #807 (GPT-6.1-Sol, xhigh,
+     op `d477ac542`; door Sol als BLOKKEERT gemeld, als bestaande schuld; Trias besloot op 7 november tot VERVOLG).
+     — B
+878. **VERVOLG: *Project verplaatsen* is niet getest met de herkomstvelden van een externe koppeling.**
+     De fixture in `tests/planning/check-move-project.ts:81` heeft geen `sourceVersion`, `anchorReadAt` en
+     `sourceRef.siteFileId`, en `check-external-provenance.ts` verplaatst geen project. Een latere wijziging aan het
+     verplaatsen kan die velden dus verliezen terwijl beide checks groen blijven. Voorstel: de drie waarden in de
+     bestaande fixture zetten en ze controleren in het bestaande scenario met ongedaan maken. Uit de review van #809
+     na de merge met #807 (GPT-6.1-Sol, xhigh, op `b570b2044`, VERVOLG). — S
+882. **VERVOLG: de melding bij een harde pin zegt "negatieve speling", ook als de pin staat en de speling nul is.**
+     `src/engine/scheduler/CPMSolver.ts:3478` (`registerHardPinViolation`) en `src/i18n/locales/nl/common.json:782`
+     (`warnings.kind.violatedConstraint`: "Constraint {{constraint}} wordt door de logica overschreden (negatieve
+     speling)"). Een harde MSO op di 2 juni 08:00 met een externe SS-opvolger (zelfde anker, één uur lag in de
+     24-uurskalender): de pin blijft staan, de taak staat in `violatedConstraintTaskIds`, de externe melding noemt de
+     koppeling, en de totale speling is 0 minuten. Beide meldingen zijn terecht: de pin doorbreekt de logica, de
+     externe melding noemt de koppeling. Alleen de tekst van de pinmelding klopt dan niet. Zo ook op main
+     (`7f0207182`). Oplossing: een tekst voor een pin die de logica doorbreekt, zonder "negatieve speling"; de
+     externe melding blijft. Uit de review van #810 ronde 3 (GPT-6.1-Sol, xhigh, op `568ce4a10`). — B
+884. **VERVOLG: geen test voor *Later* terwijl een broncontrole nog loopt.**
+     `src/state/slices/fileSlice.ts:632` (`checkExternalSourcesOnce`) zet een bestaande balk niet meer vast in `found`;
+     de eindfilter leest de actuele balken. Zo komt een balk waarop de planner tijdens de controle *Later* koos, niet
+     terug. `tests/planning/check-external-source-update.ts:147` wacht de controle helemaal af vóór *Later* en raakt
+     dat pad dus niet. Voorstel: twee bronnen, de controle laten wachten op de tweede (vertraagde lezing), intussen
+     *Later* voor de eerste, de controle laten eindigen, en controleren dat de eerste balk wegblijft. Uit de review
+     van #811 ronde 3 (GPT-6.1-Sol, xhigh, op `6407277d5`, VERVOLG). — S
+970. **VERVOLG: *Bronbestand kiezen…* is niet getest in de echte desktop-app.**
+     Stap 1.8 opent op de desktop de kiezer van `@tauri-apps/plugin-dialog` (`open`, filter IFC) in
+     `chooseExternalSourceFile` (`src/state/slices/fileSlice.ts`); het pad gaat daarna door `parseExternalSource`.
+     De rechten (`dialog:default`, en de leesrechten die de kiezer geeft) zijn niet veranderd. Getest is alleen de
+     browserroute (`tests/browser/external-source-update.spec.ts`) en de store-regels; een Tauri-build is op aia nu
+     niet toegestaan (zie punt 883). Controle: in de desktop-app een koppeling maken via *Bronbestand kiezen…* met
+     een bestand buiten de recente bestanden, en zien dat de koppeling een pad krijgt en de balk werkt. — S
+971. **VERVOLG: een koppeling met pad is in de browser niet te vernieuwen, en een koppeling zonder pad mist *Bron vernieuwen*.**
+     Een koppeling die op de desktop gemaakt is, heeft een pad; de browser kan dat pad niet lezen en telt haar bij
+     *Alle externe relaties vernieuwen* als niet gelezen. *Bronbestanden kiezen…* raakt alleen koppelingen zonder
+     pad (een koppeling met pad wijst naar een bepaald bestand), dus die koppeling vernieuwt de planner alleen op de
+     desktop. Omgekeerd toont het rechtsklikmenu van de relatiecel *Bron vernieuwen* alleen bij een koppeling met pad
+     (`src/components/task-grid/FullTaskGrid.tsx`), dus een koppeling zonder pad vernieuwt de planner alleen via
+     *Alle externe relaties vernieuwen*. — B
+980. **VERVOLG: een bron op de site zonder leesrecht krijgt geen blijvende status *Geen toegang tot de bron*.**
+     Stap 1.9 (§6.3 in `docs/relaties-tussen-projecten.md`). Lukt `open(id)` niet (`not-found`, geen recht,
+     netwerk), dan houdt de koppeling haar anker en telt *Alle externe relaties vernieuwen* de bron als niet
+     gelezen (`refreshAllExternalAnchors` in `src/state/slices/fileSlice.ts`). Een status die blijft staan na
+     opslaan en heropenen vraagt een nieuw veld in het IFC-formaat (`OPS_ExternalLink`); dat is niet gebouwd.
+     Voorstel: een veld `sourceAccess` naast `sourceMissing`, met een tekst in de tooltip en de Gantt. — S
+981. **VERVOLG: stap 1.9 kent alleen de bronnen die de host bij `list` teruggeeft.**
+     De route *Project op de site* (`ExternalLinkDialog.tsx`) toont wat `list({ extensions: ['ifc'] })` geeft;
+     in de werkplek is dat de map van het geopende bestand. Bronnen uit een andere map of uit *Gedeeld met mij*
+     (C1), een bericht van de host bij een nieuwe versie (C2, nu vraagt de app `versions(id)` bij openen en bij
+     terugkeer naar het venster), wie van mij afhangt (C3), een melding aan de andere planner (C4) en doorklikken
+     (C5) wachten op de SuperCloud (deel 2 en 3 van §9). — S
+982. **VERVOLG: stap 1.9 is niet getest met de echte werkplek of de SuperCloud-vorm van de host.**
+     De browsertest (`tests/browser/external-source-update.spec.ts`, blok *bron op de site*) gebruikt de nep-site
+     in de `storage`-vorm. Niet getest: de SuperCloud-vorm (`fakeSiteShape=supercloud`, versies als getal via
+     `superCloudHost.ts`), een `open` met `readOnly: true` of zonder versie, en hoe de werkplekbrug `list` en
+     `versions` invult (VERMOED in §3.3). Controle: dezelfde route met `?fakeSite=1&fakeSiteShape=supercloud`, en
+     één keer in de werkplek met twee projecten in één map. — S
+983. **VERVOLG: een koppeling op de site mist *Bron vernieuwen* in het rechtsklikmenu.**
+     Net als een koppeling zonder pad (punt 971) toont `src/components/task-grid/FullTaskGrid.tsx` *Bron
+     vernieuwen* alleen bij een koppeling met pad. Een koppeling op de site vernieuwt de planner via de balk of via
+     *Alle externe relaties vernieuwen*. Voorstel: één actie per bronplek (`ExternalSourceLocator`) in de store, en
+     het menu-item voor elke plek die de app kan lezen. — B
+984. **VERVOLG: een koppeling op de site is in de desktop-app en via MCP niet te vernieuwen.**
+     De desktop-app en de headless MCP-server hebben geen site (`getSiteStorage` geeft daar `null`). Daar houdt een
+     koppeling met `siteFileId` haar anker: *Alle externe relaties vernieuwen* telt haar als niet gelezen, en
+     `planner_refresh_external_links` (`src/services/mcp/tools/externalLinkTools.ts`) slaat haar over en telt haar
+     als `siteLinks`. Een bron met pad of uit de browser raakt haar niet, ook niet bij hetzelfde project-id
+     (`linkMatchesSource`). Voorstel, als dat gewenst is: een MCP-tool in de site-app die de site leest. — B
+973. **VERVOLG: onthouden handvatten van bronbestanden worden nooit opgeruimd.**
+     `src/services/fileAccess/externalSourceHandles.ts` bewaart per project-id één handvat in IndexedDB
+     (`ops-external-sources`). Een handvat blijft staan als geen enkele koppeling het project nog gebruikt, en
+     ook als het bestand weg is. Dat kost alleen opslag; lezen gebeurt alleen voor een project met een koppeling.
+     Mogelijke oplossing: opruimen bij het verwijderen van de laatste koppeling, of na een leesfout. — B
+974. **VERVOLG: twee bronbestanden met hetzelfde project-id zijn in de browser niet te onderscheiden.**
+     Een koppeling zonder pad herkent haar bron alleen op project-id, en de app onthoudt één handvat per
+     project-id (het laatst gekozen bestand). Een kopie van een bronproject (zelfde project-id, ander bestand)
+     vervangt dus het handvat van het origineel. Op de desktop houdt het pad ze uit elkaar. Zo besloten in keuze 4
+     (`docs/relaties-tussen-projecten.md`, 5.4); stap 1.9 (site) houdt ze uit elkaar met `siteFileId`. — B
+975. **VERVOLG: *Afhankelijke projecten zoeken…* leest geen submappen.** Stap 1.11 leest alleen de `.ifc`-bestanden
+     direct in de gekozen map (`src/services/fileAccess/dependentFolder.ts`, `readDependentFolder`). Staan de
+     projecten van andere partijen elk in een eigen submap, dan vindt de app ze niet. Bewust zo gebouwd (opdracht
+     stap 1.11). Voorstel: een vinkje *Ook submappen*, met een grens op diepte en aantal bestanden. — S
+976. **VERVOLG: afhankelijke projecten zitten niet in de MCP-tools.** De zoekactie, het resultaat bij de taak en de
+     waarschuwing vóór opslaan bestaan alleen in de app. `planner_*` kan niet zoeken en ziet het resultaat niet; MCP
+     slaat op zonder waarschuwing (zoals AutoSave). Buiten stap 1.11 gehouden (opdracht). Voorstel: een leestool
+     die per taak de gevonden koppelingen geeft, en een veld in de opslaantools met de te krappe ankers. — S
+977. **VERVOLG: in Chromium zoekt de app bij openen alleen met blijvende maptoegang.** Het maphandvat staat per
+     project-id in IndexedDB; op de achtergrond leest de app het alleen bij `queryPermission` = `granted`
+     (`src/state/dependentProjectsSearch.ts`, `autoSearchDependentProjects`). Na een herstart van de browser is dat
+     meestal `prompt`, en dan gebeurt er niets tot de planner opnieuw zoekt. De knop opent dan de mapkiezer, die bij
+     de onthouden map begint. Voorstel: bij `prompt` een kleine balk *Afhankelijke projecten opnieuw zoeken* die met
+     één klik `requestPermission` vraagt. — S
+978. **VERVOLG: *Afhankelijke projecten zoeken…* is niet getest in de echte desktop-app.** De Tauri-route (mapkiezer
+     met `directory: true`, `readDir` en `readTextFile` op een map buiten de thuismap, `persisted-scope` na een
+     herstart, het pad als `OPS_ProjectSettings/DependentProjectsFolder`) is alleen gebouwd en getypecheckt. Getest
+     zijn de regels (`check-dependent-projects.ts`), de rondgang van het pad (`check-ifc-roundtrip.ts`) en de
+     browserroute met een stub van `showDirectoryPicker` (`external-source-update.spec.ts`). Testplan: map kiezen,
+     opslaan, app herstarten, het project openen en zien dat het blok *Afhankelijke projecten* vanzelf gevuld
+     wordt; ook met een map op een andere schijf. — S
+979. **VERVOLG: het zoekresultaat van afhankelijke projecten veroudert stil.** Het resultaat is van het moment van
+     zoeken (bij openen of met de knop). Slaat de andere planner daarna een nieuwe versie op, of vernieuwt hij zijn
+     ankers, dan rekent de waarschuwing vóór opslaan nog met de oude ankers, tot er opnieuw gezocht wordt. Zonder
+     cloud krijgt de andere planner ook geen bericht (keuze 3: alleen met de SuperCloud, deel 3). Voorstel: de
+     gevonden bestanden opnieuw lezen vlak vóór de waarschuwing (wijzigingstijd vergelijken), of de map bewaken
+     zoals stap 1.6. — S
+990. **VERVOLG: een late IndexedDB-fout kan de verbinding van een nieuwe poging uit de cache halen.** `openDb`
+     (`src/utils/idb.ts`) haalt een geblokkeerde aanvraag A uit de cache, zodat een nieuwe poging B kan starten. Komt
+     daarna alsnog `onerror` van A, dan verwijdert de foutafhandeling blind de cache-entry van B; de volgende aanroep
+     opent dan een derde verbinding (review #858, ronde 2, nagebootst). Geen dataverlies of gewoon optreden
+     aangetoond. Voorstel: alleen verwijderen als de cache nog naar deze aanvraag wijst, zoals `openDbStores` al
+     doet. — B
+991. **VERVOLG: de gedeeltelijke herkeuze van bronbestanden heeft geen test van de gebruikersroute.** De planning-check
+     test alleen `remainingUnreadSources`; het browserscenario kiest de enige bron zonder pad opnieuw. Niet getoetst:
+     twee bronnen zonder pad, alleen A kiezen ⇒ B blijft geteld en *Bronbestanden kiezen…* blijft; daarna B kiezen
+     ⇒ de knop verdwijnt (review #858, ronde 2). Voorstel: het bestaande browserblok in
+     `tests/browser/external-source-update.spec.ts` zo uitbreiden. — B
+992. **VERVOLG: de balk op de site kan een versie noemen die de app niet las.** In de controle op nieuwe versies
+     (`fileSlice.ts`, rond regel 782) krijgt de balk op de site de versie uit `versions(id)`, ook als `open(id)` een
+     oudere versie met een ander anker gaf. *Later* zet dan die nieuwere versie op afgehandeld, en de volgende
+     controle leest de echte nieuwe versie niet meer: geen balk (review #859, ronde 2, nagebootst: koppeling op
+     versie 0, `versions` geeft 2, `open` geeft 1). Alleen de tak zonder ankerwijziging onthoudt de echt gelezen
+     versie. Treedt alleen op als de site op `versions` en `open` verschillende antwoorden geeft. Voorstel: balk en
+     afhandeling aan de gelezen versie koppelen, of de balk uitstellen tot beide antwoorden gelijk zijn. — B
+993. **VERVOLG: na een mislukte keuze van bestand B in de browser blijft bestand A gekozen.** In
+     `ExternalLinkDialog.tsx` (`chooseFile`, bij `chosen.kind === 'failed'`) zet OPS alleen de foutmelding; `picked`
+     blijft A. Na het kiezen kan de planner met Enter A bewaren, bij toevoegen en bij bewerken (review #859, ronde 2;
+     ook al zo in #858). A.ifc blijft zichtbaar als keuze, dus de planner ziet wat hij bewaart. Voorstel: bij een
+     leesfout van B de oude keuze wissen; bij annuleren de oude keuze houden. — B
+994. **VERVOLG: dode site-tak in `sourceVersionAt`.** `sourceVersionAt` (`fileSlice.ts`, rond regel 714) heeft een
+     tak voor een bron op de site, maar de enige aanroeper handelt die bron al apart af (review #859, ronde 2).
+     Voorstel: de tak schrappen; de helper voor pad en project blijft. — B
+995. **VERVOLG: een mislukte controle vóór opslaan valt stil terug op de oude datums.** `settleDependentAnchors`
+     (`fileSlice.ts`) vangt elke fout bij schrijven, teruglezen of doorrekenen van de kopie af en vergelijkt dan met
+     de huidige taken: de vergelijking die zonder F5 een te krap anker mist (review #857, ronde 1). Met een
+     ingespoten leesfout (vijf naar tien dagen, opslaan zonder F5): geen vraag, het bestand wordt geschreven, geen
+     melding (review #857, ronde 2). Geen gewoon project gevonden dat die fout vanzelf geeft. Voorstel: in die
+     fouttak niet vergelijken, maar melden dat de controle niet kon. — B
+996. **VERVOLG: gewoon opslaan kost extra tijd zodra er afhankelijke projecten gevonden zijn.** De controle vóór
+     opslaan schrijft het IFC, leest het terug en rekent het door op een kopie; daarna schrijft de opslagroute het
+     IFC nog eens. Gemeten in Node, 1000 taken: 486 ms extra (review #857, ronde 2); geschat bij 10.000 taken
+     ongeveer 2 s, op de hoofdthread. Het loopt alleen met minstens één gevonden koppeling, maar dan bij elke opslag
+     met de hand, ook als geen anker verandert. Voorstel: één IFC-tekst maken, die controleren en dezelfde tekst
+     wegschrijven, met een controle dat de documentstand na de asynchrone stappen nog geldt. — B
 
 ## Tabel, invoer en bediening
 
@@ -604,12 +782,88 @@ en noem het in je rapport of PR-tekst.
      in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
      In deze PR uitsluitend geregistreerd, niet gebouwd. — B
 
+843. **Kolomkoppen verslepen werkt op Windows in de desktop-app mogelijk niet.** De herordening in
+     `src/components/task-grid/DataGridHeader.tsx:459` gebruikt HTML5-slepen (`draggable`, `drop` op
+     `window`). `src-tauri/tauri.conf.json` zet `dragDropEnabled: true`; dan zet wry 0.57.0 op Windows
+     `SetAllowExternalDrop(false)` en vervangt het de drop-target van WebView2 door een eigen target
+     (`webview2/drag_drop.rs`, `RevokeDragDrop` + `RegisterDragDrop`). De Tauri-documentatie zegt dat
+     HTML5-slepen op Windows `dragDropEnabled: false` vraagt. Afgeleid uit de bron bij #771, niet op
+     Windows nagespeeld. `dragDropEnabled` moet aan blijven voor het neerzetten van bestanden (alleen
+     zo krijgt de app het pad). Voorstel: de herordening met pointer-events, zoals `GuidePanel.tsx`. — S
+901. **Bestanden slepen: Esc, een verdwijnend element en de echte sleep zijn niet getest.** De browserstap
+     in `tests/browser/new-open-task-flow.spec.ts` stuurt zelfgemaakte `DragEvent`s met een `DataTransfer`
+     uit de pagina. Playwright kan geen bestand uit het besturingssysteem slepen, dus de onderhandeling
+     tussen besturingssysteem en browser (Esc tijdens het slepen, de cursor bij `dropEffect = 'none'`,
+     `getAsFileSystemHandle` van een echt gesleept bestand) en de sleep in de desktop-app (Tauri op Windows,
+     macOS en Linux) zijn niet nagespeeld. Ook niet: een element dat tijdens het slepen uit de pagina
+     verdwijnt en zo geen `dragleave` krijgt; de rusttijd van 1,5 s in `useFileDrop.ts` vangt dat op en is
+     wel getest. Uit review ronde 1 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
+902. **Bestanden slepen: dat getypte invoer in "Taak bewerken" blijft staan, is niet in de browser
+     bewezen.** Opent de planner "Taak bewerken" terwijl een gesleept bestand nog gelezen wordt, dan
+     wacht het document tot de dialoog dicht is (`waitWhile` in `openOpenedFile`). `check-file-drop.ts`
+     bewijst dat met de echte `isBlockingDialogOpen`: document, dialoogvlag en taak blijven staan. Hij
+     mount geen dialoog en typt geen tekst. De browserstap in `new-open-task-flow.spec.ts` toetst alleen
+     een dialoog die al vóór het neerzetten openstaat. Nodig: een browserstap met vertraagd lezen,
+     tussentijds "Taak bewerken" openen en tekst typen, en daarna die tekst controleren. Uit review ronde
+     2 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
 873. **VERVOLG: Kalenderdagen telt zonder kalender anders dan de datumcellen tonen.** `taskCalendarDaySpan`
    (`src/utils/calendarDaySpan.ts`) valt zonder kalender terug op de kalendertijd-klok (`ELAPSED_CLOCK`); de
    cellen Start en Einde tonen zonder kalender de ruwe waarde (`src/engine/taskGrid/editors.ts`). Voorbeeld
    uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
    geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
    terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
+951. **Een fase-overgang verplaatst een kostentoewijzing nooit naar een mijlpaal-subtaak.** Krijgt een taak met
+     alleen kostentoewijzingen (#815) haar eerste kinderen, dan biedt de vraag *verplaatsen* alleen een subtaak aan
+     die geen mijlpaal is (`src/state/structuralTransition.ts:131`, `!child.isMilestone`). Een kostenresource mag
+     sinds #815 wel op een mijlpaal. Zijn alle nieuwe subtaken mijlpalen, dan blijft alleen *verwijderen* over.
+     Zeldzaam; het verlies is zichtbaar en vraagt een keuze van de planner. Voorstel: `canCarry` per toewijzing
+     laten afhangen van het resourcetype. Gezien in de code tijdens #815, niet nagespeeld. — S
+952. **VERVOLG: `data.loadProject` zet een oud werkveld terug op een toewijzing die COST is geworden.**
+     `src/extensions/retainActiveDocument.ts` controleert de extensie-invoer (regel 216) en herstelt daarna het
+     niet-publieke `plannedUnitsPerDay` op dezelfde toewijzings-id (regel 154). Voorbeeld: een werktoewijzing met
+     inzet 1 en `plannedUnitsPerDay: 2` (uit P6). Een extensie levert voor dezelfde id een geldige COST-snapshot
+     met bedrag 1250,55. Daarna draagt de live COST-toewijzing toch `plannedUnitsPerDay: 2`. Na IFC-heropening is
+     het veld weg; het bedrag blijft en de planning verandert niet. Zeldzaam: het vraagt een extensie, een
+     typewissel en bronmetadata uit P6. Voorstel: bij het herstel dit werkveld niet op COST terugzetten, en het
+     uiteindelijke laadresultaat valideren vóór `loadState`. Uit review ronde 6 van PR #849 door Sol (GPT-6.1-Sol,
+     xhigh), VERVOLG. — B
+
+920. **VERVOLG: "Kolommen automatisch aanpassen" meet bij elke ronde alle taakrijen opnieuw.**
+     `src/components/task-grid/FullTaskGrid.tsx` (`computeAutoFitWidth`) en `TaskGrid.tsx` (het effect met
+     `onComputeAutoFitWidth`). Elke meetronde verwerkt alle zichtbare taakrijen, ook bij een wijziging die geen
+     celtekst raakt, zoals een andere selectie. Past een meting een breedte aan, dan volgt een tweede volle ronde.
+     Bij 10.000 taken kost een warme ronde 211 tot 251 ms (Node, geen browser). De instelling staat standaard uit, en
+     de eerste ronde wacht 250 ms rust. Voorstel: koppel het meten aan wijzigingen van de inhoud (een versie van de
+     zichtbare celtekst per kolom in plaats van de identiteit van `computeAutoFitWidth`) en sla de tweede scan over
+     als de breedte al klopt. Ronde 2 (Sol, op `5f6d3a428`) meette 10.000 taken × 9 kolommen = 90.000
+     celuitlezingen per warme ronde: 134 tot 142 ms in Node; ook een andere selectie start een ronde, en een
+     gewijzigde breedte start nog een volle ronde. Ronde 3 (Sol, op `c11dde182`): 146 tot 178 ms bij 10.000 taken
+     × 9 kolommen (Node). Richting: meten op gewijzigde celinhoud, en `getCell(...).value` als cache-identiteit
+     (`taskGridAutoFitValueVersion`) in plaats van de descriptor een tweede keer te lezen. Uit de review van #851
+     (GPT-6.1-Sol, xhigh, ronde 1 tot en met 3, BEVESTIGD, VERVOLG). — B
+
+921. **VERVOLG: de `origin: 'start'` van automatisch gemeten kolombreedtes heeft geen eigen regressiecheck.**
+     `src/state/slices/taskGridSlice.ts` (`applyAutoFitTaskGridColumns`). Een gemeten breedte is geen keuze van de
+     gebruiker (#818), dus ze wordt met `'start'` bewaard. Dat een slepende gebruiker wél `'user'` is en dat een
+     laat hostantwoord een gemeten breedte niet terugzet, volgt uit `writeLocal` en `createHostSettingsSync`.
+     Vast in `check-site-host-preferences.ts` (D27) ligt alleen het venster waarin een laat antwoord is toegepast en de
+     store de oude kopie nog heeft: dan schrijft automatisch aanpassen niets. Niet vast: de uitkomst in het
+     wachtvenster vóór het antwoord (een `'start'`-sleutel geeft geen melding "teruggezet", een `'user'`-sleutel
+     wel). Dat vraagt de globale `sync` met een geïnstalleerde host in de check, buiten `createHostSettingsSync`. Voorstel:
+     een D-blok met `setHosts` en de echte `applyAutoFitTaskGridColumns` tijdens `phase === 'reading'`. Ronde 3 (Sol)
+     bewees het gedrag met een handmatige proef: automatisch aanpassen geeft `touched: false` en `reverted: false`, een
+     handmatige wijziging (slepen) beide `true`; daarna nemen beide de 777 van de host over. Die twee gevallen horen
+     in de check (`check-site-host-preferences.ts` rond D27); dan kan dit punt weg. Uit de review van #851
+     (GPT-6.1-Sol, xhigh, ronde 2 en 3, BEVESTIGD, VERVOLG). — B
+
+922. **VERVOLG: de sleeppauze van "Kolommen automatisch aanpassen" begint pas bij de eerste beweging.**
+     `src/components/task-grid/TaskGrid.tsx` (`resizing`, `onResizeStart`). `onResizeStart` maakt de voorvertoning
+     (`previewWidths`) leeg, dus `resizing` (`previewWidths.size > 0`) blijft eerst `false` tot de eerste
+     `onResizePreview`. Een wachtende meting kan dan nog schrijven terwijl de greep al is ingedrukt, en een kolom
+     verspringt in die ene ogenblikken onder de muis. Zeldzaam: de meting moet precies tussen indrukken en de eerste
+     beweging aflopen. Voorstel: vul de voorvertoning bij de start met de kolom en haar huidige breedte. Dit verklaart
+     de ontbrekende cursor niet die de gebruiker meldde (de greep en `col-resize` zijn los van deze pauze). Uit de
+     review van #851 (GPT-6.1-Sol, xhigh, ronde 3, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
@@ -642,6 +896,16 @@ en noem het in je rapport of PR-tekst.
      uitzonderingsdagen als gerichte correctie op de weektelling en behoud het snelle pad voor
      gewone dagen, nachtdiensten zonder bedekking en gedeeltelijke bedekking. Onafhankelijk gemeten
      in review ronde 2 van PR #787 op `a032c00ad`. — B
+
+961. **`planner_update_calendar` neemt uurbanden met een gebroken minuut aan.** `bandListReason` in
+     `src/services/mcp/tools/calendarResourceTools.ts` toetst alleen `0 ≤ start < 1440`, `end > start` en
+     `end ≤ 2880`, met een eindig getal. Daardoor gaan `{start: 1439.5, end: 1440}` en `{start: 0, end: 0.5}`
+     erdoor. Het oude bandschema op `main` (vóór PR #838) noemde `start` 0–1439 en `end` minimaal 1, maar de
+     schemapoort toetst de binnenkant van array-items niet (DIEPTE-REGEL in `schemaValidate.ts`). Dat schema
+     hield deze banden dus ook nooit tegen. PR #838 haalt de grenzen per veld uit het schema en noemt ze één keer
+     in de beschrijving van `byWeekday`. Wat een band met een gebroken minuut verderop doet (rekenen, IFC), is
+     niet nagegaan. Voor later: weiger een niet-geheel `start` of `end` in `bandListReason`, met een reden. Gezien
+     in council-ronde 2 van PR #838. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -831,6 +1095,26 @@ en noem het in je rapport of PR-tekst.
      met een heldere fout ("…needs Node.js 22 or newer…"). Welke Node Claude Desktop meelevert, is niet nagegaan.
      Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
      in review ronde 1 van #734 (GPT-6.1-Sol). — B
+
+962. **VERVOLG: `planner_manage_assignments` met `update` negeert een meegestuurde `resourceId` stil.**
+     De `update`-tak in `src/services/mcp/tools/calendarResourceTools.ts` (`case 'update'`, rond regel 1275 en 1388)
+     leest alleen `unitsPerDay`, `curve` en `remainingWorkMinutes`. Een andere sleutel, zoals `resourceId` of
+     `taskId`, geeft geen weigering. Scenario: "vervang Jan door Piet op taak X, 0,5 per dag" als
+     `{action: "update", assignmentId, resourceId: "<piet>", unitsPerDay: 0.5}` geeft `ok: true`; Jan blijft staan
+     met 0,5. De schemapoort vangt het niet, want de acties zijn array-items (DIEPTE-REGEL in `schemaValidate.ts`).
+     PR #838 noemt de velden van `update` in de toolbeschrijving ("other resource: remove + add"); de handler blijft
+     zoals hij is. Fixrichting: weiger per item een sleutel die bij de actie niet hoort, met de lijst geldige velden.
+     Uit council-ronde 4 op #838 (Opus 5.5, BEVESTIGD met de echte dispatcher, VERVOLG). — B
+963. **VERVOLG: `planner_move_project` geeft de kalender de schuld als een extern anker het einde vasthoudt.**
+     De `note` in `src/services/mcp/tools/calendarResourceTools.ts` (rond regel 2098) zegt bij elk verschil tussen
+     start- en eindverschuiving: "the calendar (holidays/construction holiday) intervenes". Scenario: Grondwerk 3 d →
+     Montage 2 d, Montage met een externe voorganger verankerd op 2026-06-05 16:00; `move_project` naar 2026-05-25
+     geeft `deltaDays: -7`, `endDeltaDays: 0` en die note. Het einde blijft staan door het externe anker (externe
+     ankers schuiven bewust niet mee), niet door de kalender. Een agent die de note doorgeeft, meldt de gebruiker een
+     verkeerde oorzaak. Fixrichting: noem in de note ook externe ankers en vaste beperkingen als mogelijke oorzaak, of
+     bepaal de oorzaak per taak. Uit de blinde proef van fixronde 6 op #838 (BEVESTIGD met de echte dispatcher,
+     VERVOLG). Sinds #797 toont `planner_get_task` de koppelingen (`externalLinks`), dus een agent kan de
+     ankerdatum nu wel lezen. — B
 
 ## Bestanden en herstel
 
@@ -1221,6 +1505,8 @@ en noem het in je rapport of PR-tekst.
      `csvReader.ts` (niet nagespeeld). Een IFC-bron (id uit `OPS_TaskIdentity` of de GlobalId) en een XER-bron hebben
      er geen last van. Oplossing: een vast id per bron-UID, of in `linkMatchesSource`/`refreshExternalAnchors` ook
      op een bron-sleutel (UID, naam) matchen. — B (MSPDI), S (`.mpp`, P6 XML, CSV)
+     Buiten scope sinds 2 november: alleen IFC van OPS. Het blijft een bekend punt, geen werk voor nu; het
+     geparkeerde werk staat in draft-PR #796. Zie `docs/relaties-tussen-projecten.md`.
 
 839. **VERVOLG: bestaande toegang tot een recent bestand komt na de update niet vanzelf terug.**
      `src-tauri/src/main.rs:84`, `src/state/slices/fileSlice.ts:1631`. Een recent bestand buiten de vaste
@@ -1279,10 +1565,44 @@ en noem het in je rapport of PR-tekst.
      maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
      host nog dezelfde taal vraagt. — B
 
-871. **Dubbele stappen in `useSiteHostPreferences`.** De inhaalcontrole bij de mount (het `else`-blok)
-     herhaalt de drie stappen van `onReady()`: `disableSiteHostSettings()`, de melding en
-     `applyPreferences()`. Voorstel: vervang het blok door `else onReady();` (zes regels minder). Gevonden in
-     review #827 ronde 5. — B
+880. **Een rapporttab die tijdens het wachten op de host opengaat, geeft een te ruime melding.**
+     `src/components/panels/ReportPanel.tsx` (het opslaan-effect na het laden) schrijft de net geladen
+     rapportinstellingen meteen terug, zonder `'start'` (`SettingWriteOrigin`, #818). Opent de gebruiker het
+     Rapport-tabblad terwijl de tool nog op de instellingen van de host wacht, en heeft de host
+     `ops-reportSettings`, dan zegt de melding na het late antwoord ook "Wat je in de tussentijd wijzigde, is
+     teruggezet.", terwijl de gebruiker alleen het tabblad opende. Alleen de tekst klopt dan niet; de
+     instellingen van de host winnen gewoon. Voorstel: geef bij de eerste terugschrijfactie na het laden
+     `'start'` mee. Afgeleid uit de code bij de late toepassing van #818, niet nagespeeld. — S
+
+881. **VERVOLG: de devlink-uitzondering van de themamelding wordt buiten de echte meldingsroute getest.**
+     `tests/planning/check-system-theme.ts:179` geeft de waarden zelf aan `hostThemeWinsNextStart`. Fixrichting: de
+     devbundelproef in `check-dev-open-link.ts` uitbreiden (hostthema, echte `?theme=light`, gebruikerswissel via
+     `applyTheme`, nul meldingen) en de twee injectieparameters van `hostThemeWinsNextStart` laten vallen. Uit de
+     review van #835 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+910. **VERVOLG: een nieuwe taalkeuze tijdens het toepassen van late hostinstellingen wordt niet bewaard.**
+     `src/utils/settingsStore.ts:76` (via `src/components/settings/settingControls.tsx:19`) gooit elke schrijfactie
+     van de gebruiker op een vastgehouden sleutel weg, ook een nieuwe keuze. Gemeten: het late antwoord bewaart Frans,
+     de gebruiker kiest Duits terwijl de app nog toepast (`applying`); zichtbaar is Duits, lokaal en bij de host
+     blijft het Frans. Alleen `ops-locale` heeft een lang venster: het duurt zo lang als de taaldownload, en die heeft
+     geen tijdslimiet. Richting: de taalkeuze onbedienbaar maken tijdens het toepassen, of een nieuwe taalkeuze apart
+     behandelen; geen algemene wachtrij, want die speelt ook oude timerwrites af. Uit de review van #833
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+911. **VERVOLG: `heldWrites` op moduleniveau koppelt losse sync-instanties.**
+     `src/services/fileAccess/siteHostSettings.ts:167` en `:595`: een tweede sync met een ander opslagobject blokkeert
+     de `writeLocal` van de eerste. Twee echte iframes delen dit niet (elk heeft eigen modulegeheugen), en productie
+     maakt één sync; alleen de tests maken er meer. Richting: één `held`-set per sync, en `writeLocal` vraagt
+     `sync.writeHeld(key)` aan de echte singleton. Uit de review van #833 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD,
+     VERVOLG). — B
+
+960. **VERVOLG: `?icons=` telt tijdens het wachten op hostinstellingen als gebruikerswijziging.** [gemeld door de
+     bouwer van #833, niet nagespeeld] Sinds #844 roepen `createDefaultUI()` en het registeritem `featureFlags`
+     `loadFeatureFlags()` aan; met `?icons=b2` of `?icons=lucide` schrijft die `ops-featureFlags` met herkomst
+     `'user'`. Tijdens het wachten (#833) telt dat als een wijziging door de gebruiker, dus de melding na het late
+     antwoord kan onterecht "teruggezet" zeggen; tijdens het toepassen valt de schrijfactie weg (de store toont de
+     URL-keuze wel). De URL zet de keuze bij elke start opnieuw. Richting: schrijf een URL-afgeleide vlag met herkomst
+     `'start'`. — S
 
 872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
      laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;
@@ -1290,6 +1610,114 @@ en noem het in je rapport of PR-tekst.
      subpad laadt (docs, voorbeelden, workers, `theme-prepaint.js`, het manifest), is niet getest. Voorstel: laat
      de spec in CI ook de relatieve variant bouwen en draai dezelfde server en scenario's erop. Gevonden in de
      review van #828. — B
+
+913. **VERVOLG: na een mislukte download van de rapportletter kan een export op verkeerde breedtes tekenen.**
+     `src/services/pdf/fontLoader.ts:130` (`ensureReportFontLoaded`) vangt een laadfout af. De metingen in
+     `src/components/panels/ReportPanel.tsx` (bijv. regel 560) krijgen dan toch de id van de gekozen letter, maar
+     het canvas meet op de terugvalletter. Lukt de nieuwe laadpoging in `runExport` (regel 1128) wél, dan tekent de
+     PDF de gekozen letter op de breedtes van de terugvalletter. Een naam die past, kan dan afgekapt worden. Dit
+     gebeurt alleen na een mislukte download, bijv. even offline in de browser. Richting: laat
+     `ensureReportFontLoaded` melden of het laden lukte, en meet opnieuw na een geslaagde nieuwe poging. Niet
+     nagespeeld: het eerste fontverzoek laten mislukken en de export daarna laten slagen. Uit de review van #837
+     (GPT-6.1-Sol, xhigh, ronde 2, op `dd8f60b0c`, VERMOED zekerheid hoog, VERVOLG). — S
+
+1006. **IfcOpenShell 0.9 opent een bestand met `FILE_SCHEMA(('IFC4X3'))` niet.** De writer van v2026.9.0 en ouder
+     schreef die kop. `ifcopenshell.open` (0.9.0.post1) weigert hem met "Unsupported schema"; met `IFC4X3_ADD2` in de
+     kop opent hetzelfde bestand wel. Onze eigen lezer opent beide. Opent een gebruiker zo'n oud bestand, dan vraagt
+     het eerste expliciete opslaan of het naar `IFC4X3_ADD2` gaat (#292, `ifcSchemaQuestion.ts`). Kiest de gebruiker
+     "schema houden", dan blijft de kop `IFC4X3` en kan Bonsai of een IfcOpenShell-script het bestand niet openen. De uitleg
+     bij `IFC_SCHEMAS` (`src/types/project.ts:515-520`) noemt juist samenvoegen met IfcOpenShell `MergeProjects` als
+     reden voor die keuze. Nagespeeld in `scripts/proef/maak-corpus.py` (de bron van `oud-eigen-0.1-plus-model.ifc`
+     opent daarom via een tijdelijke kopie met `IFC4X3_ADD2`). Niet nagegaan: andere pakketten dan IfcOpenShell.
+     Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
+     Gevonden in #804 fase 0. — B
+
+1011. **Eis voor #804 fase 1c: een onbekend schema met een vreemd deel gaat stil verloren bij opslaan.** Met de flag
+     `ifcForeignContent` neemt `readIfcBytesDetailed` bij een schema buiten `FOREIGN_CONTENT_SCHEMAS` (en zonder
+     schema in de kop) de huidige route, zonder `ifcSource` (`src/services/ifc/foreign/ifcBytesRoute.ts:36, 83-84`).
+     Zonder `IfcProduct` opent zo'n bestand dan zoals op main, en opslaan schrijft alleen de planning: vreemde
+     gegevens (een planning van een ander programma, onbekende psets) gaan stil verloren. Dat is niet slechter dan
+     main, en in 1a weigert de app opslaan nog niet op deze route. Ontwerp §4.11 zegt: "met een vreemd deel
+     geweigerd". Eis (wrakko, 9 november 2026): zodra 1c opslaan met een vreemd deel aanzet, mag geen vreemd deel stil
+     verloren gaan, ook niet bij een onbekend schema; anders is 1c niet klaar. Richting: deel ook dit bestand in, en
+     weiger of meld zoals §4.11. Uit #864 (fase 1a). — B
+
+1012. **Niets toetst na de build dat de XER-lezer alleen op verzoek laadt.** `tests/planning/check-xer-chunk-boundary.ts`
+     leest alleen de bron: een import uit `@/services/xer/` mag alleen met `await import(` in `formatRegistry.ts` en
+     `src/services/ifc/ifcReadWithXer.ts`. De gebouwde importgrafiek toetst hij niet. De Ubuntu-build van `a11864e19`
+     heeft wel een apart `xer-reader-BduM2EPR.js` (302 kB), maar geen check eist na de build dat de startbundel dat stuk
+     alleen dynamisch laadt. Een statische import via een omweg (een andere module die de lezer opnieuw exporteert) of
+     een wijziging in de Vite-instelling valt zo niet op. Richting: een gerichte controle van de gebouwde importrelaties
+     in CI, bijvoorbeeld op `build.manifest` of de chunkgrafiek van Rollup: het XER-stuk staat niet in de statische
+     imports van de ingang. Uit de review van #864 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, ronde 1, op `a11864e19`,
+     BEVESTIGD, VERVOLG). — B
+
+1013. **Een check met `void main()` die blijft hangen, eindigt stil met exit 0.** Lost een `await` in `main()` nooit op,
+     dan stopt Node zodra er niets meer te doen is, zonder rapport en met exit 0; de suite telt dat als groen. Een
+     check met een `await` op het hoogste niveau heeft dit niet (Node geeft dan exit 13). Gezien in
+     `tests/planning/check-web-save-fallback.ts`: op main (`2a66df33c`) bleef hij hangen bij stap 7e (de wissel kwam
+     vóór de dialoog, dus de nep-dialoog kreeg nooit antwoord), en de stappen 7e tot en met 10 draaiden nooit. #864
+     (fixronde 1) repareert die check en geeft hem een vangnet (`beforeExit`: geen rapport ⇒ rood). Dezelfde vorm,
+     zonder vangnet, hebben nog: `tests/planning/check-ifc-building-model-guard.ts`, `check-text-asset.ts`,
+     `check-wbs-auto-on-open.ts`, `check-xml-adapter-fidelity.ts` en `tests/library/check-i18n-plurals.ts`. Niet
+     nagegaan of die nu hangen. Richting: hetzelfde vangnet, of een `await` op het hoogste niveau. Gevonden in #864
+     (fixronde 1). — B
+
+1014. **Opslaan als in de browser meldt een fout als `getFile()` na het schrijven faalt.** `saveDataDialogWeb`
+     (`src/services/fileAccess/webBackend.ts`) schrijft het bestand en vraagt daarna `handle.getFile()`, alleen voor de
+     naam. Faalt die lezing (bijvoorbeeld omdat een ander programma het bestand net vergrendelde), dan geeft de route de
+     fout door. De app meldt dan dat opslaan mislukte en zet het doel niet, maar het bestand is wel geschreven.
+     `handle.name` geeft dezelfde naam zonder te lezen. Gezien met een nep-handle in
+     `tests/planning/check-ifc-foreign-target.ts` (#864, fixronde 2); niet nagegaan in een echte browser. — S
+
+1015. Ctrl+S en Opslaan als naar een site-bestand lezen met de flag `ifcForeignContent` aan elke keer het hele bestand van
+     de host (de doelcontrole van #864; de host geeft geen stroom, `src/services/fileAccess/index.ts:138`). AutoSave naar de
+     site staat uit (besluit #309, `src/services/actualAutosave/fileAutoSave.ts:49-53`), dus er is geen volle download per
+     AutoSave-ronde. Richting: een stroom van de host, of de uitkomst 'geen model' per document en doel onthouden tot de host
+     een andere versie meldt (versie, etag); zet AutoSave naar de site ooit aan, dan is dat onthouden verplicht. Uit #864
+     (fase 1a). — B
+
+1016. **Zonder de flag ziet de modelweigering bij openen een complexe instantie niet.** `readEntity`
+     (`src/services/ifc/ifcReader.ts:1029`) leest alleen `#id=TYPE(…);`; bij `#id=(A(…)B(…));` geeft hij -1 en slaat de
+     regel over. De weigering op `ifcReader.ts:199` ziet dan geen `IfcProduct`. Gezien: `model-ifc4.ifc` met de vijf
+     modelentiteiten in de vorm `#30=(IFCWALL(…));` opent met de flag uit zonder weigering, en opslaan schrijft alleen de
+     planning. Met de flag aan geeft dezelfde invoer `ifcSource.foreign = true`, dus is het document daar beschermd; ook
+     de doelcontrole (`targetModelScan.ts`) ziet zo'n bestand als model. Het risico is klein: in IFC2X3 TC1, IFC4 ADD2 TC1
+     en IFC4X3 ADD2 is elk supertype `ONEOF` (geen `ANDOR`, geen meervoudige overerving), dus een geldig bestand schrijft
+     elke instantie in de interne vorm; IfcOpenShell 0.8.4 en 0.9.0 lezen de externe vorm niet als `IfcWall`. Richting:
+     de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). — B
+
+1017. **VERVOLG: de doelcontrole leest een bestaande IFC zonder model helemaal, en de planner ziet in die tijd
+     niets.** Met de flag `ifcForeignContent` leest `src/services/ifc/foreign/targetModelScan.ts` bij Opslaan als, een
+     export en AutoSave naar een bestaand IFC het hele bestand als dat geen `IfcProduct`/`IfcTypeProduct` bevat (de
+     route van `readIFC` sinds fixronde 4 van #864). CI-meting run 42735559587 (`ubuntu-24.04`), 300 MB zonder model:
+     Node 1,0 s (stroom) / 1,1 s (`Blob`), Chromium 0,8 s, WebKit 1,3 s; met het model vooraan 8–13 ms (WebKit 0,6 s).
+     Fixronde 3 (twee lezers) kostte hier nog 2,9–3,6 s. In die tijd toont de app geen voortgang: na het kiezen van het
+     bestand in de dialoog gebeurt er tot ongeveer 1,3 s niets zichtbaars (afgeleid uit de code van `fileSlice.ts`,
+     `webBackend.ts`, `tauriBackend.ts`: geen bezig-indicatie; niet in de browser nagegaan). Aanvaard voor 1a (wrakko,
+     10 november 2026). Richting: een bezig-indicatie als de controle langer dan een korte tijd duurt. Uit #864
+     (fase 1a). — S
+
+1018. **De doelcontrole en `readIFC` zijn kwadratisch als veel entiteiten pas aan het einde van het bestand mislukken.**
+     `parseSTEP` (`src/services/ifc/ifcReader.ts`) leest na een mislukte entiteit verder vanaf het teken na de `#`.
+     Mislukt elke entiteit pas aan het einde (bijvoorbeeld `#1=A((#2=B((#3=C((…` zonder sluithaken), dan leest de lus het
+     bestand per entiteit opnieuw. De doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) volgt die route sinds
+     fixronde 4 bewust precies, en leest de bron dan per entiteit opnieuw (boven 16 MiB van schijf). Opslaan als, een
+     export of AutoSave naar zo'n bestand wacht dan heel lang; openen ook. Gezien met een mutatie die elke entiteit open
+     liet (de testhulp van `check-ifc-target-model-scan.ts` stopte na 10^8 stukken); niet gezien met een echt bestand.
+     Richting: een werkgrens in beide; in de doelcontrole met de uitkomst 'model' (niet schrijven). Gevonden in #864
+     (fixronde 4). — S
+
+1019. **VERVOLG: de doelcontrole vertrouwt erop dat `seek` echt terugspoelt.** Boven 16 MiB leest
+     `src/services/ifc/foreign/targetModelScan.ts` de bron opnieuw vanaf een eerdere positie na een mislukte entiteit.
+     De eindcontrole (`targetModelScan.ts:206`) ziet alleen een bron die te vroeg eindigt. Een `seek` die succes meldt
+     maar de positie niet verandert, valt daar niet op; de Tauri-lezer kijkt niet naar de positie die `seek` teruggeeft
+     (`src/services/fileAccess/tauriBackend.ts:34`). Gezien met een nagebootste bron (Terra, ronde 5 van #864): een
+     mislukte entiteit met `IFCWALL`, ruim 18 MiB tekst en daarna nog 20 MiB; correct terugspoelen geeft `model`, de
+     nagebootste `seek` geeft `no-model` en de doelcontrole laat schrijven toe. Niet gezien met de echte plugin-fs; die
+     zou daarmee haar contract breken. De test in `tests/planning/check-ifc-target-model-scan.ts` dekt het niet: zijn bron
+     eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
+     en de lange variant in de test. Uit #864 (fase 1a). — S
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -1453,6 +1881,12 @@ en noem het in je rapport of PR-tekst.
      Zo geeft de generator terecht 12 regels voor 2021 en 10 voor 2022. Een planner kan dan denken dat er een
      dag ontbreekt. Voorstel: "de 11 federale feestdagen", met één zin over nieuwjaar op 31 december van het
      vorige jaar. Uit de review van #824 (GPT-6.1-Sol, xhigh, op `0efdaec39`, VERVOLG). — B
+
+912. **Het Japanse label van *Oriëntatie:* op het tabblad Rapport zegt "overzicht".** `src/i18n/locales/ja/report.json`
+     regel 10: `"orientation": "概要："`. 概要 betekent "overzicht" of "samenvatting", niet de stand van het vel
+     (staand of liggend). Een Japanse planner ziet dus naast *Papier* een veld "Overzicht" met de keuzes
+     liggend en staand. Voorstel: `向き：`, via de vertaalstraat (`--update`, zodat de bron-hash mee verandert).
+     Gezien bij het opzoeken van de bestaande woorden voor de keuzelijst *Lettertype* (#770). — B
 
 ## Tests
 
@@ -1816,6 +2250,51 @@ en noem het in je rapport of PR-tekst.
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
 
+915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
+     laadt `/?icons=b2` opnieuw, nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende. Dat zijn vijf
+     extra appstarts voor vijf tests, zonder aangetoonde fout. Voorstel: geef de fixture een start-URL, standaard
+     `/`; dan vallen acht herhaalde opstartregels uit deze spec weg. Uit de review van #852 (GPT-6.1-Sol, xhigh,
+     op `321cb166a`, VERVOLG). — B
+930. **VERVOLG: de dev-server vertrouwt elk symlinkdoel in `node_modules`.** `vite.config.ts:35`. De allow-lijst kijkt
+     alleen of een ingang een symlink is. Een link naar `/` of naar een thuismap zet die hele map open via `/@fs/`
+     (gemeten: een bestand buiten de repo gaf 200, eerder 403). Via `/node_modules/<link>/...` kon dat al eerder, dus het
+     is geen nieuw lek, maar het blijft voor iedereen die de dev-server bereikt. Voorstel: alleen de echte paden van
+     de drie letterpakketten toevoegen (Inter, Space Grotesk, JetBrains Mono); dan kan de helper `linkedPackageRoots()`
+     weg. Uit de review van #853 (GPT-6.1-Sol, xhigh, op `b597182af`, VERVOLG). — B
+931. **VERVOLG: een gelinkt pakket binnen een gewone scopemap wordt gemist.** `vite.config.ts:37`. De scan kijkt alleen
+     naar directe ingangen van `node_modules`. Is `@fontsource` een gewone map met `inter` als link, dan blijft het
+     letterbestand 403. Een link van de hele `@fontsource`-map (zoals op aia) werkt wel. Voorstel: de concrete
+     pakketmappen resolven, zoals bij 930. Uit de review van #853 (GPT-6.1-Sol, xhigh, op `b597182af`, VERVOLG). — B
+950. **VERVOLG: drie knopgroepen die op een keuze lijken, worden regular.** Sinds #850 zijn gewone `.btn`-knoppen 400.
+     Sol noemt drie groepen die ook 400 worden: de datumvolgorde in `ProgressImportDialog.tsx:417` en `:420`,
+     "Bedrijfswaarden gebruiken" en "Bestandswaarden overnemen" in `LibraryLinkDialog.tsx:139` en `:140`, en de talen
+     onder "Lees in" in `HelpPanel.tsx:474`. Ze werken nog hetzelfde. Bewust zo gelaten: elke knop voert meteen een
+     actie uit en heeft geen blijvende gekozen stand (geen `aria-pressed`), dus het zijn gewone acties. De bronkeuzes
+     met een gekozen stand houden wel 600. Wil een planner ze toch vet, dan volstaat `fontWeight: 600` zoals bij de
+     bronkeuzes. Uit de review van #850 (GPT-6.1-Sol, xhigh, op `d40a68caa`, VERVOLG). — B
+
+879. **VERVOLG: de hook die de map van een bronbestand bewaakt, wordt niet getest.**
+     `tests/planning/check-external-source-watch.ts` test alleen de pure functies in
+     `src/engine/externalSourceWatch.ts` (`parentDir`, `externalSourceWatchTargets`, `watchEventTouchesSource`).
+     De hook `src/hooks/useExternalSourceWatch.ts` zelf heeft geen test: met een lege hook blijven alle 15 controles
+     groen. Niet gedekt zijn dus: één `watch` per map, opnieuw bewaken als de set bronbestanden verandert, stoppen
+     bij het sluiten, een melding over een bronbestand die `checkExternalSources` start, en een leesmelding
+     (`access`) die niets doet. Voorstel: een test met een nep-`watch` voor `@tauri-apps/plugin-fs`, en de echte
+     controle in de desktop-app (punt 883). Uit de review van #812 (GPT-6.1-Sol, xhigh, op `526207f85`,
+     VERVOLG). — B
+883. **VERVOLG: de bewaking van de bronmap is niet getest in de echte desktop-app.**
+     #812 zet de feature `watch` van `tauri-plugin-fs` aan (`src-tauri/Cargo.toml`) en bewaakt de map van elk
+     bronbestand (`src/hooks/useExternalSourceWatch.ts`). De toestemming is er: `fs:allow-home-read-recursive`
+     geeft `read-all`, met `watch` en `unwatch`, binnen de thuismap. Getest zijn alleen de pure functies
+     (`check-external-source-watch.ts`) en de CI-build van de app. De CI bewaart geen build, en op aia staat geen
+     desktop-app van OPS. Een build op aia is zwaar werk; daarvoor is toestemming van Ethan nodig, en tot zijn
+     besluit over de SSD van aia (14 november 2026) draait daar geen zwaar werk (Trias, 7 november). Plan voor
+     daarna: 1. één debug-build met `flock /tmp/ops-zwaar.lock nice -n 19 cargo build` in `src-tauri/`, met een
+     bestaande debug-target om crates te hergebruiken; geen release-build, geen installers. 2. De app op display
+     :0, met devUrl naar een dev-server van de branch via `ops-devserver`. 3. Een plan openen via `?open=` met een
+     koppeling naar een bronbestand onder `$HOME`, dat bestand wijzigen zonder het venster te wisselen, en binnen
+     enkele seconden de balk verwachten; bewijs met `xwd` vóór en na. Trias legt het aan Ethan voor. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -1973,23 +2452,15 @@ en noem het in je rapport of PR-tekst.
 
 851. **VERVOLG: wat er na de antwoordgrens van de site nog krap of ongepagineerd is.** Sinds #825 blijft elk antwoord
      van `window.__OPDS_APP__.run()` binnen 30.000 tekens: een leestool geeft `te_groot` met een uitweg, een wijziging
-     wordt ingekort. Drie restpunten: (1) `planner_get_planning_guide` met `part: "skill"` geeft 28.062 tekens, dicht
-     bij de grens; groeit een skill, dan heeft de site geen kleiner deel meer. Dat komt mede doordat de tekst van
-     `goed-plannen` er twee keer in staat (`skills[0].text` en het oude veld `skill`). (2) `criticalPaths` (alleen bij
-     floatPaths met FREE_FLOAT) blijft op elke pagina van `planner_get_critical_path` compleet. (3)
-     `planner_get_project_overview` heeft bewust geen paginering; de uitweg is `planner_list_tasks`. Gemeten in #825
-     met `installSiteAppTools`. (4) De controle vóór uitvoering (`linksTooLarge`) rekent met bovengrenzen: 29 tekens
-     per id, en elke `create: true` van `planner_update_calendar` telt als nieuw, ook als het id al bestaat. Een
-     aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij had gepast; een kleinere portie werkt wel. De
-     vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen door een reserve per aanroep. Voorstel: een
-     `part` per skill, en `criticalPaths` alleen op de eerste pagina. — B
-
-852. **VERVOLG: geen browsertest roept `window.__OPDS_APP__` aan.** `tests/browser/platform-build.spec.ts` leest
-     alleen `dist-platform/mcp-tools.json` van schijf. De tests in `tests/mcp/cases-site-app-tools.ts` installeren het
-     object op een nepvenster; ze bewijzen de adapter en de guards, maar niet de installatie door `main.tsx` of een
-     `run()` in een frame met `sandbox="allow-scripts allow-modals"` (zonder `allow-same-origin`). Uit de review van
-     #825 (GPT-6.1-Sol, xhigh, ronde 1, VERVOLG). Dit wordt opgepakt in PR #828; haal dit punt weg zodra die gemerged
-     is. — B
+     wordt ingekort. Drie restpunten: (1) `criticalPaths` (alleen bij floatPaths met FREE_FLOAT) blijft op elke pagina
+     van `planner_get_critical_path` compleet. (2) `planner_get_project_overview` heeft bewust geen paginering; de
+     uitweg is `planner_list_tasks`. Gemeten in #825 met `installSiteAppTools`. (3) De controle vóór uitvoering
+     (`linksTooLarge`) rekent met bovengrenzen: 29 tekens per id, en elke `create: true` van `planner_update_calendar`
+     telt als nieuw, ook als het id al bestaat. Een aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij
+     had gepast; een kleinere portie werkt wel. De vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen
+     door een reserve per aanroep. Besluit Ethan 7 november 2026: de preflight blijft zoals hij is. Voorstel:
+     `criticalPaths` alleen op de eerste pagina. Het oude punt over de grootte van `planner_get_planning_guide` is
+     opgelost in #818. — B
 
 853. **VERVOLG: restpunten van het inkorten na fixronde 6 (#825).** Het compacte wijzigingsantwoord van
      `window.__OPDS_APP__.run()` kort steeds de grootste verzameling in. Drie restpunten: (1) Een regel van een lijst
@@ -2040,3 +2511,142 @@ en noem het in je rapport of PR-tekst.
      tekstkleur door, en dan tekent ook het grijze deel oranje (zie de kop van `src/components/icons/Icon.tsx`). Niet
      nagemeten. Voorstel: de berekende kleur van beide delen meten; zit het in de knop, geef het icoon daar de grijze
      tekstkleur (`text-text-secondary`), en neem de knop op in `tests/browser/icon-orange.spec.ts`. — S
+
+900. **VERVOLG: elk verpakt toolresultaat draagt de data twee keer; SuperCloud en Claude Desktop zijn niet gemeten.**
+     `wrapToolResult` (`src/services/mcp/dispatcher.ts:76–82`) zet hetzelfde resultaat als JSON-tekst in
+     `content[0].text` en als `structuredContent` (een JSON-RPC-fout gaat er niet doorheen). Gemeten in #818 op
+     `planner_get_planning_guide` met `part: "both"`: 7.325 tekens data, 14.925 tekens over de lijn. De MCP-spec vraagt
+     die tekstkopie voor oudere clients ("SHOULD"); `tests/mcp/cases-protocol.ts:149–151` toetst hem. Op 9 november
+     2026 nagegaan met een proefserver die in de tekst en in `structuredContent` een andere markering geeft:
+     - Claude Code 2.1.319, gemeten (`claude -p`, de `tool_result` in het transcript): bij `isError: false` krijgt het
+       model alleen `structuredContent` als JSON, met en zonder `outputSchema`; bij `isError: true` alleen de tekst. De
+       data staat dus één keer in de context. De tekstkopie moet blijven: een weigering bereikt het model alleen zo.
+     - SuperCloud, alleen de code nagelezen: `run` van `window.__OPDS_APP__` (`src/services/mcp/siteAppTools.ts:559`)
+       geeft alleen `structuredContent` door en maakt bij een fout `CODE: melding` uit `code` en `error` (`:568`). De
+       tekstkopie verlaat de app dus niet. Wat de site daarna aan het model geeft, is niet gemeten.
+     - Claude Desktop: niet gemeten. Het staat niet op aia09-mp50, Trias kan niet bij de laptop van Ethan, en de pc
+       van Ethan reageerde niet.
+     Besluit (Trias, 9 november 2026): geen codewijziging, de tekstkopie blijft. Voorstel: meet de modelinvoer van
+     SuperCloud en Claude Desktop zodra dat kan; zet een van beide de data twee keer in de context, kies dan opnieuw.
+     — B (het dubbele antwoord, de meting in Claude Code, de code van `run`), S (de modelinvoer van SuperCloud en
+     Claude Desktop)
+
+940. **VERVOLG: het lint meet niet opnieuw als één groep zonder lintrender van breedte verandert.**
+     `useRibbonAutoFit` (`src/components/layout/Ribbon/Ribbon.tsx`) meet bij een vensterwijziging en bij een
+     render van het lint. Verandert alleen de inhoud van één groep van breedte, dan blijft de oude stand staan.
+     Gezien bij de statusdatum: na het wissen verdween het ×-knopje en bleef rechts 161 px leeg bij 1600 px (ook
+     op main). #845 lost dat voor deze groep op: het knopje houdt zijn plek. Het tijdveld bij een uurkalender
+     verandert de breedte nog wel, en een andere groep kan hetzelfde doen. Voorstel: een ResizeObserver op de
+     groepen, of opnieuw meten na een wijziging van een veld in het lint. Uit de council-rondes van #845
+     (GPT-6.1-Sol en Claude Opus 5.5, xhigh, ronde 2, VERVOLG). — S
+
+941. **VERVOLG: in de popover van een ingeklapte veldengroep is de voortgangsmodus een native keuzelijst.**
+     `BaselinesProgressGroupContent` (`src/components/layout/Ribbon/ribbonWidgets.tsx`) toont in de popover
+     `RibbonInlineSelect`, omdat een tweede popover binnen een popover niet veilig sluit. De lijst ziet er per
+     besturingssysteem anders uit dan de andere lintmenu's. Voorstel: een menu-in-menu dat binnen de eerste
+     popover blijft. Uit de council-rondes van #845 (Claude Opus 5.5 en GPT-6.1-Sol, xhigh, ronde 1 en 2,
+     VERVOLG). — S
+
+942. **VERVOLG: bij het omslagpunt van de statusdatumgroep krijgen meer knoppen tegelijk hun label terug.**
+     Bij versmallen van 1160 naar 1140 px klapt de groep in, en de vrijgekomen ruimte gaat in één stap naar de
+     labels van vier groepen. Dat oogt als één sprong. De automaat zoekt na het inklappen bewust opnieuw de
+     beste knoppenstand (anders blijft er tot 357 px leeg). Op de AI-tab gebeurt hetzelfde: bij versmallen van
+     1000 naar 900 px groeit de groep Veiligheid van 202 px (alleen iconen) naar 378 px (met labels).
+     Voorstel: alleen aanpakken als planners erover vallen. Uit de council van #845 (Claude Opus 5.5, xhigh,
+     ronde 2 en 3, VERVOLG). — S
+
+943. **VERVOLG: een veldengroep met de focus erin blijft open, ook bij een grote stap smaller.**
+     `useRibbonAutoFit` laat een groep met de focus (of een open popover) in zijn stand, zodat halve invoer niet
+     verloren gaat. Bij een stap van 1600 naar 700 px tijdens het typen in de statusdatum loopt het lint tot
+     206 px over (horizontale scroll). Na het verlaten van het veld meet de automaat opnieuw. Voorstel: laat het
+     zo, of klap in en geef de focus door aan het veld in de popover. Uit de council van #845 (Claude Opus 5.5,
+     xhigh, ronde 2, VERVOLG). — S
+
+944. **VERVOLG: op een lintknop zie je niet waar de toetsenbordfocus staat.** `.ribbon-btn:focus { outline: none }`
+     (`src/components/layout/Ribbon/Ribbon.css:160`) haalt de focusrand weg, ook bij focus via het
+     toetsenbord. Na Escape in de popover van een ingeklapte groep staat de focus op de knop, maar dat zie je
+     niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
+     council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S
+
+964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
+     (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
+     elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
+     over de lijn ongeveer 750 tekens langer (`planner_get_project_info` 4.226 → 4.978, `planner_list_documents`
+     822 → 1.680), want de envelop staat er twee keer in (punt 900). Een XER-sessie van 30 aanroepen kost zo ruim
+     22.000 tekens over de lijn, ongeveer 11.000 als data. Voorstel: de tekst één keer per document, daarna alleen
+     de vlag `datesAsRecorded: true`. Uit council-ronde 7 van #836 (Claude Opus 5.5, xhigh, BEVESTIGD). — B
+
+958. **VERVOLG: na een bereikte mijlpaal start de opvolger op de dag dat de voorganger pas eindigt.** Gezien in
+     proef (h) van #836, met de echte dispatcher. Keten Ruwbouw → mijlpaal "Ruwbouw gereed" → Dak dicht, alle drie
+     FS; statusdatum 14 april 2027. Ruwbouw kreeg `actualFinish: "2027-04-14"` en eindigt op 14 april 16:00. De
+     mijlpaal kreeg `completion: 100` en `actualFinish: "2027-04-14"` (zonder tijd) en staat op 14 april 07:00.
+     Dak dicht start daardoor op 14 april 07:00, terwijl de gebruiker "het dak begint morgen" zei. Vóór de update
+     stond de mijlpaal op de werkdag ná Ruwbouw (7 april 07:00, na 6 april 16:00). Vermoeden: een datum zonder tijd wordt bij een
+     mijlpaal het begin van de dag, bij een taak het einde. Niet nagegaan in de code. Voorstel: bij een mijlpaal met
+     een FS-voorganger die dezelfde dag eindigt, de datum zonder tijd op het einde van die dag zetten, of melden.
+     — B (de start op 14 april, twee keer gezien), S (de oorzaak)
+
+959. **VERVOLG: het overzicht en het kritieke pad tonen geen `deadline`, dus een agent vindt de oorzaak van negatieve
+     float niet.** Een taak krijgt negatieve float door een `deadline` verderop in de keten. Alleen
+     `planner_get_task` geeft het veld (`src/services/mcp/tools/readTools.ts:645`). De rij van
+     `planner_get_project_overview` (`:354–377`), van `planner_list_tasks` (`:459–478`) en van
+     `planner_get_critical_path` (`:688–699`) heeft geen `deadline`, en `planner_list_tasks` heeft er geen filter
+     voor (`:133`). Zo ook op #838 `fb3ee39c6`. Gezien in proef (j) van #836, twee runs met de echte dispatcher:
+     Ruwbouw en Dak dicht hadden float −1 door de `deadline` op Dak dicht. Run 1 las alleen Ruwbouw en schreef
+     "Er staat nergens een deadline"; run 2 meldde de −1, maar zocht de deadline niet op. Voor `constraint` en
+     `constraint2` geldt hetzelfde (`:643–644`). In proef (k) van #836 had B een FNLT; run 1 en 2 lazen alleen
+     taak A en schreven dat er geen deadline of constraint was. Sinds fixronde 10 leest de agent elke taak met negatieve
+     float en haar opvolgers (`progress-update` §5); zo vond hij de FNLT wel (run 3 en 4). Voorstel: `deadline` en
+     `constraint` in de rij van het overzicht of van het kritieke pad. Besluit orkestrator: dit nummer, in #836; het
+     is een gedragswijziging in een tool, geen tekst. — B
+
+1003. **VERVOLG: de controle van de skillkop laat een `description` door die geen tekst is.** `checkSkillFrontmatter`
+     (`scripts/lib/agent-skills-check.ts:43`) leest elke waarde als tekst. `description: null`, `true` of `123` geeft
+     daardoor geen fout, terwijl een echte YAML-lezer er `null`, een boolean of een getal van maakt. De twee huidige
+     skills hebben een geldige tekstwaarde; de controle bewijst dus minder dan ze belooft. Voorstel: eis een niet-lege
+     tekst tussen aanhalingstekens (of een vast formaat met twee tekstvelden) en voeg deze drie gevallen als
+     negatieve test toe. Uit de eindreview van #836 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
+1004. **VERVOLG: bij `te_groot` op de voortgangsskill wijst de uitweg niet naar die skill.** Is `part: "progress-update"`
+     te groot voor de SuperCloud-limiet, dan adviseert de melding in `src/services/mcp/siteAppTools.ts:125` hetzelfde
+     part opnieuw, en de enige download-URL is die van de opbouwgids. `part: "guide"` past wel, maar bevat geen
+     voortgangsregels. De test (`tests/mcp/cases-site-app-tools.ts:295`) controleert bij een te grote voortgangsskill
+     alleen de opbouwroute. Nagespeeld met een voortgangsskill van 40.000 tekens. Met de huidige bestanden (±2.800
+     tekens) gebeurt dit niet. Voorstel: noem ook de publieke URL van `skills/progress-update/SKILL.md` en test de
+     uitweg vanuit dat part. Uit de eindreview van #836 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
+953. **VERVOLG: een externe opvolger kan de naam achter een balk bedekken.** `drawTaskBars` tekent de externe
+     ghost-balken (`drawExternalGhosts`) ná de balk en zijn naam (`src/engine/renderer/GanttRenderer.ts`, de lus in
+     `drawTaskBars`). Begint een externe opvolger vlak achter de balk, dan ligt de half doorzichtige ghost over het begin
+     van de naam. Dit geldt voor elke naam die `drawOutsideBarName` rechts achter een balk zet: taak, samenvatting en
+     hammock. Het is dus niet nieuw met #842. Voorstel: teken de naam ná de ghosts, of laat de naam voorbij een externe
+     opvolger beginnen. Uit de review van #842 (Terra, VERVOLG). — S
+
+954. **VERVOLG: geen browsertest voor dubbelklik en tooltip op de naam achter een balk.** Sinds #842 herkennen klik,
+     dubbelklik, tooltip en rechtsklik ook de naam rechts achter de balk (`GanttRenderer.getTaskNameAt`, gebruikt in
+     `useGanttPointerCoordinator.ts` en `GanttCanvas.tsx`). `tests/browser/gantt-pointer-priority.spec.ts` ("naam over
+     de balk bij de rand") bewijst met echte muisgebaren: slepen en Shift-slepen vanaf de naam verzetten niets, een klik
+     selecteert, een rechtsklik geeft het taakmenu. Een dubbelklik (taak openen), de taaktooltip en de cursor boven de
+     naam zijn alleen in de renderer-hittest (`check-gantt-label-ellipsis.ts`) gedekt. Voorstel: twee stappen in
+     hetzelfde scenario. Uit de review van #842 (GPT-6.1-Sol, xhigh, VERVOLG). — B
+
+955. **VERVOLG: in het tweede tijdlijnpaneel werkt alleen selectie op de naam achter een balk.** `handleSecondaryClick`
+     (`src/components/canvas/GanttCanvas.tsx`) selecteert via de balk of de naam (`getTaskNameAt`). Hover zoekt daar
+     alleen baselines (`handleSecondaryMouseMove`) en er is geen `onDoubleClick`: geen taaktooltip en geen taak openen,
+     ook niet op de balk zelf. Dat zat al in main. Voorstel: hover en dubbelklik van het hoofdpaneel ook in het tweede
+     paneel aansluiten. Uit de review van #842 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+956. **VERVOLG: een dubbelklik op de tijdschaal kan een bedekte taaknaam openen.** `onDoubleClick` in
+     `src/components/canvas/hooks/useGanttPointerCoordinator.ts` controleert de grens van de kop niet, en
+     `GanttRenderer.getTaskNameAt` rekent de rij uit de y-positie, ook onder de kop. Na verticaal scrollen ligt de naam
+     van een taak dan onder de tijdschaal. Proef: 21 taken, rijhoogte 28, kophoogte 60, `scrollY=20`; een dubbelklik op
+     (53, 54) opent taak S. Op main opent daar niets. Voorstel: `if (y < headerHeight) return;` vóór de hit-tests,
+     met `headerHeight` in de afhankelijkheden van de callback. Uit de review van #842 (GPT-6.1-Sol, xhigh, ronde 5,
+     BEVESTIGD, VERVOLG). — B
+
+957. **VERVOLG: de naam van een hammock of samenvatting verdwijnt ineens bij de linkerrand.** `drawHammockBar` en
+     `drawSummaryBar` (`src/engine/renderer/GanttRenderer.ts`) stoppen bij `x2 < 0`, nog vóór de naam. Bij een balkeinde
+     op x = 0 begint de naam op x = 14; bij x = -1 tekent de functie niets meer, terwijl de naam op x = 13 nog zichtbaar
+     zou zijn. Bij horizontaal scrollen springt de naam dus weg. Een gewone taakbalk stopt bij `x2 + spelingsband < 0`
+     (`drawTaskBar`); zonder speling geldt daar hetzelfde. Voorstel: laat de grens ook de naamruimte meetellen (`x2 + ARROW_STUB + OUTSIDE_LABEL_GAP +
+     naambreedte < 0`), of teken de naam los van de balk. Uit de review van #842 (Terra, ronde 5, BEVESTIGD, VERVOLG). — B

@@ -1050,6 +1050,44 @@ eq('i mutatie na undo wist de redo-stack', S().historyEvents.filter(event => eve
   // Teruggezet naar de GUID-fix: weer correct/groen.
 }
 
+// ══ (i) ifcSource (#804 fase 1a) ═════════════════════════════════════════════════════════════════
+// De bron van een geopend IFC-bestand (bytes en indeling, §4.8): per document en per referentie, maar buiten undo, de
+// IFC-schrijfinvoer en de herstelketen. Een bewerking, undo, een kopie en een documentwissel houden hem; een nieuw
+// document en een herstelde kopie hebben er geen.
+{
+  const field = DOCUMENT_FIELDS.find(f => f.key === 'ifcSource');
+  eq('i ifcSource: in het contract, buiten de undo-snapshot', field?.snapshot, 'none');
+  S().newProject();
+  const iDoc = S().activeDocumentId;
+  S().addTask({ name: 'Taak met bron' });
+  const source = {
+    bytes: new Uint8Array([73, 83, 79]), sha256: 'sha', schemaName: 'IFC4', chunkStarts: new Uint32Array([0, 3]),
+    chunkIds: new Int32Array([-1]), classes: new Uint8Array([0]), stepIds: {}, foreignMembers: [], foreign: true,
+    foreignObjectCount: 1, lineEnding: '\n' as const,
+  };
+  useAppStore.setState((s) => { s.ifcSource = source; });
+  const held = S().ifcSource;
+  truthy('i ifcSource: de store houdt de bytes zelf (geen kopie)', held?.bytes === source.bytes);
+  truthy('i ifcSource: niet in de undo-snapshot', !('ifcSource' in createSnapshot(S())));
+  truthy('i ifcSource: niet in de IFC-schrijfinvoer', !('ifcSource' in buildWriteIFCInput(S())));
+  truthy('i ifcSource: wel in de documentpayload, per referentie', capturePayload(S()).ifcSource === held);
+  S().addTask({ name: 'Bewerking' });
+  S().undo();
+  truthy('i ifcSource: bewerking plus undo laat de bron staan', S().ifcSource === held);
+  S().redo();
+  truthy('i ifcSource: redo laat de bron staan', S().ifcSource === held);
+  S().newDocument();
+  eq('i ifcSource: een nieuw document heeft geen bron', S().ifcSource, null);
+  S().switchDocument(iDoc);
+  truthy('i ifcSource: de bron komt terug met zijn document', S().ifcSource === held);
+  S().duplicateDocument();
+  truthy('i ifcSource: een kopie deelt de bron (het vreemde deel hoort ook bij de kopie)', S().ifcSource === held);
+  S().switchDocument(iDoc);
+  const iInput = recoveryInputFromParsed(readIFC(writeIFC(buildWriteIFCInput(S()))), { id: 'i-doc', filePath: null, isDirty: true, datesAsRecorded: false });
+  truthy('i ifcSource: niet in de herstelinvoer', !('ifcSource' in iInput));
+  eq('i ifcSource: een herstelde payload heeft geen bron', payloadFromInput(iInput).ifcSource, null);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  document-contract-check: alle checks groen (${checks})`);

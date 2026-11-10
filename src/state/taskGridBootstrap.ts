@@ -56,7 +56,8 @@ export async function bootstrapTaskGridPreferences(
   dependencies: TaskGridBootstrapDependencies = {},
 ): Promise<TaskGridBootstrapOutcome> {
   const load = dependencies.load ?? loadTaskGridSettings;
-  const save = dependencies.save ?? saveTaskGridPreferences;
+  // De standaardindeling die een ontbrekende sleutel vult, is geen keuze van de gebruiker (#818).
+  const save = dependencies.save ?? ((preferences: PersistedTaskGridPreferencesV1) => saveTaskGridPreferences(preferences, 'start'));
   const result = await load(sourceSnapshot(store.getState()).defaults);
   if (result.status === 'valid') {
     store.getState().hydrateTaskGridPreferences(result.value);
@@ -79,7 +80,9 @@ export async function bootstrapTaskGridPreferences(
   }
 
   // Een bestaande maar corrupte/nieuwere raw key heeft voorrang op oude documentkolommen. De raw
-  // waarde blijft onaangeroerd; alleen de in-memory toestand valt veilig terug op defaults.
-  store.getState().hydrateTaskGridPreferences(fallback);
+  // waarde blijft onaangeroerd; alleen de in-memory toestand valt veilig terug op defaults. Ook geen
+  // automatische schrijfactie (`autoWrite: false`), anders overschrijft "Kolommen automatisch
+  // aanpassen" de afgewezen voorkeur met de teruggevallen standaardkolommen.
+  store.getState().hydrateTaskGridPreferences(fallback, { autoWrite: false });
   return 'invalid-fallback';
 }
