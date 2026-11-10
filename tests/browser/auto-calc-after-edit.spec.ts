@@ -74,4 +74,19 @@ test('automatisch berekenen: de voortgangsschuif rekent pas na het loslaten', as
   expect(await page.evaluate((id) => (
     window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.time.completion
   ), taskId)).toBeGreaterThan(0.3);
+
+  // Geforceerde systeemkleuren (hoogcontrast van het besturingssysteem): de app-stijl van de schuifjes valt weg
+  // en de browser tekent baan, knop en focusrand zelf. Met `appearance: none` was het schuifje onzichtbaar (#847, review r6).
+  const sliderLook = () => slider.evaluate(el => {
+    const style = getComputedStyle(el);
+    return { appearance: style.appearance, outline: style.outlineStyle };
+  });
+  expect((await sliderLook()).appearance).toBe('none');
+  await page.emulateMedia({ forcedColors: 'active' });
+  await slider.focus();
+  await page.keyboard.press('ArrowLeft');
+  const forced = await sliderLook();
+  expect(forced.appearance).toBe('auto');
+  expect(forced.outline).not.toBe('none');
+  await page.emulateMedia({ forcedColors: 'none' });
 });

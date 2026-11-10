@@ -162,8 +162,8 @@ type ParsedLag = Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinut
 // het type-achtervoegsel en de lag het einde bepalen. De lag is de korte notatie van de app
 // (`formatLagShort` schrijft hem, `parseLagInput` leest hem): de eenheden komen uit
 // `LAG_UNIT_SUFFIXES`, zodat CSV nooit een eigen, smallere lag-notatie heeft. Het teken is hier
-// verplicht (anders is "1.12" niet van "1.1" + lag 2 te onderscheiden) en de decimaal is een punt: de
-// komma scheidt in deze kolom de voorgangers.
+// verplicht (anders is "1.12" niet van "1.1" + lag 2 te onderscheiden).
+// Nieuwe exports gebruiken een decimale komma in de lag; oude exports een punt.
 const PREDECESSOR_TOKEN = new RegExp(
   `^(.+?)\\s*(FS|FF|SS|SF)?\\s*([+-]\\d+(?:\\.\\d+)?(?:${LAG_UNIT_SUFFIXES})?)?$`, 'i',
 );
@@ -171,8 +171,12 @@ const PREDECESSOR_TOKEN = new RegExp(
 function parsePredecessorString(predStr: string): { wbs: string; type: SequenceType; lag: ParsedLag }[] {
   if (!predStr.trim()) return [];
   const results: { wbs: string; type: SequenceType; lag: ParsedLag }[] = [];
-  // Split by comma (within predecessor field)
-  const parts = predStr.split(/[,]/);
+  // Normaliseer uitsluitend een decimale komma in een expliciete relatie-lag vóór het splitsen.
+  // WBS-codes met punten en oude lijsten zonder spatie blijven zo gelijk.
+  const decimalLag = new RegExp(
+    `((?:FS|FF|SS|SF)[+-]\\d+),(\\d+(?:${LAG_UNIT_SUFFIXES}))(?=\\s*(?:,|$))`, 'gi',
+  );
+  const parts = predStr.replace(decimalLag, '$1.$2').split(/[,]/);
 
   for (const part of parts) {
     const trimmed = part.trim();
@@ -211,7 +215,7 @@ function parsePredecessorString(predStr: string): { wbs: string; type: SequenceT
  *   net zo goed Engelse duizendtalnotatie (1250). Dat scheelt een factor 1000, dus niet gokken: NaN —
  *   de aanroeper valt terug op zijn gewone "onleesbaar"-pad en meldt de cel.
  * Meer groepen ("1,250,000", "1.250,5") vallen buiten de kommaregel en houden het
- * `parseFloat`-gedrag, net als elke cel zonder komma (onze eigen export schrijft een decimale punt).
+ * `parseFloat`-gedrag, net als elke cel zonder komma (oude OPS-exports schrijven een decimale punt).
  */
 function readCsvNumber(raw: string, delimiter: string): number {
   const m = /^\s*([+-]?\d+),(\d+)(?![\d.,])/.exec(raw);

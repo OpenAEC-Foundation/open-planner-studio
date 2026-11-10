@@ -74,9 +74,27 @@ const FOOTER_HEIGHT = 50;
 const MAX_DAILY_GRID_STEPS = 5_000;
 const MAX_DAILY_WEEKEND_STEPS = 5_000;
 
-/** Handmatige rapportzoom in logische pixels per dag. Eén pixel is de kleinste bruikbare stand. */
+/** Handmatige rapportzoom in logische pixels per dag. Eén pixel is de kleinste stand van de schuif in het
+ *  oude Rapport-paneel. */
 export const REPORT_MIN_ZOOM = 1;
 export const REPORT_MAX_ZOOM = 40;
+/**
+ * De kleinste breedte per dag die een rapport kan hebben (logische px). Het nieuwe Rapport-tabblad (#817)
+ * start "Vaste schaal" op de breedte die "passen" gaf; bij een lange planning is dat minder dan 1 px per
+ * dag (5000 taken op A3: ±0,2). Met {@link REPORT_MIN_ZOOM} als ondergrens sprong het rapport bij die wissel
+ * van 139 naar 695 pagina's. De opgeslagen instelling (`customZoom`) mag daarom tot deze grens.
+ */
+export const REPORT_MIN_DAY_WIDTH = 0.01;
+
+/**
+ * De breedte per dag waarop "Vaste schaal" begint, uit de breedte die "passen" gaf
+ * (`RenderReportResult.dayWidth`): precies die, een miljardste smaller. Zonder dat kan een afrondfout in
+ * de bladindeling (`cols = 1 + ceil(…)`) een extra kolom bladen geven. Geklemd op de grenzen van de
+ * instelling. Zo verandert het aantal pagina's niet bij de wissel (`check-report-svg.ts`, sectie 7).
+ */
+export function fixedScaleStartDayWidth(fitDayWidth: number): number {
+  return Math.min(REPORT_MAX_ZOOM, Math.max(REPORT_MIN_DAY_WIDTH, fitDayWidth * (1 - 1e-9)));
+}
 
 // Relatielijn-stub: de horizontale afstand die een relatielijn eerst rechtdoor loopt vóórdat hij
 // verticaal afknikt (en spiegelbeeldig links van de opvolger bij de "omheen"-route). Dit is de
@@ -120,10 +138,103 @@ export type AutoColumnKey = 'wbs' | 'duration' | 'start' | 'end' | 'complete' | 
 
 /**
  * Gemeten, ONGESCHAALDE breedtes per kolom (zie {@link measureTableColumnWidths}). Een ontbrekende
- * of onbruikbare sleutel valt terug op `COL[key].w`, zodat elk pad zonder canvas (tests, headless
- * render) deterministisch blijft.
+ * of onbruikbare sleutel valt terug op `COL[key].w` (een registerkolom: op
+ * `PrintTableColumn.fallbackWidth`), zodat elk pad zonder canvas (tests, headless render)
+ * deterministisch blijft. Een registerkolom staat onder haar eigen sleutel (`PrintTableColumn.key`).
  */
-export type TableColumnWidths = Partial<Record<AutoColumnKey, number>>;
+export type TableColumnWidths = Partial<Record<AutoColumnKey, number>> & { readonly [columnKey: string]: number | undefined };
+
+/**
+ * De kolommen die de printlaag zelf opmaakt, met hun vaste tekenwijze van vóór issue #817: WBS links,
+ * de naam met inspringing en afkapping, duur, datums en voltooiing rechts uitgelijnd.
+ */
+export type BuiltinPrintColumnKey = 'wbs' | 'name' | 'duration' | 'start' | 'end' | 'complete';
+
+/**
+ * Eén kolom van de taaktabel op papier, in de volgorde van de lijst (issue #817 deel B). Het paneel
+ * kiest de kolommen uit hetzelfde kolomregister als het taakraster. De kolommen die de afdruk al kende
+ * (WBS, Taaknaam, Duur, Start, Einde, Voltooiing) houden hun eigen tekenwijze (`builtin`), zodat de
+ * standaardafdruk niet verandert; elke andere registerkolom brengt haar kop, uitlijning en celteksten
+ * mee. De celtekst komt zo nog steeds uit één bron ({@link taskTableCellTexts}) voor meten én tekenen.
+ */
+export interface PrintTableColumn {
+  /** Unieke sleutel: de registerkolom-id (bijv. `task.time.calendarDays`). */
+  key: string;
+  /** Ingebouwde kolom: tekst, kop, uitlijning en breedtegrenzen komen uit de printlaag zelf. */
+  builtin?: BuiltinPrintColumnKey;
+  /** Vertaalde kop van een registerkolom. Ingebouwd: `labels.tableHeaders`. */
+  header?: string;
+  /** Uitlijning van de cellen van een registerkolom; ontbreekt ⇒ links. */
+  align?: 'left' | 'right' | 'center';
+  /** Celtekst per taak-id (registerkolom). Een taak zonder tekst krijgt een lege cel. */
+  cells?: ReadonlyMap<string, string>;
+  /** Ongeschaalde breedte zonder meting (registerkolom); ontbreekt ⇒ {@link CUSTOM_COLUMN_FALLBACK_WIDTH}. */
+  fallbackWidth?: number;
+  /** Ongeschaalde bovengrens (registerkolom); ontbreekt ⇒ {@link CUSTOM_COLUMN_MAX_WIDTH}. */
+  maxWidth?: number;
+}
+
+/** Terugvalbreedte en bovengrens van een registerkolom zonder eigen waarde (ongeschaalde px). */
+export const CUSTOM_COLUMN_FALLBACK_WIDTH = 55;
+export const CUSTOM_COLUMN_MAX_WIDTH = 160;
+
+/** Soort van een tabelkolom zoals de render haar tekent; `custom` = een registerkolom. */
+type TableColumnKind = BuiltinPrintColumnKey | 'units' | 'curve' | 'custom';
+
+/** Eén kolom in tekenvolgorde, nog zonder positie. */
+interface TableColumnSlot {
+  key: string;
+  kind: TableColumnKind;
+  spec?: PrintTableColumn;
+}
+
+/**
+ * De kolommen van één render in tekenvolgorde. Zonder `tableColumns` precies de vaste tabel van vóór
+ * #817: WBS, Taaknaam, (Eenh./d, Curve), Duur, Start, Einde, (Volt. bij `showCompletion`). Met een
+ * lijst: die volgorde, met dubbele sleutels weggelaten en de verplichte naamkolom vooraan als de lijst
+ * haar mist. De toewijzingskolommen van het resourcediagram staan altijd direct achter de naam.
+ */
+function tableColumnSlots(
+  tableColumns: readonly PrintTableColumn[] | undefined,
+  showCompletion: boolean,
+  assignmentColumns: boolean,
+): TableColumnSlot[] {
+  const slots: TableColumnSlot[] = [];
+  if (!tableColumns) {
+    slots.push({ key: 'wbs', kind: 'wbs' }, { key: 'name', kind: 'name' });
+    slots.push({ key: 'duration', kind: 'duration' }, { key: 'start', kind: 'start' }, { key: 'end', kind: 'end' });
+    if (showCompletion) slots.push({ key: 'complete', kind: 'complete' });
+  } else {
+    const seen = new Set<string>();
+    for (const spec of tableColumns) {
+      const kind: TableColumnKind = spec.builtin ?? 'custom';
+      // Een ingebouwde kolom meet en tekent onder haar soortnaam (zoals vóór #817); twee keer dezelfde
+      // soort of sleutel zou dezelfde breedte twee keer tellen.
+      const key = spec.builtin ?? spec.key;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      slots.push({ key, kind, spec });
+    }
+    if (!seen.has('name')) slots.unshift({ key: 'name', kind: 'name' });
+  }
+  if (assignmentColumns) {
+    const nameIndex = slots.findIndex(slot => slot.kind === 'name');
+    slots.splice(nameIndex + 1, 0, { key: 'units', kind: 'units' }, { key: 'curve', kind: 'curve' });
+  }
+  return slots;
+}
+
+/** De meetsleutel van een kolom in {@link TableColumnWidths}: ingebouwd de soort, anders de registersleutel. */
+function isAutoColumnKind(kind: TableColumnKind): kind is AutoColumnKey {
+  return kind === 'wbs' || kind === 'duration' || kind === 'start' || kind === 'end' || kind === 'complete' || kind === 'units';
+}
+
+function resolveCustomColumnWidth(spec: PrintTableColumn | undefined, raw: number | undefined): number {
+  const max = Math.max(AUTO_COLUMN_MIN_WIDTH, spec?.maxWidth ?? CUSTOM_COLUMN_MAX_WIDTH);
+  const fallback = Math.min(max, Math.max(AUTO_COLUMN_MIN_WIDTH, spec?.fallbackWidth ?? CUSTOM_COLUMN_FALLBACK_WIDTH));
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return fallback;
+  return Math.min(max, Math.max(AUTO_COLUMN_MIN_WIDTH, raw));
+}
 
 /**
  * Vloer voor een meegeschaalde kolom. Een kop als het Chinese "工期" vraagt maar ~27 px; smaller
@@ -206,61 +317,78 @@ function resolveNameColumnWidth(raw: number | undefined): number {
 }
 
 /**
- * De (ongeschaalde) tabelbreedte voor één render: de som van de zichtbare kolommen. Met
- * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel — niet alleen
- * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
+ * De ongeschaalde breedte van één kolom. Eén plek waar de terugval en het klemmen gebeuren, zodat
+ * tabelbreedte en kolomposities gegarandeerd met dezelfde getallen rekenen — anders schuift de
+ * tabelbreedte los van de kolomposities en scheurt de tabel. Met **Voltooiing tonen** uit (zonder
+ * kolomlijst) staat de Volt.-kolom niet in de slots en telt ze dus ook niet mee in de breedte.
  */
-function tableWidthFor(showCompletion: boolean, w: ResolvedColumnWidths, assignmentColumns = false): number {
-  return w.wbs + w.name + w.duration + w.start + w.end + (showCompletion ? w.complete : 0)
-    + (assignmentColumns ? w.units + w.curve : 0);
-}
-
-/** Alle kolombreedtes van één render, ongeschaald en al geklemd. */
-interface ResolvedColumnWidths extends Record<AutoColumnKey, number> {
-  name: number;
-  curve: number;
-}
-
-/**
- * Zet de drie breedte-bronnen van een render om in één record: de instelbare naamkolom, de gemeten
- * curvekolom en de zes gemeten datakolommen. Eén plek waar de terugval en het klemmen gebeuren,
- * zodat `tableWidthFor` en `getColPositions` gegarandeerd met dezelfde getallen rekenen — anders
- * schuift de tabelbreedte los van de kolomposities en scheurt de tabel.
- */
-function resolveColumnWidths(
+function resolveSlotWidth(
+  slot: TableColumnSlot,
   taskNameColumnWidth: number | undefined,
   curveColumnWidth: number | undefined,
   columnWidths: TableColumnWidths | undefined,
-): ResolvedColumnWidths {
-  return {
-    wbs: resolveAutoColumnWidth('wbs', columnWidths?.wbs),
-    name: resolveNameColumnWidth(taskNameColumnWidth),
-    units: resolveAutoColumnWidth('units', columnWidths?.units),
-    curve: resolveCurveColumnWidth(curveColumnWidth),
-    duration: resolveAutoColumnWidth('duration', columnWidths?.duration),
-    start: resolveAutoColumnWidth('start', columnWidths?.start),
-    end: resolveAutoColumnWidth('end', columnWidths?.end),
-    complete: resolveAutoColumnWidth('complete', columnWidths?.complete),
-  };
+): number {
+  if (slot.kind === 'name') return resolveNameColumnWidth(taskNameColumnWidth);
+  if (slot.kind === 'curve') return resolveCurveColumnWidth(curveColumnWidth);
+  if (slot.kind === 'custom') return resolveCustomColumnWidth(slot.spec, columnWidths?.[slot.key]);
+  return resolveAutoColumnWidth(slot.kind, columnWidths?.[slot.kind]);
 }
 
-// Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
-// {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
-// kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
-// `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
-function getColPositions(k: number, showCompletion: boolean, widths: ResolvedColumnWidths, assignmentColumns = false) {
+/** Positie en breedte van één kolom (al geschaald). */
+interface ColumnBox { x: number; w: number }
+
+/** Eén kolom van de render in tekenvolgorde, mét geschaalde positie. */
+interface PositionedColumn extends ColumnBox, TableColumnSlot {}
+
+/**
+ * Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
+ * {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
+ * kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `list` is de tekenvolgorde;
+ * de losse velden geven snel toegang tot de ingebouwde kolommen. Een ontbrekend veld (bijv. `complete`)
+ * betekent "staat niet in de tabel"; alle tekenpaden lezen dat als "niet tekenen".
+ */
+interface ColPositions {
+  list: PositionedColumn[];
+  name: ColumnBox;
+  wbs?: ColumnBox;
+  units?: ColumnBox;
+  curve?: ColumnBox;
+  duration?: ColumnBox;
+  start?: ColumnBox;
+  end?: ColumnBox;
+  complete?: ColumnBox;
+  /** Som van de geschaalde kolombreedtes = de tabelbreedte. */
+  width: number;
+}
+
+function getColPositions(
+  k: number,
+  slots: readonly TableColumnSlot[],
+  taskNameColumnWidth: number | undefined,
+  curveColumnWidth: number | undefined,
+  columnWidths: TableColumnWidths | undefined,
+): ColPositions {
   let x = 0;
-  const next = (w: number) => { const col = { x, w: w * k }; x += w * k; return col; };
+  let unscaled = 0;
+  const list: PositionedColumn[] = [];
+  const byKind: Partial<Record<TableColumnKind, ColumnBox>> = {};
+  for (const slot of slots) {
+    const raw = resolveSlotWidth(slot, taskNameColumnWidth, curveColumnWidth, columnWidths);
+    const w = raw * k;
+    const box = { ...slot, x, w };
+    list.push(box);
+    if (slot.kind !== 'custom' && !byKind[slot.kind]) byKind[slot.kind] = { x, w };
+    x += w;
+    unscaled += raw;
+  }
   return {
-    wbs: next(widths.wbs),
-    name: next(widths.name),
-    // Direct achter de naam: ze horen bij "wie staat hierop en hoe", niet bij de datums.
-    units: assignmentColumns ? next(widths.units) : undefined,
-    curve: assignmentColumns ? next(widths.curve) : undefined,
-    duration: next(widths.duration),
-    start: next(widths.start),
-    end: next(widths.end),
-    complete: showCompletion ? next(widths.complete) : undefined,
+    list,
+    name: byKind.name ?? { x: 0, w: 0 },
+    wbs: byKind.wbs, units: byKind.units, curve: byKind.curve, duration: byKind.duration,
+    start: byKind.start, end: byKind.end, complete: byKind.complete,
+    // Zoals vóór #817: de som van de ONgeschaalde breedtes maal k (niet de som van de geschaalde),
+    // zodat de tabelbreedte tot op de bit gelijk blijft aan eerdere renders.
+    width: unscaled * k,
   };
 }
 
@@ -378,8 +506,8 @@ function groupBandLabel(row: PrintRow): string {
  * De naamkolombreedte (ongeschaald) waarbij géén enkele rij afgekapt wordt: per rij de gemeten
  * tekstbreedte plus inspringing en celpadding, precies het spiegelbeeld van de `nameAvail`-som in
  * `drawTaskTable`. `measure` meet op de ongeschaalde letter uit {@link nameCellFont}; de aanroeper
- * (het rapportpaneel) levert die vanuit een canvas met het geladen Inter-font, zodat preview,
- * raster-PDF en vector-PDF alle drie hetzelfde getal krijgen. Geklemd op
+ * (het rapportpaneel) levert de meting van de vector-PDF (`loadReportTextMetrics`, de lettermaten uit
+ * het fontbestand), zodat het papier en de PDF hetzelfde getal krijgen. Geklemd op
  * [{@link NAME_COLUMN_WIDTH_MIN}, {@link NAME_COLUMN_AUTO_MAX}].
  */
 export function measureTaskNameColumnWidth(
@@ -441,15 +569,87 @@ function taskDateCellText(task: Task, value: string, side: 'start' | 'end', opti
   return displayDateTime(taskDateLabel(task, value, side, calendar), notation, options.timeNotation ?? '24h');
 }
 
+/**
+ * De tekst van een registerkolom in één rij: uit de celtekst die het paneel per taak meegaf
+ * (`PrintTableColumn.cells`). Een groepsband en een taak zonder tekst krijgen een lege cel, net als de
+ * ingebouwde datakolommen.
+ */
+function customCellText(row: PrintRow, spec: PrintTableColumn | undefined): string {
+  const task = row.kind === 'task' ? row.task : undefined;
+  return task ? (spec?.cells?.get(task.id) ?? '') : '';
+}
+
+/** De celteksten die alleen van de taak en de opmaak afhangen (niet van een toewijzing). */
+type TaskOwnCellTexts = Pick<TaskTableCellTexts, 'wbs' | 'duration' | 'start' | 'end' | 'complete'>;
+
+const NO_TASK_CELLS: TaskOwnCellTexts = { wbs: '', duration: '', start: '', end: '', complete: '' };
+
+/**
+ * Celteksten per BEVROREN taak, per opmaak (notatie, taal, kalenders). De datumcellen kosten bij een grote
+ * planning de meeste tijd van een render (kalenderrekening per cel; gemeten 9 november 2026 bij 5000
+ * taken: ruim de helft van een papieropname), en het rapport maakt dezelfde teksten bij elke
+ * instellingenwijziging en bij de kolommeting opnieuw. Alleen een bevroren taak (Immer: alles uit de
+ * store) is gegarandeerd ongewijzigd; een losse taak (een check, een import) rekent elke keer, dus daar
+ * verandert niets. Een paar opmaken tegelijk (oud en nieuw tabblad, meting en render) passen erin.
+ */
+/** De dagen van één taak voor het datumbereik (ms, UTC-middernacht; `NaN` = ongeldig of geen band). */
+interface TaskDayRange { start: number; finish: number; lastBandDay: number }
+
+const dayRangeCache = new WeakMap<Task, TaskDayRange>();
+
+/**
+ * De begindag van de getoonde start en het getoonde einde, en de laatste dag van de spelingsband
+ * (`floatBandEnd` geeft het exclusieve einde; `finish` is net als het bereik de BEGINdag van de laatste
+ * getekende dag). Een bevroren taak uit de store verandert niet meer, dus zijn uitkomst blijft geldig;
+ * bij 5000 taken scheelt dat per klik ±15 ms. Een NaN telt in de vergelijkingen niet mee, net als de
+ * Invalid Date van `parseDate` vroeger.
+ */
+function taskDayRange(task: Task): TaskDayRange {
+  const cached = dayRangeCache.get(task);
+  if (cached) return cached;
+  const bandEnd = floatBandEnd(task, true);
+  const range: TaskDayRange = {
+    start: parseDate(shownStart(task)).getTime(),
+    finish: parseDate(shownFinish(task)).getTime(),
+    lastBandDay: bandEnd ? addCalendarDays(bandEnd, -1).getTime() : NaN,
+  };
+  if (Object.isFrozen(task)) dayRangeCache.set(task, range);
+  return range;
+}
+
+const cellTextCaches: { calendar?: WorkCalendar; calendars?: readonly WorkCalendar[]; key: string; map: WeakMap<Task, TaskOwnCellTexts> }[] = [];
+
+function cellTextCacheFor(options: CellTextOptions): WeakMap<Task, TaskOwnCellTexts> {
+  const key = JSON.stringify([options.dateNotation, options.timeNotation, options.numberLocale, options.durationDisplay,
+    options.durationSuffixes, options.labels?.daySuffix]);
+  const hit = cellTextCaches.find(c => c.calendar === options.calendar && c.calendars === options.calendars && c.key === key);
+  if (hit) return hit.map;
+  const entry = { calendar: options.calendar, calendars: options.calendars, key, map: new WeakMap<Task, TaskOwnCellTexts>() };
+  cellTextCaches.unshift(entry);
+  if (cellTextCaches.length > 4) cellTextCaches.pop();
+  return entry.map;
+}
+
+function taskOwnCellTexts(task: Task, options: CellTextOptions): TaskOwnCellTexts {
+  const cache = Object.isFrozen(task) ? cellTextCacheFor(options) : undefined;
+  const cached = cache?.get(task);
+  if (cached) return cached;
+  const texts: TaskOwnCellTexts = {
+    wbs: task.wbsCode || '',
+    duration: durationCellText(task, options),
+    start: taskDateCellText(task, shownStart(task), 'start', options),
+    end: taskDateCellText(task, shownFinish(task), 'end', options),
+    complete: formatCompletion(task.time.completion),
+  };
+  cache?.set(task, texts);
+  return texts;
+}
+
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
   const assignment = row.assignment;
   return {
-    wbs: task?.wbsCode || '',
-    duration: task ? durationCellText(task, options) : '',
-    start: task ? taskDateCellText(task, shownStart(task), 'start', options) : '',
-    end: task ? taskDateCellText(task, shownFinish(task), 'end', options) : '',
-    complete: task ? formatCompletion(task.time.completion) : '',
+    ...(task ? taskOwnCellTexts(task, options) : NO_TASK_CELLS),
     // Kostenresource (#815): het bedrag in de kolom Eenh./d (of "—"), geen curve.
     units: !assignment ? ''
       : assignment.cost ? (assignment.costAmount !== undefined ? formatReportNumber(assignment.costAmount, options.numberLocale) : '—')
@@ -469,6 +669,28 @@ export interface TableColumnMeasureInput extends CellTextOptions {
   tableHeaders?: Partial<TableHeaderLabels>;
   /** Dezelfde fontstack als `PrintOptions.fontFamily` van de render; ontbreekt ⇒ Inter. */
   fontFamily?: string;
+  /**
+   * De kolomlijst van de render (`PrintOptions.tableColumns`). Gegeven ⇒ alleen de kolommen uit de
+   * lijst worden gemeten (de ingebouwde onder hun soortnaam, de registerkolommen onder hun sleutel) en
+   * `showCompletion` telt niet meer voor de tabel. Ontbreekt ⇒ de vaste tabel van vóór #817.
+   */
+  tableColumns?: readonly PrintTableColumn[];
+}
+
+/**
+ * Gemeten breedtes per kolom (de breedste tekst, vóór marge en klem), om bij een kolom erbij of eraf niet
+ * alle kolommen over alle rijen opnieuw te meten. Geldig zolang de rijen, de opmaak, de koppen en de letter
+ * gelijk blijven: de aanroeper maakt dan een nieuwe cache (issue #817, 5000 taken).
+ */
+export interface TableColumnMeasureCache {
+  /** Ingebouwde kolommen, onder hun soort (`duration`, `start`, …). */
+  builtin: Map<string, number>;
+  /** Registerkolommen, onder hun celtekstenlijst (`PrintTableColumn.cells`). */
+  custom: WeakMap<object, number>;
+}
+
+export function createTableColumnMeasureCache(): TableColumnMeasureCache {
+  return { builtin: new Map(), custom: new WeakMap() };
 }
 
 /**
@@ -476,37 +698,77 @@ export interface TableColumnMeasureInput extends CellTextOptions {
  * KOP (9 px vet) en alle CELLEN (8 px) die dit rapport toont, plus celmarge aan beide zijden.
  * Geklemd op [{@link AUTO_COLUMN_MIN_WIDTH}, `COL[key].max`].
  *
- * `measure` meet op de geladen rapportletter (`input.fontFamily`, standaard Inter) — de aanroeper (het rapportpaneel) levert dat vanuit een
- * canvas, om dezelfde reden als bij {@link measureTaskNameColumnWidth}: `measurePrintReport`
- * (paginering) heeft geen canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster- en
- * vector-render. Kolommen die niet in de tabel staan worden weggelaten in plaats van gemeten.
+ * `measure` meet op de geladen rapportletter (`input.fontFamily`, standaard Inter) — de aanroeper (het
+ * rapportpaneel) levert de meting van de vector-PDF (`loadReportTextMetrics`), om dezelfde reden als bij
+ * {@link measureTaskNameColumnWidth}: `measurePrintReport` (paginering) heeft die meting niet en zou anders
+ * een ándere tabelbreedte uitrekenen dan de render. Kolommen die niet in de tabel staan worden weggelaten in plaats van gemeten.
  */
 export function measureTableColumnWidths(
   printRows: PrintRow[],
   input: TableColumnMeasureInput,
   measure: (text: string, font: string) => number,
+  cache?: TableColumnMeasureCache,
 ): TableColumnWidths {
-  const keys: AutoColumnKey[] = ['wbs', 'duration', 'start', 'end'];
-  if (input.showCompletion) keys.push('complete');
-  if (input.assignmentColumns) keys.push('units');
+  // De te meten kolommen, in tekenvolgorde: de zes meegeschaalde datakolommen en de registerkolommen.
+  // Naam en curve hebben hun eigen meting (`measureTaskNameColumnWidth`/`measureCurveColumnWidth`).
+  const slots = tableColumnSlots(input.tableColumns, input.showCompletion, !!input.assignmentColumns)
+    .filter(slot => slot.kind === 'custom' || isAutoColumnKind(slot.kind));
 
   const headerFont = tableTextFont(true, input.fontFamily);
   const cellFont = tableTextFont(false, input.fontFamily);
-  const needed = new Map<AutoColumnKey, number>();
-  for (const key of keys) needed.set(key, measure(headerLabel(input.tableHeaders, AUTO_COLUMN_HEADER[key]), headerFont));
-  for (const row of printRows) {
-    const cells = taskTableCellTexts(row, input);
-    for (const key of keys) needed.set(key, Math.max(needed.get(key)!, measure(cells[key], cellFont)));
+  const needed = new Map<string, number>();
+  // Uit de cache: een ingebouwde kolom onder haar soort, een registerkolom onder haar celtekstenlijst
+  // (die is per kolom hetzelfde object zolang taken en register niet veranderen).
+  const cacheKeyOf = (slot: TableColumnSlot): object | string => (slot.kind === 'custom' ? (slot.spec?.cells ?? slot.spec ?? slot.key) : slot.key);
+  const fromCache = (slot: TableColumnSlot): number | undefined => {
+    const key = cacheKeyOf(slot);
+    return typeof key === 'string' ? cache?.builtin.get(key) : cache?.custom.get(key);
+  };
+  const missing: TableColumnSlot[] = [];
+  for (const slot of slots) {
+    const cached = fromCache(slot);
+    if (cached !== undefined) needed.set(slot.key, cached);
+    else missing.push(slot);
+  }
+  if (missing.length > 0) {
+    for (const slot of missing) needed.set(slot.key, measure(slotHeaderText(slot, input.tableHeaders), headerFont));
+    const autoMissing = missing.some(slot => slot.kind !== 'custom');
+    for (const row of printRows) {
+      const cells = autoMissing ? taskTableCellTexts(row, input) : null;
+      for (const slot of missing) {
+        const text = slot.kind === 'custom' ? customCellText(row, slot.spec) : cells![slot.kind as AutoColumnKey];
+        if (text) needed.set(slot.key, Math.max(needed.get(slot.key)!, measure(text, cellFont)));
+      }
+    }
+    if (cache) {
+      for (const slot of missing) {
+        const key = cacheKeyOf(slot);
+        if (typeof key === 'string') cache.builtin.set(key, needed.get(slot.key)!);
+        else cache.custom.set(key, needed.get(slot.key)!);
+      }
+    }
   }
 
-  const widths: TableColumnWidths = {};
+  const widths: Record<string, number> = {};
   // +1: afronding van gemeten subpixel-breedtes mag nooit nét een ellipsis uitlokken (zelfde marge
   // als de naam- en de curvekolom).
-  for (const key of keys) widths[key] = resolveAutoColumnWidth(key, Math.ceil(needed.get(key)! + 2 * CELL_PAD + 1));
+  for (const slot of slots) {
+    const raw = Math.ceil(needed.get(slot.key)! + 2 * CELL_PAD + 1);
+    widths[slot.key] = slot.kind === 'custom' ? resolveCustomColumnWidth(slot.spec, raw) : resolveAutoColumnWidth(slot.kind as AutoColumnKey, raw);
+  }
   return widths;
 }
 
-type ColPositions = ReturnType<typeof getColPositions>;
+/** De kop van een kolom zoals de render hem tekent: ingebouwd uit de vertaalde koppen, anders van de kolom zelf. */
+function slotHeaderText(slot: TableColumnSlot, labels: Partial<TableHeaderLabels> | undefined): string {
+  switch (slot.kind) {
+    case 'name': return headerLabel(labels, 'taskName');
+    case 'curve': return headerLabel(labels, 'curve');
+    case 'custom': return slot.spec?.header ?? slot.key;
+    default: return headerLabel(labels, AUTO_COLUMN_HEADER[slot.kind]);
+  }
+}
+
 
 /**
  * De maatvoering van één rapport-render, geschaald met de instelbare rapport-lettergrootte. Alle
@@ -575,10 +837,13 @@ function makeMetrics(
   curveColumnWidth?: number,
   columnWidths?: TableColumnWidths,
   fontStack: string = DEFAULT_REPORT_FONT_STACK,
+  tableColumns?: readonly PrintTableColumn[],
 ): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
-  const widths = resolveColumnWidths(taskNameColumnWidth, curveColumnWidth, columnWidths);
+  const cols = getColPositions(
+    k, tableColumnSlots(tableColumns, showCompletion, assignmentColumns), taskNameColumnWidth, curveColumnWidth, columnWidths,
+  );
   const projectHeaderHeight = PROJECT_HEADER_HEIGHT * k;
   const timelineHeaderHeight = TIMELINE_HEADER_HEIGHT * k;
   return {
@@ -591,9 +856,9 @@ function makeMetrics(
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: tableWidthFor(showCompletion, widths, assignmentColumns) * k,
+    tableWidth: cols.width,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k, showCompletion, widths, assignmentColumns),
+    cols,
   };
 }
 
@@ -708,6 +973,13 @@ export interface PrintOptions {
    * (`COL[key].w`), dus een render zonder canvas (tests, headless) blijft deterministisch.
    */
   columnWidths?: TableColumnWidths;
+  /**
+   * De kolommen van de taaktabel in volgorde (issue #817 deel B), gekozen uit het kolomregister van het
+   * taakraster. Ontbreekt ⇒ de vaste tabel van vóór #817 (WBS, Taaknaam, Duur, Start, Einde en Volt. bij
+   * `showCompletion`). Gegeven ⇒ precies deze kolommen; `showCompletion` stuurt dan alleen nog de
+   * voortgang op de balken en de legenda. De naamkolom is verplicht en komt vooraan als ze ontbreekt.
+   */
+  tableColumns?: readonly PrintTableColumn[];
   /** BCP-47-taal voor getallen in de tabel (decimaalteken van de eenheden per dag); afwezig ⇒ punt. */
   numberLocale?: string;
   /**
@@ -906,6 +1178,13 @@ function drawBarLabel(
 /**
  * Het resultaat van een print-render: de logische (CSS-px) afmetingen + de bevroren-kolombreedte.
  */
+/**
+ * Een rijvenster voor `renderReport`: krijgt de maten van het rapport (die liggen vast vóór er getekend
+ * wordt) en geeft het bereik in logische px van de rijen die getekend moeten worden, of `null` voor alles.
+ * Alleen voor het papier op het scherm (#817): een blad heeft genoeg aan zijn eigen rijen.
+ */
+export type ReportRowWindowRequest = (result: RenderReportResult) => { y0: number; y1: number } | null;
+
 export interface RenderReportResult {
   width: number;
   height: number;
@@ -953,6 +1232,24 @@ export interface RenderReportResult {
    * daarom zijn weggelaten. Het paneel meldt dat naast de optie.
    */
   assignmentColumnsDropped?: boolean;
+  /**
+   * OPTIONEEL — de breedte van één dag op de tijdas (logische px), zoals deze render hem gebruikte: bij
+   * "passen" de uitkomst van de pasberekening, anders `customZoom`. Het Rapport-tabblad (#817) start
+   * "Vaste schaal" hierop, zodat het aantal pagina's bij de wissel niet verspringt.
+   */
+  dayWidth?: number;
+  /**
+   * OPTIONEEL — hoogte (logische px vanaf y = 0) van alleen de projectkop, zonder de tijdschaal eronder.
+   * Het interactieve papier (`reportPaperRegions`) gebruikt dit om de kop van de kolomkoppen en de
+   * tijdschaal te scheiden. Afwezig bij renders zonder kop (lege staat, tabelrapporten).
+   */
+  projectHeaderHeight?: number;
+  /**
+   * OPTIONEEL — de kolommen van de taaktabel in tekenvolgorde: sleutel (ingebouwde soort of
+   * registersleutel), x en breedte in logische px. Voor het interactieve papier (welke kolom staat
+   * onder de muis); de render zelf leest dit niet.
+   */
+  tableColumnBounds?: { key: string; x: number; w: number }[];
 }
 
 /**
@@ -971,6 +1268,7 @@ export function renderReport(
   calendar: WorkCalendar,
   projectName: string,
   options: PrintOptions,
+  rowWindow?: ReportRowWindowRequest,
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
@@ -981,12 +1279,12 @@ export function renderReport(
     options.orientation,
   );
   let assignmentColumns = !!options.assignmentColumns;
-  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns, options.curveColumnWidth, options.columnWidths, options.fontFamily);
+  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns, options.curveColumnWidth, options.columnWidths, options.fontFamily, options.tableColumns);
   let assignmentColumnsDropped = false;
   if (assignmentColumns && m.tableWidth > printableWidth - minChartWidthPx(printableWidth)) {
     assignmentColumns = false;
     assignmentColumnsDropped = true;
-    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false, undefined, options.columnWidths, options.fontFamily);
+    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false, undefined, options.columnWidths, options.fontFamily, options.tableColumns);
   }
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen die
@@ -1015,23 +1313,21 @@ export function renderReport(
   }
 
   // Compute date range
-  let minDate = new Date(8640000000000000);
-  let maxDate = new Date(0);
-  for (const t of flatTasks) {
-    const s = parseDate(shownStart(t));
-    const f = parseDate(shownFinish(t));
-    if (s < minDate) minDate = s;
-    if (f > maxDate) maxDate = f;
-
+  let minMs = 8640000000000000;
+  let maxMs = 0;
+  // Over de taken uit de store, niet over de kopieën in `flatTasks`: alleen een bevroren taak komt uit
+  // de cache van `taskDayRange`.
+  for (const row of printRows) {
+    if (row.kind !== 'task' || !row.task) continue;
+    const days = taskDayRange(row.task);
+    if (days.start < minMs) minMs = days.start;
+    if (days.finish > maxMs) maxMs = days.finish;
     // Include float in date range: de laatste dag van de spelingsband (= "Laatste einde"), met
-    // dezelfde helper als de tekening hieronder — `f` is net als `maxDate` de BEGINdag van de
-    // laatste getekende dag, de helper geeft het exclusieve einde.
-    const bandEnd = options.showFloat ? floatBandEnd(t, true) : null;
-    if (bandEnd) {
-      const lastBandDay = addCalendarDays(bandEnd, -1);
-      if (lastBandDay > maxDate) maxDate = lastBandDay;
-    }
+    // dezelfde helper als de tekening hieronder (zie `taskDayRange`).
+    if (options.showFloat && days.lastBandDay > maxMs) maxMs = days.lastBandDay;
   }
+  let minDate = new Date(minMs);
+  let maxDate = new Date(maxMs);
 
   // De baselinestrook hoort in het automatische bereik: een vergelijkingsbaseline die ver vóór of
   // na de huidige taken ligt, valt anders onder de tabel of buiten het blad (issue #391).
@@ -1140,6 +1436,42 @@ export function renderReport(
 
   const cols = m.cols;
 
+  // De maten van het rapport liggen hier al vast: niets hierna hangt van het tekenen af. Het papier op
+  // het scherm (#817) leidt er de bladindeling uit af en vraagt alleen de rijen van de bladen in beeld.
+  // Tabelbreedte en kophoogte gaan GESCHAALD terug: de pagineerder bevriest exact deze kolom en
+  // herhaalt exact deze strook per pagina, dus die moeten de rapport-lettergrootte volgen.
+  // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen. De voet (legenda) is één blok; die
+  // volgt de laatste rijgrens.
+  const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
+  // Resourcediagram: een gedwongen overgang vóór elke bandrij ná de eerste — de
+  // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
+  const forcedBreakOffsets = options.pageBreakBeforeGroups
+    // Een band direct ónder een band (typelaag) blijft bij zijn ouder: anders zou de typekop
+    // alleen op een verder leeg vel staan.
+    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 && printRows[i - 1].kind !== 'group' ? [m.totalHeaderHeight + i * m.rowHeight] : []))
+    : undefined;
+  const result: RenderReportResult = {
+    width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
+    footerHeight: m.footerHeight,
+    projectHeaderHeight: m.projectHeaderHeight,
+    tableColumnBounds: cols.list.map(col => ({ key: col.key, x: col.x, w: col.w })),
+    breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
+    ...(assignmentColumnsDropped ? { assignmentColumnsDropped } : {}),
+    dayWidth: zoom,
+  };
+
+  // Rijvenster (alleen het papier op het scherm): welke rijen getekend worden. Een rij met een rij marge
+  // rond het venster, plus altijd de eerste en de laatste rij: hun randen raken de herhaalde kop en voet,
+  // en die moeten op elk blad gelijk zijn. Al het andere (kop, tijdas, raster over de hele hoogte,
+  // weekenden, statuslijn, voet) tekent altijd. Zonder venster tekent alles, zoals altijd.
+  const win = rowWindow ? rowWindow(result) : null;
+  const rowCount = printRows.length;
+  const rowDrawn = (i: number): boolean => {
+    if (!win || i <= 0 || i >= rowCount - 1) return true;
+    const top = rowToY(i);
+    return top < win.y1 + m.rowHeight && top + m.rowHeight > win.y0 - m.rowHeight;
+  };
+
   // ==================== DRAW ====================
 
   // Background
@@ -1182,7 +1514,7 @@ export function renderReport(
 
   // Alternating row backgrounds in chart area
   for (let i = 0; i < printRows.length; i++) {
-    if (i % 2 === 0) {
+    if (i % 2 === 0 && rowDrawn(i)) {
       d2d.fillStyle = 'rgba(249, 250, 251, 0.3)';
       d2d.fillRect(m.tableWidth, rowToY(i), chartWidth, m.rowHeight);
     }
@@ -1219,6 +1551,8 @@ export function renderReport(
 
   // Horizontal grid lines in chart area
   for (let i = 0; i <= printRows.length; i++) {
+    // De lijn op rijgrens i hoort bij rij i en rij i − 1.
+    if (!rowDrawn(Math.min(i, rowCount - 1)) && !rowDrawn(i - 1)) continue;
     const y = rowToY(i);
     d2d.strokeStyle = PRINT_COLORS.grid;
     d2d.lineWidth = 0.3;
@@ -1355,6 +1689,7 @@ export function renderReport(
   );
 
   for (let i = 0; i < printRows.length; i++) {
+    if (!rowDrawn(i)) continue;
     const row = printRows[i];
     const y = rowToY(i) + barOffset;
 
@@ -1631,7 +1966,8 @@ export function renderReport(
     printRows.forEach((r, idx) => {
       if (r.kind === 'task' && r.task) { rowIndexOf.set(r.task.id, idx); tasksById.set(r.task.id, r.task); }
     });
-    drawDependencies(d2d, m, tasksById, sequences, dateToX, rowToY, zoom, options, rowIndexOf);
+    drawDependencies(d2d, m, tasksById, sequences, dateToX, rowToY, zoom, options, rowIndexOf,
+      win ? (lo, hi) => rowDrawn(lo) || rowDrawn(hi) || (rowToY(lo) < win.y1 + m.rowHeight && rowToY(hi) + m.rowHeight > win.y0 - m.rowHeight) : undefined);
   }
 
   for (const job of barLabelJobs) {
@@ -1649,29 +1985,12 @@ export function renderReport(
   );
 
   // ---- TASK TABLE ----
-  drawTaskTable(d2d, m, printRows, canvasHeight, cols, { ...options, calendar });
+  drawTaskTable(d2d, m, printRows, canvasHeight, cols, { ...options, calendar }, rowDrawn);
 
   // ---- FOOTER ----
   drawFooter(d2d, m, canvasWidth, canvasHeight, projectName, options, printRows);
 
-  // Tabelbreedte en kophoogte gaan GESCHAALD terug: de pagineerder bevriest exact deze kolom en
-  // herhaalt exact deze strook per pagina, dus die moeten de rapport-lettergrootte volgen.
-  // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen. De voet (legenda) is één blok; die
-  // volgt de laatste rijgrens.
-  const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
-  // Resourcediagram: een gedwongen overgang vóór elke bandrij ná de eerste — de
-  // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
-  const forcedBreakOffsets = options.pageBreakBeforeGroups
-    // Een band direct ónder een band (typelaag) blijft bij zijn ouder: anders zou de typekop
-    // alleen op een verder leeg vel staan.
-    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 && printRows[i - 1].kind !== 'group' ? [m.totalHeaderHeight + i * m.rowHeight] : []))
-    : undefined;
-  return {
-    width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
-    footerHeight: m.footerHeight,
-    breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
-    ...(assignmentColumnsDropped ? { assignmentColumnsDropped } : {}),
-  };
+  return result;
 }
 
 
@@ -2257,29 +2576,26 @@ function drawTimelineHeader(
   // 44,8 px in een kolom van 45) hoort voluit te staan, niet met een beletselteken — hij blijft
   // binnen zijn kolom en raakt de scheidingslijn niet. Datacellen houden hun marge wél: daar staan
   // rechts uitgelijnde getallen die anders tegen de lijn aan plakken.
-  const headerText = (key: keyof TableHeaderLabels, col: { w: number }, pad = 0) =>
-    ellipsize(d2d, headerLabel(th, key), col.w - pad);
-  d2d.fillText(headerText('wbs', cols.wbs), cols.wbs.x + cols.wbs.w / 2, headerY);
-
-  d2d.textAlign = 'left';
-  d2d.fillText(headerText('taskName', cols.name, m.s(4)), cols.name.x + m.s(4), headerY);
-  if (cols.curve) d2d.fillText(headerText('curve', cols.curve, m.s(4)), cols.curve.x + m.s(4), headerY);
-
-  d2d.textAlign = 'center';
-  if (cols.units) d2d.fillText(headerText('unitsPerDay', cols.units), cols.units.x + cols.units.w / 2, headerY);
-  d2d.fillText(headerText('duration', cols.duration), cols.duration.x + cols.duration.w / 2, headerY);
-  d2d.fillText(headerText('start', cols.start), cols.start.x + cols.start.w / 2, headerY);
-  d2d.fillText(headerText('end', cols.end), cols.end.x + cols.end.w / 2, headerY);
-  if (cols.complete) {
-    d2d.fillText(headerText('completion', cols.complete), cols.complete.x + cols.complete.w / 2, headerY);
+  const headerText = (slot: TableColumnSlot, col: { w: number }, pad = 0) =>
+    ellipsize(d2d, slotHeaderText(slot, th), col.w - pad);
+  // Tekenwijze per soort, gelijk aan de vaste tabel van vóór #817: naam en curve links met celmarge,
+  // alle andere koppen gecentreerd (ook boven rechts uitgelijnde getallen). Een registerkolom met
+  // links uitgelijnde tekst krijgt, net als de naam, een linkse kop.
+  for (const col of cols.list) {
+    const leftAligned = col.kind === 'name' || col.kind === 'curve' || (col.kind === 'custom' && (col.spec?.align ?? 'left') === 'left');
+    if (leftAligned) {
+      d2d.textAlign = 'left';
+      d2d.fillText(headerText(col, col, m.s(4)), col.x + m.s(4), headerY);
+    } else {
+      d2d.textAlign = 'center';
+      d2d.fillText(headerText(col, col), col.x + col.w / 2, headerY);
+    }
   }
 
-  // Column separator lines in header
+  // Column separator lines in header: links van elke kolom behalve de eerste, plus de tabelrand.
   d2d.strokeStyle = PRINT_COLORS.border;
   d2d.lineWidth = 0.5;
-  const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x, m.tableWidth];
-  if (cols.complete) colBorders.push(cols.complete.x);
-  if (cols.units && cols.curve) colBorders.push(cols.units.x, cols.curve.x);
+  const colBorders = [...cols.list.slice(1).map(col => col.x), m.tableWidth];
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, top);
@@ -2308,6 +2624,8 @@ function drawTaskTable(
   canvasHeight: number,
   cols: ColPositions,
   options: PrintOptions & CellTextOptions,
+  /** Het rijvenster van `renderReport`: een rij buiten het venster tekent niet. */
+  rowDrawn: (i: number) => boolean,
 ) {
   const chartBottom = canvasHeight - m.footerHeight;
   // Cel-padding: schaalt mee met de kolombreedtes, anders vreet een grotere letter de padding op.
@@ -2319,6 +2637,7 @@ function drawTaskTable(
 
   // Task rows
   for (let i = 0; i < printRows.length; i++) {
+    if (!rowDrawn(i)) continue;
     const row = printRows[i];
     const y = m.totalHeaderHeight + i * m.rowHeight;
     const textY = y + m.rowHeight / 2;
@@ -2365,60 +2684,44 @@ function drawTaskTable(
     const indent = depth * m.s(NAME_INDENT_PER_LEVEL);
     const isSummary = isSummaryTask(task);
 
-    // WBS
-    d2d.fillStyle = PRINT_COLORS.textSecondary;
-    d2d.font = m.font(8);
-    d2d.textAlign = 'left';
-    d2d.textBaseline = 'middle';
-    d2d.fillText(cellText(cells.wbs, cols.wbs), cols.wbs.x + cellPad, textY);
-
-    // Name with indentation — afkorten met ellipsis i.p.v. hard clippen
-    d2d.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
-    d2d.font = m.font(9, isSummary);
-    d2d.textAlign = 'left';
-    // Spiegelbeeld van `measureTaskNameColumnWidth`: wijzig je deze som, wijzig dan ook die.
-    const nameX = cols.name.x + cellPad + indent;
-    const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
-    d2d.fillText(ellipsize(d2d, task.name, nameAvail), nameX, textY);
-
-    // Toewijzingskolommen (resourcediagram): eenheden rechts uitgelijnd, de curve links en afgekort.
-    if (cols.units && cols.curve && row.assignment) {
+    // De cellen in kolomvolgorde. Elke soort houdt de tekenwijze van de vaste tabel van vóór #817.
+    for (const col of cols.list) {
+      if (col.kind === 'name') {
+        // Name with indentation — afkorten met ellipsis i.p.v. hard clippen
+        d2d.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
+        d2d.font = m.font(9, isSummary);
+        d2d.textAlign = 'left';
+        d2d.textBaseline = 'middle';
+        // Spiegelbeeld van `measureTaskNameColumnWidth`: wijzig je deze som, wijzig dan ook die.
+        const nameX = col.x + cellPad + indent;
+        const nameAvail = col.x + col.w - m.s(NAME_RIGHT_PAD) - nameX;
+        d2d.fillText(ellipsize(d2d, task.name, nameAvail), nameX, textY);
+        continue;
+      }
+      // Toewijzingskolommen (resourcediagram): alleen op een rij met een toewijzing van de band.
+      if ((col.kind === 'units' || col.kind === 'curve') && !row.assignment) continue;
+      const text = col.kind === 'custom' ? customCellText(row, col.spec) : cells[col.kind];
+      if (!text) continue;
       d2d.fillStyle = PRINT_COLORS.textSecondary;
       d2d.font = m.font(8);
-      d2d.textAlign = 'right';
-      d2d.fillText(cellText(cells.units, cols.units), cols.units.x + cols.units.w - cellPad, textY);
-      d2d.textAlign = 'left';
-      d2d.fillText(cellText(cells.curve, cols.curve), cols.curve.x + cellPad, textY);
-    }
-
-    // Duration
-    d2d.fillStyle = PRINT_COLORS.textSecondary;
-    d2d.font = m.font(8);
-    d2d.textAlign = 'right';
-    d2d.textBaseline = 'middle';
-    d2d.fillText(cellText(cells.duration, cols.duration), cols.duration.x + cols.duration.w - cellPad, textY);
-
-    // Start date
-    d2d.fillText(cellText(cells.start, cols.start), cols.start.x + cols.start.w - cellPad, textY);
-
-    // End date
-    d2d.fillText(cellText(cells.end, cols.end), cols.end.x + cols.end.w - cellPad, textY);
-
-    // Completion — de kolom bestaat alleen als `showCompletion` aanstaat.
-    if (cols.complete) {
-      d2d.fillText(cellText(cells.complete, cols.complete), cols.complete.x + cols.complete.w - cellPad, textY);
+      d2d.textBaseline = 'middle';
+      // WBS en curve links, de getallen en datums rechts; een registerkolom volgt haar eigen uitlijning.
+      const align = col.kind === 'wbs' || col.kind === 'curve'
+        ? 'left'
+        : col.kind === 'custom' ? (col.spec?.align ?? 'left') : 'right';
+      d2d.textAlign = align;
+      const x = align === 'left' ? col.x + cellPad : align === 'right' ? col.x + col.w - cellPad : col.x + col.w / 2;
+      d2d.fillText(cellText(text, col), x, textY);
     }
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
   }
 
-  // Column separator lines throughout the table
+  // Column separator lines throughout the table: links van elke kolom behalve de eerste.
   d2d.strokeStyle = PRINT_COLORS.grid;
   d2d.lineWidth = 0.5;
-  const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x];
-  if (cols.complete) colBorders.push(cols.complete.x);
-  if (cols.units && cols.curve) colBorders.push(cols.units.x, cols.curve.x);
+  const colBorders = cols.list.slice(1).map(col => col.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, m.totalHeaderHeight);
@@ -2474,6 +2777,17 @@ function drawTaskTable(
  * omweg nodig om ze zichtbaar te houden, het rapport tekent ze erBOVEN (zie de tekenvolgorde in
  * `renderReport`) — daar bestaat het occlusieprobleem niet.
  */
+/**
+ * De bepalende relaties als verzameling, één keer per lijst: het papier rendert per klik meerdere keren
+ * met dezelfde opties, en bij 5000 relaties kostte het opbouwen elke render een milliseconde.
+ */
+const drivingSets = new WeakMap<readonly string[], ReadonlySet<string>>();
+function drivingSetOf(ids: readonly string[]): ReadonlySet<string> {
+  let set = drivingSets.get(ids);
+  if (!set) { set = new Set(ids); drivingSets.set(ids, set); }
+  return set;
+}
+
 function drawDependencies(
   d2d: Draw2D,
   m: ReportMetrics,
@@ -2485,19 +2799,27 @@ function drawDependencies(
   options: PrintOptions,
   /** Volg-weergave: alleen paren met béide endpoints zichtbaar; óók de rij-index-bron. */
   rowIndexOf: Map<string, number>,
+  /** Rijvenster: tekent de relatie tussen de rijen `lo` en `hi` (lo ≤ hi)? Ontbreekt ⇒ alles. */
+  spanDrawn?: (lo: number, hi: number) => boolean,
 ) {
   d2d.lineWidth = 1.2;
 
   // `null` = er is niet gerekend (of de aanroeper geeft het niet door) ⇒ alles neutraal
   // doorgetrokken. Zelfde semantiek als op het scherm.
-  const drivingSet = options.drivingSequenceIds ? new Set(options.drivingSequenceIds) : null;
+  const drivingSet = options.drivingSequenceIds ? drivingSetOf(options.drivingSequenceIds) : null;
 
   for (const seq of sequences) {
-    const pred = rowIndexOf.has(seq.predecessorId) ? tasksById.get(seq.predecessorId) : undefined;
-    const succ = rowIndexOf.has(seq.successorId) ? tasksById.get(seq.successorId) : undefined;
+    // Eerst alleen de rijnummers: met een rijvenster (het papier) valt bij 5000 taken bijna elke relatie
+    // hier al af, en dan telt elke opzoeking (#817).
+    const predIdx = rowIndexOf.get(seq.predecessorId);
+    if (predIdx === undefined) continue;
+    const succIdx = rowIndexOf.get(seq.successorId);
+    if (succIdx === undefined) continue;
+    // De hele lijn (knik en goot) blijft tussen de rijen van voorganger en opvolger.
+    if (spanDrawn && !spanDrawn(Math.min(predIdx, succIdx), Math.max(predIdx, succIdx))) continue;
+    const pred = tasksById.get(seq.predecessorId);
+    const succ = tasksById.get(seq.successorId);
     if (!pred || !succ) continue;
-    const predIdx = rowIndexOf.get(seq.predecessorId)!;
-    const succIdx = rowIndexOf.get(seq.successorId)!;
     const predY = rowToY(predIdx) + m.rowHeight / 2;
     const succY = rowToY(succIdx) + m.rowHeight / 2;
 

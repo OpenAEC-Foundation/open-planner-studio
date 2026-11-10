@@ -40,7 +40,9 @@ en Arabisch-Indische cijfers ٠–٩ (U+0660–0669).
 
 **Waarvoor**: als apart CID-font (`Identity-H`/`CIDFontType2`, `subset:false` → CID==GID==fontkit
 `glyph.id`) inbedden zodat de geshapte glyph-id's uit `bidiShape` rechtstreeks als `PDFHexString`
-geëmit kunnen worden. `getArabicFontBytes(400|700)` in `fontLoader.ts` levert de bytes.
+geëmit kunnen worden. `getArabicFontBytes(400|700)` in `fontLoader.ts` levert de bytes. Het scherm laadt
+hetzelfde bestand als `@font-face` (familie `OpsReportArabic`, `ensureReportFontLoaded`): het rapportpapier en het
+canvas tekenen Arabische tekst in deze letter, zodat ze hem net zo breed tekenen als de PDF hem meet.
 
 **Licentie**: Noto Sans Arabic staat onder de SIL Open Font License, versie 1.1 — volledige tekst
 inclusief de copyright-regel van The Noto Project Authors in
