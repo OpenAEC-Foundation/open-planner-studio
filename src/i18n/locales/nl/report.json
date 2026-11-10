@@ -482,7 +482,7 @@
       "all": "Alle taken",
       "allText": "De volledige takenboom, zonder filter.",
       "view": "Zoals de weergave",
-      "viewText": "Met het filter, de groepering, de sortering en de ingeklapte groepen van je huidige Gantt-diagram.",
+      "viewText": "Met het filter, de groepering, de sortering, de ingeklapte groepen en de kolommen van je huidige Gantt-diagram.",
       "summaryAll_one": "Alle taken ({{count}} rij)",
       "summaryAll_other": "Alle taken ({{count}} rijen)",
       "summaryView_one": "Zoals de weergave ({{count}} rij)",
@@ -541,7 +541,8 @@
       "moveDown": "Omlaag",
       "remove": "Weghalen",
       "required": "verplicht",
-      "requiredHint": "De taaknaam staat altijd in het rapport"
+      "requiredHint": "De taaknaam staat altijd in het rapport",
+      "followsView": "Deze kolommen volgen de tabel naast de Gantt, omdat je bij Taken en groepering ‘Zoals de weergave’ koos. Wijzig ze in die tabel, of kies ‘Alle taken’ of een layout voor eigen kolommen."
     },
     "bars": {
       "onBars": "Op de balken",

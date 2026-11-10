@@ -186,6 +186,15 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   // ---- Kolommen ------------------------------------------------------------------------------------
   const { domain, labelForColumn } = useReportColumnDomain();
+  const availableColumnIds = useMemo(() => new Set(domain.availableColumns.map(column => String(column.id))), [domain.availableColumns]);
+  // *Zoals de weergave* drukt ook de kolommen van de tabel naast de Gantt af, live (Ethan, 10 november 2026,
+  // keuze 1). De eigen kolommen van het rapport blijven bewaard en gelden weer bij een andere keuze in Taken.
+  const columnsFollowView = reportTaskSource(settings).kind === 'view';
+  const viewColumnIds = useMemo(
+    () => reportColumnsFromGrid(ganttGridColumns.map(column => String(column.id)), availableColumnIds),
+    [ganttGridColumns, availableColumnIds],
+  );
+  const columnIds = columnsFollowView ? viewColumnIds : settings.columns;
   // De celteksten van een registerkolom blijven bewaard zolang taken en register gelijk zijn: een kolom
   // erbij bouwt alleen haar eigen teksten op (5000 taken).
   const columnCache = useMemo(
@@ -198,11 +207,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   // Alleen dan loopt het papier één render achter op de lijst in de stap: de kolom staat meteen in de lijst en
   // het papier volgt daarna (fixronde na council ronde 5: terugkoppeling onder 100 ms). Een kolom weg, een
   // andere volgorde of een kolom die al in de cache staat, gaat direct: een extra render kost daar alleen tijd.
-  const deferredColumnIds = useDeferredValue(settings.columns);
-  const paperColumnIds = reportColumnsNeedBuild(settings.columns, domain, columnCache) ? deferredColumnIds : settings.columns;
+  const deferredColumnIds = useDeferredValue(columnIds);
+  const paperColumnIds = reportColumnsNeedBuild(columnIds, domain, columnCache) ? deferredColumnIds : columnIds;
   // Het papier (en dus `options`) staat nog op de lijst van vóór de laatste keuze. Een export wacht daarop,
   // anders legt hij de oude kolommen vast (review Sol #847, ronde 4).
-  const columnsPending = paperColumnIds !== settings.columns;
+  const columnsPending = paperColumnIds !== columnIds;
   const resolved = useMemo(
     () => resolveReportColumns(paperColumnIds, domain, tasks, labelForColumn, columnCache),
     [paperColumnIds, domain, tasks, labelForColumn, columnCache],
@@ -270,7 +279,6 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const multiBand = rowSource.multiBand;
   const resourceResult = rowSource.resource?.result ?? null;
   const fileName = `${fileBase}-${t(resourceResult ? 'fileSuffix.resourceGantt' : 'fileSuffix.gantt')}.pdf`;
-  const availableColumnIds = useMemo(() => new Set(domain.availableColumns.map(column => String(column.id))), [domain.availableColumns]);
 
   // Een keuze in de stap Taken verandert alleen de rijen (fixronde na council ronde 5): kolommen en
   // balkopties van een layout neemt de planner over met een knop (`takeOverFromLayout`). Zo verliest wie
@@ -777,8 +785,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 {t('studio.columns.wideWarning', { share: sharePct })}
               </StudioNotice>
             )}
+            {columnsFollowView && (
+              <StudioNotice tone="info" dataKey="columns-follow-view">{t('studio.columns.followsView')}</StudioNotice>
+            )}
             <ColumnsEditor
-              ids={settings.columns}
+              ids={columnIds}
+              readOnly={columnsFollowView}
               onChange={(ids, input) => patch({ columns: ids }, input)}
               available={domain.availableColumns}
               recentIds={recentTaskColumns}

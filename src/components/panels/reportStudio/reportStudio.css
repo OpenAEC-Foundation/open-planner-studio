@@ -391,6 +391,8 @@
   outline: none;
   user-select: none;
 }
+/* *Zoals de weergave*: de kolommen volgen de tabel naast de Gantt en zijn hier alleen te zien (geen greep, geen knoppen). */
+.rs-cols[data-readonly='true'] .rs-col { grid-template-columns: 1fr; padding-inline-start: 10px; }
 .rs-col:focus-visible, .rs-col[data-focus='true'] { box-shadow: 0 0 0 2px var(--theme-accent); border-color: transparent; }
 .rs-col[data-dragging='true'] { opacity: 0.45; }
 .rs-col[data-flash='true'] { animation: rs-flash 1.2s ease; }

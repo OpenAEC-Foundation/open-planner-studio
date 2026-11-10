@@ -144,6 +144,45 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-undo-button]').click();
   await expect.poll(async () => (await saved()).columns).toEqual(ownColumns);
 
+  // Zoals de weergave drukt ook de kolommen van de tabel naast de Gantt af, live; de stap Kolommen toont ze
+  // alleen. De eigen kolommen blijven bewaard en komen terug bij Alle taken (Ethan, 10-11-2026, keuze 1).
+  const listedColumns = () => page.locator('[data-rs-columns] [data-rs-column]').evaluateAll(
+    rows => rows.map(row => row.getAttribute('data-rs-column')));
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="view"]').click();
+  await page.locator('[data-rs-step-head="columns"]').click();
+  await expect(page.locator('[data-rs-notice="columns-follow-view"]')).toBeVisible();
+  await expect.poll(listedColumns).toEqual(ganttIds);
+  await expect(page.locator('[data-rs-add-column]')).toHaveCount(0);
+  await expect(page.locator('[data-rs-like-grid]')).toHaveCount(0);
+  await expect(page.locator('[data-rs-grip]')).toHaveCount(0);
+  await expect(page.locator('[data-rs-remove]')).toHaveCount(0);
+  // Delete en Alt+pijl op een rij veranderen niets.
+  await page.locator(`[data-rs-column="${ganttIds[ganttIds.length - 1]}"]`).focus();
+  await page.keyboard.press('Delete');
+  await page.keyboard.press('Alt+ArrowUp');
+  await expect.poll(listedColumns).toEqual(ganttIds);
+  expect((await saved()).columns).toEqual(ownColumns);
+  // De tabel naast de Gantt verandert (fixture): het rapport volgt live, ook op het papier.
+  const ganttPrefs = await page.evaluate(() => window.__OPS__!.store.getState().taskGridSurfaces['gantt-task-grid'].columns);
+  const fewer = ganttIds.filter(id => id !== 'task.time.scheduleDuration');
+  expect(fewer).toHaveLength(ganttIds.length - 1);
+  await page.evaluate(ids => {
+    const state = window.__OPS__!.store.getState();
+    state.setTaskGridColumns('gantt-task-grid', state.taskGridSurfaces['gantt-task-grid'].columns.filter(c => ids.includes(String(c.id))));
+  }, fewer);
+  await expect.poll(listedColumns).toEqual(fewer);
+  // Ook het papier: de samenvatting van de dichte stap telt de kolommen op het papier.
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await expect(page.locator('[data-rs-summary="columns"]')).toContainText(String(fewer.length));
+  await page.evaluate(prefs => window.__OPS__!.store.getState().setTaskGridColumns('gantt-task-grid', prefs), ganttPrefs);
+  // Terug naar Alle taken: de eigen kolommen staan er weer, en je kunt ze weer aanpassen.
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await page.locator('[data-rs-step-head="columns"]').click();
+  await expect.poll(listedColumns).toEqual(ownColumns);
+  await expect(page.locator('[data-rs-notice="columns-follow-view"]')).toHaveCount(0);
+  await expect(page.locator('[data-rs-add-column]')).toBeVisible();
+
   // Herstel standaard in de kop van Kolommen, daarna A2 in Pagina, dan ongedaan maken: de kolommen komen
   // terug, A2 blijft.
   await page.locator('[data-rs-step="columns"] [data-rs-reset="columns"]').click();

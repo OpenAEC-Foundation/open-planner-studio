@@ -482,7 +482,7 @@
       "all": "All tasks",
       "allText": "The full task tree, without a filter.",
       "view": "As in the view",
-      "viewText": "With the filter, grouping, sorting and collapsed groups of your current Gantt chart.",
+      "viewText": "With the filter, grouping, sorting, collapsed groups and columns of your current Gantt chart.",
       "summaryAll_one": "All tasks ({{count}} row)",
       "summaryAll_other": "All tasks ({{count}} rows)",
       "summaryView_one": "As in the view ({{count}} row)",
@@ -541,7 +541,8 @@
       "moveDown": "Move down",
       "remove": "Remove",
       "required": "required",
-      "requiredHint": "The task name is always in the report"
+      "requiredHint": "The task name is always in the report",
+      "followsView": "These columns follow the table next to the Gantt, because you chose ‘As in the view’ under Tasks and grouping. Change them in that table, or choose ‘All tasks’ or a layout for your own columns."
     },
     "bars": {
       "onBars": "On the bars",
