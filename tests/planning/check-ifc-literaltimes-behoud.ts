@@ -358,6 +358,26 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [result2.ok && !('cancelled' in result2 && result2.cancelled === true), file.text().includes(LITERAL), file.text().includes('Tussendoor'), S().ifcLiteralCalendarIds],
         [true, true, true, [S().calendar.id]]);
     }
+    {
+      // 7f. Review #872 ronde 5 (Sol): de opslag die de lock vasthoudt, legt tijdens het wachten de letterlijke keuze vast
+      //     (zoals een opslag met een urentaak doet). De export maakte zijn tekst daarvoor, zonder `LiteralTimes`: hij mag
+      //     die ankertekst nu niet meer over het eigen bestand schrijven.
+      const { runProjectFileWrite } = await import('@/services/fileAccess/writeCoordinator');
+      const { store, file, S } = await openOwn();
+      S().addTask({ name: 'Gewone taak' });
+      let release!: () => void;
+      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+      win.showSaveFilePicker = async () => file.handle;
+      const exporting = run(S);
+      await new Promise(r => setTimeout(r, 20));
+      const before = file.text();
+      store.setState(s => { s.ifcLiteralCalendarIds = [s.calendar.id]; });
+      release();
+      await hold;
+      const result = await exporting;
+      eq(`7f ${route}: de keuze werd vastgelegd terwijl de export wachtte: niets geschreven, geannuleerd`,
+        [file.text() === before, 'cancelled' in result && result.cancelled === true], [true, true]);
+    }
   }
   delete win.showSaveFilePicker;
   delete win.showOpenFilePicker;

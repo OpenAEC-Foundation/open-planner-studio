@@ -1743,7 +1743,7 @@ en noem het in je rapport of PR-tekst.
      een geopend bestand en neemt de kalender op in `ifcLiteralCalendarIds`, ook als het eigen bestand hem nooit letterlijk
      had. Volgens het besluit van Trias (10 november 2026) telt een kalender die letterlijk werd maar nooit zo is
      opgeslagen niet. Gevolg: na herstel, wissen van de urentaak en opslaan blijft de kalender letterlijk; er gaan geen
-     tijden verloren. De hersteltest (`tests/planning/check-ifc-literaltimes-behoud.ts`) sluit het veld helemaal uit, en
+     tijden verloren. De hersteltest (`tests/planning/check-recovery-content.ts`, regel 324) sluit het veld helemaal uit, en
      een positieve controle voor een kalender die bij het openen al letterlijk was, ontbreekt. Richting: de keuze apart in
      het herstelmanifest bewaren, of bij herstel alleen de keuze van het eigen bestand nemen; en de positieve test. Uit #872
      (ronde 2 en 3, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
@@ -1760,10 +1760,11 @@ en noem het in je rapport of PR-tekst.
 1047. **VERVOLG: een export naar een ander bestand op Windows kan als "het eigen bestand" tellen.**
      `exportHitsOwnFile` (`src/state/savedLiteralCalendars.ts`) telt een onbekende bestandsidentiteit als hetzelfde
      bestand. Op Windows geeft plugin-fs geen `dev` en `ino` (`src/services/fileAccess/fileIdentity.ts`), dus elke
-     IFC-export naar een ander bestaand bestand legt de letterlijke kalenders vast. Daarna blijft de kalender letterlijk
+     IFC-export naar een ander bestand legt de letterlijke kalenders vast: naar een bestaand bestand, en ook naar een
+     nieuw bestand (de controle komt na het schrijven, dan bestaat het al; Sol, ronde 5). Daarna blijft de kalender letterlijk
      in het eigen bestand, ook als hij daar nooit zo stond. Er gaan geen tijden verloren (de writer schrijft echte tijden),
      maar het wijkt af van het besluit van Trias. Richting: de identiteit op Windows betrouwbaar maken, of de afwijking
-     vastleggen met een test. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+     vastleggen met een test. Uit #872 (ronde 4 en 5, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
 1048. **VERVOLG: IFC Toepassen bewaart een letterlijke keuze die nog nooit is opgeslagen.** IFC Toepassen
      (`fileSlice.ts`, de samenvoeging met `mergeLiteralCalendarIds`) neemt de letterlijke kalenders uit de toegepaste

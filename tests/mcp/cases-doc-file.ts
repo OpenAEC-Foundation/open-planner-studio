@@ -599,6 +599,27 @@ test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (know
     useAppStore.setState((s) => { s.ui.aiPaused = false; });
   }
   assertEq(pausedErr.code, 'PAUSED', 'pauze tijdens het wachten op de lock wint');
+  // Review #872 ronde 5 (Sol): ook alleen-lezen, een dialoog, de sluitvraag en een documentwissel tijdens het wachten.
+  const ownDoc = S().activeDocumentId;
+  for (const [code, during, undo] of [
+    ['READ_ONLY', () => useAppStore.setState((s) => { s.ui.aiReadOnly = true; }), () => useAppStore.setState((s) => { s.ui.aiReadOnly = false; })],
+    ['DIALOG_OPEN', () => useAppStore.setState((s) => { s.ui.showProjectSettings = true; }), () => useAppStore.setState((s) => { s.ui.showProjectSettings = false; })],
+    ['DIALOG_OPEN', () => useAppStore.setState((s) => { s.ui.pendingCloseDocId = ownDoc; }), () => useAppStore.setState((s) => { s.ui.pendingCloseDocId = null; })],
+  ] as const) {
+    let err: McpToolErr;
+    try { err = await waitFor(during); } finally { undo(); }
+    assertEq(err.code, code, `${code} tijdens het wachten op de lock wint, en er is niets geschreven`);
+  }
+  {
+    let switchErr: McpToolErr;
+    try {
+      switchErr = await waitFor(() => { S().newDocument(); });
+    } finally {
+      S().switchDocument(ownDoc);
+    }
+    assert(['DOC_DRIFT', 'VALIDATION'].includes(switchErr.code), `een documentwissel tijdens het wachten weigert (${switchErr.code})`);
+    assertEq(S().activeDocumentId, ownDoc, 'terug op het eigen document');
+  }
   const changedErr = await waitFor(() => { S().addTask({ name: 'Tussendoor' }); });
   assertEq(changedErr.code, 'VALIDATION', 'een gewijzigd document tijdens het wachten ⇒ validatiefout');
   assert(changedErr.error.includes('changed while the export waited'), 'de Engelse fout zegt waarom');
