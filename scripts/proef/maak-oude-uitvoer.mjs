@@ -38,6 +38,13 @@ const JOBS = [
   },
   { tag: 'v2026.9.0', example: '10-villa-wassenaar.ifc', call: 'writeIFC({ ...r })' },
   { tag: 'v2026.43.0', example: '10-villa-wassenaar.ifc', call: 'writeIFC({ ...r })' },
+  // #870 ronde 8 (Trias, wrakko 10 november 2026): v2026.7.12 is de laatste tag die naam, auteur en bedrijf rauw in
+  // FILE_NAME schreef (771db15cb ontsnapte ze pas in v2026.7.13). Een apostrof of `DATA;` in de projectnaam maakt de kop
+  // kapot; zulke eigen bestanden moeten blijven opslaan.
+  { tag: 'v2026.7.12', label: 'v2026.7.12-ohara', example: 'showcase-verbouwing-eengezinswoning.ifc',
+    call: `writeIFC({ ...r, project: { ...r.project, name: "O'Hara Tower" } })` },
+  { tag: 'v2026.7.12', label: 'v2026.7.12-data', example: 'showcase-verbouwing-eengezinswoning.ifc',
+    call: `writeIFC({ ...r, project: { ...r.project, name: 'Fase DATA; Noord' } })` },
 ];
 
 // Vaste klok: de writer zet `new Date()` in de kop, de owner history en de werkplannen.

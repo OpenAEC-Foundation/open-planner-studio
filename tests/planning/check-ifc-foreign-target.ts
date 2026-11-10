@@ -1111,20 +1111,51 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
     // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam. In ronde 3 gaf de doelcontrole hier "no-model" en
     // schreven Opslaan als, CSV en AutoSave over het model heen. De eigen planning met zo'n naam blijft een doel.
-    // Ronde 6: de kapotte naam breekt de grammatica; dan weigert het doel als niet leesbaar, ook de eigen planning.
+    // Ronde 6: de kapotte naam breekt de grammatica; dan weigert het doel als niet leesbaar.
+    // Ronde 8 (besluit Trias, wrakko 10 november 2026): OPS v2026.2.0 tot en met v2026.7.12 schreef de naam rauw (commit
+    // 771db15cb). Voor een eigen bestand geldt daarom de regel van main: het blijft een doel. Alleen een naam met een
+    // regeleinde valt daarbuiten (de regel met FILE_NAME eindigt dan niet met originating_system 'Open Planner Studio').
     ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
-    ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
+    ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text),
+      refuse: name === 'naam-regeleinde' ? 'unreadable' as const : null })),
+    // Ronde 8 (Trias): echte bestanden van de writer van v2026.7.12 (`scripts/proef/maak-oude-uitvoer.mjs`), met de
+    // projectnaam `O'Hara Tower` (kapotte kop) en `Fase DATA; Noord`. Ze blijven een doel.
+    ...['ohara', 'data'].map(naam => ({ name: `eigen-naam-v2026.7.12-${naam}`, refuse: null,
+      bytes: new Uint8Array(readFileSync(join(ROOT, `tests/planning/fixtures/oude-tags/v2026.7.12-${naam}-showcase-verbouwing-eengezinswoning.ifc`))) })),
   ];
   const cancelled = { ok: true, warnings: [], cancelled: true };
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.
   const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
   for (const t of targets) {
-    // Ronde 6 (besluit Trias): hetzelfde bestand opent zoals main (de eigen planning met al haar 20 taken), en weigert
-    // als doel (hieronder).
+    // Ronde 6 (besluit Trias): hetzelfde bestand opent zoals main (de eigen planning met al haar 20 taken). Als doel
+    // (hieronder): de regel van main, behalve met een regeleinde in de naam (ronde 8).
     if (t.name.startsWith('eigen-naam')) {
       const opened = await open(`${t.name}.ifc`, t.bytes, null);
       eq(`fixronde 4, ${t.name}: opent zoals main, met 20 taken en zonder modelweigering`,
         [opened.getState().tasks.length, modelNotices(opened).length], [20, 0]);
+      // Ronde 8 (besluit Trias): Ctrl+S en AutoSave naar dat eigen bestand zelf werken (de regel van main), behalve met
+      // een regeleinde in de naam: dan weigert de doelcontrole en blijft het document gewijzigd.
+      for (const route of ['Ctrl+S', 'AutoSave'] as const) {
+        const self = fakeHandle(`${t.name}-zelf.ifc`, t.bytes);
+        const selfStore = await open(`${t.name}-zelf.ifc`, t.bytes, { kind: 'handle', handle: self.handle });
+        const D = () => selfStore.getState();
+        D().addTask({ name: 'Nieuw werk' });
+        if (route === 'Ctrl+S') await D().saveFile();
+        else {
+          D().setAutoSaveToFile(true);
+          await createFileAutoSaveController({ getState: D, enabled: () => true }).flush();
+        }
+        eq(`ronde 8, ${t.name}: ${route} naar het eigen bestand ${t.refuse ? 'weigert' : 'schrijft'}`,
+          [self.writes.length, D().isDirty], t.refuse ? [0, true] : [1, false]);
+      }
+      // En een IFC-export over dat bestand, vanuit een andere planning.
+      const other = await open('ander.ifc', showcase, null);
+      const exportTarget = fakeHandle(`${t.name}-export.ifc`, t.bytes, { streamChunk: 64 << 10 });
+      pick = exportTarget;
+      await other.getState().exportAs('ifc');
+      pick = null;
+      eq(`ronde 8, ${t.name}: IFC-export over het bestand ${t.refuse ? 'weigert' : 'schrijft'}`,
+        exportTarget.writes.length, t.refuse ? 0 : 1);
     }
     const own = fakeHandle('eigen.ifc', showcase);
     const store = await open('eigen.ifc', showcase, { kind: 'handle', handle: own.handle });

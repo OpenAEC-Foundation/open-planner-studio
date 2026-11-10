@@ -22,7 +22,7 @@ import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
-import { indexOfStepDataSection, stepDataSectionBounds, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
+import { indexOfStepDataSection, stepFileLayout, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
@@ -192,11 +192,13 @@ export function readIFC(
 ): ImportResult {
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
-  const entities = parseSTEP(content);
+  const { entities, gramModel, dataAt } = parseSTEP(content);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
-  // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
-  if (!options.skipBuildingModelGuard && entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
+  // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar. Past het hele bestand in de
+  // grammatica (`stepFileGrammar.ts`, #870), dan telt ook een modeltype dat de grammatica zag: in een complexe
+  // instantie, of na een string die de lus hieronder anders leest (knownbug 1050).
+  if (!options.skipBuildingModelGuard && (gramModel || entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type)))) {
     throw new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
       'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
   }
@@ -224,7 +226,7 @@ export function readIFC(
   // IFC4- of IFC4X3-bestand bij opslaan in zijn eigen schema blijft. Een ander schema (IFC2X3,
   // IFC4X3_ADD1, …) laat het veld weg: dan schrijft opslaan de standaard. Of het eerste opslaan eerst
   // vraagt, volgt hieronder na de psets (`ifcSchemaUnconfirmed`).
-  const fileSchemaName = readFileSchemaName(content);
+  const fileSchemaName = readFileSchemaName(content, dataAt);
   if (isIfcSchemaId(fileSchemaName)) project.ifcSchema = fileSchemaName;
   // "Openen met melding": het XER-bronarchief is een sidecar, geen
   // fundament. Is het onbruikbaar, dan vallen archief, selector, XER-metadata en de daaruit
@@ -1092,8 +1094,10 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
  *     ONGEBALANCEERDE apostrof). De quote-bewuste scan loopt daar uit de pas ⇒ zonder terugval stil
  *     een leeg project.
  *
- * Breekt de grammatica, dan raadt (1) niet (besluit Trias, review van #870 ronde 6): (2) en (3) zijn precies main, dus
- * zo'n bestand opent zoals op main. De doelcontrole schrijft dan niet over het bestand (`targetModelScan.ts`).
+ * Alleen als het HELE bestand in de grammatica past (`stepFileGrammar.ts`), telt (1) eerst. Breekt het bestand, dan
+ * raadt de lezer niet (besluit Trias, review van #870 ronde 7): (2) en (3) zijn precies main, dus zo'n bestand opent
+ * zoals op main. De doelcontrole schrijft dan niet over het bestand, behalve over een eigen bestand
+ * (`targetModelScan.ts`).
  *
  * Niet andersom: regelverankering als PRIMAIRE scan weigert geldige bestanden uit (1) en pikt een
  * `DATA;` op aan het begin van een regel binnen een commentaar of een header-string met een echt
@@ -1106,17 +1110,20 @@ function indexOfDataSection(content: string): number {
   return indexOfStepDataSection(content);
 }
 
-// #804 fase 1a, fixronde 4: de doelcontrole (`foreign/targetModelScan.ts`) volgt `stripStepComments`, deze lus en
-// `readEntity` als stroom van bytes; ze moet "model" zeggen precies als `readIFC` met `building-model` weigert. Delen kon
-// niet zonder deze functies om te bouwen tot een stroomlezer (ze werken op de hele tekst, met terugspringen).
+// #804 fase 1a, fixronde 4: voor een eigen bestand dat niet in de grammatica past, volgt de doelcontrole
+// (`foreign/targetModelScan.ts`) `stripStepComments`, deze lus en `readEntity` als stroom van bytes; ze zegt dan "model"
+// precies als `readIFC` met `building-model` weigert. Delen kon niet zonder deze functies om te bouwen tot een
+// stroomlezer (ze werken op de hele tekst, met terugspringen).
 // `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
 // Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, alle DATA-secties), wijzig ze daar ook.
-function parseSTEP(content: string): StepEntity[] {
+function parseSTEP(content: string): { entities: StepEntity[]; gramModel: boolean; dataAt: number } {
   const entities: StepEntity[] = [];
   // 1. Begin van de datasectie (`DATA;` of `DATA(…);`, ook met witruimte of commentaar ertussen; `stepDataSection.ts`)
   //    — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee. De lus begint direct na de `;` van de kop:
   //    de parameters van de sectiekop komen er niet in.
-  const data = stepDataSectionBounds(content);
+  //    Past het hele bestand in de grammatica, dan de eerste DATAKOP daarvan; breekt het, dan precies main.
+  const layout = stepFileLayout(content);
+  const data = layout.bounds;
   // Geen sectiegrens ⇒ getypeerde fout, GEEN leeg resultaat. `openFile`/`useRecoveryRestore` tonen
   // dan de leesfout in plaats van een leeg document te openen bovenop het pad van de gebruiker.
   if (!data) {
@@ -1149,7 +1156,7 @@ function parseSTEP(content: string): StepEntity[] {
     i++;
   }
 
-  return entities;
+  return { entities, gramModel: layout.valid && layout.model, dataAt: data.at };
 }
 
 /**
@@ -1159,8 +1166,9 @@ function parseSTEP(content: string): StepEntity[] {
  * eigen bestanden met een ongebalanceerde apostrof in `FILE_NAME` (zie `indexOfDataSection`) vallen
  * terug op een regel-verankerde match.
  */
-export function readFileSchemaName(content: string): string | undefined {
-  const dataAt = indexOfDataSection(content);
+export function readFileSchemaName(content: string, knownDataAt?: number): string | undefined {
+  // `readIFC` kent het begin van de datasectie al (`parseSTEP`): geen tweede pas over het hele bestand.
+  const dataAt = knownDataAt ?? indexOfDataSection(content);
   const header = dataAt >= 0 ? content.slice(0, dataAt) : content;
   let name: string | undefined;
   const at = indexOfCode(header, 'FILE_SCHEMA', 0);
@@ -3840,7 +3848,7 @@ function extractTimephasedDurationWalksMeta(
  * `profileAfterRead` (in `readIFC`).
  */
 export function readSchedulingProfile(content: string): SchedulingProfile | undefined {
-  const entities = parseSTEP(content);
+  const { entities } = parseSTEP(content);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) entityMap.set(e.id, e);
   return extractSchedulingProfile(entities, entityMap);

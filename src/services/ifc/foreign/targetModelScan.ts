@@ -4,43 +4,46 @@
 // `IFC_BUILDING_MODEL_TYPES`), dan schrijft de app niet. Zo is ook een gewijzigde modelversie, of een modelbestand dat
 // niet open is, beschermd.
 //
-// De regel (Trias, fixronde 4): de doelcontrole zegt 'model' precies als `readIFC` het bestand weigert met
-// `building-model`. Daarom volgt deze lezer de route van `readIFC` stap voor stap, als stroom van bytes:
-//  1. de kop: `assertIfcIntegrity` (BOM, witruimte, `ISO-10303-21;`; de kopregel uit `stepDataSection.ts`);
-//  2. het begin van de datasectie: dezelfde `StepDataSectionFinder` als `indexOfDataSection` (`stepDataSection.ts`;
-//     eis van Trias: één bron). Alleen de sectiekop volgens de grammatica van de norm telt: breekt de grammatica, of
-//     vindt de lezer geen datasectie, dan is de uitkomst 'unreadable' (besluit Trias, wrakko 10 november 2026). `readIFC`
-//     opent zo'n bestand met de regels van main; de doelcontrole raadt niet;
-//  3. na `DATA;`: commentaar weg, zoals `stripStepComments`;
-//  4. de lus van `parseSTEP` met `readEntity`: op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen
-//     (`#id = TYPE (…) ;`, met haakjes op diepte, strings en commentaar in de argumenten), tot het einde van het
-//     bestand: `parseSTEP` leest alle DATA-secties (ISO 10303-21 staat er meer toe), dus ook na `ENDSEC;`.
-//     Mislukt een entiteit, dan leest `readIFC` verder vanaf het teken na de `#`; deze lezer spoelt daarvoor terug
-//     (uit het geheugen, of door de bron opnieuw te lezen vanaf die positie).
-// Stap 3 en 4 zijn een tweede vorm van de regels in `ifcReader.ts` (`stripStepComments`, `parseSTEP`, `readEntity`):
-// die werken op de hele tekst, deze als stroom. Delen kon niet zonder `parseSTEP` om te bouwen.
-// `check-ifc-target-model-scan.ts` vergelijkt beide op het hele corpus en op willekeurige invoer (verschiltest).
-// Wijzig je de regels daar, wijzig ze dan hier ook.
+// De regel (besluit Trias, wrakko 10 november 2026, review van #870 ronde 7): de lezer leest het hele bestand met de
+// grammatica van ISO 10303-21 (`stepFileGrammar.ts`, dezelfde code als `readIFC`), als stroom van bytes:
+//  1. de kop: `assertIfcIntegrity` (BOM, witruimte, `ISO-10303-21;`; de kopregel uit `stepDataSection.ts`). Een ander
+//     eerste statement is 'not-ifc';
+//  2. ziet de grammatica een entiteit met een modeltype (ook als deel van een complexe instantie, en ook vóór het
+//     bestand ergens breekt): 'model', meteen;
+//  3. past het hele bestand in de grammatica: 'no-model' (zonder datasectie: 'unreadable', zoals `readIFC` weigert);
+//  4. breekt het bestand, en is het van een ander programma: 'unreadable'. Bij twijfel weigeren (de regel van #867);
+//  5. breekt het bestand, en schreef OPS het (de vaste kop van OPS, en de regel met FILE_NAME eindigt met
+//     originating_system 'Open Planner Studio'): de regel van main, zodat de planner kan blijven opslaan. OPS
+//     v2026.2.0 tot en met v2026.7.12 schreef naam, auteur en bedrijf rauw in FILE_NAME (commit 771db15cb), en oudere
+//     versies schreven ook andere dingen buiten de norm (zoals `IFCREAL(NaN)`). De lezer leest dan zoals `readIFC` zo'n
+//     bestand leest: vanaf het begin van de datasectie volgens main (`StepDataSectionFinder`, poging 2, anders 3), met
+//     de lus van `parseSTEP`:
+//      a. commentaar weg, zoals `stripStepComments`;
+//      b. op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen (`#id = TYPE (…) ;`, met haakjes op diepte,
+//         strings en commentaar in de argumenten), tot het einde van het bestand (alle DATA-secties). Mislukt een
+//         entiteit, dan leest `readIFC` verder vanaf het teken na de `#`; deze lezer spoelt daarvoor terug (uit het
+//         geheugen, of door de bron opnieuw te lezen vanaf die positie).
+//     Dan zegt de lezer 'model' precies als `readIFC` het bestand weigert met `building-model`. Stap a en b zijn een
+//     tweede vorm van de regels in `ifcReader.ts` (`stripStepComments`, `parseSTEP`, `readEntity`): die werken op de hele
+//     tekst, deze als stroom. `check-ifc-target-model-scan.ts` vergelijkt beide. Wijzig je de regels daar, wijzig ze
+//     dan hier ook.
 //
 // De uitkomst en wat hij betekent (fixronde 3: een scan zonder uitkomst is geen vrijbrief):
-//  - 'model': een entiteit met een modeltype op de route van `readIFC`. Niet schrijven.
-//  - 'no-model': de lezer las het HELE bestand (alle DATA-secties) zonder modelentiteit. Schrijven mag.
+//  - 'model': niet schrijven.
+//  - 'no-model': de lezer las het HELE bestand zonder modelentiteit. Schrijven mag.
 //  - 'not-ifc': het bestand begint niet met `ISO-10303-21;` (CSV, XML, JSON, een leeg bestand). Schrijven mag.
-//  - 'unreadable': een STEP-bestand waarin de grammatica geen datasectie vindt (een kapotte kop, geen `DATA`). Niet
-//    schrijven: een scan zonder uitkomst is geen vrijbrief.
-// Een andere uitkomst bestaat niet: 'no-model' komt alleen aan het einde van het bestand. Stopt het lezen vóór het einde
-// (een leesfout), dan is er geen uitkomst; de aanroeper telt dat als "niet leesbaar".
+//  - 'unreadable': een STEP-bestand dat de lezer niet betrouwbaar kan lezen. Niet schrijven.
+// Een andere uitkomst bestaat niet. Stopt het lezen vóór het einde (een leesfout), dan is er geen uitkomst; de aanroeper
+// telt dat als "niet leesbaar".
 //
-// Bewust strenger dan `readIFC` (besluit; dan weigert de app een write die de lezer zou toestaan, nooit andersom):
-//  - een complexe instantie `#n=(A(…)B(…));` met een modeltype als deeltype telt als model (fixronde 3). `readIFC` ziet
-//    zo'n instantie niet; een geldig IFC bevat ze niet (knownbug 1016);
-//  - een bestand dat `readIFC` niet kan openen, maar dat wel een modelentiteit heeft: commentaar vóór de kop (de regel
-//    van fixronde 3: het eerste statement telt), of geen `END-ISO-10303-21;` aan het einde (afgekapt). De lezer kijkt
-//    niet naar de sluitmarkering: dan zou hij nooit vroeg kunnen stoppen.
+// Bewust strenger dan `readIFC` (dan weigert de app een write die de lezer zou toestaan, nooit andersom): commentaar
+// vóór de kop (fixronde 3: het eerste statement telt) met een modelentiteit; een modelentiteit vóór het punt waar het
+// bestand breekt; en elk bestand van een ander programma dat breekt.
 //
 // De lezer stopt bij de eerste modelentiteit. Een groot bestand zonder model leest hij helemaal, maar als stroom.
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { STEP_HEADER, StepDataSectionFinder, startsWithStepHeader } from '../stepDataSection';
+import { StepFileGrammar } from '../stepFileGrammar';
 
 /** Uitkomst van de controle; zie de kop van dit bestand voor de betekenis. */
 export type TargetModelScan = 'model' | 'no-model' | 'not-ifc' | 'unreadable';
@@ -103,6 +106,12 @@ for (const type of IFC_BUILDING_MODEL_TYPES) {
   MODEL_HASH[h & 0xffff] = 1;
 }
 const EMPTY = new Uint8Array(0);
+/** Zo begint elk bestand dat OPS schreef (alle versies), tot en met `FILE_NAME(`; regeleinde `\n` (of `\r\n`). */
+const OPS_HEAD = "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\nFILE_NAME(";
+/** Zo eindigt de regel met FILE_NAME in elk bestand dat OPS schreef: originating_system 'Open Planner Studio'. */
+const OPS_NAME_END = ",'Open Planner Studio 0.1','Open Planner Studio','');";
+/** Zoveel bytes vooraan houdt de lezer vast voor de herkenning van een eigen bestand. */
+const OPS_PREFIX_MAX = 64 << 10;
 
 const upper = (b: number) => (b >= 0x61 && b <= 0x7a ? b - 0x20 : b);
 /** `isWordCode` en `isSpaceCode` van `ifcReader.ts`. */
@@ -157,7 +166,15 @@ export class TargetModelScanner {
   private firstOk: boolean | null = null;
   // ── Datasectie zoeken ──
   private phase = Phase.Find;
+  /** De grammatica van het hele bestand (`stepFileGrammar.ts`). */
+  private readonly grammar = new StepFileGrammar(true);
+  /** De regels van main voor het begin van de datasectie (poging 2 en 3), voor een eigen bestand dat breekt. */
   private readonly finder = new StepDataSectionFinder(true);
+  /** De eerste bytes, voor de herkenning van een eigen bestand. */
+  private readonly prefix = new Uint8Array(OPS_PREFIX_MAX);
+  private prefixLength = 0;
+  /** Schreef OPS dit bestand? `null` = nog niet bekend. Alleen nodig als de grammatica breekt. */
+  private ops: boolean | null = null;
   private modelPending = false;
   /** De grammatica vond geen datasectie, maar de kop is nog niet beslist (een heel kort bestand): wachten. */
   private unreadablePending = false;
@@ -243,7 +260,10 @@ export class TargetModelScanner {
 
   /** Houd alleen vast wat terugspoelen nog nodig heeft: vanaf het teken na de `#` van een lopende entiteit. */
   private trim(): void {
-    const pending = this.phase === Phase.Find ? this.finder.pendingFrom : -1;
+    // Een eigen bestand kan nog breken: dan leest de lezer vanaf de regel van main (poging 2, anders 3). Houd dat deel
+    // vast, zodat hij niet opnieuw hoeft te lezen. Zolang niet bekend is of het een eigen bestand is: alles.
+    const main = this.finder.mainEnd >= 0 ? this.finder.mainEnd : this.finder.lineEnd;
+    const pending = this.phase !== Phase.Find ? -1 : this.ops === null ? 0 : this.ops ? main : -1;
     const keep = this.phase === Phase.Data && this.loop === Loop.Entity ? this.entAt + 1
       : pending >= 0 ? Math.min(pending, this.pos) : this.pos;
     while (this.first < this.chunks.length && this.bases[this.first] + this.chunks[this.first].length <= keep) {
@@ -422,20 +442,72 @@ export class TargetModelScanner {
 
   private findPass(chunk: Uint8Array, start: number, base: number): void {
     const n = chunk.length;
+    const grammar = this.grammar;
     for (let i = start; i < n; i++) {
-      const strict = this.frontByte(chunk[i], base + i);
+      const b = chunk[i];
+      const abs = base + i;
+      this.frontByte(b, abs);
       if (this.result !== null) return;
-      if (this.finder.grammarFailed) { this.unreadable(); this.pos = base + i + 1; return; }
-      if (strict) {
-        // `readIFC` leest vanaf de sectiekop van de grammatica: de datasectie begint direct na de `;` van de kop. De
-        // vinder meldt dat pas na het volgende token; de lezer gaat terug naar die positie.
-        this.startData();
-        this.moveTo(this.finder.strictEnd);
-        this.jumped = false;
-        return;
+      if (this.prefixLength === abs && abs < OPS_PREFIX_MAX) {
+        this.prefix[this.prefixLength++] = b;
+        if (this.ops === null && (b === 0x0a || this.prefixLength === OPS_PREFIX_MAX)) this.ops = this.isOwnFile(false);
       }
+      if (!grammar.failed) {
+        grammar.step(b, abs);
+        if (grammar.model) { this.pos = abs + 1; this.found(); return; }
+        if (!grammar.failed) continue;
+      }
+      if (this.brokenFile(false, abs + 1)) return;
     }
     this.pos = base + n;
+  }
+
+  /**
+   * De grammatica brak. Een bestand van een ander programma: 'unreadable'. Een eigen bestand (oude versies schreven de
+   * kop rauw, besluit Trias, wrakko 10 november 2026): de regel van main, zodat de planner kan blijven opslaan. De lezer
+   * leest dan vanaf het begin van de datasectie volgens main (poging 2, anders 3), met de lus van `parseSTEP`; zo zegt
+   * hij 'model' precies als `readIFC` het bestand weigert. `true` als de lezer van plaats verandert of klaar is.
+   */
+  private brokenFile(atEof: boolean, next: number): boolean {
+    if (this.ops === null) this.ops = this.isOwnFile(atEof);
+    if (this.ops === false) { this.unreadable(); this.pos = next; return true; }
+    if (this.ops === null) return false; // de regel met FILE_NAME is nog niet compleet
+    const end = this.finder.mainEnd >= 0 ? this.finder.mainEnd : atEof ? this.finder.fallback?.end ?? -1 : -1;
+    if (end < 0) {
+      if (!atEof) return false; // poging 2 vond nog niets: verder lezen (poging 3 telt pas aan het einde)
+      this.unreadable();
+      return true;
+    }
+    this.startData();
+    this.moveTo(end);
+    this.jumped = false;
+    return true;
+  }
+
+  /** Schreef OPS dit bestand? Vooraan staat de kop van OPS, en de regel met FILE_NAME eindigt met originating_system
+   *  'Open Planner Studio'. `null`: nog niet te zeggen (de bytes zijn er nog niet). */
+  private isOwnFile(atEof: boolean): boolean | null {
+    let k = 0;
+    const p = this.prefix;
+    const length = this.prefixLength;
+    const complete = atEof || length === OPS_PREFIX_MAX;
+    // Een BOM vooraan: de decoder haalt hem weg.
+    if (length >= 3 && p[0] === BOM[0] && p[1] === BOM[1] && p[2] === BOM[2]) k = 3;
+    // De vaste kop, met `\r\n` of `\n`.
+    for (let h = 0; h < OPS_HEAD.length; h++, k++) {
+      const want = OPS_HEAD.charCodeAt(h);
+      if (want === 0x0a && k < length && p[k] === 0x0d) k++;
+      if (k >= length) return complete ? false : null;
+      if (p[k] !== want) return false;
+    }
+    // De rest van de regel met FILE_NAME.
+    let lineEnd = k;
+    while (lineEnd < length && p[lineEnd] !== 0x0a && p[lineEnd] !== 0x0d) lineEnd++;
+    if (lineEnd === length) return complete ? false : null;
+    const tail = OPS_NAME_END.length;
+    if (lineEnd - k < tail) return false;
+    for (let t = 0; t < tail; t++) if (p[lineEnd - tail + t] !== OPS_NAME_END.charCodeAt(t)) return false;
+    return true;
   }
 
   /** De grammatica vond geen datasectie: 'unreadable', zodra de kop beslist is (een andere kop is 'not-ifc'). */
@@ -460,9 +532,14 @@ export class TargetModelScanner {
     if (this.modelPending) { this.result = 'model'; return false; }
     if (this.unreadablePending) { this.result = 'unreadable'; return false; }
     if (this.phase === Phase.Find) {
-      // Een sectiekop van de grammatica met niets erna: geen entiteit. Anders vond de grammatica geen datasectie.
-      this.result = this.finder.grammarAtEnd ? 'no-model' : 'unreadable';
-      return false;
+      // Het hele bestand past in de grammatica, zonder modelentiteit (die had de lezer al gemeld): schrijven mag.
+      // Zonder datasectie weigert `readIFC` het bestand: dan ook geen vrijbrief (besluit Trias, review van #870 ronde 6).
+      if (!this.grammar.failed && this.grammar.end(this.pos) === 'valid') {
+        this.result = this.grammar.dataAt >= 0 ? 'no-model' : 'unreadable';
+        return false;
+      }
+      this.brokenFile(true, this.pos);
+      return this.result === null;
     }
     if (this.strip === Strip.Slash) {
       // `stripStepComments`: een `/` aan het einde blijft staan.

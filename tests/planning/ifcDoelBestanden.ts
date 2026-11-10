@@ -66,8 +66,9 @@ export interface DataKopVorm {
   uitbreiding?: string;
   /** De scanner achter de flag (`stepScanner.ts`, #804) weigert deze vorm en valt terug op de gewone route. */
   scannerWeigert?: true;
-  /** Alleen vóór de eerste datasectie. Tussen twee datasecties leest `parseSTEP` commentaar nog zoals main: een
-   *  regeleinde in `/*` of `*\/` ziet hij niet als commentaargrens (knownbug 1050, ook op main met één sectie). */
+  /** Alleen vóór de eerste datasectie (een ANCHOR-sectie hoort daar, tabel 3). Sinds ronde 8 staan de vormen met een
+   *  regeleinde in `/*` of `*\/` en met `\S\'` ook tussen twee datasecties: de grammatica van het hele bestand leest
+   *  ze volgens de norm, ook waar de lus van `parseSTEP` dat nog niet doet (knownbug 1050). */
   eersteSectie?: true;
   /** Het implementatieniveau dat de vorm vraagt (§8.2.2): een ANCHOR-sectie vraagt `4;1`. Anders `3;1` bij parameters. */
   niveau?: '4;1';
@@ -93,12 +94,16 @@ export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
   { id: 'param-ruimte-binnen', norm: 'witruimte tussen de parameters en vóór ;', kop: "DATA( 'deel {n}' , ( 'IFC4X3_ADD2' ) ) ;" },
   { id: 'param-commentaar-binnen', norm: 'commentaar tussen de parameters en vóór ;', kop: "DATA(/*a*/'deel {n}'/*b*/,/*c*/('IFC4X3_ADD2')/*d*/)/*e*/;" },
   // Review van #870, ronde 6 (Sol, BLOKKEERT): `\S\'` is één teken in de string (§6.4.3); de `'` erna sluit de naam.
-  // Alleen vóór de eerste sectie: tussen twee secties leest de lexer van main de kop (knownbug 1050).
+  // Ronde 7 (Terra, BLOKKEERT): ook in de kop van de tweede sectie; de lexer van `parseSTEP` leest die kop anders
+  // (knownbug 1050) en zag de wand niet. Ronde 8: de grammatica van het hele bestand ziet hem wel. `\S\` vraagt
+  // niveau 4;1 (§8.2.2; Sol, ronde 7).
   { id: 'param-string-afdrukcode', norm: "string met \\S\\' in de naam", kop: "DATA('deel {n} \\S\\'',('IFC4X3_ADD2'));", scannerWeigert: true,
-    eersteSectie: true },
+    niveau: '4;1' },
   // Review van #870, ronde 6 (Terra, VERVOLG): commentaar en witruimte op elke plaats binnen de lijst met schema's.
   { id: 'param-commentaar-lijst', norm: "commentaar en regeleindes binnen de lijst met schema's", kop: "DATA('deel {n}'\n,(/*a*/\n'IFC4X3_ADD2'/*b*/\n,/*c*/'IFC4'\n)/*d*/\n);",
     uitbreiding: 'de lijst heeft precies één schemanaam (§11.1)' },
+  // Ronde 7 (Sol, VERVOLG): dezelfde opmaak binnen de norm, met precies één schema.
+  { id: 'param-commentaar-lijst-een', norm: "commentaar en regeleindes binnen de lijst met één schema", kop: "DATA('deel {n}'\n,(/*a*/\n'IFC4X3_ADD2'/*b*/\n)/*d*/\n);" },
   { id: 'param-lijst', norm: "meer schema's in de lijst", kop: "DATA('deel {n}',('IFC4X3_ADD2','IFC4'));",
     uitbreiding: 'de lijst heeft precies één schemanaam (§11.1)' },
   { id: 'param-string-lastig', norm: "string met '', DATA(, ENDSEC; en een entiteit", kop: "DATA('deel {n}''s DATA( ENDSEC; #9=IFCWALL($);',('IFC4X3_ADD2'));" },
@@ -120,9 +125,10 @@ export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
     uitbreiding: 'ENDSEC; is één token (§6.2); scheiding mag er niet in (§5.6)' },
   { id: 'afdrukcode-voor-haakje', norm: 'afdrukcode \\F\\ vóór (', kop: `DATA\\F\\${P};`, scannerWeigert: true },
   { id: 'afdrukcode-voor-puntkomma', norm: 'afdrukcode \\N\\ vóór ;', kop: 'DATA\\N\\;', scannerWeigert: true },
-  // Review ronde 5 (Sol en Terra): stuurtekens vallen weg vóór de regels voor commentaar en strings (§5.2, §5.6).
-  { id: 'regeleinde-in-commentaaropening', norm: 'regeleinde tussen / en *, met DATA; en een apostrof in het commentaar', kop: `DATA${P};`, overgang: "ENDSEC;/\n* DATA; ' */", scannerWeigert: true, eersteSectie: true },
-  { id: 'regeleinde-in-commentaarsluiting', norm: 'regeleinde tussen * en / van het commentaar', kop: `DATA${P};`, overgang: 'ENDSEC; /* a *\n/ ', scannerWeigert: true, eersteSectie: true },
+  // Review ronde 5 (Sol en Terra): stuurtekens vallen weg vóór de regels voor commentaar en strings (§5.2, §5.6). Ronde
+  // 8: ook tussen twee datasecties (de grammatica van het hele bestand).
+  { id: 'regeleinde-in-commentaaropening', norm: 'regeleinde tussen / en *, met DATA; en een apostrof in het commentaar', kop: `DATA${P};`, overgang: "ENDSEC;/\n* DATA; ' */", scannerWeigert: true },
+  { id: 'regeleinde-in-commentaarsluiting', norm: 'regeleinde tussen * en / van het commentaar', kop: `DATA${P};`, overgang: 'ENDSEC; /* a *\n/ ', scannerWeigert: true },
   { id: 'del-in-data', norm: 'U+007F midden in DATA', kop: `DA\x7fTA${P};`, scannerWeigert: true },
   { id: 'regeleinde-in-aanhalingsteken', norm: "regeleinde tussen de apostroffen van '' in FILE_NAME", naam: "Van '\n't Hof.ifc", kop: `DATA${P};`, overgang: 'ENDSEC;' },
   // Review ronde 5 (Sol): een ANCHOR-sectie vóór de eerste datasectie, met een string als waarde (tabel 3).
@@ -185,6 +191,10 @@ export const brokenNameFiles = (text: string): Array<[string, string]> => [
   // een regeleinde in de naam vóór `DATA (`. De valse kop klopt niet: de grammatica breekt, de vinder raadt niet.
   ['naam-zeven-parameters', text.replace(/FILE_NAME\('[^']*'/, () => "FILE_NAME('Van ', $, $, $, $, $, $); ENDSEC; DATA (bouw).ifc'")],
   ['naam-regeleinde', text.replace(/FILE_NAME\('[^']*'/, () => "FILE_NAME('Van 't Hof\n DATA (bouw).ifc'")],
+  // Ronde 7 (Sol en Terra, BLOKKEERT): een naam die de grammatica van de kop tot en met een valse, geldige DATAKOP volgt.
+  // De kop alleen gaf dan de valse grens; de grammatica van het hele bestand breekt erna (ronde 8).
+  ['naam-valse-kop-endsec', text.replace(/FILE_NAME\('[^']*'/, () => "FILE_NAME('Van ', $, $, $, $, $, $); ENDSEC; DATA ; ENDSEC (bouw).ifc'")],
+  ['naam-valse-kop-hekje', text.replace(/FILE_NAME\('[^']*'/, () => "FILE_NAME('Van ', $, $, $, $, $, $); ENDSEC; DATA('deel',('IFC4X3_ADD2')); # bouw.ifc'")],
 ];
 
 /** Terra (review ronde 4): de kapotte naam (`brokenHeader`) samen met elke kopvorm uit de norm. De omgedraaide

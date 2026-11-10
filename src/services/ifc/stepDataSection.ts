@@ -1,8 +1,8 @@
 // De kop en het begin van de datasectie van een STEP-bestand: de ENIGE regels daarvoor (#804 fase 1a, fixronde 4; eis
 // van Trias, wrakko 10 november 2026: één bron voor het zoeken naar `DATA;`). `readIFC` (`assertIfcIntegrity` en
 // `indexOfDataSection` in `ifcReader.ts`, op tekst) en de doelcontrole (`foreign/targetModelScan.ts`, als stroom van
-// bytes) gebruiken allebei deze code. Een tweede kopie van deze regels zou later uit elkaar lopen; dan zag de
-// doelcontrole een ander bestand dan de lezer.
+// bytes) gebruiken allebei deze code, en allebei de grammatica van het hele bestand in `stepFileGrammar.ts`. Een
+// tweede kopie van deze regels zou later uit elkaar lopen; dan zag de doelcontrole een ander bestand dan de lezer.
 //
 // De vinder zoekt de eerste datasectie in drie pogingen. De tabel met alle vormen van de kop staat in
 // `tests/planning/ifcDoelBestanden.ts` (`DATA_KOP_VORMEN`).
@@ -33,14 +33,19 @@
 //  3. Alleen als (1) en (2) niets vonden: de regel van main voor een kapotte kop, ongewijzigd: het eerste `DATA;` aan
 //     het begin van een regel, na spaties en tabs (`/^[ \t]*DATA;/im`). Een regel begint aan het begin van de tekst en
 //     na `\n`, `\r`, U+2028 en U+2029.
-// Breekt de grammatica, dan raadt de vinder niet (besluit Trias, wrakko 10 november 2026): (2) en (3) zijn precies wat
-// main deed, zodat een oud eigen bestand met zo'n kapotte naam opent zoals op main. Vindt geen poging iets, dan weigert
-// `readIFC` het bestand (`no-data-section`). De doelcontrole gebruikt alleen (1): vond die geen datasectie, dan weigert
-// zij het schrijven ('unreadable': "een scan zonder uitkomst is geen vrijbrief").
+// Welke poging telt, beslist `stepFileLayout` (besluit Trias, wrakko 10 november 2026, review van #870 ronde 7): past
+// het HELE bestand in de grammatica (`stepFileGrammar.ts`), dan de eerste DATAKOP daarvan (gelijk aan poging 1). Breekt
+// het bestand, dan raadt de app niet: (2) en (3) zijn precies wat main deed, zodat een oud eigen bestand met een kapotte
+// naam opent zoals op main. Alleen als die niets vinden, telt (1) (de DATAKOP-vormen die main niet kende). Vindt geen
+// poging iets, dan weigert `readIFC` het bestand (`no-data-section`). Ronde 7 liet zien waarom de kop alleen niet
+// genoeg is: een kapotte naam kan de grammatica tot en met een valse, geldige DATAKOP volgen. De doelcontrole
+// (`foreign/targetModelScan.ts`) gebruikt deze vinder alleen voor een eigen bestand dat breekt (poging 2 en 3).
 //
 // De vinder leest teken voor teken (`step`), zodat een stroom hem in stukken kan voeden. Als UTF-16-tekst (`readIFC`) is
 // elk teken een code-eenheid; als UTF-8-bytes (de doelcontrole) is elk teken een byte, en de bytes `E2 80 A8` en
 // `E2 80 A9` zijn U+2028 en U+2029. Andere niet-ASCII-tekens zijn gewone tekens: alleen ASCII telt in deze regels.
+
+import { stepFileGrammar } from './stepFileGrammar';
 
 /** De verplichte kop van een STEP-bestand. */
 export const STEP_HEADER = 'ISO-10303-21;';
@@ -302,19 +307,21 @@ export class StepDataSectionFinder {
     return this.lexStep(c, at);
   }
 
-  /** De vroegste positie die de vinder nog als begin van de datasectie kan melden (voor terugspoelen), of -1. */
-  get pendingFrom(): number {
-    return this.head && this.head.end >= 0 ? this.head.end : -1;
-  }
-
   /** Poging 1 aan het einde van de tekst: een sectiekop met niets erna. Pas aan het einde van de tekst definitief. */
   get grammarAtEnd(): { at: number; end: number } | null {
     return this.head?.okAtEnd ? { at: this.keywordAt, end: this.head.end } : null;
   }
 
-  /** Poging 1 vindt niets meer: de grammatica brak, of er kwam geen datasectie. */
-  get grammarFailed(): boolean {
-    return this.sec === Sec.Stop && this.strictAt < 0 && this.head === null;
+  /** Waar de datasectie begint volgens poging 2 (het eerste `DATA;` op codeniveau), zodra die iets vond; anders -1.
+   *  Die treffer is meteen definitief: poging 3 telt alleen als poging 2 in het hele bestand niets vindt. */
+  get mainEnd(): number {
+    return this.oldEnd;
+  }
+
+  /** Waar de datasectie begint volgens poging 3 (het eerste `DATA;` aan het begin van een regel), of -1. Telt alleen
+   *  als poging 2 in het hele bestand niets vindt. */
+  get lineEnd(): number {
+    return this.anchored < 0 ? -1 : this.anchored + DATA.length + 1;
   }
 
   /** Poging 2, anders 3 (de regels van main): waar de datasectie begint als poging 1 niets vond. Pas aan het einde
@@ -586,18 +593,44 @@ export class StepDataSectionFinder {
   }
 }
 
-/** Begin (`at`, de `D`) en leespositie (`end`, direct na de `;` van de kop) van de datasectie in `content`; `null`
- *  zonder sectiekop. `grammar`: gevonden met de grammatica (poging 1), anders met een regel van main. `readIFC` gebruikt
- *  dit; de doelcontrole voedt dezelfde vinder als stroom, en schrijft alleen met `grammar`. */
-export function stepDataSectionBounds(content: string): { at: number; end: number; grammar: boolean } | null {
-  const finder = new StepDataSectionFinder(false);
-  for (let i = 0; i < content.length; i++) {
-    if (finder.step(content.charCodeAt(i), i)) return { at: finder.strictAt, end: finder.strictEnd, grammar: true };
+/** Hoe `readIFC` een bestand leest: waar de datasectie begint, of het hele bestand in de grammatica past
+ *  (`stepFileGrammar.ts`), en of de grammatica een modelentiteit zag. */
+export interface StepFileLayout {
+  /** Begin (`at`, de `D`) en leespositie (`end`, direct na de `;` van de kop) van de eerste datasectie; `null` zonder
+   *  sectiekop. `grammar`: gevonden met een grammatica, anders met een regel van main. */
+  readonly bounds: { at: number; end: number; grammar: boolean } | null;
+  /** Het hele bestand past in de grammatica. */
+  readonly valid: boolean;
+  /** De grammatica zag een entiteit met een modeltype (alleen betekenisvol als `valid`). */
+  readonly model: boolean;
+}
+
+/**
+ * De regel (besluit Trias, wrakko 10 november 2026):
+ *  - past het hele bestand in de grammatica, dan begint de datasectie bij de eerste DATAKOP van die grammatica;
+ *  - breekt het bestand, dan precies zoals main: poging 2, anders 3;
+ *  - vinden die niets, dan de kop volgens de grammatica (poging 1, de DATAKOP-vormen van #870), anders `null`.
+ */
+export function stepFileLayout(content: string): StepFileLayout {
+  const grammar = stepFileGrammar(content);
+  if (grammar.state === 'valid' && grammar.dataAt >= 0) {
+    return { bounds: { at: grammar.dataAt, end: grammar.dataEnd, grammar: true }, valid: true, model: grammar.model };
   }
-  const atEnd = finder.grammarAtEnd;
-  if (atEnd) return { ...atEnd, grammar: true };
+  const valid = grammar.state === 'valid';
+  const finder = new StepDataSectionFinder(false);
+  let strict: { at: number; end: number } | null = null;
+  for (let i = 0; i < content.length; i++) {
+    if (finder.step(content.charCodeAt(i), i) && strict === null) strict = { at: finder.strictAt, end: finder.strictEnd };
+  }
   const fallback = finder.fallback;
-  return fallback ? { ...fallback, grammar: false } : null;
+  if (fallback) return { bounds: { ...fallback, grammar: false }, valid, model: grammar.model };
+  const head = strict ?? finder.grammarAtEnd;
+  return { bounds: head ? { ...head, grammar: true } : null, valid, model: grammar.model };
+}
+
+/** Begin en leespositie van de datasectie in `content` (`stepFileLayout`); `null` zonder sectiekop. */
+export function stepDataSectionBounds(content: string): { at: number; end: number; grammar: boolean } | null {
+  return stepFileLayout(content).bounds;
 }
 
 /** De positie van de `D` van de sectiekop (`stepDataSectionBounds`), of -1. */

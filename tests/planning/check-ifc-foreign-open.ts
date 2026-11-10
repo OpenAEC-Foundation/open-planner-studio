@@ -234,6 +234,13 @@ for (const pad of ownFiles) {
   eq(`${pad}: opslagdoel met en zonder flag`, on.getState().filePath, off.getState().filePath);
   eq(`${pad}: meldingen met en zonder flag`, notices(on), notices(off));
   if (!opened(off, name)) continue;
+  if (pad.endsWith('v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc')) {
+    // #870 ronde 8: de kop van v2026.7.12 met `O'Hara Tower` is kapot. De scanner achter de flag weigert hem en valt
+    // terug op de gewone route (`ifcBytesRoute.ts`): geen bron, dezelfde planning als zonder flag.
+    ok(`${pad}: met flag de gewone route (de scanner weigert de kapotte kop)`, src === null);
+    eq(`${pad}: dezelfde planning met en zonder flag`, sha(saved(on)), sha(saved(off)));
+    continue;
+  }
   ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0);
   ok(`${pad}: met flag opslaan toegestaan`, !ifcSaveBlocked(on.getState()));
   eq(`${pad}: zonder flag geen bron`, off.getState().ifcSource, null);
