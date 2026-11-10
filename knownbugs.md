@@ -1750,7 +1750,7 @@ en noem het in je rapport of PR-tekst.
 
 1050. **De lexer van de datasecties kent `/⏎*`, `*⏎/` en `\S\'` niet; ook op main, met één datasectie.** ISO 10303-21
      laat stuurtekens overal weg (§5.2, §5.6), ook tussen `/` en `*`, en `\S\` plus één teken is één teken in een string
-     (§6.4.3.1). `stripStepComments`, `skipQuotedOrComment` en de lus van `parseSTEP` (`src/services/ifc/ifcReader.ts`)
+     (§6.4.3). `stripStepComments`, `skipQuotedOrComment` en de lus van `parseSTEP` (`src/services/ifc/ifcReader.ts`)
      en de doelscanner (`src/services/ifc/foreign/targetModelScan.ts`) lezen dat zoals main. Gezien op main
      (9ee06bb71) en op `fix/ifc-meer-data-secties`, met een kop met de drie kopentiteiten, `DATA;` en één datasectie:
      - `#1=IFCTASK('1',$,'Taak',…);` dan `/* a *⏎/ #9=IFCWALL('x',…);` dan `/* b */`: opent met 1 taak, zonder

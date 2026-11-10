@@ -576,7 +576,7 @@ for (const [label, text, kop] of [
   ['regeleinde tussen * en / (Sol)', "ISO-10303-21;\nHEADER;\nENDSEC; /* a *\n/ DATA('deel 1',('IFC4'));\n", ["DATA('deel 1',('IFC4'));"]],
   ["regeleinde tussen de apostroffen van '' (Sol)", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('it'\n's'),'3;1');\nENDSEC;DATA('a',('IFC4'));\n", ["DATA('a',('IFC4'));"]],
   ['U+007F midden in DATA (Sol)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDA\x7fTA('a',('IFC4'));\n", ["DA\x7fTA('a',('IFC4'));"]],
-  // Ronde 6 (Sol): `\S\'` is een teken in de string (§6.4.3.1), ook in de sectiekop; de string loopt door tot `''`.
+  // Ronde 6 (Sol): `\S\'` is een teken in de string, ook in de sectiekop; de string loopt door tot `''`.
   ["\\S\\' in de naam van de sectiekop (Sol)", "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel \\S\\'',('IFC4'));\n#1=IFCWALL($);\n", ["DATA('deel \\S\\'',('IFC4'));"]],
   ["\\S\\' in de kop (Sol)", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('a\\S\\'); DATA;'),'2;1');\nENDSEC;\nDATA;\n#1=IFCWALL($);\n", ['DATA;', 1]],
   // Ronde 5 (Sol): een ANCHOR- of REFERENCE-sectie vóór de eerste datasectie, met strings en URI's (tabel 3).
