@@ -73,7 +73,10 @@ export function LibrarySection() {
   const onExport = async () => {
     const content = exportPoolIFC(selected.id);
     if (!content) return;
-    const outcome = await saveFileDialog(`bibliotheek-${selected.name}.ifc`, content, [{ name: 'IFC', extensions: ['ifc'] }]);
+    // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel.
+    const outcome = await saveFileDialog(`bibliotheek-${selected.name}.ifc`, content, [{ name: 'IFC', extensions: ['ifc'] }], {
+      refuseTarget: useAppStore.getState().foreignTargetCheck('export'),
+    });
     // Kwam het bestand via de download-terugval binnen (omgeving zonder schrijfrechten op
     // File System Access-handles), dan staat het in de downloadmap en niet waar de gebruiker het
     // aanwees — zeg dat, anders zoekt hij het op de verkeerde plek.

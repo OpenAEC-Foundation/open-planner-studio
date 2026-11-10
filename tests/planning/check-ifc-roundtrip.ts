@@ -75,6 +75,7 @@
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { checkIfcSchema, parseStep } from './ifcSchemaCheck';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { ALL_RECORDED_SLOT_KEYS, IFC_TASKTIME_SLOTS, TASKTIME_SLOT, IFC_TASK_SLOTS, TASK_SLOT } from '@/services/ifc/ifcTaskSlots';
 import type { Task, TaskTime, ExternalLink, TaskSplitGap, TaskTimephasedContour } from '@/types/task';
@@ -1221,6 +1222,23 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const diffs: string[] = [];
   collectDiffs('', canon(rt1), canon(rt2), diffs);
   assert(diffs.length === 0, `idempotentie-afwijkingen (${diffs.length}):\n${diffs.map(d => `        - ${d}`).join('\n')}`);
+}
+
+// (2b) #804 fase 1a: met de flag `ifcForeignContent` leest de bytes-route (scanner, indeling, lezer per stuk) het eigen
+//      bestand. Zelfde uitkomst als `readIFC`, ook na een tweede round-trip, zonder terugval en met een bron zonder vreemd
+//      deel (de maximale fixture is 100 % P).
+{
+  const enc = new TextEncoder();
+  for (const [label, text, want] of [['eerste', firstIfc, rt1], ['tweede', writeIFC(rt1), rt2]] as const) {
+    const viaBytes = await readIfcBytesDetailed(enc.encode(text));
+    const diffs: string[] = [];
+    collectDiffs('', canon(want), canon(viaBytes.result), diffs);
+    assert(diffs.length === 0, `(2b) bytes-route ≠ readIFC na de ${label} round-trip (${diffs.length}):\n${diffs.slice(0, 20).map(d => `        - ${d}`).join('\n')}`);
+    assert(viaBytes.fallback === undefined, `(2b) bytes-route valt niet terug na de ${label} round-trip (${JSON.stringify(viaBytes.fallback)})`);
+    const source = viaBytes.result.ifcSource;
+    assert(source !== undefined && !source.foreign && source.foreignObjectCount === 0 && source.foreignMembers.length === 0,
+      `(2b) de bron na de ${label} round-trip heeft geen vreemd deel`);
+  }
 }
 
 // (3) KNOWN_GAPS — getest-als-bekend: elke assertie bewijst dat het verlies er NOG is. Faalt er één,

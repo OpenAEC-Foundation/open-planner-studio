@@ -8,6 +8,10 @@ import {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, type DroppedFile,
 } from '@/services/fileAccess/fileDrop';
 import { openDroppedFiles } from '@/state/fileDrop';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+
+/** De leeskeuze van een neerzetting (#804 fase 1a): met de flag `ifcForeignContent` leest IFC als bytes. */
+const dropReadOptions = () => ({ ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) });
 
 /** Zonder `dragover` gaat de laag na deze tijd weg. De browser stuurt `dragover` ook bij een
  *  stilstaande muis, minstens om de 550 ms (HTML-sleepmodel: 350 ± 200 ms); dit vangt een gemiste
@@ -56,7 +60,7 @@ export function useFileDrop(): boolean {
             setActive(false);
           } else if (payload.type === 'drop') {
             setActive(false);
-            openDropped(droppedFilesFromPaths(payload.paths, { readTextFile, readFile }));
+            openDropped(droppedFilesFromPaths(payload.paths, { readTextFile, readFile }, dropReadOptions()));
           }
         });
         if (disposed) stop();
@@ -105,7 +109,7 @@ export function useFileDrop(): boolean {
       event.preventDefault();
       hide();
       // Synchroon: na dit event zijn de bestanden en de handles niet meer te vragen.
-      openDropped(droppedFilesFromDataTransfer(event.dataTransfer));
+      openDropped(droppedFilesFromDataTransfer(event.dataTransfer, dropReadOptions()));
     };
     window.addEventListener('dragenter', onDragEnter);
     window.addEventListener('dragover', onDragOver);

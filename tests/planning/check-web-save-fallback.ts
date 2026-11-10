@@ -127,6 +127,12 @@ function installWindow(handle: FileSystemFileHandle | null, pickerError?: DOMExc
 }
 
 let releaseDeferredSavePicker: ((handle: FileSystemFileHandle) => void) | null = null;
+/** Wacht tot de uitgestelde opslagdialoog echt open is (#804 fixronde 1). Een wissel vóór dat moment valt in het wachten
+ *  vóór de momentopname, en daar stopt opslaan stil (`check-ifc-foreign-target.ts`); 7e test de wissel tijdens de dialoog. */
+async function untilSavePickerOpen(): Promise<boolean> {
+  for (let i = 0; i < 1000 && pickerCalls === 0; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  return pickerCalls > 0;
+}
 function installDeferredSaveWindow() {
   pickerCalls = 0;
   permissionCalls = 0;
@@ -305,7 +311,7 @@ async function main() {
   const documentC = S().newDocument();
   S().switchDocument(documentB);
   const lateSave = S().saveFile();
-  await Promise.resolve();
+  eq('7e0 de dialoog voor B is open', await untilSavePickerOpen(), true);
   S().switchDocument(documentC);
   const handleB = makeHandle({});
   releaseDeferredSavePicker?.(handleB);
@@ -325,7 +331,7 @@ async function main() {
   const saveAsNeighbour = S().newDocument();
   S().switchDocument(saveAsDocument);
   const lateSaveAs = S().saveFileAs();
-  await Promise.resolve();
+  eq('7k0 de dialoog voor Opslaan als is open', await untilSavePickerOpen(), true);
   S().switchDocument(saveAsNeighbour);
   const saveAsHandle = makeHandle({});
   releaseDeferredSavePicker?.(saveAsHandle);
@@ -407,6 +413,7 @@ async function main() {
   eq('10d annuleren zet de open-weigering niet aan', webReadRefusedByPlatform(), false);
 
   // ── Rapport ───────────────────────────────────────────────────────────────────────────────
+  reported = true;
   if (diffs.length === 0) {
     console.log(`   web-opslaan-terugval: ${checks}/${checks} alles groen`);
   } else {
@@ -416,4 +423,13 @@ async function main() {
   }
 }
 
+// Vangnet (#804 fixronde 1): een await die nooit oplost, liet Node vroeger stil met exit 0 stoppen, zonder rapport; zo
+// draaiden 7e tot en met 10 niet. Stopt de check vóór het rapport, dan is hij rood.
+let reported = false;
+process.on('beforeExit', () => {
+  if (reported) return;
+  reported = true;
+  console.log('   XX web-opslaan-terugval: de check stopte vóór het rapport (een stap wachtte op iets wat nooit kwam)');
+  process.exitCode = 1;
+});
 void main();

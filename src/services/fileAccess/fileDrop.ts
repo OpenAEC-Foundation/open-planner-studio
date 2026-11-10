@@ -7,7 +7,7 @@ import type { FileRef, OpenedFile } from './index';
 import { openedFromFile } from './webBackend';
 import { readOpenedTauriPath, type TauriOpenIO } from './tauriBackend';
 import { basename } from '@/utils/filePath';
-import { binaryExtensions, isReadableFileName } from '@/services/formatRegistry';
+import { binaryExtensions, isReadableFileName, type FormatReadOptions } from '@/services/formatRegistry';
 
 /** Eén gesleept bestand. De naam is er meteen (voor de keuze openen of weigeren), de inhoud pas bij
  *  `read()`: een geweigerd bestand wordt nooit gelezen. */
@@ -42,7 +42,7 @@ function handleOf(item: Pick<DataTransferItem, 'getAsFileSystemHandle'>): Promis
   }
 }
 
-function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>): DroppedFile {
+function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>, readOptions?: FormatReadOptions): DroppedFile {
   return {
     name: file.name,
     read: async () => {
@@ -50,7 +50,7 @@ function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>): D
       // Alleen een bestandshandle is een opslagdoel; zonder handle (Firefox/Safari, of een geweigerde
       // vraag) is dit dezelfde vorm als de `<input type=file>`-terugval van de bestandskiezer.
       const ref: FileRef | null = h && h.kind === 'file' ? { kind: 'handle', handle: h as FileSystemFileHandle } : null;
-      return openedFromFile(file, ref, { binaryExtensions: binaryExtensions() });
+      return openedFromFile(file, ref, { binaryExtensions: binaryExtensions(readOptions) });
     },
   };
 }
@@ -60,9 +60,9 @@ function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>): D
  * maakt de browser `items` leeg, en `getAsFileSystemHandle` werkt alleen tijdens het event.
  * Chromium geeft per bestand een handle (zoals de bestandskiezer), zodat een gesleept IFC-bestand
  * een opslagdoel en een plek in de recente bestanden krijgt. Een map of ander item zonder bestand
- * valt weg.
+ * valt weg. `readOptions`: de leeskeuze van de open-actie (#804 fase 1a: IFC als bytes met de flag).
  */
-export function droppedFilesFromDataTransfer(dt: DataTransferLike): DroppedFile[] {
+export function droppedFilesFromDataTransfer(dt: DataTransferLike, readOptions?: FormatReadOptions): DroppedFile[] {
   const items = dt.items ? Array.from(dt.items) : [];
   if (items.length > 0) {
     const out: DroppedFile[] = [];
@@ -70,21 +70,21 @@ export function droppedFilesFromDataTransfer(dt: DataTransferLike): DroppedFile[
       if (item.kind !== 'file') continue;
       const file = item.getAsFile();
       if (!file) continue;
-      out.push(webDroppedFile(file, handleOf(item)));
+      out.push(webDroppedFile(file, handleOf(item), readOptions));
     }
     return out;
   }
-  return Array.from(dt.files ?? []).map((file) => webDroppedFile(file, Promise.resolve(null)));
+  return Array.from(dt.files ?? []).map((file) => webDroppedFile(file, Promise.resolve(null), readOptions));
 }
 
 /** Desktop: de paden uit Tauri's `drag-drop`-event. Tauri zet elk gesleept pad zelf in de
  *  fs-scope (plugin-fs, `RunEvent::WindowEvent(DragDrop::Drop)`), dus ook een bestand buiten de
  *  thuismap is leesbaar. Lezen gaat via dezelfde kern als de open-dialoog (`readOpenedTauriPath`):
  *  binaire formaten als bytes, en het pad als herbruikbare ref. */
-export function droppedFilesFromPaths(paths: readonly string[], io: TauriOpenIO): DroppedFile[] {
+export function droppedFilesFromPaths(paths: readonly string[], io: TauriOpenIO, readOptions?: FormatReadOptions): DroppedFile[] {
   return paths.map((path) => ({
     name: basename(path),
-    read: () => readOpenedTauriPath(path, { binaryExtensions: binaryExtensions() }, io),
+    read: () => readOpenedTauriPath(path, { binaryExtensions: binaryExtensions(readOptions) }, io),
   }));
 }
 

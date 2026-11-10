@@ -19,6 +19,7 @@ import {
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
+import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
@@ -331,6 +332,13 @@ export type WriteIFCInput = ImportResult & {
    * `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`.
    */
   xerSourceArchiveStorage?: 'embedded' | 'recovery-reference';
+  /**
+   * #804 fase 1a (fixronde 1): de vingerafdruk van een bron met een vreemd deel (pset `OPS_RecoveryForeignSource`).
+   * UITSLUITEND voor crashherstel-snapshots (`recoverySnapshotInput`) en, met het doel erbij, voor een MCP-backup
+   * (`backupService.ts`, fixronde 3): zo weet het herstelde of uit een backup geopende document dat het uit een
+   * modelbestand kwam, zonder de bronbytes. Opslaan en export schrijven hem nooit (`buildWriteIFCInput`).
+   */
+  recoveryForeignSource?: ForeignSourceRecord;
 };
 
 export function writeIFC(input: WriteIFCInput): string {
@@ -352,6 +360,7 @@ export function writeIFC(input: WriteIFCInput): string {
     recordedSourceFormat = undefined,
     ifcGlobalIds = undefined,
     xerSourceArchiveStorage = 'embedded',
+    recoveryForeignSource = undefined,
   } = input;
   const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
   const { tasks, baselines } = writeView;
@@ -433,6 +442,23 @@ export function writeIFC(input: WriteIFCInput): string {
     addLine(ctx, '_time_model_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'time_model_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
   }
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xerSourceArchiveStorage);
+  if (recoveryForeignSource) {
+    // Alleen in een herstelsnapshot of MCP-backup (zie `WriteIFCInput.recoveryForeignSource`): lengte en SHA-256, geen
+    // bytes. Een backup schrijft ook het doel (een herstelsnapshot heeft dat in het manifest).
+    const props = [
+      addLine(ctx, '_recovery_foreign_sha', `IFCPROPERTYSINGLEVALUE('Sha256',$,IFCTEXT(${ifcStr(recoveryForeignSource.sha256)}),$)`),
+      addLine(ctx, '_recovery_foreign_len', `IFCPROPERTYSINGLEVALUE('ByteLength',$,IFCINTEGER(${recoveryForeignSource.byteLength}),$)`),
+    ];
+    const target = recoveryForeignSource.target;
+    if (target?.filePath) {
+      props.push(addLine(ctx, '_recovery_foreign_path', `IFCPROPERTYSINGLEVALUE('SourcePath',$,IFCTEXT(${ifcStr(target.filePath)}),$)`));
+    }
+    if (target?.siteFileId) {
+      props.push(addLine(ctx, '_recovery_foreign_site', `IFCPROPERTYSINGLEVALUE('SourceSiteFileId',$,IFCTEXT(${ifcStr(target.siteFileId)}),$)`));
+    }
+    const pset = addLine(ctx, '_recovery_foreign_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'recovery_foreign'))},#${ownerHistId},${ifcStr(PSET.RecoveryForeignSource)},$,(${props.map(p => `#${p}`).join(',')}))`);
+    addLine(ctx, '_recovery_foreign_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'recovery_foreign_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
+  }
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden).

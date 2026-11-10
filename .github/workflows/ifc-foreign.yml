@@ -102,13 +102,23 @@ jobs:
           args="--mb=$MB --out=meting-scanner.json"
           if [ -n "$BROWSERS" ]; then args="$args --browser=$BROWSERS"; fi
           node scripts/proef/meet-scanner.mjs $args
+      # Ook na een meetfout: meet-scanner.mjs schrijft het resultaatbestand altijd, met de fouten erin.
+      - name: Samenvatting
+        if: always()
+        run: |
           {
             echo '### Meting scanner en indeling (#804 fase 0)'
-            echo '```json'
-            cat meting-scanner.json
-            echo '```'
+            if [ -f meting-scanner.json ]; then
+              echo '```json'
+              cat meting-scanner.json
+              echo '```'
+            else
+              echo 'Geen resultaatbestand: de meting stopte vóór het schrijven.'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: meting-scanner
           path: meting-scanner.json
+          if-no-files-found: warn

@@ -1,7 +1,11 @@
 import { isTauri } from '@/utils/platform';
 import {
   openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
+  fileIdentityFsTauri, scanTargetPathTauri,
 } from './tauriBackend';
+import type { FileIdentityFs } from './fileIdentity';
+import type { TargetReaders } from './foreignSourceTarget';
+import { readSiteSourceFile } from './siteBackend';
 import {
   openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
 } from './webBackend';
@@ -80,7 +84,21 @@ export interface SaveDialogOpts {
    * Zonder waarde blijft het `application/octet-stream` — precies wat elke bestaande caller had.
    */
   mime?: string;
+  /**
+   * #804 fase 1a (fixronde 1): de laatste controle op het gekozen doel, vóór het schrijven (Tauri: na de padkeuze;
+   * browser: na `showSaveFilePicker`, vóór `createWritable()`). `true` = niet schrijven; de dialoog geeft dan `null`,
+   * zoals bij annuleren. De controle meldt zelf waarom (de weigering via het meldingenkanaal). Een download heeft geen
+   * doel en wordt niet gecontroleerd. Zie `SaveTargetCheck`.
+   */
+  refuseTarget?: SaveTargetCheck | null;
 }
+
+/** Controle op het gekozen doel van een opslag of export; `true` = weigeren. Zie `SaveDialogOpts.refuseTarget`. */
+export type SaveTargetCheck = (target: FileRef) => Promise<boolean>;
+
+/** De opties van `saveFileDialog`/`saveBytesDialog`: de doelcontrole is verplicht, zodat geen route haar vergeet (een
+ *  aanroeper zonder controle geeft expliciet `null`). */
+export type CheckedSaveDialogOpts = SaveDialogOpts & { refuseTarget: SaveTargetCheck | null };
 
 export interface SaveOutcome {
   ref: FileRef | null;
@@ -110,9 +128,23 @@ export function openFileDialog(filters: FileFilter[], opts?: OpenDialogOpts): Pr
   return isTauri() ? openFileDialogTauri(filters, opts) : openFileDialogWeb(filters, opts);
 }
 
+/** De bestandsidentiteit voor `compareFilePaths`: in Tauri plugin-fs `stat`, in de browser geen (#804 fixronde 1). */
+export function fileIdentityFs(): Promise<FileIdentityFs | undefined> {
+  return isTauri() ? fileIdentityFsTauri() : Promise.resolve(undefined);
+}
+
+/** De lezers van een bestaand doel voor de doelcontrole (#804 fixronde 2): in Tauri het pad als stroom, met site-opslag
+ *  het site-bestand. In de browser leest de controle de handle zelf (`getFile()`). */
+export function writeTargetReaders(): TargetReaders {
+  return {
+    ...(isTauri() ? { scanPath: scanTargetPathTauri } : {}),
+    ...(siteStorageAvailable() ? { readSite: async (id: string) => (await readSiteSourceFile(id)).bytes() } : {}),
+  };
+}
+
 /** Opslaan-als / export via picker. `null` = geannuleerd. */
 export function saveFileDialog(
-  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+  defaultName: string, content: string, filters: FileFilter[], opts: CheckedSaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   return isTauri()
     ? saveFileDialogTauri(defaultName, content, filters, opts)
@@ -125,7 +157,7 @@ export function saveFileDialog(
  * byte-schrijfpad in de app: een tweede zou onvermijdelijk een eigen foutafhandeling krijgen.
  */
 export function saveBytesDialog(
-  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
+  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts: CheckedSaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   return isTauri()
     ? saveBytesDialogTauri(defaultName, bytes, filters, opts)

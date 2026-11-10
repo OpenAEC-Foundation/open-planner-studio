@@ -1632,14 +1632,92 @@ en noem het in je rapport of PR-tekst.
      Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
      Gevonden in #804 fase 0. — B
 
-1007. **VERVOLG: de scanner weigert een `#id` boven 2147483647.** `readEntity` in
-     `src/services/ifc/foreign/stepScanner.ts:676` stopt bij `idValue > 0x7fffffff`; het statement valt dan terug op
-     `onbekend-statement` ("Onbekend statement in DATA"), een reden die niet zegt wat er mis is. ISO 10303-21 kent geen
-     bovengrens, en de voorproef `scripts/proef/classify-v9.py` leest zo'n id gewoon. Gevolg: een bestand met zo'n id
-     opent niet via de nieuwe route. Op geen bestand van de poort of het corpus komt het voor. Richting voor fase 1:
-     een eigen foutreden (`id-te-groot`) met een grensproef op 2147483647 en 2147483648, of ids tot 2^53 ondersteunen
-     (de index gebruikt nu int32). Uit de review van #863 (GPT-6.1-Sol, xhigh, ronde 1, op `e56238fc6`, BEVESTIGD,
-     VERVOLG). — B
+1011. **Eis voor #804 fase 1c: een onbekend schema met een vreemd deel gaat stil verloren bij opslaan.** Met de flag
+     `ifcForeignContent` neemt `readIfcBytesDetailed` bij een schema buiten `FOREIGN_CONTENT_SCHEMAS` (en zonder
+     schema in de kop) de huidige route, zonder `ifcSource` (`src/services/ifc/foreign/ifcBytesRoute.ts:36, 83-84`).
+     Zonder `IfcProduct` opent zo'n bestand dan zoals op main, en opslaan schrijft alleen de planning: vreemde
+     gegevens (een planning van een ander programma, onbekende psets) gaan stil verloren. Dat is niet slechter dan
+     main, en in 1a weigert de app opslaan nog niet op deze route. Ontwerp §4.11 zegt: "met een vreemd deel
+     geweigerd". Eis (wrakko, 9 november 2026): zodra 1c opslaan met een vreemd deel aanzet, mag geen vreemd deel stil
+     verloren gaan, ook niet bij een onbekend schema; anders is 1c niet klaar. Richting: deel ook dit bestand in, en
+     weiger of meld zoals §4.11. Uit #864 (fase 1a). — B
+
+1012. **Niets toetst na de build dat de XER-lezer alleen op verzoek laadt.** `tests/planning/check-xer-chunk-boundary.ts`
+     leest alleen de bron: een import uit `@/services/xer/` mag alleen met `await import(` in `formatRegistry.ts` en
+     `src/services/ifc/ifcReadWithXer.ts`. De gebouwde importgrafiek toetst hij niet. De Ubuntu-build van `a11864e19`
+     heeft wel een apart `xer-reader-BduM2EPR.js` (302 kB), maar geen check eist na de build dat de startbundel dat stuk
+     alleen dynamisch laadt. Een statische import via een omweg (een andere module die de lezer opnieuw exporteert) of
+     een wijziging in de Vite-instelling valt zo niet op. Richting: een gerichte controle van de gebouwde importrelaties
+     in CI, bijvoorbeeld op `build.manifest` of de chunkgrafiek van Rollup: het XER-stuk staat niet in de statische
+     imports van de ingang. Uit de review van #864 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, ronde 1, op `a11864e19`,
+     BEVESTIGD, VERVOLG). — B
+
+1013. **Een check met `void main()` die blijft hangen, eindigt stil met exit 0.** Lost een `await` in `main()` nooit op,
+     dan stopt Node zodra er niets meer te doen is, zonder rapport en met exit 0; de suite telt dat als groen. Een
+     check met een `await` op het hoogste niveau heeft dit niet (Node geeft dan exit 13). Gezien in
+     `tests/planning/check-web-save-fallback.ts`: op main (`2a66df33c`) bleef hij hangen bij stap 7e (de wissel kwam
+     vóór de dialoog, dus de nep-dialoog kreeg nooit antwoord), en de stappen 7e tot en met 10 draaiden nooit. #864
+     (fixronde 1) repareert die check en geeft hem een vangnet (`beforeExit`: geen rapport ⇒ rood). Dezelfde vorm,
+     zonder vangnet, hebben nog: `tests/planning/check-ifc-building-model-guard.ts`, `check-text-asset.ts`,
+     `check-wbs-auto-on-open.ts`, `check-xml-adapter-fidelity.ts` en `tests/library/check-i18n-plurals.ts`. Niet
+     nagegaan of die nu hangen. Richting: hetzelfde vangnet, of een `await` op het hoogste niveau. Gevonden in #864
+     (fixronde 1). — B
+
+1014. **Opslaan als in de browser meldt een fout als `getFile()` na het schrijven faalt.** `saveDataDialogWeb`
+     (`src/services/fileAccess/webBackend.ts`) schrijft het bestand en vraagt daarna `handle.getFile()`, alleen voor de
+     naam. Faalt die lezing (bijvoorbeeld omdat een ander programma het bestand net vergrendelde), dan geeft de route de
+     fout door. De app meldt dan dat opslaan mislukte en zet het doel niet, maar het bestand is wel geschreven.
+     `handle.name` geeft dezelfde naam zonder te lezen. Gezien met een nep-handle in
+     `tests/planning/check-ifc-foreign-target.ts` (#864, fixronde 2); niet nagegaan in een echte browser. — S
+
+1015. Ctrl+S en Opslaan als naar een site-bestand lezen met de flag `ifcForeignContent` aan elke keer het hele bestand van
+     de host (de doelcontrole van #864; de host geeft geen stroom, `src/services/fileAccess/index.ts:138`). AutoSave naar de
+     site staat uit (besluit #309, `src/services/actualAutosave/fileAutoSave.ts:49-53`), dus er is geen volle download per
+     AutoSave-ronde. Richting: een stroom van de host, of de uitkomst 'geen model' per document en doel onthouden tot de host
+     een andere versie meldt (versie, etag); zet AutoSave naar de site ooit aan, dan is dat onthouden verplicht. Uit #864
+     (fase 1a). — B
+
+1016. **Zonder de flag ziet de modelweigering bij openen een complexe instantie niet.** `readEntity`
+     (`src/services/ifc/ifcReader.ts:1029`) leest alleen `#id=TYPE(…);`; bij `#id=(A(…)B(…));` geeft hij -1 en slaat de
+     regel over. De weigering op `ifcReader.ts:199` ziet dan geen `IfcProduct`. Gezien: `model-ifc4.ifc` met de vijf
+     modelentiteiten in de vorm `#30=(IFCWALL(…));` opent met de flag uit zonder weigering, en opslaan schrijft alleen de
+     planning. Met de flag aan geeft dezelfde invoer `ifcSource.foreign = true`, dus is het document daar beschermd; ook
+     de doelcontrole (`targetModelScan.ts`) ziet zo'n bestand als model. Het risico is klein: in IFC2X3 TC1, IFC4 ADD2 TC1
+     en IFC4X3 ADD2 is elk supertype `ONEOF` (geen `ANDOR`, geen meervoudige overerving), dus een geldig bestand schrijft
+     elke instantie in de interne vorm; IfcOpenShell 0.8.4 en 0.9.0 lezen de externe vorm niet als `IfcWall`. Richting:
+     de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). — B
+
+1017. **VERVOLG: de doelcontrole leest een bestaande IFC zonder model helemaal, en de planner ziet in die tijd
+     niets.** Met de flag `ifcForeignContent` leest `src/services/ifc/foreign/targetModelScan.ts` bij Opslaan als, een
+     export en AutoSave naar een bestaand IFC het hele bestand als dat geen `IfcProduct`/`IfcTypeProduct` bevat (de
+     route van `readIFC` sinds fixronde 4 van #864). CI-meting run 42735559587 (`ubuntu-24.04`), 300 MB zonder model:
+     Node 1,0 s (stroom) / 1,1 s (`Blob`), Chromium 0,8 s, WebKit 1,3 s; met het model vooraan 8–13 ms (WebKit 0,6 s).
+     Fixronde 3 (twee lezers) kostte hier nog 2,9–3,6 s. In die tijd toont de app geen voortgang: na het kiezen van het
+     bestand in de dialoog gebeurt er tot ongeveer 1,3 s niets zichtbaars (afgeleid uit de code van `fileSlice.ts`,
+     `webBackend.ts`, `tauriBackend.ts`: geen bezig-indicatie; niet in de browser nagegaan). Aanvaard voor 1a (wrakko,
+     10 november 2026). Richting: een bezig-indicatie als de controle langer dan een korte tijd duurt. Uit #864
+     (fase 1a). — S
+
+1018. **De doelcontrole en `readIFC` zijn kwadratisch als veel entiteiten pas aan het einde van het bestand mislukken.**
+     `parseSTEP` (`src/services/ifc/ifcReader.ts`) leest na een mislukte entiteit verder vanaf het teken na de `#`.
+     Mislukt elke entiteit pas aan het einde (bijvoorbeeld `#1=A((#2=B((#3=C((…` zonder sluithaken), dan leest de lus het
+     bestand per entiteit opnieuw. De doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) volgt die route sinds
+     fixronde 4 bewust precies, en leest de bron dan per entiteit opnieuw (boven 16 MiB van schijf). Opslaan als, een
+     export of AutoSave naar zo'n bestand wacht dan heel lang; openen ook. Gezien met een mutatie die elke entiteit open
+     liet (de testhulp van `check-ifc-target-model-scan.ts` stopte na 10^8 stukken); niet gezien met een echt bestand.
+     Richting: een werkgrens in beide; in de doelcontrole met de uitkomst 'model' (niet schrijven). Gevonden in #864
+     (fixronde 4). — S
+
+1019. **VERVOLG: de doelcontrole vertrouwt erop dat `seek` echt terugspoelt.** Boven 16 MiB leest
+     `src/services/ifc/foreign/targetModelScan.ts` de bron opnieuw vanaf een eerdere positie na een mislukte entiteit.
+     De eindcontrole (`targetModelScan.ts:206`) ziet alleen een bron die te vroeg eindigt. Een `seek` die succes meldt
+     maar de positie niet verandert, valt daar niet op; de Tauri-lezer kijkt niet naar de positie die `seek` teruggeeft
+     (`src/services/fileAccess/tauriBackend.ts:34`). Gezien met een nagebootste bron (Terra, ronde 5 van #864): een
+     mislukte entiteit met `IFCWALL`, ruim 18 MiB tekst en daarna nog 20 MiB; correct terugspoelen geeft `model`, de
+     nagebootste `seek` geeft `no-model` en de doelcontrole laat schrijven toe. Niet gezien met de echte plugin-fs; die
+     zou daarmee haar contract breken. De test in `tests/planning/check-ifc-target-model-scan.ts` dekt het niet: zijn bron
+     eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
+     en de lange variant in de test. Uit #864 (fase 1a). — S
 
 ## Rondleiding, Help en extensie-gidsen
 

@@ -261,6 +261,8 @@ async function saveDataDialogWeb(
         types: toAcceptTypes(filters),
         ...(opts?.preferDownloads ? { startIn: 'downloads' as const } : {}),
       });
+      // #804 fixronde 1: het gekozen bestand vóór `createWritable()` controleren (bijv. de bron van een gebouwmodel).
+      if (await opts?.refuseTarget?.({ kind: 'handle', handle })) return null;
       const writable = await handle.createWritable();
       await writable.write(data as FileSystemWriteChunkType);
       await writable.close();

@@ -35,7 +35,7 @@ import { ScopeEscapeError } from '../fileScopeError';
 import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { buildExportIFCInput } from '@/state/ifcSaveInput';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
@@ -47,6 +47,23 @@ import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '
 import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
+import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
+import type { TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
+import { ifcSaveBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+
+/** #804 fase 1a: IFC-uitvoer van een document met een vreemd deel is nog geweigerd (`state/ifcForeignGuard.ts`). */
+const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
+  'save or export it as IFC yet, because the IFC would lose that content. Other export formats still work.';
+
+/** #804 fase 1a, fixronde 1: het pad is het bronbestand van een open document met een vreemd deel. Blijft na fase 1c. */
+const FOREIGN_SOURCE_TARGET_REFUSAL = (path: string) => `'${path}' is the source file of an open document that also ` +
+  'contains a building model or data from other programs. Writing here would replace that content with only the ' +
+  'schedule. Export to another path.';
+
+/** #804 fixronde 2: het bestaande bestand op het pad bevat zelf een gebouwmodel (flag `ifcForeignContent` aan). */
+const BUILDING_MODEL_TARGET_REFUSAL = (path: string) => `'${path}' already contains a building model. Writing here ` +
+  'would replace the model with only the schedule. Export to another path.';
 
 // --- fs-naad -------------------------------------------------------------------------------------
 
@@ -66,6 +83,11 @@ export interface McpFileFs extends FileIdentityFs {
    * harde grens (zie punt 1 bovenaan), en het gedrag van de app verandert dus niet.
    */
   confine?(path: string): Promise<string | null>;
+  /**
+   * Optioneel (#804 fixronde 2): een bestaand bestand als stroom lezen voor de doelcontrole (bevat het een
+   * gebouwmodel?); `null` = niet leesbaar. Zonder deze functie is het doel niet leesbaar en mag het schrijven door.
+   */
+  scanTarget?(path: string): Promise<TargetModelScan | null>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -85,6 +107,7 @@ async function realFs(): Promise<McpFileFs> {
     stat: (p) => stat(p),
     readTextFile: (p) => readTextFile(p),
     readFile: (p) => readFile(p),
+    scanTarget: (p) => scanTargetPathTauri(p),
     writeTextFile: async (p, content) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true }); // no-op wanneer de map al bestaat
@@ -269,6 +292,7 @@ export const fileTools: McpToolDef[] = [
       // Volle guard incl. drift: we schrijven de inhoud van het ACTIEVE document weg.
       const blocked = guardNonTransactional(ctx);
       if (blocked) return blocked;
+      if (ifcSaveBlocked(ctx.app.store.getState())) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       const raw = (args ?? {}) as { path?: unknown; overwrite?: unknown };
       if (typeof raw.path !== 'string' || raw.path.trim() === '') {
         return toolError(ctx, 'VALIDATION', 'Parameter \'path\' (text) is required: the absolute target path of the IFC file.');
@@ -317,6 +341,13 @@ export const fileTools: McpToolDef[] = [
       if (lateBlocked) return lateBlocked;
       const checked = ctx.app.store.getState();
       const refused = await refuseSilentSchemaChange(ctx, fs, path);
+      // Fixronde 1: niet over het bronbestand van een document met een vreemd deel (ook een ander open document, en ook
+      // na crashherstel, via het kenmerk). Pad of bestandsidentiteit, zoals de schemacontrole hierboven. Fixronde 2: met
+      // de flag aan ook niet over een bestaand bestand met een gebouwmodel (dezelfde doelcontrole als Opslaan als).
+      const foreignTarget = await refusedWriteTarget(checked, { kind: 'path', path }, {
+        identityFs: async () => fs,
+        readers: () => (fs.scanTarget ? { scanPath: (p: string) => fs.scanTarget!(p) } : {}),
+      });
       // Identiteit opvragen is ook async: pauze, dialoog en documentdrift winnen nog steeds.
       const identityBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
       if (identityBlocked) return identityBlocked;
@@ -328,6 +359,9 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'The document save target or IFC schema changed during the file identity check. Retry the export.');
       }
       if (refused) return refused;
+      if (foreignTarget === 'open-source') return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
+      if (foreignTarget === 'building-model') return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
+      if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
       const input = buildExportIFCInput(state);
@@ -413,10 +447,13 @@ export const fileTools: McpToolDef[] = [
       // verderop) — dus een binair formaat kan via `formatOf`'s IFC-terugval nooit per ongeluk als
       // opslagdoel-waardig gelezen worden.
       let input: FormatInput;
+      let readOptions: FormatReadOptions = {};
       try {
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
-        input = await readFormatInput(path, fs);
+        // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
+        readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
+        input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
         return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
@@ -428,7 +465,7 @@ export const fileTools: McpToolDef[] = [
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
         // ImportLabels).
-        parsed = await parseOpenedFile(input);
+        parsed = await parseOpenedFile(input, undefined, readOptions);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }

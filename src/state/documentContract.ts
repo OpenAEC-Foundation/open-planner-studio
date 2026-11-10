@@ -14,6 +14,9 @@ import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type Co
 import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
+import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import type { ForeignSourceMark, ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
+import { foreignSourceMarkFromRecovery } from '@/services/ifc/foreign/foreignSourceMark';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -98,6 +101,15 @@ export interface DocumentPayload {
   xerSourceArchive: XerSourceArchive | null;
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
+  /** De IFC-bron met indeling (#804 §4.8), alleen via de bytes-route achter de flag `ifcForeignContent`. Onveranderlijk
+   *  en buiten undo (`snapshot: 'none'`); niet in de herstelsnapshot en niet in de MCP-backup (geen `IFC_SAVE_KEYS`). */
+  ifcSource: IfcSource | null;
+  /** Kwam dit document uit een IFC-bestand met een vreemd deel (#804 fase 1a, fixronde 1)? Dan de vingerafdruk en het doel
+   *  van die bron, zodat Opslaan als en een export dat bestand weigeren. Gezet bij het openen (`applyLoadedProject`) en
+   *  bij crashherstel (`payloadFromInput`), daarna onveranderlijk tot het document sluit; ook als `ifcSource` weg is
+   *  (herstel bewaart geen bronbytes). Buiten undo; geen IFC-schrijfinvoer (alleen de herstelsnapshot schrijft de
+   *  vingerafdruk, via `recoverySnapshotInput`). */
+  foreignSourceMark: ForeignSourceMark | null;
   /** De werkregel-UI is voor dit document ontsloten omdat het al
    *  taaktypedata draagt (`hasTaskTypeData`) of omdat de gebruiker er een regel/werk in zette.
    *  Niet gepersisteerd (bij laden opnieuw afgeleid), niet in undo. */
@@ -135,6 +147,8 @@ export type RecoveryDocInput = ImportResult & {
   siteFileId?: string | null;
   /** Zie `RecoveryDocMeta.siteFileVersion`. */
   siteFileVersion?: string | null;
+  /** Zie `RecoveryDocMeta.foreignSource`. */
+  foreignSource?: ForeignSourceTarget | null;
   isDirty: boolean;
   /** Zie `RecoveryDocMeta.datesAsRecorded`. */
   datesAsRecorded: boolean;
@@ -154,6 +168,12 @@ export interface RecoveryDocMeta {
   /** De versie waarop het document rustte (`DocumentPayload.siteFileVersion`). Zonder deze basis
    *  stuurt Ctrl+S na herstel geen `baseVersion` mee en ziet de site geen conflict. */
   siteFileVersion?: string | null;
+  /**
+   * Het doel van de bron met een vreemd deel (#804 fase 1a, fixronde 1; `DocumentPayload.foreignSourceMark` zonder
+   * vingerafdruk en zonder handle): het oude pad of site-bestand. De vingerafdruk zelf staat in de herstel-IFC
+   * (`ImportResult.recoveryForeignSource`). Optioneel: oudere manifesten kennen het veld niet.
+   */
+  foreignSource?: ForeignSourceTarget | null;
   isDirty: boolean;
   /**
    * Stond het document in "datums zoals opgeslagen" toen de snapshot geschreven werd? Komt uit
@@ -297,6 +317,10 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
+  // #804 fase 1a: de IFC-bron. Zoals `xerSourceArchive`: per document, niet in undo, één gedeeld onveranderlijk object.
+  field({ key: 'ifcSource', get: (s) => s.ifcSource, set: (s, v) => { s.ifcSource = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcSource ?? null }),
+  // Fixronde 1: het kenmerk van een bron met een vreemd deel. Per document, niet in undo; overleeft wissel, kopie en herstel.
+  field({ key: 'foreignSourceMark', get: (s) => s.foreignSourceMark, set: (s, v) => { s.foreignSourceMark = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.foreignSourceMark ?? null }),
   // Sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
@@ -459,6 +483,8 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   const siteFileId = d.siteFileId ?? null;
   return {
     ...payloadFromImport(d, d.filePath),
+    // Het kenmerk van een bron met een vreemd deel: de vingerafdruk uit de herstel-IFC, het doel uit het manifest.
+    foreignSourceMark: foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource),
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
     isDirty: d.isDirty,
@@ -489,6 +515,9 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     xerImportMetadata: parsed.xer ?? null,
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
+    ifcSource: parsed.ifcSource ?? null,
+    // Het kenmerk zet `applyLoadedProject` (hij kent het doel) of `payloadFromInput` (herstel).
+    foreignSourceMark: null,
     // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
     taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
     // Een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is

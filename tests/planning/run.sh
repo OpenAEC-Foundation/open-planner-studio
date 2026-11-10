@@ -538,6 +538,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804 fase 1a: met de flag ifcForeignContent uit byte-gelijk aan main. De verwachting komt uit de code van main
+  # (scripts/proef/maak-main-pariteit.mjs, met TZ=Europe/Amsterdam): daarom een vaste tijdzone, buiten de matrix.
+  IFCFOREIGNPARITEIT="$DIR/.ifc-foreign-pariteit.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-pariteit.ts" "$IFCFOREIGNPARITEIT"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNPARITEIT" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

@@ -20,9 +20,12 @@ import { generateId } from '@/utils/id';
 import { formatInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
+import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
+import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
+import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE, COST_RESOURCE_OBJECT_TYPE,
@@ -107,6 +110,20 @@ export interface IfcReadOptions {
    * `bytes-missing` ("openen met melding").
    */
   resolveXerArchiveReference?: (sha256: string) => Uint8Array | undefined;
+  // De vier opties hieronder geeft alleen de IFC-bytes-route (#804 fase 1a, `foreign/ifcBytesRoute.ts`, achter de flag
+  // `ifcForeignContent`). Zonder deze opties leest de lezer precies zoals vóór #804.
+  /** Codering per stuk (§4.9 punt 5): de lezer decodeert elke entiteit waarvan het STEP-id hier NIET in staat. De keuze
+   *  voor het hele bestand (`stringsAreStepEncoded`) vervalt dan. */
+  literalStepIds?: ReadonlySet<string>;
+  /** De taken van `selectPlanning` (§4.2 stap 1) als STEP-ids. De lezer leest precies deze taken, in plaats van zelf de
+   *  baselinebomen uit te sluiten. Zo kunnen indeling en lezer niet uiteenlopen (afwijking 6 van fase 0). */
+  planningTaskStepIds?: ReadonlySet<string>;
+  /** De indeling liet het model (V) al buiten de tekst van de lezer, en opslaan van een document met een vreemd deel is
+   *  geweigerd tot fase 1c. Dan slaat de lezer de modelweigering (knownbug 110) over. */
+  skipBuildingModelGuard?: boolean;
+  /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
+   *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
+  stepIdsOut?: Record<string, string>;
 }
 
 interface StepEntity {
@@ -125,7 +142,6 @@ interface StepEntity {
 // inhoudelijke drempel (zoals "minstens één taak"): een leeg-maar-echt project — verse wizard met
 // kalender en resources — is legitiem, en zou anders bij crashherstel als onbruikbaar worden
 // weggegooid.
-const STEP_HEADER = 'ISO-10303-21;';
 const STEP_TERMINATOR = 'END-ISO-10303-21;';
 /** Hoeveel tekens vanaf het EIND we afzoeken naar de sluitmarkering (die staat er per definitie). */
 const TERMINATOR_PROBE = 4096;
@@ -139,7 +155,8 @@ export function assertIfcIntegrity(content: string): void {
   // megabytes groot; `trimStart()` zou er een kopie van maken).
   let i = content.charCodeAt(0) === 0xfeff ? 1 : 0;
   while (i < content.length && isSpaceCode(content.charCodeAt(i))) i++;
-  if (content.slice(i, i + STEP_HEADER.length).toUpperCase() !== STEP_HEADER) {
+  // De kopregel staat in `stepDataSection.ts`: de doelcontrole (`targetModelScan.ts`) gebruikt dezelfde (fixronde 4).
+  if (!startsWithStepHeader(content, i)) {
     throw new IfcParseError(
       'not-step',
       `Geen IFC/STEP-bestand: de verplichte kop '${STEP_HEADER}' ontbreekt.`,
@@ -179,13 +196,16 @@ export function readIFC(
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
   // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
-  if (entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
+  if (!options.skipBuildingModelGuard && entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
     throw new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
       'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
   }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
-  if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
+  if (options.literalStepIds) {
+    const literal = options.literalStepIds;
+    decodeEntityStrings(entities.filter(e => !literal.has(e.id)));
+  } else if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
     entityMap.set(e.id, e);
@@ -233,10 +253,13 @@ export function readIFC(
   const ownAuthored = isOpsAuthoredIfc(entities);
   const importPristine = ownAuthored ? extractImportPristine(entities, entityMap) : undefined;
   const recordedSourceFormat = ownAuthored ? extractRecordedSourceFormat(entities, entityMap) : undefined;
+  const recoveryForeignSource = ownAuthored ? extractRecoveryForeignSource(entities, entityMap) : undefined;
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
-  const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
+  const baselineTaskStepIds = options.planningTaskStepIds
+    ? tasksOutsideSelection(entities, options.planningTaskStepIds)
+    : collectBaselineTaskStepIds(entities);
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
   );
@@ -246,8 +269,11 @@ export function readIFC(
   // Intern id → GlobalId per object uit dit bestand (zie `collectIfcGlobalIds`); de extractors
   // hieronder vullen hem terwijl ze id's uit GlobalIds afleiden.
   const guidLog: Record<string, string> = {};
+  // Alleen met `stepIdsOut`: dezelfde sleutels als `guidLog`, met het STEP-id (ook zonder GlobalId).
+  const stepLog: Record<string, string> | undefined = options.stepIdsOut ? {} : undefined;
   const sequences = extractSequences(
     entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
+    stepLog,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
@@ -259,7 +285,7 @@ export function readIFC(
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
   const { calendars: resourceCalendars, idByGuid: calendarIdByGuid } = extractCalendarLibrary(
-    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog,
+    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog, stepLog,
   );
   // De PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
   // 'm expliciet uit); haar GUID→id hoort wel in dezelfde vertaaltabel. Zelfde "eerste IFCWORKCALENDAR
@@ -383,6 +409,9 @@ export function readIFC(
   }
 
   const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
+  if (options.stepIdsOut && stepLog) {
+    Object.assign(options.stepIdsOut, collectIfcStepIds(entities, taskStepIdMap, resourceStepIdMap, project.id, calendar.id, stepLog));
+  }
 
   const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === PSET.Project)
     .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
@@ -405,6 +434,7 @@ export function readIFC(
       : { recordedTimesOrigin: ownAuthored ? 'ifc-own' as const : 'ifc' as const }),
     ...(importPristine !== undefined ? { importPristine } : {}),
     ...(recordedSourceFormat ? { recordedSourceFormat } : {}),
+    ...(recoveryForeignSource ? { recoveryForeignSource } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
     // `xerOrigin` is eerlijk: alleen gezet wanneer er ook echt archiefmetadata (`xer`) is. Een
@@ -463,6 +493,7 @@ function stableIdFromGuid(
   entity: StepEntity,
   usedIds: Set<string>,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): string {
   const guid = ifcSlotText(entity.args[0]);
   const base = guid ? `${prefix}-ifc-${guid}` : `${prefix}-ifc-step-${entity.id}`;
@@ -470,7 +501,36 @@ function stableIdFromGuid(
   for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
   usedIds.add(id);
   if (guid) guidLog[ifcObjectSeed(kind, id)] = guid;
+  if (stepLog) stepLog[ifcObjectSeed(kind, id)] = entity.id;
   return id;
+}
+
+/**
+ * De kaart domein-id → STEP-id voor de bytes-route (#804 §4.3, `IfcReadOptions.stepIdsOut`). Dezelfde sleutels en
+ * dezelfde keuzes als `collectIfcGlobalIds`: taken uit `taskStepIdMap`, resources uit `resourceStepIdMap`, relaties en
+ * bibliotheekkalenders uit `stepLog`, de projectkalender, het eerste project, het eerste werkplan en het eerste
+ * werkschema dat geen baseline is.
+ */
+function collectIfcStepIds(
+  entities: StepEntity[],
+  taskStepIdMap: ReadonlyMap<string, string>,
+  resourceStepIdMap: ReadonlyMap<string, string>,
+  projectId: string,
+  projectCalendarId: string,
+  stepLog: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const out: Record<string, string> = { ...stepLog };
+  for (const [stepId, taskId] of taskStepIdMap) out[ifcObjectSeed('task', taskId)] = stepId;
+  for (const [stepId, resourceId] of resourceStepIdMap) out[ifcObjectSeed('res', resourceId)] = stepId;
+  const calendar = entities.find(e => e.type === 'IFCWORKCALENDAR');
+  if (calendar) out[ifcObjectSeed('cal', projectCalendarId)] = calendar.id;
+  const proj = entities.find(e => e.type === 'IFCPROJECT');
+  if (proj) out[ifcObjectSeed('proj', projectId)] = proj.id;
+  const plan = entities.find(e => e.type === 'IFCWORKPLAN');
+  if (plan) out[ifcObjectSeed('wp', projectId)] = plan.id;
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
+  if (schedule) out[ifcObjectSeed('ws', projectId)] = schedule.id;
+  return out;
 }
 
 /** Resource-id uit het schrijvende document → ons id. Bestaat een resource met dat id al (een
@@ -1040,13 +1100,16 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
  * getest in `check-step-strings` (9f–9k).
  */
 function indexOfDataSection(content: string): number {
-  const strict = indexOfCode(content, 'DATA;', 0);
-  if (strict >= 0) return strict;
-  // `i`-vlag: zelfde hoofdletterongevoeligheid als de primaire scan (en als `assertIfcIntegrity`).
-  const anchored = /^[ \t]*DATA;/im.exec(content);
-  return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
+  // #804 fase 1a, fixronde 4 (eis van Trias): de regels voor beide pogingen staan in `stepDataSection.ts`, zodat de
+  // doelcontrole (`targetModelScan.ts`) als stroom precies dezelfde datasectie vindt. Wijzig ze daar, niet hier.
+  return indexOfStepDataSection(content);
 }
 
+// #804 fase 1a, fixronde 4: de doelcontrole (`foreign/targetModelScan.ts`) volgt `stripStepComments`, deze lus en
+// `readEntity` als stroom van bytes; ze moet "model" zeggen precies als `readIFC` met `building-model` weigert. Delen kon
+// niet zonder deze functies om te bouwen tot een stroomlezer (ze werken op de hele tekst, met terugspringen).
+// `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
+// Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, `ENDSEC;`), wijzig ze daar ook.
 function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
   // 1. Begin van de datasectie — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee.
@@ -1202,59 +1265,8 @@ function decodeQuotedSegments(arg: string): string {
   return out;
 }
 
-const HEX4 = /^[0-9A-Fa-f]{4}$/;
-const HEX8 = /^[0-9A-Fa-f]{8}$/;
-
-/**
- * STEP-stringinhoud (zonder de omsluitende quotes, `''` al samengevoegd) terug naar tekst:
- * `\\` → `\`, `\X2\hhhh…\X0\` (UTF-16), `\X4\hhhhhhhh…\X0\` (codepunten), `\X\hh` (ISO 8859-1)
- * en `\S\c` (teken + 128). `\Px\` (codetabelkeuze) wordt weggelaten; de lezer neemt voor `\S\`
- * altijd ISO 8859-1 aan. Een onbekende reeks blijft letterlijk staan. Tegenhanger van
- * `encodeStepText` (ifcPsets).
- */
-export function decodeStepText(s: string): string {
-  if (s.indexOf('\\') < 0) return s;
-  let out = '';
-  let i = 0;
-  const n = s.length;
-  while (i < n) {
-    const b = s.indexOf('\\', i);
-    if (b < 0) { out += s.slice(i); break; }
-    out += s.slice(i, b);
-    i = b;
-    if (s.startsWith('\\\\', i)) { out += '\\'; i += 2; continue; }
-    if (s.startsWith('\\X2\\', i) || s.startsWith('\\X4\\', i)) {
-      const width = s[i + 2] === '2' ? 4 : 8;
-      const end = s.indexOf('\\X0\\', i + 4);
-      const hexRun = end >= 0 ? s.slice(i + 4, end) : '';
-      const pattern = width === 4 ? HEX4 : HEX8;
-      let decoded = '';
-      let valid = end >= 0 && hexRun.length % width === 0;
-      for (let k = 0; valid && k < hexRun.length; k += width) {
-        const h = hexRun.slice(k, k + width);
-        if (!pattern.test(h)) { valid = false; break; }
-        const v = parseInt(h, 16);
-        if (width === 8 && v > 0x10FFFF) { valid = false; break; }
-        decoded += width === 4 ? String.fromCharCode(v) : String.fromCodePoint(v);
-      }
-      if (valid) { out += decoded; i = end + 4; continue; }
-    } else if (s.startsWith('\\X\\', i) && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 3, i + 5))) {
-      out += String.fromCharCode(parseInt(s.slice(i + 3, i + 5), 16));
-      i += 5;
-      continue;
-    } else if (s.startsWith('\\S\\', i) && i + 3 < n) {
-      out += String.fromCharCode(s.charCodeAt(i + 3) + 128);
-      i += 4;
-      continue;
-    } else if (s[i + 1] === 'P' && s[i + 3] === '\\' && /[A-I]/.test(s[i + 2] ?? '')) {
-      i += 4;
-      continue;
-    }
-    out += '\\';
-    i++;
-  }
-  return out;
-}
+// `decodeStepText` woont in `./stepText` (bladmodule, gedeeld met de scanner in de Worker van #804).
+export { decodeStepText } from './stepText';
 
 function stripQuotes(s: string): string {
   if (s.startsWith("'") && s.endsWith("'")) {
@@ -1967,6 +1979,7 @@ function extractSequences(
   exactMinuteLags: ReadonlyMap<string, ExactMinutesRecord>,
   hoursPerDay: number,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -2063,7 +2076,7 @@ function extractSequences(
     }
 
     const seq: Sequence = {
-      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog),
+      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog, stepLog),
       predecessorId: predId,
       successorId: succId,
       type: parseSequenceType(se.args[7] || ''),
@@ -3264,6 +3277,7 @@ function extractCalendarLibrary(
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): { calendars: WorkCalendar[]; idByGuid: Map<string, string> } {
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
   // De projectkalender heet altijd 'cal-default' (`extractCalendar`); een bibliotheekkalender kan
@@ -3286,7 +3300,7 @@ function extractCalendarLibrary(
     let cal = calByStepId.get(controlRef);
     if (!cal) {
       cal = buildCalendarFromEntity(controlEntity, entityMap, entities);
-      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog);
+      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog, stepLog);
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
       idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id);
@@ -3320,7 +3334,7 @@ function extractCalendarLibrary(
     if (projectCalendarEntity && ce.id === projectCalendarEntity.id) continue;
     if (calByStepId.has(ce.id)) continue;
     const cal = buildCalendarFromEntity(ce, entityMap, entities);
-    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog);
+    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog, stepLog);
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
     idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id);
@@ -3594,6 +3608,14 @@ function remapLevelingResourceIds(
  *    als losse dubbele taken over.
  *  - Een taak die (ook) onder het gewone schema hangt, is een live taak en blijft.
  */
+/** De bytes-route (#804, `IfcReadOptions.planningTaskStepIds`): elke `IfcTask` buiten de keuze van `selectPlanning`.
+ *  Zelfde vorm als `collectBaselineTaskStepIds`, zodat `extractTasks` niet verandert. */
+function tasksOutsideSelection(entities: StepEntity[], selected: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  for (const e of entities) if (e.type === 'IFCTASK' && !selected.has(e.id)) out.add(e.id);
+  return out;
+}
+
 function collectBaselineTaskStepIds(entities: StepEntity[]): Set<string> {
   const baselineSchedIds = new Set<string>();
   const liveSchedIds = new Set<string>();
@@ -3850,6 +3872,38 @@ function extractImportPristine(entities: StepEntity[], entityMap: Map<string, St
     }
   }
   return false;
+}
+
+/**
+ * `OPS_RecoveryForeignSource` (spiegel van de writer, alleen in een herstel-IFC of MCP-backup; #804 fase 1a, fixronde 1
+ * en 3): de vingerafdruk van een bron met een vreemd deel, en in een backup het doel. Soepel gelezen: een onvolledige of
+ * ongeldige vingerafdruk telt als afwezig (een oude snapshot zonder kenmerk werkt zoals altijd).
+ */
+function extractRecoveryForeignSource(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): ForeignSourceRecord | undefined {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.RecoveryForeignSource) continue;
+    let sha256: unknown;
+    let byteLength: unknown;
+    let filePath: unknown;
+    let siteFileId: unknown;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      const name = stripQuotes(prop.args[0] || '');
+      if (name === 'Sha256') sha256 = parseTypedValue(prop.args[2] || '');
+      else if (name === 'ByteLength') byteLength = parseTypedValue(prop.args[2] || '');
+      else if (name === 'SourcePath') filePath = parseTypedValue(prop.args[2] || '');
+      else if (name === 'SourceSiteFileId') siteFileId = parseTypedValue(prop.args[2] || '');
+    }
+    const fingerprint = parseForeignSourceFingerprint(sha256, byteLength);
+    if (!fingerprint) return undefined;
+    const target = parseForeignSourceTarget({ filePath, siteFileId });
+    return target && (target.filePath || target.siteFileId) ? { ...fingerprint, target } : fingerprint;
+  }
+  return undefined;
 }
 
 /**

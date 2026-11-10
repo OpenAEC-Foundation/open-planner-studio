@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
+import { ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -33,6 +34,8 @@ export function IFCPanel() {
   // Bewaarde GlobalIds uit het ingelezen bestand; zonder deze kreeg Toepassen overal hash-GlobalIds.
   const ifcGlobalIds = useAppStore(s => s.ifcGlobalIds);
   const applyProjectEdit = useAppStore(s => s.applyProjectEdit);
+  // #804 §4.12: met een vreemd deel staat Toepassen uit. De tekst hier bevat alleen de planning; de bron blijft staan.
+  const foreignContent = useAppStore(s => ifcSaveBlocked(s));
   const notify = useAppStore(s => s.notify);  // het ene meldingenkanaal, geen alert()
 
   const generated = useMemo(() => {
@@ -103,7 +106,7 @@ export function IFCPanel() {
         </button>
         <button
           onClick={handleApply}
-          disabled={!dirty}
+          disabled={!dirty || foreignContent}
           className="px-3 py-1 text-small leading-4 bg-green-600 text-white hover:bg-green-700 disabled:opacity-40"
           style={{ borderRadius: 'var(--radius-md)' }}
         >
