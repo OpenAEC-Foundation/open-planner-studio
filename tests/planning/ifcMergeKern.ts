@@ -6,6 +6,8 @@
 //   niet-P-stuk erbij (wat er nieuw is, deelt de uitvoer zelf in als P); hetzelfde regeleinde; de scanner neemt de
 //   uitvoer aan (dus geen dubbel `#id`).
 // - `canon`: het domein zoals de writer het ziet, als tekst met een vaste klok (de maat die ook de open-check gebruikt).
+// - `settle`: een eigen bestand van een oudere versie zoals de huidige writer het schrijft, voor proeven die een bron nodig
+//   hebben die de leesverliestoets doorstaat (fixronde 2 van #867).
 // - `editsFor`: de gewone bewerkingen van een planner op het domein, per taak of per paar (bijsturing 1, punt 2).
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
@@ -41,6 +43,59 @@ export function cloneDomain(d: Opened): Domain {
   const { ifcSource: _source, ...rest } = d;
   return structuredClone(rest) as Domain;
 }
+
+/**
+ * Een eigen bestand zoals de huidige writer het schrijft (fixronde 2 van #867). Een bestand van een oudere versie weigert
+ * met `niet-gedragen` om velden die de lezer niet draagt (zoals de GlobalIds van `OPS_Resource`, knownbug 1023). Een proef
+ * die over iets anders gaat, heeft een bron nodig die de leesverliestoets doorstaat. `settle` zet daarvoor in de BRON per
+ * melding de waarde die de writer schrijft: alleen `niet-gedragen` op één argument, met een uitvoerwaarde zonder
+ * verwijzing. Ids en het vreemde deel blijven gelijk. Kan een melding zo niet weg (een ontbrekend stuk, een andere
+ * lay-out, een verwijzing), dan gooit `settle`. Zo blijft elke afwijking van de bron zichtbaar in de proef die haar nodig had.
+ */
+export async function settle(bytes: Uint8Array): Promise<Uint8Array> {
+  let current = bytes;
+  for (let round = 0; round < 4; round++) {
+    const opened = await openForeign(current);
+    if (!opened.ifcSource?.foreign) throw new Error('settle: geen vreemd deel');
+    const outcome = tryMerge(cloneDomain(opened), opened.ifcSource);
+    if (outcome.ok) return current;
+    const cases = outcome.error.cases;
+    const refOutsideText = (tok: string) => /#\d/.test(tok.replace(/'(?:[^']|'')*'/g, "''"));
+    const stuck = cases.filter(c => c.kind !== 'niet-gedragen' || !c.field || c.field.whole || c.field.slotless
+      || c.sourceId === undefined || refOutsideText(c.field.out));
+    if (stuck.length > 0) throw new Error(`settle: niet te zetten: ${stuck.slice(0, 3).map(c => `${c.kind}: ${c.detail}`).join(' | ')}`);
+    current = patchArgs(current, cases.map(c => ({ id: String(c.sourceId), arg: c.field!.arg, value: c.field!.out })));
+  }
+  throw new Error('settle: na vier rondes nog meldingen');
+}
+
+/** Vervang argumenten van entiteiten (op `#id`), byte voor byte; de rest van het bestand blijft gelijk. */
+function patchArgs(bytes: Uint8Array, patches: readonly { id: string; arg: number; value: string }[]): Uint8Array {
+  const index = scanStep(bytes);
+  const byChunk = new Map<number, Map<number, string>>();
+  for (const p of patches) {
+    const i = index.chunkOf(p.id);
+    if (i < 0) throw new Error(`settle: geen #${p.id}`);
+    let m = byChunk.get(i);
+    if (!m) byChunk.set(i, m = new Map());
+    m.set(p.arg, p.value);
+  }
+  const parts: Uint8Array[] = [];
+  let at = 0;
+  for (const i of [...byChunk.keys()].sort((x, y) => x - y)) {
+    const args = [...(index.argTokens(i) ?? [])].map(t => t.trim());
+    for (const [k, v] of byChunk.get(i)!) args[k] = v;
+    const from = index.entityStart(i);
+    const tail = latin1Text(bytes.subarray(from, index.end(i)));
+    const close = tail.lastIndexOf(');');
+    parts.push(bytes.subarray(at, from), latin1Bytes(`#${index.id(i)}=${index.type(i)}(${args.join(',')}`), latin1Bytes(tail.slice(close)));
+    at = index.end(i);
+  }
+  parts.push(bytes.subarray(at));
+  return concat(parts);
+}
+const latin1Text = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode(...b.subarray(i, i + 8192)); return s; };
+const latin1Bytes = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 
 /** De uitkomst van één merge: de bytes, of de weigering met haar gevallen. Een andere fout gooit door. */
 export type MergeOutcome = { ok: true; bytes: Uint8Array } | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };

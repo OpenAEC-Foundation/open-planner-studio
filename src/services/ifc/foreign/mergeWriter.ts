@@ -24,11 +24,13 @@
  * Wat zonder fase 2 niet veilig kan, schrijft deze writer niet: hij gooit `MergeNeedsPhase2Error` (code
  * `merge-needs-phase2`) met elk geval, vóór er iets geschreven is. Nooit stil weglaten.
  *
- * Regel voor de verliesbewaking (fixronde 1 van #867; ook voor 1c): de verliesbewaking vergelijkt met de bron, nooit met
- * de eigen uitvoer. Elk veld dat de bron had (ook in een P-stuk, een hulpentiteit, een pset, een JSON-sleutel of een
+ * Regel voor de verliesbewaking (fixronde 1 en 2 van #867; ook voor 1c): de verliesbewaking vergelijkt met de bron, nooit
+ * met de eigen uitvoer. Elk veld dat de bron had (ook in een P-stuk, een hulpentiteit, een pset, een JSON-tekst of een
  * constant slot) en dat de uitvoer niet terug heeft, laat de merge weigeren met `merge-needs-phase2`, tenzij het domein
- * dat veld bewust veranderde. De bewaking staat in `lossCheck.ts`; de tabel per entiteittype (hoe de merge verlies ziet,
- * en welke test dat bewijst) staat in de PR-body van #867, sectie "Fixronde 1".
+ * dat veld bewust veranderde. Bewijs is de leesverliestoets in `lossCheck.ts`: de merge schrijft ook het domein zoals de
+ * lezer het las (O0), en elk P-stuk van de bron moet daarin veld voor veld terugkomen; alleen benoemde normalisaties
+ * (de waarde blijft gelijk) en schrijfvelden mogen anders zijn. De tabel per entiteittype (wat de lezer draagt, en welke
+ * test dat bewijst) staat in de PR-body van #867, sectie "Fixronde 2".
  *
  * Fase 1b: alleen tests gebruiken deze writer. Opslaan met een vreemd deel blijft geweigerd tot 1c.
  */
@@ -36,7 +38,7 @@ import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds }
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, type Classification } from './classify';
-import { lossCheck } from './lossCheck';
+import { lossCheck, pristineDomain, type LossDiff } from './lossCheck';
 import type { IfcSource } from './ifcSource';
 import { scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 
@@ -45,12 +47,10 @@ export type MergePhase2Kind =
   /** Een D- of R-stuk van een ander programma (§4.5): zonder `sourceSlots` gingen owner history, `Creators` en andere
    *  slots van dat programma verloren. */
   | 'vreemde-herkomst'
-  /** Een eigen D-, R- of propertystuk met een waarde in een slot dat de writer leeg (`$`) schrijft (§4.5, constant). */
-  | 'constant-slot'
-  /** Een sleutel in de JSON van een eigen property die de writer niet terugschrijft (`jsonExtras`, §4.2). */
-  | 'json-sleutel'
-  /** Een sleutel in `OPS_Assignments` die de lezer niet gebruikt (`unusedKeys`, §4.2). */
-  | 'ongebruikte-sleutel'
+  /** Een veld van een eigen stuk (P) dat de lezer niet draagt: de writer schrijft het domein zoals gelezen (O0) en dat
+   *  veld komt anders of niet terug, of een bewerking liet het vallen (`lossCheck.ts`). Zonder fase 2 (`sourceSlots`,
+   *  `jsonExtras`, `unusedKeys`) kan de writer het niet bewaren. */
+  | 'niet-gedragen'
   /** Een niet-P-stuk wijst naar een D-object dat niet meer bestaat, of een vreemd lid hoort bij zo'n object (§4.7). */
   | 'verwijderd'
   /** Een niet-P-stuk wijst naar een P-stuk zonder vast id (een relatie of hulpstuk, §4.3). */
@@ -75,6 +75,8 @@ export interface MergePhase2Case {
   /** Het `#id` in de bron waar het geval over gaat, als er één is. */
   readonly sourceId?: number;
   readonly detail: string;
+  /** Bij `niet-gedragen`: het verschil zelf (zie `LossDiff` in `lossCheck.ts`), zonder het interne stuknummer. */
+  readonly field?: Omit<LossDiff, 'chunk'>;
 }
 
 /** Schrijven met dit vreemde deel kan pas veilig met fase 2. Er is niets geschreven. */
@@ -245,8 +247,10 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   assertSameSource(index, cls, source);
 
   const cases: MergePhase2Case[] = [];
-  const caseAt = (kind: MergePhase2Kind, chunk: number, detail: string) =>
-    cases.push({ kind, ...(chunk >= 0 ? { sourceId: Number(index.id(chunk)) } : {}), detail });
+  const caseAt = (kind: MergePhase2Kind, chunk: number, detail: string, diff?: LossDiff) => {
+    const field = diff ? (({ chunk: _, ...rest }) => rest)(diff) : undefined;
+    cases.push({ kind, ...(chunk >= 0 ? { sourceId: Number(index.id(chunk)) } : {}), detail, ...(field ? { field } : {}) });
+  };
   const n = index.count;
   const isP = (i: number) => cls.classes[i] === 1;
   const inD = cls.selection.inD;
@@ -259,268 +263,275 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
 
-  // ── 2. Het domein ──
-  const tasks = new Map(input.tasks.map(t => [t.id, t]));
-  const resources = new Map(input.resources.map(r => [r.id, r]));
+  // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
+  // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
+  function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void) {
+    // ── 2. Het domein ──
+    const tasks = new Map(input.tasks.map(t => [t.id, t]));
+    const resources = new Map(input.resources.map(r => [r.id, r]));
 
-  // ── 3. De writer ──
-  const written = writeIfcMergeLines(input, plan);
-  const lines = written.lines.map(parseLine);
-  const byId = new Map<number, OwnLine>();
-  for (const line of lines) {
-    if (byId.has(line.id)) throw new Error(`mergeWriter: de writer gaf #${line.id} twee keer uit`);
-    byId.set(line.id, line);
-  }
-  const outIdOf = (key: string) => written.idMap.get(key);
-  const scheduleOut = outIdOf('_worksched');
-  /** De baseline-koppen die met hun bron-id in de uitvoer staan (`baselineHeads`). */
-  const keptHeads = new Set<number>();
-  for (const [key, id] of written.idMap) if (key.startsWith('_baseline_ws_') && reserved.has(id)) keptHeads.add(id);
-
-  // ── 4. Bewaarde en gemengde relaties ──
-  /** Leden die in geen eigen relatie van dit type mogen staan (SET [0:1]). */
-  const noOwnRel = new Map<string, Set<number>>([[NESTS, new Set()], [AGGREGATES, new Set()], [DECLARES, new Set()]]);
-  /** Per `type|relating`: leden die de writer weglaat omdat een ongewijzigde gemengde relatie ze al heeft. */
-  const mixedMembers = new Map<string, Bag>();
-  const bagFor = (type: string, relating: number) => {
-    const key = `${type}|${relating}`;
-    let bag = mixedMembers.get(key);
-    if (!bag) mixedMembers.set(key, bag = new Bag());
-    return bag;
-  };
-  /** D-taken in een relatie van een ander werkschema (niet D). */
-  const otherScheduleTasks = new Set<number>();
-  const domainOf = (chunk: number) => bySource.get(sid(chunk));
-  const taskOf = (chunk: number) => {
-    const d = domainOf(chunk);
-    return d?.kind === 'task' ? tasks.get(d.id) : undefined;
-  };
-
-  for (let r = 0; r < n; r++) {
-    if (!index.isEntity(r) || isP(r)) continue;
-    const type = index.type(r);
-    const pos = REL_ARGS[type];
-    if (!pos) continue;
-    const relating = index.refAt(r, pos.relating);
-    const members = index.refsAt(r, pos.related).filter(x => x >= 0 && inD[x]);
-    if (members.length === 0) continue;
-    if (relating >= 0 && inD[relating]) {
-      mixedRelation(r, type, relating, members);
-      continue;
+    // ── 3. De writer ──
+    const written = writeIfcMergeLines(input, plan);
+    const lines = written.lines.map(parseLine);
+    const byId = new Map<number, OwnLine>();
+    for (const line of lines) {
+      if (byId.has(line.id)) throw new Error(`mergeWriter: de writer gaf #${line.id} twee keer uit`);
+      byId.set(line.id, line);
     }
-    // Bewaarde relatie met een relating buiten D: haar D-leden houden hun plek.
-    const relatingIsSchedule = relating >= 0 && index.type(relating) === 'IFCWORKSCHEDULE';
-    for (const m of members) {
-      if (SINGLE_MEMBERSHIP.has(type)) noOwnRel.get(type)!.add(sid(m));
-      if (type === NESTS) {
-        const d = domainOf(m);
-        const moved = d?.kind === 'task' ? !!tasks.get(d.id)?.parentId : d?.kind === 'res' ? resources.get(d.id)?.parentId != null : false;
-        if (moved) caseAt('verplaatst', m, `${label(m)} staat in ${label(r)} van een ander, maar heeft in de planning een ouder`);
-      }
-      if ((type === NESTS || type === CONTROL) && relatingIsSchedule && index.type(m) === 'IFCTASK') otherScheduleTasks.add(sid(m));
-    }
-  }
+    const outIdOf = (key: string) => written.idMap.get(key);
+    const scheduleOut = outIdOf('_worksched');
+    /** De baseline-koppen die met hun bron-id in de uitvoer staan (`baselineHeads`). */
+    const keptHeads = new Set<number>();
+    for (const [key, id] of written.idMap) if (key.startsWith('_baseline_ws_') && reserved.has(id)) keptHeads.add(id);
 
-  function mixedRelation(r: number, type: string, relating: number, members: number[]): void {
-    const relType = index.type(relating);
-    const relatingDomain = domainOf(relating);
-    const bag = bagFor(type, sid(relating));
-    // Een lid dat niet meer bestaat (of dat de planning niet kent): dat meldt de controle op verwijzingen (stap 7).
-    const missing = members.some(m => (!domainOf(m) && !keptHeads.has(sid(m))) || (domainOf(m)?.kind === 'task' ? !tasks.has(domainOf(m)!.id)
-      : domainOf(m)?.kind === 'res' ? !resources.has(domainOf(m)!.id) : false));
-    if (missing) return;
-    if (type === NESTS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
-      const parent = tasks.get(relatingDomain.id);
-      const s = members.map(m => taskOf(m)?.id);
-      if (!parent || s.some(id => id === undefined || tasks.get(id)!.parentId !== parent.id)) {
-        caseAt('gemengde-relatie', r, `${label(r)}: een D-lid heeft een andere ouder`);
-        return;
+    // ── 4. Bewaarde en gemengde relaties ──
+    /** Leden die in geen eigen relatie van dit type mogen staan (SET [0:1]). */
+    const noOwnRel = new Map<string, Set<number>>([[NESTS, new Set()], [AGGREGATES, new Set()], [DECLARES, new Set()]]);
+    /** Per `type|relating`: leden die de writer weglaat omdat een ongewijzigde gemengde relatie ze al heeft. */
+    const mixedMembers = new Map<string, Bag>();
+    const bagFor = (type: string, relating: number) => {
+      const key = `${type}|${relating}`;
+      let bag = mixedMembers.get(key);
+      if (!bag) mixedMembers.set(key, bag = new Bag());
+      return bag;
+    };
+    /** D-taken in een relatie van een ander werkschema (niet D). */
+    const otherScheduleTasks = new Set<number>();
+    const domainOf = (chunk: number) => bySource.get(sid(chunk));
+    const taskOf = (chunk: number) => {
+      const d = domainOf(chunk);
+      return d?.kind === 'task' ? tasks.get(d.id) : undefined;
+    };
+
+    for (let r = 0; r < n; r++) {
+      if (!index.isEntity(r) || isP(r)) continue;
+      const type = index.type(r);
+      const pos = REL_ARGS[type];
+      if (!pos) continue;
+      const relating = index.refAt(r, pos.relating);
+      const members = index.refsAt(r, pos.related).filter(x => x >= 0 && inD[x]);
+      if (members.length === 0) continue;
+      if (relating >= 0 && inD[relating]) {
+        mixedRelation(r, type, relating, members);
+        continue;
       }
-      // De lezer leest de eigen relatie (in het blok) vóór de gemengde (erna): de volgorde moet dan die van het domein zijn.
-      const others = parent.childIds.filter(id => !s.includes(id));
-      if (parent.childIds.join('\u0000') !== [...others, ...s].join('\u0000')) {
-        caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de kinderen zou na herlezen anders zijn`);
-        return;
-      }
-    } else if (type === NESTS && relType === 'IFCWORKSCHEDULE') {
-      if (members.some(m => !!taskOf(m)?.parentId)) {
-        caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen wortel-taak meer`);
-        return;
-      }
-    } else if (type === AGGREGATES && relType === 'IFCWORKPLAN') {
-      // Het D-schema hangt altijd onder het D-werkplan, en een eigen baselinekop houdt zijn id (`keptHeads`).
-    } else if (type === CONTROL && relType === 'IFCWORKSCHEDULE') {
-      // Elke taak hangt aan het D-schema; de leden bestaan nog (hierboven).
-    } else if (type === CONTROL && relType === 'IFCWORKCALENDAR' && relatingDomain?.kind === 'cal') {
-      const calId = relatingDomain.id;
+      // Bewaarde relatie met een relating buiten D: haar D-leden houden hun plek.
+      const relatingIsSchedule = relating >= 0 && index.type(relating) === 'IFCWORKSCHEDULE';
       for (const m of members) {
-        const d = domainOf(m)!;
-        const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(d.id)?.calendarId : undefined;
-        const same = calId === input.calendar.id ? !own || own === input.calendar.id : own === calId;
-        if (!same) {
-          caseAt('gemengde-relatie', r, `${label(r)}: ${label(m)} heeft een andere kalender`);
+        if (SINGLE_MEMBERSHIP.has(type)) noOwnRel.get(type)!.add(sid(m));
+        if (type === NESTS) {
+          const d = domainOf(m);
+          const moved = d?.kind === 'task' ? !!tasks.get(d.id)?.parentId : d?.kind === 'res' ? resources.get(d.id)?.parentId != null : false;
+          if (moved) caseAt('verplaatst', m, `${label(m)} staat in ${label(r)} van een ander, maar heeft in de planning een ouder`);
+        }
+        if ((type === NESTS || type === CONTROL) && relatingIsSchedule && index.type(m) === 'IFCTASK') otherScheduleTasks.add(sid(m));
+      }
+    }
+
+    function mixedRelation(r: number, type: string, relating: number, members: number[]): void {
+      const relType = index.type(relating);
+      const relatingDomain = domainOf(relating);
+      const bag = bagFor(type, sid(relating));
+      // Een lid dat niet meer bestaat (of dat de planning niet kent): dat meldt de controle op verwijzingen (stap 7).
+      const missing = members.some(m => (!domainOf(m) && !keptHeads.has(sid(m))) || (domainOf(m)?.kind === 'task' ? !tasks.has(domainOf(m)!.id)
+        : domainOf(m)?.kind === 'res' ? !resources.has(domainOf(m)!.id) : false));
+      if (missing) return;
+      if (type === NESTS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
+        const parent = tasks.get(relatingDomain.id);
+        const s = members.map(m => taskOf(m)?.id);
+        if (!parent || s.some(id => id === undefined || tasks.get(id)!.parentId !== parent.id)) {
+          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid heeft een andere ouder`);
           return;
         }
-      }
-    } else if (type === PROCESS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
-      const taskId = relatingDomain.id;
-      const domainRes = input.assignments.filter(a => a.taskId === taskId).map(a => a.resourceId);
-      const s = members.map(m => domainOf(m)?.id);
-      const count = (list: readonly (string | undefined)[], id: string | undefined) => list.filter(x => x === id).length;
-      for (const id of new Set(s)) {
-        // Meer toewijzingen van dezelfde resource: de wachtrij van `OPS_Assignments` kan dan schuiven.
-        if (count(s, id) > 1 || count(domainRes, id) !== 1) {
-          caseAt('gemengde-relatie', r, `${label(r)}: de toewijzingen van de taak veranderden`);
+        // De lezer leest de eigen relatie (in het blok) vóór de gemengde (erna): de volgorde moet dan die van het domein zijn.
+        const others = parent.childIds.filter(id => !s.includes(id));
+        if (parent.childIds.join('\u0000') !== [...others, ...s].join('\u0000')) {
+          caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de kinderen zou na herlezen anders zijn`);
           return;
         }
-      }
-      const others = domainRes.filter(id => !s.includes(id));
-      if (domainRes.join('\u0000') !== [...others, ...s].join('\u0000')) {
-        caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de toewijzingen zou na herlezen anders zijn`);
+      } else if (type === NESTS && relType === 'IFCWORKSCHEDULE') {
+        if (members.some(m => !!taskOf(m)?.parentId)) {
+          caseAt('gemengde-relatie', r, `${label(r)}: een D-lid is geen wortel-taak meer`);
+          return;
+        }
+      } else if (type === AGGREGATES && relType === 'IFCWORKPLAN') {
+        // Het D-schema hangt altijd onder het D-werkplan, en een eigen baselinekop houdt zijn id (`keptHeads`).
+      } else if (type === CONTROL && relType === 'IFCWORKSCHEDULE') {
+        // Elke taak hangt aan het D-schema; de leden bestaan nog (hierboven).
+      } else if (type === CONTROL && relType === 'IFCWORKCALENDAR' && relatingDomain?.kind === 'cal') {
+        const calId = relatingDomain.id;
+        for (const m of members) {
+          const d = domainOf(m)!;
+          const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(d.id)?.calendarId : undefined;
+          const same = calId === input.calendar.id ? !own || own === input.calendar.id : own === calId;
+          if (!same) {
+            caseAt('gemengde-relatie', r, `${label(r)}: ${label(m)} heeft een andere kalender`);
+            return;
+          }
+        }
+      } else if (type === PROCESS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
+        const taskId = relatingDomain.id;
+        const domainRes = input.assignments.filter(a => a.taskId === taskId).map(a => a.resourceId);
+        const s = members.map(m => domainOf(m)?.id);
+        const count = (list: readonly (string | undefined)[], id: string | undefined) => list.filter(x => x === id).length;
+        for (const id of new Set(s)) {
+          // Meer toewijzingen van dezelfde resource: de wachtrij van `OPS_Assignments` kan dan schuiven.
+          if (count(s, id) > 1 || count(domainRes, id) !== 1) {
+            caseAt('gemengde-relatie', r, `${label(r)}: de toewijzingen van de taak veranderden`);
+            return;
+          }
+        }
+        const others = domainRes.filter(id => !s.includes(id));
+        if (domainRes.join('\u0000') !== [...others, ...s].join('\u0000')) {
+          caseAt('gemengde-relatie', r, `${label(r)}: de volgorde van de toewijzingen zou na herlezen anders zijn`);
+          return;
+        }
+      } else {
+        caseAt('gemengde-relatie', r, `${label(r)} met relating ${label(relating)}: deze vorm kan pas in fase 2`);
         return;
       }
-    } else {
-      caseAt('gemengde-relatie', r, `${label(r)} met relating ${label(relating)}: deze vorm kan pas in fase 2`);
-      return;
+      for (const m of members) bag.add(sid(m));
     }
-    for (const m of members) bag.add(sid(m));
-  }
 
-  // De taken die niet aan het D-schema mogen: zelf of via een voorouder in een relatie van een ander werkschema.
-  const notInSchedule = new Set<number>();
-  for (const t of input.tasks) {
-    for (let cur: typeof t | undefined = t, guard = 0; cur && guard < 10000; cur = cur.parentId ? tasks.get(cur.parentId) : undefined, guard++) {
-      const kept = keep.get(`task_${cur.id}`);
-      if (kept !== undefined && otherScheduleTasks.has(kept)) {
-        const out = outIdOf(`task_${t.id}`);
-        if (out !== undefined) notInSchedule.add(out);
-        break;
+    // De taken die niet aan het D-schema mogen: zelf of via een voorouder in een relatie van een ander werkschema.
+    const notInSchedule = new Set<number>();
+    for (const t of input.tasks) {
+      for (let cur: typeof t | undefined = t, guard = 0; cur && guard < 10000; cur = cur.parentId ? tasks.get(cur.parentId) : undefined, guard++) {
+        const kept = keep.get(`task_${cur.id}`);
+        if (kept !== undefined && otherScheduleTasks.has(kept)) {
+          const out = outIdOf(`task_${t.id}`);
+          if (out !== undefined) notInSchedule.add(out);
+          break;
+        }
       }
     }
-  }
 
-  for (const line of lines) {
-    const pos = REL_ARGS[line.type];
-    if (!pos) continue;
-    const relating = refOf(line.args[pos.relating]);
-    const before = refList(line.args[pos.related]);
-    const bag = mixedMembers.get(`${line.type}|${relating}`);
-    const banned = noOwnRel.get(line.type);
-    const scheduleRel = relating === scheduleOut && (line.type === NESTS || line.type === CONTROL);
-    const after = before.filter(m => !(banned?.has(m)) && !(bag?.take(m)) && !(scheduleRel && notInSchedule.has(m)));
-    if (after.length === before.length) continue;
-    if (after.length === 0) line.drop = true;
-    else {
-      const args = [...line.args];
-      args[pos.related] = formatRefs(after);
-      setArgs(line, args);
-    }
-  }
-
-  // ── 5. Gemengde psets (§4.6 b): ongewijzigd ⇒ geen eigen pset voor dat D-object ──
-  const ownPsetsOf = indexOwnPsets(lines, byId);
-  for (let r = 0; r < n; r++) {
-    if (!index.isEntity(r) || isP(r) || index.type(r) !== DEFINES) continue;
-    const pset = index.refAt(r, 5);
-    if (pset < 0 || index.type(pset) !== 'IFCPROPERTYSET') continue;
-    const name = index.name(pset) ?? '';
-    if (!REGISTER_PSETS.has(name)) continue;
-    for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x])) {
-      const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
-      const want = sourceProps(index, pset);
-      if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1) || !sameProps(own.props, want)) {
-        caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde (of de writer deelt haar)`);
-        continue;
+    for (const line of lines) {
+      const pos = REL_ARGS[line.type];
+      if (!pos) continue;
+      const relating = refOf(line.args[pos.relating]);
+      const before = refList(line.args[pos.related]);
+      const bag = mixedMembers.get(`${line.type}|${relating}`);
+      const banned = noOwnRel.get(line.type);
+      const scheduleRel = relating === scheduleOut && (line.type === NESTS || line.type === CONTROL);
+      const after = before.filter(m => !(banned?.has(m)) && !(bag?.take(m)) && !(scheduleRel && notInSchedule.has(m)));
+      if (after.length === before.length) continue;
+      if (after.length === 0) line.drop = true;
+      else {
+        const args = [...line.args];
+        args[pos.related] = formatRefs(after);
+        setArgs(line, args);
       }
-      own.pset.drop = true;
-      for (const p of own.propLines) p.drop = true;
-      for (const rel of own.rels) rel.drop = true;
     }
-  }
 
-  // ── 6. Vreemde leden aan de eigen pset of template hangen ──
-  const extraPsets = new Map<string, { owner: number; pset: number; rel: number; members: number[] }>();
-  // De velden en codes die de uitvoer in `OPS_StructureMeta` krijgt: een vreemd lid met zo'n naam (of code) leest de
-  // lezer na opslaan als eigen (§10: een veld "Zone" dat de planner later maakt). Dat vraagt een melding (fase 2); tot dan
-  // schrijft de merge niets.
-  const outFields = new Set((input.customFieldDefs ?? []).map(d => d.name));
-  const outCodes = new Map((input.activityCodeTypes ?? []).map(t => [t.name, new Set(t.values.map(v => v.code))]));
-  // Dezelfde regels als `ownProperty` en `ownTemplateProperty` in `classify.ts`, met de structuur van de uitvoer.
-  const readAsOwn = (m: number, setName: string, inTemplate: boolean): boolean => {
-    const name = index.name(m) ?? '';
-    const type = index.type(m);
-    if (inTemplate) {
-      if (type !== 'IFCSIMPLEPROPERTYTEMPLATE') return false;
-      return setName === PSET.CustomFields ? outFields.has(name) : outCodes.has(name);
-    }
-    if (setName === PSET.CustomFields) return type === 'IFCPROPERTYSINGLEVALUE' && outFields.has(name);
-    if (setName === PSET.ActivityCodes) {
-      return type === 'IFCPROPERTYENUMERATEDVALUE' && (outCodes.get(name)?.has((index.enumValues(m) ?? [])[0] ?? '\u0000') ?? false);
-    }
-    return false;
-  };
-  for (const m of cls.foreignMembers) {
-    for (let k = index.inStart(m); k < index.inEnd(m); k++) {
-      const parent = index.inSource(k);
-      if (parent < 0 || !isP(parent)) continue;
-      const ptype = index.type(parent);
-      const name = index.name(parent) ?? '';
-      if (readAsOwn(m, name, ptype === 'IFCPROPERTYSETTEMPLATE')) {
-        caseAt('vreemd-lid', m, `${label(m)} in ${name} zou na opslaan als eigen gelezen worden: de planning heeft nu een veld of code met die naam`);
-        continue;
-      }
-      if (ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4) {
-        const owners = psetOwners(index, parent);
-        if (owners.length !== 1) {
-          caseAt('vreemd-lid', m, `${label(m)} hoort bij ${label(parent)} met ${owners.length} eigenaren`);
+    // ── 5. Gemengde psets (§4.6 b): ongewijzigd ⇒ geen eigen pset voor dat D-object ──
+    const ownPsetsOf = indexOwnPsets(lines, byId);
+    for (let r = 0; r < n; r++) {
+      if (!index.isEntity(r) || isP(r) || index.type(r) !== DEFINES) continue;
+      const pset = index.refAt(r, 5);
+      if (pset < 0 || index.type(pset) !== 'IFCPROPERTYSET') continue;
+      const name = index.name(pset) ?? '';
+      if (!REGISTER_PSETS.has(name)) continue;
+      for (const owner of index.refsAt(r, 4).filter(x => x >= 0 && inD[x])) {
+        const own = ownPsetsOf.get(`${sid(owner)}|${name}`);
+        const want = sourceProps(index, pset);
+        if (!own || own.rels.some(rel => refList(rel.args[4]).length !== 1) || !sameProps(own.props, want)) {
+          caseAt('gemengde-relatie', r, `${label(r)}: de pset ${name} van ${label(owner)} veranderde (of de writer deelt haar)`);
           continue;
         }
-        const own = ownPsetsOf.get(`${sid(owners[0])}|${name}`);
-        if (!own || own.pset.drop) {
-          const owner = owners[0];
-          const exists = !isP(owner) || (byId.has(sid(owner)) && !byId.get(sid(owner))!.drop);
-          if (!exists) {
-            caseAt('verwijderd', m, `${label(m)} hoort bij ${name} van ${label(owner)}, dat niet meer bestaat`);
+        own.pset.drop = true;
+        for (const p of own.propLines) p.drop = true;
+        for (const rel of own.rels) rel.drop = true;
+      }
+    }
+
+    // ── 6. Vreemde leden aan de eigen pset of template hangen ──
+    const extraPsets = new Map<string, { owner: number; pset: number; rel: number; members: number[] }>();
+    // De velden en codes die de uitvoer in `OPS_StructureMeta` krijgt: een vreemd lid met zo'n naam (of code) leest de
+    // lezer na opslaan als eigen (§10: een veld "Zone" dat de planner later maakt). Dat vraagt een melding (fase 2); tot dan
+    // schrijft de merge niets.
+    const outFields = new Set((input.customFieldDefs ?? []).map(d => d.name));
+    const outCodes = new Map((input.activityCodeTypes ?? []).map(t => [t.name, new Set(t.values.map(v => v.code))]));
+    // Dezelfde regels als `ownProperty` en `ownTemplateProperty` in `classify.ts`, met de structuur van de uitvoer.
+    const readAsOwn = (m: number, setName: string, inTemplate: boolean): boolean => {
+      const name = index.name(m) ?? '';
+      const type = index.type(m);
+      if (inTemplate) {
+        if (type !== 'IFCSIMPLEPROPERTYTEMPLATE') return false;
+        return setName === PSET.CustomFields ? outFields.has(name) : outCodes.has(name);
+      }
+      if (setName === PSET.CustomFields) return type === 'IFCPROPERTYSINGLEVALUE' && outFields.has(name);
+      if (setName === PSET.ActivityCodes) {
+        return type === 'IFCPROPERTYENUMERATEDVALUE' && (outCodes.get(name)?.has((index.enumValues(m) ?? [])[0] ?? '\u0000') ?? false);
+      }
+      return false;
+    };
+    for (const m of cls.foreignMembers) {
+      for (let k = index.inStart(m); k < index.inEnd(m); k++) {
+        const parent = index.inSource(k);
+        if (parent < 0 || !isP(parent)) continue;
+        const ptype = index.type(parent);
+        const name = index.name(parent) ?? '';
+        if (readAsOwn(m, name, ptype === 'IFCPROPERTYSETTEMPLATE')) {
+          caseAt('vreemd-lid', m, `${label(m)} in ${name} zou na opslaan als eigen gelezen worden: de planning heeft nu een veld of code met die naam`);
+          continue;
+        }
+        if (ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4) {
+          const owners = psetOwners(index, parent);
+          if (owners.length !== 1) {
+            caseAt('vreemd-lid', m, `${label(m)} hoort bij ${label(parent)} met ${owners.length} eigenaren`);
             continue;
           }
-          // De writer schrijft deze pset niet (golden rule: niets eigens te schrijven). Dan een pset met alleen de vreemde
-          // leden, met de GlobalIds van de bron, zodat het lidmaatschap blijft (§4.10, controle 1).
-          const key = `${sid(owner)}|${name}`;
-          let extra = extraPsets.get(key);
-          if (!extra) extraPsets.set(key, extra = { owner: sid(owner), pset: parent, rel: psetRel(index, parent), members: [] });
-          extra.members.push(sid(m));
-          continue;
+          const own = ownPsetsOf.get(`${sid(owners[0])}|${name}`);
+          if (!own || own.pset.drop) {
+            const owner = owners[0];
+            const exists = !isP(owner) || (byId.has(sid(owner)) && !byId.get(sid(owner))!.drop);
+            if (!exists) {
+              caseAt('verwijderd', m, `${label(m)} hoort bij ${name} van ${label(owner)}, dat niet meer bestaat`);
+              continue;
+            }
+            // De writer schrijft deze pset niet (golden rule: niets eigens te schrijven). Dan een pset met alleen de vreemde
+            // leden, met de GlobalIds van de bron, zodat het lidmaatschap blijft (§4.10, controle 1).
+            const key = `${sid(owner)}|${name}`;
+            let extra = extraPsets.get(key);
+            if (!extra) extraPsets.set(key, extra = { owner: sid(owner), pset: parent, rel: psetRel(index, parent), members: [] });
+            extra.members.push(sid(m));
+            continue;
+          }
+          const args = [...own.pset.args];
+          args[4] = formatRefs([...refList(args[4]), sid(m)]);
+          setArgs(own.pset, args);
+        } else if (ptype === 'IFCPROPERTYSETTEMPLATE' && index.inArg(k) === 6) {
+          const tmpl = lines.find(l => !l.drop && l.type === 'IFCPROPERTYSETTEMPLATE' && unquote(l.args[2]) === name);
+          if (!tmpl) {
+            caseAt('vreemd-lid', m, `${label(m)} hoort bij het template ${name}, maar de writer schrijft dat niet`);
+            continue;
+          }
+          const args = [...tmpl.args];
+          args[6] = formatRefs([...refList(args[6]), sid(m)]);
+          setArgs(tmpl, args);
         }
-        const args = [...own.pset.args];
-        args[4] = formatRefs([...refList(args[4]), sid(m)]);
-        setArgs(own.pset, args);
-      } else if (ptype === 'IFCPROPERTYSETTEMPLATE' && index.inArg(k) === 6) {
-        const tmpl = lines.find(l => !l.drop && l.type === 'IFCPROPERTYSETTEMPLATE' && unquote(l.args[2]) === name);
-        if (!tmpl) {
-          caseAt('vreemd-lid', m, `${label(m)} hoort bij het template ${name}, maar de writer schrijft dat niet`);
-          continue;
-        }
-        const args = [...tmpl.args];
-        args[6] = formatRefs([...refList(args[6]), sid(m)]);
-        setArgs(tmpl, args);
       }
     }
-  }
 
-  if (extraPsets.size > 0) {
-    let next = Math.max(plan.firstId - 1, ...lines.map(l => l.id)) + 1;
-    const nextId = () => { while (reserved.has(next)) next++; return next++; };
-    const ownerHistory = written.idMap.get('_owner');
-    for (const extra of extraPsets.values()) {
-      const text = (chunk: number, arg: number) => ifcStr(index.tokenText(chunk, index.argTokens(chunk)?.[arg]));
-      const psetId = nextId();
-      lines.push(parseLine(`#${psetId}=IFCPROPERTYSET(${text(extra.pset, 0)},#${ownerHistory},${text(extra.pset, 2)},`
-        + `${text(extra.pset, 3)},${formatRefs(extra.members)});`));
-      const relGuid = extra.rel >= 0 ? text(extra.rel, 0) : ifcStr(`${index.globalId(extra.pset)}`);
-      const relName = extra.rel >= 0 ? `${text(extra.rel, 2)},${text(extra.rel, 3)}` : '$,$';
-      lines.push(parseLine(`#${nextId()}=IFCRELDEFINESBYPROPERTIES(${relGuid},#${ownerHistory},${relName},(#${extra.owner}),#${psetId});`));
+    if (extraPsets.size > 0) {
+      let next = Math.max(plan.firstId - 1, ...lines.map(l => l.id)) + 1;
+      const nextId = () => { while (reserved.has(next)) next++; return next++; };
+      const ownerHistory = written.idMap.get('_owner');
+      for (const extra of extraPsets.values()) {
+        const text = (chunk: number, arg: number) => ifcStr(index.tokenText(chunk, index.argTokens(chunk)?.[arg]));
+        const psetId = nextId();
+        lines.push(parseLine(`#${psetId}=IFCPROPERTYSET(${text(extra.pset, 0)},#${ownerHistory},${text(extra.pset, 2)},`
+          + `${text(extra.pset, 3)},${formatRefs(extra.members)});`));
+        const relGuid = extra.rel >= 0 ? text(extra.rel, 0) : ifcStr(`${index.globalId(extra.pset)}`);
+        const relName = extra.rel >= 0 ? `${text(extra.rel, 2)},${text(extra.rel, 3)}` : '$,$';
+        lines.push(parseLine(`#${nextId()}=IFCRELDEFINESBYPROPERTIES(${relGuid},#${ownerHistory},${relName},(#${extra.owner}),#${psetId});`));
+      }
     }
+
+    return { lines, byId, keptHeads };
   }
+  const { lines, byId, keptHeads } = buildLines(input, caseAt);
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
@@ -549,9 +560,14 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
     }
   }
 
-  // ── 8. De verliesbewaking: wat de bron had en de writer niet terugschrijft (`lossCheck.ts`) ──
-  lossCheck({ index, cls, source, plan, emitted, input, sourceOwnerHistory: ids.sourceOwnerHistory },
-    f => caseAt(f.kind, f.chunk, f.detail));
+  // ── 8. De verliesbewaking (`lossCheck.ts`): O0, het domein zoals de lezer het uit de bron las, moet elk P-stuk van de
+  // bron veld voor veld teruggeven; O1 mag daar alleen van afwijken waar het domein veranderde. ──
+  const pristine = pristineDomain(index, cls, source);
+  const o0 = buildLines(pristine, () => {}).lines.filter(l => !l.drop);
+  lossCheck({
+    index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain: input,
+    sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
+  }, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
 
   if (cases.length > 0) throw new MergeNeedsPhase2Error(cases);
 

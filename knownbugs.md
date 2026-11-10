@@ -1748,6 +1748,37 @@ en noem het in je rapport of PR-tekst.
      de planner bij een eigen bestand met een model zijn auteur of bedrijf niet kan wijzigen. Uit #867 (fase 1b,
      fixronde 1). — B
 
+1023. **VERVOLG: de GlobalIds van `OPS_Resource` veranderen bij de eerste keer opslaan na openen.** De writer leidt de
+     GlobalId van de pset van een resource en van haar `IfcRelDefinesByProperties` af van `res.id` (`pset_res_<id>`,
+     `src/services/ifc/ifcWriter.ts:1918`). De lezer maakt het id van een resource uit haar GlobalId (`stableIdFromGuid`,
+     `src/services/ifc/ifcReader.ts:2481`); een nieuwe resource in de app heeft `generateId('res')`. Na opslaan en openen
+     krijgt elke `OPS_Resource` bij het volgende opslaan dus een nieuwe GlobalId, net als haar relatie. Taken hebben dit
+     niet: hun id staat in het bestand. Gemeten op `03-kantoorgebouw-zuidas.ifc` met verse ids: 36 van de 426 GlobalIds van
+     hulpstukken zijn nieuw, alle 36 van `OPS_Resource` (18 psets, 18 relaties); de ronde daarna is stabiel. Met de flag
+     weigert de leesverliestoets van fase 1b zo'n bestand daarom zodra er een model bij komt: 204 van de 775 meldingen
+     `niet-gedragen` in de telling (9 van de 26 eigen bestanden). In oudere bestanden veranderen ook de GlobalIds van
+     andere hulpstukken (`OPS_ProjectSettings`, `OPS_Calendar`, `OPS_Assignments`, `OPS_TaskIdentity`, relaties): samen
+     533 van de 775 meldingen, in 22 bestanden. Richting: de GlobalId afleiden van de GlobalId van de resource, of de
+     GlobalId van de pset bewaren (`preservedGuids`). Uit #867 (fase 1b, fixronde 2). — B
+
+1024. **VERVOLG: oudere eigen bestanden weigeren met `niet-gedragen` op velden die de writer nu anders schrijft.** Met de
+     flag aan en zonder bewerking (telling van fixronde 2 van #867) draagt de lezer deze velden niet:
+     `IfcTaskTime.Completion` `0.00` wordt `$` (139 keer in 15 bestanden; de writer schrijft `$` om `WR1: SELF > 0`);
+     de naam van `IfcPerson` en `IfcOrganization` `$` wordt `''` (elk 14 keer); in v2026.7.2 resources met 9 argumenten
+     (de writer schrijft er 11), het werkschema 'Bouwplanning v1.0' wordt 'Construction schedule v1.0' en de werktijd
+     'Standaard werkweek' wordt 'Standard work week'; in v0.1 werkplan en werkschema zonder PredefinedType (de writer
+     zet `.PLANNED.`), `IfcLaborResource.PredefinedType` `$` wordt `.NOTDEFINED.` en `IfcWorkCalendar.PredefinedType`
+     `$` wordt `.FIRSTSHIFT.`; een lege notitielijst `'[]'` verdwijnt; StartTime en FinishTime van werkplan en
+     werkschema volgen de taken. Richting: per veld `sourceSlots` (fase 2) of een lezer die het veld draagt; het besluit
+     ligt bij Trias. Uit #867 (fase 1b, fixronde 2). — B
+
+1025. **De lezer maakt van de kalender een uurkalender als een eigen taak niet op de werkdag past.** Proef:
+     `tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc` plus een eigen taak van één dag van 07:00 tot 16:00
+     (sectie 2a van `check-ifc-foreign-preserve.ts` vóór fixronde 2 van #867). De lezer leest de projectkalender dan als
+     uurkalender met 9 uur per dag (`LiteralTimes`, `IsHourCalendar`); `HoursPerDay` 8 uit `OPS_Calendar` komt niet terug.
+     Met de flag weigert de merge dat nu (`niet-gedragen`). Niet nagegaan: of dit de bedoelde omzetting naar het
+     minutenmodel is, en wat de gewone writer zonder de flag schrijft. Uit #867 (fase 1b, fixronde 2). — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
