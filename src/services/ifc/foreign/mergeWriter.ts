@@ -74,8 +74,10 @@ export type MergePhase2Kind =
    *  verloren (fixronde 1 van #867, BLOKKEERT 1). */
   | 'projectgegevens'
   /** Een stuk paarde niet eenduidig met de uitvoer (meer kandidaten met dezelfde sleutel, zoals twee toewijzingen van
-   *  dezelfde resource aan dezelfde taak), en de bron heeft daar een waarde die terug moet (fixronde 4, BLOKKEERT 5). Zonder
-   *  betrouwbare identiteit is niet te zeggen bij welke regel die waarde hoort (`lossCheck.ts`, `ambiguous`). */
+   *  dezelfde resource aan dezelfde taak of een hernoemde feestdag die alleen op plek paart), en de bron heeft daar een
+   *  waarde die terug moet of een verschil (fixronde 4, BLOKKEERT 5). Of twee stukken van de bron hebben één tegenhanger
+   *  (twee gelijke psets: de uitvoer heeft er één, plek 26). Zonder betrouwbare identiteit is niet te zeggen bij welke regel
+   *  die waarde hoort (`lossCheck.ts`, `ambiguous`). */
   | 'niet-eenduidig'
   /** Een P-stuk heeft een duur waarvan de lezer een deel weglaat (`partialDuration`): dagen vóór een tijddeel (`P2DT12H`,
    *  knownbug 1027; tijdelijk, tot de fix van 1027 in main staat, besluit van Trias van 10 november 2026), of jaren,

@@ -1,59 +1,73 @@
 /**
- * De verliesbewaking van de merge-writer: de leesverliestoets (#804 fase 1b; fixronde 2 en 3 van #867).
+ * De verliesbewaking van de merge-writer: de leesverliestoets (#804 fase 1b; fixronde 2 tot en met 4 van #867).
  *
  * Regel: de verliesbewaking vergelijkt met de bron, nooit met de eigen uitvoer. Elk veld dat de bron had (ook in een
  * P-stuk, een hulpentiteit, een pset, een JSON-tekst of een constant slot) en dat de uitvoer niet terug heeft, laat de
- * merge weigeren met `merge-needs-phase2`, tenzij het domein dat veld bewust veranderde. Een vrijstelling bewijst geen
- * behoud: er is geen lijst met velden die vooraf veilig heten.
+ * merge weigeren met `merge-needs-phase2`, tenzij de planner juist dat veld veranderde. Een vrijstelling bewijst geen
+ * behoud: er is geen lijst met velden die vooraf veilig heten. Bij twijfel weigert de merge (fixronde 4).
  *
  * Werkwijze. De merge schrijft twee keer met hetzelfde id-plan en dezelfde stappen (`mergeWriter.ts`): O0 voor het domein
- * zoals de lezer het uit de bron las, zonder bewerking (`pristineDomain`), en O1 voor het bewerkte domein.
+ * zoals de lezer het uit de bron las, zonder bewerking (`pristineDomain`, via dezelfde ingang als openen), en O1 voor het
+ * bewerkte domein.
  *  1. O0: elk P-stuk van de bron moet in O0 veld voor veld gelijk zijn. Elk argument; elke lijst met al haar leden, in
  *     dezelfde volgorde; elke verwijzing (naar een stuk dat niet P is: hetzelfde `#id`; naar een P-stuk: zijn
  *     tegenhanger); elke propertywaarde, ook een enumeratie of een lijst; elke JSON-tekst, teken voor teken. Ook een waarde
- *     in O0 waar de bron niets had, telt. Een P-stuk zonder tegenhanger in O0 telt ook.
+ *     in een slot van O0 waar de bron niets had, telt. Een P-stuk zonder tegenhanger in O0 telt ook, en twee P-stukken met
+ *     één tegenhanger (`gedeeld`). Een heel stuk dat alleen O0 heeft (een pset die de writer toevoegt), ziet de toets niet.
  *  2. (b), het slotdeel van `sourceSlots` (fixronde 3, besluit 2 van Trias): een slot dat in O0 anders is dan in de bron,
  *     draagt de lezer niet. Kan (b) het terugzetten (`planRestores`), dan krijgt O0 de bronwaarde, en moet O0 daarna
  *     gelijk zijn aan de bron ("een kale schrijfronde is gelijk aan de bron, op de benoemde soorten na"). Wat dan nog
- *     verschilt: `niet-gedragen`. In O1 krijgt hetzelfde slot de bronwaarde terug zolang de planner het veld niet wijzigde:
- *     "het veld" is het slot zoals de writer het uit het domein schrijft; is het in O1 gelijk aan O0 (verwijzingen als
- *     bronstuk), dan wijzigde de bewerking het niet. Wijzigde hij het wel, dan geldt zijn waarde; bij een `lijst` of `json`
- *     (de lezer draagt er een deel van) weigert de merge dan, want per lid of per sleutel samenvoegen is fase 2
- *     (`jsonExtras`, `unusedKeys`). De bronwaarden komen uit de bronbytes van `ifcSource`, bij elke merge opnieuw gelezen;
- *     er is geen documentveld bij. De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat
- *     een andere planning dan zonder, dan weigert hij.
+ *     verschilt: `niet-gedragen`, of `niet-eenduidig` als het stuk niet eenduidig paarde. In O1 krijgt hetzelfde slot de
+ *     bronwaarde terug zolang de planner het veld niet wijzigde: "het veld" is het slot zoals de writer het uit het
+ *     domein schrijft; is het in O1 gelijk aan O0 (verwijzingen als bronstuk), dan wijzigde de bewerking het niet.
+ *     Wijzigde hij het wel, dan geldt zijn waarde; bij een `lijst`, `json` of `samengesteld` (de lezer draagt er een deel
+ *     van) weigert de merge dan, want per lid, per sleutel of per deel samenvoegen is fase 2 (`jsonExtras`,
+ *     `unusedKeys`). Paart het stuk in O1 niet eenduidig, of heeft de regel in O1 een ander type of een andere vorm, dan
+ *     weigert de merge ook. De bronwaarden komen uit de bronbytes van `ifcSource`, bij elke merge opnieuw gelezen; er is
+ *     geen documentveld bij. De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat een
+ *     andere planning dan zonder, dan weigert hij.
  *     (b) zet niet terug: een heel stuk (ontbreekt, ander type, onbekende lay-out), een argument zonder slot in de
  *     uitvoer, structuur (`structural`: GlobalId en owner history van een `IfcRoot`, de leden van een relatie, de
  *     properties van een pset), tekst uit een stuk met de oude letterlijke codering die niet in beide coderingen gelijk
- *     leest, een slot van een kopie die ook bij een ander bronstuk hoort, een verwijzing naar een P-stuk zonder
- *     tegenhanger, en een slot waar de writer een verwijzing zet die niet van de bron komt.
- *  3. O1: is O0 gelijk, dan mag een P-stuk in O1 (met (b) erin) alleen anders zijn (of ontbreken) als een domeinobject
- *     waar het bij hoort veranderde (`changedScopes`). Een stuk hoort bij de taak, resource of volgorderelatie die het
- *     bereikt in de bron (`sourceScopes`); een relatie bij elk object waar zij naar wijst; al het andere bij het project.
- *     Een stuk van het project mag veranderen als er iets in het domein veranderde (de writer leidt er een deel van af uit
- *     alle taken, bijvoorbeeld de begin- en einddatum van het werkplan). Een stuk van een object dat verdween, valt buiten
- *     de toets. Binnen een veranderd object toetst dit per object, niet per veld (zie de PR-body van #867, "Fixronde 2").
+ *     leest, een slot van een kopie die ook bij een ander bronstuk hoort, een stuk dat niet eenduidig paarde, een
+ *     verwijzing naar een P-stuk zonder (eenduidige) tegenhanger, en een slot waar de writer een verwijzing zet die niet
+ *     van de bron komt.
+ *  3. O1 (fixronde 4): is O0 gelijk, dan mag een P-stuk in O1 (met (b) erin) alleen anders zijn (of ontbreken) als de
+ *     planner het veld veranderde dat de writer daar schrijft (`explainO1`). Er is geen algemene vrijstelling en niets per
+ *     object: per stuk de weg waarlangs het bij een domeinobject hoort (`sourceScopes`: het object zelf, een slot, een
+ *     relatie, een pset), en per slot of property het veld (`TASK_SLOT_FIELDS`, `CAL_PROP_FIELDS`, de per-taak-psets via
+ *     hun eigen `write`, `PROJECT_SETTINGS_FIELDS`, …). Elke weg moet het verklaren. De leden van een relatie toetst
+ *     `explainMembers` per lid. O1 toetst altijd, ook als `changedScopes` niets ziet. Een stuk van een object dat
+ *     verdween, valt buiten de toets.
  *
  * Paren. Elk P-stuk van de bron krijgt een tegenhanger in de uitvoer:
  *  - een vast id (`stepIds`, de baselinekoppen) met de regel met hetzelfde id;
  *  - via de eigenaar: een gepaard stuk wijst in slot k naar een P-stuk, de regel van de writer wijst in hetzelfde slot naar
- *    de tegenhanger (per type; in een pset en een template op propertynaam; een werktijd op naam; een blok werktijd op
- *    inhoud; daarna op positie);
+ *    de tegenhanger (per type; in een pset en een template op propertynaam; een eenheid op haar UnitType; een werktijd
+ *    eerst op naam met begin- en einddatum, dan op naam; een blok werktijd op inhoud; daarna op positie);
  *  - een relatie zonder vast id via haar type en haar gepaarde relating; een `IfcRelDefinesByProperties` via de naam van
  *    haar pset en haar gepaarde eigenaren.
- * Het paren zegt niets over gelijkheid: daarna vergelijkt de toets elk paar volledig.
+ * Hebben meer bronstukken of meer regels dezelfde sleutel, of paart een stuk alleen op positie terwijl het een naam heeft
+ * die het aanwijst (een uitzondering in een kalender, een eenheid, een template), dan is het paar niet eenduidig
+ * (`ambiguous`). De properties van `OPS_Assignments` paren op hun volle naam (`GUID#N`) in O0 en zolang de toewijzingen
+ * van de taak niet veranderden, anders op de resource. Een kopie van een stuk dat niet P is (de normalisatie `id`)
+ * bestaat alleen in de keten van de owner history (`COPY_TYPES`). Het paren zegt niets over gelijkheid: daarna vergelijkt
+ * de toets elk paar volledig.
  *
- * Wat zonder melding mag, en alleen dit (elk met een eigen test in `check-ifc-foreign-preserve.ts`, deel 5f, 5h en 5i):
+ * Wat zonder melding mag, en alleen dit (elk met een eigen test in `check-ifc-foreign-preserve.ts`, deel 5f, 5h en 5i, en
+ * `check-ifc-foreign-strikt.ts`):
  *  Normalisaties: de waarde blijft gelijk, en een ander programma dat het bestand leest, krijgt dezelfde waarde.
- *   - `getal` (`sameNumber`): een getal in een andere notatie (`8`, `8.`, `8.0`, `8.E0`). Elke STEP-lezer leest
- *     hetzelfde getal; het type komt uit het schema of de getypeerde waarde (`IFCREAL(8)` en `IFCREAL(8.)`).
+ *   - `getal` (`sameNumber`): een getal in een andere notatie (`8`, `8.`, `8.0`, `8.E0`), exact vergeleken (`decimalKey`:
+ *     teken, cijfers, exponent; geen JavaScript-`Number`). Het type komt uit het schema of de getypeerde waarde.
  *   - `tekst` (`index.tokenText`, `decodeStepText`): een tekst in een andere STEP-codering (`\X2\00E9\X0\` of een
- *     letterlijk teken). Na decoderen dezelfde tekst.
- *   - `id`: het `#id` van een P-stuk zonder vast id, en de kopie die de writer schrijft van een stuk dat niet P is (een
- *     eigen owner history naast een gedeelde owner history van de bron). Een STEP-id is geen waarde; de verwijzing gaat
- *     naar de tegenhanger of de kopie, en die is zelf veld voor veld gelijk.
+ *     letterlijk teken). Na decoderen dezelfde tekst. Een tekst met een reeks die de lezer letterlijk laat staan (geen
+ *     geldige codering), alleen byte-gelijk (`stepTextIsValid`).
+ *   - `id`: het `#id` van een P-stuk zonder vast id, en de kopie die de writer schrijft van een stuk dat niet P is in de
+ *     keten van de owner history (een eigen owner history naast een gedeelde owner history van de bron). Een STEP-id is
+ *     geen waarde; de verwijzing gaat naar de tegenhanger of de kopie, en die is zelf veld voor veld gelijk.
  *   - `duur` (`sameDuration`): een ISO 8601-duur met nul-onderdelen erbij of eraf (`PT12H` en `PT12H0M0S`), alleen in een
- *     duurslot of een `IFCDURATION`. Elk onderdeel is gelijk, dus de duur is gelijk; `P1D` en `PT24H` zijn niet gelijk.
+ *     duurslot of een `IFCDURATION`. Elk onderdeel is exact gelijk, dus de duur is gelijk; `P1D` en `PT24H` zijn niet
+ *     gelijk. Een duur waarvan de lezer een deel weglaat, weigert de merge vooraf (`partialDuration`, knownbug 1027/1028).
  *  GlobalId van een eigen hulpstuk (besluit 1, `ownAuxGuid`): de writer geeft een P-stuk zonder vast id elke keer een
  *  nieuwe GlobalId (knownbug 1023). Dat mag alleen als het stuk P is, eigen herkomst heeft (§4.5), en geen stuk dat niet
  *  P is ernaar wijst; de toets gaat dat zelf na in de inkomende verwijzingen van de index. Een stuk met een vast id (een
@@ -291,8 +305,9 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       const line1 = o1 === undefined ? undefined : p1.out.get(o1);
       const line0 = p0.out.get(p0.pairedOut.get(r.chunk)![0])!;
       // Geen regel: het object is weg (dan valt het stuk buiten de toets), of de bewerking haalde het stuk weg (dat toetst
-      // O1 hieronder; bij een soort die de lezer deels draagt, weigert de merge). Een ander type of een andere vorm: dan
-      // past de bronwaarde nergens, en de merge weigert (bij twijfel weigeren).
+      // O1 hieronder; bij een soort die de lezer deels draagt, weigert de merge). Ook een stuk dat een ander type kreeg,
+      // heeft geen regel: het paren eist hetzelfde type. Een andere vorm (een ander aantal argumenten bij hetzelfde type)
+      // schrijft de writer niet; als vangnet weigert de merge dan (bij twijfel weigeren).
       if (!line1) { if (PARTIAL_KINDS.has(r.kind)) lostPartial.add(r.chunk); continue; }
       if (line1.type !== line0.type || line1.args.length !== line0.args.length) {
         say({ chunk: r.chunk, arg: r.arg, source: r.token, out: `${line1.type} met ${line1.args.length} argumenten`, outArg: r.outArg }, true);

@@ -257,6 +257,11 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     const r = x.resources.find(q => q.id === resBy(o, 110).id)!;
     r.availabilitySteps = [...(r.availabilitySteps ?? []), { from: '2027-09-01', maxUnits: 3 }];
   });
+  // Plek 5: de planner wist het veld; de property verdwijnt uit O1 terwijl de resource blijft. Ook dan weigert de merge
+  // (een waarde die de lezer deels draagt, `lostPartial`), want het deel dat de lezer niet draagt, ging mee.
+  await proof('B6, plek 5', 'AvailabilitySteps: de planner wist de beschikbaarheid', steps, 'niet-gedragen', (x, o) => {
+    x.resources.find(q => q.id === resBy(o, 110).id)!.availabilitySteps = undefined;
+  });
   // ProjectStartDate: de lezer leest de eerste tien tekens.
   const settings = /^#(\d+)=IFCPROPERTYSINGLEVALUE\('ProjectStartDate',\$,(IFC(?:TEXT|DATE))\('(\d{4}-\d\d-\d\d)'\),\$\);$/m.exec(eigen);
   ok('B6: eigen-plus-model heeft ProjectStartDate', settings !== null);
@@ -287,9 +292,12 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
 {
   const bytes = latin1(setLine(eigen, 110, "#110=IFCLABORRESOURCE('34SuBObt1dKPNSent0osWG',#6,'Bricklayers',$,$,'BEWAAR-R',$,$,$,$,.NOTDEFINED.);"));
   await proof('plek 5', 'een resource met Identification, zonder bewerking', bytes, 'schrijft', undefined, has("'BEWAAR-R'"));
-  await proof('plek 5', 'de planner maakt van de arbeidsresource materieel (ander entiteittype)', bytes, 'niet-gedragen', (x, o) => {
+  // Een regel met een ander type paart niet (het paren eist hetzelfde type): O1 meldt het stuk als ontbrekend, en geen veld
+  // verklaart dat (tot fixronde 4 verklaarde de vrijstelling per object het; alleen `entiteittype` weigerde).
+  const r = await proof('plek 5', 'de planner maakt van de arbeidsresource materieel (ander entiteittype)', bytes, 'niet-gedragen', (x, o) => {
     x.resources.find(q => q.id === resBy(o, 110).id)!.type = 'EQUIPMENT';
   });
+  ok(`plek 5: O1 meldt de resource als ontbrekend (${r.details.slice(0, 2).join(' | ')})`, r.details.some(x => /^niet-gedragen: IFCLABORRESOURCE #110\b.*ontbreekt in de uitvoer na de bewerking/.test(x)));
 }
 
 // ── Plek 19: een tekst met een ongeldige STEP-reeks ──

@@ -1803,7 +1803,13 @@ en noem het in je rapport of PR-tekst.
      die niet veranderden. Met de flag
      weigert de merge dit (`niet-gedragen` na de bewerking, `check-ifc-foreign-preserve.ts` sectie 5g). Richting: de
      keuze per kalender stabiel houden (een kalender die letterlijk was, blijft letterlijk zolang het document open is),
-     of de keuze bewaren in het document. Uit #867 (fase 1b, fixronde 3, besluit 4). — B
+     of de keuze bewaren in het document. Uit #867 (fase 1b, fixronde 3, besluit 4).
+     Ook de kalender zelf verandert (gezien in fixronde 4, toen de merge de kalender per veld ging toetsen): na dezelfde
+     wissing schrijft de writer de werkweek als één blok `IFCTIMEPERIOD('07:00:00','16:00:00')` in plaats van de twee
+     blokken 07:00–12:00 en 13:00–16:00 (de middagpauze is weg voor een ander programma), en `OPS_Calendar` verliest
+     `LiteralTimes` en `WorkEndHour`. De writer materialiseert de blokken alleen als een urentaak de kalender gebruikt
+     (`includeEffectiveScalarBands` in `writeCalendar`). Met de flag weigert de merge (`check-ifc-foreign-strikt.ts`,
+     plek 2). — B
 
 1027. **De lezer leest een duur met dagen en uren (`P2DT12H`) als alleen de uren.** `isoDurationToMinutes`
      (`src/services/subdayIo.ts:111`) leest alleen het deel na `T`, dus `P2DT12H` geeft 720 minuten; de takenroute
@@ -1815,7 +1821,17 @@ en noem het in je rapport of PR-tekst.
      `scheduleDuration` 1,5 (bij 8 uur per dag); in `eigen-plus-model.ifc` (`#50`) 720 minuten en een uurkalender van 9
      uur. Met de flag zet de merge `P2DT12H` terug zolang de planner de duur niet wijzigt (fixronde 3 van #867, sectie
      5h); de planner ziet dan 12 uur. Richting: dagen en tijd samen lezen, zoals de lag. Uit #867 (fase 1b, fixronde 3).
-     — B
+     Sinds fixronde 4 weigert de merge een eigen bestand met zo'n duur (`duur-deels-gelezen`), tijdelijk tot de fix van
+     deze knownbug in main staat. — B
+
+1028. **De lezer leest geen jaren, maanden of weken in een taakduur.** `parseDurationDays`
+     (`src/services/ifc/ifcReader.ts:1319`) zoekt alleen een getal voor `D`, en anders voor `H`. Proef op
+     `public/examples/showcase-appartementencomplex.ifc` met de duur van 'CPT soundings & soil investigation' (`#55`):
+     `P1W` geeft `scheduleDuration` 0, `P0Y1M0D` geeft 0, en `P1Y0M3D` geeft 3 (het jaar valt weg). De eigen writer
+     schrijft altijd `P0Y0M{n}D` of `PT…`, dus alleen bestanden van een ander programma. Met de flag weigert de merge een
+     eigen bestand met zo'n duur (`duur-deels-gelezen`, fixronde 4 van #867). Richting: een duur met jaren, maanden of
+     weken weigeren bij openen of omrekenen met de kalender (een maand heeft geen vast aantal werkdagen). Uit #867
+     (fase 1b, fixronde 4). — B
 
 ## Rondleiding, Help en extensie-gidsen
 

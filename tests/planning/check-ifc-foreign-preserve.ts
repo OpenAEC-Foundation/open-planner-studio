@@ -1040,6 +1040,16 @@ ok("normalisatie getal: de bron heeft IFCREAL(8), de writer schrijft IFCREAL(8.)
 // geen 24 uur (een werkdag) en wordt dus nooit gelijk aan uren.
 eq('normalisatie duur', [sameDuration('PT12H', 'PT12H0M0S'), sameDuration('P0Y0M2D', 'P2D'), sameDuration('P2DT12H', 'PT12H0M0S'),
   sameDuration('P1D', 'PT24H'), sameDuration('P0.5D', 'P0,5D'), sameDuration('P2D', 'P3D')], [true, true, false, false, true, false]);
+// Fixronde 4, BLOKKEERT 4 (plek 17 en 18): exact, zonder JavaScript-`Number` (dat rondt af op 53 bits). Het teken telt,
+// ook bij nul; een exponent schuift de komma; cijfers voor- en achteraan die nul zijn, tellen niet.
+eq('normalisatie getal, exact', [
+  sameNumber('8.0000000000000001', '8.'), sameNumber('9007199254740993', '9007199254740992'), sameNumber('9007199254740993', '9007199254740993.'),
+  sameNumber('-1.5', '-1.50'), sameNumber('-1.5', '1.5'), sameNumber('-0.', '0.'), sameNumber('0.', '0.0E5'), sameNumber('1E3', '1000.'),
+  sameNumber('80.E-1', '8.'), sameNumber('0.001', '1.E-3'), sameNumber('007', '7.'), sameNumber('1.E400', '1.E400'), sameNumber('1.E400', '1.E401'),
+], [false, false, true, true, false, false, true, true, true, true, true, true, false]);
+eq('normalisatie duur, exact per onderdeel', [
+  sameDuration('P0Y0M6.0000000000000001D', 'P0Y0M6D'), sameDuration('PT0.50H', 'PT0.5H'), sameDuration('PT1.5H', 'PT1,50H'), sameDuration('-P1D', 'P1D'),
+], [false, true, true, false]);
 // tekst: dezelfde tekens na het decoderen; `\X2\00E9\X0\` en een rauw UTF-8-teken leest elk programma als 'é'.
 {
   const cafe = enc.encode(replaceIn(replaceIn(eigen, "'Set up site',$,$,'2.1'", "'Bouwplaats café',$,$,'2.1'"), "'Set up site Time'", "'Bouwplaats café Time'"));
