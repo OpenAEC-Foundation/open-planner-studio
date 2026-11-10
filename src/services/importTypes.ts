@@ -312,6 +312,18 @@ export interface ImportResult {
    *  een ander formaat) krijgen `ifcGuid128`.
    *  Audit 2026-09-26. */
   ifcGlobalIds?: Readonly<Record<string, string>>;
+  /** De kalenders die in het geopende IFC `LiteralTimes = .T.` hadden (`OPS_Calendar`, alleen `readIFC`). De writer houdt
+   *  ze letterlijk, ook als geen taak dat meer nodig heeft (knownbug 1026). Zonder dit maakte één wissing (bijvoorbeeld
+   *  de enige taak met een eindtijd die niet op een anker past) van de kalender weer een ankerkalender, en schreef de
+   *  writer alle eindtijden van taken die niet veranderden als `T07:00:00`: een ander programma las ze negen uur te
+   *  vroeg. Besluit Trias (wrakko, 10 november 2026, optie a).
+   *  Afwijking van T17 (spec `2026-10-20-alleen-uren-design.md` §3.6: "LiteralTimes is een schrijfkeuze per document,
+   *  bij elke save opnieuw afgeleid"): de afleiding blijft, maar een kalender die letterlijk was, wordt het niet meer
+   *  af. Dat is de veilige richting: een letterlijke kalender schrijft elk moment met zijn echte tijd, en v2026.9.0
+   *  leest die zoals hij ze altijd las. Een bestand zonder `LiteralTimes` blijft byte-gelijk. Omdat de writer de
+   *  eigenschap weer schrijft, staat ze na opslaan en heropenen opnieuw in het bestand: de keuze blijft zo ook over
+   *  sessies heen, zonder eigen pset. Niet in undo (`snapshot: 'none'`): een bewerking verandert hem niet. */
+  ifcLiteralCalendarIds?: readonly string[];
   /** De OORSPRONKELIJKE bron van de vastlegging in een
    *  EIGEN IFC — alleen gevuld door `readIFC` uit `OPS_ImportProvenance.SourceFormat`. Een eigen IFC
    *  zonder deze uitspraak vergelijkt onze eigen oude solve met de nieuwe en krijgt geen modus. */

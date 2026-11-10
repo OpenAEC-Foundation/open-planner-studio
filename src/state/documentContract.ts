@@ -130,6 +130,18 @@ export interface DocumentPayload {
    *  de writer geeft bestaande objecten hun GlobalId terug. De IFC-editor kan deze identiteit
    *  wijzigen; daarom projectdata in undo/redo, naast documentwissel en opslaan. */
   ifcGlobalIds: Readonly<Record<string, string>> | null;
+  /** De kalenders die in het geopende IFC `LiteralTimes = .T.` hadden (`OPS_Calendar`, alleen `readIFC`). De writer houdt
+   *  ze letterlijk, ook als geen taak dat meer nodig heeft (knownbug 1026). Zonder dit maakte één wissing (bijvoorbeeld
+   *  de enige taak met een eindtijd die niet op een anker past) van de kalender weer een ankerkalender, en schreef de
+   *  writer alle eindtijden van taken die niet veranderden als `T07:00:00`: een ander programma las ze negen uur te
+   *  vroeg. Besluit Trias (wrakko, 10 november 2026, optie a).
+   *  Afwijking van T17 (spec `2026-10-20-alleen-uren-design.md` §3.6: "LiteralTimes is een schrijfkeuze per document,
+   *  bij elke save opnieuw afgeleid"): de afleiding blijft, maar een kalender die letterlijk was, wordt het niet meer
+   *  af. Dat is de veilige richting: een letterlijke kalender schrijft elk moment met zijn echte tijd, en v2026.9.0
+   *  leest die zoals hij ze altijd las. Een bestand zonder `LiteralTimes` blijft byte-gelijk. Omdat de writer de
+   *  eigenschap weer schrijft, staat ze na opslaan en heropenen opnieuw in het bestand: de keuze blijft zo ook over
+   *  sessies heen, zonder eigen pset. Niet in undo (`snapshot: 'none'`): een bewerking verandert hem niet. */
+  ifcLiteralCalendarIds: readonly string[] | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -326,6 +338,8 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
   field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
   field({ key: 'ifcGlobalIds', get: (s) => s.ifcGlobalIds, set: (s, v) => { s.ifcGlobalIds = v; }, fresh: () => null, snapshot: 'data', fromPayload: (p) => p.ifcGlobalIds ?? null }),
+  // Knownbug 1026: de kalenders die letterlijk waren bij het openen blijven letterlijk (zie `DocumentPayload`).
+  field({ key: 'ifcLiteralCalendarIds', get: (s) => s.ifcLiteralCalendarIds, set: (s, v) => { s.ifcLiteralCalendarIds = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcLiteralCalendarIds ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -527,6 +541,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
     xerArchiveIssue: parsed.xerArchiveIssue ?? null,
     ifcGlobalIds: parsed.ifcGlobalIds ?? null,
+    ifcLiteralCalendarIds: parsed.ifcLiteralCalendarIds ?? null,
     filePath,
     isDirty: false,
   };

@@ -37,10 +37,12 @@ const MILESTONE_OWN_STARTS: ReadonlySet<TaskDateField> = new Set(['scheduleStart
  *  moment blijft. `literalCalendarIds` en `atDayEnd` blijven precies zoals zonder deze optie: de writer
  *  geeft de letterlijke kalenders apart mee (`OPS_LiteralCalendars`). */
 export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calendar' | 'resourceCalendars' | 'baselines'>,
-  options: { literalAutomaticMilestones?: boolean; realTimes?: boolean } = {}) {
+  options: { literalAutomaticMilestones?: boolean; realTimes?: boolean; keepLiteralCalendarIds?: readonly string[] } = {}) {
   const calendars = input.resourceCalendars ?? [];
   const clocks = new DayClockCache(input.calendar, calendars);
-  const literalCalendarIds = new Set<string>();
+  // `keepLiteralCalendarIds` (alleen de IFC-writer, knownbug 1026): kalenders die letterlijk waren bij het openen
+  // blijven letterlijk, ook als geen taak dat meer nodig heeft (`DocumentPayload.ifcLiteralCalendarIds`).
+  const literalCalendarIds = new Set<string>(options.keepLiteralCalendarIds ?? []);
   const atDayEnd = new Set<string>();
   const contexts = new Map<string, TaskDateContext>();
   const effective = (task?: Task) => resolveCalendar(task?.calendarId, calendars, input.calendar);

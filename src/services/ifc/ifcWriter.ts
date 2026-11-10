@@ -359,10 +359,12 @@ export function writeIFC(input: WriteIFCInput): string {
     withheldTaskTimeFields = undefined,
     recordedSourceFormat = undefined,
     ifcGlobalIds = undefined,
+    ifcLiteralCalendarIds = undefined,
     xerSourceArchiveStorage = 'embedded',
     recoveryForeignSource = undefined,
   } = input;
-  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
+  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines },
+    ifcLiteralCalendarIds ? { keepLiteralCalendarIds: ifcLiteralCalendarIds } : {});
   const { tasks, baselines } = writeView;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {

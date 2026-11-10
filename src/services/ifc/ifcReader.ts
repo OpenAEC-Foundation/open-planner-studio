@@ -417,6 +417,8 @@ export function readIFC(
     .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
     .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === 'TimeModel')
     .map(e => parseTypedValue(e.args[2] || '')).find((value): value is string => typeof value === 'string');
+  // Knownbug 1026: de kalenders met `LiteralTimes = .T.` blijven bij opslaan letterlijk (`DocumentPayload.ifcLiteralCalendarIds`).
+  const ifcLiteralCalendarIds = [calendar, ...resourceCalendars].filter(cal => literalTimeCalendars.has(cal)).map(cal => cal.id);
   return {
     project, calendar, tasks, sequences, resources, assignments,
     ...(timeModel ? { timeModel } : {}),
@@ -443,6 +445,7 @@ export function readIFC(
     ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
     ...(xerArchiveIssue ? { xerArchiveIssue } : {}),
     ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
+    ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
 }
 

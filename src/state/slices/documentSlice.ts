@@ -446,6 +446,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // Zelfde taak-id's als de bron, dus zelfde GlobalIds — zoals vóór audit 2026-09-26, toen ze
       // uit het id werden afgeleid.
       ifcGlobalIds: src.ifcGlobalIds,
+      // Dezelfde kalenders als de bron: dezelfde schrijfkeuze (knownbug 1026).
+      ifcLiteralCalendarIds: src.ifcLiteralCalendarIds,
     };
     const activation = materializeLibraryBoundary({
       payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',

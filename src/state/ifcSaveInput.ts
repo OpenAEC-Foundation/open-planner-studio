@@ -28,6 +28,8 @@ export type IFCSaveSource = Pick<
   // Verplicht (review 2026-09-28): als optioneel veld liet een aanroeper met een eigen veldlijst
   // (het IFC-paneel) het stil weg, en verloren alle bewaarde GlobalIds bij Toepassen.
   | 'ifcGlobalIds'
+  // Knownbug 1026: verplicht om dezelfde reden als `ifcGlobalIds`.
+  | 'ifcLiteralCalendarIds'
   | 'minuteModelPending'
 >
   & Partial<Pick<DocumentPayload,
@@ -98,6 +100,8 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
     // Bestaande objecten houden hun GlobalId uit het ingelezen bestand.
     ...(src.ifcGlobalIds ? { ifcGlobalIds: src.ifcGlobalIds } : {}),
+    // Kalenders die letterlijk waren bij het openen, blijven letterlijk (knownbug 1026).
+    ...(src.ifcLiteralCalendarIds?.length ? { ifcLiteralCalendarIds: src.ifcLiteralCalendarIds } : {}),
     // De oorspronkelijke bron reist mee in OPS_ImportProvenance, zodat een heropening op de BRON
     // poort en niet op "het is nu een IFC". ALLEEN in de modus: buiten de modus staat
     // onze eigen solve in het bestand; een bron noemen zou bij heropenen onze oude solve met de
@@ -121,7 +125,7 @@ const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
   'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId', 'comparedBaselineIds',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
-  'recordedDates', 'datesAsRecorded', 'minuteModelPending', 'ifcGlobalIds', 'foreignSourceMark',
+  'recordedDates', 'datesAsRecorded', 'minuteModelPending', 'ifcGlobalIds', 'ifcLiteralCalendarIds', 'foreignSourceMark',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;
