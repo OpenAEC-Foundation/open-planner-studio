@@ -241,6 +241,8 @@
     "endDate": "Sluttdato",
     "defaultWorkRule": "Standardaktivitetstype",
     "defaultWorkRuleHint": "Aktiviteter satt til ‘Prosjektstandard’ følger dette valget. Aktiviteter med en egen aktivitetstype beholder valget sitt.",
+    "anchorsFromOpenDocuments": "Hent ankere fra åpne dokumenter",
+    "anchorsFromOpenDocumentsHint": "Hvis et kildeprosjekt er åpent med ulagrede endringer, kommer ankerne fra det åpne dokumentet. Av som standard.",
     "calc": {
       "title": "Beregning",
       "subtitle": "Beregningsvalg for dette prosjektet — lagres i filen, ikke i appen.",

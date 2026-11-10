@@ -1,5 +1,4 @@
 import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
-import { MAX_NOTIFICATIONS, removeNotifications, showWaitingNotifications } from '../notificationQueue';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
@@ -64,7 +63,7 @@ export interface UiSlice {
 
 /** Maximum aantal gelijktijdig zichtbare meldingen; bij overschrijding valt de oudste weg
  *  (fouten voorrang op info, zie `notify`). */
-export { MAX_NOTIFICATIONS };
+export const MAX_NOTIFICATIONS = 3;
 
 // Module-scope teller voor stabiele, deterministische id's. BEWUST géén Date.now()/Math.random():
 // de headless planning-suite (tests/planning) moet op de meldingen-volgorde kunnen asserteren.
@@ -218,7 +217,6 @@ export function createDefaultUI(): UIState {
     aiReadOnly: false,
     aiActivityOpen: false,
     notifications: [],
-    waitingNotifications: [],
     pendingHelpArticleId: null,
     pendingExtensionsTab: null,
     pendingHelpSection: null,
@@ -371,8 +369,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       //    teller en ververs de velden (laatste boodschap/fout zichtbaar), maar laat de POSITIE in
       //    de stapel staan — anders springt de stapel bij elke herhaling op en neer.
       if (n.dedupeKey) {
-        const existing = s.ui.notifications.find((x) => x.dedupeKey === n.dedupeKey)
-          ?? s.ui.waitingNotifications.find((x) => x.dedupeKey === n.dedupeKey);
+        const existing = s.ui.notifications.find((x) => x.dedupeKey === n.dedupeKey);
         if (existing) {
           if (n.replaceOnDedupe !== true) existing.count += 1;
           existing.severity = n.severity;
@@ -391,25 +388,16 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           if (n.refusal !== undefined) existing.refusal = n.refusal;
           existing.detailKey = n.detailKey;
           existing.detailParams = n.detailParams;
-          // Ook bij samenvouwen: is er ruimte, dan verschijnen de wachtende keuzes (review #860 ronde 2).
-          showWaitingNotifications(s.ui);
           return;
         }
       }
-      // Ruimte die elders vrijkwam (bijv. weigeringen die een documentwissel wist): eerst de wachtenden.
-      showWaitingNotifications(s.ui);
-      // 2. Nieuwe melding onderaan toevoegen. Een keuze (`holdUntilRoom`) wacht als de stapel vol is.
-      const added: AppNotification = {
+      // 2. Nieuwe melding onderaan toevoegen.
+      s.ui.notifications.push({
         ...n,
         ...(n.detailLines !== undefined ? { detailLines: [...n.detailLines] } : {}),
         id: `n${++notificationSeq}`,
         count: 1,
-      };
-      if (added.holdUntilRoom && s.ui.notifications.length >= MAX_NOTIFICATIONS) {
-        s.ui.waitingNotifications.push(added);
-        return;
-      }
-      s.ui.notifications.push(added);
+      });
       // 3. Begrens op MAX_NOTIFICATIONS. Volgorde van verwijderen bij overschrijding (de nieuwe
       //    melding staat achteraan):
       //    a. de oudste gewone info, behalve de nieuwe (verdwijnt toch vanzelf);
@@ -418,10 +406,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       //       niet opslokken (drie staande weigeringen + een info ⇒ de info verschijnt);
       //    c. de nieuwe melding zelf, als die een gewone info is (alleen nog fouten en blijvende
       //       info's staan er);
-      //    d. de oudste blijvende info (`sticky`, openingsmelding met gewijzigde data), geen keuze;
-      //    e. de oudste keuze (`holdUntilRoom`, review #860): die valt nooit weg, maar gaat terug naar het
-      //       begin van de wachtrij en verschijnt weer zodra er ruimte is;
-      //    f. pas dan de oudste melding overall (alleen nog echte fouten).
+      //    d. de oudste blijvende info (`sticky`, openingsmelding met gewijzigde data);
+      //    e. pas dan de oudste melding overall (alleen nog echte fouten).
       if (s.ui.notifications.length > MAX_NOTIFICATIONS) {
         const list = s.ui.notifications;
         const newest = list.length - 1;
@@ -429,20 +415,16 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         let idx = list.findIndex((x, i) => i !== newest && plainInfo(x));
         if (idx < 0) idx = list.findIndex((x) => x.refusal);
         if (idx < 0 && plainInfo(list[newest])) idx = newest;
-        if (idx < 0) idx = list.findIndex((x) => x.severity === 'info' && !x.holdUntilRoom);
-        // Daarna de oudste keuze, naar de wachtrij: de nieuwe melding (bijv. een fout) blijft zichtbaar.
-        if (idx < 0) idx = list.findIndex((x, i) => i !== newest && !!x.holdUntilRoom);
-        if (idx < 0) idx = 0;
-        const [removed] = list.splice(idx, 1);
-        if (removed.holdUntilRoom) s.ui.waitingNotifications.unshift(removed);
+        if (idx < 0) idx = list.findIndex((x) => x.severity === 'info');
+        if (idx >= 0) list.splice(idx, 1);
+        else list.shift();
       }
     }),
 
   dismissNotification: (id) =>
     set((s) => {
-      const waiting = s.ui.waitingNotifications.findIndex((x) => x.id === id);
-      if (waiting >= 0) s.ui.waitingNotifications.splice(waiting, 1);
-      removeNotifications(s.ui, (x) => x.id === id);
+      const idx = s.ui.notifications.findIndex((x) => x.id === id);
+      if (idx >= 0) s.ui.notifications.splice(idx, 1);
     }),
 
   openHelpArticle: (articleId) =>

@@ -160,8 +160,6 @@
     "recoveryDocumentsSkipped_many": "تعذّر تحميل {{count}} ملف استرداد وتم تخطّيه.",
     "recoveryDocumentsSkipped_other": "تعذّر تحميل {{count}} من ملفات الاسترداد وتم تخطّيها.",
     "externalOpenSourceUnsaved": "يحتوي {{file}} على تغييرات غير محفوظة؛ تأتي المرساة من الإصدار المحفوظ.",
-    "externalOpenSourceUsed": "تم تحديث الروابط إلى {{file}} من المستند المفتوح، مع التغييرات غير المحفوظة.",
-    "externalOpenSourceGone": "لم يتم التحديث: أُغلق {{file}} أو حُفظ، أو أن مستندًا آخر نشط.",
     "scheduleFailed": "تعذّر حساب الجدول الزمني",
     "ifcParseFailed": "تعذّرت قراءة IFC",
     "templateSaved": "تم حفظ الفرع كقالب '{{name}}'",
@@ -318,8 +316,7 @@
     "schedulingProfileShifted_other": "بعد التطبيق انتقلت {{count}} من المهام.",
     "actions": {
       "openProjectInfo": "فتح ملف الحساب",
-      "openHelp": "فتح المساعدة",
-      "useOpenDocument": "استخدام المستند المفتوح"
+      "openHelp": "فتح المساعدة"
     },
     "xerArchiveUnusable": "أرشيف مصدر XER في هذا الملف غير صالح للاستخدام وتم استبعاده؛ أما المشروع نفسه فقد فُتح بالكامل.",
     "xerArchiveUnusableLine": "كان أرشيف مصدر XER في هذا الملف غير صالح للاستخدام وتم استبعاده.",

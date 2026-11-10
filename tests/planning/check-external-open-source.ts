@@ -1,38 +1,45 @@
-// Stap 1.7 (keuze 5, vorm 1; Ethan 2026-11-03; `docs/relaties-tussen-projecten.md` §5.1, §7.1 en §9): verversen
-// terwijl de bron ook als document open staat in deze app.
+// Stap 1.7 (keuze 5, Ethan 2026-11-03; vinkje als vaste projectinstelling, Ethan 2026-11-10;
+// `docs/relaties-tussen-projecten.md` §5.1, §7.1 en §9): verversen terwijl de bron ook als document open staat in
+// deze app.
 //
 // Wat deze check vastlegt:
 // 1. Herkennen (`openSourceDocument`): met pad op het genormaliseerde pad, op de site op `siteFileId`, zonder pad
 //    op project-id bij een document uit een bestand (geen variant zonder bestand, geen document van de site). Het
 //    actieve document telt nooit; twee passende documenten ⇒ geen.
 // 2. Een schoon geopend document ⇒ alles zoals nu: het anker uit het bestand, geen melding.
-// 3. Niet-opgeslagen wijzigingen ⇒ het anker uit het opgeslagen bestand (met zijn versie) en een melding met de
-//    knop *Rekenen met het geopende document* (ook bij *Bron vernieuwen* van één bron).
-// 4. De knop ⇒ het anker uit het geopende document met de wijzigingen, gelezen op een kopie zoals een opgeslagen
-//    bestand (geschreven, gelezen en doorgerekend): één undo-stap, met herberekening; alleen de koppelingen naar
-//    die bron. Het brondocument verandert niet en rekent niet. Geen `sourceVersion`, wel `anchorReadAt`.
-// 5. Daarna slaat de bron op ⇒ de balk (stap 1.5) meldt die versie, ook als het anker gelijk blijft;
-//    *Accepteren* zet de echte versie (`externalVersionOnlyChanges`).
-// 6. Gesloten, opgeslagen of een ander actief document ⇒ niets, met een melding.
+// 3. Vinkje *Ankers uit geopende documenten halen* uit: het anker uit het opgeslagen bestand (met zijn versie) en
+//    een gewone melding zonder knop; de automatische controle geeft geen balk uit het geopende document.
+// 4. Vinkje aan, zelf vernieuwen (*Alle externe relaties vernieuwen*, *Bron vernieuwen*): het anker uit het geopende
+//    document, op een kopie, zonder melding; één undo-stap met herberekening; geen versie, wel een leestijd. Het
+//    brondocument verandert niet en rekent niet.
+// 5. Vinkje aan, automatische controle: wijken de ankers af, dan de balk (zonder versie, `openDocumentId`); het
+//    document verandert niets zonder klik. *Bekijken* leest het geopende document; *Accepteren* is één undo-stap,
+//    daarna geen balk. Gelijke ankers ⇒ geen balk. Geen tweede balk voor de opgeslagen versie.
+// 6. *Later*: dezelfde voorgestelde ankers (vingerafdruk) ⇒ geen nieuwe balk; andere ankers ⇒ wel.
 // 7. `externalSourceFromOpenDocument` per soort bron: met pad het pad van de koppeling, op de site het site-id,
-//    zonder pad geen pad; nooit een versie.
-// 8. Review #860: na de knop is de gelezen opgeslagen versie afgehandeld (4i); *Bronbestanden kiezen…* geeft dezelfde
-//    melding (9); een keuze blijft bewaard als de stapel vol is (10); een lopende controle publiceert geen balk voor
-//    een versie die intussen afgehandeld is, ook op de site (11, 12); wissen en samenvouwen vullen de stapel aan (13).
-// 9. Review #860 ronde 3: een controle die een oudere versie las, publiceert niets meer als een route de bron intussen
-//    veranderde (de teller per document en bron), met pad en op de site (14, 15), en tijdens *Later*/*Accepteren* (16).
+//    zonder pad geen pad; nooit een versie. De vingerafdruk hangt alleen af van de voorgestelde ankers.
+// 8. Opslaan na een anker uit het geopende document: blijven de ankers gelijk, dan geen balk en de koppeling houdt
+//    "versie onbekend" (besluit Ethan 2026-11-10); een latere opgeslagen datumwijziging geeft de gewone balk, en
+//    *Accepteren* legt de versie vast.
+// 9. *Bronbestanden kiezen…*: vinkje uit ⇒ de melding; vinkje aan ⇒ het anker uit het geopende document.
+// 11. Het vinkje zelf: `projectInfoPatch`, Toepassen als één undo-stap, en het IFC-bestand (alleen wanneer aan).
+// 12. De teller per document en bron (review #860 ronde 3): een controle die een oudere versie las, publiceert
+//    niets als een route de bron intussen veranderde, met pad en op de site, ook met het vinkje aan (14, 15); en een
+//    controle tijdens *Later* of *Accepteren* (16, 17).
 import { createAppStoreContext } from '@/state/appStore';
-import { externalVersionOnlyChanges } from '@/engine/externalRefreshPreview';
+import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
-import type { ExternalSourceLocator } from '@/engine/externalLinks';
+import { refreshExternalAnchors, type ExternalSourceLocator } from '@/engine/externalLinks';
 import { readExternalSource, type ExternalSourceRead } from '@/state/externalSource';
-import { externalSourceFromOpenDocument, openSourceDocument, unsavedOpenSources } from '@/state/openSourceDocument';
+import {
+  externalSourceFromOpenDocument, openProposalFingerprint, openSourceDocument, unsavedOpenSources,
+} from '@/state/openSourceDocument';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { capturePayload, type DocumentPayload } from '@/state/documentContract';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import type { NotificationAction } from '@/state/slices/types';
-import { refusalNotice } from '@/state/refusalNotice';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
+import { readIFC } from '@/services/ifc/ifcReader';
 import type { ExternalLink, Task } from '@/types/task';
 
 let checks = 0;
@@ -106,12 +113,28 @@ const PATH = '/projecten/Installateur.ifc';
   eq('7b op de site: het site-id, geen pad', [onSite.filePath, onSite.siteFileId, onSite.version], [undefined, 's1', undefined]);
   const noPath = await externalSourceFromOpenDocument(payload, { kind: 'project', projectId: S().project.id }, undefined, at);
   eq('7c zonder pad: geen pad', [noPath.filePath, noPath.siteFileId, noPath.version], [undefined, undefined, undefined]);
+  // De vingerafdruk: alleen de voorgestelde ankers tellen, niet de volgorde of het vorige anker.
+  const task = (anchor: string, missing = false): Task => ({
+    id: 'A', name: 'A', description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: false,
+    priority: 500, parentId: null, childIds: [], resourceIds: [], time: createDefaultTaskTime('2027-03-01', 1, 'days'),
+    externalLinks: [
+      { id: 'x', direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: anchor, sourceMissing: missing, sourceRef: { projectId: 'p', taskId: 't' } },
+      { id: 'y', direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: anchor, sourceMissing: missing, sourceRef: { projectId: 'p', taskId: 'u' } },
+    ],
+  });
+  const fp = (from: string, to: string, missing = false) => openProposalFingerprint(externalAnchorChanges([task(from)], [task(to, missing)]));
+  const reversed = openProposalFingerprint(externalAnchorChanges([task('d1')], [task('d2')]).reverse());
+  eq('7d de vingerafdruk: gelijk bij hetzelfde voorstel (ook in een andere volgorde of vanaf een ander anker)',
+    [fp('d1', 'd2') === fp('d0', 'd2'), fp('d1', 'd2') === reversed, fp('d1', 'd2').startsWith('open:')], [true, true, true]);
+  eq('7e de vingerafdruk: anders bij een ander voorstel of bij brontaak ontbreekt',
+    [fp('d1', 'd2') === fp('d1', 'd3'), fp('d1', 'd2') === fp('d1', 'd2', true)], [false, false]);
 }
 
 // Twee documenten in één app: eerst de bron *Installateur* (Installatie, 5 werkdagen vanaf 1 maart), dan het
 // afhankelijke project *Aannemer* (A wacht FS op Installatie, B volgt A). De bron "ligt" op `PATH`: de lezer van
-// de store krijgt de opgeslagen tekst (`saved`), met de versie `savedVersion`.
-const app = async (kind: 'path' | 'project' = 'path') => {
+// de store krijgt de opgeslagen tekst (`disk.text`), met de versie `disk.version`. `on`: het vinkje *Ankers uit
+// geopende documenten halen* staat aan in *Aannemer*.
+const app = async (kind: 'path' | 'project' = 'path', on = false) => {
   const { store } = createAppStoreContext();
   const S = () => store.getState();
   S().newProject();
@@ -146,6 +169,7 @@ const app = async (kind: 'path' | 'project' = 'path') => {
     sourceVersion: 'v1', anchorReadAt: '2027-01-01T00:00:00.000Z',
   };
   S().updateTask(a, { externalLinks: [ext] });
+  if (on) S().setProject({ anchorsFromOpenDocuments: true });
   S().runCPM();
   store.setState({ filePath: '/projecten/Aannemer.ifc' });
   return { store, S, a, b, install, sourceDocumentId, targetDocumentId: S().activeDocumentId, disk };
@@ -153,150 +177,193 @@ const app = async (kind: 'path' | 'project' = 'path') => {
 type App = Awaited<ReturnType<typeof app>>;
 
 const linkOf = (S: App['S'], a: string) => S().tasks.find(t => t.id === a)!.externalLinks![0];
-const actionsOf = (S: App['S']) => S().ui.notifications
-  .flatMap(n => (n.action?.kind === 'refreshFromOpenDocument' ? [{ message: n.messageKey, params: n.params, action: n.action }] : []));
-const messagesOf = (S: App['S']) => S().ui.notifications.map(n => n.messageKey);
+const unsavedNotices = (S: App['S']) => S().ui.notifications.filter(n => n.messageKey === 'notifications.externalOpenSourceUnsaved');
 const applied = (S: App['S']) => S().historyEvents.filter(e => e.state === 'applied').length;
 const sourcePayload = (s: App) => s.S().documents.find(d => d.id === s.sourceDocumentId)!.payload!;
+const bars = (S: App['S']) => S().ui.externalSourceUpdates;
 
-// Wijzigt de bron in haar eigen tabblad zonder op te slaan en zonder te rekenen: Installatie duurt 8 werkdagen.
-const editSource = (s: App) => {
+// Wijzigt de bron in haar eigen tabblad zonder op te slaan en zonder te rekenen: de duur van Installatie maal
+// `factor` (standaard 5 → 8 werkdagen, anker 10 maart).
+const editSource = (s: App, factor = 8 / 5) => {
   const { S } = s;
   S().switchDocument(s.sourceDocumentId);
   const task = S().tasks.find(t => t.id === s.install)!;
-  S().updateTask(s.install, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration * 8 / 5 } });
+  S().updateTask(s.install, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration * factor } });
+  S().switchDocument(s.targetDocumentId);
+};
+// Wijzigt alleen de naam van de brontaak (de ankers blijven gelijk), zonder op te slaan.
+const renameSource = (s: App, name: string) => {
+  const { S } = s;
+  S().switchDocument(s.sourceDocumentId);
+  S().updateTask(s.install, { name });
+  S().switchDocument(s.targetDocumentId);
+};
+// Slaat de bron op: de tekst op de "schijf" wordt het brondocument, met deze versie; het document is daarna schoon.
+const saveSource = (s: App, version: string) => {
+  const { S } = s;
+  S().switchDocument(s.sourceDocumentId);
+  S().runCPM();
+  s.disk.text = writeIFC(buildWriteIFCInput(S()));
+  s.disk.version = version;
+  S().markAutoSaveVersionSaved(s.sourceDocumentId, S());
   S().switchDocument(s.targetDocumentId);
 };
 
-// (2) Een schoon geopend document ⇒ alles zoals nu.
+// (2) Een schoon geopend document ⇒ alles zoals nu, ook met het vinkje aan.
+for (const on of [false, true]) {
+  const s = await app('path', on);
+  const { S, a } = s;
+  const result = await S().refreshAllExternalAnchors();
+  eq(`2a schoon (vinkje ${on ? 'aan' : 'uit'}): geen melding, het anker uit het bestand`,
+    [result.refreshed, unsavedNotices(S).length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion, s.disk.reads],
+    [1, 0, '2027-03-05T16:00', 'v1', 1]);
+}
+
+// (3) Vinkje uit: het anker uit het opgeslagen bestand, met een gewone melding zonder knop.
 {
   const s = await app();
   const { S, a } = s;
-  const result = await S().refreshAllExternalAnchors();
-  eq('2a schoon: geen melding, het anker uit het bestand', [result.refreshed, actionsOf(S).length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion],
-    [1, 0, '2027-03-05T16:00', 'v1']);
-}
-
-// (3)–(5) Niet-opgeslagen wijzigingen, de knop en daarna opslaan.
-{
-  const s = await app();
-  const { S, a, b } = s;
   editSource(s);
-  eq('3a de bron heeft niet-opgeslagen wijzigingen en is niet herberekend',
-    [sourcePayload(s).isDirty, sourcePayload(s).scheduleStale], [true, true]);
-  const sourceBefore = sourcePayload(s);
-  const sourceTasksBefore = sourceBefore.tasks;
-
-  // *Alle externe relaties vernieuwen*: het anker uit het opgeslagen bestand, met zijn versie; een melding.
+  await S().checkExternalSources();
+  eq('3a de automatische controle: geen balk uit het geopende document', bars(S).length, 0);
   s.disk.version = 'v2';
   await S().refreshAllExternalAnchors();
   eq('3b het anker uit het opgeslagen bestand, met de versie', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-05T16:00', 'v2']);
-  eq('3c de knop wijst naar de bron, met de gelezen versie', actionsOf(S).map(n => [n.action.sourceDocumentId, n.action.locator, n.action.fileName, n.action.savedVersion]),
-    [[s.sourceDocumentId, { kind: 'path', filePath: PATH }, 'Installateur.ifc', 'v2']]);
-  const notes = actionsOf(S);
-  eq('3d één melding met de knop', notes.map(n => [n.message, n.params, n.action.labelKey]),
-    [['notifications.externalOpenSourceUnsaved', { file: 'Installateur.ifc' }, 'notifications.actions.useOpenDocument']]);
-  // Nog eens vernieuwen ⇒ dezelfde melding, niet twee.
+  eq('3c één gewone melding, zonder knop', unsavedNotices(S).map(n => [n.params, n.action, n.sticky, n.severity]),
+    [[{ file: 'Installateur.ifc' }, undefined, undefined, 'info']]);
   await S().refreshAllExternalAnchors();
-  eq('3e nog eens vernieuwen ⇒ nog steeds één melding', actionsOf(S).length, 1);
-  // *Bron vernieuwen* van één bron geeft dezelfde melding.
+  eq('3d nog eens vernieuwen ⇒ nog steeds één melding', unsavedNotices(S).length, 1);
   for (const n of S().ui.notifications) S().dismissNotification(n.id);
   const one = await S().refreshExternalAnchorsFrom(PATH);
-  eq('3f Bron vernieuwen: dezelfde melding', [one?.refreshed, actionsOf(S).length], [1, 1]);
+  eq('3e Bron vernieuwen: dezelfde melding', [one?.refreshed, unsavedNotices(S).length], [1, 1]);
+}
 
-  // De knop.
-  const action = actionsOf(S)[0].action as Extract<NotificationAction, { kind: 'refreshFromOpenDocument' }>;
+// (4) Vinkje aan, zelf vernieuwen: het anker uit het geopende document.
+{
+  const s = await app('path', true);
+  const { S, a, b } = s;
+  editSource(s);
+  s.disk.version = 'v2';
+  const reads = s.disk.reads;
+  const sourceBefore = sourcePayload(s);
+  const sourceTasksBefore = sourceBefore.tasks;
   const steps = applied(S);
   const endBefore = S().cpmResult?.projectEnd;
-  const { kind: _k, labelKey: _l, ...request } = action;
-  void _k; void _l;
-  const used = await S().refreshExternalAnchorsFromOpenDocument(request);
-  eq('4a het anker uit het geopende document, met de wijziging (8 werkdagen)', [used?.refreshed, linkOf(S, a).anchorDate], [1, '2027-03-10T16:00']);
+  const result = await S().refreshAllExternalAnchors();
+  eq('4a het anker uit het geopende document, met de wijziging (8 werkdagen)', [result.refreshed, linkOf(S, a).anchorDate], [1, '2027-03-10T16:00']);
   eq('4b geen versie, wel een leestijd', [linkOf(S, a).sourceVersion, typeof linkOf(S, a).anchorReadAt], [undefined, 'string']);
-  eq('4c één undo-stap, met herberekening', [applied(S) - steps, S().scheduleStale, S().cpmResult?.projectEnd !== endBefore],
-    [1, false, true]);
-  eq('4d B schuift mee', S().tasks.find(t => t.id === b)!.time.earlyStart! > '2027-03-15', true);
-  eq('4e een melding dat het gelukt is', messagesOf(S).includes('notifications.externalOpenSourceUsed'), true);
+  eq('4c geen melding en het opgeslagen bestand niet gelezen', [unsavedNotices(S).length, s.disk.reads - reads], [0, 0]);
+  eq('4d één undo-stap, met herberekening', [applied(S) - steps, S().scheduleStale, S().cpmResult?.projectEnd !== endBefore], [1, false, true]);
+  eq('4e B schuift mee', S().tasks.find(t => t.id === b)!.time.earlyStart! > '2027-03-15', true);
   eq('4f het brondocument is niet veranderd en niet herberekend',
     [sourcePayload(s) === sourceBefore, sourcePayload(s).tasks === sourceTasksBefore, sourcePayload(s).isDirty, sourcePayload(s).scheduleStale],
     [true, true, true, true]);
   S().undo();
-  eq('4g Ctrl+Z ⇒ het anker uit het opgeslagen bestand terug', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-05T16:00', 'v2']);
-  S().redo();
-  eq('4h Ctrl+Y ⇒ weer het anker uit het geopende document', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-10T16:00', undefined]);
-
-  // (4i) Review #860, punt 1: heen en terug naar het brontabblad zonder op te slaan ⇒ geen balk. De opgeslagen
-  // versie (v2) is afgehandeld; anders bood de balk haar als "nieuw" aan en zette *Accepteren* het anker terug.
-  S().switchDocument(s.sourceDocumentId);
-  S().switchDocument(s.targetDocumentId);
-  await S().checkExternalSources();
-  eq('4i dezelfde opgeslagen versie ⇒ geen balk, het anker blijft', [S().ui.externalSourceUpdates.length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion],
-    [0, '2027-03-10T16:00', undefined]);
-
-  // (5) De planner slaat de bron op (dezelfde inhoud) ⇒ de balk meldt die versie, ook al blijft het anker gelijk.
-  S().switchDocument(s.sourceDocumentId);
-  s.disk.text = writeIFC(buildWriteIFCInput(S()));
-  s.disk.version = 'v3';
-  S().markAutoSaveVersionSaved(s.sourceDocumentId, S());
-  S().switchDocument(s.targetDocumentId);
-  await S().checkExternalSources();
-  const bar = S().ui.externalSourceUpdates;
-  eq('5a de balk bij de opgeslagen versie, met één koppeling', bar.map(u => [u.key, u.version, u.changedLinks]),
-    [[normalizeExternalSourcePath(PATH), 'v3', 1]]);
-  const saved = bar[0] ? await S().readExternalSourceAt(bar[0].locator) : await S().parseExternalSource(PATH);
-  eq('5b alleen de herkomst verandert', externalVersionOnlyChanges(S().tasks, (await import('@/engine/externalLinks'))
-    .refreshExternalAnchors(S().tasks, saved!, 'file-path').tasks).map(c => [c.before.anchorDate, c.link.anchorDate, c.link.sourceVersion]),
-  [['2027-03-10T16:00', '2027-03-10T16:00', 'v3']]);
-  const beforeAccept = applied(S);
-  eq('5c Accepteren zet de echte versie', [S().acceptExternalSourceUpdate(saved!), linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion, applied(S) - beforeAccept],
-    [true, '2027-03-10T16:00', 'v3', 1]);
-  eq('5d de balk is weg', S().ui.externalSourceUpdates.length, 0);
-  await S().checkExternalSources();
-  eq('5e geen nieuwe balk bij dezelfde versie', S().ui.externalSourceUpdates.length, 0);
+  eq('4g Ctrl+Z ⇒ het oude anker terug', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-05T16:00', 'v1']);
+  const one = await S().refreshExternalAnchorsFrom(PATH);
+  eq('4h Bron vernieuwen: ook uit het geopende document, zonder melding',
+    [one?.refreshed, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion, unsavedNotices(S).length, s.disk.reads - reads],
+    [1, '2027-03-10T16:00', undefined, 0, 0]);
 }
 
-// (5f) Een oudere koppeling zonder leestijd krijgt geen balk als alleen de herkomst zou veranderen.
+// (5) Vinkje aan, automatische controle: de balk uit het geopende document; niets verandert zonder klik.
 {
-  const before: Task = {
-    id: 'A', name: 'A', description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: false,
-    priority: 500, parentId: null, childIds: [], resourceIds: [], time: createDefaultTaskTime('2027-03-01', 1, 'days'),
-    externalLinks: [{ id: 'x', direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: 'd', sourceMissing: false, sourceRef: { projectId: 'p', taskId: 't' } }],
-  };
-  const after: Task = { ...before, externalLinks: [{ ...before.externalLinks![0], sourceVersion: 'v', anchorReadAt: 'r' }] };
-  eq('5f een koppeling zonder leestijd telt niet', externalVersionOnlyChanges([before], [after]), []);
-  const withRead: Task = { ...before, externalLinks: [{ ...before.externalLinks![0], anchorReadAt: 'r0' }] };
-  eq('5g een koppeling met leestijd en zonder versie telt wel', externalVersionOnlyChanges([withRead], [after]).length, 1);
+  const s = await app('path', true);
+  const { S, a } = s;
+  editSource(s);
+  const steps = applied(S);
+  const reads = s.disk.reads;
+  await S().checkExternalSources();
+  const bar = bars(S);
+  eq('5a de balk: uit het geopende document, zonder versie of auteur, één koppeling',
+    bar.map(u => [u.key, u.openDocumentId, u.version.startsWith('open:'), u.changedLinks, u.fileName, u.author, u.siteVersionLabel]),
+    [[normalizeExternalSourcePath(PATH), s.sourceDocumentId, true, 1, 'Installateur.ifc', undefined, undefined]]);
+  eq('5b het plan verandert niet zonder klik', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion, applied(S) - steps, s.disk.reads - reads],
+    ['2027-03-05T16:00', 'v1', 0, 0]);
+  const src = bar[0] ? await S().readExternalSourceUpdate(bar[0]) : null;
+  const preview = src ? externalAnchorChanges(S().tasks, refreshExternalAnchors(S().tasks, src, 'file-path').tasks) : [];
+  eq('5c Bekijken leest het geopende document', [src?.version, preview.map(c => [c.before.anchorDate, c.link.anchorDate])],
+    [undefined, [['2027-03-05T16:00', '2027-03-10T16:00']]]);
+  const before = applied(S);
+  eq('5d Accepteren: één undo-stap, met herberekening, zonder versie',
+    [src ? S().acceptExternalSourceUpdate(src) : false, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion,
+      typeof linkOf(S, a).anchorReadAt, applied(S) - before, S().scheduleStale, bars(S).length],
+    [true, '2027-03-10T16:00', undefined, 'string', 1, false, 0]);
+  await S().checkExternalSources();
+  eq('5e daarna geen balk zolang de bron niet verder verandert', bars(S).length, 0);
+  S().undo();
+  await S().checkExternalSources();
+  eq('5f Ctrl+Z ⇒ het oude anker terug, en de balk weer', [linkOf(S, a).anchorDate, bars(S).length], ['2027-03-05T16:00', 1]);
+  S().closeDocument(s.sourceDocumentId);
+  eq('5g de bron is gesloten ⇒ Bekijken leest niets meer uit het geopende document',
+    bars(S)[0] ? await S().readExternalSourceUpdate(bars(S)[0]) : 'geen balk', null);
+}
+{
+  // Gelijke ankers ⇒ geen balk.
+  const s = await app('path', true);
+  renameSource(s, 'Installatie (nieuw)');
+  await s.S().checkExternalSources();
+  eq('5h een wijziging zonder ander anker ⇒ geen balk', [sourcePayload(s).isDirty, bars(s.S).length], [true, 0]);
+}
+{
+  // Geen tweede balk voor de opgeslagen versie: de bron is opgeslagen met 8 werkdagen (v2), en daarna in het
+  // geopende document terug op 5 werkdagen, zonder op te slaan. Het geopende document geeft dezelfde ankers.
+  const s = await app('path', true);
+  const { S } = s;
+  editSource(s);
+  saveSource(s, 'v2');
+  editSource(s, 5 / 8);
+  await S().checkExternalSources();
+  eq('5i vinkje aan, de bron open met wijzigingen ⇒ geen balk voor de opgeslagen versie', bars(S).length, 0);
+  S().setProject({ anchorsFromOpenDocuments: undefined });
+  await S().checkExternalSources();
+  eq('5j vinkje uit ⇒ wel de balk voor de opgeslagen versie', bars(S).map(u => [u.version, u.openDocumentId]), [['v2', undefined]]);
 }
 
-// (6) Gesloten, opgeslagen of een ander actief document ⇒ niets, met een melding.
+// (6) *Later*: dezelfde voorgestelde ankers geven geen nieuwe balk, andere wel.
 {
-  const run = async (tag: string, change: (s: App) => void) => {
-    const s = await app();
-    const { S, a } = s;
-    editSource(s);
-    await S().refreshAllExternalAnchors();
-    const action = actionsOf(S)[0]?.action as Extract<NotificationAction, { kind: 'refreshFromOpenDocument' }> | undefined;
-    if (!action) { eq(`${tag} er is een knop`, false, true); return; }
-    const anchor = linkOf(S, a).anchorDate;
-    change(s);
-    const steps = applied(S);
-    const { kind: _k, labelKey: _l, ...request } = action;
-    void _k; void _l;
-    const result = await S().refreshExternalAnchorsFromOpenDocument(request);
-    S().switchDocument(s.targetDocumentId);
-    eq(`${tag} niets ververst, wel een melding`,
-      [result, linkOf(S, a).anchorDate === anchor, applied(S) - steps, messagesOf(S).includes('notifications.externalOpenSourceGone')],
-      [null, true, 0, true]);
-  };
-  await run('6a gesloten:', (s) => s.S().closeDocument(s.sourceDocumentId));
-  await run('6b opgeslagen:', (s) => s.S().markAutoSaveVersionSaved(s.sourceDocumentId, sourcePayload(s)));
-  await run('6c een ander actief document:', (s) => s.S().switchDocument(s.sourceDocumentId));
+  const s = await app('path', true);
+  const { S } = s;
+  editSource(s);
+  await S().checkExternalSources();
+  const first = bars(S)[0]?.version;
+  S().dismissExternalSourceUpdate(bars(S)[0]?.key ?? '');
+  await S().checkExternalSources();
+  eq('6a Later ⇒ geen balk bij hetzelfde voorstel', [first?.startsWith('open:'), bars(S).length], [true, 0]);
+  renameSource(s, 'Installatie (nieuw)');
+  await S().checkExternalSources();
+  eq('6b een wijziging in de bron met dezelfde ankers ⇒ nog steeds geen balk', bars(S).length, 0);
+  editSource(s, 10 / 8);
+  await S().checkExternalSources();
+  eq('6c andere ankers ⇒ wel weer een balk', bars(S).map(u => [u.openDocumentId !== undefined, u.version !== first]), [[true, true]]);
 }
 
-// (9) Review #860, punt 2: *Bronbestanden kiezen…* (browser, een bron zonder pad, geen onthouden handvat). De
-// gekozen bron is gelezen; staat ze ook open met niet-opgeslagen wijzigingen, dan dezelfde melding met de knop.
+// (8) Opslaan na een anker uit het geopende document (besluit Ethan 2026-11-10): geen balk als alleen de versie
+// verandert; de koppeling houdt "versie onbekend" tot een opgeslagen datumwijziging, en dan zet Accepteren de versie.
 {
-  const s = await app('project');
+  const s = await app('path', true);
+  const { S, a } = s;
+  editSource(s);
+  await S().refreshAllExternalAnchors();
+  saveSource(s, 'v3');
+  await S().checkExternalSources();
+  eq('8a opgeslagen met dezelfde ankers ⇒ geen balk; de koppeling houdt "versie onbekend"',
+    [sourcePayload(s).isDirty, bars(S).length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], [false, 0, '2027-03-10T16:00', undefined]);
+  await S().checkExternalSources();
+  eq('8b ook een volgende controle niet', [bars(S).length, linkOf(S, a).sourceVersion], [0, undefined]);
+  editSource(s, 10 / 8);
+  saveSource(s, 'v4');
+  await S().checkExternalSources();
+  const bar = bars(S);
+  eq('8c een latere opgeslagen datumwijziging ⇒ de gewone balk', bar.map(u => [u.version, u.openDocumentId, u.changedLinks]), [['v4', undefined, 1]]);
+  const src = bar[0] ? await S().readExternalSourceUpdate(bar[0]) : null;
+  eq('8d Accepteren legt de versie vast', [src ? S().acceptExternalSourceUpdate(src) : false, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion],
+    [true, '2027-03-12T16:00', 'v4']);
+}
+
+// (9) *Bronbestanden kiezen…* (browser, een bron zonder pad, geen onthouden handvat).
+for (const on of [false, true]) {
+  const s = await app('project', on);
   const { S, a } = s;
   editSource(s);
   const g = globalThis as unknown as { window?: Record<string, unknown> };
@@ -311,86 +378,40 @@ const editSource = (s: App) => {
   };
   try {
     const result = await S().refreshExternalAnchorsFromChosenFiles();
-    eq('9a het gekozen bestand is gelezen, het anker uit het opgeslagen bestand', [result?.sources, linkOf(S, a).anchorDate], [1, '2027-03-05T16:00']);
-    eq('9b de melding met de knop, met de versie van het gekozen bestand', actionsOf(S).map(n => [n.message, n.action.locator, n.action.savedVersion]),
-      [['notifications.externalOpenSourceUnsaved', { kind: 'project', projectId: S().documents.find(d => d.id === s.sourceDocumentId)!.payload!.project.id }, '2027-01-02T00:00:00.000Z']]);
-    const action = actionsOf(S)[0]?.action as Extract<NotificationAction, { kind: 'refreshFromOpenDocument' }> | undefined;
-    if (action) {
-      const { kind: _k, labelKey: _l, ...request } = action;
-      void _k; void _l;
-      await S().refreshExternalAnchorsFromOpenDocument(request);
-    }
-    eq('9c de knop ⇒ het anker uit het geopende document', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-10T16:00', undefined]);
+    eq(on ? '9b vinkje aan: het anker uit het geopende document, zonder melding' : '9a vinkje uit: het anker uit het gekozen bestand, met de melding',
+      [result?.sources, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion, unsavedNotices(S).length],
+      on ? [1, '2027-03-10T16:00', undefined, 0] : [1, '2027-03-05T16:00', '2027-01-02T00:00:00.000Z', 1]);
   } finally {
     if (hadWindow) g.window = before; else delete g.window;
   }
 }
 
-// (10) Review #860, punt 3: een keuze blijft tot de planner haar afhandelt, ook als er meer meldingen zijn dan de
-// stapel toont (drie). Vier keuzes ⇒ drie zichtbaar, één wacht; het kruisje ⇒ de wachtende verschijnt. Een fout
-// die daarna komt, duwt de oudste keuze naar de wachtrij in plaats van haar weg te gooien.
+// (11) Het vinkje in *Projectinstellingen*: Toepassen is één undo-stap; het IFC-bestand schrijft het veld alleen
+// als het aan staat, en leest het terug.
 {
-  const { store } = createAppStoreContext();
-  const S = () => store.getState();
-  const choice = (n: number) => S().notify({
-    severity: 'info', messageKey: 'notifications.externalOpenSourceUnsaved', params: { file: `Bron${n}.ifc` },
-    sticky: true, holdUntilRoom: true, dedupeKey: `keuze-${n}`, replaceOnDedupe: true,
-  });
-  const shown = () => S().ui.notifications.map(n => n.params?.file ?? n.messageKey);
-  const waiting = () => S().ui.waitingNotifications.map(n => n.params?.file);
-  for (const n of [1, 2, 3, 4]) choice(n);
-  eq('10a vier keuzes ⇒ drie zichtbaar, de vierde wacht', [shown(), waiting()], [['Bron1.ifc', 'Bron2.ifc', 'Bron3.ifc'], ['Bron4.ifc']]);
-  choice(4);
-  eq('10b dezelfde keuze opnieuw ⇒ nog steeds één keer', [shown().length, waiting()], [3, ['Bron4.ifc']]);
-  S().dismissNotification(S().ui.notifications[0].id);
-  eq('10c het kruisje ⇒ de wachtende keuze verschijnt', [shown(), waiting()], [['Bron2.ifc', 'Bron3.ifc', 'Bron4.ifc'], []]);
-  S().notify({ severity: 'error', messageKey: 'notifications.saveFailed' });
-  eq('10d een fout ⇒ zichtbaar; de oudste keuze wacht', [shown(), waiting()], [['Bron3.ifc', 'Bron4.ifc', 'notifications.saveFailed'], ['Bron2.ifc']]);
-  S().dismissNotification(S().ui.notifications[2].id);
-  eq('10e de fout weg ⇒ de keuze terug', [shown(), waiting()], [['Bron3.ifc', 'Bron4.ifc', 'Bron2.ifc'], []]);
-
-  // Via de echte route: vier geopende, gewijzigde bronnen (met pad) ⇒ vier knoppen, geen enkele verloren.
   const s = await app();
-  const { S: T } = s;
-  const extra: string[] = [];
-  for (const n of [2, 3, 4]) {
-    const path = `/projecten/Bron${n}.ifc`;
-    T().switchDocument(s.sourceDocumentId);
-    T().newDocument();
-    T().setProject({ startDate: '2027-03-01', name: `Bron${n}` });
-    const t = T().addTask({ name: 'Werk', time: createDefaultTaskTime('2027-03-01', 5, 'days') });
-    s.store.setState({ filePath: path });
-    const projectId = T().project.id;
-    extra.push(path);
-    T().switchDocument(s.targetDocumentId);
-    T().updateTask(s.b, { externalLinks: [...(T().tasks.find(x => x.id === s.b)!.externalLinks ?? []), {
-      id: `x${n}`, direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-05T16:00', sourceMissing: false,
-      sourceRef: { projectId, taskId: t, filePath: path },
-    }] });
-  }
-  editSource(s);
-  for (const n of T().ui.notifications) T().dismissNotification(n.id);
-  // De nep-lezer geeft voor elk pad de tekst van Installateur; dat volstaat: het gaat om de meldingen.
-  await T().refreshAllExternalAnchors();
-  const files = () => [...T().ui.notifications, ...T().ui.waitingNotifications]
-    .filter(n => n.action?.kind === 'refreshFromOpenDocument').map(n => n.params?.file).sort();
-  eq('10f vier geopende, gewijzigde bronnen ⇒ vier keuzes bewaard', files(), ['Bron2.ifc', 'Bron3.ifc', 'Bron4.ifc', 'Installateur.ifc']);
-  void extra;
+  const { S } = s;
+  const form = { ...S().project, anchorsFromOpenDocuments: false };
+  eq('11a ongewijzigd (afwezig ≡ uit) ⇒ lege patch', projectInfoPatch(S().project, form), {});
+  eq('11b aan ⇒ alleen het vinkje', projectInfoPatch(S().project, { ...form, anchorsFromOpenDocuments: true }), { anchorsFromOpenDocuments: true });
+  eq('11c zonder het veld in het formulier (de wizard) ⇒ niets', projectInfoPatch(S().project, { ...S().project, anchorsFromOpenDocuments: undefined }), {});
+  const off = writeIFC(buildWriteIFCInput(S()));
+  const steps = applied(S);
+  S().applyProjectInfo(projectInfoPatch(S().project, { ...form, anchorsFromOpenDocuments: true }), undefined);
+  const on = writeIFC(buildWriteIFCInput(S()));
+  eq('11d Toepassen: één undo-stap, het document gewijzigd', [S().project.anchorsFromOpenDocuments, applied(S) - steps, S().isDirty], [true, 1, true]);
+  eq('11e het IFC-bestand: alleen wanneer aan, en het leest terug',
+    [off.includes('AnchorsFromOpenDocuments'), on.includes(`'AnchorsFromOpenDocuments',$,IFCBOOLEAN(.T.)`),
+      readIFC(on).project.anchorsFromOpenDocuments, readIFC(off).project.anchorsFromOpenDocuments],
+    [false, true, true, undefined]);
+  const offPatch = projectInfoPatch(S().project, { ...S().project, anchorsFromOpenDocuments: false });
+  eq('11f uit ⇒ het veld wordt leeg', ['anchorsFromOpenDocuments' in offPatch, offPatch.anchorsFromOpenDocuments], [true, undefined]);
+  S().undo();
+  eq('11g Ctrl+Z ⇒ het vinkje weer uit', S().project.anchorsFromOpenDocuments, undefined);
 }
 
-// (11) Review #860 ronde 2: een broncontrole die al loopt (de lezing wacht op het bestand), overlapt met vernieuwen
-// en de knop. De knop handelt de opgeslagen versie af; de controle mag die versie daarna niet als balk publiceren.
-const choose = async (S: App['S']) => {
-  const n = S().ui.notifications.find(x => x.action?.kind === 'refreshFromOpenDocument');
-  const action = n?.action;
-  if (!n || action?.kind !== 'refreshFromOpenDocument') return null;
-  S().dismissNotification(n.id);
-  const { kind: _k, labelKey: _l, ...request } = action;
-  void _k; void _l;
-  await S().refreshExternalAnchorsFromOpenDocument(request);
-  return request;
-};
-/** Laat de eerste lezing via `name` wachten tot `release()`; `started` belooft dat ze begonnen is. */
+// (14)–(17) De teller per document en bron (review #860 ronde 3).
+/** Laat de eerste lezing via `read` wachten tot `release()`; `hasStarted` belooft dat ze begonnen is. */
 const gateFirstRead = <F extends (...args: never[]) => Promise<unknown>>(read: F) => {
   let first = true;
   let release!: () => void;
@@ -404,117 +425,30 @@ const gateFirstRead = <F extends (...args: never[]) => Promise<unknown>>(read: F
   }) as unknown as F;
   return { wrapped, hasStarted, release: () => release() };
 };
+// (14) Een controle leest de opgeslagen versie v2 (8 werkdagen) en wacht. Intussen wijzigt de planner de bron
+// zonder op te slaan, en vernieuwt met het vinkje aan uit het geopende document. Daarna komt de oude controle terug:
+// geen balk voor v2, en het anker blijft (zonder de teller zette *Accepteren* het terug naar 10 maart).
 {
-  const s = await app();
+  const s = await app('path', true);
   const { S, store, a } = s;
   editSource(s);
-  s.disk.version = 'v2';
+  saveSource(s, 'v2');
   const gated = gateFirstRead(S().parseExternalSource);
   store.setState({ parseExternalSource: gated.wrapped });
   const checking = S().checkExternalSources();
   await gated.hasStarted;
+  editSource(s);
   await S().refreshAllExternalAnchors();
-  const request = await choose(S);
-  eq('11a de knop is gebruikt: het anker uit het geopende document', [request?.savedVersion, linkOf(S, a).anchorDate], ['v2', '2027-03-10T16:00']);
+  const anchor = linkOf(S, a).anchorDate;
   gated.release();
   await checking;
-  eq('11b de lopende controle publiceert geen balk voor de afgehandelde versie', S().ui.externalSourceUpdates.length, 0);
-  await S().checkExternalSources();
-  eq('11c ook een volgende controle niet; het anker blijft', [S().ui.externalSourceUpdates.length, linkOf(S, a).anchorDate], [0, '2027-03-10T16:00']);
-  s.disk.version = 'v3';
-  await S().checkExternalSources();
-  eq('11d een volgende opgeslagen versie geeft wel weer een balk', S().ui.externalSourceUpdates.map(u => u.version), ['v3']);
+  eq('14a de oude controle (v2) publiceert geen balk; het anker uit het geopende document blijft',
+    [anchor > '2027-03-10T16:00', linkOf(S, a).sourceVersion, bars(S).map(u => u.version), linkOf(S, a).anchorDate === anchor],
+    [true, undefined, [], true]);
 }
-
-// (12) Hetzelfde op de site: de bron is een document van de site en de koppeling draagt het site-id.
-{
-  const s = await app('project');
-  const { S, store, a } = s;
-  S().switchDocument(s.sourceDocumentId);
-  store.setState({ siteFileId: 'site-bron', siteFileVersion: 'v1' });
-  S().switchDocument(s.targetDocumentId);
-  const task = S().tasks.find(t => t.id === a)!;
-  S().updateTask(a, { externalLinks: task.externalLinks!.map(l => ({ ...l, sourceRef: { ...l.sourceRef, siteFileId: 'site-bron' } })) });
-  const diskRead = S().parseExternalSource;
-  const siteRead = async (id: string) => {
-    const read = await diskRead(PATH);
-    const { filePath: _path, ...rest } = read!;
-    void _path;
-    return { ...rest, siteFileId: id };
-  };
-  store.setState({ parseExternalSiteSource: siteRead, externalSiteSourceVersion: async () => ({ version: s.disk.version }) });
-  editSource(s);
-  s.disk.version = 'v2';
-  await S().refreshAllExternalAnchors();
-  const plain = await choose(S);
-  await S().checkExternalSources();
-  eq('12a op de site, gewone route: de knop, daarna geen balk', [plain?.locator, plain?.savedVersion, S().ui.externalSourceUpdates.length],
-    [{ kind: 'site', siteFileId: 'site-bron' }, 'v2', 0]);
-  s.disk.version = 'v3';
-  const gated = gateFirstRead(siteRead);
-  store.setState({ parseExternalSiteSource: gated.wrapped });
-  const checking = S().checkExternalSources();
-  await gated.hasStarted;
-  await S().refreshAllExternalAnchors();
-  const request = await choose(S);
-  gated.release();
-  await checking;
-  eq('12b op de site, met een lopende controle: geen balk voor de afgehandelde versie', [request?.savedVersion, S().ui.externalSourceUpdates.length], ['v3', 0]);
-  await S().checkExternalSources();
-  eq('12c ook een volgende controle niet', S().ui.externalSourceUpdates.length, 0);
-}
-
-// (13) Review #860 ronde 2, VERVOLG: wissen en aanvullen via één helper. Drie weigeringen vullen de stapel; de keuze
-// wacht. Een documentwissel wist de weigeringen ⇒ de keuze verschijnt meteen. En bij samenvouwen (nog eens
-// vernieuwen) vult de stapel zich ook aan.
-{
-  const s = await app();
-  const { S } = s;
-  editSource(s);
-  for (const n of S().ui.notifications) S().dismissNotification(n.id);
-  for (const key of ['w1', 'w2', 'w3']) S().notify(refusalNotice({ messageKey: 'notifications.relationDuplicate', dedupeKey: key }));
-  await S().refreshAllExternalAnchors();
-  const choices = () => S().ui.notifications.filter(n => n.action?.kind === 'refreshFromOpenDocument').length;
-  eq('13a de stapel is vol met weigeringen ⇒ de keuze wacht', [choices(), S().ui.waitingNotifications.length], [0, 1]);
-  S().switchDocument(s.sourceDocumentId);
-  eq('13b de documentwissel wist de weigeringen ⇒ de keuze verschijnt', [choices(), S().ui.waitingNotifications.length], [1, 0]);
-  S().switchDocument(s.targetDocumentId);
-  // Opzet: een lege stapel met een wachtende keuze (zoals na rechtstreeks wissen vóór deze ronde).
-  {
-    const n = [...S().ui.notifications, ...S().ui.waitingNotifications].find(x => x.action?.kind === 'refreshFromOpenDocument');
-    s.store.setState(st => { st.ui.notifications = []; st.ui.waitingNotifications = n ? [n] : []; });
-  }
-  await S().refreshAllExternalAnchors();
-  eq('13c samenvouwen bij nog eens vernieuwen ⇒ de wachtende keuze verschijnt', [choices(), S().ui.waitingNotifications.length], [1, 0]);
-}
-
-// (14) Review #860 ronde 3: een controle die een OUDERE opgeslagen versie las. De controle leest v2 en wacht; intussen
-// slaat de bron v3 op, vernieuwen leest v3 en de knop handelt v3 af. Daarna komt de oude controle terug: geen balk
-// voor v2, en het anker blijft op 10 maart (zonder de teller zette *Accepteren* het terug naar 5 maart).
-{
-  const s = await app();
-  const { S, store, a } = s;
-  editSource(s);
-  s.disk.version = 'v2';
-  const gated = gateFirstRead(S().parseExternalSource);
-  store.setState({ parseExternalSource: gated.wrapped });
-  const checking = S().checkExternalSources();
-  await gated.hasStarted;
-  s.disk.version = 'v3';
-  await S().refreshAllExternalAnchors();
-  const request = await choose(S);
-  eq('14a de knop handelt v3 af, het anker uit het geopende document', [request?.savedVersion, linkOf(S, a).anchorDate], ['v3', '2027-03-10T16:00']);
-  gated.release();
-  await checking;
-  eq('14b de oude controle (v2) publiceert geen balk; het anker blijft',
-    [S().ui.externalSourceUpdates.map(u => u.version), linkOf(S, a).anchorDate], [[], '2027-03-10T16:00']);
-  await S().checkExternalSources();
-  eq('14c ook een volgende controle niet', S().ui.externalSourceUpdates.length, 0);
-}
-
 // (15) Hetzelfde op de site.
 {
-  const s = await app('project');
+  const s = await app('project', true);
   const { S, store, a } = s;
   S().switchDocument(s.sourceDocumentId);
   store.setState({ siteFileId: 'site-bron', siteFileVersion: 'v1' });
@@ -531,65 +465,69 @@ const gateFirstRead = <F extends (...args: never[]) => Promise<unknown>>(read: F
   const gated = gateFirstRead(siteRead);
   store.setState({ parseExternalSiteSource: gated.wrapped, externalSiteSourceVersion: async () => ({ version: s.disk.version }) });
   editSource(s);
-  s.disk.version = 'v2';
+  saveSource(s, 'v2');
   const checking = S().checkExternalSources();
   await gated.hasStarted;
-  s.disk.version = 'v3';
+  editSource(s);
   await S().refreshAllExternalAnchors();
-  const request = await choose(S);
-  eq('15a op de site: de knop handelt v3 af', [request?.savedVersion, linkOf(S, a).anchorDate], ['v3', '2027-03-10T16:00']);
+  const anchor = linkOf(S, a).anchorDate;
   gated.release();
   await checking;
-  eq('15b op de site: de oude controle (v2) publiceert geen balk; het anker blijft',
-    [S().ui.externalSourceUpdates.map(u => u.version), linkOf(S, a).anchorDate], [[], '2027-03-10T16:00']);
+  eq('15a op de site: de oude controle (v2) publiceert geen balk; het anker blijft',
+    [anchor > '2027-03-10T16:00', bars(S).map(u => u.version), linkOf(S, a).anchorDate === anchor], [true, [], true]);
 }
-
-// (16) Een controle die loopt tijdens *Later* of *Accepteren*. De bron is opgeslagen met de wijziging (v2) ⇒ een
-// balk. Daarna slaat ze dezelfde inhoud nog eens op (v3); een controle leest v3 en wacht.
+// (16) Een controle die loopt tijdens *Later* of *Accepteren* (vinkje uit). De bron is opgeslagen met de wijziging
+// (v2) ⇒ een balk. Daarna slaat ze dezelfde inhoud nog eens op (v3); een controle leest v3 en wacht.
 const savedSource = async () => {
   const s = await app();
-  const { S } = s;
   editSource(s);
-  S().switchDocument(s.sourceDocumentId);
-  S().runCPM();
-  s.disk.text = writeIFC(buildWriteIFCInput(S()));
-  s.disk.version = 'v2';
-  S().markAutoSaveVersionSaved(s.sourceDocumentId, S());
-  S().switchDocument(s.targetDocumentId);
-  await S().checkExternalSources();
+  saveSource(s, 'v2');
+  await s.S().checkExternalSources();
   return s;
 };
 {
   // *Later* op v2 tijdens de controle: v2 komt niet terug, v3 is een nieuwe versie en krijgt de balk.
   const s = await savedSource();
   const { S, store, a } = s;
-  eq('16a voorwaarde: een balk voor v2', S().ui.externalSourceUpdates.map(u => u.version), ['v2']);
+  eq('16a voorwaarde: een balk voor v2', bars(S).map(u => u.version), ['v2']);
   s.disk.version = 'v3';
   const gated = gateFirstRead(S().parseExternalSource);
   store.setState({ parseExternalSource: gated.wrapped });
   const checking = S().checkExternalSources();
   await gated.hasStarted;
-  S().dismissExternalSourceUpdate(S().ui.externalSourceUpdates[0]?.key ?? '');
+  S().dismissExternalSourceUpdate(bars(S)[0]?.key ?? '');
   gated.release();
   await checking;
   eq('16b Later tijdens de controle: alleen de nieuwe versie v3, het anker onveranderd',
-    [S().ui.externalSourceUpdates.map(u => u.version), linkOf(S, a).anchorDate], [['v3'], '2027-03-05T16:00']);
+    [bars(S).map(u => u.version), linkOf(S, a).anchorDate], [['v3'], '2027-03-05T16:00']);
 }
 {
   // *Accepteren* van v2 tijdens de controle: daarna geen balk, want v3 verandert niets aan het anker.
   const s = await savedSource();
   const { S, store, a } = s;
-  const v2 = await S().readExternalSourceAt(S().ui.externalSourceUpdates[0]!.locator);
+  const v2 = bars(S)[0] ? await S().readExternalSourceUpdate(bars(S)[0]) : null;
   s.disk.version = 'v3';
   const gated = gateFirstRead(S().parseExternalSource);
   store.setState({ parseExternalSource: gated.wrapped });
   const checking = S().checkExternalSources();
   await gated.hasStarted;
-  eq('16c Accepteren tijdens de controle lukt', [S().acceptExternalSourceUpdate({ ...v2!, version: 'v2' }), S().ui.externalSourceUpdates.length], [true, 0]);
+  eq('16c Accepteren tijdens de controle lukt', [v2 ? S().acceptExternalSourceUpdate({ ...v2, version: 'v2' }) : false, bars(S).length], [true, 0]);
   gated.release();
   await checking;
   eq('16d na de controle geen balk; het anker blijft op v2',
-    [S().ui.externalSourceUpdates.length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], [0, '2027-03-10T16:00', 'v2']);
+    [bars(S).length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], [0, '2027-03-10T16:00', 'v2']);
+}
+// (17) Vinkje aan: *Later* terwijl een controle het geopende document leest ⇒ daarna geen balk.
+{
+  const s = await app('path', true);
+  const { S } = s;
+  editSource(s);
+  await S().checkExternalSources();
+  const key = bars(S)[0]?.key ?? '';
+  const checking = S().checkExternalSources();
+  S().dismissExternalSourceUpdate(key);
+  await checking;
+  eq('17a Later tijdens de controle ⇒ geen balk', [key !== '', bars(S).length], [true, 0]);
 }
 
 if (failures.length > 0) {

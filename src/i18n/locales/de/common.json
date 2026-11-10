@@ -96,8 +96,6 @@
     "recoveryDocumentsSkipped_one": "{{count}} Wiederherstellungsdatei konnte nicht geladen werden und wurde übersprungen.",
     "recoveryDocumentsSkipped_other": "{{count}} Wiederherstellungsdateien konnten nicht geladen werden und wurden übersprungen.",
     "externalOpenSourceUnsaved": "{{file}} hat nicht gespeicherte Änderungen; der Anker stammt aus der gespeicherten Version.",
-    "externalOpenSourceUsed": "Die Verknüpfungen zu {{file}} wurden aus dem geöffneten Dokument aktualisiert, mit den nicht gespeicherten Änderungen.",
-    "externalOpenSourceGone": "Nicht aktualisiert: {{file}} wurde geschlossen oder gespeichert, oder ein anderes Dokument ist aktiv.",
     "scheduleFailed": "Terminplan konnte nicht berechnet werden",
     "ifcParseFailed": "IFC konnte nicht gelesen werden",
     "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert",
@@ -174,8 +172,7 @@
     "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
     "actions": {
       "openProjectInfo": "Berechnungsprofil öffnen",
-      "openHelp": "Hilfe öffnen",
-      "useOpenDocument": "Mit dem geöffneten Dokument rechnen"
+      "openHelp": "Hilfe öffnen"
     },
     "xerArchiveUnusable": "Das XER-Quellarchiv in dieser Datei ist unbrauchbar und wurde weggelassen; das Projekt selbst wurde vollständig geöffnet.",
     "xerArchiveUnusableLine": "Das XER-Quellarchiv in dieser Datei war unbrauchbar und wurde weggelassen.",

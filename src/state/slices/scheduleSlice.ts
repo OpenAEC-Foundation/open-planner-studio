@@ -27,7 +27,6 @@ import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingOutput, hasLevelingOutput, writeLevelingResult } from '@/utils/taskDefaults';
 import type { AppSliceFactory } from './types';
-import { removeNotifications } from '../notificationQueue';
 
 /** TaskTime bevat alleen scalars. Vergelijk nul en -nul als dezelfde waarde, net als de
  *  Immer-setter: kalenderberekeningen kunnen -0 leveren zonder dat de planning verandert. */
@@ -229,7 +228,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     if (!after.cpmResult || after.cpmResult.error) {
       set((s) => {
         s.scheduleShift = null;
-        removeNotifications(s.ui, n => n.dedupeKey === SCHEDULE_SHIFT_NOTICE_KEY);
+        s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
       });
       return;
     }
@@ -258,7 +257,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         refreshedHistoryEvent: historyEventId === null && before.scheduleStale && !before.datesAsRecorded,
       };
       if (report.tasks.length === 0) {
-        removeNotifications(s.ui, n => n.dedupeKey === SCHEDULE_SHIFT_NOTICE_KEY);
+        s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
       }
     });
     if (report.tasks.length > 0) get().notify(scheduleShiftNotice(report));
@@ -284,7 +283,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     set((s) => {
       s.scheduleShift = null;
       s.ui.showScheduleShiftPanel = false;
-      removeNotifications(s.ui, n => n.dedupeKey === SCHEDULE_SHIFT_NOTICE_KEY);
+      s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
     });
     get().recomputeViewRows();
   },

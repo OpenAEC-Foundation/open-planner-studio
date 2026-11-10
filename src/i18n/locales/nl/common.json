@@ -101,8 +101,6 @@
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
     "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
     "externalOpenSourceUnsaved": "{{file}} heeft niet-opgeslagen wijzigingen; het anker komt uit de opgeslagen versie.",
-    "externalOpenSourceUsed": "De koppelingen naar {{file}} zijn ververst uit het geopende document, met de niet-opgeslagen wijzigingen.",
-    "externalOpenSourceGone": "Niet ververst: {{file}} is gesloten of opgeslagen, of een ander document is actief.",
     "scheduleFailed": "Planning kon niet worden berekend",
     "ifcParseFailed": "IFC kon niet worden gelezen",
     "templateSaved": "Tak bewaard als sjabloon '{{name}}'",
@@ -183,8 +181,7 @@
     "schedulingProfileShifted_other": "Na het toepassen zijn {{count}} taken verschoven.",
     "actions": {
       "openProjectInfo": "Rekenprofiel openen",
-      "openHelp": "Help openen",
-      "useOpenDocument": "Rekenen met het geopende document"
+      "openHelp": "Help openen"
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",

@@ -5,7 +5,6 @@ import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
 import type { AppSliceFactory } from './types';
-import { removeNotifications } from '../notificationQueue';
 import { generateId } from '@/utils/id';
 import {
   capturePayload,
@@ -108,7 +107,7 @@ function resetDocumentScopedUI(s: AppState): void {
   clearRefusals(s.ui);
   // De uitleg na F5 noemt taken van het uitgaande document.
   s.scheduleShift = null;
-  removeNotifications(s.ui, n => n.dedupeKey === SCHEDULE_SHIFT_NOTICE_KEY);
+  s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {

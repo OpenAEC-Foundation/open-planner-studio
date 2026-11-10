@@ -112,8 +112,6 @@
     "recoveryDocumentsSkipped_few": "{{count}} datoteke za oporavak nije bilo moguće učitati i preskočene su.",
     "recoveryDocumentsSkipped_other": "{{count}} datoteka za oporavak nije bilo moguće učitati i preskočeno je.",
     "externalOpenSourceUnsaved": "{{file}} ima nespremljene promjene; referentni datum potječe iz spremljene verzije.",
-    "externalOpenSourceUsed": "Međuzavisnosti prema {{file}} osvježene su iz otvorenog dokumenta, s nespremljenim promjenama.",
-    "externalOpenSourceGone": "Nije osvježeno: {{file}} je zatvoren ili spremljen, ili je aktivan drugi dokument.",
     "scheduleFailed": "Raspored nije bilo moguće izračunati",
     "ifcParseFailed": "IFC nije bilo moguće pročitati",
     "templateSaved": "Grana spremljena kao predložak '{{name}}'",
@@ -210,8 +208,7 @@
     "schedulingProfileShifted_other": "Nakon primjene pomaknuto je {{count}} zadataka.",
     "actions": {
       "openProjectInfo": "Otvori profil izračuna",
-      "openHelp": "Otvori pomoć",
-      "useOpenDocument": "Koristi otvoreni dokument"
+      "openHelp": "Otvori pomoć"
     },
     "xerArchiveUnusable": "Izvorni XER arhiv u ovoj datoteci je neupotrebljiv i izostavljen je; sam projekt je potpuno otvoren.",
     "xerArchiveUnusableLine": "Izvorni XER arhiv u ovoj datoteci bio je neupotrebljiv i izostavljen je.",

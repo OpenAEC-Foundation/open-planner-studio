@@ -112,8 +112,6 @@
     "recoveryDocumentsSkipped_many": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
     "recoveryDocumentsSkipped_other": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
     "externalOpenSourceUnsaved": "{{file}} tem alterações não guardadas; a ancoragem vem da versão guardada.",
-    "externalOpenSourceUsed": "As ligações a {{file}} foram atualizadas a partir do documento aberto, com as alterações não guardadas.",
-    "externalOpenSourceGone": "Não atualizado: {{file}} foi fechado ou guardado, ou está ativo outro documento.",
     "scheduleFailed": "Não foi possível calcular o planeamento",
     "ifcParseFailed": "Não foi possível ler o IFC",
     "templateSaved": "Ramo guardado como modelo '{{name}}'",
@@ -210,8 +208,7 @@
     "schedulingProfileShifted_other": "Após aplicar, {{count}} tarefas foram deslocadas.",
     "actions": {
       "openProjectInfo": "Abrir perfil de cálculo",
-      "openHelp": "Abrir ajuda",
-      "useOpenDocument": "Usar o documento aberto"
+      "openHelp": "Abrir ajuda"
     },
     "xerArchiveUnusable": "O ficheiro de origem XER deste ficheiro é inutilizável e foi omitido; o projeto em si foi aberto por completo.",
     "xerArchiveUnusableLine": "O ficheiro de origem XER deste ficheiro era inutilizável e foi omitido.",

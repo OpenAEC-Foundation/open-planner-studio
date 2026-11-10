@@ -242,6 +242,8 @@
     "endDate": "Data di fine",
     "defaultWorkRule": "Tipo di attività predefinito",
     "defaultWorkRuleHint": "Le attività impostate su ‘Predefinito del progetto’ seguono questa scelta. Le attività con un proprio tipo di attività mantengono la loro scelta.",
+    "anchorsFromOpenDocuments": "Prendi gli ancoraggi dai documenti aperti",
+    "anchorsFromOpenDocumentsHint": "Se un progetto sorgente è aperto con modifiche non salvate, gli ancoraggi provengono da quel documento aperto. Disattivato per impostazione predefinita.",
     "calc": {
       "title": "Calcolo",
       "subtitle": "Opzioni di pianificazione per questo progetto — memorizzate con il file, non con l'app.",

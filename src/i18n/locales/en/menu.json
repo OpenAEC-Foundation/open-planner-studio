@@ -241,6 +241,8 @@
     "endDate": "End Date",
     "defaultWorkRule": "Default task type",
     "defaultWorkRuleHint": "Tasks set to ‘Project default’ follow this choice. Tasks with their own task type keep their choice.",
+    "anchorsFromOpenDocuments": "Take anchors from open documents",
+    "anchorsFromOpenDocumentsHint": "If a source project is open with unsaved changes, the anchors come from that open document. Off by default.",
     "calc": {
       "title": "Calculation",
       "subtitle": "Scheduling options for this project — stored with the file, not the app.",

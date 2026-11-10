@@ -243,6 +243,8 @@
     "endDate": "Dátum dokončenia",
     "defaultWorkRule": "Predvolený typ úlohy",
     "defaultWorkRuleHint": "Úlohy nastavené na „Štandard projektu“ nasledujú túto voľbu. Úlohy s vlastným typom úlohy si ponechajú svoju voľbu.",
+    "anchorsFromOpenDocuments": "Brať kotvy z otvorených dokumentov",
+    "anchorsFromOpenDocumentsHint": "Ak je zdrojový projekt otvorený s neuloženými zmenami, kotvy sa berú z tohto otvoreného dokumentu. Predvolene vypnuté.",
     "calc": {
       "title": "Výpočet",
       "subtitle": "Možnosti plánovania pre tento projekt. Ukladajú sa so súborom, nie s aplikáciou.",

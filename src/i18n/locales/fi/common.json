@@ -96,8 +96,6 @@
     "recoveryDocumentsSkipped_one": "{{count}} palautustiedostoa ei voitu ladata ja se ohitettiin.",
     "recoveryDocumentsSkipped_other": "{{count}} palautustiedostoa ei voitu ladata ja ne ohitettiin.",
     "externalOpenSourceUnsaved": "Tiedostossa {{file}} on tallentamattomia muutoksia; ankkuri tulee tallennetusta versiosta.",
-    "externalOpenSourceUsed": "Riippuvuudet tiedostoon {{file}} on päivitetty avoimesta asiakirjasta tallentamattomine muutoksineen.",
-    "externalOpenSourceGone": "Ei päivitetty: {{file}} on suljettu tai tallennettu, tai toinen asiakirja on aktiivinen.",
     "scheduleFailed": "Aikataulua ei voitu laskea",
     "ifcParseFailed": "IFC-tiedostoa ei voitu lukea",
     "templateSaved": "Haara tallennettiin mallina '{{name}}'",
@@ -174,8 +172,7 @@
     "schedulingProfileShifted_other": "Soveltamisen jälkeen {{count}} tehtävää siirtyi.",
     "actions": {
       "openProjectInfo": "Avaa laskentaprofiili",
-      "openHelp": "Avaa ohje",
-      "useOpenDocument": "Käytä avointa asiakirjaa"
+      "openHelp": "Avaa ohje"
     },
     "xerArchiveUnusable": "XER-lähdearkisto tässä tiedostossa on käyttökelvoton ja jätettiin pois; projekti itsessään avattiin kokonaan.",
     "xerArchiveUnusableLine": "XER-lähdearkisto tässä tiedostossa oli käyttökelvoton ja se on jätetty pois.",

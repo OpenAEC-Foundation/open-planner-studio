@@ -468,6 +468,7 @@ const project = {
   companyId: 'c-fixture', companyName: 'Fixture Bouw BV',
   p6ProjectCode: 'OZB-14 1st Update', // P6 XML-projectcode: OPS_ProjectSettings/P6ProjectCode
   dependentProjectsFolder: '/projecten/Zuidas \\ fase \'2\'', // stap 1.11: OPS_ProjectSettings/DependentProjectsFolder
+  anchorsFromOpenDocuments: true, // stap 1.7: OPS_ProjectSettings/AnchorsFromOpenDocuments, alleen wanneer aan
   schedulingOptions: SCHED_OPTS,
   // Rekenprofiel (C2): een EIGEN profiel op p6-basis met twee afwijkingen (één uit, één per-bestand
   // aan) — onderscheidend van de default (afwezig ≡ ops) én van de kale p6-basis.
@@ -833,6 +834,7 @@ const PROJECT_CANON = {
   ifcSchemaUnconfirmed: KEEP,
   p6ProjectCode: KEEP, // P6 Project-ID los van de naam (eigen toetsen: check-p6xml-project-code)
   dependentProjectsFolder: KEEP, // stap 1.11: de map met afhankelijke projecten (OPS_ProjectSettings)
+  anchorsFromOpenDocuments: KEEP, // stap 1.7: het vinkje ankers uit geopende documenten (OPS_ProjectSettings)
 } satisfies CanonSpec<Project>;
 
 const BASELINE_TASK_CANON = {

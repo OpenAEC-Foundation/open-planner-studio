@@ -1,8 +1,10 @@
 // Stap 1.7 (keuze 5, Ethan 2026-11-03; §7.1 en §9 in `docs/relaties-tussen-projecten.md`): een bron die ook als
 // document open staat in deze app. Standaard komt het anker uit het opgeslagen bestand; heeft het geopende
-// document niet-opgeslagen wijzigingen, dan zegt de app dat. Als optie (vorm 1: een knop per keer) rekent de app
-// met het geopende document. Zonder store, zodat de planningstests het headless kunnen draaien.
+// document niet-opgeslagen wijzigingen, dan zegt de app dat. Met het vinkje *Ankers uit geopende documenten halen*
+// in het afhankelijke project (`Project.anchorsFromOpenDocuments`, besluit Ethan 2026-11-10) rekent de app met het
+// geopende document. Zonder store, zodat de planningstests het headless kunnen draaien.
 import { externalSourceKey, type ExternalSourceLocator } from '@/engine/externalLinks';
+import type { ExternalAnchorChange } from '@/engine/externalRefreshPreview';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { parseOpenedFile } from '@/services/formatRegistry';
@@ -57,7 +59,7 @@ export function openSourceName(locator: ExternalSourceLocator, payload: Pick<Doc
 }
 
 /** Een bron die bij verversen ook als document open staat, met niet-opgeslagen wijzigingen. De melding noemt
- *  `fileName`; de knop *Rekenen met het geopende document* ververst met deze gegevens. */
+ *  `fileName`. */
 export interface UnsavedOpenSource {
   /** De sleutel van de bron (`externalSourceKey`). */
   key: string;
@@ -96,8 +98,8 @@ export function unsavedOpenSources(
  * (`externalSourceFromImport`). Alles op een kopie: het geopende document verandert niet en rekent niet.
  *
  * Herkomst (keuze 4): dit anker komt niet uit een opgeslagen versie. De bron heeft daarom geen `version`, wel
- * een leestijd; `refreshExternalAnchors` haalt dan de oude `sourceVersion` weg. Zodra de bron opgeslagen is,
- * meldt de balk (stap 1.5) die versie.
+ * een leestijd; `refreshExternalAnchors` haalt dan de oude `sourceVersion` weg. Zodra de bron opgeslagen en
+ * gesloten of schoon is, meldt de balk (stap 1.5) die versie.
  *
  * De bron draagt de plek van de koppeling (`locator`): het pad zoals in de koppeling, het site-id, of geen pad
  * (een bron uit de browser). Zo raakt de verversing precies de koppelingen naar die bron.
@@ -122,4 +124,14 @@ export async function externalSourceFromOpenDocument(
     fileName,
     readAt: now().toISOString(),
   };
+}
+
+/**
+ * De vingerafdruk van een voorstel uit een geopend document (de balk bij het vinkje aan, stap 1.7): per koppeling
+ * het voorgestelde anker en *brontaak ontbreekt*, gesorteerd. Een geopend document heeft geen versie; *Later*
+ * onthoudt deze vingerafdruk. Dezelfde voorgestelde ankers geven zo geen nieuwe balk, andere wel.
+ */
+export function openProposalFingerprint(changes: readonly ExternalAnchorChange[]): string {
+  const parts = changes.map(c => `${c.taskId}/${c.linkId}=${c.link.sourceMissing ? 'missing' : c.link.anchorDate}`);
+  return `open:${parts.sort().join(';')}`;
 }

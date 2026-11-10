@@ -112,8 +112,6 @@
     "recoveryDocumentsSkipped_many": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
     "recoveryDocumentsSkipped_other": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
     "externalOpenSourceUnsaved": "{{file}} contient des modifications non enregistrées ; l'ancrage provient de la version enregistrée.",
-    "externalOpenSourceUsed": "Les relations vers {{file}} ont été actualisées à partir du document ouvert, avec les modifications non enregistrées.",
-    "externalOpenSourceGone": "Non actualisé : {{file}} a été fermé ou enregistré, ou un autre document est actif.",
     "scheduleFailed": "Le planning n'a pas pu être calculé",
     "ifcParseFailed": "IFC n'a pas pu être lu",
     "templateSaved": "Branche enregistrée comme modèle '{{name}}'",
@@ -210,8 +208,7 @@
     "schedulingProfileShifted_other": "Après application, {{count}} tâches ont été déplacées.",
     "actions": {
       "openProjectInfo": "Ouvrir le profil de calcul",
-      "openHelp": "Ouvrir l'aide",
-      "useOpenDocument": "Utiliser le document ouvert"
+      "openHelp": "Ouvrir l'aide"
     },
     "xerArchiveUnusable": "L'archive source XER de ce fichier est inutilisable et a été omise ; le projet lui-même s'est ouvert en entier.",
     "xerArchiveUnusableLine": "L'archive source XER de ce fichier était inutilisable et a été omise.",

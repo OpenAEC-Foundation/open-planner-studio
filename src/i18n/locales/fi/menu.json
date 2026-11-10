@@ -241,6 +241,8 @@
     "endDate": "Loppupäivä",
     "defaultWorkRule": "Oletustehtävätyyppi",
     "defaultWorkRuleHint": "Tehtävät, joiden tehtävätyyppi on ”Projektin oletus”, noudattavat tätä valintaa. Tehtävät, joilla on oma tehtävätyyppi, säilyttävät oman valintansa.",
+    "anchorsFromOpenDocuments": "Hae ankkurit avoimista asiakirjoista",
+    "anchorsFromOpenDocumentsHint": "Jos lähdeprojekti on auki tallentamattomin muutoksin, ankkurit tulevat siitä avoimesta asiakirjasta. Oletuksena pois päältä.",
     "calc": {
       "title": "Laskenta",
       "subtitle": "Laskenta-asetukset tälle projektille — tallennetaan tiedostoon, ei sovellukseen.",

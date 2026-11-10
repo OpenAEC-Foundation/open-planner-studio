@@ -80,8 +80,6 @@
     "settingsLoadedLateReverted": "你的设置已加载并应用。你在此期间所做的更改已被还原。",
     "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
     "externalOpenSourceUnsaved": "{{file}} 有未保存的更改；锚点来自已保存的版本。",
-    "externalOpenSourceUsed": "已根据打开的文档（包括未保存的更改）刷新指向 {{file}} 的链接。",
-    "externalOpenSourceGone": "未刷新：{{file}} 已关闭或已保存，或者当前活动的是其他文档。",
     "scheduleFailed": "无法计算计划",
     "ifcParseFailed": "无法读取 IFC",
     "templateSaved": "分支已保存为模板“{{name}}”",
@@ -138,8 +136,7 @@
     "schedulingProfileShifted_other": "应用后移动了 {{count}} 个任务。",
     "actions": {
       "openProjectInfo": "打开计算配置文件",
-      "openHelp": "打开帮助",
-      "useOpenDocument": "使用打开的文档"
+      "openHelp": "打开帮助"
     },
     "xerArchiveUnusable": "此文件中的 XER 源存档不可用，已被略去；项目本身已完整打开。",
     "xerArchiveUnusableLine": "此文件中的 XER 源存档不可用，已被略去。",

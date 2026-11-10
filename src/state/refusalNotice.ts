@@ -1,5 +1,4 @@
 import type { NotificationDetailLine, NotifyInput, UIState } from './slices/types';
-import { removeNotifications } from './notificationQueue';
 
 /**
  * Weigeringen in het meldingenkanaal (eigenaarsbesluiten 2026-10-17).
@@ -44,7 +43,9 @@ export function refusalNotice(notice: Omit<NotifyInput, 'severity' | 'refusal'>)
  * meldingen zijn verder app-globaal en staan niet in de undo-stack (`check-notifications`).
  */
 export function clearRefusals(ui: UIState): void {
-  removeNotifications(ui, (n) => !!n.refusal);
+  if (ui.notifications.some((n) => n.refusal)) {
+    ui.notifications = ui.notifications.filter((n) => !n.refusal);
+  }
   ui.structureLockedClearedAt = ui.structureLockedNotice;
 }
 

@@ -63,13 +63,13 @@ import {
   refreshExternalAnchors,
   refreshFromSources, type ExternalSourceDoc, type ExternalSourceLocator,
 } from '@/engine/externalLinks';
-import { externalAnchorChanges, externalVersionOnlyChanges } from '@/engine/externalRefreshPreview';
+import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSiteSource, readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
 import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
 import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import {
-  externalSourceFromOpenDocument, openSourceDocument, unsavedOpenSources,
+  externalSourceFromOpenDocument, openProposalFingerprint, openSourceDocument, openSourceName, unsavedOpenSources,
 } from '../openSourceDocument';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
@@ -621,21 +621,14 @@ export interface FileSlice {
   /** Projectbrede ververs-actie ("Ververs externe ankers"): ververs elke gerefereerde bron één keer. */
   refreshAllExternalAnchors: (labels?: ImportLabels) => Promise<ExternalRefreshAllResult>;
   /**
-   * Stap 1.7 (keuze 5, vorm 1): *Rekenen met het geopende document*, alleen voor deze ene verversing. Ververst in
-   * het actieve document de koppelingen naar de bron op `request.locator` (alleen die) uit het geopende document
-   * `request.sourceDocumentId`, met de niet-opgeslagen wijzigingen, als één undo-stap met herberekening. De bron
-   * wordt op een kopie geschreven, gelezen en doorgerekend (`externalSourceFromOpenDocument`); het geopende
-   * document verandert niet en rekent niet. Is het actieve document niet meer `request.targetDocumentId`, of is
-   * het brondocument gesloten, opgeslagen of geen bron meer: niets, met een melding (`null`).
+   * De bron achter een balk (stap 1.5), voor *Bekijken* en *Accepteren*. Komt de balk uit een geopend document
+   * (`update.openDocumentId`, stap 1.7), dan leest de app dat document op een kopie, met de niet-opgeslagen
+   * wijzigingen; is het intussen gesloten, opgeslagen of geen bron meer, dan `null`. Anders het bestand of de
+   * site (`readExternalSourceAt`).
    */
-  refreshExternalAnchorsFromOpenDocument: (
-    request: {
-      targetDocumentId: string; sourceDocumentId: string; locator: ExternalSourceLocator; fileName: string;
-      /** De versie van het opgeslagen bestand dat de verversing las; die geldt daarna als afgehandeld. */
-      savedVersion?: string;
-    },
-    labels?: ImportLabels,
-  ) => Promise<{ refreshed: number; missing: number } | null>;
+  readExternalSourceUpdate: (
+    update: Pick<ExternalSourceUpdate, 'locator' | 'openDocumentId'>, labels?: ImportLabels,
+  ) => Promise<ExternalSourceRead | null>;
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
@@ -741,7 +734,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const sourceKey = (documentId: string, key: string) => `${documentId}\u0000${key}`;
   // Per document en bron een teller (review #860 ronde 3). Elke route die de uitgangssituatie van een bron
   // verandert, hoogt hem op via `dropSourceUpdates`: *Alle externe relaties vernieuwen*, *Bron vernieuwen*,
-  // *Bronbestanden kiezen…*, *Rekenen met het geopende document*, *Accepteren*, *Later* en MCP. Een controle
+  // *Bronbestanden kiezen…*, *Accepteren*, *Later* en MCP. Een controle
   // legt de tellers vast vóór haar eerste `await`; is een teller daarna veranderd, dan gooit ze haar uitkomst
   // voor die bron weg. Zo publiceert een oudere controle geen balk voor een versie die intussen achterhaald is.
   const sourceGenerations = new Map<string, number>();
@@ -790,36 +783,39 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return s.documents.flatMap(d => (d.id !== s.activeDocumentId && d.payload ? [{ id: d.id, payload: d.payload }] : []));
   };
 
-  /** Stap 1.7 (keuze 5): per gelezen bron die ook open staat met niet-opgeslagen wijzigingen een melding. Het
-   *  anker kwam uit het opgeslagen bestand; de knop *Rekenen met het geopende document* (vorm 1) geldt alleen
-   *  voor deze ene verversing. Een schoon geopend document geeft geen melding. `reads`: de gelezen bronnen, met
-   *  de versie van het opgeslagen bestand dat gelezen is. De melding is een keuze (`holdUntilRoom`): ze blijft
-   *  tot de planner kiest of op het kruisje klikt, ook als er meer meldingen komen dan de stapel toont. */
-  const announceUnsavedOpenSources = (
-    targetDocumentId: string,
-    reads: ReadonlyArray<{ locator: ExternalSourceLocator; version?: string }>,
-  ): void => {
-    const found = unsavedOpenSources(reads.map(read => read.locator), sleepingDocuments(), targetDocumentId);
-    const versionByKey = new Map(reads.map(read => [externalSourceKey(read.locator), read.version] as const));
-    for (const source of found) {
-      const savedVersion = versionByKey.get(source.key);
+  /** Stap 1.7, vinkje *Ankers uit geopende documenten halen* (`Project.anchorsFromOpenDocuments`) aan in het
+   *  actieve document: het geopende document dat deze bron is, als het niet-opgeslagen wijzigingen heeft. Anders
+   *  (vinkje uit, niet geopend, schoon, of twee passende documenten) `null`: dan het opgeslagen bestand. */
+  const openDirtySource = (locator: ExternalSourceLocator) => {
+    if (!get().project.anchorsFromOpenDocuments) return null;
+    const doc = openSourceDocument(locator, sleepingDocuments(), get().activeDocumentId);
+    return doc?.payload.isDirty ? doc : null;
+  };
+
+  /** Leest een geopend brondocument op een kopie (`externalSourceFromOpenDocument`); een fout ⇒ `null`. */
+  const readOpenSource = async (
+    doc: { payload: DocumentPayload }, locator: ExternalSourceLocator, labels?: ImportLabels,
+  ): Promise<ExternalSourceRead | null> => {
+    try {
+      return await externalSourceFromOpenDocument(doc.payload, locator, labels);
+    } catch (err) {
+      console.error('externalSourceFromOpenDocument: kon het geopende document niet lezen:', err);
+      return null;
+    }
+  };
+
+  /** Stap 1.7 (keuze 5), vinkje uit: per gelezen bron die ook open staat met niet-opgeslagen wijzigingen een
+   *  melding dat het anker uit de opgeslagen versie komt. Een schoon geopend document geeft geen melding. Met het
+   *  vinkje aan las de app zo'n bron uit het geopende document; dan geen melding. */
+  const announceUnsavedOpenSources = (targetDocumentId: string, locators: readonly ExternalSourceLocator[]): void => {
+    if (get().project.anchorsFromOpenDocuments) return;
+    for (const source of unsavedOpenSources(locators, sleepingDocuments(), targetDocumentId)) {
       get().notify({
         severity: 'info',
         messageKey: 'notifications.externalOpenSourceUnsaved',
         params: { file: source.fileName },
-        sticky: true,
-        holdUntilRoom: true,
         dedupeKey: `external-open-source:${targetDocumentId}:${source.key}`,
         replaceOnDedupe: true,
-        action: {
-          kind: 'refreshFromOpenDocument',
-          labelKey: 'notifications.actions.useOpenDocument',
-          targetDocumentId,
-          sourceDocumentId: source.sourceDocumentId,
-          locator: source.locator,
-          fileName: source.fileName,
-          ...(savedVersion !== undefined ? { savedVersion } : {}),
-        },
       });
     }
   };
@@ -876,6 +872,28 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // Bronnen zonder balk: dezelfde versie als in de koppelingen, of al gelezen zonder wijziging.
     const settled = new Set<string>();
     for (const [key, { locator, versions }] of sources) {
+      const existing = () => get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.key === key);
+      // Stap 1.7, vinkje aan: de bron staat open met niet-opgeslagen wijzigingen ⇒ het voorstel komt uit dat
+      // document (besluit Ethan 2026-11-10), niet uit de opgeslagen versie. Wijken de ankers af, dan de balk;
+      // het document verandert niets zonder klik. Geen versie: *Later* onthoudt de vingerafdruk van het voorstel.
+      const open = openDirtySource(locator);
+      if (open) {
+        const src = await readOpenSource(open, locator, labels);
+        if (get().activeDocumentId !== documentId) return;
+        if (!src) continue;
+        if (stale(key)) { discarded = true; continue; }
+        const tasks = get().tasks;
+        const changes = externalAnchorChanges(tasks, refreshExternalAnchors(tasks, src, externalSourceScopeOf(locator)).tasks);
+        if (changes.length === 0) { settled.add(key); continue; }
+        const fingerprint = openProposalFingerprint(changes);
+        if (existing()?.version === fingerprint) continue;
+        if (settledSourceVersions.get(sourceKey(documentId, key)) === fingerprint) { settled.add(key); continue; }
+        found.set(key, {
+          documentId, key, locator, fileName: openSourceName(locator, open.payload), version: fingerprint,
+          openDocumentId: open.id, changedLinks: changes.length,
+        });
+        continue;
+      }
       // Zonder toestemmingsvraag: in de browser alleen een handvat met toestemming `granted` (keuze 6). Op de
       // site de nieuwste versie uit `versions(id)`, met label en auteur.
       const siteVersion = locator.kind === 'site' ? await get().externalSiteSourceVersion(locator.siteFileId) : undefined;
@@ -884,10 +902,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Niet te lezen (geen toegang, bestand weg): een bestaande balk blijft staan, er komt geen nieuwe.
       if (!version) continue;
       if (versions.size === 1 && versions.has(version)) { settled.add(key); continue; }
-      const existing = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.key === key);
       // Al een balk voor deze versie: niets te doen. De eindfilter laat de balk staan zolang hij er nog is;
       // koos de planner intussen *Later*, dan komt hij niet terug (review #811 ronde 2).
-      if (existing?.version === version) continue;
+      if (existing()?.version === version) continue;
       if (settledSourceVersions.get(sourceKey(documentId, key)) === version) { settled.add(key); continue; }
       const src = await get().readExternalSourceAt(locator, labels);
       if (get().activeDocumentId !== documentId) return;
@@ -898,10 +915,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Alleen de koppelingen naar dít bestand (met pad of site-id), of zonder pad naar dit project: een kopie
       // met hetzelfde project-id elders telt niet mee.
       const result = refreshExternalAnchors(tasks, src, externalSourceScopeOf(locator));
-      // Ook een koppeling waarvan alleen de herkomst een echte versie krijgt (stap 1.7): haar anker kwam uit een
-      // geopend document met niet-opgeslagen wijzigingen, en nu is de bron opgeslagen.
-      const changedLinks = externalAnchorChanges(tasks, result.tasks).length
-        + externalVersionOnlyChanges(tasks, result.tasks).length;
+      // Alleen een andere ankerdatum of *brontaak ontbreekt* telt (besluit Ethan 2026-11-10). Een koppeling zonder
+      // vastgelegde versie (anker uit een geopend document, stap 1.7) houdt dat tot de volgende echte wijziging.
+      const changedLinks = externalAnchorChanges(tasks, result.tasks).length;
       // Op de site telt de versie uit `versions(id)`: de balk vergelijkt daarmee, ook als `open` geen versie gaf.
       const readVersion = locator.kind === 'site' ? version : src.version ?? version;
       if (changedLinks === 0) {
@@ -2096,7 +2112,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     refreshExternalAnchorsFrom: async (filePath: string, labels) => {
       const targetDocumentId = get().activeDocumentId;
-      const src = await get().parseExternalSource(filePath, labels);
+      // Stap 1.7, vinkje aan: een geopend brondocument met niet-opgeslagen wijzigingen geeft het anker.
+      const open = openDirtySource({ kind: 'path', filePath });
+      const src = open
+        ? await readOpenSource(open, { kind: 'path', filePath }, labels)
+        : await get().parseExternalSource(filePath, labels);
       if (!src) return null;
       if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0 };
       const result = refreshExternalAnchors(get().tasks, src);
@@ -2104,7 +2124,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (result.changed) applyRefreshedTasks(targetDocumentId, result.tasks);
       const key = normalizeExternalSourcePath(filePath);
       if (key !== null) dropSourceUpdates(targetDocumentId, new Set([key]));
-      announceUnsavedOpenSources(targetDocumentId, [{ locator: { kind: 'path', filePath }, version: src.version }]);
+      announceUnsavedOpenSources(targetDocumentId, [{ kind: 'path', filePath }]);
       return { refreshed: result.refreshed, missing: result.missing };
     },
 
@@ -2271,6 +2291,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         sourceDocs.push(source);
         if (handle) await rememberExternalSourceHandle(source.projectId, handle);
       }
+      // Stap 1.7, vinkje aan: staat een gekozen bron ook open met niet-opgeslagen wijzigingen, dan komt het anker
+      // uit dat geopende document (het handvat is hierboven al onthouden).
+      for (const [index, source] of sourceDocs.entries()) {
+        const locator: ExternalSourceLocator = { kind: 'project', projectId: source.projectId };
+        const open = openDirtySource(locator);
+        const fromOpen = open ? await readOpenSource(open, locator, labels) : null;
+        if (fromOpen) sourceDocs[index] = fromOpen;
+      }
       const readProjectIds = [...new Set(sourceDocs.map(source => source.projectId))];
       if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0, sources: 0, unmatched, readProjectIds: [] };
       // Alle bronnen zijn zonder pad: `refreshFromSources` raakt dan alleen koppelingen zonder pad.
@@ -2278,9 +2306,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (changed) applyRefreshedTasks(targetDocumentId, tasks);
       dropSourceUpdates(targetDocumentId, new Set(readProjectIds.map(projectId => externalSourceKey({ kind: 'project', projectId })!)));
       // Stap 1.7, ook hier (review #860): een gekozen bron die ook open staat met niet-opgeslagen wijzigingen.
-      announceUnsavedOpenSources(targetDocumentId, sourceDocs.map(source => ({
-        locator: { kind: 'project', projectId: source.projectId }, version: source.version,
-      })));
+      announceUnsavedOpenSources(targetDocumentId, sourceDocs.map(source => ({ kind: 'project', projectId: source.projectId })));
       return { refreshed, missing, sources: sourceDocs.length, unmatched, readProjectIds };
     },
 
@@ -2341,25 +2367,36 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // kan het bestand opnieuw kiezen.
       const readKeys = new Set<string>();
       const unreadProjectIds: string[] = [];
-      const projectSources = projectIds.size > 0
-        ? await get().readExternalProjectSources([...projectIds], labels)
+      // Stap 1.7, vinkje aan: een bron die open staat met niet-opgeslagen wijzigingen leest de app uit dat
+      // geopende document, niet uit het opgeslagen bestand (`openDirtySource`).
+      const openProjects = new Map([...projectIds].flatMap(projectId => {
+        const doc = openDirtySource({ kind: 'project', projectId });
+        return doc ? [[projectId, doc] as const] : [];
+      }));
+      const savedProjectIds = [...projectIds].filter(projectId => !openProjects.has(projectId));
+      const projectSources = savedProjectIds.length > 0
+        ? await get().readExternalProjectSources(savedProjectIds, labels)
         : new Map<string, ExternalSourceRead | null>();
       const projectDocs: ExternalSourceDoc[] = [];
       // De plekken van de gelezen bronnen, voor de melding bij een bron die ook open staat (stap 1.7).
-      const readSources: Array<{ locator: ExternalSourceLocator; version?: string }> = [];
+      const readSources: ExternalSourceLocator[] = [];
       for (const projectId of projectIds) {
-        const src = projectSources.get(projectId) ?? null;
+        const locator: ExternalSourceLocator = { kind: 'project', projectId };
+        const open = openProjects.get(projectId);
+        const src = open ? await readOpenSource(open, locator, labels) : projectSources.get(projectId) ?? null;
         if (!src) { unread++; unreadProjectIds.push(projectId); continue; }
         projectDocs.push(src);
-        readSources.push({ locator: { kind: 'project', projectId }, version: src.version });
-        readKeys.add(externalSourceKey({ kind: 'project', projectId })!);
+        readSources.push(locator);
+        readKeys.add(externalSourceKey(locator)!);
       }
       for (const [normalized, p] of paths) {
-        const src = await get().parseExternalSource(p, labels);
+        const locator: ExternalSourceLocator = { kind: 'path', filePath: p };
+        const open = openDirtySource(locator);
+        const src = open ? await readOpenSource(open, locator, labels) : await get().parseExternalSource(p, labels);
         if (!src) { unread++; continue; } // onleesbaar/geen Tauri ⇒ deze bron telt als niet gelezen
         sourceDocs.push(src);
         readPaths.add(normalized);
-        readSources.push({ locator: { kind: 'path', filePath: p }, version: src.version });
+        readSources.push(locator);
       }
       for (const path of readPaths) readKeys.add(path);
       // Na de bronnen met pad, zoals voorheen: een bron zonder pad ververst daarna alleen koppelingen zonder pad.
@@ -2367,11 +2404,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Op de site de nieuwste versie. Geen host, geen recht, weg of netwerk ⇒ niet gelezen: de koppeling houdt
       // haar anker (`refreshFromSources`) en telt mee in `unread`.
       for (const siteFileId of siteFileIds) {
-        const src = await get().parseExternalSiteSource(siteFileId, labels);
+        const locator: ExternalSourceLocator = { kind: 'site', siteFileId };
+        const open = openDirtySource(locator);
+        const src = open ? await readOpenSource(open, locator, labels) : await get().parseExternalSiteSource(siteFileId, labels);
         if (!src) { unread++; continue; }
         sourceDocs.push(src);
-        readKeys.add(externalSourceKey({ kind: 'site', siteFileId })!);
-        readSources.push({ locator: { kind: 'site', siteFileId }, version: src.version });
+        readKeys.add(externalSourceKey(locator)!);
+        readSources.push(locator);
       }
 
       if (get().activeDocumentId !== targetDocumentId) {
@@ -2393,46 +2432,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return { refreshed, missing, sources: sourceDocs.length, unread, unreadProjectIds };
     },
 
-    refreshExternalAnchorsFromOpenDocument: async (request, labels) => {
-      const { targetDocumentId, sourceDocumentId, locator, fileName, savedVersion } = request;
-      const gone = () => {
-        get().notify({ severity: 'info', messageKey: 'notifications.externalOpenSourceGone', params: { file: fileName } });
-        return null;
-      };
-      // Het brondocument moet nog open staan, nog dezelfde bron zijn en nog niet-opgeslagen wijzigingen hebben;
-      // het afhankelijke document moet nog actief zijn.
-      const current = () => {
-        if (get().activeDocumentId !== targetDocumentId) return null;
-        const doc = openSourceDocument(locator, sleepingDocuments(), targetDocumentId);
-        return doc && doc.id === sourceDocumentId && doc.payload.isDirty ? doc : null;
-      };
-      const doc = current();
-      if (!doc) return gone();
-      let src: ExternalSourceRead;
-      try {
-        src = await externalSourceFromOpenDocument(doc.payload, locator, labels);
-      } catch (err) {
-        console.error('refreshExternalAnchorsFromOpenDocument: kon het geopende document niet lezen:', err);
-        return gone();
-      }
-      if (!current()) return gone();
-      // Alleen de koppelingen naar deze bron, net als de balk en *Accepteren*.
-      const result = refreshExternalAnchors(get().tasks, src, externalSourceScopeOf(locator));
-      if (result.changed && !applyRefreshedTasks(targetDocumentId, result.tasks)) return gone();
-      // De planner koos tegen de opgeslagen versie die hij net las (review #860): die versie is afgehandeld, net
-      // als na *Later*. Zonder dit bood de balk dezelfde versie als "nieuw" aan, en zette *Accepteren* het anker
-      // terug. Pas een volgende opgeslagen versie geeft weer een balk. `sourceVersion` blijft leeg.
-      const key = externalSourceKey(locator);
-      if (key !== null) {
-        if (savedVersion !== undefined) settledSourceVersions.set(sourceKey(targetDocumentId, key), savedVersion);
-        dropSourceUpdates(targetDocumentId, new Set([key]));
-      }
-      get().notify({
-        severity: 'info',
-        messageKey: 'notifications.externalOpenSourceUsed',
-        params: { file: fileName },
-      });
-      return { refreshed: result.refreshed, missing: result.missing };
+    readExternalSourceUpdate: async (update, labels) => {
+      if (update.openDocumentId === undefined) return get().readExternalSourceAt(update.locator, labels);
+      // Stap 1.7: alleen zolang het document nog open staat, nog deze bron is en nog niet-opgeslagen wijzigingen heeft.
+      const open = openDirtySource(update.locator);
+      return open?.id === update.openDocumentId ? readOpenSource(open, update.locator, labels) : null;
     },
 
     openRecentFile: async (id: string, labels) => {

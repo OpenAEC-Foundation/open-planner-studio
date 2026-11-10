@@ -258,14 +258,9 @@ export type NotificationMessageKey =
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
   | 'notifications.recoveryDocumentsSkipped'
-  // Stap 1.7 (keuze 5, vorm 1): een bron staat ook als document open, met niet-opgeslagen wijzigingen.
-  // Parameter `file`. De knop *Rekenen met het geopende document* is de actie `refreshFromOpenDocument`.
+  // Stap 1.7 (keuze 5): een bron staat ook als document open, met niet-opgeslagen wijzigingen, en het vinkje
+  // *Ankers uit geopende documenten halen* staat uit. Het anker komt uit het opgeslagen bestand. Parameter `file`.
   | 'notifications.externalOpenSourceUnsaved'
-  // Na die knop: de koppelingen naar `file` zijn ververst uit het geopende document. Parameter `file`.
-  | 'notifications.externalOpenSourceUsed'
-  // Na die knop, als het geopende document intussen gesloten of opgeslagen is, of een ander document actief
-  // is: niets ververst. Parameter `file`.
-  | 'notifications.externalOpenSourceGone'
   | 'notifications.scheduleFailed'
   | 'notifications.ifcParseFailed'
   | 'notifications.templateSaved'
@@ -484,8 +479,7 @@ export type NotificationActionLabelKey =
   | 'notifications.actions.openHelp'
   | 'view.filter.clear'
   | 'scheduleShift.why'
-  | 'scheduleShift.undo'
-  | 'notifications.actions.useOpenDocument';
+  | 'scheduleShift.undo';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit en sluit daarna de melding; nieuwe soorten krijgen een eigen `kind`.
@@ -499,21 +493,7 @@ export type NotificationAction =
   | { kind: 'openBackstageSection'; section: BackstageSection; labelKey: NotificationActionLabelKey }
   | { kind: 'clearViewArrangement'; labelKey: NotificationActionLabelKey }
   | { kind: 'showScheduleShift'; labelKey: NotificationActionLabelKey }
-  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey }
-  /** Stap 1.7 (keuze 5, vorm 1): *Rekenen met het geopende document*, alleen voor deze ene verversing. Ververst
-   *  in `targetDocumentId` de koppelingen naar de bron op `locator` uit het geopende document `sourceDocumentId`
-   *  (`refreshExternalAnchorsFromOpenDocument`). */
-  | {
-    kind: 'refreshFromOpenDocument';
-    labelKey: NotificationActionLabelKey;
-    targetDocumentId: string;
-    sourceDocumentId: string;
-    locator: ExternalSourceLocator;
-    fileName: string;
-    /** De versie van het opgeslagen bestand dat de verversing las (review #860): na de knop is die versie
-     *  afgehandeld, zodat de balk haar niet als nieuw aanbiedt. */
-    savedVersion?: string;
-  };
+  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey };
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
@@ -580,10 +560,6 @@ export interface AppNotification {
    *  een openingsmelding waarbij de app data invulde, verving, repareerde of wegliet — zie
    *  `state/openNoticeSticky.ts` voor de regel. Geen fout: de kleur blijft die van een info. */
   sticky?: boolean;
-  /** Een keuze die de planner zelf afhandelt (met de knop of het kruisje), zoals *Rekenen met het geopende
-   *  document* (stap 1.7). Zo'n melding wordt nooit weggeduwd: is de stapel vol, dan wacht ze in
-   *  `UIState.waitingNotifications` en verschijnt ze zodra er ruimte is. Alleen samen met `sticky`. */
-  holdUntilRoom?: boolean;
   /** Een WEIGERING: de app heeft een handeling van de gebruiker niet uitgevoerd (eigenaarsbesluit
    *  2026-10-17). Maak hem alleen via `state/refusalNotice.ts`. Een weigering is rood en blijft
    *  staan, maar duwt bij een volle stapel nooit een echte fout of een blijvende info weg. */
@@ -663,15 +639,19 @@ export interface ExternalSourceUpdate {
   locator: ExternalSourceLocator;
   /** De bestandsnaam voor de tekst ("Installateur.ifc"). */
   fileName: string;
-  /** De versie van de bron: de wijzigingstijd van het bestand (ISO), of op de site het versienummer. */
+  /** De versie van de bron: de wijzigingstijd van het bestand (ISO), of op de site het versienummer. Bij een
+   *  balk uit een geopend document (`openDocumentId`) de vingerafdruk van het voorstel (`open:…`): *Later* onthoudt
+   *  die, zodat dezelfde voorgestelde ankers geen nieuwe balk geven. */
   version: string;
+  /** Stap 1.7, vinkje *Ankers uit geopende documenten halen* aan: de bron staat als dit document open, met
+   *  niet-opgeslagen wijzigingen, en de balk komt uit dat document (geen versie, geen auteur). */
+  openDocumentId?: string;
   /** Op de site: het label van die versie voor de tekst (`SiteVersionInfo.label`, anders `version`). Gezet ⇒
    *  de balk noemt het versienummer in plaats van een opslagtijd. */
   siteVersionLabel?: string;
   /** De auteur uit de projectgegevens van de bron, als die er is. */
   author?: string;
-  /** Hoeveel koppelingen een ander anker krijgen (of een brontaak die ontbreekt), plus de koppelingen waarvan
-   *  alleen de herkomst een echte versie krijgt (`externalVersionOnlyChanges`, stap 1.7). Altijd ≥ 1. */
+  /** Hoeveel koppelingen een ander anker krijgen (of een brontaak die ontbreekt). Altijd ≥ 1. */
   changedLinks: number;
 }
 
@@ -974,8 +954,6 @@ export interface UIState {
    *  (niet per document): `UIState` wordt als geheel niet geswapt — `collapsedTaskIds` is de énige
    *  uitzondering die per document meegaat, dus `documentContract.ts` blijft ongemoeid. */
   notifications: AppNotification[];
-  /** session — meldingen met `holdUntilRoom` die nog op ruimte in `notifications` wachten, oudste eerst. */
-  waitingNotifications: AppNotification[];
   /** session — eenmalig verzoek om Backstage → Help te openen op een SPECIFIEK artikel ("lees
    *  meer"-link vanuit een melding of het eigenschappenpaneel). Gezet door
    *  `openHelpArticle`, geconsumeerd (en direct weer op `null` gezet) door `HelpPanel` — zelfde

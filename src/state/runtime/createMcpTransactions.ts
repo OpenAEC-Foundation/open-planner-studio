@@ -1137,9 +1137,6 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       // documentsnapshot; bewaar hun pre-callreferentie hier expliciet. De hele run is synchroon,
       // dus er kan tijdens dit venster geen onafhankelijke gebruikersmelding tussendoor komen.
       const prevNotifications = initial.ui.notifications;
-      // Samen met de wachtrij van keuzes (`holdUntilRoom`, review #860): een melding kan tussen beide lijsten
-      // verhuizen; alleen één lijst terugzetten liet een keuze dubbel staan of verdwijnen.
-      const prevWaitingNotifications = initial.ui.waitingNotifications;
 
       /** Het document terug op de stand van vóór de callback — gedeeld door rollback en no-op. */
       const restoreDocument = (state: AppState): void => {
@@ -1155,7 +1152,6 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
           restoreDocument(state);
           replaceSessionHistoryState(state, previousHistory, previousSequence);
           state.ui.notifications = prevNotifications;
-          state.ui.waitingNotifications = prevWaitingNotifications;
         });
         runtime.resetUndoCoalescing();
         return { ok: false, error };

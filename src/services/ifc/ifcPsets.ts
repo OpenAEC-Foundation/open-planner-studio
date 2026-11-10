@@ -833,7 +833,7 @@ export const OWN_PSET_PROPERTY_NAMES: Readonly<Record<string, readonly string[]>
   [PSET.ProjectSettings]: [
     'InternalProjectId', 'wbsAutoNumber', 'DefaultTaskDurationUnit', 'DefaultWorkRule', 'StatusDate', 'ProgressMode',
     'ProjectStartDate', 'ProjectEndDate', 'CreatedAt', 'ModifiedAt', 'CompanyId', 'CompanyName', 'IfcSchemaConfirmed',
-    'IfcSchemaUnconfirmed', 'P6ProjectCode', 'DependentProjectsFolder',
+    'IfcSchemaUnconfirmed', 'P6ProjectCode', 'DependentProjectsFolder', 'AnchorsFromOpenDocuments',
   ],
   // De lezer leest elke enkelvoudige property van deze pset als JSON; de writer schrijft er één.
   [PSET.StructureMeta]: ['structure'],

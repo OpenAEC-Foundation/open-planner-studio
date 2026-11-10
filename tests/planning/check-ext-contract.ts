@@ -163,7 +163,10 @@ const NIET_PUBLIEK = {
     'p6ProjectCode',
     // De map met afhankelijke projecten (stap 1.11): een pad op deze computer, geen planningsdata.
     // `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
-    'dependentProjectsFolder'] as readonly string[],
+    'dependentProjectsFolder',
+    // Het vinkje *Ankers uit geopende documenten halen* (stap 1.7): een instelling van het afhankelijke project,
+    // geen planningsdata. `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
+    'anchorsFromOpenDocuments'] as readonly string[],
   // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
   // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
   calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
@@ -308,6 +311,7 @@ const VOL_PROJECT = {
   ifcSchemaUnconfirmed: 'IFC4',
   p6ProjectCode: 'OZB-05',
   dependentProjectsFolder: '/projecten/Zuidas',
+  anchorsFromOpenDocuments: true,
 } satisfies Required<Project>;
 
 const VOL_CALENDAR = {

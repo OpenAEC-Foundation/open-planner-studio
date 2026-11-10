@@ -552,19 +552,19 @@ en noem het in je rapport of PR-tekst.
      ongeveer 2 s, op de hoofdthread. Het loopt alleen met minstens één gevonden koppeling, maar dan bij elke opslag
      met de hand, ook als geen anker verandert. Voorstel: één IFC-tekst maken, die controleren en dezelfde tekst
      wegschrijven, met een controle dat de documentstand na de asynchrone stappen nog geldt. — B
-985. **VERVOLG: `planner_refresh_external_links` kent het geopende brondocument niet (stap 1.7).** De MCP-tool
-     ververst altijd uit het opgeslagen bestand, net als de standaardactie in de app; het anker is dus niet
-     tegenstrijdig. Wel mist MCP de waarschuwing dat de bron ook open staat met niet-opgeslagen wijzigingen, en de
-     keuze om met het geopende document te rekenen (`src/services/mcp/tools/externalLinkTools.ts`, review #860 ronde
-     1). Headless heeft geen tabbladen; in de app kan het wel (`unsavedOpenSources` in
-     `src/state/openSourceDocument.ts`). Bewust buiten stap 1.7 gelaten (opdracht). Voorstel: in de app een veld met
-     die bronnen in de uitslag van de tool, en eventueel een argument om met het geopende document te rekenen. — B
-986. **VERVOLG: een geopende bron die niet te lezen is, krijgt geen melding en geen knop.** `refreshAllExternalAnchors`
+985. **VERVOLG: `planner_refresh_external_links` volgt het vinkje *Ankers uit geopende documenten halen* niet
+     (stap 1.7).** De MCP-tool ververst altijd uit het opgeslagen bestand, ook als het vinkje in het project aan staat
+     en de bron open is met niet-opgeslagen wijzigingen (`src/services/mcp/tools/externalLinkTools.ts`). Ze meldt ook
+     niet dat de bron open staat met niet-opgeslagen wijzigingen. Headless heeft geen tabbladen; in de app kan het
+     wel (`openSourceDocument` en `externalSourceFromOpenDocument` in `src/state/openSourceDocument.ts`). Bewust buiten
+     stap 1.7 gelaten (opdracht). Voorstel: in de app het vinkje volgen, en in de uitslag van de tool zeggen welke
+     bronnen uit een geopend document kwamen. — B
+986. **VERVOLG: een geopende bron die niet te lezen is, krijgt geen melding (vinkje uit).** `refreshAllExternalAnchors`
      en `refreshExternalAnchorsFrom` (`src/state/slices/fileSlice.ts`) melden een geopend brondocument met
      niet-opgeslagen wijzigingen alleen voor een bron die ze lazen: de melding zegt dat het anker uit de opgeslagen
      versie komt. Is het bestand niet te lezen (geen toegang, weg), dan telt de uitslag het als niet gelezen, ook als
-     het document open staat. Voorstel: een eigen melding met de knop *Rekenen met het geopende document* voor zo'n
-     bron. — S
+     het document open staat. Met het vinkje *Ankers uit geopende documenten halen* aan leest de app zo'n bron uit
+     het geopende document. Voorstel: bij het vinkje uit in de melding noemen dat het vinkje de bron wel kan lezen. — S
 987. **VERVOLG: twee geopende documenten met hetzelfde project-id geven geen melding (stap 1.7).** Bij een bron zonder
      pad herkent `openSourceDocument` (`src/state/openSourceDocument.ts`) het geopende document op project-id. Passen
      er twee (bijv. een kopie die ook open staat), dan kiest de app geen van beide: geen melding, het anker uit het
@@ -574,6 +574,17 @@ en noem het in je rapport of PR-tekst.
      met pad op het genormaliseerde pad van het document. `check-external-open-source.ts` toetst dat met een nep-lezer
      en de browsertest met een bron zonder pad (OPFS). Niet getoetst: twee bestanden open in de Tauri-app, met een pad
      in een andere schrijfwijze (hoofdletters op Windows, een symbolische link). — S
+1066. **VERVOLG: het vinkje *Ankers uit geopende documenten halen* omzetten start geen controle.** Toepassen in
+     *Projectinstellingen* (`applyProjectInfo`) laat de balken staan zoals ze zijn. Een balk uit een geopend
+     document blijft na *uit* staan, en na *aan* komt de balk pas bij de volgende controle (document openen, wisselen
+     of terug in het venster; `useExternalSourceCheck`). *Bekijken* op zo'n oude balk na *uit* zegt dat de bron
+     niet te lezen is (`readExternalSourceUpdate` volgt het vinkje). Afgeleid uit de code, niet nagespeeld. Voorstel: na het omzetten van het
+     vinkje de controle starten (`checkExternalSources`). — S
+1067. **VERVOLG: met het vinkje aan leest elke controle elk geopend brondocument met wijzigingen opnieuw.**
+     `checkExternalSourcesOnce` (`src/state/slices/fileSlice.ts`) schrijft het geopende document per bron naar een
+     IFC-tekst, leest die en rekent hem door (`externalSourceFromOpenDocument`), bij elk openen, wisselen en terugkeren
+     naar het venster. Bij een groot bronproject kost dat tijd op de hoofdthread. Niet gemeten. Voorstel: het voorstel
+     per brondocument onthouden zolang dat document niet verandert (bijv. op de referentie van zijn takenlijst). — S
 
 ## Tabel, invoer en bediening
 

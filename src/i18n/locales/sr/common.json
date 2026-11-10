@@ -112,8 +112,6 @@
     "recoveryDocumentsSkipped_few": "{{count}} датотеке за опоравак нису могле да се учитају и прескочене су.",
     "recoveryDocumentsSkipped_other": "{{count}} датотека за опоравак нису могле да се учитају и прескочене су.",
     "externalOpenSourceUnsaved": "{{file}} има несачуване измене; сидро потиче из сачуване верзије.",
-    "externalOpenSourceUsed": "Везе ка {{file}} су освежене из отвореног документа, са несачуваним изменама.",
-    "externalOpenSourceGone": "Није освежено: {{file}} је затворен или сачуван, или је активан други документ.",
     "scheduleFailed": "Распоред није могао да се израчуна",
     "ifcParseFailed": "IFC није могао да се прочита",
     "templateSaved": "Грана је сачувана као шаблон „{{name}}“",
@@ -210,8 +208,7 @@
     "schedulingProfileShifted_other": "Након примене је померено {{count}} задатака.",
     "actions": {
       "openProjectInfo": "Отвори профил израчунавања",
-      "openHelp": "Отвори помоћ",
-      "useOpenDocument": "Користи отворени документ"
+      "openHelp": "Отвори помоћ"
     },
     "xerArchiveUnusable": "Изворна XER архива у овој датотеци није употребљива и изостављена је; сам пројекат је потпуно отворен.",
     "xerArchiveUnusableLine": "Изворна XER архива у овој датотеци била је неупотребљива и изостављена је.",

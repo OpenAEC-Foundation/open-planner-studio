@@ -242,6 +242,8 @@
     "endDate": "Datum završetka",
     "defaultWorkRule": "Zadana vrsta zadatka",
     "defaultWorkRuleHint": "Zadaci postavljeni na ‘Standard projekta’ slijede ovaj izbor. Zadaci s vlastitom vrstom zadatka zadržavaju svoj izbor.",
+    "anchorsFromOpenDocuments": "Uzimaj sidra iz otvorenih dokumenata",
+    "anchorsFromOpenDocumentsHint": "Ako je izvorni projekt otvoren s nespremljenim promjenama, sidra dolaze iz tog otvorenog dokumenta. Zadano isključeno.",
     "calc": {
       "title": "Izračun",
       "subtitle": "Opcije izračuna za ovaj projekt spremaju se uz datoteku, ne uz aplikaciju.",
