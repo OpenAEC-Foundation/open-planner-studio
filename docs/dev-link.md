@@ -29,6 +29,10 @@ http://<host>:<poort>/?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark
 - `mcp=connect` opent de tab *MCP* met het venster *Verbindingsgegevens*, met of zonder `open=`. De
   MCP-koppeling staat dan alleen voor deze paginalading aan; de instelling blijft zoals hij was. Ook hier
   gaat het welkomstvenster voor deze keer dicht.
+- `flag=<id>` zet een feature flag aan voor deze paginalading, bijv. `flag=reportRedesign` voor het nieuwe
+  tabblad Rapport. Meer flags scheid je met een komma. De bewaarde keuze (`ops-featureFlags`) blijft staan;
+  een onbekende id valt stil weg. Voorbeeld:
+  `?open=examples/03-kantoorgebouw-zuidas.ifc&tab=report&flag=reportRedesign&theme=light`.
 
 ## Hoe het werkt
 

@@ -71,6 +71,48 @@ de render óók gebruikt — anders meet je "Duur" en teken je iets anders. Bij 
 haar eigen vertaalde kop niet kwijt kan groeit mee, versmallen niet — `mode: 'fit-width'` schaalt een
 smallere tabel juist gróter, en celinhoud hoort in een vrije-tekstkolom wél af te kappen.
 
+**Eén tekstmeting voor papier, paneel en vector-PDF** (issue #817, `src/services/pdf/reportTextMeasure.ts`).
+`PdfVectorDraw2D.measureText`, het SVG-papier van het nieuwe tabblad en de kolommeting in beide panelen
+(`loadReportTextMetrics` in `fontLoader.ts`) tellen de advance-breedtes uit het fontbestand op
+(`measureReportText`: shaping-kern voor RTL, stukken per terugvalletter, anders de rapportletter). Niet
+het canvas: dat rondt bij kleine letters af (Chromium op Linux: "Stakeholder management" 115 tegen 109,0)
+en dan kapte de PDF datums af die het scherm voluit toonde. Niet fontkit-`layout`/`widthOfTextAtSize`:
+GSUB kost bij Inter ruim 1 ms per tekst. Het verschil met de getekende glyphs (Inter "->", Carlito "ti")
+is klein en zit in papier én PDF. `check-report-svg.ts` (sectie 5) vergelijkt per tekstitem papier en
+echte PDF; dat zijn twee uitkomsten van dezelfde meting.
+
+**Het scherm tekent met dezelfde letters als het meet** (review Sol #847). Een meting uit het fontbestand
+klopt alleen als de browser dezelfde letter tekent. Daarom: (1) `ensureReportFontLoaded` laadt ook Noto Sans
+Arabic als `@font-face` (familie `ARABIC_REPORT_FAMILY`, met `ARABIC_REPORT_UNICODE_RANGE`: Arabisch schrift
+en neutrale tekens). (2) Een tekst met Arabisch of Hebreeuws tekent het scherm met `reportTextFont`: Noto
+vóór de rapportletter en kerning aan, zoals de shaping-kern (`fontkit.layout`, met kerning) hem in de PDF
+zet; SVG via de letterklasse (`reportFontRule`), canvas in `CanvasDraw2D.withScreenFont`. De vaste stack
+zelf blijft gelijk (`check-report-font.ts` A0/C0). De browser kiest de letter per teken, niet per bidi-run; de
+shaping-kern doet hetzelfde (`fontClassFor`: een neutraal teken dat Noto heeft, gaat altijd naar Noto, ook in het
+Latijnse deel van een gemengde tekst) en kernt een stuk zonder letter ("2.3") als `latn`, zoals Chromium en
+WebKitGTK (review Sol #847, ronde 2). `ARABIC_REPORT_UNICODE_RANGE` en `isArabicScriptCp`/`isNeutralCp` horen
+bij elkaar; `check-report-svg.ts` punt 8 bewaakt dat. Over blijft alleen de SVG van Chromium: een leesteken na
+een Arabisch woord verliest de kerning met de Latijnse letter erna (0,36 px).
+(3) Een tekst met een teken dat geen meegeleverde letter heeft (`coversReportText`: Chinees zonder
+CJK-extensie, Lao, Hebreeuws in Inter) meet met het canvas (`createCanvasTextMetrics` als `uncovered` in
+`createReportTextMetrics`): het scherm tekent hem in een systeemletter en de PDF valt dan terug op raster.
+(4) Canvas en browsermeting zetten `textRendering = 'geometricPrecision'`, net als het papier: zonder die
+instelling rondt Chromium op Linux elke letterbreedte af ("Stakeholder management" 115 tegen 109,0) en kapte
+het oude voorbeeld de langste naam af terwijl afkappen uit stond. Bewaking op de werkelijk getekende tekst:
+`tests/browser/report-studio.spec.ts` (SVG `getBBox` tegen de getekende kolomlijn, canvas `fillText`
+meegelezen; Arabisch, een lange Latijnse, een Chinese en gemengde Latijns-Arabische namen in Inter en Carlito).
+WebKit (de desktopapp op Linux en macOS) kent canvas-`textRendering` en -`fontKerning` niet; daar kernt het canvas
+Latijnse tekst, dus tekent het smaller dan de meting. Het canvas kapt nog af met zijn eigen meting
+(GSUB-verschillen zoals Carlito "ti", knownbug 968); een CJK-extensie tekent alleen in de PDF (knownbug 967).
+
+**Rijvenster voor het papier** (issue #817). `renderReport` neemt een optioneel laatste argument
+`rowWindow` (`ReportRowWindowRequest`): het krijgt het renderresultaat (maten liggen vast vóór het tekenen)
+en geeft een y-bereik terug. Dan tekent de render alleen de rijen daarin (plus een rij marge, en altijd de
+eerste en laatste rij); kop, tijdas, raster, statuslijn en voet tekenen altijd. Alleen het papier gebruikt
+dit (`createReportPaperRecorder` in `reportPaperModel.ts`); de PDF en de tests tekenen alles. Een blad uit
+een gedeeltelijke opname moet gelijk zijn aan hetzelfde blad uit de volledige: `check-report-svg.ts` sectie 6.
+Wie in `renderReport` iets tekent dat per rij werk doet, filtert het met `rowDrawn`.
+
 **De rapportletter is een parameter** (issue #770). De canvas-fontstack komt uit `PrintOptions.fontFamily`,
 de derde parameter van `makeTableRenderReport`/`makeSectionedRenderReport` en het `fontStack`-argument van
 de meethulpen (`nameCellFont`, `tableTextFont`, `curveCellFont`, `TableColumnMeasureInput.fontFamily`);

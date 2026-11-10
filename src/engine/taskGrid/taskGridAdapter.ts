@@ -239,6 +239,39 @@ function alignForDescriptor(descriptor: TaskColumnDescriptor): TaskGridAdapterCo
   return undefined;
 }
 
+/**
+ * De weergavetekst van een cel bij een al gelezen waarde: vertaalde ja/nee, het label van een
+ * keuzewaarde, een datum in de datumnotatie, anders de eigen opmaak van de kolom. Eén plek voor het
+ * taakraster (`getCell`) en de Gantt-afdruk (`taskGridCellText`), zodat een kolom op papier dezelfde
+ * tekst draagt als in de tabel.
+ */
+function cellTextForValue(
+  domain: TaskGridAdapterDomain,
+  descriptor: TaskColumnDescriptor,
+  task: Task,
+  value: unknown,
+): string {
+  const { context } = domain;
+  const enumOption = descriptor.valueKind === 'enum'
+    ? descriptor.editorOptions?.find(option => option.value === value)
+    : undefined;
+  const enumLabelKey = enumOption && 'labelKey' in enumOption ? enumOption.labelKey : undefined;
+  const translatedEnum = enumOption?.label
+    ?? (enumLabelKey && domain.labelForText ? domain.labelForText(enumLabelKey) : undefined);
+  return typeof value === 'boolean' && domain.labelForBoolean
+    ? domain.labelForBoolean(value)
+    : translatedEnum ?? (domain.dateNotation
+      && (descriptor.valueKind === 'date' || descriptor.valueKind === 'datetime')
+      && typeof value === 'string'
+      ? copyGridEditorValue(descriptor, task, context, domain.dateNotation)
+      : descriptor.format(value, task, context));
+}
+
+/** De weergavetekst van één cel, zoals het taakraster hem toont (zie {@link cellTextForValue}). */
+export function taskGridCellText(domain: TaskGridAdapterDomain, descriptor: TaskColumnDescriptor, task: Task): string {
+  return cellTextForValue(domain, descriptor, task, descriptor.read(task, domain.context));
+}
+
 /** Bouwt uitsluitend het dure, selectie-onafhankelijke domeindeel van de gridadapter. */
 export function createTaskGridAdapterDomain(
   input: CreateTaskGridAdapterDomainInput,
@@ -398,19 +431,7 @@ export function createTaskGridAdapter(
       : undefined;
     const stale = context.scheduleStale
       && (descriptor.category === 'computed' || descriptor.scheduleDerived === true);
-    const enumOption = descriptor.valueKind === 'enum'
-      ? descriptor.editorOptions?.find(option => option.value === value)
-      : undefined;
-    const enumLabelKey = enumOption && 'labelKey' in enumOption ? enumOption.labelKey : undefined;
-    const translatedEnum = enumOption?.label
-      ?? (enumLabelKey && domain.labelForText ? domain.labelForText(enumLabelKey) : undefined);
-    const text = typeof value === 'boolean' && domain.labelForBoolean
-      ? domain.labelForBoolean(value)
-      : translatedEnum ?? (domain.dateNotation
-        && (descriptor.valueKind === 'date' || descriptor.valueKind === 'datetime')
-        && typeof value === 'string'
-        ? copyGridEditorValue(descriptor, task, context, domain.dateNotation)
-        : descriptor.format(value, task, context));
+    const text = cellTextForValue(domain, descriptor, task, value);
     const tooltip = descriptor.tooltip?.(value, task, context) ?? undefined;
     const warning = descriptor.warning?.(value, task, context) ?? undefined;
     const title = tooltip

@@ -1,0 +1,859 @@
+/* Het nieuwe Rapport-tabblad (feature flag `reportRedesign`, issue #817): zijbalk met stappen links,
+   het interactieve papier rechts. Alleen themavariabelen en de zes tekstrollen; het papier zelf blijft
+   wit in elk thema. De bediening gebruikt de onderdelen van de app (#817, ronde 5): `.btn`, `.input`,
+   `Select`, het app-vinkje, `.ops-note`, `.ops-textlink`, `.ui-card-header`, `.ui-pop`, `.ops-toast` en het
+   kolomvenster van de tabel (`ColumnChooser`). "Actief" is overal het effen accent van het lint (`--theme-active`).
+   Wat hier staat, is de indeling van het tabblad en wat de app niet heeft (stappen, segmenten, papier). */
+
+.rs-root {
+  --rs-sidebar-w: 328px;
+  --rs-rail-w: 64px;
+  /* Eén hoogte voor de kop van de zijbalk en de balk boven het papier: hun onderlijnen lopen door (Ethan, 10 november 2026). */
+  --rs-head-h: 51px;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--theme-bg);
+  color: var(--theme-text);
+  position: relative;
+}
+
+/* ---- Zijbalk ---------------------------------------------------------------------------------- */
+
+.rs-sidebar {
+  flex: 0 0 var(--rs-sidebar-w);
+  width: var(--rs-sidebar-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--theme-surface);
+  border-inline-end: 1px solid var(--theme-border);
+  transition: flex-basis 160ms ease, width 160ms ease;
+}
+.rs-sidebar[data-mode='rail'] {
+  flex-basis: var(--rs-rail-w);
+  width: var(--rs-rail-w);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-sidebar { transition: none; }
+}
+
+.rs-sidebar-head {
+  flex: none;
+  box-sizing: border-box;
+  height: var(--rs-head-h);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--theme-border);
+}
+.rs-sidebar[data-mode='rail'] .rs-sidebar-head {
+  padding: 0;
+  justify-content: center;
+}
+
+.rs-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--theme-text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.rs-icon-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
+.rs-icon-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+.rs-icon-btn:disabled { opacity: 0.4; pointer-events: none; }
+
+.rs-steps {
+  flex: 1;
+  min-height: 0;
+  /* Alleen als zelfs de stapkoppen niet passen (heel laag venster) scrolt de lijst als geheel. */
+  overflow-y: auto;
+  padding: 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Alle stapkoppen blijven in beeld: een dichte stap houdt zijn hoogte, de open stap krimpt tot de ruimte
+   die over is. Alleen zijn inhoud scrolt; de kop met "Herstel standaard" blijft in beeld. */
+.rs-step {
+  position: relative;
+  flex: none;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+.rs-step[data-open='true'] {
+  flex: 0 1 auto;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  background: var(--theme-surface-alt);
+  border-color: var(--theme-border);
+}
+.rs-step[data-open='true'] > .rs-step-head { flex: none; }
+.rs-step[data-open='true'] > .rs-step-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Een open stap die scrolt, laat zien dat er meer is: een schaduw aan de kant waar nog inhoud staat. De
+   afdekkende verlopen scrollen mee (`local`) en verbergen de schaduw aan het begin en aan het eind. */
+.rs-step[data-open='true'] > .rs-step-body,
+.rs-pop-scroll {
+  --rs-scroll-bg: var(--theme-surface);
+  background:
+    linear-gradient(var(--rs-scroll-bg) 40%, transparent) top / 100% 20px no-repeat local,
+    linear-gradient(transparent, var(--rs-scroll-bg) 60%) bottom / 100% 20px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--theme-text) 22%, transparent), transparent) top / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--theme-text) 22%, transparent), transparent) bottom / 100% 8px no-repeat scroll,
+    var(--rs-scroll-bg);
+}
+.rs-pop-scroll { --rs-scroll-bg: var(--theme-dropdown-bg); }
+
+.rs-step-head {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  column-gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  text-align: start;
+  background: transparent;
+  color: inherit;
+}
+.rs-step-text { display: block; min-width: 0; }
+.rs-step[data-open='false'] .rs-step-head { padding-block: 4px; }
+/* Laag venster (laptop, 720–768 px hoog): een dichte stap zet zijn samenvatting kleiner naast de titel,
+   op hooguit twee regels. Zo houdt de open stap ruimte en blijft het overzicht staan. */
+@media (max-height: 800px) {
+  .rs-step[data-open='false'] .rs-step-head { padding-block: 3px; }
+  .rs-step[data-open='false'] .rs-step-text { display: flex; align-items: baseline; gap: 8px; }
+  .rs-step[data-open='false'] .rs-step-title { flex: none; }
+  .rs-step[data-open='false'] .rs-step-summary {
+    flex: 1;
+    margin-top: 0;
+    font-size: var(--text-caption);
+    line-height: 12px;
+    /* Hooguit twee regels: zo past ook een lange samenvatting ("A3 liggend · 12 pagina's …") zonder dat
+       de stap hoger wordt dan twee regels. */
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+.rs-step-head:hover { background: var(--theme-hover); }
+.rs-step[data-open='true'] .rs-step-head:hover { background: transparent; }
+.rs-step-head:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
+
+.rs-step-num {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--theme-text-dim);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface);
+}
+.rs-step[data-open='true'] .rs-step-num {
+  color: var(--theme-accent-on);
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+}
+.rs-step-num[data-changed='true']::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  inset-inline-end: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--theme-accent);
+  box-shadow: 0 0 0 2px var(--theme-surface);
+}
+.rs-step[data-open='true'] .rs-step-num[data-changed='true']::after { display: none; }
+
+.rs-step-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-large);
+  line-height: 16px;
+  font-weight: 600;
+}
+/* Open stap met een melding: het waarschuwingsteken naast de titel (dicht kleurt de samenvatting). */
+.rs-step-warn { flex: none; color: var(--theme-warning-text); }
+.rs-step-summary {
+  display: block;
+  min-width: 0;
+  font-size: var(--text-small);
+  line-height: 13px;
+  color: var(--theme-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+.rs-step-summary[data-warn='true'] { color: var(--theme-warning-text); }
+.rs-chevron {
+  color: var(--theme-text-muted);
+  transition: transform 140ms ease;
+}
+.rs-step[data-open='true'] .rs-chevron { transform: rotate(90deg); }
+[dir='rtl'] .rs-chevron { transform: scaleX(-1); }
+[dir='rtl'] .rs-step[data-open='true'] .rs-chevron { transform: rotate(90deg); }
+
+.rs-step-body {
+  padding: 2px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rs-pop .rs-step-body { padding: 12px 14px 10px; }
+
+/* "Herstel standaard" in de kop van de open stap: links van de punthaak, buiten de knop van de kop (een
+   knop in een knop kan niet). De titel houdt er ruimte voor. In het zwevende venster staat hij gewoon in de kop. */
+.rs-step > .rs-step-reset {
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 32px;
+  width: 24px;
+  height: 24px;
+}
+.rs-step[data-open='true'] .rs-step-text { padding-inline-end: 30px; }
+.rs-pop-head .rs-step-reset { width: 24px; height: 24px; }
+
+/* `.ops-textlink` van de app (acties in een melding): uitgeschakeld zonder streep. */
+.rs-root .ops-textlink:disabled,
+.rs-pop .ops-textlink:disabled { opacity: 0.45; text-decoration: none; }
+
+/* Groepjes binnen een stap */
+.rs-group { display: flex; flex-direction: column; gap: 4px; }
+/* Kop van een groep (ook in de kolomkiezer): `.ui-card-header` van de app. */
+.rs-group-label { line-height: 14px; }
+.rs-hint {
+  font-size: var(--text-small);
+  line-height: 14px;
+  color: var(--theme-text-dim);
+}
+
+/* Aan/uit: het vinkje van de app (`input[type=checkbox]` in globals.css), in een regel zoals
+   `.settings-checkbox-row`. Regels onder elkaar staan dicht op elkaar: zo past een hele stap op een gewoon scherm. */
+.rs-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+  font-size: var(--text-body);
+  line-height: 16px;
+  cursor: pointer;
+}
+.rs-check-label { flex: 1; min-width: 0; }
+
+/* Gesegmenteerde keuze (de app heeft er geen): de rand en het veld van `Select`, actief zoals het lint. */
+.rs-seg {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-md);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-control-border);
+  width: 100%;
+}
+.rs-seg button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 3px 6px;
+  border-radius: calc(var(--radius-md) - 2px);
+  font-size: var(--text-body);
+  line-height: 16px;
+  color: var(--theme-text-dim);
+  background: transparent;
+  white-space: nowrap;
+}
+.rs-seg button:hover { color: var(--theme-text); background: var(--theme-hover); }
+.rs-seg button[aria-checked='true'] { font-weight: 600; }
+.rs-seg button:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+.rs-seg button:disabled { opacity: 0.45; pointer-events: none; }
+
+/* Keuzekaart (Taken): de kaart van de themakeuze in Instellingen (`.settings-theme-card`): rand van een veld,
+   gekozen met een accentrand en een lichte accenttint. Een layout is een korte kaart op één regel. */
+.rs-choices { display: flex; flex-direction: column; gap: 6px; }
+.rs-choices-label { margin-top: 6px; }
+.rs-choice {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 2px 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--theme-control-border);
+  background: var(--theme-surface);
+  text-align: start;
+  color: inherit;
+  width: 100%;
+}
+.rs-choice[data-compact='true'] { align-items: center; padding-block: 5px; }
+.rs-choice:hover { border-color: var(--theme-accent); }
+.rs-choice[aria-checked='true'] {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, var(--theme-surface));
+}
+.rs-choice:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+.rs-radio {
+  margin-top: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--theme-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rs-choice[aria-checked='true'] .rs-radio { border-color: var(--theme-accent); }
+.rs-choice[aria-checked='true'] .rs-radio::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--theme-accent);
+}
+.rs-choice-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: 16px;
+  font-weight: 600;
+}
+.rs-choice-text { grid-column: 2 / 4; font-size: var(--text-small); line-height: 14px; color: var(--theme-text-dim); }
+.rs-count {
+  font-size: var(--text-small);
+  line-height: 16px;
+  color: var(--theme-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Melding in een stap: `.ops-note` van de app. Fout heeft daar geen eigen tint. */
+/* 1 px scroll-marge: `scrollIntoView` schuift op hele pixels, dus een melding met een onderrand op een
+   kwart pixel bleef anders net buiten beeld (browserrun r6). */
+.rs-note { margin-top: 0; scroll-margin-block: 1px; }
+.rs-note--error { --ops-note-accent: var(--error); }
+.rs-note-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+
+/* Kolommenlijst */
+.rs-cols { display: flex; flex-direction: column; gap: 2px; }
+.rs-col {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 3px 4px 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  font-size: var(--text-body);
+  line-height: 16px;
+  outline: none;
+  user-select: none;
+}
+.rs-col:focus-visible, .rs-col[data-focus='true'] { box-shadow: 0 0 0 2px var(--theme-accent); border-color: transparent; }
+.rs-col[data-dragging='true'] { opacity: 0.45; }
+.rs-col[data-flash='true'] { animation: rs-flash 1.2s ease; }
+@keyframes rs-flash {
+  0%, 30% { background: color-mix(in srgb, var(--theme-accent) 18%, var(--theme-surface)); }
+  100% { background: var(--theme-surface); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-col[data-flash='true'] { animation: none; background: color-mix(in srgb, var(--theme-accent) 10%, var(--theme-surface)); }
+}
+.rs-drop-line {
+  height: 2px;
+  margin: -1px 4px;
+  border-radius: 2px;
+  background: var(--theme-accent);
+}
+.rs-grip { color: var(--theme-text-muted); cursor: grab; display: inline-flex; }
+.rs-col-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* De kolomstap: "Kolom toevoegen" (het kolomvenster van de tabel) en de twee knoppen om kolommen over te
+   nemen boven de lijst, de toetsen als vaste regel eronder (dekt niets af). */
+.rs-cols-editor { display: flex; flex-direction: column; gap: 6px; }
+.rs-add-anchor { display: flex; }
+.rs-add-anchor .rs-add { flex: 1 1 auto; min-width: 0; }
+.rs-cols-copy { display: flex; flex-direction: column; gap: 4px; }
+.rs-cols-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-cols-tools .btn { flex: 1 1 0; min-width: max-content; }
+.rs-cols-hint { margin-top: -2px; }
+.rs-col-name small { color: var(--theme-text-muted); font-size: var(--text-small); margin-inline-start: 6px; }
+.rs-col-actions { display: inline-flex; align-items: center; gap: 0; }
+.rs-col-actions .rs-icon-btn { width: 24px; height: 24px; }
+/* Het kruisje van de verplichte taaknaam: uitgeschakeld en grijs, met de uitleg als tooltip. */
+.rs-icon-btn[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
+.rs-icon-btn[aria-disabled='true']:hover { background: transparent; color: var(--theme-text-dim); }
+.rs-col:not(:hover):not(:focus-within):not([data-focus='true']) .rs-col-actions .rs-icon-btn[data-reveal] { opacity: 0; }
+
+.rs-add { justify-content: flex-start; }
+
+/* Bezig met exporteren (de knoppen zijn `.btn--primary`). */
+.rs-root .btn[aria-busy='true'] { opacity: 0.85; cursor: progress; }
+
+.rs-sidebar-foot {
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--theme-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Het bestand dat de knop maakt (de stand van het papier staat in de werkbalk boven het papier). */
+.rs-foot-file {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-small);
+  line-height: 14px;
+  color: var(--theme-text-dim);
+}
+.rs-foot-label { flex: none; }
+.rs-foot-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--theme-text); }
+
+/* Smalle rand */
+.rs-rail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.rs-rail-btn {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 56px;
+  min-height: 48px;
+  padding: 6px 2px 5px;
+  border-radius: var(--radius-md);
+  color: var(--theme-text-dim);
+  background: transparent;
+}
+/* Stapnummer linksboven, zoals de nummers in de open zijbalk. */
+.rs-rail-num {
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 5px;
+  font-size: var(--text-caption);
+  line-height: 12px;
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* Hooguit twee regels, zodat een lange stapnaam ("Taken en groepering") heel blijft. */
+.rs-rail-label {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: var(--text-caption);
+  line-height: 12px;
+}
+.rs-rail-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
+.rs-rail-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
+.rs-rail-btn[data-changed='true']::after,
+.rs-rail-btn[data-warn='true']::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--theme-accent);
+}
+/* Een stap met een melding: de stip in de waarschuwingskleur, ook als de stap gewijzigd is. */
+.rs-rail-btn[data-warn='true']::after { background: var(--theme-warning-text); }
+
+/* Zwevend venster (stap naast het papier of naast de rand): de popover van de app (`Popover`: achtergrond
+   `--theme-dropdown-bg`, rand, `--radius-md`; schaduw via `.ui-pop`). */
+.rs-pop {
+  position: fixed;
+  z-index: 60;
+  width: 320px;
+  max-height: min(560px, calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  background: var(--theme-dropdown-bg);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+}
+.rs-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 8px 14px;
+  border-bottom: 1px solid var(--theme-border);
+  /* Aan de kop versleep je het venster (`StepPopover`); de knoppen erin houden hun eigen wijzer. */
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.rs-pop-head button { cursor: pointer; }
+.rs-pop-scroll { flex: 0 1 auto; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+
+/* ---- Papier ------------------------------------------------------------------------------------ */
+
+.rs-paper-area {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rs-toolbar {
+  flex: none;
+  box-sizing: border-box;
+  height: var(--rs-head-h);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-bg);
+  font-size: var(--text-body);
+  line-height: 16px;
+}
+.rs-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--theme-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rs-status strong { color: var(--theme-text); font-weight: 600; }
+.rs-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--theme-text-muted);
+  flex-shrink: 0;
+}
+.rs-status[data-busy='true'] .rs-status-dot { background: var(--theme-accent); animation: rs-pulse 900ms ease-in-out infinite alternate; }
+@keyframes rs-pulse { from { opacity: 0.35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rs-status[data-busy='true'] .rs-status-dot { animation: none; } }
+.rs-zoom {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface);
+}
+.rs-zoom-value {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-body);
+  line-height: 16px;
+  color: var(--theme-text-dim);
+  padding: 4px 2px;
+}
+.rs-zoom-sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--theme-border); }
+.rs-fit-btn {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: var(--text-body);
+  line-height: 16px;
+  color: var(--theme-text-dim);
+  background: transparent;
+  white-space: nowrap;
+}
+.rs-fit-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
+.rs-fit-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+
+/* Het papiervlak: effen, zoals de werkvlakken van de app (Backstage, het oude rapportvoorbeeld). De kleur
+   staat op de omhulling, zodat de vrije strook voor de zwevende knop (onder het scrollvak) er hetzelfde
+   uitziet als de rest. */
+.rs-viewport-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--theme-bg);
+}
+.rs-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  outline: none;
+}
+.rs-viewport:focus-visible { box-shadow: inset 0 0 0 2px var(--theme-accent); }
+.rs-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 30px 24px 24px;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+.rs-page-wrap { position: relative; flex-shrink: 0; width: var(--rs-page-w); height: var(--rs-page-h); }
+.rs-page {
+  position: relative;
+  background: #ffffff;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 20px -6px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  cursor: pointer;
+}
+.rs-page > .rs-page-svg, .rs-page > .rs-page-svg > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* Een blad heeft zijn maat van buiten: de browser hoeft bij een nieuw blad (duizenden tekstelementen) de
+   rest van het papier niet opnieuw op te bouwen. */
+.rs-page-wrap { contain: layout style; }
+.rs-page > .rs-page-svg { contain: strict; }
+.rs-page-skeleton {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(#eef0f3, #eef0f3) 4% 5% / 40% 3% no-repeat,
+    linear-gradient(#f3f4f6, #f3f4f6) 4% 14% / 92% 2% no-repeat,
+    linear-gradient(#f5f6f8, #f5f6f8) 4% 20% / 28% 70% no-repeat,
+    #ffffff;
+}
+.rs-page-caption {
+  position: absolute;
+  top: -22px;
+  inset-inline: 0;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--text-caption);
+  line-height: 14px;
+  color: var(--theme-text-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.rs-page-caption > :first-child { flex-shrink: 0; }
+
+.rs-overlay { position: absolute; inset: 0; pointer-events: none; }
+.rs-region {
+  position: absolute;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1.5px var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 7%, transparent);
+  transition: opacity 80ms linear;
+}
+/* De open stap: alleen een rand. Een vulling zou juist de kleuren veranderen die je aan het instellen bent. */
+.rs-region[data-kind='selected'] {
+  box-shadow: inset 0 0 0 2px var(--theme-accent);
+  background: transparent;
+}
+.rs-region[data-kind='column'] {
+  box-shadow: inset 0 0 0 1.5px var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 14%, transparent);
+}
+/* De naam van het deel onder de muis staat boven het blad (rechts in de titelregel): zo dekt hij niets af. */
+.rs-region-label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--theme-accent);
+  color: var(--theme-accent-on);
+  font-size: var(--text-small);
+  line-height: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Eerste bezoek: rustige aanwijzing in dezelfde regel boven blad 1. */
+.rs-paper-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--theme-text-dim);
+  white-space: nowrap;
+}
+.rs-paper-hint > span { overflow: hidden; text-overflow: ellipsis; }
+.rs-paper-hint svg { flex-shrink: 0; color: var(--theme-text-muted); }
+.rs-paper-hint-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  color: var(--theme-text-muted);
+  background: transparent;
+  pointer-events: auto;
+}
+.rs-paper-hint-close:hover { background: var(--theme-hover); color: var(--theme-text); }
+.rs-paper-hint-close:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+.rs-region-btn {
+  position: absolute;
+  /* Alleen voor het toetsenbord: de muis gaat door naar het blad (dat ook de kolom onder de muis kent). */
+  pointer-events: none;
+  background: transparent;
+  border-radius: 2px;
+  opacity: 0;
+}
+.rs-region-btn:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+}
+
+
+/* "Ongedaan maken": de melding van de app (`.ops-toast.toast-info`, `.ops-textlink`), klein in de werkbalk boven
+   het papier, tussen de stand en de zoomknoppen: zo dekt hij nooit een blad af. */
+.ops-toast.rs-undo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: none;
+  padding: 4px 8px 4px 12px;
+  font-size: var(--text-body);
+  line-height: 16px;
+  white-space: nowrap;
+  box-shadow: none;
+}
+.rs-undo .ops-textlink { font-weight: 600; padding: 2px 4px; border-radius: var(--radius-sm); }
+.rs-undo .ops-textlink:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
+
+
+.rs-field { display: flex; flex-direction: column; gap: 4px; }
+/* Veldlabel zoals in het eigenschappenpaneel (`Field` in task-sections/shared.tsx): klein, hoofdletters. */
+.rs-field-label {
+  font-size: var(--text-small);
+  line-height: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: var(--theme-text-muted);
+}
+.rs-range { display: flex; align-items: center; gap: 8px; }
+.rs-inline-date { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Label en bediening op één regel (balkkleuren, tijdlijn over, auteur). */
+.rs-field-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.rs-field-row > .rs-field-label { flex: none; }
+/* Het schuifje zelf heeft de stijl van alle schuifjes in de app (`input[type="range"]` in globals.css). */
+.rs-range input[type='range'] { flex: 1; min-width: 0; }
+.rs-range output { min-width: 44px; white-space: nowrap; text-align: end; font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--theme-text-dim); }
+.rs-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--theme-border); border-radius: var(--radius-md); background: var(--theme-surface); padding: 2px; }
+.rs-stepper output { min-width: 64px; text-align: center; font-size: var(--text-body); line-height: 16px; font-variant-numeric: tabular-nums; }
+
+/* Zijbalk ingeklapt: de knop "PDF exporteren" zweeft linksonder in het werkvlak, dezelfde actie als de
+   knop onderaan de open zijbalk (besluit eigenaar 7-11-2026). Raakt een blad zijn hoek, dan stopt het
+   scrollvak boven een vrije strook (`FAB_RESERVE`, `ReportPaperView`); zo bedekt hij nooit inhoud.
+   Afstand tot de rand = `FAB_INSET` in GanttReportStudio.tsx. */
+.btn.rs-fab {
+  position: absolute;
+  inset-inline-start: calc(var(--rs-rail-w) + 16px);
+  bottom: 14px;
+  z-index: 15;
+  height: 40px;
+  padding: 0 18px 0 14px;
+  font-size: var(--text-large);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Sleepgreep: zes stippen (B2 heeft geen greepicoon). */
+.rs-grip-dots {
+  display: inline-block;
+  width: 6px;
+  height: 12px;
+  background-image: radial-gradient(circle, currentColor 1.1px, transparent 1.3px);
+  background-size: 4px 4px;
+  background-position: 0 0;
+}
+
+/* Zijbalk inklappen met B2: het paneelicoon gespiegeld, want de zijbalk staat links (in rtl rechts, dus niet
+   gespiegeld). Zonder B2 tekent de knop `PanelLeftClose`, uitklappen `PanelLeftOpen` (`ops-icon-inline-flip`). */
+.rs-panel-icon { transform: scaleX(-1); }
+[dir='rtl'] .rs-panel-icon { transform: none; }
+
+/* Balk boven het papier (de planning is niet doorgerekend, of heeft een fout): `.ops-note` over de hele breedte. */
+.ops-note.rs-banner {
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--theme-border);
+  color: var(--theme-text);
+  font-size: var(--text-body);
+  line-height: 16px;
+}
+.rs-banner-text { flex: 1; min-width: 0; }
+.rs-banner .btn { flex: none; }
+/* Exporteren met een fout in de planning: de balk licht even op. */
+.rs-banner-pulse { animation: rs-banner-pulse 900ms ease; }
+@keyframes rs-banner-pulse {
+  0%, 35% { filter: brightness(0.92); }
+  100% { filter: none; }
+}
+@media (prefers-reduced-motion: reduce) { .rs-banner-pulse { animation: none; } }
+
+/* ---- Actief ------------------------------------------------------------------------------------ */
+
+/* Ingedrukt en "actief" in de werkbalk, de segmenten en de rand: zoals een actieve lintknop (`.ribbon-btn.active`),
+   een effen accentvlak met de tekstkleur daarop. Het icoon tekent daar in één kleur (zoals in `icons.css`). Staat
+   onderaan, na de hover-regels: zoals op het lint blijft een actieve knop ook onder de muis actief. */
+.rs-icon-btn[aria-pressed='true'],
+.rs-fit-btn[aria-pressed='true'],
+.rs-seg button[aria-checked='true'],
+.rs-rail-btn[aria-expanded='true'] {
+  background: var(--theme-active);
+  border-color: var(--theme-active-border);
+  color: var(--theme-accent-on);
+}
+.rs-icon-btn[aria-pressed='true'] .oa-icon,
+.rs-seg button[aria-checked='true'] .oa-icon,
+.rs-rail-btn[aria-expanded='true'] .oa-icon { --icon-accent: currentColor; }
+.rs-rail-btn[aria-expanded='true'] .rs-rail-num { color: inherit; }
+.rs-rail-btn[aria-expanded='true']::after { background: var(--theme-accent-on); }
