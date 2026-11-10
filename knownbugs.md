@@ -1719,6 +1719,19 @@ en noem het in je rapport of PR-tekst.
      eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
      en de lange variant in de test. Uit #864 (fase 1a). — S
 
+1020. **De writer schrijft stil `#0` bij een sleutel die hij niet kent.** `ref()` (`src/services/ifc/ifcWriter.ts:323`)
+     geeft `#${idMap.get(key) || 0}`. Ontbreekt de sleutel, dan staat er een verwijzing naar `#0` in de uitvoer, zonder
+     fout of melding. Gezien bij het lezen van de code (eigen zoektocht van fase 1b); geen geval bekend waarin het nu
+     gebeurt. De merge-writer weigert zo'n verwijzing (`src/services/ifc/foreign/mergeWriter.ts`, stap 9); de gewone
+     writer niet. Richting: een fout in `ref()` als de sleutel ontbreekt. Uit #867 (fase 1b). — S
+
+1021. **VERVOLG: de merge-writer scant de bron bij elke merge opnieuw.** `writeIfcMerge`
+     (`src/services/ifc/foreign/mergeWriter.ts:199`) doet `scanStep` en `classify` op `ifcSource.bytes`, want `ifcSource`
+     bewaart alleen typed arrays en geen index. CI-meting run 42748742900 (`ubuntu-24.04`, Node 22), eigen planning plus
+     model, zonder wijziging: 150 MB merge 3,6 s (piek 632 MB), 300 MB (299,5 MB) merge 6,7 s (piek 1168 MB); scanner en
+     indeling samen kosten bij 300 MB 4,7 s (zelfde run, meting van de scanner). Richting: de index van het openen bewaren of de klassen uit
+     `ifcSource` hergebruiken, en alleen de stukken parsen die de merge leest. Uit #867 (fase 1b). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
