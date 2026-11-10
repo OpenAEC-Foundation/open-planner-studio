@@ -37,8 +37,8 @@ import {
 } from '@/services/ifc/foreign/targetModelScan';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
-import { StepDataSectionFinder, indexOfStepDataSection } from '@/services/ifc/stepDataSection';
-import { brokenHeader, commentFile, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { StepDataSectionFinder, indexOfStepDataSection, stepDataSectionBounds } from '@/services/ifc/stepDataSection';
+import { brokenHeader, commentFile, paramDataFile, separatedDataFiles, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 let checks = 0;
@@ -448,25 +448,37 @@ function oldIndexOfDataSection(content: string): number {
   const anchored = /^[ \t]*DATA;/im.exec(content);
   return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
 }
-/** De oude regel met `DATA(` erbij (review van #870): streng `DATA;` of `DATA(` zonder woordteken (`\w`, `!`) vóór de
- *  `D`, anders regel-verankerd `DATA;` of `DATA(`. Zonder `DATA(` in de tekst is dit precies `oldIndexOfDataSection`. */
-function refIndexOfDataSection(content: string): number {
+/** De oude regel, uitgebreid (review van #870, ronde 1 en 2): streng `DATA`, dan witruimte en `/* … *\/` (de scheiding
+ *  van ISO 10303-21), dan `;` of `(`. `DATA;` direct mag ook midden in een woord (zoals altijd); de andere vormen alleen
+ *  zonder woordteken (`\w`, `!`) vóór de `D`. Anders regel-verankerd `DATA`, witruimte (ook regeleindes), `;` of `(`.
+ *  Geeft begin (de `D`) en leespositie (na de `;`/`(`). Zonder `DATA` gevolgd door witruimte, `/` of `(` is het begin
+ *  precies `oldIndexOfDataSection`. */
+function refDataSection(content: string): { at: number; end: number } | null {
   for (let from = 0; ;) {
     const at = oldIndexOfCode(content, 'DATA', from);
     if (at < 0) break;
-    const next = content.charCodeAt(at + 4);
-    if (next === 0x3b || (next === 0x28 && !/[\w!]/.test(content[at - 1] ?? ''))) return at;
+    let i = at + 4;
+    for (;;) {
+      if (/[ \t\n\v\f\r]/.test(content[i] ?? '')) { i++; continue; }
+      if (content.startsWith('/*', i)) { const close = content.indexOf('*/', i + 2); if (close < 0) { i = content.length; break; } i = close + 2; continue; }
+      break;
+    }
+    const direct = i === at + 4;
+    const boundary = !/[\w!]/.test(content[at - 1] ?? '');
+    const next = content[i];
+    if ((next === ';' && (direct || boundary)) || (next === '(' && boundary)) return { at, end: i + 1 };
     from = at + 1;
   }
-  const anchored = /^[ \t]*DATA[;(]/im.exec(content);
-  return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA') : -1;
+  const anchored = /^[ \t]*(DATA)[ \t\n\v\f\r]*[;(]/im.exec(content);
+  if (!anchored) return null;
+  return { at: anchored.index + anchored[0].toUpperCase().indexOf('DATA'), end: anchored.index + anchored[0].length };
 }
 /** De vinder zoals de scanner hem voedt: bytes, na de BOM die de decoder weghaalt; de positie als index in de tekst. */
 function byteDataSection(bytes: Uint8Array): number {
   const start = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
   const finder = new StepDataSectionFinder(true);
   let at = -1;
-  for (let i = start; i < bytes.length && at < 0; i++) if (finder.step(bytes[i], i)) at = i - 4;
+  for (let i = start; i < bytes.length && at < 0; i++) if (finder.step(bytes[i], i)) at = finder.strictAt;
   if (at < 0) at = finder.anchored;
   return at < 0 ? -1 : decode(bytes.subarray(0, at)).length;
 }
@@ -474,8 +486,10 @@ let dataSectionCases = 0;
 const sameDataSection = (label: string, bytes: Uint8Array) => {
   dataSectionCases++;
   const text = decode(bytes);
-  const want = refIndexOfDataSection(text);
-  if (!/DATA\(/i.test(text)) eq(`DATA; (${label}): zonder DATA( de oude regel`, want, oldIndexOfDataSection(text));
+  const ref = refDataSection(text);
+  const want = ref?.at ?? -1;
+  if (!/DATA[\s/(]/i.test(text)) eq(`DATA; (${label}): zonder DATA met scheiding of ( de oude regel`, want, oldIndexOfDataSection(text));
+  eq(`DATA; (${label}): de leespositie`, stepDataSectionBounds(text)?.end ?? -1, ref?.end ?? -1);
   eq(`DATA; (${label}): de gedeelde regel als tekst`, indexOfStepDataSection(text), want);
   eq(`DATA; (${label}): de gedeelde regel als bytes`, byteDataSection(bytes), want);
 };
@@ -491,13 +505,20 @@ for (const [label, text] of [
   ['commentaar zonder einde', "/* DATA;\nDATA;"],
   ['/*/ sluit niet', '/*/ DATA; */DATA;'],
   ['lege tekst', ''],
-  ['geen DATA;', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n;"],
+  ['DATA, regeleinde, ; (geldige scheiding)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n;"],
+  ['geen sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATAX;\n"],
   ['DATA( als eerste sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel 1',('IFC4'));\n"],
   ['data( in kleine letters', "ISO-10303-21;\nHEADER;\nENDSEC;\ndata(('x'),('IFC4'));\n"],
   ['DATA( na DATA;', "ISO-10303-21;\nENDSEC;\nDATA;\nENDSEC;\nDATA('b',('IFC4'));\n"],
   ['METADATA( en !DATA( in de kop tellen niet', "ISO-10303-21;\nHEADER;\nMETADATA('x');\n!DATA('y');\n_DATA(1);\nENDSEC;\nDATA;\n"],
   ['*/DATA( na commentaar telt wel', "ISO-10303-21;\n/*c*/DATA('a',('IFC4'));\n"],
-  ['DATA ( met een spatie is geen sectiekop', "ISO-10303-21;\nENDSEC;\nDATA ('a');\nDATA;"],
+  ['DATA ( met een spatie is een sectiekop', "ISO-10303-21;\nENDSEC;\nDATA ('a');\nDATA;"],
+  ['DATA/*x*/( met commentaar is een sectiekop', "ISO-10303-21;\nENDSEC;\nDATA/*x*/('a');\nDATA;"],
+  ['DATA, regeleinde, ( is een sectiekop', "ISO-10303-21;\nENDSEC;\nDATA\n  ('a');\nDATA;"],
+  ['DATA / ( is geen sectiekop (geen commentaar)', "ISO-10303-21;\nENDSEC;\nDATA / ('a');\nDATA;"],
+  ['METADATA ( en x DATA ; na een woord tellen niet, XDATA; wel', "ISO-10303-21;\nMETADATA ('a');\nMETADATA ;\nXDATA;"],
+  ['DATA /*open zonder einde', "ISO-10303-21;\nENDSEC;\nDATA /* (;"],
+  ['DATA ( regel-verankerd na een kapotte kop', "ISO-10303-21;\nFILE_NAME('a);\n  DATA\t\n('a',('IFC4'));\n"],
   ['DATA( in een string telt niet', "ISO-10303-21;\nFILE_NAME('DATA(');\nENDSEC;\nDATA(('a'),('IFC4'));"],
   ['DATA( regel-verankerd na een kapotte kop', "ISO-10303-21;\nFILE_NAME('a);\n  DATA('a',('IFC4'));\n"],
   ['DDATA( en DATADATA(', "ISO-10303-21;\nDDATA( DATADATA( x DATA("],
@@ -554,6 +575,17 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   const bytes = enc.encode(twoData);
   eq('fix3-twee-data: readIFC weigert als model (de wand #99999 staat in de tweede DATA-sectie)', readOutcome(bytes), 'building-model');
   every('fix3-twee-data: de scanner zegt model', bytes, 'model');
+  // Sol en Terra (review van #870, ronde 2): witruimte, commentaar of een regeleinde vóór de `(`, ook gemengd.
+  for (const [name, text] of separatedDataFiles(twoData)) {
+    const bytes2 = enc.encode(text);
+    eq(`fix3 met DATA…( (${name}): readIFC weigert als model`, readOutcome(bytes2), 'building-model');
+    every(`fix3 met DATA…( (${name}): de scanner zegt model`, bytes2, 'model');
+  }
+  // Terra: de wand in een eerste sectie `DATA (…)`, daarna een sectie `DATA(…)` zonder wand.
+  const terraSpace = enc.encode(HEAD.replace(/DATA;\n$/, "DATA ('deel 1',('IFC4X3_ADD2'));\n") + "#9=IFCWALL('x',$);\n"
+    + "ENDSEC;\nDATA('deel 2',('IFC4X3_ADD2'));\n#1=IFCTASK('1',$);\n" + TAIL);
+  eq('Terra: wand in DATA (…), daarna DATA(…): readIFC weigert als model', readOutcome(terraSpace), 'building-model');
+  every('Terra: wand in DATA (…), daarna DATA(…): de scanner zegt model', terraSpace, 'model');
   // Sol en Terra (review van #870): parameters bij beide sectiekoppen.
   const param = enc.encode(paramDataFile(twoData));
   eq('fix3 met DATA(…) bij beide secties: readIFC weigert als model', readOutcome(param), 'building-model');

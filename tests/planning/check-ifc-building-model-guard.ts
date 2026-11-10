@@ -57,6 +57,12 @@ async function main(): Promise<void> {
   const firstParam = (text: string) => text.replace(/^DATA;$/m, "DATA('deel 1',('IFC4X3_ADD2'));");
   eq('weigert een wand in de enige DATA-sectie met sectiekop', rejected(firstParam(add("#900001=IFCWALL('x',$);"))), true);
   eq('een enige DATA-sectie met sectiekop zonder model opent', readIFC(firstParam(planning)).tasks.length, 1);
+  // Ronde 2: witruimte of commentaar tussen `DATA` en `(` (ISO 10303-21). Vóór de fix: `no-data-section`.
+  for (const sep of [' ', '/* deel 1 */', '\n']) {
+    const spaced = (text: string) => text.replace(/^DATA;$/m, `DATA${sep}('deel 1',('IFC4X3_ADD2'));`);
+    eq(`weigert een wand in de enige sectie DATA${JSON.stringify(sep)}(…)`, rejected(spaced(add("#900001=IFCWALL('x',$);"))), true);
+    eq(`de enige sectie DATA${JSON.stringify(sep)}(…) zonder model opent met de planning`, readIFC(spaced(planning)).tasks.length, 1);
+  }
   // De echte opgeslagen voorbeelden bewaken context, taken, resources, kalenders en lege modellen.
   for (const file of readdirSync(resolve('public/examples')).filter(f => f.endsWith('.ifc'))) {
     const content = readFileSync(resolve('public/examples', file), 'utf8');

@@ -447,7 +447,7 @@ export class TargetModelScanner {
         // `readIFC` leest dan vanaf het eerste regel-verankerde `DATA;`. Dat leest deze lezer opnieuw.
         this.secondPass = true;
         this.startData();
-        this.moveTo(this.finder.anchored + 5);
+        this.moveTo(this.finder.anchoredEnd);
         this.jumped = false;
         return true;
       }

@@ -18,7 +18,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
-import { paramDataFile } from './ifcDoelBestanden';
+import { paramDataFile, separatedDataFiles } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -131,6 +131,8 @@ const twoData = fileBytes(`${FOREIGN}/council/fix3-twee-data.ifc`);
 const twoDataParam = enc.encode(paramDataFile(dec(twoData)));
 for (const [name, bytes] of [
   ['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData], ['fix3-param.ifc', twoDataParam],
+  // Ronde 2 (Sol): witruimte, commentaar of een regeleinde vóór de `(`, en gemengd.
+  ...separatedDataFiles(dec(twoData)).map(([name, text]) => [`fix3-${name}.ifc`, enc.encode(text)] as const),
 ] as const) {
   const off = await open(false, name, bytes);
   ok(`${name} zonder flag: geweigerd`, !opened(off, name));

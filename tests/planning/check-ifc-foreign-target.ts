@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { installNodeFileIpc } from './nodeFileIpc';
-import { commentFile, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { commentFile, paramDataFile, separatedDataFiles, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -1094,6 +1094,10 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), model: true },
     // Sol en Terra (review van #870): dezelfde, met parameters bij beide sectiekoppen. Vóór de fix: één write, wand weg.
     { name: 'twee-data-param', bytes: enc.encode(paramDataFile(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))), model: true },
+    // Ronde 2 (Sol): witruimte, commentaar of een regeleinde vóór de `(`, en gemengd. Vóór de fix: Opslaan als, CSV en
+    // AutoSave schreven over de wand heen.
+    ...separatedDataFiles(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
+      .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), model: true })),
   ];
   const cancelled = { ok: true, warnings: [], cancelled: true };
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.

@@ -34,7 +34,18 @@ export const stringFile = (own: string) => own.replace(/^DATA;\r?\n/m,
  * (ISO 10303-21 editie 3, implementatieniveau `3;1`). Vóór de fix herkende de gedeelde sectievinder alleen `DATA;`:
  * `readIFC` gaf `no-data-section` en de doelcontrole "no-model", dus Opslaan als schreef over de wand heen.
  */
-export function paramDataFile(twoData: string): string {
+export function paramDataFile(twoData: string, separator = '', only?: 'first'): string {
   let n = 0;
-  return twoData.replace("'2;1'", "'3;1'").replace(/^DATA;$/gm, () => `DATA('deel ${++n}',('IFC4X3_ADD2'));`);
+  return twoData.replace("'2;1'", "'3;1'").replace(/^DATA;$/gm,
+    line => (only === 'first' && n > 0 ? line : `DATA${separator}('deel ${++n}',('IFC4X3_ADD2'));`));
 }
+
+/** Sol en Terra (review van #870, ronde 2, BLOKKEERT): ISO 10303-21 staat witruimte en commentaar toe tussen `DATA` en
+ *  `(`. De varianten van `paramDataFile` met zo'n scheiding, en een gemengde: alleen de eerste kop `DATA (…)`, de tweede
+ *  een gewone `DATA;`. */
+export const separatedDataFiles = (twoData: string): Array<[string, string]> => [
+  ['spatie', paramDataFile(twoData, ' ')],
+  ['commentaar', paramDataFile(twoData, '/*scheiding*/')],
+  ['regeleinde', paramDataFile(twoData, '\n')],
+  ['gemengd', paramDataFile(twoData, ' ', 'first')],
+];

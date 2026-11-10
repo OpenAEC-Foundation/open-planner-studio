@@ -22,7 +22,7 @@ import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
-import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
+import { indexOfStepDataSection, stepDataSectionBounds, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
@@ -1111,12 +1111,12 @@ function indexOfDataSection(content: string): number {
 // Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, alle DATA-secties), wijzig ze daar ook.
 function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
-  // 1. Begin van de datasectie (`DATA;` of `DATA(`, `stepDataSection.ts`) — een `DATA;` binnen de FILE_NAME-string van
+  // 1. Begin van de datasectie (`DATA;` of `DATA(`, ook met witruimte of commentaar ertussen; `stepDataSection.ts`) — een `DATA;` binnen de FILE_NAME-string van
   //    de header telt niet mee. Na `DATA(` leest de lus de parameters van de sectiekop: strings en haakjes, geen entiteit.
-  const dataAt = indexOfDataSection(content);
+  const data = stepDataSectionBounds(content);
   // Geen sectiegrens ⇒ getypeerde fout, GEEN leeg resultaat. `openFile`/`useRecoveryRestore` tonen
   // dan de leesfout in plaats van een leeg document te openen bovenop het pad van de gebruiker.
-  if (dataAt < 0) {
+  if (!data) {
     throw new IfcParseError(
       'no-data-section',
       "Onleesbaar IFC-bestand: de verplichte 'DATA;'-sectiegrens ontbreekt.",
@@ -1126,7 +1126,9 @@ function parseSTEP(content: string): StepEntity[] {
   // 2. Commentaar strippen (buiten strings). Regeleindes NIET normaliseren: de tokenizer behandelt \r al
   //    als witruimte, en een globale \r\n → \n-vervanging veranderde ook de tekst BINNEN strings (een
   //    notitie of naam met Windows-regeleinden kwam na opslaan en openen anders terug).
-  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length));
+  //    De kop kan langer zijn dan `DATA;` (`DATA ('naam',…);`, met witruimte of commentaar vóór de `(`): de lezer gaat
+  //    verder op de echte leespositie, direct na de `;` of `(`.
+  const clean = stripStepComments(content.slice(data.end));
 
   // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`), tot het einde van de tekst. Één pas, geen
   //    aparte zoek-pas over de sectie. ISO 10303-21 staat meer DATA-secties toe (`ENDSEC;` gevolgd door een nieuw
