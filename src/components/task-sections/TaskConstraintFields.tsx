@@ -7,7 +7,7 @@ import { constraintDateSide } from '@/engine/calendar/workdayRules';
 import { Select } from '@/components/common/Select';
 import { Field } from './shared';
 import { readLocal, writeLocal } from '@/utils/settingsStore';
-import { b2IconsOn, Icon } from '@/components/icons';
+import { Icon } from '@/components/icons';
 
 const PRIMARY_TYPES: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 const SECONDARY_TYPES: ConstraintType[] = ['SNET', 'FNET', 'SNLT', 'FNLT'];
@@ -104,9 +104,7 @@ export function TaskConstraintFields({ task, onChange }: {
               data-ops-pin-hint
             >
               <span className="flex-1">{t('properties.hardPinHint')}</span>
-              {b2IconsOn()
-                ? <button onClick={() => setPinHint(false)} aria-label={tCommon('close')} title={tCommon('close')} className="inline-flex"><Icon id="ui.close" size={16} /></button>
-                : <button onClick={() => setPinHint(false)} style={{ color: 'var(--theme-accent)' }}>×</button>}
+              {<button onClick={() => setPinHint(false)} aria-label={tCommon('close')} title={tCommon('close')} className="inline-flex"><Icon id="ui.close" size={16} /></button>}
             </div>
           )}
         </>

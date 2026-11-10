@@ -15,8 +15,6 @@
 .library-companies li:hover { background: var(--theme-hover); }
 .library-companies li.active { background: var(--theme-surface); border: 1px solid var(--theme-control-border); }
 .library-companies li .default-star { margin-left: auto; }
-/* Zonder B2 (#844) de kleur van vóór #765. */
-:where(:root[data-icons="lucide"]) .library-companies li .default-star { color: var(--theme-accent); }
 /* Fix B6: een bedrijfsnaam zonder spaties (bijv. 500 tekens aan elkaar) mag het Backstage-paneel
    niet breder maken dan de sidebar — laten breken i.p.v. de li horizontaal te laten uitdijen. */
 .library-companies li span { min-width: 0; overflow-wrap: anywhere; }
@@ -104,7 +102,6 @@
 .library-promote-panel li:hover { background: var(--theme-hover); }
 .library-promote-linked { color: var(--theme-text-muted); font-style: italic; font-size: var(--text-caption); }
 .library-promote-item { color: var(--theme-text-dim); background: transparent; border: none; cursor: pointer; padding: 2px; border-radius: var(--radius-sm); }
-:where(:root[data-icons="lucide"]) .library-promote-item { color: var(--theme-accent); }
 .library-promote-item:hover { background: var(--theme-hover); }
 
 .library-notice { font-size: var(--text-body); color: var(--success); display: flex; align-items: center; gap: 6px; margin: 6px 0; }

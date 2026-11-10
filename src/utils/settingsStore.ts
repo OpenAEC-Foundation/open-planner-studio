@@ -234,24 +234,13 @@ export async function saveFeatureFlags(value: FeatureFlagValues): Promise<void> 
   await setSetting('featureFlags', value);
 }
 
-/** De iconenkeuze geldt vanaf de eerste render. De URL wijzigt alleen deze bestaande vlag. */
+/** Lees experimentele keuzes; onbekende ids blijven inert. */
 export function loadFeatureFlags(stored?: FeatureFlagValues): FeatureFlagValues {
   let flags: FeatureFlagValues = stored ?? {};
   if (!stored) {
     try {
       flags = parseFeatureFlagValues(JSON.parse(readLocal('ops-featureFlags') ?? 'null')) ?? {};
     } catch { /* Ongeldige opslag: alle experimentele functies uit. */ }
-  }
-  const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location?.search ?? '');
-  // Het ontwikkelblad beoordeelt B2. Ook de latere instellingen-hydratatie houdt die keuze vast.
-  const reviewSheet = import.meta.env.DEV ? params.get('iconen') : null;
-  const family = reviewSheet === 'status' || reviewSheet === 'dock' ? 'b2' : params.get('icons');
-  if (family === 'b2' || family === 'lucide') {
-    const enabled = family === 'b2';
-    if (flags['b2-icons'] !== enabled) {
-      flags = { ...flags, 'b2-icons': enabled };
-      writeLocal('ops-featureFlags', JSON.stringify(flags));
-    }
   }
   return flags;
 }

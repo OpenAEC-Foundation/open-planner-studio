@@ -40,7 +40,7 @@ export function StatusBanner({ tone, children, bannerProps, inline = false }: {
   const classes = inline ? className.replace('mx-2 mt-2 ', '') : className;
   return (
     <div className={classes} style={style} role={role} {...bannerProps}>
-      <Icon id={tone === 'warning' ? 'status.warning' : 'status.info'} size={14} className="shrink-0" aria-hidden lucide={{ icon: 'AlertTriangle' }} />
+      <Icon id={tone === 'warning' ? 'status.warning' : 'status.info'} size={14} className="shrink-0" aria-hidden />
       <span>{children}</span>
     </div>
   );
