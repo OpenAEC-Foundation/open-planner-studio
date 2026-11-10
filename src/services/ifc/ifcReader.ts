@@ -1337,6 +1337,42 @@ function parseDurationDays(s: string, hoursPerDay: number): number {
   return 0;
 }
 
+/**
+ * Het dag-deel (`P{d}D`, VÓÓR een eventuele `T`) van een ISO-8601-duur, in minuten. Bewust LOKAAL
+ * (niet in `subdayIo.ts`'s `isoDurationToMinutes`, die andere aanroepers heeft): alleen voor de
+ * verdedigende lag-leestak hierboven, voor bestanden van andere tools — onze eigen schrijver
+ * (`minutesToIsoDuration`) emitteert nooit een dag-component vóór `T`.
+ *
+ * Geïnterpreteerd als KALENDERTIJD (1D = 1440 minuten), niet als werkdag × hoursPerDay: ISO 8601 is
+ * kalendertijd (`CPMSolver.resolveElapsedMinutes` rekent een ELAPSEDTIME-dag-lag ook ×24×60), en de
+ * kalender van de voorganger is hier nog niet bekend (sequences worden vóór de kalendertoewijzing
+ * geëxtraheerd). Bij een WORKTIME-lag is `lagMinutes` in dit randgeval dus licht ruw — bewust, want
+ * het dag-deel laten verdwijnen is strikt slechter.
+ *
+ * Geen dag-component vóór `T` ⇒ 0.
+ */
+function isoDurationLeadingDaysMinutes(iso: string): number {
+  return Math.round(isoDurationLeadingDays(iso) * 1440);
+}
+
+/** Het dag-deel vóór `T` als aantal dagen (met teken, mag een breuk zijn), of 0. De lag rekent het om als
+ *  kalendertijd (`isoDurationLeadingDaysMinutes`); de taakduur met de minuten per dag van de taak
+ *  (`applyTaskTimeRecords`, knownbug 1027). */
+function isoDurationLeadingDays(iso: string): number {
+  const clean = iso.trim();
+  const neg = clean.startsWith('-');
+  const tIdx = clean.indexOf('T');
+  const datePart = tIdx >= 0 ? clean.slice(0, tIdx) : '';
+  // Zelfde getalvorm als `parseDurationDays`: een decimale fractie mag (ISO 8601; een kaal `(\d+)`
+  // leest bij `P1.5DT2H` alleen de cijfers ná de punt, 5 dagen). Het resultaat
+  // blijft een hele minuut, zoals `isoDurationToMinutes` levert.
+  const dayMatch = datePart.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
+  if (!dayMatch) return 0;
+  const days = parseFloat(dayMatch[1]);
+  if (!Number.isFinite(days)) return 0;
+  return neg && days > 0 ? -days : days;
+}
+
 function parseTaskType(s: string): TaskType {
   // IFC-specifieke normalisatie: STEP-enum-punten strippen (`.CONSTRUCTION.` → `CONSTRUCTION`).
   const clean = s.replace(/\./g, '').trim();
@@ -1569,9 +1605,23 @@ function applyTaskTimeRecords(
     if (!e) continue;
     const t = task.time;
     const durations = readDayMeasureDurations(task);
-    const slotMinutes = (index: number) => isoDurationToMinutes(stripQuotes(e.args[index] || ''));
     const effCal = resolveCalendar(task.calendarId, resourceCalendars, projectCal);
     const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(effCal));
+    // Knownbug 1027: een duur met dagen vóór `T` (`P2DT12H`, alleen uit bestanden van andere programma's; de eigen
+    // writer schrijft dat nooit). `isoDurationToMinutes` leest alleen het deel na `T`; de dagen tellen hier mee met de
+    // minuten per dag van de taak: de werktijd per dag van haar kalender (`WORKTIME`), of 1440 (`ELAPSEDTIME`). Zo is
+    // `P2D` gelijk aan `P2DT0H`. Het sub-dag-signaal van `applyHourModeIFC` blijft het deel na `T`, zoals vóór de fix.
+    const slotDays = (index: number) => isoDurationLeadingDays(stripQuotes(e.args[index] || ''));
+    const slotMinutes = (index: number) => {
+      const minutes = isoDurationToMinutes(stripQuotes(e.args[index] || ''));
+      const days = minutes === null ? 0 : slotDays(index);
+      return minutes === null || days === 0 ? minutes : minutes + Math.round(days * minutesPerDay);
+    };
+    if (t.durationUnit === 'hours' && slotDays(TASKTIME_SLOT.scheduleDuration) !== 0) {
+      const minutes = slotMinutes(TASKTIME_SLOT.scheduleDuration)!;
+      t.durationMinutes = minutes;
+      if (effHoursPerDay(effCal) > 0) t.scheduleDuration = hourTaskScheduleDuration(minutes, effCal);
+    }
 
     const durationRecord = durations?.ScheduleDuration;
     if (durationRecord && !task.isMilestone && slotMinutes(TASKTIME_SLOT.scheduleDuration) === durationRecord[1]) {
@@ -1581,6 +1631,11 @@ function applyTaskTimeRecords(
     }
 
     const restMinutes = slotMinutes(TASKTIME_SLOT.remainingTime);
+    if (t.durationUnit === 'hours' && restMinutes !== null && slotDays(TASKTIME_SLOT.remainingTime) !== 0) {
+      // De rest van een urentaak las `readRemainingMinutes` zonder de dagen.
+      t.remainingMinutes = restMinutes;
+      t.remainingTime = hourRemainingDays(t, restMinutes);
+    }
     const restRecord = durations?.RemainingTime;
     if (restMinutes !== null && t.durationUnit !== 'hours') {
       if (restRecord && restRecord[1] === restMinutes) t.remainingTime = restRecord[0];
@@ -2000,10 +2055,10 @@ function extractSequences(
           if (timeMinutes != null) {
             // GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
             // eigen schrijver emitteert nooit een dag-component vóór de `T` (zie `minutesToIsoDuration`),
-            // maar deze soepel-lezen-tak bestaat juist voor andermans bestanden. `isoDurationToMinutes` telt
-            // het dag-deel mee (1D = 1440 min, `isoDurationLeadingDaysMinutes` in subdayIo.ts): geen
-            // dataverlies aan beide kanten.
-            lagMinutes = timeMinutes;
+            // maar deze soepel-lezen-tak bestaat juist voor andermans bestanden. Zonder dit zou het
+            // dag-deel stil verdwijnen (`isoDurationLeadingDaysMinutes` hieronder). Samen optellen i.p.v.
+            // kiezen voorkomt dataverlies aan beide kanten.
+            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
             lagDays = 0;
           } else {
             lagMinutes = undefined;
@@ -2014,7 +2069,7 @@ function extractSequences(
           const raw = stripQuotes(lagValue);
           const timeMinutes = isoDurationToMinutes(raw);
           if (timeMinutes != null) {
-            lagMinutes = timeMinutes;
+            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
             lagDays = 0;
           } else {
             lagMinutes = undefined;

@@ -107,11 +107,6 @@ export function sixDecimalHoursToMinutes(hours: number): number {
  * Parse een ISO-8601-duurstring naar minuten ALS hij een tijdcomponent (`T..H/M/S`) draagt; anders
  * `null` — een pure dag-duur (`P0Y0M5D`, `P5D`) houdt het dag-substraat ongewijzigd. Dit is de
  * duur-kant van discriminator (c): een niet-null resultaat is sub-dag-informatie.
- *
- * Een dag-deel vóór de `T` (`P2DT12H`, knownbug 1027) telt mee, als kalendertijd: 1D = 1440 minuten
- * (`isoDurationLeadingDaysMinutes`). Onze eigen schrijver (`minutesToIsoDuration`) schrijft nooit dagen
- * vóór `T`; die vorm komt alleen uit bestanden van andere programma's. Vóór deze regel gaf `P2DT12H`
- * 720 minuten: de twee dagen verdwenen stil, voor de duur van een taak en voor de rest.
  */
 export function isoDurationToMinutes(iso: string): number | null {
   if (!iso) return null;
@@ -128,33 +123,7 @@ export function isoDurationToMinutes(iso: string): number | null {
     (sMatch ? parseFloat(sMatch[1]) / 60 : 0);
   const neg = iso.trimStart().startsWith('-');
   const rounded = Math.round(Math.abs(mins));
-  return (neg ? -rounded : rounded) + isoDurationLeadingDaysMinutes(iso);
-}
-
-/**
- * Het dag-deel (`P{d}D`, VÓÓR een eventuele `T`) van een ISO-8601-duur, in minuten.
- *
- * Geïnterpreteerd als KALENDERTIJD (1D = 1440 minuten), niet als werkdag × hoursPerDay: ISO 8601 is
- * kalendertijd (`CPMSolver.resolveElapsedMinutes` rekent een ELAPSEDTIME-dag-lag ook ×24×60), en de
- * kalender is bij het lezen van een lag nog niet bekend (sequences worden vóór de kalendertoewijzing
- * geëxtraheerd). Bij een WORKTIME-duur of -lag is het resultaat in dit randgeval dus licht ruw — bewust,
- * want het dag-deel laten verdwijnen is strikt slechter.
- *
- * Geen dag-component vóór `T` ⇒ 0.
- */
-function isoDurationLeadingDaysMinutes(iso: string): number {
-  const MIN_PER_CALENDAR_DAY = 1440;
-  const clean = iso.trim();
-  const neg = clean.startsWith('-');
-  const tIdx = clean.indexOf('T');
-  const datePart = tIdx >= 0 ? clean.slice(0, tIdx) : '';
-  // Zelfde getalvorm als `parseDurationDays` (ifcReader.ts): een decimale fractie mag (ISO 8601; een kaal
-  // `(\d+)` leest bij `P1.5DT2H` alleen de cijfers ná de punt, 5 dagen). Het resultaat blijft een hele minuut.
-  const dayMatch = datePart.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
-  if (!dayMatch) return 0;
-  const days = parseFloat(dayMatch[1]);
-  if (!Number.isFinite(days)) return 0;
-  return Math.round((neg && days > 0 ? -days : days) * MIN_PER_CALENDAR_DAY);
+  return neg ? -rounded : rounded;
 }
 
 /**
