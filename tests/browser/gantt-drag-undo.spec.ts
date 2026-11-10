@@ -394,6 +394,14 @@ test('Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep'
     .toEqual(before.tasks.map(task => task.id));
 
   // 2. Dezelfde verplaatsing via de BALK.
+  // De undo herstelt de store voordat het canvas zijn rijvolgorde heeft bijgewerkt. Een nog
+  // geldig balkpunt kan daardoor bij de oude derde rij horen. Meet pas opnieuw wanneer zowel
+  // de DOM-rij als de balk weer op de oorspronkelijke beginrij liggen.
+  await expect.poll(async () => [
+    (await rowPoint(ganttTaskRow(page, firstId))).y,
+    (await barPoint(page, firstId, 'body')).y,
+  ], { message: 'rij en balk na undo weer op de oorspronkelijke beginrij' })
+    .toEqual([rowSource.y, rowSource.y]);
   const barSource = await barPoint(page, firstId, 'body');
   const barTargetRow = ganttTaskRow(page, thirdId);
   const barTarget = await rowPoint(barTargetRow, 'after');

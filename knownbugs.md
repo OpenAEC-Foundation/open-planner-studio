@@ -1822,7 +1822,8 @@ en noem het in je rapport of PR-tekst.
      uur. Met de flag zet de merge `P2DT12H` terug zolang de planner de duur niet wijzigt (fixronde 3 van #867, sectie
      5h); de planner ziet dan 12 uur. Richting: dagen en tijd samen lezen, zoals de lag. Uit #867 (fase 1b, fixronde 3).
      Sinds fixronde 4 weigert de merge een eigen bestand met zo'n duur (`duur-deels-gelezen`), tijdelijk tot de fix van
-     deze knownbug in main staat. — B
+     deze knownbug in main staat. Die fix staat sinds #871 (`9ee06bb71`) in main; de tijdelijke weigering en dit punt
+     vallen weg op besluit van Trias (fixronde 5 van #867). — B
 
 1028. **De lezer leest geen jaren, maanden of weken in een taakduur.** `parseDurationDays`
      (`src/services/ifc/ifcReader.ts:1319`) zoekt alleen een getal voor `D`, en anders voor `H`. Proef op
@@ -1858,6 +1859,25 @@ en noem het in je rapport of PR-tekst.
      programma. Met de flag weigert de merge zo'n waarde (`duur-deels-gelezen`, `tijd-deels-gelezen`; fixronde 5 van #867).
      Richting: bij openen de vorm toetsen en een ongeldige waarde melden in plaats van stil een getal te nemen; voor een
      tijdzone kiezen of de lezer haar omrekent of meldt. Uit #867 (fase 1b, fixronde 5). — B
+
+1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
+     (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
+     zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
+     mijlpaal van 0 dagen, `P2DT0H` een mijlpaal van 960 minuten (2 dagen), en de planner rekent die als taak met duur.
+     Richting: beide vormen gelijk behandelen, met een test voor een gemarkeerde mijlpaal met duur. Uit #871
+     (GPT-6.1-Terra, xhigh, BEVESTIGD, VERVOLG). — B
+
+1043. **VERVOLG: bij `P1DT` wordt de duur `null`.** Bij een onvolledig tijddeel geeft `isoDurationToMinutes` `null`; de
+     code van #871 in `applyTaskTimeRecords` (`src/services/ifc/ifcReader.ts`) schrijft die waarde met een
+     TypeScript-assertie (`!`) toch weg als `durationMinutes`. Proef van Terra: `null` en een afgeleide duur van 0, waar
+     de bestaande dagwaarde had moeten blijven. `P1DT` is geen geldige ISO 8601-duur. Richting: een echte `null`-controle
+     vóór de toekenning, in plaats van de `!`. Uit #871 (GPT-6.1-Terra, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1044. **VERVOLG: de test van knownbug 1027 werkt alleen vanuit de map van de repo.**
+     `tests/planning/check-adapters-hours.ts:317` leest `public/examples/showcase-appartementencomplex.ifc` met een
+     relatief pad. Vanuit `/tmp` geeft de gerichte run `ENOENT` (exit 1); vanuit de repo is hij groen (318 controles).
+     Richting: het bestaande `HERE` gebruiken (`join(HERE, '..', '..', 'public', 'examples', …)`). Uit #871
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -2144,15 +2164,6 @@ en noem het in je rapport of PR-tekst.
      geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
 
 
-264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
-     wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
-     balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
-     exceeded", regel 314). Eenmaal gezien in CI op #584 (`2acc895fc`, job "verify (browser 3-4)",
-     2026-10-24). Een herhaling van de job zonder wijziging was groen, en lokaal 3 van 3 groen. De oorzaak
-     is niet onderzocht. F4b wijzigt `useBarDrag.ts` (maat en afronding van de datumsleep), niet de
-     keuze voor de rijsleep: `handleMouseMove` (`useBarDrag.ts:528-545`) is gelijk aan de basis (review r4
-     van #584, nagelezen). Een verband is niet aangetoond. Voorstel: gericht herhalen met een trace. — S
-
 294. **De browsertest voor speling in de Gantt-tooltip is wisselvallig.**
      `tests/browser/float-remaining-display.spec.ts:89` ("Expected pattern /^0[.,]67d$/, Received "1d"",
      time-out 5000 ms). Hij faalde eenmaal in CI op #585 (`c354d1e41`, run 40051700758, browser 3-4), en
@@ -2190,13 +2201,6 @@ en noem het in je rapport of PR-tekst.
     `same-origin`, en een opaque origin is met geen enkel adres same-origin. De constructor gooit dan, of de
     worker meldt een fout; in beide gevallen mislukt nivelleren. Alleen in de code nagelopen, niet gedraaid.
     Voorstel: bij een fout van de worker terugvallen op de bestaande route zonder `Worker` (regel 23). — S
-
-224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
-    `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
-    `gantt-drag-undo.spec.ts:313` de taakvolgorde na balkslepen ongewijzigd, terwijl de voorafgaande
-    rijsleep wel verplaatste. Dezelfde head slaagde in poging 2 zonder codewijziging; ook de eerdere
-    PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
-    timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
 401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
      `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
@@ -2642,6 +2646,28 @@ en noem het in je rapport of PR-tekst.
      #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+887. **Het icoon van Relatie lijkt in het lint helemaal oranje.** Het lintmenu Relatie (`RelationDropdown`,
+     `src/components/layout/Ribbon/ribbonWidgets.tsx:400`, icoon `planning.relations-menu`), met `b2-icons` aan. Gemeld
+     door de bouwer van de iconen-flag (7 november 2026): in de app en op het Blueprint-overzichtsblad oogt het icoon
+     helemaal oranje. Niet gereproduceerd: in de review van #846 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, 10 november 2026)
+     is op Start één oranje helft (`rgb(217, 119, 6)`) en één grijze helft gemeten, in licht en donker, ook compact. In de
+     Blueprint heeft de tekening twee gelijke helften, waarvan één oranje: dat volgt de regel. Niet gemeten: de knop
+     tijdens de relatie-tekenmodus, bij hover en in hoog contrast. Voorstel: alleen verder kijken als iemand het opnieuw
+     ziet, met de stand van de knop erbij. — S
+
+1040. **VERVOLG: de browsertest toetst Nivellering wissen niet in ingeschakelde stand.** `tests/browser/icon-orange.spec.ts:79`
+     begint met een nieuw project zonder nivelleringsuitvoer. Nivellering wissen is dan uitgeschakeld en tekent bewust
+     in één kleur, dus het oranje spoor van `resource.clear-level` (#846) valt buiten de test. Voorstel: in het bestaande
+     licht/donker-scenario een taak met nivelleringsuitvoer zetten, het oranje spoor meten, met een echte klik wissen en
+     dan de grijze, uitgeschakelde stand meten. Uit de review van #846 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, ronde 1,
+     BEVESTIGD, VERVOLG). — B
+
+1041. **VERVOLG: geen test legt vast dat Taak dezelfde tekening heeft als Nieuwe resource.** Lintpunt 1 van Ethan
+     (7 november 2026): `task.add` heeft dezelfde plus als `resource.new` (Blueprint #90). `icon-orange.spec.ts` meet
+     alleen de kleuren; een latere Blueprint-versie kan de twee weer uit elkaar halen zonder dat een test faalt. Voorstel:
+     in het bestaande scenario de tekening van beide knoppen vergelijken. Uit de review van #846 (GPT-6.1-Terra, xhigh,
+     ronde 1, BEVESTIGD, VERVOLG). — B
 
 900. **VERVOLG: elk verpakt toolresultaat draagt de data twee keer; SuperCloud en Claude Desktop zijn niet gemeten.**
      `wrapToolResult` (`src/services/mcp/dispatcher.ts:76–82`) zet hetzelfde resultaat als JSON-tekst in
