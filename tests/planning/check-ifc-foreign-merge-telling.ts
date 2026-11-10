@@ -1,6 +1,7 @@
 // #804 fase 1b, bijsturing 1 punt 2: hoe vaak ziet de planner `merge-needs-phase2`?
 //
-// Per corpusbestand met een vreemd deel (`tests/fixtures/ifc-foreign/`, ook `council/`) de gewone bewerkingen van
+// Per corpusbestand met een vreemd deel (`tests/fixtures/ifc-foreign/`, ook `council/`, en de oude eigen bestanden in
+// `tests/planning/fixtures/oude-tags/`) de gewone bewerkingen van
 // `plannerEdits` (`ifcMergeKern.ts`): niets; een taak onder een andere ouder, een niveau hoger, de volgorde van kinderen;
 // een relatie erbij; een taak wissen. Per taak of per paar; boven `MAX_PER_SOORT` een vaste steekproef.
 //
@@ -26,9 +27,13 @@ const reseed = installDeterminism();
 const FOREIGN = join(ROOT, 'tests/fixtures/ifc-foreign');
 const MAX_PER_SOORT = 40;
 
+// Ook de oude eigen bestanden (fixronde 1 van #867): een bestand van v2026.7.2 heeft een los project (V) en gaat sinds
+// het vervallen van de kortsluiting door de gewone merge. Paden vanaf `FOREIGN`.
+const OLD_OWN = '../../planning/fixtures/oude-tags';
 const files = [
   ...readdirSync(FOREIGN).filter(f => f.endsWith('.ifc')),
   ...readdirSync(join(FOREIGN, 'council')).filter(f => f.endsWith('.ifc')).map(f => `council/${f}`),
+  ...readdirSync(join(FOREIGN, OLD_OWN)).filter(f => f.endsWith('.ifc')).map(f => `${OLD_OWN}/${f}`),
 ].sort();
 
 interface Tally { n: number; ok: number; refused: Map<string, number>; other: Map<string, number> }
@@ -46,27 +51,28 @@ const refusedAtOpen: string[] = [];
 
 for (const file of files) {
   const bytes = new Uint8Array(readFileSync(join(FOREIGN, file)));
+  const shown = file.startsWith(OLD_OWN) ? `oude-tags${file.slice(OLD_OWN.length)}` : file;
   let opened;
   try {
     opened = await openForeign(bytes);
   } catch (e) {
     const want = REFUSED_AT_OPEN[file];
     if (want !== undefined && e instanceof IfcParseError && e.reason === want) { refusedAtOpen.push(file); continue; }
-    others.push(`${file} · openen: ${e instanceof IfcParseError ? `IfcParseError ${e.reason}` : (e as Error).message.slice(0, 160)}`);
+    others.push(`${shown} · openen: ${e instanceof IfcParseError ? `IfcParseError ${e.reason}` : (e as Error).message.slice(0, 160)}`);
     continue;
   }
-  if (REFUSED_AT_OPEN[file] !== undefined) { others.push(`${file} · openen: verwacht geweigerd (${REFUSED_AT_OPEN[file]}), maar opent`); continue; }
+  if (REFUSED_AT_OPEN[file] !== undefined) { others.push(`${shown} · openen: verwacht geweigerd (${REFUSED_AT_OPEN[file]}), maar opent`); continue; }
   const source = opened.ifcSource;
   if (!source?.foreign) continue;
   const perKind = new Map<EditKind, Tally>();
-  tally.set(file, perKind);
+  tally.set(shown, perKind);
   const sourceDoubles = doubleMemberships(bytes);
   for (const edit of plannerEdits(opened, MAX_PER_SOORT)) {
     const t = perKind.get(edit.kind) ?? { n: 0, ok: 0, refused: new Map(), other: new Map() };
     perKind.set(edit.kind, t);
     t.n++;
     merges++;
-    const fail = (reason: string) => { bump(t.other, reason); others.push(`${file} · ${edit.label}: ${reason}`); };
+    const fail = (reason: string) => { bump(t.other, reason); others.push(`${shown} · ${edit.label}: ${reason}`); };
     try {
       const d = cloneDomain(opened);
       edit.apply(d);

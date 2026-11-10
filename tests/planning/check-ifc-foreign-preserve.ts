@@ -588,6 +588,87 @@ await expectRefusal('een weggelaten property met een Description', enc.encode(wi
 // daar terug; een gewijzigde auteur komt dus niet terug. Zonder wijziging schrijft de merge gewoon (sectie 1).
 await expectRefusal('auteur wijzigen bij een gedeelde owner history', read(BASE), 'projectgegevens', (d) => { d.project.author = 'Ethan'; });
 
+// ── 5d. Eigen zoektocht (fixronde 1 van #867): per P-entiteittype dat de writer opnieuw schrijft een proef ──
+// Elke proef zet in een eigen bestand met een vreemd deel één waarde die de writer niet terugschrijft. De merge moet
+// weigeren met het juiste geval, en het geval moet het stuk en het argument noemen. De tabel staat in de PR-body.
+const r4 = new TextDecoder().decode(read('tests/fixtures/ifc-foreign/council/r4-k1.ifc'));
+const showcaseApp = new TextDecoder().decode(read('public/examples/showcase-appartementencomplex.ifc'));
+/** Een wand van Revit, zodat een eigen voorbeeld een vreemd deel heeft. */
+const REVIT_WALL = [
+  "#90001=IFCORGANIZATION($,'Arch',$,$,$);",
+  "#90002=IFCAPPLICATION(#90001,'1','Revit','RVT');",
+  "#90003=IFCPERSON($,'Ontwerper',$,$,$,$,$,$);",
+  '#90004=IFCPERSONANDORGANIZATION(#90003,#90001,$);',
+  '#90005=IFCOWNERHISTORY(#90004,#90002,$,.ADDED.,$,$,$,1);',
+  "#90006=IFCWALL('2O2Fr$t4X7Zf8NOew3FLOX',#90005,'Wand',$,$,$,$,$,$);",
+];
+const showcaseWithWall = (prefix: string, line: string) => enc.encode(withLines(replaceLine(showcaseApp, prefix, line), REVIT_WALL));
+const SEARCH: readonly { label: string; bytes: Uint8Array; kind: string; detail: RegExp }[] = [
+  { label: 'IfcTask: ObjectType', kind: 'constant-slot', detail: /^IFCTASK #51, argument 4/,
+    bytes: enc.encode(replaceLine(eigen, '#51=', "#51=IFCTASK('2bl5huCqaJNQoiPDoJLdX4',#6,'Set up site',$,'Type van Bonsai','2.1',$,$,$,.F.,$,#50,.LOGISTIC.);")) },
+  { label: 'IfcRelSequence: Name', kind: 'constant-slot', detail: /^IFCRELSEQUENCE #91, argument 2/,
+    bytes: enc.encode(replaceLine(eigen, '#91=', "#91=IFCRELSEQUENCE('3PojQSwT308F3rahVEzxwR',#6,'Relatie van Bonsai',$,#47,#51,$,.FINISH_START.,$);")) },
+  { label: 'resource: LongDescription', kind: 'constant-slot', detail: /^IFCLABORRESOURCE #110, argument 6/,
+    bytes: enc.encode(replaceLine(eigen, '#110=', "#110=IFCLABORRESOURCE('34SuBObt1dKPNSent0osWG',#6,'Bricklayers',$,$,$,'Lange omschrijving',$,$,$,.NOTDEFINED.);")) },
+  { label: 'IfcWorkCalendar: ObjectType', kind: 'constant-slot', detail: /^IFCWORKCALENDAR #38, argument 4/,
+    bytes: enc.encode(eigen.replace("#38=IFCWORKCALENDAR('2GA09wPbkE$RrSwEmUNTsf',#6,'Construction calendar NL','Standard construction calendar: Mon-Fri 07:00-16:00',$,",
+      "#38=IFCWORKCALENDAR('2GA09wPbkE$RrSwEmUNTsf',#6,'Construction calendar NL','Standard construction calendar: Mon-Fri 07:00-16:00','Kalender van Bonsai',")) },
+  { label: 'IfcWorkTime: label van de werkweek', kind: 'constant-slot', detail: /^IFCWORKTIME #19, argument 0/,
+    bytes: enc.encode(replaceLine(eigen, '#19=', "#19=IFCWORKTIME('Werkweek van Bonsai',.PREDICTED.,$,#18,$,$);")) },
+  { label: 'IfcRecurrencePattern: Interval', kind: 'constant-slot', detail: /^IFCRECURRENCEPATTERN #18, argument 5/,
+    bytes: enc.encode(replaceLine(eigen, '#18=', '#18=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,2,$,(#17));')) },
+  { label: 'IfcTimePeriod: de volgorde van de blokken', kind: 'constant-slot', detail: /^IFCRECURRENCEPATTERN #18, argument 7: een andere volgorde/,
+    bytes: enc.encode(withLines(replaceLine(replaceLine(eigen, '#17=', "#17=IFCTIMEPERIOD('12:30:00','16:00:00');"),
+      '#18=', '#18=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,$,$,(#17,#9001));'), ["#9001=IFCTIMEPERIOD('07:00:00','12:00:00');"])) },
+  { label: 'live IfcWorkSchedule: Name', kind: 'constant-slot', detail: /^IFCWORKSCHEDULE #43, argument 2/,
+    // `split`/`join`, geen `replace`: in een vervangtekst is `$'` een patroon (het GlobalId eindigt op `$`).
+    bytes: enc.encode(eigen.split("#43=IFCWORKSCHEDULE('1xkfxg8DBe_v6M7NKbP40$',#6,'Construction schedule v1.0',").join("#43=IFCWORKSCHEDULE('1xkfxg8DBe_v6M7NKbP40$',#6,'Uitvoering',")) },
+  { label: 'baseline (IfcWorkSchedule .BASELINE.): Purpose', kind: 'constant-slot', detail: /^IFCWORKSCHEDULE #44, argument 8/,
+    bytes: enc.encode(eigen.replace("'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',$,$,", "'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',$,'Contract',")) },
+  { label: 'IfcRelNests: Name', kind: 'constant-slot', detail: /^IFCRELNESTS #86, argument 2/,
+    bytes: enc.encode(replaceLine(eigen, '#86=', "#86=IFCRELNESTS('019zaG0nTwHMAjntv3hgaB',#6,'Indeling van Bonsai',$,#49,(#51,#53));")) },
+  { label: 'IfcRelAssignsToProcess: Description', kind: 'constant-slot', detail: /^IFCRELASSIGNSTOPROCESS #145, argument 3/,
+    bytes: enc.encode(replaceLine(eigen, '#145=', "#145=IFCRELASSIGNSTOPROCESS('0qaSpDMFm3_b9f8mO9$CFm',#6,$,'Toewijzing van Bonsai',(#109,#110),$,#63,$);")) },
+  { label: 'IfcRelAggregates: Name', kind: 'constant-slot', detail: /^IFCRELAGGREGATES #45, argument 2/,
+    bytes: enc.encode(replaceLine(eigen, '#45=', "#45=IFCRELAGGREGATES('3r_tvuxgJO4K6Bs7LAtOAp',#6,'Indeling',$,#42,(#43,#44));")) },
+  { label: 'IfcOwnerHistory: State', kind: 'constant-slot', detail: /^IFCOWNERHISTORY #6, argument 2/,
+    bytes: enc.encode(replaceLine(r4, '#6=', '#6=IFCOWNERHISTORY(#3,#5,.READWRITE.,.NOCHANGE.,$,$,$,1787775670);')) },
+  // In r4-k1 is de persoon C (ook een vreemde IfcPersonAndOrganization wijst ernaar); in de showcase is hij P.
+  { label: 'IfcPerson: GivenName', kind: 'constant-slot', detail: /^IFCPERSON #1, argument 2/,
+    bytes: showcaseWithWall('#1=', "#1=IFCPERSON($,'Project director','Jan',$,$,$,$,$);") },
+  { label: 'IfcPersonAndOrganization: Roles', kind: 'constant-slot', detail: /^IFCPERSONANDORGANIZATION #3, argument 2/,
+    bytes: enc.encode(withLines(replaceLine(showcaseApp, '#3=', '#3=IFCPERSONANDORGANIZATION(#1,#2,(#90007));'), [...REVIT_WALL, '#90007=IFCACTORROLE(.ARCHITECT.,$,$);'])) },
+  { label: 'IfcApplication: ApplicationFullName', kind: 'constant-slot', detail: /^IFCAPPLICATION #5, argument 2/,
+    bytes: enc.encode(replaceLine(r4, '#5=', "#5=IFCAPPLICATION(#4,'0.1','Open Planner Studio (bewerkt)','OPS');")) },
+  { label: 'IfcProject (P): LongName', kind: 'constant-slot', detail: /^IFCPROJECT #13, argument 5/,
+    bytes: enc.encode(replaceLine(r4, '#13=', "#13=IFCPROJECT('Q$fb4XQXzz2tLNCnyhvp85',#6,'Review bronproject',$,$,'Lange naam',$,(#12),#9);")) },
+  { label: 'eenheden van een eigen project: een eenheid erbij', kind: 'constant-slot', detail: /^IFCSIUNIT #9001, argument \d+, ontbreekt/,
+    bytes: enc.encode(withLines(replaceLine(r4, '#9=', '#9=IFCUNITASSIGNMENT((#7,#8,#9001));'), ['#9001=IFCSIUNIT(*,.MASSUNIT.,.KILO.,.GRAM.);'])) },
+  { label: 'context van een eigen project: Precision', kind: 'constant-slot', detail: /^IFCGEOMETRICREPRESENTATIONCONTEXT #12, argument 3/,
+    bytes: enc.encode(replaceLine(r4, '#12=', "#12=IFCGEOMETRICREPRESENTATIONCONTEXT($,'Plan',3,1.0E-03,#11,$);")) },
+  { label: 'IfcPropertySet: Description', kind: 'constant-slot', detail: /^IFCPROPERTYSET #260, argument 3/,
+    bytes: enc.encode(replaceLine(eigen, '#260=', "#260=IFCPROPERTYSET('01AsvZxUljmG1vHQZTRE5x',#6,'OPS_Analysis','Uitleg van een ander',(#259));")) },
+  { label: 'property: Unit', kind: 'constant-slot', detail: /^IFCPROPERTYSINGLEVALUE #259, argument 3/,
+    bytes: enc.encode(replaceLine(eigen, '#259=', `#259=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0]}'),#7);`)) },
+  { label: 'IfcSimplePropertyTemplate: Description', kind: 'constant-slot', detail: /^IFCSIMPLEPROPERTYTEMPLATE #1569, argument 3/,
+    bytes: showcaseWithWall('#1569=', "#1569=IFCSIMPLEPROPERTYTEMPLATE('0aOuJjC800sy1ONQtwIfSB',#6,'Cost estimate','Uitleg van een ander',.P_SINGLEVALUE.,'IfcMonetaryMeasure',$,$,$,$,$,$);") },
+  { label: 'IfcPropertySetTemplate: ApplicableEntity', kind: 'constant-slot', detail: /^IFCPROPERTYSETTEMPLATE #1572, argument 5/,
+    bytes: showcaseWithWall('#1572=', "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask,IfcProcedure',(#1569,#1570,#1571));") },
+  { label: 'IfcPropertyEnumeration: Unit', kind: 'constant-slot', detail: /^IFCPROPERTYENUMERATION #1573, argument 2/,
+    bytes: showcaseWithWall('#1573=', "#1573=IFCPROPERTYENUMERATION('Tower',(IFCLABEL('A'),IFCLABEL('B'),IFCLABEL('C'),IFCLABEL('GEN')),#7);") },
+];
+// Zonder wijziging schrijft de merge elk van deze bestanden (de proef meet dus alleen de ene waarde).
+await roundTrip('zoektocht: eigen-plus-model zonder wijziging', enc.encode(eigen));
+await roundTrip('zoektocht: r4-k1 zonder wijziging', enc.encode(r4));
+await roundTrip('zoektocht: showcase met een wand van Revit', enc.encode(withLines(showcaseApp, REVIT_WALL)));
+{
+  // Een gedeelde persoon (C) blijft byte-gelijk staan, met zijn GivenName.
+  const k1Jan = enc.encode(replaceLine(r4, '#1=', "#1=IFCPERSON($,$,'Jan',$,$,$,$,$);"));
+  const rt = await roundTrip('zoektocht: r4-k1 met een GivenName op de gedeelde persoon', k1Jan);
+  ok('zoektocht: de gedeelde persoon houdt zijn GivenName', rt !== undefined && text(rt.out).includes("#1=IFCPERSON($,$,'Jan',$,$,$,$,$);"));
+}
+for (const t of SEARCH) await expectRefusal(`zoektocht: ${t.label}`, t.bytes, t.kind, undefined, t.detail);
+
 // ── 5c. BLOKKEERT 1: de vier projectvelden alleen bij een project dat niet P is ──
 // Een eigen bestand zonder model met `ProjectName` in OPS_ProjectSettings (de proef van de reviewers). Met de flag aan is
 // het project P: de lezer leest de naam uit het IfcProject, zoals main, en Opslaan is de gewone writer. Met de flag uit

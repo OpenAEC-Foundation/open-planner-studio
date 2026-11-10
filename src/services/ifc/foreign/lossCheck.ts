@@ -21,7 +21,10 @@
  *  - een andere waarde: goed als de writer dat slot uit het domein schrijft (`DOMAIN_SLOTS`), anders `constant-slot`
  *    (bijvoorbeeld `DataOrigin` `.USERDEFINED.` van een `IfcTaskTime`);
  *  - JSON in een property: elk sleutelpad van de bron moet in de uitvoer staan, anders `json-sleutel`;
- *  - een lijst die de volgorde draagt (`IfcRelNests`, `IfcRecurrencePattern.TimePeriods`): dezelfde volgorde.
+ *  - een lijst die de volgorde draagt (`IfcRelNests`, `IfcRecurrencePattern.TimePeriods`): dezelfde volgorde (een blok
+ *    werktijd paart daarvoor eerst op zijn inhoud);
+ *  - een verwijzing in de bron en `$` in de uitvoer: naar een stuk buiten P `constant-slot`; naar een P-stuk dat elders een
+ *    paar kreeg ook (de verwijzing gaat verloren); naar een P-stuk zonder paar toetst de volgende regel de inhoud.
  * Een P-stuk zonder paar terwijl zijn eigenaar in de uitvoer staat (de writer liet het weg): elke waarde die de writer niet
  * kent, telt als verlies. Een property uit het register met een gewone waarde kent de writer (hij laat haar weg als ze
  * leeg of standaard is); JSON met een sleutelpad dat de writer in dit bestand niet schrijft, is `json-sleutel`; een
@@ -118,6 +121,9 @@ const NAME_SLOT: Readonly<Record<string, number>> = {
   IFCPROPERTYSINGLEVALUE: 0, IFCPROPERTYENUMERATEDVALUE: 0, IFCSIMPLEPROPERTYTEMPLATE: 2, IFCWORKTIME: 0,
 };
 const NAME_ONLY: ReadonlySet<string> = new Set(['IFCPROPERTYSINGLEVALUE', 'IFCPROPERTYENUMERATEDVALUE', 'IFCSIMPLEPROPERTYTEMPLATE']);
+/** Hulpstukken zonder naam die eerst op hun inhoud paren, dan op positie. Een blok werktijd paart zo met hetzelfde blok in de
+ *  uitvoer, ook als de writer de blokken anders ordent; de volgordetoets (`ORDERED`) ziet dat dan. */
+const CONTENT_PAIR: ReadonlySet<string> = new Set(['IFCTIMEPERIOD']);
 
 const PROPERTY_TYPES: ReadonlySet<string> = new Set(['IFCPROPERTYSINGLEVALUE', 'IFCPROPERTYENUMERATEDVALUE']);
 
@@ -214,6 +220,8 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const usedOut = new Set<number>();
   const seenPair = new Set<string>();
   const queue: [number, number][] = [];
+  /** Verwijzingen naar P-stukken die de writer als `$` schrijft; na het paren getoetst. */
+  const deferred: { s: number; where: string; at: string; targets: readonly number[] }[] = [];
   const pair = (s: number, o: number) => {
     const key = `${s}|${o}`;
     if (seenPair.has(key)) return;
@@ -302,6 +310,11 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     process();
     if (seenPair.size === before) break;
   }
+  // Een verwijzing die de writer als `$` schrijft, naar een P-stuk dat elders een paar kreeg: het stuk blijft, de verwijzing
+  // gaat verloren. Een stuk zonder paar toetst de bewaking van stukken zonder paar.
+  for (const d of deferred) {
+    if (d.targets.some(t => matched[t] === 1)) report({ kind: 'constant-slot', chunk: d.s, detail: `${d.where}: ${d.at.slice(0, 40)} → $` });
+  }
 
   function compare(s: number, o: number): void {
     const line = out.get(o);
@@ -343,7 +356,9 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (!isRefToken(bt)) {
         // De writer schrijft hier geen verwijzing. Naar een P-stuk: dat stuk krijgt geen paar, en de bewaking van stukken
         // zonder paar ziet wat er verloren gaat. Naar een stuk buiten P: de verwijzing zelf gaat verloren.
-        if (bt === '$' && targets.every(isP)) return;
+        // Een P-stuk dat toch een paar krijgt (via een andere eigenaar), toetst de bewaking na het paren: dan gaat alleen de
+        // verwijzing verloren (`deferred`).
+        if (bt === '$' && targets.every(isP)) { deferred.push({ s, where, at, targets }); return; }
         report({ kind: 'constant-slot', chunk: s, detail: `${where}: ${at.slice(0, 40)} → ${bt.slice(0, 40)}` });
         return;
       }
@@ -442,6 +457,17 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
         });
       }
       if (NAME_ONLY.has(type)) continue;
+      if (CONTENT_PAIR.has(type)) {
+        const content = (args: readonly string[], decode: (tok: string) => string) => args.map(x => norm(x, decode)).join('|');
+        todo = todo.filter(t => {
+          const key = content(index.argTokens(t) ?? [], tok => index.tokenText(t, tok));
+          const o = left.find(id => content(out.get(id)!.args, outDecode) === key);
+          if (o === undefined) return true;
+          left = left.filter(x => x !== o);
+          pair(t, o);
+          return false;
+        });
+      }
       for (let j = 0; j < Math.min(todo.length, left.length); j++) pair(todo[j], left[j]);
     }
   }
