@@ -92,26 +92,33 @@ console.log(JSON.stringify({
 execFileSync(ESBUILD, [join(work, 'node-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-node.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
 writeFileSync(join(work, 'target-entry.ts'), `
 import { closeSync, openAsBlob, openSync, readSync } from 'node:fs';
-import { scanTargetBlob, scanTargetChunks } from '@/services/ifc/foreign/targetModelScan';
+import { scanTargetBlob, scanTargetSource } from '@/services/ifc/foreign/targetModelScan';
 const file = process.argv[2];
 const t = () => performance.now();
-// Als stroom in stukken van 1 MiB, zoals de Tauri-route (plugin-fs \`open\` + \`read\`).
+// Als stroom in stukken van 1 MiB, zoals de Tauri-route (plugin-fs \`open\` + \`read\` + \`seek\`; elk stuk een eigen buffer).
 const fd = openSync(file, 'r');
-const buffer = new Uint8Array(1 << 20);
+let at = 0;
 let bytesRead = 0;
+let seeks = 0;
 let t0 = t();
-const result = await scanTargetChunks(async () => {
-  const n = readSync(fd, buffer, 0, buffer.length, null);
-  bytesRead += n;
-  return n === 0 ? null : buffer.subarray(0, n);
-}, () => closeSync(fd));
+const result = await scanTargetSource({
+  next: async () => {
+    const buffer = new Uint8Array(1 << 20);
+    const n = readSync(fd, buffer, 0, buffer.length, at);
+    at += n;
+    bytesRead += n;
+    return n === 0 ? null : buffer.subarray(0, n);
+  },
+  seek: async (offset) => { at = offset; seeks++; },
+  close: () => closeSync(fd),
+});
 const streamMs = t() - t0;
 // Als Blob-stroom, zoals de File van een FSA-handle.
 const blob = await openAsBlob(file);
 t0 = t();
 const blobResult = await scanTargetBlob(blob);
 const blobMs = t() - t0;
-console.log(JSON.stringify({ result, bytesRead, streamMs, blobResult, blobMs,
+console.log(JSON.stringify({ result, bytesRead, seeks, streamMs, blobResult, blobMs,
   maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 `);
 execFileSync(ESBUILD, [join(work, 'target-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-target.mjs')}`], { cwd: ROOT, stdio: 'inherit' });

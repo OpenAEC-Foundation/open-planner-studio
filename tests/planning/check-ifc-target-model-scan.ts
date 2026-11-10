@@ -1,9 +1,9 @@
-// #804 fase 1a, fixronde 2 en 3 (review van #864): de doelscanner (`targetModelScan.ts`). Bevat een bestaand doel van
-// Opslaan als, een export of AutoSave een gebouwmodel? Bewaakt:
-//   1. dezelfde herkenning als de modelweigering bij openen (`readIFC`, knownbug 110): voor elk bestand in
-//      `tests/fixtures/ifc-foreign/`, `public/examples/`, `examples/` en `tests/planning/fixtures/` zegt de scanner
-//      "model" precies als openen weigert (dus nooit bij een eigen bestand van de app);
-//   2. de toestand tussen stukken: elk bestand ook in stukken van 1 en 7 bytes, met dezelfde uitkomst;
+// #804 fase 1a, fixronde 2, 3 en 4 (review van #864): de doelscanner (`targetModelScan.ts`). Bevat een bestaand doel van
+// Opslaan als, een export of AutoSave een gebouwmodel? De regel (Trias, fixronde 4): de scanner zegt "model" precies als
+// `readIFC` weigert met `building-model`. Bewaakt:
+//   1. het corpus: voor elk bestand in `tests/fixtures/ifc-foreign/`, `public/examples/`, `examples/` en
+//      `tests/planning/fixtures/` (UTF-8 gelezen, zoals `File.text()` en `readTextFile`) dezelfde uitkomst als openen;
+//   2. de toestand tussen stukken: elk bestand ook in stukken van 1 en 7 bytes (met terugspoelen), met dezelfde uitkomst;
 //   3. alleen entiteittypen tellen: een typenaam in een string (ook met `''`) of in commentaar telt niet;
 //   4. "not-ifc" alleen als het eerste statement geen `ISO-10303-21;` is (CSV, XML, JSON, leeg); een UTF-8-BOM,
 //      witruimte en commentaar vooraan mogen. Het schema telt niet: een STEP-bestand met een modeltype is een model;
@@ -11,17 +11,29 @@
 //      leest een bestand zonder model helemaal. De tijden staan in de uitvoer;
 //   6. fixronde 3 (een scan zonder uitkomst is geen vrijbrief): een lange kop of lang commentaar (Sol: `model-ifc4.ifc`
 //      met 2 MiB + 1 commentaar na `HEADER;`) geeft in elke stukgrootte (1, 7, 64 KiB, 1 MiB, alles) "model"; ook een
-//      lang id, een complexe instantie met een producttype (Terra), en een ongebalanceerde apostrof in de kop (die
-//      `readIFC` toestaat; de lezer per regel vangt dat).
+//      lang id, een complexe instantie met een producttype (Terra), en een ongebalanceerde apostrof in de kop;
+//   7. fixronde 4, de route van `readIFC` na een kapotte kop: Terra (alle entiteiten op één regel) en Sol
+//      (`#30=\nIFCWALL(`), ook met witruimte en commentaar tussen de delen, geven "model"; commentaar met
+//      `#900000=IFCWALL(` en een meerregelige string met `#9=IFCWALL(` geven "no-model". Ook de randen van de lus van
+//      `parseSTEP` (een mislukte entiteit, `ENDSEC;`, commentaar dat een woord samenvoegt), terugspoelen voorbij het
+//      geheugen (de bron opnieuw lezen) en de tweede lezing vanaf het regel-verankerde `DATA;`;
+//   8. de gedeelde zoekregel voor `DATA;` (`stepDataSection.ts`) is gelijk aan de oude `indexOfDataSection` van
+//      `readIFC` (hier als orakel overgenomen van 343b74300), op tekst en als bytes;
+//   9. een verschiltest: willekeurige STEP-achtige bestanden geven in elke stukgrootte "model" precies als `readIFC`
+//      weigert met `building-model`;
+//  10. de pariteitstabel: elk bestand uit deze check, de scanner tegen `readIFC`. Afwijken mag alleen in de besloten
+//      gevallen (een complexe instantie met een producttype; commentaar vóór de kop), en dan alleen naar "model".
 // Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  TargetModelScanner, scanTargetBlob, scanTargetBytes, scanTargetChunks, type TargetModelScan,
+  TargetModelScanner, scanTargetBlob, scanTargetBytes, scanTargetSource, type TargetModelScan, type TargetScanStep,
 } from '@/services/ifc/foreign/targetModelScan';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { StepDataSectionFinder, indexOfStepDataSection } from '@/services/ifc/stepDataSection';
+import { brokenHeader, commentFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 let checks = 0;
@@ -31,19 +43,57 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: ${JSON.stringify(got)} ≠ ${JSON.stringify(want)}`);
 };
 const enc = new TextEncoder();
-const inChunks = (bytes: Uint8Array, size: number): TargetModelScan => {
+/** De lezer in stukken van `size` bytes, met terugspoelen: na `{ seek }` gaat het volgende stuk vanaf die positie. */
+const inChunks = (bytes: Uint8Array, size: number, stats?: { seeks: number; pushed: number }): TargetModelScan => {
   const scanner = new TargetModelScanner();
-  for (let i = 0; i < bytes.length; i += size) {
-    const r = scanner.push(bytes.subarray(i, i + size));
-    if (r) return r;
+  let at = 0;
+  for (let guard = 0; guard < 1e8; guard++) {
+    let step: TargetScanStep;
+    if (at < bytes.length) {
+      const end = Math.min(at + size, bytes.length);
+      step = scanner.push(bytes.subarray(at, end));
+      if (stats) stats.pushed += end - at;
+      at = end;
+    } else {
+      step = scanner.end();
+    }
+    if (step === null) continue;
+    if ('result' in step) return step.result;
+    if (stats) stats.seeks++;
+    at = step.seek;
   }
-  return scanner.end();
+  throw new Error('inChunks: de lezer komt niet tot een uitkomst');
 };
+/** De tekst die `readIFC` krijgt: UTF-8, met één BOM vooraan weg (zoals `File.text()` en plugin-fs `readTextFile`). */
+const decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
+/** Wat `readIFC` met dit bestand doet: 'ok', of de reden van de fout. */
+const readOutcome = (bytes: Uint8Array): string => {
+  try {
+    readIFC(decode(bytes));
+    return 'ok';
+  } catch (e) {
+    return e instanceof IfcParseError ? e.reason : 'fout buiten de lezer';
+  }
+};
+/** De besloten afwijkingen: de scanner zegt dan "model", `readIFC` weigert niet met `building-model`. */
+type Deviation = 'complexe instantie' | 'commentaar vóór de kop';
+/** De pariteitstabel (10): elk bestand uit deze check. */
+const parity: Array<{ label: string; bytes: Uint8Array; deviation?: Deviation }> = [];
 /** Elke vorm van lezen geeft dezelfde uitkomst: alles in één keer, per byte, per 7 bytes. */
-const allWays = (label: string, bytes: Uint8Array, want: TargetModelScan) => {
+const allWays = (label: string, bytes: Uint8Array, want: TargetModelScan, deviation?: Deviation) => {
+  parity.push({ label, bytes, deviation });
   eq(`${label} (één stuk)`, scanTargetBytes(bytes), want);
   eq(`${label} (stukken van 1 byte)`, inChunks(bytes, 1), want);
   eq(`${label} (stukken van 7 bytes)`, inChunks(bytes, 7), want);
+};
+const SIZES = [1, 7, 64 << 10, 1 << 20, Number.POSITIVE_INFINITY];
+/** Zoals `allWays`, in de vijf stukgroottes van de reviews: 1 B, 7 B, 64 KiB, 1 MiB en alles. */
+const every = (label: string, bytes: Uint8Array, want: TargetModelScan, deviation?: Deviation) => {
+  parity.push({ label, bytes, deviation });
+  for (const size of SIZES) {
+    eq(`${label} (stukken van ${size === Number.POSITIVE_INFINITY ? 'alles' : size})`,
+      size === Number.POSITIVE_INFINITY ? scanTargetBytes(bytes) : inChunks(bytes, size), want);
+  }
 };
 
 // ── 1 en 2. Dezelfde herkenning als de modelweigering bij openen ──────────────────────────────────────────────────
@@ -52,13 +102,7 @@ const files = ['tests/fixtures/ifc-foreign', 'public/examples', 'examples', 'tes
 let models = 0;
 for (const file of files) {
   const bytes = new Uint8Array(readFileSync(join(ROOT, file)));
-  let refused: boolean;
-  try {
-    readIFC(new TextDecoder('latin1').decode(bytes));
-    refused = false;
-  } catch (e) {
-    refused = e instanceof IfcParseError && e.reason === 'building-model';
-  }
+  const refused = readOutcome(bytes) === 'building-model';
   if (refused) models++;
   allWays(`${file}: gelijk aan de weigering bij openen`, bytes, refused ? 'model' : 'no-model');
 }
@@ -93,21 +137,21 @@ allWays('een andere STEP-toepassing met een modeltype', ifc("#9=IFCWALL('x',$);\
 allWays('een andere STEP-toepassing zonder modeltype', ifc("#9=CARTESIAN_POINT('',(0.,0.,0.));\n", HEAD.replace("'IFC4X3_ADD2'", "'AUTOMOTIVE_DESIGN'")), 'no-model');
 allWays('STEP zonder schema, met een modeltype', ifc("#9=IFCWALL('x',$);\n", HEAD.replace("FILE_SCHEMA(('IFC4X3_ADD2'));\n", '')), 'model');
 allWays('een IFC zonder DATA', enc.encode(HEAD.replace('DATA;\n', '') + 'END-ISO-10303-21;\n'), 'no-model');
-allWays('witruimte en commentaar vóór de kop', enc.encode(`\n  /* ISO-10303-21; niet */\r\n${HEAD}#9=IFCWALL('x',$);\n${TAIL}`), 'model');
+allWays('witruimte en commentaar vóór de kop', enc.encode(`\n  /* ISO-10303-21; niet */\r\n${HEAD}#9=IFCWALL('x',$);\n${TAIL}`), 'model',
+  'commentaar vóór de kop');
 allWays('een ander eerste statement', enc.encode(`HEADER;\n${HEAD}#9=IFCWALL('x',$);\n${TAIL}`), 'not-ifc');
 allWays('kop zonder punt-komma', enc.encode('ISO-10303-21'), 'not-ifc');
+// Fixronde 4: een model gevonden voordat de kop beslist is (een heel kort bestand); de kop beslist aan het einde.
+allWays('kort, model vóór de beslissing over de kop, geen IFC', enc.encode('X DATA;#9=IFCWALL(1);'), 'not-ifc');
+allWays('kort, model vóór de beslissing over de kop, twee BOMs', new Uint8Array([0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf,
+  ...enc.encode('ISO-10303-21;DATA;#9=IFCWALL(1);END-ISO-10303-21;')]), 'model');
 
 // ── 6. Fixronde 3: geen uitkomst zonder het hele bestand ───────────────────────────────────────────────────────────
+const MODEL = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc'), 'utf8');
+const OWN = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
 {
-  const sizes = [1, 7, 64 << 10, 1 << 20, Number.POSITIVE_INFINITY];
-  const every = (label: string, bytes: Uint8Array, want: TargetModelScan) => {
-    for (const size of sizes) {
-      eq(`${label} (stukken van ${size === Number.POSITIVE_INFINITY ? 'alles' : size})`,
-        size === Number.POSITIVE_INFINITY ? scanTargetBytes(bytes) : inChunks(bytes, size), want);
-    }
-  };
-  const model = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc'), 'latin1');
-  const own = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'latin1');
+  const model = MODEL;
+  const own = OWN;
   const longComment = `/*${'x'.repeat((2 << 20) + 1)}*/`;
   const afterHeader = (t: string, insert: string) => t.replace('HEADER;', `HEADER;${insert}`);
   const afterData = (t: string, insert: string) => t.replace('DATA;', `DATA;${insert}`);
@@ -123,19 +167,20 @@ allWays('kop zonder punt-komma', enc.encode('ISO-10303-21'), 'not-ifc');
   every('lange string in de kop, met model', enc.encode(model.replace("FILE_NAME('", `FILE_NAME('${'y'.repeat(2 << 20)}`)), 'model');
   every('een lang id', ifc(`#${'0'.repeat(300)}9=IFCWALL('x',$);\n`), 'model');
   // Complexe instanties (Terra): het deeltype telt, ook tussen andere deelrecords en met haakjes in strings.
-  every('complexe instantie met een producttype', ifc("#1=(IFCBUILDINGELEMENT()IFCELEMENT($)IFCPRODUCT($,$)IFCWALL(.STANDARD.));\n"), 'model');
-  every('complexe instantie, producttype eerst', ifc("#1=( IFCWALL ($) IFCPRODUCT ('(',$) );\n"), 'model');
+  every('complexe instantie met een producttype', ifc("#1=(IFCBUILDINGELEMENT()IFCELEMENT($)IFCPRODUCT($,$)IFCWALL(.STANDARD.));\n"), 'model',
+    'complexe instantie');
+  every('complexe instantie, producttype eerst', ifc("#1=( IFCWALL ($) IFCPRODUCT ('(',$) );\n"), 'model', 'complexe instantie');
   every('complexe instantie zonder producttype', ifc("#89=(IFCNAMEDUNIT(*,.LENGTHUNIT.)IFCSIUNIT($,.MILLI.,.METRE.));\n#90=(IFCLABELX('IFCWALL(')IFCX(IFCWALL(1)));\n"), 'no-model');
-  // Een ongebalanceerde apostrof in de kop (oude eigen bestanden; `readIFC` vindt `DATA;` dan op de regel). Lezer 1 ziet
-  // daarna code als string; lezer 2 vindt de regel met het model.
+  // Een ongebalanceerde apostrof in de kop (oude eigen bestanden; `readIFC` vindt `DATA;` dan op de regel, en de lezer
+  // leest daar opnieuw, streng).
   const unbalanced = model.replace("FILE_NAME('model-ifc4.ifc'", "FILE_NAME('Jan's model.ifc'");
   let unbalancedRefused = false;
   try { readIFC(unbalanced); } catch (e) { unbalancedRefused = e instanceof IfcParseError && e.reason === 'building-model'; }
   eq('ongebalanceerde apostrof: readIFC weigert als model', unbalancedRefused, true);
   every('ongebalanceerde apostrof in de kop, met model', enc.encode(unbalanced), 'model');
   every('ongebalanceerde apostrof in de kop, zonder model', enc.encode(own.replace("FILE_NAME('", "FILE_NAME('Jan's ")), 'no-model');
-  // Bewust te veel: een regel `#n=MODELTYPE(` binnen een string van meer regels.
-  every('een modelregel binnen een string van meer regels (weigert te veel)', ifc("#1=IFCTASK('regel 1\n#9=IFCWALL(\n',$);\n"), 'model');
+  // Fixronde 4 (Terra, VERVOLG 2): een regel `#n=MODELTYPE(` binnen een string van meer regels telt niet meer.
+  every('een modelregel binnen een string van meer regels', ifc("#1=IFCTASK('regel 1\n#9=IFCWALL(\n',$);\n"), 'no-model');
 }
 
 // ── 5. Lezen als stroom ───────────────────────────────────────────────────────────────────────────────────────────
@@ -148,10 +193,16 @@ allWays('kop zonder punt-komma', enc.encode('ISO-10303-21'), 'not-ifc');
     let pulled = 0;
     let cancelled = 0;
     const t0 = performance.now();
-    const result = await scanTargetChunks(async () => {
-      if (pulled * CHUNK >= bytes.length) return null;
-      return bytes.subarray(pulled++ * CHUNK, pulled * CHUNK);
-    }, () => { cancelled++; });
+    let at = 0;
+    const result = await scanTargetSource({
+      next: async () => {
+        if (at >= bytes.length) return null;
+        pulled++;
+        return bytes.subarray(at, at += CHUNK);
+      },
+      seek: async (offset) => { at = offset; },
+      close: () => { cancelled++; },
+    });
     return { result, pulled, cancelled, ms: performance.now() - t0 };
   };
   const early = await measure(front);
@@ -163,9 +214,30 @@ allWays('kop zonder punt-komma', enc.encode('ISO-10303-21'), 'not-ifc');
   let closed = 0;
   let error = '';
   try {
-    await scanTargetChunks(async () => { throw new Error('leesfout'); }, () => { closed++; });
+    await scanTargetSource({
+      next: async () => { throw new Error('leesfout'); },
+      seek: async () => { /* niet nodig */ },
+      close: () => { closed++; },
+    });
   } catch (e) { error = (e as Error).message; }
   eq('stroom: een leesfout gaat door, de bron gaat dicht', [error, closed], ['leesfout', 1]);
+  // Fixronde 4: een bron die niet terugspoelt (of een bestand dat tijdens het lezen korter wordt) geeft een leesfout,
+  // nooit een eindeloze lus. Terra's bestand vraagt terugspoelen naar het regel-verankerde `DATA;`.
+  for (const [label, shrink] of [['seek doet niets', false], ['het bestand wordt korter', true]] as const) {
+    const bytes = enc.encode(terraFile(MODEL));
+    let at = 0;
+    let end = bytes.length;
+    let badClosed = 0;
+    let badError = '';
+    try {
+      await scanTargetSource({
+        next: async () => (at >= end ? null : bytes.subarray(at, at = Math.min(end, at + 1024))),
+        seek: async (offset) => { if (shrink) { at = offset; end = offset + 10; } },
+        close: () => { badClosed++; },
+      });
+    } catch (e) { badError = (e as Error).message; }
+    eq(`stroom: ${label}: een leesfout, de bron gaat dicht`, [badError.startsWith('De bron eindigt na terugspoelen'), badClosed], [true, 1]);
+  }
   // De Blob van een FSA-handle: dezelfde uitkomst via `stream()`.
   const t0 = performance.now();
   const blob = await scanTargetBlob(new Blob([none as BlobPart]));
@@ -174,6 +246,289 @@ allWays('kop zonder punt-komma', enc.encode('ISO-10303-21'), 'not-ifc');
   eq('Blob: model vooraan', await scanTargetBlob(new Blob([front as BlobPart])), 'model');
   console.log(`..  tijden (${(none.length / CHUNK).toFixed(0)} MiB): model vooraan ${early.ms.toFixed(1)} ms, `
     + `zonder model (alles gelezen) ${full.ms.toFixed(0)} ms, via Blob ${blobMs.toFixed(0)} ms`);
+}
+
+// ── 7. Fixronde 4: de route van `readIFC` ──────────────────────────────────────────────────────────────────────────
+{
+  const refusedAsModel = (label: string, bytes: Uint8Array, want: boolean) =>
+    eq(`${label}: readIFC ${want ? 'weigert als model' : 'weigert niet als model'}`, readOutcome(bytes) === 'building-model', want);
+  // Terra (BLOKKEERT 1) en Sol (BLOKKEERT 1b): de bestanden van de reviewers.
+  const terra = enc.encode(terraFile(MODEL));
+  const sol = enc.encode(solFile(MODEL));
+  eq('Terra: alle entiteiten na DATA; op één regel', terraFile(MODEL).split('\n').filter(l => l.startsWith('DATA;#1=')).length, 1);
+  eq('Sol: een regeleinde tussen = en IFCWALL', solFile(MODEL).includes('#30=\nIFCWALL('), true);
+  const solAll = enc.encode(solFileAllSplit(MODEL));
+  refusedAsModel('Terra', terra, true);
+  refusedAsModel('Sol', sol, true);
+  refusedAsModel('Sol, elke entiteit gesplitst', solAll, true);
+  every('Terra: kapotte kop, alles op één regel', terra, 'model');
+  every('Sol: kapotte kop, #30=\\nIFCWALL(', sol, 'model');
+  every('Sol: kapotte kop, elke entiteit #n=\\nTYPE(', solAll, 'model');
+  // Dezelfde vormen met de wand als enige modelentiteit: zo telt precies deze entiteit.
+  const BROKEN = brokenHeader(HEAD);
+  const forms: Array<[string, string]> = [
+    ['op één regel na DATA;', "#1=IFCTASK('1',$);#30=IFCWALL('x',$);"],
+    ['regeleinde tussen = en type', "#1=IFCTASK('1',$);\n#30=\nIFCWALL('x',$);\n"],
+    ['witruimte en commentaar tussen #id, =, type en (', "#30 \t/* a */=\r\n /* b */ IFCWALL /* c */\n(\n'x',$)\n;\n"],
+    ['commentaar in het type', "#30=IFC/* knip */WALL('x',$);\n"],
+    ['regeleinde in het id', "#3\n0=IFCWALL('x',$);\n"],
+  ];
+  for (const [form, data] of forms) {
+    const broken = form === 'op één regel na DATA;' ? enc.encode(BROKEN.replace('DATA;\n', 'DATA;') + data + TAIL) : ifc(data, BROKEN);
+    const valid = ifc(data);
+    const want = readOutcome(valid) === 'building-model' ? 'model' : 'no-model';
+    every(`kapotte kop, ${form}`, broken, want);
+    every(`geldige kop, ${form}`, valid, want);
+  }
+  refusedAsModel('kapotte kop, witruimte en commentaar tussen de delen', ifc(forms[2][1], BROKEN), true);
+  refusedAsModel('kapotte kop, regeleinde in het id (geen entiteit)', ifc(forms[4][1], BROKEN), false);
+  // De kop zoals `assertIfcIntegrity`: na de BOM die de decoder weghaalt nog één U+FEFF, en `toUpperCase` (ook `ı` en
+  // `ſ`). De regel van fixronde 3 (het eerste statement, alleen ASCII) zag die bestanden als "not-ifc".
+  const wall = "#9=IFCWALL('x',$);\n";
+  const heads: Array<[string, Uint8Array]> = [
+    ['twee BOMs vooraan', new Uint8Array([0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf, ...ifc(wall)])],
+    ['een BOM, witruimte en een tweede BOM (die telt niet)', new Uint8Array([0xef, 0xbb, 0xbf, 0x20, 0xef, 0xbb, 0xbf, ...ifc(wall)])],
+    ['ı (U+0131) en ſ (U+017F) in de kop', ifc(wall, HEAD.replace('ISO-10303-21;', 'ıſO-10303-21;'))],
+    ['verticale tab en form feed vóór de kop', ifc(wall, `\v\f${HEAD}`)],
+    ['een harde spatie (U+00A0) vóór de kop', ifc(wall, `\u00a0${HEAD}`)],
+    ['een half BOM vooraan', new Uint8Array([0xef, 0xbb, ...ifc(wall)])],
+  ];
+  for (const [label, bytes] of heads) {
+    const outcome = readOutcome(bytes);
+    every(`kop: ${label}`, bytes, outcome === 'building-model' ? 'model' : 'not-ifc');
+  }
+  eq('kop: twee BOMs en ı/ſ: readIFC weigert als model', [readOutcome(heads[0][1]), readOutcome(heads[2][1])], ['building-model', 'building-model']);
+  // Sol (VERVOLG 2b): commentaar met een modelregel na DATA;, met een geldige en met een kapotte kop.
+  const comment = enc.encode(commentFile(OWN));
+  refusedAsModel('commentaar met #900000=IFCWALL(, geldige kop', comment, false);
+  eq('commentaar met #900000=IFCWALL(, geldige kop: readIFC opent het', readOutcome(comment), 'ok');
+  every('commentaar met #900000=IFCWALL( na DATA;, geldige kop', comment, 'no-model');
+  every('commentaar met #900000=IFCWALL( na DATA;, kapotte kop', enc.encode(commentFile(brokenHeader(OWN))), 'no-model');
+  every('commentaar met #900000=IFCWALL(, kleine kop', ifc("/*\n#900000=IFCWALL(\n*/\n#1=IFCTASK('1',$);\n"), 'no-model');
+  every('commentaar met #900000=IFCWALL(, kleine kapotte kop', ifc("/*\n#900000=IFCWALL(\n*/\n#1=IFCTASK('1',$);\n", BROKEN), 'no-model');
+  // Terra (VERVOLG 2): een meerregelige string met een regel #9=IFCWALL(.
+  const string = enc.encode(stringFile(OWN));
+  eq('meerregelige string met #9=IFCWALL(, geldige kop: readIFC opent het', readOutcome(string), 'ok');
+  every('meerregelige string met #9=IFCWALL(, geldige kop', string, 'no-model');
+  const brokenString = enc.encode(stringFile(brokenHeader(OWN)));
+  const brokenStringWant = readOutcome(brokenString) === 'building-model' ? 'model' : 'no-model';
+  eq('meerregelige string met #9=IFCWALL(, kapotte kop: readIFC weigert niet', brokenStringWant, 'no-model');
+  every('meerregelige string met #9=IFCWALL(, kapotte kop (zoals readIFC)', brokenString, brokenStringWant);
+  // De randen van de lus van `parseSTEP` en `readEntity`: wat `readIFC` doet, doet de scanner ook.
+  const edges: Array<[string, string, string?]> = [
+    // Een entiteit zonder einde: `readIFC` leest verder vanaf het teken na de `#` en vindt dan de wand erin.
+    ['een wand binnen een entiteit zonder einde', "#1=IFCTASK('a',#9=IFCWALL('x');\n"],
+    ['een wand na een entiteit zonder puntkomma', "#1=IFCTASK('a',$)\n#9=IFCWALL('x',$);\n"],
+    ['een wand na een string zonder einde in een entiteit', "#1=IFCTASK('a,$);\n#9=IFCWALL('x',$);\n"],
+    ['een wand na een lege #', "# #=IFCWALL('x',$);\n#9=IFCWALL('x',$);\n"],
+    ['een wand na ENDSEC; (readIFC stopt daar)', "#1=IFCTASK('1',$);\nENDSEC;\n#9=IFCWALL('x',$);\n"],
+    ['een wand na endsec; in kleine letters', "endsec;\n#9=IFCWALL('x',$);\n"],
+    ['een wand na ENDSEC; in een string', "#1=IFCTASK('ENDSEC;',$);\n#9=IFCWALL('x',$);\n"],
+    ['een wand na ENDSE ENDSEC;', "ENDSE ENDSEC;\n#9=IFCWALL('x',$);\n"],
+    ['een wand na ENDSENDSEC;', "ENDSENDSEC;\n#9=IFCWALL('x',$);\n"],
+    ['een wand na commentaar zonder einde', "/* open\n#9=IFCWALL('x',$);\n"],
+    ['een wand na /*/', "/*/ #9=IFCWALL('x',$); */\n#1=IFCTASK('1',$);\n"],
+    ['een wand na **/ in commentaar', "/* x **/#9=IFCWALL('x',$);\n"],
+    ['commentaar dat /* vormt in de argumenten', "#1=IFCTASK(//*z*/*'*/);\n#9=IFCWALL('x',$);\n"],
+    // Na `/*'*/` (samengevoegd) ziet de lus commentaar en `stripStepComments` een string. Mislukt daarna een entiteit,
+    // dan gaat `readIFC` verder met de string-toestand van `stripStepComments`: het commentaar erna blijft staan.
+    ['een entiteit zonder einde terwijl het weghalen van commentaar in een string staat',
+      "#1=IFCTASK(//*z*/*'*/);#2=IFCTASK(/*#9=IFCWALL(1);*/"],
+    ['een losse / aan het einde van de datasectie', "#9=IFCWALL('x',$);/"],
+    ['een wand na een string met \'\'', "#1=IFCTASK('it''s',$);#9=IFCWALL('x',$);\n"],
+    ['een wand binnen een string met \'\' aan het begin', "#1=IFCTASK(''''#9=IFCWALL('x',$);',$);\n"],
+    ['een ongebalanceerde apostrof in de datasectie', "#1=IFCTASK('Jan's taak',$);\n#9=IFCWALL('x',$);\n"],
+    ['een te lang type', `#9=IFCWALL${'X'.repeat(200)}('x',$);\n`],
+    ['een modeltype in kleine letters met cijfers in het id', "#9a_B = ifcbeam ( 'x' , $ ) ;\n"],
+    ['twee DATA; (de eerste telt)', "#1=IFCTASK('1',$);\nDATA;\n#9=IFCWALL('x',$);\n"],
+  ];
+  for (const [label, data] of edges) {
+    for (const [head, name] of [[HEAD, 'geldige kop'], [BROKEN, 'kapotte kop']] as const) {
+      const bytes = ifc(data, head);
+      every(`rand, ${name}: ${label}`, bytes, readOutcome(bytes) === 'building-model' ? 'model' : 'no-model');
+    }
+  }
+  // Een paar uitkomsten met de hand vastgelegd (zodat de randen niet alleen "gelijk aan readIFC" zijn).
+  eq('rand: de wand binnen een entiteit zonder einde is een model', readOutcome(ifc(edges[0][1])), 'building-model');
+  eq('rand: na ENDSEC; telt niets meer', readOutcome(ifc(edges[4][1])) === 'building-model', false);
+  eq('rand: na commentaar zonder einde telt niets meer', readOutcome(ifc(edges[9][1])) === 'building-model', false);
+  eq('rand: na terugspoelen telt de string-toestand van het weghalen van commentaar',
+    readOutcome(ifc(edges.find(e => e[0].startsWith('een entiteit zonder einde terwijl'))![1])), 'building-model');
+  // Kapotte kop met een `DATA;` op codeniveau verderop (de apostrof keert de strings om): `readIFC` leest vanaf dat
+  // strenge `DATA;`, niet vanaf de regel. De scanner ook.
+  const laterStrict = ifc("#1=IFCTASK('DATA;',$);\n#9=IFCWALL('x',$);\n", BROKEN);
+  every('kapotte kop, een streng DATA; verderop (zoals readIFC)', laterStrict,
+    readOutcome(laterStrict) === 'building-model' ? 'model' : 'no-model');
+  // Terugspoelen voorbij het geheugen: een entiteit zonder einde vooraan, met daarachter meer dan de lezer vasthoudt
+  // (16 MiB, of 4096 stukken). Dan leest hij de bron opnieuw vanaf het teken na de `#`.
+  const big = (filler: number) => ifc(`#1=IFCTASK('a',\n${"#2=IFCTASK('x',$);\n".repeat(Math.ceil(filler / 19))}#9=IFCWALL('x',$);\n`);
+  const smallRewind = big(64 << 10);
+  const largeRewind = big(17 << 20);
+  refusedAsModel('terugspoelen (17 MiB)', largeRewind, true);
+  for (const [bytes, size] of [[smallRewind, 1], [smallRewind, 7], [largeRewind, 64 << 10], [largeRewind, 1 << 20]] as const) {
+    const stats = { seeks: 0, pushed: 0 };
+    eq(`terugspoelen voorbij het geheugen, stukken van ${size}: model, en de bron opnieuw gelezen`,
+      [inChunks(bytes, size, stats), stats.seeks >= 1], ['model', true]);
+  }
+  eq('terugspoelen in het geheugen (één stuk)', scanTargetBytes(largeRewind), 'model');
+  parity.push({ label: 'terugspoelen (17 MiB)', bytes: largeRewind });
+  // De tweede lezing vanaf het regel-verankerde `DATA;`, verder dan het geheugen: de bron opnieuw vanaf daar.
+  const secondPass = ifc(`${"#2=IFCTASK('x',$);\n".repeat(Math.ceil((3 << 20) / 19))}#9=IFCWALL('x',$);\n`, BROKEN);
+  refusedAsModel('tweede lezing (3 MiB)', secondPass, true);
+  for (const size of [64 << 10, 1 << 20]) {
+    const stats = { seeks: 0, pushed: 0 };
+    eq(`tweede lezing vanaf het regel-verankerde DATA;, stukken van ${size}: model, de bron opnieuw vanaf DATA;`,
+      [inChunks(secondPass, size, stats), stats.seeks, stats.pushed > secondPass.length], ['model', 1, true]);
+  }
+  parity.push({ label: 'tweede lezing (3 MiB)', bytes: secondPass });
+  // Een bestand zonder model met een kapotte kop: de lezer leest het twee keer (eerst zoekt hij een streng `DATA;`).
+  const brokenOwn = enc.encode(brokenHeader(OWN));
+  const stats = { seeks: 0, pushed: 0 };
+  eq('kapotte kop zonder model: no-model, één keer terug naar DATA;', [inChunks(brokenOwn, 64 << 10, stats), stats.seeks], ['no-model', 1]);
+}
+
+// ── 8. Eén bron voor `DATA;`: de gedeelde zoekregel is gelijk aan de oude van `readIFC` ───────────────────────────
+// Het orakel: `skipQuotedOrComment`, `startsWithTokenCI`, `indexOfCode` en `indexOfDataSection` uit `ifcReader.ts` op
+// 343b74300, letterlijk overgenomen. De nieuwe `stepDataSection.ts` moet op elke invoer dezelfde positie geven: als tekst
+// (`readIFC`) en als bytes (de scanner, met de BOM die de decoder weghaalt).
+function oldSkip(text: string, i: number): number {
+  const c = text.charCodeAt(i);
+  if (c === 0x27) {
+    for (let j = i + 1; j < text.length; j++) {
+      if (text.charCodeAt(j) !== 0x27) continue;
+      if (text.charCodeAt(j + 1) === 0x27) { j++; continue; }
+      return j + 1;
+    }
+    return text.length;
+  }
+  if (c === 0x2f && text.charCodeAt(i + 1) === 0x2a) {
+    const end = text.indexOf('*/', i + 2);
+    return end < 0 ? text.length : end + 2;
+  }
+  return -1;
+}
+function oldStartsWithTokenCI(text: string, i: number, token: string): boolean {
+  for (let k = 0; k < token.length; k++) {
+    let c = text.charCodeAt(i + k);
+    if (c >= 0x61 && c <= 0x7a) c -= 0x20;
+    if (c !== token.charCodeAt(k)) return false;
+  }
+  return true;
+}
+function oldIndexOfCode(text: string, token: string, from: number): number {
+  const first = token.charCodeAt(0);
+  for (let i = from; i < text.length;) {
+    let c = text.charCodeAt(i);
+    if (c === 0x27 || c === 0x2f) {
+      const skip = oldSkip(text, i);
+      if (skip >= 0) { i = skip; continue; }
+    }
+    if (c >= 0x61 && c <= 0x7a) c -= 0x20;
+    if (c === first && oldStartsWithTokenCI(text, i, token)) return i;
+    i++;
+  }
+  return -1;
+}
+function oldIndexOfDataSection(content: string): number {
+  const strict = oldIndexOfCode(content, 'DATA;', 0);
+  if (strict >= 0) return strict;
+  const anchored = /^[ \t]*DATA;/im.exec(content);
+  return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
+}
+/** De vinder zoals de scanner hem voedt: bytes, na de BOM die de decoder weghaalt; de positie als index in de tekst. */
+function byteDataSection(bytes: Uint8Array): number {
+  const start = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
+  const finder = new StepDataSectionFinder(true);
+  let at = -1;
+  for (let i = start; i < bytes.length && at < 0; i++) if (finder.step(bytes[i], i)) at = i - 4;
+  if (at < 0) at = finder.anchored;
+  return at < 0 ? -1 : decode(bytes.subarray(0, at)).length;
+}
+let dataSectionCases = 0;
+const sameDataSection = (label: string, bytes: Uint8Array) => {
+  dataSectionCases++;
+  const text = decode(bytes);
+  const want = oldIndexOfDataSection(text);
+  eq(`DATA; (${label}): de gedeelde regel als tekst`, indexOfStepDataSection(text), want);
+  eq(`DATA; (${label}): de gedeelde regel als bytes`, byteDataSection(bytes), want);
+};
+for (const file of files) sameDataSection(file, new Uint8Array(readFileSync(join(ROOT, file))));
+for (const c of parity) sameDataSection(c.label, c.bytes);
+for (const [label, text] of [
+  ['DATA; in een string van de kop', "ISO-10303-21;\nHEADER;\nFILE_NAME('DATA;');\nENDSEC;\nDATA;\n"],
+  ['DATA; in commentaar van de kop', 'ISO-10303-21;\nHEADER;\n/* DATA; */\nENDSEC;\ndata;\n'],
+  ['alleen regel-verankerd, met spaties en tabs', "ISO-10303-21;\nFILE_NAME('a);\n \t DaTa;\n"],
+  ['regel-verankerd na \\r, U+2028 en U+2029', "ISO-10303-21;'\rDATA; DATA; DATA;"],
+  ['regel-verankerd na é en een emoji (geen regelbegin)', "ISO-10303-21;'\né DATA;\n😀DATA;\n  DATA;"],
+  ['DDATA; en DATDATA;', 'DDATA; DATDATA;'],
+  ['commentaar zonder einde', "/* DATA;\nDATA;"],
+  ['/*/ sluit niet', '/*/ DATA; */DATA;'],
+  ['lege tekst', ''],
+  ['geen DATA;', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n;"],
+] as const) sameDataSection(label, enc.encode(text));
+sameDataSection('een BOM vooraan', new Uint8Array([0xef, 0xbb, 0xbf, ...enc.encode("'\nDATA;")]));
+sameDataSection('ongeldige UTF-8 vóór DATA;', new Uint8Array([0x27, 0xe2, 0x80, 0x0a, 0xff, 0x0a, ...enc.encode('DATA;')]));
+sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2, 0xe2, 0x80, 0xa8, ...enc.encode('DATA;')]));
+
+// ── 9. Verschiltest: willekeurige STEP-achtige bestanden, de scanner tegen `readIFC` ─────────────────────────────────
+{
+  let seed = 0x804_0004;
+  const random = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const pick = <T>(list: readonly T[]) => list[Math.floor(random() * list.length)];
+  // Geen losse `=`: een `=` staat alleen in een entiteit met een type erna. Zo ontstaat geen complexe instantie (die
+  // telt bewust als model, zie 6).
+  const TOKENS = ["'", "''", '/*', '*/', '/', '*', '(', ')', '((', '))', ';', ',', '$', ' ', '\t', '\n', '\r\n', '\r', 'x',
+    'é', ' ', '😀', '#9=IFCWALL(', '#30=\nIFCWALL(', '#1=IFCTASK(', "#2=IFCTASK('a',$);", "#3=IFCWALL('w',$);",
+    '#4 = ifcSite (', '#', '#7', 'IFCWALL', 'IFC/*c*/WALL', 'ENDSEC;', 'endsec;', 'ENDSE', 'DATA;', 'data;', '\nDATA;',
+    "'Van 't Hof'", '.T.'];
+  const tokens = (n: number) => Array.from({ length: n }, () => pick(TOKENS)).join('');
+  const samples = 4000;
+  let models = 0;
+  let outside = 0;
+  const outcomes = new Map<string, number>();
+  for (let k = 0; k < samples; k++) {
+    const text = 'ISO-10303-21;\nHEADER;\n' + tokens(Math.floor(random() * 4))
+      + pick(["FILE_NAME('a.ifc');\n", "FILE_NAME('Van 't Hof.ifc');\n", ''])
+      + 'ENDSEC;\n' + pick(['DATA;\n', '  data;', '', 'DATA;', '\nDATA;'])
+      + tokens(1 + Math.floor(random() * 40)) + pick(['ENDSEC;\n', '']) + 'END-ISO-10303-21;\n';
+    const bytes = random() < 0.1 ? new Uint8Array([0xef, 0xbb, 0xbf, ...enc.encode(text)]) : enc.encode(text);
+    const outcome = readOutcome(bytes);
+    outcomes.set(outcome, (outcomes.get(outcome) ?? 0) + 1);
+    if (outcome === 'fout buiten de lezer') outside++;
+    const want: TargetModelScan = outcome === 'building-model' ? 'model' : 'no-model';
+    if (want === 'model') models++;
+    const label = `verschiltest ${k}: ${JSON.stringify(text).slice(0, 160)}`;
+    eq(`${label} (één stuk)`, scanTargetBytes(bytes), want);
+    for (const size of [1, 2, 3, 7]) eq(`${label} (stukken van ${size})`, inChunks(bytes, size), want);
+    sameDataSection(`verschiltest ${k}`, bytes);
+  }
+  eq('verschiltest: genoeg bestanden met en zonder model', [models > samples / 10, samples - models > samples / 10], [true, true]);
+  console.log(`..  verschiltest: ${samples} bestanden, ${models} met model; uitkomst van readIFC: `
+    + [...outcomes].map(([o, n]) => `${o} ${n}`).join(', ') + (outside > 0 ? ` (${outside} fout na de modelpoort)` : ''));
+}
+
+// ── 10. De pariteitstabel ──────────────────────────────────────────────────────────────────────────────────────────
+{
+  const table = new Map<string, number>();
+  for (const c of parity) {
+    const scan = scanTargetBytes(c.bytes);
+    const outcome = readOutcome(c.bytes);
+    const key = `${scan} | ${outcome}${c.deviation ? ` | besloten: ${c.deviation}` : ''}`;
+    table.set(key, (table.get(key) ?? 0) + 1);
+    if (c.deviation) {
+      eq(`pariteit, besloten afwijking (${c.deviation}): ${c.label}`, [scan, outcome === 'building-model'], ['model', false]);
+    } else {
+      eq(`pariteit: ${c.label}: model precies als readIFC weigert met building-model`, scan === 'model', outcome === 'building-model');
+    }
+  }
+  console.log(`..  pariteitstabel (${parity.length} bestanden; scanner | readIFC):`);
+  for (const [key, n] of [...table].sort()) console.log(`      ${String(n).padStart(4)}  ${key}`);
+  console.log(`..  DATA;: ${dataSectionCases} invoeren, de gedeelde regel gelijk aan de oude (tekst en bytes)`);
 }
 
 if (diffs.length > 0) {

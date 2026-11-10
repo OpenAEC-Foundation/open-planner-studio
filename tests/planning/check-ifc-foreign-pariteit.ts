@@ -13,7 +13,12 @@
 //    hetzelfde opslagdoel en dezelfde meldingen als op main;
 //  - (fixronde 2, VERVOLG van Terra) een eigen voorbeeld: Ctrl+S naar een bestaand doel, per route (handle, Tauri-pad
 //    via de echte plugin-JS, site), geeft dezelfde bytes, hetzelfde doel, dezelfde meldingen én dezelfde aanroepen naar
-//    buiten als op main: met de flag uit leest de branch het doel niet extra.
+//    buiten als op main: met de flag uit leest de branch het doel niet extra;
+//  - (fixronde 4, VERVOLG 3 van Terra en Sol) geen kenmerk van een bron met een vreemd deel, behalve bij de ene bewuste
+//    uitzondering: een MCP-backup met de pset `OPS_RecoveryForeignSource` (`backup-met-kenmerk.ifc`). Die opent op de
+//    branch ook met de flag uit zonder opslagdoel en met het kenmerk (`fileSlice.ts`, `recordMark`; de pset leest
+//    `ifcReader.ts` bij `extractRecoveryForeignSource`), zodat Ctrl+S Opslaan als wordt. Op main krijgt hij een
+//    opslagdoel en schrijft Ctrl+S hem over. Aanvaard door wrakko op 10 november 2026; de bronbescherming blijft aan.
 // Bij een verschil schrijft de check de uitvoer van de branch naar een tijdelijke map; `--uitvoer <map>` van het script
 // geeft die van main, om te diffen.
 //
@@ -48,6 +53,9 @@ const eq = (label: string, a: unknown, b: unknown) => {
 
 eq('binaryExtensions() zonder flag', got.binaryExtensions, fixture.binaryExtensions);
 eq('dezelfde bestanden', got.bestanden.map(b => b.pad), fixture.bestanden.map(b => b.pad));
+// Fixronde 4 (VERVOLG 3): de bewuste uitzondering op de pariteit, zie de kop van dit bestand.
+const MARKED_BACKUP = 'tests/planning/fixtures/backup-met-kenmerk.ifc';
+let markedBackup = 0;
 let outDir: string | undefined;
 let own = 0;
 let refused = 0;
@@ -60,8 +68,21 @@ for (const want of fixture.bestanden) {
     diffs.push(`${want.pad}: de invoer is gewijzigd sinds de fixture; draai node scripts/proef/maak-main-pariteit.mjs`);
     continue;
   }
+  if (want.pad === MARKED_BACKUP) {
+    markedBackup++;
+    eq('backup met kenmerk, branch (flag uit): geen opslagdoel, wel het kenmerk, geen melding',
+      [have.filePath, have.kenmerk ?? false, have.meldingen], [null, true, []]);
+    // Main: Ctrl+S naar het bestaande bestand (handle, pad, site) schrijft het zonder dialoog één keer over.
+    const overwritten = (want.doelacties ?? []).map(a => [a.route, a.writes.length,
+      a.aanroepen.some(c => c.includes('showSaveFilePicker') || c.includes('dialog'))]);
+    eq('backup met kenmerk, main: een opslagdoel, Ctrl+S schrijft het bestand zonder dialoog over, geen kenmerk',
+      [want.filePath, overwritten, want.kenmerk ?? false],
+      ['backup-met-kenmerk.ifc', [['handle', 1, false], ['pad', 1, false], ['site', 1, false]], false]);
+    continue;
+  }
   if (want.filePath === null) refused++; else own++;
   eq(`${want.pad}: opslagdoel na openen`, have.filePath, want.filePath);
+  eq(`${want.pad}: geen kenmerk van een bron met een vreemd deel`, have.kenmerk ?? false, want.kenmerk ?? false);
   eq(`${want.pad}: meldingen`, have.meldingen, want.meldingen);
   eq(`${want.pad}: wat Opslaan schrijft (sha256, lengte)`, [have.opslaanSha256, have.opslaanLengte], [want.opslaanSha256, want.opslaanLengte]);
   eq(`${want.pad}: de echte acties Opslaan en Opslaan als`, have.acties, want.acties);
@@ -93,7 +114,7 @@ for (const want of fixture.bestanden.filter(b => b.filePath === null)) {
   checks++;
   if (!detail.includes('building model')) diffs.push(`${want.pad}: de fixture verwacht de modelweigering, niet "${detail.slice(0, 80)}"`);
 }
-eq('aantallen (eigen, geweigerd)', [own, refused], [32, 6]);
+eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [32, 6, 1]);
 
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ifc-foreign-pariteit: ${d}`);
@@ -102,5 +123,5 @@ if (diffs.length > 0) {
 }
 console.log(`OK  ifc-foreign-pariteit: alle checks groen (${checks}; ${own} eigen bestanden byte-gelijk aan main ${fixture.basis}, `
   + `${actions} echte opslagacties en ${targetActions} Ctrl+S naar een bestaand doel gelijk, ${refused} modelbestanden met `
-  + 'dezelfde weigering)');
+  + `dezelfde weigering; ${markedBackup} bewuste uitzondering: de backup met kenmerk)`);
 process.exit(0);

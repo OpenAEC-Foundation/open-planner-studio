@@ -18,6 +18,11 @@
 // een Tauri-pad (de echte plugin-JS met nep-IPC naar Node-fs, `nodeFileIpc.ts`) en een site-bestand (`window.openaecHost`
 // in het geheugen). Per actie ook de aanroepen naar buiten, in volgorde: zo ziet de check dat de branch met de flag uit
 // het doel niet extra leest.
+//
+// Fixronde 4 (VERVOLG 3 van Terra en Sol): ook een MCP-backup met het kenmerk van een bron met een vreemd deel (pset
+// `OPS_RecoveryForeignSource`, `tests/planning/fixtures/backup-met-kenmerk.ifc`). Per bestand ook of het document na het
+// openen een kenmerk heeft (`kenmerk`; op main bestaat dat veld niet). Dit bestand is de bewuste uitzondering op de
+// pariteit (wrakko, 10 november 2026): de branch opent het zonder opslagdoel en met het kenmerk, main met een opslagdoel.
 import { createHash } from 'node:crypto';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -43,6 +48,8 @@ export interface ParityOutput {
   actions?: ParityAction[];
   /** Fixronde 2: Ctrl+S naar een bestaand doel, per route (alleen na een geslaagd openen). */
   targetActions?: ParityTargetAction[];
+  /** Fixronde 4: het document heeft na het openen een kenmerk van een bron met een vreemd deel (alleen op de branch). */
+  mark?: true;
 }
 
 /** Uitkomst van Ctrl+S naar een bestaand doel. */
@@ -282,6 +289,7 @@ export async function runParity(inputs: readonly ParityInput[]): Promise<ParityR
     const result: ParityOutput = {
       name: input.name,
       filePath: opened ? state.filePath : null,
+      ...((state as { foreignSourceMark?: unknown }).foreignSourceMark ? { mark: true as const } : {}),
       ...(opened ? { saved: writeIFC(buildWriteIFCInput(state)) } : {}),
       notices: state.ui.notifications.map(({ id: _id, ...rest }) => JSON.parse(JSON.stringify(rest)) as ParityNotice),
     };
@@ -313,6 +321,7 @@ export const PARITY_FILES: readonly string[] = [
   'tests/fixtures/ifc-foreign/model-ifc4.ifc',
   'tests/fixtures/ifc-foreign/model-ifc2x3.ifc',
   'tests/planning/fixtures/ifc-arity-oude-writer-merged.ifc',
+  'tests/planning/fixtures/backup-met-kenmerk.ifc',
 ];
 
 export interface ParityFixtureEntry {
@@ -335,6 +344,8 @@ export interface ParityFixtureEntry {
     isDirty: boolean;
     meldingen: ParityNotice[];
   }[];
+  /** Fixronde 4: het document heeft na het openen een kenmerk (alleen op de branch; zie de kop van dit bestand). */
+  kenmerk?: true;
   /** Fixronde 2: Ctrl+S naar een bestaand doel, per route, met de aanroepen naar buiten. */
   doelacties?: {
     route: ParityTargetAction['route'];
@@ -385,6 +396,7 @@ export async function parityFixture(root: string, basis: string): Promise<{ fixt
       filePath: r.filePath,
       ...(r.saved !== undefined ? { opslaanSha256: sha256(r.saved), opslaanLengte: r.saved.length } : {}),
       meldingen: r.notices,
+      ...(r.mark ? { kenmerk: true as const } : {}),
       ...(r.actions ? { acties: r.actions.map(a => ({
         actie: a.action, uitkomst: a.outcome, dialogen: a.pickerCalls,
         writes: a.writes.map(w => ({ sha256: sha256(w), lengte: w.length })),

@@ -1662,14 +1662,24 @@ en noem het in je rapport of PR-tekst.
      (fase 1a). — B
 
 1016. **Zonder de flag ziet de modelweigering bij openen een complexe instantie niet.** `readEntity`
-     (`src/services/ifc/ifcReader.ts:1028`) leest alleen `#id=TYPE(…);`; bij `#id=(A(…)B(…));` geeft hij -1 en slaat de
-     regel over. De weigering op `ifcReader.ts:198` ziet dan geen `IfcProduct`. Gezien: `model-ifc4.ifc` met de vijf
+     (`src/services/ifc/ifcReader.ts:1029`) leest alleen `#id=TYPE(…);`; bij `#id=(A(…)B(…));` geeft hij -1 en slaat de
+     regel over. De weigering op `ifcReader.ts:199` ziet dan geen `IfcProduct`. Gezien: `model-ifc4.ifc` met de vijf
      modelentiteiten in de vorm `#30=(IFCWALL(…));` opent met de flag uit zonder weigering, en opslaan schrijft alleen de
      planning. Met de flag aan geeft dezelfde invoer `ifcSource.foreign = true`, dus is het document daar beschermd; ook
      de doelcontrole (`targetModelScan.ts`) ziet zo'n bestand als model. Het risico is klein: in IFC2X3 TC1, IFC4 ADD2 TC1
      en IFC4X3 ADD2 is elk supertype `ONEOF` (geen `ANDOR`, geen meervoudige overerving), dus een geldig bestand schrijft
      elke instantie in de interne vorm; IfcOpenShell 0.8.4 en 0.9.0 lezen de externe vorm niet als `IfcWall`. Richting:
      de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). — B
+
+1018. **De doelcontrole en `readIFC` zijn kwadratisch als veel entiteiten pas aan het einde van het bestand mislukken.**
+     `parseSTEP` (`src/services/ifc/ifcReader.ts`) leest na een mislukte entiteit verder vanaf het teken na de `#`.
+     Mislukt elke entiteit pas aan het einde (bijvoorbeeld `#1=A((#2=B((#3=C((…` zonder sluithaken), dan leest de lus het
+     bestand per entiteit opnieuw. De doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) volgt die route sinds
+     fixronde 4 bewust precies, en leest de bron dan per entiteit opnieuw (boven 16 MiB van schijf). Opslaan als, een
+     export of AutoSave naar zo'n bestand wacht dan heel lang; openen ook. Gezien met een mutatie die elke entiteit open
+     liet (de testhulp van `check-ifc-target-model-scan.ts` stopte na 10^8 stukken); niet gezien met een echt bestand.
+     Richting: een werkgrens in beide; in de doelcontrole met de uitkomst 'model' (niet schrijven). Gevonden in #864
+     (fixronde 4). — S
 
 ## Rondleiding, Help en extensie-gidsen
 

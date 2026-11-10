@@ -22,7 +22,11 @@
 //   7. fixronde 3, BLOKKEERT 2: een MCP-backup houdt het kenmerk (vingerafdruk en doel in de pset). De backup openen in
 //      een nieuwe sessie: Ctrl+S wordt Opslaan als, de bron als doel weigert (handle: inhoud; Tauri: pad, ook na een
 //      wijziging van de bron), een ander bestand mag en krijgt de pset nooit; de pset telt als eigen planning (100 % P);
-//   8. fixronde 3: hoogstens één `getFile()` en één SHA-256 van het doel per controle.
+//   8. fixronde 3: hoogstens één `getFile()` en één SHA-256 van het doel per controle;
+//   9. fixronde 4: de doelcontrole volgt de route van `readIFC`. Terra's bestand (kapotte kop, alles op één regel) en
+//      Sol's bestand (kapotte kop, `#30=\nIFCWALL(`) als doel: Opslaan als, CSV-export en AutoSave schrijven niet, de
+//      bestaande tekst blijft, A blijft gewijzigd; per route (handle en Tauri-pad, ook met `seek`). Een eigen bestand met
+//      `#900000=IFCWALL(` in commentaar of `#9=IFCWALL(` in een meerregelige string als doel: er komt een write.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -32,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { installNodeFileIpc } from './nodeFileIpc';
+import { commentFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -1064,6 +1069,133 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   buffers = 0;
   const none = await isForeignSourceTarget({ kind: 'handle', handle }, [markOf(other, 1), markOf(other, 2)]);
   eq('geen kenmerk met dezelfde lengte: één getFile, geen SHA-256', [none, getFiles, buffers], [false, 1, 0]);
+}
+
+// ── 9. Fixronde 4: de doelcontrole volgt de route van `readIFC` (Terra en Sol), via de echte opslagroutes ─────────────
+// Terra: kapotte kop, alle entiteiten op één regel. Sol: kapotte kop, `#30=\nIFCWALL(` (en dezelfde vorm op elke
+// entiteit: zo gaf de scanner van 343b74300 "no-model", zoals Sol meldde). Allemaal weigert `readIFC` als model,
+// dus geen write. Het commentaar met `#900000=IFCWALL(` en de meerregelige string met `#9=IFCWALL(` zijn eigen bestanden
+// zonder model: die mogen. "Groot" is Terra met 2 MiB commentaar in de kop: de lezer moet dan de bron opnieuw lezen vanaf
+// het regel-verankerde `DATA;` (handle: `slice`, Tauri: plugin-fs `seek`).
+{
+  const modelText = dec(modelIfc4);
+  const ownText = dec(showcase);
+  const targets: Array<{ name: string; bytes: Uint8Array; model: boolean }> = [
+    { name: 'terra', bytes: enc.encode(terraFile(modelText)), model: true },
+    { name: 'sol', bytes: enc.encode(solFile(modelText)), model: true },
+    { name: 'sol-alles', bytes: enc.encode(solFileAllSplit(modelText)), model: true },
+    { name: 'terra-groot', bytes: enc.encode(terraFile(modelText).replace('HEADER;', `HEADER;${longComment}`)), model: true },
+    { name: 'commentaar', bytes: enc.encode(commentFile(ownText)), model: false },
+    { name: 'string', bytes: enc.encode(stringFile(ownText)), model: false },
+  ];
+  const cancelled = { ok: true, warnings: [], cancelled: true };
+  // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.
+  const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+  for (const t of targets) {
+    const own = fakeHandle('eigen.ifc', showcase);
+    const store = await open('eigen.ifc', showcase, { kind: 'handle', handle: own.handle });
+    const S = () => store.getState();
+    S().addTask({ name: 'Eigen werk' });
+    const target = fakeHandle(`${t.name}.ifc`, t.bytes, { streamChunk: 64 << 10 });
+    pick = target;
+    await S().saveFileAs();
+    if (t.model) {
+      eq(`fixronde 4, handle, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd`,
+        [target.writables(), target.text() === dec(t.bytes), S().fileHandle === own.handle, S().isDirty, noticeCount(store, TARGET_SAVE) > 0],
+        [0, true, true, true, true]);
+    } else {
+      eq(`fixronde 4, handle, ${t.name}: Opslaan als schrijft`, [target.writes.length, S().fileHandle === target.handle], [1, true]);
+    }
+    const csvTarget = fakeHandle(`${t.name}.csv`, t.bytes, { streamChunk: 64 << 10 });
+    pick = csvTarget;
+    const csv = await S().exportAs('csv');
+    eq(`fixronde 4, handle, ${t.name}: CSV-export ${t.model ? 'geweigerd, de bestaande tekst' : 'schrijft'}`,
+      t.model ? [csv, csvTarget.writables(), csvTarget.text() === dec(t.bytes)] : [csvTarget.writes.length],
+      t.model ? [cancelled, 0, true] : [1]);
+    pick = null;
+    // AutoSave: een ander programma zet het doel op de plek van het eigen bestand van A.
+    const auto = fakeHandle('auto.ifc', showcase);
+    const autoStore = await open('auto.ifc', showcase, { kind: 'handle', handle: auto.handle });
+    const A = () => autoStore.getState();
+    A().setAutoSaveToFile(true);
+    auto.replace(t.bytes);
+    A().addTask({ name: 'Werk voor AutoSave' });
+    await createFileAutoSaveController({ getState: A, enabled: () => true }).flush();
+    eq(`fixronde 4, handle, ${t.name}: AutoSave ${t.model ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
+      t.model ? [auto.writes.length, auto.text() === dec(t.bytes), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)]
+        : [auto.writes.length, A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)],
+      t.model ? [0, true, true, 1] : [1, false, 0]);
+  }
+  // 9b. Tauri-pad: dezelfde doelen via de echte plugin-JS (`open`, `read`, `seek`) met nep-IPC naar Node-fs.
+  const dir = mkdtempSync(join(tmpdir(), 'ops-804-r4-'));
+  const savedWindow = (globalThis as { window?: unknown }).window;
+  const ipc = installNodeFileIpc();
+  const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  tauriWin.parent = tauriWin;
+  let dialogAnswer: string | null = null;
+  const internals = tauriWin.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+  const innerInvoke = internals.invoke;
+  internals.invoke = async (command, args, options) => {
+    if (command === 'plugin:dialog|save') return dialogAnswer;
+    return innerInvoke(command, args, options);
+  };
+  try {
+    for (const t of targets) {
+      const ownPath = join(dir, `eigen-${t.name}.ifc`);
+      writeFileSync(ownPath, showcase);
+      const targetPath = join(dir, `${t.name}.ifc`);
+      writeFileSync(targetPath, t.bytes);
+      // De Tauri-route zet `.csv` achter een pad zonder die extensie (`ensureExtension`): het doel heet op `.csv`.
+      const csvPath = join(dir, `${t.name}-doel.csv`);
+      writeFileSync(csvPath, t.bytes);
+      reseed(0x804);
+      const store = createAppStoreContext().store;
+      store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+      await store.getState().openOpenedFile({ name: 'eigen.ifc', content: ownText, ref: { kind: 'path', path: ownPath } });
+      const S = () => store.getState();
+      S().addTask({ name: 'Eigen werk' });
+      const seeks = ipc.seeks();
+      dialogAnswer = targetPath;
+      await S().saveFileAs();
+      if (t.model) {
+        eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd`,
+          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, TARGET_SAVE) > 0],
+          [sha(t.bytes), ownPath, true, true]);
+      } else {
+        eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft`,
+          [S().filePath, readFileSync(targetPath, 'utf8').includes('Eigen werk')], [targetPath, true]);
+      }
+      if (t.name === 'terra-groot') {
+        eq('fixronde 4, Tauri, terra-groot: de lezer las de bron opnieuw vanaf DATA; (plugin-fs seek)', ipc.seeks() > seeks, true);
+      }
+      dialogAnswer = csvPath;
+      const csv = await S().exportAs('csv');
+      eq(`fixronde 4, Tauri, ${t.name}: CSV-export ${t.model ? 'geweigerd, de bestaande tekst' : 'schrijft'}`,
+        t.model ? [csv, sha(readFileSync(csvPath))] : [readFileSync(csvPath, 'utf8') !== dec(t.bytes)],
+        t.model ? [cancelled, sha(t.bytes)] : [true]);
+      // AutoSave: een ander programma zet het doel op de plek van het eigen bestand.
+      const autoPath = join(dir, `auto-${t.name}.ifc`);
+      writeFileSync(autoPath, showcase);
+      reseed(0x804);
+      const autoStore = createAppStoreContext().store;
+      autoStore.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+      await autoStore.getState().openOpenedFile({ name: 'auto.ifc', content: ownText, ref: { kind: 'path', path: autoPath } });
+      const A = () => autoStore.getState();
+      A().setAutoSaveToFile(true);
+      writeFileSync(autoPath, t.bytes);
+      A().addTask({ name: 'Werk voor AutoSave' });
+      await createFileAutoSaveController({ getState: A, enabled: () => true }).flush();
+      eq(`fixronde 4, Tauri, ${t.name}: AutoSave ${t.model ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
+        t.model ? [sha(readFileSync(autoPath)), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)]
+          : [readFileSync(autoPath, 'utf8').includes('Werk voor AutoSave'), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)],
+        t.model ? [sha(t.bytes), true, 1] : [true, false, 0]);
+    }
+    eq('fixronde 4, Tauri: de lezer sluit elk bestand', ipc.openHandles(), 0);
+  } finally {
+    ipc.dispose();
+    (globalThis as { window?: unknown }).window = savedWindow;
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 console.error = realError;

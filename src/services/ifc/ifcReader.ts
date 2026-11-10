@@ -22,6 +22,7 @@ import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
+import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
@@ -141,7 +142,6 @@ interface StepEntity {
 // inhoudelijke drempel (zoals "minstens één taak"): een leeg-maar-echt project — verse wizard met
 // kalender en resources — is legitiem, en zou anders bij crashherstel als onbruikbaar worden
 // weggegooid.
-const STEP_HEADER = 'ISO-10303-21;';
 const STEP_TERMINATOR = 'END-ISO-10303-21;';
 /** Hoeveel tekens vanaf het EIND we afzoeken naar de sluitmarkering (die staat er per definitie). */
 const TERMINATOR_PROBE = 4096;
@@ -155,7 +155,8 @@ export function assertIfcIntegrity(content: string): void {
   // megabytes groot; `trimStart()` zou er een kopie van maken).
   let i = content.charCodeAt(0) === 0xfeff ? 1 : 0;
   while (i < content.length && isSpaceCode(content.charCodeAt(i))) i++;
-  if (content.slice(i, i + STEP_HEADER.length).toUpperCase() !== STEP_HEADER) {
+  // De kopregel staat in `stepDataSection.ts`: de doelcontrole (`targetModelScan.ts`) gebruikt dezelfde (fixronde 4).
+  if (!startsWithStepHeader(content, i)) {
     throw new IfcParseError(
       'not-step',
       `Geen IFC/STEP-bestand: de verplichte kop '${STEP_HEADER}' ontbreekt.`,
@@ -1096,13 +1097,16 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
  * getest in `check-step-strings` (9f–9k).
  */
 function indexOfDataSection(content: string): number {
-  const strict = indexOfCode(content, 'DATA;', 0);
-  if (strict >= 0) return strict;
-  // `i`-vlag: zelfde hoofdletterongevoeligheid als de primaire scan (en als `assertIfcIntegrity`).
-  const anchored = /^[ \t]*DATA;/im.exec(content);
-  return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
+  // #804 fase 1a, fixronde 4 (eis van Trias): de regels voor beide pogingen staan in `stepDataSection.ts`, zodat de
+  // doelcontrole (`targetModelScan.ts`) als stroom precies dezelfde datasectie vindt. Wijzig ze daar, niet hier.
+  return indexOfStepDataSection(content);
 }
 
+// #804 fase 1a, fixronde 4: de doelcontrole (`foreign/targetModelScan.ts`) volgt `stripStepComments`, deze lus en
+// `readEntity` als stroom van bytes; ze moet "model" zeggen precies als `readIFC` met `building-model` weigert. Delen kon
+// niet zonder deze functies om te bouwen tot een stroomlezer (ze werken op de hele tekst, met terugspringen).
+// `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
+// Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, `ENDSEC;`), wijzig ze daar ook.
 function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
   // 1. Begin van de datasectie — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee.
