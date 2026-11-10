@@ -42,6 +42,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { StepDataSectionFinder, indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
+import { IFC_BUILDING_MODEL_TYPES } from '@/services/ifc/ifcBuildingModelTypes';
 import { brokenHeader, brokenHeaderDataFiles, commentFile, DATA_KOP_VORMEN, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -390,12 +391,13 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   ];
   for (const [label, bytes] of heads) {
     const outcome = readOutcome(bytes);
-    // Een tweede BOM of ı/ſ: `readIFC` leest de kop, de grammatica (alleen ASCII) niet: weigeren als doel. Stuurtekens
-    // vallen weg (§5.2): daar leest de grammatica de kop wel.
+    // ı/ſ: `readIFC` leest de kop, de grammatica (alleen ASCII) niet: weigeren als doel. Een tweede BOM is de U+FEFF die
+    // `assertIfcIntegrity` toelaat; de grammatica ook (ronde 11). Stuurtekens vallen weg (§5.2): daar leest de grammatica
+    // de kop wel.
     every(`kop: ${label}`, bytes, outcome === 'building-model' ? wantOf(bytes) : 'not-ifc');
   }
   eq('kop: twee BOMs en ı/ſ: readIFC weigert als model', [readOutcome(heads[0][1]), readOutcome(heads[2][1])], ['building-model', 'building-model']);
-  eq('kop: twee BOMs, ı/ſ en \\v\\f: de scanner', [heads[0], heads[2], heads[3]].map(h => scanTargetBytes(h[1])), ['unreadable', 'unreadable', 'model']);
+  eq('kop: twee BOMs, ı/ſ en \\v\\f: de scanner', [heads[0], heads[2], heads[3]].map(h => scanTargetBytes(h[1])), ['model', 'unreadable', 'model']);
   // Sol (VERVOLG 2b): commentaar met een modelregel na DATA;, met een geldige en met een kapotte kop.
   const comment = enc.encode(commentFile(OWN));
   refusedAsModel('commentaar met #900000=IFCWALL(, geldige kop', comment, false);
@@ -984,6 +986,42 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   const sq = showcase.replace(/(=IFCTASK\('[^']*',#\d+,')/, "$1a\\S\\'");
   eq('ronde 8, 1050: \\S\\\' in een taaknaam: geldig', fileValid(enc.encode(sq)), true);
   eq('ronde 8, 1050: \\S\\\' in een taaknaam: opent zoals main (knownbug 1050)', readOutcome(enc.encode(sq)), 'ok');
+}
+
+// ── 13. Review van #870, ronde 11 (Opus) ──────────────────────────────────────────────────────────────────────────
+{
+  const fix3 = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8');
+  // (1) Een BOM in de tekst: de headless MCP-server leest met `Buffer.toString('utf8')` en houdt hem; een bestand met
+  //     twee BOM's houdt er na de decoder één. `assertIfcIntegrity` laat één U+FEFF vooraan toe; de grammatica ook.
+  const metBom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(fix3, 'utf8')]);
+  const tekstMetBom = metBom.toString('utf8');
+  let bomOutcome: string;
+  try { readIFC(tekstMetBom); bomOutcome = 'ok'; } catch (e) { bomOutcome = e instanceof IfcParseError ? e.reason : 'fout buiten de lezer'; }
+  eq('ronde 11: tekst met U+FEFF vooraan: readIFC weigert als model', bomOutcome, 'building-model');
+  const tweeBom = new Uint8Array([0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf, ...enc.encode(fix3)]);
+  eq('ronde 11: twee BOM\'s: readIFC (na de decoder één U+FEFF) weigert als model', readOutcome(tweeBom), 'building-model');
+  every('ronde 11: twee BOM\'s: de scanner zegt model (de tweede BOM is de U+FEFF van de tekst)', tweeBom, 'model');
+  // (2) Een heel lang typewoord met de hash van een modeltype: de grammatica maakte daar een string van (stapel vol).
+  const FNV0 = 0x811c9dc5, FNVP = 0x01000193;
+  const hit = new Uint8Array(1 << 16);
+  for (const t of IFC_BUILDING_MODEL_TYPES) { let h = FNV0; for (let k = 0; k < t.length; k++) h = Math.imul(h ^ t.charCodeAt(k), FNVP); hit[h & 0xffff] = 1; }
+  const base = 'IFCX' + 'A'.repeat(200000);
+  let h = FNV0;
+  for (let k = 0; k < base.length; k++) h = Math.imul(h ^ base.charCodeAt(k), FNVP);
+  let lang = '';
+  for (let a = 65; a <= 90 && !lang; a++) for (let b = 65; b <= 90 && !lang; b++) {
+    const g = Math.imul(Math.imul(h ^ a, FNVP) ^ b, FNVP);
+    if (hit[g & 0xffff]) lang = base + String.fromCharCode(a, b);
+  }
+  eq('ronde 11: een lang woord met de hash van een modeltype gevonden', lang.length > 0, true);
+  const vreemdeShowcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8')
+    .replace("'Open Planner Studio','');", "'Ander programma','');");
+  const e = vreemdeShowcase.indexOf('\nENDSEC;', vreemdeShowcase.indexOf('\nDATA;\n')) + 1;
+  const zonderWand = vreemdeShowcase.slice(0, e) + `#999990=${lang}($);\n` + vreemdeShowcase.slice(e);
+  const metWand = vreemdeShowcase.slice(0, e) + `#999990=${lang}($);\n#999999=IFCWALL('x',$);\n` + vreemdeShowcase.slice(e);
+  eq('ronde 11: lang woord zonder wand: readIFC opent (zoals main)', readOutcome(enc.encode(zonderWand)), 'ok');
+  eq('ronde 11: lang woord met wand: readIFC weigert als model', readOutcome(enc.encode(metWand)), 'building-model');
+  eq('ronde 11: lang woord met wand: de scanner zegt model', scanTargetBytes(enc.encode(metWand)), 'model');
 }
 
 // ── 10. De pariteitstabel ──────────────────────────────────────────────────────────────────────────────────────────

@@ -81,6 +81,8 @@ const HEADER_ENTITIES: readonly (readonly [string, number])[] = [['FILE_DESCRIPT
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 const MODEL_HASH = new Uint8Array(1 << 16);
+/** De lengte van het langste modeltype. */
+const MODEL_TYPE_MAX = Math.max(...[...IFC_BUILDING_MODEL_TYPES].map(type => type.length));
 for (const type of IFC_BUILDING_MODEL_TYPES) {
   let h = FNV_OFFSET;
   for (let k = 0; k < type.length; k++) h = Math.imul(h ^ type.charCodeAt(k), FNV_PRIME);
@@ -184,10 +186,13 @@ export class StepFileGrammar {
   step(c: number, at: number): void {
     if (this.result === 'failed') return;
     if (this.bom >= 0) {
-      // Bytes: de BOM vooraan (EF BB BF) haalt de decoder weg; hij hoort niet bij de tekst. Als tekst heeft de decoder
-      // hem al weggehaald: een U+FEFF in de tekst is een tweede BOM, en die past nergens (zoals de bytes EF BB BF erna).
-      if (this.utf8 && at === this.bom && c === BOM_BYTES[this.bom]) { if (++this.bom === 3) this.bom = -1; return; }
-      if (this.utf8 && this.bom > 0) { this.fail(at); return; } // een half BOM
+      // Bytes: de BOM vooraan (EF BB BF) haalt de decoder weg; hij hoort niet bij de tekst. Als tekst: één U+FEFF vooraan
+      // telt niet, zoals in `assertIfcIntegrity` (review van #870, ronde 11: de headless MCP-server leest met
+      // `Buffer.toString`, die de BOM houdt, en een bestand met twee BOM's houdt er na de decoder één).
+      // Als bytes dus ook een tweede BOM direct na de eerste: dat is die U+FEFF.
+      if (!this.utf8 && at === 0 && c === 0xfeff) { this.bom = -1; return; }
+      if (this.utf8 && at === this.bom && c === BOM_BYTES[this.bom % 3]) { if (++this.bom === 6) this.bom = -1; return; }
+      if (this.utf8 && this.bom % 3 !== 0) { this.fail(at); return; } // een half BOM
       this.bom = -1;
     }
     if (c < SPACE || c === 0x7f) return; // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
@@ -391,7 +396,9 @@ export class StepFileGrammar {
   }
 
   private isModelWord(): boolean {
-    if (MODEL_HASH[this.wordHash & 0xffff] === 0) return false;
+    // Review van #870, ronde 11: een woord langer dan elk modeltype is geen modeltype; zo maakt een woord van 1 MiB geen
+    // string (`String.fromCharCode.apply` liep daar over de stapel).
+    if (this.wordLength > MODEL_TYPE_MAX || MODEL_HASH[this.wordHash & 0xffff] === 0) return false;
     return IFC_BUILDING_MODEL_TYPES.has(this.wordText());
   }
 

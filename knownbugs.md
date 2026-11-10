@@ -1747,7 +1747,8 @@ en noem het in je rapport of PR-tekst.
      `\S\'` in de naam van de kop (de scanner meldt `tekst-zonder-einde`). Met de flag aan weigert
      `src/services/ifc/foreign/stepScanner.ts` het bestand en valt `ifcBytesRoute.ts` terug op de gewone route. Die opent
      zoals main: een bestand met een model weigert als gebouwmodel, een planning zonder model met een andere kop dan
-     `DATA;` opent niet (knownbug 1061). De flag staat in de app altijd uit. Richting: één lezer voor de kop, vóór fase
+     `DATA;` opent niet (knownbug 1061). De flag staat in de app nog uit; volgens het besluit van Ethan (10 november 2026)
+     krijgt hij een schakelaar in Experimenteel, en dan raakt dit een planner. Richting: één lezer voor de kop, vóór fase
      1b. Uit #870 (review ronde 5 en 6, GPT-6.1-Sol en GPT-6.1-Terra, VERVOLG). — B
 
 1050. **De lexer van de datasecties kent `/⏎*`, `*⏎/` en `\S\'` niet; ook op main, met één datasectie.** ISO 10303-21
@@ -1765,8 +1766,8 @@ en noem het in je rapport of PR-tekst.
       - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken, zoals main;
-      - blijft: de wand in `/⏎* … */` weigert bij openen als gebouwmodel, zoals main. De doelcontrole leest de norm en
-        zegt "no-model": Opslaan als over zo'n bestand mag, openen niet;
+      - blijft: de wand in `/⏎* … */` weigert bij openen als gebouwmodel, zoals main. De doelcontrole zegt ook "model":
+        bij één datasectie leest zij na de grammatica ook volgens de regel van main (ronde 10);
       - blijft: een kapot bestand leest precies zoals main, met dezelfde lexer.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken. Uit #870 (review ronde 6,
      GPT-6.1-Sol en GPT-6.1-Terra; eigen knownbug op verzoek van Trias). — B
@@ -1774,7 +1775,7 @@ en noem het in je rapport of PR-tekst.
 1052. **VERVOLG: een bestand van een ander programma dat zich uitgeeft als OPS, valt onder de regel van main.** De
      doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) herkent een eigen bestand aan de vaste kop van OPS en
      aan het vaste stuk na de vrije tekst in FILE_NAME (`'Open Planner Studio 0.1','Open Planner Studio','');`). Breekt
-     zo'n bestand de grammatica, dan leest zij het zoals `readIFC` op main (besluit Trias, wrakko 10 november 2026: oude
+     zo'n bestand de grammatica, of heeft het meer dan één datasectie, dan leest zij het zoals `readIFC` op main (besluit Trias, wrakko 10 november 2026: oude
      versies schreven de kop rauw, en die planners moeten kunnen blijven opslaan). Een bestand van een ander programma
      dat precies die kop schrijft, en de grammatica breekt, gaat er dan ook doorheen: een modelentiteit die de lus van
      `parseSTEP` mist (knownbug 1050, of na een kapotte naam), ziet de doelcontrole dan niet, en Opslaan als of AutoSave
@@ -1805,10 +1806,28 @@ en noem het in je rapport of PR-tekst.
          regeleinde ertussen): de planning opent niet (`no-data-section`). De doelcontrole schrijft er wel over: het
          hele bestand past in de grammatica, zonder model.
       6. Meer datasecties: `readIFC` leest alleen de eerste. Een model in een latere sectie weigert (de grammatica ziet
-         het); taken in een latere sectie ontbreken. De doelcontrole weigert zo'n bestand als doel, behalve een eigen
-         bestand.
+         het); taken in een latere sectie ontbreken. Zonder flag (nu altijd in de app) opent zo'n planning dus met een
+         deel van de taken, en Ctrl+S wist de rest; zo ook op main. Alleen met de flag `ifcForeignContent` draait de
+         doelcontrole; die weigert zo'n bestand als doel, behalve een eigen bestand.
+      7. De grammatica ziet een model alleen tot het punt waar het bestand breekt. Breekt een bestand in de eerste
+         sectie (bijvoorbeeld `IFCREAL(1E5)` of een harde spatie na `DATA;`) en staat er een wand in een latere sectie,
+         dan opent het met de taken van de eerste sectie, zoals main. Als doel: 'unreadable' voor een vreemd bestand,
+         maar 'no-model' voor een bestand met de kop van OPS (de regel van main, besluit Trias), zodat met de flag
+         Opslaan over de wand mag. Gemeten door de review van #870, ronde 11.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
-     ronde 9 en 10, GPT-6.1-Terra, BEVESTIGD, VERVOLG; besluit Trias). — B
+     ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
+
+1150. **VERVOLG: de doelcontrole na #870 is trager dan op main, en er kan wat weg.** Gemeten in de review van #870,
+     ronde 11 (Node, mediaan van 5 runs, gedeelde machine): een geldig bestand van 15 MiB zonder model kost op main
+     ongeveer 100 ms, op de tak ongeveer 630 ms; van 20 MiB 125 ms tegen 880 ms. `readIFC` op
+     `showcase-appartementencomplex.ifc`: 38,5 ms tegen 50,8 ms (de extra pas van de grammatica). Oorzaak: `findPass`
+     in `src/services/ifc/foreign/targetModelScan.ts` stuurt elk byte door de kop, de prefix en de grammatica, en
+     daarna nog door de lus van main. Alleen met de flag. Richting: zodra `mainEnd` en de herkomst vaststaan alleen de
+     grammatica voeden, met de sprong over strings en commentaar (zie ook 1017). Verder: commentaar beschrijft
+     'unreadable' nog als "geen datasectie" (`foreignSourceTarget.ts`, `ifcForeignGuard.ts`, `fileTools.ts`), terwijl
+     het nu ook een kapot bestand of meer datasecties betekent; `failedAt` en `lexBack` in `stepFileGrammar.ts` zijn
+     overbodig; de tabel `MODEL_HASH` staat in `stepFileGrammar.ts` en in `targetModelScan.ts`. Uit #870 (ronde 11,
+     Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
