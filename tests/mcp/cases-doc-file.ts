@@ -26,7 +26,7 @@ import { FEATURE_FLAGS } from '@/utils/featureFlags';
 import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
-import { isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
+import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 // T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
 // builders uit tests/planning/mppFixtures.ts (M6-fixturebouwers, ook door check-mpp-import.ts's
 // I4-fixture gebruikt). Sinds T11 (fixture-consolidatie) ook `buildVarMetaBytes` cross-suite van
@@ -577,6 +577,31 @@ test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (know
   fs.stat = stat;
   assert(busyAfterWrite.length >= 2 && busyAfterWrite.every(Boolean),
     `de write en de identiteitscontrole erna staan onder de schrijflock (${JSON.stringify(busyAfterWrite)})`);
+  // Review #872 ronde 5 (Terra): wachten op de lock is een await. Pauzeert de planner de AI tijdens het wachten, of
+  // verandert het document (een opslag in de wachtrij), dan schrijft de export niets.
+  const waitFor = async (during: () => void) => {
+    let release!: () => void;
+    const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+    const before = files.get(own);
+    const pending = callErr('planner_export_ifc', { path: own, overwrite: true });
+    await new Promise(r => setTimeout(r, 50));
+    during();
+    release();
+    await hold;
+    const err = await pending;
+    assertEq(files.get(own), before, 'het eigen bestand is niet geschreven');
+    return err;
+  };
+  let pausedErr: McpToolErr;
+  try {
+    pausedErr = await waitFor(() => useAppStore.setState((s) => { s.ui.aiPaused = true; }));
+  } finally {
+    useAppStore.setState((s) => { s.ui.aiPaused = false; });
+  }
+  assertEq(pausedErr.code, 'PAUSED', 'pauze tijdens het wachten op de lock wint');
+  const changedErr = await waitFor(() => { S().addTask({ name: 'Tussendoor' }); });
+  assertEq(changedErr.code, 'VALIDATION', 'een gewijzigd document tijdens het wachten ⇒ validatiefout');
+  assert(changedErr.error.includes('changed while the export waited'), 'de Engelse fout zegt waarom');
   assert(files.get(own)!.includes("'LiteralTimes'"), 'het eigen bestand is nu letterlijk');
   assertEq(S().ifcLiteralCalendarIds, [S().calendar.id], 'een export over het eigen bestand legt de keuze vast');
 });

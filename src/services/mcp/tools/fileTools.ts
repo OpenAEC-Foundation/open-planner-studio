@@ -36,7 +36,7 @@ import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
 import { writeIFCWithChoices } from '@/services/ifc/ifcWriter';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
-import { buildExportIFCInput } from '@/state/ifcSaveInput';
+import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
@@ -374,6 +374,15 @@ export const fileTools: McpToolDef[] = [
       // vast, zoals Opslaan; een aantoonbaar ander bestand niet (`exportHitsOwnFile`). Schrijven en vastleggen staan onder
       // dezelfde lock als Opslaan en AutoSave, zodat AutoSave er niet tussendoor de ankertekst schrijft.
       const writeError = await runProjectFileWrite(async () => {
+        // Review #872 ronde 5 (Terra): wachten op de lock is ook een await. Pauze, alleen-lezen, dialoog en documentdrift
+        // winnen; en is het document intussen veranderd (een opslag in de wachtrij), dan zou deze tekst oud zijn.
+        const waitBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
+        if (waitBlocked) return waitBlocked;
+        const now = ctx.app.store.getState();
+        if (now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now)
+          || now.filePath !== state.filePath || now.fileHandle !== state.fileHandle || now.siteFileId !== state.siteFileId) {
+          return toolError(ctx, 'VALIDATION', 'The document changed while the export waited for another save. Nothing was written. Retry the export.');
+        }
         try {
           await fs.writeTextFile(path, content);
         } catch (e) {

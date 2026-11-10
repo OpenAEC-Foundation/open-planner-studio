@@ -1748,12 +1748,14 @@ en noem het in je rapport of PR-tekst.
      het herstelmanifest bewaren, of bij herstel alleen de keuze van het eigen bestand nemen; en de positieve test. Uit #872
      (ronde 2 en 3, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
-1046. **VERVOLG: drie gaten in de tests van knownbug 1026.** In `tests/planning/check-ifc-literaltimes-behoud.ts`:
+1046. **VERVOLG: vier gaten in de tests van knownbug 1026.** In `tests/planning/check-ifc-literaltimes-behoud.ts`:
      (1) §5 test geen kalender-id dat na IFC Toepassen een andere kalender wordt (Sols proef met verwisselde id's gaf
      16:00, dus goed, maar staat niet als test); (2) de pariteit in §3 vergelijkt opslaan met en zonder het nieuwe veld,
      niet met de writer van main (Sols proef: zes gevallen met dezelfde SHA-256); (3) §6c roept `serializeForSave` en
-     `markAutoSaveVersionSaved` zelf aan in plaats van de AutoSave-controller (§7c gebruikt de echte controller wel).
-     Uit #872 (ronde 1 tot 3, GPT-6.1-Sol en GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+     `markAutoSaveVersionSaved` zelf aan in plaats van de AutoSave-controller (§7c gebruikt de echte controller wel);
+     (4) de MCP-test in `tests/mcp/cases-doc-file.ts` controleert dat `planner_export_ifc` onder de schrijflock schrijft
+     en vastlegt, maar start geen echte AutoSave ertegen (de app-routes doen dat wel, §7c).
+     Uit #872 (ronde 1 tot 5, GPT-6.1-Sol en GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
 
 1047. **VERVOLG: een export naar een ander bestand op Windows kan als "het eigen bestand" tellen.**
      `exportHitsOwnFile` (`src/state/savedLiteralCalendars.ts`) telt een onbekende bestandsidentiteit als hetzelfde

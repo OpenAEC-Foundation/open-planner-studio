@@ -934,6 +934,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /** Review #872 ronde 5 (Terra): een IFC-export maakt zijn tekst vóór hij op de schrijflock wacht. Veranderde het
+   *  document intussen (een opslag in de wachtrij legde de letterlijke kalenders vast, of de planner wijzigde iets), dan
+   *  zou de export oude inhoud over een nieuwere opslag schrijven. Onder de lock, direct vóór de write: weigeren, met een
+   *  melding. `true` = weigeren (zoals `SaveTargetCheck`). */
+  const refuseChangedExport = (snapshot: AppState): boolean => {
+    const now = get();
+    if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)) return false;
+    get().notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
+    return true;
+  };
+
   /** Het opslagdoel van een lokale opslaan-als-uitkomst (Tauri-pad, handle of alleen een naam). */
   const localDestination = (outcome: SaveOutcome): SaveDestination => ({
     filePath: outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name,
@@ -1832,7 +1843,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
       // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel.
-      const refuseTarget = foreignTargetCheck('export');
+      const foreignCheck = foreignTargetCheck('export');
+      // Een IFC-export wacht op de schrijflock (hieronder): direct vóór de write ook kijken of het document nog gelijk is.
+      const refuseTarget: SaveTargetCheck = ext === 'ifc'
+        ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)
+        : foreignCheck;
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget }
         : { refuseTarget };
@@ -1925,8 +1940,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // 1. Het project zelf (bevat altijd al alle gebruikte items). Een export: zie `buildExportIFCInput`.
       const project = writeIFCWithChoices(buildExportIFCInput(state));
       const base = suggestedFileBase(state);
-      const refuseTarget = foreignTargetCheck('export');
-      // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`).
+      const foreignCheck = foreignTargetCheck('export');
+      const refuseTarget: SaveTargetCheck = async (target) => (await foreignCheck(target)) || refuseChangedExport(state);
+      // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`); ronde 5:
+      // direct vóór de write kijken of het document nog gelijk is (`refuseChangedExport`).
       const outcome = await runProjectFileWrite(async () => {
         const written = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
         if (written) await recordOwnFileExport(state, written, project.literalCalendarIds);

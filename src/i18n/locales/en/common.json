@@ -78,6 +78,7 @@
     "ifcForeignSaveBlocked": "This file contains a building model; saving is not possible yet.",
     "ifcForeignTargetSave": "This file also contains a building model. Choose another file to save to.",
     "ifcForeignTargetExport": "This file also contains a building model. Choose another file to export to.",
+    "ifcExportChangedWhileWaiting": "The schedule changed while the export was waiting for another save. Nothing was exported. Export again.",
     "ifcForeignTargetAutoSave": "Autosave has stopped: this file also contains a building model. Choose another file to save to.",
     "ambiguousThousands": "\"{{text}}\" is ambiguous: do you mean a decimal or thousands? Type decimals with \"{{separator}}\" (1{{separator}}5) and thousands without a separator (1500). The value was not changed.",
     "siteSaveConflict": "Not saved: '{{name}}' was changed on the site by someone else in the meantime. Your changes are still in the app. Choose Save As to keep them as a new file.",

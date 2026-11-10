@@ -324,6 +324,40 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       eq(`7c ${route} en AutoSave kruisen: na opslaan staat LiteralTimes er nog`, file.text().includes(LITERAL), true);
       sameFinishes(`7c ${route} en AutoSave kruisen`, exported, file.text(), 'Uurtaak');
     }
+    {
+      // 7d. Review #872 ronde 5 (Terra): de export maakt zijn tekst vóór hij op de schrijflock wacht. Een opslag houdt de
+      //     lock vast en het document verandert intussen: de export schrijft dan niets (geen oude inhoud over een nieuwere
+      //     opslag), meldt dat, en het document blijft gewijzigd.
+      const { runProjectFileWrite } = await import('@/services/fileAccess/writeCoordinator');
+      const { store, file, S } = await openOwn();
+      addHourTask(store);
+      let release!: () => void;
+      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+      win.showSaveFilePicker = async () => file.handle;
+      const exporting = run(S);
+      await new Promise(r => setTimeout(r, 20));
+      const before = file.text();
+      S().addTask({ name: 'Tussendoor' });
+      release();
+      await hold;
+      const result = await exporting;
+      eq(`7d ${route}: het document veranderde terwijl de export wachtte: niets geschreven, geannuleerd, gemeld, gewijzigd`,
+        [file.text() === before, 'cancelled' in result && result.cancelled === true,
+          S().ui.notifications.some(n => n.messageKey === 'notifications.ifcExportChangedWhileWaiting'), S().isDirty],
+        [true, true, true, true]);
+      // 7e. Wachten zonder wijziging: de export schrijft na de lock, en legt de keuze vast.
+      let release2!: () => void;
+      const hold2 = runProjectFileWrite(() => new Promise<void>(r => { release2 = r; }));
+      const exporting2 = run(S);
+      await new Promise(r => setTimeout(r, 20));
+      eq(`7e ${route}: tijdens het wachten nog niets geschreven`, file.text() === before, true);
+      release2();
+      await hold2;
+      const result2 = await exporting2;
+      eq(`7e ${route}: na het wachten geschreven, met LiteralTimes en de keuze`,
+        [result2.ok && !('cancelled' in result2 && result2.cancelled === true), file.text().includes(LITERAL), file.text().includes('Tussendoor'), S().ifcLiteralCalendarIds],
+        [true, true, true, [S().calendar.id]]);
+    }
   }
   delete win.showSaveFilePicker;
   delete win.showOpenFilePicker;
