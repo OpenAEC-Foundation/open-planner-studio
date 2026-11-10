@@ -2419,12 +2419,6 @@ en noem het in je rapport of PR-tekst.
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
 
-590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Bij de
-     merge met main in #765 kwamen `Copy` en `Check` in `PromptBlock.tsx` toch terug (review van Sol, ronde 2); die zijn
-     weer OpenAEC-iconen, en ESLint weigert nu een nieuwe import (`no-restricted-imports` in `eslint.config.js`). Weghalen
-     raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. Sinds B2 standaard is
-     `package.json` schoon; de rest staat bij 1071. — B
-
 591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
      De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
@@ -2956,8 +2950,15 @@ en noem het in je rapport of PR-tekst.
       (`src/utils/settingsStore.ts`) geeft zijn invoer ongewijzigd terug; het registeritem kan gewoon
       `parseFeatureFlagValues` gebruiken. De lus over opgeslagen waarden in `tests/planning/check-icon-family.ts`
       tekent twee keer hetzelfde, want `Icon` leest geen vlag meer. `masterFor` met de alias `ICONS` in
-      `src/components/icons/Icon.tsx` kan één uitdrukking worden. Uit de review van B2 standaard, Opus, BEVESTIGD. — B
+      `src/components/icons/Icon.tsx` kan één uitdrukking worden. `plain` in `tests/browser/statusbar-rows.spec.ts`
+      haalt nog een ⚠-teken weg dat de statusbalk niet meer toont. Uit de review van B2 standaard, Opus,
+      BEVESTIGD. — B
 
 1202. **VERVOLG: twee schermafbeeldingen boven de richtlijn.** `artifacts/b2-standaard/rapport-licht.png` (167 KB)
       en `rapport-donker.png` (161 KB); de richtlijn is ongeveer 150 KB. Voorstel: verkleinen. Uit de review van
       B2 standaard, Opus, BEVESTIGD. — B
+
+1203. **VERVOLG: statusbalktest herkent het Gantt-canvas niet zelf.** `tests/browser/statusbar-rows.spec.ts` wacht tot
+      het klikpunt twee keer gelijk is en op een canvas ligt. Dat bewijst geen rust bij een latere indelingswijziging,
+      en elk canvas telt mee, niet alleen de Gantt. Voorstel: controleer dat het element bij het Gantt-canvas hoort,
+      of klik opnieuw als de selectie ontbreekt. Uit de review van B2 standaard, ronde 2, Opus, VERMOED (laag). — S
