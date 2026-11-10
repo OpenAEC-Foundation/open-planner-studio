@@ -1848,9 +1848,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const refuseTarget: SaveTargetCheck = ext === 'ifc'
         ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)
         : foreignCheck;
+      // Review #872 ronde 7 (Terra): ook de download-terugval na een geweigerde kiezer controleert de bron nog eens.
+      const refuseDownload = ext === 'ifc' ? () => refuseChangedExport(state) : null;
       const dialogOpts = format === 'progress-xlsx'
-        ? { preferDownloads: true, mime, refuseTarget }
-        : { refuseTarget };
+        ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
+        : { refuseTarget, refuseDownload };
       const writeAndRecord = async () => {
         // Review #872 ronde 6 (Terra): zonder bestandskiezer (Firefox, Safari) gaat de export als download, zonder
         // doel en dus zonder `refuseTarget`. Daarom ook meteen na het wachten op de lock: is het document veranderd, dan
@@ -1950,7 +1952,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // direct vóór de write kijken of het document nog gelijk is (`refuseChangedExport`).
       const outcome = await runProjectFileWrite(async () => {
         if (refuseChangedExport(state)) return null; // ook zonder doel (download), zie `exportAs`
-        const written = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
+        const written = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }],
+          { refuseTarget, refuseDownload: () => refuseChangedExport(state) });
         if (written) await recordOwnFileExport(state, written, project.literalCalendarIds);
         return written;
       });

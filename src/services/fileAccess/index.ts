@@ -91,6 +91,12 @@ export interface SaveDialogOpts {
    * doel en wordt niet gecontroleerd. Zie `SaveTargetCheck`.
    */
   refuseTarget?: SaveTargetCheck | null;
+  /**
+   * Review #872 ronde 7 (Terra): de laatste controle vóór de download-terugval in de browser. Die terugval komt ook ná een
+   * wachtende bestandskiezer die de omgeving weigert; de inhoud is dan misschien oud. `true` = niet downloaden; de
+   * dialoog geeft dan `null`, zoals bij annuleren. De controle meldt zelf waarom.
+   */
+  refuseDownload?: (() => boolean) | null;
 }
 
 /** Controle op het gekozen doel van een opslag of export; `true` = weigeren. Zie `SaveDialogOpts.refuseTarget`. */

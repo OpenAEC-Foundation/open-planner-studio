@@ -417,6 +417,45 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         win.showOpenFilePicker = saved.open;
       }
     }
+    {
+      // 7i. Review #872 ronde 7 (Terra): de bestandskiezer wacht, het document verandert, en daarna weigert de omgeving de
+      //     kiezer (`SecurityError`, zoals zonder gebruikersactivatie). De terugval naar een download mag de oude inhoud dan
+      //     niet downloaden. Zonder wijziging wel. `SecurityError` en niet `NotAllowedError`: die laatste onthoudt de
+      //     web-route voor de rest van de sessie, en dan liepen de volgende stappen niet meer langs de kiezer.
+      const g = globalThis as unknown as Record<string, unknown>;
+      const saved = { document: g.document, picker: win.showSaveFilePicker };
+      let downloads = 0;
+      g.document = { createElement: () => ({ href: '', download: '', click() { downloads++; } }) };
+      const url = URL as unknown as Record<string, unknown>;
+      const savedUrl = { create: url.createObjectURL, revoke: url.revokeObjectURL };
+      url.createObjectURL = () => 'blob:test';
+      url.revokeObjectURL = () => { /* niets */ };
+      try {
+        for (const change of [true, false]) {
+          const { S } = await openOwn();
+          S().addTask({ name: 'Gewone taak' });
+          let refuse!: () => void;
+          win.showSaveFilePicker = () => new Promise((_, reject) => {
+            refuse = () => reject(new DOMException('geen activatie', 'SecurityError'));
+          });
+          downloads = 0;
+          const exporting = run(S);
+          await new Promise(r => setTimeout(r, 20));
+          if (change) S().addTask({ name: 'Tussendoor' });
+          refuse();
+          const result = await exporting;
+          eq(`7i ${route}, kiezer geweigerd ${change ? 'na een wijziging: geen download, geannuleerd, gemeld' : 'zonder wijziging: gedownload'}`,
+            [downloads, 'cancelled' in result && result.cancelled === true,
+              S().ui.notifications.some(n => n.messageKey === 'notifications.ifcExportChangedWhileWaiting')],
+            change ? [0, true, true] : [1, false, false]);
+        }
+      } finally {
+        g.document = saved.document;
+        url.createObjectURL = savedUrl.create;
+        url.revokeObjectURL = savedUrl.revoke;
+        win.showSaveFilePicker = saved.picker;
+      }
+    }
   }
   {
     // 7h. Review #872 ronde 6 (Terra): project met bibliotheek over het eigen bestand, met een kalender die voor het eerst
