@@ -1,7 +1,7 @@
 # Relaties tussen projecten: onderzoek en ontwerp
 
 Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026, stand van de bouw op 10 november 2026. Status:
-ontwerp met besluiten; deel 1 is gebouwd, op stap 1.7 na (in bouw in #860, als vinkje; besluit 10 november). Ethan
+ontwerp met besluiten; deel 1 is gebouwd (stap 1.7 als vinkje, besluit 10 november). Ethan
 besliste over alle keuzes in hoofdstuk 10. De bouw gaat in kleine PR's, in de volgorde van hoofdstuk 9. Wat al
 gebouwd is, staat in paragraaf 9.1.
 
@@ -522,7 +522,7 @@ Teksten en controle: Trias kiest de teksten die de planner ziet, kort en zakelij
 controle door Ethan in de app vóór de merge is niet meer nodig (opdracht van Ethan via Trias, 7 november 2026: "waarom
 zou je het niet afmaken?"). Een echte productkeuze die dit ontwerp niet dekt, gaat wel naar Ethan.
 
-### 9.1 Stand van de bouw (9 november 2026)
+### 9.1 Stand van de bouw (10 november 2026)
 
 Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1–C6) en worden nu niet gebouwd.
 
@@ -534,7 +534,7 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.4 | Melding na F5 bij een te krappe externe opvolger | #810 | gemerged in main |
 | 1.5 | Balk bij een nieuwe versie van een bron | #811 | gemerged in main |
 | 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
-| 1.7 | Verversen uit een geopend document (vinkje in de projectinstellingen) | #860 | open (niet gemerged) |
+| 1.7 | Verversen uit een geopend document (vinkje in de projectinstellingen) | #860 | gemerged in main |
 | 1.8 | *Bronbestand kiezen…* in de browser | #858 | gemerged in main |
 | 1.9 | Een bron in dezelfde map op de site | #859 | gemerged in main |
 | 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
@@ -555,6 +555,18 @@ Wat in de bouw anders liep dan hierboven staat:
   drukt terwijl het open staat.
 - **1.6.** De bewaking is niet getest in de echte desktop-app: een build op aia wacht op het besluit over de SSD
   (14 november 2026). Het testplan staat als VERVOLG in `knownbugs.md` (punt 883).
+- **1.7.** De optie werd geen knop in de melding maar het vinkje *Ankers uit geopende documenten halen* in de
+  projectinstellingen, standaard uit (keuze 5, besluit 10 november 2026). Staat het uit, dan meldt de app bij
+  vernieuwen dat de bron niet-opgeslagen wijzigingen heeft, zonder knop. Staat het aan, dan neemt vernieuwen het
+  anker zonder melding uit het geopende document, gelezen op een kopie; de herkomst heeft dan alleen een leestijd.
+  Lukt dat lezen niet, dan telt de bron als niet gelezen; de app valt niet terug op het bestand. Met het vinkje aan
+  toont de automatische controle alleen een balk als de ankers uit het geopende document afwijken, en zolang de bron
+  open is met wijzigingen, komt er voor die bron geen balk voor de opgeslagen versie. *Later* onthoudt de versie en het voorstel, zodat dezelfde ankers niet
+  via de andere route terugkomen. De MCP-tool leest altijd het opgeslagen bestand (`knownbugs.md` punt 985). Als
+  VERVOLG staan: het vinkje omzetten start geen controle (punt 1066), elke controle leest elk geopend brondocument
+  opnieuw (punt 1067), de tekst van de balk (punt 1068), *Later* op de twee routes (punt 1069) en het moment van
+  kijken bij *Alle externe relaties vernieuwen* (punt 1070). De route is niet getest in de echte desktop-app (punt
+  988).
 - **1.8.** De knop *Bronbestand kiezen…* staat ook in de desktop-app (de bestandskiezer, niet alleen een recent
   bestand, §7.1). In de browser heeft een koppeling geen pad; ze herkent haar bron op project-id, en Chromium onthoudt
   het handvat per project-id. Twee bronbestanden met hetzelfde project-id zijn in de browser dus niet te onderscheiden
