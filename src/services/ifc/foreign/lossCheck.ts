@@ -280,7 +280,9 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
   for (const d of first) { input.collect?.(d); say(d, false); }
   if (first.length === 0) {
-    const p1 = pairOutput(input, input.o1);
+    const changed = changedScopes(input.domain, input.pristine);
+    const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
+    const p1 = pairOutput(input, input.o1, exact);
     /** Stukken met een bronwaarde van een soort die de lezer deels draagt, zonder regel in O1: verdwijnt het stuk terwijl
      *  het object blijft, dan weigert de merge (fixronde 4, plek 5). */
     const lostPartial = new Set<number>();
@@ -316,8 +318,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // bewerking aantoonbaar verklaren, per veld (`explainO1`); anders weigert de merge. De toets draait altijd, ook als
     // `changedScopes` niets ziet (een veld dat JSON niet ziet: plek 4). Een stuk dat niet eenduidig paarde, gaat ook door
     // `explainO1`: een bronwaarde van zo'n stuk weigert al hierboven, en de rest moet een bewerking verklaren.
-    const changed = changedScopes(input.domain, input.pristine);
-    const p1b = pairOutput(input, applyEdits(input.o1, edits));
+    const p1b = pairOutput(input, applyEdits(input.o1, edits), exact);
     const ctx = o1Context(input, p1b, changed);
     for (const d of compareOutput(input, p1b, input.owner1)) {
       const why = lostPartial.has(d.chunk) ? undefined : explainO1(ctx, d);
@@ -376,8 +377,13 @@ interface Pairing {
  *  normalisatie `id`; een eigen owner history naast een gedeelde van de bron). */
 const COPY_TYPES: ReadonlySet<string> = new Set(['IFCOWNERHISTORY', 'IFCPERSONANDORGANIZATION', 'IFCPERSON', 'IFCORGANIZATION', 'IFCAPPLICATION']);
 
-/** Paar de P-stukken van de bron met `lines`. */
-function pairOutput(input: LossCheckInput, lines: readonly OutLine[]): Pairing {
+/**
+ * Paar de P-stukken van de bron met `lines`. `exactAssignments(pset)`: mogen de properties van deze `OPS_Assignments` op
+ * hun volle naam paren (`GUID#N`)? Dat geldt in O0, en in O1 als de toewijzingen van de taak niet veranderden: dan
+ * schrijft de writer dezelfde properties in dezelfde volgorde. Anders paren ze op de resource (`GUID`), en is een resource
+ * die twee keer aan de taak hangt niet eenduidig (fixronde 4, plek 29: `#N` is een volgnummer, geen identiteit).
+ */
+function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssignments: (pset: number) => boolean = () => true): Pairing {
   const { index, cls, fixed } = input;
   const n = index.count;
   const isP = (i: number) => cls.classes[i] === 1;
@@ -566,7 +572,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[]): Pairing {
         const k2 = map ? map[k] : -1;
         // Zonder bekende lay-out: alleen per type paren (de vergelijking meldt de lay-out).
         const outIds = k2 >= 0 ? refList(line.args[k2]) : map ? [] : line.args.flatMap(t => refList(t));
-        const keyOf = line.type === 'IFCPROPERTYSET' && k2 === 4 && index.name(s) === PSET.Assignments ? assignmentKey : undefined;
+        const keyOf = line.type === 'IFCPROPERTYSET' && k2 === 4 && index.name(s) === PSET.Assignments && !exactAssignments(s) ? assignmentKey : undefined;
         pairGroup(targets, outIds, keyOf, line.type === 'IFCWORKCALENDAR' && k2 === 7);
       }
     }
@@ -1264,6 +1270,20 @@ function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
   if (d.whole === 'gedeeld' || d.slotless) return undefined;
   if (!d.whole && RELATED_SLOT[type] === arg) return explainMembers(ctx, d);
   if (OWNER_CHAIN.has(type)) return explainField(ctx, d, type, arg);
+  // Een relatie (buiten haar leden) hoort bij haar ouder: de relating, of bij een pset de eigenaren. Haar naam en of ze
+  // er is, volgen uit dat object (`explainRelation`), niet uit haar leden.
+  if (input.cls.inR[d.chunk] && !input.cls.selection.inD[d.chunk] && RELATING_SLOT[type] !== undefined) {
+    const owners = type === 'IFCRELDEFINESBYPROPERTIES'
+      ? input.index.refsAt(d.chunk, 4).filter(c => c >= 0).map(c => objectKey(input, c) ?? 'project')
+      : [objectKey(input, input.index.refAt(d.chunk, RELATING_SLOT[type])) ?? 'project'];
+    const whys = new Set<string>();
+    for (const obj of owners.length > 0 ? owners : ['project']) {
+      const why = obj === 'project' ? (d.whole === 'ontbreekt' ? membersGone(ctx, d.chunk, type) : explainField(ctx, d, type, arg)) : explainRelation(ctx, d, type, arg, obj);
+      if (why === undefined) return undefined;
+      whys.add(why);
+    }
+    return [...whys].join('; ');
+  }
   const scopes = ctx.scopes.get(d.chunk);
   if (!scopes || scopes.size === 0) return explainField(ctx, d, type, arg);
   const whys = new Set<string>();
@@ -1299,7 +1319,6 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
       if (arg === 14 && changed.keys.has('project.statusDate')) return 'statusdatum';
       return any(TASKTIME_SLOT_FIELDS[arg]);
     }
-    if (way === 'rel') return explainRelation(ctx, d, type, arg, obj);
     if (way.startsWith('pset:')) return explainTaskPset(ctx, d, type, arg, obj.slice(5), way.slice(5), prop);
     return undefined;
   }
@@ -1310,7 +1329,6 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (kind === 'res') {
     if (way === 'self') return d.whole === 'type' ? any(['type']) : d.whole ? undefined : any(RES_SLOT_FIELDS[arg]);
-    if (way === 'rel') return explainRelation(ctx, d, type, arg, obj);
     if (way === `pset:${PSET.Resource}`) return any(prop !== undefined ? RES_PROP_FIELDS[prop] : Object.values(RES_PROP_FIELDS).flat());
     return undefined;
   }
@@ -1318,7 +1336,6 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
     if (way === 'self') return type === 'IFCWORKCALENDAR' && !d.whole ? any(CAL_SLOT_FIELDS[arg]) : undefined;
     if (way === 'slot:6') return any(WEEK_FIELDS);
     if (way === 'slot:7') return any(EXCEPTION_FIELDS);
-    if (way === 'rel') return explainRelation(ctx, d, type, arg, obj);
     if (way === `pset:${PSET.Calendar}`) return any(prop !== undefined ? CAL_PROP_FIELDS[prop] : Object.values(CAL_PROP_FIELDS).flat());
     return undefined;
   }
@@ -1355,29 +1372,30 @@ function explainTaskPset(ctx: O1Context, d: LossDiff, type: string, arg: number,
 }
 
 /**
- * Een relatie van een object, buiten de leden (die verklaart `explainMembers`): een relatie die verdween, of de naam van
- * een `IfcRelNests` (de writer schrijft `WBS <naam>` en `Ploeg <naam>` van de ouder). Een relatie verdwijnt verklaard als
- * het veld van de ouder dat haar leden geeft, veranderde (`childIds`, de toewijzingen), of, bij de pset van een taak,
- * als die pset verdween (`explainTaskPset`).
+ * Een relatie van object `obj` (haar ouder: de relating, of bij een pset de eigenaar), buiten de leden (die verklaart
+ * `explainMembers`): een relatie die verdween, of de naam van een `IfcRelNests` (de writer schrijft `WBS <naam>` en
+ * `Ploeg <naam>` van de ouder). Een relatie verdwijnt verklaard als het veld van de ouder dat haar leden geeft, veranderde
+ * (`childIds`, de toewijzingen), als elk lid verdween of wisselde (`membersGone`), of, bij de pset van een taak, als die
+ * pset verdween (`explainTaskPset`).
  */
 function explainRelation(ctx: O1Context, d: LossDiff, type: string, arg: number, obj: string): string | undefined {
   const { input, changed } = ctx;
   const { index } = input;
-  const relating = index.refAt(d.chunk, RELATING_SLOT[type] ?? -1);
-  const relatingKey = relating >= 0 ? objectKey(input, relating) : undefined;
-  if (relatingKey !== obj) {
-    // De scope is een lid van de relatie: dat verklaart alleen de leden (`explainMembers`), niet de relatie zelf. Een
-    // relatie die verdween: alleen als elk lid van de bron verdween of zijn ouder wisselde (`explainMembers`).
-    return d.whole === 'ontbreekt' ? membersGone(ctx, d.chunk, type) : undefined;
-  }
+  if (changed.keys.has(`${obj}#@`)) return undefined;
   const has = (f: string) => changed.keys.has(`${obj}#${f}`) || changed.keys.has(`${obj}#*`);
   if (type === 'IFCRELNESTS' && arg === 2) return has('name') ? `${obj}#name` : undefined;
   if (d.whole !== 'ontbreekt') return undefined;
   if (type === 'IFCRELNESTS') return has('childIds') ? `${obj}#childIds` : membersGone(ctx, d.chunk, type);
   if (type === 'IFCRELASSIGNSTOPROCESS') return has('assignments') ? `${obj}#assignments` : undefined;
-  if (type === 'IFCRELDEFINESBYPROPERTIES' && obj.startsWith('task:')) {
+  if (type === 'IFCRELDEFINESBYPROPERTIES') {
+    // De pset verdween: alleen als een veld veranderde dat de writer erin schrijft.
     const pset = index.refAt(d.chunk, 5);
-    return pset >= 0 ? explainTaskPset(ctx, d, type, arg, obj.slice(5), index.name(pset) ?? '', undefined) : undefined;
+    const name = pset >= 0 ? index.name(pset) ?? '' : '';
+    if (obj.startsWith('task:')) return explainTaskPset(ctx, d, type, arg, obj.slice(5), name, undefined);
+    const fields = obj.startsWith('res:') && name === PSET.Resource ? Object.values(RES_PROP_FIELDS).flat()
+      : obj.startsWith('cal:') && name === PSET.Calendar ? Object.values(CAL_PROP_FIELDS).flat() : [];
+    const f = fields.find(has);
+    return f === undefined ? undefined : `${obj}#${f} (${name})`;
   }
   return membersGone(ctx, d.chunk, type);
 }
@@ -1515,6 +1533,19 @@ function explainSettingsMembers(ctx: O1Context, d: LossDiff): string | undefined
     if (!fieldChanged(index.name(c) ?? '')) out.push(c);
   }
   return src.length === out.length && src.every((c, i) => c === out[i]) ? 'projectvelden' : undefined;
+}
+
+/** De domeinobjecten (`task:<id>`, …) waar pset `s` bij hoort, via haar `IfcRelDefinesByProperties`; een eigenaar zonder
+ *  object telt als `project`. */
+function psetOwners(input: LossCheckInput, s: number): string[] {
+  const { index } = input;
+  const keys: string[] = [];
+  for (let k = index.inStart(s); k < index.inEnd(s); k++) {
+    const from = index.inSource(k);
+    if (from < 0 || index.type(from) !== 'IFCRELDEFINESBYPROPERTIES' || index.inArg(k) !== 5) continue;
+    for (const owner of index.refsAt(from, 4)) if (owner >= 0) keys.push(objectKey(input, owner) ?? 'project');
+  }
+  return keys;
 }
 
 /** De naam van de pset die property `s` als lid heeft (de eerste), of ''. */
