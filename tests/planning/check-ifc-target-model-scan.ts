@@ -904,6 +904,36 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
       ['REFERENCE vóór ANCHOR', head + "REFERENCE;\n#5=<u>;\nENDSEC;\nANCHOR;\n<a>=1;\nENDSEC;\nDATA;\n#1=IFCX($);\nENDSEC;\nEND-ISO-10303-21;\n", false],
     ] as const) eq(`ronde 8, Sol: ${label}: ${valid ? 'past' : 'past niet'} in de grammatica`, fileValid(enc.encode(text)), valid);
   }
+  // Ronde 9 (Terra, BLOKKEERT): een waarde, geen entiteit. In de tweede sectie de verwijzing van een taak naar haar tijden
+  // als `#4⏎8`: voor de norm `#48`, voor de lus van `parseSTEP` geen verwijzing; de taak kreeg zo een andere duur. Nu weigert
+  // `readIFC`. Ook in één sectie, en de andere plekken waar de lexer van main anders leest dan de norm.
+  {
+    const task = /#(\d+)=IFCTASK\('[^']*',#\d+,'1\. Preparation',.*?,#(\d+),\.[A-Z]+\.\);/.exec(twee);
+    if (!task) throw new Error('taak 1. Preparation niet gevonden');
+    const ref = `#${task[2]}`;
+    const gesplitst = twee.replace(task[0], task[0].replace(`,${ref},`, `,${ref.slice(0, 2)}\n${ref.slice(2)},`));
+    eq('ronde 9, Terra: #4⏎8 in de tweede sectie: geldig, readIFC weigert', [fileValid(enc.encode(gesplitst)), readOutcome(enc.encode(gesplitst))], [true, 'unreadable-entities']);
+    const een = showcase.replace(task[0], task[0].replace(`,${ref},`, `,${ref.slice(0, 2)}\n${ref.slice(2)},`));
+    eq('ronde 9: #4⏎8 in één sectie: geldig, readIFC weigert', [fileValid(enc.encode(een)), readOutcome(enc.encode(een))], [true, 'unreadable-entities']);
+    const naam = (from: string, to: string) => showcase.replace("'1. Preparation'", () => to.replace('X', from));
+    eq('ronde 9: de proef met een getal verandert de tekst', showcase.replace(/([(,])(\d)(\.)([,)])/, '$1$2\n$3$4') !== showcase, true);
+    for (const [label, text, want] of [
+      ["'' met een regeleinde ertussen in een naam", naam('', "'it'\n's'"), 'unreadable-entities'],
+      ['een getal met een regeleinde', showcase.replace(/([(,])(\d)(\.)([,)])/, '$1$2\n$3$4'), 'unreadable-entities'],
+      ['U+0001 tussen twee tokens', showcase.replace("'1. Preparation',", "'1. Preparation',\u0001"), 'unreadable-entities'],
+      ['\\N\\ als scheiding', showcase.replace("'1. Preparation',", "'1. Preparation',\\N\\"), 'unreadable-entities'],
+      ['/⏎* commentaar in de sectie', showcase.replace(/\nENDSEC;\nEND-ISO/, "\n/\n* x */\nENDSEC;\nEND-ISO"), 'unreadable-entities'],
+      // Wat wel blijft openen: regeleindes en tabs tussen tokens, CRLF, en een regeleinde in een string (de tekst).
+      ['regeleinde en tab tussen tokens', showcase.replace("'1. Preparation',", "'1. Preparation',\n\t"), 'ok'],
+      ['CRLF overal', showcase.replace(/\n/g, '\r\n'), 'ok'],
+      ['een regeleinde in een naam', naam('', "'1.\r\nPreparation'"), 'ok'],
+      ['een regeleinde na een sluitende apostrof', showcase.replace("'1. Preparation',", "'1. Preparation'\n,"), 'ok'],
+      ['een regeleinde na een woord', showcase.replace('IFCTASK(', 'IFCTASK\n('), 'ok'],
+    ] as const) {
+      eq(`ronde 9: ${label}: geldig`, fileValid(enc.encode(text)), true);
+      eq(`ronde 9: ${label}: readIFC`, readOutcome(enc.encode(text)), want);
+    }
+  }
   // Knownbug 1050: `\S\'` in een taaknaam zonder model; op main opende dat met 0 taken.
   const sq = showcase.replace(/(=IFCTASK\('[^']*',#\d+,')/, "$1a\\S\\'");
   eq('ronde 8, 1050: \\S\\\' in een taaknaam: geldig', fileValid(enc.encode(sq)), true);

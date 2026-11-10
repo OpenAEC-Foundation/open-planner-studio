@@ -143,6 +143,11 @@ export class StepFileGrammar {
    *  nummer en type in volgorde (`stepEntitySignature`). `readIFC` vergelijkt ze met wat `parseSTEP` las. */
   entities = 0;
   entitySignature = FNV_OFFSET;
+  /** Review van #870, ronde 9 (Terra): na de eerste DATAKOP (daar begint de lus) leest de lus van `parseSTEP` (de lexer van main) iets anders
+   *  dan de norm: een stuurteken midden in een token (§5.2, §5.6), ook in `''` of in de grens van commentaar; een stuurteken buiten een
+   *  string dat main geen witruimte vindt; `\S\'` in een string (§6.4.3); `\N\` of `\F\` als scheiding. `readIFC`
+   *  weigert dan een geldig bestand, want de waarden kunnen anders zijn (`#4⏎8` is voor main geen verwijzing). */
+  lexicalDiff = false;
 
   private result: StepGrammarState = 'running';
   private lex = Lex.Code;
@@ -155,6 +160,8 @@ export class StepFileGrammar {
   private wordHash = FNV_OFFSET;
   /** De hash van het nummer (`#n`) van de entiteit die nu gelezen wordt. */
   private instanceHash = 0;
+  /** Een stuurteken kwam in deze lexertoestand; of main het anders leest, beslist het volgende teken. */
+  private ctrlIn: Lex | -1 = -1;
   /** De lexer leest een woord na `\` of een `/` die geen commentaar werd: die tekens zijn geen scheiding. */
   private lexBack = Lex.Code;
   // ── Statement ──
@@ -194,8 +201,46 @@ export class StepFileGrammar {
       if (this.utf8 && this.bom > 0) { this.fail(at); return; } // een half BOM
       this.bom = -1;
     }
-    if (c < SPACE || c === 0x7f) return; // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
+    if (c < SPACE || c === 0x7f) { // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
+      if (this.dataEnd >= 0 && !this.lexicalDiff) this.controlChar(c);
+      return;
+    }
+    if (this.ctrlIn !== -1) this.afterControl(c);
     this.lexStep(c, at);
+  }
+
+  /** Leest de lexer van main dit stuurteken anders dan de norm? Tussen tokens: alleen als main het geen witruimte vindt
+   *  (9–13). In een string of commentaar: nee (main houdt het in de string, de norm laat het weg: de tekst verschilt,
+   *  geen token). Aan het einde van een woord, na `/`, na `*` in commentaar en na `'` in een string: dat hangt af van
+   *  het volgende teken (`afterControl`). Elders: ja. */
+  private controlChar(c: number): void {
+    switch (this.lex) {
+      case Lex.Code:
+        if (c < 9 || c > 13) this.lexicalDiff = true;
+        return;
+      case Lex.Str:
+      case Lex.Comment:
+        return;
+      case Lex.Word:
+      case Lex.Slash:
+      case Lex.CommentStar:
+      case Lex.StrQuote:
+        if (this.ctrlIn === -1) this.ctrlIn = this.lex;
+        return;
+      default:
+        this.lexicalDiff = true;
+    }
+  }
+
+  /** Het eerste teken na stuurtekens in `ctrlIn`: loopt het token door (voor de norm), dan leest main het anders. */
+  private afterControl(c: number): void {
+    switch (this.ctrlIn) {
+      case Lex.Word: if (isWordChar(upper(c))) this.lexicalDiff = true; break;
+      case Lex.Slash: if (c === STAR) this.lexicalDiff = true; break;
+      case Lex.CommentStar: if (c === SLASH) this.lexicalDiff = true; break;
+      case Lex.StrQuote: if (c === QUOTE) this.lexicalDiff = true; break;
+    }
+    this.ctrlIn = -1;
   }
 
   /** Een hele tekst: hetzelfde als `step` voor elk teken. In een string tellen alleen `'` en `\`, in commentaar alleen
@@ -257,6 +302,7 @@ export class StepFileGrammar {
         this.lexStep(c, at);
         return;
       case Lex.StrBackSBack:
+        if (c === QUOTE && this.dataEnd >= 0) this.lexicalDiff = true; // main sluit de string bij deze `'`
         this.lex = Lex.Str; // het teken na `\S\` hoort bij de string, ook een `'`
         return;
       // Review van #870, ronde 8 (Sol): binair is `"` met een cijfer 0–3 en dan hexadecimale cijfers (tabel 2). Een ander
@@ -318,7 +364,7 @@ export class StepFileGrammar {
     switch (c) {
       case SPACE: return;
       case SLASH: this.lexBack = Lex.Code; this.lex = Lex.Slash; return;
-      case BACKSLASH: this.lexBack = Lex.Code; this.lex = Lex.Back; return;
+      case BACKSLASH: this.lexBack = Lex.Code; this.lex = Lex.Back; if (this.dataEnd >= 0) this.lexicalDiff = true; return;
       case QUOTE: this.lex = Lex.Str; this.atom(at); return;
       case DQUOTE: this.lex = Lex.BinFirst; this.atom(at); return;
       case LT: this.lex = Lex.Uri; this.atom(at); return;

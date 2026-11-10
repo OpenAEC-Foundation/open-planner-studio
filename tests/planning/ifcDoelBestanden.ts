@@ -31,12 +31,12 @@ export const stringFile = (own: string) => own.replace(/^DATA;\r?\n/m,
 
 /**
  * Sol en Terra (review van #870, BLOKKEERT): `council/fix3-twee-data.ifc` met parameters bij BEIDE sectiekoppen
- * (ISO 10303-21 editie 3, implementatieniveau `3;1`). Vóór de fix herkende de gedeelde sectievinder alleen `DATA;`:
+ * (ISO 10303-21 editie 3, implementatieniveau `4;1`, §8.2.2; review ronde 9, Terra: `3;1` is editie 2). Vóór de fix herkende de gedeelde sectievinder alleen `DATA;`:
  * `readIFC` gaf `no-data-section` en de doelcontrole "no-model", dus Opslaan als schreef over de wand heen.
  */
 export function paramDataFile(twoData: string, separator = '', only?: 'first'): string {
   let n = 0;
-  return twoData.replace("'2;1'", "'3;1'").replace(/^DATA;$/gm,
+  return twoData.replace("'2;1'", "'4;1'").replace(/^DATA;$/gm,
     line => (only === 'first' && n > 0 ? line : `DATA${separator}('deel ${++n}',('IFC4X3_ADD2'));`));
 }
 
@@ -51,7 +51,7 @@ export function paramDataFile(twoData: string, separator = '', only?: 'first'): 
  * parameters (editie 3) zijn een naam en een lijst schema's: strings en haakjes, met witruimte en commentaar ertussen.
  *
  * `kop` vervangt elke `DATA;` direct na `ENDSEC;` en een regeleinde; `{n}` is het nummer van de sectie. `overgang`
- * vervangt de `ENDSEC;` en het regeleinde ervoor. Bij een vorm met parameters wordt het implementatieniveau `'3;1'`.
+ * vervangt de `ENDSEC;` en het regeleinde ervoor. Bij een vorm met parameters wordt het implementatieniveau `'4;1'` (editie 3).
  * Elke vorm gaat door de vinder (`check-ifc-target-model-scan.ts`), de modelweigering (`check-ifc-building-model-guard.ts`),
  * het openen met en zonder flag (`check-ifc-foreign-open.ts`) en de doelcontrole van Opslaan als, CSV en AutoSave
  * (`check-ifc-foreign-target.ts`).
@@ -70,7 +70,8 @@ export interface DataKopVorm {
    *  regeleinde in `/*` of `*\/` en met `\S\'` ook tussen twee datasecties: de grammatica van het hele bestand leest
    *  ze volgens de norm, ook waar de lus van `parseSTEP` dat nog niet doet (knownbug 1050). */
   eersteSectie?: true;
-  /** Het implementatieniveau dat de vorm vraagt (§8.2.2): een ANCHOR-sectie vraagt `4;1`. Anders `3;1` bij parameters. */
+  /** Het implementatieniveau dat de vorm vraagt (§8.2.2): een ANCHOR-sectie vraagt `4;1`; een vorm met parameters
+   *  krijgt ook `4;1` (editie 3). */
   niveau?: '4;1';
 }
 const P = "('deel {n}',('IFC4X3_ADD2'))";
@@ -150,7 +151,7 @@ export function metDataKop(text: string, vorm: DataKopVorm, alleen?: 'eerste'): 
     n++;
     return (vorm.overgang ?? `ENDSEC;${eol}`) + vorm.kop.split('{n}').join(String(n));
   });
-  const niveau = vorm.niveau ?? (vorm.kop.includes('(') ? '3;1' : undefined);
+  const niveau = vorm.niveau ?? (vorm.kop.includes('(') ? '4;1' : undefined);
   return niveau ? out.replace("'2;1'", `'${niveau}'`) : out;
 }
 

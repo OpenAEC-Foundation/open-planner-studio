@@ -607,6 +607,8 @@ export interface StepFileLayout {
   /** Alleen als `valid`: de enkelvoudige entiteiten volgens de grammatica (`StepFileGrammar.entities`/`entitySignature`). */
   readonly entities: number;
   readonly entitySignature: number;
+  /** Alleen als `valid`: de lexer van main leest vanaf de eerste DATA iets anders dan de norm (`StepFileGrammar.lexicalDiff`). */
+  readonly lexicalDiff: boolean;
 }
 
 /**
@@ -621,13 +623,14 @@ export function stepFileLayout(content: string): StepFileLayout {
   const valid = grammar.state === 'valid';
   const entities = valid ? grammar.entities : 0;
   const entitySignature = valid ? grammar.entitySignature : 0;
+  const lexicalDiff = valid && grammar.lexicalDiff;
   if (valid && grammar.dataAt >= 0) {
-    return { bounds: { at: grammar.dataAt, end: grammar.dataEnd, grammar: true }, valid, model: grammar.model, entities, entitySignature };
+    return { bounds: { at: grammar.dataAt, end: grammar.dataEnd, grammar: true }, valid, model: grammar.model, entities, entitySignature, lexicalDiff };
   }
   const finder = new StepDataSectionFinder(false);
   for (let i = 0; i < content.length; i++) finder.step(content.charCodeAt(i), i);
   const fallback = finder.fallback;
-  return { bounds: fallback ? { ...fallback, grammar: false } : null, valid, model: grammar.model, entities, entitySignature };
+  return { bounds: fallback ? { ...fallback, grammar: false } : null, valid, model: grammar.model, entities, entitySignature, lexicalDiff };
 }
 
 /** Begin en leespositie van de datasectie in `content` (`stepFileLayout`); `null` zonder sectiekop. */

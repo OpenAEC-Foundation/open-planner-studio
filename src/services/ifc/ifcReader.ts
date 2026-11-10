@@ -1166,9 +1166,11 @@ function parseSTEP(content: string, modelError?: () => Error): { entities: StepE
 
   // Review van #870, ronde 8 (Terra): past het hele bestand in de grammatica, dan moet de lus dezelfde entiteiten lezen
   // (nummer en type, in volgorde). Een regeleinde midden in een token (§5.6) of `\S\'` in een string (§6.4.3) leest de
-  // lus anders; dan zou openen stil een taak verliezen. Weigeren. Een model gaat voor: dat weigert `readIFC` zelf.
-  if (layout.valid && !layout.model
-    && (entities.length !== layout.entities || stepEntitySignature(entities) !== layout.entitySignature)) {
+  // lus anders; dan zou openen stil een taak verliezen. Ronde 9 (Terra): ook een waarde (`#4⏎8` is voor de lus geen
+  // verwijzing; een taak kreeg zo een andere duur). Daarom ook weigeren als de grammatica een plek zag waar de lexer van
+  // main anders leest dan de norm (`lexicalDiff`). Weigeren. Een model gaat voor: dat weigert `readIFC` zelf.
+  if (layout.valid && !layout.model && (layout.lexicalDiff
+    || entities.length !== layout.entities || stepEntitySignature(entities) !== layout.entitySignature)) {
     throw new IfcParseError(
       'unreadable-entities',
       'Onleesbaar IFC-bestand: de app leest niet elke entiteit zoals de norm (ISO 10303-21) haar beschrijft.',

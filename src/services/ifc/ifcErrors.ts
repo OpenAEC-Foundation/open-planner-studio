@@ -20,7 +20,8 @@ export type IfcParseErrorReason =
   | 'no-data-section'
   /** Review van #870, ronde 8: het hele bestand past in de grammatica van ISO 10303-21, maar de entiteitenlus van
    *  `parseSTEP` leest andere entiteiten (nummer en type) dan de grammatica, bijvoorbeeld door een regeleinde midden in
-   *  een token (§5.6) of `\S\'` in een string (§6.4.3). Openen zou dan stil een taak verliezen. */
+   *  een token (§5.6) of `\S\'` in een string (§6.4.3). Openen zou dan stil een taak verliezen. Ronde 9: ook als de
+   *  grammatica een plek zag waar de lexer van main anders leest (een waarde zoals `#4⏎8`; `lexicalDiff`). */
   | 'unreadable-entities'
   /** UITSLUITEND een aanroepercontractfout: een compact (schema-2) XER-bronarchief via de lage
    *  synchrone `readIFC`-ingang, die de lazy XER-reader bewust niet laadt. Een corrupt of door andere
