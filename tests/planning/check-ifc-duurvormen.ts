@@ -12,7 +12,8 @@
 //  4. Elke duur in een eigen bestand van OPS in de repo staat op de lijst (voorwaarde 1: een planning die OPS maakte,
 //     weigert nooit om een duur), en ook elke duur die de writer van nu schrijft. Eén bestand is met de hand gemaakt
 //     en heeft een speling die OPS nooit schreef; die staat apart, met de reden. Ook elke datum en tijd van een eigen
-//     bestand staat op de lijst van datumvormen (knownbug 1031).
+//     bestand staat op de lijst van datumvormen (knownbug 1031). Een eigen bestand dat de scanner niet leest, slaat de
+//     check over, met de reden van de scanner (`NOT_SCANNED`): de merge raakt het nooit.
 // Exit 0 = alles klopt.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -21,7 +22,7 @@ import { installDeterminism } from './ifcPariteitKern';
 import { cloneDomain, openForeign, settle, type Opened } from './ifcMergeKern';
 import { DURATION_FORMS, durationForm, type DurationSlot } from '@/services/ifc/foreign/durationForms';
 import { OLD_FRACTIONAL_CLOCK, dateTimeTexts, durationTexts, partialDateTime } from '@/services/ifc/foreign/lossCheck';
-import { scanStep } from '@/services/ifc/foreign/stepScanner';
+import { StepScanError, scanStep, type StepScanReason } from '@/services/ifc/foreign/stepScanner';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -254,10 +255,27 @@ const walk = (dir: string) => {
   }
 };
 walk(ROOT);
+/** Eigen bestanden die de scanner niet leest, met de reden van de scanner. De merge raakt ze nooit: zonder scan opent het
+ *  bestand via de route van main, zonder vreemd deel (`ifcBytesRoute.ts`), en de lijst van vormen geldt dan niet. */
+const NOT_SCANNED: Readonly<Record<string, StepScanReason>> = {
+  // OPS v2026.2.0 tot en met v2026.7.12 schreef de naam rauw in FILE_NAME (`771db15cb`): de apostrof van `O'Hara` opent
+  // een tekst die tot het einde van het bestand niet sluit. Het bestand kwam met #870 (`a026bed0f`); besluit van Trias
+  // (review van #870, ronde 8; knownbug 1052): zo'n bestand opent zoals op main.
+  'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc': 'tekst-zonder-einde',
+};
+const notScanned = new Set<string>();
+/** De scan van een eigen bestand; `undefined` als het in `NOT_SCANNED` staat en de scanner om precies die reden weigert. */
+const scanOwn = (rel: string, bytes: Uint8Array) => {
+  try {
+    return scanStep(bytes);
+  } catch (e) {
+    if (e instanceof StepScanError && NOT_SCANNED[rel] === e.reason) { notScanned.add(rel); return undefined; }
+    throw e;
+  }
+};
 let ownFiles = 0;
 let ownDurations = 0;
-const outsideOf = (bytes: Uint8Array) => {
-  const index = scanStep(bytes);
+const outsideIn = (index: ReturnType<typeof scanStep>) => {
   const out: string[] = [];
   let count = 0;
   for (let i = 0; i < index.count; i++) {
@@ -269,13 +287,18 @@ const outsideOf = (bytes: Uint8Array) => {
   }
   return { out, count };
 };
+const outsideOf = (bytes: Uint8Array) => outsideIn(scanStep(bytes));
 for (const file of files.sort()) {
   const bytes = new Uint8Array(readFileSync(file));
   if (!/IFCAPPLICATION\([^;]*'Open Planner Studio'/.test(text(bytes))) continue;
   ownFiles++;
   const rel = relative(ROOT, file);
   let found: { out: string[]; count: number };
-  try { found = outsideOf(bytes); } catch (e) { ok(`${rel}: scannen lukt (${(e as Error).message.slice(0, 80)})`, false); continue; }
+  try {
+    const index = scanOwn(rel, bytes);
+    if (!index) continue;
+    found = outsideIn(index);
+  } catch (e) { ok(`${rel}: scannen lukt (${(e as Error).message.slice(0, 80)})`, false); continue; }
   ownDurations += found.count;
   const expected = HAND_MADE[rel]?.split('|') ?? [];
   ok(`${rel}: elke duur staat op de lijst (buiten de lijst: ${found.out.slice(0, 3).join(', ')})`, found.out.length === expected.length && found.out.every(x => expected.includes(x)));
@@ -292,7 +315,9 @@ const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h
   for (const file of files) {
     const bytes = new Uint8Array(readFileSync(file));
     if (!/IFCAPPLICATION\([^;]*'Open Planner Studio'/.test(text(bytes))) continue;
-    const index = scanStep(bytes);
+    let index;
+    try { index = scanOwn(relative(ROOT, file), bytes); } catch { continue; } // al gemeld bij de duren hierboven
+    if (!index) continue;
     const out: string[] = [];
     let oldClocks = 0;
     for (let i = 0; i < index.count; i++) {
@@ -310,6 +335,7 @@ const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h
   ok(`de eigen bestanden hebben datums en tijden (${dates})`, dates > 10000);
 }
 for (const rel of Object.keys(HAND_MADE)) ok(`${rel} bestaat nog`, files.some(f => relative(ROOT, f) === rel));
+for (const [rel, reason] of Object.entries(NOT_SCANNED)) ok(`${rel}: de scanner weigert het (${reason}); anders hoort het niet meer in NOT_SCANNED`, notScanned.has(rel));
 
 // De writer van nu: de showcase (dag- en urentaken, lags in dagen en minuten) en de taak met elke vorm van de lijst in de
 // taakduur, opnieuw geschreven.
