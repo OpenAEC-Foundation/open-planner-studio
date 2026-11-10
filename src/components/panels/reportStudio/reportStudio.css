@@ -302,7 +302,16 @@
 /* Keuzekaart (Taken): de kaart van de themakeuze in Instellingen (`.settings-theme-card`): rand van een veld,
    gekozen met een accentrand en een lichte accenttint. Een layout is een korte kaart op één regel. */
 .rs-choices { display: flex; flex-direction: column; gap: 6px; }
-.rs-choices-label { margin-top: 6px; }
+.rs-choices-label { margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+/* Het i-icoon naast een kopje, zoals bij *Werkregel* en de rekenprofielen. */
+.rs-info-btn {
+  display: inline-flex;
+  border-radius: 4px;
+  color: var(--theme-text-dim);
+  background: transparent;
+}
+.rs-info-btn:hover { color: var(--theme-text); }
+.rs-info-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 .rs-choice {
   display: grid;
   grid-template-columns: 18px 1fr auto;

@@ -486,7 +486,15 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   expect(await own()).toEqual(ownBefore);
   await expect(page.locator('[data-rs-undo]')).toHaveCount(0);
   await expect(page.locator('[data-rs-notice="layout-own"]')).toBeVisible();
-  await expect(page.locator('[data-rs-layout-hint]')).toBeVisible();
+  // Het i-icoon naast het kopje Layouts legt uit wat een layout verandert (Ethan, 10-11-2026): de tooltip
+  // verschijnt bij toetsenbordfocus, met de kernzin vet; de pijltjes op het icoon kiezen geen andere bron.
+  const layoutInfo = page.locator('[data-rs-step-body="tasks"] [data-rs-group-info]');
+  await layoutInfo.focus();
+  await expect(page.locator('.ops-tooltip')).toBeVisible();
+  await expect(page.locator('.ops-tooltip strong')).toHaveText(/^(Een layout bepaalt alleen de rijen|A layout only sets the rows)$/);
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await saved()).layoutId).toBe('layout-kort');
+  await page.keyboard.press('Escape');
   await allTasks.click();
   await expect.poll(async () => (await saved()).layoutId).toBe('');
   expect(await own()).toEqual(ownBefore);

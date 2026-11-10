@@ -672,11 +672,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   icon: layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined), 16),
                   count: chosenLayout?.id === layout.id ? shownRows : undefined,
                   groupLabel: i === 0 ? t('studio.tasks.layouts') : undefined,
+                  // Wat een layout verandert (Ethan, 10 november 2026: "zo'n i-tje met een tooltip").
+                  groupInfo: i === 0 ? { text: t('studio.tasks.layoutHint'), label: t('studio.tasks.layoutHintLabel') } : undefined,
                   dataLayout: layout.id,
                 })),
               ]}
             />
-            {chosenLayout && <p className="rs-hint" data-rs-layout-hint>{t('studio.tasks.layoutHint')}</p>}
             {layoutMissingFields.length > 0 && (
               <StudioNotice dataKey="layout-missing-field">
                 {t('studio.tasks.layoutMissingField', { count: layoutMissingFields.length })}
