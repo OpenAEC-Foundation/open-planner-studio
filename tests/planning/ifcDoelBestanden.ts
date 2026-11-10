@@ -92,6 +92,10 @@ export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
   { id: 'param-gemengd', norm: 'witruimte, commentaar en regeleinde vóór (', kop: `DATA /*c*/\n/*d*/ ${P};` },
   { id: 'param-ruimte-binnen', norm: 'witruimte tussen de parameters en vóór ;', kop: "DATA( 'deel {n}' , ( 'IFC4X3_ADD2' ) ) ;" },
   { id: 'param-commentaar-binnen', norm: 'commentaar tussen de parameters en vóór ;', kop: "DATA(/*a*/'deel {n}'/*b*/,/*c*/('IFC4X3_ADD2')/*d*/)/*e*/;" },
+  // Review van #870, ronde 6 (Sol, BLOKKEERT): `\S\'` is één teken in de string (§6.4.3); de `'` erna sluit de naam.
+  // Alleen vóór de eerste sectie: tussen twee secties leest de lexer van main de kop (knownbug 1050).
+  { id: 'param-string-afdrukcode', norm: "string met \\S\\' in de naam", kop: "DATA('deel {n} \\S\\'',('IFC4X3_ADD2'));", scannerWeigert: true,
+    eersteSectie: true },
   // Review van #870, ronde 6 (Terra, VERVOLG): commentaar en witruimte op elke plaats binnen de lijst met schema's.
   { id: 'param-commentaar-lijst', norm: "commentaar en regeleindes binnen de lijst met schema's", kop: "DATA('deel {n}'\n,(/*a*/\n'IFC4X3_ADD2'/*b*/\n,/*c*/'IFC4'\n)/*d*/\n);",
     uitbreiding: 'de lijst heeft precies één schemanaam (§11.1)' },

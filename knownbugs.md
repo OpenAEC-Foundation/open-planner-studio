@@ -1738,10 +1738,11 @@ en noem het in je rapport of PR-tekst.
      Richting: het bestaande `HERE` gebruiken (`join(HERE, '..', '..', 'public', 'examples', …)`). Uit #871
      (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
-1049. **VERVOLG: de scanner achter de flag `ifcForeignContent` kent 15 vormen van de DATA-sectiekop niet.** De tabel
+1049. **VERVOLG: de scanner achter de flag `ifcForeignContent` kent 16 vormen van de DATA-sectiekop niet.** De tabel
      `DATA_KOP_VORMEN` in `tests/planning/ifcDoelBestanden.ts` markeert ze met `scannerWeigert`: kleine letters
      (`data;`, `data(…);`, `endsec;`), een stuurteken midden in `DATA` of `ENDSEC` (regeleinde, tab, U+007F), de
-     afdrukcodes `\N\` en `\F\` als scheiding, een regeleinde in `/*` of `*/` vóór de kop, en een ANCHOR-sectie. De
+     afdrukcodes `\N\` en `\F\` als scheiding, een regeleinde in `/*` of `*/` vóór de kop, een ANCHOR-sectie, en
+     `\S\'` in de naam van de kop (de scanner meldt `tekst-zonder-einde`). De
      gedeelde sectievinder (`src/services/ifc/stepDataSection.ts`) en `readIFC` lezen ze wel. Met de flag aan weigert
      `src/services/ifc/foreign/stepScanner.ts` het bestand en valt `ifcBytesRoute.ts` terug op de gewone route: het
      bestand opent als planning, maar het vreemde deel blijft niet bewaard. De flag staat in de app altijd uit. Richting:
