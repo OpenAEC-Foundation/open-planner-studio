@@ -423,7 +423,10 @@ const EDIT_FILES = [
 ];
 let edited = 0;
 for (const rel of [...EDIT_FILES, 'tweede live-schema']) {
-  const bytes = rel === 'tweede live-schema' ? secondSchedule : await settle(read(rel));
+  let bytes: Uint8Array;
+  try { bytes = rel === 'tweede live-schema' ? secondSchedule : await settle(read(rel)); } catch (e) {
+    diffs.push(`${rel}: settle lukt niet (${(e as Error).message.slice(0, 200)})`); checks++; continue;
+  }
   const opened = await openForeign(bytes);
   for (const edit of basicEdits(opened)) {
     const r = await roundTrip(`${rel.split('/').pop()} · ${edit.label}`, bytes, edit.apply);
@@ -1095,7 +1098,12 @@ async function lossSetup(bytes: Uint8Array) {
   const index = scanStep(bytes);
   const cls = classify(index);
   const ids = mergeIdPlan(index, cls, source.stepIds, opened.calendar.id);
-  const out = concat(writeIfcMerge(cloneDomain(opened), source));
+  let out: Uint8Array;
+  try { out = concat(writeIfcMerge(cloneDomain(opened), source)); } catch (e) {
+    diffs.push(`lossSetup: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => c.detail).slice(0, 2).join(' | ') : (e as Error).message})`);
+    checks++;
+    return undefined;
+  }
   const outIndex = scanStep(out);
   const o0: OutLine[] = [];
   for (let i = 0; i < outIndex.count; i++) {
@@ -1120,8 +1128,9 @@ async function lossSetup(bytes: Uint8Array) {
   const withArg = (lines: OutLine[], line: OutLine, k: number, v: string) => lines.map(l => (l === line ? { ...l, args: l.args.map((a, j) => (j === k ? v : a)) } : l));
   return { opened, o0, owner, run, withArg, lineFor: (pred: (l: OutLine) => boolean) => o0.find(pred)! };
 }
-{
-  const { o0, run: runLoss, withArg: withArgIn, lineFor } = await lossSetup(enc.encode(eigen));
+const setupEigen = await lossSetup(enc.encode(eigen));
+if (setupEigen) {
+  const { o0, run: runLoss, withArg: withArgIn, lineFor } = setupEigen;
   const task47 = lineFor(l => l.type === 'IFCTASK' && l.id === 47);
   const task51 = lineFor(l => l.type === 'IFCTASK' && l.id === 51);
   const time47 = lineFor(l => l.id === Number(task47.args[11].slice(1)));
@@ -1138,10 +1147,10 @@ async function lossSetup(bytes: Uint8Array) {
   eq('O1: de taaktijd van de bewerkte taak', run(withArg(time47, 1, '.MEASURED.'), rename47), []);
   eq('O1: zonder bewerking toetst alleen O0', run(withArg(task51, 3, "'Weg'"), () => {}), []);
 }
-{
+if (setupEigen) {
   // Besluit 3, schrijfvelden (smal): de CreationDate van een owner history is alleen een schrijfveld in de eigen owner
   // history van de writer. Wijst `owner0` ergens anders heen, dan zet (b) de bronwaarde terug.
-  const { o0, owner, run, withArg } = await lossSetup(enc.encode(eigen));
+  const { o0, owner, run, withArg } = setupEigen;
   const ownerLine = o0.find(l => l.id === owner)!;
   const later = withArg(o0, ownerLine, 7, '1');
   const restoresOwner = (r: { edits: readonly { id: number; arg: number }[] }) => r.edits.some(e => e.id === owner && e.arg === 7);
@@ -1153,7 +1162,9 @@ async function lossSetup(bytes: Uint8Array) {
   // regel zelf. O0 heeft de eenheid van ExactFloat leeg (zoals de writer schrijft); staat er in O1 ook niets, dan zet (b)
   // de bronwaarde terug; zet de writer er in O1 iets anders (de planner wijzigde het veld), dan blijft zijn waarde.
   const bytes = enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),$);\n#266=`, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),#7);\n#266=`));
-  const { o0, run, withArg } = await lossSetup(bytes);
+  const setup = await lossSetup(bytes);
+  if (setup) {
+  const { o0, run, withArg } = setup;
   const prop = o0.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'ExactFloat'" && l.args[2].includes('"FreeFloat":[3,1440]'))!;
   const unit = prop.args[3];
   const other = o0.find(l => l.type === 'IFCSIUNIT' && `#${l.id}` !== unit)!;
@@ -1163,11 +1174,12 @@ async function lossSetup(bytes: Uint8Array) {
   eq('verwijzing (ii): zonder wijziging van het slot zet (b) de bron terug', [back.edits.filter(e => e.id === prop.id).map(e => [e.arg, e.token]), back.found], [[[3, unit]], []]);
   const mine = run(plain, withArg(plain, plain.find(l => l.id === prop.id)!, 3, `#${other.id}`), rename51);
   eq('verwijzing (ii): een andere waarde in O1 blijft (geen terugzetting, geen melding)', [mine.edits.filter(e => e.id === prop.id).length, mine.found], [0, []]);
+  }
 }
-{
+if (setupEigen) {
   // Besluit 3, toevoegingen (smal): een eigen pset mag er een property bij krijgen, maar niet met een naam die de bron in die
   // pset al had (dan is het een andere waarde, geen toevoeging).
-  const { o0, run } = await lossSetup(enc.encode(eigen));
+  const { o0, run } = setupEigen;
   const prop = o0.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'ExactFloat'" && l.args[2].includes('"FreeFloat":[0,0]}'))!;
   const pset = o0.find(l => l.type === 'IFCPROPERTYSET' && l.args[4] === `(#${prop.id})`)!;
   const next = Math.max(...o0.map(l => l.id)) + 1;
