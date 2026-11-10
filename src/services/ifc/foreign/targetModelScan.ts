@@ -8,9 +8,9 @@
 // `building-model`. Daarom volgt deze lezer de route van `readIFC` stap voor stap, als stroom van bytes:
 //  1. de kop: `assertIfcIntegrity` (BOM, witruimte, `ISO-10303-21;`; de kopregel uit `stepDataSection.ts`);
 //  2. het begin van de datasectie: dezelfde `StepDataSectionFinder` als `indexOfDataSection` (`stepDataSection.ts`;
-//     eis van Trias: één bron). Eerst de sectiekop volgens de grammatica van de norm; vindt de lezer die in het hele
-//     bestand niet, dan leest hij het bestand opnieuw vanaf `fallback` (de regel van main, anders regel-verankerd; de
-//     tweede lezing);
+//     eis van Trias: één bron). Alleen de sectiekop volgens de grammatica van de norm telt: breekt de grammatica, of
+//     vindt de lezer geen datasectie, dan is de uitkomst 'unreadable' (besluit Trias, wrakko 10 november 2026). `readIFC`
+//     opent zo'n bestand met de regels van main; de doelcontrole raadt niet;
 //  3. na `DATA;`: commentaar weg, zoals `stripStepComments`;
 //  4. de lus van `parseSTEP` met `readEntity`: op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen
 //     (`#id = TYPE (…) ;`, met haakjes op diepte, strings en commentaar in de argumenten), tot het einde van het
@@ -26,6 +26,8 @@
 //  - 'model': een entiteit met een modeltype op de route van `readIFC`. Niet schrijven.
 //  - 'no-model': de lezer las het HELE bestand (alle DATA-secties) zonder modelentiteit. Schrijven mag.
 //  - 'not-ifc': het bestand begint niet met `ISO-10303-21;` (CSV, XML, JSON, een leeg bestand). Schrijven mag.
+//  - 'unreadable': een STEP-bestand waarin de grammatica geen datasectie vindt (een kapotte kop, geen `DATA`). Niet
+//    schrijven: een scan zonder uitkomst is geen vrijbrief.
 // Een andere uitkomst bestaat niet: 'no-model' komt alleen aan het einde van het bestand. Stopt het lezen vóór het einde
 // (een leesfout), dan is er geen uitkomst; de aanroeper telt dat als "niet leesbaar".
 //
@@ -41,7 +43,7 @@ import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { STEP_HEADER, StepDataSectionFinder, startsWithStepHeader } from '../stepDataSection';
 
 /** Uitkomst van de controle; zie de kop van dit bestand voor de betekenis. */
-export type TargetModelScan = 'model' | 'no-model' | 'not-ifc';
+export type TargetModelScan = 'model' | 'no-model' | 'not-ifc' | 'unreadable';
 
 /** Een bron die de doelcontrole leest, ook opnieuw vanaf een positie (terugspoelen, de tweede lezing). */
 export interface TargetSource {
@@ -156,8 +158,9 @@ export class TargetModelScanner {
   // ── Datasectie zoeken ──
   private phase = Phase.Find;
   private readonly finder = new StepDataSectionFinder(true);
-  private secondPass = false;
   private modelPending = false;
+  /** De grammatica vond geen datasectie, maar de kop is nog niet beslist (een heel kort bestand): wachten. */
+  private unreadablePending = false;
   // ── Datasectie lezen ──
   private strip = Strip.Code;
   private slashAt = 0;
@@ -240,7 +243,9 @@ export class TargetModelScanner {
 
   /** Houd alleen vast wat terugspoelen nog nodig heeft: vanaf het teken na de `#` van een lopende entiteit. */
   private trim(): void {
-    const keep = this.phase === Phase.Data && this.loop === Loop.Entity ? this.entAt + 1 : this.pos;
+    const pending = this.phase === Phase.Find ? this.finder.pendingFrom : -1;
+    const keep = this.phase === Phase.Data && this.loop === Loop.Entity ? this.entAt + 1
+      : pending >= 0 ? Math.min(pending, this.pos) : this.pos;
     while (this.first < this.chunks.length && this.bases[this.first] + this.chunks[this.first].length <= keep) {
       this.chunks[this.first] = EMPTY;
       this.first++;
@@ -393,6 +398,7 @@ export class TargetModelScanner {
     else return;
     if (!this.headOk) this.result = 'not-ifc';
     else if (this.modelPending) this.result = 'model';
+    else if (this.unreadablePending) this.result = 'unreadable';
   }
 
   /** Het einde van het bestand vóór een beslissing over de kop. */
@@ -419,14 +425,24 @@ export class TargetModelScanner {
     for (let i = start; i < n; i++) {
       const strict = this.frontByte(chunk[i], base + i);
       if (this.result !== null) return;
+      if (this.finder.grammarFailed) { this.unreadable(); this.pos = base + i + 1; return; }
       if (strict) {
-        // `readIFC` leest vanaf het eerste strenge `DATA;`: de datasectie begint na de `;`.
+        // `readIFC` leest vanaf de sectiekop van de grammatica: de datasectie begint direct na de `;` van de kop. De
+        // vinder meldt dat pas na het volgende token; de lezer gaat terug naar die positie.
         this.startData();
-        this.pos = base + i + 1;
+        this.moveTo(this.finder.strictEnd);
+        this.jumped = false;
         return;
       }
     }
     this.pos = base + n;
+  }
+
+  /** De grammatica vond geen datasectie: 'unreadable', zodra de kop beslist is (een andere kop is 'not-ifc'). */
+  private unreadable(): void {
+    if (this.headOk === true) { this.result = 'unreadable'; return; }
+    this.unreadablePending = true;
+    this.phase = Phase.Wait;
   }
 
   private startData(): void {
@@ -442,18 +458,10 @@ export class TargetModelScanner {
       if (this.result !== null) return false;
     }
     if (this.modelPending) { this.result = 'model'; return false; }
+    if (this.unreadablePending) { this.result = 'unreadable'; return false; }
     if (this.phase === Phase.Find) {
-      const fallback = this.finder.fallback;
-      if (!this.secondPass && fallback) {
-        // De grammatica vond geen sectiekop (de kop loopt uit de pas, bijvoorbeeld door een losse apostrof): `readIFC`
-        // leest dan vanaf de regel van main of de regel-verankerde kop (`fallback`). Dat leest deze lezer opnieuw.
-        this.secondPass = true;
-        this.startData();
-        this.moveTo(fallback.end);
-        this.jumped = false;
-        return true;
-      }
-      this.result = 'no-model'; // geen datasectie: `readIFC` weigert met 'no-data-section'
+      // Een sectiekop van de grammatica met niets erna: geen entiteit. Anders vond de grammatica geen datasectie.
+      this.result = this.finder.grammarAtEnd ? 'no-model' : 'unreadable';
       return false;
     }
     if (this.strip === Strip.Slash) {

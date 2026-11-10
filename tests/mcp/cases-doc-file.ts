@@ -1094,6 +1094,16 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assertEq(scanned.includes(otherModelPath), true, 'de app las het doel');
     await callOk('planner_export_ifc', { path: target, overwrite: true });
     assertEq(scanned.includes(target), true, 'een bestaande eigen IFC: gelezen, en hij mag');
+    // Review van #870, ronde 6 (besluit Trias): een STEP-bestand waarin de grammatica geen datasectie vindt (hier een
+    // kapotte bestandsnaam), weigert als doel: een scan zonder uitkomst is geen vrijbrief.
+    const brokenPath = `${HOME}/kapotte-kop.ifc`;
+    const brokenText = new TextDecoder().decode(otherModel).replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof.ifc'");
+    setBinaryFile(brokenPath, new TextEncoder().encode(brokenText));
+    const brokenError = await callErr('planner_export_ifc', { path: brokenPath, overwrite: true });
+    assertEq(brokenError.code, 'VALIDATION', 'een kapotte kop ⇒ validatiefout');
+    assert(brokenError.error.includes('cannot read reliably') && brokenError.error.includes('another path'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(new TextDecoder().decode(binFiles.get(brokenPath)), brokenText, 'het bestand met de kapotte kop is niet veranderd');
     // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
     fakeFs.scanTarget = async () => { throw new Error('leesfout'); };
     await callOk('planner_export_ifc', { path: otherModelPath, overwrite: true });

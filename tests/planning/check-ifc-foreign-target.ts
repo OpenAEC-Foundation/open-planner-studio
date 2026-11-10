@@ -23,10 +23,12 @@
 //      een nieuwe sessie: Ctrl+S wordt Opslaan als, de bron als doel weigert (handle: inhoud; Tauri: pad, ook na een
 //      wijziging van de bron), een ander bestand mag en krijgt de pset nooit; de pset telt als eigen planning (100 % P);
 //   8. fixronde 3: hoogstens één `getFile()` en één SHA-256 van het doel per controle;
-//   9. fixronde 4: de doelcontrole volgt de route van `readIFC`. Terra's bestand (kapotte kop, alles op één regel) en
-//      Sol's bestand (kapotte kop, `#30=\nIFCWALL(`) als doel: Opslaan als, CSV-export en AutoSave schrijven niet, de
-//      bestaande tekst blijft, A blijft gewijzigd; per route (handle en Tauri-pad, ook met `seek`). Een eigen bestand met
-//      `#900000=IFCWALL(` in commentaar of `#9=IFCWALL(` in een meerregelige string als doel: er komt een write.
+//   9. fixronde 4: Terra's bestand (kapotte kop, alles op één regel) en Sol's bestand (kapotte kop, `#30=\nIFCWALL(`)
+//      als doel: Opslaan als, CSV-export en AutoSave schrijven niet, de bestaande tekst blijft, A blijft gewijzigd; per
+//      route (handle en Tauri-pad). Review van #870, ronde 6 (besluit Trias): een kapotte kop, ook van een eigen
+//      planning, en een STEP-bestand zonder DATA-sectie weigeren met de melding 'niet goed te lezen' (de scanner zegt
+//      'unreadable'), zonder terugspoelen. Een eigen bestand met `#900000=IFCWALL(` in commentaar of `#9=IFCWALL(` in een
+//      meerregelige string als doel: er komt een write.
 //      Ook `council/fix3-twee-data.ifc` (een wand in de tweede DATA-sectie) als doel, ook met parameters bij beide
 //      sectiekoppen (`DATA('…',(…));`): geen write.
 // Exit 0 = alles groen.
@@ -88,6 +90,8 @@ const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
+const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
+const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
 const MODEL_KEYS = [SAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
 
 // Alleen in deze test: de flag bruikbaar maken, zoals in `check-ifc-foreign-open.ts`.
@@ -1077,40 +1081,51 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
 // Terra: kapotte kop, alle entiteiten op één regel. Sol: kapotte kop, `#30=\nIFCWALL(` (en dezelfde vorm op elke
 // entiteit: zo gaf de scanner van 343b74300 "no-model", zoals Sol meldde). Allemaal weigert `readIFC` als model,
 // dus geen write. Het commentaar met `#900000=IFCWALL(` en de meerregelige string met `#9=IFCWALL(` zijn eigen bestanden
-// zonder model: die mogen. "Groot" is Terra met 2 MiB commentaar in de kop: de lezer moet dan de bron opnieuw lezen vanaf
-// het regel-verankerde `DATA;` (handle: `slice`, Tauri: plugin-fs `seek`).
+// zonder model: die mogen. "Groot" is Terra met 2 MiB commentaar in de kop. Ronde 6: een kapotte kop weigert als niet
+// leesbaar (`refuse: 'unreadable'`), zonder terugspoelen; ook een eigen planning met een kapotte naam.
 {
   const modelText = dec(modelIfc4);
   const ownText = dec(showcase);
-  const targets: Array<{ name: string; bytes: Uint8Array; model: boolean }> = [
-    { name: 'terra', bytes: enc.encode(terraFile(modelText)), model: true },
-    { name: 'sol', bytes: enc.encode(solFile(modelText)), model: true },
-    { name: 'sol-alles', bytes: enc.encode(solFileAllSplit(modelText)), model: true },
-    { name: 'terra-groot', bytes: enc.encode(terraFile(modelText).replace('HEADER;', `HEADER;${longComment}`)), model: true },
-    { name: 'commentaar', bytes: enc.encode(commentFile(ownText)), model: false },
-    { name: 'string', bytes: enc.encode(stringFile(ownText)), model: false },
+  type Refuse = 'model' | 'unreadable' | null;
+  const targets: Array<{ name: string; bytes: Uint8Array; refuse: Refuse }> = [
+    { name: 'terra', bytes: enc.encode(terraFile(modelText)), refuse: 'unreadable' },
+    { name: 'sol', bytes: enc.encode(solFile(modelText)), refuse: 'unreadable' },
+    { name: 'sol-alles', bytes: enc.encode(solFileAllSplit(modelText)), refuse: 'unreadable' },
+    { name: 'terra-groot', bytes: enc.encode(terraFile(modelText).replace('HEADER;', `HEADER;${longComment}`)), refuse: 'unreadable' },
+    // Ronde 6 (besluit Trias): een STEP-bestand waarin de app geen DATA-sectie vindt, weigert als doel.
+    { name: 'zonder-data', bytes: enc.encode(`${ownText.slice(0, ownText.indexOf('\nDATA;') + 1)}END-ISO-10303-21;\n`), refuse: 'unreadable' },
+    { name: 'commentaar', bytes: enc.encode(commentFile(ownText)), refuse: null },
+    { name: 'string', bytes: enc.encode(stringFile(ownText)), refuse: null },
     // Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las de doelcontrole (zoals `readIFC`) maar
     // tot de eerste `ENDSEC;` en gaf hij "no-model": Opslaan als schreef de planning over het model heen.
-    { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), model: true },
+    { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), refuse: 'model' as const },
     // Sol en Terra (review van #870): dezelfde, met parameters bij beide sectiekoppen. Vóór de fix: één write, wand weg.
-    { name: 'twee-data-param', bytes: enc.encode(paramDataFile(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))), model: true },
+    { name: 'twee-data-param', bytes: enc.encode(paramDataFile(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))), refuse: 'model' as const },
     // Ronde 2 (Sol): witruimte, commentaar of een regeleinde vóór de `(`, en gemengd. Vóór de fix: Opslaan als, CSV en
     // AutoSave schreven over de wand heen.
     // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`, eis van Trias): elke vorm op fix3 (ook gemengd), op
     // een model in de enige sectie, en op de eigen planning (die blijft een doel).
     ...dataKopBestanden(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
-      .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), model: true })),
-    ...dataKopBestanden(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), model: true })),
-    ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), model: false })),
+      .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
+    ...dataKopBestanden(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
+    ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
     // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam. In ronde 3 gaf de doelcontrole hier "no-model" en
     // schreven Opslaan als, CSV en AutoSave over het model heen. De eigen planning met zo'n naam blijft een doel.
-    ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), model: true })),
-    ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), model: false })),
+    // Ronde 6: de kapotte naam breekt de grammatica; dan weigert het doel als niet leesbaar, ook de eigen planning.
+    ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
+    ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
   ];
   const cancelled = { ok: true, warnings: [], cancelled: true };
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.
   const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
   for (const t of targets) {
+    // Ronde 6 (besluit Trias): hetzelfde bestand opent zoals main (de eigen planning met al haar 20 taken), en weigert
+    // als doel (hieronder).
+    if (t.name.startsWith('eigen-naam')) {
+      const opened = await open(`${t.name}.ifc`, t.bytes, null);
+      eq(`fixronde 4, ${t.name}: opent zoals main, met 20 taken en zonder modelweigering`,
+        [opened.getState().tasks.length, modelNotices(opened).length], [20, 0]);
+    }
     const own = fakeHandle('eigen.ifc', showcase);
     const store = await open('eigen.ifc', showcase, { kind: 'handle', handle: own.handle });
     const S = () => store.getState();
@@ -1118,19 +1133,23 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     const target = fakeHandle(`${t.name}.ifc`, t.bytes, { streamChunk: 64 << 10 });
     pick = target;
     await S().saveFileAs();
-    if (t.model) {
-      eq(`fixronde 4, handle, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd`,
-        [target.writables(), target.text() === dec(t.bytes), S().fileHandle === own.handle, S().isDirty, noticeCount(store, TARGET_SAVE) > 0],
-        [0, true, true, true, true]);
+    const saveKey = t.refuse === 'unreadable' ? UNREADABLE_SAVE : TARGET_SAVE;
+    const autoKey = t.refuse === 'unreadable' ? UNREADABLE_AUTOSAVE : TARGET_AUTOSAVE;
+    const otherSave = t.refuse === 'unreadable' ? TARGET_SAVE : UNREADABLE_SAVE;
+    if (t.refuse) {
+      eq(`fixronde 4, handle, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd, melding ${t.refuse}`,
+        [target.writables(), target.text() === dec(t.bytes), S().fileHandle === own.handle, S().isDirty, noticeCount(store, saveKey) > 0,
+          noticeCount(store, otherSave)],
+        [0, true, true, true, true, 0]);
     } else {
       eq(`fixronde 4, handle, ${t.name}: Opslaan als schrijft`, [target.writes.length, S().fileHandle === target.handle], [1, true]);
     }
     const csvTarget = fakeHandle(`${t.name}.csv`, t.bytes, { streamChunk: 64 << 10 });
     pick = csvTarget;
     const csv = await S().exportAs('csv');
-    eq(`fixronde 4, handle, ${t.name}: CSV-export ${t.model ? 'geweigerd, de bestaande tekst' : 'schrijft'}`,
-      t.model ? [csv, csvTarget.writables(), csvTarget.text() === dec(t.bytes)] : [csvTarget.writes.length],
-      t.model ? [cancelled, 0, true] : [1]);
+    eq(`fixronde 4, handle, ${t.name}: CSV-export ${t.refuse ? 'geweigerd, de bestaande tekst' : 'schrijft'}`,
+      t.refuse ? [csv, csvTarget.writables(), csvTarget.text() === dec(t.bytes)] : [csvTarget.writes.length],
+      t.refuse ? [cancelled, 0, true] : [1]);
     pick = null;
     // AutoSave: een ander programma zet het doel op de plek van het eigen bestand van A.
     const auto = fakeHandle('auto.ifc', showcase);
@@ -1140,10 +1159,10 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     auto.replace(t.bytes);
     A().addTask({ name: 'Werk voor AutoSave' });
     await createFileAutoSaveController({ getState: A, enabled: () => true }).flush();
-    eq(`fixronde 4, handle, ${t.name}: AutoSave ${t.model ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
-      t.model ? [auto.writes.length, auto.text() === dec(t.bytes), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)]
-        : [auto.writes.length, A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)],
-      t.model ? [0, true, true, 1] : [1, false, 0]);
+    eq(`fixronde 4, handle, ${t.name}: AutoSave ${t.refuse ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
+      t.refuse ? [auto.writes.length, auto.text() === dec(t.bytes), A().isDirty, noticeCount(autoStore, autoKey)]
+        : [auto.writes.length, A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE) + noticeCount(autoStore, UNREADABLE_AUTOSAVE)],
+      t.refuse ? [0, true, true, 1] : [1, false, 0]);
   }
   // 9b. Tauri-pad: dezelfde doelen via de echte plugin-JS (`open`, `read`, `seek`) met nep-IPC naar Node-fs.
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-r4-'));
@@ -1176,22 +1195,24 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       const seeks = ipc.seeks();
       dialogAnswer = targetPath;
       await S().saveFileAs();
-      if (t.model) {
-        eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd`,
-          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, TARGET_SAVE) > 0],
+      const saveKey = t.refuse === 'unreadable' ? UNREADABLE_SAVE : TARGET_SAVE;
+      const autoKey = t.refuse === 'unreadable' ? UNREADABLE_AUTOSAVE : TARGET_AUTOSAVE;
+      if (t.refuse) {
+        eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd, melding ${t.refuse}`,
+          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, saveKey) > 0],
           [sha(t.bytes), ownPath, true, true]);
       } else {
         eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft`,
           [S().filePath, readFileSync(targetPath, 'utf8').includes('Eigen werk')], [targetPath, true]);
       }
       if (t.name === 'terra-groot') {
-        eq('fixronde 4, Tauri, terra-groot: de lezer las de bron opnieuw vanaf DATA; (plugin-fs seek)', ipc.seeks() > seeks, true);
+        eq('fixronde 4, Tauri, terra-groot: de lezer beslist in de kop, zonder terugspoelen (plugin-fs seek)', ipc.seeks(), seeks);
       }
       dialogAnswer = csvPath;
       const csv = await S().exportAs('csv');
-      eq(`fixronde 4, Tauri, ${t.name}: CSV-export ${t.model ? 'geweigerd, de bestaande tekst' : 'schrijft'}`,
-        t.model ? [csv, sha(readFileSync(csvPath))] : [readFileSync(csvPath, 'utf8') !== dec(t.bytes)],
-        t.model ? [cancelled, sha(t.bytes)] : [true]);
+      eq(`fixronde 4, Tauri, ${t.name}: CSV-export ${t.refuse ? 'geweigerd, de bestaande tekst' : 'schrijft'}`,
+        t.refuse ? [csv, sha(readFileSync(csvPath))] : [readFileSync(csvPath, 'utf8') !== dec(t.bytes)],
+        t.refuse ? [cancelled, sha(t.bytes)] : [true]);
       // AutoSave: een ander programma zet het doel op de plek van het eigen bestand.
       const autoPath = join(dir, `auto-${t.name}.ifc`);
       writeFileSync(autoPath, showcase);
@@ -1204,10 +1225,10 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       writeFileSync(autoPath, t.bytes);
       A().addTask({ name: 'Werk voor AutoSave' });
       await createFileAutoSaveController({ getState: A, enabled: () => true }).flush();
-      eq(`fixronde 4, Tauri, ${t.name}: AutoSave ${t.model ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
-        t.model ? [sha(readFileSync(autoPath)), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)]
-          : [readFileSync(autoPath, 'utf8').includes('Werk voor AutoSave'), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE)],
-        t.model ? [sha(t.bytes), true, 1] : [true, false, 0]);
+      eq(`fixronde 4, Tauri, ${t.name}: AutoSave ${t.refuse ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
+        t.refuse ? [sha(readFileSync(autoPath)), A().isDirty, noticeCount(autoStore, autoKey)]
+          : [readFileSync(autoPath, 'utf8').includes('Werk voor AutoSave'), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE) + noticeCount(autoStore, UNREADABLE_AUTOSAVE)],
+        t.refuse ? [sha(t.bytes), true, 1] : [true, false, 0]);
     }
     eq('fixronde 4, Tauri: de lezer sluit elk bestand', ipc.openHandles(), 0);
   } finally {

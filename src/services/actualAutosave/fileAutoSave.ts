@@ -10,7 +10,7 @@ import {
 } from '@/services/fileAccess';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
-  IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
+  IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
 } from '@/state/ifcForeignGuard';
 import {
   AutoSaveTargetUnavailableError, createActualAutoSaveController, type ActualAutoSaveCandidate, type ActualAutoSaveController,
@@ -72,11 +72,13 @@ export function createFileAutoSaveController(deps: {
     canWrite: canWriteToRefWithoutPrompt,
     write: (candidate, content) => runProjectFileWrite(async () => {
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock, vóór de write.
-      if (await refusedWriteTarget(getState(), candidate.ref!, targetDeps)) {
+      const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
+      if (reason) {
         refusedTarget.set(candidate.id, candidate.ref!);
         if (!targetNotified.has(candidate.id)) {
           targetNotified.add(candidate.id);
-          getState().notify(IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE);
+          getState().notify(reason === 'unreadable-target'
+            ? IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE : IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE);
         }
         return 'refused';
       }

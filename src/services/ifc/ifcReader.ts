@@ -1092,6 +1092,9 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
  *     ONGEBALANCEERDE apostrof). De quote-bewuste scan loopt daar uit de pas ⇒ zonder terugval stil
  *     een leeg project.
  *
+ * Breekt de grammatica, dan raadt (1) niet (besluit Trias, review van #870 ronde 6): (2) en (3) zijn precies main, dus
+ * zo'n bestand opent zoals op main. De doelcontrole schrijft dan niet over het bestand (`targetModelScan.ts`).
+ *
  * Niet andersom: regelverankering als PRIMAIRE scan weigert geldige bestanden uit (1) en pikt een
  * `DATA;` op aan het begin van een regel binnen een commentaar of een header-string met een echt
  * regeleinde (nul entiteiten zónder fout, of verzonnen entiteiten uit commentaar). Beide gevallen zijn
@@ -1110,8 +1113,9 @@ function indexOfDataSection(content: string): number {
 // Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, alle DATA-secties), wijzig ze daar ook.
 function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
-  // 1. Begin van de datasectie (`DATA;` of `DATA(`, ook met witruimte of commentaar ertussen; `stepDataSection.ts`) — een `DATA;` binnen de FILE_NAME-string van
-  //    de header telt niet mee. Na `DATA(` leest de lus de parameters van de sectiekop: strings en haakjes, geen entiteit.
+  // 1. Begin van de datasectie (`DATA;` of `DATA(…);`, ook met witruimte of commentaar ertussen; `stepDataSection.ts`)
+  //    — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee. De lus begint direct na de `;` van de kop:
+  //    de parameters van de sectiekop komen er niet in.
   const data = stepDataSectionBounds(content);
   // Geen sectiegrens ⇒ getypeerde fout, GEEN leeg resultaat. `openFile`/`useRecoveryRestore` tonen
   // dan de leesfout in plaats van een leeg document te openen bovenop het pad van de gebruiker.
@@ -1125,8 +1129,8 @@ function parseSTEP(content: string): StepEntity[] {
   // 2. Commentaar strippen (buiten strings). Regeleindes NIET normaliseren: de tokenizer behandelt \r al
   //    als witruimte, en een globale \r\n → \n-vervanging veranderde ook de tekst BINNEN strings (een
   //    notitie of naam met Windows-regeleinden kwam na opslaan en openen anders terug).
-  //    De kop kan langer zijn dan `DATA;` (`DATA ('naam',…);`, met witruimte of commentaar vóór de `(`): de lezer gaat
-  //    verder op de echte leespositie, direct na de `;` of `(`.
+  //    De kop kan langer zijn dan `DATA;` (`DATA ('naam',…);`, met witruimte of commentaar ertussen): de lezer gaat
+  //    verder op de echte leespositie, direct na de `;` van de kop.
   const clean = stripStepComments(content.slice(data.end));
 
   // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`), tot het einde van de tekst. Één pas, geen

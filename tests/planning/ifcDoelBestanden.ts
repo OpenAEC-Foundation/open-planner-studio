@@ -67,8 +67,10 @@ export interface DataKopVorm {
   /** De scanner achter de flag (`stepScanner.ts`, #804) weigert deze vorm en valt terug op de gewone route. */
   scannerWeigert?: true;
   /** Alleen vóór de eerste datasectie. Tussen twee datasecties leest `parseSTEP` commentaar nog zoals main: een
-   *  regeleinde in `/*` of `*\/` ziet hij niet als commentaargrens (knownbug, ook met één sectie). */
+   *  regeleinde in `/*` of `*\/` ziet hij niet als commentaargrens (knownbug 1050, ook op main met één sectie). */
   eersteSectie?: true;
+  /** Het implementatieniveau dat de vorm vraagt (§8.2.2): een ANCHOR-sectie vraagt `4;1`. Anders `3;1` bij parameters. */
+  niveau?: '4;1';
 }
 const P = "('deel {n}',('IFC4X3_ADD2'))";
 export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
@@ -90,6 +92,9 @@ export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
   { id: 'param-gemengd', norm: 'witruimte, commentaar en regeleinde vóór (', kop: `DATA /*c*/\n/*d*/ ${P};` },
   { id: 'param-ruimte-binnen', norm: 'witruimte tussen de parameters en vóór ;', kop: "DATA( 'deel {n}' , ( 'IFC4X3_ADD2' ) ) ;" },
   { id: 'param-commentaar-binnen', norm: 'commentaar tussen de parameters en vóór ;', kop: "DATA(/*a*/'deel {n}'/*b*/,/*c*/('IFC4X3_ADD2')/*d*/)/*e*/;" },
+  // Review van #870, ronde 6 (Terra, VERVOLG): commentaar en witruimte op elke plaats binnen de lijst met schema's.
+  { id: 'param-commentaar-lijst', norm: "commentaar en regeleindes binnen de lijst met schema's", kop: "DATA('deel {n}'\n,(/*a*/\n'IFC4X3_ADD2'/*b*/\n,/*c*/'IFC4'\n)/*d*/\n);",
+    uitbreiding: 'de lijst heeft precies één schemanaam (§11.1)' },
   { id: 'param-lijst', norm: "meer schema's in de lijst", kop: "DATA('deel {n}',('IFC4X3_ADD2','IFC4'));",
     uitbreiding: 'de lijst heeft precies één schemanaam (§11.1)' },
   { id: 'param-string-lastig', norm: "string met '', DATA(, ENDSEC; en een entiteit", kop: "DATA('deel {n}''s DATA( ENDSEC; #9=IFCWALL($);',('IFC4X3_ADD2'));" },
@@ -117,7 +122,8 @@ export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
   { id: 'del-in-data', norm: 'U+007F midden in DATA', kop: `DA\x7fTA${P};`, scannerWeigert: true },
   { id: 'regeleinde-in-aanhalingsteken', norm: "regeleinde tussen de apostroffen van '' in FILE_NAME", naam: "Van '\n't Hof.ifc", kop: `DATA${P};`, overgang: 'ENDSEC;' },
   // Review ronde 5 (Sol): een ANCHOR-sectie vóór de eerste datasectie, met een string als waarde (tabel 3).
-  { id: 'anchor-sectie', norm: 'ANCHOR-sectie met een string vóór DATA', kop: `DATA${P};`, overgang: "ENDSEC;\nANCHOR;\n<a>='tekst';\nENDSEC;", scannerWeigert: true, eersteSectie: true },
+  { id: 'anchor-sectie', norm: 'ANCHOR-sectie met een string vóór DATA', kop: `DATA${P};`, overgang: "ENDSEC;\nANCHOR;\n<a>='tekst';\nENDSEC;", scannerWeigert: true, eersteSectie: true,
+    niveau: '4;1' },
 ];
 
 /** `text` met de rauwe bestandsnaam van `vorm` (als die er een heeft). */
@@ -134,7 +140,8 @@ export function metDataKop(text: string, vorm: DataKopVorm, alleen?: 'eerste'): 
     n++;
     return (vorm.overgang ?? `ENDSEC;${eol}`) + vorm.kop.split('{n}').join(String(n));
   });
-  return vorm.kop.includes('(') ? out.replace("'2;1'", "'3;1'") : out;
+  const niveau = vorm.niveau ?? (vorm.kop.includes('(') ? '3;1' : undefined);
+  return niveau ? out.replace("'2;1'", `'${niveau}'`) : out;
 }
 
 /** Elke vorm uit `DATA_KOP_VORMEN` op `text`; bij meer secties ook gemengd: alleen de eerste kop in die vorm. */
@@ -147,11 +154,12 @@ export function dataKopBestanden(text: string, welke: 'alle' | 'scanner' | 'scan
   ]);
 }
 
-/** Waar de eerste sectiekop in `metDataKop(text, vorm)` begint (de `D`) en waar de lezer verder gaat (na de `;` of `(`). */
-export function dataKopGrens(text: string, vorm: DataKopVorm): { at: number; end: number } {
+/** Waar de eerste sectiekop in `metDataKop(text, vorm)` begint (de `D`) en waar de lezer verder gaat (direct na de `;`
+ *  van de kop: de parameters horen bij de kop, review van #870 ronde 6). */
+export function dataKopGrens(text: string, vorm: DataKopVorm): { at: number; end: number; grammar: true } {
   const at = /ENDSEC;\r?\nDATA;/.exec(metNaam(text, vorm))!.index + (vorm.overgang ?? 'ENDSEC;\n').length;
   const kop = vorm.kop.split('{n}').join('1');
-  return { at, end: at + (kop.includes('(') ? kop.indexOf('(') : kop.indexOf(';')) + 1 };
+  return { at, end: at + kop.length, grammar: true }; // elke vorm in de tabel past in de grammatica
 }
 
 /** Sol en Terra (review van #870, ronde 3, BLOKKEERT): een oude, rauw geschreven bestandsnaam met één apostrof en een
@@ -169,11 +177,15 @@ export const brokenNameFiles = (text: string): Array<[string, string]> => [
   // Ronde 5 (Sol): een komma of haakje na de losse apostrof; de oude regel voor een gezonde kop liet dat door.
   ['naam-komma-endsec', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van ', ENDSEC; DATA (bouw).ifc'")],
   ['naam-haakje-endsec', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van ') ENDSEC; DATA (bouw).ifc'")],
+  // Ronde 6 (Sol): een naam die de grammatica tot de valse kop volgt (FILE_NAME met 7 parameters, dan `ENDSEC;`), en
+  // een regeleinde in de naam vóór `DATA (`. De valse kop klopt niet: de grammatica breekt, de vinder raadt niet.
+  ['naam-zeven-parameters', text.replace(/FILE_NAME\('[^']*'/, () => "FILE_NAME('Van ', $, $, $, $, $, $); ENDSEC; DATA (bouw).ifc'")],
+  ['naam-regeleinde', text.replace(/FILE_NAME\('[^']*'/, () => "FILE_NAME('Van 't Hof\n DATA (bouw).ifc'")],
 ];
 
 /** Terra (review ronde 4): de kapotte naam (`brokenHeader`) samen met elke kopvorm uit de norm. De omgedraaide
- *  stringtoestand verbergt dan de echte `ENDSEC;`; de regel-verankerde poging moet de kop vinden, ook met commentaar
- *  tussen `DATA` en `(`. Een vorm die niet aan het begin van een regel staat, vindt `readIFC` dan niet: dan weigert hij
- *  het bestand (`no-data-section`). Nooit opent hij leeg. */
+ *  stringtoestand breekt de grammatica. Dan raadt de vinder niet (besluit Trias, review van #870 ronde 6): `readIFC`
+ *  opent zoals main (alleen `DATA;`, op codeniveau of aan het begin van een regel), en de doelcontrole weigert het
+ *  schrijven ('unreadable'). */
 export const brokenHeaderDataFiles = (text: string): Array<[string, string]> =>
   DATA_KOP_VORMEN.filter(v => !v.buitenNorm).map(v => [`kapot-${v.id}`, metDataKop(brokenHeader(text), v)]);

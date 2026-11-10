@@ -65,6 +65,11 @@ const FOREIGN_SOURCE_TARGET_REFUSAL = (path: string) => `'${path}' is the source
 const BUILDING_MODEL_TARGET_REFUSAL = (path: string) => `'${path}' already contains a building model. Writing here ` +
   'would replace the model with only the schedule. Export to another path.';
 
+/** Review van #870: een bestaand STEP-bestand op het pad waarin de app geen datasectie volgens ISO 10303-21 vindt. De app
+ *  kan niet zien of er een gebouwmodel in staat, dus schrijft hij er niet over (flag `ifcForeignContent` aan). */
+const UNREADABLE_TARGET_REFUSAL = (path: string) => `'${path}' is an IFC/STEP file the app cannot read reliably; it may ` +
+  'contain a building model. Writing here could replace that model with only the schedule. Export to another path.';
+
 // --- fs-naad -------------------------------------------------------------------------------------
 
 /** Minimale bestandssysteem-abstractie voor de twee bestands-tools. */
@@ -361,6 +366,7 @@ export const fileTools: McpToolDef[] = [
       if (refused) return refused;
       if (foreignTarget === 'open-source') return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
       if (foreignTarget === 'building-model') return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
+      if (foreignTarget === 'unreadable-target') return toolError(ctx, 'VALIDATION', UNREADABLE_TARGET_REFUSAL(path));
       if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
