@@ -1780,7 +1780,8 @@ en noem het in je rapport of PR-tekst.
      taak wissen en opnieuw schrijven: `LiteralTimes` verdwijnt en 19 eindtijden verschuiven (`1. Preparation` van
      16:00 naar 07:00). Alleen in de ontwikkel- en benchmarkomgeving; de productie-app laadt dit pad niet
      (`src/main.tsx:75`). Richting: `writeIFCWithChoices`, `exportHitsOwnFile` en `recordLiteralCalendarsWritten`, zoals
-     de export. Uit #872 (ronde 4, GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+     de export. Het pad schrijft bovendien buiten de gedeelde schrijflock (`runProjectFileWrite`), dus een AutoSave of
+     export kan er tussendoor schrijven (ronde 7, GPT-6.1-Sol). Uit #872 (ronde 4, GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
