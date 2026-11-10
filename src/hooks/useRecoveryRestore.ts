@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
+import { readIfcFromText } from '@/services/formatRegistry';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { documentTitle } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import type { RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
@@ -81,9 +82,15 @@ export function useRecoveryRestore(): RecoveryRestore {
             // Een snapshot met archiefVERWIJZING (eigenaarsbesluit plan (9)) haalt de bronbytes uit
             // de crashherstelopslag. Ontbreekt de blob, dan opent het document zonder archief en
             // met de `xerArchiveIssue`-melding ("openen met melding"), net als elk onbruikbaar archief.
-            const parsed = await readIFCWithXerReconstruction(
+            // #804 fase 1a: met de flag `ifcForeignContent` via de bytes-route (de herstelkopie is eigen tekst, dus
+            // `TextEncoder`). De kopie heeft nooit een vreemd deel: dat zat niet in de snapshot, en het herstelmanifest
+            // gaf zo'n document geen opslagdoel (`recoverySaveTarget`). Wel het kenmerk (fixronde 1): zie `foreignSource`.
+            const parsed = await readIfcFromText(
               d.ifc, buildImportLabels(startupTRef.current),
-              { resolveXerArchiveReference: (sha256) => loaded.archives.get(sha256) },
+              {
+                ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags),
+                resolveXerArchiveReference: (sha256) => loaded.archives.get(sha256),
+              },
             );
             // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` — deze hook
             // houdt bewust geen veldkennis.
@@ -95,6 +102,9 @@ export function useRecoveryRestore(): RecoveryRestore {
               // manifest ⇒ `null`.
               siteFileId: d.siteFileId ?? null,
               siteFileVersion: d.siteFileVersion ?? null,
+              // #804 fase 1a, fixronde 1: het doel van een bron met een vreemd deel; met de vingerafdruk uit de snapshot
+              // wordt dat het kenmerk (`payloadFromInput`). Ouder manifest ⇒ `null`.
+              foreignSource: d.foreignSource ?? null,
               isDirty: d.isDirty,
               datesAsRecorded: d.datesAsRecorded,
             }));

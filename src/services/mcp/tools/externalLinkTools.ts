@@ -15,6 +15,7 @@ import { readExternalSource } from '@/state/externalSource';
 import { checkScope, fileToolDeps, type McpFileFs } from './fileTools';
 import { guardNonTransactional, runMutateTool, toolError } from './runtime';
 import { WRITE_ANNOTATIONS } from './helpers';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 type SourceReport =
   | { path: string; status: 'read'; projectName: string }
@@ -24,18 +25,11 @@ export const externalLinkTools: McpToolDef[] = [
   {
     name: 'planner_refresh_external_links',
     description:
-      'Refresh the anchors of the external relationships (links to a task in another project file) from their ' +
-      'source files, like "Refresh all external relations" in the app. Reads every source file once, read-only ' +
-      '(it is not opened as a document), and updates for each link the anchor date, whether the source task ' +
-      'is missing, the source version (the file\'s modification time) and the read time; all in one undoable change. A link without a file path (entered by hand) is refreshed only ' +
-      'when another link reads the same source project; `manualLinks` counts them. A link to a project on the site ' +
-      '(it has a site file id) is not read by this tool: it keeps its anchor, and `siteLinks` counts it. FILE SCOPE: only source files inside the home folder (in the headless server: inside its ' +
-      'working folder). A link to a source file that was not read (outside that folder, or unreadable) keeps ' +
-      'its anchor and path, also when another source file has the same project id. Returns per source file ' +
-      'whether it was read (`sources`), the number of links ' +
-      'refreshed and missing, and `changes`: the links whose anchor date or missing status changed ' +
-      '(`anchorBefore` → `anchorAfter`). The schedule is recalculated afterwards, like in the app. A link on a ' +
-      'summary task (phase) applies to every task in that phase.',
+      'Re-read external relationship anchors (links to a task in another project file) from their source ' +
+      'files: read-only, not opened. Updates anchors and `sourceMissing` in one undo step, then recalculates. ' +
+      'Reads only files inside the home folder; links to an unread file and site links (`siteLinks`) keep ' +
+      'their anchor. A link without a file path refreshes only via another link to the same source project ' +
+      '(`manualLinks`). Report `sources` (read per file) and `changes` (`anchorBefore` → `anchorAfter`).',
     kind: 'mutate',
     // Async (bestanden lezen vóór de transactie): past niet in een synchroon draaiboek.
     batchable: false,
@@ -100,10 +94,11 @@ export const externalLinkTools: McpToolDef[] = [
           const version = await fs.stat(scope.path).then(info => info.mtime?.toISOString(), () => undefined);
           // Het pad uit de koppeling blijft de identiteit van de bron (herkennen bij verversen); lezen gaat
           // via het gecontroleerde pad.
+          // #804 fase 1a: met de flag `ifcForeignContent` leest een IFC-bron als bytes, zoals `parseExternalSource`.
           const read = await readExternalSource(filePath, {
             readTextFile: () => fs.readTextFile(scope.path),
             readFile: () => fs.readFile(scope.path),
-          });
+          }, undefined, { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) });
           const source = { ...read, ...(version ? { version } : {}), readAt: new Date().toISOString() };
           sources.push(source);
           readPaths.add(normalized);

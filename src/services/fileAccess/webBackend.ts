@@ -261,6 +261,8 @@ async function saveDataDialogWeb(
         types: toAcceptTypes(filters),
         ...(opts?.preferDownloads ? { startIn: 'downloads' as const } : {}),
       });
+      // #804 fixronde 1: het gekozen bestand vóór `createWritable()` controleren (bijv. de bron van een gebouwmodel).
+      if (await opts?.refuseTarget?.({ kind: 'handle', handle })) return null;
       const writable = await handle.createWritable();
       await writable.write(data as FileSystemWriteChunkType);
       await writable.close();
@@ -279,6 +281,8 @@ async function saveDataDialogWeb(
   }
   // Terugval: download. Geen herbruikbare ref — dit is de enige route die in élke omgeving werkt,
   // dus het bestand raakt hoe dan ook bij de gebruiker. `viaDownload` laat de aanroeper dat zeggen.
+  // Review #872 ronde 7 (Terra): ook na een geweigerde kiezer, dus na een `await`: eerst de controle van de aanroeper.
+  if (opts?.refuseDownload?.()) return null;
   downloadBlob(defaultName, data, opts?.mime);
   return { ref: null, name: defaultName, viaDownload: true };
 }

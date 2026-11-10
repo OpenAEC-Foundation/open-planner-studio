@@ -67,6 +67,8 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 
 **Taken die niet meeschuiven.** Een taak die al gestart of klaar is, schuift nooit. Haar belasting telt wel mee. Ook mijlpalen en fasen schuiven niet. Taken zonder toewijzing aan een aangevinkte resource schuiven alleen mee als een voorganger verschuift. Ook een taak met prioriteit 1000 volgt haar voorgangers.
 
+**Kostenresources tellen niet mee.** Een kostenresource heeft geen belasting, is nooit overbezet en staat niet in het histogram of het nivelleervenster.
+
 **Materiaal wordt niet genivelleerd.** Vraagt een materiaalresource op een dag meer dan zijn *Max. eenheden*, dan telt hij in *Overallocatie* wel als overbezet, maar staat hij niet in het nivelleervenster.
 
 **Nivelleren past zich niet aan.** De vertragingen blijven staan zoals ze berekend zijn. Wijzig je later de duur van een taak, dan blijft een genivelleerde taak op zijn plek, ook als die plek nu niet meer nodig is. Nivelleer dan opnieuw.

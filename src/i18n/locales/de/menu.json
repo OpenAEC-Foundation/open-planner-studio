@@ -140,6 +140,7 @@
     "histogram": "Histogramm",
     "toggleHistogram": "Histogramm",
     "warningsPanel": "Warnungsbereich",
+    "scheduleShiftPanel": "Verschiebungen",
     "prevResource": "Vorherige",
     "nextResource": "Nächste",
     "leveling": "Ressourcenabgleich",
@@ -238,6 +239,8 @@
     "company": "Unternehmen",
     "startDate": "Startdatum",
     "endDate": "Enddatum",
+    "defaultWorkRule": "Standard-Vorgangsart",
+    "defaultWorkRuleHint": "Vorgänge mit ‚Projektstandard‘ übernehmen diese Auswahl. Vorgänge mit einer eigenen Vorgangsart behalten ihre Auswahl.",
     "calc": {
       "title": "Berechnung",
       "subtitle": "Terminplanungsoptionen für dieses Projekt — werden mit der Datei gespeichert, nicht mit der App.",
@@ -324,7 +327,7 @@
     "exportTitle": "Exportieren",
     "exportSubtitle": "Format auswählen. Das Projekt wird konvertiert und gespeichert.",
     "progressImportCardTitle": "Fortschritt aus einer Tabelle aktualisieren",
-    "progressImportCardDesc": "Lesen Sie ein zurückgesandtes CSV- oder XLSX-Blatt ein und aktualisieren Sie Fertigstellung, Ist-Anfang und Ist-Ende.",
+    "progressImportCardDesc": "Lesen Sie ein zurückgesandtes Excel-Blatt (.xlsx) ein und aktualisieren Sie Fertigstellung, Ist-Anfang und Ist-Ende.",
     "printTitle": "Drucken",
     "printSubtitle": "Berichtsansicht für Druckvorschau und Einstellungen öffnen.",
     "openPrintPreview": "Druckvorschau öffnen",
@@ -392,6 +395,9 @@
     "mspdiDesc": "Öffnen in Microsoft Project. Vollständige PSP-Struktur.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Für Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Für Oracle Primavera P6, als .xer-Datei.",
+    "experimentalBadge": "Experimentell",
     "profileHint": "Ihr Projekt verwendet derzeit das Profil {{name}}. Wir empfehlen das Profil {{target}} für die beste Kompatibilität mit diesem Dateiformat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-Standard, im IFC-Schema des Projekts (Standard: IFC 4.3 ADD2). 4D-Verknüpfung mit BIM-Modellen.",
@@ -446,5 +452,18 @@
     "redo": "Wiederholen",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern"
+  },
+  "native": {
+    "window": "Fenster",
+    "quit": "Open Planner Studio beenden",
+    "about": "Über Open Planner Studio",
+    "services": "Dienste",
+    "hide": "Open Planner Studio ausblenden",
+    "hideOthers": "Andere ausblenden",
+    "showAll": "Alle einblenden",
+    "closeWindow": "Fenster schließen",
+    "cut": "Ausschneiden",
+    "fullscreen": "Vollbild ein-/ausschalten",
+    "bringAllToFront": "Alle nach vorne bringen"
   }
 }

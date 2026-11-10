@@ -1087,7 +1087,8 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       await saveBytesDialog(
         defaultName, pdfBytes,
         [{ name: 'PDF Document', extensions: ['pdf'] }],
-        { mime: 'application/pdf' },
+        // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel.
+        { mime: 'application/pdf', refuseTarget: useAppStore.getState().foreignTargetCheck('export') },
       );
     } catch (err) {
       useAppStore.getState().notify({

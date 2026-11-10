@@ -162,6 +162,14 @@
       "kind": "howto"
     },
     {
+      "id": "howto-vast-bedrag-toekennen",
+      "title": {
+        "nl": "Een vast bedrag toekennen",
+        "en": "Assigning a fixed amount"
+      },
+      "kind": "howto"
+    },
+    {
       "id": "howto-urenverdeling-aanpassen",
       "title": {
         "nl": "Urenverdeling aanpassen",

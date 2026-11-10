@@ -12,14 +12,11 @@ const IFC = readFileSync(resolve(process.cwd(), 'public/examples/showcase-verbou
 const FLOAT_BAND_FR = (JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/menu.json'), 'utf8')) as {
   ribbon: { toggleFloatBand: string };
 }).ribbon.toggleFloatBand;
-/** Teksten van de baselinedialoog in het Frans (start) en Duits (na de live wissel). */
+/** Teksten in het Frans (de hosttaal) en Duits (na de live wissel). */
 const FR_MENU = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/menu.json'), 'utf8')) as { ribbon: { manageBaselines: string } };
 const FR_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/common.json'), 'utf8')) as {
   baseline: { dialog: { name: string; title: string } }; settings: { language: string };
-};
-/** Pop-up en meldingen in het Engels: zonder Franse vertaling toont de app het Engels. */
-const EN_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/en/common.json'), 'utf8')) as {
-  notifications: { settingsLoadedLate: string; settingsLoadedLateReverted: string; hostThemeUntilRestart: string };
+  notifications: { settingsLoadedLateReverted: string };
   settingsDelay: { title: string; body: string };
 };
 const DE_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/de/common.json'), 'utf8')) as { baseline: { dialog: { name: string; title: string } } };
@@ -263,8 +260,8 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000 }).toBe('welcome-host');
   // De pop-up, in gewone taal, en weg met OK.
   await expect(delayDialog).toBeVisible();
-  await expect(delayDialog).toContainText(EN_COMMON.settingsDelay.title);
-  await expect(delayDialog).toContainText(EN_COMMON.settingsDelay.body);
+  await expect(delayDialog).toContainText(FR_COMMON.settingsDelay.title);
+  await expect(delayDialog).toContainText(FR_COMMON.settingsDelay.body);
   await delayDialog.locator('[data-ops-settings-delay-ok]').click();
   await expect(delayDialog).toHaveCount(0);
   // De sessie draait op de standaardinstellingen: Spelingsband staat aan, geen eigen werksoorten.
@@ -323,7 +320,7 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   // De host antwoordt alsnog. De bewaarde instellingen winnen, live, zonder herladen.
   await page.evaluate(() => (window as unknown as { __testReleaseHost: () => void }).__testReleaseHost());
   await expect.poll(lateNotices, { message: 'één melding, met "teruggezet"' }).toEqual(['geladen, teruggezet']);
-  await expect(page.locator('.ops-toast', { hasText: EN_COMMON.notifications.settingsLoadedLateReverted })).toHaveCount(1);
+  await expect(page.locator('.ops-toast', { hasText: FR_COMMON.notifications.settingsLoadedLateReverted })).toHaveCount(1);
   await expect(delayDialog).toHaveCount(0);
   expect(await storedTypeNames(), 'de bewaarde persoonlijke werksoorten terug, de nieuwe weg').toEqual(['Bewaard type']);
   // De keuzelijst per groep. "Sessietype" gaat uit de persoonlijke werksoorten (die van de host winnen),

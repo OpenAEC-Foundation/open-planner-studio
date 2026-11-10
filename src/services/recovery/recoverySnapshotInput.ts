@@ -11,8 +11,14 @@ export interface RecoverySnapshotInput {
 export function recoverySnapshotInput(source: IFCSaveSource): RecoverySnapshotInput {
   const { xerSourceArchive: archive, xer, ...input } = buildWriteIFCInput(source);
   const selector = xer?.sourceProjectId ?? input.xerSourceProjectId;
+  // #804 fase 1a, fixronde 1: kwam het document uit een bestand met een vreemd deel, dan alleen de vingerafdruk (twee
+  // getallen), nooit de bronbytes of de handle: deze invoer gaat naar de Worker.
+  const mark = source.foreignSourceMark;
   return {
-    input: { ...input, xerSourceProjectId: selector, xerSourceArchiveStorage: 'recovery-reference' },
+    input: {
+      ...input, xerSourceProjectId: selector, xerSourceArchiveStorage: 'recovery-reference',
+      ...(mark ? { recoveryForeignSource: { sha256: mark.sha256, byteLength: mark.byteLength } } : {}),
+    },
     ...(archive ? { archive: {
       format: archive.format, byteLength: archive.byteLength, sha256: archive.sha256,
       selectorValid: !!(selector && archive.diagnostics.documentViews[selector]),

@@ -40,7 +40,7 @@ import {
   booleanArgReason, enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS,
 } from './helpers';
 import type { AppState } from '@/state/appStore';
-import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
+import { RESOURCE_TYPES as ALL_RESOURCE_TYPES, type AvailabilityStep, type Resource, type ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
 // slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
@@ -51,7 +51,7 @@ type Rejection = { id: string; reason: string };
 type StoreState = AppState;
 
 /** Het volledige `ResourceType`-domein (types/resource.ts). Hoofdlettergevoelig, net als elders. */
-const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
+const RESOURCE_TYPES: readonly ResourceType[] = ALL_RESOURCE_TYPES;
 
 /**
  * De SCHRIJFBARE velden. Bewust exact het oppervlak dat de mens in het resourcepaneel heeft
@@ -286,7 +286,24 @@ function classifyResources(
    * Verwijzings-checks die de simulatie nodig hebben (kalender, ploeg, meeteenheid-op-materiaal).
    * `selfId` is het (sim-)id van de resource zelf; `effectiveType` het type ná deze patch.
    */
-  const referenceReason = (patch: FieldPatch, selfId: string, effectiveType: ResourceType): string | null => {
+  const referenceReason = (patch: FieldPatch, selfId: string, effectiveType: ResourceType, currentType?: ResourceType): string | null => {
+    // Kostenresource (issue #815): geen typewissel over de COST-grens met toewijzingen, en geen
+    // tarief, eenheid, kalender, stappen, ploeg of max. eenheden ≠ 1.
+    if (currentType !== undefined && patch.type !== undefined && patch.type !== currentType
+      && (currentType === 'COST' || patch.type === 'COST') && assignmentsOf(selfId).length > 0) {
+      return `resource '${selfId}' still has ${assignmentsOf(selfId).length} assignment(s); a type change to or from ` +
+        'COST is refused while it has assignments (units and work cannot be turned into an amount and back). ' +
+        'Remove the assignments first with planner_manage_assignments (`remove`).';
+    }
+    if (effectiveType === 'COST') {
+      const bad = (['costPerHour', 'unitOfMeasure', 'calendarId', 'availabilitySteps', 'parentId'] as const)
+        .filter((k) => patch[k] !== undefined);
+      if (patch.maxUnits !== undefined && patch.maxUnits !== 1) bad.push('maxUnits' as never);
+      if (bad.length > 0) {
+        return `a COST resource has no ${bad.join(', ')}: it carries a fixed amount per assignment ` +
+          '(planner_manage_assignments `costAmount`), no rate, capacity, calendar, unit or crew';
+      }
+    }
     if (patch.calendarId !== undefined) {
       const calId = patch.calendarId as string;
       if (!calendarIds.has(calId)) {
@@ -392,7 +409,7 @@ function classifyResources(
       const lockBad = libraryLockReason(s, item.id, fields);
       if (lockBad) { rejections.push({ id: item.id, reason: lockBad }); return; }
       const effectiveType = (fields.type as ResourceType) ?? cur.type;
-      const refBad = referenceReason(fields, cur.id, effectiveType);
+      const refBad = referenceReason(fields, cur.id, effectiveType, cur.type);
       if (refBad) { rejections.push({ id: item.id, reason: refBad }); return; }
       // Simulatie bijwerken zodat latere items tegen de NIEUWE stand valideren.
       cur.type = effectiveType;
@@ -550,31 +567,13 @@ const EMPTY_DATA = { created: {}, resources: [], updated: [], deleted: [], remov
 const manageResources: BatchStepTool = {
   name: 'planner_manage_resources',
   description:
-    'Manage the RESOURCES themselves in bulk — create, change, delete (one call = one undo step). This is ' +
-    'the counterpart of planner_manage_assignments: that one links an EXISTING resource to a task, this tool ' +
-    'creates/changes/deletes the resource. One `action` per item: `create` (required `name`, optional ' +
-    '`tempId` + all fields), `update` (`id` + at least one field) or `delete` (`id`, and `cascade: true` as ' +
-    'soon as it still has assignments). Fields: `name`, `type` (LABOR | EQUIPMENT | MATERIAL | SUBCONTRACTOR ' +
-    '| CREW, default LABOR), `description`, `maxUnits` (capacity per WORKING DAY; 1 = 100% = one ' +
-    'person/piece, default 1), `costPerHour` (cost per HOUR), `unitOfMeasure` (only for MATERIAL), ' +
-    '`calendarId` (existing library calendar; `null` = the project calendar), `parentId` (crew membership, ' +
-    'must be a CREW resource; `null` = no crew) and `availabilitySteps` (time-phased capacity: `[{from: ' +
-    '"YYYY-MM-DD", maxUnits: n}]`; an empty list or `null` clears them). The field names are exactly those ' +
-    'of planner_list_resources, so you can put read values straight back. `null` CLEARS an optional field; ' +
-    'leaving a key out leaves it alone. DELETING IS DESTRUCTIVE: the resource, ALL its assignments and the ' +
-    'crew membership of its members are removed. As long as it still has assignments, `delete` is softly ' +
-    'refused with the exact count; then confirm with `cascade: true`. The response reports per deleted ' +
-    'resource exactly what went along (`removedAssignmentIds`, `affectedTaskIds`, `orphanedCrewMemberIds`). ' +
-    'Pass a `tempId` (`tmp-...`) with `create` if you want to assign the new resource in a next ' +
-    'planner_batch step — the real id comes back in `created`. Refused items come back in `itemRejections`; ' +
-    'the valid items simply stay. RESOURCES INHERITED FROM THE RESOURCE LIBRARY: if a resource comes from a ' +
-    'resource library (`libraryOrigin` in planner_list_resources), that library determines WHAT it is and ' +
-    '`name`, `type`, `description`, `costPerHour` and `unitOfMeasure` are fixed — an `update` on them is ' +
-    'refused, exactly as those fields cannot be changed in the resource panel either. What the PROJECT ' +
-    'determines stays writable: `maxUnits`, `calendarId`, `parentId` and `availabilitySteps`. If such a ' +
-    'fixed field must be different after all, present the user with the two routes: change it in the library ' +
-    '(then applies to every project that uses the resource; the bridge deliberately does not offer that ' +
-    'route) or unlink the resource from the library, after which it is project-owned and fully editable.',
+    'Create (`name`), update (`id` + fields) or delete (`id`) resources; assign with ' +
+    'planner_manage_assignments. Omitted = unchanged; null clears. Delete clears assignments (needs ' +
+    '`cascade: true` if any); deleting CREW clears members\' `parentId`. Create `tempId` maps in `created` ' +
+    'for later steps of this planner_batch. Library locks name/type/description/costPerHour/unitOfMeasure: ' +
+    'offer library change or unlinking. COST: a fixed amount per assignment (planner_manage_assignments ' +
+    '`costAmount`), no costPerHour/unitOfMeasure/calendarId/availabilitySteps/parentId, maxUnits 1; no ' +
+    'load or leveling; no type change to or from COST while it has assignments.',
   kind: 'mutate',
   batchable: true,
   // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.
@@ -585,65 +584,40 @@ const manageResources: BatchStepTool = {
       actions: {
         type: 'array',
         minItems: 1,
-        description: 'The resource actions to run, in order.',
         items: {
           type: 'object',
           required: ['action'],
           properties: {
             action: { type: 'string', enum: ['create', 'update', 'delete'] },
-            id: { type: 'string', description: 'For `update`/`delete`: exactly the resource id from planner_list_resources.' },
-            tempId: {
-              type: 'string',
-              description:
-                'Only for `create`: your own label starting with `tmp-` or `tmp_`. The real id comes back in ' +
-                '`created[tempId]`; inside planner_batch a next step may use the tempId.',
-            },
-            cascade: {
-              type: 'boolean',
-              description:
-                'Only for `delete`: confirm that the existing assignments of this resource may be cleared ' +
-                'TOO. Without this flag a resource WITH assignments is softly refused.',
-            },
-            name: { type: 'string', description: 'Display name; required for `create`.' },
+            id: { type: 'string' },
+            tempId: { type: 'string', description: '`create` only; must start with `tmp-` or `tmp_`.' },
+            cascade: { type: 'boolean' },
+            name: { type: 'string' },
             type: {
               type: 'string',
-              enum: ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'],
-              description: 'Resource type (UPPERCASE). Default for `create`: LABOR.',
+              enum: ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW', 'COST'],
+              description: 'Default LABOR. COST = a fixed amount per assignment.',
             },
-            description: { type: 'string', description: 'Free description; "" empties it.' },
+            description: { type: 'string', description: '"" empties it (not null).' },
             maxUnits: {
               type: 'number',
               exclusiveMinimum: 0,
-              description: 'Capacity per WORKING DAY (P6 "Max Units"): 1 = 100% = one person/piece, 3 = three units. Default 1.',
+              description: 'Per WORKING DAY; 1 = one person/piece. Default 1.',
             },
-            costPerHour: {
-              type: ['number', 'null'],
-              minimum: 0,
-              description: 'Cost per HOUR; `null` clears the rate.',
-            },
-            unitOfMeasure: {
-              type: ['string', 'null'],
-              description: 'Unit of measure, ONLY for type MATERIAL (e.g. "m3"); `null` clears it.',
-            },
-            calendarId: {
-              type: ['string', 'null'],
-              description: 'Existing library calendar (planner_get_calendars); `null` = the project calendar.',
-            },
-            parentId: {
-              type: ['string', 'null'],
-              description: 'Crew membership: id of a CREW resource; `null` = no crew. Pure grouping, no capacity roll-up.',
-            },
+            costPerHour: { type: ['number', 'null'], minimum: 0 },
+            unitOfMeasure: { type: ['string', 'null'], description: 'MATERIAL only (e.g. "m3").' },
+            calendarId: { type: ['string', 'null'], description: 'null = project calendar.' },
+            parentId: { type: ['string', 'null'], description: 'A CREW resource (grouping only).' },
             availabilitySteps: {
               type: ['array', 'null'],
               description:
-                'Time-phased capacity: from `from` onwards `maxUnits` applies. An empty list or `null` ' +
-                'clears them (then the flat `maxUnits` applies at all times again).',
+                '`maxUnits` from ISO date `from` onwards (0 = unavailable).',
               items: {
                 type: 'object',
                 required: ['from', 'maxUnits'],
                 properties: {
-                  from: { type: 'string', description: 'ISO date (YYYY-MM-DD): from this day maxUnits applies.' },
-                  maxUnits: { type: 'number', minimum: 0, description: 'Capacity per working day from `from`; 0 = not available.' },
+                  from: { type: 'string' },
+                  maxUnits: { type: 'number', minimum: 0 },
                 },
               },
             },

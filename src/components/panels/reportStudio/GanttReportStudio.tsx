@@ -458,7 +458,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         // Dezelfde letter als waarop `options` gemeten is.
         fontId: cur.loadedFont?.id ?? DEFAULT_REPORT_FONT_ID,
       });
-      await saveBytesDialog(cur.fileName, bytes, [{ name: 'PDF Document', extensions: ['pdf'] }], { mime: 'application/pdf' });
+      await saveBytesDialog(cur.fileName, bytes, [{ name: 'PDF Document', extensions: ['pdf'] }], {
+        mime: 'application/pdf',
+        // Zelfde doelcontrole als het oude rapportpaneel (#804): geen PDF over een geopend bestand heen.
+        refuseTarget: useAppStore.getState().foreignTargetCheck('export'),
+      });
     } catch (err) {
       useAppStore.getState().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
     } finally {

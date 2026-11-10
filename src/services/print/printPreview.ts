@@ -650,8 +650,12 @@ function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableC
   const assignment = row.assignment;
   return {
     ...(task ? taskOwnCellTexts(task, options) : NO_TASK_CELLS),
-    units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
-    curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
+    // Kostenresource (#815): het bedrag in de kolom Eenh./d (of "—"), geen curve.
+    units: !assignment ? ''
+      : assignment.cost ? (assignment.costAmount !== undefined ? formatReportNumber(assignment.costAmount, options.numberLocale) : '—')
+      : formatReportNumber(assignment.unitsPerDay, options.numberLocale),
+    curve: !assignment ? '' : assignment.cost || assignment.curve === null ? '—'
+      : (options.curveLabels?.[assignment.curve] ?? assignment.curve),
   };
 }
 

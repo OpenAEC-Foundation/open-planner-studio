@@ -75,6 +75,11 @@
     "xmlUnknownSchedule": "Unknown XML schedule format. Open an MS Project XML (Project) or Primavera P6 XML (APIBusinessObjects).",
     "mppEncrypted": "This .mpp file is password-protected. In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "saveFailed": "Failed to save",
+    "ifcForeignSaveBlocked": "This file contains a building model; saving is not possible yet.",
+    "ifcForeignTargetSave": "This file also contains a building model. Choose another file to save to.",
+    "ifcForeignTargetExport": "This file also contains a building model. Choose another file to export to.",
+    "ifcExportChangedWhileWaiting": "The schedule changed while the export was waiting for another save. Nothing was exported. Export again.",
+    "ifcForeignTargetAutoSave": "Autosave has stopped: this file also contains a building model. Choose another file to save to.",
     "ambiguousThousands": "\"{{text}}\" is ambiguous: do you mean a decimal or thousands? Type decimals with \"{{separator}}\" (1{{separator}}5) and thousands without a separator (1500). The value was not changed.",
     "siteSaveConflict": "Not saved: '{{name}}' was changed on the site by someone else in the meantime. Your changes are still in the app. Choose Save As to keep them as a new file.",
     "siteSaveConflictCopy": "'{{original}}' was changed on the site by someone else in the meantime. Your work is therefore saved in a copy: '{{name}}'. From now on, Save writes to that copy.",
@@ -112,6 +117,8 @@
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
     "exportSplitsLost_one": "{{count}} task with breaks was exported without its breaks: MS Project/P6 only know breaks as a work distribution.",
     "exportSplitsLost_other": "{{count}} tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.",
+    "exportCostResourcesLost_one": "{{count}} cost resource was not exported, with its assignments and amounts: this format gets cost resources in a later version.",
+    "exportCostResourcesLost_other": "{{count}} cost resources were not exported, with their assignments and amounts: this format gets cost resources in a later version.",
     "exportP6Truncated_one": "{{count}} name or code was shortened to the length P6 allows.",
     "exportP6Truncated_other": "{{count}} names or codes were shortened to the length P6 allows.",
     "exportInvalidXmlChars_one": "{{count}} character that XML does not allow was replaced with � in the export.",
@@ -146,6 +153,8 @@
     "dragDatesAreActual": "'{{name}}' is complete: its start and finish are the actual dates and do not move. Change them through the progress.",
     "referencesClearedOnPaste_one": "{{count}} reference did not exist in this document and was cleared (a task calendar, custom work category, activity code or custom field from the source document).",
     "referencesClearedOnPaste_other": "{{count}} references did not exist in this document and were cleared (task calendars, custom work categories, activity codes or custom fields from the source document).",
+    "assignmentsSkippedOnPaste_one": "{{count}} assignment was not pasted: the resource is a different kind here (cost or work), or a milestone only takes cost.",
+    "assignmentsSkippedOnPaste_other": "{{count}} assignments were not pasted: the resource is a different kind here (cost or work), or a milestone only takes cost.",
     "milestoneRefusedAssignments": "'{{task}}' has resource assignments and cannot become a milestone. Remove the assignments first.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} task has resource assignments and cannot become a milestone. Remove the assignments first.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} tasks have resource assignments and cannot become milestones. Remove the assignments first.",
@@ -294,6 +303,8 @@
       "noteStatus_other": "{{count}} checked notes: the notes are included, the check marks are not",
       "resourceTypes_one": "{{count}} crew or subcontractor resource became labor",
       "resourceTypes_other": "{{count}} crew or subcontractor resources became labor",
+      "costResources_one": "{{count}} cost resource was left out, with its assignments and amounts",
+      "costResources_other": "{{count}} cost resources were left out, with their assignments and amounts",
       "libraryLinks_one": "{{count}} link to the resource library",
       "libraryLinks_other": "{{count}} links to the resource library",
       "holidayNames_one": "{{count}} name of a holiday (the day itself is included)",
@@ -330,6 +341,7 @@
     "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
     "dependentProjectsNone": "No projects found with an external relation to this schedule.",
     "dependentProjectsFailed": "The folder with dependent projects could not be read.",
+    "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library.",
     "reportLayoutGone": "The report's layout no longer exists. The report shows all tasks again."
   },
   "scheduleErrors": {
@@ -438,6 +450,8 @@
     "experimentalHide": "Hide",
     "demoTopbarAnimation": "Demo: top bar animation",
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
+    "ifcForeignContent": "Open IFC with a building model",
+    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. Saving such a file is not possible yet.",
     "featureReportRedesign": "New Report tab",
     "featureReportRedesignHint": "The Gantt print with steps in a sidebar and clickable paper. The other reports stay as they are.",
     "tourHint": "Take the app's introductory tour again.",
@@ -924,7 +938,8 @@
       "equipment": "Equipment",
       "material": "Material",
       "subcontractor": "Subcontractor",
-      "crew": "Crew"
+      "crew": "Crew",
+      "cost": "Cost"
     },
     "name": "Name",
     "typeLabel": "Type",
@@ -1049,7 +1064,9 @@
       "documents": "Documents",
       "selectHint": "Select a resource to see the histogram."
     },
-    "color": "Color"
+    "color": "Color",
+    "notForCost": "Does not apply to a cost resource: it only has a fixed amount per assignment.",
+    "costTypeLocked": "This resource has assignments. Remove them first to switch between a cost resource and another type."
   },
   "calendar": {
     "library": {

@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Okno Upozorenja",
+    "scheduleShiftPanel": "Pomaknuti zadaci",
     "prevResource": "Prethodni",
     "nextResource": "Sljedeći",
     "leveling": "Uravnoteživanje",
@@ -239,6 +240,8 @@
     "company": "Tvrtka",
     "startDate": "Datum početka",
     "endDate": "Datum završetka",
+    "defaultWorkRule": "Zadana vrsta zadatka",
+    "defaultWorkRuleHint": "Zadaci postavljeni na ‘Standard projekta’ slijede ovaj izbor. Zadaci s vlastitom vrstom zadatka zadržavaju svoj izbor.",
     "calc": {
       "title": "Izračun",
       "subtitle": "Opcije izračuna za ovaj projekt spremaju se uz datoteku, ne uz aplikaciju.",
@@ -326,7 +329,7 @@
     "exportTitle": "Izvoz",
     "exportSubtitle": "Odaberite format. Projekt će se pretvoriti i spremiti.",
     "progressImportCardTitle": "Ažuriraj napredak iz tablice",
-    "progressImportCardDesc": "Učitajte vraćenu CSV ili XLSX tablicu i ažurirajte dovršenost, stvarni početak i stvarni završetak.",
+    "progressImportCardDesc": "Učitajte vraćenu Excel tablicu (.xlsx) i ažurirajte dovršenost, stvarni početak i stvarni završetak.",
     "printTitle": "Ispis",
     "printSubtitle": "Otvorite zaslon izvješća za pregled ispisa i postavke.",
     "openPrintPreview": "Otvori pregled ispisa",
@@ -394,6 +397,9 @@
     "mspdiDesc": "Otvara se u programu Microsoft Project. Potpuna WBS-struktura.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Za Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Za Oracle Primavera P6, kao .xer datoteku.",
+    "experimentalBadge": "Eksperimentalno",
     "profileHint": "Vaš projekt trenutno koristi profil {{name}}. Preporučujemo profil {{target}} za najbolju kompatibilnost s ovim formatom datoteke.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, u IFC shemi projekta (zadano IFC 4.3 ADD2). 4D povezivanje s BIM modelima.",
@@ -448,5 +454,18 @@
     "redo": "Ponovi",
     "zoomIn": "Povećaj",
     "zoomOut": "Smanji"
+  },
+  "native": {
+    "window": "Prozor",
+    "quit": "Zatvori Open Planner Studio",
+    "about": "O programu Open Planner Studio",
+    "services": "Usluge",
+    "hide": "Sakrij Open Planner Studio",
+    "hideOthers": "Sakrij ostale",
+    "showAll": "Prikaži sve",
+    "closeWindow": "Zatvori prozor",
+    "cut": "Izreži",
+    "fullscreen": "Cijeli zaslon",
+    "bringAllToFront": "Sve u prvi plan"
   }
 }

@@ -84,6 +84,7 @@
       "explicitSummary": "Tarefa de resumo explícita",
       "externalRelationData": "Dados das relações externas",
       "floatPath": "Caminho de folga",
+      "calendarDays": "Dias de calendário",
       "freeFloat": "Folga livre",
       "hammock": "Hammock (duração derivada)",
       "interferingFloat": "Folga interferente",

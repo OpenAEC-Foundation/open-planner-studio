@@ -142,7 +142,10 @@ eq('2a de huidige writer schrijft de schema-ariteit', arities(NEW, CONTROL), NEW
 const moments = (r: ImportResult): ImportResult => ({ ...r,
   tasks: r.tasks.map(t => JSON.parse(JSON.stringify(normalizeTaskDates(t, { calendar: r.calendar, calendars: r.resourceCalendars ?? [] })))) });
 const rNew = readIFC(writeIFC(moments(rOld)));
-same('2b oud bestand en nieuw equivalent lezen dezelfde momenten op TimeModel na', moments(rNew), moments({ ...rOld, timeModel: 'MINUTES-1' }));
+// Het oude bestand heeft geen LiteralTimes; het nieuwe draagt de markering die de writer koos (T17). Die markering
+// leest terug als `ifcLiteralCalendarIds`, net als `timeModel`: een vormverschil, geen ander moment.
+eq('2b het oude bestand heeft geen LiteralTimes-markering', rOld.ifcLiteralCalendarIds, undefined);
+same('2b oud bestand en nieuw equivalent lezen dezelfde momenten op TimeModel na', moments(rNew), moments({ ...rOld, timeModel: 'MINUTES-1', ifcLiteralCalendarIds: rNew.ifcLiteralCalendarIds }));
 // 2c Een oudere versie schreef de rest van een dagtaak afgerond: "Earthworks for extension" (3 d, 40 %) staat
 // in het bestand met 2 d rest; exact afgeleid zou 1,8 d zijn. De lezer houdt de opgeslagen 2 d. Het bestand
 // zegt niet of een rest ingevoerd of afgeleid was, en een expliciete bronrest (MPP 4 d bij 33 %) ziet er net
@@ -156,7 +159,7 @@ eq('2c oud bestand: de opgeslagen rest blijft staan (2 d, niet de exacte 1,8 d)'
 const rFrac: ImportResult = { ...rOld, tasks: rOld.tasks.map(t => t.name === 'Earthworks for extension'
   ? { ...t, time: { ...t.time, remainingTime: 1.8 } } : t) };
 const rNewFrac = readIFC(writeIFC(moments(rFrac)));
-same('2b gebroken rest: dezelfde momenten op TimeModel na', moments(rNewFrac), moments({ ...rFrac, timeModel: 'MINUTES-1' }));
+same('2b gebroken rest: dezelfde momenten op TimeModel na', moments(rNewFrac), moments({ ...rFrac, timeModel: 'MINUTES-1', ifcLiteralCalendarIds: rNewFrac.ifcLiteralCalendarIds }));
 eq('2c gebroken rest (B3) blijft bewaard', earthworksRest(rNewFrac), 1.8);
 eq('2d een planningseinde zonder tijd komt terug als het einde van die werkdag',
   [rFrac.tasks[1].time.scheduleFinish, rNewFrac.tasks[1].time.scheduleFinish], ['2027-05-12', '2027-05-12T16:00']);
@@ -165,7 +168,7 @@ eq('2d een planningseinde zonder tijd komt terug als het einde van die werkdag',
 // las terug als 07:00: "1. Preparation" eindigde op 12 mei 07:00 in plaats van 16:00. Nu krijgt de writer
 // voor zo'n eindveld het moment van de laadgrens; dezelfde momenten als 2b.
 const rRaw = readIFC(writeIFC(rFrac));
-same('2e ruwe route: dezelfde momenten als het oude bestand, op TimeModel na', moments(rRaw), moments({ ...rFrac, timeModel: 'MINUTES-1' }));
+same('2e ruwe route: dezelfde momenten als het oude bestand, op TimeModel na', moments(rRaw), moments({ ...rFrac, timeModel: 'MINUTES-1', ifcLiteralCalendarIds: rRaw.ifcLiteralCalendarIds }));
 const prep = (r: ImportResult) => r.tasks.find(t => t.name === '1. Preparation')?.time;
 eq('2e ruwe route: "1. Preparation" eindigt op 12 mei 16:00, vroeg einde 19 mei 16:00',
   [prep(rRaw)?.scheduleFinish, prep(rRaw)?.earlyFinish, prep(rRaw)?.lateFinish], ['2027-05-12T16:00', '2027-05-19T16:00', '2027-05-19T16:00']);

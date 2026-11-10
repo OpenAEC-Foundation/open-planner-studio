@@ -100,8 +100,8 @@ test('de instructions bevatten de kernregels die een agent anders fout doet', ()
     'status date',          // voortgang vraagt de peildatum van de gebruiker
     'assumed',              // meld je aannames
     'planner_get_planning_guide',
-    'progress-update',
-    'https://open-planner-studio.open-aec.com/agent/planning-guide.md',
+    // Geen `progress-update` meer: de verwijzing naar dat part staat in de beschrijving van
+    // planner_get_planning_guide (#836), en twee keer per sessie kost tekens (#818, council-ronde 7 van #836).
   ];
   for (const n of needles) {
     assert(text.includes(n), `instructions missen "${n}"`);

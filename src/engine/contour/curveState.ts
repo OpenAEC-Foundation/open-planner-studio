@@ -24,9 +24,9 @@ import { matchContoursToAssignments } from './contourEngine';
 export type AssignmentCurveState = ResourceCurve | 'contoured' | 'imported';
 
 /** De ids van de toewijzingen van `task` waaraan een contour gekoppeld is. Geef ALLE records van
- *  de taak mee (ook naar een onbekende resource): de legacy-terugval in
- *  `matchContoursToAssignments` telt de lijstlengte, dus een gefilterde lijst valt anders uit dan
- *  het paneel en de lastverdeling. */
+ *  de taak mee (ook naar een onbekende resource), alleen zonder kostentoewijzingen
+ *  (`contourSiblings`, issue #815): de legacy-terugval in `matchContoursToAssignments` telt de
+ *  lijstlengte, dus een anders gefilterde lijst valt anders uit dan het paneel en de lastverdeling. */
 export function contouredAssignmentIds(
   task: Pick<Task, 'timephasedContours'>,
   records: readonly ResourceAssignment[],

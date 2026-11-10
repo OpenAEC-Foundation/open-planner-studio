@@ -13,7 +13,7 @@ export function useResourceTypeLabels(): Partial<Record<ResourceType, string>> {
   return useMemo(() => ({
     LABOR: tCommon('resource.type.labor'), CREW: tCommon('resource.type.crew'),
     SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
-    MATERIAL: tCommon('resource.type.material'),
+    MATERIAL: tCommon('resource.type.material'), COST: tCommon('resource.type.cost'),
   }), [tCommon]);
 }
 

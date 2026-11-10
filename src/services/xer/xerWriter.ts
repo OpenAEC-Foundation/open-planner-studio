@@ -511,12 +511,31 @@ function writtenDurations(task: Task, cal: WorkCalendar, complete: boolean): { d
 
 // ── Schrijver ───────────────────────────────────────────────────────────────────────────────────
 
-export function writeXER(input: XerWriteInput): XerWriteResult {
-  const { project, calendar } = input;
+/** De invoer zonder kostenresources en hun toewijzingen (issue #815), plus het aantal weggelaten
+ *  kostenresources. XER kent geen kostenresource; `writeXER` meldt het verlies. */
+function withoutCostResources(input: XerWriteInput): { input: XerWriteInput; costResources: number } {
+  const costIds = new Set(input.resources.filter(r => r.type === 'COST').map(r => r.id));
+  if (costIds.size === 0) return { input, costResources: 0 };
+  return {
+    input: {
+      ...input,
+      resources: input.resources.filter(r => !costIds.has(r.id)),
+      assignments: input.assignments.filter(a => !costIds.has(a.resourceId)),
+    },
+    costResources: costIds.size,
+  };
+}
+
+export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   const losses = new Map<XerWriteLossCode, number>();
   const lose = (code: XerWriteLossCode, count: number) => {
     if (count > 0) losses.set(code, (losses.get(code) ?? 0) + count);
   };
+  // Kostenresources (issue #815) en hun toewijzingen gaan niet mee: P6 kent geen kostenresource
+  // (alleen expenses per activiteit, PR3). Geteld als verlies, nooit stil.
+  const { input, costResources } = withoutCostResources(rawInput);
+  lose('costResources', costResources);
+  const { project, calendar } = input;
   const counter = { truncated: 0 };
 
   const tasks = [...flattenOrder([...input.tasks])];

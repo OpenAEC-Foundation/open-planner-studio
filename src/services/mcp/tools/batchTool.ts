@@ -433,22 +433,11 @@ function checkExclusions(steps: ParsedStep[]): string | null {
 const batch: McpToolDef = {
   name: 'planner_batch',
   description:
-    'Run a RUNBOOK of at most 100 tool steps as ONE atomic change: one undo step for the user, one ' +
-    'recalculation, one backup. The steps run synchronously and in order in the active document. If one step ' +
-    'fails structurally (unknown tool, invalid args, circular dependency, open dialog), the WHOLE batch is ' +
-    'rolled back and the error reports per step what was executed, failed or not reached. Per-item refusals ' +
-    'inside a bulk step (e.g. one invalid progress line out of twenty) are soft: that step succeeds and the ' +
-    'refusals are listed at the top of the answer under `rejections`. TEMP IDS: inside a batch every tempId ' +
-    'MUST start with "tmp-" or "tmp_" (e.g. "tmp-foundation") — any other form makes the batch fail. An ' +
-    '`add_tasks` step yields a tempId→id map; every string value in LATER steps that is exactly such a ' +
-    'registered tempId is automatically replaced by the real id (also when deeply nested). Free text is ' +
-    'always left alone: under `name`, `description`, `notes`, `title`, `code`, `wbsCode` and the like ' +
-    'nothing is ever replaced. The map only applies INSIDE this batch; a next batch starts empty. READ ' +
-    'STEPS: only a FINAL read step is useful, because all args are fixed at the moment of submission; an ' +
-    'early read cannot feed later steps. So look up names→IDs with separate read calls BEFORE the batch. ' +
-    'EXCLUDED: planner_batch itself, undo/redo, the document and file tools (import/export) and ' +
-    'save_baseline — call those on their own. This is not a scripting language: no variables, conditions or ' +
-    'loops.',
+    'For coherent changes: up to 100 ordered steps, one undo, recalculation and backup. Failed step: roll ' +
+    'back all; item refusals are soft (`rejections`). Later steps of this batch resolve exact tempIds ' +
+    '(`tmp-…`) except in free text. Fixed args: read ids beforehand; only a final read is useful. Excludes planner_batch, undo/redo, document/file tools, ' +
+    'planner_save_baseline, planner_get_planning_guide, planner_inspect_xer_provenance and ' +
+    'planner_refresh_external_links.',
   kind: 'batch',
   batchable: false,
   annotations: {
@@ -466,13 +455,12 @@ const batch: McpToolDef = {
         type: 'array',
         minItems: 1,
         maxItems: MAX_BATCH_STEPS,
-        description: 'The steps, in execution order. At most 100.',
         items: {
           type: 'object',
           required: ['tool'],
           properties: {
-            tool: { type: 'string', description: 'Name of the tool, including the `planner_` prefix.' },
-            args: { type: 'object', description: 'The args of that tool; omit for tools without args.' },
+            tool: { type: 'string' },
+            args: { type: 'object' },
           },
         },
       },

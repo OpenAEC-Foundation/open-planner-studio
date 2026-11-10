@@ -92,6 +92,8 @@ Je hebt bij een afwijking twee keuzes:
 
 **Er staat kort *1 onderdeel bijgewerkt vanuit de bibliotheek*.** Bij het openen van een project en bij een wissel van tabblad vergelijkt de app de kopieën met de bibliotheek. Een onbewerkte kopie die achterloopt, werkt hij stil bij. Bij meer kopieën staat er *N onderdelen bijgewerkt vanuit de bibliotheek*. Wijkt een kopie af, dan krijgt hij de markering *wijkt af — beslis*. Bij een wissel van tabblad opent het venster *Resourcebibliotheek koppelen* nooit vanzelf.
 
+**De bibliotheek wisselt het type tussen *Kosten* en een ander type.** Heeft de resource in je project toewijzingen, dan blijft het type in het project zoals het is, met de velden, toewijzingen en bedragen. De resource staat dan als afwijkend van de bibliotheek, en bij *Bijwerken* meldt de app waarom. Zonder toewijzingen neemt het project het nieuwe type over. Zie [Een vast bedrag toekennen](docs://howto-vast-bedrag-toekennen).
+
 **Je verwijdert een resource uit de bibliotheek.** De app vraagt eerst *'Metselaar' verwijderen uit de bibliotheek? Dit geldt voor alle projecten en is niet ongedaan te maken.* De kopieën in je projecten blijven bestaan en werken door. Ze krijgen de markering *niet meer in de bibliotheek* en zijn volledig bewerkbaar. Met *Verwijder uit project* haal je een kopie uit het project.
 
 **Je kiest bij Resourcebibliotheek een andere bibliotheek of *geen bibliotheek (los project)*.** De herkomststempels van de vorige bibliotheek verdwijnen. De resources blijven in het project staan als gewone projectresources. Bij een andere bibliotheek zoekt de app opnieuw naar resources met dezelfde naam.

@@ -9,6 +9,7 @@
 // De P6/MSPDI-readers gebruiken de browser-`DOMParser`; in Node leveren we die via een minimale shim.
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { payloadFromImport } from '@/state/documentContract';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
@@ -246,7 +247,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 // deze follow-up verdween bij zo'n gemengde vorm stilzwijgend óf het dag-deel (nieuwe B1-volgorde:
 // lagMinutes eerst) óf het uur-deel (oude volgorde: parseDurationDays zag alleen de D). De keuze nu:
 // dag- én uurdeel samen in `lagMinutes`, kalendertijd-interpretatie (1D = 1440 min) — onderbouwing in
-// `isoDurationLeadingDaysMinutes` (ifcReader.ts). Bewijst ook dat de twee bestaande (pure) vormen
+// `isoDurationLeadingDaysMinutes` (subdayIo.ts). Bewijst ook dat de twee bestaande (pure) vormen
 // (kaal-uur, kaal-dag) ONGEWIJZIGD blijven.
 {
   const dayCalMix: WorkCalendar = {
@@ -303,6 +304,80 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const back = readIFC(ifc.replace(needle, `IFCDURATION('${iso}')`)).sequences[0];
     eq(`gemengd ${iso}: lagMinutes ${want} (${why})`, back?.lagMinutes, want);
     eq(`gemengd ${iso}: lagDays blijft 0`, back?.lagDays, 0);
+  }
+}
+
+// ── Knownbug 1027: een TAAKduur met dagen vóór de `T` (`P2DT12H`) uit een vreemd bestand ────────────────
+// `isoDurationToMinutes` leest alleen het deel na `T`: `P2DT12H` werd 720 minuten, de twee dagen verdwenen. Nu tellen de
+// dagen mee met de minuten per dag van de taak (`applyTaskTimeRecords`): de werktijd per dag van haar kalender bij
+// `WORKTIME`, 1440 bij `ELAPSEDTIME`. Zo is `P2D` even lang als `P2DT0H`. Review van #871 (Sol en Terra, ronde 1): 1440 voor
+// elke dag maakte van `P2DT0H` zes werkdagen, en de som veranderde het sub-dag-signaal van de kalender, en daarmee de
+// tijden van een buurtaak. Het signaal blijft het deel na `T`, zoals vóór de fix.
+{
+  const own = readFileSync('public/examples/showcase-appartementencomplex.ifc', 'utf8');
+  const cpt = (text: string) => readIFC(text).tasks.find(t => t.name === 'CPT soundings & soil investigation')!.time;
+  const slot = "IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D',";
+  assert(own.includes(slot), 'setup: de taak heeft de duur P0Y0M3D');
+  const withDuration = (iso: string) => own.replace(slot, slot.replace("'P0Y0M3D'", `'${iso}'`));
+  // De kalender van het voorbeeld: 8 uur per dag.
+  const mixed = cpt(withDuration('P2DT12H'));
+  eq('1027, 8 u/dag: P2DT12H is 2 werkdagen + 12 uur = 1680 minuten (3,5 werkdag), niet 720',
+    [mixed.durationUnit, mixed.durationMinutes, mixed.scheduleDuration], ['hours', 1680, 3.5]);
+  const zeroTime = cpt(withDuration('P2DT0H'));
+  const pureDays = cpt(withDuration('P2D'));
+  eq('1027, 8 u/dag: P2DT0H is even lang als P2D (960 minuten, 2 werkdagen)',
+    [zeroTime.durationMinutes, zeroTime.scheduleDuration, pureDays.scheduleDuration], [960, 2, 2]);
+  eq('1027: kale PT12H0M0S blijft 720 minuten', cpt(withDuration('PT12H0M0S')).durationMinutes, 720);
+  eq('1027: eigen bestand ongewijzigd (P0Y0M3D blijft een dagtaak van 3 dagen)',
+    [cpt(own).durationUnit, cpt(own).scheduleDuration, cpt(own).durationMinutes], ['days', 3, undefined]);
+
+  // Een blokkenkalender van 10 uur (07–17), werktijd en kalendertijd, en de rest van een lopende urentaak.
+  const H10: WorkCalendar = { ...H8, id: 'cal-h10', name: 'H10', workStartHour: 7, workEndHour: 17, hoursPerDay: 10,
+    workTime: { byWeekday: weekBands([[420, 1020]]) } };
+  const projectH10: Project = { ...project, calendarId: 'cal-h10' };
+  const work = mk('t-w', 'Werk', '1', '2026-07-06T07:00', '2026-07-06T13:00', 360);
+  const elapsed = mk('t-e', 'Uitharden', '2', '2026-07-06T07:00', '2026-07-06T13:00', 360);
+  elapsed.time = { ...elapsed.time, durationType: 'ELAPSEDTIME' };
+  const running = mk('t-r', 'Lopend', '3', '2026-07-06T07:00', '2026-07-06T13:00', 360);
+  running.status = 'STARTED';
+  running.time = { ...running.time, actualStart: '2026-07-06T07:00', completion: 0.5, remainingMinutes: 180 };
+  const h10Ifc = writeIFC({ project: projectH10, calendar: H10, tasks: [work, elapsed, running], sequences: [], resources: [], assignments: [] });
+  const tamper = (name: string, from: string, to: string) => (text: string) => {
+    const line = text.split('\n').find(l => l.includes(`IFCTASKTIME('${name} Time'`))!;
+    assert(line.includes(`'${from}'`), `setup: ${name} heeft ${from}`);
+    return text.replace(line, line.replace(`'${from}'`, `'${to}'`));
+  };
+  const h10 = (text: string, name: string) => readIFC(text).tasks.find(t => t.name === name)!.time;
+  eq('1027, 10 u/dag: P1DT6H (werktijd) is 600 + 360 = 960 minuten',
+    h10(tamper('Werk', 'PT6H0M0S', 'P1DT6H')(h10Ifc), 'Werk').durationMinutes, 960);
+  eq('1027, 10 u/dag: P2DT0H (werktijd) is 2 werkdagen (1200 minuten)',
+    [h10(tamper('Werk', 'PT6H0M0S', 'P2DT0H')(h10Ifc), 'Werk').durationMinutes,
+      h10(tamper('Werk', 'PT6H0M0S', 'P2DT0H')(h10Ifc), 'Werk').scheduleDuration], [1200, 2]);
+  eq('1027: P1DT2H (kalendertijd) is 1440 + 120 = 1560 minuten',
+    h10(tamper('Uitharden', 'PT6H0M0S', 'P1DT2H')(h10Ifc), 'Uitharden').durationMinutes, 1560);
+  const restText = h10Ifc.replace(/(IFCTASKTIME\('Lopend Time',(?:[^,]*,){17})'PT3H0M0S'/, "$1'P1DT2H'");
+  assert(restText !== h10Ifc, 'setup: de rest van Lopend staat als PT3H0M0S');
+  eq('1027, 10 u/dag: rest P1DT2H is 600 + 120 = 720 minuten, niet 120', h10(restText, 'Lopend').remainingMinutes, 720);
+
+  // Sol: een scalaire kalender van 10 uur zonder `IsHourCalendar`-markering, alleen ankerdatums om 07:00. Of A's duur
+  // `P1DT6H` of `PT6H0M0S` is, mag de tijden van de buurtaak B niet veranderen: het sub-dag-signaal is het deel na `T`.
+  const D10: WorkCalendar = { id: 'cal-d10', name: 'D10', description: 'ma-vr 07-17', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 7, workEndHour: 17, hoursPerDay: 10, holidays: [] };
+  const dayTask = (id: string, name: string, wbs: string, start: string, finish: string): Task => ({
+    ...mk(id, name, wbs, start, finish, 600),
+    time: { ...mk(id, name, wbs, start, finish, 600).time, durationUnit: 'days', scheduleDuration: 1, durationMinutes: undefined },
+  });
+  const d10Ifc = writeIFC({ project: { ...project, calendarId: 'cal-d10' }, calendar: D10,
+    tasks: [dayTask('t-x', 'A', '1', '2026-07-06', '2026-07-06'), dayTask('t-y', 'B', '2', '2026-07-06', '2026-07-06')],
+    sequences: [], resources: [], assignments: [] }).replace(/'IsHourCalendar'/g, "'GeenMarkering'");
+  const bTimes = (text: string) => {
+    const b = payloadFromImport(readIFC(text), null).tasks.find(t => t.name === 'B')!.time;
+    return [b.scheduleStart, b.scheduleFinish, b.earlyStart, b.earlyFinish];
+  };
+  const aSlot = (iso: string) => d10Ifc.replace(/(IFCTASKTIME\('A Time',(?:[^,]*,){3})'P0Y0M1D'/, `$1'${iso}'`);
+  assert(aSlot('X') !== d10Ifc, 'setup: A heeft de duur P0Y0M1D');
+  for (const [mixedIso, timeIso] of [['P1DT6H', 'PT6H0M0S'], ['P1DT10H', 'PT10H0M0S']]) {
+    eq(`1027, buurtaak: B heeft dezelfde tijden bij ${mixedIso} als bij ${timeIso}`, bTimes(aSlot(mixedIso)), bTimes(aSlot(timeIso)));
   }
 }
 

@@ -1,5 +1,6 @@
 import { current, isDraft } from 'immer';
 import type { Task } from '@/types/task';
+import { costResourceIds } from '@/types/resource';
 import type { AppStoreContext } from './appStore';
 import type { Snapshot } from './snapshot';
 import { sameValue } from '@/utils/sameValue';
@@ -29,6 +30,18 @@ export function recordedDateRuleChange(context: AppStoreContext, task: Task, req
   gate!.expected.set(task.id, accepted);
 }
 
+/**
+ * `resourceIds` zonder de kostenresources (#815). Een kostentoewijzing erbij of eraf verandert alleen
+ * dát lidmaatschap; ze raakt geen datum, geen werk en geen sturing, dus de opgeslagen datums blijven.
+ * Een werk- of materiaalresource blijft wél datumrelevant. De oude stand filtert met de kostenresources
+ * van vóór de stap, de nieuwe met die van erna: zo is het wissen van een kostenresource (cascade)
+ * neutraal, en telt een resource die in de stap van COST naar werk gaat en wordt toegewezen wél mee.
+ */
+function withoutCostMembership(task: Task, costIds: ReadonlySet<string>): Task {
+  if (costIds.size === 0 || !task.resourceIds.some(id => costIds.has(id))) return task;
+  return { ...task, resourceIds: task.resourceIds.filter(id => !costIds.has(id)) };
+}
+
 /** Eén eindtoets voor de transactie én een leesstap midden in een batch. */
 export function keepsRecordedDates(context: AppStoreContext): boolean {
   const gate = gates.get(context);
@@ -36,8 +49,13 @@ export function keepsRecordedDates(context: AppStoreContext): boolean {
   if (!gate?.snapshot.datesAsRecorded || !state.datesAsRecorded) return false;
   const before = gate.snapshot;
   if (before.tasks.length !== state.tasks.length) return false;
+  const oldCostIds = costResourceIds(before.resources);
+  const newCostIds = costResourceIds(state.resources);
   if (!state.tasks.every((task, i) => before.tasks[i].id === task.id
-    && changesOnlyDateNeutralFields(gate.expected.get(task.id)!, task))) return false;
+    && changesOnlyDateNeutralFields(
+      withoutCostMembership(gate.expected.get(task.id)!, oldCostIds),
+      withoutCostMembership(task, newCostIds),
+    ))) return false;
   const { tasks: _oldTasks, ...oldInput } = planningInputOf(before);
   const { tasks: _newTasks, ...newInput } = planningInputOf(state);
   return sameValue(oldInput, newInput);

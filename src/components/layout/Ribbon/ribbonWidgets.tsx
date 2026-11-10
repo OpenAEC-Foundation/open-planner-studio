@@ -27,7 +27,7 @@ import { isHourModeCalendar } from '@/types/calendar';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { RibbonTab, type Layout, type TimeScale } from '@/state/slices/types';
-import type { ResourceCurve } from '@/types/resource';
+import { isCostResource, type ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { groupFieldList, sortFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
@@ -737,8 +737,9 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
 }
 
 /**
- * Toewijs-popover: alleen actief bij precies één geselecteerde leaf-, niet-
- * milestone-taak; toont de nog-niet-toegewezen resources en roept `assignResource` direct aan.
+ * Toewijs-popover: alleen actief bij precies één geselecteerde leaf-taak; toont de nog-niet-toegewezen
+ * resources en roept `assignResource` direct aan. Op een mijlpaal alleen kostenresources (#815); een
+ * kostenresource krijgt geen inzet of curve.
  */
 export function ResourceAssignDropdown() {
   const { t: tMenu } = useTranslation('menu');
@@ -756,9 +757,10 @@ export function ResourceAssignDropdown() {
   const assignResource = useAppStore(s => s.assignResource);
 
   const task = selectedTaskIds.length === 1 ? tasks.find(t => t.id === selectedTaskIds[0]) : undefined;
-  const valid = !!task && isLeafTask(task) && !task.isMilestone;
+  const valid = !!task && isLeafTask(task);
   const assignedIds = new Set(assignments.filter(a => a.taskId === task?.id).map(a => a.resourceId));
-  const available = resources.filter(r => !assignedIds.has(r.id));
+  const available = resources.filter(r => !assignedIds.has(r.id) && (!task?.isMilestone || isCostResource(r)));
+  const anyWorkResource = available.some(r => !isCostResource(r));
 
   if (!valid) {
     return <RibbonButton icon={<Icon id="resource.assign" size={24} lucide={{ size: 20 }} />} label={tMenu('ribbon.assignResource')} disabled />;
@@ -782,7 +784,8 @@ export function ResourceAssignDropdown() {
             </div>
           ) : (
             <>
-              {/* Eenheden/dag + curve gelden voor de volgende toewijzing die je aanklikt. */}
+              {/* Eenheden/dag + curve gelden voor de volgende toewijzing die je aanklikt (niet voor kosten). */}
+              {anyWorkResource && (<>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px' }}>
                 <label className="!text-small" style={{ color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.unitsPerDay')}</label>
                 <UnitsInput
@@ -806,8 +809,16 @@ export function ResourceAssignDropdown() {
                 </select>
               </div>
               <div style={{ height: 1, background: 'var(--theme-border)', margin: '2px 0' }} />
+              </>)}
               {available.map(r => (
-                <RibbonMenuItem key={r.id} onClick={() => { assignResource(task!.id, r.id, units, curve); setOpen(false); }}>
+                <RibbonMenuItem
+                  key={r.id}
+                  onClick={() => {
+                    if (isCostResource(r)) assignResource(task!.id, r.id, 1);
+                    else assignResource(task!.id, r.id, units, curve);
+                    setOpen(false);
+                  }}
+                >
                   {r.name || r.id}
                 </RibbonMenuItem>
               ))}

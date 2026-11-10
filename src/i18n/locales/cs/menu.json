@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Panel upozornění",
+    "scheduleShiftPanel": "Posunuté úkoly",
     "prevResource": "Předchozí",
     "nextResource": "Další",
     "leveling": "Vyrovnání",
@@ -240,6 +241,8 @@
     "company": "Firma",
     "startDate": "Datum zahájení",
     "endDate": "Datum dokončení",
+    "defaultWorkRule": "Výchozí typ úkolu",
+    "defaultWorkRuleHint": "Úkoly nastavené na „Výchozí pro projekt“ se řídí touto volbou. Úkoly s vlastním typem úkolu si zachovají svou volbu.",
     "calc": {
       "title": "Výpočet",
       "subtitle": "Možnosti výpočtu pro tento projekt. Patří k souboru, ne k aplikaci.",
@@ -328,7 +331,7 @@
     "exportTitle": "Export",
     "exportSubtitle": "Vyberte formát. Projekt bude převeden a uložen.",
     "progressImportCardTitle": "Aktualizovat průběh z tabulky",
-    "progressImportCardDesc": "Načtěte vrácenou tabulku CSV nebo XLSX a aktualizujte procento dokončení, skutečné zahájení a skutečné dokončení.",
+    "progressImportCardDesc": "Načtěte vrácenou tabulku XLSX a aktualizujte procento dokončení, skutečné zahájení a skutečné dokončení.",
     "printTitle": "Tisk",
     "printSubtitle": "Otevřete obrazovku sestav pro náhled tisku a nastavení.",
     "openPrintPreview": "Otevřít náhled tisku",
@@ -396,6 +399,9 @@
     "mspdiDesc": "Lze otevřít v Microsoft Project. Úplná struktura WBS.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pro Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Pro Oracle Primavera P6 jako soubor .xer.",
+    "experimentalBadge": "Experimentální",
     "profileHint": "Váš projekt aktuálně používá profil „{{name}}“. Pro nejlepší kompatibilitu s tímto formátem souboru doporučujeme profil „{{target}}“.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, ve schématu IFC projektu (výchozí IFC 4.3 ADD2). 4D propojení s modely BIM.",
@@ -450,5 +456,18 @@
     "redo": "Znovu",
     "zoomIn": "Přiblížit",
     "zoomOut": "Oddálit"
+  },
+  "native": {
+    "window": "Okno",
+    "quit": "Ukončit Open Planner Studio",
+    "about": "Zobrazit informace o programu Open Planner Studio",
+    "services": "Služby",
+    "hide": "Skrýt Open Planner Studio",
+    "hideOthers": "Skrýt ostatní",
+    "showAll": "Zobrazit vše",
+    "closeWindow": "Zavřít okno",
+    "cut": "Vyjmout",
+    "fullscreen": "Přepnout celou obrazovku",
+    "bringAllToFront": "Přenést vše do popředí"
   }
 }

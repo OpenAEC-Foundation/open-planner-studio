@@ -720,6 +720,7 @@ export function toExtAssignment(a: ResourceAssignment): ExtAssignment {
     plannedWorkMinutes: a.plannedWorkMinutes,
     actualWorkMinutes: a.actualWorkMinutes,
     remainingWorkMinutes: a.remainingWorkMinutes,
+    costAmount: a.costAmount,
   };
 }
 
@@ -736,6 +737,7 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
     plannedWorkMinutes: a.plannedWorkMinutes,
     actualWorkMinutes: a.actualWorkMinutes,
     remainingWorkMinutes: a.remainingWorkMinutes,
+    costAmount: a.costAmount,
   };
 }
 

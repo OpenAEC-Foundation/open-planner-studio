@@ -8,7 +8,7 @@ interface OpenOptions {
 }
 export function installNodeFileIpc() {
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-  const handles = new Map<number, { fd: number; path: string; written: number }>();
+  const handles = new Map<number, { fd: number; path: string; written: number; readAt: number }>();
   let nextRid = 1;
   const calls: Array<{ command: string; path?: string; options?: OpenOptions }> = [];
   const faults = {
@@ -21,7 +21,10 @@ export function installNodeFileIpc() {
     renameError: null as unknown,
     removeError: null as unknown,
     directWriteError: null as unknown,
+    readError: null as unknown,
   };
+  let bytesRead = 0;
+  let seeks = 0;
   const invoke = async (command: string, args: Record<string, unknown> | Uint8Array,
     ipcOptions?: { headers?: Record<string, string> }) => {
     const a = args as Record<string, unknown>;
@@ -63,7 +66,7 @@ export function installNodeFileIpc() {
         }
         const fd = fs.openSync(p, flags, o.mode);
         const rid = nextRid++;
-        handles.set(rid, { fd, path: p, written: 0 });
+        handles.set(rid, { fd, path: p, written: 0, readAt: 0 });
         return rid;
       }
       case 'plugin:fs|write': {
@@ -79,6 +82,34 @@ export function installNodeFileIpc() {
         const written = fs.writeSync(h.fd, data, 0, n);
         h.written += written;
         return written;
+      }
+      case 'plugin:fs|read': {
+        // plugin-fs 2.5.1 `FileHandle.read`: de gelezen bytes, met het aantal als 8 bytes big-endian erachter (0 = EOF).
+        const h = handles.get(Number(a.rid));
+        if (!h) throw new Error('Onbekende bestandshandle');
+        if (faults.readError !== null) throw faults.readError;
+        const len = Number(a.len);
+        const out = new Uint8Array(len + 8);
+        // Lezen op een eigen positie, zodat `plugin:fs|seek` werkt (Node-fs kent geen lseek).
+        const n = fs.readSync(h.fd, out, 0, len, h.readAt);
+        h.readAt += n;
+        bytesRead += n;
+        const result = new Uint8Array(n + 8);
+        result.set(out.subarray(0, n));
+        new DataView(result.buffer).setBigUint64(n, BigInt(n));
+        return result;
+      }
+      case 'plugin:fs|seek': {
+        // plugin-fs 2.5.1 `FileHandle.seek(offset, whence)`: 0 = vanaf het begin, 1 = vanaf nu, 2 = vanaf het einde.
+        const h = handles.get(Number(a.rid));
+        if (!h) throw new Error('Onbekende bestandshandle');
+        const offset = Number(a.offset);
+        const whence = Number(a.whence);
+        const from = whence === 0 ? 0 : whence === 1 ? h.readAt : fs.fstatSync(h.fd).size;
+        if (from + offset < 0) throw new Error('Invalid argument (os error 22)');
+        h.readAt = from + offset;
+        seeks++;
+        return h.readAt;
       }
       case 'plugin:resources|close': {
         const rid = Number(a.rid);
@@ -115,6 +146,10 @@ export function installNodeFileIpc() {
   return {
     calls, faults,
     openHandles: () => handles.size,
+    /** Zoveel bytes las `plugin:fs|read` in totaal. */
+    bytesRead: () => bytesRead,
+    /** Zo vaak vroeg de lezer `plugin:fs|seek`. */
+    seeks: () => seeks,
     dispose: () => {
       for (const h of handles.values()) fs.closeSync(h.fd);
       handles.clear();

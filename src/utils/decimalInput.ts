@@ -20,6 +20,14 @@ export function parsePositiveDecimal(text: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Het getal als het een eindig decimaal getal ≥ 0 is (bedrag van een kostenresource, #815), anders `null`. */
+export function parseNonNegativeDecimal(text: string): number | null {
+  const trimmed = text.trim();
+  if (!DECIMAL.test(trimmed)) return null;
+  const n = Number(trimmed.replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 const smallFormatters = new Map<string, Intl.NumberFormat | null>();
 
 /**

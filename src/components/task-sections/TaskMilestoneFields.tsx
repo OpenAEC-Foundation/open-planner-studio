@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Task, MilestoneKind } from '@/types/task';
 import { Field } from './shared';
 import { Select } from '@/components/common/Select';
-import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { hasMilestoneBlockingAssignments, milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { useAppStore } from '@/state/appStore';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 
@@ -17,7 +17,7 @@ export function TaskMilestoneFields({ task, onChange }: {
   onChange: (patch: Partial<Task>) => void;
 }) {
   const { t } = useTranslation('task');
-  const hasAssignments = useAppStore(s => s.assignments.some(a => a.taskId === task.id));
+  const hasAssignments = useAppStore(s => hasMilestoneBlockingAssignments(task.id, s.assignments, s.resources));
   const notify = useAppStore(s => s.notify);
 
   return (

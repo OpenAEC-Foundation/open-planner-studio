@@ -27,9 +27,9 @@ This is a setting of the app, not of the project file. If a file already contain
 3. Want to know what an option does? In the open drop-down each option has an i icon. Point at it, click or tap it for the explanation. Clicking the i icon does not choose that task type yet.
 4. Next to the closed field there is an i icon too. It explains the task type that applies now, for example *Duration follows from work and units.* With *Project default* that is the task type between the brackets.
 
-*Project default* is the first choice and is what a task has by default. The task type between the brackets is the one the project currently has as its default. The app has no button to change that project default: it comes from an import (for example from MS Project or Primavera P6) or from the MCP connection. If you want another task type for one task, choose it here.
+*Project default* is the first choice and is what a task has by default. The task type between the brackets is the one the project currently has as its default. Under *Settings › Project settings › Default task type*, choose one of the four task types and click *Apply*. Every existing and new task set to *Project default* follows that choice. Tasks with their own task type keep their choice. The project default is saved in the IFC file. If you want another task type for one task, choose it here.
 
-If the MCP connection sets the project default to *Fixed work*, every task that follows the default becomes a task in hours, because fixed work is always a task in hours. A task of 5 work days then becomes 40 hours. The dates stay the same.
+If you set the project default to *Fixed work*, every ordinary working-time task that follows the default becomes a task in hours. With 8 hours per working day, 2 days at 1 unit becomes 16 hours of work. If you then increase the units to 2, the duration becomes 8 hours and the work stays at 16 hours. Use Ctrl+Z to undo the units change or the project choice.
 
 You can also choose the task type in the table. Click the **+** on the right of the task list header (*Add column*) and, under *Planning*, choose the *Task type* column.
 

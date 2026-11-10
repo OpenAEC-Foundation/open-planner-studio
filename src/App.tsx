@@ -247,7 +247,7 @@ function AppContent() {
   const resourceTypeLabels = useMemo(() => ({
     LABOR: t('resource.type.labor'), CREW: t('resource.type.crew'),
     SUBCONTRACTOR: t('resource.type.subcontractor'), EQUIPMENT: t('resource.type.equipment'),
-    MATERIAL: t('resource.type.material'),
+    MATERIAL: t('resource.type.material'), COST: t('resource.type.cost'),
   }), [t]);
   useEffect(() => {
     setNoneLabelValue(noneLabel);

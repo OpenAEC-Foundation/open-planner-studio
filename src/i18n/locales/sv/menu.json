@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Varningspanel",
+    "scheduleShiftPanel": "Förskjutningar",
     "prevResource": "Föregående",
     "nextResource": "Nästa",
     "leveling": "Utjämning",
@@ -238,6 +239,8 @@
     "company": "Företag",
     "startDate": "Startdatum",
     "endDate": "Slutdatum",
+    "defaultWorkRule": "Standarduppgiftstyp",
+    "defaultWorkRuleHint": "Uppgifter som står på ”Projektstandard” följer detta val. Uppgifter med en egen uppgiftstyp behåller sitt val.",
     "calc": {
       "title": "Beräkning",
       "subtitle": "Beräkningsinställningar för det här projektet – sparas med filen, inte i appen.",
@@ -324,7 +327,7 @@
     "exportTitle": "Exportera",
     "exportSubtitle": "Välj ett format. Projektet konverteras och sparas.",
     "progressImportCardTitle": "Uppdatera framdrift från ett blad",
-    "progressImportCardDesc": "Läs in ett returnerat CSV- eller XLSX-blad och uppdatera slutförandegrad, verklig start och verkligt slut.",
+    "progressImportCardDesc": "Läs in ett returnerat Excel-blad (.xlsx) och uppdatera slutförandegrad, verklig start och verkligt slut.",
     "printTitle": "Skriv ut",
     "printSubtitle": "Öppna rapporten för utskriftsförhandsvisning och inställningar.",
     "openPrintPreview": "Öppna förhandsgranskning",
@@ -392,6 +395,9 @@
     "mspdiDesc": "Öppnas i Microsoft Project. Fullständig WBS-struktur.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "För Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "För Oracle Primavera P6, som en .xer-fil.",
+    "experimentalBadge": "Experimentell",
     "profileHint": "Ditt projekt använder profilen ”{{name}}”. Vi rekommenderar profilen ”{{target}}” för bästa kompatibilitet med det här filformatet.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standard, i projektets IFC-schema (standard IFC 4.3 ADD2). 4D-koppling med BIM-modeller.",
@@ -446,5 +452,18 @@
     "redo": "Gör om",
     "zoomIn": "Zooma in",
     "zoomOut": "Zooma ut"
+  },
+  "native": {
+    "window": "Fönster",
+    "quit": "Avsluta Open Planner Studio",
+    "about": "Om Open Planner Studio",
+    "services": "Tjänster",
+    "hide": "Dölj Open Planner Studio",
+    "hideOthers": "Dölj övriga",
+    "showAll": "Visa alla",
+    "closeWindow": "Stäng fönster",
+    "cut": "Klipp ut",
+    "fullscreen": "Växla helskärm",
+    "bringAllToFront": "Flytta alla till framsidan"
   }
 }

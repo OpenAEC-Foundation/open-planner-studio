@@ -269,4 +269,101 @@ test('mislukte MCP-transactie herstelt "ongewijzigd sinds import" zoals het vó�
     'na de rollback: modus, vlag en dirty exact zoals vóór de transactie');
 });
 
+
+// Kostenresource (#815, review ronde 1 BLOKKEERT 1): alleen een COST-toewijzing erbij, eraf, verplaatsen
+// of de kostenresource wissen laat de opgeslagen datums staan, via MCP én de store. Een werkresource blijft
+// datumrelevant (contrast).
+{
+  const COST = 'cost-leges';
+  function costMode(tag: string) {
+    S().newProject();
+    const parsed = readIFC(externIfc(tag));
+    parsed.resources.push({ id: COST, name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
+    parsed.resources.push({ id: 'work-x', name: 'Timmerman', type: 'LABOR', description: '', maxUnits: 1 });
+    S().applyLoadedProject(parsed, { filePath: null, recompute: true });
+    assert(S().datesAsRecorded, `${tag}: voorwaarde, datums zoals opgeslagen`);
+    return {
+      aId: S().tasks.find((t) => t.wbsCode === '1.1')!.id,
+      bId: S().tasks.find((t) => t.wbsCode === '1.2')!.id,
+    };
+  }
+  const stand = () => ({
+    mode: S().datesAsRecorded,
+    starts: S().tasks.map((t) => t.time.earlyStart),
+    end: S().cpmResult?.projectEnd ?? null,
+  });
+  async function manage(actions: unknown[]) {
+    const res = await getTool('planner_manage_assignments')!.handler({ actions }, makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId })) as McpToolResult;
+    assert(res.ok && ((res as McpToolOk).itemRejections ?? []).length === 0, `manage_assignments: ${JSON.stringify(res)}`);
+  }
+  const costOn = (taskId: string) => S().assignments.find((a) => a.taskId === taskId && a.resourceId === COST);
+
+  test('kostenresource via MCP in de modus: toevoegen, bedrag, verplaatsen, verwijderen en wissen houden de datums', async () => {
+    const { aId, bId } = costMode('mcp-cost-routes');
+    const before = stand();
+    await manage([{ action: 'add', taskId: bId, resourceId: COST, costAmount: 1250 }]);
+    assertEq(stand(), before, 'add');
+    await manage([{ action: 'update', assignmentId: costOn(bId)!.id, costAmount: 99 }]);
+    assertEq(stand(), before, 'update bedrag');
+    await manage([{ action: 'move', assignmentId: costOn(bId)!.id, taskId: aId }]);
+    assertEq(stand(), before, 'move');
+    await manage([{ action: 'remove', assignmentId: costOn(aId)!.id }]);
+    assertEq(stand(), before, 'remove');
+    await manage([{ action: 'add', taskId: bId, resourceId: COST, costAmount: 5 }]);
+    const del = await getTool('planner_manage_resources')!.handler(
+      { actions: [{ action: 'delete', id: COST, cascade: true }] },
+      makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId }),
+    ) as McpToolResult;
+    assert(del.ok, `delete cascade: ${JSON.stringify(del)}`);
+    assertEq(stand(), before, 'delete cascade');
+  });
+
+  test('kostenresource via de store in de modus: toevoegen, bedrag, verplaatsen, verwijderen en wissen houden de datums', () => {
+    const { aId, bId } = costMode('store-cost-routes');
+    const before = stand();
+    S().assignResource(bId, COST, 1, undefined, 1250);
+    assertEq(stand(), before, 'add');
+    S().setAssignmentCost(costOn(bId)!.id, 99);
+    assertEq(stand(), before, 'bedrag');
+    S().moveAssignment(costOn(bId)!.id, aId);
+    assertEq(stand(), before, 'move');
+    S().unassignResource(costOn(aId)!.id);
+    assertEq(stand(), before, 'remove');
+    S().assignResource(bId, COST, 1, undefined, 5);
+    S().removeResource(COST);
+    assertEq(stand(), before, 'purge');
+  });
+
+  test('contrast: een werkresource via MCP in de modus blijft datumrelevant', async () => {
+    const { bId } = costMode('mcp-work-contrast');
+    await manage([{ action: 'add', taskId: bId, resourceId: 'work-x', unitsPerDay: 1 }]);
+    assertEq(S().datesAsRecorded, false, 'een werktoewijzing verlaat de modus (ongewijzigd gedrag)');
+  });
+
+  // Review ronde 2: het kostenlidmaatschap geldt per stand. Een COST-resource zonder toewijzingen die in
+  // dezelfde batch werk wordt en wordt toegewezen, is een werktoewijzing: de poort gaat af. Een cascade-
+  // verwijdering van een kostenresource in een batch blijft neutraal.
+  test('planner_batch: COST naar werk en toewijzen verlaat de modus, kosten wissen met cascade niet', async () => {
+    const batch = async (steps: unknown[]) => {
+      const res = await getTool('planner_batch')!.handler({ steps }, makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId })) as McpToolResult;
+      assert(res.ok, `planner_batch: ${JSON.stringify(res)}`);
+    };
+    const { bId } = costMode('batch-cost-to-work');
+    await batch([
+      { tool: 'planner_manage_resources', args: { actions: [{ action: 'update', id: COST, type: 'LABOR' }] } },
+      { tool: 'planner_manage_assignments', args: { actions: [{ action: 'add', taskId: bId, resourceId: COST, unitsPerDay: 1 }] } },
+    ]);
+    assertEq(S().resources.find((r) => r.id === COST)?.type, 'LABOR', 'voorwaarde: de typewissel lukte');
+    assertEq(S().datesAsRecorded, false, 'een werktoewijzing na de typewissel verlaat de modus');
+
+    const { bId: b2 } = costMode('batch-cost-cascade');
+    await manage([{ action: 'add', taskId: b2, resourceId: COST, costAmount: 5 }]);
+    const before = stand();
+    await batch([
+      { tool: 'planner_manage_resources', args: { actions: [{ action: 'delete', id: COST, cascade: true }] } },
+    ]);
+    assertEq(stand(), before, 'kosten wissen met cascade in een batch houdt de datums');
+  });
+}
+
 await run();

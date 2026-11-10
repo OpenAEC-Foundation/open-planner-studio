@@ -47,13 +47,20 @@ export const RESOURCE_TYPE_TO_IFC: Record<ResourceType, string> = {
   MATERIAL: 'IFCCONSTRUCTIONMATERIALRESOURCE',
   SUBCONTRACTOR: 'IFCSUBCONTRACTRESOURCE',
   CREW: 'IFCCREWRESOURCE',
+  // Kostenresource (issue #815): materiaal als drager, met ObjectType `COST_RESOURCE_OBJECT_TYPE` en
+  // PredefinedType `.USERDEFINED.`. Een oudere versie ziet dan materiaal — dat stuurt de duur niet en
+  // wordt niet genivelleerd. De inverse hieronder sluit COST uit; de lezer herkent hem aan de markering.
+  COST: 'IFCCONSTRUCTIONMATERIALRESOURCE',
 };
+
+/** ObjectType op een `IFCCONSTRUCTIONMATERIALRESOURCE` die een kostenresource draagt (issue #815). */
+export const COST_RESOURCE_OBJECT_TYPE = 'COST';
 
 /** Inverse van `RESOURCE_TYPE_TO_IFC` voor de reader (IFC-entiteitnaam → resource-type),
  *  programmatisch afgeleid. Asymmetrie: `IFCCONSTRUCTIONPRODUCTRESOURCE` is een inkomende-alleen
  *  alias (herbruikbaar bekisting e.d.) — OPS schrijft die entiteit nooit
  *  zelf, maar accepteert 'm als `EQUIPMENT`. */
 export const IFC_TO_RESOURCE_TYPE: Partial<Record<string, ResourceType>> = Object.assign(
-  invertRecord(RESOURCE_TYPE_TO_IFC),
+  invertRecord(Object.fromEntries(Object.entries(RESOURCE_TYPE_TO_IFC).filter(([type]) => type !== 'COST')) as Record<string, string>),
   { IFCCONSTRUCTIONPRODUCTRESOURCE: 'EQUIPMENT' as const },
-);
+) as Partial<Record<string, ResourceType>>;

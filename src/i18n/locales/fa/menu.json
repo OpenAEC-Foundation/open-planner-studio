@@ -140,6 +140,7 @@
     "histogram": "هیستوگرام",
     "toggleHistogram": "هیستوگرام",
     "warningsPanel": "پنل هشدارها",
+    "scheduleShiftPanel": "جابه‌جایی‌ها",
     "prevResource": "قبلی",
     "nextResource": "بعدی",
     "leveling": "تسطیح",
@@ -238,6 +239,8 @@
     "company": "شرکت",
     "startDate": "تاریخ شروع",
     "endDate": "تاریخ پایان",
+    "defaultWorkRule": "نوع وظیفهٔ پیش‌فرض",
+    "defaultWorkRuleHint": "وظیفه‌هایی که روی «پیش‌فرض پروژه» تنظیم شده‌اند، از این انتخاب پیروی می‌کنند. وظیفه‌هایی با نوع وظیفهٔ خودشان، انتخاب خود را نگه می‌دارند.",
     "calc": {
       "title": "محاسبه",
       "subtitle": "گزینه‌های زمان‌بندی برای این پروژه — همراه با فایل ذخیره می‌شوند، نه با برنامه.",
@@ -324,7 +327,7 @@
     "exportTitle": "خروجی",
     "exportSubtitle": "یک قالب انتخاب کنید. پروژه تبدیل و ذخیره می‌شود.",
     "progressImportCardTitle": "به‌روزرسانی پیشرفت از یک صفحه‌گسترده",
-    "progressImportCardDesc": "یک برگه CSV یا XLSX بازگردانده‌شده را بخوانید و درصد تکمیل، شروع واقعی و پایان واقعی را به‌روزرسانی کنید.",
+    "progressImportCardDesc": "یک برگه XLSX بازگردانده‌شده را بخوانید و درصد تکمیل، شروع واقعی و پایان واقعی را به‌روزرسانی کنید.",
     "printTitle": "چاپ",
     "printSubtitle": "صفحه گزارش را برای پیش‌نمایش چاپ و تنظیمات باز کنید.",
     "openPrintPreview": "باز کردن پیش‌نمایش چاپ",
@@ -392,6 +395,9 @@
     "mspdiDesc": "در Microsoft Project باز می‌شود. ساختار کامل WBS.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "برای Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "برای Oracle Primavera P6، به‌صورت فایل ‎.xer‎.",
+    "experimentalBadge": "آزمایشی",
     "profileHint": "پروژه شما اکنون با نمایه {{name}} محاسبه می‌شود. برای بهترین سازگاری با این قالب فایل، نمایه {{target}} را استفاده کنید.",
     "ifcLabel": "IFC",
     "ifcDesc": "استاندارد BuildingSMART، در شِمای IFC پروژه (پیش‌فرض IFC 4.3 ADD2). پیوند چهاربُعدی با مدل‌های BIM.",
@@ -446,5 +452,18 @@
     "redo": "باز‌گرد",
     "zoomIn": "بزرگ‌نمایی",
     "zoomOut": "کوچک‌نمایی"
+  },
+  "native": {
+    "window": "پنجره",
+    "quit": "خروج از Open Planner Studio",
+    "about": "درباره Open Planner Studio",
+    "services": "سرویس‌ها",
+    "hide": "پنهان کردن Open Planner Studio",
+    "hideOthers": "پنهان کردن بقیه",
+    "showAll": "نمایش همه",
+    "closeWindow": "بستن پنجره",
+    "cut": "برش",
+    "fullscreen": "تغییر حالت تمام‌صفحه",
+    "bringAllToFront": "همه را به جلو بیاورید"
   }
 }
