@@ -111,7 +111,7 @@ export interface IfcReadOptions {
    * `bytes-missing` ("openen met melding").
    */
   resolveXerArchiveReference?: (sha256: string) => Uint8Array | undefined;
-  // De vier opties hieronder geeft alleen de IFC-bytes-route (#804 fase 1a, `foreign/ifcBytesRoute.ts`, achter de flag
+  // De drie opties hieronder geeft alleen de IFC-bytes-route (#804 fase 1a, `foreign/ifcBytesRoute.ts`, achter de flag
   // `ifcForeignContent`). Zonder deze opties leest de lezer precies zoals vóór #804.
   /** Codering per stuk (§4.9 punt 5): de lezer decodeert elke entiteit waarvan het STEP-id hier NIET in staat. De keuze
    *  voor het hele bestand (`stringsAreStepEncoded`) vervalt dan. */
@@ -119,9 +119,6 @@ export interface IfcReadOptions {
   /** De taken van `selectPlanning` (§4.2 stap 1) als STEP-ids. De lezer leest precies deze taken, in plaats van zelf de
    *  baselinebomen uit te sluiten. Zo kunnen indeling en lezer niet uiteenlopen (afwijking 6 van fase 0). */
   planningTaskStepIds?: ReadonlySet<string>;
-  /** De indeling liet het model (V) al buiten de tekst van de lezer, en opslaan van een document met een vreemd deel is
-   *  geweigerd tot fase 1c. Dan slaat de lezer de modelweigering (knownbug 110) over. */
-  skipBuildingModelGuard?: boolean;
   /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
    *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
   stepIdsOut?: Record<string, string>;
@@ -199,12 +196,12 @@ export function readIFC(
   // bestand. Ziet zij ergens een modeltype, dan weigeren: ook in een tweede datasectie, in een complexe instantie, na
   // een string die `parseSTEP` anders leest (knownbug 1050), en vóór het punt waar het bestand breekt. Verder opent
   // `readIFC` precies zoals main: de grammatica bepaalt niet waar de datasectie begint of eindigt.
-  if (!options.skipBuildingModelGuard && stepFileGrammar(content).model) throw buildingModel();
+  if (stepFileGrammar(content).model) throw buildingModel();
   const entities = parseSTEP(content);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
   // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
-  if (!options.skipBuildingModelGuard && entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
+  if (entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
     throw buildingModel();
   }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
