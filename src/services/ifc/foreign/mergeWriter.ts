@@ -448,12 +448,35 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
 
   // ── 6. Vreemde leden aan de eigen pset of template hangen ──
   const extraPsets = new Map<string, { owner: number; pset: number; rel: number; members: number[] }>();
+  // De velden en codes die de uitvoer in `OPS_StructureMeta` krijgt: een vreemd lid met zo'n naam (of code) leest de
+  // lezer na opslaan als eigen (§10: een veld "Zone" dat de planner later maakt). Dat vraagt een melding (fase 2); tot dan
+  // schrijft de merge niets.
+  const outFields = new Set((input.customFieldDefs ?? []).map(d => d.name));
+  const outCodes = new Map((input.activityCodeTypes ?? []).map(t => [t.name, new Set(t.values.map(v => v.code))]));
+  // Dezelfde regels als `ownProperty` en `ownTemplateProperty` in `classify.ts`, met de structuur van de uitvoer.
+  const readAsOwn = (m: number, setName: string, inTemplate: boolean): boolean => {
+    const name = index.name(m) ?? '';
+    const type = index.type(m);
+    if (inTemplate) {
+      if (type !== 'IFCSIMPLEPROPERTYTEMPLATE') return false;
+      return setName === PSET.CustomFields ? outFields.has(name) : outCodes.has(name);
+    }
+    if (setName === PSET.CustomFields) return type === 'IFCPROPERTYSINGLEVALUE' && outFields.has(name);
+    if (setName === PSET.ActivityCodes) {
+      return type === 'IFCPROPERTYENUMERATEDVALUE' && (outCodes.get(name)?.has((index.enumValues(m) ?? [])[0] ?? '\u0000') ?? false);
+    }
+    return false;
+  };
   for (const m of cls.foreignMembers) {
     for (let k = index.inStart(m); k < index.inEnd(m); k++) {
       const parent = index.inSource(k);
       if (parent < 0 || !isP(parent)) continue;
       const ptype = index.type(parent);
       const name = index.name(parent) ?? '';
+      if (readAsOwn(m, name, ptype === 'IFCPROPERTYSETTEMPLATE')) {
+        caseAt('vreemd-lid', m, `${label(m)} in ${name} zou na opslaan als eigen gelezen worden: de planning heeft nu een veld of code met die naam`);
+        continue;
+      }
       if (ptype === 'IFCPROPERTYSET' && index.inArg(k) === 4) {
         const owners = psetOwners(index, parent);
         if (owners.length !== 1) {

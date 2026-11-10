@@ -24,11 +24,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  basicEdits, canon, cloneDomain, concat, firstDiff, mergeProblems, openForeign, sameBytes, tryMerge,
+  basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, sameBytes, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
+import type { Task } from '@/types/task';
 import { classify } from '@/services/ifc/foreign/classify';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -58,19 +59,6 @@ const read = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
 
 // ── Hulp: lidmaatschappen en tellingen in een bestand ──
 
-/** Per relatietype (`Decomposes` via IfcRelAggregates, `Nests`, `HasContext` via IfcRelDeclares) de objecten die in meer
- *  dan één relatie van dat type als lid staan. Die inverse attributen zijn SET [0:1]. */
-function doubleMemberships(bytes: Uint8Array): string[] {
-  const index = scanStep(bytes);
-  const seen = new Map<string, number>();
-  for (let i = 0; i < index.count; i++) {
-    if (!index.isEntity(i)) continue;
-    const type = index.type(i);
-    if (type !== 'IFCRELAGGREGATES' && type !== 'IFCRELNESTS' && type !== 'IFCRELDECLARES') continue;
-    for (const m of index.refsAt(i, 5)) if (m >= 0) seen.set(`${type} #${index.id(m)}`, (seen.get(`${type} #${index.id(m)}`) ?? 0) + 1);
-  }
-  return [...seen].filter(([, n]) => n > 1).map(([k]) => k).sort();
-}
 const countType = (bytes: Uint8Array, type: string) => {
   const index = scanStep(bytes);
   let n = 0;
@@ -416,6 +404,85 @@ await expectRefusal('de gedeelde kalender wijzigen', read('tests/fixtures/ifc-fo
   await roundTrip('een wand wijst naar een resource', src);
   await expectRefusal('een resource met een verwijzing van buiten wordt materieel', src, 'entiteittype', (d) => {
     d.resources.find(r => r.name === 'Bricklayers')!.type = 'EQUIPMENT';
+  });
+}
+{
+  // Een veld met de naam van het vreemde lid ("Zone", §10): na opslaan zou de lezer het als eigen waarde lezen.
+  const showcase = new TextDecoder().decode(read('public/examples/showcase-appartementencomplex.ifc'));
+  const src = enc.encode(withLines(replaceLine(showcase, '#1572=',
+    "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#1569,#1570,#1571,#9001));"),
+  ["#9001=IFCSIMPLEPROPERTYTEMPLATE('0vreemdVeld00000000000',#6,'VendorVeld',$,.P_SINGLEVALUE.,'IfcLabel',$,$,$,$,$,$);"]));
+  await expectRefusal('de planner maakt een veld met de naam van een vreemd lid', src, 'vreemd-lid', (d) => {
+    d.customFieldDefs = [...(d.customFieldDefs ?? []), { ...structuredClone(d.customFieldDefs![0]), id: 'veld-1b', name: 'VendorVeld' }];
+  });
+}
+{
+  // De laatste notitie van de taak met een vreemd lid in OPS_TaskNotes wissen: de writer schrijft die pset dan niet, en
+  // de merge zet een pset met alleen het vreemde lid op dezelfde taak (met de GlobalId van de bron).
+  const bytes = read('tests/fixtures/ifc-foreign/council/r7sol-vreemd-lid-bij-notitie.ifc');
+  const source = scanStep(bytes);
+  const cls = classify(source);
+  const member = cls.foreignMembers[0];
+  const memberId = member === undefined ? '' : source.id(member);
+  const r = await roundTrip('de laatste notitie wissen bij een vreemd lid', bytes, (d) => { for (const t of d.tasks) delete t.notes; });
+  if (r) {
+    const pset = new RegExp(`^#(\\d+)=IFCPROPERTYSET\\('[^']*',#\\d+,'OPS_TaskNotes',\\$,\\(#${memberId}\\)\\);`, 'm').exec(text(r.out));
+    ok('de laatste notitie wissen: het vreemde lid staat in een eigen OPS_TaskNotes', memberId !== '' && pset !== null);
+    const second = await roundTrip('de laatste notitie wissen, heropenen en opnieuw opslaan', r.out);
+    if (second) ok('de laatste notitie wissen: na heropenen hangt het lid nog aan de taak', text(second.out).includes(`(#${memberId}));`));
+  }
+}
+{
+  // Alle taken wissen in een bestand met een Bonsai-baselineboom: de boom blijft (hij is niet P).
+  const bytes = read('tests/fixtures/ifc-foreign/council/r5-eigen-plus-bonsai-baseline.ifc');
+  const r = await roundTrip('alle taken wissen naast een Bonsai-baseline', bytes, (d) => { d.tasks = []; d.sequences = []; d.assignments = []; });
+  if (r) eq('alle taken wissen: de baselineboom staat er nog (invarianten)', mergeProblems(bytes, r.out), []);
+}
+{
+  // Een kostenpost (5D) met een IfcRelAssignsToControl naar een taak: nooit gemengd, blijft A (§4.6). Taak wissen: §4.7.
+  const src = enc.encode(withLines(baseText, [
+    "#907=IFCCOSTITEM('0kostenpost00000000000',#903,'Kostenpost',$,$,$,.NOTDEFINED.,$,$);",
+    "#908=IFCRELASSIGNSTOCONTROL('0kostenNaarTaak0000000',#903,$,$,(#57),$,#907);",
+  ]));
+  const r = await roundTrip('een kostenpost wijst naar een taak', src);
+  if (r) ok('kostenpost: de taak blijft ook in het D-schema', relationsOf(r.out, 'IFCRELASSIGNSTOCONTROL', 6, 4).some(x => x.relating === '54' && x.related.includes('57')));
+  await expectRefusal('kostenpost: de taak wissen', src, 'verwijderd', (d) => { d.tasks = []; d.assignments = []; d.sequences = []; });
+}
+{
+  // Een gemengde IfcRelNests: de eigen taak #57 met als leden een eigen kind (#909) en een vreemde gebeurtenis (#910).
+  const src = enc.encode(withLines(replaceLine(baseText, '#59=', "#59=IFCRELASSIGNSTOCONTROL('rDVhNjbXHjyDCF$VkTSruD',#6,$,$,(#57,#909),$,#54);"), [
+    "#908=IFCTASKTIME('Kind Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,0.00);",
+    "#909=IFCTASK('3kindTaak0000000000000',#6,'Kind',$,$,'1.1',$,$,$,.F.,$,#908,.CONSTRUCTION.);",
+    "#910=IFCEVENT('0vreemdEvent0000000000',#903,'Gebeurtenis',$,$,$,$,.NOTDEFINED.,.NOTDEFINED.,$,$);",
+    "#911=IFCRELNESTS('0gemengdNest0000000000',#903,$,$,#57,(#909,#910));",
+  ]));
+  const r = await roundTrip('gemengde IfcRelNests', src);
+  if (r) {
+    eq('gemengde IfcRelNests: geen object met twee Nests', doubleMemberships(r.out), []);
+    const kind = r.reread.tasks.find(t => t.name === 'Kind');
+    ok('gemengde IfcRelNests: het kind houdt zijn ouder', !!kind?.parentId && r.reread.tasks.find(t => t.id === kind.parentId)?.name === 'Externe bronactiviteit');
+  }
+  const addChild = (before: boolean) => (d: Domain) => {
+    const parent = d.tasks.find(t => t.name === 'Externe bronactiviteit')!;
+    const kind = d.tasks.find(t => t.name === 'Kind')!;
+    const task: Task = { ...structuredClone(kind), id: 'kind-1b', name: 'Nieuw kind', wbsCode: '1.2', resourceIds: [] };
+    d.tasks.splice(d.tasks.indexOf(kind) + (before ? 0 : 1), 0, task);
+    parent.childIds = before ? [task.id, ...parent.childIds] : [...parent.childIds, task.id];
+  };
+  const before = await roundTrip('gemengde IfcRelNests + kind vooraan', src, addChild(true));
+  if (before) {
+    eq('gemengde IfcRelNests + kind vooraan: geen object met twee Nests', doubleMemberships(before.out), []);
+    const parent = before.reread.tasks.find(t => t.name === 'Externe bronactiviteit');
+    eq('gemengde IfcRelNests + kind vooraan: de volgorde na herlezen', parent?.childIds.map(id => before.reread.tasks.find(t => t.id === id)?.name), ['Nieuw kind', 'Kind']);
+  }
+  await expectRefusal('gemengde IfcRelNests + kind achteraan', src, 'gemengde-relatie', addChild(false));
+}
+{
+  // Een nieuwe wortel bovenaan in een bestand met model (§10, volgorde; Opus ronde 7).
+  const bytes = read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
+  await roundTrip('eigen-plus-model + nieuwe wortel bovenaan', bytes, (d) => {
+    const base = d.tasks.find(t => t.childIds.length === 0)!;
+    d.tasks.unshift({ ...structuredClone(base), id: 'wortel-1b', name: 'Nieuwe wortel', parentId: null, childIds: [], wbsCode: '0', resourceIds: [] });
   });
 }
 await expectRefusal('twee IfcProject', enc.encode(withLines(baseText, ["#907=IFCPROJECT('0tweedeProject00000000',#903,'Ander project',$,$,$,$,$,$);"])), 'meer-projecten');

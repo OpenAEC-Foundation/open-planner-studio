@@ -95,6 +95,24 @@ export function mergeProblems(source: Uint8Array, out: Uint8Array): string[] {
   return problems;
 }
 
+/** Per relatietype (`Decomposes` via IfcRelAggregates, `Nests`, `HasContext` via IfcRelDeclares) de objecten die in meer
+ *  dan één relatie van dat type als lid staan. Die inverse attributen zijn SET [0:1]. */
+export function doubleMemberships(bytes: Uint8Array): string[] {
+  const index = scanStep(bytes);
+  const seen = new Map<string, number>();
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    const type = index.type(i);
+    if (type !== 'IFCRELAGGREGATES' && type !== 'IFCRELNESTS' && type !== 'IFCRELDECLARES') continue;
+    for (const m of index.refsAt(i, 5)) {
+      if (m < 0) continue;
+      const key = `${type} #${index.id(m)}`;
+      seen.set(key, (seen.get(key) ?? 0) + 1);
+    }
+  }
+  return [...seen].filter(([, n]) => n > 1).map(([k]) => k).sort();
+}
+
 /** Het domein zoals de writer het ziet: `writeIFC` zonder vreemd deel, met een vaste klok en reeks. */
 export function canon(d: Domain, reseed: (seed: number) => void): string {
   reseed(0x1b04);

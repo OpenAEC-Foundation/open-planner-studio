@@ -5,8 +5,8 @@
 // een relatie erbij; een taak wissen. Per taak of per paar; boven `MAX_PER_SOORT` een vaste steekproef.
 //
 // Per bewerking één van drie uitkomsten:
-//   - gelukt: de merge schrijft, de invarianten kloppen (`mergeProblems`) en de herlezing geeft dezelfde planning als
-//     dezelfde bewerking zonder vreemd deel (`canon`);
+//   - gelukt: de merge schrijft, de invarianten kloppen (`mergeProblems`), geen object krijgt een tweede `Decomposes`,
+//     `Nests` of `HasContext`, en de herlezing geeft dezelfde planning als dezelfde bewerking zonder vreemd deel (`canon`);
 //   - merge-needs-phase2: de getypeerde weigering, met de gevallen;
 //   - anders: een andere fout, een gebroken invariant of een andere planning na herlezen.
 // De check drukt de tabel af en is rood bij elke "anders": elke bewerking schrijft goed of weigert getypeerd.
@@ -15,7 +15,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, mergeProblems, openForeign, plannerEdits, tryMerge, type EditKind } from './ifcMergeKern';
+import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, plannerEdits, tryMerge, type EditKind } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
@@ -45,6 +45,7 @@ for (const file of files) {
   if (!source?.foreign) continue;
   const perKind = new Map<EditKind, Tally>();
   tally.set(file, perKind);
+  const sourceDoubles = doubleMemberships(bytes);
   for (const edit of plannerEdits(opened, MAX_PER_SOORT)) {
     const t = perKind.get(edit.kind) ?? { n: 0, ok: 0, refused: new Map(), other: new Map() };
     perKind.set(edit.kind, t);
@@ -58,6 +59,8 @@ for (const file of files) {
       if (!outcome.ok) { for (const k of outcome.kinds) bump(t.refused, k); continue; }
       const problems = mergeProblems(source.bytes, outcome.bytes);
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }
+      const doubles = doubleMemberships(outcome.bytes).filter(k => !sourceDoubles.includes(k));
+      if (doubles.length > 0) { fail(`dubbel lidmaatschap: ${doubles[0]}`); continue; }
       const reread = await openForeign(outcome.bytes);
       const plain = readIFC(writeIFC(d));
       if (canon(reread, reseed) !== canon(plain, reseed)) { fail('andere planning na herlezen'); continue; }
