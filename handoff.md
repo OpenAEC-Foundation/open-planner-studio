@@ -8,8 +8,9 @@ van fase 1 naar `docs/archive/handoffs/` (bij fase 0 ging dat mis: zie `HANDOFF-
 Het ontwerp (versie 20) en fase 0 zijn gemerged in main. Fase 0 bewees dat de app bij een eigen bestand precies het eigen
 deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met een gebouwmodel, achter een flag: eerst
 lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
-Het lezen (1a) is gemerged in main. Nu wordt het schrijven gebouwd (1b): de writer die het gebouwmodel laat staan en de
-planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in 1c, na de controles.
+Het lezen (1a) is gemerged in main. Het schrijven (1b, #867) is na zeven fixrondes klaar voor review ronde 7: de writer
+laat het gebouwmodel staan en zet de planning ertussen. Bij twijfel weigert hij. Een eigen bestand van OPS, ook van een
+oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, na de controles.
 
 ## Bronnen
 
@@ -24,12 +25,16 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
 | Afspraak | Wie, wanneer |
 |---|---|
 | Elke fase op een eigen branch vanaf `main`; Sol (xhigh) en Terra (xhigh, proef) reviewen per PR, elke ronde een nieuwe `delegate_task` met de vorige bevindingen | wrakko, 2026-11-09/10 |
+| Zolang Codex geen tegoed heeft: review door één reviewer op Opus 5.5 (xhigh), en dat staat in de PR-tekst; daarna weer Sol en Terra. Een commit met alleen `knownbugs.md` na een ja hoeft geen nieuwe review; raakt hij ook ander tekstwerk, dan een korte tekstcheck | wrakko, 2026-11-10 |
 | Mergen doet de orkestrator zelf: `gh pr merge <nr> --merge --admin --match-head-commit <sha>`, bij een groene CI en een ja van Sol op de laatste commit; merge-commit aan wrakko melden (wiki/inzichten/merge met admin.md) | wrakko, 2026-11-10 |
-| Geen Fable, ook niet als subagent of in een council, tot Fable 5.5 uit is; een council draait met Opus en Sol | Ethan, 2026-11-09 |
+| De orkestrator (deze thread, sinds 10 november op Fable 5.2) coördineert en bouwt niet zelf; bouwers en reviewers draaien op Opus, Sol of Terra, niet op Fable; een council draait met Opus en Sol | Ethan, 2026-11-09/10 |
 | `place_file_exclusive(from, to)` pas in fase 2, met de voorwaarden in §11; in fase 1 geen Rust-commando | wrakko, 2026-11-09 |
 | Een wijziging in `.github/workflows/` pusht Trias: het token op aia09-mp50 heeft geen `workflow`-scope | wrakko, 2026-11-09 |
 | VERVOLG uit een review naar `knownbugs.md` op de PR-branch; 1007 is gebruikt door #863 | werkwijze |
-| Knownbugs voor fase 1: 1011 t/m 1030 (1026 is de LiteralTimes-bug van de writer, buiten #804); daarna eerst vragen (1008–1010 blijven ongebruikt) | wrakko, 2026-11-10 |
+| Knownbugs: fase 1 gebruikte 1011–1035 (1026 is de LiteralTimes-bug van de writer, buiten #804; 1008–1010 bleven ongebruikt). Sinds 10 november heeft deze sessie het blok 1100–1149 en gebruikt alleen nummers daaruit; is het blok vol, dan een volgend blok vragen aan wrakko | Ethan via wrakko, 2026-11-10 |
+| Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel, ook `ifcForeignContent`. Wat achter de flag zit, moet met de flag aan veilig zijn bij opslaan; een stap die met de flag aan data kan verliezen, is een BLOKKEERT. Dit staat in elke reviewbrief | Ethan via wrakko, 2026-11-10 |
+| Regel voor de merge-writer: bij twijfel weigeren. De duur- en tijdtoets is een lijst van vormen die mogen (`src/services/ifc/foreign/durationForms.ts`). Een waarde die een OPS-versie zelf schreef, mag nooit laten weigeren: eerst op de lijst, anders de bronwaarde letterlijk laten staan; weigeren alleen als de planner dat veld zelf wijzigde | wrakko, 2026-11-10 |
+| Leesfouten die ook op main zitten (1028, 1029, 1033, 1034, 1035) repareert de thread "Trias · IFC-lezer". In #804 alleen weigeren, de lezer niet aanpassen. Staat een fix in main, dan gaat de weigering weg bij het bijwerken met main (zo gedaan voor 1027 met #871 en 1026 met #872) | wrakko, 2026-11-10 |
 | Geen zware runs lokaal: CI | AGENTS.md |
 
 ## Verdeling van fase 1 (3 PR's, elk achter de flag)
@@ -71,6 +76,17 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
    **Eis voor 1c** (wrakko, 10 november 2026; knownbug 1021): de merge mag de bron niet bij elke merge opnieuw scannen;
    bij 300 MB terug naar ongeveer het niveau van ronde 1 van #867 (merge 6,7 s, piek 1,2 GB; na fixronde 2 13,0 s en
    1,7 GB). Anders is 1c niet klaar.
+   **Eis voor 1c** (wrakko, 10 november 2026; knownbug 1104): 1c gaat niet naar main zolang een eigen bestand van
+   v2026.7.4 tot v2026.7.14 met een baseline en een model weigert bij het wissen van een baselinetaak.
+   **Eis voor 1c** (Ethan via wrakko, 10 november 2026): de merge-writer aansluiten mag alleen als hij met de flag aan
+   op elke opslagroute (Opslaan, Opslaan als, AutoSave en herstel, export, MCP, headless) veilig is, met een test met
+   de flag aan.
+   **Voor 1c** (review ronde 6 van #867, VERMOED laag): `writeIfcMerge` geeft `literalCalendarIds` niet terug;
+   `writeIFCWithChoices` doet dat wel. Na het aansluiten moet de sessie een nieuw letterlijke kalender onthouden.
+   **Voor 1c** (knownbug 1102): een gebroken dag wijzigen in een oud eigen bestand met een model weigert; de richting
+   staat in de knownbug.
+   **Voor 1c** (review van #881, knownbug 1100, VERMOED midden): V-bytes kunnen een entiteit bevatten die de scanner
+   niet ziet; een nieuw `#id` van de writer mag daar niet mee botsen. Ronde 7 van #867 toetst dit.
    **Bij voorkeur in 1c** (wrakko, 10 november 2026; knownbug 1023, VERVOLG): stabiele GlobalIds voor onze eigen
    hulpstukken (`OPS_Resource` en de andere psets en relaties); het is onze eigen writer.
 
@@ -114,6 +130,22 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
   wijzigde; O0 blijft de toets; `jsonExtras`, `unusedKeys` en `detached` blijven in fase 2; (3) lay-out, schrijfvelden en
   toevoegingen mogen, smal; een wegvallend argument alleen als het `$` was of uit andere velden volgt; (4) het pad van
   `LiteralTimes`: nagaan of een gewone opslag het ook doet, dan een eigen knownbug buiten #804.
+- 2026-11-10: fixronde 3 (bronwaarden terugzetten, (b); `d4b81faba`) en ronde 3: Sol nee, Terra nee.
+- 2026-11-10: een expert (Opus xhigh, alleen lezen) maakte een lijst van 53 plekken waar de bewaking een verschil
+  verklaart; fixronde 4 dichtte er 19 (head `a94774a7c`); ronde 4: Sol nee, Terra nee (STEP-codering, decimale komma,
+  feestdagen, verdwijnend stuk).
+- 2026-11-10: fixronde 5 en 5b (`f1efc7eed` tot en met `ae8c3f882`); main met #871 erin (1027 weg); ronde 5: Sol nee,
+  Terra nee (oude lagvorm, `PT-2H`, `PT90S`).
+- 2026-11-10: fixronde 6: de lijst van duurvormen die mogen (`5d6b1f813` tot en met `626f21029`); main met #872 en #847
+  erin (1026 weg); ronde 6 door één reviewer op Opus 5.5 (Codex had geen tegoed): nee (vier soorten waarden die OPS zelf
+  schreef, weigerden).
+- 2026-11-10: #881 (knownbug 1151: met de flag aan sloeg openen de modelweigering over) gemerged in main: `febb69ce1`.
+  Knownbug 1100 komt uit de review daarvan.
+- 2026-11-10: fixronde 7 (`06b6b8e3a`): oude eigen bestanden schrijven zonder bewerking; de telling loopt nu ook over
+  elk bestand uit `oude-tags` met een wand; main met #870 en #881 erin (`febb69ce1`, merge `36bfb3752`); doeltest op
+  `fix3-twee-data`; knownbugs 1101–1104. Head `6c115d3f6`.
+- 2026-11-10: besluiten van Trias na fixronde 7: 1103 blijft VERVOLG (er gaat niets verloren en het weigert bij
+  openen); 1104 mag in 1b weigeren en is een eis voor 1c.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -124,6 +156,7 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
 
 ## Volgende stappen
 
-1. 1b: bouwer, review door Sol en Terra, CI, merge (afspraken hierboven).
-2. Dan 1c op een eigen branch vanaf `main`, met de eisen voor 1c hierboven (1011, de bron zonder model, headless).
+1. Review ronde 7 van #867 (één reviewer op Opus tot woensdag 11 november 07:51, daarna Sol en Terra), fixrondes tot
+   een ja, CI, merge (afspraken hierboven).
+2. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
 3. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.

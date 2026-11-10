@@ -1961,10 +1961,11 @@ en noem het in je rapport of PR-tekst.
      `building-model`). Zonder model opent het en slaat het op zoals op main. Proef: de telling
      (`check-ifc-foreign-merge-telling.ts`, `REFUSED_AT_OPEN`) met
      `tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc` plus een wand. Een
-     programma dat een model toevoegt, schrijft meestal een eigen kop; dan speelt dit niet. Uit #867 (fase 1b, fixronde
-     7, na de merge met main). — B
+     programma dat een model toevoegt, schrijft meestal een eigen kop; dan speelt dit niet. Besluit van Trias (wrakko, 10
+     november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
+     met main). — B
 
-1104. **VERVOLG: een taak wissen in een eigen bestand van v2026.7.4 tot v2026.7.14 met een baseline en een model, laat de
+1104. **BLOKKEERT voor 1c: een taak wissen in een eigen bestand van v2026.7.4 tot v2026.7.14 met een baseline en een model, laat de
      merge weigeren.** Die versies schreven de taken in `OPS_Baselines` met hun interne id, zonder `TaskGuids` (die kwam
      in `69da76cd5`, v2026.7.14). De lezer zoekt de taak dan via de hash van dat id. De merge zet de bron-JSON terug ((b)),
      want de planner wijzigde de baseline niet. Wist de planner een taak die in de baseline staat, dan vindt de lezer haar
@@ -1974,9 +1975,11 @@ en noem het in je rapport of PR-tekst.
      `taak-wissen` 20 van 20 geweigerd, de andere bewerkingen schrijven, en zonder bewerking schrijft hij; ook
      `check-ifc-foreign-oude-eigen.ts`. Bestanden met `TaskGuids` (v2026.7.14 en later)
      wissen wel (`eigen-plus-model.ifc`, 20 van 20). Richting: in de herleestoets een regel van een baseline zonder taak
-     vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Open
-     vraag aan Trias: mag de merge hier weigeren (de planner wijzigde de baseline niet zelf)? Uit #867 (fase 1b, fixronde
-     7, na de merge met main). — B
+     vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Besluit
+     van Trias (wrakko, 10 november 2026): in 1b mag de merge hier weigeren, want de merge-writer is nog niet aangesloten;
+     het is een harde eis voor 1c: 1c gaat niet naar main zolang een eigen bestand van v2026.7.4 tot v2026.7.14 met een
+     baseline en een model weigert bij het wissen van een baselinetaak. Uit #867 (fase 1b, fixronde 7, na de merge met
+     main). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
