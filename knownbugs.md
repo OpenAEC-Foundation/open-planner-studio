@@ -1833,6 +1833,32 @@ en noem het in je rapport of PR-tekst.
      weken weigeren bij openen of omrekenen met de kalender (een maand heeft geen vast aantal werkdagen). Uit #867
      (fase 1b, fixronde 4). — B
 
+1029. **De lezer leest een duur met een decimale komma verkeerd.** `parseDurationDays`
+     (`src/services/ifc/ifcReader.ts:1319`) en `isoDurationToMinutes` (`src/services/subdayIo.ts:111`) kennen alleen een
+     decimale punt, en hun patronen staan niet vast aan het begin van het getal: bij `P1,5D` pakken ze de `5` na de komma.
+     ISO 8601 staat de komma toe (en geeft haar zelfs de voorkeur). Proef op `public/examples/showcase-appartementencomplex.ifc`
+     met de duur van 'CPT soundings & soil investigation' (`#55`), ook op main (`24723581e`, dezelfde twee functies):
+     `P1,5D` geeft `scheduleDuration` 5 (bedoeld: 1,5), `P0Y0M1,5D` geeft 5, en `PT4,5H` geeft `durationMinutes` 300
+     (bedoeld: 270). De eigen writer schrijft een punt, dus alleen bestanden van een ander programma. Met de flag weigert de
+     merge zo'n duur (`duur-deels-gelezen`), tijdelijk tot de fix van deze knownbug in main staat (fixronde 5 van #867,
+     `check-ifc-foreign-strikt.ts`). Richting: de komma lezen als decimaalteken, in dezelfde functie als 1028. Uit #867
+     (fase 1b, fixronde 5). — B
+
+1030. **De lezer leest een duur, datum-tijd of tijd buiten de vorm die hij kent zonder melding anders.** Dezelfde twee
+     functies als 1029 zoeken een getal voor `D` of `H` ergens in de tekst, zonder de vorm te toetsen. Proef als bij 1029,
+     ook op main: `p3d` en `P3d` geven 0 dagen (de kleine letter valt weg), `P1E1D` geeft 10 dagen (een exponent kent ISO
+     8601 niet), `PT1H1H` geeft 60 minuten (het tweede uur valt weg), `PT30M12H` geeft 750 minuten (de volgorde is
+     ongeldig), en `P`, `PT` en een lege tekst geven 0. Bij datum-tijden en tijden (de taaktijd van 'CPT soundings & soil
+     investigation' en het tijdblok `07:00:00`–`12:00:00` in dezelfde showcase): een tijdzone (`2027-03-01T07:00:00Z`,
+     `+02:00`) laat de lezer weg (`parseImportedInstant` in `src/services/importDates.ts:29`, `clockToMinutes` in
+     `src/services/subdayIo.ts:65`), terwijl een ander programma `Z` als UTC leest, een of twee uur anders; seconden die
+     niet 0 zijn vallen weg; na een spatie in plaats van `T` (`2027-03-01 07:00:00`) leest de lezer 00:00; en de korte vorm
+     `20270301T070000` of een uur van één cijfer (`T7:00:00`) laat het openen stoppen met `Invalid time value` in plaats
+     van een melding. Een ander programma weigert zo'n waarde, of leest haar anders. Alleen bestanden van een ander
+     programma. Met de flag weigert de merge zo'n waarde (`duur-deels-gelezen`, `tijd-deels-gelezen`; fixronde 5 van #867).
+     Richting: bij openen de vorm toetsen en een ongeldige waarde melden in plaats van stil een getal te nemen; voor een
+     tijdzone kiezen of de lezer haar omrekent of meldt. Uit #867 (fase 1b, fixronde 5). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

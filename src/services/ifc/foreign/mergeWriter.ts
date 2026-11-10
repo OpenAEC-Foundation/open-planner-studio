@@ -40,7 +40,7 @@ import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds }
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, type Classification } from './classify';
-import { changedScopes, decimalKey, durationTexts, lossCheck, partialDuration, pristineFromScan, type LossDiff } from './lossCheck';
+import { changedScopes, dateTimeTexts, decimalKey, durationTexts, lossCheck, partialDateTime, partialDuration, pristineFromScan, type LossDiff } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
@@ -79,10 +79,18 @@ export type MergePhase2Kind =
    *  (twee gelijke psets: de uitvoer heeft er één, plek 26). Zonder betrouwbare identiteit is niet te zeggen bij welke regel
    *  die waarde hoort (`lossCheck.ts`, `ambiguous`). */
   | 'niet-eenduidig'
-  /** Een P-stuk heeft een duur waarvan de lezer een deel weglaat (`partialDuration`): dagen vóór een tijddeel (`P2DT12H`,
-   *  knownbug 1027; tijdelijk, tot de fix van 1027 in main staat, besluit van Trias van 10 november 2026), of jaren,
-   *  maanden of weken (knownbug 1028). */
-  | 'duur-deels-gelezen';
+  /** Een P-stuk heeft een duur die de lezer deels of anders leest (`partialDuration`, na de STEP-decodering): dagen vóór
+   *  een tijddeel (`P2DT12H`, knownbug 1027; tijdelijk, tot de fix van 1027 in main staat, besluit van Trias van 10 november
+   *  2026), jaren, maanden of weken (knownbug 1028), een decimale komma (`P1,5D`, knownbug 1029; tijdelijk, besluit van
+   *  Trias van 10 november 2026), of een vorm buiten ISO 8601 (`p3d`, `P1E1D`, `PT1H1H`; knownbug 1030). */
+  | 'duur-deels-gelezen'
+  /** Een P-stuk heeft een datum-tijd of tijd die de lezer anders leest (`partialDateTime`, na de STEP-decodering): met een
+   *  tijdzone (`Z`, `+02:00`; de lezer laat die weg), seconden die niet 0 zijn, een spatie in plaats van `T`, of een uur van
+   *  één cijfer (knownbug 1030; fixronde 5, zoektocht punt 4). */
+  | 'tijd-deels-gelezen'
+  /** De uitvoer heeft een pset zonder bronstuk die niet in ons eigen register staat (`ifcPsets.ts`). Alleen een eigen
+   *  registerpset mag erbij komen (fixronde 5, plek 34, besluit van Trias van 10 november 2026). */
+  | 'nieuwe-pset';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -278,8 +286,10 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id);
   const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
-  // Een duur in een P-stuk waarvan de lezer een deel weglaat: de planner ziet dan een andere duur dan het bestand bewaart, en
-  // (b) zou de bron vasthouden. De fix van 1027 komt in de lezer zelf (besluit van Trias, 10 november 2026).
+  // Een duur, datum-tijd of tijd in een P-stuk die de lezer deels of anders leest: de planner ziet dan een andere waarde dan
+  // het bestand bewaart, en (b) zou de bron vasthouden. De tekst is die van de lezer, na de STEP-decodering
+  // (`durationTexts`, `dateTimeTexts`). De fixes komen in de lezer zelf (besluiten van Trias, 10 november 2026); tot dan
+  // weigert de merge.
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i) || !isP(i)) continue;
     for (const text of durationTexts(index, i)) {
@@ -289,6 +299,20 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
           + ' (knownbug 1027). Tijdelijk, tot de fix van knownbug 1027 in main staat.');
       } else if (part === 'jaren') {
         caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft jaren, maanden of weken; de lezer leest die niet (knownbug 1028)`);
+      } else if (part === 'komma') {
+        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft een decimale komma; de lezer leest alleen de cijfers na de komma`
+          + ' (knownbug 1029). Tijdelijk, tot de fix van knownbug 1029 in main staat.');
+      } else if (part === 'vorm') {
+        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft geen vorm van ISO 8601 die de lezer kent; hij leest haar anders (knownbug 1030)`);
+      }
+    }
+    for (const { text, time } of dateTimeTexts(index, i)) {
+      const part = partialDateTime(text, time);
+      const what = time ? 'de tijd' : 'de datum-tijd';
+      if (part === 'zone') {
+        caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 1030)`);
+      } else if (part === 'vorm') {
+        caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1030)`);
       }
     }
   }

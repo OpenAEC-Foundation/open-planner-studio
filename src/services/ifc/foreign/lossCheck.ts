@@ -93,6 +93,7 @@
  */
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
 import { PER_TASK_PSET_BY_NAME, PROP, PSET } from '../ifcPsets';
@@ -124,7 +125,7 @@ export interface LossDiff {
   readonly arg: number;
   readonly source: string;
   readonly out: string;
-  readonly whole?: 'ontbreekt' | 'type' | 'aantal' | 'gedeeld';
+  readonly whole?: 'ontbreekt' | 'type' | 'aantal' | 'gedeeld' | 'nieuw';
   readonly slotless?: 'bron' | 'uitvoer';
   /** Bij een verschil in een slot: het slot in de uitvoer (bij een oude lay-out een ander getal dan `arg`). */
   readonly outArg?: number;
@@ -232,11 +233,24 @@ const NAME_ONLY: ReadonlySet<string> = new Set(['IFCPROPERTYSINGLEVALUE', 'IFCPR
  *  ook als de writer de blokken anders ordent (de vergelijking ziet dan de andere volgorde). */
 const CONTENT_PAIR: ReadonlySet<string> = new Set(['IFCTIMEPERIOD']);
 
-/** Argumentpositie van de relating per relatietype zonder vast id. */
-const RELATING: Readonly<Record<string, number>> = {
-  IFCRELNESTS: 4, IFCRELAGGREGATES: 4, IFCRELDECLARES: 4, IFCRELASSIGNSTOCONTROL: 6, IFCRELASSIGNSTOPROCESS: 6,
-  IFCRELSEQUENCE: 4,
+/**
+ * Per relatietype de slots van de relating en van de leden (RelatedObjects; bij `IfcRelDefinesByProperties` zijn de
+ * eigenaren de leden en is de pset de relating). Eén tabel voor het paren (`relKeySource`), de structuur (`structural`) en
+ * de uitleg in O1 (fixronde 5, VERVOLG van Sol). `members`: welke leden erin staan, volgt uit het domeinobject van de
+ * relating (`explainMembers`, `explainRelation`). Een `IfcRelSequence` is zelf een domeinobject (`seq:`): beide slots volgen
+ * uit zijn velden (`SEQ_SLOT_FIELDS`).
+ */
+const RELATION_SLOTS: Readonly<Record<string, { readonly relating: number; readonly related: number; readonly members: boolean }>> = {
+  IFCRELNESTS: { relating: 4, related: 5, members: true },
+  IFCRELAGGREGATES: { relating: 4, related: 5, members: true },
+  IFCRELDECLARES: { relating: 4, related: 5, members: true },
+  IFCRELASSIGNSTOCONTROL: { relating: 6, related: 4, members: true },
+  IFCRELASSIGNSTOPROCESS: { relating: 6, related: 4, members: true },
+  IFCRELDEFINESBYPROPERTIES: { relating: 5, related: 4, members: true },
+  IFCRELSEQUENCE: { relating: 4, related: 5, members: false },
 };
+/** De relatie met leden die uit het domein van haar relating volgen, of `undefined`. */
+const memberRelation = (type: string) => (RELATION_SLOTS[type]?.members ? RELATION_SLOTS[type] : undefined);
 
 const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
 
@@ -283,7 +297,8 @@ function alignment(type: string, src: readonly string[], outLength: number): num
 export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => void): { edits: SlotEdit[] } {
   const { index } = input;
   const say = (d: LossDiff, after: boolean) => report({
-    kind: d.ambiguous ? 'niet-eenduidig' : 'niet-gedragen', chunk: d.chunk, detail: describe(index, d, after), diff: d,
+    kind: d.whole === 'nieuw' ? 'nieuwe-pset' : d.ambiguous ? 'niet-eenduidig' : 'niet-gedragen', chunk: d.chunk,
+    detail: describe(index, d, after), diff: d,
   });
   const edits: SlotEdit[] = [];
   const p0 = pairOutput(input, input.o0);
@@ -297,18 +312,30 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const changed = changedScopes(input.domain, input.pristine);
     const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
     const p1 = pairOutput(input, input.o1, exact);
-    /** Stukken met een bronwaarde van een soort die de lezer deels draagt, zonder regel in O1: verdwijnt het stuk terwijl
-     *  het object blijft, dan weigert de merge (fixronde 4, plek 5). */
-    const lostPartial = new Set<number>();
+    unstableLists(input, p0, p1);
+    const ctx1 = o1Context(input, p1, changed);
+    const deleted = deletedExceptionItems(input, p1, changed);
+    /** Stukken met een bronwaarde zonder regel in O1, terwijl hun object blijft (fixronde 4, plek 5; fixronde 5, BLOKKEERT
+     *  4): het wissen van een bekende waarde verklaart niet het wissen van een slot ernaast dat de lezer niet draagt, van
+     *  welke soort ook. Dan weigert de merge. Behalve bij een uitzondering van een kalender die de planner wiste (een
+     *  feestdag): die gaat met haar bronwaarden weg (`deletedExceptionItems`). */
+    const lost = new Set<number>();
     for (const r of restores) {
       const o1 = p1.pairedOut.get(r.chunk)?.[0];
       const line1 = o1 === undefined ? undefined : p1.out.get(o1);
       const line0 = p0.out.get(p0.pairedOut.get(r.chunk)![0])!;
-      // Geen regel: het object is weg (dan valt het stuk buiten de toets), of de bewerking haalde het stuk weg (dat toetst
-      // O1 hieronder; bij een soort die de lezer deels draagt, weigert de merge). Ook een stuk dat een ander type kreeg,
-      // heeft geen regel: het paren eist hetzelfde type. Een andere vorm (een ander aantal argumenten bij hetzelfde type)
-      // schrijft de writer niet; als vangnet weigert de merge dan (bij twijfel weigeren).
-      if (!line1) { if (PARTIAL_KINDS.has(r.kind)) lostPartial.add(r.chunk); continue; }
+      // Geen regel: het object is weg (dan valt het stuk buiten de toets), of de bewerking haalde het stuk weg (dan weigert
+      // de merge, op een gewiste feestdag na). Ook een stuk dat een ander type kreeg, heeft geen regel: het paren eist
+      // hetzelfde type. Een andere vorm (een ander aantal argumenten bij hetzelfde type) schrijft de writer niet; als vangnet
+      // weigert de merge dan (bij twijfel weigeren).
+      // Een bronwaarde in een slot waarvan de planner het veld wijzigde, vervalt (plek 6), behalve bij een soort die de lezer
+      // deels draagt; elke andere bronwaarde van het verdwenen stuk weigert, van welke soort ook (BLOKKEERT 4).
+      if (!line1) {
+        if (deleted.has(r.chunk)) continue;
+        const gone = { chunk: r.chunk, arg: r.arg, source: r.token, out: '', outArg: r.outArg };
+        if (PARTIAL_KINDS.has(r.kind) || explainO1(ctx1, gone) === undefined) lost.add(r.chunk);
+        continue;
+      }
       if (line1.type !== line0.type || line1.args.length !== line0.args.length) {
         say({ chunk: r.chunk, arg: r.arg, source: r.token, out: `${line1.type} met ${line1.args.length} argumenten`, outArg: r.outArg }, true);
         continue;
@@ -321,12 +348,19 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
         say({ ...after, ambiguous: true }, true);
         continue;
       }
+      // Plek 6 (fixronde 5, besluit van Trias): wijzigde de planner het domeinveld waar de writer dit slot uit schrijft
+      // (dezelfde tabellen per veld als de uitleg van O1), dan vervalt de bronwaarde en geldt de waarde van de writer, ook
+      // als die gelijk bleef. Bij een soort die de lezer deels draagt, gaat dan een deel verloren: weigeren.
+      if (explainO1(ctx1, after) !== undefined) {
+        if (PARTIAL_KINDS.has(r.kind)) say(after, true);
+        continue;
+      }
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
         const token = mapToken(input, r.token, p1);
         if (token === undefined) say(after, true); // een verwijzing van de bron heeft in O1 geen tegenhanger meer
         else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk });
       } else if (PARTIAL_KINDS.has(r.kind)) {
-        say(after, true); // de planner wijzigde een veld waarvan de lezer maar een deel draagt
+        say(after, true); // de writer schrijft hier iets anders, zonder dat het veld veranderde: weigeren
       }
     }
     // O1 (fixronde 4, BLOKKEERT 1 en plek 1 tot 4): geen algemene vrijstelling. Elk verschil met de bron moet een
@@ -334,9 +368,10 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // `changedScopes` niets ziet (een veld dat JSON niet ziet: plek 4). Een stuk dat niet eenduidig paarde, gaat ook door
     // `explainO1`: een bronwaarde van zo'n stuk weigert al hierboven, en de rest moet een bewerking verklaren.
     const p1b = pairOutput(input, applyEdits(input.o1, edits), exact);
+    unstableLists(input, p0, p1b);
     const ctx = o1Context(input, p1b, changed);
     for (const d of compareOutput(input, p1b, input.owner1)) {
-      const why = lostPartial.has(d.chunk) ? undefined : explainO1(ctx, d);
+      const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
   }
@@ -357,9 +392,13 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
 
 /** De tekst van een melding: stuk, propertynaam, argument, bronwaarde en uitvoer. */
 function describe(index: StepIndex, d: LossDiff, after: boolean): string {
+  const when = after ? ' na de bewerking' : '';
+  if (d.whole === 'nieuw') {
+    const owner = d.chunk >= 0 ? ` op ${index.type(d.chunk)} #${index.id(d.chunk)}` : '';
+    return `de uitvoer${when} heeft een nieuwe pset ${d.out}${owner} die niet in ons register staat`;
+  }
   const name = index.name(d.chunk);
   const what = `${index.type(d.chunk)} #${index.id(d.chunk)}${name ? ` (${name})` : ''}`;
-  const when = after ? ' na de bewerking' : '';
   if (d.whole === 'ontbreekt') return `${what}: ontbreekt in de uitvoer${when}${d.source ? ` (${d.source.slice(0, 60)})` : ''}`;
   if (d.whole === 'type') return `${what}: in de uitvoer${when} als ${d.out}`;
   if (d.whole === 'aantal') return `${what}: ${d.source} argumenten → ${d.out} argumenten${when}, geen bekende lay-out`;
@@ -390,6 +429,8 @@ interface Pairing {
 
 /** De keten van de owner history: alleen daarvan schrijft de writer een kopie naast een stuk dat niet P is (de
  *  normalisatie `id`; een eigen owner history naast een gedeelde van de bron). */
+/** De psets van ons eigen register (`ifcPsets.ts`): alleen die mag de writer nieuw schrijven (plek 34). */
+const REGISTER_PSETS: ReadonlySet<string> = new Set(Object.values(PSET));
 const COPY_TYPES: ReadonlySet<string> = new Set(['IFCOWNERHISTORY', 'IFCPERSONANDORGANIZATION', 'IFCPERSON', 'IFCORGANIZATION', 'IFCAPPLICATION']);
 
 /**
@@ -445,7 +486,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       if (pset < 0 || owners.some(o => o === undefined)) return undefined;
       return `${t}|${index.type(pset)}|${index.name(pset) ?? ''}|${(owners as number[]).sort((x, y) => x - y).join(',')}`;
     }
-    const pos = RELATING[t];
+    const pos = RELATION_SLOTS[t]?.relating;
     if (pos === undefined) return undefined;
     const relating = outIdOf(index.refAt(r, pos));
     return relating === undefined ? undefined : `${t}|${relating}`;
@@ -458,7 +499,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
       const name = pset.type === 'IFCPROPERTYSET' ? outDecode(pset.args[2]) : '';
       return `${line.type}|${pset.type}|${name}|${owners.join(',')}`;
     }
-    const pos = RELATING[line.type];
+    const pos = RELATION_SLOTS[line.type]?.relating;
     return pos === undefined ? undefined : `${line.type}|${refOf(line.args[pos])}`;
   };
   const outRels = new Map<string, number[]>();
@@ -620,7 +661,144 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
     const ps = list.filter(isP);
     if (ps.length > 1) for (const s of ps) { ambiguous[s] = 1; if (!shared.has(s)) shared.set(s, o); }
   }
+  inheritAmbiguity(input, ambiguous, matched);
   return { out, pairs, pairedOut, sourceOf, matched, ambiguous, shared };
+}
+
+/** Het enige stuk van de bron dat naar `t` wijst, of -1 (geen of meer dan één). */
+function onlyParent(index: StepIndex, t: number): number {
+  let parent = -1;
+  for (let k = index.inStart(t); k < index.inEnd(t); k++) {
+    const from = index.inSource(k);
+    if (from < 0 || from === parent) continue;
+    if (parent >= 0) return -1;
+    parent = from;
+  }
+  return parent;
+}
+
+/**
+ * Erfelijk (fixronde 5, zoektocht punt 2): een hulpstuk dat alleen een niet-eenduidig gepaard stuk als ouder heeft (de
+ * werktijden en tijdblokken van een feestdag, de properties van een pset), paarde via dat stuk. Dan is het zelf ook niet
+ * eenduidig: anders gaat zijn bronwaarde mee naar een andere regel.
+ */
+function inheritAmbiguity(input: LossCheckInput, ambiguous: Uint8Array, matched: Uint8Array): void {
+  const { index, cls } = input;
+  const stack: number[] = [];
+  for (let s = 0; s < index.count; s++) if (ambiguous[s]) stack.push(s);
+  while (stack.length > 0) {
+    const s = stack.pop()!;
+    for (let k = index.outStart(s); k < index.outEnd(s); k++) {
+      const t = index.outTarget(k);
+      if (t < 0 || ambiguous[t] || !matched[t] || cls.classes[t] !== 1 || cls.selection.inD[t] || cls.inR[t]) continue;
+      if (onlyParent(index, t) !== s) continue;
+      ambiguous[t] = 1;
+      stack.push(t);
+    }
+  }
+}
+
+/** De uitzonderingen (ExceptionTimes) van elke eigen kalender van de bron: kalender → de P-stukken in die lijst. */
+function exceptionLists(input: LossCheckInput): Map<number, number[]> {
+  const { index, cls } = input;
+  const lists = new Map<number, number[]>();
+  for (let c = 0; c < index.count; c++) {
+    if (!index.isEntity(c) || cls.classes[c] !== 1 || index.type(c) !== 'IFCWORKCALENDAR') continue;
+    const map = alignment('IFCWORKCALENDAR', index.argTokens(c) ?? [], WORK_CALENDAR_ARITY);
+    const k = map ? map.indexOf(7) : -1;
+    if (k < 0) continue;
+    const members = index.refsAt(c, k).filter(m => m >= 0 && cls.classes[m] === 1);
+    if (members.length > 0) lists.set(c, members);
+  }
+  return lists;
+}
+
+/** De ledenlijsten waarvan de sleutel kan verschuiven (fixronde 5, BLOKKEERT 3 en zoektocht punt 2): de uitzonderingen
+ *  van een eigen kalender (uitvoerslot 7; sleutel naam en datums) en de properties van een eigen `OPS_Assignments`
+ *  (slot 4; sleutel de naam `<resource-GUID>#<plek in de lijst>`, die bij wissen schuift). */
+function shiftingLists(input: LossCheckInput): { readonly list: number; readonly members: readonly number[]; readonly outArg: number; readonly keyArgs: readonly number[] }[] {
+  const { index, cls } = input;
+  const lists = [...exceptionLists(input)].map(([list, members]) => ({ list, members, outArg: 7, keyArgs: [0, 4, 5] }));
+  for (let c = 0; c < index.count; c++) {
+    if (!index.isEntity(c) || cls.classes[c] !== 1 || index.type(c) !== 'IFCPROPERTYSET' || index.name(c) !== PSET.Assignments) continue;
+    const members = index.refsAt(c, 4).filter(m => m >= 0 && cls.classes[m] === 1);
+    if (members.length > 0) lists.push({ list: c, members, outArg: 4, keyArgs: [0] });
+  }
+  return lists;
+}
+
+/**
+ * Plek 27 (fixronde 5, BLOKKEERT 3): de uitzonderingen van een kalender (feestdagen en werkende uitzonderingen) hebben in
+ * het domein geen id; de kalenderdialoog wijzigt en wist ze per plek in de lijst. Naam en datum zijn dus geen identiteit.
+ * Hetzelfde voor de toewijzingen van een taak (zoektocht punt 2): de property heet naar de resource en de plek in de
+ * lijst, en de planner kan een toewijzing wissen of een andere resource geven. Verdween een lid van de bron uit O1, staat er
+ * een met een andere sleutel (de sleutel van de writer in O1 tegenover die in O0), of staan ze in een andere volgorde, dan
+ * kan elk lid met een ander verwisseld zijn. Dan paart elk lid van die lijst niet eenduidig: een bronwaarde gaat niet over,
+ * en de merge weigert als er een is. Alleen erbij komen (achteraan, of een feestdag vooraan) laat de lijst eenduidig.
+ */
+function unstableLists(input: LossCheckInput, p0: Pairing, p1: Pairing): void {
+  let marked = false;
+  for (const { list: c, members, outArg, keyArgs } of shiftingLists(input)) {
+    const keyOf = (line: OutLine | undefined) => (line ? keyArgs.map(k => (line.args[k] ?? '').trim()).join('\u0001') : undefined);
+    const c0 = p0.pairedOut.get(c)?.[0];
+    const c1 = p1.pairedOut.get(c)?.[0];
+    const line0 = c0 === undefined ? undefined : p0.out.get(c0);
+    const line1 = c1 === undefined ? undefined : p1.out.get(c1);
+    if (!line0 || !line1) continue; // de lijst zelf is weg: dan valt ze buiten de toets
+    const list0 = refList(line0.args[outArg]);
+    const list1 = refList(line1.args[outArg]);
+    const order = members.map(m => ({ m, at: list0.indexOf(p0.pairedOut.get(m)?.[0] ?? -1) })).sort((x, y) => x.at - y.at);
+    let last = -1;
+    const stable = order.every(({ m, at }) => {
+      const o0 = p0.pairedOut.get(m)?.[0];
+      const o1 = p1.pairedOut.get(m)?.[0];
+      if (at < 0 || o0 === undefined || o1 === undefined) return false;
+      const at1 = list1.indexOf(o1);
+      if (at1 <= last || keyOf(p0.out.get(o0)) !== keyOf(p1.out.get(o1))) return false;
+      last = at1;
+      return true;
+    });
+    if (stable) continue;
+    for (const m of members) if (p1.matched[m]) p1.ambiguous[m] = 1;
+    marked = true;
+  }
+  if (marked) inheritAmbiguity(input, p1.ambiguous, p1.matched);
+}
+
+/**
+ * De stukken van een uitzondering die de planner wiste (fixronde 5, BLOKKEERT 3 en 4): een lid van de uitzonderingen van
+ * een kalender zonder regel in O1, terwijl de uitzonderingen van die kalender in het domein veranderden, met de stukken die
+ * alleen daaronder hangen. Hun bronwaarden gaan met de feestdag weg; elk ander verdwenen stuk met een bronwaarde weigert.
+ * Alleen wissen verklaart een verdwenen uitzondering: verdwenen er meer leden dan het domein er minder heeft, dan kreeg een
+ * uitzondering een andere naam of datum (of kwam er een bij terwijl een andere verdween). Dan is geen van de verdwenen leden
+ * zeker gewist, en weigert elke bronwaarde ervan.
+ */
+function deletedExceptionItems(input: LossCheckInput, p1: Pairing, changed: ChangedScopes): Set<number> {
+  const { index } = input;
+  const out = new Set<number>();
+  type Calendars = { readonly calendar: WorkCalendar; readonly resourceCalendars?: readonly WorkCalendar[] };
+  for (const [c, members] of exceptionLists(input)) {
+    const key = objectKey(input, c);
+    if (!key || !['holidays', 'workingExceptions', '*'].some(f => changed.keys.has(`${key}#${f}`))) continue;
+    const count = (d: Calendars) => {
+      const cal = [d.calendar, ...(d.resourceCalendars ?? [])].filter(x => `cal:${x.id}` === key);
+      return cal.length === 1 ? cal[0].holidays.length + (cal[0].workingExceptions?.length ?? 0) : undefined;
+    };
+    const before = count(input.pristine);
+    const now = count(input.domain);
+    const stack = members.filter(m => p1.pairedOut.get(m) === undefined);
+    if (before === undefined || now === undefined || stack.length > before - now) continue;
+    while (stack.length > 0) {
+      const x = stack.pop()!;
+      if (out.has(x)) continue;
+      out.add(x);
+      for (let k = index.outStart(x); k < index.outEnd(x); k++) {
+        const t = index.outTarget(k);
+        if (t >= 0 && input.cls.classes[t] === 1 && onlyParent(index, t) === x && p1.pairedOut.get(t) === undefined) stack.push(t);
+      }
+    }
+  }
+  return out;
 }
 
 /** Vergelijk elk paar veld voor veld, en meld de P-stukken zonder tegenhanger. `ownerOut`: de eigen owner history van de
@@ -750,6 +928,22 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
   // Twee P-stukken met één tegenhanger: de uitvoer heeft één stuk waar de bron er twee had (fixronde 4, plek 26).
   for (const [s, o] of p.shared) diffs.push({ chunk: s, arg: -1, source: '', out: String(o), whole: 'gedeeld', ambiguous: true });
 
+  // Plek 34 (fixronde 5, besluit van Trias): een pset in de uitvoer zonder bronstuk. Alleen een pset van ons eigen register
+  // mag erbij komen (nieuwe gegevens uit het domein, zoals `OPS_Assignments` voor een taak die er in de bron geen had);
+  // elke andere nieuwe pset weigert. Het stuk van de melding is de eigenaar in de bron, als die er is.
+  for (const [id, line] of out) {
+    if (line.type !== 'IFCPROPERTYSET' || sourceChunkOf(input, id, p) !== undefined) continue;
+    const name = outDecode(line.args[2] ?? '');
+    if (REGISTER_PSETS.has(name)) continue;
+    let owner = -1;
+    for (const rel of out.values()) {
+      if (rel.type !== 'IFCRELDEFINESBYPROPERTIES' || refOf(rel.args[5]) !== id) continue;
+      for (const o of refList(rel.args[4])) { const c = sourceChunkOf(input, o, p); if (c !== undefined) { owner = c; break; } }
+      if (owner >= 0) break;
+    }
+    diffs.push({ chunk: owner, arg: -1, source: '', out: `'${name}' (#${id})`, whole: 'nieuw' });
+  }
+
   // ── Stukken zonder tegenhanger ──
   // Levend: een D-stuk dat de uitvoer schrijft (een vast id in de uitvoer, of zonder vast id), en wat het bereikt via
   // P-stukken; een relatie waarvan elk D-stuk leeft. Een stuk van een object dat verdween, valt buiten de toets (§4.7).
@@ -790,14 +984,11 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
 /** Slots die structuur zijn, geen waarde: de GlobalId en de owner history van een `IfcRoot` (besluit 1 en §4.5), de
  *  objectleden van een relatie (welke leden erin staan, volgt uit het domein, §4.5) en de properties van een pset (de
  *  merge hangt vreemde leden er zelf aan). Die zet (b) nooit terug; een verschil daar blijft `niet-gedragen`. */
-const REL_MEMBER_SLOTS: Readonly<Record<string, readonly number[]>> = {
-  IFCRELNESTS: [4, 5], IFCRELAGGREGATES: [4, 5], IFCRELDECLARES: [4, 5], IFCRELASSIGNSTOCONTROL: [4, 6],
-  IFCRELASSIGNSTOPROCESS: [4, 6], IFCRELDEFINESBYPROPERTIES: [4, 5], IFCRELSEQUENCE: [4, 5],
-};
 function structural(type: string, outArg: number, line: OutLine): boolean {
   if (isRootLine(line) && (outArg === 0 || outArg === 1)) return true;
   if (type === 'IFCPROPERTYSET' && outArg === 4) return true;
-  if (type.startsWith('IFCREL')) return REL_MEMBER_SLOTS[type] ? REL_MEMBER_SLOTS[type].includes(outArg) : outArg >= 4;
+  const rel = RELATION_SLOTS[type];
+  if (type.startsWith('IFCREL')) return rel ? outArg === rel.relating || outArg === rel.related : outArg >= 4;
   return false;
 }
 
@@ -1035,8 +1226,20 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
       }
       const x = xs[0] as unknown as Record<string, unknown>;
       const y = ys[0] as unknown as Record<string, unknown>;
+      const plain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
       for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
-        if (json(x[k]) !== json(y[k])) { keys.add(key); keys.add(`${key}#${k}`); }
+        if (json(x[k]) === json(y[k])) continue;
+        keys.add(key);
+        keys.add(`${key}#${k}`);
+        // Een veld dat zelf een object is (`time` van een taak): ook per deel, `kind:id#time.scheduleStart` (fixronde 5,
+        // VERVOLG: een tijdslot volgt uit zijn eigen delen van `time`, niet uit het hele object).
+        const a = x[k];
+        const b = y[k];
+        if (plain(a) && plain(b)) {
+          for (const s of new Set([...Object.keys(a), ...Object.keys(b)])) if (json(a[s]) !== json(b[s])) keys.add(`${key}#${k}.${s}`);
+        } else if (plain(a) || plain(b)) {
+          for (const s of Object.keys((plain(a) ? a : b) as Record<string, unknown>)) keys.add(`${key}#${k}.${s}`);
+        }
       }
       if (extraA && json(extraA(xs[0])) !== json(extraB?.(ys[0]))) { keys.add(key); keys.add(`${key}#assignments`); }
     }
@@ -1143,17 +1346,6 @@ function sourceScopes(input: LossCheckInput): Map<number, Set<string>> {
 
 // ── O1: welk verschil een bewerking aantoonbaar verklaart (fixronde 4, BLOKKEERT 1) ──
 
-/** De slots met de leden van een relatie (RelatedObjects; bij `IfcRelDefinesByProperties` de eigenaren) en met de
- *  relating. */
-const RELATED_SLOT: Readonly<Record<string, number>> = {
-  IFCRELNESTS: 5, IFCRELAGGREGATES: 5, IFCRELDECLARES: 5, IFCRELASSIGNSTOCONTROL: 4, IFCRELASSIGNSTOPROCESS: 4,
-  IFCRELDEFINESBYPROPERTIES: 4,
-};
-const RELATING_SLOT: Readonly<Record<string, number>> = {
-  IFCRELNESTS: 4, IFCRELAGGREGATES: 4, IFCRELDECLARES: 4, IFCRELASSIGNSTOCONTROL: 6, IFCRELASSIGNSTOPROCESS: 6,
-  IFCRELDEFINESBYPROPERTIES: 5,
-};
-
 /** De properties van `OPS_ProjectSettings` en het projectveld dat de writer erin schrijft (`ifcWriter.ts`, de
  *  projectinstellingen). Alleen een wijziging van dat veld verklaart een verschil in die property. */
 const PROJECT_SETTINGS_FIELDS: Readonly<Record<string, readonly string[]>> = {
@@ -1183,15 +1375,42 @@ const PROJECT_SETTINGS_FIELDS: Readonly<Record<string, readonly string[]>> = {
  * Per veld (fixronde 4, plek 3): de velden van het domeinobject die de writer in elk slot schrijft. Een verschil in een
  * slot zonder veld hier (een constante, de GlobalId, een verwijzing naar een hulpstuk) verklaart geen bewerking.
  * `IfcTask`: `IFC_TASK_SLOTS` (`ifcTaskSlots.ts`); `IfcTaskTime`: `IFC_TASKTIME_SLOTS` (de naam is die van de taak, de
- * rest komt uit `task.time`; StatusTime ook uit de statusdatum van het project, `explainField`).
+ * rest komt uit de delen van `task.time` in `TASKTIME_SLOT_FIELDS`; StatusTime ook uit de statusdatum van het project).
+ * Dezelfde tabellen zeggen of de planner het veld van een slot wijzigde (fixronde 5, plek 6): dan vervalt de bronwaarde.
  */
 const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
-  2: ['name'], 3: ['description'], 4: ['customTaskTypeId', 'taskType'], 5: ['wbsCode'], 7: ['time'], 9: ['isMilestone'],
+  2: ['name'], 3: ['description'], 4: ['customTaskTypeId', 'taskType'], 5: ['wbsCode'],
+  // Status: `'STARTED'` bij een lopende taak op 100 % (`isRunningAtFullCompletion` in `ifcTaskSlots.ts`).
+  7: ['status', 'time.completion', 'time.actualFinish', 'isSummary', 'childIds'], 9: ['isMilestone'],
   10: ['priority'], 12: ['customTaskTypeId', 'taskType'],
 };
-const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = Object.fromEntries([
-  [0, ['name']], ...Array.from({ length: 17 }, (_, k) => [k + 3, ['time']]),
-]);
+/** Per slot van `IfcTaskTime` de delen van `time` waar de writer het uit schrijft (`IFC_TASKTIME_SLOTS` en `writeTask` in
+ *  `ifcWriter.ts`; fixronde 5, VERVOLG van Terra). Een datum hangt ook af van de eenheid van de taak (de formatter,
+ *  `taskDateTimeFormatter`); een duur ook van het type en de eenheid (minuten per dag, `PT…` of `P…D`). De rekenslots kunnen
+ *  achtergehouden zijn ("datums zoals opgeslagen", `withheldTaskTimeFields`). */
+const T = (...parts: string[]) => parts.map(p => `time.${p}`);
+const DATE_FORMAT = T('durationUnit', 'durationMinutes');
+const WITHHELD = '@withheldTaskTimeFields';
+const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
+  0: ['name'],
+  3: T('durationType'),
+  4: T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime'),
+  5: [...T('scheduleStart'), ...DATE_FORMAT],
+  6: [...T('scheduleFinish'), ...DATE_FORMAT],
+  7: [...T('earlyStart'), ...DATE_FORMAT, WITHHELD],
+  8: [...T('earlyFinish'), ...DATE_FORMAT, WITHHELD],
+  9: [...T('lateStart'), ...DATE_FORMAT, WITHHELD],
+  10: [...T('lateFinish'), ...DATE_FORMAT, WITHHELD],
+  11: [...T('freeFloat'), WITHHELD],
+  12: [...T('totalFloat'), WITHHELD],
+  13: [...T('isCritical'), WITHHELD],
+  14: [...T('actualStart', 'actualFinish'), ...DATE_FORMAT],
+  15: T('actualDuration', 'durationType'),
+  16: [...T('actualStart'), ...DATE_FORMAT],
+  17: [...T('actualFinish'), ...DATE_FORMAT],
+  18: T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration'),
+  19: T('completion'),
+};
 /** `IfcRelSequence` en zijn `IfcLagTime` (`writeSequence`). */
 const LAG_FIELDS = ['lagDays', 'lagMinutes', 'lagPercent', 'lagUnit'];
 const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
@@ -1244,6 +1463,20 @@ const TASK_PSET_OPTION_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PSET.Analysis]: ['time'], [PSET.WorkRule]: ['time'], [PSET.Milestone]: ['time', 'isMilestone'],
 };
 
+/**
+ * Slots die de writer altijd als dezelfde constante schrijft (fixronde 5): DataOrigin en UserDefinedDataOrigin van een
+ * werktijd en een taaktijd (`.PREDICTED.`, `$`), de naam en herkomst van een `IfcLagTime` (`'Lag'`, `.PREDICTED.`, `$`), de
+ * vaste slots van een `IfcRecurrencePattern` (het type per soort, en `$`), Description en Unit van een property (`$`), Unit
+ * van een `IfcPropertyEnumeration`, Description van een pset en Name en Description van haar relatie (`$`). Gemeten in
+ * `ifcWriter.ts` (`writeCalendar`, `writeSequence`, `IFC_TASKTIME_SLOTS`; elke `IFCPROPERTYSINGLEVALUE` is
+ * `(naam,$,waarde,$)`).
+ */
+const CONSTANT_SLOTS: Readonly<Record<string, readonly number[]>> = {
+  IFCWORKTIME: [1, 2], IFCTASKTIME: [1, 2], IFCLAGTIME: [0, 1, 2], IFCRECURRENCEPATTERN: [0, 1, 3, 4, 5, 6],
+  IFCPROPERTYSINGLEVALUE: [1, 3], IFCPROPERTYENUMERATEDVALUE: [1, 3], IFCPROPERTYENUMERATION: [2], IFCPROPERTYSET: [3],
+  IFCRELDEFINESBYPROPERTIES: [2, 3],
+};
+
 /** Wat `explainO1` nodig heeft. */
 interface O1Context {
   readonly input: LossCheckInput;
@@ -1280,17 +1513,22 @@ const OWNER_CHAIN: ReadonlySet<string> = new Set(['IFCOWNERHISTORY', 'IFCPERSONA
  */
 function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
   const { input } = ctx;
+  if (d.whole === 'nieuw') return undefined;
   const type = input.index.type(d.chunk);
   const arg = d.whole ? -1 : (d.outArg ?? d.arg);
   if (d.whole === 'gedeeld' || d.slotless) return undefined;
-  if (!d.whole && RELATED_SLOT[type] === arg) return explainMembers(ctx, d);
+  // Een slot dat de writer altijd als dezelfde constante schrijft, volgt uit geen enkel veld (fixronde 5, plek 6 en
+  // BLOKKEERT 4): geen bewerking verklaart een verschil daar.
+  if (!d.whole && CONSTANT_SLOTS[type]?.includes(arg)) return undefined;
+  const rel = memberRelation(type);
+  if (!d.whole && rel?.related === arg) return explainMembers(ctx, d);
   if (OWNER_CHAIN.has(type)) return explainField(ctx, d, type, arg);
   // Een relatie (buiten haar leden) hoort bij haar ouder: de relating, of bij een pset de eigenaren. Haar naam en of ze
   // er is, volgen uit dat object (`explainRelation`), niet uit haar leden.
-  if (input.cls.inR[d.chunk] && !input.cls.selection.inD[d.chunk] && RELATING_SLOT[type] !== undefined) {
+  if (input.cls.inR[d.chunk] && !input.cls.selection.inD[d.chunk] && rel) {
     const owners = type === 'IFCRELDEFINESBYPROPERTIES'
       ? input.index.refsAt(d.chunk, 4).filter(c => c >= 0).map(c => objectKey(input, c) ?? 'project')
-      : [objectKey(input, input.index.refAt(d.chunk, RELATING_SLOT[type])) ?? 'project'];
+      : [objectKey(input, input.index.refAt(d.chunk, rel.relating)) ?? 'project'];
     const whys = new Set<string>();
     for (const obj of owners.length > 0 ? owners : ['project']) {
       const why = obj === 'project' ? (d.whole === 'ontbreekt' ? membersGone(ctx, d.chunk, type) : explainField(ctx, d, type, arg)) : explainRelation(ctx, d, type, arg, obj);
@@ -1417,7 +1655,7 @@ function explainRelation(ctx: O1Context, d: LossDiff, type: string, arg: number,
 
 /** Verdween of wisselde elk lid van de relatie (zie `memberMoved`)? Dan mag de relatie weg zijn. */
 function membersGone(ctx: O1Context, r: number, type: string): string | undefined {
-  const slot = RELATED_SLOT[type];
+  const slot = memberRelation(type)?.related;
   if (slot === undefined) return undefined;
   const members = ctx.input.index.refsAt(r, slot).filter(c => c >= 0);
   return members.length > 0 && members.every(c => memberMoved(ctx, type, objectKey(ctx.input, c))) ? 'leden weg' : undefined;
@@ -1452,7 +1690,7 @@ function explainMembers(ctx: O1Context, d: LossDiff): string | undefined {
   const line = p.out.get(p.pairedOut.get(s)?.[0] ?? -1);
   if (!line || d.outArg === undefined) return undefined;
   const keyOf = (c: number) => objectKey(input, c);
-  const relating = index.refAt(s, RELATING_SLOT[type]);
+  const relating = index.refAt(s, memberRelation(type)!.relating);
   const relatingKey = relating >= 0 ? keyOf(relating) : undefined;
   const relHas = (f: string) => !!relatingKey && (changed.keys.has(`${relatingKey}#${f}`) || changed.keys.has(`${relatingKey}#*`));
   if (type === 'IFCRELNESTS' && relatingKey?.startsWith('task:') && relHas('childIds')) return `leden: ${relatingKey}#childIds`;
@@ -1619,31 +1857,80 @@ export function sameDuration(a: string, b: string): boolean {
   return !!x && !!y && x.every((v, i) => v === y[i]);
 }
 
+/** Hoe de lezer een duur deels of verkeerd leest (zie `partialDuration`). */
+export type PartialDuration = 'dagen' | 'jaren' | 'komma' | 'vorm';
+
 /**
- * Een duur waarvan de lezer een deel weglaat (fixronde 4, BLOKKEERT 2), of `undefined`:
- *  - `dagen`: een tijddeel (`T…`) en dagen die niet nul zijn (`P2DT12H`, `P0Y0M2DT4H`). De lezer (`isoDurationToMinutes`,
- *    `subdayIo.ts:111`) leest dan alleen het deel na `T`: `P2DT12H` wordt 720 minuten (knownbug 1027);
+ * Een duur waarvan de lezer een deel weglaat of die hij anders leest dan ISO 8601 (fixronde 4, BLOKKEERT 2; fixronde 5,
+ * BLOKKEERT 2 en de zoektocht), of `undefined`. De tekst is de tekst zoals de lezer haar ziet: na de STEP-decodering
+ * (`durationTexts`).
+ *  - `vorm`: geen duur in de vorm van ISO 8601 met hoofdletters, onderdelen in de vaste volgorde en elk onderdeel één keer
+ *    (`p3d`, `P1E1D`, `PT1H1H`, `PT30M12H`, `P`, een lege tekst). De lezer leest die stil als iets anders (`p3d` als 0 dagen,
+ *    `P1E1D` als 10 dagen, `PT1H1H` als 60 minuten; knownbug 1030). Het oude teken bij het getal (`P0Y0M-2D`) leest hij goed;
+ *  - `komma`: een decimale komma (`P1,5D`, `PT4,5H`). De lezer leest alleen de cijfers na de komma: 5 dagen, 300 minuten
+ *    (knownbug 1029);
  *  - `jaren`: jaren, maanden of weken die niet nul zijn (`P1W`, `P0Y2M3D`). De lezer (`parseDurationDays`, `ifcReader.ts`)
- *    leest alleen de dagen, of met een tijddeel alleen dat tijddeel (knownbug 1028).
- * Een duur met alleen dagen (`P0Y0M3D`) of alleen een tijddeel (`PT12H`, `P0DT12H`) leest hij goed.
+ *    leest alleen de dagen, of met een tijddeel alleen dat tijddeel (knownbug 1028);
+ *  - `dagen`: een tijddeel (`T…`) en dagen die niet nul zijn (`P2DT12H`, `P0Y0M2DT4H`). De lezer (`isoDurationToMinutes`,
+ *    `subdayIo.ts:111`) leest dan alleen het deel na `T`: `P2DT12H` wordt 720 minuten (knownbug 1027).
+ * Een duur met alleen dagen (`P0Y0M3D`) of alleen een tijddeel (`PT12H`, `P0DT12H`) met een decimale punt leest hij goed.
  */
-export function partialDuration(text: string): 'dagen' | 'jaren' | undefined {
-  const m = /^-?P(?:(\d+(?:[.,]\d+)?)Y)?(?:(\d+(?:[.,]\d+)?)M)?(?:(\d+(?:[.,]\d+)?)W)?(?:(\d+(?:[.,]\d+)?)D)?(T(?:\d+(?:[.,]\d+)?[HMS])+)?$/.exec(text.trim());
-  if (!m) return undefined;
-  const nonZero = (v: string | undefined) => v !== undefined && decimalKey(v, true) !== '0';
+export function partialDuration(text: string): PartialDuration | undefined {
+  const t = text.trim();
+  const n = '(-?\\d+(?:[.,]\\d+)?)';
+  const m = new RegExp(`^-?P(?:${n}Y)?(?:${n}M)?(?:${n}W)?(?:${n}D)?(?:(T)(?:${n}H)?(?:${n}M)?(?:${n}S)?)?$`).exec(t);
+  const parts = m ? [m[1], m[2], m[3], m[4], m[6], m[7], m[8]] : [];
+  if (!m || parts.every(v => v === undefined) || (m[5] && parts.slice(4).every(v => v === undefined))) return 'vorm';
+  if (t.includes(',')) return 'komma';
+  const nonZero = (v: string | undefined) => v !== undefined && decimalKey(v) !== '0' && decimalKey(v) !== '-0';
   if (nonZero(m[1]) || nonZero(m[2]) || nonZero(m[3])) return 'jaren';
   if (m[5] && nonZero(m[4])) return 'dagen';
   return undefined;
 }
 
-/** Slots met een ISO 8601-duur (`DURATION_SLOTS`) en elke `IFCDURATION('…')` in een argument van stuk `i`, als tekst. */
+/**
+ * Slots met een ISO 8601-duur (`DURATION_SLOTS`) en elke `IFCDURATION('…')` in een argument van stuk `i`, als tekst zoals
+ * de lezer haar ziet: met de STEP-decodering van dat stuk (`tokenText`, dezelfde regel als de lezer, ook voor de oude
+ * letterlijke codering; fixronde 5, BLOKKEERT 1). Zo is `'P2\X2\0044\X0\T12H'` de duur `P2DT12H`.
+ */
 export function durationTexts(index: StepIndex, i: number): string[] {
   const out: string[] = [];
   const slots = DURATION_SLOTS[index.type(i)] ?? [];
   (index.argTokens(i) ?? []).forEach((token, k) => {
     const t = token.trim();
-    if (slots.includes(k) && t.startsWith("'")) out.push(unquote(t));
-    for (const m of t.matchAll(/IFCDURATION\s*\(\s*('(?:[^']|'')*')\s*\)/gi)) out.push(unquote(m[1]));
+    if (slots.includes(k) && t.startsWith("'")) out.push(index.tokenText(i, t));
+    for (const m of t.matchAll(/IFCDURATION\s*\(\s*('(?:[^']|'')*')\s*\)/gi)) out.push(index.tokenText(i, m[1]));
+  });
+  return out;
+}
+
+/** De slots met een datum-tijd (`IfcDateTime`) of een tijd (`IfcTime`) die de lezer leest (fixronde 5, zoektocht punt 4). */
+const DATETIME_SLOTS: Readonly<Record<string, { readonly slots: readonly number[]; readonly time: boolean }>> = {
+  IFCTASKTIME: { slots: [5, 6, 7, 8, 9, 10, 14, 16, 17], time: false },
+  IFCTIMEPERIOD: { slots: [0, 1], time: true },
+};
+
+/** Waarom de lezer een datum-tijd of tijd anders leest dan haar tekst zegt: een tijdzone (`zone`, de lezer laat haar weg,
+ *  `parseImportedInstant` en `clockToMinutes`), of een andere vorm (`vorm`: seconden die niet 0 zijn, die de lezer
+ *  weglaat; een spatie in plaats van `T`, waarna hij de tijd niet leest; een uur van één cijfer). */
+export type PartialDateTime = 'zone' | 'vorm';
+
+/** Leest de lezer deze datum-tijd (of, met `time`, deze tijd) anders dan haar tekst zegt? Zie `PartialDateTime`. */
+export function partialDateTime(text: string, time: boolean): PartialDateTime | undefined {
+  const t = text.trim();
+  const clock = '\\d\\d:\\d\\d(?::00(?:\\.0+)?)?';
+  if (new RegExp(time ? `^${clock}$` : `^\\d{4}-\\d\\d-\\d\\d(?:T${clock})?$`).test(t)) return undefined;
+  return /\d:\d\d(?::\d\d(?:\.\d+)?)?(?:[Zz]|[+-]\d\d(?::?\d\d)?)$/.test(t) ? 'zone' : 'vorm';
+}
+
+/** De datum-tijden en tijden van een stuk zoals de lezer ze ziet: na dezelfde tekstdecodering (`tokenText`). */
+export function dateTimeTexts(index: StepIndex, i: number): { readonly text: string; readonly time: boolean }[] {
+  const at = DATETIME_SLOTS[index.type(i)];
+  if (!at) return [];
+  const out: { text: string; time: boolean }[] = [];
+  (index.argTokens(i) ?? []).forEach((token, k) => {
+    const t = token.trim();
+    if (at.slots.includes(k) && t.startsWith("'")) out.push({ text: index.tokenText(i, t), time: at.time });
   });
   return out;
 }

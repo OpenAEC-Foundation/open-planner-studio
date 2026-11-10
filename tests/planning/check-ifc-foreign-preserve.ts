@@ -1005,20 +1005,29 @@ await expectRefusal('(b) verwijzing: de writer zet een eenheid in de projecteenh
   const renamed = await roundTrip('(b) json: een andere taak hernoemen naast "BEWAAR-DIT"', keepJson, renameTask(SET_UP));
   if (renamed) ok('(b) json: "BEWAAR-DIT" blijft naast een bewerking van een ander stuk', text(renamed.out).includes('"TotalFloat":[3,1440,"BEWAAR-DIT"]'));
 }
-// De herleescontrole: de merge leest de planning met de bronwaarden van (b) terug. Geeft dat een andere planning dan
-// zonder, dan weigert hij. Een taak met Status 'STARTED' (de lezer leest dan "lopend op 100 %") die de planner afrondt
-// zonder werkelijk einde: de writer schrijft `$`, (b) zou 'STARTED' terugzetten, en de lezer zou de taak dan lopend laten.
+// Een taak met Status 'STARTED' (de lezer leest dan "lopend op 100 %") die de planner afrondt zonder werkelijk einde.
+// Tot fixronde 4 zette (b) 'STARTED' terug en weigerde de herleescontrole (de lezer zou de taak lopend laten). Sinds
+// fixronde 5 (plek 6, besluit van Trias): de planner wijzigde de velden waaruit de writer de Status schrijft, dus vervalt
+// de bronwaarde en geldt de Status van de writer. De herleescontrole zelf toetst `check-ifc-foreign-strikt.ts` (tijd ·
+// ScheduleStart `$`).
 {
   const started = enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,", "'2.1',$,'STARTED',$,")));
-  const r = await roundTrip("herleescontrole: Status 'STARTED' zonder bewerking", started);
-  if (r) ok("herleescontrole: Status 'STARTED' blijft staan", lineOf(r.out, '51').includes("'2.1',$,'STARTED',"));
-  await expectRefusal("herleescontrole: een taak met Status 'STARTED' afronden zonder werkelijk einde", started, 'niet-gedragen', (d) => {
+  const r = await roundTrip("plek 6: Status 'STARTED' zonder bewerking", started);
+  if (r) ok("plek 6: Status 'STARTED' blijft staan", lineOf(r.out, '51').includes("'2.1',$,'STARTED',"));
+  let edited: Domain | undefined;
+  const done = await roundTrip("plek 6: een taak met Status 'STARTED' afronden zonder werkelijk einde", started, (d) => {
     const t = taskNamed(d, SET_UP);
     t.time.completion = 1;
     t.time.actualStart = t.time.scheduleStart;
     delete t.time.actualFinish;
     t.status = 'COMPLETED';
-  }, /^de bronwaarden \(1: IFCTASK #51 argument 7\) zouden na herlezen een andere planning geven/);
+    edited = d;
+  });
+  if (done && edited) {
+    const writer = writeIFC(edited).split('\n').map(l => parseOutLine(l.trim())).find(l => l?.type === 'IFCTASK' && l.args[2] === `'${SET_UP}'`);
+    const out = parseOutLine(lineOf(done.out, '51'));
+    ok(`plek 6: de Status is die van de writer (${out?.args[7]} = ${writer?.args[7]})`, writer !== undefined && out?.args[7] === writer.args[7] && out.args[7] !== "'STARTED'");
+  }
 }
 
 // ── 5i. De GlobalId van een eigen hulpstuk (fixronde 3 van #867, besluit 1) ──
@@ -1178,7 +1187,7 @@ if (setupEigen) {
 {
   // Besluit 2, verwijzing (ii): geen domeinveld schrijft een verwijzing die de lezer niet draagt, dus toetst deze proef de
   // regel zelf. O0 heeft de eenheid van ExactFloat leeg (zoals de writer schrijft); staat er in O1 ook niets, dan zet (b)
-  // de bronwaarde terug; zet de writer er in O1 iets anders (de planner wijzigde het veld), dan blijft zijn waarde.
+  // de bronwaarde terug; staat er in O1 iets anders, dan weigert de merge (de writer schrijft daar altijd `$`, fixronde 5).
   const bytes = enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),$);\n#266=`, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),#7);\n#266=`));
   const setup = await lossSetup(bytes);
   if (setup) {
@@ -1194,10 +1203,14 @@ if (setupEigen) {
   const next = Math.max(...plain.map(l => l.id)) + 1;
   const unitLine = o0.find(l => `#${l.id}` === unit) ?? parseOutLine(lineOf(bytes, unit.slice(1)))!;
   const o1 = [...withArg(plain, plain.find(l => l.id === prop.id)!, 3, `#${next}`), { ...unitLine, id: next }];
-  // De planner wijzigde de speling van de taak (`task.time`, waaruit de writer `ExactFloat` schrijft: per veld).
+  // De planner wijzigde de speling van de taak (`task.time`, waaruit de writer `ExactFloat` schrijft: per veld). De writer
+  // schrijft de eenheid van een property altijd als `$` (fixronde 5, `CONSTANT_SLOTS`): geen veld verklaart een andere
+  // eenheid in O1, ook de speling niet. Dan zet (b) niets terug en weigert de merge.
   const float51 = (d: Domain) => { const t = taskNamed(d, SET_UP); t.time.totalFloat = (t.time.totalFloat ?? 0) + 1; };
   const mine = run(plain, o1, float51);
-  eq('verwijzing (ii): een andere waarde in O1 blijft (geen terugzetting, geen melding)', [mine.edits.filter(e => e.id === prop.id).length, mine.found], [0, []]);
+  eq('verwijzing (ii): een andere eenheid in O1 wordt niet teruggezet', mine.edits.filter(e => e.id === prop.id).length, 0);
+  ok(`verwijzing (ii): een andere eenheid in O1 verklaart geen veld, ook de speling niet (${mine.found.slice(0, 1).join('')})`,
+    mine.found.some(f => /^IFCPROPERTYSINGLEVALUE #265 \(ExactFloat\), argument 3 na de bewerking: #7 → #\d+$/.test(f)));
   // Hernoemen verklaart een andere eenheid in `ExactFloat` niet (fixronde 4, plek 3).
   const renamed = run(plain, o1, rename51).found;
   ok(`verwijzing (ii): hernoemen verklaart een andere eenheid niet (${renamed.slice(0, 1).join('')})`, renamed.some(f => /^IFCPROPERTYSINGLEVALUE #265 \(ExactFloat\), argument 3 na de bewerking: #7 → #\d+$/.test(f)));
@@ -1217,6 +1230,22 @@ if (setupEigen) {
   eq('toevoeging: een property met een nieuwe naam', run(withMember('NieuweSleutel'), withMember('NieuweSleutel'), () => {}).found, []);
   const same = run(withMember('ExactFloat'), withMember('ExactFloat'), () => {}).found;
   ok(`toevoeging: een property met een naam van de bron (${same.slice(0, 2).join(' | ')})`, same.some(f => /^IFCPROPERTYSET #260 \(OPS_Analysis\), argument 4: /.test(f)));
+  // Plek 34 (fixronde 5, besluit van Trias): een nieuwe pset in de uitvoer mag alleen als het een van onze registerpsets
+  // is. De toets loopt ook de regels van de uitvoer langs die geen bron hebben. De writer schrijft alleen registerpsets,
+  // dus deze proef bouwt O1 zelf: een nieuwe pset op taak #51, met haar relatie.
+  const withPset = (name: string) => {
+    const owner = o0.find(l => l.type === 'IFCTASK' && l.id === 51)!.args[1];
+    return [...o0, ...[
+      `#${next}=IFCPROPERTYSINGLEVALUE('Sleutel',$,IFCTEXT('1'),$);`,
+      `#${next + 1}=IFCPROPERTYSET('0nieuwePset00000000000',${owner},'${name}',$,(#${next}));`,
+      `#${next + 2}=IFCRELDEFINESBYPROPERTIES('0nieuweRelatie00000000',${owner},$,$,(#51),#${next + 1});`,
+    ].map(l => parseOutLine(l)!)];
+  };
+  const foreignPset = run(o0, withPset('Pset_VanEenAnder'), () => {}).found;
+  ok(`plek 34: een nieuwe pset buiten het register weigert (${foreignPset.slice(0, 1).join('')})`,
+    foreignPset.some(f => f === `de uitvoer na de bewerking heeft een nieuwe pset 'Pset_VanEenAnder' (#${next + 1}) op IFCTASK #51 die niet in ons register staat`));
+  const ownPset = run(o0, withPset('OPS_Analysis'), () => {}).found;
+  ok(`plek 34: een nieuwe registerpset heeft geen melding "nieuwe pset" (${ownPset.slice(0, 1).join('')})`, !ownPset.some(f => /nieuwe pset/.test(f)));
 }
 {
   // Wel een pad in de writer (gevonden met de telling op de bestanden zoals de writer ze schrijft): de writer kiest per

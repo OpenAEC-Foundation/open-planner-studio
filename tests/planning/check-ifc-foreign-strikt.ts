@@ -135,11 +135,17 @@ await proof('plek 3', 'fix3: wissen + elke andere taak een notitie', fix3, 'niet
   for (const t of x.tasks) t.notes = [{ id: 'n1', text: 'x', createdAt: '2026-11-10T00:00:00' }] as never;
 });
 await proof('plek 2–3', 'fix3: wissen + elke andere taak hernoemd', fix3, 'niet-gedragen', (x) => { wipe(PREP)(x); for (const t of x.tasks) t.name = `${t.name} *`; });
-// Plek 2 apart: elke taak krijgt een andere `time` (de writer schrijft er hetzelfde uit), zodat de tijden van de taken
-// per veld verklaard zijn. De werkweek en `OPS_Calendar` blijven onverklaard: geen bewerking van de kalender.
-await proof('plek 2', 'fix3: wissen + elke andere taak een veld in `time` (de kalender blijft onverklaard)', fix3, 'niet-gedragen', (x) => {
+// Plek 2 apart: elke taak krijgt een veld in `time` waar de writer niets uit schrijft. De werkweek en `OPS_Calendar`
+// blijven onverklaard: geen bewerking van de kalender. Sinds fixronde 5 verklaart een deel van `time` alleen de tijdslots
+// die de writer eruit schrijft (`TASKTIME_SLOT_FIELDS`), dus ook de tijden van de taken blijven onverklaard. Tot fixronde 4
+// verklaarde elke wijziging in `time` elk tijdslot (VERVOLG van Terra).
+const CALENDAR_DETAIL = /^niet-(gedragen|eenduidig): IFC(TIMEPERIOD|RECURRENCEPATTERN|WORKTIME|WORKCALENDAR|PROPERTYSET #\d+ \(OPS_Calendar\)|PROPERTYSINGLEVALUE #\d+ \((LiteralTimes|WorkStartHour|WorkEndHour|HoursPerDay|IsHourCalendar)\))/;
+const p2 = await proof('plek 2', 'fix3: wissen + elke andere taak een veld in `time` (de kalender blijft onverklaard)', fix3, 'niet-gedragen', (x) => {
   wipe(PREP)(x); for (const t of x.tasks) (t.time as unknown as Record<string, unknown>).zonderBetekenis = 1;
-}, undefined, /^niet-(gedragen|eenduidig): IFC(TIMEPERIOD|RECURRENCEPATTERN|WORKTIME|WORKCALENDAR|PROPERTYSET #\d+ \(OPS_Calendar\)|PROPERTYSINGLEVALUE #\d+ \((LiteralTimes|WorkStartHour|WorkEndHour|HoursPerDay|IsHourCalendar)\))/);
+});
+ok(`${p2.label}: de kalender staat bij de weigeringen`, p2.details.some(x => CALENDAR_DETAIL.test(x)));
+ok(`${p2.label}: een deel van \`time\` zonder slot verklaart geen tijdslot (${p2.details.filter(x => !CALENDAR_DETAIL.test(x)).slice(0, 1).join('')})`,
+  p2.details.some(x => /^niet-gedragen: IFCTASKTIME #\d+, argument \d+ na de bewerking: /.test(x)));
 // Zonder de wissing schrijven dezelfde bewerkingen (de controle dat de proeven hierboven om de wissing weigeren).
 await proof('plek 3', 'fix3: elke taak hernoemd (zonder wissen)', fix3, 'schrijft', (x) => { for (const t of x.tasks) t.name = `${t.name} *`; });
 await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x) => { x.project.name = 'Andere naam'; });
@@ -156,6 +162,67 @@ await proof('B2', 'P2DT12H zonder bewerking', p2dt12h, 'duur-deels-gelezen');
 await proof('B2', 'P0Y0M3D (dagen zonder tijddeel) schrijft', latin1(showcase), 'schrijft', (x, o) => { x.tasks.find(z => z.id === cpt(o).id)!.name = 'Hernoemd'; },
   has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'P0Y0M3D'/));
 await proof('B2', 'P1W (weken: de lezer leest geen weken, knownbug 1028)', latin1(showcase.replace(T55, T55.replace("'P0Y0M3D'", "'P1W'"))), 'duur-deels-gelezen');
+
+// ── Fixronde 5, BLOKKEERT 1 (plek 7): de duur na dezelfde tekstdecodering als de lezer ──
+// `P2\X2\0044\X0\T12H` is na STEP-decodering `P2DT12H`. De lezer decodeert, dus de toets ook, met dezelfde regel per
+// stuk (`index.tokenText`). `\S\` codeert alleen tekens 128 tot 255, en kan dus geen `D`, `T` of komma vormen.
+const t55 = (dur: string, src = showcase) => latin1(src.replace(T55, T55.replace("'P0Y0M3D'", `'${dur}'`)));
+const rename55 = (x: Domain, o: Opened) => { x.tasks.find(z => z.id === cpt(o).id)!.name = 'Hernoemd'; };
+const m1 = (x: Domain, o: Opened) => { const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 720; q.name = 'Hernoemd'; };
+for (const dur of ['P2\\X2\\0044\\X0\\T12H', 'P2\\X\\44T12H', 'P2\\X4\\00000044\\X0\\T12H']) {
+  await proof('BLOKKEERT 1, plek 7', `Sol en Terra: ${dur} (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd`, t55(dur), 'duur-deels-gelezen', m1);
+  await proof('BLOKKEERT 1, plek 7', `${dur} zonder bewerking`, t55(dur), 'duur-deels-gelezen');
+}
+await proof('BLOKKEERT 1', 'P0Y0M\\X\\33D (P0Y0M3D in STEP-codering), de taak hernoemd: schrijft', t55('P0Y0M\\X\\33D'), 'schrijft', rename55);
+// De oude letterlijke codering (een eigen bestand van versie 0.1): de lezer decodeert dan niet en leest de tekst zoals hij
+// er staat. Die tekst is geen duur van ISO 8601: ook dan weigert de merge (knownbug 1030).
+const literal = showcase.replace("#5=IFCAPPLICATION(#4,'0.2','Open Planner Studio','OPS');", "#5=IFCAPPLICATION(#4,'0.1','Open Planner Studio','OPS');");
+ok('BLOKKEERT 1: de showcase heeft de eigen applicatie in versie 0.2', literal !== showcase);
+await proof('BLOKKEERT 1', 'letterlijke codering: P2\\X2\\0044\\X0\\T12H, de taak hernoemd', t55('P2\\X2\\0044\\X0\\T12H', literal), 'duur-deels-gelezen', rename55);
+await proof('BLOKKEERT 1', 'letterlijke codering: P0Y0M3D, de taak hernoemd: schrijft', t55('P0Y0M3D', literal), 'schrijft', rename55);
+
+// ── Fixronde 5, BLOKKEERT 2: een duur met een decimale komma (knownbug 1029, besluit van Trias) ──
+// De lezer leest `P1,5D` als 5 dagen en `PT4,5H` als 300 minuten. Weigeren als deels gelezen, tot de fix in main staat.
+for (const dur of ['P1,5D', 'P0Y0M1,5D', 'PT4,5H', 'P1\\X\\2C5D', 'PT4\\X2\\002C\\X0\\5H']) {
+  await proof('BLOKKEERT 2', `Terra: ${dur}, de taak hernoemd`, t55(dur), 'duur-deels-gelezen', rename55);
+}
+await proof('BLOKKEERT 2', 'P1.5D (een punt), de taak hernoemd: schrijft', t55('P1.5D'), 'schrijft', rename55, has("'P1.5D'"));
+
+// ── Fixronde 5, zoektocht punt 4: een duur buiten de vorm van ISO 8601 (knownbug 1030) ──
+// De lezer zoekt een getal voor `D` of `H` ergens in de tekst: `p3d` geeft 0 dagen, `P1E1D` 10, `PT1H1H` 60 minuten,
+// `PT30M12H` 750. Een ander programma weigert zo'n waarde of leest haar anders. Weigeren als deels gelezen.
+for (const dur of ['p3d', 'P3d', 'P1E1D', 'PT1H1H', 'PT30M12H', 'P', 'PT', '']) {
+  await proof('zoektocht 4', `'${dur}' (geen vorm van ISO 8601), de taak hernoemd`, t55(dur), 'duur-deels-gelezen', rename55);
+}
+// Vormen die de lezer leest zoals ze bedoeld zijn: schrijven. `P0Y0M-2D` is de oude eigen vorm van een negatieve duur.
+for (const dur of ['PT90M', 'PT3600S', 'PT0.5H', 'P0DT12H', 'P0Y0M-2D', '-P2D']) {
+  await proof('zoektocht 4', `'${dur}', de taak hernoemd: schrijft`, t55(dur), 'schrijft', rename55);
+}
+
+// ── Fixronde 5, zoektocht punt 4: een datum-tijd of tijd die de lezer anders leest (knownbug 1030) ──
+// De lezer laat een tijdzone weg (`parseImportedInstant`, `clockToMinutes`) en leest geen seconden. Na een spatie in plaats
+// van `T` leest hij de tijd niet (00:00). Een ander programma leest `Z` als UTC, dus een uur of twee anders.
+{
+  const l55 = lineOf(latin1(showcase), '55');
+  const start55 = "'2027-03-01T07:00:00','2027-03-03T16:00:00'";
+  ok('zoektocht 4: #55 begint op 2027-03-01T07:00:00', l55.includes(`'P0Y0M3D',${start55}`));
+  const startAs = (v: string) => latin1(showcase.replace(l55, l55.replace(`'P0Y0M3D',${start55}`, `'P0Y0M3D','${v}','2027-03-03T16:00:00'`)));
+  for (const v of ['2027-03-01T07:00:00Z', '2027-03-01T07:00:00+02:00', '2027-03-01 07:00:00', '2027-03-01T07:00:30']) {
+    await proof('zoektocht 4', `ScheduleStart '${v}', de taak hernoemd`, startAs(v), 'tijd-deels-gelezen', rename55);
+  }
+  for (const v of ['2027-03-01T07:00:00.000', '2027-03-01T07:00']) {
+    await proof('zoektocht 4', `ScheduleStart '${v}', de taak hernoemd: schrijft`, startAs(v), 'schrijft', rename55, has(`'${v}'`));
+  }
+  const tp = /^#(\d+)=IFCTIMEPERIOD\('07:00:00','12:00:00'\);$/m.exec(showcase);
+  ok('zoektocht 4: de showcase heeft het tijdblok 07:00–12:00', tp !== null);
+  if (tp) {
+    const period = (a: string, b: string) => latin1(showcase.replace(tp[0], `#${tp[1]}=IFCTIMEPERIOD('${a}','${b}');`));
+    for (const [a, b] of [['07:00:00Z', '12:00:00Z'], ['07:00:00', '12:00:00+01:00'], ['07:00:30', '12:00:00'], ['7:00:00', '12:00:00'], ['0700', '1200']]) {
+      await proof('zoektocht 4', `IfcTimePeriod '${a}'–'${b}', de taak hernoemd`, period(a, b), 'tijd-deels-gelezen', rename55);
+    }
+    await proof('zoektocht 4', "IfcTimePeriod '07:00'–'12:00', de taak hernoemd: schrijft", period('07:00', '12:00'), 'schrijft', rename55);
+  }
+}
 
 // ── B3: een compact XER-archief, via dezelfde ingang als openen ──
 {
@@ -212,6 +279,53 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   });
 }
 {
+  // Zoektocht punt 2 (fixronde 5): de properties van `OPS_Assignments` heten `<resource-GUID>#<plek in de lijst>`. Het paren
+  // gaat op de resource; de plek schuift bij wissen. De eerste toewijzing van #63 (#109) heeft een bronwaarde die de lezer
+  // niet draagt. Wissen plus verplaatsen en verwisselen mogen die niet naar een andere toewijzing laten verhuizen.
+  const bytes = latin1(setLine(eigen, 152, "#152=IFCPROPERTYSINGLEVALUE('3LKE2mEiGfOR4VMIq3h_xv#0','BEWAAR-DIT',IFCTEXT('1|UNIFORM'),$);"));
+  ok('zoektocht 2: #63 heeft de toewijzingen #109 en #110', lineOf(latin1(eigen), '145').includes(',(#109,#110),$,#63,'));
+  const o = await openForeign(bytes);
+  const t = taskBy(o, 63);
+  const r109 = resBy(o, 109);
+  const r110 = resBy(o, 110);
+  const of = (x: Domain, r: { id: string }) => x.assignments.find(a => a.taskId === t.id && a.resourceId === r.id)!;
+  const kept = (out: Uint8Array) => (linesOfType(out, 'IFCPROPERTYSINGLEVALUE').some(l => /^#\d+=IFCPROPERTYSINGLEVALUE\('3LKE2mEiGfOR4VMIq3h_xv#0','BEWAAR-DIT',IFCTEXT\('3\|UNIFORM'\)/.test(l))
+    ? undefined : 'BEWAAR-DIT staat niet op de toewijzing van #109 met 3 eenheden');
+  await proof('zoektocht 2', 'toewijzingen: zonder bewerking', bytes, 'schrijft', undefined, has("'BEWAAR-DIT'"));
+  await proof('zoektocht 2', 'toewijzingen: de eenheden van #109 op 3 (de bronwaarde blijft)', bytes, 'schrijft', (x) => { of(x, r109).unitsPerDay = 3; }, kept);
+  await proof('zoektocht 2', 'toewijzingen: een nieuwe toewijzing achteraan (de bronwaarde blijft)', bytes, 'schrijft', (x) => {
+    of(x, r109).unitsPerDay = 3;
+    x.assignments.push({ ...of(x, r110), id: 'nieuw', resourceId: resBy(o, 111).id });
+  }, kept);
+  await proof('zoektocht 2', 'toewijzingen: #109 wissen en #110 naar #109 zetten', bytes, 'niet-eenduidig', (x) => {
+    const b = of(x, r110);
+    x.assignments = x.assignments.filter(a => a !== of(x, r109));
+    b.resourceId = r109.id;
+  });
+  await proof('zoektocht 2', 'toewijzingen: de resources van #109 en #110 verwisseld', bytes, 'niet-eenduidig', (x) => {
+    const a = of(x, r109);
+    const b = of(x, r110);
+    [a.resourceId, b.resourceId] = [r110.id, r109.id];
+  });
+  await proof('zoektocht 2', 'toewijzingen: alleen #110 gewist (bij twijfel weigeren)', bytes, 'niet-eenduidig', (x) => {
+    x.assignments = x.assignments.filter(a => a !== of(x, r110));
+  });
+  await proof('zoektocht 2', 'toewijzingen: #109 gewist (de bronwaarde verdwijnt met het stuk: weigeren)', bytes, 'niet-gedragen', (x) => {
+    x.assignments = x.assignments.filter(a => a !== of(x, r109));
+  });
+  // Zonder bronwaarde weigert niets hiervan.
+  await proof('zoektocht 2', 'zonder bronwaarde: #109 wissen en #110 naar #109 zetten', latin1(eigen), 'schrijft', (x) => {
+    const b = of(x, r110);
+    x.assignments = x.assignments.filter(a => a !== of(x, r109));
+    b.resourceId = r109.id;
+  });
+  await proof('zoektocht 2', 'zonder bronwaarde: de resources verwisseld', latin1(eigen), 'schrijft', (x) => {
+    const a = of(x, r109);
+    const b = of(x, r110);
+    [a.resourceId, b.resourceId] = [r110.id, r109.id];
+  });
+}
+{
   // Plek 26: twee gelijke eigen psets `OPS_Calendar` op de kalender, elk met een eigen relatie.
   const twice = after(eigen, 41, "#9039=IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(8.),$);\n#9040=IFCPROPERTYSET('0yQpbypZj4u9f68zIkoEO1',#6,'OPS_Calendar',$,(#9039));\n#9041=IFCRELDEFINESBYPROPERTIES('0EGdQpeHVqDZMJewwgwnUd',#6,$,$,(#38),#9040);");
   await proof('B5, plek 26', 'f0: OPS_Calendar twee keer op de kalender', latin1(twice), 'niet-eenduidig');
@@ -232,6 +346,48 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   await proof('B5, plek 27', 'c3: een nieuwe Good Friday 2026 vooraan (de bronwaarde blijft op 2027)', bytes, 'schrijft', (x) => {
     x.calendar.holidays = [{ name: 'Good Friday', startDate: '2026-04-03', endDate: '2026-04-03' } as never, ...x.calendar.holidays!];
   }, on2027);
+  // BLOKKEERT 3 (fixronde 5, Sol): naam plus datum is geen identiteit. De kalenderdialoog wijzigt en wist per plek in de
+  // lijst. Verdween een feestdag van de bron, kreeg er een een andere naam of datum, of staan ze in een andere volgorde, dan
+  // kan elke feestdag met een andere verwisseld zijn: dan gaat geen bronwaarde over en weigert de merge.
+  const gfAt = (x: Domain, year: string) => x.calendar.holidays!.findIndex(q => q.name === 'Good Friday' && q.startDate.startsWith(year));
+  const to2027 = (x: Domain) => { const h = x.calendar.holidays![gfAt(x, '2028')]; h.startDate = '2027-03-26'; h.endDate = '2027-03-26'; };
+  const drop = (year: string) => (x: Domain) => { x.calendar.holidays!.splice(gfAt(x, year), 1); };
+  await proof('BLOKKEERT 3, plek 27', 'Sol: alleen 2028 naar de datum van 2027', bytes, 'niet-eenduidig', to2027);
+  await proof('BLOKKEERT 3, plek 27', 'Sol: 2027 wissen en 2028 naar de datum van 2027', bytes, 'niet-eenduidig', (x) => { drop('2027')(x); to2027(x); });
+  await proof('BLOKKEERT 3, plek 27', 'Sol: de datums van 2027 en 2028 verwisseld', bytes, 'niet-eenduidig', (x) => {
+    const a = x.calendar.holidays![gfAt(x, '2027')];
+    const b = x.calendar.holidays![gfAt(x, '2028')];
+    [a.startDate, a.endDate, b.startDate, b.endDate] = [b.startDate, b.endDate, a.startDate, a.endDate];
+  });
+  await proof('BLOKKEERT 3, plek 27', 'de namen van Good Friday 2027 en Easter 2027 verwisseld', bytes, 'niet-eenduidig', (x) => {
+    const h = x.calendar.holidays!;
+    const a = h[gfAt(x, '2027')];
+    const b = h.find(q => q.name === 'Easter' && q.startDate.startsWith('2027'))!;
+    [a.name, b.name] = [b.name, a.name];
+  });
+  // Een andere datum zonder wissen: de sleutel van de feestdag veranderde, dus gaat de bronwaarde niet over (en niet stil
+  // weg: zonder zekere wissing telt een verdwenen lid niet als gewist, `deletedExceptionItems`).
+  await proof('BLOKKEERT 3, plek 27', 'Good Friday 2027 een dag later (geen wissing)', bytes, 'niet-eenduidig', (x) => {
+    const h = x.calendar.holidays![gfAt(x, '2027')]; h.startDate = '2027-03-27'; h.endDate = '2027-03-27';
+  });
+  await proof('BLOKKEERT 3, plek 27', 'een andere feestdag gewist en een nieuwe erbij (geen zekere wissing)', bytes, 'niet-eenduidig', (x) => {
+    const h = x.calendar.holidays!;
+    h.splice(h.findIndex(q => q.name === 'Christmas' && q.startDate.startsWith('2028')), 1);
+    h.push({ name: 'Extra', startDate: '2029-01-02', endDate: '2029-01-02' } as never);
+  });
+  // Bij twijfel weigeren: wist de planner alleen 2028, dan is uit de uitvoer niet te zien of 2027 bleef, of dat hij 2027
+  // wiste en 2028 naar 2027 zette (de uitvoer is dan bijna gelijk). Dan weigert de merge ook.
+  await proof('BLOKKEERT 3, plek 27', 'alleen Good Friday 2028 gewist (bij twijfel weigeren)', bytes, 'niet-eenduidig', drop('2028'));
+  await proof('BLOKKEERT 3, plek 27', 'een nieuwe feestdag achteraan (de bronwaarde blijft op 2027)', bytes, 'schrijft', (x) => {
+    x.calendar.holidays!.push({ name: 'Extra', startDate: '2029-01-02', endDate: '2029-01-02' } as never);
+  }, on2027);
+  // Zonder bronwaarde op een feestdag weigert niets van dit alles.
+  for (const [label, edit] of [['2027 wissen en 2028 naar de datum van 2027', (x: Domain) => { drop('2027')(x); to2027(x); }],
+    ['alleen 2028 gewist', drop('2028')], ['Good Friday 2027 een dag later', (x: Domain) => {
+      const h = x.calendar.holidays![gfAt(x, '2027')]; h.startDate = '2027-03-27'; h.endDate = '2027-03-27';
+    }]] as const) {
+    await proof('BLOKKEERT 3', `zonder bronwaarde: ${label}`, latin1(eigen), 'schrijft', edit);
+  }
 }
 
 // ── B6 en plek 8 tot 10: waarden die de lezer deels leest ──
@@ -262,6 +418,47 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   await proof('B6, plek 5', 'AvailabilitySteps: de planner wist de beschikbaarheid', steps, 'niet-gedragen', (x, o) => {
     x.resources.find(q => q.id === resBy(o, 110).id)!.availabilitySteps = undefined;
   });
+  // BLOKKEERT 4 (fixronde 5, Sol): het wissen van een bekende waarde verklaart niet het wissen van een slot ernaast dat de
+  // lezer niet draagt, van welke soort ook. De writer schrijft die slots altijd hetzelfde (`CONSTANT_SLOTS`).
+  const wipeSteps = (x: Domain, o: Opened) => { x.resources.find(q => q.id === resBy(o, 110).id)!.availabilitySteps = undefined; };
+  const addStep = (x: Domain, o: Opened) => {
+    const r = x.resources.find(q => q.id === resBy(o, 110).id)!;
+    r.availabilitySteps = [...(r.availabilitySteps ?? []), { from: '2027-09-01', maxUnits: 3 }];
+  };
+  const stepsWith = (description: string) => latin1(after(setLine(eigen, 122, pset122.replace(',#121));', ',#9201,#121));')), 120,
+    `#9201=IFCPROPERTYSINGLEVALUE('AvailabilitySteps',${description},IFCTEXT('2027-01-04:2;2027-06-01:1'),$);`));
+  const described = stepsWith("'BEWAAR-BESCHRIJVING'");
+  await proof('BLOKKEERT 4, plek 5', 'tekst: AvailabilitySteps met een Description, zonder bewerking', described, 'schrijft', undefined, has("'BEWAAR-BESCHRIJVING'"));
+  await proof('BLOKKEERT 4, plek 5', 'tekst: idem, met een extra stap', described, 'schrijft', addStep, has("'BEWAAR-BESCHRIJVING'"));
+  await proof('BLOKKEERT 4, plek 5', 'Sol: tekst: de planner wist de beschikbaarheid', described, 'niet-gedragen', wipeSteps);
+  await proof('BLOKKEERT 4', 'zonder Description: de beschikbaarheid wissen schrijft', stepsWith('$'), 'schrijft', wipeSteps, has("'AvailabilitySteps'", false));
+  // Enumeratie: de herkomst van een lag (`IfcLagTime` #97 van relatie #98, DataOrigin). Wist de planner de lag, dan schrijft
+  // de writer geen `IfcLagTime` meer.
+  ok('BLOKKEERT 4: #98 is de relatie met lag #97', lineOf(latin1(eigen), '98').includes(',#97,'));
+  const seq98 = (x: Domain, o: Opened) => x.sequences.find(q => q.id === o.sequences.find(z => o.ifcSource!.stepIds[`seq:${z.id}`] === 98)!.id)!;
+  const noLag = (x: Domain, o: Opened) => { const q = seq98(x, o); q.lagDays = 0; delete q.lagMinutes; delete q.lagPercent; };
+  const measured = latin1(setLine(eigen, 97, "#97=IFCLAGTIME('Lag',.MEASURED.,$,IFCDURATION('P2D'),.WORKTIME.);"));
+  await proof('BLOKKEERT 4', 'enumeratie: een lag met DataOrigin .MEASURED., zonder bewerking', measured, 'schrijft', undefined, has("IFCLAGTIME('Lag',.MEASURED.,"));
+  await proof('BLOKKEERT 4', 'enumeratie: idem, de lag een dag langer', measured, 'schrijft', (x, o) => { seq98(x, o).lagDays = 3; }, has(/IFCLAGTIME\('Lag',\.MEASURED\.,\$,IFCDURATION\('[^']*3D'\)/));
+  await proof('BLOKKEERT 4', 'enumeratie: de planner wist de lag', measured, 'niet-gedragen', noLag);
+  await proof('BLOKKEERT 4', 'zonder bronwaarde: de lag wissen schrijft', latin1(eigen), 'schrijft', noLag);
+  // Getal: een werkweek met twee groepen (de vrijdag korter), waarvan het patroon van de vrijdag Interval 1 heeft (een slot
+  // dat de writer leeg laat). Maakt de planner de week weer gelijk, dan verdwijnt de groep van de vrijdag.
+  const band = { start: 420, end: 960 };
+  const week = (fri: { start: number; end: number }) => ({ byWeekday: { 1: [band], 2: [band], 3: [band], 4: [band], 5: [fri], 6: [], 7: [] } });
+  const perDay = cloneDomain(eigenOpened);
+  perDay.calendar.workTime = week({ start: 420, end: 720 });
+  const perDayText = text(await settle(latin1(withLines(writeIFC(perDay), REVIT_WALL))));
+  const fridayPattern = /^#(\d+)=IFCRECURRENCEPATTERN\(\.WEEKLY\.,\$,\(5\),\$,\$,\$,\$,(\(#\d+\))\);$/m.exec(perDayText);
+  ok('BLOKKEERT 4: de werkweek per dag heeft een eigen patroon voor de vrijdag', fridayPattern !== null);
+  if (fridayPattern) {
+    const interval = latin1(perDayText.replace(fridayPattern[0], `#${fridayPattern[1]}=IFCRECURRENCEPATTERN(.WEEKLY.,$,(5),$,$,1,$,${fridayPattern[2]});`));
+    const uniform = (x: Domain) => { x.calendar.workTime = week(band); };
+    await proof('BLOKKEERT 4', 'getal: Interval 1 op het patroon van de vrijdag, zonder bewerking', interval, 'schrijft', undefined, has('(5),$,$,1,$,'));
+    await proof('BLOKKEERT 4', 'getal: idem, de vrijdag een uur langer (het patroon blijft)', interval, 'schrijft', (x) => { x.calendar.workTime = week({ start: 420, end: 780 }); }, has('(5),$,$,1,$,'));
+    await proof('BLOKKEERT 4', 'getal: de planner maakt de week gelijk', interval, 'niet-gedragen', uniform);
+    await proof('BLOKKEERT 4', 'zonder bronwaarde: de week gelijk maken schrijft', latin1(perDayText), 'schrijft', uniform);
+  }
   // ProjectStartDate: de lezer leest de eerste tien tekens.
   const settings = /^#(\d+)=IFCPROPERTYSINGLEVALUE\('ProjectStartDate',\$,(IFC(?:TEXT|DATE))\('(\d{4}-\d\d-\d\d)'\),\$\);$/m.exec(eigen);
   ok('B6: eigen-plus-model heeft ProjectStartDate', settings !== null);
@@ -354,6 +551,69 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     const dates = (r: Result) => (r.out ? linesOfType(r.out, 'IFCPROPERTYSINGLEVALUE').filter(l => /'(CreatedAt|ModifiedAt)'/.test(l)).map(l => l.replace(/^#\d+=/, '')).join(' ') : r.details.slice(0, 1).join(''));
     ok(`tijd: zonder CreatedAt op dag 2 zoals op dag 1 (${dates(a)} | ${dates(b)})`, b.outcome === a.outcome && dates(a) === dates(b));
   }
+}
+
+// ── Fixronde 5, plek 6 (besluit van Trias): wijzigt de planner het domeinveld, dan vervalt de bronwaarde van dat slot ──
+{
+  // De proef van de expert (`p2-eigen.ts`, d1): Status 'ON HOLD' op #63; de lezer leest alleen 'STARTED'.
+  ok("plek 6: #63 is 'Build masonry walls' zonder Status", lineOf(latin1(eigen), '63') === "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,$,$,.F.,$,#62,.CONSTRUCTION.);");
+  const onHold = latin1(setLine(eigen, 63, "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,'ON HOLD',$,.F.,$,#62,.CONSTRUCTION.);"));
+  const t63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!;
+  const complete = (x: Domain, o: Opened) => {
+    const q = t63(x, o); q.time.completion = 1; q.status = 'COMPLETED' as never; q.time.actualStart = q.time.scheduleStart; q.time.actualFinish = q.time.scheduleFinish;
+  };
+  const statusOf = (s: string) => /^#\d+=IFCTASK\('06AdBvh4v8lXgXlHO1\$rfO',#\d+,'Build masonry walls',\$,\$,'[^']*',\$,('[^']*'|\$),/m.exec(s)?.[1];
+  await proof('plek 6', "'ON HOLD', zonder bewerking", onHold, 'schrijft', undefined, has("'ON HOLD'"));
+  await proof('plek 6', "'ON HOLD', de taak hernoemd (de bronwaarde blijft)", onHold, 'schrijft', (x, o) => { t63(x, o).name = 'Hernoemd'; }, has("'ON HOLD'"));
+  await proof('plek 6', "'ON HOLD', het geplande begin een dag later (geen veld van de Status: de bronwaarde blijft)", onHold, 'schrijft',
+    (x, o) => { t63(x, o).time.scheduleStart = '2027-05-07'; }, has("'ON HOLD'"));
+  const done = await proof('plek 6', "Trias: 'ON HOLD' en dan voltooid zetten geeft de Status van de writer", onHold, 'schrijft', complete, has("'ON HOLD'", false));
+  if (done.out) {
+    const o = await openForeign(onHold);
+    const d = cloneDomain(o);
+    complete(d, o);
+    const writer = statusOf(writeIFC(d));
+    ok(`plek 6: de Status na voltooien is die van de writer (${statusOf(text(done.out))} = ${writer})`, writer !== undefined && statusOf(text(done.out)) === writer);
+  }
+}
+
+// ── Fixronde 5, plek 34 (besluit van Trias): een nieuwe pset mag alleen als het een van onze registerpsets is ──
+{
+  // De proef van de expert (`p4-toevoeging.ts`, o2): de `OPS_Assignments` van #63 (#152 tot #155) weg uit de bron. De writer
+  // schrijft haar weer, als nieuwe pset zonder bron. Een pset buiten het register schrijft de writer niet; die toetst
+  // `check-ifc-foreign-preserve.ts` (sectie 5g, plek 34) met een O1 die de proef zelf bouwt.
+  const noAsg = [152, 153, 154, 155].reduce((acc, id) => acc.replace(new RegExp(`^#${id}=.*;\\n`, 'm'), ''), eigen);
+  ok('plek 34: #152 tot #155 zijn weg', ![152, 153, 154, 155].some(id => new RegExp(`^#${id}=`, 'm').test(noAsg)));
+  const psets = (out: string) => linesOfType(latin1(out), 'IFCPROPERTYSET').filter(l => l.includes("'OPS_Assignments'")).length;
+  await proof('plek 34', 'Trias: OPS_Assignments van #63 weg uit de bron; de writer schrijft haar weer (een registerpset)', latin1(noAsg), 'schrijft', undefined,
+    (out) => (psets(text(out)) === psets(noAsg) + 1 ? undefined : `OPS_Assignments: ${psets(text(out))} in de uitvoer, ${psets(noAsg)} in de bron`));
+}
+
+// ── Fixronde 5, VERVOLG van Terra: een tijdslot volgt uit zijn eigen delen van `time` ──
+{
+  // DurationType `.NOTDEFINED.` op de taaktijd #62 van #63: de writer schrijft `.WORKTIME.`, (b) zet de bronwaarde terug.
+  // Een bewerking van een ander deel van `time` verklaart dat slot niet: de bronwaarde blijft. Tot fixronde 4 verklaarde
+  // elke wijziging in `time` het slot, en ging `.NOTDEFINED.` na plek 6 verloren.
+  const t62 = lineOf(latin1(eigen), '62');
+  ok('VERVOLG: #62 heeft DurationType .WORKTIME.', t62.startsWith("#62=IFCTASKTIME('Build masonry walls Time',.PREDICTED.,$,.WORKTIME.,"));
+  const notDefined = latin1(setLine(eigen, 62, t62.replace(',$,.WORKTIME.,', ',$,.NOTDEFINED.,')));
+  // De taaktijd heeft geen vast id in de uitvoer: zoek haar op naam.
+  const keep = has("IFCTASKTIME('Build masonry walls Time',.PREDICTED.,$,.NOTDEFINED.,");
+  const time63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!.time;
+  const other = taskBy(eigenOpened, 65).time;
+  await proof('VERVOLG', '.NOTDEFINED., zonder bewerking', notDefined, 'schrijft', undefined, keep);
+  const edits: [string, (x: Domain, o: Opened) => void][] = [
+    ['het geplande begin', (x, o) => { time63(x, o).scheduleStart = '2027-05-07'; }],
+    ['het geplande einde', (x, o) => { time63(x, o).scheduleFinish = '2027-05-14'; }],
+    ['de duur', (x, o) => { time63(x, o).scheduleDuration += 1; }],
+    ['vroeg en laat', (x, o) => { const t = time63(x, o); t.earlyStart = other.earlyStart; t.earlyFinish = other.earlyFinish; t.lateStart = other.lateStart; t.lateFinish = other.lateFinish; }],
+    ['het werkelijke begin', (x, o) => { time63(x, o).actualStart = '2027-05-06'; }],
+    ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
+  ];
+  for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);
+  // Wijzigt de planner het veld zelf, dan vervalt de bronwaarde (plek 6).
+  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd', notDefined, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; },
+    has(".PREDICTED.,$,.NOTDEFINED.,", false));
 }
 
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──
