@@ -80,8 +80,8 @@ export type MergePhase2Kind =
    *  die waarde hoort (`lossCheck.ts`, `ambiguous`). */
   | 'niet-eenduidig'
   /** Een P-stuk heeft een duur die de lezer deels of anders leest (`partialDuration`, na de STEP-decodering): dagen vóór
-   *  een tijddeel (`P2DT12H`, knownbug 1027; tijdelijk, tot de fix van 1027 in main staat, besluit van Trias van 10 november
-   *  2026), jaren, maanden of weken (knownbug 1028), een decimale komma (`P1,5D`, knownbug 1029; tijdelijk, besluit van
+   *  een tijddeel (`P2DT12H`, knownbug 1027; tijdelijk, besluit van Trias van 10 november 2026; de fix staat sinds #871 in
+   *  main), jaren, maanden of weken (knownbug 1028), een decimale komma (`P1,5D`, knownbug 1029; tijdelijk, besluit van
    *  Trias van 10 november 2026), of een vorm buiten ISO 8601 (`p3d`, `P1E1D`, `PT1H1H`; knownbug 1030). */
   | 'duur-deels-gelezen'
   /** Een P-stuk heeft een datum-tijd of tijd die de lezer anders leest (`partialDateTime`, na de STEP-decodering): met een
@@ -295,8 +295,8 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     for (const text of durationTexts(index, i)) {
       const part = partialDuration(text);
       if (part === 'dagen') {
-        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft dagen vóór T; de lezer leest alleen het deel na T`
-          + ' (knownbug 1027). Tijdelijk, tot de fix van knownbug 1027 in main staat.');
+        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft dagen vóór T (knownbug 1027)`
+          + '. Tijdelijk: de fix staat sinds #871 in main; deze weigering valt weg op besluit van Trias.');
       } else if (part === 'jaren') {
         caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft jaren, maanden of weken; de lezer leest die niet (knownbug 1028)`);
       } else if (part === 'komma') {

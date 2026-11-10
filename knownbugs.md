@@ -1838,7 +1838,7 @@ en noem het in je rapport of PR-tekst.
      (`src/services/ifc/ifcReader.ts:1319`) en `isoDurationToMinutes` (`src/services/subdayIo.ts:111`) kennen alleen een
      decimale punt, en hun patronen staan niet vast aan het begin van het getal: bij `P1,5D` pakken ze de `5` na de komma.
      ISO 8601 staat de komma toe (en geeft haar zelfs de voorkeur). Proef op `public/examples/showcase-appartementencomplex.ifc`
-     met de duur van 'CPT soundings & soil investigation' (`#55`), ook op main (`24723581e`, dezelfde twee functies):
+     met de duur van 'CPT soundings & soil investigation' (`#55`), ook op main (`24723581e`, en `9ee06bb71` na #871):
      `P1,5D` geeft `scheduleDuration` 5 (bedoeld: 1,5), `P0Y0M1,5D` geeft 5, en `PT4,5H` geeft `durationMinutes` 300
      (bedoeld: 270). De eigen writer schrijft een punt, dus alleen bestanden van een ander programma. Met de flag weigert de
      merge zo'n duur (`duur-deels-gelezen`), tijdelijk tot de fix van deze knownbug in main staat (fixronde 5 van #867,

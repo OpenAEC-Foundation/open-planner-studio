@@ -815,7 +815,7 @@ const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace('.WORKTIME.', '.NOTDEFINED.'))) },
   // Een duur met dagen vóór T leest de lezer als alleen het tijddeel (knownbug 1027): sinds fixronde 4 weigert de merge
   // dat als benoemd geval, tot de fix van 1027 in main staat (sectie 7).
-  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', kind: 'duur-deels-gelezen', detail: /^IFCTASKTIME #50: de duur 'P2DT12H' heeft dagen vóór T; .*Tijdelijk, tot de fix van knownbug 1027 in main staat\.$/,
+  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', kind: 'duur-deels-gelezen', detail: /^IFCTASKTIME #50: de duur 'P2DT12H' heeft dagen vóór T \(knownbug 1027\)\. Tijdelijk: de fix staat sinds #871 in main; deze weigering valt weg op besluit van Trias\.$/,
     only: /^IFC(TASKTIME #50|PROPERTYSET #40|PROPERTYSINGLEVALUE #39)\b/,
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace("'P0Y0M2D'", "'P2DT12H'"))) },
   { label: 'B1 (Sol): IfcWorkSchedule #43.PredefinedType', keep: /#43=IFCWORKSCHEDULE\([^;]*,\.ACTUAL\.\);/, detail: /^IFCWORKSCHEDULE #43, argument 13: \.ACTUAL\. → \.PLANNED\./, only: /^IFCWORKSCHEDULE #43\b/,
