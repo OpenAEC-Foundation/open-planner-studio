@@ -41,12 +41,15 @@ import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
-import { sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
-import { changedScopes, dateTimeTexts, decimalKey, durationTexts, lossCheck, partialDateTime, pristineFromScan, type LossDiff } from './lossCheck';
+import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
+import {
+  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_FIELDS, lossCheck, partialDateTime, pristineFromScan, taskField,
+  taskTimeSlotFields, type LossDiff,
+} from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
-import { scanStep, splitStepArgs, type StepIndex } from './stepScanner';
+import { MAX_STEP_ID, scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -97,13 +100,19 @@ export type MergePhase2Kind =
   /** De uitvoer heeft een pset zonder bronstuk die niet in ons eigen register staat (`ifcPsets.ts`). Alleen een eigen
    *  registerpset mag erbij komen (fixronde 5, plek 34, besluit van Trias van 10 november 2026). */
   | 'nieuwe-pset'
-  /** Een nieuw `#id` zou boven 2147483647 komen, omdat de bron buiten de eigen stukken een `#` met een getal net onder die
-   *  grens heeft (`highestHashNumber`, ook in commentaar of een string). De scanner weigert zo'n id (knownbug 1007). */
+  /** Een nieuw `#id` zou boven `MAX_STEP_ID` (2147483647) komen, omdat de bron buiten de eigen stukken een `#` met een
+   *  getal net onder die grens heeft (`highestHashNumber`, ook in commentaar of een string). De scanner weigert zo'n id
+   *  (`id-te-groot`). */
   | 'id-te-groot'
   /** Een veld dat alleen de omzetting naar het minutenmodel bij openen veranderde, schrijft de merge in de vorm van de bron
    *  (`sourceForm.ts`, knownbug 1105). Na herlezen en dezelfde omzetting geeft het dan een andere waarde dan de planner
    *  zag: de omzetting hangt af van een veld dat de planner wel wijzigde. */
-  | 'bronvorm-leest-anders';
+  | 'bronvorm-leest-anders'
+  /** Vóór een eigen stuk (P) staat tekst buiten zijn tokens (commentaar) met een `#` en cijfers (knownbug 1106). De scanner
+   *  hangt commentaar aan het volgende stuk; volgens de norm (stuurtekens vallen overal weg, ook in `*⏎/`) kan daarin een
+   *  stuk staan. De merge schrijft een P-stuk opnieuw, zonder dat commentaar: zo'n stuk ging dan verloren, en een
+   *  verwijzing van een ander stuk ernaar wees daarna naar niets. */
+  | 'verstopt-stuk';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -210,16 +219,13 @@ export interface MergeIdPlan {
   readonly sourceOwnerHistory: number;
 }
 
-/** Het grootste `#id` dat de scanner aanneemt (knownbug 1007: de index rekent in int32). */
-export const MAX_STEP_ID = 2147483647;
-
 /**
  * Het hoogste getal na een `#` in `bytes[start, end)`, overal: ook in commentaar en in strings, en stuurtekens tellen niet
  * mee (fixronde 8 van #867, knownbug 1100). Volgens de norm vallen stuurtekens overal weg; dan is `/* a *⏎/ #402=…;` geen
  * commentaar maar een entiteit die de scanner niet kent. Te hoog beginnen kan geen kwaad. Een getal boven `MAX_STEP_ID`
  * telt niet: de writer geeft geen id boven die grens uit, dus het kan niet botsen. Eén doorloop, zonder kopie.
  */
-export function highestHashNumber(bytes: Uint8Array, start: number, end: number): number {
+function highestHashNumber(bytes: Uint8Array, start: number, end: number): number {
   let max = 0;
   for (let k = bytes.indexOf(35, start); k >= 0 && k < end; k = bytes.indexOf(35, k)) {
     let v = 0;
@@ -325,6 +331,15 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
+  // Een verstopt stuk vóór een P-stuk (knownbug 1106): het commentaar ervóór gaat met het P-stuk weg.
+  for (let i = 0; i < n; i++) {
+    if (!index.isEntity(i) || !isP(i)) continue;
+    const hidden = highestHashNumber(source.bytes, index.start(i), index.entityStart(i));
+    if (hidden > 0) {
+      caseAt('verstopt-stuk', i, `vóór ${label(i)} staat buiten de tokens een # met een getal (#${hidden}); daar kan volgens de norm een stuk staan,`
+        + ' en dat schrijft de merge niet terug');
+    }
+  }
   // Een duur, datum-tijd of tijd in een P-stuk die de lezer deels of anders leest: de planner ziet dan een andere waarde dan
   // het bestand bewaart, en (b) zou de bron vasthouden. De tekst is die van de lezer, na de STEP-decodering
   // (`durationTexts`, `dateTimeTexts`). De fixes komen in de lezer zelf (besluiten van Trias, 10 november 2026); tot dan
@@ -701,7 +716,8 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     // Herlezen (§4.5: "het token geeft in de codering van de uitvoer dezelfde waarde"): een bronwaarde mag de planning niet
     // veranderen. Leest de lezer de uitvoer met (b) anders dan zonder (b), dan weigert de merge: de waarde hangt dan af van
     // een ander veld dat wel veranderde (bijvoorbeeld een status die bij een andere voortgang iets anders betekent).
-    const changed = changedScopes(await read(lines.filter(l => !l.drop).map(l => l.text)) as unknown as WriteIFCInput, await read(plain));
+    const changed = changedScopes(orphanRowsWithoutId(await read(lines.filter(l => !l.drop).map(l => l.text))) as unknown as WriteIFCInput,
+      orphanRowsWithoutId(await read(plain)));
     if (changed.any) {
       const shown = edits.slice(0, 3).map(e => `${label(e.chunk)} argument ${e.arg}`).join(', ');
       caseAt('niet-gedragen', edits[0].chunk,
@@ -907,11 +923,12 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
 
 /** Een gebroken dag in de oude vorm van OPS: `P0Y0M0.5D`, `P0Y0M-0.5D`, `-P0Y0M0.5D` of `P0.5D`, ook met een exponent. */
 const FRACTIONAL_DAY_FORM = /^-?P(?:0Y0M)?-?(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
-/** De velden achter de slots van `SourceTaskTime`: duur en rest samen, de werkelijke duur, en elke speling apart. */
-const DAY_GROUP_FIELDS = ['durationUnit', 'durationType', 'scheduleDuration', 'durationMinutes', 'remainingTime', 'remainingMinutes'] as const;
-const ACTUAL_FIELDS = ['durationUnit', 'durationType', 'actualDuration'] as const;
-const FREE_FLOAT_FIELDS = ['freeFloat', 'freeFloatMinutes'] as const;
-const TOTAL_FLOAT_FIELDS = ['totalFloat', 'totalFloatMinutes'] as const;
+/** De velden achter de slots van `SourceTaskTime`, uit de ene tabel van de verliesbewaking (`taskTimeSlotFields`): duur en
+ *  rest samen (slots 4 en 18), de werkelijke duur (15), en elke speling apart (11 en 12). */
+const DAY_GROUP_FIELDS = taskTimeSlotFields(4, 18);
+const ACTUAL_FIELDS = taskTimeSlotFields(15);
+const FREE_FLOAT_FIELDS = taskTimeSlotFields(11);
+const TOTAL_FLOAT_FIELDS = taskTimeSlotFields(12);
 
 /**
  * Per taak van `domain`: de slots die de writer in de dagvorm van de bron schrijft (`SourceTaskTime` in `ifcWriter.ts`;
@@ -925,7 +942,7 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
   for (const task of domain.tasks) {
     const was = before.get(task.id);
     if (!was) continue;
-    const same = (fields: readonly string[]) => fields.every(f => (was.time as unknown as Record<string, unknown>)[f] === (task.time as unknown as Record<string, unknown>)[f]);
+    const same = (fields: readonly string[]) => fields.every(f => taskField(was, f) === taskField(task, f));
     // De argumenten van de IfcTaskTime van de bron met een gebroken dag in de oude vorm.
     const fractional = new Set<number>();
     const step = source.stepIds[`task:${task.id}`];
@@ -939,10 +956,9 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
         }
       }
     }
-    const calendar = was.calendarId === task.calendarId;
     const exactDays = new Set<DayMeasureDurationKey>();
-    if (calendar && same(DAY_GROUP_FIELDS) && (fractional.has(4) || fractional.has(18))) { exactDays.add('ScheduleDuration'); exactDays.add('RemainingTime'); }
-    if (calendar && same(ACTUAL_FIELDS) && fractional.has(15)) exactDays.add('ActualDuration');
+    if (same(DAY_GROUP_FIELDS) && (fractional.has(4) || fractional.has(18))) { exactDays.add('ScheduleDuration'); exactDays.add('RemainingTime'); }
+    if (same(ACTUAL_FIELDS) && fractional.has(15)) exactDays.add('ActualDuration');
     const exactFloat = new Set<'freeFloat' | 'totalFloat'>();
     if (same(FREE_FLOAT_FIELDS) && fractional.has(11)) exactFloat.add('freeFloat');
     if (same(TOTAL_FLOAT_FIELDS) && fractional.has(12)) exactFloat.add('totalFloat');
@@ -958,7 +974,7 @@ function sourceDayLagIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
   const out = new Set<string>();
   for (const seq of domain.sequences) {
     const was = before.get(seq.id);
-    if (!was || was.lagDays !== seq.lagDays || was.lagMinutes !== seq.lagMinutes || was.lagPercent !== seq.lagPercent || was.lagUnit !== seq.lagUnit) continue;
+    if (!was || LAG_FIELDS.some(f => (was as unknown as Record<string, unknown>)[f] !== (seq as unknown as Record<string, unknown>)[f])) continue;
     const step = source.stepIds[`seq:${seq.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     const lag = chunk >= 0 ? index.refAt(chunk, 6) : -1;

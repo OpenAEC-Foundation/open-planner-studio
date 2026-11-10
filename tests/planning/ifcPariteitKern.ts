@@ -329,6 +329,10 @@ export const PARITY_FILES: readonly string[] = [
   // `examples/showcase-groot-terrein-onderaannemer.ifc`). Sinds #871 leest main de dagen mee; de branch moet dat net zo
   // doen. Een eigen map, zodat de checks die de bestanden direct in `fixtures/` lezen hem niet zien.
   'tests/planning/fixtures/duur-dagen-en-tijd',
+  // Vervolg-PR van #867: de eigen bestanden van oudere OPS-versies (`maak-oude-uitvoer.mjs`), en een voorbeeld met
+  // `AnchorsFromOpenDocuments` in OPS_ProjectSettings (de villa uit `public/examples/`, met die ene property erbij).
+  'tests/planning/fixtures/oude-tags',
+  'tests/planning/fixtures/ankers-uit-open-documenten',
 ];
 
 export interface ParityFixtureEntry {

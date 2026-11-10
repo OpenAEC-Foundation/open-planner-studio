@@ -34,7 +34,7 @@ import {
   XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION, type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import {
-  IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx, type WithheldTaskTimeField,
+  ifcDurationExact, IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx, type WithheldTaskTimeField,
 } from './ifcTaskSlots';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { groupBy } from '@/utils/collections';
@@ -179,14 +179,6 @@ function ifcDuration(days: number): string {
   // Beide lezers, ook die van v2026.9.0, lezen het voorloopteken (`parseDurationDays`).
   if (days < 0) return `'-P0Y0M${ifcDayNumber(-days)}D'`;
   return `'P0Y0M${ifcDayNumber(days)}D'`;
-}
-
-/** Dagen exact, zonder afronding, zoals OPS tot `b738a5096` ze schreef (`'P0Y0M${days}D'`, JavaScript `toString`).
- *  Alleen voor de merge met een vreemd deel: een gebroken dag die de planner niet wijzigde, in de vorm van de bron
- *  (`SourceTaskTime`, fixronde 7 van #867). De lezer leest elk getal in die vorm exact (`durationForms.ts`). */
-function ifcDurationExact(days: number): string {
-  if (days < 0) return `'-P0Y0M${-days}D'`;
-  return `'P0Y0M${days}D'`;
 }
 
 /** Duur van een UUR-taak in minuten als ISO-8601-duur met tijdcomponent
@@ -1769,7 +1761,7 @@ function writeTask(
   const ttCtx: TaskTimeWriteCtx = {
     task, dt, ifcDuration, schedDurArg, statusTimeArg,
     actualDurationArg, actualStartArg, actualFinishArg, remainingArg,
-    ...(sourceFloat?.size ? { exactFloat: (field: 'freeFloat' | 'totalFloat', days: number) => (sourceFloat.has(field) ? ifcDurationExact(days) : undefined) } : {}),
+    ...(sourceFloat?.size ? { exactFloat: sourceFloat } : {}),
     ...(withheld && withheld.length > 0 ? { withheld: new Set(withheld) } : {}),
   };
   const taskTimeId = addLine(ctx, `tasktime_${task.id}`,

@@ -294,10 +294,12 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const head = has("=IFCWORKSCHEDULE('fZpd3PzHHVE7QnlVVp6Jo9',");
   await proof('v2026.7.12', 'data, zonder bewerking (de baselinekop houdt zijn GlobalId)', src, 'schrijft', undefined, head);
   await proof('v2026.7.12', 'data, een taak hernoemd', src, 'schrijft', (d) => { leaves(d)[1].name = 'Hernoemd'; }, head);
-  // Knownbug 1104: een taak uit de baseline wissen weigert nog (de bron-JSON heeft het interne id, zonder `TaskGuids`).
-  await proof('v2026.7.12', 'data, een taak uit de baseline gewist (knownbug 1104)', src, 'niet-gedragen', (d, o) => {
+  // Knownbug 1104 (opgelost in de vervolg-PR van #867): een taak uit de baseline wissen. De bron-JSON heeft het interne id,
+  // zonder `TaskGuids`; de regel van de gewiste taak houdt met (b) dat id, en wijst net als in de vorm van de writer naar geen
+  // taak (`orphanRowsWithoutId`). De bron-JSON blijft staan.
+  await proof('v2026.7.12', 'data, een taak uit de baseline gewist (knownbug 1104)', src, 'schrijft', (d, o) => {
     plannerEdits(o, 1).find(e => e.kind === 'taak-wissen')!.apply(d);
-  });
+  }, head);
   // Knownbug 1103: de kop breekt de grammatica; met de wand erbij weigert de oude route het model.
   const ohara = readText(`${OLD}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`);
   ok('v2026.7.12: ohara zonder wand opent', await openForeign(latin1(ohara)).then(() => true, () => false));

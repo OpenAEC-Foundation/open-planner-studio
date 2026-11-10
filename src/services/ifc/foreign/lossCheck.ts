@@ -1400,35 +1400,47 @@ const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   7: ['status', 'time.completion', 'time.actualFinish', 'isSummary', 'childIds'], 9: ['isMilestone'],
   10: ['priority'], 12: ['customTaskTypeId', 'taskType'],
 };
-/** Per slot van `IfcTaskTime` de delen van `time` waar de writer het uit schrijft (`IFC_TASKTIME_SLOTS` en `writeTask` in
+/** Per slot van `IfcTaskTime` de velden van de taak waar de writer het uit schrijft (`IFC_TASKTIME_SLOTS` en `writeTask` in
  *  `ifcWriter.ts`; fixronde 5, VERVOLG van Terra). Een datum hangt ook af van de eenheid van de taak (de formatter,
- *  `taskDateTimeFormatter`); een duur ook van het type en de eenheid (minuten per dag, `PT…` of `P…D`). De rekenslots kunnen
- *  achtergehouden zijn ("datums zoals opgeslagen", `withheldTaskTimeFields`). */
+ *  `taskDateTimeFormatter`); een duur ook van het type, de eenheid en de kalender van de taak (minuten per dag, `PT…` of
+ *  `P…D`); een speling ook van haar minuten (het record in `ExactFloat`). De rekenslots kunnen achtergehouden zijn ("datums
+ *  zoals opgeslagen", `withheldTaskTimeFields`). Dit is de ene definitie van "de planner wijzigde het veld van dit slot":
+ *  ook de merge-writer leest haar (`taskTimeSlotFields`, vervolg-PR van #867). */
 const T = (...parts: string[]) => parts.map(p => `time.${p}`);
 const DATE_FORMAT = T('durationUnit', 'durationMinutes');
 const WITHHELD = '@withheldTaskTimeFields';
 const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   0: ['name'],
   3: T('durationType'),
-  4: T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime'),
+  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime'), 'calendarId'],
   5: [...T('scheduleStart'), ...DATE_FORMAT],
   6: [...T('scheduleFinish'), ...DATE_FORMAT],
   7: [...T('earlyStart'), ...DATE_FORMAT, WITHHELD],
   8: [...T('earlyFinish'), ...DATE_FORMAT, WITHHELD],
   9: [...T('lateStart'), ...DATE_FORMAT, WITHHELD],
   10: [...T('lateFinish'), ...DATE_FORMAT, WITHHELD],
-  11: [...T('freeFloat'), WITHHELD],
-  12: [...T('totalFloat'), WITHHELD],
+  11: [...T('freeFloat', 'freeFloatMinutes'), WITHHELD],
+  12: [...T('totalFloat', 'totalFloatMinutes'), WITHHELD],
   13: [...T('isCritical'), WITHHELD],
   14: [...T('actualStart', 'actualFinish'), ...DATE_FORMAT],
-  15: T('actualDuration', 'durationType'),
+  15: [...T('actualDuration', 'durationType'), 'calendarId'],
   16: [...T('actualStart'), ...DATE_FORMAT],
   17: [...T('actualFinish'), ...DATE_FORMAT],
-  18: T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration'),
+  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration'), 'calendarId'],
   19: T('completion'),
 };
-/** `IfcRelSequence` en zijn `IfcLagTime` (`writeSequence`). */
-const LAG_FIELDS = ['lagDays', 'lagMinutes', 'lagPercent', 'lagUnit'];
+/** De velden waar de writer deze slots van `IfcTaskTime` uit schrijft, als pad (`time.scheduleDuration`, `calendarId`),
+ *  zonder de achtergehouden velden. */
+export function taskTimeSlotFields(...slots: number[]): string[] {
+  return [...new Set(slots.flatMap(slot => TASKTIME_SLOT_FIELDS[slot] ?? []).filter(f => !f.startsWith('@')))];
+}
+/** De waarde van een veld van een taak op zijn pad uit `taskTimeSlotFields`. */
+export function taskField(task: unknown, path: string): unknown {
+  const t = task as Record<string, unknown>;
+  return path.startsWith('time.') ? (t.time as Record<string, unknown> | undefined)?.[path.slice(5)] : t[path];
+}
+/** `IfcRelSequence` en zijn `IfcLagTime` (`writeSequence`); ook de merge-writer leest dit (`sourceDayLagIds`). */
+export const LAG_FIELDS: readonly string[] = ['lagDays', 'lagMinutes', 'lagPercent', 'lagUnit'];
 const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   4: ['predecessorId'], 5: ['successorId'], 6: LAG_FIELDS, 7: ['type'],
 };

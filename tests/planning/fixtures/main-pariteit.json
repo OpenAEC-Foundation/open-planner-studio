@@ -1,5 +1,5 @@
 {
- "basis": "ccf3ca2a2",
+ "basis": "a4783fc35",
  "binaryExtensions": [
   "mpp",
   "xer"
@@ -3348,6 +3348,1248 @@
       }
      ],
      "filePath": "showcase-groot-terrein-P2DT12H.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+   "invoerSha256": "7701a1af6c8b071c6f1de3e27bd4950b6d189ffd990351664ba98197bd2876ff",
+   "filePath": "main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+   "opslaanSha256": "58f7593cc3f7995cbf5ec7c057a559788c4636304cf0fda20ac386d1ea813a03",
+   "opslaanLengte": 50510,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 37,
+      "document": "Nieuwbouw Woongebouw Parkzicht"
+     },
+     "numberParams": {
+      "days": 14
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "b77a18959c93904d01bfd97d1093d15c298f1e78ae37f2c0ed478a64e9252e20",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "b77a18959c93904d01bfd97d1093d15c298f1e78ae37f2c0ed478a64e9252e20",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "kopie-main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "b77a18959c93904d01bfd97d1093d15c298f1e78ae37f2c0ed478a64e9252e20",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "b77a18959c93904d01bfd97d1093d15c298f1e78ae37f2c0ed478a64e9252e20",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "<map>/main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "b77a18959c93904d01bfd97d1093d15c298f1e78ae37f2c0ed478a64e9252e20",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-10-villa-wassenaar.ifc",
+   "invoerSha256": "ccaeef426595e4ecddcad3a3b639d0fed28dc558e7cab392077e4aee3a96c8c1",
+   "filePath": "v2026.43.0-10-villa-wassenaar.ifc",
+   "opslaanSha256": "7e5283cff69afeb6bbac1fa3643184eda50fdd6b214796b5659d0eaff76497e7",
+   "opslaanLengte": 59137,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 37,
+      "document": "New-Build Villa, Wassenaar"
+     },
+     "numberParams": {
+      "days": 1
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "7e5283cff69afeb6bbac1fa3643184eda50fdd6b214796b5659d0eaff76497e7",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "v2026.43.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "7e5283cff69afeb6bbac1fa3643184eda50fdd6b214796b5659d0eaff76497e7",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "kopie-v2026.43.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "7e5283cff69afeb6bbac1fa3643184eda50fdd6b214796b5659d0eaff76497e7",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "v2026.43.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "7e5283cff69afeb6bbac1fa3643184eda50fdd6b214796b5659d0eaff76497e7",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "<map>/v2026.43.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "7e5283cff69afeb6bbac1fa3643184eda50fdd6b214796b5659d0eaff76497e7",
+       "lengte": 59137
+      }
+     ],
+     "filePath": "v2026.43.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+   "invoerSha256": "9e35fff740cfa35fa4aea51cc1789bdc60f72a356329625a32273e299e45ac7b",
+   "filePath": "v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+   "opslaanSha256": "85222d81487df1a687d855a844606605ceb51a797fc787881d5fa9fb1606c486",
+   "opslaanLengte": 59429,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 40,
+      "document": "New-Build Villa, Wassenaar"
+     },
+     "numberParams": {
+      "days": 3.5
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "85222d81487df1a687d855a844606605ceb51a797fc787881d5fa9fb1606c486",
+       "lengte": 59429
+      }
+     ],
+     "filePath": "v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "85222d81487df1a687d855a844606605ceb51a797fc787881d5fa9fb1606c486",
+       "lengte": 59429
+      }
+     ],
+     "filePath": "kopie-v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "85222d81487df1a687d855a844606605ceb51a797fc787881d5fa9fb1606c486",
+       "lengte": 59429
+      }
+     ],
+     "filePath": "v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "85222d81487df1a687d855a844606605ceb51a797fc787881d5fa9fb1606c486",
+       "lengte": 59429
+      }
+     ],
+     "filePath": "<map>/v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "85222d81487df1a687d855a844606605ceb51a797fc787881d5fa9fb1606c486",
+       "lengte": 59429
+      }
+     ],
+     "filePath": "v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+   "invoerSha256": "198478f47a91019ebea69674f3b8cda3d03df84f268421e87810fd461e57928f",
+   "filePath": "v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+   "opslaanSha256": "95ec9a170555492060a79314dd5e3fdf7bd456fd7587e7991648dbea71a68101",
+   "opslaanLengte": 59400,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 39,
+      "document": "New-Build Villa, Wassenaar"
+     },
+     "numberParams": {
+      "days": 3.5
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "95ec9a170555492060a79314dd5e3fdf7bd456fd7587e7991648dbea71a68101",
+       "lengte": 59400
+      }
+     ],
+     "filePath": "v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "95ec9a170555492060a79314dd5e3fdf7bd456fd7587e7991648dbea71a68101",
+       "lengte": 59400
+      }
+     ],
+     "filePath": "kopie-v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "95ec9a170555492060a79314dd5e3fdf7bd456fd7587e7991648dbea71a68101",
+       "lengte": 59400
+      }
+     ],
+     "filePath": "v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "95ec9a170555492060a79314dd5e3fdf7bd456fd7587e7991648dbea71a68101",
+       "lengte": 59400
+      }
+     ],
+     "filePath": "<map>/v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "95ec9a170555492060a79314dd5e3fdf7bd456fd7587e7991648dbea71a68101",
+       "lengte": 59400
+      }
+     ],
+     "filePath": "v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc",
+   "invoerSha256": "8f6e0d40ad82a46269fcf0e80de0842055a6738ee6545e4164458156f10454ef",
+   "filePath": "v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc",
+   "opslaanSha256": "820830ce66a522c8c9e3c79e4c4dd7ee64f6f33754f83419314aa81ef654eac8",
+   "opslaanLengte": 27806,
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "04ba61c1b6c8d3293ad5d13bce8027106be71e19dac48bc92365dce32e7aa7af",
+       "lengte": 27801
+      }
+     ],
+     "filePath": "v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "04ba61c1b6c8d3293ad5d13bce8027106be71e19dac48bc92365dce32e7aa7af",
+       "lengte": 27801
+      }
+     ],
+     "filePath": "kopie-v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "04ba61c1b6c8d3293ad5d13bce8027106be71e19dac48bc92365dce32e7aa7af",
+       "lengte": 27801
+      }
+     ],
+     "filePath": "v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "04ba61c1b6c8d3293ad5d13bce8027106be71e19dac48bc92365dce32e7aa7af",
+       "lengte": 27801
+      }
+     ],
+     "filePath": "<map>/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "04ba61c1b6c8d3293ad5d13bce8027106be71e19dac48bc92365dce32e7aa7af",
+       "lengte": 27801
+      }
+     ],
+     "filePath": "v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc",
+   "invoerSha256": "7c766b1da4bf1f50e5dc38936ff71c0a3747b1686c14b9f8ab8b69e8a5a8d029",
+   "filePath": "v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc",
+   "opslaanSha256": "329d2efe4a50905be65d9411108ef642576761662acc12c3f9e99c9e6a9702f6",
+   "opslaanLengte": 27797,
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda",
+       "lengte": 27792
+      }
+     ],
+     "filePath": "v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda",
+       "lengte": 27792
+      }
+     ],
+     "filePath": "kopie-v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda",
+       "lengte": 27792
+      }
+     ],
+     "filePath": "v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda",
+       "lengte": 27792
+      }
+     ],
+     "filePath": "<map>/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda",
+       "lengte": 27792
+      }
+     ],
+     "filePath": "v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc",
+   "invoerSha256": "fdf5f1316ecd0d22011a0d5dad4fe3870c49d225d4533787dc11ac1d85413ce2",
+   "filePath": "v2026.7.2-woongebouw-nieuwbouw.ifc",
+   "opslaanSha256": "ac6acc941e173f8415d8e8c14e9dcfc653cc66cefbc44c603822a91a5870f89e",
+   "opslaanLengte": 50510,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 37,
+      "document": "Nieuwbouw Woongebouw Parkzicht"
+     },
+     "numberParams": {
+      "days": 14
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "e1de03df37226a70668d5463f6ba0ca2700c1986e3164f03563ac2d875647719",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "v2026.7.2-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "e1de03df37226a70668d5463f6ba0ca2700c1986e3164f03563ac2d875647719",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "kopie-v2026.7.2-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "e1de03df37226a70668d5463f6ba0ca2700c1986e3164f03563ac2d875647719",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "v2026.7.2-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "e1de03df37226a70668d5463f6ba0ca2700c1986e3164f03563ac2d875647719",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "<map>/v2026.7.2-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "e1de03df37226a70668d5463f6ba0ca2700c1986e3164f03563ac2d875647719",
+       "lengte": 50505
+      }
+     ],
+     "filePath": "v2026.7.2-woongebouw-nieuwbouw.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+   "invoerSha256": "bc1ecf64de9e055201426ca07012d584f189ea69ff993690e5ec0a36d3e9b222",
+   "filePath": "v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+   "opslaanSha256": "3510b91fa0afc7280961402041790dcd7d9d62f6d2774dd841a04489fb9e5a14",
+   "opslaanLengte": 50320,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 47,
+      "document": "Villa Nieuwbouw Wassenaar"
+     },
+     "numberParams": {
+      "days": 2.5
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "c60d39571102332aaf8b536a420129a6ff0ef3936465fb082d5729afd60d692e",
+       "lengte": 50315
+      }
+     ],
+     "filePath": "v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "c60d39571102332aaf8b536a420129a6ff0ef3936465fb082d5729afd60d692e",
+       "lengte": 50315
+      }
+     ],
+     "filePath": "kopie-v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "c60d39571102332aaf8b536a420129a6ff0ef3936465fb082d5729afd60d692e",
+       "lengte": 50315
+      }
+     ],
+     "filePath": "v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "c60d39571102332aaf8b536a420129a6ff0ef3936465fb082d5729afd60d692e",
+       "lengte": 50315
+      }
+     ],
+     "filePath": "<map>/v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "c60d39571102332aaf8b536a420129a6ff0ef3936465fb082d5729afd60d692e",
+       "lengte": 50315
+      }
+     ],
+     "filePath": "v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-10-villa-wassenaar.ifc",
+   "invoerSha256": "a8182db63dacb6a3198fdcb3970538925865b99acf7aff5ead34be3a008e8b31",
+   "filePath": "v2026.9.0-10-villa-wassenaar.ifc",
+   "opslaanSha256": "c1f4e6150c91446c92f36813bd5ed3edfd2a70e6b308c7fb04689593d90dfb72",
+   "opslaanLengte": 58948,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 37,
+      "document": "New-Build Villa, Wassenaar"
+     },
+     "numberParams": {
+      "days": 1
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "524e9144ef4a72d518d2112e4dafa1f4db6e11129734a5bcb03a8093e9d175dc",
+       "lengte": 58943
+      }
+     ],
+     "filePath": "v2026.9.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "524e9144ef4a72d518d2112e4dafa1f4db6e11129734a5bcb03a8093e9d175dc",
+       "lengte": 58943
+      }
+     ],
+     "filePath": "kopie-v2026.9.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "524e9144ef4a72d518d2112e4dafa1f4db6e11129734a5bcb03a8093e9d175dc",
+       "lengte": 58943
+      }
+     ],
+     "filePath": "v2026.9.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "524e9144ef4a72d518d2112e4dafa1f4db6e11129734a5bcb03a8093e9d175dc",
+       "lengte": 58943
+      }
+     ],
+     "filePath": "<map>/v2026.9.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "524e9144ef4a72d518d2112e4dafa1f4db6e11129734a5bcb03a8093e9d175dc",
+       "lengte": 58943
+      }
+     ],
+     "filePath": "v2026.9.0-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+   "invoerSha256": "b7a7174bd81ec04cd59b8bd7c88cb3c9a464ca74773fd9fac8aa79ff6c081d06",
+   "filePath": "v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+   "opslaanSha256": "44c7729d7041c4215b77a34cff0ddbf2693fce114aa40615f1a9731c7f396075",
+   "opslaanLengte": 59937,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 41,
+      "document": "New-Build Villa, Wassenaar"
+     },
+     "numberParams": {
+      "days": 3
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "5dcdaeb40a5c7aa164402b7865334de896ee37283c4db138d000a3e14585e14f",
+       "lengte": 59932
+      }
+     ],
+     "filePath": "v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "5dcdaeb40a5c7aa164402b7865334de896ee37283c4db138d000a3e14585e14f",
+       "lengte": 59932
+      }
+     ],
+     "filePath": "kopie-v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "5dcdaeb40a5c7aa164402b7865334de896ee37283c4db138d000a3e14585e14f",
+       "lengte": 59932
+      }
+     ],
+     "filePath": "v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "5dcdaeb40a5c7aa164402b7865334de896ee37283c4db138d000a3e14585e14f",
+       "lengte": 59932
+      }
+     ],
+     "filePath": "<map>/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "5dcdaeb40a5c7aa164402b7865334de896ee37283c4db138d000a3e14585e14f",
+       "lengte": 59932
+      }
+     ],
+     "filePath": "v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc",
+   "invoerSha256": "f1eb46debd0823eaf3e605dc538f0e77215e6aab22effdaf880f25954702efa3",
+   "filePath": "v2026.9.0-urentaak-10-villa-wassenaar.ifc",
+   "opslaanSha256": "d61e37c3692193678ba10ba7cf9ec64ad57d62186cca51717db58cf1192cb86b",
+   "opslaanLengte": 59239,
+   "meldingen": [
+    {
+     "severity": "info",
+     "messageKey": "notifications.minuteModelConverted",
+     "params": {
+      "count": 46,
+      "document": "New-Build Villa, Wassenaar"
+     },
+     "numberParams": {
+      "days": 2.6
+     },
+     "sticky": true,
+     "count": 1
+    }
+   ],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "90a7ffb55c6e00a6d1e00e2e9bc3d76b24d218ae8f18013e4bc9d93473982d98",
+       "lengte": 59234
+      }
+     ],
+     "filePath": "v2026.9.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "90a7ffb55c6e00a6d1e00e2e9bc3d76b24d218ae8f18013e4bc9d93473982d98",
+       "lengte": 59234
+      }
+     ],
+     "filePath": "kopie-v2026.9.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "90a7ffb55c6e00a6d1e00e2e9bc3d76b24d218ae8f18013e4bc9d93473982d98",
+       "lengte": 59234
+      }
+     ],
+     "filePath": "v2026.9.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "90a7ffb55c6e00a6d1e00e2e9bc3d76b24d218ae8f18013e4bc9d93473982d98",
+       "lengte": 59234
+      }
+     ],
+     "filePath": "<map>/v2026.9.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "90a7ffb55c6e00a6d1e00e2e9bc3d76b24d218ae8f18013e4bc9d93473982d98",
+       "lengte": 59234
+      }
+     ],
+     "filePath": "v2026.9.0-urentaak-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/ankers-uit-open-documenten/10-villa-wassenaar.ifc",
+   "invoerSha256": "436d265e8049ef919b82959e76fb4a31173a83c8d6b23ee92bdc946fbf4c92da",
+   "filePath": "10-villa-wassenaar.ifc",
+   "opslaanSha256": "f6d3dbd76aa009cb19adae53a18df7a2eba0c1ebb25705c18a2613f9fcbd9b3e",
+   "opslaanLengte": 59219,
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "f6d3dbd76aa009cb19adae53a18df7a2eba0c1ebb25705c18a2613f9fcbd9b3e",
+       "lengte": 59219
+      }
+     ],
+     "filePath": "10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "f6d3dbd76aa009cb19adae53a18df7a2eba0c1ebb25705c18a2613f9fcbd9b3e",
+       "lengte": 59219
+      }
+     ],
+     "filePath": "kopie-10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "f6d3dbd76aa009cb19adae53a18df7a2eba0c1ebb25705c18a2613f9fcbd9b3e",
+       "lengte": 59219
+      }
+     ],
+     "filePath": "10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "f6d3dbd76aa009cb19adae53a18df7a2eba0c1ebb25705c18a2613f9fcbd9b3e",
+       "lengte": 59219
+      }
+     ],
+     "filePath": "<map>/10-villa-wassenaar.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "f6d3dbd76aa009cb19adae53a18df7a2eba0c1ebb25705c18a2613f9fcbd9b3e",
+       "lengte": 59219
+      }
+     ],
+     "filePath": "10-villa-wassenaar.ifc",
      "isDirty": false,
      "meldingen": [],
      "aanroepen": [

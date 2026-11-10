@@ -28,12 +28,19 @@
 // route. Per eigen bestand staat de uitkomst zonder bewerking naast die van de oude testroute (de lezer direct,
 // `openForeignRaw`). Met `OPS_TELLING_OUDE_ROUTE=1` draait de telling elke bewerking ook op de oude route en drukt per
 // bestand beide af (alleen voor een meting; de CI draait alleen "niets" op de oude route).
+// Ook de voorbeelden (`public/examples/`) en de andere bestanden in `tests/planning/fixtures/`, met een wand, en per bestand
+// ook de gewone bewerkingen van `ordinaryEdits` (taak erbij, hernoemen, duur, toewijzing, voortgang, doorrekenen met F5);
+// bij de voorbeelden en fixtures een kleinere steekproef per soort (`MAX_PER_SOORT_EXTRA`). De herlezing via de app moet de
+// planning geven die de planner zag (`shownAfterOpen`), of wat een gewone opslag en heropenen geeft (`reopenPlain`).
 // Exit 0 = geen "anders" en elk eigen bestand schrijft zonder bewerking.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, plannerEdits, reopenPlain, tryMerge, type Domain, type EditKind, type Opened } from './ifcMergeKern';
+import {
+  applyEdit, canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, reopenPlain,
+  shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
+} from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
@@ -44,17 +51,30 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
 const FOREIGN = join(ROOT, 'tests/fixtures/ifc-foreign');
 const MAX_PER_SOORT = 40;
+const MAX_PER_SOORT_EXTRA = 5;
 
 // Ook de oude eigen bestanden (fixronde 1 van #867): een bestand van v2026.7.2 heeft een los project (V) en gaat sinds
 // het vervallen van de kortsluiting door de gewone merge. Paden vanaf `FOREIGN`.
-const OLD_OWN = '../../planning/fixtures/oude-tags';
-const H7 = '../../planning/fixtures/h7-tijden-oude-writer.ifc';
+const PLANNING_FIXTURES = '../../planning/fixtures';
+const OLD_OWN = `${PLANNING_FIXTURES}/oude-tags`;
+const H7 = `${PLANNING_FIXTURES}/h7-tijden-oude-writer.ifc`;
+const EXAMPLES = '../../../public/examples';
 const files = [
   ...readdirSync(FOREIGN).filter(f => f.endsWith('.ifc')),
   ...readdirSync(join(FOREIGN, 'council')).filter(f => f.endsWith('.ifc')).map(f => `council/${f}`),
   ...readdirSync(join(FOREIGN, OLD_OWN)).filter(f => f.endsWith('.ifc')).map(f => `${OLD_OWN}/${f}`),
-  H7,
+  ...readdirSync(join(FOREIGN, PLANNING_FIXTURES)).filter(f => f.endsWith('.ifc')).map(f => `${PLANNING_FIXTURES}/${f}`),
+  ...readdirSync(join(FOREIGN, EXAMPLES)).filter(f => f.endsWith('.ifc')).map(f => `${EXAMPLES}/${f}`),
 ].sort();
+/** Een eigen bestand buiten het corpus: zonder vreemd deel krijgt het een wand. */
+const ownPath = (file: string) => file.startsWith(`${PLANNING_FIXTURES}/`) || file.startsWith(`${EXAMPLES}/`);
+/** De naam in de tabellen. */
+const shownName = (file: string) => file.startsWith(`${OLD_OWN}/`) ? `oude-tags${file.slice(OLD_OWN.length)}`
+  : file === H7 ? 'h7-tijden-oude-writer.ifc'
+    : file.startsWith(`${PLANNING_FIXTURES}/`) ? `fixtures${file.slice(PLANNING_FIXTURES.length)}`
+      : file.startsWith(`${EXAMPLES}/`) ? `voorbeelden${file.slice(EXAMPLES.length)}` : file;
+/** Per getoonde naam: de bytes zoals gemerged (met de wand als die erbij kwam). */
+const bytesOf = new Map<string, Uint8Array>();
 /** Een wand van Revit met een eigen owner history: het vreemde deel bij een oud eigen bestand zonder model. */
 const REVIT_WALL = [
   "#90001=IFCORGANIZATION($,'Arch',$,$,$);", "#90002=IFCAPPLICATION(#90001,'1','Revit','RVT');",
@@ -74,6 +94,16 @@ const withWall = (bytes: Uint8Array): Uint8Array => {
 const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
   'council/r7sol-vreemd-lid-bij-notitie.ifc': "een lege notitielijst '[]' (knownbug 1101)",
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': "een lege notitielijst '[]' (knownbug 1101)",
+  // Vervolg-PR van #867: deze fixtures weigeren zonder bewerking ook op de oude testroute (de lezer direct); de telling
+  // nam ze toen nog niet mee.
+  'fixtures/h7-kalender-oude-writer.ifc + wand': 'de bronwaarden van werkplan en werkschema geven na herlezen een andere planning (knownbug 1108)',
+  'fixtures/ifc-arity-oude-writer-merged.ifc': 'een werktijd zonder eenduidige tegenhanger (knownbug 1108)',
+  'fixtures/xer-archief-herschreven.ifc + wand': 'SchemaVersion van het XER-bronarchief komt niet terug (knownbug 1108)',
+  'fixtures/werkdag-einde-tussenwaarde.ifc': "een speling 'PT72H' met een tijddeel (knownbug 1033)",
+  // Een back-up met het kenmerk van een vreemde bron (`OPS_RecoveryForeignSource`): de store haalt het kenmerk bij openen
+  // uit het document, en de merge zou het dan laten vallen. Een back-up bevat zelf nooit een vreemd deel (de writer
+  // schrijft haar zonder); de wand is hier alleen voor de proef. Op de oude testroute schreef de merge het kenmerk mee.
+  'fixtures/backup-met-kenmerk.ifc + wand': 'het herstelkenmerk van een back-up; een back-up heeft zelf geen vreemd deel',
 };
 /** Zonder bewerking, per eigen bestand: de uitkomst (`schrijft` of `weigert (gevallen)`). */
 const ownOutcome = new Map<string, string>();
@@ -83,10 +113,16 @@ const FULL_RAW = process.env.OPS_TELLING_OUDE_ROUTE === '1';
 /** Met `OPS_TELLING_OUDE_ROUTE=1`: per bestand de telling op de oude route. */
 const rawTally = new Map<string, Map<EditKind, Tally>>();
 const rawOthers: string[] = [];
-/** Een route: hoe het bestand opent, en de planning van dezelfde bewerking zonder vreemd deel. */
-interface Route { open(bytes: Uint8Array): Promise<Opened>; plain(d: Domain): Promise<Domain> }
-const APP: Route = { open: (b) => openForeign(b), plain: (d) => reopenPlain(d) };
-const RAW: Route = { open: (b) => openForeignRaw(b), plain: async (d) => readIFC(writeIFC(d)) };
+/** Een route: hoe het bestand opent, en of de herlezing de planning van de bewerking geeft. */
+interface Route { open(bytes: Uint8Array): Promise<Opened>; same(reread: Opened, d: Domain): Promise<boolean> }
+const APP: Route = {
+  open: (b) => openForeign(b),
+  same: async (reread, d) => {
+    const got = canon(reread, reseed);
+    return got === canon(await shownAfterOpen(d), reseed) || got === canon(await reopenPlain(d), reseed);
+  },
+};
+const RAW: Route = { open: (b) => openForeignRaw(b), same: async (reread, d) => canon(reread, reseed) === canon(readIFC(writeIFC(d)), reseed) };
 
 interface Tally { n: number; ok: number; refused: Map<string, number>; other: Map<string, number> }
 const tally = new Map<string, Map<EditKind, Tally>>();
@@ -123,11 +159,11 @@ function fieldOf(index: StepIndex, c: MergePhase2Case): string {
 
 for (const file of files) {
   let bytes: Uint8Array = new Uint8Array(readFileSync(join(FOREIGN, file)));
-  let shown = file.startsWith(OLD_OWN) ? `oude-tags${file.slice(OLD_OWN.length)}` : file === H7 ? 'h7-tijden-oude-writer.ifc' : file;
+  let shown = shownName(file);
   let opened;
   try {
     opened = await openForeign(bytes);
-    if ((file.startsWith(OLD_OWN) || file === H7) && !opened.ifcSource?.foreign) {
+    if (ownPath(file) && !opened.ifcSource?.foreign) {
       bytes = withWall(bytes);
       shown = `${shown} + wand`;
       opened = await openForeign(bytes);
@@ -140,12 +176,14 @@ for (const file of files) {
   }
   if (REFUSED_AT_OPEN[file] !== undefined) { others.push(`${shown} · openen: verwacht geweigerd (${REFUSED_AT_OPEN[file]}), maar opent`); continue; }
   if (!opened.ifcSource?.foreign) continue;
-  const perKind = await runEdits(shown, bytes, opened, APP, others, true);
+  bytesOf.set(shown, bytes);
+  const max = ownPath(file) && !file.startsWith(`${OLD_OWN}/`) && file !== H7 ? MAX_PER_SOORT_EXTRA : MAX_PER_SOORT;
+  const perKind = await runEdits(shown, bytes, opened, APP, others, true, max);
   tally.set(shown, perKind);
   // De oude testroute: alleen zonder bewerking, of met `OPS_TELLING_OUDE_ROUTE=1` alles.
   try {
     const raw = await RAW.open(bytes);
-    if (FULL_RAW) rawTally.set(shown, await runEdits(shown, bytes, raw, RAW, rawOthers, false));
+    if (FULL_RAW) rawTally.set(shown, await runEdits(shown, bytes, raw, RAW, rawOthers, false, max));
     else {
       const r = await tryMerge(cloneDomain(raw), raw.ifcSource!);
       rawOutcome.set(shown, r.ok ? 'schrijft' : `weigert (${r.kinds.join(', ')})`);
@@ -157,7 +195,8 @@ for (const file of files) {
 
 /** De gewone bewerkingen op één bestand, met per bewerking één van de drie uitkomsten. `record`: de uitkomst zonder
  *  bewerking telt mee in de tabellen per eigen bestand (de route van de app); anders alleen in `rawOutcome`. */
-async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route: Route, others: string[], record: boolean): Promise<Map<EditKind, Tally>> {
+async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route: Route, others: string[], record: boolean,
+  max: number): Promise<Map<EditKind, Tally>> {
   const source = opened.ifcSource!;
   const perKind = new Map<EditKind, Tally>();
   const sourceDoubles = doubleMemberships(bytes);
@@ -165,15 +204,14 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
   const fields = new Map<string, number>();
   if (record) editFields.set(shown, fields);
   const where = shown;
-  for (const edit of plannerEdits(opened, MAX_PER_SOORT)) {
+  for (const edit of [...plannerEdits(opened, max), ...ordinaryEdits(opened)]) {
     const t = perKind.get(edit.kind) ?? { n: 0, ok: 0, refused: new Map(), other: new Map() };
     perKind.set(edit.kind, t);
     t.n++;
     merges++;
     const fail = (reason: string) => { bump(t.other, reason); others.push(`${where} · ${edit.label}: ${reason}`); };
     try {
-      const d = cloneDomain(opened);
-      edit.apply(d);
+      const d = await applyEdit(edit, cloneDomain(opened));
       const outcome = await tryMerge(d, source);
       if (edit.kind === 'niets' && !record) rawOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
       if (record && edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
@@ -192,9 +230,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }
       const doubles = doubleMemberships(outcome.bytes).filter(k => !sourceDoubles.includes(k));
       if (doubles.length > 0) { fail(`dubbel lidmaatschap: ${doubles[0]}`); continue; }
-      const reread = await route.open(outcome.bytes);
-      const plain = await route.plain(d);
-      if (canon(reread, reseed) !== canon(plain, reseed)) { fail('andere planning na herlezen'); continue; }
+      if (!await route.same(await route.open(outcome.bytes), d)) { fail('andere planning na herlezen'); continue; }
       t.ok++;
     } catch (e) {
       fail(`fout: ${(e as Error).message.slice(0, 160)}`);
@@ -204,7 +240,10 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
 }
 
 // ── De tabellen ──
-const KINDS: EditKind[] = ['niets', 'andere-ouder', 'niveau-hoger', 'volgorde-kinderen', 'relatie-erbij', 'taak-wissen'];
+const KINDS: EditKind[] = [
+  'niets', 'andere-ouder', 'niveau-hoger', 'volgorde-kinderen', 'relatie-erbij', 'taak-wissen', 'taak-erbij', 'hernoemen', 'duur',
+  'toewijzing-erbij', 'voortgang', 'doorrekenen',
+];
 const fmt = (m: Map<string, number>) => [...m].sort().map(([k, v]) => `${k} ${v}`).join(', ') || '–';
 /** Per bestand en per bewerking, dan de totalen per bewerking. Geeft het totaal terug. */
 function printTally(byFile: ReadonlyMap<string, ReadonlyMap<EditKind, Tally>>): { n: number; ok: number; other: number } {
@@ -281,11 +320,7 @@ const seconds = ((performance.now() - started) / 1000).toFixed(1);
   const fields = new Map<string, { n: number; files: Set<string> }>();
   let total = 0;
   for (const [file, cases] of notCarried) {
-    const base = file.replace(/ \+ wand$/, '');
-    const full = base.startsWith('oude-tags/') ? join(FOREIGN, OLD_OWN, base.slice('oude-tags/'.length))
-      : base === 'h7-tijden-oude-writer.ifc' ? join(FOREIGN, H7) : join(FOREIGN, base);
-    const raw = new Uint8Array(readFileSync(full));
-    const index = scanStep(base === file ? raw : withWall(raw));
+    const index = scanStep(bytesOf.get(file)!);
     for (const c of cases) {
       total++;
       const key = fieldOf(index, c);

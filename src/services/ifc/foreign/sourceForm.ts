@@ -117,6 +117,21 @@ function leafValue(planning: { tasks: readonly Task[]; baselines?: readonly Base
   return { found: true, value: leaf.sub === undefined ? v : (v as Record<string, unknown> | undefined)?.[leaf.sub] };
 }
 
+/**
+ * Een regel van een baseline waarvan de taak niet (meer) in de planning staat, zonder zijn taak-id (knownbug 1104). Wist de
+ * planner een taak uit een baseline van OPS v2026.7.4 tot v2026.7.14 (zonder `TaskGuids`), dan houdt die regel met de
+ * bron-JSON het oude interne id, en in de vorm van de writer het id uit het domein. Beide wijzen naar geen taak; de planning
+ * is dezelfde. De herleestoets van (b) (`mergeWriter.ts`) en die van de bronvorm vergelijken zo'n regel daarom zonder id.
+ */
+export function orphanRowsWithoutId<T extends { tasks: readonly Task[]; baselines?: readonly Baseline[] }>(planning: T): T {
+  const ids = new Set(planning.tasks.map(t => t.id));
+  if (!planning.baselines?.some(b => b.tasks.some(t => !ids.has(t.taskId)))) return planning;
+  return {
+    ...planning,
+    baselines: planning.baselines.map(b => ({ ...b, tasks: b.tasks.map(t => (ids.has(t.taskId) ? t : { ...t, taskId: '' })) })),
+  };
+}
+
 /** De velden die het openen veranderde en die de bronwaarde terug kunnen krijgen (zie de kop). */
 function candidates(domain: WriteIFCInput, opened: WriteIFCInput, pristine: ImportResult): Restore[] {
   const m = migrated(pristine);
@@ -189,8 +204,9 @@ export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFC
   // De voortoets (zie de kop): een veld van de omzetting dat met de taak en de kalender van nu niet weer d wordt, blijft d.
   // Elke ronde valt er minstens één af, of de toets is klaar.
   for (;;) {
-    const again = reopened(withRestores(domain, restores));
-    const failing = restores.filter(r => r.converted && !sameValue(leafValue(again, r.leaf).value, leafValue(domain, r.leaf).value));
+    const again = orphanRowsWithoutId(reopened(withRestores(domain, restores)));
+    const shown = orphanRowsWithoutId(domain);
+    const failing = restores.filter(r => r.converted && !sameValue(leafValue(again, r.leaf).value, leafValue(shown, r.leaf).value));
     if (failing.length === 0) break;
     const datesOf = new Set(failing.filter(r => isDateLeaf(r.leaf)).map(r => r.leaf.id));
     restores = restores.filter(r => !failing.includes(r) && !(isDateLeaf(r.leaf) && datesOf.has(r.leaf.id)));
@@ -220,10 +236,11 @@ const leafLabel = (leaf: SourceFormLeaf) => leaf.kind === 'baseline' ? `baseline
  */
 export function sourceFormProblems(checked: readonly SourceFormLeaf[], domain: WriteIFCInput, back: ImportResult): string[] {
   if (checked.length === 0) return [];
-  const m = migrated(back);
+  const m = orphanRowsWithoutId(migrated(back));
+  const shown = orphanRowsWithoutId(domain);
   const out: string[] = [];
   for (const leaf of checked) {
-    const want = leafValue(domain, leaf);
+    const want = leafValue(shown, leaf);
     const got = leafValue(m, leaf);
     if (!got.found) { out.push(`${leafLabel(leaf)}: ontbreekt na herlezen`); continue; }
     if (!sameValue(got.value, want.value)) {

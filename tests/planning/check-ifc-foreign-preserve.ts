@@ -883,12 +883,12 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
 }
 {
   // Kalendertijd: na openen via de app heeft de taak tijdstippen die op kalendertijd niet op een daggrens vallen; de writer
-  // schrijft de kalender dan letterlijk en de merge weigert (knownbug 1107, vervolg-PR van #867).
+  // schrijft de kalender dan letterlijk en de merge weigert (knownbug 1102, vervolg-PR van #867).
   const opened = await openForeign(enc.encode(eigen));
   const d = cloneDomain(opened);
   taskNamed(d, 'Set up site').time.durationType = 'ELAPSEDTIME';
   const r = await tryMerge(d, opened.ifcSource!);
-  eq('bewerking: DurationType: de merge weigert (knownbug 1107)', r.ok ? 'schrijft' : r.kinds.includes('niet-gedragen'), true);
+  eq('bewerking: DurationType: de merge weigert (knownbug 1102)', r.ok ? 'schrijft' : r.kinds.includes('niet-gedragen'), true);
 }
 {
   const r = await roundTrip('bewerking: ScheduleDuration', enc.encode(eigen), (d) => {
@@ -937,7 +937,7 @@ const renameTask = (from: string) => (d: Domain) => { taskNamed(d, from).name = 
 const T55 = "#55=IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D'";
 const KINDS: readonly {
   kind: string; label: string; bytes: Uint8Array; keep: RegExp;
-  /** `refused`: de merge weigert met dit geval (knownbug 1107). */
+  /** `refused`: de merge weigert met dit geval (knownbug 1102). */
   field?: { label: string; edit: (d: Domain) => void; want: RegExp; refused?: string };
   other: { label: string; edit: (d: Domain) => void; want: RegExp };
 }[] = [

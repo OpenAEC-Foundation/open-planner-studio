@@ -989,18 +989,39 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
   ];
   for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);
-  // Wijzigt de planner het veld zelf (kalendertijd), dan weigert de merge nu (vervolg-PR van #867, knownbug 1107): na openen
+  // Wijzigt de planner het veld zelf (kalendertijd), dan weigert de merge nu (vervolg-PR van #867, knownbug 1102): na openen
   // via de app heeft de taak de tijdstippen 07:00 en 16:00, en die vallen op kalendertijd niet op een daggrens, ook niet na
   // doorrekenen. De writer schrijft de kalender dan letterlijk (zoals een gewone opslag), en elke taak erop als tijdstip;
   // de kalender van de bron verandert zonder dat de planner hem wijzigde. Op de oude testroute (de ruwe lezing, met kale
   // datums) schreef de merge, maar heropenen via de app gaf dan 00:00 tot 00:00 in plaats van de 07:00 tot 16:00 die de
   // planner zag; een gewone opslag houdt 07:00 tot 16:00.
-  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd (knownbug 1107)', notDefined, 'niet-gedragen', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; });
+  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd (knownbug 1102)', notDefined, 'niet-gedragen', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; });
   const notDefinedOpened = await openForeign(notDefined);
   const elapsed = cloneDomain(notDefinedOpened);
   time63(elapsed, notDefinedOpened).durationType = 'ELAPSEDTIME';
   const elapsedF5 = await recalculated(elapsed);
-  await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (knownbug 1107)', notDefined, 'niet-gedragen', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (knownbug 1102)', notDefined, 'niet-gedragen', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
+}
+
+// ── Knownbug 1106 (vervolg-PR van #867): een verstopt stuk vóór een eigen stuk ──
+// De scanner hangt commentaar vóór een entiteit aan het volgende stuk. Volgens de norm vallen stuurtekens overal weg, ook
+// in `*⏎/`; dan staat in `/* a *⏎/ #402=…; /* b */` een stuk. De merge schrijft een P-stuk opnieuw, zonder dat commentaar,
+// dus weigert hij als vóór een P-stuk buiten de tokens een `#` met een getal staat (`verstopt-stuk`). Proeven uit review
+// ronde 8 van #867: het stuk vóór `#47=IFCTASK`, en een V-stuk (de pset van de wand) dat ernaar wijst.
+{
+  const before47 = (src: string, inserted: string) => { const at = src.indexOf('#47=IFCTASK'); return src.slice(0, at) + inserted + src.slice(at); };
+  const hidden = "/* a *\n/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',$,IFCLABEL('x'),$); /* b */\n";
+  ok('1106: de pset van de wand heeft (#397,#398)', eigen.includes('(#397,#398));'));
+  await proof('1106', 'een verstopt stuk vóór een eigen taak', latin1(before47(eigen, hidden)), 'verstopt-stuk');
+  await proof('1106', 'idem, en een V-stuk wijst ernaar', latin1(before47(eigen, hidden).replace('(#397,#398));', '(#397,#398,#402));')), 'verstopt-stuk');
+  await proof('1106', 'commentaar met #12 vóór een eigen taak', latin1(before47(eigen, '/* zie #12 */\n')), 'verstopt-stuk');
+  await proof('1106', 'gewoon commentaar vóór een eigen taak', latin1(before47(eigen, '/* gewoon commentaar */\n')), 'schrijft');
+  // `\S\'` in een string van een eigen stuk (VERMOED van review ronde 8, knownbug 1050): de lezer leest het anders dan de
+  // norm, en het bestand opent met de flag niet (de modelweigering op de tekst van de lezer). De merge krijgt het dus niet.
+  const escaped = eigen.replace("'Start of refurbishment',$,", "'Start of refurbishment','a\\S\\'',");
+  ok("1106: de bron heeft \\S\\' in de omschrijving van #47", escaped !== eigen);
+  const refused = await openForeign(latin1(escaped)).then(() => 'opent', (e: unknown) => (e instanceof IfcParseError ? e.reason : String(e)));
+  ok(`1106: \\S\\' in een eigen string opent met de flag niet (${refused})`, refused === 'building-model');
 }
 
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──

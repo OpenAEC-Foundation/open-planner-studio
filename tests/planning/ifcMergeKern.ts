@@ -18,6 +18,7 @@ import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mer
 import { scanStep, StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { orphanRowsWithoutId } from '@/services/ifc/foreign/sourceForm';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { ImportResult } from '@/services/importTypes';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
@@ -259,10 +260,12 @@ export function doubleMemberships(bytes: Uint8Array): string[] {
   return [...seen].filter(([, n]) => n > 1).map(([k]) => k).sort();
 }
 
-/** Het domein zoals de writer het ziet: `writeIFC` zonder vreemd deel, met een vaste klok en reeks. */
+/** Het domein zoals de writer het ziet: `writeIFC` zonder vreemd deel, met een vaste klok en reeks; een baselineregel
+ *  zonder taak zonder haar id. */
 export function canon(d: Domain, reseed: (seed: number) => void): string {
   reseed(0x1b04);
-  return writeIFC(d);
+  // Een baselineregel zonder taak telt zonder haar id (knownbug 1104, `orphanRowsWithoutId`).
+  return writeIFC(orphanRowsWithoutId(d));
 }
 
 /** Het eerste verschil tussen twee teksten, met wat omringende tekst. */
@@ -275,8 +278,15 @@ export function firstDiff(a: string, b: string): string {
 // ── De gewone bewerkingen (bijsturing 1, punt 2) ──
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
-  | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij';
-export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void }
+  | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
+/** `recalculate`: na `apply` rekent de app door (F5, `recalculated`); `applyEdit` doet beide. */
+export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void; readonly recalculate?: boolean }
+
+/** Een bewerking toepassen, met doorrekenen als ze dat vraagt. */
+export async function applyEdit(edit: Edit, d: Domain): Promise<Domain> {
+  edit.apply(d);
+  return edit.recalculate ? recalculated(d) : d;
+}
 
 const byId = (d: Domain) => new Map(d.tasks.map(t => [t.id, t]));
 const isDescendant = (tasks: ReadonlyMap<string, Task>, id: string, ancestor: string): boolean => {
@@ -386,6 +396,23 @@ export function basicEdits(d: Domain): Edit[] {
       x.assignments.push({ id: 'toewijzing-1b', taskId: leaf.id, resourceId: resource.id, unitsPerDay: 4 });
       const task = byId(x).get(leaf.id)!;
       if (!task.resourceIds.includes(resource.id)) task.resourceIds.push(resource.id);
+    } });
+  }
+  return out;
+}
+
+/** De gewone bewerkingen van `basicEdits`, plus (vervolg-PR van #867) doorrekenen (F5, na de langere duur) en voortgang
+ *  (begonnen op het geplande begin, 50 %). Op dezelfde vaste taak. */
+export function ordinaryEdits(d: Domain): Edit[] {
+  const out = basicEdits(d);
+  const lengthen = out.find(e => e.kind === 'duur');
+  const leaf = d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone);
+  if (lengthen) out.push({ kind: 'doorrekenen', label: `${lengthen.label} en doorgerekend`, apply: lengthen.apply, recalculate: true });
+  if (leaf) {
+    out.push({ kind: 'voortgang', label: `${leaf.id} begonnen, 50 %`, apply: (x) => {
+      const time = byId(x).get(leaf.id)!.time;
+      time.actualStart = time.scheduleStart;
+      time.completion = 0.5;
     } });
   }
   return out;
