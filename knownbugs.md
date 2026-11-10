@@ -2004,15 +2004,6 @@ en noem het in je rapport of PR-tekst.
      geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
 
 
-264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
-     wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
-     balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
-     exceeded", regel 314). Eenmaal gezien in CI op #584 (`2acc895fc`, job "verify (browser 3-4)",
-     2026-10-24). Een herhaling van de job zonder wijziging was groen, en lokaal 3 van 3 groen. De oorzaak
-     is niet onderzocht. F4b wijzigt `useBarDrag.ts` (maat en afronding van de datumsleep), niet de
-     keuze voor de rijsleep: `handleMouseMove` (`useBarDrag.ts:528-545`) is gelijk aan de basis (review r4
-     van #584, nagelezen). Een verband is niet aangetoond. Voorstel: gericht herhalen met een trace. — S
-
 294. **De browsertest voor speling in de Gantt-tooltip is wisselvallig.**
      `tests/browser/float-remaining-display.spec.ts:89` ("Expected pattern /^0[.,]67d$/, Received "1d"",
      time-out 5000 ms). Hij faalde eenmaal in CI op #585 (`c354d1e41`, run 40051700758, browser 3-4), en
@@ -2050,13 +2041,6 @@ en noem het in je rapport of PR-tekst.
     `same-origin`, en een opaque origin is met geen enkel adres same-origin. De constructor gooit dan, of de
     worker meldt een fout; in beide gevallen mislukt nivelleren. Alleen in de code nagelopen, niet gedraaid.
     Voorstel: bij een fout van de worker terugvallen op de bestaande route zonder `Worker` (regel 23). — S
-
-224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
-    `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
-    `gantt-drag-undo.spec.ts:313` de taakvolgorde na balkslepen ongewijzigd, terwijl de voorafgaande
-    rijsleep wel verplaatste. Dezelfde head slaagde in poging 2 zonder codewijziging; ook de eerdere
-    PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
-    timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
 401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
      `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
