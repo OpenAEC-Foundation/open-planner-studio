@@ -1762,7 +1762,7 @@ en noem het in je rapport of PR-tekst.
      - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
      Sinds #870 leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen volgens
      de norm. Ziet zij een modeltype, dan weigert `readIFC`; verder opent `readIFC` precies zoals main (besluit Trias,
-     review van #870 ronde 10). Gemeten op de tak, met dezelfde bestanden:
+     review van #870 ronde 10). Gemeten op de tak, zonder de flag `ifcForeignContent` (met de flag: knownbug 1151):
       - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken, zoals main;
@@ -1818,16 +1818,29 @@ en noem het in je rapport of PR-tekst.
      ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
 
 1150. **VERVOLG: de doelcontrole na #870 is trager dan op main, en er kan wat weg.** Gemeten in de review van #870,
-     ronde 11 (Node, mediaan van 5 runs, gedeelde machine): een geldig bestand van 15 MiB zonder model kost op main
-     ongeveer 100 ms, op de tak ongeveer 630 ms; van 20 MiB 125 ms tegen 880 ms. `readIFC` op
-     `showcase-appartementencomplex.ifc`: 38,5 ms tegen 50,8 ms (de extra pas van de grammatica). Oorzaak: `findPass`
-     in `src/services/ifc/foreign/targetModelScan.ts` stuurt elk byte door de kop, de prefix en de grammatica, en
-     daarna nog door de lus van main. Alleen met de flag. Richting: zodra `mainEnd` en de herkomst vaststaan alleen de
+     ronde 11 (Node, gedeelde machine). De doelcontrole (mediaan van 5 runs; alleen met de flag): een geldig bestand
+     van 15 MiB zonder model kost op main ongeveer 100 ms, op de tak ongeveer 630 ms; van 20 MiB 125 ms tegen 880 ms.
+     Oorzaak: `findPass` in `src/services/ifc/foreign/targetModelScan.ts` stuurt elk byte door de kop, de prefix en de
+     grammatica, en daarna nog door de lus van main. `readIFC` op `showcase-appartementencomplex.ifc` (mediaan van 30
+     runs; bij elk openen, ook zonder flag): 38,5 ms tegen 50,8 ms, door de extra pas van de grammatica. Richting: zodra `mainEnd` en de herkomst vaststaan alleen de
      grammatica voeden, met de sprong over strings en commentaar (zie ook 1017). Verder: commentaar beschrijft
      'unreadable' nog als "geen datasectie" (`foreignSourceTarget.ts`, `ifcForeignGuard.ts`, `fileTools.ts`), terwijl
      het nu ook een kapot bestand of meer datasecties betekent; `failedAt` en `lexBack` in `stepFileGrammar.ts` zijn
-     overbodig; de tabel `MODEL_HASH` staat in `stepFileGrammar.ts` en in `targetModelScan.ts`. Uit #870 (ronde 11,
-     Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
+     overbodig, en de getter `state` gebruikt alleen de test; de FNV-tabel van de modeltypes staat in `stepFileGrammar.ts`,
+     in `targetModelScan.ts` en in `check-ifc-target-model-scan.ts`, en `MODEL_TYPE_MAX` (grammatica) en `TYPE_MAX`
+     (doelcontrole) zijn dezelfde grens. Richting: één export uit `ifcBuildingModelTypes.ts`. Uit #870 (ronde 11 en
+     12, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
+
+1151. **VERVOLG: met de flag `ifcForeignContent` aan slaat openen de modelweigering van de grammatica over.** De
+     bytes-route (`src/services/ifc/foreign/ifcBytesRoute.ts:93`) roept `readIFC` aan met
+     `skipBuildingModelGuard: true`; dan draait de grammatica niet (`src/services/ifc/ifcReader.ts`). Gezien in de
+     review van #870, ronde 12, met de showcase (eigen en vreemd) en `/* a *⏎/ #999999=IFCWALL(…); /* b */` in de enige
+     sectie: zonder flag weigert de tak met `building-model`; met de flag opent hij 20 taken, en de bron telt geen vreemd
+     deel (`stepScanner` leest de wand als commentaar, zoals main). Geen dataverlies: de doelcontrole zegt 'model' en
+     draait met de flag vóór elke write (Opslaan, Opslaan als, export, AutoSave, MCP). Op main opent het ook, maar daar
+     wist Ctrl+S de wand. Een planner met de flag aan loopt wel bij elk opslaan tegen de modelmelding aan. Richting: in
+     de bytes-route terugvallen op de gewone route als de grammatica een model ziet en de scanner geen vreemd deel telt;
+     vóór fase 1b. Uit #870 (ronde 12, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
