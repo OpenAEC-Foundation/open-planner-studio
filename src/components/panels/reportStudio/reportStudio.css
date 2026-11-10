@@ -359,7 +359,9 @@
 }
 
 /* Melding in een stap: `.ops-note` van de app. Fout heeft daar geen eigen tint. */
-.rs-note { margin-top: 0; }
+/* 1 px scroll-marge: `scrollIntoView` schuift op hele pixels, dus een melding met een onderrand op een
+   kwart pixel bleef anders net buiten beeld (browserrun r6). */
+.rs-note { margin-top: 0; scroll-margin-block: 1px; }
 .rs-note--error { --ops-note-accent: var(--error); }
 .rs-note-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 
