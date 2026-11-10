@@ -1738,6 +1738,30 @@ en noem het in je rapport of PR-tekst.
      Richting: het bestaande `HERE` gebruiken (`join(HERE, '..', '..', 'public', 'examples', …)`). Uit #871
      (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
+1049. **VERVOLG: de scanner achter de flag `ifcForeignContent` kent 15 vormen van de DATA-sectiekop niet.** De tabel
+     `DATA_KOP_VORMEN` in `tests/planning/ifcDoelBestanden.ts` markeert ze met `scannerWeigert`: kleine letters
+     (`data;`, `data(…);`, `endsec;`), een stuurteken midden in `DATA` of `ENDSEC` (regeleinde, tab, U+007F), de
+     afdrukcodes `\N\` en `\F\` als scheiding, een regeleinde in `/*` of `*/` vóór de kop, en een ANCHOR-sectie. De
+     gedeelde sectievinder (`src/services/ifc/stepDataSection.ts`) en `readIFC` lezen ze wel. Met de flag aan weigert
+     `src/services/ifc/foreign/stepScanner.ts` het bestand en valt `ifcBytesRoute.ts` terug op de gewone route: het
+     bestand opent als planning, maar het vreemde deel blijft niet bewaard. De flag staat in de app altijd uit. Richting:
+     de scanner de gedeelde vinder laten gebruiken vóór fase 1b. Uit #870 (review ronde 5 en 6, GPT-6.1-Sol en
+     GPT-6.1-Terra, VERVOLG). — B
+
+1050. **De lexer van de datasecties kent `/⏎*`, `*⏎/` en `\S\'` niet; ook op main, met één datasectie.** ISO 10303-21
+     laat stuurtekens overal weg (§5.2, §5.6), ook tussen `/` en `*`, en `\S\` plus één teken is één teken in een string
+     (§6.4.3.1). `stripStepComments`, `skipQuotedOrComment` en de lus van `parseSTEP` (`src/services/ifc/ifcReader.ts`)
+     en de doelscanner (`src/services/ifc/foreign/targetModelScan.ts`) lezen dat zoals main. Gezien op main
+     (9ee06bb71) en op `fix/ifc-meer-data-secties`, met een kop met de drie kopentiteiten, `DATA;` en één datasectie:
+     - `#1=IFCTASK('1',$,'Taak',…);` dan `/* a *⏎/ #9=IFCWALL('x',…);` dan `/* b */`: opent met 1 taak, zonder
+       modelweigering. Volgens de norm is de wand code: opslaan wist hem.
+     - `#1=IFCTASK(…);` dan `/⏎* #9=IFCWALL('x',…); */`: weigert als gebouwmodel. Volgens de norm is de wand
+       commentaar.
+     - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
+     In de kop leest de gedeelde sectievinder deze vormen wel volgens de norm (#870). Richting: één lexer voor kop en
+     datasecties, met dezelfde regels. Uit #870 (review ronde 6, GPT-6.1-Sol en GPT-6.1-Terra; eigen knownbug op
+     verzoek van Trias). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
