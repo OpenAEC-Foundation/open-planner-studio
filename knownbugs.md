@@ -1780,6 +1780,248 @@ en noem het in je rapport of PR-tekst.
      eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
      en de lange variant in de test. Uit #864 (fase 1a). — S
 
+1020. **De writer schrijft stil `#0` bij een sleutel die hij niet kent.** `ref()` (`src/services/ifc/ifcWriter.ts:323`)
+     geeft `#${idMap.get(key) || 0}`. Ontbreekt de sleutel, dan staat er een verwijzing naar `#0` in de uitvoer, zonder
+     fout of melding. Gezien bij het lezen van de code (eigen zoektocht van fase 1b); geen geval bekend waarin het nu
+     gebeurt. De merge-writer weigert zo'n verwijzing (`src/services/ifc/foreign/mergeWriter.ts`, stap 9); de gewone
+     writer niet. Richting: een fout in `ref()` als de sleutel ontbreekt. Uit #867 (fase 1b). — S
+
+1021. **VERVOLG: de merge-writer scant de bron bij elke merge opnieuw.** `writeIfcMerge`
+     (`src/services/ifc/foreign/mergeWriter.ts:245`) doet `scanStep` en `classify` op `ifcSource.bytes`, want `ifcSource`
+     bewaart alleen typed arrays en geen index. CI-meting run 42748742900 (`ubuntu-24.04`, Node 22), eigen planning plus
+     model, zonder wijziging: 150 MB merge 3,6 s (piek 632 MB), 300 MB (299,5 MB) merge 6,7 s (piek 1168 MB); scanner en
+     indeling samen kosten bij 300 MB 4,7 s (zelfde run, meting van de scanner). Na fixronde 2 (de leesverliestoets, O0):
+     run 42768996301, 150 MB merge 6,8 s (piek 953 MB), 300 MB merge 13,0 s (piek 1673 MB). Na fixronde 3 (de bronwaarden
+     van (b)): run 42777814137, 150 MB merge 6,1 s (piek 909 MB), 300 MB merge 12,3 s (piek 1774 MB). Een profiel van één merge van
+     50 MB (lokaal, 3,2 s) geeft 1,6 s aan `scanStep` en `classify`, en ongeveer 0,45 s aan O0 (`pristineDomain` 0,11 s,
+     een tweede `buildLines` 0,24 s, de vergelijking 0,09 s). Richting: de index van het openen bewaren of de klassen uit
+     `ifcSource` hergebruiken, en alleen de stukken parsen die de merge leest. **Eis voor 1c** (wrakko, 10 november
+     2026): 13 s en een piek van 1,7 GB bij 300 MB is te veel voor een tabblad in de browser; doel ongeveer het niveau van
+     ronde 1 (merge 6,7 s, piek 1,2 GB bij 300 MB). Uit #867 (fase 1b). — B
+
+1022. **VERVOLG: auteur of bedrijf wijzigen geeft `merge-needs-phase2` als de eerste owner history gedeeld is.** Met de flag
+     aan, een eigen project (P) en een owner history die ook vreemde stukken gebruiken (C), leest de lezer auteur en
+     bedrijf uit die eerste owner history (`src/services/ifc/ifcReader.ts:1419`). De writer schrijft de vier projectvelden
+     alleen als het project niet P is (BLOKKEERT 1 van fixronde 1). Een gewijzigde auteur komt dus niet terug, en de
+     merge weigert met `projectgegevens` (`src/services/ifc/foreign/lossCheck.ts:560`). Zonder wijziging schrijft de
+     merge gewoon. Gemeten met een gewijzigde auteur: 8 eigen bestanden in `tests/fixtures/ifc-foreign/council/` die zonder
+     wijziging schrijven, weigeren dan, namelijk `fix1-leeg-live`, `fix1-leeg-live-bl`, `r4-k2`, `r4-k3`,
+     `r5-eigen-plus-bonsai-baseline`, `r5sol-gedeelde-calendar-pset`, `r6sol-twee-werkplannen` en
+     `r7sol-twee-werkplannen-bronplek`. Proef: `check-ifc-foreign-preserve.ts`, "auteur
+     wijzigen bij een gedeelde owner history". Richting: op de bytes-route auteur en bedrijf lezen uit de owner history
+     van het IfcProject of het werkplan (dat schrijft de writer zelf), of de vier velden ook bij een gedeelde owner
+     history in `OPS_ProjectSettings` zetten. **Eis voor 1c** (wrakko, 10 november 2026): richting 1 (auteur en bedrijf
+     op de bytes-route uit de owner history van het IfcProject of het werkplan lezen); opslaan gaat in 1c niet aan zolang
+     de planner bij een eigen bestand met een model zijn auteur of bedrijf niet kan wijzigen. Uit #867 (fase 1b,
+     fixronde 1). — B
+
+1023. **VERVOLG: de GlobalIds van `OPS_Resource` veranderen bij de eerste keer opslaan na openen.** De writer leidt de
+     GlobalId van de pset van een resource en van haar `IfcRelDefinesByProperties` af van `res.id` (`pset_res_<id>`,
+     `src/services/ifc/ifcWriter.ts:1918`). De lezer maakt het id van een resource uit haar GlobalId (`stableIdFromGuid`,
+     `src/services/ifc/ifcReader.ts:2481`); een nieuwe resource in de app heeft `generateId('res')`. Na opslaan en openen
+     krijgt elke `OPS_Resource` bij het volgende opslaan dus een nieuwe GlobalId, net als haar relatie. Taken hebben dit
+     niet: hun id staat in het bestand. Gemeten op `03-kantoorgebouw-zuidas.ifc` met verse ids: 36 van de 426 GlobalIds van
+     hulpstukken zijn nieuw, alle 36 van `OPS_Resource` (18 psets, 18 relaties); de ronde daarna is stabiel. Met de flag
+     weigerde de leesverliestoets van fase 1b zo'n bestand daarom zodra er een model bij kwam: 204 van de 775 meldingen
+     `niet-gedragen` in de telling van fixronde 2 (9 van de 26 eigen bestanden). In oudere bestanden veranderen ook de
+     GlobalIds van andere hulpstukken (`OPS_ProjectSettings`, `OPS_Calendar`, `OPS_Assignments`, `OPS_TaskIdentity`,
+     relaties): samen 533 van de 775 meldingen, in 22 bestanden. Sinds fixronde 3 (besluit 1 van wrakko, 10 november 2026)
+     staat de toets een andere GlobalId van een eigen hulpstuk toe als het stuk P is en geen stuk van buiten ernaar wijst
+     (`ownAuxGuid` in `src/services/ifc/foreign/lossCheck.ts`); de writer zelf blijft ze vernieuwen, dus een ander
+     programma ziet na elk opslaan een nieuwe pset. Bij voorkeur in 1c (wrakko). Richting: de GlobalId afleiden van de
+     GlobalId van de resource, of de GlobalId van de pset bewaren (`preservedGuids`). Uit #867 (fase 1b, fixronde 2). — B
+
+1025. **De lezer maakt van de kalender een uurkalender als een eigen taak niet op de werkdag past.** Proef:
+     `tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc` plus een eigen taak van één dag van 07:00 tot 16:00
+     (sectie 2a van `check-ifc-foreign-preserve.ts` vóór fixronde 2 van #867). De lezer leest de projectkalender dan als
+     uurkalender met 9 uur per dag (`LiteralTimes`, `IsHourCalendar`); `HoursPerDay` 8 uit `OPS_Calendar` komt niet terug.
+     Met de flag weigert de merge dat nu (`niet-gedragen`). Niet nagegaan: of dit de bedoelde omzetting naar het
+     minutenmodel is, en wat de gewone writer zonder de flag schrijft. Uit #867 (fase 1b, fixronde 2). — S
+
+1028. **De lezer leest geen jaren, maanden of weken in een taakduur.** `parseDurationDays`
+     (`src/services/ifc/ifcReader.ts:1319`) zoekt alleen een getal voor `D`, en anders voor `H`. Proef op
+     `public/examples/showcase-appartementencomplex.ifc` met de duur van 'CPT soundings & soil investigation' (`#55`):
+     `P1W` geeft `scheduleDuration` 0, `P0Y1M0D` geeft 0, en `P1Y0M3D` geeft 3 (het jaar valt weg). De eigen writer
+     schrijft altijd `P0Y0M{n}D` of `PT…`, dus alleen bestanden van een ander programma. Met de flag weigert de merge een
+     eigen bestand met zo'n duur (`duur-deels-gelezen`, fixronde 4 van #867). Richting: een duur met jaren, maanden of
+     weken weigeren bij openen of omrekenen met de kalender (een maand heeft geen vast aantal werkdagen). Uit #867
+     (fase 1b, fixronde 4). — B
+
+1029. **De lezer leest een duur met een decimale komma verkeerd.** `parseDurationDays`
+     (`src/services/ifc/ifcReader.ts:1319`) en `isoDurationToMinutes` (`src/services/subdayIo.ts:111`) kennen alleen een
+     decimale punt, en hun patronen staan niet vast aan het begin van het getal: bij `P1,5D` pakken ze de `5` na de komma.
+     ISO 8601 staat de komma toe (en geeft haar zelfs de voorkeur). Proef op `public/examples/showcase-appartementencomplex.ifc`
+     met de duur van 'CPT soundings & soil investigation' (`#55`), ook op main (`24723581e`, en `9ee06bb71` na #871):
+     `P1,5D` geeft `scheduleDuration` 5 (bedoeld: 1,5), `P0Y0M1,5D` geeft 5, en `PT4,5H` geeft `durationMinutes` 300
+     (bedoeld: 270). De eigen writer schrijft een punt, dus alleen bestanden van een ander programma. Met de flag weigert de
+     merge zo'n duur (`duur-deels-gelezen`), tijdelijk tot de fix van deze knownbug in main staat (fixronde 5 van #867,
+     `check-ifc-foreign-strikt.ts`). Richting: de komma lezen als decimaalteken, in dezelfde functie als 1028. Uit #867
+     (fase 1b, fixronde 5). — B
+
+1030. **De lezer leest een duur buiten de vorm die hij kent zonder melding anders.** Dezelfde twee functies als 1029
+     (`parseDurationDays` in `src/services/ifc/ifcReader.ts`, `isoDurationToMinutes` in `src/services/subdayIo.ts:111`)
+     zoeken een getal voor `D` of `H` ergens in de tekst, zonder de vorm te toetsen. Ook op main: ja, proef op `9ee06bb71`
+     met `public/examples/showcase-appartementencomplex.ifc` en de duur van 'CPT soundings & soil investigation' (`#55`):
+     `p3d` en `P3d` geven 0 dagen (de kleine letter valt weg), `P1E1D` geeft 10 dagen (een exponent kent ISO 8601 niet),
+     `PT1H1H` geeft 60 minuten (het tweede uur valt weg), `PT30M12H` geeft 750 minuten (de volgorde is ongeldig), en `P`,
+     `PT` en een lege tekst geven 0. Een ander programma weigert zo'n waarde, of leest haar anders. Alleen bestanden van een
+     ander programma. Met de flag weigert de merge zo'n duur (`duur-deels-gelezen`; fixronde 5 van #867,
+     `check-ifc-foreign-strikt.ts`). Richting: bij openen de vorm toetsen en een ongeldige duur melden in plaats van stil een
+     getal te nemen. Uit #867 (fase 1b, fixronde 5; gesplitst in fixronde 5b). — B
+
+1031. **De lezer leest een datum-tijd of tijd met tijdzone of seconden zonder melding anders.** `parseImportedInstant`
+     (`src/services/importDates.ts:29`) laat een tijdzone en seconden weg, en `clockToMinutes`
+     (`src/services/subdayIo.ts:65`) leest alleen uren en minuten aan het begin van de tekst. Ook op main: ja, voor de
+     datum-tijd met een proef op `9ee06bb71` (de showcase, `ScheduleStart` van `#55`): `2027-03-01T07:00:00Z` en
+     `2027-03-01T07:00:00+02:00` geven `2027-03-01T07:00`, terwijl een ander programma `Z` als UTC leest, een of twee uur
+     anders; `2027-03-01T07:00:30` geeft `07:00` (de seconden vallen weg); `2027-03-01 07:00:00` (een spatie in plaats van
+     `T`) geeft 00:00; en de korte vorm `20270301T070000` en een uur van één cijfer (`2027-03-01T7:00:00`) laten het openen
+     stoppen met `Invalid time value` in plaats van een melding. Voor een tijd in een tijdblok (`IfcTimePeriod`) niet met een
+     proef: in de showcase las de lezer de werktijd 7–16, wat er ook in het tijdblok stond (ook met een urentaak).
+     `clockToMinutes` is op main gelijk aan deze branch (code gelezen). Alleen bestanden van een ander programma, op de
+     uurbreuk na (hieronder). Met de flag weigert de merge zo'n waarde
+     (`tijd-deels-gelezen`; fixronde 5 van #867, `check-ifc-foreign-strikt.ts`). Richting: bij openen de vorm toetsen en
+     een ongeldige waarde melden; voor een tijdzone kiezen of de lezer haar omrekent of meldt. Een werktijd als uurbreuk
+     (`'7.5:00:00'`) schreef OPS wel zelf, tot `32b6222de` (v2026.2.0 tot en met v2026.9.0). `clockToMinutes` leest die
+     niet; `scalarHourFromClock` wel, als enige periode van het enige patroon. Daar laat de merge hem sinds fixronde 7 van
+     #867 staan (`OLD_FRACTIONAL_CLOCK`); in een tweede periode weigert ze nog. Uit #867 (fase 1b, fixronde
+     5; gesplitst uit 1030 in fixronde 5b, besluit van Trias van 10 november 2026). — B
+
+1032. **VERVOLG: de merge weigert te vaak als de planner één feestdag of toewijzing wist.** Wist de planner één lid van
+     een lijst (een feestdag van de kalender, een toewijzing van een taak), dan weigert de merge met `niet-eenduidig` als een
+     ander lid van die lijst een waarde van een ander programma heeft, ook als die waarde veilig kon blijven staan.
+     `unstableLists` in `src/services/ifc/foreign/lossCheck.ts` maakt dan elk gekoppeld lid onzeker: naam plus datum of
+     positie is geen identiteit (fixronde 5 van #867, BLOKKEERT 3). Proef in `tests/planning/check-ifc-foreign-strikt.ts`
+     op `tests/fixtures/ifc-foreign/eigen-plus-model.ifc`: met `'BEWAAR-21'` op Good Friday 2027 weigert "alleen Good
+     Friday 2028 gewist"; met `'BEWAAR-DIT'` op toewijzing `#109` weigert "alleen #110 gewist". Dat is te streng, maar
+     veilig ("bij twijfel weigeren"), en in het corpus geeft het geen extra weigering (telling van fixronde 5). Besluit van
+     Trias (10 november 2026): zo laten. Richting: fase 2: koppelen op een echte identiteit. Uit #867 (fase 1b,
+     fixronde 5b). — B
+
+1033. **De lezer leest een speling met een tijddeel, en een lag in werktijd met dagen vóór `T`, anders.** Een speling
+     (`FreeFloat`, `TotalFloat` van een `IfcTaskTime`) leest `parseDurationDays` (`src/services/ifc/ifcReader.ts`) alleen in
+     hele dagen: met dagen alleen de dagen, zonder dagen de uren naar boven afgerond op hele dagen, en minuten niet. Een lag
+     in werktijd met dagen vóór `T` telt `isoDurationLeadingDaysMinutes` (`ifcReader.ts`) als 24 uur werktijd per dag,
+     terwijl `P1D` één werkdag is. #871 loste dit niet op: dat ging over de taakduur en de restduur. Ook op main: ja, proef
+     op `9ee06bb71` met de showcase (een kalender van 8 uur per dag): de speling `P2DT12H` geeft 2 dagen, `PT28H` geeft 4 en
+     `PT90M` geeft 0, waar `P0Y0M3.5D` 3,5 geeft; de lag `#631` in werktijd geeft voor `P1D` 1 werkdag, maar voor `P1DT0H`
+     1440 minuten werktijd (drie werkdagen) en voor `P1DT2H` 1560 minuten. De eigen writer schrijft een speling in hele
+     dagen en een lag zonder dagen vóór `T`, dus alleen bestanden van een ander programma. Met de flag weigert de merge
+     zo'n speling en zo'n lag (`duur-deels-gelezen`; fixronde 5b van #867, `check-ifc-foreign-strikt.ts`). In kalendertijd
+     is een dag 24 uur; daar leest de lezer de lag goed, en de merge schrijft. Richting: een speling lezen zoals de taakduur
+     (minuten, met de minuten per dag van de taak), en in werktijd de dagen vóór `T` tellen als werkdagen. Uit #867 (fase
+     1b, fixronde 5b). — B
+     VERVOLG (fixronde 6 van #867): de lijst van duurvormen die de merge laat staan
+     (`src/services/ifc/foreign/durationForms.ts`) laat in een speling alleen dagen toe. Ook `PT8H` op een kalender van 8 uur
+     per dag weigert dus, terwijl de lezer dat exact als 1 dag leest: de lijst kent de kalender niet. Zeldzaam (de eigen
+     writer schrijft een speling altijd in dagen) en veilig. Komt mee met de fix van de speling hierboven.
+
+1034. **De lezer leest een minteken in het tijddeel van een duur als plus.** `isoDurationToMinutes`
+     (`src/services/subdayIo.ts:111`) leest uren, minuten en seconden elk met een eigen teken, telt ze op en neemt daarvan de
+     absolute waarde; het teken komt alleen van een `-` vóór de `P`. ISO 8601 kent geen teken binnen een duur. Ook op main:
+     ja, proef op `4a8f76d9f` met `public/examples/showcase-appartementencomplex.ifc`: de taakduur van 'CPT soundings & soil
+     investigation' (`#55`) en de lag `#631` in werktijd geven voor `PT-2H` allebei +120 minuten, net als voor `PT2H`
+     (`-PT2H` geeft -120). Een ander programma weigert `PT-2H` of leest -2 uur. Alleen bestanden van een ander programma: de
+     eigen writer zet het teken vóór de `P` (`minutesToIsoDuration`). Met de flag weigert de merge zo'n duur
+     (`duur-deels-gelezen`; fixronde 6 van #867, `check-ifc-foreign-strikt.ts` en `check-ifc-duurvormen.ts`), ook als de
+     planner de waarde op 120 minuten zet. Richting: bij openen de vorm toetsen en een teken binnen de duur melden. Uit #867
+     (fase 1b, fixronde 6). — B
+
+1035. **De lezer rondt een tijddeel af op hele minuten.** `isoDurationToMinutes` (`src/services/subdayIo.ts:111`) rekent
+     seconden en uren met een breuk om naar minuten en rondt af (`Math.round`). Ook op main: ja, proef op `4a8f76d9f` met
+     de showcase (taakduur `#55` en lag `#631`): `PT90S` geeft 2 minuten (1,5), `PT30S` geeft 1 (een halve minuut) en
+     `PT0.01H` geeft 1 (0,6 minuut). Een ander programma leest de seconden. Alleen bestanden van een ander programma: de
+     eigen writer schrijft hele minuten (`PT{h}H{m}M0S`). Met de flag weigert de merge een tijddeel dat niet op een hele
+     minuut valt (`duur-deels-gelezen`; fixronde 6 van #867), ook als de planner de waarde op 2 minuten zet; `PT120S` en
+     `PT0.25H` schrijven. Richting: seconden bewaren (het minutenmodel kent geen seconden), of bij openen melden dat de
+     duur is afgerond. Uit #867 (fase 1b, fixronde 6). — B
+
+1101. **VERVOLG: een lege notitielijst `'[]'` in `OPS_TaskNotes` laat de merge weigeren.** De writer schrijft geen
+     `OPS_TaskNotes` bij een lege lijst. Een stuk zonder tegenhanger is geen slot, dus (b) zet het niet terug:
+     `niet-gedragen` ("ontbreekt in de uitvoer"). OPS schreef `'[]'` in geen enkele versie (sinds `1eb58ab9d`: "Afwezig/leeg
+     ⇒ niets geschreven"); alleen de proeven `tests/fixtures/ifc-foreign/council/r7sol-vreemd-lid-bij-notitie.ifc` en
+     `…-bij-toewijzing.ifc` hebben hem, met de hand gemaakt in review ronde 7 van #867. Gesplitst uit 1024 (de resources
+     met 9 argumenten uit die knownbug zijn opgelost in #867, fixronde 7). Richting: een lege lijst lezen als "geen
+     notities" en de pset dan als bronstuk laten staan, of de lege lijst schrijven. Uit #867 (fase 1b, fixronde 7). — B
+
+1102. **VERVOLG: wijzigt de planner een gebroken dag in een oud eigen bestand met een model, dan weigert de merge.** In een
+     eigen bestand van vóór het minutenmodel (OPS tot en met v2026.43.0) met een model erbij, zet de planner de duur van een
+     taak van een halve dag op 1,5 dag. De writer schrijft die breuk als `PT…` met een record in `DayMeasureDurations`, en
+     dan wordt de kalender letterlijk (`LiteralTimes`). De oude datums van de andere taken (het einde als `…T07:00:00` van
+     de dag erna) lezen dan anders, en de merge weigert (`niet-gedragen`). Proef: `check-ifc-foreign-oude-eigen.ts`,
+     BLOKKEERT 1, "de duur zelf op 1,5 dag"; met 2 dagen schrijft hij wel. Zonder die wijziging blijft de duur in de vorm van
+     de bron (fixronde 7 van #867). Weigeren mag hier volgens het besluit van Trias, want de planner wijzigde het veld
+     zelf. Eerst als 1100 genoteerd; dat nummer gebruikte #881 al. Richting (1c): bij een eigen bestand de hele planning
+     in de vorm van de writer schrijven, of de kalender niet letterlijk maken en de breuk in de oude vorm schrijven. Hoort
+     bij de vervolg-PR van knownbug 1105. Uit #867 (fase 1b, fixronde 7). — B
+
+1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
+     van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
+     grammatica, dus de route met de bronbytes leest het niet, en de oude route weigert het model (knownbug 110,
+     `building-model`). Zonder model opent het en slaat het op zoals op main. Proef: de telling
+     (`check-ifc-foreign-merge-telling.ts`, `REFUSED_AT_OPEN`) met
+     `tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc` plus een wand. Een
+     programma dat een model toevoegt, schrijft meestal een eigen kop; dan speelt dit niet. Besluit van Trias (wrakko, 10
+     november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
+     met main). — B
+
+1104. **BLOKKEERT voor 1c: een taak wissen in een eigen bestand van v2026.7.4 tot v2026.7.14 met een baseline en een model, laat de
+     merge weigeren.** Die versies schreven de taken in `OPS_Baselines` met hun interne id, zonder `TaskGuids` (die kwam
+     in `69da76cd5`, v2026.7.14). De lezer zoekt de taak dan via de hash van dat id. De merge zet de bron-JSON terug ((b)),
+     want de planner wijzigde de baseline niet. Wist de planner een taak die in de baseline staat, dan vindt de lezer haar
+     niet meer, en houdt die regel van de baseline het oude interne id; zonder (b) houdt hij het id uit het domein. Na
+     herlezen verschilt alleen het id van die losse regel, maar de merge weigert dan (`niet-gedragen`, "zouden na
+     herlezen een andere planning geven (baselines)"). Proef: de telling, `oude-tags/v2026.7.12-data-…` plus een wand:
+     `taak-wissen` 20 van 20 geweigerd, de andere bewerkingen schrijven, en zonder bewerking schrijft hij; ook
+     `check-ifc-foreign-oude-eigen.ts`. Bestanden met `TaskGuids` (v2026.7.14 en later)
+     wissen wel (`eigen-plus-model.ifc`, 20 van 20). Richting: in de herleestoets een regel van een baseline zonder taak
+     vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Besluit
+     van Trias (wrakko, 10 november 2026): in 1b mag de merge hier weigeren, want de merge-writer is nog niet aangesloten;
+     het is een harde eis voor 1c: 1c gaat niet naar main zolang een eigen bestand van v2026.7.4 tot v2026.7.14 met een
+     baseline en een model weigert bij het wissen van een baselinetaak. Hoort bij de vervolg-PR van knownbug 1105. Uit
+     #867 (fase 1b, fixronde 7, na de merge met main). — B
+
+1105. **BLOKKEERT vóór 1c: de merge-writer weigert oude eigen bestanden zonder bewerking als de app ze opent.** De
+     merge-checks openen met `openForeign` (`tests/planning/ifcMergeKern.ts:35`): de lezer direct. De app opent via de
+     store, waar bij elk openen de omzetting naar het minutenmodel draait (`src/state/documentContract.ts:554`); in 1c
+     krijgt de merge die toestand. Bij een oud eigen bestand worden de datums dan tijdstippen, en de writer maakt de
+     kalender letterlijk (`src/services/ifc/minuteModelWrite.ts:87`). De verliesbewaking vergelijkt met de ruwe lezing
+     van de bron (`src/services/ifc/foreign/mergeWriter.ts:634`) en weigert (`niet-gedragen`, `niet-eenduidig`). Gemeten
+     met een wand erbij, zonder bewerking: via de route van de app weigeren `oude-tags/v2026.43.0-10-villa-wassenaar.ifc`,
+     `v2026.43.0-halve-dag`, `v2026.7.7-urentaak`, `h7-tijden-oude-writer.ifc` en `ifc-arity-oude-writer.ifc`, die via
+     de testroute schrijven (12 tegenover 18 bestanden). De 32 huidige voorbeelden schrijven via beide routes, en met de
+     flag uit slaat main ze gewoon op. Geen verlies: de merge weigert te veel. Besluit van Trias (wrakko, 10 november
+     2026), letterlijk: "Optie 2 [...]. Voorwaarden:
+     - #867 krijgt nu in fixronde 8 alleen het dubbele #id (1100, hoogste #id uit de hele tekst) en de kleine punten.
+       Daarna een kleine ronde 8.
+     - De nieuwe PR "de merge via de route van de app" start direct na de merge van #867, vanaf main, en moet in main
+       staan vóór 1c begint. Zet dat als harde eis in knownbugs.md en in de PR-tekst van #867.
+     - In die PR openen alle merge- en verliestoetsen via de route van de app (openOpenedFile met de flag). Draai de hele
+       telling en alle verliestoetsen daar opnieuw. Vindt dat ergens echt verlies in plaats van te veel weigeren, dan is
+       dat een BLOKKEERT in die PR [...].
+     - Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
+       pariteitstest op de huidige main met de oude-tags."
+     Harde eis: deze PR start direct na de merge van #867, vanaf main, en moet in main staan vóór 1c begint. Uit #867
+     (review ronde 7, Claude Opus 5.5, BEVESTIGD). — B
+
+1106. **BLOKKEERT vóór 1c: een verstopt stuk vóór een eigen stuk gaat bij de merge verloren.** De scanner hangt
+     commentaar vóór een entiteit aan het volgende stuk (`src/services/ifc/foreign/stepScanner.ts`, kop). Staat
+     `/* a *⏎/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',…); /* b */` vlak vóór een eigen stuk (P), dan leest de scanner
+     dat als commentaar van dat stuk. De merge laat elk P-stuk met zijn commentaar weg en schrijft het eigen stuk
+     opnieuw (`src/services/ifc/foreign/mergeWriter.ts`, `assemble`): `VerstoptX` staat niet in de uitvoer. Volgens de
+     norm (stuurtekens vallen overal weg) was het een entiteit. Gemeten in de review van #867, ronde 8, op
+     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met het stuk vóór `#47=IFCTASK`: het bestand opent met de flag, de
+     merge schrijft, en `#402` is daarna een nieuwe `IFCPERSON` van de writer. Geen dubbel `#id`, wel verlies. Een
+     verstopte wand op die plek weigert bij openen (#881); het treft dus alleen stukken die geen modeltype zijn. Bij een
+     eigen bestand zonder model laat de gewone writer zo'n stuk ook vallen (knownbug 1050), maar een bestand met een
+     model weigert zonder flag bij openen: daar verliest main niets. Zodra de merge-writer een aanroeper krijgt, is dit
+     verlies met de flag aan; volgens het besluit van Ethan (via Trias, 10 november 2026) is dat een BLOKKEERT. In #867
+     nog niet: de merge heeft geen aanroeper, en opslaan blijft geweigerd (`src/state/ifcForeignGuard.ts`). VERMOED
+     (midden, niet gedraaid): wijst een V-stuk naar zo'n verstopt stuk, dan wijst die verwijzing na de merge naar niets.
+     Richting: de merge weigert als de tekst van een P-stuk buiten zijn tokens een `#` met cijfers bevat
+     (`highestHashNumber` over het commentaar ervóór). Hoort bij de vervolg-PR van knownbug 1105. Uit #867 (review ronde
+     8, Claude Opus 5.5, BEVESTIGD). — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
@@ -1841,10 +2083,11 @@ en noem het in je rapport of PR-tekst.
      van #881: `eigen-plus-model.ifc` met de wand vóór `#324` (V) weigert zonder flag en opent met de flag (20 taken, vreemd
      deel); `fix3-twee-data.ifc` met de wand na het tweede `DATA;` opent met de flag (57 taken). Geen dataverlies in fase
      1a: de wand zit in de V-bytes, die de bron letterlijk bewaart, en met een vreemd deel is elke write geblokkeerd.
-     VERMOED (midden): fase 1b/1c moet weten dat V-bytes entiteiten kunnen bevatten die de scanner niet ziet; hun `#id`
-     staat niet in `chunkIds`, dus een nieuw `#id` van de writer kan ermee botsen. Richting: een test die dit gedrag
-     vastlegt (opent, bron met vreemd deel, wand in de bytes), en in 1b/1c de hoogste `#id` uit de volledige grammatica
-     nemen. Uit #881 (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
+     Het botsende `#id` (een nieuw `#id` van de merge-writer gelijk aan dat van zo'n verstopte entiteit) is opgelost in
+     #867 (fixronde 8): het eerste nieuwe id begint boven het hoogste `#<cijfers>` in elk stuk dat de merge letterlijk
+     overneemt, ook in commentaar en strings (`highestHashNumber` in `src/services/ifc/foreign/mergeWriter.ts`; test
+     `check-ifc-foreign-strikt.ts`, "geen dubbel `#id`"). Wat blijft: met de flag opent zo'n bestand nog. Uit #881
+     (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
 1052. **VERVOLG: een bestand van een ander programma dat zich uitgeeft als OPS, valt onder de regel van main.** De
      doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) herkent een eigen bestand aan de vaste kop van OPS en

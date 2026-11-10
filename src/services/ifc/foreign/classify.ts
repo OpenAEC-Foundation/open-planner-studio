@@ -18,7 +18,7 @@
  * P-stuk, V = de rest.
  */
 import type { StepIndex } from './stepScanner';
-import { OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, PER_TASK_PSETS, PSET } from '../ifcPsets';
+import { OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, PER_TASK_PSETS, PSET, isXerArchiveChunkName } from '../ifcPsets';
 import { IFC_TO_RESOURCE_TYPE } from '../ifcConstants';
 import { workControlSlots } from '../ifcWorkControlSlots';
 import { ifcDateTime, WRITER_ENTITY_TYPES } from '../ifcWriter';
@@ -79,7 +79,7 @@ export function isOwnAssignmentKey(name: string): boolean {
 
 /** De chunksleutels van het XER-bronarchief (`ByteChunk000000`, `DiagnosticsChunk000000`). */
 function isXerArchiveChunkKey(name: string): boolean {
-  return /^(ByteChunk|DiagnosticsChunk)\d{6}$/.test(name);
+  return isXerArchiveChunkName(name);
 }
 
 /** Het register: per eigen pset de vaste property-namen (descriptors plus `OWN_PSET_PROPERTY_NAMES`). */
@@ -106,7 +106,8 @@ function targetsAt(index: StepIndex, i: number, arg: number): number[] {
 }
 
 /** Eigen herkomst (§4.5): de owner history (argument 1) wijst met `OwningApplication` naar de applicatie `'OPS'`. */
-function hasOwnOrigin(index: StepIndex, i: number): boolean {
+/** Wijst de owner history van stuk `i` naar de applicatie `'OPS'`? (Ook voor `mergeWriter.ts`.) */
+export function hasOwnOrigin(index: StepIndex, i: number): boolean {
   const oh = index.refAt(i, 1);
   if (oh < 0 || index.type(oh) !== 'IFCOWNERHISTORY') return false;
   const app = index.refAt(oh, 1);
@@ -438,6 +439,20 @@ export function classify(index: StepIndex, selection: PlanningSelection = select
       pushAll(extStarts, index.refsAt(i, 7));
     } else if (inR[i] && index.type(i) === 'IFCRELASSIGNSTOPROCESS') {
       pushAll(extStarts, index.refsAt(i, 7));
+    }
+  }
+  // Het project dat de writer niet samen met de planning schreef (§4.4; fixronde 1 van #867, BLOKKEERT 2). De writer
+  // schrijft één owner history en hangt die aan alles wat hij schrijft, ook aan het project en het werkplan. Is het
+  // `IfcProject` van de bron niet P, dan schrijft de merge-writer geen eigen project: het project houdt de owner history
+  // van de bron, het werkplan krijgt de nieuwe. Een project met een andere owner history dan het D-werkplan is dus context
+  // (C), met wat het bereikt (eenheden, context, owner history). Anders werd een oud los project (v2026.7.2) na het eerste
+  // opslaan P, en schreef de writer bij het tweede opslaan een eigen project, zonder wat de bron daar had (een extra
+  // eenheid, millimeter). Een eigen bestand heeft altijd één owner history voor project en werkplan, dus daar blijft het
+  // project P.
+  const planOwner = workPlan >= 0 ? index.refAt(workPlan, 1) : -1;
+  if (planOwner >= 0) {
+    for (let i = 0; i < n; i++) {
+      if (index.isEntity(i) && index.type(i) === 'IFCPROJECT' && index.refAt(i, 1) !== planOwner) extStarts.push(i);
     }
   }
   const inExt = new Uint8Array(n);

@@ -546,6 +546,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804 fase 1b: hoe vaak de merge-writer weigert (bijsturing 1, punt 2): ruim 1200 merges met herlezen, ongeveer een
+  # minuut. Een meting, geen tijdzonetest: één keer, buiten de matrix, met dezelfde vaste tijdzone als de pariteitscheck.
+  IFCFOREIGNTELLING="$DIR/.ifc-foreign-merge-telling.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-merge-telling.ts" "$IFCFOREIGNTELLING"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNTELLING" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

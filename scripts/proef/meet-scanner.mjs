@@ -17,6 +17,16 @@
 // In Node als stroom in stukken van 1 MiB (zoals de Tauri-route met plugin-fs `read`) en als `Blob`-stroom van
 // `fs.openAsBlob` (zoals de `File` van een FSA-handle); in de browser als `Blob` van `fetch`.
 //
+// #804 fase 1b: ook de merge-writer (`mergeWriter.ts`, `merge` in de uitvoer): openen via de bytes-route zoals de app met
+// de flag, en `writeIfcMerge` zonder wijziging. Tijd, piekgeheugen, uitkomst (geschreven of `merge-needs-phase2`) en de
+// grootte van de uitvoer. Boven `IFC_BYTES_ROUTE_MAX_BYTES` (300 MiB) valt de route terug zonder bron; de meting van
+// 300 MB gebruikt daarom een bestand net onder die grens (`mergeSize` in de uitvoer).
+//
+// #804 fase 1b, fixronde 2: de merge toetst nu of de lezer elk veld van de bron draagt (de leesverliestoets). Het
+// voorbeeld is met een oudere writer gemaakt en weigert daarom al zonder bewerking (`niet-gedragen`). Het script zet het
+// voorbeeld daarom eerst zoals de huidige writer het schrijft (`settle` uit tests/planning/ifcMergeKern.ts), en bouwt
+// alle bestanden op dat gezette voorbeeld.
+//
 // Lokaal alleen tot en met 50 MB (AGENTS.md, server load). Groter alleen in CI (`CI=true`), via de handmatige job in
 // .github/workflows/ifc-foreign.yml.
 //
@@ -31,7 +41,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const ESBUILD = join(ROOT, 'node_modules/.bin/esbuild');
-const BASE = join(ROOT, 'public/examples/showcase-appartementencomplex.ifc');
+const EXAMPLE = join(ROOT, 'public/examples/showcase-appartementencomplex.ifc');
 
 const opts = Object.fromEntries(process.argv.slice(2).map(a => {
   const m = /^--([^=]+)(?:=(.*))?$/.exec(a);
@@ -122,6 +132,49 @@ console.log(JSON.stringify({ result, bytesRead, seeks, streamMs, blobResult, blo
   maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 `);
 execFileSync(ESBUILD, [join(work, 'target-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-target.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+writeFileSync(join(work, 'merge-entry.ts'), `
+import { readFileSync } from 'node:fs';
+import { readIfcBytesDetailed, IFC_BYTES_ROUTE_MAX_BYTES } from '@/services/ifc/foreign/ifcBytesRoute';
+import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+const file = process.argv[2];
+const t = () => performance.now();
+const mb = (n: number) => Math.round(n / 1048576);
+const bytes = new Uint8Array(readFileSync(file));
+let t0 = t();
+const opened = await readIfcBytesDetailed(bytes, {}, { createWorker: () => null });
+const openMs = t() - t0;
+const afterOpen = process.memoryUsage();
+const source = opened.result.ifcSource;
+const base = { bytes: bytes.length, cap: IFC_BYTES_ROUTE_MAX_BYTES, openMs, heapAfterOpenMB: mb(afterOpen.heapUsed),
+  arrayBuffersAfterOpenMB: mb(afterOpen.arrayBuffers) };
+if (!source) {
+  console.log(JSON.stringify({ ...base, outcome: 'geen bron (terugval van de bytes-route)', maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
+} else {
+  let outcome = 'geschreven';
+  let parts: Uint8Array[] = [];
+  t0 = t();
+  try { parts = await writeIfcMerge(opened.result, source); } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    outcome = 'merge-needs-phase2: ' + [...new Set(e.cases.map(c => c.kind))].join(', ');
+  }
+  const mergeMs = t() - t0;
+  const afterMerge = process.memoryUsage();
+  const outBytes = parts.reduce((a, p) => a + p.length, 0);
+  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, parts: parts.length, outBytes,
+    largestPartMB: mb(Math.max(0, ...parts.map(p => p.length))),
+    heapAfterMergeMB: mb(afterMerge.heapUsed), arrayBuffersAfterMergeMB: mb(afterMerge.arrayBuffers),
+    maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
+}
+`);
+execFileSync(ESBUILD, [join(work, 'merge-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-merge.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+// Het voorbeeld zoals de huidige writer het schrijft (fixronde 2): de basis van alle synthetische bestanden.
+writeFileSync(join(work, 'settle-entry.ts'), `
+import { readFileSync, writeFileSync } from 'node:fs';
+import { settle } from ${JSON.stringify(join(ROOT, 'tests/planning/ifcMergeKern.ts'))};
+const [from, to] = process.argv.slice(2);
+writeFileSync(to, await settle(new Uint8Array(readFileSync(from))));
+`);
+execFileSync(ESBUILD, [join(work, 'settle-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'settle.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
 if (browsers.length > 0) {
   writeFileSync(join(work, 'browser-entry.ts'), `
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
@@ -168,9 +221,8 @@ function guid(n) {
 }
 // `variant`: 'model' (het model direct na de planning), 'none' (geen IfcProduct: de wanden worden eigenschappen) of
 // 'end' (als 'none', met één wand vlak voor het einde).
-function makeFile(targetMb, path, variant = 'model') {
+function makeFile(targetMb, path, variant = 'model', base = BASE_TEXT) {
   const model = variant === 'model';
-  const base = readFileSync(BASE, 'utf8');
   const end = base.lastIndexOf('ENDSEC;');
   const ids = [...base.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1]));
   let next = Math.max(...ids) + 1;
@@ -229,6 +281,31 @@ function makeFile(targetMb, path, variant = 'model') {
   return wall;
 }
 
+// ── Het voorbeeld zoals de huidige writer het schrijft (fixronde 2) ────────────────────────────────────────────────
+// `settle` heeft een vreemd deel nodig: het zet het voorbeeld met een terrein, een gebouw en een verdieping erbij, en
+// laat die drie (met hun relaties, alle `#id`s boven die van het voorbeeld) daarna weer weg.
+const exampleText = readFileSync(EXAMPLE, 'utf8');
+const maxExampleId = Math.max(...[...exampleText.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1])));
+const probe = join(work, 'voorbeeld-met-model.ifc');
+makeFile(0, probe, 'model', exampleText);
+execFileSync(process.execPath, [join(work, 'settle.mjs'), probe, probe], { stdio: 'inherit' });
+const BASE_TEXT = readFileSync(probe, 'utf8').split('\n')
+  .filter(line => { const m = /^#(\d+)=/.exec(line); return !m || Number(m[1]) <= maxExampleId; }).join('\n');
+rmSync(probe, { force: true });
+
+// De weg van de weigering (fixronde 6 van #867): het gezette voorbeeld met een model, en de eerste taakduur met een
+// decimale komma (`P1,5D`, die de lezer als 5 dagen leest, knownbug 1029). De merge moet dan getypeerd weigeren
+// (`merge-needs-phase2`) in plaats van te stoppen met een andere fout. Eén klein bestand, voor elke grootte gelijk.
+const refusalFile = join(work, 'voorbeeld-met-komma.ifc');
+const commaText = BASE_TEXT.replace(/^(#\d+=IFCTASKTIME\(.*?,\.(?:WORK|ELAPSED)TIME\.,)'P0Y0M\d+D'/m, "$1'P1,5D'");
+if (commaText === BASE_TEXT) throw new Error('geen taakduur P0Y0M…D in het voorbeeld');
+makeFile(0, refusalFile, 'model', commaText);
+const refusalRun = spawnSync(process.execPath, [join(work, 'meet-merge.mjs'), refusalFile], { encoding: 'utf8', maxBuffer: 1 << 24 });
+const mergeRefusal = refusalRun.status === 0 ? JSON.parse(refusalRun.stdout.trim().split('\n').pop())
+  : { error: (refusalRun.stderr || '').trim().split('\n').slice(-3).join(' ') };
+rmSync(refusalFile, { force: true });
+console.log(JSON.stringify({ mergeRefusal }));
+
 // ── Meten ────────────────────────────────────────────────────────────────────────────────────────────────────────
 const results = [];
 for (const mb of sizes) {
@@ -244,6 +321,15 @@ for (const mb of sizes) {
   }
   const row = results[results.length - 1];
   for (const browser of browsers) row[browser] = await measureBrowser(browser, file);
+  // De merge-writer (fase 1b), in een eigen Node-proces. Net onder de grens van de bytes-route als het bestand erboven zit.
+  const capMb = 300;
+  const mergeFile = size > capMb * 1048576 ? join(work, `synthetisch-${mb}mb-merge.ifc`) : file;
+  if (mergeFile !== file) makeFile(capMb - 0.5, mergeFile);
+  const m = spawnSync(process.execPath, ['--max-old-space-size=8192', join(work, 'meet-merge.mjs'), mergeFile], { encoding: 'utf8', maxBuffer: 1 << 24 });
+  row.merge = m.status === 0 ? JSON.parse(m.stdout.trim().split('\n').pop())
+    : { error: (m.stderr || '').trim().split('\n').slice(-3).join(' ') };
+  row.merge.mergeSize = statSync(mergeFile).size;
+  if (mergeFile !== file) rmSync(mergeFile, { force: true });
   // De doelcontrole (fixronde 2) op drie varianten van dezelfde grootte.
   row.target = {};
   for (const variant of ['model', 'none', 'end']) {
@@ -299,12 +385,18 @@ async function measureBrowser(name, file, fn = '__meet') {
   }
 }
 
-if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', node: process.version, results }, null, 2)}\n`);
+if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', settled: true, node: process.version, mergeRefusal, results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
 
 // Het resultaatbestand komt er altijd, ook met fouten erin. Maar mislukte een gevraagde meting (Node of een browser),
 // dan eindigt het script met een foutcode, zodat de job in CI rood wordt (review van #863, Sol en Terra).
-const failed = results.flatMap(row => [
+const failed = [
+  // De weigering moet getypeerd zijn (zie boven).
+  ...(String(mergeRefusal.outcome ?? '').startsWith('merge-needs-phase2') ? [] : [`weigering: ${mergeRefusal.error ?? mergeRefusal.outcome ?? 'geen resultaat'}`]),
+  ...results.flatMap(row => [
+  // De merge-writer moet het eigen-plus-model-bestand schrijven (een eigen planning, geen vreemde herkomst).
+  ...(row.merge?.error !== undefined ? [`${row.mb} MB merge: ${row.merge.error}`]
+    : row.merge?.outcome !== 'geschreven' ? [`${row.mb} MB merge: ${row.merge?.outcome ?? 'geen resultaat'}`] : []),
   ...['node', ...browsers]
     .filter(env => !row[env] || row[env].error !== undefined)
     .map(env => `${row.mb} MB ${env}: ${row[env]?.error ?? 'geen resultaat'}`),
@@ -316,7 +408,8 @@ const failed = results.flatMap(row => [
     const results = env === 'node' ? [got.result, got.blobResult] : [got.result];
     return results.every(r => r === want) ? [] : [`${row.mb} MB doel ${variant} ${env}: ${results.join('/')} ≠ ${want}`];
   })),
-]);
+  ]),
+];
 if (failed.length > 0) {
   console.error(`Mislukte metingen:\n  ${failed.join('\n  ')}`);
   process.exitCode = 1;

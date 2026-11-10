@@ -167,11 +167,16 @@ check-ifc-crlf.ts matrix
 check-ifc-dagenmaat.ts matrix
 check-ifc-dagkalender-hele-dag.ts matrix
 check-ifc-datumvorm.ts matrix
+check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-merge-telling.ts los
 check-ifc-foreign-open.ts matrix
+check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los
+check-ifc-foreign-preserve.ts matrix
+check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-legacy-arity.ts matrix
@@ -181,6 +186,7 @@ check-ifc-nesting-index.ts matrix
 check-ifc-projectdatum-corpus.ts los
 check-ifc-projectdatum-tijd.ts matrix
 check-ifc-property-relations.ts matrix
+check-ifc-pset-register.ts matrix
 check-ifc-real-values.ts matrix
 check-ifc-roundtrip.ts matrix
 check-ifc-schema-question.ts matrix
