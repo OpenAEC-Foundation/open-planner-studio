@@ -29,7 +29,7 @@
  *    haar pset en haar gepaarde eigenaren.
  * Het paren zegt niets over gelijkheid: daarna vergelijkt de toets elk paar volledig.
  *
- * Wat zonder melding mag, en alleen dit (elk met een eigen test in `check-ifc-foreign-preserve.ts`, deel 5e):
+ * Wat zonder melding mag, en alleen dit (elk met een eigen test in `check-ifc-foreign-preserve.ts`, deel 5f):
  *  Normalisaties: de waarde blijft gelijk, en een ander programma dat het bestand leest, krijgt dezelfde waarde.
  *   - `getal` (`sameNumber`): een getal in een andere notatie (`8`, `8.`, `8.0`, `8.E0`). Elke STEP-lezer leest
  *     hetzelfde getal; het type komt uit het schema of de getypeerde waarde (`IFCREAL(8)` en `IFCREAL(8.)`).
@@ -40,8 +40,12 @@
  *     naar de tegenhanger of de kopie, en die is zelf veld voor veld gelijk.
  *   - `duur` (`sameDuration`): een ISO 8601-duur met nul-onderdelen erbij of eraf (`PT12H` en `PT12H0M0S`), alleen in een
  *     duurslot of een `IFCDURATION`. Elk onderdeel is gelijk, dus de duur is gelijk; `P1D` en `PT24H` zijn niet gelijk.
- *   - `lay-out` (`alignment`): de argumenten van een oudere OPS-versie op hun plek in het schema (werkplan en werkschema
- *     met 14 argumenten, kalender met 9, taak met 12). Elke waarde blijft gelijk; alleen de positie volgt het schema.
+ *  Lay-out (`alignment`; geen normalisatie, want een ander programma merkt het): de argumenten van een oudere OPS-versie
+ *  op hun plek in het schema: werkplan en werkschema met 15 argumenten (of 14 met de einddatum op PredefinedType),
+ *  kalender met 8 (of 9 met de werkweek op Identification), taak met 12 (`ifcWorkControlSlots.ts`). Elke waarde die de
+ *  lezer las, blijft gelijk en staat daarna op haar plek in het schema. Een programma dat het oude bestand volgens het
+ *  schema las, las sommige waarden op een verkeerde plek; na opslaan leest het ze goed. De gewone writer doet hetzelfde
+ *  (#292). Een slot dat alleen de bron heeft, moet leeg zijn; een slot dat alleen de uitvoer heeft ook.
  *  Toevoeging: een eigen pset mag properties bijkrijgen die de bron niet had (`sameMembers`): nieuwe gegevens uit het
  *  domein, zoals de vier projectvelden in `OPS_ProjectSettings` (§4.4). Elke property van de bron blijft, in dezelfde
  *  volgorde, en is zelf veld voor veld gelijk.

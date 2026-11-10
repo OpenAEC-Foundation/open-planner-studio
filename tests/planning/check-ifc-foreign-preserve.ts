@@ -884,8 +884,8 @@ eq('normalisatie duur', [sameDuration('PT12H', 'PT12H0M0S'), sameDuration('P0Y0M
 }
 // lay-out: een oud werkplan met 15 argumenten (de bron van sectie 2) staat in de uitvoer met 14; elke waarde op haar
 // plek in het schema. Een IfcTask zonder WorkMethod (12 argumenten) idem.
-ok('normalisatie lay-out: het werkplan van de bron heeft 15 argumenten', (scanStep(enc.encode(baseText)).argTokens(scanStep(enc.encode(baseText)).chunkOf('53')) ?? []).length === 15);
-await roundTrip('normalisatie lay-out: een IfcTask met 12 argumenten', enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,.F.", "'2.1',$,$,.F."))));
+ok('lay-out (geen normalisatie): het werkplan van de bron heeft 15 argumenten', (scanStep(enc.encode(baseText)).argTokens(scanStep(enc.encode(baseText)).chunkOf('53')) ?? []).length === 15);
+await roundTrip('lay-out (geen normalisatie): een IfcTask met 12 argumenten', enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,.F.", "'2.1',$,$,.F."))));
 // Toevoeging: een eigen pset mag properties bijkrijgen (de vier projectvelden in eigen-plus-model, sectie 5c), maar de
 // properties van de bron blijven in dezelfde volgorde.
 await expectRefusal('toevoeging: een pset met de properties in een andere volgorde', enc.encode(replaceIn(r4,
