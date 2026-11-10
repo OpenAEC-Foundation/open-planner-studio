@@ -1730,7 +1730,8 @@ en noem het in je rapport of PR-tekst.
      bewaart alleen typed arrays en geen index. CI-meting run 42748742900 (`ubuntu-24.04`, Node 22), eigen planning plus
      model, zonder wijziging: 150 MB merge 3,6 s (piek 632 MB), 300 MB (299,5 MB) merge 6,7 s (piek 1168 MB); scanner en
      indeling samen kosten bij 300 MB 4,7 s (zelfde run, meting van de scanner). Na fixronde 2 (de leesverliestoets, O0):
-     run 42768996301, 150 MB merge 6,8 s (piek 953 MB), 300 MB merge 13,0 s (piek 1673 MB). Een profiel van één merge van
+     run 42768996301, 150 MB merge 6,8 s (piek 953 MB), 300 MB merge 13,0 s (piek 1673 MB). Na fixronde 3 (de bronwaarden
+     van (b)): run 42777814137, 150 MB merge 6,1 s (piek 909 MB), 300 MB merge 12,3 s (piek 1774 MB). Een profiel van één merge van
      50 MB (lokaal, 3,2 s) geeft 1,6 s aan `scanStep` en `classify`, en ongeveer 0,45 s aan O0 (`pristineDomain` 0,11 s,
      een tweede `buildLines` 0,24 s, de vergelijking 0,09 s). Richting: de index van het openen bewaren of de klassen uit
      `ifcSource` hergebruiken, en alleen de stukken parsen die de merge leest. **Eis voor 1c** (wrakko, 10 november
