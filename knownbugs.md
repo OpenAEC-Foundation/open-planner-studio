@@ -1760,22 +1760,24 @@ en noem het in je rapport of PR-tekst.
      krijgt elke `OPS_Resource` bij het volgende opslaan dus een nieuwe GlobalId, net als haar relatie. Taken hebben dit
      niet: hun id staat in het bestand. Gemeten op `03-kantoorgebouw-zuidas.ifc` met verse ids: 36 van de 426 GlobalIds van
      hulpstukken zijn nieuw, alle 36 van `OPS_Resource` (18 psets, 18 relaties); de ronde daarna is stabiel. Met de flag
-     weigert de leesverliestoets van fase 1b zo'n bestand daarom zodra er een model bij komt: 204 van de 775 meldingen
-     `niet-gedragen` in de telling (9 van de 26 eigen bestanden). In oudere bestanden veranderen ook de GlobalIds van
-     andere hulpstukken (`OPS_ProjectSettings`, `OPS_Calendar`, `OPS_Assignments`, `OPS_TaskIdentity`, relaties): samen
-     533 van de 775 meldingen, in 22 bestanden. Richting: de GlobalId afleiden van de GlobalId van de resource, of de
-     GlobalId van de pset bewaren (`preservedGuids`). Uit #867 (fase 1b, fixronde 2). — B
+     weigerde de leesverliestoets van fase 1b zo'n bestand daarom zodra er een model bij kwam: 204 van de 775 meldingen
+     `niet-gedragen` in de telling van fixronde 2 (9 van de 26 eigen bestanden). In oudere bestanden veranderen ook de
+     GlobalIds van andere hulpstukken (`OPS_ProjectSettings`, `OPS_Calendar`, `OPS_Assignments`, `OPS_TaskIdentity`,
+     relaties): samen 533 van de 775 meldingen, in 22 bestanden. Sinds fixronde 3 (besluit 1 van wrakko, 10 november 2026)
+     staat de toets een andere GlobalId van een eigen hulpstuk toe als het stuk P is en geen stuk van buiten ernaar wijst
+     (`ownAuxGuid` in `src/services/ifc/foreign/lossCheck.ts`); de writer zelf blijft ze vernieuwen, dus een ander
+     programma ziet na elk opslaan een nieuwe pset. Bij voorkeur in 1c (wrakko). Richting: de GlobalId afleiden van de
+     GlobalId van de resource, of de GlobalId van de pset bewaren (`preservedGuids`). Uit #867 (fase 1b, fixronde 2). — B
 
 1024. **VERVOLG: oudere eigen bestanden weigeren met `niet-gedragen` op velden die de writer nu anders schrijft.** Met de
-     flag aan en zonder bewerking (telling van fixronde 2 van #867) draagt de lezer deze velden niet:
-     `IfcTaskTime.Completion` `0.00` wordt `$` (139 keer in 15 bestanden; de writer schrijft `$` om `WR1: SELF > 0`);
-     de naam van `IfcPerson` en `IfcOrganization` `$` wordt `''` (elk 14 keer); in v2026.7.2 resources met 9 argumenten
-     (de writer schrijft er 11), het werkschema 'Bouwplanning v1.0' wordt 'Construction schedule v1.0' en de werktijd
-     'Standaard werkweek' wordt 'Standard work week'; in v0.1 werkplan en werkschema zonder PredefinedType (de writer
-     zet `.PLANNED.`), `IfcLaborResource.PredefinedType` `$` wordt `.NOTDEFINED.` en `IfcWorkCalendar.PredefinedType`
-     `$` wordt `.FIRSTSHIFT.`; een lege notitielijst `'[]'` verdwijnt; StartTime en FinishTime van werkplan en
-     werkschema volgen de taken. Richting: per veld `sourceSlots` (fase 2) of een lezer die het veld draagt; het besluit
-     ligt bij Trias. Uit #867 (fase 1b, fixronde 2). — B
+     flag aan en zonder bewerking draagt de lezer een deel van de velden van oudere versies niet. Sinds fixronde 3 van
+     #867 zet de merge een slot dat de lezer niet draagt terug op zijn bronwaarde (b, `planRestores` in
+     `src/services/ifc/foreign/lossCheck.ts`), zolang de planner het veld niet wijzigt; daarmee schrijven 22 van de 26
+     eigen bestanden met een model zonder bewerking (telling van fixronde 3). Over blijven twee gevallen die geen slot
+     zijn: in v2026.7.2 en main-df9 hebben resources 9 argumenten (de writer schrijft er 11; geen bekende lay-out, 32
+     meldingen in 2 bestanden), en een lege notitielijst `'[]'` laat de writer weg (`OPS_TaskNotes`, 2 bestanden in
+     `council/`). Richting: de oude lay-out van resources in `alignment` opnemen, en een lege notitielijst schrijven of
+     als gelijk aan "geen notities" lezen. Uit #867 (fase 1b, fixronde 2 en 3). — B
 
 1025. **De lezer maakt van de kalender een uurkalender als een eigen taak niet op de werkdag past.** Proef:
      `tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc` plus een eigen taak van één dag van 07:00 tot 16:00
@@ -1783,6 +1785,36 @@ en noem het in je rapport of PR-tekst.
      uurkalender met 9 uur per dag (`LiteralTimes`, `IsHourCalendar`); `HoursPerDay` 8 uit `OPS_Calendar` komt niet terug.
      Met de flag weigert de merge dat nu (`niet-gedragen`). Niet nagegaan: of dit de bedoelde omzetting naar het
      minutenmodel is, en wat de gewone writer zonder de flag schrijft. Uit #867 (fase 1b, fixronde 2). — S
+
+1026. **De writer schrijft de eindtijden van taken die niet veranderden anders als één andere taak verdwijnt.** De writer
+     kiest per kalender ankerdatums of `LiteralTimes`, op grond van alle taken (`src/services/ifc/minuteModelWrite.ts:48`
+     tot 86; de vlag schrijft `src/services/ifc/ifcWriter.ts:1489`). Eén waarde die niet op een anker past, maakt de hele
+     kalender letterlijk. Proef met de gewone writer, zonder model en zonder merge: de planning van
+     `tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc` zoals `writeIFC` haar schrijft (925 regels, geen model),
+     opnieuw gelezen met `readIFC`. Zonder bewerking is opslaan byte-gelijk. Wis de samenvattingstaak '1. Preparation'
+     (`task-mvp6ekzlhuk71306`, met haar vijf kinderen; zij heeft een EarlyFinish om 07:00, `2027-03-30T07:00`, die niet
+     op een anker past), dan verdwijnt `LiteralTimes` van de kalender en krijgen alle 51 taken die blijven andere tijden
+     in het bestand, bijvoorbeeld '2. Earthworks & foundations' ScheduleFinish `2027-03-05T16:00:00` →
+     `2027-03-05T07:00:00` (EarlyFinish `2027-09-09T16:00:00` → `T07:00:00`, LateFinish `2028-05-04T16:00:00` →
+     `T07:00:00`) en 'Sheet pile sections' `2027-03-19T16:00:00` → `2027-03-19T07:00:00`. Onze lezer geeft daarna datums
+     zonder tijd (`2027-03-05`) in plaats van momenten (`2027-03-05T16:00`); niet nagegaan of de app ze bij het laden naar
+     hetzelfde moment omzet. Een ander programma leest de letterlijke tijd en ziet een einde negen uur eerder, voor taken
+     die niet veranderden. Met de flag
+     weigert de merge dit (`niet-gedragen` na de bewerking, `check-ifc-foreign-preserve.ts` sectie 5g). Richting: de
+     keuze per kalender stabiel houden (een kalender die letterlijk was, blijft letterlijk zolang het document open is),
+     of de keuze bewaren in het document. Uit #867 (fase 1b, fixronde 3, besluit 4). — B
+
+1027. **De lezer leest een duur met dagen en uren (`P2DT12H`) als alleen de uren.** `isoDurationToMinutes`
+     (`src/services/subdayIo.ts:111`) leest alleen het deel na `T`, dus `P2DT12H` geeft 720 minuten; de takenroute
+     (`src/services/ifc/ifcReader.ts:1503`) gebruikt die waarde, en `parseDurationDays`
+     (`src/services/ifc/ifcReader.ts:1319`) leest bij een `D` alleen de dagen. Voor de lag bestaat een verdedigende tak
+     (`isoDurationLeadingDaysMinutes`, `ifcReader.ts:1362`), voor de taakduur niet. De eigen writer schrijft nooit dagen
+     vóór `T`, dus alleen bestanden van een ander programma. Proef: `public/examples/showcase-appartementencomplex.ifc` met
+     de duur van 'CPT soundings & soil investigation' op `P2DT12H`: na openen `durationMinutes` 720 en
+     `scheduleDuration` 1,5 (bij 8 uur per dag); in `eigen-plus-model.ifc` (`#50`) 720 minuten en een uurkalender van 9
+     uur. Met de flag zet de merge `P2DT12H` terug zolang de planner de duur niet wijzigt (fixronde 3 van #867, sectie
+     5h); de planner ziet dan 12 uur. Richting: dagen en tijd samen lezen, zoals de lag. Uit #867 (fase 1b, fixronde 3).
+     — B
 
 ## Rondleiding, Help en extensie-gidsen
 

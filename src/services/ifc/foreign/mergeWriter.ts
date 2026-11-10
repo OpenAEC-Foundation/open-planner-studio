@@ -24,13 +24,15 @@
  * Wat zonder fase 2 niet veilig kan, schrijft deze writer niet: hij gooit `MergeNeedsPhase2Error` (code
  * `merge-needs-phase2`) met elk geval, vóór er iets geschreven is. Nooit stil weglaten.
  *
- * Regel voor de verliesbewaking (fixronde 1 en 2 van #867; ook voor 1c): de verliesbewaking vergelijkt met de bron, nooit
- * met de eigen uitvoer. Elk veld dat de bron had (ook in een P-stuk, een hulpentiteit, een pset, een JSON-tekst of een
- * constant slot) en dat de uitvoer niet terug heeft, laat de merge weigeren met `merge-needs-phase2`, tenzij het domein
- * dat veld bewust veranderde. Bewijs is de leesverliestoets in `lossCheck.ts`: de merge schrijft ook het domein zoals de
- * lezer het las (O0), en elk P-stuk van de bron moet daarin veld voor veld terugkomen; alleen benoemde normalisaties
- * (de waarde blijft gelijk) en schrijfvelden mogen anders zijn. De tabel per entiteittype (wat de lezer draagt, en welke
- * test dat bewijst) staat in de PR-body van #867, sectie "Fixronde 2".
+ * Regel voor de verliesbewaking (fixronde 1, 2 en 3 van #867; ook voor 1c): de verliesbewaking vergelijkt met de bron,
+ * nooit met de eigen uitvoer. Elk veld dat de bron had (ook in een P-stuk, een hulpentiteit, een pset, een JSON-tekst of
+ * een constant slot) en dat de uitvoer niet terug heeft, laat de merge weigeren met `merge-needs-phase2`, tenzij het
+ * domein dat veld bewust veranderde. Bewijs is de leesverliestoets in `lossCheck.ts`: de merge schrijft ook het domein
+ * zoals de lezer het las (O0), en elk P-stuk van de bron moet daarin veld voor veld terugkomen; alleen benoemde soorten
+ * mogen anders zijn (normalisaties, de GlobalId van een eigen hulpstuk, lay-out, toevoegingen, schrijfvelden). Een slot
+ * dat de lezer niet draagt, krijgt zijn bronwaarde terug zolang de planner het veld niet wijzigde (b, fixronde 3); de
+ * merge leest de planning daarna terug, en geeft dat een andere planning, dan weigert hij (`readPlanning`). De tabel per
+ * entiteittype staat in de PR-body van #867, secties "Fixronde 2" en "Fixronde 3".
  *
  * Fase 1b: alleen tests gebruiken deze writer. Opslaan met een vreemd deel blijft geweigerd tot 1c.
  */
@@ -38,7 +40,9 @@ import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds }
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, type Classification } from './classify';
-import { lossCheck, pristineDomain, type LossDiff } from './lossCheck';
+import { changedScopes, lossCheck, pristineFromScan, type LossDiff } from './lossCheck';
+import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
+import { readIFC } from '../ifcReader';
 import type { IfcSource } from './ifcSource';
 import { scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 
@@ -529,9 +533,10 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
       }
     }
 
-    return { lines, byId, keptHeads };
+    const taskIds = input.tasks.map(t => written.idMap.get(`task_${t.id}`)).filter((id): id is number => id !== undefined);
+    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds };
   }
-  const { lines, byId, keptHeads } = buildLines(input, caseAt);
+  const { lines, byId, keptHeads, owner, taskIds } = buildLines(input, caseAt);
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
@@ -562,12 +567,37 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
 
   // ── 8. De verliesbewaking (`lossCheck.ts`): O0, het domein zoals de lezer het uit de bron las, moet elk P-stuk van de
   // bron veld voor veld teruggeven; O1 mag daar alleen van afwijken waar het domein veranderde. ──
-  const pristine = pristineDomain(index, cls, source);
-  const o0 = buildLines(pristine, () => {}).lines.filter(l => !l.drop);
-  lossCheck({
+  // (b), het slotdeel van `sourceSlots` (fixronde 3 van #867): de slots die de lezer niet draagt, krijgen in O1 de
+  // bronwaarde terug zolang de planner dat veld niet wijzigde (`lossCheck`, `edits`). De bronwaarden komen uit
+  // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
+  const scan = foreignScanFrom(index, cls, source.bytes);
+  const pristine = pristineFromScan(scan, source.bytes);
+  const built0 = buildLines(pristine, () => {});
+  const o0 = built0.lines.filter(l => !l.drop);
+  const { edits } = lossCheck({
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain: input,
     sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
+    owner0: built0.owner, owner1: owner,
   }, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  if (cases.length === 0 && edits.length > 0) {
+    const plain = lines.filter(l => !l.drop).map(l => l.text);
+    for (const e of edits) {
+      const line = byId.get(e.id)!;
+      const args = [...line.args];
+      args[e.arg] = e.token;
+      setArgs(line, args);
+    }
+    // Herlezen (§4.5: "het token geeft in de codering van de uitvoer dezelfde waarde"): een bronwaarde mag de planning niet
+    // veranderen. Leest de lezer de uitvoer met (b) anders dan zonder (b), dan weigert de merge: de waarde hangt dan af van
+    // een ander veld dat wel veranderde (bijvoorbeeld een status die bij een andere voortgang iets anders betekent).
+    const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
+    const changed = changedScopes(read(lines.filter(l => !l.drop).map(l => l.text)) as unknown as WriteIFCInput, read(plain));
+    if (changed.any) {
+      const shown = edits.slice(0, 3).map(e => `${label(e.chunk)} argument ${e.arg}`).join(', ');
+      caseAt('niet-gedragen', edits[0].chunk,
+        `de bronwaarden (${edits.length}: ${shown}${edits.length > 3 ? ', …' : ''}) zouden na herlezen een andere planning geven (${[...changed.keys].slice(0, 3).join(', ') || 'project'})`);
+    }
+  }
 
   if (cases.length > 0) throw new MergeNeedsPhase2Error(cases);
 
@@ -709,7 +739,29 @@ function assertSameSource(index: StepIndex, cls: Classification, source: IfcSour
 }
 
 /** Het P-blok tussen de bronstukken (§4.10). */
-function assemble(source: IfcSource, index: StepIndex, cls: Classification, block: readonly string[]): Uint8Array[] {
+/**
+ * De planning zoals de lezer haar uit de uitvoer met dit P-blok zou lezen: dezelfde stukken als `readerBytes` (geen
+ * V-stuk, behalve het project als context en de stukken van een gemengde pset), met het P-blok op de plek van `assemble`,
+ * en dezelfde leesopties als de bytes-route. De regels van de writer zijn nooit letterlijk gecodeerd.
+ */
+function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, scan: ForeignScanResult,
+  block: readonly string[], taskIds: readonly number[]) {
+  const alsoRead = new Set(scan.mixedPsetChunks);
+  const skip = (i: number) => cls.classes[i] === 4 && i !== scan.projectContext && !alsoRead.has(i);
+  const parts = assemble(source, index, cls, block, skip);
+  const bytes = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
+  let at = 0;
+  for (const p of parts) { bytes.set(p, at); at += p.length; }
+  const literalStepIds = new Set<string>();
+  for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
+  return readIFC(new TextDecoder('utf-8').decode(bytes), {}, {
+    literalStepIds, planningTaskStepIds: new Set(taskIds.map(String)), projectDataInSettings: scan.projectNotP,
+    skipBuildingModelGuard: true,
+  });
+}
+
+function assemble(source: IfcSource, index: StepIndex, cls: Classification, block: readonly string[],
+  skip: (i: number) => boolean = () => false): Uint8Array[] {
   const n = index.count;
   const bytes = source.bytes;
   const starts = source.chunkStarts;
@@ -730,7 +782,7 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
       flush(i);
       for (let b = 0; b < block.length; b += BATCH) parts.push(enc.encode(le + block.slice(b, b + BATCH).join(le)));
     }
-    if (cls.classes[i] === 1) { flush(i); continue; }
+    if (cls.classes[i] === 1 || skip(i)) { flush(i); continue; }
     if (runStart < 0) runStart = i;
   }
   flush(n);

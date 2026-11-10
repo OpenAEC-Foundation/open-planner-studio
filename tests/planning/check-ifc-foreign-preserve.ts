@@ -18,12 +18,14 @@
 //   4. de bewerkingen van 1b (taak erbij, hernoemen, duur, toewijzing erbij): het vreemde deel blijft byte-gelijk en de
 //      herlezing is gelijk aan dezelfde bewerking zonder vreemd deel;
 //   5. elk geval van `merge-needs-phase2` met een kleine proef: de fout heeft de vaste code en de gevallen; met de
-//      leesverliestoets (fixronde 2 van #867) de negen tegenvoorbeelden van ronde 2, elk met een bewuste bewerking van
-//      hetzelfde veld, en de normalisaties;
+//      leesverliestoets (fixronde 2 van #867) de negen tegenvoorbeelden van ronde 2 en de normalisaties; met fixronde 3
+//      (besluiten van Trias, 10 november 2026) de bronwaarden van (b) per soort slot (5h), de GlobalId van een eigen
+//      hulpstuk (besluit 1, 5i) en de drie smalle soorten lay-out, schrijfvelden en toevoegingen (besluit 3, 5f);
 //   6. de invarianten zelf: een uitvoer met een weggelaten, verschoven, verwisseld of gewijzigd vreemd stuk is rood.
-// Een eigen bestand van een oudere versie weigert sinds fixronde 2 met `niet-gedragen` (de lezer draagt niet elk veld).
-// Proeven die over iets anders gaan, nemen daarom de bron zoals de huidige writer haar schrijft (`settle`); sectie 1
-// bewaakt de weigering van het bestand zelf.
+// Sinds fixronde 3 schrijft een eigen bestand van een oudere versie zonder wijziging: een slot dat de lezer niet draagt,
+// krijgt zijn bronwaarde terug (b), en een eigen hulpstuk mag een andere GlobalId krijgen. Wat dan nog weigert, staat in
+// `OWN_REFUSED` (sectie 1). `settle` blijft voor de bronnen van de proeven; voor een bestand dat al schrijft, verandert het
+// niets.
 // Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -130,11 +132,12 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
 
 // ── 1. Het corpus, zonder wijziging ──
 
-/** Bestanden waarvan de merge zonder wijziging schrijft. Elk ander bestand weigert met de gevallen uit `REFUSED`. */
-const WRITES: ReadonlySet<string> = new Set(['complexe-instanties.ifc', 'model-ifc4.ifc', 'model-ifc4x3.ifc']);
 /** Een planning van Bonsai: werkplan, werkschema's en taken hebben de owner history van Bonsai (§4.5), en `Creators`
- *  staat in een slot dat de writer leeg schrijft. Behouden kan pas met `sourceSlots` en herkomstmerken. */
+ *  staat in een slot dat de writer leeg schrijft. Behouden kan pas met herkomstmerken (fase 2). */
+/** De modellen met een kleine eigen planning die al vóór fixronde 3 schreven (geen oud eigen bestand). */
+const WRITES_FOREIGN_PLANNING: ReadonlySet<string> = new Set(['complexe-instanties.ifc', 'model-ifc4.ifc', 'model-ifc4x3.ifc']);
 const BONSAI = ['niet-gedragen', 'vreemde-herkomst'];
+/** Bestanden van een ander programma: ze weigeren met deze gevallen. */
 const REFUSED: Readonly<Record<string, readonly string[]>> = {
   'bonsai-4d.ifc': BONSAI, 'crlf-commentaar.ifc': BONSAI, 'dubbele-globalids.ifc': BONSAI, 'latin1.ifc': BONSAI,
   'twee-werkplannen.ifc': BONSAI, 'council/proef-bonsai-achtig.ifc': BONSAI, 'council/r5sol-parallelle-relaties.ifc': BONSAI,
@@ -145,14 +148,13 @@ const REFUSED: Readonly<Record<string, readonly string[]>> = {
   // Plus een gemengde IfcRelAssignsToProcess die de writer anders zou schrijven.
   'council/r6sol-losse-bonsai-toewijzing.ifc': ['gemengde-relatie', 'niet-gedragen', 'vreemde-herkomst'],
 };
-/** Eigen bestanden die ook met `settle` niet door de toets komen, met de reden. De rest van de eigen bestanden moet na
- *  `settle` de hele ronde halen (`roundTrip`). */
-const NOT_SETTLED: Readonly<Record<string, RegExp>> = {
-  // Het oude werkplan en werkschema hebben geen PredefinedType; de writer schrijft `.PLANNED.` (lay-out van v0.1).
-  'oud-eigen-0.1-plus-model.ifc': /IFCWORKPLAN #36 \(New-Build Villa, Wassenaar\), argument 13 van de uitvoer \(geen slot in de bron\): \.PLANNED\./,
-  // Een lege notitielijst (`'[]'`): de writer schrijft dan geen `OPS_TaskNotes` (knownbug 1024).
-  'council/r7sol-vreemd-lid-bij-notitie.ifc': /IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
-  'council/r7sol-vreemd-lid-bij-toewijzing.ifc': /IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
+/** Eigen bestanden die ook met (b) weigeren (`niet-gedragen`), met het geval. Elk ander eigen bestand haalt zonder
+ *  wijziging de hele ronde (`roundTrip`). */
+const OWN_REFUSED: Readonly<Record<string, RegExp>> = {
+  // Een lege notitielijst (`'[]'`): de writer schrijft dan geen `OPS_TaskNotes` (knownbug 1024). Een stuk zonder
+  // tegenhanger is geen slot; (b) zet het niet terug.
+  'council/r7sol-vreemd-lid-bij-notitie.ifc': /^IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
+  'council/r7sol-vreemd-lid-bij-toewijzing.ifc': /^IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
 };
 
 const corpus = [
@@ -161,38 +163,36 @@ const corpus = [
 ].sort();
 let written = 0;
 let refused = 0;
-let settledOwn = 0;
+let ownWritten = 0;
 for (const file of corpus) {
   const bytes = new Uint8Array(readFileSync(join(FOREIGN, file)));
   let opened: Opened;
   try { opened = await openForeign(bytes); } catch { continue; } // het IFC2X3-model blijft geweigerd bij openen
   if (!opened.ifcSource?.foreign) continue;
-  if (WRITES.has(file)) { if (await roundTrip(file, bytes)) written++; continue; }
-  const want = REFUSED[file] ?? ['niet-gedragen'];
-  const outcome = tryMerge(cloneDomain(opened), opened.ifcSource);
-  if (outcome.ok) { diffs.push(`${file}: de merge schrijft, maar weigeren werd verwacht`); checks++; continue; }
-  eq(`${file}: de gevallen van de weigering`, outcome.kinds, want);
-  eq(`${file}: de vaste code`, outcome.error.code, 'merge-needs-phase2');
-  ok(`${file}: elk geval heeft een id en een uitleg`, outcome.error.cases.every(c => c.detail.length > 0));
-  ok(`${file}: elk niet-gedragen geval heeft het veld`, outcome.error.cases.every(c => c.kind !== 'niet-gedragen' || c.field !== undefined));
-  refused++;
-  if (REFUSED[file]) continue;
-  // Een eigen bestand: zoals de huidige writer het schrijft, haalt het de hele ronde.
-  const stuck = NOT_SETTLED[file];
-  let settled: Uint8Array | undefined;
-  try { settled = await settle(bytes); } catch (e) {
-    ok(`${file}: settle ${stuck ? `stopt op ${stuck}` : 'lukt'} (${(e as Error).message.slice(0, 200)})`, stuck !== undefined && stuck.test((e as Error).message));
+  const foreignWant = REFUSED[file];
+  const ownWant = OWN_REFUSED[file];
+  if (foreignWant || ownWant) {
+    const outcome = tryMerge(cloneDomain(opened), opened.ifcSource);
+    if (outcome.ok) { diffs.push(`${file}: de merge schrijft, maar weigeren werd verwacht`); checks++; continue; }
+    eq(`${file}: de gevallen van de weigering`, outcome.kinds, foreignWant ?? ['niet-gedragen']);
+    eq(`${file}: de vaste code`, outcome.error.code, 'merge-needs-phase2');
+    ok(`${file}: elk geval heeft een id en een uitleg`, outcome.error.cases.every(c => c.detail.length > 0));
+    ok(`${file}: elk niet-gedragen geval heeft het veld`, outcome.error.cases.every(c => c.kind !== 'niet-gedragen' || c.field !== undefined));
+    if (ownWant) ok(`${file}: het geval noemt ${ownWant} (${outcome.error.cases.map(c => c.detail).slice(0, 2).join(' | ')})`, outcome.error.cases.some(c => ownWant.test(c.detail)));
+    refused++;
     continue;
   }
-  if (stuck) { diffs.push(`${file}: settle lukt, maar ${stuck} werd verwacht`); checks++; continue; }
-  if (await roundTrip(`${file} (zoals de writer het schrijft)`, settled)) settledOwn++;
+  // Elk ander bestand schrijft: een model met een eigen planning, ook van een oudere versie (fixronde 3).
+  if (!await roundTrip(file, bytes)) continue;
+  written++;
+  if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
   // O1 is niet leeg: zonder bewerking is het domein na openen gelijk aan het domein van de toets (`changedScopes`).
-  const again = await openForeign(settled);
-  const index = scanStep(settled);
-  const changed = changedScopes(cloneDomain(again), pristineDomain(index, classify(index), again.ifcSource!));
+  const index = scanStep(bytes);
+  const changed = changedScopes(cloneDomain(opened), pristineDomain(index, classify(index), opened.ifcSource));
   eq(`${file}: zonder bewerking verandert er niets (O1)`, [changed.any, [...changed.keys].slice(0, 3)], [false, []]);
 }
-eq('corpus: elk bestand uit REFUSED en NOT_SETTLED bestaat', [...Object.keys(REFUSED), ...Object.keys(NOT_SETTLED)].filter(f => !corpus.includes(f)), []);
+eq('corpus: elk bestand uit REFUSED en OWN_REFUSED bestaat', [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED)].filter(f => !corpus.includes(f)), []);
+ok(`corpus: minstens negentien eigen bestanden schrijven zonder wijziging (${ownWritten})`, ownWritten >= 19);
 
 // ── 2. Varianten met een eigen planning ──
 
@@ -279,7 +279,7 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
 
 // 2c. 'Proj' (§4.4): een eigen planning onder het project van een model. Het project is C, dus niet P. Het eigen werkplan
 // heet zoals het project (de writer leidt die naam af). Een werkplan 'Plan' naast project 'Proj' heeft een naam die de
-// writer niet terugschrijft: dat is een geval van fase 2 (sectie 5b, fixronde 1 van #867).
+// writer niet terugschrijft; sinds fixronde 3 zet (b) hem terug (sectie 5b).
 {
   const label = "project 'Proj'";
   const src = eigen.replace(/^(#\d+=IFCPROJECT\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'").replace(/^(#\d+=IFCWORKPLAN\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'");
@@ -412,9 +412,11 @@ function withDuplicateGuid(src: string): string {
 }
 
 // ── 4. De bewerkingen van 1b ──
-// Elk zoals de writer het schrijft (`settle`); `oud-eigen-0.1-plus-model.ifc` komt daar niet door (sectie 1).
+// Elk zoals de writer het schrijft (`settle`); een bestand dat al schrijft, blijft zoals het is. Met fixronde 3 ook een
+// eigen bestand van v0.1: de bewerkingen met de bronwaarden van (b) erin.
 const EDIT_FILES = [
   'tests/fixtures/ifc-foreign/eigen-plus-model.ifc',
+  'tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc',
   'tests/fixtures/ifc-foreign/council/r4-k1.ifc',
   'tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc',
   'tests/fixtures/ifc-foreign/council/fix1-leeg-live-bl.ifc',
@@ -460,28 +462,40 @@ function unnamed(detail: string): string { return detail.replace(/^([A-Z0-9]+ #\
 /** `only` voor een proef op één stuk: het begin van `detail` (`^IFCTASK #51`). */
 const pieceOf = (detail: RegExp) => new RegExp(`${/^\^[A-Z0-9]+ #\d+/.exec(detail.source)?.[0] ?? '^$'}\\b`);
 await expectRefusal('vreemde herkomst (bonsai-4d)', read('tests/fixtures/ifc-foreign/bonsai-4d.ifc'), 'vreemde-herkomst');
-await expectRefusal('LongDescription op een eigen taak', enc.encode(replaceLine(baseText, '#57=',
-  "#57=IFCTASK('urgPb5NfMvjfZ9SFNfwJQl',#6,'Externe bronactiviteit',$,$,'1','Lange omschrijving',$,$,.F.,$,#56,.CONSTRUCTION.);")), 'niet-gedragen');
-await expectRefusal('onbekende JSON-sleutel', enc.encode(eigen.replace(
-  `#259=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0]}'),$);`,
-  `#259=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0],"vendorCoordinationId":7}'),$);`)), 'niet-gedragen');
+// Een veld dat de lezer niet draagt, op een P-stuk: sinds fixronde 3 zet de merge de bronwaarde terug (b, sectie 5h).
+{
+  const r = await roundTrip('LongDescription op een eigen taak', enc.encode(replaceLine(baseText, '#57=',
+    "#57=IFCTASK('urgPb5NfMvjfZ9SFNfwJQl',#6,'Externe bronactiviteit',$,$,'1','Lange omschrijving',$,$,.F.,$,#56,.CONSTRUCTION.);")));
+  if (r) ok('LongDescription op een eigen taak: blijft staan', lineOf(r.out, '57').includes("'1','Lange omschrijving',"));
+  const json = await roundTrip('onbekende JSON-sleutel', enc.encode(eigen.replace(
+    `#259=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0]}'),$);`,
+    `#259=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0],"vendorCoordinationId":7}'),$);`)));
+  if (json) ok('onbekende JSON-sleutel: blijft staan', text(json.out).includes('"FreeFloat":[0,0],"vendorCoordinationId":7}'));
+}
 await expectRefusal('twee sleutels voor dezelfde resource', enc.encode(withLines(
   replaceLine(eigen, '#154=', "#154=IFCPROPERTYSET('26EUCC2ORYjlLXgzsMT4U9',#6,'OPS_Assignments',$,(#152,#153,#9001));"),
   ["#9001=IFCPROPERTYSINGLEVALUE('3LKE2mEiGfOR4VMIq3h_xv#5',$,IFCTEXT('1|UNIFORM'),$);"])), 'niet-gedragen');
 await expectRefusal('taak wissen met een wand eraan', enc.encode(r4), 'verwijderd', (d) => {
   d.tasks = []; d.assignments = []; d.sequences = [];
 });
-// Een vreemd stuk dat naar een R-stuk wijst (de eigen IfcRelNests #58, dat bij opslaan een nieuw id krijgt, §4.3).
-// Naar een eigen pset wijzen is geen geval: die pset wordt dan C en blijft byte-gelijk staan.
-await expectRefusal('een vreemd stuk wijst naar een eigen relatie', enc.encode(withLines(baseText, [
-  "#907=IFCRELDEFINESBYPROPERTIES('0verwijzingNaarRel0000',#903,$,$,(#904,#58),#908);",
-  "#908=IFCPROPERTYSET('0vreemdePset0000000000',#903,'Pset_Vreemd',$,(#909));",
-  "#909=IFCPROPERTYSINGLEVALUE('Waarde',$,IFCLABEL('x'),$);",
-])), 'verwijzing-naar-p');
+// Een vreemd stuk dat naar een R-stuk wijst (de eigen IfcRelNests #58, dat bij opslaan een nieuw id krijgt, §4.3). Met
+// besluit 1 ook: de GlobalId van #58 mag dan niet veranderen, want een stuk dat niet P is, wijst ernaar (sectie 5i).
 {
-  const src = withLines(baseText, ["#907=IFCRELDEFINESBYPROPERTIES('0verwijzingNaarPset000',#903,$,$,(#904),#65);"]);
-  await roundTrip('een vreemde relatie naar een eigen pset (de pset wordt C)', enc.encode(src));
+  const src = enc.encode(withLines(baseText, [
+    "#907=IFCRELDEFINESBYPROPERTIES('0verwijzingNaarRel0000',#903,$,$,(#904,#58),#908);",
+    "#908=IFCPROPERTYSET('0vreemdePset0000000000',#903,'Pset_Vreemd',$,(#909));",
+    "#909=IFCPROPERTYSINGLEVALUE('Waarde',$,IFCLABEL('x'),$);",
+  ]));
+  await expectRefusal('een vreemd stuk wijst naar een eigen relatie', src, 'verwijzing-naar-p');
+  await expectRefusal('een vreemd stuk wijst naar een eigen relatie: de GlobalId (besluit 1)', src, 'niet-gedragen', undefined, /^IFCRELNESTS #58, argument 0: /);
 }
+// Een vreemde relatie naar een eigen pset: de pset wordt C en blijft byte-gelijk staan, maar de writer schrijft er een
+// eigen kopie naast met een nieuwe GlobalId. Besluit 1 staat dat alleen toe bij een P-stuk waar niets van buiten naar
+// wijst, dus de merge weigert (tot fixronde 2 schreef deze proef, omdat `settle` de GlobalId gelijk maakte aan die van de
+// writer in de proefopstelling).
+await expectRefusal('een vreemde relatie naar een eigen pset (de pset wordt C)',
+  enc.encode(withLines(baseText, ["#907=IFCRELDEFINESBYPROPERTIES('0verwijzingNaarPset000',#903,$,$,(#904),#65);"])),
+  'niet-gedragen', undefined, /^IFCPROPERTYSET #65, argument 0: 'e5a3ArlP\$tNZvpDF1ZK5n5' → /);
 await expectRefusal('een taak uit het tweede schema verplaatsen', secondSchedule, 'verplaatst', (d) => {
   const first = d.tasks.find(t => t.name === 'Externe bronactiviteit')!;
   const second = d.tasks.find(t => t.name === 'Taak van het tweede schema')!;
@@ -596,23 +610,29 @@ await expectRefusal('de gedeelde kalender wijzigen', await settle(read('tests/fi
 await expectRefusal('twee IfcProject', enc.encode(withLines(baseText, ["#907=IFCPROJECT('0tweedeProject00000000',#903,'Ander project',$,$,$,$,$,$);"])), 'meer-projecten');
 
 // ── 5b. De verliesbewaking vergelijkt met de bron (fixronde 1 van #867, `lossCheck.ts`) ──
-// BLOKKEERT 3: een dubbele GlobalId schakelt de bewaking niet uit; ze paart op het bron-#id.
+// BLOKKEERT 3: een dubbele GlobalId schakelt de bewaking niet uit; ze paart op het bron-#id. Sinds fixronde 3 zet (b) de
+// LongDescription van #57 terug (op #57 zelf, dus op het bron-#id); alleen de GlobalId van #908 blijft een geval.
 const LONG_57 = "#57=IFCTASK('urgPb5NfMvjfZ9SFNfwJQl',#6,'Externe bronactiviteit',$,$,'1','Lange omschrijving',$,$,.F.,$,#56,.CONSTRUCTION.);";
 await expectRefusal('LongDescription op een taak met een dubbele GlobalId', enc.encode(replaceLine(withDuplicateGuid(baseText), '#57=', LONG_57)),
-  'niet-gedragen', undefined, /^IFCTASK #57, argument 6/);
+  'niet-gedragen', undefined, /^IFCTASK #908, argument 0/, /^IFCTASK #908\b/);
 // BLOKKEERT 4: een hulpentiteit via haar eigenaar (taak → IfcTaskTime, volgorde → IfcLagTime).
 const TASKTIME_56 = "#56=IFCTASKTIME('Externe bronactiviteit Time',.USERDEFINED.,'Extern berekend',.WORKTIME.,'P0Y0M2D','2026-09-01T07:00:00','2026-09-02T07:00:00','2026-09-01T07:00:00','2026-09-02T07:00:00','2026-09-01T07:00:00','2026-09-02T07:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,$);";
-await expectRefusal('IfcTaskTime #56 met de DataOrigin van een ander', enc.encode(replaceLine(baseText, '#56=', TASKTIME_56)),
-  'niet-gedragen', undefined, /^IFCTASKTIME #56, argument 1/);
-await expectRefusal('IfcTaskTime #56 met UserDefinedDataOrigin', enc.encode(replaceLine(baseText, '#56=', TASKTIME_56.replace('.USERDEFINED.', '.PREDICTED.'))),
-  'niet-gedragen', undefined, /^IFCTASKTIME #56, argument 2/);
+// Sinds fixronde 3 blijven beide staan (b): de lezer draagt ze niet, de planner wijzigde ze niet.
+{
+  const r = await roundTrip('IfcTaskTime #56 met de DataOrigin van een ander', enc.encode(replaceLine(baseText, '#56=', TASKTIME_56)));
+  if (r) ok('IfcTaskTime #56 met de DataOrigin van een ander: blijft staan', text(r.out).includes("IFCTASKTIME('Externe bronactiviteit Time',.USERDEFINED.,'Extern berekend',"));
+  const u = await roundTrip('IfcTaskTime #56 met UserDefinedDataOrigin', enc.encode(replaceLine(baseText, '#56=', TASKTIME_56.replace('.USERDEFINED.', '.PREDICTED.'))));
+  if (u) ok('IfcTaskTime #56 met UserDefinedDataOrigin: blijft staan', text(u.out).includes("IFCTASKTIME('Externe bronactiviteit Time',.PREDICTED.,'Extern berekend',"));
+}
 const withLag = (lag: string) => enc.encode(withLines(
   replaceLine(eigen, '#91=', "#91=IFCRELSEQUENCE('3PojQSwT308F3rahVEzxwR',#6,$,$,#47,#51,#9001,.FINISH_START.,$);"), [lag]));
 await roundTrip('een eigen IfcLagTime', withLag("#9001=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P1D'),.WORKTIME.);"));
-await expectRefusal('IfcLagTime met de DataOrigin van een ander', withLag("#9001=IFCLAGTIME('Lag',.USERDEFINED.,'Extern berekend',IFCDURATION('P1D'),.WORKTIME.);"),
-  'niet-gedragen', undefined, /^IFCLAGTIME #9001, argument 1/);
-await expectRefusal('IfcLagTime met een andere naam', withLag("#9001=IFCLAGTIME('Vertraging leverancier',.PREDICTED.,$,IFCDURATION('P1D'),.WORKTIME.);"),
-  'niet-gedragen', undefined, /^IFCLAGTIME #9001, argument 0/);
+{
+  const r = await roundTrip('IfcLagTime met de DataOrigin van een ander', withLag("#9001=IFCLAGTIME('Lag',.USERDEFINED.,'Extern berekend',IFCDURATION('P1D'),.WORKTIME.);"));
+  if (r) ok('IfcLagTime met de DataOrigin van een ander: blijft staan', text(r.out).includes("IFCLAGTIME('Lag',.USERDEFINED.,'Extern berekend',"));
+  const n = await roundTrip('IfcLagTime met een andere naam', withLag("#9001=IFCLAGTIME('Vertraging leverancier',.PREDICTED.,$,IFCDURATION('P1D'),.WORKTIME.);"));
+  if (n) ok('IfcLagTime met een andere naam: blijft staan', text(n.out).includes("IFCLAGTIME('Vertraging leverancier',"));
+}
 // BLOKKEERT 5: een property (en haar pset) die de writer weglaat. Een onbekende JSON-sleutel is verlies; een sleutel die
 // de writer kent en weglaat omdat het standaardveld alles zegt (`dayMeasureIo.ts`), niet.
 const analysis = (json: string) => enc.encode(withLines(baseText, [
@@ -631,90 +651,97 @@ await expectRefusal('een weggelaten property met een Description', enc.encode(wi
   "#9002=IFCPROPERTYSET('0analyse00000000000000',#6,'OPS_Analysis',$,(#9001));",
   "#9003=IFCRELDEFINESBYPROPERTIES('0analyseRel00000000000',#6,$,$,(#57),#9002);",
 ])), 'niet-gedragen', undefined, /^IFCPROPERTYSINGLEVALUE #9001: ontbreekt in de uitvoer \('ExactFloat'\)/, /^IFC[A-Z]+ #900[123]\b/);
-// Het werkplan heet zoals het project; een andere naam schrijft de writer niet terug (zie 2c).
+// Het werkplan heet zoals het project; een andere naam schrijft de writer niet terug (zie 2c). Sinds fixronde 3 blijft de
+// naam staan (b); hernoemt de planner het project, dan krijgt het werkplan zijn naam (de writer leidt hem af).
 {
-  const src = eigen.replace(/^(#\d+=IFCPROJECT\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'").replace(/^(#\d+=IFCWORKPLAN\('[^']*',#\d+,)'[^']*'/m, "$1'Plan'");
-  await expectRefusal("werkplan 'Plan' naast project 'Proj'", enc.encode(src), 'niet-gedragen', undefined, /^IFCWORKPLAN #\d+, argument 2: 'Plan' → 'Proj'/, /^IFCWORKPLAN #\d+\b/);
+  const src = enc.encode(eigen.replace(/^(#\d+=IFCPROJECT\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'").replace(/^(#\d+=IFCWORKPLAN\('[^']*',#\d+,)'[^']*'/m, "$1'Plan'"));
+  const r = await roundTrip("werkplan 'Plan' naast project 'Proj'", src);
+  if (r) ok("werkplan 'Plan' naast project 'Proj': het werkplan heet nog 'Plan'", /^#\d+=IFCWORKPLAN\('[^']*',#\d+,'Plan',/m.test(text(r.out)));
+  const renamed = await roundTrip("werkplan 'Plan' naast project 'Proj', project hernoemd", src, (d) => { d.project.name = 'Nieuw'; });
+  if (renamed) ok("werkplan 'Plan', project hernoemd: het werkplan heet 'Nieuw'", /^#\d+=IFCWORKPLAN\('[^']*',#\d+,'Nieuw',/m.test(text(renamed.out)));
 }
 // BLOKKEERT 1, gevolg: het project is P en de eerste owner history is van de bron (C). De lezer leest auteur en bedrijf
 // daar terug; een gewijzigde auteur komt dus niet terug. Zonder wijziging schrijft de merge gewoon (sectie 1).
 await expectRefusal('auteur wijzigen bij een gedeelde owner history', enc.encode(baseText), 'projectgegevens', (d) => { d.project.author = 'Ethan'; });
 
 // ── 5d. Eigen zoektocht (fixronde 1 van #867): per P-entiteittype dat de writer opnieuw schrijft een proef ──
-// Elke proef zet in een eigen bestand met een vreemd deel één waarde die de writer niet terugschrijft. De merge moet
-// weigeren met het juiste geval, en het geval moet het stuk en het argument noemen. De tabel staat in de PR-body.
+// Elke proef zet in een eigen bestand met een vreemd deel één waarde die de writer niet terugschrijft. Tot fixronde 2
+// weigerde de merge met het juiste geval op het stuk en het argument (`detail`). Sinds fixronde 3 zet (b) de bronwaarde
+// terug: de merge schrijft, en de uitvoer heeft de waarde (`keep`). Wat (b) niet kan terugzetten (een stuk zonder
+// tegenhanger, een eigen pset die anders wordt), weigert nog: daar staat geen `keep`.
 const showcaseWithWall = (prefix: string, line: string) => enc.encode(replaceLine(showcaseApp, prefix, line));
-const SEARCH: readonly { label: string; bytes: Uint8Array; kind: string; detail: RegExp; only?: RegExp }[] = [
-  { label: 'IfcTask: ObjectType', kind: 'niet-gedragen', detail: /^IFCTASK #51, argument 4/,
+const SEARCH: readonly { label: string; bytes: Uint8Array; kind: string; detail: RegExp; only?: RegExp; keep?: string | RegExp }[] = [
+  { label: 'IfcTask: ObjectType', keep: "'Type van Bonsai'",  kind: 'niet-gedragen', detail: /^IFCTASK #51, argument 4/,
     bytes: enc.encode(replaceLine(eigen, '#51=', "#51=IFCTASK('2bl5huCqaJNQoiPDoJLdX4',#6,'Set up site',$,'Type van Bonsai','2.1',$,$,$,.F.,$,#50,.LOGISTIC.);")) },
-  { label: 'IfcRelSequence: Name', kind: 'niet-gedragen', detail: /^IFCRELSEQUENCE #91, argument 2/,
+  { label: 'IfcRelSequence: Name', keep: "'Relatie van Bonsai'",  kind: 'niet-gedragen', detail: /^IFCRELSEQUENCE #91, argument 2/,
     bytes: enc.encode(replaceLine(eigen, '#91=', "#91=IFCRELSEQUENCE('3PojQSwT308F3rahVEzxwR',#6,'Relatie van Bonsai',$,#47,#51,$,.FINISH_START.,$);")) },
-  { label: 'resource: LongDescription', kind: 'niet-gedragen', detail: /^IFCLABORRESOURCE #110, argument 6/,
+  { label: 'resource: LongDescription', keep: "'Bricklayers',$,$,$,'Lange omschrijving',",  kind: 'niet-gedragen', detail: /^IFCLABORRESOURCE #110, argument 6/,
     bytes: enc.encode(replaceLine(eigen, '#110=', "#110=IFCLABORRESOURCE('34SuBObt1dKPNSent0osWG',#6,'Bricklayers',$,$,$,'Lange omschrijving',$,$,$,.NOTDEFINED.);")) },
-  { label: 'IfcWorkCalendar: ObjectType', kind: 'niet-gedragen', detail: /^IFCWORKCALENDAR #38, argument 4/,
+  { label: 'IfcWorkCalendar: ObjectType', keep: "'Kalender van Bonsai'",  kind: 'niet-gedragen', detail: /^IFCWORKCALENDAR #38, argument 4/,
     bytes: enc.encode(eigen.replace("#38=IFCWORKCALENDAR('2GA09wPbkE$RrSwEmUNTsf',#6,'Construction calendar NL','Standard construction calendar: Mon-Fri 07:00-16:00',$,",
       "#38=IFCWORKCALENDAR('2GA09wPbkE$RrSwEmUNTsf',#6,'Construction calendar NL','Standard construction calendar: Mon-Fri 07:00-16:00','Kalender van Bonsai',")) },
-  { label: 'IfcWorkTime: label van de werkweek', kind: 'niet-gedragen', detail: /^IFCWORKTIME #19, argument 0/,
+  { label: 'IfcWorkTime: label van de werkweek', keep: "IFCWORKTIME('Werkweek van Bonsai',",  kind: 'niet-gedragen', detail: /^IFCWORKTIME #19, argument 0/,
     bytes: enc.encode(replaceLine(eigen, '#19=', "#19=IFCWORKTIME('Werkweek van Bonsai',.PREDICTED.,$,#18,$,$);")) },
-  { label: 'IfcRecurrencePattern: Interval', kind: 'niet-gedragen', detail: /^IFCRECURRENCEPATTERN #18, argument 5/,
+  { label: 'IfcRecurrencePattern: Interval', keep: '(1,2,3,4,5),$,$,2,$,(',  kind: 'niet-gedragen', detail: /^IFCRECURRENCEPATTERN #18, argument 5/,
     bytes: enc.encode(replaceLine(eigen, '#18=', '#18=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,2,$,(#17));')) },
-  // De lezer sorteert de blokken (en leest de kalender dan met 8,5 uur als uurkalender: `HoursPerDay` komt ook niet terug).
-  { label: 'IfcTimePeriod: de volgorde van de blokken', kind: 'niet-gedragen', detail: /^IFCRECURRENCEPATTERN #18, argument 7: \(#17,#9001\) → /,
+  // De lezer sorteert de blokken; die volgorde zet (b) terug. Maar hij leest de kalender dan met 8,5 uur als uurkalender,
+  // en `HoursPerDay` (8) komt niet terug: een eigen pset die anders wordt, zet (b) niet terug (structuur).
+  { label: 'IfcTimePeriod: de volgorde van de blokken', kind: 'niet-gedragen', detail: /^IFCPROPERTYSINGLEVALUE #39: ontbreekt in de uitvoer \('HoursPerDay'\)/,
     only: /^IFC(RECURRENCEPATTERN #18|PROPERTYSET #40|PROPERTYSINGLEVALUE #39)\b/,
     bytes: enc.encode(withLines(replaceLine(replaceLine(eigen, '#17=', "#17=IFCTIMEPERIOD('12:30:00','16:00:00');"),
       '#18=', '#18=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,$,$,(#17,#9001));'), ["#9001=IFCTIMEPERIOD('07:00:00','12:00:00');"])) },
-  { label: 'live IfcWorkSchedule: Name', kind: 'niet-gedragen', detail: /^IFCWORKSCHEDULE #43, argument 2/,
+  { label: 'live IfcWorkSchedule: Name', keep: /#43=IFCWORKSCHEDULE\('1xkfxg8DBe_v6M7NKbP40\$',#\d+,'Uitvoering',/,  kind: 'niet-gedragen', detail: /^IFCWORKSCHEDULE #43, argument 2/,
     // `split`/`join`, geen `replace`: in een vervangtekst is `$'` een patroon (het GlobalId eindigt op `$`).
     bytes: enc.encode(eigen.split("#43=IFCWORKSCHEDULE('1xkfxg8DBe_v6M7NKbP40$',#6,'Construction schedule v1.0',").join("#43=IFCWORKSCHEDULE('1xkfxg8DBe_v6M7NKbP40$',#6,'Uitvoering',")) },
-  { label: 'baseline (IfcWorkSchedule .BASELINE.): Purpose', kind: 'niet-gedragen', detail: /^IFCWORKSCHEDULE #44, argument 8/,
+  { label: 'baseline (IfcWorkSchedule .BASELINE.): Purpose', keep: "'Contract'",  kind: 'niet-gedragen', detail: /^IFCWORKSCHEDULE #44, argument 8/,
     bytes: enc.encode(eigen.replace("'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',$,$,", "'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',$,'Contract',")) },
-  { label: 'IfcRelNests: Name', kind: 'niet-gedragen', detail: /^IFCRELNESTS #86, argument 2/,
+  { label: 'IfcRelNests: Name', keep: "'Indeling van Bonsai'",  kind: 'niet-gedragen', detail: /^IFCRELNESTS #86, argument 2/,
     bytes: enc.encode(replaceLine(eigen, '#86=', "#86=IFCRELNESTS('019zaG0nTwHMAjntv3hgaB',#6,'Indeling van Bonsai',$,#49,(#51,#53));")) },
-  { label: 'IfcRelAssignsToProcess: Description', kind: 'niet-gedragen', detail: /^IFCRELASSIGNSTOPROCESS #145, argument 3/,
+  { label: 'IfcRelAssignsToProcess: Description', keep: "'Toewijzing van Bonsai'",  kind: 'niet-gedragen', detail: /^IFCRELASSIGNSTOPROCESS #145, argument 3/,
     bytes: enc.encode(replaceLine(eigen, '#145=', "#145=IFCRELASSIGNSTOPROCESS('0qaSpDMFm3_b9f8mO9$CFm',#6,$,'Toewijzing van Bonsai',(#109,#110),$,#63,$);")) },
-  { label: 'IfcRelAggregates: Name', kind: 'niet-gedragen', detail: /^IFCRELAGGREGATES #45, argument 2/,
+  { label: 'IfcRelAggregates: Name', keep: /IFCRELAGGREGATES\('[^']*',#\d+,'Indeling',/,  kind: 'niet-gedragen', detail: /^IFCRELAGGREGATES #45, argument 2/,
     bytes: enc.encode(replaceLine(eigen, '#45=', "#45=IFCRELAGGREGATES('3r_tvuxgJO4K6Bs7LAtOAp',#6,'Indeling',$,#42,(#43,#44));")) },
-  { label: 'IfcOwnerHistory: State', kind: 'niet-gedragen', detail: /^IFCOWNERHISTORY #6, argument 2/,
+  { label: 'IfcOwnerHistory: State', keep: '.READWRITE.,.NOCHANGE.',  kind: 'niet-gedragen', detail: /^IFCOWNERHISTORY #6, argument 2/,
     bytes: enc.encode(replaceLine(r4, '#6=', '#6=IFCOWNERHISTORY(#3,#5,.READWRITE.,.NOCHANGE.,$,$,$,1787775670);')) },
   // In r4-k1 is de persoon C (ook een vreemde IfcPersonAndOrganization wijst ernaar); in de showcase is hij P.
-  { label: 'IfcPerson: GivenName', kind: 'niet-gedragen', detail: /^IFCPERSON #1, argument 2/,
+  { label: 'IfcPerson: GivenName', keep: "'Project director','Jan'",  kind: 'niet-gedragen', detail: /^IFCPERSON #1, argument 2/,
     bytes: showcaseWithWall('#1=', "#1=IFCPERSON($,'Project director','Jan',$,$,$,$,$);") },
-  { label: 'IfcPersonAndOrganization: Roles', kind: 'niet-gedragen', detail: /^IFCPERSONANDORGANIZATION #3, argument 2/,
+  { label: 'IfcPersonAndOrganization: Roles', keep: ',(#90007));',  kind: 'niet-gedragen', detail: /^IFCPERSONANDORGANIZATION #3, argument 2/,
     bytes: enc.encode(withLines(replaceLine(showcaseApp, '#3=', '#3=IFCPERSONANDORGANIZATION(#1,#2,(#90007));'), ['#90007=IFCACTORROLE(.ARCHITECT.,$,$);'])) },
-  { label: 'IfcApplication: ApplicationFullName', kind: 'niet-gedragen', detail: /^IFCAPPLICATION #5, argument 2/,
+  { label: 'IfcApplication: ApplicationFullName', keep: "'Open Planner Studio (bewerkt)'",  kind: 'niet-gedragen', detail: /^IFCAPPLICATION #5, argument 2/,
     bytes: enc.encode(replaceLine(r4, '#5=', "#5=IFCAPPLICATION(#4,'0.1','Open Planner Studio (bewerkt)','OPS');")) },
-  { label: 'IfcProject (P): LongName', kind: 'niet-gedragen', detail: /^IFCPROJECT #13, argument 5/,
+  { label: 'IfcProject (P): LongName', keep: "'Lange naam'",  kind: 'niet-gedragen', detail: /^IFCPROJECT #13, argument 5/,
     bytes: enc.encode(replaceLine(r4, '#13=', "#13=IFCPROJECT('Q$fb4XQXzz2tLNCnyhvp85',#6,'Review bronproject',$,$,'Lange naam',$,(#12),#9);")) },
   { label: 'eenheden van een eigen project: een eenheid erbij', kind: 'niet-gedragen', detail: /^IFCSIUNIT #9001: ontbreekt in de uitvoer/,
     only: /^IFC(SIUNIT #9001|UNITASSIGNMENT #9)\b/,
     bytes: enc.encode(withLines(replaceLine(r4, '#9=', '#9=IFCUNITASSIGNMENT((#7,#8,#9001));'), ['#9001=IFCSIUNIT(*,.MASSUNIT.,.KILO.,.GRAM.);'])) },
-  { label: 'context van een eigen project: Precision', kind: 'niet-gedragen', detail: /^IFCGEOMETRICREPRESENTATIONCONTEXT #12, argument 3/,
+  { label: 'context van een eigen project: Precision', keep: "'Plan',3,1.0E-03,",  kind: 'niet-gedragen', detail: /^IFCGEOMETRICREPRESENTATIONCONTEXT #12, argument 3/,
     bytes: enc.encode(replaceLine(r4, '#12=', "#12=IFCGEOMETRICREPRESENTATIONCONTEXT($,'Plan',3,1.0E-03,#11,$);")) },
-  { label: 'IfcPropertySet: Description', kind: 'niet-gedragen', detail: /^IFCPROPERTYSET #260, argument 3/,
+  { label: 'IfcPropertySet: Description', keep: "'OPS_Analysis','Uitleg van een ander'",  kind: 'niet-gedragen', detail: /^IFCPROPERTYSET #260, argument 3/,
     bytes: enc.encode(replaceLine(eigen, '#260=', "#260=IFCPROPERTYSET('01AsvZxUljmG1vHQZTRE5x',#6,'OPS_Analysis','Uitleg van een ander',(#259));")) },
-  { label: 'property: Unit', kind: 'niet-gedragen', detail: /^IFCPROPERTYSINGLEVALUE #259, argument 3/,
+  { label: 'property: Unit', keep: /'ExactFloat',\$,IFCTEXT\('\{"TotalFloat":\[3,1440\],"FreeFloat":\[0,0\]\}'\),#\d+\);/,  kind: 'niet-gedragen', detail: /^IFCPROPERTYSINGLEVALUE #259, argument 3/,
     bytes: enc.encode(replaceLine(eigen, '#259=', `#259=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0]}'),#7);`)) },
-  { label: 'IfcSimplePropertyTemplate: Description', kind: 'niet-gedragen', detail: /^IFCSIMPLEPROPERTYTEMPLATE #1569, argument 3/,
+  { label: 'IfcSimplePropertyTemplate: Description', keep: "'Cost estimate','Uitleg van een ander'",  kind: 'niet-gedragen', detail: /^IFCSIMPLEPROPERTYTEMPLATE #1569, argument 3/,
     bytes: showcaseWithWall('#1569=', "#1569=IFCSIMPLEPROPERTYTEMPLATE('0aOuJjC800sy1ONQtwIfSB',#6,'Cost estimate','Uitleg van een ander',.P_SINGLEVALUE.,'IfcMonetaryMeasure',$,$,$,$,$,$);") },
-  { label: 'IfcPropertySetTemplate: ApplicableEntity', kind: 'niet-gedragen', detail: /^IFCPROPERTYSETTEMPLATE #1572, argument 5/,
+  { label: 'IfcPropertySetTemplate: ApplicableEntity', keep: "'IfcTask,IfcProcedure'",  kind: 'niet-gedragen', detail: /^IFCPROPERTYSETTEMPLATE #1572, argument 5/,
     bytes: showcaseWithWall('#1572=', "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask,IfcProcedure',(#1569,#1570,#1571));") },
-  { label: 'IfcPropertyEnumeration: Unit', kind: 'niet-gedragen', detail: /^IFCPROPERTYENUMERATION #1573, argument 2/,
+  { label: 'IfcPropertyEnumeration: Unit', keep: /IFCPROPERTYENUMERATION\('Tower',\(IFCLABEL\('A'\),IFCLABEL\('B'\),IFCLABEL\('C'\),IFCLABEL\('GEN'\)\),#\d+\);/,  kind: 'niet-gedragen', detail: /^IFCPROPERTYENUMERATION #1573, argument 2/,
     bytes: showcaseWithWall('#1573=', "#1573=IFCPROPERTYENUMERATION('Tower',(IFCLABEL('A'),IFCLABEL('B'),IFCLABEL('C'),IFCLABEL('GEN')),#7);") },
-  { label: 'IfcPropertyEnumeratedValue: Description', kind: 'niet-gedragen', detail: /^IFCPROPERTYENUMERATEDVALUE #1579, argument 1/,
+  { label: 'IfcPropertyEnumeratedValue: Description', keep: "'Tower',IFCTEXT('Uitleg van een ander'),",  kind: 'niet-gedragen', detail: /^IFCPROPERTYENUMERATEDVALUE #1579, argument 1/,
     bytes: showcaseWithWall('#1579=', "#1579=IFCPROPERTYENUMERATEDVALUE('Tower',IFCTEXT('Uitleg van een ander'),(IFCLABEL('GEN')),$);") },
-  { label: 'IfcRelDeclares: Name', kind: 'niet-gedragen', detail: /^IFCRELDECLARES #1578, argument 2/,
+  { label: 'IfcRelDeclares: Name', keep: "'Templates'",  kind: 'niet-gedragen', detail: /^IFCRELDECLARES #1578, argument 2/,
     bytes: showcaseWithWall('#1578=', "#1578=IFCRELDECLARES('0a64cPJBj3TA5$K6E0K85k',#6,'Templates',$,#13,(#1572,#1577));") },
-  { label: 'IfcRelAssignsToControl: Name', kind: 'niet-gedragen', detail: /^IFCRELASSIGNSTOCONTROL #174, argument 2/,
+  { label: 'IfcRelAssignsToControl: Name', keep: "'Schema'",  kind: 'niet-gedragen', detail: /^IFCRELASSIGNSTOCONTROL #174, argument 2/,
     bytes: enc.encode(replaceLine(eigen, '#174=', "#174=IFCRELASSIGNSTOCONTROL('3zl3akoXTe88uDKhkyNOSy',#6,'Schema',$,(#47,#49,#51,#53,#55,#57,#59,#61,#63,#65,#67,#69,#71,#73,#75,#77,#79,#81,#83,#85),$,#43);")) },
-  { label: 'IfcRelDefinesByProperties: Name', kind: 'niet-gedragen', detail: /^IFCRELDEFINESBYPROPERTIES #261, argument 2/,
+  { label: 'IfcRelDefinesByProperties: Name', keep: "'Analyse'",  kind: 'niet-gedragen', detail: /^IFCRELDEFINESBYPROPERTIES #261, argument 2/,
     bytes: enc.encode(replaceLine(eigen, '#261=', "#261=IFCRELDEFINESBYPROPERTIES('3UIq0yU221UujFF9jqIDdV',#6,'Analyse',$,(#47),#260);")) },
-  { label: 'IfcOrganization: Identification', kind: 'niet-gedragen', detail: /^IFCORGANIZATION #2, argument 0/,
+  { label: 'IfcOrganization: Identification', keep: "IFCORGANIZATION('KvK 123',",  kind: 'niet-gedragen', detail: /^IFCORGANIZATION #2, argument 0/,
     bytes: enc.encode(replaceLine(r4, '#2=', "#2=IFCORGANIZATION('KvK 123',$,$,$,$);")) },
-  { label: 'IfcSIUnit: Prefix', kind: 'niet-gedragen', detail: /^IFCSIUNIT #7, argument 2/,
+  { label: 'IfcSIUnit: Prefix', keep: '.LENGTHUNIT.,.MILLI.,.METRE.',  kind: 'niet-gedragen', detail: /^IFCSIUNIT #7, argument 2/,
     bytes: enc.encode(replaceLine(r4, '#7=', '#7=IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);')) },
-  { label: 'IfcCartesianPoint van de context: Coordinates', kind: 'niet-gedragen', detail: /^IFCCARTESIANPOINT #10, argument 0/,
+  { label: 'IfcCartesianPoint van de context: Coordinates', keep: 'IFCCARTESIANPOINT((1.,0.,0.))',  kind: 'niet-gedragen', detail: /^IFCCARTESIANPOINT #10, argument 0/,
     bytes: enc.encode(replaceLine(r4, '#10=', '#10=IFCCARTESIANPOINT((1.,0.,0.));')) },
-  { label: 'IfcAxis2Placement3D van de context: RefDirection', kind: 'niet-gedragen', detail: /^IFCAXIS2PLACEMENT3D #11, argument 2/,
+  { label: 'IfcAxis2Placement3D van de context: RefDirection', keep: ',$,#9002);',  kind: 'niet-gedragen', detail: /^IFCAXIS2PLACEMENT3D #11, argument 2/,
     bytes: enc.encode(withLines(replaceLine(r4, '#11=', '#11=IFCAXIS2PLACEMENT3D(#10,$,#9002);'), ['#9002=IFCDIRECTION((1.,0.,0.));'])) },
 ];
 // Zonder wijziging schrijft de merge elk van deze bestanden (de proef meet dus alleen de ene waarde).
@@ -722,13 +749,18 @@ await roundTrip('zoektocht: eigen-plus-model zonder wijziging', enc.encode(eigen
 await roundTrip('zoektocht: r4-k1 zonder wijziging', enc.encode(r4));
 await roundTrip('zoektocht: showcase met een wand van Revit', enc.encode(showcaseApp));
 {
-  // Een gedeelde persoon (C) blijft byte-gelijk staan, maar de eigen owner history wijst daarna naar de persoon van de
-  // writer, zonder GivenName (fixronde 2: een verwijzing naar een niet-P-doel telt mee, via de gekoppelde kopie).
+  // Een gedeelde persoon (C) blijft byte-gelijk staan, en de eigen owner history wijst naar de persoon van de writer, een
+  // kopie (`id`). Sinds fixronde 3 krijgt die kopie de GivenName van de bron terug (b): de persoon staat er twee keer.
   const k1Jan = enc.encode(replaceLine(r4, '#1=', "#1=IFCPERSON($,'','Jan',$,$,$,$,$);"));
-  await expectRefusal('zoektocht: r4-k1 met een GivenName op de gedeelde persoon', k1Jan, 'niet-gedragen', undefined,
-    /^IFCPERSON #1, argument 2: 'Jan' → \$/, /^IFCPERSON #1\b/);
+  const r = await roundTrip('zoektocht: r4-k1 met een GivenName op de gedeelde persoon', k1Jan);
+  if (r) eq('zoektocht: r4-k1 met een GivenName: de gedeelde persoon en de kopie hebben Jan', text(r.out).split("'','Jan',").length - 1, 2);
 }
-for (const t of SEARCH) await expectRefusal(`zoektocht: ${t.label}`, t.bytes, t.kind, undefined, t.detail, t.only ?? pieceOf(t.detail));
+const has = (out: Uint8Array, keep: string | RegExp) => (typeof keep === 'string' ? text(out).includes(keep) : keep.test(text(out)));
+for (const t of SEARCH) {
+  if (!t.keep) { await expectRefusal(`zoektocht: ${t.label}`, t.bytes, t.kind, undefined, t.detail, t.only ?? pieceOf(t.detail)); continue; }
+  const r = await roundTrip(`zoektocht: ${t.label}`, t.bytes);
+  if (r) ok(`zoektocht: ${t.label}: de bronwaarde staat in de uitvoer (${t.keep})`, has(r.out, t.keep));
+}
 
 // ── 5c. BLOKKEERT 1: de vier projectvelden alleen bij een project dat niet P is ──
 // Een eigen bestand zonder model met `ProjectName` in OPS_ProjectSettings (de proef van de reviewers). Met de flag aan is
@@ -761,33 +793,36 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
 }
 
 // ── 5e. Fixronde 2 van #867: de negen tegenvoorbeelden van ronde 2 ──
-// Elk op de concrete bronwaarde, zonder bewerking: de lezer draagt het veld niet, dus `niet-gedragen` op precies dat stuk.
-// Rood op `2848638cc` (daar schreef de merge ze, en ging de waarde stil verloren). Met een domeinveld erbij ook de
-// bewuste bewerking van hetzelfde veld: vanuit een bron die de lezer wel draagt, schrijft de merge de nieuwe waarde.
+// Elk op de concrete bronwaarde, zonder bewerking. Op `2848638cc` schreef de merge ze, en ging de waarde stil verloren; in
+// fixronde 2 weigerde de merge (`niet-gedragen` op precies dat stuk). Sinds fixronde 3 blijft de waarde staan (b, `keep`),
+// behalve waar (b) niet past: een stuk zonder tegenhanger (B3 van Sol) of een eigen pset die anders wordt (P2DT12H: de
+// lezer leest de kalender dan als uurkalender). Met een domeinveld erbij ook de bewuste bewerking van hetzelfde veld,
+// vanuit een bron die de lezer wel draagt; vanuit de bron met de waarde staat dat in 5h.
 const replaceIn = (src: string, from: string, to: string) => {
   if (!src.includes(from)) throw new Error(`geen ${from.slice(0, 60)}`);
   return src.split(from).join(to); // `split`/`join`: geen vervangpatronen (`$'`) in de tekst
 };
 const TASK_51 = "#51=IFCTASK('2bl5huCqaJNQoiPDoJLdX4',#6,'Set up site',$,$,'2.1',$,$,$,.F.,$,#50,.LOGISTIC.);";
 const TIME_50 = "#50=IFCTASKTIME('Set up site Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M2D',";
-const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only: RegExp }[] = [
-  { label: 'B1 (Terra): IfcTask.Status', detail: /^IFCTASK #51, argument 7: 'ON HOLD' → \$/, only: /^IFCTASK #51\b/,
+const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only: RegExp; keep?: RegExp }[] = [
+  { label: 'B1 (Terra): IfcTask.Status', keep: /#51=IFCTASK\([^;]*'2\.1',\$,'ON HOLD',/, detail: /^IFCTASK #51, argument 7: 'ON HOLD' → \$/, only: /^IFCTASK #51\b/,
     bytes: enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,", "'2.1',$,'ON HOLD',$,"))) },
-  { label: 'B1 (Terra): IfcTaskTime.DurationType', detail: /^IFCTASKTIME #50, argument 3: \.NOTDEFINED\. → \.WORKTIME\./, only: /^IFCTASKTIME #50\b/,
+  { label: 'B1 (Terra): IfcTaskTime.DurationType', keep: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,/, detail: /^IFCTASKTIME #50, argument 3: \.NOTDEFINED\. → \.WORKTIME\./, only: /^IFCTASKTIME #50\b/,
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace('.WORKTIME.', '.NOTDEFINED.'))) },
-  // Met uren in de duur leest de lezer de kalender als uurkalender: ook `HoursPerDay` (#39 in #40) komt niet terug.
-  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', detail: /^IFCTASKTIME #50, argument 4: 'P2DT12H' → /,
+  // Met uren in de duur leest de lezer de kalender als uurkalender: `HoursPerDay` (#39 in #40) komt niet terug. De duur zelf
+  // zet (b) terug; een duur in een bestand dat al een uurkalender heeft, blijft staan (5h).
+  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', detail: /^IFCPROPERTYSINGLEVALUE #39: ontbreekt in de uitvoer \('HoursPerDay'\)/,
     only: /^IFC(TASKTIME #50|PROPERTYSET #40|PROPERTYSINGLEVALUE #39)\b/,
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace("'P0Y0M2D'", "'P2DT12H'"))) },
-  { label: 'B1 (Sol): IfcWorkSchedule #43.PredefinedType', detail: /^IFCWORKSCHEDULE #43, argument 13: \.ACTUAL\. → \.PLANNED\./, only: /^IFCWORKSCHEDULE #43\b/,
+  { label: 'B1 (Sol): IfcWorkSchedule #43.PredefinedType', keep: /#43=IFCWORKSCHEDULE\([^;]*,\.ACTUAL\.\);/, detail: /^IFCWORKSCHEDULE #43, argument 13: \.ACTUAL\. → \.PLANNED\./, only: /^IFCWORKSCHEDULE #43\b/,
     bytes: enc.encode(replaceIn(eigen, "'2027-05-07T07:00:00','2027-07-07T07:00:00',.PLANNED.);\n#44=", "'2027-05-07T07:00:00','2027-07-07T07:00:00',.ACTUAL.);\n#44=")) },
-  { label: "B1 (Sol): IfcPropertyEnumeration #1573 met IFCLABEL('VENDOR')", detail: /^IFCPROPERTYENUMERATION #1573, argument 1: \(IFCLABEL\('A'\),IFCLABEL\('B'\),IFCLABEL\('C'\),IFCLABEL\('GEN'\),I → \(IFCLABEL\('A'\),IFCLABEL\('B'\),IFCLABEL\('C'\),IFCLABEL\('GEN'\)\)$/,
+  { label: "B1 (Sol): IfcPropertyEnumeration #1573 met IFCLABEL('VENDOR')", keep: /IFCPROPERTYENUMERATION\('Tower',\(IFCLABEL\('A'\),IFCLABEL\('B'\),IFCLABEL\('C'\),IFCLABEL\('GEN'\),IFCLABEL\('VENDOR'\)\),\$\);/, detail: /^IFCPROPERTYENUMERATION #1573, argument 1: \(IFCLABEL\('A'\),IFCLABEL\('B'\),IFCLABEL\('C'\),IFCLABEL\('GEN'\),I → \(IFCLABEL\('A'\),IFCLABEL\('B'\),IFCLABEL\('C'\),IFCLABEL\('GEN'\)\)$/,
     only: /^IFCPROPERTYENUMERATION #1573\b/,
     bytes: showcaseWithWall('#1573=', "#1573=IFCPROPERTYENUMERATION('Tower',(IFCLABEL('A'),IFCLABEL('B'),IFCLABEL('C'),IFCLABEL('GEN'),IFCLABEL('VENDOR')),$);") },
-  { label: 'B2 (Sol): IfcPropertyEnumeratedValue #1579 met twee waarden',
+  { label: 'B2 (Sol): IfcPropertyEnumeratedValue #1579 met twee waarden', keep: /IFCPROPERTYENUMERATEDVALUE\('Tower',\$,\(IFCLABEL\('GEN'\),IFCLABEL\('A'\)\),\$\);/,
     detail: /^IFCPROPERTYENUMERATEDVALUE #1579, argument 2: \(IFCLABEL\('GEN'\),IFCLABEL\('A'\)\) → \(IFCLABEL\('GEN'\)\)/, only: /^IFCPROPERTYENUMERATEDVALUE #1579\b/,
     bytes: showcaseWithWall('#1579=', "#1579=IFCPROPERTYENUMERATEDVALUE('Tower',$,(IFCLABEL('GEN'),IFCLABEL('A')),$);") },
-  { label: 'B3 (Terra): ExactFloat [3,1440,"BEWAAR-DIT"]', detail: /^IFCPROPERTYSINGLEVALUE #259\b/, only: /^IFC[A-Z]+ #(259|260|261)\b/,
+  { label: 'B3 (Terra): ExactFloat [3,1440,"BEWAAR-DIT"]', keep: /"TotalFloat":\[3,1440,"BEWAAR-DIT"\]/, detail: /^IFCPROPERTYSINGLEVALUE #259\b/, only: /^IFC[A-Z]+ #(259|260|261)\b/,
     bytes: enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0]}'),$);\n#260=`, `IFCTEXT('{"TotalFloat":[3,1440,"BEWAAR-DIT"],"FreeFloat":[0,0]}'),$);\n#260=`)) },
   { label: 'B3 (Sol): ExactFloat [2,null,867] op taak #51', detail: /^IFCPROPERTYSINGLEVALUE #265\b/, only: /^IFC[A-Z]+ #(265|266|267)\b/,
     bytes: enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),$);\n#266=`, `IFCTEXT('{"TotalFloat":[2,null,867]}'),$);\n#266=`)) },
@@ -795,7 +830,7 @@ const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only
     bytes: enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),$);\n#266=`, `IFCTEXT('{"TotalFloat":[867]}'),$);\n#266=`)) },
   // B4: de massa-eenheid is C (een vreemde property op de wand wijst ernaar); haar lidmaatschap van de projecteenheden
   // (P) ging verloren. Nu vergelijkt de toets ook verwijzingen naar niet-P-doelen.
-  { label: 'B4 (Sol): een gedeelde eenheid in de projecteenheden', detail: /^IFCUNITASSIGNMENT #9, argument 0: \(#7,#8,#9001\) → /, only: /^IFCUNITASSIGNMENT #9\b/,
+  { label: 'B4 (Sol): een gedeelde eenheid in de projecteenheden', keep: /IFCUNITASSIGNMENT\(\(#\d+,#\d+,#9001\)\);/, detail: /^IFCUNITASSIGNMENT #9, argument 0: \(#7,#8,#9001\) → /, only: /^IFCUNITASSIGNMENT #9\b/,
     bytes: enc.encode(withLines(replaceLine(r4, '#9=', '#9=IFCUNITASSIGNMENT((#7,#8,#9001));'), [
       '#9001=IFCSIUNIT(*,.MASSUNIT.,.KILO.,.GRAM.);',
       "#9002=IFCPROPERTYSINGLEVALUE('VendorMass',$,IFCMASSMEASURE(12.5),#9001);",
@@ -808,7 +843,11 @@ const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only
   const index = scanStep(b4);
   ok('B4: de massa-eenheid is C in de bron', classify(index).classes[index.chunkOf('9001')] === 2);
 }
-for (const t of COUNTER) await expectRefusal(`tegenvoorbeeld ${t.label}`, t.bytes, 'niet-gedragen', undefined, t.detail, t.only);
+for (const t of COUNTER) {
+  if (!t.keep) { await expectRefusal(`tegenvoorbeeld ${t.label}`, t.bytes, 'niet-gedragen', undefined, t.detail, t.only); continue; }
+  const r = await roundTrip(`tegenvoorbeeld ${t.label}`, t.bytes);
+  if (r) ok(`tegenvoorbeeld ${t.label}: de bronwaarde staat in de uitvoer (${t.keep})`, t.keep.test(text(r.out)));
+}
 
 // De bewuste bewerking van hetzelfde veld, vanuit de bron die de lezer draagt (`eigen`, `showcaseApp`).
 const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name)!;
@@ -862,6 +901,131 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   if (r) ok('bewerking: speling: ExactFloat van #51 is [4.5,2160]', text(r.out).includes(`"TotalFloat":[4.5,2160]`));
 }
 
+// ── 5h. (b) per soort slot (fixronde 3 van #867, besluit 2) ──
+// Per soort, vanuit een bron met de waarde die de lezer niet draagt: (i) zonder bewerking blijft de bronwaarde byte-gelijk
+// staan; (ii) bewerkt de planner dat veld, dan geldt zijn waarde; (iii) bewerkt hij een ander veld van hetzelfde stuk, dan
+// blijft de bronwaarde. "Het veld" is het slot zoals de writer het schrijft. Een mutatie die de soort uit `RESTORE_KINDS`
+// haalt, maakt (i) en (iii) van die soort rood (PR-body).
+const SET_UP = 'Set up site';
+const renameTask = (from: string) => (d: Domain) => { taskNamed(d, from).name = 'Hernoemd'; };
+const T55 = "#55=IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D'";
+const KINDS: readonly {
+  kind: string; label: string; bytes: Uint8Array; keep: RegExp;
+  field?: { label: string; edit: (d: Domain) => void; want: RegExp };
+  other: { label: string; edit: (d: Domain) => void; want: RegExp };
+}[] = [
+  {
+    kind: 'enumeratie', label: 'IfcTaskTime.DurationType .NOTDEFINED.',
+    bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace('.WORKTIME.', '.NOTDEFINED.'))),
+    keep: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,'P0Y0M2D'/,
+    field: { label: 'DurationType', edit: (d) => { taskNamed(d, SET_UP).time.durationType = 'ELAPSEDTIME'; }, want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/ },
+    other: {
+      label: 'de duur',
+      edit: (d) => { const t = taskNamed(d, SET_UP).time; t.scheduleDuration += 1; if (t.durationMinutes !== undefined) t.durationMinutes += 480; },
+      want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,'P0Y0M3D'/,
+    },
+  },
+  {
+    // Een bestand met een uurkalender (de showcase), zodat de kalender gelijk blijft. De lezer leest `P2DT12H` als 12 uur
+    // (knownbug 1027); (b) laat de bron staan zolang de planner de duur niet wijzigt.
+    kind: 'duur', label: 'IfcTaskTime.ScheduleDuration P2DT12H',
+    bytes: enc.encode(replaceIn(showcaseApp, T55, T55.replace("'P0Y0M3D'", "'P2DT12H'"))),
+    keep: /IFCTASKTIME\('CPT soundings & soil investigation Time',\.PREDICTED\.,\$,\.WORKTIME\.,'P2DT12H'/,
+    field: {
+      label: 'de duur',
+      edit: (d) => { const t = taskNamed(d, 'CPT soundings & soil investigation').time; t.durationMinutes = 1440; t.scheduleDuration = 3; },
+      want: /IFCTASKTIME\('CPT soundings & soil investigation Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT24H0M0S'/,
+    },
+    other: { label: 'de naam (Name van de taaktijd)', edit: renameTask('CPT soundings & soil investigation'), want: /IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'P2DT12H'/ },
+  },
+  {
+    kind: 'tekst', label: "IfcTask.Status 'ON HOLD'",
+    bytes: enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,", "'2.1',$,'ON HOLD',$,"))),
+    keep: /#51=IFCTASK\([^;]*'2\.1',\$,'ON HOLD',/,
+    field: {
+      label: 'de status (een lopende taak op 100 %)',
+      edit: (d) => { const t = taskNamed(d, SET_UP); t.status = 'STARTED'; t.time.completion = 1; delete t.time.actualFinish; },
+      want: /#51=IFCTASK\([^;]*'2\.1',\$,'STARTED',/,
+    },
+    other: { label: 'de naam', edit: renameTask(SET_UP), want: /#51=IFCTASK\('[^']*',#\d+,'Hernoemd',[^;]*'2\.1',\$,'ON HOLD',/ },
+  },
+  {
+    kind: 'getal', label: 'IfcTaskTime.Completion 0.00',
+    bytes: enc.encode(eigen.replace(/^(#50=IFCTASKTIME\((?:[^,]*,){19})\$/m, '$10.00')),
+    keep: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.00\);/,
+    field: { label: 'het percentage', edit: (d) => { taskNamed(d, SET_UP).time.completion = 0.5; }, want: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.50?\);/ },
+    other: { label: 'de naam (Name van de taaktijd)', edit: renameTask(SET_UP), want: /IFCTASKTIME\('Hernoemd Time'(?:,[^,;]*){18},0\.00\);/ },
+  },
+  {
+    // Geen domeinveld schrijft een verwijzing die de lezer niet draagt; (ii) toetst 5g op de toets zelf.
+    kind: 'verwijzing', label: 'de eenheid (Unit) van ExactFloat op taak #51',
+    bytes: enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),$);\n#266=`, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),#7);\n#266=`)),
+    keep: /'ExactFloat',\$,IFCTEXT\('\{"TotalFloat":\[3,1440\],"FreeFloat":\[3,1440\]\}'\),#\d+\);/,
+    other: {
+      label: 'de speling (NominalValue van dezelfde property)',
+      edit: (d) => { const t = taskNamed(d, SET_UP).time; t.totalFloat = 4.5; t.totalFloatMinutes = 2160; },
+      want: /'ExactFloat',\$,IFCTEXT\('\{"TotalFloat":\[4\.5,2160\][^']*'\),#\d+\);/,
+    },
+  },
+];
+for (const k of KINDS) {
+  const label = `(b) ${k.kind}: ${k.label}`;
+  const plain = await roundTrip(`${label} (i) zonder bewerking`, k.bytes);
+  if (plain) ok(`${label} (i): de bronwaarde staat er byte-gelijk (${k.keep})`, k.keep.test(text(plain.out)));
+  if (k.field) {
+    const mine = await roundTrip(`${label} (ii) ${k.field.label} bewerkt`, k.bytes, k.field.edit);
+    if (mine) ok(`${label} (ii): de waarde van de planner (${k.field.want})`, k.field.want.test(text(mine.out)) && !k.keep.test(text(mine.out)));
+  }
+  const other = await roundTrip(`${label} (iii) ${k.other.label} bewerkt`, k.bytes, k.other.edit);
+  if (other) ok(`${label} (iii): de bronwaarde blijft naast de bewerking (${k.other.want})`, k.other.want.test(text(other.out)));
+}
+// Een verwijzing die de writer in het slot zet en die niet van de bron komt: (b) zet dan niets terug (de structuur van de
+// writer blijft), en de merge weigert. De projecteenheden van r4-k1 zonder de tweede eenheid (#8).
+await expectRefusal('(b) verwijzing: de writer zet een eenheid in de projecteenheden die de bron daar niet had',
+  enc.encode(replaceLine(r4, '#9=', '#9=IFCUNITASSIGNMENT((#7));')), 'niet-gedragen', undefined, /^IFCUNITASSIGNMENT #9, argument 0: \(#7\) → \(#\d+,#\d+\)/);
+// lijst en json: de lezer draagt een deel van het veld. Zonder bewerking blijft de bron staan (5e); wijzigt de planner het
+// veld, dan weigert de merge, want per lid of per sleutel samenvoegen is fase 2 (`jsonExtras`, `unusedKeys`).
+{
+  const vendor = showcaseWithWall('#1573=', "#1573=IFCPROPERTYENUMERATION('Tower',(IFCLABEL('A'),IFCLABEL('B'),IFCLABEL('C'),IFCLABEL('GEN'),IFCLABEL('VENDOR')),$);");
+  await expectRefusal("(b) lijst: een waarde erbij in Tower naast IFCLABEL('VENDOR')", vendor, 'niet-gedragen', (d) => {
+    const tower = d.activityCodeTypes!.find(t => t.name === 'Tower')!;
+    tower.values.push({ ...structuredClone(tower.values[0]), id: 'acv-1b', code: 'D' });
+  }, /^IFCPROPERTYENUMERATION #1573, argument 1 na de bewerking: /);
+  const keepJson = enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[0,0]}'),$);\n#260=`, `IFCTEXT('{"TotalFloat":[3,1440,"BEWAAR-DIT"],"FreeFloat":[0,0]}'),$);\n#260=`));
+  await expectRefusal('(b) json: de speling van een taak met "BEWAAR-DIT"', keepJson, 'niet-gedragen', (d) => {
+    const t = taskNamed(d, 'Start of refurbishment').time;
+    t.totalFloat = 4.5;
+    t.totalFloatMinutes = 2160;
+  }, /^IFCPROPERTYSINGLEVALUE #259, argument 2 na de bewerking: /);
+  const renamed = await roundTrip('(b) json: een andere taak hernoemen naast "BEWAAR-DIT"', keepJson, renameTask(SET_UP));
+  if (renamed) ok('(b) json: "BEWAAR-DIT" blijft naast een bewerking van een ander stuk', text(renamed.out).includes('"TotalFloat":[3,1440,"BEWAAR-DIT"]'));
+}
+// De herleescontrole: de merge leest de planning met de bronwaarden van (b) terug. Geeft dat een andere planning dan
+// zonder, dan weigert hij. Een taak met Status 'STARTED' (de lezer leest dan "lopend op 100 %") die de planner afrondt
+// zonder werkelijk einde: de writer schrijft `$`, (b) zou 'STARTED' terugzetten, en de lezer zou de taak dan lopend laten.
+{
+  const started = enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,", "'2.1',$,'STARTED',$,")));
+  const r = await roundTrip("herleescontrole: Status 'STARTED' zonder bewerking", started);
+  if (r) ok("herleescontrole: Status 'STARTED' blijft staan", lineOf(r.out, '51').includes("'2.1',$,'STARTED',"));
+  await expectRefusal("herleescontrole: een taak met Status 'STARTED' afronden zonder werkelijk einde", started, 'niet-gedragen', (d) => {
+    const t = taskNamed(d, SET_UP);
+    t.time.completion = 1;
+    t.time.actualStart = t.time.scheduleStart;
+    delete t.time.actualFinish;
+    t.status = 'COMPLETED';
+  }, /^de bronwaarden \(1: IFCTASK #51 argument 7\) zouden na herlezen een andere planning geven/);
+}
+
+// ── 5i. De GlobalId van een eigen hulpstuk (fixronde 3 van #867, besluit 1) ──
+// Toegestaan als het stuk P is en geen stuk dat niet P is ernaar wijst; de toets gaat beide zelf na (`ownAuxGuid`). De
+// twee gevallen waarin het niet mag, staan in sectie 5 (een vreemde relatie naar een eigen pset: C; een vreemd stuk dat
+// naar de eigen IfcRelNests #58 wijst: P, maar met een inkomende verwijzing).
+{
+  const src = enc.encode(replaceLine(baseText, '#65=', "#65=IFCPROPERTYSET('0andereGuid00000000000',#6,'OPS_ProjectSettings',$,(#60,#61,#62,#63,#64));"));
+  const r = await roundTrip('besluit 1: een eigen pset met een andere GlobalId', src);
+  if (r) ok('besluit 1: de writer geeft de pset een eigen GlobalId', !text(r.out).includes("'0andereGuid00000000000'") && /IFCPROPERTYSET\('[^']*',#\d+,'OPS_ProjectSettings'/.test(text(r.out)));
+}
+
 // ── 5f. De normalisaties (`lossCheck.ts`, kop): elk met de reden waarom de waarde gelijk blijft ──
 // getal: elke STEP-lezer leest `8`, `8.` en `8.0E0` als hetzelfde getal; het type komt uit het schema of `IFCREAL(…)`.
 eq('normalisatie getal', [sameNumber('8', '8.'), sameNumber('8.', '8.0'), sameNumber('1.E0', '1.'), sameNumber('0.1', '0.10'), sameNumber('8', '9'), sameNumber('8.', '$')],
@@ -886,24 +1050,46 @@ eq('normalisatie duur', [sameDuration('PT12H', 'PT12H0M0S'), sameDuration('P0Y0M
 // plek in het schema. Een IfcTask zonder WorkMethod (12 argumenten) idem.
 ok('lay-out (geen normalisatie): het werkplan van de bron heeft 15 argumenten', (scanStep(enc.encode(baseText)).argTokens(scanStep(enc.encode(baseText)).chunkOf('53')) ?? []).length === 15);
 await roundTrip('lay-out (geen normalisatie): een IfcTask met 12 argumenten', enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,.F.", "'2.1',$,$,.F."))));
-// Toevoeging: een eigen pset mag properties bijkrijgen (de vier projectvelden in eigen-plus-model, sectie 5c), maar de
-// properties van de bron blijven in dezelfde volgorde.
+// Lay-out (smal, besluit 3): een argument zonder slot in de nieuwe lay-out mag alleen wegvallen als het `$` was. Dat is
+// argument 11 van het oude werkplan (de `$` te veel vóór StartTime, `ifcWorkControlSlots.ts`). Een lege tekst of een
+// waarde daar heeft in de nieuwe lay-out geen plek; (b) kan haar niet terugzetten zonder een lay-out die niet in het
+// schema staat, dus de merge weigert en de bron blijft zoals ze is.
+{
+  const oldPlan = (v: string) => enc.encode(replaceLine(baseText, '#53=',
+    `#53=IFCWORKPLAN('It4rJ35Fy5PBadA$Z1T90N',#6,'Review bronproject',$,$,$,'2026-08-26T20:21:10',$,$,$,$,${v},'2026-09-01T07:00:00','2026-09-02T07:00:00',.PLANNED.);`));
+  await roundTrip('lay-out: het oude werkplan met `$` op argument 11', oldPlan('$'));
+  await expectRefusal("lay-out: het oude werkplan met '' op argument 11", oldPlan("''"), 'niet-gedragen', undefined,
+    /^IFCWORKPLAN #53, argument 11: '' → geen slot in de uitvoer/, /^IFCWORKPLAN #53\b/);
+  await expectRefusal("lay-out: het oude werkplan met 'x' op argument 11", oldPlan("'x'"), 'niet-gedragen', undefined,
+    /^IFCWORKPLAN #53, argument 11: 'x' → geen slot in de uitvoer/, /^IFCWORKPLAN #53\b/);
+}
+// Toevoeging (smal, besluit 3): een pset met eigen herkomst mag properties bijkrijgen (de vier projectvelden in
+// eigen-plus-model, sectie 5c), maar de properties van de bron blijven in dezelfde volgorde, en een nieuwe property heeft
+// een naam die de bron in die pset niet had (5g). Een pset zonder eigen herkomst krijgt er geen bij.
 await expectRefusal('toevoeging: een pset met de properties in een andere volgorde', enc.encode(replaceIn(r4,
   "'OPS_Calendar',$,(#47,#48,#49,#50));", "'OPS_Calendar',$,(#50,#47,#48,#49));")), 'niet-gedragen', undefined,
   /^IFCPROPERTYSET #51, argument 4: \(#50,#47,#48,#49\) → /, /^IFCPROPERTYSET #51\b/);
-// Schrijfvelden (geen normalisatie): de tijd van opslaan in de eigen owner history.
+await expectRefusal('toevoeging: een eigen pset met de owner history van Revit krijgt er geen properties bij', enc.encode(replaceLine(baseText, '#65=',
+  "#65=IFCPROPERTYSET('e5a3ArlP$tNZvpDF1ZK5n5',#903,'OPS_ProjectSettings',$,(#60,#61,#62,#63,#64));")), 'niet-gedragen', undefined,
+  /^IFCPROPERTYSET #65, argument 4: \(#60,#61,#62,#63,#64\) → /);
+// Schrijfvelden (smal, besluit 3): de tijd van opslaan en de versie van de app, alleen in de eigen owner history van de
+// writer (5g), zijn applicatie, en het eigen werkplan en live-schema; de CreationDate van een baselinekop blijft.
 {
   const src = replaceIn(replaceIn(r4, '$,.NOCHANGE.,$,$,$,1787775670);', '$,.NOCHANGE.,$,$,$,1700000000);'), "IFCAPPLICATION(#4,'0.1',", "IFCAPPLICATION(#4,'0.0.9',");
   const r = await roundTrip('schrijfvelden: CreationDate van de eigen owner history en de versie van de app', enc.encode(src));
   if (r) ok('schrijfvelden: de uitvoer heeft de tijd van opslaan en de versie van nu', !text(r.out).includes(',1700000000);') && !text(r.out).includes("'0.0.9'"));
+  const ws = await roundTrip('schrijfvelden: CreationDate van het live-schema', enc.encode(eigen.replace(/^(#43=IFCWORKSCHEDULE\((?:[^,]*,){6})'[^']*'/m, "$1'2020-01-01T00:00:00'")));
+  if (ws) ok('schrijfvelden: het live-schema krijgt de tijd van opslaan', /^#43=IFCWORKSCHEDULE\((?:[^,]*,){6}'(?!2020-01-01T00:00:00')[^']*'/m.test(text(ws.out)));
+  const bl = await roundTrip('schrijfvelden: CreationDate van een baselinekop', enc.encode(replaceIn(eigen, "'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',", "'Baseline plan',$,$,$,'2020-01-01T00:00:00',")));
+  if (bl) ok('schrijfvelden: de baselinekop houdt zijn CreationDate', text(bl.out).includes("'Baseline plan',$,$,$,'2020-01-01T00:00:00',"));
 }
 
 // ── 5g. O1: na een bewerking mag de uitvoer alleen afwijken waar het domein veranderde ──
 // Buiten het pad van `LiteralTimes` (het blok hieronder) vond de eigen zoektocht geen pad waarlangs een bewerking een
 // veld van een ander object laat vallen (PR-body van #867). Daarom eerst `lossCheck` zelf, met een O1 waarin één veld anders is: op een taak die de planner niet bewerkte →
 // `niet-gedragen` "na de bewerking"; op de taak die hij wel bewerkte, of op haar taaktijd → niets.
-{
-  const bytes = enc.encode(eigen);
+/** `lossCheck` op een bestand, met de uitvoer van de merge als O0 (die is gelijk aan de bron). */
+async function lossSetup(bytes: Uint8Array) {
   const opened = await openForeign(bytes);
   const source = opened.ifcSource!;
   const index = scanStep(bytes);
@@ -917,23 +1103,31 @@ await expectRefusal('toevoeging: een pset met de properties in een andere volgor
     const line = parseOutLine(text(out.subarray(outIndex.entityStart(i), outIndex.end(i))).trim());
     if (line) o0.push(line);
   }
-  const lineFor = (pred: (l: OutLine) => boolean) => o0.find(pred)!;
+  /** De eigen owner history van de writer: die van de eerste taak. */
+  const owner = Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1));
+  const pristine = pristineDomain(index, cls, source);
+  const run = (lines0: OutLine[], lines1: OutLine[], edit: (d: Domain) => void, ownerOut: number | undefined = owner) => {
+    const domain = cloneDomain(opened);
+    edit(domain);
+    const found: string[] = [];
+    const { edits } = lossCheck({
+      index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,
+      pristine, domain, sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: ids.plan.projectSourceId === undefined,
+      owner0: ownerOut, owner1: ownerOut,
+    }, f => found.push(f.detail));
+    return { found, edits };
+  };
+  const withArg = (lines: OutLine[], line: OutLine, k: number, v: string) => lines.map(l => (l === line ? { ...l, args: l.args.map((a, j) => (j === k ? v : a)) } : l));
+  return { opened, o0, owner, run, withArg, lineFor: (pred: (l: OutLine) => boolean) => o0.find(pred)! };
+}
+{
+  const { o0, run: runLoss, withArg: withArgIn, lineFor } = await lossSetup(enc.encode(eigen));
   const task47 = lineFor(l => l.type === 'IFCTASK' && l.id === 47);
   const task51 = lineFor(l => l.type === 'IFCTASK' && l.id === 51);
   const time47 = lineFor(l => l.id === Number(task47.args[11].slice(1)));
   const time51 = lineFor(l => l.id === Number(task51.args[11].slice(1)));
-  const withArg = (line: OutLine, k: number, v: string) => o0.map(l => (l === line ? { ...l, args: l.args.map((a, j) => (j === k ? v : a)) } : l));
-  const run = (o1: OutLine[], edit: (d: Domain) => void) => {
-    const domain = cloneDomain(opened);
-    edit(domain);
-    const found: string[] = [];
-    lossCheck({
-      index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0, o1,
-      pristine: pristineDomain(index, cls, source), domain, sourceOwnerHistory: ids.sourceOwnerHistory,
-      projectWritten: ids.plan.projectSourceId === undefined,
-    }, f => found.push(f.detail));
-    return found;
-  };
+  const withArg = (line: OutLine, k: number, v: string) => withArgIn(o0, line, k, v);
+  const run = (o1: OutLine[], edit: (d: Domain) => void) => runLoss(o0, o1, edit).found;
   const rename47 = (d: Domain) => { d.tasks.find(t => t.name === task47.args[2].slice(1, -1))!.name = 'Hernoemd'; };
   eq('O1: zonder verschil geen melding', run(o0, rename47), []);
   eq('O1: een andere taak verliest LongDescription', run(withArg(task51, 3, "'Weg'"), rename47),
@@ -943,6 +1137,47 @@ await expectRefusal('toevoeging: een pset met de properties in een andere volgor
   eq('O1: de bewerkte taak zelf', run(withArg(task47, 3, "'Weg'"), rename47), []);
   eq('O1: de taaktijd van de bewerkte taak', run(withArg(time47, 1, '.MEASURED.'), rename47), []);
   eq('O1: zonder bewerking toetst alleen O0', run(withArg(task51, 3, "'Weg'"), () => {}), []);
+}
+{
+  // Besluit 3, schrijfvelden (smal): de CreationDate van een owner history is alleen een schrijfveld in de eigen owner
+  // history van de writer. Wijst `owner0` ergens anders heen, dan zet (b) de bronwaarde terug.
+  const { o0, owner, run, withArg } = await lossSetup(enc.encode(eigen));
+  const ownerLine = o0.find(l => l.id === owner)!;
+  const later = withArg(o0, ownerLine, 7, '1');
+  const restoresOwner = (r: { edits: readonly { id: number; arg: number }[] }) => r.edits.some(e => e.id === owner && e.arg === 7);
+  eq('schrijfveld: de CreationDate van de eigen owner history (geen terugzetting, geen melding)', [restoresOwner(run(later, later, () => {})), run(later, later, () => {}).found], [false, []]);
+  ok('schrijfveld: dezelfde regel als ze niet de eigen owner history is: (b) zet de bronwaarde terug', restoresOwner(run(later, later, () => {}, -1)));
+}
+{
+  // Besluit 2, verwijzing (ii): geen domeinveld schrijft een verwijzing die de lezer niet draagt, dus toetst deze proef de
+  // regel zelf. O0 heeft de eenheid van ExactFloat leeg (zoals de writer schrijft); staat er in O1 ook niets, dan zet (b)
+  // de bronwaarde terug; zet de writer er in O1 iets anders (de planner wijzigde het veld), dan blijft zijn waarde.
+  const bytes = enc.encode(replaceIn(eigen, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),$);\n#266=`, `IFCTEXT('{"TotalFloat":[3,1440],"FreeFloat":[3,1440]}'),#7);\n#266=`));
+  const { o0, run, withArg } = await lossSetup(bytes);
+  const prop = o0.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'ExactFloat'" && l.args[2].includes('"FreeFloat":[3,1440]'))!;
+  const unit = prop.args[3];
+  const other = o0.find(l => l.type === 'IFCSIUNIT' && `#${l.id}` !== unit)!;
+  const plain = withArg(o0, prop, 3, '$');
+  const rename51 = (d: Domain) => { taskNamed(d, SET_UP).name = 'Hernoemd'; };
+  const back = run(plain, plain, rename51);
+  eq('verwijzing (ii): zonder wijziging van het slot zet (b) de bron terug', [back.edits.filter(e => e.id === prop.id).map(e => [e.arg, e.token]), back.found], [[[3, unit]], []]);
+  const mine = run(plain, withArg(plain, plain.find(l => l.id === prop.id)!, 3, `#${other.id}`), rename51);
+  eq('verwijzing (ii): een andere waarde in O1 blijft (geen terugzetting, geen melding)', [mine.edits.filter(e => e.id === prop.id).length, mine.found], [0, []]);
+}
+{
+  // Besluit 3, toevoegingen (smal): een eigen pset mag er een property bij krijgen, maar niet met een naam die de bron in die
+  // pset al had (dan is het een andere waarde, geen toevoeging).
+  const { o0, run } = await lossSetup(enc.encode(eigen));
+  const prop = o0.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'ExactFloat'" && l.args[2].includes('"FreeFloat":[0,0]}'))!;
+  const pset = o0.find(l => l.type === 'IFCPROPERTYSET' && l.args[4] === `(#${prop.id})`)!;
+  const next = Math.max(...o0.map(l => l.id)) + 1;
+  const withMember = (name: string) => [
+    ...o0.map(l => (l === pset ? { ...l, args: l.args.map((a, j) => (j === 4 ? `(#${prop.id},#${next})` : a)) } : l)),
+    parseOutLine(`#${next}=IFCPROPERTYSINGLEVALUE('${name}',$,IFCTEXT('{}'),$);`)!,
+  ];
+  eq('toevoeging: een property met een nieuwe naam', run(withMember('NieuweSleutel'), withMember('NieuweSleutel'), () => {}).found, []);
+  const same = run(withMember('ExactFloat'), withMember('ExactFloat'), () => {}).found;
+  ok(`toevoeging: een property met een naam van de bron (${same.slice(0, 2).join(' | ')})`, same.some(f => /^IFCPROPERTYSET #260 \(OPS_Analysis\), argument 4: /.test(f)));
 }
 {
   // Wel een pad in de writer (gevonden met de telling op de bestanden zoals de writer ze schrijft): de writer kiest per
@@ -987,6 +1222,6 @@ if (diffs.length > 0) {
   for (const d of diffs.slice(0, 60)) console.log(`   - ${d}`);
   process.exit(1);
 }
-console.log(`OK  ifc-foreign-preserve: alle checks groen (${checks}; corpus: ${written} keer geschreven, ${refused} keer getypeerd `
-  + `geweigerd, ${settledOwn} eigen bestanden zoals de writer ze schrijft rond; ${edited} bewerkingen van 1b met het vreemde deel byte-gelijk)`);
+console.log(`OK  ifc-foreign-preserve: alle checks groen (${checks}; corpus: ${written} keer geschreven, waarvan ${ownWritten} eigen `
+  + `bestanden zonder wijziging, en ${refused} keer getypeerd geweigerd; ${edited} bewerkingen van 1b met het vreemde deel byte-gelijk)`);
 process.exit(0);

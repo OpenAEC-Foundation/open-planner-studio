@@ -14,13 +14,16 @@
 // een fout bij openen, behalve de verwachte weigering in `REFUSED_AT_OPEN` (met haar reden).
 // Daarna (fixronde 2 van #867, bijsturing punt 2): hoeveel eigen bestanden (zonder vreemde herkomst) al zonder bewerking
 // `niet-gedragen` krijgen, het totaal van die meldingen, en de velden (entiteit + slot, bij een pset of property de naam)
-// die het vaakst de oorzaak zijn.
+// die het vaakst de oorzaak zijn. Sinds fixronde 3 (de bronwaarden van (b)) schrijft bijna elk eigen bestand zonder
+// bewerking; de telling splitst de bewerkingen daarom in drie groepen: eigen bestanden die zonder bewerking schrijven,
+// eigen bestanden die al zonder bewerking weigeren, en planningen van een ander programma (`vreemde-herkomst`), met de
+// velden achter `niet-gedragen` na een bewerking.
 // Exit 0 = geen "anders".
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, plannerEdits, settle, tryMerge, type EditKind, type Opened } from './ifcMergeKern';
+import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, plannerEdits, tryMerge, type EditKind, type Opened } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
@@ -56,9 +59,8 @@ const refusedAtOpen: string[] = [];
 
 /** Zonder bewerking, per eigen bestand: de meldingen `niet-gedragen`. */
 const notCarried = new Map<string, readonly MergePhase2Case[]>();
-/** Dezelfde bewerkingen op de eigen bestanden zoals de writer ze schrijft; en de bestanden waar dat niet lukt. */
-const settledTally = new Map<string, Map<EditKind, Tally>>();
-const notSettled: string[] = [];
+/** Per bestand: de velden achter `niet-gedragen` na een bewerking (niet bij "niets"). */
+const editFields = new Map<string, Map<string, number>>();
 let ownFiles = 0;
 /** Het veld van een melding: type, de naam van de pset of property, en het slot. */
 function fieldOf(index: StepIndex, c: MergePhase2Case): string {
@@ -84,25 +86,19 @@ for (const file of files) {
   }
   if (REFUSED_AT_OPEN[file] !== undefined) { others.push(`${shown} · openen: verwacht geweigerd (${REFUSED_AT_OPEN[file]}), maar opent`); continue; }
   if (!opened.ifcSource?.foreign) continue;
-  const perKind = await runEdits(shown, bytes, opened, true);
+  const perKind = await runEdits(shown, bytes, opened);
   tally.set(shown, perKind);
-  // Een eigen bestand dat al zonder bewerking weigert: dezelfde bewerkingen op het bestand zoals de huidige writer het
-  // schrijft (`settle`, de bron van de proeven in `check-ifc-foreign-preserve.ts`). Zo meet de telling ook de toets op
-  // de bewerkingen (O1), los van de velden die de lezer van een oudere versie niet draagt.
-  const plainOwn = notCarried.get(shown);
-  if (plainOwn && plainOwn.length > 0) {
-    let settled: Uint8Array | undefined;
-    try { settled = await settle(bytes); } catch { notSettled.push(shown); }
-    if (settled) settledTally.set(shown, await runEdits(shown, settled, await openForeign(settled), false));
-  }
 }
 
 /** De gewone bewerkingen op één bestand, met per bewerking één van de drie uitkomsten. */
-async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, count: boolean): Promise<Map<EditKind, Tally>> {
+async function runEdits(shown: string, bytes: Uint8Array, opened: Opened): Promise<Map<EditKind, Tally>> {
   const source = opened.ifcSource!;
   const perKind = new Map<EditKind, Tally>();
   const sourceDoubles = doubleMemberships(bytes);
-  const where = count ? shown : `${shown} (zoals de writer het schrijft)`;
+  const index = scanStep(bytes);
+  const fields = new Map<string, number>();
+  editFields.set(shown, fields);
+  const where = shown;
   for (const edit of plannerEdits(opened, MAX_PER_SOORT)) {
     const t = perKind.get(edit.kind) ?? { n: 0, ok: 0, refused: new Map(), other: new Map() };
     perKind.set(edit.kind, t);
@@ -113,11 +109,17 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, count:
       const d = cloneDomain(opened);
       edit.apply(d);
       const outcome = tryMerge(d, source);
-      if (count && edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
+      if (edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
         ownFiles++;
         notCarried.set(shown, outcome.ok ? [] : outcome.error.cases.filter(c => c.kind === 'niet-gedragen'));
       }
-      if (!outcome.ok) { for (const k of outcome.kinds) bump(t.refused, k); continue; }
+      if (!outcome.ok) {
+        for (const k of outcome.kinds) bump(t.refused, k);
+        if (edit.kind !== 'niets') {
+          for (const key of new Set(outcome.error.cases.filter(c => c.kind === 'niet-gedragen' && c.sourceId !== undefined).map(c => fieldOf(index, c)))) bump(fields, key);
+        }
+        continue;
+      }
       const problems = mergeProblems(source.bytes, outcome.bytes);
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }
       const doubles = doubleMemberships(outcome.bytes).filter(k => !sourceDoubles.includes(k));
@@ -173,14 +175,38 @@ const asRead = printTally(tally);
 console.log('');
 console.log(`Totaal: ${asRead.n} bewerkingen, ${asRead.ok} gelukt, ${asRead.n - asRead.ok - asRead.other} merge-needs-phase2, ${asRead.other} anders; `
   + `${tally.size} bestanden met een vreemd deel; geweigerd bij openen: ${refusedAtOpen.join(', ') || '–'}.`);
-console.log('');
-console.log('Dezelfde bewerkingen op de eigen bestanden zoals de huidige writer ze schrijft (`settle`):');
-console.log('');
-const asWritten = printTally(settledTally);
-console.log('');
-console.log(`Totaal: ${asWritten.n} bewerkingen, ${asWritten.ok} gelukt, ${asWritten.n - asWritten.ok - asWritten.other} merge-needs-phase2, `
-  + `${asWritten.other} anders; ${settledTally.size} bestanden; niet te zetten: ${notSettled.join(', ') || '–'}.`);
 const seconds = ((performance.now() - started) / 1000).toFixed(1);
+
+// ── Per groep: eigen bestanden die zonder bewerking schrijven, die al weigeren, en andere programma's ──
+{
+  const GROUPS = ['eigen, schrijft zonder bewerking', 'eigen, weigert zonder bewerking', 'ander programma'] as const;
+  const groupOf = (file: string) => {
+    const plain = notCarried.get(file);
+    return plain === undefined ? GROUPS[2] : plain.length === 0 ? GROUPS[0] : GROUPS[1];
+  };
+  console.log('');
+  console.log('Per groep (alle bewerkingen behalve "niets"):');
+  console.log('');
+  console.log('| groep | bestanden | bewerkingen | gelukt | merge-needs-phase2 (geval: aantal) | anders |');
+  console.log('|---|---|---|---|---|---|');
+  for (const group of GROUPS) {
+    const files = [...tally.keys()].filter(f => groupOf(f) === group);
+    let n = 0; let okN = 0; let otherN = 0;
+    const refusedKinds = new Map<string, number>();
+    const fields = new Map<string, number>();
+    for (const f of files) {
+      for (const [kind, t] of tally.get(f)!) {
+        if (kind === 'niets') continue;
+        n += t.n; okN += t.ok; otherN += [...t.other.values()].reduce((a, b) => a + b, 0);
+        for (const [k, v] of t.refused) refusedKinds.set(k, (refusedKinds.get(k) ?? 0) + v);
+      }
+      for (const [k, v] of editFields.get(f) ?? []) fields.set(k, (fields.get(k) ?? 0) + v);
+    }
+    console.log(`| ${group} | ${files.length} | ${n} | ${okN} | ${n - okN - otherN} (${fmt(refusedKinds)}) | ${otherN} |`);
+    const top = [...fields].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3);
+    if (top.length > 0) console.log(`|  | velden achter niet-gedragen: ${top.map(([k, v]) => `${v} × ${k}`).join('; ')} | | | | |`);
+  }
+}
 
 // ── Zonder bewerking: eigen bestanden met `niet-gedragen` ──
 {
@@ -208,5 +234,5 @@ if (others.length > 0) {
   for (const o of others.slice(0, 40)) console.log(`   - ${o}`);
   process.exit(1);
 }
-console.log(`OK  ifc-foreign-merge-telling: ${merges} merges over ${tally.size} bestanden (en ${settledTally.size} zoals de writer ze schrijft), elk gelukt of getypeerd geweigerd (${seconds} s)`);
+console.log(`OK  ifc-foreign-merge-telling: ${merges} merges over ${tally.size} bestanden, elk gelukt of getypeerd geweigerd (${seconds} s)`);
 process.exit(0);

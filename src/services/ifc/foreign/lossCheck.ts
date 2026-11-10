@@ -1,5 +1,5 @@
 /**
- * De verliesbewaking van de merge-writer: de leesverliestoets (#804 fase 1b; fixronde 2 van #867).
+ * De verliesbewaking van de merge-writer: de leesverliestoets (#804 fase 1b; fixronde 2 en 3 van #867).
  *
  * Regel: de verliesbewaking vergelijkt met de bron, nooit met de eigen uitvoer. Elk veld dat de bron had (ook in een
  * P-stuk, een hulpentiteit, een pset, een JSON-tekst of een constant slot) en dat de uitvoer niet terug heeft, laat de
@@ -11,14 +11,28 @@
  *  1. O0: elk P-stuk van de bron moet in O0 veld voor veld gelijk zijn. Elk argument; elke lijst met al haar leden, in
  *     dezelfde volgorde; elke verwijzing (naar een stuk dat niet P is: hetzelfde `#id`; naar een P-stuk: zijn
  *     tegenhanger); elke propertywaarde, ook een enumeratie of een lijst; elke JSON-tekst, teken voor teken. Ook een waarde
- *     in O0 waar de bron niets had, telt. Een P-stuk zonder tegenhanger in O0 telt ook. Elk verschil betekent dat de lezer
- *     dat veld niet draagt: `niet-gedragen`.
- *  2. O1: is O0 gelijk, dan mag een P-stuk in O1 alleen anders zijn (of ontbreken) als een domeinobject waar het bij hoort
- *     veranderde (`changedScopes`). Een stuk hoort bij de taak, resource of volgorderelatie die het bereikt in de bron
- *     (`sourceScopes`); een relatie bij elk object waar zij naar wijst; al het andere bij het project. Een stuk van het
- *     project mag veranderen als er iets in het domein veranderde (de writer leidt er een deel van af uit alle taken,
- *     bijvoorbeeld de begin- en einddatum van het werkplan). Een stuk van een object dat verdween, valt buiten de toets.
- *     Binnen een veranderd object toetst dit per object, niet per veld (zie de PR-body van #867, "Fixronde 2").
+ *     in O0 waar de bron niets had, telt. Een P-stuk zonder tegenhanger in O0 telt ook.
+ *  2. (b), het slotdeel van `sourceSlots` (fixronde 3, besluit 2 van Trias): een slot dat in O0 anders is dan in de bron,
+ *     draagt de lezer niet. Kan (b) het terugzetten (`planRestores`), dan krijgt O0 de bronwaarde, en moet O0 daarna
+ *     gelijk zijn aan de bron ("een kale schrijfronde is gelijk aan de bron, op de benoemde soorten na"). Wat dan nog
+ *     verschilt: `niet-gedragen`. In O1 krijgt hetzelfde slot de bronwaarde terug zolang de planner het veld niet wijzigde:
+ *     "het veld" is het slot zoals de writer het uit het domein schrijft; is het in O1 gelijk aan O0 (verwijzingen als
+ *     bronstuk), dan wijzigde de bewerking het niet. Wijzigde hij het wel, dan geldt zijn waarde; bij een `lijst` of `json`
+ *     (de lezer draagt er een deel van) weigert de merge dan, want per lid of per sleutel samenvoegen is fase 2
+ *     (`jsonExtras`, `unusedKeys`). De bronwaarden komen uit de bronbytes van `ifcSource`, bij elke merge opnieuw gelezen;
+ *     er is geen documentveld bij. De merge leest de planning met de bronwaarden erin terug (`mergeWriter.ts`); geeft dat
+ *     een andere planning dan zonder, dan weigert hij.
+ *     (b) zet niet terug: een heel stuk (ontbreekt, ander type, onbekende lay-out), een argument zonder slot in de
+ *     uitvoer, structuur (`structural`: GlobalId en owner history van een `IfcRoot`, de leden van een relatie, de
+ *     properties van een pset), tekst uit een stuk met de oude letterlijke codering die niet in beide coderingen gelijk
+ *     leest, een slot van een kopie die ook bij een ander bronstuk hoort, een verwijzing naar een P-stuk zonder
+ *     tegenhanger, en een slot waar de writer een verwijzing zet die niet van de bron komt.
+ *  3. O1: is O0 gelijk, dan mag een P-stuk in O1 (met (b) erin) alleen anders zijn (of ontbreken) als een domeinobject
+ *     waar het bij hoort veranderde (`changedScopes`). Een stuk hoort bij de taak, resource of volgorderelatie die het
+ *     bereikt in de bron (`sourceScopes`); een relatie bij elk object waar zij naar wijst; al het andere bij het project.
+ *     Een stuk van het project mag veranderen als er iets in het domein veranderde (de writer leidt er een deel van af uit
+ *     alle taken, bijvoorbeeld de begin- en einddatum van het werkplan). Een stuk van een object dat verdween, valt buiten
+ *     de toets. Binnen een veranderd object toetst dit per object, niet per veld (zie de PR-body van #867, "Fixronde 2").
  *
  * Paren. Elk P-stuk van de bron krijgt een tegenhanger in de uitvoer:
  *  - een vast id (`stepIds`, de baselinekoppen) met de regel met hetzelfde id;
@@ -29,7 +43,7 @@
  *    haar pset en haar gepaarde eigenaren.
  * Het paren zegt niets over gelijkheid: daarna vergelijkt de toets elk paar volledig.
  *
- * Wat zonder melding mag, en alleen dit (elk met een eigen test in `check-ifc-foreign-preserve.ts`, deel 5f):
+ * Wat zonder melding mag, en alleen dit (elk met een eigen test in `check-ifc-foreign-preserve.ts`, deel 5f, 5h en 5i):
  *  Normalisaties: de waarde blijft gelijk, en een ander programma dat het bestand leest, krijgt dezelfde waarde.
  *   - `getal` (`sameNumber`): een getal in een andere notatie (`8`, `8.`, `8.0`, `8.E0`). Elke STEP-lezer leest
  *     hetzelfde getal; het type komt uit het schema of de getypeerde waarde (`IFCREAL(8)` en `IFCREAL(8.)`).
@@ -40,21 +54,28 @@
  *     naar de tegenhanger of de kopie, en die is zelf veld voor veld gelijk.
  *   - `duur` (`sameDuration`): een ISO 8601-duur met nul-onderdelen erbij of eraf (`PT12H` en `PT12H0M0S`), alleen in een
  *     duurslot of een `IFCDURATION`. Elk onderdeel is gelijk, dus de duur is gelijk; `P1D` en `PT24H` zijn niet gelijk.
- *  Lay-out (`alignment`; geen normalisatie, want een ander programma merkt het): de argumenten van een oudere OPS-versie
- *  op hun plek in het schema: werkplan en werkschema met 15 argumenten (of 14 met de einddatum op PredefinedType),
- *  kalender met 8 (of 9 met de werkweek op Identification), taak met 12 (`ifcWorkControlSlots.ts`). Elke waarde die de
- *  lezer las, blijft gelijk en staat daarna op haar plek in het schema. Een programma dat het oude bestand volgens het
- *  schema las, las sommige waarden op een verkeerde plek; na opslaan leest het ze goed. De gewone writer doet hetzelfde
- *  (#292). Een slot dat alleen de bron heeft, moet leeg zijn; een slot dat alleen de uitvoer heeft ook.
- *  Toevoeging: een eigen pset mag properties bijkrijgen die de bron niet had (`sameMembers`): nieuwe gegevens uit het
- *  domein, zoals de vier projectvelden in `OPS_ProjectSettings` (§4.4). Elke property van de bron blijft, in dezelfde
- *  volgorde, en is zelf veld voor veld gelijk.
- *  Schrijfvelden: geen normalisatie (de waarde verandert), maar het opslaan zelf. De writer zet ze bij elk opslaan, ook
- *  zonder vreemd deel; ze beschrijven het moment en het programma van het opslaan, niet de planning (`SAVE_FIELDS`):
- *   - `IfcOwnerHistory.CreationDate` van de owner history die de writer aan zijn stukken hangt: het moment van opslaan;
- *   - `IfcApplication.Version` van de applicatie van die owner history: de versie van de app die opslaat;
- *   - `CreationDate` van het eigen werkplan en het eigen live-werkschema: het moment van opslaan (een baseline draagt haar
- *     eigen datum en valt hier niet onder).
+ *  GlobalId van een eigen hulpstuk (besluit 1, `ownAuxGuid`): de writer geeft een P-stuk zonder vast id elke keer een
+ *  nieuwe GlobalId (knownbug 1023). Dat mag alleen als het stuk P is, eigen herkomst heeft (§4.5), en geen stuk dat niet
+ *  P is ernaar wijst; de toets gaat dat zelf na in de inkomende verwijzingen van de index. Een stuk met een vast id (een
+ *  taak, een resource) houdt zijn GlobalId; een kopie van een stuk dat niet P is ook.
+ *  Lay-out (smal, besluit 3; `alignment`; geen normalisatie, want een ander programma merkt het): de argumenten van een
+ *  oudere OPS-versie op hun plek in het schema: werkplan en werkschema met 15 argumenten (of 14 met de einddatum op
+ *  PredefinedType), kalender met 8 (of 9 met de werkweek op Identification), taak met 12 (`ifcWorkControlSlots.ts`). Elke
+ *  waarde die de lezer las, blijft gelijk en staat daarna op haar plek in het schema. De gewone writer doet hetzelfde
+ *  (#292). Een argument dat in de nieuwe lay-out geen slot heeft, mag alleen wegvallen als het `$` was (argument 11 van
+ *  het oude werkplan, de `$` te veel vóór StartTime); had het een waarde (ook `''`), dan weigert de merge, want er is
+ *  geen plek voor in het schema. Een slot dat alleen de uitvoer heeft, moet leeg zijn, of (b) zet er `$` terug.
+ *  Toevoeging (smal, besluit 3; `sameMembers`): een pset met eigen herkomst mag properties bijkrijgen die de bron niet
+ *  had: nieuwe gegevens uit het domein, zoals de vier projectvelden in `OPS_ProjectSettings` (§4.4). Elke property van de
+ *  bron blijft, in dezelfde volgorde, en is zelf veld voor veld gelijk; een nieuwe property heeft een naam die de bron in
+ *  die pset niet had.
+ *  Schrijfvelden (smal, besluit 3; `saveField`): geen normalisatie (de waarde verandert), maar het opslaan zelf. De writer
+ *  zet ze bij elk opslaan, ook zonder vreemd deel; ze beschrijven het moment en het programma van het opslaan, niet de
+ *  planning (`SAVE_FIELDS`):
+ *   - `IfcOwnerHistory.CreationDate`, alleen van de eigen owner history van de writer (`_owner`): het moment van opslaan;
+ *   - `IfcApplication.Version`, alleen van de applicatie van die owner history: de versie van de app die opslaat;
+ *   - `CreationDate` van het eigen werkplan en het eigen live-werkschema (een vast id): het moment van opslaan (een
+ *     baselinekop draagt haar eigen datum en valt hier niet onder).
  */
 import type { ImportResult } from '@/services/importTypes';
 import { readIFC } from '../ifcReader';
@@ -62,8 +83,8 @@ import type { WriteIFCInput } from '../ifcWriter';
 import { PSET } from '../ifcPsets';
 import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { decodeStepText } from '../stepText';
-import type { Classification } from './classify';
-import { foreignScanFrom, readerBytes, readerOptions } from './foreignScan';
+import { hasOwnOrigin, type Classification } from './classify';
+import { foreignScanFrom, readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
 import type { IfcSource } from './ifcSource';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
@@ -89,7 +110,33 @@ export interface LossDiff {
   readonly out: string;
   readonly whole?: 'ontbreekt' | 'type' | 'aantal';
   readonly slotless?: 'bron' | 'uitvoer';
+  /** Bij een verschil in een slot: het slot in de uitvoer (bij een oude lay-out een ander getal dan `arg`). */
+  readonly outArg?: number;
 }
+
+/**
+ * De soort van een slot voor (b), het slotdeel van `sourceSlots` (fixronde 3 van #867, besluit 2). `lijst` en `json`
+ * blijven alleen staan zolang de planner het veld niet wijzigt: de lezer draagt er een deel van, en per lid of per sleutel
+ * samenvoegen is fase 2 (`jsonExtras`, `unusedKeys`). Wijzigt hij het wel, dan weigert de merge.
+ */
+export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'leeg';
+/** De soorten die (b) terugzet (een mutatie haalt er één weg: dan moet de proef van die soort rood worden). */
+const RESTORE_KINDS: ReadonlySet<SlotKind> = new Set<SlotKind>(['enumeratie', 'duur', 'tekst', 'getal', 'verwijzing', 'lijst', 'json', 'leeg']);
+
+/** (b): een slot van een P-stuk dat de lezer niet draagt. De merge zet de bronwaarde terug zolang de planner het veld
+ *  niet wijzigde. */
+export interface SlotRestore {
+  readonly chunk: number;
+  /** Het argument in de bron en het slot in de uitvoer. */
+  readonly arg: number;
+  readonly outArg: number;
+  /** Het brontoken (bij een slot dat alleen de uitvoer heeft: `$`). */
+  readonly token: string;
+  readonly kind: SlotKind;
+}
+
+/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. */
+export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number }
 
 export interface LossCheckInput {
   readonly index: StepIndex;
@@ -108,14 +155,23 @@ export interface LossCheckInput {
   readonly sourceOwnerHistory: number;
   /** Schrijft de writer het project zelf (het project van de bron is P)? */
   readonly projectWritten: boolean;
-  /** Meetstand: elk verschil in O0 (alleen voor proeven en de telling). */
+  /** De eigen owner history van de writer in O0 en in O1 (`_owner`): alleen daar zijn CreationDate en de versie van
+   *  de applicatie schrijfvelden. */
+  readonly owner0?: number;
+  readonly owner1?: number;
+  /** Meetstand: elk verschil dat na (b) in O0 overblijft (alleen voor proeven en de telling). */
   readonly collect?: (diff: LossDiff) => void;
+  /** Meetstand: elk slot dat (b) in O0 terugzet. */
+  readonly restored?: (r: SlotRestore) => void;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes en dezelfde opties als de bytes-route. */
 export function pristineDomain(index: StepIndex, cls: Classification, source: IfcSource): ImportResult {
-  const scan = foreignScanFrom(index, cls, source.bytes);
-  const text = new TextDecoder('utf-8').decode(readerBytes(source.bytes, scan));
+  return pristineFromScan(foreignScanFrom(index, cls, source.bytes), source.bytes);
+}
+/** Idem, met een scan die er al is. */
+export function pristineFromScan(scan: ForeignScanResult, bytes: Uint8Array): ImportResult {
+  const text = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
   return readIFC(text, {}, { ...readerOptions(scan), skipBuildingModelGuard: true });
 }
 
@@ -183,17 +239,50 @@ function alignment(type: string, src: readonly string[], outLength: number): num
   return undefined;
 }
 
-/** Vergelijk de bron met O0 en, als die gelijk is, met O1. Elk verlies gaat naar `report`. */
-export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => void): void {
+/**
+ * Vergelijk de bron met O0 en, als die gelijk is, met O1. Elk verlies gaat naar `report`.
+ *
+ * (b), het slotdeel van `sourceSlots` (fixronde 3 van #867, besluit 2): een slot van een P-stuk dat de lezer niet draagt
+ * (O0 heeft het anders dan de bron), krijgt in O1 de bronwaarde terug zolang de planner dat veld niet wijzigde; wijzigde
+ * hij het wel, dan geldt zijn waarde. "Het veld" is het slot zoals de writer het uit het domein schrijft: is het in O1
+ * gelijk aan O0, dan wijzigde de bewerking het niet. O0 blijft de toets: O0 met (b) erin moet veld voor veld gelijk zijn
+ * aan de bron, op de benoemde soorten na (`planRestores` zegt welke slots (b) kan terugzetten). Geeft `edits` terug: de
+ * slots die de merge in O1 terugzet.
+ */
+export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => void): { edits: SlotEdit[] } {
   const { index } = input;
   const say = (d: LossDiff, after: boolean) => report({ kind: 'niet-gedragen', chunk: d.chunk, detail: describe(index, d, after), diff: d });
-  const first = matchOutput(input, input.o0);
+  const edits: SlotEdit[] = [];
+  const p0 = pairOutput(input, input.o0);
+  const plan = planRestores(input, p0, compareOutput(input, p0, input.owner0));
+  for (const r of plan.restores) input.restored?.(r);
+  // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
+  const o0b = applyEdits(input.o0, plan.restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
+  const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
   for (const d of first) { input.collect?.(d); say(d, false); }
   if (first.length === 0) {
+    const p1 = pairOutput(input, input.o1);
+    for (const r of plan.restores) {
+      const o1 = p1.pairedOut.get(r.chunk)?.[0];
+      const line1 = o1 === undefined ? undefined : p1.out.get(o1);
+      const line0 = p0.out.get(p0.pairedOut.get(r.chunk)![0])!;
+      // Het object is weg, of de bewerking gaf het een ander type of een andere vorm: dat toetst O1 hieronder.
+      if (!line1 || line1.type !== line0.type || line1.args.length !== line0.args.length) continue;
+      const now = line1.args[r.outArg].trim();
+      const after = { chunk: r.chunk, arg: r.arg, source: r.token, out: now, outArg: r.outArg };
+      if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
+        const token = mapToken(input, r.token, p1);
+        if (token === undefined) say(after, true); // een verwijzing van de bron heeft in O1 geen tegenhanger meer
+        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk });
+      } else if (r.kind === 'lijst' || r.kind === 'json') {
+        say(after, true); // de planner wijzigde een veld waarvan de lezer maar een deel draagt
+      }
+    }
     const changed = changedScopes(input.domain, input.pristine);
     if (changed.any) {
       const scopes = sourceScopes(input);
-      for (const d of matchOutput(input, input.o1)) if (!explained(scopes.get(d.chunk), changed)) say(d, true);
+      const o1b = applyEdits(input.o1, edits);
+      for (const d of compareOutput(input, pairOutput(input, o1b), input.owner1)) if (!explained(scopes.get(d.chunk), changed)) say(d, true);
     }
   }
 
@@ -208,6 +297,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       });
     }
   }
+  return { edits };
 }
 
 /** De tekst van een melding: stuk, propertynaam, argument, bronwaarde en uitvoer. */
@@ -223,8 +313,20 @@ function describe(index: StepIndex, d: LossDiff, after: boolean): string {
   return `${what}, argument ${d.arg}${when}: ${d.source.slice(0, 60)} → ${d.out.slice(0, 60)}`;
 }
 
-/** Paar de P-stukken van de bron met `lines` en vergelijk elk paar veld voor veld. */
-function matchOutput(input: LossCheckInput, lines: readonly OutLine[]): LossDiff[] {
+/** De paren van de P-stukken van de bron met de regels van een uitvoer. */
+interface Pairing {
+  readonly out: ReadonlyMap<number, OutLine>;
+  /** Bronstuk, uitvoer-id: in de volgorde waarin ze gevonden zijn. */
+  readonly pairs: readonly (readonly [number, number])[];
+  /** Bronstuk → zijn tegenhangers (de eerste is de tegenhanger; een stuk dat niet P is, kan een kopie hebben). */
+  readonly pairedOut: ReadonlyMap<number, readonly number[]>;
+  /** Uitvoer-id → het bronstuk waar het de tegenhanger van is. */
+  readonly sourceOf: ReadonlyMap<number, number>;
+  readonly matched: Uint8Array;
+}
+
+/** Paar de P-stukken van de bron met `lines`. */
+function pairOutput(input: LossCheckInput, lines: readonly OutLine[]): Pairing {
   const { index, cls, fixed } = input;
   const n = index.count;
   const isP = (i: number) => cls.classes[i] === 1;
@@ -386,6 +488,41 @@ function matchOutput(input: LossCheckInput, lines: readonly OutLine[]): LossDiff
     if (seenPair.size === before) break;
   }
 
+  const sourceOf = new Map<number, number>();
+  for (const [s, o] of pairs) if (!sourceOf.has(o)) sourceOf.set(o, s);
+  return { out, pairs, pairedOut, sourceOf, matched };
+}
+
+/** Vergelijk elk paar veld voor veld, en meld de P-stukken zonder tegenhanger. `ownerOut`: de eigen owner history van de
+ *  writer in deze uitvoer (de schrijfvelden). */
+function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | undefined): LossDiff[] {
+  const { index, cls, fixed } = input;
+  const n = index.count;
+  const isP = (i: number) => cls.classes[i] === 1;
+  const inD = cls.selection.inD;
+  const sid = (i: number) => Number(index.id(i));
+  const { out, pairs, pairedOut, matched } = p;
+  const outDecode = (tok: string) => decodeStepText(unquote(tok));
+  /** Schrijfvelden (smal): alleen de eigen owner history van de writer, zijn applicatie, en het eigen werkplan en live-schema
+   *  (een vast id, geen baseline). */
+  const ownApp = ownerOut === undefined ? -1 : refOf(out.get(ownerOut)?.args[1]);
+  const saveField = (s: number, o: number, type: string, k2: number): boolean => {
+    if (!SAVE_FIELDS[type]?.includes(k2)) return false;
+    if (type === 'IFCOWNERHISTORY') return o === ownerOut;
+    if (type === 'IFCAPPLICATION') return o === ownApp;
+    return fixed.has(sid(s)) && !isBaselineHead(index, s);
+  };
+  /** GlobalId van een eigen hulpstuk (besluit 1): het stuk is P, heeft geen vast id, heeft eigen herkomst, en geen stuk dat
+   *  niet P is, wijst ernaar (de inkomende verwijzingen uit de index). De toets gaat dat zelf na. */
+  const ownAuxGuid = (s: number): boolean => {
+    if (!isP(s) || fixed.has(sid(s)) || !hasOwnOrigin(index, s)) return false;
+    for (let k = index.inStart(s); k < index.inEnd(s); k++) {
+      const from = index.inSource(k);
+      if (from >= 0 && !isP(from)) return false;
+    }
+    return true;
+  };
+
   // ── Vergelijken ──
   const diffs: LossDiff[] = [];
   /** De uitvoer-ids die een verwijzing naar bronstuk `t` mag hebben: zijn tegenhanger, en voor een stuk dat niet P is ook
@@ -418,18 +555,29 @@ function matchOutput(input: LossCheckInput, lines: readonly OutLine[]): LossDiff
     return sameNumber(a, b);
   };
 
-  /** Toevoeging: de properties van een eigen pset (`HasProperties`). Elke property van de bron moet erin staan, in dezelfde
-   *  volgorde; de uitvoer mag er properties bij hebben (nieuwe gegevens uit het domein, geen verlies). */
+  /** Toevoeging (smal): de properties van een pset (`HasProperties`). Elke property van de bron moet erin staan, in
+   *  dezelfde volgorde. Alleen een pset met eigen herkomst mag er properties bij krijgen (nieuwe gegevens uit het domein),
+   *  en alleen met een naam die de bron in die pset niet had (anders is het een andere waarde, geen toevoeging). */
   const sameMembers = (s: number, a: string, b: string): boolean => {
     const xs = a.startsWith('(') ? splitStepArgs(a.slice(1, -1)) : [];
     const ys = b.startsWith('(') ? splitStepArgs(b.slice(1, -1)) : [];
+    const hit = new Set<number>();
     let j = 0;
     for (const x of xs) {
       while (j < ys.length && !same(s, x, ys[j], false)) j++;
       if (j === ys.length) return false;
+      hit.add(j);
       j++;
     }
-    return xs.length > 0 || a === b;
+    if (xs.length === 0) return a === b;
+    if (ys.length === xs.length) return true;
+    if (!hasOwnOrigin(index, s)) return false;
+    const names = new Set(xs.map(x => index.name(index.chunkOf(x.trim().slice(1))) ?? ''));
+    return ys.every((y, k) => {
+      if (hit.has(k)) return true;
+      const line = out.get(refOf(y));
+      return !!line && !names.has(outDecode(line.args[0] ?? ''));
+    });
   };
 
   for (const [s, o] of pairs) {
@@ -445,20 +593,22 @@ function matchOutput(input: LossCheckInput, lines: readonly OutLine[]): LossDiff
     for (let k = 0; k < a.length; k++) {
       const k2 = map[k];
       const at = a[k].trim();
+      // Lay-out (smal): een argument dat in de uitvoer geen slot heeft, mag alleen wegvallen als het `$` was.
       if (k2 < 0) {
-        if (!isEmpty(at)) diffs.push({ chunk: s, arg: k, source: at, out: '', slotless: 'bron' });
+        if (at !== '$') diffs.push({ chunk: s, arg: k, source: at, out: '', slotless: 'bron' });
         continue;
       }
       covered.add(k2);
-      if (SAVE_FIELDS[type]?.includes(k2) && !isBaselineHead(index, s)) continue;
+      if (saveField(s, o, type, k2)) continue;
       const bt = b[k2].trim();
+      if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt) : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
-      if (!ok) diffs.push({ chunk: s, arg: k, source: at, out: bt });
+      if (!ok) diffs.push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }
-    // Een slot dat alleen de nieuwe lay-out heeft, moet leeg zijn.
+    // Een slot dat alleen de nieuwe lay-out heeft, moet leeg zijn (of (b) zet er `$` terug).
     // (Properties die een eigen pset erbij krijgt: zie `sameMembers`.)
     for (let j = 0; j < b.length; j++) {
-      if (!covered.has(j) && b[j].trim() !== '$') diffs.push({ chunk: s, arg: j, source: '', out: b[j].trim(), slotless: 'uitvoer' });
+      if (!covered.has(j) && b[j].trim() !== '$') diffs.push({ chunk: s, arg: j, source: '', out: b[j].trim(), slotless: 'uitvoer', outArg: j });
     }
   }
 
@@ -495,6 +645,170 @@ function matchOutput(input: LossCheckInput, lines: readonly OutLine[]): LossDiff
     diffs.push({ chunk: u, arg: -1, source: first, out: '', whole: 'ontbreekt' });
   }
   return diffs;
+}
+
+// ── (b): het slotdeel van `sourceSlots` (fixronde 3 van #867, besluit 2) ──
+
+/** Slots die structuur zijn, geen waarde: de GlobalId en de owner history van een `IfcRoot` (besluit 1 en §4.5), de
+ *  objectleden van een relatie (welke leden erin staan, volgt uit het domein, §4.5) en de properties van een pset (de
+ *  merge hangt vreemde leden er zelf aan). Die zet (b) nooit terug; een verschil daar blijft `niet-gedragen`. */
+const REL_MEMBER_SLOTS: Readonly<Record<string, readonly number[]>> = {
+  IFCRELNESTS: [4, 5], IFCRELAGGREGATES: [4, 5], IFCRELDECLARES: [4, 5], IFCRELASSIGNSTOCONTROL: [4, 6],
+  IFCRELASSIGNSTOPROCESS: [4, 6], IFCRELDEFINESBYPROPERTIES: [4, 5], IFCRELSEQUENCE: [4, 5],
+};
+function structural(type: string, outArg: number, line: OutLine): boolean {
+  if (isRootLine(line) && (outArg === 0 || outArg === 1)) return true;
+  if (type === 'IFCPROPERTYSET' && outArg === 4) return true;
+  if (type.startsWith('IFCREL')) return REL_MEMBER_SLOTS[type] ? REL_MEMBER_SLOTS[type].includes(outArg) : outArg >= 4;
+  return false;
+}
+
+/** De soort van een brontoken (zie `SlotKind`). */
+function slotKind(type: string, outArg: number, token: string, text: (tok: string) => string): SlotKind {
+  const t = token.trim();
+  if (t === '$') return 'leeg';
+  if (refsOutsideText(t).length > 0) return 'verwijzing';
+  if (t.startsWith('(')) return 'lijst';
+  const isJson = (tok: string) => /^\s*[[{]/.test(text(tok));
+  if (t.startsWith("'")) return DURATION_SLOTS[type]?.includes(outArg) ? 'duur' : isJson(t) ? 'json' : 'tekst';
+  const typed = /^([A-Za-z0-9_]+)\s*\(([\s\S]*)\)$/.exec(t);
+  if (typed) {
+    const inner = typed[2].trim();
+    if (typed[1].toUpperCase() === 'IFCDURATION') return 'duur';
+    if (inner.startsWith("'")) return isJson(inner) ? 'json' : 'tekst';
+    return inner.startsWith('.') ? 'enumeratie' : 'getal';
+  }
+  return /^[+-]?\d/.test(t) ? 'getal' : 'enumeratie';
+}
+
+/**
+ * Welke verschillen van O0 kan (b) terugzetten? Een slot (geen heel stuk, geen argument zonder slot in de uitvoer), geen
+ * structuur (`structural`), niet uit een stuk met de oude letterlijke codering als het tekst draagt (§4.5: die tekst leest
+ * een lezer van de uitvoer anders), een soort uit `RESTORE_KINDS`, elke verwijzing van de bron heeft een tegenhanger, en
+ * elke verwijzing die de writer in dat slot zet, is de tegenhanger van een verwijzing van de bron (de structuur van de
+ * writer blijft: de bron voegt alleen toe, zoals een gedeelde eenheid in de projecteenheden).
+ */
+function planRestores(input: LossCheckInput, p0: Pairing, diffs: readonly LossDiff[]): { restores: SlotRestore[]; rest: LossDiff[] } {
+  const { index } = input;
+  const restores: SlotRestore[] = [];
+  const rest: LossDiff[] = [];
+  const text = (s: number) => (tok: string) => index.tokenText(s, tok);
+  /** Uitvoer-id → het aantal bronstukken waarvan die regel de tegenhanger of de kopie is. */
+  const holders = new Map<number, number>();
+  for (const [, o] of p0.pairs) holders.set(o, (holders.get(o) ?? 0) + 1);
+  for (const d of diffs) {
+    const o = p0.pairedOut.get(d.chunk)?.[0];
+    const line = o === undefined ? undefined : p0.out.get(o);
+    // Een slot van een P-stuk, of van de kopie die de writer naast een stuk zet dat niet P is (een eigen persoon naast een
+    // gedeelde; het stuk zelf blijft byte-gelijk staan, en de kopie moet er veld voor veld gelijk aan zijn, `id`). Een kopie
+    // die ook bij een ander bronstuk hoort (de eigen owner history van de writer, als een eigen pset de owner history van
+    // Revit heeft), krijgt geen bronwaarde: de waarden van twee stukken passen niet in één regel.
+    const copy = input.cls.classes[d.chunk] !== 1 && o !== Number(index.id(d.chunk)) && holders.get(o!) === 1;
+    if (d.whole || d.slotless === 'bron' || d.outArg === undefined || !line || (input.cls.classes[d.chunk] !== 1 && !copy)
+      || structural(line.type, d.outArg, line)) { rest.push(d); continue; }
+    const token = d.slotless === 'uitvoer' ? '$' : d.source;
+    // Oude letterlijke codering (§4.9): alleen tekst die in beide coderingen hetzelfde leest (ASCII zonder `\`).
+    if (index.literalText(d.chunk) && token.includes("'") && !/^[\x20-\x5b\x5d-\x7e]*$/.test(token)) { rest.push(d); continue; }
+    const kind = slotKind(line.type, d.outArg, token, text(d.chunk));
+    const sourceRefs = new Set(refsOutsideText(token).map(id => index.chunkOf(String(id))));
+    const writerRefsKept = refsOutsideText(line.args[d.outArg]).every(r => {
+      const c = sourceChunkOf(input, r, p0);
+      return c !== undefined && sourceRefs.has(c);
+    });
+    if (!RESTORE_KINDS.has(kind) || !writerRefsKept || mapToken(input, token, p0) === undefined) { rest.push(d); continue; }
+    restores.push({ chunk: d.chunk, arg: d.arg, outArg: d.outArg, token, kind });
+  }
+  return { restores, rest };
+}
+
+/** Het bronstuk achter uitvoer-id `r`: een tegenhanger, of een stuk dat niet P is (dat heeft in de uitvoer zijn eigen id). */
+function sourceChunkOf(input: LossCheckInput, r: number, p: Pairing): number | undefined {
+  const c = p.sourceOf.get(r);
+  if (c !== undefined) return c;
+  const own = input.index.chunkOf(String(r));
+  return own >= 0 && input.cls.classes[own] !== 1 ? own : undefined;
+}
+
+/** Het brontoken met elke verwijzing naar een P-stuk vervangen door zijn tegenhanger in `p` (een stuk dat niet P is, houdt
+ *  zijn id). `undefined` als een P-stuk geen tegenhanger heeft. */
+function mapToken(input: LossCheckInput, token: string, p: Pairing): string | undefined {
+  let ok = true;
+  const out = replaceRefsOutsideText(token, id => {
+    const c = input.index.chunkOf(String(id));
+    if (c < 0) { ok = false; return `#${id}`; }
+    if (input.cls.classes[c] !== 1) return `#${id}`;
+    const o = p.pairedOut.get(c)?.[0];
+    if (o === undefined) { ok = false; return `#${id}`; }
+    return `#${o}`;
+  });
+  return ok ? out.trim() : undefined;
+}
+
+/** Een uitvoertoken met elke verwijzing als het bronstuk erachter (zo zijn O0 en O1 te vergelijken, ook als de ids van
+ *  hulpstukken verschuiven). */
+function normRefs(input: LossCheckInput, token: string, p: Pairing): string {
+  return replaceRefsOutsideText(token.trim(), id => {
+    const c = sourceChunkOf(input, id, p);
+    return c === undefined ? `#n${id}` : `#s${c}`;
+  });
+}
+
+/** Regels met de wijzigingen van (b) erin (kopieën; `lines` blijft zoals het was). */
+function applyEdits(lines: readonly OutLine[], edits: readonly SlotEdit[]): OutLine[] {
+  if (edits.length === 0) return [...lines];
+  const byId = new Map<number, SlotEdit[]>();
+  for (const e of edits) {
+    const list = byId.get(e.id);
+    if (list) list.push(e); else byId.set(e.id, [e]);
+  }
+  return lines.map(line => {
+    const mine = byId.get(line.id);
+    if (!mine) return line;
+    const args = [...line.args];
+    for (const e of mine) args[e.arg] = e.token;
+    return { ...line, args };
+  });
+}
+
+/** De `#id`'s in een token, buiten tekst. */
+export function refsOutsideText(token: string): number[] {
+  const out: number[] = [];
+  replaceRefsOutsideText(token, id => { out.push(id); return `#${id}`; });
+  return out;
+}
+/** Vervang elke `#id` buiten tekst (`'…'`, met `''` als aanhalingsteken erin). `f` krijgt het id en geeft de vervanging. */
+function replaceRefsOutsideText(token: string, f: (id: number) => string): string {
+  let res = '';
+  let i = 0;
+  while (i < token.length) {
+    const c = token[i];
+    if (c === "'") {
+      let j = i + 1;
+      while (j < token.length) {
+        if (token[j] === "'" && token[j + 1] === "'") { j += 2; continue; }
+        if (token[j] === "'") break;
+        j++;
+      }
+      res += token.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    if (c === '#') {
+      const m = /^#(\d+)/.exec(token.slice(i));
+      if (m) { res += f(Number(m[1])); i += m[0].length; continue; }
+    }
+    res += c;
+    i++;
+  }
+  return res;
+}
+
+/** Een regel van een `IfcRoot`: een GlobalId op 0 en een owner history (of `$`) op 1. */
+function isRootLine(line: OutLine): boolean {
+  return isGuidToken(line.args[0] ?? '') && /^(#\d+|\$)$/.test((line.args[1] ?? '').trim());
+}
+function isGuidToken(token: string): boolean {
+  return /^'[0-9A-Za-z_$]{22}'$/.test(token.trim());
 }
 
 /** De domeinobjecten die tussen het gelezen en het bewerkte domein veranderden. */
