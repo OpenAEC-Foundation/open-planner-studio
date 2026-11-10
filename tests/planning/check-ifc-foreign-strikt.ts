@@ -200,6 +200,73 @@ await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x)
   }
 }
 
+// ── Fixronde 8 (review ronde 7, knownbug 1100): geen dubbel `#id` ──
+// Volgens de norm vallen stuurtekens overal weg: `/* a *⏎/ #402=IFCWALL(…); /* b */` is dan een entiteit, die de scanner als
+// commentaar leest. Het eerste nieuwe id begint daarom boven het hoogste `#<cijfers>` buiten de eigen stukken, ook in
+// commentaar en strings (`highestHashNumber`). Na de merge mag geen `#id` twee keer voorkomen als je de hele uitvoer leest
+// zoals de norm: zonder stuurtekens, zonder commentaar en strings.
+{
+  const normIds = (src: string): number[] => {
+    const s = src.replace(/[\x00-\x1f\x7f]/g, '');
+    const ids: number[] = [];
+    let atStatement = true;
+    for (let i = s.indexOf('DATA;') + 5; i < s.length;) {
+      const c = s[i];
+      if (c === '/' && s[i + 1] === '*') { const e = s.indexOf('*/', i + 2); i = e < 0 ? s.length : e + 2; continue; }
+      if (c === "'") {
+        for (i++; i < s.length;) {
+          if (s.startsWith('\\S\\', i)) i += 4;
+          else if (s[i] === "'" && s[i + 1] === "'") i += 2;
+          else if (s[i++] === "'") break;
+        }
+        atStatement = false;
+        continue;
+      }
+      const m = atStatement && c === '#' ? /^#(\d+)\s*=/.exec(s.slice(i, i + 24)) : null;
+      if (m) { ids.push(Number(m[1])); i += m[0].length; atStatement = false; continue; }
+      if (c === ';') atStatement = true; else if (c !== ' ') atStatement = false;
+      i++;
+    }
+    return ids;
+  };
+  const once = (out: Uint8Array) => {
+    const seen = new Set<number>();
+    const twice = normIds(text(out)).filter(id => seen.has(id) || !seen.add(id));
+    return twice.length === 0 ? undefined : `dubbel #id volgens de norm: ${twice.slice(0, 3).join(', ')}`;
+  };
+  const at = eigen.indexOf('#354=IFCWALL(');
+  ok('fixronde 8: eigen-plus-model heeft #354=IFCWALL (V)', at > 0);
+  const before = (extra: string) => latin1(eigen.slice(0, at) + extra + eigen.slice(at));
+  const variants: [string, Uint8Array][] = [
+    ['verstopte wand #402', before("/* a *\n/ #402=IFCWALL('0Verstopt00000000000001',#331,'Verstopt',$,$,$,$,$,$); /* b */\n")],
+    ['verstopte wand #403', before("/* a *\n/ #403=IFCWALL('0Verstopt00000000000001',#331,'Verstopt',$,$,$,$,$,$); /* b */\n")],
+    ['verstopte property #402', before("/* a *\n/ #402=IFCPROPERTYSINGLEVALUE('Verstopt',$,IFCLABEL('x'),$); /* b */\n")],
+    ["'zie #999999' in een string", latin1(eigen.replace("#354=IFCWALL('242F3AJ$ylGv3IUzUFH5GZ',#331,'Wand B'", "#354=IFCWALL('242F3AJ$ylGv3IUzUFH5GZ',#331,'zie #999999'"))],
+    ['gewoon commentaar', before('/* #888888=IFCWALL($,$,$,$,$,$,$,$,$); */\n')],
+    ['een getal boven de grens van de scanner', before('/* #99999999999 */\n')],
+  ];
+  const edit = (kind: 'hernoemen' | 'taak-erbij') => (x: Domain, o: Opened) => basicEdits(o).find(e => e.kind === kind)!.apply(x);
+  for (const [label, bytes] of variants) {
+    ok(`fixronde 8: ${label}: de bron heeft volgens de norm geen dubbel #id`, once(bytes) === undefined);
+    await proof('dubbel id', `${label}, zonder bewerking`, bytes, 'schrijft', undefined, once);
+    await proof('dubbel id', `${label}, hernoemd`, bytes, 'schrijft', edit('hernoemen'), once);
+    await proof('dubbel id', `${label}, een taak erbij`, bytes, 'schrijft', edit('taak-erbij'), once);
+  }
+  // Na de wand #402 begint het eerste nieuwe id boven 402, na de string boven 999999 (te hoog beginnen kan geen kwaad).
+  const firstNew = async (bytes: Uint8Array) => {
+    const r = await merge('dubbel id · eerste nieuwe id', bytes);
+    const own = new Set(normIds(text(bytes)));
+    return r.out ? Math.min(...normIds(text(r.out)).filter(id => !own.has(id))) : -1;
+  };
+  const afterWall = await firstNew(variants[0][1]);
+  ok(`fixronde 8: na de verstopte wand #402 is het eerste nieuwe id ${afterWall}, verwacht boven 402`, afterWall > 402);
+  const afterString = await firstNew(variants[3][1]);
+  ok(`fixronde 8: na 'zie #999999' is het eerste nieuwe id ${afterString}, verwacht boven 999999`, afterString > 999999);
+  // Een getal net onder de grens: de nieuwe regels passen er niet meer onder. De scanner weigert een groter id (knownbug
+  // 1007), dus de merge weigert getypeerd.
+  await proof('dubbel id', 'een getal net onder de grens van de scanner', before('/* #2147483600 */\n'), 'id-te-groot');
+}
+
 // ── B2: een duur met dagen vóór T (knownbug 1027, opgelost met #871), en een duur met weken (knownbug 1028) ──
 // Sinds #871 (`9ee06bb71`) leest de lezer de dagen vóór `T` mee, met de minuten per dag van de taak: `P2DT12H` is bij 8 uur
 // per dag 1680 minuten. In fixronde 4 en 5 weigerde de merge zo'n duur tijdelijk; sinds fixronde 5b (besluit van Trias van

@@ -1952,8 +1952,8 @@ en noem het in je rapport of PR-tekst.
      BLOKKEERT 1, "de duur zelf op 1,5 dag"; met 2 dagen schrijft hij wel. Zonder die wijziging blijft de duur in de vorm van
      de bron (fixronde 7 van #867). Weigeren mag hier volgens het besluit van Trias, want de planner wijzigde het veld
      zelf. Eerst als 1100 genoteerd; dat nummer gebruikte #881 al. Richting (1c): bij een eigen bestand de hele planning
-     in de vorm van de writer schrijven, of de kalender niet letterlijk maken en de breuk in de oude vorm schrijven. Uit
-     #867 (fase 1b, fixronde 7). — B
+     in de vorm van de writer schrijven, of de kalender niet letterlijk maken en de breuk in de oude vorm schrijven. Hoort
+     bij de vervolg-PR van knownbug 1105. Uit #867 (fase 1b, fixronde 7). — B
 
 1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
      van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
@@ -1978,8 +1978,31 @@ en noem het in je rapport of PR-tekst.
      vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Besluit
      van Trias (wrakko, 10 november 2026): in 1b mag de merge hier weigeren, want de merge-writer is nog niet aangesloten;
      het is een harde eis voor 1c: 1c gaat niet naar main zolang een eigen bestand van v2026.7.4 tot v2026.7.14 met een
-     baseline en een model weigert bij het wissen van een baselinetaak. Uit #867 (fase 1b, fixronde 7, na de merge met
-     main). — B
+     baseline en een model weigert bij het wissen van een baselinetaak. Hoort bij de vervolg-PR van knownbug 1105. Uit
+     #867 (fase 1b, fixronde 7, na de merge met main). — B
+
+1105. **BLOKKEERT vóór 1c: de merge-writer weigert oude eigen bestanden zonder bewerking als de app ze opent.** De
+     merge-checks openen met `openForeign` (`tests/planning/ifcMergeKern.ts:35`): de lezer direct. De app opent via de
+     store, waar bij elk openen de omzetting naar het minutenmodel draait (`src/state/documentContract.ts:554`); in 1c
+     krijgt de merge die toestand. Bij een oud eigen bestand worden de datums dan tijdstippen, en de writer maakt de
+     kalender letterlijk (`src/services/ifc/minuteModelWrite.ts:87`). De verliesbewaking vergelijkt met de ruwe lezing
+     van de bron (`src/services/ifc/foreign/mergeWriter.ts:634`) en weigert (`niet-gedragen`, `niet-eenduidig`). Gemeten
+     met een wand erbij, zonder bewerking: via de route van de app weigeren `oude-tags/v2026.43.0-10-villa-wassenaar.ifc`,
+     `v2026.43.0-halve-dag`, `v2026.7.7-urentaak`, `h7-tijden-oude-writer.ifc` en `ifc-arity-oude-writer.ifc`, die via
+     de testroute schrijven (12 tegenover 18 bestanden). De 32 huidige voorbeelden schrijven via beide routes, en met de
+     flag uit slaat main ze gewoon op. Geen verlies: de merge weigert te veel. Besluit van Trias (wrakko, 10 november
+     2026), letterlijk: "Optie 2 [...]. Voorwaarden:
+     - #867 krijgt nu in fixronde 8 alleen het dubbele #id (1100, hoogste #id uit de hele tekst) en de kleine punten.
+       Daarna een kleine ronde 8.
+     - De nieuwe PR "de merge via de route van de app" start direct na de merge van #867, vanaf main, en moet in main
+       staan vóór 1c begint. Zet dat als harde eis in knownbugs.md en in de PR-tekst van #867.
+     - In die PR openen alle merge- en verliestoetsen via de route van de app (openOpenedFile met de flag). Draai de hele
+       telling en alle verliestoetsen daar opnieuw. Vindt dat ergens echt verlies in plaats van te veel weigeren, dan is
+       dat een BLOKKEERT in die PR [...].
+     - Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
+       pariteitstest op de huidige main met de oude-tags."
+     Harde eis: deze PR start direct na de merge van #867, vanaf main, en moet in main staan vóór 1c begint. Uit #867
+     (review ronde 7, Claude Opus 5.5, BEVESTIGD). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
@@ -2042,10 +2065,11 @@ en noem het in je rapport of PR-tekst.
      van #881: `eigen-plus-model.ifc` met de wand vóór `#324` (V) weigert zonder flag en opent met de flag (20 taken, vreemd
      deel); `fix3-twee-data.ifc` met de wand na het tweede `DATA;` opent met de flag (57 taken). Geen dataverlies in fase
      1a: de wand zit in de V-bytes, die de bron letterlijk bewaart, en met een vreemd deel is elke write geblokkeerd.
-     VERMOED (midden): fase 1b/1c moet weten dat V-bytes entiteiten kunnen bevatten die de scanner niet ziet; hun `#id`
-     staat niet in `chunkIds`, dus een nieuw `#id` van de writer kan ermee botsen. Richting: een test die dit gedrag
-     vastlegt (opent, bron met vreemd deel, wand in de bytes), en in 1b/1c de hoogste `#id` uit de volledige grammatica
-     nemen. Uit #881 (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
+     Het botsende `#id` (een nieuw `#id` van de merge-writer gelijk aan dat van zo'n verstopte entiteit) is opgelost in
+     #867 (fixronde 8): het eerste nieuwe id begint boven het hoogste `#<cijfers>` in elk stuk dat de merge letterlijk
+     overneemt, ook in commentaar en strings (`highestHashNumber` in `src/services/ifc/foreign/mergeWriter.ts`; test
+     `check-ifc-foreign-strikt.ts`, "geen dubbel `#id`"). Wat blijft: met de flag opent zo'n bestand nog. Uit #881
+     (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
 1052. **VERVOLG: een bestand van een ander programma dat zich uitgeeft als OPS, valt onder de regel van main.** De
      doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) herkent een eigen bestand aan de vaste kop van OPS en

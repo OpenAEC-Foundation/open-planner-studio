@@ -37,7 +37,7 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
 | Leesfouten die ook op main zitten (1028, 1029, 1033, 1034, 1035) repareert de thread "Trias · IFC-lezer". In #804 alleen weigeren, de lezer niet aanpassen. Staat een fix in main, dan gaat de weigering weg bij het bijwerken met main (zo gedaan voor 1027 met #871 en 1026 met #872) | wrakko, 2026-11-10 |
 | Geen zware runs lokaal: CI | AGENTS.md |
 
-## Verdeling van fase 1 (3 PR's, elk achter de flag)
+## Verdeling van fase 1 (4 PR's, elk achter de flag)
 
 1. **1a lezen** (branch `feat/804-fase1a-lezen`): openen als bytes op elke route, scanner en indeling in een Worker,
    `ifcSource` in het document, de lezer met C-context (planning uit een bestand met model), de weigering blijft zonder
@@ -51,7 +51,18 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
    met een producttype; een scan zonder uitkomst; een modelbestand dat `readIFC` om een andere reden niet opent, zoals
    afgekapt of met een NUL-byte vóór de kop, omdat `First.Space` alle bytes `<= 0x20` overslaat), en de pariteitstest
    in `tests/planning/check-ifc-target-model-scan.ts` neemt die gevallen expliciet op.
-3. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
+3. **1b-vervolg: de merge via de route van de app** (knownbug 1105, BLOKKEERT vóór 1c). Besluit van Trias (wrakko, 10
+   november 2026), de vier voorwaarden letterlijk:
+   - "#867 krijgt nu in fixronde 8 alleen het dubbele #id (1100, hoogste #id uit de hele tekst) en de kleine punten.
+     Daarna een kleine ronde 8."
+   - "De nieuwe PR "de merge via de route van de app" start direct na de merge van #867, vanaf main, en moet in main
+     staan vóór 1c begint. Zet dat als harde eis in knownbugs.md en in de PR-tekst van #867."
+   - "In die PR openen alle merge- en verliestoetsen via de route van de app (openOpenedFile met de flag). Draai de hele
+     telling en alle verliestoetsen daar opnieuw. Vindt dat ergens echt verlies in plaats van te veel weigeren, dan is
+     dat een BLOKKEERT in die PR [...]."
+   - "Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
+     pariteitstest op de huidige main met de oude-tags."
+4. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
    flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
    `refusedWriteTarget` aan (`src/services/mcp/tools/fileTools.ts:347-349`), maar de headless fs geeft geen
@@ -146,6 +157,10 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
   `fix3-twee-data`; knownbugs 1101–1104. Head `6c115d3f6`.
 - 2026-11-10: besluiten van Trias na fixronde 7: 1103 blijft VERVOLG (er gaat niets verloren en het weigert bij
   openen); 1104 mag in 1b weigeren en is een eis voor 1c.
+- 2026-11-10: review ronde 7 op `402fffabe` door één reviewer op Opus 5.5 (Codex had geen tegoed): nee, twee BLOKKEERT
+  (een dubbel `#id` naast een entiteit die de scanner niet ziet, knownbug 1100; oude eigen bestanden weigeren via de
+  route van de app). Fixronde 8: het eerste nieuwe id begint boven het hoogste `#<cijfers>` in elk stuk dat de merge
+  letterlijk overneemt, ook in commentaar en strings; de route van de app gaat naar de vervolg-PR (knownbug 1105).
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -156,7 +171,8 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
 
 ## Volgende stappen
 
-1. Review ronde 7 van #867 (één reviewer op Opus tot woensdag 11 november 07:51, daarna Sol en Terra), fixrondes tot
-   een ja, CI, merge (afspraken hierboven).
-2. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
-3. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
+1. De kleine ronde 8 van #867, dan de merge.
+2. De vervolg-PR "de merge via de route van de app" (knownbug 1105), direct na de merge van #867, vanaf `main`; hij moet
+   in main staan vóór 1c begint.
+3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
+4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.

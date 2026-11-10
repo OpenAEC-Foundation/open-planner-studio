@@ -1120,7 +1120,7 @@ async function lossSetup(bytes: Uint8Array) {
   const source = opened.ifcSource!;
   const index = scanStep(bytes);
   const cls = classify(index);
-  const ids = mergeIdPlan(index, cls, source.stepIds, opened.calendar.id);
+  const ids = mergeIdPlan(index, cls, source.stepIds, opened.calendar.id, bytes);
   let out: Uint8Array;
   try { out = concat(await writeIfcMerge(cloneDomain(opened), source)); } catch (e) {
     diffs.push(`lossSetup: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => c.detail).slice(0, 2).join(' | ') : (e as Error).message})`);

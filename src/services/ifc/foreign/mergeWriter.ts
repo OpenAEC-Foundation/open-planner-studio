@@ -95,7 +95,10 @@ export type MergePhase2Kind =
   | 'tijd-deels-gelezen'
   /** De uitvoer heeft een pset zonder bronstuk die niet in ons eigen register staat (`ifcPsets.ts`). Alleen een eigen
    *  registerpset mag erbij komen (fixronde 5, plek 34, besluit van Trias van 10 november 2026). */
-  | 'nieuwe-pset';
+  | 'nieuwe-pset'
+  /** Een nieuw `#id` zou boven 2147483647 komen, omdat de bron buiten de eigen stukken een `#` met een getal net onder die
+   *  grens heeft (`highestHashNumber`, ook in commentaar of een string). De scanner weigert zo'n id (knownbug 1007). */
+  | 'id-te-groot';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -202,8 +205,31 @@ export interface MergeIdPlan {
   readonly sourceOwnerHistory: number;
 }
 
+/** Het grootste `#id` dat de scanner aanneemt (knownbug 1007: de index rekent in int32). */
+export const MAX_STEP_ID = 2147483647;
+
+/**
+ * Het hoogste getal na een `#` in `bytes[start, end)`, overal: ook in commentaar en in strings, en stuurtekens tellen niet
+ * mee (fixronde 8 van #867, knownbug 1100). Volgens de norm vallen stuurtekens overal weg; dan is `/* a *⏎/ #402=…;` geen
+ * commentaar maar een entiteit die de scanner niet kent. Te hoog beginnen kan geen kwaad. Een getal boven `MAX_STEP_ID`
+ * telt niet: de writer geeft geen id boven die grens uit, dus het kan niet botsen. Eén doorloop, zonder kopie.
+ */
+export function highestHashNumber(bytes: Uint8Array, start: number, end: number): number {
+  let max = 0;
+  for (let k = bytes.indexOf(35, start); k >= 0 && k < end; k = bytes.indexOf(35, k)) {
+    let v = 0;
+    for (k++; k < end; k++) {
+      const c = bytes[k];
+      if (c >= 48 && c <= 57) { if (v <= MAX_STEP_ID) v = v * 10 + c - 48; } else if (c >= 32 && c !== 127) break;
+    }
+    if (v <= MAX_STEP_ID && v > max) max = v;
+  }
+  return max;
+}
+
 /** Het id-plan uit de bron en haar `stepIds` (domeinsleutel → bron-#id). */
-export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Readonly<Record<string, number>>, projectCalendarId: string): MergeIdPlan {
+export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Readonly<Record<string, number>>, projectCalendarId: string,
+  bytes: Uint8Array): MergeIdPlan {
   const n = index.count;
   const isP = (i: number) => cls.classes[i] === 1;
   const inD = cls.selection.inD;
@@ -234,10 +260,13 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
   let firstP = -1;
   let sourceOwnerHistory = -1;
   for (let i = 0; i < n; i++) {
+    // Elk byte dat de merge letterlijk overneemt (elk stuk dat niet P is, ook kop en staart) telt mee voor het eerste
+    // nieuwe id, ook een `#` in commentaar of een string (knownbug 1100). De P-stukken vervangt de writer helemaal
+    // (`assemble`); wat (b) daaruit terugzet, is een token zonder commentaar. Telden zij mee, dan schoof elke opslag de ids op.
+    if (!isP(i)) maxNonP = Math.max(maxNonP, highestHashNumber(bytes, index.start(i), index.end(i)));
     if (!index.isEntity(i)) continue;
     if (inD[i]) reserved.add(sid(i));
     if (isP(i)) { if (firstP < 0) firstP = i; continue; }
-    maxNonP = Math.max(maxNonP, sid(i));
     if (firstP < 0 && sourceOwnerHistory < 0 && index.type(i) === 'IFCOWNERHISTORY' && (cls.classes[i] === 2 || cls.classes[i] === 3)) {
       sourceOwnerHistory = i;
     }
@@ -288,7 +317,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
 
   // ── 1. Wat de bron zelf al uitsluit ──
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
-  const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id);
+  const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een duur, datum-tijd of tijd in een P-stuk die de lezer deels of anders leest: de planner ziet dan een andere waarde dan
@@ -608,6 +637,12 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
   for (const line of lines) if (!line.drop) emitted.add(line.id);
+  // Een nieuw id boven de grens van de scanner: meteen weigeren, de verliesbewaking rekent dan niet meer.
+  const tooHigh = lines.find(l => !l.drop && l.id > MAX_STEP_ID);
+  if (tooHigh) {
+    caseAt('id-te-groot', -1, `het nieuwe #${tooHigh.id} ligt boven ${MAX_STEP_ID}: de bron heeft buiten de eigen stukken een # met een getal tot ${plan.firstId - 1}`);
+    throw new MergeNeedsPhase2Error(cases);
+  }
   // Een vast id: een domeinobject uit `stepIds`, of de kop van een eigen baseline (`baselineHeads`).
   const fixedIds = new Set<number>([...bySource.keys(), ...baselineHeads.values()]);
   for (let c = 0; c < n; c++) {
