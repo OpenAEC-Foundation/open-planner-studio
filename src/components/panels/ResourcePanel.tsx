@@ -1009,7 +1009,7 @@ function ResourceRow({
           )}
         </td>
         {costLabel !== undefined && (
-          <td className="px-2 py-1 text-right tabular-nums" title={t('resource.totalHint')} data-ops-resource-total={resource.id}>
+          <td className="px-2 py-1 text-right tabular-nums" title={t(isCost ? 'resource.costTotalHint' : 'resource.totalHint')} data-ops-resource-total={resource.id}>
             {costLabel}
           </td>
         )}

@@ -5,7 +5,8 @@
 // echte klik, beide getallen worden uit de gerenderde DOM gelezen. Headless: check-resource-cost-hours.ts.
 // Kostenresource (#815): in dezelfde route wordt een kostenresource met een echte klik toegewezen en krijgt
 // hij via het bedragveld een bedrag (Enter); de kolom Totaal toont dan de som. Headless: check-cost-resource.ts.
-// De somregel onderaan staat onder de kolom Totaal, niet een kolom ernaast.
+// De somregel onderaan staat onder de kolom Totaal, niet een kolom ernaast. De tooltip van Totaal zegt bij
+// een kostenresource dat het de som van de bedragen is, bij een gewone resource uren × tarief.
 import { expect, test } from './fixtures/ops';
 
 test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een taakkalender met andere uren/dag', async ({ page, ops: _ops }) => {
@@ -74,6 +75,9 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
   // Kostenresource: Totaal = de som van de bedragen (1250,50).
   const costTotal = page.locator(`[data-ops-resource-total="${costId}"]`);
   await expect.poll(async () => (await costTotal.textContent())?.replace(/\D/g, '')).toBe('125050');
+  // De tooltip van Totaal: een kostenresource telt bedragen op, een gewone resource uren × tarief.
+  await expect(costTotal).toHaveAttribute('title', /^(Som van de bedragen op alle toewijzingen|Sum of the amounts on all assignments)$/);
+  await expect(total).toHaveAttribute('title', /^(Belaste eenheden × uren\/dag × tarief|Loaded units × hours\/day × rate) \((herbereken met F5|recalculate with F5)\)$/);
   // De somregel staat onder de kolom Totaal (vroeger één kolom te ver links, onder Tarief/uur):
   // dezelfde linker- en rechterrand als de kop en als het totaal per resource. Som: 2.500 + 1.250,50.
   const grand = page.locator('[data-ops-resource-grand-total]');
