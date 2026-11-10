@@ -146,7 +146,11 @@ const plan = () => {
     externalSourceVersion: async (filePath: string) => versions.get(filePath),
     parseExternalSource: read,
   });
-  const updates = () => S().ui.externalSourceUpdates.map(u => ({ ...u, documentId: u.documentId === S().activeDocumentId ? 'actief' : u.documentId }));
+  // Zonder `proposal` (de vingerafdruk voor *Later*, stap 1.7): die toetst `check-external-open-source.ts`.
+  const updates = () => S().ui.externalSourceUpdates.map(({ proposal: _proposal, ...u }) => {
+    void _proposal;
+    return { ...u, documentId: u.documentId === S().activeDocumentId ? 'actief' : u.documentId };
+  });
   const anchorOf = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
   const applied = () => S().historyEvents.filter(event => event.state === 'applied').length;
 

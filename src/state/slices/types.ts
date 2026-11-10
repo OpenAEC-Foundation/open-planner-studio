@@ -648,6 +648,9 @@ export interface ExternalSourceUpdate {
   /** Stap 1.7, vinkje *Ankers uit geopende documenten halen* aan: de bron staat als dit document open, met
    *  niet-opgeslagen wijzigingen, en de balk komt uit dat document (geen versie, geen auteur). */
   openDocumentId?: string;
+  /** De vingerafdruk van het voorstel (`proposalFingerprint`): de voorgestelde ankers per koppeling. *Later* onthoudt
+   *  hem naast de versie, zodat een balk uit een geopend document met dezelfde ankers niet terugkomt. */
+  proposal?: string;
   /** Op de site: het label van die versie voor de tekst (`SiteVersionInfo.label`, anders `version`). Gezet ⇒
    *  de balk noemt het versienummer in plaats van een opslagtijd. */
   siteVersionLabel?: string;

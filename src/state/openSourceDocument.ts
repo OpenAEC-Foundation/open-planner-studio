@@ -63,9 +63,6 @@ export function openSourceName(locator: ExternalSourceLocator, payload: Pick<Doc
 export interface UnsavedOpenSource {
   /** De sleutel van de bron (`externalSourceKey`). */
   key: string;
-  locator: ExternalSourceLocator;
-  /** Het geopende brondocument. */
-  sourceDocumentId: string;
   fileName: string;
 }
 
@@ -86,7 +83,7 @@ export function unsavedOpenSources(
     seen.add(key);
     const doc = openSourceDocument(locator, docs, activeDocumentId);
     if (!doc || !doc.payload.isDirty) continue;
-    out.push({ key, locator, sourceDocumentId: doc.id, fileName: openSourceName(locator, doc.payload) });
+    out.push({ key, fileName: openSourceName(locator, doc.payload) });
   }
   return out;
 }
@@ -127,11 +124,12 @@ export async function externalSourceFromOpenDocument(
 }
 
 /**
- * De vingerafdruk van een voorstel uit een geopend document (de balk bij het vinkje aan, stap 1.7): per koppeling
- * het voorgestelde anker en *brontaak ontbreekt*, gesorteerd. Een geopend document heeft geen versie; *Later*
- * onthoudt deze vingerafdruk. Dezelfde voorgestelde ankers geven zo geen nieuwe balk, andere wel.
+ * De vingerafdruk van een voorstel van een balk (stap 1.5 en 1.7): per koppeling het voorgestelde anker en *brontaak
+ * ontbreekt*, gesorteerd. Een geopend document heeft geen versie; zijn balk draagt deze vingerafdruk als versie.
+ * *Later* onthoudt hem bij elke balk. Dezelfde voorgestelde ankers geven zo geen nieuwe balk uit het geopende
+ * document, andere wel.
  */
-export function openProposalFingerprint(changes: readonly ExternalAnchorChange[]): string {
+export function proposalFingerprint(changes: readonly ExternalAnchorChange[]): string {
   const parts = changes.map(c => `${c.taskId}/${c.linkId}=${c.link.sourceMissing ? 'missing' : c.link.anchorDate}`);
   return `open:${parts.sort().join(';')}`;
 }

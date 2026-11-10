@@ -375,6 +375,11 @@ oudere versie bewaart haar niet. De reader en de writer van zo'n versie kennen i
 eigen velden. Slaat een planner het bestand op met een versie van vóór stap 1.11 (tot en met 2026.44.0), dan is de
 map weg en kiest hij haar opnieuw.
 
+Hetzelfde geldt voor het vinkje *Ankers uit geopende documenten halen* (stap 1.7):
+`OPS_ProjectSettings/AnchorsFromOpenDocuments`, alleen geschreven als het aan staat. Een oudere versie leest en schrijft
+het niet. Slaat een planner het bestand op met zo'n versie, dan staat het vinkje daarna stil uit. Het gevolg is de
+standaard (ankers uit het opgeslagen bestand); er gaat geen planningsdata verloren.
+
 ## 6. Stand A: in de SuperCloud
 
 ### 6.1 Koppelen
@@ -443,9 +448,10 @@ dat is niet gevonden.
 - **Browser zonder host:** een knop *Bronbestand kiezen…* (alle browsers). In Chromium onthoudt OPS het
   bestandshandvat (zoals bij de recente bestanden), zodat later opnieuw lezen één klik voor toestemming kost. In
   andere browsers kiest de planner het bestand opnieuw.
-- **Een geopend document** met hetzelfde project-id gaat voor (voorstel 5). Heeft dat document niet-opgeslagen
-  wijzigingen, dan neemt OPS het anker standaard uit het opgeslagen bestand en zegt dat. Met het vinkje *Ankers uit
-  geopende documenten halen* in de projectinstellingen rekent het project met het geopende document, met de
+- **Een geopend document** (voorstel 5). OPS herkent een bron die ook als document open staat aan het pad, het
+  site-id of, zonder pad, het project-id. Standaard gaat het opgeslagen bestand voor: heeft het document
+  niet-opgeslagen wijzigingen, dan neemt OPS het anker uit het opgeslagen bestand en zegt dat. Met het vinkje *Ankers
+  uit geopende documenten halen* in de projectinstellingen rekent het project met het geopende document, met de
   niet-opgeslagen wijzigingen (keuze 5, besloten; vorm besloten op 10 november).
 
 ### 7.2 Een gewijzigde bron opmerken

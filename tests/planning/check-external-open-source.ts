@@ -32,7 +32,7 @@ import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { refreshExternalAnchors, type ExternalSourceLocator } from '@/engine/externalLinks';
 import { readExternalSource, type ExternalSourceRead } from '@/state/externalSource';
 import {
-  externalSourceFromOpenDocument, openProposalFingerprint, openSourceDocument, unsavedOpenSources,
+  externalSourceFromOpenDocument, proposalFingerprint, openSourceDocument, unsavedOpenSources,
 } from '@/state/openSourceDocument';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -91,7 +91,7 @@ const PATH = '/projecten/Installateur.ifc';
   const dirty = [doc('actief', { filePath: 'Aannemer.ifc', projectId: 'p0' }), doc('bron', { filePath: PATH, projectId: 'p1' })];
   eq('1i niet-opgeslagen wijzigingen ⇒ één melding met de bestandsnaam (ook bij twee keer dezelfde bron)',
     unsavedOpenSources([{ kind: 'path', filePath: PATH }, { kind: 'path', filePath: '/projecten//Installateur.ifc' }], dirty, 'actief'),
-    [{ key: normalizeExternalSourcePath(PATH), locator: { kind: 'path', filePath: PATH }, sourceDocumentId: 'bron', fileName: 'Installateur.ifc' }]);
+    [{ key: normalizeExternalSourcePath(PATH), fileName: 'Installateur.ifc' }]);
 }
 
 // (7) Een geopend document als bron, per soort: nooit een versie, wel een leestijd.
@@ -122,8 +122,8 @@ const PATH = '/projecten/Installateur.ifc';
       { id: 'y', direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: anchor, sourceMissing: missing, sourceRef: { projectId: 'p', taskId: 'u' } },
     ],
   });
-  const fp = (from: string, to: string, missing = false) => openProposalFingerprint(externalAnchorChanges([task(from)], [task(to, missing)]));
-  const reversed = openProposalFingerprint(externalAnchorChanges([task('d1')], [task('d2')]).reverse());
+  const fp = (from: string, to: string, missing = false) => proposalFingerprint(externalAnchorChanges([task(from)], [task(to, missing)]));
+  const reversed = proposalFingerprint(externalAnchorChanges([task('d1')], [task('d2')]).reverse());
   eq('7d de vingerafdruk: gelijk bij hetzelfde voorstel (ook in een andere volgorde of vanaf een ander anker)',
     [fp('d1', 'd2') === fp('d0', 'd2'), fp('d1', 'd2') === reversed, fp('d1', 'd2').startsWith('open:')], [true, true, true]);
   eq('7e de vingerafdruk: anders bij een ander voorstel of bij brontaak ontbreekt',
@@ -338,6 +338,33 @@ for (const on of [false, true]) {
   eq('6c andere ankers ⇒ wel weer een balk', bars(S).map(u => [u.openDocumentId !== undefined, u.version !== first]), [[true, true]]);
 }
 
+{
+  // P1 (review na de ombouw): *Later* op een gewone balk (opgeslagen versie v2) geldt ook voor het voorstel. Een
+  // wijziging in de bron met dezelfde ankers, nog niet opgeslagen, geeft geen balk uit het geopende document.
+  const s = await app('path', true);
+  const { S } = s;
+  editSource(s);
+  saveSource(s, 'v2');
+  await S().checkExternalSources();
+  const bar = bars(S).map(u => [u.version, u.openDocumentId]);
+  S().dismissExternalSourceUpdate(bars(S)[0]?.key ?? '');
+  renameSource(s, 'Installatie (nieuw)');
+  await S().checkExternalSources();
+  eq('6d Later op de gewone balk ⇒ geen balk uit het geopende document met dezelfde ankers', [bar, bars(S).length], [[['v2', undefined]], 0]);
+}
+{
+  // P2: *Later* op een balk uit het geopende document; de bron wordt daarna opgeslagen (v2) en wijkt nog af ⇒ de
+  // gewone balk komt terug (de regel van stap 1.5: een nieuwe opgeslagen versie).
+  const s = await app('path', true);
+  const { S } = s;
+  editSource(s);
+  await S().checkExternalSources();
+  S().dismissExternalSourceUpdate(bars(S)[0]?.key ?? '');
+  saveSource(s, 'v2');
+  await S().checkExternalSources();
+  eq('6e Later, daarna opgeslagen en nog afwijkend ⇒ de balk bij die versie', bars(S).map(u => [u.version, u.openDocumentId]), [['v2', undefined]]);
+}
+
 // (8) Opslaan na een anker uit het geopende document (besluit Ethan 2026-11-10): geen balk als alleen de versie
 // verandert; de koppeling houdt "versie onbekend" tot een opgeslagen datumwijziging, en dan zet Accepteren de versie.
 {
@@ -359,6 +386,19 @@ for (const on of [false, true]) {
   const src = bar[0] ? await S().readExternalSourceUpdate(bar[0]) : null;
   eq('8d Accepteren legt de versie vast', [src ? S().acceptExternalSourceUpdate(src) : false, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion],
     [true, '2027-03-12T16:00', 'v4']);
+}
+{
+  // P5: na een anker uit het geopende document en opslaan zonder andere datum legt zelf vernieuwen uit het opgeslagen
+  // bestand de versie vast (één undo-stap).
+  const s = await app('path', true);
+  const { S, a } = s;
+  editSource(s);
+  await S().refreshAllExternalAnchors();
+  saveSource(s, 'v3');
+  const steps = applied(S);
+  await S().refreshAllExternalAnchors();
+  eq('8e zelf vernieuwen uit het opgeslagen bestand legt de versie vast',
+    [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion, applied(S) - steps], ['2027-03-10T16:00', 'v3', 1]);
 }
 
 // (9) *Bronbestanden kiezen…* (browser, een bron zonder pad, geen onthouden handvat).

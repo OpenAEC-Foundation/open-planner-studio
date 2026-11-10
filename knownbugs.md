@@ -577,14 +577,28 @@ en noem het in je rapport of PR-tekst.
 1066. **VERVOLG: het vinkje *Ankers uit geopende documenten halen* omzetten start geen controle.** Toepassen in
      *Projectinstellingen* (`applyProjectInfo`) laat de balken staan zoals ze zijn. Een balk uit een geopend
      document blijft na *uit* staan, en na *aan* komt de balk pas bij de volgende controle (document openen, wisselen
-     of terug in het venster; `useExternalSourceCheck`). *Bekijken* op zo'n oude balk na *uit* zegt dat de bron
-     niet te lezen is (`readExternalSourceUpdate` volgt het vinkje). Afgeleid uit de code, niet nagespeeld. Voorstel: na het omzetten van het
-     vinkje de controle starten (`checkExternalSources`). — S
+     of terug in het venster; `useExternalSourceCheck`). *Bekijken* op zo'n oude balk na *uit* leest niets
+     (`readExternalSourceUpdate` geeft `null`, want die volgt het vinkje); de volgende controle haalt de balk weg.
+     Nagespeeld in de review na de ombouw van #860 (proef P4, Claude Opus 5.5, xhigh). Voorstel: na het omzetten van
+     het vinkje de controle starten (`checkExternalSources`). — B
 1067. **VERVOLG: met het vinkje aan leest elke controle elk geopend brondocument met wijzigingen opnieuw.**
      `checkExternalSourcesOnce` (`src/state/slices/fileSlice.ts`) schrijft het geopende document per bron naar een
      IFC-tekst, leest die en rekent hem door (`externalSourceFromOpenDocument`), bij elk openen, wisselen en terugkeren
-     naar het venster. Bij een groot bronproject kost dat tijd op de hoofdthread. Niet gemeten. Voorstel: het voorstel
-     per brondocument onthouden zolang dat document niet verandert (bijv. op de referentie van zijn takenlijst). — S
+     naar het venster. Bij een groot bronproject kost dat tijd op de hoofdthread. Niet gemeten. Schatting van de
+     review na de ombouw van #860: volgens de nulmeting (`docs/superpowers/evidence/2026-11-02-snelheid.md`) kost
+     openen bij 5.000 taken ongeveer 1,9 s en opslaan 0,39 s, dus per controle ruim 2 s op de hoofdthread. Voorstel:
+     het voorstel per brondocument onthouden zolang dat document niet verandert (bijv. op de referentie van zijn
+     takenlijst). — S
+1068. **VERVOLG: de balk uit een geopend document zegt dat de niet-opgeslagen wijzigingen de ankers veranderen, ook
+     als het verschil uit een opgeslagen versie komt.** Met het vinkje aan vergelijkt de controle het geopende
+     document met het plan. Wijkt een opgeslagen versie van de bron al af van het plan, en heeft de bron daarna ook
+     wijzigingen die nog niet opgeslagen zijn (bijv. alleen een andere taaknaam), dan zegt de balk "… is open met
+     niet-opgeslagen wijzigingen die de ankers veranderen" (`ExternalSourceNotice.tsx`, sleutel
+     `externalLinks.newOpenDocument`). *Bekijken* heet dan nog "Nieuwe versie van {{file}}" (de titel in
+     `ExternalSourceReviewDialog.tsx`). Na de fix voor *Later* (review na de ombouw van #860) blijft dit over als de
+     planner geen *Later* koos op de gewone balk: de bron is opgeslagen en daarna weer gewijzigd voordat het plan
+     controleerde, of de planner zette een *Accepteren* terug met Ctrl+Z. Voorstel: een neutrale tekst ("De ankers
+     uit het geopende document {{file}} wijken af van je planning.") en een eigen titel voor *Bekijken*. — B
 
 ## Tabel, invoer en bediening
 
