@@ -35,6 +35,10 @@ export interface ForeignScanResult {
   /** Het stuk van het `IfcProject` als dat V is en er precies één is (een model zonder planning, of een eigen bestand
    *  van vóór `87ebd4d46`), anders -1. De lezer leest het als context (§4.2, Gevolgen): naam, omschrijving en GlobalId. */
   readonly projectContext: number;
+  /** Het eerste `IfcProject` is er en is niet P: het project van een model, of een eigen project dat de merge-writer niet
+   *  zelf schreef (§4.4). Alleen dan leest de lezer naam, omschrijving, auteur en bedrijf uit `OPS_ProjectSettings`
+   *  (`projectDataInSettings`, fixronde 1 van #867, BLOKKEERT 1). */
+  readonly projectNotP: boolean;
   /** V-stukken die de lezer toch krijgt (§4.6 b, §4.9 punt 4): de pset uit het register onder een gemengde
    *  `IfcRelDefinesByProperties` (een D-object en een vreemd object), met haar properties en hun enumeraties. Zonder dit
    *  las de lezer `HoursPerDay = 8` niet uit een `OPS_Calendar` die een kalender met een wand deelt. */
@@ -76,13 +80,18 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
   const literal = new Uint8Array(n);
   let projects = 0;
   let project = -1;
+  let firstProject = -1;
   for (let i = 0; i < n; i++) {
     chunkStarts[i] = index.start(i);
     const id = index.id(i);
     chunkIds[i] = id === '' ? -1 : Number(id);
     const c = cls.classes[i];
     if (c >= 1 && c <= 3 && index.literalText(i)) literal[i] = 1;
-    if (index.isEntity(i) && index.type(i) === 'IFCPROJECT') { projects++; project = i; }
+    if (index.isEntity(i) && index.type(i) === 'IFCPROJECT') {
+      projects++;
+      project = i;
+      if (firstProject < 0) firstProject = i;
+    }
   }
   // §4.2, Gevolgen: de lezer leest het enige `IfcProject` altijd als context, ook als het V is. Alleen dat stuk, niet zijn
   // eenheden of context: de lezer volgt van het project geen verwijzing.
@@ -100,6 +109,7 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     classes: cls.classes,
     literal,
     projectContext,
+    projectNotP: firstProject >= 0 && cls.classes[firstProject] !== 1,
     mixedPsetChunks,
     selection: {
       workPlan: sel.workPlan,
@@ -164,11 +174,17 @@ export function readerBytes(bytes: Uint8Array, scan: ForeignScanResult): Uint8Ar
 
 /** De leesopties van de bytes-route uit een scan (§4.9 punt 5, §4.2 stap 1): codering per stuk en de taken van
  *  `selectPlanning`, als STEP-ids. */
-export function readerStepIds(scan: ForeignScanResult): { literalStepIds: Set<string>; planningTaskStepIds: Set<string> } {
+export function readerOptions(scan: ForeignScanResult): {
+  literalStepIds: Set<string>; planningTaskStepIds: Set<string>; projectDataInSettings: boolean;
+} {
   const idOf = (chunk: number) => String(scan.chunkIds[chunk]);
   const literalStepIds = new Set<string>();
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1) literalStepIds.add(idOf(i));
-  return { literalStepIds, planningTaskStepIds: new Set(Array.from(scan.selection.tasks, idOf)) };
+  return {
+    literalStepIds,
+    planningTaskStepIds: new Set(Array.from(scan.selection.tasks, idOf)),
+    projectDataInSettings: scan.projectNotP,
+  };
 }
 
 /** De buffers die de Worker overdraagt in plaats van kopieert. */

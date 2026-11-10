@@ -3076,6 +3076,192 @@
    "filePath": null,
    "meldingen": [],
    "kenmerk": true
+  },
+  {
+   "pad": "tests/planning/fixtures/projectnaam-in-settings/03-kantoorgebouw-zuidas.ifc",
+   "invoerSha256": "ae6bab984839d16e0eff091373d1521eb7b8397626fae9c078b8a7727593d67e",
+   "filePath": "03-kantoorgebouw-zuidas.ifc",
+   "opslaanSha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+   "opslaanLengte": 86375,
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "kopie-03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "<map>/03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+       "lengte": 86375
+      }
+     ],
+     "filePath": "03-kantoorgebouw-zuidas.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/projectnaam-in-settings/showcase-verbouwing-eengezinswoning.ifc",
+   "invoerSha256": "20a13b148c25fcbf22b4c7e29ef557b71d5418f64c1601695a1598191d3bb0d7",
+   "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+   "opslaanSha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+   "opslaanLengte": 32622,
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "kopie-showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "<map>/showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+       "lengte": 32622
+      }
+     ],
+     "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
   }
  ]
 }

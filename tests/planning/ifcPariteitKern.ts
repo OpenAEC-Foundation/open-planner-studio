@@ -322,6 +322,9 @@ export const PARITY_FILES: readonly string[] = [
   'tests/fixtures/ifc-foreign/model-ifc2x3.ifc',
   'tests/planning/fixtures/ifc-arity-oude-writer-merged.ifc',
   'tests/planning/fixtures/backup-met-kenmerk.ifc',
+  // Fixronde 1 van #867, BLOKKEERT 1: een eigen voorbeeld met `ProjectName` in OPS_ProjectSettings. Met de flag uit leest
+  // en schrijft de branch het zoals main (de lezer leest die property alleen bij een project dat niet P is).
+  'tests/planning/fixtures/projectnaam-in-settings',
 ];
 
 export interface ParityFixtureEntry {

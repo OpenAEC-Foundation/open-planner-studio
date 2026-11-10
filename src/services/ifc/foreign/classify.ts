@@ -441,6 +441,20 @@ export function classify(index: StepIndex, selection: PlanningSelection = select
       pushAll(extStarts, index.refsAt(i, 7));
     }
   }
+  // Het project dat de writer niet samen met de planning schreef (§4.4; fixronde 1 van #867, BLOKKEERT 2). De writer
+  // schrijft één owner history en hangt die aan alles wat hij schrijft, ook aan het project en het werkplan. Is het
+  // `IfcProject` van de bron niet P, dan schrijft de merge-writer geen eigen project: het project houdt de owner history
+  // van de bron, het werkplan krijgt de nieuwe. Een project met een andere owner history dan het D-werkplan is dus context
+  // (C), met wat het bereikt (eenheden, context, owner history). Anders werd een oud los project (v2026.7.2) na het eerste
+  // opslaan P, en schreef de writer bij het tweede opslaan een eigen project, zonder wat de bron daar had (een extra
+  // eenheid, millimeter). Een eigen bestand heeft altijd één owner history voor project en werkplan, dus daar blijft het
+  // project P.
+  const planOwner = workPlan >= 0 ? index.refAt(workPlan, 1) : -1;
+  if (planOwner >= 0) {
+    for (let i = 0; i < n; i++) {
+      if (index.isEntity(i) && index.type(i) === 'IFCPROJECT' && index.refAt(i, 1) !== planOwner) extStarts.push(i);
+    }
+  }
   const inExt = new Uint8Array(n);
   const seen = new Uint8Array(n);
   const walk = (start: number) => {

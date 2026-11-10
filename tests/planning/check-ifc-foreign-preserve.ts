@@ -10,7 +10,8 @@
 //         de taak niet in het D-schema, een nieuwe taak wel, heropenen kiest hetzelfde D-schema;
 //      b. het D-schema onder een vreemd werkplan (`r6opus-twee-werkplannen.na.ifc`): geen tweede `Decomposes`;
 //      c. 'Proj' en 'Plan' (§4.4): het project is niet P; 'Proj' staat in `OPS_ProjectSettings` en blijft na herlezen;
-//      d. een eigen bestand van v2026.7.2 met een los `IfcProject`: één `IfcProject`, een tweede ronde byte-gelijk;
+//      d. een eigen bestand van v2026.7.2 met een los `IfcProject` (ook met een extra eenheid, millimeter of een model
+//         onder het project): project, eenheden en context byte-gelijk, één `IfcProject`, daarna C, tweede ronde byte-gelijk;
 //      e. CRLF met commentaar, een rauw Latin-1-byte en twee taken met dezelfde GlobalId;
 //   3. de keuzes "de eerste X" van de lezer: na de merge dezelfde auteur en hetzelfde bedrijf (ook leeg), werkplan,
 //      werkschema en projectkalender;
@@ -142,6 +143,9 @@ const REFUSED: Readonly<Record<string, readonly string[]>> = {
   'council/fix2-vendor-ops.ifc': ['vreemde-herkomst'],
   // Plus een gemengde IfcRelAssignsToProcess die de writer anders zou schrijven.
   'council/r6sol-losse-bonsai-toewijzing.ifc': ['constant-slot', 'gemengde-relatie', 'vreemde-herkomst'],
+  // Fixronde 1 van #867: het D-werkplan heet 'Tweede werkplan', niet zoals het project. De writer schrijft de projectnaam
+  // in het werkplan; de naam van de bron kwam niet terug (`lossCheck.ts`, het werkplan heeft geen domeinnaam).
+  'council/r6sol-twee-werkplannen-na-volgorderegel.ifc': ['constant-slot'],
 };
 
 const corpus = [
@@ -193,7 +197,7 @@ const replaceLine = (src: string, prefix: string, line: string | null) => {
 // IfcRelAssignsToControl, onder het tweede werkplan (#906). Zoals het tweede schema in `bonsai-4d.ifc`.
 const SECOND_SCHEDULE = [
   "#907=IFCWORKSCHEDULE('3tweedeSchema000000000',#903,'Schema van Revit',$,$,$,'2026-08-26T20:21:10',$,$,$,$,$,'2026-09-01T07:00:00','2026-09-02T07:00:00',.PLANNED.);",
-  "#908=IFCTASKTIME('Taak van Revit Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,0.00);",
+  "#908=IFCTASKTIME('Taak van het tweede schema Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,0.00);",
   "#909=IFCTASK('3tweedeTaak00000000000',#6,'Taak van het tweede schema',$,$,'2',$,$,$,.F.,$,#908,.CONSTRUCTION.);",
   "#910=IFCRELNESTS('0tweedeNest00000000000',#903,'WBS van Revit','Twee leden',#907,(#909));",
   "#911=IFCRELASSIGNSTOCONTROL('1tweedeCtrl00000000000',#903,$,$,(#909),$,#907);",
@@ -236,11 +240,13 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
   }
 }
 
-// 2c. 'Proj' en 'Plan' (§4.4): een eigen planning onder het project van een model. Het project is C, dus niet P.
+// 2c. 'Proj' (§4.4): een eigen planning onder het project van een model. Het project is C, dus niet P. Het eigen werkplan
+// heet zoals het project (de writer leidt die naam af). Een werkplan 'Plan' naast project 'Proj' heeft een naam die de
+// writer niet terugschrijft: dat is een geval van fase 2 (sectie 5b, fixronde 1 van #867).
 {
   const label = "project 'Proj'";
   let src = new TextDecoder().decode(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
-  src = src.replace(/^(#\d+=IFCPROJECT\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'").replace(/^(#\d+=IFCWORKPLAN\('[^']*',#\d+,)'[^']*'/m, "$1'Plan'");
+  src = src.replace(/^(#\d+=IFCPROJECT\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'").replace(/^(#\d+=IFCWORKPLAN\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'");
   const bytes = enc.encode(src);
   const sourceIndex = scanStep(bytes);
   const sourceCls = classify(sourceIndex);
@@ -256,24 +262,78 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
   }
 }
 
-// 2d. Een eigen bestand van v2026.7.2 met een los IfcProject (afwijking 1): één IfcProject.
+// 2d. Een eigen bestand van v2026.7.2 met een los IfcProject (fixronde 1 van #867, BLOKKEERT 2; besluit wrakko 9 november
+// 2026). Project, eenheden en context zijn in de bron V; de gewone merge laat ze byte-gelijk staan. Na het eerste opslaan
+// is het project C (`classify`: `ProjectName` in OPS_ProjectSettings), dus ook de tweede ronde is een merge: byte-gelijk,
+// met één IfcProject. Met de proeven van Sol (een massa-eenheid erbij) en Terra (millimeter in plaats van meter), en die
+// van wrakko: een model van een ander programma onder dat project, zoals Bonsai het schrijft.
+const OLD_OWN = 'tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc';
+const oldText = text(read(OLD_OWN));
+const OLD_MODEL = [
+  "#9100=IFCPERSON($,'Modelleur',$,$,$,$,$,$);",
+  "#9101=IFCORGANIZATION($,'IfcOpenShell',$,$,$);",
+  '#9102=IFCPERSONANDORGANIZATION(#9100,#9101,$);',
+  "#9103=IFCAPPLICATION(#9101,'0.8.0','Bonsai','Bonsai');",
+  '#9104=IFCOWNERHISTORY(#9102,#9103,.READWRITE.,.ADDED.,1767268800,#9102,#9103,1767268800);',
+  "#9105=IFCSITE('1hmdB8sWkqNaYGbHVTqH7m',#9104,'Terrein',$,$,$,$,$,.ELEMENT.,$,$,$,$,$);",
+  "#9106=IFCBUILDING('0nzaF7HzRLQiJzWJUv7jb9',#9104,'Gebouw',$,$,$,$,$,.ELEMENT.,$,$,$);",
+  "#9107=IFCBUILDINGSTOREY('2Yu_ER7xRbKmEePdDO4n3l',#9104,'Begane grond',$,$,$,$,$,.ELEMENT.,0.);",
+  "#9108=IFCWALL('242F3AJ$ylGv3IUzUFH5GA',#9104,'Wand A',$,$,$,$,$,$);",
+  "#9109=IFCRELAGGREGATES('1CzF1RtKY7Mk4G4G19UaJf',#9104,$,$,#13,(#9105));",
+  "#9110=IFCRELAGGREGATES('086uMHkomrXvegkmkDXq7n',#9104,$,$,#9105,(#9106));",
+  "#9111=IFCRELAGGREGATES('086uMHkomrXvegkmkDXq7o',#9104,$,$,#9106,(#9107));",
+  "#9112=IFCRELCONTAINEDINSPATIALSTRUCTURE('3e_i_5xIJ8piwr$BUMaHmD',#9104,$,$,(#9108),#9107);",
+];
+const OLD_VARIANTS: readonly { label: string; src: string; keep: readonly string[] }[] = [
+  { label: 'v2026.7.2 met een los IfcProject', src: oldText, keep: ['7', '8', '9', '12', '13'] },
+  {
+    label: 'v2026.7.2 + massa-eenheid (Sol)',
+    src: withLines(oldText.replace('#9=IFCUNITASSIGNMENT((#7,#8));', '#9=IFCUNITASSIGNMENT((#7,#8,#9001));'), ['#9001=IFCSIUNIT(*,.MASSUNIT.,.KILO.,.GRAM.);']),
+    keep: ['7', '8', '9', '9001', '12', '13'],
+  },
+  {
+    label: 'v2026.7.2 in millimeter (Terra)',
+    src: oldText.replace('#7=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);', '#7=IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);'),
+    keep: ['7', '8', '9', '12', '13'],
+  },
+  {
+    label: 'v2026.7.2 met een model onder het project (wrakko)',
+    src: withLines(oldText, OLD_MODEL),
+    keep: ['7', '8', '9', '12', '13', ...OLD_MODEL.map(l => /^#(\d+)=/.exec(l)![1])],
+  },
+];
+for (const v of OLD_VARIANTS) {
+  ok(`${v.label}: de proef verandert de bron`, v === OLD_VARIANTS[0] || v.src !== oldText);
+  const bytes = latin1(v.src);
+  const r = await roundTrip(v.label, bytes);
+  if (!r) continue;
+  eq(`${v.label}: één IfcProject`, countType(r.out, 'IFCPROJECT'), 1);
+  // Project, eenheden, context (en het model) byte-gelijk, met hetzelfde #id. Het project is hetzelfde object: de eigen
+  // psets van het project (OPS_Project en OPS_ProjectSettings) wijzen naar #13.
+  eq(`${v.label}: byte-gelijk met hetzelfde #id`, v.keep.filter(id => lineOf(r.out, id) !== lineOf(bytes, id) || !lineOf(bytes, id)), []);
+  ok(`${v.label}: de psets van het project hangen aan het project van de bron (#13)`,
+    relationsOf(r.out, 'IFCRELDEFINESBYPROPERTIES', 5, 4).filter(x => x.related.includes('13')).length >= 2);
+  const outIndex = scanStep(r.out);
+  const outCls = classify(outIndex);
+  const classOf = (id: string) => { for (let i = 0; i < outIndex.count; i++) if (outIndex.isEntity(i) && outIndex.id(i) === id) return outCls.classes[i]; return -1; };
+  eq(`${v.label}: na het eerste opslaan is het project C, net als eenheden en context`, ['13', '9', '12'].map(classOf), [2, 2, 2]);
+  ok(`${v.label}: na herlezen nog een vreemd deel (de tweede ronde is een merge)`, r.reread.ifcSource?.foreign === true);
+  eq(`${v.label}: de naam blijft`, r.reread.project.name, 'Nieuwbouw Woongebouw Parkzicht');
+}
+// Ook met een bewerking: hernoemen en een taak erbij, twee rondes.
 {
-  const label = 'v2026.7.2 met een los IfcProject';
-  const bytes = read('tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc');
+  const bytes = read(OLD_OWN);
   const opened = await openForeign(bytes);
-  ok(`${label}: opent met een vreemd deel (project, eenheden en context zijn V)`, opened.ifcSource?.foreign === true);
-  // Het niet-P-deel is alleen het eigen losse project: de gewone writer schrijft, zoals op main (`onlyOwnProjectContext`).
-  reseed(0x2026);
-  const out = concat(writeIfcMerge(cloneDomain(opened), opened.ifcSource!));
-  reseed(0x2026);
-  eq(`${label}: de uitvoer is die van writeIFC`, text(out), text(enc.encode(writeIFC(cloneDomain(opened)))));
-  eq(`${label}: één IfcProject`, countType(out, 'IFCPROJECT'), 1);
-  const reread = await openForeign(out);
-  eq(`${label}: herlezen geeft dezelfde planning`, canon(reread, reseed), canon(opened, reseed));
-  ok(`${label}: na het eerste opslaan geen vreemd deel meer`, reread.ifcSource?.foreign !== true);
-  reseed(0x2026);
-  const second = enc.encode(writeIFC(cloneDomain(reread)));
-  ok(`${label}: tweede opslaan byte-gelijk${sameBytes(second, out) ? '' : ` (${firstDiff(text(second), text(out))})`}`, sameBytes(second, out));
+  for (const edit of basicEdits(opened)) await roundTrip(`v2026.7.2 · ${edit.label}`, bytes, edit.apply);
+}
+
+/** Een tweede taak (#908, met #907) met de GlobalId van taak #57, in dezelfde nest en control. */
+function withDuplicateGuid(src: string): string {
+  return withLines(
+    replaceLine(replaceLine(src, '#58=', "#58=IFCRELNESTS('tjjP5r1vgdnD4TBHzDgTrv',#6,'WBS Hoofd',$,#54,(#57,#908));"),
+      '#59=', "#59=IFCRELASSIGNSTOCONTROL('rDVhNjbXHjyDCF$VkTSruD',#6,$,$,(#57,#908),$,#54);"),
+    ["#907=IFCTASKTIME('Tweede taak met dezelfde GlobalId Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,0.00);",
+      "#908=IFCTASK('urgPb5NfMvjfZ9SFNfwJQl',#6,'Tweede taak met dezelfde GlobalId',$,$,'2',$,$,$,.F.,$,#907,.CONSTRUCTION.);"]);
 }
 
 // 2e. CRLF met commentaar, een rauw Latin-1-byte en twee taken met dezelfde GlobalId.
@@ -292,12 +352,7 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
   const l = await roundTrip('Latin-1-byte in het model', raw);
   if (l) ok('Latin-1-byte in het model: het rauwe byte staat er nog', lineOf(l.out, '904').includes('Wandé'));
 
-  const dup = withLines(
-    replaceLine(replaceLine(baseText, '#58=', "#58=IFCRELNESTS('tjjP5r1vgdnD4TBHzDgTrv',#6,'WBS Hoofd',$,#54,(#57,#908));"),
-      '#59=', "#59=IFCRELASSIGNSTOCONTROL('rDVhNjbXHjyDCF$VkTSruD',#6,$,$,(#57,#908),$,#54);"),
-    ["#907=IFCTASKTIME('Tweede Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','2026-09-01T07:00:00','2026-09-01T16:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,0.00);",
-      "#908=IFCTASK('urgPb5NfMvjfZ9SFNfwJQl',#6,'Tweede taak met dezelfde GlobalId',$,$,'2',$,$,$,.F.,$,#907,.CONSTRUCTION.);"]);
-  const d = await roundTrip('twee taken met dezelfde GlobalId', enc.encode(dup));
+  const d = await roundTrip('twee taken met dezelfde GlobalId', enc.encode(withDuplicateGuid(baseText)));
   if (d) {
     eq('dubbele GlobalId: twee taken na openen', d.opened.tasks.length, 2);
     const g57 = scanStep(d.out), find = (id: string) => { for (let i = 0; i < g57.count; i++) if (g57.isEntity(i) && g57.id(i) === id) return i; return -1; };
@@ -338,7 +393,7 @@ for (const rel of [...EDIT_FILES, 'tweede live-schema']) {
 }
 
 // ── 5. Elk geval van merge-needs-phase2 ──
-async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edit?: (d: Domain) => void) {
+async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edit?: (d: Domain) => void, detail?: RegExp) {
   const opened = await openForeign(bytes);
   if (!opened.ifcSource?.foreign) { diffs.push(`${label}: geen vreemd deel`); checks++; return; }
   const d = cloneDomain(opened);
@@ -348,7 +403,10 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
   try { parts = writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
   ok(`${label}: geeft niets terug`, parts === undefined);
   ok(`${label}: MergeNeedsPhase2Error met code merge-needs-phase2`, error instanceof MergeNeedsPhase2Error && error.code === 'merge-needs-phase2');
-  if (error instanceof MergeNeedsPhase2Error) eq(`${label}: het geval`, error.cases.some(c => c.kind === kind), true);
+  if (error instanceof MergeNeedsPhase2Error) {
+    eq(`${label}: het geval`, error.cases.some(c => c.kind === kind), true);
+    if (detail) ok(`${label}: het geval noemt ${detail}`, error.cases.some(c => c.kind === kind && detail.test(c.detail)));
+  }
 }
 const eigen = new TextDecoder().decode(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
 await expectRefusal('vreemde herkomst (bonsai-4d)', read('tests/fixtures/ifc-foreign/bonsai-4d.ifc'), 'vreemde-herkomst');
@@ -486,6 +544,68 @@ await expectRefusal('de gedeelde kalender wijzigen', read('tests/fixtures/ifc-fo
   });
 }
 await expectRefusal('twee IfcProject', enc.encode(withLines(baseText, ["#907=IFCPROJECT('0tweedeProject00000000',#903,'Ander project',$,$,$,$,$,$);"])), 'meer-projecten');
+
+// ── 5b. De verliesbewaking vergelijkt met de bron (fixronde 1 van #867, `lossCheck.ts`) ──
+// BLOKKEERT 3: een dubbele GlobalId schakelt de bewaking niet uit; ze paart op het bron-#id.
+const LONG_57 = "#57=IFCTASK('urgPb5NfMvjfZ9SFNfwJQl',#6,'Externe bronactiviteit',$,$,'1','Lange omschrijving',$,$,.F.,$,#56,.CONSTRUCTION.);";
+await expectRefusal('LongDescription op een taak met een dubbele GlobalId', enc.encode(replaceLine(withDuplicateGuid(baseText), '#57=', LONG_57)),
+  'constant-slot', undefined, /^IFCTASK #57, argument 6/);
+// BLOKKEERT 4: een hulpentiteit via haar eigenaar (taak → IfcTaskTime, volgorde → IfcLagTime).
+const TASKTIME_56 = "#56=IFCTASKTIME('Externe bronactiviteit Time',.USERDEFINED.,'Extern berekend',.WORKTIME.,'P0Y0M2D','2026-09-01T07:00:00','2026-09-02T07:00:00','2026-09-01T07:00:00','2026-09-02T07:00:00','2026-09-01T07:00:00','2026-09-02T07:00:00','P0Y0M0D','P0Y0M0D',.F.,$,$,$,$,$,0.00);";
+await expectRefusal('IfcTaskTime #56 met de DataOrigin van een ander', enc.encode(replaceLine(baseText, '#56=', TASKTIME_56)),
+  'constant-slot', undefined, /^IFCTASKTIME #56, argument 1/);
+await expectRefusal('IfcTaskTime #56 met UserDefinedDataOrigin', enc.encode(replaceLine(baseText, '#56=', TASKTIME_56.replace('.USERDEFINED.', '.PREDICTED.'))),
+  'constant-slot', undefined, /^IFCTASKTIME #56, argument 2/);
+const withLag = (lag: string) => enc.encode(withLines(
+  replaceLine(eigen, '#91=', "#91=IFCRELSEQUENCE('3PojQSwT308F3rahVEzxwR',#6,$,$,#47,#51,#9001,.FINISH_START.,$);"), [lag]));
+await roundTrip('een eigen IfcLagTime', withLag("#9001=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P1D'),.WORKTIME.);"));
+await expectRefusal('IfcLagTime met de DataOrigin van een ander', withLag("#9001=IFCLAGTIME('Lag',.USERDEFINED.,'Extern berekend',IFCDURATION('P1D'),.WORKTIME.);"),
+  'constant-slot', undefined, /^IFCLAGTIME #9001, argument 1/);
+await expectRefusal('IfcLagTime met een andere naam', withLag("#9001=IFCLAGTIME('Vertraging leverancier',.PREDICTED.,$,IFCDURATION('P1D'),.WORKTIME.);"),
+  'constant-slot', undefined, /^IFCLAGTIME #9001, argument 0/);
+// BLOKKEERT 5: een property (en haar pset) die de writer weglaat. Een onbekende JSON-sleutel is verlies; een sleutel die
+// de writer kent en weglaat omdat het standaardveld alles zegt (`dayMeasureIo.ts`), niet.
+const analysis = (json: string) => enc.encode(withLines(baseText, [
+  `#9001=IFCPROPERTYSINGLEVALUE('ExactFloat',$,IFCTEXT('${json}'),$);`,
+  "#9002=IFCPROPERTYSET('0analyse00000000000000',#6,'OPS_Analysis',$,(#9001));",
+  "#9003=IFCRELDEFINESBYPROPERTIES('0analyseRel00000000000',#6,$,$,(#57),#9002);",
+]));
+await expectRefusal('OPS_Analysis met een onbekende sleutel, die de writer weglaat', analysis('{"vendorCoordinationId":7}'),
+  'json-sleutel', undefined, /vendorCoordinationId/);
+await roundTrip('OPS_Analysis met alleen bekende sleutels, die de writer weglaat', analysis('{"TotalFloat":[2,null]}'));
+await expectRefusal('een weggelaten property met een Description', enc.encode(withLines(baseText, [
+  `#9001=IFCPROPERTYSINGLEVALUE('ExactFloat','Uitleg van een ander',IFCTEXT('{"TotalFloat":[2,null]}'),$);`,
+  "#9002=IFCPROPERTYSET('0analyse00000000000000',#6,'OPS_Analysis',$,(#9001));",
+  "#9003=IFCRELDEFINESBYPROPERTIES('0analyseRel00000000000',#6,$,$,(#57),#9002);",
+])), 'constant-slot', undefined, /ExactFloat\), argument 1, ontbreekt/);
+// Het werkplan heet zoals het project; een andere naam schrijft de writer niet terug (zie 2c).
+{
+  let src = new TextDecoder().decode(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  src = src.replace(/^(#\d+=IFCPROJECT\('[^']*',#\d+,)'[^']*'/m, "$1'Proj'").replace(/^(#\d+=IFCWORKPLAN\('[^']*',#\d+,)'[^']*'/m, "$1'Plan'");
+  await expectRefusal("werkplan 'Plan' naast project 'Proj'", enc.encode(src), 'constant-slot', undefined, /^IFCWORKPLAN #\d+, argument 2: 'Plan'/);
+}
+// BLOKKEERT 1, gevolg: het project is P en de eerste owner history is van de bron (C). De lezer leest auteur en bedrijf
+// daar terug; een gewijzigde auteur komt dus niet terug. Zonder wijziging schrijft de merge gewoon (sectie 1).
+await expectRefusal('auteur wijzigen bij een gedeelde owner history', read(BASE), 'projectgegevens', (d) => { d.project.author = 'Ethan'; });
+
+// ── 5c. BLOKKEERT 1: de vier projectvelden alleen bij een project dat niet P is ──
+// Een eigen bestand zonder model met `ProjectName` in OPS_ProjectSettings (de proef van de reviewers). Met de flag aan is
+// het project P: de lezer leest de naam uit het IfcProject, zoals main, en Opslaan is de gewone writer. Met de flag uit
+// bewaakt `check-ifc-foreign-pariteit.ts` hetzelfde tegen de uitvoer van main zelf.
+for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw-zuidas.ifc']) {
+  const bytes = read(`tests/planning/fixtures/projectnaam-in-settings/${name}`);
+  const label = `${name} met ProjectName`;
+  const opened = await openForeign(bytes);
+  const plain = readIFC(new TextDecoder().decode(bytes));
+  ok(`${label}: geen vreemd deel (het project is P)`, opened.ifcSource?.foreign === false);
+  eq(`${label}: de naam komt uit het IfcProject, zoals main`, opened.project.name, plain.project.name);
+  ok(`${label}: niet de naam uit OPS_ProjectSettings`, opened.project.name !== 'Naam van een ander programma');
+  reseed(0x1b01);
+  const saved = concat(writeIfcMerge(cloneDomain(opened), opened.ifcSource!));
+  reseed(0x1b01);
+  const main = enc.encode(writeIFC(cloneDomain(plain as Opened)));
+  ok(`${label}: Opslaan is de gewone writer, gelijk aan de lezer van main`, sameBytes(saved, main));
+}
 
 // ── 6. De invarianten zelf ──
 {

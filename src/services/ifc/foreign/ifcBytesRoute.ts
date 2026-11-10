@@ -23,7 +23,7 @@ import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { readIFCWithXerReconstruction, type IfcReadWithXerOptions } from '../ifcReadWithXer';
 import { readFileSchemaName } from '../ifcReader';
 import { ifcObjectSeed } from '../ifcWriter';
-import { readerBytes, readerStepIds, type ForeignScanResult } from './foreignScan';
+import { readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
 import { runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner';
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
@@ -84,10 +84,9 @@ export async function readIfcBytesDetailed(
     return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName });
   }
 
-  const { literalStepIds, planningTaskStepIds } = readerStepIds(scan);
   const stepIdsOut: Record<string, string> = {};
   const result = await readIFCWithXerReconstruction(readerText, labels, {
-    ...xerOptions(opts), literalStepIds, planningTaskStepIds, skipBuildingModelGuard: true, stepIdsOut,
+    ...xerOptions(opts), ...readerOptions(scan), skipBuildingModelGuard: true, stepIdsOut,
   });
   const mismatch = selectionMismatch(scan, stepIdsOut, result.project.id);
   if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch });

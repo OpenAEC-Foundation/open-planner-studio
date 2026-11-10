@@ -250,9 +250,8 @@ export interface WriteContext {
  *  - `firstId`: het hoogste id van de niet-P-stukken plus 1; daar begint de reeks voor alle andere stukken.
  *  - `reserved`: de ids die de reeks overslaat (de D-ids van de bron).
  *  - `projectSourceId`: gezet als het `IfcProject` van de bron niet P is. Dan schrijft de writer geen eigen project,
- *    eenheden en context; `_project` wijst naar dit bron-id.
- *  - `projectData`: naam, omschrijving, auteur en bedrijf gaan (ook) in `OPS_ProjectSettings`. Gezet als het project niet
- *    P is, of als vóór het P-blok al een owner history van de bron staat: de lezer neemt auteur en bedrijf uit de eerste.
+ *    eenheden en context; `_project` wijst naar dit bron-id, en naam, omschrijving, auteur en bedrijf gaan in
+ *    `OPS_ProjectSettings` (alleen dan; fixronde 1 van #867, BLOKKEERT 1).
  *  - `baselineHeads`: GlobalId → bron-`#id` van een eigen `.BASELINE.`-werkschema (D). De lezer geeft die koppen geen
  *    domein-id in `stepIds`; via hun GlobalId houden ze toch hun id, anders schuift de reeks in de volgende ronde.
  */
@@ -261,7 +260,6 @@ export interface WriterMergeIds {
   readonly firstId: number;
   readonly reserved: ReadonlySet<number>;
   readonly projectSourceId?: number;
-  readonly projectData: boolean;
   readonly baselineHeads: ReadonlyMap<string, number>;
 }
 
@@ -885,13 +883,13 @@ function writeStructure(
     projSettingProps.push(addLine(ctx, '_ps_dependentfolder',
       `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.DependentProjectsFolder)},$,IFCTEXT(${ifcStr(project.dependentProjectsFolder)}),$)`));
   }
-  // #804 §4.4: schrijft de writer geen eigen IfcProject (het project van de bron is niet P), of staat de eerste owner
-  // history van het bestand vóór het P-blok, dan staan naam, omschrijving, auteur en bedrijf hier (`projectData`). Het
-  // IfcProject en de eerste owner history zijn dan van het model. AFWIJKING van de golden rule, zoals bij de
-  // contractdatums: de vier staan er altijd, leeg als NominalValue `$`. Anders valt de lezer bij een lege auteur terug op
-  // de eerste owner history, en die is na de merge van het model (bijvoorbeeld 'Corpus'). Zonder vreemd deel nooit: de
-  // uitvoer blijft byte-gelijk.
-  if (ctx.merge?.projectData) {
+  // #804 §4.4: schrijft de writer geen eigen IfcProject (het project van de bron is niet P), dan staan naam, omschrijving,
+  // auteur en bedrijf hier. Het IfcProject en de eerste owner history zijn dan van de bron. AFWIJKING van de golden rule,
+  // zoals bij de contractdatums: de vier staan er altijd, leeg als NominalValue `$`. Anders valt de lezer bij een lege
+  // auteur terug op de eerste owner history, en die is na de merge van het model (bijvoorbeeld 'Corpus'). De lezer leest
+  // ze alleen als het project niet P is (`projectDataInSettings`); `classify` houdt zo'n project C. Zonder vreemd deel
+  // nooit: de uitvoer blijft byte-gelijk.
+  if (ctx.merge?.projectSourceId !== undefined) {
     const projectData: [string, string, string][] = [
       ['_ps_projectname', PROP.ProjectSettings.ProjectName, project.name],
       ['_ps_projectdescription', PROP.ProjectSettings.ProjectDescription, project.description],

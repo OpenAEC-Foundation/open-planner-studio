@@ -125,6 +125,10 @@ export interface IfcReadOptions {
   /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
    *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
   stepIdsOut?: Record<string, string>;
+  /** Het `IfcProject` is niet P (§4.4): naam, omschrijving, auteur en bedrijf in `OPS_ProjectSettings` winnen dan van het
+   *  project en de eerste owner history. Zonder deze optie leest de lezer die vier properties niet, zoals main
+   *  (fixronde 1 van #867, BLOKKEERT 1). */
+  projectDataInSettings?: boolean;
 }
 
 interface StepEntity {
@@ -317,6 +321,7 @@ export function readIFC(
   const ifcSchemaMarkers: IfcSchemaMarkers = { confirmed: false };
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut, projectStartRecorded, ifcSchemaMarkers,
+    options.projectDataInSettings === true,
   );
   // De schemavraag bij opslaan (besluit eigenaar 2026-10-13): staat er een andere kop dan de standaard
   // en heeft de gebruiker nog niet gekozen, dan vraagt het eerste expliciete opslaan het eerst.
@@ -2215,6 +2220,8 @@ function extractStructure(
   // Wat `OPS_ProjectSettings` over de schemavraag zegt (`IfcSchemaConfirmed`/`IfcSchemaUnconfirmed`);
   // de aanroeper combineert het met de kop (`ifcSchemaUnconfirmedOnRead`).
   ifcSchemaMarkers: IfcSchemaMarkers,
+  // #804 §4.4: de vier projectvelden in `OPS_ProjectSettings` lezen (`IfcReadOptions.projectDataInSettings`).
+  projectDataInSettings: boolean,
 ): { activityCodeTypes: ActivityCodeType[]; customFieldDefs: CustomFieldDef[] } {
   let activityCodeTypes: ActivityCodeType[] = [];
   let customFieldDefs: CustomFieldDef[] = [];
@@ -2358,16 +2365,16 @@ function extractStructure(
         } else if (name === PROP.ProjectSettings.DependentProjectsFolder) {
           // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
           if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
-        } else if (name === PROP.ProjectSettings.ProjectName) {
-          // #804 §4.4: een model met een vreemd project. Deze vier winnen van IfcProject en de eerste owner history
-          // (`extractProject`), ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$` (⇒ undefined).
-          // Zonder de property blijft wat die gaf.
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectName) {
+          // #804 §4.4: het project is niet P (het project van een model). Deze vier winnen van IfcProject en de eerste
+          // owner history (`extractProject`), ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$`
+          // (⇒ undefined). Zonder de property blijft wat die gaf. Zonder de optie (main, de flag uit) leest de lezer ze niet.
           project.name = typeof v === 'string' ? v : '';
-        } else if (name === PROP.ProjectSettings.ProjectDescription) {
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectDescription) {
           project.description = typeof v === 'string' ? v : '';
-        } else if (name === PROP.ProjectSettings.Author) {
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.Author) {
           project.author = typeof v === 'string' ? v : '';
-        } else if (name === PROP.ProjectSettings.Organization) {
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.Organization) {
           project.company = typeof v === 'string' ? v : '';
         }
       }

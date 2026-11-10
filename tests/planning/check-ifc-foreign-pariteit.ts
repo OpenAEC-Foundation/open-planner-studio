@@ -113,7 +113,8 @@ for (const want of fixture.bestanden.filter(b => b.filePath === null && b.pad !=
   checks++;
   if (!detail.includes('building model')) diffs.push(`${want.pad}: de fixture verwacht de modelweigering, niet "${detail.slice(0, 80)}"`);
 }
-eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [32, 6, 1]);
+// Fixronde 1 van #867: twee eigen voorbeelden met `ProjectName` in OPS_ProjectSettings erbij (34 in plaats van 32).
+eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [34, 6, 1]);
 
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ifc-foreign-pariteit: ${d}`);

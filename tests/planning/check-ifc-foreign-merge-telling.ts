@@ -9,7 +9,8 @@
 //     `Nests` of `HasContext`, en de herlezing geeft dezelfde planning als dezelfde bewerking zonder vreemd deel (`canon`);
 //   - merge-needs-phase2: de getypeerde weigering, met de gevallen;
 //   - anders: een andere fout, een gebroken invariant of een andere planning na herlezen.
-// De check drukt de tabel af en is rood bij elke "anders": elke bewerking schrijft goed of weigert getypeerd.
+// De check drukt de tabel af en is rood bij elke "anders": elke bewerking schrijft goed of weigert getypeerd. Ook rood:
+// een fout bij openen, behalve de verwachte weigering in `REFUSED_AT_OPEN` (met haar reden).
 // Exit 0 = geen "anders".
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -18,6 +19,7 @@ import { installDeterminism } from './ifcPariteitKern';
 import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, plannerEdits, tryMerge, type EditKind } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
@@ -37,10 +39,23 @@ const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1
 const started = performance.now();
 let merges = 0;
 
+/** Bestanden die al bij openen geweigerd worden, met de reden (VERVOLG van Terra, fixronde 1 van #867): IFC2X3 valt
+ *  buiten de bytes-route, en de huidige route weigert een model (knownbug 110). Elke andere fout bij openen is rood. */
+const REFUSED_AT_OPEN: Readonly<Record<string, IfcParseErrorReason>> = { 'model-ifc2x3.ifc': 'building-model' };
+const refusedAtOpen: string[] = [];
+
 for (const file of files) {
   const bytes = new Uint8Array(readFileSync(join(FOREIGN, file)));
   let opened;
-  try { opened = await openForeign(bytes); } catch { continue; } // geweigerd bij openen (IFC2X3 met model)
+  try {
+    opened = await openForeign(bytes);
+  } catch (e) {
+    const want = REFUSED_AT_OPEN[file];
+    if (want !== undefined && e instanceof IfcParseError && e.reason === want) { refusedAtOpen.push(file); continue; }
+    others.push(`${file} · openen: ${e instanceof IfcParseError ? `IfcParseError ${e.reason}` : (e as Error).message.slice(0, 160)}`);
+    continue;
+  }
+  if (REFUSED_AT_OPEN[file] !== undefined) { others.push(`${file} · openen: verwacht geweigerd (${REFUSED_AT_OPEN[file]}), maar opent`); continue; }
   const source = opened.ifcSource;
   if (!source?.foreign) continue;
   const perKind = new Map<EditKind, Tally>();
@@ -100,6 +115,12 @@ for (const kind of KINDS) {
   console.log(`| ${kind} | ${t.n} | ${t.ok} | ${t.n - t.ok - otherN} (${fmt(t.refused)}) | ${otherN} |`);
 }
 const seconds = ((performance.now() - started) / 1000).toFixed(1);
+const totalN = [...total.values()].reduce((a, t) => a + t.n, 0);
+const totalOk = [...total.values()].reduce((a, t) => a + t.ok, 0);
+const totalOther = [...total.values()].reduce((a, t) => a + [...t.other.values()].reduce((x, y) => x + y, 0), 0);
+console.log('');
+console.log(`Totaal: ${totalN} bewerkingen, ${totalOk} gelukt, ${totalN - totalOk - totalOther} merge-needs-phase2, ${totalOther} anders; `
+  + `${tally.size} bestanden met een vreemd deel; geweigerd bij openen: ${refusedAtOpen.join(', ') || '–'}.`);
 
 if (others.length > 0) {
   console.log(`XX  ifc-foreign-merge-telling: ${others.length} bewerking(en) met een andere uitkomst dan gelukt of merge-needs-phase2`);

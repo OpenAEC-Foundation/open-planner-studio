@@ -10,7 +10,9 @@
  * krijgen ids vanaf het hoogste id van de niet-P-stukken plus 1, en slaan de D-ids over.
  *
  * Project (§4.4): is het `IfcProject` van de bron niet P, dan schrijft de writer geen eigen project, eenheden en context;
- * naam, omschrijving, auteur en bedrijf gaan in `OPS_ProjectSettings`.
+ * naam, omschrijving, auteur en bedrijf gaan in `OPS_ProjectSettings`, en alleen dan (de lezer leest ze ook alleen dan).
+ * Het project houdt dan de owner history van de bron; daaraan ziet `classify` na opslaan dat het context (C) blijft. Een
+ * eigen bestand van v2026.7.2 met een los project gaat zo ook door de gewone merge (fixronde 1 van #867, BLOKKEERT 2).
  *
  * Bewaarde relaties gaan voor (§4.6, v20): geen eigen `IfcRelNests`, `IfcRelAggregates` of `IfcRelDeclares` voor een
  * D-object dat al lid is van een bewaarde relatie van dat type (zo krijgt niets twee `Nests`/`Decomposes`/`HasContext`,
@@ -22,15 +24,19 @@
  * Wat zonder fase 2 niet veilig kan, schrijft deze writer niet: hij gooit `MergeNeedsPhase2Error` (code
  * `merge-needs-phase2`) met elk geval, vóór er iets geschreven is. Nooit stil weglaten.
  *
+ * Regel voor de verliesbewaking (fixronde 1 van #867; ook voor 1c): de verliesbewaking vergelijkt met de bron, nooit met
+ * de eigen uitvoer. Elk veld dat de bron had (ook in een P-stuk, een hulpentiteit, een pset, een JSON-sleutel of een
+ * constant slot) en dat de uitvoer niet terug heeft, laat de merge weigeren met `merge-needs-phase2`, tenzij het domein
+ * dat veld bewust veranderde. De bewaking staat in `lossCheck.ts`; de tabel per entiteittype (hoe de merge verlies ziet,
+ * en welke test dat bewijst) staat in de PR-body van #867, sectie "Fixronde 1".
+ *
  * Fase 1b: alleen tests gebruiken deze writer. Opslaan met een vreemd deel blijft geweigerd tot 1c.
  */
-import type { ImportResult } from '@/services/importTypes';
-import { readIFC } from '../ifcReader';
 import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
-import { classify, hasOwnOrigin, type Classification } from './classify';
-import { foreignScanFrom, readerBytes, readerStepIds } from './foreignScan';
+import { classify, type Classification } from './classify';
+import { lossCheck } from './lossCheck';
 import type { IfcSource } from './ifcSource';
 import { scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 
@@ -58,7 +64,11 @@ export type MergePhase2Kind =
   /** De writer schrijft een D-object met een ander entiteittype dan de bron (§4.5: het type komt uit de bron). */
   | 'entiteittype'
   /** De bron heeft meer dan één `IfcProject`. */
-  | 'meer-projecten';
+  | 'meer-projecten'
+  /** Auteur of bedrijf veranderde, maar de writer schrijft het project zelf en de eerste owner history die de lezer ziet
+   *  is van de bron (C of A, vóór het P-blok). De lezer leest auteur en bedrijf daar terug (§4.4); de wijziging ging dan
+   *  verloren (fixronde 1 van #867, BLOKKEERT 1). */
+  | 'projectgegevens';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -148,84 +158,34 @@ class Bag {
   }
 }
 
-const OWNER_TYPES: ReadonlySet<string> = new Set([
-  'IFCOWNERHISTORY', 'IFCPERSONANDORGANIZATION', 'IFCPERSON', 'IFCORGANIZATION', 'IFCAPPLICATION',
-]);
-
-/**
- * Afwijking 1 (§4.2, Gevolgen; besluit wrakko, 9 november 2026): een eigen bestand van vóór `87ebd4d46` (v2026.7.2 en
- * ouder) heeft een los `IfcProject`. Project, eenheden en context zijn V, de owner history is C; de rest is P. Er is dan
- * geen gegeven van een ander programma: het niet-P-deel is precies wat de writer zelf opnieuw schrijft. De gewone writer
- * schrijft dan, zoals op main: één `IfcProject`, en een tweede opslaan is byte-gelijk. Met de merge zou het project na
- * het eerste opslaan P worden (alleen eigen stukken wijzen ernaar), dus zou de tweede ronde toch de gewone writer nemen,
- * met een andere nummering.
- * Voorwaarden: precies één `IfcProject`, V, met de owner history van OPS; elk V-stuk bereikt vanuit dat project via
- * V-stukken; elk C-stuk een stuk van een owner history van OPS; geen A en geen vreemde leden.
- */
-function onlyOwnProjectContext(index: StepIndex, cls: Classification): boolean {
-  if (cls.counts.A > 0 || cls.foreignMembers.length > 0) return false;
-  let project = -1;
-  for (let i = 0; i < index.count; i++) {
-    if (!index.isEntity(i) || index.type(i) !== 'IFCPROJECT') continue;
-    if (project >= 0) return false;
-    project = i;
-  }
-  if (project < 0 || cls.classes[project] !== 4 || !hasOwnOrigin(index, project)) return false;
-  const reached = new Uint8Array(index.count);
-  const stack = [project];
-  reached[project] = 1;
-  while (stack.length > 0) {
-    const c = stack.pop()!;
-    for (let k = index.outStart(c); k < index.outEnd(c); k++) {
-      const t = index.outTarget(k);
-      if (t >= 0 && cls.classes[t] === 4 && !reached[t]) { reached[t] = 1; stack.push(t); }
-    }
-  }
-  for (let i = 0; i < index.count; i++) {
-    const c = cls.classes[i];
-    if (c === 4 && !reached[i]) return false;
-    if (c === 2 && !OWNER_TYPES.has(index.type(i))) return false;
-    if (c === 2 && index.type(i) === 'IFCAPPLICATION' && index.application(i)?.identifier !== 'OPS') return false;
-  }
-  return true;
+/** Het id-plan van de merge (§4.3, §4.4) en wat de merge en de bewaking ervan nodig hebben. */
+export interface MergeIdPlan {
+  readonly plan: WriterMergeIds;
+  /** sleutel van de writer → bron-#id */
+  readonly keep: ReadonlyMap<string, number>;
+  /** bron-#id → het domeinobject (soort en id) */
+  readonly bySource: ReadonlyMap<number, { kind: string; id: string }>;
+  readonly reserved: ReadonlySet<number>;
+  readonly baselineHeads: ReadonlyMap<string, number>;
+  /** De stukken met `IfcProject`, in bronvolgorde. */
+  readonly projects: readonly number[];
+  /** De eerste owner history die de lezer ziet, als die van de bron is: C of A en vóór het eerste P-stuk; anders -1. */
+  readonly sourceOwnerHistory: number;
 }
 
-/**
- * Schrijf het document met het vreemde deel van `source`. Zonder vreemd deel: de gewone writer (`writeIFC`), zoals nu.
- * Gooit `MergeNeedsPhase2Error` als het niet veilig kan zonder fase 2; dan is er niets geschreven.
- */
-export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Array[] {
-  if (!source.foreign) return [new TextEncoder().encode(writeIFC(input))];
-  const index = scanStep(source.bytes);
-  const cls = classify(index);
-  assertSameSource(index, cls, source);
-  if (onlyOwnProjectContext(index, cls)) return [new TextEncoder().encode(writeIFC(input))];
-
-  const cases: MergePhase2Case[] = [];
-  const caseAt = (kind: MergePhase2Kind, chunk: number, detail: string) =>
-    cases.push({ kind, ...(chunk >= 0 ? { sourceId: Number(index.id(chunk)) } : {}), detail });
+/** Het id-plan uit de bron en haar `stepIds` (domeinsleutel → bron-#id). */
+export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Readonly<Record<string, number>>, projectCalendarId: string): MergeIdPlan {
   const n = index.count;
   const isP = (i: number) => cls.classes[i] === 1;
   const inD = cls.selection.inD;
   const sid = (chunk: number) => Number(index.id(chunk));
-  const label = (chunk: number) => `${index.type(chunk)} #${index.id(chunk)}`;
-
-  // ── 1. Wat de bron zelf al uitsluit ──
-  for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   const projects: number[] = [];
   for (let i = 0; i < n; i++) if (index.isEntity(i) && index.type(i) === 'IFCPROJECT') projects.push(i);
-  if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   const projectChunk = projects.length > 0 ? projects[0] : -1;
   const projectIsP = projectChunk >= 0 && isP(projectChunk);
-
-  // ── 2. Het domein en de kaart domein-id → bron-#id ──
-  const tasks = new Map(input.tasks.map(t => [t.id, t]));
-  const resources = new Map(input.resources.map(r => [r.id, r]));
-  const projectCalendarId = input.calendar.id;
   const keep = new Map<string, number>();
-  /** bron-#id → het domeinobject (soort en id) */
   const bySource = new Map<number, { kind: string; id: string }>();
-  for (const [seed, stepId] of Object.entries(source.stepIds)) {
+  for (const [seed, stepId] of Object.entries(stepIds)) {
     const at = seed.indexOf(':');
     const kind = seed.slice(0, at);
     const id = seed.slice(at + 1);
@@ -243,13 +203,15 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   const reserved = new Set<number>();
   let maxNonP = 0;
   let firstP = -1;
-  let ownerHistoryBeforeP = false;
+  let sourceOwnerHistory = -1;
   for (let i = 0; i < n; i++) {
     if (!index.isEntity(i)) continue;
     if (inD[i]) reserved.add(sid(i));
     if (isP(i)) { if (firstP < 0) firstP = i; continue; }
     maxNonP = Math.max(maxNonP, sid(i));
-    if (firstP < 0 && index.type(i) === 'IFCOWNERHISTORY') ownerHistoryBeforeP = true;
+    if (firstP < 0 && sourceOwnerHistory < 0 && index.type(i) === 'IFCOWNERHISTORY' && (cls.classes[i] === 2 || cls.classes[i] === 3)) {
+      sourceOwnerHistory = i;
+    }
   }
   // Ook een vast id buiten D (het project als het P is) mag de reeks niet uitgeven.
   for (const id of keep.values()) reserved.add(id);
@@ -268,8 +230,38 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   const plan: WriterMergeIds = {
     keep, firstId: maxNonP + 1, reserved, baselineHeads,
     ...(projectIsP || projectChunk < 0 ? {} : { projectSourceId: sid(projectChunk) }),
-    projectData: (!projectIsP && projectChunk >= 0) || ownerHistoryBeforeP,
   };
+  return { plan, keep, bySource, reserved, baselineHeads, projects, sourceOwnerHistory };
+}
+
+/**
+ * Schrijf het document met het vreemde deel van `source`. Zonder vreemd deel: de gewone writer (`writeIFC`), zoals nu.
+ * Gooit `MergeNeedsPhase2Error` als het niet veilig kan zonder fase 2; dan is er niets geschreven.
+ */
+export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Array[] {
+  if (!source.foreign) return [new TextEncoder().encode(writeIFC(input))];
+  const index = scanStep(source.bytes);
+  const cls = classify(index);
+  assertSameSource(index, cls, source);
+
+  const cases: MergePhase2Case[] = [];
+  const caseAt = (kind: MergePhase2Kind, chunk: number, detail: string) =>
+    cases.push({ kind, ...(chunk >= 0 ? { sourceId: Number(index.id(chunk)) } : {}), detail });
+  const n = index.count;
+  const isP = (i: number) => cls.classes[i] === 1;
+  const inD = cls.selection.inD;
+  const sid = (chunk: number) => Number(index.id(chunk));
+  const label = (chunk: number) => `${index.type(chunk)} #${index.id(chunk)}`;
+
+  // ── 1. Wat de bron zelf al uitsluit ──
+  for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
+  const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id);
+  const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
+  if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
+
+  // ── 2. Het domein ──
+  const tasks = new Map(input.tasks.map(t => [t.id, t]));
+  const resources = new Map(input.resources.map(r => [r.id, r]));
 
   // ── 3. De writer ──
   const written = writeIfcMergeLines(input, plan);
@@ -364,7 +356,7 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
       for (const m of members) {
         const d = domainOf(m)!;
         const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(d.id)?.calendarId : undefined;
-        const same = calId === projectCalendarId ? !own || own === projectCalendarId : own === calId;
+        const same = calId === input.calendar.id ? !own || own === input.calendar.id : own === calId;
         if (!same) {
           caseAt('gemengde-relatie', r, `${label(r)}: ${label(m)} heeft een andere kalender`);
           return;
@@ -557,8 +549,9 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
     }
   }
 
-  // ── 8. Wat de writer ook zonder bewerking niet terugschrijft (constante slots, JSON-sleutels, ongebruikte sleutels) ──
-  pristineChecks(index, cls, source, emitted, caseAt);
+  // ── 8. De verliesbewaking: wat de bron had en de writer niet terugschrijft (`lossCheck.ts`) ──
+  lossCheck({ index, cls, source, plan, emitted, input, sourceOwnerHistory: ids.sourceOwnerHistory },
+    f => caseAt(f.kind, f.chunk, f.detail));
 
   if (cases.length > 0) throw new MergeNeedsPhase2Error(cases);
 
@@ -697,146 +690,6 @@ function assertSameSource(index: StepIndex, cls: Classification, source: IfcSour
     && cls.classes.every((c, i) => c === source.classes[i])
     && Array.from({ length: index.count }, (_, i) => i).every(i => (index.id(i) === '' ? -1 : Number(index.id(i))) === source.chunkIds[i]);
   if (!same) throw new Error('mergeWriter: de bronbytes passen niet bij ifcSource');
-}
-
-/**
- * De controles op wat de writer ook zonder bewerking niet terugschrijft. De lezer leest de bron opnieuw (de stand bij
- * openen), de writer schrijft die, en de uitkomst wordt vergeleken met de bron, per object met hetzelfde GlobalId:
- *  - een slot met een waarde in de bron dat de writer leeg (`$`) schrijft (een constant slot, §4.5). Een verwijzing naar
- *    een P-stuk telt niet (de writer schrijft dat hulpstuk zelf opnieuw), een lege tekst ook niet;
- *  - een pset: een property met `Description` of `Unit` die de writer leeg schrijft, een JSON-sleutelpad dat de writer
- *    niet terugschrijft (`jsonExtras`), en in `OPS_Assignments` meer sleutels per resource dan de writer schrijft
- *    (`unusedKeys`).
- * Alleen voor objecten die in de uitvoer nog bestaan: met het object vervallen ook zijn gegevens (§4.7).
- */
-function pristineChecks(
-  index: StepIndex, cls: Classification, source: IfcSource, emitted: ReadonlySet<number>,
-  caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void,
-): void {
-  const scan = foreignScanFrom(index, cls, source.bytes);
-  const text = new TextDecoder('utf-8').decode(readerBytes(source.bytes, scan));
-  const pristine: ImportResult = readIFC(text, {}, { ...readerStepIds(scan), skipBuildingModelGuard: true });
-  const outIndex = scanStep(new TextEncoder().encode(writeIFC(pristine)));
-  const isP = (i: number) => cls.classes[i] === 1;
-  const label = (chunk: number) => `${index.type(chunk)} #${index.id(chunk)}`;
-
-  const uniqueGuids = (idx: StepIndex, keepChunk: (i: number) => boolean) => {
-    const seen = new Map<string, number>();
-    const dup = new Set<string>();
-    for (let i = 0; i < idx.count; i++) {
-      if (!idx.isEntity(i) || !keepChunk(i)) continue;
-      const g = idx.globalId(i);
-      if (!g) continue;
-      if (seen.has(g)) dup.add(g); else seen.set(g, i);
-    }
-    for (const g of dup) seen.delete(g);
-    return seen;
-  };
-  const srcGuids = uniqueGuids(index, i => isP(i) && (cls.selection.inD[i] === 1 || cls.inR[i] === 1));
-  const outGuids = uniqueGuids(outIndex, () => true);
-  // Een stuk buiten P (bijvoorbeeld het project van het model) blijft staan; een P-stuk bestaat als de writer het schrijft.
-  const exists = (chunk: number) => !isP(chunk) || emitted.has(Number(index.id(chunk)));
-
-  const lostSlot = (srcTok: string, outTok: string | undefined) => {
-    if (outTok !== '$' || srcTok === '$' || srcTok === "''") return false;
-    // Een verwijzing (of lijst) naar alleen P-stukken: de writer schrijft dat hulpstuk zelf.
-    const refs = [...srcTok.matchAll(/#(\d+)/g)].map(m => index.chunkOf(m[1]));
-    if (refs.length > 0 && refs.every(r => r >= 0 && cls.classes[r] === 1) && srcTok.replace(/#\d+|[(),\s]/g, '') === '') return false;
-    return true;
-  };
-
-  // D- en R-stukken.
-  for (const [guid, chunk] of srcGuids) {
-    if (!exists(chunk) && !cls.inR[chunk]) continue;
-    const out = outGuids.get(guid);
-    if (out === undefined || outIndex.type(out) !== index.type(chunk)) continue;
-    const a = index.argTokens(chunk);
-    const b = outIndex.argTokens(out);
-    if (!a || !b || a.length !== b.length) continue; // oude lay-out: geen slots te bewaren (§4.5)
-    for (let k = 0; k < a.length; k++) {
-      if (lostSlot(a[k], b[k])) caseAt('constant-slot', chunk, `${label(chunk)}, argument ${k}: ${a[k].slice(0, 40)}`);
-    }
-  }
-
-  // Psets, per eigenaren (GlobalIds) en naam.
-  const psetKey = (idx: StepIndex, pset: number) => {
-    const owners = psetOwners(idx, pset).map(o => idx.globalId(o));
-    if (owners.length === 0 || owners.some(g => !g)) return undefined;
-    return `${owners.sort().join('+')}|${idx.name(pset) ?? ''}`;
-  };
-  const outPsets = new Map<string, number>();
-  for (let i = 0; i < outIndex.count; i++) {
-    if (outIndex.isEntity(i) && outIndex.type(i) === 'IFCPROPERTYSET') {
-      const key = psetKey(outIndex, i);
-      if (key) outPsets.set(key, i);
-    }
-  }
-  for (let i = 0; i < index.count; i++) {
-    if (!index.isEntity(i) || !isP(i) || index.type(i) !== 'IFCPROPERTYSET') continue;
-    const owners = psetOwners(index, i);
-    if (owners.length === 0 || !owners.every(exists)) continue;
-    const key = psetKey(index, i);
-    const out = key ? outPsets.get(key) : undefined;
-    const name = index.name(i) ?? '';
-    const srcProps = index.refsAt(i, 4).filter(p => p >= 0 && isP(p));
-    const outProps = out === undefined ? [] : outIndex.refsAt(out, 4).filter(p => p >= 0);
-    if (name === PSET.Assignments) {
-      const perResource = (idx: StepIndex, props: number[]) => {
-        const m = new Map<string, number>();
-        for (const p of props) {
-          const g = (idx.name(p) ?? '').replace(/#\d+$/, '');
-          m.set(g, (m.get(g) ?? 0) + 1);
-        }
-        return m;
-      };
-      const want = perResource(outIndex, outProps);
-      for (const [g, count] of perResource(index, srcProps)) {
-        if (count > (want.get(g) ?? 0)) caseAt('ongebruikte-sleutel', i, `${label(i)}: ${count - (want.get(g) ?? 0)} sleutel(s) voor ${g}`);
-      }
-      continue;
-    }
-    if (out === undefined) continue;
-    const outByName = new Map(outProps.map(p => [outIndex.name(p) ?? '', p]));
-    for (const p of srcProps) {
-      const q = outByName.get(index.name(p) ?? '');
-      if (q === undefined || index.type(p) !== outIndex.type(q)) continue;
-      const a = index.argTokens(p) ?? [];
-      const b = outIndex.argTokens(q) ?? [];
-      for (const k of [1, 3]) {
-        if (a[k] !== undefined && lostSlot(a[k], b[k])) caseAt('constant-slot', p, `${label(p)} (${name}), argument ${k}`);
-      }
-      const srcJson = jsonOf(index, p);
-      const outJson = jsonOf(outIndex, q);
-      if (srcJson !== undefined && outJson !== undefined) {
-        const have = new Set(keyPaths(outJson));
-        const extra = keyPaths(srcJson).find(path => !have.has(path));
-        if (extra !== undefined) caseAt('json-sleutel', p, `${label(p)} (${name}.${index.name(p)}): ${extra}`);
-      }
-    }
-  }
-}
-
-/** De JSON in de tekstwaarde van een property, of `undefined`. Alleen een object of lijst telt. */
-function jsonOf(idx: StepIndex, prop: number): unknown {
-  const text = idx.propertyText(prop);
-  if (text === undefined) return undefined;
-  const t = text.trim();
-  if (!t.startsWith('{') && !t.startsWith('[')) return undefined;
-  try { return JSON.parse(t) as unknown; } catch { return undefined; }
-}
-
-/** Alle sleutelpaden in een JSON-waarde; een lijstpositie telt als `[]`. */
-function keyPaths(value: unknown, prefix = '', out: string[] = []): string[] {
-  if (Array.isArray(value)) {
-    for (const item of value) keyPaths(item, `${prefix}[]`, out);
-  } else if (value && typeof value === 'object') {
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      const path = `${prefix}.${k}`;
-      out.push(path);
-      keyPaths(v, path, out);
-    }
-  }
-  return out;
 }
 
 /** Het P-blok tussen de bronstukken (§4.10). */
