@@ -57,7 +57,7 @@ export async function settle(bytes: Uint8Array): Promise<Uint8Array> {
   for (let round = 0; round < 4; round++) {
     const opened = await openForeign(current);
     if (!opened.ifcSource?.foreign) throw new Error('settle: geen vreemd deel');
-    const outcome = tryMerge(cloneDomain(opened), opened.ifcSource);
+    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource);
     if (outcome.ok) return current;
     const cases = outcome.error.cases;
     const refOutsideText = (tok: string) => /#\d/.test(tok.replace(/'(?:[^']|'')*'/g, "''"));
@@ -99,9 +99,9 @@ const latin1Bytes = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 
 /** De uitkomst van één merge: de bytes, of de weigering met haar gevallen. Een andere fout gooit door. */
 export type MergeOutcome = { ok: true; bytes: Uint8Array } | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };
-export function tryMerge(d: Domain, source: IfcSource): MergeOutcome {
+export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutcome> {
   try {
-    return { ok: true, bytes: concat(writeIfcMerge(d, source)) };
+    return { ok: true, bytes: concat(await writeIfcMerge(d, source)) };
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), error: e };
     throw e;

@@ -102,7 +102,7 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
   const d = cloneDomain(opened);
   edit?.(d);
   let parts: Uint8Array[];
-  try { parts = writeIfcMerge(d, source); } catch (e) {
+  try { parts = await writeIfcMerge(d, source); } catch (e) {
     diffs.push(`${label}: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => `${c.kind}: ${c.detail}`).slice(0, 3).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;
@@ -120,7 +120,7 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
     const kept = Object.entries(source.stepIds).filter(([k, v]) => reread.ifcSource?.stepIds[k] !== v);
     eq(`${label}: herlezen geeft dezelfde bron-ids (stepIds)`, kept.slice(0, 5), []);
   }
-  const second = reread.ifcSource ? tryMerge(cloneDomain(reread), reread.ifcSource) : undefined;
+  const second = reread.ifcSource ? await tryMerge(cloneDomain(reread), reread.ifcSource) : undefined;
   if (!second?.ok) {
     diffs.push(`${label}: tweede ronde ${second ? `weigert (${second.kinds.join(', ')})` : 'zonder bron'}`);
     checks++;
@@ -172,7 +172,7 @@ for (const file of corpus) {
   const foreignWant = REFUSED[file];
   const ownWant = OWN_REFUSED[file];
   if (foreignWant || ownWant) {
-    const outcome = tryMerge(cloneDomain(opened), opened.ifcSource);
+    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource);
     if (outcome.ok) { diffs.push(`${file}: de merge schrijft, maar weigeren werd verwacht`); checks++; continue; }
     eq(`${file}: de gevallen van de weigering`, outcome.kinds, foreignWant ?? ['niet-gedragen']);
     eq(`${file}: de vaste code`, outcome.error.code, 'merge-needs-phase2');
@@ -188,7 +188,7 @@ for (const file of corpus) {
   if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
   // O1 is niet leeg: zonder bewerking is het domein na openen gelijk aan het domein van de toets (`changedScopes`).
   const index = scanStep(bytes);
-  const changed = changedScopes(cloneDomain(opened), pristineDomain(index, classify(index), opened.ifcSource));
+  const changed = changedScopes(cloneDomain(opened), await pristineDomain(index, classify(index), opened.ifcSource));
   eq(`${file}: zonder bewerking verandert er niets (O1)`, [changed.any, [...changed.keys].slice(0, 3)], [false, []]);
 }
 eq('corpus: elk bestand uit REFUSED en OWN_REFUSED bestaat', [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED)].filter(f => !corpus.includes(f)), []);
@@ -448,14 +448,14 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
   edit?.(d);
   let error: unknown;
   let parts: Uint8Array[] | undefined;
-  try { parts = writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
+  try { parts = await writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
   ok(`${label}: geeft niets terug`, parts === undefined);
   ok(`${label}: MergeNeedsPhase2Error met code merge-needs-phase2`, error instanceof MergeNeedsPhase2Error && error.code === 'merge-needs-phase2');
   if (error instanceof MergeNeedsPhase2Error) {
     eq(`${label}: het geval`, error.cases.some(c => c.kind === kind), true);
     if (detail) ok(`${label}: het geval noemt ${detail} (${error.cases.map(c => c.detail).slice(0, 3).join(' | ')})`, error.cases.some(c => c.kind === kind && (detail.test(c.detail) || detail.test(unnamed(c.detail)))));
     if (only) {
-      const other = error.cases.filter(c => c.kind === 'niet-gedragen' && !only.test(unnamed(c.detail))).map(c => c.detail);
+      const other = error.cases.filter(c => c.kind === 'niet-gedragen' && !only.test(c.detail) && !only.test(unnamed(c.detail))).map(c => c.detail);
       eq(`${label}: alleen ${only}`, other.slice(0, 3), []);
     }
   }
@@ -493,12 +493,13 @@ await expectRefusal('taak wissen met een wand eraan', enc.encode(r4), 'verwijder
   await expectRefusal('een vreemd stuk wijst naar een eigen relatie: de GlobalId (besluit 1)', src, 'niet-gedragen', undefined, /^IFCRELNESTS #58, argument 0: /);
 }
 // Een vreemde relatie naar een eigen pset: de pset wordt C en blijft byte-gelijk staan, maar de writer schrijft er een
-// eigen kopie naast met een nieuwe GlobalId. Besluit 1 staat dat alleen toe bij een P-stuk waar niets van buiten naar
+// eigen pset naast met een nieuwe GlobalId. Besluit 1 staat dat alleen toe bij een P-stuk waar niets van buiten naar
 // wijst, dus de merge weigert (tot fixronde 2 schreef deze proef, omdat `settle` de GlobalId gelijk maakte aan die van de
-// writer in de proefopstelling).
+// writer in de proefopstelling). Sinds fixronde 4 is die pset geen kopie van #65 meer (een kopie alleen in de keten van de
+// owner history, plek 28): de eigen relatie #66 wijst in de uitvoer naar een andere pset.
 await expectRefusal('een vreemde relatie naar een eigen pset (de pset wordt C)',
   enc.encode(withLines(baseText, ["#907=IFCRELDEFINESBYPROPERTIES('0verwijzingNaarPset000',#903,$,$,(#904),#65);"])),
-  'niet-gedragen', undefined, /^IFCPROPERTYSET #65, argument 0: 'e5a3ArlP\$tNZvpDF1ZK5n5' → /);
+  'niet-gedragen', undefined, /^IFCRELDEFINESBYPROPERTIES #66, argument 5: #65 → #\d+$/);
 await expectRefusal('een taak uit het tweede schema verplaatsen', secondSchedule, 'verplaatst', (d) => {
   const first = d.tasks.find(t => t.name === 'Externe bronactiviteit')!;
   const second = d.tasks.find(t => t.name === 'Taak van het tweede schema')!;
@@ -778,7 +779,7 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   eq(`${label}: de naam komt uit het IfcProject, zoals main`, opened.project.name, plain.project.name);
   ok(`${label}: niet de naam uit OPS_ProjectSettings`, opened.project.name !== 'Naam van een ander programma');
   reseed(0x1b01);
-  const saved = concat(writeIfcMerge(cloneDomain(opened), opened.ifcSource!));
+  const saved = concat(await writeIfcMerge(cloneDomain(opened), opened.ifcSource!));
   reseed(0x1b01);
   const main = enc.encode(writeIFC(cloneDomain(plain as Opened)));
   ok(`${label}: Opslaan is de gewone writer, gelijk aan de lezer van main`, sameBytes(saved, main));
@@ -788,7 +789,7 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   // project P (de writer schrijft het opnieuw); in eigen-plus-model is het C (het model hangt eronder).
   for (const [label, src, want] of [['r4-k1 (project P)', r4, false], ['eigen-plus-model (project C)', eigen, true]] as const) {
     const opened = await openForeign(enc.encode(src));
-    const outcome = tryMerge(cloneDomain(opened), opened.ifcSource!);
+    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource!);
     if (!outcome.ok) { diffs.push(`${label}: de merge weigert (${outcome.error.cases.map(c => c.detail).slice(0, 2).join(' | ')})`); checks++; continue; }
     const saved = text(outcome.bytes);
     eq(`${label}: de merge schrijft ProjectName in OPS_ProjectSettings`, saved.includes("IFCPROPERTYSINGLEVALUE('ProjectName'"), want);
@@ -807,14 +808,14 @@ const replaceIn = (src: string, from: string, to: string) => {
 };
 const TASK_51 = "#51=IFCTASK('2bl5huCqaJNQoiPDoJLdX4',#6,'Set up site',$,$,'2.1',$,$,$,.F.,$,#50,.LOGISTIC.);";
 const TIME_50 = "#50=IFCTASKTIME('Set up site Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M2D',";
-const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only: RegExp; keep?: RegExp }[] = [
+const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only: RegExp; keep?: RegExp; kind?: string }[] = [
   { label: 'B1 (Terra): IfcTask.Status', keep: /#51=IFCTASK\([^;]*'2\.1',\$,'ON HOLD',/, detail: /^IFCTASK #51, argument 7: 'ON HOLD' → \$/, only: /^IFCTASK #51\b/,
     bytes: enc.encode(replaceIn(eigen, TASK_51, TASK_51.replace("'2.1',$,$,$,", "'2.1',$,'ON HOLD',$,"))) },
   { label: 'B1 (Terra): IfcTaskTime.DurationType', keep: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,/, detail: /^IFCTASKTIME #50, argument 3: \.NOTDEFINED\. → \.WORKTIME\./, only: /^IFCTASKTIME #50\b/,
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace('.WORKTIME.', '.NOTDEFINED.'))) },
-  // Met uren in de duur leest de lezer de kalender als uurkalender: `HoursPerDay` (#39 in #40) komt niet terug. De duur zelf
-  // zet (b) terug; een duur in een bestand dat al een uurkalender heeft, blijft staan (5h).
-  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', detail: /^IFCPROPERTYSINGLEVALUE #39: ontbreekt in de uitvoer \('HoursPerDay'\)/,
+  // Een duur met dagen vóór T leest de lezer als alleen het tijddeel (knownbug 1027): sinds fixronde 4 weigert de merge
+  // dat als benoemd geval, tot de fix van 1027 in main staat (sectie 7).
+  { label: 'B1 (Terra): IfcTaskTime.ScheduleDuration P2DT12H', kind: 'duur-deels-gelezen', detail: /^IFCTASKTIME #50: de duur 'P2DT12H' heeft dagen vóór T; .*Tijdelijk, tot de fix van knownbug 1027 in main staat\.$/,
     only: /^IFC(TASKTIME #50|PROPERTYSET #40|PROPERTYSINGLEVALUE #39)\b/,
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace("'P0Y0M2D'", "'P2DT12H'"))) },
   { label: 'B1 (Sol): IfcWorkSchedule #43.PredefinedType', keep: /#43=IFCWORKSCHEDULE\([^;]*,\.ACTUAL\.\);/, detail: /^IFCWORKSCHEDULE #43, argument 13: \.ACTUAL\. → \.PLANNED\./, only: /^IFCWORKSCHEDULE #43\b/,
@@ -847,7 +848,7 @@ const COUNTER: readonly { label: string; bytes: Uint8Array; detail: RegExp; only
   ok('B4: de massa-eenheid is C in de bron', classify(index).classes[index.chunkOf('9001')] === 2);
 }
 for (const t of COUNTER) {
-  if (!t.keep) { await expectRefusal(`tegenvoorbeeld ${t.label}`, t.bytes, 'niet-gedragen', undefined, t.detail, t.only); continue; }
+  if (!t.keep) { await expectRefusal(`tegenvoorbeeld ${t.label}`, t.bytes, t.kind ?? 'niet-gedragen', undefined, t.detail, t.only); continue; }
   const r = await roundTrip(`tegenvoorbeeld ${t.label}`, t.bytes);
   if (r) ok(`tegenvoorbeeld ${t.label}: de bronwaarde staat in de uitvoer (${t.keep})`, t.keep.test(text(r.out)));
 }
@@ -929,17 +930,18 @@ const KINDS: readonly {
     },
   },
   {
-    // Een bestand met een uurkalender (de showcase), zodat de kalender gelijk blijft. De lezer leest `P2DT12H` als 12 uur
-    // (knownbug 1027); (b) laat de bron staan zolang de planner de duur niet wijzigt.
-    kind: 'duur', label: 'IfcTaskTime.ScheduleDuration P2DT12H',
-    bytes: enc.encode(replaceIn(showcaseApp, T55, T55.replace("'P0Y0M3D'", "'P2DT12H'"))),
-    keep: /IFCTASKTIME\('CPT soundings & soil investigation Time',\.PREDICTED\.,\$,\.WORKTIME\.,'P2DT12H'/,
+    // Een bestand met een uurkalender (de showcase), zodat de kalender gelijk blijft. `PT90M` leest de lezer goed (90
+    // minuten); de writer schrijft `PT1H30M0S`, met andere onderdelen. (b) laat de bron staan zolang de planner de duur
+    // niet wijzigt. (Tot fixronde 4 stond hier `P2DT12H`; dat weigert nu, sectie 7.)
+    kind: 'duur', label: 'IfcTaskTime.ScheduleDuration PT90M',
+    bytes: enc.encode(replaceIn(showcaseApp, T55, T55.replace("'P0Y0M3D'", "'PT90M'"))),
+    keep: /IFCTASKTIME\('CPT soundings & soil investigation Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT90M'/,
     field: {
       label: 'de duur',
       edit: (d) => { const t = taskNamed(d, 'CPT soundings & soil investigation').time; t.durationMinutes = 1440; t.scheduleDuration = 3; },
       want: /IFCTASKTIME\('CPT soundings & soil investigation Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT24H0M0S'/,
     },
-    other: { label: 'de naam (Name van de taaktijd)', edit: renameTask('CPT soundings & soil investigation'), want: /IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'P2DT12H'/ },
+    other: { label: 'de naam (Name van de taaktijd)', edit: renameTask('CPT soundings & soil investigation'), want: /IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT90M'/ },
   },
   {
     kind: 'tekst', label: "IfcTask.Status 'ON HOLD'",
@@ -1099,7 +1101,7 @@ async function lossSetup(bytes: Uint8Array) {
   const cls = classify(index);
   const ids = mergeIdPlan(index, cls, source.stepIds, opened.calendar.id);
   let out: Uint8Array;
-  try { out = concat(writeIfcMerge(cloneDomain(opened), source)); } catch (e) {
+  try { out = concat(await writeIfcMerge(cloneDomain(opened), source)); } catch (e) {
     diffs.push(`lossSetup: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => c.detail).slice(0, 2).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;
@@ -1113,7 +1115,7 @@ async function lossSetup(bytes: Uint8Array) {
   }
   /** De eigen owner history van de writer: die van de eerste taak. */
   const owner = Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1));
-  const pristine = pristineDomain(index, cls, source);
+  const pristine = await pristineDomain(index, cls, source);
   const run = (lines0: OutLine[], lines1: OutLine[], edit: (d: Domain) => void, ownerOut: number | undefined = owner) => {
     const domain = cloneDomain(opened);
     edit(domain);
@@ -1143,9 +1145,15 @@ if (setupEigen) {
     [`IFCTASK #51, argument 3 na de bewerking: $ → 'Weg'`]);
   eq('O1: de taaktijd van een andere taak', run(withArg(time51, 1, '.MEASURED.'), rename47),
     ['IFCTASKTIME #50, argument 1 na de bewerking: .PREDICTED. → .MEASURED.']);
-  eq('O1: de bewerkte taak zelf', run(withArg(task47, 3, "'Weg'"), rename47), []);
-  eq('O1: de taaktijd van de bewerkte taak', run(withArg(time47, 1, '.MEASURED.'), rename47), []);
-  eq('O1: zonder bewerking toetst alleen O0', run(withArg(task51, 3, "'Weg'"), () => {}), []);
+  // Per veld (fixronde 4, plek 3): hernoemen verklaart de naam van de taak en van haar taaktijd, niets anders.
+  eq('O1: de naam van de bewerkte taak', run(withArg(task47, 2, "'Hernoemd'"), rename47), []);
+  eq('O1: de naam van de taaktijd van de bewerkte taak', run(withArg(time47, 0, "'Hernoemd Time'"), rename47), []);
+  eq('O1: een ander veld van de bewerkte taak (per veld)', run(withArg(task47, 3, "'Weg'"), rename47),
+    [`IFCTASK #47, argument 3 na de bewerking: $ → 'Weg'`]);
+  eq('O1: een constant slot van de taaktijd van de bewerkte taak', run(withArg(time47, 1, '.MEASURED.'), rename47),
+    ['IFCTASKTIME #46, argument 1 na de bewerking: .PREDICTED. → .MEASURED.']);
+  // Fixronde 4, plek 4: O1 toetst ook zonder bewerking (een veld dat `changedScopes` niet ziet).
+  eq('O1: ook zonder bewerking', run(withArg(task51, 3, "'Weg'"), () => {}), [`IFCTASK #51, argument 3 na de bewerking: $ → 'Weg'`]);
 }
 if (setupEigen) {
   // Besluit 3, schrijfvelden (smal): de CreationDate van een owner history is alleen een schrijfveld in de eigen owner
@@ -1167,13 +1175,22 @@ if (setupEigen) {
   const { o0, run, withArg } = setup;
   const prop = o0.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'ExactFloat'" && l.args[2].includes('"FreeFloat":[3,1440]'))!;
   const unit = prop.args[3];
-  const other = o0.find(l => l.type === 'IFCSIUNIT' && `#${l.id}` !== unit)!;
   const plain = withArg(o0, prop, 3, '$');
   const rename51 = (d: Domain) => { taskNamed(d, SET_UP).name = 'Hernoemd'; };
   const back = run(plain, plain, rename51);
   eq('verwijzing (ii): zonder wijziging van het slot zet (b) de bron terug', [back.edits.filter(e => e.id === prop.id).map(e => [e.arg, e.token]), back.found], [[[3, unit]], []]);
-  const mine = run(plain, withArg(plain, plain.find(l => l.id === prop.id)!, 3, `#${other.id}`), rename51);
+  // De writer zet er in O1 een andere verwijzing: een nieuwe regel met dezelfde inhoud als de eenheid van de bron (een
+  // andere regel van de bron zou de toets als kopie van #7 vergelijken, en dan weigert hij terecht).
+  const next = Math.max(...plain.map(l => l.id)) + 1;
+  const unitLine = o0.find(l => `#${l.id}` === unit) ?? parseOutLine(lineOf(bytes, unit.slice(1)))!;
+  const o1 = [...withArg(plain, plain.find(l => l.id === prop.id)!, 3, `#${next}`), { ...unitLine, id: next }];
+  // De planner wijzigde de speling van de taak (`task.time`, waaruit de writer `ExactFloat` schrijft: per veld).
+  const float51 = (d: Domain) => { const t = taskNamed(d, SET_UP); t.time.totalFloat = (t.time.totalFloat ?? 0) + 1; };
+  const mine = run(plain, o1, float51);
   eq('verwijzing (ii): een andere waarde in O1 blijft (geen terugzetting, geen melding)', [mine.edits.filter(e => e.id === prop.id).length, mine.found], [0, []]);
+  // Hernoemen verklaart een andere eenheid in `ExactFloat` niet (fixronde 4, plek 3).
+  const renamed = run(plain, o1, rename51).found;
+  ok(`verwijzing (ii): hernoemen verklaart een andere eenheid niet (${renamed.slice(0, 1).join('')})`, renamed.some(f => /^IFCPROPERTYSINGLEVALUE #265 \(ExactFloat\), argument 3 na de bewerking: #7 → #\d+$/.test(f)));
   }
 }
 if (setupEigen) {
@@ -1203,14 +1220,17 @@ if (setupEigen) {
   if (edit) {
     await expectRefusal('O1: een taak wissen verandert de tijden van andere taken', bytes, 'niet-gedragen', edit.apply,
       /^IFCTASKTIME #\d+, argument \d+ na de bewerking: '\d{4}-\d\d-\d\dT16:00:00' → '\d{4}-\d\d-\d\dT07:00:00'/,
-      /^IFC(TASKTIME #\d+, argument \d+ na de bewerking|PROPERTYSET #\d+ \(OPS_Calendar\)|PROPERTYSINGLEVALUE #\d+ \(LiteralTimes\))/);
+      // Sinds fixronde 4 (geen vrijstelling voor het project) ook de kalender: de writer kiest per kalender ook de blokken
+      // werktijd anders (`IfcRecurrencePattern`, `IfcTimePeriod`); knownbug 1026.
+      // Ook de eigenschappen in `OPS_Calendar` die de writer uit die keuze afleidt (`LiteralTimes`, `WorkEndHour`).
+      /^IFC(TASKTIME #\d+, argument \d+ na de bewerking|PROPERTYSET #\d+ \(OPS_Calendar\)|PROPERTYSINGLEVALUE #\d+ \((LiteralTimes|WorkStartHour|WorkEndHour|HoursPerDay|IsHourCalendar)\)|RECURRENCEPATTERN #\d+|TIMEPERIOD #\d+)/);
   }
 }
 
 // ── 6. De invarianten zelf ──
 {
   const good = await openForeign(secondSchedule);
-  const outcome = tryMerge(cloneDomain(good), good.ifcSource!);
+  const outcome = await tryMerge(cloneDomain(good), good.ifcSource!);
   if (!outcome.ok) diffs.push(`invariant: de bron schrijft niet (${outcome.error.cases.map(c => c.detail).slice(0, 3).join(' | ')})`);
   const out = outcome.ok ? outcome.bytes : secondSchedule;
   const s = text(out);

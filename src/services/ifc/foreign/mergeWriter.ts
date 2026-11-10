@@ -40,9 +40,9 @@ import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds }
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, type Classification } from './classify';
-import { changedScopes, lossCheck, pristineFromScan, type LossDiff } from './lossCheck';
+import { changedScopes, decimalKey, durationTexts, lossCheck, partialDuration, pristineFromScan, type LossDiff } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
-import { readIFC } from '../ifcReader';
+import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
 import { scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 
@@ -72,7 +72,15 @@ export type MergePhase2Kind =
   /** Auteur of bedrijf veranderde, maar de writer schrijft het project zelf en de eerste owner history die de lezer ziet
    *  is van de bron (C of A, vóór het P-blok). De lezer leest auteur en bedrijf daar terug (§4.4); de wijziging ging dan
    *  verloren (fixronde 1 van #867, BLOKKEERT 1). */
-  | 'projectgegevens';
+  | 'projectgegevens'
+  /** Een stuk paarde niet eenduidig met de uitvoer (meer kandidaten met dezelfde sleutel, zoals twee toewijzingen van
+   *  dezelfde resource aan dezelfde taak), en de bron heeft daar een waarde die terug moet (fixronde 4, BLOKKEERT 5). Zonder
+   *  betrouwbare identiteit is niet te zeggen bij welke regel die waarde hoort (`lossCheck.ts`, `ambiguous`). */
+  | 'niet-eenduidig'
+  /** Een P-stuk heeft een duur waarvan de lezer een deel weglaat (`partialDuration`): dagen vóór een tijddeel (`P2DT12H`,
+   *  knownbug 1027; tijdelijk, tot de fix van 1027 in main staat, besluit van Trias van 10 november 2026), of jaren,
+   *  maanden of weken (knownbug 1028). */
+  | 'duur-deels-gelezen';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -242,9 +250,11 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
 
 /**
  * Schrijf het document met het vreemde deel van `source`. Zonder vreemd deel: de gewone writer (`writeIFC`), zoals nu.
- * Gooit `MergeNeedsPhase2Error` als het niet veilig kan zonder fase 2; dan is er niets geschreven.
+ * Gooit `MergeNeedsPhase2Error` als het niet veilig kan zonder fase 2; dan is er niets geschreven. Async (fixronde 4,
+ * BLOKKEERT 3): de verliesbewaking leest de bron met dezelfde ingang als het openen (`readIFCWithXerReconstruction`), ook
+ * bij een compact XER-bronarchief.
  */
-export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Array[] {
+export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Promise<Uint8Array[]> {
   if (!source.foreign) return [new TextEncoder().encode(writeIFC(input))];
   const index = scanStep(source.bytes);
   const cls = classify(index);
@@ -266,6 +276,20 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id);
   const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
+  // Een duur in een P-stuk waarvan de lezer een deel weglaat: de planner ziet dan een andere duur dan het bestand bewaart, en
+  // (b) zou de bron vasthouden. De fix van 1027 komt in de lezer zelf (besluit van Trias, 10 november 2026).
+  for (let i = 0; i < n; i++) {
+    if (!index.isEntity(i) || !isP(i)) continue;
+    for (const text of durationTexts(index, i)) {
+      const part = partialDuration(text);
+      if (part === 'dagen') {
+        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft dagen vóór T; de lezer leest alleen het deel na T`
+          + ' (knownbug 1027). Tijdelijk, tot de fix van knownbug 1027 in main staat.');
+      } else if (part === 'jaren') {
+        caseAt('duur-deels-gelezen', i, `${label(i)}: de duur '${text}' heeft jaren, maanden of weken; de lezer leest die niet (knownbug 1028)`);
+      }
+    }
+  }
 
   // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
@@ -534,9 +558,16 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
     }
 
     const taskIds = input.tasks.map(t => written.idMap.get(`task_${t.id}`)).filter((id): id is number => id !== undefined);
-    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds };
+    // Uitvoer-id → het domeinobject dat de writer daar schreef (de verliesbewaking ziet zo een nieuw lid van een relatie).
+    const objects = new Map<number, string>();
+    for (const [key, id] of written.idMap) {
+      const m = /^(task|res|seq|calendar|_baseline_ws)_(.+)$/.exec(key);
+      if (m) objects.set(id, m[1] === 'calendar' ? `cal:${m[2]}` : m[1] === '_baseline_ws' ? 'baselines' : `${m[1]}:${m[2]}`);
+      else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
+    }
+    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects };
   }
-  const { lines, byId, keptHeads, owner, taskIds } = buildLines(input, caseAt);
+  const { lines, byId, keptHeads, owner, taskIds, objects } = buildLines(input, caseAt);
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
@@ -571,13 +602,13 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   // bronwaarde terug zolang de planner dat veld niet wijzigde (`lossCheck`, `edits`). De bronwaarden komen uit
   // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
   const scan = foreignScanFrom(index, cls, source.bytes);
-  const pristine = pristineFromScan(scan, source.bytes);
+  const pristine = await pristineFromScan(scan, source.bytes);
   const built0 = buildLines(pristine, () => {});
   const o0 = built0.lines.filter(l => !l.drop);
   const { edits } = lossCheck({
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain: input,
     sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
-    owner0: built0.owner, owner1: owner,
+    owner0: built0.owner, owner1: owner, objects1: objects,
   }, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
@@ -591,7 +622,7 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
     // veranderen. Leest de lezer de uitvoer met (b) anders dan zonder (b), dan weigert de merge: de waarde hangt dan af van
     // een ander veld dat wel veranderde (bijvoorbeeld een status die bij een andere voortgang iets anders betekent).
     const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
-    const changed = changedScopes(read(lines.filter(l => !l.drop).map(l => l.text)) as unknown as WriteIFCInput, read(plain));
+    const changed = changedScopes(await read(lines.filter(l => !l.drop).map(l => l.text)) as unknown as WriteIFCInput, await read(plain));
     if (changed.any) {
       const shown = edits.slice(0, 3).map(e => `${label(e.chunk)} argument ${e.arg}`).join(', ');
       caseAt('niet-gedragen', edits[0].chunk,
@@ -688,7 +719,7 @@ function sourceProps(index: StepIndex, pset: number): Map<string, string> {
 }
 
 /**
- * De waarde van een property zoals de lezer haar ziet: het type en de waarde (een getal als getal, tekst gedecodeerd), plus
+ * De waarde van een property zoals de lezer haar ziet: het type en de waarde (een getal exact, tekst gedecodeerd), plus
  * `Description` en `Unit`. Zo is `IFCREAL(8)` gelijk aan `IFCREAL(8.)` (de writer schrijft sinds 2026-10-13 altijd een
  * punt) en `'caf\X2\00E9\X0\'` gelijk aan dezelfde tekst in een bestand met letterlijke codering.
  */
@@ -699,8 +730,8 @@ function propValue(args: readonly string[], text: (token: string) => string): st
     if (!m) return t.startsWith("'") ? ['', text(t)] : t;
     const inner = m[2].trim();
     if (inner.startsWith("'")) return [m[1], text(inner)];
-    const num = Number(inner);
-    return [m[1], inner !== '' && Number.isFinite(num) ? num : inner];
+    // Een getal exact als decimaal getal (fixronde 4, BLOKKEERT 4), niet via `Number`.
+    return [m[1], decimalKey(inner) ?? inner];
   };
   return JSON.stringify([typed(args[1]), typed(args[2]), typed(args[3])]);
 }
@@ -754,7 +785,7 @@ function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, 
   for (const p of parts) { bytes.set(p, at); at += p.length; }
   const literalStepIds = new Set<string>();
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
-  return readIFC(new TextDecoder('utf-8').decode(bytes), {}, {
+  return readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), {}, {
     literalStepIds, planningTaskStepIds: new Set(taskIds.map(String)), projectDataInSettings: scan.projectNotP,
     skipBuildingModelGuard: true,
   });

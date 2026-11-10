@@ -108,7 +108,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened): Promi
     try {
       const d = cloneDomain(opened);
       edit.apply(d);
-      const outcome = tryMerge(d, source);
+      const outcome = await tryMerge(d, source);
       if (edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
         ownFiles++;
         notCarried.set(shown, outcome.ok ? [] : outcome.error.cases.filter(c => c.kind === 'niet-gedragen'));

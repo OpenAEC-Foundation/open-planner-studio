@@ -14,6 +14,16 @@ const HEX8 = /^[0-9A-Fa-f]{8}$/;
  * `encodeStepText` (ifcPsets).
  */
 export function decodeStepText(s: string): string {
+  return decode(s, false)!;
+}
+
+/** Leest `decodeStepText` elke `\` als een geldige reeks (geen reeks die letterlijk blijft staan)? Een tekst met een
+ *  ongeldige reeks leest een strikte lezer anders (fixronde 4 van #867, plek 19). */
+export function stepTextIsValid(s: string): boolean {
+  return decode(s, true) !== undefined;
+}
+
+function decode(s: string, strict: boolean): string | undefined {
   if (s.indexOf('\\') < 0) return s;
   let out = '';
   let i = 0;
@@ -51,6 +61,7 @@ export function decodeStepText(s: string): string {
       i += 4;
       continue;
     }
+    if (strict) return undefined;
     out += '\\';
     i++;
   }
