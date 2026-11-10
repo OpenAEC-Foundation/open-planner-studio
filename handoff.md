@@ -39,7 +39,7 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 | Leesfouten die ook op main zitten (1028, 1029, 1033, 1034, 1035) repareert de thread "Trias · IFC-lezer". In #804 alleen weigeren, de lezer niet aanpassen. Staat een fix in main, dan gaat de weigering weg bij het bijwerken met main (zo gedaan voor 1027 met #871 en 1026 met #872) | wrakko, 2026-11-10 |
 | Geen zware runs lokaal: CI | AGENTS.md |
 
-## Verdeling van fase 1 (4 PR's, elk achter de flag)
+## Verdeling van fase 1 (5 PR's, elk achter de flag)
 
 1. **1a lezen** (branch `feat/804-fase1a-lezen`): openen als bytes op elke route, scanner en indeling in een Worker,
    `ifcSource` in het document, de lezer met C-context (planning uit een bestand met model), de weigering blijft zonder
@@ -64,7 +64,12 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
      dat een BLOKKEERT in die PR [...]."
    - "Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
      pariteitstest op de huidige main met de oude-tags."
-4. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
+4. **1b-vervolg 2: eigen bestanden die nog weigeren** (knownbugs 1108 en 1109, BLOKKEERT vóór 1c). Besluit van Trias
+   (wrakko, 11 november 2026): een eigen kleine PR na #886, vanaf main, die in main staat vóór 1c begint. 1108: drie
+   oude eigen fixtures weigeren met een model zonder bewerking. 1109: voortgang invoeren in
+   `b5-lopend-oude-writer.ifc` met een model weigert ("voortgang bijwerken is gewoon werk van elke planner").
+   Knownbug 1110 (de laatste taak met een eigen taaktype wissen) blijft VERVOLG.
+5. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
    flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
    `refusedWriteTarget` aan (`src/services/mcp/tools/fileTools.ts:347-349`), maar de headless fs geeft geen
@@ -193,5 +198,6 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 ## Volgende stappen
 
 1. Review van #886 (de merge via de route van de app, met stap 6: de vroegere knownbug 1102).
-2. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
-3. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
+2. Een kleine PR vanaf `main` voor knownbugs 1108 en 1109 (BLOKKEERT vóór 1c).
+3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
+4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
