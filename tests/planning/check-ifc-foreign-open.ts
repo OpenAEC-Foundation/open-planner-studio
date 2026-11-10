@@ -196,6 +196,24 @@ for (const [name, text] of [
       String(store.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
   }
 }
+// Knownbug 1151 (review van #870, ronde 12): een wand na `*⏎/` in de enige sectie. De scanner van de flag leest hem als
+// commentaar (zoals `parseSTEP`), de grammatica als entiteit. Met de flag weigert openen dan ook, net als zonder flag:
+// de lezer houdt de modelweigering op de tekst die hij krijgt. Zowel een eigen bestand als een bestand met een model.
+{
+  const hidden = (text: string) => text.replace(/^DATA;\r?\n/m,
+    line => `${line}/* a *\n/ #999999=IFCWALL('3vB2YO$MX4xv5uCqZZG05x',$,$,$,$,$,$,$,$); /* b */\n`);
+  const own = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  for (const [name, text] of [['showcase-1151', hidden(own)], ['eigen-plus-1151', hidden(dec(eigenPlus))]] as const) {
+    ok(`${name}: de proef zit erin`, text.includes('#999999=IFCWALL('));
+    for (const flagOn of [false, true]) {
+      const store = await open(flagOn, `${name}.ifc`, enc.encode(text));
+      ok(`${name} ${flagOn ? 'met' : 'zonder'} flag: geweigerd`, !opened(store, `${name}.ifc`));
+      ok(`${name} ${flagOn ? 'met' : 'zonder'} flag: de modelweigering`,
+        String(store.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+      eq(`${name} ${flagOn ? 'met' : 'zonder'} flag: geen bron`, store.getState().ifcSource, null);
+    }
+  }
+}
 {
   // `eigen-plus-model` is `showcase-verbouwing-eengezinswoning.ifc` plus een model: dezelfde planning als de bron alleen.
   const on = await open(true, 'eigen-plus-model.ifc', eigenPlus);

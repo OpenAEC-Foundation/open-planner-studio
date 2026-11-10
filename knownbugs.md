@@ -1821,7 +1821,8 @@ en noem het in je rapport of PR-tekst.
      - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
      Sinds #870 leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen volgens
      de norm. Ziet zij een modeltype, dan weigert `readIFC`; verder opent `readIFC` precies zoals main (besluit Trias,
-     review van #870 ronde 10). Gemeten op de tak, zonder de flag `ifcForeignContent` (met de flag: knownbug 1151):
+     review van #870 ronde 10). Gemeten op de tak, zonder de flag `ifcForeignContent`. Met de flag weigert de wand na
+     `*⏎/` sinds de fix van voormalig knownbug 1151 ook; de andere vormen zijn met de flag niet nagemeten:
       - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken, zoals main;
@@ -1889,17 +1890,6 @@ en noem het in je rapport of PR-tekst.
      in `targetModelScan.ts` en in `check-ifc-target-model-scan.ts`, en `MODEL_TYPE_MAX` (grammatica) en `TYPE_MAX`
      (doelcontrole) zijn dezelfde grens. Richting: één export uit `ifcBuildingModelTypes.ts`. Uit #870 (ronde 11 en
      12, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
-
-1151. **VERVOLG: met de flag `ifcForeignContent` aan slaat openen de modelweigering van de grammatica over.** De
-     bytes-route (`src/services/ifc/foreign/ifcBytesRoute.ts:93`) roept `readIFC` aan met
-     `skipBuildingModelGuard: true`; dan draait de grammatica niet (`src/services/ifc/ifcReader.ts`). Gezien in de
-     review van #870, ronde 12, met de showcase (eigen en vreemd) en `/* a *⏎/ #999999=IFCWALL(…); /* b */` in de enige
-     sectie: zonder flag weigert de tak met `building-model`; met de flag opent hij 20 taken, en de bron telt geen vreemd
-     deel (`stepScanner` leest de wand als commentaar, zoals main). Geen dataverlies: de doelcontrole zegt 'model' en
-     draait met de flag vóór elke write (Opslaan, Opslaan als, export, AutoSave, MCP). Op main opent het ook, maar daar
-     wist Ctrl+S de wand. Een planner met de flag aan loopt wel bij elk opslaan tegen de modelmelding aan. Richting: in
-     de bytes-route terugvallen op de gewone route als de grammatica een model ziet en de scanner geen vreemd deel telt;
-     vóór fase 1b. Uit #870 (ronde 12, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
 1045. **VERVOLG: crashherstel telt een letterlijke keuze die nooit naar het eigen bestand is opgeslagen.** De herstelkopie
      wordt met de writer geschreven; bij een urentaak staat daar `LiteralTimes` in. Na herstel leest de app die kopie als
