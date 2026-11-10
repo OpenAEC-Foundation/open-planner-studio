@@ -1,5 +1,5 @@
 {
- "basis": "14f979755",
+ "basis": "ccf3ca2a2",
  "binaryExtensions": [
   "mpp",
   "xer"
@@ -3255,6 +3255,99 @@
       }
      ],
      "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "save S1"
+     ]
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/duur-dagen-en-tijd/showcase-groot-terrein-P2DT12H.ifc",
+   "invoerSha256": "b6228f695e1f425c9cb694f1ab4c56445a55988a1655009c91c1d44275b42ee9",
+   "filePath": "showcase-groot-terrein-P2DT12H.ifc",
+   "opslaanSha256": "b228daf6165dc3ff5302c74f215b41d7aa750380117fbc632cd3af504f28f735",
+   "opslaanLengte": 12883,
+   "meldingen": [],
+   "acties": [
+    {
+     "actie": "saveFile",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "b228daf6165dc3ff5302c74f215b41d7aa750380117fbc632cd3af504f28f735",
+       "lengte": 12883
+      }
+     ],
+     "filePath": "showcase-groot-terrein-P2DT12H.ifc",
+     "isDirty": false,
+     "meldingen": []
+    },
+    {
+     "actie": "saveFileAs",
+     "uitkomst": "klaar",
+     "dialogen": 1,
+     "writes": [
+      {
+       "sha256": "b228daf6165dc3ff5302c74f215b41d7aa750380117fbc632cd3af504f28f735",
+       "lengte": 12883
+      }
+     ],
+     "filePath": "kopie-showcase-groot-terrein-P2DT12H.ifc",
+     "isDirty": false,
+     "meldingen": []
+    }
+   ],
+   "doelacties": [
+    {
+     "route": "handle",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "b228daf6165dc3ff5302c74f215b41d7aa750380117fbc632cd3af504f28f735",
+       "lengte": 12883
+      }
+     ],
+     "filePath": "showcase-groot-terrein-P2DT12H.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "queryPermission",
+      "createWritable"
+     ]
+    },
+    {
+     "route": "pad",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "b228daf6165dc3ff5302c74f215b41d7aa750380117fbc632cd3af504f28f735",
+       "lengte": 12883
+      }
+     ],
+     "filePath": "<map>/showcase-groot-terrein-P2DT12H.ifc",
+     "isDirty": false,
+     "meldingen": [],
+     "aanroepen": [
+      "plugin:fs|lstat",
+      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+      "plugin:fs|write",
+      "plugin:resources|close",
+      "plugin:fs|rename"
+     ]
+    },
+    {
+     "route": "site",
+     "uitkomst": "klaar",
+     "writes": [
+      {
+       "sha256": "b228daf6165dc3ff5302c74f215b41d7aa750380117fbc632cd3af504f28f735",
+       "lengte": 12883
+      }
+     ],
+     "filePath": "showcase-groot-terrein-P2DT12H.ifc",
      "isDirty": false,
      "meldingen": [],
      "aanroepen": [

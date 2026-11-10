@@ -129,20 +129,35 @@ const has = (needle: string | RegExp, want = true) => (out: Uint8Array) => {
 // niets meer. De regressietest staat in `check-ifc-foreign-preserve.ts` (sectie 5g, "1026"). Dat een bewerking alleen haar
 // eigen velden verklaart (plek 1 tot 3), toetst preserve daar direct op de uitvoerregels (O1: projectnaam, hernoemen, een
 // deel van `time` zonder slot). Hier: dezelfde combinaties schrijven nu, en de taaktijden van de taken die blijven zijn
-// byte-gelijk aan de bron, op de naam na (een hernoemde taak heeft een andere naam van haar taaktijd).
+// byte-gelijk aan de bron, op het `#id` en de naam na (de merge geeft de eigen stukken een nieuw `#id`; een hernoemde taak
+// heeft een andere naam van haar taaktijd).
 const withoutName = (l: string) => l.replace(/^#\d+=IFCTASKTIME\('(?:[^']|'')*'/, '');
-const fix3Times = new Map(linesOfType(fix3, 'IFCTASKTIME').map(l => [l.slice(0, l.indexOf('=')), withoutName(l)]));
+/** Per taak (GlobalId) haar taaktijd zonder `#id` en naam: de merge geeft de eigen stukken een nieuw `#id`. */
+const taskTimes = (b: Uint8Array) => {
+  const index = scanStep(b);
+  const out = new Map<string, string>();
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i) || index.type(i) !== 'IFCTASK') continue;
+    const ref = (index.argTokens(i)?.[11] ?? '').trim();
+    const t = ref.startsWith('#') ? index.chunkOf(ref.slice(1)) : -1;
+    if (t >= 0) out.set(index.globalId(i), withoutName(text(b.subarray(index.entityStart(t), index.end(t))).trim()));
+  }
+  return out;
+};
+const fix3Times = taskTimes(fix3);
+/** '2. Earthworks & foundations': de taak met taaktijd #61 in de bron. */
+const earthworksId = (() => { const index = scanStep(fix3); for (let i = 0; i < index.count; i++) if (index.isEntity(i) && index.type(i) === 'IFCTASK' && index.argTokens(i)?.[11]?.trim() === '#61') return index.globalId(i); return ''; })();
 const timesKept = (out: Uint8Array) => {
-  const after = new Map(linesOfType(out, 'IFCTASKTIME').map(l => [l.slice(0, l.indexOf('=')), withoutName(l)]));
+  const after = taskTimes(out);
   const kept = [...fix3Times].filter(([id]) => after.has(id));
   const changed = kept.filter(([id, l]) => after.get(id) !== l).map(([id]) => id);
-  if (kept.length !== 51) return `${kept.length} taaktijden blijven, verwacht 51`;
+  if (fix3Times.size !== 57 || kept.length !== 51) return `${kept.length} van ${fix3Times.size} taaktijden blijven, verwacht 51 van 57`;
   if (changed.length > 0) return `andere taaktijden: ${changed.slice(0, 3).join(', ')}`;
-  // Het voorbeeld uit knownbug 1026, letterlijk: '2. Earthworks & foundations' (#61) houdt ScheduleFinish, EarlyFinish en
+  // Het voorbeeld uit knownbug 1026, letterlijk: '2. Earthworks & foundations' houdt ScheduleFinish, EarlyFinish en
   // LateFinish om 16:00 (vóór #872 werden ze 07:00).
-  const earthworks = withoutName(lineOf(out, '61'));
+  const earthworks = after.get(earthworksId) ?? '';
   const want = "'2027-03-05T16:00:00','2027-03-15T07:00:00','2027-09-09T16:00:00','2027-03-15T07:00:00','2028-05-04T16:00:00'";
-  return earthworks.includes(want) ? undefined : `Earthworks (#61): ${earthworks.slice(0, 160)}`;
+  return earthworks.includes(want) ? undefined : `Earthworks: ${earthworks.slice(0, 160)}`;
 };
 await proof('plek 1–3', "fix3: '1. Preparation' wissen (knownbug 1026, opgelost met #872)", fix3, 'schrijft', wipe(PREP), timesKept);
 await proof('plek 1', 'fix3: wissen + projectnaam', fix3, 'schrijft', (x) => { wipe(PREP)(x); x.project.name = 'Andere naam'; }, timesKept);

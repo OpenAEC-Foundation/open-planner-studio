@@ -1268,7 +1268,7 @@ if (setupEigen) {
   // dan schreef hij de eindtijden van de andere taken als 07:00 in plaats van 16:00, en de werkweek anders. Die taken
   // veranderden niet, dus de merge weigerde (`niet-gedragen`). Sinds #872 blijft een kalender die bij het openen letterlijk
   // was ook letterlijk (`ifcLiteralCalendarIds`). Regressietest: het wissen schrijft, `LiteralTimes` blijft staan, en de
-  // taaktijden van de 51 taken die blijven en de werkweek zijn byte-gelijk aan de bron.
+  // taaktijden van de 51 taken die blijven en de werkweek zijn byte-gelijk aan de bron, op de `#id`'s na.
   const bytes = await settle(read('tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'));
   const opened = await openForeign(bytes);
   const edit = plannerEdits(opened, 40).find(e => e.label === 'task-mvp6ekzlhuk71306 wissen');
@@ -1276,21 +1276,34 @@ if (setupEigen) {
   const r = edit ? await roundTrip("1026: fix3, '1. Preparation' wissen", bytes, edit.apply) : undefined;
   ok("1026: fix3, '1. Preparation' wissen schrijft", r !== undefined);
   if (r) {
-    const linesOf = (b: Uint8Array, type: string) => {
+    // De merge geeft de eigen stukken een nieuw `#id`: de taaktijden per taak (GlobalId), de kalender zonder `#id`'s.
+    const taskTimes = (b: Uint8Array) => {
       const index = scanStep(b);
       const out = new Map<string, string>();
-      for (let i = 0; i < index.count; i++) if (index.isEntity(i) && index.type(i) === type) out.set(index.id(i), text(b.subarray(index.entityStart(i), index.end(i))).trim());
+      for (let i = 0; i < index.count; i++) {
+        if (!index.isEntity(i) || index.type(i) !== 'IFCTASK') continue;
+        const ref = (index.argTokens(i)?.[11] ?? '').trim();
+        const t = ref.startsWith('#') ? index.chunkOf(ref.slice(1)) : -1;
+        if (t >= 0) out.set(index.globalId(i), text(b.subarray(index.entityStart(t), index.end(t))).trim().replace(/^#\d+=/, ''));
+      }
       return out;
     };
-    const before = linesOf(bytes, 'IFCTASKTIME');
-    const after = linesOf(r.out, 'IFCTASKTIME');
+    const before = taskTimes(bytes);
+    const after = taskTimes(r.out);
     const kept = [...before].filter(([id]) => after.has(id));
     eq('1026: 51 taaktijden blijven (57 min de fase en haar vijf kinderen)', [before.size, kept.length], [57, 51]);
-    eq('1026: de taaktijden die blijven zijn byte-gelijk (eindtijd 16:00, niet 07:00)', kept.filter(([id, l]) => after.get(id) !== l).map(([id]) => id).slice(0, 3), []);
+    eq('1026: de taaktijden die blijven zijn byte-gelijk, op het #id na (eindtijd 16:00, niet 07:00)', kept.filter(([id, l]) => after.get(id) !== l).map(([id]) => id).slice(0, 3), []);
     const calendarTypes = ['IFCTIMEPERIOD', 'IFCRECURRENCEPATTERN', 'IFCWORKTIME'];
-    const calendar = (b: Uint8Array) => JSON.stringify(calendarTypes.map(type => [...linesOf(b, type)]));
-    ok('1026: de werkweek en de uitzonderingen zijn byte-gelijk (IfcTimePeriod, IfcRecurrencePattern, IfcWorkTime)', calendar(r.out) === calendar(bytes));
-    ok('1026: LiteralTimes staat er nog', lineOf(r.out, '40') === "#40=IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$);");
+    const calendar = (b: Uint8Array) => {
+      const index = scanStep(b);
+      const lines: string[] = [];
+      for (let i = 0; i < index.count; i++) {
+        if (index.isEntity(i) && calendarTypes.includes(index.type(i))) lines.push(text(b.subarray(index.entityStart(i), index.end(i))).trim().replace(/#\d+/g, '#'));
+      }
+      return lines.join('\n');
+    };
+    ok('1026: de werkweek en de uitzonderingen zijn byte-gelijk, op de #ids na (IfcTimePeriod, IfcRecurrencePattern, IfcWorkTime)', calendar(r.out) === calendar(bytes));
+    ok('1026: LiteralTimes staat er nog', text(r.out).includes("=IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$);"));
   }
 }
 
