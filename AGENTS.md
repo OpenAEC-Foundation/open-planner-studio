@@ -267,7 +267,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   at calculation). `minuteModelPending` carries the undoable conversion of old documents; persistent
   calculations inside an editing event call `runCPM({ withinEvent: true })`. IFC writes `TimeModel`
   after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document; a calendar
-  that had `LiteralTimes` when opened stays literal (`ifcLiteralCalendarIds`, knownbug 1026).
+  that is literal in the file (when opened, or saved so in this session) stays literal (`ifcLiteralCalendarIds`,
+  `src/state/savedLiteralCalendars.ts`, knownbug 1026).
 - **Scheduling profiles, not a format flag.** P6/MSP/OPS behaviour runs through named conventions in
   `src/engine/scheduler/conventions/registry.ts`; the solver only gets `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Never an `if` on the source format in the engine (`verify:conventions`);

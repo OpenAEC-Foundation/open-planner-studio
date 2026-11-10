@@ -347,9 +347,10 @@ Toetsen: `check-ifc-dagenmaat.ts` (met `OPS_MINUTE_MODEL_OLD_READER` ook de leze
 
 ## Letterlijke kalender blijft letterlijk
 
-Bron: besluit Trias (wrakko, 10 november 2026, optie a), knownbug 1026. Code: `minuteModelWriteView`
-(`src/services/ifc/minuteModelWrite.ts`, optie `keepLiteralCalendarIds`) en het documentveld
-`ifcLiteralCalendarIds` (`src/state/documentContract.ts`).
+Bron: besluit Trias (wrakko, 10 november 2026, optie a, uitgebreid: "staat een kalender eenmaal letterlijk in het
+bestand, dan blijft hij letterlijk"), knownbug 1026. Code: `minuteModelWriteView` (`src/services/ifc/minuteModelWrite.ts`,
+optie `keepLiteralCalendarIds`), het documentveld `ifcLiteralCalendarIds` (`src/state/documentContract.ts`) en
+`src/state/savedLiteralCalendars.ts`.
 
 De writer kiest per kalender ankerdatums of echte tijden met `LiteralTimes` (T17). Eén taak met een moment dat niet
 op een anker past, maakt de hele kalender letterlijk. Wiste de planner juist die taak, dan werd de kalender bij
@@ -358,8 +359,11 @@ in, en een ander programma las ze negen uur te vroeg. Nu levert `readIFC` de kal
 (`ImportResult.ifcLiteralCalendarIds`), en blijft zo'n kalender bij elke opslag letterlijk. Omdat de writer de
 eigenschap weer schrijft, geldt dat ook na heropenen. Dit wijkt alleen in de veilige richting af van T17: een
 letterlijke kalender schrijft elk moment met zijn echte tijd. Een bestand zonder `LiteralTimes` blijft byte-gelijk.
-De keuze reist mee bij documentwissel, kopie, crashherstel en een extensie die het project terugzet, en staat in
-undo: IFC Toepassen leest haar opnieuw uit de tekst, en undo zet haar samen met de kalenders terug.
+Ook een kalender die de app in deze sessie letterlijk naar het eigen bestand schreef (Opslaan, Opslaan als,
+AutoSave naar het bestand), blijft letterlijk; anders kwam 1026 binnen één sessie terug. Een kalender die letterlijk
+werd maar nooit zo is opgeslagen, telt niet; een crashherstel-kopie of een export is geen opslag naar het eigen bestand.
+De keuze wordt nooit kleiner: niet in undo, en IFC Toepassen voegt de letterlijke kalenders van de tekst toe. Ze reist
+mee bij documentwissel, kopie, crashherstel en een extensie die het project terugzet.
 Toets: `check-ifc-literaltimes-behoud.ts`.
 
 ## Lopend op 100 %: `IfcTask.Status`

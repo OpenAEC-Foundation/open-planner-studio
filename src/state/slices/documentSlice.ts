@@ -1,4 +1,5 @@
 import { SCHEDULE_SHIFT_NOTICE_KEY } from '../scheduleShift';
+import { literalCalendarIdsWritten, mergeLiteralCalendarIds } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { castDraft } from 'immer';
@@ -601,17 +602,27 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   markAutoSaveVersionSaved: (id, source) => {
     const state = get();
+    // Knownbug 1026: wat deze opslag letterlijk schreef, blijft letterlijk (`savedLiteralCalendars.ts`), ook als het
+    // document intussen veranderde.
+    const written = literalCalendarIdsWritten(source);
     if (id === state.activeDocumentId) {
-      if (sameIFCSource(source, state)) set((s) => { s.isDirty = false; });
+      const unchanged = sameIFCSource(source, state);
+      set((s) => {
+        s.ifcLiteralCalendarIds = mergeLiteralCalendarIds(s.ifcLiteralCalendarIds, written);
+        if (unchanged) s.isDirty = false;
+      });
       return;
     }
     const sleeping = state.documents.find((d) => d.id === id)?.payload;
-    if (!sleeping || !sameIFCSource(source, sleeping)) return;
+    if (!sleeping) return;
+    const unchanged = sameIFCSource(source, sleeping);
     set((s) => {
       const target = s.documents.find((d) => d.id === id)?.payload;
+      if (!target) return;
+      target.ifcLiteralCalendarIds = mergeLiteralCalendarIds(target.ifcLiteralCalendarIds, written);
       // De bronvergelijking gebeurde vóór de producer tegen de plain payload. Binnen Immer zou
       // `target` een proxy zijn en dus nooit referentie-gelijk kunnen zijn met `source`.
-      if (target) target.isDirty = false;
+      if (unchanged) target.isDirty = false;
     });
   },
 

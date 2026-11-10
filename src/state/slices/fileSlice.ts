@@ -1,4 +1,5 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
+import { literalCalendarIdsWritten, mergeLiteralCalendarIds, serializeForSave } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
@@ -902,15 +903,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.siteFileVersion = destination.siteFileId ? destination.siteFileVersion : null;
       if (destination.siteFileId) target.autoSaveToFile = false;
     };
+    // Knownbug 1026: wat deze opslag letterlijk schreef, blijft letterlijk (`savedLiteralCalendars.ts`), ook als het
+    // document intussen veranderde: het bestand heeft die kalenders nu letterlijk.
+    const written = literalCalendarIdsWritten(savedSource);
     set((state) => {
       if (state.activeDocumentId === documentId) {
         applyDestination(state);
+        state.ifcLiteralCalendarIds = mergeLiteralCalendarIds(state.ifcLiteralCalendarIds, written);
         if (unchanged) state.isDirty = false;
         return;
       }
       const entry = state.documents.find(document => document.id === documentId);
       if (!entry?.payload) return;
       applyDestination(entry.payload);
+      entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, written);
       if (unchanged) entry.payload.isDirty = false;
     });
     return unchanged;
@@ -1095,7 +1101,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (documentId !== startDocumentId) return false;
     // Opnieuw op de momentopname die de app echt schrijft: niets mag tijdens het wachten een vreemd deel binnenbrengen.
     if (refuseForeignIfcWrite(state)) return false;
-    const content = writeIFC(buildWriteIFCInput(state));
+    const content = serializeForSave(state);
     // Gezet zolang er naar de SITE geschreven wordt: dan meldt de catch een sitefout (met conflict-
     // melding) in plaats van de gewone opslaanfout. Zonder site blijft hij `null`.
     let siteName: string | null = null;
@@ -1206,7 +1212,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (refuseForeignIfcWrite(state)) return;
     // Gedeelde helper: één plek voor het state→IFC-options-object, zodat dit
     // pad geen velden kan laten vallen.
-    const content = writeIFC(buildWriteIFCInput(state));
+    const content = serializeForSave(state);
     // `state` = momentopname vóór de eerste await; zelfde reden als bij saveFile: isDirty pas
     // wissen als er tijdens de opslaan-als-dialoog niets gewijzigd is.
     let siteName: string | null = null;
@@ -1273,6 +1279,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // InternalProjectId kan in de tekst gewijzigd zijn. De reader sleutelt deze drie
         // ankers op dat ingelezen id, terwijl de editor de sessie-identiteit hieronder behoudt.
         // Verplaats de sleutels mee, anders vindt de writer de bewaarde GlobalIds niet terug.
+        // Knownbug 1026: de keuze wordt nooit kleiner. Toepassen voegt de letterlijke kalenders van de tekst toe aan die
+        // van het document (een id dat in de tekst een andere kalender aanwijst, maakt hooguit een kalender te veel
+        // letterlijk: de veilige richting). Daarom hoeft undo de keuze niet terug te zetten.
+        payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(current.ifcLiteralCalendarIds, payload.ifcLiteralCalendarIds);
         if (payload.ifcGlobalIds && payload.project.id !== current.project.id) {
           const globalIds = { ...payload.ifcGlobalIds };
           for (const kind of ['proj', 'wp', 'ws'] as const) {

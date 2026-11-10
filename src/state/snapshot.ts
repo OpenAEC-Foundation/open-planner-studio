@@ -21,8 +21,7 @@ import { withFileIfcSchema } from './ifcSchemaChoice';
  *    project, calendar, tasks, sequences, resources, assignments, calendars, activityCodeTypes,
  *    customFieldDefs, customTaskTypes, baselines, activeBaselineId en comparedBaselineIds (door de
  *    gebruiker gekozen en in het bestand bewaard, dus projectdata; `documentDataChanged` moet ze zien),
- *    ifcGlobalIds (de IFC-editor kan GlobalIds wijzigen, ook zonder taakinhoud te veranderen),
- *    ifcLiteralCalendarIds (idem: IFC Toepassen leest de LiteralTimes-keuze opnieuw uit de tekst; knownbug 1026)
+ *    ifcGlobalIds (de IFC-editor kan GlobalIds wijzigen, ook zonder taakinhoud te veranderen)
  *  IN ('derived'; runCPM vervangt ze als geheel en muteert nooit in-place, dus delen is veilig).
  *      Undo moet exact de handmatig berekende toestand kunnen herstellen; samen met `tasks` draait
  *      één undo de opgeslagen datums én de modus terug:
@@ -45,7 +44,7 @@ export type Snapshot = Pick<
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
   | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult'
   | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'comparedBaselineIds' | 'recordedDates' | 'datesAsRecorded'
-  | 'minuteModelPending' | 'ifcGlobalIds' | 'ifcLiteralCalendarIds'
+  | 'minuteModelPending' | 'ifcGlobalIds'
 >;
 
 // Compile-time koppeling tussen de Pick hierboven en de `snapshot`-rollen in DOCUMENT_FIELDS
@@ -142,7 +141,6 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     customFieldDefs: raw.customFieldDefs ?? [],
     customTaskTypes: raw.customTaskTypes ?? [],
     ifcGlobalIds: raw.ifcGlobalIds ?? null,
-    ifcLiteralCalendarIds: raw.ifcLiteralCalendarIds ?? null,
     cpmResult: raw.cpmResult ?? null,
     scheduleStale: raw.scheduleStale ?? false,
     baselines: raw.baselines ?? [],

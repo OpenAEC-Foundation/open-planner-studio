@@ -8,8 +8,10 @@
 //   2. over sessies heen: het opgeslagen bestand opnieuw openen geeft dezelfde letterlijke kalender, ook na nog een keer
 //      opslaan en openen (dan is opslaan byte-gelijk);
 //   4. een extensie die het project ongewijzigd terugzet (`loadExtensionProject`, lees-wijzig-laad) houdt de keuze;
-//   5. IFC Toepassen met een tekst zonder `LiteralTimes` wist de keuze, en undo en redo zetten haar mee terug
-//      (review #872 ronde 1, Sol en Terra);
+//   5. IFC Toepassen met een tekst zonder `LiteralTimes` maakt de keuze niet kleiner, ook niet na undo en redo (review
+//      #872 ronde 1, Sol en Terra; de keuze wordt nooit kleiner);
+//   6. letterlijk opgeslagen in deze sessie blijft letterlijk (Opslaan, undo, AutoSave), en letterlijk geworden maar
+//      nooit zo opgeslagen telt niet (besluit Trias, wrakko 10 november 2026);
 //   3. zonder bewerking verandert het veld niets: voor elk voorbeeld in `public/examples/` en `examples/` is opslaan met
 //      en zonder het veld byte-gelijk, en een voorbeeld zonder `LiteralTimes` krijgt geen veld.
 // Exit 0 = alles groen.
@@ -27,6 +29,7 @@ console.warn = () => {};
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
+const { serializeForSave } = await import('@/state/savedLiteralCalendars');
 const { readIFC } = await import('@/services/ifc/ifcReader');
 const { loadExtensionProject } = await import('@/extensions/retainActiveDocument');
 const { toExtProject, toExtCalendar, toExtTask, toExtSequence, toExtResource, toExtAssignment } = await import('@/extensions/extMappers');
@@ -117,7 +120,8 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
   eq('4 extensie: "2. Earthworks & foundations" blijft op 16:00', earthworksFinish(store), "'2027-03-05T16:00:00'");
 }
 {
-  // 5. IFC Toepassen: de tekst zonder LiteralTimes leest terug zonder keuze; undo en redo zetten haar mee terug.
+  // 5. IFC Toepassen met een tekst zonder LiteralTimes: de keuze wordt niet kleiner (besluit Trias: wat eenmaal letterlijk
+  //    in het bestand stond, blijft letterlijk), ook niet na undo en redo.
   const voor = readFileSync(join(ROOT, 'tests/planning/fixtures/1026-voor.ifc'), 'utf8');
   const store = await open('1026-apply.ifc', voor);
   const S = () => store.getState();
@@ -126,14 +130,125 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
   const edited = readIFC(text.split(LITERAL).join("IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.F.),$)"));
   eq('5 voorwaarde: de bewerkte tekst heeft geen letterlijke kalender', edited.ifcLiteralCalendarIds, undefined);
   S().applyProjectEdit(edited);
-  eq('5 Toepassen: de keuze volgt de tekst', S().ifcLiteralCalendarIds, null);
+  eq('5 Toepassen: de keuze blijft', S().ifcLiteralCalendarIds, ['cal-default']);
   S().undo();
-  eq('5 undo: de keuze is terug', S().ifcLiteralCalendarIds, ['cal-default']);
+  eq('5 undo: de keuze blijft', S().ifcLiteralCalendarIds, ['cal-default']);
   S().redo();
-  eq('5 redo: de keuze volgt weer de tekst', S().ifcLiteralCalendarIds, null);
+  eq('5 redo: de keuze blijft', S().ifcLiteralCalendarIds, ['cal-default']);
   S().undo();
   deletePrep(store);
   eq('5 undo, dan wissen: "2. Earthworks & foundations" blijft op 16:00', earthworksFinish(store), "'2027-03-05T16:00:00'");
+}
+
+// ── 6. Letterlijk opgeslagen in deze sessie ───────────────────────────────────────────────────────────────────────────
+// Besluit Trias (wrakko, 10 november 2026): staat een kalender eenmaal letterlijk in het bestand, dan blijft hij
+// letterlijk, ook als de app hem pas in deze sessie letterlijk opsloeg. Een kalender die letterlijk werd maar nooit zo is
+// opgeslagen, telt niet. Via de echte opslagroute (Opslaan naar een handle) en de AutoSave-vastlegging.
+{
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  /** Een bestand achter een handle, zoals de File System Access API het geeft. */
+  const fakeHandle = (name: string, initial: string) => {
+    let data = initial;
+    const handle = {
+      kind: 'file' as const, name,
+      isSameEntry: async (other: unknown) => other === handle,
+      getFile: async () => new File([enc.encode(data) as BlobPart], name),
+      createWritable: async () => {
+        let buffer = '';
+        return {
+          write: async (chunk: unknown) => { buffer += typeof chunk === 'string' ? chunk : dec.decode(chunk as Uint8Array); },
+          close: async () => { data = buffer; },
+        };
+      },
+      queryPermission: async () => 'granted' as const,
+      requestPermission: async () => 'granted' as const,
+    };
+    return { handle: handle as unknown as FileSystemFileHandle, text: () => data };
+  };
+  const showcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  const openOwn = async () => {
+    reseed(0x1026);
+    const file = fakeHandle('eigen.ifc', showcase);
+    const store = createAppStoreContext().store;
+    await store.getState().openOpenedFile({ name: 'eigen.ifc', content: showcase, ref: { kind: 'handle', handle: file.handle } });
+    return { store, file, S: () => store.getState() };
+  };
+  /** Een urentaak van vier uur: die maakt de projectkalender letterlijk (T17). */
+  const addHourTask = (store: Store) => {
+    const id = store.getState().addTask({ name: 'Uurtaak', time: { ...store.getState().tasks[0].time, durationUnit: 'hours', durationMinutes: 240 } });
+    store.getState().runCPM();
+    return id;
+  };
+  const sameFinishes = (label: string, before: string, after: string, skip: string) => {
+    const a = finishes(before);
+    const b = finishes(after);
+    const names = [...b.keys()].filter(n => n !== skip);
+    eq(`${label}: elke taak staat in beide bestanden`, names.filter(n => !a.has(n)), []);
+    eq(`${label}: de eindtijden blijven gelijk`, names.filter(n => JSON.stringify(a.get(n)) !== JSON.stringify(b.get(n))), []);
+  };
+  {
+    // 6a. De test van Trias: open zonder LiteralTimes, maak een taak die het nodig heeft, sla op, wis die taak, sla
+    //     opnieuw op: alle eindtijden blijven gelijk.
+    const { store, file, S } = await openOwn();
+    eq('6a voorwaarde: het bestand heeft geen LiteralTimes, het document geen keuze', [showcase.includes("'LiteralTimes'"), S().ifcLiteralCalendarIds], [false, null]);
+    const id = addHourTask(store);
+    await S().saveFile();
+    const first = file.text();
+    eq('6a eerste opslag: LiteralTimes staat in het bestand', first.includes(LITERAL), true);
+    eq('6a eerste opslag: de keuze bevat de projectkalender', S().ifcLiteralCalendarIds, [S().calendar.id]);
+    S().deleteTask(id);
+    S().runCPM();
+    await S().saveFile();
+    const second = file.text();
+    eq('6a tweede opslag: LiteralTimes staat er nog', second.includes(LITERAL), true);
+    sameFinishes('6a tweede opslag na het wissen', first, second, 'Uurtaak');
+    // Zonder de keuze (zoals main) zou de kalender een ankerkalender worden: zo is te zien dat de check de bug vangt.
+    eq('6a controle zoals main: zonder de keuze geen LiteralTimes', saveWithoutField(store).includes(LITERAL), false);
+  }
+  {
+    // 6b. Undo maakt de keuze niet kleiner: opslaan, de nieuwe taak ongedaan maken, opnieuw opslaan.
+    const { store, file, S } = await openOwn();
+    addHourTask(store);
+    await S().saveFile();
+    const first = file.text();
+    S().undo();
+    S().runCPM();
+    eq('6b undo: de urentaak is weg', S().tasks.some(t => t.name === 'Uurtaak'), false);
+    eq('6b undo: de keuze blijft', S().ifcLiteralCalendarIds, [S().calendar.id]);
+    await S().saveFile();
+    const second = file.text();
+    eq('6b na undo opgeslagen: LiteralTimes staat er nog', second.includes(LITERAL), true);
+    sameFinishes('6b na undo opgeslagen', first, second, 'Uurtaak');
+  }
+  {
+    // 6c. AutoSave naar het bestand legt de keuze ook vast (`serializeForSave` + `markAutoSaveVersionSaved`).
+    const { store, S } = await openOwn();
+    const id = addHourTask(store);
+    const source = S().getOpenDocumentPayloads().find(d => d.id === S().activeDocumentId)!.payload;
+    const written = serializeForSave(source);
+    S().markAutoSaveVersionSaved(S().activeDocumentId, source);
+    eq('6c AutoSave: LiteralTimes in de geschreven tekst, de keuze vastgelegd', [written.includes(LITERAL), S().ifcLiteralCalendarIds], [true, [S().calendar.id]]);
+    S().deleteTask(id);
+    S().runCPM();
+    sameFinishes('6c na AutoSave en wissen', written, save(store), 'Uurtaak');
+  }
+  {
+    // 6d. Letterlijk geworden, maar nooit zo opgeslagen: telt niet. Het bestand had de kalender nooit letterlijk.
+    const { store, file, S } = await openOwn();
+    const id = addHourTask(store);
+    S().deleteTask(id);
+    S().runCPM();
+    await S().saveFile();
+    eq('6d nooit letterlijk opgeslagen: geen LiteralTimes en geen keuze', [file.text().includes(LITERAL), S().ifcLiteralCalendarIds], [false, null]);
+  }
+  {
+    // 6e. Een crashherstel-kopie of een export is geen opslag naar het eigen bestand: die legt niets vast.
+    const { store, S } = await openOwn();
+    addHourTask(store);
+    save(store);
+    eq('6e een losse schrijfbeurt legt niets vast', S().ifcLiteralCalendarIds, null);
+  }
 }
 
 // ── 3. Zonder bewerking verandert het veld niets ──────────────────────────────────────────────────────────────────
