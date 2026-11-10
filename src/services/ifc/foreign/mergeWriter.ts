@@ -538,7 +538,50 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   pristineChecks(index, cls, source, emitted, caseAt);
 
   if (cases.length > 0) throw new MergeNeedsPhase2Error(cases);
+
+  // ── 9. Bewaking (eigen zoektocht van 1b): een fout hier is een fout in deze module, geen geval van fase 2; er is dan
+  // niets geschreven. Elk vast id is een P-stuk van de bron (anders botst het met een bewaard stuk), en elke verwijzing
+  // uit het P-blok gaat naar een stuk dat in de uitvoer staat (geen `#0` en geen verwijzing naar een weggelaten regel).
+  const chunkOfId = new Map<number, number>();
+  for (let i = 0; i < n; i++) if (index.isEntity(i)) chunkOfId.set(sid(i), i);
+  for (const id of [...keep.values(), ...keptHeads]) {
+    const c = chunkOfId.get(id);
+    if (c === undefined || !isP(c)) throw new Error(`mergeWriter: het vaste id #${id} is geen P-stuk van de bron`);
+  }
+  const present = new Set<number>(emitted);
+  for (let i = 0; i < n; i++) if (index.isEntity(i) && !isP(i)) present.add(sid(i));
+  for (const line of lines) {
+    if (line.drop) continue;
+    for (const target of refsInText(line.text)) {
+      if (!present.has(target)) throw new Error(`mergeWriter: #${line.id} wijst naar #${target}, dat niet in de uitvoer staat`);
+    }
+  }
   return assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
+}
+
+/** De `#id`-verwijzingen in een regel van de writer, buiten strings (een sleutel als `'3LKE…#0'` telt niet). */
+function refsInText(text: string): number[] {
+  const out: number[] = [];
+  const QUOTE = 39, HASH = 35;
+  let i = text.indexOf('=') + 1;
+  while (i < text.length) {
+    const c = text.charCodeAt(i);
+    if (c === QUOTE) {
+      i++;
+      while (i < text.length && !(text.charCodeAt(i) === QUOTE && text.charCodeAt(i + 1) !== QUOTE)) i += text.charCodeAt(i) === QUOTE ? 2 : 1;
+      i++;
+      continue;
+    }
+    if (c === HASH) {
+      let j = i + 1;
+      while (j < text.length && text.charCodeAt(j) >= 48 && text.charCodeAt(j) <= 57) j++;
+      if (j > i + 1) out.push(Number(text.slice(i + 1, j)));
+      i = j;
+      continue;
+    }
+    i++;
+  }
+  return out;
 }
 
 /** De pset-namen van het register: alleen bij die psets is een gemengde pset (§4.6 b) mogelijk. */
