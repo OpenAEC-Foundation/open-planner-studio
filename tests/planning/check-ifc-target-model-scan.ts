@@ -22,7 +22,10 @@
 //   9. een verschiltest: willekeurige STEP-achtige bestanden geven in elke stukgrootte "model" precies als `readIFC`
 //      weigert met `building-model`;
 //  10. de pariteitstabel: elk bestand uit deze check, de scanner tegen `readIFC`. Afwijken mag alleen in de besloten
-//      gevallen (een complexe instantie met een producttype; commentaar vóór de kop), en dan alleen naar "model".
+//      gevallen van het contract in `targetModelScan.ts` (#804 fase 1b, VERVOLG 3 van Sol uit ronde 5 van #864), en dan
+//      alleen naar "model": (1) een complexe instantie met een producttype; (2) een scan zonder uitkomst is geen
+//      vrijbrief (een bron die vóór het einde stopt, geeft geen uitkomst); (3) een modelbestand dat `readIFC` om een
+//      andere reden niet opent: afgekapt (`truncated`), commentaar vóór de kop en een NUL-byte vóór de kop (`not-step`).
 // Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -76,7 +79,7 @@ const readOutcome = (bytes: Uint8Array): string => {
   }
 };
 /** De besloten afwijkingen: de scanner zegt dan "model", `readIFC` weigert niet met `building-model`. */
-type Deviation = 'complexe instantie' | 'commentaar vóór de kop';
+type Deviation = 'complexe instantie' | 'commentaar vóór de kop' | 'afgekapt' | 'NUL-byte vóór de kop';
 /** De pariteitstabel (10): elk bestand uit deze check. */
 const parity: Array<{ label: string; bytes: Uint8Array; deviation?: Deviation }> = [];
 /** Elke vorm van lezen geeft dezelfde uitkomst: alles in één keer, per byte, per 7 bytes. */
@@ -139,6 +142,19 @@ allWays('STEP zonder schema, met een modeltype', ifc("#9=IFCWALL('x',$);\n", HEA
 allWays('een IFC zonder DATA', enc.encode(HEAD.replace('DATA;\n', '') + 'END-ISO-10303-21;\n'), 'no-model');
 allWays('witruimte en commentaar vóór de kop', enc.encode(`\n  /* ISO-10303-21; niet */\r\n${HEAD}#9=IFCWALL('x',$);\n${TAIL}`), 'model',
   'commentaar vóór de kop');
+// #804 fase 1b (VERVOLG 3 van Sol uit ronde 5 van #864): de besloten afwijking 3 van het contract, een modelbestand dat
+// `readIFC` om een andere reden niet opent. Afgekapt (geen `END-ISO-10303-21;`): `readIFC` geeft `truncated`. Een
+// NUL-byte of ander stuurteken vóór de kop: `First.Space` slaat alle bytes `<= 0x20` over, `assertIfcIntegrity` alleen
+// witruimte; `readIFC` geeft `not-step`. Zonder model is er geen verschil (de controle zegt dan 'no-model').
+allWays('afgekapt, zonder kop (Sol)', enc.encode('ISO-10303-21;DATA;#9=IFCWALL();'), 'model', 'afgekapt');
+allWays('afgekapt, met kop', enc.encode(`${HEAD}#9=IFCWALL('x',$);\n`), 'model', 'afgekapt');
+allWays('afgekapt, zonder model', enc.encode(`${HEAD}#1=IFCTASK('1',$);\n`), 'no-model');
+allWays('een NUL-byte vóór de kop', enc.encode(`\u0000${HEAD}#9=IFCWALL('x',$);\n${TAIL}`), 'model', 'NUL-byte vóór de kop');
+allWays('een stuurteken (0x01) vóór de kop', enc.encode(`\u0001${HEAD}#9=IFCWALL('x',$);\n${TAIL}`), 'model', 'NUL-byte vóór de kop');
+allWays('een NUL-byte vóór de kop, zonder model', enc.encode(`\u0000${HEAD}#1=IFCTASK('1',$);\n${TAIL}`), 'no-model');
+eq('besloten afwijking 3: readIFC geeft truncated en not-step',
+  [readOutcome(enc.encode('ISO-10303-21;DATA;#9=IFCWALL();')), readOutcome(enc.encode(`\u0000${HEAD}#9=IFCWALL('x',$);\n${TAIL}`))],
+  ['truncated', 'not-step']);
 allWays('een ander eerste statement', enc.encode(`HEADER;\n${HEAD}#9=IFCWALL('x',$);\n${TAIL}`), 'not-ifc');
 allWays('kop zonder punt-komma', enc.encode('ISO-10303-21'), 'not-ifc');
 // Fixronde 4: een model gevonden voordat de kop beslist is (een heel kort bestand); de kop beslist aan het einde.
@@ -221,6 +237,19 @@ const OWN = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezi
     });
   } catch (e) { error = (e as Error).message; }
   eq('stroom: een leesfout gaat door, de bron gaat dicht', [error, closed], ['leesfout', 1]);
+  // #804 fase 1b: de besloten afwijking 2 van het contract (een scan zonder uitkomst is geen vrijbrief). Een heel bestand
+  // zonder model, zonder `end()`: geen uitkomst. Een bron die na het eerste stuk met een fout stopt: geen uitkomst, nooit
+  // 'no-model'.
+  eq('scan zonder uitkomst: alles gelezen maar geen end(), geen uitkomst', new TargetModelScanner().push(none), null);
+  let halfway = 0;
+  let halfwayError = '';
+  try {
+    await scanTargetSource({
+      next: async () => { if (halfway++ === 0) return none.subarray(0, CHUNK); throw new Error('halverwege'); },
+      seek: async () => { /* niet nodig */ },
+    });
+  } catch (e) { halfwayError = (e as Error).message; }
+  eq('scan zonder uitkomst: een fout na het eerste stuk geeft geen uitkomst', halfwayError, 'halverwege');
   // Fixronde 4: een bron die niet terugspoelt (of een bestand dat tijdens het lezen korter wordt) geeft een leesfout,
   // nooit een eindeloze lus. Terra's bestand vraagt terugspoelen naar het regel-verankerde `DATA;`.
   for (const [label, shrink] of [['seek doet niets', false], ['het bestand wordt korter', true]] as const) {

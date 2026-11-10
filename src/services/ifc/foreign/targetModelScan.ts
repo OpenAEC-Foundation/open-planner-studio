@@ -27,12 +27,22 @@
 // Een andere uitkomst bestaat niet: 'no-model' komt alleen aan het einde van het bestand. Stopt het lezen vóór het einde
 // (een leesfout), dan is er geen uitkomst; de aanroeper telt dat als "niet leesbaar".
 //
-// Bewust strenger dan `readIFC` (besluit; dan weigert de app een write die de lezer zou toestaan, nooit andersom):
-//  - een complexe instantie `#n=(A(…)B(…));` met een modeltype als deeltype telt als model (fixronde 3). `readIFC` ziet
-//    zo'n instantie niet; een geldig IFC bevat ze niet (knownbug 1016);
-//  - een bestand dat `readIFC` niet kan openen, maar dat wel een modelentiteit heeft: commentaar vóór de kop (de regel
-//    van fixronde 3: het eerste statement telt), of geen `END-ISO-10303-21;` aan het einde (afgekapt). De lezer kijkt
-//    niet naar de sluitmarkering: dan zou hij nooit vroeg kunnen stoppen.
+// De pariteit met `readIFC` geldt op geldige invoer en op de oude kop met een losse apostrof. Daarbuiten zijn er drie
+// besloten afwijkingen, alle drie strenger (besluiten van wrakko, 9 en 10 november 2026; dan weigert de app een write
+// die de lezer zou toestaan, nooit andersom). `check-ifc-target-model-scan.ts` (deel 10, de pariteitstabel) noemt elk
+// geval als besloten afwijking; een ander verschil is rood.
+//  1. Een complexe instantie `#n=(A(…)B(…));` met een modeltype als deeltype telt als model (fixronde 3). `readIFC` ziet
+//     zo'n instantie niet; een geldig IFC bevat ze niet (knownbug 1016).
+//  2. Een scan zonder uitkomst is geen vrijbrief (fixronde 3): 'no-model' komt alleen uit `end()`, na het hele bestand,
+//     en 'not-ifc' alleen uit het eerste statement. Een kop of commentaar van elke lengte geeft dus nooit vroeg een
+//     uitkomst; stopt het lezen vóór het einde, dan is er geen uitkomst (de aanroeper beslist, zie
+//     `targetHoldsBuildingModel`). `readIFC` heeft die vorm niet: hij leest altijd de hele tekst.
+//  3. Een modelbestand dat `readIFC` om een andere reden niet opent, telt als model (het bestand bevat bouwdelen):
+//     - afgekapt, zonder `END-ISO-10303-21;`: `ISO-10303-21;DATA;#9=IFCWALL();` geeft hier 'model' en bij `readIFC`
+//       `truncated`. De lezer kijkt niet naar de sluitmarkering: dan zou hij nooit vroeg kunnen stoppen;
+//     - commentaar vóór de kop (de regel van fixronde 3: het eerste statement telt); `readIFC` geeft `not-step`;
+//     - een NUL-byte (of een ander stuurteken) vóór de kop: `First.Space` slaat alle bytes `<= 0x20` over
+//       (`firstByte` hieronder), `assertIfcIntegrity` alleen witruimte; `readIFC` geeft `not-step`.
 //
 // De lezer stopt bij de eerste modelentiteit. Een groot bestand zonder model leest hij helemaal, maar als stroom.
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
