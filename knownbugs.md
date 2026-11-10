@@ -1965,6 +1965,13 @@ en noem het in je rapport of PR-tekst.
      liggend en staand. Voorstel: `向き：`, via de vertaalstraat (`--update`, zodat de bron-hash mee verandert).
      Gezien bij het opzoeken van de bestaande woorden voor de keuzelijst *Lettertype* (#770). — B
 
+1079. **VERVOLG: de kop *Totaal* in het resourcepaneel geeft bij een kostenresource nog de uitleg over uren × tarief.**
+     `src/components/panels/ResourcePanel.tsx:141`: de kop heeft voor elke resource de tooltip "Belaste eenheden ×
+     uren/dag × tarief (herbereken met F5)". Een kostenresource telt in die kolom de bedragen op zijn toewijzingen
+     op, en die som telt meteen mee. De cel zelf heeft sinds #874 een eigen tooltip; de kop niet. Voorstel: een
+     koptekst die beide berekeningen noemt, of een neutrale tekst. Stond al op main. Uit de review van #874
+     (GPT-6.1-Terra, xhigh, op `c38ac7d9e`, VERVOLG). — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een

@@ -948,6 +948,7 @@
     "costPerHour": "Tarief/uur",
     "total": "Totaal",
     "totalHint": "Belaste eenheden × uren/dag × tarief (herbereken met F5)",
+    "costTotalHint": "Som van de bedragen op alle toewijzingen",
     "unitOfMeasure": "Eenheid",
     "unitOnlyMaterial": "Alleen in te vullen bij resources van het type Materiaal.",
     "parent": "Ploeg",
