@@ -1,7 +1,7 @@
 import { useState, useId, useEffect, useRef, useCallback } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Popover } from '@/components/common/Popover';
-import { b2IconsOn, Icon } from '@/components/icons';
+import { Icon } from '@/components/icons';
 
 /**
  * Gedeelde ribbon-primitives: zowel het declaratieve render-pad (RibbonTabContent) als de
@@ -47,7 +47,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
           }}
         >
           <span>{current?.label ?? value}</span>
-          {b2IconsOn() ? <Icon id="ui.dropdown" size={16} /> : <span className="!text-caption" style={{ opacity: 0.6 }} data-icon="ui.dropdown">▼</span>}
+          <Icon id="ui.dropdown" size={16} />
         </button>
       }
     >
@@ -264,7 +264,7 @@ export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
       aria-expanded={open}
     >
       <span className="ribbon-btn-icon">{icon}</span>
-      <span className="ribbon-btn-label">{label}{b2IconsOn() ? <Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /> : ' ▾'}</span>
+      <span className="ribbon-btn-label">{label}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
     </button>
   );
 }

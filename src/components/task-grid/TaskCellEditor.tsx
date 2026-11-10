@@ -21,7 +21,7 @@ import {
 } from './GridEditorHost';
 import { controlKeyDown, RelationCellEditor } from './RelationCellEditor';
 import { formatReportNumber } from '@/utils/reportNumber';
-import { b2IconsOn, Icon } from '@/components/icons';
+import { Icon } from '@/components/icons';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -397,9 +397,9 @@ export function TaskCellEditor({
                       onClick={() => setAssignmentTokens(current => (
                         current.filter((_, itemIndex) => itemIndex !== index)
                       ))}
-                      className={b2IconsOn() ? 'inline-flex items-center justify-center' : undefined}
+                      className="inline-flex items-center justify-center"
                     >
-                      {b2IconsOn() ? <Icon id="list.item-remove" size={16} /> : '×'}
+                      <Icon id="list.item-remove" size={16} />
                     </button>}
                   </div>
                 );

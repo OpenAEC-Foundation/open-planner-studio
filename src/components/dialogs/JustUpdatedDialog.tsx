@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Icon, type IconId, type LucideShape } from '@/components/icons';
+import { Icon, type IconId } from '@/components/icons';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getInstallKind } from '@/services/updater/updaterService';
 import { fetchReleaseComparison, type ReleaseComparison } from '@/services/updater/releaseInfo';
@@ -12,8 +12,6 @@ import { openHelpArticleGuarded } from '@/components/common/HelpButton';
 
 const CHANGELOG_URL = 'https://github.com/OpenAEC-Foundation/open-planner-studio/wiki/Changelog';
 const ICONS: Record<HighlightIcon, IconId> = { import: 'file.import', library: 'company.library', relations: 'planning.relations-menu', tasks: 'layout.task-tree', examples: 'file.examples' };
-/** De vormen van vóór B2 (#765); zonder B2 tekent de app deze. */
-const LUCIDE_ICONS: Record<HighlightIcon, LucideShape> = { import: 'Download', library: 'Library', relations: 'GitBranch', tasks: 'ListTree', examples: 'Boxes' };
 
 async function openExternal(url: string): Promise<boolean> {
   try {
@@ -76,8 +74,8 @@ export function JustUpdatedDialog() {
   const openGuide = (docsId: string) => { close(); openHelpArticleGuarded(docsId); };
   const Highlight = ({ item, primary = false }: { item: ReleaseHighlight; primary?: boolean }) => {
     return <article className={primary ? 'border border-border bg-surface-hover rounded-[12px] p-5 flex gap-4 items-start' : 'border border-border rounded-[10px] p-3 flex gap-3 items-start'}>
-      <Icon id={ICONS[item.icon]} aria-hidden="true" size={primary ? 30 : 18} className="text-text-secondary shrink-0 mt-0.5" lucide={{ icon: LUCIDE_ICONS[item.icon], className: 'text-accent shrink-0 mt-0.5' }} />
-      <div className="min-w-0 flex-1"><p className="!text-small tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-large leading-6 font-semibold mt-1' : 'text-body leading-5 font-semibold'}>{item.title}</h2><p className="text-small leading-5 text-text-secondary mt-1">{item.description}</p>{primary && item.docsId && <button onClick={() => openGuide(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"><Icon id="ui.help" size={13} className="text-text-secondary" lucide={{ className: undefined }} />{t('updates.justUpdated.readGuide')}</button>}</div>
+      <Icon id={ICONS[item.icon]} aria-hidden="true" size={primary ? 30 : 18} className="text-text-secondary shrink-0 mt-0.5" />
+      <div className="min-w-0 flex-1"><p className="!text-small tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-large leading-6 font-semibold mt-1' : 'text-body leading-5 font-semibold'}>{item.title}</h2><p className="text-small leading-5 text-text-secondary mt-1">{item.description}</p>{primary && item.docsId && <button onClick={() => openGuide(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"><Icon id="ui.help" size={13} className="text-text-secondary" />{t('updates.justUpdated.readGuide')}</button>}</div>
     </article>;
   };
 
@@ -102,7 +100,7 @@ export function JustUpdatedDialog() {
           </div>
         )}
         {release && <><Highlight item={release.primary} primary /><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{release.secondary.map(item => <Highlight key={item.title} item={item} />)}</div></>}
-        <button onClick={() => openLink(CHANGELOG_URL)} className="self-start inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline">{t('updates.justUpdated.fullNotes')} <Icon id="link.open-external" size={13} className="text-text-secondary" lucide={{ className: undefined }} /></button>
+        <button onClick={() => openLink(CHANGELOG_URL)} className="self-start inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline">{t('updates.justUpdated.fullNotes')} <Icon id="link.open-external" size={13} className="text-text-secondary" /></button>
         {openError && <p role="alert" className="text-small leading-4 text-danger">{t('updates.justUpdated.openFailed')}</p>}
         {(shownDays !== null || stats?.commitsSincePrevious || stats?.addedCodeLines || sizeDelta !== null) && (
           <section className="border-t border-border pt-4">

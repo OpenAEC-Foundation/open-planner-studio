@@ -205,7 +205,7 @@ export function DocumentTabBar() {
             onClick={() => scrollTabs('start')}
             data-ops-tabstrip-scroll-start
           >
-            <Icon id="tabs.scroll-start" size={16} className="ops-icon-inline-flip" lucide={{ icon: direction === 'rtl' ? 'ChevronRight' : 'ChevronLeft', className: undefined }} />
+            <Icon id="tabs.scroll-start" size={16} className="ops-icon-inline-flip" />
           </button>
           <button
             type="button"
@@ -217,7 +217,7 @@ export function DocumentTabBar() {
             onClick={() => scrollTabs('end')}
             data-ops-tabstrip-scroll-end
           >
-            <Icon id="tabs.scroll-end" size={16} className="ops-icon-inline-flip" lucide={{ icon: direction === 'rtl' ? 'ChevronLeft' : 'ChevronRight', className: undefined }} />
+            <Icon id="tabs.scroll-end" size={16} className="ops-icon-inline-flip" />
           </button>
         </div>
       )}
