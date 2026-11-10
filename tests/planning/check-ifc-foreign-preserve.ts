@@ -899,8 +899,8 @@ await expectRefusal('toevoeging: een pset met de properties in een andere volgor
 }
 
 // ── 5g. O1: na een bewerking mag de uitvoer alleen afwijken waar het domein veranderde ──
-// De writer heeft geen pad waarlangs een bewerking een veld van een ander object laat vallen (eigen zoektocht, PR-body).
-// Daarom hier `lossCheck` zelf, met een O1 waarin één veld anders is: op een taak die de planner niet bewerkte →
+// Buiten het pad van `LiteralTimes` (het blok hieronder) vond de eigen zoektocht geen pad waarlangs een bewerking een
+// veld van een ander object laat vallen (PR-body van #867). Daarom eerst `lossCheck` zelf, met een O1 waarin één veld anders is: op een taak die de planner niet bewerkte →
 // `niet-gedragen` "na de bewerking"; op de taak die hij wel bewerkte, of op haar taaktijd → niets.
 {
   const bytes = enc.encode(eigen);
