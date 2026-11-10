@@ -597,8 +597,28 @@ en noem het in je rapport of PR-tekst.
      `externalLinks.newOpenDocument`). *Bekijken* heet dan nog "Nieuwe versie van {{file}}" (de titel in
      `ExternalSourceReviewDialog.tsx`). Na de fix voor *Later* (review na de ombouw van #860) blijft dit over als de
      planner geen *Later* koos op de gewone balk: de bron is opgeslagen en daarna weer gewijzigd voordat het plan
-     controleerde, of de planner zette een *Accepteren* terug met Ctrl+Z. Voorstel: een neutrale tekst ("De ankers
-     uit het geopende document {{file}} wijken af van je planning.") en een eigen titel voor *Bekijken*. — B
+     controleerde, of de planner zette een *Accepteren* terug met Ctrl+Z. Een derde route (proef Q5 in de tweede
+     review na de ombouw): *Later* op de gewone balk voor v2, dan *Later* op een balk uit het geopende document met
+     een ander anker, dan met Ctrl+Z in de bron terug naar het anker van v2 zonder op te slaan. De balk uit het
+     geopende document komt dan terug met deze tekst, terwijl het verschil uit de opgeslagen v2 komt. Voorstel: een
+     neutrale tekst ("De ankers uit het geopende document {{file}} wijken af van je planning.") en een eigen titel
+     voor *Bekijken*. — B
+1069. **VERVOLG: *Later* op een balk uit een geopend document wist *Later* op een opgeslagen versie.**
+     `dismissExternalSourceUpdate` (`src/state/slices/fileSlice.ts`) zet ook bij een balk uit een geopend document
+     `settledSourceVersions` op `update.version`, en dat is daar de vingerafdruk `open:…`. Proef Q5 (tweede review
+     na de ombouw van #860, Claude Opus 5.5): bron opgeslagen als v2, *Later*; bron gewijzigd naar een ander anker,
+     balk uit het geopende document, weer *Later*; bron met Ctrl+Z terug naar het anker van v2 en gesloten zonder
+     opslaan. Dan komt de balk voor v2 terug, hoewel de planner daar al *Later* koos. De gids zegt dat de balk pas
+     terugkomt bij een volgende versie. Zeldzaam (twee keer *Later* en daarna de wijzigingen weggooien), en B
+     verandert niets zonder klik. Voorstel: `settledSourceVersions` alleen zetten als `update.openDocumentId`
+     ontbreekt, met een test zoals Q5. — B
+1070. **VERVOLG: *Alle externe relaties vernieuwen* kijkt na het lezen opnieuw welke bronnen open zijn.** Sinds de
+     hulpfunctie `readPreferringOpen` (`src/state/slices/fileSlice.ts`) legt de app de geopende documenten niet
+     meer vast vóór `await readExternalProjectSources`; `openDirtySource` kijkt daarna opnieuw. Was een bron aan
+     het begin open met wijzigingen en daarna niet meer (bijv. het vinkje of de bron veranderde tijdens een
+     toestemmingsvraag in de browser), dan telt die bron als niet gelezen, waar de app vroeger de momentopname
+     las. Niet nagespeeld; het gevolg is een eerlijke melding "niet gelezen". Voorstel: de geopende documenten
+     weer vóór de eerste `await` vastleggen. — S
 
 ## Tabel, invoer en bediening
 
