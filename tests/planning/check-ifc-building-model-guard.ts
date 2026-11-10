@@ -10,6 +10,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildImportLabels } from '@/i18n/importLabels';
+import { brokenNameFiles } from './ifcDoelBestanden';
 import nl from '@/i18n/locales/nl/common.json';
 import en from '@/i18n/locales/en/common.json';
 
@@ -62,6 +63,17 @@ async function main(): Promise<void> {
     const spaced = (text: string) => text.replace(/^DATA;$/m, `DATA${sep}('deel 1',('IFC4X3_ADD2'));`);
     eq(`weigert een wand in de enige sectie DATA${JSON.stringify(sep)}(…)`, rejected(spaced(add("#900001=IFCWALL('x',$);"))), true);
     eq(`de enige sectie DATA${JSON.stringify(sep)}(…) zonder model opent met de planning`, readIFC(spaced(planning)).tasks.length, 1);
+  }
+  // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop. Zoals op main: dezelfde planning,
+  // hetzelfde schema, en een wand in de echte sectie geeft de modelweigering.
+  {
+    const showcase = readFileSync(resolve('public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+    const model = readFileSync(resolve('tests/fixtures/ifc-foreign/model-ifc4.ifc'), 'utf8');
+    for (const [[name, text], [, modelText]] of brokenNameFiles(showcase).map((f, i) => [f, brokenNameFiles(model)[i]] as const)) {
+      const parsed = await readIFCWithXerReconstruction(text);
+      eq(`${name}: de planning opent met 20 taken en schema IFC4X3_ADD2`, [parsed.tasks.length, parsed.project.ifcSchema], [20, 'IFC4X3_ADD2']);
+      eq(`${name}: model-ifc4 wordt geweigerd`, rejected(modelText), true);
+    }
   }
   // De echte opgeslagen voorbeelden bewaken context, taken, resources, kalenders en lege modellen.
   for (const file of readdirSync(resolve('public/examples')).filter(f => f.endsWith('.ifc'))) {

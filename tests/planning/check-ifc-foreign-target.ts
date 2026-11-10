@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { installNodeFileIpc } from './nodeFileIpc';
-import { commentFile, paramDataFile, separatedDataFiles, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { brokenNameFiles, commentFile, paramDataFile, separatedDataFiles, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -1098,6 +1098,10 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     // AutoSave schreven over de wand heen.
     ...separatedDataFiles(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
       .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), model: true })),
+    // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam. In ronde 3 gaf de doelcontrole hier "no-model" en
+    // schreven Opslaan als, CSV en AutoSave over het model heen. De eigen planning met zo'n naam blijft een doel.
+    ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), model: true })),
+    ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), model: false })),
   ];
   const cancelled = { ok: true, warnings: [], cancelled: true };
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.

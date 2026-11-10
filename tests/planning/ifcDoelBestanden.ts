@@ -49,3 +49,13 @@ export const separatedDataFiles = (twoData: string): Array<[string, string]> => 
   ['regeleinde', paramDataFile(twoData, '\n')],
   ['gemengd', paramDataFile(twoData, ' ', 'first')],
 ];
+
+/** Sol en Terra (review van #870, ronde 3, BLOKKEERT): een oude, rauw geschreven bestandsnaam met één apostrof en een
+ *  sectiekop-achtige tekst erin. De apostrof draait de stringtoestand om; in ronde 3 werd `DATA (` in de naam de
+ *  sectiekop, en opende een bestaande planning met nul taken, zonder schema en zonder modelweigering. */
+export const brokenNameFiles = (text: string): Array<[string, string]> => [
+  ['naam-spatie', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof DATA (bouw).ifc'")],
+  ['naam-haakje', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't DATA( toren.ifc'")],
+  ['naam-commentaar', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't DATA/*x*/(b.ifc'")],
+  ['naam-puntkomma', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof; DATA (bouw).ifc'")],
+];

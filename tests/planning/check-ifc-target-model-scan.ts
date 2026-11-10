@@ -448,27 +448,30 @@ function oldIndexOfDataSection(content: string): number {
   const anchored = /^[ \t]*DATA;/im.exec(content);
   return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
 }
-/** De oude regel, uitgebreid (review van #870, ronde 1 en 2): streng `DATA`, dan witruimte en `/* … *\/` (de scheiding
- *  van ISO 10303-21), dan `;` of `(`. `DATA;` direct mag ook midden in een woord (zoals altijd); de andere vormen alleen
- *  zonder woordteken (`\w`, `!`) vóór de `D`. Anders regel-verankerd `DATA`, witruimte (ook regeleindes), `;` of `(`.
- *  Geeft begin (de `D`) en leespositie (na de `;`/`(`). Zonder `DATA` gevolgd door witruimte, `/` of `(` is het begin
- *  precies `oldIndexOfDataSection`. */
-function refDataSection(content: string): { at: number; end: number } | null {
-  for (let from = 0; ;) {
-    const at = oldIndexOfCode(content, 'DATA', from);
-    if (at < 0) break;
-    let i = at + 4;
-    for (;;) {
-      if (/[ \t\n\v\f\r]/.test(content[i] ?? '')) { i++; continue; }
-      if (content.startsWith('/*', i)) { const close = content.indexOf('*/', i + 2); if (close < 0) { i = content.length; break; } i = close + 2; continue; }
-      break;
-    }
-    const direct = i === at + 4;
-    const boundary = !/[\w!]/.test(content[at - 1] ?? '');
-    const next = content[i];
-    if ((next === ';' && (direct || boundary)) || (next === '(' && boundary)) return { at, end: i + 1 };
-    from = at + 1;
+/** De tekst zoals de vinder hem op codeniveau ziet, even lang: een string (met de aanhalingstekens) wordt `X`, commentaar
+ *  wordt spaties, en a–z worden hoofdletters (alleen ASCII). Los van de toestandsmachine, met de oude `oldSkip`. */
+function codeView(text: string): string {
+  let out = '';
+  for (let i = 0; i < text.length;) {
+    const skip = oldSkip(text, i);
+    if (skip >= 0) { out += (text[i] === "'" ? 'X' : ' ').repeat(skip - i); i = skip; continue; }
+    const c = text.charCodeAt(i);
+    out += c >= 0x61 && c <= 0x7a ? String.fromCharCode(c - 0x20) : text[i];
+    i++;
   }
+  return out;
+}
+/** De oude regel, uitgebreid (review van #870, ronde 1 tot 3): streng `DATA;` overal (zoals altijd), of direct na
+ *  `ENDSEC;` (witruimte en commentaar ertussen) `DATA`, witruimte en commentaar, dan `;` of `(`. Anders regel-verankerd
+ *  `DATA`, witruimte (ook regeleindes), `;` of `(`. Geeft begin (de `D`) en leespositie (na de `;`/`(`). Zonder `DATA`
+ *  gevolgd door witruimte, `/` of `(` is het begin precies `oldIndexOfDataSection`. */
+function refDataSection(content: string): { at: number; end: number } | null {
+  const view = codeView(content);
+  const direct = view.indexOf('DATA;');
+  const section = /ENDSEC[ \t\n\v\f\r]*;[ \t\n\v\f\r]*(DATA[ \t\n\v\f\r]*[;(])/.exec(view);
+  const sectionAt = section ? section.index + section[0].length - section[1].length : -1;
+  if (direct >= 0 && (sectionAt < 0 || direct < sectionAt)) return { at: direct, end: direct + 5 };
+  if (section) return { at: sectionAt, end: section.index + section[0].length };
   const anchored = /^[ \t]*(DATA)[ \t\n\v\f\r]*[;(]/im.exec(content);
   if (!anchored) return null;
   return { at: anchored.index + anchored[0].toUpperCase().indexOf('DATA'), end: anchored.index + anchored[0].length };
@@ -511,7 +514,8 @@ for (const [label, text] of [
   ['data( in kleine letters', "ISO-10303-21;\nHEADER;\nENDSEC;\ndata(('x'),('IFC4'));\n"],
   ['DATA( na DATA;', "ISO-10303-21;\nENDSEC;\nDATA;\nENDSEC;\nDATA('b',('IFC4'));\n"],
   ['METADATA( en !DATA( in de kop tellen niet', "ISO-10303-21;\nHEADER;\nMETADATA('x');\n!DATA('y');\n_DATA(1);\nENDSEC;\nDATA;\n"],
-  ['*/DATA( na commentaar telt wel', "ISO-10303-21;\n/*c*/DATA('a',('IFC4'));\n"],
+  ['*/DATA( na ENDSEC; en commentaar telt wel', "ISO-10303-21;\nENDSEC;/*c*/DATA('a',('IFC4'));\n"],
+  ['DATA( zonder ENDSEC; ervoor telt niet streng', "ISO-10303-21;\n/*c*/DATA('a',('IFC4'));\n"],
   ['DATA ( met een spatie is een sectiekop', "ISO-10303-21;\nENDSEC;\nDATA ('a');\nDATA;"],
   ['DATA/*x*/( met commentaar is een sectiekop', "ISO-10303-21;\nENDSEC;\nDATA/*x*/('a');\nDATA;"],
   ['DATA, regeleinde, ( is een sectiekop', "ISO-10303-21;\nENDSEC;\nDATA\n  ('a');\nDATA;"],
@@ -522,6 +526,27 @@ for (const [label, text] of [
   ['DATA( in een string telt niet', "ISO-10303-21;\nFILE_NAME('DATA(');\nENDSEC;\nDATA(('a'),('IFC4'));"],
   ['DATA( regel-verankerd na een kapotte kop', "ISO-10303-21;\nFILE_NAME('a);\n  DATA('a',('IFC4'));\n"],
   ['DDATA( en DATADATA(', "ISO-10303-21;\nDDATA( DATADATA( x DATA("],
+  // Ronde 3 (Sol en Terra): een oude, rauw geschreven bestandsnaam met één apostrof draait de stringtoestand om.
+  ['DATA ( in een kapotte bestandsnaam', "ISO-10303-21;\nHEADER;\nFILE_NAME('Van 't Hof DATA (bouw).ifc');\nENDSEC;\nDATA;\n#1=IFCWALL($);\nENDSEC;\n"],
+  ['DATA( in een kapotte bestandsnaam', "ISO-10303-21;\nHEADER;\nFILE_NAME('Van 't DATA( toren.ifc');\nENDSEC;\nDATA;\n"],
+  ['DATA/*x*/( in een kapotte bestandsnaam', "ISO-10303-21;\nHEADER;\nFILE_NAME('Van 't DATA/*x*/(b.ifc');\nENDSEC;\nDATA;\n"],
+  ['DATA ( na een ; die geen ENDSEC; is', "ISO-10303-21;\nHEADER;\nFILE_NAME('a 't; DATA (b)');\nENDSEC;\nDATA;\n"],
+  ['ENDSEC/**/;/**/DATA (', "ISO-10303-21;\nHEADER;\nENDSEC/**/;/**/DATA ('a');\n"],
+  ['END/**/SEC; is geen ENDSEC;', "ISO-10303-21;\nHEADER;\nEND/**/SEC;\nDATA ('a');\nDATA;"],
+  ['END SEC; is geen ENDSEC;', "ISO-10303-21;\nX;END SEC; DATA ('a'); DATA;"],
+  ['ENDSENDSEC; telt als ENDSEC;', "ISO-10303-21;\nENDSENDSEC; DATA ('a');"],
+  ['endsec ; in kleine letters', "ISO-10303-21;\nendsec ;\n data\t('a');"],
+  ['ENDSEC; X DATA ( telt niet', "ISO-10303-21;\nENDSEC; X DATA ('a'); DATA;"],
+  ["ENDSEC;'x' DATA ( telt niet", "ISO-10303-21;\nENDSEC;'x' DATA ('a'); DATA;"],
+  ['ENDSEC; / DATA ( telt niet', "ISO-10303-21;\nENDSEC; / DATA ('a'); DATA;"],
+  // Ronde 3 (Sol): een losse regel `DATA` mag de echte sectiekop op de volgende regel niet verbergen.
+  ['DATA, regeleinde, DATA;', "ISO-10303-21;\nFILE_NAME('a);\nDATA\nDATA;\n#9=IFCWALL($);\nENDSEC;\n"],
+  ['DATA, CRLF, ingesprongen DATA;', "ISO-10303-21;\r\nFILE_NAME('a);\r\n  DATA \r\n\t DATA;\r\n"],
+  ['DATA, twee regeleindes, DATA(', "ISO-10303-21;\nFILE_NAME('a);\nDATA\n\n DATA('a');\n"],
+  ['DATA, regeleinde, \\v DATA; (geen regelbegin)', "ISO-10303-21;\nFILE_NAME('a);\nDATA\n\vDATA;\n"],
+  ['DATA, regeleinde, \\v, regeleinde, DATA;', "ISO-10303-21;\nFILE_NAME('a);\nDATA\n\v\nDATA;\n"],
+  ['DATA, regeleinde, ENDSEC, regeleinde, DATA;', "ISO-10303-21;\nFILE_NAME('a);\nDATA\nENDSEC\nDATA;\n"],
+  ['DATA, U+2028, DATA;', "ISO-10303-21;\nFILE_NAME('a);\nDATA\n\u2028DATA;\n"],
 ] as const) sameDataSection(label, enc.encode(text));
 sameDataSection('een BOM vooraan', new Uint8Array([0xef, 0xbb, 0xbf, ...enc.encode("'\nDATA;")]));
 sameDataSection('ongeldige UTF-8 vóór DATA;', new Uint8Array([0x27, 0xe2, 0x80, 0x0a, 0xff, 0x0a, ...enc.encode('DATA;')]));

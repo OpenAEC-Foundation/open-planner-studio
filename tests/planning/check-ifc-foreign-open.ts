@@ -18,7 +18,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
-import { paramDataFile, separatedDataFiles } from './ifcDoelBestanden';
+import { brokenNameFiles, paramDataFile, separatedDataFiles } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -152,6 +152,16 @@ for (const [name, bytes] of [
   const reference = await open(false, name, enc.encode(ownPartText(bytes)));
   ok(`${name}: het eigen deel opent zonder flag`, opened(reference, name));
   eq(`${name} met flag: dezelfde planning als de lezer op het eigen deel`, sha(saved(on)), sha(saved(reference)));
+}
+// Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop; het model blijft herkend. De scanner
+// van de flag weigert een tekst met één apostrof (`tekst-zonder-einde`) en valt terug op de gewone route: ook dan geweigerd.
+for (const [name, text] of brokenNameFiles(dec(eigenPlus))) {
+  for (const flag of [false, true]) {
+    const store = await open(flag, `eigen-plus-${name}.ifc`, enc.encode(text));
+    ok(`eigen-plus-${name} ${flag ? 'met' : 'zonder'} flag: geweigerd`, !opened(store, name));
+    ok(`eigen-plus-${name} ${flag ? 'met' : 'zonder'} flag: de modelweigering`,
+      String(store.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+  }
 }
 {
   // `eigen-plus-model` is `showcase-verbouwing-eengezinswoning.ifc` plus een model: dezelfde planning als de bron alleen.
