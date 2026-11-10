@@ -1733,7 +1733,9 @@ en noem het in je rapport of PR-tekst.
      run 42768996301, 150 MB merge 6,8 s (piek 953 MB), 300 MB merge 13,0 s (piek 1673 MB). Een profiel van één merge van
      50 MB (lokaal, 3,2 s) geeft 1,6 s aan `scanStep` en `classify`, en ongeveer 0,45 s aan O0 (`pristineDomain` 0,11 s,
      een tweede `buildLines` 0,24 s, de vergelijking 0,09 s). Richting: de index van het openen bewaren of de klassen uit
-     `ifcSource` hergebruiken, en alleen de stukken parsen die de merge leest. Uit #867 (fase 1b). — B
+     `ifcSource` hergebruiken, en alleen de stukken parsen die de merge leest. **Eis voor 1c** (wrakko, 10 november
+     2026): 13 s en een piek van 1,7 GB bij 300 MB is te veel voor een tabblad in de browser; doel ongeveer het niveau van
+     ronde 1 (merge 6,7 s, piek 1,2 GB bij 300 MB). Uit #867 (fase 1b). — B
 
 1022. **VERVOLG: auteur of bedrijf wijzigen geeft `merge-needs-phase2` als de eerste owner history gedeeld is.** Met de flag
      aan, een eigen project (P) en een owner history die ook vreemde stukken gebruiken (C), leest de lezer auteur en

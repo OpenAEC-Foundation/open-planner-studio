@@ -68,6 +68,11 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
    op de bytes-route auteur en bedrijf lezen uit de owner history van het IfcProject of het werkplan (die schrijft de
    writer zelf). Zolang de planner bij een eigen bestand met een model zijn auteur niet kan wijzigen, gaat opslaan niet
    aan. Anders is 1c niet klaar.
+   **Eis voor 1c** (wrakko, 10 november 2026; knownbug 1021): de merge mag de bron niet bij elke merge opnieuw scannen;
+   bij 300 MB terug naar ongeveer het niveau van ronde 1 van #867 (merge 6,7 s, piek 1,2 GB; na fixronde 2 13,0 s en
+   1,7 GB). Anders is 1c niet klaar.
+   **Bij voorkeur in 1c** (wrakko, 10 november 2026; knownbug 1023, VERVOLG): stabiele GlobalIds voor onze eigen
+   hulpstukken (`OPS_Resource` en de andere psets en relaties); het is onze eigen writer.
 
 ## Werk
 
@@ -98,6 +103,17 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
 - 2026-11-10: #864 gemerged in main door wrakko: `14f979755` (`--admin --match-head-commit 24ef9cca5`). Branch
   `feat/804-fase1b-schrijven` vanaf die commit, worktree `/home/aia09/.t3/worktrees/open-planner-studio/feat-804-fase1b`
   (`node_modules`: link naar `kb-tests/node_modules`, package-lock gelijk op het versienummer na).
+- 2026-11-10: #867 rondes 1 en 2: Sol nee, Terra nee; fixronde 1 (verliesbewaking tegen de bron, regel in de kop van
+  `mergeWriter.ts`; het oude losse `IfcProject` wordt C, besluit 9 november; het akkoord "wordt P" is ingetrokken) en
+  fixronde 2 (leesverliestoets O0 in plaats van vrijstellingen). Telling na fixronde 2: 23 van 26 eigen bestanden met
+  model weigeren zonder bewerking (`niet-gedragen`, 775 meldingen; vooral GlobalIds van hulpstukken, knownbug 1023, en
+  oude writer-waarden, knownbug 1024).
+- 2026-11-10: besluiten van wrakko na fixronde 2: (1) GlobalIds van eigen hulpstukken mogen wijzigen als benoemde soort
+  (§4.10), als de toets zelf nagaat dat het stuk P is en geen vreemd stuk ernaar wijst; (2) het slotdeel van
+  `sourceSlots` gaat naar fase 1 (in 1b gebouwd): de bronwaarde van een P-slot blijft staan als de planner dat veld niet
+  wijzigde; O0 blijft de toets; `jsonExtras`, `unusedKeys` en `detached` blijven in fase 2; (3) lay-out, schrijfvelden en
+  toevoegingen mogen, smal; een wegvallend argument alleen als het `$` was of uit andere velden volgt; (4) het pad van
+  `LiteralTimes`: nagaan of een gewone opslag het ook doet, dan een eigen knownbug buiten #804.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
