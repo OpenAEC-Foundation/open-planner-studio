@@ -7,6 +7,9 @@
 //      gaan ze naar 07:00: zo is te zien dat de check de bug vangt;
 //   2. over sessies heen: het opgeslagen bestand opnieuw openen geeft dezelfde letterlijke kalender, ook na nog een keer
 //      opslaan en openen (dan is opslaan byte-gelijk);
+//   4. een extensie die het project ongewijzigd terugzet (`loadExtensionProject`, lees-wijzig-laad) houdt de keuze;
+//   5. IFC Toepassen met een tekst zonder `LiteralTimes` wist de keuze, en undo en redo zetten haar mee terug
+//      (review #872 ronde 1, Sol en Terra);
 //   3. zonder bewerking verandert het veld niets: voor elk voorbeeld in `public/examples/` en `examples/` is opslaan met
 //      en zonder het veld byte-gelijk, en een voorbeeld zonder `LiteralTimes` krijgt geen veld.
 // Exit 0 = alles groen.
@@ -24,6 +27,9 @@ console.warn = () => {};
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
+const { readIFC } = await import('@/services/ifc/ifcReader');
+const { loadExtensionProject } = await import('@/extensions/retainActiveDocument');
+const { toExtProject, toExtCalendar, toExtTask, toExtSequence, toExtResource, toExtAssignment } = await import('@/extensions/extMappers');
 type Store = ReturnType<typeof createAppStoreContext>['store'];
 
 let checks = 0;
@@ -90,6 +96,44 @@ function finishes(ifc: string): Map<string, string[]> {
   const third = await open('1026-na-2.ifc', second);
   eq('1026, tweede keer heropend: de kalender is letterlijk en opslaan is byte-gelijk',
     [third.getState().ifcLiteralCalendarIds, save(third) === second], [['cal-default'], true]);
+}
+
+// ── 4 en 5. De keuze gaat niet verloren onderweg ──────────────────────────────────────────────────────────────────
+const LITERAL = "IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$)";
+const earthworksFinish = (store: Store) => finishes(save(store)).get('2. Earthworks & foundations')?.[0];
+const deletePrep = (store: Store) => store.getState().deleteTask(store.getState().tasks.find(t => t.name === '1. Preparation')!.id);
+{
+  // 4. Extensie: lees-wijzig-laad van hetzelfde project, zonder wijziging. Het publieke contract draagt de keuze niet.
+  const voor = readFileSync(join(ROOT, 'tests/planning/fixtures/1026-voor.ifc'), 'utf8');
+  const store = await open('1026-ext.ifc', voor);
+  const S = () => store.getState();
+  deletePrep(store);
+  const s = S();
+  loadExtensionProject(store, {
+    project: toExtProject(s.project), calendar: toExtCalendar(s.calendar), tasks: s.tasks.map(x => toExtTask(x)),
+    sequences: s.sequences.map(toExtSequence), resources: s.resources.map(toExtResource), assignments: s.assignments.map(toExtAssignment),
+  });
+  eq('4 extensie: de keuze blijft na een ongewijzigde lees-wijzig-laad', S().ifcLiteralCalendarIds, ['cal-default']);
+  eq('4 extensie: "2. Earthworks & foundations" blijft op 16:00', earthworksFinish(store), "'2027-03-05T16:00:00'");
+}
+{
+  // 5. IFC Toepassen: de tekst zonder LiteralTimes leest terug zonder keuze; undo en redo zetten haar mee terug.
+  const voor = readFileSync(join(ROOT, 'tests/planning/fixtures/1026-voor.ifc'), 'utf8');
+  const store = await open('1026-apply.ifc', voor);
+  const S = () => store.getState();
+  const text = save(store);
+  eq('5 voorwaarde: de opgeslagen tekst draagt LiteralTimes', text.includes(LITERAL), true);
+  const edited = readIFC(text.split(LITERAL).join("IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.F.),$)"));
+  eq('5 voorwaarde: de bewerkte tekst heeft geen letterlijke kalender', edited.ifcLiteralCalendarIds, undefined);
+  S().applyProjectEdit(edited);
+  eq('5 Toepassen: de keuze volgt de tekst', S().ifcLiteralCalendarIds, null);
+  S().undo();
+  eq('5 undo: de keuze is terug', S().ifcLiteralCalendarIds, ['cal-default']);
+  S().redo();
+  eq('5 redo: de keuze volgt weer de tekst', S().ifcLiteralCalendarIds, null);
+  S().undo();
+  deletePrep(store);
+  eq('5 undo, dan wissen: "2. Earthworks & foundations" blijft op 16:00', earthworksFinish(store), "'2027-03-05T16:00:00'");
 }
 
 // ── 3. Zonder bewerking verandert het veld niets ──────────────────────────────────────────────────────────────────

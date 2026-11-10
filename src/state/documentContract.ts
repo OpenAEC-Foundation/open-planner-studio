@@ -140,8 +140,9 @@ export interface DocumentPayload {
    *  af. Dat is de veilige richting: een letterlijke kalender schrijft elk moment met zijn echte tijd, en v2026.9.0
    *  leest die zoals hij ze altijd las. Een bestand zonder `LiteralTimes` blijft byte-gelijk. Omdat de writer de
    *  eigenschap weer schrijft, staat ze na opslaan en heropenen opnieuw in het bestand: de keuze blijft zo ook over
-   *  sessies heen, zonder eigen pset. Niet in undo (`snapshot: 'none'`): een bewerking verandert hem niet. */
-  ifcLiteralCalendarIds: readonly string[] | null;
+   *  sessies heen, zonder eigen pset. In undo (`snapshot: 'data'`), net als `ifcGlobalIds`: IFC Toepassen vervangt hem
+   *  met de toegepaste tekst, en undo moet de keuze dan samen met de kalenders terugzetten (review #872 ronde 1). */
+  ifcLiteralCalendarIds: string[] | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -339,7 +340,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
   field({ key: 'ifcGlobalIds', get: (s) => s.ifcGlobalIds, set: (s, v) => { s.ifcGlobalIds = v; }, fresh: () => null, snapshot: 'data', fromPayload: (p) => p.ifcGlobalIds ?? null }),
   // Knownbug 1026: de kalenders die letterlijk waren bij het openen blijven letterlijk (zie `DocumentPayload`).
-  field({ key: 'ifcLiteralCalendarIds', get: (s) => s.ifcLiteralCalendarIds, set: (s, v) => { s.ifcLiteralCalendarIds = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcLiteralCalendarIds ?? null }),
+  field({ key: 'ifcLiteralCalendarIds', get: (s) => s.ifcLiteralCalendarIds, set: (s, v) => { s.ifcLiteralCalendarIds = v; }, fresh: () => null, snapshot: 'data', fromPayload: (p) => p.ifcLiteralCalendarIds ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je

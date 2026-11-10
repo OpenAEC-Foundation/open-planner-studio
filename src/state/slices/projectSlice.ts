@@ -131,7 +131,7 @@ export interface ProjectSlice {
   /** Zie `DocumentPayload.ifcGlobalIds`. */
   ifcGlobalIds: Readonly<Record<string, string>> | null;
   /** Zie `DocumentPayload.ifcLiteralCalendarIds` (knownbug 1026). */
-  ifcLiteralCalendarIds: readonly string[] | null;
+  ifcLiteralCalendarIds: string[] | null;
   /** Metadata van het project, als één undo-stap. Een `ifcSchema` in de patch gaat eerst via
    *  `setIfcSchema` (geen undo-stap, zie `state/ifcSchemaChoice.ts`). */
   setProject: (project: Partial<Project>) => void;

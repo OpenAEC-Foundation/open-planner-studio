@@ -358,6 +358,8 @@ in, en een ander programma las ze negen uur te vroeg. Nu levert `readIFC` de kal
 (`ImportResult.ifcLiteralCalendarIds`), en blijft zo'n kalender bij elke opslag letterlijk. Omdat de writer de
 eigenschap weer schrijft, geldt dat ook na heropenen. Dit wijkt alleen in de veilige richting af van T17: een
 letterlijke kalender schrijft elk moment met zijn echte tijd. Een bestand zonder `LiteralTimes` blijft byte-gelijk.
+De keuze reist mee bij documentwissel, kopie, crashherstel en een extensie die het project terugzet, en staat in
+undo: IFC Toepassen leest haar opnieuw uit de tekst, en undo zet haar samen met de kalenders terug.
 Toets: `check-ifc-literaltimes-behoud.ts`.
 
 ## Lopend op 100 %: `IfcTask.Status`
