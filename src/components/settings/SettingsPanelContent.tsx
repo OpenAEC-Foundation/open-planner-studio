@@ -16,7 +16,7 @@ import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
-import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
+import { experimentalToggleFlags, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
 import { AppLogo } from '@/components/common/AppLogo';
 
@@ -84,7 +84,7 @@ export function SettingsPanelContent() {
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
   const featureFlags = useAppStore(s => s.ui.featureFlags);
-  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.hidden && !flag.writesNewIfcData);
+  const availableFlags = experimentalToggleFlags();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const versionRef = useRef<HTMLButtonElement>(null);

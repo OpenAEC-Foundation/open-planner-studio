@@ -350,12 +350,14 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
   removes its flag and the corresponding checks.
+  Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik en houd het versienummer vast).
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
   before reporting a "new" bug.
+  Each session that writes knownbugs gets its own block of 50 numbers from wrakko at the start, and uses only numbers from that block. When the block is full, ask wrakko for the next one.
 - **User-visible feature ⇒ guide** in `public/docs/{nl,en}/` plus a manifest entry (recipe
   `docs/recepten/in-app-gids.md`). You write `nl` + `en` (the sources, required), organised by Diátaxis (`kind`:
   `howto`, `uitleg`, `referentie`; the tutorials ship as an extension); the other locales come from the translation
