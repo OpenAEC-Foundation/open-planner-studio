@@ -218,7 +218,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   with `scripts/ifc-product-types.py`. Edit the separate planning file, then merge externally.
   `readIFC` and the save-target check read the whole file with the ISO 10303-21 grammar
   (`src/services/ifc/stepFileGrammar.ts`); without the flag below, a model type it sees refuses, also before the point
-  where a file breaks (with the flag the bytes route skips it: knownbug 1151).
+  where a file breaks (with the flag the bytes route runs it on the text the reader gets, without the
+  model part V).
   Otherwise `readIFC` reads only the first data section: the first `DATA;` up to the first `ENDSEC;`. The save-target
   check runs only with the flag `ifcForeignContent`: then a target that breaks the grammar or has more than one data
   section refuses, except a file OPS wrote itself (old versions wrote a raw header).

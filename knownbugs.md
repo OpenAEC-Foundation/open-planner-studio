@@ -1821,8 +1821,10 @@ en noem het in je rapport of PR-tekst.
      - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
      Sinds #870 leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen volgens
      de norm. Ziet zij een modeltype, dan weigert `readIFC`; verder opent `readIFC` precies zoals main (besluit Trias,
-     review van #870 ronde 10). Gemeten op de tak, zonder de flag `ifcForeignContent`. Met de flag weigert de wand na
-     `*⏎/` sinds de fix van voormalig knownbug 1151 ook; de andere vormen zijn met de flag niet nagemeten:
+     review van #870 ronde 10). Gemeten op de tak, zonder de flag `ifcForeignContent`. Met de flag is de uitkomst sinds
+     de fix van voormalig knownbug 1151 (#881) gelijk, gemeten in de review van #881: de modelweigering draait dan op de
+     tekst die de lezer krijgt. Eén uitzondering: een wand die vóór een V-stuk staat, zit in de bytes van dat V-stuk en
+     opent met de flag (knownbug 1100):
       - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken, zoals main;
@@ -1831,6 +1833,18 @@ en noem het in je rapport of PR-tekst.
       - blijft: een kapot bestand leest precies zoals main, met dezelfde lexer.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken. Uit #870 (review ronde 6,
      GPT-6.1-Sol en GPT-6.1-Terra; eigen knownbug op verzoek van Trias). — B
+
+1100. **VERVOLG: met de flag opent een verstopte wand vóór een V-stuk nog.** De scanner hangt commentaar vóór een
+     entiteit aan het volgende stuk (`src/services/ifc/foreign/stepScanner.ts`, kop), en `readerBytes`
+     (`src/services/ifc/foreign/ifcBytesRoute.ts`) laat de V-stukken weg uit de tekst voor de lezer. Staat
+     `/* a *⏎/ #999999=IFCWALL(…); /* b */` vlak vóór een V-stuk, dan ziet de grammatica de wand niet. Gemeten in de review
+     van #881: `eigen-plus-model.ifc` met de wand vóór `#324` (V) weigert zonder flag en opent met de flag (20 taken, vreemd
+     deel); `fix3-twee-data.ifc` met de wand na het tweede `DATA;` opent met de flag (57 taken). Geen dataverlies in fase
+     1a: de wand zit in de V-bytes, die de bron letterlijk bewaart, en met een vreemd deel is elke write geblokkeerd.
+     VERMOED (midden): fase 1b/1c moet weten dat V-bytes entiteiten kunnen bevatten die de scanner niet ziet; hun `#id`
+     staat niet in `chunkIds`, dus een nieuw `#id` van de writer kan ermee botsen. Richting: een test die dit gedrag
+     vastlegt (opent, bron met vreemd deel, wand in de bytes), en in 1b/1c de hoogste `#id` uit de volledige grammatica
+     nemen. Uit #881 (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
 1052. **VERVOLG: een bestand van een ander programma dat zich uitgeeft als OPS, valt onder de regel van main.** De
      doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) herkent een eigen bestand aan de vaste kop van OPS en
