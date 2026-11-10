@@ -23,6 +23,7 @@ import { IfcParseError } from './ifcErrors';
 import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { indexOfStepDataSection, stepFileLayout, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
+import { stepEntitySignature } from './stepFileGrammar';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
@@ -192,15 +193,18 @@ export function readIFC(
 ): ImportResult {
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
-  const { entities, gramModel, dataAt } = parseSTEP(content);
+  const buildingModel = () => new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
+    'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
+  // Review van #870, ronde 8 (Terra): een kapot bestand zonder datasectie volgens main, met een modeltype dat de
+  // grammatica vóór de breuk zag: dat is een model, geen "geen datasectie".
+  const { entities, gramModel, dataAt } = parseSTEP(content, options.skipBuildingModelGuard ? undefined : buildingModel);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
   // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar. Past het hele bestand in de
   // grammatica (`stepFileGrammar.ts`, #870), dan telt ook een modeltype dat de grammatica zag: in een complexe
   // instantie, of na een string die de lus hieronder anders leest (knownbug 1050).
   if (!options.skipBuildingModelGuard && (gramModel || entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type)))) {
-    throw new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
-      'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
+    throw buildingModel();
   }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
@@ -940,6 +944,7 @@ const CH_LPAREN = 40;  // (
 const CH_RPAREN = 41;  // )
 const CH_SEMI = 59;    // ;
 const CH_EQ = 61;      // =
+const CH_E = 69;       // E
 
 /** Woordteken (`\w`): letters, cijfers, `_`. */
 function isWordCode(c: number): boolean {
@@ -1116,7 +1121,7 @@ function indexOfDataSection(content: string): number {
 // stroomlezer (ze werken op de hele tekst, met terugspringen).
 // `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
 // Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, alle DATA-secties), wijzig ze daar ook.
-function parseSTEP(content: string): { entities: StepEntity[]; gramModel: boolean; dataAt: number } {
+function parseSTEP(content: string, modelError?: () => Error): { entities: StepEntity[]; gramModel: boolean; dataAt: number } {
   const entities: StepEntity[] = [];
   // 1. Begin van de datasectie (`DATA;` of `DATA(…);`, ook met witruimte of commentaar ertussen; `stepDataSection.ts`)
   //    — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee. De lus begint direct na de `;` van de kop:
@@ -1127,6 +1132,7 @@ function parseSTEP(content: string): { entities: StepEntity[]; gramModel: boolea
   // Geen sectiegrens ⇒ getypeerde fout, GEEN leeg resultaat. `openFile`/`useRecoveryRestore` tonen
   // dan de leesfout in plaats van een leeg document te openen bovenop het pad van de gebruiker.
   if (!data) {
+    if (layout.model && modelError) throw modelError();
     throw new IfcParseError(
       'no-data-section',
       "Onleesbaar IFC-bestand: de verplichte 'DATA;'-sectiegrens ontbreekt.",
@@ -1153,10 +1159,23 @@ function parseSTEP(content: string): { entities: StepEntity[]; gramModel: boolea
       i = next > 0 ? next : i + 1;
       continue;
     }
+    // Review van #870, ronde 8 (Terra): breekt het bestand, dan precies main, dus ook stoppen bij de eerste `ENDSEC;`.
+    if (!data.grammar && c === CH_E && clean.startsWith('ENDSEC;', i)) break;
     i++;
   }
 
-  return { entities, gramModel: layout.valid && layout.model, dataAt: data.at };
+  // Review van #870, ronde 8 (Terra): past het hele bestand in de grammatica, dan moet de lus dezelfde entiteiten lezen
+  // (nummer en type, in volgorde). Een regeleinde midden in een token (§5.6) of `\S\'` in een string (§6.4.3) leest de
+  // lus anders; dan zou openen stil een taak verliezen. Weigeren. Een model gaat voor: dat weigert `readIFC` zelf.
+  if (layout.valid && !layout.model
+    && (entities.length !== layout.entities || stepEntitySignature(entities) !== layout.entitySignature)) {
+    throw new IfcParseError(
+      'unreadable-entities',
+      'Onleesbaar IFC-bestand: de app leest niet elke entiteit zoals de norm (ISO 10303-21) haar beschrijft.',
+    );
+  }
+
+  return { entities, gramModel: layout.model, dataAt: data.at };
 }
 
 /**

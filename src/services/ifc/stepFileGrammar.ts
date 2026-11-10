@@ -85,9 +85,9 @@ for (const type of IFC_BUILDING_MODEL_TYPES) {
 }
 
 /** Lexicale toestand. */
-const enum Lex { Code, Word, Str, StrQuote, StrBack, StrBackS, StrBackSBack, Bin, Uri, Slash, Comment, CommentStar, Back, BackLetter }
+const enum Lex { Code, Word, Str, StrQuote, StrBack, StrBackS, StrBackSBack, BinFirst, Bin, Uri, Slash, Comment, CommentStar, Back, BackLetter }
 /** Waar in het bestand de grammatica is. */
-const enum Sec { Start, Pre, Header, Between, Anchor, Data, End }
+const enum Sec { Start, Pre, Header, Between, Anchor, Reference, Data, End }
 /** Waar in het statement de grammatica is. */
 const enum P {
   /** Begin van een statement. */
@@ -116,8 +116,10 @@ const enum P {
   ComplexSemi,
   /** In een ANCHOR- of REFERENCE-sectie na de naam: `=`. */
   AnchorEq,
-  /** In een ANCHOR- of REFERENCE-sectie na `=`: haakjes tot de `;`. */
+  /** In een ANCHOR-sectie na `=`: haakjes tot de `;` (geen getypeerde waarde; een sleutelwoord alleen als tag na `{`). */
   AnchorVal,
+  /** In een REFERENCE-sectie na `=`: precies één URI (`<…>`), dan `;`. */
+  RefVal,
 }
 /** In een parameterlijst: wat er na het vorige token mag komen. */
 const enum X { ValueOrClose, Value, AfterKeyword, Sep }
@@ -137,10 +139,13 @@ export class StepFileGrammar {
   model = false;
   /** Waar het bestand brak (het teken dat niet paste), of -1. */
   failedAt = -1;
+  /** Review van #870, ronde 8 (Terra): de enkelvoudige entiteiten in de datasecties, als aantal en als handtekening over
+   *  nummer en type in volgorde (`stepEntitySignature`). `readIFC` vergelijkt ze met wat `parseSTEP` las. */
+  entities = 0;
+  entitySignature = FNV_OFFSET;
 
   private result: StepGrammarState = 'running';
   private lex = Lex.Code;
-  private sec: Sec;
   private p = P.Stmt;
   private x = X.ValueOrClose;
   // ── Het woord dat nu gelezen wordt ──
@@ -148,6 +153,8 @@ export class StepFileGrammar {
   private wordLength = 0;
   private wordAt = -1;
   private wordHash = FNV_OFFSET;
+  /** De hash van het nummer (`#n`) van de entiteit die nu gelezen wordt. */
+  private instanceHash = 0;
   /** De lexer leest een woord na `\` of een `/` die geen commentaar werd: die tekens zijn geen scheiding. */
   private lexBack = Lex.Code;
   // ── Statement ──
@@ -161,17 +168,17 @@ export class StepFileGrammar {
   private dataHeadK = 0;
   private dataHeadAt = -1;
   private anchorDepth = 0;
+  /** Na `{` in een anker: de naam van de tag (een sleutelwoord). */
+  private anchorTag = false;
+  /** Review van #870, ronde 8 (Sol): de volgorde van de secties (tabel 3): 0 na de kop, 1 na ANCHOR, 2 na REFERENCE,
+   *  3 na een datasectie. ANCHOR en REFERENCE staan hoogstens één keer, vóór de eerste datasectie. */
+  private stage = 0;
   // ── BOM ──
   private bom = 0;
+  private sec = Sec.Start;
 
-  /**
-   * `utf8`: de tekens zijn UTF-8-bytes, anders UTF-16-code-eenheden. `fromData`: begin midden in een datasectie, direct
-   * na de `;` van de DATAKOP (de route voor een oud eigen bestand met een kapotte kop, `targetModelScan.ts`).
-   */
-  constructor(private readonly utf8: boolean, fromData = false) {
-    this.sec = fromData ? Sec.Data : Sec.Start;
-    if (fromData) this.bom = -1;
-  }
+  /** `utf8`: de tekens zijn UTF-8-bytes, anders UTF-16-code-eenheden. */
+  constructor(private readonly utf8: boolean) {}
 
   get state(): StepGrammarState { return this.result; }
   get failed(): boolean { return this.result === 'failed'; }
@@ -252,8 +259,15 @@ export class StepFileGrammar {
       case Lex.StrBackSBack:
         this.lex = Lex.Str; // het teken na `\S\` hoort bij de string, ook een `'`
         return;
+      // Review van #870, ronde 8 (Sol): binair is `"` met een cijfer 0–3 en dan hexadecimale cijfers (tabel 2). Een ander
+      // teken breekt het bestand; anders verstopte `"…"` een wand.
+      case Lex.BinFirst:
+        if (c < 0x30 || c > 0x33) { this.fail(at); return; }
+        this.lex = Lex.Bin;
+        return;
       case Lex.Bin:
-        if (c === DQUOTE) this.lex = Lex.Code;
+        if (c === DQUOTE) { this.lex = Lex.Code; return; }
+        if (!isDigit(c) && (c < 0x41 || c > 0x46)) this.fail(at);
         return;
       case Lex.Uri:
         if (c === GT) this.lex = Lex.Code;
@@ -306,9 +320,14 @@ export class StepFileGrammar {
       case SLASH: this.lexBack = Lex.Code; this.lex = Lex.Slash; return;
       case BACKSLASH: this.lexBack = Lex.Code; this.lex = Lex.Back; return;
       case QUOTE: this.lex = Lex.Str; this.atom(at); return;
-      case DQUOTE: this.lex = Lex.Bin; this.atom(at); return;
+      case DQUOTE: this.lex = Lex.BinFirst; this.atom(at); return;
       case LT: this.lex = Lex.Uri; this.atom(at); return;
       case OPEN: case CLOSE: case COMMA: case SEMI: case EQUALS: this.punct(c, at); return;
+      // Een tag bij een anker (`<a> = #1{x:'y'};`, §9.2): binnen de waarde van een anker tellen alleen de haakjes.
+      case 0x7b: case 0x7d: case 0x3a:
+        if (this.sec !== Sec.Anchor || this.p !== P.AnchorVal) { this.fail(at); return; }
+        if (c === 0x7b) this.anchorTag = true;
+        return;
       default: this.fail(at); // niet-ASCII of een teken dat nergens past
     }
   }
@@ -390,8 +409,12 @@ export class StepFileGrammar {
     switch (this.p) {
       case P.Stmt:
         if (kind === W.Keyword) { this.statementKeyword(at); return; }
-        if (kind === W.Name && this.word[0] === HASH && this.sec === Sec.Data) { this.p = P.InstEq; return; }
-        if (kind === W.Name && this.sec === Sec.Anchor) { this.p = P.AnchorEq; return; }
+        if (kind === W.Name && this.word[0] === HASH && this.sec === Sec.Data) {
+          this.instanceHash = this.wordHash;
+          this.p = P.InstEq;
+          return;
+        }
+        if (kind === W.Name && this.sec === Sec.Reference) { this.p = P.AnchorEq; return; } // `#n = <uri>;`
         this.fail(at);
         return;
       case P.Params:
@@ -402,11 +425,21 @@ export class StepFileGrammar {
         if (kind !== W.Keyword) { this.fail(at); return; }
         if (this.isModelWord()) this.model = true;
         if (this.p === P.ComplexNext) this.complexParts++;
-        else this.complexParts = -1; // enkelvoudig
+        else {
+          this.complexParts = -1; // enkelvoudig
+          this.entities++;
+          this.entitySignature = signatureStep(this.entitySignature, this.instanceHash, this.wordHash);
+        }
         this.p = P.RecOpen;
         return;
       case P.AnchorVal:
-        return; // alleen de haakjes tellen
+        // Review van #870, ronde 8 (Sol): een ankerwaarde is geen getypeerde waarde (`IFCWALL(…)`). Een sleutelwoord
+        // alleen als naam van een tag (`{x:…}`).
+        if (kind === W.Keyword) {
+          if (!this.anchorTag) { this.fail(at); return; }
+          this.anchorTag = false;
+        }
+        return;
       default:
         this.fail(at);
     }
@@ -438,11 +471,13 @@ export class StepFileGrammar {
         this.p = P.HeadOpen;
         return;
       case Sec.Between:
-        if (this.wordIs('DATA')) { this.p = P.DataHead; this.dataHeadK = -1; this.dataHeadAt = at; return; }
-        if (this.wordIs('ANCHOR') || this.wordIs('REFERENCE')) { this.semi(Sec.Anchor); return; }
+        if (this.wordIs('DATA')) { this.stage = 3; this.p = P.DataHead; this.dataHeadK = -1; this.dataHeadAt = at; return; }
+        if (this.wordIs('ANCHOR') && this.stage === 0) { this.stage = 1; this.semi(Sec.Anchor); return; }
+        if (this.wordIs('REFERENCE') && this.stage <= 1) { this.stage = 2; this.semi(Sec.Reference); return; }
         if (this.wordIs('END-ISO-10303-21')) { this.semi(Sec.End); return; }
         break;
       case Sec.Anchor:
+      case Sec.Reference:
       case Sec.Data:
         if (this.wordIs('ENDSEC')) { this.semi(Sec.Between); return; }
         break;
@@ -461,6 +496,8 @@ export class StepFileGrammar {
   private atom(at: number): void {
     switch (this.p) {
       case P.Params:
+        // Review van #870, ronde 8 (Sol): een URI is geen parameter (alleen in ANCHOR en REFERENCE, tabel 3).
+        if (this.lex === Lex.Uri) break;
         if (this.x === X.Value || this.x === X.ValueOrClose) { this.value(); this.x = X.Sep; return; }
         break;
       case P.DataHead:
@@ -470,6 +507,11 @@ export class StepFileGrammar {
         if (this.sec === Sec.Anchor && this.lex === Lex.Uri) { this.p = P.AnchorEq; return; } // `<naam> = …`
         break;
       case P.AnchorVal:
+        if (this.anchorTag) break;
+        return;
+      case P.RefVal:
+        if (this.lex !== Lex.Uri) break;
+        this.p = P.HeadSemi; // daarna alleen `;`
         return;
       default:
         break;
@@ -544,8 +586,9 @@ export class StepFileGrammar {
         return;
       case P.AnchorEq:
         if (c !== EQUALS) break;
-        this.p = P.AnchorVal;
+        this.p = this.sec === Sec.Reference ? P.RefVal : P.AnchorVal;
         this.anchorDepth = 0;
+        this.anchorTag = false;
         return;
       case P.AnchorVal:
         if (c === OPEN) this.anchorDepth++;
@@ -633,6 +676,25 @@ export class StepFileGrammar {
 }
 
 /** De grammatica over een hele tekst (`readIFC`). */
+/** Eén entiteit in de handtekening: de hash van het nummer (`#n`) en van het type, beide in hoofdletters. */
+function signatureStep(signature: number, idHash: number, typeHash: number): number {
+  return Math.imul(Math.imul(signature ^ idHash, FNV_PRIME) ^ typeHash, FNV_PRIME);
+}
+
+function fnv(text: string): number {
+  let hash = FNV_OFFSET;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ upper(text.charCodeAt(i)), FNV_PRIME);
+  return hash;
+}
+
+/** De handtekening van `StepFileGrammar.entitySignature` over entiteiten die een andere lezer las (`parseSTEP`): het
+ *  nummer zonder `#`, het type. Gelijk als beide dezelfde nummers en typen in dezelfde volgorde lazen. */
+export function stepEntitySignature(entities: ReadonlyArray<{ readonly id: string; readonly type: string }>): number {
+  let signature = FNV_OFFSET;
+  for (const e of entities) signature = signatureStep(signature, fnv(`#${e.id}`), fnv(e.type));
+  return signature;
+}
+
 export function stepFileGrammar(content: string): StepFileGrammar {
   const grammar = new StepFileGrammar(false);
   grammar.run(content);

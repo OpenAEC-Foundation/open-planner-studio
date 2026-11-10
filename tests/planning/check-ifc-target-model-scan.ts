@@ -42,7 +42,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { StepDataSectionFinder, indexOfStepDataSection, stepDataSectionBounds } from '@/services/ifc/stepDataSection';
 import { StepFileGrammar, stepFileGrammar } from '@/services/ifc/stepFileGrammar';
-import { brokenHeader, brokenHeaderDataFiles, commentFile, DATA_KOP_VORMEN, dataKopGrens, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { brokenHeader, brokenHeaderDataFiles, commentFile, DATA_KOP_VORMEN, dataKopGrens, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 let checks = 0;
@@ -408,7 +408,7 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
     ['een wand na een entiteit zonder puntkomma', "#1=IFCTASK('a',$)\n#9=IFCWALL('x',$);\n"],
     ['een wand na een string zonder einde in een entiteit', "#1=IFCTASK('a,$);\n#9=IFCWALL('x',$);\n"],
     ['een wand na een lege #', "# #=IFCWALL('x',$);\n#9=IFCWALL('x',$);\n"],
-    ['een wand na ENDSEC; (readIFC leest alle DATA-secties)', "#1=IFCTASK('1',$);\nENDSEC;\n#9=IFCWALL('x',$);\n"],
+    ['een wand na ENDSEC; buiten een sectie (kapot: zoals main)', "#1=IFCTASK('1',$);\nENDSEC;\n#9=IFCWALL('x',$);\n"],
     ['een wand in een tweede DATA-sectie', "#1=IFCTASK('1',$);\nENDSEC;\nDATA;\n#9=IFCWALL('x',$);\n"],
     ['een wand in een tweede DATA-sectie met sectiekop',
       "#1=IFCTASK('1',$);\nENDSEC;\nDATA('deel 2',('IFC4'));\n#9=IFCWALL('x',$);\n"],
@@ -440,7 +440,8 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   }
   // Een paar uitkomsten met de hand vastgelegd (zodat de randen niet alleen "gelijk aan readIFC" zijn).
   eq('rand: de wand binnen een entiteit zonder einde is een model', readOutcome(ifc(edges[0][1])), 'building-model');
-  eq('rand: na ENDSEC; telt de wand mee (alle DATA-secties)', readOutcome(ifc(edges[4][1])), 'building-model');
+  // Ronde 8 (Terra): een wand buiten een sectie breekt het bestand; dan precies main, dus de lus stopt bij `ENDSEC;`.
+  eq('rand: een wand na ENDSEC; buiten een sectie: kapot, readIFC opent zoals main', readOutcome(ifc(edges[4][1])), 'ok');
   for (const name of ['een wand in een tweede DATA-sectie', 'een wand in een tweede DATA-sectie met sectiekop']) {
     const data = edges.find(e => e[0] === name)![1];
     eq(`rand: ${name} is een model`, [readOutcome(ifc(data)), scanTargetBytes(ifc(data))], ['building-model', 'model']);
@@ -544,17 +545,10 @@ function byteDataSection(bytes: Uint8Array): { at: number; end: number; grammar:
   for (let i = 0; i < bytes.length && !grammar.failed; i++) grammar.step(bytes[i], i);
   grammar.end(bytes.length);
   const finder = new StepDataSectionFinder(true);
-  let strict: { at: number; end: number } | null = null;
-  for (let i = start; i < bytes.length; i++) {
-    if (finder.step(bytes[i], i) && !strict) strict = { at: finder.strictAt, end: finder.strictEnd };
-  }
+  for (let i = start; i < bytes.length; i++) finder.step(bytes[i], i);
   let found: { at: number; end: number; grammar: boolean } | null;
   if (grammar.state === 'valid' && grammar.dataAt >= 0) found = { at: grammar.dataAt, end: grammar.dataEnd, grammar: true };
-  else if (finder.fallback) found = { ...finder.fallback, grammar: false };
-  else {
-    const head = strict ?? finder.grammarAtEnd;
-    found = head ? { ...head, grammar: true } : null;
-  }
+  else found = finder.fallback ? { ...finder.fallback, grammar: false } : null; // ronde 8: kapot is precies main
   const text = (to: number) => decode(bytes.subarray(0, to)).length; // de decoder haalt alleen de eerste BOM weg
   return found && { at: text(found.at), end: text(found.end), grammar: found.grammar };
 }
@@ -600,10 +594,10 @@ for (const [label, text, kop] of [
   ['commentaar zonder einde', "/* DATA;\nDATA;", ['DATA;', 1]],
   ['/*/ sluit niet', '/*/ DATA; */DATA;', ['DATA;', 1]],
   ['lege tekst', '', null],
-  ['DATA, regeleinde, ; (geldige scheiding)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n;", ['DATA\n;']],
+  ['DATA, regeleinde, ; (geldige scheiding), kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n;", null],
   ['geen sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATAX;\n", null],
-  ['DATA( als eerste sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel 1',('IFC4'));\n", ["DATA('deel 1',('IFC4'));"]],
-  ['data( in kleine letters', "ISO-10303-21;\nHEADER;\nENDSEC;\ndata('x',('IFC4'));\n", ["data('x',('IFC4'));"]],
+  ['DATA( als eerste sectiekop, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel 1',('IFC4'));\n", null],
+  ['data( in kleine letters, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\ndata('x',('IFC4'));\n", null],
   // Ronde 6: de parameters zijn een naam en een lijst (§11.1). Een lijst als naam breekt de grammatica; main kende
   // `DATA(` niet: geen sectiekop.
   ['data(( met een lijst als naam', "ISO-10303-21;\nHEADER;\nENDSEC;\ndata(('x'),('IFC4'));\n", null],
@@ -611,11 +605,11 @@ for (const [label, text, kop] of [
   ['DATA; gevolgd door iets anders dan # of ENDSEC (regel van main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nX;\n", ['DATA;']],
   ['zonder HEADER; telt alleen DATA; (regel van main)', "ISO-10303-21;\nENDSEC;\nDATA;\nENDSEC;\nDATA('b',('IFC4'));\n", ['DATA;']],
   ['METADATA( en !DATA( in de kop tellen niet', "ISO-10303-21;\nHEADER;\nMETADATA('x');\n!DATA('y');\n_DATA(1);\nENDSEC;\nDATA;\n", ['DATA;']],
-  ['*/DATA( na ENDSEC; en commentaar telt wel', "ISO-10303-21;\nHEADER;\nENDSEC;/*c*/DATA('a',('IFC4'));\n", ["DATA('a',('IFC4'));"]],
+  ['*/DATA( na ENDSEC; en commentaar telt wel, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;/*c*/DATA('a',('IFC4'));\n", null],
   ['DATA( zonder ENDSEC; ervoor telt niet', "ISO-10303-21;\n/*c*/DATA('a',('IFC4'));\n", null],
-  ['DATA ( met een spatie is een sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA ('a',('b'));\n#1=X();", ["DATA ('a',('b'));"]],
-  ['DATA/*x*/( met commentaar is een sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA/*x*/('a',('b'));\n#1=X();", ["DATA/*x*/('a',('b'));"]],
-  ['DATA, regeleinde, ( is een sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n  ('a',('b'));\n#1=X();", ["DATA\n  ('a',('b'));"]],
+  ['DATA ( met een spatie is een sectiekop, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA ('a',('b'));\n#1=X();", null],
+  ['DATA/*x*/( met commentaar is een sectiekop, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA/*x*/('a',('b'));\n#1=X();", null],
+  ['DATA, regeleinde, ( is een sectiekop, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n  ('a',('b'));\n#1=X();", null],
   // Ronde 6: na de kop komt een entiteit of ENDSEC. Een tweede kop direct erna breekt de grammatica (dan main: DATA;).
   ['DATA (…); direct gevolgd door DATA;', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA ('a',('b'));\nDATA;", ['DATA;']],
   ['DATA / ( is geen sectiekop (geen commentaar)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA / ('a');\nDATA;", ['DATA;']],
@@ -623,7 +617,7 @@ for (const [label, text, kop] of [
   ['DATA /*open zonder einde', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA /* (;", null],
   // Ronde 6 (besluit Trias): na een kapotte kop raadt de vinder niet. Main kende alleen `DATA;`: geen sectiekop.
   ['DATA ( na een kapotte kop: geen sectiekop (zoals main)', "ISO-10303-21;\nFILE_NAME('a);\n  DATA\t\n('a',('IFC4'));\n", null],
-  ['DATA( in een string telt niet', "ISO-10303-21;\nHEADER;\nX('DATA(');\nENDSEC;\nDATA('a',('IFC4'));", ["DATA('a',('IFC4'));"]],
+  ['DATA( in een string telt niet, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nX('DATA(');\nENDSEC;\nDATA('a',('IFC4'));", null],
   ['DATA( na een kapotte kop: geen sectiekop (zoals main)', "ISO-10303-21;\nFILE_NAME('a);\n  DATA('a',('IFC4'));\n", null],
   ['DDATA( en DATADATA(', "ISO-10303-21;\nDDATA( DATADATA( x DATA(", null],
   // Ronde 3 (Sol en Terra): een oude, rauw geschreven bestandsnaam met één apostrof draait de stringtoestand om.
@@ -631,11 +625,11 @@ for (const [label, text, kop] of [
   ['DATA( in een kapotte bestandsnaam', "ISO-10303-21;\nHEADER;\nFILE_NAME('Van 't DATA( toren.ifc');\nENDSEC;\nDATA;\n", ['DATA;']],
   ['DATA/*x*/( in een kapotte bestandsnaam', "ISO-10303-21;\nHEADER;\nFILE_NAME('Van 't DATA/*x*/(b.ifc');\nENDSEC;\nDATA;\n", ['DATA;']],
   ['DATA ( na een ; die geen ENDSEC; is', "ISO-10303-21;\nHEADER;\nFILE_NAME('a 't; DATA (b)');\nENDSEC;\nDATA;\n", ['DATA;']],
-  ['ENDSEC/**/;/**/DATA (', "ISO-10303-21;\nHEADER;\nENDSEC/**/;/**/DATA ('a',('b'));\n", ["DATA ('a',('b'));"]],
+  ['ENDSEC/**/;/**/DATA (, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC/**/;/**/DATA ('a',('b'));\n", null],
   ['END/**/SEC; is geen ENDSEC;', "ISO-10303-21;\nHEADER;\nEND/**/SEC;\nDATA ('a');\nDATA;", ['DATA;']],
   ['END SEC; is geen ENDSEC;', "ISO-10303-21;\nHEADER;\nX;END SEC; DATA ('a'); DATA;", ['DATA;']],
   ['ENDSENDSEC; is geen ENDSEC;', "ISO-10303-21;\nHEADER;\nENDSENDSEC; DATA ('a');", null],
-  ['endsec ; in kleine letters', "ISO-10303-21;\nHEADER;\nendsec ;\n data\t('a',('b'));", ["data\t('a',('b'));"]],
+  ['endsec ; in kleine letters, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nendsec ;\n data\t('a',('b'));", null],
   ['ENDSEC; X DATA ( telt niet', "ISO-10303-21;\nHEADER;\nENDSEC; X DATA ('a'); DATA;", ['DATA;']],
   ["ENDSEC;'x' DATA ( telt niet", "ISO-10303-21;\nHEADER;\nENDSEC;'x' DATA ('a'); DATA;", ['DATA;']],
   ['ENDSEC; / DATA ( telt niet', "ISO-10303-21;\nHEADER;\nENDSEC; / DATA ('a'); DATA;", ['DATA;']],
@@ -653,16 +647,16 @@ for (const [label, text, kop] of [
   // (knownbug 1050). Daarom elk geval twee keer: als heel bestand, en kapot.
   ['regeleinde tussen / en * (Terra), heel bestand', `ISO-10303-21;\nHEADER;\n${KOP3}ENDSEC;/\n* DATA; ' */DATA('deel',('IFC4'));\n#1=IFCWALL($);\nENDSEC;\nEND-ISO-10303-21;\n`, ["DATA('deel',('IFC4'));"]],
   ['regeleinde tussen / en * (Terra), kapot: main', "ISO-10303-21;\nHEADER;\nENDSEC;/\n* DATA; ' */DATA('deel',('IFC4'));\n#1=IFCWALL($);\nENDSEC;\n", ['DATA;']],
-  ['regeleinde tussen * en / (Sol)', "ISO-10303-21;\nHEADER;\nENDSEC; /* a *\n/ DATA('deel 1',('IFC4'));\n", ["DATA('deel 1',('IFC4'));"]],
-  ["regeleinde tussen de apostroffen van '' (Sol)", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('it'\n's'),'3;1');\nENDSEC;DATA('a',('IFC4'));\n", ["DATA('a',('IFC4'));"]],
-  ['U+007F midden in DATA (Sol)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDA\x7fTA('a',('IFC4'));\n", ["DA\x7fTA('a',('IFC4'));"]],
+  ['regeleinde tussen * en / (Sol), kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC; /* a *\n/ DATA('deel 1',('IFC4'));\n", null],
+  ["regeleinde tussen de apostroffen van '' (Sol), kapot: geen DATA; (main)", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('it'\n's'),'3;1');\nENDSEC;DATA('a',('IFC4'));\n", null],
+  ['U+007F midden in DATA (Sol), kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDA\x7fTA('a',('IFC4'));\n", null],
   // Ronde 6 (Sol): `\S\'` is één teken in de string (§6.4.3), ook in de sectiekop; de `'` erna sluit de string.
-  ["\\S\\' in de naam van de sectiekop (Sol)", "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel \\S\\'',('IFC4'));\n#1=IFCWALL($);\n", ["DATA('deel \\S\\'',('IFC4'));"]],
+  ["\\S\\' in de naam van de sectiekop (Sol), kapot: geen DATA; (main)", "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel \\S\\'',('IFC4'));\n#1=IFCWALL($);\n", null],
   ["\\S\\' in de kop (Sol), heel bestand", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('a\\S\\'); DATA;'),'2;1');\nFILE_NAME('a','',(''),(''),'','','');\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n#1=IFCWALL($);\nENDSEC;\nEND-ISO-10303-21;\n", ['DATA;', 1]],
   ["\\S\\' in de kop (Sol), kapot: main", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('a\\S\\'); DATA;'),'2;1');\nENDSEC;\nDATA;\n#1=IFCWALL($);\n", ['DATA;']],
   // Ronde 5 (Sol): een ANCHOR- of REFERENCE-sectie vóór de eerste datasectie, met strings en URI's (tabel 3).
-  ['ANCHOR met een string (Sol)', "ISO-10303-21;\nHEADER;\nENDSEC;\nANCHOR;\n<a>='tekst';\n<b>=#1{x:'y'};\nENDSEC;DATA('deel 1',('IFC4'));\n", ["DATA('deel 1',('IFC4'));"]],
-  ['REFERENCE met een URI vol leestekens', "ISO-10303-21;\nHEADER;\nENDSEC;\nREFERENCE;\n#5=<http://x/a'b;c(>;\nENDSEC;DATA('d',('IFC4'));\n", ["DATA('d',('IFC4'));"]],
+  ['ANCHOR met een string (Sol), kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nANCHOR;\n<a>='tekst';\n<b>=#1{x:'y'};\nENDSEC;DATA('deel 1',('IFC4'));\n", null],
+  ['REFERENCE met een URI vol leestekens, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nREFERENCE;\n#5=<http://x/a'b;c(>;\nENDSEC;DATA('d',('IFC4'));\n", null],
   // Ronde 5 (Sol): de kapotte naam met een komma of haakje na de losse apostrof. De grammatica breekt (een `;` binnen
   // de haakjes, of een woord na de `)` van FILE_NAME); dan de regel van main.
   ["'Van ', ENDSEC; DATA ( (Sol)", "ISO-10303-21;\nHEADER;\nFILE_NAME('Van ', ENDSEC; DATA (bouw).ifc');\nENDSEC;\nDATA;\n", ['DATA;']],
@@ -674,6 +668,33 @@ for (const [label, text, kop] of [
   // Ronde 6 (Sol): een regeleinde in de kapotte naam vóór `DATA (`. Main zocht alleen `DATA;` aan het begin van een regel.
   ["'Van 't Hof⏎ DATA (bouw).ifc' (Sol)", "ISO-10303-21;\nHEADER;\nFILE_NAME('Van 't Hof\n DATA (bouw).ifc');\nENDSEC;\nDATA;\n", ['DATA;']],
 ] as const satisfies ReadonlyArray<readonly [string, string, Kop]>) sameDataSection(label, enc.encode(text), kop);
+// Ronde 8 (Terra): een kapot bestand leest alleen nog volgens main. Daarom staat elke kopvorm hierboven ook als heel bestand
+// (de drie kopentiteiten, en `ENDSEC;` en `END-ISO-10303-21;` aan het einde): dan telt de grammatica.
+const heel = (text: string) => {
+  const kop = text.includes('FILE_DESCRIPTION') ? text : text.replace('HEADER;\n', `HEADER;\n${KOP3}`);
+  return kop + (/ENDSEC;\s*$/.test(kop) ? '' : '\nENDSEC;\n') + 'END-ISO-10303-21;\n';
+};
+for (const [label, text, kop] of [
+  ['DATA, regeleinde, ; (geldige scheiding), heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n;"), ['DATA\n;']],
+  ['DATA( als eerste sectiekop, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel 1',('IFC4'));\n"), ["DATA('deel 1',('IFC4'));"]],
+  ['data( in kleine letters, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\ndata('x',('IFC4'));\n"), ["data('x',('IFC4'));"]],
+  ['*/DATA( na ENDSEC; en commentaar telt wel, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;/*c*/DATA('a',('IFC4'));\n"), ["DATA('a',('IFC4'));"]],
+  ['DATA ( met een spatie is een sectiekop, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA ('a',('b'));\n#1=X();"), ["DATA ('a',('b'));"]],
+  ['DATA/*x*/( met commentaar is een sectiekop, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA/*x*/('a',('b'));\n#1=X();"), ["DATA/*x*/('a',('b'));"]],
+  ['DATA, regeleinde, ( is een sectiekop, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n  ('a',('b'));\n#1=X();"), ["DATA\n  ('a',('b'));"]],
+  ['DATA( in een string telt niet, heel bestand', heel("ISO-10303-21;\nHEADER;\nX('DATA(');\nENDSEC;\nDATA('a',('IFC4'));"), ["DATA('a',('IFC4'));"]],
+  ['ENDSEC/**/;/**/DATA (, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC/**/;/**/DATA ('a',('b'));\n"), ["DATA ('a',('b'));"]],
+  ['endsec ; in kleine letters, heel bestand', heel("ISO-10303-21;\nHEADER;\nendsec ;\n data\t('a',('b'));"), ["data\t('a',('b'));"]],
+  ['regeleinde tussen * en / (Sol), heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC; /* a *\n/ DATA('deel 1',('IFC4'));\n"), ["DATA('deel 1',('IFC4'));"]],
+  ["regeleinde tussen de apostroffen van '' (Sol), heel bestand", heel("ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('it'\n's'),'3;1');\nFILE_NAME('a','',(''),(''),'','','');\nFILE_SCHEMA(('IFC4'));\nENDSEC;DATA('a',('IFC4'));\n"), ["DATA('a',('IFC4'));"]],
+  ['U+007F midden in DATA (Sol), heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nDA\x7fTA('a',('IFC4'));\n"), ["DA\x7fTA('a',('IFC4'));"]],
+  ["\\S\\' in de naam van de sectiekop (Sol), heel bestand", heel("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel \\S\\'',('IFC4'));\n#1=IFCWALL($);\n"), ["DATA('deel \\S\\'',('IFC4'));"]],
+  ['ANCHOR met een string (Sol), heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nANCHOR;\n<a>='tekst';\n<b>=#1{x:'y'};\nENDSEC;DATA('deel 1',('IFC4'));\n"), ["DATA('deel 1',('IFC4'));"]],
+  ['REFERENCE met een URI vol leestekens, heel bestand', heel("ISO-10303-21;\nHEADER;\nENDSEC;\nREFERENCE;\n#5=<http://x/a'b;c(>;\nENDSEC;DATA('d',('IFC4'));\n"), ["DATA('d',('IFC4'));"]],
+] as const satisfies ReadonlyArray<readonly [string, string, Kop]>) {
+  eq(`DATA; (${label}): past in de grammatica`, fileValid(enc.encode(text)), true);
+  sameDataSection(label, enc.encode(text), kop);
+}
 sameDataSection('een BOM vooraan', new Uint8Array([0xef, 0xbb, 0xbf, ...enc.encode("'\nDATA;")]), ['DATA;']);
 sameDataSection('ongeldige UTF-8 vóór DATA;', new Uint8Array([0x27, 0xe2, 0x80, 0x0a, 0xff, 0x0a, ...enc.encode('DATA;')]), ['DATA;']);
 sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2, 0xe2, 0x80, 0xa8, ...enc.encode('DATA;')]), ['DATA;']);
@@ -801,6 +822,92 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   const before = enc.encode(onlyText.replace('ENDSEC;\nEND-ISO', "ENDSEC;\nDATA;\n#1=IFCTASK('1',$);\nENDSEC;\nEND-ISO"));
   eq('DATA(…) met de wand, daarna DATA;: readIFC weigert als model', readOutcome(before), 'building-model');
   every('DATA(…) met de wand, daarna DATA;: de scanner zegt model', before, 'model');
+}
+
+// ── 12. Review van #870, ronde 8 (Terra) ──────────────────────────────────────────────────────────────────────────
+// (a) Een kapot bestand opent alleen volgens de regel van main: geen DATAKOP met parameters (dan `no-data-section`, zoals
+//     main), en de lus stopt bij de eerste `ENDSEC;` (zoals main). Ziet de grammatica een modeltype vóór het punt waar
+//     het bestand breekt, dan weigert `readIFC` (zoals de doelcontrole 'model' zegt).
+// (b) Een geldig bestand: leest de entiteitenlus iets anders dan de grammatica (een regeleinde midden in een token, §5.6;
+//     `\S\'` in een string, §6.4.3), dan weigert `readIFC` het bestand (`unreadable-entities`) in plaats van stil een
+//     taak te verliezen.
+{
+  const showcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  const tasks = (text: string) => { try { return readIFC(text).tasks.length; } catch { return -1; } };
+  const allTasks = tasks(showcase);
+  const firstData = showcase.indexOf('\nDATA;\n') + 1;
+  const endMark = showcase.lastIndexOf('END-ISO-10303-21;');
+  const firstEnd = showcase.indexOf('\nENDSEC;', firstData) + 1;
+  const kop = (text: string) => text.slice(0, firstData) + "DATA('part',('IFC4X3_ADD2'));" + text.slice(firstData + 'DATA;'.length);
+  const naEinde = (text: string) => text + 'rommel na de eindmarkering\n';
+  // Terra: DATAKOP met parameters, `IFC⏎WALL`, tekst na de eindmarkering.
+  const wand = "#999999=IFC\nWALL('x',$);\n";
+  const b1 = naEinde(kop(showcase.slice(0, firstEnd) + wand + showcase.slice(firstEnd)));
+  eq('ronde 8, Terra (a): kapot, DATA(…) en IFC⏎WALL: buiten de grammatica', fileValid(enc.encode(b1)), false);
+  eq('ronde 8, Terra (a): kapot, DATA(…) en IFC⏎WALL: readIFC weigert als model', readOutcome(enc.encode(b1)), 'building-model');
+  every('ronde 8, Terra (a): kapot, DATA(…) en IFC⏎WALL: de scanner', enc.encode(b1), 'model');
+  // Zonder wand: zoals main geen datasectie.
+  const b1z = naEinde(kop(showcase));
+  eq('ronde 8, kapot met alleen DATA(…), zonder wand: geen datasectie (zoals main)', readOutcome(enc.encode(b1z)), 'no-data-section');
+  every('ronde 8, kapot met alleen DATA(…), zonder wand: de scanner', enc.encode(b1z), 'unreadable');
+  // Terra (VERVOLG): een wand tussen de eerste `ENDSEC;` en de eindmarkering (buiten een sectie): main opent alle taken.
+  const tussen = showcase.slice(0, endMark) + "#999999=IFCWALL('x',$);\n" + showcase.slice(endMark);
+  eq('ronde 8, Terra: wand na de laatste ENDSEC;: buiten de grammatica', fileValid(enc.encode(tussen)), false);
+  eq('ronde 8, Terra: wand na de laatste ENDSEC;: readIFC opent alle taken (zoals main)', [readOutcome(enc.encode(tussen)), tasks(tussen)], ['ok', allTasks]);
+  // De showcase is een eigen bestand (de kop van OPS): de doelcontrole leest het zoals main, en stopt ook bij `ENDSEC;`.
+  every('ronde 8, Terra: wand na de laatste ENDSEC;: de scanner (eigen bestand, zoals main)', enc.encode(tussen), 'no-model');
+  // Een eigen bestand met een kapotte naam en een wand na `ENDSEC;`: de doelcontrole leest zoals main, en stopt ook daar.
+  {
+    const eigen = OWN.replace(/^FILE_NAME\('/m, "FILE_NAME('Van 't Hof ");
+    const metWand = eigen.slice(0, eigen.lastIndexOf('END-ISO-10303-21;')) + "#999999=IFCWALL('x',$);\n" + eigen.slice(eigen.lastIndexOf('END-ISO-10303-21;'));
+    eq('ronde 8, eigen kapot bestand met een wand na ENDSEC;: herkend, buiten de grammatica',
+      [ownFile(enc.encode(metWand)), fileValid(enc.encode(metWand))], [true, false]);
+    eq('ronde 8, eigen kapot bestand met een wand na ENDSEC;: readIFC opent (zoals main)', readOutcome(enc.encode(metWand)), 'ok');
+    every('ronde 8, eigen kapot bestand met een wand na ENDSEC;: de scanner (zoals main)', enc.encode(metWand), 'no-model');
+  }
+  // (b) Terra: `IFCTASK` als `IFC⏎TASK`, in één sectie en in een tweede sectie.
+  const eenTaak = (text: string) => text.replace(/=IFCTASK\(/, '=IFC\nTASK(');
+  const laatsteTaak = (text: string) => {
+    const at = text.lastIndexOf('=IFCTASK(');
+    return text.slice(0, at) + '=IFC\nTASK(' + text.slice(at + '=IFCTASK('.length);
+  };
+  const tweeSecties = (text: string) => {
+    const mid = text.indexOf('\n#', firstData + Math.floor((firstEnd - firstData) / 2)) + 1;
+    return text.slice(0, firstData) + "DATA('deel 1',('IFC4X3_ADD2'));" + text.slice(firstData + 'DATA;'.length, mid)
+      .replace(/$/, "ENDSEC;\nDATA('deel 2',('IFC4X3_ADD2'));\n") + text.slice(mid);
+  };
+  const twee = tweeSecties(showcase);
+  eq('ronde 8, Terra (b): de showcase in twee secties: geldig, alle taken', [fileValid(enc.encode(twee)), tasks(twee)], [true, allTasks]);
+  for (const [label, text] of [['één sectie', eenTaak(showcase)], ['twee secties, de taak in de tweede', laatsteTaak(twee)]] as const) {
+    eq(`ronde 8, Terra (b), ${label}: IFC⏎TASK past in de grammatica`, fileValid(enc.encode(text)), true);
+    eq(`ronde 8, Terra (b), ${label}: readIFC weigert (geen taak stil kwijt)`, readOutcome(enc.encode(text)), 'unreadable-entities');
+  }
+  // Sol (BLOKKEERT): een wand in een binaire waarde, een URI-parameter of een REFERENCE-sectie na DATA, in een bestand
+  // van een ander programma. De grammatica breekt, dus de doelcontrole weigert. `readIFC` leest zoals main: de wand in de
+  // datasectie weigert als model; de wand in REFERENCE na de laatste `ENDSEC;` ziet main niet (opent).
+  for (const [name, text] of verstopteWandBestanden(showcase)) {
+    eq(`ronde 8, Sol: ${name}: buiten de grammatica, readIFC zoals main`, [fileValid(enc.encode(text)), readOutcome(enc.encode(text))],
+      [false, name === 'reference-na-data' ? 'ok' : 'building-model']);
+    every(`ronde 8, Sol: ${name}: de scanner`, enc.encode(text), 'unreadable');
+  }
+  // De geldige vormen ernaast: een binaire waarde, een anker met een tag (§9.2), een REFERENCE vóór DATA.
+  {
+    const head = HEAD.replace('DATA;\n', '');
+    for (const [label, text, valid] of [
+      ['binair "0FF"', head + "DATA;\n#1=IFCX(\"0FF\");\nENDSEC;\nEND-ISO-10303-21;\n", true],
+      ['binair "4F" (eerste cijfer > 3)', head + "DATA;\n#1=IFCX(\"4F\");\nENDSEC;\nEND-ISO-10303-21;\n", false],
+      ['binair "0g"', head + "DATA;\n#1=IFCX(\"0g\");\nENDSEC;\nEND-ISO-10303-21;\n", false],
+      ['anker met een tag', head + "ANCHOR;\n<a>=#1 {label:'x'};\nENDSEC;\nDATA;\n#1=IFCX($);\nENDSEC;\nEND-ISO-10303-21;\n", true],
+      ['anker met een getypeerde waarde', head + "ANCHOR;\n<a>=IFCWALL($);\nENDSEC;\nDATA;\n#1=IFCX($);\nENDSEC;\nEND-ISO-10303-21;\n", false],
+      ['REFERENCE vóór DATA', head + "REFERENCE;\n#5=<http://x/y#z>;\nENDSEC;\nDATA;\n#1=IFCX($);\nENDSEC;\nEND-ISO-10303-21;\n", true],
+      ['REFERENCE met iets anders dan een URI', head + "REFERENCE;\n#5=IFCWALL($);\nENDSEC;\nDATA;\n#1=IFCX($);\nENDSEC;\nEND-ISO-10303-21;\n", false],
+      ['REFERENCE vóór ANCHOR', head + "REFERENCE;\n#5=<u>;\nENDSEC;\nANCHOR;\n<a>=1;\nENDSEC;\nDATA;\n#1=IFCX($);\nENDSEC;\nEND-ISO-10303-21;\n", false],
+    ] as const) eq(`ronde 8, Sol: ${label}: ${valid ? 'past' : 'past niet'} in de grammatica`, fileValid(enc.encode(text)), valid);
+  }
+  // Knownbug 1050: `\S\'` in een taaknaam zonder model; op main opende dat met 0 taken.
+  const sq = showcase.replace(/(=IFCTASK\('[^']*',#\d+,')/, "$1a\\S\\'");
+  eq('ronde 8, 1050: \\S\\\' in een taaknaam: geldig', fileValid(enc.encode(sq)), true);
+  eq('ronde 8, 1050: \\S\\\' in een taaknaam: readIFC weigert (geen 0 taken meer)', readOutcome(enc.encode(sq)), 'unreadable-entities');
 }
 
 // ── 10. De pariteitstabel ──────────────────────────────────────────────────────────────────────────────────────────

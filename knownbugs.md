@@ -1761,15 +1761,20 @@ en noem het in je rapport of PR-tekst.
      - `#1=IFCTASK(…);` dan `/⏎* #9=IFCWALL('x',…); */`: weigert als gebouwmodel. Volgens de norm is de wand
        commentaar.
      - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
-     Sinds #870 (ronde 8) leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen
-     volgens de norm, en weigert `readIFC` een bestand dat in die grammatica past en een modeltype heeft. Gemeten op de
-     tak, met dezelfde bestanden:
-     - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
-     - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
-     - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken (de lus van `parseSTEP` leest
-       de string anders dan de norm). Opslaan schrijft dan een lege planning;
-     - blijft: de wand in `/⏎* … */` weigert bij openen als gebouwmodel. De doelcontrole leest de norm en zegt
-       "no-model": Opslaan als over zo'n bestand mag, openen niet.
+     Sinds #870 leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen volgens
+     de norm. `readIFC` weigert een bestand dat in die grammatica past en een modeltype heeft, en sinds ronde 9 ook een
+     bestand waarin de lus van `parseSTEP` andere entiteiten (nummer en type) leest dan de grammatica
+     (`unreadable-entities`). Gemeten op de tak, met dezelfde bestanden:
+      - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
+      - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
+      - weg: een planning met `\S\'` in een taaknaam en zonder model weigert nu (`unreadable-entities`) in plaats van
+        met 0 taken te openen; ook `\S\'` in een latere sectiekop met een taak erna (Sol, ronde 8), en een regeleinde
+        midden in een token (`IFC⏎TASK`, Terra, ronde 8);
+      - blijft: de wand in `/⏎* … */` weigert bij openen (nu als `unreadable-entities`). De doelcontrole leest de norm
+        en zegt "no-model": Opslaan als over zo'n bestand mag, openen niet;
+      - blijft: zo'n bestand opent niet, ook al is het een geldige planning. De app leest het pas als de lus van
+        `parseSTEP` de tokens van de grammatica gebruikt;
+      - blijft: een kapot bestand leest precies zoals main, met dezelfde lexer.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken. Uit #870 (review ronde 6,
      GPT-6.1-Sol en GPT-6.1-Terra; eigen knownbug op verzoek van Trias). — B
 
@@ -1781,6 +1786,19 @@ en noem het in je rapport of PR-tekst.
      dat precies die kop schrijft, en de grammatica breekt, gaat er dan ook doorheen: een modelentiteit die de lus van
      `parseSTEP` mist (knownbug 1050, of na een kapotte naam), ziet de doelcontrole dan niet, en Opslaan als of AutoSave
      kan het model overschrijven. Alleen bij opzet of toeval in precies die kop. Uit #870 (ronde 8). — S
+
+1054. **VERVOLG: wat na #870 overblijft bij de grammatica en de doelcontrole.**
+     (1) Geen test voor een niet-leesbaar doel via de site (`window.openaecHost`); de handle- en Tauri-routes zijn wel
+     getest (`check-ifc-foreign-target.ts`). (2) De herkenning van een eigen bestand mist oude uitvoer met een regeleinde
+     in de naam, auteur of bedrijf, of met meer dan 64 KiB vrije tekst in FILE_NAME (`OPS_PREFIX_MAX` in
+     `src/services/ifc/foreign/targetModelScan.ts`): de writer van v2026.7.12 haalde regeleindes niet weg. Zo'n bestand
+     opent zoals main, maar weigert als doel ('unreadable'): opslaan erover kan niet. Richting: het vaste stuk na de vrije
+     tekst als stroom herkennen. (3) De grammatica (`src/services/ifc/stepFileGrammar.ts`) kent nog niet elke vorm van de
+     norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
+     met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)
+     heeft `\N\` en `\F\` vóór `(` en `;`, maar niet tussen de parameters (`DATA('deel'\N\,('IFC4X3_ADD2'));`).
+     (5) Poging 1 in `StepDataSectionFinder` (`src/services/ifc/stepDataSection.ts`) beslist sinds ronde 9 niets meer;
+     haar code kan weg. Uit #870 (ronde 7 en 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 

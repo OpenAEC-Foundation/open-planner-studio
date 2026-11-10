@@ -36,8 +36,9 @@
 // Welke poging telt, beslist `stepFileLayout` (besluit Trias, wrakko 10 november 2026, review van #870 ronde 7): past
 // het HELE bestand in de grammatica (`stepFileGrammar.ts`), dan de eerste DATAKOP daarvan (gelijk aan poging 1). Breekt
 // het bestand, dan raadt de app niet: (2) en (3) zijn precies wat main deed, zodat een oud eigen bestand met een kapotte
-// naam opent zoals op main. Alleen als die niets vinden, telt (1) (de DATAKOP-vormen die main niet kende). Vindt geen
-// poging iets, dan weigert `readIFC` het bestand (`no-data-section`). Ronde 7 liet zien waarom de kop alleen niet
+// naam opent zoals op main. Vinden die niets, dan weigert `readIFC` het bestand (`no-data-section`), ook als (1) een
+// DATAKOP vond (review van #870, ronde 8, Terra: anders opende een kapot bestand via een grens die main niet kende).
+// Poging 1 beslist dus niets meer; haar code staat er nog en kan weg (knownbug 1054). Ronde 7 liet zien waarom de kop alleen niet
 // genoeg is: een kapotte naam kan de grammatica tot en met een valse, geldige DATAKOP volgen. De doelcontrole
 // (`foreign/targetModelScan.ts`) gebruikt deze vinder alleen voor een eigen bestand dat breekt (poging 2 en 3).
 //
@@ -601,31 +602,32 @@ export interface StepFileLayout {
   readonly bounds: { at: number; end: number; grammar: boolean } | null;
   /** Het hele bestand past in de grammatica. */
   readonly valid: boolean;
-  /** De grammatica zag een entiteit met een modeltype (alleen betekenisvol als `valid`). */
+  /** De grammatica zag een entiteit met een modeltype, ook vóór het punt waar het bestand brak (zoals de doelcontrole). */
   readonly model: boolean;
+  /** Alleen als `valid`: de enkelvoudige entiteiten volgens de grammatica (`StepFileGrammar.entities`/`entitySignature`). */
+  readonly entities: number;
+  readonly entitySignature: number;
 }
 
 /**
  * De regel (besluit Trias, wrakko 10 november 2026):
  *  - past het hele bestand in de grammatica, dan begint de datasectie bij de eerste DATAKOP van die grammatica;
- *  - breekt het bestand, dan precies zoals main: poging 2, anders 3;
- *  - vinden die niets, dan de kop volgens de grammatica (poging 1, de DATAKOP-vormen van #870), anders `null`.
+ *  - breekt het bestand, dan precies zoals main: poging 2, anders 3, anders `null` (`no-data-section`). Review van #870,
+ *    ronde 8 (Terra): de kop volgens de grammatica (poging 1) telt dan niet meer; die gaf bij een kapot bestand toch
+ *    een grens die main niet kende.
  */
 export function stepFileLayout(content: string): StepFileLayout {
   const grammar = stepFileGrammar(content);
-  if (grammar.state === 'valid' && grammar.dataAt >= 0) {
-    return { bounds: { at: grammar.dataAt, end: grammar.dataEnd, grammar: true }, valid: true, model: grammar.model };
-  }
   const valid = grammar.state === 'valid';
-  const finder = new StepDataSectionFinder(false);
-  let strict: { at: number; end: number } | null = null;
-  for (let i = 0; i < content.length; i++) {
-    if (finder.step(content.charCodeAt(i), i) && strict === null) strict = { at: finder.strictAt, end: finder.strictEnd };
+  const entities = valid ? grammar.entities : 0;
+  const entitySignature = valid ? grammar.entitySignature : 0;
+  if (valid && grammar.dataAt >= 0) {
+    return { bounds: { at: grammar.dataAt, end: grammar.dataEnd, grammar: true }, valid, model: grammar.model, entities, entitySignature };
   }
+  const finder = new StepDataSectionFinder(false);
+  for (let i = 0; i < content.length; i++) finder.step(content.charCodeAt(i), i);
   const fallback = finder.fallback;
-  if (fallback) return { bounds: { ...fallback, grammar: false }, valid, model: grammar.model };
-  const head = strict ?? finder.grammarAtEnd;
-  return { bounds: head ? { ...head, grammar: true } : null, valid, model: grammar.model };
+  return { bounds: fallback ? { ...fallback, grammar: false } : null, valid, model: grammar.model, entities, entitySignature };
 }
 
 /** Begin en leespositie van de datasectie in `content` (`stepFileLayout`); `null` zonder sectiekop. */

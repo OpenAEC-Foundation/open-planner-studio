@@ -89,6 +89,9 @@ const CODE_PLAIN = new Uint8Array(256).fill(1);
 CODE_PLAIN[QUOTE] = 0;
 CODE_PLAIN[SLASH] = 0;
 CODE_PLAIN[HASH] = 0;
+CODE_PLAIN[0x45] = 0; // `E`: misschien het begin van `ENDSEC;`
+/** `ENDSEC;`, waar de lus van `parseSTEP` in een kapot bestand stopt (zoals main). */
+const ENDSEC = Array.from('ENDSEC;', c => c.charCodeAt(0));
 /** `isWordCode` als tabel. */
 const WORD = new Uint8Array(256);
 for (let b = 0; b < 256; b++) {
@@ -182,6 +185,8 @@ export class TargetModelScanner {
   private strip = Strip.Code;
   private slashAt = 0;
   private loop = Loop.Code;
+  /** Zoveel tekens van `ENDSEC;` staan er nu op codeniveau achter elkaar. */
+  private endsec = 0;
   private ent = Ent.Id0;
   private entAt = 0;
   private entStrip = Strip.Code;
@@ -521,6 +526,7 @@ export class TargetModelScanner {
     this.phase = Phase.Data;
     this.strip = Strip.Code;
     this.loop = Loop.Code;
+    this.endsec = 0;
   }
 
   /** Alles gelezen (vanaf de laatste positie). `true` = er is verder te lezen (terugspoelen, de tweede lezing). */
@@ -602,7 +608,7 @@ export class TargetModelScanner {
           this.typeLength = length;
           if (i === n) break;
         }
-      } else if (this.strip === Strip.Code && this.loop === Loop.Code) {
+      } else if (this.strip === Strip.Code && this.loop === Loop.Code && this.endsec === 0) {
         while (i < n && CODE_PLAIN[chunk[i]] === 1) i++;
         if (i === n) break;
       } else if (this.strip === Strip.Str
@@ -682,8 +688,24 @@ export class TargetModelScanner {
       case Loop.Code:
         break;
     }
-    if (u === QUOTE) { this.loop = Loop.Str; return; }
-    if (u === HASH) this.startEntity(at);
+    if (u === QUOTE) { this.endsec = 0; this.loop = Loop.Str; return; }
+    if (u === HASH) { this.endsec = 0; this.startEntity(at); return; }
+    this.endsecUnit(u);
+  }
+
+  /** Review van #870, ronde 8 (Terra): `parseSTEP` stopt in een kapot bestand bij de eerste `ENDSEC;` op codeniveau
+   *  (zoals main); daarna leest hij niets meer. Na `ENDSE` kan de `E` het begin van een nieuwe `ENDSEC;` zijn. */
+  private endsecUnit(u: number): void {
+    let k = this.endsec;
+    for (;;) {
+      if (u === ENDSEC[k]) { k++; break; }
+      if (k === 0) break;
+      k = k === 5 ? 1 : 0;
+    }
+    if (k < ENDSEC.length) { this.endsec = k; return; }
+    this.endsec = 0;
+    if (this.headOk === true) { this.result = 'no-model'; return; }
+    this.phase = Phase.Wait; // de kop is nog niet beslist: aan het einde 'no-model'
   }
 
   private startEntity(at: number): void {
@@ -823,6 +845,7 @@ export class TargetModelScanner {
   private entityFailed(): void {
     this.strip = this.entStrip;
     this.loop = Loop.Code;
+    this.endsec = 0;
     this.complex = false;
     this.moveTo(this.entAt + 1);
   }

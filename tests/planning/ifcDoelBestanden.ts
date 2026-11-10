@@ -203,3 +203,19 @@ export const brokenNameFiles = (text: string): Array<[string, string]> => [
  *  schrijven ('unreadable'). */
 export const brokenHeaderDataFiles = (text: string): Array<[string, string]> =>
   DATA_KOP_VORMEN.filter(v => !v.buitenNorm).map(v => [`kapot-${v.id}`, metDataKop(brokenHeader(text), v)]);
+
+/** Review van #870, ronde 8 (Sol, BLOKKEERT): een bestand van een ander programma (de herkomst van OPS vervangen) met een
+ *  wand die een te ruime grammatica wegleest: in een binaire waarde (`"…"` met andere tekens dan hexadecimale cijfers,
+ *  tabel 2), in een URI als parameter, of in een REFERENCE-sectie na de datasectie (tabel 3). De grammatica moet breken,
+ *  dus de doelcontrole weigert ('unreadable'); `readIFC` leest ze zoals main. Op a026bed: 'valid' en "no-model". */
+export const verstopteWandBestanden = (own: string): Array<[string, string]> => {
+  const vreemd = own.replace("'Open Planner Studio 0.1','Open Planner Studio',''", "'Other Planning Tool 1.0','Other Planning Tool',''");
+  if (vreemd === own) throw new Error('verstopteWandBestanden: geen herkomst van OPS in de tekst');
+  const voorEerste = (regel: string) => vreemd.replace(/^DATA;(\r?\n)/m, (kop, nl: string) => `${kop}${regel}${nl}`);
+  return [
+    ['binair-wand', voorEerste('#999999=IFCX(");#999998=IFCWALL($);");')],
+    ['uri-wand', voorEerste('#999999=IFCX(<);#999998=IFCWALL($);>);')],
+    ['reference-na-data', vreemd.replace(/ENDSEC;(\r?\n)END-ISO-10303-21;/, (_m, nl: string) =>
+      `ENDSEC;${nl}REFERENCE;${nl}#999998=IFCWALL($);${nl}ENDSEC;${nl}END-ISO-10303-21;`)],
+  ];
+};

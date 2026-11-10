@@ -47,7 +47,12 @@ async function main(): Promise<void> {
   const second = (record: string) => planning.replace(/ENDSEC;(\s*END-ISO-10303-21;)/, `ENDSEC;\nDATA;\n${record}\nENDSEC;$1`);
   eq('weigert een wand in een tweede DATA-sectie', rejected(second("#900001=IFCWALL('x',$);")), true);
   eq('weigert een wand in een tweede DATA-sectie met sectiekop',
-    rejected(second("#900001=IFCWALL('x',$);").replace(/\nDATA;\n#900001/, "\nDATA(('deel 2'),('IFC4X3_ADD2'));\n#900001")), true);
+    rejected(second("#900001=IFCWALL('x',$);").replace(/\nDATA;\n#900001/, "\nDATA('deel 2',('IFC4X3_ADD2'));\n#900001")), true);
+  // #870, ronde 8 (Terra): een lijst als naam van de sectiekop is buiten de norm (§11.1): het bestand breekt, en dan leest
+  // `readIFC` precies zoals main (tot de eerste `ENDSEC;`). De wand erna ziet hij dan niet; de doelcontrole leest een
+  // eigen bestand ook zoals main (knownbug 1052 voor een vreemd bestand met de kop van OPS).
+  eq('kapotte sectiekop DATA((…),(…)): opent zoals main',
+    readIFC(second("#900001=IFCWALL('x',$);").replace(/\nDATA;\n#900001/, "\nDATA(('deel 2'),('IFC4X3_ADD2'));\n#900001")).tasks.length, 1);
   eq('een tweede DATA-sectie zonder model opent', readIFC(second("#900001=IFCPROPERTYSINGLEVALUE('x',$,IFCTEXT('y'),$);")).tasks.length, 1);
   let twoDataReason: string | undefined;
   try {

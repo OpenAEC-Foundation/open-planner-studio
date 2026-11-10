@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { installNodeFileIpc } from './nodeFileIpc';
-import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -1120,6 +1120,9 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       refuse: name === 'naam-regeleinde' ? 'unreadable' as const : null })),
     // Ronde 8 (Trias): echte bestanden van de writer van v2026.7.12 (`scripts/proef/maak-oude-uitvoer.mjs`), met de
     // projectnaam `O'Hara Tower` (kapotte kop) en `Fase DATA; Noord`. Ze blijven een doel.
+    // Ronde 8 (Sol, BLOKKEERT): een wand in een binaire waarde, een URI-parameter of een REFERENCE-sectie na DATA, in een
+    // bestand van een ander programma. Op a026bed zei de grammatica 'valid' en schreven alle routes over het model heen.
+    ...verstopteWandBestanden(ownText).map(([name, text]) => ({ name: `vreemd-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
     ...['ohara', 'data'].map(naam => ({ name: `eigen-naam-v2026.7.12-${naam}`, refuse: null,
       bytes: new Uint8Array(readFileSync(join(ROOT, `tests/planning/fixtures/oude-tags/v2026.7.12-${naam}-showcase-verbouwing-eengezinswoning.ifc`))) })),
   ];

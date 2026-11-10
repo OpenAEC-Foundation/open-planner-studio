@@ -473,15 +473,23 @@ const ROUTE_REFUSED: Record<string, string> = {
   'model-ifc2x3.ifc': 'IFC2X3 met een model: de huidige route met de modelweigering (§4.11)',
 };
 
+/** Eigen bestanden die de scanner bewust weigert (knownbug 1049: de gewone route opent ze dan, zoals main). */
+const SCANNER_REFUSED: Record<string, string> = {
+  // #870, ronde 8: de echte uitvoer van de writer van v2026.7.12 met `O'Hara Tower` (een kapotte kop).
+  'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc': 'tekst-zonder-einde',
+};
+
 interface Scanned { bytes: Uint8Array; index: StepIndex; cls: Classification }
 function scanPath(label: string, path: string): Scanned | undefined {
   const bytes = new Uint8Array(readFileSync(path));
   const got = scanOrError(bytes);
   compareWithPython(label, path, got);
   if (got instanceof StepScanError) {
-    ok(`${label}: scanner weigert (${got.reason}: ${got.message})`, false);
+    const expected = SCANNER_REFUSED[label];
+    ok(`${label}: scanner weigert (${got.reason}: ${got.message})${expected ? ', zoals verwacht' : ''}`, expected === got.reason);
     return undefined;
   }
+  if (SCANNER_REFUSED[label]) ok(`${label}: de scanner weigert dit bestand (${SCANNER_REFUSED[label]})`, false);
   coverage(label, got, bytes.length);
   return { bytes, index: got, cls: classify(got) };
 }
