@@ -945,6 +945,7 @@
     "costPerHour": "Rate/hour",
     "total": "Total",
     "totalHint": "Loaded units × hours/day × rate (recalculate with F5)",
+    "costTotalHint": "Sum of the amounts on all assignments",
     "unitOfMeasure": "Unit",
     "unitOnlyMaterial": "Only applies to resources of type Material.",
     "parent": "Crew",

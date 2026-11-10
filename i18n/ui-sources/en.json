@@ -772,6 +772,7 @@
     "resource.costPerHour": "50b7800edb640eed",
     "resource.total": "9fe5a402a952ecad",
     "resource.totalHint": "97427a6028114d4f",
+    "resource.costTotalHint": "05f53f1bffaa38ab",
     "resource.unitOfMeasure": "f5b5e8bae13c4afc",
     "resource.unitOnlyMaterial": "aa212cda765dfe78",
     "resource.parent": "92816a34362f0004",
