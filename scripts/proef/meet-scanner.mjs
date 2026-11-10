@@ -22,6 +22,11 @@
 // grootte van de uitvoer. Boven `IFC_BYTES_ROUTE_MAX_BYTES` (300 MiB) valt de route terug zonder bron; de meting van
 // 300 MB gebruikt daarom een bestand net onder die grens (`mergeSize` in de uitvoer).
 //
+// #804 fase 1b, fixronde 2: de merge toetst nu of de lezer elk veld van de bron draagt (de leesverliestoets). Het
+// voorbeeld is met een oudere writer gemaakt en weigert daarom al zonder bewerking (`niet-gedragen`). Het script zet het
+// voorbeeld daarom eerst zoals de huidige writer het schrijft (`settle` uit tests/planning/ifcMergeKern.ts), en bouwt
+// alle bestanden op dat gezette voorbeeld.
+//
 // Lokaal alleen tot en met 50 MB (AGENTS.md, server load). Groter alleen in CI (`CI=true`), via de handmatige job in
 // .github/workflows/ifc-foreign.yml.
 //
@@ -36,7 +41,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const ESBUILD = join(ROOT, 'node_modules/.bin/esbuild');
-const BASE = join(ROOT, 'public/examples/showcase-appartementencomplex.ifc');
+const EXAMPLE = join(ROOT, 'public/examples/showcase-appartementencomplex.ifc');
 
 const opts = Object.fromEntries(process.argv.slice(2).map(a => {
   const m = /^--([^=]+)(?:=(.*))?$/.exec(a);
@@ -162,6 +167,14 @@ if (!source) {
 }
 `);
 execFileSync(ESBUILD, [join(work, 'merge-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-merge.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+// Het voorbeeld zoals de huidige writer het schrijft (fixronde 2): de basis van alle synthetische bestanden.
+writeFileSync(join(work, 'settle-entry.ts'), `
+import { readFileSync, writeFileSync } from 'node:fs';
+import { settle } from ${JSON.stringify(join(ROOT, 'tests/planning/ifcMergeKern.ts'))};
+const [from, to] = process.argv.slice(2);
+writeFileSync(to, await settle(new Uint8Array(readFileSync(from))));
+`);
+execFileSync(ESBUILD, [join(work, 'settle-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'settle.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
 if (browsers.length > 0) {
   writeFileSync(join(work, 'browser-entry.ts'), `
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
@@ -208,9 +221,8 @@ function guid(n) {
 }
 // `variant`: 'model' (het model direct na de planning), 'none' (geen IfcProduct: de wanden worden eigenschappen) of
 // 'end' (als 'none', met één wand vlak voor het einde).
-function makeFile(targetMb, path, variant = 'model') {
+function makeFile(targetMb, path, variant = 'model', base = BASE_TEXT) {
   const model = variant === 'model';
-  const base = readFileSync(BASE, 'utf8');
   const end = base.lastIndexOf('ENDSEC;');
   const ids = [...base.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1]));
   let next = Math.max(...ids) + 1;
@@ -268,6 +280,18 @@ function makeFile(targetMb, path, variant = 'model') {
   closeSync(fd);
   return wall;
 }
+
+// ── Het voorbeeld zoals de huidige writer het schrijft (fixronde 2) ────────────────────────────────────────────────
+// `settle` heeft een vreemd deel nodig: het zet het voorbeeld met een terrein, een gebouw en een verdieping erbij, en
+// laat die drie (met hun relaties, alle `#id`s boven die van het voorbeeld) daarna weer weg.
+const exampleText = readFileSync(EXAMPLE, 'utf8');
+const maxExampleId = Math.max(...[...exampleText.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1])));
+const probe = join(work, 'voorbeeld-met-model.ifc');
+makeFile(0, probe, 'model', exampleText);
+execFileSync(process.execPath, [join(work, 'settle.mjs'), probe, probe], { stdio: 'inherit' });
+const BASE_TEXT = readFileSync(probe, 'utf8').split('\n')
+  .filter(line => { const m = /^#(\d+)=/.exec(line); return !m || Number(m[1]) <= maxExampleId; }).join('\n');
+rmSync(probe, { force: true });
 
 // ── Meten ────────────────────────────────────────────────────────────────────────────────────────────────────────
 const results = [];
@@ -348,7 +372,7 @@ async function measureBrowser(name, file, fn = '__meet') {
   }
 }
 
-if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', node: process.version, results }, null, 2)}\n`);
+if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', settled: true, node: process.version, results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
 
 // Het resultaatbestand komt er altijd, ook met fouten erin. Maar mislukte een gevraagde meting (Node of een browser),
