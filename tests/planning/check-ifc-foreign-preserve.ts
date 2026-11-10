@@ -395,6 +395,29 @@ await expectRefusal('een taak uit het tweede schema verplaatsen', secondSchedule
 await expectRefusal('de gedeelde kalender wijzigen', read('tests/fixtures/ifc-foreign/council/r5sol-gedeelde-calendar-pset.ifc'), 'gemengde-relatie', (d) => {
   d.calendar.hoursPerDay = 7;
 });
+{
+  // Een vreemd property-template in het eigen template `OPS_CustomFields` (een vreemd lid, §4.2). Zonder wijziging hangt
+  // het weer aan het template; wist de planner alle eigen velden, dan schrijft de writer het template niet meer.
+  const showcase = new TextDecoder().decode(read('public/examples/showcase-appartementencomplex.ifc'));
+  const src = enc.encode(withLines(replaceLine(showcase, '#1572=',
+    "#1572=IFCPROPERTYSETTEMPLATE('21BEfWwU0ulhEEz0WA5oeQ',#6,'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(#1569,#1570,#1571,#9001));"),
+  ["#9001=IFCSIMPLEPROPERTYTEMPLATE('0vreemdVeld00000000000',#6,'VendorVeld',$,.P_SINGLEVALUE.,'IfcLabel',$,$,$,$,$,$);"]));
+  const r = await roundTrip('vreemd lid in een eigen template', src);
+  if (r) ok('vreemd lid in een eigen template: het eigen template noemt het lid', /IFCPROPERTYSETTEMPLATE\('21BEfWwU0ulhEEz0WA5oeQ'[^;]*#9001\)/.test(text(r.out)));
+  await expectRefusal('vreemd lid in een template dat de writer niet meer schrijft', src, 'vreemd-lid', (d) => {
+    d.customFieldDefs = [];
+    for (const t of d.tasks) delete t.customFields;
+  });
+}
+{
+  // Een wand van het model wijst naar de resource 'Bricklayers' (#110, IfcLaborResource). Zonder wijziging blijft die
+  // verwijzing staan; maakt de planner er materieel van, dan zou op #110 een ander entiteittype komen.
+  const src = enc.encode(withLines(eigen, ["#9001=IFCRELASSIGNSTOPRODUCT('0vreemdNaarResource000',#331,$,$,(#110),$,#354);"]));
+  await roundTrip('een wand wijst naar een resource', src);
+  await expectRefusal('een resource met een verwijzing van buiten wordt materieel', src, 'entiteittype', (d) => {
+    d.resources.find(r => r.name === 'Bricklayers')!.type = 'EQUIPMENT';
+  });
+}
 await expectRefusal('twee IfcProject', enc.encode(withLines(baseText, ["#907=IFCPROJECT('0tweedeProject00000000',#903,'Ander project',$,$,$,$,$,$);"])), 'meer-projecten');
 
 // ── 6. De invarianten zelf ──
