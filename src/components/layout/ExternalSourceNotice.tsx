@@ -26,7 +26,8 @@ export function ExternalSourceNotice() {
       {own.map(update => {
         // Op de site (stap 1.9) noemt de balk het versienummer; anders de wijzigingstijd van het bestand.
         const site = update.siteVersionLabel !== undefined;
-        const saved = site ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
+        // Uit een geopend document (stap 1.7) is `version` een vingerafdruk, geen tijd: dan geen opslagtijd.
+        const saved = site || update.openDocumentId !== undefined ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
         const params = { file: update.fileName, saved, version: update.siteVersionLabel, count: update.changedLinks, author: update.author };
         // Stap 1.7, vinkje aan: de balk komt uit het geopende document met niet-opgeslagen wijzigingen (geen versie).
         const text = update.openDocumentId !== undefined
