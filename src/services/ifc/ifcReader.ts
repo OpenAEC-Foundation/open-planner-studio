@@ -1355,7 +1355,13 @@ function parseDurationDays(s: string, hoursPerDay: number): number {
  * Geen dag-component vóór `T` ⇒ 0.
  */
 function isoDurationLeadingDaysMinutes(iso: string): number {
-  const MIN_PER_CALENDAR_DAY = 1440;
+  return Math.round(isoDurationLeadingDays(iso) * 1440);
+}
+
+/** Het dag-deel vóór `T` als aantal dagen (met teken, mag een breuk zijn), of 0. De lag rekent het om als
+ *  kalendertijd (`isoDurationLeadingDaysMinutes`); de taakduur met de minuten per dag van de taak
+ *  (`applyTaskTimeRecords`, knownbug 1027). */
+function isoDurationLeadingDays(iso: string): number {
   const clean = iso.trim();
   const neg = clean.startsWith('-');
   const tIdx = clean.indexOf('T');
@@ -1367,7 +1373,7 @@ function isoDurationLeadingDaysMinutes(iso: string): number {
   if (!dayMatch) return 0;
   const days = parseFloat(dayMatch[1]);
   if (!Number.isFinite(days)) return 0;
-  return Math.round((neg && days > 0 ? -days : days) * MIN_PER_CALENDAR_DAY);
+  return neg && days > 0 ? -days : days;
 }
 
 function parseTaskType(s: string): TaskType {
@@ -1602,9 +1608,23 @@ function applyTaskTimeRecords(
     if (!e) continue;
     const t = task.time;
     const durations = readDayMeasureDurations(task);
-    const slotMinutes = (index: number) => isoDurationToMinutes(stripQuotes(e.args[index] || ''));
     const effCal = resolveCalendar(task.calendarId, resourceCalendars, projectCal);
     const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(effCal));
+    // Knownbug 1027: een duur met dagen vóór `T` (`P2DT12H`, alleen uit bestanden van andere programma's; de eigen
+    // writer schrijft dat nooit). `isoDurationToMinutes` leest alleen het deel na `T`; de dagen tellen hier mee met de
+    // minuten per dag van de taak: de werktijd per dag van haar kalender (`WORKTIME`), of 1440 (`ELAPSEDTIME`). Zo is
+    // `P2D` gelijk aan `P2DT0H`. Het sub-dag-signaal van `applyHourModeIFC` blijft het deel na `T`, zoals vóór de fix.
+    const slotDays = (index: number) => isoDurationLeadingDays(stripQuotes(e.args[index] || ''));
+    const slotMinutes = (index: number) => {
+      const minutes = isoDurationToMinutes(stripQuotes(e.args[index] || ''));
+      const days = minutes === null ? 0 : slotDays(index);
+      return minutes === null || days === 0 ? minutes : minutes + Math.round(days * minutesPerDay);
+    };
+    if (t.durationUnit === 'hours' && slotDays(TASKTIME_SLOT.scheduleDuration) !== 0) {
+      const minutes = slotMinutes(TASKTIME_SLOT.scheduleDuration)!;
+      t.durationMinutes = minutes;
+      if (effHoursPerDay(effCal) > 0) t.scheduleDuration = hourTaskScheduleDuration(minutes, effCal);
+    }
 
     const durationRecord = durations?.ScheduleDuration;
     if (durationRecord && !task.isMilestone && slotMinutes(TASKTIME_SLOT.scheduleDuration) === durationRecord[1]) {
@@ -1614,6 +1634,11 @@ function applyTaskTimeRecords(
     }
 
     const restMinutes = slotMinutes(TASKTIME_SLOT.remainingTime);
+    if (t.durationUnit === 'hours' && restMinutes !== null && slotDays(TASKTIME_SLOT.remainingTime) !== 0) {
+      // De rest van een urentaak las `readRemainingMinutes` zonder de dagen.
+      t.remainingMinutes = restMinutes;
+      t.remainingTime = hourRemainingDays(t, restMinutes);
+    }
     const restRecord = durations?.RemainingTime;
     if (restMinutes !== null && t.durationUnit !== 'hours') {
       if (restRecord && restRecord[1] === restMinutes) t.remainingTime = restRecord[0];
