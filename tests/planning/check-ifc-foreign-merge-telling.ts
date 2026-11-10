@@ -23,12 +23,17 @@
 // varianten met een halve dag, dagen met 17 cijfers, een urentaak en `7.5:00:00` (in h7). Besluit van Trias: een eigen
 // OPS-bestand weigert nooit zonder bewerking. De check is rood als een eigen bestand zonder bewerking weigert, behalve de
 // bestanden in `OWN_MAY_REFUSE`, met hun reden. Per eigen bestand drukt hij de uitkomst af.
+// Vervolg-PR van #867 (knownbug 1105): elk bestand opent via de route van de app (`openForeign`: de store met de flag,
+// `openOpenedFile`, dan `buildWriteIFCInput` plus `ifcSource`), en ook de vergelijking zonder vreemd deel gaat via die
+// route. Per eigen bestand staat de uitkomst zonder bewerking naast die van de oude testroute (de lezer direct,
+// `openForeignRaw`). Met `OPS_TELLING_OUDE_ROUTE=1` draait de telling elke bewerking ook op de oude route en drukt per
+// bestand beide af (alleen voor een meting; de CI draait alleen "niets" op de oude route).
 // Exit 0 = geen "anders" en elk eigen bestand schrijft zonder bewerking.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, plannerEdits, tryMerge, type EditKind, type Opened } from './ifcMergeKern';
+import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, plannerEdits, tryMerge, type Domain, type EditKind, type Opened } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
@@ -72,6 +77,17 @@ const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
 };
 /** Zonder bewerking, per eigen bestand: de uitkomst (`schrijft` of `weigert (gevallen)`). */
 const ownOutcome = new Map<string, string>();
+/** Zonder bewerking, per bestand: de uitkomst op de oude testroute (de lezer direct). */
+const rawOutcome = new Map<string, string>();
+const FULL_RAW = process.env.OPS_TELLING_OUDE_ROUTE === '1';
+/** Met `OPS_TELLING_OUDE_ROUTE=1`: per bestand de telling op de oude route. */
+const rawTally = new Map<string, Map<EditKind, Tally>>();
+const rawOthers: string[] = [];
+const enc = new TextEncoder();
+/** Een route: hoe het bestand opent, en de planning van dezelfde bewerking zonder vreemd deel. */
+interface Route { open(bytes: Uint8Array): Promise<Opened>; plain(d: Domain): Promise<Domain> }
+const APP: Route = { open: (b) => openForeign(b), plain: (d) => openForeign(enc.encode(writeIFC(d))) };
+const RAW: Route = { open: (b) => openForeignRaw(b), plain: async (d) => readIFC(writeIFC(d)) };
 
 interface Tally { n: number; ok: number; refused: Map<string, number>; other: Map<string, number> }
 const tally = new Map<string, Map<EditKind, Tally>>();
@@ -125,18 +141,30 @@ for (const file of files) {
   }
   if (REFUSED_AT_OPEN[file] !== undefined) { others.push(`${shown} · openen: verwacht geweigerd (${REFUSED_AT_OPEN[file]}), maar opent`); continue; }
   if (!opened.ifcSource?.foreign) continue;
-  const perKind = await runEdits(shown, bytes, opened);
+  const perKind = await runEdits(shown, bytes, opened, APP, others, true);
   tally.set(shown, perKind);
+  // De oude testroute: alleen zonder bewerking, of met `OPS_TELLING_OUDE_ROUTE=1` alles.
+  try {
+    const raw = await RAW.open(bytes);
+    if (FULL_RAW) rawTally.set(shown, await runEdits(shown, bytes, raw, RAW, rawOthers, false));
+    else {
+      const r = await tryMerge(cloneDomain(raw), raw.ifcSource!);
+      rawOutcome.set(shown, r.ok ? 'schrijft' : `weigert (${r.kinds.join(', ')})`);
+    }
+  } catch (e) {
+    rawOutcome.set(shown, `fout bij openen: ${(e as Error).message.slice(0, 80)}`);
+  }
 }
 
-/** De gewone bewerkingen op één bestand, met per bewerking één van de drie uitkomsten. */
-async function runEdits(shown: string, bytes: Uint8Array, opened: Opened): Promise<Map<EditKind, Tally>> {
+/** De gewone bewerkingen op één bestand, met per bewerking één van de drie uitkomsten. `record`: de uitkomst zonder
+ *  bewerking telt mee in de tabellen per eigen bestand (de route van de app); anders alleen in `rawOutcome`. */
+async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route: Route, others: string[], record: boolean): Promise<Map<EditKind, Tally>> {
   const source = opened.ifcSource!;
   const perKind = new Map<EditKind, Tally>();
   const sourceDoubles = doubleMemberships(bytes);
   const index = scanStep(bytes);
   const fields = new Map<string, number>();
-  editFields.set(shown, fields);
+  if (record) editFields.set(shown, fields);
   const where = shown;
   for (const edit of plannerEdits(opened, MAX_PER_SOORT)) {
     const t = perKind.get(edit.kind) ?? { n: 0, ok: 0, refused: new Map(), other: new Map() };
@@ -148,7 +176,8 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened): Promi
       const d = cloneDomain(opened);
       edit.apply(d);
       const outcome = await tryMerge(d, source);
-      if (edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
+      if (edit.kind === 'niets' && !record) rawOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
+      if (record && edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
         ownFiles++;
         notCarried.set(shown, outcome.ok ? [] : outcome.error.cases.filter(c => c.kind === 'niet-gedragen'));
         ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
@@ -164,8 +193,8 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened): Promi
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }
       const doubles = doubleMemberships(outcome.bytes).filter(k => !sourceDoubles.includes(k));
       if (doubles.length > 0) { fail(`dubbel lidmaatschap: ${doubles[0]}`); continue; }
-      const reread = await openForeign(outcome.bytes);
-      const plain = readIFC(writeIFC(d));
+      const reread = await route.open(outcome.bytes);
+      const plain = await route.plain(d);
       if (canon(reread, reseed) !== canon(plain, reseed)) { fail('andere planning na herlezen'); continue; }
       t.ok++;
     } catch (e) {
@@ -278,15 +307,34 @@ const ownRefused: string[] = [];
   console.log('');
   console.log('Zonder bewerking, per eigen bestand:');
   console.log('');
-  console.log('| eigen bestand | zonder bewerking |');
-  console.log('|---|---|');
+  console.log('| eigen bestand | zonder bewerking (route van de app) | oude testroute (de lezer direct) |');
+  console.log('|---|---|---|');
   for (const [file, outcome] of [...ownOutcome].sort((a, b) => a[0].localeCompare(b[0]))) {
     const allowed = OWN_MAY_REFUSE[file];
-    console.log(`| ${file} | ${outcome}${allowed ? `; mag: ${allowed}` : ''} |`);
+    console.log(`| ${file} | ${outcome}${allowed ? `; mag: ${allowed}` : ''} | ${rawOutcome.get(file) ?? '–'} |`);
     if (outcome !== 'schrijft' && !allowed) ownRefused.push(`${file}: ${outcome}`);
     if (outcome === 'schrijft' && allowed) ownRefused.push(`${file}: schrijft nu; haal het uit OWN_MAY_REFUSE`);
   }
   for (const file of Object.keys(OWN_MAY_REFUSE)) if (!ownOutcome.has(file)) ownRefused.push(`${file}: niet als eigen bestand gezien`);
+}
+
+// ── Met `OPS_TELLING_OUDE_ROUTE=1`: per bestand de route van de app naast de oude testroute ──
+if (FULL_RAW) {
+  const sum = (m: ReadonlyMap<EditKind, Tally> | undefined) => {
+    let n = 0; let okN = 0; let otherN = 0;
+    for (const t of m?.values() ?? []) { n += t.n; okN += t.ok; otherN += [...t.other.values()].reduce((a, b) => a + b, 0); }
+    return m ? `${okN}/${n} gelukt, ${n - okN - otherN} geweigerd, ${otherN} anders` : '–';
+  };
+  console.log('');
+  console.log('Per bestand, alle bewerkingen: route van de app tegenover de oude testroute:');
+  console.log('');
+  console.log('| bestand | route van de app | oude testroute |');
+  console.log('|---|---|---|');
+  for (const file of [...tally.keys()].sort()) console.log(`| ${file} | ${sum(tally.get(file))} | ${sum(rawTally.get(file))} |`);
+  if (rawOthers.length > 0) {
+    console.log(`(oude testroute: ${rawOthers.length} keer anders)`);
+    for (const o of rawOthers.slice(0, 20)) console.log(`   - ${o}`);
+  }
 }
 
 if (ownRefused.length > 0) {

@@ -1,6 +1,10 @@
 // #804 fase 1b: gedeelde kern voor `check-ifc-foreign-preserve.ts` en `check-ifc-foreign-merge-telling.ts`.
 //
-// - `openForeign`: een bestand openen zoals de app met de flag (de bytes-route, zonder Worker).
+// - `openForeign`: een bestand openen zoals de app met de flag: een eigen store-context (`appStoreFactory.ts`, zoals de
+//   headless kern), `openOpenedFile` met de bytes, en dan het domein zoals Opslaan het aan de writer geeft
+//   (`buildWriteIFCInput`) plus `ifcSource`. Dat is de toestand die 1c de merge geeft: na de lezer, de omzetting naar het
+//   minutenmodel en de herberekening bij openen (vervolg-PR van #867, knownbug 1105). `openForeignRaw` is de oude
+//   testroute (de lezer direct), alleen nog voor de vergelijking in de telling.
 // - `mergeProblems`: de invarianten van de merge-writer op uitvoer tegen bron (ontwerp §4.10, de eerste drie alinea's):
 //   kop en staart byte-gelijk; elk niet-P-stuk met hetzelfde `#id`, dezelfde bytes en in dezelfde volgorde; geen ander
 //   niet-P-stuk erbij (wat er nieuw is, deelt de uitvoer zelf in als P); hetzelfde regeleinde; de scanner neemt de
@@ -16,6 +20,7 @@ import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
+import { installBrowserStubs } from './ifcPariteitKern';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
 export type Opened = Domain & { ifcSource?: IfcSource };
@@ -32,10 +37,53 @@ export const sameBytes = (a: Uint8Array, b: Uint8Array): boolean => {
   return true;
 };
 
-/** Openen zoals Bestand → Openen met de flag: de bytes-route, synchroon (geen Worker). */
-export async function openForeign(bytes: Uint8Array): Promise<Opened> {
+/** De oude testroute: de lezer direct (de bytes-route, synchroon, zonder Worker). Zonder de omzetting naar het
+ *  minutenmodel en zonder de herberekening bij openen; alleen nog voor de vergelijking in de telling. */
+export async function openForeignRaw(bytes: Uint8Array): Promise<Opened> {
   const r = await readIfcBytesDetailed(bytes, {}, { createWorker: () => null });
   return r.result as Opened;
+}
+
+type StoreModules = {
+  createAppStoreContext: typeof import('@/state/appStoreFactory').createAppStoreContext;
+  buildWriteIFCInput: typeof import('@/state/ifcSaveInput').buildWriteIFCInput;
+};
+let storeModules: Promise<StoreModules> | undefined;
+/** De store pas bij het eerste gebruik laden, na de kale browseromgeving (zoals `check-ifc-foreign-target.ts`). */
+function loadStore(): Promise<StoreModules> {
+  storeModules ??= (async () => {
+    if ((globalThis as { window?: unknown }).window === undefined) installBrowserStubs();
+    const [{ createAppStoreContext }, { FEATURE_FLAGS }, { buildWriteIFCInput }] = await Promise.all([
+      import('@/state/appStoreFactory'), import('@/utils/featureFlags'), import('@/state/ifcSaveInput'),
+    ]);
+    // Alleen in de tests: de flag bruikbaar maken, zoals in `check-ifc-foreign-open.ts` en `-target.ts`.
+    FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!.writesNewIfcData = false;
+    return { createAppStoreContext, buildWriteIFCInput };
+  })();
+  return storeModules;
+}
+
+/**
+ * Openen zoals Bestand → Openen met de flag (knownbug 1105): een verse store, de flag aan, `openOpenedFile` met de bytes
+ * (de bytes-route; zonder `Worker` in Node valt hij terug op de scan in dezelfde draad), en dan wat Opslaan aan de writer
+ * geeft (`buildWriteIFCInput`) met `ifcSource` erbij. Weigert de app het bestand, dan gooit dit de fout die
+ * `openOpenedFile` meldde (die vangt hij zelf en meldt hem via het meldingenkanaal en `console.error`).
+ */
+export async function openForeign(bytes: Uint8Array, name = 'bron.ifc'): Promise<Opened> {
+  const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
+  const { store } = createAppStoreContext();
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  let failure: unknown;
+  const realError = console.error;
+  console.error = (...args: unknown[]) => { if (args[0] === 'Failed to open file:') failure = args[1]; else realError(...args); };
+  try {
+    await store.getState().openOpenedFile({ name, content: '', bytes, ref: null });
+  } finally {
+    console.error = realError;
+  }
+  if (failure !== undefined) throw failure;
+  const st = store.getState();
+  return { ...buildWriteIFCInput(st), ...(st.ifcSource ? { ifcSource: st.ifcSource } : {}) } as Opened;
 }
 
 /** Een kopie van het domein zonder de bron (die blijft gedeeld en wordt niet bewerkt). */
