@@ -26,6 +26,7 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 | `place_file_exclusive(from, to)` pas in fase 2, met de voorwaarden in §11; in fase 1 geen Rust-commando | wrakko, 2026-11-09 |
 | Een wijziging in `.github/workflows/` pusht Trias: het token op aia09-mp50 heeft geen `workflow`-scope | wrakko, 2026-11-09 |
 | VERVOLG uit een review naar `knownbugs.md` op de PR-branch; 1007 is gebruikt door #863 | werkwijze |
+| Knownbugs voor fase 1: 1011 t/m 1020; vanaf 1021 eerst vragen (1008–1010 blijven ongebruikt) | wrakko, 2026-11-10 |
 | Geen zware runs lokaal: CI | AGENTS.md |
 
 ## Verdeling van fase 1 (3 PR's, elk achter de flag)
@@ -38,8 +39,22 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 2. **1b schrijven**: de writer met behouden ids (§4.3, §4.4, §4.10 opbouw van de uitvoer), afwijking 8 (writer en lezer
    gebruiken dezelfde constanten als het register).
 3. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
+   **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
+   flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
+   `refusedWriteTarget` aan (`src/services/mcp/tools/fileTools.ts:347-349`), maar de headless fs geeft geen
+   `scanTarget` (optioneel, `fileTools.ts:86-90`; `headless/mcp-server/src/host.ts:127`), dus een bestaand modelbestand
+   in `--root` is daar niet leesbaar en mag overschreven worden (`headless/mcp-server/src/nodeFs.ts:358`). Openen gaat
+   nog als tekst met de modelweigering van main; de bytes-route voor headless is fase 2 (§4.12, §8). Zodra 1c opslaan
+   met een vreemd deel aanzet, krijgt de headless route minstens de doelcontrole op inhoud (een `scanTarget` in
+   `nodeFs.ts`), of hij weigert schrijven naar een bestaand IFC met model. Anders is 1c niet klaar.
    **Eis voor 1c** (wrakko, 9 november 2026; knownbug 1011): zodra opslaan aan gaat, mag geen vreemd deel stil
    verloren gaan, ook niet bij een onbekend schema (§4.11). Anders is 1c niet klaar.
+   **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): een bron met vreemde gegevens
+   maar zonder model, die niet meer open is, moet beschermd zijn. Nu beschermt de doelcontrole alleen een bestaand
+   bestand met `IfcProduct`/`IfcTypeProduct` (`src/services/ifc/foreign/targetModelScan.ts`), en het kenmerk alleen
+   zolang het document open is of via herstel en MCP-backup; een gewone opslag schrijft het kenmerk bewust niet
+   (`src/state/ifcSaveInput.ts:36-39`). Na export of Opslaan als naar een ander bestand en heropenen kan zo'n bron
+   (bijv. een IFC met een externe pset) overschreven worden. Anders is 1c niet klaar.
 
 ## Werk
 

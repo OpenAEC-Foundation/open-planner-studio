@@ -33,8 +33,9 @@ export type IFCSaveSource = Pick<
   & Partial<Pick<DocumentPayload,
     | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'
     | 'recordedDates' | 'datesAsRecorded'
-    // #804 fase 1a, fixronde 1: alleen de herstelsnapshot schrijft de vingerafdruk (`recoverySnapshotInput`);
-    // `buildWriteIFCInput` leest dit veld niet, dus een gewone opslag en de MCP-backup blijven gelijk aan main.
+    // #804 fase 1a: `buildWriteIFCInput` leest dit veld niet, dus een gewone opslag en een export blijven gelijk aan
+    // main. Alleen de herstelsnapshot (`recoverySnapshotInput`) en de MCP-backup (`backupService.ts`, fixronde 3)
+    // voegen het kenmerk zelf toe.
     | 'foreignSourceMark'>>;
 
 /**

@@ -1671,6 +1671,17 @@ en noem het in je rapport of PR-tekst.
      elke instantie in de interne vorm; IfcOpenShell 0.8.4 en 0.9.0 lezen de externe vorm niet als `IfcWall`. Richting:
      de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). — B
 
+1017. **VERVOLG: de doelcontrole leest een bestaande IFC zonder model helemaal, en de planner ziet in die tijd
+     niets.** Met de flag `ifcForeignContent` leest `src/services/ifc/foreign/targetModelScan.ts` bij Opslaan als, een
+     export en AutoSave naar een bestaand IFC het hele bestand als dat geen `IfcProduct`/`IfcTypeProduct` bevat (de
+     route van `readIFC` sinds fixronde 4 van #864). CI-meting run 42735559587 (`ubuntu-24.04`), 300 MB zonder model:
+     Node 1,0 s (stroom) / 1,1 s (`Blob`), Chromium 0,8 s, WebKit 1,3 s; met het model vooraan 8–13 ms (WebKit 0,6 s).
+     Fixronde 3 (twee lezers) kostte hier nog 2,9–3,6 s. In die tijd toont de app geen voortgang: na het kiezen van het
+     bestand in de dialoog gebeurt er tot ongeveer 1,3 s niets zichtbaars (afgeleid uit de code van `fileSlice.ts`,
+     `webBackend.ts`, `tauriBackend.ts`: geen bezig-indicatie; niet in de browser nagegaan). Aanvaard voor 1a (wrakko,
+     10 november 2026). Richting: een bezig-indicatie als de controle langer dan een korte tijd duurt. Uit #864
+     (fase 1a). — S
+
 1018. **De doelcontrole en `readIFC` zijn kwadratisch als veel entiteiten pas aan het einde van het bestand mislukken.**
      `parseSTEP` (`src/services/ifc/ifcReader.ts`) leest na een mislukte entiteit verder vanaf het teken na de `#`.
      Mislukt elke entiteit pas aan het einde (bijvoorbeeld `#1=A((#2=B((#3=C((…` zonder sluithaken), dan leest de lus het
