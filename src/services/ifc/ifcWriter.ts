@@ -23,7 +23,7 @@ import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
-import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
+import { PSET, PROP, PER_TASK_PSETS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { shownFinish, shownStart } from '@/utils/taskDates';
@@ -437,7 +437,7 @@ export function writeIFC(input: WriteIFCInput): string {
   // en `$` allebei als leeg.
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcRequiredStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
   if (!input.minuteModelPending) {
-    const prop = addLine(ctx, '_time_model', `IFCPROPERTYSINGLEVALUE('TimeModel',$,IFCLABEL(${ifcStr(MINUTE_MODEL_TIME_MODEL)}),$)`);
+    const prop = addLine(ctx, '_time_model', `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Project.TimeModel)},$,IFCLABEL(${ifcStr(MINUTE_MODEL_TIME_MODEL)}),$)`);
     const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},${ifcStr(PSET.Project)},$,(#${prop}))`);
     addLine(ctx, '_time_model_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'time_model_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
   }
@@ -446,15 +446,15 @@ export function writeIFC(input: WriteIFCInput): string {
     // Alleen in een herstelsnapshot of MCP-backup (zie `WriteIFCInput.recoveryForeignSource`): lengte en SHA-256, geen
     // bytes. Een backup schrijft ook het doel (een herstelsnapshot heeft dat in het manifest).
     const props = [
-      addLine(ctx, '_recovery_foreign_sha', `IFCPROPERTYSINGLEVALUE('Sha256',$,IFCTEXT(${ifcStr(recoveryForeignSource.sha256)}),$)`),
-      addLine(ctx, '_recovery_foreign_len', `IFCPROPERTYSINGLEVALUE('ByteLength',$,IFCINTEGER(${recoveryForeignSource.byteLength}),$)`),
+      addLine(ctx, '_recovery_foreign_sha', `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.RecoveryForeignSource.Sha256)},$,IFCTEXT(${ifcStr(recoveryForeignSource.sha256)}),$)`),
+      addLine(ctx, '_recovery_foreign_len', `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.RecoveryForeignSource.ByteLength)},$,IFCINTEGER(${recoveryForeignSource.byteLength}),$)`),
     ];
     const target = recoveryForeignSource.target;
     if (target?.filePath) {
-      props.push(addLine(ctx, '_recovery_foreign_path', `IFCPROPERTYSINGLEVALUE('SourcePath',$,IFCTEXT(${ifcStr(target.filePath)}),$)`));
+      props.push(addLine(ctx, '_recovery_foreign_path', `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.RecoveryForeignSource.SourcePath)},$,IFCTEXT(${ifcStr(target.filePath)}),$)`));
     }
     if (target?.siteFileId) {
-      props.push(addLine(ctx, '_recovery_foreign_site', `IFCPROPERTYSINGLEVALUE('SourceSiteFileId',$,IFCTEXT(${ifcStr(target.siteFileId)}),$)`));
+      props.push(addLine(ctx, '_recovery_foreign_site', `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.RecoveryForeignSource.SourceSiteFileId)},$,IFCTEXT(${ifcStr(target.siteFileId)}),$)`));
     }
     const pset = addLine(ctx, '_recovery_foreign_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'recovery_foreign'))},#${ownerHistId},${ifcStr(PSET.RecoveryForeignSource)},$,(${props.map(p => `#${p}`).join(',')}))`);
     addLine(ctx, '_recovery_foreign_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'recovery_foreign_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
@@ -639,27 +639,27 @@ function writeXerSourceArchive(
   const property = (name: string, value: string) => props.push(addLine(ctx, `xerarchive_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
   if (storage === 'recovery-reference') {
     // Crashherstel: alleen de verwijzing. De bytes (en hun base64-codering) raken deze tick niet.
-    property('SchemaVersion', `IFCINTEGER(${XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION})`);
-    property('Format', `IFCLABEL(${ifcStr(archive.format)})`);
-    property('StorageFormat', `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT)})`);
-    property('ByteLength', `IFCINTEGER(${archive.byteLength})`);
-    property('Sha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
+    property(PROP.XerSourceArchive.SchemaVersion, `IFCINTEGER(${XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION})`);
+    property(PROP.XerSourceArchive.Format, `IFCLABEL(${ifcStr(archive.format)})`);
+    property(PROP.XerSourceArchive.StorageFormat, `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT)})`);
+    property(PROP.XerSourceArchive.ByteLength, `IFCINTEGER(${archive.byteLength})`);
+    property(PROP.XerSourceArchive.Sha256, `IFCTEXT(${ifcStr(archive.sha256)})`);
   } else {
-    property('SchemaVersion', `IFCINTEGER(${XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION})`);
-    property('Format', `IFCLABEL(${ifcStr(archive.format)})`);
-    property('StorageFormat', `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)})`);
-    property('ByteLength', `IFCINTEGER(${archive.byteLength})`);
-    property('Sha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
-    property('ByteChunkSize', `IFCINTEGER(${XER_SOURCE_ARCHIVE_CHUNK_BYTES})`);
-    property('ByteChunkCount', `IFCINTEGER(${archive.byteChunks.length})`);
-    archive.byteChunks.forEach((chunk, index) => property(`ByteChunk${String(index).padStart(6, '0')}`, `IFCTEXT(${ifcStr(chunk)})`));
+    property(PROP.XerSourceArchive.SchemaVersion, `IFCINTEGER(${XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION})`);
+    property(PROP.XerSourceArchive.Format, `IFCLABEL(${ifcStr(archive.format)})`);
+    property(PROP.XerSourceArchive.StorageFormat, `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)})`);
+    property(PROP.XerSourceArchive.ByteLength, `IFCINTEGER(${archive.byteLength})`);
+    property(PROP.XerSourceArchive.Sha256, `IFCTEXT(${ifcStr(archive.sha256)})`);
+    property(PROP.XerSourceArchive.ByteChunkSize, `IFCINTEGER(${XER_SOURCE_ARCHIVE_CHUNK_BYTES})`);
+    property(PROP.XerSourceArchive.ByteChunkCount, `IFCINTEGER(${archive.byteChunks.length})`);
+    archive.byteChunks.forEach((chunk, index) => property(xerArchiveChunkName(XER_ARCHIVE_CHUNK.bytes, index), `IFCTEXT(${ifcStr(chunk)})`));
   }
   const setId = addLine(ctx, 'pset_xerarchive', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerarchive'))},#${ownerHistId},${ifcStr(PSET.XerSourceArchive)},$,(${props.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, 'rel_xerarchive', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerarchive'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${setId})`);
   const selectorProps: number[] = [];
   const selector = (name: string, value: string) => selectorProps.push(addLine(ctx, `xerdoc_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
-  selector('ArchiveSha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
-  selector('SourceProjectId', `IFCTEXT(${ifcStr(sourceProjectId)})`);
+  selector(PROP.XerDocument.ArchiveSha256, `IFCTEXT(${ifcStr(archive.sha256)})`);
+  selector(PROP.XerDocument.SourceProjectId, `IFCTEXT(${ifcStr(sourceProjectId)})`);
   const selectorSet = addLine(ctx, 'pset_xerdocument', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerdocument'))},#${ownerHistId},${ifcStr(PSET.XerDocument)},$,(${selectorProps.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, 'rel_xerdocument', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerdocument'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${selectorSet})`);
 }
@@ -676,7 +676,7 @@ function writeTaskTypeMeta(
   for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[objectGuid(ctx, 'task', task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });
   const propId = addLine(ctx, '_ps_tasktypes_json',
-    `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(asciiJson(value))}),$)`);
+    `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.TaskTypes.TaskTypes)},$,IFCTEXT(${ifcStr(asciiJson(value))}),$)`);
   const setId = addLine(ctx, '_pset_tasktypes',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tasktypes'))},#${ownerHistId},${ifcStr(PSET.TaskTypes)},$,(#${propId}))`);
   addLine(ctx, '_rel_tasktypes',
@@ -742,30 +742,30 @@ function writeStructure(
   // IFC-bestand bij iedere parse een nieuw project-id, zodat een ververste link geen blijvend
   // canonieke bronidentiteit heeft. Oudere bestanden vallen in de reader terug op IFC GlobalId.
   projSettingProps.push(addLine(ctx, '_ps_projectid',
-    `IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT(${ifcStr(project.id)}),$)`));
+    `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.InternalProjectId)},$,IFCTEXT(${ifcStr(project.id)}),$)`));
   if (project.wbsAutoNumber !== undefined) {
     projSettingProps.push(addLine(ctx, '_ps_wbsauto',
-      `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.wbsAutoNumber)},$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));
   }
   if (project.defaultTaskDurationUnit) {
     projSettingProps.push(addLine(ctx, '_ps_defaultdurationunit',
-      `IFCPROPERTYSINGLEVALUE('DefaultTaskDurationUnit',$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.DefaultTaskDurationUnit)},$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
   }
   // Projectstandaard-werkregel, alleen wanneer gezet (golden rule).
   if (project.defaultWorkRule) {
     projSettingProps.push(addLine(ctx, '_ps_defaultworkrule',
-      `IFCPROPERTYSINGLEVALUE('DefaultWorkRule',$,IFCLABEL(${ifcStr(project.defaultWorkRule)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.DefaultWorkRule)},$,IFCLABEL(${ifcStr(project.defaultWorkRule)}),$)`));
   }
   if (project.statusDate) {
     // `ifcDateValue`: datum ⇒ IFCDATE, mét tijd (uur-modus) ⇒ IFCDATETIME met seconden. IfcDate kent
     // geen tijd, dus anders staat de statusdatum na opslaan + openen op middernacht.
     projSettingProps.push(addLine(ctx, '_ps_statusdate',
-      `IFCPROPERTYSINGLEVALUE('StatusDate',$,${ifcDateValue(project.statusDate)},$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.StatusDate)},$,${ifcDateValue(project.statusDate)},$)`));
   }
   // ProgressMode alleen als afwijkend van de default RETAINED_LOGIC (golden rule).
   if (project.progressMode && project.progressMode !== 'RETAINED_LOGIC') {
     projSettingProps.push(addLine(ctx, '_ps_progressmode',
-      `IFCPROPERTYSINGLEVALUE('ProgressMode',$,IFCLABEL(${ifcStr(project.progressMode)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.ProgressMode)},$,IFCLABEL(${ifcStr(project.progressMode)}),$)`));
   }
   // CreatedAt/ModifiedAt: project-tijdstempels als verbatim ISO-instant. Bewust in het
   // OPS_ProjectSettings-pset i.p.v. de native IFCOWNERHISTORY-slots (IfcTimeStamp): OwnerHistory
@@ -785,25 +785,25 @@ function writeStructure(
   const contractDateProp = (key: string, name: string, value: string): number =>
     addLine(ctx, key,
       `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value ? ifcDateValue(value) : '$'},$)`);
-  projSettingProps.push(contractDateProp('_ps_projstart', 'ProjectStartDate', project.startDate));
-  projSettingProps.push(contractDateProp('_ps_projend', 'ProjectEndDate', project.endDate));
+  projSettingProps.push(contractDateProp('_ps_projstart', PROP.ProjectSettings.ProjectStartDate, project.startDate));
+  projSettingProps.push(contractDateProp('_ps_projend', PROP.ProjectSettings.ProjectEndDate, project.endDate));
 
   if (project.createdAt) {
     projSettingProps.push(addLine(ctx, '_ps_createdat',
-      `IFCPROPERTYSINGLEVALUE('CreatedAt',$,IFCTEXT(${ifcStr(project.createdAt)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.CreatedAt)},$,IFCTEXT(${ifcStr(project.createdAt)}),$)`));
   }
   if (project.modifiedAt) {
     projSettingProps.push(addLine(ctx, '_ps_modifiedat',
-      `IFCPROPERTYSINGLEVALUE('ModifiedAt',$,IFCTEXT(${ifcStr(project.modifiedAt)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.ModifiedAt)},$,IFCTEXT(${ifcStr(project.modifiedAt)}),$)`));
   }
   // Projectbinding aan een resourcebibliotheek. Golden rule: alleen wanneer gebonden.
   if (project.companyId) {
     projSettingProps.push(addLine(ctx, '_ps_companyid',
-      `IFCPROPERTYSINGLEVALUE('CompanyId',$,IFCTEXT(${ifcStr(project.companyId)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.CompanyId)},$,IFCTEXT(${ifcStr(project.companyId)}),$)`));
   }
   if (project.companyName) {
     projSettingProps.push(addLine(ctx, '_ps_companyname',
-      `IFCPROPERTYSINGLEVALUE('CompanyName',$,IFCTEXT(${ifcStr(project.companyName)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.CompanyName)},$,IFCTEXT(${ifcStr(project.companyName)}),$)`));
   }
   // De schemavraag bij opslaan (besluit eigenaar 2026-10-13, `services/ifc/ifcSchemaQuestion.ts`).
   // Staat de vraag nog open (automatisch opslaan, crashherstel, MCP-backup), dan bewaart
@@ -814,18 +814,18 @@ function writeStructure(
   const schemaQuestion = ifcSchemaQuestionFor(project);
   projSettingProps.push(schemaQuestion
     ? addLine(ctx, '_ps_ifcschemaunconfirmed',
-      `IFCPROPERTYSINGLEVALUE('IfcSchemaUnconfirmed',$,IFCLABEL(${ifcStr(schemaQuestion.fileSchema)}),$)`)
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.IfcSchemaUnconfirmed)},$,IFCLABEL(${ifcStr(schemaQuestion.fileSchema)}),$)`)
     : addLine(ctx, '_ps_ifcschemaconfirmed',
-      `IFCPROPERTYSINGLEVALUE('IfcSchemaConfirmed',$,IFCBOOLEAN(.T.),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.IfcSchemaConfirmed)},$,IFCBOOLEAN(.T.),$)`));
   // P6 Project-ID (zie `documentProjectCode`). Golden rule: alleen wanneer gezet.
   if (project.p6ProjectCode) {
     projSettingProps.push(addLine(ctx, '_ps_p6projectcode',
-      `IFCPROPERTYSINGLEVALUE('P6ProjectCode',$,IFCTEXT(${ifcStr(project.p6ProjectCode)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.P6ProjectCode)},$,IFCTEXT(${ifcStr(project.p6ProjectCode)}),$)`));
   }
   // De map met afhankelijke projecten (stap 1.11, keuze 7). Golden rule: alleen wanneer gezet.
   if (project.dependentProjectsFolder) {
     projSettingProps.push(addLine(ctx, '_ps_dependentfolder',
-      `IFCPROPERTYSINGLEVALUE('DependentProjectsFolder',$,IFCTEXT(${ifcStr(project.dependentProjectsFolder)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.DependentProjectsFolder)},$,IFCTEXT(${ifcStr(project.dependentProjectsFolder)}),$)`));
   }
   if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',
@@ -838,7 +838,7 @@ function writeStructure(
   // Autoritaire meta-JSON (verliesloos: ids, kleuren, omschrijvingen).
   const metaJson = JSON.stringify({ activityCodeTypes, customFieldDefs });
   const metaPropId = addLine(ctx, '_ps_structmeta',
-    `IFCPROPERTYSINGLEVALUE('structure',$,IFCTEXT(${ifcStr(asciiJson(metaJson))}),$)`);
+    `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.StructureMeta.structure)},$,IFCTEXT(${ifcStr(asciiJson(metaJson))}),$)`);
   const metaSetId = addLine(ctx, '_pset_structmeta',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_structmeta'))},#${ownerHistId},${ifcStr(PSET.StructureMeta)},$,(#${metaPropId}))`);
   relDefines('_rel_structmeta', projRef, metaSetId);
@@ -927,7 +927,7 @@ function writeLibraryPool(
   const projRef = ref(ctx, '_project');
   const json = JSON.stringify(pool);
   const propId = addLine(ctx, '_ps_library',
-    `IFCPROPERTYSINGLEVALUE('pool',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
+    `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Library.pool)},$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_library',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_library'))},#${ownerHistId},${ifcStr(PSET.Library)},$,(#${propId}))`);
   addLine(ctx, '_rel_library',
@@ -989,7 +989,7 @@ function writeBaselineMeta(
   const json = JSON.stringify(baselines);
   const props: number[] = [];
   props.push(addLine(ctx, '_ps_baselines_json',
-    `IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`));
+    `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Baselines.Baselines)},$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`));
   // De baseline-JSON draagt INTERNE taak-id's. Zou de reader die terugmappen door zelf
   // `ifcGuid(taskId)` te herberekenen, dan gaf een hashbotsing stille kruisbesmetting tussen
   // baselines en vond hij een gesuffixt GlobalId (wat `guidOf` bij een botsing uitgeeft) nooit terug.
@@ -1006,17 +1006,17 @@ function writeBaselineMeta(
   }
   if (Object.keys(baselineTaskGuids).length > 0) {
     props.push(addLine(ctx, '_ps_baselines_guids',
-      `IFCPROPERTYSINGLEVALUE('TaskGuids',$,IFCTEXT(${ifcJson(baselineTaskGuids)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Baselines.TaskGuids)},$,IFCTEXT(${ifcJson(baselineTaskGuids)}),$)`));
   }
   if (activeBaselineId) {
     props.push(addLine(ctx, '_ps_baselines_active',
-      `IFCPROPERTYSINGLEVALUE('ActiveBaselineId',$,IFCTEXT(${ifcStr(activeBaselineId)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Baselines.ActiveBaselineId)},$,IFCTEXT(${ifcStr(activeBaselineId)}),$)`));
   }
   // De vergelijkingsbaselines in de Gantt (issue #391): twee vaste plaatsen, elk een id of null.
   // Alleen schrijven als er iets gekozen is; zonder pset-waarde leest een bestand als "geen vergelijking".
   if (comparedBaselineIds?.some(id => !!id)) {
     props.push(addLine(ctx, '_ps_baselines_compared',
-      `IFCPROPERTYSINGLEVALUE('ComparedBaselineIds',$,IFCTEXT(${ifcJson([comparedBaselineIds[0] ?? null, comparedBaselineIds[1] ?? null])}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Baselines.ComparedBaselineIds)},$,IFCTEXT(${ifcJson([comparedBaselineIds[0] ?? null, comparedBaselineIds[1] ?? null])}),$)`));
   }
   const setId = addLine(ctx, '_pset_baselines',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_baselines'))},#${ownerHistId},${ifcStr(PSET.Baselines)},$,(${props.map(i => `#${i}`).join(',')}))`);
@@ -1039,7 +1039,7 @@ function writeSchedulingOptionsMeta(
   if (!options || Object.keys(options).length === 0) return;
   const json = JSON.stringify(options);
   const propId = addLine(ctx, '_ps_schedopts',
-    `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
+    `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.SchedulingOptions.SchedulingOptions)},$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_schedopts',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedopts'))},#${ownerHistId},${ifcStr(PSET.SchedulingOptions)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedopts',
@@ -1061,7 +1061,7 @@ export function writeSchedulingProfileMeta(
   if (!carriesProfile(profile)) return;
   const json = JSON.stringify(schedulingProfileToJson(profile));
   const propId = addLine(ctx, '_ps_schedprofile',
-    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
+    `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.SchedulingProfile.SchedulingProfile)},$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_schedprofile',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedprofile'))},#${ownerHistId},${ifcStr(PSET.SchedulingProfile)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedprofile',
@@ -1085,13 +1085,13 @@ function writeImportProvenanceMeta(
   const propIds: number[] = [];
   if (importPristine) {
     propIds.push(addLine(ctx, '_ps_importprov',
-      `IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.T.),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ImportProvenance.UnchangedSinceImport)},$,IFCBOOLEAN(.T.),$)`));
   }
   // De oorspronkelijke bron met echte rekenuitvoer, zodat
   // een heropening de modus alleen kent voor XER/P6 XML/MSPDI/.mpp/vreemd-IFC-met-early-slots.
   if (sourceFormat) {
     propIds.push(addLine(ctx, '_ps_importprov_source',
-      `IFCPROPERTYSINGLEVALUE('SourceFormat',$,IFCLABEL(${ifcStr(sourceFormat)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ImportProvenance.SourceFormat)},$,IFCLABEL(${ifcStr(sourceFormat)}),$)`));
   }
   const setId = addLine(ctx, '_pset_importprov',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_importprov'))},#${ownerHistId},${ifcStr(PSET.ImportProvenance)},$,(${propIds.map(id => `#${id}`).join(',')}))`);
@@ -1412,78 +1412,78 @@ function writeCalendarGenerationMeta(
     && !hasSimpleBreak && !isHourCalendar && !markScalar && !needsWorkStartHour && !needsWorkEndHour
     && !hasP6Source && !hasRejectedPenaltyDiagnostic && !literalTimes) return;
   const props: number[] = [];
-  if (literalTimes) props.push(addLine(ctx, `_opscal_literal_${cal.id}`, "IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$)"));
+  if (literalTimes) props.push(addLine(ctx, `_opscal_literal_${cal.id}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.LiteralTimes)},$,IFCBOOLEAN(.T.),$)`));
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('RuleSetId',$,IFCLABEL(${ifcStr(gen.ruleSetId)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.RuleSetId)},$,IFCLABEL(${ifcStr(gen.ruleSetId)}),$)`));
     if (gen.region) {
       props.push(addLine(ctx, `_opscal_region_${cal.id}`,
-        `IFCPROPERTYSINGLEVALUE('Region',$,IFCLABEL(${ifcStr(gen.region)}),$)`));
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.Region)},$,IFCLABEL(${ifcStr(gen.region)}),$)`));
     }
     if (gen.breakChoice) {
       props.push(addLine(ctx, `_opscal_break_${cal.id}`,
-        `IFCPROPERTYSINGLEVALUE('BreakChoice',$,IFCLABEL(${ifcStr(gen.breakChoice)}),$)`));
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.BreakChoice)},$,IFCLABEL(${ifcStr(gen.breakChoice)}),$)`));
     }
     props.push(addLine(ctx, `_opscal_from_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('GeneratedFromYear',$,IFCINTEGER(${gen.generatedFromYear}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.GeneratedFromYear)},$,IFCINTEGER(${gen.generatedFromYear}),$)`));
     props.push(addLine(ctx, `_opscal_to_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('GeneratedToYear',$,IFCINTEGER(${gen.generatedToYear}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.GeneratedToYear)},$,IFCINTEGER(${gen.generatedToYear}),$)`));
   }
   if (cal.libraryOrigin) {
     props.push(addLine(ctx, `_opscal_lo_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcJson(cal.libraryOrigin)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.LibraryOrigin)},$,IFCTEXT(${ifcJson(cal.libraryOrigin)}),$)`));
   }
   if (needsHoursPerDayOverride) {
     props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('HoursPerDay',$,${ifcTypedReal('IFCREAL', cal.hoursPerDay)},$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.HoursPerDay)},$,${ifcTypedReal('IFCREAL', cal.hoursPerDay)},$)`));
   }
   if (needsWorkStartHour) {
     props.push(addLine(ctx, `_opscal_workstart_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WorkStartHour',$,${ifcTypedReal('IFCREAL', cal.workStartHour)},$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.WorkStartHour)},$,${ifcTypedReal('IFCREAL', cal.workStartHour)},$)`));
   }
   if (needsWorkEndHour) {
     props.push(addLine(ctx, `_opscal_workend_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WorkEndHour',$,${ifcTypedReal('IFCREAL', cal.workEndHour)},$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.WorkEndHour)},$,${ifcTypedReal('IFCREAL', cal.workEndHour)},$)`));
   }
   // IFC kent geen semantisch "eenvoudig pauzepatroon". Bewaar het daarom als OPS-metadata,
   // uitsluitend wanneer de gebruiker de nieuwe velden werkelijk heeft gezet.
   if (hasSimpleBreak) {
     if (cal.simpleBreakStartMinute !== undefined) {
       props.push(addLine(ctx, `_opscal_breakstart_${cal.id}`,
-        `IFCPROPERTYSINGLEVALUE('SimpleBreakStart',$,IFCINTEGER(${cal.simpleBreakStartMinute}),$)`));
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.SimpleBreakStart)},$,IFCINTEGER(${cal.simpleBreakStartMinute}),$)`));
     }
     if (cal.simpleBreakDurationMinutes !== undefined) {
       props.push(addLine(ctx, `_opscal_breakduration_${cal.id}`,
-        `IFCPROPERTYSINGLEVALUE('SimpleBreakDuration',$,IFCINTEGER(${cal.simpleBreakDurationMinutes}),$)`));
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.SimpleBreakDuration)},$,IFCINTEGER(${cal.simpleBreakDurationMinutes}),$)`));
     }
   }
   if (isHourCalendar) {
     props.push(addLine(ctx, `_opscal_hourmode_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.T.),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.IsHourCalendar)},$,IFCBOOLEAN(.T.),$)`));
   } else if (markScalar) {
     props.push(addLine(ctx, `_opscal_hourmode_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.IsHourCalendar)},$,IFCBOOLEAN(.F.),$)`));
   }
   if (hasWorkingExceptions) {
     // Nieuwe lezers gebruiken inhoud, niet STEP-nummers die MergeProjects opnieuw uitgeeft.
     // De oude property blijft voor eerdere OPS-versies; V1 heeft bij nieuwe lezers voorrang.
     props.push(addLine(ctx, `_opscal_wexckeys_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WorkingExceptionKeysV1',$,IFCTEXT(${ifcJson((cal.workingExceptions ?? []).map(calendarExceptionKey))}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.WorkingExceptionKeysV1)},$,IFCTEXT(${ifcJson((cal.workingExceptions ?? []).map(calendarExceptionKey))}),$)`));
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
     props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(asciiJson(idJson))}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.WorkingExceptionIds)},$,IFCTEXT(${ifcStr(asciiJson(idJson))}),$)`));
   }
   if (hasP6Source) {
     props.push(addLine(ctx, `_opscal_p6source_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('P6Source',$,IFCLABEL('XER'),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.P6Source)},$,IFCLABEL('XER'),$)`));
   }
   if (hasP6Source) {
     props.push(addLine(ctx, `_opscal_p6penalty_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates',$,IFCTEXT(${ifcJson(cal.p6NonWorkPenaltyDates ?? [])}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.P6NonWorkPenaltyDates)},$,IFCTEXT(${ifcJson(cal.p6NonWorkPenaltyDates ?? [])}),$)`));
   }
   if (hasRejectedPenaltyDiagnostic) {
     props.push(addLine(ctx, `_opscal_p6penaltystate_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDatesState',$,IFCLABEL('REJECTED'),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Calendar.P6NonWorkPenaltyDatesState)},$,IFCLABEL('REJECTED'),$)`));
   }
   const setId = addLine(ctx, `_pset_opscal_${cal.id}`,
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_opscal_' + cal.id))},#${ownerHistId},${ifcStr(PSET.Calendar)},$,(${props.map(i => `#${i}`).join(',')}))`);
@@ -1752,7 +1752,7 @@ function writeSequenceMeta(
   const propIds: number[] = [];
   if (boundarySequenceGuids.length > 0) {
     propIds.push(addLine(ctx, '_ps_seq_boundary',
-      `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcJson(boundarySequenceGuids)}),$)`));
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Sequences.P6StartAtPredecessorFinishBoundarySequenceGuids)},$,IFCTEXT(${ifcJson(boundarySequenceGuids)}),$)`));
   }
   if (dayMeasureLags.length > 0) {
     propIds.push(addLine(ctx, '_ps_seq_daymeasure',
@@ -1797,24 +1797,24 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
     const props: string[] = [];
     if (res.maxUnits !== 1) {
       const id = addLine(ctx, `_resmu_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('MaxUnits',$,${ifcTypedReal('IFCREAL', res.maxUnits)},$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Resource.MaxUnits)},$,${ifcTypedReal('IFCREAL', res.maxUnits)},$)`);
       props.push(`#${id}`);
     }
     if (res.costPerHour !== undefined) {
       const id = addLine(ctx, `_resch_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('CostPerHour',$,${ifcTypedReal('IFCMONETARYMEASURE', res.costPerHour)},$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Resource.CostPerHour)},$,${ifcTypedReal('IFCMONETARYMEASURE', res.costPerHour)},$)`);
       props.push(`#${id}`);
     }
     if (res.unitOfMeasure) {
       const id = addLine(ctx, `_resuom_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('UnitOfMeasure',$,IFCLABEL(${ifcStr(res.unitOfMeasure)}),$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Resource.UnitOfMeasure)},$,IFCLABEL(${ifcStr(res.unitOfMeasure)}),$)`);
       props.push(`#${id}`);
     }
     if (res.color) {
       // Weergavekleur (hex) voor de resource-kleurmodi in de rapportexport. Presentatie, geen
       // planningsdata — reist mee in het project-IFC zodat de export op elke machine gelijk kleurt.
       const id = addLine(ctx, `_rescol_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('Color',$,IFCTEXT(${ifcStr(res.color)}),$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Resource.Color)},$,IFCTEXT(${ifcStr(res.color)}),$)`);
       props.push(`#${id}`);
     }
     if (res.availabilitySteps && res.availabilitySteps.length > 0) {
@@ -1824,19 +1824,19 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
         .map(s => `${s.from}:${s.maxUnits}`)
         .join(';');
       const id = addLine(ctx, `_resas_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('AvailabilitySteps',$,IFCTEXT(${ifcStr(encoded)}),$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Resource.AvailabilitySteps)},$,IFCTEXT(${ifcStr(encoded)}),$)`);
       props.push(`#${id}`);
     }
     if (res.parentId) {
       // Vangnet naast IFCRELNESTS (writeCrewNesting): de eigen reader hoeft nooit
       // afhankelijk te zijn van relatie-richting-interpretatie door andere IFC-tools.
       const id = addLine(ctx, `_respg_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('ParentGuid',$,IFCTEXT(${ifcStr(objectGuid(ctx, 'res', res.parentId))}),$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Resource.ParentGuid)},$,IFCTEXT(${ifcStr(objectGuid(ctx, 'res', res.parentId))}),$)`);
       props.push(`#${id}`);
     }
     if (res.libraryOrigin) {
       const id = addLine(ctx, `_reslo_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcJson(res.libraryOrigin)}),$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Resource.LibraryOrigin)},$,IFCTEXT(${ifcJson(res.libraryOrigin)}),$)`);
       props.push(`#${id}`);
     }
     if (props.length === 0) continue;
@@ -1984,7 +1984,7 @@ function writeTimephasedMeta(
     });
     if (Object.keys(windows).length === 0) continue;
     const propId = addLine(ctx, `_ps_tp_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('Windows',$,IFCTEXT(${ifcJson(windows)}),$)`);
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Timephased.Windows)},$,IFCTEXT(${ifcJson(windows)}),$)`);
     const setId = addLine(ctx, `_pset_tp_${task.id}`,
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tp_' + task.id))},#${ownerHistId},${ifcStr(PSET.Timephased)},$,(#${propId}))`);
     addLine(ctx, `_rel_tp_${task.id}`,
@@ -2020,7 +2020,7 @@ function writeTimephasedDurationWalksMeta(
       ...(w.workMinutes !== undefined ? { workMinutes: w.workMinutes } : {}),
     }));
     const propId = addLine(ctx, `_ps_tpdw_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('DurationWalks',$,IFCTEXT(${ifcJson(json)}),$)`);
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.DurationWalks.DurationWalks)},$,IFCTEXT(${ifcJson(json)}),$)`);
     const setId = addLine(ctx, `_pset_tpdw_${task.id}`,
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tpdw_' + task.id))},#${ownerHistId},${ifcStr(PSET.DurationWalks)},$,(#${propId}))`);
     addLine(ctx, `_rel_tpdw_${task.id}`,

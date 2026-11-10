@@ -179,6 +179,7 @@ check-ifc-nesting-index.ts matrix
 check-ifc-projectdatum-corpus.ts los
 check-ifc-projectdatum-tijd.ts matrix
 check-ifc-property-relations.ts matrix
+check-ifc-pset-register.ts matrix
 check-ifc-real-values.ts matrix
 check-ifc-roundtrip.ts matrix
 check-ifc-schema-question.ts matrix

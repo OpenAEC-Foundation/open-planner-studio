@@ -1,5 +1,5 @@
 {
- "basis": "2a66df33c",
+ "basis": "14f979755",
  "binaryExtensions": [
   "mpp",
   "xer"
@@ -3073,95 +3073,9 @@
   {
    "pad": "tests/planning/fixtures/backup-met-kenmerk.ifc",
    "invoerSha256": "0606410f227133ea92423e995e255d817548a4f15e3c9687e9bfa6ce789421f8",
-   "filePath": "backup-met-kenmerk.ifc",
-   "opslaanSha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
-   "opslaanLengte": 32622,
+   "filePath": null,
    "meldingen": [],
-   "acties": [
-    {
-     "actie": "saveFile",
-     "uitkomst": "klaar",
-     "dialogen": 1,
-     "writes": [
-      {
-       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
-       "lengte": 32622
-      }
-     ],
-     "filePath": "backup-met-kenmerk.ifc",
-     "isDirty": false,
-     "meldingen": []
-    },
-    {
-     "actie": "saveFileAs",
-     "uitkomst": "klaar",
-     "dialogen": 1,
-     "writes": [
-      {
-       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
-       "lengte": 32622
-      }
-     ],
-     "filePath": "kopie-backup-met-kenmerk.ifc",
-     "isDirty": false,
-     "meldingen": []
-    }
-   ],
-   "doelacties": [
-    {
-     "route": "handle",
-     "uitkomst": "klaar",
-     "writes": [
-      {
-       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
-       "lengte": 32622
-      }
-     ],
-     "filePath": "backup-met-kenmerk.ifc",
-     "isDirty": false,
-     "meldingen": [],
-     "aanroepen": [
-      "queryPermission",
-      "createWritable"
-     ]
-    },
-    {
-     "route": "pad",
-     "uitkomst": "klaar",
-     "writes": [
-      {
-       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
-       "lengte": 32622
-      }
-     ],
-     "filePath": "<map>/backup-met-kenmerk.ifc",
-     "isDirty": false,
-     "meldingen": [],
-     "aanroepen": [
-      "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
-      "plugin:fs|rename"
-     ]
-    },
-    {
-     "route": "site",
-     "uitkomst": "klaar",
-     "writes": [
-      {
-       "sha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
-       "lengte": 32622
-      }
-     ],
-     "filePath": "backup-met-kenmerk.ifc",
-     "isDirty": false,
-     "meldingen": [],
-     "aanroepen": [
-      "save S1"
-     ]
-    }
-   ]
+   "kenmerk": true
   }
  ]
 }

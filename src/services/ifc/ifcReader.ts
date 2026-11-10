@@ -31,7 +31,8 @@ import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
 import {
-  OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
+  OPS_LEGACY_LITERAL_APP_VERSION, PSET, PROP, PER_TASK_PSET_BY_NAME, XER_ARCHIVE_CHUNK, isXerArchiveChunkName, xerArchiveChunkName,
+  type XerArchiveChunkPrefix, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
 } from './ifcPsets';
 import {
   DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
@@ -415,7 +416,7 @@ export function readIFC(
 
   const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === PSET.Project)
     .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
-    .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === 'TimeModel')
+    .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === PROP.Project.TimeModel)
     .map(e => parseTypedValue(e.args[2] || '')).find((value): value is string => typeof value === 'string');
   return {
     project, calendar, tasks, sequences, resources, assignments,
@@ -631,11 +632,11 @@ function extractXerSourceProjectId(
   // Typisch voor andere IFC-software die de grote archief-pset liet vallen maar de kleine selector
   // meenam: de sporen zijn er, de bronbytes niet.
   if (!archive) xerArchiveError('OPS_XerDocument bestaat zonder OPS_XerSourceArchive', 'bytes-missing');
-  if (JSON.stringify([...props.keys()]) !== JSON.stringify(['ArchiveSha256', 'SourceProjectId'])) {
+  if (JSON.stringify([...props.keys()]) !== JSON.stringify([PROP.XerDocument.ArchiveSha256, PROP.XerDocument.SourceProjectId])) {
     xerArchiveError('OPS_XerDocument-properties zijn niet exact en deterministisch geordend');
   }
-  if (requiredString(props, 'ArchiveSha256') !== archive.sha256) xerArchiveError('selector ArchiveSha256 wijst niet naar het archief', 'hash-mismatch');
-  return requiredString(props, 'SourceProjectId');
+  if (requiredString(props, PROP.XerDocument.ArchiveSha256) !== archive.sha256) xerArchiveError('selector ArchiveSha256 wijst niet naar het archief', 'hash-mismatch');
+  return requiredString(props, PROP.XerDocument.SourceProjectId);
 }
 
 /** Het archief is onbruikbaar ⇒ gestructureerde, interne fout (zie `readXerArchiveOrIssue`).
@@ -689,9 +690,9 @@ function validateArchivePropertyOrder(
     if (position < manifestNames.length) {
       expected = manifestNames[position]!;
     } else if (position < manifestNames.length + chunkCount) {
-      expected = `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+      expected = xerArchiveChunkName(XER_ARCHIVE_CHUNK.bytes, position - manifestNames.length);
     } else {
-      expected = `DiagnosticsChunk${String(position - manifestNames.length - chunkCount).padStart(6, '0')}`;
+      expected = xerArchiveChunkName(XER_ARCHIVE_CHUNK.diagnostics, position - manifestNames.length - chunkCount);
     }
     if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
     position += 1;
@@ -710,7 +711,7 @@ function validateCompactArchivePropertyOrder(
   for (const actual of props.keys()) {
     const expected = position < manifestNames.length
       ? manifestNames[position]!
-      : `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+      : xerArchiveChunkName(XER_ARCHIVE_CHUNK.bytes, position - manifestNames.length);
     if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
     position += 1;
   }
@@ -721,7 +722,7 @@ function validateCompactArchivePropertyOrder(
  *  tekstwaarden laat vallen. Apart van `truncated` (een deel is er nog wel). */
 function assertSourceBytesPresent(props: Map<string, unknown>, chunkCount: number): void {
   if (chunkCount === 0) return;
-  for (const name of props.keys()) if (/^ByteChunk\d{6}$/.test(name)) return;
+  for (const name of props.keys()) if (isXerArchiveChunkName(name, XER_ARCHIVE_CHUNK.bytes)) return;
   xerArchiveError(`manifest belooft ${chunkCount} bronchunk(s), maar er is er geen enkele aanwezig`, 'bytes-missing');
 }
 
@@ -736,10 +737,10 @@ function requiredString(props: Map<string, unknown>, name: string, code: XerArch
   return value;
 }
 
-function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count: number, expectedLength: number): Uint8Array {
+function concatArchiveChunks(props: Map<string, unknown>, prefix: XerArchiveChunkPrefix, count: number, expectedLength: number): Uint8Array {
   const chunks: Uint8Array[] = [];
   for (let index = 0; index < count; index++) {
-    const name = `${prefix}${String(index).padStart(6, '0')}`;
+    const name = xerArchiveChunkName(prefix, index);
     const raw = requiredString(props, name, 'truncated');
     if (index < count - 1 && raw.includes('=')) xerArchiveError(`${name} bevat verboden base64-padding vóór de laatste chunk`);
     let decoded: Uint8Array;
@@ -761,6 +762,9 @@ function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count:
   return output;
 }
 
+/** De propertynamen van `OPS_XerSourceArchive` (register `PROP`), kort voor de lezer van het archief. */
+const XA = PROP.XerSourceArchive;
+
 /** Lees en valideer vóór allocatie de self-contained XER-bronarchiefcontainer; afwezig blijft
  *  legacy-compatibel. Levert de volledige `XerSourceReconstruction`; de schema-1-tak draagt geen vastlegging
  *  (zie de bekende grens bij `XerArchiveReconstructor`) en geeft daar een lege map bij. */
@@ -771,7 +775,7 @@ function extractXerSourceArchive(
 ): XerSourceReconstruction | undefined {
   const props = archiveProps(entities, entityMap, PSET.XerSourceArchive);
   if (!props) return undefined;
-  const schemaVersion = nonNegativeSafeInteger(props.get('SchemaVersion'), 'SchemaVersion', 'schema-version');
+  const schemaVersion = nonNegativeSafeInteger(props.get(XA.SchemaVersion), XA.SchemaVersion, 'schema-version');
   if (schemaVersion === XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION) {
     return extractCompactXerSourceArchive(props, options.reconstructXerArchive);
   }
@@ -779,24 +783,24 @@ function extractXerSourceArchive(
     return extractReferencedXerSourceArchive(props, options);
   }
   if (schemaVersion !== XER_SOURCE_ARCHIVE_SCHEMA_VERSION) xerArchiveError(`onbekend SchemaVersion ${schemaVersion}`, 'schema-version');
-  if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
-  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
-  const chunkSize = nonNegativeSafeInteger(props.get('ByteChunkSize'), 'ByteChunkSize');
+  if (requiredString(props, XA.Format, 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
+  const byteLength = nonNegativeSafeInteger(props.get(XA.ByteLength), XA.ByteLength);
+  const chunkSize = nonNegativeSafeInteger(props.get(XA.ByteChunkSize), XA.ByteChunkSize);
   if (chunkSize !== XER_SOURCE_ARCHIVE_CHUNK_BYTES) xerArchiveError(`ByteChunkSize is niet ${XER_SOURCE_ARCHIVE_CHUNK_BYTES}`);
-  const chunkCount = nonNegativeSafeInteger(props.get('ByteChunkCount'), 'ByteChunkCount');
+  const chunkCount = nonNegativeSafeInteger(props.get(XA.ByteChunkCount), XA.ByteChunkCount);
   if (chunkCount !== Math.ceil(byteLength / chunkSize)) xerArchiveError('ByteChunkCount past niet bij ByteLength', 'truncated');
-  const diagnosticsLength = nonNegativeSafeInteger(props.get('DiagnosticsByteLength'), 'DiagnosticsByteLength');
-  const diagnosticsCount = nonNegativeSafeInteger(props.get('DiagnosticsChunkCount'), 'DiagnosticsChunkCount');
+  const diagnosticsLength = nonNegativeSafeInteger(props.get(XA.DiagnosticsByteLength), XA.DiagnosticsByteLength);
+  const diagnosticsCount = nonNegativeSafeInteger(props.get(XA.DiagnosticsChunkCount), XA.DiagnosticsChunkCount);
   if (diagnosticsCount !== Math.ceil(diagnosticsLength / chunkSize)) xerArchiveError('DiagnosticsChunkCount past niet bij DiagnosticsByteLength', 'truncated');
   const manifestNames = [
-    'SchemaVersion', 'Format', 'ByteLength', 'Sha256', 'Encoding', 'Bom', 'Newline',
-    'ByteChunkSize', 'ByteChunkCount', 'DiagnosticsByteLength', 'DiagnosticsSha256', 'DiagnosticsChunkCount',
+    XA.SchemaVersion, XA.Format, XA.ByteLength, XA.Sha256, XA.Encoding, XA.Bom, XA.Newline,
+    XA.ByteChunkSize, XA.ByteChunkCount, XA.DiagnosticsByteLength, XA.DiagnosticsSha256, XA.DiagnosticsChunkCount,
   ];
   validateArchivePropertyOrder(props, manifestNames, chunkCount, diagnosticsCount);
-  const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
-  const diagnosticBytes = concatArchiveChunks(props, 'DiagnosticsChunk', diagnosticsCount, diagnosticsLength);
-  const sourceHash = requiredString(props, 'Sha256');
-  const diagnosticsHash = requiredString(props, 'DiagnosticsSha256');
+  const sourceBytes = concatArchiveChunks(props, XER_ARCHIVE_CHUNK.bytes, chunkCount, byteLength);
+  const diagnosticBytes = concatArchiveChunks(props, XER_ARCHIVE_CHUNK.diagnostics, diagnosticsCount, diagnosticsLength);
+  const sourceHash = requiredString(props, XA.Sha256);
+  const diagnosticsHash = requiredString(props, XA.DiagnosticsSha256);
   if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) xerArchiveError('Sha256 is ongeldig of past niet bij de bytes', 'hash-mismatch');
   if (!/^[0-9a-f]{64}$/.test(diagnosticsHash) || sha256Hex(diagnosticBytes) !== diagnosticsHash) xerArchiveError('DiagnosticsSha256 is ongeldig of past niet bij de diagnostics', 'hash-mismatch');
   let archiveMetadata: XerArchiveMetadataPayloadV1;
@@ -807,9 +811,9 @@ function extractXerSourceArchive(
     if (error instanceof XerArchiveInvalid) throw error;
     xerArchiveError(`diagnostics/readmodel is ongeldig: ${error instanceof Error ? error.message : 'geen geldige JSON'}`, 'metadata-invalid');
   }
-  const encoding = requiredString(props, 'Encoding');
-  const bom = requiredString(props, 'Bom');
-  const newline = requiredString(props, 'Newline');
+  const encoding = requiredString(props, XA.Encoding);
+  const bom = requiredString(props, XA.Bom);
+  const newline = requiredString(props, XA.Newline);
   if (!(['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'] as readonly string[]).includes(encoding)) xerArchiveError('Encoding is onbekend', 'metadata-invalid');
   if (!(['none', 'utf-8', 'utf-16le', 'utf-16be'] as readonly string[]).includes(bom)) xerArchiveError('Bom is onbekend', 'metadata-invalid');
   if (!(['lf', 'crlf', 'cr', 'mixed', 'none'] as readonly string[]).includes(newline)) xerArchiveError('Newline is onbekend', 'metadata-invalid');
@@ -842,16 +846,16 @@ function extractReferencedXerSourceArchive(
   props: Map<string, unknown>,
   options: IfcReadOptions,
 ): XerSourceReconstruction {
-  if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
-  if (requiredString(props, 'StorageFormat', 'schema-version') !== XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT) {
+  if (requiredString(props, XA.Format, 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
+  if (requiredString(props, XA.StorageFormat, 'schema-version') !== XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT) {
     xerArchiveError('StorageFormat is onbekend', 'schema-version');
   }
-  const expected = ['SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256'];
+  const expected = [XA.SchemaVersion, XA.Format, XA.StorageFormat, XA.ByteLength, XA.Sha256];
   if (JSON.stringify([...props.keys()]) !== JSON.stringify(expected)) {
     xerArchiveError('properties van de archiefverwijzing zijn niet exact en deterministisch geordend');
   }
-  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
-  const sourceHash = requiredString(props, 'Sha256');
+  const byteLength = nonNegativeSafeInteger(props.get(XA.ByteLength), XA.ByteLength);
+  const sourceHash = requiredString(props, XA.Sha256);
   if (!/^[0-9a-f]{64}$/.test(sourceHash)) xerArchiveError('Sha256 is ongeldig', 'hash-mismatch');
   const sourceBytes = options.resolveXerArchiveReference?.(sourceHash);
   if (!sourceBytes) {
@@ -869,21 +873,21 @@ function extractCompactXerSourceArchive(
   props: Map<string, unknown>,
   reconstructXerArchive: XerArchiveReconstructor | undefined,
 ): XerSourceReconstruction {
-  if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
-  if (requiredString(props, 'StorageFormat', 'schema-version') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
+  if (requiredString(props, XA.Format, 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
+  if (requiredString(props, XA.StorageFormat, 'schema-version') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
     xerArchiveError('StorageFormat is onbekend', 'schema-version');
   }
-  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
-  const chunkSize = nonNegativeSafeInteger(props.get('ByteChunkSize'), 'ByteChunkSize');
+  const byteLength = nonNegativeSafeInteger(props.get(XA.ByteLength), XA.ByteLength);
+  const chunkSize = nonNegativeSafeInteger(props.get(XA.ByteChunkSize), XA.ByteChunkSize);
   if (chunkSize !== XER_SOURCE_ARCHIVE_CHUNK_BYTES) xerArchiveError(`ByteChunkSize is niet ${XER_SOURCE_ARCHIVE_CHUNK_BYTES}`);
-  const chunkCount = nonNegativeSafeInteger(props.get('ByteChunkCount'), 'ByteChunkCount');
+  const chunkCount = nonNegativeSafeInteger(props.get(XA.ByteChunkCount), XA.ByteChunkCount);
   if (chunkCount !== Math.ceil(byteLength / chunkSize)) xerArchiveError('ByteChunkCount past niet bij ByteLength', 'truncated');
   const manifestNames = [
-    'SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256', 'ByteChunkSize', 'ByteChunkCount',
+    XA.SchemaVersion, XA.Format, XA.StorageFormat, XA.ByteLength, XA.Sha256, XA.ByteChunkSize, XA.ByteChunkCount,
   ];
   validateCompactArchivePropertyOrder(props, manifestNames, chunkCount);
-  const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
-  const sourceHash = requiredString(props, 'Sha256');
+  const sourceBytes = concatArchiveChunks(props, XER_ARCHIVE_CHUNK.bytes, chunkCount, byteLength);
+  const sourceHash = requiredString(props, XA.Sha256);
   if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) {
     xerArchiveError('Sha256 is ongeldig of past niet bij de bytes', 'hash-mismatch');
   }
@@ -1717,7 +1721,7 @@ function extractTaskIdentityByStepId(
     for (const propRef of parseRefs(pset.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE'
-        || stripQuotes(prop.args[0] || '') !== 'InternalTaskId') continue;
+        || stripQuotes(prop.args[0] || '') !== PROP.TaskIdentity.InternalTaskId) continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (isValidPersistedIfcId(value)) internalId = value;
     }
@@ -1851,7 +1855,7 @@ function extractTaskTypeMeta(
     if (pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.TaskTypes) continue;
     for (const ref of parseRefs(pset.args[4] || '')) {
       const prop = entityMap.get(ref);
-      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE' || stripQuotes(prop.args[0] || '') !== 'TaskTypes') continue;
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE' || stripQuotes(prop.args[0] || '') !== PROP.TaskTypes.TaskTypes) continue;
       raw = parseTypedValue(prop.args[2] || '');
     }
   }
@@ -2147,7 +2151,7 @@ function extractSequenceMeta(
         if (records) acceptedExactMinutes.push(records);
         continue;
       }
-      if (propName !== 'P6StartAtPredecessorFinishBoundarySequenceGuids') continue;
+      if (propName !== PROP.Sequences.P6StartAtPredecessorFinishBoundarySequenceGuids) continue;
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string') continue;
       try {
@@ -2286,7 +2290,7 @@ function extractStructure(
     if (psetName === PSET.Library) {
       for (const prop of props) {
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-        if (stripQuotes(prop.args[0] || '') !== 'pool') continue;
+        if (stripQuotes(prop.args[0] || '') !== PROP.Library.pool) continue;
         const v = parseTypedValue(prop.args[2] || '');
         if (typeof v === 'string' && v) {
           try {
@@ -2302,26 +2306,26 @@ function extractStructure(
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
         const name = stripQuotes(prop.args[0] || '');
         const v = parseTypedValue(prop.args[2] || '');
-        if (name === 'InternalProjectId') {
+        if (name === PROP.ProjectSettings.InternalProjectId) {
           if (isValidPersistedIfcId(v)) project.id = v;
-        } else if (name === 'wbsAutoNumber') {
+        } else if (name === PROP.ProjectSettings.wbsAutoNumber) {
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
-        } else if (name === 'DefaultTaskDurationUnit') {
+        } else if (name === PROP.ProjectSettings.DefaultTaskDurationUnit) {
           if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
-        } else if (name === 'DefaultWorkRule') {
+        } else if (name === PROP.ProjectSettings.DefaultWorkRule) {
           // Onbekende waarde ⇒ stil weg (default blijft staan).
           if (typeof v === 'string' && (WORK_RULES as readonly string[]).includes(v)) project.defaultWorkRule = v as WorkRule;
-        } else if (name === 'StatusDate') {
+        } else if (name === PROP.ProjectSettings.StatusDate) {
           // P6 data date → project.statusDate. Een tijd-van-de-dag (uur-modus) blijft behouden:
           // IFCDATETIME, én oudere bestanden die de tijd in IFCDATE zetten (spiegel van
           // writeStructure). Datum zonder tijd ⇒ `YYYY-MM-DD`. Zelfde
           // regel als MSPDI en P6 (`statusDateFromXml`). `readIfcDate` met `importStatusDate` als
           // regel voor IFCDATE: precies wat deze lezer altijd deed.
           if (typeof v === 'string' && v) project.statusDate = readIfcDate(prop.args[2] || '', v, importStatusDate);
-        } else if (name === 'ProgressMode') {
+        } else if (name === PROP.ProjectSettings.ProgressMode) {
           // Alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
-        } else if (name === 'ProjectStartDate' || name === 'ProjectEndDate') {
+        } else if (name === PROP.ProjectSettings.ProjectStartDate || name === PROP.ProjectSettings.ProjectEndDate) {
           // Contractuele projectdatums (spiegel van writeStructure). Het PSET WINT wanneer het veld
           // aanwezig is — óók als het leeg is: de writer codeert "bewust leeg" als NominalValue `$`
           // (parseTypedValue ⇒ undefined) en dat moet leeg terugkomen, niet terugvallen op de
@@ -2333,25 +2337,25 @@ function extractStructure(
           // erin (zo schreef main vóór #344 een projectstart na een XER-import); zulke bestanden lazen
           // altijd zonder tijd.
           const date = typeof v !== 'string' ? '' : readIfcDate(prop.args[2] || '', v, (x) => x.substring(0, 10));
-          if (name === 'ProjectStartDate') { project.startDate = date; projectStartRecorded.value = true; }
+          if (name === PROP.ProjectSettings.ProjectStartDate) { project.startDate = date; projectStartRecorded.value = true; }
           else project.endDate = date;
-        } else if (name === 'CreatedAt') {
+        } else if (name === PROP.ProjectSettings.CreatedAt) {
           // Project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.createdAt = v;
-        } else if (name === 'ModifiedAt') {
+        } else if (name === PROP.ProjectSettings.ModifiedAt) {
           if (typeof v === 'string' && v) project.modifiedAt = v;
-        } else if (name === 'CompanyId') {
+        } else if (name === PROP.ProjectSettings.CompanyId) {
           if (typeof v === 'string' && v) project.companyId = v;
-        } else if (name === 'CompanyName') {
+        } else if (name === PROP.ProjectSettings.CompanyName) {
           if (typeof v === 'string' && v) project.companyName = v;
-        } else if (name === 'IfcSchemaConfirmed') {
+        } else if (name === PROP.ProjectSettings.IfcSchemaConfirmed) {
           if (v === true) ifcSchemaMarkers.confirmed = true;
-        } else if (name === 'IfcSchemaUnconfirmed') {
+        } else if (name === PROP.ProjectSettings.IfcSchemaUnconfirmed) {
           if (typeof v === 'string' && v) ifcSchemaMarkers.unconfirmed = v;
-        } else if (name === 'P6ProjectCode') {
+        } else if (name === PROP.ProjectSettings.P6ProjectCode) {
           // P6 Project-ID (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.p6ProjectCode = v;
-        } else if (name === 'DependentProjectsFolder') {
+        } else if (name === PROP.ProjectSettings.DependentProjectsFolder) {
           // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
           if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
         }
@@ -2501,17 +2505,17 @@ function extractResourceMeta(
       for (const prop of props) {
         const name = stripQuotes(prop.args[0] || '');
         const value = parseTypedValue(prop.args[2] || '');
-        if (name === 'MaxUnits' && typeof value === 'number') {
+        if (name === PROP.Resource.MaxUnits && typeof value === 'number') {
           res.maxUnits = value;
-        } else if (name === 'CostPerHour' && typeof value === 'number') {
+        } else if (name === PROP.Resource.CostPerHour && typeof value === 'number') {
           res.costPerHour = value;
-        } else if (name === 'UnitOfMeasure' && typeof value === 'string') {
+        } else if (name === PROP.Resource.UnitOfMeasure && typeof value === 'string') {
           res.unitOfMeasure = value;
-        } else if (name === 'Color' && typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
+        } else if (name === PROP.Resource.Color && typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
           // Weergavekleur — alleen een geldige #rrggbb-hex accepteren (hostiele/mistorde
           // invoer valt stil terug op "geen kleur" i.p.v. rommel in de kleurmodi te krijgen).
           res.color = value;
-        } else if (name === 'AvailabilitySteps' && typeof value === 'string') {
+        } else if (name === PROP.Resource.AvailabilitySteps && typeof value === 'string') {
           const steps: AvailabilityStep[] = value
             .split(';')
             .map(pair => {
@@ -2520,10 +2524,10 @@ function extractResourceMeta(
             })
             .filter(s => s.from && Number.isFinite(s.maxUnits));
           if (steps.length > 0) res.availabilitySteps = steps;
-        } else if (name === 'ParentGuid' && typeof value === 'string' && !res.parentId) {
+        } else if (name === PROP.Resource.ParentGuid && typeof value === 'string' && !res.parentId) {
           const parentId = resourceGuidMap.get(value);
           if (parentId) res.parentId = parentId;
-        } else if (name === 'LibraryOrigin' && typeof value === 'string' && value && !res.libraryOrigin) {
+        } else if (name === PROP.Resource.LibraryOrigin && typeof value === 'string' && value && !res.libraryOrigin) {
           // EERSTE geldige LibraryOrigin wint (gezet-is-gezet-guard), gelijk aan het kalenderpad
           // (extractCalendarLibraryOrigin returnt op de eerste treffer). Zonder de
           // `!res.libraryOrigin`-guard kiest dit pad de LAATSTE bij dubbele props in één pset.
@@ -2677,13 +2681,13 @@ function extractCalendarGeneration(
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
       const value = parseTypedValue(prop.args[2] || '');
-      if (name === 'RuleSetId' && typeof value === 'string') ruleSetId = value as HolidayCountry;
-      else if (name === 'Region' && typeof value === 'string') region = value;
-      else if (name === 'BreakChoice' && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
+      if (name === PROP.Calendar.RuleSetId && typeof value === 'string') ruleSetId = value as HolidayCountry;
+      else if (name === PROP.Calendar.Region && typeof value === 'string') region = value;
+      else if (name === PROP.Calendar.BreakChoice && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
       // 'WinterStop' (verwijderde feature) wordt in oude bestanden genegeerd; de
       // gematerialiseerde feestdagen zelf staan los in de kalender en blijven behouden.
-      else if (name === 'GeneratedFromYear' && typeof value === 'number') generatedFromYear = value;
-      else if (name === 'GeneratedToYear' && typeof value === 'number') generatedToYear = value;
+      else if (name === PROP.Calendar.GeneratedFromYear && typeof value === 'number') generatedFromYear = value;
+      else if (name === PROP.Calendar.GeneratedToYear && typeof value === 'number') generatedToYear = value;
     }
     if (!ruleSetId || generatedFromYear === undefined || generatedToYear === undefined) continue; // onvolledig — negeer
 
@@ -2712,7 +2716,7 @@ function extractCalendarLibraryOrigin(
 ): LibraryOrigin | undefined {
   for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
-      if (stripQuotes(prop.args[0] || '') !== 'LibraryOrigin') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.Calendar.LibraryOrigin) continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
       try {
@@ -2746,7 +2750,7 @@ function extractCalendarHoursPerDay(
 ): number | undefined {
   for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
-      if (stripQuotes(prop.args[0] || '') !== 'HoursPerDay') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.Calendar.HoursPerDay) continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
     }
@@ -2765,8 +2769,8 @@ function extractCalendarSimpleBreak(
     for (const prop of props) {
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'number' || !Number.isInteger(value)) continue;
-      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakStart') result.simpleBreakStartMinute = value;
-      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakDuration') result.simpleBreakDurationMinutes = value;
+      if (stripQuotes(prop.args[0] || '') === PROP.Calendar.SimpleBreakStart) result.simpleBreakStartMinute = value;
+      if (stripQuotes(prop.args[0] || '') === PROP.Calendar.SimpleBreakDuration) result.simpleBreakDurationMinutes = value;
     }
   }
   return result;
@@ -2790,11 +2794,11 @@ function extractCalendarHourMeta(
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
       const value = parseTypedValue(prop.args[2] || '');
-      if (name === 'LiteralTimes' && value === true) result.literalTimes = true;
-      else if (name === 'IsHourCalendar' && typeof value === 'boolean') result.hourMode = value;
-      else if (name === 'WorkStartHour' && typeof value === 'number' && value >= 0 && value <= 24) {
+      if (name === PROP.Calendar.LiteralTimes && value === true) result.literalTimes = true;
+      else if (name === PROP.Calendar.IsHourCalendar && typeof value === 'boolean') result.hourMode = value;
+      else if (name === PROP.Calendar.WorkStartHour && typeof value === 'number' && value >= 0 && value <= 24) {
         result.workStartHour = value;
-      } else if (name === 'WorkEndHour' && typeof value === 'number' && value >= 0 && value <= 24) {
+      } else if (name === PROP.Calendar.WorkEndHour && typeof value === 'number' && value >= 0 && value <= 24) {
         result.workEndHour = value;
       }
     }
@@ -2883,29 +2887,29 @@ function extractCalendarExceptionMetadata(
     let candidatePenaltyDates: string[] | undefined;
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
-      if (name !== 'WorkingExceptionIds' && name !== 'WorkingExceptionKeysV1' && name !== 'P6Source'
-        && name !== 'P6NonWorkPenaltyDates' && name !== 'P6NonWorkPenaltyDatesState') continue;
+      if (name !== PROP.Calendar.WorkingExceptionIds && name !== PROP.Calendar.WorkingExceptionKeysV1 && name !== PROP.Calendar.P6Source
+        && name !== PROP.Calendar.P6NonWorkPenaltyDates && name !== PROP.Calendar.P6NonWorkPenaltyDatesState) continue;
       // Aanwezige maar corrupte V1 mag niet terugvallen op mogelijk vernummerde legacy-ids.
-      if (name === 'WorkingExceptionKeysV1') result.workingExceptionKeys = new Set();
+      if (name === PROP.Calendar.WorkingExceptionKeysV1) result.workingExceptionKeys = new Set();
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
-      if (name === 'P6NonWorkPenaltyDatesState') {
+      if (name === PROP.Calendar.P6NonWorkPenaltyDatesState) {
         if (value === 'REJECTED') rejectedDiagnosticSeen = true;
         continue;
       }
-      if (name === 'P6Source') {
+      if (name === PROP.Calendar.P6Source) {
         if (value === 'XER') p6SourceSeen = true;
         continue;
       }
       try {
         const parsed = JSON.parse(value);
-        if (name === 'WorkingExceptionKeysV1'
+        if (name === PROP.Calendar.WorkingExceptionKeysV1
           && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
           result.workingExceptionKeys = new Set(parsed);
-        } else if (name === 'WorkingExceptionIds'
+        } else if (name === PROP.Calendar.WorkingExceptionIds
           && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
           result.workingExceptionIds = new Set(parsed);
-        } else if (name === 'P6NonWorkPenaltyDates' && Array.isArray(parsed)) {
+        } else if (name === PROP.Calendar.P6NonWorkPenaltyDates && Array.isArray(parsed)) {
           const dates = parsed.filter((candidate): candidate is string => {
             if (typeof candidate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return false;
             const date = new Date(`${candidate}T00:00:00Z`);
@@ -2917,11 +2921,11 @@ function extractCalendarExceptionMetadata(
           } else {
             penaltyState = 'REJECTED';
           }
-        } else if (name === 'P6NonWorkPenaltyDates') {
+        } else if (name === PROP.Calendar.P6NonWorkPenaltyDates) {
           penaltyState = 'REJECTED';
         }
       } catch {
-        if (name === 'P6NonWorkPenaltyDates') penaltyState = 'REJECTED';
+        if (name === PROP.Calendar.P6NonWorkPenaltyDates) penaltyState = 'REJECTED';
       }
     }
     if (!rejectedDiagnosticSeen && p6SourceSeen
@@ -3414,7 +3418,7 @@ function extractAssignments(
       const windowProp = parseRefs(pset.args[4] || '')
         .map(r => entityMap.get(r))
         .find((p): p is StepEntity =>
-          !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === 'Windows');
+          !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === PROP.Timephased.Windows);
       const raw = windowProp ? parseTypedValue(windowProp.args[2] || '') : undefined;
       if (typeof raw !== 'string' || !raw) continue;
       let parsed: unknown;
@@ -3697,16 +3701,16 @@ function extractBaselines(
       const name = stripQuotes(prop.args[0] || '');
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string') continue;
-      if (name === 'Baselines') {
+      if (name === PROP.Baselines.Baselines) {
         try {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) baselines = parsed as Baseline[];
         } catch { /* corrupte JSON — negeer, baselines blijft leeg */ }
-      } else if (name === 'ActiveBaselineId') {
+      } else if (name === PROP.Baselines.ActiveBaselineId) {
         activeBaselineId = raw;
-      } else if (name === 'ComparedBaselineIds') {
+      } else if (name === PROP.Baselines.ComparedBaselineIds) {
         try { comparedRaw = JSON.parse(raw); } catch { /* corrupte JSON — geen vergelijking */ }
-      } else if (name === 'TaskGuids') {
+      } else if (name === PROP.Baselines.TaskGuids) {
         // De writer schrijft expliciet weg wélk GlobalId hij per baseline-taak gebruikte, zodat wij
         // de hash niet hoeven na te rekenen. Ontbreekt de map (oudere bestanden), dan valt de remap
         // hieronder terug op het herberekenen van de hash.
@@ -3772,7 +3776,7 @@ function extractTimephasedDurationWalksMeta(
     const prop = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
       .find((p): p is StepEntity =>
-        !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === 'DurationWalks');
+        !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === PROP.DurationWalks.DurationWalks);
     const raw = prop ? parseTypedValue(prop.args[2] || '') : undefined;
     if (typeof raw !== 'string' || !raw) continue;
     let parsed: unknown;
@@ -3830,7 +3834,7 @@ function extractSchedulingProfile(
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'SchedulingProfile') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.SchedulingProfile.SchedulingProfile) continue;
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string' || !raw || raw.length > MAX_PROFILE_JSON_LENGTH) continue;
       try {
@@ -3867,7 +3871,7 @@ function extractImportPristine(entities: StepEntity[], entityMap: Map<string, St
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'UnchangedSinceImport') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.ImportProvenance.UnchangedSinceImport) continue;
       return (prop.args[2] || '').replace(/\s+/g, '').toUpperCase() === 'IFCBOOLEAN(.T.)';
     }
   }
@@ -3893,10 +3897,10 @@ function extractRecoveryForeignSource(
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
       const name = stripQuotes(prop.args[0] || '');
-      if (name === 'Sha256') sha256 = parseTypedValue(prop.args[2] || '');
-      else if (name === 'ByteLength') byteLength = parseTypedValue(prop.args[2] || '');
-      else if (name === 'SourcePath') filePath = parseTypedValue(prop.args[2] || '');
-      else if (name === 'SourceSiteFileId') siteFileId = parseTypedValue(prop.args[2] || '');
+      if (name === PROP.RecoveryForeignSource.Sha256) sha256 = parseTypedValue(prop.args[2] || '');
+      else if (name === PROP.RecoveryForeignSource.ByteLength) byteLength = parseTypedValue(prop.args[2] || '');
+      else if (name === PROP.RecoveryForeignSource.SourcePath) filePath = parseTypedValue(prop.args[2] || '');
+      else if (name === PROP.RecoveryForeignSource.SourceSiteFileId) siteFileId = parseTypedValue(prop.args[2] || '');
     }
     const fingerprint = parseForeignSourceFingerprint(sha256, byteLength);
     if (!fingerprint) return undefined;
@@ -3920,7 +3924,7 @@ function extractRecordedSourceFormat(
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'SourceFormat') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.ImportProvenance.SourceFormat) continue;
       const m = /^IFCLABEL\('([a-z0-9]+)'\)$/i.exec((prop.args[2] || '').trim());
       const v = m?.[1];
       return v === 'xer' || v === 'p6xml' || v === 'mspdi' || v === 'mpp' || v === 'ifc' ? v : undefined;
@@ -3945,7 +3949,7 @@ function extractSchedulingOptions(
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'SchedulingOptions') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.SchedulingOptions.SchedulingOptions) continue;
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string' || !raw) continue;
       try {

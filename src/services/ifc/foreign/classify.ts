@@ -18,7 +18,7 @@
  * P-stuk, V = de rest.
  */
 import type { StepIndex } from './stepScanner';
-import { OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, PER_TASK_PSETS, PSET } from '../ifcPsets';
+import { OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, PER_TASK_PSETS, PSET, isXerArchiveChunkName } from '../ifcPsets';
 import { IFC_TO_RESOURCE_TYPE } from '../ifcConstants';
 import { workControlSlots } from '../ifcWorkControlSlots';
 import { ifcDateTime, WRITER_ENTITY_TYPES } from '../ifcWriter';
@@ -79,7 +79,7 @@ export function isOwnAssignmentKey(name: string): boolean {
 
 /** De chunksleutels van het XER-bronarchief (`ByteChunk000000`, `DiagnosticsChunk000000`). */
 function isXerArchiveChunkKey(name: string): boolean {
-  return /^(ByteChunk|DiagnosticsChunk)\d{6}$/.test(name);
+  return isXerArchiveChunkName(name);
 }
 
 /** Het register: per eigen pset de vaste property-namen (descriptors plus `OWN_PSET_PROPERTY_NAMES`). */
