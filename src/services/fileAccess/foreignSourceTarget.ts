@@ -11,9 +11,12 @@
 // Is niet vast te stellen of het doel hetzelfde bestand is (een download, een fout bij lezen), dan telt het als een ander
 // bestand: het nieuwe bestand mag.
 //
-// Fixronde 2: daarnaast controleert de app het gekozen bestaande doel zelf (`targetHoldsBuildingModel`): een IFC met
+// Fixronde 2: daarnaast controleert de app het gekozen bestaande doel zelf (`targetRefusal`): een IFC met
 // een gebouwmodel krijgt geen planning eroverheen, ook als het geen bron van een open document is (een gewijzigde
 // modelversie na herstel, of een modelbestand dat niet open is).
+// Review van #870 (besluit Trias): vindt de grammatica van ISO 10303-21 in een STEP-doel geen datasectie (een kapotte
+// kop, of geen DATA-sectie), dan weigert `targetRefusal` het doel met 'unreadable': een scan zonder uitkomst is geen
+// vrijbrief.
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 import { scanTargetBlob, scanTargetBytes, type TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
@@ -67,9 +70,12 @@ export interface TargetReaders {
 }
 
 /**
- * Bevat het gekozen bestaande doel een gebouwmodel (een IFC met `IfcProduct`/`IfcTypeProduct`)? Leest als stroom en
- * stopt bij de eerste modelentiteit (`targetModelScan.ts`). Per uitkomst van de scan (fixronde 3):
+ * Wat staat er in het gekozen bestaande doel: een gebouwmodel (een IFC met `IfcProduct`/`IfcTypeProduct`), een
+ * STEP-bestand dat de app niet kan lezen, of geen van beide (`null`)? Leest als stroom en stopt bij de eerste
+ * modelentiteit (`targetModelScan.ts`). Per uitkomst van de scan (fixronde 3):
  *  - 'model': niet schrijven;
+ *  - 'unreadable': een STEP-bestand waarin de grammatica van ISO 10303-21 geen datasectie vindt: niet schrijven (besluit
+ *    Trias, wrakko 10 november 2026, review van #870: een scan zonder uitkomst is geen vrijbrief);
  *  - 'not-ifc': het eerste statement is niet `ISO-10303-21;` (een CSV, XML, leeg bestand): schrijven mag;
  *  - 'no-model': het hele bestand is gelezen en er is geen modelentiteit: schrijven mag.
  * Een scan zonder uitkomst bestaat niet: de scanner geeft 'no-model' alleen na het einde van het bestand, dus een lange
@@ -79,20 +85,21 @@ export interface TargetReaders {
  * het schrijven mag door. Besluit Trias (wrakko, 9 november 2026): wat de app niet kan lezen, kan hij niet beoordelen,
  * en een nieuw bestand mag altijd.
  */
-export async function targetHoldsBuildingModel(target: FileRef, readers: TargetReaders = {}): Promise<boolean> {
+export async function targetRefusal(target: FileRef, readers: TargetReaders = {}): Promise<'model' | 'unreadable' | null> {
+  const refusal = (scan: TargetModelScan | null) => (scan === 'model' || scan === 'unreadable' ? scan : null);
   try {
     switch (target.kind) {
       case 'handle':
-        return (await scanTargetBlob(await target.handle.getFile())) === 'model';
+        return refusal(await scanTargetBlob(await target.handle.getFile()));
       case 'path':
-        return readers.scanPath ? (await readers.scanPath(target.path)) === 'model' : false;
+        return readers.scanPath ? refusal(await readers.scanPath(target.path)) : null;
       case 'site': {
         const bytes = readers.readSite ? await readers.readSite(target.id) : null;
-        return bytes ? scanTargetBytes(bytes) === 'model' : false;
+        return bytes ? refusal(scanTargetBytes(bytes)) : null;
       }
     }
   } catch {
-    return false;
+    return null;
   }
 }
 

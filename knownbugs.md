@@ -1744,7 +1744,9 @@ en noem het in je rapport of PR-tekst.
      de doelcontrole (`targetModelScan.ts`) ziet zo'n bestand als model. Het risico is klein: in IFC2X3 TC1, IFC4 ADD2 TC1
      en IFC4X3 ADD2 is elk supertype `ONEOF` (geen `ANDOR`, geen meervoudige overerving), dus een geldig bestand schrijft
      elke instantie in de interne vorm; IfcOpenShell 0.8.4 en 0.9.0 lezen de externe vorm niet als `IfcWall`. Richting:
-     de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). — B
+     de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). Sinds #870
+     telt de weigering het deeltype mee zodra de grammatica van het hele bestand (`stepFileGrammar.ts`) de instantie
+     leest, ook als het bestand daarna breekt. Het gat blijft alleen als het bestand vóór die instantie breekt. — B
 
 1017. **VERVOLG: de doelcontrole leest een bestaande IFC zonder model helemaal, en de planner ziet in die tijd
      niets.** Met de flag `ifcForeignContent` leest `src/services/ifc/foreign/targetModelScan.ts` bij Opslaan als, een
@@ -1796,6 +1798,108 @@ en noem het in je rapport of PR-tekst.
      relatief pad. Vanuit `/tmp` geeft de gerichte run `ENOENT` (exit 1); vanuit de repo is hij groen (318 controles).
      Richting: het bestaande `HERE` gebruiken (`join(HERE, '..', '..', 'public', 'examples', …)`). Uit #871
      (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1049. **VERVOLG: de scanner achter de flag `ifcForeignContent` kent 16 vormen van de DATA-sectiekop niet.** De tabel
+     `DATA_KOP_VORMEN` in `tests/planning/ifcDoelBestanden.ts` markeert ze met `scannerWeigert`: kleine letters
+     (`data;`, `data(…);`, `endsec;`), een stuurteken midden in `DATA` of `ENDSEC` (regeleinde, tab, U+007F), de
+     afdrukcodes `\N\` en `\F\` als scheiding, een regeleinde in `/*` of `*/` vóór de kop, een ANCHOR-sectie, en
+     `\S\'` in de naam van de kop (de scanner meldt `tekst-zonder-einde`). Met de flag aan weigert
+     `src/services/ifc/foreign/stepScanner.ts` het bestand en valt `ifcBytesRoute.ts` terug op de gewone route. Die opent
+     zoals main: een bestand met een model weigert als gebouwmodel, een planning zonder model met een andere kop dan
+     `DATA;` opent niet (knownbug 1061). De flag staat in de app nog uit; volgens het besluit van Ethan (10 november 2026)
+     krijgt hij een schakelaar in Experimenteel, en dan raakt dit een planner. Richting: één lezer voor de kop, vóór fase
+     1b. Uit #870 (review ronde 5 en 6, GPT-6.1-Sol en GPT-6.1-Terra, VERVOLG). — B
+
+1050. **De lexer van de datasecties kent `/⏎*`, `*⏎/` en `\S\'` niet; ook op main, met één datasectie.** ISO 10303-21
+     laat stuurtekens overal weg (§5.2, §5.6), ook tussen `/` en `*`, en `\S\` plus één teken is één teken in een string
+     (§6.4.3). `stripStepComments`, `skipQuotedOrComment` en de lus van `parseSTEP` (`src/services/ifc/ifcReader.ts`)
+     lezen dat zoals main. Gezien op main (9ee06bb71), met een kop met de drie kopentiteiten, `DATA;` en één datasectie:
+     - `#1=IFCTASK('1',$,'Taak',…);` dan `/* a *⏎/ #9=IFCWALL('x',…);` dan `/* b */`: opent met 1 taak, zonder
+       modelweigering. Volgens de norm is de wand code: opslaan wist hem.
+     - `#1=IFCTASK(…);` dan `/⏎* #9=IFCWALL('x',…); */`: weigert als gebouwmodel. Volgens de norm is de wand
+       commentaar.
+     - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
+     Sinds #870 leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen volgens
+     de norm. Ziet zij een modeltype, dan weigert `readIFC`; verder opent `readIFC` precies zoals main (besluit Trias,
+     review van #870 ronde 10). Gemeten op de tak, zonder de flag `ifcForeignContent` (met de flag: knownbug 1151):
+      - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
+      - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
+      - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken, zoals main;
+      - blijft: de wand in `/⏎* … */` weigert bij openen als gebouwmodel, zoals main. De doelcontrole zegt ook "model":
+        bij één datasectie leest zij na de grammatica ook volgens de regel van main (ronde 10);
+      - blijft: een kapot bestand leest precies zoals main, met dezelfde lexer.
+     Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken. Uit #870 (review ronde 6,
+     GPT-6.1-Sol en GPT-6.1-Terra; eigen knownbug op verzoek van Trias). — B
+
+1052. **VERVOLG: een bestand van een ander programma dat zich uitgeeft als OPS, valt onder de regel van main.** De
+     doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) herkent een eigen bestand aan de vaste kop van OPS en
+     aan het vaste stuk na de vrije tekst in FILE_NAME (`'Open Planner Studio 0.1','Open Planner Studio','');`). Breekt
+     zo'n bestand de grammatica, of heeft het meer dan één datasectie, dan leest zij het zoals `readIFC` op main (besluit Trias, wrakko 10 november 2026: oude
+     versies schreven de kop rauw, en die planners moeten kunnen blijven opslaan). Een bestand van een ander programma
+     dat precies die kop schrijft, en de grammatica breekt, gaat er dan ook doorheen: een modelentiteit die de lus van
+     `parseSTEP` mist (knownbug 1050, of na een kapotte naam), ziet de doelcontrole dan niet, en Opslaan als of AutoSave
+     kan het model overschrijven. Alleen bij opzet of toeval in precies die kop. Uit #870 (ronde 8). — S
+
+1054. **VERVOLG: wat na #870 overblijft bij de grammatica en de doelcontrole.**
+     (1) Geen test voor een niet-leesbaar doel via de site (`window.openaecHost`); de handle- en Tauri-routes zijn wel
+     getest (`check-ifc-foreign-target.ts`). (2) De herkenning van een eigen bestand mist oude uitvoer met een regeleinde
+     in de naam, auteur of bedrijf, of met meer dan 64 KiB vrije tekst in FILE_NAME (`OPS_PREFIX_MAX` in
+     `src/services/ifc/foreign/targetModelScan.ts`): de writer van v2026.7.12 haalde regeleindes niet weg. Zo'n bestand
+     opent zoals main, maar weigert als doel ('unreadable'): opslaan erover kan niet. Richting: het vaste stuk na de vrije
+     tekst als stroom herkennen. (3) De grammatica (`src/services/ifc/stepFileGrammar.ts`) kent nog niet elke vorm van de
+     norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
+     met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)
+     heeft `\N\` en `\F\` vóór `(` en `;`, maar niet tussen de parameters (`DATA('deel'\N\,('IFC4X3_ADD2'));`).
+     Uit #870 (ronde 7 en 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1061. **VERVOLG: een geldig bestand leest `readIFC` op een paar plekken anders dan de norm; precies zo op main.** `readIFC` (`src/services/ifc/ifcReader.ts`) opent precies zoals main (besluit Trias, review van #870 ronde
+     10): het eerste `DATA;` op codeniveau (`src/services/ifc/stepDataSection.ts`), en de lus van `parseSTEP` tot de
+     eerste `ENDSEC;`. De grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) beslist alleen over
+     een model. Gemeten op main (9ee06bb71) en op de tak, met `showcase-verbouwing-eengezinswoning.ifc`; beide gelijk:
+      1. `#4⏎8` (een regeleinde midden in een verwijzing): voor de norm `#48`, voor de lus geen verwijzing. Opent met 20
+         taken, maar taak "1. Preparation" krijgt een andere duur. Zo ook `IFC⏎TASK`: die taak ontbreekt.
+      2. `FILE_SCHEMA((/*x*/'IFC4'))`: opent met 20 taken, zonder schema uit de kop.
+      3. `\PB\\S\!` in een naam: de app toont "¡"; volgens de norm is het een teken uit ISO 8859-2.
+      4. Een regeleinde in een string: de naam blijft "Prepa⏎ration"; de norm laat stuurtekens weg.
+      5. Een andere sectiekop dan `DATA;` (`DATA ;`, `DATA('deel',('IFC4'));`, kleine letters, commentaar of een
+         regeleinde ertussen): de planning opent niet (`no-data-section`). De doelcontrole schrijft er wel over: het
+         hele bestand past in de grammatica, zonder model.
+      6. Meer datasecties: `readIFC` leest alleen de eerste. Een model in een latere sectie weigert (de grammatica ziet
+         het); taken in een latere sectie ontbreken. Zonder flag (nu altijd in de app) opent zo'n planning dus met een
+         deel van de taken, en Ctrl+S wist de rest; zo ook op main. Alleen met de flag `ifcForeignContent` draait de
+         doelcontrole; die weigert zo'n bestand als doel, behalve een eigen bestand.
+      7. De grammatica ziet een model alleen tot het punt waar het bestand breekt. Breekt een bestand in de eerste
+         sectie (bijvoorbeeld `IFCREAL(1E5)` of een harde spatie na `DATA;`) en staat er een wand in een latere sectie,
+         dan opent het met de taken van de eerste sectie, zoals main. Als doel: 'unreadable' voor een vreemd bestand,
+         maar 'no-model' voor een bestand met de kop van OPS (de regel van main, besluit Trias), zodat met de flag
+         Opslaan over de wand mag. Gemeten door de review van #870, ronde 11.
+     Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
+     ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
+
+1150. **VERVOLG: de doelcontrole na #870 is trager dan op main, en er kan wat weg.** Gemeten in de review van #870,
+     ronde 11 (Node, gedeelde machine). De doelcontrole (mediaan van 5 runs; alleen met de flag): een geldig bestand
+     van 15 MiB zonder model kost op main ongeveer 100 ms, op de tak ongeveer 630 ms; van 20 MiB 125 ms tegen 880 ms.
+     Oorzaak: `findPass` in `src/services/ifc/foreign/targetModelScan.ts` stuurt elk byte door de kop, de prefix en de
+     grammatica, en daarna nog door de lus van main. `readIFC` op `showcase-appartementencomplex.ifc` (mediaan van 30
+     runs; bij elk openen, ook zonder flag): 38,5 ms tegen 50,8 ms, door de extra pas van de grammatica. Richting: zodra `mainEnd` en de herkomst vaststaan alleen de
+     grammatica voeden, met de sprong over strings en commentaar (zie ook 1017). Verder: commentaar beschrijft
+     'unreadable' nog als "geen datasectie" (`foreignSourceTarget.ts`, `ifcForeignGuard.ts`, `fileTools.ts`), terwijl
+     het nu ook een kapot bestand of meer datasecties betekent; `failedAt` en `lexBack` in `stepFileGrammar.ts` zijn
+     overbodig, en de getter `state` gebruikt alleen de test; de FNV-tabel van de modeltypes staat in `stepFileGrammar.ts`,
+     in `targetModelScan.ts` en in `check-ifc-target-model-scan.ts`, en `MODEL_TYPE_MAX` (grammatica) en `TYPE_MAX`
+     (doelcontrole) zijn dezelfde grens. Richting: één export uit `ifcBuildingModelTypes.ts`. Uit #870 (ronde 11 en
+     12, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
+
+1151. **VERVOLG: met de flag `ifcForeignContent` aan slaat openen de modelweigering van de grammatica over.** De
+     bytes-route (`src/services/ifc/foreign/ifcBytesRoute.ts:93`) roept `readIFC` aan met
+     `skipBuildingModelGuard: true`; dan draait de grammatica niet (`src/services/ifc/ifcReader.ts`). Gezien in de
+     review van #870, ronde 12, met de showcase (eigen en vreemd) en `/* a *⏎/ #999999=IFCWALL(…); /* b */` in de enige
+     sectie: zonder flag weigert de tak met `building-model`; met de flag opent hij 20 taken, en de bron telt geen vreemd
+     deel (`stepScanner` leest de wand als commentaar, zoals main). Geen dataverlies: de doelcontrole zegt 'model' en
+     draait met de flag vóór elke write (Opslaan, Opslaan als, export, AutoSave, MCP). Op main opent het ook, maar daar
+     wist Ctrl+S de wand. Een planner met de flag aan loopt wel bij elk opslaan tegen de modelmelding aan. Richting: in
+     de bytes-route terugvallen op de gewone route als de grammatica een model ziet en de scanner geen vreemd deel telt;
+     vóór fase 1b. Uit #870 (ronde 12, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
 1045. **VERVOLG: crashherstel telt een letterlijke keuze die nooit naar het eigen bestand is opgeslagen.** De herstelkopie
      wordt met de writer geschreven; bij een urentaak staat daar `LiteralTimes` in. Na herstel leest de app die kopie als

@@ -35,7 +35,8 @@ import { formatNoticeToShow } from '@/services/formatNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
-  IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, ifcSaveBlocked,
+  IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
+  IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcSaveBlocked,
   refusedWriteTarget,
 } from '../ifcForeignGuard';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
@@ -722,8 +723,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Fixronde 1 en 2: weigert het doel als het de bron is van een open document met een vreemd deel, of (met de flag) als
    *  het bestaande doel zelf een gebouwmodel bevat (zie `refusedWriteTarget`). */
   const foreignTargetCheck = (purpose: 'save' | 'export'): SaveTargetCheck => async (target) => {
-    if (!(await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers: writeTargetReaders }))) return false;
-    get().notify(purpose === 'save' ? IFC_FOREIGN_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
+    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers: writeTargetReaders });
+    if (!reason) return false;
+    if (reason === 'unreadable-target') {
+      get().notify(purpose === 'save' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_UNREADABLE_TARGET_EXPORT_NOTICE);
+    } else get().notify(purpose === 'save' ? IFC_FOREIGN_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
     return true;
   };
 
