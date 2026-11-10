@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
+import { isFeatureEnabled, REPORT_REDESIGN_FLAG } from '@/utils/featureFlags';
 import { useTranslation } from 'react-i18next';
-import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
+import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintPreviewPage, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { nameWithProjectCode } from '@/utils/projectCodeName';
-import { computeHighResScale } from '@/utils/miniPdf';
-import { paginateCanvasToPdfBytes, type PaginateOptions } from '@/services/print/paginate';
+import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
 import { computeTileLayout, footerLayoutWidthFor } from '@/services/print/tileLayout';
-import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes } from '@/services/pdf/fontLoader';
+import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes, loadReportTextMetrics } from '@/services/pdf/fontLoader';
 import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
@@ -23,12 +23,15 @@ import {
 import { encodeFieldRef, decodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
+import { buildGanttReportPdf, describeVectorFallback } from '@/services/print/exportGanttReportPdf';
 import {
   DEFAULT_REPORT_SETTINGS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations, reportTypeShowsCriticalToggle, saveReportSettings,
   TABLE_REPORT_TYPES,
-  type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
+  type ReportSettings, type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
+import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
+import { useCurveLabels, useResourceTypeLabels } from './reports/useResourceGanttLabels';
 import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -52,20 +55,6 @@ import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 
-/**
- * Beschrijf waarom de vector-export terugvalt op raster. Herkent de `VectorUnsupportedError`
- * aan z'n `name` — géén eager import van `paginateVector`, zodat pdf-lib/fontkit uit de hoofdbundle
- * blijft — en logt de ongedekte codepoints (bv. een CJK/Arabische taaknaam) i.p.v. tofu te tekenen.
- */
-function describeVectorFallback(err: unknown): string {
-  if (err && typeof err === 'object' && (err as { name?: string }).name === 'VectorUnsupportedError') {
-    const cps = (err as { codepoints?: number[] }).codepoints ?? [];
-    const rtl = (err as { hasRtl?: boolean }).hasRtl ? ' (bevat RTL)' : '';
-    const list = cps.map(cp => 'U+' + cp.toString(16).toUpperCase().padStart(4, '0')).join(' ');
-    return `ongedekte glyphs${rtl}: ${list}`;
-  }
-  return String(err);
-}
 
 /**
  * Kolomspec voor de vector-PDF-export van het mijlpalenrapport — spiegelt EXACT
@@ -214,7 +203,16 @@ function restorePreviewScrollAnchor(root: HTMLElement, anchor: PreviewScrollAnch
 /** De vier aan/uit-opties van het resourcediagram, in schermvolgorde (label = `resourceGantt.<sleutel>`). */
 const RESOURCE_GANTT_TOGGLES = ['pageBreakPerResource', 'includeUnassigned', 'groupByType', 'showAssignmentColumns'] as const;
 
-export function ReportPanel() {
+export interface ReportPanelProps {
+  /**
+   * Alleen met de feature flag `reportRedesign`: het nieuwe Rapport-tabblad toont dit paneel voor de
+   * andere rapporttypen en wil horen wanneer de gebruiker hier de Gantt-afdruk kiest (pas nádat de
+   * keuze bewaard is).
+   */
+  onReportTypeChange?: (type: ReportType) => void;
+}
+
+export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
@@ -377,6 +375,9 @@ export function ReportPanel() {
   // Alleen de rasterkwaliteit. Deze waarde gaat bewust NIET in PrintOptions: PDF en paginering
   // mogen nooit veranderen door hoe scherp iemand de preview op zijn scherm leest.
   const [previewQuality, setPreviewQuality] = useState(DEFAULT_REPORT_SETTINGS.previewQuality);
+  // Met het nieuwe Rapport-tabblad (feature flag `reportRedesign`) toont dit paneel alleen de rapporten zonder
+  // rasterpreview: de Gantt-afdruk en het Resourcediagram (een layout, #861) staan op het vectorpapier.
+  const redesign = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, REPORT_REDESIGN_FLAG));
 
   // Instellingenkolom horizontaal sleepbaar. Zelfde generieke
   // sleeppatroon als de rechterpaneel-splitter in App.tsx en de tabel/chart-splitter in
@@ -418,6 +419,14 @@ export function ReportPanel() {
   // Een ref (geen state) volstaat: de vlag hoeft geen re-render te veroorzaken, en het save-effect
   // wordt toch al opnieuw uitgevoerd door de state-updates van de hydratatie zelf.
   const hydratedRef = useRef(false);
+  // Velden die alleen het nieuwe Rapport-tabblad (feature flag `reportRedesign`) gebruikt: dit paneel
+  // toont ze niet, maar schrijft ze ongewijzigd terug, anders wist een bezoek aan een ander rapporttype
+  // de kolomkeuze van de Gantt-afdruk.
+  const studioFieldsRef = useRef<Pick<ReportSettings, 'columns' | 'sidebar' | 'studioStep' | 'paperHintSeen' | 'layoutId'>>({
+    columns: DEFAULT_REPORT_SETTINGS.columns, sidebar: DEFAULT_REPORT_SETTINGS.sidebar,
+    studioStep: DEFAULT_REPORT_SETTINGS.studioStep, paperHintSeen: DEFAULT_REPORT_SETTINGS.paperHintSeen,
+    layoutId: DEFAULT_REPORT_SETTINGS.layoutId,
+  });
   // De preview is veel duurder dan het kleine settings-object. Wacht daarom met de
   // eerste rastertaak tot alle opgeslagen opties in één React-batch zijn toegepast.
   // Anders kan een opgeslagen instelling een korte reeks tussenstaten produceren
@@ -463,6 +472,7 @@ export function ReportPanel() {
       setPreviewQuality(s.previewQuality);
       setTableOptions(s.tableReports);
       setResourceGanttOptions(s.resourceGantt);
+      studioFieldsRef.current = { columns: s.columns, sidebar: s.sidebar, studioStep: s.studioStep, paperHintSeen: s.paperHintSeen, layoutId: s.layoutId };
       hydratedRef.current = true;
       setReportSettingsHydrated(true);
     }, () => {
@@ -499,11 +509,18 @@ export function ReportPanel() {
       paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
       tableReports: tableOptions,
       resourceGantt: resourceGanttOptions,
+      ...studioFieldsRef.current,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
       orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
       tableOptions, resourceGanttOptions]);
+
+  // Ná het opslaan-effect hierboven (zelfde commit, effecten lopen in volgorde): de keuze staat al in
+  // `ops-reportSettings` wanneer de ouder naar het nieuwe tabblad wisselt.
+  useEffect(() => {
+    if (reportSettingsHydrated) onReportTypeChange?.(reportType);
+  }, [reportSettingsHydrated, reportType, onReportTypeChange]);
 
   // Resourcediagram: dezelfde Gantt-render, maar de rijen komen uit de pure rekenmodule
   // (per resource-identiteit een band, daaronder zijn taken) en niet van het scherm.
@@ -512,20 +529,9 @@ export function ReportPanel() {
   const noneLabel = tTask('structure.none');
   // De bandvolgorde volgt de app-taal (nooit de OS-taal van de afdrukker: zelfde vel, zelfde nummering).
   // Typelabels voor de optionele typelaag: dezelfde sleutels als het resourcepaneel.
-  const resourceTypeLabels = useMemo(() => ({
-    LABOR: tCommon('resource.type.labor'), CREW: tCommon('resource.type.crew'),
-    SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
-    MATERIAL: tCommon('resource.type.material'), COST: tCommon('resource.type.cost'),
-  }), [tCommon]);
+  const resourceTypeLabels = useResourceTypeLabels();
   // Vertaalde curvenamen voor de toewijzingskolommen: dezelfde sleutels als het taakraster.
-  const curveLabels = useMemo(() => ({
-    UNIFORM: tCommon('resource.curve.uniform'), FRONT_LOADED: tCommon('resource.curve.frontLoaded'),
-    BACK_LOADED: tCommon('resource.curve.backLoaded'), BELL: tCommon('resource.curve.bell'),
-    EARLY_PEAK: tCommon('resource.curve.earlyPeak'), LATE_PEAK: tCommon('resource.curve.latePeak'),
-    DOUBLE_PEAK: tCommon('resource.curve.doublePeak'), TURTLE: tCommon('resource.curve.turtle'),
-    // Dezelfde twee toestanden als het eigenschappenpaneel: contour op de taak, geïmporteerde curve.
-    contoured: tTask('properties.assignments.contoured'), imported: tTask('properties.assignments.importedCurve'),
-  }), [tCommon, tTask]);
+  const curveLabels = useCurveLabels();
   // Rapportageperiode als tijdvenster: dezelfde oplossing als het control toont; bij
   // *Hele project* geen venster.
   const resourceGanttPeriod = useResolvedPeriod(resourceGanttOptions.period);
@@ -549,21 +555,19 @@ export function ReportPanel() {
   // rapportletter (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
   // De meting gebeurt hier en niet in de printlaag: `measurePrintReport` (paginering) heeft geen
   // canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster-/vector-render.
+  // Meten met de lettermaten van het fontbestand, dezelfde meting als de vector-PDF
+  // (`reportTextMeasure.ts`); het canvas rondt bij kleine letters af en meet dan te smal voor de PDF.
+  const measureBaseDir: 'ltr' | 'rtl' = RTL_LOCALES.includes(i18n.language as Locale) ? 'rtl' : 'ltr';
   useEffect(() => {
     if (truncateTaskNames) return;
     let cancelled = false;
-    void ensureReportFontLoaded(reportFontFamily).then(() => {
+    void Promise.all([ensureReportFontLoaded(reportFontFamily), loadReportTextMetrics(reportFontFamily, measureBaseDir)]).then(([, metrics]) => {
       if (cancelled) return;
-      const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setAutoNameColumn({ font: reportFontFamily, width: NAME_COLUMN_WIDTH_DEFAULT }); return; }
       const rows = buildPrintRows(tasks, reportRows);
-      setAutoNameColumn({ font: reportFontFamily, width: measureTaskNameColumnWidth(rows, (text, bold) => {
-        ctx.font = nameCellFont(bold, reportFont);
-        return ctx.measureText(text).width;
-      }) });
+      setAutoNameColumn({ font: reportFontFamily, width: measureTaskNameColumnWidth(rows, (text, bold) => metrics.measure(text, nameCellFont(bold, reportFont))) });
     });
     return () => { cancelled = true; };
-  }, [truncateTaskNames, tasks, reportRows, reportFontFamily, reportFont]);
+  }, [truncateTaskNames, tasks, reportRows, reportFontFamily, reportFont, measureBaseDir]);
 
   // Curvekolom van het resourcediagram: zo breed als de langste curvenaam die dít rapport toont,
   // gemeten op de geladen rapportletter — om dezelfde reden hier en niet in de
@@ -578,22 +582,20 @@ export function ReportPanel() {
       return;
     }
     let cancelled = false;
-    void ensureReportFontLoaded(reportFontFamily).then(() => {
+    void Promise.all([ensureReportFontLoaded(reportFontFamily), loadReportTextMetrics(reportFontFamily, measureBaseDir)]).then(([, metrics]) => {
       if (cancelled) return;
-      const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setCurveColumn({ font: reportFontFamily, width: undefined }); return; }
       const cellLabels = new Set<string>();
       for (const a of resourceGantt.assignmentByRowKey.values()) {
         cellLabels.add(a.curve === null ? '—' : (curveLabels[a.curve] ?? a.curve));
       }
-      const measure = (font: string) => (text: string) => { ctx.font = font; return ctx.measureText(text).width; };
+      const measure = (font: string) => (text: string) => metrics.measure(text, font);
       setCurveColumn({ font: reportFontFamily, width: Math.max(
         measureCurveColumnWidth([curveHeaderLabel], measure(curveCellFont(true, reportFont))),
         measureCurveColumnWidth(cellLabels, measure(curveCellFont(false, reportFont))),
       ) });
     });
     return () => { cancelled = true; };
-  }, [curveColumnNeeded, resourceGantt, curveLabels, curveHeaderLabel, reportFontFamily, reportFont]);
+  }, [curveColumnNeeded, resourceGantt, curveLabels, curveHeaderLabel, reportFontFamily, reportFont, measureBaseDir]);
 
   // De vertaalde kolomkoppen: ÉÉN object voor de meting hieronder en voor de render, zodat een
   // kolom gemeten wordt op exact de kop die getekend wordt.
@@ -623,10 +625,8 @@ export function ReportPanel() {
   const columnWidths = measuredColumns?.widths;
   useEffect(() => {
     let cancelled = false;
-    void ensureReportFontLoaded(reportFontFamily).then(() => {
+    void Promise.all([ensureReportFontLoaded(reportFontFamily), loadReportTextMetrics(reportFontFamily, measureBaseDir)]).then(([, metrics]) => {
       if (cancelled) return;
-      const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setMeasuredColumns({ font: reportFontFamily, widths: undefined }); return; }
       const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
       setMeasuredColumns({ font: reportFontFamily, widths: measureTableColumnWidths(
         rows,
@@ -638,12 +638,12 @@ export function ReportPanel() {
           // Meten op dezelfde letter als de render (`options.fontFamily` hieronder).
           fontFamily: reportFont,
         },
-        (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
+        (text, font) => metrics.measure(text, font),
       ) });
     });
     return () => { cancelled = true; };
   }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, timeNotation, i18n.language, tableHeaders,
-    daySuffix, durationDisplay, durationSuffixes, calendar, calendars, reportFontFamily, reportFont]);
+    daySuffix, durationDisplay, durationSuffixes, calendar, calendars, reportFontFamily, reportFont, measureBaseDir]);
 
   // Staan alle metingen die de Gantt-render gebruikt op de gekozen letter? Na het wisselen van letter
   // lopen ze asynchroon (eerst het font laden); tot dan horen de breedtes bij de vórige letter. Een
@@ -1147,67 +1147,11 @@ export function ReportPanel() {
     };
 
     if (isGanttLike) {
-      const mode = autoFit ? 'fit-width' : 'actual';
-
-      // De raster-tak (JPEG-tegels) als betrouwbare terugval: de vector-tak valt erop terug bij een
-      // fout (bv. een glyph buiten Inter). Render offscreen op een vaste hoge schaal, onafhankelijk van het
-      // scherm van de exporterende gebruiker (window.devicePixelRatio, vaak 1x). Eerste render (schaal
-      // 1) levert de LOGISCHE maten + naam-kolombreedte; de tweede render het high-res raster.
-      const exportRaster = (): Uint8Array => {
-        const exportCanvas = document.createElement('canvas');
-        const {
-          width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, footerHeight, breakOffsets, forcedBreakOffsets,
-        } = renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, 1);
-        const rasterTile: PaginateOptions = {
-          paperSize: lowerPaper, orientation, mode,
-          logicalWidth, logicalHeight, frozenColumnWidthPx: tableWidth,
-          // Zelfde kop-/voetherhaling (px) en tijdlijn-spreiding als de preview en de vector-tak,
-          // zodat de raster-terugval WYSIWYG gelijk is aan beide.
-          repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
-          repeatFooterHeightPx: repeatFooter ? footerHeight : 0,
-          timelineColumns,
-          breakOffsetsPx: breakOffsets,
-          forcedBreakOffsetsPx: forcedBreakOffsets,
-        };
-        // De high-res render legt de voet binnen één paginabreedte (zie `footerLayoutWidth`) — alleen
-        // wanneer hij herhaald wordt.
-        const exportScale = computeHighResScale(logicalWidth, logicalHeight);
-        renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName,
-          { ...options, footerLayoutWidth: footerLayoutWidthFor(computeTileLayout(rasterTile)) }, exportScale);
-        return paginateCanvasToPdfBytes(exportCanvas, rasterTile);
-      };
-
-      // Vector-tak: échte vector-PDF met selecteerbare tekst + de ingebedde rapportletter. Bij een fout
-      // valt de export terug op raster zodat hij nooit stukloopt. Lazy import houdt pdf-lib/fontkit
-      // uit de hoofdbundle.
-      let pdfBytes: Uint8Array;
-      try {
-        const [{ paginateVectorToPdfBytes }, { subsetFont }, fonts] = await Promise.all([
-          import('@/services/print/paginateVector'),
-          import('@/services/pdf/hbSubset'),
-          loadVectorFonts(),
-        ]);
-        pdfBytes = await paginateVectorToPdfBytes(
-          (make, footerLayoutWidth) => renderReport(make, tasks, sequences, calendar, projectName, { ...options, footerLayoutWidth }),
-          {
-            paperSize: lowerPaper,
-            orientation,
-            mode,
-            baseDir: exportBaseDir,
-            subsetFont,
-            fallbackFonts: fonts.fallbackFonts,
-            // Kop per pagina herhalen + tijdlijn over N pagina's; voet per pagina.
-            repeatHeader,
-            repeatFooter,
-            timelineColumns,
-          },
-          fonts.main,
-          fonts.arabic,
-        );
-      } catch (err) {
-        console.warn('[ReportPanel] Vector-PDF-export mislukt, terugval op raster:', describeVectorFallback(err));
-        pdfBytes = exportRaster();
-      }
+      // Vector-PDF met raster-terugval: één bouwfunctie voor dit paneel en het nieuwe Rapport-tabblad,
+      // met de gekozen rapportletter (#770).
+      const pdfBytes = await buildGanttReportPdf({
+        tasks, sequences, calendar, projectName, options, repeatHeader, repeatFooter, fontId: reportFontFamily,
+      });
       await writePdf(pdfBytes, `${fileBase}-${reportType === 'resourceGantt' ? t('fileSuffix.resourceGantt') : t('fileSuffix.gantt')}.pdf`);
       return;
     }
@@ -1271,10 +1215,9 @@ export function ReportPanel() {
       // Kolomkoppen worden gemeten zoals de DOM-tabel zichzelf opmeet ("Duration (wd)" past in geen
       // enkele taal in een vaste 70 px). De meting loopt op de geladen rapportletter — hetzelfde
       // font dat de PDF inbedt — zodat wat hier past ook daar past. (Al geladen bovenaan `runExport`.)
-      const headerCtx = document.createElement('canvas').getContext('2d');
-      const measureHeader = headerCtx
-        ? (text: string, font: string) => { headerCtx.font = font; return headerCtx.measureText(text).width; }
-        : undefined;
+      // Met de lettermaten van het fontbestand, dezelfde meting als de vector-PDF (`reportTextMeasure.ts`).
+      const headerMetrics = await loadReportTextMetrics(reportFontFamily, exportBaseDir);
+      const measureHeader = (text: string, font: string) => headerMetrics.measure(text, font);
 
       // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
       // rijtype, en een samengevoegde union-spec zou TS niet meer aan één Row-type kunnen binden.
@@ -1318,7 +1261,7 @@ export function ReportPanel() {
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, isGanttLike, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
-    autoFit, repeatHeader, repeatFooter, timelineColumns, writePdf, t, taskDate, locale, milestoneRows, varianceResult, tableSpec,
+    repeatHeader, repeatFooter, writePdf, t, taskDate, locale, milestoneRows, varianceResult, tableSpec,
     reportFontFamily, reportFont]);
 
   // Guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
@@ -1408,10 +1351,19 @@ export function ReportPanel() {
           className="w-full min-w-0"
           aria-label={t('reportType.label')}
           value={reportType}
-          onChange={v => setReportType(v as ReportType)}
+          onChange={v => {
+            // Flag uit: wie het Resourcediagram verlaat, verlaat ook de layout Resourcediagram van het nieuwe
+            // tabblad (die staat sinds review Sol #847, ronde 4 ook in `layoutId`). Met de flag aan toont dit
+            // paneel nooit het Resourcediagram, dus een uitstap naar een ander rapport houdt de layout.
+            if (reportType === 'resourceGantt' && studioFieldsRef.current.layoutId === RESOURCE_DIAGRAM_LAYOUT_ID) {
+              studioFieldsRef.current = { ...studioFieldsRef.current, layoutId: '' };
+            }
+            setReportType(v as ReportType);
+          }}
           options={[
             { value: 'gantt', label: t('reportType.gantt') },
-            { value: 'resourceGantt', label: t('reportType.resourceGantt') },
+            // Met het nieuwe tabblad is het Resourcediagram een layout van de Gantt-afdruk (#861).
+            ...(redesign ? [] : [{ value: 'resourceGantt', label: t('reportType.resourceGantt') }]),
             { value: 'milestones', label: t('reportType.milestones') },
             { value: 'variance', label: t('reportType.variance') },
             ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: t(`reportType.${type}`) })),
@@ -1643,15 +1595,17 @@ export function ReportPanel() {
             {/* Custom zoom slider (only when auto-fit is off) */}
             {!autoFit && (
               <ReportFieldRow label={t('zoom', { defaultValue: 'Zoom:' })}>
+                {/* Het nieuwe tabblad (#817) kan een breedte onder 1 px per dag bewaren; deze schuif kent
+                    alleen hele stappen vanaf 1 en toont zo'n waarde als 1 tot hij verschoven wordt. */}
                 <input
                   type="range"
                   min={REPORT_MIN_ZOOM}
                   max={REPORT_MAX_ZOOM}
-                  value={customZoom}
+                  value={Math.max(REPORT_MIN_ZOOM, Math.round(customZoom))}
                   onChange={e => setCustomZoom(Number(e.target.value))}
                   className="flex-1 min-w-0"
                 />
-                <span className="w-8 flex-shrink-0 text-right">{customZoom}</span>
+                <span className="w-8 flex-shrink-0 text-right">{Math.max(REPORT_MIN_ZOOM, Math.round(customZoom))}</span>
               </ReportFieldRow>
             )}
 
@@ -1787,25 +1741,27 @@ export function ReportPanel() {
         {isGanttLike ? (
           <div className="flex h-full min-h-0 flex-col">
             {recordedDatesNote}
-            <div
-              className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-small leading-4"
-              style={{ background: 'var(--theme-bg)' }}
-              data-preview-zoom-control
-            >
-              <label htmlFor="report-preview-quality" className="text-text-secondary">{t('previewQuality.label')}</label>
-              <Select
-                id="report-preview-quality"
-                className="min-w-40"
-                aria-label={t('previewQuality.label')}
-                value={previewQuality}
-                onChange={value => setPreviewQuality(value as '100' | '200' | '300')}
-                options={[
-                  { value: '100', label: t('previewQuality.standard') },
-                  { value: '200', label: t('previewQuality.high') },
-                  { value: '300', label: t('previewQuality.maximum') },
-                ]}
-              />
-            </div>
+            {!redesign && (
+              <div
+                className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-small leading-4"
+                style={{ background: 'var(--theme-bg)' }}
+                data-preview-zoom-control
+              >
+                <label htmlFor="report-preview-quality" className="text-text-secondary">{t('previewQuality.label')}</label>
+                <Select
+                  id="report-preview-quality"
+                  className="min-w-40"
+                  aria-label={t('previewQuality.label')}
+                  value={previewQuality}
+                  onChange={value => setPreviewQuality(value as '100' | '200' | '300')}
+                  options={[
+                    { value: '100', label: t('previewQuality.standard') },
+                    { value: '200', label: t('previewQuality.high') },
+                    { value: '300', label: t('previewQuality.maximum') },
+                  ]}
+                />
+              </div>
+            )}
             <div ref={previewViewportRef} data-report-preview-viewport className="flex-1 min-h-0 overflow-auto p-4">
               <div className="flex flex-col items-center gap-4">
                 {Array.from({ length: previewLayout.totalPages }, (_, i) => {
