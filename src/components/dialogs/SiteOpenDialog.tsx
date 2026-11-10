@@ -153,7 +153,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t(fileVersions ? 'siteFiles.hideVersions' : 'siteFiles.showVersions')}
                         data-ops-site-versions-toggle
                       >
-                        {fileVersions ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" lucide={{ className: undefined }} />}
+                        {fileVersions ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" />}
                       </button>
                       <button
                         className="flex-1 min-w-0 flex items-start gap-2.5 p-2.5 text-left hover:bg-surface rounded-r-[8px]"
@@ -161,7 +161,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t('siteFiles.open')}
                         data-ops-site-file-open
                       >
-                        <Icon id="file.type-other" size={15} className="text-text-secondary mt-0.5 shrink-0" lucide={{ icon: 'FileText', className: 'text-accent mt-0.5 shrink-0' }} />
+                        <Icon id="file.type-other" size={15} className="text-text-secondary mt-0.5 shrink-0" />
                         <span className="flex flex-col gap-0.5 min-w-0">
                           <span className="text-text-primary font-semibold !text-large truncate">{file.name}</span>
                           {modified && <span className="text-text-secondary">{modified}</span>}

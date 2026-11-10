@@ -241,6 +241,8 @@
     "endDate": "Enddatum",
     "defaultWorkRule": "Standard-Vorgangsart",
     "defaultWorkRuleHint": "Vorgänge mit ‚Projektstandard‘ übernehmen diese Auswahl. Vorgänge mit einer eigenen Vorgangsart behalten ihre Auswahl.",
+    "anchorsFromOpenDocuments": "Anker aus geöffneten Dokumenten übernehmen",
+    "anchorsFromOpenDocumentsHint": "Ist ein Quellprojekt mit nicht gespeicherten Änderungen geöffnet, kommen die Anker aus diesem geöffneten Dokument. Standardmäßig aus.",
     "calc": {
       "title": "Berechnung",
       "subtitle": "Terminplanungsoptionen für dieses Projekt — werden mit der Datei gespeichert, nicht mit der App.",

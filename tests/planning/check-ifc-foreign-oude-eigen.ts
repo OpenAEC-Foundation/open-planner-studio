@@ -152,10 +152,10 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   await proof('BLOKKEERT 1', 'halve dag, een andere taak hernoemd', half, 'schrijft', renameOther(name), kept);
   // De planner wijzigt de duur zelf: dan geldt de writer. 2 dagen past in hele dagen; 1,5 dag gaat als `PT…` met een
   // record en maakt de kalender letterlijk, en daarmee lezen de oude datums van de andere taken anders: weigeren mag
-  // (eigen wijziging; knownbug 1100).
+  // (eigen wijziging; knownbug 1102).
   await proof('BLOKKEERT 1', 'halve dag, de duur zelf op 2 dagen', half, 'schrijft', (d) => { taskNamed(d, name).time.scheduleDuration = 2; },
     has(`IFCTASKTIME('${name} Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M2D'`));
-  await proof('BLOKKEERT 1', 'halve dag, de duur zelf op 1,5 dag (knownbug 1100)', half, 'niet-gedragen', (d) => { taskNamed(d, name).time.scheduleDuration = 1.5; });
+  await proof('BLOKKEERT 1', 'halve dag, de duur zelf op 1,5 dag (knownbug 1102)', half, 'niet-gedragen', (d) => { taskNamed(d, name).time.scheduleDuration = 1.5; });
   // Het bestand dat de writer van v2026.43.0 zelf maakte, met een taak van een halve dag.
   const own = walled(`${OLD}/v2026.43.0-halve-dag-10-villa-wassenaar.ifc`);
   ok('BLOKKEERT 1: v2026.43.0-halve-dag heeft een halve dag', own.includes("'P0Y0M0.5D'"));

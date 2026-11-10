@@ -111,6 +111,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} archivo de recuperación no se pudo cargar y se omitió.",
     "recoveryDocumentsSkipped_many": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
     "recoveryDocumentsSkipped_other": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
+    "externalOpenSourceUnsaved": "{{file}} tiene cambios sin guardar; el anclaje procede de la versión guardada.",
     "scheduleFailed": "No se pudo calcular la planificación",
     "ifcParseFailed": "No se pudo leer el IFC",
     "templateSaved": "Rama guardada como plantilla '{{name}}'",

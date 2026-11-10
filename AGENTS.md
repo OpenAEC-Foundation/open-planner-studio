@@ -216,6 +216,13 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   blocked before import (knownbug 110): the planning writer does not preserve them. The checked-in
   type inventory comes from official IFC2X3 TC1, IFC4 ADD2 TC1 and IFC4X3 ADD2 schemas; regenerate
   with `scripts/ifc-product-types.py`. Edit the separate planning file, then merge externally.
+  `readIFC` and the save-target check read the whole file with the ISO 10303-21 grammar
+  (`src/services/ifc/stepFileGrammar.ts`); without the flag below, a model type it sees refuses, also before the point
+  where a file breaks (with the flag the bytes route runs it on the text the reader gets, without the
+  model part V).
+  Otherwise `readIFC` reads only the first data section: the first `DATA;` up to the first `ENDSEC;`. The save-target
+  check runs only with the flag `ifcForeignContent`: then a target that breaks the grammar or has more than one data
+  section refuses, except a file OPS wrote itself (old versions wrote a raw header).
   Behind the feature flag `ifcForeignContent` (#804 phase 1a; always off in the app until saving works) every IFC open
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
   reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
@@ -350,12 +357,14 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
   removes its flag and the corresponding checks.
+  Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik en houd het versienummer vast).
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
   before reporting a "new" bug.
+  Each session that writes knownbugs gets its own block of 50 numbers from wrakko at the start, and uses only numbers from that block. When the block is full, ask wrakko for the next one.
 - **User-visible feature ⇒ guide** in `public/docs/{nl,en}/` plus a manifest entry (recipe
   `docs/recepten/in-app-gids.md`). You write `nl` + `en` (the sources, required), organised by Diátaxis (`kind`:
   `howto`, `uitleg`, `referentie`; the tutorials ship as an extension); the other locales come from the translation

@@ -399,7 +399,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
         <button type="button" className="flex items-center gap-1.5 self-start text-left"
           aria-expanded={conventionsOpen} aria-controls="ops-scheduling-conventions-body"
           onClick={() => setConventionsOpen(open => !open)} data-ops-conventions-toggle>
-          {conventionsOpen ? <Icon id="tree.collapse" size={14} aria-hidden /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" aria-hidden lucide={{ className: undefined }} />}
+          {conventionsOpen ? <Icon id="tree.collapse" size={14} aria-hidden /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" aria-hidden />}
           <span className={labelCls}>{t('schedulingProfile.conventionsTitle')}</span>
           <span className="text-text-secondary" data-ops-conventions-count>({CONVENTIONS.length})</span>
           {deviatingTotal > 0 && (

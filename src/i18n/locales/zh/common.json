@@ -79,6 +79,7 @@
     "settingsLoadedLate": "你的设置已加载并应用。",
     "settingsLoadedLateReverted": "你的设置已加载并应用。你在此期间所做的更改已被还原。",
     "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
+    "externalOpenSourceUnsaved": "{{file}} 有未保存的更改；锚点来自已保存的版本。",
     "scheduleFailed": "无法计算计划",
     "ifcParseFailed": "无法读取 IFC",
     "templateSaved": "分支已保存为模板“{{name}}”",

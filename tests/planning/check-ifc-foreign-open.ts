@@ -3,7 +3,8 @@
 // (`openOpenedFile`). Bewaakt:
 //   1. de flag: in de app altijd uit (`writesNewIfcData`), en met de flag leest de bestandslaag IFC als bytes;
 //   2. zonder flag blijft de modelweigering (knownbug 110);
-//   3. met de flag openen `bonsai-4d` en `eigen-plus-model` met dezelfde planning als de lezer op het eigen deel;
+//   3. met de flag openen `bonsai-4d`, `eigen-plus-model` en `council/fix3-twee-data` (een wand in de tweede DATA-sectie)
+//      met dezelfde planning als de lezer op het eigen deel; zonder flag weigert ook dat laatste;
 //   4. een eigen bestand zonder model: wat Opslaan schrijft is byte-gelijk met en zonder flag;
 //   5. met de flag en een vreemd deel weigeren Opslaan, Opslaan als, de IFC-export en de pool-export, met de melding;
 //   6. de bronbytes en het model zitten niet in de herstelsnapshot, de MCP-backup en de undo-snapshot; het
@@ -17,6 +18,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
+import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
+import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -122,7 +125,31 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────
 const bonsai = fileBytes(`${FOREIGN}/bonsai-4d.ifc`);
 const eigenPlus = fileBytes(`${FOREIGN}/eigen-plus-model.ifc`);
-for (const [name, bytes] of [['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus]] as const) {
+// Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las `readIFC` maar tot de eerste `ENDSEC;`:
+// zonder flag opende het bestand dan zonder melding, en opslaan wiste de wand.
+const twoData = fileBytes(`${FOREIGN}/council/fix3-twee-data.ifc`);
+// Sol en Terra (review van #870): dezelfde, met parameters bij beide sectiekoppen. Vóór de fix: `no-data-section`.
+const twoDataParam = enc.encode(paramDataFile(dec(twoData)));
+// De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`), ook gemengd, en op een model in de enige sectie.
+// Ronde 10 (besluit Trias): `readIFC` leest precies zoals main, dus alleen `DATA;` is een sectiekop. Een vorm waarin
+// main een `DATA;` vindt aan het begin van de eerste sectie, gaat door de lus hieronder. De andere opent met de flag
+// aan niet (hieronder apart): geen `DATA;`, of alleen het `DATA;` van de tweede sectie (de varianten `-eerste`; main leest
+// dan alleen die sectie, met de wand, en weigert het model).
+const kopVormen = [
+  ['fix3-param.ifc', twoDataParam] as const,
+  ...dataKopBestanden(dec(twoData), 'scanner').map(([name, text]) => [`fix3-${name}.ifc`, enc.encode(text)] as const),
+  ...dataKopBestanden(dec(eigenPlus), 'scanner').map(([name, text]) => [`eigen-plus-${name}.ifc`, enc.encode(text)] as const),
+];
+const mainVindtData = (_name: string, bytes: Uint8Array) => {
+  // Vóór het `DATA;` van main staat alleen de `ENDSEC` die de kop sluit: dan begint daar de eerste datasectie.
+  const text = dec(bytes);
+  const at = indexOfStepDataSection(text);
+  return at >= 0 && (text.slice(0, at).match(/ENDSEC/gi) ?? []).length === 1;
+};
+for (const [name, bytes] of [
+  ['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData],
+  ...kopVormen.filter(([name, bytes]) => mainVindtData(name, bytes)),
+] as const) {
   const off = await open(false, name, bytes);
   ok(`${name} zonder flag: geweigerd`, !opened(off, name));
   ok(`${name} zonder flag: de modelweigering (knownbug 110)`, String(off.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
@@ -141,6 +168,51 @@ for (const [name, bytes] of [['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc',
   const reference = await open(false, name, enc.encode(ownPartText(bytes)));
   ok(`${name}: het eigen deel opent zonder flag`, opened(reference, name));
   eq(`${name} met flag: dezelfde planning als de lezer op het eigen deel`, sha(saved(on)), sha(saved(reference)));
+}
+// Ronde 10: een kopvorm zonder `DATA;` aan het begin van de eerste sectie voor main. Zonder flag weigert de modelweigering (de grammatica ziet de wand);
+// met de flag leest de lezer van het eigen deel zoals main: geen datasectie, of alleen de tweede (met de wand). Het
+// bestand opent dan niet, zonder bron: niets om op te slaan, dus niets kwijt (besluit Ethan: de flag moet veilig zijn).
+for (const [name, bytes] of kopVormen.filter(([name, bytes]) => !mainVindtData(name, bytes))) {
+  const off = await open(false, name, bytes);
+  ok(`${name} zonder flag: geweigerd`, !opened(off, name));
+  ok(`${name} zonder flag: de modelweigering (knownbug 110)`, String(off.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+  const on = await open(true, name, bytes);
+  ok(`${name} met flag: opent niet (zoals main)`, !opened(on, name));
+  eq(`${name} met flag: geen bron`, on.getState().ifcSource, null);
+  ok(`${name} met flag: een foutmelding`, notices(on).some(n => n.severity === 'error'));
+}
+// Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop; het model blijft herkend. De scanner
+// van de flag weigert een tekst met één apostrof (`tekst-zonder-einde`) en valt terug op de gewone route: ook dan geweigerd.
+// Ook de kopvormen die de scanner van de flag weigert (`scannerWeigert`): de gewone route weigert dan het model.
+for (const [name, text] of [
+  ...brokenNameFiles(dec(eigenPlus)).map(([n, t]) => [`eigen-plus-${n}`, t] as [string, string]),
+  ...dataKopBestanden(dec(eigenPlus), 'scannerWeigert').map(([n, t]) => [`eigen-plus-${n}`, t] as [string, string]),
+  ...dataKopBestanden(dec(twoData), 'scannerWeigert').map(([n, t]) => [`fix3-${n}`, t] as [string, string]),
+]) {
+  for (const flag of [false, true]) {
+    const store = await open(flag, `${name}.ifc`, enc.encode(text));
+    ok(`${name} ${flag ? 'met' : 'zonder'} flag: geweigerd`, !opened(store, `${name}.ifc`));
+    ok(`${name} ${flag ? 'met' : 'zonder'} flag: de modelweigering`,
+      String(store.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+  }
+}
+// Knownbug 1151 (review van #870, ronde 12): een wand na `*⏎/` in de enige sectie. De scanner van de flag leest hem als
+// commentaar (zoals `parseSTEP`), de grammatica als entiteit. Met de flag weigert openen dan ook, net als zonder flag:
+// de lezer houdt de modelweigering op de tekst die hij krijgt. Zowel een eigen bestand als een bestand met een model.
+{
+  const hidden = (text: string) => text.replace(/^DATA;\r?\n/m,
+    line => `${line}/* a *\n/ #999999=IFCWALL('3vB2YO$MX4xv5uCqZZG05x',$,$,$,$,$,$,$,$); /* b */\n`);
+  const own = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  for (const [name, text] of [['showcase-1151', hidden(own)], ['eigen-plus-1151', hidden(dec(eigenPlus))]] as const) {
+    ok(`${name}: de proef zit erin`, text.includes('#999999=IFCWALL('));
+    for (const flagOn of [false, true]) {
+      const store = await open(flagOn, `${name}.ifc`, enc.encode(text));
+      ok(`${name} ${flagOn ? 'met' : 'zonder'} flag: geweigerd`, !opened(store, `${name}.ifc`));
+      ok(`${name} ${flagOn ? 'met' : 'zonder'} flag: de modelweigering`,
+        String(store.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
+      eq(`${name} ${flagOn ? 'met' : 'zonder'} flag: geen bron`, store.getState().ifcSource, null);
+    }
+  }
 }
 {
   // `eigen-plus-model` is `showcase-verbouwing-eengezinswoning.ifc` plus een model: dezelfde planning als de bron alleen.
@@ -207,6 +279,13 @@ for (const pad of ownFiles) {
   eq(`${pad}: opslagdoel met en zonder flag`, on.getState().filePath, off.getState().filePath);
   eq(`${pad}: meldingen met en zonder flag`, notices(on), notices(off));
   if (!opened(off, name)) continue;
+  if (pad.endsWith('v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc')) {
+    // #870 ronde 8: de kop van v2026.7.12 met `O'Hara Tower` is kapot. De scanner achter de flag weigert hem en valt
+    // terug op de gewone route (`ifcBytesRoute.ts`): geen bron, dezelfde planning als zonder flag.
+    ok(`${pad}: met flag de gewone route (de scanner weigert de kapotte kop)`, src === null);
+    eq(`${pad}: dezelfde planning met en zonder flag`, sha(saved(on)), sha(saved(off)));
+    continue;
+  }
   ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0);
   ok(`${pad}: met flag opslaan toegestaan`, !ifcSaveBlocked(on.getState()));
   eq(`${pad}: zonder flag geen bron`, off.getState().ifcSource, null);

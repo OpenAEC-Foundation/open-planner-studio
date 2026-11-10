@@ -1,7 +1,7 @@
 # Relaties tussen projecten: onderzoek en ontwerp
 
-Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026, stand van de bouw op 9 november 2026. Status:
-ontwerp met besluiten; deel 1 is gebouwd, op stap 1.7 na (die wacht op het antwoord van Ethan, 14 november). Ethan
+Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026, stand van de bouw op 10 november 2026. Status:
+ontwerp met besluiten; deel 1 is gebouwd, op stap 1.7 na (in bouw in #860, als vinkje; besluit 10 november). Ethan
 besliste over alle keuzes in hoofdstuk 10. De bouw gaat in kleine PR's, in de volgorde van hoofdstuk 9. Wat al
 gebouwd is, staat in paragraaf 9.1.
 
@@ -375,6 +375,11 @@ oudere versie bewaart haar niet. De reader en de writer van zo'n versie kennen i
 eigen velden. Slaat een planner het bestand op met een versie van vóór stap 1.11 (tot en met 2026.44.0), dan is de
 map weg en kiest hij haar opnieuw.
 
+Hetzelfde geldt voor het vinkje *Ankers uit geopende documenten halen* (stap 1.7):
+`OPS_ProjectSettings/AnchorsFromOpenDocuments`, alleen geschreven als het aan staat. Een oudere versie leest en schrijft
+het niet. Slaat een planner het bestand op met zo'n versie, dan staat het vinkje daarna stil uit. Het gevolg is de
+standaard (ankers uit het opgeslagen bestand); er gaat geen planningsdata verloren.
+
 ## 6. Stand A: in de SuperCloud
 
 ### 6.1 Koppelen
@@ -443,9 +448,11 @@ dat is niet gevonden.
 - **Browser zonder host:** een knop *Bronbestand kiezen…* (alle browsers). In Chromium onthoudt OPS het
   bestandshandvat (zoals bij de recente bestanden), zodat later opnieuw lezen één klik voor toestemming kost. In
   andere browsers kiest de planner het bestand opnieuw.
-- **Een geopend document** met hetzelfde project-id gaat voor (voorstel 5). Heeft dat document niet-opgeslagen
-  wijzigingen, dan neemt OPS het anker standaard uit het opgeslagen bestand en zegt dat. Als optie kan de planner met
-  het geopende document rekenen, met de niet-opgeslagen wijzigingen (keuze 5, besloten).
+- **Een geopend document** (voorstel 5). OPS herkent een bron die ook als document open staat aan het pad, het
+  site-id of, zonder pad, het project-id. Standaard gaat het opgeslagen bestand voor: heeft het document
+  niet-opgeslagen wijzigingen, dan neemt OPS het anker uit het opgeslagen bestand en zegt dat. Met het vinkje *Ankers
+  uit geopende documenten halen* in de projectinstellingen rekent het project met het geopende document, met de
+  niet-opgeslagen wijzigingen (keuze 5, besloten; vorm besloten op 10 november).
 
 ### 7.2 Een gewijzigde bron opmerken
 
@@ -496,8 +503,8 @@ Stap 1 heeft niets van de SuperCloud nodig. Stap 2 tot en met 4 wachten op de co
    5. De balk bij een nieuwe versie van een bron, met *Bekijken* (de gevolgen), *Accepteren* en *Later*; opmerken bij
       openen en als het venster weer actief wordt (keuze 1, en keuze 6 als vangnet).
    6. De map van een bron bewaken in de desktop-app (keuze 6, de feature `watch` van `tauri-plugin-fs`).
-   7. Verversen uit een geopend document: standaard het opgeslagen bestand met een melding, als optie het geopende
-      document (keuze 5, voorstel 5).
+   7. Verversen uit een geopend document: standaard het opgeslagen bestand met een melding; met het vinkje *Ankers
+      uit geopende documenten halen* het geopende document (keuze 5, voorstel 5).
    8. *Bronbestand kiezen…* in de browser (voorstel 5).
    9. Een bron in dezelfde map op de site (stand A met het bestaande hostcontract, `siteFileId`).
    10. De MCP-tools: externe relaties in de leestools, een tool om te verversen, en de gidszin over fasen (keuze 11).
@@ -527,7 +534,7 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.4 | Melding na F5 bij een te krappe externe opvolger | #810 | gemerged in main |
 | 1.5 | Balk bij een nieuwe versie van een bron | #811 | gemerged in main |
 | 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
-| 1.7 | Verversen uit een geopend document | #860 | open (niet gemerged), wacht op het antwoord van Ethan over keuze 5 (14 november) |
+| 1.7 | Verversen uit een geopend document (vinkje in de projectinstellingen) | #860 | open (niet gemerged) |
 | 1.8 | *Bronbestand kiezen…* in de browser | #858 | gemerged in main |
 | 1.9 | Een bron in dezelfde map op de site | #859 | gemerged in main |
 | 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
@@ -672,6 +679,14 @@ Advies: optie 1. Dan komt het anker altijd uit iets wat de ander ook kan zien (u
 
 **Besluit (3 november 2026, Ethan):** "1, 2 als optie". Standaard komt het anker uit het opgeslagen bestand, met de
 melding. Rekenen met het geopende document (met de niet-opgeslagen wijzigingen) komt erbij als optie.
+
+**Vorm van de optie (10 november 2026, Ethan):** een vaste instelling per project, het vinkje *Ankers uit geopende
+documenten halen* in de projectinstellingen (standaard uit), niet een knop per keer. Staat het aan, dan neemt
+*vernieuwen* het anker meteen uit het geopende document. De automatische controle (openen, wisselen, terug in het
+venster, bron gewijzigd) toont de balk van keuze 1 met de gevolgen; het plan verandert niets zonder klik. Een anker uit
+het geopende document heeft geen versie. Wordt de bron daarna opgeslagen zonder andere datum, dan komt er geen balk
+en houdt de koppeling "versie onbekend" tot de volgende echte datumwijziging (derde keuze, 10 november: geen balk als
+alleen de versie verandert).
 
 ### Keuze 6. Zonder cloud: hoe merkt OPS een gewijzigde bron op?
 

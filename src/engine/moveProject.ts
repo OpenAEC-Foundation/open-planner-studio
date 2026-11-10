@@ -168,6 +168,7 @@ const PROJECT_VERDICTS = {
   ifcSchemaUnconfirmed: 'n/a',    // open schemavraag bij opslaan, geen datum
   p6ProjectCode: 'n/a',            // P6 Project-ID, geen datum
   dependentProjectsFolder: 'n/a',  // map met afhankelijke projecten, geen datum
+  anchorsFromOpenDocuments: 'n/a', // vinkje ankers uit geopende documenten, geen datum
 } satisfies Record<keyof Project, MoveVerdict>;
 
 const RESOURCE_VERDICTS = {

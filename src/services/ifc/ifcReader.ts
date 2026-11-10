@@ -23,6 +23,7 @@ import { IfcParseError } from './ifcErrors';
 import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
+import { stepFileGrammar } from './stepFileGrammar';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { LAG_SLOT, lagValueSlot } from './ifcLagTimeSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
@@ -112,7 +113,7 @@ export interface IfcReadOptions {
    * `bytes-missing` ("openen met melding").
    */
   resolveXerArchiveReference?: (sha256: string) => Uint8Array | undefined;
-  // De vier opties hieronder geeft alleen de IFC-bytes-route (#804 fase 1a, `foreign/ifcBytesRoute.ts`, achter de flag
+  // De drie opties hieronder geeft alleen de IFC-bytes-route (#804 fase 1a, `foreign/ifcBytesRoute.ts`, achter de flag
   // `ifcForeignContent`). Zonder deze opties leest de lezer precies zoals vóór #804.
   /** Codering per stuk (§4.9 punt 5): de lezer decodeert elke entiteit waarvan het STEP-id hier NIET in staat. De keuze
    *  voor het hele bestand (`stringsAreStepEncoded`) vervalt dan. */
@@ -120,9 +121,6 @@ export interface IfcReadOptions {
   /** De taken van `selectPlanning` (§4.2 stap 1) als STEP-ids. De lezer leest precies deze taken, in plaats van zelf de
    *  baselinebomen uit te sluiten. Zo kunnen indeling en lezer niet uiteenlopen (afwijking 6 van fase 0). */
   planningTaskStepIds?: ReadonlySet<string>;
-  /** De indeling liet het model (V) al buiten de tekst van de lezer, en opslaan van een document met een vreemd deel is
-   *  geweigerd tot fase 1c. Dan slaat de lezer de modelweigering (knownbug 110) over. */
-  skipBuildingModelGuard?: boolean;
   /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
    *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
   stepIdsOut?: Record<string, string>;
@@ -198,13 +196,19 @@ export function readIFC(
 ): ImportResult {
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
+  const buildingModel = () => new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
+    'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
+  // #870 (besluit Trias, wrakko 10 november 2026): de grammatica van ISO 10303-21 (`stepFileGrammar.ts`) leest het hele
+  // bestand. Ziet zij ergens een modeltype, dan weigeren: ook in een tweede datasectie, in een complexe instantie, na
+  // een string die `parseSTEP` anders leest (knownbug 1050), en vóór het punt waar het bestand breekt. Verder opent
+  // `readIFC` precies zoals main: de grammatica bepaalt niet waar de datasectie begint of eindigt.
+  if (stepFileGrammar(content).model) throw buildingModel();
   const entities = parseSTEP(content);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
   // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
-  if (!options.skipBuildingModelGuard && entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
-    throw new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
-      'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
+  if (entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
+    throw buildingModel();
   }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
@@ -2381,6 +2385,9 @@ function extractStructure(
         } else if (name === PROP.ProjectSettings.DependentProjectsFolder) {
           // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
           if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
+        } else if (name === PROP.ProjectSettings.AnchorsFromOpenDocuments) {
+          // Ankers uit geopende documenten halen (spiegel van writeStructure, stap 1.7).
+          if (v === true) project.anchorsFromOpenDocuments = true;
         } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectName) {
           // #804 §4.4: het project is niet P (het project van een model). Deze vier winnen van IfcProject en de eerste
           // owner history (`extractProject`), ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$`

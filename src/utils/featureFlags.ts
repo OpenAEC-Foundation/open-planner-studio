@@ -4,8 +4,6 @@ export interface FeatureFlag {
   id: string;
   nameKey: ParseKeys<'common'>;
   descriptionKey?: ParseKeys<'common'>;
-  /** Alleen via een ontwikkel-URL; geen zichtbare instelling. */
-  hidden?: boolean;
   /** Nieuwe IFC-data: geen checkbox zolang de opslag daarvan nog niet af is. */
   writesNewIfcData: boolean;
 }
@@ -24,12 +22,6 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     nameKey: 'settings.featureReportRedesign',
     descriptionKey: 'settings.featureReportRedesignHint',
     writesNewIfcData: false,
-  },
-  {
-    id: 'b2-icons',
-    nameKey: 'settings.experimentalSection',
-    writesNewIfcData: false,
-    hidden: true,
   },
   // Demo-flag: alleen titelbalkdecoratie, zonder nieuwe documentgegevens.
   {
@@ -50,6 +42,19 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
 ];
 
 export type FeatureFlagValues = Record<string, boolean>;
+
+/**
+ * De flags met een schakelaar in het verborgen blok Experimenteel (Instellingen → Geavanceerd, versienummer
+ * 5 seconden activeren). Elke flag krijgt daar een schakelaar; een flag verbergen kan niet (besluit van Ethan,
+ * 10 november 2026).
+ *
+ * Uitzondering: een flag met `writesNewIfcData: true` krijgt geen schakelaar en blijft altijd uit (zie
+ * `isFeatureEnabled`). Of zulke flags later toch een schakelaar krijgen, is een open vraag bij Ethan
+ * (10 november 2026); tot dat besluit blijft dit gedrag ongewijzigd.
+ */
+export function experimentalToggleFlags(): FeatureFlag[] {
+  return FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
+}
 
 /** Onbekende ids en functies met nog nieuwe IFC-data blijven altijd uit. */
 export function isFeatureEnabled(values: Readonly<FeatureFlagValues>, id: string): boolean {

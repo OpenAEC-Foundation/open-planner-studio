@@ -223,6 +223,9 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignTargetExport'
   | 'notifications.ifcExportChangedWhileWaiting'
   | 'notifications.ifcForeignTargetAutoSave'
+  | 'notifications.ifcUnreadableTargetSave'
+  | 'notifications.ifcUnreadableTargetExport'
+  | 'notifications.ifcUnreadableTargetAutoSave'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).
@@ -260,6 +263,9 @@ export type NotificationMessageKey =
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
   | 'notifications.recoveryDocumentsSkipped'
+  // Stap 1.7 (keuze 5): een bron staat ook als document open, met niet-opgeslagen wijzigingen, en het vinkje
+  // *Ankers uit geopende documenten halen* staat uit. Het anker komt uit het opgeslagen bestand. Parameter `file`.
+  | 'notifications.externalOpenSourceUnsaved'
   | 'notifications.scheduleFailed'
   | 'notifications.ifcParseFailed'
   | 'notifications.templateSaved'
@@ -638,8 +644,16 @@ export interface ExternalSourceUpdate {
   locator: ExternalSourceLocator;
   /** De bestandsnaam voor de tekst ("Installateur.ifc"). */
   fileName: string;
-  /** De versie van de bron: de wijzigingstijd van het bestand (ISO), of op de site het versienummer. */
+  /** De versie van de bron: de wijzigingstijd van het bestand (ISO), of op de site het versienummer. Bij een
+   *  balk uit een geopend document (`openDocumentId`) de vingerafdruk van het voorstel (`open:…`): *Later* onthoudt
+   *  die, zodat dezelfde voorgestelde ankers geen nieuwe balk geven. */
   version: string;
+  /** Stap 1.7, vinkje *Ankers uit geopende documenten halen* aan: de bron staat als dit document open, met
+   *  niet-opgeslagen wijzigingen, en de balk komt uit dat document (geen versie, geen auteur). */
+  openDocumentId?: string;
+  /** De vingerafdruk van het voorstel (`proposalFingerprint`): de voorgestelde ankers per koppeling. *Later* onthoudt
+   *  hem naast de versie, zodat een balk uit een geopend document met dezelfde ankers niet terugkomt. */
+  proposal?: string;
   /** Op de site: het label van die versie voor de tekst (`SiteVersionInfo.label`, anders `version`). Gezet ⇒
    *  de balk noemt het versienummer in plaats van een opslagtijd. */
   siteVersionLabel?: string;

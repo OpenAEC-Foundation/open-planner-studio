@@ -242,6 +242,8 @@
     "endDate": "Data de fim",
     "defaultWorkRule": "Tipo de tarefa padrão",
     "defaultWorkRuleHint": "As tarefas definidas como «Predefinição do projeto» seguem esta escolha. As tarefas com um tipo de tarefa próprio mantêm a sua escolha.",
+    "anchorsFromOpenDocuments": "Obter as âncoras dos documentos abertos",
+    "anchorsFromOpenDocumentsHint": "Se um projeto de origem estiver aberto com alterações não guardadas, as âncoras vêm desse documento aberto. Desativado por predefinição.",
     "calc": {
       "title": "Cálculo",
       "subtitle": "Opções de planeamento para este projeto — guardadas com o ficheiro, não com a aplicação.",

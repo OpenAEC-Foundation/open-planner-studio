@@ -818,7 +818,6 @@ function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, 
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
   return readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), {}, {
     literalStepIds, planningTaskStepIds: new Set(taskIds.map(String)), projectDataInSettings: scan.projectNotP,
-    skipBuildingModelGuard: true,
   });
 }
 

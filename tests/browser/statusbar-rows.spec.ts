@@ -130,12 +130,20 @@ test('statusbalk: altijd één rij, en wat niet past blijft te vinden', async ({
 
   // Een echte klik op een taak: de selectie verschijnt, de balk blijft één rij.
   await page.setViewportSize({ width: 1500, height: 900 });
-  const point = await page.evaluate(() => {
-    const { tasks } = window.__OPS__!.store.getState();
-    // Alleen een punt dat echt op de Gantt valt: een mijlpaal aan de rand kan onder de scheidingslijn van de tabel liggen.
-    return tasks.map(t => window.__OPS__!.gantt.taskBarPoint(t.id, 'body', 'primary'))
-      .find(p => p !== null && document.elementFromPoint(p.x, p.y) instanceof HTMLCanvasElement)!;
-  });
+  // Pas klikken als de indeling na de breedtewissel stilstaat: een punt van de oude breedte kan in de tabel vallen.
+  let point = { x: Number.NaN, y: Number.NaN };
+  await expect.poll(async () => {
+    const found = await page.evaluate(async () => {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const { tasks } = window.__OPS__!.store.getState();
+      // Alleen een punt dat echt op de Gantt valt: een mijlpaal aan de rand kan onder de scheidingslijn van de tabel liggen.
+      return tasks.map(t => window.__OPS__!.gantt.taskBarPoint(t.id, 'body', 'primary'))
+        .find(p => p !== null && document.elementFromPoint(p.x, p.y) instanceof HTMLCanvasElement) ?? null;
+    });
+    const stable = found !== null && found.x === point.x && found.y === point.y;
+    if (found) point = found;
+    return stable;
+  }).toBe(true);
   await page.mouse.click(point.x, point.y);
   await expect(bar).toContainText('Selection: 1');
   expect((await measureBar(page)).problems).toEqual([]);

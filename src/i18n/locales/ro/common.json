@@ -111,6 +111,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} fișier de restaurare nu a putut fi încărcat și a fost omis.",
     "recoveryDocumentsSkipped_few": "{{count}} fișiere de restaurare nu au putut fi încărcate și au fost omise.",
     "recoveryDocumentsSkipped_other": "{{count}} de fișiere de restaurare nu au putut fi încărcate și au fost omise.",
+    "externalOpenSourceUnsaved": "{{file}} are modificări nesalvate; ancora provine din versiunea salvată.",
     "scheduleFailed": "Planificarea nu a putut fi calculată",
     "ifcParseFailed": "Fișierul IFC nu a putut fi citit",
     "templateSaved": "Ramura a fost salvată ca șablon „{{name}}”",

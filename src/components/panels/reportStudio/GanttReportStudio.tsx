@@ -1148,7 +1148,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <button type="button" className="rs-icon-btn" onClick={() => setSidebar('open')}
                 title={`${t('studio.expand')} (Ctrl+\\)`} aria-label={t('studio.expand')} data-rs-sidebar-toggle="expand">
                 {/* Uitklappen en inklappen hebben elk een eigen icoon (check Ethan 9-11-2026); in rtl gespiegeld. */}
-                <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" lucide={{ icon: 'PanelLeftOpen' }} />
+                <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
               </button>
             </div>
             <nav className="rs-rail" aria-label={t('studio.steps.label')}>
@@ -1186,7 +1186,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <HelpButton articleId={REPORT_HELP_ARTICLE_ID} />
               <button type="button" className="rs-icon-btn" onClick={() => setSidebar('rail')}
                 title={`${t('studio.collapse')} (Ctrl+\\)`} aria-label={t('studio.collapse')} data-rs-sidebar-toggle="collapse">
-                <Icon id="panel.right" size={16} className="rs-panel-icon" lucide={{ icon: 'PanelLeftClose', className: 'ops-icon-inline-flip' }} />
+                <Icon id="panel.right" size={16} className="rs-panel-icon" />
               </button>
             </div>
             <div className="rs-steps" role="list" aria-label={t('studio.steps.label')}>

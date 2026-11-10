@@ -95,6 +95,7 @@
     "settingsLoadedLateReverted": "Innstillingene dine er lastet inn og tatt i bruk. Det du endret i mellomtiden, er tilbakestilt.",
     "recoveryDocumentsSkipped_one": "{{count}} gjenopprettingsfil kunne ikke lastes og er hoppet over.",
     "recoveryDocumentsSkipped_other": "{{count}} gjenopprettingsfiler kunne ikke lastes og er hoppet over.",
+    "externalOpenSourceUnsaved": "{{file}} har ulagrede endringer; ankeret kommer fra den lagrede versjonen.",
     "scheduleFailed": "Tidsplanen kunne ikke beregnes",
     "ifcParseFailed": "IFC kunne ikke leses",
     "templateSaved": "Gren lagret som mal '{{name}}'",

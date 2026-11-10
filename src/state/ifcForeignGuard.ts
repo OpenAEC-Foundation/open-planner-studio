@@ -4,7 +4,7 @@
 // melding via het meldingenkanaal. Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, targetHoldsBuildingModel, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef } from '@/services/fileAccess';
@@ -60,6 +60,22 @@ export const IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE: NotifyInput = refusalNotice({
   dedupeKey: 'ifc-foreign-target-autosave',
 });
 
+// Review van #870 (besluit Trias, wrakko 10 november 2026): een bestaand STEP-doel waarin de grammatica van ISO 10303-21
+// geen datasectie vindt (`targetRefusal` 'unreadable'). De app kan niet zien of er een model in staat, dus schrijft hij
+// er niet over. Dezelfde drie routes als hierboven.
+export const IFC_UNREADABLE_TARGET_SAVE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcUnreadableTargetSave',
+  dedupeKey: 'ifc-unreadable-target-save',
+});
+export const IFC_UNREADABLE_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcUnreadableTargetExport',
+  dedupeKey: 'ifc-unreadable-target-export',
+});
+export const IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcUnreadableTargetAutoSave',
+  dedupeKey: 'ifc-unreadable-target-autosave',
+});
+
 /** De kenmerken van alle open documenten die uit een bestand met een vreemd deel kwamen (ook na crashherstel). */
 export function openForeignSourceMarks(s: {
   getOpenDocumentPayloads(): readonly { readonly payload: Pick<DocumentPayload, 'foreignSourceMark'> }[];
@@ -107,16 +123,18 @@ export interface WriteTargetDeps {
  *  1. het bronbestand van een open document met een vreemd deel (fixronde 1: handle, pad of bestandsidentiteit,
  *     site-id; na herstel of uit een MCP-backup ook dezelfde lengte en SHA-256 als die bron);
  *  2. met de flag `ifcForeignContent` aan: een bestaand doel dat zelf een gebouwmodel bevat (fixronde 2, besluit Trias,
- *     wrakko 9 november 2026; `targetHoldsBuildingModel`). Een niet-leesbaar doel mag. Met de flag uit blijft dit weg,
- *     zodat de app byte-gelijk aan main blijft.
+ *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
+ *     ('unreadable-target', review van #870). Een doel dat de app niet kan openen of lezen (download, nieuw pad) mag. Met
+ *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
  * Meldt niets: de aanroeper kiest de melding. Geeft de reden van de weigering, of `null` als het schrijven mag.
  */
 export async function refusedWriteTarget(
   s: WriteTargetState,
   target: FileRef,
   deps: WriteTargetDeps,
-): Promise<'open-source' | 'building-model' | null> {
+): Promise<'open-source' | 'building-model' | 'unreadable-target' | null> {
   if (await isOpenForeignSourceTarget(s, target, deps.identityFs)) return 'open-source';
   if (!ifcForeignContentEnabled(s.ui.featureFlags)) return null;
-  return (await targetHoldsBuildingModel(target, deps.readers())) ? 'building-model' : null;
+  const refusal = await targetRefusal(target, deps.readers());
+  return refusal === 'model' ? 'building-model' : refusal === 'unreadable' ? 'unreadable-target' : null;
 }

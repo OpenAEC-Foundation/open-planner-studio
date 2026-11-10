@@ -111,6 +111,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} datoteka za oporavak nije bilo moguće učitati i preskočena je.",
     "recoveryDocumentsSkipped_few": "{{count}} datoteke za oporavak nije bilo moguće učitati i preskočene su.",
     "recoveryDocumentsSkipped_other": "{{count}} datoteka za oporavak nije bilo moguće učitati i preskočeno je.",
+    "externalOpenSourceUnsaved": "{{file}} ima nespremljene promjene; referentni datum potječe iz spremljene verzije.",
     "scheduleFailed": "Raspored nije bilo moguće izračunati",
     "ifcParseFailed": "IFC nije bilo moguće pročitati",
     "templateSaved": "Grana spremljena kao predložak '{{name}}'",

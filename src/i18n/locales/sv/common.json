@@ -95,6 +95,7 @@
     "settingsLoadedLateReverted": "Dina inställningar har lästs in och tillämpats. Det du ändrade under tiden har återställts.",
     "recoveryDocumentsSkipped_one": "{{count}} återställningsfil kunde inte läsas in och hoppades över.",
     "recoveryDocumentsSkipped_other": "{{count}} återställningsfiler kunde inte läsas in och hoppades över.",
+    "externalOpenSourceUnsaved": "{{file}} har osparade ändringar; ankaret kommer från den sparade versionen.",
     "scheduleFailed": "Tidsplanen kunde inte beräknas",
     "ifcParseFailed": "IFC kunde inte läsas",
     "templateSaved": "Gren sparad som mall '{{name}}'",

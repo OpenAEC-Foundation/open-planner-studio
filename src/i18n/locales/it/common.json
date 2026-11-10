@@ -111,6 +111,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} file di ripristino non è stato caricato ed è stato ignorato.",
     "recoveryDocumentsSkipped_many": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "recoveryDocumentsSkipped_other": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
+    "externalOpenSourceUnsaved": "{{file}} ha modifiche non salvate; l'ancoraggio proviene dalla versione salvata.",
     "scheduleFailed": "Impossibile calcolare la programmazione",
     "ifcParseFailed": "Impossibile leggere l'IFC",
     "templateSaved": "Ramo salvato come modello '{{name}}'",

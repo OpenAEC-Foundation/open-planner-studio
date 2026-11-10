@@ -37,8 +37,10 @@ interface MetaDraft {
   defaultWorkRule: WorkRule;
   /** Issue #292: schema in de kop bij opslaan; afwezig in het project ≡ IFC4X3. */
   ifcSchema: IfcSchemaId;
+  /** Stap 1.7: *Ankers uit geopende documenten halen*; afwezig in het project ≡ uit. */
+  anchorsFromOpenDocuments: boolean;
 }
-const META_KEYS = ['name', 'description', 'author', 'company', 'startDate', 'endDate', 'defaultTaskDurationUnit', 'defaultWorkRule', 'ifcSchema'] as const satisfies readonly (keyof MetaDraft)[];
+const META_KEYS = ['name', 'description', 'author', 'company', 'startDate', 'endDate', 'defaultTaskDurationUnit', 'defaultWorkRule', 'ifcSchema', 'anchorsFromOpenDocuments'] as const satisfies readonly (keyof MetaDraft)[];
 
 export interface ProjectInfoPanelContentHandle {
   /** Committeert de huidige draft — wizard ⇒ createNewProject + bibliotheek-koppeling; edit ⇒
@@ -145,6 +147,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const [defaultWorkRule, setDefaultWorkRule] = useState<WorkRule>(project.defaultWorkRule ?? DEFAULT_WORK_RULE);
     // Issue #292: alleen bij bewerken zichtbaar; een nieuw project begint op de standaard (IFC4X3).
     const [ifcSchema, setIfcSchema] = useState<IfcSchemaId>(projectIfcSchema(isNew ? {} : project));
+    const [anchorsFromOpenDocuments, setAnchorsFromOpenDocuments] = useState(!isNew && !!project.anchorsFromOpenDocuments);
     // Rekenprofiel + reken-opties als DRAFT: net als Naam/Omschrijving een lokale kopie;
     // de store wijzigt pas op submit() (consistent Annuleren-gedrag). Vers gemount ⇒ initialiseert uit
     // het huidige project; de wizard start op het standaardprofiel.
@@ -207,6 +210,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       setDefaultTaskDurationUnit(p.defaultTaskDurationUnit ?? 'days');
       setDefaultWorkRule(p.defaultWorkRule ?? DEFAULT_WORK_RULE);
       setIfcSchema(projectIfcSchema(p));
+      setAnchorsFromOpenDocuments(!!p.anchorsFromOpenDocuments);
       setSchedulingRaw({ profile: p.schedulingProfile, options: p.schedulingOptions });
       setCalcTouched(false);
       setStoreChangedUnderDraft(false);
@@ -231,17 +235,22 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       defaultTaskDurationUnit: project.defaultTaskDurationUnit ?? 'days',
       defaultWorkRule: project.defaultWorkRule ?? DEFAULT_WORK_RULE,
       ifcSchema: projectIfcSchema({ ifcSchema: project.ifcSchema }),
+      anchorsFromOpenDocuments: !!project.anchorsFromOpenDocuments,
     }), [project.name, project.description, project.author, project.company, project.startDate, project.endDate,
-      project.defaultTaskDurationUnit, project.defaultWorkRule, project.ifcSchema]);
+      project.defaultTaskDurationUnit, project.defaultWorkRule, project.ifcSchema, project.anchorsFromOpenDocuments]);
     const draftMeta = useMemo<MetaDraft>(
-      () => ({ name, description, author, company, startDate, endDate, defaultTaskDurationUnit, defaultWorkRule, ifcSchema }),
-      [name, description, author, company, startDate, endDate, defaultTaskDurationUnit, defaultWorkRule, ifcSchema],
+      () => ({
+        name, description, author, company, startDate, endDate, defaultTaskDurationUnit, defaultWorkRule, ifcSchema,
+        anchorsFromOpenDocuments,
+      }),
+      [name, description, author, company, startDate, endDate, defaultTaskDurationUnit, defaultWorkRule, ifcSchema,
+        anchorsFromOpenDocuments],
     );
     const metaSetters = useMemo<Record<keyof MetaDraft, (value: never) => void>>(() => ({
       name: setName, description: setDescription, author: setAuthor, company: setCompany,
       startDate: setStartDate, endDate: setEndDate, defaultTaskDurationUnit: setDefaultTaskDurationUnit,
       defaultWorkRule: setDefaultWorkRule,
-      ifcSchema: setIfcSchema,
+      ifcSchema: setIfcSchema, anchorsFromOpenDocuments: setAnchorsFromOpenDocuments,
     }), []);
     // Wijzigde de store onder een VUILE rekenprofiel-draft? Dan zegt het blok dat eerlijk (Toepassen
     // draait die wijziging terug). Gewist zodra de draft weer gelijk is aan de store.
@@ -620,6 +629,19 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                 { value: 'IFC4', label: tMenu('projectInfo.ifcSchema.optionIfc4') },
               ]}
             />
+          </div>
+        )}
+
+        {/* Stap 1.7 (besluit Ethan 2026-11-10): ankers uit een geopend brondocument met niet-opgeslagen
+            wijzigingen. Alleen bij bewerken; Toepassen zet het via applyProjectInfo (één undo-stap). */}
+        {!isNew && (
+          <div className="flex flex-col gap-1" data-ops-project-anchors-from-open>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" className="accent-accent" checked={anchorsFromOpenDocuments}
+                onChange={e => setAnchorsFromOpenDocuments(e.target.checked)} data-ops-project-anchors-from-open-input />
+              {tMenu('projectInfo.anchorsFromOpenDocuments')}
+            </label>
+            <p className="scrollzoom-hint">{tMenu('projectInfo.anchorsFromOpenDocumentsHint')}</p>
           </div>
         )}
 

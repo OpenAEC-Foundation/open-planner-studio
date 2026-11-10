@@ -242,6 +242,8 @@
     "endDate": "Fecha de fin",
     "defaultWorkRule": "Tipo de tarea predeterminado",
     "defaultWorkRuleHint": "Las tareas configuradas en «Predeterminado del proyecto» siguen esta opción. Las tareas con un tipo de tarea propio mantienen su elección.",
+    "anchorsFromOpenDocuments": "Tomar los anclajes de los documentos abiertos",
+    "anchorsFromOpenDocumentsHint": "Si un proyecto de origen está abierto con cambios sin guardar, los anclajes provienen de ese documento abierto. Desactivado por defecto.",
     "calc": {
       "title": "Cálculo",
       "subtitle": "Opciones de planificación de este proyecto — se guardan con el archivo, no con la aplicación.",

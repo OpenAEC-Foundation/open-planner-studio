@@ -7,7 +7,7 @@
  *  1. Scanner en indeling op de bytes, in een Worker (`foreignScanRunner.ts`).
  *  2. De lezer krijgt de tekst van de stukken P, C en A, met kop, `DATA;` en staart (§4.9 punt 4). Het model (V) zit er
  *     niet in, op het enige `IfcProject` na: dat leest de lezer altijd als context (§4.2, Gevolgen). De lezer volgt de keuze van `selectPlanning` voor de taken (§4.2 stap 1) en de codering per stuk (§4.9
- *     punt 5).
+ *     punt 5). De lezer houdt de modelweigering op die tekst: een modeltype buiten V weigert openen (knownbug 1151).
  *  3. De lezer legt de kaart domein-id → `#id` vast; een controle eist dat taken, resources, kalenders, werkplan en
  *     werkschema precies de keuze van `selectPlanning` zijn.
  *  4. Het `ImportResult` krijgt `ifcSource` (§4.8).
@@ -85,8 +85,11 @@ export async function readIfcBytesDetailed(
   }
 
   const stepIdsOut: Record<string, string> = {};
+  // Knownbug 1151: de modelweigering draait ook hier, op de tekst van de lezer (zonder V). Ziet de grammatica daar een
+  // modeltype dat de scanner niet als V telde (bijv. een wand na `*⏎/`, voor de scanner commentaar), dan weigert
+  // openen zoals zonder flag. Anders zou opslaan in een later fase dat stuk herschrijven en de wand wissen.
   const result = await readIFCWithXerReconstruction(readerText, labels, {
-    ...xerOptions(opts), ...readerOptions(scan), skipBuildingModelGuard: true, stepIdsOut,
+    ...xerOptions(opts), ...readerOptions(scan), stepIdsOut,
   });
   const mismatch = selectionMismatch(scan, stepIdsOut, result.project.id);
   if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch });

@@ -957,6 +957,11 @@ function writeStructure(
         `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value ? `IFCTEXT(${ifcStr(value)})` : '$'},$)`));
     }
   }
+  // Ankers uit geopende documenten halen (stap 1.7). Golden rule: alleen wanneer aan.
+  if (project.anchorsFromOpenDocuments) {
+    projSettingProps.push(addLine(ctx, '_ps_anchorsfromopen',
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.AnchorsFromOpenDocuments)},$,IFCBOOLEAN(.T.),$)`));
+  }
   if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_projset'))},#${ownerHistId},${ifcStr(PSET.ProjectSettings)},$,(${projSettingProps.map(i => `#${i}`).join(',')}))`);
