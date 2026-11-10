@@ -1770,16 +1770,6 @@ en noem het in je rapport of PR-tekst.
      programma ziet na elk opslaan een nieuwe pset. Bij voorkeur in 1c (wrakko). Richting: de GlobalId afleiden van de
      GlobalId van de resource, of de GlobalId van de pset bewaren (`preservedGuids`). Uit #867 (fase 1b, fixronde 2). — B
 
-1024. **VERVOLG: oudere eigen bestanden weigeren met `niet-gedragen` op velden die de writer nu anders schrijft.** Met de
-     flag aan en zonder bewerking draagt de lezer een deel van de velden van oudere versies niet. Sinds fixronde 3 van
-     #867 zet de merge een slot dat de lezer niet draagt terug op zijn bronwaarde (b, `planRestores` in
-     `src/services/ifc/foreign/lossCheck.ts`), zolang de planner het veld niet wijzigt; daarmee schrijven 22 van de 26
-     eigen bestanden met een model zonder bewerking (telling van fixronde 3). Over blijven twee gevallen die geen slot
-     zijn: in v2026.7.2 en main-df9 hebben resources 9 argumenten (de writer schrijft er 11; geen bekende lay-out, 32
-     meldingen in 2 bestanden), en een lege notitielijst `'[]'` laat de writer weg (`OPS_TaskNotes`, 2 bestanden in
-     `council/`). Richting: de oude lay-out van resources in `alignment` opnemen, en een lege notitielijst schrijven of
-     als gelijk aan "geen notities" lezen. Uit #867 (fase 1b, fixronde 2 en 3). — B
-
 1025. **De lezer maakt van de kalender een uurkalender als een eigen taak niet op de werkdag past.** Proef:
      `tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc` plus een eigen taak van één dag van 07:00 tot 16:00
      (sectie 2a van `check-ifc-foreign-preserve.ts` vóór fixronde 2 van #867). De lezer leest de projectkalender dan als
@@ -1827,9 +1817,13 @@ en noem het in je rapport of PR-tekst.
      `T`) geeft 00:00; en de korte vorm `20270301T070000` en een uur van één cijfer (`2027-03-01T7:00:00`) laten het openen
      stoppen met `Invalid time value` in plaats van een melding. Voor een tijd in een tijdblok (`IfcTimePeriod`) niet met een
      proef: in de showcase las de lezer de werktijd 7–16, wat er ook in het tijdblok stond (ook met een urentaak).
-     `clockToMinutes` is op main gelijk aan deze branch (code gelezen). Alleen bestanden van een ander programma. Met de flag weigert de merge zo'n waarde
+     `clockToMinutes` is op main gelijk aan deze branch (code gelezen). Alleen bestanden van een ander programma, op de
+     uurbreuk na (hieronder). Met de flag weigert de merge zo'n waarde
      (`tijd-deels-gelezen`; fixronde 5 van #867, `check-ifc-foreign-strikt.ts`). Richting: bij openen de vorm toetsen en
-     een ongeldige waarde melden; voor een tijdzone kiezen of de lezer haar omrekent of meldt. Uit #867 (fase 1b, fixronde
+     een ongeldige waarde melden; voor een tijdzone kiezen of de lezer haar omrekent of meldt. Een werktijd als uurbreuk
+     (`'7.5:00:00'`) schreef OPS wel zelf, tot `32b6222de` (v2026.2.0 tot en met v2026.9.0). `clockToMinutes` leest die
+     niet; `scalarHourFromClock` wel, als enige periode van het enige patroon. Daar laat de merge hem sinds fixronde 7 van
+     #867 staan (`OLD_FRACTIONAL_CLOCK`); in een tweede periode weigert ze nog. Uit #867 (fase 1b, fixronde
      5; gesplitst uit 1030 in fixronde 5b, besluit van Trias van 10 november 2026). — B
 
 1032. **VERVOLG: de merge weigert te vaak als de planner één feestdag of toewijzing wist.** Wist de planner één lid van
@@ -1880,6 +1874,24 @@ en noem het in je rapport of PR-tekst.
      minuut valt (`duur-deels-gelezen`; fixronde 6 van #867), ook als de planner de waarde op 2 minuten zet; `PT120S` en
      `PT0.25H` schrijven. Richting: seconden bewaren (het minutenmodel kent geen seconden), of bij openen melden dat de
      duur is afgerond. Uit #867 (fase 1b, fixronde 6). — B
+
+1100. **VERVOLG: wijzigt de planner een gebroken dag in een oud eigen bestand met een model, dan weigert de merge.** In een
+     eigen bestand van vóór het minutenmodel (OPS tot en met v2026.43.0) met een model erbij, zet de planner de duur van een
+     taak van een halve dag op 1,5 dag. De writer schrijft die breuk als `PT…` met een record in `DayMeasureDurations`, en
+     dan wordt de kalender letterlijk (`LiteralTimes`). De oude datums van de andere taken (het einde als `…T07:00:00` van
+     de dag erna) lezen dan anders, en de merge weigert (`niet-gedragen`). Proef: `check-ifc-foreign-oude-eigen.ts`,
+     BLOKKEERT 1, "de duur zelf op 1,5 dag"; met 2 dagen schrijft hij wel. Zonder die wijziging blijft de duur in de vorm van
+     de bron (fixronde 7 van #867). Weigeren mag hier volgens het besluit van Trias, want de planner wijzigde het veld
+     zelf. Richting (1c): bij een eigen bestand de hele planning in de vorm van de writer schrijven, of de kalender niet
+     letterlijk maken en de breuk in de oude vorm schrijven. Uit #867 (fase 1b, fixronde 7). — B
+
+1101. **VERVOLG: een lege notitielijst `'[]'` in `OPS_TaskNotes` laat de merge weigeren.** De writer schrijft geen
+     `OPS_TaskNotes` bij een lege lijst. Een stuk zonder tegenhanger is geen slot, dus (b) zet het niet terug:
+     `niet-gedragen` ("ontbreekt in de uitvoer"). OPS schreef `'[]'` in geen enkele versie (sinds `1eb58ab9d`: "Afwezig/leeg
+     ⇒ niets geschreven"); alleen de proeven `tests/fixtures/ifc-foreign/council/r7sol-vreemd-lid-bij-notitie.ifc` en
+     `…-bij-toewijzing.ifc` hebben hem, met de hand gemaakt in review ronde 7 van #867. Gesplitst uit 1024 (de resources
+     met 9 argumenten uit die knownbug zijn opgelost in #867, fixronde 7). Richting: een lege lijst lezen als "geen
+     notities" en de pset dan als bronstuk laten staan, of de lege lijst schrijven. Uit #867 (fase 1b, fixronde 7). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul

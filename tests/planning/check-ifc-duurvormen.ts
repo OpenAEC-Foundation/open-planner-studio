@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import { cloneDomain, openForeign, settle, type Opened } from './ifcMergeKern';
 import { DURATION_FORMS, durationForm, type DurationSlot } from '@/services/ifc/foreign/durationForms';
-import { dateTimeTexts, durationTexts, partialDateTime } from '@/services/ifc/foreign/lossCheck';
+import { OLD_FRACTIONAL_CLOCK, dateTimeTexts, durationTexts, partialDateTime } from '@/services/ifc/foreign/lossCheck';
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
@@ -282,10 +282,10 @@ for (const file of files.sort()) {
 }
 ok(`de repo heeft eigen bestanden van OPS (${ownFiles} bestanden, ${ownDurations} duren)`, ownFiles > 50 && ownDurations > 10000);
 // Hetzelfde voor de datums, tijden en datum-tijden (`dateTimeTexts`, `partialDateTime`): de lijst van datumvormen van
-// fixronde 5 en 6 (knownbug 1031). Eén eigen bestand valt erbuiten, al sinds fixronde 5: OPS schreef tot `32b6222de`
-// (26 september 2026) een werktijd die niet op het hele uur begint als uurbreuk (`'7.5:00:00'`). `clockToMinutes` leest
-// die niet als tijdblok; `scalarHourFromClock` wel, als 7,5 uur. Open punt voor Trias in de PR-tekst; hier vastgelegd,
-// zodat een tweede zo'n bestand opvalt.
+// fixronde 5 en 6 (knownbug 1031). OPS schreef tot `32b6222de` (26 september 2026) een werktijd die niet op het hele uur
+// begint als uurbreuk (`'7.5:00:00'`). `clockToMinutes` leest die niet als tijdblok, `scalarHourFromClock` wel, als 7,5 uur:
+// alleen als enige periode van het enige patroon. Daar staat de vorm sinds fixronde 7 op de lijst (`OLD_FRACTIONAL_CLOCK`,
+// BLOKKEERT 3). Hier vastgelegd hoeveel er per bestand zijn, zodat dat pad niet stil wegvalt.
 const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h7-tijden-oude-writer.ifc': 4 };
 {
   let dates = 0;
@@ -294,15 +294,18 @@ const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h
     if (!/IFCAPPLICATION\([^;]*'Open Planner Studio'/.test(text(bytes))) continue;
     const index = scanStep(bytes);
     const out: string[] = [];
+    let oldClocks = 0;
     for (let i = 0; i < index.count; i++) {
       if (!index.isEntity(i)) continue;
-      for (const { text: v, kind } of dateTimeTexts(index, i)) { dates++; if (partialDateTime(v, kind)) out.push(`${index.type(i)} #${index.id(i)}: ${kind} '${v}'`); }
+      for (const { text: v, kind, oldClock } of dateTimeTexts(index, i)) {
+        dates++;
+        if (oldClock && OLD_FRACTIONAL_CLOCK.test(v)) oldClocks++;
+        if (partialDateTime(v, kind, oldClock)) out.push(`${index.type(i)} #${index.id(i)}: ${kind} '${v}'`);
+      }
     }
-    const old = OLD_CLOCK[relative(ROOT, file)];
-    if (old !== undefined) {
-      ok(`${relative(ROOT, file)}: alleen de oude uurbreuk valt buiten de lijst (${out.length}: ${out.slice(0, 3).join(', ')})`,
-        out.length === old && out.every(x => /: tijd '\d+\.\d+:00:00'$/.test(x)));
-    } else ok(`${relative(ROOT, file)}: elke datum en tijd staat op de lijst (buiten: ${out.slice(0, 3).join(', ')})`, out.length === 0);
+    const old = OLD_CLOCK[relative(ROOT, file)] ?? 0;
+    ok(`${relative(ROOT, file)}: elke datum en tijd staat op de lijst (buiten: ${out.slice(0, 3).join(', ')}; oude uurbreuken ${oldClocks}, verwacht ${old})`,
+      out.length === 0 && oldClocks === old);
   }
   ok(`de eigen bestanden hebben datums en tijden (${dates})`, dates > 10000);
 }

@@ -44,6 +44,9 @@ export interface TaskTimeWriteCtx {
   actualStartArg: string;
   actualFinishArg: string;
   remainingArg: string;
+  /** Alleen de merge (fixronde 7 van #867): de speling exact in dagen, zoals de bron haar schreef (een oudere OPS schreef
+   *  `P0Y0M0.1111111111111111D`), of `undefined` voor de gewone vorm: hele dagen (T5). */
+  exactFloat?: (field: 'freeFloat' | 'totalFloat', days: number) => string | undefined;
   /** "Datums zoals opgeslagen": de rekenslots die voor deze taak
    *  NIET uit het bronbestand komen maar een weergave-terugval zijn (`applyRecordedTimesToTasks`:
    *  `lateStart ?? start`, `totalFloat ?? 0`, `isCritical ?? false`). De writer schrijft daar `$`,
@@ -140,12 +143,12 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
   // de lezer zet ze terug zolang dit slot nog de afgeronde dagen draagt (`applyTaskTimeRecords`).
   {
     key: 'freeFloat',
-    write: (w) => unlessWithheld(w, 'freeFloat', () => w.ifcDuration(wholeFloatDays(w.task.time.freeFloat))),
+    write: (w) => unlessWithheld(w, 'freeFloat', () => w.exactFloat?.('freeFloat', w.task.time.freeFloat) ?? w.ifcDuration(wholeFloatDays(w.task.time.freeFloat))),
     read: (t, arg, p) => { t.freeFloat = p.parseDur(arg); },
   },
   {
     key: 'totalFloat',
-    write: (w) => unlessWithheld(w, 'totalFloat', () => w.ifcDuration(wholeFloatDays(w.task.time.totalFloat))),
+    write: (w) => unlessWithheld(w, 'totalFloat', () => w.exactFloat?.('totalFloat', w.task.time.totalFloat) ?? w.ifcDuration(wholeFloatDays(w.task.time.totalFloat))),
     read: (t, arg, p) => { t.totalFloat = p.parseDur(arg); },
   },
   {

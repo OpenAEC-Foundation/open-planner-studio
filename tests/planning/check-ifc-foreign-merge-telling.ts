@@ -18,7 +18,12 @@
 // bewerking; de telling splitst de bewerkingen daarom in drie groepen: eigen bestanden die zonder bewerking schrijven,
 // eigen bestanden die al zonder bewerking weigeren, en planningen van een ander programma (`vreemde-herkomst`), met de
 // velden achter `niet-gedragen` na een bewerking.
-// Exit 0 = geen "anders".
+// Fixronde 7 van #867 (bevinding 5 van review ronde 6): elk bestand uit `oude-tags/` en de oude writer van H7
+// (`h7-tijden-oude-writer.ifc`) doet mee, met een wand van Revit erbij als het zelf geen vreemd deel heeft. Daarbij de
+// varianten met een halve dag, dagen met 17 cijfers, een urentaak en `7.5:00:00` (in h7). Besluit van Trias: een eigen
+// OPS-bestand weigert nooit zonder bewerking. De check is rood als een eigen bestand zonder bewerking weigert, behalve de
+// bestanden in `OWN_MAY_REFUSE`, met hun reden. Per eigen bestand drukt hij de uitkomst af.
+// Exit 0 = geen "anders" en elk eigen bestand schrijft zonder bewerking.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,11 +43,35 @@ const MAX_PER_SOORT = 40;
 // Ook de oude eigen bestanden (fixronde 1 van #867): een bestand van v2026.7.2 heeft een los project (V) en gaat sinds
 // het vervallen van de kortsluiting door de gewone merge. Paden vanaf `FOREIGN`.
 const OLD_OWN = '../../planning/fixtures/oude-tags';
+const H7 = '../../planning/fixtures/h7-tijden-oude-writer.ifc';
 const files = [
   ...readdirSync(FOREIGN).filter(f => f.endsWith('.ifc')),
   ...readdirSync(join(FOREIGN, 'council')).filter(f => f.endsWith('.ifc')).map(f => `council/${f}`),
   ...readdirSync(join(FOREIGN, OLD_OWN)).filter(f => f.endsWith('.ifc')).map(f => `${OLD_OWN}/${f}`),
+  H7,
 ].sort();
+/** Een wand van Revit met een eigen owner history: het vreemde deel bij een oud eigen bestand zonder model. */
+const REVIT_WALL = [
+  "#90001=IFCORGANIZATION($,'Arch',$,$,$);", "#90002=IFCAPPLICATION(#90001,'1','Revit','RVT');",
+  "#90003=IFCPERSON($,'Ontwerper',$,$,$,$,$,$);", '#90004=IFCPERSONANDORGANIZATION(#90003,#90001,$);',
+  '#90005=IFCOWNERHISTORY(#90004,#90002,$,.ADDED.,$,$,$,1);', "#90006=IFCWALL('2O2Fr$t4X7Zf8NOew3FLOX',#90005,'Wand',$,$,$,$,$,$);",
+];
+const withWall = (bytes: Uint8Array): Uint8Array => {
+  let src = '';
+  for (let i = 0; i < bytes.length; i += 8192) src += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  const at = src.lastIndexOf('ENDSEC;');
+  return Uint8Array.from(`${src.slice(0, at)}${REVIT_WALL.map(l => `${l}\n`).join('')}${src.slice(at)}`, c => c.charCodeAt(0));
+};
+/** Eigen bestanden die zonder bewerking mogen weigeren, met de reden. Elk ander eigen bestand moet zonder bewerking
+ *  schrijven (fixronde 7). Beide zijn proeven met een lege notitielijst `'[]'`, met de hand gemaakt in review ronde 7
+ *  van #867: OPS schreef die nooit (sinds `1eb58ab9d` "afwezig/leeg ⇒ niets geschreven"), en de writer laat hem weg
+ *  (knownbug 1101). */
+const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
+  'council/r7sol-vreemd-lid-bij-notitie.ifc': "een lege notitielijst '[]' (knownbug 1101)",
+  'council/r7sol-vreemd-lid-bij-toewijzing.ifc': "een lege notitielijst '[]' (knownbug 1101)",
+};
+/** Zonder bewerking, per eigen bestand: de uitkomst (`schrijft` of `weigert (gevallen)`). */
+const ownOutcome = new Map<string, string>();
 
 interface Tally { n: number; ok: number; refused: Map<string, number>; other: Map<string, number> }
 const tally = new Map<string, Map<EditKind, Tally>>();
@@ -73,11 +102,16 @@ function fieldOf(index: StepIndex, c: MergePhase2Case): string {
 }
 
 for (const file of files) {
-  const bytes = new Uint8Array(readFileSync(join(FOREIGN, file)));
-  const shown = file.startsWith(OLD_OWN) ? `oude-tags${file.slice(OLD_OWN.length)}` : file;
+  let bytes: Uint8Array = new Uint8Array(readFileSync(join(FOREIGN, file)));
+  let shown = file.startsWith(OLD_OWN) ? `oude-tags${file.slice(OLD_OWN.length)}` : file === H7 ? 'h7-tijden-oude-writer.ifc' : file;
   let opened;
   try {
     opened = await openForeign(bytes);
+    if ((file.startsWith(OLD_OWN) || file === H7) && !opened.ifcSource?.foreign) {
+      bytes = withWall(bytes);
+      shown = `${shown} + wand`;
+      opened = await openForeign(bytes);
+    }
   } catch (e) {
     const want = REFUSED_AT_OPEN[file];
     if (want !== undefined && e instanceof IfcParseError && e.reason === want) { refusedAtOpen.push(file); continue; }
@@ -112,6 +146,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened): Promi
       if (edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
         ownFiles++;
         notCarried.set(shown, outcome.ok ? [] : outcome.error.cases.filter(c => c.kind === 'niet-gedragen'));
+        ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
       }
       if (!outcome.ok) {
         for (const k of outcome.kinds) bump(t.refused, k);
@@ -213,8 +248,11 @@ const seconds = ((performance.now() - started) / 1000).toFixed(1);
   const fields = new Map<string, { n: number; files: Set<string> }>();
   let total = 0;
   for (const [file, cases] of notCarried) {
-    const full = file.startsWith('oude-tags/') ? join(FOREIGN, OLD_OWN, file.slice('oude-tags/'.length)) : join(FOREIGN, file);
-    const index = scanStep(new Uint8Array(readFileSync(full)));
+    const base = file.replace(/ \+ wand$/, '');
+    const full = base.startsWith('oude-tags/') ? join(FOREIGN, OLD_OWN, base.slice('oude-tags/'.length))
+      : base === 'h7-tijden-oude-writer.ifc' ? join(FOREIGN, H7) : join(FOREIGN, base);
+    const raw = new Uint8Array(readFileSync(full));
+    const index = scanStep(base === file ? raw : withWall(raw));
     for (const c of cases) {
       total++;
       const key = fieldOf(index, c);
@@ -229,10 +267,31 @@ const seconds = ((performance.now() - started) / 1000).toFixed(1);
   for (const [k, g] of [...fields].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0])).slice(0, 10)) console.log(`  ${g.n} × ${k} (${g.files.size} bestanden)`);
 }
 
+// ── Zonder bewerking, per eigen bestand: de uitkomst (fixronde 7) ──
+const ownRefused: string[] = [];
+{
+  console.log('');
+  console.log('Zonder bewerking, per eigen bestand:');
+  console.log('');
+  console.log('| eigen bestand | zonder bewerking |');
+  console.log('|---|---|');
+  for (const [file, outcome] of [...ownOutcome].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const allowed = OWN_MAY_REFUSE[file];
+    console.log(`| ${file} | ${outcome}${allowed ? `; mag: ${allowed}` : ''} |`);
+    if (outcome !== 'schrijft' && !allowed) ownRefused.push(`${file}: ${outcome}`);
+    if (outcome === 'schrijft' && allowed) ownRefused.push(`${file}: schrijft nu; haal het uit OWN_MAY_REFUSE`);
+  }
+  for (const file of Object.keys(OWN_MAY_REFUSE)) if (!ownOutcome.has(file)) ownRefused.push(`${file}: niet als eigen bestand gezien`);
+}
+
+if (ownRefused.length > 0) {
+  console.log(`XX  ifc-foreign-merge-telling: ${ownRefused.length} eigen bestand(en) die zonder bewerking niet doen wat de lijst zegt`);
+  for (const o of ownRefused) console.log(`   - ${o}`);
+}
 if (others.length > 0) {
   console.log(`XX  ifc-foreign-merge-telling: ${others.length} bewerking(en) met een andere uitkomst dan gelukt of merge-needs-phase2`);
   for (const o of others.slice(0, 40)) console.log(`   - ${o}`);
-  process.exit(1);
 }
+if (others.length > 0 || ownRefused.length > 0) process.exit(1);
 console.log(`OK  ifc-foreign-merge-telling: ${merges} merges over ${tally.size} bestanden, elk gelukt of getypeerd geweigerd (${seconds} s)`);
 process.exit(0);

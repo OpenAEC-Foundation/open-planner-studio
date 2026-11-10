@@ -75,8 +75,8 @@
  *  taak, een resource) houdt zijn GlobalId; een kopie van een stuk dat niet P is ook.
  *  Lay-out (smal, besluit 3; `alignment`; geen normalisatie, want een ander programma merkt het): de argumenten van een
  *  oudere OPS-versie op hun plek in het schema: werkplan en werkschema met 15 argumenten (of 14 met de einddatum op
- *  PredefinedType), kalender met 8 (of 9 met de werkweek op Identification), taak met 12 (`ifcWorkControlSlots.ts`). Elke
- *  waarde die de lezer las, blijft gelijk en staat daarna op haar plek in het schema. De gewone writer doet hetzelfde
+ *  PredefinedType), kalender met 8 (of 9 met de werkweek op Identification), taak met 12 (`ifcWorkControlSlots.ts`),
+ *  resource met 9 (OPS tot `4f5008614`, fixronde 7: zonder BaseCosts en BaseQuantity). Elke waarde die de lezer las, blijft gelijk en staat daarna op haar plek in het schema. De gewone writer doet hetzelfde
  *  (#292). Een argument dat in de nieuwe lay-out geen slot heeft, mag alleen wegvallen als het `$` was (argument 11 van
  *  het oude werkplan, de `$` te veel vóór StartTime); had het een waarde (ook `''`), dan weigert de merge, want er is
  *  geen plek voor in het schema. Een slot dat alleen de uitvoer heeft, moet leeg zijn, of (b) zet er `$` terug.
@@ -258,6 +258,13 @@ const memberRelation = (type: string) => (RELATION_SLOTS[type]?.members ? RELATI
 
 const LINE = /^#(\d+)=([A-Z0-9_]+)\(([\s\S]*)\);$/;
 
+/** De resources die OPS schrijft (`RESOURCE_TYPE_TO_IFC`), met hun argumentaantal in het schema (11) en in de oude
+ *  lay-out van OPS tot `4f5008614` (9). */
+const OLD_RESOURCE_TYPES: ReadonlySet<string> = new Set(['IFCLABORRESOURCE', 'IFCCONSTRUCTIONEQUIPMENTRESOURCE',
+  'IFCCONSTRUCTIONMATERIALRESOURCE', 'IFCSUBCONTRACTRESOURCE', 'IFCCREWRESOURCE']);
+const RESOURCE_ARITY = 11;
+const OLD_RESOURCE_ARITY = 9;
+
 /** `#12=TYPE(args);` → een `OutLine`. */
 export function parseOutLine(text: string): OutLine | undefined {
   const m = LINE.exec(text);
@@ -266,7 +273,7 @@ export function parseOutLine(text: string): OutLine | undefined {
 
 /**
  * Bron-slot → uitvoer-slot (-1: de uitvoer heeft dat slot niet), voor de oude eigen lay-outs die de lezer kent
- * (`ifcWorkControlSlots.ts`, `IfcTask` met 12 argumenten): de normalisatie `lay-out`. Zelfde aantal: per positie.
+ * (`ifcWorkControlSlots.ts`, `IfcTask` met 12 argumenten, een resource met 9): de normalisatie `lay-out`. Zelfde aantal: per positie.
  * `undefined`: een ander aantal zonder bekende lay-out.
  */
 function alignment(type: string, src: readonly string[], outLength: number): number[] | undefined {
@@ -283,6 +290,12 @@ function alignment(type: string, src: readonly string[], outLength: number): num
   if (type === 'IFCTASK' && src.length === 12 && outLength === 13) {
     // Zonder WorkMethod (8): de vier slots erna staan één plek eerder (`IFC_TASK_SLOTS`).
     return src.map((_, k) => (k < 8 ? k : k + 1));
+  }
+  if (OLD_RESOURCE_TYPES.has(type) && src.length === OLD_RESOURCE_ARITY && outLength === RESOURCE_ARITY) {
+    // Fixronde 7 van #867 (was knownbug 1024): OPS tot `4f5008614` (v2026.9.0 en ouder) schreef een resource met 9
+    // argumenten, zonder BaseCosts en BaseQuantity: `(GlobalId,OwnerHistory,Name,Description,$,$,$,$,.USERDEFINED.)`.
+    // De eerste acht staan op hun plek in het schema; PredefinedType (8) staat in het schema op 10.
+    return src.map((_, k) => (k < 8 ? k : 10));
   }
   if (src.length === outLength) return src.map((_, k) => k);
   return undefined;
@@ -349,6 +362,8 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       // Na de bewerking is de koppeling van het stuk (of van een stuk waar de bronwaarde naar wijst) niet eenduidig:
       // dan is niet te zeggen bij welke regel de bronwaarde hoort (BLOKKEERT 5).
       if (p1.ambiguous[r.chunk] || refsOutsideText(r.token).some(id => p1.ambiguous[index.chunkOf(String(id))] === 1)) {
+        // Behalve een kale sleutel die alleen de vorm van de writer kreeg: die hoeft niet terug (fixronde 7).
+        if (bareKeyInWriterForm(input, p1, r, now)) continue;
         say({ ...after, ambiguous: true }, true);
         continue;
       }
@@ -630,7 +645,8 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
         const k2 = map ? map[k] : -1;
         // Zonder bekende lay-out: alleen per type paren (de vergelijking meldt de lay-out).
         const outIds = k2 >= 0 ? refList(line.args[k2]) : map ? [] : line.args.flatMap(t => refList(t));
-        const keyOf = line.type === 'IFCPROPERTYSET' && k2 === 4 && index.name(s) === PSET.Assignments && !exactAssignments(s) ? assignmentKey : undefined;
+        const assignments = line.type === 'IFCPROPERTYSET' && k2 === 4 && index.name(s) === PSET.Assignments;
+        const keyOf = assignments && (!exactAssignments(s) || hasBareAssignmentKey(index, s)) ? assignmentKey : undefined;
         pairGroup(targets, outIds, keyOf, line.type === 'IFCWORKCALENDAR' && k2 === 7);
       }
     }
@@ -1861,6 +1877,8 @@ export interface DurationText {
   /** De duur na de STEP-decodering; een token dat geen tekst is (een getypeerde waarde, een enum), letterlijk. */
   readonly text: string;
   readonly slot: DurationSlot;
+  /** Het argument van een `IfcTaskTime` (4 duur, 11 vrije speling, 12 totale speling, 15 werkelijk, 18 rest). */
+  readonly arg?: number;
 }
 
 /** De duurslots van een `IfcTaskTime` (argumentindex → slot in `durationForms.ts`). */
@@ -1885,7 +1903,7 @@ export function durationTexts(index: StepIndex, i: number): DurationText[] {
   if (type === 'IFCTASKTIME') {
     for (const [k, slot] of TASK_TIME_DURATION_SLOTS) {
       const token = tokens[k];
-      if (token !== undefined && token !== '' && token !== '$') out.push({ text: text(token), slot });
+      if (token !== undefined && token !== '' && token !== '$') out.push({ text: text(token), slot, arg: k });
     }
   } else if (type === 'IFCLAGTIME') {
     const value = lagValueSlot(tokens);
@@ -1920,27 +1938,72 @@ const DATETIME_SLOTS: Readonly<Record<string, { readonly slots: readonly number[
  *  behalve `JJJJ-MM-DD`, want de lezer neemt de eerste tien tekens). */
 export type PartialDateTime = 'zone' | 'vorm';
 
-/** Leest de lezer deze waarde anders dan haar tekst zegt? Een lijst van vormen die mogen; zie `PartialDateTime`. */
-export function partialDateTime(text: string, kind: DateTimeKind): PartialDateTime | undefined {
+/** Een klok als uurbreuk, zoals OPS tot `32b6222de` (v2026.9.0 en ouder) het begin of einde van de werkdag schreef:
+ *  `${String(cal.workStartHour).padStart(2, '0')}:00:00`, dus `7.5:00:00` voor half acht. */
+export const OLD_FRACTIONAL_CLOCK = /^\d+\.\d+:00:00$/;
+
+/** Leest de lezer deze waarde anders dan haar tekst zegt? Een lijst van vormen die mogen; zie `PartialDateTime`.
+ *  `oldClock`: de tijd staat waar de lezer een oude klok als uurbreuk exact leest (`dateTimeTexts`); daar mag ook die vorm
+ *  (`OLD_FRACTIONAL_CLOCK`, fixronde 7 van #867). */
+export function partialDateTime(text: string, kind: DateTimeKind, oldClock = false): PartialDateTime | undefined {
   const t = text.trim();
   const clock = '\\d\\d:\\d\\d(?::00(?:\\.0+)?)?';
   const date = '\\d{4}-\\d\\d-\\d\\d';
   const allowed = kind === 'tijd' ? `^${clock}$` : kind === 'datum' ? `^${date}$` : `^${date}(?:T${clock})?$`;
   if (new RegExp(allowed).test(t)) return undefined;
+  if (oldClock && kind === 'tijd' && OLD_FRACTIONAL_CLOCK.test(t)) return undefined;
   if (kind === 'datum') return 'vorm';
   return /\d:\d\d(?::\d\d(?:\.\d+)?)?(?:[Zz]|[+-]\d\d(?::?\d\d)?)$/.test(t) ? 'zone' : 'vorm';
 }
 
-/** De datum-tijden, tijden en datums van een stuk zoals de lezer ze ziet: na dezelfde tekstdecodering (`tokenText`). */
-export function dateTimeTexts(index: StepIndex, i: number): { readonly text: string; readonly kind: DateTimeKind }[] {
+/** De datum-tijden, tijden en datums van een stuk zoals de lezer ze ziet: na dezelfde tekstdecodering (`tokenText`).
+ *  `oldClock`: een tijd in de enige periode van het enige patroon van een werkweek (`onlyPeriodOfOnlyPattern`). */
+export function dateTimeTexts(index: StepIndex, i: number): { readonly text: string; readonly kind: DateTimeKind; readonly oldClock: boolean }[] {
   const at = DATETIME_SLOTS[index.type(i)];
   if (!at) return [];
-  const out: { text: string; kind: DateTimeKind }[] = [];
+  const oldClock = at.kind === 'tijd' && onlyPeriodOfOnlyPattern(index, i);
+  const out: { text: string; kind: DateTimeKind; oldClock: boolean }[] = [];
   (index.argTokens(i) ?? []).forEach((token, k) => {
     const t = token.trim();
-    if (at.slots.includes(k) && t.startsWith("'")) out.push({ text: index.tokenText(i, t), kind: at.kind });
+    if (at.slots.includes(k) && t.startsWith("'")) out.push({ text: index.tokenText(i, t), kind: at.kind, oldClock });
   });
   return out;
+}
+
+/** De stukken van de bron die naar `t` wijzen, elk één keer. */
+function parentsOf(index: StepIndex, t: number): number[] {
+  const out: number[] = [];
+  for (let k = index.inStart(t); k < index.inEnd(t); k++) {
+    const from = index.inSource(k);
+    if (from >= 0 && !out.includes(from)) out.push(from);
+  }
+  return out;
+}
+
+/**
+ * Is dit `IfcTimePeriod` de enige periode van het enige patroon in de werkweek van elke kalender die het gebruikt? Alleen
+ * daar leest de lezer begin en einde met `scalarHourFromClock` (de weg met één periode in `ifcReader.ts`, "ook voor oude
+ * klokken als '7.5:00:00'"), dus een uurbreuk exact. In een tweede periode of een tweede patroon leest hij de klok met
+ * `clockToMinutes`, en die kent geen uurbreuk. Op die andere wegen schreef OPS hem ook nooit (fixronde 7 van #867).
+ */
+function onlyPeriodOfOnlyPattern(index: StepIndex, tp: number): boolean {
+  const patterns = parentsOf(index, tp);
+  if (patterns.length !== 1 || index.type(patterns[0]) !== 'IFCRECURRENCEPATTERN') return false;
+  const pattern = patterns[0];
+  const periods = index.refsAt(pattern, 7);
+  if (periods.length !== 1 || periods[0] !== tp) return false;
+  const workTimes = parentsOf(index, pattern);
+  if (workTimes.length === 0 || !workTimes.every(w => index.type(w) === 'IFCWORKTIME')) return false;
+  return workTimes.every(wt => {
+    const calendars = parentsOf(index, wt);
+    return calendars.length > 0 && calendars.every(cal => {
+      if (index.type(cal) !== 'IFCWORKCALENDAR') return false;
+      const working = index.refsAt(cal, workCalendarSlots(index.argTokens(cal) ?? []).workingTimes);
+      if (!working.includes(wt)) return false;
+      const withPattern = working.filter(w => w >= 0 && index.type(w) === 'IFCWORKTIME' && index.refsAt(w, 3).some(r => r >= 0));
+      return withPattern.length === 1;
+    });
+  });
 }
 
 /** De gedecodeerde vorm van een token voor het paren op inhoud. */
@@ -1955,6 +2018,38 @@ function outText(token: string): string {
 
 /** De resource van een sleutel in `OPS_Assignments`: `GUID#N` of de kale `GUID` (alleen voor het paren). */
 const assignmentKey = (name: string) => name.replace(/#\d+$/, '');
+/**
+ * Heeft deze `OPS_Assignments` van de bron een kale sleutel (`GUID` zonder `#N`)? Dat is de vorm van OPS op main tussen
+ * `e1ac01947` en `87ebd4d46` (3 juli 2026). De lezer leest een kale sleutel als de toewijzing van die resource; een
+ * resource staat er hoogstens één keer in (de lezer neemt per naam de laatste). De writer schrijft nu `GUID#N`, met N de
+ * plek in de lijst van de taak. Zo'n pset paart daarom ook in O0 op de resource (fixronde 7 van #867).
+ */
+function hasBareAssignmentKey(index: StepIndex, pset: number): boolean {
+  return index.refsAt(pset, 4).some(p => p >= 0 && !/#\d+$/.test(index.name(p) ?? ''));
+}
+
+/**
+ * Een kale sleutel in `OPS_Assignments` die in O1 alleen de vorm van de writer kreeg (fixronde 7 van #867): de bron heeft
+ * `GUID`, O1 `GUID#N`, en die resource staat zowel in de bron als in O1 één keer in de pset. De lezer leest beide als
+ * dezelfde toewijzing. Schoof de lijst na een bewerking (`unstableLists`), dan hoeft de naam niet terug: zo weigert het
+ * wissen van een toewijzing in een bestand met kale sleutels niet om de naam van een andere toewijzing.
+ */
+function bareKeyInWriterForm(input: LossCheckInput, p1: Pairing, r: SlotRestore, now: string): boolean {
+  const { index } = input;
+  if (r.arg !== 0 || index.type(r.chunk) !== 'IFCPROPERTYSINGLEVALUE') return false;
+  const source = index.name(r.chunk) ?? '';
+  if (/#\d+$/.test(source) || assignmentKey(decodeStepText(unquote(now))) !== source) return false;
+  const pset = onlyParent(index, r.chunk);
+  if (pset < 0 || index.type(pset) !== 'IFCPROPERTYSET' || index.name(pset) !== PSET.Assignments) return false;
+  if (index.refsAt(pset, 4).filter(m => m >= 0 && assignmentKey(index.name(m) ?? '') === source).length !== 1) return false;
+  const o1 = p1.pairedOut.get(r.chunk)?.[0];
+  const holder = o1 === undefined ? undefined
+    : [...p1.out.values()].find(l => l.type === 'IFCPROPERTYSET' && refList(l.args[4]).includes(o1));
+  if (!holder) return false;
+  const keys = refList(holder.args[4]).map(id => p1.out.get(id)).filter(l => l?.type === 'IFCPROPERTYSINGLEVALUE')
+    .map(l => assignmentKey(decodeStepText(unquote(l!.args[0]))));
+  return keys.filter(k => k === source).length === 1;
+}
 
 function unquote(token: string | undefined): string {
   const t = (token ?? '').trim();

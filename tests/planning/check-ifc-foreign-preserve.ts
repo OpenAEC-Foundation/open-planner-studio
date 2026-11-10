@@ -151,8 +151,8 @@ const REFUSED: Readonly<Record<string, readonly string[]>> = {
 /** Eigen bestanden die ook met (b) weigeren (`niet-gedragen`), met het geval. Elk ander eigen bestand haalt zonder
  *  wijziging de hele ronde (`roundTrip`). */
 const OWN_REFUSED: Readonly<Record<string, RegExp>> = {
-  // Een lege notitielijst (`'[]'`): de writer schrijft dan geen `OPS_TaskNotes` (knownbug 1024). Een stuk zonder
-  // tegenhanger is geen slot; (b) zet het niet terug.
+  // Een lege notitielijst (`'[]'`): de writer schrijft dan geen `OPS_TaskNotes` (knownbug 1101; OPS schreef die nooit).
+  // Een stuk zonder tegenhanger is geen slot; (b) zet het niet terug.
   'council/r7sol-vreemd-lid-bij-notitie.ifc': /^IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': /^IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
 };
@@ -304,10 +304,10 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
 // met één IfcProject. Met de proeven van Sol (een massa-eenheid erbij) en Terra (millimeter in plaats van meter), en die
 // van wrakko: een model van een ander programma onder dat project, zoals Bonsai het schrijft.
 const OLD_OWN = 'tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc';
-// Zonder wijziging weigert het bestand (fixronde 2): v2026.7.2 schreef resources met 9 argumenten, en de writer schrijft
-// er 11. Dat is geen bekende lay-out (de lezer weet niet welk slot welk was), dus `niet-gedragen`.
-await expectRefusal('v2026.7.2 zoals opgeslagen', read(OLD_OWN), 'niet-gedragen', undefined,
-  /^IFCLABORRESOURCE #156: 9 argumenten → 11 argumenten, geen bekende lay-out/);
+// v2026.7.2 schreef resources met 9 argumenten, en de writer schrijft er 11. Van fixronde 2 tot en met 6 weigerde het
+// bestand daarom zonder wijziging (`niet-gedragen`, knownbug 1024). Sinds fixronde 7 (BLOKKEERT 2) kent `alignment` die oude
+// lay-out: de eerste acht argumenten staan op hun plek, PredefinedType op 10. Nu de hele ronde, ook de tweede.
+await roundTrip('v2026.7.2 zoals opgeslagen', read(OLD_OWN));
 // Voor de proeven hieronder: de resources in de lay-out van nu (LongDescription, Usage, BaseCosts en BaseQuantity leeg),
 // daarna `settle`.
 const oldText = text(await settle(latin1(text(read(OLD_OWN)).split(',$,$,$,$,.USERDEFINED.);').join(',$,$,$,$,$,$,.USERDEFINED.);'))));

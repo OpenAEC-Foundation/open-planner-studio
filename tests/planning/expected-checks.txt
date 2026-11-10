@@ -172,6 +172,7 @@ check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
 check-ifc-foreign-merge-telling.ts los
 check-ifc-foreign-open.ts matrix
+check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los
 check-ifc-foreign-preserve.ts matrix
 check-ifc-foreign-strikt.ts matrix

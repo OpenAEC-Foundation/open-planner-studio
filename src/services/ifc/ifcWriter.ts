@@ -181,6 +181,14 @@ function ifcDuration(days: number): string {
   return `'P0Y0M${ifcDayNumber(days)}D'`;
 }
 
+/** Dagen exact, zonder afronding, zoals OPS tot `b738a5096` ze schreef (`'P0Y0M${days}D'`, JavaScript `toString`).
+ *  Alleen voor de merge met een vreemd deel: een gebroken dag die de planner niet wijzigde, in de vorm van de bron
+ *  (`SourceTaskTime`, fixronde 7 van #867). De lezer leest elk getal in die vorm exact (`durationForms.ts`). */
+function ifcDurationExact(days: number): string {
+  if (days < 0) return `'-P0Y0M${-days}D'`;
+  return `'P0Y0M${days}D'`;
+}
+
 /** Duur van een UUR-taak in minuten als ISO-8601-duur met tijdcomponent
  *  (`PT{h}H{m}M0S`); minuut-precies en byte-stabiel terug te lezen (`isoDurationToMinutes`). Geen
  *  ruis- of exponentrisico zoals bij `ifcDayNumber`: `minutesToIsoDuration` rondt op hele minuten. */
@@ -261,6 +269,32 @@ export interface WriterMergeIds {
   readonly reserved: ReadonlySet<number>;
   readonly projectSourceId?: number;
   readonly baselineHeads: ReadonlyMap<string, number>;
+  /** Per taak wat nog is zoals de lezer het uit de bron las (fixronde 7 van #867); zie `SourceTaskTime`. */
+  readonly sourceTaskTimes?: ReadonlyMap<string, SourceTaskTime>;
+  /** De relaties met een lag die de planner niet wijzigde en die de bron als gebroken dag in de oude vorm had
+   *  (`IFCDURATION('P0.30000000000000004D')`, OPS tot `b738a5096`): de writer schrijft die lag exact in die vorm, zonder
+   *  record in `DayMeasureLags` (fixronde 7 van #867). */
+  readonly sourceDayLagIds?: ReadonlySet<string>;
+  /** De kalenders die de planner niet wijzigde en die de bron als scalaire kalender met uitgeschreven blokken had, zonder
+   *  `LiteralTimes` (de vorm van OPS vóór het minutenmodel bij een urentaak: blokken plus `IsHourCalendar .F.`): de writer
+   *  schrijft die blokken weer, zonder de kalender letterlijk te maken (fixronde 7 van #867, bevinding 6). */
+  readonly sourceBandCalendarIds?: ReadonlySet<string>;
+}
+
+/**
+ * Voor de merge met een vreemd deel (fixronde 7 van #867): de slots van een taak die de writer exact in de dagvorm van de
+ * bron schrijft (`ifcDurationExact`), zonder record. Een slot staat erin als de planner zijn veld niet wijzigde en de bron
+ * daar een gebroken dag in de oude vorm had (`P0Y0M0.5D`, of `P0Y0M2.3333333333333335D`: OPS tot v2026.43.0, en tot
+ * `b738a5096` zonder afronding). Regel van Trias: een waarde die OPS zelf schreef en die de planner niet wijzigde, blijft
+ * staan zoals in de bron; wijzigde hij het veld, dan geldt de writer.
+ *  - `exactDays`: duur en rest samen (de writer schrijft ze samen als `PT…` met records in `DayMeasureDurations`; dan ook
+ *    hun eenheid, type en de kalender gelijk), en de werkelijke duur apart. Met duur en rest in de vorm van de bron maakt
+ *    deze dagtaak haar kalender niet letterlijk (`minuteModelWriteView`).
+ *  - `exactFloat`: de vrije en de totale speling, elk apart, zonder record in `ExactFloat`.
+ */
+export interface SourceTaskTime {
+  readonly exactDays: ReadonlySet<DayMeasureDurationKey>;
+  readonly exactFloat: ReadonlySet<'freeFloat' | 'totalFloat'>;
 }
 
 /**
@@ -419,8 +453,13 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
     xerSourceArchiveStorage = 'embedded',
     recoveryForeignSource = undefined,
   } = input;
-  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines },
-    ifcLiteralCalendarIds ? { keepLiteralCalendarIds: ifcLiteralCalendarIds } : {});
+  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines }, {
+    ...(ifcLiteralCalendarIds ? { keepLiteralCalendarIds: ifcLiteralCalendarIds } : {}),
+    ...(merge?.sourceTaskTimes ? {
+      sourceDurationTaskIds: new Set([...merge.sourceTaskTimes].filter(([, t]) => t.exactDays.has('ScheduleDuration')).map(([id]) => id)),
+    } : {}),
+    ...(merge?.sourceBandCalendarIds ? { sourceBandCalendarIds: merge.sourceBandCalendarIds } : {}),
+  });
   const { tasks, baselines } = writeView;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
@@ -528,7 +567,10 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden).
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
-  const hourTaskCalendarIds = writeView.literalCalendarIds;
+  // Blokken uitschrijven: bij een letterlijke kalender, en in de merge bij een ongewijzigde kalender die de bron zo had.
+  const hourTaskCalendarIds = merge?.sourceBandCalendarIds?.size
+    ? new Set([...writeView.literalCalendarIds, ...merge.sourceBandCalendarIds])
+    : writeView.literalCalendarIds;
   const projectCalWritten = writeCalendar(ctx, calendar, ownerHistId, '_calendar', hourTaskCalendarIds.has(calendar.id));
   writeCalendarGenerationMeta(ctx, calendar, ownerHistId, projectCalWritten);
 
@@ -1637,6 +1679,11 @@ function writeTask(
 ): PerTaskWriteOptions {
   const t = task.time;
   const isHour = taskDurationUnit(task) === 'hours';
+  // De merge met een vreemd deel: een gebroken dag die de planner niet wijzigde, in de vorm van de bron (`SourceTaskTime`).
+  const source = ctx.merge?.sourceTaskTimes?.get(task.id);
+  const exactDays = isHour ? undefined : source?.exactDays;
+  const sourceFloat = source?.exactFloat;
+  const sourceDays = exactDays?.has('ScheduleDuration') === true;
   // In UUR-modus dragen de datetimes de echte tijd-van-de-dag en is de duur minuut-precies
   // (`durationMinutes`, bron van waarheid; anders afgeleid uit de dag-duur). In DAG-modus valt alles
   // terug op het `T07:00:00`/`P0Y0M{days}D`-pad.
@@ -1651,9 +1698,10 @@ function writeTask(
     dayMeasureDurations[key] = record;
     return ifcDurationHour(record[1]);
   };
-  // Nooit een gebroken `P…D` (v2026.9.0 leest `P0.5D` als 5): hele dagen `P{n}D`, een breuk `PT…`.
+  // Nooit een gebroken `P…D` (v2026.9.0 leest `P0.5D` als 5): hele dagen `P{n}D`, een breuk `PT…`. Behalve een waarde
+  // die de bron zo had en die de planner niet wijzigde (`exactDays`).
   const daysField = (key: DayMeasureDurationKey, days: number): string =>
-    isWholeDays(days) ? ifcDuration(days) : daysAsMinutes(key, days);
+    exactDays?.has(key) ? ifcDurationExact(days) : isWholeDays(days) ? ifcDuration(days) : daysAsMinutes(key, days);
   // De urenmaat zonder afronding (T14): het `PT…`-slot draagt hele minuten, een breuk in minuten gaat
   // als record `[exacte minuten, geschreven minuten]` naar `OPS_WorkRule.ExactMinutes`, zodat de bron
   // verliesvrij terugkomt (zelfde leesregel als T21).
@@ -1668,9 +1716,10 @@ function writeTask(
   // Een dagenmaat-taak met een breuk in duur of rest schrijft duur én rest als `PT…` met records
   // (`dayTaskWritesMinutes`): een oudere OPS leest dan een urentaak met dezelfde lengte, de nieuwe
   // lezer herstelt de dagen uit de records.
-  const dayAsMinutes = !isHour && dayTaskWritesMinutes(task);
+  const dayAsMinutes = !isHour && !sourceDays && dayTaskWritesMinutes(task);
   const schedDurArg = isHour
     ? hourMinutes('ScheduleDuration', taskMinutesForWrite(task, workHoursPerDay))
+    : sourceDays ? ifcDurationExact(t.scheduleDuration)
     : dayAsMinutes ? daysAsMinutes('ScheduleDuration', t.scheduleDuration) : ifcDuration(t.scheduleDuration);
   // Voortgang — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
   // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
@@ -1692,11 +1741,12 @@ function writeTask(
   // record: het bestand legt die speling dan niet vast.
   const exactFloat: { [K in ExactFloatKey]?: ExactFloatRecord } = {};
   const withheldSet = new Set(withheld ?? []);
-  if (!withheldSet.has('totalFloat')) {
+  // Een gebroken speling in dagen die de bron zo had en die de planner niet wijzigde: exact in die vorm, zonder record.
+  if (!sourceFloat?.has('totalFloat') && !withheldSet.has('totalFloat')) {
     const record = exactFloatRecord(t.totalFloat, t.totalFloatMinutes);
     if (record) exactFloat.TotalFloat = record;
   }
-  if (!withheldSet.has('freeFloat')) {
+  if (!sourceFloat?.has('freeFloat') && !withheldSet.has('freeFloat')) {
     const record = exactFloatRecord(t.freeFloat, t.freeFloatMinutes);
     if (record) exactFloat.FreeFloat = record;
   }
@@ -1709,6 +1759,7 @@ function writeTask(
   const ttCtx: TaskTimeWriteCtx = {
     task, dt, ifcDuration, schedDurArg, statusTimeArg,
     actualDurationArg, actualStartArg, actualFinishArg, remainingArg,
+    ...(sourceFloat?.size ? { exactFloat: (field: 'freeFloat' | 'totalFloat', days: number) => (sourceFloat.has(field) ? ifcDurationExact(days) : undefined) } : {}),
     ...(withheld && withheld.length > 0 ? { withheld: new Set(withheld) } : {}),
   };
   const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
@@ -1744,7 +1795,7 @@ function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number):
 // IFCRATIOMEASURE voor procent-lag (IFC 4.3 zelf: ratio 0.5 = "start wanneer de voorganger 50%
 // gereed is"). Een lead (negatieve lag) krijgt het ISO-8601-voorloopteken ('-P2D') — dat is de
 // standaardnotatie; niet elke externe tool leest het teken, maar onze round-trip behoudt het.
-function ifcLagValue(seq: Sequence, minutesPerDay: number): { value: string; record?: DayMeasureRecord; exactMinutes?: ExactMinutesRecord } {
+function ifcLagValue(seq: Sequence, minutesPerDay: number, sourceDays = false): { value: string; record?: DayMeasureRecord; exactMinutes?: ExactMinutesRecord } {
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     // REAL met decimale punt (`stepReal`): 100 % ⇒ `IFCRATIOMEASURE(1.)`, niet `(1)`. De guard
     // hierboven maakt het getal eindig, dus `stepReal` geeft altijd een waarde.
@@ -1759,6 +1810,9 @@ function ifcLagValue(seq: Sequence, minutesPerDay: number): { value: string; rec
     return { value: `IFCDURATION('${minutesToIsoDuration(seq.lagMinutes)}')`, ...(exactMinutes ? { exactMinutes } : {}) };
   }
   const d = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+  // De merge met een vreemd deel: een gebroken lag die de planner niet wijzigde, exact in de vorm van de bron
+  // (`WriterMergeIds.sourceDayLagIds`, fixronde 7 van #867).
+  if (sourceDays) return { value: d < 0 ? `IFCDURATION('-P${-d}D')` : `IFCDURATION('P${d}D')` };
   // Een lag in dagen met een breuk (dagenmaat 0,5 d, kalendertijd 1,5 ed) gaat als `PT…` met de lengte
   // in minuten, plus een record (T21, alleen uren §3.3). v2026.9.0 leest `PT4H0M0S` als 240 min en
   // `PT36H0M0S` met ELAPSEDTIME als 2160 kalenderminuten; `P0.5D` las hij als 5 dagen.
@@ -1801,7 +1855,7 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, mi
     // — LagValue als getypte select in arg 4, DurationType (.WORKTIME./.ELAPSEDTIME.) in arg 5.
     // (Oudere app-versies hadden die twee omgewisseld; de reader kent beide lay-outs.)
     const durationType = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
-    const lag = ifcLagValue(seq, minutesPerDay);
+    const lag = ifcLagValue(seq, minutesPerDay, ctx.merge?.sourceDayLagIds?.has(seq.id) === true);
     record = lag.record;
     exactMinutes = lag.exactMinutes;
     const lagId = addLine(ctx, `lag_${seq.id}`,

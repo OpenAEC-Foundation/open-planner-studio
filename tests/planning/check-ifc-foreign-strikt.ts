@@ -252,7 +252,9 @@ await proof('BLOKKEERT 1', 'letterlijke codering: P0Y0M3D, de taak hernoemd: sch
 for (const dur of ['P1,5D', 'P0Y0M1,5D', 'PT4,5H', 'P1\\X\\2C5D', 'PT4\\X2\\002C\\X0\\5H']) {
   await proof('BLOKKEERT 2', `Terra: ${dur}, de taak hernoemd`, t55(dur), 'duur-deels-gelezen', rename55);
 }
-await proof('BLOKKEERT 2', 'P1.5D (een punt), de taak hernoemd: schrijft', t55('P1.5D'), 'schrijft', rename55, has("'P1.5D'"));
+// Sinds fixronde 7 (BLOKKEERT 1 en 4) schrijft de writer een gebroken dag die de planner niet wijzigde exact in dagen, in
+// zijn eigen vorm: `P0Y0M1.5D`, dezelfde waarde (de toets ziet dezelfde duur). Tot fixronde 6 zette (b) hier `P1.5D` terug.
+await proof('BLOKKEERT 2', 'P1.5D (een punt), de taak hernoemd: schrijft', t55('P1.5D'), 'schrijft', rename55, has("'P0Y0M1.5D'"));
 
 // ── Fixronde 5, zoektocht punt 4: een duur buiten de vorm van ISO 8601 (knownbug 1030) ──
 // De lezer zoekt een getal voor `D` of `H` ergens in de tekst: `p3d` geeft 0 dagen, `P1E1D` 10, `PT1H1H` 60 minuten,
@@ -268,7 +270,7 @@ for (const dur of ['PT90M', 'PT3600S', 'PT0.5H', 'P0DT12H']) {
 // het minteken staat alleen op de lijst in de speling en de lag. Tot fixronde 5b schreven deze twee.
 for (const dur of ['P0Y0M-2D', '-P2D']) {
   await proof('fixronde 6', `'${dur}' (een negatieve taakduur), de taak hernoemd`, t55(dur), 'duur-deels-gelezen', rename55, undefined,
-    /^duur-deels-gelezen: IFCTASKTIME #55: de duur '.*' staat niet op de lijst .*een negatieve taakduur/);
+    /^duur-deels-gelezen: IFCTASKTIME #55: de duur '.*' staat niet op de lijst van vormen die de lezer exact leest\.$/);
 }
 
 // ── Fixronde 5b: dagen vóór T per duurslot na #871; de speling en de lag in werktijd (knownbug 1033) ──
@@ -339,7 +341,7 @@ await proof('5b, knownbug 1033', "lag in werktijd IFCDURATION('P1DT0H'), de taak
 await proof('5b, knownbug 1033', "lag zonder DurationType (werktijd) IFCDURATION('P1DT2H'), de taak hernoemd", lag631("IFCDURATION('P1DT2H')", '$'), 'duur-deels-gelezen', rename55, undefined, LAG_DAYS);
 await proof('5b, knownbug 1033', "ongetypte lag in werktijd 'P1DT2H', de taak hernoemd", lag631("'P1DT2H'"), 'duur-deels-gelezen', rename55, undefined, LAG_DAYS);
 await proof('5b, knownbug 1029', "ongetypte lag 'P1,5D' (de lezer leest 5 dagen), de taak hernoemd", lag631("'P1,5D'"), 'duur-deels-gelezen', rename55, undefined,
-  /^duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'P1,5D' staat niet op de lijst .*een decimale komma.*Tijdelijk, tot de fix van knownbug 1029 in main staat\.$/);
+  /^duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'P1,5D' staat niet op de lijst van vormen die de lezer exact leest\. Tijdelijk, tot de fix van knownbug 1029 in main staat\.$/);
 {
   const r = await proof('5b', "lag in kalendertijd IFCDURATION('P1DT2H'), de taak hernoemd: schrijft", lag631("IFCDURATION('P1DT2H')", '.ELAPSEDTIME.'), 'schrijft', rename55, has("IFCDURATION('P1DT2H'),.ELAPSEDTIME."));
   const lags = r.out ? lagAt(await openForeign(r.out)) : [];
@@ -369,19 +371,19 @@ await proof('fixronde 6, BLOKKEERT 1', "oude lagvorm 'PT10H' (de lezer leest 2 w
 }
 // BLOKKEERT 2: een minteken in het tijddeel (knownbug 1034). De lezer leest `PT-2H` als +120 minuten. Ook als de planner de
 // waarde op 120 zet (wat hij ziet), mag de bron niet blijven: die zegt -2 uur.
-const MINUS = /^duur-deels-gelezen: IFC(?:TASK|LAG)TIME #(?:55|631): .* staat niet op de lijst .*een minteken in een deel/;
-await proof('fixronde 6, BLOKKEERT 2', "ScheduleDuration 'PT-2H', de taak hernoemd", t55('PT-2H'), 'duur-deels-gelezen', rename55, undefined, MINUS);
+const NOT_LISTED = /^duur-deels-gelezen: IFC(?:TASK|LAG)TIME #(?:55|631): .* staat niet op de lijst van vormen die de lezer exact leest\.$/;
+await proof('fixronde 6, BLOKKEERT 2', "ScheduleDuration 'PT-2H', de taak hernoemd", t55('PT-2H'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 2', "ScheduleDuration 'PT-2H', de duur op 120 minuten gezet en de taak hernoemd", t55('PT-2H'), 'duur-deels-gelezen', (x, o) => {
   const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 120; q.name = 'Hernoemd';
-}, undefined, MINUS);
-await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de taak hernoemd", lag631("IFCDURATION('PT-2H')"), 'duur-deels-gelezen', rename55, undefined, MINUS);
+}, undefined, NOT_LISTED);
+await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de taak hernoemd", lag631("IFCDURATION('PT-2H')"), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 {
   const o = await openForeign(lag631("IFCDURATION('PT-2H')"));
   const at = o.sequences.findIndex(q => q.lagMinutes === 120);
   ok(`fixronde 6: de lezer leest de lag 'PT-2H' als +120 minuten (knownbug 1034; index ${at})`, at >= 0);
   await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de lag op 120 minuten gezet en de taak hernoemd", lag631("IFCDURATION('PT-2H')"), 'duur-deels-gelezen', (x, oo) => {
     x.sequences[at].lagMinutes = 120; rename55(x, oo);
-  }, undefined, MINUS);
+  }, undefined, NOT_LISTED);
 }
 {
   const r = await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('-PT2H') (het minteken vóór de P), de taak hernoemd: schrijft", lag631("IFCDURATION('-PT2H')"), 'schrijft', rename55, has(/IFCDURATION\('-PT2H(?:0M0S)?'\)/));
@@ -390,25 +392,23 @@ await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de taak hernoe
 }
 await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('-PT2H0M0S') (zo schrijft OPS een negatieve lag in uren), de taak hernoemd: schrijft", lag631("IFCDURATION('-PT2H0M0S')"), 'schrijft', rename55);
 // BLOKKEERT 3: een tijddeel dat niet op een hele minuut valt (knownbug 1035). De lezer rondt af: `PT90S` wordt 2 minuten.
-const SECONDS = /^duur-deels-gelezen: IFC(?:TASK|LAG)TIME #(?:55|631): .* staat niet op de lijst .*niet op een hele minuut/;
-await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', rename55, undefined, SECONDS);
+await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de duur op 2 minuten gezet en de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', (x, o) => {
   const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 2; q.name = 'Hernoemd';
-}, undefined, SECONDS);
-await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT0.01H' (0,6 minuut), de taak hernoemd", t55('PT0.01H'), 'duur-deels-gelezen', rename55, undefined, SECONDS);
-await proof('fixronde 6, BLOKKEERT 3', "lag IFCDURATION('PT90S'), de taak hernoemd", lag631("IFCDURATION('PT90S')"), 'duur-deels-gelezen', rename55, undefined, SECONDS);
-await proof('fixronde 6, BLOKKEERT 3', "lag in kalendertijd IFCDURATION('PT1M30S'), de taak hernoemd", lag631("IFCDURATION('PT1M30S')", '.ELAPSEDTIME.'), 'duur-deels-gelezen', rename55, undefined, SECONDS);
+}, undefined, NOT_LISTED);
+await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT0.01H' (0,6 minuut), de taak hernoemd", t55('PT0.01H'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
+await proof('fixronde 6, BLOKKEERT 3', "lag IFCDURATION('PT90S'), de taak hernoemd", lag631("IFCDURATION('PT90S')"), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
+await proof('fixronde 6, BLOKKEERT 3', "lag in kalendertijd IFCDURATION('PT1M30S'), de taak hernoemd", lag631("IFCDURATION('PT1M30S')", '.ELAPSEDTIME.'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT120S' (2 hele minuten), de taak hernoemd: schrijft", t55('PT120S'), 'schrijft', rename55);
 await proof('fixronde 6, BLOKKEERT 3', "lag IFCDURATION('PT0.25H') (15 minuten), de taak hernoemd: schrijft", lag631("IFCDURATION('PT0.25H')"), 'schrijft', rename55);
 // De oude vormen van OPS staan op de lijst: de dagen als JavaScript-getal, zoals de writer ze schreef tot `b738a5096` (24
-// september 2026). Met een korte breuk schrijft de merge. Met meer dan zes decimalen of een exponent weigert hij wel, maar
-// niet om de vorm: de writer van nu rondt af op een miljoenste dag (`ifcDayNumber`), dus de bronwaarde terugzetten geeft
-// een andere planning dan de writer (`niet-gedragen`). Zo weigerde hij op `ae8c3f882` ook (`P0Y0M1e-7D` daar bovendien als
-// `duur-deels-gelezen`). Geen bestand in de repo heeft zo'n getal; VERVOLG in de PR-tekst.
+// september 2026). Tot fixronde 6 weigerde de merge zo'n getal met meer dan zes decimalen of een exponent (`niet-gedragen`:
+// de writer rondt af op een miljoenste dag). Sinds fixronde 7 (BLOKKEERT 4) blijft de bronwaarde letterlijk staan zolang de
+// planner het veld niet wijzigt, zonder record; meer per slot in `check-ifc-foreign-oude-eigen.ts`.
 await proof('fixronde 6', "ScheduleDuration 'P0Y0M2.5D' (een korte breuk), de taak hernoemd: schrijft", t55('P0Y0M2.5D'), 'schrijft', rename55);
 for (const [k, dur] of [[4, 'P0Y0M2.3333333333333335D'], [4, 'P0Y0M1e-7D'], [11, 'P0Y0M1e-7D'], [12, 'P0Y0M1e-7D']] as const) {
-  await proof('fixronde 6', `slot ${k} '${dur}' (zo schreef OPS tot b738a5096), de taak hernoemd: weigert niet om de vorm`, slot55({ [k]: `'${dur}'` }), 'niet-gedragen', rename55, undefined,
-    /^niet-gedragen: de bronwaarden \(/);
+  await proof('fixronde 7', `slot ${k} '${dur}' (zo schreef OPS tot b738a5096), de taak hernoemd: schrijft, de bronwaarde blijft`, slot55({ [k]: `'${dur}'` }), 'schrijft', rename55,
+    has(`'${dur}'`));
 }
 // Zoektocht 3: de rest van een urentaak in uitvoering in dagvorm. Die vorm staat op de lijst (de lezer leest hem bij een
 // dagtaak exact), maar bij een urentaak leidt de lezer de rest af van de voortgang (`PT40H` met 50 % wordt 1200 minuten),

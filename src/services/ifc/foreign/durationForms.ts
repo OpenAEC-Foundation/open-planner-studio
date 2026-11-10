@@ -10,8 +10,11 @@
  *
  * Elke vorm hier heeft in `tests/planning/check-ifc-duurvormen.ts` per slot een test die bewijst dat de lezer hem exact
  * leest: de waarde na openen is de waarde die de tekst zegt. Elke vorm die OPS zelf ooit schreef, ook vóór `771db15cb`,
- * staat erin (de kolom `writer`); een planning die OPS maakte, weigert dus nooit om een duur. Een vorm erbij zetten (na een
- * fix in de lezer) kan alleen samen met zo'n test: de check faalt bij een vorm of slot zonder voorbeeld.
+ * staat erin (de kolom `writer`). Dat zegt alleen iets over deze toets: of de merge een bestand van OPS ook schrijft,
+ * hangt daarnaast af van de writer. Een gebroken dag in de oude vorm (`P0Y0M0.5D`) schreef hij tot fixronde 7 terug als
+ * `PT…` met een record, en dat maakte de kalender letterlijk; nu blijft een duur die de planner niet wijzigde in de vorm
+ * van de bron (`SourceTaskTime` in `ifcWriter.ts`). Een vorm erbij zetten (na een fix in de lezer) kan alleen samen met
+ * zo'n test: de check faalt bij een vorm of slot zonder voorbeeld.
  *
  * De vormen zijn strikte vormherkenning op de tekst zoals de lezer haar ziet (na de STEP-decodering), geen tweede
  * duurparser: de waarde zelf leest alleen de lezer. Twee vormen hebben een voorwaarde op de getallen: het tijddeel moet
@@ -142,22 +145,6 @@ export function durationForm(text: string, slot: DurationSlot): DurationForm | u
     if (m && (!form.exact || form.exact(m))) return form;
   }
   return undefined;
-}
-
-/**
- * Waarom een duur buiten de lijst valt, voor de melding: de leesfout die erbij hoort, als die bekend is. Dit beslist
- * niets (dat doet alleen `durationForm`); het helpt de planner en de lezer van de melding.
- */
-export function durationHint(text: string, slot: DurationSlot): string {
-  if (text.includes(',')) return 'een decimale komma; de lezer leest alleen de cijfers na de komma (knownbug 1029)';
-  if (/^-?P(?:[^T]*[YMW])/.test(text) && !/^-?P0Y0M/.test(text)) return 'jaren, maanden of weken; de lezer leest die niet (knownbug 1028)';
-  if (/T.*-/.test(text) || /^-?P[^T]*\d-\d/.test(text)) return 'een minteken in een deel; de lezer neemt de waarde zonder teken (knownbug 1034)';
-  if (/^-|^P0Y0M-/.test(text) && (slot === 'duur' || slot === 'werkelijk' || slot === 'rest')) return 'een negatieve taakduur, werkelijke duur of restduur; OPS schrijft die nooit';
-  if (/T/.test(text) && slot === 'speling') return 'een speling met een tijddeel; de lezer leest een speling alleen in hele dagen (knownbug 1033)';
-  if (/T/.test(text) && slot === 'lag-oud') return 'een tijddeel in de oude lagvorm; de lezer leest daar alleen dagen';
-  if (/^-?P\d+(?:\.\d+)?DT/.test(text) && slot === 'lag-werktijd') return "dagen vóór T in een lag in werktijd; de lezer telt die als 24 uur werktijd, en 'P1D' als één werkdag (knownbug 1033)";
-  if (/T/.test(text) && /^-?P[^,]*T(?:[\d.]*H)?(?:\d+M)?(?:\d+S)?$/.test(text)) return 'een tijddeel dat niet op een hele minuut valt; de lezer rondt af (knownbug 1035)';
-  return 'een vorm die de lezer niet exact leest (knownbug 1030)';
 }
 
 /** De slots in een melding. */

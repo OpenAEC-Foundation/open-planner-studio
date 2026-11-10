@@ -36,16 +36,17 @@
  *
  * Fase 1b: alleen tests gebruiken deze writer. Opslaan met een vreemd deel blijft geweigerd tot 1c.
  */
-import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
+import { writeIFC, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
-import { DURATION_SLOT_LABEL, durationForm, durationHint } from './durationForms';
+import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { changedScopes, dateTimeTexts, decimalKey, durationTexts, lossCheck, partialDateTime, pristineFromScan, type LossDiff } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
 import { scanStep, splitStepArgs, type StepIndex } from './stepScanner';
+import type { DayMeasureDurationKey } from '../dayMeasureIo';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
 export type MergePhase2Kind =
@@ -301,10 +302,10 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
       if (durationForm(text, slot)) continue;
       const temporary = text.includes(',') ? ' Tijdelijk, tot de fix van knownbug 1029 in main staat.' : '';
       caseAt('duur-deels-gelezen', i, `${label(i)}: ${DURATION_SLOT_LABEL[slot]} '${text}' staat niet op de lijst van vormen die de lezer`
-        + ` exact leest: ${durationHint(text, slot)}.${temporary}`);
+        + ` exact leest.${temporary}`);
     }
-    for (const { text, kind } of dateTimeTexts(index, i)) {
-      const part = partialDateTime(text, kind);
+    for (const { text, kind, oldClock } of dateTimeTexts(index, i)) {
+      const part = partialDateTime(text, kind, oldClock);
       const what = kind === 'tijd' ? 'de tijd' : kind === 'datum' ? 'de datum' : 'de datum-tijd';
       if (part === 'zone') {
         caseAt('tijd-deels-gelezen', i, `${label(i)}: ${what} '${text}' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 1031)`);
@@ -324,7 +325,11 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     const resources = new Map(input.resources.map(r => [r.id, r]));
 
     // ── 3. De writer ──
-    const written = writeIfcMergeLines(input, plan);
+    // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
+    const written = writeIfcMergeLines(input, {
+      ...plan, sourceTaskTimes: sourceTaskTimes(pristine, input, index, source), sourceDayLagIds: sourceDayLagIds(pristine, input, index, source),
+      sourceBandCalendarIds: sourceBandCalendarIds(pristine, input, index, source),
+    });
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
     for (const line of lines) {
@@ -593,6 +598,10 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     }
     return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects };
   }
+  // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
+  // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
+  const scan = foreignScanFrom(index, cls, source.bytes);
+  const pristine = await pristineFromScan(scan, source.bytes);
   const { lines, byId, keptHeads, owner, taskIds, objects } = buildLines(input, caseAt);
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
@@ -627,8 +636,6 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   // (b), het slotdeel van `sourceSlots` (fixronde 3 van #867): de slots die de lezer niet draagt, krijgen in O1 de
   // bronwaarde terug zolang de planner dat veld niet wijzigde (`lossCheck`, `edits`). De bronwaarden komen uit
   // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
-  const scan = foreignScanFrom(index, cls, source.bytes);
-  const pristine = await pristineFromScan(scan, source.bytes);
   const built0 = buildLines(pristine, () => {});
   const o0 = built0.lines.filter(l => !l.drop);
   const { edits } = lossCheck({
@@ -842,4 +849,92 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
   }
   flush(n);
   return parts;
+}
+
+/** Een gebroken dag in de oude vorm van OPS: `P0Y0M0.5D`, `P0Y0M-0.5D`, `-P0Y0M0.5D` of `P0.5D`, ook met een exponent. */
+const FRACTIONAL_DAY_FORM = /^-?P(?:0Y0M)?-?(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
+/** De velden achter de slots van `SourceTaskTime`: duur en rest samen, de werkelijke duur, en elke speling apart. */
+const DAY_GROUP_FIELDS = ['durationUnit', 'durationType', 'scheduleDuration', 'durationMinutes', 'remainingTime', 'remainingMinutes'] as const;
+const ACTUAL_FIELDS = ['durationUnit', 'durationType', 'actualDuration'] as const;
+const FREE_FLOAT_FIELDS = ['freeFloat', 'freeFloatMinutes'] as const;
+const TOTAL_FLOAT_FIELDS = ['totalFloat', 'totalFloatMinutes'] as const;
+
+/**
+ * Per taak van `domain`: de slots die de writer in de dagvorm van de bron schrijft (`SourceTaskTime` in `ifcWriter.ts`;
+ * fixronde 7 van #867, BLOKKEERT 1 en 4). Een slot doet mee als de bron daar een gebroken dag in de oude vorm had en de
+ * planner het veld niet wijzigde (tegenover `pristine`, het domein zoals de lezer het las). Regel van Trias: wat OPS zelf
+ * schreef en de planner niet wijzigde, blijft staan zoals in de bron; wijzigde hij het, dan geldt de writer.
+ */
+function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlyMap<string, SourceTaskTime> {
+  const before = new Map(pristine.tasks.map(t => [t.id, t]));
+  const out = new Map<string, SourceTaskTime>();
+  for (const task of domain.tasks) {
+    const was = before.get(task.id);
+    if (!was) continue;
+    const same = (fields: readonly string[]) => fields.every(f => (was.time as unknown as Record<string, unknown>)[f] === (task.time as unknown as Record<string, unknown>)[f]);
+    // De argumenten van de IfcTaskTime van de bron met een gebroken dag in de oude vorm.
+    const fractional = new Set<number>();
+    const step = source.stepIds[`task:${task.id}`];
+    const chunk = step === undefined ? -1 : index.chunkOf(String(step));
+    for (let k = 0; chunk >= 0 && k < index.argCount(chunk); k++) {
+      for (const tt of index.refsAt(chunk, k)) {
+        if (index.type(tt) !== 'IFCTASKTIME') continue;
+        for (const { text, arg } of durationTexts(index, tt)) {
+          const m = FRACTIONAL_DAY_FORM.exec(text);
+          if (m && !Number.isInteger(Number(m[1])) && arg !== undefined) fractional.add(arg);
+        }
+      }
+    }
+    const calendar = was.calendarId === task.calendarId;
+    const exactDays = new Set<DayMeasureDurationKey>();
+    if (calendar && same(DAY_GROUP_FIELDS) && (fractional.has(4) || fractional.has(18))) { exactDays.add('ScheduleDuration'); exactDays.add('RemainingTime'); }
+    if (calendar && same(ACTUAL_FIELDS) && fractional.has(15)) exactDays.add('ActualDuration');
+    const exactFloat = new Set<'freeFloat' | 'totalFloat'>();
+    if (same(FREE_FLOAT_FIELDS) && fractional.has(11)) exactFloat.add('freeFloat');
+    if (same(TOTAL_FLOAT_FIELDS) && fractional.has(12)) exactFloat.add('totalFloat');
+    if (exactDays.size > 0 || exactFloat.size > 0) out.set(task.id, { exactDays, exactFloat });
+  }
+  return out;
+}
+
+/** De relaties van `domain` met een lag die de planner niet wijzigde, en die de bron als gebroken dag in de oude vorm had
+ *  (`WriterMergeIds.sourceDayLagIds`; fixronde 7 van #867, BLOKKEERT 4). */
+function sourceDayLagIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlySet<string> {
+  const before = new Map(pristine.sequences.map(q => [q.id, q]));
+  const out = new Set<string>();
+  for (const seq of domain.sequences) {
+    const was = before.get(seq.id);
+    if (!was || was.lagDays !== seq.lagDays || was.lagMinutes !== seq.lagMinutes || was.lagPercent !== seq.lagPercent || was.lagUnit !== seq.lagUnit) continue;
+    const step = source.stepIds[`seq:${seq.id}`];
+    const chunk = step === undefined ? -1 : index.chunkOf(String(step));
+    const lag = chunk >= 0 ? index.refAt(chunk, 6) : -1;
+    if (lag < 0 || index.type(lag) !== 'IFCLAGTIME') continue;
+    for (const { text } of durationTexts(index, lag)) {
+      const m = FRACTIONAL_DAY_FORM.exec(text);
+      if (m && !Number.isInteger(Number(m[1]))) out.add(seq.id);
+    }
+  }
+  return out;
+}
+
+/**
+ * De kalenders van `domain` die de planner niet wijzigde en die de bron als scalaire kalender met meer dan één blok had: één
+ * `IFCWORKTIME` in `WorkingTimes` met een patroon van meer perioden (`WriterMergeIds.sourceBandCalendarIds`). Zo schreef OPS
+ * van v2026.7.7 tot en met v2026.43.0 de kalender van een urentaak (fixronde 7 van #867, bevinding 6). Schrijft de writer
+ * daar andere blokken dan de bron, dan weigert de verliesbewaking nog steeds.
+ */
+function sourceBandCalendarIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlySet<string> {
+  const before = new Map([pristine.calendar, ...(pristine.resourceCalendars ?? [])].map(c => [c.id, c]));
+  const out = new Set<string>();
+  for (const cal of [domain.calendar, ...(domain.resourceCalendars ?? [])]) {
+    const was = before.get(cal.id);
+    if (!was || cal.workTime || JSON.stringify(was) !== JSON.stringify(cal)) continue;
+    const step = source.stepIds[`cal:${cal.id}`];
+    const chunk = step === undefined ? -1 : index.chunkOf(String(step));
+    const times = chunk >= 0 ? index.refsAt(chunk, 6) : [];
+    if (times.length !== 1 || index.type(times[0]) !== 'IFCWORKTIME') continue;
+    const pattern = index.refAt(times[0], 3);
+    if (pattern >= 0 && index.type(pattern) === 'IFCRECURRENCEPATTERN' && index.refsAt(pattern, 7).length > 1) out.add(cal.id);
+  }
+  return out;
 }
