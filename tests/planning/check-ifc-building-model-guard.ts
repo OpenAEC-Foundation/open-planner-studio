@@ -10,7 +10,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildImportLabels } from '@/i18n/importLabels';
-import { brokenNameFiles, DATA_KOP_VORMEN, metDataKop } from './ifcDoelBestanden';
+import { brokenHeaderDataFiles, brokenNameFiles, DATA_KOP_VORMEN, metDataKop } from './ifcDoelBestanden';
 import nl from '@/i18n/locales/nl/common.json';
 import en from '@/i18n/locales/en/common.json';
 
@@ -79,6 +79,19 @@ async function main(): Promise<void> {
       const parsed = await readIFCWithXerReconstruction(text);
       eq(`${name}: de planning opent met 20 taken en schema IFC4X3_ADD2`, [parsed.tasks.length, parsed.project.ifcSchema], [20, 'IFC4X3_ADD2']);
       eq(`${name}: model-ifc4 wordt geweigerd`, rejected(modelText), true);
+    }
+    // Terra (ronde 4): de kapotte naam met elke kopvorm. De planning opent met al haar taken, of `readIFC` weigert het
+    // bestand; nooit opent hij een deel of niets.
+    for (const [name, text] of brokenHeaderDataFiles(showcase)) {
+      let outcome: string;
+      try { outcome = `${(await readIFCWithXerReconstruction(text)).tasks.length} taken`; }
+      catch (error) { outcome = error instanceof IfcParseError ? error.reason : 'andere fout'; }
+      eq(`${name}: de showcase opent met 20 taken, of wordt geweigerd`, ['20 taken', 'no-data-section'].includes(outcome), true);
+    }
+    for (const [name, text] of brokenHeaderDataFiles(model)) {
+      let reason = 'geopend';
+      try { readIFC(text); } catch (error) { reason = error instanceof IfcParseError ? error.reason : 'andere fout'; }
+      eq(`${name}: model-ifc4 wordt geweigerd`, ['building-model', 'no-data-section'].includes(reason), true);
     }
   }
   // De echte opgeslagen voorbeelden bewaken context, taken, resources, kalenders en lege modellen.

@@ -38,7 +38,7 @@ import {
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { StepDataSectionFinder, indexOfStepDataSection, stepDataSectionBounds } from '@/services/ifc/stepDataSection';
-import { brokenHeader, commentFile, DATA_KOP_VORMEN, dataKopGrens, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { brokenHeader, brokenHeaderDataFiles, commentFile, DATA_KOP_VORMEN, dataKopGrens, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 let checks = 0;
@@ -448,31 +448,55 @@ function oldIndexOfDataSection(content: string): number {
   const anchored = /^[ \t]*DATA;/im.exec(content);
   return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
 }
-/** De tekst zoals de vinder hem op codeniveau ziet, even lang: een string (met de aanhalingstekens) wordt `X`, commentaar
- *  wordt spaties, en a–z worden hoofdletters (alleen ASCII). Los van de toestandsmachine, met de oude `oldSkip`. */
-function codeView(text: string): string {
-  let out = '';
+/** De tokens van ISO 10303-21 zoals de vinder ze ziet, los van zijn toestandsmachine: een string (met `oldSkip`), een
+ *  scheiding (spatie, commentaar, `\N\`, `\F\`) of één teken (a–z als hoofdletter). Stuurtekens vallen weg (§5.2). */
+type RefToken = { kind: 'str' | 'sep' | 'ch'; at: number; u: string };
+function refTokens(text: string): RefToken[] {
+  const out: RefToken[] = [];
+  const skipControl = (k: number) => { while (k < text.length && text.charCodeAt(k) < 0x20) k++; return k; };
   for (let i = 0; i < text.length;) {
-    const skip = oldSkip(text, i);
-    if (skip >= 0) { out += (text[i] === "'" ? 'X' : ' ').repeat(skip - i); i = skip; continue; }
     const c = text.charCodeAt(i);
-    out += c >= 0x61 && c <= 0x7a ? String.fromCharCode(c - 0x20) : text[i];
+    if (c < 0x20) { i++; continue; }
+    const skip = oldSkip(text, i);
+    if (skip >= 0) { out.push({ kind: text[i] === "'" ? 'str' : 'sep', at: i, u: '' }); i = skip; continue; }
+    if (c === 0x20) { out.push({ kind: 'sep', at: i, u: '' }); i++; continue; }
+    if (text[i] === '\\') {
+      const letter = skipControl(i + 1);
+      const close = skipControl(letter + 1);
+      if ((text[letter] === 'N' || text[letter] === 'F') && text[close] === '\\') { out.push({ kind: 'sep', at: i, u: '' }); i = close + 1; continue; }
+    }
+    out.push({ kind: 'ch', at: i, u: text[i].toUpperCase().length === 1 && c < 0x80 ? text[i].toUpperCase() : text[i] });
     i++;
   }
   return out;
 }
-/** De oude regel, uitgebreid (review van #870, ronde 1 tot 3): streng `DATA;` overal (zoals altijd), of direct na
- *  `ENDSEC;` (witruimte en commentaar ertussen) `DATA`, witruimte en commentaar, dan `;` of `(`. Anders regel-verankerd
- *  `DATA`, witruimte (ook regeleindes), `;` of `(`. Geeft begin (de `D`) en leespositie (na de `;`/`(`). Zonder `DATA`
- *  gevolgd door witruimte, `/` of `(` is het begin precies `oldIndexOfDataSection`. */
+/** De regels van ISO 10303-21 (review van #870, ronde 1 tot 4): streng `DATA;` overal (zoals altijd); een andere vorm
+ *  (`DATA`, scheiding, `;` of `(`) alleen direct na de tokens `ENDSEC` `;` en zolang elke string na `(` of `,` staat en
+ *  door `,` of `)` gevolgd wordt. Anders regel-verankerd `DATA`, witruimte of commentaar, `;` of `(`. Geeft begin (de
+ *  `D`) en leespositie (na de `;`/`(`). */
 function refDataSection(content: string): { at: number; end: number } | null {
-  const view = codeView(content);
-  const direct = view.indexOf('DATA;');
-  const section = /ENDSEC[ \t\n\v\f\r]*;[ \t\n\v\f\r]*(DATA[ \t\n\v\f\r]*[;(])/.exec(view);
-  const sectionAt = section ? section.index + section[0].length - section[1].length : -1;
-  if (direct >= 0 && (sectionAt < 0 || direct < sectionAt)) return { at: direct, end: direct + 5 };
-  if (section) return { at: sectionAt, end: section.index + section[0].length };
-  const anchored = /^[ \t]*(DATA)[ \t\n\v\f\r]*[;(]/im.exec(content);
+  const tokens = refTokens(content);
+  const sig = tokens.map((_, k) => k).filter(k => tokens[k].kind !== 'sep');
+  let sound = true;
+  for (let s = 0; s < sig.length; s++) {
+    const k = sig[s];
+    const t = tokens[k];
+    const prev = s > 0 ? tokens[sig[s - 1]] : null;
+    if (prev?.kind === 'str' && !(t.kind === 'ch' && (t.u === ',' || t.u === ')'))) sound = false;
+    if (t.kind === 'str' && !(prev?.kind === 'ch' && (prev.u === '(' || prev.u === ','))) sound = false;
+    if (t.kind !== 'ch' || (t.u !== ';' && t.u !== '(') || s < 4) continue;
+    // `DATA` als vier tekens direct na elkaar (zonder scheiding), dan scheiding of niets, dan dit teken.
+    const word = [sig[s - 4], sig[s - 3], sig[s - 2], sig[s - 1]];
+    if (word.map(w => tokens[w].kind === 'ch' ? tokens[w].u : '').join('') !== 'DATA') continue;
+    if (word[3] - word[0] !== 3) continue;
+    const direct = k === word[3] + 1;
+    const before = sig.slice(Math.max(0, s - 11), s - 4).map(w => tokens[w]);
+    const endsec = before.length === 7 && sig[s - 6] - sig[s - 11] === 5 && before.slice(0, 6).every(b => b.kind === 'ch')
+      && before.slice(0, 6).map(b => b.u).join('') === 'ENDSEC' && before[6].u === ';' && before[6].kind === 'ch';
+    if ((t.u === ';' && direct) || (endsec && sound)) return { at: tokens[word[0]].at, end: t.at + 1 };
+  }
+  const comment = String.raw`\/\*(?:[^*]|\*+[^*/])*\*+\/`;
+  const anchored = new RegExp(String.raw`^[ \t]*(DATA)(?:[ \t\n\v\f\r]|${comment})*[;(]`, 'im').exec(content);
   if (!anchored) return null;
   return { at: anchored.index + anchored[0].toUpperCase().indexOf('DATA'), end: anchored.index + anchored[0].length };
 }
@@ -491,7 +515,7 @@ const sameDataSection = (label: string, bytes: Uint8Array) => {
   const text = decode(bytes);
   const ref = refDataSection(text);
   const want = ref?.at ?? -1;
-  if (!/DATA[\s/(]/i.test(text)) eq(`DATA; (${label}): zonder DATA met scheiding of ( de oude regel`, want, oldIndexOfDataSection(text));
+  if (!/DATA[\s/(\\]/i.test(text) && !/[\x00-\x08\x0b\x0c\x0e-\x1f]|D[\x00-\x1f]+A|A[\x00-\x1f]+T|T[\x00-\x1f]+A|A[\x00-\x1f]+;/i.test(text)) eq(`DATA; (${label}): zonder DATA met scheiding of ( de oude regel`, want, oldIndexOfDataSection(text));
   eq(`DATA; (${label}): de leespositie`, stepDataSectionBounds(text)?.end ?? -1, ref?.end ?? -1);
   eq(`DATA; (${label}): de gedeelde regel als tekst`, indexOfStepDataSection(text), want);
   eq(`DATA; (${label}): de gedeelde regel als bytes`, byteDataSection(bytes), want);
@@ -621,6 +645,16 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
         every(`${label}: de scanner`, bytes2, scan);
       }
     }
+  }
+  // Terra (ronde 4): de kapotte naam samen met elke kopvorm uit de norm. Nooit leeg geopend: model herkend, of geen
+  // datasectie (dan weigert `readIFC` het bestand). De scanner zegt "model" precies als `readIFC` het model weigert.
+  const modelText = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc'), 'utf8');
+  for (const [name, text] of brokenHeaderDataFiles(modelText)) {
+    const bytes2 = enc.encode(text);
+    const outcome = readOutcome(bytes2);
+    eq(`${name} op model-ifc4: readIFC weigert (model of geen datasectie)`, ['building-model', 'no-data-section'].includes(outcome), true);
+    sameDataSection(`${name} op model-ifc4`, bytes2);
+    every(`${name} op model-ifc4: de scanner`, bytes2, outcome === 'building-model' ? 'model' : 'no-model');
   }
   // Terra: de wand in een eerste sectie `DATA (…)`, daarna een sectie `DATA(…)` zonder wand.
   const terraSpace = enc.encode(HEAD.replace(/DATA;\n$/, "DATA ('deel 1',('IFC4X3_ADD2'));\n") + "#9=IFCWALL('x',$);\n"

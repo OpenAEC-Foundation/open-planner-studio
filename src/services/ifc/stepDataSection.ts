@@ -4,28 +4,34 @@
 // bytes) gebruiken allebei deze code. Een tweede kopie van deze regels zou later uit elkaar lopen; dan zag de
 // doelcontrole een ander bestand dan de lezer.
 //
-// De sectiekop is `DATA`, dan `;` of `(` (ISO 10303-21 editie 3: `DATA('naam',('schema'));`, ook voor de eerste
-// sectie), met witruimte of commentaar ertussen (de scheiding van tabel 3: `DATA ('naam',…);`, `DATA/*x*/(`). Bij `(`
-// gaat de lezer verder direct na de `(`: de parameters bevatten strings en haakjes, geen entiteit. De vinder geeft
-// begin en leespositie (`stepDataSectionBounds`); de kop is dus niet altijd vijf tekens. Twee pogingen, in deze
-// volgorde (het waarom staat bij `indexOfDataSection`):
-//  1. streng: de eerste sectiekop op codeniveau, dus buiten een string `'…'` (met `''` als aanhalingsteken) en buiten
-//     commentaar `/* … */`. Hoofdletterongevoelig (alleen ASCII). `DATA;` telt overal, ook midden in een woord (zoals
-//     altijd). De andere vormen tellen alleen direct na `ENDSEC;` (met witruimte of commentaar ertussen): zo begint een
-//     datasectie in ISO 10303-21, na de kop of na de vorige sectie. Anders telde `DATA (` in een bestandsnaam mee
-//     zodra een oude, rauw geschreven naam met één apostrof (`'Van 't Hof DATA (bouw).ifc'`) de stringtoestand
-//     omdraait; dan opende een bestaande planning leeg (review van #870, ronde 3);
-//  2. alleen als (1) niets vond: de eerste sectiekop aan het begin van een regel, na spaties en tabs, los van strings en
-//     commentaar (`/^[ \t]*DATA[ \t\n\v\f\r]*[;(]/im`; commentaar tussen `DATA` en `(` telt hier niet). Een regel
-//     begint aan het begin van de tekst en na `\n`, `\r`, U+2028 en U+2029. Loopt een poging over een regeleinde en
-//     mislukt ze, dan begint de volgende regel een nieuwe poging (`DATA` op de ene regel, `DATA;` op de volgende).
+// De regels volgen ISO 10303-21 editie 3 (eis van Trias na review van #870 ronde 1 tot 4; de tabel met alle vormen staat
+// in `tests/planning/ifcDoelBestanden.ts`, `DATA_KOP_VORMEN`):
+//  - `DATA_SECTION = "DATA" [ "(" PARAMETER_LIST ")" ] ";" …` (tabel 3), na de `ENDSEC;` van de kop of van de vorige
+//    sectie (`EXCHANGE_FILE`). Bij `(` gaat de lezer verder direct na de `(`: de parameters zijn strings en haakjes.
+//  - Tokens: een string `'…'` (met `''` als aanhalingsteken), commentaar `/* … */`, en de rest teken voor teken.
+//  - Scheiding tussen tokens: de spatie, commentaar en de afdrukcodes `\N\` en `\F\` (§5.6).
+//  - Stuurtekens (onder U+0020: regeleindes, tab) vallen weg, ook midden in een token (§5.2, §5.6: "line breaks may
+//    appear anywhere within the structure, including within tokens"). `END⏎SEC;` is dus `ENDSEC;`.
+//  - Sleutelwoorden zijn in de norm hoofdletters; de app las altijd hoofdletterongevoelig (alleen ASCII), en blijft dat.
+// De vinder geeft begin en leespositie (`stepDataSectionBounds`). Twee pogingen, in deze volgorde (het waarom staat bij
+// `indexOfDataSection`):
+//  1. streng, op codeniveau. `DATA;` direct (zonder scheiding) telt overal, ook midden in een woord, zoals altijd. Elke
+//     andere vorm (`DATA(`, `DATA (`, `DATA/*x*/(`, `DATA ;`) telt alleen als het vorige token de `;` van `ENDSEC;` is,
+//     en zolang de kop gezond is: elke string staat na `(` of `,` en wordt gevolgd door `,` of `)`, zoals in elke
+//     kopentiteit. Een oude, rauw geschreven bestandsnaam met één apostrof (`'Van 't Hof DATA (bouw).ifc'`) draait de
+//     stringtoestand om; dan volgt er een letter op een string, en is alles daarna onbetrouwbaar. Zonder die regel werd
+//     `DATA (` of `ENDSEC; DATA (` in zo'n naam de sectiekop, en opende een bestaande planning leeg, zonder schema en
+//     zonder modelweigering (review van #870, ronde 3 en 4);
+//  2. alleen als (1) niets vond: de eerste sectiekop aan het begin van een regel, na spaties en tabs, los van strings
+//     (`/^[ \t]*DATA(?:[ \t\n\v\f\r]|<commentaar>)*[;(]/im`). Een regel begint aan het begin van de tekst en na `\n`,
+//     `\r`, U+2028 en U+2029. Loopt een poging over een regeleinde en mislukt ze, dan begint de volgende regel een nieuwe
+//     poging (`DATA` op de ene regel, `DATA;` op de volgende).
 // Vóór 10 november 2026 herkende de vinder alleen `DATA;`: een bestand met alleen `DATA(…);` of `DATA (…);` had voor
-// `readIFC` geen datasectie, en de doelcontrole zei "geen model", ook met een wand erin (review van #870, Sol en Terra,
-// ronde 1 en 2).
+// `readIFC` geen datasectie, en de doelcontrole zei "geen model", ook met een wand erin (review van #870, Sol en Terra).
 //
 // De vinder leest teken voor teken (`step`), zodat een stroom hem in stukken kan voeden. Als UTF-16-tekst (`readIFC`) is
 // elk teken een code-eenheid; als UTF-8-bytes (de doelcontrole) is elk teken een byte, en de bytes `E2 80 A8` en
-// `E2 80 A9` zijn U+2028 en U+2029. Andere niet-ASCII-tekens spelen geen rol: alleen ASCII telt in deze regels.
+// `E2 80 A9` zijn U+2028 en U+2029. Andere niet-ASCII-tekens zijn gewone tekens: alleen ASCII telt in deze regels.
 
 /** De verplichte kop van een STEP-bestand. */
 export const STEP_HEADER = 'ISO-10303-21;';
@@ -38,20 +44,29 @@ export function startsWithStepHeader(text: string, at: number): boolean {
 const QUOTE = 0x27;
 const SLASH = 0x2f;
 const STAR = 0x2a;
+const BACKSLASH = 0x5c;
+const SPACE = 0x20;
 const DATA = [0x44, 0x41, 0x54, 0x41]; // D A T A, dan `;` of `(`
 const ENDSEC = [0x45, 0x4e, 0x44, 0x53, 0x45, 0x43]; // E N D S E C, dan `;`
 const SEMI = 0x3b;
 const OPEN = 0x28;
-/** Witruimte tussen `DATA` en `;`/`(` (`isSpaceCode` van `ifcReader.ts`). */
-const isSpace = (c: number) => c === 0x20 || (c >= 0x09 && c <= 0x0d);
+const CLOSE = 0x29;
+const COMMA = 0x2c;
+/** Witruimte in de regel-verankerde poging (`isSpaceCode` van `ifcReader.ts`). */
+const isSpace = (c: number) => c === SPACE || (c >= 0x09 && c <= 0x0d);
+const upper = (c: number) => (c >= 0x61 && c <= 0x7a ? c - 0x20 : c);
 
-const enum Mode { Code, Str, StrQuote, Slash, Comment, CommentStar }
-/** Streng: `DATA` gezien, en daarna witruimte of commentaar (de scheiding van ISO 10303-21, tabel 3). */
+const enum Mode { Code, Str, StrQuote, Slash, Comment, CommentStar, Back, BackLetter }
+/** Streng: `DATA` gezien, en daarna scheiding. */
 const GAP = 5;
-/** Regel-verankerd: `DATA` aan het begin van de regel gezien, en daarna witruimte (ook regeleindes). */
+/** Regel-verankerd: `DATA` aan het begin van de regel gezien, en daarna witruimte (ook regeleindes) of commentaar. */
 const LINE_GAP = 5;
 /** Regel-verankerd: tot het einde van de regel geen treffer meer. */
 const LINE_DEAD = 6;
+/** Regel-verankerd, in de scheiding na `DATA`: een `/`, misschien het begin van commentaar. */
+const LINE_SLASH = 7;
+const LINE_COMMENT = 8;
+const LINE_COMMENT_STAR = 9;
 
 export class StepDataSectionFinder {
   /** Positie van de `D` van de eerste regel-verankerde sectiekop, of -1. */
@@ -61,16 +76,25 @@ export class StepDataSectionFinder {
   /** Positie van de `D` van de strenge sectiekop die `step` met `true` meldde. */
   strictAt = -1;
   private mode = Mode.Code;
-  /** 0–4: zoveel tekens van `DATA` op codeniveau op een rij; `GAP`: `DATA` en daarna scheiding. */
+  /** 0–4: zoveel tekens van `DATA` op een rij (stuurtekens tellen niet); `GAP`: `DATA` en daarna scheiding. */
   private strict = 0;
-  /** Stond de `D` van de lopende treffer direct na `ENDSEC;`? Alleen dan telt een andere vorm dan `DATA;`. */
+  /** Was het vorige token van de lopende treffer de `;` van `ENDSEC;`? Alleen dan telt een andere vorm dan `DATA;`. */
   private strictAtSection = false;
   private strictStart = -1;
-  /** 0–5: zoveel tekens van `ENDSEC` op codeniveau op een rij; 6: `ENDSEC` gezien, wacht op `;`. */
+  /** 0–5: zoveel tekens van `ENDSEC` op een rij; 6: `ENDSEC` gezien, wacht op `;`. */
   private endsec = 0;
-  /** Was het laatste teken op codeniveau (witruimte en commentaar niet meegeteld) de `;` van `ENDSEC;`? */
+  /** Was het vorige token de `;` van `ENDSEC;`? */
   private afterEndsec = false;
-  /** 0 = begin van een regel; 1–4 = zoveel tekens van `DATA` na het begin; `LINE_GAP`; `LINE_DEAD`. */
+  /** De kop volgt tot hier de grammatica van een string (zie de kop van dit bestand). */
+  private sound = true;
+  /** Het vorige token was een string: het volgende moet `,` of `)` zijn. */
+  private afterString = false;
+  /** Het laatste betekenisvolle teken op codeniveau (in hoofdletters), of -1. */
+  private lastSig = -1;
+  /** In `Mode.BackLetter`: de `N` of `F` na de `\`, en zijn positie. */
+  private backLetter = -1;
+  private backLetterAt = -1;
+  /** 0 = begin van een regel; 1–4 = zoveel tekens van `DATA` na het begin; `LINE_GAP`; `LINE_DEAD`; commentaar. */
   private line = 0;
   private lineAt = -1;
   /** In `LINE_GAP`: sinds het laatste regeleinde alleen spaties en tabs. Dan begint hier een nieuwe regel. */
@@ -85,11 +109,6 @@ export class StepDataSectionFinder {
   /** Eén teken op positie `at`. `true`: op `at` eindigt de strenge sectiekop (de `;` of `(`; de `D` staat op
    *  `strictAt`). De datasectie begint op `at + 1`. */
   step(c: number, at: number): boolean {
-    this.anchor(c, at);
-    return this.code(c, at);
-  }
-
-  private anchor(c: number, at: number): void {
     let lineEnd = c === 0x0a || c === 0x0d;
     if (this.utf8) {
       if ((c === 0xa8 || c === 0xa9) && this.prev1 === 0x80 && this.prev2 === 0xe2) lineEnd = true;
@@ -98,15 +117,40 @@ export class StepDataSectionFinder {
     } else if (c === 0x2028 || c === 0x2029) {
       lineEnd = true;
     }
+    this.anchor(c, at, lineEnd);
+    return this.code(c, at);
+  }
+
+  // ── 2. Regel-verankerd ────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** `plain`: een `/` die geen commentaar begon, opnieuw als gewoon teken. */
+  private anchor(c: number, at: number, lineEnd: boolean, plain = false): void {
+    switch (this.line) {
+      case LINE_SLASH:
+        if (c === STAR) { this.line = LINE_COMMENT; this.lineFresh = false; return; }
+        // De `/` was geen commentaar: een gewoon teken in de scheiding, dus de poging mislukt daar.
+        this.line = LINE_GAP;
+        this.anchor(SLASH, at - 1, false, true);
+        this.anchor(c, at, lineEnd);
+        return;
+      case LINE_COMMENT:
+        if (c === STAR) this.line = LINE_COMMENT_STAR;
+        return;
+      case LINE_COMMENT_STAR:
+        if (c === SLASH) this.line = LINE_GAP;
+        else if (c !== STAR) this.line = LINE_COMMENT;
+        return;
+    }
     if (this.line === DATA.length || this.line === LINE_GAP) {
-      // Na `DATA` aan het begin van de regel: witruimte (ook een regeleinde), dan `;` of `(`.
+      // Na `DATA` aan het begin van de regel: witruimte (ook een regeleinde) of commentaar, dan `;` of `(`.
       if (this.line === DATA.length) this.lineFresh = false;
       if (isSpace(c)) {
         if (lineEnd) this.lineFresh = true;
-        else if (c !== 0x20 && c !== 0x09) this.lineFresh = false;
+        else if (c !== SPACE && c !== 0x09) this.lineFresh = false;
         this.line = LINE_GAP;
         return;
       }
+      if (c === SLASH && !plain) { this.line = LINE_SLASH; return; }
       const fresh = this.lineFresh;
       this.lineFresh = false;
       if (c === SEMI || c === OPEN) {
@@ -122,12 +166,13 @@ export class StepDataSectionFinder {
     const line = this.line;
     if (lineEnd) { this.line = 0; return; }
     if (line === LINE_DEAD) return;
-    if (line === 0 && (c === 0x20 || c === 0x09)) return;
-    const u = c >= 0x61 && c <= 0x7a ? c - 0x20 : c;
-    if (u !== DATA[line]) { this.line = LINE_DEAD; return; }
+    if (line === 0 && (c === SPACE || c === 0x09)) return;
+    if (upper(c) !== DATA[line]) { this.line = LINE_DEAD; return; }
     if (line === 0) this.lineAt = at;
     this.line = line + 1;
   }
+
+  // ── 1. Streng ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
   /** Na `DATA` (direct, of na scheiding) staat de vinder tussen `DATA` en `;`/`(`. */
   private get inHead(): boolean {
@@ -142,46 +187,67 @@ export class StepDataSectionFinder {
       case Mode.StrQuote:
         if (c === QUOTE) { this.mode = Mode.Str; return false; } // `''` is een aanhalingsteken in de string
         this.mode = Mode.Code;
+        this.afterString = true;
         break; // einde van de string: dit teken is weer code
       case Mode.Slash:
         this.mode = Mode.Code;
         if (c === STAR) { this.mode = Mode.Comment; return false; }
-        // De `/` was code: geen scheiding na `DATA`, en geen `ENDSEC;` vlak ervoor.
-        this.strict = 0;
-        this.endsec = 0;
-        this.afterEndsec = false;
-        break; // dit teken is ook code
+        this.token(SLASH, at - 1); // de `/` was een gewoon teken
+        break;
       case Mode.Comment:
         if (c === STAR) this.mode = Mode.CommentStar;
         return false;
       case Mode.CommentStar:
-        if (c === SLASH) {
-          this.mode = Mode.Code;
-          if (this.inHead) this.strict = GAP; // commentaar na `DATA` is scheiding
-        } else if (c !== STAR) this.mode = Mode.Comment;
+        if (c === SLASH) { this.mode = Mode.Code; this.separator(); }
+        else if (c !== STAR) this.mode = Mode.Comment;
         return false;
+      case Mode.Back:
+        if (c < SPACE) return false;
+        if (c === 0x4e || c === 0x46) { this.mode = Mode.BackLetter; this.backLetter = c; this.backLetterAt = at; return false; }
+        this.mode = Mode.Code;
+        this.token(BACKSLASH, at - 1); // geen afdrukcode: de `\` was een gewoon teken
+        break;
+      case Mode.BackLetter:
+        if (c < SPACE) return false;
+        this.mode = Mode.Code;
+        if (c === BACKSLASH) { this.separator(); return false; } // `\N\` of `\F\`
+        this.token(BACKSLASH, this.backLetterAt - 1);
+        this.token(this.backLetter, this.backLetterAt);
+        break;
       case Mode.Code:
         break;
     }
-    if (c === QUOTE) { this.strict = 0; this.endsec = 0; this.afterEndsec = false; this.mode = Mode.Str; return false; }
-    if (c === SLASH) {
-      // Begint hier commentaar, dan blijven een lopende `DATA` en een `ENDSEC;` ervoor staan (zie `Mode.Slash`/
-      // `Mode.CommentStar`). Commentaar midden in `ENDSEC` breekt het woord, net als witruimte.
-      if (!this.inHead) this.strict = 0;
-      if (this.endsec < ENDSEC.length) this.endsec = 0;
-      this.mode = Mode.Slash;
-      return false;
+    if (c < SPACE) return false; // stuurtekens vallen weg, ook midden in een token (§5.2, §5.6)
+    if (c === SPACE) { this.separator(); return false; }
+    if (c === SLASH) { this.mode = Mode.Slash; return false; } // misschien commentaar: scheiding
+    if (c === BACKSLASH) { this.mode = Mode.Back; return false; } // misschien een afdrukcode: scheiding
+    return this.token(c, at);
+  }
+
+  /** Scheiding tussen tokens: breekt een woord; `DATA` gevolgd door scheiding wacht nog op `;` of `(`. */
+  private separator(): void {
+    if (this.strict === DATA.length) this.strict = GAP;
+    else if (this.strict !== GAP) this.strict = 0;
+    if (this.endsec < ENDSEC.length) this.endsec = 0;
+  }
+
+  /** Een betekenisvol teken op codeniveau. `true`: hier eindigt de strenge sectiekop. */
+  private token(c: number, at: number): boolean {
+    const u = upper(c);
+    if (this.afterString) {
+      this.afterString = false;
+      if (u !== COMMA && u !== CLOSE) this.sound = false;
     }
-    const u = c >= 0x61 && c <= 0x7a ? c - 0x20 : c;
+    if (u === QUOTE && this.lastSig !== OPEN && this.lastSig !== COMMA) this.sound = false;
     if (this.inHead) {
       const direct = this.strict === DATA.length;
-      if (u === SEMI && (direct || this.strictAtSection)) return this.found();
-      if (u === OPEN && this.strictAtSection) return this.found();
-      if (isSpace(c)) { this.strict = GAP; return false; }
+      const ok = this.strictAtSection && this.sound;
+      if (u === SEMI && (direct || ok)) return this.found();
+      if (u === OPEN && ok) return this.found();
       this.strict = 0;
     }
     const atSection = this.afterEndsec;
-    this.section(c, u);
+    this.section(u);
     // `DATA` heeft geen herhaling in zichzelf: na een mismatch kan alleen een nieuwe `D` een treffer beginnen.
     if (u === DATA[this.strict]) {
       if (this.strict === 0) { this.strictAtSection = atSection; this.strictStart = at; }
@@ -193,15 +259,13 @@ export class StepDataSectionFinder {
     } else {
       this.strict = 0;
     }
+    this.lastSig = u;
+    if (u === QUOTE) this.mode = Mode.Str;
     return false;
   }
 
-  /** Volgt `ENDSEC` en de `;` erna op codeniveau. Witruimte laat `ENDSEC;` en `ENDSEC` staan, maar breekt het woord. */
-  private section(c: number, u: number): void {
-    if (isSpace(c)) {
-      if (this.endsec < ENDSEC.length) this.endsec = 0;
-      return;
-    }
+  /** Volgt `ENDSEC` en de `;` erna (scheiding ertussen mag, zie `separator`). */
+  private section(u: number): void {
     this.afterEndsec = false;
     if (this.endsec === ENDSEC.length) {
       this.endsec = 0;

@@ -132,8 +132,8 @@ const twoDataParam = enc.encode(paramDataFile(dec(twoData)));
 for (const [name, bytes] of [
   ['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData], ['fix3-param.ifc', twoDataParam],
   // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`), ook gemengd, en op een model in de enige sectie.
-  ...dataKopBestanden(dec(twoData), 'norm').map(([name, text]) => [`fix3-${name}.ifc`, enc.encode(text)] as const),
-  ...dataKopBestanden(dec(eigenPlus), 'norm').map(([name, text]) => [`eigen-plus-${name}.ifc`, enc.encode(text)] as const),
+  ...dataKopBestanden(dec(twoData), 'scanner').map(([name, text]) => [`fix3-${name}.ifc`, enc.encode(text)] as const),
+  ...dataKopBestanden(dec(eigenPlus), 'scanner').map(([name, text]) => [`eigen-plus-${name}.ifc`, enc.encode(text)] as const),
 ] as const) {
   const off = await open(false, name, bytes);
   ok(`${name} zonder flag: geweigerd`, !opened(off, name));
@@ -156,11 +156,11 @@ for (const [name, bytes] of [
 }
 // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop; het model blijft herkend. De scanner
 // van de flag weigert een tekst met één apostrof (`tekst-zonder-einde`) en valt terug op de gewone route: ook dan geweigerd.
-// Ook de kopvormen in kleine letters (`buitenNorm`): de scanner van de flag weigert ze, de gewone route weigert het model.
+// Ook de kopvormen die de scanner van de flag weigert (`scannerWeigert`): de gewone route weigert dan het model.
 for (const [name, text] of [
   ...brokenNameFiles(dec(eigenPlus)).map(([n, t]) => [`eigen-plus-${n}`, t] as [string, string]),
-  ...dataKopBestanden(dec(eigenPlus), 'buitenNorm').map(([n, t]) => [`eigen-plus-${n}`, t] as [string, string]),
-  ...dataKopBestanden(dec(twoData), 'buitenNorm').map(([n, t]) => [`fix3-${n}`, t] as [string, string]),
+  ...dataKopBestanden(dec(eigenPlus), 'scannerWeigert').map(([n, t]) => [`eigen-plus-${n}`, t] as [string, string]),
+  ...dataKopBestanden(dec(twoData), 'scannerWeigert').map(([n, t]) => [`fix3-${n}`, t] as [string, string]),
 ]) {
   for (const flag of [false, true]) {
     const store = await open(flag, `${name}.ifc`, enc.encode(text));

@@ -46,7 +46,8 @@ export function paramDataFile(twoData: string, separator = '', only?: 'first'): 
  * datasectie volgt op `ENDSEC;` van de kop of van de vorige sectie. Tussen twee tokens mag witruimte staan (spatie, tab,
  * regeleindes) en commentaar `/* … *\/`. Een sleutelwoord is in de norm in hoofdletters (`standard_keyword = UPPER { UPPER |
  * DIGIT }`); `readIFC` las altijd hoofdletterongevoelig. Die vormen staan erin met `buitenNorm`: de scanner achter de
- * flag volgt de norm en weigert ze, en valt dan terug op de gewone route (`ifcBytesRoute.ts`). De
+ * flag volgt de norm en weigert ze, en valt dan terug op de gewone route (`ifcBytesRoute.ts`); zo ook de vormen met een
+ * stuurteken midden in een sleutelwoord of een afdrukcode (`scannerWeigert`, een gat in die scanner). De
  * parameters (editie 3) zijn een naam en een lijst schema's: strings en haakjes, met witruimte en commentaar ertussen.
  *
  * `kop` vervangt elke `DATA;` direct na `ENDSEC;` en een regeleinde; `{n}` is het nummer van de sectie. `overgang`
@@ -55,11 +56,17 @@ export function paramDataFile(twoData: string, separator = '', only?: 'first'): 
  * het openen met en zonder flag (`check-ifc-foreign-open.ts`) en de doelcontrole van Opslaan als, CSV en AutoSave
  * (`check-ifc-foreign-target.ts`).
  */
-export interface DataKopVorm { id: string; norm: string; kop: string; overgang?: string; buitenNorm?: true }
+export interface DataKopVorm {
+  id: string; norm: string; kop: string; overgang?: string;
+  /** Buiten de norm (kleine letters); `readIFC` leest het wel. */
+  buitenNorm?: true;
+  /** De scanner achter de flag (`stepScanner.ts`, #804) weigert deze vorm en valt terug op de gewone route. */
+  scannerWeigert?: true;
+}
 const P = "('deel {n}',('IFC4X3_ADD2'))";
 export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
   { id: 'kaal', norm: 'zonder parameters', kop: 'DATA;' },
-  { id: 'kaal-klein', norm: 'zonder parameters, kleine letters', kop: 'data;', buitenNorm: true },
+  { id: 'kaal-klein', norm: 'zonder parameters, kleine letters', kop: 'data;', buitenNorm: true, scannerWeigert: true },
   { id: 'kaal-spatie', norm: 'witruimte vóór ;', kop: 'DATA ;' },
   { id: 'kaal-tab', norm: 'tab vóór ;', kop: 'DATA\t;' },
   { id: 'kaal-lf', norm: 'regeleinde vóór ;', kop: 'DATA\n;' },
@@ -67,7 +74,7 @@ export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
   { id: 'kaal-commentaar', norm: 'commentaar vóór ;', kop: 'DATA/*c*/;' },
   { id: 'kaal-gemengd', norm: 'witruimte, commentaar en regeleinde vóór ;', kop: 'DATA /*c*/ \n ;' },
   { id: 'param', norm: 'met parameters', kop: `DATA${P};` },
-  { id: 'param-klein', norm: 'met parameters, kleine letters', kop: `data${P};`, buitenNorm: true },
+  { id: 'param-klein', norm: 'met parameters, kleine letters', kop: `data${P};`, buitenNorm: true, scannerWeigert: true },
   { id: 'param-spatie', norm: 'witruimte vóór (', kop: `DATA ${P};` },
   { id: 'param-tab', norm: 'tab vóór (', kop: `DATA\t${P};` },
   { id: 'param-lf', norm: 'regeleinde vóór (', kop: `DATA\n${P};` },
@@ -83,7 +90,16 @@ export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
   { id: 'na-endsec-commentaar', norm: 'commentaar en witruimte na ENDSEC;', kop: `DATA${P};`, overgang: 'ENDSEC; /*c*/ \n ' },
   { id: 'na-endsec-spatie', norm: 'witruimte vóór de ; van ENDSEC', kop: `DATA ${P};`, overgang: 'ENDSEC ;\n' },
   { id: 'na-endsec-commentaar-binnen', norm: 'commentaar vóór de ; van ENDSEC', kop: `DATA${P};`, overgang: 'ENDSEC/*c*/;\n' },
-  { id: 'na-endsec-klein', norm: 'endsec; in kleine letters', kop: `DATA ${P};`, overgang: 'endsec;\n', buitenNorm: true },
+  { id: 'na-endsec-klein', norm: 'endsec; in kleine letters', kop: `DATA ${P};`, overgang: 'endsec;\n', buitenNorm: true, scannerWeigert: true },
+  // Stuurtekens vallen weg, ook midden in een token (§5.2, §5.6), en `\N\` en `\F\` zijn scheiding (review ronde 4, Sol).
+  { id: 'regeleinde-in-data', norm: 'regeleinde midden in DATA', kop: `DA\r\nTA${P};`, scannerWeigert: true },
+  { id: 'tab-in-data', norm: 'tab midden in DATA', kop: `DAT\tA ${P};`, scannerWeigert: true },
+  { id: 'regeleinde-in-endsec', norm: 'regeleinde midden in ENDSEC', kop: `DATA ${P};`, overgang: 'END\nSEC;/*x*/', scannerWeigert: true },
+  { id: 'tab-in-endsec', norm: 'tab midden in ENDSEC', kop: `DATA ${P};`, overgang: 'EN\tDSEC;\n', scannerWeigert: true },
+  { id: 'afdrukcode-na-endsec', norm: 'afdrukcode \\N\\ tussen ENDSEC; en DATA', kop: `DATA ${P};`, overgang: 'ENDSEC;\\N\\', scannerWeigert: true },
+  { id: 'afdrukcode-in-endsec', norm: 'afdrukcode \\F\\ vóór de ; van ENDSEC', kop: `DATA${P};`, overgang: 'ENDSEC\\F\\;\n', scannerWeigert: true },
+  { id: 'afdrukcode-voor-haakje', norm: 'afdrukcode \\F\\ vóór (', kop: `DATA\\F\\${P};`, scannerWeigert: true },
+  { id: 'afdrukcode-voor-puntkomma', norm: 'afdrukcode \\N\\ vóór ;', kop: 'DATA\\N\\;', scannerWeigert: true },
 ];
 
 /** `text` met elke `ENDSEC;` + regeleinde + `DATA;` in de vorm `vorm` (`alleen: 'eerste'`: alleen de eerste kop). */
@@ -98,9 +114,9 @@ export function metDataKop(text: string, vorm: DataKopVorm, alleen?: 'eerste'): 
 }
 
 /** Elke vorm uit `DATA_KOP_VORMEN` op `text`; bij meer secties ook gemengd: alleen de eerste kop in die vorm. */
-export function dataKopBestanden(text: string, welke: 'alle' | 'norm' | 'buitenNorm' = 'alle'): Array<[string, string]> {
+export function dataKopBestanden(text: string, welke: 'alle' | 'scanner' | 'scannerWeigert' = 'alle'): Array<[string, string]> {
   const sections = text.match(/ENDSEC;\r?\nDATA;/g)?.length ?? 0;
-  const vormen = DATA_KOP_VORMEN.filter(v => welke === 'alle' || (welke === 'buitenNorm') === (v.buitenNorm === true));
+  const vormen = DATA_KOP_VORMEN.filter(v => welke === 'alle' || (welke === 'scannerWeigert') === (v.scannerWeigert === true));
   return vormen.flatMap(vorm => [
     [vorm.id, metDataKop(text, vorm)] as [string, string],
     ...(sections > 1 ? [[`${vorm.id}-eerste`, metDataKop(text, vorm, 'eerste')] as [string, string]] : []),
@@ -122,4 +138,15 @@ export const brokenNameFiles = (text: string): Array<[string, string]> => [
   ['naam-haakje', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't DATA( toren.ifc'")],
   ['naam-commentaar', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't DATA/*x*/(b.ifc'")],
   ['naam-puntkomma', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof; DATA (bouw).ifc'")],
+  // Ronde 4 (Sol en Terra): `ENDSEC;` in de kapotte naam vóór de valse kop.
+  ['naam-endsec-spatie', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't ENDSEC; DATA (bouw).ifc'")],
+  ['naam-endsec-haakje', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof ENDSEC; DATA(bouw).ifc'")],
+  ['naam-endsec-commentaar', text.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't ENDSEC; DATA/*x*/(b.ifc'")],
 ];
+
+/** Terra (review ronde 4): de kapotte naam (`brokenHeader`) samen met elke kopvorm uit de norm. De omgedraaide
+ *  stringtoestand verbergt dan de echte `ENDSEC;`; de regel-verankerde poging moet de kop vinden, ook met commentaar
+ *  tussen `DATA` en `(`. Een vorm die niet aan het begin van een regel staat, vindt `readIFC` dan niet: dan weigert hij
+ *  het bestand (`no-data-section`). Nooit opent hij leeg. */
+export const brokenHeaderDataFiles = (text: string): Array<[string, string]> =>
+  DATA_KOP_VORMEN.filter(v => !v.buitenNorm).map(v => [`kapot-${v.id}`, metDataKop(brokenHeader(text), v)]);
