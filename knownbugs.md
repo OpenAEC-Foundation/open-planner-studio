@@ -2806,14 +2806,14 @@ en noem het in je rapport of PR-tekst.
      bestaande route en lees de kolomkoppen uit de PDF zonder `pdftotext` (bijv. met de PDF-tekstlaag via pdf.js of
      de exportopties die de bouwer ontvangt). — B
 
-1055. **VERVOLG: zoeken en Enter in de kolomkiezer van de stap Kolommen voegt geen kolom toe.** Sinds *Kolom toevoegen*
+1062. **VERVOLG: zoeken en Enter in de kolomkiezer van de stap Kolommen voegt geen kolom toe.** Sinds *Kolom toevoegen*
      het kolomvenster van de tabel gebruikt (`ColumnsEditor.tsx:124`, `ColumnChooser.tsx:300` en `:316`), laat Enter in
      het zoekveld de kiezer open en voegt de enige treffer niet toe. De oude eigen kiezer van #847 deed dat wel. De
      treffer is nog met Tab en Enter bereikbaar. Code-review ronde 6 van #847 (GPT-6.1-Terra): bevestigd in de app met
      `Calendar days`. Voorstel: geef de gedeelde kiezer een Enter-route naar de eerste treffer (dan ook in de tabel) en
      controleer die in de bestaande route van `tests/browser/report-studio.spec.ts`. — B
 
-1056. **VERVOLG: een versleept stapvenster houdt zijn plaats bij een taalwissel naar een RTL-taal.** De plaats van het
+1063. **VERVOLG: een versleept stapvenster houdt zijn plaats bij een taalwissel naar een RTL-taal.** De plaats van het
      zwevende stapvenster (`studioChrome.tsx:147`) volgt een wisseling van de schrijfrichting terwijl het open staat
      niet. Na een taalwissel naar bijv. Arabisch bedekte het venster de zijbalk en de exportknop; sluiten en opnieuw
      openen herstelt het. Code-review ronde 6 van #847 (GPT-6.1-Sol): bevestigd met een taalfixture. Voorstel: reken
