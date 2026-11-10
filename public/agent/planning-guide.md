@@ -51,6 +51,7 @@
 ## Resources
 
 - Start with what pinches; honest `maxUnits`.
+- Fixed amount (permit, inspection): a `COST` resource; assign with `costAmount`, no `unitsPerDay`, also on a milestone. No load, no duration effect.
 - Level only on request after logic/durations; show `dryRun: true` first. Never level a structural shortage: report; user decides capacity/phasing.
 
 ## Float

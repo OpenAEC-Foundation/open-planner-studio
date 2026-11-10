@@ -20,6 +20,8 @@ What needs no permission is the basis of the extension interface: reading the pr
 
 Since extension contract 1.5.0, an extension can also read the selected task IDs with `data.getSelectedTaskIds()`. This does not change the selection or add write access; it belongs to the ordinary project data without an extra permission.
 
+Since extension contract 1.6.0 the resource type also has `COST` (a cost resource) and an assignment carries the field `costAmount`, the fixed amount. Reading and writing fall under the same permissions as the other resource fields.
+
 ## How the app asks
 
 On installing, from the catalogue (*File › Extensions › Browse › Install*) or from a file (*ZIP* or *JS*), the app shows the window *Install extension?*. The question comes once, at install time: not every time you switch the extension on.

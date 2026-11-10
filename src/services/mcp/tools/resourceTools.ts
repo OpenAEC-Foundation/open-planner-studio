@@ -40,7 +40,7 @@ import {
   booleanArgReason, enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS,
 } from './helpers';
 import type { AppState } from '@/state/appStore';
-import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
+import { RESOURCE_TYPES as ALL_RESOURCE_TYPES, type AvailabilityStep, type Resource, type ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
 // slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
@@ -51,7 +51,7 @@ type Rejection = { id: string; reason: string };
 type StoreState = AppState;
 
 /** Het volledige `ResourceType`-domein (types/resource.ts). Hoofdlettergevoelig, net als elders. */
-const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
+const RESOURCE_TYPES: readonly ResourceType[] = ALL_RESOURCE_TYPES;
 
 /**
  * De SCHRIJFBARE velden. Bewust exact het oppervlak dat de mens in het resourcepaneel heeft
@@ -286,7 +286,24 @@ function classifyResources(
    * Verwijzings-checks die de simulatie nodig hebben (kalender, ploeg, meeteenheid-op-materiaal).
    * `selfId` is het (sim-)id van de resource zelf; `effectiveType` het type ná deze patch.
    */
-  const referenceReason = (patch: FieldPatch, selfId: string, effectiveType: ResourceType): string | null => {
+  const referenceReason = (patch: FieldPatch, selfId: string, effectiveType: ResourceType, currentType?: ResourceType): string | null => {
+    // Kostenresource (issue #815): geen typewissel over de COST-grens met toewijzingen, en geen
+    // tarief, eenheid, kalender, stappen, ploeg of max. eenheden ≠ 1.
+    if (currentType !== undefined && patch.type !== undefined && patch.type !== currentType
+      && (currentType === 'COST' || patch.type === 'COST') && assignmentsOf(selfId).length > 0) {
+      return `resource '${selfId}' still has ${assignmentsOf(selfId).length} assignment(s); a type change to or from ` +
+        'COST is refused while it has assignments (units and work cannot be turned into an amount and back). ' +
+        'Remove the assignments first with planner_manage_assignments (`remove`).';
+    }
+    if (effectiveType === 'COST') {
+      const bad = (['costPerHour', 'unitOfMeasure', 'calendarId', 'availabilitySteps', 'parentId'] as const)
+        .filter((k) => patch[k] !== undefined);
+      if (patch.maxUnits !== undefined && patch.maxUnits !== 1) bad.push('maxUnits' as never);
+      if (bad.length > 0) {
+        return `a COST resource has no ${bad.join(', ')}: it carries a fixed amount per assignment ` +
+          '(planner_manage_assignments `costAmount`), no rate, capacity, calendar, unit or crew';
+      }
+    }
     if (patch.calendarId !== undefined) {
       const calId = patch.calendarId as string;
       if (!calendarIds.has(calId)) {
@@ -392,7 +409,7 @@ function classifyResources(
       const lockBad = libraryLockReason(s, item.id, fields);
       if (lockBad) { rejections.push({ id: item.id, reason: lockBad }); return; }
       const effectiveType = (fields.type as ResourceType) ?? cur.type;
-      const refBad = referenceReason(fields, cur.id, effectiveType);
+      const refBad = referenceReason(fields, cur.id, effectiveType, cur.type);
       if (refBad) { rejections.push({ id: item.id, reason: refBad }); return; }
       // Simulatie bijwerken zodat latere items tegen de NIEUWE stand valideren.
       cur.type = effectiveType;
@@ -554,7 +571,9 @@ const manageResources: BatchStepTool = {
     'planner_manage_assignments. Omitted = unchanged; null clears. Delete clears assignments (needs ' +
     '`cascade: true` if any); deleting CREW clears members\' `parentId`. Create `tempId` maps in `created` ' +
     'for later steps of this planner_batch. Library locks name/type/description/costPerHour/unitOfMeasure: ' +
-    'offer library change or unlinking.',
+    'offer library change or unlinking. COST: a fixed amount per assignment (planner_manage_assignments ' +
+    '`costAmount`), no costPerHour/unitOfMeasure/calendarId/availabilitySteps/parentId, maxUnits 1; no ' +
+    'load or leveling; no type change to or from COST while it has assignments.',
   kind: 'mutate',
   batchable: true,
   // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.
@@ -576,8 +595,8 @@ const manageResources: BatchStepTool = {
             name: { type: 'string' },
             type: {
               type: 'string',
-              enum: ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'],
-              description: 'Default LABOR.',
+              enum: ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW', 'COST'],
+              description: 'Default LABOR. COST = a fixed amount per assignment.',
             },
             description: { type: 'string', description: '"" empties it (not null).' },
             maxUnits: {

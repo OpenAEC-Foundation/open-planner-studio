@@ -180,7 +180,7 @@ const genId = (prefix: string) => `${prefix}-gen-${++n}`;
     libraryOrigin: makeOrigin({ ...p, poolVersion: 3 }, 'pr2'),
   };
   const poolSource = { ...res('pr2', 'Nieuwe naam'), maxUnits: 4, costPerHour: 55 };
-  const updated = applyResourceUpdate(copy, { ...p, resources: [poolSource] });
+  const updated = applyResourceUpdate(copy, { ...p, resources: [poolSource] }, []);
   assert(updated.id === 'local-r', 'applyUpdate: behoudt project-id');
   assert(updated.name === 'Nieuwe naam', 'applyUpdate: neemt pool-naam over (identiteitsveld)');
   assert(updated.costPerHour === 55, 'applyUpdate: neemt pool-costPerHour over (bibliotheekafspraak, RESOURCE_DIFF_FIELDS)');
@@ -202,7 +202,7 @@ const genId = (prefix: string) => `${prefix}-gen-${++n}`;
 {
   const p = pool();
   const copy = { ...res('local-r2', 'Oude naam'), costPerHour: 10, libraryOrigin: makeOrigin(p, 'pr2') };
-  const updated = applyResourceUpdate(copy, { ...p, resources: [{ ...res('pr2', 'Oude naam'), costPerHour: 999 }] });
+  const updated = applyResourceUpdate(copy, { ...p, resources: [{ ...res('pr2', 'Oude naam'), costPerHour: 999 }] }, []);
   assert(updated.costPerHour === 999, 'F1 negatieve controle: costPerHour (bibliotheekafspraak, RESOURCE_DIFF_FIELDS) volgt de pool WEL');
 }
 

@@ -191,6 +191,11 @@ export type NotificationSeverity = 'error' | 'info';
  * Een release vereist volledige, actuele UI-vertalingen in alle 28 talen (`verify:translations`).
  */
 export type NotificationMessageKey =
+  // Bijwerken uit de bibliotheek zou een resource met toewijzingen naar of van een kostenresource
+  // laten wisselen (issue #815); dat gaat niet door.
+  | 'notifications.costTypeChangeRefused'
+  // MSPDI-export liet kostenresources weg (issue #815, deel 1). Parameter `count`.
+  | 'notifications.exportCostResourcesLost'
   // Dezelfde tekst als de hint bij de exportkeuze, na een geslaagde export (`exportProfileNotice`).
   | 'menu:export.profileHint'
   | 'notifications.minuteModelConverted'
@@ -267,6 +272,9 @@ export type NotificationMessageKey =
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'
+  // Plakken: toewijzingen waarvan de soort (kosten of werk) of de mijlpaalregel niet past, zijn
+  // overgeslagen (`notifyAssignmentsSkipped`, #815). Meervoud, `count`.
+  | 'notifications.assignmentsSkippedOnPaste'
   // Structuurovergangen met toewijzingen (`src/state/structuralTransition.ts`):
   // wordt mijlpaal ⇒ weigeren; wordt fase ⇒ toewijzingen naar de eerste nieuwe subtaak, of weigeren
   // als dat niet schoon kan; een mijlpaal die kinderen krijgt verliest zijn mijlpaalvlag.

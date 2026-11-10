@@ -8,7 +8,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve } from '@/types/resource';
+import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve, clearCostResourceFields, normalizeAssignmentForResource, type ResourceType } from '@/types/resource';
 import { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile, isIfcSchemaId, type IfcSchemaId } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException, type WorkTimeBands } from '@/types/calendar';
 import { DEFAULT_CALENDAR_ID, createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -25,7 +25,7 @@ import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
-  DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
+  DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
 import {
   OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
@@ -277,6 +277,9 @@ export function readIFC(
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
+  // Kostenresources (issue #815): geen tarief/kalender/eenheid/ploeg en toewijzingen zonder werkvelden
+  // (een bestand van een andere schrijver of een handmatige bewerking kan ze toch dragen).
+  normalizeCostResources(resources, assignments);
   // task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
   // van waarheid voor de taak↔resource-koppeling in het bestand (geen dubbele opslag) — de reader
   // projecteert ze terug op elke taak. Deterministische, gede-dupliceerde volgorde (eerste-zien in
@@ -2431,8 +2434,14 @@ function extractResources(
   for (const e of entities) {
     // IFC-entiteit → resource-type via de gedeelde inverse-map (incl. de inkomende-alleen
     // IFCCONSTRUCTIONPRODUCTRESOURCE→EQUIPMENT-alias).
-    const resType = IFC_TO_RESOURCE_TYPE[e.type];
-    if (!resType) continue;
+    const mappedType = IFC_TO_RESOURCE_TYPE[e.type];
+    if (!mappedType) continue;
+    // Kostenresource (issue #815): materiaalentiteit met ObjectType 'COST' en `.USERDEFINED.`.
+    const resType: ResourceType = mappedType === 'MATERIAL'
+      && ifcSlotText(e.args[4]) === COST_RESOURCE_OBJECT_TYPE
+      && (e.args[10] ?? '').trim().toUpperCase() === '.USERDEFINED.'
+      ? 'COST'
+      : mappedType;
 
     const id = stableIdFromGuid('res', 'res', e, usedIds, guidLog);
     resourceStepIdMap.set(e.id, id);
@@ -3337,6 +3346,8 @@ interface WindowMeta {
   remainingWorkMinutes?: number;
   /** Begroot tempo naast een P6-resttempo, zie `ResourceAssignment.plannedUnitsPerDay`. */
   plannedUnitsPerDay?: number;
+  /** Begroot bedrag van een kostentoewijzing (issue #815), zie `ResourceAssignment.costAmount`. */
+  costAmount?: number;
 }
 
 /** Eindig, niet-negatief werkgetal uit het JSON-blob; al het andere blijft weg (nooit NaN in de state). */
@@ -3406,6 +3417,8 @@ function extractAssignments(
         const remaining = workMinutesOf(vv.remainingWorkMinutes);
         // Zelfde validatie als de werkvelden: eindig en niet-negatief, anders weg (nooit NaN).
         const plannedUnits = workMinutesOf(vv.plannedUnitsPerDay);
+        // Bedrag: eindig en ≥ 0, anders weg (dezelfde regel als `isValidCostAmount`).
+        const costAmount = workMinutesOf(vv.costAmount);
         const meta: WindowMeta = {
           ...(typeof vv.workWindowStart === 'string' ? { workWindowStart: vv.workWindowStart } : {}),
           ...(typeof vv.workWindowFinish === 'string' ? { workWindowFinish: vv.workWindowFinish } : {}),
@@ -3414,6 +3427,7 @@ function extractAssignments(
           ...(actual !== undefined ? { actualWorkMinutes: actual } : {}),
           ...(remaining !== undefined ? { remainingWorkMinutes: remaining } : {}),
           ...(plannedUnits !== undefined ? { plannedUnitsPerDay: plannedUnits } : {}),
+          ...(costAmount !== undefined ? { costAmount } : {}),
         };
         if (Object.keys(meta).length === 0) continue;
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
@@ -3515,11 +3529,21 @@ function extractAssignments(
         ...(window?.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: window.plannedWorkMinutes } : {}),
         ...(window?.actualWorkMinutes !== undefined ? { actualWorkMinutes: window.actualWorkMinutes } : {}),
         ...(window?.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: window.remainingWorkMinutes } : {}),
+        ...(window?.costAmount !== undefined ? { costAmount: window.costAmount } : {}),
       });
     }
   }
 
   return assignments;
+}
+
+/** Kostenresources (issue #815) en hun toewijzingen schoonmaken: geen tarief, kalender, stappen,
+ *  eenheid of ploeg, max. eenheden 1; toewijzingen met inzet 1 en zonder werkvelden. Een bedrag op
+ *  een toewijzing aan een andere resource valt weg. Muteert in-place. */
+function normalizeCostResources(resources: Resource[], assignments: ResourceAssignment[]): void {
+  const byId = new Map(resources.map(r => [r.id, r]));
+  for (const r of resources) if (r.type === 'COST') clearCostResourceFields(r);
+  for (const a of assignments) normalizeAssignmentForResource(a, byId.get(a.resourceId));
 }
 
 /** Zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */

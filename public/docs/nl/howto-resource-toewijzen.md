@@ -16,7 +16,7 @@ Je kunt een resource op twee manieren toewijzen. De resource moet al bestaan (zi
 
 ### Via het lint
 
-1. Selecteer één taak in de takenlijst. Het moet een gewone taak zijn, geen mijlpaal en geen fase.
+1. Selecteer één taak in de takenlijst. Het moet een gewone taak zijn, geen fase. Op een mijlpaal toont het venster alleen kostenresources.
 2. Kies *Resources › Toewijzing › Toewijzen ▾*.
 3. Vul in het venster de *Eenh./dag* in (standaard 1) en kies de *Curve* (standaard *Uniform*). Ze gelden voor de resource die je nu kiest.
 4. Klik op de resource. Het venster sluit en de toewijzing staat er.
@@ -48,7 +48,7 @@ De curve verandert alleen de verdeling. De duur, de datums en het totaal blijven
 
 **Een curve kan de piek boven je inzet uitduwen.** Bij een heel getal als inzet rondt de app de waarde per dag af op hele eenheden, en het totaal blijft gelijk. Metselaar met inzet 1 op het buitenspouwblad en de curve *Klokvorm* geeft 0, 1, 2, 2, 1, 0. Op de twee middelste dagen is dat 2 eenheden tegenover een *Max. eenheden* van 1. Het histogram kleurt die dagen rood en de resource telt als overbezet. Kies een andere curve, of verdeel de uren zelf (zie [Urenverdeling aanpassen](docs://howto-urenverdeling-aanpassen)). Bij een inzet als 0,5 rondt de app af op honderdsten. Op een korte taak met een hele inzet wordt de vorm daardoor grof: over 10 dagen geeft *Schildpad* bij inzet 1 de verdeling 0, 1, 1, 2, 2, 1, 1, 1, 1, 0, precies dezelfde als *Vroege piek*.
 
-**Geen mijlpaal of fase.** De knop *Toewijzen* is dan uitgeschakeld, en in *Eigenschappen* staat *Toewijzingen zijn niet mogelijk op mijlpalen.* of *Toewijzingen zijn niet mogelijk op samenvattingstaken.*
+**Geen fase, en op een mijlpaal alleen kosten.** Bij een fase is de knop *Toewijzen* uitgeschakeld, en in *Eigenschappen* staat *Toewijzingen zijn niet mogelijk op samenvattingstaken.* Op een mijlpaal kun je alleen een kostenresource toewijzen; zie [Een vast bedrag toekennen](docs://howto-vast-bedrag-toekennen).
 
 **Een resource maar één keer per taak.** Staat de resource al op de taak, dan staat hij niet meer in de lijst. Staan alle resources al op de taak, dan meldt de app *Alle resources zijn al toegewezen.* Bestaat er nog geen resource, dan meldt hij *Maak eerst resources aan (Resources-tab).*
 

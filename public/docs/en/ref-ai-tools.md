@@ -50,8 +50,8 @@ All tools an MCP client can call through the bridge, by group, with what they do
 
 ## Resources and units
 
-- `planner_manage_resources` (change, bulk) — create, change or delete resources: name, type (labor, equipment, material, subcontractor or crew), description, maximum units, cost per hour, unit, calendar, crew and availability over time. It refuses to delete a resource that has assignments until the MCP client confirms explicitly. For a resource from a library, name, type, description, hourly rate and unit are fixed.
-- `planner_manage_assignments` (change, bulk) — add, change, move or remove assignments: units per working day, curve and remaining work. Only on a leaf task, and the same resource only once per task. What a change in units does to the duration depends on the task type of the task, as in [Choosing a task type](docs://howto-werkregel-kiezen).
+- `planner_manage_resources` (change, bulk) — create, change or delete resources: name, type (labor, equipment, material, subcontractor, crew or cost), description, maximum units, cost per hour, unit, calendar, crew and availability over time. It refuses to delete a resource that has assignments until the MCP client confirms explicitly. For a resource from a library, name, type, description, hourly rate and unit are fixed.
+- `planner_manage_assignments` (change, bulk) — add, change, move or remove assignments: units per working day, curve and remaining work, or for a cost resource only a fixed amount (`costAmount`). Only on a leaf task (a milestone only takes a cost resource), and the same resource only once per task. What a change in units does to the duration depends on the task type of the task, as in [Choosing a task type](docs://howto-werkregel-kiezen).
 - `planner_level_resources` (change) — level overallocation. Within the float by default, so the end date stays; with `constrainToFloat: false` the end may move. With a dry run the MCP client first gets a preview without changing anything. It skips material. See [Resolving overallocation](docs://howto-overbezetting-oplossen).
 - `planner_clear_leveling` (change) — clear all leveling delays.
 

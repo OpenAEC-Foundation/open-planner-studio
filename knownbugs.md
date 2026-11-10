@@ -812,6 +812,22 @@ en noem het in je rapport of PR-tekst.
    uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
    geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
    terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
+951. **Een fase-overgang verplaatst een kostentoewijzing nooit naar een mijlpaal-subtaak.** Krijgt een taak met
+     alleen kostentoewijzingen (#815) haar eerste kinderen, dan biedt de vraag *verplaatsen* alleen een subtaak aan
+     die geen mijlpaal is (`src/state/structuralTransition.ts:131`, `!child.isMilestone`). Een kostenresource mag
+     sinds #815 wel op een mijlpaal. Zijn alle nieuwe subtaken mijlpalen, dan blijft alleen *verwijderen* over.
+     Zeldzaam; het verlies is zichtbaar en vraagt een keuze van de planner. Voorstel: `canCarry` per toewijzing
+     laten afhangen van het resourcetype. Gezien in de code tijdens #815, niet nagespeeld. — S
+952. **VERVOLG: `data.loadProject` zet een oud werkveld terug op een toewijzing die COST is geworden.**
+     `src/extensions/retainActiveDocument.ts` controleert de extensie-invoer (regel 216) en herstelt daarna het
+     niet-publieke `plannedUnitsPerDay` op dezelfde toewijzings-id (regel 154). Voorbeeld: een werktoewijzing met
+     inzet 1 en `plannedUnitsPerDay: 2` (uit P6). Een extensie levert voor dezelfde id een geldige COST-snapshot
+     met bedrag 1250,55. Daarna draagt de live COST-toewijzing toch `plannedUnitsPerDay: 2`. Na IFC-heropening is
+     het veld weg; het bedrag blijft en de planning verandert niet. Zeldzaam: het vraagt een extensie, een
+     typewissel en bronmetadata uit P6. Voorstel: bij het herstel dit werkveld niet op COST terugzetten, en het
+     uiteindelijke laadresultaat valideren vóór `loadState`. Uit review ronde 6 van PR #849 door Sol (GPT-6.1-Sol,
+     xhigh), VERVOLG. — B
+
 920. **VERVOLG: "Kolommen automatisch aanpassen" meet bij elke ronde alle taakrijen opnieuw.**
      `src/components/task-grid/FullTaskGrid.tsx` (`computeAutoFitWidth`) en `TaskGrid.tsx` (het effect met
      `onComputeAutoFitWidth`). Elke meetronde verwerkt alle zichtbare taakrijen, ook bij een wijziging die geen

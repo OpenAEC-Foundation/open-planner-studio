@@ -147,6 +147,18 @@ export function notifyReferencesCleared(notify: (n: NotifyInput) => void, count:
   });
 }
 
+/** Eén melding voor toewijzingen die bij plakken zijn overgeslagen omdat de soort (kosten of werk) niet
+ *  past bij de doelresource, of omdat een mijlpaal alleen kosten draagt (issue #815). */
+export function notifyAssignmentsSkipped(notify: (n: NotifyInput) => void, count: number): void {
+  if (count <= 0) return;
+  notify({
+    severity: 'info',
+    messageKey: 'notifications.assignmentsSkippedOnPaste',
+    params: { count },
+    dedupeKey: 'assignments-skipped-on-paste',
+  });
+}
+
 /**
  * WBS-codes voor zojuist ingevoegde taken: bij auto-nummering de hele boom, anders alleen de
  * ingevoegde ids een afgeleide code — anders dupliceren ze de code van hun bron letterlijk of

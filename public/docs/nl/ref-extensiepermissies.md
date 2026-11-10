@@ -20,6 +20,8 @@ Wat geen permissie nodig heeft, is de basis van de extensie-interface: het proje
 
 Sinds extensiecontract 1.5.0 kan een extensie ook de geselecteerde taak-ID’s lezen via `data.getSelectedTaskIds()`. Dit verandert de selectie niet en geeft geen schrijfrecht erbij; het hoort bij de gewone projectgegevens zonder extra permissie.
 
+Sinds extensiecontract 1.6.0 kent het resourcetype ook `COST` (een kostenresource) en draagt een toewijzing het veld `costAmount`, het vaste bedrag. Lezen en schrijven vallen onder dezelfde permissies als de andere resourcevelden.
+
 ## Hoe de app erom vraagt
 
 Bij het installeren, uit de catalogus (*Bestand › Extensies › Bladeren › Installeren*) of vanuit een bestand (*ZIP* of *JS*), toont de app het venster *Extensie installeren?*. De vraag komt één keer, bij het installeren: niet bij elke keer dat je de extensie aanzet.

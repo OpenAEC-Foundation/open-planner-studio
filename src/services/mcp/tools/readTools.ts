@@ -517,6 +517,8 @@ function getTask(s: AppState, args: GetTaskArgs) {
       ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
       ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
       ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
+      // Begroot bedrag van een kostentoewijzing (issue #815), alleen wanneer gezet.
+      ...(a.costAmount !== undefined ? { costAmount: a.costAmount } : {}),
     }));
 
   const predecessors = s.sequences
@@ -754,13 +756,16 @@ function listResources(s: AppState, args: PageArgs) {
   requireOnlyKeys(args, PAGE_KEYS, 'list_resources');
   requirePageArgs(args);
   // Toewijzings-samenvatting per resource (aantal toewijzingen, aantal betrokken taken, som units/dag).
-  const byRes = new Map<string, { assignments: number; tasks: Set<string>; totalUnits: number }>();
+  // Een kostenresource (issue #815) telt geen inzet; zijn bedragen tellen op tot `totalCostAmount`.
+  const costIds = new Set(s.resources.filter((r) => r.type === 'COST').map((r) => r.id));
+  const byRes = new Map<string, { assignments: number; tasks: Set<string>; totalUnits: number; totalCost: number }>();
   for (const a of s.assignments) {
     let e = byRes.get(a.resourceId);
-    if (!e) { e = { assignments: 0, tasks: new Set(), totalUnits: 0 }; byRes.set(a.resourceId, e); }
+    if (!e) { e = { assignments: 0, tasks: new Set(), totalUnits: 0, totalCost: 0 }; byRes.set(a.resourceId, e); }
     e.assignments += 1;
     e.tasks.add(a.taskId);
-    e.totalUnits += a.unitsPerDay;
+    if (costIds.has(a.resourceId)) e.totalCost += a.costAmount ?? 0;
+    else e.totalUnits += a.unitsPerDay;
   }
   const paged = paginate(s.resources, args);
   const rows = paged.items.map((r) => {
@@ -774,6 +779,7 @@ function listResources(s: AppState, args: PageArgs) {
       assignedTaskCount: e ? e.tasks.size : 0,
       totalUnitsPerDay: e ? Math.round(e.totalUnits * 100) / 100 : 0,
     };
+    if (r.type === 'COST') row.totalCostAmount = e ? Math.round(e.totalCost * 100) / 100 : 0;
     if (typeof r.costPerHour === 'number') row.costPerHour = r.costPerHour;
     if (r.unitOfMeasure) row.unitOfMeasure = r.unitOfMeasure;
     if (r.calendarId) row.calendarId = r.calendarId;
@@ -846,6 +852,14 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
     if (unknown.length > 0) {
       throw new McpStepError('VALIDATION',
         `unknown resource id(s): ${unknown.join(', ')} — get valid ids with planner_list_resources.`);
+    }
+    // Een kostenresource heeft geen belasting en dus geen histogram (issue #815).
+    const costIds = new Set(ctx.app.store.getState().resources.filter((r) => r.type === 'COST').map((r) => r.id));
+    const cost = (args.resourceIds as string[]).filter((id) => costIds.has(id));
+    if (cost.length > 0) {
+      throw new McpStepError('VALIDATION',
+        `resource(s) ${cost.join(', ')} are COST resources: a fixed amount per assignment, no load and no ` +
+        'histogram. Leave them out of `resourceIds`.');
     }
     resourceIds = args.resourceIds as string[];
   }
@@ -1216,7 +1230,8 @@ export const readTools: McpToolDef[] = [
     name: 'planner_list_resources',
     description:
       'Resources with capacity and an assignment summary, paged like planner_list_tasks; field names as in ' +
-      'planner_manage_resources.',
+      'planner_manage_resources. A COST resource has no units; it gets `totalCostAmount` (sum of its ' +
+      '`costAmount`).',
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1233,7 +1248,7 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_resource_histogram',
     description:
-      'Resource load against capacity. Without `resourceIds` and `van`/`tot` (ISO dates) a summary per ' +
+      'Resource load against capacity; COST resources have no load (a COST id is refused). Without `resourceIds` and `van`/`tot` (ISO dates) a summary per ' +
       'resource (`peakLoad`, `overallocatedDayCount`); with either, buckets per period (`load` = sum over the ' +
       'bucket). Week buckets snap to whole ISO weeks (Mon–Sun), so days outside [van, tot] can count.',
     kind: 'read',

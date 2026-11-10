@@ -38,6 +38,7 @@ import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDe
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
+import type { Resource } from '@/types/resource';
 import type { Project } from '@/types/project';
 import { refreshProjectCalendarCache } from '../syncProjectCalendar';
 import { stripLibraryOrigins } from '@/services/library/libraryOps';
@@ -363,6 +364,17 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
   if (format !== 'mspdi' && format !== 'p6') return null;
   const count = countSplitTasksWithoutContour(tasks);
   return count > 0 ? { severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count } } : null;
+}
+
+/**
+ * MSPDI schrijft in deze versie geen kostenresources (issue #815, deel 1; MS Project-ondersteuning
+ * volgt in deel 2). Na een geslaagde MSPDI-export noemt deze melding hoeveel kostenresources met hun
+ * bedragen zijn weggelaten. XER en P6 XML tellen het in hun eigen verliesmelding (`costResources`).
+ */
+export function exportCostResourcesLostNotice(format: ExportFormat, resources: readonly Pick<Resource, 'type'>[]): NotifyInput | null {
+  if (format !== 'mspdi') return null;
+  const count = resources.filter(r => r.type === 'COST').length;
+  return count > 0 ? { severity: 'info', messageKey: 'notifications.exportCostResourcesLost', params: { count } } : null;
 }
 
 /**
@@ -1759,6 +1771,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
       const splitsLost = exportSplitsLostNotice(format, state.tasks);
       if (splitsLost) get().notify(splitsLost);
+      const costLost = exportCostResourcesLostNotice(format, state.resources);
+      if (costLost) get().notify(costLost);
       const truncated = exportP6TruncatedNotice(format, p6Truncated);
       if (truncated) get().notify(truncated);
       const invalidChars = exportInvalidXmlCharsNotice(format, invalidXmlChars);

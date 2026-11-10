@@ -305,7 +305,7 @@ const TM = {
   p6SuspendResume: true,
   isSummary: false,
   parentId: 't-p', childIds: [],
-  resourceIds: [], // milestone zonder assignments ⇒ afgeleide resourceIds is leeg (H2-fix)
+  resourceIds: ['r-cost'], // kostenresource op de mijlpaal (#815, a5); afgeleid uit de assignments (H2-fix)
   color: '#abcdef', // round-trippt via OPS_TaskAppearance (H2-fix)
   isHammock: true,
   activityCodes: { 'act-loc': 'v-b1', 'act-dis': 'v-ruw' },
@@ -346,13 +346,13 @@ const TM = {
 const TX: Task = {
   id: 't-x', name: 'Ruwbouw', description: 'Casco', wbsCode: '1.2',
   taskType: 'DEMOLITION', status: 'NOT_STARTED', isMilestone: false, priority: 500,
-  parentId: 't-p', childIds: [], resourceIds: ['r-mem'], // afgeleid uit a1/a2 (H2-fix)
+  parentId: 't-p', childIds: [], resourceIds: ['r-mem', 'r-cost'], // afgeleid uit a1/a2/a4 (H2-fix)
   time: plainTime('2026-07-06', '2026-07-10', 5),
 };
 const TY: Task = {
   id: 't-y', name: 'Installaties', description: 'E+W', wbsCode: '1.3',
   taskType: 'LOGISTIC', status: 'NOT_STARTED', isMilestone: false, priority: 500,
-  parentId: 't-p', childIds: [], resourceIds: ['r-eq'], // afgeleid uit a3 (H2-fix)
+  parentId: 't-p', childIds: [], resourceIds: ['r-eq', 'r-cost'], // afgeleid uit a3/a6 (H2-fix)
   time: plainTime('2026-07-13', '2026-07-17', 5),
 };
 const tasks: Task[] = [TP, TM, TX, TY];
@@ -388,13 +388,17 @@ const RMember = {
 const REquip: Resource = { id: 'r-eq', name: 'Torenkraan', type: 'EQUIPMENT', description: 'Liebherr 200', maxUnits: 2 };
 const RMat: Resource = { id: 'r-mat', name: 'Beton C30', type: 'MATERIAL', description: 'Stortbeton', maxUnits: 1, unitOfMeasure: 'm3' };
 const RSub: Resource = { id: 'r-sub', name: 'Installateur BV', type: 'SUBCONTRACTOR', description: 'Onderaannemer', maxUnits: 1 };
+// Kostenresource (#815): IFCCONSTRUCTIONMATERIALRESOURCE met ObjectType 'COST' + .USERDEFINED.
+const RCost: Resource = { id: 'r-cost', name: 'Leges vergunning', type: 'COST', description: 'Vast bedrag', maxUnits: 1 };
 const RCrewBeta: Resource = { ...RCrew, id: 'r-beta', name: 'Ploeg Beta' };
 const RCrewEmpty: Resource = { ...RCrew, id: 'r-empty', name: 'Lege ploeg' };
 const resources: Resource[] = [
   { ...RMember, id: 'r-beta-lid', name: 'Lid Beta', parentId: RCrewBeta.id }, RCrewBeta,
-  RMember, RCrewEmpty, RCrew, REquip, RMat, RSub,
+  RMember, RCrewEmpty, RCrew, REquip, RMat, RSub, RCost,
   { ...RMember, id: 'r-alpha-tweede', name: 'Tweede lid Alpha' },
 ];
+/** Namen van de kostenresources: alleen daar is `costAmount` data (zie ASSIGNMENT_CANON). */
+const COST_RESOURCE_NAMES = new Set([RCost.name]);
 
 // ── Toewijzingen: incl. twee assignments van DEZELFDE resource op één taak (M3-uniciteit) + curve ─
 const A1 = {
@@ -410,11 +414,19 @@ const A1 = {
   // Taaktypes-etappe (spec §4.3): drie werkvelden in minuten, onderscheidend (begroot ≠ verricht + rest,
   // zodat een writer die één veld uit de andere afleidt niet stil goedgekeurd wordt).
   plannedWorkMinutes: 9600, actualWorkMinutes: 4800, remainingWorkMinutes: 7200,
+  // Kostenresource (#815): een bedrag op een WERKresource is geen data; de lezer laat het vallen
+  // (`normalizeCostResources`). De cel in ASSIGNMENT_CANON vergelijkt het daarom alleen op een
+  // kostenresource; a4–a6 dragen het echte bedrag, de check onder "#815" toetst het wegvallen hier.
+  costAmount: 99,
 } satisfies Required<ResourceAssignment>;
 const assignments: ResourceAssignment[] = [
   A1,
   { id: 'a2', taskId: 't-x', resourceId: 'r-mem', unitsPerDay: 1, curve: 'LATE_PEAK' },
   { id: 'a3', taskId: 't-y', resourceId: 'r-eq', unitsPerDay: 1 }, // geen curve → UNIFORM-normalisatie
+  // Kostenresource (#815): bedrag met centen, 0 op de mijlpaal, en zonder bedrag.
+  { id: 'a4', taskId: 't-x', resourceId: 'r-cost', unitsPerDay: 1, costAmount: 1250.55 },
+  { id: 'a5', taskId: 't-m', resourceId: 'r-cost', unitsPerDay: 1, costAmount: 0 },
+  { id: 'a6', taskId: 't-y', resourceId: 'r-cost', unitsPerDay: 1 },
 ];
 
 // ── Project incl. schedulingOptions/statusDate/progressMode/wbsAutoNumber ─────────────────────────
@@ -782,6 +794,11 @@ const ASSIGNMENT_CANON = {
   curveValues: KEEP,
   // Taaktypes-etappe (spec §4.3): de drie werkvelden in hetzelfde JSON-blob — echte KEEP.
   plannedWorkMinutes: KEEP, actualWorkMinutes: KEEP, remainingWorkMinutes: KEEP,
+  // Kostenresource (#815): het bedrag in hetzelfde `OPS_Timephased`-blob — KEEP op een kostenresource;
+  // op een werkresource is het geen data (de lezer wist het, zie A1).
+  costAmount: {
+    get: (a: ResourceAssignment, k: Keys) => (COST_RESOURCE_NAMES.has(k.res(a.resourceId)) ? a.costAmount : undefined),
+  },
 } satisfies CanonSpec<ResourceAssignment>;
 
 const PROJECT_CANON = {
@@ -980,6 +997,39 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const duplicate = readIFC(duplicateLines.join('\n'));
   assert(!hasP6BoundarySequence(duplicate),
     'twee geldig gekoppelde OPS_Sequences-bronnen zijn ambigu en falen gesloten');
+}
+
+// Kostenresource (#815): drager, markering, bedrag in het blob, en wat de lezer normaliseert.
+{
+  const costLine = firstIfc.split('\n').find(line => line.includes('IFCCONSTRUCTIONMATERIALRESOURCE(') && line.includes("'Leges vergunning'"));
+  assert(!!costLine && costLine.includes(",'COST',") && costLine.endsWith('.USERDEFINED.);'),
+    `#815: kostenresource als IFCCONSTRUCTIONMATERIALRESOURCE met ObjectType 'COST' en .USERDEFINED. (kreeg ${costLine})`);
+  const matLine = firstIfc.split('\n').find(line => line.includes('IFCCONSTRUCTIONMATERIALRESOURCE(') && line.includes("'Beton C30'"));
+  assert(!!matLine && !matLine.includes(",'COST',"), '#815: gewoon materiaal krijgt geen COST-markering');
+  for (const [label, rt] of [['rt1', rt1], ['rt2', rt2]] as const) {
+    const cost = rt.resources.find(r => r.name === 'Leges vergunning');
+    assert(cost?.type === 'COST', `#815 ${label}: kostenresource leest terug als COST (kreeg ${cost?.type})`);
+    const mat = rt.resources.find(r => r.name === 'Beton C30');
+    assert(mat?.type === 'MATERIAL', `#815 ${label}: materiaal blijft MATERIAL`);
+    const costOn = (wbs: string) => rt.assignments.find(a => a.resourceId === cost?.id
+      && rt.tasks.find(t => t.id === a.taskId)?.wbsCode === wbs);
+    assert(costOn('1.2')?.costAmount === 1250.55, `#815 ${label}: bedrag met centen blijft 1250.55 (kreeg ${costOn('1.2')?.costAmount})`);
+    assert(costOn('1.1')?.costAmount === 0, `#815 ${label}: bedrag 0 op de mijlpaal blijft 0 (kreeg ${costOn('1.1')?.costAmount})`);
+    assert(!!costOn('1.3') && costOn('1.3')!.costAmount === undefined, `#815 ${label}: zonder bedrag blijft zonder bedrag`);
+    const a1Back = rt.assignments.find(a => a.unitsPerDay === 2 && rt.resources.find(r => r.id === a.resourceId)?.name === 'Timmerman Jan');
+    assert(!!a1Back && a1Back.costAmount === undefined, '#815: een bedrag op een werkresource valt bij het lezen weg');
+  }
+  // Een kostenresource met werkvelden (handbewerkt bestand): de lezer zet inzet 1 en wist werk/curve.
+  const dirty = writeIFC({
+    ...fixture,
+    assignments: [...fixture.assignments.filter(a => a.id !== 'a4'),
+      { id: 'a4', taskId: 't-x', resourceId: 'r-cost', unitsPerDay: 3, curve: 'BELL', remainingWorkMinutes: 600, costAmount: 10 }],
+  });
+  const dirtyBack = readIFC(dirty);
+  const dirtyCost = dirtyBack.resources.find(r => r.name === 'Leges vergunning');
+  const dirtyA4 = dirtyBack.assignments.find(a => a.resourceId === dirtyCost?.id && a.costAmount === 10);
+  assert(!!dirtyA4 && dirtyA4.unitsPerDay === 1 && dirtyA4.remainingWorkMinutes === undefined && dirtyA4.curve === undefined,
+    `#815: werkvelden op een kostentoewijzing worden bij lezen gewist (kreeg ${JSON.stringify(dirtyA4)})`);
 }
 
 {
@@ -2293,7 +2343,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 {
   const ifc14 = writeIFC(fixture);
   const lines14 = ifc14.split('\n');
-  const windowsIdx = lines14.findIndex(l => l.includes("IFCPROPERTYSINGLEVALUE('Windows',"));
+  // Sinds #815 heeft ook de mijlpaal een blob (alleen een bedrag): zoek het blob met het venster van A1.
+  const windowsIdx = lines14.findIndex(l => l.includes("IFCPROPERTYSINGLEVALUE('Windows',") && l.includes('workWindowStart'));
   assert(windowsIdx >= 0, 'kon de Windows-property niet vinden (verwacht op t-x, A1 heeft een workWindow)');
   const corruptedWindowsLine = lines14[windowsIdx].replace(/IFCTEXT\('[^']*'\)/, "IFCTEXT('{niet geldige json')");
   assert(corruptedWindowsLine !== lines14[windowsIdx], 'kon de Windows-waarde niet corrumperen');

@@ -367,7 +367,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       // Dezelfde "wordt mijlpaal"-regel als paneel, dialoog, contextmenu, store en raster.
       const refusal = milestoneRefusal(ctx);
       if (refusal === 'summary') return { ok: false, reason: 'a summary task (with children) cannot become a milestone' };
-      if (refusal === 'assignments') return { ok: false, reason: 'a task with resource assignments cannot become a milestone; remove the assignments first' };
+      if (refusal === 'assignments') return { ok: false, reason: 'a task with work or material assignments cannot become a milestone; remove those assignments first (assignments to a COST resource may stay on a milestone)' };
       // Mijlpaal ⇒ duur 0 (en géén achtergebleven minutenduur), spiegelt TaskDialog/TaskMilestoneFields.
       time.scheduleDuration = 0;
       time.durationUnit = 'days';
@@ -566,7 +566,7 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
   isMilestone: {
     type: 'boolean',
     description:
-      'true sets duration 0 (not on a summary task or a task with assignments); false keeps 0 until you send `duration`.',
+      'true sets duration 0 (not on a summary task or a task with work/material assignments; COST may stay); false keeps 0 until you send `duration`.',
   },
   milestoneKind: { type: ['string', 'null'], enum: ['START', 'FINISH', null], description: 'null = automatic.' },
   mandatory: { type: 'boolean', description: 'Reporting marker only.' },

@@ -14,7 +14,7 @@
 // memo-grens kan een renderlus opleveren. Die faalmodus ziet geen enkele headless test.
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
-import type { Resource } from '@/types/resource';
+import { resourceHasLoad, resourceIsLevelable, type Resource } from '@/types/resource';
 import { buildBaselineOverlay, type BaselineOverlay } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
@@ -118,7 +118,8 @@ export function computeContentWidth(
 
 /**
  * Resourcekiezer-lijst onder het histogram: de "alle resources"-somrij plus één rij per resource,
- * elk met de vlag of er overbelaste dagen zijn. Materiaal telt niet mee in de somrij.
+ * elk met de vlag of er overbelaste dagen zijn. Materiaal telt niet mee in de somrij; een
+ * kostenresource (issue #815) heeft geen belasting en staat er niet in.
  */
 export function buildHistogramPicker(
   resources: Resource[],
@@ -127,12 +128,13 @@ export function buildHistogramPicker(
 ): HistogramPickerItem[] {
   const over = resourceLoadResult?.overallocatedDays ?? {};
   const anyRenewableOver = resources.some(
-    r => r.type !== 'MATERIAL' && (over[r.id]?.length ?? 0) > 0,
+    r => resourceIsLevelable(r) && (over[r.id]?.length ?? 0) > 0,
   );
   const items: HistogramPickerItem[] = [
     { id: undefined, label: allResourcesLabel, overallocated: anyRenewableOver },
   ];
   for (const r of resources) {
+    if (!resourceHasLoad(r)) continue;
     items.push({ id: r.id, label: r.name || r.id, overallocated: (over[r.id]?.length ?? 0) > 0 });
   }
   return items;
@@ -159,7 +161,7 @@ export function buildHistogramSeries(
   const aggLoad: Record<string, number> = {};
   const aggCap: Record<string, number> = {};
   for (const r of resources) {
-    if (r.type === 'MATERIAL') continue;
+    if (!resourceIsLevelable(r)) continue;
     const l = load[r.id];
     const cp = capacity[r.id];
     if (l) for (const iso in l) aggLoad[iso] = (aggLoad[iso] ?? 0) + l[iso];

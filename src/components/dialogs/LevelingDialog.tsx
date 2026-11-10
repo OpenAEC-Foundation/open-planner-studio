@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { resourceIsLevelable } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { useDisplayDate, useTaskIdDateText } from '@/hooks/displayDate';
 import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
@@ -31,7 +32,7 @@ export function LevelingDialog() {
   const applyLeveling = useAppStore(s => s.applyLeveling);
   const setUI = useAppStore(s => s.setUI);
 
-  const renewables = useMemo(() => resources.filter(r => r.type !== 'MATERIAL'), [resources]);
+  const renewables = useMemo(() => resources.filter(resourceIsLevelable), [resources]);
 
   const [constrainToFloat, setConstrainToFloat] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(renewables.map(r => r.id)));
