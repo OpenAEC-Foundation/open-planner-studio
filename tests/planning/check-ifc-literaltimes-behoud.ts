@@ -150,17 +150,19 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   /** Een bestand achter een handle, zoals de File System Access API het geeft. */
+  /** Haken voor 7c: na het sluiten van een schrijfbeurt, en vóór `isSameEntry` (de handle zelf bevriest in de store). */
+  const hooks: { afterClose?: () => void; beforeSameEntry?: () => Promise<void> } = {};
   const fakeHandle = (name: string, initial: string) => {
     let data = initial;
     const handle = {
       kind: 'file' as const, name,
-      isSameEntry: async (other: unknown) => other === handle,
+      isSameEntry: async (other: unknown) => { await hooks.beforeSameEntry?.(); return other === handle; },
       getFile: async () => new File([enc.encode(data) as BlobPart], name),
       createWritable: async () => {
         let buffer = '';
         return {
           write: async (chunk: unknown) => { buffer += typeof chunk === 'string' ? chunk : dec.decode(chunk as Uint8Array); },
-          close: async () => { data = buffer; },
+          close: async () => { data = buffer; hooks.afterClose?.(); },
         };
       },
       queryPermission: async () => 'granted' as const,
@@ -282,6 +284,45 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       await run(S);
       eq(`7b ${route} naar een ander bestand: LiteralTimes daar, geen keuze, eigen bestand ongewijzigd`,
         [other.text().includes(LITERAL), S().ifcLiteralCalendarIds, file.text() === showcase], [true, null, true]);
+    }
+    {
+      // 7c. Review #872 ronde 4 (Terra, BLOKKEERT, vermoed): export en AutoSave kruisen elkaar. De export heeft het eigen
+      //     bestand geschreven en kijkt nog of het het eigen bestand is (`isSameEntry`); in die opening wist de planner de
+      //     urentaak en draait AutoSave. AutoSave mag dan niet de ankertekst schrijven en het document als opgeslagen
+      //     markeren: daarna kwam er geen schrijfbeurt meer, en het bestand hield de verschoven eindtijden.
+      const { store, file, S } = await openOwn();
+      const id = addHourTask(store);
+      S().setAutoSaveToFile(true);
+      let written = false;
+      let gated = false;
+      let release!: () => void;
+      const gate = new Promise<void>(r => { release = r; });
+      let reached!: () => void;
+      const inGap = new Promise<void>(r => { reached = r; });
+      hooks.afterClose = () => { written = true; };
+      hooks.beforeSameEntry = async () => {
+        if (written && !gated) { gated = true; reached(); await gate; }
+      };
+      win.showSaveFilePicker = async () => file.handle;
+      const exporting = run(S);
+      await inGap;
+      const exported = file.text();
+      S().deleteTask(id);
+      S().runCPM();
+      const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+      const auto = createFileAutoSaveController({ getState: S, enabled: () => true }).flush();
+      await new Promise(r => setTimeout(r, 50));
+      release();
+      await exporting;
+      await auto;
+      delete hooks.afterClose;
+      delete hooks.beforeSameEntry;
+      eq(`7c ${route} en AutoSave kruisen: de export schreef LiteralTimes`, exported.includes(LITERAL), true);
+      eq(`7c ${route} en AutoSave kruisen: daarna staat LiteralTimes er nog, of het document blijft gewijzigd`,
+        file.text().includes(LITERAL) || S().isDirty, true);
+      await S().saveFile();
+      eq(`7c ${route} en AutoSave kruisen: na opslaan staat LiteralTimes er nog`, file.text().includes(LITERAL), true);
+      sameFinishes(`7c ${route} en AutoSave kruisen`, exported, file.text(), 'Uurtaak');
     }
   }
   delete win.showSaveFilePicker;

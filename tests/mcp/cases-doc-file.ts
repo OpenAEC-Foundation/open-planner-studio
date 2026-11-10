@@ -26,6 +26,7 @@ import { FEATURE_FLAGS } from '@/utils/featureFlags';
 import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
+import { isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
 // T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
 // builders uit tests/planning/mppFixtures.ts (M6-fixturebouwers, ook door check-mpp-import.ts's
 // I4-fixture gebruikt). Sinds T11 (fixture-consolidatie) ook `buildVarMetaBytes` cross-suite van
@@ -549,7 +550,7 @@ test('export_ifc: `overwritten` meldt de WERKELIJKHEID, niet de meegestuurde vla
 });
 
 test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (knownbug 1026, review #872 ronde 3)', async () => {
-  installFakeFs();
+  const fs = installFakeFs();
   resetToSingleEmptyDocument();
   loadSmallProject('Export');
   const own = `${HOME}/eigen.ifc`;
@@ -563,7 +564,19 @@ test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (know
   assertEq(S().ifcLiteralCalendarIds, null, 'een export naar een ander bestand verandert de keuze niet');
   // Een andere schrijfwijze van hetzelfde bestand (zelfde identiteit) is het eigen bestand.
   aliases.set(`${HOME}/Eigen.ifc`, own);
+  // Review #872 ronde 4 (Terra): schrijven en vastleggen onder de lock van Opslaan en AutoSave. Na de write vraagt de
+  // export de identiteit op (`stat`); de lock moet dan nog vastzitten, anders kan AutoSave er tussendoor schrijven.
+  const write = fs.writeTextFile;
+  const stat = fs.stat!;
+  let written = false;
+  const busyAfterWrite: boolean[] = [];
+  fs.writeTextFile = async (p, c) => { busyAfterWrite.push(isProjectFileWriteBusy()); await write(p, c); written = true; };
+  fs.stat = async (p) => { if (written) busyAfterWrite.push(isProjectFileWriteBusy()); return stat(p); };
   await callOk('planner_export_ifc', { path: `${HOME}/Eigen.ifc`, overwrite: true });
+  fs.writeTextFile = write;
+  fs.stat = stat;
+  assert(busyAfterWrite.length >= 2 && busyAfterWrite.every(Boolean),
+    `de write en de identiteitscontrole erna staan onder de schrijflock (${JSON.stringify(busyAfterWrite)})`);
   assert(files.get(own)!.includes("'LiteralTimes'"), 'het eigen bestand is nu letterlijk');
   assertEq(S().ifcLiteralCalendarIds, [S().calendar.id], 'een export over het eigen bestand legt de keuze vast');
 });

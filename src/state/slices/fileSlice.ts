@@ -1836,13 +1836,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget }
         : { refuseTarget };
-      const outcome = typeof payload === 'string'
-        ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
-        : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
+      const writeAndRecord = async () => {
+        const written = typeof payload === 'string'
+          ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
+          : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
+        if (written) await recordOwnFileExport(state, written, exportedLiteral);
+        return written;
+      };
+      // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
+      // onder dezelfde lock als Opslaan als; anders schreef AutoSave er tussendoor de ankertekst en markeerde hij het
+      // document als opgeslagen (knownbug 1026). De andere formaten raken het eigen bestand niet en blijven zoals ze waren.
+      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord) : await writeAndRecord();
       // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
-      await recordOwnFileExport(state, outcome, exportedLiteral);
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
@@ -1919,9 +1926,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const project = writeIFCWithChoices(buildExportIFCInput(state));
       const base = suggestedFileBase(state);
       const refuseTarget = foreignTargetCheck('export');
-      const outcome = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
+      // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`).
+      const outcome = await runProjectFileWrite(async () => {
+        const written = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
+        if (written) await recordOwnFileExport(state, written, project.literalCalendarIds);
+        return written;
+      });
       if (!outcome) return { ok: true, warnings: [], cancelled: true }; // dialoog geannuleerd — geen fout
-      await recordOwnFileExport(state, outcome, project.literalCalendarIds);
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       // 2. De pool ernaast (los bestand), alleen als het project aan een bedrijf gebonden is.
