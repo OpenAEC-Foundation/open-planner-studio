@@ -274,6 +274,11 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq(saved.paperHintSeen, true, 'round-trip: aanwijzing gezien');
   eq(saved.columns, ['task.name', CAL_DAYS, 'task.wbsCode'], 'round-trip: kolomlijst met volgorde');
   eq(saved.sidebar, 'rail', 'round-trip: zijbalkstand');
+  eq(saved.barColors, null, 'round-trip: geen eigen balkkleuren');
+  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, barColors: { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } } });
+  eq((await loadReportSettings()).barColors, { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } }, 'round-trip: eigen balkkleuren');
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ barColors: { mode: 'regenboog' } }));
+  eq((await loadReportSettings()).barColors, null, 'onbekende balkkleur ⇒ geen eigen keuze (die van het scherm)');
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
   const older = await loadReportSettings();

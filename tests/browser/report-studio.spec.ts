@@ -502,11 +502,11 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-switch="showDeps"]').click();
   const own = async () => {
     const s = await saved();
-    return { columns: s.columns, showDeps: s.showDeps, showFloat: s.showFloat, showBaselineOverlay: s.showBaselineOverlay, statusLine: s.statusLine };
+    return { columns: s.columns, showDeps: s.showDeps, showFloat: s.showFloat, showBaselineOverlay: s.showBaselineOverlay, statusLine: s.statusLine, barColors: s.barColors };
   };
   await expect.poll(async () => (await own()).showDeps).toBe(false);
   const ownBefore = await own();
-  expect(ownBefore).toMatchObject({ showFloat: true, showBaselineOverlay: false, statusLine: 'none' });
+  expect(ownBefore).toMatchObject({ showFloat: true, showBaselineOverlay: false, statusLine: 'none', barColors: null });
   expect(ownBefore.columns).toHaveLength(7);
   const shortColumns = ['task.wbsCode', 'task.name', 'task.time.scheduleDuration'];
   await storeLayouts([{
@@ -514,7 +514,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
     columns: shortColumns.map(id => ({ id, width: 80, pinned: false })),
     group: [{ field: { src: 'builtin', key: 'taskType' }, dir: 'asc' }],
     showRelations: true,
-    overlays: { baseline: true, progressLine: true, statusDateLine: false, resourceAccent: false, floatBand: false, barColors: { mode: 'critical' } },
+    overlays: { baseline: true, progressLine: true, statusDateLine: false, resourceAccent: false, floatBand: false, barColors: { mode: 'auto' } },
   }]);
   await page.locator('[data-rs-step-head="tasks"]').click();
   const shortTable = page.locator('[data-rs-layout="layout-kort"]');
@@ -571,9 +571,9 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(async () => (await saved()).columns).toEqual(ownBefore.columns);
   expect((await saved()).layoutId).toBe('layout-kort');
   await expect(page.locator('[data-rs-take-over="columns"]')).toBeVisible();
-  // "Balkopties overnemen": relatielijnen, basislijn, speling en statuslijn; Ongedaan maken zet ze terug.
+  // "Balkopties overnemen": relatielijnen, basislijn, speling, statuslijn en balkkleuren; Ongedaan maken zet ze terug.
   await page.locator('[data-rs-take-over="bars"]').click();
-  await expect.poll(own).toEqual({ ...ownBefore, showDeps: true, showFloat: false, showBaselineOverlay: true, statusLine: 'progress' });
+  await expect.poll(own).toEqual({ ...ownBefore, showDeps: true, showFloat: false, showBaselineOverlay: true, statusLine: 'progress', barColors: { mode: 'auto' } });
   await page.locator('[data-rs-undo-button]').click();
   await expect.poll(own).toEqual(ownBefore);
   expect((await saved()).layoutId).toBe('layout-kort');
@@ -582,12 +582,38 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-take-over="columns"]').click();
   await expect.poll(async () => (await saved()).columns).toEqual(shortColumns);
   await page.locator('[data-rs-take-over="bars"]').click();
-  await expect.poll(own).toEqual({ columns: shortColumns, showDeps: true, showFloat: false, showBaselineOverlay: true, statusLine: 'progress' });
+  await expect.poll(own).toEqual({ columns: shortColumns, showDeps: true, showFloat: false, showBaselineOverlay: true, statusLine: 'progress', barColors: { mode: 'auto' } });
   await expect(page.locator('[data-rs-undo]')).toContainText(/^Korte tabel: (columns and bar options applied|kolommen en balkopties overgenomen)\./);
   await page.locator('[data-rs-undo-button]').click();
   await expect.poll(own).toEqual(ownBefore);
   await expect(page.locator('[data-rs-undo]')).toHaveCount(0);
   expect(await screen()).toEqual(screenBefore);
+  // Eigen balkkleuren (keuze Ethan, 10-11-2026). Het overnemen liet de balkkleuren van het scherm staan; een
+  // keuze in Balken geldt ook alleen voor het rapport. Bij Zoals de weergave volgt het rapport het scherm en
+  // staat de keuze uit; bij Alle taken staat de eigen keuze er weer.
+  const screenColors = () => page.evaluate(() => window.__OPS__!.store.getState().ui.barColorSelection);
+  expect(await screenColors()).toEqual({ mode: 'critical' });
+  await page.locator('[data-rs-step-head="bars"]').click();
+  const colorPicker = page.locator('[data-rs-step-body="bars"]').getByRole('button', { name: /^(Bar colours|Balkkleuren)$/ });
+  await colorPicker.click();
+  await page.getByRole('option', { name: /^(Per task — automatic|Per taak — automatisch)$/ }).click();
+  await expect.poll(async () => (await saved()).barColors).toEqual({ mode: 'auto' });
+  expect(await screenColors()).toEqual({ mode: 'critical' });
+  await expect(page.locator('[data-rs-bar-colors-hint]')).toHaveText(/^(This choice applies only to the report|Deze keuze geldt alleen voor het rapport)/);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="view"]').click();
+  await expect.poll(async () => (await saved()).followView).toBe(true);
+  await page.locator('[data-rs-step-head="bars"]').click();
+  await expect(colorPicker).toBeDisabled();
+  await expect(colorPicker).toContainText(/Critical path|Kritiek pad/);
+  await expect(page.locator('[data-rs-bar-colors-hint]')).toHaveText(/follow your Gantt chart|volgen je Gantt-diagram/);
+  expect((await saved()).barColors).toEqual({ mode: 'auto' });
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await allTasks.click();
+  await page.locator('[data-rs-step-head="bars"]').click();
+  await expect(colorPicker).toBeEnabled();
+  await expect(colorPicker).toContainText(/Per task — automatic|Per taak — automatisch/);
+  expect(await screenColors()).toEqual({ mode: 'critical' });
 });
 
 // Een Arabische taaknaam bij naamweergave Volledig (review Sol #847). De meting van het papier en de PDF komt

@@ -17,6 +17,7 @@ import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import type { ReportTextMetrics } from '@/services/pdf/reportTextMeasure';
 import type { ReportSettings } from '@/utils/reportSettings';
 import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
+import { reportBarColors } from './reportLayouts';
 
 /** De rapportletter die geladen is, met zijn meting (dezelfde als de vector-PDF, `loadReportTextMetrics`). */
 export interface StudioFont {
@@ -58,7 +59,9 @@ export function useStudioPrintOptions(
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const comparedBaselineIds = useAppStore(s => s.comparedBaselineIds);
-  const barColorSelection = useAppStore(s => s.ui.barColorSelection);
+  // Eigen balkkleuren van het rapport; bij *Zoals de weergave* (of nog geen eigen keuze) die van het scherm.
+  const screenBarColors = useAppStore(s => s.ui.barColorSelection);
+  const barColorSelection = reportBarColors(settings, screenBarColors);
   const durationDisplay = useEffectiveDurationDisplay();
   const workdayDurationMeasure = useProfileCountsWorkdays();
   const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [tCommon]);

@@ -36,7 +36,7 @@ import { fieldsAreDefault, useStudioSettings, type StudioSettingKey } from './us
 import { useStudioPrintOptions, type StudioFont } from './useStudioPrintOptions';
 import type { StudioRowSource } from './studioRowSource';
 import {
-  layoutReportPatch, reportTaskSource, taskSourceFromKey, taskSourceKey, taskSourcePatch, type ReportTaskSource,
+  layoutReportPatch, reportBarColors, reportTaskSource, taskSourceFromKey, taskSourceKey, taskSourcePatch, type ReportTaskSource,
 } from './reportLayouts';
 import { useReportLayouts } from './useReportLayouts';
 import { computeLayoutReportRows, groupIsMultiBand, resourceBandShape } from '@/engine/reports/layoutReport';
@@ -89,7 +89,7 @@ const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
   // Resourcediagram) en de opties van het Resourcediagram.
   tasks: ['followView', 'layoutId', 'reportType', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
-  bars: ['showTaskNames', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
+  bars: ['showTaskNames', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
   page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontFamily', 'reportFontScale'],
   headerFooter: ['repeatHeader', 'repeatFooter', 'showLegend'],
 };
@@ -120,7 +120,7 @@ const RESOURCE_TOGGLES = ['pageBreakPerResource', 'includeUnassigned', 'groupByT
 const ASSIGNMENT_COLUMN_KEYS: ReadonlySet<string> = new Set(['units', 'curve']);
 /** Wat de knoppen "Kolommen overnemen" en "Balkopties overnemen" uit een layout halen (`layoutReportPatch`). */
 const LAYOUT_COLUMN_KEYS: readonly StudioSettingKey[] = ['columns'];
-const LAYOUT_BAR_KEYS: readonly StudioSettingKey[] = ['showDeps', 'showBaselineOverlay', 'showFloat', 'statusLine'];
+const LAYOUT_BAR_KEYS: readonly StudioSettingKey[] = ['showDeps', 'showBaselineOverlay', 'showFloat', 'statusLine', 'barColors'];
 
 interface PopoverState { step: StudioStepId; anchor: { x: number; y: number }; from: 'rail' | 'paper' }
 
@@ -148,8 +148,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const scheduleError = useAppStore(s => s.cpmResult?.error);
   const scheduleErrorInfo = useAppStore(s => s.cpmResult?.errorInfo);
   const setStatusDate = useAppStore(s => s.setStatusDate);
-  const barColorSelection = useAppStore(s => s.ui.barColorSelection);
-  const setOverlays = useAppStore(s => s.setOverlays);
+  // De balkkleuren van het scherm: alleen gelezen. Het rapport heeft eigen balkkleuren (keuze Ethan,
+  // 10 november 2026) en volgt die van het scherm alleen bij *Zoals de weergave* (`reportBarColors`).
+  const screenBarColors = useAppStore(s => s.ui.barColorSelection);
   // De twee tabellen van de app, elk met een eigen kolomindeling: het tabblad Tabel en de tabel naast de Gantt
   // (check Ethan 9-11-2026: "die zijn verschillend").
   const tableGridColumns = useAppStore(s => s.taskGridSurfaces['full-task-grid'].columns);
@@ -293,13 +294,15 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const layoutDiff = useMemo(() => {
     if (!chosenLayout) return null;
     const extra = layoutReportPatch(chosenLayout, availableColumnIds);
-    const differs = (key: StudioSettingKey) => key in extra && JSON.stringify(settings[key]) !== JSON.stringify(extra[key]);
+    // De balkkleuren tellen zoals ze op papier staan: zolang het rapport geen eigen keuze heeft, die van het scherm.
+    const current = (key: StudioSettingKey) => (key === 'barColors' ? reportBarColors(settings, screenBarColors) : settings[key]);
+    const differs = (key: StudioSettingKey) => key in extra && JSON.stringify(current(key)) !== JSON.stringify(extra[key]);
     const pick = (keys: readonly StudioSettingKey[]): Partial<ReportSettings> | null => {
       const changed = keys.filter(differs);
       return changed.length > 0 ? Object.fromEntries(changed.map(key => [key, extra[key]])) as Partial<ReportSettings> : null;
     };
     return { id: chosenLayout.id, name: chosenLayout.name, columns: pick(LAYOUT_COLUMN_KEYS), bars: pick(LAYOUT_BAR_KEYS) };
-  }, [chosenLayout, availableColumnIds, settings]);
+  }, [chosenLayout, availableColumnIds, settings, screenBarColors]);
   // Eén deel overnemen, met "Ongedaan maken" voor alleen dat deel (de keuze van de layout blijft). Neemt de
   // planner daarna ook het andere deel van dezelfde layout over, dan zet één "Ongedaan maken" beide terug.
   const takeOverFromLayout = useCallback((part: 'columns' | 'bars') => {
@@ -658,13 +661,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     () => (chosenLayout ? missingFilterFields(chosenLayout.filter, fieldCtx) : []),
     [chosenLayout, fieldCtx],
   );
-  const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
+  const paperBarColors = reportBarColors(settings, screenBarColors);
+  const barColorControl = effectiveBarColorControl(paperBarColors, fieldCtx);
 
   const stepContent = (step: StudioStepId): ReactNode => {
     switch (step) {
       case 'tasks': {
-        const layoutBarColors = chosenLayout?.overlays?.barColors;
-        const barColorsDiffer = !!layoutBarColors && JSON.stringify(layoutBarColors) !== JSON.stringify(barColorSelection);
         return (
           <>
             <StudioChoiceGroup
@@ -711,19 +713,6 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 )}
               >
                 {t(layoutDiff.columns && layoutDiff.bars ? 'studio.tasks.layoutOwnBoth' : layoutDiff.columns ? 'studio.tasks.layoutOwnColumns' : 'studio.tasks.layoutOwnBars')}
-              </StudioNotice>
-            )}
-            {barColorsDiffer && layoutBarColors && (
-              <StudioNotice
-                tone="info"
-                dataKey="layout-bar-colors"
-                actions={(
-                  <button type="button" className="ops-textlink" onClick={() => { markReportInput('barColor'); setOverlays({ barColors: layoutBarColors }); }}>
-                    {t('studio.tasks.barColorsApply')}
-                  </button>
-                )}
-              >
-                {t('studio.tasks.barColorsDiffer')}
               </StudioNotice>
             )}
             {resourceResult && bandShape && (
@@ -874,12 +863,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 <Select
                   className="w-full min-w-0 !py-1.5 !px-2.5"
                   aria-label={t('studio.bars.colors')}
-                  value={barColorSelection.mode}
+                  value={paperBarColors.mode}
+                  disabled={columnsFollowView}
                   onChange={value => {
-                    markReportInput('barColor');
-                    if (value === 'critical' || value === 'auto') { setOverlays({ barColors: { mode: value, colors: barColorSelection.colors } }); return; }
+                    if (value === 'critical' || value === 'auto') { patch({ barColors: { mode: value, colors: paperBarColors.colors } }, 'barColor'); return; }
                     const field = barColorControl.effective.mode === 'category' ? barColorControl.effective.field : barColorFields[0]?.field;
-                    if (field) setOverlays({ barColors: { mode: 'category', field, colors: barColorSelection.colors } });
+                    if (field) patch({ barColors: { mode: 'category', field, colors: paperBarColors.colors } }, 'barColor');
                   }}
                   options={[
                     { value: 'critical', label: t('barColorMode_critical') },
@@ -888,17 +877,18 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   ]}
                 />
               </div>
-              {barColorSelection.mode === 'category' && barColorControl.effective.mode === 'category' && (
+              {paperBarColors.mode === 'category' && barColorControl.effective.mode === 'category' && (
                 <Select
                   className="w-full min-w-0 !py-1.5 !px-2.5"
                   aria-label={t('barColorFieldLabel')}
                   value={encodeFieldRef(barColorControl.effective.field)}
-                  onChange={value => { markReportInput('barColor'); setOverlays({ barColors: { mode: 'category', field: decodeFieldRef(value), colors: barColorSelection.colors } }); }}
+                  disabled={columnsFollowView}
+                  onChange={value => patch({ barColors: { mode: 'category', field: decodeFieldRef(value), colors: paperBarColors.colors } }, 'barColor')}
                   options={barColorFields.map(option => ({ value: encodeFieldRef(option.field), label: option.label }))}
                 />
               )}
               {barColorControl.missingField && <StudioNotice tone="info" dataKey="bar-color-missing">{t('barColorMissingField')}</StudioNotice>}
-              <p className="rs-hint">{t('studio.bars.colorHint')}</p>
+              <p className="rs-hint" data-rs-bar-colors-hint>{t(columnsFollowView ? 'studio.bars.colorsFollowView' : 'studio.bars.colorHint')}</p>
             </StudioGroup>
             <StudioGroup label={t('studio.bars.lines')}>
               <StudioSwitch checked={effectiveDeps} disabled={multiBand} onChange={v => patch({ showDeps: v }, 'showDeps')} label={t('showDependencies')} dataKey="showDeps" />

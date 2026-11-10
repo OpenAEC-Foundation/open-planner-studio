@@ -20,7 +20,7 @@ import { computeLayoutReportRows, groupIsMultiBand, resourceBandShape } from '@/
 import { computeViewRows, type ViewContext, type ViewRow } from '@/engine/view/visibleRows';
 import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 import { builtinLayouts } from '@/components/viewControls/builtinLayouts';
-import { reportTaskSource, taskSourcePatch, layoutReportPatch } from '@/components/panels/reportStudio/reportLayouts';
+import { reportBarColors, reportTaskSource, taskSourcePatch, layoutReportPatch } from '@/components/panels/reportStudio/reportLayouts';
 import { studioRowPrintFields, type StudioRowSource } from '@/components/panels/reportStudio/studioRowSource';
 import { measurePrintReport, type PrintOptions } from '@/services/print/printPreview';
 import { computeTileLayout, reportTileInput } from '@/services/print/tileLayout';
@@ -273,13 +273,24 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
     overlays: { baseline: true, progressLine: false, statusDateLine: true, resourceAccent: true, floatBand: false, barColors: { mode: 'auto' } },
     timeScale: 'week',
   };
-  eq('kolommen, relaties en overlays (geen tijdschaal, geen balkkleuren)', layoutReportPatch(layout, available), {
+  eq('kolommen, relaties en overlays met de balkkleuren (geen tijdschaal)', layoutReportPatch(layout, available), {
     columns: ['task.name', 'task.wbsCode', 'task.time.start'], showDeps: false,
-    showBaselineOverlay: true, showFloat: false, statusLine: 'statusDate',
+    showBaselineOverlay: true, showFloat: false, statusLine: 'statusDate', barColors: { mode: 'auto' },
   });
   eq('voortgangslijn gaat voor statusdatumlijn', layoutReportPatch({ ...layout, columns: undefined, overlays: { ...layout.overlays!, progressLine: true } }, available).statusLine, 'progress');
   eq('het Resourcediagram brengt niets mee (relaties staan daar toch uit)', layoutReportPatch(rd!, available), {});
   eq('een layout zonder delen brengt niets mee', layoutReportPatch({ id: 'x', name: 'X', filter: null }, available), {});
+}
+// Eigen balkkleuren van het rapport (keuze Ethan, 10 november 2026): bij Zoals de weergave die van het scherm.
+{
+  const screen = { mode: 'category', field: { src: 'builtin', key: 'taskType' } } as const;
+  const own = { mode: 'auto' } as const;
+  const base = { ...DEFAULT_REPORT_SETTINGS };
+  eq('standaard: nog geen eigen keuze', base.barColors, null);
+  eq('alle taken zonder eigen keuze: die van het scherm', reportBarColors(base, screen), screen);
+  eq('alle taken met eigen keuze: die van het rapport', reportBarColors({ ...base, barColors: own }, screen), own);
+  eq('een layout met eigen keuze: die van het rapport', reportBarColors({ ...base, layoutId: 'l', barColors: own }, screen), own);
+  eq('zoals de weergave: altijd die van het scherm', reportBarColors({ ...base, followView: true, barColors: own }, screen), screen);
 }
 // Een filterveld dat het project niet heeft (review Sol #847, ronde 4): de stap Taken meldt het, het filter blijft.
 {
