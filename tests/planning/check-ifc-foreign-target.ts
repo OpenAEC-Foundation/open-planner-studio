@@ -27,7 +27,8 @@
 //      Sol's bestand (kapotte kop, `#30=\nIFCWALL(`) als doel: Opslaan als, CSV-export en AutoSave schrijven niet, de
 //      bestaande tekst blijft, A blijft gewijzigd; per route (handle en Tauri-pad, ook met `seek`). Een eigen bestand met
 //      `#900000=IFCWALL(` in commentaar of `#9=IFCWALL(` in een meerregelige string als doel: er komt een write.
-//      Ook `council/fix3-twee-data.ifc` (een wand in de tweede DATA-sectie) als doel: geen write.
+//      Ook `council/fix3-twee-data.ifc` (een wand in de tweede DATA-sectie) als doel, ook met parameters bij beide
+//      sectiekoppen (`DATA('…',(…));`): geen write.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -37,7 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { installNodeFileIpc } from './nodeFileIpc';
-import { commentFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { commentFile, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -1091,6 +1092,8 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     // Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las de doelcontrole (zoals `readIFC`) maar
     // tot de eerste `ENDSEC;` en gaf hij "no-model": Opslaan als schreef de planning over het model heen.
     { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), model: true },
+    // Sol en Terra (review van #870): dezelfde, met parameters bij beide sectiekoppen. Vóór de fix: één write, wand weg.
+    { name: 'twee-data-param', bytes: enc.encode(paramDataFile(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))), model: true },
   ];
   const cancelled = { ok: true, warnings: [], cancelled: true };
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.

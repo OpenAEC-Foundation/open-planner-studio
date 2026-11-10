@@ -18,6 +18,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
+import { paramDataFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -126,7 +127,11 @@ const eigenPlus = fileBytes(`${FOREIGN}/eigen-plus-model.ifc`);
 // Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las `readIFC` maar tot de eerste `ENDSEC;`:
 // zonder flag opende het bestand dan zonder melding, en opslaan wiste de wand.
 const twoData = fileBytes(`${FOREIGN}/council/fix3-twee-data.ifc`);
-for (const [name, bytes] of [['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData]] as const) {
+// Sol en Terra (review van #870): dezelfde, met parameters bij beide sectiekoppen. Vóór de fix: `no-data-section`.
+const twoDataParam = enc.encode(paramDataFile(dec(twoData)));
+for (const [name, bytes] of [
+  ['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData], ['fix3-param.ifc', twoDataParam],
+] as const) {
   const off = await open(false, name, bytes);
   ok(`${name} zonder flag: geweigerd`, !opened(off, name));
   ok(`${name} zonder flag: de modelweigering (knownbug 110)`, String(off.getState().ui.notifications[0]?.detail ?? '').includes('building model'));

@@ -17,15 +17,17 @@
 //      `#900000=IFCWALL(` en een meerregelige string met `#9=IFCWALL(` geven "no-model". Ook de randen van de lus van
 //      `parseSTEP` (een mislukte entiteit, `ENDSEC;`, commentaar dat een woord samenvoegt), terugspoelen voorbij het
 //      geheugen (de bron opnieuw lezen) en de tweede lezing vanaf het regel-verankerde `DATA;`;
-//   8. de gedeelde zoekregel voor `DATA;` (`stepDataSection.ts`) is gelijk aan de oude `indexOfDataSection` van
-//      `readIFC` (hier als orakel overgenomen van 343b74300), op tekst en als bytes;
+//   8. de gedeelde zoekregel voor de sectiekop (`stepDataSection.ts`) is gelijk aan de oude `indexOfDataSection` van
+//      `readIFC` (hier als orakel overgenomen van 343b74300), uitgebreid met `DATA(` (review van #870), op tekst en als
+//      bytes; zonder `DATA(` in de tekst geeft de uitgebreide regel precies de oude;
 //   9. een verschiltest: willekeurige STEP-achtige bestanden geven in elke stukgrootte "model" precies als `readIFC`
 //      weigert met `building-model`;
 //  10. de pariteitstabel: elk bestand uit deze check, de scanner tegen `readIFC`. Afwijken mag alleen in de besloten
 //      gevallen (een complexe instantie met een producttype; commentaar vóór de kop), en dan alleen naar "model";
 //  11. meer DATA-secties (ISO 10303-21): een wand in de tweede sectie (`council/fix3-twee-data.ifc`, ook met een
 //      sectiekop `DATA((…),(…));`) is een model, voor `readIFC` en voor de scanner. Vóór deze fix stopten beide bij de
-//      eerste `ENDSEC;`: het bestand opende zonder melding, en opslaan wiste de wand.
+//      eerste `ENDSEC;`: het bestand opende zonder melding, en opslaan wiste de wand. Ook met parameters bij de EERSTE
+//      sectiekop (Sol en Terra, review van #870: `readIFC` gaf `no-data-section`, de scanner "no-model").
 // Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,7 +38,7 @@ import {
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { StepDataSectionFinder, indexOfStepDataSection } from '@/services/ifc/stepDataSection';
-import { brokenHeader, commentFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { brokenHeader, commentFile, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 let checks = 0;
@@ -446,6 +448,19 @@ function oldIndexOfDataSection(content: string): number {
   const anchored = /^[ \t]*DATA;/im.exec(content);
   return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
 }
+/** De oude regel met `DATA(` erbij (review van #870): streng `DATA;` of `DATA(` zonder woordteken (`\w`, `!`) vóór de
+ *  `D`, anders regel-verankerd `DATA;` of `DATA(`. Zonder `DATA(` in de tekst is dit precies `oldIndexOfDataSection`. */
+function refIndexOfDataSection(content: string): number {
+  for (let from = 0; ;) {
+    const at = oldIndexOfCode(content, 'DATA', from);
+    if (at < 0) break;
+    const next = content.charCodeAt(at + 4);
+    if (next === 0x3b || (next === 0x28 && !/[\w!]/.test(content[at - 1] ?? ''))) return at;
+    from = at + 1;
+  }
+  const anchored = /^[ \t]*DATA[;(]/im.exec(content);
+  return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA') : -1;
+}
 /** De vinder zoals de scanner hem voedt: bytes, na de BOM die de decoder weghaalt; de positie als index in de tekst. */
 function byteDataSection(bytes: Uint8Array): number {
   const start = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
@@ -459,7 +474,8 @@ let dataSectionCases = 0;
 const sameDataSection = (label: string, bytes: Uint8Array) => {
   dataSectionCases++;
   const text = decode(bytes);
-  const want = oldIndexOfDataSection(text);
+  const want = refIndexOfDataSection(text);
+  if (!/DATA\(/i.test(text)) eq(`DATA; (${label}): zonder DATA( de oude regel`, want, oldIndexOfDataSection(text));
   eq(`DATA; (${label}): de gedeelde regel als tekst`, indexOfStepDataSection(text), want);
   eq(`DATA; (${label}): de gedeelde regel als bytes`, byteDataSection(bytes), want);
 };
@@ -476,6 +492,15 @@ for (const [label, text] of [
   ['/*/ sluit niet', '/*/ DATA; */DATA;'],
   ['lege tekst', ''],
   ['geen DATA;', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA\n;"],
+  ['DATA( als eerste sectiekop', "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel 1',('IFC4'));\n"],
+  ['data( in kleine letters', "ISO-10303-21;\nHEADER;\nENDSEC;\ndata(('x'),('IFC4'));\n"],
+  ['DATA( na DATA;', "ISO-10303-21;\nENDSEC;\nDATA;\nENDSEC;\nDATA('b',('IFC4'));\n"],
+  ['METADATA( en !DATA( in de kop tellen niet', "ISO-10303-21;\nHEADER;\nMETADATA('x');\n!DATA('y');\n_DATA(1);\nENDSEC;\nDATA;\n"],
+  ['*/DATA( na commentaar telt wel', "ISO-10303-21;\n/*c*/DATA('a',('IFC4'));\n"],
+  ['DATA ( met een spatie is geen sectiekop', "ISO-10303-21;\nENDSEC;\nDATA ('a');\nDATA;"],
+  ['DATA( in een string telt niet', "ISO-10303-21;\nFILE_NAME('DATA(');\nENDSEC;\nDATA(('a'),('IFC4'));"],
+  ['DATA( regel-verankerd na een kapotte kop', "ISO-10303-21;\nFILE_NAME('a);\n  DATA('a',('IFC4'));\n"],
+  ['DDATA( en DATADATA(', "ISO-10303-21;\nDDATA( DATADATA( x DATA("],
 ] as const) sameDataSection(label, enc.encode(text));
 sameDataSection('een BOM vooraan', new Uint8Array([0xef, 0xbb, 0xbf, ...enc.encode("'\nDATA;")]));
 sameDataSection('ongeldige UTF-8 vóór DATA;', new Uint8Array([0x27, 0xe2, 0x80, 0x0a, 0xff, 0x0a, ...enc.encode('DATA;')]));
@@ -525,9 +550,23 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
 
 // ── 11. Meer DATA-secties: het bestand van de sessie IFCX ──────────────────────────────────────────────────────────
 {
-  const bytes = new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc')));
+  const twoData = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8');
+  const bytes = enc.encode(twoData);
   eq('fix3-twee-data: readIFC weigert als model (de wand #99999 staat in de tweede DATA-sectie)', readOutcome(bytes), 'building-model');
   every('fix3-twee-data: de scanner zegt model', bytes, 'model');
+  // Sol en Terra (review van #870): parameters bij beide sectiekoppen.
+  const param = enc.encode(paramDataFile(twoData));
+  eq('fix3 met DATA(…) bij beide secties: readIFC weigert als model', readOutcome(param), 'building-model');
+  every('fix3 met DATA(…) bij beide secties: de scanner zegt model', param, 'model');
+  // Alleen een sectiekop met parameters, met de wand in die enige sectie; en de wand vóór een later `DATA;`.
+  const onlyText = HEAD.replace(/DATA;\n$/, "DATA('enig',('IFC4X3_ADD2'));\n") + "#9=IFCWALL('x',$);\n" + TAIL;
+  eq('alleen DATA(…): geen DATA; in het bestand', /DATA;/.test(onlyText), false);
+  const only = enc.encode(onlyText);
+  eq('alleen DATA(…): readIFC weigert als model', readOutcome(only), 'building-model');
+  every('alleen DATA(…): de scanner zegt model', only, 'model');
+  const before = enc.encode(onlyText.replace('ENDSEC;\nEND-ISO', "ENDSEC;\nDATA;\n#1=IFCTASK('1',$);\nENDSEC;\nEND-ISO"));
+  eq('DATA(…) met de wand, daarna DATA;: readIFC weigert als model', readOutcome(before), 'building-model');
+  every('DATA(…) met de wand, daarna DATA;: de scanner zegt model', before, 'model');
 }
 
 // ── 10. De pariteitstabel ──────────────────────────────────────────────────────────────────────────────────────────

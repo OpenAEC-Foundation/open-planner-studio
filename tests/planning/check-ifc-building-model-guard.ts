@@ -53,6 +53,10 @@ async function main(): Promise<void> {
     await parseOpenedFile({ name: 'fix3-twee-data.ifc', text: readFileSync(resolve('tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8') });
   } catch (error) { twoDataReason = error instanceof IfcParseError ? error.reason : 'andere fout'; }
   eq('fix3-twee-data (wand in de tweede DATA-sectie): de open-pijplijn zonder flag weigert', twoDataReason, 'building-model');
+  // Sol en Terra (review van #870): parameters bij de EERSTE sectiekop. Vóór de fix: `no-data-section`.
+  const firstParam = (text: string) => text.replace(/^DATA;$/m, "DATA('deel 1',('IFC4X3_ADD2'));");
+  eq('weigert een wand in de enige DATA-sectie met sectiekop', rejected(firstParam(add("#900001=IFCWALL('x',$);"))), true);
+  eq('een enige DATA-sectie met sectiekop zonder model opent', readIFC(firstParam(planning)).tasks.length, 1);
   // De echte opgeslagen voorbeelden bewaken context, taken, resources, kalenders en lege modellen.
   for (const file of readdirSync(resolve('public/examples')).filter(f => f.endsWith('.ifc'))) {
     const content = readFileSync(resolve('public/examples', file), 'utf8');

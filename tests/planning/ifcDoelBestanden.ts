@@ -28,3 +28,13 @@ export const commentFile = (own: string) => own.replace(/^DATA;\r?\n/m, line => 
 /** Terra (VERVOLG 2): een eigen bestand met een tekstproperty waarin een regel `#9=IFCWALL(` staat. */
 export const stringFile = (own: string) => own.replace(/^DATA;\r?\n/m,
   line => `${line}#9999999=IFCPROPERTYSINGLEVALUE('Notitie',$,IFCTEXT('regel 1\n#9=IFCWALL(\nregel 3'),$);\n`);
+
+/**
+ * Sol en Terra (review van #870, BLOKKEERT): `council/fix3-twee-data.ifc` met parameters bij BEIDE sectiekoppen
+ * (ISO 10303-21 editie 3, implementatieniveau `3;1`). Vóór de fix herkende de gedeelde sectievinder alleen `DATA;`:
+ * `readIFC` gaf `no-data-section` en de doelcontrole "no-model", dus Opslaan als schreef over de wand heen.
+ */
+export function paramDataFile(twoData: string): string {
+  let n = 0;
+  return twoData.replace("'2;1'", "'3;1'").replace(/^DATA;$/gm, () => `DATA('deel ${++n}',('IFC4X3_ADD2'));`);
+}

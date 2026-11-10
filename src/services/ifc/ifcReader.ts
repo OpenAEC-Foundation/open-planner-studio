@@ -1111,7 +1111,8 @@ function indexOfDataSection(content: string): number {
 // Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, alle DATA-secties), wijzig ze daar ook.
 function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
-  // 1. Begin van de datasectie — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee.
+  // 1. Begin van de datasectie (`DATA;` of `DATA(`, `stepDataSection.ts`) — een `DATA;` binnen de FILE_NAME-string van
+  //    de header telt niet mee. Na `DATA(` leest de lus de parameters van de sectiekop: strings en haakjes, geen entiteit.
   const dataAt = indexOfDataSection(content);
   // Geen sectiegrens ⇒ getypeerde fout, GEEN leeg resultaat. `openFile`/`useRecoveryRestore` tonen
   // dan de leesfout in plaats van een leeg document te openen bovenop het pad van de gebruiker.
