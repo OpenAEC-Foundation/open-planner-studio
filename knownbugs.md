@@ -1686,8 +1686,8 @@ en noem het in je rapport of PR-tekst.
      en IFC4X3 ADD2 is elk supertype `ONEOF` (geen `ANDOR`, geen meervoudige overerving), dus een geldig bestand schrijft
      elke instantie in de interne vorm; IfcOpenShell 0.8.4 en 0.9.0 lezen de externe vorm niet als `IfcWall`. Richting:
      de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). Sinds #870
-     (ronde 8) telt de weigering het deeltype mee in elk bestand dat in de grammatica van het hele bestand past
-     (`stepFileGrammar.ts`). Het gat blijft alleen in een bestand dat die grammatica breekt: dat opent zoals main. — B
+     telt de weigering het deeltype mee zodra de grammatica van het hele bestand (`stepFileGrammar.ts`) de instantie
+     leest, ook als het bestand daarna breekt. Het gat blijft alleen als het bestand vóór die instantie breekt. — B
 
 1017. **VERVOLG: de doelcontrole leest een bestaande IFC zonder model helemaal, en de planner ziet in die tijd
      niets.** Met de flag `ifcForeignContent` leest `src/services/ifc/foreign/targetModelScan.ts` bij Opslaan als, een
@@ -1744,13 +1744,11 @@ en noem het in je rapport of PR-tekst.
      `DATA_KOP_VORMEN` in `tests/planning/ifcDoelBestanden.ts` markeert ze met `scannerWeigert`: kleine letters
      (`data;`, `data(…);`, `endsec;`), een stuurteken midden in `DATA` of `ENDSEC` (regeleinde, tab, U+007F), de
      afdrukcodes `\N\` en `\F\` als scheiding, een regeleinde in `/*` of `*/` vóór de kop, een ANCHOR-sectie, en
-     `\S\'` in de naam van de kop (de scanner meldt `tekst-zonder-einde`). De
-     gedeelde sectievinder (`src/services/ifc/stepDataSection.ts`) en `readIFC` lezen ze wel. Met de flag aan weigert
-     `src/services/ifc/foreign/stepScanner.ts` het bestand en valt `ifcBytesRoute.ts` terug op de gewone route. Een
-     bestand met een model weigert dan als gebouwmodel; een planning zonder model opent gewoon, maar een vreemd deel
-     zonder model blijft niet bewaard. De flag staat in de app altijd uit. Richting:
-     de scanner de gedeelde vinder laten gebruiken vóór fase 1b. Uit #870 (review ronde 5 en 6, GPT-6.1-Sol en
-     GPT-6.1-Terra, VERVOLG). — B
+     `\S\'` in de naam van de kop (de scanner meldt `tekst-zonder-einde`). Met de flag aan weigert
+     `src/services/ifc/foreign/stepScanner.ts` het bestand en valt `ifcBytesRoute.ts` terug op de gewone route. Die opent
+     zoals main: een bestand met een model weigert als gebouwmodel, een planning zonder model met een andere kop dan
+     `DATA;` opent niet (knownbug 1061). De flag staat in de app altijd uit. Richting: één lezer voor de kop, vóór fase
+     1b. Uit #870 (review ronde 5 en 6, GPT-6.1-Sol en GPT-6.1-Terra, VERVOLG). — B
 
 1050. **De lexer van de datasecties kent `/⏎*`, `*⏎/` en `\S\'` niet; ook op main, met één datasectie.** ISO 10303-21
      laat stuurtekens overal weg (§5.2, §5.6), ook tussen `/` en `*`, en `\S\` plus één teken is één teken in een string
@@ -1762,18 +1760,13 @@ en noem het in je rapport of PR-tekst.
        commentaar.
      - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
      Sinds #870 leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen volgens
-     de norm. `readIFC` weigert een bestand dat in die grammatica past en een modeltype heeft, en sinds ronde 9 ook een
-     bestand waarin de lus van `parseSTEP` andere entiteiten (nummer en type) leest dan de grammatica
-     (`unreadable-entities`). Gemeten op de tak, met dezelfde bestanden:
+     de norm. Ziet zij een modeltype, dan weigert `readIFC`; verder opent `readIFC` precies zoals main (besluit Trias,
+     review van #870 ronde 10). Gemeten op de tak, met dezelfde bestanden:
       - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
       - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
-      - weg: een planning met `\S\'` in een taaknaam en zonder model weigert nu (`unreadable-entities`) in plaats van
-        met 0 taken te openen; ook `\S\'` in een latere sectiekop met een taak erna (Sol, ronde 8), en een regeleinde
-        midden in een token (`IFC⏎TASK`, Terra, ronde 8);
-      - blijft: de wand in `/⏎* … */` weigert bij openen (nu als `unreadable-entities`). De doelcontrole leest de norm
-        en zegt "no-model": Opslaan als over zo'n bestand mag, openen niet;
-      - blijft: zo'n bestand opent niet, ook al is het een geldige planning. De app leest het pas als de lus van
-        `parseSTEP` de tokens van de grammatica gebruikt;
+      - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken, zoals main;
+      - blijft: de wand in `/⏎* … */` weigert bij openen als gebouwmodel, zoals main. De doelcontrole leest de norm en
+        zegt "no-model": Opslaan als over zo'n bestand mag, openen niet;
       - blijft: een kapot bestand leest precies zoals main, met dezelfde lexer.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken. Uit #870 (review ronde 6,
      GPT-6.1-Sol en GPT-6.1-Terra; eigen knownbug op verzoek van Trias). — B
@@ -1797,8 +1790,25 @@ en noem het in je rapport of PR-tekst.
      norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
      met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)
      heeft `\N\` en `\F\` vóór `(` en `;`, maar niet tussen de parameters (`DATA('deel'\N\,('IFC4X3_ADD2'));`).
-     (5) Poging 1 in `StepDataSectionFinder` (`src/services/ifc/stepDataSection.ts`) beslist sinds ronde 9 niets meer;
-     haar code kan weg. Uit #870 (ronde 7 en 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+     Uit #870 (ronde 7 en 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+
+1061. **VERVOLG: een geldig bestand leest `readIFC` op een paar plekken anders dan de norm; precies zo op main.** `readIFC` (`src/services/ifc/ifcReader.ts`) opent precies zoals main (besluit Trias, review van #870 ronde
+     10): het eerste `DATA;` op codeniveau (`src/services/ifc/stepDataSection.ts`), en de lus van `parseSTEP` tot de
+     eerste `ENDSEC;`. De grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) beslist alleen over
+     een model. Gemeten op main (9ee06bb71) en op de tak, met `showcase-verbouwing-eengezinswoning.ifc`; beide gelijk:
+      1. `#4⏎8` (een regeleinde midden in een verwijzing): voor de norm `#48`, voor de lus geen verwijzing. Opent met 20
+         taken, maar taak "1. Preparation" krijgt een andere duur. Zo ook `IFC⏎TASK`: die taak ontbreekt.
+      2. `FILE_SCHEMA((/*x*/'IFC4'))`: opent met 20 taken, zonder schema uit de kop.
+      3. `\PB\\S\!` in een naam: de app toont "¡"; volgens de norm is het een teken uit ISO 8859-2.
+      4. Een regeleinde in een string: de naam blijft "Prepa⏎ration"; de norm laat stuurtekens weg.
+      5. Een andere sectiekop dan `DATA;` (`DATA ;`, `DATA('deel',('IFC4'));`, kleine letters, commentaar of een
+         regeleinde ertussen): de planning opent niet (`no-data-section`). De doelcontrole schrijft er wel over: het
+         hele bestand past in de grammatica, zonder model.
+      6. Meer datasecties: `readIFC` leest alleen de eerste. Een model in een latere sectie weigert (de grammatica ziet
+         het); taken in een latere sectie ontbreken. De doelcontrole weigert zo'n bestand als doel, behalve een eigen
+         bestand.
+     Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
+     ronde 9 en 10, GPT-6.1-Terra, BEVESTIGD, VERVOLG; besluit Trias). — B
 
 ## Rondleiding, Help en extensie-gidsen
 

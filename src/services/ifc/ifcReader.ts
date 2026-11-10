@@ -22,8 +22,8 @@ import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
-import { indexOfStepDataSection, stepFileLayout, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
-import { stepEntitySignature } from './stepFileGrammar';
+import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
+import { stepFileGrammar } from './stepFileGrammar';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
@@ -195,15 +195,16 @@ export function readIFC(
   assertIfcIntegrity(content);
   const buildingModel = () => new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
     'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
-  // Review van #870, ronde 8 (Terra): een kapot bestand zonder datasectie volgens main, met een modeltype dat de
-  // grammatica vóór de breuk zag: dat is een model, geen "geen datasectie".
-  const { entities, gramModel, dataAt } = parseSTEP(content, options.skipBuildingModelGuard ? undefined : buildingModel);
+  // #870 (besluit Trias, wrakko 10 november 2026): de grammatica van ISO 10303-21 (`stepFileGrammar.ts`) leest het hele
+  // bestand. Ziet zij ergens een modeltype, dan weigeren: ook in een tweede datasectie, in een complexe instantie, na
+  // een string die `parseSTEP` anders leest (knownbug 1050), en vóór het punt waar het bestand breekt. Verder opent
+  // `readIFC` precies zoals main: de grammatica bepaalt niet waar de datasectie begint of eindigt.
+  if (!options.skipBuildingModelGuard && stepFileGrammar(content).model) throw buildingModel();
+  const entities = parseSTEP(content);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
-  // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar. Past het hele bestand in de
-  // grammatica (`stepFileGrammar.ts`, #870), dan telt ook een modeltype dat de grammatica zag: in een complexe
-  // instantie, of na een string die de lus hieronder anders leest (knownbug 1050).
-  if (!options.skipBuildingModelGuard && (gramModel || entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type)))) {
+  // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
+  if (!options.skipBuildingModelGuard && entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
     throw buildingModel();
   }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
@@ -230,7 +231,7 @@ export function readIFC(
   // IFC4- of IFC4X3-bestand bij opslaan in zijn eigen schema blijft. Een ander schema (IFC2X3,
   // IFC4X3_ADD1, …) laat het veld weg: dan schrijft opslaan de standaard. Of het eerste opslaan eerst
   // vraagt, volgt hieronder na de psets (`ifcSchemaUnconfirmed`).
-  const fileSchemaName = readFileSchemaName(content, dataAt);
+  const fileSchemaName = readFileSchemaName(content);
   if (isIfcSchemaId(fileSchemaName)) project.ifcSchema = fileSchemaName;
   // "Openen met melding": het XER-bronarchief is een sidecar, geen
   // fundament. Is het onbruikbaar, dan vallen archief, selector, XER-metadata en de daaruit
@@ -1088,21 +1089,17 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
 }
 
 /**
- * Begin van de datasectie: de offset van de `D` van de sectiekop, of −1. De regels staan in `stepDataSection.ts`:
+ * Begin van de datasectie: de offset van het `DATA;`-token dat de sectiegrens vormt, of −1.
  *
- *  1. **De grammatica van ISO 10303-21** (review van #870): de statements vóór de eerste datasectie, met strings,
- *     commentaar, witruimte en parameters volgens de norm. Juist voor elk geldig STEP-bestand, ook met `DATA(…);`,
- *     `DATA ;` of opmaak tussen de tokens.
- *  2. **De regel van main**, alleen als (1) niets vond: het eerste `DATA;` op codeniveau (`indexOfCode`-achtig).
- *  3. **Regel-verankerd**, alleen als (1) en (2) niets vonden: LEGACY-bestanden waarin oudere versies van onze
+ * TWEE POGINGEN, in deze volgorde — de volgorde is essentieel.
+ *
+ *  1. **Quote- en commentaar-bewust** (`indexOfCode`): juist voor élk syntactisch geldig
+ *     STEP-bestand — slaat `DATA;` in een header-string of `/* … *\/` over en is ongevoelig voor
+ *     opmaak (geen regeleindes, `ENDSEC;DATA;` op één regel, form feed/NBSP vóór het token).
+ *  2. **Regel-verankerd**, alleen als (1) niets vond: LEGACY-bestanden waarin oudere versies van onze
  *     writer naam/auteur/bedrijf rauw in `FILE_NAME(...)` zetten ("Van 't Hof Toren" ⇒
  *     ONGEBALANCEERDE apostrof). De quote-bewuste scan loopt daar uit de pas ⇒ zonder terugval stil
  *     een leeg project.
- *
- * Alleen als het HELE bestand in de grammatica past (`stepFileGrammar.ts`), telt (1) eerst. Breekt het bestand, dan
- * raadt de lezer niet (besluit Trias, review van #870 ronde 7): (2) en (3) zijn precies main, dus zo'n bestand opent
- * zoals op main. De doelcontrole schrijft dan niet over het bestand, behalve over een eigen bestand
- * (`targetModelScan.ts`).
  *
  * Niet andersom: regelverankering als PRIMAIRE scan weigert geldige bestanden uit (1) en pikt een
  * `DATA;` op aan het begin van een regel binnen een commentaar of een header-string met een echt
@@ -1115,24 +1112,18 @@ function indexOfDataSection(content: string): number {
   return indexOfStepDataSection(content);
 }
 
-// #804 fase 1a, fixronde 4: voor een eigen bestand dat niet in de grammatica past, volgt de doelcontrole
-// (`foreign/targetModelScan.ts`) `stripStepComments`, deze lus en `readEntity` als stroom van bytes; ze zegt dan "model"
-// precies als `readIFC` met `building-model` weigert. Delen kon niet zonder deze functies om te bouwen tot een
-// stroomlezer (ze werken op de hele tekst, met terugspringen).
+// #804 fase 1a, fixronde 4: de doelcontrole (`foreign/targetModelScan.ts`) volgt `stripStepComments`, deze lus en
+// `readEntity` als stroom van bytes; ze moet "model" zeggen precies als `readIFC` met `building-model` weigert. Delen kon
+// niet zonder deze functies om te bouwen tot een stroomlezer (ze werken op de hele tekst, met terugspringen).
 // `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
-// Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, alle DATA-secties), wijzig ze daar ook.
-function parseSTEP(content: string, modelError?: () => Error): { entities: StepEntity[]; gramModel: boolean; dataAt: number } {
+// Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, `ENDSEC;`), wijzig ze daar ook.
+function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
-  // 1. Begin van de datasectie (`DATA;` of `DATA(…);`, ook met witruimte of commentaar ertussen; `stepDataSection.ts`)
-  //    — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee. De lus begint direct na de `;` van de kop:
-  //    de parameters van de sectiekop komen er niet in.
-  //    Past het hele bestand in de grammatica, dan de eerste DATAKOP daarvan; breekt het, dan precies main.
-  const layout = stepFileLayout(content);
-  const data = layout.bounds;
+  // 1. Begin van de datasectie — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee.
+  const dataAt = indexOfDataSection(content);
   // Geen sectiegrens ⇒ getypeerde fout, GEEN leeg resultaat. `openFile`/`useRecoveryRestore` tonen
   // dan de leesfout in plaats van een leeg document te openen bovenop het pad van de gebruiker.
-  if (!data) {
-    if (layout.model && modelError) throw modelError();
+  if (dataAt < 0) {
     throw new IfcParseError(
       'no-data-section',
       "Onleesbaar IFC-bestand: de verplichte 'DATA;'-sectiegrens ontbreekt.",
@@ -1142,15 +1133,11 @@ function parseSTEP(content: string, modelError?: () => Error): { entities: StepE
   // 2. Commentaar strippen (buiten strings). Regeleindes NIET normaliseren: de tokenizer behandelt \r al
   //    als witruimte, en een globale \r\n → \n-vervanging veranderde ook de tekst BINNEN strings (een
   //    notitie of naam met Windows-regeleinden kwam na opslaan en openen anders terug).
-  //    De kop kan langer zijn dan `DATA;` (`DATA ('naam',…);`, met witruimte of commentaar ertussen): de lezer gaat
-  //    verder op de echte leespositie, direct na de `;` van de kop.
-  const clean = stripStepComments(content.slice(data.end));
+  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length));
 
-  // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`), tot het einde van de tekst. Één pas, geen
-  //    aparte zoek-pas over de sectie. ISO 10303-21 staat meer DATA-secties toe (`ENDSEC;` gevolgd door een nieuw
-  //    `DATA;` of `DATA(…);`). Daarom stopt de lus NIET bij `ENDSEC;`: een entiteit in een tweede sectie (bijvoorbeeld
-  //    een wand) telt mee, zodat de modelweigering hem ziet en opslaan hem niet stil wist. Tussen de secties en na
-  //    `END-ISO-10303-21;` staat in een geldig bestand geen `#id=TYPE(…);`, dus dat leest niets extra's.
+  // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`). Het afsluitende `ENDSEC;`
+  //    van de datasectie wordt hier op CODE-niveau herkend — ongevoelig voor `ENDSEC;` in een
+  //    taaknaam. Één pas, geen aparte zoek-pas over de sectie.
   for (let i = 0; i < clean.length;) {
     const c = clean.charCodeAt(i);
     if (c === CH_QUOTE) { i = skipQuotedOrComment(clean, i); continue; }
@@ -1159,25 +1146,11 @@ function parseSTEP(content: string, modelError?: () => Error): { entities: StepE
       i = next > 0 ? next : i + 1;
       continue;
     }
-    // Review van #870, ronde 8 (Terra): breekt het bestand, dan precies main, dus ook stoppen bij de eerste `ENDSEC;`.
-    if (!data.grammar && c === CH_E && clean.startsWith('ENDSEC;', i)) break;
+    if (c === CH_E && clean.startsWith('ENDSEC;', i)) break;
     i++;
   }
 
-  // Review van #870, ronde 8 (Terra): past het hele bestand in de grammatica, dan moet de lus dezelfde entiteiten lezen
-  // (nummer en type, in volgorde). Een regeleinde midden in een token (§5.6) of `\S\'` in een string (§6.4.3) leest de
-  // lus anders; dan zou openen stil een taak verliezen. Ronde 9 (Terra): ook een waarde (`#4⏎8` is voor de lus geen
-  // verwijzing; een taak kreeg zo een andere duur). Daarom ook weigeren als de grammatica een plek zag waar de lexer van
-  // main anders leest dan de norm (`lexicalDiff`). Weigeren. Een model gaat voor: dat weigert `readIFC` zelf.
-  if (layout.valid && !layout.model && (layout.lexicalDiff
-    || entities.length !== layout.entities || stepEntitySignature(entities) !== layout.entitySignature)) {
-    throw new IfcParseError(
-      'unreadable-entities',
-      'Onleesbaar IFC-bestand: de app leest niet elke entiteit zoals de norm (ISO 10303-21) haar beschrijft.',
-    );
-  }
-
-  return { entities, gramModel: layout.model, dataAt: data.at };
+  return entities;
 }
 
 /**
@@ -1187,9 +1160,8 @@ function parseSTEP(content: string, modelError?: () => Error): { entities: StepE
  * eigen bestanden met een ongebalanceerde apostrof in `FILE_NAME` (zie `indexOfDataSection`) vallen
  * terug op een regel-verankerde match.
  */
-export function readFileSchemaName(content: string, knownDataAt?: number): string | undefined {
-  // `readIFC` kent het begin van de datasectie al (`parseSTEP`): geen tweede pas over het hele bestand.
-  const dataAt = knownDataAt ?? indexOfDataSection(content);
+export function readFileSchemaName(content: string): string | undefined {
+  const dataAt = indexOfDataSection(content);
   const header = dataAt >= 0 ? content.slice(0, dataAt) : content;
   let name: string | undefined;
   const at = indexOfCode(header, 'FILE_SCHEMA', 0);
@@ -3869,7 +3841,7 @@ function extractTimephasedDurationWalksMeta(
  * `profileAfterRead` (in `readIFC`).
  */
 export function readSchedulingProfile(content: string): SchedulingProfile | undefined {
-  const { entities } = parseSTEP(content);
+  const entities = parseSTEP(content);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) entityMap.set(e.id, e);
   return extractSchedulingProfile(entities, entityMap);

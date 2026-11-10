@@ -21,8 +21,12 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) failures.push(label);
 }
 function rejected(text: string): boolean {
-  try { readIFC(text); return false; }
-  catch (error) { return error instanceof IfcParseError && error.reason === 'building-model'; }
+  return readReason(text) === 'building-model';
+}
+/** De reden waarom `readIFC` weigert, of 'geopend'. */
+function readReason(text: string): string {
+  try { readIFC(text); return 'geopend'; }
+  catch (error) { return error instanceof IfcParseError ? error.reason : 'andere fout'; }
 }
 const S = () => useAppStore.getState();
 async function main(): Promise<void> {
@@ -43,7 +47,8 @@ async function main(): Promise<void> {
   eq('geen tekstmatch in commentaar', readIFC(add('/* #900001=IFCWALL($); */')).tasks.length, 1);
   eq('geen tekstmatch in propertywaarde', readIFC(add("#900001=IFCPROPERTYSINGLEVALUE('test',$,IFCTEXT('#9=IFCWALL($);'),$);")).tasks.length, 1);
   // Meer DATA-secties (ISO 10303-21): een wand in een tweede sectie telt mee. Vóór deze fix stopte de lezer bij de eerste
-  // `ENDSEC;`: zo'n bestand opende zonder melding, en opslaan wiste de wand.
+  // `ENDSEC;`: zo'n bestand opende zonder melding, en opslaan wiste de wand. Sinds ronde 10 (besluit Trias) leest de lezer
+  // nog steeds zoals main; de grammatica van het hele bestand (`stepFileGrammar.ts`) ziet de wand.
   const second = (record: string) => planning.replace(/ENDSEC;(\s*END-ISO-10303-21;)/, `ENDSEC;\nDATA;\n${record}\nENDSEC;$1`);
   eq('weigert een wand in een tweede DATA-sectie', rejected(second("#900001=IFCWALL('x',$);")), true);
   eq('weigert een wand in een tweede DATA-sectie met sectiekop',
@@ -62,17 +67,18 @@ async function main(): Promise<void> {
   // Sol en Terra (review van #870): parameters bij de EERSTE sectiekop. Vóór de fix: `no-data-section`.
   const firstParam = (text: string) => text.replace(/^DATA;$/m, "DATA('deel 1',('IFC4X3_ADD2'));");
   eq('weigert een wand in de enige DATA-sectie met sectiekop', rejected(firstParam(add("#900001=IFCWALL('x',$);"))), true);
-  eq('een enige DATA-sectie met sectiekop zonder model opent', readIFC(firstParam(planning)).tasks.length, 1);
+  // Ronde 10 (besluit Trias): openen is precies main, en main kent alleen `DATA;`. Zonder model opent zo'n geldige
+  // planning dus niet, net als op main (knownbug 1061).
+  eq('een enige DATA-sectie met sectiekop zonder model: geen datasectie (zoals main)', readReason(firstParam(planning)), 'no-data-section');
   // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`): een wand in de enige sectie wordt geweigerd, en
-  // zonder model opent de planning met al haar taken en het schema uit de kop.
+  // zonder model opent de planning niet (zoals main).
   {
     const showcase = readFileSync(resolve('public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
     const eigenPlus = readFileSync(resolve('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), 'utf8');
     for (const vorm of DATA_KOP_VORMEN) {
       eq(`kopvorm ${vorm.id}: een wand in de enige sectie wordt geweigerd`, rejected(metDataKop(add("#900001=IFCWALL('x',$);"), vorm)), true);
       eq(`kopvorm ${vorm.id}: eigen-plus-model wordt geweigerd`, rejected(metDataKop(eigenPlus, vorm)), true);
-      const parsed = await readIFCWithXerReconstruction(metDataKop(showcase, vorm));
-      eq(`kopvorm ${vorm.id}: de showcase opent met 20 taken en schema IFC4X3_ADD2`, [parsed.tasks.length, parsed.project.ifcSchema], [20, 'IFC4X3_ADD2']);
+      eq(`kopvorm ${vorm.id}: de showcase opent niet (zoals main)`, readReason(metDataKop(showcase, vorm)), 'no-data-section');
     }
   }
   // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop. Zoals op main: dezelfde planning,

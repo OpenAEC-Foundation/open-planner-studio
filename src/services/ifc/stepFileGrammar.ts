@@ -1,7 +1,10 @@
 // De grammatica van een heel STEP-bestand (ISO 10303-21 editie 3), van `ISO-10303-21;` tot `END-ISO-10303-21;` (#870,
-// besluit Trias, wrakko 10 november 2026). `readIFC` en de doelcontrole lezen een bestand alleen volgens hun eigen regels
-// als het hele bestand in deze grammatica past. Breekt het bestand, dan opent `readIFC` het precies zoals main, en
-// weigert de doelcontrole het schrijven (de regel van #867: bij twijfel weigeren).
+// besluit Trias, wrakko 10 november 2026, review van #870 ronde 10). De grammatica beslist twee dingen:
+//  - ziet zij ergens een modeltype, dan weigert `readIFC` het openen en de doelcontrole het schrijven, ook als het
+//    bestand later breekt. Verder opent `readIFC` precies zoals main (`stepDataSection.ts`, `parseSTEP`);
+//  - de doelcontrole schrijft alleen over een bestand dat helemaal in de grammatica past met één datasectie. Breekt het
+//    bestand, of heeft het meer datasecties, dan weigert zij (de regel van #867: bij twijfel weigeren), behalve over een
+//    eigen bestand: daar de regel van main.
 //
 // Wat de grammatica leest (tabel 3 en §8 tot §11 van de norm):
 //   `ISO-10303-21;`
@@ -15,8 +18,8 @@
 // - Een parameter is een string, een binaire waarde `"…"`, een URI `<…>`, een getal, een enumeratie `.X.`, `$`, `*`, een
 //   verwijzing `#n` of `@n`, een lijst `( … )` of een getypeerde waarde `TYPE ( parameter )`.
 // - In een ANCHOR- of REFERENCE-sectie is een statement `<naam> = … ;` of `#n = … ;`; daar telt alleen dat de haakjes
-//   kloppen (dezelfde regel als de vinder in `stepDataSection.ts`).
-// Tokens, zoals de vinder in `stepDataSection.ts` (één regel voor strings, commentaar en scheiding):
+//   kloppen.
+// Tokens:
 // - Stuurtekens (onder U+0020, en U+007F) vallen overal weg, ook midden in een token of een string (§5.2, §5.6).
 // - Een string is `'…'` met `''` als aanhalingsteken, `\\` als backslash, en `\S\` plus één teken (ook `\S\'`, §6.4.3).
 //   Elke andere backslash is een gewoon teken: oude eigen bestanden schreven JSON met `\"` letterlijk.
@@ -62,7 +65,7 @@ const BOM_BYTES = [0xef, 0xbb, 0xbf];
 const upper = (c: number) => (c >= 0x61 && c <= 0x7a ? c - 0x20 : c);
 const isUpper = (u: number) => (u >= 0x41 && u <= 0x5a) || u === UNDERSCORE;
 const isDigit = (u: number) => u >= 0x30 && u <= 0x39;
-/** Een teken van een woord: sleutelwoord, getal, enumeratie, `$`, `*`, `#12`, `@3`, `!EIGEN` (zoals de vinder). */
+/** Een teken van een woord: sleutelwoord, getal, enumeratie, `$`, `*`, `#12`, `@3`, `!EIGEN`. */
 const isWordChar = (u: number) => isUpper(u) || isDigit(u)
   || u === MINUS || u === PLUS || u === DOT || u === DOLLAR || u === STAR || u === HASH || u === AT || u === BANG;
 
@@ -132,22 +135,13 @@ const enum W { Keyword, Name, Enum, Number, Dollar, Star, Bad }
 export type StepGrammarState = 'running' | 'valid' | 'failed';
 
 export class StepFileGrammar {
-  /** De eerste DATAKOP: de `D` (`dataAt`) en direct na de `;` (`dataEnd`); -1 zolang die er niet is. */
-  dataAt = -1;
-  dataEnd = -1;
+  /** Zoveel datasecties las de grammatica (een DATAKOP telt). Opslaan over een bestand met meer dan één datasectie
+   *  weigert de doelcontrole, behalve over een eigen bestand (besluit Trias, wrakko 10 november 2026). */
+  dataSections = 0;
   /** Een entiteit met een modeltype als type (ook als deel van een complexe instantie), vóór het bestand brak. */
   model = false;
   /** Waar het bestand brak (het teken dat niet paste), of -1. */
   failedAt = -1;
-  /** Review van #870, ronde 8 (Terra): de enkelvoudige entiteiten in de datasecties, als aantal en als handtekening over
-   *  nummer en type in volgorde (`stepEntitySignature`). `readIFC` vergelijkt ze met wat `parseSTEP` las. */
-  entities = 0;
-  entitySignature = FNV_OFFSET;
-  /** Review van #870, ronde 9 (Terra): na de eerste DATAKOP (daar begint de lus) leest de lus van `parseSTEP` (de lexer van main) iets anders
-   *  dan de norm: een stuurteken midden in een token (§5.2, §5.6), ook in `''` of in de grens van commentaar; een stuurteken buiten een
-   *  string dat main geen witruimte vindt; `\S\'` in een string (§6.4.3); `\N\` of `\F\` als scheiding. `readIFC`
-   *  weigert dan een geldig bestand, want de waarden kunnen anders zijn (`#4⏎8` is voor main geen verwijzing). */
-  lexicalDiff = false;
 
   private result: StepGrammarState = 'running';
   private lex = Lex.Code;
@@ -158,10 +152,6 @@ export class StepFileGrammar {
   private wordLength = 0;
   private wordAt = -1;
   private wordHash = FNV_OFFSET;
-  /** De hash van het nummer (`#n`) van de entiteit die nu gelezen wordt. */
-  private instanceHash = 0;
-  /** Een stuurteken kwam in deze lexertoestand; of main het anders leest, beslist het volgende teken. */
-  private ctrlIn: Lex | -1 = -1;
   /** De lexer leest een woord na `\` of een `/` die geen commentaar werd: die tekens zijn geen scheiding. */
   private lexBack = Lex.Code;
   // ── Statement ──
@@ -173,7 +163,6 @@ export class StepFileGrammar {
   private depth = 0;
   private complexParts = 0;
   private dataHeadK = 0;
-  private dataHeadAt = -1;
   private anchorDepth = 0;
   /** Na `{` in een anker: de naam van de tag (een sleutelwoord). */
   private anchorTag = false;
@@ -201,46 +190,8 @@ export class StepFileGrammar {
       if (this.utf8 && this.bom > 0) { this.fail(at); return; } // een half BOM
       this.bom = -1;
     }
-    if (c < SPACE || c === 0x7f) { // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
-      if (this.dataEnd >= 0 && !this.lexicalDiff) this.controlChar(c);
-      return;
-    }
-    if (this.ctrlIn !== -1) this.afterControl(c);
+    if (c < SPACE || c === 0x7f) return; // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
     this.lexStep(c, at);
-  }
-
-  /** Leest de lexer van main dit stuurteken anders dan de norm? Tussen tokens: alleen als main het geen witruimte vindt
-   *  (9–13). In een string of commentaar: nee (main houdt het in de string, de norm laat het weg: de tekst verschilt,
-   *  geen token). Aan het einde van een woord, na `/`, na `*` in commentaar en na `'` in een string: dat hangt af van
-   *  het volgende teken (`afterControl`). Elders: ja. */
-  private controlChar(c: number): void {
-    switch (this.lex) {
-      case Lex.Code:
-        if (c < 9 || c > 13) this.lexicalDiff = true;
-        return;
-      case Lex.Str:
-      case Lex.Comment:
-        return;
-      case Lex.Word:
-      case Lex.Slash:
-      case Lex.CommentStar:
-      case Lex.StrQuote:
-        if (this.ctrlIn === -1) this.ctrlIn = this.lex;
-        return;
-      default:
-        this.lexicalDiff = true;
-    }
-  }
-
-  /** Het eerste teken na stuurtekens in `ctrlIn`: loopt het token door (voor de norm), dan leest main het anders. */
-  private afterControl(c: number): void {
-    switch (this.ctrlIn) {
-      case Lex.Word: if (isWordChar(upper(c))) this.lexicalDiff = true; break;
-      case Lex.Slash: if (c === STAR) this.lexicalDiff = true; break;
-      case Lex.CommentStar: if (c === SLASH) this.lexicalDiff = true; break;
-      case Lex.StrQuote: if (c === QUOTE) this.lexicalDiff = true; break;
-    }
-    this.ctrlIn = -1;
   }
 
   /** Een hele tekst: hetzelfde als `step` voor elk teken. In een string tellen alleen `'` en `\`, in commentaar alleen
@@ -292,7 +243,7 @@ export class StepFileGrammar {
         break; // einde van de string: dit teken is weer code
       case Lex.StrBack:
         if (c === BACKSLASH) { this.lex = Lex.Str; return; } // `\\`
-        if (c === LETTER_S) { this.lex = Lex.StrBackS; return; } // `\S`, alleen als hoofdletter (zoals de vinder)
+        if (c === LETTER_S) { this.lex = Lex.StrBackS; return; } // `\S`, alleen als hoofdletter
         this.lex = Lex.Str;
         this.lexStep(c, at);
         return;
@@ -302,7 +253,6 @@ export class StepFileGrammar {
         this.lexStep(c, at);
         return;
       case Lex.StrBackSBack:
-        if (c === QUOTE && this.dataEnd >= 0) this.lexicalDiff = true; // main sluit de string bij deze `'`
         this.lex = Lex.Str; // het teken na `\S\` hoort bij de string, ook een `'`
         return;
       // Review van #870, ronde 8 (Sol): binair is `"` met een cijfer 0–3 en dan hexadecimale cijfers (tabel 2). Een ander
@@ -364,7 +314,7 @@ export class StepFileGrammar {
     switch (c) {
       case SPACE: return;
       case SLASH: this.lexBack = Lex.Code; this.lex = Lex.Slash; return;
-      case BACKSLASH: this.lexBack = Lex.Code; this.lex = Lex.Back; if (this.dataEnd >= 0) this.lexicalDiff = true; return;
+      case BACKSLASH: this.lexBack = Lex.Code; this.lex = Lex.Back; return;
       case QUOTE: this.lex = Lex.Str; this.atom(at); return;
       case DQUOTE: this.lex = Lex.BinFirst; this.atom(at); return;
       case LT: this.lex = Lex.Uri; this.atom(at); return;
@@ -456,7 +406,6 @@ export class StepFileGrammar {
       case P.Stmt:
         if (kind === W.Keyword) { this.statementKeyword(at); return; }
         if (kind === W.Name && this.word[0] === HASH && this.sec === Sec.Data) {
-          this.instanceHash = this.wordHash;
           this.p = P.InstEq;
           return;
         }
@@ -471,11 +420,7 @@ export class StepFileGrammar {
         if (kind !== W.Keyword) { this.fail(at); return; }
         if (this.isModelWord()) this.model = true;
         if (this.p === P.ComplexNext) this.complexParts++;
-        else {
-          this.complexParts = -1; // enkelvoudig
-          this.entities++;
-          this.entitySignature = signatureStep(this.entitySignature, this.instanceHash, this.wordHash);
-        }
+        else this.complexParts = -1; // enkelvoudig
         this.p = P.RecOpen;
         return;
       case P.AnchorVal:
@@ -517,7 +462,7 @@ export class StepFileGrammar {
         this.p = P.HeadOpen;
         return;
       case Sec.Between:
-        if (this.wordIs('DATA')) { this.stage = 3; this.p = P.DataHead; this.dataHeadK = -1; this.dataHeadAt = at; return; }
+        if (this.wordIs('DATA')) { this.stage = 3; this.p = P.DataHead; this.dataHeadK = -1; return; }
         if (this.wordIs('ANCHOR') && this.stage === 0) { this.stage = 1; this.semi(Sec.Anchor); return; }
         if (this.wordIs('REFERENCE') && this.stage <= 1) { this.stage = 2; this.semi(Sec.Reference); return; }
         if (this.wordIs('END-ISO-10303-21')) { this.semi(Sec.End); return; }
@@ -689,7 +634,7 @@ export class StepFileGrammar {
   private dataHeadPunct(c: number, at: number): void {
     switch (this.dataHeadK) {
       case -1:
-        if (c === SEMI) { this.dataHeadDone(at); return; }
+        if (c === SEMI) { this.dataHeadDone(); return; }
         if (c === OPEN) { this.dataHeadK = 0; return; }
         break;
       case 1:
@@ -706,7 +651,7 @@ export class StepFileGrammar {
         if (c === CLOSE) { this.dataHeadK = 6; return; }
         break;
       case 6:
-        if (c === SEMI) { this.dataHeadDone(at); return; }
+        if (c === SEMI) { this.dataHeadDone(); return; }
         break;
       default:
         break;
@@ -714,33 +659,14 @@ export class StepFileGrammar {
     this.fail(at);
   }
 
-  private dataHeadDone(at: number): void {
-    if (this.dataAt < 0) { this.dataAt = this.dataHeadAt; this.dataEnd = at + 1; }
+  private dataHeadDone(): void {
+    this.dataSections++;
     this.sec = Sec.Data;
     this.p = P.Stmt;
   }
 }
 
 /** De grammatica over een hele tekst (`readIFC`). */
-/** Eén entiteit in de handtekening: de hash van het nummer (`#n`) en van het type, beide in hoofdletters. */
-function signatureStep(signature: number, idHash: number, typeHash: number): number {
-  return Math.imul(Math.imul(signature ^ idHash, FNV_PRIME) ^ typeHash, FNV_PRIME);
-}
-
-function fnv(text: string): number {
-  let hash = FNV_OFFSET;
-  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ upper(text.charCodeAt(i)), FNV_PRIME);
-  return hash;
-}
-
-/** De handtekening van `StepFileGrammar.entitySignature` over entiteiten die een andere lezer las (`parseSTEP`): het
- *  nummer zonder `#`, het type. Gelijk als beide dezelfde nummers en typen in dezelfde volgorde lazen. */
-export function stepEntitySignature(entities: ReadonlyArray<{ readonly id: string; readonly type: string }>): number {
-  let signature = FNV_OFFSET;
-  for (const e of entities) signature = signatureStep(signature, fnv(`#${e.id}`), fnv(e.type));
-  return signature;
-}
-
 export function stepFileGrammar(content: string): StepFileGrammar {
   const grammar = new StepFileGrammar(false);
   grammar.run(content);

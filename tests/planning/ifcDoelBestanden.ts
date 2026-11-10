@@ -165,14 +165,6 @@ export function dataKopBestanden(text: string, welke: 'alle' | 'scanner' | 'scan
   ]);
 }
 
-/** Waar de eerste sectiekop in `metDataKop(text, vorm)` begint (de `D`) en waar de lezer verder gaat (direct na de `;`
- *  van de kop: de parameters horen bij de kop, review van #870 ronde 6). */
-export function dataKopGrens(text: string, vorm: DataKopVorm): { at: number; end: number; grammar: true } {
-  const at = /ENDSEC;\r?\nDATA;/.exec(metNaam(text, vorm))!.index + (vorm.overgang ?? 'ENDSEC;\n').length;
-  const kop = vorm.kop.split('{n}').join('1');
-  return { at, end: at + kop.length, grammar: true }; // elke vorm in de tabel past in de grammatica
-}
-
 /** Sol en Terra (review van #870, ronde 3, BLOKKEERT): een oude, rauw geschreven bestandsnaam met één apostrof en een
  *  sectiekop-achtige tekst erin. De apostrof draait de stringtoestand om; in ronde 3 werd `DATA (` in de naam de
  *  sectiekop, en opende een bestaande planning met nul taken, zonder schema en zonder modelweigering. */

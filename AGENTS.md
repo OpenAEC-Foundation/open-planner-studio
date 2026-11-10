@@ -217,10 +217,10 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   type inventory comes from official IFC2X3 TC1, IFC4 ADD2 TC1 and IFC4X3 ADD2 schemas; regenerate
   with `scripts/ifc-product-types.py`. Edit the separate planning file, then merge externally.
   `readIFC` and the save-target check read the whole file with the ISO 10303-21 grammar
-  (`src/services/ifc/stepFileGrammar.ts`); a model type it sees refuses, also before the point where a file breaks. In a
-  file that fits the grammar, `readIFC` refuses (`unreadable-entities`) when its entity loop reads other entities than
-  the grammar. A file that breaks the grammar opens exactly as on main (first `DATA;` up to the first `ENDSEC;`), and as
-  a save target it refuses, except a file OPS wrote itself (old versions wrote a raw header).
+  (`src/services/ifc/stepFileGrammar.ts`); a model type it sees refuses, also before the point where a file breaks.
+  Otherwise `readIFC` reads only the first data section: the first `DATA;` up to the first `ENDSEC;`. As a save target,
+  a file that breaks the grammar or has more than one data section refuses, except a file OPS wrote itself (old
+  versions wrote a raw header).
   Behind the feature flag `ifcForeignContent` (#804 phase 1a; always off in the app until saving works) every IFC open
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
   reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
