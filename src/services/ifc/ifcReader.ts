@@ -1081,14 +1081,13 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
 }
 
 /**
- * Begin van de datasectie: de offset van het `DATA;`-token dat de sectiegrens vormt, of −1.
+ * Begin van de datasectie: de offset van de `D` van de sectiekop, of −1. De regels staan in `stepDataSection.ts`:
  *
- * TWEE POGINGEN, in deze volgorde — de volgorde is essentieel.
- *
- *  1. **Quote- en commentaar-bewust** (`indexOfCode`): juist voor élk syntactisch geldig
- *     STEP-bestand — slaat `DATA;` in een header-string of `/* … *\/` over en is ongevoelig voor
- *     opmaak (geen regeleindes, `ENDSEC;DATA;` op één regel, form feed/NBSP vóór het token).
- *  2. **Regel-verankerd**, alleen als (1) niets vond: LEGACY-bestanden waarin oudere versies van onze
+ *  1. **De grammatica van ISO 10303-21** (review van #870): de statements vóór de eerste datasectie, met strings,
+ *     commentaar, witruimte en parameters volgens de norm. Juist voor elk geldig STEP-bestand, ook met `DATA(…);`,
+ *     `DATA ;` of opmaak tussen de tokens.
+ *  2. **De regel van main**, alleen als (1) niets vond: het eerste `DATA;` op codeniveau (`indexOfCode`-achtig).
+ *  3. **Regel-verankerd**, alleen als (1) en (2) niets vonden: LEGACY-bestanden waarin oudere versies van onze
  *     writer naam/auteur/bedrijf rauw in `FILE_NAME(...)` zetten ("Van 't Hof Toren" ⇒
  *     ONGEBALANCEERDE apostrof). De quote-bewuste scan loopt daar uit de pas ⇒ zonder terugval stil
  *     een leeg project.

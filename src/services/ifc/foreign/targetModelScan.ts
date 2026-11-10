@@ -8,8 +8,9 @@
 // `building-model`. Daarom volgt deze lezer de route van `readIFC` stap voor stap, als stroom van bytes:
 //  1. de kop: `assertIfcIntegrity` (BOM, witruimte, `ISO-10303-21;`; de kopregel uit `stepDataSection.ts`);
 //  2. het begin van de datasectie: dezelfde `StepDataSectionFinder` als `indexOfDataSection` (`stepDataSection.ts`;
-//     eis van Trias: één bron). Eerst het strenge `DATA;`; vindt de lezer dat in het hele bestand niet, dan leest hij
-//     het bestand opnieuw vanaf het eerste regel-verankerde `DATA;` (de tweede lezing);
+//     eis van Trias: één bron). Eerst de sectiekop volgens de grammatica van de norm; vindt de lezer die in het hele
+//     bestand niet, dan leest hij het bestand opnieuw vanaf `fallback` (de regel van main, anders regel-verankerd; de
+//     tweede lezing);
 //  3. na `DATA;`: commentaar weg, zoals `stripStepComments`;
 //  4. de lus van `parseSTEP` met `readEntity`: op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen
 //     (`#id = TYPE (…) ;`, met haakjes op diepte, strings en commentaar in de argumenten), tot het einde van het
@@ -442,12 +443,13 @@ export class TargetModelScanner {
     }
     if (this.modelPending) { this.result = 'model'; return false; }
     if (this.phase === Phase.Find) {
-      if (!this.secondPass && this.finder.anchored >= 0) {
-        // Geen streng `DATA;` in het hele bestand (de kop loopt uit de pas, bijvoorbeeld door een losse apostrof):
-        // `readIFC` leest dan vanaf het eerste regel-verankerde `DATA;`. Dat leest deze lezer opnieuw.
+      const fallback = this.finder.fallback;
+      if (!this.secondPass && fallback) {
+        // De grammatica vond geen sectiekop (de kop loopt uit de pas, bijvoorbeeld door een losse apostrof): `readIFC`
+        // leest dan vanaf de regel van main of de regel-verankerde kop (`fallback`). Dat leest deze lezer opnieuw.
         this.secondPass = true;
         this.startData();
-        this.moveTo(this.finder.anchoredEnd);
+        this.moveTo(fallback.end);
         this.jumped = false;
         return true;
       }
