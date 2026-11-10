@@ -2,8 +2,8 @@
 // byte-gelijk aan main.
 //
 // De verwachting komt uit de code van main zelf: `scripts/proef/maak-main-pariteit.mjs` draaide de kern
-// `ifcPariteitKern.ts` met de src van main (`14f979755`, sinds 1b; daarvoor `2a66df33c`) en schreef
-// `fixtures/main-pariteit.json`. Deze check draait
+// `ifcPariteitKern.ts` met de src van main (`ccf3ca2a2`, sinds fixronde 6 van 1b, met #871 en #872; daarvoor `14f979755`
+// en in 1a `2a66df33c`) en schreef `fixtures/main-pariteit.json`. Deze check draait
 // dezelfde kern met de src van deze branch en eist per bestand:
 //  - dezelfde invoer (anders: de fixture opnieuw maken met het script);
 //  - een eigen voorbeeld: hetzelfde opslagdoel en byte-gelijk wat Opslaan schrijft (SHA-256 en lengte);

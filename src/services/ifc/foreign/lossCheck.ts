@@ -1429,8 +1429,10 @@ const EXCEPTION_FIELDS = ['holidays', 'workingExceptions'];
 const CAL_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   2: ['name'], 3: ['description'], 4: ['shift'], 6: WEEK_FIELDS, 7: EXCEPTION_FIELDS, 8: ['shift'],
 };
-/** `OPS_Calendar` (`writeCalendarGenerationMeta`): property → velden. `LiteralTimes` staat er niet in: de writer kiest
- *  het op grond van alle taken (knownbug 1026), dus geen bewerking van de kalender verklaart het. */
+/** `OPS_Calendar` (`writeCalendarGenerationMeta`): property → velden. `LiteralTimes` staat er niet in: een kalender die
+ *  bij het openen letterlijk was, blijft letterlijk (#872, `ifcLiteralCalendarIds`; knownbug 1026 is daarmee opgelost);
+ *  voor een andere kalender kiest de writer het op grond van alle taken (`minuteModelWriteView`). Geen bewerking van de
+ *  kalender verklaart dus een andere waarde. */
 const CAL_PROP_FIELDS: Readonly<Record<string, readonly string[]>> = {
   [PROP.Calendar.RuleSetId]: ['generation'], [PROP.Calendar.Region]: ['generation'], [PROP.Calendar.BreakChoice]: ['generation'],
   [PROP.Calendar.GeneratedFromYear]: ['generation'], [PROP.Calendar.GeneratedToYear]: ['generation'],

@@ -24,7 +24,7 @@ import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
-import { lagValueSlot } from './ifcLagTimeSlots';
+import { LAG_SLOT, lagValueSlot } from './ifcLagTimeSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
@@ -2050,10 +2050,10 @@ function extractSequences(
         // Welk slot de waarde draagt, kiest `lagValueSlot` (gedeeld met de verliesbewaking van de merge).
         const lagValue = lagValueSlot(lagEntity.args);
         const durType = (lagEntity.args[4] || '').trim();
-        if (lagValue.kind === 'ratio') {
+        if (lagValue.kind === LAG_SLOT.ratio) {
           // Ratio → procent; afronden tegen floating-point-ruis (0.33*100 = 33.000000000000004).
           lagPercent = Math.round(parseFloat(lagValue.text) * 100 * 1e6) / 1e6;
-        } else if (lagValue.kind === 'duur' || lagValue.kind === 'tekst') {
+        } else if (lagValue.kind === LAG_SLOT.duur || lagValue.kind === LAG_SLOT.tekst) {
           // EERST `lagMinutes` proberen (discriminator (c), subdayIo/mspdiReader-conventie "geen
           // dag-afronding"). Een duur MET tijdcomponent (`PT2H0M0S`) is minuut-precies ⇒ `lagDays`
           // blijft 0, nooit de grove uur→dag-ceil van `parseDurationDays` (die zou een correcte

@@ -325,6 +325,10 @@ export const PARITY_FILES: readonly string[] = [
   // Fixronde 1 van #867, BLOKKEERT 1: een eigen voorbeeld met `ProjectName` in OPS_ProjectSettings. Met de flag uit leest
   // en schrijft de branch het zoals main (de lezer leest die property alleen bij een project dat niet P is).
   'tests/planning/fixtures/projectnaam-in-settings',
+  // Fixronde 6 van #867 (VERVOLG): een eigen voorbeeld met een taakduur met dagen vóór `T` (`P2DT12H`, taak #47 van
+  // `examples/showcase-groot-terrein-onderaannemer.ifc`). Sinds #871 leest main de dagen mee; de branch moet dat net zo
+  // doen. Een eigen map, zodat de checks die de bestanden direct in `fixtures/` lezen hem niet zien.
+  'tests/planning/fixtures/duur-dagen-en-tijd',
 ];
 
 export interface ParityFixtureEntry {

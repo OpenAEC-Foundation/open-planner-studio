@@ -1175,6 +1175,19 @@ if (setupEigen) {
     ['IFCTASKTIME #46, argument 1 na de bewerking: .PREDICTED. → .MEASURED.']);
   // Fixronde 4, plek 4: O1 toetst ook zonder bewerking (een veld dat `changedScopes` niet ziet).
   eq('O1: ook zonder bewerking', run(withArg(task51, 3, "'Weg'"), () => {}), [`IFCTASK #51, argument 3 na de bewerking: $ → 'Weg'`]);
+  // Plek 1 en 2 (fixronde 4 en 5). Tot #872 toetste `check-ifc-foreign-strikt.ts` dit met knownbug 1026 als bron van het
+  // verlies; die is opgelost, dus de proef bouwt het verlies hier zelf: een andere eindtijd van taak #51 (07:00 in plaats van
+  // de bron). De projectnaam verklaart die niet (plek 1), en een deel van `time` waar de writer geen slot uit schrijft ook
+  // niet (plek 2, `TASKTIME_SLOT_FIELDS`). De tegenproef: wijzigt de planner de eindtijd zelf, dan is er geen melding.
+  const finish51 = withArg(time51, 6, "'2099-01-01T07:00:00'");
+  const finishFound = /^IFCTASKTIME #50, argument 6 na de bewerking: '\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d' → '2099-01-01T07:00:00'$/;
+  const time51Task = (d: Domain) => d.tasks.find(t => t.name === task51.args[2].slice(1, -1))!;
+  const byProject = run(finish51, (d) => { d.project.name = 'Andere naam'; });
+  ok(`plek 1: de projectnaam verklaart geen andere eindtijd van een taak (${byProject.slice(0, 1).join('')})`, byProject.some(f => finishFound.test(f)));
+  const bySlotless = run(finish51, (d) => { for (const t of d.tasks) (t.time as unknown as Record<string, unknown>).zonderBetekenis = 1; });
+  ok(`plek 2: een deel van \`time\` zonder slot verklaart geen andere eindtijd (${bySlotless.slice(0, 1).join('')})`, bySlotless.some(f => finishFound.test(f)));
+  const byFinish = run(finish51, (d) => { const t = time51Task(d); t.time.scheduleFinish = `${t.time.scheduleFinish}x`; });
+  eq('plek 2, tegenproef: de eindtijd zelf gewijzigd verklaart het slot', byFinish.filter(f => /^IFCTASKTIME #50, argument 6 /.test(f)), []);
 }
 if (setupEigen) {
   // Besluit 3, schrijfvelden (smal): de CreationDate van een owner history is alleen een schrijfveld in de eigen owner
@@ -1250,21 +1263,34 @@ if (setupEigen) {
   ok(`plek 34: een nieuwe registerpset heeft geen melding "nieuwe pset" (${ownPset.slice(0, 1).join('')})`, !ownPset.some(f => /nieuwe pset/.test(f)));
 }
 {
-  // Wel een pad in de writer (gevonden met de telling op de bestanden zoals de writer ze schrijft): de writer kiest per
-  // kalender ankerdatums of `LiteralTimes`, op grond van alle taken. Wist de planner de enige taak die `LiteralTimes`
-  // nodig had ('1. Preparation'), dan schrijft de writer de eindtijden van de andere taken als 07:00 in plaats van 16:00.
-  // Die taken veranderden niet; een ander programma leest een andere tijd. De merge weigert.
+  // Knownbug 1026, opgelost met #872 (4a8f76d9f). Gevonden met O1 en de telling: de writer koos per kalender ankerdatums of
+  // `LiteralTimes` op grond van alle taken. Wiste de planner de enige taak die `LiteralTimes` nodig had ('1. Preparation'),
+  // dan schreef hij de eindtijden van de andere taken als 07:00 in plaats van 16:00, en de werkweek anders. Die taken
+  // veranderden niet, dus de merge weigerde (`niet-gedragen`). Sinds #872 blijft een kalender die bij het openen letterlijk
+  // was ook letterlijk (`ifcLiteralCalendarIds`). Regressietest: het wissen schrijft, `LiteralTimes` blijft staan, en de
+  // taaktijden van de 51 taken die blijven en de werkweek zijn byte-gelijk aan de bron.
   const bytes = await settle(read('tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'));
   const opened = await openForeign(bytes);
   const edit = plannerEdits(opened, 40).find(e => e.label === 'task-mvp6ekzlhuk71306 wissen');
-  ok('O1: de taak 1. Preparation bestaat', edit !== undefined && opened.tasks.some(t => t.id === 'task-mvp6ekzlhuk71306' && t.name === '1. Preparation'));
-  if (edit) {
-    await expectRefusal('O1: een taak wissen verandert de tijden van andere taken', bytes, 'niet-gedragen', edit.apply,
-      /^IFCTASKTIME #\d+, argument \d+ na de bewerking: '\d{4}-\d\d-\d\dT16:00:00' → '\d{4}-\d\d-\d\dT07:00:00'/,
-      // Sinds fixronde 4 (geen vrijstelling voor het project) ook de kalender: de writer kiest per kalender ook de blokken
-      // werktijd anders (`IfcRecurrencePattern`, `IfcTimePeriod`); knownbug 1026.
-      // Ook de eigenschappen in `OPS_Calendar` die de writer uit die keuze afleidt (`LiteralTimes`, `WorkEndHour`).
-      /^IFC(TASKTIME #\d+, argument \d+ na de bewerking|PROPERTYSET #\d+ \(OPS_Calendar\)|PROPERTYSINGLEVALUE #\d+ \((LiteralTimes|WorkStartHour|WorkEndHour|HoursPerDay|IsHourCalendar)\)|RECURRENCEPATTERN #\d+|TIMEPERIOD #\d+)/);
+  ok('1026: de taak 1. Preparation bestaat', edit !== undefined && opened.tasks.some(t => t.id === 'task-mvp6ekzlhuk71306' && t.name === '1. Preparation'));
+  const r = edit ? await roundTrip("1026: fix3, '1. Preparation' wissen", bytes, edit.apply) : undefined;
+  ok("1026: fix3, '1. Preparation' wissen schrijft", r !== undefined);
+  if (r) {
+    const linesOf = (b: Uint8Array, type: string) => {
+      const index = scanStep(b);
+      const out = new Map<string, string>();
+      for (let i = 0; i < index.count; i++) if (index.isEntity(i) && index.type(i) === type) out.set(index.id(i), text(b.subarray(index.entityStart(i), index.end(i))).trim());
+      return out;
+    };
+    const before = linesOf(bytes, 'IFCTASKTIME');
+    const after = linesOf(r.out, 'IFCTASKTIME');
+    const kept = [...before].filter(([id]) => after.has(id));
+    eq('1026: 51 taaktijden blijven (57 min de fase en haar vijf kinderen)', [before.size, kept.length], [57, 51]);
+    eq('1026: de taaktijden die blijven zijn byte-gelijk (eindtijd 16:00, niet 07:00)', kept.filter(([id, l]) => after.get(id) !== l).map(([id]) => id).slice(0, 3), []);
+    const calendarTypes = ['IFCTIMEPERIOD', 'IFCRECURRENCEPATTERN', 'IFCWORKTIME'];
+    const calendar = (b: Uint8Array) => JSON.stringify(calendarTypes.map(type => [...linesOf(b, type)]));
+    ok('1026: de werkweek en de uitzonderingen zijn byte-gelijk (IfcTimePeriod, IfcRecurrencePattern, IfcWorkTime)', calendar(r.out) === calendar(bytes));
+    ok('1026: LiteralTimes staat er nog', lineOf(r.out, '40') === "#40=IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$);");
   }
 }
 

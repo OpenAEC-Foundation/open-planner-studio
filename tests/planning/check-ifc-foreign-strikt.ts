@@ -123,30 +123,41 @@ const has = (needle: string | RegExp, want = true) => (out: Uint8Array) => {
 };
 
 // ── B1 en plek 1 tot 3: geen algemene vrijstelling; verklaren per veld ──
-// De proeven van de expert op fix3 (`p1-fix3.ts`, `p1b-fix3.ts`): '1. Preparation' wissen verandert de tijden van de
-// andere taken en de werkweek van de kalender (knownbug 1026). Geen andere bewerking mag dat verklaren.
-await proof('plek 1–3', "fix3: '1. Preparation' wissen", fix3, 'niet-gedragen', wipe(PREP));
-await proof('plek 1', 'fix3: wissen + projectnaam', fix3, 'niet-gedragen', (x) => { wipe(PREP)(x); x.project.name = 'Andere naam'; });
-await proof('plek 3', 'fix3: wissen + Earthworks hernoemen', fix3, 'niet-gedragen', (x) => {
+// Tot de merge van #872 (4a8f76d9f) stonden hier de proeven van de expert op fix3 (`p1-fix3.ts`, `p1b-fix3.ts`): '1. Preparation'
+// wissen veranderde de tijden van de andere taken en de werkweek van de kalender (knownbug 1026), en geen andere bewerking
+// mocht dat verklaren. Sinds #872 blijft een kalender die bij het openen letterlijk was ook letterlijk, en verandert er
+// niets meer. De regressietest staat in `check-ifc-foreign-preserve.ts` (sectie 5g, "1026"). Dat een bewerking alleen haar
+// eigen velden verklaart (plek 1 tot 3), toetst preserve daar direct op de uitvoerregels (O1: projectnaam, hernoemen, een
+// deel van `time` zonder slot). Hier: dezelfde combinaties schrijven nu, en de taaktijden van de taken die blijven zijn
+// byte-gelijk aan de bron, op de naam na (een hernoemde taak heeft een andere naam van haar taaktijd).
+const withoutName = (l: string) => l.replace(/^#\d+=IFCTASKTIME\('(?:[^']|'')*'/, '');
+const fix3Times = new Map(linesOfType(fix3, 'IFCTASKTIME').map(l => [l.slice(0, l.indexOf('=')), withoutName(l)]));
+const timesKept = (out: Uint8Array) => {
+  const after = new Map(linesOfType(out, 'IFCTASKTIME').map(l => [l.slice(0, l.indexOf('=')), withoutName(l)]));
+  const kept = [...fix3Times].filter(([id]) => after.has(id));
+  const changed = kept.filter(([id, l]) => after.get(id) !== l).map(([id]) => id);
+  if (kept.length !== 51) return `${kept.length} taaktijden blijven, verwacht 51`;
+  if (changed.length > 0) return `andere taaktijden: ${changed.slice(0, 3).join(', ')}`;
+  // Het voorbeeld uit knownbug 1026, letterlijk: '2. Earthworks & foundations' (#61) houdt ScheduleFinish, EarlyFinish en
+  // LateFinish om 16:00 (vóór #872 werden ze 07:00).
+  const earthworks = withoutName(lineOf(out, '61'));
+  const want = "'2027-03-05T16:00:00','2027-03-15T07:00:00','2027-09-09T16:00:00','2027-03-15T07:00:00','2028-05-04T16:00:00'";
+  return earthworks.includes(want) ? undefined : `Earthworks (#61): ${earthworks.slice(0, 160)}`;
+};
+await proof('plek 1–3', "fix3: '1. Preparation' wissen (knownbug 1026, opgelost met #872)", fix3, 'schrijft', wipe(PREP), timesKept);
+await proof('plek 1', 'fix3: wissen + projectnaam', fix3, 'schrijft', (x) => { wipe(PREP)(x); x.project.name = 'Andere naam'; }, timesKept);
+await proof('plek 3', 'fix3: wissen + Earthworks hernoemen', fix3, 'schrijft', (x) => {
   wipe(PREP)(x); x.tasks.find(t => t.name.startsWith('2. Earthworks'))!.name = 'Earthworks hernoemd';
-});
-await proof('plek 3', 'fix3: wissen + elke andere taak een notitie', fix3, 'niet-gedragen', (x) => {
+}, timesKept);
+await proof('plek 3', 'fix3: wissen + elke andere taak een notitie', fix3, 'schrijft', (x) => {
   wipe(PREP)(x);
   for (const t of x.tasks) t.notes = [{ id: 'n1', text: 'x', createdAt: '2026-11-10T00:00:00' }] as never;
-});
-await proof('plek 2–3', 'fix3: wissen + elke andere taak hernoemd', fix3, 'niet-gedragen', (x) => { wipe(PREP)(x); for (const t of x.tasks) t.name = `${t.name} *`; });
-// Plek 2 apart: elke taak krijgt een veld in `time` waar de writer niets uit schrijft. De werkweek en `OPS_Calendar`
-// blijven onverklaard: geen bewerking van de kalender. Sinds fixronde 5 verklaart een deel van `time` alleen de tijdslots
-// die de writer eruit schrijft (`TASKTIME_SLOT_FIELDS`), dus ook de tijden van de taken blijven onverklaard. Tot fixronde 4
-// verklaarde elke wijziging in `time` elk tijdslot (VERVOLG van Terra).
-const CALENDAR_DETAIL = /^niet-(gedragen|eenduidig): IFC(TIMEPERIOD|RECURRENCEPATTERN|WORKTIME|WORKCALENDAR|PROPERTYSET #\d+ \(OPS_Calendar\)|PROPERTYSINGLEVALUE #\d+ \((LiteralTimes|WorkStartHour|WorkEndHour|HoursPerDay|IsHourCalendar)\))/;
-const p2 = await proof('plek 2', 'fix3: wissen + elke andere taak een veld in `time` (de kalender blijft onverklaard)', fix3, 'niet-gedragen', (x) => {
+}, timesKept);
+await proof('plek 2–3', 'fix3: wissen + elke andere taak hernoemd', fix3, 'schrijft', (x) => { wipe(PREP)(x); for (const t of x.tasks) t.name = `${t.name} *`; }, timesKept);
+await proof('plek 2', 'fix3: wissen + elke andere taak een veld in `time` zonder slot', fix3, 'schrijft', (x) => {
   wipe(PREP)(x); for (const t of x.tasks) (t.time as unknown as Record<string, unknown>).zonderBetekenis = 1;
-});
-ok(`${p2.label}: de kalender staat bij de weigeringen`, p2.details.some(x => CALENDAR_DETAIL.test(x)));
-ok(`${p2.label}: een deel van \`time\` zonder slot verklaart geen tijdslot (${p2.details.filter(x => !CALENDAR_DETAIL.test(x)).slice(0, 1).join('')})`,
-  p2.details.some(x => /^niet-gedragen: IFCTASKTIME #\d+, argument \d+ na de bewerking: /.test(x)));
-// Zonder de wissing schrijven dezelfde bewerkingen (de controle dat de proeven hierboven om de wissing weigeren).
+}, timesKept);
+// Zonder de wissing schrijven dezelfde bewerkingen ook.
 await proof('plek 3', 'fix3: elke taak hernoemd (zonder wissen)', fix3, 'schrijft', (x) => { for (const t of x.tasks) t.name = `${t.name} *`; });
 await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x) => { x.project.name = 'Andere naam'; });
 

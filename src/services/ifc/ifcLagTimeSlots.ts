@@ -12,6 +12,11 @@ export type LagValueSlot =
   | { readonly kind: 'ratio' | 'duur' | 'tekst'; readonly arg: 3; readonly text: string }
   | { readonly kind: 'oud'; readonly arg: 4; readonly text: string };
 
+/** De soorten van `LagValueSlot` als constanten. De lezer vergelijkt hiermee, niet met een losse tekst: de controle op het
+ *  register (`check-ifc-pset-register.ts`, regel B) ziet elke tekst in een vergelijking van de lezer als een mogelijke
+ *  propertynaam. */
+export const LAG_SLOT = { ratio: 'ratio', duur: 'duur', tekst: 'tekst', oud: 'oud' } as const satisfies Record<LagValueSlot['kind'], LagValueSlot['kind']>;
+
 /** Het slot met de waarde van een `IfcLagTime` met deze argumenten (zie `LagValueSlot`). */
 export function lagValueSlot(args: readonly string[]): LagValueSlot {
   const lagValue = (args[3] || '').trim();

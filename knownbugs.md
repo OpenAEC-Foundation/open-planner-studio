@@ -1787,30 +1787,6 @@ en noem het in je rapport of PR-tekst.
      Met de flag weigert de merge dat nu (`niet-gedragen`). Niet nagegaan: of dit de bedoelde omzetting naar het
      minutenmodel is, en wat de gewone writer zonder de flag schrijft. Uit #867 (fase 1b, fixronde 2). — S
 
-1026. **De writer schrijft de eindtijden van taken die niet veranderden anders als één andere taak verdwijnt.** De writer
-     kiest per kalender ankerdatums of `LiteralTimes`, op grond van alle taken (`src/services/ifc/minuteModelWrite.ts:48`
-     tot 86; de vlag schrijft `src/services/ifc/ifcWriter.ts:1489`). Eén waarde die niet op een anker past, maakt de hele
-     kalender letterlijk. Proef met de gewone writer, zonder model en zonder merge: de planning van
-     `tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc` zoals `writeIFC` haar schrijft (925 regels, geen model),
-     opnieuw gelezen met `readIFC`. Zonder bewerking is opslaan byte-gelijk. Wis de samenvattingstaak '1. Preparation'
-     (`task-mvp6ekzlhuk71306`, met haar vijf kinderen; zij heeft een EarlyFinish om 07:00, `2027-03-30T07:00`, die niet
-     op een anker past), dan verdwijnt `LiteralTimes` van de kalender en krijgen alle 51 taken die blijven andere tijden
-     in het bestand, bijvoorbeeld '2. Earthworks & foundations' ScheduleFinish `2027-03-05T16:00:00` →
-     `2027-03-05T07:00:00` (EarlyFinish `2027-09-09T16:00:00` → `T07:00:00`, LateFinish `2028-05-04T16:00:00` →
-     `T07:00:00`) en 'Sheet pile sections' `2027-03-19T16:00:00` → `2027-03-19T07:00:00`. Onze lezer geeft daarna datums
-     zonder tijd (`2027-03-05`) in plaats van momenten (`2027-03-05T16:00`); niet nagegaan of de app ze bij het laden naar
-     hetzelfde moment omzet. Een ander programma leest de letterlijke tijd en ziet een einde negen uur eerder, voor taken
-     die niet veranderden. Met de flag
-     weigert de merge dit (`niet-gedragen` na de bewerking, `check-ifc-foreign-preserve.ts` sectie 5g). Richting: de
-     keuze per kalender stabiel houden (een kalender die letterlijk was, blijft letterlijk zolang het document open is),
-     of de keuze bewaren in het document. Uit #867 (fase 1b, fixronde 3, besluit 4).
-     Ook de kalender zelf verandert (gezien in fixronde 4, toen de merge de kalender per veld ging toetsen): na dezelfde
-     wissing schrijft de writer de werkweek als één blok `IFCTIMEPERIOD('07:00:00','16:00:00')` in plaats van de twee
-     blokken 07:00–12:00 en 13:00–16:00 (de middagpauze is weg voor een ander programma), en `OPS_Calendar` verliest
-     `LiteralTimes` en `WorkEndHour`. De writer materialiseert de blokken alleen als een urentaak de kalender gebruikt
-     (`includeEffectiveScalarBands` in `writeCalendar`). Met de flag weigert de merge (`check-ifc-foreign-strikt.ts`,
-     plek 2). — B
-
 1028. **De lezer leest geen jaren, maanden of weken in een taakduur.** `parseDurationDays`
      (`src/services/ifc/ifcReader.ts:1319`) zoekt alleen een getal voor `D`, en anders voor `H`. Proef op
      `public/examples/showcase-appartementencomplex.ifc` met de duur van 'CPT soundings & soil investigation' (`#55`):
