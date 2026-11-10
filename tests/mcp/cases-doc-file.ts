@@ -548,6 +548,26 @@ test('export_ifc: `overwritten` meldt de WERKELIJKHEID, niet de meegestuurde vla
   assertEq(again.overwritten, true, 'een bestaand bestand vervangen ⇒ overwritten:true');
 });
 
+test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (knownbug 1026, review #872 ronde 3)', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Export');
+  const own = `${HOME}/eigen.ifc`;
+  files.set(own, 'ISO-10303-21;\n');
+  useAppStore.setState({ filePath: own, ifcLiteralCalendarIds: null });
+  // Een urentaak van vier uur maakt de projectkalender letterlijk (T17).
+  S().addTask({ name: 'Uurtaak', time: { ...S().tasks[0].time, durationUnit: 'hours', durationMinutes: 240 } });
+  S().runCPM();
+  await callOk('planner_export_ifc', { path: `${HOME}/ander.ifc` });
+  assert(files.get(`${HOME}/ander.ifc`)!.includes("'LiteralTimes'"), 'de export schrijft de kalender letterlijk');
+  assertEq(S().ifcLiteralCalendarIds, null, 'een export naar een ander bestand verandert de keuze niet');
+  // Een andere schrijfwijze van hetzelfde bestand (zelfde identiteit) is het eigen bestand.
+  aliases.set(`${HOME}/Eigen.ifc`, own);
+  await callOk('planner_export_ifc', { path: `${HOME}/Eigen.ifc`, overwrite: true });
+  assert(files.get(own)!.includes("'LiteralTimes'"), 'het eigen bestand is nu letterlijk');
+  assertEq(S().ifcLiteralCalendarIds, [S().calendar.id], 'een export over het eigen bestand legt de keuze vast');
+});
+
 test('export_ifc: pad buiten de $HOME-fs-scope ⇒ code SCOPE (ook via ..-traversal)', async () => {
   installFakeFs();
   resetToSingleEmptyDocument();

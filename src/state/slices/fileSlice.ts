@@ -1,10 +1,10 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
-import { literalCalendarIdsWritten, mergeLiteralCalendarIds, serializeForSave } from '../savedLiteralCalendars';
+import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, serializeForSave } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
-import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
+import { writeIFC, writeIFCWithChoices, ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
@@ -513,6 +513,9 @@ export interface FileSlice {
    *  ernaast. Géén embed. No-op op de pool-kant als het project niet aan een bedrijf gebonden is.
    *  Geeft hetzelfde `ExportResult` terug als `exportAs` — inclusief de cyclusguard. */
   exportProjectWithPool: () => Promise<ExportResult>;
+  /** Knownbug 1026: `ids` werden letterlijk naar het eigen bestand van document `documentId` geschreven (een export over
+   *  dat bestand, `exportHitsOwnFile`). Voegt ze toe aan zijn keuze, ook als het document intussen slaapt. */
+  recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
   /**
    * #804 fase 1a, fixronde 1: de doelcontrole voor elke opslag- of exportdialoog (`CheckedSaveDialogOpts.refuseTarget`).
    * Weigert het bronbestand van een open document met een vreemd deel, en (fixronde 2, met de flag) een bestaand doel dat
@@ -920,6 +923,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (unchanged) entry.payload.isDirty = false;
     });
     return unchanged;
+  };
+
+  /** Knownbug 1026, review #872 ronde 3 (Terra): een IFC-export over het eigen bestand legt de letterlijke kalenders vast,
+   *  zoals Opslaan (`exportHitsOwnFile`). Een export naar een ander bestand verandert de keuze niet. */
+  const recordOwnFileExport = async (state: AppState, outcome: SaveOutcome, ids: readonly string[]): Promise<void> => {
+    if (ids.length === 0) return;
+    if (await exportHitsOwnFile(saveTargetRef(state), outcome.ref, await fileIdentityFs())) {
+      get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
+    }
   };
 
   /** Het opslagdoel van een lokale opslaan-als-uitkomst (Tauri-pad, handle of alleen een naam). */
@@ -1704,6 +1716,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Het voortgangsblad krijgt een eigen bestandsnaamsuffix (`<projectnaam>-voortgang.xlsx`), en
       // waar mogelijk landt het ook echt in de downloadmap (preferDownloads hieronder).
       let nameOverride: string | undefined;
+      /** IFC: de kalenders die de writer letterlijk schreef (`exportHitsOwnFile`). */
+      let exportedLiteral: readonly string[] = [];
 
       switch (format) {
         case 'progress-xlsx': {
@@ -1805,7 +1819,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         case 'ifc':
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
-          payload = writeIFC(buildExportIFCInput(state));
+          {
+            const written = writeIFCWithChoices(buildExportIFCInput(state));
+            payload = written.content;
+            exportedLiteral = written.literalCalendarIds;
+          }
           ext = 'ifc';
           filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
           break;
@@ -1824,6 +1842,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
+      await recordOwnFileExport(state, outcome, exportedLiteral);
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
@@ -1875,6 +1894,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return { ok: true, warnings };
     },
 
+    recordLiteralCalendarsWritten: (documentId, ids) => {
+      set((state) => {
+        if (state.activeDocumentId === documentId) {
+          state.ifcLiteralCalendarIds = mergeLiteralCalendarIds(state.ifcLiteralCalendarIds, ids);
+          return;
+        }
+        const entry = state.documents.find(document => document.id === documentId);
+        if (entry?.payload) entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, ids);
+      });
+    },
+
     exportProjectWithPool: async (): Promise<ExportResult> => {
       // Zelfde stale/cyclus-guard als `exportAs`: dit pad schrijft óók de CPM-uitvoer weg, dus een
       // stale of cyclische planning mag hier evenmin stil worden geëxporteerd.
@@ -1886,11 +1916,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const state = get();
       // 1. Het project zelf (bevat altijd al alle gebruikte items). Een export: zie `buildExportIFCInput`.
-      const projectContent = writeIFC(buildExportIFCInput(state));
+      const project = writeIFCWithChoices(buildExportIFCInput(state));
       const base = suggestedFileBase(state);
       const refuseTarget = foreignTargetCheck('export');
-      const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
+      const outcome = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
       if (!outcome) return { ok: true, warnings: [], cancelled: true }; // dialoog geannuleerd — geen fout
+      await recordOwnFileExport(state, outcome, project.literalCalendarIds);
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       // 2. De pool ernaast (los bestand), alleen als het project aan een bedrijf gebonden is.

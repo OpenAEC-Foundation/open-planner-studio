@@ -12,6 +12,8 @@
 //      #872 ronde 1, Sol en Terra; de keuze wordt nooit kleiner);
 //   6. letterlijk opgeslagen in deze sessie blijft letterlijk (Opslaan, undo, AutoSave), en letterlijk geworden maar
 //      nooit zo opgeslagen telt niet (besluit Trias, wrakko 10 november 2026);
+//   7. een IFC-export over het eigen bestand legt de keuze ook vast, een export naar een ander bestand niet (review #872
+//      ronde 3, Terra);
 //   3. zonder bewerking verandert het veld niets: voor elk voorbeeld in `public/examples/` en `examples/` is opslaan met
 //      en zonder het veld byte-gelijk, en een voorbeeld zonder `LiteralTimes` krijgt geen veld.
 // Exit 0 = alles groen.
@@ -249,6 +251,41 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     save(store);
     eq('6e een losse schrijfbeurt legt niets vast', S().ifcLiteralCalendarIds, null);
   }
+  // 7. Review #872 ronde 3 (Terra, BLOKKEERT): een IFC-export over het eigen bestand schrijft dat bestand ook. Die legt
+  //    de keuze vast, zoals Opslaan; een export naar een ander bestand niet. Via de echte exportroutes (Exporteren en
+  //    Project met bibliotheek exporteren), met de bestandskiezer van de browser.
+  const win = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  win.showOpenFilePicker = () => { throw new Error('niet in deze test'); }; // de app ziet de File System Access API
+  for (const route of ['exportAs', 'exportProjectWithPool'] as const) {
+    const run = (S: () => ReturnType<Store['getState']>) => (route === 'exportAs' ? S().exportAs('ifc') : S().exportProjectWithPool());
+    {
+      // 7a. Over het eigen bestand: daarna wissen en opslaan, en alle eindtijden blijven gelijk.
+      const { store, file, S } = await openOwn();
+      const id = addHourTask(store);
+      win.showSaveFilePicker = async () => file.handle;
+      const result = await run(S);
+      eq(`7a ${route} over het eigen bestand: geslaagd`, [result.ok, 'cancelled' in result && result.cancelled === true], [true, false]);
+      const exported = file.text();
+      eq(`7a ${route} over het eigen bestand: LiteralTimes staat erin, de keuze bevat de projectkalender`, [exported.includes(LITERAL), S().ifcLiteralCalendarIds], [true, [S().calendar.id]]);
+      S().deleteTask(id);
+      S().runCPM();
+      await S().saveFile();
+      eq(`7a ${route}: na wissen en opslaan staat LiteralTimes er nog`, file.text().includes(LITERAL), true);
+      sameFinishes(`7a ${route}`, exported, file.text(), 'Uurtaak');
+    }
+    {
+      // 7b. Naar een ander bestand: de keuze van het open document blijft leeg.
+      const { store, file, S } = await openOwn();
+      addHourTask(store);
+      const other = fakeHandle('ander.ifc', '');
+      win.showSaveFilePicker = async () => other.handle;
+      await run(S);
+      eq(`7b ${route} naar een ander bestand: LiteralTimes daar, geen keuze, eigen bestand ongewijzigd`,
+        [other.text().includes(LITERAL), S().ifcLiteralCalendarIds, file.text() === showcase], [true, null, true]);
+    }
+  }
+  delete win.showSaveFilePicker;
+  delete win.showOpenFilePicker;
 }
 
 // ── 3. Zonder bewerking verandert het veld niets ──────────────────────────────────────────────────────────────────

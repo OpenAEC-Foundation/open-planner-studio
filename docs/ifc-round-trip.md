@@ -360,8 +360,10 @@ in, en een ander programma las ze negen uur te vroeg. Nu levert `readIFC` de kal
 eigenschap weer schrijft, geldt dat ook na heropenen. Dit wijkt alleen in de veilige richting af van T17: een
 letterlijke kalender schrijft elk moment met zijn echte tijd. Een bestand zonder `LiteralTimes` blijft byte-gelijk.
 Ook een kalender die de app in deze sessie letterlijk naar het eigen bestand schreef (Opslaan, Opslaan als,
-AutoSave naar het bestand), blijft letterlijk; anders kwam 1026 binnen één sessie terug. Een kalender die letterlijk
-werd maar nooit zo is opgeslagen, telt niet; een crashherstel-kopie of een export is geen opslag naar het eigen bestand.
+AutoSave naar het bestand, of een IFC-export over dat bestand), blijft letterlijk; anders kwam 1026 binnen één sessie
+terug. Een kalender die letterlijk werd maar nooit zo is opgeslagen, telt niet; een crashherstel-kopie of een export
+naar een ander bestand is geen opslag naar het eigen bestand. Een export telt als het doel niet aantoonbaar een ander
+bestand is (`exportHitsOwnFile`): bij twijfel hooguit een kalender te veel letterlijk, de veilige richting.
 De keuze wordt nooit kleiner: niet in undo, en IFC Toepassen voegt de letterlijke kalenders van de tekst toe. Ze reist
 mee bij documentwissel, kopie, crashherstel en een extensie die het project terugzet.
 Toets: `check-ifc-literaltimes-behoud.ts`.
