@@ -1970,8 +1970,9 @@ en noem het in je rapport of PR-tekst.
      want de planner wijzigde de baseline niet. Wist de planner een taak die in de baseline staat, dan vindt de lezer haar
      niet meer, en houdt die regel van de baseline het oude interne id; zonder (b) houdt hij het id uit het domein. Na
      herlezen verschilt alleen het id van die losse regel, maar de merge weigert dan (`niet-gedragen`, "zouden na
-     herlezen een andere planning geven (baselines)"). Proef: de telling, `oude-tags/v2026.7.12-data-…` plus een wand,
-     `taak-wissen` 3 van 3 geweigerd; zonder bewerking schrijft hij. Bestanden met `TaskGuids` (v2026.7.14 en later)
+     herlezen een andere planning geven (baselines)"). Proef: de telling, `oude-tags/v2026.7.12-data-…` plus een wand:
+     `taak-wissen` 20 van 20 geweigerd, de andere bewerkingen schrijven, en zonder bewerking schrijft hij; ook
+     `check-ifc-foreign-oude-eigen.ts`. Bestanden met `TaskGuids` (v2026.7.14 en later)
      wissen wel (`eigen-plus-model.ifc`, 20 van 20). Richting: in de herleestoets een regel van een baseline zonder taak
      vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Open
      vraag aan Trias: mag de merge hier weigeren (de planner wijzigde de baseline niet zelf)? Uit #867 (fase 1b, fixronde
