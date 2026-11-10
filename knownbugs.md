@@ -1944,30 +1944,6 @@ en noem het in je rapport of PR-tekst.
      met 9 argumenten uit die knownbug zijn opgelost in #867, fixronde 7). Richting: een lege lijst lezen als "geen
      notities" en de pset dan als bronstuk laten staan, of de lege lijst schrijven. Uit #867 (fase 1b, fixronde 7). — B
 
-1102. **VERVOLG (aan Trias gevraagd of dit BLOKKEERT vóór 1c): in een oud eigen bestand met een model weigert de merge na
-     een bewerking waarna de writer een kalender letterlijk maakt.** Een eigen bestand van vóór het minutenmodel (OPS tot
-     en met v2026.43.0) heeft zijn datums per dag. Wat de planner niet wijzigde, schrijft de merge in die vorm terug
-     (`src/services/ifc/foreign/sourceForm.ts`, #886). Maakt de writer een kalender letterlijk (`minuteModelWriteView` in
-     `src/services/ifc/minuteModelWrite.ts`), dan schrijft hij elke datum op die kalender als tijdstip en de werktijden
-     anders; de vorm van de bron leest dan niet meer gelijk, en de merge weigert (`niet-gedragen`, `niet-eenduidig`). Een
-     gewone opslag maakt de kalender in die gevallen ook letterlijk. Er gaat niets verloren; de merge weigert te veel.
-     Drie aanleidingen, gemeten via de route van de app:
-     - een gebroken duur: de planner zet een halve dag op 1,5 dag (`check-ifc-foreign-oude-eigen.ts`, BLOKKEERT 1);
-     - een taak op kalendertijd (DurationType `.ELAPSEDTIME.`; `check-ifc-foreign-strikt.ts`, de proeven "kalendertijd");
-     - F5 na een duurwijziging: het einde van een samenvatting valt op het begin van de dag van een startmijlpaal
-       (`…T07:00`), en dat past op geen daganker.
-     In de telling (`check-ifc-foreign-merge-telling.ts`) weigert doorrekenen daardoor in 10 oude eigen bestanden
-     (`oude-tags/` main-df9, v2026.7.2, v2026.7.7-urentaak, v2026.9.0, v2026.9.0-17-cijfers, v2026.43.0, -halve-dag en
-     -urentaak, `h7-tijden-oude-writer.ifc`, `oud-eigen-0.1-plus-model.ifc`); in v2026.7.12-data en v2026.9.0-urentaak
-     schrijft het. Niet opgelost in #886: op een kalender die niet letterlijk is, leest de lezer elke datum op dagniveau,
-     dus zo'n tijdstip komt alleen terug als de hele kalender letterlijk wordt. Dan moet de merge ook datums die de planner
-     niet wijzigde in de vorm van de writer schrijven, en dat botst met de regel dat zo'n veld de bronwaarde houdt. Dat
-     vraagt een besluit, of een andere lezer (die blijft in #886 onaangeroerd). Richting (1c): wordt een kalender in de
-     merge letterlijk, dan alle datums op die kalender in de vorm van de writer schrijven en dat als verklaard tellen
-     zolang herlezen dezelfde planning geeft (zoals de herleestoets van de bronvorm). Vraag aan Trias: F5 is gewoon werk,
-     dus een planner met een oud bestand loopt hier na 1c tegenaan. Uit #867 (fase 1b, fixronde 7); breder beschreven in
-     #886. — B
-
 1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
      van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
      grammatica, dus de route met de bronbytes leest het niet, en de oude route weigert het model (knownbug 110,

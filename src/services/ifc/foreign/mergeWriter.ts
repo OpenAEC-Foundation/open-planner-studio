@@ -646,7 +646,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
       if (m) objects.set(id, m[1] === 'calendar' ? `cal:${m[2]}` : m[1] === '_baseline_ws' ? 'baselines' : `${m[1]}:${m[2]}`);
       else if (key === '_calendar') objects.set(id, `cal:${input.calendar.id}`);
     }
-    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects };
+    return { lines, byId, keptHeads, owner: written.idMap.get('_owner'), taskIds, objects, literalCalendarIds: written.literalCalendarIds };
   }
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
@@ -655,9 +655,29 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   // "De planner wijzigde dit veld" betekent: het wijkt af van wat de app na het openen liet zien (`source.opened`), niet van
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
-  const form = sourceFormWhereUnchanged(input, source.opened, pristine);
+  // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
+  const built0 = buildLines(pristine, () => {});
+  const literal0 = new Set(built0.literalCalendarIds);
+  // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,
+  // niet in O0), krijgt al haar datums in de vorm van de writer, zoals een gewone opslag op main; zie `sourceForm.ts`. De
+  // bronvorm hangt daarvan af, dus de merge bouwt O1 opnieuw tot de kalenders die letterlijk worden niet meer veranderen.
+  // De gevallen van een ronde die niet blijft, tellen niet.
+  let newlyLiteral = new Set<string>();
+  let form = sourceFormWhereUnchanged(input, source.opened, pristine);
+  let pending: Parameters<typeof caseAt>[] = [];
+  let built = buildLines(form.input, (...a) => { pending.push(a); });
+  for (let round = 0; ; round++) {
+    const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(id))]);
+    if (next.size === newlyLiteral.size) break;
+    if (round === 3) throw new Error('mergeWriter: de kalenders die letterlijk worden, blijven veranderen');
+    newlyLiteral = next;
+    form = sourceFormWhereUnchanged(input, source.opened, pristine, newlyLiteral);
+    pending = [];
+    built = buildLines(form.input, (...a) => { pending.push(a); });
+  }
+  for (const a of pending) caseAt(...a);
   const domain = form.input;
-  const { lines, byId, keptHeads, owner, taskIds, objects } = buildLines(domain, caseAt);
+  const { lines, byId, keptHeads, owner, taskIds, objects } = built;
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
@@ -697,12 +717,11 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   // (b), het slotdeel van `sourceSlots` (fixronde 3 van #867): de slots die de lezer niet draagt, krijgen in O1 de
   // bronwaarde terug zolang de planner dat veld niet wijzigde (`lossCheck`, `edits`). De bronwaarden komen uit
   // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
-  const built0 = buildLines(pristine, () => {});
   const o0 = built0.lines.filter(l => !l.drop);
   const { edits } = lossCheck({
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain,
     sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
-    owner0: built0.owner, owner1: owner, objects1: objects,
+    owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
   }, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {

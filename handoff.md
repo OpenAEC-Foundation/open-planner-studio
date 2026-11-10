@@ -97,10 +97,12 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
    de flag aan.
    **Voor 1c** (review ronde 6 van #867, VERMOED laag): `writeIfcMerge` geeft `literalCalendarIds` niet terug;
    `writeIFCWithChoices` doet dat wel. Na het aansluiten moet de sessie een nieuw letterlijke kalender onthouden.
-   **Voor 1c** (knownbug 1102): in een oud eigen bestand met een model weigert de merge na een bewerking waarna de
-   writer een kalender letterlijk maakt (een gebroken dag, een taak op kalendertijd, F5 waarna een samenvatting op het
-   begin van een startmijlpaal eindigt). Geen verlies, wel te veel weigeren; aan Trias gevraagd of het BLOKKEERT vóór 1c
-   is, omdat F5 gewoon werk is. De richting staat in de knownbug.
+   **Opgelost in #886** (was knownbug 1102, besluit van Trias 10 november 2026): wordt een kalender bij een opslag
+   letterlijk, dan schrijft de merge alle datums op die kalender (taaktijden, werktijden, baselinerijen) in de vorm van
+   de writer, zoals een gewone opslag op main. Alleen bij P-stukken, alleen in slots die de lezer exact leest, en alleen
+   als herlezen via de route van de app dezelfde planning geeft; anders weigert de merge. De toets van Trias
+   (`check-ifc-foreign-oude-eigen.ts`): tien oude eigen bestanden met model geven na een duurwijziging, F5 en opslaan
+   dezelfde planning als zonder model met een gewone opslag.
    **Voor 1c** (review van #881, knownbug 1100, VERMOED midden): V-bytes kunnen een entiteit bevatten die de scanner
    niet ziet; een nieuw `#id` van de writer mag daar niet mee botsen. Ronde 7 van #867 toetst dit.
    **Bij voorkeur in 1c** (wrakko, 10 november 2026; knownbug 1023, VERVOLG): stabiele GlobalIds voor onze eigen
@@ -174,6 +176,12 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
   gemaakt op `a4783fc35`, met de oude-tags. De telling loopt nu ook over de fixtures met gewone bewerkingen; daaruit:
   de lijst ids in `WorkingExceptionIds` telt via de koppeling (een relatie erbij weigerde, en zonder bewerking wees de
   lijst naar een id dat niet meer bestond). Knownbug 1102 is breder beschreven en blijft open; 1108, 1109 en 1110 zijn nieuw.
+- 2026-11-11: stap 6 van #886, besluit van Trias over knownbug 1102 (BLOKKEERT vóór 1c): een kalender die bij deze
+  opslag letterlijk wordt, krijgt al haar datums in de vorm van de writer (`sourceForm.ts`, `lossCheck.ts`:
+  `literalWriterForm`, `literalBaselineForm`); een datum in een taaktijd die de lezer helemaal leest, telt niet meer als
+  deels gelezen als de planner haar wijzigde. F5 schrijft in alle tien oude eigen bestanden, met dezelfde planning als
+  een gewone opslag zonder model; de telling ging van 2547 naar 2562 gelukt, 0 anders, niets dat eerst schreef weigert
+  nu. Knownbug 1102 is weg; wat bij F5 nog weigert, weigert ook zonder bewerking (1108 en vreemde bestanden).
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -184,6 +192,6 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 
 ## Volgende stappen
 
-1. Review van #886 (de merge via de route van de app); Trias beslist of knownbug 1102 BLOKKEERT vóór 1c.
+1. Review van #886 (de merge via de route van de app, met stap 6: de vroegere knownbug 1102).
 2. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
 3. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.

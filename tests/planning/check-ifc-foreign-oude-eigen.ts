@@ -22,14 +22,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  cloneDomain, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, settle, shownAfterOpen, tryMerge, type Domain,
-  type EditKind, type Opened,
+  canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, recalculated, reopenPlain, settle,
+  shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-installDeterminism();
+const reseed = installDeterminism();
 const diffs: string[] = [];
 let checks = 0;
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
@@ -118,14 +118,14 @@ const openedOf = new Map<string, Opened>();
  * Eén proef: openen, bewerken, mergen. `want` is `schrijft` of het geval van de weigering. Schrijft de merge, dan gaan
  * de invarianten (`mergeProblems`), de herlezing (`sameAs`) en `check` op de uitvoer na.
  */
-async function proof(group: string, label: string, src: string, want: string, edit?: (d: Domain, o: Opened) => void,
+async function proof(group: string, label: string, src: string, want: string, edit?: (d: Domain, o: Opened) => void | Promise<void>,
   check?: (out: string) => string | undefined): Promise<void> {
   const name = `${group} · ${label}`;
   let o = openedOf.get(src);
   if (!o) { o = await openForeign(latin1(src)); openedOf.set(src, o); }
   if (!o.ifcSource?.foreign) { ok(`${name}: de bron heeft geen vreemd deel`, false); return; }
   const d = cloneDomain(o);
-  edit?.(d, o);
+  await edit?.(d, o);
   const r = await tryMerge(d, o.ifcSource);
   const got = r.ok ? 'schrijft' : `weigert (${r.kinds.join(', ')})`;
   const first = r.ok ? '' : r.error.cases[0]?.detail ?? '';
@@ -166,11 +166,12 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   await proof('BLOKKEERT 1', 'halve dag, zonder bewerking', half, 'schrijft', undefined, kept);
   await proof('BLOKKEERT 1', 'halve dag, een andere taak hernoemd', half, 'schrijft', renameOther(name), kept);
   // De planner wijzigt de duur zelf: dan geldt de writer. 2 dagen past in hele dagen; 1,5 dag gaat als `PT…` met een
-  // record en maakt de kalender letterlijk, en daarmee lezen de oude datums van de andere taken anders: weigeren mag
-  // (eigen wijziging; knownbug 1102).
+  // record en maakt de kalender letterlijk. Dan gaan alle datums op die kalender in de vorm van de writer, zoals bij een
+  // gewone opslag (#886, besluit van Trias over de vroegere knownbug 1102).
   await proof('BLOKKEERT 1', 'halve dag, de duur zelf op 2 dagen', half, 'schrijft', (d) => { taskNamed(d, name).time.scheduleDuration = 2; },
     has(`IFCTASKTIME('${name} Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M2D'`));
-  await proof('BLOKKEERT 1', 'halve dag, de duur zelf op 1,5 dag (knownbug 1102)', half, 'niet-gedragen', (d) => { taskNamed(d, name).time.scheduleDuration = 1.5; });
+  await proof('BLOKKEERT 1', 'halve dag, de duur zelf op 1,5 dag (kalender letterlijk)', half, 'schrijft', (d) => { taskNamed(d, name).time.scheduleDuration = 1.5; },
+    has('LiteralTimes'));
   // Het bestand dat de writer van v2026.43.0 zelf maakte, met een taak van een halve dag.
   const own = walled(`${OLD}/v2026.43.0-halve-dag-10-villa-wassenaar.ifc`);
   ok('BLOKKEERT 1: v2026.43.0-halve-dag heeft een halve dag', own.includes("'P0Y0M0.5D'"));
@@ -344,6 +345,70 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       await proof('werkende uitzondering', `${label}, ${kind}`, src, 'schrijft', edit(kind), exceptionIds);
     }
   }
+}
+
+// ── Was knownbug 1102: een kalender die bij deze opslag letterlijk wordt (#886, besluit van Trias, 10 november 2026) ──
+// Dan schrijft de merge elke datum en werktijd op die kalender in de vorm van de writer, zoals een gewone opslag op main
+// (`minuteModelPending`). De toets van Trias: een oud eigen bestand met model geeft na een duurwijziging, F5 en opslaan via
+// de merge dezelfde planning als hetzelfde bestand zonder model na dezelfde bewerking en een gewone opslag (de writer van
+// main; met de flag uit is die byte-gelijk, `check-ifc-foreign-pariteit.ts`). Herlezen gaat beide keren via de app;
+// `canon` vergelijkt de hele planning (taken met hun tijden, relaties met lag, resources, toewijzingen, kalenders).
+{
+  const MODEL_FILE = 'tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc';
+  /** Zonder model: het blok van de modelleur (vanaf `#460`, de eigen owner history ervan) eruit. */
+  const withoutModel = (src: string) => { const from = src.indexOf('\n#460='); return src.slice(0, from + 1) + src.slice(src.lastIndexOf('ENDSEC;')); };
+  const files = [
+    `${OLD}/main-df9eafc7d-woongebouw-nieuwbouw.ifc`, `${OLD}/v2026.7.2-woongebouw-nieuwbouw.ifc`,
+    `${OLD}/v2026.7.7-urentaak-10-villa-wassenaar.ifc`, `${OLD}/v2026.9.0-10-villa-wassenaar.ifc`,
+    `${OLD}/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc`, `${OLD}/v2026.43.0-10-villa-wassenaar.ifc`,
+    `${OLD}/v2026.43.0-halve-dag-10-villa-wassenaar.ifc`, `${OLD}/v2026.43.0-urentaak-10-villa-wassenaar.ifc`,
+    'tests/planning/fixtures/h7-tijden-oude-writer.ifc', MODEL_FILE,
+  ];
+  for (const rel of files) {
+    const name = `toets van Trias · ${rel.split('/').pop()}`;
+    const raw = readText(rel);
+    const bare = rel === MODEL_FILE ? withoutModel(raw) : raw;
+    const modelled = rel === MODEL_FILE ? raw : withLines(raw, REVIT_WALL);
+    ok(`${name}: zonder model geen IFCWALL`, !bare.includes('IFCWALL('));
+    const o = await openForeign(latin1(modelled));
+    const edit = ordinaryEdits(o).find(e => e.kind === 'doorrekenen')!;
+    const mine = cloneDomain(o);
+    edit.apply(mine);
+    const r = await tryMerge(await recalculated(mine), o.ifcSource!);
+    if (!r.ok) {
+      rows.push(`| ${name} | weigert (${r.kinds.join(', ')}): ${(r.error.cases[0]?.detail ?? '').slice(0, 100).replace(/\|/g, '/')} |`);
+      ok(`${name}: de merge schrijft, kreeg ${r.kinds.join(', ')} — ${(r.error.cases[0]?.detail ?? '').slice(0, 200)}`, false);
+      continue;
+    }
+    const plain = cloneDomain(await openForeign(latin1(bare)));
+    edit.apply(plain);
+    const viaMain = canon(await reopenPlain(await recalculated(plain)), reseed);
+    const viaMerge = canon(await openForeign(r.bytes), reseed);
+    const a = viaMerge.split('\n'), b = viaMain.split('\n');
+    const first = a.findIndex((line, i) => line !== b[i]);
+    rows.push(`| ${name} | ${viaMerge === viaMain ? 'schrijft, dezelfde planning als een gewone opslag zonder model' : `schrijft, andere planning: ${(a[first] ?? '').slice(0, 80)}`} |`);
+    ok(`${name}: dezelfde planning als een gewone opslag zonder model (eerste verschil: ${(a[first] ?? '').slice(0, 160)} tegenover ${(b[first] ?? '').slice(0, 160)})`, viaMerge === viaMain);
+  }
+}
+
+// De grenzen. Op zo'n kalender houdt een slot dat de lezer niet draagt (de naam van een taaktijd, die de writer uit de taak
+// afleidt) de bronwaarde via (b); alleen de datums en werktijden gaan in de vorm van de writer (`LITERAL_EXACT_SLOTS`). Een
+// datum-tijd die de lezer deels leest (met een tijdzone), weigert, ook als de kalender letterlijk wordt. Een kalender die
+// niet letterlijk wordt, houdt de bronvorm: zie BLOKKEERT 1 hierboven ("een andere taak hernoemd").
+{
+  const villa = walled(`${OLD}/v2026.43.0-10-villa-wassenaar.ifc`);
+  const f5 = async (d: Domain, o: Opened) => {
+    const edit = ordinaryEdits(o).find(e => e.kind === 'doorrekenen')!;
+    edit.apply(d);
+    Object.assign(d, await recalculated(d));
+  };
+  const named = villa.replace(/IFCTASKTIME\('[^']*'/, "IFCTASKTIME('Eigen naam'");
+  ok('grens: de bron heeft een eigen naam in een taaktijd', named !== villa);
+  await proof('grens', 'een eigen naam in een taaktijd, duur en F5 (kalender letterlijk)', named, 'schrijft', f5,
+    has("IFCTASKTIME('Eigen naam'", 'LiteralTimes'));
+  const zoned = villa.replace(/(IFCTASKTIME\('[^']*',\.PREDICTED\.,\$,\.[A-Z]+\.,'[^']*',)'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)'/, "$1'$2Z'");
+  ok('grens: de bron heeft een begin met een tijdzone', zoned !== villa);
+  await proof('grens', 'een begin met een tijdzone, duur en F5', zoned, 'tijd-deels-gelezen', f5);
 }
 
 console.log('| proef | uitkomst |');

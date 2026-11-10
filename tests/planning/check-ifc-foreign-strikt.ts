@@ -989,18 +989,24 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
   ];
   for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);
-  // Wijzigt de planner het veld zelf (kalendertijd), dan weigert de merge nu (vervolg-PR van #867, knownbug 1102): na openen
-  // via de app heeft de taak de tijdstippen 07:00 en 16:00, en die vallen op kalendertijd niet op een daggrens, ook niet na
-  // doorrekenen. De writer schrijft de kalender dan letterlijk (zoals een gewone opslag), en elke taak erop als tijdstip;
-  // de kalender van de bron verandert zonder dat de planner hem wijzigde. Op de oude testroute (de ruwe lezing, met kale
-  // datums) schreef de merge, maar heropenen via de app gaf dan 00:00 tot 00:00 in plaats van de 07:00 tot 16:00 die de
-  // planner zag; een gewone opslag houdt 07:00 tot 16:00.
-  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd (knownbug 1102)', notDefined, 'niet-gedragen', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; });
+  // Wijzigt de planner het veld zelf (kalendertijd): na openen via de app heeft de taak de tijdstippen 07:00 en 16:00, en
+  // die vallen op kalendertijd niet op een daggrens, ook niet na doorrekenen. De writer schrijft de kalender dan letterlijk
+  // (zoals een gewone opslag), met elke taak erop als tijdstip; de merge volgt dat (#886, besluit van Trias over de vroegere knownbug
+  // 1102), en herlezen via de app geeft 07:00 tot 16:00, zoals de planner zag.
+  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd (kalender letterlijk)', notDefined, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; });
   const notDefinedOpened = await openForeign(notDefined);
   const elapsed = cloneDomain(notDefinedOpened);
   time63(elapsed, notDefinedOpened).durationType = 'ELAPSEDTIME';
   const elapsedF5 = await recalculated(elapsed);
-  await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (knownbug 1102)', notDefined, 'niet-gedragen', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (kalender letterlijk)', notDefined, 'schrijft', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
+  // De baselines op die kalender gaan mee in de vorm van de writer (tijdstippen), zoals bij een gewone opslag. De grens: een
+  // sleutel in een rij die niet over datums gaat, blijft staan (de lezer draagt de JSON van een baseline met alle sleutels);
+  // alleen `start` en `finish` mogen een andere vorm krijgen (`literalBaselineForm`).
+  const ownKey = latin1(text(notDefined).replace('"duration":0,"isMilestone":true,"milestoneKind":"START"}',
+    '"duration":0,"isMilestone":true,"milestoneKind":"START","eigen":1}'));
+  ok('VERVOLG: een baselinerij met een eigen sleutel', text(ownKey) !== text(notDefined));
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd, een baselinerij met een eigen sleutel', ownKey, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; },
+    has('"milestoneKind":"START","eigen":1}'));
 }
 
 // ── #886 (vervolg-PR van #867): een verstopt stuk vóór een eigen stuk ──

@@ -883,12 +883,10 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
 }
 {
   // Kalendertijd: na openen via de app heeft de taak tijdstippen die op kalendertijd niet op een daggrens vallen; de writer
-  // schrijft de kalender dan letterlijk en de merge weigert (knownbug 1102, vervolg-PR van #867).
-  const opened = await openForeign(enc.encode(eigen));
-  const d = cloneDomain(opened);
-  taskNamed(d, 'Set up site').time.durationType = 'ELAPSEDTIME';
-  const r = await tryMerge(d, opened.ifcSource!);
-  eq('bewerking: DurationType: de merge weigert (knownbug 1102)', r.ok ? 'schrijft' : r.kinds.includes('niet-gedragen'), true);
+  // schrijft de kalender dan letterlijk, met elke datum erop in de vorm van de writer (#886, besluit van Trias over de vroegere
+  // knownbug 1102). De merge schrijft, en herlezen geeft de planning die de planner zag (`roundTrip`).
+  const r = await roundTrip('bewerking: DurationType', enc.encode(eigen), (d) => { taskNamed(d, 'Set up site').time.durationType = 'ELAPSEDTIME'; });
+  if (r) ok('bewerking: DurationType: kalendertijd in de uitvoer', /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/.test(text(r.out)));
 }
 {
   const r = await roundTrip('bewerking: ScheduleDuration', enc.encode(eigen), (d) => {
@@ -937,8 +935,7 @@ const renameTask = (from: string) => (d: Domain) => { taskNamed(d, from).name = 
 const T55 = "#55=IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D'";
 const KINDS: readonly {
   kind: string; label: string; bytes: Uint8Array; keep: RegExp;
-  /** `refused`: de merge weigert met dit geval (knownbug 1102). */
-  field?: { label: string; edit: (d: Domain) => void; want: RegExp; refused?: string };
+  field?: { label: string; edit: (d: Domain) => void; want: RegExp };
   other: { label: string; edit: (d: Domain) => void; want: RegExp };
 }[] = [
   {
@@ -947,7 +944,7 @@ const KINDS: readonly {
     keep: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,'P0Y0M2D'/,
     field: {
       label: 'DurationType', edit: (d) => { taskNamed(d, SET_UP).time.durationType = 'ELAPSEDTIME'; },
-      want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/, refused: 'niet-gedragen',
+      want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/,
     },
     other: {
       label: 'de duur',
@@ -1004,13 +1001,7 @@ for (const k of KINDS) {
   const label = `(b) ${k.kind}: ${k.label}`;
   const plain = await roundTrip(`${label} (i) zonder bewerking`, k.bytes);
   if (plain) ok(`${label} (i): de bronwaarde staat er byte-gelijk (${k.keep})`, k.keep.test(text(plain.out)));
-  if (k.field?.refused) {
-    const opened = await openForeign(k.bytes);
-    const d = cloneDomain(opened);
-    k.field.edit(d);
-    const r = await tryMerge(d, opened.ifcSource!);
-    eq(`${label} (ii) ${k.field.label} bewerkt: de merge weigert`, r.ok ? 'schrijft' : r.kinds.includes(k.field.refused), true);
-  } else if (k.field) {
+  if (k.field) {
     const mine = await roundTrip(`${label} (ii) ${k.field.label} bewerkt`, k.bytes, k.field.edit);
     if (mine) ok(`${label} (ii): de waarde van de planner (${k.field.want})`, k.field.want.test(text(mine.out)) && !k.keep.test(text(mine.out)));
   }

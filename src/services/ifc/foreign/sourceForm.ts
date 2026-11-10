@@ -35,11 +35,22 @@
  * schrijft hij ook een teruggezette datum anders dan in O0 (een werkdag die later begint: het begin blijft 07:30, het einde
  * zou de vorm van de bron houden). Na het schrijven gaat de herleestoets (`sourceFormProblems`) hetzelfde na op wat de
  * lezer uit de uitvoer leest.
+ *
+ * Een kalender die bij deze opslag letterlijk wordt (`minuteModelWriteView`: een gebroken duur, een taak op kalendertijd, of
+ * een datum die na F5 op geen daganker past), schrijft de writer met tijdstippen, en dan leest de dagvorm van de bron niet
+ * meer gelijk (was knownbug 1102). Besluit van Trias (10 november 2026): de merge schrijft dan elke datum op die kalender in de
+ * vorm van de writer, zoals een gewone opslag op main dat al doet (`minuteModelPending`). Een datum in een eigen P-stuk is
+ * een vorm van OPS zelf, en de lezer draagt hem volledig; de regel "de bronwaarde blijft" beschermt wat de lezer niet of
+ * deels draagt, en daarvoor blijft (b) gelden. Daarom krijgen de datums van een taak op zo'n kalender hier geen bronwaarde
+ * (`literalCalendarIds`), en gaat de herleestoets ze na, met de kalender zelf: herlezen moet geven wat de planner zag. De
+ * verliesbewaking verklaart het verschil met de bron alleen voor de slots die de lezer exact leest (`lossCheck.ts`).
  */
 import type { ImportResult } from '@/services/importTypes';
 import type { DocumentPayload } from '@/state/documentContract';
 import type { Task } from '@/types/task';
 import type { Baseline } from '@/types/baseline';
+import type { WorkCalendar } from '@/types/calendar';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MINUTE_MODEL_TIME_MODEL, migrateToMinuteModel, TIME_FIELDS } from '@/state/migrations/minuteModel';
 import { inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import type { WriteIFCInput } from '../ifcWriter';
@@ -47,12 +58,15 @@ import type { WriteIFCInput } from '../ifcWriter';
 /** Een veld dat de merge in de vorm van de bron schrijft omdat de omzetting het maakte. */
 export type SourceFormLeaf =
   | { readonly kind: 'task'; readonly id: string; readonly field: string; readonly sub?: string }
-  | { readonly kind: 'baseline'; readonly id: string };
+  | { readonly kind: 'baseline'; readonly id: string }
+  /** Een kalender die bij deze opslag letterlijk wordt (alleen in de herleestoets). */
+  | { readonly kind: 'calendar'; readonly id: string };
 
 export interface SourceForm {
   /** Het domein dat de merge schrijft: de invoer, met de bronwaarde in elk veld dat de planner niet wijzigde. */
   readonly input: WriteIFCInput;
-  /** De velden die de omzetting maakte en die nu de bronwaarde hebben: wat de herleestoets nagaat. */
+  /** De velden die de omzetting maakte en die nu de bronwaarde hebben, en de datums en kalenders die bij deze opslag
+   *  letterlijk worden: wat de herleestoets nagaat. */
   readonly checked: readonly SourceFormLeaf[];
 }
 
@@ -79,13 +93,13 @@ function sameValue(a: unknown, b: unknown): boolean {
 
 /** De planning na de omzetting naar het minutenmodel, zoals `payloadFromImport` haar maakt (alleen de delen die de omzetting
  *  raakt). */
-function migrated(parsed: ImportResult): { tasks: readonly Task[]; baselines: readonly Baseline[] } {
+function migrated(parsed: ImportResult): { tasks: readonly Task[]; baselines: readonly Baseline[]; calendars: readonly WorkCalendar[] } {
   const payload = {
     project: parsed.project, calendar: parsed.calendar, calendars: parsed.resourceCalendars ?? [], tasks: parsed.tasks,
     resources: parsed.resources, baselines: parsed.baselines ?? [],
   } as unknown as DocumentPayload;
   const out = migrateToMinuteModel(payload, { timeModel: parsed.timeModel, milestonesAtDayEnd: parsed.milestonesAtDayEnd }).payload;
-  return { tasks: out.tasks, baselines: out.baselines };
+  return { tasks: out.tasks, baselines: out.baselines, calendars: [out.calendar, ...out.calendars] };
 }
 
 /** Een lijst op id; een id dat vaker voorkomt, telt niet (dan is niet te zeggen welk object welk is). */
@@ -106,7 +120,12 @@ const isDateLeaf = (leaf: SourceFormLeaf) => leaf.kind === 'task'
   && (leaf.sub === undefined ? TASK_DATE_KEYS.has(leaf.field) : TIME_DATE_KEYS.has(leaf.sub));
 
 /** De waarde van een veld, of `found: false` als het object ontbreekt. */
-function leafValue(planning: { tasks: readonly Task[]; baselines?: readonly Baseline[] }, leaf: SourceFormLeaf): { found: boolean; value?: unknown } {
+function leafValue(planning: { tasks: readonly Task[]; baselines?: readonly Baseline[]; calendars?: readonly WorkCalendar[] },
+  leaf: SourceFormLeaf): { found: boolean; value?: unknown } {
+  if (leaf.kind === 'calendar') {
+    const c = (planning.calendars ?? []).find(x => x.id === leaf.id);
+    return c ? { found: true, value: c } : { found: false };
+  }
   if (leaf.kind === 'baseline') {
     const b = (planning.baselines ?? []).find(x => x.id === leaf.id);
     return b ? { found: true, value: b } : { found: false };
@@ -198,9 +217,12 @@ function reopened(input: WriteIFCInput) {
  * openen niet wijzigde (`opened`) en dat alleen het openen veranderde. Zonder `opened` (geen store) is de lezing van de bron
  * wat de app liet zien, en verandert er niets.
  */
-export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFCInput | undefined, pristine: ImportResult): SourceForm {
+export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFCInput | undefined, pristine: ImportResult,
+  literalCalendarIds: ReadonlySet<string> = new Set()): SourceForm {
   if (!opened) return { input: domain, checked: [] };
-  let restores = candidates(domain, opened, pristine);
+  const literal = literalLeaves(domain, literalCalendarIds);
+  let restores = candidates(domain, opened, pristine).filter(r => !(isDateLeaf(r.leaf) && literal.taskIds.has(r.leaf.id))
+    && !(r.leaf.kind === 'baseline' && literal.baselineIds.has(r.leaf.id)));
   // De voortoets (zie de kop): een veld van de omzetting dat met de taak en de kalender van nu niet weer d wordt, blijft d.
   // Elke ronde valt er minstens één af, of de toets is klaar.
   for (;;) {
@@ -211,7 +233,35 @@ export function sourceFormWhereUnchanged(domain: WriteIFCInput, opened: WriteIFC
     const datesOf = new Set(failing.filter(r => isDateLeaf(r.leaf)).map(r => r.leaf.id));
     restores = restores.filter(r => !failing.includes(r) && !(isDateLeaf(r.leaf) && datesOf.has(r.leaf.id)));
   }
-  return { input: withProjectSource(withRestores(domain, restores), opened, pristine), checked: restores.filter(r => r.converted).map(r => r.leaf) };
+  return {
+    input: withProjectSource(withRestores(domain, restores), opened, pristine),
+    checked: [...restores.filter(r => r.converted).map(r => r.leaf), ...literal.leaves],
+  };
+}
+
+/** De taken en baselines op een kalender die bij deze opslag letterlijk wordt, en wat de herleestoets daar nagaat: elk
+ *  datumveld van zo'n taak (`TIME_FIELDS` in `time`, en `TASK_DATE_KEYS`), elke baseline met een rij op zo'n kalender (of
+ *  met een einde van het project op een letterlijke projectkalender, zoals `minuteModelWriteView`) en de kalender zelf. */
+function literalLeaves(domain: WriteIFCInput, literalCalendarIds: ReadonlySet<string>): { taskIds: Set<string>; baselineIds: Set<string>; leaves: SourceFormLeaf[] } {
+  const taskIds = new Set<string>();
+  const baselineIds = new Set<string>();
+  const leaves: SourceFormLeaf[] = [];
+  if (literalCalendarIds.size === 0) return { taskIds, baselineIds, leaves };
+  const calendarOf = (t: Task | undefined) => resolveCalendar(t?.calendarId, domain.resourceCalendars ?? [], domain.calendar).id;
+  for (const id of literalCalendarIds) leaves.push({ kind: 'calendar', id });
+  for (const t of domain.tasks) {
+    if (!literalCalendarIds.has(calendarOf(t))) continue;
+    taskIds.add(t.id);
+    for (const sub of TIME_FIELDS) if (fields(t.time)[sub] !== undefined) leaves.push({ kind: 'task', id: t.id, field: 'time', sub });
+    for (const key of TASK_DATE_KEYS) if (fields(t)[key] !== undefined) leaves.push({ kind: 'task', id: t.id, field: key });
+  }
+  const tasks = new Map(domain.tasks.map(t => [t.id, t]));
+  for (const b of domain.baselines ?? []) {
+    if (!literalCalendarIds.has(domain.calendar.id) && !b.tasks.some(bt => literalCalendarIds.has(calendarOf(tasks.get(bt.taskId))))) continue;
+    baselineIds.add(b.id);
+    leaves.push({ kind: 'baseline', id: b.id });
+  }
+  return { taskIds, baselineIds, leaves };
 }
 
 /**
@@ -227,7 +277,7 @@ function withProjectSource(input: WriteIFCInput, opened: WriteIFCInput, pristine
   return { ...input, project };
 }
 
-const leafLabel = (leaf: SourceFormLeaf) => leaf.kind === 'baseline' ? `baseline ${leaf.id}`
+const leafLabel = (leaf: SourceFormLeaf) => leaf.kind === 'baseline' ? `baseline ${leaf.id}` : leaf.kind === 'calendar' ? `kalender ${leaf.id}`
   : `taak ${leaf.id}, ${leaf.sub === undefined ? leaf.field : `${leaf.field}.${leaf.sub}`}`;
 
 /**
@@ -237,7 +287,7 @@ const leafLabel = (leaf: SourceFormLeaf) => leaf.kind === 'baseline' ? `baseline
 export function sourceFormProblems(checked: readonly SourceFormLeaf[], domain: WriteIFCInput, back: ImportResult): string[] {
   if (checked.length === 0) return [];
   const m = orphanRowsWithoutId(migrated(back));
-  const shown = orphanRowsWithoutId(domain);
+  const shown = { ...orphanRowsWithoutId(domain), calendars: [domain.calendar, ...(domain.resourceCalendars ?? [])] };
   const out: string[] = [];
   for (const leaf of checked) {
     const want = leafValue(shown, leaf);
