@@ -111,35 +111,35 @@ export function Backstage() {
         </button>
 
         {/* Actie-items: triggeren actie en sluiten backstage */}
-        <ActionItem disabled={startQuestionOpen} icon=<Icon id="file.new" size={14} /> label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
-        <ActionItem disabled={startQuestionOpen} icon=<Icon id="file.open" size={14} /> label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
-        <NavItem icon=<Icon id="project.recent" size={14} /> label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
+        <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.new" size={14} />} label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
+        <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.open" size={14} />} label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
+        <NavItem icon={<Icon id="project.recent" size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
         {/* data-tour-anchor (tourstap 6): voorbeelden-navitem. */}
-        <NavItem icon=<Icon id="file.examples" size={14} /> label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
-        <ActionItem disabled={startQuestionOpen} icon=<Icon id="file.save" size={14} /> label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
-        <ActionItem disabled={startQuestionOpen} icon=<Icon id="file.save-as" size={14} /> label={tMenu('backstage.saveAs')} onClick={() => leave(() => { handleSaveAs(); closeBackstage(); })} />
+        <NavItem icon={<Icon id="file.examples" size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
+        <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.save" size={14} />} label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
+        <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.save-as" size={14} />} label={tMenu('backstage.saveAs')} onClick={() => leave(() => { handleSaveAs(); closeBackstage(); })} />
 
         <div className="backstage-nav-divider" />
 
-        <NavItem icon=<Icon id="file.export-options" size={14} /> label={tMenu('backstage.export')} active={section === 'export'} onClick={() => goTo('export')} />
-        <NavItem icon=<Icon id="file.import" size={14} /> label={tMenu('extensions.import')} active={section === 'import'} onClick={() => goTo('import')} />
-        <NavItem icon=<Icon id="report.print-entry" size={14} /> label={tMenu('ribbon.printPreview')} active={section === 'print'} onClick={() => goTo('print')} />
+        <NavItem icon={<Icon id="file.export-options" size={14} />} label={tMenu('backstage.export')} active={section === 'export'} onClick={() => goTo('export')} />
+        <NavItem icon={<Icon id="file.import" size={14} />} label={tMenu('extensions.import')} active={section === 'import'} onClick={() => goTo('import')} />
+        <NavItem icon={<Icon id="report.print-entry" size={14} />} label={tMenu('ribbon.printPreview')} active={section === 'print'} onClick={() => goTo('print')} />
 
         <div className="backstage-nav-divider" />
 
-        <NavItem icon=<Icon id="project.properties" size={14} /> label={tMenu('ribbon.projectInfo')} active={section === 'project-info'} onClick={() => goTo('project-info')} />
-        <NavItem icon=<Icon id="ui.settings" size={14} /> label={tMenu('backstage.settings')} active={section === 'settings'} onClick={() => goTo('settings')} />
+        <NavItem icon={<Icon id="project.properties" size={14} />} label={tMenu('ribbon.projectInfo')} active={section === 'project-info'} onClick={() => goTo('project-info')} />
+        <NavItem icon={<Icon id="ui.settings" size={14} />} label={tMenu('backstage.settings')} active={section === 'settings'} onClick={() => goTo('settings')} />
         {/* Platformbouw (#311): geen Extensies-sectie. */}
         {EXTENSIONS_ENABLED && (
-          <NavItem icon=<Icon id="extensions.manage" size={14} /> label={tMenu('extensions.title')} active={section === 'extensions'} onClick={() => goTo('extensions')} />
+          <NavItem icon={<Icon id="extensions.manage" size={14} />} label={tMenu('extensions.title')} active={section === 'extensions'} onClick={() => goTo('extensions')} />
         )}
-        <NavItem icon=<Icon id="company.library" size={14} /> label={tMenu('backstage.library')} active={section === 'library'} onClick={() => goTo('library')} />
+        <NavItem icon={<Icon id="company.library" size={14} />} label={tMenu('backstage.library')} active={section === 'library'} onClick={() => goTo('library')} />
 
         <div className="backstage-nav-divider" />
 
         {/* Help/documentatie-viewer: Backstage-NavItem als primaire ingang, in het "leer de app
             kennen"-rijtje naast de rondleiding-herstart hieronder. */}
-        <NavItem icon=<Icon id="ui.help" size={14} /> label={tMenu('backstage.help')} active={section === 'help'} onClick={() => goTo('help')} />
+        <NavItem icon={<Icon id="ui.help" size={14} />} label={tMenu('backstage.help')} active={section === 'help'} onClick={() => goTo('help')} />
 
         <div className="backstage-nav-divider" />
 
@@ -147,14 +147,14 @@ export function Backstage() {
             start de TourOverlay direct, zonder de WelcomeDialog ertussen. */}
         <ActionItem
           disabled={startQuestionOpen}
-          icon=<Icon id="ui.tour" size={14} />
+          icon={<Icon id="ui.tour" size={14} />}
           label={tCommon('tour.backstageRestart')}
           onClick={() => leave(() => { closeBackstage(); setUI({ showTourOverlay: true, tourStepIndex: 0 }); })}
         />
 
         <div className="backstage-nav-divider" />
 
-        <ActionItem disabled={startQuestionOpen} icon=<Icon id="document.close" size={14} /> label={tMenu('backstage.closeProject')} onClick={() => leave(handleCloseProject)} />
+        <ActionItem disabled={startQuestionOpen} icon={<Icon id="document.close" size={14} />} label={tMenu('backstage.closeProject')} onClick={() => leave(handleCloseProject)} />
       </aside>
 
       <main className="backstage-main">
@@ -658,7 +658,7 @@ function ImportSection() {
             <button key={`${imp.extensionId}:${imp.id}`} className="backstage-export-card" onClick={() => handleImport(imp)}>
               {/* Importer-iconen komen uit draaiende extensiecode — hygiëne, maar loopt
                   langs dezelfde sanitizer als de manifest-iconen. */}
-              <span className="backstage-export-icon"><ExtensionIcon raw={imp.icon} fallback=<Icon id="file.import" size={20} /> /></span>
+              <span className="backstage-export-icon"><ExtensionIcon raw={imp.icon} fallback={<Icon id="file.import" size={20} />} /></span>
               <span className="backstage-export-info">
                 <h4>{imp.name}</h4>
                 <p>{imp.description} ({imp.fileExtensions.join(', ')})</p>

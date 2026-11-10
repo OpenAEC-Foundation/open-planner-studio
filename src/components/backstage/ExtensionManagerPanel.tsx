@@ -174,7 +174,7 @@ function InstalledExtensionCard({ ext }: { ext: ReadyExtension }) {
       <div className="ext-card-icon">
         {/* Manifest-iconen komen ongefilterd uit de ZIP en worden al vóór elke poort
             geregistreerd (ook met status `disabled`) — dus altijd via de sanitizer. */}
-        <ExtensionIcon raw={ext.manifest.icon} fallback=<Icon id="extension.item" size={24} /> />
+        <ExtensionIcon raw={ext.manifest.icon} fallback={<Icon id="extension.item" size={24} />} />
       </div>
 
       <div className="ext-card-body">

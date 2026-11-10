@@ -175,7 +175,7 @@ export function BaselinesProgressGroupContent() {
       }}
       trigger={compact ? (
         <RibbonCompactTrigger
-          icon=<Icon id="planning.progress-menu" size={16} />
+          icon={<Icon id="planning.progress-menu" size={16} />}
           title={tMenu('ribbon.baselines')}
           ariaLabel={tMenu('ribbon.baselines')}
           onClick={() => setOpen(o => !o)}
@@ -184,7 +184,7 @@ export function BaselinesProgressGroupContent() {
         // Automatisch ingeklapt (smal venster): een grote knop zoals Mijlpaal ▾. De tooltip noemt
         // de ingevulde statusdatum, zodat zichtbaar blijft wat er achter de knop staat.
         <RibbonCollapsedTrigger
-          icon=<Icon id="planning.progress-menu" size={24} />
+          icon={<Icon id="planning.progress-menu" size={24} />}
           label={tMenu('ribbon.baselines')}
           title={statusDate
             ? `${tMenu('ribbon.baselines')}\n${tMenu('ribbon.statusDateValue', { date: showTime ? displayDate.dateTime(statusDate) : displayDate.date(statusDate) })}`
@@ -218,7 +218,7 @@ export function BaselinesProgressGroupContent() {
       onHidden={() => setOpen(false)}
       full={
         <>
-          <RibbonButton icon=<Icon id="planning.baselines" size={24} /> label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
+          <RibbonButton icon={<Icon id="planning.baselines" size={24} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
           {statusDateControl}
           {progressModeControl(false)}
         </>
@@ -722,7 +722,7 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
                 icon={
                   <ExtensionIcon
                     raw={b.icon}
-                    fallback=<Icon id="extension.item" size={24} />
+                    fallback={<Icon id="extension.item" size={24} />}
                     style={{ display: 'inline-flex', width: 20, height: 20 }}
                   />
                 }
@@ -763,7 +763,7 @@ export function ResourceAssignDropdown() {
   const anyWorkResource = available.some(r => !isCostResource(r));
 
   if (!valid) {
-    return <RibbonButton icon=<Icon id="resource.assign" size={24} /> label={tMenu('ribbon.assignResource')} disabled />;
+    return <RibbonButton icon={<Icon id="resource.assign" size={24} />} label={tMenu('ribbon.assignResource')} disabled />;
   }
 
   return (
@@ -1121,7 +1121,7 @@ export function LayoutGroupContent() {
         );
       })}
       <RibbonButton
-        icon=<Icon id="layout.manage" size={24} />
+        icon={<Icon id="layout.manage" size={24} />}
         label={tMenu('ribbon.addLayout')}
         onClick={() => setUI({ showLayoutsDialog: true, layoutDialogTargetId: null })}
       />
@@ -1164,14 +1164,14 @@ export function PresentationGroupContent() {
         active={presentationMode}
       />
       <RibbonSmallButton
-        icon=<Icon id="view.gantt-split" size={16} />
+        icon={<Icon id="view.gantt-split" size={16} />}
         label={tMenu('ribbon.splitView')}
         title={tMenu('ribbon.splitView')}
         onClick={toggleSplitView}
         active={!!splitView}
       />
       <RibbonSmallButton
-        icon=<Icon id="view.minimap" size={16} />
+        icon={<Icon id="view.minimap" size={16} />}
         label={tMenu('ribbon.miniMap')}
         title={tMenu('ribbon.miniMap')}
         onClick={toggleMiniMap}
@@ -1197,18 +1197,18 @@ export function TimeScaleGroupContent() {
 
   const zoomInOutButtons = (
     <>
-      <RibbonSmallButton icon=<Icon id="view.zoom-in" size={16} /> label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
-      <RibbonSmallButton icon=<Icon id="view.zoom-out" size={16} /> label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-in" size={16} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-out" size={16} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
     </>
   );
   const resetFitButtons = (
     <>
-      <RibbonSmallButton icon=<Icon id="view.zoom-default" size={16} /> label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-default" size={16} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
       {/* "Passend op project" ook hier: het canvas-contextmenu is onbereikbaar zodra de
           takentabel volledig gevuld is. `requestFitToProject` is dezelfde
           pendingFit-route als na het openen van een bestand — GanttCanvas kent de
           viewport-breedte en voert de echte berekening uit. */}
-      <RibbonSmallButton icon=<Icon id="view.fit" size={16} /> label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
+      <RibbonSmallButton icon={<Icon id="view.fit" size={16} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
     </>
   );
   const dropdown = (
@@ -1363,7 +1363,7 @@ export function DisplayGroupContent() {
 
   return (
     <div className="ribbon-display-grid icons">
-      <RibbonSmallButton icon=<Icon id="table.columns" size={16} /> label={tMenu('ribbon.columns')} title={columns.title} onClick={columns.onClick} />
+      <RibbonSmallButton icon={<Icon id="table.columns" size={16} />} label={tMenu('ribbon.columns')} title={columns.title} onClick={columns.onClick} />
       <SavedFilterDropdown />
       <GroupPopoverButton />
       <SortPopoverButton />

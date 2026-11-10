@@ -112,7 +112,7 @@ export function AiSafetyGroup() {
       <div style={{ display: 'flex', gap: 6 }}>
         <span title={t('aiSafety.autoBackupHint')}>
           <RibbonButton
-            icon=<Icon id="backup.auto" size={24} />
+            icon={<Icon id="backup.auto" size={24} />}
             label={autoBackup ? t('aiSafety.autoBackupOn') : t('aiSafety.autoBackupOff')}
             active={autoBackup}
             onClick={onToggleAutoBackup}
@@ -120,7 +120,7 @@ export function AiSafetyGroup() {
         </span>
         <span title={!tauri ? t('ai.desktopOnly') : undefined}>
           <RibbonButton
-            icon=<Icon id="backup.create" size={24} />
+            icon={<Icon id="backup.create" size={24} />}
             label={t('aiSafety.backupNow')}
             disabled={!tauri || busy}
             onClick={() => void onManualBackup()}
@@ -128,7 +128,7 @@ export function AiSafetyGroup() {
         </span>
         <span title={!tauri ? t('ai.desktopOnly') : undefined}>
           <RibbonButton
-            icon=<Icon id="backup.folder" size={24} />
+            icon={<Icon id="backup.folder" size={24} />}
             label={t('aiSafety.openFolder')}
             disabled={!tauri}
             onClick={onOpenFolder}
