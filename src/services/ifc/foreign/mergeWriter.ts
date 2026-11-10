@@ -29,7 +29,7 @@ import { readIFC } from '../ifcReader';
 import { writeIFC, writeIfcMergeLines, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
-import { classify, type Classification } from './classify';
+import { classify, hasOwnOrigin, type Classification } from './classify';
 import { foreignScanFrom, readerBytes, readerStepIds } from './foreignScan';
 import type { IfcSource } from './ifcSource';
 import { scanStep, splitStepArgs, type StepIndex } from './stepScanner';
@@ -148,6 +148,48 @@ class Bag {
   }
 }
 
+const OWNER_TYPES: ReadonlySet<string> = new Set([
+  'IFCOWNERHISTORY', 'IFCPERSONANDORGANIZATION', 'IFCPERSON', 'IFCORGANIZATION', 'IFCAPPLICATION',
+]);
+
+/**
+ * Afwijking 1 (§4.2, Gevolgen; besluit wrakko, 9 november 2026): een eigen bestand van vóór `87ebd4d46` (v2026.7.2 en
+ * ouder) heeft een los `IfcProject`. Project, eenheden en context zijn V, de owner history is C; de rest is P. Er is dan
+ * geen gegeven van een ander programma: het niet-P-deel is precies wat de writer zelf opnieuw schrijft. De gewone writer
+ * schrijft dan, zoals op main: één `IfcProject`, en een tweede opslaan is byte-gelijk. Met de merge zou het project na
+ * het eerste opslaan P worden (alleen eigen stukken wijzen ernaar), dus zou de tweede ronde toch de gewone writer nemen,
+ * met een andere nummering.
+ * Voorwaarden: precies één `IfcProject`, V, met de owner history van OPS; elk V-stuk bereikt vanuit dat project via
+ * V-stukken; elk C-stuk een stuk van een owner history van OPS; geen A en geen vreemde leden.
+ */
+function onlyOwnProjectContext(index: StepIndex, cls: Classification): boolean {
+  if (cls.counts.A > 0 || cls.foreignMembers.length > 0) return false;
+  let project = -1;
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i) || index.type(i) !== 'IFCPROJECT') continue;
+    if (project >= 0) return false;
+    project = i;
+  }
+  if (project < 0 || cls.classes[project] !== 4 || !hasOwnOrigin(index, project)) return false;
+  const reached = new Uint8Array(index.count);
+  const stack = [project];
+  reached[project] = 1;
+  while (stack.length > 0) {
+    const c = stack.pop()!;
+    for (let k = index.outStart(c); k < index.outEnd(c); k++) {
+      const t = index.outTarget(k);
+      if (t >= 0 && cls.classes[t] === 4 && !reached[t]) { reached[t] = 1; stack.push(t); }
+    }
+  }
+  for (let i = 0; i < index.count; i++) {
+    const c = cls.classes[i];
+    if (c === 4 && !reached[i]) return false;
+    if (c === 2 && !OWNER_TYPES.has(index.type(i))) return false;
+    if (c === 2 && index.type(i) === 'IFCAPPLICATION' && index.application(i)?.identifier !== 'OPS') return false;
+  }
+  return true;
+}
+
 /**
  * Schrijf het document met het vreemde deel van `source`. Zonder vreemd deel: de gewone writer (`writeIFC`), zoals nu.
  * Gooit `MergeNeedsPhase2Error` als het niet veilig kan zonder fase 2; dan is er niets geschreven.
@@ -157,6 +199,7 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   const index = scanStep(source.bytes);
   const cls = classify(index);
   assertSameSource(index, cls, source);
+  if (onlyOwnProjectContext(index, cls)) return [new TextEncoder().encode(writeIFC(input))];
 
   const cases: MergePhase2Case[] = [];
   const caseAt = (kind: MergePhase2Kind, chunk: number, detail: string) =>
@@ -238,6 +281,9 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
   }
   const outIdOf = (key: string) => written.idMap.get(key);
   const scheduleOut = outIdOf('_worksched');
+  /** De baseline-koppen die met hun bron-id in de uitvoer staan (`baselineHeads`). */
+  const keptHeads = new Set<number>();
+  for (const [key, id] of written.idMap) if (key.startsWith('_baseline_ws_') && reserved.has(id)) keptHeads.add(id);
 
   // ── 4. Bewaarde en gemengde relaties ──
   /** Leden die in geen eigen relatie van dit type mogen staan (SET [0:1]). */
@@ -288,8 +334,8 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
     const relatingDomain = domainOf(relating);
     const bag = bagFor(type, sid(relating));
     // Een lid dat niet meer bestaat (of dat de planning niet kent): dat meldt de controle op verwijzingen (stap 7).
-    const missing = members.some(m => !domainOf(m) || (domainOf(m)!.kind === 'task' ? !tasks.has(domainOf(m)!.id)
-      : domainOf(m)!.kind === 'res' ? !resources.has(domainOf(m)!.id) : false));
+    const missing = members.some(m => (!domainOf(m) && !keptHeads.has(sid(m))) || (domainOf(m)?.kind === 'task' ? !tasks.has(domainOf(m)!.id)
+      : domainOf(m)?.kind === 'res' ? !resources.has(domainOf(m)!.id) : false));
     if (missing) return;
     if (type === NESTS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
       const parent = tasks.get(relatingDomain.id);
@@ -310,7 +356,7 @@ export function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Uint8Arr
         return;
       }
     } else if (type === AGGREGATES && relType === 'IFCWORKPLAN') {
-      // Het D-schema hangt altijd onder het D-werkplan; een eigen baselinekop heeft geen vast id (zie de verwijzingen).
+      // Het D-schema hangt altijd onder het D-werkplan, en een eigen baselinekop houdt zijn id (`keptHeads`).
     } else if (type === CONTROL && relType === 'IFCWORKSCHEDULE') {
       // Elke taak hangt aan het D-schema; de leden bestaan nog (hierboven).
     } else if (type === CONTROL && relType === 'IFCWORKCALENDAR' && relatingDomain?.kind === 'cal') {

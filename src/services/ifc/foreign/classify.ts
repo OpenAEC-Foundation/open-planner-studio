@@ -106,7 +106,8 @@ function targetsAt(index: StepIndex, i: number, arg: number): number[] {
 }
 
 /** Eigen herkomst (§4.5): de owner history (argument 1) wijst met `OwningApplication` naar de applicatie `'OPS'`. */
-function hasOwnOrigin(index: StepIndex, i: number): boolean {
+/** Wijst de owner history van stuk `i` naar de applicatie `'OPS'`? (Ook voor `mergeWriter.ts`.) */
+export function hasOwnOrigin(index: StepIndex, i: number): boolean {
   const oh = index.refAt(i, 1);
   if (oh < 0 || index.type(oh) !== 'IFCOWNERHISTORY') return false;
   const app = index.refAt(oh, 1);
