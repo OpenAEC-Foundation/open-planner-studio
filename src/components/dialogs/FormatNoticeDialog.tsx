@@ -59,11 +59,11 @@ export function FormatNoticeDialog({ kind }: { kind: FormatNoticeKind }) {
 
       <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col">
         <div className="ops-note ops-note--success !text-body text-text-primary" data-ops-format-notice-kept>
-          <Icon id="status.success" size={14} aria-hidden lucide={{ icon: 'CircleCheck' }} />
+          <Icon id="status.success" size={14} aria-hidden />
           <span>{t(`formatNotice.formats.${kind}.kept`)}</span>
         </div>
         <div className="ops-note ops-note--warning !text-body text-text-primary" data-ops-format-notice-limited>
-          <Icon id="status.warning" size={14} aria-hidden lucide={{ icon: 'CircleMinus' }} />
+          <Icon id="status.warning" size={14} aria-hidden />
           <span>{t(`formatNotice.formats.${kind}.limited`)}</span>
         </div>
         <div className="ops-note ops-note--info !text-body text-text-primary" data-ops-format-notice-save>
@@ -76,7 +76,7 @@ export function FormatNoticeDialog({ kind }: { kind: FormatNoticeKind }) {
           className="mt-3 self-start inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"
           data-ops-format-notice-read-more
         >
-          <Icon id="ui.help" size={13} aria-hidden className="text-text-secondary" lucide={{ className: undefined }} />
+          <Icon id="ui.help" size={13} aria-hidden className="text-text-secondary" />
           {t('formatNotice.readMore')}
         </button>
       </div>

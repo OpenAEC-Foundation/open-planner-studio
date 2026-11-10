@@ -12,12 +12,6 @@ export interface FeatureFlag {
 
 /** Voeg hier tijdelijke functies toe; de demo maakt de verborgen bediening zichtbaar toetsbaar. */
 export const FEATURE_FLAGS: FeatureFlag[] = [
-  {
-    id: 'b2-icons',
-    nameKey: 'settings.experimentalSection',
-    writesNewIfcData: false,
-    hidden: true,
-  },
   // Demo-flag: alleen titelbalkdecoratie, zonder nieuwe documentgegevens.
   {
     id: 'demo-topbar-animation',

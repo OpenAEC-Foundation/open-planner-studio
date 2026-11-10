@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { b2IconsOn, Icon } from '@/components/icons';
+import { Icon } from '@/components/icons';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -117,8 +117,8 @@ export function BaselineDialog() {
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <span className="ui-card-header !text-small !leading-4">{t('baseline.dialog.saveNew')}</span>
             {scheduleStale && (
-              <div className={b2IconsOn() ? '!text-body flex items-start gap-1' : '!text-body'} style={{ color: 'var(--theme-warning-text)' }} data-ops-baseline-stale-hint>
-                {b2IconsOn() ? <><Icon id="status.warning" size={16} /><span>{t('baseline.dialog.staleHint')}</span></> : `⚠ ${t('baseline.dialog.staleHint')}`}
+              <div className="!text-body flex items-start gap-1" style={{ color: 'var(--theme-warning-text)' }} data-ops-baseline-stale-hint>
+                {<><Icon id="status.warning" size={16} /><span>{t('baseline.dialog.staleHint')}</span></>}
               </div>
             )}
             <div className="flex items-center gap-2">

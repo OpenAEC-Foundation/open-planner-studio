@@ -174,7 +174,7 @@ function InstalledExtensionCard({ ext }: { ext: ReadyExtension }) {
       <div className="ext-card-icon">
         {/* Manifest-iconen komen ongefilterd uit de ZIP en worden al vóór elke poort
             geregistreerd (ook met status `disabled`) — dus altijd via de sanitizer. */}
-        <ExtensionIcon raw={ext.manifest.icon} fallback={<Icon id="extension.item" size={24} />} />
+        <ExtensionIcon raw={ext.manifest.icon} fallback=<Icon id="extension.item" size={24} /> />
       </div>
 
       <div className="ext-card-body">
@@ -350,7 +350,7 @@ function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled:
     <div className="ext-card">
       {/* Catalogus-iconen bewust niet als HTML renderen vóór installatie (injectie via externe JSON). */}
       <div className="ext-card-icon">
-        <Icon id="extension.item" size={24} lucide={{ icon: 'Plus' }} />
+        <Icon id="extension.item" size={24} />
       </div>
 
       <div className="ext-card-body">

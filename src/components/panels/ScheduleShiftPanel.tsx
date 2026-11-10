@@ -99,7 +99,7 @@ export function ScheduleShiftPanel() {
             className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-primary flex-shrink-0"
             data-ops-shift-undo
           >
-            <Icon id="edit.undo" size={12} className="ops-icon-inline-flip" lucide={{ className: undefined }} />
+            <Icon id="edit.undo" size={12} className="ops-icon-inline-flip" />
             <span>{t('scheduleShift.undo')}</span>
           </button>
         )}

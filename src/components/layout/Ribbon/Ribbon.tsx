@@ -547,7 +547,7 @@ export function Ribbon() {
             aria-label={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}
             onClick={() => applySetting('ribbonCompact', !ribbonCompact, saveRibbonCompact)}
           >
-            <Icon id={ribbonCompact ? 'workspace.ribbon-expand' : 'workspace.ribbon-collapse'} size={16} lucide={{ size: 14 }} />
+            <Icon id={ribbonCompact ? 'workspace.ribbon-expand' : 'workspace.ribbon-collapse'} size={16} />
           </button>
         </div>
       )}

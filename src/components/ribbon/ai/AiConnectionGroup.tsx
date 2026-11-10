@@ -195,14 +195,14 @@ export function AiConnectionGroup() {
       }}
       trigger={compact ? (
         <RibbonCompactTrigger
-          icon={<Icon id="ai.connection-menu" size={16} lucide={{ size: 14 }} />}
+          icon=<Icon id="ai.connection-menu" size={16} />
           title={t('ai.connectHint')}
           ariaLabel={t('ai.connect')}
           onClick={() => setPopoverOpen(o => !o)}
         />
       ) : (
         <RibbonCollapsedTrigger
-          icon={<Icon id="ai.connection-menu" size={24} lucide={{ size: 20 }} />}
+          icon=<Icon id="ai.connection-menu" size={24} />
           // De naam van de groep (zoals in Office), niet "Verbinden": die knop staat al in het paneel
           // en opent iets anders.
           label={tMenu('ribbon.aiConnection')}
@@ -222,7 +222,7 @@ export function AiConnectionGroup() {
           style={{ width: '100%' }}
           onClick={() => { setShowDetails(true); setPopoverOpen(false); }}
         >
-          <span className="ribbon-btn-icon"><Icon id="ai.connection-details" size={16} lucide={{ size: 14 }} /></span>
+          <span className="ribbon-btn-icon"><Icon id="ai.connection-details" size={16} /></span>
           <span className="ribbon-btn-label">{t('ai.connect')}</span>
         </button>
       </RibbonPopoverContent>
@@ -254,7 +254,7 @@ export function AiConnectionGroup() {
                 toelichting boven. Label volgt de intentie ("Verbinden"); de tooltip legt de inhoud uit. */}
             <span title={t('ai.connectHint')}>
               <RibbonButton
-                icon={<Icon id="ai.connection-details" size={24} lucide={{ size: 20 }} />}
+                icon=<Icon id="ai.connection-details" size={24} />
                 label={t('ai.connect')}
                 onClick={() => setShowDetails(true)}
               />

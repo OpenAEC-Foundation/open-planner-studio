@@ -16,11 +16,8 @@ import type { Page } from '@playwright/test';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
 import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
-// De B2-iconen staan achter de vlag `b2-icons` (#844) en die geldt vanaf het laden: een icoon dat al getekend is,
-// zoals Berekenen in het lint, wisselt niet mee. Daarom de app opnieuw laden met `?icons=b2`, de route die ook de
-// latere instellingen-hydratatie vasthoudt.
 test.beforeEach(async ({ page, ops: _ops }) => {
-  await page.goto('/?icons=b2');
+  await page.goto('/');
   await waitForOps(page);
   await waitForWelcomeDialog(page);
   await page.evaluate(() => {

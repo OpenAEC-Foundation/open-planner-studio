@@ -201,8 +201,6 @@
   border-color: var(--theme-accent);
   color: var(--theme-text);
 }
-/* Zonder B2 (#844) de kleur van vóór #765. */
-:where(:root[data-icons="lucide"]) .feedback-ann-btn.active { color: var(--theme-accent); }
 
 .feedback-ann-btn:disabled {
   opacity: 0.35;
