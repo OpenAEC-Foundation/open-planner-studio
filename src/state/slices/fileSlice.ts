@@ -40,6 +40,7 @@ import {
   refusedWriteTarget,
 } from '../ifcForeignGuard';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
+import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -1511,6 +1512,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes))
         : null;
       if (conversion) activation.payload = conversion.after;
+      // #804 (knownbug 1105): wat de app na het openen laat zien, voor de merge-writer. Die leest er af welk veld de
+      // planner wijzigde (`IfcSource.opened`, `sourceForm.ts`). Alleen bij een eigen bron met een vreemd deel, dus alleen
+      // met de flag; zonder bron of met de bron van het vorige document (IFC-editor, `loadState`) verandert er niets.
+      if (ownSource && !editing && hasForeignContent(ownSource) && activation.payload.ifcSource === ownSource) {
+        activation.payload = { ...activation.payload, ifcSource: { ...ownSource, opened: buildWriteIFCInput(activation.payload) } };
+      }
       set((s) => {
         // Een nieuwe projectinhoud: de vorige weigeringen gaan weg, net als bij een documentwissel
         // of een bewerking (eigenaarsbesluit 2026-10-19 5b). Vóór de meldingen hieronder.

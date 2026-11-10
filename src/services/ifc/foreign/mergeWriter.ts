@@ -41,6 +41,7 @@ import { PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
+import { sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
 import { changedScopes, dateTimeTexts, decimalKey, durationTexts, lossCheck, partialDateTime, pristineFromScan, type LossDiff } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
@@ -98,7 +99,11 @@ export type MergePhase2Kind =
   | 'nieuwe-pset'
   /** Een nieuw `#id` zou boven 2147483647 komen, omdat de bron buiten de eigen stukken een `#` met een getal net onder die
    *  grens heeft (`highestHashNumber`, ook in commentaar of een string). De scanner weigert zo'n id (knownbug 1007). */
-  | 'id-te-groot';
+  | 'id-te-groot'
+  /** Een veld dat alleen de omzetting naar het minutenmodel bij openen veranderde, schrijft de merge in de vorm van de bron
+   *  (`sourceForm.ts`, knownbug 1105). Na herlezen en dezelfde omzetting geeft het dan een andere waarde dan de planner
+   *  zag: de omzetting hangt af van een veld dat de planner wel wijzigde. */
+  | 'bronvorm-leest-anders';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -632,7 +637,12 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
   const scan = foreignScanFrom(index, cls, source.bytes);
   const pristine = await pristineFromScan(scan, source.bytes);
-  const { lines, byId, keptHeads, owner, taskIds, objects } = buildLines(input, caseAt);
+  // "De planner wijzigde dit veld" betekent: het wijkt af van wat de app na het openen liet zien (`source.opened`), niet van
+  // de lezing van de bron (knownbug 1105). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
+  // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
+  const form = sourceFormWhereUnchanged(input, source.opened, pristine);
+  const domain = form.input;
+  const { lines, byId, keptHeads, owner, taskIds, objects } = buildLines(domain, caseAt);
 
   // ── 7. Verwijzingen van buiten P: alleen naar een D-object dat met zijn bron-id in de uitvoer staat ──
   const emitted = new Set<number>();
@@ -675,10 +685,11 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
   const built0 = buildLines(pristine, () => {});
   const o0 = built0.lines.filter(l => !l.drop);
   const { edits } = lossCheck({
-    index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain: input,
+    index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain,
     sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
     owner0: built0.owner, owner1: owner, objects1: objects,
   }, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
     for (const e of edits) {
@@ -690,12 +701,20 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     // Herlezen (§4.5: "het token geeft in de codering van de uitvoer dezelfde waarde"): een bronwaarde mag de planning niet
     // veranderen. Leest de lezer de uitvoer met (b) anders dan zonder (b), dan weigert de merge: de waarde hangt dan af van
     // een ander veld dat wel veranderde (bijvoorbeeld een status die bij een andere voortgang iets anders betekent).
-    const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
     const changed = changedScopes(await read(lines.filter(l => !l.drop).map(l => l.text)) as unknown as WriteIFCInput, await read(plain));
     if (changed.any) {
       const shown = edits.slice(0, 3).map(e => `${label(e.chunk)} argument ${e.arg}`).join(', ');
       caseAt('niet-gedragen', edits[0].chunk,
         `de bronwaarden (${edits.length}: ${shown}${edits.length > 3 ? ', …' : ''}) zouden na herlezen een andere planning geven (${[...changed.keys].slice(0, 3).join(', ') || 'project'})`);
+    }
+  }
+
+  // De herleestoets van de vorm van de bron (knownbug 1105): wat de omzetting bij openen maakte, moet na herlezen en
+  // dezelfde omzetting weer geven wat de planner zag.
+  if (cases.length === 0 && form.checked.length > 0) {
+    const problems = sourceFormProblems(form.checked, input, await read(lines.filter(l => !l.drop).map(l => l.text)));
+    if (problems.length > 0) {
+      caseAt('bronvorm-leest-anders', -1, `${problems.length} veld(en) in de vorm van de bron lezen na openen anders: ${problems.slice(0, 3).join('; ')}`);
     }
   }
 

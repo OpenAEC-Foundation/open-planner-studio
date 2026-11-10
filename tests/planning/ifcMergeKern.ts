@@ -19,6 +19,8 @@ import { scanStep, StepScanError, type StepIndex } from '@/services/ifc/foreign/
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import type { ImportResult } from '@/services/importTypes';
+import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import type { Task } from '@/types/task';
 import { installBrowserStubs } from './ifcPariteitKern';
 
@@ -84,6 +86,47 @@ export async function openForeign(bytes: Uint8Array, name = 'bron.ifc'): Promise
   if (failure !== undefined) throw failure;
   const st = store.getState();
   return { ...buildWriteIFCInput(st), ...(st.ifcSource ? { ifcSource: st.ifcSource } : {}) } as Opened;
+}
+
+/**
+ * Wat de app laat zien na opslaan en heropenen van hetzelfde domein zonder vreemd deel: `writeIFC` en dan `openForeign`
+ * (de route van de app, met de omzetting en de herberekening bij openen). Een gewone opslag rondt hier en daar af (een
+ * duur van 17 cijfers); de merge houdt daar de bronwaarde. Voor de vraag of herlezen de planning geeft die de planner zag:
+ * `shownAfterOpen`.
+ */
+export function reopenPlain(d: Domain): Promise<Opened> {
+  return openForeign(new TextEncoder().encode(writeIFC(d)));
+}
+
+/**
+ * De planning die de planner zag, zoals de app haar na openen laat zien: het domein zelf, zonder writer of lezer ertussen,
+ * geopend in een eigen store (`openAsDocument`: de omzetting naar het minutenmodel, die op een domein van de app niets meer
+ * omzet, en de herberekening bij openen). Een merge die schrijft, moet na heropenen via de app precies dit geven
+ * (vervolg-PR van #867, knownbug 1105).
+ */
+export async function shownAfterOpen(d: Domain): Promise<Opened> {
+  const { store, buildWriteIFCInput } = await storeWith(d);
+  return buildWriteIFCInput(store.getState()) as Opened;
+}
+
+/** Doorrekenen (F5) zoals de app: het domein in een eigen store (zie `shownAfterOpen`), en daar `runCPM`. */
+export async function recalculated(d: Domain): Promise<Domain> {
+  const { store, buildWriteIFCInput } = await storeWith(d);
+  store.getState().runCPM();
+  return buildWriteIFCInput(store.getState()) as Domain;
+}
+
+async function storeWith(d: Domain) {
+  const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
+  const { store } = createAppStoreContext();
+  // Zoals de lezer het levert: de bibliotheek zonder de kopie van de projectkalender (de writer schrijft die niet), anders
+  // maakt `ensureUniqueImportIds` er een tweede kalender van.
+  const parsed = {
+    ...structuredClone(d), timeModel: MINUTE_MODEL_TIME_MODEL,
+    resourceCalendars: (d.resourceCalendars ?? []).filter(c => c.id !== d.project.calendarId).map(c => structuredClone(c)),
+  } as ImportResult;
+  store.getState().openAsDocument(parsed, { name: 'getoond.ifc', ref: null });
+  return { store, buildWriteIFCInput };
 }
 
 /** Een kopie van het domein zonder de bron (die blijft gedeeld en wordt niet bewerkt). */

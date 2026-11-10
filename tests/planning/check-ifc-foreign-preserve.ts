@@ -32,7 +32,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle, tryMerge,
+  basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
+  reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
@@ -40,6 +41,7 @@ import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, s
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import type { Task } from '@/types/task';
 import { classify } from '@/services/ifc/foreign/classify';
+import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
@@ -113,9 +115,14 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
   ok(`${label}: geen nieuw dubbel lidmaatschap`, doubleMemberships(out).every(k => doubleMemberships(bytes).includes(k)));
   ok(`${label}: niet meer IfcProject dan de bron`, countType(out, 'IFCPROJECT') <= Math.max(1, countType(bytes, 'IFCPROJECT')));
   const reread = await openForeign(out);
-  const want = edit ? canon(readIFC(writeIFC(d)), reseed) : canon(opened, reseed);
+  // De planning die de planner zag, zoals de app haar na openen toont (vervolg-PR van #867): zonder bewerking het domein na
+  // openen, met een bewerking hetzelfde domein na de herberekening bij openen (`shownAfterOpen`). Of wat een gewone opslag
+  // en heropenen geeft (`reopenPlain`): de lezer leidt bij heropenen soms iets af dat niet in het domein stond (een rest uit
+  // het percentage), en dat doet hij ook na een gewone opslag.
+  const want = canon(edit ? await shownAfterOpen(d) : opened, reseed);
   const got = canon(reread, reseed);
-  ok(`${label}: herlezen geeft dezelfde planning${got === want ? '' : ` (${firstDiff(got, want)})`}`, got === want);
+  const same = got === want || (edit !== undefined && got === canon(await reopenPlain(d), reseed));
+  ok(`${label}: herlezen geeft dezelfde planning${same ? '' : ` (${firstDiff(got, want)})`}`, same);
   if (!edit) {
     const kept = Object.entries(source.stepIds).filter(([k, v]) => reread.ifcSource?.stepIds[k] !== v);
     eq(`${label}: herlezen geeft dezelfde bron-ids (stepIds)`, kept.slice(0, 5), []);
@@ -157,6 +164,11 @@ const OWN_REFUSED: Readonly<Record<string, RegExp>> = {
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': /^IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
 };
 
+/** Wat de lezer naast de planning geeft (de vorm van het bestand) en de store na openen zet (de omzetting is gedaan, de
+ *  herkomst van een import): geen planning, en de writer leidt het niet uit het domein af. */
+const READ_ONLY_KEYS: ReadonlySet<string> = new Set([
+  'timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimesOrigin', 'minuteModelPending', 'importPristine',
+]);
 const corpus = [
   ...readdirSync(FOREIGN).filter(f => f.endsWith('.ifc')),
   ...readdirSync(join(FOREIGN, 'council')).filter(f => f.endsWith('.ifc')).map(f => `council/${f}`),
@@ -186,10 +198,14 @@ for (const file of corpus) {
   if (!await roundTrip(file, bytes)) continue;
   written++;
   if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
-  // O1 is niet leeg: zonder bewerking is het domein na openen gelijk aan het domein van de toets (`changedScopes`).
+  // O1 is niet leeg: zonder bewerking is het domein dat de merge schrijft (`sourceFormWhereUnchanged`: wat alleen het openen
+  // veranderde, in de vorm van de bron) gelijk aan het domein van de toets (`changedScopes`).
   const index = scanStep(bytes);
-  const changed = changedScopes(cloneDomain(opened), await pristineDomain(index, classify(index), opened.ifcSource));
-  eq(`${file}: zonder bewerking verandert er niets (O1)`, [changed.any, [...changed.keys].slice(0, 3)], [false, []]);
+  const pristine = await pristineDomain(index, classify(index), opened.ifcSource);
+  // Velden van de lezing die geen planning zijn en die de writer niet uit het domein schrijft, tellen niet.
+  const changed = [...changedScopes(sourceFormWhereUnchanged(cloneDomain(opened), opened.ifcSource.opened, pristine).input, pristine).keys]
+    .filter(k => !READ_ONLY_KEYS.has(k));
+  eq(`${file}: zonder bewerking verandert er niets (O1)`, changed.slice(0, 3), []);
 }
 eq('corpus: elk bestand uit REFUSED en OWN_REFUSED bestaat', [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED)].filter(f => !corpus.includes(f)), []);
 ok(`corpus: minstens negentien eigen bestanden schrijven zonder wijziging (${ownWritten})`, ownWritten >= 19);
@@ -866,8 +882,13 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   if (r) ok("bewerking: Status: taak #51 krijgt 'STARTED'", lineOf(r.out, '51').includes("'2.1',$,'STARTED',"));
 }
 {
-  const r = await roundTrip('bewerking: DurationType', enc.encode(eigen), (d) => { taskNamed(d, 'Set up site').time.durationType = 'ELAPSEDTIME'; });
-  if (r) ok('bewerking: DurationType: de taaktijd van #51 is .ELAPSEDTIME.', /^#\d+=IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\./m.test(text(r.out)));
+  // Kalendertijd: na openen via de app heeft de taak tijdstippen die op kalendertijd niet op een daggrens vallen; de writer
+  // schrijft de kalender dan letterlijk en de merge weigert (knownbug 1107, vervolg-PR van #867).
+  const opened = await openForeign(enc.encode(eigen));
+  const d = cloneDomain(opened);
+  taskNamed(d, 'Set up site').time.durationType = 'ELAPSEDTIME';
+  const r = await tryMerge(d, opened.ifcSource!);
+  eq('bewerking: DurationType: de merge weigert (knownbug 1107)', r.ok ? 'schrijft' : r.kinds.includes('niet-gedragen'), true);
 }
 {
   const r = await roundTrip('bewerking: ScheduleDuration', enc.encode(eigen), (d) => {
@@ -916,14 +937,18 @@ const renameTask = (from: string) => (d: Domain) => { taskNamed(d, from).name = 
 const T55 = "#55=IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D'";
 const KINDS: readonly {
   kind: string; label: string; bytes: Uint8Array; keep: RegExp;
-  field?: { label: string; edit: (d: Domain) => void; want: RegExp };
+  /** `refused`: de merge weigert met dit geval (knownbug 1107). */
+  field?: { label: string; edit: (d: Domain) => void; want: RegExp; refused?: string };
   other: { label: string; edit: (d: Domain) => void; want: RegExp };
 }[] = [
   {
     kind: 'enumeratie', label: 'IfcTaskTime.DurationType .NOTDEFINED.',
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace('.WORKTIME.', '.NOTDEFINED.'))),
     keep: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,'P0Y0M2D'/,
-    field: { label: 'DurationType', edit: (d) => { taskNamed(d, SET_UP).time.durationType = 'ELAPSEDTIME'; }, want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/ },
+    field: {
+      label: 'DurationType', edit: (d) => { taskNamed(d, SET_UP).time.durationType = 'ELAPSEDTIME'; },
+      want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/, refused: 'niet-gedragen',
+    },
     other: {
       label: 'de duur',
       edit: (d) => { const t = taskNamed(d, SET_UP).time; t.scheduleDuration += 1; if (t.durationMinutes !== undefined) t.durationMinutes += 480; },
@@ -979,7 +1004,13 @@ for (const k of KINDS) {
   const label = `(b) ${k.kind}: ${k.label}`;
   const plain = await roundTrip(`${label} (i) zonder bewerking`, k.bytes);
   if (plain) ok(`${label} (i): de bronwaarde staat er byte-gelijk (${k.keep})`, k.keep.test(text(plain.out)));
-  if (k.field) {
+  if (k.field?.refused) {
+    const opened = await openForeign(k.bytes);
+    const d = cloneDomain(opened);
+    k.field.edit(d);
+    const r = await tryMerge(d, opened.ifcSource!);
+    eq(`${label} (ii) ${k.field.label} bewerkt: de merge weigert`, r.ok ? 'schrijft' : r.kinds.includes(k.field.refused), true);
+  } else if (k.field) {
     const mine = await roundTrip(`${label} (ii) ${k.field.label} bewerkt`, k.bytes, k.field.edit);
     if (mine) ok(`${label} (ii): de waarde van de planner (${k.field.want})`, k.field.want.test(text(mine.out)) && !k.keep.test(text(mine.out)));
   }
@@ -1138,8 +1169,10 @@ async function lossSetup(bytes: Uint8Array) {
   const owner = Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1));
   const pristine = await pristineDomain(index, cls, source);
   const run = (lines0: OutLine[], lines1: OutLine[], edit: (d: Domain) => void, ownerOut: number | undefined = owner) => {
-    const domain = cloneDomain(opened);
-    edit(domain);
+    const edited = cloneDomain(opened);
+    edit(edited);
+    // Zoals de merge: wat alleen het openen veranderde, in de vorm van de bron (`sourceForm.ts`, knownbug 1105).
+    const domain = sourceFormWhereUnchanged(edited, source.opened, pristine).input;
     const found: string[] = [];
     const { edits } = lossCheck({
       index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,

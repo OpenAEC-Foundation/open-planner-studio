@@ -1265,7 +1265,10 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
   if (order(domain.assignments) !== order(pristine.assignments)) keys.add('order:assignment');
   diff('seq', domain.sequences, pristine.sequences);
   diff('res', domain.resources, pristine.resources);
-  diff('cal', [domain.calendar, ...(domain.resourceCalendars ?? [])], [pristine.calendar, ...(pristine.resourceCalendars ?? [])]);
+  // De kalenders zoals de writer ze schrijft: de projectkalender, en de bibliotheek zonder de kopie onder het id van de
+  // projectkalender (`ifcWriter.ts`). Na openen via de store staat die kopie er altijd in (`promoteProjectCalendarToLibrary`).
+  const calendars = (x: ImportResult) => [x.calendar, ...(x.resourceCalendars ?? []).filter(c => c.id !== x.project.calendarId)];
+  diff('cal', calendars(domain), calendars(pristine));
   const pa = domain.project as unknown as Record<string, unknown>;
   const pb = pristine.project as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(pa), ...Object.keys(pb)])) if (json(pa[k]) !== json(pb[k])) keys.add(`project.${k}`);

@@ -5,9 +5,10 @@
 // staan (bronslot); alleen als de planner het veld zelf wijzigde, mag de merge weigeren.
 //
 // Per punt van de review (ronde 6): zonder bewerking, met een andere bewerking, en met het veld zelf gewijzigd. Na elke merge
-// die schrijft: herlezen geeft de planning van het domein terug (de tijden van elke taak, de lag van elke relatie, de
-// resources en de toewijzingen). De bronnen komen uit `tests/planning/fixtures/oude-tags/` (gemaakt met de lezer en writer
-// van die tag, `scripts/proef/maak-oude-uitvoer.mjs`) en `h7-tijden-oude-writer.ifc`, met een wand van Revit erbij.
+// die schrijft: heropenen via de route van de app geeft de planning die de planner zag, zoals de app haar na openen toont
+// (`shownAfterOpen`: de tijden van elke taak, de lag van elke relatie, de resources en de toewijzingen). De bronnen komen
+// uit `tests/planning/fixtures/oude-tags/` (gemaakt met de lezer en writer van die tag, `scripts/proef/maak-oude-uitvoer.mjs`)
+// en `h7-tijden-oude-writer.ifc`, met een wand van Revit erbij.
 //  - BLOKKEERT 1: een halve dag (`P0Y0M0.5D`, OPS tot `cbde9d4e7`);
 //  - BLOKKEERT 2: resources met 9 argumenten (OPS tot `4f5008614`, was knownbug 1024);
 //  - BLOKKEERT 3: een werktijd als uurbreuk (`'7.5:00:00'`, OPS tot `32b6222de`);
@@ -20,7 +21,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { cloneDomain, mergeProblems, openForeign, plannerEdits, settle, tryMerge, type Domain, type Opened } from './ifcMergeKern';
+import { cloneDomain, mergeProblems, openForeign, plannerEdits, settle, shownAfterOpen, tryMerge, type Domain, type Opened } from './ifcMergeKern';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -68,8 +69,9 @@ function patchArg(src: string, match: RegExp, k: number, value: string): string 
   return src.replace(line, `${parts[1]}(${args.join(',')});`);
 }
 
-/** Herlezen geeft het domein terug: per taak `time`, per relatie de lag, per resource de naam, per toewijzing de eenheden. */
-function sameAs(d: Domain, back: Opened): string | undefined {
+/** Heropenen geeft de planning die de planner zag (`shownAfterOpen`): per taak `time`, per relatie de lag, per resource
+ *  de naam, per toewijzing de eenheden. */
+function sameAs(d: Opened, back: Opened): string | undefined {
   const out: string[] = [];
   const tasks = new Map(back.tasks.map(t => [t.id, t]));
   for (const t of d.tasks) {
@@ -123,7 +125,7 @@ async function proof(group: string, label: string, src: string, want: string, ed
   if (!pass || !r.ok) return;
   const problems = mergeProblems(latin1(src), r.bytes);
   ok(`${name}: invarianten (${problems.slice(0, 2).join(' | ')})`, problems.length === 0);
-  const same = sameAs(d, await openForeign(r.bytes));
+  const same = sameAs(await shownAfterOpen(d), await openForeign(r.bytes));
   ok(`${name}: ${same}`, same === undefined);
   const problem = check?.(text(r.bytes));
   ok(`${name}: ${problem}`, problem === undefined);
@@ -266,7 +268,9 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const calendar = both(has("IFCTIMEPERIOD('07:00:00','12:00:00')", "IFCTIMEPERIOD('13:00:00','16:00:00')", "'IsHourCalendar',$,IFCBOOLEAN(.F.)"), hasNot('LiteralTimes'));
   await proof('bevinding 6', 'v2026.43.0 urentaak: de kalender blijft zoals in de bron', src, 'schrijft', undefined,
     both(calendar, has("'PT4H0M0S','2027-03-01T07:00:00','2027-03-01T11:00:00'")));
-  const hourTask = (d: Domain) => d.tasks.find(t => t.time.durationUnit === 'hours')!.time;
+  // De urentaak zelf, geen samenvatting: na openen via de app rekent de store de samenvattingen door, en die staan dan ook
+  // in uren.
+  const hourTask = (d: Domain) => d.tasks.find(t => t.time.durationUnit === 'hours' && t.childIds.length === 0)!.time;
   const longer = (minutes: number, finish: string) => (d: Domain) => {
     const t = hourTask(d);
     t.scheduleDuration = t.scheduleDuration * minutes / t.durationMinutes!;

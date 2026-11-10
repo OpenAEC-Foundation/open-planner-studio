@@ -33,7 +33,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, plannerEdits, tryMerge, type Domain, type EditKind, type Opened } from './ifcMergeKern';
+import { canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, plannerEdits, reopenPlain, tryMerge, type Domain, type EditKind, type Opened } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
@@ -83,10 +83,9 @@ const FULL_RAW = process.env.OPS_TELLING_OUDE_ROUTE === '1';
 /** Met `OPS_TELLING_OUDE_ROUTE=1`: per bestand de telling op de oude route. */
 const rawTally = new Map<string, Map<EditKind, Tally>>();
 const rawOthers: string[] = [];
-const enc = new TextEncoder();
 /** Een route: hoe het bestand opent, en de planning van dezelfde bewerking zonder vreemd deel. */
 interface Route { open(bytes: Uint8Array): Promise<Opened>; plain(d: Domain): Promise<Domain> }
-const APP: Route = { open: (b) => openForeign(b), plain: (d) => openForeign(enc.encode(writeIFC(d))) };
+const APP: Route = { open: (b) => openForeign(b), plain: (d) => reopenPlain(d) };
 const RAW: Route = { open: (b) => openForeignRaw(b), plain: async (d) => readIFC(writeIFC(d)) };
 
 interface Tally { n: number; ok: number; refused: Map<string, number>; other: Map<string, number> }

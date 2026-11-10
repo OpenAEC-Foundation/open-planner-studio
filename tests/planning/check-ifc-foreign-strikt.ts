@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
+import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, recalculated, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -989,9 +989,18 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
   ];
   for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);
-  // Wijzigt de planner het veld zelf, dan vervalt de bronwaarde (plek 6).
-  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd', notDefined, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; },
-    has(".PREDICTED.,$,.NOTDEFINED.,", false));
+  // Wijzigt de planner het veld zelf (kalendertijd), dan weigert de merge nu (vervolg-PR van #867, knownbug 1107): na openen
+  // via de app heeft de taak de tijdstippen 07:00 en 16:00, en die vallen op kalendertijd niet op een daggrens, ook niet na
+  // doorrekenen. De writer schrijft de kalender dan letterlijk (zoals een gewone opslag), en elke taak erop als tijdstip;
+  // de kalender van de bron verandert zonder dat de planner hem wijzigde. Op de oude testroute (de ruwe lezing, met kale
+  // datums) schreef de merge, maar heropenen via de app gaf dan 00:00 tot 00:00 in plaats van de 07:00 tot 16:00 die de
+  // planner zag; een gewone opslag houdt 07:00 tot 16:00.
+  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd (knownbug 1107)', notDefined, 'niet-gedragen', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; });
+  const notDefinedOpened = await openForeign(notDefined);
+  const elapsed = cloneDomain(notDefinedOpened);
+  time63(elapsed, notDefinedOpened).durationType = 'ELAPSEDTIME';
+  const elapsedF5 = await recalculated(elapsed);
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (knownbug 1107)', notDefined, 'niet-gedragen', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
 }
 
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──
@@ -1003,9 +1012,12 @@ const projectEdits = (d: Domain): Edit[] => [
   { label: 'projectomschrijving', apply: (x) => { x.project.description = 'Andere omschrijving'; } },
   { label: 'statusdatum', apply: (x) => { x.project.statusDate = '2027-04-01'; } },
   { label: 'modifiedAt', apply: (x) => { x.project.modifiedAt = '2026-12-01T10:00:00.000Z'; } },
+  // Zoals de store: de projectkalender is de kopie van haar regel in de bibliotheek (`syncProjectCalendar`). Na openen via
+  // de app staat de oude projectkalender daar al; de nieuwe komt erbij.
   { label: 'kalenderkeuze', apply: (x) => {
     const other = { ...structuredClone(x.calendar), id: `${d.calendar.id}-b4`, name: 'Andere kalender' };
-    x.resourceCalendars = [...(x.resourceCalendars ?? []), structuredClone(x.calendar)];
+    const library = (x.resourceCalendars ?? []).filter(c => c.id !== x.calendar.id);
+    x.resourceCalendars = [...library, structuredClone(x.calendar), other];
     x.calendar = other;
     x.project.calendarId = other.id;
   } },
