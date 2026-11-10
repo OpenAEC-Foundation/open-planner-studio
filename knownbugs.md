@@ -2735,7 +2735,10 @@ en noem het in je rapport of PR-tekst.
       noemt ontwikkel-URL's, maar zet geen `?icons=` en controleert de uitkomst van `loadFeatureFlags()` niet.
       De check tekent wel elk B2-id in twee maten na beide oude opslagwaarden. De URL-route is uit de bron
       verwijderd. Voorstel: beperk de omschrijving of controleer de opslaguitkomst en de oude URL-invoer.
-      Uit de review van B2 standaard, Terra xhigh, BEVESTIGD en zelf in de bron nagezien. — B
+      Bovendien controleert het bestaande RTL-scenario in `tests/browser/tabstrip-scroll-arrows.spec.ts`
+      alleen de id van de pijlen, niet hun berekende spiegeltransformatie. De aanroep en CSS spiegelen nu wel.
+      Voorstel: voeg een transformatiecontrole toe aan hetzelfde scenario. Uit de reviews van B2 standaard,
+      Terra en Sol xhigh, BEVESTIGD en zelf in de bron nagezien. — B
 
 1073. **VERVOLG: voorbeeldextensie heeft een eigen lijsticoon zonder B2-id.**
       `examples/extensions/voorbeeld-takenlijst-importer/manifest.json` levert een eigen SVG met drie regels
@@ -2749,3 +2752,11 @@ en noem het in je rapport of PR-tekst.
       `inline-flex items-center gap-1` nog via een template-expressie toe. Voorstel: één gewone klassetekst.
       De getekende UI verandert daardoor niet. Uit de review van B2 standaard, Terra xhigh,
       BEVESTIGD en zelf in de bron nagezien. — B
+
+1075. **VERVOLG: twee CSS-waarschuwingssymbolen lopen buiten B2 om.** `src/styles/globals.css` bevat
+      bij `.alert--warning::before` en `.badge--amber::before` de paden van Lucide `triangle-alert` 0.575.0.
+      Deze staan onder meer bij voortgang importeren (`ProgressImportDialog.tsx`) en afwijkende
+      rekenprofielen (`SchedulingProfileSection.tsx`). Zelf vergeleken met de openbare Lucide-bron.
+      Dit stond al op main en geeft geen nieuw functioneel probleem. Voorstel: later de bestaande B2
+      `status.warning` gebruiken; geen nieuw ontwerp maken. Uit de review van B2 standaard, Sol xhigh,
+      BEVESTIGD. — B
