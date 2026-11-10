@@ -264,6 +264,13 @@ export class StepIndex {
   /** Aantal argumenten op het hoogste niveau (lay-outherkenning, zoals de lezer). */
   argCount(i: number): number { return this.#rawArgs(i)?.length ?? 0; }
 
+  /** De argumenten op het hoogste niveau als ruwe tokens, zonder commentaar en getrimd; `undefined` voor kop, `DATA;`,
+   *  staart en een complexe instantie. Voor de writer met een vreemd deel (#804 fase 1b, `mergeWriter.ts`). */
+  argTokens(i: number): string[] | undefined { return this.#rawArgs(i); }
+
+  /** Een stringtoken (`'…'`) van dit stuk als tekst, met de codering van het stuk (§4.9 punt 5). '' bij `$` of geen string. */
+  tokenText(i: number, token: string | undefined): string { return this.#text(i, token); }
+
   /** Argument 0 als ruwe ASCII-tekst zonder quotes: de GlobalId van een `IfcRoot`. '' als het geen string is. */
   globalId(i: number): string {
     const a0 = this.#rawArg0(i);
@@ -461,6 +468,9 @@ export const STEP_INDEX_FIELDS: ReadonlySet<string> = new Set([
   'outStart', 'outEnd', 'outTarget', 'outArg', 'inStart', 'inEnd', 'inSource', 'inArg', 'refsAt', 'refAt',
   'argCount', 'globalId', 'name', 'templateType', 'workControl', 'propertyText', 'enumValues', 'application',
   'literalText',
+  // Fase 1b (`mergeWriter.ts`): de ruwe argumenten en hun tekst, voor de vergelijking van psets en het overnemen van
+  // GlobalIds. Ook dit is alleen index: geen bytes buiten het stuk.
+  'argTokens', 'tokenText',
 ]);
 
 /** Positie van `Name` per type (§4.2: psets, templates, properties, property-templates, werkschema's). */
@@ -501,6 +511,12 @@ function openParenOf(b: Uint8Array, at: number): number {
 }
 
 /** Argumenten op het hoogste niveau splitsen, quote-bewust (spiegel van `splitArgs` in de lezer). */
+/** Argumenten op het hoogste niveau splitsen (quotes en haakjes tellen mee), getrimd. Ook voor de eigen regels van de
+ *  writer met een vreemd deel (`mergeWriter.ts`). */
+export function splitStepArgs(argsStr: string): string[] {
+  return splitArgs(argsStr);
+}
+
 function splitArgs(argsStr: string): string[] {
   const args: string[] = [];
   let segStart = 0;

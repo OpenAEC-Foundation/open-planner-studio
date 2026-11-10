@@ -240,6 +240,29 @@ export interface WriteContext {
   reservedGuids: ReadonlySet<string>;
   /** Project-id: zout voor de GlobalIds van hulpentiteiten en de projectkalender (zie `guidOf`). */
   auxSalt: string;
+  /** #804 fase 1b: alleen bij schrijven met een vreemd deel (`foreign/mergeWriter.ts`); anders afwezig. */
+  merge?: WriterMergeIds;
+}
+
+/**
+ * De ids bij schrijven met een vreemd deel (#804 §4.3, §4.4). Zonder dit plan nummert de writer vanaf `#1`, zoals altijd.
+ *  - `keep`: sleutel van de writer (`task_<id>`, `_calendar`, …) → bron-`#id` van het D-stuk.
+ *  - `firstId`: het hoogste id van de niet-P-stukken plus 1; daar begint de reeks voor alle andere stukken.
+ *  - `reserved`: de ids die de reeks overslaat (de D-ids van de bron).
+ *  - `projectSourceId`: gezet als het `IfcProject` van de bron niet P is. Dan schrijft de writer geen eigen project,
+ *    eenheden en context; `_project` wijst naar dit bron-id.
+ *  - `projectData`: naam, omschrijving, auteur en bedrijf gaan (ook) in `OPS_ProjectSettings`. Gezet als het project niet
+ *    P is, of als vóór het P-blok al een owner history van de bron staat: de lezer neemt auteur en bedrijf uit de eerste.
+ *  - `baselineHeads`: GlobalId → bron-`#id` van een eigen `.BASELINE.`-werkschema (D). De lezer geeft die koppen geen
+ *    domein-id in `stepIds`; via hun GlobalId houden ze toch hun id, anders schuift de reeks in de volgende ronde.
+ */
+export interface WriterMergeIds {
+  readonly keep: ReadonlyMap<string, number>;
+  readonly firstId: number;
+  readonly reserved: ReadonlySet<number>;
+  readonly projectSourceId?: number;
+  readonly projectData: boolean;
+  readonly baselineHeads: ReadonlyMap<string, number>;
 }
 
 /**
@@ -300,8 +323,20 @@ function ref(ctx: WriteContext, key: string): string {
   return `#${ctx.idMap.get(key) || 0}`;
 }
 
-function addLine(ctx: WriteContext, key: string, line: string): number {
-  const id = ctx.nextId++;
+/** Het `#id` voor een nieuw stuk. Zonder merge-plan: de volgende in de reeks vanaf `#1`. `baselineGuid` alleen voor de
+ *  kop van een baseline (`WriterMergeIds.baselineHeads`). */
+function allocId(ctx: WriteContext, key: string, baselineGuid?: string): number {
+  const merge = ctx.merge;
+  if (!merge) return ctx.nextId++;
+  const kept = merge.keep.get(key) ?? (baselineGuid === undefined ? undefined : merge.baselineHeads.get(baselineGuid));
+  if (kept !== undefined) return kept;
+  let id = ctx.nextId++;
+  while (merge.reserved.has(id)) id = ctx.nextId++;
+  return id;
+}
+
+function addLine(ctx: WriteContext, key: string, line: string, baselineGuid?: string): number {
+  const id = allocId(ctx, key, baselineGuid);
   ctx.idMap.set(key, id);
   // STEP vereist dat elke entity met ';' eindigt — anders parst de reader (ifcReader regex `\)\s*;`) niets.
   ctx.lines.push(`#${id}=${line};`);
@@ -342,6 +377,19 @@ export type WriteIFCInput = ImportResult & {
 };
 
 export function writeIFC(input: WriteIFCInput): string {
+  return writeIfcParts(input).text;
+}
+
+/**
+ * #804 fase 1b: de entiteitregels van de writer (`#id=…`, zonder `;`-regeleinde-scheiding) met een merge-plan
+ * (`foreign/mergeWriter.ts`). Kop en staart komen dan uit de bron (§4.1, §4.10).
+ */
+export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds): { lines: string[]; idMap: ReadonlyMap<string, number> } {
+  const { lines, idMap } = writeIfcParts(input, merge);
+  return { lines, idMap };
+}
+
+function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): { text: string; lines: string[]; idMap: ReadonlyMap<string, number> } {
   const {
     project, calendar, tasks: sourceTasks, sequences, resources, assignments,
     activityCodeTypes = [],
@@ -367,8 +415,9 @@ export function writeIFC(input: WriteIFCInput): string {
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
     literalCalendarIds: writeView.literalCalendarIds, milestonesAtDayEnd: writeView.atDayEnd,
-    lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),
+    lines: [], nextId: merge?.firstId ?? 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),
     preservedGuids, reservedGuids: new Set(preservedGuids.values()), auxSalt: project.id,
+    ...(merge ? { merge } : {}),
   };
   const now = new Date().toISOString().split('.')[0];
 
@@ -421,21 +470,27 @@ export function writeIFC(input: WriteIFCInput): string {
   const appId = addLine(ctx, '_app', `IFCAPPLICATION(#${appOrgId},${ifcStr(OPS_APP_VERSION)},'Open Planner Studio','OPS')`);
   const ownerHistId = addLine(ctx, '_owner', `IFCOWNERHISTORY(#${personOrgId},#${appId},$,.NOCHANGE.,$,$,$,${Math.floor(Date.now() / 1000)})`);
 
-  // Units
-  const mId = addLine(ctx, '_m', `IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)`);
-  const sId = addLine(ctx, '_s', `IFCSIUNIT(*,.TIMEUNIT.,$,.SECOND.)`);
-  const unitAssId = addLine(ctx, '_units', `IFCUNITASSIGNMENT((#${mId},#${sId}))`);
+  if (merge?.projectSourceId !== undefined) {
+    // #804 §4.4: het project van de bron is niet P (een model met zijn eigen eenheden en context). Geen eigen
+    // IfcProject, eenheden en context; alles wat aan het project hangt, wijst naar het bron-project.
+    ctx.idMap.set('_project', merge.projectSourceId);
+  } else {
+    // Units
+    const mId = addLine(ctx, '_m', `IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)`);
+    const sId = addLine(ctx, '_s', `IFCSIUNIT(*,.TIMEUNIT.,$,.SECOND.)`);
+    const unitAssId = addLine(ctx, '_units', `IFCUNITASSIGNMENT((#${mId},#${sId}))`);
 
-  // Context
-  const ptId = addLine(ctx, '_pt', `IFCCARTESIANPOINT((0.,0.,0.))`);
-  const axId = addLine(ctx, '_ax', `IFCAXIS2PLACEMENT3D(#${ptId},$,$)`);
-  const ctxId = addLine(ctx, '_ctx', `IFCGEOMETRICREPRESENTATIONCONTEXT($,'Plan',3,1.0E-05,#${axId},$)`);
+    // Context
+    const ptId = addLine(ctx, '_pt', `IFCCARTESIANPOINT((0.,0.,0.))`);
+    const axId = addLine(ctx, '_ax', `IFCAXIS2PLACEMENT3D(#${ptId},$,$)`);
+    const ctxId = addLine(ctx, '_ctx', `IFCGEOMETRICREPRESENTATIONCONTEXT($,'Plan',3,1.0E-05,#${axId},$)`);
 
-  // Project. Description (arg 3) draagt project.description — de reader leest 'm terug
-  // uit de IFCWORKPLAN.Description-slot, met terugval op deze. Name: een naamloos project schrijft `''`
-  // (geen verzonnen naam), omdat `IfcProject.HasName` (WHERE-regel) een Name eist. De lezer leest `''`
-  // en `$` allebei als leeg.
-  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcRequiredStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
+    // Project. Description (arg 3) draagt project.description — de reader leest 'm terug
+    // uit de IFCWORKPLAN.Description-slot, met terugval op deze. Name: een naamloos project schrijft `''`
+    // (geen verzonnen naam), omdat `IfcProject.HasName` (WHERE-regel) een Name eist. De lezer leest `''`
+    // en `$` allebei als leeg.
+    addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcRequiredStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
+  }
   if (!input.minuteModelPending) {
     const prop = addLine(ctx, '_time_model', `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.Project.TimeModel)},$,IFCLABEL(${ifcStr(MINUTE_MODEL_TIME_MODEL)}),$)`);
     const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},${ifcStr(PSET.Project)},$,(#${prop}))`);
@@ -514,12 +569,13 @@ export function writeIFC(input: WriteIFCInput): string {
   const baselineSchedRefs: string[] = [];
   for (const b of baselines) {
     const start = baselineStart(b);
+    const guid = guidOf(ctx, 'baseline_ws_' + b.id);
     const bId = addLine(ctx, `_baseline_ws_${b.id}`, `IFCWORKSCHEDULE(${workControlArgs({
-      guid: guidOf(ctx, 'baseline_ws_' + b.id), ownerHistId, name: b.name, description: '',
+      guid, ownerHistId, name: b.name, description: '',
       creationDate: b.createdAt || now, startTimeArg: start ? ifcDateTime(start) : workControlStartArg,
       finishTimeArg: ifcDateTime(b.projectEnd),
       predefinedType: 'BASELINE',
-    })})`);
+    })})`, guid);
     baselineSchedRefs.push(`#${bId}`);
   }
 
@@ -619,10 +675,12 @@ export function writeIFC(input: WriteIFCInput): string {
   // bronformaat.
   writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
+  if (merge) return { text: '', lines: ctx.lines, idMap: ctx.idMap };
+
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
-  return header + ctx.lines.join('\n') + footer;
+  return { text: header + ctx.lines.join('\n') + footer, lines: ctx.lines, idMap: ctx.idMap };
 }
 
 /** Eén self-contained Pset met manifest én deterministisch geordende bytes. */
@@ -826,6 +884,24 @@ function writeStructure(
   if (project.dependentProjectsFolder) {
     projSettingProps.push(addLine(ctx, '_ps_dependentfolder',
       `IFCPROPERTYSINGLEVALUE(${ifcStr(PROP.ProjectSettings.DependentProjectsFolder)},$,IFCTEXT(${ifcStr(project.dependentProjectsFolder)}),$)`));
+  }
+  // #804 §4.4: schrijft de writer geen eigen IfcProject (het project van de bron is niet P), of staat de eerste owner
+  // history van het bestand vóór het P-blok, dan staan naam, omschrijving, auteur en bedrijf hier (`projectData`). Het
+  // IfcProject en de eerste owner history zijn dan van het model. AFWIJKING van de golden rule, zoals bij de
+  // contractdatums: de vier staan er altijd, leeg als NominalValue `$`. Anders valt de lezer bij een lege auteur terug op
+  // de eerste owner history, en die is na de merge van het model (bijvoorbeeld 'Corpus'). Zonder vreemd deel nooit: de
+  // uitvoer blijft byte-gelijk.
+  if (ctx.merge?.projectData) {
+    const projectData: [string, string, string][] = [
+      ['_ps_projectname', PROP.ProjectSettings.ProjectName, project.name],
+      ['_ps_projectdescription', PROP.ProjectSettings.ProjectDescription, project.description],
+      ['_ps_author', PROP.ProjectSettings.Author, project.author],
+      ['_ps_organization', PROP.ProjectSettings.Organization, project.company],
+    ];
+    for (const [key, name, value] of projectData) {
+      projSettingProps.push(addLine(ctx, key,
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value ? `IFCTEXT(${ifcStr(value)})` : '$'},$)`));
+    }
   }
   if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',

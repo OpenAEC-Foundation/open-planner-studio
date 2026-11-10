@@ -2358,6 +2358,17 @@ function extractStructure(
         } else if (name === PROP.ProjectSettings.DependentProjectsFolder) {
           // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
           if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
+        } else if (name === PROP.ProjectSettings.ProjectName) {
+          // #804 §4.4: een model met een vreemd project. Deze vier winnen van IfcProject en de eerste owner history
+          // (`extractProject`), ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$` (⇒ undefined).
+          // Zonder de property blijft wat die gaf.
+          project.name = typeof v === 'string' ? v : '';
+        } else if (name === PROP.ProjectSettings.ProjectDescription) {
+          project.description = typeof v === 'string' ? v : '';
+        } else if (name === PROP.ProjectSettings.Author) {
+          project.author = typeof v === 'string' ? v : '';
+        } else if (name === PROP.ProjectSettings.Organization) {
+          project.company = typeof v === 'string' ? v : '';
         }
       }
       continue;

@@ -23,7 +23,7 @@ import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { readIFCWithXerReconstruction, type IfcReadWithXerOptions } from '../ifcReadWithXer';
 import { readFileSchemaName } from '../ifcReader';
 import { ifcObjectSeed } from '../ifcWriter';
-import type { ForeignScanResult } from './foreignScan';
+import { readerBytes, readerStepIds, type ForeignScanResult } from './foreignScan';
 import { runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner';
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
@@ -84,10 +84,7 @@ export async function readIfcBytesDetailed(
     return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName });
   }
 
-  const idOf = (chunk: number) => String(scan.chunkIds[chunk]);
-  const literalStepIds = new Set<string>();
-  for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1) literalStepIds.add(idOf(i));
-  const planningTaskStepIds = new Set(Array.from(scan.selection.tasks, idOf));
+  const { literalStepIds, planningTaskStepIds } = readerStepIds(scan);
   const stepIdsOut: Record<string, string> = {};
   const result = await readIFCWithXerReconstruction(readerText, labels, {
     ...xerOptions(opts), literalStepIds, planningTaskStepIds, skipBuildingModelGuard: true, stepIdsOut,
@@ -113,25 +110,6 @@ export async function readIfcBytesDetailed(
     lineEnding: scan.lineEnding,
   };
   return { result: { ...result, ifcSource } };
-}
-
-/** De bytes van de stukken die de lezer krijgt: kop, `DATA;`, staart (klasse 0), P, C en A, en het `IfcProject` als
- *  context als dat V is (§4.2, Gevolgen; `projectContext`). Zonder V is dat de bron zelf (geen kopie). Stukgrenzen vallen
- *  op ASCII-bytes, dus het knippen breekt nooit een UTF-8-teken. */
-function readerBytes(bytes: Uint8Array, scan: ForeignScanResult): Uint8Array {
-  const { classes, chunkStarts, projectContext } = scan;
-  if (scan.counts.V === 0) return bytes;
-  const skip = (i: number) => classes[i] === 4 && i !== projectContext;
-  let size = 0;
-  for (let i = 0; i < classes.length; i++) if (!skip(i)) size += chunkStarts[i + 1] - chunkStarts[i];
-  const out = new Uint8Array(size);
-  let at = 0;
-  for (let i = 0; i < classes.length; i++) {
-    if (skip(i)) continue;
-    out.set(bytes.subarray(chunkStarts[i], chunkStarts[i + 1]), at);
-    at += chunkStarts[i + 1] - chunkStarts[i];
-  }
-  return out;
 }
 
 /**

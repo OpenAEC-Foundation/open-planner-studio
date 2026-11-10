@@ -166,6 +166,8 @@ export const PROP = {
     'InternalProjectId', 'wbsAutoNumber', 'DefaultTaskDurationUnit', 'DefaultWorkRule', 'StatusDate', 'ProgressMode',
     'ProjectStartDate', 'ProjectEndDate', 'CreatedAt', 'ModifiedAt', 'CompanyId', 'CompanyName', 'IfcSchemaConfirmed',
     'IfcSchemaUnconfirmed', 'P6ProjectCode', 'DependentProjectsFolder',
+    // #804 §4.4: alleen als de writer geen eigen IfcProject schrijft (een model met een vreemd project).
+    'ProjectName', 'ProjectDescription', 'Author', 'Organization',
   ),
   // De lezer leest elke enkelvoudige property van deze pset als JSON; de writer schrijft er één.
   StructureMeta: propNames('structure'),
