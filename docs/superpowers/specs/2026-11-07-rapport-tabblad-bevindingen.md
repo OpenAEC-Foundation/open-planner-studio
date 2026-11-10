@@ -920,8 +920,11 @@ eigenaar; waar een eerder besluit hierboven iets anders zei, geldt dit. Gebouwd 
     chart."). Hetzelfde vage "scherm" stond ook in de uitleg bij een layout ("Het scherm verandert niet"), bij andere
     balkkleuren van een layout en bij *Balkkleuren*: daar staat nu "je Gantt-diagram" / "your Gantt chart".
 
-**Niet in deze ronde:** de opmerking "wat de fuck" bij de ingeklapte zijbalk (het knopje uitklappen, het bolletje
-voor "N pagina's"). Wat Ethan daar bedoelt, vraagt de orkestrator hem nog; alleen het icoon (punt 3) veranderde.
+**Ingeklapte zijbalk ("wat de fuck").** Ethan, 10 november 2026: "De lijn van de zijbalk en van het rapport
+overzicht zitten niet op dezelfde hoogte." Gemeten: de balk boven het papier was 51 px hoog, de kop van de zijbalk
+45 px (uitgeklapt) en 49 px (ingeklapt). Nu hebben beide koppen één vaste hoogte (`--rs-head-h`, 51 px), dus de
+onderlijnen lopen door, ingeklapt en uitgeklapt, op 1600×900 en 1280×720. De melding met *Ongedaan maken* in de balk
+(~30 px) past daarin.
 
 **Bewijs.** `tests/browser/report-studio.spec.ts`, eerste blok uitgebreid: het uitgeschakelde kruisje van de
 taaknaam; *Kolom toevoegen* via het kolomvenster (zoeken, klikken, focus terug); beide knoppen *Kolommen overnemen*

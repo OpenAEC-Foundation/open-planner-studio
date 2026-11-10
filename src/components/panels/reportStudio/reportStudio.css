@@ -8,6 +8,8 @@
 .rs-root {
   --rs-sidebar-w: 328px;
   --rs-rail-w: 64px;
+  /* Eén hoogte voor de kop van de zijbalk en de balk boven het papier: hun onderlijnen lopen door (Ethan, 10 november 2026). */
+  --rs-head-h: 51px;
   display: flex;
   flex: 1;
   min-width: 0;
@@ -39,14 +41,17 @@
 }
 
 .rs-sidebar-head {
+  flex: none;
+  box-sizing: border-box;
+  height: var(--rs-head-h);
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 8px 8px 12px;
+  padding: 0 8px 0 12px;
   border-bottom: 1px solid var(--theme-border);
 }
 .rs-sidebar[data-mode='rail'] .rs-sidebar-head {
-  padding: 10px 0;
+  padding: 0;
   justify-content: center;
 }
 
@@ -538,15 +543,17 @@
   flex-direction: column;
 }
 .rs-toolbar {
+  flex: none;
+  box-sizing: border-box;
+  height: var(--rs-head-h);
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 0 14px;
   border-bottom: 1px solid var(--theme-border);
   background: var(--theme-bg);
   font-size: var(--text-body);
   line-height: 16px;
-  min-height: 44px;
 }
 .rs-status {
   display: inline-flex;
