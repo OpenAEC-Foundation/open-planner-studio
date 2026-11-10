@@ -18,7 +18,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
-import { brokenNameFiles, paramDataFile, separatedDataFiles } from './ifcDoelBestanden';
+import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -131,8 +131,9 @@ const twoData = fileBytes(`${FOREIGN}/council/fix3-twee-data.ifc`);
 const twoDataParam = enc.encode(paramDataFile(dec(twoData)));
 for (const [name, bytes] of [
   ['bonsai-4d.ifc', bonsai], ['eigen-plus-model.ifc', eigenPlus], ['fix3-twee-data.ifc', twoData], ['fix3-param.ifc', twoDataParam],
-  // Ronde 2 (Sol): witruimte, commentaar of een regeleinde vóór de `(`, en gemengd.
-  ...separatedDataFiles(dec(twoData)).map(([name, text]) => [`fix3-${name}.ifc`, enc.encode(text)] as const),
+  // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`), ook gemengd, en op een model in de enige sectie.
+  ...dataKopBestanden(dec(twoData), 'norm').map(([name, text]) => [`fix3-${name}.ifc`, enc.encode(text)] as const),
+  ...dataKopBestanden(dec(eigenPlus), 'norm').map(([name, text]) => [`eigen-plus-${name}.ifc`, enc.encode(text)] as const),
 ] as const) {
   const off = await open(false, name, bytes);
   ok(`${name} zonder flag: geweigerd`, !opened(off, name));
@@ -155,11 +156,16 @@ for (const [name, bytes] of [
 }
 // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop; het model blijft herkend. De scanner
 // van de flag weigert een tekst met één apostrof (`tekst-zonder-einde`) en valt terug op de gewone route: ook dan geweigerd.
-for (const [name, text] of brokenNameFiles(dec(eigenPlus))) {
+// Ook de kopvormen in kleine letters (`buitenNorm`): de scanner van de flag weigert ze, de gewone route weigert het model.
+for (const [name, text] of [
+  ...brokenNameFiles(dec(eigenPlus)).map(([n, t]) => [`eigen-plus-${n}`, t] as [string, string]),
+  ...dataKopBestanden(dec(eigenPlus), 'buitenNorm').map(([n, t]) => [`eigen-plus-${n}`, t] as [string, string]),
+  ...dataKopBestanden(dec(twoData), 'buitenNorm').map(([n, t]) => [`fix3-${n}`, t] as [string, string]),
+]) {
   for (const flag of [false, true]) {
-    const store = await open(flag, `eigen-plus-${name}.ifc`, enc.encode(text));
-    ok(`eigen-plus-${name} ${flag ? 'met' : 'zonder'} flag: geweigerd`, !opened(store, name));
-    ok(`eigen-plus-${name} ${flag ? 'met' : 'zonder'} flag: de modelweigering`,
+    const store = await open(flag, `${name}.ifc`, enc.encode(text));
+    ok(`${name} ${flag ? 'met' : 'zonder'} flag: geweigerd`, !opened(store, `${name}.ifc`));
+    ok(`${name} ${flag ? 'met' : 'zonder'} flag: de modelweigering`,
       String(store.getState().ui.notifications[0]?.detail ?? '').includes('building model'));
   }
 }

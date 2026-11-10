@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { installNodeFileIpc } from './nodeFileIpc';
-import { brokenNameFiles, commentFile, paramDataFile, separatedDataFiles, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 installBrowserStubs();
@@ -1096,8 +1096,12 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     { name: 'twee-data-param', bytes: enc.encode(paramDataFile(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))), model: true },
     // Ronde 2 (Sol): witruimte, commentaar of een regeleinde vóór de `(`, en gemengd. Vóór de fix: Opslaan als, CSV en
     // AutoSave schreven over de wand heen.
-    ...separatedDataFiles(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
+    // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`, eis van Trias): elke vorm op fix3 (ook gemengd), op
+    // een model in de enige sectie, en op de eigen planning (die blijft een doel).
+    ...dataKopBestanden(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
       .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), model: true })),
+    ...dataKopBestanden(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), model: true })),
+    ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), model: false })),
     // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam. In ronde 3 gaf de doelcontrole hier "no-model" en
     // schreven Opslaan als, CSV en AutoSave over het model heen. De eigen planning met zo'n naam blijft een doel.
     ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), model: true })),

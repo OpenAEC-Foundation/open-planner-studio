@@ -10,7 +10,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildImportLabels } from '@/i18n/importLabels';
-import { brokenNameFiles } from './ifcDoelBestanden';
+import { brokenNameFiles, DATA_KOP_VORMEN, metDataKop } from './ifcDoelBestanden';
 import nl from '@/i18n/locales/nl/common.json';
 import en from '@/i18n/locales/en/common.json';
 
@@ -58,11 +58,17 @@ async function main(): Promise<void> {
   const firstParam = (text: string) => text.replace(/^DATA;$/m, "DATA('deel 1',('IFC4X3_ADD2'));");
   eq('weigert een wand in de enige DATA-sectie met sectiekop', rejected(firstParam(add("#900001=IFCWALL('x',$);"))), true);
   eq('een enige DATA-sectie met sectiekop zonder model opent', readIFC(firstParam(planning)).tasks.length, 1);
-  // Ronde 2: witruimte of commentaar tussen `DATA` en `(` (ISO 10303-21). Vóór de fix: `no-data-section`.
-  for (const sep of [' ', '/* deel 1 */', '\n']) {
-    const spaced = (text: string) => text.replace(/^DATA;$/m, `DATA${sep}('deel 1',('IFC4X3_ADD2'));`);
-    eq(`weigert een wand in de enige sectie DATA${JSON.stringify(sep)}(…)`, rejected(spaced(add("#900001=IFCWALL('x',$);"))), true);
-    eq(`de enige sectie DATA${JSON.stringify(sep)}(…) zonder model opent met de planning`, readIFC(spaced(planning)).tasks.length, 1);
+  // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`): een wand in de enige sectie wordt geweigerd, en
+  // zonder model opent de planning met al haar taken en het schema uit de kop.
+  {
+    const showcase = readFileSync(resolve('public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+    const eigenPlus = readFileSync(resolve('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), 'utf8');
+    for (const vorm of DATA_KOP_VORMEN) {
+      eq(`kopvorm ${vorm.id}: een wand in de enige sectie wordt geweigerd`, rejected(metDataKop(add("#900001=IFCWALL('x',$);"), vorm)), true);
+      eq(`kopvorm ${vorm.id}: eigen-plus-model wordt geweigerd`, rejected(metDataKop(eigenPlus, vorm)), true);
+      const parsed = await readIFCWithXerReconstruction(metDataKop(showcase, vorm));
+      eq(`kopvorm ${vorm.id}: de showcase opent met 20 taken en schema IFC4X3_ADD2`, [parsed.tasks.length, parsed.project.ifcSchema], [20, 'IFC4X3_ADD2']);
+    }
   }
   // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop. Zoals op main: dezelfde planning,
   // hetzelfde schema, en een wand in de echte sectie geeft de modelweigering.

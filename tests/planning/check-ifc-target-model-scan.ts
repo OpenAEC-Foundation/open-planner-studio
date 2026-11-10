@@ -38,7 +38,7 @@ import {
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { StepDataSectionFinder, indexOfStepDataSection, stepDataSectionBounds } from '@/services/ifc/stepDataSection';
-import { brokenHeader, commentFile, paramDataFile, separatedDataFiles, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
+import { brokenHeader, commentFile, DATA_KOP_VORMEN, dataKopGrens, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 let checks = 0;
@@ -600,11 +600,27 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   const bytes = enc.encode(twoData);
   eq('fix3-twee-data: readIFC weigert als model (de wand #99999 staat in de tweede DATA-sectie)', readOutcome(bytes), 'building-model');
   every('fix3-twee-data: de scanner zegt model', bytes, 'model');
-  // Sol en Terra (review van #870, ronde 2): witruimte, commentaar of een regeleinde vóór de `(`, ook gemengd.
-  for (const [name, text] of separatedDataFiles(twoData)) {
-    const bytes2 = enc.encode(text);
-    eq(`fix3 met DATA…( (${name}): readIFC weigert als model`, readOutcome(bytes2), 'building-model');
-    every(`fix3 met DATA…( (${name}): de scanner zegt model`, bytes2, 'model');
+  // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`, eis van Trias): elke vorm op de planning met de wand
+  // in de tweede sectie (fix3), op de planning met een model in de enige sectie (eigen-plus-model) en op de planning
+  // zonder model (showcase). De grens is een vaste verwachting uit de tabel, niet alleen gelijk aan de referentie.
+  const eigenPlus = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), 'utf8');
+  const showcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  for (const vorm of DATA_KOP_VORMEN) {
+    for (const [file, text, outcome, scan] of [
+      ['fix3', twoData, 'building-model', 'model'], ['eigen-plus-model', eigenPlus, 'building-model', 'model'],
+      ['showcase', showcase, 'ok', 'no-model'],
+    ] as const) {
+      for (const alleen of [undefined, 'eerste'] as const) {
+        if (alleen && file !== 'fix3') continue;
+        const label = `kopvorm ${vorm.id}${alleen ? ' (alleen de eerste)' : ''} op ${file}`;
+        const formed = metDataKop(text, vorm, alleen);
+        const bytes2 = enc.encode(formed);
+        eq(`${label}: de grens uit de tabel`, stepDataSectionBounds(formed), dataKopGrens(text, vorm));
+        sameDataSection(label, bytes2);
+        eq(`${label}: readIFC`, readOutcome(bytes2), outcome);
+        every(`${label}: de scanner`, bytes2, scan);
+      }
+    }
   }
   // Terra: de wand in een eerste sectie `DATA (…)`, daarna een sectie `DATA(…)` zonder wand.
   const terraSpace = enc.encode(HEAD.replace(/DATA;\n$/, "DATA ('deel 1',('IFC4X3_ADD2'));\n") + "#9=IFCWALL('x',$);\n"

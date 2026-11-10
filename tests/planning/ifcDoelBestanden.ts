@@ -40,15 +40,79 @@ export function paramDataFile(twoData: string, separator = '', only?: 'first'): 
     line => (only === 'first' && n > 0 ? line : `DATA${separator}('deel ${++n}',('IFC4X3_ADD2'));`));
 }
 
-/** Sol en Terra (review van #870, ronde 2, BLOKKEERT): ISO 10303-21 staat witruimte en commentaar toe tussen `DATA` en
- *  `(`. De varianten van `paramDataFile` met zo'n scheiding, en een gemengde: alleen de eerste kop `DATA (…)`, de tweede
- *  een gewone `DATA;`. */
-export const separatedDataFiles = (twoData: string): Array<[string, string]> => [
-  ['spatie', paramDataFile(twoData, ' ')],
-  ['commentaar', paramDataFile(twoData, '/*scheiding*/')],
-  ['regeleinde', paramDataFile(twoData, '\n')],
-  ['gemengd', paramDataFile(twoData, ' ', 'first')],
+/**
+ * De vormen van de DATA-sectiekop volgens ISO 10303-21 (eis van Trias, wrakko 10 november 2026, na review van #870 ronde
+ * 1 tot 3). De grammatica: `data_section = "DATA" [ "(" parameter_list ")" ] ";" entity_instance_list "ENDSEC;"`, en een
+ * datasectie volgt op `ENDSEC;` van de kop of van de vorige sectie. Tussen twee tokens mag witruimte staan (spatie, tab,
+ * regeleindes) en commentaar `/* … *\/`. Een sleutelwoord is in de norm in hoofdletters (`standard_keyword = UPPER { UPPER |
+ * DIGIT }`); `readIFC` las altijd hoofdletterongevoelig. Die vormen staan erin met `buitenNorm`: de scanner achter de
+ * flag volgt de norm en weigert ze, en valt dan terug op de gewone route (`ifcBytesRoute.ts`). De
+ * parameters (editie 3) zijn een naam en een lijst schema's: strings en haakjes, met witruimte en commentaar ertussen.
+ *
+ * `kop` vervangt elke `DATA;` direct na `ENDSEC;` en een regeleinde; `{n}` is het nummer van de sectie. `overgang`
+ * vervangt de `ENDSEC;` en het regeleinde ervoor. Bij een vorm met parameters wordt het implementatieniveau `'3;1'`.
+ * Elke vorm gaat door de vinder (`check-ifc-target-model-scan.ts`), de modelweigering (`check-ifc-building-model-guard.ts`),
+ * het openen met en zonder flag (`check-ifc-foreign-open.ts`) en de doelcontrole van Opslaan als, CSV en AutoSave
+ * (`check-ifc-foreign-target.ts`).
+ */
+export interface DataKopVorm { id: string; norm: string; kop: string; overgang?: string; buitenNorm?: true }
+const P = "('deel {n}',('IFC4X3_ADD2'))";
+export const DATA_KOP_VORMEN: readonly DataKopVorm[] = [
+  { id: 'kaal', norm: 'zonder parameters', kop: 'DATA;' },
+  { id: 'kaal-klein', norm: 'zonder parameters, kleine letters', kop: 'data;', buitenNorm: true },
+  { id: 'kaal-spatie', norm: 'witruimte vóór ;', kop: 'DATA ;' },
+  { id: 'kaal-tab', norm: 'tab vóór ;', kop: 'DATA\t;' },
+  { id: 'kaal-lf', norm: 'regeleinde vóór ;', kop: 'DATA\n;' },
+  { id: 'kaal-crlf', norm: 'CRLF vóór ;', kop: 'DATA\r\n;' },
+  { id: 'kaal-commentaar', norm: 'commentaar vóór ;', kop: 'DATA/*c*/;' },
+  { id: 'kaal-gemengd', norm: 'witruimte, commentaar en regeleinde vóór ;', kop: 'DATA /*c*/ \n ;' },
+  { id: 'param', norm: 'met parameters', kop: `DATA${P};` },
+  { id: 'param-klein', norm: 'met parameters, kleine letters', kop: `data${P};`, buitenNorm: true },
+  { id: 'param-spatie', norm: 'witruimte vóór (', kop: `DATA ${P};` },
+  { id: 'param-tab', norm: 'tab vóór (', kop: `DATA\t${P};` },
+  { id: 'param-lf', norm: 'regeleinde vóór (', kop: `DATA\n${P};` },
+  { id: 'param-crlf', norm: 'CRLF en inspringing vóór (', kop: `DATA\r\n  ${P};` },
+  { id: 'param-commentaar', norm: 'commentaar vóór (', kop: `DATA/*c*/${P};` },
+  { id: 'param-gemengd', norm: 'witruimte, commentaar en regeleinde vóór (', kop: `DATA /*c*/\n/*d*/ ${P};` },
+  { id: 'param-ruimte-binnen', norm: 'witruimte tussen de parameters en vóór ;', kop: "DATA( 'deel {n}' , ( 'IFC4X3_ADD2' ) ) ;" },
+  { id: 'param-commentaar-binnen', norm: 'commentaar tussen de parameters en vóór ;', kop: "DATA(/*a*/'deel {n}'/*b*/,/*c*/('IFC4X3_ADD2')/*d*/)/*e*/;" },
+  { id: 'param-lijst', norm: "meer schema's in de lijst", kop: "DATA('deel {n}',('IFC4X3_ADD2','IFC4'));" },
+  { id: 'param-string-lastig', norm: "string met '', DATA(, ENDSEC; en een entiteit", kop: "DATA('deel {n}''s DATA( ENDSEC; #9=IFCWALL($);',('IFC4X3_ADD2'));" },
+  { id: 'param-commentaar-lastig', norm: 'commentaar met DATA; en ENDSEC;', kop: `DATA/* DATA; ENDSEC; */${P};` },
+  { id: 'na-endsec-direct', norm: 'geen witruimte na ENDSEC;', kop: `DATA${P};`, overgang: 'ENDSEC;' },
+  { id: 'na-endsec-commentaar', norm: 'commentaar en witruimte na ENDSEC;', kop: `DATA${P};`, overgang: 'ENDSEC; /*c*/ \n ' },
+  { id: 'na-endsec-spatie', norm: 'witruimte vóór de ; van ENDSEC', kop: `DATA ${P};`, overgang: 'ENDSEC ;\n' },
+  { id: 'na-endsec-commentaar-binnen', norm: 'commentaar vóór de ; van ENDSEC', kop: `DATA${P};`, overgang: 'ENDSEC/*c*/;\n' },
+  { id: 'na-endsec-klein', norm: 'endsec; in kleine letters', kop: `DATA ${P};`, overgang: 'endsec;\n', buitenNorm: true },
 ];
+
+/** `text` met elke `ENDSEC;` + regeleinde + `DATA;` in de vorm `vorm` (`alleen: 'eerste'`: alleen de eerste kop). */
+export function metDataKop(text: string, vorm: DataKopVorm, alleen?: 'eerste'): string {
+  let n = 0;
+  const out = text.replace(/ENDSEC;(\r?\n)DATA;/g, (whole, eol: string) => {
+    if (alleen === 'eerste' && n > 0) return whole;
+    n++;
+    return (vorm.overgang ?? `ENDSEC;${eol}`) + vorm.kop.split('{n}').join(String(n));
+  });
+  return vorm.kop.includes('(') ? out.replace("'2;1'", "'3;1'") : out;
+}
+
+/** Elke vorm uit `DATA_KOP_VORMEN` op `text`; bij meer secties ook gemengd: alleen de eerste kop in die vorm. */
+export function dataKopBestanden(text: string, welke: 'alle' | 'norm' | 'buitenNorm' = 'alle'): Array<[string, string]> {
+  const sections = text.match(/ENDSEC;\r?\nDATA;/g)?.length ?? 0;
+  const vormen = DATA_KOP_VORMEN.filter(v => welke === 'alle' || (welke === 'buitenNorm') === (v.buitenNorm === true));
+  return vormen.flatMap(vorm => [
+    [vorm.id, metDataKop(text, vorm)] as [string, string],
+    ...(sections > 1 ? [[`${vorm.id}-eerste`, metDataKop(text, vorm, 'eerste')] as [string, string]] : []),
+  ]);
+}
+
+/** Waar de eerste sectiekop in `metDataKop(text, vorm)` begint (de `D`) en waar de lezer verder gaat (na de `;` of `(`). */
+export function dataKopGrens(text: string, vorm: DataKopVorm): { at: number; end: number } {
+  const at = /ENDSEC;\r?\nDATA;/.exec(text)!.index + (vorm.overgang ?? 'ENDSEC;\n').length;
+  const kop = vorm.kop.split('{n}').join('1');
+  return { at, end: at + (kop.includes('(') ? kop.indexOf('(') : kop.indexOf(';')) + 1 };
+}
 
 /** Sol en Terra (review van #870, ronde 3, BLOKKEERT): een oude, rauw geschreven bestandsnaam met één apostrof en een
  *  sectiekop-achtige tekst erin. De apostrof draait de stringtoestand om; in ronde 3 werd `DATA (` in de naam de
