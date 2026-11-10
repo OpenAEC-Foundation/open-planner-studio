@@ -10,6 +10,9 @@ export type { LayoutViewParts } from '@/types/view';
 /** Id-prefix van de meegeleverde layouts; `generateId('layout')` kan die nooit opleveren. */
 export const BUILTIN_LAYOUT_PREFIX = 'builtin:';
 
+/** De meegeleverde layout Resourcediagram (`builtinLayouts.ts`); het Rapport-tabblad kent hem ook (#861). */
+export const RESOURCE_DIAGRAM_LAYOUT_ID = `${BUILTIN_LAYOUT_PREFIX}resource-diagram`;
+
 export function isBuiltinLayoutId(id: string): boolean {
   return id.startsWith(BUILTIN_LAYOUT_PREFIX);
 }

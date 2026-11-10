@@ -16,7 +16,7 @@ If you work with a relative choice, such as *Next 4 weeks* or *Last month*, set 
 
 ### 2. Choose a report with a period
 
-Open the *Report* tab and choose one of the five reports at *Report type*. The *Reporting period:* list is under *Report options*. For the Resource diagram it is under *Settings*, below the four checkboxes of that report.
+Open the *Report* tab and choose one of the five reports at *Report type*. The *Reporting period:* list is under *Report options*. For the Resource diagram it is under *Settings*, below the four checkboxes of that report. In the new Report tab it is in the *Tasks and grouping* step, under *Per resource*, when you choose the Resource diagram or another layout per resource there.
 
 Each report remembers its own period. These are the initial values:
 
@@ -59,7 +59,7 @@ The period does not work the same in every report.
 
 **The period lies outside your schedule.** Then the report is empty. The Resource diagram says so with *No tasks in the reporting period — choose another period or Whole project.* (in the list that choice is called *Project duration*). In the other reports you see zero activities or no rows.
 
-**The dates are in your own notation.** *From* and *To* follow the date notation from your settings, except in the date fields of *Custom*: those show the notation of your browser.
+**The dates are in your own notation.** *From* and *To* follow the date notation from your settings, except in the date fields of *Custom*: those show the notation of your browser. In the new Report tab those fields also follow your own notation; there you type the date in the same field as the status date.
 
 **The period moves along.** A relative choice such as *Next month* is determined anew each time: if the status date changes, or without a status date it is a day later, the period moves along at once. If you want a fixed period, choose *Custom*.
 

@@ -4,7 +4,8 @@
 // voor die sessie (zie `devSessionTheme` in settingsStore.ts). `?tab=planning` opent die tab van het
 // lint. `?progressSheet=<pad>` opent daarna de voortgangsimport met dat blad al ingelezen. `?help=<artikel-id>`
 // (eventueel `%23<anker>`) opent Help op dat artikel. `?mcp=connect` opent de tab MCP met het venster
-// Verbindingsgegevens. `?source=<pad>` (ook meer dan één keer) maakt een bronbestand van een externe relatie
+// Verbindingsgegevens. `?flag=<id>[,<id>]` zet die feature flags aan voor deze paginalading (niet bewaard).
+// `?source=<pad>` (ook meer dan één keer) maakt een bronbestand van een externe relatie
 // leesbaar in de browser: een koppeling waarvan het bronpad dezelfde bestandsnaam heeft, leest dat repobestand,
 // met de `Last-Modified` van de dev-server als versie. Valt uit elke productiebouw: App.tsx, ProgressImportDialog.tsx en AiConnectionGroup.tsx
 // importeren deze module alleen dynamisch achter `import.meta.env.DEV`.
@@ -17,6 +18,7 @@ import type { OpenedFile } from '@/services/fileAccess';
 import { binaryExtensions } from '@/services/formatRegistry';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { RibbonTab } from '@/state/slices/types';
+import { FEATURE_FLAGS } from '@/utils/featureFlags';
 import { readExternalSource } from '@/state/externalSource';
 
 const RIBBON_TABS: readonly RibbonTab[] = ['file', 'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai'];
@@ -118,6 +120,13 @@ export function takeDevConnectionDetails(): boolean {
   return open;
 }
 
+/** `?flag=` → de bekende flag-id's uit die lijst; onbekende vallen stil weg. */
+export function devFeatureFlags(raw: string | null): string[] {
+  if (!raw) return [];
+  const known = new Set(FEATURE_FLAGS.map(flag => flag.id));
+  return raw.split(',').map(id => id.trim()).filter(id => known.has(id));
+}
+
 let started = false;
 
 /** Eén keer per paginalading (StrictMode draait effecten dubbel). Een fout komt als gewone melding. */
@@ -127,9 +136,15 @@ export async function openDevLinkOnce(): Promise<void> {
   const tab = RIBBON_TABS.find(t => t === params.get('tab'));
   const help = params.get('help');
   const mcp = params.get('mcp');
+  const flags = devFeatureFlags(params.get('flag'));
   const sources = params.getAll('source');
-  if (started || (!raw && !tab && !help && mcp !== 'connect' && sources.length === 0)) return;
+  if (started || (!raw && !tab && !help && mcp !== 'connect' && flags.length === 0 && sources.length === 0)) return;
   started = true;
+  if (flags.length > 0) {
+    // Alleen in de store, niet in `ops-featureFlags`: een gewone herlaad zonder `flag=` is weer de eigen keuze.
+    const current = useAppStore.getState().ui.featureFlags;
+    useAppStore.getState().setUI({ featureFlags: { ...current, ...Object.fromEntries(flags.map(id => [id, true])) } });
+  }
   try {
     // Vóór het openen: de controle bij openen leest de bron dan al via de repo.
     if (sources.length > 0) installDevSources(sources);

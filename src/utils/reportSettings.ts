@@ -22,8 +22,8 @@
 
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
-import { parseBoolean, parseClampedInt, parseEnum } from '@/utils/settingParsers';
-import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
+import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
+import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_DAY_WIDTH } from '@/services/print/printPreview';
 import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
 } from '@/engine/reports/reportingPeriod';
@@ -175,6 +175,26 @@ export type ReportOrientation = 'landscape' | 'portrait';
 /** Alleen de rasterkwaliteit van de live preview; heeft bewust geen invloed op rapport/PDF-layout. */
 export type ReportPreviewQuality = '100' | '200' | '300';
 
+/**
+ * De kolommen van de Gantt-afdruk (issue #817 deel B), als id's uit het kolomregister van het
+ * taakraster (`taskColumnRegistry.ts`), in volgorde. De standaard is de vaste tabel van vóór #817:
+ * WBS, Taaknaam, Duur, Start, Einde en Voltooiing.
+ */
+export const REPORT_DEFAULT_COLUMNS: readonly string[] = [
+  'task.wbsCode', 'task.name', 'task.time.scheduleDuration', 'task.time.start', 'task.time.finish', 'task.time.completion',
+];
+/** De verplichte kolom: zonder taaknaam is een rij op papier niet te lezen. */
+export const REPORT_REQUIRED_COLUMN = 'task.name';
+/** Bovengrens van de kolomlijst; meer past nooit op een blad naast een tijdlijn. */
+export const REPORT_MAX_COLUMNS = 24;
+
+/** Stand van de zijbalk van het nieuwe Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
+export type ReportSidebarMode = 'open' | 'rail';
+
+/** De stappen van het nieuwe Rapport-tabblad, in de volgorde van het papier. */
+export const REPORT_STUDIO_STEPS = ['tasks', 'columns', 'bars', 'page', 'headerFooter'] as const;
+export type ReportStudioStep = typeof REPORT_STUDIO_STEPS[number];
+
 export interface ReportSettings {
   reportType: ReportType;
   showCritical: boolean;
@@ -193,6 +213,7 @@ export interface ReportSettings {
   taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
+  /** Breedte per dag bij "Vaste schaal" (logische px). Mag een breuk zijn en onder 1 liggen (nieuwe tabblad). */
   customZoom: number;
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
@@ -208,9 +229,32 @@ export interface ReportSettings {
   statusLine: 'none' | 'statusDate' | 'progress';
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
   followView: boolean;
+  /**
+   * De layout waarvan het nieuwe Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
+   * ("Alle taken" of "Zoals de weergave", via `followView`). Het oude paneel leest dit veld niet en schrijft
+   * het ongewijzigd terug. Ook de meegeleverde layout Resourcediagram staat hier, los van het geopende
+   * rapporttype (review Sol #847, ronde 4); die keuze zet daarnaast `reportType: 'resourceGantt'`, zodat het
+   * oude paneel (flag uit) dan het Resourcediagram toont. Zie `reportTaskSource`.
+   */
+  layoutId: string;
   previewQuality: ReportPreviewQuality;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
+  /**
+   * Kolommen van de Gantt-afdruk (registerkolom-id's, in volgorde, met de taaknaam erin). Alleen het
+   * nieuwe Rapport-tabblad (feature flag `reportRedesign`) leest en schrijft dit veld; het oude paneel
+   * houdt zijn vaste tabel en laat het veld ongemoeid.
+   */
+  columns: string[];
+  /** Zijbalk van het nieuwe Rapport-tabblad (feature flag `reportRedesign`). */
+  sidebar: ReportSidebarMode;
+  /**
+   * De open stap van het nieuwe Rapport-tabblad, of `'none'` als alle stappen dicht zijn. Bij het eerste
+   * bezoek stap 1 (Taken), daarna de laatst gebruikte.
+   */
+  studioStep: ReportStudioStep | 'none';
+  /** De aanwijzing "klik op het papier" is gezien (de gebruiker klikte op het papier of sloot hem). */
+  paperHintSeen: boolean;
 }
 
 /**
@@ -243,10 +287,53 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   reportFontFamily: DEFAULT_REPORT_FONT_ID,
   statusLine: 'none',
   followView: false,
+  layoutId: '',
   previewQuality: '200',
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
+  columns: [...REPORT_DEFAULT_COLUMNS],
+  sidebar: 'open',
+  studioStep: 'tasks',
+  paperHintSeen: false,
 };
+
+/**
+ * De standaardkolommen bij een gegeven *Voltooiing tonen*: zo ziet een oude opgeslagen instelling
+ * zonder kolomlijst (Voltooiing uit) na de overstap precies dezelfde tabel als voorheen.
+ */
+export function defaultReportColumns(showCompletion: boolean): string[] {
+  return REPORT_DEFAULT_COLUMNS.filter(id => showCompletion || id !== 'task.time.completion');
+}
+
+/**
+ * Een opgeslagen kolomlijst: alleen niet-lege tekst-id's zonder stuurtekens, zonder dubbele, hoogstens
+ * {@link REPORT_MAX_COLUMNS}, en altijd met de taaknaam (vooraan als hij ontbrak). Geen bruikbare lijst ⇒
+ * `undefined`, zodat de aanroeper op de standaard terugvalt. Een id die in dit project niet bestaat
+ * blijft staan: in een ander project (met dat eigen veld) is hij weer geldig, en het paneel slaat hem
+ * bij het tekenen over.
+ */
+export function parseReportColumns(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids: string[] = [];
+  for (const value of raw) {
+    if (typeof value !== 'string' || value.length === 0 || value.length > 200) continue;
+    // eslint-disable-next-line no-control-regex
+    if (/[\u0000-\u001f\u007f]/.test(value)) continue;
+    if (!ids.includes(value)) ids.push(value);
+    if (ids.length >= REPORT_MAX_COLUMNS) break;
+  }
+  if (ids.length === 0) return undefined;
+  if (!ids.includes(REPORT_REQUIRED_COLUMN)) ids.unshift(REPORT_REQUIRED_COLUMN);
+  return ids.slice(0, REPORT_MAX_COLUMNS);
+}
+
+/** Een opgeslagen layout-id: tekst zonder stuurtekens, hoogstens 200 tekens; anders geen layout. */
+export function parseReportLayoutId(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || raw.length > 200) return undefined;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/.test(raw)) return undefined;
+  return raw;
+}
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
 const REPORT_TYPES: readonly ReportType[] = ['gantt', 'resourceGantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
@@ -254,12 +341,15 @@ const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
 const PREVIEW_QUALITIES: readonly ReportPreviewQuality[] = ['100', '200', '300'];
+const SIDEBAR_MODES: readonly ReportSidebarMode[] = ['open', 'rail'];
+const STUDIO_STEPS: readonly ReportSettings['studioStep'][] = [...REPORT_STUDIO_STEPS, 'none'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
 const FONT_SCALES: readonly number[] = REPORT_FONT_SCALES;
-/** Grenzen van de zoom-slider resp. de tijdlijnkolommen-Select in het paneel. */
-const ZOOM_MIN = REPORT_MIN_ZOOM;
+/** Grenzen van de breedte per dag resp. de tijdlijnkolommen-Select in het paneel. De ondergrens is die
+ *  van het nieuwe tabblad (onder 1 px per dag); het oude paneel toont zo'n waarde op zijn schuif als 1. */
+const ZOOM_MIN = REPORT_MIN_DAY_WIDTH;
 const ZOOM_MAX = REPORT_MAX_ZOOM;
 const TIMELINE_COLUMNS_MIN = 1;
 const TIMELINE_COLUMNS_MAX = 8;
@@ -358,7 +448,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     taskNameColumnWidth: parseClampedInt(s.taskNameColumnWidth, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_WIDTH_MAX) ?? d.taskNameColumnWidth,
     showBaselineOverlay: parseBoolean(s.showBaselineOverlay) ?? d.showBaselineOverlay,
     autoFit: parseBoolean(s.autoFit) ?? d.autoFit,
-    customZoom: parseClampedInt(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,
+    customZoom: parseClampedNumber(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,
     paperSize: parseEnum(PAPER_SIZES, s.paperSize) ?? d.paperSize,
     orientation: parseEnum(ORIENTATIONS, s.orientation) ?? d.orientation,
     repeatHeader: parseBoolean(s.repeatHeader) ?? d.repeatHeader,
@@ -370,11 +460,17 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     reportFontFamily: parseEnum(REPORT_FONT_IDS, s.reportFontFamily) ?? d.reportFontFamily,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
+    layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
     // Een opgeslagen `previewZoom` (oudere versie) wordt bewust genegeerd: de preview verandert
     // niet van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
     previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
     tableReports: parseTableReportOptions(s.tableReports),
     resourceGantt: parseResourceGanttOptions(s.resourceGantt),
+    // Oude sleutel zonder kolomlijst ⇒ de vaste tabel van toen, inclusief de keuze Voltooiing.
+    columns: parseReportColumns(s.columns) ?? defaultReportColumns(parseBoolean(s.showCompletion) ?? d.showCompletion),
+    sidebar: parseEnum(SIDEBAR_MODES, s.sidebar) ?? d.sidebar,
+    studioStep: parseEnum(STUDIO_STEPS, s.studioStep) ?? d.studioStep,
+    paperHintSeen: parseBoolean(s.paperHintSeen) ?? d.paperHintSeen,
   };
 }
 

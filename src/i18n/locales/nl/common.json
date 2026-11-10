@@ -78,6 +78,7 @@
     "ifcForeignSaveBlocked": "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.",
     "ifcForeignTargetSave": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
     "ifcForeignTargetExport": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om naar te exporteren.",
+    "ifcExportChangedWhileWaiting": "De planning veranderde terwijl de export op een andere opslag wachtte. Er is niets geëxporteerd. Exporteer opnieuw.",
     "ifcForeignTargetAutoSave": "Automatisch opslaan is gestopt: dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
     "ambiguousThousands": "\"{{text}}\" is dubbelzinnig: bedoel je een decimaal getal of duizendtallen? Typ decimalen met \"{{separator}}\" (1{{separator}}5) en duizendtallen zonder scheidingsteken (1500). De waarde is niet gewijzigd.",
     "siteSaveConflict": "Niet opgeslagen: '{{name}}' is op de site intussen door iemand anders gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze als nieuw bestand te bewaren.",
@@ -340,7 +341,8 @@
     "dependentProjectsFound": "Afhankelijke projecten: {{projects}}. Koppelingen naar dit project: {{links}}.",
     "dependentProjectsNone": "Geen projecten gevonden met een externe relatie naar deze planning.",
     "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen.",
-    "costTypeChangeRefused": "De resourcebibliotheek wil het type wisselen tussen kosten en een ander type. De resource heeft toewijzingen in dit project, dus het type blijft zoals het is. De resource staat nu als afwijkend van de bibliotheek."
+    "costTypeChangeRefused": "De resourcebibliotheek wil het type wisselen tussen kosten en een ander type. De resource heeft toewijzingen in dit project, dus het type blijft zoals het is. De resource staat nu als afwijkend van de bibliotheek.",
+    "reportLayoutGone": "De layout van het rapport bestaat niet meer. Het rapport toont weer alle taken."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -450,6 +452,8 @@
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
     "ifcForeignContent": "IFC met gebouwmodel openen",
     "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Opslaan van zo'n bestand is nog niet mogelijk.",
+    "featureReportRedesign": "Nieuw tabblad Rapport",
+    "featureReportRedesignHint": "De Gantt-afdruk met stappen in een zijbalk en een klikbaar papier. De andere rapporten blijven zoals ze zijn.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",

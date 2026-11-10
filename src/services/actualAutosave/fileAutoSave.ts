@@ -2,9 +2,9 @@
 // schrijfcoördinatie. `useAutoSave` plant de rondes; deze module staat los van React, zodat een test hem met de echte
 // store en bestandslaag kan draaien (#804 fase 1a, fixronde 2).
 import type { AppState } from '@/state/appStore';
-import { writeIFC } from '@/services/ifc/ifcWriter';
+import { serializeForSave } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
-import { buildWriteIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
+import { sameIFCSource } from '@/state/ifcSaveInput';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, saveTargetRef, saveToRefWithoutPrompt, writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
@@ -68,7 +68,7 @@ export function createFileAutoSaveController(deps: {
         return { id, enabled, dirty: payload.isDirty, ref, source: payload };
       });
     },
-    serialize: candidate => writeIFC(buildWriteIFCInput(candidate.source)),
+    serialize: candidate => serializeForSave(candidate.source),
     canWrite: canWriteToRefWithoutPrompt,
     write: (candidate, content) => runProjectFileWrite(async () => {
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock, vóór de write.

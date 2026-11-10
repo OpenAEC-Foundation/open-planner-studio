@@ -28,7 +28,7 @@ import { getCjkFontProviders, type CjkFontProvider } from '@/services/pdf/fontRe
 import { appLog } from '@/services/debug/appLog';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
-import { computeTileLayout, footerLayoutWidthFor, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
+import { computeTileLayout, footerRelayoutWidth, reportTileInput, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
 
 /** Optie-subset voor de vector-pagineerder; de logische dims + bevroren-kolombreedte komen uit de render. */
 export interface VectorPaginateOptions {
@@ -302,20 +302,16 @@ export async function paginateVectorToPdfBytes(
 
   // ---- Tegel-/schaalwiskunde: gedeeld met de raster-pagineerder via `tileLayout.computeTileLayout` ----
   // Eén bron van waarheid, zodat preview (raster) en export (vector) niet uit elkaar kunnen lopen.
-  const tileInput = (d: RenderReportResult) => ({
+  // De kop- en voetstrookhoogte komen uit de render zelf (zie `VectorPaginateOptions.repeatHeader`).
+  // `reportTileInput` is dezelfde functie die het papier op het scherm gebruikt (#817).
+  const tileInput = (d: RenderReportResult) => reportTileInput(d, {
     paperSize: opts.paperSize,
     orientation: opts.orientation,
     mode: opts.mode,
-    logicalWidth: d.width,
-    logicalHeight: d.height,
-    frozenColumnWidthPx: d.tableWidth,
-    // De kop- en voetstrookhoogte komen uit de render zelf (zie `VectorPaginateOptions.repeatHeader`).
-    repeatHeaderHeightPx: opts.repeatHeader ? d.headerHeight : 0,
-    repeatFooterHeightPx: opts.repeatFooter ? d.footerHeight : 0,
+    repeatHeader: !!opts.repeatHeader,
+    repeatFooter: !!opts.repeatFooter,
     timelineColumns: opts.timelineColumns,
     marginPt: opts.marginPt,
-    breakOffsetsPx: d.breakOffsets,
-    forcedBreakOffsetsPx: d.forcedBreakOffsets,
   });
   let layout = computeTileLayout(tileInput(dims));
 
@@ -329,8 +325,8 @@ export async function paginateVectorToPdfBytes(
   // herrekend. Een smallere voet kan alleen legenda-items wéglaten, dus nieuwe codepoints zijn
   // uitgesloten — de coverage-poort wordt hieronder tóch herhaald, zodat die invariant geen
   // ongeschreven aanname blijft.
-  const footerLayoutWidth = footerLayoutWidthFor(layout);
-  if (footerLayoutWidth !== undefined && footerLayoutWidth < dims.width - 0.5) {
+  const footerLayoutWidth = footerRelayoutWidth(layout, dims.width);
+  if (footerLayoutWidth !== undefined) {
     ({ d2d, dims } = runRender(lastCjk, footerLayoutWidth));
     layout = computeTileLayout(tileInput(dims));
     if (d2d.uncoveredCodepoints.size > 0) {

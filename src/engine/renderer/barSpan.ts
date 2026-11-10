@@ -16,6 +16,9 @@ export interface TaskBarSpan {
   x2: number;
 }
 
+/** Ontlede datums per taakobject, met de teksten waaruit ze kwamen (`taskBarSpan`). */
+const parsedSpans = new WeakMap<Task, { startStr: string; endStr: string; hourMode: boolean; startMs: number; endMs: number }>();
+
 /**
  * De balk van een taak op de as. Met momenten: van het startmoment tot het exclusieve eindmoment
  * (`finishInstant`: een einde zonder tijd in een fase met momenten loopt tot het einde van die dag). Alleen
@@ -28,9 +31,22 @@ export function taskBarSpan(task: Task, dateToX: (date: Date) => number, zoom: n
   const startStr = rawStart || rawEnd;
   const endStr = rawEnd || rawStart;
   if (!startStr) return null;
-  const hourMode = startStr.includes('T') || endStr.includes('T');
-  const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-  const end = hourMode ? finishInstant(endStr) : parseDate(endStr);
+  // Het ontleden van de datums kost bij 5000 taken per render milliseconden (de afdruk vraagt per relatie
+  // beide balken). Dezelfde teksten geven dezelfde tijden, dus per taakobject bewaard zolang de teksten
+  // gelijk zijn; elke aanroep krijgt eigen `Date`-objecten.
+  let parsed = parsedSpans.get(task);
+  if (!parsed || parsed.startStr !== startStr || parsed.endStr !== endStr) {
+    const hourMode = startStr.includes('T') || endStr.includes('T');
+    parsed = {
+      startStr, endStr, hourMode,
+      startMs: (hourMode ? parseInstant(startStr) : parseDate(startStr)).getTime(),
+      endMs: (hourMode ? finishInstant(endStr) : parseDate(endStr)).getTime(),
+    };
+    parsedSpans.set(task, parsed);
+  }
+  const { hourMode } = parsed;
+  const start = new Date(parsed.startMs);
+  const end = new Date(parsed.endMs);
   const x1 = dateToX(start);
   const x2 = hourMode ? dateToX(end) : dateToX(end) + zoom;
   return { hourMode, start, end, x1, x2 };

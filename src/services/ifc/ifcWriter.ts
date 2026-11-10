@@ -375,7 +375,15 @@ export type WriteIFCInput = ImportResult & {
 };
 
 export function writeIFC(input: WriteIFCInput): string {
-  return writeIfcParts(input).text;
+  return writeIFCWithChoices(input).content;
+}
+
+/** `writeIFC`, plus de kalenders die de writer letterlijk schreef (`LiteralTimes`). Opslaan naar het eigen bestand voegt
+ *  die toe aan `DocumentPayload.ifcLiteralCalendarIds` (knownbug 1026): wat eenmaal letterlijk in het bestand stond,
+ *  blijft letterlijk. */
+export function writeIFCWithChoices(input: WriteIFCInput): { content: string; literalCalendarIds: string[] } {
+  const { text, literalCalendarIds } = writeIfcParts(input);
+  return { content: text, literalCalendarIds };
 }
 
 /**
@@ -387,7 +395,9 @@ export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds):
   return { lines, idMap };
 }
 
-function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): { text: string; lines: string[]; idMap: ReadonlyMap<string, number> } {
+function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
+  text: string; lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: string[];
+} {
   const {
     project, calendar, tasks: sourceTasks, sequences, resources, assignments,
     activityCodeTypes = [],
@@ -405,10 +415,12 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): { text: st
     withheldTaskTimeFields = undefined,
     recordedSourceFormat = undefined,
     ifcGlobalIds = undefined,
+    ifcLiteralCalendarIds = undefined,
     xerSourceArchiveStorage = 'embedded',
     recoveryForeignSource = undefined,
   } = input;
-  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
+  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines },
+    ifcLiteralCalendarIds ? { keepLiteralCalendarIds: ifcLiteralCalendarIds } : {});
   const { tasks, baselines } = writeView;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
@@ -673,12 +685,14 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): { text: st
   // bronformaat.
   writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
-  if (merge) return { text: '', lines: ctx.lines, idMap: ctx.idMap };
+  // De projectkalender staat ook in de bibliotheek: één keer per id.
+  const literalCalendarIds = [...new Set([calendar, ...resourceCalendars].map(cal => cal.id))].filter(id => writeView.literalCalendarIds.has(id));
+  if (merge) return { text: '', lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds };
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
-  return { text: header + ctx.lines.join('\n') + footer, lines: ctx.lines, idMap: ctx.idMap };
+  return { text: header + ctx.lines.join('\n') + footer, lines: ctx.lines, idMap: ctx.idMap, literalCalendarIds };
 }
 
 /** Eén self-contained Pset met manifest én deterministisch geordende bytes. */

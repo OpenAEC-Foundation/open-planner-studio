@@ -312,6 +312,9 @@ export interface ImportResult {
    *  een ander formaat) krijgen `ifcGuid128`.
    *  Audit 2026-09-26. */
   ifcGlobalIds?: Readonly<Record<string, string>>;
+  /** De kalenders die in het geopende IFC `LiteralTimes = .T.` hadden (`OPS_Calendar`, alleen `readIFC`). Knownbug 1026;
+   *  het waarom en de afwijking van T17 staan bij `DocumentPayload.ifcLiteralCalendarIds`. */
+  ifcLiteralCalendarIds?: string[];
   /** De OORSPRONKELIJKE bron van de vastlegging in een
    *  EIGEN IFC — alleen gevuld door `readIFC` uit `OPS_ImportProvenance.SourceFormat`. Een eigen IFC
    *  zonder deze uitspraak vergelijkt onze eigen oude solve met de nieuwe en krijgt geen modus. */

@@ -1,5 +1,5 @@
 import type { ImportLabelT } from '@/i18n/importLabels';
-import { BUILTIN_LAYOUT_PREFIX } from '@/engine/view/layoutPresets';
+import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 import type { Layout } from '@/types/view';
 
 /**
@@ -15,7 +15,7 @@ import type { Layout } from '@/types/view';
  */
 const BUILTIN_LAYOUT_DEFS = [
   {
-    id: `${BUILTIN_LAYOUT_PREFIX}resource-diagram`,
+    id: RESOURCE_DIAGRAM_LAYOUT_ID,
     nameKey: 'view.layout.builtinResourceDiagram',
     icon: 'users',
     group: [{ field: { src: 'resource' }, dir: 'asc' }],

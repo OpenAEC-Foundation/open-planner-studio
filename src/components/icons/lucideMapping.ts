@@ -15,7 +15,7 @@ import {
   HardHat, Hash, History, IndentDecrease, IndentIncrease, Info, Keyboard,
   Layers, LayoutGrid, LayoutTemplate, Library, Link, Link2, ListOrdered,
   ListTree, Lock, Map, Maximize2, Menu, Milestone, Minimize2,
-  Minus, MoveHorizontal, Palette, PanelRight, PanelRightClose, Pause, Pen,
+  Minus, MoveHorizontal, Palette, PanelLeftClose, PanelLeftOpen, PanelRight, PanelRightClose, Pause, Pen,
   Pencil, Play, Plug, Plus, Printer, Puzzle, Redo2,
   RefreshCw, RotateCcw, RotateCw, Route, Save, SaveAll, Scale,
   Scissors, Search, Settings, Spline, SplitSquareHorizontal, Square, Star,
@@ -257,6 +257,6 @@ export const LUCIDE_ICONS = {
 export const LUCIDE_SHAPES = {
   AlertTriangle, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Circle, CircleCheck, CircleHelp, CircleMinus,
   ClipboardCheck, Clock, Download, FileDown, FilePlus2, FileText, GitBranch, LayoutGrid, Library, LifeBuoy,
-  ListTree, OctagonAlert, PackageOpen, Plus, RefreshCw, ShieldAlert,
+  ListTree, OctagonAlert, PackageOpen, PanelLeftClose, PanelLeftOpen, Plus, RefreshCw, ShieldAlert,
 } satisfies Record<string, LucideIcon>;
 export type LucideShape = keyof typeof LUCIDE_SHAPES;
