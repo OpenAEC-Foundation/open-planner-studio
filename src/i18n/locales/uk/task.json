@@ -84,6 +84,7 @@
       "explicitSummary": "Явне зведене завдання",
       "externalRelationData": "Дані зовнішніх залежностей",
       "floatPath": "Шлях резерву",
+      "calendarDays": "Календарні дні",
       "freeFloat": "Вільний резерв часу",
       "hammock": "Завдання-гамак (похідна тривалість)",
       "interferingFloat": "Інтерферуючий резерв часу",

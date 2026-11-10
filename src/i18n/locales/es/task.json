@@ -84,6 +84,7 @@
       "explicitSummary": "Tarea de resumen explícita",
       "externalRelationData": "Datos de relaciones externas",
       "floatPath": "Ruta de holgura",
+      "calendarDays": "Días naturales",
       "freeFloat": "Holgura libre",
       "hammock": "Hamaca (duración derivada)",
       "interferingFloat": "Holgura interferente",

@@ -116,10 +116,16 @@ export const validate = {
    * dubbeltelling-guard: de tool-laag kan zo vóór de mutatie een bruikbare per-itemreden geven en
    * duplicaten binnen één gesimuleerde bulk herkennen. De store bewaakt dezelfde invariant opnieuw.
    */
-  assignmentAllowed(state: ReadableState, taskId: string, resourceId: string, units: number): GuardResult {
+  assignmentAllowed(
+    state: ReadableState, taskId: string, resourceId: string, units: number,
+    resource?: { type: string },
+  ): GuardResult {
     const task = state.tasks.find((t) => t.id === taskId);
     if (!task) return { ok: false, reason: `task '${taskId}' does not exist` };
-    if (task.isMilestone) return { ok: false, reason: `task '${taskId}' is a milestone; a milestone carries no resources` };
+    // Een mijlpaal draagt alleen een kostenresource (issue #815, besluit 2026-11-07).
+    if (task.isMilestone && resource?.type !== 'COST') {
+      return { ok: false, reason: `task '${taskId}' is a milestone; a milestone carries no work or material resources (only a COST resource)` };
+    }
     if (isSummaryTask(task)) return { ok: false, reason: `task '${taskId}' is a summary task; assign resources to the leaf tasks` };
     if (!isValidUnits(units)) return { ok: false, reason: `invalid units/day ${String(units)} (strictly positive required)` };
     if (state.assignments.some((a) => a.taskId === taskId && a.resourceId === resourceId)) {

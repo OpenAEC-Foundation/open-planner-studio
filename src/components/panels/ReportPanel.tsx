@@ -515,7 +515,7 @@ export function ReportPanel() {
   const resourceTypeLabels = useMemo(() => ({
     LABOR: tCommon('resource.type.labor'), CREW: tCommon('resource.type.crew'),
     SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
-    MATERIAL: tCommon('resource.type.material'),
+    MATERIAL: tCommon('resource.type.material'), COST: tCommon('resource.type.cost'),
   }), [tCommon]);
   // Vertaalde curvenamen voor de toewijzingskolommen: dezelfde sleutels als het taakraster.
   const curveLabels = useMemo(() => ({
@@ -1087,7 +1087,8 @@ export function ReportPanel() {
       await saveBytesDialog(
         defaultName, pdfBytes,
         [{ name: 'PDF Document', extensions: ['pdf'] }],
-        { mime: 'application/pdf' },
+        // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel.
+        { mime: 'application/pdf', refuseTarget: useAppStore.getState().foreignTargetCheck('export') },
       );
     } catch (err) {
       useAppStore.getState().notify({

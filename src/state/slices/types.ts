@@ -191,6 +191,11 @@ export type NotificationSeverity = 'error' | 'info';
  * Een release vereist volledige, actuele UI-vertalingen in alle 28 talen (`verify:translations`).
  */
 export type NotificationMessageKey =
+  // Bijwerken uit de bibliotheek zou een resource met toewijzingen naar of van een kostenresource
+  // laten wisselen (issue #815); dat gaat niet door.
+  | 'notifications.costTypeChangeRefused'
+  // MSPDI-export liet kostenresources weg (issue #815, deel 1). Parameter `count`.
+  | 'notifications.exportCostResourcesLost'
   // Dezelfde tekst als de hint bij de exportkeuze, na een geslaagde export (`exportProfileNotice`).
   | 'menu:export.profileHint'
   | 'notifications.minuteModelConverted'
@@ -210,6 +215,12 @@ export type NotificationMessageKey =
   | 'notifications.extensionMessage'
   | 'notifications.extensionInstallFailed'
   | 'notifications.saveFailed'
+  // #804 fase 1a: opslaan van een document met een gebouwmodel is nog geweigerd (`state/ifcForeignGuard.ts`).
+  | 'notifications.ifcForeignSaveBlocked'
+  | 'notifications.ifcForeignTargetSave'
+  | 'notifications.ifcForeignTargetExport'
+  | 'notifications.ifcExportChangedWhileWaiting'
+  | 'notifications.ifcForeignTargetAutoSave'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).
@@ -275,6 +286,9 @@ export type NotificationMessageKey =
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'
+  // Plakken: toewijzingen waarvan de soort (kosten of werk) of de mijlpaalregel niet past, zijn
+  // overgeslagen (`notifyAssignmentsSkipped`, #815). Meervoud, `count`.
+  | 'notifications.assignmentsSkippedOnPaste'
   // Structuurovergangen met toewijzingen (`src/state/structuralTransition.ts`):
   // wordt mijlpaal ⇒ weigeren; wordt fase ⇒ toewijzingen naar de eerste nieuwe subtaak, of weigeren
   // als dat niet schoon kan; een mijlpaal die kinderen krijgt verliest zijn mijlpaalvlag.

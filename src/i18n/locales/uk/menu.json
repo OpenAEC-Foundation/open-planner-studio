@@ -140,6 +140,7 @@
     "histogram": "Гістограма",
     "toggleHistogram": "Гістограма",
     "warningsPanel": "Панель попереджень",
+    "scheduleShiftPanel": "Зсуви",
     "prevResource": "Попередній",
     "nextResource": "Наступний",
     "leveling": "Вирівнювання",
@@ -240,6 +241,8 @@
     "company": "Компанія",
     "startDate": "Дата початку",
     "endDate": "Дата завершення",
+    "defaultWorkRule": "Тип завдання за замовчуванням",
+    "defaultWorkRuleHint": "Завдання з «Стандарт проєкту» наслідують цей вибір. Завдання з власним типом завдання зберігають свій вибір.",
     "calc": {
       "title": "Обчислення",
       "subtitle": "Параметри обчислень для цього проєкту — зберігаються у файлі, а не в застосунку.",
@@ -328,7 +331,7 @@
     "exportTitle": "Експорт",
     "exportSubtitle": "Оберіть формат. Проєкт буде перетворено та збережено.",
     "progressImportCardTitle": "Оновити прогрес з аркуша",
-    "progressImportCardDesc": "Прочитайте повернутий CSV- або XLSX-аркуш і оновіть відсоток виконання, фактичний початок і фактичне завершення.",
+    "progressImportCardDesc": "Прочитайте повернутий Excel-аркуш (.xlsx) і оновіть відсоток виконання, фактичний початок і фактичне завершення.",
     "printTitle": "Друк",
     "printSubtitle": "Відкрийте екран звіту для попереднього перегляду друку та налаштувань.",
     "openPrintPreview": "Відкрити попередній перегляд друку",
@@ -396,6 +399,9 @@
     "mspdiDesc": "Відкривається в Microsoft Project. Повна робоча структура проєкту.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Для Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Для Oracle Primavera P6, як файл .xer.",
+    "experimentalBadge": "Експериментально",
     "profileHint": "Ваш проєкт зараз використовує профіль {{name}}. Радимо використовувати профіль {{target}} для найкращої сумісності з цим форматом файлу.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт BuildingSMART, у схемі IFC проєкту (за замовчуванням IFC 4.3 ADD2). 4D-зв'язок з BIM-моделями.",
@@ -450,5 +456,18 @@
     "redo": "Повторити",
     "zoomIn": "Збільшити",
     "zoomOut": "Зменшити"
+  },
+  "native": {
+    "window": "Вікно",
+    "quit": "Вийти з Open Planner Studio",
+    "about": "Про Open Planner Studio",
+    "services": "Служби",
+    "hide": "Сховати Open Planner Studio",
+    "hideOthers": "Сховати інші",
+    "showAll": "Показати всі",
+    "closeWindow": "Закрити вікно",
+    "cut": "Вирізати",
+    "fullscreen": "Перемкнути повноекранний режим",
+    "bringAllToFront": "Перенести все на передній план"
   }
 }

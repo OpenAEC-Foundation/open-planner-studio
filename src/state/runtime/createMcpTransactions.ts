@@ -31,7 +31,9 @@ import { assignmentsByTask, tasksOnCalendar } from '../calendarTasks';
 import type { McpTransactionLease } from './storeRuntime';
 import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
 import {
-  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, insertResource,
+  acceptedAssignmentPatch, acceptedCostAmount, acceptedCostResourcePatch, applyAssignmentCost, isCostAssignment,
+  settleCostResourceFields,
+  applyAssignmentPatch, contoursAfterEdit, insertAssignment, insertResource,
   purgeResource, relocateAssignment, removeAssignment,
 } from '../assignmentMutations';
 import { applyTaskSplits, taskSplitRefusal } from '../splitMutations';
@@ -774,11 +776,15 @@ function createMcpDraft(
       if ('maxUnits' in updates && !isValidUnits(updates.maxUnits)) {
         throw new Error(`draft.updateResource: invalid maxUnits ${String(updates.maxUnits)} (strictly positive required)`);
       }
+      // Kostenregels (issue #815): de toollaag weigert vooraf; dit is de vangrail.
+      const { refused } = acceptedCostResourcePatch(s, s.resources[idx], updates);
+      if (refused.length > 0) throw new Error(`draft.updateResource: refused for a COST resource (${refused.join(', ')})`);
       const target = s.resources[idx] as unknown as Record<string, unknown>;
       for (const [key, value] of Object.entries(updates)) {
         if (value === undefined) delete target[key];
         else target[key] = value;
       }
+      settleCostResourceFields(s.resources[idx]);
       markDocumentEdited(s);
     });
   },
@@ -823,20 +829,29 @@ function createMcpDraft(
    * eenheden-validatie worden hier tot FOUT verheven i.p.v. stil genegeerd (de tool-laag
    * pre-valideert; dit is de vangrail). Retourneert het nieuwe assignment-id.
    */
-  assignResource(taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve): string {
+  assignResource(taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve, costAmount?: number): string {
     const id = generateId('asgn');
     store.setState((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) throw new Error(`draft.assignResource: unknown taskId '${taskId}'`);
-      if (task.isMilestone || isSummaryTask(task)) {
+      const cost = isCostAssignment(s, { resourceId });
+      // Een mijlpaal draagt alleen kostentoewijzingen (issue #815).
+      if (isSummaryTask(task) || (task.isMilestone && !cost)) {
         throw new Error(`draft.assignResource: cannot assign a resource to a milestone/summary task '${taskId}'`);
       }
       if (!isValidUnits(unitsPerDay)) {
         throw new Error(`draft.assignResource: invalid unitsPerDay ${String(unitsPerDay)} (strictly positive required)`);
       }
+      const amount = cost ? acceptedCostAmount(costAmount) : undefined;
+      if (amount === false || (!cost && costAmount !== undefined)) {
+        throw new Error(`draft.assignResource: costAmount ${String(costAmount)} refused (only on a COST resource, finite and >= 0)`);
+      }
+      const assignment: ResourceAssignment = cost
+        ? { id, taskId, resourceId, unitsPerDay: 1, ...(amount !== undefined ? { costAmount: amount } : {}) }
+        : { id, taskId, resourceId, unitsPerDay, curve };
       // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel); verlies
       // via de lease.
-      for (const lostTaskId of insertAssignment(s, task, { id, taskId, resourceId, unitsPerDay, curve }).lostTaskIds) {
+      for (const lostTaskId of insertAssignment(s, task, assignment).lostTaskIds) {
         recordTimephasedLoss(lostTaskId);
       }
       markDocumentEdited(s);
@@ -853,6 +868,9 @@ function createMcpDraft(
     store.setState((s) => {
       const idx = s.assignments.findIndex((a) => a.id === assignmentId);
       if (idx < 0) throw new Error(`draft.updateAssignment: unknown assignmentId '${assignmentId}'`);
+      if (isCostAssignment(s, s.assignments[idx])) {
+        throw new Error(`draft.updateAssignment: assignment '${assignmentId}' is on a COST resource (no unitsPerDay or curve)`);
+      }
       const patch = acceptedAssignmentPatch(updates);
       if (!patch) return;
       // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel).
@@ -871,6 +889,7 @@ function createMcpDraft(
     store.setState((s) => {
       const a = s.assignments.find((x) => x.id === assignmentId);
       if (!a) throw new Error(`draft.setAssignmentWork: unknown assignmentId '${assignmentId}'`);
+      if (isCostAssignment(s, a)) throw new Error(`draft.setAssignmentWork: assignment '${assignmentId}' is on a COST resource (no work)`);
       const task = s.tasks.find((t) => t.id === a.taskId);
       if (!task) throw new Error(`draft.setAssignmentWork: assignment '${assignmentId}' without a task`);
       const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
@@ -932,7 +951,7 @@ function createMcpDraft(
       if (!assignment) throw new Error(`draft.moveAssignment: unknown assignmentId '${assignmentId}'`);
       const newTask = s.tasks.find((t) => t.id === newTaskId);
       if (!newTask) throw new Error(`draft.moveAssignment: unknown taskId '${newTaskId}'`);
-      if (newTask.isMilestone || isSummaryTask(newTask)) {
+      if (isSummaryTask(newTask) || (newTask.isMilestone && !isCostAssignment(s, assignment))) {
         throw new Error(`draft.moveAssignment: target task '${newTaskId}' is a milestone/summary task`);
       }
       const alreadyOnTarget = s.assignments.some(
@@ -944,6 +963,22 @@ function createMcpDraft(
 
       for (const lostTaskId of relocateAssignment(s, assignment, newTask).lostTaskIds) recordTimephasedLoss(lostTaskId);
       markDocumentEdited(s);
+    });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setAssignmentCost` (issue #815): zet of wist
+   * (`undefined`) het begrote bedrag van een kostentoewijzing. Geen werkregel, geen trigger, geen
+   * datum. Onbekend id, een werk-/materiaaltoewijzing of een ongeldig bedrag ⇒ fout.
+   */
+  setAssignmentCost(assignmentId: string, amount: number | undefined): void {
+    store.setState((s) => {
+      const a = s.assignments.find((x) => x.id === assignmentId);
+      if (!a) throw new Error(`draft.setAssignmentCost: unknown assignmentId '${assignmentId}'`);
+      if (!isCostAssignment(s, a)) throw new Error(`draft.setAssignmentCost: assignment '${assignmentId}' is not on a COST resource`);
+      const accepted = acceptedCostAmount(amount);
+      if (accepted === false) throw new Error(`draft.setAssignmentCost: invalid amount ${String(amount)} (finite and >= 0 required)`);
+      if (applyAssignmentCost(a, accepted)) markDocumentEdited(s);
     });
   },
 

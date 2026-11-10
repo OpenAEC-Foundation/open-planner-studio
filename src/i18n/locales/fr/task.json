@@ -84,6 +84,7 @@
       "explicitSummary": "Tâche récapitulative explicite",
       "externalRelationData": "Données des relations externes",
       "floatPath": "Chemin de marge",
+      "calendarDays": "Jours calendaires",
       "freeFloat": "Marge libre",
       "hammock": "Hamac (durée dérivée)",
       "interferingFloat": "Marge d’interférence",

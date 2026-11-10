@@ -62,7 +62,9 @@
     "saveFailed": "저장하지 못했습니다",
     "ambiguousThousands": "\"{{text}}\"은(는) 모호합니다. 소수입니까, 천 단위입니까? 소수는 \"{{separator}}\"(1{{separator}}5)로, 천 단위는 구분 기호 없이(1500) 입력하세요. 값이 변경되지 않았습니다.",
     "siteSaveConflict": "저장되지 않았습니다. 그사이 다른 사람이 사이트에서 '{{name}}' 파일을 변경했습니다. 변경 내용은 아직 앱에 있습니다. 새 파일로 보관하려면 다른 이름으로 저장을 선택하세요.",
+    "siteSaveConflictCopy": "'{{original}}'은(는) 그사이 다른 사람이 사이트에서 변경했습니다. 그래서 작업 내용은 사본 '{{name}}'에 저장되어 있습니다. 이제부터 저장하면 그 사본에 기록됩니다.",
     "siteFileGone": "'{{name}}' 파일이 더 이상 사이트에 없습니다. '최근'에서 제거되었습니다.",
+    "siteFileReadOnly": "'{{name}}'은(는) 사이트에서 읽기 전용입니다. 보고 편집할 수 있지만, 저장하면 사이트에 새 파일이 만들어집니다.",
     "savedViaDownload": "다운로드로 저장했습니다. '{{name}}' 파일이 다운로드 폴더에 있습니다. 이 환경에서는 앱이 선택한 위치에 직접 쓸 수 없습니다.",
     "browserCannotOverwrite": "이 브라우저에서는 앱이 '{{name}}'에 다시 쓸 수 없습니다. 그래서 저장할 때마다 파일을 어디에 둘지 다시 묻습니다. Chrome, Edge 또는 데스크톱 앱에서는 이런 일이 없습니다.",
     "browserSavesAsDownload": "다운로드로 저장됨: '{{name}}'이(가) 다운로드 폴더에 있습니다. 이 브라우저에서는 앱이 원하는 위치에 쓸 수 없으므로 저장할 때마다 새 다운로드가 만들어집니다. Chrome, Edge 또는 데스크톱 앱에서는 저장하면 같은 파일이 업데이트됩니다.",
@@ -72,6 +74,10 @@
     "recoveryStorageBlocked": "다른 열린 연결 때문에 복구 저장소가 일시적으로 차단되었습니다. 기존 복사본은 유지되며 이 페이지는 새 복구 복사본을 만들지 않습니다. 작업을 직접 저장하고, 이 앱을 실행 중인 다른 탭을 닫은 뒤 이 페이지를 다시 로드하여 복구를 다시 시도하세요.",
     "recoveryReadFailed": "복구된 파일을 읽을 수 없습니다",
     "recoveryRestoreFailed": "복원하지 못했습니다",
+    "hostSettingsUnavailable": "사이트의 설정을 불러오지 못했습니다. 이번 세션에서 바꾼 설정은 저장되지 않습니다.",
+    "hostThemeUntilRestart": "이 테마는 플래너를 다시 시작할 때까지 적용됩니다. 그 후에는 플래너가 다시 SuperCloud 테마를 따릅니다.",
+    "settingsLoadedLate": "설정을 불러와 적용했습니다.",
+    "settingsLoadedLateReverted": "설정을 불러와 적용했습니다. 그 사이 변경한 내용은 되돌려졌습니다.",
     "recoveryDocumentsSkipped_other": "복구 파일 {{count}}개를 불러올 수 없어 건너뛰었습니다.",
     "externalOpenSourceUnsaved": "{{file}}에 저장되지 않은 변경 사항이 있습니다. 앵커는 저장된 버전에서 가져옵니다.",
     "externalOpenSourceUsed": "{{file}}에 대한 링크를 저장되지 않은 변경 사항을 포함하여 열린 문서에서 새로 고쳤습니다.",
@@ -92,6 +98,8 @@
     "exportP6Truncated_other": "{{count}}개의 이름 또는 코드가 P6가 허용하는 길이로 줄었습니다.",
     "exportInvalidXmlChars_other": "XML에서 허용되지 않는 문자 {{count}}개가 내보내기에서 �로 바뀌었습니다.",
     "exportCriticalHoursLost": "MS Project XML로 내보내면 시간 단위 주공정 임계값이 사라집니다. MS Project는 임계값을 일 단위로만 지원합니다.",
+    "exportXerLoss": "XER 내보내기가 저장되었습니다. 다음 항목이 포함되지 않았거나 정확하지 않게 포함되었습니다:",
+    "exportP6XmlLoss": "P6 XML 내보내기가 저장되었습니다. 다음 항목이 포함되지 않았거나 정확하지 않게 포함되었습니다:",
     "projectStartAnchorsClamped_other": "작업 {{count}}개가 프로젝트 시작일과 함께 이동했습니다.",
     "mppTimephasedSteeringLost_other": "이 편집 이후 MS Project의 시간 분배가 더 이상 {{count}}개 작업을 제어하지 않습니다. 원래 분배는 파일에 그대로 보존됩니다.",
     "readMore": "더 알아보기",
@@ -179,6 +187,54 @@
     "msProjectLostResourceRates_other": "리소스 {{count}}개의 단가를 가져오지 않았습니다.",
     "minuteModelConverted_other": "{{document}}: 변환 후 {{count}}개 작업의 시작 또는 완료일이 달라졌습니다. 가장 큰 이동은 {{days}}근무일입니다. Ctrl+Z를 누르면 저장된 날짜가 복원됩니다.",
     "minuteModelCalendarRepaired": "달력 “{{calendar}}”의 종료 시각 또는 휴식 시간이 저장된 근무 시간과 맞지 않아 복구되었습니다.",
+    "exportXerLossItem": {
+      "schedulingRules": "일정 계산 규칙: P6는 자체 규칙으로 계산하므로 날짜와 여유가 다를 수 있습니다. 이 파일 형식과 가장 잘 호환되도록 Primavera P6 프로필을 사용하는 것을 권장합니다.",
+      "calendarKinds_other": "자체 근무 구간이 없는 달력 {{count}}개는 다시 열 때 근무 구간을 받습니다(시간 단위 계획). 날짜와 여유가 달라질 수 있습니다.",
+      "baselines_other": "기준선 {{count}}개 (XER는 기준선을 별도 프로젝트로 저장합니다)",
+      "summaryRelations_other": "요약 작업과의 관계 {{count}}개가 그 아래 작업들 사이의 관계로 바뀌었습니다",
+      "summaryAssignments_other": "요약 작업에 있는 리소스 할당 {{count}}개",
+      "summaryConstraints_other": "요약 작업에 있는 제약 조건 {{count}}개 (P6에는 요약 작업의 제약 조건이 없습니다)",
+      "percentLags_other": "백분율 지연 {{count}}개가 고정 지연이 되었습니다",
+      "elapsedLags_other": "달력 일 단위 지연 {{count}}개가 근무 시간으로 바뀌었습니다",
+      "elapsedDurations_other": "달력 일 단위 기간을 쓰는 작업 {{count}}개는 근무 시간으로 계산합니다",
+      "manualTasks_other": "수동 일정 작업 {{count}}개는 P6에서 자동으로 일정이 잡힙니다",
+      "durationMilestones_other": "기간이 있는 마일스톤 {{count}}개는 일반 작업이 되었습니다 (P6에는 기간이 있는 마일스톤이 없습니다)",
+      "mandatoryMilestones_other": "필수 마일스톤 {{count}}개는 “필수” 표시를 잃습니다 (P6에는 그 표시가 없습니다)",
+      "levelingDelays_other": "평준화 지연 {{count}}개",
+      "splits_other": "중단이나 자체 분배가 있는 작업 {{count}}개는 이 정보가 사라집니다",
+      "deadlines_other": "기한 {{count}}개",
+      "externalLinks_other": "외부 관계 {{count}}개",
+      "activityCodes_other": "활동 코드가 있는 작업 {{count}}개: 이 코드는 사라집니다",
+      "customFields_other": "사용자 지정 필드가 있는 작업 {{count}}개: 이 값은 사라집니다",
+      "activityCodeDefinitions": "선택 값을 포함한 활동 코드 정의가 사라집니다",
+      "customFieldDefinitions": "사용자 지정 필드 정의가 사라집니다",
+      "customTaskTypes_other": "자체 작업 유형이 있는 작업 {{count}}개",
+      "taskCategories_other": "설계나 구매 같은 카테고리가 있는 작업 {{count}}개",
+      "priorities_other": "우선순위 {{count}}개가 P6 단계 값으로 반올림되었습니다",
+      "taskDescriptions_other": "작업 설명 {{count}}개",
+      "summaryNotes_other": "요약 작업의 메모 {{count}}개",
+      "noteStatus_other": "체크된 메모 {{count}}개: 메모는 포함되고 체크 표시는 포함되지 않습니다",
+      "resourceTypes_other": "팀 또는 하도급업체 유형 리소스 {{count}}개가 노무 유형으로 바뀌었습니다",
+      "libraryLinks_other": "리소스 라이브러리 연결 {{count}}개",
+      "holidayNames_other": "공휴일 이름 {{count}}개 (날짜 자체는 포함됩니다)",
+      "projectDetails": "프로젝트 설명, 작성자 및 회사",
+      "truncatedNames_other": "P6가 허용하는 길이에 맞춰 줄어든 이름 또는 코드 {{count}}개",
+      "changedIds_other": "비어 있거나 중복된 WBS 코드 {{count}}개는 새 활동 ID를 받았습니다",
+      "nonLatinText_other": "Windows-1252에 맞지 않는 문자 {{count}}개: 파일은 UTF-8로 저장되었습니다. P6에서 가져온 뒤 텍스트를 확인하세요.",
+      "sourceDetails": "앱이 사용하지 않는 원본 XER 파일 데이터(예: 알 수 없는 테이블과 원시 곡선)"
+    },
+    "exportP6XmlLossItem": {
+      "schedulingOptions": "프로젝트의 일정 계산 설정: P6는 자체 설정을 사용하므로 날짜와 여유가 다를 수 있습니다",
+      "baselines_other": "기준선 {{count}}개",
+      "summaryRelations_other": "요약 작업과의 관계 {{count}}개: P6는 이 관계를 지원하지 않습니다",
+      "hammocks_other": "해먹 작업 {{count}}개는 일반 작업이 되었습니다",
+      "suspendResume_other": "중지 또는 재개 날짜가 있는 작업 {{count}}개: 이 날짜는 사라집니다",
+      "priorities_other": "자체 우선순위 {{count}}개가 사라집니다",
+      "notes_other": "메모 {{count}}개",
+      "resourceTypes_other": "팀 또는 하도급업체 유형 리소스 {{count}}개는 P6 유형을 받고 자체 유형은 사라집니다",
+      "capacitySteps_other": "용량 단계가 있는 리소스 {{count}}개: 고정 용량만 포함됩니다",
+      "projectDetails": "프로젝트 작성자와 회사"
+    },
     "dependentProjectsFound": "종속 프로젝트: {{projects}}. 이 프로젝트에 대한 링크: {{links}}.",
     "dependentProjectsNone": "이 일정과 외부 관계가 있는 프로젝트를 찾지 못했습니다.",
     "dependentProjectsFailed": "종속 프로젝트 폴더를 읽을 수 없습니다."
@@ -188,7 +244,9 @@
     "noWorkingDays": "달력에 근무일이 설정되어 있지 않습니다",
     "invalidDayDuration": "작업 '{{task}}'의 일 단위 기간이 올바르지 않습니다",
     "invalidHourDuration": "작업 '{{task}}'의 시간 단위 기간이 올바르지 않습니다",
-    "hourTaskWithoutWorkHours": "시간 작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다",
+    "hourTaskWithoutWorkHours": "시간 작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다. 그 달력에서 근무일, 시작 시간, 종료 시간, 휴식 시간을 확인하세요.",
+    "taskWithoutWorkHours": "작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다. 그 달력에서 근무일, 시작, 종료, 휴식 시간을 확인하세요.",
+    "noWorkingHours": "프로젝트 달력에 유효한 근무 시간이 없습니다. 그 달력에서 시작, 종료, 휴식 시간을 확인하세요.",
     "invalidStartDate": "작업 '{{task}}'의 시작일이 올바르지 않습니다"
   },
   "yes": "예",
@@ -324,6 +382,9 @@
     "weekStartMonday": "월요일",
     "weekStartSunday": "일요일",
     "calculationSection": "계산",
+    "taskGridSection": "작업 표",
+    "autoFitColumns": "열 자동 맞춤",
+    "autoFitColumnsHint": "작업 표의 각 열은 그 열의 값에 맞춰 너비가 조정됩니다. 파일을 열 때와 확인한 편집을 마칠 때마다 이렇게 됩니다. 긴 열 머리글은 잘립니다. 열을 직접 끌어 너비를 바꾸면, 열 가장자리를 두 번 클릭하기 전까지 그 너비가 유지됩니다.",
     "autoCalcCPM": "자동 계산",
     "autoCalcCPMHint": "일정이 오래되면 F5를 기다리지 않고 자동으로 다시 계산합니다.",
     "constructionModeSection": "건설 모드",
@@ -354,7 +415,7 @@
     "documentChromeHint": "열린 문서 사이를 전환하는 방식입니다.",
     "ribbonSection": "리본",
     "ribbonWheelSwitchesTabs": "마우스 휠로 탭 전환",
-    "ribbonWheelSwitchesTabsHint": "리본 탭 위에서 마우스 휠을 돌리세요. 아래로 돌리면 다음 탭, 위로 돌리면 이전 탭으로 이동합니다.",
+    "ribbonWheelSwitchesTabsHint": "리본, 탭 또는 버튼 위에서 마우스 휠을 돌리세요. 아래로 돌리면 다음 탭, 위로 돌리면 이전 탭으로 이동합니다.",
     "documentChromeTabs": "가로 탭",
     "documentChromeRail": "세로 탭",
     "documentChromeSwitcher": "알약",
@@ -638,6 +699,7 @@
       "droppedSequence": "관계 무시됨: 선행 또는 후속 작업이 없거나 리프 작업이 아닙니다",
       "hammockNoFinishDriver": "완료 드라이버가 없는 해먹(FF/SF 선행 없음): 기간이 0으로 돌아갑니다",
       "cappedTask": "완료일이 제한됨: 달력에 이 작업의 작업 가능한 기간이 없습니다",
+      "externalLagCalendar": "외부 지연은 이 작업의 달력에서 계산됩니다: 다른 쪽의 달력은 이 파일에 없습니다",
       "overallocation": "{{count}}일 동안 과다 할당({{first}} – {{last}})",
       "overallocationNonWorkingDay": "{{count}}일 동안 과다 할당({{first}} – {{last}}) — 이 리소스는 달력 상 이 날(들)에 근무하지 않습니다",
       "overallocationMixed": "{{count}}일 동안 과다 할당({{first}} – {{last}}), 그중 {{nonWorking}}일은 리소스가 달력 상 근무하지 않는 날입니다"
@@ -922,6 +984,7 @@
       "UK": "영국",
       "AT": "오스트리아",
       "CH": "스위스",
+      "US": "미국",
       "none": "공휴일 없음"
     },
     "preset": {
@@ -1197,6 +1260,7 @@
     "detailSteps": "가용량 단계",
     "warnActuals_other": "{{count}}개 작업에 실제 시작일/종료일이 있으며 함께 이동합니다. 진행 중인 프로젝트에 적절한지 확인하세요.",
     "warnHardPins_other": "{{count}}개 작업에 강제(하드) 필수 제약이 있습니다. 해당 고정일도 함께 이동합니다.",
+    "warnExternalKept_other": "외부 관계 {{count}}개: 앵커는 원본 프로젝트의 날짜에 그대로 남습니다. 그 프로젝트는 함께 이동하지 않기 때문입니다.",
     "warnHolidayGap": "달력 “{{name}}”의 생성된 공휴일은 {{from}}–{{to}}을 포함하지만, 이동된 일정은 {{year}}년까지 이어집니다. 공휴일을 다시 생성하세요.",
     "warnCustomDateFields_other": "입력된 날짜형 사용자 지정 필드 {{count}}개는 날짜가 유지됩니다.",
     "warnPast": "새 시작일이 과거입니다.",
@@ -1278,7 +1342,7 @@
   "progressImport": {
     "title": "시트에서 진행률 업데이트",
     "chooseFile": "파일 선택…",
-    "intro": "반송된 CSV 또는 XLSX 시트를 선택하세요. 앱은 완료율, 실제 시작, 실제 완료만 읽습니다. 나머지 일정은 변경되지 않습니다.",
+    "intro": "반송된 Excel 시트(.xlsx)를 선택하세요. 앱은 완료율, 실제 시작, 실제 완료만 읽습니다. 나머지 일정은 변경되지 않습니다.",
     "summaryApplied": "적용됨: {{applied}}",
     "summaryNoop": "변경 없음: {{noop}}",
     "summaryNeedsLink": "연결 대기 중: {{needsLink}}",
@@ -1312,7 +1376,8 @@
       "noKeyColumn": "이 파일에는 행을 작업에 연결할 “OPS Task ID” 또는 “WBS” 열이 없습니다.",
       "noProgressColumns": "이 파일에는 완료율, 실제 시작일, 실제 종료일 열이 하나도 없습니다.",
       "unreadable": "이 파일을 진행률 시트로 읽을 수 없습니다.",
-      "encrypted": "이 파일은 암호로 보호되어 있어 읽을 수 없습니다."
+      "encrypted": "이 파일은 암호로 보호되어 있어 읽을 수 없습니다.",
+      "csvNotSupported": "진행률 시트는 Excel 파일로만 읽을 수 있습니다. 이 CSV를 Excel에서 열고 .xlsx로 저장한 뒤 파일을 다시 선택하세요."
     },
     "reason": {
       "unmatched": "이 행에 해당하는 작업을 찾을 수 없습니다.",
@@ -1332,6 +1397,27 @@
       "completion": "완료율",
       "actualStart": "실제 시작일",
       "actualFinish": "실제 종료일"
+    },
+    "sinceExport": {
+      "exportedAt": "시트는 {{date}}에 내보내졌습니다.",
+      "summaryConflicts": "충돌: {{conflicts}}, 아직 선택할 항목: {{open}}",
+      "summaryAppNewer": "앱에서만 변경됨: {{kept}}",
+      "summaryPlannedShift": "내보낸 뒤 일정이 이동함: {{shifted}}",
+      "missingState": "내보내기 상태가 없는 행: {{rows}}. 이 행은 내보낸 뒤 무엇이 바뀌었는지 앱이 알 수 없으므로, 앱은 시트를 현재 일정과만 비교합니다.",
+      "sectionConflicts": "충돌: 앱과 시트에서 모두 변경됨",
+      "conflictIntro": "이 값은 내보낸 뒤 두 곳에서 바뀌었습니다. 행마다 남길 값을 선택하세요. 모든 행에서 선택해야 적용할 수 있습니다.",
+      "conflictField": "{{field}}: 내보낼 때 {{exported}}, 앱에서 {{app}}, 시트에서 {{sheet}}",
+      "keepApp": "앱 값 유지",
+      "takeSheet": "시트 값 사용",
+      "allRows": "모든 행:",
+      "chooseFirst": "먼저 충돌마다 앱 또는 시트를 선택하세요.",
+      "sectionAppNewer": "내보낸 뒤 앱에서만 변경됨",
+      "keptField": "{{field}}: 내보낼 때 {{exported}}, 지금 {{app}}. 시트는 이 값을 바꾸지 않습니다.",
+      "shiftedField": "{{field}}이(가) 내보낸 뒤 이동함: {{exported}} → {{current}}",
+      "plannedField": {
+        "start": "계획 시작",
+        "finish": "계획 완료"
+      }
     }
   },
   "conventions": {
@@ -1607,7 +1693,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "앱은 WBS와 작업을 가져왔습니다. 관계, 제약 조건, 달력, 리소스, 할당, 진행률, 상태 날짜도 함께 가져왔습니다. 기준선 프로젝트는 속한 프로젝트의 기준선이 됩니다.",
-        "limited": "기한, 활동 코드, 사용자 지정 필드, 메모는 포함되지 않습니다. 이 프로젝트는 Open Planner Studio 프로필로 계산하며, Primavera P6 프로필로는 계산하지 않습니다.",
+        "limited": "기한, 활동 코드, 사용자 지정 필드, 메모는 포함되지 않습니다. 이 프로젝트는 Primavera P6 방식으로 계산하며, 파일의 계산 옵션을 사용합니다.",
         "save": "저장하면 새 IFC 파일이 만들어집니다. XML 파일은 바뀌지 않습니다. 다시 기록하려면 내보내기 › Primavera P6 XML을 사용하세요."
       },
       "csv": {
@@ -1640,9 +1726,46 @@
     "blockedNoChild": "이동할 수 없습니다: '{{phase}}'에는 할당을 담을 수 있는 하위 작업이 생기지 않습니다. 마일스톤이나 요약 작업만 가능합니다.",
     "actualWorkLost_other": "{{resource}}의 할당에는 이미 실제 작업 {{hours}}시간이 기록되어 있습니다. 삭제하면 그 실제 작업이 사라집니다."
   },
+  "scheduleShift": {
+    "title": "이동된 작업",
+    "close": "이동된 작업 닫기",
+    "notice_other": "작업 {{count}}개가 이동했습니다.",
+    "deliveryLater_other": "프로젝트 종료일이 {{days}} 근무일 늦춰졌습니다.",
+    "deliveryEarlier_other": "프로젝트 종료일이 {{days}} 근무일 앞당겨졌습니다.",
+    "deliveryUnchanged": "프로젝트 종료일이 변경되지 않았습니다.",
+    "why": "이유",
+    "undo": "실행 취소",
+    "finishChange": "완료 {{from}} → {{to}}",
+    "goTo": "이동: {{target}}",
+    "showMore_other": "작업 {{count}}개 더 표시",
+    "emptyNoRun": "계산(F5)을 누르세요. 그 뒤 여기에 이동한 작업과 이유가 표시됩니다.",
+    "emptyNoShift": "마지막 계산에서 이동한 작업이 없습니다.",
+    "reason": {
+      "predecessor": "선행 작업: {{name}}",
+      "predecessorMore_other": "선행 작업: {{name}} 외 {{count}}개",
+      "calendar": "달력: {{name}}",
+      "constraint": "고정 날짜: {{constraint}}",
+      "constraintPlain": "고정 날짜",
+      "statusDate": "상태 날짜: {{date}}",
+      "resource": "리소스: {{names}}",
+      "resourceLeveling": "리소스: 평준화",
+      "duration": "자체 기간 변경",
+      "ownStart": "자체 시작 날짜",
+      "plannedStart": "계획 시작",
+      "projectStart": "프로젝트 시작일",
+      "progress": "진행률: 실제 날짜 또는 남은 기간",
+      "manual": "수동 일정",
+      "hammock": "연결된 작업을 따름",
+      "unknown": "이유가 확인되지 않음"
+    }
+  },
   "fileDrop": {
     "title": "놓아서 열기",
     "subtitle": "프로젝트 파일 또는 가져오기"
+  },
+  "settingsDelay": {
+    "title": "설정을 불러오지 못함",
+    "body": "설정을 서버에서 불러오지 못했습니다. 지금은 기본 설정으로 작업하고 있습니다. 설정을 다시 사용할 수 있게 되면 자동으로 적용됩니다."
   },
   "dependentAnchorWarning": {
     "title": "다른 프로젝트의 앵커가 더 촉박해집니다",

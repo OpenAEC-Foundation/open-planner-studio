@@ -140,6 +140,7 @@
     "histogram": "直方图",
     "toggleHistogram": "直方图",
     "warningsPanel": "警告面板",
+    "scheduleShiftPanel": "顺延任务",
     "prevResource": "上一个",
     "nextResource": "下一个",
     "leveling": "资源平衡",
@@ -237,6 +238,8 @@
     "company": "公司",
     "startDate": "开始日期",
     "endDate": "结束日期",
+    "defaultWorkRule": "默认任务类型",
+    "defaultWorkRuleHint": "设为‘项目默认’的任务会沿用此选项。设有自己任务类型的任务会保留其选择。",
     "calc": {
       "title": "计算",
       "subtitle": "此项目的排程选项 — 随文件保存，而非随应用保存。",
@@ -322,7 +325,7 @@
     "exportTitle": "导出",
     "exportSubtitle": "选择格式，项目将被转换并保存。",
     "progressImportCardTitle": "从表格更新进度",
-    "progressImportCardDesc": "读取返回的 CSV 或 XLSX 表格，更新完成度、实际开始日期和实际完成日期。",
+    "progressImportCardDesc": "读取返回的 Excel 表格（.xlsx），更新完成度、实际开始日期和实际完成日期。",
     "printTitle": "打印",
     "printSubtitle": "打开报告界面进行打印预览和设置。",
     "openPrintPreview": "打开打印预览",
@@ -390,6 +393,9 @@
     "mspdiDesc": "可在 Microsoft Project 中打开，完整 WBS 结构。",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "适用于 Oracle Primavera P6。",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "适用于 Primavera P6，以 .xer 文件导出。",
+    "experimentalBadge": "实验性",
     "profileHint": "你的项目当前使用 {{name}} 配置。为了与此文件格式获得最佳兼容性，我们建议使用 {{target}} 配置。",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 标准，采用项目的 IFC 模式（默认为 IFC 4.3 ADD2）。与 BIM 模型的 4D 关联。",
@@ -444,5 +450,18 @@
     "redo": "重做",
     "zoomIn": "放大",
     "zoomOut": "缩小"
+  },
+  "native": {
+    "window": "窗口",
+    "quit": "退出 Open Planner Studio",
+    "about": "关于 Open Planner Studio",
+    "services": "服务",
+    "hide": "隐藏 Open Planner Studio",
+    "hideOthers": "隐藏其他",
+    "showAll": "全部显示",
+    "closeWindow": "关闭窗口",
+    "cut": "剪切",
+    "fullscreen": "切换全屏",
+    "bringAllToFront": "全部前置"
   }
 }

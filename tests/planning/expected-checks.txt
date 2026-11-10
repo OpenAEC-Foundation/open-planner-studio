@@ -44,6 +44,7 @@ check-contour-unit-switch.ts matrix
 check-conventions-boundary.ts los
 check-conventions-p6-flags.ts matrix
 check-conventions-registry.ts matrix
+check-cost-resource.ts matrix
 check-count-labels-i18n.ts matrix
 check-cpm-writeback.ts matrix
 check-critical-bar-colors-route.ts matrix
@@ -168,8 +169,13 @@ check-ifc-dagkalender-hele-dag.ts matrix
 check-ifc-datumvorm.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
+check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-open.ts matrix
+check-ifc-foreign-pariteit.ts los
+check-ifc-foreign-target.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-legacy-arity.ts matrix
+check-ifc-literaltimes-behoud.ts matrix
 check-ifc-lopend-100.ts matrix
 check-ifc-nesting-index.ts matrix
 check-ifc-projectdatum-corpus.ts los
@@ -181,6 +187,7 @@ check-ifc-schema-question.ts matrix
 check-ifc-schema-reader.ts matrix
 check-ifc-schema.ts matrix
 check-ifc-step-encoding.ts matrix
+check-ifc-target-model-scan.ts matrix
 check-ifc-urenperdag-blokken.ts matrix
 check-ifc-urenperdag-corpus.ts los
 check-ifc-werktijd-per-dag.ts matrix

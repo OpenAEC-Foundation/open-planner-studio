@@ -83,7 +83,7 @@ export function resourceNames(task: Task, ctx: ViewContext): string[] {
  * heeft. Gedeeld door de schermgroepering en het rapport Resourcediagram. Een type dat
  * hier zou ontbreken (kan niet met het huidige enum) komt achteraan.
  */
-export const RESOURCE_TYPE_BAND_ORDER: readonly ResourceType[] = ['LABOR', 'CREW', 'SUBCONTRACTOR', 'EQUIPMENT', 'MATERIAL'];
+export const RESOURCE_TYPE_BAND_ORDER: readonly ResourceType[] = ['LABOR', 'CREW', 'SUBCONTRACTOR', 'EQUIPMENT', 'MATERIAL', 'COST'];
 
 export function resourceTypeRank(type: ResourceType): number {
   const i = RESOURCE_TYPE_BAND_ORDER.indexOf(type);

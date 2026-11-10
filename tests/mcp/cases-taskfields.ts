@@ -17,7 +17,8 @@ import { taskTools } from '@/services/mcp/tools/taskTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
 import { readTools } from '@/services/mcp/tools/readTools';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
-import { TASK_FIELD_SCHEMA_PROPERTIES } from '@/services/mcp/tools/taskFields';
+import { TASK_FIELD_NAMES, TASK_FIELD_SCHEMA_PROPERTIES, TASK_FIELD_SCHEMA_PROPERTIES_BARE } from '@/services/mcp/tools/taskFields';
+import { validateToolArgs } from '@/services/mcp/schemaValidate';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant } from '@/utils/dateUtils';
@@ -79,6 +80,28 @@ function seedTask(name = 'Taak', duration = 5): string {
 // =================================================================================================
 // A. planner_add_tasks — duur bij het aanmaken
 // =================================================================================================
+// #818: `update_tasks.fields` gebruikt de taakvelden zonder beschrijvingsteksten. Het taakveld `description`
+// heet net zo als die tekst; het mag niet mee verdwijnen (council-ronde 1 op #838).
+test('update_tasks.fields kent precies de velden van add_tasks, ook het taakveld `description`', () => {
+  const sorted = (keys: Iterable<string>) => [...keys].sort();
+  assertEq(sorted(Object.keys(TASK_FIELD_SCHEMA_PROPERTIES)), sorted(TASK_FIELD_NAMES), 'volledige set = allowlist');
+  assertEq(sorted(Object.keys(TASK_FIELD_SCHEMA_PROPERTIES_BARE)), sorted(TASK_FIELD_NAMES), 'kale set = allowlist');
+  const def = taskTools.find((t) => t.name === 'planner_update_tasks')!;
+  const items = (def.inputSchema as any).properties.updates.items;
+  assertEq(sorted(Object.keys(items.properties.fields.properties)), sorted(TASK_FIELD_NAMES), 'fields = allowlist');
+  // Zelfde schema als bij add_tasks, op de beschrijvingsteksten na.
+  const strip = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(strip);
+    if (v === null || typeof v !== 'object') return v;
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>)
+      .filter(([k, x]) => !(k === 'description' && typeof x === 'string')).map(([k, x]) => [k, strip(x)]));
+  };
+  assertEq(strip(TASK_FIELD_SCHEMA_PROPERTIES_BARE), strip(TASK_FIELD_SCHEMA_PROPERTIES), 'alleen teksten weg');
+  const args = { updates: [{ id: 't1', fields: { description: 'Vorstvrij uitvoeren' } }] };
+  assertEq(validateToolArgs(def.inputSchema as any, args, { deepArrayItems: true }), null,
+    'een omschrijving wijzigen is geldig volgens het schema, ook als een client tot op elk niveau toetst');
+});
+
 test('add_tasks: `duration` landt ECHT op time.scheduleDuration (was: altijd de default 5)', async () => {
   reset();
   const res = await call('planner_add_tasks', {

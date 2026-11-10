@@ -1,4 +1,4 @@
-import { isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
+import { isCostResource, isValidCostAmount, isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
 import { groupBy } from '@/utils/collections';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
@@ -11,6 +11,8 @@ export type AssignmentPlanOperation =
       resourceId: string;
       unitsPerDay: number;
       curve?: ResourceCurve;
+      /** Alleen voor een kostenresource (issue #815): het bedrag dat bij plakken meereist. */
+      costAmount?: number;
     }
   | {
       kind: 'update';
@@ -18,6 +20,9 @@ export type AssignmentPlanOperation =
       unitsPerDay: number;
       /** Vereist veld: undefined betekent een bestaande curve echt wissen. */
       curve: ResourceCurve | undefined;
+      /** Alleen voor een kostentoewijzing (issue #815): het nieuwe bedrag; `amount: undefined` wist
+       *  het. Afwezig ⇒ het bedrag blijft staan. Raakt geen datum. */
+      cost?: { amount: number | undefined };
     }
   | {
       kind: 'remove';
@@ -88,11 +93,16 @@ export function planTaskAssignmentSet({
 }: PlanTaskAssignmentSetInput): GridResult<TaskAssignmentPlan, readonly CellValidationError[]> {
   const task = tasksById?.get(taskId) ?? tasks.find(candidate => candidate.id === taskId);
   if (!task) return failure('assignmentTaskNotFound', taskId);
-  if (task.isMilestone || task.childIds.length > 0) {
+  if (task.childIds.length > 0) {
     return failure('assignmentTaskUnavailable', taskId);
   }
 
   const resourceIndex = resourcesById ?? new Map(resources.map(resource => [resource.id, resource] as const));
+  // Een mijlpaal draagt alleen kostentoewijzingen (issue #815, besluit Ethan 2026-11-07).
+  if (task.isMilestone && (tokens as readonly Partial<TaskAssignmentToken>[]).some(token =>
+    typeof token.resourceId !== 'string' || !isCostResource(resourceIndex.get(token.resourceId)))) {
+    return failure('assignmentTaskUnavailable', taskId);
+  }
   const current: ResourceAssignment[] = assignmentsForTask ? [...assignmentsForTask] : [];
   if (!assignmentsForTask) {
     for (const assignment of assignments) {
@@ -119,6 +129,18 @@ export function planTaskAssignmentSet({
       return failure('assignmentResourceNotFound', taskId, token);
     }
     if (!isValidUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
+    // Zelfde regel en volgorde als `validateAssignmentTokens` (issue #815): eerst de soort van de bron
+    // tegen het doeltype (zonder soort hoort een bedrag alleen op een kostenresource), dan de veldregels.
+    const targetIsCost = isCostResource(resourceIndex.get(token.resourceId));
+    if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== targetIsCost
+      : token.costAmount !== undefined && !targetIsCost) {
+      return failure('assignmentKindMismatch', taskId, token.resourceId);
+    }
+    // Kostenresource (issue #815): geen inzet (vast 1), geen curve en geen werk.
+    if (targetIsCost
+      && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM') || token.remainingWorkMinutes !== undefined)) {
+      return failure('assignmentCostResource', taskId, token);
+    }
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) {
       return failure('assignmentCurve', taskId, token);
     }
@@ -146,14 +168,23 @@ export function planTaskAssignmentSet({
       tokenOperations.push({
         kind: 'add', taskId, resourceId: token.resourceId,
         unitsPerDay: token.unitsPerDay, curve: desiredCurve,
+        ...(isCostResource(resourceIndex.get(token.resourceId)) && typeof token.costAmount === 'number'
+          && Number.isFinite(token.costAmount) && token.costAmount >= 0 ? { costAmount: token.costAmount } : {}),
       });
       continue;
     }
     retainedAssignmentIds.add(existing.id);
-    if (existing.unitsPerDay !== token.unitsPerDay || existing.curve !== desiredCurve) {
+    // Een kostentoewijzing neemt het bedrag van het token over, ook 0 en leeg (plakken op een taak
+    // die dezelfde kostenresource al heeft, issue #815). Een ongeldig bedrag laat het staan.
+    const costChange = isCostResource(resourceIndex.get(token.resourceId))
+      && (token.costAmount === undefined || isValidCostAmount(token.costAmount))
+      && existing.costAmount !== token.costAmount
+      ? { cost: { amount: token.costAmount } }
+      : {};
+    if (existing.unitsPerDay !== token.unitsPerDay || existing.curve !== desiredCurve || 'cost' in costChange) {
       tokenOperations.push({
         kind: 'update', assignmentId: existing.id,
-        unitsPerDay: token.unitsPerDay, curve: desiredCurve,
+        unitsPerDay: token.unitsPerDay, curve: desiredCurve, ...costChange,
       });
     }
   }
@@ -168,7 +199,10 @@ export function planTaskAssignmentSet({
     }));
   const operations = [...removals, ...tokenOperations];
   const changed = operations.length > 0;
-  const membershipChanged = operations.some(operation => operation.kind !== 'update');
+  // Een kostentoewijzing erbij of eraf is geen "toewijzingen"-trigger (issue #815): ze wist geen
+  // MSP-sturing en geen nivelleergaten. Alleen een werk- of materiaaltoewijzing telt.
+  const membershipChanged = operations.some(operation => operation.kind !== 'update'
+    && !isCostResource(resourceIndex.get(operation.resourceId)));
   return {
     ok: true,
     value: {
@@ -223,6 +257,10 @@ export function applyTaskAssignmentPlan(
       if (!assignment) continue;
       assignment.unitsPerDay = operation.unitsPerDay;
       assignment.curve = operation.curve;
+      if (operation.cost) {
+        if (operation.cost.amount === undefined) delete assignment.costAmount;
+        else assignment.costAmount = operation.cost.amount;
+      }
     }
   }
   if (removedIds.size > 0) {
@@ -245,6 +283,7 @@ export function applyTaskAssignmentPlan(
       const assignment: ResourceAssignment = {
         id: nextId(), taskId: operation.taskId, resourceId: operation.resourceId,
         unitsPerDay: operation.unitsPerDay, curve: operation.curve,
+        ...(operation.costAmount !== undefined ? { costAmount: operation.costAmount } : {}),
       };
       state.assignments.push(assignment);
       assignmentsById.set(assignment.id, assignment);

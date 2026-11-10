@@ -216,6 +216,12 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   blocked before import (knownbug 110): the planning writer does not preserve them. The checked-in
   type inventory comes from official IFC2X3 TC1, IFC4 ADD2 TC1 and IFC4X3 ADD2 schemas; regenerate
   with `scripts/ifc-product-types.py`. Edit the separate planning file, then merge externally.
+  Behind the feature flag `ifcForeignContent` (#804 phase 1a; always off in the app until saving works) every IFC open
+  route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
+  reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
+  `ifcSource` (document contract, `snapshot: 'none'`: outside undo, recovery and MCP backup). A document with a foreign
+  part refuses every IFC write with one notice (`src/state/ifcForeignGuard.ts`). Without the flag the app stays
+  byte-identical to main (`check-ifc-foreign-pariteit.ts`).
 - **IFC 4.3 is the native format**; there is no JSON project format. New domain data must round-trip through
   `ifcWriter`/`ifcReader`, or it is gone after saving. CSV/MSPDI/P6/`.mpp`/`.xer` are adapters. The file schema is
   per project (`Project.ifcSchema`, default `IFC4X3_ADD2`); never write silently in another one. Route:
@@ -260,7 +266,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   Task dates normalize to instants at load and input; project dates keep their entered form (D1/D5/D2
   at calculation). `minuteModelPending` carries the undoable conversion of old documents; persistent
   calculations inside an editing event call `runCPM({ withinEvent: true })`. IFC writes `TimeModel`
-  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document.
+  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document; a calendar
+  that is literal in the file (when opened, or saved so in this session) stays literal (`ifcLiteralCalendarIds`,
+  `src/state/savedLiteralCalendars.ts`, knownbug 1026).
 - **Scheduling profiles, not a format flag.** P6/MSP/OPS behaviour runs through named conventions in
   `src/engine/scheduler/conventions/registry.ts`; the solver only gets `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Never an `if` on the source format in the engine (`verify:conventions`);

@@ -3,7 +3,7 @@ import { remainingMinutesOf, workRuleApplies } from '@/engine/work/workRuleApply
 import { assignmentWorkDeviation, workDeviationEffectKey } from '@/engine/work/assignmentWorkDeviation';
 import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
 import type { Baseline, BaselineTask } from '@/types/baseline';
-import { RESOURCE_CURVES, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
+import { RESOURCE_CURVES, isCostResource, resourceDrivesDuration, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type { ConstraintType, MilestoneKind, Task, TaskStatus, TaskType } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
@@ -14,6 +14,7 @@ import type {
   GridWriteIntent,
   RecordedTaskAxis,
   TaskCellWarning,
+  TaskAssignmentResourceKind,
   TaskAssignmentToken,
   TaskColumnCategory,
   TaskColumnContext,
@@ -601,12 +602,38 @@ function structuredClipboardPayload(
 }
 
 function assignmentTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentToken[] {
-  return assignments(task, ctx).map(assignment => ({
+  return assignments(task, ctx).map(assignment => assignmentToken(assignment, ctx));
+}
+
+/** De ENE bouwer van een toewijzingstoken: elke kolom (resources, inzet, curve, werk) gebruikt hem, zodat
+ *  bedrag en soort overal meereizen. Een kolom voegt alleen haar eigen veld toe (issue #815). */
+function assignmentToken(assignment: ResourceAssignment, ctx: TaskColumnContext): TaskAssignmentToken {
+  return {
     assignmentId: assignment.id,
     resourceId: assignment.resourceId,
     unitsPerDay: assignment.unitsPerDay,
     curve: assignment.curve,
-  }));
+    // Het bedrag reist mee bij plakken (issue #815); een ontbrekend bedrag betekent "leeg".
+    ...(assignment.costAmount !== undefined ? { costAmount: assignment.costAmount } : {}),
+    ...resourceKindOf(assignment, ctx),
+  };
+}
+
+/** De soort van de resource van deze toewijzing, als die resource bekend is (issue #815). */
+function resourceKindOf(assignment: Pick<ResourceAssignment, 'resourceId'>, ctx: TaskColumnContext): { resourceKind?: TaskAssignmentResourceKind } {
+  const resource = ctx.resourcesById.get(assignment.resourceId);
+  return resource ? { resourceKind: isCostResource(resource) ? 'cost' : 'work' } : {};
+}
+
+/** Is dit een toewijzing aan een kostenresource (issue #815)? Die heeft geen inzet, curve of werk:
+ *  de kolommen daarvoor tonen "—" en weigeren invoer (celfout `assignmentCostResource`). */
+function isCostAssignment(assignment: Pick<ResourceAssignment, 'resourceId'>, ctx: TaskColumnContext): boolean {
+  return isCostResource(ctx.resourcesById.get(assignment.resourceId));
+}
+
+/** Toewijzingen met inzet, curve en werk: alles behalve kosten. */
+function workAssignments(task: Task, ctx: TaskColumnContext): ResourceAssignment[] {
+  return assignments(task, ctx).filter(item => !isCostAssignment(item, ctx));
 }
 
 function resolveResourceId(reference: string, ctx: TaskColumnContext): GridResult<string, readonly CellValidationError[]> {
@@ -655,6 +682,24 @@ function validateAssignmentTokens(
       return failure(code, raw);
     }
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) return failure(code, raw);
+    const isCost = isCostResource(ctx.resourcesById.get(token.resourceId));
+    // De soort van de bron moet passen bij het type van de doelresource (issue #815). Zonder soort:
+    // een bedrag hoort alleen op een kostenresource, zodat er nooit stil een bedrag verdwijnt. Eerst
+    // de soort, dan de veldregels van COST: werk op een kostenresource is een soortfout.
+    if (token.resourceKind !== undefined && token.resourceKind !== 'cost' && token.resourceKind !== 'work') {
+      return failure(code, raw);
+    }
+    if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== isCost
+      : token.costAmount !== undefined && !isCost) {
+      return failure('assignmentKindMismatch', token.resourceId);
+    }
+    // Kostenresource (issue #815): inzet vast 1, geen curve, geen werk.
+    if (isCost && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM')
+      || token.remainingWorkMinutes !== undefined)) {
+      return failure('assignmentCostResource', raw);
+    }
+    // Een mijlpaal draagt alleen kostentoewijzingen (besluit Ethan 2026-11-07).
+    if (task.isMilestone && !isCost) return failure('assignmentMilestoneWork', token.resourceId);
     if (resourceIds.has(token.resourceId)) return failure('assignmentDuplicateResource', token.resourceId);
     resourceIds.add(token.resourceId);
     let assignmentId = token.assignmentId;
@@ -678,6 +723,8 @@ function validateAssignmentTokens(
       resourceId: token.resourceId,
       unitsPerDay: token.unitsPerDay,
       ...(token.curve ? { curve: token.curve } : {}),
+      ...(typeof token.costAmount === 'number' ? { costAmount: token.costAmount } : {}),
+      ...(token.resourceKind !== undefined ? { resourceKind: token.resourceKind } : {}),
       // Het werk reist mee bij plakken naar een andere taak.
       ...(token.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: token.remainingWorkMinutes } : {}),
     });
@@ -728,6 +775,10 @@ const parseAssignmentUnits: Parser = (text, task, ctx) => {
     const typed = pair.slice(separator + 1).trim();
     const unitsPerDay = Number(typed.replace(',', '.'));
     if (!resolved.ok) return resolved;
+    if (isCostAssignment(resolved.value, ctx)) {
+      if (typed === '—' || typed === '-') continue;
+      return failure('assignmentCostResource', pair);
+    }
     if (!Number.isFinite(unitsPerDay) || unitsPerDay <= 0) return failure('assignmentUnits', pair);
     if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
     seen.add(resolved.value.id);
@@ -743,11 +794,11 @@ function assignmentWorkTokens(task: Task, ctx: TaskColumnContext): TaskAssignmen
   const hoursPerDay = ctx.effectiveHoursPerDay?.(task) ?? 8;
   const remaining = remainingMinutesOf(task, { hoursPerDay });
   return assignments(task, ctx).map(assignment => ({
-    assignmentId: assignment.id,
-    resourceId: assignment.resourceId,
-    unitsPerDay: assignment.unitsPerDay,
-    curve: assignment.curve,
-    remainingWorkMinutes: assignment.remainingWorkMinutes ?? remaining * assignment.unitsPerDay,
+    ...assignmentToken(assignment, ctx),
+    // Een kostentoewijzing heeft geen werk (issue #815).
+    ...(isCostAssignment(assignment, ctx)
+      ? {}
+      : { remainingWorkMinutes: assignment.remainingWorkMinutes ?? remaining * assignment.unitsPerDay }),
   }));
 }
 
@@ -763,11 +814,15 @@ function remainingWorkWarning(task: Task, ctx: TaskColumnContext): TaskCellWarni
   const own = assignments(task, ctx);
   if (own.length === 0) return null;
   const hoursPerDay = effectiveHoursPerDay(task, ctx);
-  const contourOf = matchContoursToAssignments(task.timephasedContours, own);
+  // Zonder kostentoewijzingen gekoppeld, dezelfde regel als `contourSiblings` (#815).
+  const contourOf = matchContoursToAssignments(
+    task.timephasedContours,
+    own.filter(a => !isCostResource(ctx.resourcesById.get(a.resourceId))),
+  );
   const hits: { name: string; stored: number; derived: number }[] = [];
   for (const assignment of own) {
     const resource = ctx.resourcesById.get(assignment.resourceId);
-    if (resource?.type === 'MATERIAL') continue;
+    if (!resourceDrivesDuration(resource) && resource !== undefined) continue;
     const deviation = assignmentWorkDeviation(
       task, assignment.unitsPerDay, assignment.remainingWorkMinutes, hoursPerDay, contourOf.has(assignment.id),
     );
@@ -818,6 +873,10 @@ const parseAssignmentWork: Parser = (text, task, ctx) => {
     const typed = pair.slice(separator + 1).trim();
     const hours = Number(typed.replace(',', '.'));
     if (!resolved.ok) return resolved;
+    if (isCostAssignment(resolved.value, ctx)) {
+      if (typed === '—' || typed === '-') continue;
+      return failure('assignmentCostResource', pair);
+    }
     if (!Number.isFinite(hours) || hours <= 0) return failure('assignmentWork', pair);
     if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
     seen.add(resolved.value.id);
@@ -853,6 +912,10 @@ const parseAssignmentCurves: Parser = (text, task, ctx) => {
     const resolved = resolveAssignment(pair.slice(0, separator).trim(), task, ctx);
     const curve = pair.slice(separator + 1).trim().toUpperCase() as ResourceCurve;
     if (!resolved.ok) return resolved;
+    if (isCostAssignment(resolved.value, ctx)) {
+      if ((curve as string) === '—' || (curve as string) === '-') continue;
+      return failure('assignmentCostResource', pair);
+    }
     if (!RESOURCE_CURVES.includes(curve)) return failure('assignmentCurve', pair);
     if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
     seen.add(resolved.value.id);
@@ -1126,7 +1189,9 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     editableColumn({
       id: 'assignment.resources', labelKey: 'taskGrid.columns.assignedResources', category: 'resources', valueKind: 'tokens', editorKind: 'autocomplete', defaultWidth: 220,
       read: assignmentTokens,
-      readOnly: task => task.isMilestone || task.childIds.length > 0,
+      // Een mijlpaal mag kostentoewijzingen dragen (issue #815); de validatie weigert daar werk en
+      // materiaal (`assignmentMilestoneWork`).
+      readOnly: task => task.childIds.length > 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length
         ? value.map(raw => {
           const token = raw as TaskAssignmentToken;
@@ -1151,20 +1216,22 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     editableColumn({
       id: 'assignment.unitsPerDay', labelKey: 'taskGrid.columns.assignmentUnits', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
       read: assignmentTokens,
-      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
+      // Een kostentoewijzing (issue #815) heeft geen inzet: "—", en alleen kosten ⇒ niet bewerkbaar.
+      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || workAssignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; unitsPerDay: number };
-        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${unitsText(item.unitsPerDay, ctx.numberLocale)}`;
+        const units = isCostAssignment(item, ctx) ? '—' : unitsText(item.unitsPerDay, ctx.numberLocale);
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${units}`;
       }).join('; ') : '—',
       // Mensentekst in de taal; het machine-deel (tokens) blijft exact.
       copy: (task, ctx) => structuredClipboardText(
-        assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${unitsText(item.unitsPerDay, ctx.numberLocale)}`).join('; '),
+        assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${isCostAssignment(item, ctx) ? '—' : unitsText(item.unitsPerDay, ctx.numberLocale)}`).join('; '),
         ASSIGNMENT_CLIPBOARD_MARKER,
         assignmentTokens(task, ctx),
       ),
       // Bewerktekst blijft exact (geen stille afronding bij Enter op de tekstroute).
       editText: (task, ctx) => assignments(task, ctx)
-        .map(item => `${assignmentLabel(item, ctx)}: ${item.unitsPerDay}`).join('; '),
+        .map(item => `${assignmentLabel(item, ctx)}: ${isCostAssignment(item, ctx) ? '—' : item.unitsPerDay}`).join('; '),
       parse: parseAssignmentUnits,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentUnits'),
       planWrite: (value, task) => success([{
@@ -1175,20 +1242,20 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     editableColumn({
       id: 'assignment.curve', labelKey: 'taskGrid.columns.assignmentCurve', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
       read: assignmentTokens,
-      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
+      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || workAssignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; curve: ResourceCurve };
         const curve = item.curve ?? 'UNIFORM';
-        const curveLabel = ctx.labelForText?.(RESOURCE_CURVE_LABEL_KEYS[curve]) ?? curve;
+        const curveLabel = isCostAssignment(item, ctx) ? '—' : ctx.labelForText?.(RESOURCE_CURVE_LABEL_KEYS[curve]) ?? curve;
         return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${curveLabel}`;
       }).join('; ') : '—',
       copy: (task, ctx) => structuredClipboardText(
-        assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join('; '),
+        assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${isCostAssignment(item, ctx) ? '—' : item.curve ?? 'UNIFORM'}`).join('; '),
         ASSIGNMENT_CLIPBOARD_MARKER,
         assignmentTokens(task, ctx),
       ),
       editText: (task, ctx) => assignments(task, ctx)
-        .map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join('; '),
+        .map(item => `${assignmentLabel(item, ctx)}: ${isCostAssignment(item, ctx) ? '—' : item.curve ?? 'UNIFORM'}`).join('; '),
       parse: parseAssignmentCurves,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentCurve'),
       planWrite: (value, task) => success([{
@@ -1210,7 +1277,7 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       available: ctx => ctx.taskTypesUnlocked === true,
       read: assignmentWorkTokens,
       // Alleen waar de regel werkt (geen hangmat/ELAPSEDTIME) — anders weigert de kern stil.
-      readOnly: (task, ctx) => !workRuleApplies(task) || assignments(task, ctx).length === 0,
+      readOnly: (task, ctx) => !workRuleApplies(task) || workAssignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; remainingWorkMinutes?: number };
         return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${workHoursText(item.remainingWorkMinutes, ctx.numberLocale)}`;

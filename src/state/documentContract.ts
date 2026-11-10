@@ -14,6 +14,9 @@ import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type Co
 import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
+import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import type { ForeignSourceMark, ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
+import { foreignSourceMarkFromRecovery } from '@/services/ifc/foreign/foreignSourceMark';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -98,6 +101,15 @@ export interface DocumentPayload {
   xerSourceArchive: XerSourceArchive | null;
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
+  /** De IFC-bron met indeling (#804 §4.8), alleen via de bytes-route achter de flag `ifcForeignContent`. Onveranderlijk
+   *  en buiten undo (`snapshot: 'none'`); niet in de herstelsnapshot en niet in de MCP-backup (geen `IFC_SAVE_KEYS`). */
+  ifcSource: IfcSource | null;
+  /** Kwam dit document uit een IFC-bestand met een vreemd deel (#804 fase 1a, fixronde 1)? Dan de vingerafdruk en het doel
+   *  van die bron, zodat Opslaan als en een export dat bestand weigeren. Gezet bij het openen (`applyLoadedProject`) en
+   *  bij crashherstel (`payloadFromInput`), daarna onveranderlijk tot het document sluit; ook als `ifcSource` weg is
+   *  (herstel bewaart geen bronbytes). Buiten undo; geen IFC-schrijfinvoer (alleen de herstelsnapshot schrijft de
+   *  vingerafdruk, via `recoverySnapshotInput`). */
+  foreignSourceMark: ForeignSourceMark | null;
   /** De werkregel-UI is voor dit document ontsloten omdat het al
    *  taaktypedata draagt (`hasTaskTypeData`) of omdat de gebruiker er een regel/werk in zette.
    *  Niet gepersisteerd (bij laden opnieuw afgeleid), niet in undo. */
@@ -118,6 +130,23 @@ export interface DocumentPayload {
    *  de writer geeft bestaande objecten hun GlobalId terug. De IFC-editor kan deze identiteit
    *  wijzigen; daarom projectdata in undo/redo, naast documentwissel en opslaan. */
   ifcGlobalIds: Readonly<Record<string, string>> | null;
+  /** De kalenders die letterlijk in het bestand staan: die in het geopende IFC `LiteralTimes = .T.` hadden (`OPS_Calendar`,
+   *  `readIFC`), plus die de app in deze sessie letterlijk naar het eigen bestand schreef (`savedLiteralCalendars.ts`).
+   *  De writer houdt ze letterlijk, ook als geen taak dat meer nodig heeft (knownbug 1026). Zonder dit maakte één wissing (bijvoorbeeld
+   *  de enige taak met een eindtijd die niet op een anker past) van de kalender weer een ankerkalender, en schreef de
+   *  writer alle eindtijden van taken die niet veranderden als `T07:00:00`: een ander programma las ze negen uur te
+   *  vroeg. Besluit Trias (wrakko, 10 november 2026, optie a, uitgebreid: "staat een kalender eenmaal letterlijk in het
+   *  bestand, dan blijft hij letterlijk").
+   *  Afwijking van T17 (spec `2026-10-20-alleen-uren-design.md` §3.6: "LiteralTimes is een schrijfkeuze per document,
+   *  bij elke save opnieuw afgeleid"): de afleiding blijft, maar een kalender die letterlijk was, wordt het niet meer
+   *  af. Dat is de veilige richting: een letterlijke kalender schrijft elk moment met zijn echte tijd, en v2026.9.0
+   *  leest die zoals hij ze altijd las. Een bestand zonder `LiteralTimes` blijft byte-gelijk. Omdat de writer de
+   *  eigenschap weer schrijft, staat ze na opslaan en heropenen opnieuw in het bestand: de keuze blijft zo ook over
+   *  sessies heen, zonder eigen pset. De lijst wordt nooit kleiner: niet in undo (`snapshot: 'none'`), en IFC Toepassen
+   *  voegt de letterlijke kalenders van de tekst toe (`applyLoadedProject`). Een undo die hem kleiner maakte, liet 1026
+   *  terugkomen (opslaan met `LiteralTimes`, de bewerking ongedaan maken, opnieuw opslaan). Een id dat na Toepassen een
+   *  andere kalender aanwijst, maakt hooguit een kalender te veel letterlijk: de veilige richting. */
+  ifcLiteralCalendarIds: string[] | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -135,6 +164,8 @@ export type RecoveryDocInput = ImportResult & {
   siteFileId?: string | null;
   /** Zie `RecoveryDocMeta.siteFileVersion`. */
   siteFileVersion?: string | null;
+  /** Zie `RecoveryDocMeta.foreignSource`. */
+  foreignSource?: ForeignSourceTarget | null;
   isDirty: boolean;
   /** Zie `RecoveryDocMeta.datesAsRecorded`. */
   datesAsRecorded: boolean;
@@ -154,6 +185,12 @@ export interface RecoveryDocMeta {
   /** De versie waarop het document rustte (`DocumentPayload.siteFileVersion`). Zonder deze basis
    *  stuurt Ctrl+S na herstel geen `baseVersion` mee en ziet de site geen conflict. */
   siteFileVersion?: string | null;
+  /**
+   * Het doel van de bron met een vreemd deel (#804 fase 1a, fixronde 1; `DocumentPayload.foreignSourceMark` zonder
+   * vingerafdruk en zonder handle): het oude pad of site-bestand. De vingerafdruk zelf staat in de herstel-IFC
+   * (`ImportResult.recoveryForeignSource`). Optioneel: oudere manifesten kennen het veld niet.
+   */
+  foreignSource?: ForeignSourceTarget | null;
   isDirty: boolean;
   /**
    * Stond het document in "datums zoals opgeslagen" toen de snapshot geschreven werd? Komt uit
@@ -297,11 +334,18 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
+  // #804 fase 1a: de IFC-bron. Zoals `xerSourceArchive`: per document, niet in undo, één gedeeld onveranderlijk object.
+  field({ key: 'ifcSource', get: (s) => s.ifcSource, set: (s, v) => { s.ifcSource = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcSource ?? null }),
+  // Fixronde 1: het kenmerk van een bron met een vreemd deel. Per document, niet in undo; overleeft wissel, kopie en herstel.
+  field({ key: 'foreignSourceMark', get: (s) => s.foreignSourceMark, set: (s, v) => { s.foreignSourceMark = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.foreignSourceMark ?? null }),
   // Sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
   field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
   field({ key: 'ifcGlobalIds', get: (s) => s.ifcGlobalIds, set: (s, v) => { s.ifcGlobalIds = v; }, fresh: () => null, snapshot: 'data', fromPayload: (p) => p.ifcGlobalIds ?? null }),
+  // Knownbug 1026: wat eenmaal letterlijk in het bestand stond, blijft letterlijk (zie `DocumentPayload`). Nooit kleiner,
+  // dus niet in undo.
+  field({ key: 'ifcLiteralCalendarIds', get: (s) => s.ifcLiteralCalendarIds, set: (s, v) => { s.ifcLiteralCalendarIds = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcLiteralCalendarIds ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -459,6 +503,8 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   const siteFileId = d.siteFileId ?? null;
   return {
     ...payloadFromImport(d, d.filePath),
+    // Het kenmerk van een bron met een vreemd deel: de vingerafdruk uit de herstel-IFC, het doel uit het manifest.
+    foreignSourceMark: foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource),
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
     isDirty: d.isDirty,
@@ -489,6 +535,9 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     xerImportMetadata: parsed.xer ?? null,
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
+    ifcSource: parsed.ifcSource ?? null,
+    // Het kenmerk zet `applyLoadedProject` (hij kent het doel) of `payloadFromInput` (herstel).
+    foreignSourceMark: null,
     // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
     taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
     // Een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
@@ -498,6 +547,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
     xerArchiveIssue: parsed.xerArchiveIssue ?? null,
     ifcGlobalIds: parsed.ifcGlobalIds ?? null,
+    ifcLiteralCalendarIds: parsed.ifcLiteralCalendarIds ?? null,
     filePath,
     isDirty: false,
   };

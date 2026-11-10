@@ -5,7 +5,7 @@
 // belasting/capaciteit/overallocatie over alle resources+toewijzingen). `distributeUnits` en
 // `assignmentDayUnits` blijven het dagslotcontract: de vorm van een curve of opgeslagen werk, en de
 // contourdialoog (F4b).
-import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { contourSiblings, costResourceIds, resourceHasLoad, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
 import { groupBy } from '@/utils/collections';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
@@ -423,8 +423,11 @@ export function computeResourceLoad(
   // aanroep van deze functie.
   const { forTask: engineForTask } = createTaskEngineCache(resourceCalendars, projectCalendar);
 
-  // 1. Leaf-only, geen mijlpalen (dubbele bewaking t.o.v. resourceSlice.assignResource).
+  // 1. Leaf-only, geen mijlpalen (dubbele bewaking t.o.v. resourceSlice.assignResource). Een
+  //    kostenresource (issue #815) heeft geen belasting: zijn toewijzingen tellen nergens mee.
+  const costIds = costResourceIds(resources);
   const validAssignments = assignments.filter(a => {
+    if (costIds.has(a.resourceId)) return false;
     const task = taskById.get(a.taskId);
     return !!task && isLeafTask(task) && !task.isMilestone;
   });
@@ -630,11 +633,16 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     daily: Map<string, number>;
   }
   const perAssignment: AssignDaily[] = [];
-  const contourOf = contourLookup(assignments);
+  // Kostenresources (issue #815) hebben geen belasting: geen verdeling en geen rapportregel, ook
+  // ongescopeerd (MCP `planner_get_resource_histogram` zonder `resourceIds`). Ze doen ook niet mee
+  // aan de contourkoppeling (`contourSiblings`), net als in `computeResourceLoad`.
+  const costIds = costResourceIds(resources);
+  const contourOf = contourLookup(contourSiblings(assignments, costIds));
   const placedOf = taskPlacementCache(engineForTask, input.schedulingOptions);
   let firstLoadDay: string | undefined;
   let lastLoadDay: string | undefined;
   for (const a of assignments) {
+    if (costIds.has(a.resourceId)) continue;
     const task = taskById.get(a.taskId);
     if (!task || task.isMilestone || isSummaryTask(task)) continue;
     const taskEngine = engineForTask(task);
@@ -667,7 +675,7 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
 
   // 4. Rapport per (gescopete) resource.
   const idSet = resourceIds && resourceIds.length > 0 ? new Set(resourceIds) : null;
-  const reported = idSet ? resources.filter(r => idSet.has(r.id)) : resources;
+  const reported = (idSet ? resources.filter(r => idSet.has(r.id)) : resources).filter(resourceHasLoad);
 
   const report: HistogramReport = { resources: [] };
   for (const resource of reported) {

@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Uyarılar paneli",
+    "scheduleShiftPanel": "Görev kaydırmaları",
     "prevResource": "Önceki",
     "nextResource": "Sonraki",
     "leveling": "Kaynak Dengeleme",
@@ -238,6 +239,8 @@
     "company": "Şirket",
     "startDate": "Başlangıç tarihi",
     "endDate": "Bitiş tarihi",
+    "defaultWorkRule": "Varsayılan görev türü",
+    "defaultWorkRuleHint": "‘Proje varsayılanı’ olarak ayarlanan görevler bu seçimi izler. Kendi görev türü olan görevler seçimlerini korur.",
     "calc": {
       "title": "Hesaplama",
       "subtitle": "Bu proje için zamanlama seçenekleri — uygulamayla değil, dosyayla birlikte saklanır.",
@@ -324,7 +327,7 @@
     "exportTitle": "Dışa aktarma",
     "exportSubtitle": "Bir biçim seçin. Proje dönüştürülerek kaydedilecek.",
     "progressImportCardTitle": "Bir tablodan ilerlemeyi güncelle",
-    "progressImportCardDesc": "Geri gönderilen bir CSV veya XLSX tablosunu okuyun ve tamamlanma, gerçek başlangıç ile gerçek bitişi güncelleyin.",
+    "progressImportCardDesc": "Geri gönderilen bir XLSX tablosunu okuyun ve şu alanları güncelleyin: tamamlanma, gerçek başlangıç, gerçek bitiş.",
     "printTitle": "Yazdır",
     "printSubtitle": "Baskı önizleme ve ayarlar için rapor ekranını açın.",
     "openPrintPreview": "Baskı önizlemeyi aç",
@@ -392,6 +395,9 @@
     "mspdiDesc": "Microsoft Project'te açılır. Tam WBS yapısı.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6 için.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Oracle Primavera P6 için, .xer dosyası olarak.",
+    "experimentalBadge": "Deneysel",
     "profileHint": "Projeniz şu anda {{name}} profilini kullanıyor. Bu dosya biçimiyle en iyi uyumluluk için {{target}} profilini kullanmanızı öneririz.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART standardı, projenin IFC şemasında (varsayılan IFC 4.3 ADD2). BIM modelleriyle 4D bağlantısı.",
@@ -446,5 +452,18 @@
     "redo": "Yinele",
     "zoomIn": "Yakınlaştır",
     "zoomOut": "Uzaklaştır"
+  },
+  "native": {
+    "window": "Pencere",
+    "quit": "Open Planner Studio'dan çıkın",
+    "about": "Open Planner Studio hakkında",
+    "services": "Hizmetler",
+    "hide": "Open Planner Studio'yu gizleyin",
+    "hideOthers": "Diğerlerini gizleyin",
+    "showAll": "Tümünü gösterin",
+    "closeWindow": "Pencereyi kapatın",
+    "cut": "Kes",
+    "fullscreen": "Tam ekranı açın/kapatın",
+    "bringAllToFront": "Tümünü öne getirin"
   }
 }

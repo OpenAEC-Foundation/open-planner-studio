@@ -84,6 +84,7 @@
       "explicitSummary": "Изрична обобщаваща задача",
       "externalRelationData": "Данни за междупроектни връзки",
       "floatPath": "Път на резерва",
+      "calendarDays": "Календарни дни",
       "freeFloat": "Свободен резерв",
       "hammock": "Хамак (изведена продължителност)",
       "interferingFloat": "Интерфериращ резерв",

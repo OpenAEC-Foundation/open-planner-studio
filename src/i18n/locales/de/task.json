@@ -84,6 +84,7 @@
       "explicitSummary": "Expliziter Sammelvorgang",
       "externalRelationData": "Daten externer Beziehungen",
       "floatPath": "Pufferpfad",
+      "calendarDays": "Kalendertage",
       "freeFloat": "Freier Puffer",
       "hammock": "Hammock (abgeleitete Dauer)",
       "interferingFloat": "Störender Puffer",

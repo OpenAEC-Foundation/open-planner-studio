@@ -20,6 +20,7 @@ import { assignmentDayUnits } from '@/engine/scheduler/ResourceLoad';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import type { AppState } from '@/state/appStore';
+import { resourceCostTotals } from '@/utils/resourceCostTotals';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -31,11 +32,9 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 }
 const r2 = (n: number | undefined) => (n === undefined ? undefined : Math.round(n * 100) / 100);
 
-/** Kolom "Totaal" van het resourcepaneel (`ResourcePanel.costByResource`). */
+/** Kolom "Totaal" van het resourcepaneel: dezelfde functie die `ResourcePanel.costByResource` gebruikt. */
 function panelCost(s: AppState, resourceId: string): number | undefined {
-  const r = s.resources.find((x) => x.id === resourceId)!;
-  const hours = s.resourceLoadResult?.hours?.[resourceId];
-  return hours === undefined || r.costPerHour == null ? undefined : hours * r.costPerHour;
+  return resourceCostTotals(s.resources, s.assignments, s.resourceLoadResult?.hours)[resourceId];
 }
 
 /** Urentotaal zoals de contourdialoog het toont (`ContourDialog`: taakengine, eenheden × mpd). */
@@ -104,6 +103,18 @@ const reserve = S().addResource({ name: 'Reserve', type: 'LABOR', description: '
 S().runCPM();
 eq('4a geen tarief ⇒ geen bedrag', panelCost(S(), kraan), undefined);
 eq('4b geen toewijzing ⇒ geen bedrag', panelCost(S(), reserve), undefined);
+
+// 5. Kostenresource (#815): Totaal = som van de bedragen; geen uren, geen tarief.
+const leges = S().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
+S().assignResource(kort, leges, 1, undefined, 1250.55);
+S().assignResource(lang, leges, 1, undefined, 0);
+S().runCPM();
+eq('5a kosten: Totaal = 1250,55 + 0', r2(panelCost(S(), leges)), 1250.55);
+eq('5b kosten: geen belaste uren', S().resourceLoadResult?.hours?.[leges] ?? null, null);
+S().setAssignmentCost(S().assignments.find((a) => a.resourceId === leges && a.taskId === kort)!.id, undefined);
+S().setAssignmentCost(S().assignments.find((a) => a.resourceId === leges && a.taskId === lang)!.id, undefined);
+eq('5c kosten zonder bedrag ⇒ geen Totaal', panelCost(S(), leges), undefined);
+eq('5d werkresource ongewijzigd', r2(panelCost(S(), timmerman)), 1900);
 
 if (diffs.length) {
   for (const d of diffs) console.log(`XX  ${d}`);

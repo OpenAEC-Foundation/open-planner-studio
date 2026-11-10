@@ -40,6 +40,8 @@ The fields of the *New project* window and of *Project settings*: what each fiel
 
 ## Only in Project settings
 
+**Default task type** — choose *Fixed duration and units*, *Fixed duration and work*, *Fixed work* or *Fixed units*. Without a project choice, *Fixed duration and units* applies. After *Apply*, all existing and new tasks set to *Project default* follow this choice; tasks with their own task type keep their choice. The setting is saved in the IFC file and the change is one step in *Undo*. See [Choosing a task type](docs://howto-werkregel-kiezen).
+
 **IFC schema when saving** — which IFC schema is in the header of the saved file. Choice of *IFC 4.3 ADD2 (default)*, *IFC 4.3* and *IFC4*. Default: *IFC 4.3 ADD2 (default)*; for an opened IFC file, the schema of that file. Effect: only the header of the file changes, not the content. Use it to merge the schedule with a building model in the same schema. If an opened file has another schema than the default, the app asks the first time you save whether you keep that schema; a choice here counts as the answer. Another choice here is not a step in *Undo*: the schema belongs to the file. See [Choosing the IFC schema](docs://howto-ifc-schema-kiezen).
 
 ## Only in the New project window

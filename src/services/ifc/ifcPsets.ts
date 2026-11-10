@@ -7,8 +7,8 @@ import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { importStatusDate } from '@/services/importDates';
 import { storedExternalLinks } from '@/engine/externalLinks';
 import {
-  DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_DURATION_KEYS, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
-  EXACT_MINUTES_KEYS, EXACT_MINUTES_PROP, parseDayMeasureDurations, parseExactFloat, parseExactMinutes,
+  DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_DURATION_KEYS, DAY_MEASURE_LAGS_PROP, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
+  EXACT_MINUTE_LAGS_PROP, EXACT_MINUTES_KEYS, EXACT_MINUTES_PROP, parseDayMeasureDurations, parseExactFloat, parseExactMinutes,
   type DayMeasureDurationRecords, type ExactFloatRecords, type ExactMinutesRecords,
 } from './dayMeasureIo';
 
@@ -103,6 +103,9 @@ export const PSET = {
   XerSourceArchive: 'OPS_XerSourceArchive',
   /** Selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
   XerDocument: 'OPS_XerDocument',
+  /** #804 fixronde 1: alleen in een crashherstel-snapshot en een MCP-backup. Het document kwam uit een IFC-bestand met
+   *  een vreemd deel; lengte en SHA-256 van die bron, zonder bytes, en in een backup ook het doel (fixronde 3). */
+  RecoveryForeignSource: 'OPS_RecoveryForeignSource',
   /** Relatie-eigen XER-herkomst, als een geldige pset op de IfcWorkSchedule met relationele GUIDs.
    *  IFC laat een IfcPropertySet niet rechtstreeks aan IfcRelSequence hangen; de GUIDs maken de
    *  koppeling toch exact, zonder een schema-ongeldige relatie te serialiseren. */
@@ -111,6 +114,8 @@ export const PSET = {
   Calendar: 'OPS_Calendar',
   // Resourcebibliotheek-pool als autoritatief JSON-blob op het IfcProject.
   Library: 'OPS_Library',
+  /** Het tijdmodel (`TimeModel`) op het IfcProject. */
+  Project: 'OPS_Project',
 } as const;
 
 /**
@@ -327,6 +332,10 @@ export interface PerTaskPset {
   psetSeed: string;
   /** ifcGuid-seed-prefix voor de IFCRELDEFINESBYPROPERTIES-GlobalId. */
   relSeed: string;
+  /** De property-namen die `apply` (of, bij `OPS_TaskIdentity`, de lezer vooraf) echt leest: het
+   *  register van #804 §4.2. Een andere property in deze pset is een vreemd lid. Ook oude namen die de
+   *  writer niet meer schrijft maar de lezer nog leest, staan hier. */
+  readProps: readonly string[];
   /** Golden rule: `null` of lege lijst ⇒ niets geschreven. */
   write(task: Task, options?: PerTaskWriteOptions): PropSpec[] | null;
   /** Zet de gelezen (reeds naar {name,value} geparste) IFCPROPERTYSINGLEVALUE-props terug op de taak. */
@@ -367,6 +376,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    bewust een no-op; de descriptor blijft wél de enige bron voor naam en schrijfvorm.
   {
     name: PSET.TaskIdentity, psetSeed: 'pset_tid_', relSeed: 'rel_tid_',
+    readProps: ['InternalTaskId'],
     write(task) {
       return [{ name: 'InternalTaskId', value: `IFCTEXT(${ifcStr(task.id)})` }];
     },
@@ -378,6 +388,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    heeft geen constraint-/deadline-slots. ASAP (default) wordt niet geschreven.
   {
     name: PSET.Constraints, psetSeed: 'pset_cst_', relSeed: 'rel_cst_',
+    readProps: ['ConstraintType', 'ConstraintDate', 'Hard', 'ConstraintType2', 'ConstraintDate2', 'Deadline'],
     write(task) {
       const props: PropSpec[] = [];
       const c = task.constraint;
@@ -423,6 +434,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 2. Externe (cross-project) dependencies als één autoritatief JSON-veld.
   {
     name: PSET.ExternalLink, psetSeed: 'pset_extl_', relSeed: 'rel_extl_',
+    readProps: ['Links'],
     write(task) {
       const links = task.externalLinks;
       if (!links || links.length === 0) return null;
@@ -443,6 +455,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 3. Hammock/LOE-vlag (geen native IfcTaskTypeEnum-waarde).
   {
     name: PSET.Hammock, psetSeed: 'pset_hmk_', relSeed: 'rel_hmk_',
+    readProps: ['IsHammock'],
     write(task) {
       return task.isHammock ? [{ name: 'IsHammock', value: 'IFCBOOLEAN(.T.)' }] : null;
     },
@@ -453,6 +466,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 4. Mijlpaalsoort + verplicht-vlag (IfcTaskTypeEnum kent geen start/finish-onderscheid).
   {
     name: PSET.Milestone, psetSeed: 'pset_ms_', relSeed: 'rel_ms_',
+    readProps: ['AtDayEnd', 'MilestoneKind', 'Mandatory'],
     write(task, options) {
       if (!task.isMilestone) return null;
       const props: PropSpec[] = [];
@@ -477,6 +491,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    schrijft ÉÉN property.
   {
     name: PSET.Leveling, psetSeed: 'pset_lvl_', relSeed: 'rel_lvl_',
+    readProps: ['LevelingDelay', 'LevelingDelayMinutes', 'LevelingDelayElapsed'],
     write(task) {
       const props: PropSpec[] = [];
       if (task.levelingDelay) props.push({ name: 'LevelingDelay', value: `IFCINTEGER(${Math.round(task.levelingDelay)})` });
@@ -503,6 +518,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 6. Taak-aantekeningen (checklist) als één autoritatief JSON-veld.
   {
     name: PSET.TaskNotes, psetSeed: 'pset_notes_', relSeed: 'rel_notes_',
+    readProps: ['Notes'],
     write(task) {
       const notes = task.notes;
       if (!notes || notes.length === 0) return null;
@@ -521,6 +537,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 7. Taak-kleur (IfcTask heeft geen native kleur-attribuut).
   {
     name: PSET.TaskAppearance, psetSeed: 'pset_appear_', relSeed: 'rel_appear_',
+    readProps: ['Color'],
     write(task) {
       return task.color ? [{ name: 'Color', value: `IFCTEXT(${ifcStr(task.color)})` }] : null;
     },
@@ -535,6 +552,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    bestanden. Golden rule: zonder record geen pset.
   {
     name: PSET.Analysis, psetSeed: 'pset_ana_', relSeed: 'rel_ana_',
+    readProps: ['InterferingFloat', 'IsNearCritical', 'FloatPath', EXACT_FLOAT_PROP],
     write(_task, options) {
       const floats = options?.exactFloat && recordsJson(EXACT_FLOAT_KEYS, options.exactFloat);
       return floats ? [{ name: EXACT_FLOAT_PROP, value: `IFCTEXT(${ifcJson(floats)})` }] : null;
@@ -556,6 +574,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    geschreven), corrupte of verkeerd-gevormde JSON wordt genegeerd i.p.v. de load te breken.
   {
     name: PSET.Splits, psetSeed: 'pset_splits_', relSeed: 'rel_splits_',
+    readProps: ['Splits'],
     write(task) {
       const gaps = task.splitGaps;
       if (!gaps || gaps.length === 0) return null;
@@ -587,6 +606,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     round-trippend). Kopieert het Hammock-stramien (één boolean, golden rule).
   {
     name: PSET.Manual, psetSeed: 'pset_man_', relSeed: 'rel_man_',
+    readProps: ['ManuallyScheduled'],
     write(task) {
       return task.manuallyScheduled ? [{ name: 'ManuallyScheduled', value: 'IFCBOOLEAN(.T.)' }] : null;
     },
@@ -604,6 +624,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     als IFCTEXT — geen aparte dag/uur-typering nodig, de string is al in de juiste vorm).
   {
     name: PSET.Resume, psetSeed: 'pset_resume_', relSeed: 'rel_resume_',
+    readProps: ['Resume', 'Stop'],
     write(task) {
       const t = task.time;
       const props: PropSpec[] = [];
@@ -630,6 +651,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     JSON-pset `OPS_TimephasedDurationWalks`, spiegelt `OPS_Baselines`' taskId-GUID-remap-precedent).
   {
     name: PSET.Window, psetSeed: 'pset_win_', relSeed: 'rel_win_',
+    readProps: ['FinishFloor', 'StartAnchor'],
     write(task) {
       const props: PropSpec[] = [];
       if (task.timephasedFinishFloor) props.push({ name: 'FinishFloor', value: `IFCTEXT(${ifcStr(task.timephasedFinishFloor)})` });
@@ -649,6 +671,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     `Window` hierboven, dat wél kan leeglopen).
   {
     name: PSET.Contours, psetSeed: 'pset_contours_', relSeed: 'rel_contours_',
+    readProps: ['Contours'],
     write(task) {
       const contours = task.timephasedContours;
       if (!contours || contours.length === 0) return null;
@@ -684,6 +707,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     `Hard` in PSET.Constraints).
   {
     name: PSET.MspTaskType, psetSeed: 'pset_mtt_', relSeed: 'rel_mtt_',
+    readProps: ['MspTaskType', 'EffortDriven'],
     write(task) {
       const props: PropSpec[] = [];
       if (task.mspTaskType) props.push({ name: 'MspTaskType', value: `IFCLABEL(${ifcStr(task.mspTaskType)})` });
@@ -705,6 +729,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     Golden rule: een taak zonder één van deze velden schrijft geen pset.
   {
     name: PSET.P6Progress, psetSeed: 'pset_p6prog_', relSeed: 'rel_p6prog_',
+    readProps: ['ProjectId', 'TaskId', 'ExplicitTargetWindow', 'CompletePctType', 'ExpectedFinish', 'DurationType', 'ActivityType', 'SuspendResume'],
     write(task) {
       const props: PropSpec[] = [];
       if (task.p6ProjectId) props.push({ name: 'ProjectId', value: `IFCTEXT(${ifcStr(task.p6ProjectId)})` });
@@ -741,6 +766,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     Alleen `true` schrijft iets.
   {
     name: PSET.Summary, psetSeed: 'pset_sum_', relSeed: 'rel_sum_',
+    readProps: ['IsSummary'],
     write(task) {
       return task.isSummary === true
         ? [{ name: 'IsSummary', value: 'IFCBOOLEAN(.T.)' }]
@@ -761,6 +787,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     werkregelbrug beheert duur en werk, en er komt geen nieuwe pset.
   {
     name: PSET.WorkRule, psetSeed: 'pset_wrl_', relSeed: 'rel_wrl_',
+    readProps: ['WorkRule', DAY_MEASURE_DURATIONS_PROP, EXACT_MINUTES_PROP],
     write(task, options) {
       const props: PropSpec[] = [];
       if (task.workRule) props.push({ name: 'WorkRule', value: `IFCLABEL(${ifcStr(task.workRule)})` });
@@ -789,3 +816,53 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
 /** Naam → descriptor, voor de reader-dispatch in `extractStructure`. */
 export const PER_TASK_PSET_BY_NAME: Map<string, PerTaskPset> =
   new Map(PER_TASK_PSETS.map(d => [d.name, d]));
+
+/**
+ * Register van #804 (ontwerp "Gebouwmodel behouden", §4.2), deel 2: per pset ZONDER descriptor in
+ * `PER_TASK_PSETS` de property-namen die de lezer echt leest. Samen met `readProps` van de descriptors
+ * dekt dit elke naam in `PSET`. Een andere property in zo'n pset is een vreemd lid.
+ *
+ * Vier psets hebben (ook) sleutels uit de data; hun herkenner staat in `foreign/classify.ts`:
+ * `OPS_Assignments` (GlobalId-sleutels), `OPS_CustomFields` en `OPS_ActivityCodes` (namen uit
+ * `OPS_StructureMeta` of de templates) en `OPS_XerSourceArchive` (`ByteChunk000000`, `DiagnosticsChunk000000`).
+ *
+ * Fase 0 (#804) gebruikt dit register alleen in de indeling en de poort; writer en lezer hebben hun
+ * eigen tekstliteralen nog. De poort bewijst dat elke property die de writer schrijft hier staat.
+ */
+export const OWN_PSET_PROPERTY_NAMES: Readonly<Record<string, readonly string[]>> = {
+  [PSET.ProjectSettings]: [
+    'InternalProjectId', 'wbsAutoNumber', 'DefaultTaskDurationUnit', 'DefaultWorkRule', 'StatusDate', 'ProgressMode',
+    'ProjectStartDate', 'ProjectEndDate', 'CreatedAt', 'ModifiedAt', 'CompanyId', 'CompanyName', 'IfcSchemaConfirmed',
+    'IfcSchemaUnconfirmed', 'P6ProjectCode', 'DependentProjectsFolder',
+  ],
+  // De lezer leest elke enkelvoudige property van deze pset als JSON; de writer schrijft er één.
+  [PSET.StructureMeta]: ['structure'],
+  [PSET.TaskTypes]: ['TaskTypes'],
+  [PSET.CustomFields]: [],
+  [PSET.ActivityCodes]: [],
+  [PSET.Resource]: ['MaxUnits', 'CostPerHour', 'UnitOfMeasure', 'Color', 'AvailabilitySteps', 'ParentGuid', 'LibraryOrigin'],
+  [PSET.Assignments]: [],
+  [PSET.Timephased]: ['Windows'],
+  [PSET.Baselines]: ['Baselines', 'ActiveBaselineId', 'ComparedBaselineIds', 'TaskGuids'],
+  [PSET.SchedulingOptions]: ['SchedulingOptions'],
+  [PSET.SchedulingProfile]: ['SchedulingProfile'],
+  [PSET.ImportProvenance]: ['UnchangedSinceImport', 'SourceFormat'],
+  [PSET.XerSourceArchive]: [
+    'SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256', 'Encoding', 'Bom', 'Newline', 'ByteChunkSize',
+    'ByteChunkCount', 'DiagnosticsByteLength', 'DiagnosticsSha256', 'DiagnosticsChunkCount',
+  ],
+  [PSET.XerDocument]: ['ArchiveSha256', 'SourceProjectId'],
+  [PSET.RecoveryForeignSource]: ['Sha256', 'ByteLength', 'SourcePath', 'SourceSiteFileId'],
+  [PSET.Sequences]: ['P6StartAtPredecessorFinishBoundarySequenceGuids', DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP],
+  [PSET.Calendar]: [
+    'LiteralTimes', 'RuleSetId', 'Region', 'BreakChoice', 'GeneratedFromYear', 'GeneratedToYear', 'LibraryOrigin',
+    'HoursPerDay', 'WorkStartHour', 'WorkEndHour', 'SimpleBreakStart', 'SimpleBreakDuration', 'IsHourCalendar',
+    'WorkingExceptionKeysV1', 'WorkingExceptionIds', 'P6Source', 'P6NonWorkPenaltyDates', 'P6NonWorkPenaltyDatesState',
+  ],
+  [PSET.Library]: ['pool'],
+  [PSET.DurationWalks]: ['DurationWalks'],
+  [PSET.Project]: ['TimeModel'],
+};
+
+/** De property-set-templates die de writer schrijft (`writeStructure`), gedeclareerd aan het project. */
+export const OWN_TEMPLATE_NAMES: readonly string[] = [PSET.CustomFields, PSET.ActivityCodes];

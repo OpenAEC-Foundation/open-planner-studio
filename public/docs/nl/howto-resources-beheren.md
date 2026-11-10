@@ -14,7 +14,7 @@ Twee vaktermen. **Max. eenheden** is de capaciteit per werkdag: 1 is één perso
 
 1. Kies *Resources › Beheer › Nieuwe resource*. Het resourcepaneel neemt de werkruimte over en onderaan de tabel staat een lege rij. Je kunt het paneel ook openen met *Resources › Beheer › Resources* en dan *Nieuwe resource in het project* kiezen.
 2. Typ de naam, bijvoorbeeld *Metselaar*.
-3. Kies het *Type*: *Arbeid* (de standaard), *Materieel*, *Materiaal*, *Onderaannemer* of *Ploeg*.
+3. Kies het *Type*: *Arbeid* (de standaard), *Materieel*, *Materiaal*, *Onderaannemer*, *Ploeg* of *Kosten*. Een kostenresource draagt alleen een vast bedrag per toewijzing; zie [Een vast bedrag toekennen](docs://howto-vast-bedrag-toekennen).
 4. Vul zo nodig de andere velden in. Alles heeft een standaard: *Max. eenheden* is 1 en *Kalender* is *Projectkalender*. *Tarief/uur* is leeg. *Eenheid* kun je alleen invullen bij het type *Materiaal*, bijvoorbeeld m³.
 5. Druk op Enter of klik buiten de rij. De resource staat in de tabel. Met Enter opent daaronder direct een lege rij voor de volgende. Druk op Esc als je klaar bent.
 
@@ -51,7 +51,7 @@ Aanmaken, aanpassen en verwijderen kun je allemaal terugdraaien met *Ongedaan* (
 
 ## Valkuilen en wat de app dan doet
 
-**Voor de berekening maakt alleen het type *Materiaal* verschil.** Arbeid, Materieel, Onderaannemer en Ploeg worden hetzelfde behandeld. Materiaal telt niet mee voor de duur van een taak en wordt niet genivelleerd. In het histogram telt de rij *Alle resources* materiaal ook niet mee.
+**Voor de berekening maken alleen de typen *Materiaal* en *Kosten* verschil.** Arbeid, Materieel, Onderaannemer en Ploeg worden hetzelfde behandeld. Kosten telt nergens mee: niet voor de duur, de belasting, het histogram of het nivelleren. Materiaal telt niet mee voor de duur van een taak en wordt niet genivelleerd. In het histogram telt de rij *Alle resources* materiaal ook niet mee.
 
 **Geen naam, geen resource.** Een lege rij verdwijnt zonder spoor.
 

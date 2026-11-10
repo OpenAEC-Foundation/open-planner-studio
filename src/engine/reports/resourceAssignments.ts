@@ -26,6 +26,8 @@ export interface ResourceAssignmentRow {
   /** De restduur in de maat van de taak (B8), voor de weergave. */
   remaining: MeasuredDuration;
   unitsPerDay: number;
+  /** Bedrag van een kostenresource (#815); afwezig = geen bedrag. Een kostenrij heeft geen inzet. */
+  costAmount?: number;
   completion: number;
   isCritical: boolean;
   state: ProgressState;
@@ -81,6 +83,7 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
       remainingDays: remainingDays(ctx, t),
       remaining: remainingMeasure(t),
       unitsPerDay: a.unitsPerDay,
+      ...(r.type === 'COST' && a.costAmount !== undefined ? { costAmount: a.costAmount } : {}),
       completion: t.time.completion,
       isCritical: t.time.isCritical,
       state,
