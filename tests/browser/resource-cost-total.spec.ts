@@ -5,6 +5,7 @@
 // echte klik, beide getallen worden uit de gerenderde DOM gelezen. Headless: check-resource-cost-hours.ts.
 // Kostenresource (#815): in dezelfde route wordt een kostenresource met een echte klik toegewezen en krijgt
 // hij via het bedragveld een bedrag (Enter); de kolom Totaal toont dan de som. Headless: check-cost-resource.ts.
+// De somregel onderaan staat onder de kolom Totaal, niet een kolom ernaast.
 import { expect, test } from './fixtures/ops';
 
 test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een taakkalender met andere uren/dag', async ({ page, ops: _ops }) => {
@@ -73,4 +74,16 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
   // Kostenresource: Totaal = de som van de bedragen (1250,50).
   const costTotal = page.locator(`[data-ops-resource-total="${costId}"]`);
   await expect.poll(async () => (await costTotal.textContent())?.replace(/\D/g, '')).toBe('125050');
+  // De somregel staat onder de kolom Totaal (vroeger één kolom te ver links, onder Tarief/uur):
+  // dezelfde linker- en rechterrand als de kop en als het totaal per resource. Som: 2.500 + 1.250,50.
+  const grand = page.locator('[data-ops-resource-grand-total]');
+  await expect.poll(async () => (await grand.textContent())?.replace(/\D/g, '')).toBe('375050');
+  const head = await page.locator('[data-ops-resource-total-head]').boundingBox();
+  const rowBox = await total.boundingBox();
+  const sum = await grand.boundingBox();
+  expect(head && rowBox && sum).toBeTruthy();
+  for (const box of [rowBox!, sum!]) {
+    expect(Math.abs(box.x - head!.x)).toBeLessThan(2);
+    expect(Math.abs(box.x + box.width - (head!.x + head!.width))).toBeLessThan(2);
+  }
 });

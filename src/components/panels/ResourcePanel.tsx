@@ -106,27 +106,50 @@ const cellStatic = 'block !text-body !px-1.5 !py-1 w-full truncate text-text-sec
 const TH = 'text-left px-2 py-1.5 font-semibold border-b border-border';
 const TH_RIGHT = 'text-right px-2 py-1.5 font-semibold border-b border-border';
 
-/** Kop van de pool- en de projecttabel. Het project toont "Totaal" (kosten) en altijd de
- *  ploegkolom; de pool heeft geen totaal en toont de ploegkolom pas zodra hij resources heeft. */
-function ResourceTableHead({ showTotal, showParent }: { showTotal: boolean; showParent: boolean }) {
+/** Kolommen van de pool- en de projecttabel, in volgorde. Het project toont "Totaal" (kosten) en
+ *  altijd de ploegkolom; de pool heeft geen totaal en toont de ploegkolom pas zodra hij resources
+ *  heeft. Kop, somregel en de breedte van de subrijen tellen allemaal uit deze ene lijst. */
+type ResourceColumn = 'color' | 'name' | 'type' | 'maxUnits' | 'calendar' | 'costPerHour' | 'total' | 'unit' | 'parent' | 'actions';
+function resourceColumns(showTotal: boolean, showParent: boolean): ResourceColumn[] {
+  return [
+    'color', 'name', 'type', 'maxUnits', 'calendar', 'costPerHour',
+    ...(showTotal ? ['total' as const] : []),
+    'unit',
+    ...(showParent ? ['parent' as const] : []),
+    'actions',
+  ];
+}
+
+const PROJECT_COLUMNS = resourceColumns(true, true);
+const TOTAL_INDEX = PROJECT_COLUMNS.indexOf('total');
+
+function ResourceTableHead({ columns }: { columns: ResourceColumn[] }) {
   const { t } = useTranslation('common');
+  const cell = (col: ResourceColumn) => {
+    switch (col) {
+      case 'color':
+        return (
+          <th key={col} className="border-b border-border px-1 py-1.5" style={{ width: 44 }} title={t('resource.color')} aria-label={t('resource.color')}>
+            <span className="block h-2.5 w-full rounded-sm" style={{ background: 'var(--theme-border)' }} />
+          </th>
+        );
+      case 'name': return <th key={col} className={TH} style={{ minWidth: 160 }}>{t('resource.name')}</th>;
+      case 'type': return <th key={col} className={TH} style={{ width: 130 }}>{t('resource.typeLabel')}</th>;
+      case 'maxUnits': return <th key={col} className={TH_RIGHT} style={{ width: 110 }}>{t('resource.maxUnits')}</th>;
+      case 'calendar': return <th key={col} className={TH} style={{ width: 160 }}>{t('resource.calendarId')}</th>;
+      case 'costPerHour': return <th key={col} className={TH_RIGHT} style={{ width: 90 }}>{t('resource.costPerHour')}</th>;
+      case 'total': return <th key={col} className={TH_RIGHT} style={{ width: 100 }} title={t('resource.totalHint')} data-ops-resource-total-head>{t('resource.total')}</th>;
+      case 'unit': return <th key={col} className={TH} style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>;
+      case 'parent': return <th key={col} className={TH} style={{ width: 120 }}>{t('resource.parent')}</th>;
+      // In beide tabellen dezelfde breedte — er kan een "Naar de bibliotheek"-tekstknop in staan,
+      // niet alleen het losmaak-/verwijder-icoon.
+      case 'actions': return <th key={col} className="border-b border-border" style={{ width: 190 }} />;
+    }
+  };
   return (
     <thead>
       <tr className="sticky top-0 z-10" style={{ background: 'var(--theme-surface-alt)' }}>
-        <th className="border-b border-border px-1 py-1.5" style={{ width: 44 }} title={t('resource.color')} aria-label={t('resource.color')}>
-          <span className="block h-2.5 w-full rounded-sm" style={{ background: 'var(--theme-border)' }} />
-        </th>
-        <th className={TH} style={{ minWidth: 160 }}>{t('resource.name')}</th>
-        <th className={TH} style={{ width: 130 }}>{t('resource.typeLabel')}</th>
-        <th className={TH_RIGHT} style={{ width: 110 }}>{t('resource.maxUnits')}</th>
-        <th className={TH} style={{ width: 160 }}>{t('resource.calendarId')}</th>
-        <th className={TH_RIGHT} style={{ width: 90 }}>{t('resource.costPerHour')}</th>
-        {showTotal && <th className={TH_RIGHT} style={{ width: 100 }} title={t('resource.totalHint')}>{t('resource.total')}</th>}
-        <th className={TH} style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>
-        {showParent && <th className={TH} style={{ width: 120 }}>{t('resource.parent')}</th>}
-        {/* In beide tabellen dezelfde breedte — er kan een "Naar de
-            bibliotheek"-tekstknop in staan, niet alleen het losmaak-/verwijder-icoon. */}
-        <th className="border-b border-border" style={{ width: 190 }} />
+        {columns.map(cell)}
       </tr>
     </thead>
   );
@@ -387,6 +410,7 @@ export function ResourcePanel() {
   // eerste/laatste-CREW-mutatie. De SELECT-opties (`poolCrews`) blijven wél op echte CREW-resources.
   const poolCrews = pool ? pool.resources.filter(r => r.type === 'CREW') : [];
   const poolShowParentColumn = (pool?.resources.length ?? 0) > 0;
+  const poolColumns = resourceColumns(false, poolShowParentColumn);
 
   const numberFmt = useMemo(
     () => new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -546,7 +570,7 @@ export function ResourcePanel() {
             <div className="p-4 text-text-secondary">{t('companyLibrary.noResources')}</div>
           ) : (
             <table className="w-full border-collapse">
-              <ResourceTableHead showTotal={false} showParent={poolShowParentColumn} />
+              <ResourceTableHead columns={poolColumns} />
               <tbody>
                 {pool.resources.map(r => {
                   const stepsOpen = expandedSteps === r.id;
@@ -556,7 +580,7 @@ export function ResourcePanel() {
                       key={r.id}
                       resource={r}
                       variant="pool"
-                      colCount={poolShowParentColumn ? 9 : 8}
+                      colCount={poolColumns.length}
                       crews={poolCrews}
                       calendarOptions={pool.calendars}
                       stepsOpen={stepsOpen}
@@ -603,7 +627,7 @@ export function ResourcePanel() {
           )
         ) : (
           <table className="w-full border-collapse">
-            <ResourceTableHead showTotal showParent />
+            <ResourceTableHead columns={PROJECT_COLUMNS} />
             <tbody>
               {resources.map(r => {
                 const stepsOpen = expandedSteps === r.id;
@@ -614,7 +638,7 @@ export function ResourcePanel() {
                     key={r.id}
                     resource={r}
                     variant="project"
-                    colCount={10}
+                    colCount={PROJECT_COLUMNS.length}
                     crews={crews}
                     calendarOptions={resourceCalendars}
                     stepsOpen={stepsOpen}
@@ -643,10 +667,9 @@ export function ResourcePanel() {
             {grandTotal !== undefined && (
               <tfoot>
                 <tr className="border-t border-border font-semibold">
-                  <td className="px-2 py-1.5 text-text-secondary" colSpan={4}>{t('resource.total')}</td>
-                  <td className="px-2 py-1.5 text-right" />
-                  <td className="px-2 py-1.5 text-right">{numberFmt.format(grandTotal)}</td>
-                  <td colSpan={3} />
+                  <td className="px-2 py-1.5 text-text-secondary" colSpan={TOTAL_INDEX}>{t('resource.total')}</td>
+                  <td className="px-2 py-1.5 text-right" data-ops-resource-grand-total>{numberFmt.format(grandTotal)}</td>
+                  <td colSpan={PROJECT_COLUMNS.length - TOTAL_INDEX - 1} />
                 </tr>
               </tfoot>
             )}
