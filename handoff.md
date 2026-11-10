@@ -8,6 +8,8 @@ van fase 1 naar `docs/archive/handoffs/` (bij fase 0 ging dat mis: zie `HANDOFF-
 Het ontwerp (versie 20) en fase 0 zijn gemerged in main. Fase 0 bewees dat de app bij een eigen bestand precies het eigen
 deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met een gebouwmodel, achter een flag: eerst
 lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
+Het lezen (1a) is gemerged in main. Nu wordt het schrijven gebouwd (1b): de writer die het gebouwmodel laat staan en de
+planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in 1c, na de controles.
 
 ## Bronnen
 
@@ -21,7 +23,8 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 
 | Afspraak | Wie, wanneer |
 |---|---|
-| Elke fase op een eigen branch vanaf `main`; Sol reviewt per PR, Trias start de review en merget | wrakko, 2026-11-09 |
+| Elke fase op een eigen branch vanaf `main`; Sol (xhigh) en Terra (xhigh, proef) reviewen per PR, elke ronde een nieuwe `delegate_task` met de vorige bevindingen | wrakko, 2026-11-09/10 |
+| Mergen doet de orkestrator zelf: `gh pr merge <nr> --merge --admin --match-head-commit <sha>`, bij een groene CI en een ja van Sol op de laatste commit; merge-commit aan wrakko melden (wiki/inzichten/merge met admin.md) | wrakko, 2026-11-10 |
 | Geen Fable, ook niet als subagent of in een council, tot Fable 5.5 uit is; een council draait met Opus en Sol | Ethan, 2026-11-09 |
 | `place_file_exclusive(from, to)` pas in fase 2, met de voorwaarden in §11; in fase 1 geen Rust-commando | wrakko, 2026-11-09 |
 | Een wijziging in `.github/workflows/` pusht Trias: het token op aia09-mp50 heeft geen `workflow`-scope | wrakko, 2026-11-09 |
@@ -36,8 +39,13 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
    flag. Met flag en een vreemd deel: openen mag, opslaan wordt geweigerd met een melding tot 1c. Ook: afwijking 6
    (`readIFC` volgt `selectPlanning`, ook de uitzondering voor een eigen live-schema), afwijking 7 (wat de app doet als de
    scanner een bestand weigert dat `readIFC` wel opent), knownbug 1007 (ids boven 2^31−1).
-2. **1b schrijven**: de writer met behouden ids (§4.3, §4.4, §4.10 opbouw van de uitvoer), afwijking 8 (writer en lezer
-   gebruiken dezelfde constanten als het register).
+2. **1b schrijven** (branch `feat/804-fase1b-schrijven`): de writer met behouden ids (§4.3, §4.4, §4.10 opbouw van de
+   uitvoer), afwijking 8 (writer en lezer gebruiken dezelfde constanten als het register).
+   **Ook in 1b** (wrakko, 10 november 2026; VERVOLG 3 van Sol uit ronde 5 van #864): het contract-commentaar van
+   `src/services/ifc/foreign/targetModelScan.ts` noemt de strengere afwijkingen tegenover `readIFC` (complexe instantie
+   met een producttype; een scan zonder uitkomst; een modelbestand dat `readIFC` om een andere reden niet opent, zoals
+   afgekapt of met een NUL-byte vóór de kop, omdat `First.Space` alle bytes `<= 0x20` overslaat), en de pariteitstest
+   in `tests/planning/check-ifc-target-model-scan.ts` neemt die gevallen expliciet op.
 3. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
    flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
@@ -76,11 +84,15 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
   (fixronde 1); AutoSave over de bron van een ander document, doelcontrole op inhoud als stroom (fixronde 2); lange kop,
   kenmerk in de MCP-backup, één vingerafdruk per controle (fixronde 3); de doelcontrole volgt de route van `readIFC`,
   met één gedeelde zoeker voor `DATA;` (`src/services/ifc/stepDataSection.ts`) (fixronde 4). Knownbugs 1012–1019.
-- 2026-11-10: ronde 5 op `ac56701fb`: Sol **ja**, Terra **ja**, geen BLOKKEERT. Besluiten van wrakko in deze rondes:
+- 2026-11-10: ronde 5 op `ac56701fb` (CI groen op `24ef9cca5`): Sol **ja**, Terra **ja**, geen BLOKKEERT. Besluiten van wrakko in deze rondes:
   de doelcontrole zegt `model` precies als `readIFC` weigert met `building-model`, plus drie strengere afwijkingen
   (complexe instantie met een producttype; een scan zonder uitkomst is geen vrijbrief; een modelbestand dat `readIFC`
   om een andere reden niet opent, zoals afgekapt of met een NUL-byte vóór de kop); de backup met kenmerk wijkt met de
   flag uit af van main (aanvaard); geen werkgrens voor 1018 in 1a.
+
+- 2026-11-10: #864 gemerged in main door wrakko: `14f979755` (`--admin --match-head-commit 24ef9cca5`). Branch
+  `feat/804-fase1b-schrijven` vanaf die commit, worktree `/home/aia09/.t3/worktrees/open-planner-studio/feat-804-fase1b`
+  (`node_modules`: link naar `kb-tests/node_modules`, package-lock gelijk op het versienummer na).
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -91,6 +103,6 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 
 ## Volgende stappen
 
-1. #864: CI groen op de laatste commit, PR op ready, merge met `--match-head-commit`, merge-commit aan wrakko melden.
-2. Dan 1b en 1c op eigen branches vanaf `main`, met de eisen voor 1c hierboven (1011, de bron zonder model, headless).
+1. 1b: bouwer, review door Sol en Terra, CI, merge (afspraken hierboven).
+2. Dan 1c op een eigen branch vanaf `main`, met de eisen voor 1c hierboven (1011, de bron zonder model, headless).
 3. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
