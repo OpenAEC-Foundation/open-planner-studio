@@ -321,6 +321,7 @@ const NIET_HERSTELD: Partial<Record<keyof DocumentPayload, string>> = {
   autoSaveToFile: 'documentContract.ts: "Runtime-only: nooit door IFC of recoverymetadata"',
   taskTypesVisible: 'documentContract.ts: "Niet gepersisteerd (bij laden opnieuw afgeleid)"',
   ifcGlobalIds: 'documentContract.ts: "Alleen readIFC vult hem" — een in de app gemaakt document heeft er vóór het eerste inlezen geen',
+  ifcLiteralCalendarIds: 'documentContract.ts: alleen readIFC vult hem, uit de LiteralTimes die de writer in de herstelkopie schreef (T17); een in de app gemaakt document heeft er vóór het eerste inlezen geen, net als na Opslaan en heropenen',
   resourceLoadResult: 'documentContract.ts: "Afleidbare cache"; het herstelde actieve document rekent hem opnieuw uit (apart vergeleken in 4b)',
 };
 
