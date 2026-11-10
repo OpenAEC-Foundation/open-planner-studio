@@ -63,6 +63,11 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
    zolang het document open is of via herstel en MCP-backup; een gewone opslag schrijft het kenmerk bewust niet
    (`src/state/ifcSaveInput.ts:36-39`). Na export of Opslaan als naar een ander bestand en heropenen kan zo'n bron
    (bijv. een IFC met een externe pset) overschreven worden. Anders is 1c niet klaar.
+   **Eis voor 1c** (wrakko, 10 november 2026; knownbug 1022): bij een eigen project (P) met een gedeelde eerste owner
+   history weigert de merge een gewijzigde auteur of een gewijzigd bedrijf (`projectgegevens`, `lossCheck.ts`). Richting 1:
+   op de bytes-route auteur en bedrijf lezen uit de owner history van het IfcProject of het werkplan (die schrijft de
+   writer zelf). Zolang de planner bij een eigen bestand met een model zijn auteur niet kan wijzigen, gaat opslaan niet
+   aan. Anders is 1c niet klaar.
 
 ## Werk
 

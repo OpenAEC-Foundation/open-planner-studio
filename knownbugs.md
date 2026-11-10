@@ -1743,7 +1743,10 @@ en noem het in je rapport of PR-tekst.
      `r7sol-twee-werkplannen-bronplek`. Proef: `check-ifc-foreign-preserve.ts`, "auteur
      wijzigen bij een gedeelde owner history". Richting: op de bytes-route auteur en bedrijf lezen uit de owner history
      van het IfcProject of het werkplan (dat schrijft de writer zelf), of de vier velden ook bij een gedeelde owner
-     history in `OPS_ProjectSettings` zetten. Uit #867 (fase 1b, fixronde 1). — B
+     history in `OPS_ProjectSettings` zetten. **Eis voor 1c** (wrakko, 10 november 2026): richting 1 (auteur en bedrijf
+     op de bytes-route uit de owner history van het IfcProject of het werkplan lezen); opslaan gaat in 1c niet aan zolang
+     de planner bij een eigen bestand met een model zijn auteur of bedrijf niet kan wijzigen. Uit #867 (fase 1b,
+     fixronde 1). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
