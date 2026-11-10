@@ -71,6 +71,16 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
   `check-xer-chunk-boundary.ts` staat ook een luie XER-import in `ifcReadWithXer.ts` toe (door Sol na te kijken).
   Open vragen van de bouwer: rode weigermelding (`refusalNotice`), onbekend schema zonder `IfcProduct` opent zoals nu
   (afwijking van §4.11), een kopie deelt de bron en houdt de weigering.
+- 2026-11-09/10: vijf reviewrondes van #864 door Sol (GPT-6.1 Sol, xhigh) en Terra (GPT-6.1 Terra, xhigh, proef); vier
+  fixrondes door dezelfde bouwer. Gedicht: documentwissel tijdens opslaan, export over de bron, herstelkenmerk
+  (fixronde 1); AutoSave over de bron van een ander document, doelcontrole op inhoud als stroom (fixronde 2); lange kop,
+  kenmerk in de MCP-backup, één vingerafdruk per controle (fixronde 3); de doelcontrole volgt de route van `readIFC`,
+  met één gedeelde zoeker voor `DATA;` (`src/services/ifc/stepDataSection.ts`) (fixronde 4). Knownbugs 1012–1019.
+- 2026-11-10: ronde 5 op `ac56701fb`: Sol **ja**, Terra **ja**, geen BLOKKEERT. Besluiten van wrakko in deze rondes:
+  de doelcontrole zegt `model` precies als `readIFC` weigert met `building-model`, plus drie strengere afwijkingen
+  (complexe instantie met een producttype; een scan zonder uitkomst is geen vrijbrief; een modelbestand dat `readIFC`
+  om een andere reden niet opent, zoals afgekapt of met een NUL-byte vóór de kop); de backup met kenmerk wijkt met de
+  flag uit af van main (aanvaard); geen werkgrens voor 1018 in 1a.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -81,9 +91,6 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 
 ## Volgende stappen
 
-1. Antwoorden van wrakko (9 november 2026): rode weigermelding blijft; onbekend schema zonder model mag in 1a, eis voor
-   1c (knownbug 1011); kopie deelt de bron en houdt de weigering; poort `check-xer-chunk-boundary.ts` goed. Review door
-   Sol (xhigh) en Terra (proef) op de laatste commit door de orkestrator; vragen over wat de planner ziet eerst naar
-   wrakko; merge met `--match-head-commit`, merge-commit melden.
-2. Review door Sol (Trias start hem), fixrondes, merge.
-3. Dan 1b en 1c op eigen branches vanaf `main`.
+1. #864: CI groen op de laatste commit, PR op ready, merge met `--match-head-commit`, merge-commit aan wrakko melden.
+2. Dan 1b en 1c op eigen branches vanaf `main`, met de eisen voor 1c hierboven (1011, de bron zonder model, headless).
+3. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
