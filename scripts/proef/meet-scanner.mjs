@@ -17,6 +17,11 @@
 // In Node als stroom in stukken van 1 MiB (zoals de Tauri-route met plugin-fs `read`) en als `Blob`-stroom van
 // `fs.openAsBlob` (zoals de `File` van een FSA-handle); in de browser als `Blob` van `fetch`.
 //
+// #804 fase 1b: ook de merge-writer (`mergeWriter.ts`, `merge` in de uitvoer): openen via de bytes-route zoals de app met
+// de flag, en `writeIfcMerge` zonder wijziging. Tijd, piekgeheugen, uitkomst (geschreven of `merge-needs-phase2`) en de
+// grootte van de uitvoer. Boven `IFC_BYTES_ROUTE_MAX_BYTES` (300 MiB) valt de route terug zonder bron; de meting van
+// 300 MB gebruikt daarom een bestand net onder die grens (`mergeSize` in de uitvoer).
+//
 // Lokaal alleen tot en met 50 MB (AGENTS.md, server load). Groter alleen in CI (`CI=true`), via de handmatige job in
 // .github/workflows/ifc-foreign.yml.
 //
@@ -122,6 +127,41 @@ console.log(JSON.stringify({ result, bytesRead, seeks, streamMs, blobResult, blo
   maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 `);
 execFileSync(ESBUILD, [join(work, 'target-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-target.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+writeFileSync(join(work, 'merge-entry.ts'), `
+import { readFileSync } from 'node:fs';
+import { readIfcBytesDetailed, IFC_BYTES_ROUTE_MAX_BYTES } from '@/services/ifc/foreign/ifcBytesRoute';
+import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+const file = process.argv[2];
+const t = () => performance.now();
+const mb = (n: number) => Math.round(n / 1048576);
+const bytes = new Uint8Array(readFileSync(file));
+let t0 = t();
+const opened = await readIfcBytesDetailed(bytes, {}, { createWorker: () => null });
+const openMs = t() - t0;
+const afterOpen = process.memoryUsage();
+const source = opened.result.ifcSource;
+const base = { bytes: bytes.length, cap: IFC_BYTES_ROUTE_MAX_BYTES, openMs, heapAfterOpenMB: mb(afterOpen.heapUsed),
+  arrayBuffersAfterOpenMB: mb(afterOpen.arrayBuffers) };
+if (!source) {
+  console.log(JSON.stringify({ ...base, outcome: 'geen bron (terugval van de bytes-route)', maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
+} else {
+  let outcome = 'geschreven';
+  let parts: Uint8Array[] = [];
+  t0 = t();
+  try { parts = writeIfcMerge(opened.result, source); } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    outcome = 'merge-needs-phase2: ' + [...new Set(e.cases.map(c => c.kind))].join(', ');
+  }
+  const mergeMs = t() - t0;
+  const afterMerge = process.memoryUsage();
+  const outBytes = parts.reduce((a, p) => a + p.length, 0);
+  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, parts: parts.length, outBytes,
+    largestPartMB: mb(Math.max(0, ...parts.map(p => p.length))),
+    heapAfterMergeMB: mb(afterMerge.heapUsed), arrayBuffersAfterMergeMB: mb(afterMerge.arrayBuffers),
+    maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
+}
+`);
+execFileSync(ESBUILD, [join(work, 'merge-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-merge.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
 if (browsers.length > 0) {
   writeFileSync(join(work, 'browser-entry.ts'), `
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
@@ -244,6 +284,15 @@ for (const mb of sizes) {
   }
   const row = results[results.length - 1];
   for (const browser of browsers) row[browser] = await measureBrowser(browser, file);
+  // De merge-writer (fase 1b), in een eigen Node-proces. Net onder de grens van de bytes-route als het bestand erboven zit.
+  const capMb = 300;
+  const mergeFile = size > capMb * 1048576 ? join(work, `synthetisch-${mb}mb-merge.ifc`) : file;
+  if (mergeFile !== file) makeFile(capMb - 0.5, mergeFile);
+  const m = spawnSync(process.execPath, ['--max-old-space-size=8192', join(work, 'meet-merge.mjs'), mergeFile], { encoding: 'utf8', maxBuffer: 1 << 24 });
+  row.merge = m.status === 0 ? JSON.parse(m.stdout.trim().split('\n').pop())
+    : { error: (m.stderr || '').trim().split('\n').slice(-3).join(' ') };
+  row.merge.mergeSize = statSync(mergeFile).size;
+  if (mergeFile !== file) rmSync(mergeFile, { force: true });
   // De doelcontrole (fixronde 2) op drie varianten van dezelfde grootte.
   row.target = {};
   for (const variant of ['model', 'none', 'end']) {
@@ -305,6 +354,9 @@ rmSync(work, { recursive: true, force: true });
 // Het resultaatbestand komt er altijd, ook met fouten erin. Maar mislukte een gevraagde meting (Node of een browser),
 // dan eindigt het script met een foutcode, zodat de job in CI rood wordt (review van #863, Sol en Terra).
 const failed = results.flatMap(row => [
+  // De merge-writer moet het eigen-plus-model-bestand schrijven (een eigen planning, geen vreemde herkomst).
+  ...(row.merge?.error !== undefined ? [`${row.mb} MB merge: ${row.merge.error}`]
+    : row.merge?.outcome !== 'geschreven' ? [`${row.mb} MB merge: ${row.merge?.outcome ?? 'geen resultaat'}`] : []),
   ...['node', ...browsers]
     .filter(env => !row[env] || row[env].error !== undefined)
     .map(env => `${row.mb} MB ${env}: ${row[env]?.error ?? 'geen resultaat'}`),
