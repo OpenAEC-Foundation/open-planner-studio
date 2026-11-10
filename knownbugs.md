@@ -2487,6 +2487,28 @@ en noem het in je rapport of PR-tekst.
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 
+887. **Het icoon van Relatie lijkt in het lint helemaal oranje.** Het lintmenu Relatie (`RelationDropdown`,
+     `src/components/layout/Ribbon/ribbonWidgets.tsx:400`, icoon `planning.relations-menu`), met `b2-icons` aan. Gemeld
+     door de bouwer van de iconen-flag (7 november 2026): in de app en op het Blueprint-overzichtsblad oogt het icoon
+     helemaal oranje. Niet gereproduceerd: in de review van #846 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, 10 november 2026)
+     is op Start één oranje helft (`rgb(217, 119, 6)`) en één grijze helft gemeten, in licht en donker, ook compact. In de
+     Blueprint heeft de tekening twee gelijke helften, waarvan één oranje: dat volgt de regel. Niet gemeten: de knop
+     tijdens de relatie-tekenmodus, bij hover en in hoog contrast. Voorstel: alleen verder kijken als iemand het opnieuw
+     ziet, met de stand van de knop erbij. — S
+
+1040. **VERVOLG: de browsertest toetst Nivellering wissen niet in ingeschakelde stand.** `tests/browser/icon-orange.spec.ts:79`
+     begint met een nieuw project zonder nivelleringsuitvoer. Nivellering wissen is dan uitgeschakeld en tekent bewust
+     in één kleur, dus het oranje spoor van `resource.clear-level` (#846) valt buiten de test. Voorstel: in het bestaande
+     licht/donker-scenario een taak met nivelleringsuitvoer zetten, het oranje spoor meten, met een echte klik wissen en
+     dan de grijze, uitgeschakelde stand meten. Uit de review van #846 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, ronde 1,
+     BEVESTIGD, VERVOLG). — B
+
+1041. **VERVOLG: geen test legt vast dat Taak dezelfde tekening heeft als Nieuwe resource.** Lintpunt 1 van Ethan
+     (7 november 2026): `task.add` heeft dezelfde plus als `resource.new` (Blueprint #90). `icon-orange.spec.ts` meet
+     alleen de kleuren; een latere Blueprint-versie kan de twee weer uit elkaar halen zonder dat een test faalt. Voorstel:
+     in het bestaande scenario de tekening van beide knoppen vergelijken. Uit de review van #846 (GPT-6.1-Terra, xhigh,
+     ronde 1, BEVESTIGD, VERVOLG). — B
+
 900. **VERVOLG: elk verpakt toolresultaat draagt de data twee keer; SuperCloud en Claude Desktop zijn niet gemeten.**
      `wrapToolResult` (`src/services/mcp/dispatcher.ts:76–82`) zet hetzelfde resultaat als JSON-tekst in
      `content[0].text` en als `structuredContent` (een JSON-RPC-fout gaat er niet doorheen). Gemeten in #818 op
