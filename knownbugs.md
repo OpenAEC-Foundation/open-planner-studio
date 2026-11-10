@@ -2004,6 +2004,24 @@ en noem het in je rapport of PR-tekst.
      Harde eis: deze PR start direct na de merge van #867, vanaf main, en moet in main staan vóór 1c begint. Uit #867
      (review ronde 7, Claude Opus 5.5, BEVESTIGD). — B
 
+1106. **BLOKKEERT vóór 1c: een verstopt stuk vóór een eigen stuk gaat bij de merge verloren.** De scanner hangt
+     commentaar vóór een entiteit aan het volgende stuk (`src/services/ifc/foreign/stepScanner.ts`, kop). Staat
+     `/* a *⏎/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',…); /* b */` vlak vóór een eigen stuk (P), dan leest de scanner
+     dat als commentaar van dat stuk. De merge laat elk P-stuk met zijn commentaar weg en schrijft het eigen stuk
+     opnieuw (`src/services/ifc/foreign/mergeWriter.ts`, `assemble`): `VerstoptX` staat niet in de uitvoer. Volgens de
+     norm (stuurtekens vallen overal weg) was het een entiteit. Gemeten in de review van #867, ronde 8, op
+     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met het stuk vóór `#47=IFCTASK`: het bestand opent met de flag, de
+     merge schrijft, en `#402` is daarna een nieuwe `IFCPERSON` van de writer. Geen dubbel `#id`, wel verlies. Een
+     verstopte wand op die plek weigert bij openen (#881); het treft dus alleen stukken die geen modeltype zijn. Bij een
+     eigen bestand zonder model laat de gewone writer zo'n stuk ook vallen (knownbug 1050), maar een bestand met een
+     model weigert zonder flag bij openen: daar verliest main niets. Zodra de merge-writer een aanroeper krijgt, is dit
+     verlies met de flag aan; volgens het besluit van Ethan (via Trias, 10 november 2026) is dat een BLOKKEERT. In #867
+     nog niet: de merge heeft geen aanroeper, en opslaan blijft geweigerd (`src/state/ifcForeignGuard.ts`). VERMOED
+     (midden, niet gedraaid): wijst een V-stuk naar zo'n verstopt stuk, dan wijst die verwijzing na de merge naar niets.
+     Richting: de merge weigert als de tekst van een P-stuk buiten zijn tokens een `#` met cijfers bevat
+     (`highestHashNumber` over het commentaar ervóór). Hoort bij de vervolg-PR van knownbug 1105. Uit #867 (review ronde
+     8, Claude Opus 5.5, BEVESTIGD). — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
