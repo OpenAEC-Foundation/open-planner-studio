@@ -29,7 +29,7 @@ planning ertussen zet. Opslaan blijft daarbij nog geweigerd; dat gaat pas aan in
 | `place_file_exclusive(from, to)` pas in fase 2, met de voorwaarden in §11; in fase 1 geen Rust-commando | wrakko, 2026-11-09 |
 | Een wijziging in `.github/workflows/` pusht Trias: het token op aia09-mp50 heeft geen `workflow`-scope | wrakko, 2026-11-09 |
 | VERVOLG uit een review naar `knownbugs.md` op de PR-branch; 1007 is gebruikt door #863 | werkwijze |
-| Knownbugs voor fase 1: 1011 t/m 1020; vanaf 1021 eerst vragen (1008–1010 blijven ongebruikt) | wrakko, 2026-11-10 |
+| Knownbugs voor fase 1: 1011 t/m 1030 (1026 is de LiteralTimes-bug van de writer, buiten #804); daarna eerst vragen (1008–1010 blijven ongebruikt) | wrakko, 2026-11-10 |
 | Geen zware runs lokaal: CI | AGENTS.md |
 
 ## Verdeling van fase 1 (3 PR's, elk achter de flag)
