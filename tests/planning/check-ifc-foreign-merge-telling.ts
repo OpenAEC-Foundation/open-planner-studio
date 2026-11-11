@@ -1,3 +1,4 @@
+import { readbackDifference } from './ifcReadbackEquality';
 // #804 fase 1b, bijsturing 1 punt 2: hoe vaak ziet de planner `merge-needs-phase2`?
 //
 // Per corpusbestand met een vreemd deel (`tests/fixtures/ifc-foreign/`, ook `council/`, en de oude eigen bestanden in
@@ -94,6 +95,10 @@ const withWall = (bytes: Uint8Array): Uint8Array => {
 const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
   'fixtures/periode-oude-minuutfractie.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
   'fixtures/periode-oude-minuutfractie-v2026.8.1.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
+  // Tijdelijk, alleen dit ene bestand (besluit van Trias, 11 november 2026): sinds #897 en #903 samen in main staan,
+  // weigert de naad het zonder bewerking, omdat de uitvoer van de merge na heropenen een ander einde van de werkperiode
+  // geeft (960 → 1027.40736). #908 lost de oorzaak op en haalt deze regel weer weg (knownbug 1120).
+  'fixtures/periode-oude-scalarfractie-v2026.8.1.ifc + wand': 'oude scalarfractie in een werkperiode: de uitvoer van de merge leest na heropenen een ander einde (knownbug 1120, BLOKKEERT vóór 1c)',
   'council/r7sol-vreemd-lid-bij-notitie.ifc': "een lege notitielijst '[]' (knownbug 1101)",
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': "een lege notitielijst '[]' (knownbug 1101)",
   // Geen ongewijzigde OPS-uitvoer: de bestaande regressieproeven documenteren de externe herschrijving (1108).
@@ -220,11 +225,18 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
         ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
       }
       if (!outcome.ok) {
+        console.log('WEIGERING GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label, gevallen: outcome.error.cases }));
         for (const k of outcome.kinds) bump(t.refused, k);
         if (edit.kind !== 'niets') {
           for (const key of new Set(outcome.error.cases.filter(c => c.kind === 'niet-gedragen' && c.sourceId !== undefined).map(c => fieldOf(index, c)))) bump(fields, key);
         }
         continue;
+      }
+      const viaBytes = await openForeign(outcome.bytes);
+      const difference = readbackDifference(outcome.shown, viaBytes);
+      if (difference) {
+        console.log('LEESWEG VERSCHIL ' + JSON.stringify({ bestand: where, bewerking: edit.label, difference }));
+        fail('naad en volledige bytes-route: ' + difference); continue;
       }
       const problems = mergeProblems(source.bytes, outcome.bytes);
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }

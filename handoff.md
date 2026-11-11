@@ -66,7 +66,7 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
      dat een BLOKKEERT in die PR [...]."
    - "Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
      pariteitstest op de huidige main met de oude-tags."
-4. **1b-vervolg 2: tijdzone en oude kalender** (concept-PR #898). Alleen 1111 (`sameMeaning` op de vaste tijdas)
+4. **1b-vervolg 2: tijdzone en oude kalender** (#898, gemerged in main op 11 november 2026). Alleen 1111 (`sameMeaning` op de vaste tijdas)
    en de kalender van 1108 (`workCalendarSlots` voor de oude indeling), plus tests en tekst. 1109 is uit deze PR:
    TASKTIME_SLOT_FIELDS en het bewaren van duur/rest zijn weer exact die van main `d456e6e7b`. De twee herschreven
    fixtures blijven bewust geweigerd, met herkomstbewijs en redenen in de PR-tekst en `OWN_MAY_REFUSE`.
@@ -75,7 +75,12 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 6. **1109 met 1113**: eigen PR ná #903, volgens besluit van Trias 11 november 2026. `carried` voor een duur moet de
    betekenis kunnen vergelijken binnen de lijst van exact gelezen vormen. Proeven bewerken voortgang, werkelijke start
    en werkelijk einde zoals de app (`enterTaskProgress`, `setActualFinish`), niet met een kale `updateTask` (1113).
+   **Aanvulling 1109 uit #903:** echte `setTaskProgress` en `setActualStart` wijzigen de rest; daarbij kreeg ook de
+   ongewijzigde duur de writerwaarde 2.333333 in plaats van 2.3333333333333335 (vier gevallen). De naad weigert dit nu
+   getypeerd. Per-slot-behoud van de duur moet deze vier in de PR voor 1109 weer laten schrijven; b5 schrijft via de echte invoer.
+   **De PR voor 1109** begint met opnieuw meten via echte acties wat er nog weigert (`b5-lopend` schrijft via `enterTaskProgress`); 1116 hoort erbij (besluit van Trias, 11 november 2026).
 7. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
+   **Eis voor 1c** (Trias, 11 november 2026): de bewerkingen in de telling lopen via de acties van de app, niet kaal op het domein (nu duur en voortgang; doorrekenen gebruikt de duuractie plus F5).
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
    flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
    `refusedWriteTarget` aan (`src/services/mcp/tools/fileTools.ts:347-349`), maar de headless fs geeft geen
@@ -124,6 +129,11 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 
 ## Werk
 
+- 2026-11-11: #903 fixronde 1 na Terra (GPT-6.1-Terra, xhigh) nee: ongewijzigde getallen worden in de hele planning bewaakt; de echte extensieactie met alleen een lag-eenheidswijziging weigert nu veilig (1109). De twee leeswegen worden rechtstreeks vergeleken; een gemaakte proef is alleen met echte herberekening ongelijk. Beide mutaties zijn rood, cp/cmp en SHA-256 bevestigen herstel.
+
+- 2026-11-11: #903 gebruikt één echte duuractie voor duur, doorrekenen en de toets van Trias; tien van tien schrijven. De referentie is opnieuw gemaakt op main `20b9af79a` (vier uitvoerhashes gewijzigd, invoer gelijk). De vier voortgangsgevallen weigeren getypeerd; de mutatie maakt ze alle vier stil schrijvend en rood, cp/cmp en hash herstellen de bron.
+- 2026-11-11: #903 voegt de eis voor ongewijzigde taakgetallen toe; de vier echte voortgangsgevallen weigeren nu getypeerd. Toets van Trias 9/10: de 17-cijfers-villa weigert op ongewijzigde rest 2.3333333333333335 → 2.333333. Volgens opdracht gestopt, geen uitzondering, geen eindtelling of mutatie.
+- 2026-11-11: #903 vergelijkt alleen `resourceCalendars` op id, met exacte inhoud en behoud van dubbele ids; de zes wisgevallen schrijven weer. Verdwenen, extra en gewijzigde kalenders blijven geweigerd. 1116 is BLOKKEERT vóór 1c en hoort bij de PR voor 1109; de telling moet dan volledig via echte app-acties lopen. Main met #898 is gemerged; de pariteitsreferentie is opnieuw gemaakt op `20b9af79a`, 1115 is daarmee opgelost.
 - 2026-11-11: fixronde 2 van #898 na de gerichte run van Sol (GPT-6.1-Sol, xhigh: nee, één BLOKKEERT, ook op main): gedeelde kalender- en klokgeldigheid via `isStrictIsoDateTime` vóór vormcontrole en betekenisvergelijking; onmogelijke bronwaarden weigeren getypeerd, 1114 opgelost; de lezer blijft ongewijzigd. Aanvullend besluit: precies 24:00 met nul seconden/fracties is in een tijdslot een geldige daggrens; datum-tijd T24:00 blijft niet gedragen. De bestaande OPS-werkperiode 16:00–24:00 blijft zo behouden. Ook de tweede CI-fixture `urenperdag-oude-writer.ifc` (14:00–24:00) staat in de daggrensproef; `check-ifc-duurvormen.ts` is een aparte eindcheck.
 
 - 2026-11-11: review ronde 2 van #898 op `9bd1e3b2e`: Terra (GPT-6.1-Terra, xhigh) ja, geen blokkade. Vier
@@ -257,8 +267,143 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 
 ## Volgende stappen
 
-1. #898: 1111 en de kalender van 1108 afronden; de tien bestanden van Trias en de telling tegenover main bewijzen.
+1. #898 is gemerged in main (`20b9af79a`): 1111 en de kalender van 1108 zijn afgerond.
 2. #903: de volledige herleestoets (1107) afmaken.
-3. Een eigen PR voor 1109 met 1113, na #903.
+3. Een eigen PR voor 1109 met 1113 en 1116, na #903; eerst opnieuw meten via echte acties.
 4. Dan 1c, met alle eisen hierboven.
 5. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
+
+## Kostenvoorwaarde van 1107 (11 november 2026)
+
+De eigen kostenproef vóór de verplichte naad is klaar; de bouw is volgens de opdracht gestopt. Volledig heropenen scant
+ook het model opnieuw: 441 ms bij 5 MiB, 621 ms bij 10 MiB, dezelfde 260 taken. De gemeten helling geeft ongeveer 11 s
+extra bij 300 MiB. De verplichte naad is nog niet gebouwd; 1107 blijft open. Trias moet eerst kiezen: de open-stappen
+delen (optie 1), of alleen het planningsdeel toetsen. Advies: de open-stappen delen, zodat alle stappen van de app gelijk
+blijven en de bestaande scan hergebruikt kan worden. Dit is een voorstel, geen nieuwe afspraak of implementatie.
+Bewijs en beperkingen: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
+
+## Vervolg 1107: stop op de nieuwe weigering (11 november 2026)
+
+Trias koos de naad op het planningsdeel (besluit letterlijk in PR #903). De eerste versie is gebouwd, zonder wijziging
+van de open-route. De bouw is gestopt volgens de opdracht: `eigen-plus-model.ifc`, een dag langer op
+`task-mvp6eel7qyht28`, weigert nu met `planning-na-openen`. Zonder die toets schrijft de merge, waarna volledig heropenen
+12 tijdvelden op drie taken anders geeft. De naad en de volledige bytes-route zijn in dat geval gelijk. Geen reparatie.
+Bewijs: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. Knownbug 1107 blijft open; de volledige telling,
+de tien oude eigen bestanden, het grote model en de nieuwe kosten zijn nog niet getoetst. Eerst beoordeling van de
+bevinding; de stop is geen toestemming om de vergelijking af te zwakken of de bewerking te repareren.
+
+## 1107: definitie uit #886 herbevestigd en beproefd (11 november 2026)
+
+De naad op het planningsdeel past de callback aan beide kanten toe: `uitvoer` (ImportResult van `readPlanning`) en
+`domein` (zonder writer/lezer, precies `shownAfterOpen`). De eerdere stop op twaalf bij heropenen berekende tijdvelden is
+vervallen. De duurwijziging zonder F5 schrijft weer. De nieuwe proef gebruikt voor 1113 de echte setter: rest 7/3 gaat
+vóór opslaan al naar 0, en blijft op beide open-wegen 0. Vier strikte/behoudsproeven zijn alleen voor hun invoer naar de
+bestaande setters omgezet; beide checks zijn groen. De telling zelf is niet aangepast.
+
+De volledige telling: 2516 geschreven, 747 getypeerd geweigerd, 0 anders (voorheen 2562/701/0). Alle geschreven merges
+geven via de naad en de volledige bytes-route dezelfde planning; ook de tien oude eigen bestanden en het model van
+10 MiB met duurwijziging zijn groen. Alle 46 nieuwe weigeringen zijn per bestand/bewerking/veld bewaard: 40 directe
+voortgangsmutaties van de oude telling (geen echte invoer), 6 taak-wisgevallen met een verschil in de kalenderlijst.
+Geen daarvan gerepareerd. Deze zes vragen beoordeling; de veertig vragen een aparte correctie van de tellerroute door
+de eigenaar, niet in deze PR. Geen verlies op een echte plannerroute bewezen.
+
+**Eis voor 1c:** 1c geeft de echte open-stappen mee aan de naad, met een test met de flag aan.
+
+De proef van Trias is gemaakt (duur-invoerveld alleen in de uitvoer vóór de echte herberekening gewijzigd); drie rode
+mutaties toetsen vergelijking, verplichte functie en gelijkheid van de twee leeswegen. Bronbestanden zijn met cp/cmp
+plus SHA-256 hersteld. Gemeten extra mergetijd 140/228 ms bij 5/10 MiB, callbacks samen 129/123 ms; geen nieuwe modelscan.
+De grote-modelproef kost 6,7 s inclusief genereren/bundelen, piek 377 MiB; één keer buiten de tijdzonematrix.
+Bewijs, alle gevallen en grenzen: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
+
+## 1107: echte acties, kalenderbehoud en definitieve telling (11 november 2026)
+
+De voortgangsbewerking van de testkern loopt nu via enterTaskProgress in de bestaande store-context, met bevestiging
+van question.latest bij een startvraag. Edit.apply mag een verse domeinpayload teruggeven; applyEdit neemt die in haar
+geheel over. Zo blijven gewiste optionele velden zoals importPristine niet hangen. De nieuwe regressieproef was rood
+met alleen Object.assign en is groen met de verse payload; ook de kale voortgangsmutatie terugzetten maakt hem rood.
+
+Het onderzoek van de zes wisgevallen toont GEEN kalenderverlies door gewone opslag op main. Echte Delete laat de
+kalender staan; de writer schrijft haar en de lezer leest haar terug met dezelfde id en exacte inhoud. h7: 5/5/5,
+urenperdag: 9/9/9 in resourceCalendars inclusief projectkalenderkopie; nul ontbrekend/toegevoegd/gewijzigd. Alleen de
+lijstvolgorde verandert: de nu ongebruikte kalender komt via de fallback na de gebruikte kalenders. De testwisactie,
+reader, writer en vergelijkingsmaat zijn niet aangepast. Dit is uitkomst "iets anders"; alleen gemeten.
+
+Definitieve telling: 2556 geschreven, 707 getypeerd geweigerd, 0 anders, over dezelfde 3263 bewerkingen/67 bestanden.
+Alle 660 rijen zijn vergeleken met de begintelling 2562/701/0. Van de 40 kale voortgangsgevallen schrijven er 39 weer;
+b5 schrijft via de echte actie nu ook. Eén voortgangsgeval blijft nieuw weigeren: ifc-arity-oude-writer, vervallen
+UnchangedSinceImport (#412), pset en relatie na het terecht wissen van de importvlag. Samen met de zes volgordegevallen
+zijn dat zeven nieuwe weigeringen, met één verbetering (b5). Alleen gemeld, geen reparatie. Alle gerichte checks groen.
+
+#898 was bij begin, vóór de definitieve telling en na afloop nog open. Main stond bij de laatste twee controles op
+ac334b6bc (#893, rapportwerk); de onderzochte IFC-/statebestanden bleven byte-gelijk. Geen main-merge van #898, geen
+nieuwe pariteitsreferentie en geen verwijdering van 1115: stap 3 is volgens opdracht overgeslagen.
+
+Bijsturing van Trias over het rekenslot verwerkt: elke definitieve check heeft een eigen flock; het controlescript
+zelf houdt geen slot vast. De eerste tussentelling is afgebroken voor de verse-payloadcorrectie en telt niet als
+resultaat. Advies: apart besluiten of de bibliotheekkalenders op stabiel id mogen worden vergeleken, met exacte inhoud;
+taak-/kindvolgorde blijven relevant. Ook de provenanceweigering vraagt een aparte beslissing. Bewijs en alle gevallen:
+`docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
+
+## 1107: stop na integratie van main wegens precisieverlies (11 november 2026)
+
+Main met #898 (`20b9af79a`) is via merge-commit `a1f6dba4a` geïntegreerd. De pariteitsreferentie is opnieuw gemaakt op
+exact die main; alleen de basiscommit in de fixture veranderde. 1115 is verwijderd. De oude-eigen-proeven die de
+voortgangsbewerking aanroepen wachten nu haar verse payload af; de precisieproeven gebruiken de echte setters.
+
+**STOP: echt verlies.** Op de 17-cijfers-villa met model blijft de invoerduur na 50 % voortgang of een werkelijke start
+2.3333333333333335, ook na openen van het domein. De merge schrijft en volledig heropenen geeft 2.333333; ook de
+nieuwe rest wordt afgerond. Vier gevallen: oorspronkelijke bronrest en een gemaakte variant, elk met beide acties.
+De canon normaliseert taakvelden via de gewone writer en maskeert dit verschil. 1107 blijft daarom BLOKKEERT vóór 1c.
+Geen reparatie, overige checks en eindtelling na main niet uitgevoerd. Mainreferentie voor de nog uit te voeren telling:
+2578 geschreven / 685 getypeerd geweigerd / 0 anders, 3263 bewerkingen en 660 rijen. De zes wisgevallen zijn groen;
+1116 blijft voor de PR van 1109. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
+
+## 1107: ongewijzigd exact, stop op de toets van Trias (11 november 2026)
+
+De extra eis bewaakt generiek numerieke taakbladeren die tegenover opened ongewijzigd zijn en die ook de open-stappen
+van het domein niet veranderen. De bestaande canon blijft staan; gewijzigde getallen mogen volgens dat bestaande pad
+afronden. Zonder opened is pristine de referentie, hetzelfde als de verliesbewaking. Geen reader-, writer- of
+verliesbewakingswijziging. De vier echte voortgangsgevallen weigeren nu getypeerd op de duur.
+
+**Toets van Trias: 9 schrijven, 1 weigert.** De 17-cijfers-villa met model weigert op
+`task-ifc-_j2rFB79P78NtLEnkTKJwV.time.remainingTime`: 2.3333333333333335 → 2.333333. De opdracht vereist hier stoppen;
+geen uitzondering of reparatie toegevoegd. Oude-eigen eindigt rood met één afwijking op 531 controles. Mutatie,
+pariteit en eindtelling zijn nog niet gedaan. 1107 blijft daarom open. Bewijs:
+`docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
+
+## 1107: echte duuractie, tien van tien (11 november 2026)
+
+Trias besloot de kale duurwijziging te vervangen door de echte actie van de app. De voorafgaande meting op alle tien
+bestanden via zowel paneel als tabel schrijft 20/20, met dezelfde planning als gewone opslag op main na dezelfde echte
+actie. Bij de 17-cijfers-villa volgen duur en rest beide 2.3333333333333335 → 3.3333333333333335. F5 en openen van het
+domein houden ze zo; na merge en volledig heropenen zijn beide 3.333333. Omdat de actie beide veranderde, mag dat.
+
+lengthen gebruikt nu updateTask met dezelfde volledige time-patch en coalesceKey als het eigenschappenpaneel. De
+werkregels lopen mee; de verse payload wordt volledig overgenomen. Duur, doorrekenen en de toets van Trias gebruiken
+allemaal deze ene bewerking. De gewone mainreferentie gebruikt haar ook, op 20b9af79a. Vier uitvoerhashes veranderen:
+urentaak v2026.7.7, 17-cijfers-villa v2026.9.0, halve-dag-villa v2026.43.0 en urentaak v2026.43.0. Alle invoerhashes
+blijven gelijk. De eerdere stop op 9/10 kwam door de kale actie, niet door een echte plannerroute.
+
+De aanvullende eis voor ongewijzigde getallen blijft staan. De mutatie neemt alleen die eis weg: alle vier echte
+voortgangsgevallen schrijven dan weer stil met duur 2.333333 en de proef wordt rood. Met cp hersteld, cmp gelijk en
+SHA-256 vóór/na gelijk. Op de herstelde code zijn herleestoets en oude-eigen groen; de toets van Trias is tien van tien.
+1107 is verwijderd. De veilige weigeringen van de vier voortgangsgevallen blijven voor de PR voor 1109; 1116 blijft
+BLOKKEERT vóór 1c. Meetbewijs: docs/superpowers/evidence/2026-11-11-1107-herleestoets.md.
+
+### Definitieve eindtelling en controles van #903
+
+Alle veertien gevraagde gerichte eindchecks zijn groen, elk onder een eigen flock. De telling draaide één keer na de
+laatste codewijziging: 3263 bewerkingen, 2575 geschreven, 688 getypeerd geweigerd, 0 anders, over 67 bestanden.
+Alle 660 rijen zijn vergeleken met main na #898 (2578/685/0). Vier nieuwe weigeringen: drie op
+ifc-arity-oude-writer (duur, duur met F5 en voortgang; importvlag 1116), één op de 17-cijfers-villa (50 % voortgang;
+ongewijzigde duur 2.3333333333333335 → 2.333333, 1109). b5 schrijft bij echte voortgang juist weer: één verbetering,
+netto drie minder geschreven. Geen nieuwe weigering zonder bewerking; de al verklaarde uitzonderingen blijven gelijk.
+Alle geschreven merges zijn via de volledige bytes-route vergeleken met de naad. Geen nieuwe weigering door de
+volledige herleestoets zelf, naast de vier genoemde gevallen. De bevindingen zijn niet gerepareerd.
+
+Pariteit op main 20b9af79a is groen; de toets van Trias schrijft tien van tien. De vier gemaakte minutenproeven in
+strikt weigeren op het ongewijzigde afgeleide dagengetal 3.5 → 1.5. Vijf schrijvende combinaties met een echte duuractie
+krijgen een onafhankelijke volledige heropening in plaats van de te algemene oude onafhankelijkheidsverwachting.
+Geen uitzondering in de writer. Bewijs en alle nieuwe gevallen:
+`docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
+De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.

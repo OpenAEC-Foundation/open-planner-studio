@@ -180,6 +180,7 @@ const NOT_A_REFUSAL: Record<string, string> = {
   recoveryReadFailed: 'storing bij herstel', recoveryDocumentsSkipped: 'storing bij herstel',
   scheduleFailed: 'storing (planning onberekenbaar)', ifcParseFailed: 'storing (bestand onleesbaar)',
   librarySaveFailed: 'storing (opslag)', schedulingTemplateStorageFailed: 'storing (opslag vol)',
+  layoutsNotSaved: 'storing (opslag van de layouts niet te lezen of vol, knownbug 1362), echte fout',
   schedulingTemplateDeleteFailed: 'storing (opslag vol)',
   dependentProjectsFailed: 'storing (map met afhankelijke projecten niet te lezen, stap 1.11), echte fout',
   xerImportEmptyProjectsSkipped: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',

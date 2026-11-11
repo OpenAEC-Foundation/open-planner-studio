@@ -554,6 +554,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # 1107: één groot model, niet vijf keer in de tijdzonematrix (tijd/geheugen meten).
+  IFCFOREIGNGROOT="$DIR/.ifc-foreign-groot.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-groot.ts" "$IFCFOREIGNGROOT"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNGROOT" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

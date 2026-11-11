@@ -126,6 +126,74 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   expect(v.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
   await expect(page.locator(RESOURCE_DIAGRAM)).toHaveClass(/active/);
   expect(await page.evaluate(() => localStorage.getItem('ops-savedFilters'))).toContain('zonder-gevel');
+
+  // Een filter opslaan in de filterdialoog en daarna een layout dupliceren op het lint: het nieuwe filter blijft
+  // (knownbug 1362; review Terra #905). Het lint schreef eerder zijn eigen, oudere kopie van de lijst terug.
+  const storedNames = () => page.evaluate(() =>
+    (JSON.parse(localStorage.getItem('ops-taskGridLayouts') ?? '{"layouts":[]}').layouts as { name: string }[]).map(l => l.name));
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setFilter({ kind: 'group', op: 'AND', children: [
+      { kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'Dak' },
+    ] });
+    s.setUI({ showFilterDialog: true });
+  });
+  const filterDialog = page.getByRole('dialog');
+  await filterDialog.getByRole('textbox', { name: /^(Name|Naam)$/ }).fill('Zonder dak');
+  await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect.poll(storedNames).toContain('Zonder dak');
+  await filterDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
+  await expect(filterDialog).toHaveCount(0);
+  await page.locator(RESOURCE_DIAGRAM).click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Duplicate|Dupliceren)$/ }).click();
+  await expect.poll(async () => (await storedNames()).length).toBe(3);
+  expect(await storedNames()).toEqual(expect.arrayContaining(['Zonder gevel', 'Zonder dak']));
+
+  // Opslaan terwijl de opslag even niet te lezen is: niets opgeslagen, een melding, en de naam blijft staan, zodat
+  // opnieuw opslaan na herstel lukt (review Terra #905, ronde 2).
+  await page.evaluate(() => {
+    window.__OPS__!.store.getState().setUI({ showFilterDialog: true });
+    const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
+    const realGetItem = w.opsRealGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      if (key.startsWith('ops-')) throw new DOMException('geweigerd', 'SecurityError');
+      return realGetItem.call(this, key);
+    };
+  });
+  const nameField = filterDialog.getByRole('textbox', { name: /^(Name|Naam)$/ });
+  await nameField.fill('Na een leesfout');
+  await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .some(n => n.messageKey === 'notifications.layoutsNotSaved'))).toBe(true);
+  await expect(nameField).toHaveValue('Na een leesfout');
+  await page.evaluate(() => {
+    Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;
+  });
+  expect(await storedNames()).not.toContain('Na een leesfout');
+  await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect.poll(storedNames).toContain('Na een leesfout');
+  await expect(nameField).toHaveValue('');
+  // Ook een schrijffout (opslag vol) telt niet als opgeslagen: een melding en de naam blijft (review Terra #905, ronde 3).
+  const notSavedCount = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .filter(n => n.messageKey === 'notifications.layoutsNotSaved').length);
+  const countBefore = await notSavedCount();
+  await page.evaluate(() => {
+    const w = window as unknown as { opsRealSetItem?: Storage['setItem'] };
+    const realSetItem = w.opsRealSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key === 'ops-taskGridLayouts') throw new DOMException('vol', 'QuotaExceededError');
+      return realSetItem.call(this, key, value);
+    };
+  });
+  await nameField.fill('Opslag vol');
+  await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect.poll(notSavedCount).toBeGreaterThan(countBefore);
+  await expect(nameField).toHaveValue('Opslag vol');
+  await page.evaluate(() => {
+    Storage.prototype.setItem = (window as unknown as { opsRealSetItem: Storage['setItem'] }).opsRealSetItem;
+  });
+  expect(await storedNames()).not.toContain('Opslag vol');
+  await filterDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
 });
 
 test('legacy-instelling: de klassieke weergaveknoppen komen terug via Instellingen → Legacy-functies', async ({ page, ops: _ops }) => {
@@ -210,6 +278,31 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).click();
   await page.getByRole('button', { name: /^(Delete|Verwijderen|OK|Confirm|Bevestigen)$/ }).last().click();
   await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
+
+  // Is de opslag even niet te lezen, dan is dat geen lege lijst (knownbug 1362): de dialoog laat Opslaan uit
+  // staan, en de eigen layout blijft in de opslag en op het lint.
+  const storedBefore = await page.evaluate(() => localStorage.getItem('ops-taskGridLayouts'));
+  await page.evaluate(() => {
+    const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
+    const realGetItem = w.opsRealGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      if (key.startsWith('ops-')) throw new DOMException('geweigerd', 'SecurityError');
+      return realGetItem.call(this, key);
+    };
+  });
+  await plus.click();
+  await dialog.locator('[data-ops-layout-name]').fill('Na een leesfout');
+  await expect(page.locator('[data-ops-layout-save]')).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.evaluate(() => {
+    Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;
+  });
+  expect(await page.evaluate(() => localStorage.getItem('ops-taskGridLayouts'))).toBe(storedBefore);
+  await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
+  await plus.click();
+  await expect(page.locator('[data-ops-layout-save]')).toBeEnabled();
+  await page.keyboard.press('Escape');
 });
 
 // Issue #173 punt 1 (manu varkey): een handmatige wijziging aan een deel van de actieve layout zet de
@@ -333,4 +426,32 @@ test('layoutdialoog: een oude layout bewerken voegt geen overlays toe', async ({
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts);
   expect(stored[0].name).toBe('Oud, hernoemd');
   expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'showRelations']);
+
+  // Bewerken terwijl de opslag even niet te lezen is (knownbug 1362; review Sol #905): Opslaan staat uit. Komt de
+  // lijst later binnen (hier een `StorageEvent`, zoals van de host of een ander venster), dan vult die ook het
+  // formulier, en Opslaan houdt de layout zoals ze was.
+  await page.evaluate(() => {
+    const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
+    const realGetItem = w.opsRealGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      if (key.startsWith('ops-')) throw new DOMException('geweigerd', 'SecurityError');
+      return realGetItem.call(this, key);
+    };
+  });
+  await page.locator('[data-ops-layout-button="oud"] button').click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit…|Bewerken…)$/ }).click();
+  await expect(page.locator('[data-ops-layout-save]')).toBeDisabled();
+  // Het formulier is vergrendeld tot de layout gelezen is: invoer van vóór die tijd zou anders verloren gaan
+  // (review Terra #905, ronde 3).
+  await expect(dialog).toHaveAttribute('inert', '');
+  await page.evaluate(() => {
+    Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;
+    const value = localStorage.getItem('ops-taskGridLayouts');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ops-taskGridLayouts', oldValue: value, newValue: value, storageArea: localStorage }));
+  });
+  await expect(dialog.locator('[data-ops-layout-name]')).toHaveValue('Oud, hernoemd');
+  await expect(dialog).not.toHaveAttribute('inert');
+  await page.locator('[data-ops-layout-save]').click();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts)).toEqual(stored);
 });
