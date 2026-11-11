@@ -1472,7 +1472,7 @@ function writeCalendar(
       // Geldige IfcTime `hh:mm:ss` (07:30 ⇒ '07:30:00', niet '7.5:00:00'); 24 ⇒ '24:00:00' (einde dag).
       const scalarBand = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
       const [startTime, endTime] = calendarPeriodClocks(cal, scalarBand, 'scalar', ['start', 'end']);
-      const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
+      const timePeriodId = writePeriod([startTime, endTime], '_timeperiod');
       timePeriodRefs = `#${timePeriodId}`;
       firstPeriod = [startTime, endTime];
       // Leest de lezer deze ene periode zelf als afwijkend (een hele dag 00:00–24:00, of over

@@ -6,6 +6,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
 import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
 import { parseInstant } from '@/utils/dateUtils';
 import type { WorkCalendar } from '@/types/calendar';
@@ -41,6 +42,37 @@ function memoryFile(initial: string) {
   } as unknown as FileSystemFileHandle;
   return { handle, writes };
 }
+
+// Synthetische vreemde kloktekst: ongeldig als IfcTime, maar geldig gequote STEP.
+// Bronbewaring mag na een gewone taakbewerking geen kapot bestand schrijven.
+for (const [start, end] of [
+  ["07:30:00''x", '16:00:00'],
+  ['07:30:00', "16:00:00''y"],
+] as const) {
+  const sourcePeriod = `IFCTIMEPERIOD('${start}','${end}')`;
+  const input = source.replace(period, sourcePeriod);
+  const label = `gequote bronklok ${start}/${end}`;
+  eq(`${label}: invoergrammatica`, stepFileGrammar(input).state, 'valid');
+  const file = memoryFile(input);
+  const store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'bronklok.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  eq(`${label}: openen behoudt taak`, store.getState().tasks.length, 1);
+  const task = store.getState().tasks[0];
+  if (!task) continue;
+  store.getState().updateTask(task.id, { name: 'Taakbewerking blijft behouden' });
+  await store.getState().saveFile();
+  eq(`${label}: opslag schrijft eenmaal`, file.writes.length, 1);
+  const saved = file.writes[0];
+  if (!saved) continue;
+  eq(`${label}: opgeslagen grammatica`, stepFileGrammar(saved).state, 'valid');
+  eq(`${label}: standaardperiode behoudt bron`, saved.includes(sourcePeriod), true);
+  eq(`${label}: reader behoudt taakbewerking`, readIFC(saved).tasks.map(t => t.name), ['Taakbewerking blijft behouden']);
+  const reopened = createAppStoreContext().store;
+  await reopened.getState().openOpenedFile({ name: 'heropend.ifc', content: saved, ref: null });
+  eq(`${label}: store behoudt taakbewerking`, reopened.getState().tasks.map(t => t.name), ['Taakbewerking blijft behouden']);
+  eq(`${label}: geen opslagfout`, store.getState().ui.notifications.some(n => n.severity === 'error'), false);
+}
+
 for (const [start, end, startHour, endHour] of [
   ['07:30:00', '16:00:00', 7.5, 16], ['07:15:00', '16:45:00', 7.25, 16.75],
   ['07:01:00', '16:59:00', 7 + 1 / 60, 16 + 59 / 60],
