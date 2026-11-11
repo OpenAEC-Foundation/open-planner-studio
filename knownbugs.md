@@ -3467,3 +3467,9 @@ en noem het in je rapport of PR-tekst.
       terug en vergelijk de opgeslagen taken met de stand vóór Ctrl+S; geen nieuw browserscenario nodig.
       Uit de review van de vervolgwijziging op #879, GPT-6.1-Sol xhigh, BEVESTIGD (zekerheid hoog),
       VERVOLG. Zelf de assertions nagezien. — B
+
+1453. **VERVOLG: het waarde-id naast een dubbele codetekst deelt de naamruimte van de codetypen.** De extra property
+      `<typenaam> #id` in `OPS_ActivityCodes` (`ifcWriter.ts`, #885) botst met een type dat zelf `<naam> #id` heet en
+      een eigen waarde heeft: dan staat dezelfde propertynaam twee keer in één pset (schendt `UniquePropertyNames`;
+      `checkIfcSchema` meldt het). OPS leest zo'n bestand wel goed terug; het gaat om een zeldzaam naamconflict. Fix:
+      het id buiten de vrije naamruimte van de codetypen bewaren. Uit de review van #889, Sol, BEVESTIGD. — B

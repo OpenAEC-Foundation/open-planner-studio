@@ -37,7 +37,7 @@
  * Fase 1b: alleen tests gebruiken deze writer. Opslaan met een vreemd deel blijft geweigerd tot 1c.
  */
 import { ifcGuid, writeIFC, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
-import { PSET, ifcStr } from '../ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
@@ -551,6 +551,9 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
       }
       if (setName === PSET.CustomFields) return type === 'IFCPROPERTYSINGLEVALUE' && outFields.has(name);
       if (setName === PSET.ActivityCodes) {
+        if (type === 'IFCPROPERTYSINGLEVALUE' && name.endsWith(ACTIVITY_CODE_ID_SUFFIX)) {
+          return outCodes.has(name.slice(0, -ACTIVITY_CODE_ID_SUFFIX.length));
+        }
         return type === 'IFCPROPERTYENUMERATEDVALUE' && (outCodes.get(name)?.has((index.enumValues(m) ?? [])[0] ?? '\u0000') ?? false);
       }
       return false;

@@ -885,6 +885,28 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   });
   if (r) ok("bewerking: enumeratie: Tower noemt IFCLABEL('D')", /IFCPROPERTYENUMERATION\('Tower',\([^;]*IFCLABEL\('D'\)\)/.test(text(r.out)));
 }
+// #885 / review Sol (#889): twee waarden met dezelfde codetekst, de tweede boven de eerste gezet. De merge schrijft dan
+// het waarde-id naast de enumeratie en moet de taak na herlezen op dezelfde waarde laten wijzen.
+{
+  let taskId = '';
+  let firstId = '';
+  const r = await roundTrip('bewerking: dubbele codetekst in Tower, herordend', enc.encode(showcaseApp), (d) => {
+    const tower = d.activityCodeTypes!.find(t => t.name === 'Tower')!;
+    const a = tower.values.find(v => v.code === 'A')!;
+    a.description = 'eerste A';
+    firstId = a.id;
+    taskId = d.tasks.find(t => t.activityCodes?.[tower.id] === a.id)?.id ?? d.tasks[0]!.id;
+    d.tasks.find(t => t.id === taskId)!.activityCodes = { ...(d.tasks.find(t => t.id === taskId)!.activityCodes ?? {}), [tower.id]: a.id };
+    tower.values.unshift({ ...structuredClone(a), id: 'acv-dub', description: 'tweede A' });
+  });
+  if (r) {
+    const tower = r.reread.activityCodeTypes?.find(t => t.name === 'Tower');
+    const value = tower?.values.find(v => v.id === r.reread.tasks.find(t => t.id === taskId)?.activityCodes?.[tower.id]);
+    eq('bewerking: dubbele codetekst: de taak houdt na herlezen haar waarde', value?.description, 'eerste A');
+    ok('bewerking: dubbele codetekst: de uitvoer noemt het waarde-id', text(r.out).includes('Tower #id'));
+    void firstId;
+  }
+}
 {
   const r = await roundTrip('bewerking: de waarde van Tower op een taak', enc.encode(showcaseApp), (d) => {
     const tower = d.activityCodeTypes!.find(t => t.name === 'Tower')!;
