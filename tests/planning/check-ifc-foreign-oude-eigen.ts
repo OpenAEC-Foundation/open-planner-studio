@@ -21,8 +21,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
+import { bareBytes, plainSaveAfterF5, TRIAS_FILES, TRIAS_MODEL_FILE, type TriasEntry } from './ifcAppRoute';
+import { createHash } from 'node:crypto';
 import {
-  canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, recalculated, reopenPlain, settle,
+  canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, openInStore, ordinaryEdits, plannerEdits, recalculated, reopenPlain, settle,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
@@ -36,6 +38,7 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
 const latin1 = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 const text = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode(...b.subarray(i, i + 8192)); return s; };
 const readText = (rel: string) => readFileSync(join(ROOT, rel), 'latin1');
+const sha256 = (data: string | Uint8Array) => createHash('sha256').update(data).digest('hex');
 const REVIT_WALL = [
   "#90001=IFCORGANIZATION($,'Arch',$,$,$);", "#90002=IFCAPPLICATION(#90001,'1','Revit','RVT');",
   "#90003=IFCPERSON($,'Ontwerper',$,$,$,$,$,$);", '#90004=IFCPERSONANDORGANIZATION(#90003,#90001,$);',
@@ -350,26 +353,23 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
 // ── Was knownbug 1102: een kalender die bij deze opslag letterlijk wordt (#886, besluit van Trias, 10 november 2026) ──
 // Dan schrijft de merge elke datum en werktijd op die kalender in de vorm van de writer, zoals een gewone opslag op main
 // (`minuteModelPending`). De toets van Trias: een oud eigen bestand met model geeft na een duurwijziging, F5 en opslaan via
-// de merge dezelfde planning als hetzelfde bestand zonder model na dezelfde bewerking en een gewone opslag (de writer van
-// main; met de flag uit is die byte-gelijk, `check-ifc-foreign-pariteit.ts`). Herlezen gaat beide keren via de app;
-// `canon` vergelijkt de hele planning (taken met hun tijden, relaties met lag, resources, toewijzingen, kalenders).
+// de merge dezelfde planning als hetzelfde bestand zonder model na dezelfde bewerking en een gewone opslag op main.
+// Fixronde 1 (besluit van Trias, 11 november 2026): die gewone opslag is die van main zelf. De route staat in
+// `ifcAppRoute.ts` (`plainSaveAfterF5`); `scripts/proef/maak-main-toets-trias.mjs` draaide haar met de code van main en
+// schreef de sha256 van de uitvoer naar `fixtures/main-toets-trias.json`. Hier draait dezelfde route met de code van de
+// branch: dezelfde bytes als main, en pas dan de vergelijking. Herlezen gaat beide keren via de app; `canon` vergelijkt de
+// hele planning (taken met hun tijden, relaties met lag, resources, toewijzingen, kalenders).
 {
-  const MODEL_FILE = 'tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc';
-  /** Zonder model: het blok van de modelleur (vanaf `#460`, de eigen owner history ervan) eruit. */
-  const withoutModel = (src: string) => { const from = src.indexOf('\n#460='); return src.slice(0, from + 1) + src.slice(src.lastIndexOf('ENDSEC;')); };
-  const files = [
-    `${OLD}/main-df9eafc7d-woongebouw-nieuwbouw.ifc`, `${OLD}/v2026.7.2-woongebouw-nieuwbouw.ifc`,
-    `${OLD}/v2026.7.7-urentaak-10-villa-wassenaar.ifc`, `${OLD}/v2026.9.0-10-villa-wassenaar.ifc`,
-    `${OLD}/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc`, `${OLD}/v2026.43.0-10-villa-wassenaar.ifc`,
-    `${OLD}/v2026.43.0-halve-dag-10-villa-wassenaar.ifc`, `${OLD}/v2026.43.0-urentaak-10-villa-wassenaar.ifc`,
-    'tests/planning/fixtures/h7-tijden-oude-writer.ifc', MODEL_FILE,
-  ];
-  for (const rel of files) {
+  const fixture = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/main-toets-trias.json'), 'utf8')) as { basis: string; bestanden: TriasEntry[] };
+  ok('toets van Trias: de fixture van main noemt de tien bestanden', JSON.stringify(fixture.bestanden.map(b => b.pad)) === JSON.stringify(TRIAS_FILES));
+  for (const rel of TRIAS_FILES) {
     const name = `toets van Trias · ${rel.split('/').pop()}`;
+    const want = fixture.bestanden.find(b => b.pad === rel);
     const raw = readText(rel);
-    const bare = rel === MODEL_FILE ? withoutModel(raw) : raw;
-    const modelled = rel === MODEL_FILE ? raw : withLines(raw, REVIT_WALL);
-    ok(`${name}: zonder model geen IFCWALL`, !bare.includes('IFCWALL('));
+    const bare = bareBytes(ROOT, rel);
+    const modelled = rel === TRIAS_MODEL_FILE ? raw : withLines(raw, REVIT_WALL);
+    ok(`${name}: zonder model geen IFCWALL`, !text(bare).includes('IFCWALL('));
+    ok(`${name}: de invoer is die van de fixture van main (anders: node scripts/proef/maak-main-toets-trias.mjs)`, want?.invoerSha256 === sha256(bare));
     const o = await openForeign(latin1(modelled));
     const edit = ordinaryEdits(o).find(e => e.kind === 'doorrekenen')!;
     const mine = cloneDomain(o);
@@ -380,14 +380,15 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       ok(`${name}: de merge schrijft, kreeg ${r.kinds.join(', ')} — ${(r.error.cases[0]?.detail ?? '').slice(0, 200)}`, false);
       continue;
     }
-    const plain = cloneDomain(await openForeign(latin1(bare)));
-    edit.apply(plain);
-    const viaMain = canon(await reopenPlain(await recalculated(plain)), reseed);
+    reseed(0x804);
+    const plain = await plainSaveAfterF5(bare);
+    ok(`${name}: de gewone opslag is byte-gelijk aan die van main ${fixture.basis}`, want?.uitvoerSha256 === sha256(plain));
+    const viaMain = canon(await openForeign(new TextEncoder().encode(plain)), reseed);
     const viaMerge = canon(await openForeign(r.bytes), reseed);
     const a = viaMerge.split('\n'), b = viaMain.split('\n');
     const first = a.findIndex((line, i) => line !== b[i]);
-    rows.push(`| ${name} | ${viaMerge === viaMain ? 'schrijft, dezelfde planning als een gewone opslag zonder model' : `schrijft, andere planning: ${(a[first] ?? '').slice(0, 80)}`} |`);
-    ok(`${name}: dezelfde planning als een gewone opslag zonder model (eerste verschil: ${(a[first] ?? '').slice(0, 160)} tegenover ${(b[first] ?? '').slice(0, 160)})`, viaMerge === viaMain);
+    rows.push(`| ${name} | ${viaMerge === viaMain ? 'schrijft, dezelfde planning als een gewone opslag op main zonder model' : `schrijft, andere planning: ${(a[first] ?? '').slice(0, 80)}`} |`);
+    ok(`${name}: dezelfde planning als een gewone opslag op main zonder model (eerste verschil: ${(a[first] ?? '').slice(0, 160)} tegenover ${(b[first] ?? '').slice(0, 160)})`, viaMerge === viaMain);
   }
 }
 
@@ -409,6 +410,117 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const zoned = villa.replace(/(IFCTASKTIME\('[^']*',\.PREDICTED\.,\$,\.[A-Z]+\.,'[^']*',)'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)'/, "$1'$2Z'");
   ok('grens: de bron heeft een begin met een tijdzone', zoned !== villa);
   await proof('grens', 'een begin met een tijdzone, duur en F5', zoned, 'tijd-deels-gelezen', f5);
+}
+
+// ── Fixronde 1 van #886 (review ronde 1): een slot is pas gedragen als de lezing van de bron zijn waarde teruggeeft ──
+// De proeven van Sol. Een geldige schrijfwijze bewijst niet dat de lezer de waarde draagt: `'07:30:00'` in de enige
+// periode van een scalaire kalender leest de lezer als 07:00, en `'2027-03-01T11:00:00'` op zo'n kalender op dagniveau.
+// Zo'n bronwaarde blijft staan of de merge weigert getypeerd; nooit de waarde van de writer erover. Ook via de echte
+// storeactie (`updateTask`, `runCPM`).
+{
+  const PERIOD = 'tests/fixtures/ifc-foreign/review886-periode-0730.ifc';
+  const START = 'tests/fixtures/ifc-foreign/review886-taaktijd-1100.ifc';
+  ok('Sol: de periode-bron heeft 07:30', readText(PERIOD).includes("IFCTIMEPERIOD('07:30:00','16:00:00')"));
+  ok('Sol: de taaktijd-bron heeft een begin om 11:00', readText(START).includes("'P0Y0M1D','2027-03-01T11:00:00'"));
+  /** Schrijft de merge, dan staat `sentinel` er nog; anders weigert hij getypeerd. */
+  const keepsOrRefuses = async (label: string, sentinel: string, input: () => Promise<{ d: Domain; o: Opened }>) => {
+    const { d, o } = await input();
+    const r = await tryMerge(d, o.ifcSource!);
+    const kept = r.ok && text(r.bytes).includes(sentinel);
+    rows.push(`| Sol · ${label} | ${r.ok ? (kept ? `schrijft, ${sentinel} blijft` : `schrijft zonder ${sentinel}`) : `weigert (${r.kinds.join(', ')})`} |`);
+    ok(`Sol · ${label}: de bronwaarde ${sentinel} blijft staan of de merge weigert (${r.ok ? 'schrijft zonder' : r.kinds.join(', ')})`,
+      kept || (!r.ok && r.kinds.length > 0));
+    return r;
+  };
+  const viaInput = (rel: string, edit?: (d: Domain) => void) => async () => {
+    const o = await openForeign(latin1(readText(rel)));
+    const d = cloneDomain(o);
+    edit?.(d);
+    return { d, o };
+  };
+  const viaStore = (rel: string, act: (st: Awaited<ReturnType<typeof openInStore>>['store']) => void) => async () => {
+    const { store, snapshot } = await openInStore(latin1(readText(rel)));
+    act(store);
+    const o = snapshot(store);
+    return { d: cloneDomain(o), o };
+  };
+  const longer = (minutes: number) => (d: Domain) => {
+    const time = d.tasks[0].time;
+    time.scheduleDuration = minutes / 480; time.durationMinutes = minutes; time.remainingMinutes = minutes; time.remainingTime = minutes / 480;
+  };
+  // Proef 1: de periode.
+  const none = await keepsOrRefuses('periode 07:30, zonder bewerking', "'07:30:00'", viaInput(PERIOD));
+  ok('Sol · periode 07:30, zonder bewerking: schrijft', none.ok);
+  await keepsOrRefuses('periode 07:30, duur 1,5 dag (invoer)', "'07:30:00'", viaInput(PERIOD, (d) => { d.tasks[0].time.scheduleDuration = 1.5; }));
+  await keepsOrRefuses('periode 07:30, duur 1,5 dag (updateTask)', "'07:30:00'", viaStore(PERIOD, (store) => {
+    const t = store.getState().tasks[0];
+    store.getState().updateTask(t.id, { time: { ...t.time, scheduleDuration: 1.5 } });
+  }));
+  await keepsOrRefuses('periode 07:30, duur 1,5 dag en F5 (updateTask, runCPM)', "'07:30:00'", viaStore(PERIOD, (store) => {
+    const t = store.getState().tasks[0];
+    store.getState().updateTask(t.id, { time: { ...t.time, scheduleDuration: 1.5 } });
+    store.getState().runCPM();
+  }));
+  // Proef 2: de taaktijd. De duur verandert, het begin niet.
+  const start = await keepsOrRefuses('begin 11:00, zonder bewerking', "'2027-03-01T11:00:00'", viaInput(START));
+  ok('Sol · begin 11:00, zonder bewerking: schrijft', start.ok);
+  await keepsOrRefuses('begin 11:00, de duurvelden op 2 dagen (invoer)', "'2027-03-01T11:00:00'", viaInput(START, longer(960)));
+  await keepsOrRefuses('begin 11:00, de duur op 2 dagen (updateTask)', "'2027-03-01T11:00:00'", viaStore(START, (store) => {
+    const t = store.getState().tasks[0];
+    store.getState().updateTask(t.id, { time: { ...t.time, durationMinutes: 960, scheduleDuration: 2 } });
+  }));
+}
+
+// Proef 3 (Terra punt 4): de planner wijzigt de kalender en raakt geen taaktijd aan. Blijft de kalender scalair, dan blijft
+// elke taaktijd van de bron letterlijk staan. Wordt hij letterlijk (een andere werkstart), dan gaan de datums in de vorm van
+// de writer (besluit van Trias over 1102), en geeft herlezen via de app dezelfde planning als een gewone opslag van dezelfde
+// invoer. Op `1cb0b0057` was deze proef al groen.
+{
+  const taskTimes = (s: string) => new Map([...s.matchAll(/^#\d+=IFCTASKTIME\('([^']*)',.*$/gm)].map(m => [m[1], m[0].slice(m[0].indexOf('('))]));
+  for (const [file, src] of [['v2026.43.0', walled(`${OLD}/v2026.43.0-10-villa-wassenaar.ifc`)],
+    ['eigen-plus-model', readText('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')]] as const) {
+    const o = await openForeign(latin1(src));
+    for (const [label, edit] of [
+      ['werkdagen ma-za', (d: Domain) => { d.calendar.workDays = [1, 2, 3, 4, 5, 6]; }],
+      ['werkstart 8-17', (d: Domain) => { d.calendar.workStartHour += 1; d.calendar.workEndHour += 1; }],
+    ] as const) {
+      const name = `Terra 4 · ${file}, ${label}`;
+      const d = cloneDomain(o);
+      edit(d);
+      ok(`${name}: de taaktijden zijn gelijk aan opened`, d.tasks.every((t, i) => JSON.stringify(t.time) === JSON.stringify(o.tasks[i].time)));
+      const r = await tryMerge(d, o.ifcSource!);
+      if (!r.ok) { rows.push(`| ${name} | weigert (${r.kinds.join(', ')}) |`); continue; }
+      const out = text(r.bytes);
+      if (!out.includes("'LiteralTimes'")) {
+        const before = taskTimes(src), after = taskTimes(out);
+        const other = [...before].filter(([n, line]) => after.get(n) !== line);
+        rows.push(`| ${name} | schrijft, kalender scalair, ${other.length} taaktijden anders dan de bron |`);
+        ok(`${name}: elke taaktijd blijft zoals in de bron (${other[0]?.[0] ?? ''})`, other.length === 0);
+      } else {
+        const viaMerge = canon(await openForeign(r.bytes), reseed), viaPlain = canon(await reopenPlain(d), reseed);
+        rows.push(`| ${name} | schrijft, kalender letterlijk, ${viaMerge === viaPlain ? 'dezelfde planning als een gewone opslag' : 'een andere planning'} |`);
+        ok(`${name}: dezelfde planning als een gewone opslag van dezelfde invoer`, viaMerge === viaPlain);
+      }
+    }
+  }
+}
+
+// Proef 4 (Terra punt 3 en Sol): `literalBaselineForm`. Sectie 1 ziet de datums in de JSON van een baseline niet.
+// (a) Een baselinestart met een tijdzone: de writer op de lezing (O0) schrijft haar als `'2027-05-07'`; de lezing draagt de
+// waarde dus niet, (b) zet de JSON terug, en op een kalender die letterlijk wordt (de duur 1,5 dag) weigert de merge.
+// (b) Een baseline die de lezer wel draagt, maar die de planner wijzigde: dat is geen vorm van de writer, dus geen
+// verklaring; de merge weigert (de regel `plannerChanged` in `literalBaselineForm`). Zonder wijziging schrijft hij: zie
+// de proeven "kalendertijd" in `check-ifc-foreign-strikt.ts`.
+{
+  const settled = text(await settle(latin1(readText('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'))));
+  const zoned = settled.replace('"start":"2027-05-07"', '"start":"2027-05-07T07:00:00Z"');
+  ok('baseline: de bron met tijdzone heeft er een', zoned.includes('"start":"2027-05-07T07:00:00Z"'));
+  const halfDay = (d: Domain) => { d.tasks.find(t => !t.isMilestone && t.childIds.length === 0)!.time.scheduleDuration = 1.5; };
+  await proof('baseline', 'een start met tijdzone, duur 1,5 dag (kalender letterlijk)', zoned, 'niet-gedragen', halfDay);
+  await proof('baseline', 'de planner verschuift een baselinestart, duur 1,5 dag (kalender letterlijk)', settled, 'niet-gedragen', (d) => {
+    halfDay(d);
+    d.baselines![0].tasks[1].start = '2027-05-10T07:00';
+  });
 }
 
 console.log('| proef | uitkomst |');

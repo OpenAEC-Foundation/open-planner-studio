@@ -1,0 +1,65 @@
+{
+ "basis": "a4783fc35",
+ "bestanden": [
+  {
+   "pad": "tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+   "invoerSha256": "7701a1af6c8b071c6f1de3e27bd4950b6d189ffd990351664ba98197bd2876ff",
+   "uitvoerSha256": "a82591d8f950a0329bd2c6eca3225b06672ab01d6721bebc03855ad6be51aace",
+   "lengte": 50510
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc",
+   "invoerSha256": "fdf5f1316ecd0d22011a0d5dad4fe3870c49d225d4533787dc11ac1d85413ce2",
+   "uitvoerSha256": "4649c52d6dd45e620efe53d7ae98fe43e347bfd29d999eb7f0c8f51886f31a90",
+   "lengte": 50510
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+   "invoerSha256": "bc1ecf64de9e055201426ca07012d584f189ea69ff993690e5ec0a36d3e9b222",
+   "uitvoerSha256": "7d78adda4847b30305be31e3e7817237bcdd8badd41b3bcd3a5a91e299ca6a59",
+   "lengte": 50321
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-10-villa-wassenaar.ifc",
+   "invoerSha256": "a8182db63dacb6a3198fdcb3970538925865b99acf7aff5ead34be3a008e8b31",
+   "uitvoerSha256": "f395d62903914f1958ca07109f796054808f37b8f0f6b3e9fbdef41abd14b39f",
+   "lengte": 58948
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+   "invoerSha256": "b7a7174bd81ec04cd59b8bd7c88cb3c9a464ca74773fd9fac8aa79ff6c081d06",
+   "uitvoerSha256": "3ba60bd6839c70ee842b4e683f8a56d3e1b2a1ce975cc0c0c280a443c320324a",
+   "lengte": 59937
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-10-villa-wassenaar.ifc",
+   "invoerSha256": "ccaeef426595e4ecddcad3a3b639d0fed28dc558e7cab392077e4aee3a96c8c1",
+   "uitvoerSha256": "46097a496e386a3b00efeb61515dd1e833c8e4ba35663168d8e7853a526341c2",
+   "lengte": 59137
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+   "invoerSha256": "9e35fff740cfa35fa4aea51cc1789bdc60f72a356329625a32273e299e45ac7b",
+   "uitvoerSha256": "2965302aaf6f92af785fcccad4ce843be5c145e6fd697fd4274cfcd7a5acae8b",
+   "lengte": 59430
+  },
+  {
+   "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+   "invoerSha256": "198478f47a91019ebea69674f3b8cda3d03df84f268421e87810fd461e57928f",
+   "uitvoerSha256": "64d297b8ccd92b3fa544e80ec17760719c007f0a40f433be0237cb0e994afc66",
+   "lengte": 59401
+  },
+  {
+   "pad": "tests/planning/fixtures/h7-tijden-oude-writer.ifc",
+   "invoerSha256": "09cd02d39263d8e29eda7fb0fa385369a9df5a36d092cbc2bf6e4b247baeff7b",
+   "uitvoerSha256": "b7e3ddab5bc0adba41176cd78881950a63a711ab13b8db35ed2f90d285f99606",
+   "lengte": 12292
+  },
+  {
+   "pad": "tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc",
+   "invoerSha256": "cab0caf03aea2a2ede43828d1627647d91ec28606cc1a7290f552fe6d648eb2f",
+   "uitvoerSha256": "0f77c3e890d617fa507d6d7c0510f432c58d75ec96400117c69b3c4cfd415312",
+   "lengte": 58948
+  }
+ ]
+}

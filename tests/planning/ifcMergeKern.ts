@@ -20,10 +20,9 @@ import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { orphanRowsWithoutId } from '@/services/ifc/foreign/sourceForm';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import type { ImportResult } from '@/services/importTypes';
-import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import type { Task } from '@/types/task';
-import { installBrowserStubs } from './ifcPariteitKern';
+import { lengthen, lengthenedTask, openInStore, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
+export { openInStore } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
 export type Opened = Domain & { ifcSource?: IfcSource };
@@ -47,46 +46,12 @@ export async function openForeignRaw(bytes: Uint8Array): Promise<Opened> {
   return r.result as Opened;
 }
 
-type StoreModules = {
-  createAppStoreContext: typeof import('@/state/appStoreFactory').createAppStoreContext;
-  buildWriteIFCInput: typeof import('@/state/ifcSaveInput').buildWriteIFCInput;
-};
-let storeModules: Promise<StoreModules> | undefined;
-/** De store pas bij het eerste gebruik laden, na de kale browseromgeving (zoals `check-ifc-foreign-target.ts`). */
-function loadStore(): Promise<StoreModules> {
-  storeModules ??= (async () => {
-    if ((globalThis as { window?: unknown }).window === undefined) installBrowserStubs();
-    const [{ createAppStoreContext }, { FEATURE_FLAGS }, { buildWriteIFCInput }] = await Promise.all([
-      import('@/state/appStoreFactory'), import('@/utils/featureFlags'), import('@/state/ifcSaveInput'),
-    ]);
-    // Alleen in de tests: de flag bruikbaar maken, zoals in `check-ifc-foreign-open.ts` en `-target.ts`.
-    FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!.writesNewIfcData = false;
-    return { createAppStoreContext, buildWriteIFCInput };
-  })();
-  return storeModules;
-}
-
-/**
- * Openen zoals Bestand → Openen met de flag (#886): een verse store, de flag aan, `openOpenedFile` met de bytes
- * (de bytes-route; zonder `Worker` in Node valt hij terug op de scan in dezelfde draad), en dan wat Opslaan aan de writer
- * geeft (`buildWriteIFCInput`) met `ifcSource` erbij. Weigert de app het bestand, dan gooit dit de fout die
- * `openOpenedFile` meldde (die vangt hij zelf en meldt hem via het meldingenkanaal en `console.error`).
- */
+/** Openen zoals Bestand → Openen met de flag (#886), zie `openInStore` in `ifcAppRoute.ts`: wat Opslaan aan de writer
+ *  geeft (`buildWriteIFCInput`) met `ifcSource` erbij. Dat is de toestand die 1c de merge geeft: na de lezer, de omzetting
+ *  naar het minutenmodel en de herberekening bij openen. */
 export async function openForeign(bytes: Uint8Array, name = 'bron.ifc'): Promise<Opened> {
-  const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
-  const { store } = createAppStoreContext();
-  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  let failure: unknown;
-  const realError = console.error;
-  console.error = (...args: unknown[]) => { if (args[0] === 'Failed to open file:') failure = args[1]; else realError(...args); };
-  try {
-    await store.getState().openOpenedFile({ name, content: '', bytes, ref: null });
-  } finally {
-    console.error = realError;
-  }
-  if (failure !== undefined) throw failure;
-  const st = store.getState();
-  return { ...buildWriteIFCInput(st), ...(st.ifcSource ? { ifcSource: st.ifcSource } : {}) } as Opened;
+  const { store, snapshot } = await openInStore(bytes, name);
+  return snapshot(store) as Opened;
 }
 
 /**
@@ -110,25 +75,8 @@ export async function shownAfterOpen(d: Domain): Promise<Opened> {
   return buildWriteIFCInput(store.getState()) as Opened;
 }
 
-/** Doorrekenen (F5) zoals de app: het domein in een eigen store (zie `shownAfterOpen`), en daar `runCPM`. */
-export async function recalculated(d: Domain): Promise<Domain> {
-  const { store, buildWriteIFCInput } = await storeWith(d);
-  store.getState().runCPM();
-  return buildWriteIFCInput(store.getState()) as Domain;
-}
-
-async function storeWith(d: Domain) {
-  const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
-  const { store } = createAppStoreContext();
-  // Zoals de lezer het levert: de bibliotheek zonder de kopie van de projectkalender (de writer schrijft die niet), anders
-  // maakt `ensureUniqueImportIds` er een tweede kalender van.
-  const parsed = {
-    ...structuredClone(d), timeModel: MINUTE_MODEL_TIME_MODEL,
-    resourceCalendars: (d.resourceCalendars ?? []).filter(c => c.id !== d.project.calendarId).map(c => structuredClone(c)),
-  } as ImportResult;
-  store.getState().openAsDocument(parsed, { name: 'getoond.ifc', ref: null });
-  return { store, buildWriteIFCInput };
-}
+/** Doorrekenen (F5) zoals de app: `recalculated` uit `ifcAppRoute.ts`. */
+export const recalculated = (d: Domain): Promise<Domain> => recalculatedInStore(d);
 
 /** Een kopie van het domein zonder de bron (die blijft gedeeld en wordt niet bewerkt). */
 export function cloneDomain(d: Opened): Domain {
@@ -375,7 +323,7 @@ export function plannerEdits(d: Domain, max = Infinity): Edit[] {
 
 /** De bewerkingen van 1b (brief): taak erbij, hernoemen, duur wijzigen, toewijzing erbij. Eén van elk, op een vaste taak. */
 export function basicEdits(d: Domain): Edit[] {
-  const leaf = d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone) ?? d.tasks[0];
+  const leaf = lengthenedTask(d);
   const out: Edit[] = [];
   if (!leaf) return out;
   out.push({ kind: 'taak-erbij', label: `nieuwe taak naast ${leaf.id}`, apply: (x) => {
@@ -385,11 +333,7 @@ export function basicEdits(d: Domain): Edit[] {
     if (base.parentId) { const p = m.get(base.parentId)!; p.childIds.splice(p.childIds.indexOf(base.id) + 1, 0, task.id); }
   } });
   out.push({ kind: 'hernoemen', label: `${leaf.id} hernoemd`, apply: (x) => { byId(x).get(leaf.id)!.name = 'Hernoemd in 1b'; } });
-  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => {
-    const time = byId(x).get(leaf.id)!.time;
-    time.scheduleDuration += 1;
-    if (time.durationMinutes !== undefined) time.durationMinutes += 480;
-  } });
+  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => { lengthen(x, leaf.id); } });
   const resource = d.resources[0];
   if (resource) {
     out.push({ kind: 'toewijzing-erbij', label: `${resource.id} op ${leaf.id}`, apply: (x) => {
