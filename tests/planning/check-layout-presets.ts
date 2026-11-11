@@ -254,6 +254,30 @@ try { await updateLayouts(() => []); } catch (e) { updateError = e; }
 localStorage.getItem = getItemOk;
 ok(updateError instanceof SettingsUnreadableError, 'updateLayouts: een leesfout gooit SettingsUnreadableError');
 ok(storage.get('ops-taskGridLayouts') === beforeBlocked, 'updateLayouts: bij een leesfout is er niets geschreven');
+// Twee wijzigingen die tegelijk starten, lezen niet dezelfde lijst: de tweede bouwt op de eerste (review Terra #905).
+storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [resourceDiagram] }));
+const first: Layout = { id: 'eerste', name: 'Eerste', group: [] };
+const second: Layout = { id: 'tweede', name: 'Tweede', group: [] };
+await Promise.all([updateLayouts(current => [...current, first]), updateLayouts(current => [...current, second])]);
+ok((await loadLayouts()).map(l => l.id).join(',') === 'builtin:resource-diagram,eerste,tweede', 'updateLayouts: twee gelijktijdige wijzigingen blijven allebei staan');
+
+// De migratie van opgeslagen filters zet haar vlag pas als de samengevoegde lijst echt in de opslag staat (review Sol
+// #905): kan de opslag niet schrijven (vol), dan probeert de volgende lezing het opnieuw en blijft het filter bereikbaar.
+storage.clear();
+storedLayouts();
+storage.set('ops-savedFilters', savedFiltersRaw);
+const setItemOk = localStorage.setItem;
+localStorage.setItem = (key: string, value: string) => {
+  if (key === 'ops-taskGridLayouts') throw new Error('QuotaExceededError');
+  storage.set(key, value);
+};
+const duringFull = await loadLayouts();
+localStorage.setItem = setItemOk;
+ok(duringFull.some(l => l.id === 'critical-only'), 'migratie bij volle opslag: het filter staat in de geladen lijst');
+ok(!storage.has('ops-savedFiltersMigrated'), 'migratie bij volle opslag: geen vlag');
+const afterFull = await loadLayouts();
+ok(afterFull.some(l => l.id === 'critical-only') && storage.get('ops-savedFiltersMigrated') === 'true', 'migratie na herstel: het filter is overgezet en de vlag staat');
+ok((await loadLayouts()).some(l => l.id === 'critical-only'), 'migratie na herstel: het filter blijft bij de volgende lezing');
 
 if (failures > 0) process.exit(1);
 console.log('layout-presets: alles groen');

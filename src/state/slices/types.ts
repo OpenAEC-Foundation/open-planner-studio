@@ -203,6 +203,7 @@ export type NotificationMessageKey =
   | 'notifications.openFailed'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
+  | 'notifications.layoutsNotSaved'
   // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
   | 'notifications.fileDropRefused'
   | 'notifications.fileDropBlocked'

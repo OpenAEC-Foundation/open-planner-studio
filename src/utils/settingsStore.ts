@@ -543,7 +543,13 @@ export async function loadLayouts(): Promise<Layout[]> {
   const savedFilters = await loadSavedFilters();
   const merged = migrateSavedFilters(layouts, savedFilters);
   // Een eenmalige migratie, ook als een dialoog dit pas later aanroept: geen keuze van de gebruiker.
-  if (merged.length !== layouts.length) await saveLayouts(merged, 'start');
+  if (merged.length !== layouts.length) {
+    await saveLayouts(merged, 'start');
+    // Kwam de samengevoegde lijst niet in de opslag (vol, geblokkeerd), dan nog geen vlag: anders las de app de
+    // oude filters nooit meer (review Sol #905). De volgende lezing probeert het opnieuw.
+    const stored = await loadStoredLayouts();
+    if (stored.map(l => l.id).join('\n') !== merged.map(l => l.id).join('\n')) return merged;
+  }
   await setSetting('savedFiltersMigrated', true, 'start');
   return merged;
 }
@@ -561,11 +567,17 @@ export async function saveLayouts(layouts: Layout[], origin: SettingWriteOrigin 
  * filterdialoog, een ander venster), en na een leesfout is ze leeg (knownbug 1362). Gooit
  * `SettingsUnreadableError` en schrijft niets als de opslag niet te lezen is. Geeft de nieuwe lijst.
  */
-export async function updateLayouts(change: (current: Layout[]) => Layout[]): Promise<Layout[]> {
-  const next = change(await loadLayouts());
-  await saveLayouts(next);
-  return next;
+export function updateLayouts(change: (current: Layout[]) => Layout[]): Promise<Layout[]> {
+  // Eén wijziging tegelijk: twee die tegelijk starten, lazen anders dezelfde lijst en de tweede wiste de eerste.
+  const run = layoutUpdates.then(async () => {
+    const next = change(await loadLayouts());
+    await saveLayouts(next);
+    return next;
+  });
+  layoutUpdates = run.catch(() => undefined);
+  return run;
 }
+let layoutUpdates: Promise<unknown> = Promise.resolve();
 
 // Opgeslagen filters: net als layouts app-breed op dit apparaat, maar bewust alleen
 // de filterboom. Daardoor blijft de rest van de actuele weergave onaangetast bij snel wisselen.

@@ -12,6 +12,7 @@ import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldR
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { generateId } from '@/utils/id';
 import { ignoreUnreadable, loadLayouts, updateLayouts } from '@/utils/settingsStore';
+import { layoutsNotSaved } from '@/components/viewControls/layoutsNotSaved';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -326,8 +327,8 @@ export function FilterDialog() {
   };
 
   /** Een wijziging op de vers gelezen lijst, nooit deze kopie terugschrijven (`updateLayouts`, knownbug 1362). */
-  const persistLayouts = (change: (current: Layout[]) => Layout[]) => {
-    void updateLayouts(change).then(setLayouts, ignoreUnreadable);
+  const persistLayouts = (change: (current: Layout[]) => Layout[], onSaved: () => void) => {
+    void updateLayouts(change).then(next => { setLayouts(next); onSaved(); }, layoutsNotSaved);
   };
 
   const selectSavedFilter = (id: string) => {
@@ -346,16 +347,17 @@ export function FilterDialog() {
       name: savedFilterName.trim() || t('view.layout.name'),
       filter: structuredClone(root),
     };
-    persistLayouts(current => [...current, saved]);
-    setSelectedSavedFilterId(saved.id);
-    setSavedFilterName('');
+    // Pas na het opslaan selecteren en de naam leegmaken: mislukt het, dan blijft de invoer staan.
+    persistLayouts(current => [...current, saved], () => {
+      setSelectedSavedFilterId(saved.id);
+      setSavedFilterName('');
+    });
   };
 
   const removeSelectedSavedFilter = () => {
     if (!selectedSavedFilterId) return;
     const id = selectedSavedFilterId;
-    persistLayouts(current => current.filter(layout => layout.id !== id));
-    setSelectedSavedFilterId('');
+    persistLayouts(current => current.filter(layout => layout.id !== id), () => setSelectedSavedFilterId(''));
   };
 
   return (

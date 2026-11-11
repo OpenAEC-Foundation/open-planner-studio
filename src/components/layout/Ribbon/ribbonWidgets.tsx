@@ -9,6 +9,7 @@ import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
   saveShowMiniMap, ignoreUnreadable, loadLayouts, updateLayouts,
 } from '@/utils/settingsStore';
+import { layoutsNotSaved } from '@/components/viewControls/layoutsNotSaved';
 import { applySetting } from '@/components/settings/applySetting';
 import { ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
@@ -1072,7 +1073,7 @@ export function LayoutGroupContent() {
   const [pendingDelete, setPendingDelete] = useState<Layout | null>(null);
   // Een wijziging op de vers gelezen lijst, nooit de kopie van de knoppenrij terugschrijven: die mist bijvoorbeeld
   // een filter dat net in de filterdialoog is opgeslagen (`updateLayouts`, knownbug 1362).
-  const persist = (change: (current: Layout[]) => Layout[]) => { void updateLayouts(change).then(setLayouts, ignoreUnreadable); };
+  const persist = (change: (current: Layout[]) => Layout[]) => { void updateLayouts(change).then(setLayouts, layoutsNotSaved); };
   const duplicate = (layout: Layout) => {
     const { id: _id, ...rest } = layout;
     const copy: Layout = { ...structuredClone(rest), id: generateId('layout'), name: tCommon('view.layout.copyName', { name: layout.name }) };

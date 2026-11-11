@@ -12,6 +12,7 @@ import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import { LAYOUT_ICON_KEYS, layoutIcon } from '@/components/viewControls/layoutIcons';
 import { layoutParts, pickLayoutParts } from '@/engine/view/layoutPresets';
 import { ignoreUnreadable, loadLayouts, updateLayouts } from '@/utils/settingsStore';
+import { layoutsNotSaved } from '@/components/viewControls/layoutsNotSaved';
 import { LAYOUT_PARTS, type Layout, type LayoutPart, type TimeScale } from '@/types/view';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
@@ -105,8 +106,11 @@ export function LayoutsDialog() {
   const receive = useCallback((all: Layout[]) => {
     setLayouts(all);
     if (filledRef.current) return;
+    const target = targetId ? all.find(l => l.id === targetId) : undefined;
+    // De layout die je bewerkt, staat (nog) niet in de lijst: het formulier is dan nog niet gevuld. Komt ze later
+    // binnen, dan vult die lijst het formulier alsnog (review Terra #905, ronde 2).
+    if (targetId && !target) return;
     filledRef.current = true;
-    const target = all.find(l => l.id === targetId);
     if (!target) return;
     setName(target.name);
     setIcon(target.icon ?? 'layout');
@@ -153,7 +157,7 @@ export function LayoutsDialog() {
     const layout = build(target?.id ?? fromScreen().id, finalName);
     // Op de vers gelezen lijst, niet op `layouts`: die mist wat intussen elders is opgeslagen.
     void updateLayouts(current => (target ? current.map(l => (l.id === target.id ? layout : l)) : [...current, layout]))
-      .then(close, ignoreUnreadable);
+      .then(close, layoutsNotSaved);
   };
 
   const applyOnly = () => {

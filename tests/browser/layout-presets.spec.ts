@@ -148,6 +148,32 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await page.getByRole('button', { name: /^(Duplicate|Dupliceren)$/ }).click();
   await expect.poll(async () => (await storedNames()).length).toBe(3);
   expect(await storedNames()).toEqual(expect.arrayContaining(['Zonder gevel', 'Zonder dak']));
+
+  // Opslaan terwijl de opslag even niet te lezen is: niets opgeslagen, een melding, en de naam blijft staan, zodat
+  // opnieuw opslaan na herstel lukt (review Terra #905, ronde 2).
+  await page.evaluate(() => {
+    window.__OPS__!.store.getState().setUI({ showFilterDialog: true });
+    const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
+    const realGetItem = w.opsRealGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      if (key.startsWith('ops-')) throw new DOMException('geweigerd', 'SecurityError');
+      return realGetItem.call(this, key);
+    };
+  });
+  const nameField = filterDialog.getByRole('textbox', { name: /^(Name|Naam)$/ });
+  await nameField.fill('Na een leesfout');
+  await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .some(n => n.messageKey === 'notifications.layoutsNotSaved'))).toBe(true);
+  await expect(nameField).toHaveValue('Na een leesfout');
+  await page.evaluate(() => {
+    Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;
+  });
+  expect(await storedNames()).not.toContain('Na een leesfout');
+  await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect.poll(storedNames).toContain('Na een leesfout');
+  await expect(nameField).toHaveValue('');
+  await filterDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
 });
 
 test('legacy-instelling: de klassieke weergaveknoppen komen terug via Instellingen → Legacy-functies', async ({ page, ops: _ops }) => {
