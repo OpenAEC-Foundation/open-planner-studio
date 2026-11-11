@@ -8,7 +8,7 @@ import {
   dropBrokenLayouts, liveSessionLayouts, migrateSavedFilters, pickLayoutParts, switchLayoutOff, switchLayoutOn,
   type LayoutViewParts,
 } from '@/engine/view/layoutPresets';
-import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { LayoutsNotSavedError, loadLayouts, saveLayouts, SettingsUnreadableError, updateLayouts } from '@/utils/settingsStore';
 import { generateId } from '@/utils/id';
 import type { FilterNode, Layout, LayoutOverlays, SavedFilter } from '@/types/view';
 
@@ -210,6 +210,86 @@ storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [
 ] }));
 const guarded = await loadLayouts();
 ok(guarded.length === 1 && guarded[0]?.id === 'builtin:resource-diagram', 'een aanwezig maar misvormd deel laat de hele layout vervallen');
+
+// Een leesfout is geen lege lijst (knownbug 1362): wie de lijst na een mislukte lezing als leeg zou opslaan,
+// wist de eigen layouts. `loadLayouts` gooit dan `SettingsUnreadableError` en schrijft niets (geen migratie,
+// geen vlag), voor elke bron die het leest.
+const unreadableCase = async (blocked: string, setup: () => void, label: string) => {
+  storage.clear();
+  setup();
+  const before = JSON.stringify([...storage]);
+  const getItem = localStorage.getItem;
+  localStorage.getItem = (key: string) => {
+    if (key === blocked) throw new Error('SecurityError');
+    return storage.get(key) ?? null;
+  };
+  let error: unknown = null;
+  try { await loadLayouts(); } catch (e) { error = e; }
+  localStorage.getItem = getItem;
+  ok(error instanceof SettingsUnreadableError, `${label}: loadLayouts gooit SettingsUnreadableError`);
+  ok(JSON.stringify([...storage]) === before, `${label}: de opslag is ongewijzigd`);
+};
+const storedLayouts = () => storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [resourceDiagram] }));
+await unreadableCase('ops-taskGridLayouts', storedLayouts, 'layouts niet te lezen');
+await unreadableCase('ops-layouts', () => {}, 'oude layoutsleutel niet te lezen');
+await unreadableCase('ops-savedFiltersMigrated', storedLayouts, 'migratievlag niet te lezen');
+await unreadableCase('ops-savedFilters', () => { storedLayouts(); }, 'opgeslagen filters niet te lezen');
+storage.clear();
+storedLayouts();
+ok((await loadLayouts()).length === 1, 'na herstel laadt de lijst weer');
+
+// `updateLayouts` past de wijziging toe op de vers gelezen lijst, nooit op een kopie (review Terra en Sol #905): een
+// layout die intussen elders is opgeslagen, blijft staan. Is de opslag niet te lezen, dan schrijft het niets.
+const storedElsewhere: Layout = { id: 'elders', name: 'Elders opgeslagen', group: [] };
+storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [resourceDiagram, storedElsewhere] }));
+const added: Layout = { id: 'nieuw', name: 'Nieuw', group: [] };
+const updated = await updateLayouts(current => [...current, added]);
+ok(updated.map(l => l.id).join(',') === 'builtin:resource-diagram,elders,nieuw', 'updateLayouts: de nieuwe layout komt achter de vers gelezen lijst');
+ok((await loadLayouts()).map(l => l.id).join(',') === 'builtin:resource-diagram,elders,nieuw', 'updateLayouts: de layout van elders staat ook in de opslag');
+const beforeBlocked = storage.get('ops-taskGridLayouts');
+const getItemOk = localStorage.getItem;
+localStorage.getItem = (key: string) => { if (key === 'ops-taskGridLayouts') throw new Error('SecurityError'); return storage.get(key) ?? null; };
+let updateError: unknown = null;
+try { await updateLayouts(() => []); } catch (e) { updateError = e; }
+localStorage.getItem = getItemOk;
+ok(updateError instanceof SettingsUnreadableError, 'updateLayouts: een leesfout gooit SettingsUnreadableError');
+ok(storage.get('ops-taskGridLayouts') === beforeBlocked, 'updateLayouts: bij een leesfout is er niets geschreven');
+// Twee wijzigingen die tegelijk starten, lezen niet dezelfde lijst: de tweede bouwt op de eerste (review Terra #905).
+storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [resourceDiagram] }));
+const first: Layout = { id: 'eerste', name: 'Eerste', group: [] };
+const second: Layout = { id: 'tweede', name: 'Tweede', group: [] };
+await Promise.all([updateLayouts(current => [...current, first]), updateLayouts(current => [...current, second])]);
+ok((await loadLayouts()).map(l => l.id).join(',') === 'builtin:resource-diagram,eerste,tweede', 'updateLayouts: twee gelijktijdige wijzigingen blijven allebei staan');
+// Een schrijffout telt niet als opgeslagen (review Terra #905, ronde 3): `writeLocal` slikt haar in, dus leest
+// `updateLayouts` terug en gooit `LayoutsNotSavedError`.
+const setItemBefore = localStorage.setItem;
+localStorage.setItem = (key: string, value: string) => {
+  if (key === 'ops-taskGridLayouts') throw new Error('QuotaExceededError');
+  storage.set(key, value);
+};
+let writeError: unknown = null;
+try { await updateLayouts(current => [...current, { id: 'vol', name: 'Vol', group: [] }]); } catch (e) { writeError = e; }
+localStorage.setItem = setItemBefore;
+ok(writeError instanceof LayoutsNotSavedError, 'updateLayouts: een schrijffout gooit LayoutsNotSavedError');
+ok(!(await loadLayouts()).some(l => l.id === 'vol'), 'updateLayouts: na een schrijffout staat de layout niet in de opslag');
+
+// De migratie van opgeslagen filters zet haar vlag pas als de samengevoegde lijst echt in de opslag staat (review Sol
+// #905): kan de opslag niet schrijven (vol), dan probeert de volgende lezing het opnieuw en blijft het filter bereikbaar.
+storage.clear();
+storedLayouts();
+storage.set('ops-savedFilters', savedFiltersRaw);
+const setItemOk = localStorage.setItem;
+localStorage.setItem = (key: string, value: string) => {
+  if (key === 'ops-taskGridLayouts') throw new Error('QuotaExceededError');
+  storage.set(key, value);
+};
+const duringFull = await loadLayouts();
+localStorage.setItem = setItemOk;
+ok(duringFull.some(l => l.id === 'critical-only'), 'migratie bij volle opslag: het filter staat in de geladen lijst');
+ok(!storage.has('ops-savedFiltersMigrated'), 'migratie bij volle opslag: geen vlag');
+const afterFull = await loadLayouts();
+ok(afterFull.some(l => l.id === 'critical-only') && storage.get('ops-savedFiltersMigrated') === 'true', 'migratie na herstel: het filter is overgezet en de vlag staat');
+ok((await loadLayouts()).some(l => l.id === 'critical-only'), 'migratie na herstel: het filter blijft bij de volgende lezing');
 
 if (failures > 0) process.exit(1);
 console.log('layout-presets: alles groen');
