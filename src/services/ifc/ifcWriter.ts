@@ -1395,10 +1395,16 @@ function writeCalendar(
   // het model heeft geen bandidentiteit/tijdzone om de herkomst mee te verplaatsen.
   const originalLayout = cal.ifcTimePeriods?.[0]?.layout;
   if (originalLayout !== undefined && originalLayout !== ifcCalendarBandLayout(cal)) {
-    const protectedSource = cal.ifcTimePeriods?.find(p => [p.startText, p.endText].some(text => {
+    const protectedSource = cal.ifcTimePeriods?.find(p => [p.startText, p.endText].some((text, side) => {
       if (!text) return false;
       const clock = parseIfcClock(text);
-      return !clock || clock.preserve;
+      if (!clock || /(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) return true;
+      // Oude eigen schrijvers gebruikten uur- en minuutfracties. Die waarden
+      // draagt het model; een andere geldige klokvorm is geen gegevensverlies.
+      if (clock.legacyBand || /[.e]/i.test(text.split(':')[0])) return false;
+      // Ook de huidige schrijver kan fijnere decimale seconden maken. Zijn
+      // eigen exact reproduceerbare klokken mogen bewerkingen nooit blokkeren.
+      return clock.preserve && calendarClock(clock.minutes, side === 1) !== text;
     }));
     if (protectedSource) throw new IfcCalendarTimePrecisionError(protectedSource.start);
   }

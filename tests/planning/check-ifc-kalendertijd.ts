@@ -8,6 +8,8 @@ import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
 import { parseInstant } from '@/utils/dateUtils';
+import type { WorkCalendar } from '@/types/calendar';
+import { hoursPerDayForBlocks, workDaysFromBands } from '@/services/subdayIo';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 
 installBrowserStubs();
@@ -288,6 +290,82 @@ for (const name of [...readdirSync(new URL('./fixtures/oude-tags/', import.meta.
   await store.getState().saveFile();
   eq(`${name}: eigen bestand schrijft zonder bewerken`, file.writes.length, 1);
 }
+
+// Werkelijke eigen schrijfvormen: alle normale werktijdbewerkingen blijven
+// opslaanbaar. Undo/redo gebruiken de echte store-acties, geen directe terugzet.
+const ownInputs: [string, string][] = ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfractie-v2026.8.1.ifc', 'periode-oude-scalarfractie-v2026.8.1.ifc']
+  .map(name => [name, readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')]);
+for (const [name, seconds] of [['eigen-minuten', 0], ['eigen-milliseconden', 0.123], ['eigen-fijnere-decimale-seconden', 0.000000001]] as const) {
+  const own = readIFC(source);
+  own.tasks = []; own.sequences = []; own.resources = []; own.assignments = [];
+  delete own.calendar.ifcTimePeriods;
+  own.calendar.workTime = { byWeekday: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } };
+  for (const day of [1, 2, 3, 4, 5] as const) own.calendar.workTime.byWeekday[day] = [
+    { start: 435 + seconds / 60, end: 720 + seconds / 60 }, { start: 780 + seconds / 60, end: 1005 + seconds / 60 },
+  ];
+  own.calendar.workingExceptions = [{ name: 'Eigen werkzaterdag', startDate: '2027-05-01', endDate: '2027-05-01', bands: [{ start: 480 + seconds / 60, end: 720 + seconds / 60 }] }];
+  ownInputs.push([name, writeIFC(own)]); // echte huidige schrijver; geen tekstmutatie.
+}
+const shape = (cal: WorkCalendar) => ({
+  workDays: cal.workDays, workStartHour: cal.workStartHour, workEndHour: cal.workEndHour, hoursPerDay: cal.hoursPerDay,
+  workTime: cal.workTime ?? null, workingExceptions: cal.workingExceptions ?? [],
+});
+let ownRoutes = 0;
+for (const [name, text] of ownInputs) {
+  for (const action of ['toevoegen', 'verwijderen', 'verschuiven', 'einde-verschuiven', 'band-verschuiven', 'kopiëren', 'uitzondering-toevoegen', 'uitzondering-verwijderen', 'uitzondering-verschuiven'] as const) {
+    const file = memoryFile(text);
+    const { store } = createAppStoreContext();
+    await store.getState().openOpenedFile({ name: `${name}.ifc`, content: text, ref: { kind: 'handle', handle: file.handle } });
+    const before = structuredClone(store.getState().calendar);
+    if ((action === 'uitzondering-verwijderen' || action === 'uitzondering-verschuiven') && !before.workingExceptions?.length) continue;
+    ownRoutes++;
+    const label = `${name} · ${action}`;
+    const routeFailureStart = failures.length;
+    const changed = structuredClone(before);
+    if (action.startsWith('uitzondering-')) {
+      if (action === 'uitzondering-toevoegen') changed.workingExceptions = [...(changed.workingExceptions ?? []), { name: 'Nieuwe werkdag', startDate: '2027-05-08', endDate: '2027-05-08', bands: [{ start: 480, end: 720 }] }];
+      if (action === 'uitzondering-verwijderen') changed.workingExceptions = changed.workingExceptions!.slice(1);
+      if (action === 'uitzondering-verschuiven') changed.workingExceptions![0].bands![0].start += 15;
+    } else {
+      const bands = structuredClone(changed.workTime ?? effectiveWorkTimeBands(changed)!);
+      if (action === 'toevoegen') bands.byWeekday[1].unshift({ start: 300, end: 360 });
+      if (action === 'verwijderen') bands.byWeekday[1] = bands.byWeekday[1].slice(1);
+      if (action === 'verschuiven') bands.byWeekday[1][0].start += 15;
+      if (action === 'einde-verschuiven') bands.byWeekday[1][0].end -= 15;
+      if (action === 'band-verschuiven') { bands.byWeekday[1][0].start += 15; bands.byWeekday[1][0].end += 15; }
+      if (action === 'kopiëren') {
+        bands.byWeekday[1][0].start += 15;
+        const first = bands.byWeekday[1];
+        for (const day of [2, 3, 4, 5] as const) bands.byWeekday[day] = first.map(b => ({ ...b }));
+      }
+      changed.workTime = bands;
+      changed.workDays = workDaysFromBands(bands);
+      changed.hoursPerDay = hoursPerDayForBlocks(before, changed, bands);
+      delete changed.simpleBreakStartMinute; delete changed.simpleBreakDurationMinutes;
+    }
+    store.getState().setCalendar(changed);
+    const error = console.error;
+    console.error = () => {};
+    try {
+      await store.getState().saveFile();
+      eq(`${label}: eigen bewerking schrijft`, file.writes.length, 1);
+      if (file.writes.length) eq(`${label}: bewerking heropent exact`, shape(readIFC(file.writes.at(-1)!).calendar), shape(changed));
+      store.getState().undo();
+      eq(`${label}: undo herstelt kalender`, shape(store.getState().calendar), shape(before));
+      await store.getState().saveFile();
+      eq(`${label}: undo schrijft`, file.writes.length, 2);
+      if (file.writes.length >= 2) eq(`${label}: undo heropent exact`, shape(readIFC(file.writes.at(-1)!).calendar), shape(before));
+      store.getState().redo();
+      eq(`${label}: redo herstelt bewerking`, shape(store.getState().calendar), shape(changed));
+      await store.getState().saveFile();
+      eq(`${label}: redo schrijft`, file.writes.length, 3);
+      if (file.writes.length >= 3) eq(`${label}: redo heropent exact`, shape(readIFC(file.writes.at(-1)!).calendar), shape(changed));
+      eq(`${label}: geen opslagweigering`, store.getState().ui.notifications.some(n => n.messageKey === 'notifications.saveFailed'), false);
+    } finally { console.error = error; }
+    console.log(`Eigen route ${label}: ${failures.length === routeFailureStart ? 'GROEN' : 'ROOD'} (opslag, undo, redo)`);
+  }
+}
+console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo en redo`);
 
 // Een bewerkte tijdzoneklok kan het model niet zelfstandig van een zone voorzien.
 // Weiger die opslag, in plaats van een bestaande tijdzone uit het bestand te wissen.

@@ -207,9 +207,11 @@ eerste werkdag, en zette de reader die op elke werkdag. Zo staat het nu in het b
   standaardvelden. De koppeling ligt vast per weekdag, band en klokgrens (of per werkende uitzondering);
   een andere werkdag kan nooit als bron dienen voor een bewerking. Binnen die koppeling moeten
   de grens of de vastgelegde scalaire importwaarde exact gelijk blijven, zonder getaltolerantie.
-  De ingelezen bandindeling wordt eenmaal vastgelegd. Heeft een bronklok extra informatie, dan
-  weigert een gewijzigde bandindeling getypeerd bij opslaan: verwijderen, invoegen en kopiëren
-  mogen de bron niet aan een andere band koppelen of haar extra precisie laten verdwijnen.
+  De ingelezen bandindeling wordt eenmaal vastgelegd. Draagt een bronklok informatie die de
+  schrijver niet zelf kan reproduceren, dan weigert een gewijzigde indeling getypeerd bij opslaan.
+  Oude eigen uur- en minuutfracties en de fijnere decimale seconden uit de huidige schrijver
+  blijven bewerkbaar. Toevoegen, verwijderen, verschuiven, kopiëren en werkende uitzonderingen
+  worden voor deze eigen schrijfvormen met gewone opslag, heropenen, undo en redo getoetst.
   Bij gematerialiseerde scalaire banden blijven de pauzes in de standaard-IFC staan; de oorspronkelijke
   precisie reist mee op de buitenste grenzen. Een waarde die niet exact kan
   terugkomen, of een bewerkte bronzone die het model niet kan overnemen, weigert opslag getypeerd vóór

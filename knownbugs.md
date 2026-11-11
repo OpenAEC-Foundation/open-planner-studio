@@ -2044,12 +2044,6 @@ en noem het in je rapport of PR-tekst.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
      ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
 
-1156. **VERVOLG: de kalendertijdproef mist een opslag/heropencontrole van een werkende uitzondering.**
-     `tests/planning/check-ifc-kalendertijd.ts` past in de uitzonderingsvorm een feestdag aan en controleert
-     daar alleen lezen. De gewone opslag/heropencontrole slaat die vorm over; bij seconden telt hij alleen
-     taken. Richting: een expliciet als werkend gemarkeerde uitzondering opnemen en haar banden na gewone
-     opslag en heropenen vergelijken. Uit #897, review ronde 1 (GPT-6.1-Terra, xhigh, BEVESTIGD, VERVOLG). — B
-
 1153. **VERVOLG: de lagkalenderproef onderscheidt voorganger en project onvoldoende.**
      `tests/planning/check-ifc-dagenmaat.ts` geeft beide een dagmaat van 8 uur. Een verwisseling blijft dan groen.
      De aanvullende reviewproef met 6, 10, 8 en 24 uur gaf bij `P1DT2H` correct 480, 720, 600 en 1560 minuten,
