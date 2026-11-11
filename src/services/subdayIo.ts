@@ -1,3 +1,4 @@
+import { parseIfcDuration } from '@/services/ifc/isoDuration';
 import type { MilestoneKind, Task } from '@/types/task';
 import { isHourModeCalendar, type WorkCalendar, type WorkTimeBands } from '@/types/calendar';
 import { effectiveWorkTimeBands, firstBlockedDay, seedScalarBands } from '@/utils/effectiveWorkTime';
@@ -109,21 +110,7 @@ export function sixDecimalHoursToMinutes(hours: number): number {
  * duur-kant van discriminator (c): een niet-null resultaat is sub-dag-informatie.
  */
 export function isoDurationToMinutes(iso: string): number | null {
-  if (!iso) return null;
-  const tIdx = iso.indexOf('T');
-  if (tIdx < 0) return null; // geen tijdcomponent ⇒ dag-duur
-  const timePart = iso.slice(tIdx + 1);
-  const hMatch = /(-?\d+(?:\.\d+)?)H/.exec(timePart);
-  const mMatch = /(-?\d+(?:\.\d+)?)M/.exec(timePart);
-  const sMatch = /(-?\d+(?:\.\d+)?)S/.exec(timePart);
-  if (!hMatch && !mMatch && !sMatch) return null;
-  const mins =
-    (hMatch ? parseFloat(hMatch[1]) * 60 : 0) +
-    (mMatch ? parseFloat(mMatch[1]) : 0) +
-    (sMatch ? parseFloat(sMatch[1]) / 60 : 0);
-  const neg = iso.trimStart().startsWith('-');
-  const rounded = Math.round(Math.abs(mins));
-  return neg ? -rounded : rounded;
+  return !iso || iso === '$' ? null : parseIfcDuration(iso).timeMinutes;
 }
 
 /**

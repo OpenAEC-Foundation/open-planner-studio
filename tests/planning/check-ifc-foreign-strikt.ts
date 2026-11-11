@@ -64,7 +64,11 @@ const openedOf = new Map<Uint8Array, Opened>();
 async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void): Promise<Result> {
   let opened = openedOf.get(bytes);
   if (!opened) {
-    try { opened = await openForeign(bytes); } catch (e) { return { label, outcome: 'fout', kinds: [], details: [`openen: ${(e as Error).message.slice(0, 160)}`] }; }
+    try { opened = await openForeign(bytes); } catch (e) {
+      // De duurparser weigert ongeldige/onondersteunde duren nu al vóór er een domein kan ontstaan.
+      if (e instanceof IfcParseError && e.reason === 'duration') return { label, outcome: 'weigert', kinds: ['duur-deels-gelezen'], details: ['duur-deels-gelezen: geweigerd bij openen'] };
+      return { label, outcome: 'fout', kinds: [], details: [`openen: ${(e as Error).message.slice(0, 160)}`] };
+    }
     openedOf.set(bytes, opened);
   }
   if (!opened.ifcSource?.foreign) return { label, outcome: 'fout', kinds: [], details: ['geen vreemd deel'] };
