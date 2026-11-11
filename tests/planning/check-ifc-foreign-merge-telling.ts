@@ -220,11 +220,16 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
         ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
       }
       if (!outcome.ok) {
+        for (const c of outcome.error.cases.filter(c => c.kind === 'planning-na-openen')) console.log(`NIEUW WEIGERT ${where} · ${edit.label}: ${c.detail}`);
         for (const k of outcome.kinds) bump(t.refused, k);
         if (edit.kind !== 'niets') {
           for (const key of new Set(outcome.error.cases.filter(c => c.kind === 'niet-gedragen' && c.sourceId !== undefined).map(c => fieldOf(index, c)))) bump(fields, key);
         }
         continue;
+      }
+      const viaBytes = await openForeign(outcome.bytes);
+      if (canon(viaBytes, reseed) !== canon(outcome.shown, reseed)) {
+        fail('naad en volledige bytes-route geven een andere planning'); continue;
       }
       const problems = mergeProblems(source.bytes, outcome.bytes);
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }

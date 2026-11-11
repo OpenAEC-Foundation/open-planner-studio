@@ -18,11 +18,11 @@ import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mer
 import { scanStep, StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { orphanRowsWithoutId } from '@/services/ifc/foreign/sourceForm';
+import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
-import { lengthen, lengthenedTask, openInStore, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
-export { openInStore } from './ifcAppRoute';
+import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
+export { openInStore, openReadPlanning } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
 export type Opened = Domain & { ifcSource?: IfcSource };
@@ -138,10 +138,16 @@ const latin1Text = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length
 const latin1Bytes = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 
 /** De uitkomst van één merge: de bytes, of de weigering met haar gevallen. Een andere fout gooit door. */
-export type MergeOutcome = { ok: true; bytes: Uint8Array } | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };
+export type MergeOutcome = { ok: true; bytes: Uint8Array; shown: Domain } | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };
 export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutcome> {
   try {
-    return { ok: true, bytes: concat(await writeIfcMerge(d, source)) };
+    let shown: Domain | undefined;
+    const parts = await writeIfcMerge(d, source, async parsed => {
+      shown = await openReadPlanning(parsed);
+      return shown;
+    });
+    if (!shown) throw new Error('merge gaf geen planning aan de naad');
+    return { ok: true, bytes: concat(parts), shown };
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), error: e };
     throw e;
@@ -213,7 +219,7 @@ export function doubleMemberships(bytes: Uint8Array): string[] {
 export function canon(d: Domain, reseed: (seed: number) => void): string {
   reseed(0x1b04);
   // Een baselineregel zonder taak telt zonder haar id (#886, `orphanRowsWithoutId`).
-  return writeIFC(orphanRowsWithoutId(d));
+  return planningCanon(d);
 }
 
 /** Het eerste verschil tussen twee teksten, met wat omringende tekst. */

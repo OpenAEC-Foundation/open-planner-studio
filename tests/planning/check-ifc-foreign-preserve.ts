@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
   basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
-  reopenPlain, shownAfterOpen, tryMerge,
+  reopenPlain, shownAfterOpen, tryMerge, openReadPlanning,
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
@@ -104,7 +104,7 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
   const d = cloneDomain(opened);
   edit?.(d);
   let parts: Uint8Array[];
-  try { parts = await writeIfcMerge(d, source); } catch (e) {
+  try { parts = await writeIfcMerge(d, source, openReadPlanning); } catch (e) {
     diffs.push(`${label}: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => `${c.kind}: ${c.detail}`).slice(0, 3).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;
@@ -464,7 +464,7 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
   edit?.(d);
   let error: unknown;
   let parts: Uint8Array[] | undefined;
-  try { parts = await writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
+  try { parts = await writeIfcMerge(d, opened.ifcSource, openReadPlanning); } catch (e) { error = e; }
   ok(`${label}: geeft niets terug`, parts === undefined);
   ok(`${label}: MergeNeedsPhase2Error met code merge-needs-phase2`, error instanceof MergeNeedsPhase2Error && error.code === 'merge-needs-phase2');
   if (error instanceof MergeNeedsPhase2Error) {
@@ -795,7 +795,7 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   eq(`${label}: de naam komt uit het IfcProject, zoals main`, opened.project.name, plain.project.name);
   ok(`${label}: niet de naam uit OPS_ProjectSettings`, opened.project.name !== 'Naam van een ander programma');
   reseed(0x1b01);
-  const saved = concat(await writeIfcMerge(cloneDomain(opened), opened.ifcSource!));
+  const saved = concat(await writeIfcMerge(cloneDomain(opened), opened.ifcSource!, openReadPlanning));
   reseed(0x1b01);
   const main = enc.encode(writeIFC(cloneDomain(plain as Opened)));
   ok(`${label}: Opslaan is de gewone writer, gelijk aan de lezer van main`, sameBytes(saved, main));
@@ -1166,7 +1166,7 @@ async function lossSetup(bytes: Uint8Array) {
   const cls = classify(index);
   const ids = mergeIdPlan(index, cls, source.stepIds, opened.calendar.id, bytes);
   let out: Uint8Array;
-  try { out = concat(await writeIfcMerge(cloneDomain(opened), source)); } catch (e) {
+  try { out = concat(await writeIfcMerge(cloneDomain(opened), source, openReadPlanning)); } catch (e) {
     diffs.push(`lossSetup: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => c.detail).slice(0, 2).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;

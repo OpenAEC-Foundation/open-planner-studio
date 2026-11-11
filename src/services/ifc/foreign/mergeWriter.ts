@@ -51,6 +51,7 @@ import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
 import { MAX_STEP_ID, scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
+import { planningCanon, planningDifference } from './planningCanon';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -113,7 +114,10 @@ export type MergePhase2Kind =
    *  hangt commentaar aan het volgende stuk; volgens de norm (stuurtekens vallen overal weg, ook in `*⏎/`) kan daarin een
    *  stuk staan. De merge schrijft een P-stuk opnieuw, zonder dat commentaar: zo'n stuk ging dan verloren, en een
    *  verwijzing van een ander stuk ernaar wees daarna naar niets. */
-  | 'verstopt-stuk';
+  | 'verstopt-stuk'
+  /** De verplichte open-stappen ontbreken, of openen geeft een andere planning (1107). */
+  | 'open-stappen-ontbreken'
+  | 'planning-na-openen';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -310,7 +314,15 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
  * BLOKKEERT 3): de verliesbewaking leest de bron met dezelfde ingang als het openen (`readIFCWithXerReconstruction`), ook
  * bij een compact XER-bronarchief.
  */
-export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Promise<Uint8Array[]> {
+/** De aanroeper voert de gewone open-stappen uit in een eigen documentcontext, zonder modelscan.
+ * ImportResult bevat ook TimeModel, herkomst en opgeslagen datums; pad en bestandskop zijn niet nodig.
+ */
+export type OpenMergePlanning = (read: ImportResult) => Promise<WriteIFCInput>;
+
+export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, openPlanning: OpenMergePlanning): Promise<Uint8Array[]> {
+  if (typeof openPlanning !== 'function') {
+    throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de verplichte open-stappen van de app ontbreken' }]);
+  }
   if (!source.foreign) return [new TextEncoder().encode(writeIFC(input))];
   const index = scanStep(source.bytes);
   const cls = classify(index);
@@ -778,6 +790,11 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     for (const target of refsInText(line.text)) {
       if (!present.has(target)) throw new Error(`mergeWriter: #${line.id} wijst naar #${target}, dat niet in de uitvoer staat`);
     }
+  }
+  // Volledige herleestoets vóór er uitvoer naar de aanroeper gaat; geen modelscan of volle uitvoerbuffer.
+  const shown = await openPlanning(await read(lines.filter(l => !l.drop).map(l => l.text)));
+  if (planningCanon(input) !== planningCanon(shown)) {
+    throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(input, shown) }]);
   }
   return assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
 }
