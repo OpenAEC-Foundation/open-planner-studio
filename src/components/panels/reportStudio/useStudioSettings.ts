@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, type ReportSettings,
+  changedReportFields, DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings, type ReportSettings,
 } from '@/utils/reportSettings';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { markReportInput } from './studioPerf';
@@ -68,25 +68,25 @@ export function fieldsAreDefault(settings: ReportSettings, keys: readonly Studio
  * de opgeslagen voorkeuren met de standaard.
  *
  * Een andere bron kan de opgeslagen stand vernieuwen: de host die pas na de start antwoordt (#818), of
- * een ander tabblad. Elke wijziging schrijft het hele object terug, dus zonder opnieuw lezen zet de
- * volgende klik de oude kopie over de nieuwe stand heen (review Sol #847). Daarom leest de hook bij elke
- * `StorageEvent` op `ops-reportSettings` opnieuw (`useStoredSettingRefresh`), meteen in de gebeurtenis:
- * via een effect kon een klik nog tussen de gebeurtenis en het opnieuw lezen vallen.
+ * een ander tabblad. Daarom leest de hook bij elke `StorageEvent` op `ops-reportSettings` opnieuw
+ * (`useStoredSettingRefresh`), meteen in de gebeurtenis. Bewaren schrijft alleen de velden die in dit
+ * tabblad veranderden (`patchReportSettings`), nooit de hele kopie: een wijziging van elders die nog niet
+ * binnen is, blijft zo staan (review Terra #893, ronde 1).
  */
 export function useStudioSettings(): StudioSettingsApi {
   const [settings, setSettings] = useState<ReportSettings>(DEFAULT_REPORT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
   const [lastReset, setLastReset] = useState<PendingReset | null>(null);
-  // De stand zoals hij net uit de opslag kwam: die hoeft niet terug (geen schrijfactie, en dus ook geen
-  // schrijfactie naar de host, voor een waarde die er al staat).
-  const fromStorageRef = useRef<ReportSettings | null>(null);
+  // De stand zoals deze hook hem het laatst uit de opslag las of erin schreef. Bewaren schrijft alleen wat
+  // daarvan afwijkt; een stand die net uit de opslag kwam, schrijft dus niets (ook niet naar de host).
+  const persistedRef = useRef<ReportSettings>(DEFAULT_REPORT_SETTINGS);
 
   useEffect(() => {
     let cancelled = false;
     void loadReportSettings().then(loaded => {
       if (cancelled) return;
-      fromStorageRef.current = loaded;
+      persistedRef.current = loaded;
       setSettings(loaded);
       hydratedRef.current = true;
       setHydrated(true);
@@ -100,7 +100,7 @@ export function useStudioSettings(): StudioSettingsApi {
 
   useStoredSettingRefresh('ops-reportSettings', () => {
     void loadReportSettings().then(loaded => {
-      fromStorageRef.current = loaded;
+      persistedRef.current = loaded;
       setSettings(loaded);
       // Ongedaan maken zou de stand van vóór Standaard over de vernieuwde stand terugzetten.
       setLastReset(null);
@@ -108,8 +108,10 @@ export function useStudioSettings(): StudioSettingsApi {
   });
 
   useEffect(() => {
-    if (!hydratedRef.current || settings === fromStorageRef.current) return;
-    void saveReportSettings(settings).catch(() => {});
+    if (!hydratedRef.current || settings === persistedRef.current) return;
+    const changed = changedReportFields(persistedRef.current, settings);
+    persistedRef.current = settings;
+    if (Object.keys(changed).length > 0) patchReportSettings(changed);
   }, [settings]);
 
   // De actuele stand voor Standaard en ongedaan maken: buiten een state-updater lezen, zodat er geen

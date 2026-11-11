@@ -427,6 +427,18 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-segmented="orientation"] [data-rs-value="portrait"]').click();
   await expect.poll(async () => (await saved()).orientation).toBe('portrait');
   expect(await saved()).toMatchObject({ paperSize: 'A1', columns: ['task.name'], orientation: 'portrait' });
+  // Een wijziging van elders die nog niet binnen is (de `StorageEvent` komt later, of nooit): de volgende klik
+  // schrijft alleen zijn eigen veld en laat die wijziging staan. Eerder schreef dit tabblad zijn hele kopie
+  // terug en wiste haar stil (review Terra #893, ronde 1).
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
+    localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stored, tableReports: { ...stored.tableReports, nearCriticalDays: 13 } }));
+  });
+  await page.locator('[data-rs-segmented="orientation"] [data-rs-value="landscape"]').click();
+  await expect.poll(async () => (await saved()).orientation).toBe('landscape');
+  expect(await saved()).toMatchObject({ paperSize: 'A1', columns: ['task.name'], tableReports: { nearCriticalDays: 13 } });
+  await page.locator('[data-rs-segmented="orientation"] [data-rs-value="portrait"]').click();
+  await expect.poll(async () => (await saved()).orientation).toBe('portrait');
 
   // Ook het rapporttype volgt: een ander rapport in de opslag opent het paneel voor de andere rapporten.
   await refreshStored({ reportType: 'milestones' });

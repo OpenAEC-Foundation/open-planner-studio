@@ -1,7 +1,7 @@
 // De werkdagen-as van een rapport is een eigen rapportvoorkeur, niet een afgeleide van de
 // scherminstelling. Deze batterij bewaakt de default én de round-trip door de echte opslagroute.
 import './domStub';
-import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 
 const failures: string[] = [];
 const expect = (label: string, got: unknown, want: unknown) => {
@@ -15,7 +15,7 @@ localStorage.setItem('ops-reportSettings', JSON.stringify({ compressNonWorkdays:
 const loaded = await loadReportSettings() as unknown as Record<string, unknown>;
 expect('de opgeslagen rapportkeuze voor werkdagen wordt geladen', loaded.compressNonWorkdays, true);
 
-await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, compressNonWorkdays: true });
+patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, compressNonWorkdays: true });
 const saved = await loadReportSettings() as unknown as Record<string, unknown>;
 expect('de rapportkeuze voor werkdagen overleeft een round-trip', saved.compressNonWorkdays, true);
 

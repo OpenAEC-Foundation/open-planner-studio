@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  REPORT_STUDIO_STEPS, saveReportSettings, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  patchReportSettings, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -1125,8 +1125,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         // Eerst bewaren, dan wisselen: `ReportPanel` leest het rapporttype bij het laden. De rijenbron gaat
         // mee in `layoutId`, ook een Resourcediagram dat alleen als `reportType` bewaard was (een oude
         // opslag): anders opent de terugweg met Alle taken (review Sol #847, ronde 4).
-        void saveReportSettings({ ...settings, ...taskSourcePatch(source), reportType: v as ReportType })
-          .then(() => onReportTypeChange(v as ReportType));
+        patchReportSettings({ ...taskSourcePatch(source), reportType: v as ReportType });
+        onReportTypeChange(v as ReportType);
       }}
       options={[
         { value: 'gantt', label: t('reportType.gantt') },

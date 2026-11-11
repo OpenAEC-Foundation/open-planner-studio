@@ -3226,6 +3226,29 @@ en noem het in je rapport of PR-tekst.
      ("Export PDF"). Gezien bij het weghalen van de flag `reportRedesign` (#817).
      Voorstel: één tekst voor beide knoppen. — S
 
+1355. **VERVOLG: bij opslag die niet schrijft, toont het wisselen van rapport weer het oude rapport.** Het paneel van de
+     tabelrapporten bewaart het rapporttype en laat de werkruimte wisselen (`src/components/panels/ReportPanel.tsx`
+     rond :186); het nieuwe paneel leest het type daarna uit de opslag. Mislukt het schrijven (opslag vol of
+     geblokkeerd), dan slikt `writeLocal` (`src/utils/settingsStore.ts:75`) de fout in. Met opgeslagen `milestones`
+     en een gesimuleerde volle opslag: Gantt kiezen en daarna Look-ahead toonde weer *Milestone overview*.
+     Code-review ronde 1 van #893 (GPT-6.1-Terra). Voorstel: geef het gekozen type bij het wisselen mee aan het
+     paneel, los van de opslag. — B
+
+1356. **VERVOLG: browserdekking van het Resourcediagram en van bedrijfsnaam en legenda in de PDF is weg.** Met
+     `tests/browser/resource-gantt-report.spec.ts` (#893) verdwenen de controles op *Taken zonder resource
+     meenemen*, *Groeperen op resourcetype*, de melding bij weggevallen toewijzingskolommen en een lege periode.
+     Ook de controle dat een actuele bedrijfsnaam en een uitgeschakelde legenda in het voorbeeld én de raster-PDF
+     staan, is weg. `report-studio.spec.ts` dekt resources, pagina-overgangen, periode en PDF, maar die schakelaars
+     en meldingen niet. Code-review ronde 1 van #893 (GPT-6.1-Terra). Voorstel: zet gerichte stappen terug in de
+     bestaande route van `report-studio.spec.ts`. — B
+
+1357. **VERVOLG: geen browsercontrole meer voor een papier met meerdere rijen en kolommen van vellen.** De verwijderde
+     specs van het oude voorbeeld controleerden een rapport met meerdere rijen én tijdlijnkolommen, en 200 taken na
+     scrollen en een andere venstergrootte. De nieuwe voetstap ziet twee vellen naast elkaar in één rij. Het
+     SVG-papier virtualiseert nog steeds pagina's (`reportStudio/ReportPaperView.tsx:244`). Code-review ronde 1 van
+     #893 (GPT-6.1-Terra). Voorstel: een stap met meerdere rijen en kolommen die na scrollen en hertekenen de
+     zichtbare pagina's controleert. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is

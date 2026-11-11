@@ -27,7 +27,7 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effHoursPerDay, effectiveCalendarOf, effectiveDurationDisplay } from '@/utils/taskDuration';
 import {
   DEFAULT_REPORT_SETTINGS, REPORT_DEFAULT_COLUMNS, REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN,
-  loadReportSettings, parseReportColumns, saveReportSettings,
+  changedReportFields, loadReportSettings, parseReportColumns, patchReportSettings,
 } from '@/utils/reportSettings';
 import {
   addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn,
@@ -268,17 +268,31 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq(parseReportColumns(Array.from({ length: 40 }, (_, i) => `c${i}`))?.length, REPORT_MAX_COLUMNS, 'parse: hoogstens het maximum');
   ok(parseReportColumns(Array.from({ length: 40 }, (_, i) => `c${i}`))?.includes(REPORT_REQUIRED_COLUMN) === true, 'parse: taaknaam blijft ook bij het maximum');
 
-  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, columns: ['task.name', CAL_DAYS, 'task.wbsCode'], sidebar: 'rail', studioStep: 'page', paperHintSeen: true });
+  patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, columns: ['task.name', CAL_DAYS, 'task.wbsCode'], sidebar: 'rail', studioStep: 'page', paperHintSeen: true });
   const saved = await loadReportSettings();
   eq(saved.studioStep, 'page', 'round-trip: laatst gebruikte stap');
   eq(saved.paperHintSeen, true, 'round-trip: aanwijzing gezien');
   eq(saved.columns, ['task.name', CAL_DAYS, 'task.wbsCode'], 'round-trip: kolomlijst met volgorde');
   eq(saved.sidebar, 'rail', 'round-trip: zijbalkstand');
   eq(saved.barColors, { mode: 'critical' }, 'round-trip: standaard balkkleuren');
-  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, barColors: { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } } });
+  patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, barColors: { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } } });
   eq((await loadReportSettings()).barColors, { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } }, 'round-trip: eigen balkkleuren');
   localStorage.setItem('ops-reportSettings', JSON.stringify({ barColors: { mode: 'regenboog' } }));
   eq((await loadReportSettings()).barColors, { mode: 'critical' }, 'onbekende balkkleur ⇒ de standaard (kritiek pad)');
+
+  // Eén schrijfroute (review Terra #893, ronde 1): een patch leest de opgeslagen stand op het moment van
+  // schrijven. Een wijziging van elders (ander venster, host) die tussen het laden en de patch viel, blijft.
+  patchReportSettings({ ...DEFAULT_REPORT_SETTINGS });
+  const stale = await loadReportSettings();
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stale, columns: ['task.name', CAL_DAYS] }));
+  patchReportSettings(changedReportFields(stale, { ...stale, paperSize: 'A4' }));
+  const merged = await loadReportSettings();
+  eq(merged.paperSize, 'A4', 'patch: het eigen veld staat erin');
+  eq(merged.columns, ['task.name', CAL_DAYS], 'patch: de kolommen van elders blijven staan');
+  eq(changedReportFields(stale, { ...stale }), {}, 'gelijke stand ⇒ geen velden');
+  eq(changedReportFields(stale, { ...stale, columns: [...stale.columns] }), {}, 'kolommen op inhoud vergeleken');
+  eq(Object.keys(changedReportFields(stale, { ...stale, showDeps: !stale.showDeps, columns: ['task.name'] })).sort(), ['columns', 'showDeps'],
+    'alleen de gewijzigde velden');
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
   const older = await loadReportSettings();

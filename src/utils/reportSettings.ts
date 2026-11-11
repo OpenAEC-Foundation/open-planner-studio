@@ -20,7 +20,7 @@
 // het rapport van project B opduiken (of andersom: het projectveld overschrijven). Bedrijfsnaam
 // hoort in het projectbestand thuis (IFC-round-trip), niet in localStorage.
 
-import { getSetting, setSetting } from '@/utils/settingsStore';
+import { readLocal, writeLocal } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
 import { parseBarColorSelection } from '@/utils/barColorSettings';
@@ -399,7 +399,19 @@ function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
  * veld bevat rommel (handmatig geprutst). In alle gevallen wint de default voor precies dat veld.
  */
 export async function loadReportSettings(): Promise<ReportSettings> {
-  const raw = await getSetting<unknown>(STORAGE_KEY);
+  return readReportSettings();
+}
+
+/** De opgeslagen waarde, ongeparseerd (`undefined` als de sleutel ontbreekt). */
+function storedReportSettings(): unknown {
+  const raw = readLocal(`ops-${STORAGE_KEY}`);
+  if (raw === null) return undefined;
+  try { return JSON.parse(raw); } catch { return raw; }
+}
+
+/** `loadReportSettings`, maar synchroon: voor `patchReportSettings`, dat lezen en schrijven niet mag scheiden. */
+function readReportSettings(): ReportSettings {
+  const raw = storedReportSettings();
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_REPORT_SETTINGS };
   const s = raw as Record<string, unknown>;
   const d = DEFAULT_REPORT_SETTINGS;
@@ -444,24 +456,23 @@ export async function loadReportSettings(): Promise<ReportSettings> {
   };
 }
 
-/** Schrijf de volledige set weg (één sleutel, dus altijd compleet). */
-export async function saveReportSettings(settings: ReportSettings): Promise<void> {
-  await setSetting(STORAGE_KEY, settings);
+/**
+ * De enige schrijfroute voor `ops-reportSettings`. Twee schrijvers delen die sleutel: het Rapport-tabblad
+ * (`useStudioSettings`) en het paneel van de tabelrapporten (`ReportPanel`), en een ander venster of de host
+ * (#818) kan hem tussendoor vernieuwen. Daarom geeft elke schrijver alleen de velden die hij zelf wijzigde,
+ * en leest deze functie de opgeslagen stand, zet die velden erover en schrijft het geheel terug in één
+ * synchrone stap, zonder `await` ertussen. Een volledige schrijfactie vanuit een kopie in het geheugen zou
+ * een wijziging van elders die nog niet binnen is stil wissen (review Terra #893, ronde 1).
+ */
+export function patchReportSettings(patch: Partial<ReportSettings>): void {
+  writeLocal(`ops-${STORAGE_KEY}`, JSON.stringify({ ...readReportSettings(), ...patch }));
 }
 
-let pendingPatch: Promise<void> = Promise.resolve();
-
-/**
- * Wijzig alleen deze velden: lees de opgeslagen stand, zet de velden erover en schrijf het geheel terug.
- * Voor het rapportpaneel van de tabelrapporten (`ReportPanel`), dat maar een paar velden kent; zo raakt het
- * nooit de kolommen, balkkleuren of layout van het Rapport-tabblad kwijt. De aanroepen lopen na elkaar, zodat
- * twee snelle wijzigingen elkaar niet overschrijven.
- */
-export function patchReportSettings(patch: Partial<ReportSettings>): Promise<void> {
-  const run = pendingPatch.then(async () => {
-    const current = await loadReportSettings();
-    await saveReportSettings({ ...current, ...patch });
-  });
-  pendingPatch = run.catch(() => {});
-  return run;
+/** De velden die in `after` anders zijn dan in `before`; arrays en objecten op inhoud. */
+export function changedReportFields(before: ReportSettings, after: ReportSettings): Partial<ReportSettings> {
+  const changed: Record<string, unknown> = {};
+  for (const key of Object.keys(after) as (keyof ReportSettings)[]) {
+    if (before[key] !== after[key] && JSON.stringify(before[key]) !== JSON.stringify(after[key])) changed[key] = after[key];
+  }
+  return changed as Partial<ReportSettings>;
 }

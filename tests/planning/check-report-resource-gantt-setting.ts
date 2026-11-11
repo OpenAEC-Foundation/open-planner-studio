@@ -5,7 +5,7 @@
 // nooit de rest van de voorkeuren wegvagen).
 import './domStub';
 import {
-  DEFAULT_REPORT_SETTINGS, DEFAULT_RESOURCE_GANTT_OPTIONS, loadReportSettings, saveReportSettings,
+  DEFAULT_REPORT_SETTINGS, DEFAULT_RESOURCE_GANTT_OPTIONS, loadReportSettings, patchReportSettings,
 } from '@/utils/reportSettings';
 
 const failures: string[] = [];
@@ -38,7 +38,7 @@ expect('rommel in het hele blok ⇒ defaults', (await loadReportSettings()).reso
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceDiagram' }));
 expect('onbekend rapporttype ⇒ default rapporttype', (await loadReportSettings()).reportType, DEFAULT_REPORT_SETTINGS.reportType);
 
-await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, period: { preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, showAssignmentColumns: false } });
+patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, period: { preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, showAssignmentColumns: false } });
 const saved = await loadReportSettings();
 expect('rapporttype overleeft een round-trip', saved.reportType, 'resourceGantt');
 expect('opties overleven een round-trip', saved.resourceGantt, { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, period: { preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, showAssignmentColumns: false });

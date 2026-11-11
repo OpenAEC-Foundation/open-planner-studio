@@ -175,16 +175,17 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   const update = useCallback((patch: Partial<PanelSettings>) => {
     setPanel(prev => ({ ...prev, ...patch }));
     // Best-effort: mislukt het schrijven (geblokkeerde opslag), dan blijft de keuze binnen deze sessie werken.
-    return patchReportSettings(patch).catch(() => {});
+    patchReportSettings(patch);
   }, []);
   const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => {
-    void update({ tableReports: { ...panelRef.current.tableReports, ...patch } });
+    update({ tableReports: { ...panelRef.current.tableReports, ...patch } });
   }, [update]);
-  const setPaperSize = useCallback((v: ReportPaperSize) => { void update({ paperSize: v }); }, [update]);
-  const setOrientation = useCallback((v: ReportOrientation) => { void update({ orientation: v }); }, [update]);
-  const setReportFontFamily = useCallback((v: ReportFontId) => { void update({ reportFontFamily: v }); }, [update]);
+  const setPaperSize = useCallback((v: ReportPaperSize) => { update({ paperSize: v }); }, [update]);
+  const setOrientation = useCallback((v: ReportOrientation) => { update({ orientation: v }); }, [update]);
+  const setReportFontFamily = useCallback((v: ReportFontId) => { update({ reportFontFamily: v }); }, [update]);
   const chooseReportType = useCallback((next: ReportType) => {
-    void update({ reportType: next }).then(() => onReportTypeChange?.(next));
+    update({ reportType: next });
+    onReportTypeChange?.(next);
   }, [update, onReportTypeChange]);
 
   // Reden waarom de laatste export-poging is afgebroken (alleen een CPM-cyclus).
