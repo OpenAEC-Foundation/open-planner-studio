@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-11-11T00:02:08.195Z",
-  "downloads": 3947,
+  "generatedAt": "2026-11-11T02:01:30.921Z",
+  "downloads": 3960,
   "releases": [
     {
       "tag": "v2026.45.0",
@@ -11,20 +11,20 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 65,
-          "update": 79,
+          "install": 74,
+          "update": 81,
           "both": 0,
           "byKind": {
-            "exe": 65,
-            "nsis.zip": 79
+            "exe": 74,
+            "nsis.zip": 81
           }
         },
         "macos": {
-          "install": 16,
+          "install": 19,
           "update": 10,
           "both": 0,
           "byKind": {
-            "dmg": 16,
+            "dmg": 19,
             "app.tar.gz": 10
           }
         },
@@ -40,7 +40,7 @@
           }
         }
       },
-      "polls": 516
+      "polls": 537
     },
     {
       "tag": "v2026.44.0",
@@ -122,11 +122,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 132,
+          "install": 133,
           "update": 57,
           "both": 0,
           "byKind": {
-            "exe": 132,
+            "exe": 133,
             "nsis.zip": 57
           }
         },
@@ -928,20 +928,20 @@
   ],
   "totals": {
     "windows": {
-      "install": 2300,
-      "update": 647,
+      "install": 2310,
+      "update": 649,
       "both": 0,
       "byKind": {
-        "exe": 2300,
-        "nsis.zip": 647
+        "exe": 2310,
+        "nsis.zip": 649
       }
     },
     "macos": {
-      "install": 371,
+      "install": 374,
       "update": 146,
       "both": 0,
       "byKind": {
-        "dmg": 371,
+        "dmg": 374,
         "app.tar.gz": 146
       }
     },
@@ -957,7 +957,7 @@
       }
     }
   },
-  "polls": 8728,
+  "polls": 8749,
   "unknown": [
     "v2026.45.0: open-planner-studio-2026.45.0.mcpb",
     "v2026.44.0: open-planner-studio-2026.44.0.mcpb",
