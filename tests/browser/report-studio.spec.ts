@@ -1,9 +1,96 @@
-// Het nieuwe Rapport-tabblad achter de feature flag `reportRedesign` (issue #817). Eén werkroute van een
-// planner: tabblad openen, op het papier klikken om een stap te openen, een kolom toevoegen, Herstel standaard
-// en ongedaan maken, de zijbalk inklappen, een zwevend venster verslepen, erin typen en via de zwevende knop
-// exporteren. De flag en een verouderde planning zijn fixtures (via de store), de rest zijn echte klikken en toetsen.
+// Het Rapport-tabblad voor de Gantt-afdruk (issue #817). Eén werkroute van een planner: tabblad openen, op het
+// papier klikken om een stap te openen, een kolom toevoegen, Herstel standaard en ongedaan maken, de zijbalk
+// inklappen, een zwevend venster verslepen, erin typen en via de zwevende knop exporteren. Een verouderde planning
+// is een fixture (via de store), de rest zijn echte klikken en toetsen.
 // Het venster is 1280×720: de kleinste maat waarop melding, "Kolom toevoegen" en de stapkop in beeld moeten blijven.
-import { expect, seedProject, test } from './fixtures/ops';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { inflateSync } from 'node:zlib';
+import fontkit from '@pdf-lib/fontkit';
+import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, type PDFPage } from 'pdf-lib';
+import type { Download, Page } from '@playwright/test';
+import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
+
+// De voetstrook in de PDF (issue #113, "een blad per persoon"). De vector-pagineerder tekent per bronvenster
+// `q  x y w h re W n  cm  /X0 Do  …tekst…  Q`. De voetstrook is het venster met de clip-rechthoek op de onderrand
+// van het printgebied (y = marge 24 + paginanummerruimte 14), laag, en altijd vanaf x = 24 en één volle
+// printbreedte breed, dus nooit per kolom gesneden. De tekst staat per venster onder dezelfde clip, dus het
+// voetvenster van elke pagina draagt tekstoperatoren (de glyfs zijn gesubset, dus we tellen `Tj`/`TJ`).
+const MARGIN_PT = 24;
+const PAGE_NUMBER_PT = 14;
+
+interface PageShape { width: number; draws: number; footerRects: { x: number; y: number; w: number; h: number; textOps: number }[] }
+
+async function pageShapes(pdfBytes: Uint8Array): Promise<PageShape[]> {
+  const doc = await PDFDocument.load(pdfBytes);
+  const streamText = (page: PDFPage): string => {
+    const contents = page.node.Contents();
+    if (!contents) return '';
+    const streams = contents instanceof PDFArray
+      ? contents.asArray().map(ref => doc.context.lookup(ref))
+      : [contents];
+    return streams.map(stream => {
+      if (!(stream instanceof PDFRawStream)) return '';
+      const raw = stream.contents;
+      const filter = stream.dict.get(PDFName.of('Filter'));
+      const bytes = filter ? inflateSync(raw) : raw;
+      return Buffer.from(bytes).toString('latin1');
+    }).join('\n');
+  };
+  return doc.getPages().map(page => {
+    const text = streamText(page);
+    // Per tegelvenster (`q  x y w h re … Q`, met een stack voor geneste `q`/`Q` van halfdoorzichtige
+    // tekst): de clip-rechthoek en het aantal tekstoperatoren erbinnen.
+    const windows: { x: number; y: number; w: number; h: number; textOps: number }[] = [];
+    const tokens = text.split(/\s+/);
+    let depth = 0;
+    let current: { depth: number; win: typeof windows[number] } | null = null;
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      if (tok === 'q') {
+        depth++;
+        if (!current && tokens[i + 5] === 're') {
+          current = { depth, win: { x: Number(tokens[i + 1]), y: Number(tokens[i + 2]), w: Number(tokens[i + 3]), h: Number(tokens[i + 4]), textOps: 0 } };
+        }
+      } else if (tok === 'Q') {
+        if (current && depth === current.depth) { windows.push(current.win); current = null; }
+        depth--;
+      } else if (current && (tok === 'Tj' || tok === 'TJ')) {
+        current.win.textOps++;
+      }
+    }
+    // Een clip-rechthoek op de onderrand van het printgebied die geen volle pagina hoog is, is de
+    // voetstrook (50 logische px × schaal; bij een smal rapport is de schaal groter dan 0,75, bij
+    // lettergrootte 125 % de strook hoger — vandaar geen krappe band). Een body-tegel die tot die
+    // onderrand reikt is een volle pagina en dus meer dan de halve papierhoogte.
+    const footerRects = windows.filter(r => Math.abs(r.y - (MARGIN_PT + PAGE_NUMBER_PT)) < 0.01 && r.h > 15 && r.h < page.getHeight() / 2);
+    return { width: page.getWidth(), draws: (text.match(/\/X0 Do/g) ?? []).length, footerRects };
+  });
+}
+
+/** Elke pagina: precies één voetvenster, vanaf de linkermarge, één volle printbreedte breed, mét tekst. */
+function expectFullFooterOnEveryPage(shapes: PageShape[]): void {
+  expect(shapes.length).toBeGreaterThan(1);
+  for (const shape of shapes) {
+    expect(shape.footerRects).toHaveLength(1);
+    const footer = shape.footerRects[0];
+    expect(footer.x).toBeCloseTo(MARGIN_PT, 1);
+    expect(footer.w).toBeCloseTo(shape.width - 2 * MARGIN_PT, 1);
+    // Projectnaam, afdrukdatum, merk en minstens één legendalabel: nooit een lege grijze strook.
+    expect(footer.textOps).toBeGreaterThanOrEqual(4);
+  }
+}
+
+/** Exporteer via de knop in de zijbalk en geef de bytes van de PDF. */
+async function exportStudioPdf(page: Page, name: RegExp): Promise<Uint8Array> {
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('[data-rs-export]').click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(name);
+  const path = await download.path();
+  expect(path).not.toBeNull();
+  return new Uint8Array(await readFile(path!));
+}
 
 test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk inklappen', async ({ page, ops: _ops }) => {
   // Deze route loopt door alle stappen, layouts en een rapportwissel (~20–22 s lokaal); ruimte voor drukte in CI.
@@ -12,15 +99,11 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
     { name: 'Fundering storten', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Wanden metselen', start: '2026-09-21', finish: '2026-10-09', durationDays: 15 },
   ], 'Rapportstudio');
-  await page.evaluate(() => {
-    const s = window.__OPS__!.store.getState();
-    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: true } });
-  });
 
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const studio = page.locator('[data-rs-studio]');
   await expect(studio).toBeVisible();
-  // Met de flag heeft het tabblad geen lintinhoud: alleen de tabnamen blijven staan.
+  // Het tabblad heeft geen lintinhoud: alleen de tabnamen blijven staan.
   await expect(page.locator('.ribbon-content')).toHaveCount(0);
   const page0 = page.locator('[data-report-page-svg="0"]');
   await expect(page0).toBeVisible();
@@ -337,14 +420,59 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(async () => (await saved()).orientation).toBe('portrait');
   expect(await saved()).toMatchObject({ paperSize: 'A1', columns: ['task.name'], orientation: 'portrait' });
 
-  // Ook het rapporttype volgt: een ander rapport in de opslag opent het oude paneel voor dat rapport, de
-  // Gantt-afdruk weer het nieuwe tabblad. Het oude paneel laat de velden van het nieuwe tabblad staan.
+  // Ook het rapporttype volgt: een ander rapport in de opslag opent het paneel voor de andere rapporten.
   await refreshStored({ reportType: 'milestones' });
   await expect(studio).toHaveCount(0);
-  await refreshStored({ reportType: 'gantt' });
+  // Dat paneel bewaart alleen zijn eigen velden (rapporttype, tabelopties, papier, richting, letter). Kiezen en
+  // instellen daar laat de velden van dit tabblad staan: kolommen, balkkleuren, layout, zijbalk, open stap.
+  const panelFields = ['reportType', 'tableReports', 'paperSize', 'orientation', 'reportFontFamily'];
+  const studioFields = async () => Object.fromEntries(Object.entries(await saved()).filter(([key]) => !panelFields.includes(key)));
+  const studioBefore = await studioFields();
+  expect(studioBefore).toMatchObject({ columns: ['task.name'] });
+  const typePicker = page.getByLabel(/^(Report type|Rapporttype)$/).first();
+  await typePicker.click();
+  await page.getByRole('option', { name: /^Look-ahead$/ }).click();
+  await expect(page.locator('[data-ops-table-report]')).toBeVisible();
+  const tablePaper = page.locator('[data-ops-report-options]').getByLabel(/^(Paper:|Papier:)$/);
+  await tablePaper.click();
+  await page.getByRole('option', { name: 'A4', exact: true }).click();
+  await expect.poll(async () => (await saved()).paperSize).toBe('A4');
+  expect(await saved()).toMatchObject({ reportType: 'lookAhead', orientation: 'portrait' });
+  expect(await studioFields()).toEqual(studioBefore);
+  // Terug naar de Gantt-afdruk via dezelfde keuzelijst: het tabblad opent met het papier uit het paneel.
+  await typePicker.click();
+  await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
   await expect(studio).toBeVisible();
-  await expect(page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A1"]')).toHaveAttribute('aria-checked', 'true');
-  expect(await saved()).toMatchObject({ reportType: 'gantt', paperSize: 'A1', columns: ['task.name'], orientation: 'portrait' });
+  await expect(page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A4"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(page0.locator('text', { hasText: /^Start$/ })).toHaveCount(0);
+  expect(await saved()).toMatchObject({ reportType: 'gantt', paperSize: 'A4', columns: ['task.name'], orientation: 'portrait' });
+  const kept = ['columns', 'barColors', 'layoutId', 'followView', 'sidebar', 'resourceGantt', 'truncateTaskNames', 'taskNameColumnWidth'];
+  const pick = (o: Record<string, unknown>) => Object.fromEntries(kept.map(key => [key, o[key]]));
+  expect(pick(await saved())).toEqual(pick(studioBefore));
+
+  // Voet op elke pagina, ook als de tijdlijn over twee vellen loopt: één rij hoog en twee vellen breed krijgt op
+  // beide vellen de volle voetstrook. Zonder de optie heeft geen vel een los voetvenster, wel kop en body.
+  await page.locator('[data-rs-step-head="page"]').click();
+  await page.locator('[data-rs-segmented="autoFit"] [data-rs-value="fit"]').click();
+  await expect(page.locator('[data-preview-page]')).toHaveCount(1);
+  await page.locator('[data-rs-option="timelineColumns-more"]').click();
+  await expect(page.locator('[data-preview-page]')).toHaveCount(2);
+  await page.locator('[data-rs-step-head="headerFooter"]').click();
+  const footerSwitch = page.locator('[data-rs-switch="repeatFooter"]');
+  await expect(footerSwitch.locator('input')).toBeChecked();
+  expectFullFooterOnEveryPage(await pageShapes(await exportStudioPdf(page, /^Rapportstudio-.+\.pdf$/)));
+  await footerSwitch.click();
+  await expect(footerSwitch.locator('input')).not.toBeChecked();
+  const withoutFooter = await pageShapes(await exportStudioPdf(page, /^Rapportstudio-.+\.pdf$/));
+  expect(withoutFooter).toHaveLength(2);
+  for (const shape of withoutFooter) {
+    expect(shape.draws).toBe(2);
+    expect(shape.footerRects).toHaveLength(0);
+  }
+  await footerSwitch.click();
+  await page.locator('[data-rs-step-head="page"]').click();
+  await page.locator('[data-rs-option="timelineColumns-less"]').click();
+  await expect(page.locator('[data-preview-page]')).toHaveCount(1);
 
   // Een layout in de stap Taken (#861). Het meegeleverde Resourcediagram maakt de afdruk per resource, zoals
   // het oude rapporttype; het scherm houdt zijn eigen groepering en rijen. De resources zijn een fixture.
@@ -371,11 +499,13 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   // Op het papier een band per resource, met het aantal taken: Ploeg A (2) en Kraan (1).
   await expect(page0.locator('text', { hasText: /^Ploeg A \(2\)$/ }).first()).toBeAttached();
   await expect(page0.locator('text', { hasText: /^Kraan \(1\)$/ }).first()).toBeAttached();
-  // Een blad per resource: twee bladen.
+  // Een blad per resource: twee bladen, ook in de PDF, met de eigen naam van dit rapport.
   const pageBreak = page.locator('[data-rs-switch="pageBreakPerResource"]');
   await pageBreak.click();
   await expect(pageBreak.locator('input')).toBeChecked();
   await expect(page.locator('[data-preview-page]')).toHaveCount(2);
+  const resourcePdf = await PDFDocument.load(await exportStudioPdf(page, /^Rapportstudio-(resource-diagram|resourcediagram)\.pdf$/));
+  expect(resourcePdf.getPageCount()).toBe(2);
   await pageBreak.click();
   await expect(page.locator('[data-preview-page]')).toHaveCount(1);
   // Relatielijnen staan uit, met uitleg in Balken; de keuze voor een gewone afdruk blijft bewaard.
@@ -643,42 +773,25 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
 // Een Arabische taaknaam bij naamweergave Volledig (review Sol #847). De meting van het papier en de PDF komt
 // uit Noto Sans Arabic; het scherm moet dezelfde letter tekenen, anders tekende de browser de naam in een
 // systeemletter (183 px in plaats van 175 px) en liep hij over de volgende kolom. Gecontroleerd op de
-// werkelijk getekende tekst: in de SVG van het papier (`getBBox`, tegen de getekende kolomlijn) en, met de flag
-// uit, op het canvas van het oude voorbeeld (`fillText`, meegelezen). Daarna hetzelfde voor een lange
-// Latijnse naam (het canvas rondde letterbreedtes af en kapte die af terwijl afkappen uit stond), voor een
-// Chinese naam zonder CJK-extensie, en voor een gemengde Latijns-Arabische naam in Inter en in Carlito
-// (ronde 2: de browser nam de spaties in het Latijnse deel uit Noto, de meting uit de rapportletter).
-test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het papier en in het oude voorbeeld', async ({ page, ops: _ops }) => {
+// werkelijk getekende tekst in de SVG van het papier (`getBBox`, tegen de getekende kolomlijn). Daarna hetzelfde
+// voor een lange Latijnse naam, voor een Chinese naam zonder CJK-extensie, en voor een gemengde Latijns-Arabische
+// naam in Inter en in Carlito (ronde 2: de browser nam de spaties in het Latijnse deel uit Noto, de meting uit de
+// rapportletter).
+test('rapport-studio: een Arabische of lange naam past in de naamkolom op het papier', async ({ page, ops: _ops }) => {
   const arabic = 'أعمال البناء والتشييد وإدارة الموارد ومتابعة التنفيذ';
   const latin = 'Stakeholder management en afstemming met de gemeente over de bouwlogistiek';
   const [taskId] = await seedProject(page, [
     { name: arabic, start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ], 'Rapport Arabisch');
-  // Alleen meelezen: wat het canvas van het oude voorbeeld tekent, met de letter en breedte van dat moment.
-  await page.evaluate(() => {
-    const original = CanvasRenderingContext2D.prototype.fillText;
-    const drawn: { text: string; x: number; font: string; width: number }[] = [];
-    CanvasRenderingContext2D.prototype.fillText = function fillText(text: string, x: number, y: number, maxWidth?: number) {
-      if (this.font.includes('InterPDF')) drawn.push({ text: String(text), x, font: this.font, width: this.measureText(text).width });
-      if (maxWidth === undefined) original.call(this, text, x, y);
-      else original.call(this, text, x, y, maxWidth);
-    };
-    Object.defineProperty(window, '__opsReportDrawn', { configurable: true, value: drawn });
-  });
   // De breedte volgens de meting van papier en PDF (`loadReportTextMetrics`), op de letter van de naamcel.
   type FontId = 'inter' | 'carlito';
   const measured = (text: string, font: string, id: FontId) => page.evaluate(async ({ text, font, id }) => {
     const { loadReportTextMetrics } = await import('/src/services/pdf/fontLoader.ts' as string);
     return (await loadReportTextMetrics(id, 'ltr')).measure(text, font) as number;
   }, { text, font, id });
-  // De rapportletter van een getekende tekst, uit zijn letter (canvas) of familie (SVG).
+  // De rapportletter van een getekende tekst, uit zijn familie in de SVG.
   const fontIdOf = (font: string): FontId => (font.includes('OpsReportCarlito') ? 'carlito' : 'inter');
-  const setFlag = (on: boolean) => page.evaluate(on => {
-    const s = window.__OPS__!.store.getState();
-    s.setUI({ featureFlags: { ...s.ui.featureFlags, reportRedesign: on } });
-  }, on);
   const rename = (name: string) => page.evaluate(({ id, name }) => window.__OPS__!.store.getState().updateTask(id, { name }), { id: taskId, name });
-  await setFlag(true);
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const page0 = page.locator('[data-report-page-svg="0"]');
   await expect(page0).toBeVisible();
@@ -719,64 +832,37 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het p
   await expect.poll(() => page.evaluate(() => Array.from(document.fonts as unknown as Iterable<FontFace>)
     .filter(face => face.family.replace(/"/g, '') === 'OpsReportArabic' && face.status === 'loaded').map(face => face.weight).sort()))
     .toEqual(['400', '700']);
-
-  // Het oude voorbeeld (flag uit) leest dezelfde opgeslagen naamweergave en meet met dezelfde meting. Het
-  // canvas tekent de naam volledig, in Noto vooraan, en even breed als de meting.
-  const canvasName = (name: string, id: FontId) => page.evaluate(({ name, id }) => {
-    const drawn = (window as Window & { __opsReportDrawn?: { text: string; x: number; font: string; width: number }[] }).__opsReportDrawn ?? [];
-    const cells = drawn.filter(d => (d.text === name || (d.text.endsWith('…') && name.startsWith(d.text.slice(0, 8))))
-      && (d.font.includes('OpsReportCarlito') ? 'carlito' : 'inter') === id);
-    return cells.length === 0 ? null : cells.reduce((a, b) => (b.x < a.x ? b : a));
-  }, { name, id });
-  const clearDrawn = () => page.evaluate(() => {
-    (window as Window & { __opsReportDrawn?: unknown[] }).__opsReportDrawn!.length = 0;
-  });
-  const canvasCell = async (name: string, id: FontId = 'inter') => {
-    await expect.poll(() => canvasName(name, id).then(c => c?.text ?? null), { timeout: 20_000 }).toBe(name);
-    const cell = (await canvasName(name, id))!;
-    expect(Math.abs(cell.width - await measured(name, cell.font, id)), `canvas ${cell.width}`).toBeLessThan(0.1);
-    return cell;
-  };
   await expect.poll(async () => (await page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'))).truncateTaskNames).toBe(false);
-  await clearDrawn();
-  await setFlag(false);
-  await expect(page.locator('[data-tour-anchor="report-panel"] img').first()).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
-  expect((await canvasCell(arabic)).font).toMatch(/^(bold )?[\d.]+px "?OpsReportArabic"?, /);
 
-  // Een lange Latijnse naam, nu de langste: hetzelfde op het canvas en, met de flag weer aan, op het papier.
-  await clearDrawn();
+  // Een lange Latijnse naam, nu de langste.
   await rename(latin);
-  await canvasCell(latin);
-  await setFlag(true);
-  await expect(page0).toBeVisible();
+  await paperCell(latin);
+  // Afkappen met de schuif op het minimum: de naam eindigt op een beletselteken; terug op Volledig staat hij er weer.
+  const cutName = () => page0.evaluate((svg, name) => [...svg.querySelectorAll('text')]
+    .map(t => t.textContent ?? '').filter(text => text.endsWith('…') && name.startsWith(text.slice(0, 8))), latin);
+  await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="cut"]').click();
+  const nameWidth = page.locator('[data-rs-option="taskNameColumnWidth"]');
+  await nameWidth.fill(await nameWidth.getAttribute('min') ?? '60');
+  await expect.poll(async () => (await cutName()).length).toBeGreaterThan(0);
+  await expect(page0.locator('text', { hasText: latin })).toHaveCount(0);
+  await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="full"]').click();
   await paperCell(latin);
 
   // Een naam in een schrift dat geen meegeleverde letter heeft (Chinees zonder CJK-extensie): het scherm
   // tekent hem in een systeemletter en de PDF valt dan terug op raster. De meting volgt dan de browser, niet
-  // de lege glyph van Inter. Op het papier en, met de flag uit, op het canvas.
+  // de lege glyph van Inter.
   const chinese = '地基浇筑与钢筋绑扎工程施工';
   await rename(chinese);
   await paperCell(chinese);
-  await clearDrawn();
-  await setFlag(false);
-  await canvasCell(chinese);
 
   // Een gemengde naam: Latijn, een cijfer en Arabisch (review Sol #847, ronde 2). De browser kiest de letter
   // per teken, ook in het Latijnse deel: elke spatie komt uit Noto. De PDF en de meting doen nu hetzelfde.
-  // Daarvoor mat Carlito 409,8 px en tekende de browser 414,4 px: de naam liep de volgende kolom in en het
-  // oude voorbeeld kapte hem af ("… bouwpla…"), terwijl afkappen uit stond. Eerst in Inter, dan in Carlito.
-  // Daartussen een naam met cijfers en leestekens: een stuk zonder letter ("2.3") kernt de browser als
-  // Latijn; de meting kernde het eerst als DFLT (Inter: 0,24 px smaller).
+  // Daarvoor mat Carlito 409,8 px en tekende de browser 414,4 px: de naam liep de volgende kolom in.
+  // Daarna een naam met cijfers en leestekens: een stuk zonder letter ("2.3") kernt de browser als
+  // Latijn; de meting kernde het eerst als DFLT (Inter: 0,24 px smaller). Eerst in Inter, dan in Carlito.
   const mixed = 'Fase 1 أعمال البناء en afstemming met de gemeente over de bouwlogistiek en bereikbaarheid van de bouwplaats';
-  const mixedDigits = 'Fase 2.3 – أعمال (البناء) 50%, week 12/03: 3\u00A0dagen';
-  await clearDrawn();
-  await rename(mixed);
-  expect((await canvasCell(mixed)).font).toMatch(/^(bold )?[\d.]+px "?OpsReportArabic"?, /);
-  await clearDrawn();
+  const mixedDigits = 'Fase 2.3 – أعمال (البناء) 50%, week 12/03: 3 dagen';
   await rename(mixedDigits);
-  await canvasCell(mixedDigits);
-  await setFlag(true);
-  await expect(page0).toBeVisible();
   await paperCell(mixedDigits);
   await rename(mixed);
   await paperCell(mixed);
@@ -791,7 +877,187 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom, op het p
     .filter(face => face.family.replace(/"/g, '') === 'OpsReportCarlito' && face.status === 'loaded').map(face => face.weight).sort()), { timeout: 20_000 })
     .toEqual(['400', '700']);
   expect((await paperCell(mixed, 'carlito')).family).toMatch(/^"?OpsReportArabic"?, "?OpsReportCarlito"?, /);
-  await clearDrawn();
-  await setFlag(false);
-  expect((await canvasCell(mixed, 'carlito')).font).toMatch(/^(bold )?[\d.]+px "?OpsReportArabic"?, "?OpsReportCarlito"?, /);
+});
+
+/** De BaseFont van elk Type0-font in de PDF; pdf-lib noemt een ingebed font `/<PostScript-naam>-<getal>`. */
+function type0BaseFonts(pdf: PDFDocument): string[] {
+  const baseFonts: string[] = [];
+  for (const [, obj] of pdf.context.enumerateIndirectObjects()) {
+    if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Type0')) baseFonts.push(String(obj.get(PDFName.of('BaseFont'))));
+  }
+  return baseFonts;
+}
+
+/**
+ * De tekst die de PDF met fontsleutel `fontKey` tekent, terugvertaald naar letters. De rapportletter
+ * staat volledig ingebed (glyph-id = CID, zie `paginateVector.ts`), dus de glyph-id's van het
+ * gevendorde bestand vertalen de hex-strings van `Tj` terug.
+ */
+async function pdfTextsInFont(pdf: PDFDocument, fontKey: string, fontFile: string): Promise<string[]> {
+  const font = fontkit.create(await readFile(join(process.cwd(), fontFile)));
+  const charOf = new Map<number, string>();
+  // Oplopend, zodat een glyph die meerdere tekens dekt (spatie en U+00A0) het laagste teken krijgt.
+  for (const cp of [...font.characterSet].sort((a, b) => a - b)) {
+    const gid = font.glyphForCodePoint(cp).id;
+    if (!charOf.has(gid)) charOf.set(gid, String.fromCodePoint(cp));
+  }
+  const usesKey = new RegExp(`/${fontKey} [\\d.]+ Tf`);
+  const texts: string[] = [];
+  for (const page of pdf.getPages()) {
+    const contents = page.node.Contents();
+    const streams = contents instanceof PDFArray ? contents.asArray().map(ref => pdf.context.lookup(ref)) : [contents];
+    for (const stream of streams) {
+      if (!(stream instanceof PDFRawStream)) continue;
+      const ops = Buffer.from(decodePDFRawStream(stream).decode()).toString('latin1');
+      for (const [, block] of ops.matchAll(/BT\s([\s\S]*?)\sET/g)) {
+        if (!usesKey.test(block)) continue;
+        for (const [, hex] of block.matchAll(/<([0-9A-Fa-f]*)>\s*Tj/g)) {
+          texts.push((hex.match(/.{4}/g) ?? []).map(h => charOf.get(parseInt(h, 16)) ?? '�').join(''));
+        }
+      }
+    }
+  }
+  return texts;
+}
+
+// Rapportletter (issue #770): de gebruiker kiest Carlito. Papier en PDF gebruiken die letter (en Inter alleen voor
+// het vinkje dat Carlito mist). Daarna kiest hij Liberation Sans en exporteert meteen, terwijl die letter nog
+// laadt. Het blok van de tabelrapporten toont dezelfde keuze, ook in de raster-terugval, en na een herstart van de
+// app staat de keuze er nog. Alleen een voorkeur op dit apparaat.
+test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een herstart', async ({ page, ops: _ops }) => {
+  const longName = 'Afwerking begane grond noordzijde';
+  const [letterTaskId] = await seedProject(page, [
+    // Cyrillisch dekt Carlito zelf; het vinkje niet, dat komt in de PDF uit Inter.
+    { name: '✓ Lettertaak Фундамент', start: '2026-09-07', finish: '2026-10-16', durationDays: 30 },
+    // De langste naam bepaalt de naamkolom bij naamweergave Volledig. In Liberation Sans is hij breder dan in Carlito.
+    { name: longName, start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ], 'Rapportletter');
+  await page.evaluate(() => {
+    // Zoals in table-reports.spec.ts: met deze statusdatum toont de look-ahead beide taken.
+    const s = window.__OPS__!.store.getState();
+    s.setStatusDate('2026-09-14');
+    s.runCPM();
+  });
+  // De gewichten die de browser van een letter echt geladen heeft. De berekende font-family toont de gevraagde
+  // naam ook als de letter ontbreekt (review Sol #837, ronde 1).
+  const loadedWeights = (family: string) => page.evaluate(fam => Array.from(document.fonts as unknown as Iterable<FontFace>)
+    .filter(face => face.family.replace(/"/g, '') === fam && face.status === 'loaded')
+    .map(face => face.weight)
+    .sort(), family);
+  const readPdf = async (download: Download): Promise<PDFDocument> => {
+    const pdfPath = await download.path();
+    expect(pdfPath).not.toBeNull();
+    return PDFDocument.load(await readFile(pdfPath!));
+  };
+
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  const page0 = page.locator('[data-report-page-svg="0"]');
+  await expect(page0).toBeVisible();
+
+  // Standaard de letter van vóór de keuzelijst.
+  await page.locator('[data-rs-step-head="page"]').click();
+  const fontPicker = page.getByLabel(/^(Font:|Lettertype:)$/);
+  await expect(fontPicker).toContainText(/^Inter/);
+  await fontPicker.click();
+  await page.getByRole('option', { name: /^Carlito/ }).click();
+  await expect(fontPicker).toContainText(/^Carlito/);
+  await expect.poll(() => loadedWeights('OpsReportCarlito'), { timeout: 20_000 }).toEqual(['400', '700']);
+
+  // De PDF bedt Carlito in (regular + bold) en tekent het vinkje uit Inter: vector, geen raster.
+  const carlitoFonts = type0BaseFonts(await PDFDocument.load(await exportStudioPdf(page, /^Rapportletter-.+\.pdf$/)));
+  expect(carlitoFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Regular-\d+$/));
+  expect(carlitoFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Bold-\d+$/));
+  expect(carlitoFonts).toContainEqual(expect.stringMatching(/Inter/));
+
+  // Naamweergave Volledig: de naamkolom krijgt de breedte van de langste naam, gemeten in de rapportletter.
+  await page.locator('[data-rs-step-head="columns"]').click();
+  await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="full"]').click();
+  await expect(page0.locator('text', { hasText: longName }).first()).toBeAttached();
+
+  // Wissel naar Liberation Sans en exporteer meteen, terwijl de letter nog laadt (review Sol #837, ronde 1). De
+  // test houdt de letter vast tot na de klik. De export moet wachten tot de kolommen op de nieuwe letter gemeten
+  // zijn; met de breedte uit Carlito kapte de PDF de lange naam af.
+  const heldFonts: string[] = [];
+  let releaseFonts = () => {};
+  const fontsReleased = new Promise<void>(resolve => { releaseFonts = resolve; });
+  const liberationSansFiles = /LiberationSans-(Regular|Bold)\.ttf/;
+  await page.route(liberationSansFiles, async route => {
+    heldFonts.push(route.request().url());
+    await fontsReleased;
+    await route.continue();
+  });
+  await page.locator('[data-rs-step-head="page"]').click();
+  await fontPicker.click();
+  await page.getByRole('option', { name: /^Liberation Sans/ }).click();
+  await expect(fontPicker).toContainText(/^Liberation Sans/);
+  await expect.poll(() => heldFonts.length).toBeGreaterThan(0);
+  const lateDownload = page.waitForEvent('download');
+  await page.locator('[data-rs-export]').click();
+  // De klik viel terwijl de letter nog niet geladen was; pas nu laat de test hem door.
+  expect(await loadedWeights('OpsReportLiberationSans')).toEqual([]);
+  releaseFonts();
+  const latePdf = await readPdf(await lateDownload);
+  await page.unroute(liberationSansFiles);
+  expect(type0BaseFonts(latePdf)).toContainEqual(expect.stringMatching(/^\/LiberationSans-\d+$/));
+  const lateTexts = await pdfTextsInFont(latePdf, 'F0', 'src/services/pdf/fonts/LiberationSans-Regular.ttf');
+  expect(lateTexts).toContain(longName);
+  expect(lateTexts.filter(text => text.endsWith('…') && longName.startsWith(text.slice(0, -1)))).toEqual([]);
+
+  // Eén keuze voor alle rapporten: het blok van een tabelrapport toont hem ook, en de tabel staat erin.
+  await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
+  await page.getByRole('option', { name: /^Look-ahead$/ }).click();
+  const tableFontPicker = page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/);
+  await expect(tableFontPicker).toContainText(/^Liberation Sans/);
+  const tableReport = page.locator('[data-ops-table-report]');
+  await expect(tableReport).toHaveCSS('font-family', /OpsReportLiberationSans/);
+
+  // Raster-terugval (review Sol #837, ronde 1): zonder CJK-letter in de app valt de vector-export van een
+  // CJK-naam terug op een DOM-opname (modern-screenshot). Die opname moet de gekozen letter meenemen. De haak
+  // leest alleen de SVG die de opname als afbeelding laadt.
+  await page.evaluate(() => {
+    const src = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')!;
+    const shots: string[] = [];
+    Object.defineProperty(HTMLImageElement.prototype, 'src', {
+      configurable: true,
+      get(this: HTMLImageElement) { return src.get!.call(this) as string; },
+      set(this: HTMLImageElement, value: string) {
+        if (typeof value === 'string' && value.startsWith('data:image/svg+xml')) shots.push(decodeURIComponent(value.slice(value.indexOf(',') + 1)));
+        src.set!.call(this, value);
+      },
+    });
+    Object.defineProperty(window, '__opsDomShots', { configurable: true, value: shots });
+  });
+  await page.evaluate(id => { window.__OPS__!.store.getState().updateTask(id, { name: '施工 Lettertaak' }); }, letterTaskId);
+  await expect(tableReport).toContainText('施工 Lettertaak');
+  const rasterDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+  const rasterPdf = await readPdf(await rasterDownload);
+  expect(type0BaseFonts(rasterPdf)).not.toContainEqual(expect.stringMatching(/LiberationSans/));
+  // Per opname: de families waarvan een `@font-face`-regel met ingebedde bytes in de SVG staat.
+  const shotFamilies = await page.evaluate(() => ((window as Window & { __opsDomShots?: string[] }).__opsDomShots ?? [])
+    .map(svg => [...svg.matchAll(/@font-face\s*\{([^}]*)\}/g)]
+      .filter(([, body]) => /url\(\s*["']?data:/.test(body))
+      .map(([, body]) => (/font-family:\s*["']?([^"';]+)/.exec(body)?.[1] ?? '').trim())));
+  expect(shotFamilies).toContainEqual(expect.arrayContaining(['OpsReportLiberationSans']));
+
+  // Herstart van de app: de keuze komt terug uit de voorkeuren van het apparaat.
+  await page.reload();
+  await waitForOps(page);
+  const recovery = page.locator('[data-ops-recovery-dialog]');
+  const welcome = page.locator('[data-ops-welcome-dialog]');
+  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  if (await recovery.count() > 0) {
+    await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
+    await expect(recovery).toHaveCount(0);
+  }
+  await waitForWelcomeDialog(page);
+  await page.evaluate(() => {
+    window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false });
+  });
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  await expect(page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
+  await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
+  await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
+  await page.locator('[data-rs-step-head="page"]').click();
+  await expect(page.getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
 });

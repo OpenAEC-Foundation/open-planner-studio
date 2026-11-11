@@ -1,9 +1,9 @@
 // Layouts in het Rapport-tabblad (issue #861): de meegeleverde layout Resourcediagram op de Gantt-afdruk moet
-// precies doen wat het oude rapporttype Resourcediagram deed, zodat dat type weg kan. Deze check legt de twee
+// precies doen wat het oude rapporttype Resourcediagram deed (dat type is sinds #817 weg). Deze check legt de twee
 // wegen naast elkaar, op een plan met gelijknamige resources, een naamloze resource, taken met meer resources,
 // een taak met twee records van dezelfde resource, een mijlpaal, een hammock en een taak zonder resource.
 //
-//   oud   = wat `ReportPanel` doet bij `reportType: 'resourceGantt'` (rijen uit `computeResourceGanttRows`, en
+//   oud   = wat het oude rapportpaneel deed bij `reportType: 'resourceGantt'` (rijen uit `computeResourceGanttRows`, en
 //           `showDeps` uit, `showCritical` aan, blad per resource, tijdvenster, toewijzingskolommen);
 //   nieuw = wat het tabblad doet: de keuze uit de opslag (`reportTaskSource`), de layout uit
 //           `builtinLayouts`, de rijen uit `computeLayoutReportRows` en de printvelden uit `studioRowPrintFields`.
@@ -168,7 +168,7 @@ for (const window of windows) {
     };
     const name = `[${Object.entries(opts).filter(([k, v]) => k !== 'period' && v).map(([k]) => k).join(',') || 'geen opties'}${window ? ', periode' : ''}]`;
 
-    // Oud: ReportPanel bij reportType 'resourceGantt'.
+    // Oud: het oude rapportpaneel bij reportType 'resourceGantt'.
     const old = computeResourceGanttRows({ tasks, resources, assignments }, {
       includeUnassigned: opts.includeUnassigned, noneLabel, locale, groupByType: opts.groupByType, typeLabels, window,
     });

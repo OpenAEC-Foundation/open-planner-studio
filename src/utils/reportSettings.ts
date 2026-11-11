@@ -46,39 +46,6 @@ export type ReportType =
   // Voortgangscurve (issue #689): kerncijfers en een S-curve — zie `src/engine/reports/progressCurve.ts`.
   | 'progressCurve';
 
-/**
- * De rapporttypen die door de Gantt-printpijplijn lopen (`renderReport` → raster-/vector-PDF met
- * de gepagineerde live preview). Het resourcediagram is dezelfde render met een andere rijenbron;
- * alle Gantt-tekenopties (kritiek pad, speling, relaties, balkkleuren, statuslijn, …) gelden er dus
- * onverkort — alleen *Volg weergave* niet, want de rijen komen dan niet van het scherm.
- */
-export function isGanttReportType(type: ReportType): boolean {
-  return type === 'gantt' || type === 'resourceGantt';
-}
-
-/**
- * Tekent dit rapporttype relatiepijlen? Het resourcediagram niet: een taak staat er onder élke
- * resource die eraan hangt, dus de printrender (`rowIndexOf`, laatste kopie wint) zou een pijl op
- * een willekeurige kopie ankeren en bij "blad per resource" de bladrand af sturen. Eén predicaat voor
- * de forcering van `showDeps` én het verbergen van het vinkje — twee losse condities lopen uit
- * elkaar.
- */
-export function reportTypeDrawsRelations(type: ReportType): boolean {
-  return type !== 'resourceGantt';
-}
-
-/**
- * Toont dit rapporttype het vinkje *Kritiek pad*? Met de balkkleurkeuze (`barColorSelection`)
- * stuurt dat vinkje alléén de relatielijnen (rood tussen twee kritieke taken) en de legendaregel;
- * de balken zelf volgen `criticalFill` in `barColors.ts`, ongeacht het vinkje. Bij een type zonder
- * relatiepijlen zou het vinkje dus nog uitsluitend de legendaregel wegnemen terwijl de balken rood
- * blijven — misleidend. Daarom hetzelfde predicaat als de relaties; het paneel
- * forceert `showCritical` dan op `true`, zodat de legenda bij de rode balken past.
- */
-export function reportTypeShowsCriticalToggle(type: ReportType): boolean {
-  return reportTypeDrawsRelations(type);
-}
-
 /** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
 export const TABLE_REPORT_TYPES: readonly ReportType[] = [
   'lookAhead', 'critical', 'progress', 'progressCurve', 'health', 'resourceLoading', 'resourceAssignments', 'wbsSummary',
@@ -174,8 +141,6 @@ export const TABLE_REPORT_LIMITS = {
 } as const;
 export type ReportPaperSize = 'A4' | 'A3' | 'A2' | 'A1';
 export type ReportOrientation = 'landscape' | 'portrait';
-/** Alleen de rasterkwaliteit van de live preview; heeft bewust geen invloed op rapport/PDF-layout. */
-export type ReportPreviewQuality = '100' | '200' | '300';
 
 /**
  * De kolommen van de Gantt-afdruk (issue #817 deel B), als id's uit het kolomregister van het
@@ -233,32 +198,29 @@ export interface ReportSettings {
   followView: boolean;
   /**
    * De layout waarvan het nieuwe Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
-   * ("Alle taken" of "Zoals de weergave", via `followView`). Het oude paneel leest dit veld niet en schrijft
-   * het ongewijzigd terug. Ook de meegeleverde layout Resourcediagram staat hier, los van het geopende
-   * rapporttype (review Sol #847, ronde 4); die keuze zet daarnaast `reportType: 'resourceGantt'`, zodat het
-   * oude paneel (flag uit) dan het Resourcediagram toont. Zie `reportTaskSource`.
+   * ("Alle taken" of "Zoals de weergave", via `followView`). Ook de meegeleverde layout Resourcediagram staat
+   * hier, los van het geopende rapporttype (review Sol #847, ronde 4); die keuze zet daarnaast
+   * `reportType: 'resourceGantt'`. Zie `reportTaskSource`.
    */
   layoutId: string;
-  previewQuality: ReportPreviewQuality;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
   /**
-   * Kolommen van de Gantt-afdruk (registerkolom-id's, in volgorde, met de taaknaam erin). Alleen het
-   * nieuwe Rapport-tabblad (feature flag `reportRedesign`) leest en schrijft dit veld; het oude paneel
-   * houdt zijn vaste tabel en laat het veld ongemoeid.
+   * Kolommen van de Gantt-afdruk (registerkolom-id's, in volgorde, met de taaknaam erin). Het
+   * Rapport-tabblad leest en schrijft dit veld.
    */
   columns: string[];
   /**
    * De balkkleuren van de Gantt-afdruk (keuze Ethan, 10 november 2026: eigen balkkleuren, net als de
-   * kolommen). Alleen het nieuwe Rapport-tabblad leest en schrijft dit veld; het verandert de Gantt op het
+   * kolommen). Het Rapport-tabblad leest en schrijft dit veld; het verandert de Gantt op het
    * scherm nooit. Standaard het kritieke pad, net als een vers scherm. Bij *Zoals de weergave* telt dit veld
    * niet (`reportBarColors`).
    */
   barColors: BarColorSelection;
-  /** Zijbalk van het nieuwe Rapport-tabblad (feature flag `reportRedesign`). */
+  /** Zijbalk van het Rapport-tabblad. */
   sidebar: ReportSidebarMode;
   /**
-   * De open stap van het nieuwe Rapport-tabblad, of `'none'` als alle stappen dicht zijn. Bij het eerste
+   * De open stap van het Rapport-tabblad, of `'none'` als alle stappen dicht zijn. Bij het eerste
    * bezoek stap 1 (Taken), daarna de laatst gebruikte.
    */
   studioStep: ReportStudioStep | 'none';
@@ -297,7 +259,6 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   statusLine: 'none',
   followView: false,
   layoutId: '',
-  previewQuality: '200',
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
   columns: [...REPORT_DEFAULT_COLUMNS],
@@ -345,20 +306,18 @@ export function parseReportLayoutId(raw: unknown): string | undefined {
   return raw;
 }
 
-/** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
+/** Toegestane waarden voor de keuzelijsten. */
 const REPORT_TYPES: readonly ReportType[] = ['gantt', 'resourceGantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
 const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
-const PREVIEW_QUALITIES: readonly ReportPreviewQuality[] = ['100', '200', '300'];
 const SIDEBAR_MODES: readonly ReportSidebarMode[] = ['open', 'rail'];
 const STUDIO_STEPS: readonly ReportSettings['studioStep'][] = [...REPORT_STUDIO_STEPS, 'none'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
 const FONT_SCALES: readonly number[] = REPORT_FONT_SCALES;
-/** Grenzen van de breedte per dag resp. de tijdlijnkolommen-Select in het paneel. De ondergrens is die
- *  van het nieuwe tabblad (onder 1 px per dag); het oude paneel toont zo'n waarde op zijn schuif als 1. */
+/** Grenzen van de breedte per dag (mag onder 1 px per dag) en van de tijdlijnkolommen. */
 const ZOOM_MIN = REPORT_MIN_DAY_WIDTH;
 const ZOOM_MAX = REPORT_MAX_ZOOM;
 const TIMELINE_COLUMNS_MIN = 1;
@@ -471,9 +430,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
-    // Een opgeslagen `previewZoom` (oudere versie) wordt bewust genegeerd: de preview verandert
-    // niet van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
-    previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
+    // `previewZoom` en `previewQuality` van de oude rasterpreview (vóór #817) lezen we niet meer; bij het
+    // volgende opslaan vallen ze weg.
     tableReports: parseTableReportOptions(s.tableReports),
     resourceGantt: parseResourceGanttOptions(s.resourceGantt),
     // Oude sleutel zonder kolomlijst ⇒ de vaste tabel van toen, inclusief de keuze Voltooiing.
@@ -486,7 +444,24 @@ export async function loadReportSettings(): Promise<ReportSettings> {
   };
 }
 
-/** Schrijf de volledige set weg (één sleutel, dus altijd compleet — geen gedeeltelijke merge nodig). */
+/** Schrijf de volledige set weg (één sleutel, dus altijd compleet). */
 export async function saveReportSettings(settings: ReportSettings): Promise<void> {
   await setSetting(STORAGE_KEY, settings);
+}
+
+let pendingPatch: Promise<void> = Promise.resolve();
+
+/**
+ * Wijzig alleen deze velden: lees de opgeslagen stand, zet de velden erover en schrijf het geheel terug.
+ * Voor het rapportpaneel van de tabelrapporten (`ReportPanel`), dat maar een paar velden kent; zo raakt het
+ * nooit de kolommen, balkkleuren of layout van het Rapport-tabblad kwijt. De aanroepen lopen na elkaar, zodat
+ * twee snelle wijzigingen elkaar niet overschrijven.
+ */
+export function patchReportSettings(patch: Partial<ReportSettings>): Promise<void> {
+  const run = pendingPatch.then(async () => {
+    const current = await loadReportSettings();
+    await saveReportSettings({ ...current, ...patch });
+  });
+  pendingPatch = run.catch(() => {});
+  return run;
 }

@@ -180,13 +180,16 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
     { option: /^(Resource loading|Resourcebelasting)$/, nl: 'resourcebelasting', en: 'resource-loading' },
     { option: /^(Resource assignments|Resourcetoewijzingen)$/, nl: 'toewijzingen', en: 'resource-assignments' },
     { option: /^(WBS summary|WBS-samenvatting)$/, nl: 'wbs', en: 'wbs' },
+    // Knownbug 61: ook de twee rapporten zonder tabelspec gebruiken de gekozen taal.
+    { option: /^(Milestone overview|Mijlpalen-overzicht)$/, nl: 'mijlpalen', en: 'milestones', table: false },
+    { option: /^Variance$/, nl: 'afwijkingen', en: 'variance', table: false },
   ];
   for (const locale of [LOCALE_CASES[2], LOCALE_CASES[3]]) {
     await chooseLocale(page, locale);
     for (const reportExport of exports) {
       await typePicker.click();
       await page.getByRole('option', { name: reportExport.option }).click();
-      await expect(report).toBeVisible();
+      if (reportExport.table !== false) await expect(report).toBeVisible();
       if (reportExport.chart) {
         await expect(page.locator('[data-ops-report-kpi]')).toHaveCount(4);
         await expect(page.locator('[data-ops-report-chart] svg[role="img"]')).toBeVisible();
@@ -195,6 +198,18 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
       await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
       expect((await nextDownload).suggestedFilename()).toBe(`Tabelrapporten-${reportExport[locale.code]}.pdf`);
     }
+  }
+
+  // Alleen het rapportdeel wisselt van taal: de naamloze basis blijft in beide talen `project`.
+  await page.evaluate(() => window.__OPS__!.store.getState().setProject({ name: '   ' }));
+  for (const [locale, filename] of [
+    [LOCALE_CASES[3], 'project-variance.pdf'],
+    [LOCALE_CASES[2], 'project-afwijkingen.pdf'],
+  ] as const) {
+    await chooseLocale(page, locale);
+    const nextDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+    expect((await nextDownload).suggestedFilename()).toBe(filename);
   }
 });
 

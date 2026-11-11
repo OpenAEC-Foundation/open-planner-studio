@@ -145,6 +145,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const viewRows = useAppStore(s => s.viewRows);
   const viewGroup = useAppStore(s => s.view.group);
   const scheduleStale = useAppStore(s => s.scheduleStale);
+  // "Datums zoals opgeslagen": het rapport kent de cel "niet vastgelegd" niet. Dezelfde melding als boven de
+  // andere rapporten zegt dat het papier de datums uit het bestand toont.
+  const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   const scheduleError = useAppStore(s => s.cpmResult?.error);
   const scheduleErrorInfo = useAppStore(s => s.cpmResult?.errorInfo);
   const setStatusDate = useAppStore(s => s.setStatusDate);
@@ -544,6 +547,10 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         {t('studio.export.error', { error: scheduleErrorText({ error: scheduleError, errorInfo: scheduleErrorInfo }, tCommon) })}
       </PaperBanner>
     </div>
+  ) : datesAsRecorded ? (
+    <PaperBanner tone="warn" dataKey="recorded-dates">
+      <span data-report-recorded-dates-note>{t('tableReports.recordedDatesNote')}</span>
+    </PaperBanner>
   ) : null;
 
   // ---- Samenvattingen per stap ---------------------------------------------------------------------
