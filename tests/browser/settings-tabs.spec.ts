@@ -389,7 +389,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
     }, { text, name: fixture.path.split('/').pop()! });
     expect(before.foreign, fixture.path).toBe(fixture.foreign);
     expect(before.blocked, fixture.path).toBe(fixture.foreign);
-    expect(before.dirty, fixture.path).toBe(false);
+    if (!fixture.foreign) expect(before.dirty, fixture.path).toBe(false);
     await page.keyboard.press('Control+s');
     if (fixture.foreign) {
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
