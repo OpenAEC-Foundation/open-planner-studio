@@ -75,6 +75,9 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 6. **1109 met 1113**: eigen PR ná #903, volgens besluit van Trias 11 november 2026. `carried` voor een duur moet de
    betekenis kunnen vergelijken binnen de lijst van exact gelezen vormen. Proeven bewerken voortgang, werkelijke start
    en werkelijk einde zoals de app (`enterTaskProgress`, `setActualFinish`), niet met een kale `updateTask` (1113).
+   **Aanvulling 1109 uit #903:** echte `setTaskProgress` en `setActualStart` wijzigen de rest; daarbij kreeg ook de
+   ongewijzigde duur de writerwaarde 2.333333 in plaats van 2.3333333333333335 (vier gevallen). De naad weigert dit nu
+   getypeerd. Per-slot-behoud van de duur moet deze vier in de PR voor 1109 weer laten schrijven; b5 schrijft via de echte invoer.
    **De PR voor 1109** begint met opnieuw meten via echte acties wat er nog weigert (`b5-lopend` schrijft via `enterTaskProgress`); 1116 hoort erbij (besluit van Trias, 11 november 2026).
 7. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (Trias, 11 november 2026): de bewerkingen in de telling lopen via de acties van de app, niet kaal op het domein (nu alleen voortgang).
@@ -126,6 +129,7 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 
 ## Werk
 
+- 2026-11-11: #903 voegt de eis voor ongewijzigde taakgetallen toe; de vier echte voortgangsgevallen weigeren nu getypeerd. Toets van Trias 9/10: de 17-cijfers-villa weigert op ongewijzigde rest 2.3333333333333335 → 2.333333. Volgens opdracht gestopt, geen uitzondering, geen eindtelling of mutatie.
 - 2026-11-11: #903 vergelijkt alleen `resourceCalendars` op id, met exacte inhoud en behoud van dubbele ids; de zes wisgevallen schrijven weer. Verdwenen, extra en gewijzigde kalenders blijven geweigerd. 1116 is BLOKKEERT vóór 1c en hoort bij de PR voor 1109; de telling moet dan volledig via echte app-acties lopen. Main met #898 is gemerged; de pariteitsreferentie is opnieuw gemaakt op `20b9af79a`, 1115 is daarmee opgelost.
 - 2026-11-11: fixronde 2 van #898 na de gerichte run van Sol (GPT-6.1-Sol, xhigh: nee, één BLOKKEERT, ook op main): gedeelde kalender- en klokgeldigheid via `isStrictIsoDateTime` vóór vormcontrole en betekenisvergelijking; onmogelijke bronwaarden weigeren getypeerd, 1114 opgelost; de lezer blijft ongewijzigd. Aanvullend besluit: precies 24:00 met nul seconden/fracties is in een tijdslot een geldige daggrens; datum-tijd T24:00 blijft niet gedragen. De bestaande OPS-werkperiode 16:00–24:00 blijft zo behouden. Ook de tweede CI-fixture `urenperdag-oude-writer.ifc` (14:00–24:00) staat in de daggrensproef; `check-ifc-duurvormen.ts` is een aparte eindcheck.
 
@@ -350,3 +354,16 @@ De canon normaliseert taakvelden via de gewone writer en maskeert dit verschil. 
 Geen reparatie, overige checks en eindtelling na main niet uitgevoerd. Mainreferentie voor de nog uit te voeren telling:
 2578 geschreven / 685 getypeerd geweigerd / 0 anders, 3263 bewerkingen en 660 rijen. De zes wisgevallen zijn groen;
 1116 blijft voor de PR van 1109. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-precisieverlies-stop.md`.
+
+## 1107: ongewijzigd exact, stop op de toets van Trias (11 november 2026)
+
+De extra eis bewaakt generiek numerieke taakbladeren die tegenover opened ongewijzigd zijn en die ook de open-stappen
+van het domein niet veranderen. De bestaande canon blijft staan; gewijzigde getallen mogen volgens dat bestaande pad
+afronden. Zonder opened is pristine de referentie, hetzelfde als de verliesbewaking. Geen reader-, writer- of
+verliesbewakingswijziging. De vier echte voortgangsgevallen weigeren nu getypeerd op de duur.
+
+**Toets van Trias: 9 schrijven, 1 weigert.** De 17-cijfers-villa met model weigert op
+`task-ifc-_j2rFB79P78NtLEnkTKJwV.time.remainingTime`: 2.3333333333333335 → 2.333333. De opdracht vereist hier stoppen;
+geen uitzondering of reparatie toegevoegd. Oude-eigen eindigt rood met één afwijking op 531 controles. Mutatie,
+pariteit en eindtelling zijn nog niet gedaan. 1107 blijft daarom open. Bewijs:
+`docs/superpowers/evidence/2026-11-11-1107-ongewijzigd-exact-stop.md`.

@@ -218,7 +218,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
         ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
       }
       if (!outcome.ok) {
-        for (const c of outcome.error.cases.filter(c => c.kind === 'planning-na-openen')) console.log(`NIEUW WEIGERT ${where} · ${edit.label}: ${c.detail}`);
+        console.log('WEIGERING GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label, gevallen: outcome.error.cases }));
         for (const k of outcome.kinds) bump(t.refused, k);
         if (edit.kind !== 'niets') {
           for (const key of new Set(outcome.error.cases.filter(c => c.kind === 'niet-gedragen' && c.sourceId !== undefined).map(c => fieldOf(index, c)))) bump(fields, key);

@@ -118,7 +118,8 @@ export type MergePhase2Kind =
   | 'verstopt-stuk'
   /** De verplichte open-stappen ontbreken, of openen geeft een andere planning (1107). */
   | 'open-stappen-ontbreken'
-  | 'planning-na-openen';
+  | 'planning-na-openen'
+  | 'ongewijzigd-getal';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -798,7 +799,40 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
   if (planningCanon(wanted) !== planningCanon(shown)) {
     throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
+  const numberProblem = unchangedTaskNumberProblem(input, source.opened ?? pristine, wanted, shown);
+  if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
   return assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
+}
+
+/** Trias 1107: dezelfde velddefinitie als changedScopes: gelijk aan opened is niet door de planner gewijzigd.
+ * Zonder store-opened gebruiken we pristine, net als de verliesbewaking. Alle numerieke bladeren van een taak tellen,
+ * ook in time, customFields en geneste lijsten; geen veldlijst die bij een nieuw getal achterloopt.
+ * Verandert openen van het domein zelf het getal, dan is het afgeleid/herberekend: daarvoor geldt de bestaande
+ * vergelijking na dezelfde open-stappen. Alleen een ook na die stappen onveranderd getal moet exact terugkomen.
+ */
+function unchangedTaskNumberProblem(input: WriteIFCInput, opened: WriteIFCInput,
+  wanted: WriteIFCInput, shown: WriteIFCInput): string | undefined {
+  const before = new Map(opened.tasks.map(t => [t.id, t]));
+  const normalized = new Map(wanted.tasks.map(t => [t.id, t]));
+  const actual = new Map(shown.tasks.map(t => [t.id, t]));
+  const field = (value: unknown, key: string): unknown => value !== null && typeof value === 'object'
+    ? (value as Record<string, unknown>)[key] : undefined;
+  function first(was: unknown, now: unknown, afterOpen: unknown, back: unknown, path: string): string | undefined {
+    if (typeof now === 'number') {
+      // Voor getallen is === dezelfde gelijkheid als JSON.stringify in changedScopes (ook -0 en 0).
+      if (now === was && now === afterOpen && now !== back) return `${path}: ${now} → ${JSON.stringify(back)}`;
+    } else if (now !== null && typeof now === 'object') {
+      for (const [key, value] of Object.entries(now)) {
+        const problem = first(field(was, key), value, field(afterOpen, key), field(back, key), `${path}.${key}`);
+        if (problem) return problem;
+      }
+    }
+  }
+  for (const task of input.tasks) {
+    if (!before.has(task.id)) continue;
+    const problem = first(before.get(task.id), task, normalized.get(task.id), actual.get(task.id), `taak ${task.id} (${task.name})`);
+    if (problem) return problem;
+  }
 }
 
 /** De `#id`-verwijzingen in een regel van de writer, buiten strings (een sleutel als `'3LKE…#0'` telt niet). */

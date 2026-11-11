@@ -285,21 +285,25 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       const d = cloneDomain(snapshot(store) as Opened);
       const after = d.tasks.find(t => t.id === task.id)!;
       ok(`${label}: duur na actie ongewijzigd`, after.time.scheduleDuration === precise);
-      ok(`${label}: rest na actie ongewijzigd`, after.time.remainingTime === remaining);
+      ok(`${label}: de echte actie bepaalde de rest`, after.time.remainingTime !== remaining);
       const r = await tryMerge(d, snapshot(store).ifcSource!);
-      ok(`${label}: de merge schrijft`, r.ok);
-      if (!r.ok) continue;
+      if (!r.ok) {
+        ok(`${label}: getypeerd geweigerd op ongewijzigde duur`, r.kinds.includes('ongewijzigd-getal')
+          && r.error.cases.some(c => c.detail.includes('time.scheduleDuration') && c.detail.includes(String(precise))));
+        rows.push(`| ${label} | weigert getypeerd op de ongewijzigde duur |`);
+        continue;
+      }
       const out = text(r.bytes);
       const line = out.split('\n').find(l => /IFCTASKTIME\('Set up site Time'/.test(l))!;
       const args = splitArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
       ok(`${label}: slot 4 houdt precieze bronwaarde`, args[4] === `'P0Y0M${precise}D'`);
-      ok(`${label}: slot 18 houdt precieze bronwaarde`, args[18] === `'P0Y0M${remaining}D'`);
+      ok(`${label}: rest heeft de writerwaarde van de echte actie`, args[18] !== '$');
       ok(`${label}: vreemde deel behouden`, mergeProblems(latin1(src), r.bytes).length === 0);
       const back = await openForeign(r.bytes);
       const restored = back.tasks.find(t => t.id === task.id)!;
       ok(`${label}: duur na heropenen exact`, restored.time.scheduleDuration === precise);
-      ok(`${label}: rest na heropenen exact`, restored.time.remainingTime === remaining);
-      rows.push(`| ${label} | schrijft; exactheid van duur en rest apart getoetst |`);
+      ok(`${label}: de gewijzigde rest volgt gewone opslag`, canon(await shownAfterOpen(d), reseed) === canon(back, reseed));
+      rows.push(`| ${label} | schrijft; ongewijzigde duur exact, gewijzigde rest volgens gewone opslag |`);
     }
   }
 }

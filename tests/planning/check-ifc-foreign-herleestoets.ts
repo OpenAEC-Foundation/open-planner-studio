@@ -127,3 +127,39 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   assert.equal(written, 6);
   console.log('OK zes echte wisacties: schrijven, dezelfde kalenders en inhoud na volledig heropenen');
 }
+
+// Trias: alle vier echte invoerroutes weigeren zolang de ongewijzigde duur precisie zou verliezen.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const base = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc'), 'utf8');
+  const { splitStepArgs } = await import('@/services/ifc/foreign/stepScanner');
+  const { openInStore } = await import('./ifcAppRoute');
+  let refused = 0;
+  for (const remaining of [2.3333333333333335, 1.2345678901234567]) {
+    const line = base.split('\n').find(l => l.includes("IFCTASKTIME('Set up site Time'"))!;
+    const args = splitStepArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
+    args[18] = `'P0Y0M${remaining}D'`;
+    const raw = base.replace(line, line.slice(0, line.indexOf('(') + 1) + args.join(',') + ');');
+    for (const edit of ['completion', 'actualStart'] as const) {
+      const { store, snapshot } = await openInStore(generatedModel(root, raw, 0));
+      const task = store.getState().tasks.find(t => t.name === 'Set up site')!;
+      const accepted = edit === 'completion' ? store.getState().setTaskProgress(task.id, 0.5)
+        : store.getState().setActualStart(task.id, task.time.scheduleStart);
+      assert(accepted);
+      const input = cloneDomain(snapshot(store));
+      const expected = (await shownAfterOpen(input)).tasks.find(t => t.id === task.id)!;
+      assert.equal(expected.time.scheduleDuration, 2.3333333333333335);
+      const r = await tryMerge(input, snapshot(store).ifcSource!);
+      if (r.ok) {
+        const back = (await openForeign(r.bytes)).tasks.find(t => t.id === task.id)!;
+        console.log('STIL PRECISIEVERLIES', JSON.stringify({ remaining, edit, duration: back.time.scheduleDuration }));
+      } else {
+        assert(r.error.cases.some(c => c.kind === 'ongewijzigd-getal' && c.detail.includes(task.id)
+          && c.detail.includes('time.scheduleDuration') && c.detail.includes('2.3333333333333335') && c.detail.includes('2.333333')));
+        refused++;
+      }
+    }
+  }
+  assert.equal(refused, 4, 'alle vier weigeren getypeerd; geen stille afronding van een ongewijzigde duur');
+  console.log('OK ongewijzigd getal: alle vier echte voortgangsacties weigeren de afgeronde duur');
+}

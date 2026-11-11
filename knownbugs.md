@@ -1892,7 +1892,12 @@ en noem het in je rapport of PR-tekst.
      `P0Y0M0.5D` → `PT4H0M0S`. `carried` kent voor een duur nu alleen tekstgelijkheid, niet dezelfde betekenis in een
      andere vorm. Richting: betekenis van een duur dragen binnen de bestaande lijst van exact gelezen vormen
      (`durationForms.ts`), zonder een brede vrijstelling. Besluit van Trias, 11 november 2026: 1109 uit #898; de tabel en
-     de duur/rest-code daar terug naar main. Een eigen PR ná #903 (volledige herleestoets), met ook 1113. — B
+     de duur/rest-code daar terug naar main. Een eigen PR ná #903 (volledige herleestoets), met ook 1113.
+     Aanvulling #903: via de echte `setTaskProgress(id, 0.5)` en `setActualStart(id, scheduleStart)` wijzigt de actie
+     de rest. Daarna krijgt ook het duurslot de writerwaarde: 2.3333333333333335 werd 2.333333, hoewel de planner de
+     duur niet wijzigde (vier gevallen: oorspronkelijke bronrest en een gemaakte variant). Sinds de aanvullende eis
+     van #903 weigert de naad dat getypeerd op `time.scheduleDuration`. Op te lossen in de PR voor 1109: de duur per
+     slot exact behouden, zodat de vier gevallen weer schrijven. `b5-lopend` schrijft via de echte invoer. — B
 
 1113. **VERVOLG: een gewone opslag rondt een duur of rest met 17 cijfers af naar 6 decimalen.** Gemeten in #898, zonder
      model, op code waarvan de gewone writer en de open-route gelijk zijn aan main `d456e6e7b`: open
@@ -1910,19 +1915,15 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1107. **BLOKKEERT vóór 1c: de volledige herleestoets laat precisieverlies na echte voortgangsinvoer door.** De naad
-     in #903 past de open-stappen toe op zowel het gelezen planningsdeel als het domein van de planner. Na integratie van
-     #898 (`20b9af79a`) en omzetting van zijn precisieproeven naar de echte setters is verlies gemeten: op
-     `oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` met een model blijft de duur van Set up site na
-     `setTaskProgress(id, 0.5)` of `setActualStart(id, scheduleStart)` 2.3333333333333335. Ook na de open-stappen op het
-     domein blijft die exact. De merge schrijft, maar volledig heropenen geeft 2.333333 terug. De rest na echte invoer
-     is respectievelijk 1.16666666666667 of 2.33333333333333 en wordt 1.166667 of 2.333333. Hetzelfde bij een gemaakte
-     variant met bronrest 1.2345678901234567 (vier gevallen). De gedeelde canon gebruikt de gewone writer voor de
-     taakvelden en rondt daardoor beide kanten af; alleen de kalenderbibliotheek heeft een aanvullende exacte
-     inhoudsvergelijking. De naad weigert het verlies dus niet. De kale proeven uit #898 lieten de precieze bronwaarden
-     wel staan; dat bewijst deze echte invoerroutes niet. Bouw volgens opdracht gestopt; niet gerepareerd, geen
-     eindtelling na main. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-precisieverlies-stop.md` en
-     `1107-heropenkosten/v5/onderzoek-precisie.json`. Uit #903, 11 november 2026. — B
+1107. **BLOKKEERT vóór 1c: de nieuwe eis voor ongewijzigde getallen laat één bestand van de toets van Trias weigeren.**
+     #903 bewaakt nu naast de bestaande canon alle getallen van een taak generiek: gelijk aan `opened` en ook na de
+     open-stappen van het domein onveranderd betekent exact teruglezen. De vier echte invoergevallen van 1109 weigeren
+     nu getypeerd op de ongewijzigde duur. De toets van Trias schrijft echter maar 9 van de 10: na de bestaande
+     duurwijziging en F5 weigert `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` met model, `ongewijzigd-getal`,
+     "taak task-ifc-_j2rFB79P78NtLEnkTKJwV (Set up site).time.remainingTime: 2.3333333333333335 → 2.333333".
+     Geen verlies: geen uitvoerbytes. Bouw volgens de expliciete stopvoorwaarde van Trias stilgelegd; geen uitzondering
+     toegevoegd of bronbehoud gerepareerd. Mutatie, pariteitscheck en eindtelling nog niet uitgevoerd. Bewijs:
+     `docs/superpowers/evidence/2026-11-11-1107-ongewijzigd-exact-stop.md`. Uit #903, 11 november 2026. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
