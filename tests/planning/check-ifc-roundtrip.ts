@@ -2654,8 +2654,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   //       post-pass niet herberekent, zodat we zuiver `parseDurationDays` zien). Geen kalender in het
   //       bestand ⇒ de standaard 8 u/dag.
   const cases: [string, number, string][] = [
-    ["'PT12.5H'", 2, 'decimale uren: ceil(12,5/8) = 2 (was ceil(5/8) = 1)'],
-    ["'-PT12.5H'", -2, 'negatieve decimale uren met voorloopteken (was −1)'],
+    ["'PT12.5H'", 1.5625, 'decimale uren exact: 12,5/8 werkdagen'],
+    ["'-PT12.5H'", -1.5625, 'negatieve decimale uren met voorloopteken (was −1)'],
     ["'-P2.5D'", -2.5, 'lead met ISO-voorloopteken (was −5)'],
     ["'P0Y0M-2.5D'", -2.5, 'legacy-notatie met het teken bij het getal (was −5)'],
     ["'P0Y0M1e-7D'", 1e-7, 'exponent uit een bestand van vóór de writer-afronding (was −7)'],
