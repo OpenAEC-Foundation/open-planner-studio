@@ -57,6 +57,8 @@ const VALUE_LITERALS: ReadonlySet<string> = new Set([
   'P_SINGLEVALUE', 'P_ENUMERATEDVALUE', 'ASAP', 'START', 'FINISH', 'actual', 'remaining', 'leveling', 'user',
   // Foutcodes van het XER-archief (`XerArchiveIssueCode`).
   'schema-version', 'truncated',
+  // Waarden van SchedulingOptions.lagCalendar, geen IFC-propertynamen.
+  '24hour', 'successor', 'projectDefault',
 ]);
 
 /** Een tekst die in de bron een andere betekenis heeft dan de gelijke propertynaam. Per bestand, met de reden. */

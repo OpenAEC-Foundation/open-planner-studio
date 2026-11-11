@@ -106,6 +106,8 @@ export interface ChoiceOption<T extends string> {
   icon?: ReactNode;
   /** Kopje vóór deze keuze (bijv. "Layouts"); hoort bij dezelfde radiogroep, dus de pijltjes lopen door. */
   groupLabel?: ReactNode;
+  /** Een i-icoon naast het kopje met deze uitleg als tooltip (eerste regel vet), en zijn toegankelijke naam. */
+  groupInfo?: { text: string; label: string };
   /** `data-rs-layout` voor tests. */
   dataLayout?: string;
 }
@@ -120,6 +122,8 @@ export function StudioChoiceGroup<T extends string>({ value, options, onChange, 
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const index = Math.max(0, options.findIndex(o => o.value === value));
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    // Alleen vanaf een keuze: de pijltjes op het i-icoon bij een kopje kiezen niets.
+    if ((e.target as HTMLElement).getAttribute('role') !== 'radio') return;
     const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
     e.preventDefault();
@@ -131,7 +135,18 @@ export function StudioChoiceGroup<T extends string>({ value, options, onChange, 
     <div className="rs-choices" role="radiogroup" aria-label={ariaLabel} onKeyDown={onKeyDown}>
       {options.map((option, i) => (
         <Fragment key={option.value}>
-          {option.groupLabel && <div className="ui-card-header rs-group-label rs-choices-label" aria-hidden="true">{option.groupLabel}</div>}
+          {option.groupLabel && (
+            <div className="ui-card-header rs-group-label rs-choices-label">
+              <span aria-hidden="true">{option.groupLabel}</span>
+              {/* Het i-icoon van de app (TooltipHost, `data-tooltip-instant`): hover, focus, klik of tik. */}
+              {option.groupInfo && (
+                <button type="button" className="rs-info-btn" title={option.groupInfo.text}
+                  aria-label={option.groupInfo.label} data-tooltip-instant="true" data-tooltip-lead="true" data-rs-group-info>
+                  <Icon id="help.context-hint" size={14} aria-hidden />
+                </button>
+              )}
+            </div>
+          )}
           <button
             ref={el => { refs.current[i] = el; }}
             type="button"

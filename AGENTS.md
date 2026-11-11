@@ -223,7 +223,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   Otherwise `readIFC` reads only the first data section: the first `DATA;` up to the first `ENDSEC;`. The save-target
   check runs only with the flag `ifcForeignContent`: then a target that breaks the grammar or has more than one data
   section refuses, except a file OPS wrote itself (old versions wrote a raw header).
-  Behind the feature flag `ifcForeignContent` (#804 phase 1a; always off in the app until saving works) every IFC open
+  Behind the feature flag `ifcForeignContent` (#804 phase 1a; off by default) every IFC open
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
   reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
   `ifcSource` (document contract, `snapshot: 'none'`: outside undo, recovery and MCP backup). A document with a foreign
@@ -351,20 +351,19 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   small PRs to `main`; keep unfinished user-visible work behind a feature flag until it is complete.
 - **Feature flags:** add a temporary entry to `src/utils/featureFlags.ts` with an id, typed i18n
   name/description keys and `writesNewIfcData`; read it through `isFeatureEnabled(ui.featureFlags, id)`.
-  Flags default to off. Keep `writesNewIfcData: true` (no checkbox, always off) until the IFC
-  save/load round-trip is complete; only then mark the data as supported (`false`). The hidden
+  Flags default to off. The hidden
   Experimental block in Settings → Advanced is unlocked by activating its version number for
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
   removes its flag and the corresponding checks.
-  Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik en houd het versienummer vast).
+  Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik 5 seconden snel achter elkaar op het versienummer).
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
   before reporting a "new" bug.
-  Each session that writes knownbugs gets its own block of 50 numbers from wrakko at the start, and uses only numbers from that block. When the block is full, ask wrakko for the next one.
+  Each session gets its own block of 50 knownbug numbers; allocations are listed in the Trias wiki.
 - **User-visible feature ⇒ guide** in `public/docs/{nl,en}/` plus a manifest entry (recipe
   `docs/recepten/in-app-gids.md`). You write `nl` + `en` (the sources, required), organised by Diátaxis (`kind`:
   `howto`, `uitleg`, `referentie`; the tutorials ship as an extension); the other locales come from the translation

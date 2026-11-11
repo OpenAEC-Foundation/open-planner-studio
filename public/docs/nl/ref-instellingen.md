@@ -84,6 +84,10 @@ Een automatisch gevonden update wacht tot de welkomstschermen en een lopende tut
 
 **Klassieke weergaveknoppen tonen** — een vervangen functie, achter *Legacy-functies*. Standaard: uit. Effect: aan zet op het tabblad *Beeld* een groep *Weergave* terug met de losse knoppen *Kolommen…*, *Filteren…*, *Groeperen…* en *Sorteren…*. Die zijn vervangen door de plus in de tabelkop, de layoutknoppen en het layoutvenster. Waar: *Geavanceerd*, onder *Legacy-functies*.
 
+**Experimenteel** — klik 5 seconden snel achter elkaar op het versienummer om dit verborgen blok te tonen. Elke experimentele functie heeft een schakelaar en staat standaard uit. De app bewaart de keuzes op dit apparaat. *Verbergen* verbergt het blok en bewaart de keuzes.
+
+**IFC met gebouwmodel openen** — in het blok *Experimenteel*. Aan opent ook IFC-bestanden met een gebouwmodel of gegevens van andere programma's. Opslaan van een bestand met zo'n vreemd deel blijft geblokkeerd. Een eigen planningsbestand zonder vreemd deel kun je wel opslaan, ook als je geen taak hebt gewijzigd.
+
 ## Onthouden weergavekeuzes buiten het paneel
 
 Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onderdeel zelf, niet in het instellingenpaneel.

@@ -10,6 +10,8 @@
 export type IfcParseErrorReason =
   /** Geen STEP-uitwisselingsbestand: de verplichte `ISO-10303-21;`-kop ontbreekt. */
   | 'not-step'
+  /** De duur is ongeldig of kan zonder kalendercontract niet exact gelezen worden. */
+  | 'duration'
   /** Bouwmodelobjecten worden niet bewaard; weigeren voorkomt stil verlies bij opslaan. */
   | 'building-model'
   /** Wel een STEP-kop, maar de afsluitende `END-ISO-10303-21;` ontbreekt ⇒ afgekapt/onvolledig. */
