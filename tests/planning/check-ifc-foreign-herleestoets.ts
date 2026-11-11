@@ -170,6 +170,58 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   console.log('OK 1109: acht echte voortgangsacties schrijven met de precieze bronduur');
 }
 
+// 1109: een echte naamswijziging laat ook een niet-lege precieze rest letterlijk staan.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const raw = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc'), 'utf8');
+  const { openInStore } = await import('./ifcAppRoute');
+  const { store, snapshot } = await openInStore(generatedModel(root, raw, 0));
+  const before = snapshot(store);
+  const task = before.tasks.find(t => t.name === 'Set up site')!;
+  store.getState().updateTask(task.id, { name: 'Nieuwe naam voor precieze taak' });
+  const input = cloneDomain(snapshot(store));
+  assert.equal(input.tasks.find(t => t.id === task.id)!.time.remainingTime, 2.3333333333333335);
+  const r = await tryMerge(input, before.ifcSource!);
+  assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+  const full = await openForeign(r.bytes);
+  assert.equal(full.tasks.find(t => t.id === task.id)!.time.remainingTime, 2.3333333333333335);
+  assert(new TextDecoder().decode(r.bytes).includes("'P0Y0M2.3333333333333335D'"));
+  assert.equal(readbackDifference(r.shown, full), undefined);
+  assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+  console.log('OK 1109: echte naamswijziging houdt de niet-lege precieze rest');
+}
+
+// Hele dagen hebben dezelfde bescherming nodig: voortgang mag alleen de rest wijzigen.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const { scanStep } = await import('@/services/ifc/foreign/stepScanner');
+  for (const file of ['public/examples/10-villa-wassenaar.ifc',
+    'tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc']) {
+    const raw = readFileSync(join(root, file), 'utf8');
+    const bytes = generatedModel(root, raw, 0);
+    const before = await openForeign(bytes);
+    const task = before.tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+    assert(Number.isInteger(task.time.scheduleDuration));
+    const input = await applyEdit(ordinaryEdits(before).find(e => e.kind === 'voortgang')!, cloneDomain(before));
+    assert.equal(input.tasks.find(t => t.id === task.id)!.time.scheduleDuration, task.time.scheduleDuration);
+    const r = await tryMerge(input, before.ifcSource!);
+    assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+    const durationToken = (bytes: Uint8Array) => {
+      const ix = scanStep(bytes);
+      const chunk = ix.chunkOf(String(before.ifcSource!.stepIds[`task:${task.id}`]));
+      for (let k = 0; k < ix.argCount(chunk); k++) for (const time of ix.refsAt(chunk, k)) {
+        if (ix.type(time) === 'IFCTASKTIME') return ix.argTokens(time)?.[4];
+      }
+      throw new Error('de taak heeft geen taaktijd');
+    };
+    assert.equal(durationToken(r.bytes), durationToken(bytes), 'de hele duur houdt letterlijk zijn bronvorm');
+    const full = await openForeign(r.bytes);
+    assert.equal(readbackDifference(r.shown, full), undefined);
+    assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+  }
+  console.log('OK 1109: voortgang op hele duren houdt het duurslot letterlijk');
+}
+
 // Terra R1: de echte extensie-load verandert alleen de lag-eenheid; het ongewijzigde getal moet exact blijven.
 {
   const { openInStore } = await import('./ifcAppRoute');
