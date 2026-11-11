@@ -1966,6 +1966,27 @@ en noem het in je rapport of PR-tekst.
      met de vroegere eerste vergeleken, en een blijvend getal dat daarvan verschilt geldt dan niet als ongewijzigd. Geen
      verlies aangetoond: de writer bewaart een baseline als JSON. Richting: baselineregels op `taskId` koppelen, met een
      proef met verschuivende rijen. Terra, review ronde 2 van #903. — B
+     Sol probeerde er in zijn gerichte run verlies mee te maken en kon dat niet: de eerste baselineregel wissen weigert
+     getypeerd (`niet-gedragen`), en na het wissen van de eerste onderbreking blijft de volgende exact.
+
+1118. **Bij 1c: de functie met de open-stappen krijgt de invoer van de merge zelf, niet een kopie.** `writeIfcMerge`
+     (`src/services/ifc/foreign/mergeWriter.ts`, #903) geeft `openPlanning` het domein van de planner door nadat de
+     uitvoerregels al gebouwd zijn. Een foutieve functie die dat domein wijzigt, verandert beide kanten van de
+     vergelijking: in de proef van Sol schreef de merge 35.083 bytes terwijl de domeinkopie een andere taaknaam had dan
+     het heropende bestand. Ook geldt: de merge dwingt af dat er een functie is, niet dat zij de echte open-stappen doet
+     (een functie die niets doet, kan schrijven). Geen verlies in de app: er is geen aanroeper, en de bevroren store
+     weigert zo'n wijziging met een `TypeError`. Richting, bij het aansluiten in 1c: de invoer afschermen tegen
+     wijziging, en een integratieproef dat de opslagroute de vaste, echte open-stappen meegeeft (met de flag aan). Sol,
+     gerichte run op #903. — B
+
+1119. **VERVOLG: "dezelfde planning als gewone opslag op main" is in de toets van Trias gelijkheid na opnieuw schrijven.**
+     `tests/planning/check-ifc-foreign-oude-eigen.ts` vergelijkt de tien bestanden via `planningCanon`
+     (`src/services/ifc/foreign/planningCanon.ts`), die beide kanten met de gewone writer schrijft. Rechtstreeks
+     vergeleken zijn negen van de tien diep gelijk; in `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` blijft
+     `time.actualDuration` van Excavate swimming pool na de merge exact `0.30000000000000004`, terwijl een gewone opslag
+     op main er `0.3` van maakt (de afronding van 1113). De merge bewaart hier dus meer dan main; geen verlies. Richting:
+     de domeinwaarden rechtstreeks vergelijken en de toegelaten afronding van de gewone opslag expliciet benoemen. Sol,
+     gerichte run op #903. — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
