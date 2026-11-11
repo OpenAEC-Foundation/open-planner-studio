@@ -243,6 +243,41 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     eq(`1120 crashherstel ${active}: klokherkomst volgt dezelfde code`, binding(recovered.getState().calendar)?.scalarEnd, before.workEndHour);
     eq(`1120 crashherstel ${active}: opslag behoudt bronklok`, writeIFC(buildWriteIFCInput(recovered.getState())).includes(original), true);
   }
+  // Dezelfde opzet als Terra: eerst openen en herstellen, daarna de taak als urenmaat klaarzetten.
+  // De pauzebewerking zelf loopt door de echte formulierafleiding, validatie en kalenderactie.
+  for (const pause of [false, true]) {
+    const label = `1120 uurtaak ${pause ? 'pauze 16:30–16:45' : 'één hele werkdag'}`;
+    const file = memoryFile(withTask), store = createAppStoreContext().store;
+    await store.getState().openOpenedFile({ name: 'uurtaak-bronklok.ifc', content: withTask, ref: { kind: 'handle', handle: file.handle } });
+    store.setState(s => { s.tasks[0].time.durationUnit = 'hours'; });
+    let draft = structuredClone(store.getState().calendar);
+    eq(`${label}: de bronklok is echt hersteld`, [draft.workEndHour, binding(draft)?.scalarEnd], [before.workEndHour, before.workEndHour]);
+    if (pause) {
+      for (const patch of [{ simpleBreakStartMinute: 990 }, { simpleBreakDurationMinutes: 15 }]) {
+        eq(`${label}: formulier accepteert ${JSON.stringify(patch)}`, scalarTimesValid(draft, patch), true);
+        draft = { ...draft, ...simpleBreakPatch(draft, patch) };
+      }
+      eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+        store.getState().calendars.map(c => c.id === draft.id ? draft : c), draft.id), true);
+    }
+    const wanted = structuredClone(store.getState().calendar);
+    await store.getState().saveFile();
+    eq(`${label}: opslag schrijft eenmaal`, file.writes.length, 1);
+    const saved = file.writes[0];
+    if (!saved) continue;
+    eq(`${label}: standaardperiode`, pause
+      ? hasSourceClocks(saved, '16:45:00', '17:07:24.44159999999556')
+      : saved.includes(original), true);
+    const reopened = createAppStoreContext().store;
+    await reopened.getState().openOpenedFile({ name: 'uurtaak-heropend.ifc', content: saved, ref: null });
+    eq(`${label}: volledig heropenen geeft de werkdag van de planner`, effective(reopened.getState().calendar), effective(wanted));
+    eq(`${label}: volledig heropenen geeft dezelfde werkblokken`, effectiveWorkTimeBands(reopened.getState().calendar), effectiveWorkTimeBands(wanted));
+    if (pause) {
+      const bare = readIFC(saved.replace(/'WorkEndHour'/g, "'IgnoredEndHour'").replace(/'IsHourCalendar'/g, "'IgnoredCalendar'"));
+      eq(`${label}: zonder OPS-markering dezelfde twee werkblokken`, effectiveWorkTimeBands(bare.calendar), effectiveWorkTimeBands(wanted));
+    }
+    console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+  }
   const { openForeign, cloneDomain, tryMerge, mergeProblems } = await import('./ifcMergeKern');
   const { readbackDifference } = await import('./ifcReadbackEquality');
   const { generatedModel } = await import('./ifcGeneratedModel');
@@ -305,6 +340,35 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     console.log('1120 formulier', example.label, JSON.stringify([before.workStartHour, before.workEndHour, before.hoursPerDay]),
       saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
   }
+}
+
+// Gewone klokken blijven gewone klokken bij een andere laatste decimaal in WorkEndHour.
+for (const zone of ['', '+01:00']) {
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const end = `16:20:00${zone}`;
+  const input = old.replace("'9.123456:00:00'", "'08:00:00'").replace("'16:00:00'", `'${end}'`)
+    .replace("'HoursPerDay',$,IFCREAL(8)", "'WorkEndHour',$,IFCREAL(16.333333333333336)");
+  const label = `1120 laatste decimaal ${zone || 'zonder zone'}`;
+  const file = memoryFile(input), store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'laatste-decimaal.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  const current = store.getState().calendar, patch = { workStartHour: 10 };
+  eq(`${label}: effectieve eindwaarde uit metadata`, current.workEndHour, 16.333333333333336);
+  eq(`${label}: geldige beginbewerking`, scalarTimesValid(current, patch), true);
+  const draft = { ...current, ...simpleBreakPatch(current, patch) };
+  eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+    store.getState().calendars.map(c => c.id === draft.id ? draft : c), draft.id), true);
+  const before = structuredClone(store.getState().calendar);
+  await store.getState().saveFile();
+  eq(`${label}: opslag weigert niet`, file.writes.length, 1);
+  const saved = file.writes[0];
+  if (!saved) continue;
+  eq(`${label}: tekst van de eindklok blijft letterlijk`, hasSourceClocks(saved, '10:00:00', end), true);
+  const reopened = createAppStoreContext().store;
+  await reopened.getState().openOpenedFile({ name: 'laatste-decimaal-heropend.ifc', content: saved, ref: null });
+  const after = reopened.getState().calendar;
+  eq(`${label}: volledig heropenen geeft dezelfde werkdag en netto uren`,
+    [after.workStartHour, after.workEndHour, after.hoursPerDay], [before.workStartHour, before.workEndHour, before.hoursPerDay]);
+  console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
 }
 
 // Een expliciete middagpauze blijft effectief, ook als alleen de bronstart seconden krijgt.

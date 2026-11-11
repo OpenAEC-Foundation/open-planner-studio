@@ -1365,6 +1365,10 @@ function calendarClock(minutes: number, endOfDay = false): string {
 function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: number }, binding: string, scalarSides: readonly ('start' | 'end')[] = []): [string, string] {
   const source = cal.ifcTimePeriods?.find(p => p.binding === binding);
   const scalarSource = cal.ifcTimePeriods?.find(p => p.binding === 'scalar');
+  // Uren ↔ minuten kan de laatste binaire decimaal verschuiven. Alleen rekenruis op Number-precisie
+  // telt als dezelfde uurwaarde, geen tijdmarge die bronseconden of een echt kalenderherstel verbergt.
+  const sameHour = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b)
+    && (a === b || Math.abs(a - b) <= Number.EPSILON * Math.max(Math.abs(a), Math.abs(b)));
   const clock = (side: 'start' | 'end'): string => {
     const original = scalarSides.includes(side) ? scalarSource ?? source : source;
     const text = original?.[side === 'start' ? 'startText' : 'endText'];
@@ -1373,14 +1377,22 @@ function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: num
         ? original[side === 'start' ? 'scalarStart' : 'scalarEnd'] === cal[side === 'start' ? 'workStartHour' : 'workEndHour']
         : original[side] === band[side];
       // Na kalenderherstel wijkt de bron-eindklok af van het effectieve einde bij openen.
-      // Alleen de hele ongewijzigde periode mag die klok houden; gewone klokken blijven per kant gelden.
+      // Alleen een periode die precies de hele werkdag bij openen is mag die klok houden. Het laatste
+      // losse werkblok krijgt zijn effectieve einde; gewone bronklokken blijven per kant gelden.
       const restoredEnd = side === 'end' && original === scalarSource && original.scalarEnd !== undefined
-        && original.end / 60 !== original.scalarEnd;
-      const samePeriod = original.scalarStart === cal.workStartHour && original.scalarEnd === cal.workEndHour;
+        && !sameHour(original.end / 60, original.scalarEnd);
+      const samePeriod = original.scalarStart !== undefined && original.scalarEnd !== undefined
+        && band.start === original.scalarStart * 60 && band.end === original.scalarEnd * 60;
       if (unchanged && (!restoredEnd || samePeriod)) return text;
       // De gewijzigde grens heeft geen eigen zoneveld. Leen geen zone van een
       // andere dag, band of grens, en verwijder de oorspronkelijke zone niet stil.
       if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) throw new IfcCalendarTimePrecisionError(band[side]);
+    }
+    if (!original && scalarSides.includes(side)) {
+      // Een gewone bronklok zonder precisie-informatie heeft geen herkomstrecord. Gebruik de bestaande
+      // klokvorm als teruglezen alleen omrekenruis verschilt; echte fijnere tijden gaan naar calendarClock.
+      const plain = minutesToClock(band[side], side === 'end'), parsed = parseIfcClock(plain);
+      if (parsed && sameHour(parsed.minutes / 60, band[side] / 60)) return plain;
     }
     return calendarClock(band[side], side === 'end');
   };
