@@ -22,7 +22,6 @@ import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, ex
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
-import { FEATURE_FLAGS } from '@/utils/featureFlags';
 import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
@@ -1114,7 +1113,6 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
   const fakeFs = installFakeFs();
   resetToSingleEmptyDocument();
   loadSmallProject('Met model');
-  const flag = FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!;
   const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
   const bonsaiPath = `${HOME}/bonsai-4d.ifc`;
   setBinaryFile(bonsaiPath, bonsai);
@@ -1125,8 +1123,7 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assert(refused.error.includes('building model'), 'zonder flag blijft de modelweigering');
     assertEq(readFileCalls.includes(bonsaiPath), false, 'zonder flag leest import_schedule IFC als tekst');
 
-    // Met de flag (alleen in deze test bruikbaar gemaakt): bytes, en het document krijgt de bron.
-    flag.writesNewIfcData = false;
+    // Met de echte flag: bytes, en het document krijgt de bron.
     useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
     const ctx = makeCtx();
     const imported = await callOk('planner_import_schedule', { path: bonsaiPath }, ctx);
@@ -1189,7 +1186,6 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assert(files.get(otherModelPath)?.startsWith('ISO-10303-21') === true, 'een doel dat de app niet kan lezen, mag');
   } finally {
     delete fakeFs.scanTarget;
-    flag.writesNewIfcData = true;
     useAppStore.setState((s) => { s.ui.featureFlags = {}; });
   }
 });

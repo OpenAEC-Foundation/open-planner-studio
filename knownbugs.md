@@ -3458,3 +3458,12 @@ en noem het in je rapport of PR-tekst.
       taakcodes niet. Daardoor kan de nieuwe volgorde (#885) alleen via IFC (en XER-import via `seq_num`) mee. Bestaand
       verlies op main; wie de export bouwt (ACTVTYPE/ACTVCODE met `seq_num`, P6 `ActivityCode`, MSPDI-opzoektabel)
       neemt de volgorde mee. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1206. **VERVOLG: browserproef van de IFC-schakelaar leest de geschreven eigen planning niet terug.**
+      `tests/browser/settings-tabs.spec.ts` bewijst na Ctrl+S met een stijgende `lastModified` dat het
+      ongewijzigde eigen bestand echt is geschreven. Daarna vergelijkt de proef de taken in de levende
+      appstate. Een writer die een taak weglaat zonder die appstate te veranderen, wordt hiermee niet
+      ontdekt. Er is geen dataverlies aangetoond. Voorstel: lees in hetzelfde scenario de geschreven IFC
+      terug en vergelijk de opgeslagen taken met de stand vóór Ctrl+S; geen nieuw browserscenario nodig.
+      Uit de review van de vervolgwijziging op #879, GPT-6.1-Sol xhigh, BEVESTIGD (zekerheid hoog),
+      VERVOLG. Zelf de assertions nagezien. — B

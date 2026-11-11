@@ -53,7 +53,6 @@ console.error = () => {};
 console.warn = () => {};
 
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
-const { FEATURE_FLAGS } = await import('@/utils/featureFlags');
 const { readsAsBytes, readIfcFromText } = await import('@/services/formatRegistry');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -94,8 +93,6 @@ const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
 const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
 const MODEL_KEYS = [SAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
 
-// Alleen in deze test: de flag bruikbaar maken, zoals in `check-ifc-foreign-open.ts`.
-FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!.writesNewIfcData = false;
 
 /** Een nep-FSA-handle met echte `isSameEntry` (zelfde object), `getFile` en `createWritable`. Functies erin: een
  *  `structuredClone` van iets wat de handle bevat, faalt (zo bewijst de test dat hij niet in Worker of manifest komt). */
