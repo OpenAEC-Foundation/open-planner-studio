@@ -1,3 +1,4 @@
+import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { foreignSourceTargetOf } from '@/services/ifc/foreign/foreignSourceMark';
 import {
@@ -123,6 +124,7 @@ export function persistedRecoveryState(
 export class RecoveryDeltaTracker {
   private persisted: PersistedRecoveryState | null = null;
   private readonly serialized = new Map<string, { source: IFCSaveSource; ifc: string }>();
+  private readonly skipped = new Set<string>();
   private tail: Promise<unknown> = Promise.resolve();
 
   /** Houd delta, serialisatie, manifestcommit en persistentiebasis in dezelfde schrijfvolgorde. */
@@ -139,15 +141,38 @@ export class RecoveryDeltaTracker {
   ): Promise<RecoverySaveInput | null> {
     const delta = planRecoveryDelta(activeDocumentId, documents, this.persisted);
     if (!delta.needsPersist) return null;
+    this.skipped.clear();
     // Eén worker houdt het geheugengebruik begrensd; andere documenten wachten op hun beurt.
     for (const document of delta.changedDocuments) {
       const cached = this.serialized.get(document.id);
       if (!cached || !sameIFCSource(cached.source, document.source)) {
-        const ifc = await serialize(document.source);
-        this.serialized.set(document.id, { source: document.source, ifc });
+        try {
+          const ifc = await serialize(document.source);
+          this.serialized.set(document.id, { source: document.source, ifc });
+        } catch (error) {
+          if (!(error instanceof IfcCalendarTimePrecisionError)) throw error;
+          this.skipped.add(document.id);
+          console.warn('Crashherstel slaat een document met een niet-schrijfbare kalender over; de vorige snapshot blijft staan.', document.id, error);
+        }
       }
     }
-    return this.prepare(activeDocumentId, documents, () => { throw new Error('Crashherstel-cache ontbreekt.'); });
+    const retained = this.recoverableDocuments(documents);
+    return this.prepare(this.recoverableActiveId(activeDocumentId, retained), retained, () => { throw new Error('Crashherstel-cache ontbreekt.'); });
+  }
+
+  /** Gebruik voor een geweigerd document exact de laatst gepersisteerde bron
+   * én metadata. Een nieuw geweigerd document heeft nog geen herstelkopie. */
+  private recoverableDocuments(documents: readonly RecoverySourceDocument[]): RecoverySourceDocument[] {
+    return documents.flatMap(document => {
+      if (!this.skipped.has(document.id)) return [document];
+      const previous = this.persisted?.documents.find(d => d.id === document.id);
+      const source = this.persisted?.sources.get(document.id);
+      return previous && source ? [{ ...previous, source }] : [];
+    });
+  }
+
+  private recoverableActiveId(id: string | null, documents: readonly RecoverySourceDocument[]): string | null {
+    return documents.some(d => d.id === id) ? id : documents[0]?.id ?? null;
   }
 
   get hasPersistedSnapshot(): boolean {
@@ -179,7 +204,8 @@ export class RecoveryDeltaTracker {
   }
 
   commit(activeDocumentId: string | null, documents: readonly RecoverySourceDocument[]): void {
-    this.persisted = persistedRecoveryState(activeDocumentId, documents);
+    const retained = this.recoverableDocuments(documents);
+    this.persisted = persistedRecoveryState(this.recoverableActiveId(activeDocumentId, retained), retained);
     const openIds = new Set(documents.map((document) => document.id));
     for (const id of this.serialized.keys()) if (!openIds.has(id)) this.serialized.delete(id);
   }

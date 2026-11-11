@@ -19,9 +19,14 @@ export const IFC_FOREIGN_SAVE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   dedupeKey: 'ifc-foreign-save-blocked',
 });
 
-/** Weigert de app IFC-uitvoer van dit document (fase 1a)? Alleen met een `ifcSource` met een vreemd deel. */
-export function ifcSaveBlocked(s: { readonly ifcSource: IfcSource | null }): boolean {
-  return hasForeignContent(s.ifcSource);
+/** Weigert de app IFC-uitvoer van dit document (fase 1a)? Met een `ifcSource` met een vreemd deel, en na crashherstel
+ *  van zo'n document zolang de bronbytes ontbreken (#886 fixronde 2, besluit Trias 11 november 2026; ook met de flag
+ *  uit: de veilige kant). */
+export function ifcSaveBlocked(s: {
+  readonly ifcSource: IfcSource | null;
+  readonly foreignSourceMark: ForeignSourceMark | null;
+}): boolean {
+  return hasForeignContent(s.ifcSource) || s.foreignSourceMark?.sourceMissing === true;
 }
 
 /** Het opslagdoel dat het herstelmanifest bewaart (§4.14). De herstelsnapshot heeft geen bronbytes; met een vreemd deel
@@ -29,6 +34,7 @@ export function ifcSaveBlocked(s: { readonly ifcSource: IfcSource | null }): boo
  *  Zonder vreemd deel precies zoals vóór #804. */
 export function recoverySaveTarget(p: {
   readonly ifcSource: IfcSource | null;
+  readonly foreignSourceMark: ForeignSourceMark | null;
   readonly filePath: string | null;
   readonly siteFileId: string | null;
   readonly siteFileVersion: string | null;

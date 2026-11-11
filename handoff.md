@@ -8,9 +8,13 @@ van fase 1 naar `docs/archive/handoffs/` (bij fase 0 ging dat mis: zie `HANDOFF-
 Het ontwerp (versie 20) en fase 0 zijn gemerged in main. Fase 0 bewees dat de app bij een eigen bestand precies het eigen
 deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met een gebouwmodel, achter een flag: eerst
 lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
-Het lezen (1a) is gemerged in main. Het schrijven (1b, #867) is na zeven fixrondes klaar voor review ronde 7: de writer
-laat het gebouwmodel staan en zet de planning ertussen. Bij twijfel weigert hij. Een eigen bestand van OPS, ook van een
-oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, na de controles.
+Het lezen (1a) en het schrijven (1b, #867) zijn gemerged in main: de writer laat het gebouwmodel staan en zet de
+planning ertussen, en bij twijfel weigert hij. #886 is gemerged in main; de merge wordt daar getoetst via de toestand die
+na openen in de app staat. Concept-PR #898 bevat alleen de tijdzonevergelijking (1111), de oude kalenderindeling
+(1108), de bijbehorende tests en tekst. Alle code voor voortgang (1109) is terug naar main. Daarna volgt #903 voor de
+volledige herleestoets (1107), dan een eigen PR voor 1109 met 1113, en daarna 1c. De meting van 1113 via de echte
+invoer van de app: de rest na een werkelijk einde klopt (0 vóór en na opslaan); alleen de afronding van een duur of rest
+met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd deel blijft geweigerd.
 
 ## Bronnen
 
@@ -24,7 +28,7 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
 
 | Afspraak | Wie, wanneer |
 |---|---|
-| Elke fase op een eigen branch vanaf `main`; Sol (xhigh) en Terra (xhigh, proef) reviewen per PR, elke ronde een nieuwe `delegate_task` met de vorige bevindingen | wrakko, 2026-11-09/10 |
+| Elke fase op een eigen branch vanaf `main`. Reviews gaan naar GPT-6.1-Terra (Codex, xhigh, priority); zegt Terra ja en raakt de PR opslaan, gegevensverlies, het bestandsformaat, het openen van bestanden of beveiliging, dan volgt één gerichte run van GPT-6.1-Sol (xhigh) op die punten, bewezen met echte code en echte bestanden. Bij een BLOKKEERT van Sol een fixronde, daarna kijkt Sol opnieuw naar dat punt. Mergen bij een groene CI en de laatste ja op de laatste code. Elke ronde een nieuwe `delegate_task` met de vorige bevindingen | Ethan, 2026-11-11 |
 | Zolang Codex geen tegoed heeft: review door één reviewer op Opus 5.5 (xhigh), en dat staat in de PR-tekst; daarna weer Sol en Terra. Een commit met alleen `knownbugs.md` na een ja hoeft geen nieuwe review; raakt hij ook ander tekstwerk, dan een korte tekstcheck | wrakko, 2026-11-10 |
 | Mergen doet de orkestrator zelf: `gh pr merge <nr> --merge --admin --match-head-commit <sha>`, bij een groene CI en een ja van Sol op de laatste commit; merge-commit aan wrakko melden (wiki/inzichten/merge met admin.md) | wrakko, 2026-11-10 |
 | De orkestrator (deze thread, sinds 10 november op Fable 5.2) coördineert en bouwt niet zelf; bouwers en reviewers draaien op Opus, Sol of Terra, niet op Fable; een council draait met Opus en Sol | Ethan, 2026-11-09/10 |
@@ -37,7 +41,7 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
 | Leesfouten die ook op main zitten (1028, 1029, 1033, 1034, 1035) repareert de thread "Trias · IFC-lezer". In #804 alleen weigeren, de lezer niet aanpassen. Staat een fix in main, dan gaat de weigering weg bij het bijwerken met main (zo gedaan voor 1027 met #871 en 1026 met #872) | wrakko, 2026-11-10 |
 | Geen zware runs lokaal: CI | AGENTS.md |
 
-## Verdeling van fase 1 (4 PR's, elk achter de flag)
+## Verdeling van fase 1 (7 PR's, elk achter de flag)
 
 1. **1a lezen** (branch `feat/804-fase1a-lezen`): openen als bytes op elke route, scanner en indeling in een Worker,
    `ifcSource` in het document, de lezer met C-context (planning uit een bestand met model), de weigering blijft zonder
@@ -51,8 +55,8 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
    met een producttype; een scan zonder uitkomst; een modelbestand dat `readIFC` om een andere reden niet opent, zoals
    afgekapt of met een NUL-byte vóór de kop, omdat `First.Space` alle bytes `<= 0x20` overslaat), en de pariteitstest
    in `tests/planning/check-ifc-target-model-scan.ts` neemt die gevallen expliciet op.
-3. **1b-vervolg: de merge via de route van de app** (knownbug 1105, BLOKKEERT vóór 1c). Besluit van Trias (wrakko, 10
-   november 2026), de vier voorwaarden letterlijk:
+3. **1b-vervolg: de merge via de route van de app** (knownbug 1105, BLOKKEERT vóór 1c; PR #886, branch
+   `feat/804-fase1b-vervolg-app-route`). Besluit van Trias (wrakko, 10 november 2026), de vier voorwaarden letterlijk:
    - "#867 krijgt nu in fixronde 8 alleen het dubbele #id (1100, hoogste #id uit de hele tekst) en de kleine punten.
      Daarna een kleine ronde 8."
    - "De nieuwe PR "de merge via de route van de app" start direct na de merge van #867, vanaf main, en moet in main
@@ -62,7 +66,16 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
      dat een BLOKKEERT in die PR [...]."
    - "Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
      pariteitstest op de huidige main met de oude-tags."
-4. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
+4. **1b-vervolg 2: tijdzone en oude kalender** (concept-PR #898). Alleen 1111 (`sameMeaning` op de vaste tijdas)
+   en de kalender van 1108 (`workCalendarSlots` voor de oude indeling), plus tests en tekst. 1109 is uit deze PR:
+   TASKTIME_SLOT_FIELDS en het bewaren van duur/rest zijn weer exact die van main `d456e6e7b`. De twee herschreven
+   fixtures blijven bewust geweigerd, met herkomstbewijs en redenen in de PR-tekst en `OWN_MAY_REFUSE`.
+5. **1107: volledige herleestoets** (#903, eigen branch). Moet vóór het aansluiten in 1c af zijn. Deze PR raakt die
+   worktree niet. Kosten van opnieuw openen en rekenen apart meten (1021).
+6. **1109 met 1113**: eigen PR ná #903, volgens besluit van Trias 11 november 2026. `carried` voor een duur moet de
+   betekenis kunnen vergelijken binnen de lijst van exact gelezen vormen. Proeven bewerken voortgang, werkelijke start
+   en werkelijk einde zoals de app (`enterTaskProgress`, `setActualFinish`), niet met een kale `updateTask` (1113).
+7. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
    flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
    `refusedWriteTarget` aan (`src/services/mcp/tools/fileTools.ts:347-349`), maar de headless fs geeft geen
@@ -88,20 +101,61 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
    bij 300 MB terug naar ongeveer het niveau van ronde 1 van #867 (merge 6,7 s, piek 1,2 GB; na fixronde 2 13,0 s en
    1,7 GB). Anders is 1c niet klaar.
    **Eis voor 1c** (wrakko, 10 november 2026; knownbug 1104): 1c gaat niet naar main zolang een eigen bestand van
-   v2026.7.4 tot v2026.7.14 met een baseline en een model weigert bij het wissen van een baselinetaak.
+   v2026.7.4 tot v2026.7.14 met een baseline en een model weigert bij het wissen van een baselinetaak. Opgelost in
+   #886; de proeven staan in `check-ifc-foreign-oude-eigen.ts` en in de telling.
    **Eis voor 1c** (Ethan via wrakko, 10 november 2026): de merge-writer aansluiten mag alleen als hij met de flag aan
    op elke opslagroute (Opslaan, Opslaan als, AutoSave en herstel, export, MCP, headless) veilig is, met een test met
    de flag aan.
+   **Bij 1c** (besluit van Trias, 11 november 2026; knownbug 1112): de toestand "bron ontbreekt" van §4.14 afmaken: het
+   echte herstel (de bron teruglezen op sha256), en de keuze van Ethan of Opslaan als met een tekst erbij komt. Tot dan
+   weigert na herstel elke IFC-opslag van een document met een vreemd deel (#886, fixronde 2).
    **Voor 1c** (review ronde 6 van #867, VERMOED laag): `writeIfcMerge` geeft `literalCalendarIds` niet terug;
    `writeIFCWithChoices` doet dat wel. Na het aansluiten moet de sessie een nieuw letterlijke kalender onthouden.
-   **Voor 1c** (knownbug 1102): een gebroken dag wijzigen in een oud eigen bestand met een model weigert; de richting
-   staat in de knownbug.
+   **Opgelost in #886** (was knownbug 1102, besluit van Trias 10 november 2026): wordt een kalender bij een opslag
+   letterlijk, dan schrijft de merge alle datums op die kalender (taaktijden, werktijden, baselinerijen) in de vorm van
+   de writer, zoals een gewone opslag op main. Alleen bij P-stukken, alleen in slots die de lezer exact leest, en alleen
+   als herlezen via de route van de app dezelfde planning geeft; anders weigert de merge. De toets van Trias
+   (`check-ifc-foreign-oude-eigen.ts`): tien oude eigen bestanden met model geven na een duurwijziging, F5 en opslaan
+   dezelfde planning als zonder model met een gewone opslag.
    **Voor 1c** (review van #881, knownbug 1100, VERMOED midden): V-bytes kunnen een entiteit bevatten die de scanner
    niet ziet; een nieuw `#id` van de writer mag daar niet mee botsen. Ronde 7 van #867 toetst dit.
    **Bij voorkeur in 1c** (wrakko, 10 november 2026; knownbug 1023, VERVOLG): stabiele GlobalIds voor onze eigen
    hulpstukken (`OPS_Resource` en de andere psets en relaties); het is onze eigen writer.
 
 ## Werk
+
+- 2026-11-11: fixronde 2 van #898 na de gerichte run van Sol (GPT-6.1-Sol, xhigh: nee, één BLOKKEERT, ook op main): gedeelde kalender- en klokgeldigheid via `isStrictIsoDateTime` vóór vormcontrole en betekenisvergelijking; onmogelijke bronwaarden weigeren getypeerd, 1114 opgelost; de lezer blijft ongewijzigd. Aanvullend besluit: precies 24:00 met nul seconden/fracties is in een tijdslot een geldige daggrens; datum-tijd T24:00 blijft niet gedragen. De bestaande OPS-werkperiode 16:00–24:00 blijft zo behouden. Ook de tweede CI-fixture `urenperdag-oude-writer.ifc` (14:00–24:00) staat in de daggrensproef; `check-ifc-duurvormen.ts` is een aparte eindcheck.
+
+- 2026-11-11: review ronde 2 van #898 op `9bd1e3b2e`: Terra (GPT-6.1-Terra, xhigh) ja, geen blokkade. Vier
+  vervolgpunten: de open punten 1107 en 1110 waren uit `knownbugs.md` verdwenen en 1113 had geen eigen ingang
+  (teruggezet); de herkomst van `xer-archief-herschreven.ifc` stond te stellig (nu alleen wat vaststaat); 1114
+  (`sameMeaning` en een datum met rommel erachter) en 1115 (de pariteitstest vergelijkt met een oudere main) zijn nieuw.
+  Daarna volgt de gerichte run van Sol op opslaan en verlies.
+- 2026-11-11: 1113 gemeten via de echte invoer van de app (paneel, Taak bewerken, tabel, `setActualFinish`): de rest
+  staat al vóór opslaan op 0 en blijft zo na heropenen. De eerdere sprong van 2.3333333333333335 naar 0 kwam alleen
+  uit een kale `updateTask` en is geen fout in main; de regel hieronder van dezelfde dag is daarmee achterhaald. Wat
+  blijft: de afronding naar 6 decimalen bij gewone opslag (VERVOLG, besluit van Trias).
+
+- 2026-11-11: besluit van Trias na de stop: 1109 uit #898. De code is terug naar main, behalve de twee eerder getoetste
+  wijzigingen voor 1111 en de kalender van 1108. De regressie voor precieze duur/rest bij completion en actualStart
+  blijft; actualFinish is alleen gemeten zonder model. Resultaat 1113: rest 2.3333333333333335 → 0 en duur
+  2.3333333333333335 → 2.333333 bij gewone opslag; dus ook in de gewone route van main. Volgorde: #898, #903,
+  daarna een eigen PR voor 1109 met 1113, daarna 1c.
+
+- 2026-11-11: review ronde 1 van #898 op `ccc92a8b3`: Terra (GPT-6.1-Terra, xhigh) nee, BEVESTIGD BLOKKEERT.
+  Alleen voortgang wijzigen liet een ongewijzigde 17-cijfers-duur en rest afronden. Fixronde 1 versmalt het behoud per
+  slot; de waarde van een gewijzigde duur/rest mag alleen uit de writer komen als `carried` haar draagt. De oude
+  lopende taak weigert weer veilig; 1109 is heropend. Geen uitzondering. Nieuwe storeproeven voor completion,
+  actualStart en actualFinish controleren de precieze bronwaarden en heropening, of een getypeerde weigering.
+  STOP wegens nieuw verlies in de actualFinish-proef (1113): de rest wijzigt na heropenen hoewel de brontekst behouden
+  bleef. Gerichte oude-eigen-run rood: 5 afwijkingen / 386 controles, waaronder 2 actualFinish-afwijkingen en 3 nieuwe
+  weigeringen in de toets van Trias door de extra `carried`-eis. De huidige stand is tussenwerk, niet afgerond.
+  Geen mutatiebewijs, eindtelling of overige eindchecks op deze stand; eerst het verlies met Trias afbakenen.
+
+- 2026-11-11: concept-PR #898 vanaf main met #886: 1111 gebruikt `parseInstant`; 1109 rekent gewijzigde voortgang
+  tot de afhankelijkheden van duur en rest; 1108 herkent de oude kalenderslots via `workCalendarSlots`. Gerichte
+  storeproeven controleren de geschreven planning na heropenen. De twee extern herschreven fixtures blijven geweigerd.
+  1107 is niet gebouwd: een gedeelde volledige open-route is groter dan deze reparatie. Vóór 1c apart afmaken.
 
 - 2026-11-09: #863 gemerged in main (`2a66df33c`). Branch `feat/804-fase1a-lezen` vanaf die commit, worktree
   `/home/aia09/.t3/worktrees/open-planner-studio/feat-804-fase1a`; `node_modules` is een link naar
@@ -161,6 +215,38 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
   (een dubbel `#id` naast een entiteit die de scanner niet ziet, knownbug 1100; oude eigen bestanden weigeren via de
   route van de app). Fixronde 8: het eerste nieuwe id begint boven het hoogste `#<cijfers>` in elk stuk dat de merge
   letterlijk overneemt, ook in commentaar en strings; de route van de app gaat naar de vervolg-PR (knownbug 1105).
+- 2026-11-10: #867 gemerged in main (`a4783fc35`). Vervolg-PR #886 vanaf main: de testkern opent via de store met de flag
+  (`openForeign`); de meting vooraf vond geen echt verlies, wel te veel weigeren en te ruim schrijven (tussenrapport in de
+  PR). Daarna: wat alleen het openen veranderde, gaat in de vorm van de bron (`sourceForm.ts`, knownbug 1105); een
+  baselineregel zonder taak telt zonder id (knownbug 1104); tekst met `#cijfers` vóór een eigen stuk weigert
+  (`verstopt-stuk`, knownbug 1106); de velden per slot komen uit één tabel in `lossCheck.ts`; de pariteit is opnieuw
+  gemaakt op `a4783fc35`, met de oude-tags. De telling loopt nu ook over de fixtures met gewone bewerkingen; daaruit:
+  de lijst ids in `WorkingExceptionIds` telt via de koppeling (een relatie erbij weigerde, en zonder bewerking wees de
+  lijst naar een id dat niet meer bestond). Knownbug 1102 is breder beschreven en blijft open; 1108, 1109 en 1110 zijn nieuw.
+- 2026-11-11: stap 6 van #886, besluit van Trias over knownbug 1102 (BLOKKEERT vóór 1c): een kalender die bij deze
+  opslag letterlijk wordt, krijgt al haar datums in de vorm van de writer (`sourceForm.ts`, `lossCheck.ts`:
+  `literalWriterForm`, `literalBaselineForm`); een datum in een taaktijd die de lezer helemaal leest, telt niet meer als
+  deels gelezen als de planner haar wijzigde. F5 schrijft in alle tien oude eigen bestanden, met dezelfde planning als
+  een gewone opslag zonder model; de telling ging van 2547 naar 2562 gelukt, 0 anders, niets dat eerst schreef weigert
+  nu. Knownbug 1102 is weg; wat bij F5 nog weigert, weigert ook zonder bewerking (1108 en vreemde bestanden).
+- 2026-11-11: review ronde 1 van #886 op `1cb0b0057`: Sol (GPT-6.1-Sol, xhigh) nee, Terra (GPT-6.1-Terra, xhigh) ja met
+  vervolgpunten. Sol vond echt verlies: "de lezer leest dit slot exact" kwam uit de schrijfwijze van de bron, niet uit de
+  waarde (een periode `'07:30:00'` die de lezer als 07:00 leest, ging na een duurwijziging verloren). Fixronde 1: een slot
+  is gedragen als de writer op de lezing van de bron (O0) dezelfde waarde geeft (`sameMeaning` in `lossCheck.ts`); de
+  regel voor een samengestelde datum geldt alleen als de planner die datum zelf wijzigde tegenover `opened`; de toets van
+  Trias vergelijkt met een gewone opslag op main zelf (`ifcAppRoute.ts`, `scripts/proef/maak-main-toets-trias.mjs`). De
+  tien oude eigen bestanden schrijven nog na F5. Knownbug 1107 nieuw (vóór 1c, de kleine PR).
+- 2026-11-11: #886 bijgewerkt met main `2fbbc4ae1` (#892, de lezer leest duren exact; #891, alle flags een
+  schakelaar). Eén conflict, in `check-ifc-duurvormen.ts`: de lezer direct (`openForeignRaw`) en de weigering bij openen
+  van #892 gelden samen. Sommige duurvormen weigeren nu al bij openen en bereiken de merge niet; de lijst van de merge
+  (`durationForms.ts`) bleef op main bewust voorzichtig (knownbug 1152), dus er ging geen weigering weg. De referenties
+  van main zijn opnieuw gemaakt op `2fbbc4ae1`, met dezelfde bytes als op `a4783fc35`. Telling gelijk per bestand en
+  bewerking (2562 gelukt, 701 geweigerd, 0 anders); de tien oude eigen bestanden schrijven nog na F5.
+- 2026-11-11: review ronde 2 van #886 op `40b8fbadc`: Terra (GPT-6.1-Terra, xhigh) ja; gerichte run van Sol (GPT-6.1-Sol,
+  xhigh) nee. Sol vond: na herstel van een document met een model schreef Opslaan als een IFC zonder model en zonder
+  kenmerk (ook op main). Fixronde 2 (besluit van Trias): het kenmerk uit herstel draagt `sourceMissing`, en
+  `ifcSaveBlocked` weigert dan elke IFC-uitvoer, met de bestaande melding, ook met de flag uit. Een geopende MCP-backup en
+  een eigen planning zonder model slaan op zoals eerst. Knownbugs 1111 (vóór 1c) en 1112 (bij 1c) nieuw.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -171,8 +257,8 @@ oude versie, schrijft zonder bewerking altijd. Opslaan blijft geweigerd tot 1c, 
 
 ## Volgende stappen
 
-1. De kleine ronde 8 van #867, dan de merge.
-2. De vervolg-PR "de merge via de route van de app" (knownbug 1105), direct na de merge van #867, vanaf `main`; hij moet
-   in main staan vóór 1c begint.
-3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
-4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
+1. #898: 1111 en de kalender van 1108 afronden; de tien bestanden van Trias en de telling tegenover main bewijzen.
+2. #903: de volledige herleestoets (1107) afmaken.
+3. Een eigen PR voor 1109 met 1113, na #903.
+4. Dan 1c, met alle eisen hierboven.
+5. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.

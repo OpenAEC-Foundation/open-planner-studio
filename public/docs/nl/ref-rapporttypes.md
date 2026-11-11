@@ -4,13 +4,13 @@ Elk rapport op het tabblad *Rapport*, met de opties die erbij horen: wat ze doen
 
 ## Zo werkt het rapportvenster
 
-Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage* met de keuzelijst *Rapporttype*, het blok *Overzicht* met tellingen, het blok *Instellingen* of *Rapportopties* en onderaan de knop *Exporteer PDF*. Rechts staat het voorbeeld. Wat je in het voorbeeld ziet, komt in de PDF.
+Open het tabblad *Rapport* (of druk op Ctrl+P). Bij de Gantt-afdruk staat links een zijbalk met de keuzelijst *Rapporttype*, vijf stappen en onderaan de knop *PDF exporteren*; rechts staat het papier. Bij de andere rapporten staat links de kolom *Rapportage* met de keuzelijst *Rapporttype*, het blok *Overzicht* met tellingen, het blok *Rapportopties* en onderaan de knop *Exporteer PDF*; rechts staat het rapport. Wat je op het scherm ziet, komt in de PDF.
 
-**Rapporttype** — welk rapport je ziet. Keuze uit twaalf rapporten. Standaard: *Gantt-afdruk*. Waar: *Rapport*, bovenaan de kolom *Rapportage*.
+**Rapporttype** — welk rapport je ziet. Keuze uit elf rapporten. Standaard: *Gantt-afdruk*. Waar: *Rapport*, bovenaan de zijbalk of de kolom *Rapportage*.
 
-**Exporteer PDF** — maakt de PDF. Effect: er komt alleen een PDF; de app stuurt niets naar een printer. Is de planning verouderd, dan rekent de app eerst door. Geeft de berekening een fout, bijvoorbeeld door een kring in de relaties, dan maakt de knop geen bestand en toont hij de fout. Waar: *Rapport*, onderaan de kolom *Rapportage*.
+**PDF exporteren** en **Exporteer PDF** — maken de PDF. Effect: er komt alleen een PDF; de app stuurt niets naar een printer. Is de planning verouderd, dan rekent de app eerst door. Geeft de berekening een fout, bijvoorbeeld door een kring in de relaties, dan maakt de knop geen bestand en toont hij de fout. Waar: *Rapport*, onderaan de zijbalk of de kolom *Rapportage*.
 
-**Onthouden.** Alle rapportopties bewaart de app op dit apparaat, voor al je projecten. Ze horen niet bij het projectbestand. Alleen het veld *Bedrijf:* van de Gantt-afdruk wordt niet bewaard.
+**Onthouden.** Alle rapportopties bewaart de app op dit apparaat, voor al je projecten. Ze horen niet bij het projectbestand. Alleen het veld *Bedrijfsnaam in de kop* van de Gantt-afdruk wordt niet bewaard.
 
 **Actuele planning.** De rapporten gebruiken de laatste berekening. Is de planning gewijzigd sinds die berekening, dan staat boven de tabelrapporten *De planning is gewijzigd sinds de laatste berekening — druk op Bereken (F5) voor actuele waarden.* Is er nog nooit gerekend, dan staat er *Nog niet berekend — druk op Bereken (F5) voor datums en speling.* Staat het project in de weergave *Datums zoals opgeslagen*, dan tonen de rapporten de datums uit het bronbestand en meldt een strook dat.
 
@@ -20,77 +20,75 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage
 
 ## Papier en oriëntatie
 
-**Papier:** — het papierformaat van de PDF. Keuze uit A4, A3, A2 en A1. Standaard: A3. Effect: de pagina's worden voor dat formaat opgelegd. Er is één keuze voor alle rapporten: wat je bij het ene rapport kiest, geldt ook voor de andere. Op A4 staand wordt een brede tabel klein, want de tabel wordt op de paginabreedte geschaald. Waar: *Instellingen* (Gantt-afdruk en Resourcediagram) of *Rapportopties* (de zeven tabelrapporten). Het Mijlpalen-overzicht en de Variance tonen geen keuzes.
+**Papier:** — het papierformaat van de PDF. Keuze uit A4, A3, A2 en A1. Standaard: A3. Effect: de pagina's worden voor dat formaat opgelegd. Er is één keuze voor alle rapporten: wat je bij het ene rapport kiest, geldt ook voor de andere. Op A4 staand wordt een brede tabel klein, want de tabel wordt op de paginabreedte geschaald. Waar: de stap *Pagina* (Gantt-afdruk) of *Rapportopties* (de tabelrapporten). Het Mijlpalen-overzicht en de Variance tonen geen keuzes.
 
-**Oriëntatie:** — liggend of staand. Keuze uit *Liggend* en *Staand*. Standaard: *Liggend*. Effect: zoals *Papier:*. Waar: dezelfde plek als *Papier:*.
+**Oriëntatie:** (bij de Gantt-afdruk *Richting*) — liggend of staand. Keuze uit *Liggend* en *Staand*. Standaard: *Liggend*. Effect: zoals *Papier:*. Waar: dezelfde plek als *Papier:*.
 
-**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)* en *Liberation Serif (zoals Times New Roman)*. Standaard: Inter. Effect: voorbeeld en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
+**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)* en *Liberation Serif (zoals Times New Roman)*. Standaard: Inter. Effect: scherm en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
 
 ## Gantt-afdruk
 
-De planning als balkenplan, met een tabel links en een tijdlijn rechts, over meerdere pagina's als het moet. Het voorbeeld toont het papier met paginakop, tabel, tijdlijn en legenda. Het blok *Overzicht* telt *Taken:*, *Bladtaken:*, *Kritiek:* en *Relaties:*. Alle opties staan onder *Instellingen*.
+De planning als balkenplan, met een tabel links en een tijdlijn rechts, over meerdere pagina's als het moet. Rechts staat het papier met paginakop, tabel, tijdlijn en legenda; het papier is gelijk aan de PDF. De opties staan in vijf stappen in de zijbalk. Hoe je ermee werkt, staat in [De Gantt-afdruk](docs://howto-rapport-maken-en-afdrukken#de-gantt-afdruk). Hieronder de opties per stap.
 
-**Bedrijf:** — het bedrijf in de paginakop. Standaard: het bedrijf uit de projectinstellingen. Effect: alleen de kop van het rapport; wat je hier overtypt, wordt niet bewaard. Verander het bedrijf in *Instellingen › Project › Projectinstellingen*, in het veld *Opdrachtgever/organisatie*, en bevestig met *Toepassen*.
+### Taken en groepering
 
-**Auteur:** — de auteur in de paginakop. Alleen lezen: de app neemt hem uit de projectinstellingen.
+**Welke taken** — welke rijen op papier komen. Keuze uit *Alle taken*, *Zoals de weergave* en een layout. Standaard: *Alle taken*. Effect: *Alle taken* geeft de hele takenboom. *Zoals de weergave* neemt het filter, de groepering, de sortering, de ingeklapte groepen, de kolommen en de balkkleuren van je Gantt-diagram over. Een layout bepaalt de rijen met zijn filter, groepering en sortering; je Gantt-diagram verandert niet.
 
-**Lettergrootte:** — grootte van tekst en tabel in het rapport. Keuze uit 90%, 100%, 110% en 125%. Standaard: 100%. Effect: bij een grotere letter groeien tekst, rijen en tabel en levert de tijdlijn breedte in. Los van *Tekengrootte* in de instellingen.
+**Per resource** — alleen bij een layout die op resource groepeert, zoals het meegeleverde *Resourcediagram*. Elke resource krijgt een eigen band, daaronder zijn taken op start. Het blok telt *Resources:*, *Toewijzingen:* en *Zonder resource:* (bij een periode ook *Buiten de periode:*). De relatielijnen staan dan uit, want een taak kan onder meer banden staan, en *Kritiek pad* staat vast aan. Met deze vier schakelaars en de periode:
 
-**Balkkleuren:** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*, met bij *Op categorie* een keuzelijst *Categorieveld*. Standaard: *Kritiek pad*. Effect: dit is dezelfde keuze als *Balkkleuren* op het tabblad *Beeld*: verander je hem hier, dan verandert de Gantt op het scherm mee. Bestaat het gekozen veld niet in dit project, dan staat er *Dit veld bestaat niet in dit project. Werksoort wordt tijdelijk gebruikt.*
+- **Elke resource op een nieuwe pagina** — Standaard: uit. Effect: elke resource begint op een nieuwe pagina, zodat je een blad per ploeg of medewerker kunt uitdelen.
+- **Taken zonder resource meenemen** — Standaard: uit. Effect: de taken zonder resource komen als laatste band, om te zien wat nog niemand heeft.
+- **Groeperen op resourcetype** — Standaard: uit. Effect: eerst een band per resourcetype (arbeid, ploeg, onderaannemer, materieel, materiaal), daarbinnen per resource.
+- **Eenheden/dag en curve tonen** — Standaard: aan. Effect: de kolommen *Eenh./d* en *Curve* achter de taaknaam. Is er te weinig ruimte voor de tijdlijn, dan laat het rapport de kolommen weg en meldt *De kolommen Eenh./d en Curve zijn weggelaten: …*.
+- **Rapportageperiode** — Standaard: *Hele project*. Effect: alleen de taken die de periode raken, en de tijdas loopt exact over de periode. Is er niets in de periode, dan staat er *Geen taken in de rapportageperiode — kies een andere periode of Hele project.*
 
-**Statuslijn:** — een lijn op de statusdatum. Keuze uit *Geen*, *Statusdatumlijn* en *Voortgangslijn*. Standaard: *Geen*. Effect: *Statusdatumlijn* trekt een lijn op de statusdatum; *Voortgangslijn* trekt de zigzaglijn die per taak naar de voortgang uitstulpt. Heeft het project geen statusdatum, dan staat er *Stel eerst een statusdatum in* en tekent het rapport niets.
+### Kolommen
 
-**Volg weergave (filter, groepering, sortering)** — alleen bij de Gantt-afdruk. Standaard: uit. Effect: uit neemt de hele takenboom op papier. Aan tekent precies de rijen van het scherm: met je filter, groepering, sortering en ingeklapte fasen.
+**Kolommen** — de kolommen van de tabel, uit dezelfde lijst als de tabel van de app. Standaard: WBS, Taaknaam, Duur, Start, Einde en Voltooiing. De taaknaam is verplicht. Met *Kolommen overnemen van* neem je de kolommen van het tabblad Tabel of van de tabel naast de Gantt over.
 
-**Auto-fit op papier** — de tijdlijn op de paginabreedte schalen. Standaard: aan. Effect: aan schaalt de tijdlijn op de breedte van de pagina; het aantal pagina's volgt uit de hoogte. Uit gebruikt een vaste schaal (*Zoomen:*) en tegelt ook in de breedte, wat snel veel pagina's geeft.
+**Taaknaam** — *Afkappen* of *Volledig*. Standaard: *Afkappen*. Effect: *Afkappen* kapt namen af op de *Breedte van de naamkolom*; *Volledig* laat de kolom meegroeien met de langste naam.
 
-**Zoomen:** — de vaste schaal van de tijdlijn. Alleen zichtbaar als *Auto-fit op papier* uit staat. Schuifregelaar van 1 tot 40. Standaard: 22. Effect: een grotere waarde maakt de tijdlijn breder, dus meer pagina's in de breedte.
+### Balken en tijdlijn
 
-**Tijdlijn over:** — spreidt de tijdlijn over meer paginabreedtes. Keuze van 1 tot en met 8 pagina's. Standaard: 1 pagina. Effect: alleen bij *Auto-fit op papier*; anders is de keuze uitgeschakeld en staat er *Alleen bij automatische passing*. Handig voor een lange planning die je in leesbare grootte wilt afdrukken.
+**Taaknamen bij de balken** — Standaard: aan. Effect: de naam van de taak naast de balk.
 
-**Kop op elke pagina herhalen** — Standaard: aan. Effect: aan zet de paginakop op elke pagina; uit alleen op de eerste.
-
-**Voet op elke pagina herhalen** — Standaard: aan. Effect: aan zet de voet (projectnaam, afdrukdatum en legenda) op elke pagina; uit alleen op de laatste. Een uitdeelvel zonder legenda is onleesbaar, vandaar aan.
-
-**Taaknamen op staafjes** — Standaard: aan. Effect: de naam van de taak op de balk, waar de balk breed genoeg is.
-
-**Voltooiing tonen** — Standaard: aan. Effect: het voltooide deel van de balk wordt grijs, net als in de Gantt, en de kolom *Volt.* staat in de tabel. Een voltooide taak krijgt geen spelingsband.
-
-**Taaknamen afkappen** — Standaard: aan. Effect: aan kapt namen in de tabel af op de breedte van *Naamkolom:*. Uit laat de kolom meegroeien met de langste naam; dan staat er *De naamkolom past zich aan de langste taaknaam aan*.
-
-**Naamkolom:** — de breedte van de naamkolom. Alleen zichtbaar als *Taaknamen afkappen* aan staat. Schuifregelaar van 60 tot 400. Standaard: 130.
-
-**Baseline-overlay tonen** — de actieve baseline naast de balken. Standaard: uit. Effect: een dunne balk in de baseline-kleur onder de taakbalk, alleen voor taken die in de baseline staan.
-
-**Kritiek pad** — Standaard: aan. Effect: stuurt alleen de rode relatielijnen tussen twee kritieke taken en de legendaregel. De balken zelf volgen *Balkkleuren:*, ongeacht dit vinkje.
+**Voortgang in de balk** — Standaard: aan. Effect: het deel dat klaar is, donker in de balk. Een voltooide taak krijgt geen spelingsband.
 
 **Speling tonen** — Standaard: aan. Effect: de speling als band achter niet-kritieke balken.
 
-**Afhankelijkheden** — de relatielijnen. Standaard: aan. Effect: tekent pijlen tussen de balken.
+**Baseline-overlay tonen** — Standaard: uit. Effect: een dunne balk in de baseline-kleur onder de taakbalk, alleen voor taken die in de actieve baseline staan.
 
-**Alleen werkbare dagen tonen** — comprimeert de tijd-as in dit rapport. Standaard: uit. Effect: weekenden en feestdagen worden overgeslagen, en weekbanden vervangen dan de weekendarcering. Los van dezelfde instelling voor de Gantt op het scherm.
+**Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*, met bij *Op categorie* een keuzelijst *Categorieveld*. Standaard: *Kritiek pad*. Effect: alleen het rapport; je Gantt-diagram verandert niet. Bij *Zoals de weergave* volgen de balkkleuren je scherm. Bestaat het gekozen veld niet in dit project, dan staat er *Dit veld bestaat niet in dit project. Werksoort wordt tijdelijk gebruikt.*
 
-**Weekenden** — Standaard: aan. Effect: arceert weekenden en feestdagen in de tijdlijn, zolang de schaal dagen te onderscheiden maakt. Op de gecomprimeerde as (*Alleen werkbare dagen tonen*) heeft dit vinkje geen effect.
+**Afhankelijkheden** — Standaard: aan. Effect: tekent de relatielijnen tussen de balken.
+
+**Kritiek pad** — Standaard: aan. Effect: stuurt alleen de rode relatielijnen tussen twee kritieke taken en de legendaregel. De balken zelf volgen *Balkkleuren*.
+
+**Statuslijn** — Keuze uit *Geen*, *Statusdatumlijn* en *Voortgangslijn*. Standaard: *Geen*. Effect: *Statusdatumlijn* trekt een lijn op de statusdatum; *Voortgangslijn* trekt de zigzaglijn die per taak naar de voortgang uitstulpt. Heeft het project geen statusdatum, dan staat er *Stel eerst een statusdatum in*, met *Op vandaag zetten* en een datumveld.
+
+**Weekenden** — Standaard: aan. Effect: arceert weekenden en feestdagen in de tijdlijn, zolang de schaal dagen te onderscheiden maakt.
+
+**Alleen werkbare dagen tonen** — Standaard: uit. Effect: weekenden en feestdagen worden overgeslagen in de tijd-as van dit rapport. Los van dezelfde instelling voor de Gantt op het scherm.
+
+### Pagina
+
+**Papier**, **Richting** en **Lettertype** — zie *Papier en oriëntatie* hierboven.
+
+**Lettergrootte** — grootte van tekst en tabel. Keuze uit 90%, 100%, 110% en 125%. Standaard: 100%. Effect: bij een grotere letter groeien tekst, rijen en tabel en levert de tijdlijn breedte in.
+
+**Passen** — *Op de breedte* of *Vaste schaal*. Standaard: *Op de breedte*. Effect: *Op de breedte* past de hele tijdlijn op de bladbreedte; met *Tijdlijn over* (1 tot en met 8 pagina's) spreid je hem over meer bladen naast elkaar. *Vaste schaal* geeft elke dag een vaste *Breedte per dag*.
+
+### Kop en voet
+
+**Bedrijfsnaam in de kop** — Standaard: het bedrijf uit de projectinstellingen. Effect: alleen de kop van het rapport; wat je hier overtypt, wordt niet bewaard.
+
+**Auteur (uit het project)** — alleen lezen.
+
+**Kop op elke pagina herhalen** — Standaard: aan. Effect: aan zet de paginakop op elke pagina; uit alleen op de eerste.
+
+**Voet op elke pagina herhalen** — Standaard: aan. Effect: aan zet de voet (projectnaam, afdrukdatum en legenda) op elke pagina; uit alleen op de laatste.
 
 **Legenda** — Standaard: aan. Effect: de legenda in de voet.
-
-**Previewkwaliteit** — hoe scherp het voorbeeld is. Keuze uit *Standaard*, *Hoog* en *Maximaal*. Standaard: *Hoog*. Effect: alleen de scherpte van het voorbeeld op het scherm; de PDF verandert er niet door. Waar: *Rapport*, boven het voorbeeld. Met het nieuwe tabblad Rapport is het papier altijd scherp, en staat deze keuze er niet.
-
-## Resourcediagram
-
-Dezelfde balken als de Gantt-afdruk, gegroepeerd per resource: wie doet wat en wanneer. Het blok *Overzicht* telt *Resources:*, *Toewijzingen:* en *Zonder resource:* (bij een periode ook *Buiten de periode:*). Het diagram deelt alle opties van de Gantt-afdruk, behalve *Volg weergave (filter, groepering, sortering)*, *Kritiek pad* en *Afhankelijkheden*: de rijen komen niet van het scherm, een taak kan onder meerdere resources staan, en de relaties worden er niet getekend. Het vinkje *Kritiek pad* is er verborgen en staat aan. Dit komt bij de opties van de Gantt-afdruk onder *Instellingen*, met deze vier vinkjes en de periode:
-
-Met het nieuwe tabblad Rapport is het Resourcediagram geen eigen rapport meer, maar een layout in de stap *Taken en groepering* van de Gantt-afdruk. De vier vinkjes en de periode staan daar onder *Per resource*. De kolommen *Eenh./d* en *Curve* zet je daar aan of uit; ze staan niet in de stap *Kolommen*. Zie [Het nieuwe tabblad Rapport](docs://howto-rapport-maken-en-afdrukken#het-nieuwe-tabblad-rapport-experimenteel).
-
-**Elke resource op een nieuwe pagina** — Standaard: uit. Effect: elke resource begint op een nieuwe pagina, zodat je een blad per ploeg of medewerker kunt uitdelen. Uit geeft één doorlopend document.
-
-**Taken zonder resource meenemen** — Standaard: uit. Effect: de taken zonder resource komen als laatste band in het diagram, om te zien wat nog niemand heeft.
-
-**Groeperen op resourcetype** — Standaard: uit. Effect: een laag erboven: eerst een band per resourcetype (arbeid, ploeg, onderaannemer, materieel, materiaal), daarbinnen per resource.
-
-**Eenheden/dag en curve tonen** — Standaard: aan. Effect: twee kolommen achter de taaknaam met de eenheden per dag en de verdeelcurve van de resource van die band. Is er te weinig ruimte voor de tijdlijn, dan laat het rapport de kolommen weg en meldt *De kolommen Eenh./d en Curve zijn weggelaten: …*; meer ruimte geeft groter of liggend papier, een kleinere lettergrootte of een smallere tabel.
-
-**Rapportageperiode:** — alleen de taken die de periode raken. Standaard: *Hele project*. Effect: de tijdas loopt exact over de periode. Is er niets in de periode, dan staat er *Geen taken in de rapportageperiode — kies een andere periode of Hele project.* Zie *Rapportageperiode* verderop.
 
 ## Mijlpalen-overzicht
 
@@ -217,7 +215,7 @@ De kolommen zijn onder meer *WBS*, *Naam*, *Start*, *Einde*, *Baseline start*, *
 
 ## Rapportageperiode
 
-Vier tabelrapporten en het Resourcediagram werken met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting*, *Resourcetoewijzingen* en het *Resourcediagram*. Elk rapport onthoudt zijn eigen periode. Onder de keuzelijst staan *Van* en *Tot*, met de datums die de keuze oplevert.
+Vier tabelrapporten en de layout Resourcediagram van de Gantt-afdruk werken met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting*, *Resourcetoewijzingen* en het *Resourcediagram*. Elk rapport onthoudt zijn eigen periode. Onder de keuzelijst staan *Van* en *Tot*, met de datums die de keuze oplevert.
 
 **Referentiedag.** Een periode met *Volgende* of *Afgelopen* telt vanaf de statusdatum van het project, of vanaf vandaag als er geen statusdatum is. Dan staat er in de tabelrapporten *Geen statusdatum ingesteld — het rapport rekent met vandaag (…).* Schuif je de statusdatum op, dan schuift het venster mee. Beide dagen tellen mee.
 

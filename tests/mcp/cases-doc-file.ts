@@ -1184,6 +1184,16 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     fakeFs.scanTarget = async () => { throw new Error('leesfout'); };
     await callOk('planner_export_ifc', { path: otherModelPath, overwrite: true });
     assert(files.get(otherModelPath)?.startsWith('ISO-10303-21') === true, 'een doel dat de app niet kan lezen, mag');
+    // #886 fixronde 2 (Sol, besluit Trias): na crashherstel van een document met een vreemd deel ontbreken de bronbytes;
+    // export_ifc weigert zolang het kenmerk er is, ook naar een nieuw pad.
+    const gen = generateBenchmarkProject(3);
+    S().restoreDocuments([{ id: 'hersteld-model', project: gen.project, calendar: gen.calendar, tasks: gen.tasks,
+      sequences: gen.sequences, resources: gen.resources, assignments: gen.assignments, filePath: null, isDirty: true,
+      datesAsRecorded: false, recoveryForeignSource: { sha256: 'a'.repeat(64), byteLength: bonsai.length } }], 'hersteld-model');
+    const restoredTarget = `${HOME}/export/na-herstel.ifc`;
+    const restoredError = await callErr('planner_export_ifc', { path: restoredTarget, overwrite: true });
+    assertEq(restoredError.code, 'VALIDATION', 'na herstel van een document met een vreemd deel ⇒ validatiefout');
+    assertEq(files.has(restoredTarget), false, 'na herstel is er niets geschreven');
   } finally {
     delete fakeFs.scanTarget;
     useAppStore.setState((s) => { s.ui.featureFlags = {}; });

@@ -16,7 +16,7 @@ import {
  * de berekende datums alleen-lezen als tekst in de datumnotatie van de app (`useDisplayDate`, net
  * als de rapportondertitel); bij *Aangepast* worden het bewerkbare `<input type="date">`-velden —
  * bewust de native invoer en niet `DateTextInput`, omdat hier een kalenderkiezer gewenst is; de
- * browser toont daarin zijn eigen locale-notatie. Uitzondering: `compact` (het nieuwe Rapport-tabblad)
+ * browser toont daarin zijn eigen locale-notatie. Uitzondering: `compact` (het Rapport-tabblad)
  * gebruikt `DateTextInput`, zodat dat tabblad één soort datumveld heeft. Een omgekeerd bereik (tot < van) of een leeg/
  * onvolledig veld wordt niet doorgegeven maar rood gemarkeerd met een melding — het rapport blijft
  * op de laatste geldige periode staan. Wisselen van *Aangepast* terug naar een preset laat de eigen
@@ -42,7 +42,7 @@ interface Props {
    * Dicht, zoals een veld in het eigenschappenpaneel: de labels klein en in hoofdletters zonder dubbele punt
    * (`Field`, `.rs-field-label`), de keuzelijst met de opvulling van de andere keuzelijsten en bij *Aangepast*
    * het datumveld van de app (`DateTextInput`), zoals de statusdatum in hetzelfde tabblad. Alleen in de
-   * zijbalk van het nieuwe Rapport-tabblad (#817; fixronde na council ronde 5).
+   * zijbalk van het Rapport-tabblad (#817; fixronde na council ronde 5).
    */
   compact?: boolean;
 }

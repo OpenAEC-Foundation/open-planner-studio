@@ -3,7 +3,8 @@
 // Voorwaarde 3 van Trias (bijsturing van 10 november 2026): per vorm een naam en een test die bewijst dat de lezer hem
 // exact leest. Deze check doet vier dingen:
 //  1. Per vorm en per slot een of meer voorbeelden. Elk voorbeeld gaat in een slot van de showcase en de check opent het
-//     met de lezer van de merge (`openForeign`). De waarde na openen moet de waarde zijn die de tekst zegt. Die waarde
+//     met de lezer direct (`openForeignRaw`; via de store rekent openen de speling opnieuw uit, en dat is geen vraag van
+//     de lezer). De waarde na openen moet de waarde zijn die de tekst zegt. Die waarde
 //     staat hieronder met de hand uitgeschreven: geen tweede duurparser. De taak #55 staat op een kalender van 8 uur per
 //     dag (480 minuten), dus `P2DT12H` is 1680 minuten.
 //  2. Elke vorm heeft in elk van zijn slots een voorbeeld, en elk voorbeeld valt in zijn eigen vorm (de eerste die past).
@@ -19,7 +20,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { cloneDomain, openForeign, settle, type Opened } from './ifcMergeKern';
+import { cloneDomain, openForeign, openForeignRaw, settle, type Opened } from './ifcMergeKern';
 import { DURATION_FORMS, durationForm, type DurationSlot } from '@/services/ifc/foreign/durationForms';
 import { OLD_FRACTIONAL_CLOCK, dateTimeTexts, durationTexts, partialDateTime } from '@/services/ifc/foreign/lossCheck';
 import { StepScanError, scanStep, type StepScanReason } from '@/services/ifc/foreign/stepScanner';
@@ -90,14 +91,14 @@ const same = (a: Value | string, b: Value) => typeof a !== 'string' && ('d' in a
 
 // De lag #631 in het domein: de relatie tussen dezelfde twee taken (een opvallende lag van 7 dagen wijst haar aan).
 const lagKey = (o: Opened) => o.sequences.map(q => `${q.predecessorId}>${q.successorId}`);
-const marked = await openForeign(latin1(lag631("#631=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P7D'),.WORKTIME.);")));
+const marked = await openForeignRaw(latin1(lag631("#631=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P7D'),.WORKTIME.);")));
 const LAG_SEQ = lagKey(marked)[marked.sequences.findIndex(q => q.lagDays === 7 && q.lagMinutes === undefined)];
 ok(`de lag #631 is te vinden in het domein (${LAG_SEQ})`, LAG_SEQ !== undefined && marked.sequences.filter(q => q.lagDays === 7).length === 1);
 
 /** De waarde op die plek na openen, als tekst als er iets anders mis is. */
 async function readValue(use: Use, v: string): Promise<Value | string> {
   let o: Opened;
-  try { o = await openForeign(latin1(sourceWith(use, v))); } catch (e) { return e instanceof IfcParseError && e.reason === 'duration' ? 'duration' : `fout bij openen: ${(e as Error).message.slice(0, 100)}`; }
+  try { o = await openForeignRaw(latin1(sourceWith(use, v))); } catch (e) { return e instanceof IfcParseError && e.reason === 'duration' ? 'duration' : `fout bij openen: ${(e as Error).message.slice(0, 100)}`; }
   if (use.startsWith('lag')) {
     const q = o.sequences[lagKey(o).indexOf(LAG_SEQ)];
     if (!q) return 'geen lag';
@@ -310,7 +311,17 @@ ok(`de repo heeft eigen bestanden van OPS (${ownFiles} bestanden, ${ownDurations
 // begint als uurbreuk (`'7.5:00:00'`). `clockToMinutes` leest die niet als tijdblok, `scalarHourFromClock` wel, als 7,5 uur:
 // alleen als enige periode van het enige patroon. Daar staat de vorm sinds fixronde 7 op de lijst (`OLD_FRACTIONAL_CLOCK`,
 // BLOKKEERT 3). Hier vastgelegd hoeveel er per bestand zijn, zodat dat pad niet stil wegvalt.
-const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h7-tijden-oude-writer.ifc': 4 };
+const OLD_CLOCK: Readonly<Record<string, number>> = {
+  'tests/planning/fixtures/h7-tijden-oude-writer.ifc': 4,
+  'tests/planning/fixtures/periode-oude-scalarfractie-v2026.8.1.ifc': 1,
+};
+// Werkelijk door oude schrijvers geproduceerd; de conservatieve foreign-lijst
+// blijft deze minuutfracties weigeren (1157). De gewone opslag wordt apart bewezen.
+const OLD_MINUTE_CLOCK: Readonly<Record<string, string>> = {
+  'tests/planning/fixtures/kalendertijd-oud/werkende-uitzondering.ifc': "IFCTIMEPERIOD #20: tijd '08:30.5:00'",
+  'tests/planning/fixtures/periode-oude-minuutfractie.ifc': "IFCTIMEPERIOD #17: tijd '07:30.5:00'",
+  'tests/planning/fixtures/periode-oude-minuutfractie-v2026.8.1.ifc': "IFCTIMEPERIOD #14: tijd '07:30.5:00'",
+};
 {
   let dates = 0;
   for (const file of files) {
@@ -331,7 +342,8 @@ const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h
     }
     const old = OLD_CLOCK[relative(ROOT, file)] ?? 0;
     ok(`${relative(ROOT, file)}: elke datum en tijd staat op de lijst (buiten: ${out.slice(0, 3).join(', ')}; oude uurbreuken ${oldClocks}, verwacht ${old})`,
-      out.length === 0 && oldClocks === old);
+      out.length === (OLD_MINUTE_CLOCK[relative(ROOT, file)] ? 1 : 0)
+        && out.every(v => v === OLD_MINUTE_CLOCK[relative(ROOT, file)]) && oldClocks === old);
   }
   ok(`de eigen bestanden hebben datums en tijden (${dates})`, dates > 10000);
 }

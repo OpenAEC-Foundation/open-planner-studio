@@ -20,7 +20,7 @@
 // het rapport van project B opduiken (of andersom: het projectveld overschrijven). Bedrijfsnaam
 // hoort in het projectbestand thuis (IFC-round-trip), niet in localStorage.
 
-import { getSetting, setSetting } from '@/utils/settingsStore';
+import { readLocal, tryReadLocal, writeLocal } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
 import { parseBarColorSelection } from '@/utils/barColorSettings';
@@ -32,8 +32,8 @@ import {
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontId } from '@/services/pdf/reportFont';
 
-/** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
-const STORAGE_KEY = 'reportSettings';
+/** De `localStorage`-sleutel van de rapportinstellingen. */
+const LOCAL_KEY = 'ops-reportSettings';
 
 export type ReportType =
   | 'gantt'
@@ -45,39 +45,6 @@ export type ReportType =
   | 'lookAhead' | 'critical' | 'progress' | 'health' | 'resourceLoading' | 'resourceAssignments' | 'wbsSummary'
   // Voortgangscurve (issue #689): kerncijfers en een S-curve — zie `src/engine/reports/progressCurve.ts`.
   | 'progressCurve';
-
-/**
- * De rapporttypen die door de Gantt-printpijplijn lopen (`renderReport` → raster-/vector-PDF met
- * de gepagineerde live preview). Het resourcediagram is dezelfde render met een andere rijenbron;
- * alle Gantt-tekenopties (kritiek pad, speling, relaties, balkkleuren, statuslijn, …) gelden er dus
- * onverkort — alleen *Volg weergave* niet, want de rijen komen dan niet van het scherm.
- */
-export function isGanttReportType(type: ReportType): boolean {
-  return type === 'gantt' || type === 'resourceGantt';
-}
-
-/**
- * Tekent dit rapporttype relatiepijlen? Het resourcediagram niet: een taak staat er onder élke
- * resource die eraan hangt, dus de printrender (`rowIndexOf`, laatste kopie wint) zou een pijl op
- * een willekeurige kopie ankeren en bij "blad per resource" de bladrand af sturen. Eén predicaat voor
- * de forcering van `showDeps` én het verbergen van het vinkje — twee losse condities lopen uit
- * elkaar.
- */
-export function reportTypeDrawsRelations(type: ReportType): boolean {
-  return type !== 'resourceGantt';
-}
-
-/**
- * Toont dit rapporttype het vinkje *Kritiek pad*? Met de balkkleurkeuze (`barColorSelection`)
- * stuurt dat vinkje alléén de relatielijnen (rood tussen twee kritieke taken) en de legendaregel;
- * de balken zelf volgen `criticalFill` in `barColors.ts`, ongeacht het vinkje. Bij een type zonder
- * relatiepijlen zou het vinkje dus nog uitsluitend de legendaregel wegnemen terwijl de balken rood
- * blijven — misleidend. Daarom hetzelfde predicaat als de relaties; het paneel
- * forceert `showCritical` dan op `true`, zodat de legenda bij de rode balken past.
- */
-export function reportTypeShowsCriticalToggle(type: ReportType): boolean {
-  return reportTypeDrawsRelations(type);
-}
 
 /** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
 export const TABLE_REPORT_TYPES: readonly ReportType[] = [
@@ -174,8 +141,6 @@ export const TABLE_REPORT_LIMITS = {
 } as const;
 export type ReportPaperSize = 'A4' | 'A3' | 'A2' | 'A1';
 export type ReportOrientation = 'landscape' | 'portrait';
-/** Alleen de rasterkwaliteit van de live preview; heeft bewust geen invloed op rapport/PDF-layout. */
-export type ReportPreviewQuality = '100' | '200' | '300';
 
 /**
  * De kolommen van de Gantt-afdruk (issue #817 deel B), als id's uit het kolomregister van het
@@ -190,10 +155,10 @@ export const REPORT_REQUIRED_COLUMN = 'task.name';
 /** Bovengrens van de kolomlijst; meer past nooit op een blad naast een tijdlijn. */
 export const REPORT_MAX_COLUMNS = 24;
 
-/** Stand van de zijbalk van het nieuwe Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
+/** Stand van de zijbalk van het Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
 export type ReportSidebarMode = 'open' | 'rail';
 
-/** De stappen van het nieuwe Rapport-tabblad, in de volgorde van het papier. */
+/** De stappen van het Rapport-tabblad, in de volgorde van het papier. */
 export const REPORT_STUDIO_STEPS = ['tasks', 'columns', 'bars', 'page', 'headerFooter'] as const;
 export type ReportStudioStep = typeof REPORT_STUDIO_STEPS[number];
 
@@ -215,7 +180,7 @@ export interface ReportSettings {
   taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
-  /** Breedte per dag bij "Vaste schaal" (logische px). Mag een breuk zijn en onder 1 liggen (nieuwe tabblad). */
+  /** Breedte per dag bij "Vaste schaal" (logische px). Mag een breuk zijn en onder 1 liggen (Rapport-tabblad). */
   customZoom: number;
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
@@ -232,33 +197,30 @@ export interface ReportSettings {
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
   followView: boolean;
   /**
-   * De layout waarvan het nieuwe Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
-   * ("Alle taken" of "Zoals de weergave", via `followView`). Het oude paneel leest dit veld niet en schrijft
-   * het ongewijzigd terug. Ook de meegeleverde layout Resourcediagram staat hier, los van het geopende
-   * rapporttype (review Sol #847, ronde 4); die keuze zet daarnaast `reportType: 'resourceGantt'`, zodat het
-   * oude paneel (flag uit) dan het Resourcediagram toont. Zie `reportTaskSource`.
+   * De layout waarvan het Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
+   * ("Alle taken" of "Zoals de weergave", via `followView`). Ook de meegeleverde layout Resourcediagram staat
+   * hier, los van het geopende rapporttype (review Sol #847, ronde 4). Een oude opslag met
+   * `reportType: 'resourceGantt'` opent als die layout. Zie `reportTaskSource`.
    */
   layoutId: string;
-  previewQuality: ReportPreviewQuality;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
   /**
-   * Kolommen van de Gantt-afdruk (registerkolom-id's, in volgorde, met de taaknaam erin). Alleen het
-   * nieuwe Rapport-tabblad (feature flag `reportRedesign`) leest en schrijft dit veld; het oude paneel
-   * houdt zijn vaste tabel en laat het veld ongemoeid.
+   * Kolommen van de Gantt-afdruk (registerkolom-id's, in volgorde, met de taaknaam erin). Het
+   * Rapport-tabblad leest en schrijft dit veld.
    */
   columns: string[];
   /**
    * De balkkleuren van de Gantt-afdruk (keuze Ethan, 10 november 2026: eigen balkkleuren, net als de
-   * kolommen). Alleen het nieuwe Rapport-tabblad leest en schrijft dit veld; het verandert de Gantt op het
+   * kolommen). Het Rapport-tabblad leest en schrijft dit veld; het verandert de Gantt op het
    * scherm nooit. Standaard het kritieke pad, net als een vers scherm. Bij *Zoals de weergave* telt dit veld
    * niet (`reportBarColors`).
    */
   barColors: BarColorSelection;
-  /** Zijbalk van het nieuwe Rapport-tabblad (feature flag `reportRedesign`). */
+  /** Zijbalk van het Rapport-tabblad. */
   sidebar: ReportSidebarMode;
   /**
-   * De open stap van het nieuwe Rapport-tabblad, of `'none'` als alle stappen dicht zijn. Bij het eerste
+   * De open stap van het Rapport-tabblad, of `'none'` als alle stappen dicht zijn. Bij het eerste
    * bezoek stap 1 (Taken), daarna de laatst gebruikte.
    */
   studioStep: ReportStudioStep | 'none';
@@ -297,7 +259,6 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   statusLine: 'none',
   followView: false,
   layoutId: '',
-  previewQuality: '200',
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
   columns: [...REPORT_DEFAULT_COLUMNS],
@@ -345,20 +306,18 @@ export function parseReportLayoutId(raw: unknown): string | undefined {
   return raw;
 }
 
-/** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
+/** Toegestane waarden voor de keuzelijsten. */
 const REPORT_TYPES: readonly ReportType[] = ['gantt', 'resourceGantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
 const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
-const PREVIEW_QUALITIES: readonly ReportPreviewQuality[] = ['100', '200', '300'];
 const SIDEBAR_MODES: readonly ReportSidebarMode[] = ['open', 'rail'];
 const STUDIO_STEPS: readonly ReportSettings['studioStep'][] = [...REPORT_STUDIO_STEPS, 'none'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
 const FONT_SCALES: readonly number[] = REPORT_FONT_SCALES;
-/** Grenzen van de breedte per dag resp. de tijdlijnkolommen-Select in het paneel. De ondergrens is die
- *  van het nieuwe tabblad (onder 1 px per dag); het oude paneel toont zo'n waarde op zijn schuif als 1. */
+/** Grenzen van de breedte per dag (mag onder 1 px per dag) en van de tijdlijnkolommen. */
 const ZOOM_MIN = REPORT_MIN_DAY_WIDTH;
 const ZOOM_MAX = REPORT_MAX_ZOOM;
 const TIMELINE_COLUMNS_MIN = 1;
@@ -440,7 +399,26 @@ function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
  * veld bevat rommel (handmatig geprutst). In alle gevallen wint de default voor precies dat veld.
  */
 export async function loadReportSettings(): Promise<ReportSettings> {
-  const raw = await getSetting<unknown>(STORAGE_KEY);
+  return readReportSettings();
+}
+
+/** `loadReportSettings`, maar synchroon: voor de gedeelde stand hieronder, die lezen en schrijven niet mag scheiden. */
+function readReportSettings(): ReportSettings {
+  return readStoredReportSettings() ?? { ...DEFAULT_REPORT_SETTINGS };
+}
+
+/** De opgeslagen stand, of `null` als de opslag nu niet te lezen is (geblokkeerd). Een ontbrekende sleutel geeft de standaard. */
+function readStoredReportSettings(): ReportSettings | null {
+  const json = tryReadLocal(LOCAL_KEY);
+  if (json === false) return null;
+  let raw: unknown;
+  if (json !== null) {
+    try { raw = JSON.parse(json); } catch { raw = json; }
+  }
+  return parseReportSettings(raw);
+}
+
+function parseReportSettings(raw: unknown): ReportSettings {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_REPORT_SETTINGS };
   const s = raw as Record<string, unknown>;
   const d = DEFAULT_REPORT_SETTINGS;
@@ -471,9 +449,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
-    // Een opgeslagen `previewZoom` (oudere versie) wordt bewust genegeerd: de preview verandert
-    // niet van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
-    previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
+    // `previewZoom` en `previewQuality` van de oude rasterpreview (vóór #817) lezen we niet meer; bij het
+    // volgende opslaan vallen ze weg.
     tableReports: parseTableReportOptions(s.tableReports),
     resourceGantt: parseResourceGanttOptions(s.resourceGantt),
     // Oude sleutel zonder kolomlijst ⇒ de vaste tabel van toen, inclusief de keuze Voltooiing.
@@ -486,7 +463,106 @@ export async function loadReportSettings(): Promise<ReportSettings> {
   };
 }
 
-/** Schrijf de volledige set weg (één sleutel, dus altijd compleet — geen gedeeltelijke merge nodig). */
-export async function saveReportSettings(settings: ReportSettings): Promise<void> {
-  await setSetting(STORAGE_KEY, settings);
+/** De twee optiegroepen die per optie samengaan: elke optie is een eigen keuze. */
+type OptionGroup = 'tableReports' | 'resourceGantt';
+
+/** Een wijziging van de rapportinstellingen: hele velden, en binnen de optiegroepen losse opties. */
+export type ReportSettingsPatch = Partial<Omit<ReportSettings, OptionGroup>> & {
+  tableReports?: Partial<TableReportOptions>;
+  resourceGantt?: Partial<ResourceGanttReportOptions>;
+};
+
+// ---- De gedeelde stand --------------------------------------------------------------------------------
+// Het Rapport-tabblad, het paneel van de tabelrapporten en de werkruimte lezen allemaal deze ene stand
+// (`useReportSettings`), en schrijven allemaal via `patchReportSettings`. Niemand houdt een eigen kopie bij, dus
+// in één venster kan een schrijfactie nooit een oudere kopie over een nieuwere stand zetten (review Terra #893;
+// eerder had elk scherm een kopie, en elke schrijfroute moest daar omheen werken). Een ander venster of de host
+// (#818) meldt een wijziging met een `StorageEvent`; dan leest de stand de opslag opnieuw.
+
+let current: ReportSettings | null = null;
+/**
+ * Keuzes uit deze sessie die nog niet in de opslag staan (vol, geblokkeerd, of de host hield de schrijfactie
+ * tegen). Ze gaan over elke stand die de opslag later geeft, en de volgende schrijfactie bewaart ze mee.
+ */
+let pending: ReportSettingsPatch | null = null;
+const listeners = new Set<() => void>();
+
+function applyPatch(base: ReportSettings, patch: ReportSettingsPatch): ReportSettings {
+  return {
+    ...base,
+    ...patch,
+    tableReports: { ...base.tableReports, ...patch.tableReports },
+    resourceGantt: { ...base.resourceGantt, ...patch.resourceGantt },
+  };
+}
+
+function combinePatches(first: ReportSettingsPatch, next: ReportSettingsPatch): ReportSettingsPatch {
+  return {
+    ...first,
+    ...next,
+    tableReports: { ...first.tableReports, ...next.tableReports },
+    resourceGantt: { ...first.resourceGantt, ...next.resourceGantt },
+  };
+}
+
+/**
+ * De nieuwste stand: wat er nu opgeslagen staat, met de nog niet bewaarde keuzes erover. Is de opslag nu niet
+ * te lezen, dan de gedeelde stand: een leesfout is geen lege opslag (review Sol #893), anders zou de volgende
+ * schrijfactie standaardwaarden over de bewaarde keuzes zetten. Ook voor een herstelpunt (Standaard, een
+ * overname uit een layout) en een terugval die van de opslag afhangt.
+ */
+export function latestReportSettings(): ReportSettings {
+  const stored = readStoredReportSettings();
+  if (stored === null) return current ?? { ...DEFAULT_REPORT_SETTINGS };
+  return pending ? applyPatch(stored, pending) : stored;
+}
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
+function onStorage(event: StorageEvent): void {
+  if (event.key !== null && event.key !== LOCAL_KEY) return;
+  current = latestReportSettings();
+  notify();
+}
+
+/** De gedeelde stand (voor `useSyncExternalStore`): dezelfde waarde tot er iets verandert. */
+export function reportSettingsSnapshot(): ReportSettings {
+  return current ??= latestReportSettings();
+}
+
+export function subscribeReportSettings(listener: () => void): () => void {
+  if (listeners.size === 0 && typeof window !== 'undefined') {
+    // Zonder lezers luistert niemand naar `storage`: wat een ander venster intussen schreef, staat er nu pas in.
+    current = latestReportSettings();
+    window.addEventListener('storage', onStorage);
+  }
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && typeof window !== 'undefined') window.removeEventListener('storage', onStorage);
+  };
+}
+
+/**
+ * De enige schrijfroute voor `ops-reportSettings`: lees de opgeslagen stand, zet de nog niet bewaarde keuzes en
+ * deze wijziging erover (in de optiegroepen per optie) en schrijf het geheel terug in één synchrone stap. Is de
+ * opslag niet te lezen, dan schrijft hij niets en blijft de keuze in de sessie. Geeft de nieuwe gedeelde stand terug.
+ */
+export function patchReportSettings(patch: ReportSettingsPatch): ReportSettings {
+  const chosen = pending ? combinePatches(pending, patch) : patch;
+  const stored = readStoredReportSettings();
+  if (stored === null) {
+    pending = chosen;
+    current = applyPatch(current ?? { ...DEFAULT_REPORT_SETTINGS }, patch);
+  } else {
+    const merged = applyPatch(stored, chosen);
+    const json = JSON.stringify(merged);
+    writeLocal(LOCAL_KEY, json);
+    pending = readLocal(LOCAL_KEY) === json ? null : chosen;
+    current = merged;
+  }
+  notify();
+  return current;
 }

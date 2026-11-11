@@ -49,7 +49,7 @@ test('splitter blijft actief na een mid-drag storeupdate en commit precies eenma
 });
 
 // Horizontale splitters in ltr én rtl. De shell spiegelt in ar/fa (`dir="rtl"` op <html>): de
-// takenlijst staat dan RECHTS van de Gantt en de rapportinstellingen rechts van de preview, zoals de
+// takenlijst staat dan RECHTS van de Gantt en de rapportinstellingen rechts van het rapport, zoals de
 // rechterrail daar links staat (right-rail-resize.spec). Eerst lag de Gantt-splitter in ar/fa 5 px
 // BINNEN de lijst (over de WBS-kolom) en rekenden beide splitters `clientX − rect.left`, dus alsof de
 // lijst links stond: 50 px naar links slepen maakte de takenlijst 350 → 570 px breed. Nu ligt de
@@ -135,6 +135,8 @@ for (const locale of LOCALE_CASES) {
     await seedProject(page, [
       { name: 'Ruwbouw', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     ]);
+    // De instellingenkolom met grijpzone staat bij de rapporten zonder Gantt; de Gantt-afdruk heeft een eigen zijbalk.
+    await page.evaluate(() => localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'milestones' })));
     await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
     await chooseLocale(page, locale);
     const zone = page.locator('[data-ops-report-settings-resize]');

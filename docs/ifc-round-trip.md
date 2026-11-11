@@ -197,6 +197,29 @@ eerste werkdag, en zette de reader die op elke werkdag. Zo staat het nu in het b
 - **De scalar staat altijd in `OPS_Calendar`.** Bij meer groepen schrijft de writer `WorkStartHour` en
   `WorkEndHour` altijd. Zonder die eigenschappen zou een oudere reader ze afleiden uit de eerste
   `IfcWorkTime`, en deze reader uit de eerste werkdag met blokken.
+- **Klokprecisie.** De reader bewaart uren en minuten uit `IfcTimePeriod`, inclusief oude eigen
+  uurfracties zoals `7.5:00:00` en oude minuutfracties zoals `07:30.5:00`. Seconden veranderen een
+  scalaire kalender niet in een ononderbroken band: de pauze blijft effectief. Expliciete banden
+  blijven expliciet. De schrijver gebruikt gewone seconden/milliseconden waar die exact passen,
+  en zo nodig fijnere decimale seconden die bij teruglezen exact hetzelfde getal opleveren.
+  Fijnere bronprecisie en tijdzones blijven daarnaast als oorspronkelijke klokstrings bij het
+  kalenderobject (`ifcTimePeriods`). Een ongewijzigd tijdvak schrijft die bronwaarden terug in de
+  standaardvelden. De koppeling ligt vast per weekdag, band en klokgrens (of per werkende uitzondering);
+  een andere werkdag kan nooit als bron dienen voor een bewerking. Binnen die koppeling moeten
+  de grens of de vastgelegde scalaire importwaarde exact gelijk blijven, zonder getaltolerantie.
+  De ingelezen bandindeling wordt eenmaal vastgelegd. Draagt een bronklok informatie die de
+  schrijver niet zelf kan reproduceren, dan weigert een gewijzigde indeling getypeerd bij opslaan.
+  Oude eigen uur- en minuutfracties en de fijnere decimale seconden uit de huidige schrijver
+  blijven bewerkbaar. Toevoegen, verwijderen, verschuiven, kopiëren en werkende uitzonderingen
+  worden voor deze eigen schrijfvormen met gewone opslag, heropenen, undo en redo getoetst.
+  Bij gematerialiseerde scalaire banden blijven de pauzes in de standaard-IFC staan; de oorspronkelijke
+  precisie reist mee op de buitenste grenzen. Een waarde die niet exact kan
+  terugkomen, of een bewerkte bronzone die het model niet kan overnemen, weigert opslag getypeerd vóór
+  het schrijven, met de bestaande opslaanfoutmelding. Ook oude OPS-uurfracties blijven zonder
+  plannerbewerking opslaanbaar. Bij een getypeerde kalenderweigering slaat crashherstel alleen dat document over en logt dit;
+  zijn vorige snapshot blijft staan, als die er is. Andere documenten worden wel bijgewerkt.
+  De overgeslagen wijzigingen zijn daardoor nog niet beschermd tegen een crash.
+  Regressies: `check-ifc-kalendertijd.ts` en `check-recovery-worker.ts`.
 - **De reader** (`buildCalendarFromEntity`). Een `IfcWorkTime` met een StartDate of FinishDate doet niet
   mee in de week. Datumgebonden werktijden (een zomer- en een winterweek, een losse werkzaterdag) leest
   OPS dus (nog) niet; als gewone week zouden ze in elke week gelden. De terugvalweek van main valt hier
@@ -607,7 +630,10 @@ eigen besluit.
 
 Nieuwe bestanden dragen in OPS_Calendar de property WorkingExceptionKeysV1: inhoudssleutels
 van naam, datumrange en tijdvakken, onafhankelijk van STEP-nummers. De reader gebruikt die
-markering alleen binnen dezelfde kalender en voor een dagelijkse recurrence. Geen markering
+markering alleen binnen dezelfde kalender en voor een dagelijkse recurrence. Behalve de huidige
+klokprojectie herkent zij ook een sleutel op de werkelijk gelezen klokteksten. Oude writers schreven
+bijvoorbeeld zowel de periode als de sleutel met `08:30.5:00`; een gewijzigde formatter mag die
+werkende uitzondering niet tot feestdag maken. Er komt geen nieuwe sleutelversie bij. Geen markering
 betekent nog steeds niet-werktijd; een gevulde recurrence is op zichzelf geen werkdagbewijs.
 WorkingExceptionIds blijft voor oudere lezers en voor het lezen van oude, niet-vernummerde
 bestanden. Aanwezige maar corrupte V1-metadata valt niet terug op mogelijk verouderde nummers.

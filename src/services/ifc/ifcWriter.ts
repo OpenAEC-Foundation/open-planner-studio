@@ -1,6 +1,8 @@
 import { minuteModelWriteView } from './minuteModelWrite';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { calendarExceptionKey } from './calendarExceptionKey';
+import { IfcCalendarTimePrecisionError } from './ifcErrors';
+import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
@@ -15,7 +17,7 @@ import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import {
   canonicalizeBands, clockToMinutes, deriveHoursPerDay, hoursPerDayDiffers, effectiveCalendarByTask, minutesToClock, minutesToIsoDuration,
-  scalarHourFromClock, taskMinutesForWrite,
+  taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
@@ -34,7 +36,7 @@ import {
   XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION, type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import {
-  IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx, type WithheldTaskTimeField,
+  ifcDurationExact, IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx, type WithheldTaskTimeField,
 } from './ifcTaskSlots';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { groupBy } from '@/utils/collections';
@@ -179,14 +181,6 @@ function ifcDuration(days: number): string {
   // Beide lezers, ook die van v2026.9.0, lezen het voorloopteken (`parseDurationDays`).
   if (days < 0) return `'-P0Y0M${ifcDayNumber(-days)}D'`;
   return `'P0Y0M${ifcDayNumber(days)}D'`;
-}
-
-/** Dagen exact, zonder afronding, zoals OPS tot `b738a5096` ze schreef (`'P0Y0M${days}D'`, JavaScript `toString`).
- *  Alleen voor de merge met een vreemd deel: een gebroken dag die de planner niet wijzigde, in de vorm van de bron
- *  (`SourceTaskTime`, fixronde 7 van #867). De lezer leest elk getal in die vorm exact (`durationForms.ts`). */
-function ifcDurationExact(days: number): string {
-  if (days < 0) return `'-P0Y0M${-days}D'`;
-  return `'P0Y0M${days}D'`;
 }
 
 /** Duur van een UUR-taak in minuten als ISO-8601-duur met tijdcomponent
@@ -428,9 +422,11 @@ export function writeIFCWithChoices(input: WriteIFCInput): { content: string; li
  * #804 fase 1b: de entiteitregels van de writer (`#id=…`, zonder `;`-regeleinde-scheiding) met een merge-plan
  * (`foreign/mergeWriter.ts`). Kop en staart komen dan uit de bron (§4.1, §4.10).
  */
-export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds): { lines: string[]; idMap: ReadonlyMap<string, number> } {
-  const { lines, idMap } = writeIfcParts(input, merge);
-  return { lines, idMap };
+export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds): {
+  lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: readonly string[];
+} {
+  const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge);
+  return { lines, idMap, literalCalendarIds };
 }
 
 function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
@@ -1266,7 +1262,7 @@ interface WriteCalendarResult {
   calStepId: number;
   workingExceptionStepIds: number[];
   /** Het scalar begin-/einduur zoals de lezer het uit de EERSTE geschreven `IFCTIMEPERIOD`
-   *  afleidt (`scalarHourFromClock`); `undefined` ⇒ er is geen periode geschreven. */
+   *  afleidde (het uurdeel); `undefined` ⇒ er is geen periode geschreven. */
   readerScalarHours: { start: number; end: number } | undefined;
   /** De `IFCTIMEPERIOD`s zijn de EFFECTIEVE banden van een SCALAIRE kalender (een urentaak
    *  gebruikt hem), niet de expliciete `workTime` van een uurkalender. */
@@ -1314,7 +1310,7 @@ const ISO_DAY_LABEL: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4:
  *    enkele release).
  *  - Eén groep (uniforme week) ⇒ het bestand is byte-identiek aan vroeger.
  */
-function weekBandGroups(workDays: readonly number[], workTime: WorkTimeBands): WeekBandGroup[] {
+function weekBandGroups(workDays: readonly number[], workTime: WorkTimeBands, cal: WorkCalendar): WeekBandGroup[] {
   const ownBands = (day: number) => (day >= 1 && day <= 7 ? workTime.byWeekday[day as 1] : undefined) ?? [];
   const firstDayBands = workDays.length > 0 ? ownBands(workDays[0]) : [];
   const groups: WeekBandGroup[] = [];
@@ -1323,7 +1319,7 @@ function weekBandGroups(workDays: readonly number[], workTime: WorkTimeBands): W
     const own = ownBands(day);
     const bands = own.length > 0 ? own : firstDayBands;
     const key = [...bands].sort((a, b) => a.start - b.start || a.end - b.end)
-      .map((b) => `${b.start}-${b.end}`).join(',');
+      .map((b, i) => `${b.start}-${b.end}:${JSON.stringify(cal.ifcTimePeriods?.filter(p => p.binding === `week:${day}:${i}`).map(p => [p.startText, p.endText]))}`).join(',');
     let group = byKey.get(key);
     if (!group) {
       group = { days: [], bands };
@@ -1335,6 +1331,57 @@ function weekBandGroups(workDays: readonly number[], workTime: WorkTimeBands): W
   return groups;
 }
 
+/** Alleen bij schrijven weigeren: de lezer mag ook fijnere bronklokken openen.
+ * Zonder bronwaarde moet de geschreven klok hetzelfde getal teruggeven. */
+function calendarClock(minutes: number, endOfDay = false): string {
+  const text = minutesToClock(minutes, endOfDay);
+  const parsed = parseIfcClock(text);
+  const normalized = minutes % 1440 < 0 ? minutes % 1440 + 1440 : minutes % 1440;
+  if (!Number.isFinite(normalized)) throw new IfcCalendarTimePrecisionError(minutes);
+  if (parsed && normalized === parsed.minutes % 1440) return text;
+  // Een oude scalaire kalender kan bij de bestaande minuutmigratie een nieuwe,
+  // fijnere grens krijgen. Schrijf die met geldige decimale seconden als dat
+  // hetzelfde getal teruggeeft, in plaats van een ongewijzigd eigen bestand te weigeren.
+  const whole = Math.floor(normalized);
+  let seconds = String((normalized - whole) * 60);
+  if (seconds.includes('e')) {
+    const [coefficient, exponent] = seconds.split('e');
+    const digits = coefficient.replace('.', '');
+    const point = (coefficient.indexOf('.') < 0 ? coefficient.length : coefficient.indexOf('.')) + Number(exponent);
+    seconds = point <= 0 ? `0.${'0'.repeat(-point)}${digits}`
+      : point >= digits.length ? digits + '0'.repeat(point - digits.length)
+        : `${digits.slice(0, point)}.${digits.slice(point)}`;
+  }
+  const [ss, fraction] = seconds.split('.');
+  const exact = `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}:${ss.padStart(2, '0')}${fraction ? `.${fraction}` : ''}`;
+  if (parseIfcClock(exact)?.minutes !== normalized) {
+    throw new IfcCalendarTimePrecisionError(minutes);
+  }
+  return exact;
+}
+
+/** Een ongewijzigd bronvak houdt zijn oorspronkelijke klokken, ook bij fijnere
+ * precisie of een tijdzone. Bij een andere band gelden de door de planner gekozen tijden. */
+function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: number }, binding: string, scalarSides: readonly ('start' | 'end')[] = []): [string, string] {
+  const source = cal.ifcTimePeriods?.find(p => p.binding === binding);
+  const scalarSource = cal.ifcTimePeriods?.find(p => p.binding === 'scalar');
+  const clock = (side: 'start' | 'end'): string => {
+    const original = scalarSides.includes(side) ? scalarSource ?? source : source;
+    const text = original?.[side === 'start' ? 'startText' : 'endText'];
+    if (original && text) {
+      const unchanged = scalarSides.includes(side) && scalarSource !== undefined
+        ? original[side === 'start' ? 'scalarStart' : 'scalarEnd'] === cal[side === 'start' ? 'workStartHour' : 'workEndHour']
+        : original[side] === band[side];
+      if (unchanged) return text;
+      // De gewijzigde grens heeft geen eigen zoneveld. Leen geen zone van een
+      // andere dag, band of grens, en verwijder de oorspronkelijke zone niet stil.
+      if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) throw new IfcCalendarTimePrecisionError(band[side]);
+    }
+    return calendarClock(band[side], side === 'end');
+  };
+  return [clock('start'), clock('end')];
+}
+
 function writeCalendar(
   ctx: WriteContext,
   cal: WorkCalendar,
@@ -1342,8 +1389,28 @@ function writeCalendar(
   key: string = '_calendar',
   includeEffectiveScalarBands = false,
 ): WriteCalendarResult {
+  // Een index is alleen een geldige bronkoppeling zolang de bandindeling gelijk
+  // blijft. De editor, MCP en extensies kunnen banden verwijderen of kopiëren.
+  // Bij extra broninformatie weigeren we zo'n wijziging centraal vóór writes;
+  // het model heeft geen bandidentiteit/tijdzone om de herkomst mee te verplaatsen.
+  const originalLayout = cal.ifcTimePeriods?.[0]?.layout;
+  if (originalLayout !== undefined && originalLayout !== ifcCalendarBandLayout(cal)) {
+    const protectedSource = cal.ifcTimePeriods?.find(p => [p.startText, p.endText].some((text, side) => {
+      if (!text) return false;
+      const clock = parseIfcClock(text);
+      if (!clock || /(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) return true;
+      // Oude eigen schrijvers gebruikten uur- en minuutfracties. Die waarden
+      // draagt het model; een andere geldige klokvorm is geen gegevensverlies.
+      if (clock.legacyBand || /[.e]/i.test(text.split(':')[0])) return false;
+      // Ook de huidige schrijver kan fijnere decimale seconden maken. Zijn
+      // eigen exact reproduceerbare klokken mogen bewerkingen nooit blokkeren.
+      return clock.preserve && calendarClock(clock.minutes, side === 1) !== text;
+    }));
+    if (protectedSource) throw new IfcCalendarTimePrecisionError(protectedSource.start);
+  }
   // Work time recurrence (weekdays)
   let firstPeriod: [string, string] | undefined;
+  let multiplePeriods = false;
   let perDayWeek = false;
   let scalarPeriodReadsAsHour = false;
   const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
@@ -1351,15 +1418,24 @@ function writeCalendar(
   // `weekBandGroups`). Een uniforme week (één groep) en een kalender zonder blokken nemen de tak
   // hieronder ongewijzigd: hun bestand blijft byte-identiek. Een scalaire kalender is altijd uniform
   // (`effectiveWorkTimeBands` geeft elke werkdag dezelfde blokken).
-  const groups = workTime ? weekBandGroups(cal.workDays, workTime) : [];
+  const groups = workTime ? weekBandGroups(cal.workDays, workTime, cal) : [];
   const workTimeIds: number[] = [];
+  const clocks = (band: { start: number; end: number }, day: number, i: number, count: number) => calendarPeriodClocks(cal, band, !cal.workTime && cal.ifcTimePeriods?.some(p => p.binding === 'scalar') ? 'scalar-derived' : `week:${day}:${i}`, !cal.workTime ? [
+    ...(i === 0 && band.start === cal.workStartHour * 60 ? ['start' as const] : []),
+    ...(i === count - 1 && band.end === cal.workEndHour * 60 ? ['end' as const] : []),
+  ] : []);
+  const writePeriod = (values: [string, string], periodKey: string) => {
+    const [start, end] = values;
+    return addLine(ctx, periodKey, `IFCTIMEPERIOD(${ifcStr(start)},${ifcStr(end)})`);
+  };
   /** Eén `IFCWORKTIME` met een WEEKLY-patroon; geeft zijn STEP-id terug. */
   // Alleen aangeroepen met een groep die blokken en dagen heeft (`written` hieronder): geen lege lijst.
   const writeWeek = (days: readonly number[], bands: WeekBandGroup['bands'], label: string): number => {
-    const ids = bands.map((b) =>
-      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`),
-    );
-    if (!firstPeriod && bands[0]) firstPeriod = [minutesToClock(bands[0].start), minutesToClock(bands[0].end, true)];
+    const ids = bands.map((b, i) => writePeriod(clocks(b, days[0], i, bands.length), '_timeperiod'));
+    if (!firstPeriod && bands[0]) {
+      firstPeriod = clocks(bands[0], days[0], 0, bands.length);
+      multiplePeriods = bands.length > 1;
+    }
     const recurrenceId = addLine(ctx, '_recurrence',
       `IFCRECURRENCEPATTERN(.WEEKLY.,$,(${days.join(',')}),$,$,$,$,(${ids.map((i) => `#${i}`).join(',')}))`);
     return addLine(ctx, '_worktime', `IFCWORKTIME(${ifcStr(label)},.PREDICTED.,$,#${recurrenceId},$,$)`);
@@ -1386,16 +1462,17 @@ function writeCalendar(
       // '00:00:00' leest de wrapregel nog.
       const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
       const bands = (firstDay && workTime.byWeekday[firstDay]) || [];
-      const ids = bands.map((b) =>
-        addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`),
-      );
+      const ids = bands.map((b, i) => writePeriod(clocks(b, firstDay!, i, bands.length), '_timeperiod'));
       timePeriodRefs = ids.map((i) => `#${i}`).join(',');
-      if (bands[0]) firstPeriod = [minutesToClock(bands[0].start), minutesToClock(bands[0].end, true)];
+      if (bands[0]) {
+        firstPeriod = clocks(bands[0], firstDay!, 0, bands.length);
+        multiplePeriods = bands.length > 1;
+        }
     } else {
       // Geldige IfcTime `hh:mm:ss` (07:30 ⇒ '07:30:00', niet '7.5:00:00'); 24 ⇒ '24:00:00' (einde dag).
-      const startTime = minutesToClock(Math.round(cal.workStartHour * 60));
-      const endTime = minutesToClock(Math.round(cal.workEndHour * 60), true);
-      const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
+      const scalarBand = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
+      const [startTime, endTime] = calendarPeriodClocks(cal, scalarBand, 'scalar', ['start', 'end']);
+      const timePeriodId = writePeriod([startTime, endTime], '_timeperiod');
       timePeriodRefs = `#${timePeriodId}`;
       firstPeriod = [startTime, endTime];
       // Leest de lezer deze ene periode zelf als afwijkend (een hele dag 00:00–24:00, of over
@@ -1443,8 +1520,7 @@ function writeCalendar(
   const workingExceptionRefs: string[] = [];
   const workingExceptionStepIds: number[] = [];
   for (const exc of cal.workingExceptions ?? []) {
-    const bandIds = (exc.bands ?? []).map((b) =>
-      addLine(ctx, '_excband', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`));
+    const bandIds = (exc.bands ?? []).map((b, i) => writePeriod(calendarPeriodClocks(cal, b, `exception:${JSON.stringify([exc.startDate, exc.endDate, exc.name])}:${i}`), '_excband'));
     const bandRefs = bandIds.length > 0 ? `(${bandIds.map((i) => `#${i}`).join(',')})` : '$';
     const excRecId = addLine(ctx, '_excrecurrence', `IFCRECURRENCEPATTERN(.DAILY.,$,$,$,$,$,$,${bandRefs})`);
     const wId = addLine(ctx, `_workexc_${exc.name}`,
@@ -1468,7 +1544,12 @@ function writeCalendar(
     calStepId,
     workingExceptionStepIds,
     readerScalarHours: firstPeriod
-      ? { start: scalarHourFromClock(firstPeriod[0]), end: scalarHourFromClock(firstPeriod[1]) }
+      ? {
+        // Blijf ook de metadata schrijven die oudere lezers sinds H7 nodig hebben:
+        // zij namen hier alleen het uurdeel. De huidige lezer leest de hele klok.
+        start: multiplePeriods ? Math.floor(parseFloat(firstPeriod[0].split(':')[0])) : parseFloat(firstPeriod[0].split(':')[0]),
+        end: parseFloat(firstPeriod[1].split(':')[0]),
+      }
       : undefined,
     materializedScalarBands: !cal.workTime && workTime !== undefined,
     scalarPeriodReadsAsHour,
@@ -1507,7 +1588,7 @@ function writtenWeekHoursPerDay(groups: readonly WeekBandGroup[]): number {
  * Kalenderidentiteit door de round-trip:
  *  - `WorkStartHour`/`WorkEndHour`: de lezer haalt de scalar werktijd uit de periodes — sinds 2026-10
  *    bij meer periodes begin eerste / einde laatste periode, daarvóór de EERSTE `IFCTIMEPERIOD`
- *    (`scalarHourFromClock`). De toets hier blijft tegen de eerste periode (`readerScalarHours`): dat is
+ *    (het uurdeel). De toets hier blijft tegen de eerste periode (`readerScalarHours`): dat is
  *    de afleiding van de lezers sinds H7 (`d16f22881`), die de eigenschappen al lazen. Uitgebrachte
  *    versies tot en met v2026.9.0 lezen deze eigenschappen NIET; zij nemen altijd de eerste periode
  *    (07:00–16:00 met lunchblokken wordt daar 07:00–12:00). Per veld alleen geschreven wanneer de
@@ -1777,7 +1858,7 @@ function writeTask(
   const ttCtx: TaskTimeWriteCtx = {
     task, dt, ifcDuration, schedDurArg, statusTimeArg,
     actualDurationArg, actualStartArg, actualFinishArg, remainingArg,
-    ...(sourceFloat?.size ? { exactFloat: (field: 'freeFloat' | 'totalFloat', days: number) => (sourceFloat.has(field) ? ifcDurationExact(days) : undefined) } : {}),
+    ...(sourceFloat?.size ? { exactFloat: sourceFloat } : {}),
     ...(withheld && withheld.length > 0 ? { withheld: new Set(withheld) } : {}),
   };
   const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
