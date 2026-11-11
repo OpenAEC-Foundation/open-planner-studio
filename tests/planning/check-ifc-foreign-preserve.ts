@@ -98,12 +98,13 @@ function relationsOf(bytes: Uint8Array, type: string, relatingArg: number, relat
 }
 
 /** Eén volledige ronde: openen, merge zonder wijziging (of met `edit`), alle invarianten, herlezen en een tweede ronde. */
-async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) => void | Promise<void>): Promise<{ out: Uint8Array; reread: Opened; opened: Opened } | undefined> {
+async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) => void | Promise<Domain | void>): Promise<{ out: Uint8Array; reread: Opened; opened: Opened } | undefined> {
   const opened = await openForeign(bytes);
   const source = opened.ifcSource;
   if (!source?.foreign) { diffs.push(`${label}: geen vreemd deel na openen`); checks++; return undefined; }
-  const d = cloneDomain(opened);
-  await edit?.(d);
+  let d = cloneDomain(opened);
+  const next = await edit?.(d);
+  if (next) d = next;
   let parts: Uint8Array[];
   try { parts = await writeIfcMerge(d, source, openReadPlanning); } catch (e) {
     diffs.push(`${label}: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => `${c.kind}: ${c.detail}`).slice(0, 3).join(' | ') : (e as Error).message})`);
