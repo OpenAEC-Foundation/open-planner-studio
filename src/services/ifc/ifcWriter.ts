@@ -2,6 +2,7 @@ import { minuteModelWriteView } from './minuteModelWrite';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { calendarExceptionKey } from './calendarExceptionKey';
 import { IfcCalendarTimePrecisionError } from './ifcErrors';
+import { parseIfcClock } from './ifcClock';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
@@ -1337,13 +1338,35 @@ function weekBandGroups(workDays: readonly number[], workTime: WorkTimeBands): W
 }
 
 /** Alleen bij schrijven weigeren: de lezer mag ook fijnere bronklokken openen.
- * De marge vangt de getalruis van uur/minuutconversies op (één nanoseconde). */
+ * Zonder bronwaarde moet de geschreven klok hetzelfde getal teruggeven. */
 function calendarClock(minutes: number, endOfDay = false): string {
-  const milliseconds = minutes * 60_000;
-  if (!Number.isFinite(milliseconds) || Math.abs(milliseconds - Math.round(milliseconds)) > 0.000001) {
+  const text = minutesToClock(minutes, endOfDay);
+  const parsed = parseIfcClock(text);
+  const normalized = minutes % 1440 < 0 ? minutes % 1440 + 1440 : minutes % 1440;
+  if (!parsed || normalized !== parsed.minutes % 1440) {
     throw new IfcCalendarTimePrecisionError(minutes);
   }
-  return minutesToClock(minutes, endOfDay);
+  return text;
+}
+
+/** Een ongewijzigd bronvak houdt zijn oorspronkelijke klokken, ook bij fijnere
+ * precisie of een tijdzone. Bij een andere band gelden de door de planner gekozen tijden. */
+function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: number }): [string, string] {
+  const end = band.end <= band.start ? band.end + 1440 : band.end;
+  const same = (a: number, b: number) => Math.abs(a - b) <= Number.EPSILON * Math.max(1, Math.abs(a), Math.abs(b)) * 4;
+  const sources = cal.ifcTimePeriods?.filter(p => same(p.start, band.start) && same(p.end, end)) ?? [];
+  if (sources.length > 0) {
+    const source = sources[0];
+    const startClock = parseIfcClock(source.startText);
+    const endClock = parseIfcClock(source.endText);
+    if (!startClock || !endClock || startClock.minutes !== source.start
+      || (endClock.minutes <= source.start ? endClock.minutes + 1440 : endClock.minutes) !== source.end
+      || sources.some(p => p.startText !== source.startText || p.endText !== source.endText)) {
+      throw new IfcCalendarTimePrecisionError(band.start);
+    }
+    return [source.startText, source.endText];
+  }
+  return [calendarClock(band.start), calendarClock(band.end, true)];
 }
 
 function writeCalendar(
@@ -1355,22 +1378,31 @@ function writeCalendar(
 ): WriteCalendarResult {
   // Work time recurrence (weekdays)
   let firstPeriod: [string, string] | undefined;
+  let firstPeriodCount = 0;
   let perDayWeek = false;
   let scalarPeriodReadsAsHour = false;
-  const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
+  // Een oorspronkelijke scalaire klok met extra bronprecisie blijft één periode.
+  // Een afgeleide pauze kan nieuwe, niet-representeerbare grenzen maken. De scalar
+  // en HoursPerDay dragen dan dezelfde informatie als in het oude OPS-bestand.
+  const workTime = cal.workTime ?? (includeEffectiveScalarBands && !cal.ifcTimePeriods?.length ? effectiveWorkTimeBands(cal) : undefined);
   // Werkblokken die per weekdag verschillen ⇒ meer groepen, elk een eigen `IFCWORKTIME` (zie
   // `weekBandGroups`). Een uniforme week (één groep) en een kalender zonder blokken nemen de tak
   // hieronder ongewijzigd: hun bestand blijft byte-identiek. Een scalaire kalender is altijd uniform
   // (`effectiveWorkTimeBands` geeft elke werkdag dezelfde blokken).
   const groups = workTime ? weekBandGroups(cal.workDays, workTime) : [];
   const workTimeIds: number[] = [];
+  const writePeriod = (band: { start: number; end: number }, periodKey: string) => {
+    const [start, end] = calendarPeriodClocks(cal, band);
+    return addLine(ctx, periodKey, `IFCTIMEPERIOD(${ifcStr(start)},${ifcStr(end)})`);
+  };
   /** Eén `IFCWORKTIME` met een WEEKLY-patroon; geeft zijn STEP-id terug. */
   // Alleen aangeroepen met een groep die blokken en dagen heeft (`written` hieronder): geen lege lijst.
   const writeWeek = (days: readonly number[], bands: WeekBandGroup['bands'], label: string): number => {
-    const ids = bands.map((b) =>
-      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${calendarClock(b.start)}','${calendarClock(b.end, true)}')`),
-    );
-    if (!firstPeriod && bands[0]) firstPeriod = [calendarClock(bands[0].start), calendarClock(bands[0].end, true)];
+    const ids = bands.map(b => writePeriod(b, '_timeperiod'));
+    if (!firstPeriod && bands[0]) {
+      firstPeriod = calendarPeriodClocks(cal, bands[0]);
+      firstPeriodCount = bands.length;
+    }
     const recurrenceId = addLine(ctx, '_recurrence',
       `IFCRECURRENCEPATTERN(.WEEKLY.,$,(${days.join(',')}),$,$,$,$,(${ids.map((i) => `#${i}`).join(',')}))`);
     return addLine(ctx, '_worktime', `IFCWORKTIME(${ifcStr(label)},.PREDICTED.,$,#${recurrenceId},$,$)`);
@@ -1397,15 +1429,18 @@ function writeCalendar(
       // '00:00:00' leest de wrapregel nog.
       const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
       const bands = (firstDay && workTime.byWeekday[firstDay]) || [];
-      const ids = bands.map((b) =>
-        addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${calendarClock(b.start)}','${calendarClock(b.end, true)}')`),
-      );
+      const ids = bands.map(b => writePeriod(b, '_timeperiod'));
       timePeriodRefs = ids.map((i) => `#${i}`).join(',');
-      if (bands[0]) firstPeriod = [calendarClock(bands[0].start), calendarClock(bands[0].end, true)];
+      if (bands[0]) {
+        firstPeriod = calendarPeriodClocks(cal, bands[0]);
+        firstPeriodCount = bands.length;
+      }
     } else {
       // Geldige IfcTime `hh:mm:ss` (07:30 ⇒ '07:30:00', niet '7.5:00:00'); 24 ⇒ '24:00:00' (einde dag).
-      const startTime = calendarClock(Math.round(cal.workStartHour * 60));
-      const endTime = calendarClock(Math.round(cal.workEndHour * 60), true);
+      const scalarBand = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
+      const [startTime, endTime] = cal.ifcTimePeriods?.length
+        ? calendarPeriodClocks(cal, scalarBand)
+        : [calendarClock(Math.round(scalarBand.start)), calendarClock(Math.round(scalarBand.end), true)];
       const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
       timePeriodRefs = `#${timePeriodId}`;
       firstPeriod = [startTime, endTime];
@@ -1454,8 +1489,7 @@ function writeCalendar(
   const workingExceptionRefs: string[] = [];
   const workingExceptionStepIds: number[] = [];
   for (const exc of cal.workingExceptions ?? []) {
-    const bandIds = (exc.bands ?? []).map((b) =>
-      addLine(ctx, '_excband', `IFCTIMEPERIOD('${calendarClock(b.start)}','${calendarClock(b.end, true)}')`));
+    const bandIds = (exc.bands ?? []).map(b => writePeriod(b, '_excband'));
     const bandRefs = bandIds.length > 0 ? `(${bandIds.map((i) => `#${i}`).join(',')})` : '$';
     const excRecId = addLine(ctx, '_excrecurrence', `IFCRECURRENCEPATTERN(.DAILY.,$,$,$,$,$,$,${bandRefs})`);
     const wId = addLine(ctx, `_workexc_${exc.name}`,
@@ -1479,7 +1513,10 @@ function writeCalendar(
     calStepId,
     workingExceptionStepIds,
     readerScalarHours: firstPeriod
-      ? { start: scalarHourFromClock(firstPeriod[0]), end: scalarHourFromClock(firstPeriod[1]) }
+      ? {
+        start: firstPeriodCount > 1 ? Math.floor(scalarHourFromClock(firstPeriod[0])) : scalarHourFromClock(firstPeriod[0]),
+        end: firstPeriodCount > 1 ? Math.floor(scalarHourFromClock(firstPeriod[1])) : scalarHourFromClock(firstPeriod[1]),
+      }
       : undefined,
     materializedScalarBands: !cal.workTime && workTime !== undefined,
     scalarPeriodReadsAsHour,

@@ -200,9 +200,11 @@ eerste werkdag, en zette de reader die op elke werkdag. Zo staat het nu in het b
 - **Klokprecisie.** De reader bewaart uren en minuten uit `IfcTimePeriod`, inclusief oude eigen
   uurfracties zoals `7.5:00:00`. Seconden blijven in expliciete kalenderbanden staan, ook bij een
   oude scalaire OPS-markering. De schrijver bewaart seconden en milliseconden in de standaardvelden.
-  Fijnere bronprecisie blijft leesbaar; opslag weigert dan getypeerd vóór het schrijven en gebruikt
-  de bestaande opslaanfoutmelding. Een eigen bestand dat deze schrijver oplevert, kan zonder
-  plannerbewerking opnieuw worden opgeslagen. Regressie: `check-ifc-kalendertijd.ts`.
+  Fijnere bronprecisie en tijdzones blijven daarnaast als oorspronkelijke klokstrings bij het
+  kalenderobject (`ifcTimePeriods`). Een ongewijzigd tijdvak schrijft die bronwaarden terug in de
+  standaardvelden. Een nieuwe fijnere waarde zonder passende bron weigert opslag getypeerd vóór het
+  schrijven, met de bestaande opslaanfoutmelding. Ook oude OPS-uurfracties blijven zonder
+  plannerbewerking opslaanbaar. Regressie: `check-ifc-kalendertijd.ts`.
 - **De reader** (`buildCalendarFromEntity`). Een `IfcWorkTime` met een StartDate of FinishDate doet niet
   mee in de week. Datumgebonden werktijden (een zomer- en een winterweek, een losse werkzaterdag) leest
   OPS dus (nog) niet; als gewone week zouden ze in elke week gelden. De terugvalweek van main valt hier

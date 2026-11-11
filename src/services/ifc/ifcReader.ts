@@ -1,4 +1,5 @@
 import { parseIfcDuration } from './isoDuration';
+import { parseIfcClock } from './ifcClock';
 import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
 import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
@@ -70,7 +71,7 @@ import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
   canonicalizeBands, clockToMinutes, firstBlockedDay, getCalendarBands, hasNonAnchorTime,
   isoDurationToMinutes, isSubDayMinutes, promoteHourCalendar, promoteHourCalendars,
-  registerCalendarBands, scalarHourFromClock, workDayFromBlocks,
+  registerCalendarBands, workDayFromBlocks,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (discriminator c) en DEFAULT_PRIORITY wonen in ./ifcConstants zodat reader en
@@ -1435,16 +1436,6 @@ function extractProject(
     author,
     company,
   };
-}
-
-/** Minuten en seconden uit de bron blijven staan; ook oude OPS-uurfracties. De
- * bestaande tolerante terugval blijft beschikbaar voor afwijkende klokstrings. */
-function readCalendarClock(clock: string): number | null {
-  if (Number.isFinite(scalarHourFromClock(clock))) {
-    const [hour, minute, second = 0] = clock.split(':').map(Number);
-    return hour * 60 + minute + second / 60;
-  }
-  return clockToMinutes(clock);
 }
 
 function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEntity>): WorkCalendar {
@@ -3048,14 +3039,30 @@ function buildCalendarFromEntity(
   if (recurrences.length === 0 && datedRecurrences.length > 0) recurrences.push(datedRecurrences[0]);
   const weekRecurrences = recurrences.filter(rec => parseIntList(rec.args[2] || '').length > 0);
   // ALLE TimePeriods van één patroon (`TimePeriods` is native een lijst — pauze/split-shift).
+  const sourcePeriods: NonNullable<WorkCalendar['ifcTimePeriods']> = [];
+  let secondPrecisionWeek = false;
+  const readPeriod = (tp: StepEntity, workingWeek = false): { start: number; end: number } | null => {
+    const startText = stripQuotes(tp.args[0] || '');
+    const endText = stripQuotes(tp.args[1] || '');
+    const start = parseIfcClock(startText);
+    const end = parseIfcClock(endText);
+    const s = start?.minutes ?? clockToMinutes(startText);
+    const e = end?.minutes ?? clockToMinutes(endText);
+    if (s == null || e == null) return null;
+    if (workingWeek && (start?.hasSeconds || end?.hasSeconds)) secondPrecisionWeek = true;
+    if (!start || !end || start.preserve || end.preserve) {
+      const source = { start: s, end: e <= s ? e + 1440 : e, startText, endText };
+      if (!sourcePeriods.some(p => JSON.stringify(p) === JSON.stringify(source))) sourcePeriods.push(source);
+    }
+    return { start: s, end: e };
+  };
   const readPeriods = (timePeriodRefs: string[]): { start: number; end: number }[] => {
     const out: { start: number; end: number }[] = [];
     for (const tpRef of timePeriodRefs) {
       const tp = entityMap.get(tpRef);
       if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-      const s = readCalendarClock(stripQuotes(tp.args[0] || ''));
-      const e = readCalendarClock(stripQuotes(tp.args[1] || ''));
-      if (s != null && e != null) out.push({ start: s, end: e });
+      const period = readPeriod(tp, true);
+      if (period) out.push(period);
     }
     return out;
   };
@@ -3193,12 +3200,8 @@ function buildCalendarFromEntity(
         for (const bRef of parseRefs(excRec.args[7] || '')) {
           const tp = entityMap.get(bRef);
           if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-          const s = readCalendarClock(stripQuotes(tp.args[0] || ''));
-          let e = readCalendarClock(stripQuotes(tp.args[1] || ''));
-          if (s != null && e != null) {
-            if (e <= s) e += 1440;
-            bands.push({ start: s, end: e });
-          }
+          const period = readPeriod(tp);
+          if (period) bands.push({ start: period.start, end: period.end <= period.start ? period.end + 1440 : period.end });
         }
       }
     }
@@ -3250,8 +3253,8 @@ function buildCalendarFromEntity(
   if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
   // Het scalaire pauzepatroon rondt op minuten af. Een bron met seconden blijft
   // daarom in expliciete banden staan, ook bij een oude scalaire OPS-markering.
-  const subMinuteBands = Object.values(bands.byWeekday).some(day => day.some(b => !Number.isInteger(b.start) || !Number.isInteger(b.end)));
-  if (hourMeta.hourMode === true || subMinuteBands) {
+  if (sourcePeriods.length > 0) calendar.ifcTimePeriods = sourcePeriods;
+  if (hourMeta.hourMode === true || secondPrecisionWeek) {
     // `promoteHourCalendar` zet `hoursPerDay` op de modale dagsom van de blokken; een expliciete
     // `HoursPerDay` wint daarna. Alleen bij deze markering: zie docs/ifc-round-trip.md, "Uren per dag
     // bij een blokkenkalender".

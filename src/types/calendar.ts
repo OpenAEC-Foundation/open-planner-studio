@@ -29,6 +29,11 @@ export interface WorkCalendar {
   /** Werktijdbanden per weekdag. Aanwezig ⇒ UUR-kalender (minuut-native scheduling). Afwezig ⇒
    *  DAG-kalender. */
   workTime?: WorkTimeBands;
+  /** IFC-klokken met tijdzone, oude uurfractie of fijnere bronprecisie. De bronstrings
+   * blijven alleen gelden zolang het bijbehorende tijdvak numeriek ongewijzigd is.
+   * De kalender reist als geheel mee in undo, documenten en herstel; de schrijver
+   * bewaart deze waarden in de standaard-IfcTimePeriod, niet in een nieuwe pset. */
+  ifcTimePeriods?: { start: number; end: number; startText: string; endText: string }[];
   /** Ploegclassificatie voor IFC-`PredefinedType`. Afwezig ⇒ `.FIRSTSHIFT.`. */
   shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
   /** Herkomststempel wanneer deze kalender een kopie uit een resourcebibliotheek is. Afwezig ⇒

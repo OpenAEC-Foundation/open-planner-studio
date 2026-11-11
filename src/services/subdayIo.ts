@@ -1,4 +1,5 @@
 import { parseIfcDuration } from '@/services/ifc/isoDuration';
+import { parseIfcClock } from '@/services/ifc/ifcClock';
 import type { MilestoneKind, Task } from '@/types/task';
 import { isHourModeCalendar, type WorkCalendar, type WorkTimeBands } from '@/types/calendar';
 import { effectiveWorkTimeBands, firstBlockedDay, seedScalarBands } from '@/utils/effectiveWorkTime';
@@ -64,13 +65,8 @@ export function minutesToClock(min: number, endOfDay = false): string {
  * eerste geschreven periode hem niet teruggeeft.
  */
 export function scalarHourFromClock(clock: string): number {
-  const match = /^(\d{1,2}(?:\.\d+)?):(\d{2})(?::(\d{2}(?:\.\d+)?))?$/.exec(clock);
-  if (!match) return NaN;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const second = Number(match[3] ?? 0);
-  if (hour > 24 || minute >= 60 || second >= 60 || (hour === 24 && (minute !== 0 || second !== 0))) return NaN;
-  return hour + minute / 60 + second / 3600;
+  const parsed = parseIfcClock(clock);
+  return parsed ? parsed.minutes / 60 : NaN;
 }
 
 /** `'HH:MM[:SS]'` → minuten-vanaf-middernacht, of `null` bij een onparseerbare klokstring. */

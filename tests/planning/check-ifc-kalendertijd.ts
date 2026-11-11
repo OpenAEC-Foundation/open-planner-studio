@@ -1,6 +1,6 @@
 // Bron: Terra's gewone-opslagproef bij #886, periode-0730.ifc (zonder bouwmodel).
 // Test de echte store-openactie en saveFile, met een geheugenhandle op de bestandsnaad.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
@@ -36,7 +36,7 @@ function memoryFile(initial: string) {
 for (const [start, end, startHour, endHour] of [
   ['07:30:00', '16:00:00', 7.5, 16], ['07:15:00', '16:45:00', 7.25, 16.75],
   ['07:01:00', '16:59:00', 7 + 1 / 60, 16 + 59 / 60],
-  ['00:00:00', '24:00:00', 0, 24], ['7.5:00:00', '16.75:00:00', 7.5, 16.75],
+  ['00:00:00', '24:00:00', 0, 24], ['7.123456:00:00', '16:00:00', 7.123456, 16], ['7.5:00:00', '16.75:00:00', 7.5, 16.75],
 ] as const) {
   const input = source.replace(period, `IFCTIMEPERIOD('${start}','${end}')`);
   const file = memoryFile(input);
@@ -91,7 +91,7 @@ for (const [shape, transform] of shapes) {
 // Een externe applicatiemarkering doorloopt dezelfde controle.
 for (const own of [true, false]) {
  for (const scalarMark of [false, true]) {
- for (const [start, end] of [['07:30:01', '16:00:00'], ['07:15:00', '16:45:30'], ['07:15:00.5', '16:45:00'], ['07:15:00.123', '16:45:00']] as const) {
+ for (const [start, end] of [['07:30:01', '16:00:00'], ['07:15:00', '16:45:30'], ['07:15:00.5', '16:45:00'], ['07:15:00.123', '16:45:00'], ['07:30:01Z', '16:00:00Z'], ['07:30:00.0001+01:00', '16:00:00+01:00'], ['07:30:00.000000001', '16:00:00'], ['07:30:00.000000000000000001', '16:00:00']] as const) {
   const input = source.replace(period, `IFCTIMEPERIOD('${start}','${end}')`)
     .replace("'0.2','Open Planner Studio','OPS'", own ? "'0.2','Open Planner Studio','OPS'" : "'1','External planner','EXT'");
   const markedInput = scalarMark ? input.replace('ENDSEC;\nEND-ISO', "#9900=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$);\n#9901=IFCPROPERTYSET('0000000000000000000001',#6,'OPS_Calendar',$,(#9900));\n#9902=IFCRELDEFINESBYPROPERTIES('0000000000000000000002',#6,$,$,(#38),#9901);\nENDSEC;\nEND-ISO") : input;
@@ -119,8 +119,8 @@ for (const own of [true, false]) {
  }
 }
 
-for (const name of ['v2026.7.2-woongebouw-nieuwbouw.ifc', 'v2026.7.7-urentaak-10-villa-wassenaar.ifc', 'v2026.43.0-halve-dag-10-villa-wassenaar.ifc']) {
-  const input = readFileSync(new URL(`./fixtures/oude-tags/${name}`, import.meta.url), 'utf8');
+for (const name of [...readdirSync(new URL('./fixtures/oude-tags/', import.meta.url)).filter(n => n.endsWith('.ifc')).map(n => `oude-tags/${n}`), 'h7-tijden-oude-writer.ifc']) {
+  const input = readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
   const file = memoryFile(input);
   const { store } = createAppStoreContext();
   await store.getState().openOpenedFile({ name, content: input, ref: { kind: 'handle', handle: file.handle } });
@@ -128,18 +128,16 @@ for (const name of ['v2026.7.2-woongebouw-nieuwbouw.ifc', 'v2026.7.7-urentaak-10
   eq(`${name}: eigen bestand schrijft zonder bewerken`, file.writes.length, 1);
 }
 
-// Fijner dan een milliseconde: openen blijft lukken, alleen de opslag weigert getypeerd.
-const fine = source.replace(period, "IFCTIMEPERIOD('07:30:00.0001','16:00:00')")
-  .replace("'0.2','Open Planner Studio','OPS'", "'1','External planner','EXT'");
-const fineImport = readIFC(fine);
-eq('submilliseconden openen tekst', fineImport.tasks.length, readIFC(source).tasks.length);
-eq('submilliseconden openen bytes', (await readIfcBytes(new TextEncoder().encode(fine))).tasks.length, fineImport.tasks.length);
+// Zonder bijpassende bronwaarde mag een nieuwe, fijnere bewerking niet stil afgerond worden.
+const fineImport = readIFC(source);
+fineImport.calendar.workingExceptions = [{ name: 'Bewerkt', startDate: '2027-01-02', endDate: '2027-01-02', bands: [{ start: 450 + 0.0001 / 60, end: 960 }] }];
 let typed = false;
 try { writeIFC(fineImport); } catch (e) { typed = e instanceof IfcCalendarTimePrecisionError; }
-eq('submilliseconden: alleen writer weigert getypeerd', typed, true);
+eq('nieuwe fijnere bewerking: writer weigert getypeerd', typed, true);
 const fineStore = createAppStoreContext().store;
-const fineFile = memoryFile(fine);
-await fineStore.getState().openOpenedFile({ name: 'precies.ifc', content: fine, ref: { kind: 'handle', handle: fineFile.handle } });
+const fineFile = memoryFile(source);
+await fineStore.getState().openOpenedFile({ name: 'bewerkt.ifc', content: source, ref: { kind: 'handle', handle: fineFile.handle } });
+fineStore.setState(s => { s.calendar.workingExceptions = fineImport.calendar.workingExceptions; });
 const active = fineStore.getState().project.id;
 const realError = console.error;
 console.error = () => {};
