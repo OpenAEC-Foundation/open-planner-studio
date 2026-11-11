@@ -1,5 +1,5 @@
 {
- "basis": "2fbbc4ae1",
+ "basis": "20b9af79a74e7d886c2a38f93bba1adbcbb2ba5c",
  "bestanden": [
   {
    "pad": "tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc",
@@ -16,8 +16,8 @@
   {
    "pad": "tests/planning/fixtures/oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc",
    "invoerSha256": "bc1ecf64de9e055201426ca07012d584f189ea69ff993690e5ec0a36d3e9b222",
-   "uitvoerSha256": "7d78adda4847b30305be31e3e7817237bcdd8badd41b3bcd3a5a91e299ca6a59",
-   "lengte": 50321
+   "uitvoerSha256": "cee3c881628ddda3deb8962c2565f236c782d31da0c616cf013aa5c184018b9c",
+   "lengte": 50322
   },
   {
    "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-10-villa-wassenaar.ifc",
@@ -28,7 +28,7 @@
   {
    "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
    "invoerSha256": "b7a7174bd81ec04cd59b8bd7c88cb3c9a464ca74773fd9fac8aa79ff6c081d06",
-   "uitvoerSha256": "3ba60bd6839c70ee842b4e683f8a56d3e1b2a1ce975cc0c0c280a443c320324a",
+   "uitvoerSha256": "987eaef271fd1dc181b6298358005a6d1e847d8404fdb09863c7b1e7f0d8b30f",
    "lengte": 59937
   },
   {
@@ -40,14 +40,14 @@
   {
    "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
    "invoerSha256": "9e35fff740cfa35fa4aea51cc1789bdc60f72a356329625a32273e299e45ac7b",
-   "uitvoerSha256": "2965302aaf6f92af785fcccad4ce843be5c145e6fd697fd4274cfcd7a5acae8b",
-   "lengte": 59430
+   "uitvoerSha256": "25ba84554df8dd0cc13bb2c68b3700c95052e5e9ad8b5003355bee095b0e0267",
+   "lengte": 59431
   },
   {
    "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc",
    "invoerSha256": "198478f47a91019ebea69674f3b8cda3d03df84f268421e87810fd461e57928f",
-   "uitvoerSha256": "64d297b8ccd92b3fa544e80ec17760719c007f0a40f433be0237cb0e994afc66",
-   "lengte": 59401
+   "uitvoerSha256": "30fb8d5eed2f4d2d7429f5a25ad54c27cffd5538934b2d94207de29b32dd5961",
+   "lengte": 59157
   },
   {
    "pad": "tests/planning/fixtures/h7-tijden-oude-writer.ifc",

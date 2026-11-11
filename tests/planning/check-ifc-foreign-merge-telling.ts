@@ -1,3 +1,4 @@
+import { readbackDifference } from './ifcReadbackEquality';
 // #804 fase 1b, bijsturing 1 punt 2: hoe vaak ziet de planner `merge-needs-phase2`?
 //
 // Per corpusbestand met een vreemd deel (`tests/fixtures/ifc-foreign/`, ook `council/`, en de oude eigen bestanden in
@@ -220,11 +221,18 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
         ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
       }
       if (!outcome.ok) {
+        console.log('WEIGERING GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label, gevallen: outcome.error.cases }));
         for (const k of outcome.kinds) bump(t.refused, k);
         if (edit.kind !== 'niets') {
           for (const key of new Set(outcome.error.cases.filter(c => c.kind === 'niet-gedragen' && c.sourceId !== undefined).map(c => fieldOf(index, c)))) bump(fields, key);
         }
         continue;
+      }
+      const viaBytes = await openForeign(outcome.bytes);
+      const difference = readbackDifference(outcome.shown, viaBytes);
+      if (difference) {
+        console.log('LEESWEG VERSCHIL ' + JSON.stringify({ bestand: where, bewerking: edit.label, difference }));
+        fail('naad en volledige bytes-route: ' + difference); continue;
       }
       const problems = mergeProblems(source.bytes, outcome.bytes);
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }
