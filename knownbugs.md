@@ -1941,7 +1941,13 @@ en noem het in je rapport of PR-tekst.
      bestand kan, met een tekst dat het model er niet in zit." Sinds fixronde 2 van #886 weigert elke IFC-opslag van zo'n
      document (`sourceMissing` op het kenmerk, `ifcSaveBlocked` in `src/state/ifcForeignGuard.ts`), zoals vóór de crash.
      Bij 1c: het echte herstel (de bron teruglezen op sha256), en de keuze of Opslaan als met die tekst erbij komt; dat is
-     een productkeuze voor Ethan. Besluit van Trias (wrakko, 11 november 2026). — B
+     een productkeuze voor Ethan. Besluit van Trias (wrakko, 11 november 2026).
+     Hoort erbij, ook bij 1c op te lossen: het herstel zet `sourceMissing` op elk kenmerk, ook als het document vóór de
+     crash geen vreemd deel had. Het tussengeval: een MCP-backup met kenmerk (gemaakt in een sessie met de flag aan) wordt
+     later geopend, ook met de flag uit; hij kan dan opslaan naar een ander doel dan de bron. Crasht de app daarna, dan
+     weigert het herstelde document elke IFC-opslag, terwijl main daar nog schreef. Zonder een sessie met de flag aan
+     ontstaat geen kenmerk, dus een planner die de flag nooit aanzette komt hier niet. Besluit van Trias (11 november
+     2026): zo laten in #886, niet vergeten in 1c. — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
