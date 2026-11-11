@@ -234,13 +234,14 @@ export function firstDiff(a: string, b: string): string {
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
   | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
-/** `recalculate`: na `apply` rekent de app door (F5, `recalculated`); `applyEdit` doet beide. */
-export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<void>; readonly recalculate?: boolean }
+/** `applyEdit` neemt een nieuw domein uit een storeactie over, of behoudt het gemuteerde domein; daarna optioneel F5. */
+export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean }
 
 /** Een bewerking toepassen, met doorrekenen als ze dat vraagt. */
 export async function applyEdit(edit: Edit, d: Domain): Promise<Domain> {
-  await edit.apply(d);
-  return edit.recalculate ? recalculated(d) : d;
+  const changed = await edit.apply(d);
+  const next = changed ? changed : d;
+  return edit.recalculate ? recalculated(next) : next;
 }
 
 const byId = (d: Domain) => new Map(d.tasks.map(t => [t.id, t]));
@@ -369,7 +370,7 @@ export function ordinaryEdits(d: Domain): Edit[] {
         result = store.getState().enterTaskProgress(leaf.id, edit, { ...opts, actualStart: result.question.latest });
       }
       if (!result.ok) throw new Error(`voortgangsinvoer ${leaf.id}: ${result.reason}`);
-      Object.assign(x, buildWriteIFCInput(store.getState()));
+      return buildWriteIFCInput(store.getState());
     } });
   }
   return out;

@@ -45,7 +45,10 @@ for (const task of longer.tasks) {
 }
 assert.equal(fields, 12, 'de twaalf opnieuw berekende tijdvelden van de eerdere stop');
 // De gedeelde voortgangsbewerking gebruikt enterTaskProgress, inclusief bevestigen van een startvraag.
-const progressed = await applyEdit(ordinaryEdits(opened).find(e => e.kind === 'voortgang')!, cloneDomain(opened));
+const beforeProgress = cloneDomain(opened);
+beforeProgress.importPristine = true;
+const progressed = await applyEdit(ordinaryEdits(opened).find(e => e.kind === 'voortgang')!, beforeProgress);
+assert.equal(progressed.importPristine, undefined, 'de echte invoer wist ook de oude importvlag');
 const progressTask = progressed.tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
 assert.equal(progressTask.time.completion, 0.5);
 assert.equal(progressTask.status, 'STARTED');
