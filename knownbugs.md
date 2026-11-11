@@ -1907,17 +1907,18 @@ en noem het in je rapport of PR-tekst.
      van Trias (wrakko, 11 november 2026): BLOKKEERT vóór 1c, in dezelfde kleine PR als 1108; voortgang bijwerken is
      gewoon werk van elke planner. Uit #886. — B
 
-1107. **Vóór 1c: de volledige herleestoets van de merge, gestopt op een nieuwe weigering.** De verplichte naad
-     op het planningsdeel staat als eerste versie in PR #903: `writeIfcMerge` krijgt de open-stappen als callback op
-     `ImportResult`, en vergelijkt hun uitkomst met de invoer. Zonder callback weigert hij getypeerd. De bouw is volgens
-     de opdracht gestopt op `eigen-plus-model.ifc`, gewone bewerking `duur` (`task-mvp6eel7qyht28 een dag langer`): de
-     herberekening bij openen wijzigt 12 tijdvelden op drie taken. Eerste verschil: `task-mvp6eel2x2ge26.time.lateStart`,
-     `2027-05-12T07:00` wordt `2027-05-11T07:00`. De merge schreef dit eerder; de nieuwe toets weigert het. Met de toets
-     tijdelijk uit schrijft hij weer, en de volledige bytes-route bevestigt dezelfde afwijkende planning als de naad.
-     Geen reparatie gedaan. De volledige telling, de tien oude eigen bestanden, het grote model en de nieuwe kosten
-     moeten nog worden getoetst; 1107 is niet afgerond. Bewijs:
-     `docs/superpowers/evidence/2026-11-11-1107-planningsdeel-stop.md`. Gevonden door Terra in review van #886;
-     concrete herberekenafwijking bevestigd op 11 november 2026. — B
+1107. **Vóór 1c: volledige herleestoets via verplichte open-stappen, gebouwd in #903; bevindingen nog overdragen.**
+     De naad vergelijkt `open-stappen(readPlanning(uitvoer))` met `open-stappen(domein)`, volgens `shownAfterOpen` uit
+     #886. Zonder functie weigert hij getypeerd. De eerdere stop op een duurwijziging zonder F5 is vervallen; dat geval
+     schrijft en is een blijvende proef. De gelijkheid van de naad met volledig heropenen is getoetst voor elke geschreven
+     merge in de telling, de tien oude eigen bestanden en een gegenereerd model van 10 MiB met een duurwijziging.
+     Telling: 2516 geschreven, 747 geweigerd, 0 anders, tegenover 2562/701/0. Alle 46 nieuwe weigeringen staan per geval in
+     `docs/superpowers/evidence/1107-heropenkosten/v3/nieuwe-weigeringen.md`: 40 zijn directe voortgangsmutaties van de
+     bestaande telling, buiten de echte invoeracties; 6 volgen uit taak wissen en betreffen de kalenderlijst. Niet
+     gerepareerd; geen bewezen verlies op een echte plannerroute. Via `setActualFinish` staat de rest al vóór opslaan op
+     0 en blijft zij na beide open-wegen 0. De teller van #898 is niet aangepast. De strikte en behoudsproeven gebruiken
+     voor vier betrokken bewerkingen nu de echte setters. Kosten en volledig bewijs:
+     `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft

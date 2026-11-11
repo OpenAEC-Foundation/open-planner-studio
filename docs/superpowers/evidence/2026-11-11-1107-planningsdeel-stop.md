@@ -1,3 +1,5 @@
+> Historisch bewijs; de actuele uitvoering en uitkomsten staan in [1107-herleestoets](2026-11-11-1107-herleestoets.md).
+
 # 1107: de naad op het planningsdeel, gestopt op een nieuwe weigering
 
 **BEVESTIGD: een merge die eerst schreef, weigert nu doordat heropenen de planning verandert.** Daarom volgens de

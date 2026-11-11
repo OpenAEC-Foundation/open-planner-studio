@@ -1,0 +1,6 @@
+
+> open-planner-studio@2026.45.0 typecheck
+> tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/ops-tsc/app.tsbuildinfo && tsc --noEmit -p tsconfig.tests.json --incremental --tsBuildInfoFile node_modules/.cache/ops-tsc/tests.tsbuildinfo
+
+
+EXIT:0

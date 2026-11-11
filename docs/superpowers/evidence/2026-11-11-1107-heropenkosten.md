@@ -1,3 +1,5 @@
+> Historisch bewijs; de actuele uitvoering en uitkomsten staan in [1107-herleestoets](2026-11-11-1107-herleestoets.md).
+
 # Kostenvoorwaarde vóór de verplichte herleestoets (1107)
 
 **Gestopt wegens de kosten**, volgens de expliciete opdracht van Trias. De verplichte naad is nog niet gebouwd.

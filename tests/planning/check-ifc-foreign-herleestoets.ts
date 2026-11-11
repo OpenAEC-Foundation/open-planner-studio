@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generatedModel } from './ifcGeneratedModel';
+import { storeWith } from './ifcAppRoute';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
 import { canon, cloneDomain, ordinaryEdits, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
@@ -45,19 +46,22 @@ for (const task of longer.tasks) {
 assert.equal(fields, 12, 'de twaalf opnieuw berekende tijdvelden van de eerdere stop');
 console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de uitvoer en gelijkheid met volledige heropening');
 
-// Observatie van knownbug 1113: alleen een werkelijk einde invoeren. Niet hier repareren.
+// Observatie van 1113 via de echte setter: de rest hoort vóór opslaan al 0 te zijn.
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
   const raw = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc'), 'utf8');
   const o = await openForeign(generatedModel(root, raw, 0));
-  const input = cloneDomain(o);
-  const task = input.tasks.find(t => t.name === 'Set up site')!;
+  const { store, buildWriteIFCInput } = await storeWith(cloneDomain(o));
+  const task = store.getState().tasks.find(t => t.name === 'Set up site')!;
   const before = task.time.remainingTime;
-  task.time.actualFinish = task.time.scheduleFinish;
+  assert.equal(store.getState().setActualFinish(task.id, task.time.scheduleFinish), true);
+  const input = buildWriteIFCInput(store.getState());
+  const afterEntry = input.tasks.find(t => t.id === task.id)!.time.remainingTime;
+  assert.equal(afterEntry, 0, 'de echte invoer zet de rest al vóór opslaan op 0');
   const shown = await shownAfterOpen(input);
   const normalized = shown.tasks.find(t => t.id === task.id)!.time.remainingTime;
   const merge = await tryMerge(input, o.ifcSource!);
-  console.log('1113', JSON.stringify({ before, normalized, merge: merge.ok ? 'schrijft' : merge.error.cases }));
+  console.log('1113', JSON.stringify({ route: 'setActualFinish', before, afterEntry, normalized, merge: merge.ok ? 'schrijft' : merge.error.cases }));
   if (merge.ok) {
     const full = await openForeign(merge.bytes);
     console.log('1113 naad/bytes', merge.shown.tasks.find(t => t.id === task.id)!.time.remainingTime, full.tasks.find(t => t.id === task.id)!.time.remainingTime);

@@ -1,0 +1,823 @@
+OK  batterij-inventaris: 24/24 casusbestanden aanwezig
+OK  check-scriptinventaris: 242 check(s) zonder eigen regel draaien automatisch mee: check-alap-chain.ts check-alap-maatplaatsing.ts check-app-quit.ts check-arrow-hour-anchor.ts check-bar-progress.ts check-baseline-oude-dagtelling.ts check-baseline-referentie.ts check-baseline-vergelijking.ts check-bulk-scale.ts check-calendar-arith.ts check-calendar-change-scale.ts check-calendar-day-span.ts check-capacity-tolerance.ts check-code-value-volgorde.ts check-contour-unit-switch.ts check-cost-resource.ts check-count-labels-i18n.ts check-cpm-writeback.ts check-critical-bar-colors-route.ts check-dag-is-werktijd.ts check-dag-uur-lag.ts check-dagenmaat-lopers.ts check-dcma.ts check-default-work-rule-switch.ts check-dependent-projects.ts check-dev-open-link.ts check-docs-dagen-en-uren.ts check-docs-resources-voorbeelden.ts check-docs-structure.ts check-docs-translations.ts check-document-switch-identity.ts check-duration-measure.ts check-export-profile-hint.ts check-ext-help.ts check-ext-notify.ts check-extension-lifecycle.ts check-external-lag-calendar.ts check-external-lag-days.ts check-external-open-source.ts check-external-provenance.ts check-external-source-load.ts check-external-source-update.ts check-external-source-watch.ts check-external-successor-late.ts check-external-successor-violation.ts check-external-summary.ts check-f3b-production-compat.ts check-f4b-contourdagen.ts check-f4b-datuminvoer.ts check-f4b-datumweergave.ts check-f4b-maatinvoer.ts check-f4b-rapportduur.ts check-f4b-review-r1.ts check-f4b-review-r2.ts check-f4b-review-r3.ts check-f4b-review-r4.ts check-f4b-splits.ts check-f4b-voortgangsduur.ts check-feature-flags.ts check-file-drop.ts check-first-start.ts check-format-notice.ts check-gantt-arrow-clip.ts check-grid-resource-load-reuse.ts check-guide-placement.ts check-headless-core.ts check-help-manifest.ts check-hours-f1-review.ts check-hours-f1-status.ts check-hours-f2-review.ts check-icon-accent-text.ts check-icon-family.ts check-ifc-arity.ts check-ifc-building-model-guard.ts check-ifc-calendar-index.ts check-ifc-crlf.ts check-ifc-dagenmaat.ts check-ifc-dagkalender-hele-dag.ts check-ifc-datumvorm.ts check-ifc-duur-lezen.ts check-ifc-duurvormen.ts check-ifc-external-links.ts check-ifc-foreign-classify.ts check-ifc-foreign-herleestoets.ts check-ifc-foreign-open.ts check-ifc-foreign-oude-eigen.ts check-ifc-foreign-preserve.ts check-ifc-foreign-strikt.ts check-ifc-foreign-target.ts check-ifc-globalid.ts check-ifc-legacy-arity.ts check-ifc-literaltimes-behoud.ts check-ifc-lopend-100.ts check-ifc-nesting-index.ts check-ifc-projectdatum-tijd.ts check-ifc-property-relations.ts check-ifc-pset-register.ts check-ifc-real-values.ts check-ifc-schema-question.ts check-ifc-schema-reader.ts check-ifc-schema.ts check-ifc-step-encoding.ts check-ifc-target-model-scan.ts check-ifc-urenperdag-blokken.ts check-ifc-werktijd-per-dag.ts check-import-datum-zonder-tijd.ts check-import-explicit-rest.ts check-import-namen-werkweek.ts check-import-tz-offset.ts check-import-unique-ids.ts check-kalender-ms-randen.ts check-kalender-ms-wandeling.ts check-lange-keten.ts check-leveler-candidate-axis.ts check-leveler-differential.ts check-leveler-forward.ts check-load-profile.ts check-mijlpaal-afmelden.ts check-milestone-drag.ts check-minmax-spread.ts check-minute-model-boundaries.ts check-minute-model-compat.ts check-minute-model-examples.ts check-minute-model-ifc.ts check-minute-model-input.ts check-minute-model-routes.ts check-minute-model-scale.ts check-minute-model-transition.ts check-minute-model.ts check-move-candidates-scale.ts check-mpp-corpus-contract.ts check-mpp-open-notice.ts check-mpp-walk-units.ts check-mspdi-cross-project.ts check-mspdi-export-klok-capaciteit-drempel.ts check-mspdi-export-kritiek-uren-melding.ts check-mspdi-feestdagen.ts check-mspdi-hour-baseline.ts check-mspdi-open-notice.ts check-mspdi-uitzondering-hele-dag.ts check-mspdi-werktijd-minuten.ts check-msproject-float-default.ts check-native-menu.ts check-new-project-view-rows.ts check-new-task-measure.ts check-open-failure-detail.ts check-p6-ff-day-hour.ts check-p6xml-calendar-rules.ts check-p6xml-constraint-labels.ts check-p6xml-corpus.ts check-p6xml-export-loss.ts check-p6xml-nested.ts check-p6xml-open-notice.ts check-p6xml-project-code.ts check-p6xml-writer-labels.ts check-p6xml-writer-p6.ts check-p6xml-xer-parity.ts check-placement-load.ts check-print-bar-moments.ts check-progress-import-ronde.ts check-progress-sheet-middernacht.ts check-progress-sinds-export.ts check-raster-datum-ongewijzigd.ts check-recent-open.ts check-recorded-dates-library.ts check-recovery-content.ts check-recovery-lock-refusal.ts check-recovery-refused-getter.ts check-recovery-refused-later.ts check-recovery-refused-missing.ts check-recovery-refused-transaction.ts check-recovery-refused.ts check-recovery-web-claim-order.ts check-recovery-web-hold.ts check-recovery-worker.ts check-refusal-lifetime.ts check-refusal-notices.ts check-render-caches.ts check-report-columns.ts check-report-font-setting.ts check-report-font.ts check-report-layouts.ts check-report-svg.ts check-resource-load-reuse.ts check-restduur-dagdelen.ts check-resttempo.ts check-restwerk-duurwijziging.ts check-run-ts-cleanup.ts check-save-failure-status.ts check-settings-storage-blocked.ts check-shift-explanation.ts check-short-hour-task-load.ts check-shown-dates-formats.ts check-site-host-preferences.ts check-site-storage.ts check-split-solver-placement.ts check-statusdatum-lijn.ts check-statusdatum-tijd.ts check-summary-bar-progress.ts check-summary-relation-prune.ts check-task-grid-published-selection.ts check-theme-contrast.ts check-time-notation.ts check-translate-apply.ts check-translate-docs.ts check-translate-gates.ts check-translate-labels.ts check-translate-prepare.ts check-translate-tbx.ts check-translate-termfix.ts check-tutorial-project.ts check-undo-coalesce-grid.ts check-undo-memory-cap.ts check-uren-f5a-adapters.ts check-uren-f5a2-adapters.ts check-uren-f5b-adapters.ts check-uren-zonder-spatie.ts check-urenperdag-dagwissel.ts check-urenperdag-heropenen.ts check-vandaag-lokaal.ts check-wbs-auto-on-open.ts check-werkdag-einde.ts check-wiki-links.ts check-work-decimals.ts check-work-rule-actual-history.ts check-work-rule-completed.ts check-work-rule-days-measure.ts check-work-rule-explain.ts check-work-rule-load-measure.ts check-work-rule-measure-switch.ts check-workday-axis-nav.ts check-xer-archive-recovery-once.ts check-xer-lag-kalender-leeg.ts check-xer-number-pattern-cache.ts check-xer-status-afleiden.ts check-xer-wbs-tree.ts check-xer-writer-review.ts check-xer-writer.ts check-xml-dagenrecord-afronding.ts check-xml-default-scope.ts check-xml-export-text.ts check-xml-onleesbare-taakdatums.ts
+NIEUW WEIGERT voorbeelden/03-kantoorgebouw-zuidas.ifc + wand · task-mvp6ekzn9tj51307 begonnen, 50 %: taak task-mvp6ekzn9tj51307.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT voorbeelden/05-brugvervanging-n279.ifc + wand · task-mvp6els2gmuz1596 begonnen, 50 %: taak task-mvp6els2gmuz1596.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT voorbeelden/08-zorgcentrum-de-linde.ifc + wand · task-mvp6em9bnwhw1863 begonnen, 50 %: taak task-mvp6em9bnwhw1863.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT voorbeelden/10-villa-wassenaar.ifc + wand · task-mvp6emoa2cse2052 begonnen, 50 %: taak task-mvp6emoa2cse2052.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT voorbeelden/15-datacentrum-agriport.ifc + wand · task-mvp6enbzh3og2430 begonnen, 50 %: taak task-mvp6enbzh3og2430.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT voorbeelden/showcase-appartementencomplex.ifc + wand · task-mvzf5vqrnrs0365 begonnen, 50 %: taak task-mvzf5vqgsuyr363.time.floatPath: undefined → 2
+NIEUW WEIGERT voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand · task-mvtzzl5imxxk94 begonnen, 50 %: taak task-mvtzzl5dzu4993.time.scheduleDuration: 49 → 10
+NIEUW WEIGERT voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand · task-mvp6eel7qyht28 begonnen, 50 %: taak task-mvp6eel7qyht28.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT fixtures/1026-voor.ifc + wand · task-mvp6ekzn9tj51307 begonnen, 50 %: taak task-mvp6ekzn9tj51307.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT h7-tijden-oude-writer.ifc + wand · task-muid03m2d3yp6 wissen: planning.resourceCalendars.0.id: "rescal-ifc-$FxXapUfGJILc3THOjNhMt" → "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz"
+NIEUW WEIGERT h7-tijden-oude-writer.ifc + wand · task-muid03mez0ja8 wissen: planning.resourceCalendars.1.id: "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz" → "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1"
+NIEUW WEIGERT h7-tijden-oude-writer.ifc + wand · task-muid03mqme6o10 wissen: planning.resourceCalendars.2.id: "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1" → "rescal-ifc-S19xwPcXFFKzr7AH0darqF"
+NIEUW WEIGERT h7-tijden-oude-writer.ifc + wand · task-muid03m2d3yp6 begonnen, 50 %: taak task-muid03m2d3yp6.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT fixtures/ifc-arity-oude-writer.ifc + wand · task-mula7vhu11iq28 begonnen, 50 %: taak task-mula7vhs4kam27.time.totalFloat: -15 → -16
+NIEUW WEIGERT oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc · task-ifc-ex4BXpMP3FSB8fiH4duFN$ begonnen, 50 %: taak task-ifc-ex4BXpMP3FSB8fiH4duFN$.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand · task-mv75dvvw9aws2052 begonnen, 50 %: taak task-mv75dvvw9aws2052.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand · task-mv75dvvw9aws2052 begonnen, 50 %: taak task-mv75dvvw9aws2052.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand · task-ifc-M31T0HPt1NxX2jTHeDbnX3 begonnen, 50 %: taak task-ifc-M31T0HPt1NxX2jTHeDbnX3.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc · task-ifc-6BEFhfevKpG$yfe$S9I$oR begonnen, 50 %: taak task-ifc-6BEFhfevKpG$yfe$S9I$oR.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand · task-ifc-_j2rFB79P78NtLEnkTKJwV begonnen, 50 %: taak task-ifc-_j2rFB79P78NtLEnkTKJwV.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand · task-ifc-_j2rFB79P78NtLEnkTKJwV begonnen, 50 %: taak task-ifc-_j2rFB79P78NtLEnkTKJwV.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT fixtures/urenperdag-oude-writer.ifc + wand · t-nacht wissen: planning.resourceCalendars.1.id: "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF" → "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k"
+NIEUW WEIGERT fixtures/urenperdag-oude-writer.ifc + wand · t-spanne wissen: planning.resourceCalendars.3.id: "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA" → "rescal-ifc-0RziPdFTfq46dL4sXPp8Es"
+NIEUW WEIGERT fixtures/urenperdag-oude-writer.ifc + wand · t-maandag wissen: planning.resourceCalendars.5.id: "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr" → "rescal-ifc-23WHkNns$nje3jcCxSzxkG"
+NIEUW WEIGERT fixtures/urenperdag-oude-writer.ifc + wand · t-late begonnen, 50 %: taak t-late.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT fixtures/vast-werk-oude-writer.ifc + wand · task-mvljx7ib9vca4 begonnen, 50 %: taak task-mvljx7ib9vca4.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT fixtures/werkdag-einde-main-bibliotheek.ifc + wand · task-mv5ydre9n8a46 begonnen, 50 %: taak task-mv5ydre9n8a46.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/fix1-leeg-live-bl.ifc · task-mvp6eel7qyht28 begonnen, 50 %: taak task-mvp6eel7qyht28.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/fix1-leeg-live.ifc · task-mvp6eel7qyht28 begonnen, 50 %: taak task-mvp6eel7qyht28.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/fix3-twee-data.ifc · task-mvp6ekzn9tj51307 begonnen, 50 %: taak task-mvp6ekzn9tj51307.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r4-k1-na-opslaan.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r4-k1.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r4-k2.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r4-k3.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r5-eigen-plus-bonsai-baseline.ifc · task-mvp6eel7qyht28 begonnen, 50 %: taak task-mvp6eel7qyht28.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r5-prop.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r5sol-gedeelde-calendar-pset.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r5sol-onbekende-property.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r6sol-dynamisch-OPS_ActivityCodes.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r6sol-dynamisch-OPS_Assignments.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r6sol-twee-werkplannen-na-volgorderegel.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r6sol-twee-werkplannen.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r7sol-twee-werkplannen-bronplek.ifc · task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %: taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT council/r8sol-zonder-lege-notitie-pset.ifc · task-mvp6ekzn9tj51307 begonnen, 50 %: taak task-mvp6ekzn9tj51307.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT eigen-plus-model.ifc · task-mvp6eel7qyht28 begonnen, 50 %: taak task-mvp6eel7qyht28.status: "NOT_STARTED" → "STARTED"
+NIEUW WEIGERT oud-eigen-0.1-plus-model.ifc · task-ifc-_j2rFB79P78NtLEnkTKJwV begonnen, 50 %: taak task-ifc-_j2rFB79P78NtLEnkTKJwV.status: "NOT_STARTED" → "STARTED"
+| bestand | bewerking | aantal | gelukt | merge-needs-phase2 (geval: aantal) | anders |
+|---|---|---|---|---|---|
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | relatie-erbij | 2 | 2 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | relatie-erbij | 1 | 1 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | relatie-erbij | 3 | 3 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | relatie-erbij | 2 | 2 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | relatie-erbij | 2 | 2 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | relatie-erbij | 2 | 2 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | relatie-erbij | 1 | 1 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | niets | 1 | 1 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | volgorde-kinderen | 5 | 5 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | relatie-erbij | 3 | 3 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | duur | 1 | 1 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/1026-voor.ifc + wand | niets | 1 | 1 | 0 | – |
+| fixtures/1026-voor.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| fixtures/1026-voor.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| fixtures/1026-voor.ifc + wand | volgorde-kinderen | 6 | 6 | 0 | – |
+| fixtures/1026-voor.ifc + wand | relatie-erbij | 2 | 2 | 0 | – |
+| fixtures/1026-voor.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| fixtures/1026-voor.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| fixtures/1026-voor.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| fixtures/1026-voor.ifc + wand | duur | 1 | 1 | 0 | – |
+| fixtures/1026-voor.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| fixtures/1026-voor.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| fixtures/1026-voor.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/b5-lopend-oude-writer.ifc + wand | niets | 1 | 1 | 0 | – |
+| fixtures/b5-lopend-oude-writer.ifc + wand | taak-wissen | 1 | 1 | 0 | – |
+| fixtures/b5-lopend-oude-writer.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| fixtures/b5-lopend-oude-writer.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| fixtures/b5-lopend-oude-writer.ifc + wand | duur | 1 | 1 | 0 | – |
+| fixtures/b5-lopend-oude-writer.ifc + wand | voortgang | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/b5-lopend-oude-writer.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/backup-met-kenmerk.ifc + wand | niets | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | andere-ouder | 5 | 0 | 5 (niet-gedragen 5) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | niveau-hoger | 5 | 0 | 5 (niet-gedragen 5) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | volgorde-kinderen | 5 | 0 | 5 (niet-gedragen 5) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | relatie-erbij | 3 | 0 | 3 (niet-gedragen 3) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | taak-wissen | 5 | 0 | 5 (niet-gedragen 5) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | taak-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | hernoemen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | duur | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | toewijzing-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | voortgang | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/backup-met-kenmerk.ifc + wand | doorrekenen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | niets | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | volgorde-kinderen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | relatie-erbij | 5 | 0 | 5 (niet-gedragen 5) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | taak-wissen | 5 | 1 | 4 (niet-eenduidig 3, niet-gedragen 4) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | taak-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | hernoemen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | duur | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | voortgang | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/h7-kalender-oude-writer.ifc + wand | doorrekenen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| h7-tijden-oude-writer.ifc + wand | niets | 1 | 1 | 0 | – |
+| h7-tijden-oude-writer.ifc + wand | volgorde-kinderen | 1 | 1 | 0 | – |
+| h7-tijden-oude-writer.ifc + wand | relatie-erbij | 4 | 4 | 0 | – |
+| h7-tijden-oude-writer.ifc + wand | taak-wissen | 5 | 2 | 3 (planning-na-openen 3) | – |
+| h7-tijden-oude-writer.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| h7-tijden-oude-writer.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| h7-tijden-oude-writer.ifc + wand | duur | 1 | 1 | 0 | – |
+| h7-tijden-oude-writer.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| h7-tijden-oude-writer.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | niets | 1 | 0 | 1 (niet-eenduidig 1, niet-gedragen 1) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | andere-ouder | 5 | 0 | 5 (niet-eenduidig 5, niet-gedragen 5) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | niveau-hoger | 5 | 0 | 5 (niet-eenduidig 5, niet-gedragen 5) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | volgorde-kinderen | 5 | 0 | 5 (niet-eenduidig 5, niet-gedragen 5) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | relatie-erbij | 4 | 0 | 4 (niet-eenduidig 4, niet-gedragen 4) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | taak-wissen | 5 | 0 | 5 (niet-eenduidig 5, niet-gedragen 5) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | taak-erbij | 1 | 0 | 1 (niet-eenduidig 1, niet-gedragen 1) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | hernoemen | 1 | 0 | 1 (niet-eenduidig 1, niet-gedragen 1) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | duur | 1 | 0 | 1 (niet-eenduidig 1, niet-gedragen 1) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | toewijzing-erbij | 1 | 0 | 1 (niet-eenduidig 1, niet-gedragen 1) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | voortgang | 1 | 0 | 1 (niet-eenduidig 1, niet-gedragen 1) | – |
+| fixtures/ifc-arity-oude-writer-merged.ifc | doorrekenen | 1 | 0 | 1 (niet-eenduidig 1, niet-gedragen 1) | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | niets | 1 | 1 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | andere-ouder | 5 | 5 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | niveau-hoger | 5 | 5 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | volgorde-kinderen | 5 | 5 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | relatie-erbij | 3 | 3 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | taak-wissen | 5 | 3 | 2 (niet-gedragen 2) | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | duur | 1 | 1 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| fixtures/ifc-arity-oude-writer.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | niets | 1 | 1 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | niveau-hoger | 34 | 34 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | volgorde-kinderen | 7 | 7 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | relatie-erbij | 19 | 19 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | duur | 1 | 1 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | niveau-hoger | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | volgorde-kinderen | 8 | 8 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | relatie-erbij | 11 | 11 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | niveau-hoger | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | volgorde-kinderen | 8 | 8 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | relatie-erbij | 11 | 11 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | voortgang | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | niveau-hoger | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | volgorde-kinderen | 8 | 8 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | relatie-erbij | 11 | 11 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | andere-ouder | 20 | 20 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | niveau-hoger | 15 | 15 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | volgorde-kinderen | 5 | 5 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | relatie-erbij | 8 | 8 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | taak-wissen | 20 | 20 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | niveau-hoger | 34 | 34 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | volgorde-kinderen | 7 | 7 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | relatie-erbij | 19 | 19 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | niveau-hoger | 40 | 40 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | volgorde-kinderen | 8 | 8 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | relatie-erbij | 11 | 11 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | voortgang | 1 | 1 | 0 | – |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | niveau-hoger | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | volgorde-kinderen | 8 | 8 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | relatie-erbij | 11 | 11 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | niveau-hoger | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | volgorde-kinderen | 8 | 8 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | relatie-erbij | 11 | 11 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | voortgang | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | niets | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | andere-ouder | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | niveau-hoger | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | volgorde-kinderen | 8 | 8 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | relatie-erbij | 11 | 11 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | taak-wissen | 40 | 40 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | duur | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | niets | 1 | 1 | 0 | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | volgorde-kinderen | 1 | 1 | 0 | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | relatie-erbij | 5 | 5 | 0 | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | taak-wissen | 5 | 2 | 3 (planning-na-openen 3) | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | duur | 1 | 1 | 0 | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| fixtures/urenperdag-oude-writer.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | niets | 1 | 1 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | volgorde-kinderen | 1 | 1 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | relatie-erbij | 5 | 5 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | taak-wissen | 5 | 5 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | duur | 1 | 1 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | toewijzing-erbij | 1 | 1 | 0 | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| fixtures/vast-werk-oude-writer.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | niets | 1 | 1 | 0 | – |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | taak-wissen | 1 | 1 | 0 | – |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | taak-erbij | 1 | 1 | 0 | – |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | hernoemen | 1 | 1 | 0 | – |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | duur | 1 | 1 | 0 | – |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | doorrekenen | 1 | 1 | 0 | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | niets | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | volgorde-kinderen | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | taak-wissen | 2 | 0 | 2 (duur-deels-gelezen 2) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | taak-erbij | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | hernoemen | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | duur | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | toewijzing-erbij | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | voortgang | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/werkdag-einde-tussenwaarde.ifc | doorrekenen | 1 | 0 | 1 (duur-deels-gelezen 1) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | niets | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | volgorde-kinderen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | taak-wissen | 2 | 0 | 2 (niet-gedragen 2) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | taak-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | hernoemen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | duur | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | voortgang | 1 | 0 | 1 (niet-gedragen 1) | – |
+| fixtures/xer-archief-herschreven.ifc + wand | doorrekenen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| bonsai-4d.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| bonsai-4d.ifc | andere-ouder | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| bonsai-4d.ifc | niveau-hoger | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| bonsai-4d.ifc | volgorde-kinderen | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| bonsai-4d.ifc | relatie-erbij | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| bonsai-4d.ifc | taak-wissen | 4 | 0 | 4 (gemengde-relatie 2, niet-gedragen 4, verwijderd 4, vreemde-herkomst 4) | – |
+| bonsai-4d.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| bonsai-4d.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| bonsai-4d.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| bonsai-4d.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| bonsai-4d.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| bonsai-4d.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| complexe-instanties.ifc | niets | 1 | 1 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | niets | 1 | 1 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | andere-ouder | 20 | 20 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | niveau-hoger | 15 | 15 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | volgorde-kinderen | 5 | 5 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | relatie-erbij | 8 | 8 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | taak-wissen | 20 | 20 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | duur | 1 | 1 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| council/fix1-leeg-live-bl.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/fix1-leeg-live-bl.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/fix1-leeg-live.ifc | niets | 1 | 1 | 0 | – |
+| council/fix1-leeg-live.ifc | andere-ouder | 20 | 20 | 0 | – |
+| council/fix1-leeg-live.ifc | niveau-hoger | 15 | 15 | 0 | – |
+| council/fix1-leeg-live.ifc | volgorde-kinderen | 5 | 5 | 0 | – |
+| council/fix1-leeg-live.ifc | relatie-erbij | 8 | 8 | 0 | – |
+| council/fix1-leeg-live.ifc | taak-wissen | 20 | 20 | 0 | – |
+| council/fix1-leeg-live.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/fix1-leeg-live.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/fix1-leeg-live.ifc | duur | 1 | 1 | 0 | – |
+| council/fix1-leeg-live.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| council/fix1-leeg-live.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/fix1-leeg-live.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/fix2-vendor-ops.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/fix2-vendor-ops.ifc | andere-ouder | 40 | 0 | 40 (niet-gedragen 40, vreemde-herkomst 40) | – |
+| council/fix2-vendor-ops.ifc | niveau-hoger | 40 | 0 | 40 (niet-gedragen 40, vreemde-herkomst 40) | – |
+| council/fix2-vendor-ops.ifc | volgorde-kinderen | 8 | 0 | 8 (niet-gedragen 8, vreemde-herkomst 8) | – |
+| council/fix2-vendor-ops.ifc | relatie-erbij | 9 | 0 | 9 (niet-gedragen 9, vreemde-herkomst 9) | – |
+| council/fix2-vendor-ops.ifc | taak-wissen | 40 | 0 | 40 (niet-gedragen 40, vreemde-herkomst 40) | – |
+| council/fix2-vendor-ops.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/fix2-vendor-ops.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/fix2-vendor-ops.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/fix2-vendor-ops.ifc | toewijzing-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/fix2-vendor-ops.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/fix2-vendor-ops.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/fix3-twee-data.ifc | niets | 1 | 1 | 0 | – |
+| council/fix3-twee-data.ifc | andere-ouder | 40 | 40 | 0 | – |
+| council/fix3-twee-data.ifc | niveau-hoger | 40 | 40 | 0 | – |
+| council/fix3-twee-data.ifc | volgorde-kinderen | 8 | 8 | 0 | – |
+| council/fix3-twee-data.ifc | relatie-erbij | 9 | 9 | 0 | – |
+| council/fix3-twee-data.ifc | taak-wissen | 40 | 40 | 0 | – |
+| council/fix3-twee-data.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/fix3-twee-data.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/fix3-twee-data.ifc | duur | 1 | 1 | 0 | – |
+| council/fix3-twee-data.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| council/fix3-twee-data.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/fix3-twee-data.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/proef-bonsai-achtig.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/proef-bonsai-achtig.ifc | niveau-hoger | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/proef-bonsai-achtig.ifc | taak-wissen | 2 | 0 | 2 (gemengde-relatie 2, niet-gedragen 2, verwijderd 2, vreemde-herkomst 2) | – |
+| council/proef-bonsai-achtig.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/proef-bonsai-achtig.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/proef-bonsai-achtig.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/proef-bonsai-achtig.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/proef-bonsai-achtig.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/proef-bonsai-achtig.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r4-k1-na-opslaan.ifc | niets | 1 | 1 | 0 | – |
+| council/r4-k1-na-opslaan.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r4-k1-na-opslaan.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r4-k1-na-opslaan.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r4-k1-na-opslaan.ifc | duur | 1 | 1 | 0 | – |
+| council/r4-k1-na-opslaan.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r4-k1-na-opslaan.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r4-k1.ifc | niets | 1 | 1 | 0 | – |
+| council/r4-k1.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r4-k1.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r4-k1.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r4-k1.ifc | duur | 1 | 1 | 0 | – |
+| council/r4-k1.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r4-k1.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r4-k2.ifc | niets | 1 | 1 | 0 | – |
+| council/r4-k2.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r4-k2.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r4-k2.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r4-k2.ifc | duur | 1 | 1 | 0 | – |
+| council/r4-k2.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r4-k2.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r4-k3.ifc | niets | 1 | 1 | 0 | – |
+| council/r4-k3.ifc | taak-wissen | 1 | 1 | 0 | – |
+| council/r4-k3.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r4-k3.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r4-k3.ifc | duur | 1 | 1 | 0 | – |
+| council/r4-k3.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r4-k3.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | niets | 1 | 1 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | andere-ouder | 20 | 20 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | niveau-hoger | 15 | 15 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | volgorde-kinderen | 5 | 5 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | relatie-erbij | 8 | 8 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | taak-wissen | 20 | 20 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | duur | 1 | 1 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r5-eigen-plus-bonsai-baseline.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r5-prop.ifc | niets | 1 | 1 | 0 | – |
+| council/r5-prop.ifc | taak-wissen | 1 | 1 | 0 | – |
+| council/r5-prop.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r5-prop.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r5-prop.ifc | duur | 1 | 1 | 0 | – |
+| council/r5-prop.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r5-prop.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r5sol-gedeelde-calendar-pset.ifc | niets | 1 | 1 | 0 | – |
+| council/r5sol-gedeelde-calendar-pset.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r5sol-gedeelde-calendar-pset.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r5sol-gedeelde-calendar-pset.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r5sol-gedeelde-calendar-pset.ifc | duur | 1 | 1 | 0 | – |
+| council/r5sol-gedeelde-calendar-pset.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r5sol-gedeelde-calendar-pset.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r5sol-onbekende-property.ifc | niets | 1 | 1 | 0 | – |
+| council/r5sol-onbekende-property.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r5sol-onbekende-property.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r5sol-onbekende-property.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r5sol-onbekende-property.ifc | duur | 1 | 1 | 0 | – |
+| council/r5sol-onbekende-property.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r5sol-onbekende-property.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r5sol-parallelle-relaties.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r5sol-parallelle-relaties.ifc | niveau-hoger | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r5sol-parallelle-relaties.ifc | taak-wissen | 2 | 0 | 2 (gemengde-relatie 2, niet-gedragen 2, verwijderd 2, vreemde-herkomst 2) | – |
+| council/r5sol-parallelle-relaties.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r5sol-parallelle-relaties.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r5sol-parallelle-relaties.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r5sol-parallelle-relaties.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r5sol-parallelle-relaties.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r5sol-parallelle-relaties.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | niveau-hoger | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | taak-wissen | 2 | 0 | 2 (gemengde-relatie 2, niet-gedragen 2, verwijderd 2, vreemde-herkomst 2) | – |
+| council/r6opus-twee-werkplannen.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | niveau-hoger | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | taak-wissen | 2 | 0 | 2 (gemengde-relatie 2, niet-gedragen 2, verwijderd 2, vreemde-herkomst 2) | – |
+| council/r6opus-twee-werkplannen.na.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6opus-twee-werkplannen.na.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | niets | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | duur | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | niets | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | duur | 1 | 1 | 0 | – |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | niveau-hoger | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | taak-wissen | 2 | 0 | 2 (gemengde-relatie 2, niet-gedragen 2, verwijderd 2, vreemde-herkomst 2) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-herkomst-na-eerste-opslag.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | niets | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | niveau-hoger | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | taak-wissen | 2 | 0 | 2 (gemengde-relatie 2, niet-gedragen 2, verwijderd 2, vreemde-herkomst 2) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | taak-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | hernoemen | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | duur | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | voortgang | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-losse-bonsai-toewijzing.ifc | doorrekenen | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | niets | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | duur | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen.ifc | niets | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r6sol-twee-werkplannen.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen.ifc | duur | 1 | 1 | 0 | – |
+| council/r6sol-twee-werkplannen.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r6sol-twee-werkplannen.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r7fable-eigen-oh-planning.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7fable-eigen-oh-planning.ifc | niveau-hoger | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7fable-eigen-oh-planning.ifc | taak-wissen | 2 | 0 | 2 (gemengde-relatie 2, niet-gedragen 2, verwijderd 2, vreemde-herkomst 2) | – |
+| council/r7fable-eigen-oh-planning.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7fable-eigen-oh-planning.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7fable-eigen-oh-planning.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7fable-eigen-oh-planning.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7fable-eigen-oh-planning.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7fable-eigen-oh-planning.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| council/r7sol-twee-werkplannen-bronplek.ifc | niets | 1 | 1 | 0 | – |
+| council/r7sol-twee-werkplannen-bronplek.ifc | taak-wissen | 1 | 0 | 1 (verwijderd 1) | – |
+| council/r7sol-twee-werkplannen-bronplek.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r7sol-twee-werkplannen-bronplek.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r7sol-twee-werkplannen-bronplek.ifc | duur | 1 | 1 | 0 | – |
+| council/r7sol-twee-werkplannen-bronplek.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r7sol-twee-werkplannen-bronplek.ifc | doorrekenen | 1 | 1 | 0 | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | niets | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | andere-ouder | 40 | 0 | 40 (niet-gedragen 40) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | niveau-hoger | 40 | 0 | 40 (niet-gedragen 40) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | volgorde-kinderen | 8 | 0 | 8 (niet-gedragen 8) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | relatie-erbij | 9 | 0 | 9 (niet-gedragen 9) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | taak-wissen | 40 | 0 | 40 (niet-gedragen 40, verwijderd 2) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | duur | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | toewijzing-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | niets | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | andere-ouder | 40 | 0 | 40 (niet-gedragen 40) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | niveau-hoger | 40 | 0 | 40 (niet-gedragen 40) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | volgorde-kinderen | 8 | 0 | 8 (niet-gedragen 8) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | relatie-erbij | 9 | 0 | 9 (niet-gedragen 9) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | taak-wissen | 40 | 0 | 40 (niet-gedragen 40, verwijderd 2) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | duur | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | toewijzing-erbij | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1) | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | niets | 1 | 1 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | andere-ouder | 40 | 40 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | niveau-hoger | 40 | 40 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | volgorde-kinderen | 8 | 8 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | relatie-erbij | 9 | 9 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | taak-wissen | 40 | 40 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | taak-erbij | 1 | 1 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | hernoemen | 1 | 1 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | duur | 1 | 1 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| council/r8sol-zonder-lege-notitie-pset.ifc | doorrekenen | 1 | 1 | 0 | – |
+| crlf-commentaar.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| crlf-commentaar.ifc | andere-ouder | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| crlf-commentaar.ifc | niveau-hoger | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| crlf-commentaar.ifc | volgorde-kinderen | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| crlf-commentaar.ifc | relatie-erbij | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| crlf-commentaar.ifc | taak-wissen | 4 | 0 | 4 (gemengde-relatie 2, niet-gedragen 4, verwijderd 4, vreemde-herkomst 4) | – |
+| crlf-commentaar.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| crlf-commentaar.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| crlf-commentaar.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| crlf-commentaar.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| crlf-commentaar.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| crlf-commentaar.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | andere-ouder | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | niveau-hoger | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| dubbele-globalids.ifc | volgorde-kinderen | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| dubbele-globalids.ifc | relatie-erbij | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| dubbele-globalids.ifc | taak-wissen | 4 | 0 | 4 (gemengde-relatie 2, niet-gedragen 4, verwijderd 4, vreemde-herkomst 4) | – |
+| dubbele-globalids.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| dubbele-globalids.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| eigen-plus-model.ifc | niets | 1 | 1 | 0 | – |
+| eigen-plus-model.ifc | andere-ouder | 20 | 20 | 0 | – |
+| eigen-plus-model.ifc | niveau-hoger | 15 | 15 | 0 | – |
+| eigen-plus-model.ifc | volgorde-kinderen | 5 | 5 | 0 | – |
+| eigen-plus-model.ifc | relatie-erbij | 8 | 8 | 0 | – |
+| eigen-plus-model.ifc | taak-wissen | 20 | 20 | 0 | – |
+| eigen-plus-model.ifc | taak-erbij | 1 | 1 | 0 | – |
+| eigen-plus-model.ifc | hernoemen | 1 | 1 | 0 | – |
+| eigen-plus-model.ifc | duur | 1 | 1 | 0 | – |
+| eigen-plus-model.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| eigen-plus-model.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| eigen-plus-model.ifc | doorrekenen | 1 | 1 | 0 | – |
+| latin1.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| latin1.ifc | andere-ouder | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| latin1.ifc | niveau-hoger | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| latin1.ifc | volgorde-kinderen | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| latin1.ifc | relatie-erbij | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| latin1.ifc | taak-wissen | 4 | 0 | 4 (gemengde-relatie 2, niet-gedragen 4, verwijderd 4, vreemde-herkomst 4) | – |
+| latin1.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| latin1.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| latin1.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| latin1.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| latin1.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| latin1.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| model-ifc4.ifc | niets | 1 | 1 | 0 | – |
+| model-ifc4x3.ifc | niets | 1 | 1 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | niets | 1 | 1 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | andere-ouder | 40 | 40 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | niveau-hoger | 40 | 40 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | volgorde-kinderen | 8 | 8 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | relatie-erbij | 11 | 11 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | taak-wissen | 40 | 40 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | taak-erbij | 1 | 1 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | hernoemen | 1 | 1 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | duur | 1 | 1 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | toewijzing-erbij | 1 | 1 | 0 | – |
+| oud-eigen-0.1-plus-model.ifc | voortgang | 1 | 0 | 1 (planning-na-openen 1) | – |
+| oud-eigen-0.1-plus-model.ifc | doorrekenen | 1 | 1 | 0 | – |
+| twee-werkplannen.ifc | niets | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| twee-werkplannen.ifc | andere-ouder | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| twee-werkplannen.ifc | niveau-hoger | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| twee-werkplannen.ifc | volgorde-kinderen | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| twee-werkplannen.ifc | relatie-erbij | 2 | 0 | 2 (niet-gedragen 2, vreemde-herkomst 2) | – |
+| twee-werkplannen.ifc | taak-wissen | 4 | 0 | 4 (gemengde-relatie 2, niet-gedragen 4, verwijderd 4, vreemde-herkomst 4) | – |
+| twee-werkplannen.ifc | taak-erbij | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| twee-werkplannen.ifc | hernoemen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| twee-werkplannen.ifc | duur | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| twee-werkplannen.ifc | toewijzing-erbij | 1 | 0 | 1 (gemengde-relatie 1, niet-gedragen 1, vreemde-herkomst 1) | – |
+| twee-werkplannen.ifc | voortgang | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+| twee-werkplannen.ifc | doorrekenen | 1 | 0 | 1 (niet-gedragen 1, vreemde-herkomst 1) | – |
+
+| bewerking | aantal | gelukt | merge-needs-phase2 | anders |
+|---|---|---|---|---|
+| niets | 67 | 47 | 20 (duur-deels-gelezen 1, gemengde-relatie 1, niet-eenduidig 1, niet-gedragen 19, vreemde-herkomst 13) | 0 |
+| andere-ouder | 765 | 630 | 135 (niet-eenduidig 5, niet-gedragen 135, vreemde-herkomst 45) | 0 |
+| niveau-hoger | 740 | 593 | 147 (gemengde-relatie 1, niet-eenduidig 5, niet-gedragen 147, vreemde-herkomst 57) | 0 |
+| volgorde-kinderen | 227 | 180 | 47 (duur-deels-gelezen 1, niet-eenduidig 5, niet-gedragen 46, vreemde-herkomst 18) | 0 |
+| relatie-erbij | 268 | 219 | 49 (niet-eenduidig 4, niet-gedragen 49, vreemde-herkomst 19) | 0 |
+| taak-wissen | 832 | 642 | 190 (duur-deels-gelezen 2, gemengde-relatie 24, niet-eenduidig 8, niet-gedragen 172, planning-na-openen 6, verwijderd 48, vreemde-herkomst 74) | 0 |
+| taak-erbij | 64 | 44 | 20 (duur-deels-gelezen 1, gemengde-relatie 1, niet-eenduidig 1, niet-gedragen 19, vreemde-herkomst 13) | 0 |
+| hernoemen | 64 | 44 | 20 (duur-deels-gelezen 1, gemengde-relatie 1, niet-eenduidig 1, niet-gedragen 19, vreemde-herkomst 13) | 0 |
+| duur | 64 | 44 | 20 (duur-deels-gelezen 1, gemengde-relatie 1, niet-eenduidig 1, niet-gedragen 19, vreemde-herkomst 13) | 0 |
+| toewijzing-erbij | 44 | 26 | 18 (duur-deels-gelezen 1, gemengde-relatie 12, niet-eenduidig 1, niet-gedragen 17, vreemde-herkomst 13) | 0 |
+| voortgang | 64 | 3 | 61 (duur-deels-gelezen 1, gemengde-relatie 1, niet-eenduidig 1, niet-gedragen 20, planning-na-openen 40, vreemde-herkomst 13) | 0 |
+| doorrekenen | 64 | 44 | 20 (duur-deels-gelezen 1, gemengde-relatie 1, niet-eenduidig 1, niet-gedragen 19, vreemde-herkomst 13) | 0 |
+
+Totaal: 3263 bewerkingen, 2516 gelukt, 747 merge-needs-phase2, 0 anders; 67 bestanden met een vreemd deel; geweigerd bij openen: oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc + wand, model-ifc2x3.ifc.
+
+Per groep (alle bewerkingen behalve "niets"):
+
+| groep | bestanden | bewerkingen | gelukt | merge-needs-phase2 (geval: aantal) | anders |
+|---|---|---|---|---|---|
+| eigen, schrijft zonder bewerking | 48 | 2536 | 2468 | 68 (duur-deels-gelezen 9, niet-gedragen 3, planning-na-openen 46, verwijderd 10) | 0 |
+|  | velden achter niet-gedragen: 2 × IFCPROPERTYSET (OPS_TaskTypes) ontbreekt; 2 × IFCPROPERTYSINGLEVALUE (TaskTypes) ontbreekt; 2 × IFCRELDEFINESBYPROPERTIES (van OPS_TaskTypes) ontbreekt | | | | |
+| eigen, weigert zonder bewerking | 6 | 369 | 1 | 368 (niet-eenduidig 33, niet-gedragen 368, verwijderd 4) | 0 |
+|  | velden achter niet-gedragen: 286 × IFCPROPERTYSINGLEVALUE (Notes) ontbreekt; 143 × IFCPROPERTYSET (OPS_TaskNotes) argument 4; 143 × IFCPROPERTYSET (OPS_TaskNotes) ontbreekt | | | | |
+| ander programma | 13 | 291 | 0 | 291 (gemengde-relatie 42, niet-gedragen 291, verwijderd 34, vreemde-herkomst 291) | 0 |
+|  | velden achter niet-gedragen: 148 × IFCORGANIZATION argument 1; 148 × IFCRELASSIGNSTOCONTROL argument 0; 148 × IFCRELASSIGNSTOCONTROL argument 4 | | | | |
+
+Zonder bewerking: 6 van de 54 eigen bestanden met een vreemd deel krijgen niet-gedragen, samen 36 meldingen.
+De velden die het vaakst de oorzaak zijn:
+  2 × IFCPROPERTYSET (OPS_Calendar) argument 4 (1 bestanden)
+  2 × IFCPROPERTYSINGLEVALUE (ByteLength) ontbreekt (2 bestanden)
+  2 × IFCPROPERTYSINGLEVALUE (Notes) ontbreekt (2 bestanden)
+  2 × IFCPROPERTYSINGLEVALUE (Sha256) ontbreekt (2 bestanden)
+  2 × IFCPROPERTYSINGLEVALUE (WorkingExceptionIds) ontbreekt (1 bestanden)
+  2 × IFCRECURRENCEPATTERN ontbreekt (1 bestanden)
+  2 × IFCTIMEPERIOD ontbreekt (1 bestanden)
+  2 × IFCWORKTIME argument 3 (1 bestanden)
+  1 × IFCPROPERTYSET (OPS_RecoveryForeignSource) ontbreekt (1 bestanden)
+  1 × IFCPROPERTYSET (OPS_TaskNotes) argument 4 (1 bestanden)
+
+Zonder bewerking, per eigen bestand:
+
+| eigen bestand | zonder bewerking (route van de app) | oude testroute (de lezer direct) |
+|---|---|---|
+| complexe-instanties.ifc | schrijft | weigert (planning-na-openen) |
+| council/fix1-leeg-live-bl.ifc | schrijft | schrijft |
+| council/fix1-leeg-live.ifc | schrijft | schrijft |
+| council/fix3-twee-data.ifc | schrijft | schrijft |
+| council/r4-k1-na-opslaan.ifc | schrijft | schrijft |
+| council/r4-k1.ifc | schrijft | schrijft |
+| council/r4-k2.ifc | schrijft | schrijft |
+| council/r4-k3.ifc | schrijft | schrijft |
+| council/r5-eigen-plus-bonsai-baseline.ifc | schrijft | schrijft |
+| council/r5-prop.ifc | schrijft | schrijft |
+| council/r5sol-gedeelde-calendar-pset.ifc | schrijft | schrijft |
+| council/r5sol-onbekende-property.ifc | schrijft | schrijft |
+| council/r6sol-dynamisch-OPS_ActivityCodes.ifc | schrijft | schrijft |
+| council/r6sol-dynamisch-OPS_Assignments.ifc | schrijft | schrijft |
+| council/r6sol-twee-werkplannen-na-volgorderegel.ifc | schrijft | schrijft |
+| council/r6sol-twee-werkplannen.ifc | schrijft | schrijft |
+| council/r7sol-twee-werkplannen-bronplek.ifc | schrijft | schrijft |
+| council/r7sol-vreemd-lid-bij-notitie.ifc | weigert (niet-gedragen); mag: een lege notitielijst '[]' (knownbug 1101) | weigert (niet-gedragen) |
+| council/r7sol-vreemd-lid-bij-toewijzing.ifc | weigert (niet-gedragen); mag: een lege notitielijst '[]' (knownbug 1101) | weigert (niet-gedragen) |
+| council/r8sol-zonder-lege-notitie-pset.ifc | schrijft | schrijft |
+| eigen-plus-model.ifc | schrijft | schrijft |
+| fixtures/1026-voor.ifc + wand | schrijft | schrijft |
+| fixtures/b5-lopend-oude-writer.ifc + wand | schrijft | schrijft |
+| fixtures/backup-met-kenmerk.ifc + wand | weigert (niet-gedragen); mag: het herstelkenmerk van een back-up; een back-up heeft zelf geen vreemd deel | schrijft |
+| fixtures/h7-kalender-oude-writer.ifc + wand | weigert (niet-gedragen); mag: de bronwaarden van werkplan en werkschema geven na herlezen een andere planning (knownbug 1108) | weigert (niet-gedragen) |
+| fixtures/ifc-arity-oude-writer-merged.ifc | weigert (niet-eenduidig, niet-gedragen); mag: een werktijd zonder eenduidige tegenhanger (knownbug 1108) | weigert (niet-eenduidig, niet-gedragen) |
+| fixtures/ifc-arity-oude-writer.ifc + wand | schrijft | schrijft |
+| fixtures/urenperdag-oude-writer.ifc + wand | schrijft | schrijft |
+| fixtures/vast-werk-oude-writer.ifc + wand | schrijft | schrijft |
+| fixtures/werkdag-einde-main-bibliotheek.ifc + wand | schrijft | schrijft |
+| fixtures/werkdag-einde-tussenwaarde.ifc | weigert (duur-deels-gelezen); mag: een speling 'PT72H' met een tijddeel: de lezer leest hem exact, de merge houdt de voorzichtige lijst (knownbug 1152) | weigert (duur-deels-gelezen) |
+| fixtures/xer-archief-herschreven.ifc + wand | weigert (niet-gedragen); mag: SchemaVersion van het XER-bronarchief komt niet terug (knownbug 1108) | weigert (niet-gedragen) |
+| h7-tijden-oude-writer.ifc + wand | schrijft | schrijft |
+| model-ifc4.ifc | schrijft | weigert (planning-na-openen) |
+| model-ifc4x3.ifc | schrijft | weigert (planning-na-openen) |
+| oud-eigen-0.1-plus-model.ifc | schrijft | schrijft |
+| oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc | schrijft | schrijft |
+| oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand | schrijft | schrijft |
+| oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc | schrijft | schrijft |
+| oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| voorbeelden/03-kantoorgebouw-zuidas.ifc + wand | schrijft | schrijft |
+| voorbeelden/05-brugvervanging-n279.ifc + wand | schrijft | schrijft |
+| voorbeelden/08-zorgcentrum-de-linde.ifc + wand | schrijft | schrijft |
+| voorbeelden/10-villa-wassenaar.ifc + wand | schrijft | schrijft |
+| voorbeelden/15-datacentrum-agriport.ifc + wand | schrijft | schrijft |
+| voorbeelden/showcase-appartementencomplex.ifc + wand | schrijft | schrijft |
+| voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand | schrijft | schrijft |
+| voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand | schrijft | schrijft |
+OK  ifc-foreign-merge-telling: 3263 merges over 67 bestanden, elk gelukt of getypeerd geweigerd (491.5 s)
+
+############################################################################
+##  GERICHTE RUN — dit is niet de volledige poort.
+##  549 van de 550 check-*.ts-regressiebatterijen zijn
+##  overgeslagen, plus de tijdzone-matrix onderaan dit script.
+##  Draai 'bash tests/planning/run.sh' zonder argumenten voor de volledige poort
+##  vóór je op dit resultaat vertrouwt (bijv. vóór een commit of PR).
+############################################################################
+
+EINDOORDEEL planningssuite: GROEN (exit 0)
+
+EXIT:0

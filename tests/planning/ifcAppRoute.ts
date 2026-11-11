@@ -150,3 +150,16 @@ export async function openReadPlanning(parsed: WriteIFCInput, side: 'uitvoer' | 
   store.getState().openAsDocument(structuredClone(parsed), { name: 'bron.ifc', ref: null });
   return buildWriteIFCInput(store.getState());
 }
+
+/** Voortgang in een proef langs dezelfde setters als de app; ook status, rest en bewerkingsherkomst gaan mee. */
+export async function applyTaskProgress(input: WriteIFCInput, taskId: string,
+  edits: readonly import('@/engine/progressEntry').ProgressEdit[]): Promise<void> {
+  const { store, buildWriteIFCInput } = await storeWith(input);
+  for (const edit of edits) {
+    const state = store.getState();
+    const accepted = edit.field === 'completion' ? state.setTaskProgress(taskId, edit.value)
+      : edit.field === 'actualStart' ? state.setActualStart(taskId, edit.value) : state.setActualFinish(taskId, edit.value);
+    if (!accepted) throw new Error(`voortgangsinvoer geweigerd: ${taskId}.${edit.field}`);
+  }
+  Object.assign(input, buildWriteIFCInput(store.getState()));
+}

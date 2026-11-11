@@ -1,0 +1,7 @@
+
+> open-planner-studio@2026.45.0 verify:store-boundaries
+> node scripts/verify-store-boundaries.mjs
+
+OK — store-runtimegrenzen bewaakt in 22 storegebonden modules, 2 kernmodules en 16 modules van de headless MCP-server.
+
+EXIT:0

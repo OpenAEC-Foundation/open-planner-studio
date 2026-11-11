@@ -36,6 +36,7 @@ import {
   reopenPlain, shownAfterOpen, tryMerge, openReadPlanning,
   type Domain, type Opened,
 } from './ifcMergeKern';
+import { applyTaskProgress } from './ifcAppRoute';
 import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
@@ -97,12 +98,12 @@ function relationsOf(bytes: Uint8Array, type: string, relatingArg: number, relat
 }
 
 /** Eén volledige ronde: openen, merge zonder wijziging (of met `edit`), alle invarianten, herlezen en een tweede ronde. */
-async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) => void): Promise<{ out: Uint8Array; reread: Opened; opened: Opened } | undefined> {
+async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) => void | Promise<void>): Promise<{ out: Uint8Array; reread: Opened; opened: Opened } | undefined> {
   const opened = await openForeign(bytes);
   const source = opened.ifcSource;
   if (!source?.foreign) { diffs.push(`${label}: geen vreemd deel na openen`); checks++; return undefined; }
   const d = cloneDomain(opened);
-  edit?.(d);
+  await edit?.(d);
   let parts: Uint8Array[];
   try { parts = await writeIfcMerge(d, source, openReadPlanning); } catch (e) {
     diffs.push(`${label}: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => `${c.kind}: ${c.detail}`).slice(0, 3).join(' | ') : (e as Error).message})`);
@@ -461,7 +462,7 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
   try { opened = await openForeign(bytes); } catch (e) { diffs.push(`${label}: openen faalt (${(e as Error).message.slice(0, 120)})`); checks++; return; }
   if (!opened.ifcSource?.foreign) { diffs.push(`${label}: geen vreemd deel`); checks++; return; }
   const d = cloneDomain(opened);
-  edit?.(d);
+  await edit?.(d);
   let error: unknown;
   let parts: Uint8Array[] | undefined;
   try { parts = await writeIfcMerge(d, opened.ifcSource, openReadPlanning); } catch (e) { error = e; }
@@ -957,7 +958,7 @@ const renameTask = (from: string) => (d: Domain) => { taskNamed(d, from).name = 
 const T55 = "#55=IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D'";
 const KINDS: readonly {
   kind: string; label: string; bytes: Uint8Array; keep: RegExp;
-  field?: { label: string; edit: (d: Domain) => void; want: RegExp };
+  field?: { label: string; edit: (d: Domain) => void | Promise<void>; want: RegExp };
   other: { label: string; edit: (d: Domain) => void; want: RegExp };
 }[] = [
   {
@@ -1004,7 +1005,7 @@ const KINDS: readonly {
     kind: 'getal', label: 'IfcTaskTime.Completion 0.00',
     bytes: enc.encode(eigen.replace(/^(#50=IFCTASKTIME\((?:[^,]*,){19})\$/m, '$10.00')),
     keep: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.00\);/,
-    field: { label: 'het percentage', edit: (d) => { taskNamed(d, SET_UP).time.completion = 0.5; }, want: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.50?\);/ },
+    field: { label: 'het percentage', edit: (d) => applyTaskProgress(d, taskNamed(d, SET_UP).id, [{ field: 'completion', value: 0.5 }]), want: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.50?\);/ },
     other: { label: 'de naam (Name van de taaktijd)', edit: renameTask(SET_UP), want: /IFCTASKTIME\('Hernoemd Time'(?:,[^,;]*){18},0\.00\);/ },
   },
   {
@@ -1061,12 +1062,9 @@ await expectRefusal('(b) verwijzing: de writer zet een eenheid in de projecteenh
   const r = await roundTrip("plek 6: Status 'STARTED' zonder bewerking", started);
   if (r) ok("plek 6: Status 'STARTED' blijft staan", lineOf(r.out, '51').includes("'2.1',$,'STARTED',"));
   let edited: Domain | undefined;
-  const done = await roundTrip("plek 6: een taak met Status 'STARTED' afronden zonder werkelijk einde", started, (d) => {
+  const done = await roundTrip("plek 6: een taak met Status 'STARTED' afronden via de echte voortgangsinvoer", started, async (d) => {
     const t = taskNamed(d, SET_UP);
-    t.time.completion = 1;
-    t.time.actualStart = t.time.scheduleStart;
-    delete t.time.actualFinish;
-    t.status = 'COMPLETED';
+    await applyTaskProgress(d, t.id, [{ field: 'actualStart', value: t.time.scheduleStart }, { field: 'completion', value: 1 }]);
     edited = d;
   });
   if (done && edited) {

@@ -245,3 +245,26 @@ van de open-route. De bouw is gestopt volgens de opdracht: `eigen-plus-model.ifc
 Bewijs: `docs/superpowers/evidence/2026-11-11-1107-planningsdeel-stop.md`. Knownbug 1107 blijft open; de volledige telling,
 de tien oude eigen bestanden, het grote model en de nieuwe kosten zijn nog niet getoetst. Eerst beoordeling van de
 bevinding; de stop is geen toestemming om de vergelijking af te zwakken of de bewerking te repareren.
+
+## 1107: definitie uit #886 herbevestigd en beproefd (11 november 2026)
+
+De naad op het planningsdeel past de callback aan beide kanten toe: `uitvoer` (ImportResult van `readPlanning`) en
+`domein` (zonder writer/lezer, precies `shownAfterOpen`). De eerdere stop op twaalf bij heropenen berekende tijdvelden is
+vervallen. De duurwijziging zonder F5 schrijft weer. De nieuwe proef gebruikt voor 1113 de echte setter: rest 7/3 gaat
+vóór opslaan al naar 0, en blijft op beide open-wegen 0. Vier strikte/behoudsproeven zijn alleen voor hun invoer naar de
+bestaande setters omgezet; beide checks zijn groen. De telling zelf is niet aangepast.
+
+De volledige telling: 2516 geschreven, 747 getypeerd geweigerd, 0 anders (voorheen 2562/701/0). Alle geschreven merges
+geven via de naad en de volledige bytes-route dezelfde planning; ook de tien oude eigen bestanden en het model van
+10 MiB met duurwijziging zijn groen. Alle 46 nieuwe weigeringen zijn per bestand/bewerking/veld bewaard: 40 directe
+voortgangsmutaties van de oude telling (geen echte invoer), 6 taak-wisgevallen met een verschil in de kalenderlijst.
+Geen daarvan gerepareerd. Deze zes vragen beoordeling; de veertig vragen een aparte correctie van de tellerroute door
+de eigenaar, niet in deze PR. Geen verlies op een echte plannerroute bewezen.
+
+**Eis voor 1c:** 1c geeft de echte open-stappen mee aan de naad, met een test met de flag aan.
+
+De proef van Trias is gemaakt (duur-invoerveld alleen in de uitvoer vóór de echte herberekening gewijzigd); drie rode
+mutaties toetsen vergelijking, verplichte functie en gelijkheid van de twee leeswegen. Bronbestanden zijn met cp/cmp
+plus SHA-256 hersteld. Gemeten extra mergetijd 140/228 ms bij 5/10 MiB, callbacks samen 129/123 ms; geen nieuwe modelscan.
+De grote-modelproef kost 6,7 s inclusief genereren/bundelen, piek 377 MiB; één keer buiten de tijdzonematrix.
+Bewijs, alle gevallen en grenzen: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.

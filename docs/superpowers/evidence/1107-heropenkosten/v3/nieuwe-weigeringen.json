@@ -1,0 +1,278 @@
+[
+  {
+    "bestand": "voorbeelden/03-kantoorgebouw-zuidas.ifc + wand",
+    "bewerking": "task-mvp6ekzn9tj51307 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6ekzn9tj51307.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "voorbeelden/05-brugvervanging-n279.ifc + wand",
+    "bewerking": "task-mvp6els2gmuz1596 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6els2gmuz1596.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "voorbeelden/08-zorgcentrum-de-linde.ifc + wand",
+    "bewerking": "task-mvp6em9bnwhw1863 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6em9bnwhw1863.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "voorbeelden/10-villa-wassenaar.ifc + wand",
+    "bewerking": "task-mvp6emoa2cse2052 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6emoa2cse2052.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "voorbeelden/15-datacentrum-agriport.ifc + wand",
+    "bewerking": "task-mvp6enbzh3og2430 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6enbzh3og2430.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "voorbeelden/showcase-appartementencomplex.ifc + wand",
+    "bewerking": "task-mvzf5vqrnrs0365 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvzf5vqgsuyr363.time.floatPath: undefined → 2",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "voorbeelden/showcase-rijwoningen-de-akkers.ifc + wand",
+    "bewerking": "task-mvtzzl5imxxk94 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvtzzl5dzu4993.time.scheduleDuration: 49 → 10",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "voorbeelden/showcase-verbouwing-eengezinswoning.ifc + wand",
+    "bewerking": "task-mvp6eel7qyht28 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6eel7qyht28.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "fixtures/1026-voor.ifc + wand",
+    "bewerking": "task-mvp6ekzn9tj51307 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6ekzn9tj51307.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "h7-tijden-oude-writer.ifc + wand",
+    "bewerking": "task-muid03m2d3yp6 wissen",
+    "eersteVerschil": "planning.resourceCalendars.0.id: \"rescal-ifc-$FxXapUfGJILc3THOjNhMt\" → \"rescal-ifc-JRRH7LiFsfpdy9yHzDERfz\"",
+    "route": "taak wissen in bestaande telling"
+  },
+  {
+    "bestand": "h7-tijden-oude-writer.ifc + wand",
+    "bewerking": "task-muid03mez0ja8 wissen",
+    "eersteVerschil": "planning.resourceCalendars.1.id: \"rescal-ifc-JRRH7LiFsfpdy9yHzDERfz\" → \"rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1\"",
+    "route": "taak wissen in bestaande telling"
+  },
+  {
+    "bestand": "h7-tijden-oude-writer.ifc + wand",
+    "bewerking": "task-muid03mqme6o10 wissen",
+    "eersteVerschil": "planning.resourceCalendars.2.id: \"rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1\" → \"rescal-ifc-S19xwPcXFFKzr7AH0darqF\"",
+    "route": "taak wissen in bestaande telling"
+  },
+  {
+    "bestand": "h7-tijden-oude-writer.ifc + wand",
+    "bewerking": "task-muid03m2d3yp6 begonnen, 50 %",
+    "eersteVerschil": "taak task-muid03m2d3yp6.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "fixtures/ifc-arity-oude-writer.ifc + wand",
+    "bewerking": "task-mula7vhu11iq28 begonnen, 50 %",
+    "eersteVerschil": "taak task-mula7vhs4kam27.time.totalFloat: -15 → -16",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+    "bewerking": "task-ifc-ex4BXpMP3FSB8fiH4duFN$ begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-ex4BXpMP3FSB8fiH4duFN$.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oude-tags/v2026.43.0-10-villa-wassenaar.ifc + wand",
+    "bewerking": "task-mv75dvvw9aws2052 begonnen, 50 %",
+    "eersteVerschil": "taak task-mv75dvvw9aws2052.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc + wand",
+    "bewerking": "task-mv75dvvw9aws2052 begonnen, 50 %",
+    "eersteVerschil": "taak task-mv75dvvw9aws2052.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand",
+    "bewerking": "task-ifc-M31T0HPt1NxX2jTHeDbnX3 begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-M31T0HPt1NxX2jTHeDbnX3.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc",
+    "bewerking": "task-ifc-6BEFhfevKpG$yfe$S9I$oR begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-6BEFhfevKpG$yfe$S9I$oR.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oude-tags/v2026.9.0-10-villa-wassenaar.ifc + wand",
+    "bewerking": "task-ifc-_j2rFB79P78NtLEnkTKJwV begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-_j2rFB79P78NtLEnkTKJwV.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc + wand",
+    "bewerking": "task-ifc-_j2rFB79P78NtLEnkTKJwV begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-_j2rFB79P78NtLEnkTKJwV.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+    "bewerking": "t-nacht wissen",
+    "eersteVerschil": "planning.resourceCalendars.1.id: \"rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF\" → \"rescal-ifc-3WTqntjNdr5U$5qjw6xO7k\"",
+    "route": "taak wissen in bestaande telling"
+  },
+  {
+    "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+    "bewerking": "t-spanne wissen",
+    "eersteVerschil": "planning.resourceCalendars.3.id: \"rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA\" → \"rescal-ifc-0RziPdFTfq46dL4sXPp8Es\"",
+    "route": "taak wissen in bestaande telling"
+  },
+  {
+    "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+    "bewerking": "t-maandag wissen",
+    "eersteVerschil": "planning.resourceCalendars.5.id: \"rescal-ifc-2tjB_83sHJE7lTWFBaLSjr\" → \"rescal-ifc-23WHkNns$nje3jcCxSzxkG\"",
+    "route": "taak wissen in bestaande telling"
+  },
+  {
+    "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+    "bewerking": "t-late begonnen, 50 %",
+    "eersteVerschil": "taak t-late.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "fixtures/vast-werk-oude-writer.ifc + wand",
+    "bewerking": "task-mvljx7ib9vca4 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvljx7ib9vca4.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "fixtures/werkdag-einde-main-bibliotheek.ifc + wand",
+    "bewerking": "task-mv5ydre9n8a46 begonnen, 50 %",
+    "eersteVerschil": "taak task-mv5ydre9n8a46.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/fix1-leeg-live-bl.ifc",
+    "bewerking": "task-mvp6eel7qyht28 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6eel7qyht28.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/fix1-leeg-live.ifc",
+    "bewerking": "task-mvp6eel7qyht28 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6eel7qyht28.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/fix3-twee-data.ifc",
+    "bewerking": "task-mvp6ekzn9tj51307 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6ekzn9tj51307.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r4-k1-na-opslaan.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r4-k1.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r4-k2.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r4-k3.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r5-eigen-plus-bonsai-baseline.ifc",
+    "bewerking": "task-mvp6eel7qyht28 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6eel7qyht28.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r5-prop.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r5sol-gedeelde-calendar-pset.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r5sol-onbekende-property.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r6sol-dynamisch-OPS_ActivityCodes.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r6sol-dynamisch-OPS_Assignments.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r6sol-twee-werkplannen-na-volgorderegel.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r6sol-twee-werkplannen.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r7sol-twee-werkplannen-bronplek.ifc",
+    "bewerking": "task-ifc-urgPb5NfMvjfZ9SFNfwJQl begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-urgPb5NfMvjfZ9SFNfwJQl.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "council/r8sol-zonder-lege-notitie-pset.ifc",
+    "bewerking": "task-mvp6ekzn9tj51307 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6ekzn9tj51307.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "eigen-plus-model.ifc",
+    "bewerking": "task-mvp6eel7qyht28 begonnen, 50 %",
+    "eersteVerschil": "taak task-mvp6eel7qyht28.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  },
+  {
+    "bestand": "oud-eigen-0.1-plus-model.ifc",
+    "bewerking": "task-ifc-_j2rFB79P78NtLEnkTKJwV begonnen, 50 %",
+    "eersteVerschil": "taak task-ifc-_j2rFB79P78NtLEnkTKJwV.status: \"NOT_STARTED\" → \"STARTED\"",
+    "route": "directe veldwijziging, geen echte voortgangsinvoer"
+  }
+]

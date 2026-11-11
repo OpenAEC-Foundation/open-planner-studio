@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyTaskProgress } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
 import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, recalculated, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { readXER } from '@/services/xer/xerReader';
@@ -61,7 +62,7 @@ const REVIT_WALL = [
 type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'open-weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array };
 /** Elk bestand één keer openen; elke merge krijgt een kopie van het domein (de bron blijft gedeeld en onbewerkt). */
 const openedOf = new Map<Uint8Array, Opened>();
-async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void): Promise<Result> {
+async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void | Promise<void>): Promise<Result> {
   let opened = openedOf.get(bytes);
   if (!opened) {
     try { opened = await openForeign(bytes); } catch (e) {
@@ -73,7 +74,7 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
   }
   if (!opened.ifcSource?.foreign) return { label, outcome: 'fout', kinds: [], details: ['geen vreemd deel'] };
   const d = cloneDomain(opened);
-  edit?.(d, opened);
+  await edit?.(d, opened);
   let r: MergeOutcome;
   try { r = await tryMerge(d, opened.ifcSource); } catch (e) {
     return { label, outcome: 'fout', kinds: [], details: [`${(e as Error).name}: ${(e as Error).message.slice(0, 160)}`] };
@@ -87,7 +88,7 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
 }
 const results: Result[] = [];
 /** Een proef met de verwachte uitkomst: `schrijft`, of het geval van de weigering. */
-async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
+async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void | Promise<void>, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
   const r = await merge(`${plek} · ${label}`, bytes, edit);
   if (only && r.outcome === 'weigert') {
     const other = r.details.filter(x => !only.test(x));
@@ -939,8 +940,9 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   ok("plek 6: #63 is 'Build masonry walls' zonder Status", lineOf(latin1(eigen), '63') === "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,$,$,.F.,$,#62,.CONSTRUCTION.);");
   const onHold = latin1(setLine(eigen, 63, "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,'ON HOLD',$,.F.,$,#62,.CONSTRUCTION.);"));
   const t63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!;
-  const complete = (x: Domain, o: Opened) => {
-    const q = t63(x, o); q.time.completion = 1; q.status = 'COMPLETED' as never; q.time.actualStart = q.time.scheduleStart; q.time.actualFinish = q.time.scheduleFinish;
+  const complete = async (x: Domain, o: Opened) => {
+    const q = t63(x, o);
+    await applyTaskProgress(x, q.id, [{ field: 'actualStart', value: q.time.scheduleStart }, { field: 'actualFinish', value: q.time.scheduleFinish }]);
   };
   const statusOf = (s: string) => /^#\d+=IFCTASK\('06AdBvh4v8lXgXlHO1\$rfO',#\d+,'Build masonry walls',\$,\$,'[^']*',\$,('[^']*'|\$),/m.exec(s)?.[1];
   await proof('plek 6', "'ON HOLD', zonder bewerking", onHold, 'schrijft', undefined, has("'ON HOLD'"));
@@ -951,7 +953,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   if (done.out) {
     const o = await openForeign(onHold);
     const d = cloneDomain(o);
-    complete(d, o);
+    await complete(d, o);
     const writer = statusOf(writeIFC(d));
     ok(`plek 6: de Status na voltooien is die van de writer (${statusOf(text(done.out))} = ${writer})`, writer !== undefined && statusOf(text(done.out)) === writer);
   }
@@ -982,12 +984,12 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   const time63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!.time;
   const other = taskBy(eigenOpened, 65).time;
   await proof('VERVOLG', '.NOTDEFINED., zonder bewerking', notDefined, 'schrijft', undefined, keep);
-  const edits: [string, (x: Domain, o: Opened) => void][] = [
+  const edits: [string, (x: Domain, o: Opened) => void | Promise<void>][] = [
     ['het geplande begin', (x, o) => { time63(x, o).scheduleStart = '2027-05-07'; }],
     ['het geplande einde', (x, o) => { time63(x, o).scheduleFinish = '2027-05-14'; }],
     ['de duur', (x, o) => { time63(x, o).scheduleDuration += 1; }],
     ['vroeg en laat', (x, o) => { const t = time63(x, o); t.earlyStart = other.earlyStart; t.earlyFinish = other.earlyFinish; t.lateStart = other.lateStart; t.lateFinish = other.lateFinish; }],
-    ['het werkelijke begin', (x, o) => { time63(x, o).actualStart = '2027-05-06'; }],
+    ['het werkelijke begin', (x, o) => applyTaskProgress(x, taskBy(o, 63).id, [{ field: 'actualStart', value: '2027-05-06' }])],
     ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
   ];
   for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);

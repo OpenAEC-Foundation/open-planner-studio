@@ -1,0 +1,256 @@
+OK  batterij-inventaris: 24/24 casusbestanden aanwezig
+OK  check-scriptinventaris: 242 check(s) zonder eigen regel draaien automatisch mee: check-alap-chain.ts check-alap-maatplaatsing.ts check-app-quit.ts check-arrow-hour-anchor.ts check-bar-progress.ts check-baseline-oude-dagtelling.ts check-baseline-referentie.ts check-baseline-vergelijking.ts check-bulk-scale.ts check-calendar-arith.ts check-calendar-change-scale.ts check-calendar-day-span.ts check-capacity-tolerance.ts check-code-value-volgorde.ts check-contour-unit-switch.ts check-cost-resource.ts check-count-labels-i18n.ts check-cpm-writeback.ts check-critical-bar-colors-route.ts check-dag-is-werktijd.ts check-dag-uur-lag.ts check-dagenmaat-lopers.ts check-dcma.ts check-default-work-rule-switch.ts check-dependent-projects.ts check-dev-open-link.ts check-docs-dagen-en-uren.ts check-docs-resources-voorbeelden.ts check-docs-structure.ts check-docs-translations.ts check-document-switch-identity.ts check-duration-measure.ts check-export-profile-hint.ts check-ext-help.ts check-ext-notify.ts check-extension-lifecycle.ts check-external-lag-calendar.ts check-external-lag-days.ts check-external-open-source.ts check-external-provenance.ts check-external-source-load.ts check-external-source-update.ts check-external-source-watch.ts check-external-successor-late.ts check-external-successor-violation.ts check-external-summary.ts check-f3b-production-compat.ts check-f4b-contourdagen.ts check-f4b-datuminvoer.ts check-f4b-datumweergave.ts check-f4b-maatinvoer.ts check-f4b-rapportduur.ts check-f4b-review-r1.ts check-f4b-review-r2.ts check-f4b-review-r3.ts check-f4b-review-r4.ts check-f4b-splits.ts check-f4b-voortgangsduur.ts check-feature-flags.ts check-file-drop.ts check-first-start.ts check-format-notice.ts check-gantt-arrow-clip.ts check-grid-resource-load-reuse.ts check-guide-placement.ts check-headless-core.ts check-help-manifest.ts check-hours-f1-review.ts check-hours-f1-status.ts check-hours-f2-review.ts check-icon-accent-text.ts check-icon-family.ts check-ifc-arity.ts check-ifc-building-model-guard.ts check-ifc-calendar-index.ts check-ifc-crlf.ts check-ifc-dagenmaat.ts check-ifc-dagkalender-hele-dag.ts check-ifc-datumvorm.ts check-ifc-duur-lezen.ts check-ifc-duurvormen.ts check-ifc-external-links.ts check-ifc-foreign-classify.ts check-ifc-foreign-herleestoets.ts check-ifc-foreign-open.ts check-ifc-foreign-oude-eigen.ts check-ifc-foreign-preserve.ts check-ifc-foreign-strikt.ts check-ifc-foreign-target.ts check-ifc-globalid.ts check-ifc-legacy-arity.ts check-ifc-literaltimes-behoud.ts check-ifc-lopend-100.ts check-ifc-nesting-index.ts check-ifc-projectdatum-tijd.ts check-ifc-property-relations.ts check-ifc-pset-register.ts check-ifc-real-values.ts check-ifc-schema-question.ts check-ifc-schema-reader.ts check-ifc-schema.ts check-ifc-step-encoding.ts check-ifc-target-model-scan.ts check-ifc-urenperdag-blokken.ts check-ifc-werktijd-per-dag.ts check-import-datum-zonder-tijd.ts check-import-explicit-rest.ts check-import-namen-werkweek.ts check-import-tz-offset.ts check-import-unique-ids.ts check-kalender-ms-randen.ts check-kalender-ms-wandeling.ts check-lange-keten.ts check-leveler-candidate-axis.ts check-leveler-differential.ts check-leveler-forward.ts check-load-profile.ts check-mijlpaal-afmelden.ts check-milestone-drag.ts check-minmax-spread.ts check-minute-model-boundaries.ts check-minute-model-compat.ts check-minute-model-examples.ts check-minute-model-ifc.ts check-minute-model-input.ts check-minute-model-routes.ts check-minute-model-scale.ts check-minute-model-transition.ts check-minute-model.ts check-move-candidates-scale.ts check-mpp-corpus-contract.ts check-mpp-open-notice.ts check-mpp-walk-units.ts check-mspdi-cross-project.ts check-mspdi-export-klok-capaciteit-drempel.ts check-mspdi-export-kritiek-uren-melding.ts check-mspdi-feestdagen.ts check-mspdi-hour-baseline.ts check-mspdi-open-notice.ts check-mspdi-uitzondering-hele-dag.ts check-mspdi-werktijd-minuten.ts check-msproject-float-default.ts check-native-menu.ts check-new-project-view-rows.ts check-new-task-measure.ts check-open-failure-detail.ts check-p6-ff-day-hour.ts check-p6xml-calendar-rules.ts check-p6xml-constraint-labels.ts check-p6xml-corpus.ts check-p6xml-export-loss.ts check-p6xml-nested.ts check-p6xml-open-notice.ts check-p6xml-project-code.ts check-p6xml-writer-labels.ts check-p6xml-writer-p6.ts check-p6xml-xer-parity.ts check-placement-load.ts check-print-bar-moments.ts check-progress-import-ronde.ts check-progress-sheet-middernacht.ts check-progress-sinds-export.ts check-raster-datum-ongewijzigd.ts check-recent-open.ts check-recorded-dates-library.ts check-recovery-content.ts check-recovery-lock-refusal.ts check-recovery-refused-getter.ts check-recovery-refused-later.ts check-recovery-refused-missing.ts check-recovery-refused-transaction.ts check-recovery-refused.ts check-recovery-web-claim-order.ts check-recovery-web-hold.ts check-recovery-worker.ts check-refusal-lifetime.ts check-refusal-notices.ts check-render-caches.ts check-report-columns.ts check-report-font-setting.ts check-report-font.ts check-report-layouts.ts check-report-svg.ts check-resource-load-reuse.ts check-restduur-dagdelen.ts check-resttempo.ts check-restwerk-duurwijziging.ts check-run-ts-cleanup.ts check-save-failure-status.ts check-settings-storage-blocked.ts check-shift-explanation.ts check-short-hour-task-load.ts check-shown-dates-formats.ts check-site-host-preferences.ts check-site-storage.ts check-split-solver-placement.ts check-statusdatum-lijn.ts check-statusdatum-tijd.ts check-summary-bar-progress.ts check-summary-relation-prune.ts check-task-grid-published-selection.ts check-theme-contrast.ts check-time-notation.ts check-translate-apply.ts check-translate-docs.ts check-translate-gates.ts check-translate-labels.ts check-translate-prepare.ts check-translate-tbx.ts check-translate-termfix.ts check-tutorial-project.ts check-undo-coalesce-grid.ts check-undo-memory-cap.ts check-uren-f5a-adapters.ts check-uren-f5a2-adapters.ts check-uren-f5b-adapters.ts check-uren-zonder-spatie.ts check-urenperdag-dagwissel.ts check-urenperdag-heropenen.ts check-vandaag-lokaal.ts check-wbs-auto-on-open.ts check-werkdag-einde.ts check-wiki-links.ts check-work-decimals.ts check-work-rule-actual-history.ts check-work-rule-completed.ts check-work-rule-days-measure.ts check-work-rule-explain.ts check-work-rule-load-measure.ts check-work-rule-measure-switch.ts check-workday-axis-nav.ts check-xer-archive-recovery-once.ts check-xer-lag-kalender-leeg.ts check-xer-number-pattern-cache.ts check-xer-status-afleiden.ts check-xer-wbs-tree.ts check-xer-writer-review.ts check-xer-writer.ts check-xml-dagenrecord-afronding.ts check-xml-default-scope.ts check-xml-export-text.ts check-xml-onleesbare-taakdatums.ts
+| proef | uitkomst |
+|---|---|
+| plek 1–3 · fix3: '1. Preparation' wissen (knownbug 1026, opgelost met #872) | schrijft |
+| plek 1 · fix3: wissen + projectnaam | schrijft |
+| plek 3 · fix3: wissen + Earthworks hernoemen | schrijft |
+| plek 3 · fix3: wissen + elke andere taak een notitie | schrijft |
+| plek 2–3 · fix3: wissen + elke andere taak hernoemd | schrijft |
+| plek 2 · fix3: wissen + elke andere taak een veld in `time` zonder slot | schrijft |
+| plek 3 · fix3: elke taak hernoemd (zonder wissen) | schrijft |
+| plek 1 · fix3: projectnaam (zonder wissen) | schrijft |
+| doel · fix3: merge zonder bewerking, de uitvoer als doel | schrijft |
+| doel · fix3: merge projectnaam, de uitvoer als doel | schrijft |
+| dubbel id · verstopte wand #402, zonder bewerking | schrijft |
+| dubbel id · verstopte wand #402, hernoemd | schrijft |
+| dubbel id · verstopte wand #402, een taak erbij | schrijft |
+| dubbel id · verstopte wand #403, zonder bewerking | schrijft |
+| dubbel id · verstopte wand #403, hernoemd | schrijft |
+| dubbel id · verstopte wand #403, een taak erbij | schrijft |
+| dubbel id · verstopte property #402, zonder bewerking | schrijft |
+| dubbel id · verstopte property #402, hernoemd | schrijft |
+| dubbel id · verstopte property #402, een taak erbij | schrijft |
+| dubbel id · 'zie #999999' in een string, zonder bewerking | schrijft |
+| dubbel id · 'zie #999999' in een string, hernoemd | schrijft |
+| dubbel id · 'zie #999999' in een string, een taak erbij | schrijft |
+| dubbel id · gewoon commentaar, zonder bewerking | schrijft |
+| dubbel id · gewoon commentaar, hernoemd | schrijft |
+| dubbel id · gewoon commentaar, een taak erbij | schrijft |
+| dubbel id · een getal boven de grens van de scanner, zonder bewerking | schrijft |
+| dubbel id · een getal boven de grens van de scanner, hernoemd | schrijft |
+| dubbel id · een getal boven de grens van de scanner, een taak erbij | schrijft |
+| dubbel id · een getal net onder de grens van de scanner | weigert (id-te-groot): id-te-groot: het nieuwe #2147483648 ligt boven 2147483647: de bron heeft buiten de eigen stukken een # met een getal tot 2147483600 |
+| B2, plek 7 · Terra m1: P2DT12H, de duur expliciet op 720 en de taak hernoemd: schrijft de nieuwe duur | schrijft |
+| regressie 1027 · P2DT12H zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk | schrijft |
+| regressie 1027 · P2DT12H, de taak hernoemd: schrijft en houdt P2DT12H | schrijft |
+| B2 · P0Y0M3D (dagen zonder tijddeel) schrijft | schrijft |
+| B2 · P1W (weken: de lezer leest geen weken, knownbug 1028) | open-weigert: duration: geweigerd bij openen |
+| BLOKKEERT 1, plek 7 · Sol en Terra: P2\X2\0044\X0\T12H (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd: schrijft de nieuwe duur | schrijft |
+| BLOKKEERT 1, plek 7 · P2\X2\0044\X0\T12H zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk | schrijft |
+| BLOKKEERT 1, plek 7 · Sol en Terra: P2\X\44T12H (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd: schrijft de nieuwe duur | schrijft |
+| BLOKKEERT 1, plek 7 · P2\X\44T12H zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk | schrijft |
+| BLOKKEERT 1, plek 7 · Sol en Terra: P2\X4\00000044\X0\T12H (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd: schrijft de nieuwe duur | schrijft |
+| BLOKKEERT 1, plek 7 · P2\X4\00000044\X0\T12H zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk | schrijft |
+| BLOKKEERT 1 · P0Y0M\X\33D (P0Y0M3D in STEP-codering), de taak hernoemd: schrijft | schrijft |
+| BLOKKEERT 1 · letterlijke codering: P2\X2\0044\X0\T12H, de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| BLOKKEERT 1 · letterlijke codering: P0Y0M3D, de taak hernoemd: schrijft | schrijft |
+| BLOKKEERT 2 · Terra: P1,5D, de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'P1,5D' staat niet op de lijst van vormen die de lezer exact leest. Tijdelijk, tot de fix van k |
+| BLOKKEERT 2 · Terra: P0Y0M1,5D, de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'P0Y0M1,5D' staat niet op de lijst van vormen die de lezer exact leest. Tijdelijk, tot de fix v |
+| BLOKKEERT 2 · Terra: PT4,5H, de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'PT4,5H' staat niet op de lijst van vormen die de lezer exact leest. Tijdelijk, tot de fix van  |
+| BLOKKEERT 2 · Terra: P1\X\2C5D, de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'P1,5D' staat niet op de lijst van vormen die de lezer exact leest. Tijdelijk, tot de fix van k |
+| BLOKKEERT 2 · Terra: PT4\X2\002C\X0\5H, de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'PT4,5H' staat niet op de lijst van vormen die de lezer exact leest. Tijdelijk, tot de fix van  |
+| BLOKKEERT 2 · P1.5D (een punt), de taak hernoemd: schrijft | schrijft |
+| zoektocht 4 · 'p3d' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · 'P3d' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · 'P1E1D' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · 'PT1H1H' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · 'PT30M12H' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · 'P' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · 'PT' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · '' (geen vorm van ISO 8601), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| zoektocht 4 · 'PT90M', de taak hernoemd: schrijft | schrijft |
+| zoektocht 4 · 'PT3600S', de taak hernoemd: schrijft | schrijft |
+| zoektocht 4 · 'PT0.5H', de taak hernoemd: schrijft | schrijft |
+| zoektocht 4 · 'P0DT12H', de taak hernoemd: schrijft | schrijft |
+| fixronde 6 · 'P0Y0M-2D' (een negatieve taakduur), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'P0Y0M-2D' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6 · '-P2D' (een negatieve taakduur), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur '-P2D' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b · ActualDuration 'P2DT12H', de taak hernoemd: schrijft | schrijft |
+| 5b · RemainingTime 'P2DT12H' van een dagtaak in uitvoering, de taak hernoemd: schrijft | schrijft |
+| 5b · RemainingTime 'P2DT12H' van een urentaak in uitvoering, de taak hernoemd: schrijft | schrijft |
+| 5b · kalendertijd: ScheduleDuration 'P2DT12H', de taak hernoemd: schrijft | schrijft |
+| 5b · mijlpaal: ScheduleDuration 'P2DT0H', de taak hernoemd: schrijft | schrijft |
+| 5b, knownbug 1033 · FreeFloat 'P2DT12H' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'P2DT12H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · FreeFloat 'PT28H' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT28H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · FreeFloat 'PT90M' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT90M' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · FreeFloat 'P0DT4H' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'P0DT4H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, fixronde 6 · FreeFloat 'P0Y0M3.5D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| 5b, fixronde 6 · FreeFloat 'P2D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| 5b, fixronde 6 · FreeFloat '-P0Y0M1D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| 5b, fixronde 6 · FreeFloat 'P0Y0M-2D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| fixronde 6 · FreeFloat 'P2DT0H' (een speling met een tijddeel), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'P2DT0H' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6 · FreeFloat 'PT0H' (een speling met een tijddeel), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT0H' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6 · FreeFloat 'PT8H' (een speling met een tijddeel), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT8H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · TotalFloat 'P2DT12H' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'P2DT12H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · TotalFloat 'PT28H' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT28H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · TotalFloat 'PT90M' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT90M' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · TotalFloat 'P0DT4H' (de lezer leest een speling in hele dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'P0DT4H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, fixronde 6 · TotalFloat 'P0Y0M3.5D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| 5b, fixronde 6 · TotalFloat 'P2D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| 5b, fixronde 6 · TotalFloat '-P0Y0M1D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| 5b, fixronde 6 · TotalFloat 'P0Y0M-2D' (een vorm van OPS of in dagen), de taak hernoemd: schrijft | schrijft |
+| fixronde 6 · TotalFloat 'P2DT0H' (een speling met een tijddeel), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'P2DT0H' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6 · TotalFloat 'PT0H' (een speling met een tijddeel), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT0H' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6 · TotalFloat 'PT8H' (een speling met een tijddeel), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de speling 'PT8H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · lag in werktijd IFCDURATION('P1DT2H'), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'P1DT2H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · lag in werktijd IFCDURATION('P1DT0H'), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'P1DT0H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · lag zonder DurationType (werktijd) IFCDURATION('P1DT2H'), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'P1DT2H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1033 · ongetypte lag in werktijd 'P1DT2H', de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'P1DT2H' staat niet op de lijst van vormen die de lezer exact leest. |
+| 5b, knownbug 1029 · ongetypte lag 'P1,5D' (de lezer leest 5 dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'P1,5D' staat niet op de lijst van vormen die de lezer exact leest. Tijdelijk, tot d |
+| 5b · lag in kalendertijd IFCDURATION('P1DT2H'), de taak hernoemd: schrijft | schrijft |
+| 5b · lag in werktijd IFCDURATION('PT26H'), de taak hernoemd: schrijft | schrijft |
+| 5b · ongetypte lag in werktijd 'PT10H', de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 1 · oude lagvorm 'P1,5D' (de lezer leest 5 dagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in de oude vorm 'P1,5D' staat niet op de lijst van vormen die de lezer exact leest. Tijdelijk, t |
+| fixronde 6, BLOKKEERT 1 · oude lagvorm 'P1DT2H' (de lezer leest 1 dag), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in de oude vorm 'P1DT2H' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6, BLOKKEERT 1 · oude lagvorm 'PT10H' (de lezer leest 2 werkdagen), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in de oude vorm 'PT10H' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6, BLOKKEERT 1 · oude lagvorm 'P2D' (een vorm van OPS), de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 1 · oude lagvorm 'P0Y0M2.5D' (een vorm van OPS), de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 1 · oude lagvorm 'P0Y0M-2D' (een vorm van OPS), de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 1 · oude lagvorm '-P2D' (een vorm van OPS), de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 2 · ScheduleDuration 'PT-2H', de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| fixronde 6, BLOKKEERT 2 · ScheduleDuration 'PT-2H', de duur op 120 minuten gezet en de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| fixronde 6, BLOKKEERT 2 · lag IFCDURATION('PT-2H'), de taak hernoemd | open-weigert: duration: geweigerd bij openen |
+| fixronde 6, BLOKKEERT 2 · lag IFCDURATION('-PT2H') (het minteken vóór de P), de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 2 · lag IFCDURATION('-PT2H0M0S') (zo schrijft OPS een negatieve lag in uren), de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 3 · ScheduleDuration 'PT90S', de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'PT90S' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6, BLOKKEERT 3 · ScheduleDuration 'PT90S', de duur op 2 minuten gezet en de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'PT90S' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6, BLOKKEERT 3 · ScheduleDuration 'PT0.01H' (0,6 minuut), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCTASKTIME #55: de duur 'PT0.01H' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6, BLOKKEERT 3 · lag IFCDURATION('PT90S'), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in werktijd 'PT90S' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6, BLOKKEERT 3 · lag in kalendertijd IFCDURATION('PT1M30S'), de taak hernoemd | weigert (duur-deels-gelezen): duur-deels-gelezen: IFCLAGTIME #631: de lag in kalendertijd 'PT1M30S' staat niet op de lijst van vormen die de lezer exact leest. |
+| fixronde 6, BLOKKEERT 3 · ScheduleDuration 'PT120S' (2 hele minuten), de taak hernoemd: schrijft | schrijft |
+| fixronde 6, BLOKKEERT 3 · lag IFCDURATION('PT0.25H') (15 minuten), de taak hernoemd: schrijft | schrijft |
+| fixronde 6 · ScheduleDuration 'P0Y0M2.5D' (een korte breuk), de taak hernoemd: schrijft | schrijft |
+| fixronde 7 · slot 4 'P0Y0M2.3333333333333335D' (zo schreef OPS tot b738a5096), de taak hernoemd: schrijft, de bronwaarde blijft | schrijft |
+| fixronde 7 · slot 4 'P0Y0M1e-7D' (zo schreef OPS tot b738a5096), de taak hernoemd: schrijft, de bronwaarde blijft | schrijft |
+| fixronde 7 · slot 11 'P0Y0M1e-7D' (zo schreef OPS tot b738a5096), de taak hernoemd: schrijft, de bronwaarde blijft | schrijft |
+| fixronde 7 · slot 12 'P0Y0M1e-7D' (zo schreef OPS tot b738a5096), de taak hernoemd: schrijft, de bronwaarde blijft | schrijft |
+| fixronde 6, zoektocht 3 · RemainingTime 'P0Y0M3.5D' van een urentaak in uitvoering, de taak hernoemd | weigert (niet-gedragen): niet-gedragen: de bronwaarden (1: IFCTASKTIME #55 argument 18) zouden na herlezen een andere planning geven (task:task-mvzf5vqrnrs0365, task |
+| zoektocht 4 · ScheduleStart '2027-03-01T07:00:00Z', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTASKTIME #55: de datum-tijd '2027-03-01T07:00:00Z' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 10 |
+| zoektocht 4 · ScheduleStart '2027-03-01T07:00:00+02:00', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTASKTIME #55: de datum-tijd '2027-03-01T07:00:00+02:00' heeft een tijdzone; de lezer leest alleen de kloktijd (knownb |
+| zoektocht 4 · ScheduleStart '2027-03-01 07:00:00', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTASKTIME #55: de datum-tijd '2027-03-01 07:00:00' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug  |
+| zoektocht 4 · ScheduleStart '2027-03-01T07:00:30', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTASKTIME #55: de datum-tijd '2027-03-01T07:00:30' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug  |
+| zoektocht 4 · ScheduleStart '2027-03-01T07:00:00.000', de taak hernoemd: schrijft | schrijft |
+| zoektocht 4 · ScheduleStart '2027-03-01T07:00', de taak hernoemd: schrijft | schrijft |
+| zoektocht 4 · IfcTimePeriod '07:00:00Z'–'12:00:00Z', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTIMEPERIOD #17: de tijd '07:00:00Z' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 1031) |
+| zoektocht 4 · IfcTimePeriod '07:00:00'–'12:00:00+01:00', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTIMEPERIOD #17: de tijd '12:00:00+01:00' heeft een tijdzone; de lezer leest alleen de kloktijd (knownbug 1031) |
+| zoektocht 4 · IfcTimePeriod '07:00:30'–'12:00:00', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTIMEPERIOD #17: de tijd '07:00:30' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031) |
+| zoektocht 4 · IfcTimePeriod '7:00:00'–'12:00:00', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTIMEPERIOD #17: de tijd '7:00:00' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031) |
+| zoektocht 4 · IfcTimePeriod '0700'–'1200', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCTIMEPERIOD #17: de tijd '0700' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031) |
+| zoektocht 4 · IfcTimePeriod '07:00'–'12:00', de taak hernoemd: schrijft | schrijft |
+| fixronde 6, zoektocht 2 · feestdag '2027-03-26T12:00:00'–'2027-03-26', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCWORKTIME #22: de datum '2027-03-26T12:00:00' is geen datum in de vorm JJJJ-MM-DD; de lezer neemt de eerste tien teken |
+| fixronde 6, zoektocht 2 · feestdag '2027-3-26'–'2027-3-26', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCWORKTIME #22: de datum '2027-3-26' is geen datum in de vorm JJJJ-MM-DD; de lezer neemt de eerste tien tekens (knownbu |
+| fixronde 6, zoektocht 2 · feestdag '2027-03-26'–'2027-03-26T16:00:00Z', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCWORKTIME #22: de datum '2027-03-26T16:00:00Z' is geen datum in de vorm JJJJ-MM-DD; de lezer neemt de eerste tien teke |
+| fixronde 6, zoektocht 2 · feestdag '20270326'–'20270326', de taak hernoemd | weigert (tijd-deels-gelezen): tijd-deels-gelezen: IFCWORKTIME #22: de datum '20270326' is geen datum in de vorm JJJJ-MM-DD; de lezer neemt de eerste tien tekens (knownbug |
+| fixronde 6, zoektocht 2 · feestdag '2027-03-26'–'2027-03-27' (kale datums), de taak hernoemd: schrijft | schrijft |
+| B3, plek 33 · XER → IFC (compact) + wand, zonder bewerking | schrijft |
+| B3, plek 33 · XER → IFC (compact) + wand, een taak hernoemd | schrijft |
+| B4, plek 17 · Terra e0: HoursPerDay 8.0000000000000001 blijft | schrijft |
+| B4, plek 17 · e0, de taak hernoemd: HoursPerDay blijft | schrijft |
+| B4, plek 17 · e0, de planner zet 9 uur per dag: zijn waarde | schrijft |
+| B4, plek 18 · e1: duur P0Y0M6.0000000000000001D blijft | schrijft |
+| B4 · HoursPerDay 8.0E0 (dezelfde waarde) schrijft | schrijft |
+| B4 · HoursPerDay 9007199254740993 (boven 2^53) blijft | schrijft |
+| B5, plek 29 · Sol a0: twee gelijke toewijzingen, zonder bewerking | schrijft |
+| B5, plek 29 · Sol a1: de eerste toewijzing van #109 wissen | weigert (niet-eenduidig): niet-eenduidig: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 1 na de bewerking: 'BEWAAR-DIT' → $ |
+| B5, plek 29 · Sol a2: de tweede toewijzing van #109 wissen | weigert (niet-eenduidig): niet-eenduidig: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 1 na de bewerking: 'BEWAAR-DIT' → $ |
+| B5, plek 29 · een volgordeverschuiving: de eerste toewijzing van #109 achteraan | weigert (niet-eenduidig): niet-eenduidig: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 1 na de bewerking: 'BEWAAR-DIT' → $ |
+| zoektocht 2 · toewijzingen: zonder bewerking | schrijft |
+| zoektocht 2 · toewijzingen: de eenheden van #109 op 3 (de bronwaarde blijft) | schrijft |
+| zoektocht 2 · toewijzingen: een nieuwe toewijzing achteraan (de bronwaarde blijft) | schrijft |
+| zoektocht 2 · toewijzingen: #109 wissen en #110 naar #109 zetten | weigert (niet-eenduidig): niet-eenduidig: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 1 na de bewerking: 'BEWAAR-DIT' → $ |
+| zoektocht 2 · toewijzingen: de resources van #109 en #110 verwisseld | weigert (niet-eenduidig): niet-eenduidig: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 1 na de bewerking: 'BEWAAR-DIT' → $ |
+| zoektocht 2 · toewijzingen: alleen #110 gewist (bij twijfel weigeren) | weigert (niet-eenduidig): niet-eenduidig: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 1 na de bewerking: 'BEWAAR-DIT' → $ |
+| zoektocht 2 · toewijzingen: #109 gewist (de bronwaarde verdwijnt met het stuk: weigeren) | weigert (niet-gedragen): niet-gedragen: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0): ontbreekt in de uitvoer na de bewerking ('3LKE2mEiGfOR4VMIq3h_xv#0') |
+| zoektocht 2 · zonder bronwaarde: #109 wissen en #110 naar #109 zetten | schrijft |
+| zoektocht 2 · zonder bronwaarde: de resources verwisseld | schrijft |
+| B5, plek 26 · f0: OPS_Calendar twee keer op de kalender | weigert (niet-eenduidig): niet-eenduidig: IFCRELDEFINESBYPROPERTIES #41: heeft in de uitvoer dezelfde tegenhanger (#434) als een ander stuk van de bron |
+| B5, plek 26 · f1: de tweede met een andere waarde | weigert (niet-eenduidig): niet-eenduidig: IFCPROPERTYSINGLEVALUE #9039 (HoursPerDay), argument 3: 'BEWAAR-TWEEDE' → $ |
+| B5, plek 27 · c0: Good Friday 2027 met een bronwaarde, zonder bewerking | schrijft |
+| B5, plek 27 · c1: Good Friday 2027 hernoemd | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| B5, plek 27 · c2: Good Friday 2027 gewist (de bronwaarde gaat mee, niet naar 2028) | schrijft |
+| B5, plek 27 · c3: een nieuwe Good Friday 2026 vooraan (de bronwaarde blijft op 2027) | schrijft |
+| BLOKKEERT 3, plek 27 · Sol: alleen 2028 naar de datum van 2027 | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · Sol: 2027 wissen en 2028 naar de datum van 2027 | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · Sol: de datums van 2027 en 2028 verwisseld | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · de namen van Good Friday 2027 en Easter 2027 verwisseld | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · Good Friday 2027 een dag later (geen wissing) | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · een andere feestdag gewist en een nieuwe erbij (geen zekere wissing) | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · Good Friday 2027 gewist en een nieuwe feestdag achteraan (geen zekere wissing) | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · alleen Good Friday 2028 gewist (bij twijfel weigeren) | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #21, argument 1 na de bewerking: .USERDEFINED. → .PREDICTED. |
+| BLOKKEERT 3, plek 27 · een nieuwe feestdag achteraan (de bronwaarde blijft op 2027) | schrijft |
+| BLOKKEERT 3 · zonder bronwaarde: 2027 wissen en 2028 naar de datum van 2027 | schrijft |
+| BLOKKEERT 3 · zonder bronwaarde: alleen 2028 gewist | schrijft |
+| BLOKKEERT 3 · zonder bronwaarde: Good Friday 2027 een dag later | schrijft |
+| B6, plek 8 · Sol b0: 1|UNIFORM|BEWAAR-DIT, zonder bewerking | schrijft |
+| B6, plek 8 · Sol b1: 1|UNIFORM|BEWAAR-DIT, eenheden 1 → 2 | weigert (niet-gedragen): niet-gedragen: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 2 na de bewerking: IFCTEXT('1/UNIFORM/BEWAAR-DIT') → IFCTEXT |
+| B6, plek 8 · b3: 1|VENDORCURVE, eenheden 1 → 2 | weigert (niet-gedragen): niet-gedragen: IFCPROPERTYSINGLEVALUE #152 (3LKE2mEiGfOR4VMIq3h_xv#0), argument 2 na de bewerking: IFCTEXT('1/VENDORCURVE') → IFCTEXT('2/UNI |
+| B6, plek 8 · b5: 1.5abc|UNIFORM, de taak hernoemd | schrijft |
+| B6 · AvailabilitySteps met een deel dat de lezer niet draagt, zonder bewerking | schrijft |
+| B6 · AvailabilitySteps: de planner wijzigt de beschikbaarheid | weigert (niet-gedragen): niet-gedragen: IFCPROPERTYSINGLEVALUE #9201 (AvailabilitySteps), argument 2 na de bewerking: IFCTEXT('2027-01-04:2;2027-06-01:1x') → IFCTEXT |
+| B6, plek 5 · AvailabilitySteps: de planner wist de beschikbaarheid | weigert (niet-gedragen): niet-gedragen: IFCPROPERTYSINGLEVALUE #9201 (AvailabilitySteps): ontbreekt in de uitvoer na de bewerking ('AvailabilitySteps') |
+| BLOKKEERT 4, plek 5 · tekst: AvailabilitySteps met een Description, zonder bewerking | schrijft |
+| BLOKKEERT 4, plek 5 · tekst: idem, met een extra stap | schrijft |
+| BLOKKEERT 4, plek 5 · Sol: tekst: de planner wist de beschikbaarheid | weigert (niet-gedragen): niet-gedragen: IFCPROPERTYSINGLEVALUE #9201 (AvailabilitySteps): ontbreekt in de uitvoer na de bewerking ('AvailabilitySteps') |
+| BLOKKEERT 4 · zonder Description: de beschikbaarheid wissen schrijft | schrijft |
+| BLOKKEERT 4 · enumeratie: een lag met DataOrigin .MEASURED., zonder bewerking | schrijft |
+| BLOKKEERT 4 · enumeratie: idem, de lag een dag langer | schrijft |
+| BLOKKEERT 4 · enumeratie: de planner wist de lag | weigert (niet-gedragen): niet-gedragen: IFCLAGTIME #97: ontbreekt in de uitvoer na de bewerking ('Lag') |
+| BLOKKEERT 4 · zonder bronwaarde: de lag wissen schrijft | schrijft |
+| BLOKKEERT 4 · getal: Interval 1 op het patroon van de vrijdag, zonder bewerking | schrijft |
+| BLOKKEERT 4 · getal: idem, de vrijdag een uur langer (het patroon blijft) | schrijft |
+| BLOKKEERT 4 · getal: de planner maakt de week gelijk | weigert (niet-gedragen): niet-gedragen: IFCRECURRENCEPATTERN #21: ontbreekt in de uitvoer na de bewerking (.WEEKLY.) |
+| BLOKKEERT 4 · zonder bronwaarde: de week gelijk maken schrijft | schrijft |
+| zoektocht 2 · werkende uitzondering: Interval 1 op het patroon, zonder bewerking | schrijft |
+| zoektocht 2 · werkende uitzondering: de eerste gewist en de tweede op haar datum | weigert (niet-eenduidig): niet-eenduidig: IFCRECURRENCEPATTERN #39, argument 5 na de bewerking: 1 → $ |
+| zoektocht 2 · zonder bronwaarde: de eerste gewist en de tweede op haar datum | schrijft |
+| zoektocht 2 · zonder bronwaarde: de eerste werkende uitzondering gewist | schrijft |
+| zoektocht 2 · zonder bronwaarde: de tweede werkende uitzondering een uur langer | schrijft |
+| zoektocht 2 · werktijdgroep: .MEASURED. op de vrijdag, de vrijdag een uur langer | schrijft |
+| zoektocht 2 · werktijdgroep: de donderdag kort en de vrijdag gewoon | weigert (niet-eenduidig): niet-eenduidig: IFCWORKTIME #22, argument 1 na de bewerking: .MEASURED. → .PREDICTED. |
+| zoektocht 2 · werktijdgroep: de week gelijk | weigert (niet-gedragen): niet-gedragen: IFCWORKTIME #22: ontbreekt in de uitvoer na de bewerking ('Standard work week (Fri)') |
+| B6 · ProjectStartDate met een tijd, zonder bewerking | schrijft |
+| B6 · ProjectStartDate met een tijd: de planner verschuift de start | weigert (niet-gedragen): niet-gedragen: IFCPROPERTYSINGLEVALUE #178 (ProjectStartDate), argument 2 na de bewerking: IFCDATE('2027-05-06T07:30:00') → IFCDATE('2027-02 |
+| B6, plek 9 · i0: een vreemde uitzondering in de eigen kalender, zonder bewerking | schrijft |
+| B6, plek 9 en 28 · i1: een feestdag erbij | weigert (niet-gedragen): niet-gedragen: IFCWORKCALENDAR #38, argument 7 na de bewerking: (#20,#21,#22,#23,#24,#25,#26,#27,#28,#29,#30,#31,#32,#33,#34 → (#9034,#9035, |
+| B6, plek 9 · i2: een taak hernoemd (de kalender blijft) | schrijft |
+| plek 5 · een resource met Identification, zonder bewerking | schrijft |
+| plek 5 · de planner maakt van de arbeidsresource materieel (ander entiteittype) | weigert (entiteittype, niet-gedragen): entiteittype: IFCLABORRESOURCE #110 zou IFCCONSTRUCTIONEQUIPMENTRESOURCE worden |
+| plek 19 · een omschrijving met een ongeldige reeks, zonder bewerking | schrijft |
+| plek 19 · idem, de taak hernoemd (de omschrijving blijft byte-gelijk) | schrijft |
+| tijd · ScheduleStart $, openen en opslaan op dezelfde dag | weigert (niet-gedragen): niet-gedragen: de bronwaarden (1: IFCTASKTIME #62 argument 5) zouden na herlezen een andere planning geven (recordedFields) |
+| tijd · ScheduleStart $, openen op dag 1 en opslaan op dag 2 | weigert (niet-gedragen): niet-gedragen: de bronwaarden (1: IFCTASKTIME #62 argument 5) zouden na herlezen een andere planning geven (recordedFields) |
+| tijd · zonder CreatedAt en ModifiedAt, op dezelfde dag | schrijft |
+| tijd · zonder CreatedAt en ModifiedAt, openen op dag 1 en opslaan op dag 2 | schrijft |
+| plek 6 · 'ON HOLD', zonder bewerking | schrijft |
+| plek 6 · 'ON HOLD', de taak hernoemd (de bronwaarde blijft) | schrijft |
+| plek 6 · 'ON HOLD', het geplande begin een dag later (geen veld van de Status: de bronwaarde blijft) | schrijft |
+| plek 6 · Trias: 'ON HOLD' en dan voltooid zetten geeft de Status van de writer | schrijft |
+| plek 34 · Trias: OPS_Assignments van #63 weg uit de bron; de writer schrijft haar weer (een registerpset) | schrijft |
+| VERVOLG · .NOTDEFINED., zonder bewerking | schrijft |
+| VERVOLG · .NOTDEFINED., de planner wijzigt het geplande begin | schrijft |
+| VERVOLG · .NOTDEFINED., de planner wijzigt het geplande einde | schrijft |
+| VERVOLG · .NOTDEFINED., de planner wijzigt de duur | schrijft |
+| VERVOLG · .NOTDEFINED., de planner wijzigt vroeg en laat | schrijft |
+| VERVOLG · .NOTDEFINED., de planner wijzigt het werkelijke begin | schrijft |
+| VERVOLG · .NOTDEFINED., de planner wijzigt de resterende duur | schrijft |
+| VERVOLG · .NOTDEFINED., de planner zet de duur op kalendertijd (kalender letterlijk) | schrijft |
+| VERVOLG · .NOTDEFINED., kalendertijd en doorrekenen (kalender letterlijk) | schrijft |
+| VERVOLG · .NOTDEFINED., kalendertijd, een baselinerij met een eigen sleutel | schrijft |
+| verstopt stuk · een verstopt stuk vóór een eigen taak | weigert (verstopt-stuk): verstopt-stuk: vóór IFCTASK #47 staat buiten de tokens een # met een getal (#402); daar kan volgens de norm een stuk staan, en dat schrijft  |
+| verstopt stuk · idem, en een V-stuk wijst ernaar | weigert (verstopt-stuk): verstopt-stuk: vóór IFCTASK #47 staat buiten de tokens een # met een getal (#402); daar kan volgens de norm een stuk staan, en dat schrijft  |
+| verstopt stuk · commentaar met #12 vóór een eigen taak | weigert (verstopt-stuk): verstopt-stuk: vóór IFCTASK #47 staat buiten de tokens een # met een getal (#12); daar kan volgens de norm een stuk staan, en dat schrijft d |
+| verstopt stuk · gewoon commentaar vóór een eigen taak | schrijft |
+Combinaties: 161, waarvan 132 schrijven.
+OK  ifc-foreign-strikt: alle checks groen (786; 238 proeven, 161 combinaties)
+
+############################################################################
+##  GERICHTE RUN — dit is niet de volledige poort.
+##  549 van de 550 check-*.ts-regressiebatterijen zijn
+##  overgeslagen, plus de tijdzone-matrix onderaan dit script.
+##  Draai 'bash tests/planning/run.sh' zonder argumenten voor de volledige poort
+##  vóór je op dit resultaat vertrouwt (bijv. vóór een commit of PR).
+############################################################################
+
+EINDOORDEEL planningssuite: GROEN (exit 0)
+
+EXIT:0
