@@ -168,6 +168,7 @@ check-ifc-crlf.ts matrix
 check-ifc-dagenmaat.ts matrix
 check-ifc-dagkalender-hele-dag.ts matrix
 check-ifc-datumvorm.ts matrix
+check-ifc-duur-lezen.ts matrix
 check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix

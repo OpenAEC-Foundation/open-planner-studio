@@ -1,6 +1,7 @@
 import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 import { groupIsMultiBand } from '@/engine/reports/layoutReport';
 import type { Layout } from '@/types/view';
+import type { BarColorSelection } from '@/types/barColor';
 import type { ReportSettings } from '@/utils/reportSettings';
 import { reportColumnsFromGrid } from './reportColumns';
 
@@ -35,6 +36,17 @@ export function taskSourcePatch(source: ReportTaskSource): Pick<ReportSettings, 
   return { reportType: 'gantt', layoutId: '', followView: source.kind === 'view' };
 }
 
+/**
+ * De balkkleuren op papier. Bij *Zoals de weergave* die van het scherm (live), net als de kolommen; anders de
+ * eigen keuze van het rapport.
+ */
+export function reportBarColors(
+  settings: Pick<ReportSettings, 'reportType' | 'layoutId' | 'followView' | 'barColors'>,
+  screen: BarColorSelection,
+): BarColorSelection {
+  return reportTaskSource(settings).kind === 'view' ? screen : settings.barColors;
+}
+
 /** Een vaste sleutel per keuze, voor de radiogroep. */
 export function taskSourceKey(source: ReportTaskSource): string {
   return source.kind === 'layout' ? `layout:${source.id}` : source.kind;
@@ -52,9 +64,9 @@ export function taskSourceFromKey(key: string): ReportTaskSource {
  * - `columns` → de kolommen van het rapport (de taaknaam blijft verplicht). Geen kolommen ⇒ ongemoeid.
  * - `showRelations` → Afhankelijkheden, behalve bij een groepering waarin een taak onder meer banden staat:
  *   daar staan de relatielijnen toch uit, en de keuze voor een gewone afdruk blijft bewaard.
- * - `overlays` → basislijn, speling en de statuslijn (voortgangslijn gaat voor statusdatumlijn). De
- *   resourcekleur heeft geen tegenhanger op papier; de balkkleuren gelden voor rapport én scherm en gaan
- *   daarom niet vanzelf mee (de stap Taken meldt het verschil, met de knop "Balkkleuren overnemen").
+ * - `overlays` → basislijn, speling, de statuslijn (voortgangslijn gaat voor statusdatumlijn) en de
+ *   balkkleuren; die van het rapport zijn eigen, de Gantt op het scherm verandert niet mee. De resourcekleur
+ *   heeft geen tegenhanger op papier.
  * - `timeScale` → genegeerd: het rapport heeft een eigen paginaschaal (Pagina).
  */
 export function layoutReportPatch(layout: Layout, availableColumnIds: ReadonlySet<string>): Partial<ReportSettings> {
@@ -65,6 +77,7 @@ export function layoutReportPatch(layout: Layout, availableColumnIds: ReadonlySe
     patch.showBaselineOverlay = layout.overlays.baseline;
     patch.showFloat = layout.overlays.floatBand;
     patch.statusLine = layout.overlays.progressLine ? 'progress' : layout.overlays.statusDateLine ? 'statusDate' : 'none';
+    patch.barColors = layout.overlays.barColors;
   }
   return patch;
 }

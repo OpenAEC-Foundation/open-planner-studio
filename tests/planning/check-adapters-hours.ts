@@ -8,6 +8,7 @@
 //      dag-bestand dag houdt).
 // De P6/MSPDI-readers gebruiken de browser-`DOMParser`; in Node leveren we die via een minimale shim.
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { payloadFromImport } from '@/state/documentContract';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -246,9 +247,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 // altijd kaal `PT{h}H{m}M0S`); `P1DT2H0M0S` is de vorm die een ANDER tool zou kunnen schrijven. Vóór
 // deze follow-up verdween bij zo'n gemengde vorm stilzwijgend óf het dag-deel (nieuwe B1-volgorde:
 // lagMinutes eerst) óf het uur-deel (oude volgorde: parseDurationDays zag alleen de D). De keuze nu:
-// dag- én uurdeel samen in `lagMinutes`, kalendertijd-interpretatie (1D = 1440 min) — onderbouwing in
-// `isoDurationLeadingDaysMinutes` (subdayIo.ts). Bewijst ook dat de twee bestaande (pure) vormen
-// (kaal-uur, kaal-dag) ONGEWIJZIGD blijven.
+// dag- én uurdeel samen in `lagMinutes`, met werkdagen bij WORKTIME en 1440 minuten bij ELAPSEDTIME.
+// De bestaande pure vormen (kaal-uur en kaal-dag) blijven gelijk.
 {
   const dayCalMix: WorkCalendar = {
     id: 'cal-mix', name: 'Mix', description: 'ma-vr', workDays: [1, 2, 3, 4, 5],
@@ -277,7 +277,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 
   // (a) Hand-getampeerde GEMENGDE vorm: dag- én uurdeel moeten SAMEN landen, geen stil verlies.
   const mixedBack = readIFC(ifc.replace(needle, "IFCDURATION('P1DT2H0M0S')")).sequences[0];
-  eq('gemengd P1DT2H0M0S: lagMinutes = 1D(1440)+2H(120)', mixedBack?.lagMinutes, 1560);
+  eq('gemengd P1DT2H0M0S: lagMinutes = 1 werkdag(480)+2H(120)', mixedBack?.lagMinutes, 600);
   eq('gemengd P1DT2H0M0S: lagDays blijft 0 (geen dubbeltelling)', mixedBack?.lagDays, 0);
 
   // (b) Bestaande vorm 1 (ongewijzigd): kaal uur, geen dag-component.
@@ -290,20 +290,22 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('bestaande vorm ongewijzigd: P3D ⇒ lagDays 3', pureDayBack?.lagDays, 3);
   eq('bestaande vorm ongewijzigd: P3D ⇒ lagMinutes undefined', pureDayBack?.lagMinutes, undefined);
 
-  // (d) Audit import/export nr. 1 (vervolg): het dag-deel van de gemengde vorm mag een decimale
-  //     fractie hebben (ISO 8601), net als in `parseDurationDays`. Vóór de fix las `(\d+)D` alleen de
-  //     cijfers ná de punt (1.5 → 5 dagen). Het resultaat blijft een hele minuut.
-  const mixedCases: [string, number, string][] = [
-    ['P1.5DT2H0M0S', 2280, '1,5D (2160) + 2H (120); was 5D + 2H = 7320'],
-    ['P2DT2H0M0S', 3000, 'hele dag (controle, ongewijzigd)'],
-    ['-P1.5DT2H0M0S', -2280, 'negatief met ISO-voorloopteken; was −7320'],
-    ['-P1DT2H0M0S', -1560, 'negatief, hele dag (controle, ongewijzigd)'],
-    ['P0.3333DT0H0M0S', 480, '0,3333D = 479,95 min ⇒ afgerond op een hele minuut; was 3333D'],
-  ];
-  for (const [iso, want, why] of mixedCases) {
+  // (d) Gemengde werktijd, kalendertijd en teken. Een fractie vóór een volgend deel wordt
+  // geweigerd in plaats van stil geïnterpreteerd (knownbug 1030).
+  for (const [iso, want] of [['P2DT2H0M0S', 1080], ['-P1DT2H0M0S', -600], ['P1DT30M', 510]] as const) {
     const back = readIFC(ifc.replace(needle, `IFCDURATION('${iso}')`)).sequences[0];
-    eq(`gemengd ${iso}: lagMinutes ${want} (${why})`, back?.lagMinutes, want);
-    eq(`gemengd ${iso}: lagDays blijft 0`, back?.lagDays, 0);
+    eq(`gemengd ${iso}: werktijdminuten`, back?.lagMinutes, want);
+    eq(`gemengd ${iso}: geen dubbele dagen`, back?.lagDays, 0);
+  }
+  const elapsedIfc = writeIFC({ project: projMix, calendar: dayCalMix, tasks: mixTasks,
+    sequences: [{ ...mixSeq[0], lagUnit: 'ELAPSEDTIME' }], resources: [], assignments: [] });
+  eq('gemengd P1DT2H in kalendertijd is 1560 minuten',
+    readIFC(elapsedIfc.replace(needle, "IFCDURATION('P1DT2H')")).sequences[0]?.lagMinutes, 1560);
+  for (const iso of ['P1.5DT2H0M0S', '-P1.5DT2H0M0S', 'P0.3333DT0H0M0S']) {
+    let reason: string | undefined;
+    try { readIFC(ifc.replace(needle, `IFCDURATION('${iso}')`)); }
+    catch (error) { if (error instanceof IfcParseError) reason = error.reason; else throw error; }
+    eq(`gemengde fractie ${iso}: expliciete leesfout`, reason, 'duration');
   }
 }
 
