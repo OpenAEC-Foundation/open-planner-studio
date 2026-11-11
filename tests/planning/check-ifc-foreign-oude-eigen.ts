@@ -385,6 +385,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     ok(`${name}: de gewone opslag is byte-gelijk aan die van main ${fixture.basis}`, want?.uitvoerSha256 === sha256(plain));
     const viaMain = canon(await openForeign(new TextEncoder().encode(plain)), reseed);
     const viaMerge = canon(await openForeign(r.bytes), reseed);
+    ok(`${name}: naad en volledige bytes-route geven dezelfde planning`, viaMerge === canon(r.shown, reseed));
     const a = viaMerge.split('\n'), b = viaMain.split('\n');
     const first = a.findIndex((line, i) => line !== b[i]);
     rows.push(`| ${name} | ${viaMerge === viaMain ? 'schrijft, dezelfde planning als een gewone opslag op main zonder model' : `schrijft, andere planning: ${(a[first] ?? '').slice(0, 80)}`} |`);

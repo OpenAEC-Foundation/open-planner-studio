@@ -317,7 +317,7 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
 /** De aanroeper voert de gewone open-stappen uit in een eigen documentcontext, zonder modelscan.
  * ImportResult bevat ook TimeModel, herkomst en opgeslagen datums; pad en bestandskop zijn niet nodig.
  */
-export type OpenMergePlanning = (read: ImportResult) => Promise<WriteIFCInput>;
+export type OpenMergePlanning = (planning: WriteIFCInput, side: 'uitvoer' | 'domein') => Promise<WriteIFCInput>;
 
 export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, openPlanning: OpenMergePlanning): Promise<Uint8Array[]> {
   if (typeof openPlanning !== 'function') {
@@ -792,9 +792,10 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
     }
   }
   // Volledige herleestoets vóór er uitvoer naar de aanroeper gaat; geen modelscan of volle uitvoerbuffer.
-  const shown = await openPlanning(await read(lines.filter(l => !l.drop).map(l => l.text)));
-  if (planningCanon(input) !== planningCanon(shown)) {
-    throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(input, shown) }]);
+  const shown = await openPlanning(await read(lines.filter(l => !l.drop).map(l => l.text)), 'uitvoer');
+  const wanted = await openPlanning(input, 'domein');
+  if (planningCanon(wanted) !== planningCanon(shown)) {
+    throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
   return assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
 }

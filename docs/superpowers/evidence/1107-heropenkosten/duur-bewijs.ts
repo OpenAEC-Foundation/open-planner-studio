@@ -10,8 +10,8 @@ const input = cloneDomain(opened);
 const edit = ordinaryEdits(input).find(e => e.kind === 'duur')!;
 edit.apply(input);
 let shown: Domain | undefined;
-const parts = await writeIfcMerge(input, opened.ifcSource!, async parsed => {
-  shown = await openReadPlanning(parsed); return shown;
+const parts = await writeIfcMerge(input, opened.ifcSource!, async (parsed, side) => {
+  const result = await openReadPlanning(parsed, side); if (side === 'uitvoer') shown = result; return result;
 });
 const full = await openForeign(concat(parts));
 assert(shown);

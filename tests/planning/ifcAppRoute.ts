@@ -139,7 +139,11 @@ export async function trias(root: string): Promise<TriasEntry[]> {
 }
 
 /** De echte open-stappen op de lezing van de merge, zonder schrijver of geforceerd TimeModel ertussen (1107). */
-export async function openReadPlanning(parsed: ImportResult): Promise<WriteIFCInput> {
+export async function openReadPlanning(parsed: WriteIFCInput, side: 'uitvoer' | 'domein'): Promise<WriteIFCInput> {
+  if (side === 'domein') {
+    const { store, buildWriteIFCInput } = await storeWith(parsed);
+    return buildWriteIFCInput(store.getState());
+  }
   const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
   const { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });

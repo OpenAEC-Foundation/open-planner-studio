@@ -21,7 +21,7 @@ import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
-import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
+import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore } from './ifcAppRoute';
 export { openInStore, openReadPlanning } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
@@ -71,8 +71,7 @@ export function reopenPlain(d: Domain): Promise<Opened> {
  * (vervolg-PR van #867, #886).
  */
 export async function shownAfterOpen(d: Domain): Promise<Opened> {
-  const { store, buildWriteIFCInput } = await storeWith(d);
-  return buildWriteIFCInput(store.getState()) as Opened;
+  return await openReadPlanning(d, 'domein') as Opened;
 }
 
 /** Doorrekenen (F5) zoals de app: `recalculated` uit `ifcAppRoute.ts`. */
@@ -142,9 +141,10 @@ export type MergeOutcome = { ok: true; bytes: Uint8Array; shown: Domain } | { ok
 export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutcome> {
   try {
     let shown: Domain | undefined;
-    const parts = await writeIfcMerge(d, source, async parsed => {
-      shown = await openReadPlanning(parsed);
-      return shown;
+    const parts = await writeIfcMerge(d, source, async (parsed, side) => {
+      const result = await openReadPlanning(parsed, side);
+      if (side === 'uitvoer') shown = result;
+      return result;
     });
     if (!shown) throw new Error('merge gaf geen planning aan de naad');
     return { ok: true, bytes: concat(parts), shown };
