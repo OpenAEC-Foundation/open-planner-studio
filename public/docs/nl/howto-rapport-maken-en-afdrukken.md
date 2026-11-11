@@ -96,7 +96,7 @@ Links staat een zijbalk met vijf stappen, in de volgorde van het papier: *Taken 
 
 **Bedrijf: overtypen wordt niet bewaard.** Het veld *Bedrijf:* bij de Gantt-afdruk begint met het bedrijf uit de projectinstellingen. Wat je hier overtypt, wordt niet bewaard. *Auteur:* kun je hier niet typen. Beide pas je aan met *Instellingen › Project › Projectinstellingen*, in de velden *Opdrachtgever/organisatie* en *Auteur*, en bevestig je met *Toepassen*.
 
-**Balkkleuren: geldt ook voor je scherm.** De keuze *Balkkleuren:* in het rapport is dezelfde keuze als *Balkkleuren* op het tabblad Beeld. Verander je hem in het rapport, dan verandert je Gantt op het scherm mee. In het nieuwe tabblad Rapport (experimenteel) is dat anders: daar heeft het rapport eigen balkkleuren, en je Gantt op het scherm verandert niet. Zolang je daar geen balkkleur kiest, drukt het rapport de balkkleuren van je scherm af.
+**Balkkleuren: geldt ook voor je scherm.** De keuze *Balkkleuren:* in het rapport is dezelfde keuze als *Balkkleuren* op het tabblad Beeld. Verander je hem in het rapport, dan verandert je Gantt op het scherm mee. In het nieuwe tabblad Rapport (experimenteel) is dat anders: daar heeft het rapport eigen balkkleuren, en je Gantt op het scherm verandert niet. Daar kleuren de balken standaard op kritiek pad, ook als je scherm een andere keuze heeft.
 
 **De Variance zonder baseline.** Een baseline is een bewaarde momentopname van je planning waartegen je later meet; hoe je er een opslaat, lees je in [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren). Heb je geen actieve baseline, dan staat er in plaats van een vergelijking *Geen actieve baseline — sla een baseline op of kies er een als actief.*
 

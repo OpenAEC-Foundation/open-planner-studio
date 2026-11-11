@@ -2827,6 +2827,20 @@ en noem het in je rapport of PR-tekst.
      controleer in dezelfde stap een positieve `outlineWidth`, `toBeFocused()`, `toBeVisible()` en de
      waardeverandering. — B
 
+1350. **VERVOLG: de kolomtooltip blijft staan als de bron van buitenaf wisselt.** Staat de focus op een kolomrij bij
+     *Zoals de weergave* en verandert de bron via een ander venster (`StorageEvent`) naar *Alle taken*, dan verliest de
+     rij `data-tooltip-instant`, maar blijven de tooltip en `aria-describedby` staan, ook na Tab. `onFocusOut` in
+     `src/components/common/Tooltip.tsx:162` ruimt alleen op als het element dat attribuut nog heeft
+     (`ColumnsEditor.tsx:195`). Een bronwissel in het tabblad zelf ruimt wel op. Code-review ronde 1 van #877
+     (GPT-6.1-Sol): bevestigd in de app. Voorstel: ruim de tooltip ook op als zijn trigger de tooltipfunctie
+     verliest. — B
+
+1351. **VERVOLG: de legendaregel "Kritiek pad (rand)" is in elke taal Nederlands.** De sleutel `legend.criticalOutline`
+     staat in geen enkel taalbestand; `ReportPanel.tsx:797` en `reportStudio/useStudioPrintOptions.ts:241` vallen
+     terug op de `defaultValue` 'Kritiek pad (rand)'. Een Engelse afdruk met balkkleuren *Per taak — automatisch*
+     toont dus een Nederlandse legendaregel. Gezien bij het verwerken van ronde 1 van #877 (grep op main en de
+     branch). Voorstel: voeg de sleutel toe aan `report.json` (nl + en) en haal de `defaultValue` weg. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is

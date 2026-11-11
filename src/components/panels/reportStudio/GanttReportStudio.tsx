@@ -294,15 +294,13 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const layoutDiff = useMemo(() => {
     if (!chosenLayout) return null;
     const extra = layoutReportPatch(chosenLayout, availableColumnIds);
-    // De balkkleuren tellen zoals ze op papier staan: zolang het rapport geen eigen keuze heeft, die van het scherm.
-    const current = (key: StudioSettingKey) => (key === 'barColors' ? reportBarColors(settings, screenBarColors) : settings[key]);
-    const differs = (key: StudioSettingKey) => key in extra && JSON.stringify(current(key)) !== JSON.stringify(extra[key]);
+    const differs = (key: StudioSettingKey) => key in extra && JSON.stringify(settings[key]) !== JSON.stringify(extra[key]);
     const pick = (keys: readonly StudioSettingKey[]): Partial<ReportSettings> | null => {
       const changed = keys.filter(differs);
       return changed.length > 0 ? Object.fromEntries(changed.map(key => [key, extra[key]])) as Partial<ReportSettings> : null;
     };
     return { id: chosenLayout.id, name: chosenLayout.name, columns: pick(LAYOUT_COLUMN_KEYS), bars: pick(LAYOUT_BAR_KEYS) };
-  }, [chosenLayout, availableColumnIds, settings, screenBarColors]);
+  }, [chosenLayout, availableColumnIds, settings]);
   // Eén deel overnemen, met "Ongedaan maken" voor alleen dat deel (de keuze van de layout blijft). Neemt de
   // planner daarna ook het andere deel van dezelfde layout over, dan zet één "Ongedaan maken" beide terug.
   const takeOverFromLayout = useCallback((part: 'columns' | 'bars') => {

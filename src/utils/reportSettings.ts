@@ -24,7 +24,7 @@ import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
 import { parseBarColorSelection } from '@/utils/barColorSettings';
-import type { BarColorSelection } from '@/types/barColor';
+import { DEFAULT_BAR_COLOR_SELECTION, type BarColorSelection } from '@/types/barColor';
 import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_DAY_WIDTH } from '@/services/print/printPreview';
 import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
@@ -251,10 +251,10 @@ export interface ReportSettings {
   /**
    * De balkkleuren van de Gantt-afdruk (keuze Ethan, 10 november 2026: eigen balkkleuren, net als de
    * kolommen). Alleen het nieuwe Rapport-tabblad leest en schrijft dit veld; het verandert de Gantt op het
-   * scherm nooit. `null` = nog niet gekozen: dan drukt het rapport de balkkleuren van het scherm af, zodat
-   * een oude opslag ongewijzigd afdrukt. Bij *Zoals de weergave* telt dit veld niet (`reportBarColors`).
+   * scherm nooit. Standaard het kritieke pad, net als een vers scherm. Bij *Zoals de weergave* telt dit veld
+   * niet (`reportBarColors`).
    */
-  barColors: BarColorSelection | null;
+  barColors: BarColorSelection;
   /** Zijbalk van het nieuwe Rapport-tabblad (feature flag `reportRedesign`). */
   sidebar: ReportSidebarMode;
   /**
@@ -301,7 +301,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
   columns: [...REPORT_DEFAULT_COLUMNS],
-  barColors: null,
+  barColors: DEFAULT_BAR_COLOR_SELECTION,
   sidebar: 'open',
   studioStep: 'tasks',
   paperHintSeen: false,

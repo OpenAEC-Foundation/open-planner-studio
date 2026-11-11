@@ -96,7 +96,7 @@ On the left is a sidebar with five steps, in the order of the paper: *Tasks and 
 
 **Company: overtyping is not kept.** The *Company:* field of the Gantt chart starts with the company from the project settings. What you type over it is not kept. You cannot type in *Author:* here. You change both with *Settings › Project › Project settings*, in the fields *Client/organization* and *Author*, and confirm with *Apply*.
 
-**Bar colors: also applies to your screen.** The *Bar colors:* choice in the report is the same choice as *Bar colors* on the View tab. If you change it in the report, your Gantt on screen changes with it. The new Report tab (experimental) works differently: there the report has its own bar colours, and your Gantt on screen does not change. As long as you choose no bar colour there, the report prints the bar colours of your screen.
+**Bar colors: also applies to your screen.** The *Bar colors:* choice in the report is the same choice as *Bar colors* on the View tab. If you change it in the report, your Gantt on screen changes with it. The new Report tab (experimental) works differently: there the report has its own bar colours, and your Gantt on screen does not change. There the bars are coloured by critical path by default, also when your screen has another choice.
 
 **The Variance without a baseline.** A baseline is a saved snapshot of your schedule that you measure against later; how to save one is in [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren). If you have no active baseline, instead of a comparison it says *No active baseline — save a baseline or set one active.*
 

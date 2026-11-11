@@ -515,7 +515,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   };
   await expect.poll(async () => (await own()).showDeps).toBe(false);
   const ownBefore = await own();
-  expect(ownBefore).toMatchObject({ showFloat: true, showBaselineOverlay: false, statusLine: 'none', barColors: null });
+  expect(ownBefore).toMatchObject({ showFloat: true, showBaselineOverlay: false, statusLine: 'none', barColors: { mode: 'critical' } });
   expect(ownBefore.columns).toHaveLength(7);
   const shortColumns = ['task.wbsCode', 'task.name', 'task.time.scheduleDuration'];
   await storeLayouts([{
@@ -623,6 +623,21 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(colorPicker).toBeEnabled();
   await expect(colorPicker).toContainText(/Per task — automatic|Per taak — automatisch/);
   expect(await screenColors()).toEqual({ mode: 'critical' });
+  // Een eigen keuze staat vast (review Sol #877, ronde 1): wisselt daarna het scherm, dan blijven het papier en de
+  // legenda bij de keuze van het rapport. Standaard zet een vaste kleur terug (het kritieke pad), ook als het
+  // scherm iets anders heeft; een volgstand die op het scherm lijkt maar anders uitpakt, bestaat niet.
+  const paper = page.locator('[data-report-page-svg="0"]');
+  const outline = /Critical path \(outline\)|Kritiek pad \(rand\)/;
+  await expect(paper).toContainText(outline);
+  await page.evaluate(() => window.__OPS__!.store.getState().setOverlays({ barColors: { mode: 'category', field: { src: 'builtin', key: 'taskType' } } }));
+  await expect.poll(screenColors).toMatchObject({ mode: 'category' });
+  await expect(colorPicker).toContainText(/Per task — automatic|Per taak — automatisch/);
+  await expect(paper).toContainText(outline);
+  await page.locator('[data-rs-step="bars"] [data-rs-reset="bars"]').click();
+  await expect.poll(async () => (await saved()).barColors).toEqual({ mode: 'critical' });
+  await expect(colorPicker).toContainText(/Critical path|Kritiek pad/);
+  await expect(paper).not.toContainText(outline);
+  expect(await screenColors()).toMatchObject({ mode: 'category' });
 });
 
 // Een Arabische taaknaam bij naamweergave Volledig (review Sol #847). De meting van het papier en de PDF komt

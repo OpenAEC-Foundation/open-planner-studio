@@ -286,8 +286,9 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
   const screen = { mode: 'category', field: { src: 'builtin', key: 'taskType' } } as const;
   const own = { mode: 'auto' } as const;
   const base = { ...DEFAULT_REPORT_SETTINGS };
-  eq('standaard: nog geen eigen keuze', base.barColors, null);
-  eq('alle taken zonder eigen keuze: die van het scherm', reportBarColors(base, screen), screen);
+  // Geen volgstand meer (review Sol #877, ronde 1): ook de standaard is een eigen, vaste keuze.
+  eq('standaard: het kritieke pad', base.barColors, { mode: 'critical' });
+  eq('alle taken met de standaard: die van het rapport, niet die van het scherm', reportBarColors(base, screen), { mode: 'critical' });
   eq('alle taken met eigen keuze: die van het rapport', reportBarColors({ ...base, barColors: own }, screen), own);
   eq('een layout met eigen keuze: die van het rapport', reportBarColors({ ...base, layoutId: 'l', barColors: own }, screen), own);
   eq('zoals de weergave: altijd die van het scherm', reportBarColors({ ...base, followView: true, barColors: own }, screen), screen);

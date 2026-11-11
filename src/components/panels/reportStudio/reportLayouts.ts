@@ -38,13 +38,13 @@ export function taskSourcePatch(source: ReportTaskSource): Pick<ReportSettings, 
 
 /**
  * De balkkleuren op papier. Bij *Zoals de weergave* die van het scherm (live), net als de kolommen; anders de
- * eigen keuze van het rapport, of die van het scherm zolang het rapport er nog geen heeft.
+ * eigen keuze van het rapport.
  */
 export function reportBarColors(
   settings: Pick<ReportSettings, 'reportType' | 'layoutId' | 'followView' | 'barColors'>,
   screen: BarColorSelection,
 ): BarColorSelection {
-  return reportTaskSource(settings).kind === 'view' ? screen : settings.barColors ?? screen;
+  return reportTaskSource(settings).kind === 'view' ? screen : settings.barColors;
 }
 
 /** Een vaste sleutel per keuze, voor de radiogroep. */
