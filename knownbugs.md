@@ -1883,27 +1883,6 @@ en noem het in je rapport of PR-tekst.
      De laatste twee staan met deze redenen in `OWN_MAY_REFUSE`; ze zijn geen voorbeelden van een OPS-versie die zijn
      eigen uitvoer niet kan opslaan. De weigering blijft veilig; geen toestemming om hun brongegevens weg te schrijven. — B
 
-1109. **BLOKKEERT vóór 1c: behoud van een ongewijzigde precieze duur na echte voortgangsinvoer.** Eerdere kale proef
-     op `b5-lopend-oude-writer.ifc`: bron IfcTaskTime #29:
-     slot 4 `P0Y0M5D`, slot 18 `$`. Terugzetten van beide bronwaarden geeft na herlezen een andere planning dan de
-     writeruitvoer zonder terugzetten. De brede afhankelijkheid "voortgang verklaart duur en rest" in #898 gaf verlies:
-     Terra bewees dat alleen voortgang wijzigen in v2026.9.0-17-cijfers een ongewijzigde duur en rest liet afronden van
-     2.3333333333333335 naar 2.333333. Per slot behouden met `carried` liet vervolgens drie bestanden van de toets van
-     Trias weigeren op slot 18: `P0Y0M0.5D` → `PT4H30M0S`, `P0Y0M2.3333333333333335D` → `PT21H0M0S` en
-     `P0Y0M0.5D` → `PT4H0M0S`. `carried` kent voor een duur nu alleen tekstgelijkheid, niet dezelfde betekenis in een
-     andere vorm. Richting: betekenis van een duur dragen binnen de bestaande lijst van exact gelezen vormen
-     (`durationForms.ts`), zonder een brede vrijstelling. Besluit van Trias, 11 november 2026: 1109 uit #898; de tabel en
-     de duur/rest-code daar terug naar main. Een eigen PR ná #903 (volledige herleestoets), met ook 1113.
-     Aanvulling #903: via de echte `setTaskProgress(id, 0.5)` en `setActualStart(id, scheduleStart)` wijzigt de actie
-     de rest. Daarna krijgt ook het duurslot de writerwaarde: 2.3333333333333335 werd 2.333333, hoewel de planner de
-     duur niet wijzigde (vier gevallen: oorspronkelijke bronrest en een gemaakte variant). Sinds de aanvullende eis
-     van #903 weigert de naad dat getypeerd op `time.scheduleDuration`. Op te lossen in de PR voor 1109: de duur per
-     slot exact behouden, zodat de vier gevallen weer schrijven. `b5-lopend` schrijft via de echte invoer.
-     Aanvulling fixronde 1 van #903: op `eigen-plus-model.ifc` met bronlag 2.3333333333333335 dagen verandert
-     `loadExtensionProject` alleen de lag-eenheid naar `ELAPSEDTIME`. `sourceDayLagIds` laat het bronbehoud dan
-     vervallen; de gewone writer maakt 2.333333. De generieke eis voor ongewijzigde getallen weigert dit nu getypeerd
-     op `sequences[…].lagDays`. Exact laten schrijven na een eenheidswijziging hoort bij deze PR voor 1109. — B
-
 1113. **VERVOLG: een gewone opslag rondt een duur of rest met 17 cijfers af naar 6 decimalen.** Gemeten in #898, zonder
      model, op code waarvan de gewone writer en de open-route gelijk zijn aan main `d456e6e7b`: open
      `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` via de app, gewone opslag met `writeIFC`, heropenen via de app. De duur
@@ -1945,20 +1924,6 @@ en noem het in je rapport of PR-tekst.
      tegenkomen zonder de flag zelf ooit aan te zetten (bewezen door Sol in de herbeoordeling van #886: één keer
      schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
      1c. — B
-
-1116. **BLOKKEERT vóór 1c: de eerste echte bewerking van een geïmporteerd bestand met een model laat de merge weigeren.**
-     Wat vaststaat: `enterTaskProgress` op `fixtures/ifc-arity-oude-writer.ifc` met een wand wist de vlag `importPristine`;
-     de writer schrijft dan `UnchangedSinceImport`, de pset `OPS_ImportProvenance` en de koppeling niet meer, en de
-     verliesbewaking weigert (`niet-gedragen`: "IFCPROPERTYSINGLEVALUE #412 (UnchangedSinceImport): ontbreekt in de uitvoer
-     na de bewerking"). Geen verlies: getypeerd, geen bytes. Vermoed, niet gemeten: elke echte bewerking wist de vlag;
-     duur en voortgang lopen nu via de app-acties (doorrekenen gebruikt de duuractie plus F5); de overige
-     bewerkingen in de telling zijn nog kale wijzigingen van het domein. Richting: het
-     wegvallen van die property, pset en koppeling verklaren met de wijziging van `importPristine` tegenover `opened`
-     (vergelijk 1110). Besluit van Trias (11 november 2026): BLOKKEERT vóór 1c, op te lossen in de PR voor 1109.
-     Aanvulling eindtelling #903: op dezelfde taak `task-mula7vhu11iq28` weigeren nu ook de echte duuractie (+1 dag)
-     en die actie met F5 op dezelfde ontbrekende property #412, pset #413 en relatie #414. Drie gevallen tegenover
-     main na #898, alle getypeerd zonder bytes. Niet gerepareerd. Volledig per geval:
-     `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. Uit #903. — B
 
 1117. **VERVOLG: de toets "ongewijzigd getal exact" koppelt rijen zonder `id` op plek.** `unchangedPlanningNumberProblem`
      in `src/services/ifc/foreign/mergeWriter.ts` (#903) koppelt dingen met een `id` op id en de rest op plek in de lijst.

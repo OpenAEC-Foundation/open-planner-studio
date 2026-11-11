@@ -10,11 +10,11 @@ deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met e
 lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
 Het lezen (1a) en het schrijven (1b, #867) zijn gemerged in main: de writer laat het gebouwmodel staan en zet de
 planning ertussen, en bij twijfel weigert hij. #886 is gemerged in main; de merge wordt daar getoetst via de toestand die
-na openen in de app staat. Concept-PR #898 bevat alleen de tijdzonevergelijking (1111), de oude kalenderindeling
-(1108), de bijbehorende tests en tekst. Alle code voor voortgang (1109) is terug naar main. Daarna volgt #903 voor de
-volledige herleestoets (1107), dan een eigen PR voor 1109 met 1113, en daarna 1c. De meting van 1113 via de echte
-invoer van de app: de rest na een werkelijk einde klopt (0 vóór en na opslaan); alleen de afronding van een duur of rest
-met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd deel blijft geweigerd.
+na openen in de app staat. #898 en #903 zijn gemerged in main: de tijdzone en oude kalender zijn afgedekt en de volledige
+herleestoets bewaakt ook ongewijzigde getallen exact. Concept-PR #908 vult het bronbehoud per duur-, rest- en lagslot aan
+(1109) en verklaart smal het vervallen van de importvlag (1116). Daarna volgt 1c, met de eisen hieronder; het afzonderlijke
+kalenderherstel van 1120 hoort bij #910. De afronding van een duur of rest met 17 cijfers bij gewone opslag blijft als
+VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Bronnen
 
@@ -72,13 +72,11 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
    fixtures blijven bewust geweigerd, met herkomstbewijs en redenen in de PR-tekst en `OWN_MAY_REFUSE`.
 5. **1107: volledige herleestoets** (#903, eigen branch). Moet vóór het aansluiten in 1c af zijn. Deze PR raakt die
    worktree niet. Kosten van opnieuw openen en rekenen apart meten (1021).
-6. **1109 met 1113**: eigen PR ná #903, volgens besluit van Trias 11 november 2026. `carried` voor een duur moet de
-   betekenis kunnen vergelijken binnen de lijst van exact gelezen vormen. Proeven bewerken voortgang, werkelijke start
-   en werkelijk einde zoals de app (`enterTaskProgress`, `setActualFinish`), niet met een kale `updateTask` (1113).
-   **Aanvulling 1109 uit #903:** echte `setTaskProgress` en `setActualStart` wijzigen de rest; daarbij kreeg ook de
-   ongewijzigde duur de writerwaarde 2.333333 in plaats van 2.3333333333333335 (vier gevallen). De naad weigert dit nu
-   getypeerd. Per-slot-behoud van de duur moet deze vier in de PR voor 1109 weer laten schrijven; b5 schrijft via de echte invoer.
-   **De PR voor 1109** begint met opnieuw meten via echte acties wat er nog weigert (`b5-lopend` schrijft via `enterTaskProgress`); 1116 hoort erbij (besluit van Trias, 11 november 2026).
+6. **1109 en 1116**: concept-PR #908 ná #903. Duur en rest behouden hun bronvorm elk apart; `carried` vergelijkt de
+   betekenis binnen de bestaande lijst van exact gelezen duurvormen. Een lag-eenheidswijziging laat het getal letterlijk.
+   Proeven gebruiken de echte voortgangs- en duuracties; de naad blijft ongewijzigde getallen exact bewaken. Alleen een
+   importvlag die tegenover `opened` vervalt verklaart het verdwijnen van haar property, lege pset en koppeling. Extra
+   herkomstgegevens blijven bewaakt; 1110 blijft afzonderlijk. De gewone opslag en afronding van 1113 veranderen niet.
 7. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (Trias, 11 november 2026): de bewerkingen in de telling lopen via de acties van de app, niet kaal op het domein (nu duur en voortgang; doorrekenen gebruikt de duuractie plus F5).
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
@@ -128,6 +126,8 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
    hulpstukken (`OPS_Resource` en de andere psets en relaties); het is onze eigen writer.
 
 ## Werk
+
+- 2026-11-11: #908 bewaart duur en rest per slot, ook hele dagvormen uitsluitend in slots 4 en 18; werkelijke duur en spelingen houden hun bestaande breukregel en ExactFloat-records. Lag-eenheidswijzigingen behouden het precieze getal; duurbetekenis volgt de bestaande vormenlijst en brontaakmaat. 1116 verklaart alleen de vervallen importvlag en haar lege pset/koppeling; tegenproeven bewaken vlagbehoud en extra inhoud. Zes mutaties zijn rood met cp/cmp en gelijke SHA-256, plus een afzonderlijke duurproef; 1109 en 1116 zijn uit knownbugs gehaald. 1110, 1113 en 1117–1119 blijven afzonderlijk; 1120 en 1123 horen bij #910.
 
 - 2026-11-11: #903 fixronde 1 na Terra (GPT-6.1-Terra, xhigh) nee: ongewijzigde getallen worden in de hele planning bewaakt; de echte extensieactie met alleen een lag-eenheidswijziging weigert nu veilig (1109). De twee leeswegen worden rechtstreeks vergeleken; een gemaakte proef is alleen met echte herberekening ongelijk. Beide mutaties zijn rood, cp/cmp en SHA-256 bevestigen herstel.
 
@@ -268,9 +268,9 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 ## Volgende stappen
 
 1. #898 is gemerged in main (`20b9af79a`): 1111 en de kalender van 1108 zijn afgerond.
-2. #903: de volledige herleestoets (1107) afmaken.
-3. Een eigen PR voor 1109 met 1113 en 1116, na #903; eerst opnieuw meten via echte acties.
-4. Dan 1c, met alle eisen hierboven.
+2. #903 is gemerged in main: de volledige herleestoets (1107) en de exacte bewaking van ongewijzigde getallen staan aan.
+3. #908 (1109 en 1116) en het afzonderlijke #910 (1120) laten beoordelen en afronden; 1113 blijft VERVOLG.
+4. Dan 1c, met alle eisen hierboven, waaronder echte app-acties voor de overige bewerkingen van de telling.
 5. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
 
 ## Kostenvoorwaarde van 1107 (11 november 2026)
