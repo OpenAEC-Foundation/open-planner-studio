@@ -652,11 +652,10 @@ export class TargetModelScanner {
         if (i === n) break;
       } else if (this.strip === Strip.Str && this.stringState === StepStringState.Text) {
         // In gewone stringinhoud zijn alleen apostrof en backslash een grens.
-        const quote = chunk.indexOf(QUOTE, i);
-        const back = chunk.indexOf(0x5c, i);
-        const j = quote < 0 ? back : back < 0 ? quote : Math.min(quote, back);
-        if (j < 0) { i = n; break; }
-        i = j;
+        // Eén doorgang tot de eerste grens. Twee losse indexOf-zoekacties zouden
+        // bij iedere korte string zonder backslash de rest van het blok doorzoeken.
+        while (i < n && chunk[i] !== QUOTE && chunk[i] !== 0x5c) i++;
+        if (i === n) break;
       } else if (this.strip === Strip.Comment) {
         const j = chunk.indexOf(STAR, i);
         if (j < 0) { i = n; break; }

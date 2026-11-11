@@ -24,6 +24,21 @@ const insert = (fragment: string) => {
   return source.slice(0, at) + fragment + '\n' + source.slice(at);
 };
 const wall = "#99999=IFCWALL('0wall00000000000000000',$,'Wall',$,$,$,$,$,$);";
+await check('doelcontrole zoekt lineair door veel korte strings zonder backslashes', () => {
+  const input = source.slice(0, source.indexOf('DATA;') + 5)
+    + "\n#1=IFCTASK('x',$);\n".repeat(4000) + 'ENDSEC;\nEND-ISO-10303-21;';
+  const bytes = enc.encode(input);
+  let searched = 0;
+  const indexOf = bytes.indexOf.bind(bytes);
+  bytes.indexOf = (value, from = 0) => {
+    const found = indexOf(value, from);
+    searched += (found < 0 ? bytes.length : found + 1) - from;
+    return found;
+  };
+  assert.equal(scanTargetBytes(bytes), 'no-model');
+  // Meet doorzochte bytes, geen wandkloklimiet die van de runner afhangt.
+  assert.ok(searched <= bytes.length * 50, `${searched} doorzochte bytes bij ${bytes.length} bronbytes`);
+});
 for (const [raw, expected] of [
   ["a\\S\\'", 'a§'],
   ["a\\S\\', (x); #99999=IFCWALL($); /* tekst */", 'a§, (x); #99999=IFCWALL($); /* tekst */'],
