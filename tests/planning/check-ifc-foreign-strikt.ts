@@ -11,8 +11,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyTaskProgress } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
-import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, recalculated, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
+import { basicEdits, canon, cloneDomain, mergeProblems, openForeign, plannerEdits, recalculated, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -22,7 +23,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-installDeterminism();
+const reseed = installDeterminism();
 const diffs: string[] = [];
 let checks = 0;
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
@@ -58,10 +59,10 @@ const REVIT_WALL = [
 ];
 
 /** De uitkomst van een merge als tekst: `schrijft`, de gevallen van de weigering, of een andere fout (`fout: …`). */
-type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'open-weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array };
+type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'open-weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array; shown?: Domain };
 /** Elk bestand één keer openen; elke merge krijgt een kopie van het domein (de bron blijft gedeeld en onbewerkt). */
 const openedOf = new Map<Uint8Array, Opened>();
-async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void): Promise<Result> {
+async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>): Promise<Result> {
   let opened = openedOf.get(bytes);
   if (!opened) {
     try { opened = await openForeign(bytes); } catch (e) {
@@ -72,8 +73,9 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
     openedOf.set(bytes, opened);
   }
   if (!opened.ifcSource?.foreign) return { label, outcome: 'fout', kinds: [], details: ['geen vreemd deel'] };
-  const d = cloneDomain(opened);
-  edit?.(d, opened);
+  let d = cloneDomain(opened);
+  const edited = await edit?.(d, opened);
+  if (edited) d = edited;
   let r: MergeOutcome;
   try { r = await tryMerge(d, opened.ifcSource); } catch (e) {
     return { label, outcome: 'fout', kinds: [], details: [`${(e as Error).name}: ${(e as Error).message.slice(0, 160)}`] };
@@ -81,13 +83,13 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
   if (r.ok) {
     const problems = mergeProblems(bytes, r.bytes);
     if (problems.length > 0) return { label, outcome: 'fout', kinds: [], details: problems.slice(0, 3).map(p => `invariant: ${p}`), out: r.bytes };
-    return { label, outcome: 'schrijft', kinds: [], details: [], out: r.bytes };
+    return { label, outcome: 'schrijft', kinds: [], details: [], out: r.bytes, shown: r.shown };
   }
   return { label, outcome: 'weigert', kinds: r.kinds, details: r.error.cases.map(c => `${c.kind}: ${c.detail}`) };
 }
 const results: Result[] = [];
 /** Een proef met de verwachte uitkomst: `schrijft`, of het geval van de weigering. */
-async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
+async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
   const r = await merge(`${plek} · ${label}`, bytes, edit);
   if (only && r.outcome === 'weigert') {
     const other = r.details.filter(x => !only.test(x));
@@ -249,7 +251,7 @@ await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x)
     ['gewoon commentaar', before('/* #888888=IFCWALL($,$,$,$,$,$,$,$,$); */\n')],
     ['een getal boven de grens van de scanner', before('/* #99999999999 */\n')],
   ];
-  const edit = (kind: 'hernoemen' | 'taak-erbij') => (x: Domain, o: Opened) => basicEdits(o).find(e => e.kind === kind)!.apply(x);
+  const edit = (kind: 'hernoemen' | 'taak-erbij') => async (x: Domain, o: Opened) => { await basicEdits(o).find(e => e.kind === kind)!.apply(x); };
   for (const [label, bytes] of variants) {
     ok(`fixronde 8: ${label}: de bron heeft volgens de norm geen dubbel #id`, once(bytes) === undefined);
     await proof('dubbel id', `${label}, zonder bewerking`, bytes, 'schrijft', undefined, once);
@@ -302,9 +304,9 @@ const secondRoundSame = async (label: string, r: Result) => {
   const second = await tryMerge(cloneDomain(o), o.ifcSource!);
   ok(`${label}: een tweede ronde is byte-gelijk aan de eerste`, second.ok && sameBytes(second.bytes, r.out));
 };
-await proof('B2, plek 7', 'Terra m1: P2DT12H, de duur expliciet op 720 en de taak hernoemd: schrijft de nieuwe duur', p2dt12h, 'schrijft', (x, o) => {
+await proof('B2, plek 7', 'Terra m1: alleen minuten op 720, afgeleide dagen blijven 3.5: weigert veilig', p2dt12h, 'ongewijzigd-getal', (x, o) => {
   const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 720; q.name = 'Hernoemd';
-}, (out) => has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT12H0M0S'/)(out) ?? has("'P2DT12H'", false)(out));
+}, undefined, /^ongewijzigd-getal: taak .+\.time\.scheduleDuration: 3.5 → 1.5$/);
 await secondRoundSame('regressie 1027 · P2DT12H zonder bewerking',
   await proof('regressie 1027', 'P2DT12H zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk', p2dt12h, 'schrijft', undefined, sameTaskTime(p2dt12h)));
 {
@@ -326,11 +328,12 @@ await proof('B2', 'P1W (weken: de lezer leest geen weken, knownbug 1028)', latin
 const t55 = (dur: string, src = showcase) => latin1(src.replace(T55, T55.replace("'P0Y0M3D'", `'${dur}'`)));
 const rename55 = (x: Domain, o: Opened) => { x.tasks.find(z => z.id === cpt(o).id)!.name = 'Hernoemd'; };
 const m1 = (x: Domain, o: Opened) => { const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 720; q.name = 'Hernoemd'; };
-// Sinds fixronde 5b leest de lezer `P2DT12H` goed (knownbug 1027 opgelost), dus ook de gecodeerde vormen: ze schrijven.
+// Zonder bewerking schrijven ook de gecodeerde vormen. De gemaakte m1-bewerking laat dagen en minuten uiteenlopen;
+// sinds 1107 weigert die veilig op het ongewijzigde dagengetal (geen route van een planner).
 // De toets blijft na de decodering kijken: de komma (BLOKKEERT 2) en de vorm (zoektocht 4) ziet hij ook gecodeerd.
 for (const dur of ['P2\\X2\\0044\\X0\\T12H', 'P2\\X\\44T12H', 'P2\\X4\\00000044\\X0\\T12H']) {
-  await proof('BLOKKEERT 1, plek 7', `Sol en Terra: ${dur} (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd: schrijft de nieuwe duur`, t55(dur), 'schrijft', m1,
-    has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT12H0M0S'/));
+  await proof('BLOKKEERT 1, plek 7', `Sol en Terra: ${dur} (P2DT12H in STEP-codering), alleen minuten 720 en de taak hernoemd: weigert veilig`, t55(dur), 'ongewijzigd-getal', m1,
+    undefined, /^ongewijzigd-getal: taak .+\.time\.scheduleDuration: 3.5 → 1.5$/);
   await secondRoundSame(`BLOKKEERT 1 · ${dur} zonder bewerking`,
     await proof('BLOKKEERT 1, plek 7', `${dur} zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk`, t55(dur), 'schrijft', undefined, sameTaskTime(t55(dur))));
 }
@@ -939,8 +942,9 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   ok("plek 6: #63 is 'Build masonry walls' zonder Status", lineOf(latin1(eigen), '63') === "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,$,$,.F.,$,#62,.CONSTRUCTION.);");
   const onHold = latin1(setLine(eigen, 63, "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,'ON HOLD',$,.F.,$,#62,.CONSTRUCTION.);"));
   const t63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!;
-  const complete = (x: Domain, o: Opened) => {
-    const q = t63(x, o); q.time.completion = 1; q.status = 'COMPLETED' as never; q.time.actualStart = q.time.scheduleStart; q.time.actualFinish = q.time.scheduleFinish;
+  const complete = async (x: Domain, o: Opened) => {
+    const q = t63(x, o);
+    await applyTaskProgress(x, q.id, [{ field: 'actualStart', value: q.time.scheduleStart }, { field: 'actualFinish', value: q.time.scheduleFinish }]);
   };
   const statusOf = (s: string) => /^#\d+=IFCTASK\('06AdBvh4v8lXgXlHO1\$rfO',#\d+,'Build masonry walls',\$,\$,'[^']*',\$,('[^']*'|\$),/m.exec(s)?.[1];
   await proof('plek 6', "'ON HOLD', zonder bewerking", onHold, 'schrijft', undefined, has("'ON HOLD'"));
@@ -951,7 +955,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   if (done.out) {
     const o = await openForeign(onHold);
     const d = cloneDomain(o);
-    complete(d, o);
+    await complete(d, o);
     const writer = statusOf(writeIFC(d));
     ok(`plek 6: de Status na voltooien is die van de writer (${statusOf(text(done.out))} = ${writer})`, writer !== undefined && statusOf(text(done.out)) === writer);
   }
@@ -982,12 +986,12 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   const time63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!.time;
   const other = taskBy(eigenOpened, 65).time;
   await proof('VERVOLG', '.NOTDEFINED., zonder bewerking', notDefined, 'schrijft', undefined, keep);
-  const edits: [string, (x: Domain, o: Opened) => void][] = [
+  const edits: [string, (x: Domain, o: Opened) => void | Domain | Promise<void | Domain>][] = [
     ['het geplande begin', (x, o) => { time63(x, o).scheduleStart = '2027-05-07'; }],
     ['het geplande einde', (x, o) => { time63(x, o).scheduleFinish = '2027-05-14'; }],
     ['de duur', (x, o) => { time63(x, o).scheduleDuration += 1; }],
     ['vroeg en laat', (x, o) => { const t = time63(x, o); t.earlyStart = other.earlyStart; t.earlyFinish = other.earlyFinish; t.lateStart = other.lateStart; t.lateFinish = other.lateFinish; }],
-    ['het werkelijke begin', (x, o) => { time63(x, o).actualStart = '2027-05-06'; }],
+    ['het werkelijke begin', (x, o) => applyTaskProgress(x, taskBy(o, 63).id, [{ field: 'actualStart', value: '2027-05-06' }])],
     ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
   ];
   for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);
@@ -1033,9 +1037,10 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
 }
 
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──
-// Regel: een combinatie schrijft alleen als elk deel apart ook schrijft. Een wijziging van het project verklaart alleen
-// haar eigen velden (B1), en een bewerking nooit het verlies van een andere.
-type Edit = { label: string; apply: (d: Domain) => void };
+// Zonder echte duuractie geldt de oude onafhankelijkheidsproef. Een echte duuractie kan een kale andere bewerking
+// via haar werkregels consistent maken; dan toetsen we de volledige heropening tegen de naad, zonder een weigering
+// te repareren of een uitzondering aan de writer toe te voegen.
+type Edit = { label: string; realDuration?: boolean; apply: (d: Domain) => void | Promise<void | Domain> };
 const projectEdits = (d: Domain): Edit[] => [
   { label: 'projectnaam', apply: (x) => { x.project.name = 'Andere naam'; } },
   { label: 'projectomschrijving', apply: (x) => { x.project.description = 'Andere omschrijving'; } },
@@ -1059,7 +1064,7 @@ for (const [name, bytes] of files) {
   const taskEdits: Edit[] = [
     ...basicEdits(opened),
     ...plannerEdits(opened, 2).filter(e => e.kind === 'taak-wissen' || e.kind === 'andere-ouder').slice(0, 2),
-  ].map(e => ({ label: e.label, apply: e.apply }));
+  ].map(e => ({ label: e.label, apply: e.apply, realDuration: e.kind === 'duur' }));
   const projects = projectEdits(opened);
   const alone = new Map<string, Result>();
   for (const e of [...taskEdits, ...projects]) alone.set(e.label, await merge(`${name} · ${e.label}`, bytes, e.apply));
@@ -1067,13 +1072,19 @@ for (const [name, bytes] of files) {
   for (const e of taskEdits) for (const p of projects) pairs.push([e, p]);
   for (let a = 0; a < taskEdits.length; a++) for (let b = a + 1; b < taskEdits.length; b++) pairs.push([taskEdits[a], taskEdits[b]]);
   for (const [e, f] of pairs) {
-    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, (x) => { e.apply(x); f.apply(x); });
+    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, async (x) => { const first = await e.apply(x); return f.apply(first ?? x); });
     combos++;
     if (r.outcome === 'schrijft') combosWritten++;
     const parts = [alone.get(e.label)!, alone.get(f.label)!];
     ok(`combinatie ${r.label}: geen fout (${r.details.slice(0, 2).join(' | ')})`, r.outcome !== 'fout');
-    ok(`combinatie ${r.label}: schrijft alleen als elk deel apart schrijft (delen: ${parts.map(p => p.outcome).join(', ')})`,
-      r.outcome !== 'schrijft' || parts.every(p => p.outcome === 'schrijft'));
+    if (r.outcome === 'schrijft' && !parts.every(p => p.outcome === 'schrijft') && (e.realDuration || f.realDuration)) {
+      const same = canon(await openForeign(r.out!), reseed) === canon(r.shown!, reseed);
+      ok(`combinatie ${r.label}: echte duuractie maakt samenhang consistent; volledige heropening geeft dezelfde planning`, same);
+      console.log(`COMBINATIE ECHTE DUUR ${r.label}: schrijft, volledige heropening ${same ? 'gelijk' : 'verschilt'}; losse delen ${parts.map(p => p.outcome).join(', ')}`);
+    } else {
+      ok(`combinatie ${r.label}: schrijft alleen als elk deel apart schrijft (delen: ${parts.map(p => p.outcome).join(', ')})`,
+        r.outcome !== 'schrijft' || parts.every(p => p.outcome === 'schrijft'));
+    }
   }
   for (const [label, r] of alone) ok(`${name} · ${label}: geen fout (${r.details.slice(0, 2).join(' | ')})`, r.outcome !== 'fout');
 }

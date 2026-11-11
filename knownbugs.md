@@ -1883,7 +1883,8 @@ en noem het in je rapport of PR-tekst.
      De laatste twee staan met deze redenen in `OWN_MAY_REFUSE`; ze zijn geen voorbeelden van een OPS-versie die zijn
      eigen uitvoer niet kan opslaan. De weigering blijft veilig; geen toestemming om hun brongegevens weg te schrijven. — B
 
-1109. **BLOKKEERT vóór 1c: voortgang in `b5-lopend-oude-writer.ifc` met een model weigert.** Bron IfcTaskTime #29:
+1109. **BLOKKEERT vóór 1c: behoud van een ongewijzigde precieze duur na echte voortgangsinvoer.** Eerdere kale proef
+     op `b5-lopend-oude-writer.ifc`: bron IfcTaskTime #29:
      slot 4 `P0Y0M5D`, slot 18 `$`. Terugzetten van beide bronwaarden geeft na herlezen een andere planning dan de
      writeruitvoer zonder terugzetten. De brede afhankelijkheid "voortgang verklaart duur en rest" in #898 gaf verlies:
      Terra bewees dat alleen voortgang wijzigen in v2026.9.0-17-cijfers een ongewijzigde duur en rest liet afronden van
@@ -1892,7 +1893,16 @@ en noem het in je rapport of PR-tekst.
      `P0Y0M0.5D` → `PT4H0M0S`. `carried` kent voor een duur nu alleen tekstgelijkheid, niet dezelfde betekenis in een
      andere vorm. Richting: betekenis van een duur dragen binnen de bestaande lijst van exact gelezen vormen
      (`durationForms.ts`), zonder een brede vrijstelling. Besluit van Trias, 11 november 2026: 1109 uit #898; de tabel en
-     de duur/rest-code daar terug naar main. Een eigen PR ná #903 (volledige herleestoets), met ook 1113. — B
+     de duur/rest-code daar terug naar main. Een eigen PR ná #903 (volledige herleestoets), met ook 1113.
+     Aanvulling #903: via de echte `setTaskProgress(id, 0.5)` en `setActualStart(id, scheduleStart)` wijzigt de actie
+     de rest. Daarna krijgt ook het duurslot de writerwaarde: 2.3333333333333335 werd 2.333333, hoewel de planner de
+     duur niet wijzigde (vier gevallen: oorspronkelijke bronrest en een gemaakte variant). Sinds de aanvullende eis
+     van #903 weigert de naad dat getypeerd op `time.scheduleDuration`. Op te lossen in de PR voor 1109: de duur per
+     slot exact behouden, zodat de vier gevallen weer schrijven. `b5-lopend` schrijft via de echte invoer.
+     Aanvulling fixronde 1 van #903: op `eigen-plus-model.ifc` met bronlag 2.3333333333333335 dagen verandert
+     `loadExtensionProject` alleen de lag-eenheid naar `ELAPSEDTIME`. `sourceDayLagIds` laat het bronbehoud dan
+     vervallen; de gewone writer maakt 2.333333. De generieke eis voor ongewijzigde getallen weigert dit nu getypeerd
+     op `sequences[…].lagDays`. Exact laten schrijven na een eenheidswijziging hoort bij deze PR voor 1109. — B
 
 1113. **VERVOLG: een gewone opslag rondt een duur of rest met 17 cijfers af naar 6 decimalen.** Gemeten in #898, zonder
      model, op code waarvan de gewone writer en de open-route gelijk zijn aan main `d456e6e7b`: open
@@ -1909,14 +1919,6 @@ en noem het in je rapport of PR-tekst.
      de app, niet met een kale `updateTask`. Bewijs van de meting: tien gevallen, alle invoerroutes
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
-1107. **Vóór 1c: de herleestoets binnen de merge opent niet zoals de app.** `writeIfcMerge` geeft de uitvoer via
-     `readPlanning` aan `sourceFormProblems` (`src/services/ifc/foreign/mergeWriter.ts`, de herleestoets van de bronvorm);
-     die doet alleen de omzetting naar het minutenmodel opnieuw (`src/services/ifc/foreign/sourceForm.ts`, `migrated`), niet
-     de herberekening en de verdere stappen van openen via de store, en toetst alleen de velden die de bronvorm of een
-     letterlijke kalender raakt. De tests openen wel via de app (`openForeign` in `tests/planning/ifcMergeKern.ts`), maar dat
-     is geen controle op iedere merge. Geen verlies gevonden. Eis (besluit van Trias): vóór het aansluiten in 1c een
-     volledige herleestoets in de merge, met een proef die rood wordt als de herberekening na openen de planning verandert.
-     Krijgt een eigen PR: #903. Gevonden door Terra in review ronde 1 van #886. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
@@ -1927,13 +1929,6 @@ en noem het in je rapport of PR-tekst.
      geweigerd; bij één nagegaan dat dit de oorzaak is), nadat de lijst ids in `WorkingExceptionIds` niet meer weigerde.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
-
-1115. **VERVOLG: de pariteitstest vergelijkt met een oudere main.** `tests/planning/check-ifc-foreign-pariteit.ts` en
-     `tests/planning/fixtures/main-pariteit.json` zijn gemaakt op main `2fbbc4ae1`; sindsdien kwam #886 in main
-     (`d456e6e7b`), met wijzigingen in de opslagguard. De test slaagt tegen de vastgelegde uitkomst, en bewijst dus geen
-     byte-gelijkheid met de main van nu. Richting: de referentie opnieuw maken met `scripts/proef/maak-main-pariteit.mjs`
-     op de main van dat moment, bij het bijwerken met main in #903 of de PR voor 1109. Terra, review ronde 2 van
-     #898. — B
 
 1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
      deel waarvan de bron niet terug te lezen is, zegt het ontwerp
@@ -1950,6 +1945,48 @@ en noem het in je rapport of PR-tekst.
      tegenkomen zonder de flag zelf ooit aan te zetten (bewezen door Sol in de herbeoordeling van #886: één keer
      schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
      1c. — B
+
+1116. **BLOKKEERT vóór 1c: de eerste echte bewerking van een geïmporteerd bestand met een model laat de merge weigeren.**
+     Wat vaststaat: `enterTaskProgress` op `fixtures/ifc-arity-oude-writer.ifc` met een wand wist de vlag `importPristine`;
+     de writer schrijft dan `UnchangedSinceImport`, de pset `OPS_ImportProvenance` en de koppeling niet meer, en de
+     verliesbewaking weigert (`niet-gedragen`: "IFCPROPERTYSINGLEVALUE #412 (UnchangedSinceImport): ontbreekt in de uitvoer
+     na de bewerking"). Geen verlies: getypeerd, geen bytes. Vermoed, niet gemeten: elke echte bewerking wist de vlag;
+     duur en voortgang lopen nu via de app-acties (doorrekenen gebruikt de duuractie plus F5); de overige
+     bewerkingen in de telling zijn nog kale wijzigingen van het domein. Richting: het
+     wegvallen van die property, pset en koppeling verklaren met de wijziging van `importPristine` tegenover `opened`
+     (vergelijk 1110). Besluit van Trias (11 november 2026): BLOKKEERT vóór 1c, op te lossen in de PR voor 1109.
+     Aanvulling eindtelling #903: op dezelfde taak `task-mula7vhu11iq28` weigeren nu ook de echte duuractie (+1 dag)
+     en die actie met F5 op dezelfde ontbrekende property #412, pset #413 en relatie #414. Drie gevallen tegenover
+     main na #898, alle getypeerd zonder bytes. Niet gerepareerd. Volledig per geval:
+     `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. Uit #903. — B
+
+1117. **VERVOLG: de toets "ongewijzigd getal exact" koppelt rijen zonder `id` op plek.** `unchangedPlanningNumberProblem`
+     in `src/services/ifc/foreign/mergeWriter.ts` (#903) koppelt dingen met een `id` op id en de rest op plek in de lijst.
+     Regels van een baseline hebben een `taskId`, geen `id`: wist de planner de eerste regel, dan wordt de volgende regel
+     met de vroegere eerste vergeleken, en een blijvend getal dat daarvan verschilt geldt dan niet als ongewijzigd. Geen
+     verlies aangetoond: de writer bewaart een baseline als JSON. Richting: baselineregels op `taskId` koppelen, met een
+     proef met verschuivende rijen. Terra, review ronde 2 van #903. — B
+     Sol probeerde er in zijn gerichte run verlies mee te maken en kon dat niet: de eerste baselineregel wissen weigert
+     getypeerd (`niet-gedragen`), en na het wissen van de eerste onderbreking blijft de volgende exact.
+
+1118. **Bij 1c: de functie met de open-stappen krijgt de invoer van de merge zelf, niet een kopie.** `writeIfcMerge`
+     (`src/services/ifc/foreign/mergeWriter.ts`, #903) geeft `openPlanning` het domein van de planner door nadat de
+     uitvoerregels al gebouwd zijn. Een foutieve functie die dat domein wijzigt, verandert beide kanten van de
+     vergelijking: in de proef van Sol schreef de merge 35.083 bytes terwijl de domeinkopie een andere taaknaam had dan
+     het heropende bestand. Ook geldt: de merge dwingt af dat er een functie is, niet dat zij de echte open-stappen doet
+     (een functie die niets doet, kan schrijven). Geen verlies in de app: er is geen aanroeper, en de bevroren store
+     weigert zo'n wijziging met een `TypeError`. Richting, bij het aansluiten in 1c: de invoer afschermen tegen
+     wijziging, en een integratieproef dat de opslagroute de vaste, echte open-stappen meegeeft (met de flag aan). Sol,
+     gerichte run op #903. — B
+
+1119. **VERVOLG: "dezelfde planning als gewone opslag op main" is in de toets van Trias gelijkheid na opnieuw schrijven.**
+     `tests/planning/check-ifc-foreign-oude-eigen.ts` vergelijkt de tien bestanden via `planningCanon`
+     (`src/services/ifc/foreign/planningCanon.ts`), die beide kanten met de gewone writer schrijft. Rechtstreeks
+     vergeleken zijn negen van de tien diep gelijk; in `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` blijft
+     `time.actualDuration` van Excavate swimming pool na de merge exact `0.30000000000000004`, terwijl een gewone opslag
+     op main er `0.3` van maakt (de afronding van 1113). De merge bewaart hier dus meer dan main; geen verlies. Richting:
+     de domeinwaarden rechtstreeks vergelijken en de toegelaten afronding van de gewone opslag expliciet benoemen. Sol,
+     gerichte run op #903. — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul

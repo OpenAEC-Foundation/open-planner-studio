@@ -1,3 +1,4 @@
+import { readbackDifference } from './ifcReadbackEquality';
 // #804 fase 1b, fixronde 7 van #867: eigen bestanden van oudere OPS-versies, met een model erbij.
 //
 // Besluit van Trias: schreef OPS een waarde zelf, dan mag de merge daarom niet weigeren zolang de planner het veld niet
@@ -24,7 +25,7 @@ import { installDeterminism } from './ifcPariteitKern';
 import { bareBytes, plainSaveAfterF5, TRIAS_FILES, TRIAS_MODEL_FILE, type TriasEntry } from './ifcAppRoute';
 import { createHash } from 'node:crypto';
 import {
-  canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, openInStore, ordinaryEdits, plannerEdits, recalculated, reopenPlain, settle,
+  applyEdit, canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, openInStore, ordinaryEdits, plannerEdits, reopenPlain, settle,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
 import { partialDateTime, sameMeaning } from '@/services/ifc/foreign/lossCheck';
@@ -124,14 +125,15 @@ const openedOf = new Map<string, Opened>();
  * Eén proef: openen, bewerken, mergen. `want` is `schrijft` of het geval van de weigering. Schrijft de merge, dan gaan
  * de invarianten (`mergeProblems`), de herlezing (`sameAs`) en `check` op de uitvoer na.
  */
-async function proof(group: string, label: string, src: string, want: string, edit?: (d: Domain, o: Opened) => void | Promise<void>,
+async function proof(group: string, label: string, src: string, want: string, edit?: (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>,
   check?: (out: string) => string | undefined): Promise<void> {
   const name = `${group} · ${label}`;
   let o = openedOf.get(src);
   if (!o) { o = await openForeign(latin1(src)); openedOf.set(src, o); }
   if (!o.ifcSource?.foreign) { ok(`${name}: de bron heeft geen vreemd deel`, false); return; }
-  const d = cloneDomain(o);
-  await edit?.(d, o);
+  let d = cloneDomain(o);
+  const edited = await edit?.(d, o);
+  if (edited) d = edited;
   const r = await tryMerge(d, o.ifcSource);
   const got = r.ok ? 'schrijft' : `weigert (${r.kinds.join(', ')})`;
   const first = r.ok ? '' : r.error.cases[0]?.detail ?? '';
@@ -248,18 +250,17 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   }
 }
 
-// 1109: voortgang invoeren via de echte storeactie, en dezelfde invoer als de telling.
+// 1109: echte voortgangsinvoer schrijft; de gedeelde telling levert een verse async payload.
 {
   const src = walled('tests/planning/fixtures/b5-lopend-oude-writer.ifc');
-  await proof('1109', '50 procent via storeactie, bronbehoud weigert veilig', src, 'niet-gedragen', async (d) => {
+  await proof('1109', '50 procent via echte setter', src, 'schrijft', async () => {
     const { store, snapshot } = await openInStore(latin1(src));
     const task = store.getState().tasks.find(t => !t.isSummary)!;
-    store.getState().updateTask(task.id, { time: { ...task.time, actualStart: task.time.scheduleStart, completion: 0.5 } });
-    Object.assign(d, cloneDomain(snapshot(store) as Opened));
+    ok('1109: echte voortgangssetter accepteert de invoer', store.getState().setTaskProgress(task.id, 0.5));
+    return cloneDomain(snapshot(store) as Opened);
   });
-  await proof('1109', '50 procent zoals de telling, bronbehoud weigert veilig', src, 'niet-gedragen', d => {
-    ordinaryEdits(d).find(e => e.kind === 'voortgang')!.apply(d);
-  });
+  await proof('1109', '50 procent zoals de telling via enterTaskProgress', src, 'schrijft', d =>
+    applyEdit(ordinaryEdits(d).find(e => e.kind === 'voortgang')!, d));
 }
 
 // Review #898, fixronde 1: de bewerking van een ander veld mag exacte duur/rest niet afronden.
@@ -279,25 +280,31 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       ok(`${label}: duur vóór actie exact`, task.time.scheduleDuration === precise);
       ok(`${label}: rest vóór actie exact`, task.time.remainingTime === remaining);
       const value = edit === 'completion' ? 0.5 : task.time.scheduleStart;
-      store.getState().updateTask(task.id, { time: { ...task.time, [edit]: value } });
+      const accepted = edit === 'completion' ? store.getState().setTaskProgress(task.id, value as number)
+        : store.getState().setActualStart(task.id, value as string);
+      ok(`${label}: echte setter accepteert de invoer`, accepted);
       const d = cloneDomain(snapshot(store) as Opened);
       const after = d.tasks.find(t => t.id === task.id)!;
       ok(`${label}: duur na actie ongewijzigd`, after.time.scheduleDuration === precise);
-      ok(`${label}: rest na actie ongewijzigd`, after.time.remainingTime === remaining);
+      ok(`${label}: de echte actie bepaalde de rest`, after.time.remainingTime !== remaining);
       const r = await tryMerge(d, snapshot(store).ifcSource!);
-      ok(`${label}: de merge schrijft`, r.ok);
-      if (!r.ok) continue;
+      if (!r.ok) {
+        ok(`${label}: getypeerd geweigerd op ongewijzigde duur`, r.kinds.includes('ongewijzigd-getal')
+          && r.error.cases.some(c => c.detail.includes('time.scheduleDuration') && c.detail.includes(String(precise))));
+        rows.push(`| ${label} | weigert getypeerd op de ongewijzigde duur |`);
+        continue;
+      }
       const out = text(r.bytes);
       const line = out.split('\n').find(l => /IFCTASKTIME\('Set up site Time'/.test(l))!;
       const args = splitArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
       ok(`${label}: slot 4 houdt precieze bronwaarde`, args[4] === `'P0Y0M${precise}D'`);
-      ok(`${label}: slot 18 houdt precieze bronwaarde`, args[18] === `'P0Y0M${remaining}D'`);
+      ok(`${label}: rest heeft de writerwaarde van de echte actie`, args[18] !== '$');
       ok(`${label}: vreemde deel behouden`, mergeProblems(latin1(src), r.bytes).length === 0);
       const back = await openForeign(r.bytes);
       const restored = back.tasks.find(t => t.id === task.id)!;
       ok(`${label}: duur na heropenen exact`, restored.time.scheduleDuration === precise);
-      ok(`${label}: rest na heropenen exact`, restored.time.remainingTime === remaining);
-      rows.push(`| ${label} | schrijft; exactheid van duur en rest apart getoetst |`);
+      ok(`${label}: de gewijzigde rest volgt gewone opslag`, canon(await shownAfterOpen(d), reseed) === canon(back, reseed));
+      rows.push(`| ${label} | schrijft; ongewijzigde duur exact, gewijzigde rest volgens gewone opslag |`);
     }
   }
 }
@@ -514,8 +521,8 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const rel = 'tests/planning/fixtures/ifc-arity-oude-writer.ifc';
   const now = withLines(writeIFC(cloneDomain(await openForeignRaw(latin1(readText(rel))))), REVIT_WALL);
   ok('werkende uitzondering: de writer van nu schrijft WorkingExceptionIds', now.includes("'WorkingExceptionIds',$,IFCTEXT('[\""));
-  const edit = (kind: EditKind) => (d: Domain, o: Opened) => {
-    [...plannerEdits(o, 1), ...ordinaryEdits(o)].find(e => e.kind === kind)!.apply(d);
+  const edit = (kind: EditKind) => async (d: Domain, o: Opened) => {
+    return applyEdit([...plannerEdits(o, 1), ...ordinaryEdits(o)].find(e => e.kind === kind)!, d);
   };
   for (const [label, src] of [['oude writer', walled(rel)], ['writer van nu', now]] as const) {
     await proof('werkende uitzondering', `${label}, zonder bewerking`, src, 'schrijft', undefined, exceptionIds);
@@ -547,9 +554,8 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     ok(`${name}: de invoer is die van de fixture van main (anders: node scripts/proef/maak-main-toets-trias.mjs)`, want?.invoerSha256 === sha256(bare));
     const o = await openForeign(latin1(modelled));
     const edit = ordinaryEdits(o).find(e => e.kind === 'doorrekenen')!;
-    const mine = cloneDomain(o);
-    edit.apply(mine);
-    const r = await tryMerge(await recalculated(mine), o.ifcSource!);
+    const mine = await applyEdit(edit, cloneDomain(o));
+    const r = await tryMerge(mine, o.ifcSource!);
     if (!r.ok) {
       rows.push(`| ${name} | weigert (${r.kinds.join(', ')}): ${(r.error.cases[0]?.detail ?? '').slice(0, 100).replace(/\|/g, '/')} |`);
       ok(`${name}: de merge schrijft, kreeg ${r.kinds.join(', ')} — ${(r.error.cases[0]?.detail ?? '').slice(0, 200)}`, false);
@@ -559,7 +565,11 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     const plain = await plainSaveAfterF5(bare);
     ok(`${name}: de gewone opslag is byte-gelijk aan die van main ${fixture.basis}`, want?.uitvoerSha256 === sha256(plain));
     const viaMain = canon(await openForeign(new TextEncoder().encode(plain)), reseed);
-    const viaMerge = canon(await openForeign(r.bytes), reseed);
+    const viaBytes = await openForeign(r.bytes);
+    const viaMerge = canon(viaBytes, reseed);
+    const difference = readbackDifference(r.shown, viaBytes);
+    if (difference) console.log('LEESWEG VERSCHIL ' + JSON.stringify({ bestand: rel, difference }));
+    ok(`${name}: naad en volledige bytes-route diep gelijk (${difference ?? 'gelijk'})`, difference === undefined);
     const a = viaMerge.split('\n'), b = viaMain.split('\n');
     const first = a.findIndex((line, i) => line !== b[i]);
     rows.push(`| ${name} | ${viaMerge === viaMain ? 'schrijft, dezelfde planning als een gewone opslag op main zonder model' : `schrijft, andere planning: ${(a[first] ?? '').slice(0, 80)}`} |`);
@@ -575,8 +585,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const villa = walled(`${OLD}/v2026.43.0-10-villa-wassenaar.ifc`);
   const f5 = async (d: Domain, o: Opened) => {
     const edit = ordinaryEdits(o).find(e => e.kind === 'doorrekenen')!;
-    edit.apply(d);
-    Object.assign(d, await recalculated(d));
+    return applyEdit(edit, d);
   };
   const named = villa.replace(/IFCTASKTIME\('[^']*'/, "IFCTASKTIME('Eigen naam'");
   ok('grens: de bron heeft een eigen naam in een taaktijd', named !== villa);

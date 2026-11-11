@@ -18,11 +18,12 @@ import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mer
 import { scanStep, StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { orphanRowsWithoutId } from '@/services/ifc/foreign/sourceForm';
+import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
-import { lengthen, lengthenedTask, openInStore, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
-export { openInStore } from './ifcAppRoute';
+import { localTodayIso } from '@/utils/dateUtils';
+import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
+export { openInStore, openReadPlanning } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
 export type Opened = Domain & { ifcSource?: IfcSource };
@@ -71,8 +72,7 @@ export function reopenPlain(d: Domain): Promise<Opened> {
  * (vervolg-PR van #867, #886).
  */
 export async function shownAfterOpen(d: Domain): Promise<Opened> {
-  const { store, buildWriteIFCInput } = await storeWith(d);
-  return buildWriteIFCInput(store.getState()) as Opened;
+  return await openReadPlanning(d, 'domein') as Opened;
 }
 
 /** Doorrekenen (F5) zoals de app: `recalculated` uit `ifcAppRoute.ts`. */
@@ -138,10 +138,17 @@ const latin1Text = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length
 const latin1Bytes = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 
 /** De uitkomst van één merge: de bytes, of de weigering met haar gevallen. Een andere fout gooit door. */
-export type MergeOutcome = { ok: true; bytes: Uint8Array } | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };
+export type MergeOutcome = { ok: true; bytes: Uint8Array; shown: Domain } | { ok: false; kinds: string[]; error: MergeNeedsPhase2Error };
 export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutcome> {
   try {
-    return { ok: true, bytes: concat(await writeIfcMerge(d, source)) };
+    let shown: Domain | undefined;
+    const parts = await writeIfcMerge(d, source, async (parsed, side) => {
+      const result = await openReadPlanning(parsed, side);
+      if (side === 'uitvoer') shown = result;
+      return result;
+    });
+    if (!shown) throw new Error('merge gaf geen planning aan de naad');
+    return { ok: true, bytes: concat(parts), shown };
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), error: e };
     throw e;
@@ -213,7 +220,7 @@ export function doubleMemberships(bytes: Uint8Array): string[] {
 export function canon(d: Domain, reseed: (seed: number) => void): string {
   reseed(0x1b04);
   // Een baselineregel zonder taak telt zonder haar id (#886, `orphanRowsWithoutId`).
-  return writeIFC(orphanRowsWithoutId(d));
+  return planningCanon(d);
 }
 
 /** Het eerste verschil tussen twee teksten, met wat omringende tekst. */
@@ -227,13 +234,14 @@ export function firstDiff(a: string, b: string): string {
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
   | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
-/** `recalculate`: na `apply` rekent de app door (F5, `recalculated`); `applyEdit` doet beide. */
-export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void; readonly recalculate?: boolean }
+/** `applyEdit` neemt een nieuw domein uit een storeactie over, of behoudt het gemuteerde domein; daarna optioneel F5. */
+export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean }
 
 /** Een bewerking toepassen, met doorrekenen als ze dat vraagt. */
 export async function applyEdit(edit: Edit, d: Domain): Promise<Domain> {
-  edit.apply(d);
-  return edit.recalculate ? recalculated(d) : d;
+  const changed = await edit.apply(d);
+  const next = changed ? changed : d;
+  return edit.recalculate ? recalculated(next) : next;
 }
 
 const byId = (d: Domain) => new Map(d.tasks.map(t => [t.id, t]));
@@ -333,7 +341,7 @@ export function basicEdits(d: Domain): Edit[] {
     if (base.parentId) { const p = m.get(base.parentId)!; p.childIds.splice(p.childIds.indexOf(base.id) + 1, 0, task.id); }
   } });
   out.push({ kind: 'hernoemen', label: `${leaf.id} hernoemd`, apply: (x) => { byId(x).get(leaf.id)!.name = 'Hernoemd in 1b'; } });
-  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => { lengthen(x, leaf.id); } });
+  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => lengthen(x, leaf.id) });
   const resource = d.resources[0];
   if (resource) {
     out.push({ kind: 'toewijzing-erbij', label: `${resource.id} op ${leaf.id}`, apply: (x) => {
@@ -346,17 +354,23 @@ export function basicEdits(d: Domain): Edit[] {
 }
 
 /** De gewone bewerkingen van `basicEdits`, plus (vervolg-PR van #867) doorrekenen (F5, na de langere duur) en voortgang
- *  (begonnen op het geplande begin, 50 %). Op dezelfde vaste taak. */
+ *  (50 % via enterTaskProgress; een startvraag bevestigen met het voorstel). Op dezelfde vaste taak. */
 export function ordinaryEdits(d: Domain): Edit[] {
   const out = basicEdits(d);
   const lengthen = out.find(e => e.kind === 'duur');
   const leaf = d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone);
   if (lengthen) out.push({ kind: 'doorrekenen', label: `${lengthen.label} en doorgerekend`, apply: lengthen.apply, recalculate: true });
   if (leaf) {
-    out.push({ kind: 'voortgang', label: `${leaf.id} begonnen, 50 %`, apply: (x) => {
-      const time = byId(x).get(leaf.id)!.time;
-      time.actualStart = time.scheduleStart;
-      time.completion = 0.5;
+    out.push({ kind: 'voortgang', label: `${leaf.id} voortgang 50 % via invoer`, apply: async (x) => {
+      const { store, buildWriteIFCInput } = await storeWith(x);
+      const edit = { field: 'completion', value: 0.5 } as const;
+      const opts = { today: localTodayIso() };
+      let result = store.getState().enterTaskProgress(leaf.id, edit, opts);
+      if (!result.ok && result.reason === 'needsActualStart') {
+        result = store.getState().enterTaskProgress(leaf.id, edit, { ...opts, actualStart: result.question.latest });
+      }
+      if (!result.ok) throw new Error(`voortgangsinvoer ${leaf.id}: ${result.reason}`);
+      return buildWriteIFCInput(store.getState());
     } });
   }
   return out;

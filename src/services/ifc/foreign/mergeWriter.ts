@@ -52,6 +52,7 @@ import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
 import { MAX_STEP_ID, scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
+import { planningCanon, planningDifference } from './planningCanon';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -114,7 +115,11 @@ export type MergePhase2Kind =
    *  hangt commentaar aan het volgende stuk; volgens de norm (stuurtekens vallen overal weg, ook in `*⏎/`) kan daarin een
    *  stuk staan. De merge schrijft een P-stuk opnieuw, zonder dat commentaar: zo'n stuk ging dan verloren, en een
    *  verwijzing van een ander stuk ernaar wees daarna naar niets. */
-  | 'verstopt-stuk';
+  | 'verstopt-stuk'
+  /** De verplichte open-stappen ontbreken, of openen geeft een andere planning (1107). */
+  | 'open-stappen-ontbreken'
+  | 'planning-na-openen'
+  | 'ongewijzigd-getal';
 
 export interface MergePhase2Case {
   readonly kind: MergePhase2Kind;
@@ -311,7 +316,15 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
  * BLOKKEERT 3): de verliesbewaking leest de bron met dezelfde ingang als het openen (`readIFCWithXerReconstruction`), ook
  * bij een compact XER-bronarchief.
  */
-export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Promise<Uint8Array[]> {
+/** De aanroeper voert de gewone open-stappen uit in een eigen documentcontext, zonder modelscan.
+ * ImportResult bevat ook TimeModel, herkomst en opgeslagen datums; pad en bestandskop zijn niet nodig.
+ */
+export type OpenMergePlanning = (planning: WriteIFCInput, side: 'uitvoer' | 'domein') => Promise<WriteIFCInput>;
+
+export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, openPlanning: OpenMergePlanning): Promise<Uint8Array[]> {
+  if (typeof openPlanning !== 'function') {
+    throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de verplichte open-stappen van de app ontbreken' }]);
+  }
   if (!source.foreign) return [new TextEncoder().encode(writeIFC(input))];
   const index = scanStep(source.bytes);
   const cls = classify(index);
@@ -780,7 +793,66 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
       if (!present.has(target)) throw new Error(`mergeWriter: #${line.id} wijst naar #${target}, dat niet in de uitvoer staat`);
     }
   }
+  // Volledige herleestoets vóór er uitvoer naar de aanroeper gaat; geen modelscan of volle uitvoerbuffer.
+  const shown = await openPlanning(await read(lines.filter(l => !l.drop).map(l => l.text)), 'uitvoer');
+  const wanted = await openPlanning(input, 'domein');
+  if (planningCanon(wanted) !== planningCanon(shown)) {
+    throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
+  }
+  const numberProblem = unchangedPlanningNumberProblem(input, source.opened ?? pristine, wanted, shown);
+  if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
   return assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
+}
+
+/** Trias 1107: gelijk aan opened is ongewijzigd; zonder opened geldt pristine, zoals in de verliesbewaking.
+ * Eén doorloop over alle numerieke bladeren van de planning. Id-lijsten koppelen op id, overige lijsten op plek.
+ * Toewijzings-ids worden niet opgeslagen (ifcReader.extractAssignments maakt ze opnieuw): hun identiteit is het
+ * taak/resource-paar met een volgnummer voor dubbele voorkomens. Er verdwijnt geen dubbel object in een Map.
+ * Verandert openen van het domein zelf het getal, dan geldt de bestaande vergelijking na dezelfde open-stappen.
+ */
+function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCInput,
+  wanted: WriteIFCInput, shown: WriteIFCInput): string | undefined {
+  const field = (value: unknown, key: string): unknown => value !== null && typeof value === 'object'
+    ? (value as Record<string, unknown>)[key] : undefined;
+  const idOf = (value: unknown) => field(value, 'id');
+  const keyOf = (value: unknown, index: number, path: string): string => {
+    if (path === 'planning.assignments') return `pair:${field(value, 'taskId')}\0${field(value, 'resourceId')}`;
+    const id = idOf(value);
+    return typeof id === 'string' || typeof id === 'number' ? `id:${id}` : `index:${index}`;
+  };
+  const indexed = (value: unknown, path: string) => {
+    const map = new Map<string, unknown[]>();
+    if (Array.isArray(value)) value.forEach((item: unknown, index) => {
+      const key = keyOf(item, index, path), bucket = map.get(key) ?? [];
+      bucket.push(item); map.set(key, bucket);
+    });
+    return map;
+  };
+  function first(was: unknown, now: unknown, afterOpen: unknown, back: unknown, path: string, paired = false): string | undefined {
+    if (typeof now === 'number') {
+      if (now === was && now === afterOpen && now !== back) return `${path}: ${now} → ${JSON.stringify(back)}`;
+    } else if (Array.isArray(now)) {
+      const before = indexed(was, path), normalized = indexed(afterOpen, path), actual = indexed(back, path);
+      const seen = new Map<string, number>();
+      for (let index = 0; index < now.length; index++) {
+        const item: unknown = now[index], key = keyOf(item, index, path), occurrence = seen.get(key) ?? 0;
+        seen.set(key, occurrence + 1);
+        const itemPath = path === 'planning.tasks' ? `taak ${idOf(item)} (${field(item, 'name')})`
+          : `${path}[${key}${occurrence ? `,${occurrence}` : ''}]`;
+        const problem = first(before.get(key)?.[occurrence], item, normalized.get(key)?.[occurrence], actual.get(key)?.[occurrence], itemPath, true);
+        if (problem) return problem;
+      }
+    } else if (now !== null && typeof now === 'object') {
+      if (!paired && idOf(now) !== undefined && idOf(now) !== idOf(was)) return; // Nieuw/vervangen ding: niet ongewijzigd.
+      for (const [key, value] of Object.entries(now)) {
+        // Deze hele bibliotheek wordt al exact op id getoetst door planningCanon; geen tweede controle.
+        if (path === 'planning' && key === 'resourceCalendars') continue;
+        const problem = first(field(was, key), value, field(afterOpen, key), field(back, key), `${path}.${key}`);
+        if (problem) return problem;
+      }
+    }
+  }
+  return first(opened, input, wanted, shown, 'planning');
 }
 
 /** De `#id`-verwijzingen in een regel van de writer, buiten strings (een sleutel als `'3LKE…#0'` telt niet). */

@@ -14,7 +14,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BASIS = '2fbbc4ae1';
+const BASIS = '20b9af79a74e7d886c2a38f93bba1adbcbb2ba5c';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = join(ROOT, 'tests/planning/fixtures/main-toets-trias.json');
 const ESBUILD = join(ROOT, 'node_modules/.bin/esbuild');
