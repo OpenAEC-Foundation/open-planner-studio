@@ -1910,6 +1910,20 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
+1107. **BLOKKEERT vóór 1c: de volledige herleestoets laat precisieverlies na echte voortgangsinvoer door.** De naad
+     in #903 past de open-stappen toe op zowel het gelezen planningsdeel als het domein van de planner. Na integratie van
+     #898 (`20b9af79a`) en omzetting van zijn precisieproeven naar de echte setters is verlies gemeten: op
+     `oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` met een model blijft de duur van Set up site na
+     `setTaskProgress(id, 0.5)` of `setActualStart(id, scheduleStart)` 2.3333333333333335. Ook na de open-stappen op het
+     domein blijft die exact. De merge schrijft, maar volledig heropenen geeft 2.333333 terug. De rest na echte invoer
+     is respectievelijk 1.16666666666667 of 2.33333333333333 en wordt 1.166667 of 2.333333. Hetzelfde bij een gemaakte
+     variant met bronrest 1.2345678901234567 (vier gevallen). De gedeelde canon gebruikt de gewone writer voor de
+     taakvelden en rondt daardoor beide kanten af; alleen de kalenderbibliotheek heeft een aanvullende exacte
+     inhoudsvergelijking. De naad weigert het verlies dus niet. De kale proeven uit #898 lieten de precieze bronwaarden
+     wel staan; dat bewijst deze echte invoerroutes niet. Bouw volgens opdracht gestopt; niet gerepareerd, geen
+     eindtelling na main. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-precisieverlies-stop.md` en
+     `1107-heropenkosten/v5/onderzoek-precisie.json`. Uit #903, 11 november 2026. — B
+
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
      (`writeTaskTypeMeta` in `src/services/ifc/ifcWriter.ts`). Wist de planner de enige taak met zo'n type, dan staat de

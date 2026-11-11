@@ -336,3 +336,17 @@ zelf houdt geen slot vast. De eerste tussentelling is afgebroken voor de verse-p
 resultaat. Advies: apart besluiten of de bibliotheekkalenders op stabiel id mogen worden vergeleken, met exacte inhoud;
 taak-/kindvolgorde blijven relevant. Ook de provenanceweigering vraagt een aparte beslissing. Bewijs en alle gevallen:
 `docs/superpowers/evidence/2026-11-11-1107-echte-acties.md`.
+
+## 1107: stop na integratie van main wegens precisieverlies (11 november 2026)
+
+Main met #898 (`20b9af79a`) is via merge-commit `a1f6dba4a` geïntegreerd. De pariteitsreferentie is opnieuw gemaakt op
+exact die main; alleen de basiscommit in de fixture veranderde. 1115 is verwijderd. De oude-eigen-proeven die de
+voortgangsbewerking aanroepen wachten nu haar verse payload af; de precisieproeven gebruiken de echte setters.
+
+**STOP: echt verlies.** Op de 17-cijfers-villa met model blijft de invoerduur na 50 % voortgang of een werkelijke start
+2.3333333333333335, ook na openen van het domein. De merge schrijft en volledig heropenen geeft 2.333333; ook de
+nieuwe rest wordt afgerond. Vier gevallen: oorspronkelijke bronrest en een gemaakte variant, elk met beide acties.
+De canon normaliseert taakvelden via de gewone writer en maskeert dit verschil. 1107 blijft daarom BLOKKEERT vóór 1c.
+Geen reparatie, overige checks en eindtelling na main niet uitgevoerd. Mainreferentie voor de nog uit te voeren telling:
+2578 geschreven / 685 getypeerd geweigerd / 0 anders, 3263 bewerkingen en 660 rijen. De zes wisgevallen zijn groen;
+1116 blijft voor de PR van 1109. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-precisieverlies-stop.md`.

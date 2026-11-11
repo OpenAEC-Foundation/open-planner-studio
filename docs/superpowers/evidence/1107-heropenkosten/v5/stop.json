@@ -1,0 +1,19 @@
+{
+  "reden": "Werkelijk precisieverlies na echte voortgangsinvoer; opdracht vereist stoppen, pushen en bovenaan melden.",
+  "main": "20b9af79a74e7d886c2a38f93bba1adbcbb2ba5c",
+  "codeHead": "f9a0daa48",
+  "eindtellingNaMainGedraaid": false,
+  "nietGedaan": [
+    "strikt",
+    "preserve",
+    "pariteit op de branch",
+    "open",
+    "target",
+    "duurvormen",
+    "verify:i18n",
+    "verify:store-boundaries",
+    "verify:cycles",
+    "verify:docs",
+    "eindtelling"
+  ]
+}

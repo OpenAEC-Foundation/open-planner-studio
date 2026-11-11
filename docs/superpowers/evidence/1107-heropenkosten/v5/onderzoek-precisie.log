@@ -1,0 +1,92 @@
+[
+  {
+    "remaining": 2.3333333333333335,
+    "edit": "completion",
+    "accepted": true,
+    "merge": "schrijft",
+    "before": {
+      "duration": 2.3333333333333335,
+      "remaining": 2.3333333333333335
+    },
+    "after": {
+      "duration": 2.3333333333333335,
+      "remaining": 1.16666666666667
+    },
+    "wanted": {
+      "duration": 2.3333333333333335,
+      "remaining": 1.16666666666667
+    },
+    "back": {
+      "duration": 2.333333,
+      "remaining": 1.166667
+    }
+  },
+  {
+    "remaining": 2.3333333333333335,
+    "edit": "actualStart",
+    "accepted": true,
+    "merge": "schrijft",
+    "before": {
+      "duration": 2.3333333333333335,
+      "remaining": 2.3333333333333335
+    },
+    "after": {
+      "duration": 2.3333333333333335,
+      "remaining": 2.33333333333333
+    },
+    "wanted": {
+      "duration": 2.3333333333333335,
+      "remaining": 2.33333333333333
+    },
+    "back": {
+      "duration": 2.333333,
+      "remaining": 2.333333
+    }
+  },
+  {
+    "remaining": 1.2345678901234567,
+    "edit": "completion",
+    "accepted": true,
+    "merge": "schrijft",
+    "before": {
+      "duration": 2.3333333333333335,
+      "remaining": 1.2345678901234567
+    },
+    "after": {
+      "duration": 2.3333333333333335,
+      "remaining": 1.16666666666667
+    },
+    "wanted": {
+      "duration": 2.3333333333333335,
+      "remaining": 1.16666666666667
+    },
+    "back": {
+      "duration": 2.333333,
+      "remaining": 1.166667
+    }
+  },
+  {
+    "remaining": 1.2345678901234567,
+    "edit": "actualStart",
+    "accepted": true,
+    "merge": "schrijft",
+    "before": {
+      "duration": 2.3333333333333335,
+      "remaining": 1.2345678901234567
+    },
+    "after": {
+      "duration": 2.3333333333333335,
+      "remaining": 2.33333333333333
+    },
+    "wanted": {
+      "duration": 2.3333333333333335,
+      "remaining": 2.33333333333333
+    },
+    "back": {
+      "duration": 2.333333,
+      "remaining": 2.333333
+    }
+  }
+]
+
+EXIT:0
