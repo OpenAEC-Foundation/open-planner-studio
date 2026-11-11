@@ -3250,6 +3250,20 @@ en noem het in je rapport of PR-tekst.
      In één venster gaat niets verloren. Gezien bij het ombouwen naar één gedeelde stand (#893). Voorstel: alleen
      oplossen als planners echt in twee vensters aan hetzelfde rapport werken. — S
 
+1359. **VERVOLG: na een wijziging in een ander venster toont het Rapport-tabblad bij terugkeer de oude stand.** De
+     gedeelde stand in `src/utils/reportSettings.ts` (`reportSettingsSnapshot`, rond :475) blijft bestaan als de laatste
+     lezer zich afmeldt, maar de luisteraar op `storage` verdwijnt. Bij opnieuw aanmelden leest de stand de opslag niet
+     opnieuw. Proef in Chromium: venster A zet A3 en gaat naar Start, venster B kiest A4, venster A opent Rapport weer:
+     de opslag heeft A4, het tabblad toont A3. Met één venster niet gezien. Code-review ronde 7 van #893
+     (GPT-6.1-Terra). Voorstel: lees de opslag opnieuw bij de eerste nieuwe aanmelding, als er geen onbewaarde
+     sessiestand is. — B
+
+1360. **VERVOLG: resten van het oude paneel in de rapportcode.** Het commentaar bovenaan
+     `src/components/panels/reports/reportFormPrimitives.tsx` noemt nog het Gantt-/resourcediagramblok in `ReportPanel`,
+     en de varianten `w-20` en `spaced` hebben geen aanroeper meer. Ook `src/services/print/printPreview.ts` (rond :816
+     en :1018) verwijst nog naar het oude paneel. Code-review ronde 7 van #893 (GPT-6.1-Terra). Voorstel: varianten
+     en verwijzingen weghalen. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
