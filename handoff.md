@@ -226,3 +226,12 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 2. Een kleine PR vanaf `main` voor knownbugs 1107, 1108, 1109 en 1111 (vóór 1c).
 3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
 4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
+
+## Kostenvoorwaarde van 1107 (11 november 2026)
+
+De eigen kostenproef vóór de verplichte naad is klaar; de bouw is volgens de opdracht gestopt. Volledig heropenen scant
+ook het model opnieuw: 441 ms bij 5 MiB, 621 ms bij 10 MiB, dezelfde 260 taken. De gemeten helling geeft ongeveer 11 s
+extra bij 300 MiB. De verplichte naad is nog niet gebouwd; 1107 blijft open. Trias moet eerst kiezen: de open-stappen
+delen (optie 1), of alleen het planningsdeel toetsen. Advies: de open-stappen delen, zodat alle stappen van de app gelijk
+blijven en de bestaande scan hergebruikt kan worden. Dit is een voorstel, geen nieuwe afspraak of implementatie.
+Bewijs en beperkingen: `docs/superpowers/evidence/2026-11-11-1107-heropenkosten.md`.

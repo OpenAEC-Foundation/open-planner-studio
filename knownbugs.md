@@ -1914,7 +1914,11 @@ en noem het in je rapport of PR-tekst.
      letterlijke kalender raakt. De tests openen wel via de app (`openForeign` in `tests/planning/ifcMergeKern.ts`), maar dat
      is geen controle op iedere merge. Geen verlies gevonden. Eis (besluit van Trias): vóór het aansluiten in 1c een
      volledige herleestoets in de merge, met een proef die rood wordt als de herberekening na openen de planning verandert.
-     Gaat mee in de kleine PR met 1108 en 1109. Gevonden door Terra in review ronde 1 van #886. — B
+     Eigen kleine PR na de reparatie van 1108 en 1109. Kostenproef op 11 november 2026: een volledige extra heropening
+     kost 441 ms bij 5 MiB en 621 ms bij 10 MiB met dezelfde 260 taken; lineair doorgetrokken ongeveer 11 s extra bij
+     300 MiB. Bouw gestopt volgens de opdracht, vóór de verplichte naad. Trias kiest eerst tussen de open-stappen delen
+     en alleen het planningsdeel toetsen. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-heropenkosten.md`.
+     Gevonden door Terra in review ronde 1 van #886. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
