@@ -1,0 +1,24 @@
+
+> open-planner-studio@2026.45.0 typecheck
+> tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/ops-tsc/app.tsbuildinfo && tsc --noEmit -p tsconfig.tests.json --incremental --tsBuildInfoFile node_modules/.cache/ops-tsc/tests.tsbuildinfo
+
+tests/planning/check-ifc-foreign-preserve.ts(386,94): error TS2345: Argument of type '(d: WriteIFCInput) => void | Promise<void | WriteIFCInput>' is not assignable to parameter of type '(d: WriteIFCInput) => void | Promise<void>'.
+  Type 'void | Promise<void | WriteIFCInput>' is not assignable to type 'void | Promise<void>'.
+    Type 'Promise<void | WriteIFCInput>' is not assignable to type 'void | Promise<void>'.
+      Type 'Promise<void | WriteIFCInput>' is not assignable to type 'Promise<void>'.
+        Type 'void | WriteIFCInput' is not assignable to type 'void'.
+          Type 'WriteIFCInput' is not assignable to type 'void'.
+tests/planning/check-ifc-foreign-preserve.ts(449,81): error TS2345: Argument of type '(d: WriteIFCInput) => void | Promise<void | WriteIFCInput>' is not assignable to parameter of type '(d: WriteIFCInput) => void | Promise<void>'.
+  Type 'void | Promise<void | WriteIFCInput>' is not assignable to type 'void | Promise<void>'.
+    Type 'Promise<void | WriteIFCInput>' is not assignable to type 'void | Promise<void>'.
+      Type 'Promise<void | WriteIFCInput>' is not assignable to type 'Promise<void>'.
+        Type 'void | WriteIFCInput' is not assignable to type 'void'.
+          Type 'WriteIFCInput' is not assignable to type 'void'.
+tests/planning/check-ifc-foreign-preserve.ts(1320,82): error TS2345: Argument of type '(d: WriteIFCInput) => void | Promise<void | WriteIFCInput>' is not assignable to parameter of type '(d: WriteIFCInput) => void | Promise<void>'.
+  Type 'void | Promise<void | WriteIFCInput>' is not assignable to type 'void | Promise<void>'.
+    Type 'Promise<void | WriteIFCInput>' is not assignable to type 'void | Promise<void>'.
+      Type 'Promise<void | WriteIFCInput>' is not assignable to type 'Promise<void>'.
+        Type 'void | WriteIFCInput' is not assignable to type 'void'.
+          Type 'WriteIFCInput' is not assignable to type 'void'.
+
+EXIT:2

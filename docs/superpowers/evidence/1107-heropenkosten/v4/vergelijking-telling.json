@@ -1,0 +1,126 @@
+{
+  "basis": "main zonder #898, opgegeven 2562/701/0",
+  "rijenVergeleken": 660,
+  "voorGeschreven": 2562,
+  "naGeschreven": 2556,
+  "afwijkendeRijen": [
+    {
+      "bestand": "fixtures/b5-lopend-oude-writer.ifc + wand",
+      "bewerking": "voortgang",
+      "voor": {
+        "aantal": 1,
+        "geschreven": 0,
+        "weigering": "1 (niet-gedragen 1)",
+        "anders": "–"
+      },
+      "na": {
+        "aantal": 1,
+        "geschreven": 1,
+        "weigering": "0",
+        "anders": "–"
+      }
+    },
+    {
+      "bestand": "h7-tijden-oude-writer.ifc + wand",
+      "bewerking": "taak-wissen",
+      "voor": {
+        "aantal": 5,
+        "geschreven": 5,
+        "weigering": "0",
+        "anders": "–"
+      },
+      "na": {
+        "aantal": 5,
+        "geschreven": 2,
+        "weigering": "3 (planning-na-openen 3)",
+        "anders": "–"
+      }
+    },
+    {
+      "bestand": "fixtures/ifc-arity-oude-writer.ifc + wand",
+      "bewerking": "voortgang",
+      "voor": {
+        "aantal": 1,
+        "geschreven": 1,
+        "weigering": "0",
+        "anders": "–"
+      },
+      "na": {
+        "aantal": 1,
+        "geschreven": 0,
+        "weigering": "1 (niet-gedragen 1)",
+        "anders": "–"
+      }
+    },
+    {
+      "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+      "bewerking": "taak-wissen",
+      "voor": {
+        "aantal": 5,
+        "geschreven": 5,
+        "weigering": "0",
+        "anders": "–"
+      },
+      "na": {
+        "aantal": 5,
+        "geschreven": 2,
+        "weigering": "3 (planning-na-openen 3)",
+        "anders": "–"
+      }
+    },
+    {
+      "bestand": "fixtures/werkdag-einde-tussenwaarde.ifc",
+      "bewerking": "voortgang",
+      "voor": {
+        "aantal": 1,
+        "geschreven": 0,
+        "weigering": "1 (duur-deels-gelezen 1)",
+        "anders": "–"
+      },
+      "na": {
+        "aantal": 1,
+        "geschreven": 0,
+        "weigering": "1 (duur-deels-gelezen 1, niet-gedragen 1)",
+        "anders": "–"
+      }
+    }
+  ],
+  "nieuweWeigeringen": [
+    {
+      "bestand": "fixtures/ifc-arity-oude-writer.ifc + wand",
+      "bewerking": "task-mula7vhu11iq28 voortgang 50 % via invoer",
+      "eersteVerschil": "IFCPROPERTYSINGLEVALUE #412 (UnchangedSinceImport): ontbreekt in de uitvoer na de bewerking ('UnchangedSinceImport')"
+    },
+    {
+      "bestand": "h7-tijden-oude-writer.ifc + wand",
+      "bewerking": "task-muid03m2d3yp6 wissen",
+      "eersteVerschil": "planning.resourceCalendars.0.id: \"rescal-ifc-$FxXapUfGJILc3THOjNhMt\" → \"rescal-ifc-JRRH7LiFsfpdy9yHzDERfz\""
+    },
+    {
+      "bestand": "h7-tijden-oude-writer.ifc + wand",
+      "bewerking": "task-muid03mez0ja8 wissen",
+      "eersteVerschil": "planning.resourceCalendars.1.id: \"rescal-ifc-JRRH7LiFsfpdy9yHzDERfz\" → \"rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1\""
+    },
+    {
+      "bestand": "h7-tijden-oude-writer.ifc + wand",
+      "bewerking": "task-muid03mqme6o10 wissen",
+      "eersteVerschil": "planning.resourceCalendars.2.id: \"rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1\" → \"rescal-ifc-S19xwPcXFFKzr7AH0darqF\""
+    },
+    {
+      "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+      "bewerking": "t-nacht wissen",
+      "eersteVerschil": "planning.resourceCalendars.1.id: \"rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF\" → \"rescal-ifc-3WTqntjNdr5U$5qjw6xO7k\""
+    },
+    {
+      "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+      "bewerking": "t-spanne wissen",
+      "eersteVerschil": "planning.resourceCalendars.3.id: \"rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA\" → \"rescal-ifc-0RziPdFTfq46dL4sXPp8Es\""
+    },
+    {
+      "bestand": "fixtures/urenperdag-oude-writer.ifc + wand",
+      "bewerking": "t-maandag wissen",
+      "eersteVerschil": "planning.resourceCalendars.5.id: \"rescal-ifc-2tjB_83sHJE7lTWFBaLSjr\" → \"rescal-ifc-23WHkNns$nje3jcCxSzxkG\""
+    }
+  ],
+  "opmerking": "7 nieuwe weigeringen en 1 verbetering: b5 schrijft via echte invoer; netto 6 minder geschreven."
+}

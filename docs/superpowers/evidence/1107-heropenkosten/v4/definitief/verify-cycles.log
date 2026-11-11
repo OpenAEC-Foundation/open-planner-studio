@@ -1,0 +1,7 @@
+
+> open-planner-studio@2026.45.0 verify:cycles
+> node scripts/verify-cycles.mjs
+
+OK — geen circulaire imports in 980 modules onder src/ en headless/mcp-server/src/.
+
+EXIT:0

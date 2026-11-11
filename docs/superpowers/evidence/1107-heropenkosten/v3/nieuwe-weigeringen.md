@@ -1,3 +1,5 @@
+> Historische ronde met 46 weigeringen; de actuele zeven gevallen staan in [v4/nieuwe-weigeringen.md](../v4/nieuwe-weigeringen.md).
+
 # Alle 46 nieuwe weigeringen tegenover de begintelling
 
 Veertig voortgangsgevallen gebruiken de bestaande `ordinaryEdits`: direct `actualStart` en `completion` zetten, zonder de invoeracties. Zij bewijzen geen plannerroute. De telling is conform de opdracht niet aangepast. De zes overige gevallen volgen uit taak wissen; hier is alleen het verschil vastgesteld, geen verlies gerepareerd.

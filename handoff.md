@@ -268,3 +268,32 @@ mutaties toetsen vergelijking, verplichte functie en gelijkheid van de twee lees
 plus SHA-256 hersteld. Gemeten extra mergetijd 140/228 ms bij 5/10 MiB, callbacks samen 129/123 ms; geen nieuwe modelscan.
 De grote-modelproef kost 6,7 s inclusief genereren/bundelen, piek 377 MiB; één keer buiten de tijdzonematrix.
 Bewijs, alle gevallen en grenzen: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
+
+## 1107: echte acties, kalenderbehoud en definitieve telling (11 november 2026)
+
+De voortgangsbewerking van de testkern loopt nu via enterTaskProgress in de bestaande store-context, met bevestiging
+van question.latest bij een startvraag. Edit.apply mag een verse domeinpayload teruggeven; applyEdit neemt die in haar
+geheel over. Zo blijven gewiste optionele velden zoals importPristine niet hangen. De nieuwe regressieproef was rood
+met alleen Object.assign en is groen met de verse payload; ook de kale voortgangsmutatie terugzetten maakt hem rood.
+
+Het onderzoek van de zes wisgevallen toont GEEN kalenderverlies door gewone opslag op main. Echte Delete laat de
+kalender staan; de writer schrijft haar en de lezer leest haar terug met dezelfde id en exacte inhoud. h7: 5/5/5,
+urenperdag: 9/9/9 in resourceCalendars inclusief projectkalenderkopie; nul ontbrekend/toegevoegd/gewijzigd. Alleen de
+lijstvolgorde verandert: de nu ongebruikte kalender komt via de fallback na de gebruikte kalenders. De testwisactie,
+reader, writer en vergelijkingsmaat zijn niet aangepast. Dit is uitkomst "iets anders"; alleen gemeten.
+
+Definitieve telling: 2556 geschreven, 707 getypeerd geweigerd, 0 anders, over dezelfde 3263 bewerkingen/67 bestanden.
+Alle 660 rijen zijn vergeleken met de begintelling 2562/701/0. Van de 40 kale voortgangsgevallen schrijven er 39 weer;
+b5 schrijft via de echte actie nu ook. Eén voortgangsgeval blijft nieuw weigeren: ifc-arity-oude-writer, vervallen
+UnchangedSinceImport (#412), pset en relatie na het terecht wissen van de importvlag. Samen met de zes volgordegevallen
+zijn dat zeven nieuwe weigeringen, met één verbetering (b5). Alleen gemeld, geen reparatie. Alle gerichte checks groen.
+
+#898 was bij begin, vóór de definitieve telling en na afloop nog open. Main stond bij de laatste twee controles op
+ac334b6bc (#893, rapportwerk); de onderzochte IFC-/statebestanden bleven byte-gelijk. Geen main-merge van #898, geen
+nieuwe pariteitsreferentie en geen verwijdering van 1115: stap 3 is volgens opdracht overgeslagen.
+
+Bijsturing van Trias over het rekenslot verwerkt: elke definitieve check heeft een eigen flock; het controlescript
+zelf houdt geen slot vast. De eerste tussentelling is afgebroken voor de verse-payloadcorrectie en telt niet als
+resultaat. Advies: apart besluiten of de bibliotheekkalenders op stabiel id mogen worden vergeleken, met exacte inhoud;
+taak-/kindvolgorde blijven relevant. Ook de provenanceweigering vraagt een aparte beslissing. Bewijs en alle gevallen:
+`docs/superpowers/evidence/2026-11-11-1107-echte-acties.md`.

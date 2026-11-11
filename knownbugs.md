@@ -1907,18 +1907,19 @@ en noem het in je rapport of PR-tekst.
      van Trias (wrakko, 11 november 2026): BLOKKEERT vóór 1c, in dezelfde kleine PR als 1108; voortgang bijwerken is
      gewoon werk van elke planner. Uit #886. — B
 
-1107. **Vóór 1c: volledige herleestoets via verplichte open-stappen, gebouwd in #903; bevindingen nog overdragen.**
-     De naad vergelijkt `open-stappen(readPlanning(uitvoer))` met `open-stappen(domein)`, volgens `shownAfterOpen` uit
-     #886. Zonder functie weigert hij getypeerd. De eerdere stop op een duurwijziging zonder F5 is vervallen; dat geval
-     schrijft en is een blijvende proef. De gelijkheid van de naad met volledig heropenen is getoetst voor elke geschreven
-     merge in de telling, de tien oude eigen bestanden en een gegenereerd model van 10 MiB met een duurwijziging.
-     Telling: 2516 geschreven, 747 geweigerd, 0 anders, tegenover 2562/701/0. Alle 46 nieuwe weigeringen staan per geval in
-     `docs/superpowers/evidence/1107-heropenkosten/v3/nieuwe-weigeringen.md`: 40 zijn directe voortgangsmutaties van de
-     bestaande telling, buiten de echte invoeracties; 6 volgen uit taak wissen en betreffen de kalenderlijst. Niet
-     gerepareerd; geen bewezen verlies op een echte plannerroute. Via `setActualFinish` staat de rest al vóór opslaan op
-     0 en blijft zij na beide open-wegen 0. De teller van #898 is niet aangepast. De strikte en behoudsproeven gebruiken
-     voor vier betrokken bewerkingen nu de echte setters. Kosten en volledig bewijs:
-     `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. — B
+1107. **Vóór 1c: volledige herleestoets gebouwd in #903; zeven verklaarde weigeringen nog overdragen.** De naad
+     vergelijkt de merge-uitvoer en het domein na dezelfde open-stappen. De gedeelde voortgangsbewerking gebruikt nu
+     `enterTaskProgress`, bevestigt zo nodig het startvoorstel en neemt de verse storepayload volledig over (ook gewiste
+     optionele velden). Van de 40 eerdere kale voortgangsgevallen schrijven er 39 weer; het oude b5-geval schrijft via
+     de echte actie nu ook. Eén geval blijft bij voortgang weigeren: `ifc-arity-oude-writer.ifc`, omdat de echte bewerking
+     de importvlag wist en de verliesbewaking het vervallen van `UnchangedSinceImport` (#412), de pset en relatie niet
+     accepteert. Alleen gemeld, niet gerepareerd. De zes wisgevallen verliezen bij echte Delete en gewone opslag zonder
+     model geen kalender: h7 5/5/5, urenperdag 9/9/9 in de writerinvoer (inclusief projectkalenderkopie), met dezelfde ids
+     en inhoud. De nu ongebruikte kalender wordt alleen achter de gebruikte kalenders gelezen. Deze zes weigeringen
+     komen uit lijstvolgorde; canon en wisbewerking zijn niet aangepast. Eindtelling zonder #898: 2556 geschreven,
+     707 geweigerd, 0 anders, tegenover 2562/701/0; zeven nieuwe weigeringen en één verbetering. Alle 660 rijen zijn
+     vergeleken. #898 was bij de laatste controle nog open; stap 3 is overgeslagen. Bewijs en alle gevallen:
+     `docs/superpowers/evidence/2026-11-11-1107-echte-acties.md`. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft

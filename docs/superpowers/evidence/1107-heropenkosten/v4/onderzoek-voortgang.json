@@ -1,0 +1,48 @@
+[
+  {
+    "file": "ifc-arity-oude-writer.ifc",
+    "bewerking": "task-mula7vhu11iq28 voortgang 50 % via invoer",
+    "outcome": "weigert",
+    "cases": [
+      {
+        "kind": "niet-gedragen",
+        "sourceId": 412,
+        "detail": "IFCPROPERTYSINGLEVALUE #412 (UnchangedSinceImport): ontbreekt in de uitvoer na de bewerking ('UnchangedSinceImport')",
+        "field": {
+          "arg": -1,
+          "source": "'UnchangedSinceImport'",
+          "out": "",
+          "whole": "ontbreekt"
+        }
+      },
+      {
+        "kind": "niet-gedragen",
+        "sourceId": 413,
+        "detail": "IFCPROPERTYSET #413 (OPS_ImportProvenance): ontbreekt in de uitvoer na de bewerking ('2ppuUP5H5mu2g2nwFTsL4k')",
+        "field": {
+          "arg": -1,
+          "source": "'2ppuUP5H5mu2g2nwFTsL4k'",
+          "out": "",
+          "whole": "ontbreekt"
+        }
+      },
+      {
+        "kind": "niet-gedragen",
+        "sourceId": 414,
+        "detail": "IFCRELDEFINESBYPROPERTIES #414: ontbreekt in de uitvoer na de bewerking ('0ojKnhNKZKDEh_XGzFbwhw')",
+        "field": {
+          "arg": -1,
+          "source": "'0ojKnhNKZKDEh_XGzFbwhw'",
+          "out": "",
+          "whole": "ontbreekt"
+        }
+      }
+    ]
+  },
+  {
+    "file": "b5-lopend-oude-writer.ifc",
+    "bewerking": "task-mvp9jxnb12275 voortgang 50 % via invoer",
+    "outcome": "schrijft",
+    "cases": []
+  }
+]

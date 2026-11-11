@@ -1,0 +1,19 @@
+{
+  "typecheck": 0,
+  "lint": 0,
+  "herleestoets": 0,
+  "oude-eigen": 0,
+  "strikt": 0,
+  "preserve": 0,
+  "pariteit": 0,
+  "open": 0,
+  "target": 0,
+  "verify-store-boundaries": 0,
+  "verify-cycles": 0,
+  "verify-docs": 0,
+  "telling": 0,
+  "typecheckBewijs": "typecheck-na-aanpassing.log (eerste typecheck.log bevat de herstelde typefout in roundTrip)",
+  "mutatieKaleVoortgang": 1,
+  "herstelKaleVoortgang": 0,
+  "verify-docsBewijs": "definitief/verify-docs-laatste.log"
+}
