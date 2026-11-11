@@ -1960,6 +1960,13 @@ en noem het in je rapport of PR-tekst.
      main na #898, alle getypeerd zonder bytes. Niet gerepareerd. Volledig per geval:
      `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. Uit #903. — B
 
+1117. **VERVOLG: de toets "ongewijzigd getal exact" koppelt rijen zonder `id` op plek.** `unchangedPlanningNumberProblem`
+     in `src/services/ifc/foreign/mergeWriter.ts` (#903) koppelt dingen met een `id` op id en de rest op plek in de lijst.
+     Regels van een baseline hebben een `taskId`, geen `id`: wist de planner de eerste regel, dan wordt de volgende regel
+     met de vroegere eerste vergeleken, en een blijvend getal dat daarvan verschilt geldt dan niet als ongewijzigd. Geen
+     verlies aangetoond: de writer bewaart een baseline als JSON. Richting: baselineregels op `taskId` koppelen, met een
+     proef met verschuivende rijen. Terra, review ronde 2 van #903. — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
