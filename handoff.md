@@ -10,8 +10,8 @@ deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met e
 lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
 Het lezen (1a) en het schrijven (1b, #867) zijn gemerged in main: de writer laat het gebouwmodel staan en zet de
 planning ertussen, en bij twijfel weigert hij. #886 is gemerged in main; de merge wordt daar getoetst via de toestand die
-na openen in de app staat. Concept-PR #898 repareert de tijdzonevergelijking (1111), de voortgang van een oude lopende
-OPS-taak (1109) en de oude kalenderindeling (1108). Twee door andere programma's herschreven fixtures blijven veilig
+na openen in de app staat. Concept-PR #898 repareert de tijdzonevergelijking (1111), de oude kalenderindeling (1108); de verruiming voor voortgang (1109)
+is in fixronde 1 teruggenomen wegens bewezen afrondingsverlies. Twee door andere programma's herschreven fixtures blijven veilig
 geweigerd. 1107 blijft open: de volledige herleestoets via de gedeelde open-route moet vóór 1c af. Tot dan blijft opslaan
 met een vreemd deel geweigerd.
 
@@ -67,7 +67,7 @@ met een vreemd deel geweigerd.
      pariteitstest op de huidige main met de oude-tags."
 4. **1b-vervolg 2: eigen bestanden die nog weigeren** (concept-PR #898). Deze reparatie moet vóór 1c in main staan
    (besluit van Trias, 11 november 2026). 1111: `sameMeaning` gebruikt nu de vaste tijdas van de planner. 1109:
-   voortgang bijwerken in `b5-lopend-oude-writer.ifc` schrijft weer. 1108: de oude OPS-kalender schrijft weer; twee
+   voortgang bijwerken in `b5-lopend-oude-writer.ifc` weigert weer veilig na fixronde 1 (1109 blijft open). 1108: de oude OPS-kalender schrijft weer; twee
    extern herschreven fixtures blijven bewust geweigerd (herkomst en redenen in `knownbugs.md` en `OWN_MAY_REFUSE`).
    **1107 blijft open, vóór 1c**: de volledige herleestoets via de route van de app is niet klein en veilig binnen deze
    reparatie. Advies: deel de bestaande open-route, inclusief de modus datums zoals opgeslagen, en vergelijk de volledige
@@ -123,6 +123,16 @@ met een vreemd deel geweigerd.
    hulpstukken (`OPS_Resource` en de andere psets en relaties); het is onze eigen writer.
 
 ## Werk
+
+- 2026-11-11: review ronde 1 van #898 op `ccc92a8b3`: Terra (GPT-6.1-Terra, xhigh) nee, BEVESTIGD BLOKKEERT.
+  Alleen voortgang wijzigen liet een ongewijzigde 17-cijfers-duur en rest afronden. Fixronde 1 versmalt het behoud per
+  slot; de waarde van een gewijzigde duur/rest mag alleen uit de writer komen als `carried` haar draagt. De oude
+  lopende taak weigert weer veilig; 1109 is heropend. Geen uitzondering. Nieuwe storeproeven voor completion,
+  actualStart en actualFinish controleren de precieze bronwaarden en heropening, of een getypeerde weigering.
+  STOP wegens nieuw verlies in de actualFinish-proef (1113): de rest wijzigt na heropenen hoewel de brontekst behouden
+  bleef. Gerichte oude-eigen-run rood: 5 afwijkingen / 386 controles, waaronder 2 actualFinish-afwijkingen en 3 nieuwe
+  weigeringen in de toets van Trias door de extra `carried`-eis. De huidige stand is tussenwerk, niet afgerond.
+  Geen mutatiebewijs, eindtelling of overige eindchecks op deze stand; eerst het verlies met Trias afbakenen.
 
 - 2026-11-11: concept-PR #898 vanaf main met #886: 1111 gebruikt `parseInstant`; 1109 rekent gewijzigde voortgang
   tot de afhankelijkheden van duur en rest; 1108 herkent de oude kalenderslots via `workCalendarSlots`. Gerichte

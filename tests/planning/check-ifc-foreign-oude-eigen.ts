@@ -178,15 +178,58 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
 // 1109: voortgang invoeren via de echte storeactie, en dezelfde invoer als de telling.
 {
   const src = walled('tests/planning/fixtures/b5-lopend-oude-writer.ifc');
-  await proof('1109', '50 procent via storeactie', src, 'schrijft', async (d) => {
+  await proof('1109', '50 procent via storeactie, bronbehoud weigert veilig', src, 'niet-gedragen', async (d) => {
     const { store, snapshot } = await openInStore(latin1(src));
     const task = store.getState().tasks.find(t => !t.isSummary)!;
     store.getState().updateTask(task.id, { time: { ...task.time, actualStart: task.time.scheduleStart, completion: 0.5 } });
     Object.assign(d, cloneDomain(snapshot(store) as Opened));
   });
-  await proof('1109', '50 procent zoals de telling', src, 'schrijft', d => {
+  await proof('1109', '50 procent zoals de telling, bronbehoud weigert veilig', src, 'niet-gedragen', d => {
     ordinaryEdits(d).find(e => e.kind === 'voortgang')!.apply(d);
   });
+}
+
+// Review #898, fixronde 1: de bewerking van een ander veld mag exacte duur/rest niet afronden.
+{
+  const precise = 2.3333333333333335;
+  const base = walled(`${OLD}/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc`);
+  const otherRest = 1.2345678901234567;
+  const variants = [
+    { name: 'bestaande precieze rest', src: base, remaining: precise },
+    { name: 'afzonderlijke niet-lege precieze rest', src: patchArg(base, /IFCTASKTIME\('Set up site Time'/, 18, `'P0Y0M${otherRest}D'`), remaining: otherRest },
+  ];
+  for (const { name, src, remaining } of variants) {
+    for (const edit of ['completion', 'actualStart', 'actualFinish'] as const) {
+      const label = `1109 behoud · ${name} · ${edit}`;
+      const { store, snapshot } = await openInStore(latin1(src));
+      const task = store.getState().tasks.find(t => t.name === 'Set up site')!;
+      ok(`${label}: duur vóór actie exact`, task.time.scheduleDuration === precise);
+      ok(`${label}: rest vóór actie exact`, task.time.remainingTime === remaining);
+      const value = edit === 'completion' ? 0.5 : edit === 'actualStart' ? task.time.scheduleStart : task.time.scheduleFinish;
+      store.getState().updateTask(task.id, { time: { ...task.time, [edit]: value } });
+      const d = cloneDomain(snapshot(store) as Opened);
+      const after = d.tasks.find(t => t.id === task.id)!;
+      ok(`${label}: duur na actie ongewijzigd`, after.time.scheduleDuration === precise);
+      ok(`${label}: rest na actie ongewijzigd`, after.time.remainingTime === remaining);
+      const r = await tryMerge(d, snapshot(store).ifcSource!);
+      if (!r.ok) {
+        ok(`${label}: getypeerd geweigerd`, r.kinds.includes('niet-gedragen') || r.kinds.includes('bronvorm-leest-anders'));
+        rows.push(`| ${label} | weigert (${r.kinds.join(', ')}) |`);
+        continue;
+      }
+      const out = text(r.bytes);
+      const line = out.split('\n').find(l => /IFCTASKTIME\('Set up site Time'/.test(l))!;
+      const args = splitArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
+      ok(`${label}: slot 4 houdt precieze bronwaarde`, args[4] === `'P0Y0M${precise}D'`);
+      ok(`${label}: slot 18 houdt precieze bronwaarde`, args[18] === `'P0Y0M${remaining}D'`);
+      ok(`${label}: vreemde deel behouden`, mergeProblems(latin1(src), r.bytes).length === 0);
+      const back = await openForeign(r.bytes);
+      const restored = back.tasks.find(t => t.id === task.id)!;
+      ok(`${label}: duur na heropenen exact`, restored.time.scheduleDuration === precise);
+      ok(`${label}: rest na heropenen exact`, restored.time.remainingTime === remaining);
+      rows.push(`| ${label} | schrijft; exactheid van duur en rest apart getoetst |`);
+    }
+  }
 }
 
 // 1108: alleen de ongewijzigde OPS-writerfixture moet als eigen bron schrijven.

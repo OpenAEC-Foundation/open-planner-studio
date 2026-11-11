@@ -407,7 +407,10 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (explainO1(ctx1, after) !== undefined) {
         // Een datum die de planner zelf wijzigde en die de lezer volledig droeg, verliest niets (#886: F5 na een
         // duurwijziging, was knownbug 1102).
-        if (PARTIAL_KINDS.has(r.kind) && !plannerReplacedDate(ctx1, r)) say(after, true);
+        // Een gewijzigde duur of rest mag alleen haar bronwaarde vervangen als O0 die waarde volledig droeg.
+        // Een toegestane duurvorm alleen bewijst dat niet (review #898, fixronde 1).
+        if (index.type(r.chunk) === 'IFCTASKTIME' && (r.outArg === 4 || r.outArg === 18) && !ctx1.carried(r.chunk, r.outArg)) say(after, true);
+        else if (PARTIAL_KINDS.has(r.kind) && !plannerReplacedDate(ctx1, r)) say(after, true);
         continue;
       }
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
@@ -1458,12 +1461,11 @@ const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 const T = (...parts: string[]) => parts.map(p => `time.${p}`);
 const DATE_FORMAT = T('durationUnit', 'durationMinutes');
 const WITHHELD = '@withheldTaskTimeFields';
-// Een andere voortgang verandert de afgeleide rest en daarmee de duurvorm (PT met dagenrecord).
-// De bronduur is vooraf op exact lezen getoetst; een bronrest `$` is volledig leeg, geen deels gedragen waarde.
+// Duur en rest zijn afzonderlijke waarden: een andere voortgang of een andere duurvorm wijzigt ze niet.
 const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   0: ['name'],
   3: T('durationType'),
-  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime', 'completion', 'actualStart', 'actualFinish'), 'calendarId'],
+  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType'), 'calendarId'],
   5: [...T('scheduleStart'), ...DATE_FORMAT],
   6: [...T('scheduleFinish'), ...DATE_FORMAT],
   7: [...T('earlyStart'), ...DATE_FORMAT, WITHHELD],
@@ -1477,7 +1479,7 @@ const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   15: [...T('actualDuration', 'durationType'), 'calendarId'],
   16: [...T('actualStart'), ...DATE_FORMAT],
   17: [...T('actualFinish'), ...DATE_FORMAT],
-  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration', 'completion', 'actualStart', 'actualFinish'), 'calendarId'],
+  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationType'), 'calendarId'],
   19: T('completion'),
 };
 /** De velden waar de writer deze slots van `IfcTaskTime` uit schrijft, als pad (`time.scheduleDuration`, `calendarId`),

@@ -1898,6 +1898,13 @@ en noem het in je rapport of PR-tekst.
      De laatste twee staan met deze redenen in `OWN_MAY_REFUSE`; ze zijn geen voorbeelden van een OPS-versie die zijn
      eigen uitvoer niet kan opslaan. De weigering blijft veilig; geen toestemming om hun brongegevens weg te schrijven. — B
 
+1109. **BLOKKEERT vóór 1c: voortgang in `b5-lopend-oude-writer.ifc` met een model weigert veilig.** De verruiming
+     van #898 liet de duur en rest van een ander oud bestand (`v2026.9.0-17-cijfers`) afronden na alleen een
+     voortgangswijziging (Terra, review ronde 1, BEVESTIGD). Die verruiming is teruggenomen: duur en rest worden per slot
+     behouden; een gewijzigde waarde krijgt alleen de writerwaarde als O0 haar volledig droeg (`carried`). Het behoud
+     van de bronduur en lege bronrest in b5-lopend gaat niet samen met de nieuwe writerwaarden; de merge weigert
+     getypeerd. Geen uitzondering toegevoegd. Eerst het bronbehoud en de gewenste voortgang met Trias afstemmen. — B
+
 1107. **Vóór 1c: de herleestoets binnen de merge opent niet zoals de app.** `writeIfcMerge` geeft de uitvoer via
      `readPlanning` aan `sourceFormProblems` (`src/services/ifc/foreign/mergeWriter.ts`, de herleestoets van de bronvorm);
      die doet alleen de omzetting naar het minutenmodel opnieuw (`src/services/ifc/foreign/sourceForm.ts`, `migrated`), niet
@@ -1905,7 +1912,7 @@ en noem het in je rapport of PR-tekst.
      letterlijke kalender raakt. De tests openen wel via de app (`openForeign` in `tests/planning/ifcMergeKern.ts`), maar dat
      is geen controle op iedere merge. Geen verlies gevonden. Eis (besluit van Trias): vóór het aansluiten in 1c een
      volledige herleestoets in de merge, met een proef die rood wordt als de herberekening na openen de planning verandert.
-     Gaat mee in de kleine PR met 1108 en 1109. Gevonden door Terra in review ronde 1 van #886. — B
+     Gevonden door Terra in review ronde 1 van #886. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
@@ -1916,6 +1923,15 @@ en noem het in je rapport of PR-tekst.
      geweigerd; bij één nagegaan dat dit de oorzaak is), nadat de lijst ids in `WorkingExceptionIds` niet meer weigerde.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
+
+1113. **BLOKKEERT: een precieze rest verandert na alleen actualFinish en heropenen.** Gevonden tijdens fixronde 1
+     van #898. Proef in `check-ifc-foreign-oude-eigen.ts`, blok "Review #898, fixronde 1": open
+     `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` met een wand via de store en voer met `updateTask` alleen
+     actualFinish in. De duur en rest blijven vóór en na de actie exact. De merge schrijft; slots 4 en 18 houden
+     hun precieze brontekst. Na heropenen via de app is de rest niet meer exact de invoer. Dit gebeurt met de bestaande
+     rest 2.3333333333333335 én met de afzonderlijke bronrest 1.2345678901234567. Beide assertions zijn rood;
+     de overeenkomstige completion- en actualStart-proeven slagen. Bouwen en overige controles gestopt volgens de
+     verliesregel; nog niet afgebakend of dit al op main zit. De lezer is niet aangepast. — B
 
 1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
      deel waarvan de bron niet terug te lezen is, zegt het ontwerp
