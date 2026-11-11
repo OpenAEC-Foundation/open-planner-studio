@@ -1,3 +1,4 @@
+import { stepStringEnd, skipStepComment, unescapeStepQuotes } from './stepLexical';
 import { parseIfcDuration } from './isoDuration';
 import { milestoneWasAtDayEnd } from './ifcPsets';
 import { calendarExceptionKey } from './calendarExceptionKey';
@@ -201,8 +202,8 @@ export function readIFC(
     'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
   // #870 (besluit Trias, wrakko 10 november 2026): de grammatica van ISO 10303-21 (`stepFileGrammar.ts`) leest het hele
   // bestand. Ziet zij ergens een modeltype, dan weigeren: ook in een tweede datasectie, in een complexe instantie, na
-  // een string die `parseSTEP` anders leest (knownbug 1050), en vóór het punt waar het bestand breekt. Verder opent
-  // `readIFC` precies zoals main: de grammatica bepaalt niet waar de datasectie begint of eindigt.
+  // een string en vóór het punt waar het bestand breekt. De planningparser behoudt zijn tolerante leesregels;
+  // zijn stringgrenzen deelt hij sinds #1050 met de grammatica en de doelcontrole.
   if (stepFileGrammar(content).model) throw buildingModel();
   const entities = parseSTEP(content);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
@@ -957,7 +958,6 @@ function reconstructVerifiedXerSource(
 // over de tekst, geen index of terugsprongen.
 
 const CH_QUOTE = 39;   // '
-const CH_STAR = 42;    // *
 const CH_SLASH = 47;   // /
 const CH_HASH = 35;    // #
 const CH_LPAREN = 40;  // (
@@ -982,20 +982,11 @@ function isSpaceCode(c: number): boolean {
  * Een niet-afgesloten string/commentaar loopt door tot het einde van de tekst (tolerant).
  */
 function skipQuotedOrComment(text: string, i: number): number {
-  const c = text.charCodeAt(i);
-  if (c === CH_QUOTE) {
-    for (let j = i + 1; j < text.length; j++) {
-      if (text.charCodeAt(j) !== CH_QUOTE) continue;
-      if (text.charCodeAt(j + 1) === CH_QUOTE) { j++; continue; } // '' = ontsnapte apostrof
-      return j + 1;
-    }
-    return text.length;
+  if (text.charCodeAt(i) === CH_QUOTE) {
+    const end = stepStringEnd(text, i);
+    return end < 0 ? text.length : end + 1;
   }
-  if (c === CH_SLASH && text.charCodeAt(i + 1) === CH_STAR) {
-    const end = text.indexOf('*/', i + 2);
-    return end < 0 ? text.length : end + 2;
-  }
-  return -1;
+  return skipStepComment(text, i);
 }
 
 /** ASCII-hoofdletterongevoelige match van `token` (zélf in hoofdletters) op positie `i`. Geen
@@ -1032,15 +1023,16 @@ function indexOfCode(text: string, token: string, from: number): number {
  *  tekst (het gangbare geval — onze eigen writer schrijft er geen) ⇒ de tekst gaat onaangeroerd
  *  terug, zonder kopie. */
 function stripStepComments(text: string): string {
-  if (text.indexOf('/*') < 0) return text;
+  if (text.indexOf('/') < 0) return text;
   let out = '';
   let copiedFrom = 0;
   for (let i = 0; i < text.length;) {
     const c = text.charCodeAt(i);
     if (c === CH_QUOTE) { i = skipQuotedOrComment(text, i); continue; } // string verbatim houden
-    if (c === CH_SLASH && text.charCodeAt(i + 1) === CH_STAR) {
+    const commentEnd = c === CH_SLASH ? skipStepComment(text, i) : -1;
+    if (commentEnd >= 0) {
       out += text.slice(copiedFrom, i);
-      i = skipQuotedOrComment(text, i);
+      i = commentEnd;
       copiedFrom = i;
       continue;
     }
@@ -1213,17 +1205,10 @@ function splitArgs(argsStr: string): string[] {
   const args: string[] = [];
   let segStart = 0;
   let depth = 0;
-  let inString = false;
-
   for (let i = 0; i < argsStr.length; i++) {
     const ch = argsStr[i];
-    if (ch === "'" && !inString) {
-      inString = true;
-    } else if (ch === "'" && inString) {
-      if (i + 1 < argsStr.length && argsStr[i + 1] === "'") i++;
-      else inString = false;
-    } else if (inString) {
-      // teken binnen een string
+    if (ch === "'") {
+      i = skipQuotedOrComment(argsStr, i) - 1;
     } else if (ch === '(') {
       depth++;
     } else if (ch === ')') {
@@ -1273,17 +1258,11 @@ function decodeQuotedSegments(arg: string): string {
     const open = arg.indexOf("'", i);
     if (open < 0) { out += arg.slice(i); break; }
     out += arg.slice(i, open + 1);
-    let j = open + 1;
-    for (;;) {
-      const q = arg.indexOf("'", j);
-      if (q < 0) { j = arg.length; break; }
-      if (arg.charCodeAt(q + 1) === CH_QUOTE) { j = q + 2; continue; }
-      j = q;
-      break;
-    }
+    const close = stepStringEnd(arg, open);
+    const j = close < 0 ? arg.length : close;
     const body = arg.slice(open + 1, j);
     out += body.indexOf('\\') >= 0
-      ? decodeStepText(body.replace(/''/g, "'")).replace(/'/g, "''")
+      ? decodeStepText(unescapeStepQuotes(body)).replace(/'/g, "''")
       : body;
     if (j < arg.length) out += "'";
     i = j + 1;

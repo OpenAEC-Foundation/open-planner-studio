@@ -1,3 +1,4 @@
+import { StepStringState, isStepControl, stepString } from './stepLexical';
 // De grammatica van een heel STEP-bestand (ISO 10303-21 editie 3), van `ISO-10303-21;` tot `END-ISO-10303-21;` (#870,
 // besluit Trias, wrakko 10 november 2026, review van #870 ronde 10). De grammatica beslist twee dingen:
 //  - ziet zij ergens een modeltype, dan weigert `readIFC` het openen en de doelcontrole het schrijven, ook als het
@@ -28,8 +29,8 @@
 // - Een niet-ASCII-teken buiten een string past nergens.
 //
 // De grammatica ziet ook de modeltypes (`IFC_BUILDING_MODEL_TYPES`) als type van een entiteit, ook als deel van een
-// complexe instantie. Zo ziet zij een wand die de lexer van `parseSTEP` mist (knownbug 1050), en een wand in een
-// tweede datasectie.
+// complexe instantie, vóór een syntactische fout en in een tweede datasectie. De stringgrenzen deelt zij met
+// de planningparser en de doelcontrole (`stepLexical.ts`, #1050).
 //
 // De grammatica leest teken voor teken (`step`), zodat een stroom hem in stukken kan voeden. Als UTF-16-tekst
 // (`readIFC`) is elk teken een code-eenheid; als UTF-8-bytes (de doelcontrole) is elk teken een byte. Alleen ASCII telt.
@@ -57,7 +58,6 @@ const PLUS = 0x2b;
 const MINUS = 0x2d;
 const UNDERSCORE = 0x5f;
 const LETTER_E = 0x45;
-const LETTER_S = 0x53;
 const LETTER_N = 0x4e;
 const LETTER_F = 0x46;
 
@@ -90,7 +90,7 @@ for (const type of IFC_BUILDING_MODEL_TYPES) {
 }
 
 /** Lexicale toestand. */
-const enum Lex { Code, Word, Str, StrQuote, StrBack, StrBackS, StrBackSBack, BinFirst, Bin, Uri, Slash, Comment, CommentStar, Back, BackLetter }
+const enum Lex { Code, Word, Str, BinFirst, Bin, Uri, Slash, Comment, CommentStar, Back, BackLetter }
 /** Waar in het bestand de grammatica is. */
 const enum Sec { Start, Pre, Header, Between, Anchor, Reference, Data, End }
 /** Waar in het statement de grammatica is. */
@@ -147,6 +147,7 @@ export class StepFileGrammar {
 
   private result: StepGrammarState = 'running';
   private lex = Lex.Code;
+  private stringState = StepStringState.Text;
   private p = P.Stmt;
   private x = X.ValueOrClose;
   // ── Het woord dat nu gelezen wordt ──
@@ -195,7 +196,7 @@ export class StepFileGrammar {
       if (this.utf8 && this.bom % 3 !== 0) { this.fail(at); return; } // een half BOM
       this.bom = -1;
     }
-    if (c < SPACE || c === 0x7f) return; // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
+    if (isStepControl(c)) return; // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
     this.lexStep(c, at);
   }
 
@@ -205,7 +206,7 @@ export class StepFileGrammar {
     const n = content.length;
     for (let i = 0; i < n; i++) {
       if (this.result === 'failed') return;
-      if (this.lex === Lex.Str) {
+      if (this.lex === Lex.Str && this.stringState === StepStringState.Text) {
         let c = content.charCodeAt(i);
         while (c !== QUOTE && c !== BACKSLASH && ++i < n) c = content.charCodeAt(i);
         if (i === n) return;
@@ -239,27 +240,10 @@ export class StepFileGrammar {
   private lexStep(c: number, at: number): void {
     switch (this.lex) {
       case Lex.Str:
-        if (c === QUOTE) this.lex = Lex.StrQuote;
-        else if (c === BACKSLASH) this.lex = Lex.StrBack;
-        return;
-      case Lex.StrQuote:
-        if (c === QUOTE) { this.lex = Lex.Str; return; } // `''` is een aanhalingsteken in de string
+        this.stringState = stepString(this.stringState, c);
+        if (this.stringState !== StepStringState.End) return;
         this.lex = Lex.Code;
-        break; // einde van de string: dit teken is weer code
-      case Lex.StrBack:
-        if (c === BACKSLASH) { this.lex = Lex.Str; return; } // `\\`
-        if (c === LETTER_S) { this.lex = Lex.StrBackS; return; } // `\S`, alleen als hoofdletter
-        this.lex = Lex.Str;
-        this.lexStep(c, at);
-        return;
-      case Lex.StrBackS:
-        if (c === BACKSLASH) { this.lex = Lex.StrBackSBack; return; }
-        this.lex = Lex.Str;
-        this.lexStep(c, at);
-        return;
-      case Lex.StrBackSBack:
-        this.lex = Lex.Str; // het teken na `\S\` hoort bij de string, ook een `'`
-        return;
+        break;
       // Review van #870, ronde 8 (Sol): binair is `"` met een cijfer 0–3 en dan hexadecimale cijfers (tabel 2). Een ander
       // teken breekt het bestand; anders verstopte `"…"` een wand.
       case Lex.BinFirst:
@@ -320,7 +304,7 @@ export class StepFileGrammar {
       case SPACE: return;
       case SLASH: this.lexBack = Lex.Code; this.lex = Lex.Slash; return;
       case BACKSLASH: this.lexBack = Lex.Code; this.lex = Lex.Back; return;
-      case QUOTE: this.lex = Lex.Str; this.atom(at); return;
+      case QUOTE: this.lex = Lex.Str; this.stringState = StepStringState.Text; this.atom(at); return;
       case DQUOTE: this.lex = Lex.BinFirst; this.atom(at); return;
       case LT: this.lex = Lex.Uri; this.atom(at); return;
       case OPEN: case CLOSE: case COMMA: case SEMI: case EQUALS: this.punct(c, at); return;

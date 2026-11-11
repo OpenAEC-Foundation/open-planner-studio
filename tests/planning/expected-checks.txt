@@ -181,6 +181,7 @@ check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-legacy-arity.ts matrix
+check-ifc-lexical-boundaries.ts matrix
 check-ifc-literaltimes-behoud.ts matrix
 check-ifc-lopend-100.ts matrix
 check-ifc-nesting-index.ts matrix
