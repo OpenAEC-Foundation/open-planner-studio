@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, FileText, HardDrive, RefreshCw } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { formatLocalDateTime } from '@/utils/displayTime';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
@@ -74,9 +74,14 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
 
   const cancel = () => answerSiteOpen(null);
   const openLatest = (file: SiteFileInfo) => answerSiteOpen({ kind: 'site', id: file.id });
-  const openVersion = (file: SiteFileInfo, version: SiteVersionInfo) => {
+  /** Is dit de nieuwste versie? Volgens `file.version` uit de lijst; geeft de lijst geen versie (de
+   *  SuperCloud-vorm, #818), dan de eerste uit `versions` (die is nieuwste eerst). */
+  const isLatest = (file: SiteFileInfo, version: SiteVersionInfo, index: number) => (
+    file.version !== undefined ? version.version === file.version : index === 0
+  );
+  const openVersion = (file: SiteFileInfo, version: SiteVersionInfo, index: number) => {
     // De nieuwste versie uit de lijst is gewoon "het bestand openen", met de site als opslagdoel.
-    if (file.version !== undefined && version.version === file.version) {
+    if (isLatest(file, version, index)) {
       openLatest(file);
       return;
     }
@@ -116,7 +121,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
             <div className="text-text-secondary break-words">{files.message}</div>
             <div>
               <button className="btn btn--sm btn--secondary flex items-center gap-1.5" onClick={retry}>
-                <RefreshCw size={13} />
+                <Icon id="ui.refresh" size={13} />
                 {t('siteFiles.retry')}
               </button>
             </div>
@@ -148,7 +153,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t(fileVersions ? 'siteFiles.hideVersions' : 'siteFiles.showVersions')}
                         data-ops-site-versions-toggle
                       >
-                        {fileVersions ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        {fileVersions ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" />}
                       </button>
                       <button
                         className="flex-1 min-w-0 flex items-start gap-2.5 p-2.5 text-left hover:bg-surface rounded-r-[8px]"
@@ -156,7 +161,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t('siteFiles.open')}
                         data-ops-site-file-open
                       >
-                        <FileText size={15} className="text-accent mt-0.5 shrink-0" />
+                        <Icon id="file.type-other" size={15} className="text-text-secondary mt-0.5 shrink-0" />
                         <span className="flex flex-col gap-0.5 min-w-0">
                           <span className="text-text-primary font-semibold !text-large truncate">{file.name}</span>
                           {modified && <span className="text-text-secondary">{modified}</span>}
@@ -178,8 +183,8 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         {fileVersions.status === 'ready' && fileVersions.items.length === 0 && (
                           <div className="text-text-secondary">{t('siteFiles.versionsEmpty')}</div>
                         )}
-                        {fileVersions.status === 'ready' && fileVersions.items.map((version) => {
-                          const latest = file.version !== undefined && version.version === file.version;
+                        {fileVersions.status === 'ready' && fileVersions.items.map((version, index) => {
+                          const latest = isLatest(file, version, index);
                           const versionWhen = when(version.modified);
                           return (
                             <div key={version.version} className="flex items-center gap-2" data-ops-site-version={version.version}>
@@ -197,7 +202,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                               </span>
                               <button
                                 className="btn btn--sm btn--secondary shrink-0"
-                                onClick={() => openVersion(file, version)}
+                                onClick={() => openVersion(file, version, index)}
                                 data-ops-site-version-open
                               >
                                 {latest ? t('siteFiles.open') : t('siteFiles.openCopy')}
@@ -224,7 +229,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
           onClick={() => answerSiteOpen({ kind: 'local' })}
           data-ops-site-open-local
         >
-          <HardDrive size={13} />
+          <Icon id="file.local" size={13} />
           {t('siteFiles.fromThisPc')}
         </button>
         <button className="btn btn--sm btn--secondary" onClick={cancel}>{t('cancel')}</button>

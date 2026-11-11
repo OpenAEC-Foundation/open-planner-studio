@@ -112,7 +112,9 @@ export function materializeBehindOnlyRefresh(input: {
     if (resource.libraryOrigin?.companyId !== pool.companyId) return resource;
     if (classifyResourceOnOpen(resource, pool) !== 'behind') return resource;
     resourcesChanged++;
-    return applyResourceUpdate(resource, pool);
+    // Een typewissel over de COST-grens met toewijzingen gaat niet door (issue #815): de resource
+    // blijft en staat daarna als afwijking.
+    return applyResourceUpdate(resource, pool, payload.assignments);
   });
   if (resourcesChanged > 0) payload.resources = resources;
 

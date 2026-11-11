@@ -2,11 +2,11 @@ import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { refusalNotice } from '@/state/refusalNotice';
-import type { ResourceCurve } from '@/types/resource';
-import { UnitsInput } from '@/components/common/UnitsInput';
+import { contourSiblings, isCostResource, type ResourceCurve } from '@/types/resource';
+import { AmountInput, UnitsInput } from '@/components/common/UnitsInput';
 import { Select, type SelectOption } from '@/components/common/Select';
 import { decimalSeparatorOf, localizeDecimalPoint } from '@/utils/reportNumber';
-import { AlertTriangle, BarChart3, ChevronRight, Lock, Trash2 } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -98,6 +98,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const moveAssignment = useAppStore(s => s.moveAssignment);
   // Kolom "Werk" + slotjes op de beschermde hoek(en).
   const setAssignmentWork = useAppStore(s => s.setAssignmentWork);
+  // Bedrag van een kostenresource (#815): geen inzet, curve of werk.
+  const setAssignmentCost = useAppStore(s => s.setAssignmentCost);
   const notify = useAppStore(s => s.notify);
   // "1,500" in en of "1.500" in nl: 1500 of 1,5? Geen gok; de waarde blijft. De melding noemt het
   // decimaalteken van de taal (de vertaling bouwt er het voorbeeld 1{{separator}}5 mee). Het is een
@@ -116,20 +118,28 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const detailsIdBase = useId();
   // Eén index per (taken, toewijzingen) — zie `moveCandidates.ts`. Vóór de vroege uitstap: hooks.
-  const moveLookup = useMemo(() => createMoveCandidateLookup(tasks, assignments), [tasks, assignments]);
+  // Een kostenresource mag ook naar een mijlpaal (#815).
+  const costResourceIds = useMemo(() => new Set(resources.filter(isCostResource).map(r => r.id)), [resources]);
+  const moveLookup = useMemo(
+    () => createMoveCandidateLookup(tasks, assignments, costResourceIds),
+    [tasks, assignments, costResourceIds],
+  );
 
   const task = tasks.find(t => t.id === taskId);
   if (!task) return null;
 
-  // Toewijzingen — leaf-only, geen mijlpalen/samenvattingstaken.
+  // Toewijzingen — leaf-only, geen samenvattingstaken; een mijlpaal alleen met kostenresources (#815).
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
   // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
-  const contouredIds = contouredAssignmentIds(task, taskAssignments);
+  // De koppellijst is zonder kostentoewijzingen, net als histogram en nivelleerder (#815).
+  const contourList = contourSiblings(taskAssignments, costResourceIds);
+  const contouredIds = contouredAssignmentIds(task, contourList);
   // De gekoppelde contour zelf, voor het restwerk uit de `remaining`-periodes.
-  const contourOf = matchContoursToAssignments(task.timephasedContours, taskAssignments);
-  const assignmentsDisabled = task.isMilestone || isSummaryTask(task);
+  const contourOf = matchContoursToAssignments(task.timephasedContours, contourList);
+  const assignmentsDisabled = isSummaryTask(task);
+  const milestone = !!task.isMilestone;
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
-  const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
+  const availableResources = resources.filter(r => !assignedResourceIds.has(r.id) && (!milestone || isCostResource(r)));
   const rule = effectiveWorkRule(task, defaultWorkRule);
   const unitsProtected = rule === 'FIXED_DURATION_RATE' || rule === 'FIXED_RATE';
   const workProtected = ruleProtectsWork(rule);
@@ -161,12 +171,15 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
       <span className="ui-card-header !text-small !leading-4">{t('properties.assignments.title')}</span>
       {assignmentsDisabled ? (
         <span className="!text-small text-text-secondary italic">
-          {task.isMilestone
-            ? t('properties.assignments.disabledMilestone')
-            : t('properties.assignments.disabledSummary')}
+          {t('properties.assignments.disabledSummary')}
         </span>
       ) : (
         <>
+          {milestone && (
+            <span className="!text-small text-text-secondary" data-ops-assignment-milestone-cost-only>
+              {t('properties.assignments.milestoneCostOnly')}
+            </span>
+          )}
           {taskAssignments.length === 0 && (
             <span className="!text-small text-text-secondary">{t('properties.assignments.empty')}</span>
           )}
@@ -184,7 +197,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                   title={showWork && unitsProtected ? lockTitle : t('properties.assignments.unitsPerDay')}
                   data-ops-assignment-lock-units={showWork ? (unitsProtected ? 'locked' : 'free') : undefined}
                 >
-                  {showWork && unitsProtected && <Lock size={9} className="shrink-0" />}
+                  {showWork && unitsProtected && <Icon id="status.assignment-protected" size={9} className="shrink-0" />}
                   <span className="truncate">{t('properties.assignments.units')}</span>
                 </span>
                 {showWork && (
@@ -193,7 +206,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                     title={workProtected ? lockTitle : t('properties.assignments.workHint')}
                     data-ops-assignment-lock-work={workProtected ? 'locked' : 'free'}
                   >
-                    {workProtected && <Lock size={9} className="shrink-0" />}
+                    {workProtected && <Icon id="status.assignment-protected" size={9} className="shrink-0" />}
                     <span className="truncate">{t('properties.assignments.workHours')}</span>
                   </span>
                 )}
@@ -222,10 +235,12 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                 const open = expanded.has(a.id);
                 const detailsId = `${detailsIdBase}-${a.id}`;
                 const isMaterial = res?.type === 'MATERIAL';
+                // Kostenresource (#815): een bedragveld in de inzetkolom, werk "—", geen curve of urenverdeling.
+                const isCost = isCostResource(res);
                 // Opgeslagen werk dat afwijkt van inzet × restduur krijgt een markering (zelfde regel
                 // als de planningssuite toetst). Hij staat binnen het werkveld, zodat de kolom niet
                 // breder wordt.
-                const deviation = showWork && !isMaterial
+                const deviation = showWork && !isMaterial && !isCost
                   ? assignmentWorkDeviation(task, a.unitsPerDay, a.remainingWorkMinutes, hoursPerDay, contourOf.has(a.id))
                   : null;
                 return (
@@ -242,7 +257,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       className="assignment-name flex min-w-0 items-center gap-1 rounded-[4px] py-0.5 text-start hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                       data-ops-assignment-expand={open ? 'open' : 'closed'}
                     >
-                      <ChevronRight
+                      <Icon id="tree.expand"
                         size={12}
                         aria-hidden="true"
                         className={`shrink-0 text-text-secondary transition-transform ${open ? 'rotate-90' : 'rtl:-scale-x-100'}`}
@@ -253,17 +268,28 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                         style={{ background: res ? ensureThemeVisible(resourceDisplayColor(res), darkTheme) : 'var(--theme-border)' }}
                       />
                       <span className="min-w-0 truncate font-medium" title={resName} data-ops-assignment-name>{resName}</span>
-                      {curveMarked && (
+                      {curveMarked && !isCost && (
                         <span
-                          className="inline-flex shrink-0 items-center"
-                          style={{ color: 'var(--theme-accent)' }}
+                          className="inline-flex shrink-0 items-center text-text-secondary"
                           title={`${t('properties.assignments.curve')}: ${curveLabel}`}
                           data-ops-assignment-curve-mark={curveValue}
                         >
-                          <BarChart3 size={11} aria-hidden="true" />
+                          <Icon id="assignment.hours-distribution" size={11} aria-hidden="true" />
                         </span>
                       )}
                     </button>
+                    {isCost ? (
+                      <AmountInput
+                        value={a.costAmount}
+                        locale={i18n.language}
+                        commitOnBlur
+                        onAmbiguous={notifyAmbiguous}
+                        title={t('properties.assignments.amountHint')}
+                        ariaLabel={`${t('properties.assignments.amount')} — ${res?.name ?? a.resourceId}`}
+                        onCommit={n => setAssignmentCost(a.id, n)}
+                        className={`assignment-units ${numberInputClass}`}
+                      />
+                    ) : (
                     <UnitsInput
                       value={a.unitsPerDay}
                       locale={i18n.language}
@@ -275,8 +301,9 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
                       className={`assignment-units ${numberInputClass}`}
                     />
-                    {showWork && (isMaterial ? (
-                      <span className="assignment-work pe-1 text-right text-text-secondary" data-ops-assignment-work="material">—</span>
+                    )}
+                    {showWork && (isMaterial || isCost ? (
+                      <span className="assignment-work pe-1 text-right text-text-secondary" data-ops-assignment-work={isCost ? 'cost' : 'material'}>—</span>
                     ) : (
                       <span className="assignment-work relative flex items-center" data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
                         {/* Werk in uren: zelfde veld als de inzet. Het commit pas op Enter/blur —
@@ -308,7 +335,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                             role="img"
                             data-ops-assignment-work-deviates={`${deviation.stored}/${deviation.derived}`}
                           >
-                            <AlertTriangle size={10} aria-hidden />
+                            <Icon id="status.warning" size={10} aria-hidden />
                           </span>
                         )}
                       </span>
@@ -322,7 +349,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       aria-label={t('properties.assignments.remove')}
                       data-ops-assignment-remove
                     >
-                      <Trash2 size={12} />
+                      <Icon id="edit.delete" size={12} />
                     </button>
                     {open && (
                       <div
@@ -331,6 +358,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                         style={{ borderColor: 'var(--theme-border-light)' }}
                         data-ops-assignment-details
                       >
+                        {!isCost && (<>
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="shrink-0" style={mutedStyle}>{t('properties.assignments.curve')}</span>
                           <div
@@ -363,9 +391,10 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                           title={contoured ? t('properties.assignments.contouredHint') : t('properties.assignments.contour')}
                           data-ops-assignment-contour={contoured ? 'contoured' : 'formula'}
                         >
-                          <BarChart3 size={12} aria-hidden="true" className="shrink-0" />
+                          <Icon id="assignment.hours-distribution" size={12} aria-hidden="true" className={contoured ? 'shrink-0 text-text-secondary' : 'shrink-0'} />
                           <span className="truncate">{t('properties.assignments.contour')}</span>
                         </button>
+                        </>)}
                         {canMove && (
                           <MoveToSelect
                             label={t('properties.assignments.moveTo')}

@@ -22,7 +22,11 @@ import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, ex
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
+import { FEATURE_FLAGS } from '@/utils/featureFlags';
+import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
+import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
+import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 // T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
 // builders uit tests/planning/mppFixtures.ts (M6-fixturebouwers, ook door check-mpp-import.ts's
 // I4-fixture gebruikt). Sinds T11 (fixture-consolidatie) ook `buildVarMetaBytes` cross-suite van
@@ -32,6 +36,7 @@ import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAcc
 import { buildNestedCfb, encodeCompObjFileFormat, encodePropsEntries, encodePropsSingleByteEntry, buildVarMetaBytes, type CfbTreeNode } from '../planning/mppFixtures';
 
 const S = () => useAppStore.getState();
+const MCP_ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..');
 
 function makeCtx(over: McpContextOverrides = {}): McpContext {
   return makeMcpContext(appStoreContext, {
@@ -544,6 +549,84 @@ test('export_ifc: `overwritten` meldt de WERKELIJKHEID, niet de meegestuurde vla
   assertEq(again.overwritten, true, 'een bestaand bestand vervangen ⇒ overwritten:true');
 });
 
+test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (knownbug 1026, review #872 ronde 3)', async () => {
+  const fs = installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Export');
+  const own = `${HOME}/eigen.ifc`;
+  files.set(own, 'ISO-10303-21;\n');
+  useAppStore.setState({ filePath: own, ifcLiteralCalendarIds: null });
+  // Een urentaak van vier uur maakt de projectkalender letterlijk (T17).
+  S().addTask({ name: 'Uurtaak', time: { ...S().tasks[0].time, durationUnit: 'hours', durationMinutes: 240 } });
+  S().runCPM();
+  await callOk('planner_export_ifc', { path: `${HOME}/ander.ifc` });
+  assert(files.get(`${HOME}/ander.ifc`)!.includes("'LiteralTimes'"), 'de export schrijft de kalender letterlijk');
+  assertEq(S().ifcLiteralCalendarIds, null, 'een export naar een ander bestand verandert de keuze niet');
+  // Een andere schrijfwijze van hetzelfde bestand (zelfde identiteit) is het eigen bestand.
+  aliases.set(`${HOME}/Eigen.ifc`, own);
+  // Review #872 ronde 4 (Terra): schrijven en vastleggen onder de lock van Opslaan en AutoSave. Na de write vraagt de
+  // export de identiteit op (`stat`); de lock moet dan nog vastzitten, anders kan AutoSave er tussendoor schrijven.
+  const write = fs.writeTextFile;
+  const stat = fs.stat!;
+  let written = false;
+  const busyAfterWrite: boolean[] = [];
+  fs.writeTextFile = async (p, c) => { busyAfterWrite.push(isProjectFileWriteBusy()); await write(p, c); written = true; };
+  fs.stat = async (p) => { if (written) busyAfterWrite.push(isProjectFileWriteBusy()); return stat(p); };
+  await callOk('planner_export_ifc', { path: `${HOME}/Eigen.ifc`, overwrite: true });
+  fs.writeTextFile = write;
+  fs.stat = stat;
+  assert(busyAfterWrite.length >= 2 && busyAfterWrite.every(Boolean),
+    `de write en de identiteitscontrole erna staan onder de schrijflock (${JSON.stringify(busyAfterWrite)})`);
+  // Review #872 ronde 5 (Terra): wachten op de lock is een await. Pauzeert de planner de AI tijdens het wachten, of
+  // verandert het document (een opslag in de wachtrij), dan schrijft de export niets.
+  const waitFor = async (during: () => void) => {
+    let release!: () => void;
+    const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+    const before = files.get(own);
+    const pending = callErr('planner_export_ifc', { path: own, overwrite: true });
+    await new Promise(r => setTimeout(r, 50));
+    during();
+    release();
+    await hold;
+    const err = await pending;
+    assertEq(files.get(own), before, 'het eigen bestand is niet geschreven');
+    return err;
+  };
+  let pausedErr: McpToolErr;
+  try {
+    pausedErr = await waitFor(() => useAppStore.setState((s) => { s.ui.aiPaused = true; }));
+  } finally {
+    useAppStore.setState((s) => { s.ui.aiPaused = false; });
+  }
+  assertEq(pausedErr.code, 'PAUSED', 'pauze tijdens het wachten op de lock wint');
+  // Review #872 ronde 5 (Sol): ook alleen-lezen, een dialoog, de sluitvraag en een documentwissel tijdens het wachten.
+  const ownDoc = S().activeDocumentId;
+  for (const [code, during, undo] of [
+    ['READ_ONLY', () => useAppStore.setState((s) => { s.ui.aiReadOnly = true; }), () => useAppStore.setState((s) => { s.ui.aiReadOnly = false; })],
+    ['DIALOG_OPEN', () => useAppStore.setState((s) => { s.ui.showProjectSettings = true; }), () => useAppStore.setState((s) => { s.ui.showProjectSettings = false; })],
+    ['DIALOG_OPEN', () => useAppStore.setState((s) => { s.ui.pendingCloseDocId = ownDoc; }), () => useAppStore.setState((s) => { s.ui.pendingCloseDocId = null; })],
+  ] as const) {
+    let err: McpToolErr;
+    try { err = await waitFor(during); } finally { undo(); }
+    assertEq(err.code, code, `${code} tijdens het wachten op de lock wint, en er is niets geschreven`);
+  }
+  {
+    let switchErr: McpToolErr;
+    try {
+      switchErr = await waitFor(() => { S().newDocument(); });
+    } finally {
+      S().switchDocument(ownDoc);
+    }
+    assert(['DOC_DRIFT', 'VALIDATION'].includes(switchErr.code), `een documentwissel tijdens het wachten weigert (${switchErr.code})`);
+    assertEq(S().activeDocumentId, ownDoc, 'terug op het eigen document');
+  }
+  const changedErr = await waitFor(() => { S().addTask({ name: 'Tussendoor' }); });
+  assertEq(changedErr.code, 'VALIDATION', 'een gewijzigd document tijdens het wachten ⇒ validatiefout');
+  assert(changedErr.error.includes('changed while the export waited'), 'de Engelse fout zegt waarom');
+  assert(files.get(own)!.includes("'LiteralTimes'"), 'het eigen bestand is nu letterlijk');
+  assertEq(S().ifcLiteralCalendarIds, [S().calendar.id], 'een export over het eigen bestand legt de keuze vast');
+});
+
 test('export_ifc: pad buiten de $HOME-fs-scope ⇒ code SCOPE (ook via ..-traversal)', async () => {
   installFakeFs();
   resetToSingleEmptyDocument();
@@ -1023,6 +1106,92 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
   assertEq(ifc.format, 'IFC', 'IFC wordt als native formaat herkend');
   assertEq(S().filePath, ifcPath, 'een IFC-import neemt het bronpad wél over (opslaan = terugschrijven)');
   assertEq(ifc.filePath, ifcPath, 'en de respons meldt dat opslagdoel');
+});
+
+// #804 fase 1a: een document met een vreemd deel (gebouwmodel) gaat nog niet naar IFC; met de flag `ifcForeignContent`
+// leest import_schedule IFC als bytes, zoals Bestand → Openen.
+test('export_ifc: weigert een document met een vreemd deel, en import_schedule leest met de flag als bytes (#804 fase 1a)', async () => {
+  const fakeFs = installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Met model');
+  const flag = FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!;
+  const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
+  const bonsaiPath = `${HOME}/bonsai-4d.ifc`;
+  setBinaryFile(bonsaiPath, bonsai);
+  files.set(bonsaiPath, new TextDecoder().decode(bonsai));
+  try {
+    // Zonder flag: tekst, en de modelweigering zoals nu.
+    const refused = await callErr('planner_import_schedule', { path: bonsaiPath });
+    assert(refused.error.includes('building model'), 'zonder flag blijft de modelweigering');
+    assertEq(readFileCalls.includes(bonsaiPath), false, 'zonder flag leest import_schedule IFC als tekst');
+
+    // Met de flag (alleen in deze test bruikbaar gemaakt): bytes, en het document krijgt de bron.
+    flag.writesNewIfcData = false;
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    const ctx = makeCtx();
+    const imported = await callOk('planner_import_schedule', { path: bonsaiPath }, ctx);
+    assertEq(readFileCalls.includes(bonsaiPath), true, 'met de flag leest import_schedule IFC als bytes');
+    assert(S().ifcSource?.foreign === true && S().ifcSource?.bytes === bonsai, 'het document houdt de bron met het vreemde deel');
+    assertEq(imported.filePath, bonsaiPath, 'het bestand is het opslagdoel');
+
+    const target = `${HOME}/export/model.ifc`;
+    const error = await callErr('planner_export_ifc', { path: target, overwrite: true }, ctx);
+    assertEq(error.code, 'VALIDATION', 'een vreemd deel ⇒ validatiefout');
+    assert(error.error.includes('building model') && error.error.includes('Other export formats'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(files.has(target), false, 'er is niets geschreven');
+
+    // Zonder vreemd deel schrijft export_ifc gewoon, ook met de flag. Het modeldocument blijft open in een ander tabblad.
+    S().newDocument();
+    loadSmallProject('Zonder model');
+    assertEq(S().ifcSource, null, 'een geladen planning zonder bestand heeft geen bron');
+    // Fixronde 1: niet over het bronbestand van het andere open document met een vreemd deel.
+    const sourceError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
+    assertEq(sourceError.code, 'VALIDATION', 'het bronbestand van een document met een vreemd deel ⇒ validatiefout');
+    assert(sourceError.error.includes('source file of an open document') && sourceError.error.includes('another path'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'het modelbestand is niet veranderd');
+    await callOk('planner_export_ifc', { path: target, overwrite: true });
+    assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
+
+    // Fixronde 2: met de flag ook niet over een bestaand bestand met een gebouwmodel dat niet open is (de app leest het
+    // doel als stroom). Een bestaande eigen IFC mag; een doel dat de app niet kan lezen ook.
+    const otherModelPath = `${HOME}/ander-model.ifc`;
+    const otherModel = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc')));
+    setBinaryFile(otherModelPath, otherModel);
+    const scanned: string[] = [];
+    fakeFs.scanTarget = async (p) => {
+      scanned.push(p);
+      const bytes = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : undefined);
+      return bytes ? scanTargetBytes(bytes) : null;
+    };
+    const modelError = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
+    assertEq(modelError.code, 'VALIDATION', 'een bestaand modelbestand ⇒ validatiefout');
+    assert(modelError.error.includes('already contains a building model') && modelError.error.includes('another path'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(binFiles.get(otherModelPath), otherModel, 'het modelbestand is niet veranderd');
+    assertEq(scanned.includes(otherModelPath), true, 'de app las het doel');
+    await callOk('planner_export_ifc', { path: target, overwrite: true });
+    assertEq(scanned.includes(target), true, 'een bestaande eigen IFC: gelezen, en hij mag');
+    // Review van #870, ronde 6 (besluit Trias): een STEP-bestand waarin de grammatica geen datasectie vindt (hier een
+    // kapotte bestandsnaam), weigert als doel: een scan zonder uitkomst is geen vrijbrief.
+    const brokenPath = `${HOME}/kapotte-kop.ifc`;
+    const brokenText = new TextDecoder().decode(otherModel).replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof.ifc'");
+    setBinaryFile(brokenPath, new TextEncoder().encode(brokenText));
+    const brokenError = await callErr('planner_export_ifc', { path: brokenPath, overwrite: true });
+    assertEq(brokenError.code, 'VALIDATION', 'een kapotte kop ⇒ validatiefout');
+    assert(brokenError.error.includes('cannot read reliably') && brokenError.error.includes('another path'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(new TextDecoder().decode(binFiles.get(brokenPath)), brokenText, 'het bestand met de kapotte kop is niet veranderd');
+    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    fakeFs.scanTarget = async () => { throw new Error('leesfout'); };
+    await callOk('planner_export_ifc', { path: otherModelPath, overwrite: true });
+    assert(files.get(otherModelPath)?.startsWith('ISO-10303-21') === true, 'een doel dat de app niet kan lezen, mag');
+  } finally {
+    delete fakeFs.scanTarget;
+    flag.writesNewIfcData = true;
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+  }
 });
 
 // T8-spec-review (B1, blokkerend): .mpp moet ECHT via het BYTES-pad (`readFile`, niet

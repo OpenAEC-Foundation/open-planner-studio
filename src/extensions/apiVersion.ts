@@ -39,8 +39,10 @@
  * nieuw document, zoals de ingebouwde formaten (review #169 N3, PR #329). Een manifest met
  * `"apiVersion": "1.4"` blijft passen.
  */
-/** 1.5.0 — alleen-lezen taakselectie via data.getSelectedTaskIds(). */
-export const EXTENSION_API_VERSION = '1.5.0';
+/** 1.5.0 — alleen-lezen taakselectie via data.getSelectedTaskIds().
+ *  1.6.0 — kostenresource (issue #815): `ExtResource.type` kan `'COST'` zijn en `ExtAssignment.costAmount`
+ *  draagt het begrote bedrag van een toewijzing aan zo'n resource. */
+export const EXTENSION_API_VERSION = '1.6.0';
 
 export interface ApiCompatibility {
   ok: boolean;

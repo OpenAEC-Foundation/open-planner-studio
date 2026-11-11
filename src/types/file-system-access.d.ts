@@ -2,8 +2,9 @@
 //
 // TypeScript 5.9.3's lib.dom.d.ts kent FileSystemHandle / FileSystemFileHandle /
 // FileSystemWritableFileStream al, maar NIET:
-//   - Window.showOpenFilePicker / showSaveFilePicker
+//   - Window.showOpenFilePicker / showSaveFilePicker / showDirectoryPicker
 //   - FileSystemHandle.queryPermission / requestPermission
+//   - DataTransferItem.getAsFileSystemHandle
 //   - de picker-optietypes
 // Zonder deze augmentatie faalt `npm run build`. We voegen uitsluitend de gebruikte
 // leden toe; @types/wicg-file-system-access wordt bewust NIET als dependency gekozen
@@ -41,7 +42,26 @@ interface FileSystemHandle {
   requestPermission?(descriptor?: FileSystemHandlePermissionDescriptor): Promise<PermissionState>;
 }
 
+// Slepen en neerzetten (issue #771): Chromium geeft voor een gesleept bestand een handle, net als de
+// bestandskiezer. Alleen synchroon binnen het drop-event te vragen; Firefox/Safari kennen hem niet.
+interface DataTransferItem {
+  getAsFileSystemHandle?(): Promise<FileSystemHandle | null>;
+}
+
+// De bestanden in een map (stap 1.11, *Afhankelijke projecten zoeken…*). In lib.dom staat dit pas
+// met de lib `DOM.AsyncIterable`; die laden we niet.
+interface FileSystemDirectoryHandle {
+  values(): AsyncIterableIterator<FileSystemHandle>;
+}
+
+interface DirectoryPickerOptions {
+  mode?: 'read' | 'readwrite';
+  id?: string;
+  startIn?: FileSystemHandle;
+}
+
 interface Window {
+  showDirectoryPicker?(options?: DirectoryPickerOptions): Promise<FileSystemDirectoryHandle>;
   showOpenFilePicker?(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
   showSaveFilePicker?(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
 }

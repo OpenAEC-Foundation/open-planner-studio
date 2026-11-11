@@ -32,6 +32,7 @@
   "repeatHeader": "Repetir encabezado en cada página",
   "repeatFooter": "Repetir pie de página en cada página",
   "reportFontScaleLabel": "Tamaño de letra:",
+  "reportFontFamilyLabel": "Fuente:",
   "timelineColumnsLabel": "Cronograma en:",
   "timelineColumnsHint": "Solo con ajuste automático",
   "timelineColumns_one": "{{count}} página",
@@ -439,5 +440,11 @@
       "riskHeading": "Tareas en riesgo: con retraso o holgura negativa",
       "riskEmpty": "No hay tareas con retraso ni holgura negativa."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (predeterminada)",
+    "liberationSans": "Liberation Sans (como Arial)",
+    "carlito": "Carlito (como Calibri)",
+    "liberationSerif": "Liberation Serif (como Times New Roman)"
   }
 }

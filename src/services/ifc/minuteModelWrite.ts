@@ -37,10 +37,15 @@ const MILESTONE_OWN_STARTS: ReadonlySet<TaskDateField> = new Set(['scheduleStart
  *  moment blijft. `literalCalendarIds` en `atDayEnd` blijven precies zoals zonder deze optie: de writer
  *  geeft de letterlijke kalenders apart mee (`OPS_LiteralCalendars`). */
 export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calendar' | 'resourceCalendars' | 'baselines'>,
-  options: { literalAutomaticMilestones?: boolean; realTimes?: boolean } = {}) {
+  options: {
+    literalAutomaticMilestones?: boolean; realTimes?: boolean; keepLiteralCalendarIds?: readonly string[];
+    sourceDurationTaskIds?: ReadonlySet<string>; sourceBandCalendarIds?: ReadonlySet<string>;
+  } = {}) {
   const calendars = input.resourceCalendars ?? [];
   const clocks = new DayClockCache(input.calendar, calendars);
-  const literalCalendarIds = new Set<string>();
+  // `keepLiteralCalendarIds` (alleen de IFC-writer, knownbug 1026): kalenders die letterlijk waren bij het openen
+  // blijven letterlijk, ook als geen taak dat meer nodig heeft (`DocumentPayload.ifcLiteralCalendarIds`).
+  const literalCalendarIds = new Set<string>(options.keepLiteralCalendarIds ?? []);
   const atDayEnd = new Set<string>();
   const contexts = new Map<string, TaskDateContext>();
   const effective = (task?: Task) => resolveCalendar(task?.calendarId, calendars, input.calendar);
@@ -62,7 +67,22 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
     // Een `PT`-duur maakt de kalender letterlijk (§3.6): een urentaak, en sinds F3 ook een dagenmaat-taak
     // met een breuk (die gaat als `PT…` met een record, T21). v2026.9.0 promoveert zo'n kalender en leest
     // elke tijd letterlijk; de nieuwe lezer houdt hem scalair via `IsHourCalendar = .F.`.
-    if (task.time.durationUnit === 'hours' || taskDurationWritesMinutes(task)) literalCalendarIds.add(cal.id);
+    // Twee uitzonderingen, alleen in de merge met een vreemd deel (fixronde 7 van #867), het spiegelbeeld van
+    // `keepLiteralCalendarIds`:
+    //  - een dagtaak in `sourceDurationTaskIds`: haar duur en kalender zijn nog zoals de lezer ze uit de bron las. De merge
+    //    schrijft de duur van de bron (een gebroken dag als `P0Y0M0.5D`, zoals OPS tot v2026.43.0), en daarvoor hoeft de
+    //    kalender niet te veranderen. De datums volgen de gewone regel hieronder.
+    //  - een urentaak op een kalender uit `sourceBandCalendarIds`: de writer schrijft die kalender met blokken en
+    //    `IsHourCalendar = .F.`, zoals OPS van v2026.7.7 tot en met v2026.43.0. De lezer leest een urentaak daar op de
+    //    minuut (`ifcReader.ts`, `minutePrecise`), dus haar momenten gaan letterlijk het bestand in (hieronder), zonder
+    //    dat de kalender letterlijk wordt.
+    const hours = task.time.durationUnit === 'hours';
+    const bandHourTask = hours && options.sourceBandCalendarIds?.has(cal.id) === true;
+    if (bandHourTask) continue;
+    if (hours || (taskDurationWritesMinutes(task) && !options.sourceDurationTaskIds?.has(task.id))) {
+      literalCalendarIds.add(cal.id);
+    }
+    // Zo ook een datum die niet op een anker past.
     mapTaskDates(task, (value, field) => {
       if (anchor(value, field, ctx) === null) literalCalendarIds.add(cal.id);
       return value;
@@ -107,7 +127,9 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
     const endLike = LITERAL_END_FIELDS.has(field) || (ctx.milestoneKind === 'FINISH' && MILESTONE_OWN_STARTS.has(field));
     return endLike ? normalizeTaskDate(value, field, ctx) ?? value : value;
   };
-  const tasks = input.tasks.map(task => literalCalendarIds.has(effective(task).id)
+  const literalDates = (task: Task) => literalCalendarIds.has(effective(task).id)
+    || (task.time.durationUnit === 'hours' && options.sourceBandCalendarIds?.has(effective(task).id) === true);
+  const tasks = input.tasks.map(task => literalDates(task)
     ? mapTaskDates(task, (value, field) => literalEndOf(value, field, contexts.get(task.id)!))
     : mapTaskDates(task, (value, field) => anchor(value, field, contexts.get(task.id)!) ?? value));
   const baselines = (input.baselines ?? []).map(b => ({ ...b,

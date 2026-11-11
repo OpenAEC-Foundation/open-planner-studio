@@ -24,6 +24,8 @@ Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with
 
 **Orientation:** — landscape or portrait. Choose from *Landscape* and *Portrait*. Default: *Landscape*. Effect: like *Paper:*. Where: the same place as *Paper:*.
 
+**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)* and *Liberation Serif (like Times New Roman)*. Default: Inter. Effect: preview and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
+
 ## Gantt chart
 
 The schedule as a bar chart, with a table on the left and a timeline on the right, over several pages if needed. The preview shows the paper with page header, table, timeline and legend. The block *Summary* counts *Tasks:*, *Leaf tasks:*, *Critical:* and *Relations:*. All options are under *Settings*.
@@ -72,11 +74,13 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 **Legend** — Default: on. Effect: the legend in the footer.
 
-**Preview quality** — how sharp the preview is. Choose from *Standard*, *High* and *Maximum*. Default: *High*. Effect: only the sharpness of the preview on screen; the PDF does not change. Where: *Report*, above the preview.
+**Preview quality** — how sharp the preview is. Choose from *Standard*, *High* and *Maximum*. Default: *High*. Effect: only the sharpness of the preview on screen; the PDF does not change. Where: *Report*, above the preview. With the new Report tab the paper is always sharp, and this choice is not there.
 
 ## Resource diagram
 
 The same bars as the Gantt chart, grouped per resource: who does what and when. The block *Summary* counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The diagram shares all options of the Gantt chart, except *Follow view (filter, grouping, sort)*, *Critical path* and *Dependencies*: the rows do not come from the screen, a task can appear under several resources, and the relations are not drawn there. The checkbox *Critical path* is hidden and on. This comes with the options of the Gantt chart under *Settings*, with these four checkboxes and the period:
+
+With the new Report tab the Resource diagram is no longer a report of its own, but a layout in the *Tasks and grouping* step of the Gantt chart. The four checkboxes and the period are there under *Per resource*. You switch the *Units/d* and *Curve* columns on or off there; they are not in the *Columns* step. See [The new Report tab](docs://howto-rapport-maken-en-afdrukken#the-new-report-tab-experimental).
 
 **Each resource on a new page** — Default: off. Effect: each resource starts on a new page, so you can hand out a sheet per crew or employee. Off gives one continuous document.
 
@@ -126,7 +130,7 @@ The block *Summary* shows *Status date*, *Period*, *Look ahead until*, *Baseline
 
 ## Progress curve
 
-Where the project stands, on one sheet: four key figures, an S-curve of progress and the tasks at risk. This report has no options of its own, only *Paper:* and *Orientation:*.
+Where the project stands, on one sheet: four key figures, an S-curve of progress and the tasks at risk. This report has no options of its own, only *Paper:*, *Orientation:* and *Font:*.
 
 The *Overview* block shows *Status date*, *Baseline finish*, *Forecast finish* and *Δ finish (wd)*. Below it are four key figures:
 

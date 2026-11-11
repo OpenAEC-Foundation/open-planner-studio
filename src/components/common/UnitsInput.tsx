@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { formatDecimalInput, isAmbiguousThousands, parsePositiveDecimal } from '@/utils/decimalInput';
+import { formatDecimalInput, isAmbiguousThousands, parseNonNegativeDecimal, parsePositiveDecimal } from '@/utils/decimalInput';
 import { mountedPendingTextEdits } from '@/state/pendingTextEdits';
 
 /**
@@ -33,12 +33,33 @@ import { mountedPendingTextEdits } from '@/state/pendingTextEdits';
  * 1,5?). Ongeldig, geen commit, en bij het afronden een melding via `onAmbiguous`
  * (`isAmbiguousThousands`).
  */
-export function UnitsInput({
-  value, onCommit, className = '', title, ariaLabel, onKeyDown, gridCell, locale, commitOnBlur = false, accepts,
-  onAmbiguous,
-}: {
+type UnitsInputProps = {
   value: number;
   onCommit: (n: number) => void;
+} & SharedInputProps;
+
+type AmountInputProps = {
+  /** `undefined` = geen bedrag; het veld is dan leeg. */
+  value: number | undefined;
+  /** `undefined` = de gebruiker maakte het veld leeg (bedrag wissen). */
+  onCommit: (n: number | undefined) => void;
+} & SharedInputProps;
+
+export function UnitsInput(props: UnitsInputProps) {
+  const { onCommit } = props;
+  return <DecimalInput {...props} mode="positive" onCommit={n => { if (n !== undefined) onCommit(n); }} />;
+}
+
+/**
+ * Bedragveld voor een kostenresource (#815): zelfde gedrag als `UnitsInput`, maar 0 is geldig en een
+ * leeg veld wist het bedrag (`onCommit(undefined)`). Alleen met `commitOnBlur` zinvol: per toetsaanslag
+ * zou een leeg veld onderweg al wissen.
+ */
+export function AmountInput(props: AmountInputProps) {
+  return <DecimalInput {...props} mode="amount" />;
+}
+
+type SharedInputProps = {
   className?: string;
   title?: string;
   ariaLabel?: string;
@@ -54,15 +75,28 @@ export function UnitsInput({
   accepts?: (n: number) => boolean;
   /** Afronden met een dubbelzinnige invoer ("1,500" in en): de waarde blijft, de aanroeper meldt. */
   onAmbiguous?: (text: string) => void;
+};
+
+/** Leeg veld in `amount`-modus: geldig, betekent "geen bedrag". */
+const EMPTY = Symbol('empty');
+
+function DecimalInput({
+  value, onCommit, className = '', title, ariaLabel, onKeyDown, gridCell, locale, commitOnBlur = false, accepts,
+  onAmbiguous, mode,
+}: SharedInputProps & {
+  value: number | undefined;
+  onCommit: (n: number | undefined) => void;
+  mode: 'positive' | 'amount';
 }) {
   // `null` = de gebruiker typt niet; het veld toont dan de opgeslagen waarde.
   const [draft, setDraftState] = useState<string | null>(null);
-  const shownValue = locale ? formatDecimalInput(value, locale) : String(value);
+  const shownValue = value === undefined ? '' : locale ? formatDecimalInput(value, locale) : String(value);
   const text = draft ?? shownValue;
   const ambiguous = (s: string) => !!locale && isAmbiguousThousands(s, locale);
-  const parseValid = (s: string) => {
+  const parseValid = (s: string): number | typeof EMPTY | null => {
+    if (mode === 'amount' && s.trim() === '') return EMPTY;
     if (ambiguous(s)) return null;
-    const n = parsePositiveDecimal(s);
+    const n = mode === 'amount' ? parseNonNegativeDecimal(s) : parsePositiveDecimal(s);
     return n !== null && (!accepts || accepts(n)) ? n : null;
   };
   const invalid = draft !== null && parseValid(draft) === null;
@@ -83,6 +117,7 @@ export function UnitsInput({
     if (d.trim() === shown) return; // één teken wissen en terugtypen is geen wijziging
     if (latest.current.ambiguous(d)) { latest.current.onAmbiguous?.(d.trim()); return; }
     const n = parse(d);
+    if (n === EMPTY) { if (v !== undefined) commit(undefined); return; }
     if (n !== null && n !== v) commit(n);
   };
 
@@ -141,7 +176,7 @@ export function UnitsInput({
         setDraft(e.target.value);
         if (!commitOnBlur) {
           const n = parseValid(e.target.value);
-          if (n !== null) onCommit(n);
+          if (n !== null && n !== EMPTY) onCommit(n);
         }
       }}
       onBlur={() => {

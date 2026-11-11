@@ -396,6 +396,8 @@ function applyAssignmentSet(
         ...(columnId === 'assignment.curve'
           ? (incoming.curve ? { curve: incoming.curve } : {})
           : (assignment.curve ? { curve: assignment.curve } : {})),
+        // Het bedrag van een kostentoewijzing (#815) hoort niet bij deze kolom: het blijft staan.
+        ...(assignment.costAmount !== undefined ? { costAmount: assignment.costAmount } : {}),
       };
     });
   }

@@ -1,5 +1,5 @@
 import type { Task } from '@/types/task';
-import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
+import { contourSiblings, isCostResource, type Resource, type ResourceAssignment, type ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
 import { RESOURCE_TYPE_BAND_ORDER, resourceTypeRank } from '@/engine/view/filterEval';
 import { type AssignmentCurveState, assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -76,6 +76,15 @@ export interface ResourceGanttRowsOptions {
   typeLabels?: Partial<Record<ResourceType, string>>;
   /** Tijdvenster (opgeloste rapportageperiode, ISO-dagen inclusief). Afwezig = hele project. */
   window?: ResolvedPeriod;
+  /**
+   * Volgorde van de taken binnen een band (afwezig = op start, zie `sortByStart`). Een layout in het
+   * Rapport-tabblad (#861) met een eigen sortering geeft die hier mee; de bouwer blijft dezelfde.
+   */
+  sortTasks?: (tasks: Task[]) => Task[];
+  /** Resourcebanden aflopend (de groepering `desc` van een layout). Standaard oplopend. */
+  bandsDescending?: boolean;
+  /** Typebanden in omgekeerde vaste volgorde (alleen bij `groupByType`). Standaard de vaste volgorde. */
+  typesDescending?: boolean;
 }
 
 export interface ResourceGanttRowsResult {
@@ -108,6 +117,10 @@ export interface RowAssignment {
   unitsPerDay: number;
   /** De curvetoestand als alle records dezelfde hebben (`curve` afwezig = UNIFORM), anders null. */
   curve: RowCurve | null;
+  /** Kostenresource (#815): geen inzet of curve; de rij toont het bedrag (of "—"). */
+  cost?: true;
+  /** Som van `costAmount` over de records; afwezig als geen record een bedrag heeft. */
+  costAmount?: number;
 }
 
 /** Bandsleutel van de "(geen)"-band — dezelfde codering als de schermgroepering. */
@@ -185,7 +198,9 @@ export function computeResourceGanttRows(
   // scherm: die taak is dan "zonder resource").
   const tasksByResource = new Map<string, Map<string, Task>>();
   // Per resource-id × taak-id de opgetelde eenheden en de verzameling curvetoestanden (punt 1).
-  const loadByResourceTask = new Map<string, { unitsPerDay: number; curves: Set<RowCurve> }>();
+  const loadByResourceTask = new Map<string, { unitsPerDay: number; curves: Set<RowCurve>; costAmount?: number }>();
+  // Kostenresources (#815) tellen geen inzet op; hun rij draagt het bedrag.
+  const costIds = new Set(ctx.resources.filter(isCostResource).map(r => r.id));
   const assignedTaskIds = new Set<string>();
   // Contourkoppeling op de VOLLEDIGE recordlijst per taak — ook records naar een onbekende
   // resource (die filtert de rij-opbouw hieronder pas weg) — precies zoals `ResourceLoad.ts`'s
@@ -200,7 +215,7 @@ export function computeResourceGanttRows(
   }
   const contouredIds = new Set<string>();
   for (const [taskId, list] of recordsByTask) {
-    for (const id of contouredAssignmentIds(leafById.get(taskId)!, list)) contouredIds.add(id);
+    for (const id of contouredAssignmentIds(leafById.get(taskId)!, contourSiblings(list, costIds))) contouredIds.add(id);
   }
   const curveOf = (a: ResourceAssignment): RowCurve => assignmentCurveState(a, contouredIds.has(a.id));
   let assignments = 0;
@@ -214,8 +229,12 @@ export function computeResourceGanttRows(
     assignedTaskIds.add(task.id);
     const loadKey = `${a.resourceId}\u0000${task.id}`;
     const load = loadByResourceTask.get(loadKey) ?? { unitsPerDay: 0, curves: new Set<RowCurve>() };
-    load.unitsPerDay += a.unitsPerDay;
-    load.curves.add(curveOf(a));
+    if (costIds.has(a.resourceId)) {
+      if (a.costAmount !== undefined) load.costAmount = (load.costAmount ?? 0) + a.costAmount;
+    } else {
+      load.unitsPerDay += a.unitsPerDay;
+      load.curves.add(curveOf(a));
+    }
     loadByResourceTask.set(loadKey, load);
   }
 
@@ -226,6 +245,8 @@ export function computeResourceGanttRows(
     .map((r, index) => ({ id: r.id, index, label: labels.get(r.id) ?? r.id, tasks: tasksByResource.get(r.id) }))
     .filter((b): b is typeof b & { tasks: Map<string, Task> } => b.tasks !== undefined)
     .sort((a, b) => collator.compare(a.label, b.label) || a.index - b.index);
+  if (opts.bandsDescending) bands.reverse();
+  const orderTasks = opts.sortTasks ?? sortByStart;
 
   const rows: ViewRow[] = [];
   const assignmentByRowKey = new Map<string, RowAssignment>();
@@ -237,15 +258,14 @@ export function computeResourceGanttRows(
       kind: 'group', rowKey: key, key, label: band.label, count: band.tasks.size,
       depth: path.length, levelIndex: path.length, collapsed: false,
     });
-    for (const task of sortByStart([...band.tasks.values()])) {
+    for (const task of orderTasks([...band.tasks.values()])) {
       const rowKey = encodeGroupedTaskRowKey(groupPath, task.id);
       rows.push({ kind: 'task', rowKey, task, depth: path.length + 1, dimmed: false });
       const load = loadByResourceTask.get(`${band.id}\u0000${task.id}`);
       if (load) {
-        assignmentByRowKey.set(rowKey, {
-          unitsPerDay: load.unitsPerDay,
-          curve: load.curves.size === 1 ? [...load.curves][0] : null,
-        });
+        assignmentByRowKey.set(rowKey, costIds.has(band.id)
+          ? { unitsPerDay: 0, curve: null, cost: true, ...(load.costAmount !== undefined ? { costAmount: load.costAmount } : {}) }
+          : { unitsPerDay: load.unitsPerDay, curve: load.curves.size === 1 ? [...load.curves][0] : null });
       }
     }
   };
@@ -254,6 +274,7 @@ export function computeResourceGanttRows(
     const rank = resourceTypeRank;
     // Typen in de vaste volgorde; binnen een type blijft de collator-volgorde van `bands`.
     const types = [...new Set(bands.map(b => typeOf.get(b.id) as ResourceType))].sort((a, b) => rank(a) - rank(b));
+    if (opts.typesDescending) types.reverse();
     for (const type of types) {
       const members = bands.filter(b => typeOf.get(b.id) === type);
       const raw = typeRawKey(type);
@@ -268,7 +289,7 @@ export function computeResourceGanttRows(
     for (const band of bands) pushBand(band, []);
   }
 
-  const unassigned = sortByStart(leaves.filter(t => !assignedTaskIds.has(t.id)));
+  const unassigned = orderTasks(leaves.filter(t => !assignedTaskIds.has(t.id)));
   if (opts.includeUnassigned && unassigned.length > 0) {
     rows.push({
       kind: 'group', rowKey: NONE_BAND_KEY, key: NONE_BAND_KEY, label: opts.noneLabel,

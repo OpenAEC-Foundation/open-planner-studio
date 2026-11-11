@@ -82,8 +82,9 @@ export function exportP6XmlLossNotice(
   item('notifications.exportXerLossItem.taskDescriptions', count(t => isSummaryTask(t) && !!t.description?.trim()));
   item('notifications.exportP6XmlLossItem.notes', tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0));
   item('notifications.exportP6XmlLossItem.resourceTypes', resources.filter(r => r.type === 'CREW' || r.type === 'SUBCONTRACTOR').length);
+  item('notifications.exportXerLossItem.costResources', resources.filter(r => r.type === 'COST').length);
   item('notifications.exportP6XmlLossItem.capacitySteps', resources.filter(r => (r.availabilitySteps?.length ?? 0) > 0).length);
-  item('notifications.exportXerLossItem.libraryLinks', resources.filter(r => r.libraryOrigin).length);
+  item('notifications.exportXerLossItem.libraryLinks', resources.filter(r => r.libraryOrigin && r.type !== 'COST').length);
   item('notifications.exportXerLossItem.holidayNames', input.calendars.reduce((n, cal) =>
     n + cal.holidays.filter(h => h.name.trim()).length + (cal.workingExceptions ?? []).filter(w => w.name.trim()).length, 0));
   fact('notifications.exportP6XmlLossItem.projectDetails', !!(project.author?.trim() || project.company?.trim()));

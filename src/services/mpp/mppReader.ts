@@ -61,7 +61,7 @@ import type {
 } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
-import type { Resource } from '@/types/resource';
+import { resourceDrivesDuration, type Resource } from '@/types/resource';
 import { hasMsProjectImportLoss, type ImportLabels, type ImportResult } from '@/services/importTypes';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
@@ -1491,7 +1491,7 @@ export function deriveTimephasedWindowsForTasks(
     const workMinutes = decodeAssignmentWorkMinutes(raw, parseInstant(task.time.scheduleStart), link.assignmentFinish);
     walkList.push({
       anchor: link.assignmentStart, resourceCalendarId: resCal.id, workMinutes, units: link.units,
-      drivesDuration: !!resource && resource.type !== 'MATERIAL' && !costResourceIds.has(resource.id),
+      drivesDuration: !!resource && resourceDrivesDuration(resource) && !costResourceIds.has(resource.id),
     });
     durationWalksByTask.set(link.taskId, walkList);
   }

@@ -139,7 +139,7 @@ function samplePool(overrides: Partial<CompanyPool> = {}): CompanyPool {
 
   const projectRes: Resource = { ...res('local-r', 'Lokale resource'), libraryOrigin: { companyId: 'c1', libraryItemId: 'weg-uit-pool', poolVersion: 2 } };
   let threwRes = false;
-  try { applyResourceUpdate(projectRes, poolZonder); } catch (e) {
+  try { applyResourceUpdate(projectRes, poolZonder, []); } catch (e) {
     threwRes = e instanceof Error && (e as Error).message.includes('Lokale resource');
   }
   assert(threwRes, 'A3: applyResourceUpdate gooit met resourcenaam als pool-origineel ontbreekt');

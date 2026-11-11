@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { localTodayIso } from '@/utils/dateUtils';
-import { Trash2 } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
 import { TaskMilestoneFields } from '@/components/task-sections/TaskMilestoneFields';
@@ -17,6 +17,7 @@ import { TaskDeadlineField } from '@/components/task-sections/TaskDeadlineField'
 import { TaskProgressFields } from '@/components/task-sections/TaskProgressFields';
 import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSection';
 import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
+import { TaskDependentsSection } from '@/components/task-sections/TaskDependentsSection';
 import { TaskSplitsSection } from '@/components/task-sections/TaskSplitsSection';
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
@@ -88,7 +89,7 @@ export function TaskPropertiesPanel() {
           style={{ color: 'var(--error)' }}
           title={t('properties.deleteTask')}
         >
-          <Trash2 size={14} />
+          <Icon id="edit.delete" size={14} />
         </button>
       </div>
 
@@ -131,6 +132,8 @@ export function TaskPropertiesPanel() {
       <TaskCpmResultSection taskId={task.id} />
 
       <TaskDependenciesSection taskId={task.id} />
+
+      <TaskDependentsSection taskId={task.id} />
 
       <TaskSplitsSection taskId={task.id} />
 

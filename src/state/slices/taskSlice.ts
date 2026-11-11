@@ -28,7 +28,7 @@ import type { WbsTemplate } from '@/utils/wbsTemplates';
 import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
 } from '@/state/taskTree';
-import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { refusalNotice } from '@/state/refusalNotice';
 import {
   applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseAssignmentQuestion, phaseRefusalNotice,
@@ -297,7 +297,10 @@ function sameExternalLink(left: ExternalLink, right: ExternalLink): boolean {
     && left.sourceRef.projectName === right.sourceRef.projectName
     && left.sourceRef.taskId === right.sourceRef.taskId
     && left.sourceRef.taskName === right.sourceRef.taskName
-    && left.sourceRef.filePath === right.sourceRef.filePath;
+    && left.sourceRef.filePath === right.sourceRef.filePath
+    && left.sourceRef.siteFileId === right.sourceRef.siteFileId
+    && left.sourceVersion === right.sourceVersion
+    && left.anchorReadAt === right.anchorReadAt;
 }
 
 /**
@@ -1127,7 +1130,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (updates.isMilestone === true && !task.isMilestone) {
         const refusal = milestoneRefusal({
           hasChildren: isSummaryTask(task),
-          hasAssignments: s.assignments.some(a => a.taskId === id),
+          hasAssignments: hasMilestoneBlockingAssignments(id, s.assignments, s.resources),
         });
         if (refusal) {
           refusedNotices = milestoneRefusalNotices([{ id: task.id, name: task.name, refusal }]);

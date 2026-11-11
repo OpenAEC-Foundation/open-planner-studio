@@ -10,7 +10,7 @@ import type { ResolvedUITheme, UITheme } from '@/state/slices/types';
  * `ResolvedUITheme`; alleen de settings-UI en de opslag werken met de voorkeur zelf.
  *
  * De module is bewust puur + zonder React: hij wordt zowel door `App.tsx` als door de
- * pre-paint-spiegel in `index.html` (in JS-vorm) en door de headless tests gebruikt.
+ * pre-paint-spiegel in `public/theme-prepaint.js` (in JS-vorm) en door de headless tests gebruikt.
  */
 export type { ResolvedUITheme };
 
@@ -37,7 +37,7 @@ export const OA_THEME_FOR = {
 
 /** Zet het thema op een element: `data-theme` (de bestaande CSS) én `data-oa-theme` (de tokens en
  *  de brugblokken in `globals.css`). Altijd samen, anders tekent de brug met de verkeerde tokens.
- *  De pre-paint in `index.html` doet hetzelfde in losse JS. */
+ *  De pre-paint in `public/theme-prepaint.js` doet hetzelfde in losse JS. */
 export function applyThemeAttributes(el: Element, theme: ResolvedUITheme): void {
   el.setAttribute('data-theme', theme);
   el.setAttribute('data-oa-theme', OA_THEME_FOR[theme]);

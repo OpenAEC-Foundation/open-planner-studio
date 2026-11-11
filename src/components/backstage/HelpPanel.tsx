@@ -20,7 +20,7 @@
 // gewoon (besluit B2); de releasepoort zorgt dat een release alles actueel heeft.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { LANGUAGE_LABELS, localeDirection } from '@/i18n/config';
 import { renderMiniMarkdown, extractHeadings } from '@/utils/miniMarkdown';
@@ -38,11 +38,14 @@ import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
 import { buildImportLabels } from '@/i18n/importLabels';
 import './HelpPanel.css';
 import { readLocal, removeLocal, writeLocal } from '@/utils/settingsStore';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { HELP_DOCS_LANG_KEY } from '@/utils/helpArticlePrompt';
 
 // De documentatietaal wordt persistent los van de UI-taal bewaard, zodat een gebruiker de docs in
-// bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft.
-const DOCS_LANG_KEY = 'ops-docs-locale';
+// bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft. Het venster
+// Verbindingsgegevens leest dezelfde sleutel (`loadHelpArticlePrompt`).
+const DOCS_LANG_KEY = HELP_DOCS_LANG_KEY;
 
 // Drafts (nieuwe manifestartikelen in aanbouw) alleen in de dev-build; de productiebuild ziet ze nooit.
 const INCLUDE_DRAFTS = import.meta.env.DEV;
@@ -92,8 +95,13 @@ export function HelpPanel() {
   // geen docstaal is, valt terug op Auto en wordt opgeruimd.
   const [docsLangOverride, setDocsLangOverride] = useState<HelpDocLang | null>(() => {
     const saved = readLocal(DOCS_LANG_KEY);
-    if (saved !== null && !isHelpDocLang(saved)) removeLocal(DOCS_LANG_KEY);
+    if (saved !== null && !isHelpDocLang(saved)) removeLocal(DOCS_LANG_KEY, 'start'); // opruimen, geen keuze
     return isHelpDocLang(saved) ? saved : null;
+  });
+  // Een nieuwere docstaal in de opslag (de host na de start, #818, of een ander tabblad): overnemen.
+  useStoredSettingRefresh(DOCS_LANG_KEY, () => {
+    const saved = readLocal(DOCS_LANG_KEY);
+    setDocsLangOverride(isHelpDocLang(saved) ? saved : null);
   });
   const uiDocs = resolveHelpDocLang(i18n.language, null);
   const { lang, fallback: uiLangFallback } = resolveHelpDocLang(i18n.language, docsLangOverride);
@@ -392,7 +400,7 @@ export function HelpPanel() {
     <div className="help-panel">
       <aside ref={tocRef} className="help-toc" aria-label={tMenu('backstage.help')}>
         <div className="help-search-wrap">
-          <Search size={14} className="help-search-icon" aria-hidden />
+          <Icon id="view.search" size={14} className="help-search-icon" aria-hidden />
           <input
             className="help-search"
             type="search"

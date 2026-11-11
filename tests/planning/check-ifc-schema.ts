@@ -102,6 +102,11 @@ checkFile('XER-import met bronarchief', xerIfc, seen);
 written.push(['schema-xer-bronarchief.ifc', xerIfc]);
 assert(xerIfc.includes("'OPS_XerSourceArchive'"), 'XER-import: testvoorwaarde — het bestand draagt OPS_XerSourceArchive');
 assert(rich.baselines?.some(b => b.tasks.length === 0) === true, 'rijk project: testvoorwaarde — een baseline zonder taken');
+// Kostenresource (#815): de drager is in elk schema geldig (de vormtoets hierboven keurt het bestand).
+for (const [schema, ifc] of richBySchema) {
+  assert(/IFCCONSTRUCTIONMATERIALRESOURCE\('[^']{22}',#\d+,'Leges',[^\n]*,'COST',[^\n]*\.USERDEFINED\.\);/.test(ifc),
+    `rijk project (${schema}): testvoorwaarde — een kostenresource als IFCCONSTRUCTIONMATERIALRESOURCE met 'COST' en .USERDEFINED.`);
+}
 
 // ── 3. De vormtoets zelf: een fout GlobalId en een tijd zonder seconden zijn rood ─────────────────
 {

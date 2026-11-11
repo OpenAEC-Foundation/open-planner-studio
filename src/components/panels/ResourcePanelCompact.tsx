@@ -1,7 +1,8 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { UnitsInput } from '@/components/common/UnitsInput';
+import { isCostResource } from '@/types/resource';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { ensureThemeVisible, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
@@ -55,9 +56,17 @@ export function ResourcePanelCompact() {
                 className="flex items-center flex-shrink-0"
                 style={{ color: 'var(--error)' }}
             >
-                <AlertTriangle size={14} />
+                <Icon id="status.resource-overallocated" size={14} />
             </span>
             )}
+            {/* Kostenresource (#815): geen capaciteit, dus geen bewerkbaar veld. */}
+            {isCostResource(r) ? (
+              <span
+                className="w-14 pe-1 text-right text-text-secondary flex-shrink-0"
+                title={t('resource.notForCost')}
+                data-ops-resource-not-for-cost
+              >—</span>
+            ) : (
             <UnitsInput
               value={r.maxUnits}
               ariaLabel={t('resource.maxUnits')}
@@ -69,6 +78,7 @@ export function ResourcePanelCompact() {
               className="input !text-body !px-1 !py-0.5 !w-14 text-right"
               title={t('resource.maxUnits')}
             />
+            )}
           </div>
         );
       })}

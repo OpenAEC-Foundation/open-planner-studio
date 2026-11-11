@@ -140,6 +140,7 @@
     "histogram": "Хистограм",
     "toggleHistogram": "Хистограм",
     "warningsPanel": "Панел са упозорењима",
+    "scheduleShiftPanel": "Померања",
     "prevResource": "Претходни",
     "nextResource": "Следећи",
     "leveling": "Нивелисање",
@@ -154,6 +155,7 @@
     "barsGroup": "Траке",
     "manageBaselines": "Управљај основним линијама…",
     "statusDate": "Датум статуса",
+    "statusDateValue": "Датум статуса: {{date}}",
     "statusDateClear": "Обриши датум статуса",
     "statusDateTime": "Време датума статуса",
     "statusDateTimeLater": "Време касније",
@@ -218,7 +220,9 @@
     "screenColorsMissingField": "Ово поље не постоји у овом пројекту. Врста радова се привремено користи.",
     "screenColorsHint": "Ван критичног пута, црвена ивица означава критични пут.",
     "addLayout": "Нови изглед",
-    "toggleRelations": "Линије зависности"
+    "toggleRelations": "Линије зависности",
+    "relationFindDependents": "Пронађи зависне пројекте…",
+    "relationFindDependentsHint": "Претражи фасциклу за пројекте са спољном везом ка овом плану."
   },
   "ifc": {
     "title": "IFC уређивач",
@@ -236,6 +240,10 @@
     "company": "Компанија",
     "startDate": "Датум почетка",
     "endDate": "Датум завршетка",
+    "defaultWorkRule": "Подразумевани тип задатка",
+    "defaultWorkRuleHint": "Задаци на „Стандард пројекта“ прате овај избор. Задаци са сопственим типом задатка задржавају свој избор.",
+    "anchorsFromOpenDocuments": "Узимај сидра из отворених докумената",
+    "anchorsFromOpenDocumentsHint": "Ако је изворни пројекат отворен са несачуваним изменама, сидра долазе из тог отвореног документа. Подразумевано искључено.",
     "calc": {
       "title": "Прорачун",
       "subtitle": "Опције израчунавања за овај пројекат — чувају се у датотеци, не у апликацији.",
@@ -323,7 +331,7 @@
     "exportTitle": "Извези",
     "exportSubtitle": "Изаберите формат. Пројекат ће бити претворен и сачуван.",
     "progressImportCardTitle": "Ажурирај напредак из табеле",
-    "progressImportCardDesc": "Учитајте враћену CSV или XLSX табелу и ажурирајте завршеност, стварни почетак и стварни завршетак.",
+    "progressImportCardDesc": "Учитајте враћени Excel-лист (.xlsx) и ажурирајте завршеност, стварни почетак и стварни завршетак.",
     "printTitle": "Штампање",
     "printSubtitle": "Отворите екран извештаја за преглед штампе и подешавања.",
     "openPrintPreview": "Отвори преглед штампе",
@@ -359,7 +367,10 @@
     "helpTutorialStep": "Лекција {{number}} од {{total}}",
     "helpTutorialsEmpty": "Лекције још нису инсталиране. Инсталирајте их као проширење из каталога.",
     "helpTutorialsInstall": "Инсталирај лекције",
-    "helpDraft": "нацрт"
+    "helpDraft": "нацрт",
+    "helpCopyPrompt": "Копирај промпт",
+    "helpPromptCopied": "Копирано. Сада налепите промпт у Claude.",
+    "helpPromptCopyFailed": "Копирање није успело. Изаберите текст испод и копирајте га сами."
   },
   "export": {
     "progressFileSuffix": "напредак",
@@ -388,6 +399,9 @@
     "mspdiDesc": "Отвара се у програму Microsoft Project. Потпуна структура САП.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "За Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "За Oracle Primavera P6, као .xer датотеку.",
+    "experimentalBadge": "Експериментално",
     "profileHint": "Ваш пројекат тренутно користи профил {{name}}. Препоручујемо профил {{target}} за најбољу компатибилност са овим форматом датотеке.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART стандард, у IFC шеми пројекта (подразумевано IFC 4.3 ADD2). 4D повезивање са BIM моделима.",
@@ -442,5 +456,18 @@
     "redo": "Понови",
     "zoomIn": "Увећај",
     "zoomOut": "Умањи"
+  },
+  "native": {
+    "window": "Прозор",
+    "quit": "Изађи из Open Planner Studio",
+    "about": "О програму Open Planner Studio",
+    "services": "Услуге",
+    "hide": "Сакриј Open Planner Studio",
+    "hideOthers": "Сакриј остале",
+    "showAll": "Прикажи све",
+    "closeWindow": "Затвори прозор",
+    "cut": "Исеци",
+    "fullscreen": "Преклопи цео екран",
+    "bringAllToFront": "Доведи све у први план"
   }
 }

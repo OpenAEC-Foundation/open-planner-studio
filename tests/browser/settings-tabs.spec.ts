@@ -26,6 +26,8 @@ const SECTION_HEADINGS: RegExp[][] = [
     /^(Duration display|Duurweergave)$/,
     /^(Document switch style|Documentwissel-stijl)$/,
     /^(Ribbon|Lint)$/,
+    // #851: Kolommen automatisch aanpassen staat in een eigen sectie Taakraster.
+    /^(Task grid|Taakraster)$/,
     /^Gantt$/,
     /^(Timeline axis|Tijd-as)$/,
     /^(Quarter-hour zoom|Kwartierzoom)$/,
@@ -232,7 +234,9 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await version.click();
   await expect(experimental).toBeVisible();
   await expect(experimental).toContainText('Demo: animatie in de bovenbalk');
-  await expect(experimental.getByRole('checkbox')).toHaveCount(1);
+  // Twee kiesbare flags: de demo en het nieuwe Rapport-tabblad (#817).
+  await expect(experimental.getByRole('checkbox')).toHaveCount(2);
+  await expect(experimental.locator('[data-ops-feature-flag="reportRedesign"]')).toHaveCount(1);
   expect(await page.evaluate(() => localStorage.getItem('ops-experimentalSettingsVisible'))).toBe('true');
   await page.clock.resume();
 
@@ -246,7 +250,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   const demo = gearExperimental.locator('[data-ops-feature-flag="demo-topbar-animation"]');
   await expect(gearExperimental).toBeVisible();
   await expect(demo).not.toBeChecked();
-  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(1);
+  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(2);
   await expect(gearExperimental.locator('[data-ops-feature-flag="browser-ifc"]')).toHaveCount(0);
   await demo.check();
   expect(await enabledDemo(page)).toBe(true);

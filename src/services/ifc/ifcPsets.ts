@@ -7,8 +7,8 @@ import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { importStatusDate } from '@/services/importDates';
 import { storedExternalLinks } from '@/engine/externalLinks';
 import {
-  DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_DURATION_KEYS, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
-  EXACT_MINUTES_KEYS, EXACT_MINUTES_PROP, parseDayMeasureDurations, parseExactFloat, parseExactMinutes,
+  DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_DURATION_KEYS, DAY_MEASURE_LAGS_PROP, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
+  EXACT_MINUTE_LAGS_PROP, EXACT_MINUTES_KEYS, EXACT_MINUTES_PROP, parseDayMeasureDurations, parseExactFloat, parseExactMinutes,
   type DayMeasureDurationRecords, type ExactFloatRecords, type ExactMinutesRecords,
 } from './dayMeasureIo';
 
@@ -103,6 +103,9 @@ export const PSET = {
   XerSourceArchive: 'OPS_XerSourceArchive',
   /** Selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
   XerDocument: 'OPS_XerDocument',
+  /** #804 fixronde 1: alleen in een crashherstel-snapshot en een MCP-backup. Het document kwam uit een IFC-bestand met
+   *  een vreemd deel; lengte en SHA-256 van die bron, zonder bytes, en in een backup ook het doel (fixronde 3). */
+  RecoveryForeignSource: 'OPS_RecoveryForeignSource',
   /** Relatie-eigen XER-herkomst, als een geldige pset op de IfcWorkSchedule met relationele GUIDs.
    *  IFC laat een IfcPropertySet niet rechtstreeks aan IfcRelSequence hangen; de GUIDs maken de
    *  koppeling toch exact, zonder een schema-ongeldige relatie te serialiseren. */
@@ -111,7 +114,104 @@ export const PSET = {
   Calendar: 'OPS_Calendar',
   // Resourcebibliotheek-pool als autoritatief JSON-blob op het IfcProject.
   Library: 'OPS_Library',
+  /** Het tijdmodel (`TimeModel`) op het IfcProject. */
+  Project: 'OPS_Project',
 } as const;
+
+/** `{ Naam: 'Naam' }` uit een lijst namen: de code gebruikt `PROP.<pset>.Naam`, het register `Object.values`. */
+function propNames<const N extends string>(...names: N[]): { readonly [K in N]: K } {
+  const out: Record<string, string> = {};
+  for (const name of names) out[name] = name;
+  return Object.freeze(out) as { readonly [K in N]: K };
+}
+
+/**
+ * Register van #804 (ontwerp "Gebouwmodel behouden", §4.2): per pset in `PSET` de property-namen die de lezer echt
+ * leest. Een andere property in zo'n pset is een vreemd lid. Ook oude namen die de writer niet meer schrijft maar de
+ * lezer nog leest, staan hier.
+ *
+ * Writer en lezer gebruiken alleen deze constanten (afwijking 8 van fase 0): `PROP.Calendar.HoursPerDay`, nooit de
+ * tekst `'HoursPerDay'`. `check-ifc-pset-register.ts` leest de bron van writer, lezer en descriptors en is rood bij een
+ * propertynaam als losse tekst, en bij een nieuwe tekst in een vergelijking van de lezer. Een nieuwe property komt dus
+ * eerst hier.
+ *
+ * Vier psets hebben (ook) sleutels uit de data; hun herkenner staat in `foreign/classify.ts`: `OPS_Assignments`
+ * (GlobalId-sleutels), `OPS_CustomFields` en `OPS_ActivityCodes` (namen uit `OPS_StructureMeta` of de templates) en
+ * `OPS_XerSourceArchive` (`ByteChunk000000`, `DiagnosticsChunk000000`).
+ */
+export const PROP = {
+  TaskIdentity: propNames('InternalTaskId'),
+  Constraints: propNames('ConstraintType', 'ConstraintDate', 'Hard', 'ConstraintType2', 'ConstraintDate2', 'Deadline'),
+  ExternalLink: propNames('Links'),
+  Hammock: propNames('IsHammock'),
+  Milestone: propNames('AtDayEnd', 'MilestoneKind', 'Mandatory'),
+  Leveling: propNames('LevelingDelay', 'LevelingDelayMinutes', 'LevelingDelayElapsed'),
+  TaskNotes: propNames('Notes'),
+  TaskAppearance: propNames('Color'),
+  Analysis: propNames('InterferingFloat', 'IsNearCritical', 'FloatPath', EXACT_FLOAT_PROP),
+  Splits: propNames('Splits'),
+  Manual: propNames('ManuallyScheduled'),
+  Resume: propNames('Resume', 'Stop'),
+  Window: propNames('FinishFloor', 'StartAnchor'),
+  DurationWalks: propNames('DurationWalks'),
+  Contours: propNames('Contours'),
+  MspTaskType: propNames('MspTaskType', 'EffortDriven'),
+  WorkRule: propNames('WorkRule', DAY_MEASURE_DURATIONS_PROP, EXACT_MINUTES_PROP),
+  P6Progress: propNames(
+    'ProjectId', 'TaskId', 'ExplicitTargetWindow', 'CompletePctType', 'ExpectedFinish', 'DurationType', 'ActivityType',
+    'SuspendResume',
+  ),
+  Summary: propNames('IsSummary'),
+  ProjectSettings: propNames(
+    'InternalProjectId', 'wbsAutoNumber', 'DefaultTaskDurationUnit', 'DefaultWorkRule', 'StatusDate', 'ProgressMode',
+    'ProjectStartDate', 'ProjectEndDate', 'CreatedAt', 'ModifiedAt', 'CompanyId', 'CompanyName', 'IfcSchemaConfirmed',
+    'IfcSchemaUnconfirmed', 'P6ProjectCode', 'DependentProjectsFolder', 'AnchorsFromOpenDocuments',
+    // #804 §4.4: alleen als de writer geen eigen IfcProject schrijft (een model met een vreemd project).
+    'ProjectName', 'ProjectDescription', 'Author', 'Organization',
+  ),
+  // De lezer leest elke enkelvoudige property van deze pset als JSON; de writer schrijft er één.
+  StructureMeta: propNames('structure'),
+  TaskTypes: propNames('TaskTypes'),
+  CustomFields: propNames(),
+  ActivityCodes: propNames(),
+  Resource: propNames('MaxUnits', 'CostPerHour', 'UnitOfMeasure', 'Color', 'AvailabilitySteps', 'ParentGuid', 'LibraryOrigin'),
+  Assignments: propNames(),
+  Timephased: propNames('Windows'),
+  Baselines: propNames('Baselines', 'ActiveBaselineId', 'ComparedBaselineIds', 'TaskGuids'),
+  SchedulingOptions: propNames('SchedulingOptions'),
+  SchedulingProfile: propNames('SchedulingProfile'),
+  ImportProvenance: propNames('UnchangedSinceImport', 'SourceFormat'),
+  XerSourceArchive: propNames(
+    'SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256', 'Encoding', 'Bom', 'Newline', 'ByteChunkSize',
+    'ByteChunkCount', 'DiagnosticsByteLength', 'DiagnosticsSha256', 'DiagnosticsChunkCount',
+  ),
+  XerDocument: propNames('ArchiveSha256', 'SourceProjectId'),
+  RecoveryForeignSource: propNames('Sha256', 'ByteLength', 'SourcePath', 'SourceSiteFileId'),
+  Sequences: propNames('P6StartAtPredecessorFinishBoundarySequenceGuids', DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP),
+  Calendar: propNames(
+    'LiteralTimes', 'RuleSetId', 'Region', 'BreakChoice', 'GeneratedFromYear', 'GeneratedToYear', 'LibraryOrigin',
+    'HoursPerDay', 'WorkStartHour', 'WorkEndHour', 'SimpleBreakStart', 'SimpleBreakDuration', 'IsHourCalendar',
+    'WorkingExceptionKeysV1', 'WorkingExceptionIds', 'P6Source', 'P6NonWorkPenaltyDates', 'P6NonWorkPenaltyDatesState',
+  ),
+  Library: propNames('pool'),
+  Project: propNames('TimeModel'),
+} as const satisfies { readonly [K in keyof typeof PSET]: Readonly<Record<string, string>> };
+
+/** `OPS_XerSourceArchive` heeft ook sleutels uit de data: de stukken heten `<voorvoegsel><zes cijfers>`
+ *  (`ByteChunk000000`, `DiagnosticsChunk000000`). Writer, lezer en indeling gebruiken deze drie. */
+export const XER_ARCHIVE_CHUNK = { bytes: 'ByteChunk', diagnostics: 'DiagnosticsChunk' } as const;
+export type XerArchiveChunkPrefix = typeof XER_ARCHIVE_CHUNK[keyof typeof XER_ARCHIVE_CHUNK];
+export function xerArchiveChunkName(prefix: XerArchiveChunkPrefix, index: number): string {
+  return `${prefix}${String(index).padStart(6, '0')}`;
+}
+/** Is `name` een stuk van het archief (met dit voorvoegsel, of met een van de twee)? */
+export function isXerArchiveChunkName(name: string, prefix?: XerArchiveChunkPrefix): boolean {
+  return (prefix ? [prefix] : Object.values(XER_ARCHIVE_CHUNK)).some(p =>
+    name.length === p.length + 6 && name.startsWith(p) && /^\d{6}$/.test(name.slice(p.length)));
+}
+
+/** De namen van één pset uit `PROP`, in registervolgorde. */
+const propList = (names: Readonly<Record<string, string>>): readonly string[] => Object.freeze(Object.values(names));
 
 /**
  * Gedeelde STEP-waarde-formatters, hier zodat de per-taak-descriptors hun eigen getypte IFC-waarden
@@ -327,6 +427,10 @@ export interface PerTaskPset {
   psetSeed: string;
   /** ifcGuid-seed-prefix voor de IFCRELDEFINESBYPROPERTIES-GlobalId. */
   relSeed: string;
+  /** De property-namen die `apply` (of, bij `OPS_TaskIdentity`, de lezer vooraf) echt leest: het
+   *  register van #804 §4.2. Een andere property in deze pset is een vreemd lid. Ook oude namen die de
+   *  writer niet meer schrijft maar de lezer nog leest, staan hier. */
+  readProps: readonly string[];
   /** Golden rule: `null` of lege lijst ⇒ niets geschreven. */
   write(task: Task, options?: PerTaskWriteOptions): PropSpec[] | null;
   /** Zet de gelezen (reeds naar {name,value} geparste) IFCPROPERTYSINGLEVALUE-props terug op de taak. */
@@ -367,8 +471,9 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    bewust een no-op; de descriptor blijft wél de enige bron voor naam en schrijfvorm.
   {
     name: PSET.TaskIdentity, psetSeed: 'pset_tid_', relSeed: 'rel_tid_',
+    readProps: propList(PROP.TaskIdentity),
     write(task) {
-      return [{ name: 'InternalTaskId', value: `IFCTEXT(${ifcStr(task.id)})` }];
+      return [{ name: PROP.TaskIdentity.InternalTaskId, value: `IFCTEXT(${ifcStr(task.id)})` }];
     },
     apply() {
       // Al toegepast door extractTaskIdentityByStepId vóór de taakobjecten worden gebouwd.
@@ -378,20 +483,21 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    heeft geen constraint-/deadline-slots. ASAP (default) wordt niet geschreven.
   {
     name: PSET.Constraints, psetSeed: 'pset_cst_', relSeed: 'rel_cst_',
+    readProps: propList(PROP.Constraints),
     write(task) {
       const props: PropSpec[] = [];
       const c = task.constraint;
       if (c && c.type !== 'ASAP') {
-        props.push({ name: 'ConstraintType', value: `IFCLABEL(${ifcStr(c.type)})` });
-        if (c.date) props.push({ name: 'ConstraintDate', value: ifcDateValue(c.date) });
-        if (c.hard) props.push({ name: 'Hard', value: 'IFCBOOLEAN(.T.)' });
+        props.push({ name: PROP.Constraints.ConstraintType, value: `IFCLABEL(${ifcStr(c.type)})` });
+        if (c.date) props.push({ name: PROP.Constraints.ConstraintDate, value: ifcDateValue(c.date) });
+        if (c.hard) props.push({ name: PROP.Constraints.Hard, value: 'IFCBOOLEAN(.T.)' });
       }
       const c2 = task.constraint2;
       if (c2 && c2.type !== 'ASAP') {
-        props.push({ name: 'ConstraintType2', value: `IFCLABEL(${ifcStr(c2.type)})` });
-        if (c2.date) props.push({ name: 'ConstraintDate2', value: ifcDateValue(c2.date) });
+        props.push({ name: PROP.Constraints.ConstraintType2, value: `IFCLABEL(${ifcStr(c2.type)})` });
+        if (c2.date) props.push({ name: PROP.Constraints.ConstraintDate2, value: ifcDateValue(c2.date) });
       }
-      if (task.deadline) props.push({ name: 'Deadline', value: ifcDateValue(task.deadline) });
+      if (task.deadline) props.push({ name: PROP.Constraints.Deadline, value: ifcDateValue(task.deadline) });
       return props;
     },
     apply(task, props) {
@@ -399,13 +505,13 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       let ctype2: string | undefined; let cdate2: string | undefined;
       for (const { name, value, raw } of props) {
         // Hard is een IFCBOOLEAN — niet overslaan met de string-guard hieronder.
-        if (name === 'Hard') { if (value === true) hard = true; continue; }
+        if (name === PROP.Constraints.Hard) { if (value === true) hard = true; continue; }
         if (typeof value !== 'string') continue;
-        if (name === 'ConstraintType') ctype = value;
-        else if (name === 'ConstraintDate') cdate = readIfcDate(raw, value);
-        else if (name === 'ConstraintType2') ctype2 = value;
-        else if (name === 'ConstraintDate2') cdate2 = readIfcDate(raw, value);
-        else if (name === 'Deadline') task.deadline = readIfcDate(raw, value);
+        if (name === PROP.Constraints.ConstraintType) ctype = value;
+        else if (name === PROP.Constraints.ConstraintDate) cdate = readIfcDate(raw, value);
+        else if (name === PROP.Constraints.ConstraintType2) ctype2 = value;
+        else if (name === PROP.Constraints.ConstraintDate2) cdate2 = readIfcDate(raw, value);
+        else if (name === PROP.Constraints.Deadline) task.deadline = readIfcDate(raw, value);
       }
       if (ctype && CONSTRAINT_VALID.includes(ctype as ConstraintType)) {
         task.constraint = {
@@ -423,14 +529,15 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 2. Externe (cross-project) dependencies als één autoritatief JSON-veld.
   {
     name: PSET.ExternalLink, psetSeed: 'pset_extl_', relSeed: 'rel_extl_',
+    readProps: propList(PROP.ExternalLink),
     write(task) {
       const links = task.externalLinks;
       if (!links || links.length === 0) return null;
-      return [{ name: 'Links', value: `IFCTEXT(${ifcJson(links)})` }];
+      return [{ name: PROP.ExternalLink.Links, value: `IFCTEXT(${ifcJson(links)})` }];
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name !== 'Links' || typeof value !== 'string' || !value) continue;
+        if (name !== PROP.ExternalLink.Links || typeof value !== 'string' || !value) continue;
         try {
           // Alleen koppelingen die de app aankan (`storedExternalLinks`); een kapotte liet laden,
           // rekenen en de relatiecel vastlopen.
@@ -443,31 +550,33 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 3. Hammock/LOE-vlag (geen native IfcTaskTypeEnum-waarde).
   {
     name: PSET.Hammock, psetSeed: 'pset_hmk_', relSeed: 'rel_hmk_',
+    readProps: propList(PROP.Hammock),
     write(task) {
-      return task.isHammock ? [{ name: 'IsHammock', value: 'IFCBOOLEAN(.T.)' }] : null;
+      return task.isHammock ? [{ name: PROP.Hammock.IsHammock, value: 'IFCBOOLEAN(.T.)' }] : null;
     },
     apply(task, props) {
-      for (const { name, value } of props) if (name === 'IsHammock' && value === true) task.isHammock = true;
+      for (const { name, value } of props) if (name === PROP.Hammock.IsHammock && value === true) task.isHammock = true;
     },
   },
   // 4. Mijlpaalsoort + verplicht-vlag (IfcTaskTypeEnum kent geen start/finish-onderscheid).
   {
     name: PSET.Milestone, psetSeed: 'pset_ms_', relSeed: 'rel_ms_',
+    readProps: propList(PROP.Milestone),
     write(task, options) {
       if (!task.isMilestone) return null;
       const props: PropSpec[] = [];
-      if (options?.atDayEnd) props.push({ name: 'AtDayEnd', value: 'IFCBOOLEAN(.T.)' });
+      if (options?.atDayEnd) props.push({ name: PROP.Milestone.AtDayEnd, value: 'IFCBOOLEAN(.T.)' });
       if (task.milestoneKind === 'START' || task.milestoneKind === 'FINISH') {
-        props.push({ name: 'MilestoneKind', value: `IFCLABEL(${ifcStr(task.milestoneKind)})` });
+        props.push({ name: PROP.Milestone.MilestoneKind, value: `IFCLABEL(${ifcStr(task.milestoneKind)})` });
       }
-      if (task.mandatory) props.push({ name: 'Mandatory', value: 'IFCBOOLEAN(.T.)' });
+      if (task.mandatory) props.push({ name: PROP.Milestone.Mandatory, value: 'IFCBOOLEAN(.T.)' });
       return props;
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name === 'MilestoneKind' && (value === 'START' || value === 'FINISH')) task.milestoneKind = value;
-        else if (name === 'AtDayEnd' && value === true) milestonesAtDayEnd.add(task);
-        else if (name === 'Mandatory' && value === true) task.mandatory = true;
+        if (name === PROP.Milestone.MilestoneKind && (value === 'START' || value === 'FINISH')) task.milestoneKind = value;
+        else if (name === PROP.Milestone.AtDayEnd && value === true) milestonesAtDayEnd.add(task);
+        else if (name === PROP.Milestone.Mandatory && value === true) task.mandatory = true;
       }
     },
   },
@@ -477,24 +586,25 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    schrijft ÉÉN property.
   {
     name: PSET.Leveling, psetSeed: 'pset_lvl_', relSeed: 'rel_lvl_',
+    readProps: propList(PROP.Leveling),
     write(task) {
       const props: PropSpec[] = [];
-      if (task.levelingDelay) props.push({ name: 'LevelingDelay', value: `IFCINTEGER(${Math.round(task.levelingDelay)})` });
+      if (task.levelingDelay) props.push({ name: PROP.Leveling.LevelingDelay, value: `IFCINTEGER(${Math.round(task.levelingDelay)})` });
       if (task.levelingDelayMinutes != null) {
-        props.push({ name: 'LevelingDelayMinutes', value: `IFCINTEGER(${Math.round(task.levelingDelayMinutes)})` });
+        props.push({ name: PROP.Leveling.LevelingDelayMinutes, value: `IFCINTEGER(${Math.round(task.levelingDelayMinutes)})` });
       }
-      if (task.levelingDelayElapsed) props.push({ name: 'LevelingDelayElapsed', value: 'IFCBOOLEAN(.T.)' });
+      if (task.levelingDelayElapsed) props.push({ name: PROP.Leveling.LevelingDelayElapsed, value: 'IFCBOOLEAN(.T.)' });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
         // Boolean-guard vóór een eventuele string-guard (precedent: `Hard` in PSET.Constraints) —
         // hier zijn alle drie de props al zelf-discriminerend per naam, dus geen gedeelde continue-guard.
-        if (name === 'LevelingDelay') {
+        if (name === PROP.Leveling.LevelingDelay) {
           if (typeof value === 'number' && Number.isFinite(value)) task.levelingDelay = Math.round(value);
-        } else if (name === 'LevelingDelayMinutes') {
+        } else if (name === PROP.Leveling.LevelingDelayMinutes) {
           if (typeof value === 'number' && Number.isFinite(value)) task.levelingDelayMinutes = Math.round(value);
-        } else if (name === 'LevelingDelayElapsed') {
+        } else if (name === PROP.Leveling.LevelingDelayElapsed) {
           if (value === true) task.levelingDelayElapsed = true;
         }
       }
@@ -503,14 +613,15 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 6. Taak-aantekeningen (checklist) als één autoritatief JSON-veld.
   {
     name: PSET.TaskNotes, psetSeed: 'pset_notes_', relSeed: 'rel_notes_',
+    readProps: propList(PROP.TaskNotes),
     write(task) {
       const notes = task.notes;
       if (!notes || notes.length === 0) return null;
-      return [{ name: 'Notes', value: `IFCTEXT(${ifcJson(notes)})` }];
+      return [{ name: PROP.TaskNotes.Notes, value: `IFCTEXT(${ifcJson(notes)})` }];
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name !== 'Notes' || typeof value !== 'string' || !value) continue;
+        if (name !== PROP.TaskNotes.Notes || typeof value !== 'string' || !value) continue;
         try {
           const parsed = JSON.parse(value);
           if (Array.isArray(parsed) && parsed.length > 0) task.notes = parsed;
@@ -521,11 +632,12 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 7. Taak-kleur (IfcTask heeft geen native kleur-attribuut).
   {
     name: PSET.TaskAppearance, psetSeed: 'pset_appear_', relSeed: 'rel_appear_',
+    readProps: propList(PROP.TaskAppearance),
     write(task) {
-      return task.color ? [{ name: 'Color', value: `IFCTEXT(${ifcStr(task.color)})` }] : null;
+      return task.color ? [{ name: PROP.TaskAppearance.Color, value: `IFCTEXT(${ifcStr(task.color)})` }] : null;
     },
     apply(task, props) {
-      for (const { name, value } of props) if (name === 'Color' && typeof value === 'string' && value) task.color = value;
+      for (const { name, value } of props) if (name === PROP.TaskAppearance.Color && typeof value === 'string' && value) task.color = value;
     },
   },
   // 8. Analyse-uitvoer. De writer schrijft hier alleen de exacte speling (`ExactFloat`, alleen uren
@@ -535,15 +647,16 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    bestanden. Golden rule: zonder record geen pset.
   {
     name: PSET.Analysis, psetSeed: 'pset_ana_', relSeed: 'rel_ana_',
+    readProps: propList(PROP.Analysis),
     write(_task, options) {
       const floats = options?.exactFloat && recordsJson(EXACT_FLOAT_KEYS, options.exactFloat);
       return floats ? [{ name: EXACT_FLOAT_PROP, value: `IFCTEXT(${ifcJson(floats)})` }] : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name === 'InterferingFloat' && typeof value === 'number') task.time.interferingFloat = value;
-        else if (name === 'IsNearCritical' && typeof value === 'boolean') task.time.isNearCritical = value;
-        else if (name === 'FloatPath' && typeof value === 'number') task.time.floatPath = Math.round(value);
+        if (name === PROP.Analysis.InterferingFloat && typeof value === 'number') task.time.interferingFloat = value;
+        else if (name === PROP.Analysis.IsNearCritical && typeof value === 'boolean') task.time.isNearCritical = value;
+        else if (name === PROP.Analysis.FloatPath && typeof value === 'number') task.time.floatPath = Math.round(value);
         else if (name === EXACT_FLOAT_PROP) {
           const floats = parseExactFloat(value);
           if (floats) exactFloatRead.set(task, floats);
@@ -556,14 +669,15 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //    geschreven), corrupte of verkeerd-gevormde JSON wordt genegeerd i.p.v. de load te breken.
   {
     name: PSET.Splits, psetSeed: 'pset_splits_', relSeed: 'rel_splits_',
+    readProps: propList(PROP.Splits),
     write(task) {
       const gaps = task.splitGaps;
       if (!gaps || gaps.length === 0) return null;
-      return [{ name: 'Splits', value: `IFCTEXT(${ifcJson(gaps)})` }];
+      return [{ name: PROP.Splits.Splits, value: `IFCTEXT(${ifcJson(gaps)})` }];
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name !== 'Splits' || typeof value !== 'string' || !value) continue;
+        if (name !== PROP.Splits.Splits || typeof value !== 'string' || !value) continue;
         try {
           const parsed: unknown = JSON.parse(value);
           const isValidGap = (g: unknown): g is TaskSplitGap =>
@@ -587,15 +701,16 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     round-trippend). Kopieert het Hammock-stramien (één boolean, golden rule).
   {
     name: PSET.Manual, psetSeed: 'pset_man_', relSeed: 'rel_man_',
+    readProps: propList(PROP.Manual),
     write(task) {
-      return task.manuallyScheduled ? [{ name: 'ManuallyScheduled', value: 'IFCBOOLEAN(.T.)' }] : null;
+      return task.manuallyScheduled ? [{ name: PROP.Manual.ManuallyScheduled, value: 'IFCBOOLEAN(.T.)' }] : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
         // Boolean-guard (precedent: `Hard` in PSET.Constraints) — hier is er maar één prop, maar
         // dezelfde vorm aanhouden voorkomt dat een latere uitbreiding met een string-prop de
         // boolean per ongeluk achter een `typeof value !== 'string'`-continue verstopt.
-        if (name === 'ManuallyScheduled') { if (value === true) task.manuallyScheduled = true; }
+        if (name === PROP.Manual.ManuallyScheduled) { if (value === true) task.manuallyScheduled = true; }
       }
     },
   },
@@ -604,17 +719,18 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     als IFCTEXT — geen aparte dag/uur-typering nodig, de string is al in de juiste vorm).
   {
     name: PSET.Resume, psetSeed: 'pset_resume_', relSeed: 'rel_resume_',
+    readProps: propList(PROP.Resume),
     write(task) {
       const t = task.time;
       const props: PropSpec[] = [];
-      if (t.resume) props.push({ name: 'Resume', value: `IFCTEXT(${ifcStr(t.resume)})` });
-      if (t.stop) props.push({ name: 'Stop', value: `IFCTEXT(${ifcStr(t.stop)})` });
+      if (t.resume) props.push({ name: PROP.Resume.Resume, value: `IFCTEXT(${ifcStr(t.resume)})` });
+      if (t.stop) props.push({ name: PROP.Resume.Stop, value: `IFCTEXT(${ifcStr(t.stop)})` });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name === 'Resume' && typeof value === 'string' && value) task.time.resume = value;
-        else if (name === 'Stop' && typeof value === 'string' && value) task.time.stop = value;
+        if (name === PROP.Resume.Resume && typeof value === 'string' && value) task.time.resume = value;
+        else if (name === PROP.Resume.Stop && typeof value === 'string' && value) task.time.stop = value;
       }
     },
   },
@@ -630,16 +746,17 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     JSON-pset `OPS_TimephasedDurationWalks`, spiegelt `OPS_Baselines`' taskId-GUID-remap-precedent).
   {
     name: PSET.Window, psetSeed: 'pset_win_', relSeed: 'rel_win_',
+    readProps: propList(PROP.Window),
     write(task) {
       const props: PropSpec[] = [];
-      if (task.timephasedFinishFloor) props.push({ name: 'FinishFloor', value: `IFCTEXT(${ifcStr(task.timephasedFinishFloor)})` });
-      if (task.timephasedStartAnchor) props.push({ name: 'StartAnchor', value: `IFCTEXT(${ifcStr(task.timephasedStartAnchor)})` });
+      if (task.timephasedFinishFloor) props.push({ name: PROP.Window.FinishFloor, value: `IFCTEXT(${ifcStr(task.timephasedFinishFloor)})` });
+      if (task.timephasedStartAnchor) props.push({ name: PROP.Window.StartAnchor, value: `IFCTEXT(${ifcStr(task.timephasedStartAnchor)})` });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name === 'FinishFloor' && typeof value === 'string' && value) task.timephasedFinishFloor = value;
-        else if (name === 'StartAnchor' && typeof value === 'string' && value) task.timephasedStartAnchor = value;
+        if (name === PROP.Window.FinishFloor && typeof value === 'string' && value) task.timephasedFinishFloor = value;
+        else if (name === PROP.Window.StartAnchor && typeof value === 'string' && value) task.timephasedStartAnchor = value;
       }
     },
   },
@@ -649,10 +766,11 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     `Window` hierboven, dat wél kan leeglopen).
   {
     name: PSET.Contours, psetSeed: 'pset_contours_', relSeed: 'rel_contours_',
+    readProps: propList(PROP.Contours),
     write(task) {
       const contours = task.timephasedContours;
       if (!contours || contours.length === 0) return null;
-      return [{ name: 'Contours', value: `IFCTEXT(${ifcJson(contours)})` }];
+      return [{ name: PROP.Contours.Contours, value: `IFCTEXT(${ifcJson(contours)})` }];
     },
     apply(task, props) {
       const isValidPeriod = (p: unknown): p is TimephasedContourPeriod =>
@@ -669,7 +787,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
         && Array.isArray((c as TaskTimephasedContour).periods)
         && (c as TaskTimephasedContour).periods.every(isValidPeriod);
       for (const { name, value } of props) {
-        if (name !== 'Contours' || typeof value !== 'string' || !value) continue;
+        if (name !== PROP.Contours.Contours || typeof value !== 'string' || !value) continue;
         try {
           const parsed: unknown = JSON.parse(value);
           if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isValidContour)) {
@@ -684,17 +802,18 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     `Hard` in PSET.Constraints).
   {
     name: PSET.MspTaskType, psetSeed: 'pset_mtt_', relSeed: 'rel_mtt_',
+    readProps: propList(PROP.MspTaskType),
     write(task) {
       const props: PropSpec[] = [];
-      if (task.mspTaskType) props.push({ name: 'MspTaskType', value: `IFCLABEL(${ifcStr(task.mspTaskType)})` });
-      if (task.effortDriven) props.push({ name: 'EffortDriven', value: 'IFCBOOLEAN(.T.)' });
+      if (task.mspTaskType) props.push({ name: PROP.MspTaskType.MspTaskType, value: `IFCLABEL(${ifcStr(task.mspTaskType)})` });
+      if (task.effortDriven) props.push({ name: PROP.MspTaskType.EffortDriven, value: 'IFCBOOLEAN(.T.)' });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
       const valid: readonly MspTaskType[] = ['FIXED_UNITS', 'FIXED_DURATION', 'FIXED_WORK'];
       for (const { name, value } of props) {
-        if (name === 'EffortDriven') { if (value === true) task.effortDriven = true; continue; }
-        if (name === 'MspTaskType' && typeof value === 'string' && (valid as readonly string[]).includes(value)) {
+        if (name === PROP.MspTaskType.EffortDriven) { if (value === true) task.effortDriven = true; continue; }
+        if (name === PROP.MspTaskType.MspTaskType && typeof value === 'string' && (valid as readonly string[]).includes(value)) {
           task.mspTaskType = value as MspTaskType;
         }
       }
@@ -705,17 +824,18 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     Golden rule: een taak zonder één van deze velden schrijft geen pset.
   {
     name: PSET.P6Progress, psetSeed: 'pset_p6prog_', relSeed: 'rel_p6prog_',
+    readProps: propList(PROP.P6Progress),
     write(task) {
       const props: PropSpec[] = [];
-      if (task.p6ProjectId) props.push({ name: 'ProjectId', value: `IFCTEXT(${ifcStr(task.p6ProjectId)})` });
-      if (task.p6TaskId) props.push({ name: 'TaskId', value: `IFCTEXT(${ifcStr(task.p6TaskId)})` });
-      if (task.p6ExplicitTargetWindow === true) props.push({ name: 'ExplicitTargetWindow', value: 'IFCBOOLEAN(.T.)' });
-      if (task.p6CompletePctType) props.push({ name: 'CompletePctType', value: `IFCLABEL(${ifcStr(task.p6CompletePctType)})` });
-      if (task.p6ExpectedFinish) props.push({ name: 'ExpectedFinish', value: `IFCTEXT(${ifcStr(task.p6ExpectedFinish)})` });
-      if (task.p6DurationType) props.push({ name: 'DurationType', value: `IFCLABEL(${ifcStr(task.p6DurationType)})` });
-      if (task.p6ActivityType) props.push({ name: 'ActivityType', value: `IFCLABEL(${ifcStr(task.p6ActivityType)})` });
-      if (task.p6SuspendResume === false) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.F.)' });
-      else if (hasValidP6SuspendResume(task)) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
+      if (task.p6ProjectId) props.push({ name: PROP.P6Progress.ProjectId, value: `IFCTEXT(${ifcStr(task.p6ProjectId)})` });
+      if (task.p6TaskId) props.push({ name: PROP.P6Progress.TaskId, value: `IFCTEXT(${ifcStr(task.p6TaskId)})` });
+      if (task.p6ExplicitTargetWindow === true) props.push({ name: PROP.P6Progress.ExplicitTargetWindow, value: 'IFCBOOLEAN(.T.)' });
+      if (task.p6CompletePctType) props.push({ name: PROP.P6Progress.CompletePctType, value: `IFCLABEL(${ifcStr(task.p6CompletePctType)})` });
+      if (task.p6ExpectedFinish) props.push({ name: PROP.P6Progress.ExpectedFinish, value: `IFCTEXT(${ifcStr(task.p6ExpectedFinish)})` });
+      if (task.p6DurationType) props.push({ name: PROP.P6Progress.DurationType, value: `IFCLABEL(${ifcStr(task.p6DurationType)})` });
+      if (task.p6ActivityType) props.push({ name: PROP.P6Progress.ActivityType, value: `IFCLABEL(${ifcStr(task.p6ActivityType)})` });
+      if (task.p6SuspendResume === false) props.push({ name: PROP.P6Progress.SuspendResume, value: 'IFCBOOLEAN(.F.)' });
+      else if (hasValidP6SuspendResume(task)) props.push({ name: PROP.P6Progress.SuspendResume, value: 'IFCBOOLEAN(.T.)' });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
@@ -723,15 +843,15 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       const durationTypes: readonly P6DurationType[] = ['DT_FixedDrtn', 'DT_FixedDUR2', 'DT_FixedRate', 'DT_FixedQty'];
       const activityTypes: readonly P6ActivityType[] = ['TT_Task', 'TT_Rsrc', 'TT_LOE', 'TT_Mile', 'TT_FinMile', 'TT_WBS'];
       for (const { name, value } of props) {
-        if (name === 'ExplicitTargetWindow') { if (value === true) task.p6ExplicitTargetWindow = true; continue; }
-        if (name === 'SuspendResume') { if (typeof value === 'boolean') task.p6SuspendResume = value; continue; }
+        if (name === PROP.P6Progress.ExplicitTargetWindow) { if (value === true) task.p6ExplicitTargetWindow = true; continue; }
+        if (name === PROP.P6Progress.SuspendResume) { if (typeof value === 'boolean') task.p6SuspendResume = value; continue; }
         if (typeof value !== 'string' || !value) continue;
-        if (name === 'ProjectId') task.p6ProjectId = value;
-        else if (name === 'TaskId') task.p6TaskId = value;
-        else if (name === 'ExpectedFinish') task.p6ExpectedFinish = value;
-        else if (name === 'DurationType' && (durationTypes as readonly string[]).includes(value)) task.p6DurationType = value as P6DurationType;
-        else if (name === 'ActivityType' && (activityTypes as readonly string[]).includes(value)) task.p6ActivityType = value as P6ActivityType;
-        else if (name === 'CompletePctType' && (completePctTypes as readonly string[]).includes(value)) {
+        if (name === PROP.P6Progress.ProjectId) task.p6ProjectId = value;
+        else if (name === PROP.P6Progress.TaskId) task.p6TaskId = value;
+        else if (name === PROP.P6Progress.ExpectedFinish) task.p6ExpectedFinish = value;
+        else if (name === PROP.P6Progress.DurationType && (durationTypes as readonly string[]).includes(value)) task.p6DurationType = value as P6DurationType;
+        else if (name === PROP.P6Progress.ActivityType && (activityTypes as readonly string[]).includes(value)) task.p6ActivityType = value as P6ActivityType;
+        else if (name === PROP.P6Progress.CompletePctType && (completePctTypes as readonly string[]).includes(value)) {
           task.p6CompletePctType = value as P6CompletePctType;
         }
       }
@@ -741,14 +861,15 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     Alleen `true` schrijft iets.
   {
     name: PSET.Summary, psetSeed: 'pset_sum_', relSeed: 'rel_sum_',
+    readProps: propList(PROP.Summary),
     write(task) {
       return task.isSummary === true
-        ? [{ name: 'IsSummary', value: 'IFCBOOLEAN(.T.)' }]
+        ? [{ name: PROP.Summary.IsSummary, value: 'IFCBOOLEAN(.T.)' }]
         : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name === 'IsSummary' && value === true) task.isSummary = true;
+        if (name === PROP.Summary.IsSummary && value === true) task.isSummary = true;
       }
     },
   },
@@ -761,9 +882,10 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     werkregelbrug beheert duur en werk, en er komt geen nieuwe pset.
   {
     name: PSET.WorkRule, psetSeed: 'pset_wrl_', relSeed: 'rel_wrl_',
+    readProps: propList(PROP.WorkRule),
     write(task, options) {
       const props: PropSpec[] = [];
-      if (task.workRule) props.push({ name: 'WorkRule', value: `IFCLABEL(${ifcStr(task.workRule)})` });
+      if (task.workRule) props.push({ name: PROP.WorkRule.WorkRule, value: `IFCLABEL(${ifcStr(task.workRule)})` });
       const records = options?.dayMeasureDurations && recordsJson(DAY_MEASURE_DURATION_KEYS, options.dayMeasureDurations);
       if (records) props.push({ name: DAY_MEASURE_DURATIONS_PROP, value: `IFCTEXT(${ifcJson(records)})` });
       const exact = options?.exactMinutes && recordsJson(EXACT_MINUTES_KEYS, options.exactMinutes);
@@ -772,7 +894,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     },
     apply(task, props) {
       for (const { name, value } of props) {
-        if (name === 'WorkRule' && typeof value === 'string' && (WORK_RULES as readonly string[]).includes(value)) {
+        if (name === PROP.WorkRule.WorkRule && typeof value === 'string' && (WORK_RULES as readonly string[]).includes(value)) {
           task.workRule = value as WorkRule;
         } else if (name === DAY_MEASURE_DURATIONS_PROP) {
           const records = parseDayMeasureDurations(value);
@@ -789,3 +911,16 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
 /** Naam → descriptor, voor de reader-dispatch in `extractStructure`. */
 export const PER_TASK_PSET_BY_NAME: Map<string, PerTaskPset> =
   new Map(PER_TASK_PSETS.map(d => [d.name, d]));
+
+/**
+ * Het register (zie `PROP`), deel 2: per pset ZONDER descriptor in `PER_TASK_PSETS` de property-namen die de lezer echt
+ * leest. Samen met `readProps` van de descriptors dekt dit elke naam in `PSET`. Afgeleid uit `PROP`: geen eigen lijst.
+ */
+export const OWN_PSET_PROPERTY_NAMES: Readonly<Record<string, readonly string[]>> = Object.freeze(Object.fromEntries(
+  (Object.keys(PROP) as (keyof typeof PROP)[])
+    .filter(key => !PER_TASK_PSET_BY_NAME.has(PSET[key]))
+    .map(key => [PSET[key], propList(PROP[key])]),
+));
+
+/** De property-set-templates die de writer schrijft (`writeStructure`), gedeclareerd aan het project. */
+export const OWN_TEMPLATE_NAMES: readonly string[] = [PSET.CustomFields, PSET.ActivityCodes];

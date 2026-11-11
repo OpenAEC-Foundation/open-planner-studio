@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
 import { HOLIDAY_SETS, type HolidayCountry } from '@/engine/calendar/holidays';
@@ -8,7 +8,7 @@ import {
   materializeHolidays, type HolidayGenParams, type BouwvakChoice, type GeneratorCountry,
 } from '@/engine/calendar/generateCalendarHolidays';
 
-const COUNTRIES: HolidayCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH'];
+const COUNTRIES: HolidayCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US'];
 const BOUWVAK_CHOICES: BouwvakChoice[] = ['geen', 'noord', 'midden', 'zuid'];
 /** i18n-sleutels gebruiken `none` voor de "geen bouwvak"-keuze; de interne `BouwvakChoice`
  *  gebruikt `'geen'` (matcht `generateRegionalBreak`/`CalendarGeneration.breakChoice`). */
@@ -148,7 +148,7 @@ export function CalendarGeneratorFields({
           disabled={preview.holidays.length === 0}
         >
           {preview.holidays.length > 0 ? (
-            expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+            expanded ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" />
           ) : null}
           <span>
             {preview.holidays.length === 0

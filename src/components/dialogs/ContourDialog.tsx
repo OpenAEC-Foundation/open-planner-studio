@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatReportNumber } from '@/utils/reportNumber';
-import { X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { contourLookup } from '@/engine/scheduler/ResourceLoad';
+import { contourSiblings, costResourceIds } from '@/types/resource';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { ContourShape } from '@/engine/contour/contourEngine';
 import { EDITABLE_CONTOUR_SHAPES, shapeSlotWork } from '@/engine/contour/contourEdit';
@@ -95,8 +96,10 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   const [model] = useState(() => {
     if (!assignment || !task) return null;
     const engine = new CalendarEngine(calendarForEngine(resolveCalendar(task.calendarId, calendars, calendar)));
-    // Dezelfde contour als het histogram: gekoppeld over alle toewijzingen van de taak (knownbugs 233).
-    const contour = contourLookup(assignments.filter(a => a.taskId === task.id))(task, assignment);
+    // Dezelfde contour als het histogram: gekoppeld over alle toewijzingen van de taak (knownbugs 233),
+    // zonder kostentoewijzingen (`contourSiblings`, #815).
+    const siblings = contourSiblings(assignments.filter(a => a.taskId === task.id), costResourceIds(resources));
+    const contour = contourLookup(siblings)(task, assignment);
     const days = contourDayModel(task, assignment, contour, engine, effectiveSchedulingOptions({ schedulingProfile, schedulingOptions }));
     const mpd = days.mpd;
     const n = days.days.length;
@@ -234,7 +237,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
             aria-label={tCommon('close')}
             title={tCommon('close')}
           >
-            <X size={16} />
+            <Icon id="ui.close" size={16} />
           </button>
         </span>
       </div>

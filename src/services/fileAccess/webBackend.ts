@@ -148,6 +148,70 @@ function downloadBlob(name: string, content: string | Uint8Array, mime?: string)
   URL.revokeObjectURL(url);
 }
 
+/** Een bestand dat de planner koos, met het handvat als de browser dat geeft (Chromium). */
+export interface PickedWebFile {
+  file: File;
+  handle: FileSystemFileHandle | null;
+}
+
+function pickViaInput(filters: FileFilter[], multiple: boolean): Promise<PickedWebFile[] | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = multiple;
+    input.accept = filters.flatMap((f) => f.extensions.map((e) => `.${e}`)).join(',');
+    input.addEventListener('cancel', () => resolve(null));
+    input.onchange = () => {
+      const files = [...(input.files ?? [])];
+      resolve(files.length > 0 ? files.map((file) => ({ file, handle: null })) : null);
+    };
+    input.click();
+  });
+}
+
+/**
+ * Kiest een of meer bestanden zonder ze te openen (stap 1.8: het bronbestand van een externe relatie).
+ * Chromium: `showOpenFilePicker`, met het handvat erbij, zodat de aanroeper het kan onthouden. Andere
+ * browsers, of een omgeving die de kiezer weigert: `<input type="file">`, zonder handvat. `null` =
+ * geannuleerd. Dezelfde vangnetten als `openFileDialogWeb`.
+ */
+export async function pickFilesWeb(filters: FileFilter[], multiple: boolean): Promise<PickedWebFile[] | null> {
+  if (hasFSA() && !platformRefusesReads && !featurePolicyBlocksFSA()) {
+    try {
+      const handles = await window.showOpenFilePicker!({ multiple, types: toAcceptTypes(filters) });
+      const picked: PickedWebFile[] = [];
+      for (const handle of handles) picked.push({ file: await handle.getFile(), handle });
+      return picked.length > 0 ? picked : null;
+    } catch (err) {
+      if (isAbort(err)) return null;
+      if (isPlatformRefusal(err)) {
+        platformRefusesReads = true;
+        return pickViaInput(filters, multiple);
+      }
+      throw err;
+    }
+  }
+  return pickViaInput(filters, multiple);
+}
+
+/**
+ * Het bestand achter een onthouden handvat, met leesrecht. `prompt: false` (het vangnet bij openen en bij
+ * terugkeer naar het venster): alleen bij `granted`, nooit een vraag op de achtergrond. `prompt: true` (een
+ * klik van de planner): bij `prompt` vraagt de browser toestemming. Geweigerd of niet te vragen ⇒ `null`.
+ */
+export async function fileFromHandleWeb(handle: FileSystemFileHandle, prompt: boolean): Promise<File | null> {
+  const opts: FileSystemHandlePermissionDescriptor = { mode: 'read' };
+  try {
+    let state = await handle.queryPermission?.(opts);
+    if (state === undefined) state = 'granted';
+    if (state === 'prompt' && prompt) state = await handle.requestPermission?.(opts);
+    if (state !== 'granted') return null;
+    return await handle.getFile();
+  } catch {
+    return null;
+  }
+}
+
 // ---- Publieke web-backend ----
 
 export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
@@ -197,6 +261,8 @@ async function saveDataDialogWeb(
         types: toAcceptTypes(filters),
         ...(opts?.preferDownloads ? { startIn: 'downloads' as const } : {}),
       });
+      // #804 fixronde 1: het gekozen bestand vóór `createWritable()` controleren (bijv. de bron van een gebouwmodel).
+      if (await opts?.refuseTarget?.({ kind: 'handle', handle })) return null;
       const writable = await handle.createWritable();
       await writable.write(data as FileSystemWriteChunkType);
       await writable.close();
@@ -215,6 +281,8 @@ async function saveDataDialogWeb(
   }
   // Terugval: download. Geen herbruikbare ref — dit is de enige route die in élke omgeving werkt,
   // dus het bestand raakt hoe dan ook bij de gebruiker. `viaDownload` laat de aanroeper dat zeggen.
+  // Review #872 ronde 7 (Terra): ook na een geweigerde kiezer, dus na een `await`: eerst de controle van de aanroeper.
+  if (opts?.refuseDownload?.()) return null;
   downloadBlob(defaultName, data, opts?.mime);
   return { ref: null, name: defaultName, viaDownload: true };
 }
@@ -300,29 +368,25 @@ export async function saveToRefWithoutPromptWeb(ref: FileRef, content: string): 
  * Gedeelde permissie-dans voor een leesactie op een handle, voor `readFromRefWeb`/
  * `readBytesFromRefWeb`. Die verschillen alleen in hoe ze de uiteindelijke `File` naar het
  * resultaat vertalen (`.text()` vs. `new Uint8Array(await .arrayBuffer())`). `extract`
- * draagt dat verschil; de rest (kind-guard, queryPermission/requestPermission, try/catch → `null`)
+ * draagt dat verschil; de rest (kind-guard, queryPermission/requestPermission en lezen)
  * blijft één plek.
  *
  * Geen `openViaInput`-terugval hier: een handle-ref komt uit "recente bestanden" en `<input
  * type=file>` levert geen handle op om te heronthouden — een nieuwe kiezer zou een compleet
  * andere UX zijn dan "dit recente bestand heropenen". In een omgeving die FSA-reads blokkeert
  * (zie `featurePolicyBlocksFSA`/`platformRefusesReads`) kan een handle-ref dus per definitie
- * nooit gelezen worden; de bestaande stille `null`-afhandeling (aanroepers verwijderen de entry
- * dan gewoon uit de recente-bestandenlijst) is voor dát geval het juiste gedrag.
+ * nooit gelezen worden. Een weigering geeft `null`; een leesfout gaat met zijn reden naar de
+ * aanroeper, zodat Recent de bestaande foutmelding kan tonen zonder de entry te verwijderen.
  */
 async function readRefWeb<T>(ref: FileRef, extract: (file: File) => Promise<T>): Promise<T | null> {
   if (ref.kind !== 'handle') return null;
   const { handle } = ref;
   const opts: FileSystemHandlePermissionDescriptor = { mode: 'read' };
-  try {
-    if ((await handle.queryPermission?.(opts)) !== 'granted') {
-      if ((await handle.requestPermission?.(opts)) !== 'granted') return null;
-    }
-    const file = await handle.getFile();
-    return await extract(file);
-  } catch {
-    return null;
+  if ((await handle.queryPermission?.(opts)) !== 'granted') {
+    if ((await handle.requestPermission?.(opts)) !== 'granted') return null;
   }
+  const file = await handle.getFile();
+  return extract(file);
 }
 
 export function readFromRefWeb(ref: FileRef): Promise<string | null> {

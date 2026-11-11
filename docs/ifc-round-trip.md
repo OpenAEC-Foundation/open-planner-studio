@@ -345,6 +345,29 @@ Toetsen: `check-ifc-dagenmaat.ts` (met `OPS_MINUTE_MODEL_OLD_READER` ook de leze
 `check-minute-model-compat.ts` (de bestanden D0 en D1), blok (18a) van `check-ifc-roundtrip.ts`, 2e van
 `check-ifc-legacy-arity.ts` (de ruwe route) en §7 van `check-ifc-projectdatum-tijd.ts`.
 
+## Letterlijke kalender blijft letterlijk
+
+Bron: besluit Trias (wrakko, 10 november 2026, optie a, uitgebreid: "staat een kalender eenmaal letterlijk in het
+bestand, dan blijft hij letterlijk"), knownbug 1026. Code: `minuteModelWriteView` (`src/services/ifc/minuteModelWrite.ts`,
+optie `keepLiteralCalendarIds`), het documentveld `ifcLiteralCalendarIds` (`src/state/documentContract.ts`) en
+`src/state/savedLiteralCalendars.ts`.
+
+De writer kiest per kalender ankerdatums of echte tijden met `LiteralTimes` (T17). Eén taak met een moment dat niet
+op een anker past, maakt de hele kalender letterlijk. Wiste de planner juist die taak, dan werd de kalender bij
+opslaan weer een ankerkalender: alle eindtijden van taken die niet veranderden gingen als `T07:00:00` het bestand
+in, en een ander programma las ze negen uur te vroeg. Nu levert `readIFC` de kalenders met `LiteralTimes = .T.`
+(`ImportResult.ifcLiteralCalendarIds`), en blijft zo'n kalender bij elke opslag letterlijk. Omdat de writer de
+eigenschap weer schrijft, geldt dat ook na heropenen. Dit wijkt alleen in de veilige richting af van T17: een
+letterlijke kalender schrijft elk moment met zijn echte tijd. Een bestand zonder `LiteralTimes` blijft byte-gelijk.
+Ook een kalender die de app in deze sessie letterlijk naar het eigen bestand schreef (Opslaan, Opslaan als,
+AutoSave naar het bestand, of een IFC-export over dat bestand), blijft letterlijk; anders kwam 1026 binnen één sessie
+terug. Een kalender die letterlijk werd maar nooit zo is opgeslagen, telt niet; een crashherstel-kopie of een export
+naar een ander bestand is geen opslag naar het eigen bestand. Een export telt als het doel niet aantoonbaar een ander
+bestand is (`exportHitsOwnFile`): bij twijfel hooguit een kalender te veel letterlijk, de veilige richting.
+De keuze wordt nooit kleiner: niet in undo, en IFC Toepassen voegt de letterlijke kalenders van de tekst toe. Ze reist
+mee bij documentwissel, kopie, crashherstel en een extensie die het project terugzet.
+Toets: `check-ifc-literaltimes-behoud.ts`.
+
 ## Lopend op 100 %: `IfcTask.Status`
 
 Een P6-taak `TK_Active` op 100 % komt uit de XER-lezer als status STARTED, `completion` 1 en zonder werkelijk

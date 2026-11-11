@@ -4,15 +4,15 @@ import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
+import { Icon } from '@/components/icons';
+import { AppLogo } from '@/components/common/AppLogo';
 import { isMacPlatform } from '@/hooks/keyboard/shortcutFormat';
-import {
-  Undo2, Redo2, Minus, Square, Copy, X, Settings,
-} from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { canRedo, canUndo } from '@/state/sessionHistory';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { canWriteToRefWithoutPrompt, saveTargetRef } from '@/services/fileAccess';
 import { isFeatureEnabled } from '@/utils/featureFlags';
+import { FEEDBACK_AVAILABLE } from '@/utils/buildFlags';
 
 // Het label van de feedback-knop roteert elke 10 minuten door deze drie.
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
@@ -150,7 +150,7 @@ export function TitleBar() {
       )}
       <div ref={leftRef} className="title-bar-left">
         <div className="quick-access-toolbar">
-          <img src={`${import.meta.env.BASE_URL}icon.png`} className="title-bar-app-icon" alt="Open Planner Studio" />
+          <AppLogo size={18} className="title-bar-app-icon" />
           <div className="quick-access-separator" />
 
           {/* Nieuw/Openen/Opslaan staan hier bewust niet (review 2026-10-06): ze staan al op Start en in
@@ -177,7 +177,7 @@ export function TitleBar() {
             disabled={questionPending || !undoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) undo(); }}
           >
-            <Undo2 size={16} />
+            <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" />
           </button>
           <button
             className="quick-access-btn"
@@ -185,7 +185,7 @@ export function TitleBar() {
             disabled={questionPending || !redoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) redo(); }}
           >
-            <Redo2 size={16} />
+            <Icon id="edit.redo" size={16} className="ops-icon-inline-flip" />
           </button>
 
           <div className="quick-access-separator" />
@@ -198,22 +198,28 @@ export function TitleBar() {
             disabled={questionPending}
             onClick={() => setUI({ showSettingsDialog: true })}
           >
-            <Settings size={16} />
+            <Icon id="ui.settings" size={16} />
           </button>
 
-          <div className="quick-access-separator" />
+          {/* Platformbouw (#818): geen feedbackknop; de werkplek heeft er zelf een. Stap 7 van de
+              rondleiding vervalt dan ook (`tourSteps.ts`). */}
+          {FEEDBACK_AVAILABLE && (
+            <>
+              <div className="quick-access-separator" />
 
-          {/* data-tour-anchor (tourstap 7): altijd zichtbaar bovenin,
-              geen prepare() nodig — de "elk wissewasje mag"-afsluitstap van de rondleiding wijst
-              hier direct naar toe i.p.v. naar een externe GitHub-link. */}
-          <button
-            className="title-bar-feedback-btn"
-            data-tour-anchor="feedback-button"
-            disabled={questionPending}
-            onClick={() => setUI({ showFeedbackDialog: true })}
-          >
-            {tCommon(FEEDBACK_LABEL_KEYS[feedbackLabelIdx])}
-          </button>
+              {/* data-tour-anchor (tourstap 7): altijd zichtbaar bovenin,
+                  geen prepare() nodig — de "elk wissewasje mag"-afsluitstap van de rondleiding wijst
+                  hier direct naar toe i.p.v. naar een externe GitHub-link. */}
+              <button
+                className="title-bar-feedback-btn"
+                data-tour-anchor="feedback-button"
+                disabled={questionPending}
+                onClick={() => setUI({ showFeedbackDialog: true })}
+              >
+                {tCommon(FEEDBACK_LABEL_KEYS[feedbackLabelIdx])}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -240,13 +246,13 @@ export function TitleBar() {
       {isTauri() && !isMacPlatform() && (
         <div ref={rightRef} className="window-controls">
           <button className="window-btn" title={tCommon('window.minimize')} onClick={() => { void handleMinimize(); }}>
-            <Minus size={14} />
+            <Icon id="window.minimize" size={14} />
           </button>
           <button className="window-btn" title={maximized ? tCommon('window.restore') : tCommon('window.maximize')} onClick={() => { void handleMaximize(); }}>
-            {maximized ? <Copy size={11} /> : <Square size={11} />}
+            {maximized ? <Icon id="window.restore" size={11} /> : <Icon id="window.maximize" size={11} />}
           </button>
           <button className="window-btn window-btn-close" title={tCommon('close')} onClick={() => { void handleClose(); }}>
-            <X size={14} />
+            <Icon id="window.close" size={14} />
           </button>
         </div>
       )}

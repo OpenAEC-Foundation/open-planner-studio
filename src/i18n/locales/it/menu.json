@@ -140,6 +140,7 @@
     "histogram": "Istogramma",
     "toggleHistogram": "Istogramma",
     "warningsPanel": "Pannello avvisi",
+    "scheduleShiftPanel": "Attività spostate",
     "prevResource": "Precedente",
     "nextResource": "Successiva",
     "leveling": "Livellamento",
@@ -154,6 +155,7 @@
     "barsGroup": "Barre",
     "manageBaselines": "Gestisci baseline…",
     "statusDate": "Data di stato",
+    "statusDateValue": "Data di stato: {{date}}",
     "statusDateClear": "Cancella data di stato",
     "statusDateTime": "Ora della data di stato",
     "statusDateTimeLater": "Ora più tardi",
@@ -218,7 +220,9 @@
     "screenColorsMissingField": "Questo campo non esiste in questo progetto. La categoria di lavoro viene usata temporaneamente.",
     "screenColorsHint": "Fuori dalla modalità Percorso critico, un contorno rosso indica il percorso critico.",
     "addLayout": "Nuovo layout",
-    "toggleRelations": "Linee di relazione"
+    "toggleRelations": "Linee di relazione",
+    "relationFindDependents": "Cerca progetti dipendenti…",
+    "relationFindDependentsHint": "Cerca in una cartella i progetti con una relazione esterna con questa pianificazione."
   },
   "ifc": {
     "title": "Editor IFC",
@@ -236,6 +240,10 @@
     "company": "Azienda",
     "startDate": "Data di inizio",
     "endDate": "Data di fine",
+    "defaultWorkRule": "Tipo di attività predefinito",
+    "defaultWorkRuleHint": "Le attività impostate su ‘Predefinito del progetto’ seguono questa scelta. Le attività con un proprio tipo di attività mantengono la loro scelta.",
+    "anchorsFromOpenDocuments": "Prendi gli ancoraggi dai documenti aperti",
+    "anchorsFromOpenDocumentsHint": "Se un progetto sorgente è aperto con modifiche non salvate, gli ancoraggi provengono da quel documento aperto. Disattivato per impostazione predefinita.",
     "calc": {
       "title": "Calcolo",
       "subtitle": "Opzioni di pianificazione per questo progetto — memorizzate con il file, non con l'app.",
@@ -323,7 +331,7 @@
     "exportTitle": "Esporta",
     "exportSubtitle": "Scegli un formato. Il progetto verrà convertito e salvato.",
     "progressImportCardTitle": "Aggiorna l'avanzamento da un foglio",
-    "progressImportCardDesc": "Leggi un foglio CSV o XLSX restituito e aggiorna completamento, inizio effettivo e fine effettiva.",
+    "progressImportCardDesc": "Leggi un foglio Excel restituito (.xlsx) e aggiorna completamento, inizio effettivo e fine effettiva.",
     "printTitle": "Stampa",
     "printSubtitle": "Apri la schermata del rapporto per l'anteprima di stampa e le impostazioni.",
     "openPrintPreview": "Apri anteprima di stampa",
@@ -359,7 +367,10 @@
     "helpTutorialStep": "Tutorial {{number}} di {{total}}",
     "helpTutorialsEmpty": "Non è ancora installato alcun tutorial. Li installi come estensione dal catalogo.",
     "helpTutorialsInstall": "Installa i tutorial",
-    "helpDraft": "bozza"
+    "helpDraft": "bozza",
+    "helpCopyPrompt": "Copia prompt",
+    "helpPromptCopied": "Copiato. Incolla ora il prompt in Claude.",
+    "helpPromptCopyFailed": "Copiare non è riuscito. Seleziona il testo qui sotto e copialo tu stesso."
   },
   "export": {
     "progressFileSuffix": "avanzamento",
@@ -388,6 +399,9 @@
     "mspdiDesc": "Apribile in Microsoft Project. Struttura WBS completa.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Per Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Per Oracle Primavera P6, come file .xer.",
+    "experimentalBadge": "Sperimentale",
     "profileHint": "Il tuo progetto usa ora il profilo {{name}}. Ti consigliamo di usare il profilo {{target}} per la migliore compatibilità con questo formato di file.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, nello schema IFC del progetto (predefinito IFC 4.3 ADD2). Collegamento 4D con modelli BIM.",
@@ -442,5 +456,18 @@
     "redo": "Ripeti",
     "zoomIn": "Ingrandisci",
     "zoomOut": "Riduci"
+  },
+  "native": {
+    "window": "Finestra",
+    "quit": "Esci da Open Planner Studio",
+    "about": "Informazioni su Open Planner Studio",
+    "services": "Servizi",
+    "hide": "Nascondi Open Planner Studio",
+    "hideOthers": "Nascondi altri",
+    "showAll": "Mostra tutto",
+    "closeWindow": "Chiudi finestra",
+    "cut": "Taglia",
+    "fullscreen": "Schermo intero",
+    "bringAllToFront": "Porta tutto in primo piano"
   }
 }

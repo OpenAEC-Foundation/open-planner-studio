@@ -11,7 +11,7 @@ import {
   type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CircleHelp, Zap } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
@@ -34,6 +34,10 @@ import { Select } from '@/components/common/Select';
 import type { ParsedRelationToken } from '@/engine/taskGrid/relationPlan';
 import type { Task } from '@/types/task';
 import type { GridEditorInputProps } from './GridEditorHost';
+import { useAppStore } from '@/state/appStore';
+import { externalAnchorProvenance } from '@/engine/externalLinks';
+import { formatLocalDateTime } from '@/utils/displayTime';
+import type { TimeNotation } from '@/types/view';
 
 const RELATION_TYPES: readonly ExternalRelationType[] = ['FS', 'SS', 'FF', 'SF'];
 
@@ -86,10 +90,33 @@ function RelationTooltipDetails({ item }: { item: RelationCellItem }) {
   );
 }
 
+/** De herkomst van het anker als tooltipregel (keuze 4); `null` als er niets bekend is. */
+function provenanceText(
+  link: Parameters<typeof externalAnchorProvenance>[0],
+  t: TFunction<'task'>,
+  locale: string,
+  notation: TimeNotation,
+): string | null {
+  const p = externalAnchorProvenance(link);
+  const at = (date: Date) => formatLocalDateTime(date, locale, notation);
+  switch (p.kind) {
+    case 'site': return p.readAt
+      ? t('externalLinks.provenanceSite', { version: p.version, readAt: at(p.readAt) })
+      : t('externalLinks.provenanceSiteNoRead', { version: p.version });
+    case 'file': return p.readAt
+      ? t('externalLinks.provenanceFile', { modified: at(p.modified), readAt: at(p.readAt) })
+      : t('externalLinks.provenanceFileNoRead', { modified: at(p.modified) });
+    case 'read': return t('externalLinks.provenanceRead', { readAt: at(p.readAt) });
+    case 'none': return null;
+  }
+}
+
 function ExternalRelationTooltipContent({ item }: { item: RelationCellItem }) {
-  const { t } = useTranslation('task');
+  const { t, i18n } = useTranslation('task');
+  const timeNotation = useAppStore((s) => s.ui.timeNotation);
   if (item.parsedToken.kind !== 'external') return null;
   const external = item.parsedToken.external;
+  const provenance = item.provenance ? provenanceText(item.provenance, t, i18n.language, timeNotation) : null;
   return (
     <>
       <div className="tooltip-title">{external.sourceRef.taskName || external.sourceRef.taskId}</div>
@@ -101,6 +128,7 @@ function ExternalRelationTooltipContent({ item }: { item: RelationCellItem }) {
         value={external.sourceMissing ? t('externalLinks.sourceMissing') : t('externalLinks.sourceAvailable')}
       />
       {external.sourceRef.filePath && <TooltipRow label={t('externalLinks.sourceFile')} value={external.sourceRef.filePath} />}
+      {provenance && <TooltipRow label={t('externalLinks.provenance')} value={provenance} />}
     </>
   );
 }
@@ -167,7 +195,7 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                 * blijven — de gewone celtooltip wordt eronder onderdrukt (dichtstbijzijnde title wint). */}
               {item.driving && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--driving" title={t('relations.driving')}>
-                  <Zap size={10} aria-label={t('relations.driving')} />
+                  <Icon id="planning.driving" size={10} aria-label={t('relations.driving')} />
                 </span>
               )}
               {item.kind === 'internal' && item.driving === undefined && (
@@ -178,12 +206,12 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                   aria-label={t('properties.drivingUnknown')}
                   style={{ color: 'var(--theme-text-muted)' }}
                 >
-                  <CircleHelp size={10} aria-hidden />
+                  <Icon id="planning.driving-unknown" size={10} aria-hidden />
                 </span>
               )}
               {item.warnings.length > 0 && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--warning" title={relationWarningTexts(item, t).join(' · ')}>
-                  <AlertTriangle size={10} aria-label={t('relations.warnings')} />
+                  <Icon id="status.warning" size={10} aria-label={t('relations.warnings')} />
                 </span>
               )}
             </span>
@@ -413,7 +441,7 @@ export function RelationCellEditor({
                   placeholder="0d"
                   onChange={event => replaceToken(index, { ...token, lagText: event.currentTarget.value })}
                 />
-                <button type="button" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+                <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
                 {focusedToken === index && sentenceFor(token.relType, relationSentenceName(task ?? { wbsCode: token.wbsCode }))}
               </div>
             );
@@ -465,7 +493,7 @@ export function RelationCellEditor({
                   if (lag) replaceToken(index, { ...token, external: { ...token.external, lag } });
                 }}
               />
-              <button type="button" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+              <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
               {focusedToken === index && sentenceFor(
                 token.external.relType,
                 token.external.sourceRef.taskName || token.external.sourceRef.taskId,

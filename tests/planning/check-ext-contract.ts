@@ -142,6 +142,8 @@ const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
   'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish', 'curveValues',
   // taaktypes-etappe (spec §4.3): de drie optionele werkvelden
   'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
+  // kostenresource (#815): het vaste bedrag
+  'costAmount',
 ] as const);
 
 // ── (c) Interne velden die BEWUST niet oversteken ────────────────────────────
@@ -158,7 +160,13 @@ const NIET_PUBLIEK = {
   project: ['companyId', 'companyName', 'ifcSchema', 'ifcSchemaUnconfirmed',
     // P6 Project-ID van een P6 XML-import (eigenaarsbesluit 2026-10-13): bronidentiteit voor de
     // P6-export, geen extensie-invoer. `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
-    'p6ProjectCode'] as readonly string[],
+    'p6ProjectCode',
+    // De map met afhankelijke projecten (stap 1.11): een pad op deze computer, geen planningsdata.
+    // `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
+    'dependentProjectsFolder',
+    // Het vinkje *Ankers uit geopende documenten halen* (stap 1.7): een instelling van het afhankelijke project,
+    // geen planningsdata. `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
+    'anchorsFromOpenDocuments'] as readonly string[],
   // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
   // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
   calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
@@ -302,6 +310,8 @@ const VOL_PROJECT = {
   ifcSchema: 'IFC4',
   ifcSchemaUnconfirmed: 'IFC4',
   p6ProjectCode: 'OZB-05',
+  dependentProjectsFolder: '/projecten/Zuidas',
+  anchorsFromOpenDocuments: true,
 } satisfies Required<Project>;
 
 const VOL_CALENDAR = {
@@ -374,7 +384,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0;
   // Help & begeleiding (`api.help.*`, permissie `help`) is de volgende MINOR ⇒ 1.4.0
   // (tests/planning/check-ext-help.ts).
-  eq('C8-04 contractversie 1.5.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.5.0');
+  eq('C8-04 contractversie 1.6.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix + 1.5.0 selectie + 1.6.0 kosten)', EXTENSION_API_VERSION, '1.6.0');
   eq('C8 selectie-API vereist minor 1.5 op oudere host', checkApiCompatibility('1.5', '1.4.1').ok, false);
   eq('C8 oudere extensie blijft compatibel', checkApiCompatibility('1.4', EXTENSION_API_VERSION).ok, true);
   // Host-events horen bij het contract (namen via `sdk.hostEvents`). `tutorialRequested` kwam erbij
@@ -481,6 +491,7 @@ const VOL_ASSIGNMENT = {
   workWindowStart: '2026-06-01T08:00', workWindowFinish: '2026-06-10T17:00',
   curveValues: [0, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5],
   plannedWorkMinutes: 4800, actualWorkMinutes: 1200, remainingWorkMinutes: 3000,
+  costAmount: 1250.5,
 } satisfies Required<ResourceAssignment>;
 
 // ── 1. `toExt*` laat geen contractveld vallen ────────────────────────────────

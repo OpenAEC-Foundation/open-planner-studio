@@ -5,9 +5,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Plus, RotateCcw, Search } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { TASK_COLUMN_CATEGORY_ORDER } from '@/engine/taskGrid/taskColumnRegistry';
 import { recentAvailableTaskColumnIds } from '@/engine/taskGrid/preferences';
@@ -84,6 +85,24 @@ export interface ColumnChooserLabels {
   resetDefault: string;
 }
 
+/** De lintknop Kolommen (Tabel-tab, `data-ops-ribbon-item="tableColumns"`) zet de kiezer van de Tabel open
+ *  en dicht. Een klik daarop is dus geen klik naast de kiezer. */
+export const COLUMNS_RIBBON_TOGGLE_SELECTOR = '[data-ops-ribbon-item="tableColumns"]';
+
+/**
+ * Een knop met tekst in plaats van het plusje in de tabelkop: het Rapport-tabblad opent dezelfde kiezer met
+ * "Kolom toevoegen" boven zijn kolomlijst (#817). Zonder deze prop blijft de kiezer precies zoals in de tabel.
+ */
+export interface ColumnChooserTrigger {
+  /** Klasse van de omhulling, in plaats van de vaste plek rechts in de tabelkop. */
+  anchorClassName: string;
+  className: string;
+  content: ReactNode;
+  disabled?: boolean;
+  /** Extra `data-*`-attributen op de knop (voor tests). */
+  data?: Record<`data-${string}`, string | boolean>;
+}
+
 export interface ColumnChooserProps {
   options: readonly TaskGridColumnOption[];
   recentIds: readonly TaskColumnId[];
@@ -97,6 +116,11 @@ export interface ColumnChooserProps {
   resetDisabled: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Selector van een knop buiten de tabel die de kiezer ook open en dicht zet (de lintknop
+   *  Kolommen). Een klik daarop telt niet als klik ernaast; die knop sluit de kiezer zelf. */
+  externalToggleSelector?: string;
+  /** Zie `ColumnChooserTrigger`. */
+  trigger?: ColumnChooserTrigger;
 }
 
 /**
@@ -134,6 +158,8 @@ export function ColumnChooser({
   resetDisabled,
   open: controlledOpen,
   onOpenChange,
+  externalToggleSelector,
+  trigger: triggerSpec,
 }: ColumnChooserProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -159,7 +185,9 @@ export function ColumnChooser({
     if (restoreFocus) nextFrame(() => triggerRef.current?.focus());
   };
 
-  useClickOutside(triggerContainerRef, () => close(true), open, { escape: true, extraRef: panelRef });
+  useClickOutside(triggerContainerRef, () => close(true), open, {
+    escape: true, extraRef: panelRef, ignoreSelector: externalToggleSelector,
+  });
 
   useLayoutEffect(() => {
     if (!open) {
@@ -253,7 +281,7 @@ export function ColumnChooser({
           onClick={() => choose(item)}
         >
           <span className="task-grid-column-chooser-check" aria-hidden="true">
-            {item.selected ? <Check size={13} /> : null}
+            {item.selected ? <Icon id="status.column-present" size={13} /> : null}
           </span>
           <span>{item.label}</span>
         </button>
@@ -284,7 +312,7 @@ export function ColumnChooser({
           </section>
         )}
         <label className="task-grid-column-chooser-search">
-          <Search size={14} aria-hidden="true" />
+          <Icon id="view.search" size={14} aria-hidden="true" />
           <input
             ref={searchRef}
             type="search"
@@ -316,7 +344,7 @@ export function ColumnChooser({
                 >
                   <span>{categoryLabel}</span>
                   <span className="task-grid-column-chooser-category-count">{group.items.length}</span>
-                  <ChevronDown size={14} aria-hidden="true" data-expanded={expanded ? 'true' : 'false'} />
+                  <Icon id="tree.collapse" size={14} aria-hidden="true" data-expanded={expanded ? 'true' : 'false'} />
                 </button>
                 {expanded && itemList(group.items, `category:${group.category}`)}
               </section>
@@ -330,7 +358,7 @@ export function ColumnChooser({
             disabled={resetDisabled}
             onClick={reset}
           >
-            <RotateCcw size={13} aria-hidden="true" />
+            <Icon id="table.columns-reset" size={13} aria-hidden="true" />
             <span>{labels.resetDefault}</span>
           </button>
         </div>
@@ -340,17 +368,19 @@ export function ColumnChooser({
     : null;
 
   return (
-    <div ref={triggerContainerRef} className="task-grid-column-chooser-anchor">
+    <div ref={triggerContainerRef} className={triggerSpec?.anchorClassName ?? 'task-grid-column-chooser-anchor'}>
       <button
         ref={triggerRef}
         type="button"
-        className="task-grid-add-column"
-        aria-label={labels.addColumn}
+        className={triggerSpec?.className ?? 'task-grid-add-column'}
+        aria-label={triggerSpec ? undefined : labels.addColumn}
         aria-haspopup="dialog"
         aria-expanded={open}
+        disabled={triggerSpec?.disabled}
         onClick={openChooser}
+        {...triggerSpec?.data}
       >
-        <Plus size={15} aria-hidden="true" />
+        {triggerSpec ? triggerSpec.content : <Icon id="table.column-add-menu" size={15} aria-hidden="true" />}
       </button>
       {panel}
     </div>

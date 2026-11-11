@@ -236,4 +236,24 @@ test('manage_assignments: add met remainingWorkMinutes zet het werk in dezelfde 
   assert(!store.getState().assignments.some((a) => a.taskId === e), 'geen toewijzing aangemaakt bij weigering');
 });
 
+
+// Kostenresource (issue #815): stuurt de duur nooit, ook niet onder FIXED_WORK; nivelleren weigert hem.
+test('manage_assignments: kostenresource erbij/eraf onder FIXED_WORK laat duur en werk staan; level weigert COST', async () => {
+  const { t, r } = seed();
+  store.getState().setTaskWorkRule(t, 'FIXED_WORK');
+  const workBefore = asg(t, r).remainingWorkMinutes;
+  const cost = store.getState().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
+  okData(await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: t, resourceId: cost, costAmount: 500 }] }));
+  assertEq(task(t).time.scheduleDuration, 4, 'kosten erbij: duur blijft 4');
+  assertEq(asg(t, r).remainingWorkMinutes, workBefore, 'kosten erbij: werk van de werkresource blijft');
+  okData(await call('planner_manage_assignments', { actions: [{ action: 'remove', assignmentId: asg(t, cost).id }] }));
+  assertEq(task(t).time.scheduleDuration, 4, 'kosten eraf: duur blijft 4');
+  let refused = '';
+  try {
+    const res = await call('planner_level_resources', { resourceIds: [cost] });
+    refused = res.ok ? JSON.stringify(rejections(res)) : res.error;
+  } catch (e) { refused = e instanceof Error ? e.message : String(e); }
+  assert(/COST/.test(refused), `nivelleren op een COST-id geweigerd: ${refused}`);
+});
+
 await run();

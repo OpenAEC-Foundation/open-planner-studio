@@ -3,10 +3,14 @@
 // contourdialoog telt 50 u, dus hoort het paneel 2.500 te tonen — vroeger 2.000 (40 u, de uren per
 // dag van de projectkalender). Fixture en navigatie via de brug; de contourdialoog opent met een
 // echte klik, beide getallen worden uit de gerenderde DOM gelezen. Headless: check-resource-cost-hours.ts.
+// Kostenresource (#815): in dezelfde route wordt een kostenresource met een echte klik toegewezen en krijgt
+// hij via het bedragveld een bedrag (Enter); de kolom Totaal toont dan de som. Headless: check-cost-resource.ts.
+// De somregel onderaan staat onder de kolom Totaal, niet een kolom ernaast. De tooltip van Totaal zegt bij
+// een kostenresource dat het de som van de bedragen is, bij een gewone resource uren × tarief.
 import { expect, test } from './fixtures/ops';
 
 test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een taakkalender met andere uren/dag', async ({ page, ops: _ops }) => {
-  const { resourceId } = await page.evaluate(() => {
+  const { resourceId, costId, taskId } = await page.evaluate(() => {
     const g = () => window.__OPS__!.store.getState();
     g().setProject({ startDate: '2026-06-01' });
     g().setViewStartDate('2026-06-01');
@@ -18,11 +22,12 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
     g().updateTask(taskId, { time: { ...t.time, scheduleDuration: 5, scheduleStart: '2026-06-01', earlyStart: '2026-06-01' } });
     g().setTaskCalendar(taskId, longCal);
     const resourceId = g().addResource({ name: 'Timmerman', type: 'LABOR', description: '', maxUnits: 2, costPerHour: 50 });
+    const costId = g().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
     g().assignResource(taskId, resourceId, 1);
     g().runCPM();
     g().setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
     g().selectTask(taskId);
-    return { resourceId };
+    return { resourceId, costId, taskId };
   });
 
   // Contourdialoog: echte klik op de toewijzing in het eigenschappenpaneel.
@@ -36,6 +41,29 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 
+  // Kostenresource: toewijzen via de keuzelijst, bedrag typen en Enter. Geen werkveld, geen curve.
+  const add = page.locator('[data-ops-assignment-add] button').first();
+  await add.click();
+  await page.getByRole('listbox').locator(`[data-value="${costId}"]`).click();
+  const costOf = () => page.evaluate(([t, r]) => window.__OPS__!.store.getState().assignments
+    .find(a => a.taskId === t && a.resourceId === r) ?? null, [taskId, costId] as const);
+  await expect.poll(async () => (await costOf())?.unitsPerDay).toBe(1);
+  const costRow = page.locator(`[data-ops-assignment-row="${(await costOf())!.id}"]`);
+  const amount = costRow.locator('input.assignment-units');
+  await amount.click();
+  await amount.fill('1250,5');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await costOf())?.costAmount).toBe(1250.5);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  await costRow.locator('[data-ops-assignment-expand]').click();
+  await expect(costRow.locator('[data-ops-assignment-curve]')).toHaveCount(0);
+  await expect(costRow.locator('[data-ops-assignment-contour]')).toHaveCount(0);
+  // Ctrl+Z zet het lege bedrag terug; Ctrl+Y weer 1250,5.
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await costOf())?.costAmount ?? null).toBeNull();
+  await page.keyboard.press('Control+y');
+  await expect.poll(async () => (await costOf())?.costAmount).toBe(1250.5);
+
   // Resourcepaneel, Projectweergave.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({
     activeRibbonTab: 'resources', showResourcePanel: true, resourcePanelDocked: false, resourcesView: 'project',
@@ -44,4 +72,22 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
   await expect(total).toBeVisible();
   // Alleen de cijfers: 2.500,00 / 2,500.00 ⇒ "250000", los van de taal van de runner.
   await expect.poll(async () => (await total.textContent())?.replace(/\D/g, '')).toBe('250000');
+  // Kostenresource: Totaal = de som van de bedragen (1250,50).
+  const costTotal = page.locator(`[data-ops-resource-total="${costId}"]`);
+  await expect.poll(async () => (await costTotal.textContent())?.replace(/\D/g, '')).toBe('125050');
+  // De tooltip van Totaal: een kostenresource telt bedragen op, een gewone resource uren × tarief.
+  await expect(costTotal).toHaveAttribute('title', /^(Som van de bedragen op alle toewijzingen|Sum of the amounts on all assignments)$/);
+  await expect(total).toHaveAttribute('title', /^(Belaste eenheden × uren\/dag × tarief|Loaded units × hours\/day × rate) \((herbereken met F5|recalculate with F5)\)$/);
+  // De somregel staat onder de kolom Totaal (vroeger één kolom te ver links, onder Tarief/uur):
+  // dezelfde linker- en rechterrand als de kop en als het totaal per resource. Som: 2.500 + 1.250,50.
+  const grand = page.locator('[data-ops-resource-grand-total]');
+  await expect.poll(async () => (await grand.textContent())?.replace(/\D/g, '')).toBe('375050');
+  const head = await page.locator('[data-ops-resource-total-head]').boundingBox();
+  const rowBox = await total.boundingBox();
+  const sum = await grand.boundingBox();
+  expect(head && rowBox && sum).toBeTruthy();
+  for (const box of [rowBox!, sum!]) {
+    expect(Math.abs(box.x - head!.x)).toBeLessThan(2);
+    expect(Math.abs(box.x + box.width - (head!.x + head!.width))).toBeLessThan(2);
+  }
 });

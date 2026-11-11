@@ -67,6 +67,8 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 
 **Tasks that do not shift.** A task that has already started or is finished never shifts. Its load does count. Milestones and phases do not shift either. Tasks without an assignment to a ticked resource only move if a predecessor shifts. A task with priority 1000 also follows its predecessors.
 
+**Cost resources do not count.** A cost resource has no load, is never overallocated and is not in the histogram or the leveling window.
+
 **Material is not leveled.** If a material resource asks more than its *Max units* on a day, it does count as overallocated in *Overallocation*, but it is not in the leveling window.
 
 **Leveling does not adapt.** The delays stay as they were calculated. If you change a task's duration later, a leveled task stays where it is, even if that place is no longer needed. Level again then.

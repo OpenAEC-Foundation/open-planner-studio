@@ -17,7 +17,9 @@ export type XerWriteLossCode =
   | 'levelingDelays' | 'splits' | 'percentLags' | 'elapsedLags' | 'summaryRelations'
   | 'summaryAssignments' | 'summaryConstraints' | 'resourceTypes' | 'libraryLinks' | 'holidayNames' | 'noteStatus'
   | 'truncatedNames' | 'changedIds' | 'nonLatinText' | 'projectDetails' | 'schedulingRules'
-  | 'summaryNotes' | 'priorities' | 'calendarKinds' | 'durationMilestones' | 'mandatoryMilestones';
+  | 'summaryNotes' | 'priorities' | 'calendarKinds' | 'durationMilestones' | 'mandatoryMilestones'
+  // Kostenresources met hun bedragen (issue #815): P6 kent geen kostenresource.
+  | 'costResources';
 
 export interface XerWriteLoss {
   readonly code: XerWriteLossCode;
@@ -60,5 +62,5 @@ export const LOSS_ORDER: readonly XerWriteLossCode[] = [
   'elapsedDurations', 'manualTasks', 'durationMilestones', 'mandatoryMilestones', 'levelingDelays', 'splits', 'deadlines', 'externalLinks',
   'activityCodes', 'customFields', 'customTaskTypes', 'taskCategories', 'priorities', 'taskDescriptions',
   'summaryNotes', 'noteStatus',
-  'resourceTypes', 'libraryLinks', 'holidayNames', 'projectDetails', 'truncatedNames', 'changedIds', 'nonLatinText',
+  'resourceTypes', 'costResources', 'libraryLinks', 'holidayNames', 'projectDetails', 'truncatedNames', 'changedIds', 'nonLatinText',
 ];

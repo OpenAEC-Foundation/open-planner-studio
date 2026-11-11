@@ -8,7 +8,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve } from '@/types/resource';
+import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve, clearCostResourceFields, normalizeAssignmentForResource, type ResourceType } from '@/types/resource';
 import { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile, isIfcSchemaId, type IfcSchemaId } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException, type WorkTimeBands } from '@/types/calendar';
 import { DEFAULT_CALENDAR_ID, createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -20,15 +20,21 @@ import { generateId } from '@/utils/id';
 import { formatInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
+import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
+import { indexOfStepDataSection, startsWithStepHeader, STEP_HEADER } from './stepDataSection';
+import { stepFileGrammar } from './stepFileGrammar';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
+import { LAG_SLOT, lagValueSlot } from './ifcLagTimeSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
+import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
-  DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
+  DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
 import {
-  OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
+  OPS_LEGACY_LITERAL_APP_VERSION, PSET, PROP, PER_TASK_PSET_BY_NAME, XER_ARCHIVE_CHUNK, isXerArchiveChunkName, xerArchiveChunkName,
+  type XerArchiveChunkPrefix, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
 } from './ifcPsets';
 import {
   DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
@@ -107,6 +113,21 @@ export interface IfcReadOptions {
    * `bytes-missing` ("openen met melding").
    */
   resolveXerArchiveReference?: (sha256: string) => Uint8Array | undefined;
+  // De drie opties hieronder geeft alleen de IFC-bytes-route (#804 fase 1a, `foreign/ifcBytesRoute.ts`, achter de flag
+  // `ifcForeignContent`). Zonder deze opties leest de lezer precies zoals vóór #804.
+  /** Codering per stuk (§4.9 punt 5): de lezer decodeert elke entiteit waarvan het STEP-id hier NIET in staat. De keuze
+   *  voor het hele bestand (`stringsAreStepEncoded`) vervalt dan. */
+  literalStepIds?: ReadonlySet<string>;
+  /** De taken van `selectPlanning` (§4.2 stap 1) als STEP-ids. De lezer leest precies deze taken, in plaats van zelf de
+   *  baselinebomen uit te sluiten. Zo kunnen indeling en lezer niet uiteenlopen (afwijking 6 van fase 0). */
+  planningTaskStepIds?: ReadonlySet<string>;
+  /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
+   *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
+  stepIdsOut?: Record<string, string>;
+  /** Het `IfcProject` is niet P (§4.4): naam, omschrijving, auteur en bedrijf in `OPS_ProjectSettings` winnen dan van het
+   *  project en de eerste owner history. Zonder deze optie leest de lezer die vier properties niet, zoals main
+   *  (fixronde 1 van #867, BLOKKEERT 1). */
+  projectDataInSettings?: boolean;
 }
 
 interface StepEntity {
@@ -125,7 +146,6 @@ interface StepEntity {
 // inhoudelijke drempel (zoals "minstens één taak"): een leeg-maar-echt project — verse wizard met
 // kalender en resources — is legitiem, en zou anders bij crashherstel als onbruikbaar worden
 // weggegooid.
-const STEP_HEADER = 'ISO-10303-21;';
 const STEP_TERMINATOR = 'END-ISO-10303-21;';
 /** Hoeveel tekens vanaf het EIND we afzoeken naar de sluitmarkering (die staat er per definitie). */
 const TERMINATOR_PROBE = 4096;
@@ -139,7 +159,8 @@ export function assertIfcIntegrity(content: string): void {
   // megabytes groot; `trimStart()` zou er een kopie van maken).
   let i = content.charCodeAt(0) === 0xfeff ? 1 : 0;
   while (i < content.length && isSpaceCode(content.charCodeAt(i))) i++;
-  if (content.slice(i, i + STEP_HEADER.length).toUpperCase() !== STEP_HEADER) {
+  // De kopregel staat in `stepDataSection.ts`: de doelcontrole (`targetModelScan.ts`) gebruikt dezelfde (fixronde 4).
+  if (!startsWithStepHeader(content, i)) {
     throw new IfcParseError(
       'not-step',
       `Geen IFC/STEP-bestand: de verplichte kop '${STEP_HEADER}' ontbreekt.`,
@@ -175,17 +196,26 @@ export function readIFC(
 ): ImportResult {
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
+  const buildingModel = () => new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
+    'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
+  // #870 (besluit Trias, wrakko 10 november 2026): de grammatica van ISO 10303-21 (`stepFileGrammar.ts`) leest het hele
+  // bestand. Ziet zij ergens een modeltype, dan weigeren: ook in een tweede datasectie, in een complexe instantie, na
+  // een string die `parseSTEP` anders leest (knownbug 1050), en vóór het punt waar het bestand breekt. Verder opent
+  // `readIFC` precies zoals main: de grammatica bepaalt niet waar de datasectie begint of eindigt.
+  if (stepFileGrammar(content).model) throw buildingModel();
   const entities = parseSTEP(content);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
   // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
   if (entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
-    throw new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
-      'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
+    throw buildingModel();
   }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
-  if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
+  if (options.literalStepIds) {
+    const literal = options.literalStepIds;
+    decodeEntityStrings(entities.filter(e => !literal.has(e.id)));
+  } else if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
     entityMap.set(e.id, e);
@@ -233,10 +263,13 @@ export function readIFC(
   const ownAuthored = isOpsAuthoredIfc(entities);
   const importPristine = ownAuthored ? extractImportPristine(entities, entityMap) : undefined;
   const recordedSourceFormat = ownAuthored ? extractRecordedSourceFormat(entities, entityMap) : undefined;
+  const recoveryForeignSource = ownAuthored ? extractRecoveryForeignSource(entities, entityMap) : undefined;
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
-  const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
+  const baselineTaskStepIds = options.planningTaskStepIds
+    ? tasksOutsideSelection(entities, options.planningTaskStepIds)
+    : collectBaselineTaskStepIds(entities);
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
   );
@@ -246,8 +279,11 @@ export function readIFC(
   // Intern id → GlobalId per object uit dit bestand (zie `collectIfcGlobalIds`); de extractors
   // hieronder vullen hem terwijl ze id's uit GlobalIds afleiden.
   const guidLog: Record<string, string> = {};
+  // Alleen met `stepIdsOut`: dezelfde sleutels als `guidLog`, met het STEP-id (ook zonder GlobalId).
+  const stepLog: Record<string, string> | undefined = options.stepIdsOut ? {} : undefined;
   const sequences = extractSequences(
     entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
+    stepLog,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
@@ -259,7 +295,7 @@ export function readIFC(
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
   const { calendars: resourceCalendars, idByGuid: calendarIdByGuid } = extractCalendarLibrary(
-    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog,
+    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog, stepLog,
   );
   // De PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
   // 'm expliciet uit); haar GUID→id hoort wel in dezelfde vertaaltabel. Zelfde "eerste IFCWORKCALENDAR
@@ -277,6 +313,9 @@ export function readIFC(
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
+  // Kostenresources (issue #815): geen tarief/kalender/eenheid/ploeg en toewijzingen zonder werkvelden
+  // (een bestand van een andere schrijver of een handmatige bewerking kan ze toch dragen).
+  normalizeCostResources(resources, assignments);
   // task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
   // van waarheid voor de taak↔resource-koppeling in het bestand (geen dubbele opslag) — de reader
   // projecteert ze terug op elke taak. Deterministische, gede-dupliceerde volgorde (eerste-zien in
@@ -287,6 +326,7 @@ export function readIFC(
   const ifcSchemaMarkers: IfcSchemaMarkers = { confirmed: false };
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut, projectStartRecorded, ifcSchemaMarkers,
+    options.projectDataInSettings === true,
   );
   // De schemavraag bij opslaan (besluit eigenaar 2026-10-13): staat er een andere kop dan de standaard
   // en heeft de gebruiker nog niet gekozen, dan vraagt het eerste expliciete opslaan het eerst.
@@ -380,11 +420,16 @@ export function readIFC(
   }
 
   const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
+  if (options.stepIdsOut && stepLog) {
+    Object.assign(options.stepIdsOut, collectIfcStepIds(entities, taskStepIdMap, resourceStepIdMap, project.id, calendar.id, stepLog));
+  }
 
-  const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === 'OPS_Project')
+  const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === PSET.Project)
     .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
-    .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === 'TimeModel')
+    .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === PROP.Project.TimeModel)
     .map(e => parseTypedValue(e.args[2] || '')).find((value): value is string => typeof value === 'string');
+  // Knownbug 1026: de kalenders met `LiteralTimes = .T.` blijven bij opslaan letterlijk (`DocumentPayload.ifcLiteralCalendarIds`).
+  const ifcLiteralCalendarIds = [...new Set([calendar, ...resourceCalendars].filter(cal => literalTimeCalendars.has(cal)).map(cal => cal.id))];
   return {
     project, calendar, tasks, sequences, resources, assignments,
     ...(timeModel ? { timeModel } : {}),
@@ -402,6 +447,7 @@ export function readIFC(
       : { recordedTimesOrigin: ownAuthored ? 'ifc-own' as const : 'ifc' as const }),
     ...(importPristine !== undefined ? { importPristine } : {}),
     ...(recordedSourceFormat ? { recordedSourceFormat } : {}),
+    ...(recoveryForeignSource ? { recoveryForeignSource } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
     // `xerOrigin` is eerlijk: alleen gezet wanneer er ook echt archiefmetadata (`xer`) is. Een
@@ -410,6 +456,7 @@ export function readIFC(
     ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
     ...(xerArchiveIssue ? { xerArchiveIssue } : {}),
     ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
+    ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
 }
 
@@ -460,6 +507,7 @@ function stableIdFromGuid(
   entity: StepEntity,
   usedIds: Set<string>,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): string {
   const guid = ifcSlotText(entity.args[0]);
   const base = guid ? `${prefix}-ifc-${guid}` : `${prefix}-ifc-step-${entity.id}`;
@@ -467,7 +515,36 @@ function stableIdFromGuid(
   for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
   usedIds.add(id);
   if (guid) guidLog[ifcObjectSeed(kind, id)] = guid;
+  if (stepLog) stepLog[ifcObjectSeed(kind, id)] = entity.id;
   return id;
+}
+
+/**
+ * De kaart domein-id → STEP-id voor de bytes-route (#804 §4.3, `IfcReadOptions.stepIdsOut`). Dezelfde sleutels en
+ * dezelfde keuzes als `collectIfcGlobalIds`: taken uit `taskStepIdMap`, resources uit `resourceStepIdMap`, relaties en
+ * bibliotheekkalenders uit `stepLog`, de projectkalender, het eerste project, het eerste werkplan en het eerste
+ * werkschema dat geen baseline is.
+ */
+function collectIfcStepIds(
+  entities: StepEntity[],
+  taskStepIdMap: ReadonlyMap<string, string>,
+  resourceStepIdMap: ReadonlyMap<string, string>,
+  projectId: string,
+  projectCalendarId: string,
+  stepLog: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const out: Record<string, string> = { ...stepLog };
+  for (const [stepId, taskId] of taskStepIdMap) out[ifcObjectSeed('task', taskId)] = stepId;
+  for (const [stepId, resourceId] of resourceStepIdMap) out[ifcObjectSeed('res', resourceId)] = stepId;
+  const calendar = entities.find(e => e.type === 'IFCWORKCALENDAR');
+  if (calendar) out[ifcObjectSeed('cal', projectCalendarId)] = calendar.id;
+  const proj = entities.find(e => e.type === 'IFCPROJECT');
+  if (proj) out[ifcObjectSeed('proj', projectId)] = proj.id;
+  const plan = entities.find(e => e.type === 'IFCWORKPLAN');
+  if (plan) out[ifcObjectSeed('wp', projectId)] = plan.id;
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
+  if (schedule) out[ifcObjectSeed('ws', projectId)] = schedule.id;
+  return out;
 }
 
 /** Resource-id uit het schrijvende document → ons id. Bestaat een resource met dat id al (een
@@ -568,11 +645,11 @@ function extractXerSourceProjectId(
   // Typisch voor andere IFC-software die de grote archief-pset liet vallen maar de kleine selector
   // meenam: de sporen zijn er, de bronbytes niet.
   if (!archive) xerArchiveError('OPS_XerDocument bestaat zonder OPS_XerSourceArchive', 'bytes-missing');
-  if (JSON.stringify([...props.keys()]) !== JSON.stringify(['ArchiveSha256', 'SourceProjectId'])) {
+  if (JSON.stringify([...props.keys()]) !== JSON.stringify([PROP.XerDocument.ArchiveSha256, PROP.XerDocument.SourceProjectId])) {
     xerArchiveError('OPS_XerDocument-properties zijn niet exact en deterministisch geordend');
   }
-  if (requiredString(props, 'ArchiveSha256') !== archive.sha256) xerArchiveError('selector ArchiveSha256 wijst niet naar het archief', 'hash-mismatch');
-  return requiredString(props, 'SourceProjectId');
+  if (requiredString(props, PROP.XerDocument.ArchiveSha256) !== archive.sha256) xerArchiveError('selector ArchiveSha256 wijst niet naar het archief', 'hash-mismatch');
+  return requiredString(props, PROP.XerDocument.SourceProjectId);
 }
 
 /** Het archief is onbruikbaar ⇒ gestructureerde, interne fout (zie `readXerArchiveOrIssue`).
@@ -626,9 +703,9 @@ function validateArchivePropertyOrder(
     if (position < manifestNames.length) {
       expected = manifestNames[position]!;
     } else if (position < manifestNames.length + chunkCount) {
-      expected = `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+      expected = xerArchiveChunkName(XER_ARCHIVE_CHUNK.bytes, position - manifestNames.length);
     } else {
-      expected = `DiagnosticsChunk${String(position - manifestNames.length - chunkCount).padStart(6, '0')}`;
+      expected = xerArchiveChunkName(XER_ARCHIVE_CHUNK.diagnostics, position - manifestNames.length - chunkCount);
     }
     if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
     position += 1;
@@ -647,7 +724,7 @@ function validateCompactArchivePropertyOrder(
   for (const actual of props.keys()) {
     const expected = position < manifestNames.length
       ? manifestNames[position]!
-      : `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+      : xerArchiveChunkName(XER_ARCHIVE_CHUNK.bytes, position - manifestNames.length);
     if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
     position += 1;
   }
@@ -658,7 +735,7 @@ function validateCompactArchivePropertyOrder(
  *  tekstwaarden laat vallen. Apart van `truncated` (een deel is er nog wel). */
 function assertSourceBytesPresent(props: Map<string, unknown>, chunkCount: number): void {
   if (chunkCount === 0) return;
-  for (const name of props.keys()) if (/^ByteChunk\d{6}$/.test(name)) return;
+  for (const name of props.keys()) if (isXerArchiveChunkName(name, XER_ARCHIVE_CHUNK.bytes)) return;
   xerArchiveError(`manifest belooft ${chunkCount} bronchunk(s), maar er is er geen enkele aanwezig`, 'bytes-missing');
 }
 
@@ -673,10 +750,10 @@ function requiredString(props: Map<string, unknown>, name: string, code: XerArch
   return value;
 }
 
-function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count: number, expectedLength: number): Uint8Array {
+function concatArchiveChunks(props: Map<string, unknown>, prefix: XerArchiveChunkPrefix, count: number, expectedLength: number): Uint8Array {
   const chunks: Uint8Array[] = [];
   for (let index = 0; index < count; index++) {
-    const name = `${prefix}${String(index).padStart(6, '0')}`;
+    const name = xerArchiveChunkName(prefix, index);
     const raw = requiredString(props, name, 'truncated');
     if (index < count - 1 && raw.includes('=')) xerArchiveError(`${name} bevat verboden base64-padding vóór de laatste chunk`);
     let decoded: Uint8Array;
@@ -698,6 +775,9 @@ function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count:
   return output;
 }
 
+/** De propertynamen van `OPS_XerSourceArchive` (register `PROP`), kort voor de lezer van het archief. */
+const XA = PROP.XerSourceArchive;
+
 /** Lees en valideer vóór allocatie de self-contained XER-bronarchiefcontainer; afwezig blijft
  *  legacy-compatibel. Levert de volledige `XerSourceReconstruction`; de schema-1-tak draagt geen vastlegging
  *  (zie de bekende grens bij `XerArchiveReconstructor`) en geeft daar een lege map bij. */
@@ -708,7 +788,7 @@ function extractXerSourceArchive(
 ): XerSourceReconstruction | undefined {
   const props = archiveProps(entities, entityMap, PSET.XerSourceArchive);
   if (!props) return undefined;
-  const schemaVersion = nonNegativeSafeInteger(props.get('SchemaVersion'), 'SchemaVersion', 'schema-version');
+  const schemaVersion = nonNegativeSafeInteger(props.get(XA.SchemaVersion), XA.SchemaVersion, 'schema-version');
   if (schemaVersion === XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION) {
     return extractCompactXerSourceArchive(props, options.reconstructXerArchive);
   }
@@ -716,24 +796,24 @@ function extractXerSourceArchive(
     return extractReferencedXerSourceArchive(props, options);
   }
   if (schemaVersion !== XER_SOURCE_ARCHIVE_SCHEMA_VERSION) xerArchiveError(`onbekend SchemaVersion ${schemaVersion}`, 'schema-version');
-  if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
-  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
-  const chunkSize = nonNegativeSafeInteger(props.get('ByteChunkSize'), 'ByteChunkSize');
+  if (requiredString(props, XA.Format, 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
+  const byteLength = nonNegativeSafeInteger(props.get(XA.ByteLength), XA.ByteLength);
+  const chunkSize = nonNegativeSafeInteger(props.get(XA.ByteChunkSize), XA.ByteChunkSize);
   if (chunkSize !== XER_SOURCE_ARCHIVE_CHUNK_BYTES) xerArchiveError(`ByteChunkSize is niet ${XER_SOURCE_ARCHIVE_CHUNK_BYTES}`);
-  const chunkCount = nonNegativeSafeInteger(props.get('ByteChunkCount'), 'ByteChunkCount');
+  const chunkCount = nonNegativeSafeInteger(props.get(XA.ByteChunkCount), XA.ByteChunkCount);
   if (chunkCount !== Math.ceil(byteLength / chunkSize)) xerArchiveError('ByteChunkCount past niet bij ByteLength', 'truncated');
-  const diagnosticsLength = nonNegativeSafeInteger(props.get('DiagnosticsByteLength'), 'DiagnosticsByteLength');
-  const diagnosticsCount = nonNegativeSafeInteger(props.get('DiagnosticsChunkCount'), 'DiagnosticsChunkCount');
+  const diagnosticsLength = nonNegativeSafeInteger(props.get(XA.DiagnosticsByteLength), XA.DiagnosticsByteLength);
+  const diagnosticsCount = nonNegativeSafeInteger(props.get(XA.DiagnosticsChunkCount), XA.DiagnosticsChunkCount);
   if (diagnosticsCount !== Math.ceil(diagnosticsLength / chunkSize)) xerArchiveError('DiagnosticsChunkCount past niet bij DiagnosticsByteLength', 'truncated');
   const manifestNames = [
-    'SchemaVersion', 'Format', 'ByteLength', 'Sha256', 'Encoding', 'Bom', 'Newline',
-    'ByteChunkSize', 'ByteChunkCount', 'DiagnosticsByteLength', 'DiagnosticsSha256', 'DiagnosticsChunkCount',
+    XA.SchemaVersion, XA.Format, XA.ByteLength, XA.Sha256, XA.Encoding, XA.Bom, XA.Newline,
+    XA.ByteChunkSize, XA.ByteChunkCount, XA.DiagnosticsByteLength, XA.DiagnosticsSha256, XA.DiagnosticsChunkCount,
   ];
   validateArchivePropertyOrder(props, manifestNames, chunkCount, diagnosticsCount);
-  const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
-  const diagnosticBytes = concatArchiveChunks(props, 'DiagnosticsChunk', diagnosticsCount, diagnosticsLength);
-  const sourceHash = requiredString(props, 'Sha256');
-  const diagnosticsHash = requiredString(props, 'DiagnosticsSha256');
+  const sourceBytes = concatArchiveChunks(props, XER_ARCHIVE_CHUNK.bytes, chunkCount, byteLength);
+  const diagnosticBytes = concatArchiveChunks(props, XER_ARCHIVE_CHUNK.diagnostics, diagnosticsCount, diagnosticsLength);
+  const sourceHash = requiredString(props, XA.Sha256);
+  const diagnosticsHash = requiredString(props, XA.DiagnosticsSha256);
   if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) xerArchiveError('Sha256 is ongeldig of past niet bij de bytes', 'hash-mismatch');
   if (!/^[0-9a-f]{64}$/.test(diagnosticsHash) || sha256Hex(diagnosticBytes) !== diagnosticsHash) xerArchiveError('DiagnosticsSha256 is ongeldig of past niet bij de diagnostics', 'hash-mismatch');
   let archiveMetadata: XerArchiveMetadataPayloadV1;
@@ -744,9 +824,9 @@ function extractXerSourceArchive(
     if (error instanceof XerArchiveInvalid) throw error;
     xerArchiveError(`diagnostics/readmodel is ongeldig: ${error instanceof Error ? error.message : 'geen geldige JSON'}`, 'metadata-invalid');
   }
-  const encoding = requiredString(props, 'Encoding');
-  const bom = requiredString(props, 'Bom');
-  const newline = requiredString(props, 'Newline');
+  const encoding = requiredString(props, XA.Encoding);
+  const bom = requiredString(props, XA.Bom);
+  const newline = requiredString(props, XA.Newline);
   if (!(['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'] as readonly string[]).includes(encoding)) xerArchiveError('Encoding is onbekend', 'metadata-invalid');
   if (!(['none', 'utf-8', 'utf-16le', 'utf-16be'] as readonly string[]).includes(bom)) xerArchiveError('Bom is onbekend', 'metadata-invalid');
   if (!(['lf', 'crlf', 'cr', 'mixed', 'none'] as readonly string[]).includes(newline)) xerArchiveError('Newline is onbekend', 'metadata-invalid');
@@ -779,16 +859,16 @@ function extractReferencedXerSourceArchive(
   props: Map<string, unknown>,
   options: IfcReadOptions,
 ): XerSourceReconstruction {
-  if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
-  if (requiredString(props, 'StorageFormat', 'schema-version') !== XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT) {
+  if (requiredString(props, XA.Format, 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
+  if (requiredString(props, XA.StorageFormat, 'schema-version') !== XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT) {
     xerArchiveError('StorageFormat is onbekend', 'schema-version');
   }
-  const expected = ['SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256'];
+  const expected = [XA.SchemaVersion, XA.Format, XA.StorageFormat, XA.ByteLength, XA.Sha256];
   if (JSON.stringify([...props.keys()]) !== JSON.stringify(expected)) {
     xerArchiveError('properties van de archiefverwijzing zijn niet exact en deterministisch geordend');
   }
-  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
-  const sourceHash = requiredString(props, 'Sha256');
+  const byteLength = nonNegativeSafeInteger(props.get(XA.ByteLength), XA.ByteLength);
+  const sourceHash = requiredString(props, XA.Sha256);
   if (!/^[0-9a-f]{64}$/.test(sourceHash)) xerArchiveError('Sha256 is ongeldig', 'hash-mismatch');
   const sourceBytes = options.resolveXerArchiveReference?.(sourceHash);
   if (!sourceBytes) {
@@ -806,21 +886,21 @@ function extractCompactXerSourceArchive(
   props: Map<string, unknown>,
   reconstructXerArchive: XerArchiveReconstructor | undefined,
 ): XerSourceReconstruction {
-  if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
-  if (requiredString(props, 'StorageFormat', 'schema-version') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
+  if (requiredString(props, XA.Format, 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
+  if (requiredString(props, XA.StorageFormat, 'schema-version') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
     xerArchiveError('StorageFormat is onbekend', 'schema-version');
   }
-  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
-  const chunkSize = nonNegativeSafeInteger(props.get('ByteChunkSize'), 'ByteChunkSize');
+  const byteLength = nonNegativeSafeInteger(props.get(XA.ByteLength), XA.ByteLength);
+  const chunkSize = nonNegativeSafeInteger(props.get(XA.ByteChunkSize), XA.ByteChunkSize);
   if (chunkSize !== XER_SOURCE_ARCHIVE_CHUNK_BYTES) xerArchiveError(`ByteChunkSize is niet ${XER_SOURCE_ARCHIVE_CHUNK_BYTES}`);
-  const chunkCount = nonNegativeSafeInteger(props.get('ByteChunkCount'), 'ByteChunkCount');
+  const chunkCount = nonNegativeSafeInteger(props.get(XA.ByteChunkCount), XA.ByteChunkCount);
   if (chunkCount !== Math.ceil(byteLength / chunkSize)) xerArchiveError('ByteChunkCount past niet bij ByteLength', 'truncated');
   const manifestNames = [
-    'SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256', 'ByteChunkSize', 'ByteChunkCount',
+    XA.SchemaVersion, XA.Format, XA.StorageFormat, XA.ByteLength, XA.Sha256, XA.ByteChunkSize, XA.ByteChunkCount,
   ];
   validateCompactArchivePropertyOrder(props, manifestNames, chunkCount);
-  const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
-  const sourceHash = requiredString(props, 'Sha256');
+  const sourceBytes = concatArchiveChunks(props, XER_ARCHIVE_CHUNK.bytes, chunkCount, byteLength);
+  const sourceHash = requiredString(props, XA.Sha256);
   if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) {
     xerArchiveError('Sha256 is ongeldig of past niet bij de bytes', 'hash-mismatch');
   }
@@ -1037,13 +1117,16 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
  * getest in `check-step-strings` (9f–9k).
  */
 function indexOfDataSection(content: string): number {
-  const strict = indexOfCode(content, 'DATA;', 0);
-  if (strict >= 0) return strict;
-  // `i`-vlag: zelfde hoofdletterongevoeligheid als de primaire scan (en als `assertIfcIntegrity`).
-  const anchored = /^[ \t]*DATA;/im.exec(content);
-  return anchored ? anchored.index + anchored[0].toUpperCase().indexOf('DATA;') : -1;
+  // #804 fase 1a, fixronde 4 (eis van Trias): de regels voor beide pogingen staan in `stepDataSection.ts`, zodat de
+  // doelcontrole (`targetModelScan.ts`) als stroom precies dezelfde datasectie vindt. Wijzig ze daar, niet hier.
+  return indexOfStepDataSection(content);
 }
 
+// #804 fase 1a, fixronde 4: de doelcontrole (`foreign/targetModelScan.ts`) volgt `stripStepComments`, deze lus en
+// `readEntity` als stroom van bytes; ze moet "model" zeggen precies als `readIFC` met `building-model` weigert. Delen kon
+// niet zonder deze functies om te bouwen tot een stroomlezer (ze werken op de hele tekst, met terugspringen).
+// `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
+// Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, `ENDSEC;`), wijzig ze daar ook.
 function parseSTEP(content: string): StepEntity[] {
   const entities: StepEntity[] = [];
   // 1. Begin van de datasectie — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee.
@@ -1199,59 +1282,8 @@ function decodeQuotedSegments(arg: string): string {
   return out;
 }
 
-const HEX4 = /^[0-9A-Fa-f]{4}$/;
-const HEX8 = /^[0-9A-Fa-f]{8}$/;
-
-/**
- * STEP-stringinhoud (zonder de omsluitende quotes, `''` al samengevoegd) terug naar tekst:
- * `\\` → `\`, `\X2\hhhh…\X0\` (UTF-16), `\X4\hhhhhhhh…\X0\` (codepunten), `\X\hh` (ISO 8859-1)
- * en `\S\c` (teken + 128). `\Px\` (codetabelkeuze) wordt weggelaten; de lezer neemt voor `\S\`
- * altijd ISO 8859-1 aan. Een onbekende reeks blijft letterlijk staan. Tegenhanger van
- * `encodeStepText` (ifcPsets).
- */
-export function decodeStepText(s: string): string {
-  if (s.indexOf('\\') < 0) return s;
-  let out = '';
-  let i = 0;
-  const n = s.length;
-  while (i < n) {
-    const b = s.indexOf('\\', i);
-    if (b < 0) { out += s.slice(i); break; }
-    out += s.slice(i, b);
-    i = b;
-    if (s.startsWith('\\\\', i)) { out += '\\'; i += 2; continue; }
-    if (s.startsWith('\\X2\\', i) || s.startsWith('\\X4\\', i)) {
-      const width = s[i + 2] === '2' ? 4 : 8;
-      const end = s.indexOf('\\X0\\', i + 4);
-      const hexRun = end >= 0 ? s.slice(i + 4, end) : '';
-      const pattern = width === 4 ? HEX4 : HEX8;
-      let decoded = '';
-      let valid = end >= 0 && hexRun.length % width === 0;
-      for (let k = 0; valid && k < hexRun.length; k += width) {
-        const h = hexRun.slice(k, k + width);
-        if (!pattern.test(h)) { valid = false; break; }
-        const v = parseInt(h, 16);
-        if (width === 8 && v > 0x10FFFF) { valid = false; break; }
-        decoded += width === 4 ? String.fromCharCode(v) : String.fromCodePoint(v);
-      }
-      if (valid) { out += decoded; i = end + 4; continue; }
-    } else if (s.startsWith('\\X\\', i) && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 3, i + 5))) {
-      out += String.fromCharCode(parseInt(s.slice(i + 3, i + 5), 16));
-      i += 5;
-      continue;
-    } else if (s.startsWith('\\S\\', i) && i + 3 < n) {
-      out += String.fromCharCode(s.charCodeAt(i + 3) + 128);
-      i += 4;
-      continue;
-    } else if (s[i + 1] === 'P' && s[i + 3] === '\\' && /[A-I]/.test(s[i + 2] ?? '')) {
-      i += 4;
-      continue;
-    }
-    out += '\\';
-    i++;
-  }
-  return out;
-}
+// `decodeStepText` woont in `./stepText` (bladmodule, gedeeld met de scanner in de Worker van #804).
+export { decodeStepText } from './stepText';
 
 function stripQuotes(s: string): string {
   if (s.startsWith("'") && s.endsWith("'")) {
@@ -1337,7 +1369,13 @@ function parseDurationDays(s: string, hoursPerDay: number): number {
  * Geen dag-component vóór `T` ⇒ 0.
  */
 function isoDurationLeadingDaysMinutes(iso: string): number {
-  const MIN_PER_CALENDAR_DAY = 1440;
+  return Math.round(isoDurationLeadingDays(iso) * 1440);
+}
+
+/** Het dag-deel vóór `T` als aantal dagen (met teken, mag een breuk zijn), of 0. De lag rekent het om als
+ *  kalendertijd (`isoDurationLeadingDaysMinutes`); de taakduur met de minuten per dag van de taak
+ *  (`applyTaskTimeRecords`, knownbug 1027). */
+function isoDurationLeadingDays(iso: string): number {
   const clean = iso.trim();
   const neg = clean.startsWith('-');
   const tIdx = clean.indexOf('T');
@@ -1349,7 +1387,7 @@ function isoDurationLeadingDaysMinutes(iso: string): number {
   if (!dayMatch) return 0;
   const days = parseFloat(dayMatch[1]);
   if (!Number.isFinite(days)) return 0;
-  return Math.round((neg && days > 0 ? -days : days) * MIN_PER_CALENDAR_DAY);
+  return neg && days > 0 ? -days : days;
 }
 
 function parseTaskType(s: string): TaskType {
@@ -1584,9 +1622,23 @@ function applyTaskTimeRecords(
     if (!e) continue;
     const t = task.time;
     const durations = readDayMeasureDurations(task);
-    const slotMinutes = (index: number) => isoDurationToMinutes(stripQuotes(e.args[index] || ''));
     const effCal = resolveCalendar(task.calendarId, resourceCalendars, projectCal);
     const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(effCal));
+    // Knownbug 1027: een duur met dagen vóór `T` (`P2DT12H`, alleen uit bestanden van andere programma's; de eigen
+    // writer schrijft dat nooit). `isoDurationToMinutes` leest alleen het deel na `T`; de dagen tellen hier mee met de
+    // minuten per dag van de taak: de werktijd per dag van haar kalender (`WORKTIME`), of 1440 (`ELAPSEDTIME`). Zo is
+    // `P2D` gelijk aan `P2DT0H`. Het sub-dag-signaal van `applyHourModeIFC` blijft het deel na `T`, zoals vóór de fix.
+    const slotDays = (index: number) => isoDurationLeadingDays(stripQuotes(e.args[index] || ''));
+    const slotMinutes = (index: number) => {
+      const minutes = isoDurationToMinutes(stripQuotes(e.args[index] || ''));
+      const days = minutes === null ? 0 : slotDays(index);
+      return minutes === null || days === 0 ? minutes : minutes + Math.round(days * minutesPerDay);
+    };
+    if (t.durationUnit === 'hours' && slotDays(TASKTIME_SLOT.scheduleDuration) !== 0) {
+      const minutes = slotMinutes(TASKTIME_SLOT.scheduleDuration)!;
+      t.durationMinutes = minutes;
+      if (effHoursPerDay(effCal) > 0) t.scheduleDuration = hourTaskScheduleDuration(minutes, effCal);
+    }
 
     const durationRecord = durations?.ScheduleDuration;
     if (durationRecord && !task.isMilestone && slotMinutes(TASKTIME_SLOT.scheduleDuration) === durationRecord[1]) {
@@ -1596,6 +1648,11 @@ function applyTaskTimeRecords(
     }
 
     const restMinutes = slotMinutes(TASKTIME_SLOT.remainingTime);
+    if (t.durationUnit === 'hours' && restMinutes !== null && slotDays(TASKTIME_SLOT.remainingTime) !== 0) {
+      // De rest van een urentaak las `readRemainingMinutes` zonder de dagen.
+      t.remainingMinutes = restMinutes;
+      t.remainingTime = hourRemainingDays(t, restMinutes);
+    }
     const restRecord = durations?.RemainingTime;
     if (restMinutes !== null && t.durationUnit !== 'hours') {
       if (restRecord && restRecord[1] === restMinutes) t.remainingTime = restRecord[0];
@@ -1702,7 +1759,7 @@ function extractTaskIdentityByStepId(
     for (const propRef of parseRefs(pset.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE'
-        || stripQuotes(prop.args[0] || '') !== 'InternalTaskId') continue;
+        || stripQuotes(prop.args[0] || '') !== PROP.TaskIdentity.InternalTaskId) continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (isValidPersistedIfcId(value)) internalId = value;
     }
@@ -1836,7 +1893,7 @@ function extractTaskTypeMeta(
     if (pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.TaskTypes) continue;
     for (const ref of parseRefs(pset.args[4] || '')) {
       const prop = entityMap.get(ref);
-      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE' || stripQuotes(prop.args[0] || '') !== 'TaskTypes') continue;
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE' || stripQuotes(prop.args[0] || '') !== PROP.TaskTypes.TaskTypes) continue;
       raw = parseTypedValue(prop.args[2] || '');
     }
   }
@@ -1964,6 +2021,7 @@ function extractSequences(
   exactMinuteLags: ReadonlyMap<string, ExactMinutesRecord>,
   hoursPerDay: number,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -1993,23 +2051,21 @@ function extractSequences(
     if (lagRef) {
       const lagEntity = entityMap.get(lagRef);
       if (lagEntity && lagEntity.type === 'IFCLAGTIME') {
-        const lagValue = (lagEntity.args[3] || '').trim();
+        // Welk slot de waarde draagt, kiest `lagValueSlot` (gedeeld met de verliesbewaking van de merge).
+        const lagValue = lagValueSlot(lagEntity.args);
         const durType = (lagEntity.args[4] || '').trim();
-        // Een STEP-REAL mag een exponent dragen (`5.E-1`). De writer schrijft altijd een decimale
-        // punt (`1.` voor 100 %); dat las `[\d.]+` al.
-        const ratioMatch = lagValue.match(/^IFCRATIOMEASURE\s*\(\s*(-?[\d.]+(?:E[+-]?\d+)?)\s*\)$/i);
-        const durMatch = lagValue.match(/^IFCDURATION\s*\(\s*(.+?)\s*\)$/i);
-        if (ratioMatch) {
+        if (lagValue.kind === LAG_SLOT.ratio) {
           // Ratio → procent; afronden tegen floating-point-ruis (0.33*100 = 33.000000000000004).
-          lagPercent = Math.round(parseFloat(ratioMatch[1]) * 100 * 1e6) / 1e6;
-        } else if (durMatch) {
+          lagPercent = Math.round(parseFloat(lagValue.text) * 100 * 1e6) / 1e6;
+        } else if (lagValue.kind === LAG_SLOT.duur || lagValue.kind === LAG_SLOT.tekst) {
           // EERST `lagMinutes` proberen (discriminator (c), subdayIo/mspdiReader-conventie "geen
           // dag-afronding"). Een duur MET tijdcomponent (`PT2H0M0S`) is minuut-precies ⇒ `lagDays`
           // blijft 0, nooit de grove uur→dag-ceil van `parseDurationDays` (die zou een correcte
           // `lagMinutes` stilzwijgend overschrijven met een afgeronde dag, 2u → +1d).
           // Alleen een PUUR dag-duur (`P{d}D`, geen `T`) levert `isoDurationToMinutes === null` en
-          // valt terug op `parseDurationDays`.
-          const raw = stripQuotes(durMatch[1]);
+          // valt terug op `parseDurationDays`. Een ongetypte duur-string (`tekst`, soepel lezen van
+          // andermans bestanden) gaat langs dezelfde weg.
+          const raw = stripQuotes(lagValue.text);
           const timeMinutes = isoDurationToMinutes(raw);
           if (timeMinutes != null) {
             // GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
@@ -2021,22 +2077,11 @@ function extractSequences(
             lagDays = 0;
           } else {
             lagMinutes = undefined;
-            lagDays = parseDurationDays(durMatch[1], hoursPerDay);
-          }
-        } else if (lagValue.startsWith("'")) {
-          // Ongetypte duur-string (soepel lezen van andermans bestanden) — zelfde volgorde als hierboven.
-          const raw = stripQuotes(lagValue);
-          const timeMinutes = isoDurationToMinutes(raw);
-          if (timeMinutes != null) {
-            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
-            lagDays = 0;
-          } else {
-            lagMinutes = undefined;
-            lagDays = parseDurationDays(lagValue, hoursPerDay);
+            lagDays = parseDurationDays(lagValue.text, hoursPerDay);
           }
         } else {
           // Legacy-lay-out: de duur staat in arg 5.
-          lagDays = parseDurationDays(lagEntity.args[4] || '', hoursPerDay);
+          lagDays = parseDurationDays(lagValue.text, hoursPerDay);
         }
         if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }
@@ -2060,7 +2105,7 @@ function extractSequences(
     }
 
     const seq: Sequence = {
-      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog),
+      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog, stepLog),
       predecessorId: predId,
       successorId: succId,
       type: parseSequenceType(se.args[7] || ''),
@@ -2131,7 +2176,7 @@ function extractSequenceMeta(
         if (records) acceptedExactMinutes.push(records);
         continue;
       }
-      if (propName !== 'P6StartAtPredecessorFinishBoundarySequenceGuids') continue;
+      if (propName !== PROP.Sequences.P6StartAtPredecessorFinishBoundarySequenceGuids) continue;
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string') continue;
       try {
@@ -2195,6 +2240,8 @@ function extractStructure(
   // Wat `OPS_ProjectSettings` over de schemavraag zegt (`IfcSchemaConfirmed`/`IfcSchemaUnconfirmed`);
   // de aanroeper combineert het met de kop (`ifcSchemaUnconfirmedOnRead`).
   ifcSchemaMarkers: IfcSchemaMarkers,
+  // #804 §4.4: de vier projectvelden in `OPS_ProjectSettings` lezen (`IfcReadOptions.projectDataInSettings`).
+  projectDataInSettings: boolean,
 ): { activityCodeTypes: ActivityCodeType[]; customFieldDefs: CustomFieldDef[] } {
   let activityCodeTypes: ActivityCodeType[] = [];
   let customFieldDefs: CustomFieldDef[] = [];
@@ -2270,7 +2317,7 @@ function extractStructure(
     if (psetName === PSET.Library) {
       for (const prop of props) {
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-        if (stripQuotes(prop.args[0] || '') !== 'pool') continue;
+        if (stripQuotes(prop.args[0] || '') !== PROP.Library.pool) continue;
         const v = parseTypedValue(prop.args[2] || '');
         if (typeof v === 'string' && v) {
           try {
@@ -2286,26 +2333,26 @@ function extractStructure(
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
         const name = stripQuotes(prop.args[0] || '');
         const v = parseTypedValue(prop.args[2] || '');
-        if (name === 'InternalProjectId') {
+        if (name === PROP.ProjectSettings.InternalProjectId) {
           if (isValidPersistedIfcId(v)) project.id = v;
-        } else if (name === 'wbsAutoNumber') {
+        } else if (name === PROP.ProjectSettings.wbsAutoNumber) {
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
-        } else if (name === 'DefaultTaskDurationUnit') {
+        } else if (name === PROP.ProjectSettings.DefaultTaskDurationUnit) {
           if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
-        } else if (name === 'DefaultWorkRule') {
+        } else if (name === PROP.ProjectSettings.DefaultWorkRule) {
           // Onbekende waarde ⇒ stil weg (default blijft staan).
           if (typeof v === 'string' && (WORK_RULES as readonly string[]).includes(v)) project.defaultWorkRule = v as WorkRule;
-        } else if (name === 'StatusDate') {
+        } else if (name === PROP.ProjectSettings.StatusDate) {
           // P6 data date → project.statusDate. Een tijd-van-de-dag (uur-modus) blijft behouden:
           // IFCDATETIME, én oudere bestanden die de tijd in IFCDATE zetten (spiegel van
           // writeStructure). Datum zonder tijd ⇒ `YYYY-MM-DD`. Zelfde
           // regel als MSPDI en P6 (`statusDateFromXml`). `readIfcDate` met `importStatusDate` als
           // regel voor IFCDATE: precies wat deze lezer altijd deed.
           if (typeof v === 'string' && v) project.statusDate = readIfcDate(prop.args[2] || '', v, importStatusDate);
-        } else if (name === 'ProgressMode') {
+        } else if (name === PROP.ProjectSettings.ProgressMode) {
           // Alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
-        } else if (name === 'ProjectStartDate' || name === 'ProjectEndDate') {
+        } else if (name === PROP.ProjectSettings.ProjectStartDate || name === PROP.ProjectSettings.ProjectEndDate) {
           // Contractuele projectdatums (spiegel van writeStructure). Het PSET WINT wanneer het veld
           // aanwezig is — óók als het leeg is: de writer codeert "bewust leeg" als NominalValue `$`
           // (parseTypedValue ⇒ undefined) en dat moet leeg terugkomen, niet terugvallen op de
@@ -2317,24 +2364,41 @@ function extractStructure(
           // erin (zo schreef main vóór #344 een projectstart na een XER-import); zulke bestanden lazen
           // altijd zonder tijd.
           const date = typeof v !== 'string' ? '' : readIfcDate(prop.args[2] || '', v, (x) => x.substring(0, 10));
-          if (name === 'ProjectStartDate') { project.startDate = date; projectStartRecorded.value = true; }
+          if (name === PROP.ProjectSettings.ProjectStartDate) { project.startDate = date; projectStartRecorded.value = true; }
           else project.endDate = date;
-        } else if (name === 'CreatedAt') {
+        } else if (name === PROP.ProjectSettings.CreatedAt) {
           // Project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.createdAt = v;
-        } else if (name === 'ModifiedAt') {
+        } else if (name === PROP.ProjectSettings.ModifiedAt) {
           if (typeof v === 'string' && v) project.modifiedAt = v;
-        } else if (name === 'CompanyId') {
+        } else if (name === PROP.ProjectSettings.CompanyId) {
           if (typeof v === 'string' && v) project.companyId = v;
-        } else if (name === 'CompanyName') {
+        } else if (name === PROP.ProjectSettings.CompanyName) {
           if (typeof v === 'string' && v) project.companyName = v;
-        } else if (name === 'IfcSchemaConfirmed') {
+        } else if (name === PROP.ProjectSettings.IfcSchemaConfirmed) {
           if (v === true) ifcSchemaMarkers.confirmed = true;
-        } else if (name === 'IfcSchemaUnconfirmed') {
+        } else if (name === PROP.ProjectSettings.IfcSchemaUnconfirmed) {
           if (typeof v === 'string' && v) ifcSchemaMarkers.unconfirmed = v;
-        } else if (name === 'P6ProjectCode') {
+        } else if (name === PROP.ProjectSettings.P6ProjectCode) {
           // P6 Project-ID (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.p6ProjectCode = v;
+        } else if (name === PROP.ProjectSettings.DependentProjectsFolder) {
+          // De map met afhankelijke projecten (spiegel van writeStructure, stap 1.11).
+          if (typeof v === 'string' && v) project.dependentProjectsFolder = v;
+        } else if (name === PROP.ProjectSettings.AnchorsFromOpenDocuments) {
+          // Ankers uit geopende documenten halen (spiegel van writeStructure, stap 1.7).
+          if (v === true) project.anchorsFromOpenDocuments = true;
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectName) {
+          // #804 §4.4: het project is niet P (het project van een model). Deze vier winnen van IfcProject en de eerste
+          // owner history (`extractProject`), ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$`
+          // (⇒ undefined). Zonder de property blijft wat die gaf. Zonder de optie (main, de flag uit) leest de lezer ze niet.
+          project.name = typeof v === 'string' ? v : '';
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectDescription) {
+          project.description = typeof v === 'string' ? v : '';
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.Author) {
+          project.author = typeof v === 'string' ? v : '';
+        } else if (projectDataInSettings && name === PROP.ProjectSettings.Organization) {
+          project.company = typeof v === 'string' ? v : '';
         }
       }
       continue;
@@ -2428,8 +2492,14 @@ function extractResources(
   for (const e of entities) {
     // IFC-entiteit → resource-type via de gedeelde inverse-map (incl. de inkomende-alleen
     // IFCCONSTRUCTIONPRODUCTRESOURCE→EQUIPMENT-alias).
-    const resType = IFC_TO_RESOURCE_TYPE[e.type];
-    if (!resType) continue;
+    const mappedType = IFC_TO_RESOURCE_TYPE[e.type];
+    if (!mappedType) continue;
+    // Kostenresource (issue #815): materiaalentiteit met ObjectType 'COST' en `.USERDEFINED.`.
+    const resType: ResourceType = mappedType === 'MATERIAL'
+      && ifcSlotText(e.args[4]) === COST_RESOURCE_OBJECT_TYPE
+      && (e.args[10] ?? '').trim().toUpperCase() === '.USERDEFINED.'
+      ? 'COST'
+      : mappedType;
 
     const id = stableIdFromGuid('res', 'res', e, usedIds, guidLog);
     resourceStepIdMap.set(e.id, id);
@@ -2476,17 +2546,17 @@ function extractResourceMeta(
       for (const prop of props) {
         const name = stripQuotes(prop.args[0] || '');
         const value = parseTypedValue(prop.args[2] || '');
-        if (name === 'MaxUnits' && typeof value === 'number') {
+        if (name === PROP.Resource.MaxUnits && typeof value === 'number') {
           res.maxUnits = value;
-        } else if (name === 'CostPerHour' && typeof value === 'number') {
+        } else if (name === PROP.Resource.CostPerHour && typeof value === 'number') {
           res.costPerHour = value;
-        } else if (name === 'UnitOfMeasure' && typeof value === 'string') {
+        } else if (name === PROP.Resource.UnitOfMeasure && typeof value === 'string') {
           res.unitOfMeasure = value;
-        } else if (name === 'Color' && typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
+        } else if (name === PROP.Resource.Color && typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
           // Weergavekleur — alleen een geldige #rrggbb-hex accepteren (hostiele/mistorde
           // invoer valt stil terug op "geen kleur" i.p.v. rommel in de kleurmodi te krijgen).
           res.color = value;
-        } else if (name === 'AvailabilitySteps' && typeof value === 'string') {
+        } else if (name === PROP.Resource.AvailabilitySteps && typeof value === 'string') {
           const steps: AvailabilityStep[] = value
             .split(';')
             .map(pair => {
@@ -2495,10 +2565,10 @@ function extractResourceMeta(
             })
             .filter(s => s.from && Number.isFinite(s.maxUnits));
           if (steps.length > 0) res.availabilitySteps = steps;
-        } else if (name === 'ParentGuid' && typeof value === 'string' && !res.parentId) {
+        } else if (name === PROP.Resource.ParentGuid && typeof value === 'string' && !res.parentId) {
           const parentId = resourceGuidMap.get(value);
           if (parentId) res.parentId = parentId;
-        } else if (name === 'LibraryOrigin' && typeof value === 'string' && value && !res.libraryOrigin) {
+        } else if (name === PROP.Resource.LibraryOrigin && typeof value === 'string' && value && !res.libraryOrigin) {
           // EERSTE geldige LibraryOrigin wint (gezet-is-gezet-guard), gelijk aan het kalenderpad
           // (extractCalendarLibraryOrigin returnt op de eerste treffer). Zonder de
           // `!res.libraryOrigin`-guard kiest dit pad de LAATSTE bij dubbele props in één pset.
@@ -2652,13 +2722,13 @@ function extractCalendarGeneration(
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
       const value = parseTypedValue(prop.args[2] || '');
-      if (name === 'RuleSetId' && typeof value === 'string') ruleSetId = value as HolidayCountry;
-      else if (name === 'Region' && typeof value === 'string') region = value;
-      else if (name === 'BreakChoice' && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
+      if (name === PROP.Calendar.RuleSetId && typeof value === 'string') ruleSetId = value as HolidayCountry;
+      else if (name === PROP.Calendar.Region && typeof value === 'string') region = value;
+      else if (name === PROP.Calendar.BreakChoice && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
       // 'WinterStop' (verwijderde feature) wordt in oude bestanden genegeerd; de
       // gematerialiseerde feestdagen zelf staan los in de kalender en blijven behouden.
-      else if (name === 'GeneratedFromYear' && typeof value === 'number') generatedFromYear = value;
-      else if (name === 'GeneratedToYear' && typeof value === 'number') generatedToYear = value;
+      else if (name === PROP.Calendar.GeneratedFromYear && typeof value === 'number') generatedFromYear = value;
+      else if (name === PROP.Calendar.GeneratedToYear && typeof value === 'number') generatedToYear = value;
     }
     if (!ruleSetId || generatedFromYear === undefined || generatedToYear === undefined) continue; // onvolledig — negeer
 
@@ -2687,7 +2757,7 @@ function extractCalendarLibraryOrigin(
 ): LibraryOrigin | undefined {
   for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
-      if (stripQuotes(prop.args[0] || '') !== 'LibraryOrigin') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.Calendar.LibraryOrigin) continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
       try {
@@ -2721,7 +2791,7 @@ function extractCalendarHoursPerDay(
 ): number | undefined {
   for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
-      if (stripQuotes(prop.args[0] || '') !== 'HoursPerDay') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.Calendar.HoursPerDay) continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
     }
@@ -2740,8 +2810,8 @@ function extractCalendarSimpleBreak(
     for (const prop of props) {
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'number' || !Number.isInteger(value)) continue;
-      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakStart') result.simpleBreakStartMinute = value;
-      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakDuration') result.simpleBreakDurationMinutes = value;
+      if (stripQuotes(prop.args[0] || '') === PROP.Calendar.SimpleBreakStart) result.simpleBreakStartMinute = value;
+      if (stripQuotes(prop.args[0] || '') === PROP.Calendar.SimpleBreakDuration) result.simpleBreakDurationMinutes = value;
     }
   }
   return result;
@@ -2765,11 +2835,11 @@ function extractCalendarHourMeta(
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
       const value = parseTypedValue(prop.args[2] || '');
-      if (name === 'LiteralTimes' && value === true) result.literalTimes = true;
-      else if (name === 'IsHourCalendar' && typeof value === 'boolean') result.hourMode = value;
-      else if (name === 'WorkStartHour' && typeof value === 'number' && value >= 0 && value <= 24) {
+      if (name === PROP.Calendar.LiteralTimes && value === true) result.literalTimes = true;
+      else if (name === PROP.Calendar.IsHourCalendar && typeof value === 'boolean') result.hourMode = value;
+      else if (name === PROP.Calendar.WorkStartHour && typeof value === 'number' && value >= 0 && value <= 24) {
         result.workStartHour = value;
-      } else if (name === 'WorkEndHour' && typeof value === 'number' && value >= 0 && value <= 24) {
+      } else if (name === PROP.Calendar.WorkEndHour && typeof value === 'number' && value >= 0 && value <= 24) {
         result.workEndHour = value;
       }
     }
@@ -2858,29 +2928,29 @@ function extractCalendarExceptionMetadata(
     let candidatePenaltyDates: string[] | undefined;
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
-      if (name !== 'WorkingExceptionIds' && name !== 'WorkingExceptionKeysV1' && name !== 'P6Source'
-        && name !== 'P6NonWorkPenaltyDates' && name !== 'P6NonWorkPenaltyDatesState') continue;
+      if (name !== PROP.Calendar.WorkingExceptionIds && name !== PROP.Calendar.WorkingExceptionKeysV1 && name !== PROP.Calendar.P6Source
+        && name !== PROP.Calendar.P6NonWorkPenaltyDates && name !== PROP.Calendar.P6NonWorkPenaltyDatesState) continue;
       // Aanwezige maar corrupte V1 mag niet terugvallen op mogelijk vernummerde legacy-ids.
-      if (name === 'WorkingExceptionKeysV1') result.workingExceptionKeys = new Set();
+      if (name === PROP.Calendar.WorkingExceptionKeysV1) result.workingExceptionKeys = new Set();
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
-      if (name === 'P6NonWorkPenaltyDatesState') {
+      if (name === PROP.Calendar.P6NonWorkPenaltyDatesState) {
         if (value === 'REJECTED') rejectedDiagnosticSeen = true;
         continue;
       }
-      if (name === 'P6Source') {
+      if (name === PROP.Calendar.P6Source) {
         if (value === 'XER') p6SourceSeen = true;
         continue;
       }
       try {
         const parsed = JSON.parse(value);
-        if (name === 'WorkingExceptionKeysV1'
+        if (name === PROP.Calendar.WorkingExceptionKeysV1
           && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
           result.workingExceptionKeys = new Set(parsed);
-        } else if (name === 'WorkingExceptionIds'
+        } else if (name === PROP.Calendar.WorkingExceptionIds
           && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
           result.workingExceptionIds = new Set(parsed);
-        } else if (name === 'P6NonWorkPenaltyDates' && Array.isArray(parsed)) {
+        } else if (name === PROP.Calendar.P6NonWorkPenaltyDates && Array.isArray(parsed)) {
           const dates = parsed.filter((candidate): candidate is string => {
             if (typeof candidate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return false;
             const date = new Date(`${candidate}T00:00:00Z`);
@@ -2892,11 +2962,11 @@ function extractCalendarExceptionMetadata(
           } else {
             penaltyState = 'REJECTED';
           }
-        } else if (name === 'P6NonWorkPenaltyDates') {
+        } else if (name === PROP.Calendar.P6NonWorkPenaltyDates) {
           penaltyState = 'REJECTED';
         }
       } catch {
-        if (name === 'P6NonWorkPenaltyDates') penaltyState = 'REJECTED';
+        if (name === PROP.Calendar.P6NonWorkPenaltyDates) penaltyState = 'REJECTED';
       }
     }
     if (!rejectedDiagnosticSeen && p6SourceSeen
@@ -3252,6 +3322,7 @@ function extractCalendarLibrary(
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): { calendars: WorkCalendar[]; idByGuid: Map<string, string> } {
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
   // De projectkalender heet altijd 'cal-default' (`extractCalendar`); een bibliotheekkalender kan
@@ -3274,7 +3345,7 @@ function extractCalendarLibrary(
     let cal = calByStepId.get(controlRef);
     if (!cal) {
       cal = buildCalendarFromEntity(controlEntity, entityMap, entities);
-      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog);
+      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog, stepLog);
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
       idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id);
@@ -3308,7 +3379,7 @@ function extractCalendarLibrary(
     if (projectCalendarEntity && ce.id === projectCalendarEntity.id) continue;
     if (calByStepId.has(ce.id)) continue;
     const cal = buildCalendarFromEntity(ce, entityMap, entities);
-    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog);
+    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog, stepLog);
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
     idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id);
@@ -3334,6 +3405,8 @@ interface WindowMeta {
   remainingWorkMinutes?: number;
   /** Begroot tempo naast een P6-resttempo, zie `ResourceAssignment.plannedUnitsPerDay`. */
   plannedUnitsPerDay?: number;
+  /** Begroot bedrag van een kostentoewijzing (issue #815), zie `ResourceAssignment.costAmount`. */
+  costAmount?: number;
 }
 
 /** Eindig, niet-negatief werkgetal uit het JSON-blob; al het andere blijft weg (nooit NaN in de state). */
@@ -3386,7 +3459,7 @@ function extractAssignments(
       const windowProp = parseRefs(pset.args[4] || '')
         .map(r => entityMap.get(r))
         .find((p): p is StepEntity =>
-          !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === 'Windows');
+          !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === PROP.Timephased.Windows);
       const raw = windowProp ? parseTypedValue(windowProp.args[2] || '') : undefined;
       if (typeof raw !== 'string' || !raw) continue;
       let parsed: unknown;
@@ -3403,6 +3476,8 @@ function extractAssignments(
         const remaining = workMinutesOf(vv.remainingWorkMinutes);
         // Zelfde validatie als de werkvelden: eindig en niet-negatief, anders weg (nooit NaN).
         const plannedUnits = workMinutesOf(vv.plannedUnitsPerDay);
+        // Bedrag: eindig en ≥ 0, anders weg (dezelfde regel als `isValidCostAmount`).
+        const costAmount = workMinutesOf(vv.costAmount);
         const meta: WindowMeta = {
           ...(typeof vv.workWindowStart === 'string' ? { workWindowStart: vv.workWindowStart } : {}),
           ...(typeof vv.workWindowFinish === 'string' ? { workWindowFinish: vv.workWindowFinish } : {}),
@@ -3411,6 +3486,7 @@ function extractAssignments(
           ...(actual !== undefined ? { actualWorkMinutes: actual } : {}),
           ...(remaining !== undefined ? { remainingWorkMinutes: remaining } : {}),
           ...(plannedUnits !== undefined ? { plannedUnitsPerDay: plannedUnits } : {}),
+          ...(costAmount !== undefined ? { costAmount } : {}),
         };
         if (Object.keys(meta).length === 0) continue;
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
@@ -3512,11 +3588,21 @@ function extractAssignments(
         ...(window?.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: window.plannedWorkMinutes } : {}),
         ...(window?.actualWorkMinutes !== undefined ? { actualWorkMinutes: window.actualWorkMinutes } : {}),
         ...(window?.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: window.remainingWorkMinutes } : {}),
+        ...(window?.costAmount !== undefined ? { costAmount: window.costAmount } : {}),
       });
     }
   }
 
   return assignments;
+}
+
+/** Kostenresources (issue #815) en hun toewijzingen schoonmaken: geen tarief, kalender, stappen,
+ *  eenheid of ploeg, max. eenheden 1; toewijzingen met inzet 1 en zonder werkvelden. Een bedrag op
+ *  een toewijzing aan een andere resource valt weg. Muteert in-place. */
+function normalizeCostResources(resources: Resource[], assignments: ResourceAssignment[]): void {
+  const byId = new Map(resources.map(r => [r.id, r]));
+  for (const r of resources) if (r.type === 'COST') clearCostResourceFields(r);
+  for (const a of assignments) normalizeAssignmentForResource(a, byId.get(a.resourceId));
 }
 
 /** Zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */
@@ -3567,6 +3653,14 @@ function remapLevelingResourceIds(
  *    als losse dubbele taken over.
  *  - Een taak die (ook) onder het gewone schema hangt, is een live taak en blijft.
  */
+/** De bytes-route (#804, `IfcReadOptions.planningTaskStepIds`): elke `IfcTask` buiten de keuze van `selectPlanning`.
+ *  Zelfde vorm als `collectBaselineTaskStepIds`, zodat `extractTasks` niet verandert. */
+function tasksOutsideSelection(entities: StepEntity[], selected: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  for (const e of entities) if (e.type === 'IFCTASK' && !selected.has(e.id)) out.add(e.id);
+  return out;
+}
+
 function collectBaselineTaskStepIds(entities: StepEntity[]): Set<string> {
   const baselineSchedIds = new Set<string>();
   const liveSchedIds = new Set<string>();
@@ -3648,16 +3742,16 @@ function extractBaselines(
       const name = stripQuotes(prop.args[0] || '');
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string') continue;
-      if (name === 'Baselines') {
+      if (name === PROP.Baselines.Baselines) {
         try {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) baselines = parsed as Baseline[];
         } catch { /* corrupte JSON — negeer, baselines blijft leeg */ }
-      } else if (name === 'ActiveBaselineId') {
+      } else if (name === PROP.Baselines.ActiveBaselineId) {
         activeBaselineId = raw;
-      } else if (name === 'ComparedBaselineIds') {
+      } else if (name === PROP.Baselines.ComparedBaselineIds) {
         try { comparedRaw = JSON.parse(raw); } catch { /* corrupte JSON — geen vergelijking */ }
-      } else if (name === 'TaskGuids') {
+      } else if (name === PROP.Baselines.TaskGuids) {
         // De writer schrijft expliciet weg wélk GlobalId hij per baseline-taak gebruikte, zodat wij
         // de hash niet hoeven na te rekenen. Ontbreekt de map (oudere bestanden), dan valt de remap
         // hieronder terug op het herberekenen van de hash.
@@ -3723,7 +3817,7 @@ function extractTimephasedDurationWalksMeta(
     const prop = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
       .find((p): p is StepEntity =>
-        !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === 'DurationWalks');
+        !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === PROP.DurationWalks.DurationWalks);
     const raw = prop ? parseTypedValue(prop.args[2] || '') : undefined;
     if (typeof raw !== 'string' || !raw) continue;
     let parsed: unknown;
@@ -3781,7 +3875,7 @@ function extractSchedulingProfile(
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'SchedulingProfile') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.SchedulingProfile.SchedulingProfile) continue;
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string' || !raw || raw.length > MAX_PROFILE_JSON_LENGTH) continue;
       try {
@@ -3818,11 +3912,43 @@ function extractImportPristine(entities: StepEntity[], entityMap: Map<string, St
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'UnchangedSinceImport') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.ImportProvenance.UnchangedSinceImport) continue;
       return (prop.args[2] || '').replace(/\s+/g, '').toUpperCase() === 'IFCBOOLEAN(.T.)';
     }
   }
   return false;
+}
+
+/**
+ * `OPS_RecoveryForeignSource` (spiegel van de writer, alleen in een herstel-IFC of MCP-backup; #804 fase 1a, fixronde 1
+ * en 3): de vingerafdruk van een bron met een vreemd deel, en in een backup het doel. Soepel gelezen: een onvolledige of
+ * ongeldige vingerafdruk telt als afwezig (een oude snapshot zonder kenmerk werkt zoals altijd).
+ */
+function extractRecoveryForeignSource(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): ForeignSourceRecord | undefined {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.RecoveryForeignSource) continue;
+    let sha256: unknown;
+    let byteLength: unknown;
+    let filePath: unknown;
+    let siteFileId: unknown;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      const name = stripQuotes(prop.args[0] || '');
+      if (name === PROP.RecoveryForeignSource.Sha256) sha256 = parseTypedValue(prop.args[2] || '');
+      else if (name === PROP.RecoveryForeignSource.ByteLength) byteLength = parseTypedValue(prop.args[2] || '');
+      else if (name === PROP.RecoveryForeignSource.SourcePath) filePath = parseTypedValue(prop.args[2] || '');
+      else if (name === PROP.RecoveryForeignSource.SourceSiteFileId) siteFileId = parseTypedValue(prop.args[2] || '');
+    }
+    const fingerprint = parseForeignSourceFingerprint(sha256, byteLength);
+    if (!fingerprint) return undefined;
+    const target = parseForeignSourceTarget({ filePath, siteFileId });
+    return target && (target.filePath || target.siteFileId) ? { ...fingerprint, target } : fingerprint;
+  }
+  return undefined;
 }
 
 /**
@@ -3839,7 +3965,7 @@ function extractRecordedSourceFormat(
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'SourceFormat') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.ImportProvenance.SourceFormat) continue;
       const m = /^IFCLABEL\('([a-z0-9]+)'\)$/i.exec((prop.args[2] || '').trim());
       const v = m?.[1];
       return v === 'xer' || v === 'p6xml' || v === 'mspdi' || v === 'mpp' || v === 'ifc' ? v : undefined;
@@ -3864,7 +3990,7 @@ function extractSchedulingOptions(
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'SchedulingOptions') continue;
+      if (stripQuotes(prop.args[0] || '') !== PROP.SchedulingOptions.SchedulingOptions) continue;
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string' || !raw) continue;
       try {

@@ -598,6 +598,18 @@ export interface Project {
   /** P6 Project-ID (`<Project><Id>`), los van `name`. Afwezig ⇒ geen code. Lezen altijd via
    *  `documentProjectCode` (daar staan het besluit en de XER-route). */
   p6ProjectCode?: string;
+  /** De map waarin OPS de afhankelijke projecten van dit project zoekt (stap 1.11 van "relaties
+   *  tussen projecten", keuze 7, Ethan 2026-11-03): een absoluut pad op de desktop. Afwezig ⇒ geen map.
+   *  In de browser onthoudt OPS de map als handvat per project-id in IndexedDB, niet hier
+   *  (`services/fileAccess/dependentFolder.ts`). Round-tript via `OPS_ProjectSettings`
+   *  (`DependentProjectsFolder`), alleen wanneer gezet. */
+  dependentProjectsFolder?: string;
+  /** Vinkje *Ankers uit geopende documenten halen* (stap 1.7, besluit Ethan 2026-11-10). Aan ⇒ staat een bron
+   *  ook als document open met niet-opgeslagen wijzigingen, dan neemt dit project de ankers uit dat geopende
+   *  document: meteen bij zelf vernieuwen, via de balk bij de automatische controle. Afwezig ⇒ uit: het anker
+   *  komt uit het opgeslagen bestand. Round-tript via `OPS_ProjectSettings` (`AnchorsFromOpenDocuments`), alleen
+   *  wanneer aan. */
+  anchorsFromOpenDocuments?: boolean;
 }
 
 export interface ProjectStats {

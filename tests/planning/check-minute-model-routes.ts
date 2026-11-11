@@ -33,11 +33,13 @@ const expected: Record<string, string[]> = {
   'src/components/dialogs/CalendarDialog.tsx': ['bewerking'],
   'src/components/layout/RecordedDatesNotice.tsx': ['bereken'],
   'src/components/panels/ReportPanel.tsx': ['bereken'],
+  'src/components/panels/reportStudio/GanttReportStudio.tsx': ['bereken', 'bereken'], // PDF exporteren rekent een verouderde planning eerst door, zoals ReportPanel; "Nu doorrekenen" en een gekozen statusdatum = F5 (#817)
   'src/components/panels/ResourceOccupancyView.tsx': ['bereken'], // openen; slaat opgeslagen datums en pending minutenmigratie over
   'src/components/panels/TaskPropertiesPanel.tsx': ['bereken'],
   'src/components/panels/WarningsPanel.tsx': ['bereken'],
   'src/components/layout/Ribbon/ribbonConfig.tsx': ['bereken'],
   'src/core/index.ts': ['bereken'],
+  'src/engine/externalRefreshPreview.ts': ['solveProject'], // vluchtig: Bekijken rekent voor en na op een kopie (stap 1.5)
   'src/engine/reports/dcmaAssessment.ts': ['solveProject'], // vluchtig rapport, nooit terugschrijven
   'src/extensions/extensionApi.ts': ['bereken'],
   'src/extensions/retainActiveDocument.ts': ['bereken'], // na de laadgrens
@@ -51,7 +53,7 @@ const expected: Record<string, string[]> = {
   'src/state/documentActivation.ts': ['solveProject', 'solveProject'], // vluchtige teller; laadgrens
   'src/state/runtime/createMcpTransactions.ts': ['bewerking'],
   'src/state/slices/documentSlice.ts': ['solveProject'], // slaat omzetting open over
-  'src/state/slices/fileSlice.ts': ['bereken', 'bereken', 'bewerking', 'bewerking'],
+  'src/state/slices/fileSlice.ts': ['bewerking', 'bereken', 'bereken'], // `applyRefreshedTasks` (verversen, accepteren); openen
   'src/state/slices/librarySlice.ts': ['runInScratchDocument'], // applyLeveling bezit het event
   'src/state/slices/projectSlice.ts': ['bewerking', 'bewerking'],
   'src/state/slices/scheduleSlice.ts': ['solveProject', 'bereken', 'bereken', 'bewerking', 'bewerking'], // de twee bereken: `recalculate`, met en zonder Automatisch berekenen

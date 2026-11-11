@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, type LucideIcon } from 'lucide-react';
+import { Icon, type IconId } from '@/components/icons';
 
 interface NoticeStripProps {
-  icon: LucideIcon;
+  icon: IconId;
   text: ReactNode;
   actionLabel: string;
   onAction: () => void;
+  /** Een tweede, gewone knop naast de primaire (bv. *Later*). */
+  secondaryAction?: { label: string; onAction: () => void; props?: Record<string, unknown> };
   /** Weglaten = geen kruisje: een MODUS mag niet wegklikbaar zijn zonder hem te verlaten. */
   onDismiss?: () => void;
   role?: 'status' | 'alert';
@@ -24,7 +26,7 @@ interface NoticeStripProps {
  * RecordedDatesNotice.
  */
 export function NoticeStrip({
-  icon: Icon, text, actionLabel, onAction, onDismiss, role, tone = 'accent', stripProps, actionProps, dismissProps,
+  icon, text, actionLabel, onAction, secondaryAction, onDismiss, role, tone = 'accent', stripProps, actionProps, dismissProps,
 }: NoticeStripProps) {
   const { t } = useTranslation('common');
   const error = tone === 'error';
@@ -42,11 +44,16 @@ export function NoticeStrip({
       data-ops-notice-tone={tone}
       {...stripProps}
     >
-      <Icon size={14} className={`shrink-0 ${error ? '' : 'text-accent'}`} style={error ? { color: 'var(--error)' } : undefined} />
+      <Icon id={icon} size={14} className={`shrink-0 ${error ? '' : 'text-text-secondary'}`} style={error ? { color: 'var(--error)' } : undefined} />
       <span className="flex-1">{text}</span>
       <button onClick={() => onAction()} className="btn btn--sm btn--primary" {...actionProps}>
         {actionLabel}
       </button>
+      {secondaryAction && (
+        <button onClick={() => secondaryAction.onAction()} className="btn btn--sm btn--secondary" {...secondaryAction.props}>
+          {secondaryAction.label}
+        </button>
+      )}
       {onDismiss && (
         <button
           onClick={() => onDismiss()}
@@ -54,7 +61,7 @@ export function NoticeStrip({
           title={t('close')}
           {...dismissProps}
         >
-          <X size={14} />
+          <Icon id="ui.close" size={14} />
         </button>
       )}
     </div>

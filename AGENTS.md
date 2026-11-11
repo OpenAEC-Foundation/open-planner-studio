@@ -69,7 +69,7 @@ runs no verify of its own: it starts after a green ci.yml run on `main` (`workfl
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
 steps, in order: `typecheck` → `lint` → `test` (all five suites) → `verify:examples` → `verify:docs` →
 `verify:i18n` → `verify:release-highlights-json` → `verify:store-boundaries` → `verify:conventions` →
-`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles` → `verify:core-package`.
+`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles` → `verify:icons` → `verify:core-package`.
 
 Separate gates (most are in `verify`): `npm run verify:examples` (examples load/compute),
 `npm run verify:docs` (in-app guides + the mechanical claims in this file), `npm run verify:i18n` (keys + CLDR
@@ -79,7 +79,7 @@ plural forms + no cast on a key + fixed formatting), `npm run verify:store-bound
 convention registry, provenance data gates pinned), `npm run verify:cycles` (circular imports after type erasure),
 `npm run verify:core-package` (builds the headless core package, `npm pack`, installs it in a temporary copy of
 `headless/consumer-example/`, runs and type-checks that consumer),
-`npm run verify:text-roles` (only the six text roles), `npm run verify:release-highlights-json` (in the chain)
+`npm run verify:text-roles` (only the six text roles), `npm run verify:icons` (app icons match the approved logo in `docs/branding/`: source hash, sizes, web icons), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
 `npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated
 and current per `i18n/ui-sources/`, plus a complete valid termbase for every target locale except nl/en
@@ -186,8 +186,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   Updater and MCP bridge are Tauri-only; the browser does its own file I/O and recovery.
 - **Platform build.** `npm run build:platform -- --base /pad/` builds the bundle the OpenAEC app on Frappe serves
   under a sub-path (Vite mode `platform`, `.env.platform`, `build.manifest`, `dist-platform/`); `npm run build` gets
-  none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
-  AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
+  none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start,
+  AI mode and download stats are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
 - **Claude Desktop bundle = a switch plus the headless server.** `integrations/claude-desktop/` is an MCP Bundle
   (`.mcpb`, #730) with two programs. `server/index.mjs` (the switch, `src/proxy.ts`) reads `runtime.json` for
@@ -201,8 +201,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **macOS shell.** `src-tauri/tauri.macos.conf.json` restores native window decorations; custom window buttons stay Windows/Linux-only. `useMacOSMenu` installs translated native menus and `nativeMenuActions` reuses shortcut actions/guards and pending-text commits. Native Quit goes through window close so the unsaved-document guard remains active. The ribbon stays available on every platform.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
-  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. One command-less
-  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. The command-less
+  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
   Save As, Recent and crash recovery also work against the site (AutoSave deliberately not: every round would be a
@@ -216,6 +216,19 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   blocked before import (knownbug 110): the planning writer does not preserve them. The checked-in
   type inventory comes from official IFC2X3 TC1, IFC4 ADD2 TC1 and IFC4X3 ADD2 schemas; regenerate
   with `scripts/ifc-product-types.py`. Edit the separate planning file, then merge externally.
+  `readIFC` and the save-target check read the whole file with the ISO 10303-21 grammar
+  (`src/services/ifc/stepFileGrammar.ts`); without the flag below, a model type it sees refuses, also before the point
+  where a file breaks (with the flag the bytes route runs it on the text the reader gets, without the
+  model part V).
+  Otherwise `readIFC` reads only the first data section: the first `DATA;` up to the first `ENDSEC;`. The save-target
+  check runs only with the flag `ifcForeignContent`: then a target that breaks the grammar or has more than one data
+  section refuses, except a file OPS wrote itself (old versions wrote a raw header).
+  Behind the feature flag `ifcForeignContent` (#804 phase 1a; always off in the app until saving works) every IFC open
+  route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
+  reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
+  `ifcSource` (document contract, `snapshot: 'none'`: outside undo, recovery and MCP backup). A document with a foreign
+  part refuses every IFC write with one notice (`src/state/ifcForeignGuard.ts`). Without the flag the app stays
+  byte-identical to main (`check-ifc-foreign-pariteit.ts`).
 - **IFC 4.3 is the native format**; there is no JSON project format. New domain data must round-trip through
   `ifcWriter`/`ifcReader`, or it is gone after saving. CSV/MSPDI/P6/`.mpp`/`.xer` are adapters. The file schema is
   per project (`Project.ifcSchema`, default `IFC4X3_ADD2`); never write silently in another one. Route:
@@ -260,7 +273,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   Task dates normalize to instants at load and input; project dates keep their entered form (D1/D5/D2
   at calculation). `minuteModelPending` carries the undoable conversion of old documents; persistent
   calculations inside an editing event call `runCPM({ withinEvent: true })`. IFC writes `TimeModel`
-  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document.
+  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document; a calendar
+  that is literal in the file (when opened, or saved so in this session) stays literal (`ifcLiteralCalendarIds`,
+  `src/state/savedLiteralCalendars.ts`, knownbug 1026).
 - **Scheduling profiles, not a format flag.** P6/MSP/OPS behaviour runs through named conventions in
   `src/engine/scheduler/conventions/registry.ts`; the solver only gets `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Never an `if` on the source format in the engine (`verify:conventions`);
@@ -313,7 +328,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `settings`, `extensions`, `library`, `help`.
 - 28 locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa, ru, uk, cs, sk, sr, hr, bg, hu, ro, sv, nb, da, fi, lo`), each with four namespaces;
   `ar`/`fa` are RTL; `sr` is Serbian in Cyrillic script; `no`/`nn` in the browser pick `nb`. A missing plural form falls back to English, not to `_other`.
-- MCP: The 41 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
+- MCP: The 42 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
 
 ## Worktrees and self-testing
 
@@ -342,12 +357,14 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
   removes its flag and the corresponding checks.
+  Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik en houd het versienummer vast).
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
   before reporting a "new" bug.
+  Each session that writes knownbugs gets its own block of 50 numbers from wrakko at the start, and uses only numbers from that block. When the block is full, ask wrakko for the next one.
 - **User-visible feature ⇒ guide** in `public/docs/{nl,en}/` plus a manifest entry (recipe
   `docs/recepten/in-app-gids.md`). You write `nl` + `en` (the sources, required), organised by Diátaxis (`kind`:
   `howto`, `uitleg`, `referentie`; the tutorials ship as an extension); the other locales come from the translation

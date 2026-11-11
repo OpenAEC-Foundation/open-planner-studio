@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { localTodayIso } from '@/utils/dateUtils';
@@ -81,7 +81,7 @@ export function MoveProjectDialog() {
     : endShifted ? 'endShiftedOnly'
     : 'durationOnly';
 
-  // Meeverschoven-detailregel. Bewust GEEN doorlopende zin met vijf tellingen erin: die kan per
+  // Meeverschoven-detailregel. Bewust GEEN doorlopende zin met vier tellingen erin: die kan per
   // telling enkelvoud of meervoud nodig hebben ("1 deadlines") en dat is met één sleutel niet op te
   // lossen. In de "label: aantal"-vorm congrueert het label niet met het getal, dus is de regel in
   // elke taal correct zonder pluralisatie. Nul-categorieën vallen weg — "0 deadlines" was ruis.
@@ -89,7 +89,6 @@ export function MoveProjectDialog() {
     ['detailConstraints', preview.impact.constraintCount],
     ['detailDeadlines', preview.impact.deadlineCount],
     ['detailActuals', preview.impact.actualCount],
-    ['detailExternal', preview.impact.externalLinkCount],
     ['detailSteps', preview.impact.availabilityStepCount],
   ] as const)
     .filter(([, n]) => n > 0)
@@ -206,7 +205,7 @@ export function MoveProjectDialog() {
                             className="flex items-start gap-2 rounded-[8px] p-2 !text-body"
                             style={{ color: 'var(--error)', background: 'color-mix(in srgb, var(--error) 12%, transparent)' }}
                           >
-                            <AlertTriangle size={14} className="shrink-0 mt-px" />
+                            <Icon id="status.warning" size={14} className="shrink-0 mt-px" />
                             <span>
                               {t(`moveProject.${interventionKey}`, {
                                 endDays: preview.endDeltaDays,
@@ -244,7 +243,7 @@ export function MoveProjectDialog() {
                           <li>{t('moveProject.warnHardPins', { count: preview.impact.hardPinCount })}</li>
                         )}
                         {preview.impact.externalLinkCount > 0 && (
-                          <li>{t('moveProject.warnExternal', { count: preview.impact.externalLinkCount })}</li>
+                          <li>{t('moveProject.warnExternalKept', { count: preview.impact.externalLinkCount })}</li>
                         )}
                         {preview.holidayGapCalendars.map(g => (
                           <li key={`${g.name}-${g.year}`} style={{ color: 'var(--error)' }}>

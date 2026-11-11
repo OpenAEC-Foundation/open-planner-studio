@@ -140,6 +140,7 @@
     "histogram": "Histograma",
     "toggleHistogram": "Histograma",
     "warningsPanel": "Panel de advertencias",
+    "scheduleShiftPanel": "Desplazamientos",
     "prevResource": "Anterior",
     "nextResource": "Siguiente",
     "leveling": "Nivelación",
@@ -154,6 +155,7 @@
     "barsGroup": "Barras",
     "manageBaselines": "Gestionar líneas base…",
     "statusDate": "Fecha de estado",
+    "statusDateValue": "Fecha de estado: {{date}}",
     "statusDateClear": "Borrar fecha de estado",
     "statusDateTime": "Hora de la fecha de estado",
     "statusDateTimeLater": "Hora posterior",
@@ -218,7 +220,9 @@
     "screenColorsMissingField": "Este campo no existe en este proyecto. Se usa temporalmente la categoría de trabajo.",
     "screenColorsHint": "Fuera del modo Ruta crítica, un contorno rojo marca la ruta crítica.",
     "addLayout": "Nuevo diseño",
-    "toggleRelations": "Líneas de relación"
+    "toggleRelations": "Líneas de relación",
+    "relationFindDependents": "Buscar proyectos dependientes…",
+    "relationFindDependentsHint": "Buscar en una carpeta proyectos con una relación externa con esta programación."
   },
   "ifc": {
     "title": "Editor IFC",
@@ -236,6 +240,10 @@
     "company": "Empresa",
     "startDate": "Fecha de inicio",
     "endDate": "Fecha de fin",
+    "defaultWorkRule": "Tipo de tarea predeterminado",
+    "defaultWorkRuleHint": "Las tareas configuradas en «Predeterminado del proyecto» siguen esta opción. Las tareas con un tipo de tarea propio mantienen su elección.",
+    "anchorsFromOpenDocuments": "Tomar los anclajes de los documentos abiertos",
+    "anchorsFromOpenDocumentsHint": "Si un proyecto de origen está abierto con cambios sin guardar, los anclajes provienen de ese documento abierto. Desactivado por defecto.",
     "calc": {
       "title": "Cálculo",
       "subtitle": "Opciones de planificación de este proyecto — se guardan con el archivo, no con la aplicación.",
@@ -323,7 +331,7 @@
     "exportTitle": "Exportar",
     "exportSubtitle": "Elija un formato. El proyecto se convertirá y guardará.",
     "progressImportCardTitle": "Actualizar avance desde una hoja",
-    "progressImportCardDesc": "Lea una hoja CSV o XLSX devuelta y actualice la finalización, el inicio real y el fin real.",
+    "progressImportCardDesc": "Lea una hoja de Excel (.xlsx) devuelta y actualice la finalización, el inicio real y el fin real.",
     "printTitle": "Imprimir",
     "printSubtitle": "Abra la pantalla de informe para la vista previa de impresión y la configuración.",
     "openPrintPreview": "Abrir vista previa de impresión",
@@ -359,7 +367,10 @@
     "helpTutorialStep": "Tutorial {{number}} de {{total}}",
     "helpTutorialsEmpty": "Aún no hay tutoriales instalados. Se instalan como extensión desde el catálogo.",
     "helpTutorialsInstall": "Instalar tutoriales",
-    "helpDraft": "borrador"
+    "helpDraft": "borrador",
+    "helpCopyPrompt": "Copiar prompt",
+    "helpPromptCopied": "Copiado. Pegue ahora el prompt en Claude.",
+    "helpPromptCopyFailed": "No se pudo copiar. Seleccione el texto de abajo y cópielo usted mismo."
   },
   "export": {
     "progressFileSuffix": "avance",
@@ -388,6 +399,9 @@
     "mspdiDesc": "Se abre en Microsoft Project. Estructura WBS completa.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Para Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Para Oracle Primavera P6, como archivo .xer.",
+    "experimentalBadge": "Experimental",
     "profileHint": "Su proyecto usa actualmente el perfil {{name}}. Recomendamos el perfil {{target}} para la mayor compatibilidad con este formato de archivo.",
     "ifcLabel": "IFC",
     "ifcDesc": "Estándar de BuildingSMART, en el esquema IFC del proyecto (predeterminado IFC 4.3 ADD2). Enlace 4D con modelos BIM.",
@@ -442,5 +456,18 @@
     "redo": "Rehacer",
     "zoomIn": "Acercar",
     "zoomOut": "Alejar"
+  },
+  "native": {
+    "window": "Ventana",
+    "quit": "Salir de Open Planner Studio",
+    "about": "Acerca de Open Planner Studio",
+    "services": "Servicios",
+    "hide": "Ocultar Open Planner Studio",
+    "hideOthers": "Ocultar otros",
+    "showAll": "Mostrar todo",
+    "closeWindow": "Cerrar ventana",
+    "cut": "Cortar",
+    "fullscreen": "Alternar pantalla completa",
+    "bringAllToFront": "Traer todo al frente"
   }
 }

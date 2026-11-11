@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Panel upozornení",
+    "scheduleShiftPanel": "Posunuté úlohy",
     "prevResource": "Predchádzajúci",
     "nextResource": "Nasledujúci",
     "leveling": "Vyvažovanie",
@@ -155,6 +156,7 @@
     "barsGroup": "Pruhy",
     "manageBaselines": "Spravovať pôvodné plány…",
     "statusDate": "Dátum kontroly stavu",
+    "statusDateValue": "Dátum kontroly stavu: {{date}}",
     "statusDateClear": "Vymazať dátum kontroly stavu",
     "statusDateTime": "Čas dátumu kontroly stavu",
     "statusDateTimeLater": "Čas neskôr",
@@ -219,7 +221,9 @@
     "screenColorsMissingField": "Toto pole v tomto projekte neexistuje. Dočasne sa používa druh prác.",
     "screenColorsHint": "Mimo kritickej cesty červený obrys označuje kritickú cestu.",
     "addLayout": "Vytvoriť rozloženie",
-    "toggleRelations": "Čiary závislostí"
+    "toggleRelations": "Čiary závislostí",
+    "relationFindDependents": "Nájsť závislé projekty…",
+    "relationFindDependentsHint": "Vyhľadať v priečinku projekty s prepojením na tento harmonogram."
   },
   "ifc": {
     "title": "Editor IFC",
@@ -237,6 +241,10 @@
     "company": "Spoločnosť",
     "startDate": "Dátum začiatku",
     "endDate": "Dátum dokončenia",
+    "defaultWorkRule": "Predvolený typ úlohy",
+    "defaultWorkRuleHint": "Úlohy nastavené na „Štandard projektu“ nasledujú túto voľbu. Úlohy s vlastným typom úlohy si ponechajú svoju voľbu.",
+    "anchorsFromOpenDocuments": "Brať kotvy z otvorených dokumentov",
+    "anchorsFromOpenDocumentsHint": "Ak je zdrojový projekt otvorený s neuloženými zmenami, kotvy sa berú z tohto otvoreného dokumentu. Predvolene vypnuté.",
     "calc": {
       "title": "Výpočet",
       "subtitle": "Možnosti plánovania pre tento projekt. Ukladajú sa so súborom, nie s aplikáciou.",
@@ -325,7 +333,7 @@
     "exportTitle": "Exportovať",
     "exportSubtitle": "Vyberte formát. Projekt sa prevedie a uloží.",
     "progressImportCardTitle": "Aktualizovať postup z tabuľky",
-    "progressImportCardDesc": "Načítajte vrátenú tabuľku CSV alebo XLSX a aktualizujte percento dokončenia, skutočný začiatok a skutočné dokončenie.",
+    "progressImportCardDesc": "Načítajte vrátenú Excel-tabuľku (.xlsx) a aktualizujte percento dokončenia, skutočný začiatok a skutočné dokončenie.",
     "printTitle": "Tlač",
     "printSubtitle": "Otvorte prehľad zostáv s náhľadom tlače a nastaveniami.",
     "openPrintPreview": "Otvoriť náhľad tlače",
@@ -361,7 +369,10 @@
     "helpTutorialStep": "Návod {{number}} z {{total}}",
     "helpTutorialsEmpty": "Návody ešte nie sú nainštalované. Nainštalujte ich ako rozšírenie z katalógu.",
     "helpTutorialsInstall": "Nainštalovať návody",
-    "helpDraft": "koncept"
+    "helpDraft": "koncept",
+    "helpCopyPrompt": "Kopírovať prompt",
+    "helpPromptCopied": "Skopírované. Teraz vložte prompt do Claude.",
+    "helpPromptCopyFailed": "Kopírovanie sa nepodarilo. Vyberte text nižšie a skopírujte ho sami."
   },
   "export": {
     "progressFileSuffix": "postup",
@@ -390,6 +401,9 @@
     "mspdiDesc": "Otvára sa v Microsoft Project. Úplná WBS.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pre Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Pre Oracle Primavera P6 ako súbor .xer.",
+    "experimentalBadge": "Experimentálne",
     "profileHint": "Váš projekt momentálne počíta podľa profilu „{{name}}“. Odporúčame použiť profil „{{target}}“ pre najlepšiu kompatibilitu s týmto formátom súboru.",
     "ifcLabel": "IFC",
     "ifcDesc": "Štandard BuildingSMART v schéme IFC projektu (predvolená verzia IFC 4.3 ADD2). 4D prepojenie s modelmi BIM.",
@@ -444,5 +458,18 @@
     "redo": "Zopakovať",
     "zoomIn": "Priblížiť",
     "zoomOut": "Oddialiť"
+  },
+  "native": {
+    "window": "Okno",
+    "quit": "Ukončiť Open Planner Studio",
+    "about": "O aplikácii Open Planner Studio",
+    "services": "Služby",
+    "hide": "Skryť Open Planner Studio",
+    "hideOthers": "Skryť ostatné",
+    "showAll": "Zobraziť všetko",
+    "closeWindow": "Zavrieť okno",
+    "cut": "Vystrihnúť",
+    "fullscreen": "Prepnúť celú obrazovku",
+    "bringAllToFront": "Priniesť všetko do popredia"
   }
 }

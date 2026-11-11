@@ -91,6 +91,7 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
     const s = window.__OPS__!.store.getState();
     // Een nieuwe taak heeft geen contour of voortgang die de onderbreking al kan bewaren.
     const taskId = s.addTask({ name: 'Tekst\u0001' });
+    s.addResource({ name: 'Vergunning', type: 'COST', description: '', maxUnits: 1 });
     s.updateTask(taskId, { notes: [{ id: 'export-note', text: 'Notitie', done: false }] });
     s.setTaskSplits(taskId, [
       { kind: 'work', minutes: 480 }, { kind: 'gap', minutes: 480, source: 'user' }, { kind: 'work', minutes: 480 },
@@ -112,7 +113,8 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
     has: page.locator('[data-ops-toast-detail="notifications.exportCriticalHoursLost"]'),
   });
   await expect(combined).toHaveCount(1);
-  for (const key of ['notifications.exportSplitsLost', 'notifications.exportInvalidXmlChars', 'menu:export.profileHint']) {
+  for (const key of ['notifications.exportSplitsLost', 'notifications.exportInvalidXmlChars',
+    'notifications.exportCostResourcesLost', 'menu:export.profileHint']) {
     await expect(combined.locator(`[data-ops-toast-detail="${key}"]`)).toBeVisible();
   }
   await expect(combined.locator('.ops-toast-readmore').first()).toBeVisible();

@@ -43,7 +43,7 @@ Een ingevuld voortgangsblad lees je weer in via *Bestand › Importeren*. Zie [V
 
 **Een export neemt niet alles mee.** Een CSV-bestand heeft geen resources of constraints, P6 XML heeft geen baselines en deadlines. Ook het rekenprofiel gaat niet mee: een heropende CSV- of MS Project XML-export rekent als *Open Planner Studio*, een heropende `.xer`- of P6 XML-export als *Primavera P6*. Alleen IFC neemt alles mee. Na een export naar `.xer` meldt de app *De XER-export is opgeslagen. Dit ging niet of niet precies mee:*, met per soort een regel, bijvoorbeeld *2 deadlines*. Zie [Import- en exportformaten](docs://ref-import-exportformaten). Een voorbeeld met getallen vind je in [Bestanden en formaten](docs://uitleg-bestanden).
 
-**Meerdere exportmeldingen horen bij elkaar.** Als er verschillende soorten verlies of omzettingen zijn, staan ze als detailregels in één melding. De uitleg over onderbrekingen, ingekorte namen, vervangen tekens en het rekenprofiel verdringt daardoor de verliesmelding met *Lees meer* niet.
+**Meerdere exportmeldingen horen bij elkaar.** Als er verschillende soorten verlies of omzettingen zijn, staan ze als detailregels in één melding. De uitleg over onderbrekingen, weggelaten kostenresources, ingekorte namen, vervangen tekens en het rekenprofiel verdringt daardoor de verliesmelding met *Lees meer* niet.
 
 **Twee formaten met dezelfde extensie.** MS Project XML en Primavera P6 XML krijgen allebei de naam *projectnaam.xml*. Geef ze zelf een verschillende naam, anders weet je later niet welk bestand welk formaat is.
 

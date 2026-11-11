@@ -6,6 +6,7 @@ import { UITheme, UI_THEMES } from '@/state/slices/types';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { saveWelcomeSeen } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
+import { AppLogo } from '@/components/common/AppLogo';
 // Bewust een EIGEN curated mini-laag, geen hergebruik van de volledige
 // SettingsPanelContent-component — wel dezelfde losse bouwstenen.
 import { applyAutoCalcCPM, applyTheme } from '@/components/settings/applySetting';
@@ -52,7 +53,7 @@ export function WelcomeDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[480px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-welcome-dialog': true }}
     >
-        <DialogHeader title={t('welcome.title')} onClose={markSeenAndClose} />
+        <DialogHeader title={t('welcome.title')} icon={<AppLogo size={24} />} onClose={markSeenAndClose} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-body leading-5">
           {step === 1 ? (

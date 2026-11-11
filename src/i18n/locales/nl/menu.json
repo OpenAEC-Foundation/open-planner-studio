@@ -154,6 +154,7 @@
     "barsGroup": "Balken",
     "manageBaselines": "Baselines beheren…",
     "statusDate": "Statusdatum",
+    "statusDateValue": "Statusdatum: {{date}}",
     "statusDateClear": "Statusdatum leegmaken",
     "statusDateTime": "Tijd van de statusdatum",
     "statusDateTimeLater": "Tijd later",
@@ -218,7 +219,9 @@
     "screenColorsMissingField": "Dit veld bestaat niet in dit project. Werksoort wordt tijdelijk gebruikt.",
     "screenColorsHint": "Buiten Kritiek pad markeert een rode rand het kritieke pad.",
     "addLayout": "Nieuwe layout",
-    "toggleRelations": "Relatielijnen"
+    "toggleRelations": "Relatielijnen",
+    "relationFindDependents": "Afhankelijke projecten zoeken…",
+    "relationFindDependentsHint": "Zoek in een map naar projecten met een externe relatie naar deze planning."
   },
   "ifc": {
     "title": "IFC-editor",
@@ -236,6 +239,10 @@
     "company": "Bedrijf",
     "startDate": "Startdatum",
     "endDate": "Einddatum",
+    "defaultWorkRule": "Standaardtaaktype",
+    "defaultWorkRuleHint": "Taken op ‘Projectstandaard’ volgen deze keuze. Taken met een eigen taaktype behouden hun keuze.",
+    "anchorsFromOpenDocuments": "Ankers uit geopende documenten halen",
+    "anchorsFromOpenDocumentsHint": "Staat een bronproject open met niet-opgeslagen wijzigingen, dan komen de ankers uit dat geopende document. Standaard uit.",
     "calc": {
       "title": "Berekening",
       "subtitle": "Reken-opties voor dit project — horen bij het bestand, niet bij de app.",
@@ -358,7 +365,10 @@
     "helpTutorialStep": "Tutorial {{number}} van {{total}}",
     "helpTutorialsEmpty": "Er zijn nog geen tutorials geïnstalleerd. Je installeert ze als extensie uit de catalogus.",
     "helpTutorialsInstall": "Tutorials installeren",
-    "helpDraft": "concept"
+    "helpDraft": "concept",
+    "helpCopyPrompt": "Prompt kopiëren",
+    "helpPromptCopied": "Gekopieerd. Plak de prompt nu in Claude.",
+    "helpPromptCopyFailed": "Kopiëren lukte niet. Selecteer de tekst hieronder en kopieer hem zelf."
   },
   "export": {
     "progressFileSuffix": "voortgang",

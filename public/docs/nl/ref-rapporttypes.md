@@ -24,6 +24,8 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage
 
 **Oriëntatie:** — liggend of staand. Keuze uit *Liggend* en *Staand*. Standaard: *Liggend*. Effect: zoals *Papier:*. Waar: dezelfde plek als *Papier:*.
 
+**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)* en *Liberation Serif (zoals Times New Roman)*. Standaard: Inter. Effect: voorbeeld en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
+
 ## Gantt-afdruk
 
 De planning als balkenplan, met een tabel links en een tijdlijn rechts, over meerdere pagina's als het moet. Het voorbeeld toont het papier met paginakop, tabel, tijdlijn en legenda. Het blok *Overzicht* telt *Taken:*, *Bladtaken:*, *Kritiek:* en *Relaties:*. Alle opties staan onder *Instellingen*.
@@ -72,11 +74,13 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 
 **Legenda** — Standaard: aan. Effect: de legenda in de voet.
 
-**Previewkwaliteit** — hoe scherp het voorbeeld is. Keuze uit *Standaard*, *Hoog* en *Maximaal*. Standaard: *Hoog*. Effect: alleen de scherpte van het voorbeeld op het scherm; de PDF verandert er niet door. Waar: *Rapport*, boven het voorbeeld.
+**Previewkwaliteit** — hoe scherp het voorbeeld is. Keuze uit *Standaard*, *Hoog* en *Maximaal*. Standaard: *Hoog*. Effect: alleen de scherpte van het voorbeeld op het scherm; de PDF verandert er niet door. Waar: *Rapport*, boven het voorbeeld. Met het nieuwe tabblad Rapport is het papier altijd scherp, en staat deze keuze er niet.
 
 ## Resourcediagram
 
 Dezelfde balken als de Gantt-afdruk, gegroepeerd per resource: wie doet wat en wanneer. Het blok *Overzicht* telt *Resources:*, *Toewijzingen:* en *Zonder resource:* (bij een periode ook *Buiten de periode:*). Het diagram deelt alle opties van de Gantt-afdruk, behalve *Volg weergave (filter, groepering, sortering)*, *Kritiek pad* en *Afhankelijkheden*: de rijen komen niet van het scherm, een taak kan onder meerdere resources staan, en de relaties worden er niet getekend. Het vinkje *Kritiek pad* is er verborgen en staat aan. Dit komt bij de opties van de Gantt-afdruk onder *Instellingen*, met deze vier vinkjes en de periode:
+
+Met het nieuwe tabblad Rapport is het Resourcediagram geen eigen rapport meer, maar een layout in de stap *Taken en groepering* van de Gantt-afdruk. De vier vinkjes en de periode staan daar onder *Per resource*. De kolommen *Eenh./d* en *Curve* zet je daar aan of uit; ze staan niet in de stap *Kolommen*. Zie [Het nieuwe tabblad Rapport](docs://howto-rapport-maken-en-afdrukken#het-nieuwe-tabblad-rapport-experimenteel).
 
 **Elke resource op een nieuwe pagina** — Standaard: uit. Effect: elke resource begint op een nieuwe pagina, zodat je een blad per ploeg of medewerker kunt uitdelen. Uit geeft één doorlopend document.
 
@@ -126,7 +130,7 @@ Het blok *Overzicht* toont *Statusdatum*, *Periode*, *Vooruitblik t/m*, *Baselin
 
 ## Voortgangscurve
 
-Hoe het project ervoor staat, in één blad: vier kerncijfers, een S-curve van de voortgang en de taken met risico. Dit rapport heeft geen eigen opties, alleen *Papier:* en *Oriëntatie:*.
+Hoe het project ervoor staat, in één blad: vier kerncijfers, een S-curve van de voortgang en de taken met risico. Dit rapport heeft geen eigen opties, alleen *Papier:*, *Oriëntatie:* en *Lettertype:*.
 
 Het blok *Overzicht* toont *Statusdatum*, *Baseline-einde*, *Prognose-einde* en *Δ einde (wd)*. Daaronder staan vier kerncijfers:
 

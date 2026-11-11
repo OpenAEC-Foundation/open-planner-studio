@@ -34,9 +34,11 @@ import { ScopeEscapeError } from '../fileScopeError';
 
 import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
-import { writeIFC } from '@/services/ifc/ifcWriter';
-import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
-import { buildExportIFCInput } from '@/state/ifcSaveInput';
+import { writeIFCWithChoices } from '@/services/ifc/ifcWriter';
+import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
+import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
+import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
 import { extensionOf } from '@/utils/filePath';
@@ -47,6 +49,28 @@ import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '
 import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
+import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
+import type { TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
+import { ifcSaveBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+
+/** #804 fase 1a: IFC-uitvoer van een document met een vreemd deel is nog geweigerd (`state/ifcForeignGuard.ts`). */
+const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
+  'save or export it as IFC yet, because the IFC would lose that content. Other export formats still work.';
+
+/** #804 fase 1a, fixronde 1: het pad is het bronbestand van een open document met een vreemd deel. Blijft na fase 1c. */
+const FOREIGN_SOURCE_TARGET_REFUSAL = (path: string) => `'${path}' is the source file of an open document that also ` +
+  'contains a building model or data from other programs. Writing here would replace that content with only the ' +
+  'schedule. Export to another path.';
+
+/** #804 fixronde 2: het bestaande bestand op het pad bevat zelf een gebouwmodel (flag `ifcForeignContent` aan). */
+const BUILDING_MODEL_TARGET_REFUSAL = (path: string) => `'${path}' already contains a building model. Writing here ` +
+  'would replace the model with only the schedule. Export to another path.';
+
+/** Review van #870: een bestaand STEP-bestand op het pad waarin de app geen datasectie volgens ISO 10303-21 vindt. De app
+ *  kan niet zien of er een gebouwmodel in staat, dus schrijft hij er niet over (flag `ifcForeignContent` aan). */
+const UNREADABLE_TARGET_REFUSAL = (path: string) => `'${path}' is an IFC/STEP file the app cannot read reliably; it may ` +
+  'contain a building model. Writing here could replace that model with only the schedule. Export to another path.';
 
 // --- fs-naad -------------------------------------------------------------------------------------
 
@@ -66,6 +90,11 @@ export interface McpFileFs extends FileIdentityFs {
    * harde grens (zie punt 1 bovenaan), en het gedrag van de app verandert dus niet.
    */
   confine?(path: string): Promise<string | null>;
+  /**
+   * Optioneel (#804 fixronde 2): een bestaand bestand als stroom lezen voor de doelcontrole (bevat het een
+   * gebouwmodel?); `null` = niet leesbaar. Zonder deze functie is het doel niet leesbaar en mag het schrijven door.
+   */
+  scanTarget?(path: string): Promise<TargetModelScan | null>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -85,6 +114,7 @@ async function realFs(): Promise<McpFileFs> {
     stat: (p) => stat(p),
     readTextFile: (p) => readTextFile(p),
     readFile: (p) => readFile(p),
+    scanTarget: (p) => scanTargetPathTauri(p),
     writeTextFile: async (p, content) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true }); // no-op wanneer de map al bestaat
@@ -249,26 +279,17 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_export_ifc',
     description:
-      'Write the ACTIVE document as an IFC file to `path`, in the IFC schema of the project (default IFC 4.3 ' +
-      'ADD2; the response reports it as `ifcSchema`). It is the native format: tasks, relationships, ' +
-      'calendars, resources, assignments, baselines and structure are all included. FILE SCOPE: only paths ' +
-      'inside the user\'s home folder; outside it a SCOPE error follows. An existing file is NOT overwritten ' +
-      'unless you explicitly pass `overwrite: true`. This does not change the schedule, nor the document\'s ' +
-      'save target: it stays "not saved" in the app — it is an export, not a "save as". Note: the path comes ' +
-      'from your arguments, not from a file dialog of the user; so always mention the chosen path in your ' +
-      'answer. If the document was opened from an IFC file in a schema the app cannot write (such as ' +
-      'IFC2X3), writing over that same file is refused, including case aliases and links (it would ' +
-      'silently change its file type). If file identity metadata cannot prove that an existing target ' +
-      'is different (including when the platform provides no file IDs), export is refused: choose a ' +
-      'new file name, or ask the user to save in the app and choose the schema. A confirmed different ' +
-      'or new target is written as IFC 4.3 ADD2 and the response says so in `schemaNotice`.',
+      'Write the ACTIVE document to `path` as IFC (complete, the native format), inside the home folder. ' +
+      'Replaces a file only with `overwrite: true`. An export, not "save as": the document stays unsaved. Tell ' +
+      'the user the path; pass on `schemaNotice`. Writing over the source file of an unwritable schema (e.g. IFC2X3), or over a file ' +
+      'not provably different from it, is refused: choose a new file name or let the user save in the app.',
     kind: 'other',
     batchable: false, // export_ifc/import_schedule zijn uitgesloten van batch
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absolute target path inside the home folder, e.g. /home/name/schedule.ifc (~ allowed)' },
-        overwrite: { type: 'boolean', description: 'true = replace an existing file (default false)' },
+        path: { type: 'string', description: 'Absolute, or starting with ~.' },
+        overwrite: { type: 'boolean' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -278,6 +299,7 @@ export const fileTools: McpToolDef[] = [
       // Volle guard incl. drift: we schrijven de inhoud van het ACTIEVE document weg.
       const blocked = guardNonTransactional(ctx);
       if (blocked) return blocked;
+      if (ifcSaveBlocked(ctx.app.store.getState())) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       const raw = (args ?? {}) as { path?: unknown; overwrite?: unknown };
       if (typeof raw.path !== 'string' || raw.path.trim() === '') {
         return toolError(ctx, 'VALIDATION', 'Parameter \'path\' (text) is required: the absolute target path of the IFC file.');
@@ -326,6 +348,13 @@ export const fileTools: McpToolDef[] = [
       if (lateBlocked) return lateBlocked;
       const checked = ctx.app.store.getState();
       const refused = await refuseSilentSchemaChange(ctx, fs, path);
+      // Fixronde 1: niet over het bronbestand van een document met een vreemd deel (ook een ander open document, en ook
+      // na crashherstel, via het kenmerk). Pad of bestandsidentiteit, zoals de schemacontrole hierboven. Fixronde 2: met
+      // de flag aan ook niet over een bestaand bestand met een gebouwmodel (dezelfde doelcontrole als Opslaan als).
+      const foreignTarget = await refusedWriteTarget(checked, { kind: 'path', path }, {
+        identityFs: async () => fs,
+        readers: () => (fs.scanTarget ? { scanPath: (p: string) => fs.scanTarget!(p) } : {}),
+      });
       // Identiteit opvragen is ook async: pauze, dialoog en documentdrift winnen nog steeds.
       const identityBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
       if (identityBlocked) return identityBlocked;
@@ -337,17 +366,40 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'The document save target or IFC schema changed during the file identity check. Retry the export.');
       }
       if (refused) return refused;
+      if (foreignTarget === 'open-source') return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
+      if (foreignTarget === 'building-model') return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
+      if (foreignTarget === 'unreadable-target') return toolError(ctx, 'VALIDATION', UNREADABLE_TARGET_REFUSAL(path));
+      if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
       const input = buildExportIFCInput(state);
-      const content = writeIFC(input);
+      const { content, literalCalendarIds } = writeIFCWithChoices(input);
       const ifcSchema = projectIfcSchema(input.project);
       const question = ifcSchemaQuestionFor(state.project);
-      try {
-        await fs.writeTextFile(path, content);
-      } catch (e) {
-        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
-      }
+      // Knownbug 1026 (review #872 ronde 3 en 4, Terra): een export over het eigen bestand legt de letterlijke kalenders
+      // vast, zoals Opslaan; een aantoonbaar ander bestand niet (`exportHitsOwnFile`). Schrijven en vastleggen staan onder
+      // dezelfde lock als Opslaan en AutoSave, zodat AutoSave er niet tussendoor de ankertekst schrijft.
+      const writeError = await runProjectFileWrite(async () => {
+        // Review #872 ronde 5 (Terra): wachten op de lock is ook een await. Pauze, alleen-lezen, dialoog en documentdrift
+        // winnen; en is het document intussen veranderd (een opslag in de wachtrij), dan zou deze tekst oud zijn.
+        const waitBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
+        if (waitBlocked) return waitBlocked;
+        const now = ctx.app.store.getState();
+        if (now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now)
+          || now.filePath !== state.filePath || now.fileHandle !== state.fileHandle || now.siteFileId !== state.siteFileId) {
+          return toolError(ctx, 'VALIDATION', 'The document changed while the export waited for another save. Nothing was written. Retry the export.');
+        }
+        try {
+          await fs.writeTextFile(path, content);
+        } catch (e) {
+          return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+        if (literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
+          ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, literalCalendarIds);
+        }
+        return null;
+      });
+      if (writeError) return writeError;
       return {
         ok: true,
         envelope: buildEnvelope(ctx),
@@ -373,36 +425,17 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_import_schedule',
     description:
-      'Read a schedule file from disk and open it as a DOCUMENT (tab). Supported: .ifc (native, complete), ' +
-      '.xml (Primavera P6 or MS Project MSPDI — the format is detected from the content), .csv, .xer ' +
-      '(Primavera P6, read-only) and .mpp (MS Project 2010-2021, MPP14, read-only — older formats and ' +
-      'password-protected files give an error asking to export as XML first). Nothing is merged into the ' +
-      'current plan: an empty and unchanged active tab is reused, otherwise a new tab is added; the result ' +
-      'becomes active and follow-up work lands there. LOSS PER FORMAT — tell the user: CSV contains NO ' +
-      'calendar (the document gets the default calendar, so dates can shift!) and no resources or ' +
-      'assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP contains no baselines/custom fields; ' +
-      'MSPDI is the richest after IFC. A file whose dates were not calculated in minutes (an IFC from an ' +
-      'older Open Planner Studio) is recalculated on opening; when that moves tasks, the document in `documents` carries ' +
-      '`minuteModelConversion` (`shiftedTasks`, `maxShiftWorkdays`) and `notice` says it — tell the user. ' +
-      'After a CSV/XML/MPP import the document has NO save target yet ' +
-      '(saving always writes IFC, so the source file is never overwritten); only an IFC import takes over ' +
-      'the source path. Use the `documents` inventory FROM THE RESPONSE for all opened documents; ' +
-      '`documentId` keeps pointing at the active document for compatibility. Whether the first project ' +
-      'landed in the existing tab or in a new tab depends on the state of the app. Calendar ids are per ' +
-      'document: rebuild a calendar in the imported document with update_calendar — pass a calendar object ' +
-      'from planner_get_calendars of the master document back LITERALLY (including `workTime` hour bands, ' +
-      '`shift`, `holidays` and `generation`) with `create: true`, or use the generator path (`generate`). ' +
-      'Then attach the tasks to the NEW id via `update_tasks.calendarId`; to align the PROJECT calendar of ' +
-      'the imported document, write the fields to the id from its own `projectDefaultId` (WHICH calendar is ' +
-      'the project default cannot be switched via the bridge). Never reuse an id from another document. FILE ' +
-      'SCOPE: only paths inside the home folder. The path comes from your arguments, not from a file dialog ' +
-      'of the user.',
+      'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
+      'new active tab (an empty, unchanged active tab is reused); nothing is merged. Tell the user what is lost: CSV has no calendar (dates can ' +
+      'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
+      'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
+      'document; rebuild calendars with planner_update_calendar.',
     kind: 'other',
     batchable: false,
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absolute source path inside the home folder (.ifc / .xml / .csv / .mpp / .xer; ~ allowed)' },
+        path: { type: 'string', description: 'Absolute, or starting with ~.' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -441,10 +474,13 @@ export const fileTools: McpToolDef[] = [
       // verderop) — dus een binair formaat kan via `formatOf`'s IFC-terugval nooit per ongeluk als
       // opslagdoel-waardig gelezen worden.
       let input: FormatInput;
+      let readOptions: FormatReadOptions = {};
       try {
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
-        input = await readFormatInput(path, fs);
+        // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
+        readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
+        input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
         return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
@@ -456,7 +492,7 @@ export const fileTools: McpToolDef[] = [
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
         // ImportLabels).
-        parsed = await parseOpenedFile(input);
+        parsed = await parseOpenedFile(input, undefined, readOptions);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }

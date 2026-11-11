@@ -32,6 +32,7 @@
   "repeatHeader": "Fejléc ismétlése minden oldalon",
   "repeatFooter": "Lábléc ismétlése minden oldalon",
   "reportFontScaleLabel": "Betűméret:",
+  "reportFontFamilyLabel": "Betűtípus:",
   "timelineColumnsLabel": "Idővonal ennyi oldalra:",
   "timelineColumnsHint": "Csak automatikus illesztés esetén",
   "timelineColumns_one": "{{count}} oldal",
@@ -434,5 +435,11 @@
       "riskHeading": "Kockázatos tevékenységek: késésben vagy negatív tartalékidő",
       "riskEmpty": "Nincs késő tevékenység, nincs negatív tartalékidő."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (alapértelmezett)",
+    "liberationSans": "Liberation Sans (mint az Arial)",
+    "carlito": "Carlito (mint a Calibri)",
+    "liberationSerif": "Liberation Serif (mint a Times New Roman)"
   }
 }

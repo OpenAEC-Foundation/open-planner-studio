@@ -538,6 +538,22 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804 fase 1a: met de flag ifcForeignContent uit byte-gelijk aan main. De verwachting komt uit de code van main
+  # (scripts/proef/maak-main-pariteit.mjs, met TZ=Europe/Amsterdam): daarom een vaste tijdzone, buiten de matrix.
+  IFCFOREIGNPARITEIT="$DIR/.ifc-foreign-pariteit.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-pariteit.ts" "$IFCFOREIGNPARITEIT"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNPARITEIT" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # #804 fase 1b: hoe vaak de merge-writer weigert (bijsturing 1, punt 2): ruim 1200 merges met herlezen, ongeveer een
+  # minuut. Een meting, geen tijdzonetest: één keer, buiten de matrix, met dezelfde vaste tijdzone als de pariteitscheck.
+  IFCFOREIGNTELLING="$DIR/.ifc-foreign-merge-telling.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-merge-telling.ts" "$IFCFOREIGNTELLING"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNTELLING" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
@@ -756,6 +772,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERARCHIVERECOVERYCORPUSCHECK="$DIR/.xer-archive-recovery-corpus.mjs"
   if bundle_check "$DIR/check-xer-archive-recovery-corpus.ts" "$XERARCHIVERECOVERYCORPUSCHECK"; then
     node "$XERARCHIVERECOVERYCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # #818: startvolgorde van de platformbouw met een host (het echte main.tsx, gebundeld als platformbouw).
+  # Bouwt zelf een esbuild-bundel en hangt niet van de tijdzone af: één keer, buiten de tijdzonematrix.
+  SITESTARTORDERCHECK="$DIR/.site-start-order.mjs"
+  if bundle_check "$DIR/check-site-start-order.ts" "$SITESTARTORDERCHECK"; then
+    node "$SITESTARTORDERCHECK" || STATUS=1
     unset 'BUNDLES[-1]'
   fi
 

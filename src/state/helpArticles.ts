@@ -79,6 +79,9 @@ export const CODES_FIELDS_HELP_ARTICLE_ID = 'howto-codes-en-velden';
 /** Baselines beheren. */
 export const BASELINES_HELP_ARTICLE_ID = 'howto-baseline-opslaan-en-beheren';
 
+/** Een rapport maken en als PDF opslaan (het tabblad Rapport). */
+export const REPORT_HELP_ARTICLE_ID = 'howto-rapport-maken-en-afdrukken';
+
 /** De urenverdeling (contour) van een toewijzing. */
 export const CONTOUR_HELP_ARTICLE_ID = 'howto-urenverdeling-aanpassen';
 

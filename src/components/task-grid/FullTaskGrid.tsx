@@ -20,6 +20,7 @@ import { buildTrace } from '@/engine/taskGrid/trace';
 import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
 import { useGanttRowDragBridge } from '@/components/canvas/ganttRowDragBridge';
 import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
+import { humanizeTaskGridKey, resolveColumnLabel } from '@/engine/taskGrid/columnLabel';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { taskNameIndent } from '@/engine/taskGrid/nameIndent';
 import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
@@ -54,6 +55,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { endOfListPosition, insertTaskRelativeToScope } from '@/state/taskInsertActions';
+import { COLUMNS_RIBBON_TOGGLE_SELECTOR } from './ColumnChooser';
 import { withTransaction } from '@/state/batchTransaction';
 import {
   appendGhostRow,
@@ -80,10 +82,11 @@ import type { GridMutationOptions } from '@/state/gridTransaction';
 import { localTodayIso } from '@/utils/dateUtils';
 import type {
   CellEditIntent, CellValidationError, GridIntent, GridResult, TaskColumnCategory, TaskColumnId,
-  TaskGridSurfaceId,
+  TaskGridColumnPreference, TaskGridSurfaceId,
 } from '@/types/taskGrid';
 import { askActualStart } from '@/state/actualStartQuestion';
 import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
+import { Icon } from '@/components/icons';
 
 interface EditingCell {
   documentId: string;
@@ -187,60 +190,6 @@ function categoryFallback(category: TaskColumnCategory): string {
   } satisfies Record<TaskColumnCategory, string>)[category];
 }
 
-const COLUMN_LABEL_ALIASES: Readonly<Record<string, string>> = {
-  'taskGrid.columns.wbs': 'table.wbs',
-  'taskGrid.columns.name': 'table.name',
-  'taskGrid.columns.description': 'properties.description',
-  'taskGrid.columns.duration': 'table.duration',
-  'taskGrid.columns.scheduleStart': 'table.start',
-  'taskGrid.columns.scheduleFinish': 'table.finish',
-  'taskGrid.columns.taskType': 'table.type',
-  'taskGrid.columns.critical': 'table.critical',
-  'taskGrid.columns.totalFloat': 'table.totalFloat',
-  'taskGrid.columns.freeFloat': 'table.freeFloat',
-  'taskGrid.columns.interferingFloat': 'table.interferingFloat',
-  'taskGrid.columns.nearCritical': 'table.isNearCritical',
-  'taskGrid.columns.floatPath': 'table.floatPath',
-  'taskGrid.columns.completion': 'table.completion',
-  'taskGrid.columns.milestone': 'table.milestone',
-  'taskGrid.columns.milestoneKind': 'properties.milestoneKind',
-  'taskGrid.columns.mandatoryMilestone': 'properties.mandatory',
-  'taskGrid.columns.constraintType': 'properties.constraint',
-  'taskGrid.columns.constraintDate': 'properties.constraintDate',
-  'taskGrid.columns.constraint2Type': 'properties.constraint2',
-  'taskGrid.columns.constraint2Date': 'properties.constraint2Date',
-  'taskGrid.columns.hammock': 'properties.hammock',
-  'taskGrid.columns.deadline': 'properties.deadline',
-  'taskGrid.columns.actualStart': 'properties.progress.actualStart',
-  'taskGrid.columns.actualFinish': 'properties.progress.actualFinish',
-  'taskGrid.columns.remainingTime': 'properties.progress.remaining',
-};
-
-function humanizeTaskGridKey(labelKey: string): string {
-  const parts = labelKey.split('.');
-  const leaf = parts[parts.length - 1] ?? labelKey;
-  const words = leaf
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\bid\b/gi, 'ID')
-    .replace(/\bwbs\b/gi, 'WBS')
-    .replace(/\bcpm\b/gi, 'CPM');
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-/** Vertaalt de sleutel van een kolomkop, met een leesbare terugval als een vertaling ontbreekt. Krijgt
- *  alleen vertaalsleutels: namen die de gebruiker gaf (codes, eigen velden, baselines) zet
- *  `taskColumnLabel` letterlijk in de kop, zodat ze nooit door `t()` of `humanizeTaskGridKey` gaan. */
-function resolveColumnLabel(labelKey: string, translate: (key: string) => string): string {
-  const direct = translate(labelKey);
-  if (direct !== labelKey) return direct;
-  const alias = COLUMN_LABEL_ALIASES[labelKey];
-  if (alias) {
-    const translatedAlias = translate(alias);
-    if (translatedAlias !== alias) return translatedAlias;
-  }
-  return humanizeTaskGridKey(labelKey);
-}
 
 function resolveGridStatusLabel(
   statusKey: string | undefined,
@@ -340,6 +289,9 @@ export function TaskGridSurface({
   const notifyStructureLocked = useAppStore(state => state.notifyStructureLocked);
   const runGridMutation = useAppStore(state => state.runGridMutation);
   const commitTaskGridColumns = useAppStore(state => state.commitTaskGridColumns);
+  const applyAutoFitTaskGridColumns = useAppStore(state => state.applyAutoFitTaskGridColumns);
+  // Pas aanpassen als de opgeslagen kolomvoorkeuren geladen zijn; eerder staan er standaardkolommen.
+  const autoFitColumns = useAppStore(state => state.ui.autoFitColumns && state.taskGridAutoWriteAllowed);
   const setTaskGridScrollX = useAppStore(state => state.setTaskGridScrollX);
   const recordRecentTaskColumn = useAppStore(state => state.recordRecentTaskColumn);
   const constructionMode = useAppStore(state => state.ui.constructionMode);
@@ -801,6 +753,11 @@ export function TaskGridSurface({
         name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
       });
       if (!id) return;
+      // Hier typt de gebruiker de naam in de cel (de editor hieronder). `insertTaskRelativeToScope` zet ook de
+      // naamfocus van het eigenschappenpaneel klaar; die zou de focus uit deze editor halen, afhankelijk van welk
+      // effect het laatst draait. Dan landt het typen in het paneel en blijft de cel leeg open (#818, gezien in
+      // de productiebundel). Eén eigenaar van de focus: de cel.
+      useAppStore.getState().setUI({ pendingTaskNameFocusId: null });
       const live = useAppStore.getState().viewRows.find(candidate => candidate.kind === 'task' && candidate.task.id === id);
       if (!live) return;
       selectTask(id, false);
@@ -920,6 +877,10 @@ export function TaskGridSurface({
     return computeTaskGridAutoFitWidth({
       columnId,
       headerText: option.label,
+      // Met de instelling "Kolommen automatisch aanpassen" aan telt de kop niet mee: de kop kapt
+      // af met een ellips (zoals bij de standaardbreedtes), de waarden bepalen de breedte. Ook de
+      // dubbelklik volgt dan deze regel, anders sprong de kolom na het loslaten weer terug.
+      includeHeader: !autoFitColumns,
       rows: rowIndex.taskRows.map(row => {
         const value = descriptor.read(row.task, adapter.context);
         const visibleText = adapter.getCell(row.rowKey, columnId)?.text ?? '';
@@ -938,7 +899,13 @@ export function TaskGridSurface({
       cache: autoFitCacheRef.current,
       measureText: text => context2d.measureText(text).width,
     });
-  }, [activeDocumentId, adapter, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
+  }, [activeDocumentId, adapter, autoFitColumns, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
+
+  // Automatisch gemeten breedtes: wel bewaard, geen eigen undo-stap (de gebruiker koos ze niet).
+  const applyAutoFit = useCallback(
+    (columns: readonly TaskGridColumnPreference[]) => applyAutoFitTaskGridColumns(surfaceId, columns),
+    [applyAutoFitTaskGridColumns, surfaceId],
+  );
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {
     const base = adapter.getCell(row.rowKey, column.id);
@@ -975,7 +942,9 @@ export function TaskGridSurface({
               onPointerDown={event => event.stopPropagation()}
               onClick={event => { event.stopPropagation(); toggleCollapse(summary.id); }}
             >
-              {collapsedTaskIds.includes(summary.id) ? '▸' : '▾'}
+              {(collapsedTaskIds.includes(summary.id)
+                  ? <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
+                  : <Icon id="tree.collapse" size={16} />)}
             </button>
           )}
           {body}
@@ -1235,10 +1204,14 @@ export function TaskGridSurface({
         onRecordRecentColumn={recordRecentTaskColumn}
         beforeColumnAction={finishEditing}
         onComputeAutoFitWidth={computeAutoFitWidth}
+        autoFitColumns={autoFitColumns}
+        autoFitPaused={editing !== null}
+        onApplyAutoFit={applyAutoFit}
         chooserOpen={surfaceId === 'full-task-grid' ? showColumnsDialog : undefined}
         onChooserOpenChange={surfaceId === 'full-task-grid'
           ? open => setUI({ showColumnsDialog: open })
           : undefined}
+        chooserExternalToggleSelector={surfaceId === 'full-task-grid' ? COLUMNS_RIBBON_TOGGLE_SELECTOR : undefined}
       />
       {surfaceError && <div className="full-task-grid-error" role="alert">{surfaceError}</div>}
       {externalRelationMenu?.documentId === activeDocumentId && (

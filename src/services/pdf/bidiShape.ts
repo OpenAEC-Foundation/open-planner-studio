@@ -58,9 +58,9 @@ export interface ShapeFontkitFont {
   };
   /**
    * Optioneel: True als het font een echte glyph heeft voor deze codepoint. Gebruikt om neutrale
-   * interpunctie (bv. em-dash) die in een RTL-run valt maar door Noto NIET gedekt wordt, alsnog aan
-   * het Latijnse font toe te wijzen i.p.v. een `.notdef`-tofu te tekenen. Ontbreekt hij (minimale
-   * test-fonts), dan gaat neutraal in RTL naar het Arabische font.
+   * interpunctie (bv. em-dash) die Noto NIET dekt, alsnog aan het Latijnse font toe te wijzen i.p.v.
+   * een `.notdef`-tofu te tekenen. Ontbreekt hij (minimale test-fonts), dan gaat elk neutraal teken
+   * naar het Arabische font.
    */
   hasGlyphForCodePoint?(codePoint: number): boolean;
 }
@@ -145,6 +145,9 @@ export interface RawRun {
 // bidi-js is een factory: één keer instantiëren en hergebruiken (stateless API).
 const bidi = bidiFactory();
 
+/** Heeft een stuk tekst een letter (en dus een eigen script)? Zie het scriptargument in {@link layoutRuns}. */
+const HAS_LETTER = /\p{L}/u;
+
 /** Arabisch/Perzisch script (incl. Arabisch-Indische + Perzische cijfers) én presentatievormen. */
 export function isArabicScriptCp(cp: number): boolean {
   return (
@@ -156,11 +159,6 @@ export function isArabicScriptCp(cp: number): boolean {
   );
 }
 
-/**
- * Neutrale/gedeelde codepoints (spatie, tab, veelvoorkomende interpunctie) hebben geen eigen script; ze
- * erven de font-klasse van hun run-level (RTL → Arabisch, anders Latijn). Zo blijft een Arabische run
- * mét interne spaties op het Arabische font i.p.v. bij elke spatie te splitsen.
- */
 /**
  * Bidi-stuurtekens (UAX #9, "default ignorable"): LRM/RLM, ALM, de embedding/override-tekens en de
  * isolaten. Ze sturen de UBA-levelberekening en hebben geen glyph — een shaper laat ze weg. Inter
@@ -180,6 +178,11 @@ export function stripBidiControls(text: string): string {
   return text.replace(BIDI_CONTROLS, '');
 }
 
+/**
+ * Neutrale/gedeelde codepoints (spatie, tab, harde spatie en de algemene interpunctie U+2000–206F) hebben
+ * geen eigen script. Dit is precies het niet-Arabische deel van de `unicode-range` waarmee het scherm
+ * Noto Sans Arabic laadt (`ARABIC_REPORT_UNICODE_RANGE` in `reportFont.ts`); zie {@link fontClassFor}.
+ */
 export function isNeutralCp(cp: number): boolean {
   return (
     cp === 0x20 || cp === 0x09 || cp === 0x0a || cp === 0x0d || // whitespace
@@ -189,22 +192,25 @@ export function isNeutralCp(cp: number): boolean {
 }
 
 /**
- * Font-klasse ('latin'|'arabic') voor één codepoint, gegeven of z'n run-level oneven (RTL) is.
- * `arabicHasGlyph` (indien meegegeven) laat een neutraal teken dat in een RTL-run valt maar door het
- * Arabische font NIET gedekt wordt (bv. de em-dash '—', die Noto Sans Arabic mist) tóch naar het
- * Latijnse font gaan i.p.v. een tofu te tekenen — het Latijnse font dekt zulke interpunctie wél.
+ * Font-klasse ('latin'|'arabic') voor één codepoint. Arabisch schrift → Noto. Een neutraal teken → Noto
+ * als Noto het heeft (`arabicHasGlyph`), anders het Latijnse font: de em-dash '—' mist Noto Sans Arabic,
+ * dus die tekent de rapportletter in plaats van een tofu. De rest → het Latijnse font.
+ *
+ * WAAROM een neutraal teken naar Noto, ook in een links-naar-rechtsstuk (review Sol #847, ronde 2): het
+ * scherm tekent een tekst met Arabisch of Hebreeuws met Noto vooraan in de stack, en de `unicode-range`
+ * van Noto bevat de neutrale tekens. De browser kiest de letter per teken, niet per bidi-run: elke spatie
+ * die Noto heeft, komt in Chromium én WebKit uit Noto, ook de spatie in "Fase 1" vóór een Arabisch woord.
+ * Gaf de PDF die spatie de rapportletter (de klasse van vóór deze regel: Latijn op een even level), dan
+ * telde het verschil per spatie op. Bij Carlito (spatie 0,226 em, Noto 0,260 em) mat een gemengde naam
+ * 409,8 px en tekende de browser 414,4 px: de naam liep de volgende kolom in en het oude paneel kapte hem
+ * af. Tekst zonder Arabisch of Hebreeuws komt hier niet: die gaat niet door de shaping-kern.
  */
 function fontClassFor(
   cp: number,
-  levelOdd: boolean,
   arabicHasGlyph?: (cp: number) => boolean,
 ): 'latin' | 'arabic' {
   if (isArabicScriptCp(cp)) return 'arabic';
-  if (isNeutralCp(cp)) {
-    if (!levelOdd) return 'latin';
-    // RTL-run: neutraal hoort bij het Arabische font, tenzij Noto 'm niet dekt → val terug op Latijn.
-    return arabicHasGlyph && !arabicHasGlyph(cp) ? 'latin' : 'arabic';
-  }
+  if (isNeutralCp(cp)) return arabicHasGlyph && !arabicHasGlyph(cp) ? 'latin' : 'arabic';
   return 'latin';
 }
 
@@ -246,11 +252,11 @@ function segmentRuns(
   const runs: LogicalRun[] = [];
   let start = 0;
   let curLevel = levels[0] ?? (baseDir === 'rtl' ? 1 : 0);
-  let curCls = fontClassFor(text.charCodeAt(0), (curLevel & 1) === 1, arabicHasGlyph);
+  let curCls = fontClassFor(text.charCodeAt(0), arabicHasGlyph);
   for (let i = 1; i <= text.length; i++) {
     const atEnd = i === text.length;
     const lvl = atEnd ? -1 : levels[i];
-    const cls = atEnd ? curCls : fontClassFor(text.charCodeAt(i), (lvl & 1) === 1, arabicHasGlyph);
+    const cls = atEnd ? curCls : fontClassFor(text.charCodeAt(i), arabicHasGlyph);
     if (atEnd || lvl !== curLevel || cls !== curCls) {
       runs.push({ start, end: i, level: curLevel, cls: curCls });
       start = i;
@@ -394,7 +400,12 @@ export function layoutRuns(
     const str = stripBidiControls(text.slice(lr.start, lr.end));
     const dir: 'ltr' | 'rtl' = (lr.level & 1) === 1 ? 'rtl' : 'ltr';
     const { fk, fontKey } = pickFont(lr.cls, bold, fonts);
-    const gr = str ? fk.layout(str, undefined, undefined, undefined, dir) : { glyphs: [], positions: [] };
+    // Een stuk in de rapportletter zonder letter ("2.3", "50%") heeft geen eigen script: fontkit kiest dan
+    // DFLT, en Inter kernt daar anders dan in latn ("2.3" op 9 px: 13,157 tegen 13,399). Chromium en
+    // WebKitGTK tekenen zo'n stuk naast Arabisch met de kerning van latn (gemeten 9 november 2026, review
+    // Sol #847 ronde 2); de PDF en de meting doen nu hetzelfde.
+    const script = lr.cls === 'latin' && !HAS_LETTER.test(str) ? 'latn' : undefined;
+    const gr = str ? fk.layout(str, undefined, script, undefined, dir) : { glyphs: [], positions: [] };
     const glyphIds = gr.glyphs.map(g => g.id);
     const advances = gr.positions.map(p => p.xAdvance);
     const xOffsets = gr.positions.map(p => p.xOffset ?? 0);
