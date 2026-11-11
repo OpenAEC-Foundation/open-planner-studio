@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  patchReportSettings, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  patchReportSettings, readReportSettings, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -247,12 +247,16 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const source = reportTaskSource(settings);
   const sourceKey = taskSourceKey(source);
   const chosenLayout = source.kind === 'layout' ? layouts.find(layout => layout.id === source.id) ?? null : null;
-  // Een verwijderde layout: terug naar alle taken, met een melding. Pas als de eigen layouts gelezen zijn.
+  // Een verwijderde layout: terug naar alle taken, met een melding. Pas als de eigen layouts gelezen zijn, en alleen
+  // als die layout ook in de opslag nog gekozen is: koos iemand elders al een andere bron, dan neemt het tabblad
+  // die over in plaats van haar te wissen (review Terra #893, ronde 5).
   useEffect(() => {
     if (!hydrated || !layoutsLoaded || source.kind !== 'layout' || chosenLayout) return;
-    remember(taskSourcePatch({ kind: 'all' }));
-    useAppStore.getState().notify({ severity: 'info', messageKey: 'notifications.reportLayoutGone' });
-  }, [hydrated, layoutsLoaded, source.kind, chosenLayout, remember]);
+    const stored = reportTaskSource(readReportSettings());
+    const gone = stored.kind === 'layout' && stored.id === source.id;
+    remember(taskSourcePatch(gone ? { kind: 'all' } : stored));
+    if (gone) useAppStore.getState().notify({ severity: 'info', messageKey: 'notifications.reportLayoutGone' });
+  }, [hydrated, layoutsLoaded, source, chosenLayout, remember]);
 
   const resourceOptions = settings.resourceGantt;
   const resolvedPeriod = useResolvedPeriod(resourceOptions.period);

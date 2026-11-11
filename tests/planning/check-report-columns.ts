@@ -27,7 +27,7 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effHoursPerDay, effectiveCalendarOf, effectiveDurationDisplay } from '@/utils/taskDuration';
 import {
   DEFAULT_REPORT_SETTINGS, REPORT_DEFAULT_COLUMNS, REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN,
-  chosenReportChange, loadReportSettings, parseReportColumns, patchReportSettings,
+  chosenReportChange, loadReportSettings, mergeChosen, parseReportColumns, patchReportSettings,
 } from '@/utils/reportSettings';
 import {
   addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn,
@@ -285,13 +285,13 @@ const CAL_DAYS = 'task.time.calendarDays';
   patchReportSettings({ ...DEFAULT_REPORT_SETTINGS });
   const stale = await loadReportSettings();
   localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stale, columns: ['task.name', CAL_DAYS] }));
-  patchReportSettings(chosenReportChange(stale, { paperSize: 'A4' }));
+  patchReportSettings(stored => chosenReportChange(stale, { paperSize: 'A4' }, stored));
   const merged = await loadReportSettings();
   eq(merged.paperSize, 'A4', 'patch: het eigen veld staat erin');
   eq(merged.columns, ['task.name', CAL_DAYS], 'patch: de kolommen van elders blijven staan');
   // Een keuze schrijft elk gekozen veld, ook als de kopie het al had (review Terra #893, ronde 3): de opslag kan
   // van elders anders zijn, en de velden van één keuze horen bij elkaar.
-  eq(chosenReportChange(stale, { layoutId: stale.layoutId, followView: true }), { layoutId: stale.layoutId, followView: true },
+  eq(chosenReportChange(stale, { layoutId: stale.layoutId, followView: true }, { ...stale, layoutId: 'elders' }), { layoutId: stale.layoutId, followView: true },
     'keuze: ook een veld dat de kopie al had');
   // De optiegroepen per optie (review Terra #893, ronde 2): een tabeloptie of resourceoptie van elders blijft staan.
   const fresh = await loadReportSettings();
@@ -300,14 +300,24 @@ const CAL_DAYS = 'task.time.calendarDays';
     tableReports: { ...fresh.tableReports, nearCriticalDays: 11 },
     resourceGantt: { ...fresh.resourceGantt, groupByType: !fresh.resourceGantt.groupByType },
   }));
-  const tableChange = chosenReportChange(fresh, { tableReports: { ...fresh.tableReports, wbsSummaryLevel: 3 } });
-  eq(tableChange, { tableReports: { wbsSummaryLevel: 3 } }, 'diff: alleen de gewijzigde tabeloptie');
-  patchReportSettings(tableChange);
-  patchReportSettings(chosenReportChange(fresh, { resourceGantt: { ...fresh.resourceGantt, includeUnassigned: !fresh.resourceGantt.includeUnassigned } }));
+  patchReportSettings(stored => chosenReportChange(fresh, { tableReports: { ...fresh.tableReports, wbsSummaryLevel: 3 } }, stored));
+  patchReportSettings(stored => chosenReportChange(fresh, { resourceGantt: { ...fresh.resourceGantt, includeUnassigned: !fresh.resourceGantt.includeUnassigned } }, stored));
   const groups = await loadReportSettings();
   eq([groups.tableReports.nearCriticalDays, groups.tableReports.wbsSummaryLevel], [11, 3], 'patch: tabeloptie van elders blijft, de eigen staat erin');
   eq([groups.resourceGantt.groupByType, groups.resourceGantt.includeUnassigned], [!fresh.resourceGantt.groupByType, !fresh.resourceGantt.includeUnassigned],
     'patch: resourceoptie van elders blijft, de eigen staat erin');
+  // Drie-weg-samenvoegen (review Terra #893, ronde 5): wat de planner veranderde, over wat er nu staat.
+  eq(mergeChosen(['a', 'b'], ['a', 'b', 'c'], ['a', 'b', 'x']), ['a', 'b', 'c', 'x'], 'lijst: eigen toevoeging, die van elders erachter');
+  eq(mergeChosen(['a', 'b', 'c'], ['a', 'c'], ['a', 'b', 'c', 'x']), ['a', 'c', 'x'], 'lijst: eigen weghalen blijft weg');
+  eq(mergeChosen(['a', 'b', 'c'], ['c', 'a', 'b'], ['a', 'c']), ['c', 'a'], 'lijst: eigen volgorde, zonder wat elders is weggehaald');
+  eq(mergeChosen(['a'], ['a', 'b'], ['a']), ['a', 'b'], 'lijst: niets van elders ⇒ de eigen lijst');
+  eq(mergeChosen({ mode: 'critical', colors: { critical: '#123456' } }, { mode: 'auto', colors: { critical: '#123456' } },
+    { mode: 'critical', colors: { critical: '#abcdef' } }), { mode: 'auto', colors: { critical: '#abcdef' } }, 'object: eigen modus, kleur van elders');
+  eq(mergeChosen({ mode: 'category', field: 'f' }, { mode: 'auto' }, { mode: 'category', field: 'f', colors: { normal: '#111111' } }),
+    { mode: 'auto', colors: { normal: '#111111' } }, 'object: een weggehaalde sleutel blijft weg');
+  eq(mergeChosen({ preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, { preset: 'project' }, { preset: 'custom', from: '2026-09-01', to: '2026-10-31' }),
+    { preset: 'project' }, 'periode: eigen preset zonder datums');
+  eq(mergeChosen(1, 2, 3), 2, 'losse waarde: de eigen keuze');
   // Een wijziging die van de opslag afhangt, krijgt de actuele opslag.
   localStorage.setItem('ops-reportSettings', JSON.stringify({ ...groups, layoutId: 'elders' }));
   patchReportSettings(stored => ({ reportType: 'lookAhead', ...(stored.layoutId === 'elders' ? { paperHintSeen: true } : {}) }));

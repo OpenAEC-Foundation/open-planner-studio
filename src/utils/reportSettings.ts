@@ -498,19 +498,38 @@ export function patchReportSettings(patch: ReportSettingsPatch | ((stored: Repor
 
 const differs = (a: unknown, b: unknown) => a !== b && JSON.stringify(a) !== JSON.stringify(b);
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value);
+
 /**
- * Wat een keuze in het Rapport-tabblad wegschrijft. Elk gekozen veld, ook als het in de kopie van het tabblad al
- * zo stond: de opslag kan van elders anders zijn, en een keuze als *Zoals de weergave* hoort bij elkaar (review
- * Terra #893, ronde 3). Alleen in een optiegroep de opties die de keuze veranderde: de bediening geeft daar de
- * hele groep uit de kopie door, en de andere opties kunnen in de opslag nieuwer zijn.
+ * Drie-weg-samenvoegen van één gekozen waarde: wat de planner veranderde ten opzichte van wat hij zag (`base`),
+ * over wat er nu opgeslagen staat (`stored`). Veranderde er elders niets, dan zijn keuze. Een lijst (de kolommen):
+ * zijn lijst, zonder wat elders is weggehaald en met wat elders is toegevoegd erachter. Een object (balkkleuren,
+ * een optiegroep, een periode): per sleutel, en een sleutel die hij niet veranderde, houdt de opgeslagen waarde.
+ * Een losse waarde: zijn keuze. Zo wist een keuze nooit een wijziging van elders die nog niet binnen is (review
+ * Terra #893, rondes 1 tot en met 5). Standaard en een overname uit een layout vervangen bewust alles.
  */
-export function chosenReportChange(current: ReportSettings, next: Partial<ReportSettings>): ReportSettingsPatch {
-  const change: Record<string, unknown> = { ...next };
-  for (const group of OPTION_GROUPS) {
-    const options = next[group] as Record<string, unknown> | undefined;
-    if (!options) continue;
-    const was = current[group] as unknown as Record<string, unknown>;
-    change[group] = Object.fromEntries(Object.entries(options).filter(([option, value]) => differs(was[option], value)));
+export function mergeChosen(base: unknown, mine: unknown, stored: unknown): unknown {
+  if (!differs(base, stored)) return mine;
+  if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(stored)) {
+    const result = mine.filter(item => !(base.includes(item) && !stored.includes(item)));
+    for (const item of stored) if (!base.includes(item) && !result.includes(item)) result.push(item);
+    return result;
   }
-  return change as ReportSettingsPatch;
+  if (isPlainObject(base) && isPlainObject(mine) && isPlainObject(stored)) {
+    const merged: Record<string, unknown> = {};
+    for (const key of new Set([...Object.keys(stored), ...Object.keys(mine)])) {
+      const value = differs(base[key], mine[key]) ? mergeChosen(base[key], mine[key], stored[key]) : stored[key];
+      if (value !== undefined) merged[key] = value;
+    }
+    return merged;
+  }
+  return mine;
+}
+
+/** Wat een keuze in het Rapport-tabblad wegschrijft: elk gekozen veld, samengevoegd met de opslag (`mergeChosen`). */
+export function chosenReportChange(base: ReportSettings, next: Partial<ReportSettings>, stored: ReportSettings): Partial<ReportSettings> {
+  return Object.fromEntries(Object.entries(next).map(([key, value]) => (
+    [key, mergeChosen(base[key as keyof ReportSettings], value, stored[key as keyof ReportSettings])]
+  ))) as Partial<ReportSettings>;
 }

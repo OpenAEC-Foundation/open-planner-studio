@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  chosenReportChange, DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings, readReportSettings, type ReportSettings, type ReportSettingsPatch,
+  chosenReportChange, DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings, readReportSettings, type ReportSettings,
 } from '@/utils/reportSettings';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { markReportInput } from './studioPerf';
@@ -108,7 +108,7 @@ export function useStudioSettings(): StudioSettingsApi {
   // Schrijf een handeling weg en toon daarna de samengevoegde stand uit de opslag: de keuze plus wat er van
   // elders al stond (review Terra #893, ronde 4). Kwam hij niet in de opslag, of is er nog niet geladen (dan
   // zette de standaard van de eerste render de opslag over), dan alleen in deze sessie: `next` over de kopie.
-  const commit = useCallback((change: ReportSettingsPatch, next: Partial<ReportSettings>) => {
+  const commit = useCallback((change: Parameters<typeof patchReportSettings>[0], next: Partial<ReportSettings>) => {
     const merged = hydratedRef.current ? patchReportSettings(change) : null;
     setSettings(merged ?? (prev => ({ ...prev, ...next })));
   }, []);
@@ -126,12 +126,14 @@ export function useStudioSettings(): StudioSettingsApi {
     // stil wissen. Een wijziging in een andere stap laat het ongedaan maken staan.
     const pending = lastResetRef.current;
     if (pending && Object.keys(next).some(key => key in pending.previous)) setLastReset(null);
-    commit(chosenReportChange(settingsRef.current, next), next);
+    const base = settingsRef.current;
+    commit(stored => chosenReportChange(base, next, stored), next);
   }, [commit]);
 
   const remember = useCallback((next: Partial<ReportSettings>) => {
     if (Object.entries(next).every(([key, value]) => settingsRef.current[key as StudioSettingKey] === value)) return;
-    commit(chosenReportChange(settingsRef.current, next), next);
+    const base = settingsRef.current;
+    commit(stored => chosenReportChange(base, next, stored), next);
   }, [commit]);
 
   const resetFields = useCallback((scope: string, keys: readonly StudioSettingKey[], label: string, restoreExtra?: () => void) => {

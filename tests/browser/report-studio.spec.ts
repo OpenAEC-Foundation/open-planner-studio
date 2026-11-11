@@ -218,6 +218,25 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   // Kolommen overnemen: het tabblad Tabel en de tabel naast de Gantt hebben elk een eigen indeling (check
   // Ethan 9-11-2026: "die zijn verschillend"). Elke knop heeft zijn eigen Ongedaan maken.
   const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'));
+  // Een wijziging van elders die hier nog niet binnen is: de opslag verandert zonder `StorageEvent`.
+  const writeStored = (patch: Record<string, unknown>) => page.evaluate(next => {
+    const stored = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
+    localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stored, ...next }));
+  }, patch);
+  // Een kolom verplaatsen laat een kolom staan die elders net is toegevoegd, in de opslag en op het scherm. Eerder
+  // schreef het tabblad zijn hele lijst uit de kopie terug (review Terra #893, ronde 5).
+  const columnsBefore: string[] = (await saved()).columns;
+  await writeStored({ columns: [...columnsBefore, 'task.time.actualDuration'] });
+  await page.locator('[data-rs-column="task.time.calendarDays"]').focus();
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect.poll(async () => (await saved()).columns)
+    .toEqual([...columnsBefore.slice(0, -2), columnsBefore.at(-1), columnsBefore.at(-2), 'task.time.actualDuration']);
+  await expect(page.locator('[data-rs-column="task.time.actualDuration"]')).toBeVisible();
+  await page.locator('[data-rs-column="task.time.actualDuration"]').focus();
+  await page.keyboard.press('Delete');
+  await page.locator('[data-rs-column="task.time.calendarDays"]').focus();
+  await page.keyboard.press('Alt+ArrowUp');
+  await expect.poll(async () => (await saved()).columns).toEqual(columnsBefore);
   const surfaceIds = (id: 'full-task-grid' | 'gantt-task-grid') => page.evaluate(
     surface => window.__OPS__!.store.getState().taskGridSurfaces[surface].columns.map(column => String(column.id)), id);
   const tableIds = await surfaceIds('full-task-grid');
@@ -500,10 +519,6 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   // net gekozen is (geen `StorageEvent`), mag een gekozen *Zoals de weergave* niet overstemmen, en een oude
   // opslag met alleen `reportType: 'resourceGantt'` mag *Alle taken* niet overstemmen. Eerder schreef het tabblad
   // alleen wat afweek van zijn eigen kopie (review Terra #893, ronde 3).
-  const writeStored = (patch: Record<string, unknown>) => page.evaluate(next => {
-    const stored = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
-    localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stored, ...next }));
-  }, patch);
   const rowSource = async () => { const s = await saved(); return [s.reportType, s.layoutId, s.followView]; };
   await writeStored({ layoutId: 'builtin:resource-diagram' });
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="view"]').click();
@@ -717,6 +732,17 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
     .some(n => n.messageKey === 'notifications.reportLayoutGone'))).toBe(true);
   await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
   await expect(page.locator('[data-rs-notice="layout-missing-field"]')).toHaveCount(0);
+  // Koos iemand elders al een andere bron (hier nog niet binnen), dan wist de terugval die niet maar neemt haar
+  // over (review Terra #893, ronde 5).
+  await storeLayouts([missingFieldLayout]);
+  await page.locator('[data-rs-layout="layout-rapport"]').click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('layout-rapport');
+  await writeStored({ layoutId: '', followView: true });
+  await storeLayouts([]);
+  await expect(page.locator('[data-rs-step-body="tasks"] [data-rs-value="view"]')).toHaveAttribute('aria-checked', 'true');
+  expect(await saved()).toMatchObject({ reportType: 'gantt', layoutId: '', followView: true });
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await expect.poll(async () => (await saved()).followView).toBe(false);
 
   // Een layout kiezen verandert alleen de rijen; kolommen en balkopties neem je over met een knop (fixronde na
   // council ronde 5, de scenario's van Opus en Sol). Eigen stand: de zes standaardkolommen plus Kalenderdagen,
@@ -869,6 +895,11 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(screenColors).toMatchObject({ mode: 'category' });
   await expect(colorPicker).toContainText(/Per task — automatic|Per taak — automatisch/);
   await expect(paper).toContainText(outline);
+  // Een andere kleurmodus kiezen houdt de eigen kleuren die elders net veranderden (review Terra #893, ronde 5).
+  await writeStored({ barColors: { mode: 'auto', colors: { critical: '#abcdef' } } });
+  await colorPicker.click();
+  await page.getByRole('option', { name: /^(Critical path|Kritiek pad)$/ }).click();
+  await expect.poll(async () => (await saved()).barColors).toEqual({ mode: 'critical', colors: { critical: '#abcdef' } });
   await page.locator('[data-rs-step="bars"] [data-rs-reset="bars"]').click();
   await expect.poll(async () => (await saved()).barColors).toEqual({ mode: 'critical' });
   await expect(colorPicker).toContainText(/Critical path|Kritiek pad/);
