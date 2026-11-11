@@ -923,4 +923,7 @@ export const OWN_PSET_PROPERTY_NAMES: Readonly<Record<string, readonly string[]>
 ));
 
 /** De property-set-templates die de writer schrijft (`writeStructure`), gedeclareerd aan het project. */
+/** Achtervoegsel van de extra property in `OPS_ActivityCodes` die het waarde-id draagt (alleen bij dubbele codetekst in één type). */
+export const ACTIVITY_CODE_ID_SUFFIX = ' #id';
+
 export const OWN_TEMPLATE_NAMES: readonly string[] = [PSET.CustomFields, PSET.ActivityCodes];

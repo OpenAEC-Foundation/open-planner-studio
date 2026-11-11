@@ -82,5 +82,33 @@ eq('D1 IFC opslaan en heropenen behoudt de volgorde', t2.values.map(v => v.code)
 eq('D2 de taakwaarde wijst na heropenen naar dezelfde code', 
   t2.values.find(v => v.id === reopened.store.getState().tasks.find(t => t.name === 'Staalbestelling')!.activityCodes?.[t2.id])?.code, 'Quote received');
 
+// E: twee waarden met dezelfde codetekst (de app staat dat toe): herordenen mag na opslaan en heropenen
+// nooit een andere waarde aan de taak hangen (review Sol, #889).
+{
+  const dup = createAppStoreContext();
+  const D = () => dup.store.getState();
+  D().newProject();
+  const dType = D().addActivityCodeType('Status');
+  const q1 = D().addActivityCodeValue(dType, { code: 'Q', description: 'Offerte ontvangen', color: '#111111' });
+  const q2 = D().addActivityCodeValue(dType, { code: 'Q', description: 'Offerte goedgekeurd', color: '#222222' });
+  const dTask = D().addTask({ name: 'Dubbel', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1) });
+  D().setTaskActivityCode(dTask, dType, q1);
+  const viaIfc = () => {
+    const re = createAppStoreContext();
+    re.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(D()))), { recompute: true });
+    const st = re.store.getState();
+    const ty = st.activityCodeTypes.find(t => t.name === 'Status')!;
+    const val = ty.values.find(v => v.id === st.tasks.find(t => t.name === 'Dubbel')!.activityCodes?.[ty.id]);
+    return { order: ty.values.map(v => v.description), taak: val?.description };
+  };
+  eq('E1 dubbele codetekst: eerste waarde blijft de taakwaarde', viaIfc(),
+    { order: ['Offerte ontvangen', 'Offerte goedgekeurd'], taak: 'Offerte ontvangen' });
+  D().moveActivityCodeValue(dType, q2, -1);
+  eq('E2 na herordenen en IFC-rondreis houdt de taak dezelfde waarde', viaIfc(),
+    { order: ['Offerte goedgekeurd', 'Offerte ontvangen'], taak: 'Offerte ontvangen' });
+  D().setTaskActivityCode(dTask, dType, q2);
+  eq('E3 de tweede waarde blijft de tweede', viaIfc().taak, 'Offerte goedgekeurd');
+}
+
 console.log(fails === 0 ? 'EINDOORDEEL: GROEN' : `EINDOORDEEL: ROOD (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

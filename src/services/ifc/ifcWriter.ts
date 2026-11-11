@@ -23,7 +23,7 @@ import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
-import { PSET, PROP, PER_TASK_PSETS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, PSET, PROP, PER_TASK_PSETS, XER_ARCHIVE_CHUNK, xerArchiveChunkName, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { shownFinish, shownStart } from '@/utils/taskDates';
@@ -1037,12 +1037,20 @@ function writeStructure(
       return !!t && t.values.some(v => v.id === valueId);
     });
     if (codeEntries.length > 0) {
-      const propRefs = codeEntries.map(([typeId, valueId]) => {
+      const propRefs = codeEntries.flatMap(([typeId, valueId]) => {
         const t = typeById.get(typeId)!;
         const v = t.values.find(x => x.id === valueId)!;
         const id = addLine(ctx, `_acv_${task.id}_${typeId}`,
           `IFCPROPERTYENUMERATEDVALUE(${ifcRequiredStr(t.name)},$,(IFCLABEL(${ifcRequiredStr(v.code)})),$)`);
-        return `#${id}`;
+        const refs = [`#${id}`];
+        // De codetekst is de interoperabele vorm, maar de app staat dubbele codes in één type toe. Alleen dan
+        // schrijven we het waarde-id erbij, zodat de lezer de goede waarde kiest (herordenen mag een taak nooit
+        // naar een andere waarde laten wijzen). Een bestand zonder dubbele codes blijft byte-gelijk.
+        if (t.values.some(x => x.id !== v.id && x.code === v.code)) {
+          refs.push(`#${addLine(ctx, `_acid_${task.id}_${typeId}`,
+            `IFCPROPERTYSINGLEVALUE(${ifcRequiredStr(t.name + ACTIVITY_CODE_ID_SUFFIX)},$,IFCTEXT(${ifcStr(v.id)}),$)`)}`);
+        }
+        return refs;
       });
       const setId = addLine(ctx, `_pset_ac_${task.id}`,
         `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_ac_' + task.id))},#${ownerHistId},${ifcStr(PSET.ActivityCodes)},$,(${propRefs.join(',')}))`);

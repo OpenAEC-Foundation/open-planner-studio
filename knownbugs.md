@@ -3439,3 +3439,22 @@ en noem het in je rapport of PR-tekst.
       `src/utils/featureFlags.ts`). Of zulke flags een schakelaar krijgen, is een open vraag bij Ethan; daarna de
       tekst laten aansluiten. Uit de review van #879, Opus, BEVESTIGD. — B
 
+
+1450. **VERVOLG: sorteren op een activiteitscode volgt de waardevolgorde niet, groeperen wel.** Sorteren gebruikt de
+      gewone veldresolver (`src/engine/view/filterEval.ts`, geeft het waarde-id terug) en vergelijkt dus op id;
+      alleen de groepsbanden gebruiken de plek van de waarde in het type (`src/engine/view/visibleRows.ts`). Na het
+      herordenen van de waarden in Codes & velden (#885) blijft oplopend sorteren dus op id staan. Gedrag bestond al
+      op main. Een eventuele reparatie hoort in de bestaande sorteersleutel, zonder nieuwe cache. Uit de review van
+      #889, Sol, BEVESTIGD. — B
+
+1451. **VERVOLG: browsertests dekken de keuzelijst in het eigenschappenpaneel en in de tabel niet.** De planningscheck
+      `check-code-value-volgorde.ts` toetst de veldcatalogus en de kolomdefinitie; het browserblok in
+      `structure-dialog-undo.spec.ts` toetst de knoppen, de storevolgorde en undo. De echte keuzelijst van
+      `TaskCodesFieldsSection` en van de tabelcel volgt de volgorde in de code (`type.values`) maar is niet in de
+      browser bewezen. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1452. **VERVOLG: activiteitscodes worden niet geëxporteerd naar XER, P6 XML of MSPDI.** `xerWriter.ts` telt ze als
+      verlies (`lose('activityCodes', …)`); de P6 XML- en MSPDI-writers krijgen de definities niet en schrijven de
+      taakcodes niet. Daardoor kan de nieuwe volgorde (#885) alleen via IFC (en XER-import via `seq_num`) mee. Bestaand
+      verlies op main; wie de export bouwt (ACTVTYPE/ACTVCODE met `seq_num`, P6 `ActivityCode`, MSPDI-opzoektabel)
+      neemt de volgorde mee. Uit de review van #889, Sol, BEVESTIGD. — B
