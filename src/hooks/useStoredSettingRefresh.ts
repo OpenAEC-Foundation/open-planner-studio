@@ -12,7 +12,7 @@ export function useStoredSettingRefresh(key: string, reload: () => void): void {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onStorage = (event: StorageEvent) => {
-      if (event.key === key) reloadRef.current();
+      if (event.key === key || event.key === null) reloadRef.current(); // `null`: de opslag is gewist
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);

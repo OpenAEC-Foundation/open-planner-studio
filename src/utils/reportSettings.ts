@@ -20,7 +20,7 @@
 // het rapport van project B opduiken (of andersom: het projectveld overschrijven). Bedrijfsnaam
 // hoort in het projectbestand thuis (IFC-round-trip), niet in localStorage.
 
-import { readLocal, writeLocal } from '@/utils/settingsStore';
+import { readLocal, tryReadLocal, writeLocal } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
 import { parseBarColorSelection } from '@/utils/barColorSettings';
@@ -32,8 +32,8 @@ import {
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontId } from '@/services/pdf/reportFont';
 
-/** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
-const STORAGE_KEY = 'reportSettings';
+/** De `localStorage`-sleutel van de rapportinstellingen. */
+const LOCAL_KEY = 'ops-reportSettings';
 
 export type ReportType =
   | 'gantt'
@@ -402,16 +402,23 @@ export async function loadReportSettings(): Promise<ReportSettings> {
   return readReportSettings();
 }
 
-/** De opgeslagen waarde, ongeparseerd (`undefined` als de sleutel ontbreekt). */
-function storedReportSettings(): unknown {
-  const raw = readLocal(`ops-${STORAGE_KEY}`);
-  if (raw === null) return undefined;
-  try { return JSON.parse(raw); } catch { return raw; }
-}
-
 /** `loadReportSettings`, maar synchroon: voor de gedeelde stand hieronder, die lezen en schrijven niet mag scheiden. */
 function readReportSettings(): ReportSettings {
-  const raw = storedReportSettings();
+  return readStoredReportSettings() ?? { ...DEFAULT_REPORT_SETTINGS };
+}
+
+/** De opgeslagen stand, of `null` als de opslag nu niet te lezen is (geblokkeerd). Een ontbrekende sleutel geeft de standaard. */
+function readStoredReportSettings(): ReportSettings | null {
+  const json = tryReadLocal(LOCAL_KEY);
+  if (json === false) return null;
+  let raw: unknown;
+  if (json !== null) {
+    try { raw = JSON.parse(json); } catch { raw = json; }
+  }
+  return parseReportSettings(raw);
+}
+
+function parseReportSettings(raw: unknown): ReportSettings {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_REPORT_SETTINGS };
   const s = raw as Record<string, unknown>;
   const d = DEFAULT_REPORT_SETTINGS;
@@ -473,32 +480,64 @@ export type ReportSettingsPatch = Partial<Omit<ReportSettings, OptionGroup>> & {
 // (#818) meldt een wijziging met een `StorageEvent`; dan leest de stand de opslag opnieuw.
 
 let current: ReportSettings | null = null;
-/** Een schrijfactie kwam niet in de opslag (vol, geblokkeerd, of de host houdt hem even tegen): de stand loopt voor. */
-let unsaved = false;
+/**
+ * Keuzes uit deze sessie die nog niet in de opslag staan (vol, geblokkeerd, of de host hield de schrijfactie
+ * tegen). Ze gaan over elke stand die de opslag later geeft, en de volgende schrijfactie bewaart ze mee.
+ */
+let pending: ReportSettingsPatch | null = null;
 const listeners = new Set<() => void>();
 
-function onStorage(event: StorageEvent): void {
-  if (event.key !== null && event.key !== `ops-${STORAGE_KEY}`) return;
-  current = readReportSettings();
-  unsaved = false;
-  for (const listener of listeners) listener();
+function applyPatch(base: ReportSettings, patch: ReportSettingsPatch): ReportSettings {
+  return {
+    ...base,
+    ...patch,
+    tableReports: { ...base.tableReports, ...patch.tableReports },
+    resourceGantt: { ...base.resourceGantt, ...patch.resourceGantt },
+  };
+}
+
+function combinePatches(first: ReportSettingsPatch, next: ReportSettingsPatch): ReportSettingsPatch {
+  return {
+    ...first,
+    ...next,
+    tableReports: { ...first.tableReports, ...next.tableReports },
+    resourceGantt: { ...first.resourceGantt, ...next.resourceGantt },
+  };
 }
 
 /**
- * De nieuwste stand: wat er nu opgeslagen staat, of de gedeelde stand als die voorloopt. Voor een herstelpunt
- * (Standaard, een overname uit een layout) en een terugval die van de opslag afhangt.
+ * De nieuwste stand: wat er nu opgeslagen staat, met de nog niet bewaarde keuzes erover. Is de opslag nu niet
+ * te lezen, dan de gedeelde stand: een leesfout is geen lege opslag (review Sol #893), anders zou de volgende
+ * schrijfactie standaardwaarden over de bewaarde keuzes zetten. Ook voor een herstelpunt (Standaard, een
+ * overname uit een layout) en een terugval die van de opslag afhangt.
  */
 export function latestReportSettings(): ReportSettings {
-  return unsaved && current ? current : readReportSettings();
+  const stored = readStoredReportSettings();
+  if (stored === null) return current ?? { ...DEFAULT_REPORT_SETTINGS };
+  return pending ? applyPatch(stored, pending) : stored;
+}
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
+function onStorage(event: StorageEvent): void {
+  if (event.key !== null && event.key !== LOCAL_KEY) return;
+  current = latestReportSettings();
+  notify();
 }
 
 /** De gedeelde stand (voor `useSyncExternalStore`): dezelfde waarde tot er iets verandert. */
 export function reportSettingsSnapshot(): ReportSettings {
-  return current ??= readReportSettings();
+  return current ??= latestReportSettings();
 }
 
 export function subscribeReportSettings(listener: () => void): () => void {
-  if (listeners.size === 0 && typeof window !== 'undefined') window.addEventListener('storage', onStorage);
+  if (listeners.size === 0 && typeof window !== 'undefined') {
+    // Zonder lezers luistert niemand naar `storage`: wat een ander venster intussen schreef, staat er nu pas in.
+    current = latestReportSettings();
+    window.addEventListener('storage', onStorage);
+  }
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -507,23 +546,23 @@ export function subscribeReportSettings(listener: () => void): () => void {
 }
 
 /**
- * De enige schrijfroute voor `ops-reportSettings`: lees de opgeslagen stand, zet de wijziging erover (in de
- * optiegroepen per optie) en schrijf het geheel terug in één synchrone stap. Kwam een eerdere schrijfactie niet
- * in de opslag, dan bouwt deze voort op de gedeelde stand, zodat een keuze binnen deze sessie blijft werken.
- * Geeft de nieuwe gedeelde stand terug.
+ * De enige schrijfroute voor `ops-reportSettings`: lees de opgeslagen stand, zet de nog niet bewaarde keuzes en
+ * deze wijziging erover (in de optiegroepen per optie) en schrijf het geheel terug in één synchrone stap. Is de
+ * opslag niet te lezen, dan schrijft hij niets en blijft de keuze in de sessie. Geeft de nieuwe gedeelde stand terug.
  */
 export function patchReportSettings(patch: ReportSettingsPatch): ReportSettings {
-  const base = latestReportSettings();
-  const merged: ReportSettings = {
-    ...base,
-    ...patch,
-    tableReports: { ...base.tableReports, ...patch.tableReports },
-    resourceGantt: { ...base.resourceGantt, ...patch.resourceGantt },
-  };
-  const json = JSON.stringify(merged);
-  writeLocal(`ops-${STORAGE_KEY}`, json);
-  unsaved = readLocal(`ops-${STORAGE_KEY}`) !== json;
-  current = merged;
-  for (const listener of listeners) listener();
-  return merged;
+  const chosen = pending ? combinePatches(pending, patch) : patch;
+  const stored = readStoredReportSettings();
+  if (stored === null) {
+    pending = chosen;
+    current = applyPatch(current ?? { ...DEFAULT_REPORT_SETTINGS }, patch);
+  } else {
+    const merged = applyPatch(stored, chosen);
+    const json = JSON.stringify(merged);
+    writeLocal(LOCAL_KEY, json);
+    pending = readLocal(LOCAL_KEY) === json ? null : chosen;
+    current = merged;
+  }
+  notify();
+  return current;
 }

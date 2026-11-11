@@ -27,7 +27,7 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effHoursPerDay, effectiveCalendarOf, effectiveDurationDisplay } from '@/utils/taskDuration';
 import {
   DEFAULT_REPORT_SETTINGS, REPORT_DEFAULT_COLUMNS, REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN,
-  loadReportSettings, parseReportColumns, patchReportSettings, reportSettingsSnapshot,
+  loadReportSettings, parseReportColumns, patchReportSettings, reportSettingsSnapshot, subscribeReportSettings,
 } from '@/utils/reportSettings';
 import {
   addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn,
@@ -317,6 +317,31 @@ const CAL_DAYS = 'task.time.calendarDays';
   patchReportSettings({ paperSize: 'A1' });
   const back = await loadReportSettings();
   eq([back.reportType, back.orientation, back.paperSize], ['lookAhead', 'portrait', 'A1'], 'opslag weer beschikbaar: de keuzes uit de sessie komen erin');
+  // Een opslag die tijdelijk niet te lezen is, is geen lege opslag (review Sol #893): een keuze in die tijd zet
+  // geen standaardwaarden over de bewaarde stand, ook niet bij de eerstvolgende schrijfactie na herstel.
+  const getItem = localStorage.getItem.bind(localStorage);
+  localStorage.getItem = () => { throw new Error('SecurityError'); };
+  localStorage.setItem = () => { throw new Error('SecurityError'); };
+  patchReportSettings({ showLegend: !back.showLegend });
+  eq([reportSettingsSnapshot().paperSize, reportSettingsSnapshot().showLegend], ['A1', !back.showLegend], 'onleesbare opslag: de stand houdt het papier, met de nieuwe keuze');
+  localStorage.getItem = getItem;
+  localStorage.setItem = setItem;
+  eq((await loadReportSettings()).showLegend, back.showLegend, 'onleesbare opslag: er is niets geschreven');
+  patchReportSettings({ showFloat: !back.showFloat });
+  const healed = await loadReportSettings();
+  eq([healed.paperSize, healed.orientation, healed.showLegend, healed.showFloat], ['A1', 'portrait', !back.showLegend, !back.showFloat],
+    'na herstel: de bewaarde keuzes blijven, de keuzes uit de sessie komen erbij');
+  // Zonder lezer luistert niemand naar `storage`: wie zich daarna weer aanmeldt, krijgt wat een ander venster
+  // intussen schreef (review Terra #893 ronde 7, was knownbug 1359).
+  const g = globalThis as { window?: unknown };
+  const hadWindow = 'window' in g;
+  if (!hadWindow) g.window = { addEventListener() {}, removeEventListener() {} };
+  subscribeReportSettings(() => {})();
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ ...healed, paperSize: 'A4' }));
+  const unsubscribe = subscribeReportSettings(() => {});
+  eq(reportSettingsSnapshot().paperSize, 'A4', 'opnieuw aangemeld: de stand leest de opslag opnieuw');
+  unsubscribe();
+  if (!hadWindow) delete g.window;
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
   const older = await loadReportSettings();

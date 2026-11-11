@@ -3245,18 +3245,15 @@ en noem het in je rapport of PR-tekst.
      Rapport-tabblad schrijft alleen de velden die hij wijzigt (`patchReportSettings` in
      `src/utils/reportSettings.ts`), bovenop wat op dat moment opgeslagen staat. Wijzig je in twee vensters (of in het
      venster en via de host) hetzelfde veld, zoals de kolomlijst of de balkkleuren, dan blijft alleen de laatste
-     wijziging staan; de lijst van het andere venster gaat niet per item samen. Kan een schrijfactie niet in de opslag
-     (vol of geblokkeerd) en meldt een ander venster daarna een wijziging, dan vervangt die de keuzes uit deze sessie.
-     In één venster gaat niets verloren. Gezien bij het ombouwen naar één gedeelde stand (#893). Voorstel: alleen
+     wijziging staan; de lijst van het andere venster gaat niet per item samen. In één venster gaat niets verloren. Gezien bij het ombouwen naar één gedeelde stand (#893). Voorstel: alleen
      oplossen als planners echt in twee vensters aan hetzelfde rapport werken. — S
 
-1359. **VERVOLG: na een wijziging in een ander venster toont het Rapport-tabblad bij terugkeer de oude stand.** De
-     gedeelde stand in `src/utils/reportSettings.ts` (`reportSettingsSnapshot`, rond :475) blijft bestaan als de laatste
-     lezer zich afmeldt, maar de luisteraar op `storage` verdwijnt. Bij opnieuw aanmelden leest de stand de opslag niet
-     opnieuw. Proef in Chromium: venster A zet A3 en gaat naar Start, venster B kiest A4, venster A opent Rapport weer:
-     de opslag heeft A4, het tabblad toont A3. Met één venster niet gezien. Code-review ronde 7 van #893
-     (GPT-6.1-Terra). Voorstel: lees de opslag opnieuw bij de eerste nieuwe aanmelding, als er geen onbewaarde
-     sessiestand is. — B
+1359. **VERVOLG: een keuze die de opslag weigerde, komt na herstel pas bij de volgende klik in de opslag.** Kan de
+     opslag niet schrijven (vol of geblokkeerd), dan blijft de keuze in de sessie (`pending` in
+     `src/utils/reportSettings.ts`). Werkt de opslag weer, dan bewaart pas de volgende wijziging in een rapport haar mee.
+     Herlaad je de app daarvoor, dan is de keuze weg en staat de oude bewaarde keuze er weer. Gerichte review van #893
+     (GPT-6.1-Sol), ook met een echt volle `localStorage` in Chromium. Voorstel: bewaar de openstaande keuzes opnieuw
+     bij een volgend moment waarop de opslag weer werkt, bijvoorbeeld bij het terugkeren naar het tabblad. — B
 
 1360. **VERVOLG: resten van het oude paneel in de rapportcode.** Het commentaar bovenaan
      `src/components/panels/reports/reportFormPrimitives.tsx` noemt nog het Gantt-/resourcediagramblok in `ReportPanel`,
