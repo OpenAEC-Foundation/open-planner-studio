@@ -96,7 +96,7 @@ const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': "een lege notitielijst '[]' (knownbug 1101)",
   // Geen ongewijzigde OPS-uitvoer: de bestaande regressieproeven documenteren de externe herschrijving (1108).
   'fixtures/ifc-arity-oude-writer-merged.ifc': 'door IfcOpenShell MergeProjects 0.9.0 herschreven; oude slotwaarden en WorkingExceptionIds al veranderd (check-ifc-legacy-arity.ts)',
-  'fixtures/xer-archief-herschreven.ifc + wand': 'beschadigd door een herschrijvend IFC-programma: XER-bronchunks ontbreken, manifest bleef staan (check-xer-archive-fallback.ts)',
+  'fixtures/xer-archief-herschreven.ifc + wand': 'met opzet beschadigde fixture: XER-bronchunks ontbreken, manifest bleef staan; geen gewone uitvoer van OPS (check-xer-archive-fallback.ts, knownbug 1108)',
   'fixtures/werkdag-einde-tussenwaarde.ifc': "een speling 'PT72H' met een tijddeel: de lezer leest hem exact, de merge houdt de voorzichtige lijst (knownbug 1152)",
   // Een back-up met het kenmerk van een vreemde bron (`OPS_RecoveryForeignSource`): de store haalt het kenmerk bij openen
   // uit het document, en de merge zou het dan laten vallen. Een back-up bevat zelf nooit een vreemd deel (de writer

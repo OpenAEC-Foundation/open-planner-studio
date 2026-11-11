@@ -12,9 +12,9 @@ Het lezen (1a) en het schrijven (1b, #867) zijn gemerged in main: de writer laat
 planning ertussen, en bij twijfel weigert hij. #886 is gemerged in main; de merge wordt daar getoetst via de toestand die
 na openen in de app staat. Concept-PR #898 bevat alleen de tijdzonevergelijking (1111), de oude kalenderindeling
 (1108), de bijbehorende tests en tekst. Alle code voor voortgang (1109) is terug naar main. Daarna volgt #903 voor de
-volledige herleestoets (1107), dan een eigen PR voor 1109 met 1113, en daarna 1c. De meting van 1113 bevestigt ook bij
-gewone opslag zonder model: rest 2.3333333333333335 → 0; duur 2.3333333333333335 → 2.333333. In #898 alleen gemeten,
-niets gerepareerd. Opslaan met een vreemd deel blijft geweigerd.
+volledige herleestoets (1107), dan een eigen PR voor 1109 met 1113, en daarna 1c. De meting van 1113 via de echte
+invoer van de app: de rest na een werkelijk einde klopt (0 vóór en na opslaan); alleen de afronding van een duur of rest
+met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd deel blijft geweigerd.
 
 ## Bronnen
 
@@ -73,8 +73,8 @@ niets gerepareerd. Opslaan met een vreemd deel blijft geweigerd.
 5. **1107: volledige herleestoets** (#903, eigen branch). Moet vóór het aansluiten in 1c af zijn. Deze PR raakt die
    worktree niet. Kosten van opnieuw openen en rekenen apart meten (1021).
 6. **1109 met 1113**: eigen PR ná #903, volgens besluit van Trias 11 november 2026. `carried` voor een duur moet de
-   betekenis kunnen vergelijken binnen de lijst van exact gelezen vormen. Gewone opslag zonder model vertoont 1113
-   ook: rest wordt 0 na actualFinish en heropenen; de duur rondt af. Niet gerepareerd in #898.
+   betekenis kunnen vergelijken binnen de lijst van exact gelezen vormen. Proeven bewerken voortgang, werkelijke start
+   en werkelijk einde zoals de app (`enterTaskProgress`, `setActualFinish`), niet met een kale `updateTask` (1113).
 7. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
    flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
@@ -123,6 +123,16 @@ niets gerepareerd. Opslaan met een vreemd deel blijft geweigerd.
    hulpstukken (`OPS_Resource` en de andere psets en relaties); het is onze eigen writer.
 
 ## Werk
+
+- 2026-11-11: review ronde 2 van #898 op `9bd1e3b2e`: Terra (GPT-6.1-Terra, xhigh) ja, geen blokkade. Vier
+  vervolgpunten: de open punten 1107 en 1110 waren uit `knownbugs.md` verdwenen en 1113 had geen eigen ingang
+  (teruggezet); de herkomst van `xer-archief-herschreven.ifc` stond te stellig (nu alleen wat vaststaat); 1114
+  (`sameMeaning` en een datum met rommel erachter) en 1115 (de pariteitstest vergelijkt met een oudere main) zijn nieuw.
+  Daarna volgt de gerichte run van Sol op opslaan en verlies.
+- 2026-11-11: 1113 gemeten via de echte invoer van de app (paneel, Taak bewerken, tabel, `setActualFinish`): de rest
+  staat al vóór opslaan op 0 en blijft zo na heropenen. De eerdere sprong van 2.3333333333333335 naar 0 kwam alleen
+  uit een kale `updateTask` en is geen fout in main; de regel hieronder van dezelfde dag is daarmee achterhaald. Wat
+  blijft: de afronding naar 6 decimalen bij gewone opslag (VERVOLG, besluit van Trias).
 
 - 2026-11-11: besluit van Trias na de stop: 1109 uit #898. De code is terug naar main, behalve de twee eerder getoetste
   wijzigingen voor 1111 en de kalender van 1108. De regressie voor precieze duur/rest bij completion en actualStart
