@@ -6,7 +6,7 @@
 // DOM-interacties; de brug zet alleen de herlaadfixture en leest de opgeslagen keuzes.
 import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import type { Locator, Page } from '@playwright/test';
-import type { FeatureFlag } from '@/utils/featureFlags';
+import { readFile } from 'node:fs/promises';
 
 const TAB_LABELS: RegExp[] = [
   /^(Appearance|Weergave)$/,
@@ -104,18 +104,6 @@ async function assertThreeTabsAndSections(container: Locator): Promise<void> {
   await expect(container.getByText(PROJECT_SECTION_TEXT, { exact: true })).toHaveCount(0);
 }
 
-/** Alleen de IFC-blokkade krijgt een fixture; de demo komt uit het echte productregister. */
-async function seedFeatureFlags(page: Page): Promise<void> {
-  const flags: FeatureFlag[] = [
-    { id: 'browser-ifc', nameKey: 'settings.version', writesNewIfcData: true },
-  ];
-  await page.evaluate(async fixtures => {
-    const registryPath = '/src/utils/featureFlags.ts';
-    const { FEATURE_FLAGS } = await import(/* @vite-ignore */ registryPath);
-    FEATURE_FLAGS.push(...fixtures);
-  }, flags);
-}
-
 /** Lees via dezelfde functie als de titelbalk, zonder de geteste actie te vervangen. */
 async function enabledDemo(page: Page): Promise<boolean> {
   return page.evaluate(async () => {
@@ -142,7 +130,6 @@ async function reloadSettingsApp(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false });
   });
-  await seedFeatureFlags(page);
 }
 
 test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experimentele schakelaars', async ({ page, ops: _ops }) => {
@@ -234,15 +221,14 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await version.click();
   await expect(experimental).toBeVisible();
   await expect(experimental).toContainText('Demo: animatie in de bovenbalk');
-  // Twee kiesbare flags: de demo en het nieuwe Rapport-tabblad (#817).
-  await expect(experimental.getByRole('checkbox')).toHaveCount(2);
+  // Elke echte flag is kiesbaar, ook ifcForeignContent met de technische IFC-markering.
+  await expect(experimental.getByRole('checkbox')).toHaveCount(3);
   await expect(experimental.locator('[data-ops-feature-flag="reportRedesign"]')).toHaveCount(1);
   expect(await page.evaluate(() => localStorage.getItem('ops-experimentalSettingsVisible'))).toBe('true');
   await page.clock.resume();
 
-  // Hetzelfde ontgrendelde blok staat in de tandwiel-popup, met de echte demo en de IFC-fixture.
+  // Hetzelfde ontgrendelde blok staat in de tandwiel-popup, met alle echte flags.
   await backstage.locator('[data-ops-backstage-back]').click();
-  await seedFeatureFlags(page);
   expect(await enabledDemo(page)).toBe(false);
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   await gearDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
@@ -250,8 +236,8 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   const demo = gearExperimental.locator('[data-ops-feature-flag="demo-topbar-animation"]');
   await expect(gearExperimental).toBeVisible();
   await expect(demo).not.toBeChecked();
-  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(2);
-  await expect(gearExperimental.locator('[data-ops-feature-flag="browser-ifc"]')).toHaveCount(0);
+  await expect(gearExperimental.getByRole('checkbox')).toHaveCount(3);
+  await expect(gearExperimental.locator('[data-ops-feature-flag="ifcForeignContent"]')).not.toBeChecked();
   await demo.check();
   expect(await enabledDemo(page)).toBe(true);
   await expect(animation).toBeVisible();
@@ -367,4 +353,54 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   await gearDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
   await expect(demo).not.toBeChecked();
+  // De echte IFC-schakelaar bestuurt de bytes-route; schrijven blijft door de bestaande guard begrensd.
+  const ifcToggle = gearExperimental.locator('[data-ops-feature-flag="ifcForeignContent"]');
+  await expect(ifcToggle).not.toBeChecked();
+  await ifcToggle.check();
+  await expect(ifcToggle).toBeChecked();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.featureFlags.ifcForeignContent)).toBe(true);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-featureFlags') ?? '{}').ifcForeignContent)).toBe(true);
+  await gearDialog.locator('.modal-close-btn').click();
+
+  // De brug zet alleen een geopende bestandsfixture. Ctrl+S is de echte gebruikershandeling.
+  // De eigen planning wordt na openen niet bewerkt: ook dan moet de doelcontrole schrijven toelaten.
+  for (const fixture of [
+    { path: 'tests/fixtures/ifc-foreign/bonsai-4d.ifc', foreign: true },
+    { path: 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc', foreign: true },
+    { path: 'public/examples/03-kantoorgebouw-zuidas.ifc', foreign: false },
+  ]) {
+    const text = await readFile(fixture.path, 'utf8');
+    const before = await page.evaluate(async ({ text, name }) => {
+      const root = await navigator.storage.getDirectory();
+      const handle = await root.getFileHandle(name, { create: true });
+      const writer = await handle.createWritable();
+      await writer.write(text);
+      await writer.close();
+      await window.__OPS__!.store.getState().openOpenedFile({
+        name, content: '', bytes: new TextEncoder().encode(text), ref: { kind: 'handle', handle },
+      });
+      const state = window.__OPS__!.store.getState();
+      const guardPath = '/src/state/ifcForeignGuard.ts';
+      const { ifcSaveBlocked } = await import(/* @vite-ignore */ guardPath);
+      return {
+        foreign: state.ifcSource?.foreign, blocked: ifcSaveBlocked(state), dirty: state.isDirty,
+        tasks: JSON.stringify(state.tasks), modified: (await handle.getFile()).lastModified,
+      };
+    }, { text, name: fixture.path.split('/').pop()! });
+    expect(before.foreign, fixture.path).toBe(fixture.foreign);
+    expect(before.blocked, fixture.path).toBe(fixture.foreign);
+    if (!fixture.foreign) expect(before.dirty, fixture.path).toBe(false);
+    await page.keyboard.press('Control+s');
+    if (fixture.foreign) {
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+        .filter(n => n.messageKey === 'notifications.ifcForeignSaveBlocked').length)).toBeGreaterThan(0);
+      expect(await page.evaluate(async () => (await window.__OPS__!.store.getState().fileHandle!.getFile()).text())).toBe(text);
+    } else {
+      await expect.poll(() => page.evaluate(async () =>
+        (await window.__OPS__!.store.getState().fileHandle!.getFile()).lastModified)).toBeGreaterThan(before.modified);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.filter(n => n.refusal))).toEqual([]);
+    }
+    expect(await page.evaluate(() => JSON.stringify(window.__OPS__!.store.getState().tasks))).toBe(before.tasks);
+  }
+
 });

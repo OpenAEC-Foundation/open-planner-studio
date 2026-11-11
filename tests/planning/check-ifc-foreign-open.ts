@@ -1,7 +1,7 @@
 // #804 fase 1a: IFC met een gebouwmodel openen achter de flag `ifcForeignContent` (ontwerp "Gebouwmodel behouden in IFC
 // en IFCX", §4.8, §4.9, §4.13 en §4.14). Headless tegen de echte store, met dezelfde open-route als Bestand → Openen
 // (`openOpenedFile`). Bewaakt:
-//   1. de flag: in de app altijd uit (`writesNewIfcData`), en met de flag leest de bestandslaag IFC als bytes;
+//   1. de flag: standaard uit, expliciet aan via de instellingen, en met de flag leest de bestandslaag IFC als bytes;
 //   2. zonder flag blijft de modelweigering (knownbug 110);
 //   3. met de flag openen `bonsai-4d`, `eigen-plus-model` en `council/fix3-twee-data` (een wand in de tweede DATA-sectie)
 //      met dezelfde planning als de lezer op het eigen deel; zonder flag weigert ook dat laatste;
@@ -66,14 +66,12 @@ const SAVE_BLOCKED_KEY = 'notifications.ifcForeignSaveBlocked';
 // ── 1. De flag ──────────────────────────────────────────────────────────────────────────────────────────────────
 const flag = FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent');
 ok('flag: geregistreerd', flag !== undefined);
-ok('flag: in de app altijd uit, ook met een bewaarde true (writesNewIfcData)',
-  flag?.writesNewIfcData === true && !ifcForeignContentEnabled({ ifcForeignContent: true }));
+ok('flag: technische markering behouden, standaard uit en met een bewaarde keuze aan',
+  flag?.writesNewIfcData === true && !ifcForeignContentEnabled({}) && ifcForeignContentEnabled({ ifcForeignContent: true }));
 eq('flag: zonder flag leest de bestandslaag IFC als tekst', [binaryExtensions().includes('ifc'), readsAsBytes('plan.ifc')], [false, false]);
 eq('flag: met de flag als bytes (ook een onbekende extensie valt op IFC terug)',
   [binaryExtensions({ ifcBytes: true }).includes('ifc'), readsAsBytes('plan.ifc', { ifcBytes: true }), readsAsBytes('plan', { ifcBytes: true })],
   [true, true, true]);
-// Alleen in deze test: de flag bruikbaar maken, zoals het later zonder `writesNewIfcData` wordt.
-flag!.writesNewIfcData = false;
 ok('flag: met de testkeuze aan', ifcForeignContentEnabled({ ifcForeignContent: true }));
 
 /** Open `bytes` als Bestand → Openen in een verse store (of `into`), met dezelfde leeskeuze als de bestandslaag. */

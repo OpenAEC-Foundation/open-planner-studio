@@ -3427,15 +3427,11 @@ en noem het in je rapport of PR-tekst.
       en elk canvas telt mee, niet alleen de Gantt. Voorstel: controleer dat het element bij het Gantt-canvas hoort,
       of klik opnieuw als de selectie ontbreekt. Uit de review van B2 standaard, ronde 2, Opus, VERMOED (laag). — S
 
-1204. **VERVOLG: "klik en houd het versienummer vast" klopt niet met de muis.** De regel in AGENTS.md (Feature flags)
-      zegt "klik en houd het versienummer vast", maar muisknop vasthouden opent het blok Experimenteel niet: de knop
-      reageert alleen op losse klikken met hoogstens 0,5 s ertussen (`SettingsPanelContent.tsx`, `activateVersion`).
-      Enter vasthouden werkt wel, door toetsherhaling. De tekst is door Ethan goedgekeurd en blijft staan; een andere
-      tekst (bijv. "klik 5 seconden snel achter elkaar") ligt bij wrakko. Uit de review van #879, Opus, BEVESTIGD. — B
-
-1205. **VERVOLG: AGENTS.md noemt de uitzondering voor `writesNewIfcData` niet bij de schakelaarregel.** De zin
-      "`writesNewIfcData: true` (no checkbox, always off)" en de regel "Elke feature flag krijgt een schakelaar" lijken
-      elkaar tegen te spreken; de uitzondering staat alleen in de code (`experimentalToggleFlags` in
-      `src/utils/featureFlags.ts`). Of zulke flags een schakelaar krijgen, is een open vraag bij Ethan; daarna de
-      tekst laten aansluiten. Uit de review van #879, Opus, BEVESTIGD. — B
-
+1206. **VERVOLG: browserproef van de IFC-schakelaar leest de geschreven eigen planning niet terug.**
+      `tests/browser/settings-tabs.spec.ts` bewijst na Ctrl+S met een stijgende `lastModified` dat het
+      ongewijzigde eigen bestand echt is geschreven. Daarna vergelijkt de proef de taken in de levende
+      appstate. Een writer die een taak weglaat zonder die appstate te veranderen, wordt hiermee niet
+      ontdekt. Er is geen dataverlies aangetoond. Voorstel: lees in hetzelfde scenario de geschreven IFC
+      terug en vergelijk de opgeslagen taken met de stand vóór Ctrl+S; geen nieuw browserscenario nodig.
+      Uit de review van de vervolgwijziging op #879, GPT-6.1-Sol xhigh, BEVESTIGD (zekerheid hoog),
+      VERVOLG. Zelf de assertions nagezien. — B
