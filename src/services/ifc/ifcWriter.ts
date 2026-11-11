@@ -1365,9 +1365,9 @@ function calendarClock(minutes: number, endOfDay = false): string {
 function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: number }, binding: string, scalarSides: readonly ('start' | 'end')[] = []): [string, string] {
   const source = cal.ifcTimePeriods?.find(p => p.binding === binding);
   const scalarSource = cal.ifcTimePeriods?.find(p => p.binding === 'scalar');
-  // Binnen 1e-9 minuut (60 ns) geldt het behoud per kant van main. Dat ligt ruim boven de rekenruis
-  // bij 1440 minuten en ver onder invoerprecisie; ook een kleiner echt herstel kan hieronder vallen.
-  const SOURCE_END_TOLERANCE_MINUTES = 1e-9;
+  // De bronklok blijft alleen op de letterlijke hele werkdag bij openen, of als de geschreven
+  // periode dezelfde lengte heeft als het plannerblok, binnen 1e-9 minuut (60 nanoseconde).
+  const SOURCE_PERIOD_TOLERANCE_MINUTES = 1e-9;
   const clock = (side: 'start' | 'end'): string => {
     const original = scalarSides.includes(side) ? scalarSource ?? source : source;
     const text = original?.[side === 'start' ? 'startText' : 'endText'];
@@ -1375,21 +1375,27 @@ function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: num
       const unchanged = scalarSides.includes(side) && scalarSource !== undefined
         ? original[side === 'start' ? 'scalarStart' : 'scalarEnd'] === cal[side === 'start' ? 'workStartHour' : 'workEndHour']
         : original[side] === band[side];
-      // Het verschil tussen bronklok en effectief einde overleeft opslag en heropening, ook als er
-      // dan geen nieuw herstel loopt. Buiten de grens mag alleen de hele werkdag bij openen die
-      // bronklok houden; elk los of gewijzigd werkblok krijgt zijn effectieve einde.
-      const sourceEndIsEffective = original.scalarEnd === undefined
-        || Math.abs(original.end - original.scalarEnd * 60) < SOURCE_END_TOLERANCE_MINUTES;
       const samePeriod = original.scalarStart !== undefined && original.scalarEnd !== undefined
         && band.start === original.scalarStart * 60 && band.end === original.scalarEnd * 60;
-      if (unchanged && (side !== 'end' || original !== scalarSource || sourceEndIsEffective || samePeriod)) return text;
+      if (unchanged) {
+        if (side === 'start' || samePeriod) return text;
+        // Dezelfde kloklezing en omloop als de lezer: een einde op of vóór het begin gaat
+        // naar de volgende dag. Ook een miniem verschil kan anders bijna 24 uur worden.
+        const start = parseIfcClock(writtenStart)?.minutes ?? clockToMinutes(writtenStart);
+        const end = parseIfcClock(text)?.minutes ?? clockToMinutes(text);
+        if (start !== null && end !== null) {
+          const period = canonicalizeBands({ 1: [{ start, end }] }).bands.byWeekday[1][0];
+          if (Math.abs((period.end - period.start) - (band.end - band.start)) <= SOURCE_PERIOD_TOLERANCE_MINUTES) return text;
+        }
+      }
       // De gewijzigde grens heeft geen eigen zoneveld. Leen geen zone van een
       // andere dag, band of grens, en verwijder de oorspronkelijke zone niet stil.
       if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) throw new IfcCalendarTimePrecisionError(band[side]);
     }
     return calendarClock(band[side], side === 'end');
   };
-  return [clock('start'), clock('end')];
+  const writtenStart = clock('start');
+  return [writtenStart, clock('end')];
 }
 
 function writeCalendar(

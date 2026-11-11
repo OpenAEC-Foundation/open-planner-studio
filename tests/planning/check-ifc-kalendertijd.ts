@@ -28,6 +28,27 @@ function eq(label: string, got: unknown, want: unknown) {
 function hasSourceClocks(text: string | undefined, start: string, end: string): boolean {
   return !!text && text.includes(`IFCTIMEPERIOD('${start}',`) && text.includes(`,'${end}');`);
 }
+/** Zonder OPS-begin-, eind- en kalendermarkering moeten dezelfde werkblokken overblijven.
+ * Alleen de ongewijzigde hele bronperiode mag bewust haar oude eindklok houden:
+ * bij 1120 staat letterlijk 16:00 naast een effectief einde van 17:07. */
+function checkWrittenCalendar(label: string, text: string, wanted: WorkCalendar, literalPeriod?: string) {
+  if (literalPeriod) {
+    eq(`${label}: bewust de letterlijke hele bronperiode`, text.includes(literalPeriod), true);
+    return;
+  }
+  const bare = readIFC(text.replace(/'WorkStartHour'/g, "'IgnoredStartHour'")
+    .replace(/'WorkEndHour'/g, "'IgnoredEndHour'").replace(/'IsHourCalendar'/g, "'IgnoredCalendar'"));
+  const got = effectiveWorkTimeBands(bare.calendar), expected = effectiveWorkTimeBands(wanted);
+  eq(`${label}: zonder OPS-markeringen werkblokken aanwezig`, !!got, !!expected);
+  for (const day of [1, 2, 3, 4, 5, 6, 7] as const) {
+    const actual = got?.byWeekday[day] ?? [], bands = expected?.byWeekday[day] ?? [];
+    eq(`${label}: zonder OPS-markeringen aantal blokken dag ${day}`, actual.length, bands.length);
+    for (let i = 0; i < Math.min(actual.length, bands.length); i++) {
+      eq(`${label}: zonder OPS-markeringen blok ${day}/${i} gelijk binnen 1e-9 minuut`,
+        Math.abs(actual[i].start - bands[i].start) < 1e-9 && Math.abs(actual[i].end - bands[i].end) < 1e-9, true);
+    }
+  }
+}
 function memoryFile(initial: string) {
   let content = initial;
   const writes: string[] = [];
@@ -149,6 +170,7 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   eq('1120: effectieve werkdag na openen', [before.workStartHour, before.workEndHour, before.hoursPerDay], [9.123456, 17.123455999999997, 8]);
   await store.getState().saveFile();
   eq('1120: gewone opslag behoudt letterlijk de bronperiode', file.writes[0]?.includes(original), true);
+  if (file.writes[0]) checkWrittenCalendar('1120 ongewijzigd', file.writes[0], before, original);
   if (file.writes[0]) console.log('1120 gewone opslag', file.writes[0].split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
   const { scanStep } = await import('@/services/ifc/foreign/stepScanner');
@@ -180,6 +202,7 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   await again.getState().saveFile();
   eq('1120: tweede opslag dezelfde kalenderbytes', calendarBytes(againFile.writes[0]), calendarBytes(file.writes[0]));
   eq('1120: tweede opslag houdt letterlijk 16:00', againFile.writes[0].includes(original), true);
+  checkWrittenCalendar('1120 tweede opslag', againFile.writes[0], again.getState().calendar, original);
 
   // Tweede generatie: het verschil tussen bronklok en effectief einde overleeft de eerste opslag.
   for (const example of [
@@ -205,9 +228,7 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     const reopened = createAppStoreContext().store;
     await reopened.getState().openOpenedFile({ name: 'tweede-generatie-heropend.ifc', content: saved, ref: null });
     eq(`${label}: dezelfde werkdag na volledig heropenen`, effective(reopened.getState().calendar), effective(next.getState().calendar));
-    const bare = readIFC(saved.replace(/'WorkEndHour'/g, "'IgnoredEndHour'").replace(/'IsHourCalendar'/g, "'IgnoredCalendar'"));
-    eq(`${label}: zonder OPS-markering dezelfde dagdienst`, effectiveWorkTimeBands(bare.calendar)?.byWeekday[1],
-      [{ start: draft.workStartHour * 60, end: draft.workEndHour * 60 }]);
+    checkWrittenCalendar(label, saved, next.getState().calendar);
     console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
   }
 
@@ -221,15 +242,19 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   eq('1120: kalenderbewerking toegepast', changeEnd(18), true);
   await store.getState().saveFile();
   eq('1120: echte kalenderbewerking schrijft 18:00', hasSourceClocks(file.writes.at(-1), '9.123456:00:00', '18:00:00'), true);
+  if (file.writes.at(-1)) checkWrittenCalendar('1120 einde 18:00', file.writes.at(-1)!, store.getState().calendar);
   store.getState().undo();
   await store.getState().saveFile();
   eq('1120: undo kalenderbewerking herstelt oorspronkelijke klok', file.writes.at(-1)?.includes(original), true);
+  if (file.writes.at(-1)) checkWrittenCalendar('1120 undo kalenderbewerking', file.writes.at(-1)!, store.getState().calendar, original);
   store.getState().redo();
   await store.getState().saveFile();
   eq('1120: redo kalenderbewerking schrijft gekozen klok', hasSourceClocks(file.writes.at(-1), '9.123456:00:00', '18:00:00'), true);
+  if (file.writes.at(-1)) checkWrittenCalendar('1120 redo kalenderbewerking', file.writes.at(-1)!, store.getState().calendar);
   eq('1120: terugzetten op het oude effectieve einde toegepast', changeEnd(before.workEndHour), true);
   await store.getState().saveFile();
   eq('1120: netto ongewijzigd einde hergebruikt bronklok', file.writes.at(-1)?.includes(original), true);
+  if (file.writes.at(-1)) checkWrittenCalendar('1120 einde teruggezet', file.writes.at(-1)!, store.getState().calendar, original);
 
   const returned = structuredClone(store.getState().calendar);
   const originalId = store.getState().activeDocumentId;
@@ -304,10 +329,7 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     await reopened.getState().openOpenedFile({ name: 'uurtaak-heropend.ifc', content: saved, ref: null });
     eq(`${label}: volledig heropenen geeft de werkdag van de planner`, effective(reopened.getState().calendar), effective(wanted));
     eq(`${label}: volledig heropenen geeft dezelfde werkblokken`, effectiveWorkTimeBands(reopened.getState().calendar), effectiveWorkTimeBands(wanted));
-    if (pause) {
-      const bare = readIFC(saved.replace(/'WorkEndHour'/g, "'IgnoredEndHour'").replace(/'IsHourCalendar'/g, "'IgnoredCalendar'"));
-      eq(`${label}: zonder OPS-markering dezelfde twee werkblokken`, effectiveWorkTimeBands(bare.calendar), effectiveWorkTimeBands(wanted));
-    }
+    checkWrittenCalendar(label, saved, wanted, pause ? undefined : original);
     console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
   }
   const { openForeign, cloneDomain, tryMerge, mergeProblems } = await import('./ifcMergeKern');
@@ -325,6 +347,43 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   } else console.log('1120 merge weigert', JSON.stringify(result.error.cases));
 }
 
+// Fixronde 4: een klein laatste blok mag door bronbehoud geen nachtdienst worden.
+{
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  let input = old.replace("'9.123456:00:00'", "'8.000000000000004:00:00'")
+    .replace("'16:00:00'", "'15.999999999999998:00:00'");
+  const end = input.lastIndexOf('ENDSEC;');
+  input = input.slice(0, end) + [
+    "#80010=IFCTASKTIME('Herstel Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2027-03-01','2027-03-01','2027-03-01','2027-03-01','2027-03-01','2027-03-01','P0Y0M0D','P0Y0M0D',.T.,$,$,$,$,'P0Y0M1D',$);",
+    "#80011=IFCTASK('1tOTGtWTg8bYqp7BjjuF0J',#6,'Herstel',$,$,'1',$,$,$,.F.,$,#80010,.LOGISTIC.);",
+    "#80012=IFCRELASSIGNSTOCONTROL('0rlQSjGhGX7H1QflElJHcc',#6,$,$,(#80011),$,#40);",
+  ].join('\n') + '\n' + input.slice(end);
+  const label = '1120 klein laatste blok, pauze 15:45–16:00';
+  const file = memoryFile(input), store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'klein-laatste-blok.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  store.setState(s => { s.tasks[0].time.durationUnit = 'hours'; });
+  let draft = structuredClone(store.getState().calendar);
+  eq(`${label}: effectieve eindwaarde na herstel`, draft.workEndHour, 16.000000000000004);
+  for (const patch of [{ simpleBreakStartMinute: 945 }, { simpleBreakDurationMinutes: 15 }]) {
+    eq(`${label}: formulier accepteert ${JSON.stringify(patch)}`, scalarTimesValid(draft, patch), true);
+    draft = { ...draft, ...simpleBreakPatch(draft, patch) };
+  }
+  eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+    store.getState().calendars.map(c => c.id === draft.id ? draft : c), draft.id), true);
+  const wanted = structuredClone(store.getState().calendar);
+  await store.getState().saveFile();
+  eq(`${label}: schrijft eenmaal`, file.writes.length, 1);
+  const saved = file.writes[0];
+  if (saved) {
+    eq(`${label}: letterlijk het effectieve einde`, hasSourceClocks(saved, '16:00:00', '16:00:00.000000000013642420526593924'), true);
+    checkWrittenCalendar(label, saved, wanted);
+    const reopened = createAppStoreContext().store;
+    await reopened.getState().openOpenedFile({ name: 'klein-blok-heropend.ifc', content: saved, ref: null });
+    eq(`${label}: volledig heropenen geeft dezelfde werkblokken`, effectiveWorkTimeBands(reopened.getState().calendar), effectiveWorkTimeBands(wanted));
+    console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+  }
+}
+
 // 1120, fixronde 1: een herstelde eindklok hoort bij de hele oorspronkelijke periode.
 {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
@@ -336,7 +395,7 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     // Alleen hoursPerDay verplaatst in simpleBreakPatch geen grens; de dialoog toont netto uren als uitvoer.
     { label: 'alleen uren per dag', patches: [{ hoursPerDay: 7 }], end: '16:00:00', start: '9.123456:00:00', bare: false },
     { label: 'alleen pauzeduur', patches: [{ simpleBreakDurationMinutes: 30 }], end: '16:00:00', start: '9.123456:00:00', bare: false },
-    { label: 'gewone bronklok per kant', patches: [{ workStartHour: 10 }], end: '17.5:00:00', start: '10:00:00', bare: false },
+    { label: 'gewone bronklok per kant', patches: [{ workStartHour: 10 }], end: '17.5:00:00', start: '10:00:00', bare: true },
   ] as const) {
     const input = example.label === 'gewone bronklok per kant' ? old.replace("'16:00:00'", "'17.5:00:00'") : old;
     const file = memoryFile(input), store = createAppStoreContext().store;
@@ -363,12 +422,8 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     eq(`${example.label}: volledige heropening geeft de werkdag van de planner`,
       [after.workStartHour, after.workEndHour, after.hoursPerDay, after.simpleBreakStartMinute, after.simpleBreakDurationMinutes],
       [before.workStartHour, before.workEndHour, before.hoursPerDay, before.simpleBreakStartMinute, before.simpleBreakDurationMinutes]);
-    if (example.bare) {
-      // Zoals Terra: standaard-IFC mag zonder de eigen eind- en kalendermarkering geen nachtdienst worden.
-      const bare = readIFC(saved.replace(/'WorkEndHour'/g, "'IgnoredEndHour'").replace(/'IsHourCalendar'/g, "'IgnoredCalendar'"));
-      eq(`${example.label}: ook zonder OPS-markeringen dezelfde dagdienst`, effectiveWorkTimeBands(bare.calendar)?.byWeekday[1],
-        [{ start: before.workStartHour * 60, end: before.workEndHour * 60 }]);
-    }
+    checkWrittenCalendar(example.label, saved, before, example.bare ? undefined
+      : "IFCTIMEPERIOD('9.123456:00:00','16:00:00')");
     console.log('1120 formulier', example.label, JSON.stringify([before.workStartHour, before.workEndHour, before.hoursPerDay]),
       saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
   }
@@ -397,6 +452,7 @@ for (const zone of ['', '+01:00']) {
   // Zonder zone is er geen bronrecord: daar schrijft de bestaande exacte klokschrijver, zoals main.
   const writtenEnd = zone ? end : '16:20:00.000000000006821210263296962';
   eq(`${label}: eindklok zoals main`, hasSourceClocks(saved, '10:00:00', writtenEnd), true);
+  checkWrittenCalendar(label, saved, before);
   const reopened = createAppStoreContext().store;
   await reopened.getState().openOpenedFile({ name: 'laatste-decimaal-heropend.ifc', content: saved, ref: null });
   const after = reopened.getState().calendar;
@@ -426,6 +482,7 @@ for (const zone of ['', '+01:00']) {
   const saved = file.writes[0];
   if (!saved) continue;
   eq(`${label}: bronklok blijft letterlijk`, hasSourceClocks(saved, '10:00:00', end), true);
+  checkWrittenCalendar(label, saved, draft);
   const reopened = createAppStoreContext().store;
   await reopened.getState().openOpenedFile({ name: 'schrijfrekenweg-heropend.ifc', content: saved, ref: null });
   const after = reopened.getState().calendar;
@@ -456,12 +513,44 @@ for (const changeStart of [false, true]) {
   const saved = file.writes[0];
   if (!saved) continue;
   eq(`${label}: bronklok blijft`, hasSourceClocks(saved, changeStart ? '10:00:00' : '08:00:00', end), true);
+  checkWrittenCalendar(label, saved, wanted, changeStart ? undefined : `IFCTIMEPERIOD('08:00:00','${end}')`);
   eq(`${label}: geschreven eindklok binnen de tijdgrens`, Math.abs(parseIfcClock(end)!.minutes - wanted.workEndHour * 60) < 1e-9, true);
   const reopened = createAppStoreContext().store;
   await reopened.getState().openOpenedFile({ name: 'klein-herstel-heropend.ifc', content: saved, ref: null });
   const after = reopened.getState().calendar;
   eq(`${label}: volledig heropenen bewaart de werkdag`, [after.workStartHour, after.workEndHour, after.hoursPerDay],
     [wanted.workStartHour, wanted.workEndHour, wanted.hoursPerDay]);
+  console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+}
+
+// Ook na een beginbewerking blijven een nachtperiode en 24:00 dezelfde periode.
+// Dit zijn expliciete werkblokken: de scalarvelden kunnen geen nachtdienst invoeren.
+for (const end of ['02:00:00', '24:00:00']) {
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const input = old.replace("'9.123456:00:00'", "'22:00.0:00'").replace("'16:00:00'", `'${end}'`)
+    .replace("'HoursPerDay',$,IFCREAL(8)", `'HoursPerDay',$,IFCREAL(${end === '24:00:00' ? 2 : 4})`)
+    .replace('(#36));', "(#36,#80013));\n#80013=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.T.),$);");
+  const label = `1120 beginwijziging bij einde ${end}`;
+  const file = memoryFile(input), store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'nacht-of-middernacht.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  const current = store.getState().calendar;
+  eq(`${label}: heeft bronrecord met letterlijke eindklok`, current.ifcTimePeriods?.some(p => p.endText === end), true);
+  const bands = structuredClone(current.workTime!);
+  for (const day of current.workDays) for (const band of bands.byWeekday[day as 1]) band.start = 23 * 60;
+  // Dezelfde afleiding als CalendarForm.applyBands; opslaan via de echte kalenderactie.
+  const draft = { ...current, workTime: bands, hoursPerDay: hoursPerDayForBlocks(current, current, bands),
+    workDays: workDaysFromBands(bands), simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined };
+  eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+    store.getState().calendars.map(c => c.id === current.id ? draft : c), current.id), true);
+  await store.getState().saveFile();
+  eq(`${label}: schrijft eenmaal`, file.writes.length, 1);
+  const saved = file.writes[0];
+  if (!saved) continue;
+  eq(`${label}: eindklok blijft letterlijk`, hasSourceClocks(saved, '23:00:00', end), true);
+  checkWrittenCalendar(label, saved, store.getState().calendar);
+  const reopened = createAppStoreContext().store;
+  await reopened.getState().openOpenedFile({ name: 'nacht-of-middernacht-heropend.ifc', content: saved, ref: null });
+  eq(`${label}: volledig heropenen houdt dezelfde werkblokken`, effectiveWorkTimeBands(reopened.getState().calendar), effectiveWorkTimeBands(store.getState().calendar));
   console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
 }
 
@@ -492,6 +581,7 @@ for (const zone of ['', '+01:00']) {
   const saved = file.writes[0];
   if (!saved) continue;
   eq(`${label}: effectief einde geschreven`, hasSourceClocks(saved, '10:00:00', '16:20:24'), true);
+  checkWrittenCalendar(label, saved, store.getState().calendar);
   const reopened = createAppStoreContext().store;
   await reopened.getState().openOpenedFile({ name: 'tegenstrijdige-bron-heropend.ifc', content: saved, ref: null });
   const after = reopened.getState().calendar, wanted = store.getState().calendar;
@@ -513,6 +603,7 @@ for (const zone of ['', '+01:00']) {
   const saved = file.writes[0];
   if (saved) {
     eq('1120 zonder bronrecord: exacte klok zoals main', hasSourceClocks(saved, '08:00:00.000000000006821210263296962', '16:00:00'), true);
+    checkWrittenCalendar('1120 zonder bronrecord', saved, store.getState().calendar);
     const reopened = createAppStoreContext().store;
     await reopened.getState().openOpenedFile({ name: 'zonder-bronrecord-heropend.ifc', content: saved, ref: null });
     const after = reopened.getState().calendar;
@@ -573,6 +664,7 @@ for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
   await store.getState().saveFile();
   eq(`${edit}: bron schrijft zonder bewerken`, file.writes.length, 1);
   eq(`${edit}: onbewerkte zone behouden`, hasSourceClocks(file.writes[0], '13:00:01+01:00', '16:00:00+01:00'), true);
+  if (!file.writes[0]) continue;
   const previousWrites = file.writes.length;
   store.setState(state => {
     const week = state.calendar.workTime!.byWeekday;
