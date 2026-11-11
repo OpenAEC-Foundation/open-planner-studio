@@ -115,6 +115,32 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   if (file.writes[0]) eq('middagpauze blijft na heropenen', effectiveWorkTimeBands(readIFC(file.writes[0]).calendar)?.byWeekday[1], expected);
 }
 
+// Standaard-IFC moet de effectieve pauze dragen, ook voor een andere lezer.
+{
+  const imported = readIFC(source.replace(period, "IFCTIMEPERIOD('07:00:01','16:00:00')"));
+  imported.tasks[0].durationUnit = 'hours';
+  const saved = writeIFC(imported);
+  eq('standaard-IFC: ochtend eindigt bij pauze', saved.includes("IFCTIMEPERIOD('07:00:01','12:00:00')"), true);
+  eq('standaard-IFC: middag begint na pauze', saved.includes("IFCTIMEPERIOD('13:00:00','16:00:00')"), true);
+  eq('standaard-IFC: geen ononderbroken dag', saved.includes("IFCTIMEPERIOD('07:00:01','16:00:00')"), false);
+}
+
+// Dezelfde numerieke klok op zaterdag is geen bron voor een maandagbewerking.
+{
+  const input = source.replace(period, "IFCTIMEPERIOD('07:30:01Z','16:00:00Z')")
+    .replace(',$,$,(#19),', ',$,$,(#19,#9003),')
+    .replace('ENDSEC;\nEND-ISO', "#9001=IFCTIMEPERIOD('08:30:01+01:00','16:00:00+01:00');\n#9002=IFCRECURRENCEPATTERN(.WEEKLY.,$,(6),$,$,$,$,(#9001));\n#9003=IFCWORKTIME('Zaterdag',.PREDICTED.,$,#9002,$,$);\nENDSEC;\nEND-ISO");
+  const file = memoryFile(input);
+  const { store } = createAppStoreContext();
+  await store.getState().openOpenedFile({ name: 'zones-per-dag.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  store.setState(s => { s.calendar.workTime!.byWeekday[1][0].start = s.calendar.workTime!.byWeekday[6][0].start; });
+  const error = console.error;
+  console.error = () => {};
+  try { await store.getState().saveFile(); } finally { console.error = error; }
+  eq('maandag leent nooit de zaterdagzone', file.writes.length, 0);
+  eq('zonebewerking blijft zichtbaar', store.getState().calendar.workTime?.byWeekday[1][0].start, 510 + 1 / 60);
+}
+
 // Een echte, zelfs zeer kleine wijziging mag nooit de oude bronklok terugkrijgen.
 {
   const text = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8').replace("'07:30.5:00'", "'07:30:00.000000001'");

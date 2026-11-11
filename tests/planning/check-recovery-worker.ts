@@ -1,8 +1,11 @@
 // Workergrens en races van crashherstel: echte IFC-writer en recovery-backend, vertraagde transportdubbel.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { readIFC } from '@/services/ifc/ifcReader';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { capturePayload } from '@/state/documentContract';
 import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
+import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -294,3 +297,41 @@ await rejected;
 assert.equal(disposedTransport.requests.length, 1);
 await checkRecoveryUpdateFlush(error => { writeError = error; });
 console.log('OK  recovery-worker: pariteit, archiefgrens, volgorde, cache, fallback en stopraces groen');
+
+// Een getypeerde kalenderweigering is lokaal aan het document: andere wijzigingen
+// worden opgeslagen, de geweigerde bron blijft opnieuw aangeboden worden.
+{
+  await clearRecovery();
+  const partial = new RecoveryDeltaTracker();
+  const secondDoc = (source: IFCSaveSource): RecoverySourceDocument => ({ ...doc(source), id: 'b' });
+  await runRecoveryTick(partial, 'a', [doc(old), secondDoc(old)]);
+  const before = await loadRecovery();
+  const fixture = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8')
+    .replace("IFCTIMEPERIOD('07:30.5:00','16:00:00')", "IFCTIMEPERIOD('07:30:01Z','16:00:00Z')");
+  const calendar = readIFC(fixture).calendar;
+  calendar.workTime!.byWeekday[1][0].start += 1;
+  const unwriteable = { ...newer, calendar };
+  assert.throws(() => serializeRecoverySnapshot(unwriteable), IfcCalendarTimePrecisionError);
+  let refused = 0;
+  const serializePartial = async (source: IFCSaveSource) => {
+    if (source === unwriteable) refused++;
+    return serializeRecoverySnapshot(source);
+  };
+  const other = { ...newer, project: { ...newer.project, name: 'Andere planning gewijzigd' } };
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    await runRecoveryTick(partial, 'b', [doc(unwriteable), secondDoc(other)], serializePartial);
+    const after = await loadRecovery();
+    assert.equal(after.docs.find(d => d.id === 'a')?.ifc, before.docs.find(d => d.id === 'a')?.ifc, 'vorige snapshot blijft staan');
+    assert.match(after.docs.find(d => d.id === 'b')!.ifc, /Andere planning gewijzigd/);
+    await runRecoveryTick(partial, 'b', [doc(unwriteable), secondDoc(other)], serializePartial);
+    assert.equal(refused, 2, 'geweigerde wijziging wordt opnieuw geprobeerd');
+  } finally { console.warn = warn; }
+  // Zonder vorige snapshot wordt alleen dat nieuwe document overgeslagen.
+  const initial = new RecoveryDeltaTracker();
+  console.warn = () => {};
+  try { await runRecoveryTick(initial, 'a', [doc(unwriteable), secondDoc(other)], serializePartial); }
+  finally { console.warn = warn; }
+  assert.deepEqual((await loadRecovery()).docs.map(d => d.id), ['b']);
+}
