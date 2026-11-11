@@ -559,11 +559,15 @@ Wat in de bouw anders liep dan hierboven staat:
   projectinstellingen, standaard uit (keuze 5, besluit 10 november 2026). Staat het uit, dan meldt de app bij
   vernieuwen dat de bron niet-opgeslagen wijzigingen heeft, zonder knop. Staat het aan, dan neemt vernieuwen het
   anker zonder melding uit het geopende document, gelezen op een kopie; de herkomst heeft dan alleen een leestijd.
-  Lukt dat lezen niet, dan telt de bron als niet gelezen; de app valt niet terug op het bestand. Met het vinkje aan
-  toont de automatische controle alleen een balk als de ankers uit het geopende document afwijken, en zolang de bron
-  open is met wijzigingen, komt er voor die bron geen balk voor de opgeslagen versie. *Later* onthoudt de versie en
-  het voorstel, zodat dezelfde ankers niet via de andere route terugkomen. De MCP-tool leest altijd het opgeslagen
-  bestand (`knownbugs.md` punt 985). Als
+  Lukt dat lezen niet, dan blijft het anker bij *Alle externe relaties vernieuwen* en *Bron vernieuwen* staan, zonder
+  terugval op het bestand. *Alle externe relaties vernieuwen* telt de bron dan als niet gelezen; *Bron vernieuwen*
+  geeft een foutmelding. *Bronbestanden kiezen…* gebruikt bij zo'n leesfout wel het gekozen bestand als terugval.
+  Met het vinkje aan toont de automatische controle alleen een balk als de ankers uit het geopende document afwijken,
+  en zolang de bron open is met wijzigingen, komt er voor die bron geen balk voor de opgeslagen versie.
+  *Later* op een balk voor een opgeslagen versie onderdrukt ook de balk uit het geopende document met dezelfde
+  ankers. Andersom geldt dat niet: na *Later* op een balk uit het geopende document verschijnt de gewone balk wel
+  als de bron daarna wordt opgeslagen en de opgeslagen ankers nog afwijken van de planning. De MCP-tool leest altijd
+  het opgeslagen bestand (`knownbugs.md` punt 985). Als
   VERVOLG staan: het vinkje omzetten start geen controle (punt 1066), elke controle leest elk geopend brondocument
   opnieuw (punt 1067), de tekst van de balk (punt 1068), *Later* op de twee routes (punt 1069) en het moment van
   kijken bij *Alle externe relaties vernieuwen* (punt 1070). De route is niet getest in de echte desktop-app (punt
