@@ -230,8 +230,8 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   for (const active of [true, false]) {
     const recovered = createAppStoreContext().store;
     recovered.getState().restoreDocuments([
-      { ...readIFC(withTask), id: 'herstel-1120', filePath: null, isDirty: true },
-      { ...readIFC(source), id: 'ander-1120', filePath: null, isDirty: false },
+      { ...readIFC(withTask), id: 'herstel-1120', filePath: null, isDirty: true, datesAsRecorded: false },
+      { ...readIFC(source), id: 'ander-1120', filePath: null, isDirty: false, datesAsRecorded: false },
     ], active ? 'herstel-1120' : 'ander-1120');
     if (!active) recovered.getState().switchDocument('herstel-1120');
     eq(`1120 crashherstel ${active}: effectieve dag`, effective(recovered.getState().calendar), effective(before));
