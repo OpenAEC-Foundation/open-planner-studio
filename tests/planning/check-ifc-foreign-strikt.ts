@@ -58,7 +58,7 @@ const REVIT_WALL = [
 ];
 
 /** De uitkomst van een merge als tekst: `schrijft`, de gevallen van de weigering, of een andere fout (`fout: …`). */
-type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array };
+type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'open-weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array };
 /** Elk bestand één keer openen; elke merge krijgt een kopie van het domein (de bron blijft gedeeld en onbewerkt). */
 const openedOf = new Map<Uint8Array, Opened>();
 async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void): Promise<Result> {
@@ -66,7 +66,7 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
   if (!opened) {
     try { opened = await openForeign(bytes); } catch (e) {
       // De duurparser weigert ongeldige/onondersteunde duren nu al vóór er een domein kan ontstaan.
-      if (e instanceof IfcParseError && e.reason === 'duration') return { label, outcome: 'weigert', kinds: ['duur-deels-gelezen'], details: ['duur-deels-gelezen: geweigerd bij openen'] };
+      if (e instanceof IfcParseError && e.reason === 'duration') return { label, outcome: 'open-weigert', kinds: ['duration'], details: ['duration: geweigerd bij openen'] };
       return { label, outcome: 'fout', kinds: [], details: [`openen: ${(e as Error).message.slice(0, 160)}`] };
     }
     openedOf.set(bytes, opened);
@@ -95,7 +95,7 @@ async function proof(plek: string, label: string, bytes: Uint8Array, want: strin
   }
   results.push(r);
   const got = r.outcome === 'weigert' ? `weigert (${r.kinds.join(', ')})` : r.outcome;
-  const pass = want === 'schrijft' ? r.outcome === 'schrijft' : r.outcome === 'weigert' && r.kinds.includes(want);
+  const pass = want === 'schrijft' ? r.outcome === 'schrijft' : (r.outcome === 'weigert' && r.kinds.includes(want)) || (want === 'duur-deels-gelezen' && r.outcome === 'open-weigert' && r.kinds.includes('duration'));
   ok(`${r.label}: verwacht ${want}, kreeg ${got}${r.details.length ? ` — ${r.details.slice(0, 2).join(' | ')}` : ''}`, pass);
   if (pass && check && r.out) {
     const problem = check(r.out);
@@ -459,7 +459,7 @@ await proof('fixronde 6, BLOKKEERT 1', "oude lagvorm 'PT10H' (de lezer leest 2 w
   const marked = (await openForeign(lag631("IFCDURATION('P7D')"))).sequences.filter(q => q.lagDays === 7);
   ok(`fixronde 6: de lag #631 is te vinden in het domein (${marked.length})`, marked.length === 1);
   const lag = (await openForeign(oldLag("'P1,5D'"))).sequences.find(q => marked[0] && key(q) === key(marked[0]));
-  ok(`fixronde 6: de lezer leest de oude lagvorm 'P1,5D' als 5 dagen (kreeg ${lag?.lagDays})`, lag?.lagDays === 5 && lag.lagMinutes === undefined);
+  ok(`fixronde 6: de lezer leest de oude lagvorm 'P1,5D' als 1,5 dagen (kreeg ${lag?.lagDays})`, lag?.lagDays === 1.5 && lag.lagMinutes === undefined);
   for (const v of ["'P2D'", "'P0Y0M2.5D'", "'P0Y0M-2D'", "'-P2D'"]) {
     await proof('fixronde 6, BLOKKEERT 1', `oude lagvorm ${v} (een vorm van OPS), de taak hernoemd: schrijft`, oldLag(v), 'schrijft', rename55);
   }
@@ -473,12 +473,10 @@ await proof('fixronde 6, BLOKKEERT 2', "ScheduleDuration 'PT-2H', de duur op 120
 }, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de taak hernoemd", lag631("IFCDURATION('PT-2H')"), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 {
-  const o = await openForeign(lag631("IFCDURATION('PT-2H')"));
-  const at = o.sequences.findIndex(q => q.lagMinutes === 120);
-  ok(`fixronde 6: de lezer leest de lag 'PT-2H' als +120 minuten (knownbug 1034; index ${at})`, at >= 0);
-  await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de lag op 120 minuten gezet en de taak hernoemd", lag631("IFCDURATION('PT-2H')"), 'duur-deels-gelezen', (x, oo) => {
-    x.sequences[at].lagMinutes = 120; rename55(x, oo);
-  }, undefined, NOT_LISTED);
+  let reason: string | undefined;
+  try { await openForeign(lag631("IFCDURATION('PT-2H')")); }
+  catch (e) { if (e instanceof IfcParseError) reason = e.reason; else throw e; }
+  ok('een lag met een intern minteken weigert al bij openen', reason === 'duration');
 }
 {
   const r = await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('-PT2H') (het minteken vóór de P), de taak hernoemd: schrijft", lag631("IFCDURATION('-PT2H')"), 'schrijft', rename55, has(/IFCDURATION\('-PT2H(?:0M0S)?'\)/));
