@@ -27,7 +27,7 @@ import {
   canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, openInStore, ordinaryEdits, plannerEdits, recalculated, reopenPlain, settle,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
-import { sameMeaning } from '@/services/ifc/foreign/lossCheck';
+import { partialDateTime, sameMeaning } from '@/services/ifc/foreign/lossCheck';
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -169,6 +169,69 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       ok(`1111 ${tz}: twee wandkloktijden verschillen`, !sameMeaning(index, r, "'2027-03-28T03:00:00'"));
       ok(`1111 ${tz}: expliciete zone behoudt betekenis`, sameMeaning(index, r, "'2027-03-28T03:00:00+01:00'"));
       await proof(`1111 ${tz}`, 'oude eigen bron via de app', walled('tests/planning/fixtures/b5-lopend-oude-writer.ifc'), 'schrijft');
+    }
+  } finally {
+    if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+  }
+}
+
+// #898, fixronde 2: onmogelijke bronwaarden blijven staan of weigeren; JavaScript-doorschuiven draagt ze niet.
+{
+  const previous = process.env.TZ;
+  const base = walled('tests/planning/fixtures/review886/taaktijd-1100.ifc');
+  try {
+    for (const tz of ['UTC', 'Europe/Amsterdam']) {
+      process.env.TZ = tz;
+      const vectors = [
+        { type: 'IFCTASKTIME', arg: 5, kind: 'datum-tijd' as const, bad: ['2027-02-30T07:00:00', '2027-13-01', '2027-00-01', '2027-03-00', '2027-03-32', '2027-03-01T24:00:00', '2027-03-01T25:00:00', '2027-03-01T07:60:00', '2027-03-01garbage'], good: '2027-03-01T07:00:00' },
+        { type: 'IFCWORKTIME', arg: 4, kind: 'datum' as const, bad: ['2027-02-30', '2027-13-01', '2027-03-01garbage'], good: '2027-03-01' },
+        { type: 'IFCTIMEPERIOD', arg: 0, kind: 'tijd' as const, bad: ['24:00:00', '25:00:00', '07:60:00'], good: '07:00:00' },
+      ];
+      for (const v of vectors) for (const bad of v.bad) {
+        const args = [...Array<string>(v.arg).fill('$'), `'${bad}'`];
+        const index = scanStep(latin1(`ISO-10303-21;HEADER;FILE_SCHEMA(('IFC4X3_ADD2'));ENDSEC;DATA;#1=${v.type}(${args.join(',')});ENDSEC;END-ISO-10303-21;`));
+        const r = { chunk: index.chunkOf('1'), arg: v.arg, outArg: v.arg, token: `'${bad}'`, kind: 'samengesteld' as const };
+        ok(`fix2 ${tz} ${v.type} ${bad}: vorm weigert`, partialDateTime(bad, v.kind) === 'vorm');
+        ok(`fix2 ${tz} ${v.type} ${bad}: niet gedragen`, !sameMeaning(index, r, `'${v.good}'`));
+        ok(`fix2 ${tz} ${v.type} ${bad}: ook niet gedragen tegenover zichzelf`, !sameMeaning(index, r, `'${bad}'`));
+      }
+      for (const date of ['2028-02-29T07:00:00', '2000-02-29', '2027-03-01T23:59:00']) {
+        ok(`fix2 ${tz} geldige datum ${date}`, partialDateTime(date, 'datum-tijd') === undefined);
+      }
+      ok(`fix2 ${tz} oude uurbreuk blijft geldig`, partialDateTime('7.25:00:00', 'tijd', true) === undefined);
+      ok(`fix2 ${tz} oude uurbreuk buiten dag weigert`, partialDateTime('24.25:00:00', 'tijd', true) === 'vorm');
+      const cases = [
+        { label: 'Sol 30 februari', match: /#47=IFCTASKTIME/, arg: 5, value: '2027-02-30T07:00:00', sol: true },
+        { label: 'klok 24 uur', match: /#47=IFCTASKTIME/, arg: 5, value: '2027-03-01T24:00:00' },
+        { label: 'maand 13', match: /#47=IFCTASKTIME/, arg: 5, value: '2027-13-01' },
+        { label: 'uitzondering 30 februari', match: /#20=IFCWORKTIME/, arg: 4, value: '2027-02-30' },
+        { label: 'werktijd 25 uur', match: /#89998=IFCTIMEPERIOD/, arg: 1, value: '25:00:00' },
+      ];
+      for (const c of cases) {
+        const label = `fix2 ${tz} · ${c.label}`;
+        const src = patchArg(base, c.match, c.arg, `'${c.value}'`);
+        const { store, snapshot } = await openInStore(latin1(src));
+        const task = store.getState().tasks[0];
+        const start = task.time.scheduleStart;
+        store.getState().updateTask(task.id, { time: { ...task.time, scheduleDuration: 1.5, durationMinutes: 720 } });
+        store.getState().runCPM();
+        const d = cloneDomain(snapshot(store) as Opened);
+        if (c.sol) ok(`${label}: planner wijzigde de start niet`, d.tasks[0].time.scheduleStart === start);
+        const r = await tryMerge(d, snapshot(store).ifcSource!);
+        if (!r.ok) {
+          ok(`${label}: getypeerd geweigerd`, r.kinds.includes('tijd-deels-gelezen'));
+          rows.push(`| ${label} | weigert (${r.kinds.join(', ')}) |`);
+        } else {
+          // Zoek dezelfde entiteit op type en naam; hulpstukken krijgen nieuwe STEP-ids.
+          const sourceIndex = scanStep(latin1(src)), outIndex = scanStep(r.bytes);
+          const sourceLine = src.split('\n').find(l => c.match.test(l))!;
+          const chunk = sourceIndex.chunkOf(/^#(\d+)/.exec(sourceLine)![1]);
+          let token: string | undefined;
+          for (let i = 0; i < outIndex.count; i++) if (outIndex.type(i) === sourceIndex.type(chunk) && outIndex.name(i) === sourceIndex.name(chunk)) token = outIndex.argTokens(i)?.[c.arg];
+          ok(`${label}: bronwaarde letterlijk behouden`, token === `'${c.value}'`);
+          rows.push(`| ${label} | schrijft; bronwaarde ${token} |`);
+        }
+      }
     }
   } finally {
     if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;

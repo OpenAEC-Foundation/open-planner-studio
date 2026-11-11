@@ -92,7 +92,7 @@
  *   - `CreationDate` van het eigen werkplan en het eigen live-werkschema (een vast id): het moment van opslaan (een
  *     baselinekop draagt haar eigen datum en valt hier niet onder).
  */
-import { parseInstant } from '@/utils/dateUtils';
+import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -1805,6 +1805,7 @@ export function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | 
   const oldClock = at.kind === 'tijd' && onlyPeriodOfOnlyPattern(index, r.chunk);
   const DAY = '1970-01-01T';
   const meaning = (text: string): number | string | undefined => {
+    if (!existingDateTime(text, at.kind, oldClock)) return undefined;
     if (at.kind === 'datum') return text;
     const ms = at.kind === 'tijd' ? parseInstant(DAY + text).getTime() - parseInstant(`${DAY}00:00:00`).getTime() : parseInstant(text).getTime();
     if (Number.isFinite(ms)) return ms;
@@ -2146,11 +2147,26 @@ export type PartialDateTime = 'zone' | 'vorm';
  *  `${String(cal.workStartHour).padStart(2, '0')}:00:00`, dus `7.5:00:00` voor half acht. */
 export const OLD_FRACTIONAL_CLOCK = /^\d+\.\d+:00:00$/;
 
+/** Kalendergeldigheid vóór de vormcontrole én de betekenisvergelijking. JavaScript mag een onmogelijke datum
+ *  niet doorschuiven en zo alsnog gedragen laten heten. De bestaande ISO-toets bewaakt ook de klok en offset;
+ *  24:00 weigert bewust, ook al leest JavaScript dat als de volgende dag. De oude uurbreuk blijft alleen geldig
+ *  op de plek waar de lezer haar exact draagt, binnen dezelfde klokdag. */
+function existingDateTime(text: string, kind: DateTimeKind, oldClock: boolean): boolean {
+  if (oldClock && kind === 'tijd' && OLD_FRACTIONAL_CLOCK.test(text)) {
+    const hour = scalarHourFromClock(text);
+    return Number.isFinite(hour) && hour >= 0 && hour < 24;
+  }
+  return (kind !== 'datum' || text.length === 10)
+    && isStrictIsoDateTime(kind === 'tijd' ? `1970-01-01T${text}` : text,
+      { maxFractionDigits: text.length, offsetColonOptional: true });
+}
+
 /** Leest de lezer deze waarde anders dan haar tekst zegt? Een lijst van vormen die mogen; zie `PartialDateTime`.
  *  `oldClock`: de tijd staat waar de lezer een oude klok als uurbreuk exact leest (`dateTimeTexts`); daar mag ook die vorm
  *  (`OLD_FRACTIONAL_CLOCK`, fixronde 7 van #867). */
 export function partialDateTime(text: string, kind: DateTimeKind, oldClock = false): PartialDateTime | undefined {
   const t = text.trim();
+  if (!existingDateTime(t, kind, oldClock)) return 'vorm';
   const clock = '\\d\\d:\\d\\d(?::00(?:\\.0+)?)?';
   const date = '\\d{4}-\\d\\d-\\d\\d';
   const allowed = kind === 'tijd' ? `^${clock}$` : kind === 'datum' ? `^${date}$` : `^${date}(?:T${clock})?$`;

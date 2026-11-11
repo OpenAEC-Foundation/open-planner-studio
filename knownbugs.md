@@ -1947,13 +1947,6 @@ en noem het in je rapport of PR-tekst.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
 
-1114. **VERVOLG: `sameMeaning` neemt een datum met rommel erachter aan als dezelfde datum.** `sameMeaning` in
-     `src/services/ifc/foreign/lossCheck.ts` leest sinds #898 met `parseInstant`; die valt terug op `parseDate`, en die
-     neemt het begin van de tekst. Bron `2027-03-01garbage` en uitvoer `2027-03-01` gelden daardoor als gelijk. Geen
-     verlies aangetoond: de vormcontrole in `src/services/ifc/foreign/mergeWriter.ts` weigert zo'n bron vóór het
-     schrijven. Richting: in de vergelijking alleen herkende, volledige datumvormen aannemen; de tijdas kan blijven.
-     Terra, review ronde 2 van #898. — B
-
 1115. **VERVOLG: de pariteitstest vergelijkt met een oudere main.** `tests/planning/check-ifc-foreign-pariteit.ts` en
      `tests/planning/fixtures/main-pariteit.json` zijn gemaakt op main `2fbbc4ae1`; sindsdien kwam #886 in main
      (`d456e6e7b`), met wijzigingen in de opslagguard. De test slaagt tegen de vastgelegde uitkomst, en bewijst dus geen
