@@ -3290,6 +3290,21 @@ en noem het in je rapport of PR-tekst.
      (GPT-6.1-Sol, ronde 3) en code-review ronde 9 (GPT-6.1-Terra). Voorstel: wacht op een waarneembare geweigerde
      lezing en controleer na herstel ook layout en rijen. — B
 
+1365. **VERVOLG: een geslaagde layoutopslag met een mislukte controle-lezing meldt "niets veranderd".**
+     `updateLayouts` (`src/utils/settingsStore.ts`, rond :584) schrijft de layouts en leest ze terug; mislukt alleen die
+     controle-lezing, dan staat de wijziging wel in de opslag, maar `layoutsNotSaved`
+     (`src/components/viewControls/layoutsNotSaved.ts:10`) meldt dat er niets veranderd is. Slaat de gebruiker in het
+     filtervenster (`FilterDialog.tsx`, rond :346) daarna opnieuw op, dan komt het filter er twee keer in, met een
+     nieuwe id. Alleen met een kunstmatige leesfout direct na een geslaagde schrijfactie. Review van #905
+     (GPT-6.1-Terra ronde 4 en GPT-6.1-Sol ronde 4, beide BEVESTIGD). Voorstel: onderscheid "niet geschreven" van "niet
+     te controleren" en meld het tweede anders, of maak opnieuw opslaan idempotent. — B
+
+1366. **VERVOLG: testgaten bij het opslaan van layouts onder een opslagfout.** Geen test dekt: een schrijffout vanuit
+     het layoutvenster, opnieuw opslaan na herstel van de opslag, verwijderen tijdens een opslagfout, en de overgang
+     van een geslaagde schrijfactie naar een mislukte controle-lezing (zie 1365). Review van #905 (GPT-6.1-Sol,
+     ronde 4, BEVESTIGD). Voorstel: voeg deze stappen toe aan de bestaande routes in
+     `tests/browser/layout-presets.spec.ts` en `tests/planning/check-layout-presets.ts`. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
