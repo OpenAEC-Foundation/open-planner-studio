@@ -1934,6 +1934,12 @@ en noem het in je rapport of PR-tekst.
      Sol probeerde er in zijn gerichte run verlies mee te maken en kon dat niet: de eerste baselineregel wissen weigert
      getypeerd (`niet-gedragen`), en na het wissen van de eerste onderbreking blijft de volgende exact.
 
+1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
+     `src/services/ifc/ifcWriter.ts` (bij de slots die de writer exact in de dagvorm van de bron schrijft) staat nog dat
+     duur en rest samen gaan en dat het om een gebroken dag gaat. Sinds #908 beslist de merge per slot (duur en rest
+     apart) en telt voor die twee slots ook een hele dag mee. Alleen tekst; de code doet wat #908 beschrijft. De gewone
+     writer mocht in #908 niet wijzigen. Gevonden door de review van #908 (Terra). — B
+
 1118. **Bij 1c: de functie met de open-stappen krijgt de invoer van de merge zelf, niet een kopie.** `writeIfcMerge`
      (`src/services/ifc/foreign/mergeWriter.ts`, #903) geeft `openPlanning` het domein van de planner door nadat de
      uitvoerregels al gebouwd zijn. Een foutieve functie die dat domein wijzigt, verandert beide kanten van de
