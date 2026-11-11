@@ -9,10 +9,11 @@ Het ontwerp (versie 20) en fase 0 zijn gemerged in main. Fase 0 bewees dat de ap
 deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met een gebouwmodel, achter een flag: eerst
 lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
 Het lezen (1a) en het schrijven (1b, #867) zijn gemerged in main: de writer laat het gebouwmodel staan en zet de
-planning ertussen, en bij twijfel weigert hij. De vervolg-PR #886 (draft) toetst die writer nu op de toestand die de app
-na openen heeft, en lost op wat dat liet zien: een oud eigen bestand schrijft weer zonder bewerking, taak wissen in een
-bestand van v2026.7.12 schrijft, en een verstopt stuk vóór een eigen stuk laat de merge weigeren. Na de review van #886
-volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
+planning ertussen, en bij twijfel weigert hij. #886 is gemerged in main; de merge wordt daar getoetst via de toestand die
+na openen in de app staat. Concept-PR #898 repareert de tijdzonevergelijking (1111), de voortgang van een oude lopende
+OPS-taak (1109) en de oude kalenderindeling (1108). Twee door andere programma's herschreven fixtures blijven veilig
+geweigerd. 1107 blijft open: de volledige herleestoets via de gedeelde open-route moet vóór 1c af. Tot dan blijft opslaan
+met een vreemd deel geweigerd.
 
 ## Bronnen
 
@@ -64,13 +65,14 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
      dat een BLOKKEERT in die PR [...]."
    - "Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
      pariteitstest op de huidige main met de oude-tags."
-4. **1b-vervolg 2: eigen bestanden die nog weigeren** (knownbugs 1108 en 1109, BLOKKEERT vóór 1c). Besluit van Trias
-   (wrakko, 11 november 2026): een eigen kleine PR na #886, vanaf main, die in main staat vóór 1c begint. 1108: drie
-   oude eigen fixtures weigeren met een model zonder bewerking. 1109: voortgang invoeren in
-   `b5-lopend-oude-writer.ifc` met een model weigert ("voortgang bijwerken is gewoon werk van elke planner").
-   Ook 1107 (vóór 1c, Terra in review ronde 1 van #886): een volledige herleestoets in de merge, zoals openen via de
-   app, met een proef die rood wordt als de herberekening na openen de planning verandert.
-   Ook 1111 (vóór 1c, Terra en Sol in review ronde 2 van #886): `sameMeaning` vergelijkt in de tijdzone van de machine.
+4. **1b-vervolg 2: eigen bestanden die nog weigeren** (concept-PR #898). Deze reparatie moet vóór 1c in main staan
+   (besluit van Trias, 11 november 2026). 1111: `sameMeaning` gebruikt nu de vaste tijdas van de planner. 1109:
+   voortgang bijwerken in `b5-lopend-oude-writer.ifc` schrijft weer. 1108: de oude OPS-kalender schrijft weer; twee
+   extern herschreven fixtures blijven bewust geweigerd (herkomst en redenen in `knownbugs.md` en `OWN_MAY_REFUSE`).
+   **1107 blijft open, vóór 1c**: de volledige herleestoets via de route van de app is niet klein en veilig binnen deze
+   reparatie. Advies: deel de bestaande open-route, inclusief de modus datums zoals opgeslagen, en vergelijk de volledige
+   planning. Alternatief: een verplichte naad vanuit de aanroeper, die exact die gedeelde route gebruikt. Geen halve toets
+   gebouwd. Kosten van opnieuw openen en rekenen moeten apart op de planningprojectie worden gemeten (1021).
    Het verlies op main "07:30 wordt 07:00" (`subdayIo.ts:61`) ligt bij de thread "Trias · IFC-lezer".
    Knownbug 1110 (de laatste taak met een eigen taaktype wissen) blijft VERVOLG.
 5. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
@@ -121,6 +123,11 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
    hulpstukken (`OPS_Resource` en de andere psets en relaties); het is onze eigen writer.
 
 ## Werk
+
+- 2026-11-11: concept-PR #898 vanaf main met #886: 1111 gebruikt `parseInstant`; 1109 rekent gewijzigde voortgang
+  tot de afhankelijkheden van duur en rest; 1108 herkent de oude kalenderslots via `workCalendarSlots`. Gerichte
+  storeproeven controleren de geschreven planning na heropenen. De twee extern herschreven fixtures blijven geweigerd.
+  1107 is niet gebouwd: een gedeelde volledige open-route is groter dan deze reparatie. Vóór 1c apart afmaken.
 
 - 2026-11-09: #863 gemerged in main (`2a66df33c`). Branch `feat/804-fase1a-lezen` vanaf die commit, worktree
   `/home/aia09/.t3/worktrees/open-planner-studio/feat-804-fase1a`; `node_modules` is een link naar
@@ -222,7 +229,7 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 
 ## Volgende stappen
 
-1. Sol opnieuw op het punt van fixronde 2 van #886.
-2. Een kleine PR vanaf `main` voor knownbugs 1107, 1108, 1109 en 1111 (vóór 1c).
+1. Concept-PR #898 afronden en beoordelen; 1107 blijft als afzonderlijke eis vóór 1c open.
+2. De volledige herleestoets (1107) via één gedeelde open-route bouwen; kosten op de planningprojectie meten (1021).
 3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
 4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.

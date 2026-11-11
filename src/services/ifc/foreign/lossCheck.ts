@@ -1458,6 +1458,8 @@ const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
 const T = (...parts: string[]) => parts.map(p => `time.${p}`);
 const DATE_FORMAT = T('durationUnit', 'durationMinutes');
 const WITHHELD = '@withheldTaskTimeFields';
+// Een andere voortgang verandert de afgeleide rest en daarmee de duurvorm (PT met dagenrecord).
+// De bronduur is vooraf op exact lezen getoetst; een bronrest `$` is volledig leeg, geen deels gedragen waarde.
 const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   0: ['name'],
   3: T('durationType'),
