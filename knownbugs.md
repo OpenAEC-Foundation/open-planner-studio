@@ -1898,40 +1898,25 @@ en noem het in je rapport of PR-tekst.
      De laatste twee staan met deze redenen in `OWN_MAY_REFUSE`; ze zijn geen voorbeelden van een OPS-versie die zijn
      eigen uitvoer niet kan opslaan. De weigering blijft veilig; geen toestemming om hun brongegevens weg te schrijven. — B
 
-1109. **BLOKKEERT vóór 1c: voortgang in `b5-lopend-oude-writer.ifc` met een model weigert veilig.** De verruiming
-     van #898 liet de duur en rest van een ander oud bestand (`v2026.9.0-17-cijfers`) afronden na alleen een
-     voortgangswijziging (Terra, review ronde 1, BEVESTIGD). Die verruiming is teruggenomen: duur en rest worden per slot
-     behouden; een gewijzigde waarde krijgt alleen de writerwaarde als O0 haar volledig droeg (`carried`). Het behoud
-     van de bronduur en lege bronrest in b5-lopend gaat niet samen met de nieuwe writerwaarden; de merge weigert
-     getypeerd. Geen uitzondering toegevoegd. Eerst het bronbehoud en de gewenste voortgang met Trias afstemmen. — B
-
-1107. **Vóór 1c: de herleestoets binnen de merge opent niet zoals de app.** `writeIfcMerge` geeft de uitvoer via
-     `readPlanning` aan `sourceFormProblems` (`src/services/ifc/foreign/mergeWriter.ts`, de herleestoets van de bronvorm);
-     die doet alleen de omzetting naar het minutenmodel opnieuw (`src/services/ifc/foreign/sourceForm.ts`, `migrated`), niet
-     de herberekening en de verdere stappen van openen via de store, en toetst alleen de velden die de bronvorm of een
-     letterlijke kalender raakt. De tests openen wel via de app (`openForeign` in `tests/planning/ifcMergeKern.ts`), maar dat
-     is geen controle op iedere merge. Geen verlies gevonden. Eis (besluit van Trias): vóór het aansluiten in 1c een
-     volledige herleestoets in de merge, met een proef die rood wordt als de herberekening na openen de planning verandert.
-     Gevonden door Terra in review ronde 1 van #886. — B
-
-1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
-     writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
-     (`writeTaskTypeMeta` in `src/services/ifc/ifcWriter.ts`). Wist de planner de enige taak met zo'n type, dan staat de
-     pset niet meer in de uitvoer, en de merge weigert (`niet-gedragen`: "IFCPROPERTYSET (OPS_TaskTypes): ontbreekt in de
-     uitvoer na de bewerking"). Geen verlies: een gewone opslag laat de pset dan ook weg, en de weigering gaat over de taak
-     die de planner wiste. Gezien in de telling op `fixtures/ifc-arity-oude-writer.ifc + wand` (`taak-wissen`: 2 van de 5
-     geweigerd; bij één nagegaan dat dit de oorzaak is), nadat de lijst ids in `WorkingExceptionIds` niet meer weigerde.
-     Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
-     van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
-
-1113. **BLOKKEERT: een precieze rest verandert na alleen actualFinish en heropenen.** Gevonden tijdens fixronde 1
-     van #898. Proef in `check-ifc-foreign-oude-eigen.ts`, blok "Review #898, fixronde 1": open
-     `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` met een wand via de store en voer met `updateTask` alleen
-     actualFinish in. De duur en rest blijven vóór en na de actie exact. De merge schrijft; slots 4 en 18 houden
-     hun precieze brontekst. Na heropenen via de app is de rest niet meer exact de invoer. Dit gebeurt met de bestaande
-     rest 2.3333333333333335 én met de afzonderlijke bronrest 1.2345678901234567. Beide assertions zijn rood;
-     de overeenkomstige completion- en actualStart-proeven slagen. Bouwen en overige controles gestopt volgens de
-     verliesregel; nog niet afgebakend of dit al op main zit. De lezer is niet aangepast. — B
+1109. **BLOKKEERT vóór 1c: voortgang in `b5-lopend-oude-writer.ifc` met een model weigert.** Bron IfcTaskTime #29:
+     slot 4 `P0Y0M5D`, slot 18 `$`. Terugzetten van beide bronwaarden geeft na herlezen een andere planning dan de
+     writeruitvoer zonder terugzetten. De brede afhankelijkheid "voortgang verklaart duur en rest" in #898 gaf verlies:
+     Terra bewees dat alleen voortgang wijzigen in v2026.9.0-17-cijfers een ongewijzigde duur en rest liet afronden van
+     2.3333333333333335 naar 2.333333. Per slot behouden met `carried` liet vervolgens drie bestanden van de toets van
+     Trias weigeren op slot 18: `P0Y0M0.5D` → `PT4H30M0S`, `P0Y0M2.3333333333333335D` → `PT21H0M0S` en
+     `P0Y0M0.5D` → `PT4H0M0S`. `carried` kent voor een duur nu alleen tekstgelijkheid, niet dezelfde betekenis in een
+     andere vorm. Richting: betekenis van een duur dragen binnen de bestaande lijst van exact gelezen vormen
+     (`durationForms.ts`), zonder een brede vrijstelling. Besluit van Trias, 11 november 2026: 1109 uit #898; de tabel en
+     de duur/rest-code daar terug naar main. Een eigen PR ná #903 (volledige herleestoets), met ook 1113. **Uitzoeken vóór 1c: precieze rest na actualFinish, ook bij gewone opslag zonder model.** Eerst gezien met
+     tussenstand `49f1a9578` van fixronde 1 van #898, die niet in de uiteindelijke PR blijft. Nu ook gemeten zonder
+     wand, op de branch nadat alle 1109-code naar main `d456e6e7b` is teruggezet; de gewone writer en open-route zijn
+     gelijk aan main. Open `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` via de app; gebruik `updateTask` om bij
+     Set up site alleen actualFinish op scheduleFinish te zetten; gewone opslag met `writeIFC`, heropenen via de app.
+     Vóór én na de actie: duur en rest beide 2.3333333333333335 dagen. Na gewone opslag en heropenen: duur 2.333333,
+     rest 0, completion 1 (was 0). Dit is dus ook een fout in de gewone opslagroute van main, geen bewijs tegen alleen
+     de merge. De kop noemt nog OPS; er is geen vreemd deel (`foreign: false`). Alleen gemeten, niets gerepareerd.
+     Bewijs: `/tmp/fase1b-v2-scope/1113.log`; meetproef `/tmp/fase1b-v2-scope/probe.ts`. Besluit van Trias:
+     verder uitzoeken in de eigen PR voor 1109 ná #903. — B
 
 1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
      deel waarvan de bron niet terug te lezen is, zegt het ontwerp

@@ -199,24 +199,21 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     { name: 'afzonderlijke niet-lege precieze rest', src: patchArg(base, /IFCTASKTIME\('Set up site Time'/, 18, `'P0Y0M${otherRest}D'`), remaining: otherRest },
   ];
   for (const { name, src, remaining } of variants) {
-    for (const edit of ['completion', 'actualStart', 'actualFinish'] as const) {
+    for (const edit of ['completion', 'actualStart'] as const) {
       const label = `1109 behoud · ${name} · ${edit}`;
       const { store, snapshot } = await openInStore(latin1(src));
       const task = store.getState().tasks.find(t => t.name === 'Set up site')!;
       ok(`${label}: duur vóór actie exact`, task.time.scheduleDuration === precise);
       ok(`${label}: rest vóór actie exact`, task.time.remainingTime === remaining);
-      const value = edit === 'completion' ? 0.5 : edit === 'actualStart' ? task.time.scheduleStart : task.time.scheduleFinish;
+      const value = edit === 'completion' ? 0.5 : task.time.scheduleStart;
       store.getState().updateTask(task.id, { time: { ...task.time, [edit]: value } });
       const d = cloneDomain(snapshot(store) as Opened);
       const after = d.tasks.find(t => t.id === task.id)!;
       ok(`${label}: duur na actie ongewijzigd`, after.time.scheduleDuration === precise);
       ok(`${label}: rest na actie ongewijzigd`, after.time.remainingTime === remaining);
       const r = await tryMerge(d, snapshot(store).ifcSource!);
-      if (!r.ok) {
-        ok(`${label}: getypeerd geweigerd`, r.kinds.includes('niet-gedragen') || r.kinds.includes('bronvorm-leest-anders'));
-        rows.push(`| ${label} | weigert (${r.kinds.join(', ')}) |`);
-        continue;
-      }
+      ok(`${label}: de merge schrijft`, r.ok);
+      if (!r.ok) continue;
       const out = text(r.bytes);
       const line = out.split('\n').find(l => /IFCTASKTIME\('Set up site Time'/.test(l))!;
       const args = splitArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));

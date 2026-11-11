@@ -951,9 +951,8 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
 /** Een gebroken dag in de oude vorm van OPS: `P0Y0M0.5D`, `P0Y0M-0.5D`, `-P0Y0M0.5D` of `P0.5D`, ook met een exponent. */
 const FRACTIONAL_DAY_FORM = /^-?P(?:0Y0M)?-?(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
 /** De velden achter de slots van `SourceTaskTime`, uit de ene tabel van de verliesbewaking (`taskTimeSlotFields`): duur en
- *  rest afzonderlijk (slots 4 en 18), de werkelijke duur (15), en elke speling apart (11 en 12). */
-const SCHEDULE_FIELDS = taskTimeSlotFields(4);
-const REMAINING_FIELDS = taskTimeSlotFields(18);
+ *  rest samen (slots 4 en 18), de werkelijke duur (15), en elke speling apart (11 en 12). */
+const DAY_GROUP_FIELDS = taskTimeSlotFields(4, 18);
 const ACTUAL_FIELDS = taskTimeSlotFields(15);
 const FREE_FLOAT_FIELDS = taskTimeSlotFields(11);
 const TOTAL_FLOAT_FIELDS = taskTimeSlotFields(12);
@@ -985,8 +984,7 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
       }
     }
     const exactDays = new Set<DayMeasureDurationKey>();
-    if (same(SCHEDULE_FIELDS) && fractional.has(4)) exactDays.add('ScheduleDuration');
-    if (same(REMAINING_FIELDS) && fractional.has(18)) exactDays.add('RemainingTime');
+    if (same(DAY_GROUP_FIELDS) && (fractional.has(4) || fractional.has(18))) { exactDays.add('ScheduleDuration'); exactDays.add('RemainingTime'); }
     if (same(ACTUAL_FIELDS) && fractional.has(15)) exactDays.add('ActualDuration');
     const exactFloat = new Set<'freeFloat' | 'totalFloat'>();
     if (same(FREE_FLOAT_FIELDS) && fractional.has(11)) exactFloat.add('freeFloat');
