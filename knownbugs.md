@@ -1954,7 +1954,7 @@ en noem het in je rapport of PR-tekst.
      Aanvulling eindtelling #903: op dezelfde taak `task-mula7vhu11iq28` weigeren nu ook de echte duuractie (+1 dag)
      en die actie met F5 op dezelfde ontbrekende property #412, pset #413 en relatie #414. Drie gevallen tegenover
      main na #898, alle getypeerd zonder bytes. Niet gerepareerd. Volledig per geval:
-     `docs/superpowers/evidence/1107-heropenkosten/v8/nieuwe-weigeringen.md`. Uit #903. — B
+     `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. Uit #903. — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul

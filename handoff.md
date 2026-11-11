@@ -278,7 +278,7 @@ ook het model opnieuw: 441 ms bij 5 MiB, 621 ms bij 10 MiB, dezelfde 260 taken. 
 extra bij 300 MiB. De verplichte naad is nog niet gebouwd; 1107 blijft open. Trias moet eerst kiezen: de open-stappen
 delen (optie 1), of alleen het planningsdeel toetsen. Advies: de open-stappen delen, zodat alle stappen van de app gelijk
 blijven en de bestaande scan hergebruikt kan worden. Dit is een voorstel, geen nieuwe afspraak of implementatie.
-Bewijs en beperkingen: `docs/superpowers/evidence/2026-11-11-1107-heropenkosten.md`.
+Bewijs en beperkingen: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
 
 ## Vervolg 1107: stop op de nieuwe weigering (11 november 2026)
 
@@ -286,7 +286,7 @@ Trias koos de naad op het planningsdeel (besluit letterlijk in PR #903). De eers
 van de open-route. De bouw is gestopt volgens de opdracht: `eigen-plus-model.ifc`, een dag langer op
 `task-mvp6eel7qyht28`, weigert nu met `planning-na-openen`. Zonder die toets schrijft de merge, waarna volledig heropenen
 12 tijdvelden op drie taken anders geeft. De naad en de volledige bytes-route zijn in dat geval gelijk. Geen reparatie.
-Bewijs: `docs/superpowers/evidence/2026-11-11-1107-planningsdeel-stop.md`. Knownbug 1107 blijft open; de volledige telling,
+Bewijs: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`. Knownbug 1107 blijft open; de volledige telling,
 de tien oude eigen bestanden, het grote model en de nieuwe kosten zijn nog niet getoetst. Eerst beoordeling van de
 bevinding; de stop is geen toestemming om de vergelijking af te zwakken of de bewerking te repareren.
 
@@ -340,7 +340,7 @@ Bijsturing van Trias over het rekenslot verwerkt: elke definitieve check heeft e
 zelf houdt geen slot vast. De eerste tussentelling is afgebroken voor de verse-payloadcorrectie en telt niet als
 resultaat. Advies: apart besluiten of de bibliotheekkalenders op stabiel id mogen worden vergeleken, met exacte inhoud;
 taak-/kindvolgorde blijven relevant. Ook de provenanceweigering vraagt een aparte beslissing. Bewijs en alle gevallen:
-`docs/superpowers/evidence/2026-11-11-1107-echte-acties.md`.
+`docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
 
 ## 1107: stop na integratie van main wegens precisieverlies (11 november 2026)
 
@@ -354,7 +354,7 @@ nieuwe rest wordt afgerond. Vier gevallen: oorspronkelijke bronrest en een gemaa
 De canon normaliseert taakvelden via de gewone writer en maskeert dit verschil. 1107 blijft daarom BLOKKEERT vóór 1c.
 Geen reparatie, overige checks en eindtelling na main niet uitgevoerd. Mainreferentie voor de nog uit te voeren telling:
 2578 geschreven / 685 getypeerd geweigerd / 0 anders, 3263 bewerkingen en 660 rijen. De zes wisgevallen zijn groen;
-1116 blijft voor de PR van 1109. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-precisieverlies-stop.md`.
+1116 blijft voor de PR van 1109. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
 
 ## 1107: ongewijzigd exact, stop op de toets van Trias (11 november 2026)
 
@@ -367,7 +367,7 @@ verliesbewakingswijziging. De vier echte voortgangsgevallen weigeren nu getypeer
 `task-ifc-_j2rFB79P78NtLEnkTKJwV.time.remainingTime`: 2.3333333333333335 → 2.333333. De opdracht vereist hier stoppen;
 geen uitzondering of reparatie toegevoegd. Oude-eigen eindigt rood met één afwijking op 531 controles. Mutatie,
 pariteit en eindtelling zijn nog niet gedaan. 1107 blijft daarom open. Bewijs:
-`docs/superpowers/evidence/2026-11-11-1107-ongewijzigd-exact-stop.md`.
+`docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
 
 ## 1107: echte duuractie, tien van tien (11 november 2026)
 
@@ -386,7 +386,7 @@ De aanvullende eis voor ongewijzigde getallen blijft staan. De mutatie neemt all
 voortgangsgevallen schrijven dan weer stil met duur 2.333333 en de proef wordt rood. Met cp hersteld, cmp gelijk en
 SHA-256 vóór/na gelijk. Op de herstelde code zijn herleestoets en oude-eigen groen; de toets van Trias is tien van tien.
 1107 is verwijderd. De veilige weigeringen van de vier voortgangsgevallen blijven voor de PR voor 1109; 1116 blijft
-BLOKKEERT vóór 1c. Meetbewijs: docs/superpowers/evidence/1107-heropenkosten/v7/ en v8/.
+BLOKKEERT vóór 1c. Meetbewijs: docs/superpowers/evidence/2026-11-11-1107-herleestoets.md.
 
 ### Definitieve eindtelling en controles van #903
 
@@ -403,5 +403,5 @@ Pariteit op main 20b9af79a is groen; de toets van Trias schrijft tien van tien. 
 strikt weigeren op het ongewijzigde afgeleide dagengetal 3.5 → 1.5. Vijf schrijvende combinaties met een echte duuractie
 krijgen een onafhankelijke volledige heropening in plaats van de te algemene oude onafhankelijkheidsverwachting.
 Geen uitzondering in de writer. Bewijs en alle nieuwe gevallen:
-`docs/superpowers/evidence/2026-11-11-1107-afronding.md` en `1107-heropenkosten/v8/nieuwe-weigeringen.md`.
+`docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
 De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
