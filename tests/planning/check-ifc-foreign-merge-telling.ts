@@ -1,3 +1,4 @@
+import { readbackDifference } from './ifcReadbackEquality';
 // #804 fase 1b, bijsturing 1 punt 2: hoe vaak ziet de planner `merge-needs-phase2`?
 //
 // Per corpusbestand met een vreemd deel (`tests/fixtures/ifc-foreign/`, ook `council/`, en de oude eigen bestanden in
@@ -226,8 +227,10 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
         continue;
       }
       const viaBytes = await openForeign(outcome.bytes);
-      if (canon(viaBytes, reseed) !== canon(outcome.shown, reseed)) {
-        fail('naad en volledige bytes-route geven een andere planning'); continue;
+      const difference = readbackDifference(outcome.shown, viaBytes);
+      if (difference) {
+        console.log('LEESWEG VERSCHIL ' + JSON.stringify({ bestand: where, bewerking: edit.label, difference }));
+        fail('naad en volledige bytes-route: ' + difference); continue;
       }
       const problems = mergeProblems(source.bytes, outcome.bytes);
       if (problems.length > 0) { fail(`invariant: ${problems[0]}`); continue; }

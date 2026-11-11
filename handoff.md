@@ -129,6 +129,8 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 
 ## Werk
 
+- 2026-11-11: #903 fixronde 1 na Terra (GPT-6.1-Terra, xhigh) nee: ongewijzigde getallen worden in de hele planning bewaakt; de echte extensieactie met alleen een lag-eenheidswijziging weigert nu veilig (1109). De twee leeswegen worden rechtstreeks vergeleken; een gemaakte proef is alleen met echte herberekening ongelijk. Beide mutaties zijn rood, cp/cmp en SHA-256 bevestigen herstel.
+
 - 2026-11-11: #903 gebruikt één echte duuractie voor duur, doorrekenen en de toets van Trias; tien van tien schrijven. De referentie is opnieuw gemaakt op main `20b9af79a` (vier uitvoerhashes gewijzigd, invoer gelijk). De vier voortgangsgevallen weigeren getypeerd; de mutatie maakt ze alle vier stil schrijvend en rood, cp/cmp en hash herstellen de bron.
 - 2026-11-11: #903 voegt de eis voor ongewijzigde taakgetallen toe; de vier echte voortgangsgevallen weigeren nu getypeerd. Toets van Trias 9/10: de 17-cijfers-villa weigert op ongewijzigde rest 2.3333333333333335 → 2.333333. Volgens opdracht gestopt, geen uitzondering, geen eindtelling of mutatie.
 - 2026-11-11: #903 vergelijkt alleen `resourceCalendars` op id, met exacte inhoud en behoud van dubbele ids; de zes wisgevallen schrijven weer. Verdwenen, extra en gewijzigde kalenders blijven geweigerd. 1116 is BLOKKEERT vóór 1c en hoort bij de PR voor 1109; de telling moet dan volledig via echte app-acties lopen. Main met #898 is gemerged; de pariteitsreferentie is opnieuw gemaakt op `20b9af79a`, 1115 is daarmee opgelost.

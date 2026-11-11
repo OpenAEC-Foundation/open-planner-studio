@@ -1898,7 +1898,11 @@ en noem het in je rapport of PR-tekst.
      de rest. Daarna krijgt ook het duurslot de writerwaarde: 2.3333333333333335 werd 2.333333, hoewel de planner de
      duur niet wijzigde (vier gevallen: oorspronkelijke bronrest en een gemaakte variant). Sinds de aanvullende eis
      van #903 weigert de naad dat getypeerd op `time.scheduleDuration`. Op te lossen in de PR voor 1109: de duur per
-     slot exact behouden, zodat de vier gevallen weer schrijven. `b5-lopend` schrijft via de echte invoer. — B
+     slot exact behouden, zodat de vier gevallen weer schrijven. `b5-lopend` schrijft via de echte invoer.
+     Aanvulling fixronde 1 van #903: op `eigen-plus-model.ifc` met bronlag 2.3333333333333335 dagen verandert
+     `loadExtensionProject` alleen de lag-eenheid naar `ELAPSEDTIME`. `sourceDayLagIds` laat het bronbehoud dan
+     vervallen; de gewone writer maakt 2.333333. De generieke eis voor ongewijzigde getallen weigert dit nu getypeerd
+     op `sequences[…].lagDays`. Exact laten schrijven na een eenheidswijziging hoort bij deze PR voor 1109. — B
 
 1113. **VERVOLG: een gewone opslag rondt een duur of rest met 17 cijfers af naar 6 decimalen.** Gemeten in #898, zonder
      model, op code waarvan de gewone writer en de open-route gelijk zijn aan main `d456e6e7b`: open

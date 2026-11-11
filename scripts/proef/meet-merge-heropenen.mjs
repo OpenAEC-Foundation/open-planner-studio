@@ -13,10 +13,11 @@ const entry = `
 import { readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { generatedModel } from '${root}/tests/planning/ifcGeneratedModel';
-import { openForeign, cloneDomain, concat, settle, canon, openReadPlanning, applyEdit, ordinaryEdits } from '${root}/tests/planning/ifcMergeKern';
+import { openForeign, cloneDomain, concat, settle, openReadPlanning, applyEdit, ordinaryEdits } from '${root}/tests/planning/ifcMergeKern';
 import { writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { readbackDifference } from '${root}/tests/planning/ifcReadbackEquality';
 import { installDeterminism } from '${root}/tests/planning/ifcPariteitKern';
-const reseed = installDeterminism();
+installDeterminism();
 const [mode, file] = process.argv.slice(2);
 if (mode === 'genereren') {
   writeFileSync(file, generatedModel(${JSON.stringify(root)}, readFileSync(process.argv[5], 'utf8'), Number(process.argv[4])));
@@ -51,7 +52,7 @@ if (mode === 'genereren') {
   const afterReopen = process.memoryUsage();
   if (mode === 'groot') {
     assert(shown);
-    assert.equal(canon(shown, reseed), canon(reread, reseed), 'groot model: naad = volledige bytes-route');
+    assert.equal(readbackDifference(shown, reread), undefined, 'groot model: naad = volledige bytes-route, diep gelijk');
   }
   console.log(JSON.stringify({node: process.version, bytes: bytes.length, tasks: input.tasks.length,
     reopenedTasks: reread.tasks.length, mode, callbackMs, mergeMs, reopenMs, combinedMs: mergeMs + reopenMs,

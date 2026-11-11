@@ -1,3 +1,4 @@
+import { readbackDifference } from './ifcReadbackEquality';
 // #804 fase 1b, fixronde 7 van #867: eigen bestanden van oudere OPS-versies, met een model erbij.
 //
 // Besluit van Trias: schreef OPS een waarde zelf, dan mag de merge daarom niet weigeren zolang de planner het veld niet
@@ -564,8 +565,11 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     const plain = await plainSaveAfterF5(bare);
     ok(`${name}: de gewone opslag is byte-gelijk aan die van main ${fixture.basis}`, want?.uitvoerSha256 === sha256(plain));
     const viaMain = canon(await openForeign(new TextEncoder().encode(plain)), reseed);
-    const viaMerge = canon(await openForeign(r.bytes), reseed);
-    ok(`${name}: naad en volledige bytes-route geven dezelfde planning`, viaMerge === canon(r.shown, reseed));
+    const viaBytes = await openForeign(r.bytes);
+    const viaMerge = canon(viaBytes, reseed);
+    const difference = readbackDifference(r.shown, viaBytes);
+    if (difference) console.log('LEESWEG VERSCHIL ' + JSON.stringify({ bestand: rel, difference }));
+    ok(`${name}: naad en volledige bytes-route diep gelijk (${difference ?? 'gelijk'})`, difference === undefined);
     const a = viaMerge.split('\n'), b = viaMain.split('\n');
     const first = a.findIndex((line, i) => line !== b[i]);
     rows.push(`| ${name} | ${viaMerge === viaMain ? 'schrijft, dezelfde planning als een gewone opslag op main zonder model' : `schrijft, andere planning: ${(a[first] ?? '').slice(0, 80)}`} |`);
