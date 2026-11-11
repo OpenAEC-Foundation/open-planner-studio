@@ -181,7 +181,7 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   })).toEqual({ mode: 'both', recorded: true, unknown: true });
 
   // Eindreview bevinding 6: de rapporten kennen de "niet vastgelegd"-cel niet; in de modus staat
-  // daarom boven elk rapport (hier het standaardtype, de Gantt-afdruk) één melding die zegt dat je
+  // daarom boven elk rapport (hier het standaardtype, de Gantt-afdruk op het Rapport-tabblad) één melding die zegt dat je
   // naar de datums uit het bestand kijkt. Buiten de modus is die melding weg.
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const reportNote = page.locator('[data-report-recorded-dates-note]');

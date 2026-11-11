@@ -15,7 +15,7 @@
  *     op elke volgende horizontale tegel herhaald zodat elke pagina zelfstandig leesbaar blijft.
  *
  * De tegel-/schaalwiskunde zelf staat NIET hier maar in `tileLayout.ts` — gedeeld met de
- * vector-pagineerder en met de preview (`printPreview.renderPrintPreviewPage`), zodat preview en
+ * vector-pagineerder en met het papier van het Rapport-tabblad (`reportPaper.ts`), zodat papier en
  * export gegarandeerd dezelfde indeling krijgen.
  */
 

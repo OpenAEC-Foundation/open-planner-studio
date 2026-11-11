@@ -31,6 +31,10 @@ export interface ForeignSourceRecord extends ForeignSourceFingerprint {
 export interface ForeignSourceMark extends ForeignSourceFingerprint, ForeignSourceTarget {
   /** De handle van de bron (browser). Alleen in het geheugen: niet in herstel, manifest of Worker. */
   readonly handle: FileSystemFileHandle | null;
+  /** #886 fixronde 2 (§4.14, "bron ontbreekt"): het kenmerk komt uit crashherstel, de bronbytes met het vreemde deel
+   *  zijn weg. Dan weigert elke IFC-uitvoer, zoals vóór de crash (`ifcSaveBlocked`). Een geopende MCP-backup heeft dit
+   *  niet: dat is een eigen bestand. */
+  readonly sourceMissing?: true;
 }
 
 /** Het kenmerk voor een net geopend document: alleen als de bron een vreemd deel heeft. */

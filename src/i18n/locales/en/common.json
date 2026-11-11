@@ -456,8 +456,6 @@
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
     "ifcForeignContent": "Open IFC with a building model",
     "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. Saving such a file is not possible yet.",
-    "featureReportRedesign": "New Report tab",
-    "featureReportRedesignHint": "The Gantt print with steps in a sidebar and clickable paper. The other reports stay as they are.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",

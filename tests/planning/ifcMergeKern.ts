@@ -1,6 +1,10 @@
 // #804 fase 1b: gedeelde kern voor `check-ifc-foreign-preserve.ts` en `check-ifc-foreign-merge-telling.ts`.
 //
-// - `openForeign`: een bestand openen zoals de app met de flag (de bytes-route, zonder Worker).
+// - `openForeign`: een bestand openen zoals de app met de flag: een eigen store-context (`appStoreFactory.ts`, zoals de
+//   headless kern), `openOpenedFile` met de bytes, en dan het domein zoals Opslaan het aan de writer geeft
+//   (`buildWriteIFCInput`) plus `ifcSource`. Dat is de toestand die 1c de merge geeft: na de lezer, de omzetting naar het
+//   minutenmodel en de herberekening bij openen (vervolg-PR van #867, #886). `openForeignRaw` is de oude
+//   testroute (de lezer direct), alleen nog voor de vergelijking in de telling.
 // - `mergeProblems`: de invarianten van de merge-writer op uitvoer tegen bron (ontwerp §4.10, de eerste drie alinea's):
 //   kop en staart byte-gelijk; elk niet-P-stuk met hetzelfde `#id`, dezelfde bytes en in dezelfde volgorde; geen ander
 //   niet-P-stuk erbij (wat er nieuw is, deelt de uitvoer zelf in als P); hetzelfde regeleinde; de scanner neemt de
@@ -14,8 +18,11 @@ import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mer
 import { scanStep, StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { orphanRowsWithoutId } from '@/services/ifc/foreign/sourceForm';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
+import { lengthen, lengthenedTask, openInStore, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
+export { openInStore } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
 export type Opened = Domain & { ifcSource?: IfcSource };
@@ -32,11 +39,44 @@ export const sameBytes = (a: Uint8Array, b: Uint8Array): boolean => {
   return true;
 };
 
-/** Openen zoals Bestand → Openen met de flag: de bytes-route, synchroon (geen Worker). */
-export async function openForeign(bytes: Uint8Array): Promise<Opened> {
+/** De oude testroute: de lezer direct (de bytes-route, synchroon, zonder Worker). Zonder de omzetting naar het
+ *  minutenmodel en zonder de herberekening bij openen; alleen nog voor de vergelijking in de telling. */
+export async function openForeignRaw(bytes: Uint8Array): Promise<Opened> {
   const r = await readIfcBytesDetailed(bytes, {}, { createWorker: () => null });
   return r.result as Opened;
 }
+
+/** Openen zoals Bestand → Openen met de flag (#886), zie `openInStore` in `ifcAppRoute.ts`: wat Opslaan aan de writer
+ *  geeft (`buildWriteIFCInput`) met `ifcSource` erbij. Dat is de toestand die 1c de merge geeft: na de lezer, de omzetting
+ *  naar het minutenmodel en de herberekening bij openen. */
+export async function openForeign(bytes: Uint8Array, name = 'bron.ifc'): Promise<Opened> {
+  const { store, snapshot } = await openInStore(bytes, name);
+  return snapshot(store) as Opened;
+}
+
+/**
+ * Wat de app laat zien na opslaan en heropenen van hetzelfde domein zonder vreemd deel: `writeIFC` en dan `openForeign`
+ * (de route van de app, met de omzetting en de herberekening bij openen). Een gewone opslag rondt hier en daar af (een
+ * duur van 17 cijfers); de merge houdt daar de bronwaarde. Voor de vraag of herlezen de planning geeft die de planner zag:
+ * `shownAfterOpen`.
+ */
+export function reopenPlain(d: Domain): Promise<Opened> {
+  return openForeign(new TextEncoder().encode(writeIFC(d)));
+}
+
+/**
+ * De planning die de planner zag, zoals de app haar na openen laat zien: het domein zelf, zonder writer of lezer ertussen,
+ * geopend in een eigen store (`openAsDocument`: de omzetting naar het minutenmodel, die op een domein van de app niets meer
+ * omzet, en de herberekening bij openen). Een merge die schrijft, moet na heropenen via de app precies dit geven
+ * (vervolg-PR van #867, #886).
+ */
+export async function shownAfterOpen(d: Domain): Promise<Opened> {
+  const { store, buildWriteIFCInput } = await storeWith(d);
+  return buildWriteIFCInput(store.getState()) as Opened;
+}
+
+/** Doorrekenen (F5) zoals de app: `recalculated` uit `ifcAppRoute.ts`. */
+export const recalculated = (d: Domain): Promise<Domain> => recalculatedInStore(d);
 
 /** Een kopie van het domein zonder de bron (die blijft gedeeld en wordt niet bewerkt). */
 export function cloneDomain(d: Opened): Domain {
@@ -168,10 +208,12 @@ export function doubleMemberships(bytes: Uint8Array): string[] {
   return [...seen].filter(([, n]) => n > 1).map(([k]) => k).sort();
 }
 
-/** Het domein zoals de writer het ziet: `writeIFC` zonder vreemd deel, met een vaste klok en reeks. */
+/** Het domein zoals de writer het ziet: `writeIFC` zonder vreemd deel, met een vaste klok en reeks; een baselineregel
+ *  zonder taak zonder haar id. */
 export function canon(d: Domain, reseed: (seed: number) => void): string {
   reseed(0x1b04);
-  return writeIFC(d);
+  // Een baselineregel zonder taak telt zonder haar id (#886, `orphanRowsWithoutId`).
+  return writeIFC(orphanRowsWithoutId(d));
 }
 
 /** Het eerste verschil tussen twee teksten, met wat omringende tekst. */
@@ -184,8 +226,15 @@ export function firstDiff(a: string, b: string): string {
 // ── De gewone bewerkingen (bijsturing 1, punt 2) ──
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
-  | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij';
-export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void }
+  | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
+/** `recalculate`: na `apply` rekent de app door (F5, `recalculated`); `applyEdit` doet beide. */
+export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void; readonly recalculate?: boolean }
+
+/** Een bewerking toepassen, met doorrekenen als ze dat vraagt. */
+export async function applyEdit(edit: Edit, d: Domain): Promise<Domain> {
+  edit.apply(d);
+  return edit.recalculate ? recalculated(d) : d;
+}
 
 const byId = (d: Domain) => new Map(d.tasks.map(t => [t.id, t]));
 const isDescendant = (tasks: ReadonlyMap<string, Task>, id: string, ancestor: string): boolean => {
@@ -274,7 +323,7 @@ export function plannerEdits(d: Domain, max = Infinity): Edit[] {
 
 /** De bewerkingen van 1b (brief): taak erbij, hernoemen, duur wijzigen, toewijzing erbij. Eén van elk, op een vaste taak. */
 export function basicEdits(d: Domain): Edit[] {
-  const leaf = d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone) ?? d.tasks[0];
+  const leaf = lengthenedTask(d);
   const out: Edit[] = [];
   if (!leaf) return out;
   out.push({ kind: 'taak-erbij', label: `nieuwe taak naast ${leaf.id}`, apply: (x) => {
@@ -284,17 +333,30 @@ export function basicEdits(d: Domain): Edit[] {
     if (base.parentId) { const p = m.get(base.parentId)!; p.childIds.splice(p.childIds.indexOf(base.id) + 1, 0, task.id); }
   } });
   out.push({ kind: 'hernoemen', label: `${leaf.id} hernoemd`, apply: (x) => { byId(x).get(leaf.id)!.name = 'Hernoemd in 1b'; } });
-  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => {
-    const time = byId(x).get(leaf.id)!.time;
-    time.scheduleDuration += 1;
-    if (time.durationMinutes !== undefined) time.durationMinutes += 480;
-  } });
+  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => { lengthen(x, leaf.id); } });
   const resource = d.resources[0];
   if (resource) {
     out.push({ kind: 'toewijzing-erbij', label: `${resource.id} op ${leaf.id}`, apply: (x) => {
       x.assignments.push({ id: 'toewijzing-1b', taskId: leaf.id, resourceId: resource.id, unitsPerDay: 4 });
       const task = byId(x).get(leaf.id)!;
       if (!task.resourceIds.includes(resource.id)) task.resourceIds.push(resource.id);
+    } });
+  }
+  return out;
+}
+
+/** De gewone bewerkingen van `basicEdits`, plus (vervolg-PR van #867) doorrekenen (F5, na de langere duur) en voortgang
+ *  (begonnen op het geplande begin, 50 %). Op dezelfde vaste taak. */
+export function ordinaryEdits(d: Domain): Edit[] {
+  const out = basicEdits(d);
+  const lengthen = out.find(e => e.kind === 'duur');
+  const leaf = d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone);
+  if (lengthen) out.push({ kind: 'doorrekenen', label: `${lengthen.label} en doorgerekend`, apply: lengthen.apply, recalculate: true });
+  if (leaf) {
+    out.push({ kind: 'voortgang', label: `${leaf.id} begonnen, 50 %`, apply: (x) => {
+      const time = byId(x).get(leaf.id)!.time;
+      time.actualStart = time.scheduleStart;
+      time.completion = 0.5;
     } });
   }
   return out;

@@ -1632,15 +1632,6 @@ en noem het in je rapport of PR-tekst.
      maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
      host nog dezelfde taal vraagt. — B
 
-880. **Een rapporttab die tijdens het wachten op de host opengaat, geeft een te ruime melding.**
-     `src/components/panels/ReportPanel.tsx` (het opslaan-effect na het laden) schrijft de net geladen
-     rapportinstellingen meteen terug, zonder `'start'` (`SettingWriteOrigin`, #818). Opent de gebruiker het
-     Rapport-tabblad terwijl de tool nog op de instellingen van de host wacht, en heeft de host
-     `ops-reportSettings`, dan zegt de melding na het late antwoord ook "Wat je in de tussentijd wijzigde, is
-     teruggezet.", terwijl de gebruiker alleen het tabblad opende. Alleen de tekst klopt dan niet; de
-     instellingen van de host winnen gewoon. Voorstel: geef bij de eerste terugschrijfactie na het laden
-     `'start'` mee. Afgeleid uit de code bij de late toepassing van #818, niet nagespeeld. — S
-
 881. **VERVOLG: de devlink-uitzondering van de themamelding wordt buiten de echte meldingsroute getest.**
      `tests/planning/check-system-theme.ts:179` geeft de waarden zelf aan `hostThemeWinsNextStart`. Fixrichting: de
      devbundelproef in `check-dev-open-link.ts` uitbreiden (hostthema, echte `?theme=light`, gebruikerswissel via
@@ -1669,16 +1660,6 @@ en noem het in je rapport of PR-tekst.
      subpad laadt (docs, voorbeelden, workers, `theme-prepaint.js`, het manifest), is niet getest. Voorstel: laat
      de spec in CI ook de relatieve variant bouwen en draai dezelfde server en scenario's erop. Gevonden in de
      review van #828. — B
-
-913. **VERVOLG: na een mislukte download van de rapportletter kan een export op verkeerde breedtes tekenen.**
-     `src/services/pdf/fontLoader.ts:130` (`ensureReportFontLoaded`) vangt een laadfout af. De metingen in
-     `src/components/panels/ReportPanel.tsx` (bijv. regel 560) krijgen dan toch de id van de gekozen letter, maar
-     het canvas meet op de terugvalletter. Lukt de nieuwe laadpoging in `runExport` (regel 1128) wél, dan tekent de
-     PDF de gekozen letter op de breedtes van de terugvalletter. Een naam die past, kan dan afgekapt worden. Dit
-     gebeurt alleen na een mislukte download, bijv. even offline in de browser. Richting: laat
-     `ensureReportFontLoaded` melden of het laden lukte, en meet opnieuw na een geslaagde nieuwe poging. Niet
-     nagespeeld: het eerste fontverzoek laten mislukken en de export daarna laten slagen. Uit de review van #837
-     (GPT-6.1-Sol, xhigh, ronde 2, op `dd8f60b0c`, VERMOED zekerheid hoog, VERVOLG). — S
 
 1006. **IfcOpenShell 0.9 opent een bestand met `FILE_SCHEMA(('IFC4X3'))` niet.** De writer van v2026.9.0 en ouder
      schreef die kop. `ifcopenshell.open` (0.9.0.post1) weigert hem met "Unsupported schema"; met `IFC4X3_ADD2` in de
@@ -1875,17 +1856,6 @@ en noem het in je rapport of PR-tekst.
      met 9 argumenten uit die knownbug zijn opgelost in #867, fixronde 7). Richting: een lege lijst lezen als "geen
      notities" en de pset dan als bronstuk laten staan, of de lege lijst schrijven. Uit #867 (fase 1b, fixronde 7). — B
 
-1102. **VERVOLG: wijzigt de planner een gebroken dag in een oud eigen bestand met een model, dan weigert de merge.** In een
-     eigen bestand van vóór het minutenmodel (OPS tot en met v2026.43.0) met een model erbij, zet de planner de duur van een
-     taak van een halve dag op 1,5 dag. De writer schrijft die breuk als `PT…` met een record in `DayMeasureDurations`, en
-     dan wordt de kalender letterlijk (`LiteralTimes`). De oude datums van de andere taken (het einde als `…T07:00:00` van
-     de dag erna) lezen dan anders, en de merge weigert (`niet-gedragen`). Proef: `check-ifc-foreign-oude-eigen.ts`,
-     BLOKKEERT 1, "de duur zelf op 1,5 dag"; met 2 dagen schrijft hij wel. Zonder die wijziging blijft de duur in de vorm van
-     de bron (fixronde 7 van #867). Weigeren mag hier volgens het besluit van Trias, want de planner wijzigde het veld
-     zelf. Eerst als 1100 genoteerd; dat nummer gebruikte #881 al. Richting (1c): bij een eigen bestand de hele planning
-     in de vorm van de writer schrijven, of de kalender niet letterlijk maken en de breuk in de oude vorm schrijven. Hoort
-     bij de vervolg-PR van knownbug 1105. Uit #867 (fase 1b, fixronde 7). — B
-
 1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
      van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
      grammatica, dus de route met de bronbytes leest het niet, en de oude route weigert het model (knownbug 110,
@@ -1896,62 +1866,71 @@ en noem het in je rapport of PR-tekst.
      november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
      met main). — B
 
-1104. **BLOKKEERT voor 1c: een taak wissen in een eigen bestand van v2026.7.4 tot v2026.7.14 met een baseline en een model, laat de
-     merge weigeren.** Die versies schreven de taken in `OPS_Baselines` met hun interne id, zonder `TaskGuids` (die kwam
-     in `69da76cd5`, v2026.7.14). De lezer zoekt de taak dan via de hash van dat id. De merge zet de bron-JSON terug ((b)),
-     want de planner wijzigde de baseline niet. Wist de planner een taak die in de baseline staat, dan vindt de lezer haar
-     niet meer, en houdt die regel van de baseline het oude interne id; zonder (b) houdt hij het id uit het domein. Na
-     herlezen verschilt alleen het id van die losse regel, maar de merge weigert dan (`niet-gedragen`, "zouden na
-     herlezen een andere planning geven (baselines)"). Proef: de telling, `oude-tags/v2026.7.12-data-…` plus een wand:
-     `taak-wissen` 20 van 20 geweigerd, de andere bewerkingen schrijven, en zonder bewerking schrijft hij; ook
-     `check-ifc-foreign-oude-eigen.ts`. Bestanden met `TaskGuids` (v2026.7.14 en later)
-     wissen wel (`eigen-plus-model.ifc`, 20 van 20). Richting: in de herleestoets een regel van een baseline zonder taak
-     vergelijken zonder zijn id, of de JSON in de vorm van de writer schrijven als (b) de planning zou veranderen. Besluit
-     van Trias (wrakko, 10 november 2026): in 1b mag de merge hier weigeren, want de merge-writer is nog niet aangesloten;
-     het is een harde eis voor 1c: 1c gaat niet naar main zolang een eigen bestand van v2026.7.4 tot v2026.7.14 met een
-     baseline en een model weigert bij het wissen van een baselinetaak. Hoort bij de vervolg-PR van knownbug 1105. Uit
-     #867 (fase 1b, fixronde 7, na de merge met main). — B
+1108. **BLOKKEERT vóór 1c: drie oude eigen fixtures weigeren met een wand erbij zonder bewerking, ook met de lezer direct.** Sinds
+     #886 loopt de telling (`check-ifc-foreign-merge-telling.ts`) ook over `tests/planning/fixtures/*.ifc`, met een wand.
+     Drie eigen bestanden schrijven daar zonder bewerking niet, op de route van de app en op de oude testroute (de lezer
+     direct); het komt dus niet uit de route van de app:
+     - `h7-kalender-oude-writer.ifc`: de bronwaarden van werkplan en werkschema geven na herlezen een andere planning;
+     - `ifc-arity-oude-writer-merged.ifc`: een werktijd zonder eenduidige tegenhanger (`niet-eenduidig`);
+     - `xer-archief-herschreven.ifc`: `SchemaVersion` van het XER-bronarchief komt niet terug.
+     Geen verlies: de merge weigert getypeerd. De telling noemt ze in `OWN_MAY_REFUSE`. Richting: per bestand nagaan of
+     het een vorm is die OPS zelf schreef, en zo ja die vorm dragen, zoals fixronde 7 van #867 deed voor de oude eigen
+     bestanden. Besluit van Trias (wrakko, 11 november 2026): BLOKKEERT vóór 1c, op te lossen in een eigen kleine PR na
+     #886, samen met 1109; een planner mag zijn eigen oude bestand altijd blijven opslaan. Uit #886. — B
 
-1105. **BLOKKEERT vóór 1c: de merge-writer weigert oude eigen bestanden zonder bewerking als de app ze opent.** De
-     merge-checks openen met `openForeign` (`tests/planning/ifcMergeKern.ts:35`): de lezer direct. De app opent via de
-     store, waar bij elk openen de omzetting naar het minutenmodel draait (`src/state/documentContract.ts:554`); in 1c
-     krijgt de merge die toestand. Bij een oud eigen bestand worden de datums dan tijdstippen, en de writer maakt de
-     kalender letterlijk (`src/services/ifc/minuteModelWrite.ts:87`). De verliesbewaking vergelijkt met de ruwe lezing
-     van de bron (`src/services/ifc/foreign/mergeWriter.ts:634`) en weigert (`niet-gedragen`, `niet-eenduidig`). Gemeten
-     met een wand erbij, zonder bewerking: via de route van de app weigeren `oude-tags/v2026.43.0-10-villa-wassenaar.ifc`,
-     `v2026.43.0-halve-dag`, `v2026.7.7-urentaak`, `h7-tijden-oude-writer.ifc` en `ifc-arity-oude-writer.ifc`, die via
-     de testroute schrijven (12 tegenover 18 bestanden). De 32 huidige voorbeelden schrijven via beide routes, en met de
-     flag uit slaat main ze gewoon op. Geen verlies: de merge weigert te veel. Besluit van Trias (wrakko, 10 november
-     2026), letterlijk: "Optie 2 [...]. Voorwaarden:
-     - #867 krijgt nu in fixronde 8 alleen het dubbele #id (1100, hoogste #id uit de hele tekst) en de kleine punten.
-       Daarna een kleine ronde 8.
-     - De nieuwe PR "de merge via de route van de app" start direct na de merge van #867, vanaf main, en moet in main
-       staan vóór 1c begint. Zet dat als harde eis in knownbugs.md en in de PR-tekst van #867.
-     - In die PR openen alle merge- en verliestoetsen via de route van de app (openOpenedFile met de flag). Draai de hele
-       telling en alle verliestoetsen daar opnieuw. Vindt dat ergens echt verlies in plaats van te veel weigeren, dan is
-       dat een BLOKKEERT in die PR [...].
-     - Neem daar ook de ene definitie van "gewijzigd" (mergeWriter.ts tegenover lossCheck.ts), 1102 en 1104 in, en zet de
-       pariteitstest op de huidige main met de oude-tags."
-     Harde eis: deze PR start direct na de merge van #867, vanaf main, en moet in main staan vóór 1c begint. Uit #867
-     (review ronde 7, Claude Opus 5.5, BEVESTIGD). — B
+1109. **BLOKKEERT vóór 1c: voortgang invoeren in `b5-lopend-oude-writer.ifc` met een model laat de merge weigeren.** De planner zet
+     een taak op begonnen, 50 %. De merge zet de duur en de rest van die taak in de vorm van de bron terug ((b)), en
+     herlezen zou dan een andere rest geven (`niet-gedragen`: "de bronwaarden (2: IFCTASKTIME #29 argument 4, IFCTASKTIME
+     #29 argument 18) zouden na herlezen een andere planning geven"). Geen verlies, wel te veel weigeren, en alleen om de
+     taak die de planner zelf bijwerkte. Alleen dit bestand (een lopende taak van de writer uit fase B5) laat het zien; in
+     elk ander eigen bestand van de telling schrijft voortgang. Proef: de telling, `fixtures/b5-lopend-oude-writer.ifc +
+     wand`, `voortgang`. Richting: na een bewerking van de voortgang de rest in de vorm van de writer schrijven. Besluit
+     van Trias (wrakko, 11 november 2026): BLOKKEERT vóór 1c, in dezelfde kleine PR als 1108; voortgang bijwerken is
+     gewoon werk van elke planner. Uit #886. — B
 
-1106. **BLOKKEERT vóór 1c: een verstopt stuk vóór een eigen stuk gaat bij de merge verloren.** De scanner hangt
-     commentaar vóór een entiteit aan het volgende stuk (`src/services/ifc/foreign/stepScanner.ts`, kop). Staat
-     `/* a *⏎/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',…); /* b */` vlak vóór een eigen stuk (P), dan leest de scanner
-     dat als commentaar van dat stuk. De merge laat elk P-stuk met zijn commentaar weg en schrijft het eigen stuk
-     opnieuw (`src/services/ifc/foreign/mergeWriter.ts`, `assemble`): `VerstoptX` staat niet in de uitvoer. Volgens de
-     norm (stuurtekens vallen overal weg) was het een entiteit. Gemeten in de review van #867, ronde 8, op
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met het stuk vóór `#47=IFCTASK`: het bestand opent met de flag, de
-     merge schrijft, en `#402` is daarna een nieuwe `IFCPERSON` van de writer. Geen dubbel `#id`, wel verlies. Een
-     verstopte wand op die plek weigert bij openen (#881); het treft dus alleen stukken die geen modeltype zijn. Bij een
-     eigen bestand zonder model laat de gewone writer zo'n stuk ook vallen (knownbug 1050), maar een bestand met een
-     model weigert zonder flag bij openen: daar verliest main niets. Zodra de merge-writer een aanroeper krijgt, is dit
-     verlies met de flag aan; volgens het besluit van Ethan (via Trias, 10 november 2026) is dat een BLOKKEERT. In #867
-     nog niet: de merge heeft geen aanroeper, en opslaan blijft geweigerd (`src/state/ifcForeignGuard.ts`). VERMOED
-     (midden, niet gedraaid): wijst een V-stuk naar zo'n verstopt stuk, dan wijst die verwijzing na de merge naar niets.
-     Richting: de merge weigert als de tekst van een P-stuk buiten zijn tokens een `#` met cijfers bevat
-     (`highestHashNumber` over het commentaar ervóór). Hoort bij de vervolg-PR van knownbug 1105. Uit #867 (review ronde
-     8, Claude Opus 5.5, BEVESTIGD). — B
+1107. **Vóór 1c: de herleestoets binnen de merge opent niet zoals de app.** `writeIfcMerge` geeft de uitvoer via
+     `readPlanning` aan `sourceFormProblems` (`src/services/ifc/foreign/mergeWriter.ts`, de herleestoets van de bronvorm);
+     die doet alleen de omzetting naar het minutenmodel opnieuw (`src/services/ifc/foreign/sourceForm.ts`, `migrated`), niet
+     de herberekening en de verdere stappen van openen via de store, en toetst alleen de velden die de bronvorm of een
+     letterlijke kalender raakt. De tests openen wel via de app (`openForeign` in `tests/planning/ifcMergeKern.ts`), maar dat
+     is geen controle op iedere merge. Geen verlies gevonden. Eis (besluit van Trias): vóór het aansluiten in 1c een
+     volledige herleestoets in de merge, met een proef die rood wordt als de herberekening na openen de planning verandert.
+     Gaat mee in de kleine PR met 1108 en 1109. Gevonden door Terra in review ronde 1 van #886. — B
+
+1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
+     writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
+     (`writeTaskTypeMeta` in `src/services/ifc/ifcWriter.ts`). Wist de planner de enige taak met zo'n type, dan staat de
+     pset niet meer in de uitvoer, en de merge weigert (`niet-gedragen`: "IFCPROPERTYSET (OPS_TaskTypes): ontbreekt in de
+     uitvoer na de bewerking"). Geen verlies: een gewone opslag laat de pset dan ook weg, en de weigering gaat over de taak
+     die de planner wiste. Gezien in de telling op `fixtures/ifc-arity-oude-writer.ifc + wand` (`taak-wissen`: 2 van de 5
+     geweigerd; bij één nagegaan dat dit de oorzaak is), nadat de lijst ids in `WorkingExceptionIds` niet meer weigerde.
+     Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
+     van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
+
+1111. **Vóór 1c: `sameMeaning` vergelijkt een datum-tijd zonder zone in de tijdzone van de machine.** `sameMeaning` in
+     `src/services/ifc/foreign/lossCheck.ts` (de toets "gedragen" van fixronde 1 van #886) leest zo'n tekst met
+     `Date.parse`. Rond de wissel naar zomertijd gelden dan twee verschillende wandkloktijden als gelijk: bron
+     `2027-03-28T02:00:00` en O0 `2027-03-28T03:00:00` in `Europe/Amsterdam`, in `UTC` niet. De planner leest zulke tijden
+     als wandkloktijd zonder zomertijd (`src/utils/dateUtils.ts`). Geen verlies bewezen: Sol draaide 168 volledige merges
+     per tijdzone, en elke geschreven uitvoer behield de bronwaarde. Richting: dezelfde vaste tijdas als de planner, een
+     expliciete zone apart, en een proef in beide tijdzones. Besluit van Trias (wrakko, 11 november 2026): VERVOLG vóór 1c,
+     in de kleine PR met 1107, 1108 en 1109. Terra en Sol, review ronde 2 van #886. — B
+
+1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
+     deel waarvan de bron niet terug te lezen is, zegt het ontwerp
+     (`docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md`): "Alleen Opslaan als naar een nieuw
+     bestand kan, met een tekst dat het model er niet in zit." Sinds fixronde 2 van #886 weigert elke IFC-opslag van zo'n
+     document (`sourceMissing` op het kenmerk, `ifcSaveBlocked` in `src/state/ifcForeignGuard.ts`), zoals vóór de crash.
+     Bij 1c: het echte herstel (de bron teruglezen op sha256), en de keuze of Opslaan als met die tekst erbij komt; dat is
+     een productkeuze voor Ethan. Besluit van Trias (wrakko, 11 november 2026).
+     Hoort erbij, ook bij 1c op te lossen: het herstel zet `sourceMissing` op elk kenmerk, ook als het document vóór de
+     crash geen vreemd deel had. Het tussengeval: een MCP-backup met kenmerk (gemaakt in een sessie met de flag aan) wordt
+     later geopend, ook met de flag uit; hij kan dan opslaan naar een ander doel dan de bron. Crasht de app daarna, dan
+     weigert het herstelde document elke IFC-opslag, terwijl main daar nog schreef. Zonder een bronkenmerk uit een
+     eerdere sessie met de flag aan ontstaat deze weigering niet. Wie zo'n backup van een ander krijgt, kan haar wel
+     tegenkomen zonder de flag zelf ooit aan te zetten (bewezen door Sol in de herbeoordeling van #886: één keer
+     schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
+     1c. — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
@@ -2207,6 +2186,13 @@ en noem het in je rapport of PR-tekst.
      naar elke CI-log (`console.log('Issue 873 CSV…')`); regel 253 bewijst het citeren van een komma niet, want de `;`
      in die tekst laat al citeren (`cells[4] === '"6,5"'` bewijst het wel); regel 267 herhaalt de implementatie
      (`formatLagShort(...).replace('.', ',')`). Uit de review van #876 (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
+
+1256. **VERVOLG: de komma-normalisatie in de CSV-lezer kan twee voorgangers samenvoegen.** `src/services/csv/csvReader.ts:176`
+     leest `1FS+1,2d` sinds #876 als één relatie vanaf `1` met 1,2 dag lag. Bestaan er taken met WBS `1` en `2d`, dan las
+     de lezer vóór #876 twee relaties (vanaf `1` met 1 dag lag, en vanaf `2d`); de tweede verdwijnt nu zonder melding.
+     Alleen bij een lijst zonder spatie na de komma en een WBS-code die op een getal met eenheid lijkt; een OPS-export
+     schrijft `, ` en houdt zijn betekenis. Richting: een melding als beide lezingen naar bestaande WBS-codes wijzen, of
+     de normalisatie laten vallen samen met 1250. Uit de review van #876 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -2729,11 +2715,6 @@ en noem het in je rapport of PR-tekst.
      vastgesteld of de echte SuperCloud de nieuwste eerst levert. Voorstel: neem de volgorde op in het
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
-906. **VERVOLG: het nieuwe Rapport-tabblad bouwt de `PrintOptions` van de Gantt-afdruk opnieuw op.**
-     `src/components/panels/reportStudio/useStudioPrintOptions.ts` herhaalt de koppeling uit `ReportPanel.tsx`
-     (instellingen naar `PrintOptions`, kolommen meten, kalender). Een wijziging in de ene komt niet vanzelf in de
-     andere, zolang de flag `reportRedesign` bestaat. Voorstel: haal de oude Gantt-route uit `ReportPanel` weg in de
-     PR die de flag standaard aanzet, of zet beide op één gedeelde hook. Gezien bij de bouw van #817. — B
 
 915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
      laadt `/` opnieuw (vroeger `/?icons=b2`), nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende;
@@ -2884,8 +2865,7 @@ en noem het in je rapport of PR-tekst.
 834. **VERVOLG: de formulierroute in het lint wordt niet meer gebruikt.** Sinds #791 heeft geen lintknop nog
      `form`. Toch staan er nog: `RibbonButtonSpec.form` (`src/components/layout/Ribbon/ribbonConfig.tsx:77`), de
      doorgifte in `src/components/layout/Ribbon/RibbonTabContent.tsx:61` en `:69`, en de submit-tak in
-     `src/components/layout/Ribbon/ribbonPrimitives.tsx:111–145`. Verouderde verwijzingen naar *Rapport › Afdruk*:
-     het commentaar in `src/components/panels/ReportPanel.tsx:1699` en `tests/browser/table-reports.spec.ts:126`.
+     `src/components/layout/Ribbon/ribbonPrimitives.tsx:111–145`.
      Voorstel: weghalen bij een opruimronde. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`,
      VERVOLG). — B
 
@@ -3070,13 +3050,6 @@ en noem het in je rapport of PR-tekst.
      `openHelpArticle` en daar na sluiten naar terug. Uit council ronde 2 van #817 (Claude Fable 5.1, xhigh,
      VERMOED), in de code bevestigd. — B
 
-946. **VERVOLG: het oude Rapport-tabblad toont een dagbreedte onder 1 px als 1.** Het nieuwe tabblad kan sinds de
-     fixronde na council ronde 2 van #817 een vaste schaal onder 1 px per dag bewaren (`customZoom` in
-     `ops-reportSettings`). Het oude tabblad (flag uit) tekent met die waarde, maar de schuif en het getal tonen
-     `Math.max(1, …)` (`src/components/panels/ReportPanel.tsx:1598`). Na een wissel van de flag klopt het getal
-     dus niet met het papier, tot je de schuif aanraakt. Afgeleid uit de code. Voorstel: de schuif van het oude
-     tabblad ook onder 1 laten gaan, of het oude tabblad laten vervallen als de flag standaard aan gaat. — B
-
 948. **VERVOLG: de melding "Ongedaan maken" in de werkbalk verbergt de stand op een smal papiervlak.** Met de
      zijbalk open op 1280×720 toont de werkbalk 8 s lang alleen "2 pagina's"; papier, kolommen en rijen vallen weg
      achter de melding (`notice` in `ReportPaperView.tsx`). Gezien in de schermafbeeldingen van de fixronde na council
@@ -3147,19 +3120,6 @@ en noem het in je rapport of PR-tekst.
      CJK-extensie. Voorstel: de letter van de extensie ook als `@font-face` voor het scherm registreren en aan
      `assembleReportMeasureFonts` geven, net als Noto Sans Arabic. Gevonden in de fixronde na council ronde 1
      van #817. — S
-
-968. **VERVOLG: het oude rastervoorbeeld kapt nog af met de canvasmeting.** De kolombreedtes van het oude tabblad
-     komen uit de lettermaten van het fontbestand; het afkappen tijdens het tekenen gebruikt de canvas-tekenaar
-     (`measureText` in `src/services/pdf/canvasDraw2d.ts`). Sinds de fixronde na code-review 1 van #847 meet het
-     canvas met `textRendering = 'geometricPrecision'` en Arabisch in Noto; dan is het verschil klein (gemeten:
-     Latijn 348,192 tegen 348,192 px, Arabisch 175,069 tegen 175,068 px). Sinds de fixronde na code-review 2
-     tekent het canvas ook een gemengde Latijns-Arabische naam even breed als de meting, in Chromium en WebKitGTK
-     2.52.6 (Carlito 414,377 tegen 414,377 px). WebKit kent canvas-`textRendering` en -`fontKerning` niet; daar
-     kernt het canvas Latijnse tekst wel (Inter "Stakeholder management" 108,844 tegen gemeten 109,002 px), dus
-     smaller dan de meting: dat kapt niet eerder af. Over blijft wat het canvas met GSUB
-     anders tekent dan de meting telt (Inter "->", de Carlito-ligatuur "ti"): daar kan het oude voorbeeld een
-     teken eerder of later afkappen dan de PDF. Afgeleid uit de code. Voorstel: de canvas-tekenaar laten meten met
-     `ReportTextMetrics`, of het oude voorbeeld laten vervallen als de flag standaard aan gaat. — S
 
 969. **VERVOLG: een maandlabel dat aan de rechterrand van een blad begint, toont alleen een streepje.** Gezien in
      `qa/817-rapport/groot/plan-5000.ifc` (A3 liggend), op elk blad rechtsboven: "Februari 2040" begint 0,7 pt vóór
@@ -3251,7 +3211,7 @@ en noem het in je rapport of PR-tekst.
      verliest. — B
 
 1351. **VERVOLG: de legendaregel "Kritiek pad (rand)" is in elke taal Nederlands.** De sleutel `legend.criticalOutline`
-     staat in geen enkel taalbestand; `ReportPanel.tsx:797` en `reportStudio/useStudioPrintOptions.ts:241` vallen
+     staat in geen enkel taalbestand; `reportStudio/useStudioPrintOptions.ts` valt
      terug op de `defaultValue` 'Kritiek pad (rand)'. Een Engelse afdruk met balkkleuren *Per taak — automatisch*
      toont dus een Nederlandse legendaregel. Gezien bij het verwerken van ronde 1 van #877 (grep op main en de
      branch). Voorstel: voeg de sleutel toe aan `report.json` (nl + en) en haal de `defaultValue` weg. — B
@@ -3264,12 +3224,87 @@ en noem het in je rapport of PR-tekst.
      het gedeelde keuzetype. — B
 
 1353. **VERVOLG: de browserstap voor vaste rapportkleuren vergelijkt geen getekende balkkleuren.**
-     `tests/browser/report-studio.spec.ts:629` leest vóór en na de schermwissel alleen de legendaregel *Kritiek pad
+     `tests/browser/report-studio.spec.ts:760` leest vóór en na de schermwissel alleen de legendaregel *Kritiek pad
      (rand)*. Die regel staat zowel bij automatische kleuren als bij categoriekleuren, dus een gelijkblijvende
      balkvulling meet de stap niet. Ook de overname van een gelijke layoutkleur en het opnieuw kiezen van de getoonde
      kleur (de twee BLOKKEERT uit ronde 1) hebben geen eigen stap. Code-review ronde 2 van #877 (GPT-6.1-Sol); in de
      app zelf gecontroleerd en in orde. Voorstel: vergelijk in dezelfde route `fill` en `stroke` van de balken op het
      papier, en voeg die twee routes toe. — B
+
+1354. **VERVOLG: de exportknop heeft op de twee rapportschermen een andere naam.** Bij de Gantt-afdruk heet hij
+     "PDF exporteren" (`report.json` › `studio.export.button`), bij de andere rapporttypen "Exporteer PDF"
+     (`report.json` › `exportPDF`, `src/components/panels/ReportPanel.tsx`). In het Engels zijn ze gelijk
+     ("Export PDF"). Gezien bij het weghalen van de flag `reportRedesign` (#817).
+     Voorstel: één tekst voor beide knoppen. — S
+
+1356. **VERVOLG: browserdekking van het Resourcediagram en van bedrijfsnaam en legenda in de PDF is weg.** Met
+     `tests/browser/resource-gantt-report.spec.ts` (#893) verdwenen de controles op wat *Taken zonder resource
+     meenemen* en *Groeperen op resourcetype* met de rijen doen, en op de melding bij weggevallen toewijzingskolommen
+     en bij een lege periode. `report-studio.spec.ts` klikt beide schakelaars wel, maar toetst alleen de opgeslagen
+     waarden. Ook de controle dat een actuele bedrijfsnaam en een uitgeschakelde legenda in het voorbeeld én de PDF
+     staan, is weg. Code-review rondes 1 en 4 van #893 (GPT-6.1-Terra). Voorstel: zet gerichte stappen terug in de
+     bestaande route van `report-studio.spec.ts`. — B
+
+1357. **VERVOLG: geen browsercontrole meer voor een papier met meerdere rijen en kolommen van vellen.** De verwijderde
+     specs van het oude voorbeeld controleerden een rapport met meerdere rijen én tijdlijnkolommen, en 200 taken na
+     scrollen en een andere venstergrootte. De nieuwe voetstap ziet twee vellen naast elkaar in één rij. Het
+     SVG-papier virtualiseert nog steeds pagina's (`reportStudio/ReportPaperView.tsx:244`). Code-review ronde 1 van
+     #893 (GPT-6.1-Terra). Voorstel: een stap met meerdere rijen en kolommen die na scrollen en hertekenen de
+     zichtbare pagina's controleert. — B
+
+1358. **VERVOLG: in twee vensters wint de laatste wijziging van hetzelfde rapportveld.** Elke klik op het
+     Rapport-tabblad schrijft alleen de velden die hij wijzigt (`patchReportSettings` in
+     `src/utils/reportSettings.ts`), bovenop wat op dat moment opgeslagen staat. Wijzig je in twee vensters (of in het
+     venster en via de host) hetzelfde veld, zoals de kolomlijst of de balkkleuren, dan blijft alleen de laatste
+     wijziging staan; de lijst van het andere venster gaat niet per item samen. Met één venster en werkende opslag is
+     geen verlies bekend. Gezien bij het ombouwen naar één gedeelde stand (#893). Voorstel: alleen
+     oplossen als planners echt in twee vensters aan hetzelfde rapport werken. — S
+
+1359. **VERVOLG: een keuze die de opslag weigerde, komt na herstel pas bij de volgende klik in de opslag.** Kan de
+     opslag niet schrijven (vol of geblokkeerd), dan blijft de keuze in de sessie (`pending` in
+     `src/utils/reportSettings.ts`). Werkt de opslag weer, dan bewaart pas de volgende wijziging in een rapport haar mee.
+     Herlaad je de app daarvoor, dan is de keuze weg en staat de oude bewaarde keuze er weer. Gerichte review van #893
+     (GPT-6.1-Sol), ook met een echt volle `localStorage` in Chromium. Voorstel: bewaar de openstaande keuzes opnieuw
+     bij een volgend moment waarop de opslag weer werkt, bijvoorbeeld bij het terugkeren naar het tabblad. — B
+
+1360. **VERVOLG: resten van het oude paneel in de rapportcode.** Het commentaar bovenaan
+     `src/components/panels/reports/reportFormPrimitives.tsx` noemt nog het Gantt-/resourcediagramblok in `ReportPanel`,
+     en de varianten `w-20` en `spaced` hebben geen aanroeper meer. Ook `src/services/print/printPreview.ts` (rond :816
+     en :1018) verwijst nog naar het oude paneel. Code-review ronde 7 van #893 (GPT-6.1-Terra). Voorstel: varianten
+     en verwijzingen weghalen. — B
+
+1361. **VERVOLG: een schrijfactie die de host bewust tegenhoudt, komt later toch in de opslag.** Ingebed houdt
+     `writeLocal` (`src/utils/settingsStore.ts`, `siteHostSettingWriteHeld`) een schrijfactie tegen zolang een laat
+     antwoord van de host nog niet is toegepast. `patchReportSettings` (`src/utils/reportSettings.ts`) zet zo'n keuze
+     in `pending`, en de volgende schrijfactie die lukt, bewaart haar alsnog over de waarde van de host. Proef met een
+     hostfixture (A1 van de host, tegengehouden A2 komt na vrijgeven en een andere klik in de opslag). Alleen ingebed,
+     met een host. Code-review ronde 8 van #893 (GPT-6.1-Terra). Voorstel: een bewust tegengehouden schrijfactie niet in
+     `pending` zetten. — B
+
+1362. **VERVOLG: bij een leesfout van de opslag kan de layoutdialoog de eigen layouts overschrijven.** De lader
+     (`loadStoredLayouts` in `src/utils/settingsStore.ts`, rond :489, ook de oude sleutel `ops-layouts`) leest een
+     leesfout als een lege lijst. `LayoutsDialog` (`src/components/dialogs/LayoutsDialog.tsx`, rond :107) begint dan met
+     een lege lijst, en Opslaan na herstel schrijft alleen de nieuwe layout weg; de oude layouts en de layoutkeuze van
+     het rapport zijn weg. Ook het Rapport-tabblad ziet een leesfout op `ops-layouts` als een verwijderde layout.
+     Alleen met een kunstmatige leesfout gezien; de oorzaak staat al op main. Gerichte review van #893 (GPT-6.1-Sol,
+     ronde 3, label [BEVESTIGD] [BLOKKEERT]) en code-review ronde 9 (GPT-6.1-Terra, [BEVESTIGD] [BLOKKEERT]); als
+     VERVOLG ingedeeld omdat het alleen bij een kunstmatige leesfout gebeurt (projectleiding, 11 november 2026).
+     Voorstel: laat de lader een leesfout teruggeven in plaats van een lege lijst, en schrijf geen lijst terug die op
+     een mislukte lezing berust. — B
+
+1363. **VERVOLG: na een leesfout blijft de gekozen layout van het rapport ongeladen, en toont het rapport alle
+     taken.** `useReportLayouts` (`src/components/panels/reportStudio/useReportLayouts.ts`) laadt bij een leesfout niet en
+     probeert het na herstel niet opnieuw. `GanttReportStudio.tsx` (rond :275) gebruikt dan alle taken, zonder melding,
+     en de PDF-export wacht niet op de layout. Pas naar Start en terug laadt de layout weer. De keuze zelf blijft
+     bewaard. Alleen met een kunstmatige leesfout gezien. Gerichte review van #893 (GPT-6.1-Sol, ronde 3) en
+     code-review ronde 9 (GPT-6.1-Terra), beide [BEVESTIGD] [BLOKKEERT]; als VERVOLG ingedeeld zoals 1362. Voorstel:
+     laad opnieuw zodra de opslag weer te lezen is, en exporteer niet zolang een gekozen layout niet geladen is. — B
+
+1364. **VERVOLG: de browserstap voor een leesfout bij de layouts toetst alleen de bewaarde id.** De stap in
+     `tests/browser/report-studio.spec.ts` (rond :735–765) wacht 50 ms en twee frames en controleert daarna alleen de
+     opgeslagen `layoutId`, niet de aangevinkte layout en de rijen op het papier (zie 1363). Gerichte review van #893
+     (GPT-6.1-Sol, ronde 3) en code-review ronde 9 (GPT-6.1-Terra). Voorstel: wacht op een waarneembare geweigerde
+     lezing en controleer na herstel ook layout en rijen. — B
 
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in

@@ -127,7 +127,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
   };
 
   const printPath = join(root, 'src/services/print/printPreview.ts');
-  const panelPath = join(root, 'src/components/panels/ReportPanel.tsx');
+  const panelPath = join(root, 'src/components/panels/reportStudio/useStudioPrintOptions.ts');
   checks++;
   if (!existsSync(printPath) || !existsSync(panelPath)) {
     diffs.push('4 bron-assert overgeslagen: bestanden niet gevonden vanaf de bundelplek');
@@ -154,17 +154,15 @@ const eq = (label: string, got: unknown, want: unknown) => {
     eq('7 de arcering vraagt het de kalender', /calEngine\.isWorkDay\(date\)/.test(print), true);
     eq('7a geen hardcoded za/zo meer', /dow === 6 \|\| dow === 7/.test(print), false);
 
-    // En het paneel geeft de instelling ook echt door — zonder dat is alles hierboven dode code.
-    eq('8 het rapportpaneel leest ui.weekStartDay', /s\.ui\.weekStartDay/.test(panel), true);
+    // En het Rapport-tabblad geeft de instelling ook echt door — zonder dat is alles hierboven dode code.
+    eq('8 het Rapport-tabblad leest ui.weekStartDay', /s\.ui\.weekStartDay/.test(panel), true);
     eq('8a en zet hem in de printopties', /\bweekStartDay,/.test(panel), true);
 
     // De werkdagen-as hoort sinds issue #21 bij de rapportopties zelf. De schermvoorkeur mag
     // hier dus niet als impliciete bron binnensluipen.
     eq('8b het rapport leest niet ui.compressNonWorkdays', /s\.ui\.compressNonWorkdays/.test(panel), false);
-    eq('8c het rapport heeft een eigen werkdagen-state',
-      /useState\(DEFAULT_REPORT_SETTINGS\.compressNonWorkdays\)/.test(panel), true);
-    eq('8d alleen die rapport-state gaat naar de printopties',
-      /compressNonWorkdays: reportCompressNonWorkdays/.test(panel), true);
+    eq('8c alleen de rapportinstelling gaat naar de printopties',
+      /compressNonWorkdays: settings\.compressNonWorkdays/.test(panel), true);
   }
 }
 

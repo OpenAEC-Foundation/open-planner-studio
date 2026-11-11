@@ -373,12 +373,12 @@ const progressExportButton: RibbonButtonSpec = {
   },
 };
 
-/** `progressImportButton` in zijn EIGEN groep, gedeeld door Planning, Tabel en Rapport — niet als
+/** `progressImportButton` in zijn EIGEN groep, gedeeld door Planning en Tabel — niet als
  *  losse knop náást een `kind: 'component'`-item: een `RibbonButtonSpec` rendert zijn
  *  label/knopvormgeving alleen binnen de generieke knoppenlaag van een groep; naast een component
  *  gemengd wordt hij een kaal icoontje zonder label of knopvormgeving.
  *  Mag NIET op Start belanden: de gedeelde `startTab`-constanten (`scheduleGroup` e.d.) blijven
- *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab`/`reportTab` toegevoegd.
+ *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab` toegevoegd.
  *  `progressExportButton` staat VÓÓR de importknop: eerst het blad eraf, dan terug erin. */
 const progressGroup: RibbonGroupSpec = {
   id: 'progress', labelKey: 'menu:ribbon.progressGroup',
@@ -891,9 +891,10 @@ const ifcTab: RibbonTabConfig = [
   { id: 'ifc', labelKey: 'menu:ribbon.ifc', items: [{ kind: 'component', id: 'ifcInfo', Component: IfcInfo }] },
 ];
 
-// Geen knop Afdruk meer (Ethan, 29 oktober en 2 november 2026): die deed hetzelfde als Exporteer PDF in het
-// rapportpaneel. Ctrl+P en Bestand › Afdruk openen dit tabblad.
-const reportTab: RibbonTabConfig = [progressGroup];
+// Het tabblad Rapport heeft geen lintinhoud (besluit eigenaar 7 november 2026; `Ribbon.tsx` toont het lint daar
+// niet): het rapport heeft zijn eigen zijbalk. De groep Voortgang staat op Planning en Tabel. Ctrl+P en
+// Bestand › Afdruk openen dit tabblad.
+const reportTab: RibbonTabConfig = [];
 
 /** AI-tab — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier
  *  groepen, alle component-escape-hatches (eigen state, inputs, popover/confirm): verbinding,

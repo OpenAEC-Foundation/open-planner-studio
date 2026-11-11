@@ -343,10 +343,10 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   eq('herstel: het manifest krijgt geen opslagdoel bij een vreemd deel', recoverySaveTarget({ ...S(), siteFileId: 'site-1', siteFileVersion: 'v1' }),
     { filePath: null, siteFileId: null, siteFileVersion: null });
   eq('herstel: zonder vreemd deel het doel zoals vóór #804',
-    recoverySaveTarget({ ifcSource: null, filePath: 'a.ifc', siteFileId: 'site-1', siteFileVersion: 'v1' }),
+    recoverySaveTarget({ ifcSource: null, foreignSourceMark: null, filePath: 'a.ifc', siteFileId: 'site-1', siteFileVersion: 'v1' }),
     { filePath: 'a.ifc', siteFileId: 'site-1', siteFileVersion: 'v1' });
   eq('herstel: zonder site geen siteversie (zoals vóór #804)',
-    recoverySaveTarget({ ifcSource: null, filePath: 'a.ifc', siteFileId: null, siteFileVersion: 'v1' }),
+    recoverySaveTarget({ ifcSource: null, foreignSourceMark: null, filePath: 'a.ifc', siteFileId: null, siteFileVersion: 'v1' }),
     { filePath: 'a.ifc', siteFileId: null, siteFileVersion: null });
 
   // MCP-backup: de echte `getDoc` van de app (writer op de documentpayload), met een geheugen-fs.

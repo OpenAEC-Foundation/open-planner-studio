@@ -2,7 +2,7 @@ import { memo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent,
 import { Icon } from '@/components/icons';
 import type { ReportStudioStep } from '@/utils/reportSettings';
 
-// De vaste delen rond de stappen van het nieuwe Rapport-tabblad (issue #817): de kop van een stap met
+// De vaste delen rond de stappen van het Rapport-tabblad (issue #817): de kop van een stap met
 // "Herstel standaard", het zwevende venster bij een ingeklapte zijbalk en de melding na "Herstel standaard". Apart van `GanttReportStudio`,
 // dat de stapinhoud en de toestand houdt.
 
