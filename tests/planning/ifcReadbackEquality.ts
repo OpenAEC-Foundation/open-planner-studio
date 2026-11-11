@@ -3,7 +3,7 @@ import { isDeepStrictEqual, inspect } from 'node:util';
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 
 function readbackValue(input: WriteIFCInput): unknown {
-  // ifcSource is documentcontext met bronbytes, geen planningveld in WriteIFCInput.
+  // ifcSource is documentcontext met bronbytes; de writer slaat dit niet als planningveld op.
   const { ifcSource: _source, ...planning } = input as WriteIFCInput & { ifcSource?: unknown };
   const value = {
     ...planning,
