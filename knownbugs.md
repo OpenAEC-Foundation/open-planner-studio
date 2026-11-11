@@ -2002,6 +2002,12 @@ en noem het in je rapport of PR-tekst.
      per bestand toonde 49 schrijvers. De tabel per bestand en de exitcode kloppen wel. Richting: deel de groepen in op de werkelijke
      uitkomst. Gevonden door de review van #909 (Terra). — B
 
+1123. **VERVOLG (fase 2): een uurtaak met kale datums laat de merge weigeren.** Een taak met een duur in uren en datums
+     zonder tijd (`'2027-03-01'`), een vorm die geen release van OPS schreef, krijgt bij openen een eindtijd; de writer
+     schrijft dan een datum-tijd en de merge weigert getypeerd, zonder bytes (`niet-gedragen`,
+     `'2027-03-01' → '2027-03-01T17:07:00'`). Veilig; bij fase 2 met bestanden van andere programma's komt deze vorm
+     terug. Gemeten in #910. — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
