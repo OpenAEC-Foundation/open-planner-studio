@@ -1883,7 +1883,8 @@ en noem het in je rapport of PR-tekst.
      De laatste twee staan met deze redenen in `OWN_MAY_REFUSE`; ze zijn geen voorbeelden van een OPS-versie die zijn
      eigen uitvoer niet kan opslaan. De weigering blijft veilig; geen toestemming om hun brongegevens weg te schrijven. — B
 
-1109. **BLOKKEERT vóór 1c: voortgang in `b5-lopend-oude-writer.ifc` met een model weigert.** Bron IfcTaskTime #29:
+1109. **BLOKKEERT vóór 1c: behoud van een ongewijzigde precieze duur na echte voortgangsinvoer.** Eerdere kale proef
+     op `b5-lopend-oude-writer.ifc`: bron IfcTaskTime #29:
      slot 4 `P0Y0M5D`, slot 18 `$`. Terugzetten van beide bronwaarden geeft na herlezen een andere planning dan de
      writeruitvoer zonder terugzetten. De brede afhankelijkheid "voortgang verklaart duur en rest" in #898 gaf verlies:
      Terra bewees dat alleen voortgang wijzigen in v2026.9.0-17-cijfers een ongewijzigde duur en rest liet afronden van
@@ -1914,16 +1915,6 @@ en noem het in je rapport of PR-tekst.
      de app, niet met een kale `updateTask`. Bewijs van de meting: tien gevallen, alle invoerroutes
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
-
-1107. **BLOKKEERT vóór 1c: de nieuwe eis voor ongewijzigde getallen laat één bestand van de toets van Trias weigeren.**
-     #903 bewaakt nu naast de bestaande canon alle getallen van een taak generiek: gelijk aan `opened` en ook na de
-     open-stappen van het domein onveranderd betekent exact teruglezen. De vier echte invoergevallen van 1109 weigeren
-     nu getypeerd op de ongewijzigde duur. De toets van Trias schrijft echter maar 9 van de 10: na de bestaande
-     duurwijziging en F5 weigert `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` met model, `ongewijzigd-getal`,
-     "taak task-ifc-_j2rFB79P78NtLEnkTKJwV (Set up site).time.remainingTime: 2.3333333333333335 → 2.333333".
-     Geen verlies: geen uitvoerbytes. Bouw volgens de expliciete stopvoorwaarde van Trias stilgelegd; geen uitzondering
-     toegevoegd of bronbehoud gerepareerd. Mutatie, pariteitscheck en eindtelling nog niet uitgevoerd. Bewijs:
-     `docs/superpowers/evidence/2026-11-11-1107-ongewijzigd-exact-stop.md`. Uit #903, 11 november 2026. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft

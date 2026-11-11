@@ -104,7 +104,8 @@ export async function lengthen(d: WriteIFCInput, id: string): Promise<WriteIFCIn
   }
   const parts = Object.keys(time).filter(k => time[k as keyof typeof time] !== task.time[k as keyof typeof time]).map(k => `time.${k}`);
   store.getState().updateTask(id, { time }, { coalesceKey: `taskfield:${id}:${parts.sort().join(',')}` });
-  return buildWriteIFCInput(store.getState());
+  // Volgende proefbewerkingen mogen deze payload muteren; store-objecten blijven bevroren.
+  return structuredClone(buildWriteIFCInput(store.getState()));
 }
 
 /** De tien oude eigen bestanden van de toets van Trias, met model (een wand erbij, of hun eigen model). */

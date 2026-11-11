@@ -1,0 +1,99 @@
+[
+  {
+    "pad": "tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc",
+    "uitvoerGewijzigd": false,
+    "taak": "task-ifc-ex4BXpMP3FSB8fiH4duFN$",
+    "naam": "1.1 Bouwplaats inrichten",
+    "tijdvelden": {}
+  },
+  {
+    "pad": "tests/planning/fixtures/oude-tags/v2026.7.2-woongebouw-nieuwbouw.ifc",
+    "uitvoerGewijzigd": false,
+    "taak": "task-ifc-6BEFhfevKpG$yfe$S9I$oR",
+    "naam": "1.1 Bouwplaats inrichten",
+    "tijdvelden": {}
+  },
+  {
+    "pad": "tests/planning/fixtures/oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc",
+    "uitvoerGewijzigd": true,
+    "taak": "task-ifc-I5nDRRZHxbD9DTFVHdijYD",
+    "naam": "Bouwplaats inrichten",
+    "tijdvelden": {
+      "remainingTime": {
+        "voor": 0.5,
+        "na": 1.5
+      }
+    }
+  },
+  {
+    "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-10-villa-wassenaar.ifc",
+    "uitvoerGewijzigd": false,
+    "taak": "task-ifc-_j2rFB79P78NtLEnkTKJwV",
+    "naam": "Set up site",
+    "tijdvelden": {}
+  },
+  {
+    "pad": "tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc",
+    "uitvoerGewijzigd": true,
+    "taak": "task-ifc-_j2rFB79P78NtLEnkTKJwV",
+    "naam": "Set up site",
+    "tijdvelden": {
+      "remainingTime": {
+        "voor": 2.333333,
+        "na": 3.333333
+      }
+    }
+  },
+  {
+    "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-10-villa-wassenaar.ifc",
+    "uitvoerGewijzigd": false,
+    "taak": "task-mv75dvvw9aws2052",
+    "naam": "Set up site",
+    "tijdvelden": {}
+  },
+  {
+    "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-halve-dag-10-villa-wassenaar.ifc",
+    "uitvoerGewijzigd": true,
+    "taak": "task-mv75dvvw9aws2052",
+    "naam": "Set up site",
+    "tijdvelden": {
+      "remainingTime": {
+        "voor": 0.5,
+        "na": 1.5
+      }
+    }
+  },
+  {
+    "pad": "tests/planning/fixtures/oude-tags/v2026.43.0-urentaak-10-villa-wassenaar.ifc",
+    "uitvoerGewijzigd": true,
+    "taak": "task-mv75dvvw9aws2052",
+    "naam": "Set up site",
+    "tijdvelden": {
+      "scheduleFinish": {
+        "voor": "2027-03-01T11:00",
+        "na": "2027-03-02T11:00"
+      },
+      "remainingTime": {
+        "voor": 0.5,
+        "na": 1.5
+      },
+      "remainingMinutes": {
+        "na": 720
+      }
+    }
+  },
+  {
+    "pad": "tests/planning/fixtures/h7-tijden-oude-writer.ifc",
+    "uitvoerGewijzigd": false,
+    "taak": "task-muid03m2d3yp6",
+    "naam": "Taak Halfuur netto",
+    "tijdvelden": {}
+  },
+  {
+    "pad": "tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc",
+    "uitvoerGewijzigd": false,
+    "taak": "task-ifc-_j2rFB79P78NtLEnkTKJwV",
+    "naam": "Set up site",
+    "tijdvelden": {}
+  }
+]

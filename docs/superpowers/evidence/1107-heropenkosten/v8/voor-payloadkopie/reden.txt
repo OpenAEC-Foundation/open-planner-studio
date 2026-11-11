@@ -1,0 +1,1 @@
+Strikt strandde op een bevroren projectobject bij een volgende testbewerking. Alleen de grens van lengthen krijgt een wijzigbare kopie; de veldwaarden blijven gelijk. Geen telling gedraaid.
