@@ -108,7 +108,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   await assert.rejects(() => changed(p => { p.resourceCalendars!.push(structuredClone(p.resourceCalendars!.find(c => c.id === id)!)); }), rejected, 'dubbel kalender-id valt niet samen');
   console.log('OK kalenderbibliotheek: volgorde gelijk; ontbreken, toevoegen, werktijd, uitzondering en dubbel id geweigerd');
 
-  const cases = JSON.parse(readFileSync(join(root, 'docs/superpowers/evidence/1107-heropenkosten/v4/nieuwe-weigeringen.json'), 'utf8')) as {bestand:string;bewerking:string}[];
+  const cases = JSON.parse(readFileSync(join(root, 'tests/planning/fixtures/ifc-foreign-herleestoets-gevallen.json'), 'utf8')) as {bestand:string;bewerking:string}[];
   let written = 0;
   for (const c of cases.filter(c => c.bewerking.endsWith(' wissen'))) {
     const file = c.bestand.startsWith('h7-') ? 'h7-tijden-oude-writer.ifc' : 'urenperdag-oude-writer.ifc';
