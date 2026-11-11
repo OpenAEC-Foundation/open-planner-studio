@@ -84,6 +84,10 @@ An automatically detected update waits until the welcome screens and any active 
 
 **Show classic view buttons** — a replaced feature, under *Legacy features*. Default: off. Effect: on puts a group *Display* back on the *View* tab with the separate buttons *Columns…*, *Filter…*, *Group…* and *Sort…*. They have been replaced by the plus in the table header, the layout buttons and the layout window. Where: *Advanced*, under *Legacy features*.
 
+**Experimental** — click the version number repeatedly for 5 seconds to show this hidden section. Every experimental feature has a toggle and is off by default. The app remembers your choices on this device. *Hide* hides the section and keeps the choices.
+
+**Open IFC with a building model** — in the *Experimental* section. When on, also opens IFC files with a building model or data from other programs. Saving a file with such foreign content remains blocked. You can still save your own schedule file without foreign content, even when you have not changed a task.
+
 ## Remembered display choices outside the panel
 
 The app also keeps these choices on this device, but you set them at the item itself, not in the settings panel.

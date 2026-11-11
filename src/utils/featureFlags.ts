@@ -4,7 +4,7 @@ export interface FeatureFlag {
   id: string;
   nameKey: ParseKeys<'common'>;
   descriptionKey?: ParseKeys<'common'>;
-  /** Nieuwe IFC-data: geen checkbox zolang de opslag daarvan nog niet af is. */
+  /** Technische markering voor nieuwe IFC-data; beïnvloedt de schakelaar of activering niet. */
   writesNewIfcData: boolean;
 }
 
@@ -32,7 +32,6 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
   },
   // #804 fase 1: een IFC-bestand met een gebouwmodel of gegevens van andere programma's openen (bytes-route, scanner,
   // indeling, `ifcSource`). Opslaan van zo'n bestand komt in fase 1c; tot dan weigert de app het, met een melding.
-  // `writesNewIfcData: true`: geen checkbox en altijd uit, tot de IFC-round-trip af is (AGENTS.md, feature flags).
   {
     id: 'ifcForeignContent',
     nameKey: 'settings.ifcForeignContent',
@@ -43,22 +42,9 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
 
 export type FeatureFlagValues = Record<string, boolean>;
 
-/**
- * De flags met een schakelaar in het verborgen blok Experimenteel (Instellingen → Geavanceerd, versienummer
- * 5 seconden activeren). Elke flag krijgt daar een schakelaar; een flag verbergen kan niet (besluit van Ethan,
- * 10 november 2026).
- *
- * Uitzondering: een flag met `writesNewIfcData: true` krijgt geen schakelaar en blijft altijd uit (zie
- * `isFeatureEnabled`). Of zulke flags later toch een schakelaar krijgen, is een open vraag bij Ethan
- * (10 november 2026); tot dat besluit blijft dit gedrag ongewijzigd.
- */
-export function experimentalToggleFlags(): FeatureFlag[] {
-  return FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
-}
-
-/** Onbekende ids en functies met nog nieuwe IFC-data blijven altijd uit. */
+/** Onbekende ids blijven uit; elke geregistreerde flag volgt de expliciet bewaarde keuze. */
 export function isFeatureEnabled(values: Readonly<FeatureFlagValues>, id: string): boolean {
-  return FEATURE_FLAGS.some(flag => flag.id === id && !flag.writesNewIfcData)
+  return FEATURE_FLAGS.some(flag => flag.id === id)
     && Object.prototype.hasOwnProperty.call(values, id) && values[id] === true;
 }
 
