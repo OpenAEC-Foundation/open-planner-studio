@@ -1981,30 +1981,6 @@ en noem het in je rapport of PR-tekst.
      krijgt hij een schakelaar in Experimenteel, en dan raakt dit een planner. Richting: één lezer voor de kop, vóór fase
      1b. Uit #870 (review ronde 5 en 6, GPT-6.1-Sol en GPT-6.1-Terra, VERVOLG). — B
 
-1050. **De lexer van de datasecties kent `/⏎*`, `*⏎/` en `\S\'` niet; ook op main, met één datasectie.** ISO 10303-21
-     laat stuurtekens overal weg (§5.2, §5.6), ook tussen `/` en `*`, en `\S\` plus één teken is één teken in een string
-     (§6.4.3). `stripStepComments`, `skipQuotedOrComment` en de lus van `parseSTEP` (`src/services/ifc/ifcReader.ts`)
-     lezen dat zoals main. Gezien op main (9ee06bb71), met een kop met de drie kopentiteiten, `DATA;` en één datasectie:
-     - `#1=IFCTASK('1',$,'Taak',…);` dan `/* a *⏎/ #9=IFCWALL('x',…);` dan `/* b */`: opent met 1 taak, zonder
-       modelweigering. Volgens de norm is de wand code: opslaan wist hem.
-     - `#1=IFCTASK(…);` dan `/⏎* #9=IFCWALL('x',…); */`: weigert als gebouwmodel. Volgens de norm is de wand
-       commentaar.
-     - `#1=IFCTASK('1',$,'a\S\'',…);` dan `#9=IFCWALL('x',…);`: opent met 0 taken. De taak en de wand zijn weg.
-     Sinds #870 leest de grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) deze vormen volgens
-     de norm. Ziet zij een modeltype, dan weigert `readIFC`; verder opent `readIFC` precies zoals main (besluit Trias,
-     review van #870 ronde 10). Gemeten op de tak, zonder de flag `ifcForeignContent`. Met de flag is de uitkomst sinds
-     de fix van voormalig knownbug 1151 (#881) gelijk, gemeten in de review van #881: de modelweigering draait dan op de
-     tekst die de lezer krijgt. Eén uitzondering: een wand die vóór een V-stuk staat, zit in de bytes van dat V-stuk en
-     opent met de flag (knownbug 1100):
-      - weg: de wand na `*⏎/` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
-      - weg: de wand na een taak met `\S\'` weigert nu als gebouwmodel (de doelcontrole zegt ook "model");
-      - blijft: een planning met `\S\'` in een taaknaam en zonder model opent met 0 taken, zoals main;
-      - blijft: de wand in `/⏎* … */` weigert bij openen als gebouwmodel, zoals main. De doelcontrole zegt ook "model":
-        bij één datasectie leest zij na de grammatica ook volgens de regel van main (ronde 10);
-      - blijft: een kapot bestand leest precies zoals main, met dezelfde lexer.
-     Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken. Uit #870 (review ronde 6,
-     GPT-6.1-Sol en GPT-6.1-Terra; eigen knownbug op verzoek van Trias). — B
-
 1100. **VERVOLG: met de flag opent een verstopte wand vóór een V-stuk nog.** De scanner hangt commentaar vóór een
      entiteit aan het volgende stuk (`src/services/ifc/foreign/stepScanner.ts`, kop), en `readerBytes`
      (`src/services/ifc/foreign/ifcBytesRoute.ts`) laat de V-stukken weg uit de tekst voor de lezer. Staat
