@@ -291,9 +291,44 @@ for (const name of [...readdirSync(new URL('./fixtures/oude-tags/', import.meta.
   eq(`${name}: eigen bestand schrijft zonder bewerken`, file.writes.length, 1);
 }
 
+// Daadwerkelijke d783-writeruitvoer: de oude inhoudssleutel gebruikt dezelfde
+// minuutfractie als de standaardperiode. De uitzondering moet werkend blijven.
+{
+  const input = readFileSync(new URL('./fixtures/kalendertijd-oud/werkende-uitzondering.ifc', import.meta.url), 'utf8');
+  const expected = [{ name: 'Werkzaterdag', startDate: '2027-05-01', endDate: '2027-05-01', bands: [{ start: 510.5, end: 720 }] }];
+  eq('oude uitzondering: echte writerperiode', input.includes("IFCTIMEPERIOD('08:30.5:00','12:00:00')"), true);
+  eq('oude uitzondering: gewone lezer herkent werkdag', readIFC(input).calendar.workingExceptions, expected);
+  eq('oude uitzondering: bytesroute herkent werkdag', (await readIfcBytes(new TextEncoder().encode(input))).calendar.workingExceptions, expected);
+  const file = memoryFile(input);
+  const { store } = createAppStoreContext();
+  await store.getState().openOpenedFile({ name: 'oude-werkzaterdag.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  eq('oude uitzondering: store herkent werkdag', store.getState().calendar.workingExceptions, expected);
+  eq('oude uitzondering: geen feestdag', store.getState().calendar.holidays.some(h => h.name === 'Werkzaterdag'), false);
+  const clock = new CalendarEngine(calendarForEngine(store.getState().calendar));
+  eq('oude uitzondering: zaterdag is werkdag', clock.isWorkDay(parseInstant('2027-05-01T09:00:00')), true);
+  eq('oude uitzondering: werkminuten inclusief halve minuut', clock.workMinutesBetween(parseInstant('2027-05-01T08:30:30'), parseInstant('2027-05-01T12:00:00')), 209.5);
+  await store.getState().saveFile();
+  eq('oude uitzondering: onbewerkt schrijft', file.writes.length, 1);
+  eq('oude uitzondering: onbewerkt heropent werkend', readIFC(file.writes[0]).calendar.workingExceptions, expected);
+  store.getState().setCalendar({ ...structuredClone(store.getState().calendar), workStartHour: 8 });
+  await store.getState().saveFile();
+  eq('oude uitzondering: kalenderbewerking schrijft', file.writes.length, 2);
+  const back = readIFC(file.writes.at(-1)!);
+  eq('oude uitzondering: kalenderstart gewijzigd', back.calendar.workStartHour, 8);
+  eq('oude uitzondering: bewerking heropent werkend', back.calendar.workingExceptions, expected);
+  eq('oude uitzondering: bronklokken behouden', hasSourceClocks(file.writes.at(-1), '08:30.5:00', '12:00:00'), true);
+  // V1 blijft expliciet en leidend: geen impliciete werkdag op alleen een recurrence.
+  const marker = input.split('\n').find(line => line.includes("('WorkingExceptionKeysV1',"))!;
+  const emptyMarker = input.replace(marker, marker.replace(/IFCTEXT\('.*'\)/, "IFCTEXT('[]')"));
+  eq('oude uitzondering: lege V1 valt niet terug op legacy ids', readIFC(emptyMarker).calendar.workingExceptions ?? [], []);
+  eq('oude uitzondering: afwezige V1 gebruikt legacy ids', readIFC(input.replace(marker, '')).calendar.workingExceptions, expected);
+  const changedPeriod = input.replace("IFCTIMEPERIOD('08:30.5:00','12:00:00')", "IFCTIMEPERIOD('08:31.5:00','12:00:00')");
+  eq('oude uitzondering: niet-passende inhoudssleutel blijft afgewezen', readIFC(changedPeriod).calendar.workingExceptions ?? [], []);
+}
+
 // Werkelijke eigen schrijfvormen: alle normale werktijdbewerkingen blijven
 // opslaanbaar. Undo/redo gebruiken de echte store-acties, geen directe terugzet.
-const ownInputs: [string, string][] = ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfractie-v2026.8.1.ifc', 'periode-oude-scalarfractie-v2026.8.1.ifc']
+const ownInputs: [string, string][] = ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfractie-v2026.8.1.ifc', 'periode-oude-scalarfractie-v2026.8.1.ifc', 'kalendertijd-oud/werkende-uitzondering.ifc']
   .map(name => [name, readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')]);
 for (const [name, seconds] of [['eigen-minuten', 0], ['eigen-milliseconden', 0.123], ['eigen-fijnere-decimale-seconden', 0.000000001]] as const) {
   const own = readIFC(source);
@@ -308,7 +343,7 @@ for (const [name, seconds] of [['eigen-minuten', 0], ['eigen-milliseconden', 0.1
 }
 const shape = (cal: WorkCalendar) => ({
   workDays: cal.workDays, workStartHour: cal.workStartHour, workEndHour: cal.workEndHour, hoursPerDay: cal.hoursPerDay,
-  workTime: cal.workTime ?? null, workingExceptions: cal.workingExceptions ?? [],
+  workTime: cal.workTime ?? null, workingExceptions: cal.workingExceptions ?? [], holidays: cal.holidays,
 });
 let ownRoutes = 0;
 for (const [name, text] of ownInputs) {

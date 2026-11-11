@@ -630,7 +630,10 @@ eigen besluit.
 
 Nieuwe bestanden dragen in OPS_Calendar de property WorkingExceptionKeysV1: inhoudssleutels
 van naam, datumrange en tijdvakken, onafhankelijk van STEP-nummers. De reader gebruikt die
-markering alleen binnen dezelfde kalender en voor een dagelijkse recurrence. Geen markering
+markering alleen binnen dezelfde kalender en voor een dagelijkse recurrence. Behalve de huidige
+klokprojectie herkent zij ook een sleutel op de werkelijk gelezen klokteksten. Oude writers schreven
+bijvoorbeeld zowel de periode als de sleutel met `08:30.5:00`; een gewijzigde formatter mag die
+werkende uitzondering niet tot feestdag maken. Er komt geen nieuwe sleutelversie bij. Geen markering
 betekent nog steeds niet-werktijd; een gevulde recurrence is op zichzelf geen werkdagbewijs.
 WorkingExceptionIds blijft voor oudere lezers en voor het lezen van oude, niet-vernummerde
 bestanden. Aanwezige maar corrupte V1-metadata valt niet terug op mogelijk verouderde nummers.

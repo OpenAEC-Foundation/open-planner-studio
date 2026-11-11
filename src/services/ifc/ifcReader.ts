@@ -1,7 +1,7 @@
 import { parseIfcDuration } from './isoDuration';
 import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
 import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
-import { calendarExceptionKey } from './calendarExceptionKey';
+import { calendarExceptionKey, calendarExceptionKeyFromClocks } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
@@ -3198,6 +3198,7 @@ function buildCalendarFromEntity(
     // wrap-band komt als tijd-van-de-dag terug (`e ≤ s`) en krijgt hier `+1440` terug, precies
     // zoals de hoofd-werktijdlus hierboven het aan `canonicalizeBands` overlaat.
     const bands: { start: number; end: number }[] = [];
+    const sourceClocks: [string, string][] = [];
     const excRecRef = parseRef(wt.args[3] || '');
     if (excRecRef) {
       const excRec = entityMap.get(excRecRef);
@@ -3206,15 +3207,20 @@ function buildCalendarFromEntity(
           const tp = entityMap.get(bRef);
           if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
           const period = readPeriod(tp, [], `exception:${JSON.stringify([range.startDate, range.endDate, ifcSlotText(wt.args[0]) || 'Werkende uitzondering'])}:${bands.length}`);
-          if (period) bands.push({ start: period.start, end: period.end <= period.start ? period.end + 1440 : period.end });
+          if (period) {
+            bands.push({ start: period.start, end: period.end <= period.start ? period.end + 1440 : period.end });
+            sourceClocks.push([stripQuotes(tp.args[0] || ''), stripQuotes(tp.args[1] || '')]);
+          }
         }
       }
     }
     const stableKeys = calendarExceptionMetadata.workingExceptionKeys;
     const recurrence = excRecRef ? entityMap.get(excRecRef) : undefined;
+    const identity = { name: ifcSlotText(wt.args[0]), ...range, bands };
     const isWorking = stableKeys !== undefined
       ? recurrence?.type === 'IFCRECURRENCEPATTERN' && recurrence.args[0] === '.DAILY.'
-        && stableKeys.has(calendarExceptionKey({ name: ifcSlotText(wt.args[0]), ...range, bands }))
+        && (stableKeys.has(calendarExceptionKey(identity))
+          || stableKeys.has(calendarExceptionKeyFromClocks(identity, sourceClocks)))
       : workingExceptionIds?.has(ref);
     if (!isWorking) {
       holidays.push({ name: ifcSlotText(wt.args[0]) || 'Feestdag', ...range });

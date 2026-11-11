@@ -318,6 +318,7 @@ const OLD_CLOCK: Readonly<Record<string, number>> = {
 // Werkelijk door oude schrijvers geproduceerd; de conservatieve foreign-lijst
 // blijft deze minuutfracties weigeren (1157). De gewone opslag wordt apart bewezen.
 const OLD_MINUTE_CLOCK: Readonly<Record<string, string>> = {
+  'tests/planning/fixtures/kalendertijd-oud/werkende-uitzondering.ifc': "IFCTIMEPERIOD #20: tijd '08:30.5:00'",
   'tests/planning/fixtures/periode-oude-minuutfractie.ifc': "IFCTIMEPERIOD #17: tijd '07:30.5:00'",
   'tests/planning/fixtures/periode-oude-minuutfractie-v2026.8.1.ifc': "IFCTIMEPERIOD #14: tijd '07:30.5:00'",
 };
