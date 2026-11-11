@@ -2245,6 +2245,13 @@ en noem het in je rapport of PR-tekst.
      in die tekst laat al citeren (`cells[4] === '"6,5"'` bewijst het wel); regel 267 herhaalt de implementatie
      (`formatLagShort(...).replace('.', ',')`). Uit de review van #876 (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
 
+1256. **VERVOLG: de komma-normalisatie in de CSV-lezer kan twee voorgangers samenvoegen.** `src/services/csv/csvReader.ts:176`
+     leest `1FS+1,2d` sinds #876 als één relatie vanaf `1` met 1,2 dag lag. Bestaan er taken met WBS `1` en `2d`, dan las
+     de lezer vóór #876 twee relaties (vanaf `1` met 1 dag lag, en vanaf `2d`); de tweede verdwijnt nu zonder melding.
+     Alleen bij een lijst zonder spatie na de komma en een WBS-code die op een getal met eenheid lijkt; een OPS-export
+     schrijft `, ` en houdt zijn betekenis. Richting: een melding als beide lezingen naar bestaande WBS-codes wijzen, of
+     de normalisatie laten vallen samen met 1250. Uit de review van #876 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
