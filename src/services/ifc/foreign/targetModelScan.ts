@@ -1,3 +1,4 @@
+import { StepStringState, isStepControl, stepString } from '../stepLexical';
 // Bevat een bestaand doel van Opslaan als, een export of AutoSave een gebouwmodel (#804 fase 1a, fixronde 2–4)? Besluit
 // Trias (wrakko, 9 november 2026): de app controleert het gekozen bestaande doel zelf. Is het een IFC met een
 // `IfcProduct` of `IfcTypeProduct` (dezelfde ingecheckte type-inventaris als de modelweigering bij openen,
@@ -142,7 +143,7 @@ const enum Exact { Bom, Space, Collect, Done }
 /** De kop zoals fixronde 3: witruimte en commentaar, dan `ISO-10303-21;` als eerste statement. */
 const enum First { Space, Slash, Comment, CommentStar, Keyword, Done }
 /** Commentaar weghalen (`stripStepComments`). */
-const enum Strip { Code, Slash, Str, StrQuote, Comment, CommentStar }
+const enum Strip { Code, Slash, Str, Comment, CommentStar }
 /** De lus van `parseSTEP`. */
 const enum Loop { Code, Str, StrQuote, Entity }
 /** `readEntity`. */
@@ -181,6 +182,9 @@ export class TargetModelScanner {
   private readonly grammar = new StepFileGrammar(true);
   /** De regels van main voor het begin van de datasectie, voor een eigen bestand dat breekt. */
   private readonly finder = new StepDataSectionFinder(true);
+  private readonly literalFinder = new StepDataSectionFinder(true, true);
+  private literalEnd = -1;
+  private literalStrings = false;
   /** Direct na het eerste `DATA;` op codeniveau (de `;` plus één), of -1. Dat telt meteen; anders aan het einde het
    *  eerste `DATA;` aan het begin van een regel (`finder.anchored`). */
   private mainEnd = -1;
@@ -194,6 +198,7 @@ export class TargetModelScanner {
   private unreadablePending = false;
   // ── Datasectie lezen ──
   private strip = Strip.Code;
+  private stringState = StepStringState.Text;
   private slashAt = 0;
   private loop = Loop.Code;
   /** Zoveel tekens van `ENDSEC;` staan er nu op codeniveau achter elkaar. */
@@ -348,6 +353,7 @@ export class TargetModelScanner {
       this.headByte(b);
       if (this.result !== null) return false;
     }
+    if (this.literalFinder.step(b, abs) && this.literalEnd < 0) this.literalEnd = abs + 1;
     const hit = this.finder.step(b, abs);
     if (hit && this.mainEnd < 0) this.mainEnd = abs + 1;
     return hit;
@@ -355,7 +361,8 @@ export class TargetModelScanner {
 
   /** Direct na het eerste `DATA;` aan het begin van een regel, of -1. */
   private get lineEnd(): number {
-    return this.finder.anchored < 0 ? -1 : this.finder.anchored + DATA_SEMI_LENGTH;
+    const finder = this.grammar.failed || this.grammar.literalStrings ? this.literalFinder : this.finder;
+    return finder.anchored < 0 ? -1 : finder.anchored + DATA_SEMI_LENGTH;
   }
 
   private headOnly(chunk: Uint8Array, start: number, base: number): void {
@@ -503,7 +510,9 @@ export class TargetModelScanner {
    *  'no-model' als de grammatica het hele bestand zonder model las (`valid`), anders 'unreadable'. `true` als de lezer
    *  van plaats verandert of klaar is. */
   private followMain(atEof: boolean, valid: boolean): boolean {
-    const end = this.mainEnd >= 0 ? this.mainEnd : atEof ? this.lineEnd : -1;
+    this.literalStrings = this.grammar.failed || this.grammar.literalStrings;
+    const dataEnd = this.literalStrings ? this.literalEnd : this.mainEnd;
+    const end = dataEnd >= 0 ? dataEnd : atEof ? this.lineEnd : -1;
     if (end < 0) {
       if (!atEof) return false; // nog geen `DATA;` op codeniveau: verder lezen (aan het begin van een regel telt pas aan het einde)
       if (valid) this.result = 'no-model';
@@ -619,7 +628,7 @@ export class TargetModelScanner {
           this.depth = depth;
           if (i === n) break;
           if (b === CLOSE) { this.ent = Ent.End; i++; continue; }
-          if (b === QUOTE) { this.strip = Strip.Str; this.ent = Ent.ArgStr; i++; continue; }
+          if (b === QUOTE) { this.strip = Strip.Str; this.stringState = StepStringState.Text; this.ent = Ent.ArgStr; i++; continue; }
         } else if (ent === Ent.Id) {
           while (i < n && WORD[chunk[i]] === 1) i++;
           if (i === n) break;
@@ -641,20 +650,12 @@ export class TargetModelScanner {
       } else if (this.strip === Strip.Code && this.loop === Loop.Code && this.endsec === 0) {
         while (i < n && CODE_PLAIN[chunk[i]] === 1) i++;
         if (i === n) break;
-      } else if (this.strip === Strip.Str
-        && (this.loop === Loop.Str || (this.loop === Loop.Entity && this.ent === Ent.ArgStr))) {
-        const j = chunk.indexOf(QUOTE, i);
-        if (j < 0) { i = n; break; }
-        if (j + 1 < n) {
-          // `''` blijft in de string; een ander teken sluit hem (zoals `StrQuote`), en dat teken is weer code.
-          if (chunk[j + 1] === QUOTE) { i = j + 2; continue; }
-          this.strip = Strip.Code;
-          if (this.loop === Loop.Str) this.loop = Loop.Code;
-          else this.ent = Ent.Args;
-          i = j + 1;
-          continue;
-        }
-        i = j; // de `'` is de laatste byte van het stuk: de gewone weg
+      } else if (this.strip === Strip.Str && this.stringState === StepStringState.Text) {
+        // In gewone stringinhoud zijn alleen apostrof en backslash een grens.
+        // Eén doorgang tot de eerste grens. Twee losse indexOf-zoekacties zouden
+        // bij iedere korte string zonder backslash de rest van het blok doorzoeken.
+        while (i < n && chunk[i] !== QUOTE && chunk[i] !== 0x5c) i++;
+        if (i === n) break;
       } else if (this.strip === Strip.Comment) {
         const j = chunk.indexOf(STAR, i);
         if (j < 0) { i = n; break; }
@@ -672,11 +673,12 @@ export class TargetModelScanner {
   private dataByte(b: number, abs: number): void {
     switch (this.strip) {
       case Strip.Code:
-        if (b === QUOTE) { this.strip = Strip.Str; this.unit(b, abs); return; }
+        if (b === QUOTE) { this.strip = Strip.Str; this.stringState = StepStringState.Text; this.unit(b, abs); return; }
         if (b === SLASH) { this.strip = Strip.Slash; this.slashAt = abs; return; }
         this.unit(b, abs);
         return;
       case Strip.Slash:
+        if (isStepControl(b)) return;
         if (b === STAR) { this.strip = Strip.Comment; return; }
         this.strip = Strip.Code;
         this.unit(SLASH, this.slashAt);
@@ -684,18 +686,18 @@ export class TargetModelScanner {
         this.dataByte(b, abs);
         return;
       case Strip.Str:
-        if (b === QUOTE) this.strip = Strip.StrQuote;
-        this.unit(b, abs);
-        return;
-      case Strip.StrQuote:
-        if (b === QUOTE) { this.strip = Strip.Str; this.unit(b, abs); return; } // `''` in de string
+        this.stringState = stepString(this.stringState, b, this.literalStrings);
+        if (this.stringState !== StepStringState.End) return;
         this.strip = Strip.Code;
+        // De lus hoeft de inhoud niet te zien: alleen de twee echte omsluitende quotes.
+        this.unit(QUOTE, abs);
         this.dataByte(b, abs);
         return;
       case Strip.Comment:
         if (b === STAR) this.strip = Strip.CommentStar;
         return;
       case Strip.CommentStar:
+        if (isStepControl(b)) return;
         if (b === SLASH) this.strip = Strip.Code;
         else if (b !== STAR) this.strip = Strip.Comment;
         return;
