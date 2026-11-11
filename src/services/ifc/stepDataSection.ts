@@ -1,3 +1,4 @@
+import { StepStringState, isStepControl, stepString } from './stepLexical';
 // De kop en het begin van de datasectie van een STEP-bestand: de ENIGE regels daarvoor (#804 fase 1a, fixronde 4; eis
 // van Trias, wrakko 10 november 2026: één bron voor het zoeken naar `DATA;`). `readIFC` (`assertIfcIntegrity` en
 // `indexOfDataSection` in `ifcReader.ts`, op tekst) en de doelcontrole (`foreign/targetModelScan.ts`, als stroom van
@@ -27,7 +28,7 @@ const SLASH = 0x2f;
 const STAR = 0x2a;
 const DATA = [0x44, 0x41, 0x54, 0x41, 0x3b]; // D A T A ;
 
-const enum Mode { Code, Str, StrQuote, Slash, Comment, CommentStar }
+const enum Mode { Code, Str, Slash, Comment, CommentStar }
 /** Regel-verankerd: aan het begin van de regel (alleen spaties en tabs gezien), 1–4 tekens van `DATA;`, of voorbij. */
 const LINE_DEAD = 6;
 
@@ -35,6 +36,7 @@ export class StepDataSectionFinder {
   /** Positie van de `D` van het eerste regel-verankerde `DATA;`, of -1. */
   anchored = -1;
   private mode = Mode.Code;
+  private stringState = StepStringState.Text;
   /** Zoveel tekens van `DATA;` staan er op codeniveau op een rij. */
   private strict = 0;
   /** 0 = begin van een regel; 1–5 = zoveel tekens van `DATA;` na het begin; `LINE_DEAD` = tot het einde van de regel niet. */
@@ -45,7 +47,7 @@ export class StepDataSectionFinder {
   private prev2 = -1;
 
   /** `utf8`: de tekens zijn UTF-8-bytes; anders UTF-16-code-eenheden. */
-  constructor(private readonly utf8: boolean) {}
+  constructor(private readonly utf8: boolean, private readonly literalStrings = false) {}
 
   /** Eén teken op positie `at`. `true`: op `at` eindigt het strenge `DATA;` (de `;`; de `D` staat op `at - 4`). */
   step(c: number, at: number): boolean {
@@ -79,13 +81,12 @@ export class StepDataSectionFinder {
   private code(c: number): boolean {
     switch (this.mode) {
       case Mode.Str:
-        if (c === QUOTE) this.mode = Mode.StrQuote;
-        return false;
-      case Mode.StrQuote:
-        if (c === QUOTE) { this.mode = Mode.Str; return false; } // `''` is een aanhalingsteken in de string
+        this.stringState = stepString(this.stringState, c, this.literalStrings);
+        if (this.stringState !== StepStringState.End) return false;
         this.mode = Mode.Code;
-        break; // einde van de string: dit teken is weer code
+        break;
       case Mode.Slash:
+        if (isStepControl(c)) return false;
         this.mode = Mode.Code;
         if (c === STAR) { this.mode = Mode.Comment; return false; }
         break; // de `/` was code; dit teken ook
@@ -93,13 +94,14 @@ export class StepDataSectionFinder {
         if (c === STAR) this.mode = Mode.CommentStar;
         return false;
       case Mode.CommentStar:
+        if (isStepControl(c)) return false;
         if (c === SLASH) this.mode = Mode.Code;
         else if (c !== STAR) this.mode = Mode.Comment;
         return false;
       case Mode.Code:
         break;
     }
-    if (c === QUOTE) { this.strict = 0; this.mode = Mode.Str; return false; }
+    if (c === QUOTE) { this.strict = 0; this.mode = Mode.Str; this.stringState = StepStringState.Text; return false; }
     if (c === SLASH) { this.strict = 0; this.mode = Mode.Slash; return false; }
     const u = c >= 0x61 && c <= 0x7a ? c - 0x20 : c;
     // `DATA;` heeft geen herhaling in zichzelf: na een mismatch kan alleen een nieuwe `D` een treffer beginnen.
@@ -117,8 +119,8 @@ export class StepDataSectionFinder {
  * Begin van de datasectie in `content`: de positie van de `D` van `DATA;` (streng, anders regel-verankerd), of -1.
  * `readIFC` gebruikt dit; de doelcontrole voedt dezelfde vinder als stroom.
  */
-export function indexOfStepDataSection(content: string): number {
-  const finder = new StepDataSectionFinder(false);
+export function indexOfStepDataSection(content: string, literalStrings = false): number {
+  const finder = new StepDataSectionFinder(false, literalStrings);
   for (let i = 0; i < content.length; i++) {
     if (finder.step(content.charCodeAt(i), i)) return i - 4;
   }
