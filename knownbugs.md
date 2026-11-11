@@ -3522,3 +3522,10 @@ en noem het in je rapport of PR-tekst.
      Bewijsbestanden: `periode-oude-minuutfractie.ifc` en `periode-oude-minuutfractie-v2026.8.1.ifc`.
      Richting: verruim de conservatieve vormenlijst met apart behoudsbewijs bij kalenderbewerkingen.
      Uit #897, CI en review ronde 3 (GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+
+1158. **VERVOLG: het precisiefoutbewijs voor crashherstel gebruikt geen echte browser-worker.**
+     `check-recovery-worker.ts` test de getypeerde kalenderweigering met de echte writer en
+     herstelbackend voor meerdere documenten. De afzonderlijke workergrens krijgt het foutantwoord
+     via een transportdubbel; de daadwerkelijke browser-worker wordt niet van weigering tot
+     herstelcommit doorlopen. Richting: één gericht werkelijk workertransportbewijs toevoegen.
+     Uit #897, review ronde 4 (GPT-6.1-Terra, xhigh, BEVESTIGD, VERVOLG). — B

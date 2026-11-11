@@ -37,6 +37,8 @@ export interface WorkCalendar {
     start: number; end: number; startText: string; endText: string;
     /** Plaats in de kalender: weekdag/band, uitzondering/band of scalar. */
     binding: string;
+    /** Eenmaal per kalender vastgelegd; bewaakt positieverschuivingen bij edits. */
+    layout?: string;
     /** Exacte scalaire waarden na import; geen herberekende minuutvergelijking. */
     scalarStart?: number; scalarEnd?: number;
   }[];

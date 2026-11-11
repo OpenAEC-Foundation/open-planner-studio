@@ -2,7 +2,7 @@ import { minuteModelWriteView } from './minuteModelWrite';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { calendarExceptionKey } from './calendarExceptionKey';
 import { IfcCalendarTimePrecisionError } from './ifcErrors';
-import { parseIfcClock } from './ifcClock';
+import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
@@ -1389,6 +1389,19 @@ function writeCalendar(
   key: string = '_calendar',
   includeEffectiveScalarBands = false,
 ): WriteCalendarResult {
+  // Een index is alleen een geldige bronkoppeling zolang de bandindeling gelijk
+  // blijft. De editor, MCP en extensies kunnen banden verwijderen of kopiëren.
+  // Bij extra broninformatie weigeren we zo'n wijziging centraal vóór writes;
+  // het model heeft geen bandidentiteit/tijdzone om de herkomst mee te verplaatsen.
+  const originalLayout = cal.ifcTimePeriods?.[0]?.layout;
+  if (originalLayout !== undefined && originalLayout !== ifcCalendarBandLayout(cal)) {
+    const protectedSource = cal.ifcTimePeriods?.find(p => [p.startText, p.endText].some(text => {
+      if (!text) return false;
+      const clock = parseIfcClock(text);
+      return !clock || clock.preserve;
+    }));
+    if (protectedSource) throw new IfcCalendarTimePrecisionError(protectedSource.start);
+  }
   // Work time recurrence (weekdays)
   let firstPeriod: [string, string] | undefined;
   let multiplePeriods = false;

@@ -1,5 +1,5 @@
 import { parseIfcDuration } from './isoDuration';
-import { parseIfcClock } from './ifcClock';
+import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
 import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
 import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
@@ -310,6 +310,9 @@ export function readIFC(
   // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
   // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid.
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
+  for (const cal of [calendar, ...resourceCalendars]) {
+    if (cal.ifcTimePeriods?.[0]) cal.ifcTimePeriods[0].layout = ifcCalendarBandLayout(cal);
+  }
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   // Kostenresources (issue #815): geen tarief/kalender/eenheid/ploeg en toewijzingen zonder werkvelden

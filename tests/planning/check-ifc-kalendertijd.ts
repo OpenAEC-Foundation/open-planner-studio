@@ -140,6 +140,49 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   eq('zonebewerking blijft zichtbaar', store.getState().calendar.workTime?.byWeekday[1][0].start, 510 + 1 / 60);
 }
 
+// Positie is geen identiteit: verwijderen, invoegen en kopiëren mogen de
+// bronzone van een overgebleven of gekopieerd tijdvak niet stil wegschrijven.
+for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
+  const input = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8')
+    .replace("IFCTIMEPERIOD('07:30.5:00','16:00:00')", "IFCTIMEPERIOD('07:00:00','12:00:00')")
+    .replace('$,$,$,$,(#17))', '$,$,$,$,(#17,#9001))')
+    .replace('ENDSEC;\nEND-ISO', "#9001=IFCTIMEPERIOD('13:00:01+01:00','16:00:00+01:00');\nENDSEC;\nEND-ISO");
+  const file = memoryFile(input);
+  const { store } = createAppStoreContext();
+  await store.getState().openOpenedFile({ name: 'bandverschuiving.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  const original = structuredClone(store.getState().calendar.workTime!);
+  eq(`${edit}: bron heeft twee maandagbanden`, original.byWeekday[1].length, 2);
+  await store.getState().saveFile();
+  eq(`${edit}: bron schrijft zonder bewerken`, file.writes.length, 1);
+  eq(`${edit}: onbewerkte zone behouden`, hasSourceClocks(file.writes[0], '13:00:01+01:00', '16:00:00+01:00'), true);
+  const previousWrites = file.writes.length;
+  store.setState(state => {
+    const week = state.calendar.workTime!.byWeekday;
+    if (edit === 'verwijderen') week[1] = week[1].filter((_, i) => i !== 0);
+    if (edit === 'invoegen') week[1] = [{ start: 300, end: 360 }, ...week[1]];
+    if (edit === 'kopiëren') {
+      // Na verwijderen: dezelfde spread-kopie naar alle werkdagen als de editor.
+      const src = week[1].filter((_, i) => i !== 0).map(b => ({ ...b }));
+      for (const day of [1, 2, 3, 4, 5] as const) week[day] = src.map(b => ({ ...b }));
+    }
+  });
+  const error = console.error;
+  console.error = () => {};
+  try { await store.getState().saveFile(); } finally { console.error = error; }
+  eq(`${edit}: opslag weigert vóór writes`, file.writes.length, previousWrites);
+  const writtenSource = file.writes.length === previousWrites || readIFC(file.writes.at(-1)!).calendar.ifcTimePeriods
+    ?.some(p => p.binding === 'week:1:0' && p.startText === '13:00:01+01:00');
+  eq(`${edit}: een eventuele write behoudt de maandagzone`, writtenSource, true);
+  eq(`${edit}: bestaande opslagmelding`, store.getState().ui.notifications.some(n => n.messageKey === 'notifications.saveFailed'), true);
+  const untouched = readIFC(file.writes[0]);
+  eq(`${edit}: vorige opslag heropent met dezelfde banden`, untouched.calendar.workTime, original);
+  // De planner kan de bewerking terugnemen en daarna gewoon opslaan.
+  store.setState(state => { state.calendar.workTime = structuredClone(original); });
+  await store.getState().saveFile();
+  eq(`${edit}: teruggenomen bewerking schrijft weer`, file.writes.length, previousWrites + 1);
+  eq(`${edit}: zone blijft na heropenen en opnieuw opslaan`, hasSourceClocks(file.writes.at(-1), '13:00:01+01:00', '16:00:00+01:00'), true);
+}
+
 // Een echte, zelfs zeer kleine wijziging mag nooit de oude bronklok terugkrijgen.
 {
   const text = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8').replace("'07:30.5:00'", "'07:30:00.000000001'");

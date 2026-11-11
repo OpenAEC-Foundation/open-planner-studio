@@ -1,3 +1,5 @@
+import type { WorkCalendar } from '@/types/calendar';
+
 /** De klokwaarde én of de bron meer informatie draagt dan een millisecondegetal.
  * Bewaar die informatie vóór de omzetting naar een JS-number (ook bij onderloop). */
 export function parseIfcClock(text: string): { minutes: number; preserve: boolean; hasSeconds: boolean; legacyBand: boolean } | null {
@@ -26,4 +28,16 @@ export function parseIfcClock(text: string): { minutes: number; preserve: boolea
     hasSeconds: second !== 0 || fraction.length > 0 || legacyBand,
     legacyBand,
   };
+}
+
+/** Alleen de bewerkbare indeling, zonder scalars of bronvelden. Een gewijzigde
+ * indeling maakt de koppeling op bandpositie onbetrouwbaar. Bewaar dit eenmaal
+ * bij import; vergelijken tijdens schrijven voorkomt ook verlies bij kopiëren. */
+export function ifcCalendarBandLayout(cal: WorkCalendar): string {
+  const bands = (list: readonly { start: number; end: number }[] | undefined) => list?.map(b => [b.start, b.end]) ?? null;
+  return JSON.stringify([
+    cal.workDays,
+    cal.workTime ? ([1, 2, 3, 4, 5, 6, 7] as const).map(day => bands(cal.workTime!.byWeekday[day])) : null,
+    (cal.workingExceptions ?? []).map(e => [e.name, e.startDate, e.endDate, bands(e.bands)]),
+  ]);
 }
