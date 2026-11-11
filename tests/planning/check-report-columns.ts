@@ -293,6 +293,25 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq(changedReportFields(stale, { ...stale, columns: [...stale.columns] }), {}, 'kolommen op inhoud vergeleken');
   eq(Object.keys(changedReportFields(stale, { ...stale, showDeps: !stale.showDeps, columns: ['task.name'] })).sort(), ['columns', 'showDeps'],
     'alleen de gewijzigde velden');
+  // De optiegroepen per optie (review Terra #893, ronde 2): een tabeloptie of resourceoptie van elders blijft staan.
+  const fresh = await loadReportSettings();
+  localStorage.setItem('ops-reportSettings', JSON.stringify({
+    ...fresh,
+    tableReports: { ...fresh.tableReports, nearCriticalDays: 11 },
+    resourceGantt: { ...fresh.resourceGantt, groupByType: !fresh.resourceGantt.groupByType },
+  }));
+  const tableChange = changedReportFields(fresh, { ...fresh, tableReports: { ...fresh.tableReports, wbsSummaryLevel: 3 } });
+  eq(tableChange, { tableReports: { wbsSummaryLevel: 3 } }, 'diff: alleen de gewijzigde tabeloptie');
+  patchReportSettings(tableChange);
+  patchReportSettings(changedReportFields(fresh, { ...fresh, resourceGantt: { ...fresh.resourceGantt, includeUnassigned: !fresh.resourceGantt.includeUnassigned } }));
+  const groups = await loadReportSettings();
+  eq([groups.tableReports.nearCriticalDays, groups.tableReports.wbsSummaryLevel], [11, 3], 'patch: tabeloptie van elders blijft, de eigen staat erin');
+  eq([groups.resourceGantt.groupByType, groups.resourceGantt.includeUnassigned], [!fresh.resourceGantt.groupByType, !fresh.resourceGantt.includeUnassigned],
+    'patch: resourceoptie van elders blijft, de eigen staat erin');
+  // Een wijziging die van de opslag afhangt, krijgt de actuele opslag.
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ ...groups, layoutId: 'elders' }));
+  patchReportSettings(stored => ({ reportType: 'lookAhead', ...(stored.layoutId === 'elders' ? { paperHintSeen: true } : {}) }));
+  eq([(await loadReportSettings()).layoutId, (await loadReportSettings()).paperHintSeen], ['elders', true], 'patch als functie: leest de actuele opslag');
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
   const older = await loadReportSettings();

@@ -456,23 +456,50 @@ function readReportSettings(): ReportSettings {
   };
 }
 
+/** De twee optiegroepen die per optie samengaan: elke optie is een eigen keuze. */
+const OPTION_GROUPS = ['tableReports', 'resourceGantt'] as const;
+type OptionGroup = typeof OPTION_GROUPS[number];
+
+/** Een wijziging van de rapportinstellingen: hele velden, en binnen de optiegroepen losse opties. */
+export type ReportSettingsPatch = Partial<Omit<ReportSettings, OptionGroup>> & {
+  tableReports?: Partial<TableReportOptions>;
+  resourceGantt?: Partial<ResourceGanttReportOptions>;
+};
+
 /**
  * De enige schrijfroute voor `ops-reportSettings`. Twee schrijvers delen die sleutel: het Rapport-tabblad
  * (`useStudioSettings`) en het paneel van de tabelrapporten (`ReportPanel`), en een ander venster of de host
- * (#818) kan hem tussendoor vernieuwen. Daarom geeft elke schrijver alleen de velden die hij zelf wijzigde,
- * en leest deze functie de opgeslagen stand, zet die velden erover en schrijft het geheel terug in één
- * synchrone stap, zonder `await` ertussen. Een volledige schrijfactie vanuit een kopie in het geheugen zou
- * een wijziging van elders die nog niet binnen is stil wissen (review Terra #893, ronde 1).
+ * (#818) kan hem tussendoor vernieuwen. Daarom geeft elke schrijver alleen wat hij zelf wijzigde (binnen de
+ * optiegroepen per optie), en leest deze functie de opgeslagen stand, zet de wijziging erover en schrijft het
+ * geheel terug in één synchrone stap, zonder `await` ertussen. Hangt de wijziging af van wat er opgeslagen
+ * staat, geef dan een functie: die krijgt de actuele opslag, niet een kopie uit het geheugen. Een schrijfactie
+ * vanuit zo'n kopie zou een wijziging van elders die nog niet binnen is stil wissen (review Terra #893).
  */
-export function patchReportSettings(patch: Partial<ReportSettings>): void {
-  writeLocal(`ops-${STORAGE_KEY}`, JSON.stringify({ ...readReportSettings(), ...patch }));
+export function patchReportSettings(patch: ReportSettingsPatch | ((stored: ReportSettings) => ReportSettingsPatch)): void {
+  const stored = readReportSettings();
+  const change = typeof patch === 'function' ? patch(stored) : patch;
+  writeLocal(`ops-${STORAGE_KEY}`, JSON.stringify({
+    ...stored,
+    ...change,
+    tableReports: { ...stored.tableReports, ...change.tableReports },
+    resourceGantt: { ...stored.resourceGantt, ...change.resourceGantt },
+  }));
 }
 
-/** De velden die in `after` anders zijn dan in `before`; arrays en objecten op inhoud. */
-export function changedReportFields(before: ReportSettings, after: ReportSettings): Partial<ReportSettings> {
+const differs = (a: unknown, b: unknown) => a !== b && JSON.stringify(a) !== JSON.stringify(b);
+
+/** Wat in `after` anders is dan in `before`: hele velden (arrays en objecten op inhoud), in de optiegroepen per optie. */
+export function changedReportFields(before: ReportSettings, after: ReportSettings): ReportSettingsPatch {
   const changed: Record<string, unknown> = {};
   for (const key of Object.keys(after) as (keyof ReportSettings)[]) {
-    if (before[key] !== after[key] && JSON.stringify(before[key]) !== JSON.stringify(after[key])) changed[key] = after[key];
+    if (!differs(before[key], after[key])) continue;
+    if ((OPTION_GROUPS as readonly string[]).includes(key)) {
+      const was = before[key] as unknown as Record<string, unknown>;
+      const now = after[key] as unknown as Record<string, unknown>;
+      changed[key] = Object.fromEntries(Object.keys(now).filter(option => differs(was[option], now[option])).map(option => [option, now[option]]));
+    } else {
+      changed[key] = after[key];
+    }
   }
-  return changed as Partial<ReportSettings>;
+  return changed as ReportSettingsPatch;
 }

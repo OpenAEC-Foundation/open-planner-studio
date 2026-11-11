@@ -459,6 +459,16 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(async () => (await saved()).paperSize).toBe('A4');
   expect(await saved()).toMatchObject({ reportType: 'lookAhead', orientation: 'portrait' });
   expect(await studioFields()).toEqual(studioBefore);
+  // Eén tabeloptie kiezen laat een andere tabeloptie staan die elders net veranderde en hier nog niet binnen is
+  // (geen `StorageEvent`). Eerder schreef het paneel de hele groep tabelopties terug (review Terra #893, ronde 2).
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
+    localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stored, tableReports: { ...stored.tableReports, nearCriticalDays: 11 } }));
+  });
+  await page.locator('[data-ops-report-period="lookAheadPeriod"]').getByLabel(/^(Reporting period:|Rapportageperiode:)$/).click();
+  await page.getByRole('option', { name: /^(Next week|Volgende week)$/ }).click();
+  await expect.poll(async () => (await saved()).tableReports.lookAheadPeriod).toEqual({ preset: 'nextWeek' });
+  expect((await saved()).tableReports.nearCriticalDays).toBe(11);
   // Terug naar de Gantt-afdruk via dezelfde keuzelijst: het tabblad opent met het papier uit het paneel.
   await typePicker.click();
   await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
@@ -469,6 +479,23 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   const kept = ['columns', 'barColors', 'layoutId', 'followView', 'sidebar', 'resourceGantt', 'truncateTaskNames', 'taskNameColumnWidth'];
   const pick = (o: Record<string, unknown>) => Object.fromEntries(kept.map(key => [key, o[key]]));
   expect(pick(await saved())).toEqual(pick(studioBefore));
+  // Wisselen van rapport laat een rijenbron staan die elders net gekozen is en hier nog niet binnen is. Eerder
+  // schreef het tabblad bij elke wissel zijn eigen rijenbron mee (review Terra #893, ronde 2).
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
+    localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stored, layoutId: 'builtin:resource-diagram' }));
+  });
+  await typePicker.click();
+  await page.getByRole('option', { name: /^Look-ahead$/ }).click();
+  await expect(page.locator('[data-ops-table-report]')).toBeVisible();
+  expect(await saved()).toMatchObject({ reportType: 'lookAhead', layoutId: 'builtin:resource-diagram' });
+  await typePicker.click();
+  await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
+  await expect(studio).toBeVisible();
+  await openStep(page, 'tasks');
+  await expect(page.locator('[data-rs-layout="builtin:resource-diagram"]')).toHaveAttribute('aria-checked', 'true');
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('');
 
   // Voet op elke pagina, ook als de tijdlijn over twee vellen loopt: één rij hoog en twee vellen breed krijgt op
   // beide vellen de volle voetstrook. Zonder de optie heeft geen vel een los voetvenster, wel kop en body.

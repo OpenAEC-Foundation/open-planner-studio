@@ -1122,10 +1122,14 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       aria-label={t('reportType.label')}
       value="gantt"
       onChange={v => {
-        // Eerst bewaren, dan wisselen: `ReportPanel` leest het rapporttype bij het laden. De rijenbron gaat
-        // mee in `layoutId`, ook een Resourcediagram dat alleen als `reportType` bewaard was (een oude
-        // opslag): anders opent de terugweg met Alle taken (review Sol #847, ronde 4).
-        patchReportSettings({ ...taskSourcePatch(source), reportType: v as ReportType });
+        // Eerst bewaren, dan wisselen: `ReportPanel` leest het rapporttype bij het laden. Een Resourcediagram
+        // dat alleen als `reportType` bewaard staat (een oude opslag), gaat mee in `layoutId`: anders opent de
+        // terugweg met Alle taken (review Sol #847, ronde 4). Dat hangt af van de opslag zelf, niet van de
+        // kopie in dit tabblad: die kan een rijenbron van elders terugzetten (review Terra #893, ronde 2).
+        patchReportSettings(stored => ({
+          ...(stored.reportType === 'resourceGantt' ? taskSourcePatch(reportTaskSource(stored)) : {}),
+          reportType: v as ReportType,
+        }));
         onReportTypeChange(v as ReportType);
       }}
       options={[

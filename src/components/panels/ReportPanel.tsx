@@ -150,8 +150,6 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   }));
   const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = panel;
   const reportFont = reportFontStack(reportFontFamily);
-  const panelRef = useRef(panel);
-  panelRef.current = panel;
 
   // Lezen bij openen, en opnieuw als een andere bron `ops-reportSettings` vernieuwt (de host na de start,
   // #818, of een ander tabblad). Opslaan gebeurt alleen bij een keuze van de gebruiker, en dan alleen voor
@@ -177,9 +175,11 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     // Best-effort: mislukt het schrijven (geblokkeerde opslag), dan blijft de keuze binnen deze sessie werken.
     patchReportSettings(patch);
   }, []);
+  // Alleen de gewijzigde tabelopties: de andere staan in de opslag mogelijk al nieuwer dan in dit paneel.
   const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => {
-    update({ tableReports: { ...panelRef.current.tableReports, ...patch } });
-  }, [update]);
+    setPanel(prev => ({ ...prev, tableReports: { ...prev.tableReports, ...patch } }));
+    patchReportSettings({ tableReports: patch });
+  }, []);
   const setPaperSize = useCallback((v: ReportPaperSize) => { update({ paperSize: v }); }, [update]);
   const setOrientation = useCallback((v: ReportOrientation) => { update({ orientation: v }); }, [update]);
   const setReportFontFamily = useCallback((v: ReportFontId) => { update({ reportFontFamily: v }); }, [update]);
