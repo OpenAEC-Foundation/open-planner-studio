@@ -2149,9 +2149,11 @@ export const OLD_FRACTIONAL_CLOCK = /^\d+\.\d+:00:00$/;
 
 /** Kalendergeldigheid vóór de vormcontrole én de betekenisvergelijking. JavaScript mag een onmogelijke datum
  *  niet doorschuiven en zo alsnog gedragen laten heten. De bestaande ISO-toets bewaakt ook de klok en offset;
- *  24:00 weigert bewust, ook al leest JavaScript dat als de volgende dag. De oude uurbreuk blijft alleen geldig
+ *  Alleen in een tijdslot is precies 24:00 een bestaande daggrens; een datum-tijd met T24:00 weigert.
+ *  De oude uurbreuk blijft alleen geldig
  *  op de plek waar de lezer haar exact draagt, binnen dezelfde klokdag. */
 function existingDateTime(text: string, kind: DateTimeKind, oldClock: boolean): boolean {
+  if (kind === 'tijd' && /^24:00(?::00(?:\.0+)?)?$/.test(text)) return true;
   if (oldClock && kind === 'tijd' && OLD_FRACTIONAL_CLOCK.test(text)) {
     const hour = scalarHourFromClock(text);
     return Number.isFinite(hour) && hour >= 0 && hour < 24;

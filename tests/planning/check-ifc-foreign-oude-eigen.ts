@@ -31,6 +31,7 @@ import { partialDateTime, sameMeaning } from '@/services/ifc/foreign/lossCheck';
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { clockToMinutes, getCalendarBands, minutesToClock } from '@/services/subdayIo';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
@@ -185,7 +186,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       const vectors = [
         { type: 'IFCTASKTIME', arg: 5, kind: 'datum-tijd' as const, bad: ['2027-02-30T07:00:00', '2027-13-01', '2027-00-01', '2027-03-00', '2027-03-32', '2027-03-01T24:00:00', '2027-03-01T25:00:00', '2027-03-01T07:60:00', '2027-03-01garbage'], good: '2027-03-01T07:00:00' },
         { type: 'IFCWORKTIME', arg: 4, kind: 'datum' as const, bad: ['2027-02-30', '2027-13-01', '2027-03-01garbage'], good: '2027-03-01' },
-        { type: 'IFCTIMEPERIOD', arg: 0, kind: 'tijd' as const, bad: ['24:00:00', '25:00:00', '07:60:00'], good: '07:00:00' },
+        { type: 'IFCTIMEPERIOD', arg: 0, kind: 'tijd' as const, bad: ['24:30:00', '24:00:01', '25:00:00', '07:60:00'], good: '07:00:00' },
       ];
       for (const v of vectors) for (const bad of v.bad) {
         const args = [...Array<string>(v.arg).fill('$'), `'${bad}'`];
@@ -194,9 +195,16 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
         ok(`fix2 ${tz} ${v.type} ${bad}: vorm weigert`, partialDateTime(bad, v.kind) === 'vorm');
         ok(`fix2 ${tz} ${v.type} ${bad}: niet gedragen`, !sameMeaning(index, r, `'${v.good}'`));
         ok(`fix2 ${tz} ${v.type} ${bad}: ook niet gedragen tegenover zichzelf`, !sameMeaning(index, r, `'${bad}'`));
+        if (bad === '2027-03-01garbage') ok(`1114 ${tz} ${v.type}: rommel is niet dezelfde datum`, !sameMeaning(index, r, "'2027-03-01'"));
       }
       for (const date of ['2028-02-29T07:00:00', '2000-02-29', '2027-03-01T23:59:00']) {
         ok(`fix2 ${tz} geldige datum ${date}`, partialDateTime(date, 'datum-tijd') === undefined);
+      }
+      for (const clock of ['24:00', '24:00:00', '24:00:00.0', '24:00:00.000']) {
+        const index = scanStep(latin1(`ISO-10303-21;HEADER;FILE_SCHEMA(('IFC4X3_ADD2'));ENDSEC;DATA;#1=IFCTIMEPERIOD('16:00:00','${clock}');ENDSEC;END-ISO-10303-21;`));
+        const r = { chunk: index.chunkOf('1'), arg: 1, outArg: 1, token: `'${clock}'`, kind: 'samengesteld' as const };
+        ok(`fix2 ${tz} daggrens ${clock} bestaat`, partialDateTime(clock, 'tijd') === undefined);
+        ok(`fix2 ${tz} daggrens ${clock} dezelfde betekenis`, sameMeaning(index, r, "'24:00:00'"));
       }
       ok(`fix2 ${tz} oude uurbreuk blijft geldig`, partialDateTime('7.25:00:00', 'tijd', true) === undefined);
       ok(`fix2 ${tz} oude uurbreuk buiten dag weigert`, partialDateTime('24.25:00:00', 'tijd', true) === 'vorm');
@@ -205,6 +213,8 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
         { label: 'klok 24 uur', match: /#47=IFCTASKTIME/, arg: 5, value: '2027-03-01T24:00:00' },
         { label: 'maand 13', match: /#47=IFCTASKTIME/, arg: 5, value: '2027-13-01' },
         { label: 'uitzondering 30 februari', match: /#20=IFCWORKTIME/, arg: 4, value: '2027-02-30' },
+        { label: 'werktijd 24:30', match: /#89998=IFCTIMEPERIOD/, arg: 1, value: '24:30:00' },
+        { label: 'werktijd 24:00:01', match: /#89998=IFCTIMEPERIOD/, arg: 1, value: '24:00:01' },
         { label: 'werktijd 25 uur', match: /#89998=IFCTIMEPERIOD/, arg: 1, value: '25:00:00' },
       ];
       for (const c of cases) {
@@ -348,13 +358,22 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
 // lijst. In een tweede periode leest `clockToMinutes` hem niet: daar weigert de merge nog.
 {
   const h7 = walled('tests/planning/fixtures/h7-tijden-oude-writer.ifc');
+  const raw = await openForeignRaw(latin1(h7));
+  const evening = raw.resourceCalendars?.find(c => c.name === 'Avond dag');
+  ok('daggrens: de lezer leest 24:00:00 als 1440 minuten', clockToMinutes('24:00:00') === 1440);
+  ok('daggrens: de gelezen avondkalender eindigt op uur 24', evening?.workEndHour === 24);
+  ok('daggrens: de gelezen band is 960–1440', !!evening && getCalendarBands(evening)?.canonical.byWeekday[1].some(b => b.start === 960 && b.end === 1440) === true);
+  const shown = await openForeign(latin1(h7));
+  const written = writeIFC(cloneDomain(shown));
+  ok('daggrens: de huidige writer schrijft 1440 als 24:00:00', minutesToClock(1440, true) === '24:00:00');
+  ok('daggrens: gewone writer schrijft dezelfde avondperiode', written.includes("IFCTIMEPERIOD('16:00:00','24:00:00')"));
   ok("BLOKKEERT 3: h7 heeft '7.5:00:00'", h7.includes("IFCTIMEPERIOD('7.5:00:00','16:00:00')"));
-  const keeps = has("IFCTIMEPERIOD('7.5:00:00','16:00:00')", "IFCTIMEPERIOD('7.25:00:00','15.75:00:00')");
+  const keeps = has("IFCTIMEPERIOD('7.5:00:00','16:00:00')", "IFCTIMEPERIOD('7.25:00:00','15.75:00:00')", "IFCTIMEPERIOD('16:00:00','24:00:00')");
   await proof('BLOKKEERT 3', 'h7 met wand, zonder bewerking', h7, 'schrijft', undefined, keeps);
   await proof('BLOKKEERT 3', 'h7 met wand, een taak hernoemd', h7, 'schrijft', (d) => { leaves(d)[0].name = 'Hernoemd'; }, keeps);
   await proof('BLOKKEERT 3', 'h7 met wand, het begin van de werkdag zelf op 8 uur', h7, 'schrijft', (d) => {
     d.calendar.workStartHour = 8; d.calendar.hoursPerDay = d.calendar.workEndHour - 8;
-  }, has("IFCTIMEPERIOD('08:00:00','16:00:00')"));
+  }, has("IFCTIMEPERIOD('08:00:00','16:00:00')", "IFCTIMEPERIOD('16:00:00','24:00:00')"));
   const eigen = text(await settle(new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')))));
   const clock = eigen.replace("IFCTIMEPERIOD('07:00:00','16:00:00')", "IFCTIMEPERIOD('7.5:00:00','16:00:00')");
   ok("BLOKKEERT 3: eigen-plus-model met '7.5:00:00'", clock !== eigen);
@@ -362,6 +381,19 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const m = /#(\d+)=IFCRECURRENCEPATTERN\(([^\n]*),\((#\d+)\)\);/.exec(clock)!;
   const second = withLines(clock.replace(m[0], `#${m[1]}=IFCRECURRENCEPATTERN(${m[2]},(${m[3]},#90100));`), ["#90100=IFCTIMEPERIOD('16.5:00:00','17:00:00');"]);
   await proof('BLOKKEERT 3', "dezelfde vorm in een tweede periode ('16.5:00:00')", second, 'tijd-deels-gelezen');
+}
+
+// Het tweede eigen bestand uit de CI heeft dezelfde daggrens, nu in een uurkalender.
+{
+  const src = walled('tests/planning/fixtures/urenperdag-oude-writer.ifc');
+  const raw = await openForeignRaw(latin1(src));
+  const late = [raw.calendar, ...(raw.resourceCalendars ?? [])].find(c => c.name === 'Late ploeg');
+  ok('daggrens urenperdag: gelezen band eindigt op 1440', !!late && getCalendarBands(late)?.canonical.byWeekday[1].some(b => b.start === 840 && b.end === 1440) === true);
+  const shown = await openForeign(latin1(src));
+  ok('daggrens urenperdag: gewone writer houdt 14:00–24:00', writeIFC(cloneDomain(shown)).includes("IFCTIMEPERIOD('14:00:00','24:00:00')"));
+  const kept = has("IFCTIMEPERIOD('14:00:00','24:00:00')");
+  await proof('daggrens urenperdag', 'met wand, zonder bewerking', src, 'schrijft', undefined, kept);
+  await proof('daggrens urenperdag', 'met wand, hernoemen', src, 'schrijft', d => { leaves(d)[0].name = 'Hernoemd'; }, kept);
 }
 
 // ── BLOKKEERT 4: dagen met 17 cijfers en met een exponent, per slot ──
