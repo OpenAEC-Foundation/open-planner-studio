@@ -21,7 +21,8 @@ import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
-import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore } from './ifcAppRoute';
+import { localTodayIso } from '@/utils/dateUtils';
+import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
 export { openInStore, openReadPlanning } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
@@ -234,11 +235,11 @@ export function firstDiff(a: string, b: string): string {
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
   | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
 /** `recalculate`: na `apply` rekent de app door (F5, `recalculated`); `applyEdit` doet beide. */
-export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void; readonly recalculate?: boolean }
+export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<void>; readonly recalculate?: boolean }
 
 /** Een bewerking toepassen, met doorrekenen als ze dat vraagt. */
 export async function applyEdit(edit: Edit, d: Domain): Promise<Domain> {
-  edit.apply(d);
+  await edit.apply(d);
   return edit.recalculate ? recalculated(d) : d;
 }
 
@@ -352,17 +353,23 @@ export function basicEdits(d: Domain): Edit[] {
 }
 
 /** De gewone bewerkingen van `basicEdits`, plus (vervolg-PR van #867) doorrekenen (F5, na de langere duur) en voortgang
- *  (begonnen op het geplande begin, 50 %). Op dezelfde vaste taak. */
+ *  (50 % via enterTaskProgress; een startvraag bevestigen met het voorstel). Op dezelfde vaste taak. */
 export function ordinaryEdits(d: Domain): Edit[] {
   const out = basicEdits(d);
   const lengthen = out.find(e => e.kind === 'duur');
   const leaf = d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone);
   if (lengthen) out.push({ kind: 'doorrekenen', label: `${lengthen.label} en doorgerekend`, apply: lengthen.apply, recalculate: true });
   if (leaf) {
-    out.push({ kind: 'voortgang', label: `${leaf.id} begonnen, 50 %`, apply: (x) => {
-      const time = byId(x).get(leaf.id)!.time;
-      time.actualStart = time.scheduleStart;
-      time.completion = 0.5;
+    out.push({ kind: 'voortgang', label: `${leaf.id} voortgang 50 % via invoer`, apply: async (x) => {
+      const { store, buildWriteIFCInput } = await storeWith(x);
+      const edit = { field: 'completion', value: 0.5 } as const;
+      const opts = { today: localTodayIso() };
+      let result = store.getState().enterTaskProgress(leaf.id, edit, opts);
+      if (!result.ok && result.reason === 'needsActualStart') {
+        result = store.getState().enterTaskProgress(leaf.id, edit, { ...opts, actualStart: result.question.latest });
+      }
+      if (!result.ok) throw new Error(`voortgangsinvoer ${leaf.id}: ${result.reason}`);
+      Object.assign(x, buildWriteIFCInput(store.getState()));
     } });
   }
   return out;

@@ -6,7 +6,7 @@ import { generatedModel } from './ifcGeneratedModel';
 import { storeWith } from './ifcAppRoute';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, ordinaryEdits, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
+import { canon, cloneDomain, applyEdit, ordinaryEdits, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
 import { writeIfcMerge, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 
 const reseed = installDeterminism();
@@ -26,12 +26,12 @@ assert.equal(canon(await openForeign(saved.bytes), reseed), canon(saved.shown, r
 // Gemaakte proef van Trias: alleen aan de uitvoerkant verandert een invoerveld vóór de echte herberekening.
 await assert.rejects(() => writeIfcMerge(d, source, async (parsed, side) => {
   const input = structuredClone(parsed);
-  if (side === 'uitvoer') ordinaryEdits(input).find(e => e.kind === 'duur')!.apply(input);
+  if (side === 'uitvoer') await ordinaryEdits(input).find(e => e.kind === 'duur')!.apply(input);
   return openReadPlanning(input, side);
 }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen' && c.detail.includes('.time.')));
 // Blijvende proef: een duurwijziging zonder F5 schrijft; de twaalf tijdvelden normaliseren gelijk.
 const longer = cloneDomain(opened);
-ordinaryEdits(longer).find(e => e.kind === 'duur')!.apply(longer);
+await ordinaryEdits(longer).find(e => e.kind === 'duur')!.apply(longer);
 const result = await tryMerge(longer, source);
 assert(result.ok, result.ok ? '' : JSON.stringify(result.error.cases));
 const wanted = await shownAfterOpen(longer);
@@ -44,6 +44,15 @@ for (const task of longer.tasks) {
   for (const key of Object.keys(task.time) as (keyof typeof task.time)[]) if (task.time[key] !== back.time[key]) fields++;
 }
 assert.equal(fields, 12, 'de twaalf opnieuw berekende tijdvelden van de eerdere stop');
+// De gedeelde voortgangsbewerking gebruikt enterTaskProgress, inclusief bevestigen van een startvraag.
+const progressed = await applyEdit(ordinaryEdits(opened).find(e => e.kind === 'voortgang')!, cloneDomain(opened));
+const progressTask = progressed.tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+assert.equal(progressTask.time.completion, 0.5);
+assert.equal(progressTask.status, 'STARTED');
+assert(progressTask.time.actualStart);
+const progressMerge = await tryMerge(progressed, source);
+assert(progressMerge.ok, progressMerge.ok ? '' : JSON.stringify(progressMerge.error.cases));
+assert.equal(canon(progressMerge.shown, reseed), canon(await openForeign(progressMerge.bytes), reseed));
 console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de uitvoer en gelijkheid met volledige heropening');
 
 // Observatie van 1113 via de echte setter: de rest hoort vóór opslaan al 0 te zijn.

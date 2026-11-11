@@ -1,0 +1,604 @@
+[
+  {
+    "file": "tests/planning/fixtures/h7-tijden-oude-writer.ifc",
+    "task": "task-muid03m2d3yp6",
+    "calendar": {
+      "id": "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "name": "Halfuur netto",
+      "description": "",
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7.5,
+      "workEndHour": 16,
+      "hoursPerDay": 8.5,
+      "holidays": []
+    },
+    "users": {
+      "tasks": [
+        "task-muid03m2d3yp6"
+      ],
+      "resources": [],
+      "assignments": []
+    },
+    "beforeIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "afterDeleteIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "afterReopenIds": [
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "cal-default"
+    ],
+    "calendarStillAfterDelete": true,
+    "calendarStillAfterReopen": true,
+    "missing": [],
+    "added": [],
+    "changed": [],
+    "sameOrder": false,
+    "writtenCalCount": 5,
+    "modelAfterDeleteIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "merge": {
+      "ok": false,
+      "cases": [
+        {
+          "kind": "planning-na-openen",
+          "detail": "planning.resourceCalendars.0.id: \"rescal-ifc-$FxXapUfGJILc3THOjNhMt\" → \"rescal-ifc-JRRH7LiFsfpdy9yHzDERfz\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "tests/planning/fixtures/h7-tijden-oude-writer.ifc",
+    "task": "task-muid03mez0ja8",
+    "calendar": {
+      "id": "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "name": "Kwartier",
+      "description": "",
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7.25,
+      "workEndHour": 15.75,
+      "hoursPerDay": 8,
+      "holidays": []
+    },
+    "users": {
+      "tasks": [
+        "task-muid03mez0ja8"
+      ],
+      "resources": [],
+      "assignments": []
+    },
+    "beforeIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "afterDeleteIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "afterReopenIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "cal-default"
+    ],
+    "calendarStillAfterDelete": true,
+    "calendarStillAfterReopen": true,
+    "missing": [],
+    "added": [],
+    "changed": [],
+    "sameOrder": false,
+    "writtenCalCount": 5,
+    "modelAfterDeleteIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "merge": {
+      "ok": false,
+      "cases": [
+        {
+          "kind": "planning-na-openen",
+          "detail": "planning.resourceCalendars.1.id: \"rescal-ifc-JRRH7LiFsfpdy9yHzDERfz\" → \"rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "tests/planning/fixtures/h7-tijden-oude-writer.ifc",
+    "task": "task-muid03mqme6o10",
+    "calendar": {
+      "id": "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "name": "Avond dag",
+      "description": "",
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 16,
+      "workEndHour": 24,
+      "hoursPerDay": 8,
+      "holidays": []
+    },
+    "users": {
+      "tasks": [
+        "task-muid03mqme6o10"
+      ],
+      "resources": [],
+      "assignments": []
+    },
+    "beforeIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "afterDeleteIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "afterReopenIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "cal-default"
+    ],
+    "calendarStillAfterDelete": true,
+    "calendarStillAfterReopen": true,
+    "missing": [],
+    "added": [],
+    "changed": [],
+    "sameOrder": false,
+    "writtenCalCount": 5,
+    "modelAfterDeleteIds": [
+      "rescal-ifc-$FxXapUfGJILc3THOjNhMt",
+      "rescal-ifc-JRRH7LiFsfpdy9yHzDERfz",
+      "rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1",
+      "rescal-ifc-S19xwPcXFFKzr7AH0darqF",
+      "cal-default"
+    ],
+    "merge": {
+      "ok": false,
+      "cases": [
+        {
+          "kind": "planning-na-openen",
+          "detail": "planning.resourceCalendars.2.id: \"rescal-ifc-N7aLzPZHzF4hoVxFoDMTR1\" → \"rescal-ifc-S19xwPcXFFKzr7AH0darqF\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "tests/planning/fixtures/urenperdag-oude-writer.ifc",
+    "task": "t-nacht",
+    "calendar": {
+      "id": "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "name": "Nachtblok",
+      "description": "",
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 22,
+      "workEndHour": 6,
+      "hoursPerDay": 8,
+      "holidays": [],
+      "workTime": {
+        "byWeekday": {
+          "1": [
+            {
+              "start": 1320,
+              "end": 1800
+            }
+          ],
+          "2": [
+            {
+              "start": 1320,
+              "end": 1800
+            }
+          ],
+          "3": [
+            {
+              "start": 1320,
+              "end": 1800
+            }
+          ],
+          "4": [
+            {
+              "start": 1320,
+              "end": 1800
+            }
+          ],
+          "5": [
+            {
+              "start": 1320,
+              "end": 1800
+            }
+          ],
+          "6": [],
+          "7": []
+        }
+      }
+    },
+    "users": {
+      "tasks": [
+        "t-nacht"
+      ],
+      "resources": [],
+      "assignments": []
+    },
+    "beforeIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "afterDeleteIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "afterReopenIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "cal-default"
+    ],
+    "calendarStillAfterDelete": true,
+    "calendarStillAfterReopen": true,
+    "missing": [],
+    "added": [],
+    "changed": [],
+    "sameOrder": false,
+    "writtenCalCount": 9,
+    "modelAfterDeleteIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "merge": {
+      "ok": false,
+      "cases": [
+        {
+          "kind": "planning-na-openen",
+          "detail": "planning.resourceCalendars.1.id: \"rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF\" → \"rescal-ifc-3WTqntjNdr5U$5qjw6xO7k\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "tests/planning/fixtures/urenperdag-oude-writer.ifc",
+    "task": "t-spanne",
+    "calendar": {
+      "id": "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "name": "Spanne",
+      "description": "",
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7,
+      "workEndHour": 17,
+      "hoursPerDay": 9,
+      "holidays": [],
+      "workTime": {
+        "byWeekday": {
+          "1": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 1020
+            }
+          ],
+          "2": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 1020
+            }
+          ],
+          "3": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 1020
+            }
+          ],
+          "4": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 1020
+            }
+          ],
+          "5": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 1020
+            }
+          ],
+          "6": [],
+          "7": []
+        }
+      }
+    },
+    "users": {
+      "tasks": [
+        "t-spanne"
+      ],
+      "resources": [],
+      "assignments": []
+    },
+    "beforeIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "afterDeleteIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "afterReopenIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "cal-default"
+    ],
+    "calendarStillAfterDelete": true,
+    "calendarStillAfterReopen": true,
+    "missing": [],
+    "added": [],
+    "changed": [],
+    "sameOrder": false,
+    "writtenCalCount": 9,
+    "modelAfterDeleteIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "merge": {
+      "ok": false,
+      "cases": [
+        {
+          "kind": "planning-na-openen",
+          "detail": "planning.resourceCalendars.3.id: \"rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA\" → \"rescal-ifc-0RziPdFTfq46dL4sXPp8Es\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "tests/planning/fixtures/urenperdag-oude-writer.ifc",
+    "task": "t-maandag",
+    "calendar": {
+      "id": "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "name": "Lange maandag",
+      "description": "",
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7,
+      "workEndHour": 17,
+      "hoursPerDay": 8,
+      "holidays": [],
+      "workTime": {
+        "byWeekday": {
+          "1": [
+            {
+              "start": 420,
+              "end": 1020
+            }
+          ],
+          "2": [
+            {
+              "start": 420,
+              "end": 900
+            }
+          ],
+          "3": [
+            {
+              "start": 420,
+              "end": 900
+            }
+          ],
+          "4": [
+            {
+              "start": 420,
+              "end": 900
+            }
+          ],
+          "5": [
+            {
+              "start": 420,
+              "end": 900
+            }
+          ],
+          "6": [],
+          "7": []
+        }
+      }
+    },
+    "users": {
+      "tasks": [
+        "t-maandag"
+      ],
+      "resources": [],
+      "assignments": []
+    },
+    "beforeIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "afterDeleteIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "afterReopenIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "cal-default"
+    ],
+    "calendarStillAfterDelete": true,
+    "calendarStillAfterReopen": true,
+    "missing": [],
+    "added": [],
+    "changed": [],
+    "sameOrder": false,
+    "writtenCalCount": 9,
+    "modelAfterDeleteIds": [
+      "rescal-ifc-2eo4dRNcWgZw3aQAarbFAf",
+      "rescal-ifc-0TQXQ79vaRIKOrwTlRR7eF",
+      "rescal-ifc-3WTqntjNdr5U$5qjw6xO7k",
+      "rescal-ifc-0kGmvTM7NkCsMqxBqlbxhA",
+      "rescal-ifc-0RziPdFTfq46dL4sXPp8Es",
+      "rescal-ifc-2tjB_83sHJE7lTWFBaLSjr",
+      "rescal-ifc-23WHkNns$nje3jcCxSzxkG",
+      "rescal-ifc-1x5PUqmdQiyBVyecYSBqBL",
+      "cal-default"
+    ],
+    "merge": {
+      "ok": false,
+      "cases": [
+        {
+          "kind": "planning-na-openen",
+          "detail": "planning.resourceCalendars.5.id: \"rescal-ifc-2tjB_83sHJE7lTWFBaLSjr\" → \"rescal-ifc-23WHkNns$nje3jcCxSzxkG\""
+        }
+      ]
+    }
+  }
+]
