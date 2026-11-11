@@ -387,3 +387,21 @@ voortgangsgevallen schrijven dan weer stil met duur 2.333333 en de proef wordt r
 SHA-256 vóór/na gelijk. Op de herstelde code zijn herleestoets en oude-eigen groen; de toets van Trias is tien van tien.
 1107 is verwijderd. De veilige weigeringen van de vier voortgangsgevallen blijven voor de PR voor 1109; 1116 blijft
 BLOKKEERT vóór 1c. Meetbewijs: docs/superpowers/evidence/1107-heropenkosten/v7/ en v8/.
+
+### Definitieve eindtelling en controles van #903
+
+Alle veertien gevraagde gerichte eindchecks zijn groen, elk onder een eigen flock. De telling draaide één keer na de
+laatste codewijziging: 3263 bewerkingen, 2575 geschreven, 688 getypeerd geweigerd, 0 anders, over 67 bestanden.
+Alle 660 rijen zijn vergeleken met main na #898 (2578/685/0). Vier nieuwe weigeringen: drie op
+ifc-arity-oude-writer (duur, duur met F5 en voortgang; importvlag 1116), één op de 17-cijfers-villa (50 % voortgang;
+ongewijzigde duur 2.3333333333333335 → 2.333333, 1109). b5 schrijft bij echte voortgang juist weer: één verbetering,
+netto drie minder geschreven. Geen nieuwe weigering zonder bewerking; de al verklaarde uitzonderingen blijven gelijk.
+Alle geschreven merges zijn via de volledige bytes-route vergeleken met de naad. Geen nieuwe weigering door de
+volledige herleestoets zelf, naast de vier genoemde gevallen. De bevindingen zijn niet gerepareerd.
+
+Pariteit op main 20b9af79a is groen; de toets van Trias schrijft tien van tien. De vier gemaakte minutenproeven in
+strikt weigeren op het ongewijzigde afgeleide dagengetal 3.5 → 1.5. Vijf schrijvende combinaties met een echte duuractie
+krijgen een onafhankelijke volledige heropening in plaats van de te algemene oude onafhankelijkheidsverwachting.
+Geen uitzondering in de writer. Bewijs en alle nieuwe gevallen:
+`docs/superpowers/evidence/2026-11-11-1107-afronding.md` en `1107-heropenkosten/v8/nieuwe-weigeringen.md`.
+De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.

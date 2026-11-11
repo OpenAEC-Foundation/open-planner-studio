@@ -1947,10 +1947,14 @@ en noem het in je rapport of PR-tekst.
      de writer schrijft dan `UnchangedSinceImport`, de pset `OPS_ImportProvenance` en de koppeling niet meer, en de
      verliesbewaking weigert (`niet-gedragen`: "IFCPROPERTYSINGLEVALUE #412 (UnchangedSinceImport): ontbreekt in de uitvoer
      na de bewerking"). Geen verlies: getypeerd, geen bytes. Vermoed, niet gemeten: elke echte bewerking wist de vlag;
-     de andere bewerkingen in de telling zijn kale wijzigingen van het domein en raken haar niet. Richting: het
+     duur en voortgang lopen nu via de app-acties (doorrekenen gebruikt de duuractie plus F5); de overige
+     bewerkingen in de telling zijn nog kale wijzigingen van het domein. Richting: het
      wegvallen van die property, pset en koppeling verklaren met de wijziging van `importPristine` tegenover `opened`
      (vergelijk 1110). Besluit van Trias (11 november 2026): BLOKKEERT vóór 1c, op te lossen in de PR voor 1109.
-     Uit #903. — B
+     Aanvulling eindtelling #903: op dezelfde taak `task-mula7vhu11iq28` weigeren nu ook de echte duuractie (+1 dag)
+     en die actie met F5 op dezelfde ontbrekende property #412, pset #413 en relatie #414. Drie gevallen tegenover
+     main na #898, alle getypeerd zonder bytes. Niet gerepareerd. Volledig per geval:
+     `docs/superpowers/evidence/1107-heropenkosten/v8/nieuwe-weigeringen.md`. Uit #903. — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
