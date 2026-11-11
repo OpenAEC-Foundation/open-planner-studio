@@ -3473,3 +3473,17 @@ en noem het in je rapport of PR-tekst.
       een eigen waarde heeft: dan staat dezelfde propertynaam twee keer in één pset (schendt `UniquePropertyNames`;
       `checkIfcSchema` meldt het). OPS leest zo'n bestand wel goed terug; het gaat om een zeldzaam naamconflict. Fix:
       het id buiten de vrije naamruimte van de codetypen bewaren. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1454. **VERVOLG: de bewaking `readAsOwn` voor het waarde-id in de merge heeft geen regressietest.** `readAsOwn` in
+      `src/services/ifc/foreign/mergeWriter.ts` (#885) laat de merge een vreemd lid `<codetype> #id` weigeren als de
+      planning een codetype met die naam heeft. Zonder die regel schrijft de merge door en krijgt de taak bij herlezen
+      de verkeerde waarde (bewezen door Sol). De bestaande proef in `check-ifc-foreign-preserve.ts` (Tower) dekt dit niet.
+      Toe te voegen: een geldige bron zonder codetemplates met een vreemd `Later #id`, daarna codetype `Later` met twee
+      gelijke codeteksten en de tweede gekozen ⇒ de merge weigert met `vreemd-lid`. In dezelfde proef kan de ongebruikte
+      `firstId` weg. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1455. **VERVOLG: een codetype hernoemen laat de merge weigeren (`merge-needs-phase2`).** `Status` → `Nieuwe status` op een
+      bestand met een vreemd deel: de enumeratie en het propertytemplate krijgen door de naamkoppeling in
+      `lossCheck.ts` (rond regel 613) geen tegenhanger. Bestaat ook op main (ook zonder dubbele codeteksten); de merge
+      wordt nog niet vanuit Opslaan aangeroepen. Fix: hernoemen van codedefinities expliciet ondersteunen in de
+      koppeling en de verliesverklaring. Uit de review van #889, Sol, BEVESTIGD. — B
