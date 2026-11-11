@@ -181,7 +181,7 @@ const EXAMPLES: readonly (readonly [string, Use, string, Value])[] = [
   ['dagen-en-tijd', 'werkelijk', 'P1DT4H', d(1.5)],
   ['dagen-en-tijd', 'rest-dagtaak', 'P2DT12H', d(3.5)],
   ['dagen-en-tijd', 'rest-urentaak', 'P1DT4H', m(720)],
-  ['dagen-en-tijd', 'lag-kalendertijd', 'P1DT2H', m(600)],
+  ['dagen-en-tijd', 'lag-kalendertijd', 'P1DT2H', m(1560)],
 ];
 for (const [name, use, v, want] of EXAMPLES) {
   const slot = SLOT_OF[use];
