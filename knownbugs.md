@@ -1988,6 +1988,37 @@ en noem het in je rapport of PR-tekst.
      de domeinwaarden rechtstreeks vergelijken en de toegelaten afronding van de gewone opslag expliciet benoemen. Sol,
      gerichte run op #903. — B
 
+1120. **BLOKKEERT vóór 1c: een eigen bestand met een oude scalarfractie in een werkperiode weigert zonder bewerking.**
+     `tests/planning/fixtures/periode-oude-scalarfractie-v2026.8.1.ifc` (van #897) heeft
+     `#14=IFCTIMEPERIOD('9.123456:00:00','16:00:00')`. Met een wand erbij en zonder bewerking weigert de merge
+     (`src/services/ifc/foreign/mergeWriter.ts`) getypeerd, zonder bytes: `merge-needs-phase2`, `planning-na-openen`,
+     `planning.calendar.ifcTimePeriods.0.end: 960 → 1027.40736`. 1027.40736 is het begin (547.40736 minuten, 9.123456
+     uur) plus 480. 960 is de bewaarde eindwaarde van de bronperiode (`ifcTimePeriods`), niet de werktijd die de
+     planner zag: voor deze oude scalaire kalender verlengt de migratie (`repairCalendar` in
+     `src/state/migrations/minuteModel.ts`) het effectieve einde bij openen tot begin plus uren per dag. De melding
+     noemt het eerste verschil in het domein; zij bewijst op zichzelf geen zichtbaar verlies in de planning. Het
+     ontstond toen #897 (de kalendertijd in minuten, `calendar.ifcTimePeriods`) en #903 (de volledige herleestoets) op
+     11 november 2026 kort na elkaar in main kwamen; ze zijn niet samen getest. Vermoed, niet uitgezocht: de merge kent
+     de nieuwe velden en schrijfregels van #897 nog niet, en schrijft de bewaarde bronperiode niet terug zoals zij
+     binnenkwam. Geen planner raakt het: de merge heeft geen aanroeper. Tijdelijk staat alleen dit bestand in
+     `OWN_MAY_REFUSE` in `tests/planning/check-ifc-foreign-merge-telling.ts`, om de CI op main groen te krijgen (besluit
+     van Trias, 11 november 2026). **Eis: #908 lost de oorzaak op en haalt die regel weer weg**; een eigen bestand
+     weigert nooit zonder een wijziging van de planner. — B
+
+1121. **VERVOLG: de telling bewaakt bij een bekende weigering niet de reden.** In
+     `tests/planning/check-ifc-foreign-merge-telling.ts` is voor een eigen bestand zonder bewerking de naam in
+     `OWN_MAY_REFUSE` genoeg: elke getypeerde weigering van dat bestand blijft groen, ook een andere dan de reden die
+     erbij staat (bijvoorbeeld `tijd-deels-gelezen` in plaats van `planning-na-openen`). Een onverwachte fout blijft
+     wel rood. Richting: leg per regel ook het verwachte soort weigering vast en vergelijk dat. Gevonden door de review
+     van #909 (Terra). — B
+
+1122. **VERVOLG: de groepstabel van de telling noemt een weigering "schrijft zonder bewerking".** De indeling per
+     groep in `tests/planning/check-ifc-foreign-merge-telling.ts` kijkt alleen of er `niet-gedragen`-gevallen zijn. Een
+     bestand dat om een andere reden weigert (`planning-na-openen`, zoals het bestand van punt 1120) komt daardoor in de
+     groep "eigen, schrijft zonder bewerking": de run op #909 telt daar 53 bestanden, de tabel per bestand toont 49
+     schrijvers. De tabel per bestand en de exitcode kloppen wel. Richting: deel de groepen in op de werkelijke
+     uitkomst. Gevonden door de review van #909 (Terra). — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
@@ -3346,23 +3377,13 @@ en noem het in je rapport of PR-tekst.
      met een host. Code-review ronde 8 van #893 (GPT-6.1-Terra). Voorstel: een bewust tegengehouden schrijfactie niet in
      `pending` zetten. — B
 
-1362. **VERVOLG: bij een leesfout van de opslag kan de layoutdialoog de eigen layouts overschrijven.** De lader
-     (`loadStoredLayouts` in `src/utils/settingsStore.ts`, rond :489, ook de oude sleutel `ops-layouts`) leest een
-     leesfout als een lege lijst. `LayoutsDialog` (`src/components/dialogs/LayoutsDialog.tsx`, rond :107) begint dan met
-     een lege lijst, en Opslaan na herstel schrijft alleen de nieuwe layout weg; de oude layouts en de layoutkeuze van
-     het rapport zijn weg. Ook het Rapport-tabblad ziet een leesfout op `ops-layouts` als een verwijderde layout.
-     Alleen met een kunstmatige leesfout gezien; de oorzaak staat al op main. Gerichte review van #893 (GPT-6.1-Sol,
-     ronde 3, label [BEVESTIGD] [BLOKKEERT]) en code-review ronde 9 (GPT-6.1-Terra, [BEVESTIGD] [BLOKKEERT]); als
-     VERVOLG ingedeeld omdat het alleen bij een kunstmatige leesfout gebeurt (projectleiding, 11 november 2026).
-     Voorstel: laat de lader een leesfout teruggeven in plaats van een lege lijst, en schrijf geen lijst terug die op
-     een mislukte lezing berust. — B
-
 1363. **VERVOLG: na een leesfout blijft de gekozen layout van het rapport ongeladen, en toont het rapport alle
      taken.** `useReportLayouts` (`src/components/panels/reportStudio/useReportLayouts.ts`) laadt bij een leesfout niet en
      probeert het na herstel niet opnieuw. `GanttReportStudio.tsx` (rond :275) gebruikt dan alle taken, zonder melding,
      en de PDF-export wacht niet op de layout. Pas naar Start en terug laadt de layout weer. De keuze zelf blijft
      bewaard. Alleen met een kunstmatige leesfout gezien. Gerichte review van #893 (GPT-6.1-Sol, ronde 3) en
-     code-review ronde 9 (GPT-6.1-Terra), beide [BEVESTIGD] [BLOKKEERT]; als VERVOLG ingedeeld zoals 1362. Voorstel:
+     code-review ronde 9 (GPT-6.1-Terra), beide [BEVESTIGD] [BLOKKEERT]; als VERVOLG ingedeeld omdat het alleen bij een kunstmatige leesfout gebeurt
+     (projectleiding, 11 november 2026). Voorstel:
      laad opnieuw zodra de opslag weer te lezen is, en exporteer niet zolang een gekozen layout niet geladen is. — B
 
 1364. **VERVOLG: de browserstap voor een leesfout bij de layouts toetst alleen de bewaarde id.** De stap in
@@ -3370,6 +3391,21 @@ en noem het in je rapport of PR-tekst.
      opgeslagen `layoutId`, niet de aangevinkte layout en de rijen op het papier (zie 1363). Gerichte review van #893
      (GPT-6.1-Sol, ronde 3) en code-review ronde 9 (GPT-6.1-Terra). Voorstel: wacht op een waarneembare geweigerde
      lezing en controleer na herstel ook layout en rijen. — B
+
+1365. **VERVOLG: een geslaagde layoutopslag met een mislukte controle-lezing meldt "niets veranderd".**
+     `updateLayouts` (`src/utils/settingsStore.ts`, rond :584) schrijft de layouts en leest ze terug; mislukt alleen die
+     controle-lezing, dan staat de wijziging wel in de opslag, maar `layoutsNotSaved`
+     (`src/components/viewControls/layoutsNotSaved.ts:10`) meldt dat er niets veranderd is. Slaat de gebruiker in het
+     filtervenster (`FilterDialog.tsx`, rond :346) daarna opnieuw op, dan komt het filter er twee keer in, met een
+     nieuwe id. Alleen met een kunstmatige leesfout direct na een geslaagde schrijfactie. Review van #905
+     (GPT-6.1-Terra ronde 4 en GPT-6.1-Sol ronde 4, beide BEVESTIGD). Voorstel: onderscheid "niet geschreven" van "niet
+     te controleren" en meld het tweede anders, of maak opnieuw opslaan idempotent. — B
+
+1366. **VERVOLG: testgaten bij het opslaan van layouts onder een opslagfout.** Geen test dekt: een schrijffout vanuit
+     het layoutvenster, opnieuw opslaan na herstel van de opslag, verwijderen tijdens een opslagfout, en de overgang
+     van een geslaagde schrijfactie naar een mislukte controle-lezing (zie 1365). Review van #905 (GPT-6.1-Sol,
+     ronde 4, BEVESTIGD). Voorstel: voeg deze stappen toe aan de bestaande routes in
+     `tests/browser/layout-presets.spec.ts` en `tests/planning/check-layout-presets.ts`. — B
 
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
