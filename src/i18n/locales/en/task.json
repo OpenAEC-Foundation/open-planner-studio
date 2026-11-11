@@ -561,6 +561,8 @@
     "valueCode": "Code",
     "valueDescription": "Description",
     "valueColor": "Colour",
+    "moveValueUp": "Move value up",
+    "moveValueDown": "Move value down",
     "newValuePrefix": "V",
     "newTypePlaceholder": "New code type (e.g. Location)",
     "addField": "Add field",

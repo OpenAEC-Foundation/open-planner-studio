@@ -563,6 +563,8 @@
     "valueCode": "Kód",
     "valueDescription": "Popis",
     "valueColor": "Farba",
+    "moveValueUp": "Posunúť hodnotu nahor",
+    "moveValueDown": "Posunúť hodnotu nadol",
     "newValuePrefix": "H",
     "newTypePlaceholder": "Nový typ kódu (napr. Umiestnenie)",
     "addField": "Pridať pole",

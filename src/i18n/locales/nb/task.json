@@ -555,6 +555,8 @@
     "valueCode": "Kode",
     "valueDescription": "Beskrivelse",
     "valueColor": "Farge",
+    "moveValueUp": "Flytt verdien opp",
+    "moveValueDown": "Flytt verdien ned",
     "newValuePrefix": "V",
     "newTypePlaceholder": "Ny kodetype (f.eks. Lokasjon)",
     "addField": "Legg til felt",

@@ -16,7 +16,7 @@ Een **eigen veld** (in het venster onder *Gebruikersvelden*) is een vrij invulve
 
 1. Kies *Planning › Structuur › Codes & velden*.
 2. **Een codetype maken.** Typ bij *Nieuw codetype (bv. Locatie)* de naam en druk op Enter, of klik op *Codetype toevoegen*.
-3. **Waarden toevoegen.** Klik onder het codetype op *Waarde toevoegen*. De app zet er een voorlopige code neer, zoals *W1*. Pas die aan in het vak *Code* (kort, zoals je hem zou typen: *N*), vul zo nodig een *Omschrijving* in (*Noordvleugel*) en kies een *Kleur*. Een wijziging telt zodra je het vak verlaat of op Enter drukt.
+3. **Waarden toevoegen.** Klik onder het codetype op *Waarde toevoegen*. De app zet er een voorlopige code neer, zoals *W1*. Pas die aan in het vak *Code* (kort, zoals je hem zou typen: *N*), vul zo nodig een *Omschrijving* in (*Noordvleugel*) en kies een *Kleur*. Een wijziging telt zodra je het vak verlaat of op Enter drukt. De volgorde van de waarden is ook de volgorde van de keuzelijst bij een taak. Verplaats een waarde met de pijltjes ↑ en ↓ achter de rij; de waarde op de taken verandert daarbij niet.
 4. **Een eigen veld maken.** Typ bij *Nieuw veld (bv. Aannemer)* de naam, kies het type en klik op *Veld toevoegen* (of druk op Enter).
 
 Het venster heeft geen OK-knop: elke wijziging geldt meteen. Het type van een veld kun je achteraf niet meer veranderen, alleen de naam. Wil je een ander type, maak dan een nieuw veld.

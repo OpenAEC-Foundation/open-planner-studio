@@ -16,7 +16,7 @@ A **custom field** (under *Custom fields* in the window) is a free input field w
 
 1. Choose *Planning › Structure › Codes & fields*.
 2. **Creating a code type.** Under *New code type (e.g. Location)* type the name and press Enter, or click *Add code type*.
-3. **Adding values.** Under the code type, click *Add value*. The app puts a provisional code there, such as *V1*. Change it in the *Code* box (short, the way you would type it: *N*), fill in a *Description* if needed (*North wing*) and pick a *Colour*. A change counts as soon as you leave the box or press Enter.
+3. **Adding values.** Under the code type, click *Add value*. The app puts a provisional code there, such as *V1*. Change it in the *Code* box (short, the way you would type it: *N*), fill in a *Description* if needed (*North wing*) and pick a *Colour*. A change counts as soon as you leave the box or press Enter. The order of the values is also the order of the drop-down on a task. Move a value with the ↑ and ↓ arrows at the end of its row; the value on the tasks does not change.
 4. **Creating a custom field.** Under *New field (e.g. Contractor)* type the name, choose the type and click *Add field* (or press Enter).
 
 The window has no OK button: every change applies at once. You cannot change a field's type afterwards, only its name. If you want a different type, create a new field.

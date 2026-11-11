@@ -551,6 +551,8 @@
     "valueCode": "코드",
     "valueDescription": "설명",
     "valueColor": "색상",
+    "moveValueUp": "값 위로 이동",
+    "moveValueDown": "값 아래로 이동",
     "newValuePrefix": "V",
     "newTypePlaceholder": "새 코드 유형 (예: 위치)",
     "addField": "필드 추가",

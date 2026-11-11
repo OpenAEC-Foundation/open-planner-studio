@@ -563,6 +563,8 @@
     "valueCode": "Kód",
     "valueDescription": "Popis",
     "valueColor": "Barva",
+    "moveValueUp": "Posunout hodnotu nahoru",
+    "moveValueDown": "Posunout hodnotu dolů",
     "newValuePrefix": "H",
     "newTypePlaceholder": "Nový typ kódu (např. Lokalita)",
     "addField": "Přidat pole",

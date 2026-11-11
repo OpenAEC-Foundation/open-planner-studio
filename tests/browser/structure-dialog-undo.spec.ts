@@ -133,3 +133,33 @@ test('codes & velden: Escape tijdens het typen bewaart de getypte code', async (
   expect(after.code).toBe('K1');
   expect(after.undo - before.undo).toBe(1);
 });
+
+test('codes & velden: een waarde omhoog of omlaag zetten is één undo-stap en laat de taak ongemoeid', async ({ page, ops: _ops }) => {
+  const ids = await openStructure(page);
+  await page.evaluate((typeId) => {
+    const s = window.__OPS__!.store.getState();
+    s.addActivityCodeValue(typeId, { code: 'OV' });
+    s.setUI({ showStructureDialog: false });
+    s.setUI({ showStructureDialog: true });
+  }, ids.typeId);
+  const order = () => page.evaluate((typeId) =>
+    window.__OPS__!.store.getState().activityCodeTypes.find(t => t.id === typeId)!.values.map(v => v.code), ids.typeId);
+  const undoCount = () => structure(page, ids).then(s => s.undo);
+  expect(await order()).toEqual(['BG', 'OV']);
+  const before = await undoCount();
+
+  // De bovenste kan niet omhoog, de onderste niet omlaag.
+  await expect(dialog(page).getByRole('button', { name: /^(Waarde omhoog|Move value up)$/ }).first()).toBeDisabled();
+  await expect(dialog(page).getByRole('button', { name: /^(Waarde omlaag|Move value down)$/ }).last()).toBeDisabled();
+
+  await dialog(page).getByRole('button', { name: /^(Waarde omhoog|Move value up)$/ }).last().click();
+  await expect.poll(order).toEqual(['OV', 'BG']);
+  expect((await undoCount()) - before).toBe(1);
+
+  await dialog(page).getByRole('button', { name: /^(Waarde omlaag|Move value down)$/ }).first().click();
+  await expect.poll(order).toEqual(['BG', 'OV']);
+
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(order).toEqual(['OV', 'BG']);
+});

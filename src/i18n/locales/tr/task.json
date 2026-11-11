@@ -555,6 +555,8 @@
     "valueCode": "Kod",
     "valueDescription": "Açıklama",
     "valueColor": "Renk",
+    "moveValueUp": "Değeri yukarı taşı",
+    "moveValueDown": "Değeri aşağı taşı",
     "newValuePrefix": "D",
     "newTypePlaceholder": "Yeni kod türü (örn. Lokasyon)",
     "addField": "Alan ekle",

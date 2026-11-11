@@ -551,6 +551,8 @@
     "valueCode": "ລະຫັດ",
     "valueDescription": "ຄຳອະທິບາຍ",
     "valueColor": "ສີ",
+    "moveValueUp": "ຍ້າຍຄ່າຂຶ້ນ",
+    "moveValueDown": "ຍ້າຍຄ່າລົງ",
     "newValuePrefix": "V",
     "newTypePlaceholder": "ປະເພດລະຫັດໃໝ່ (ເຊັ່ນ ສະຖານທີ່)",
     "addField": "ເພີ່ມຊ່ອງຂໍ້ມູນ",

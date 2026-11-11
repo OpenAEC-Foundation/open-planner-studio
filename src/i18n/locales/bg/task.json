@@ -555,6 +555,8 @@
     "valueCode": "Код",
     "valueDescription": "Описание",
     "valueColor": "Цвят",
+    "moveValueUp": "Преместване на стойността нагоре",
+    "moveValueDown": "Преместване на стойността надолу",
     "newValuePrefix": "С",
     "newTypePlaceholder": "Нов тип код (напр. Местоположение)",
     "addField": "Добави поле",

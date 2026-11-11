@@ -555,6 +555,8 @@
     "valueCode": "Kod",
     "valueDescription": "Beskrivning",
     "valueColor": "Färg",
+    "moveValueUp": "Flytta värdet uppåt",
+    "moveValueDown": "Flytta värdet nedåt",
     "newValuePrefix": "V",
     "newTypePlaceholder": "Ny kodtyp (t.ex. Plats)",
     "addField": "Lägg till fält",

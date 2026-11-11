@@ -37,6 +37,7 @@ check-calendar-dialog-commits.ts matrix
 check-calendar-hours.ts matrix
 check-calendar-mirror.ts matrix
 check-capacity-tolerance.ts matrix
+check-code-value-volgorde.ts matrix
 check-commands.ts matrix
 check-context-menu-scope.ts matrix
 check-contour-engine.ts matrix
