@@ -92,6 +92,7 @@
  *   - `CreationDate` van het eigen werkplan en het eigen live-werkschema (een vast id): het moment van opslaan (een
  *     baselinekop draagt haar eigen datum en valt hier niet onder).
  */
+import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -1793,19 +1794,20 @@ function plannerReplacedDate(ctx: O1Context, r: SlotRestore): boolean {
 /**
  * Heeft het brontoken van een datum- of tijdslot dezelfde betekenis als het token van de writer in O0 (fixronde 1 van
  * #886)? De betekenis van de tekst, niet hoe de lezer haar in dit slot leest (die kan een deel weglaten): een moment of
- * klok zoals de ISO-norm het leest (`Date.parse`, met seconden en tijdzone; een klok op een vaste dag), de oude uurbreuk
+ * klok zoals de ISO-norm het leest (`parseInstant`, vaste tijdas, met seconden en expliciete tijdzone; een klok op een vaste dag), de oude uurbreuk
  * `'7.25:00:00'` die de lezer in de enige periode van het enige patroon exact leest (`scalarHourFromClock`), een datum als
  * tekst. Een tekst zonder betekenis, of een ander slot: niet gedragen (de writer schreef iets anders).
  */
-function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined): boolean {
+export function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined): boolean {
   const at = DATETIME_SLOTS[index.type(r.chunk)];
   const src = r.token.trim(), out = o0Token?.trim() ?? '';
   if (!at || !at.slots.includes(r.arg) || !src.startsWith("'") || !out.startsWith("'")) return false;
   const oldClock = at.kind === 'tijd' && onlyPeriodOfOnlyPattern(index, r.chunk);
   const DAY = '1970-01-01T';
   const meaning = (text: string): number | string | undefined => {
+    if (!existingDateTime(text, at.kind, oldClock)) return undefined;
     if (at.kind === 'datum') return text;
-    const ms = at.kind === 'tijd' ? Date.parse(DAY + text) - Date.parse(`${DAY}00:00:00`) : Date.parse(text);
+    const ms = at.kind === 'tijd' ? parseInstant(DAY + text).getTime() - parseInstant(`${DAY}00:00:00`).getTime() : parseInstant(text).getTime();
     if (Number.isFinite(ms)) return ms;
     return oldClock && OLD_FRACTIONAL_CLOCK.test(text) ? scalarHourFromClock(text) * 3_600_000 : undefined;
   };
@@ -2145,11 +2147,28 @@ export type PartialDateTime = 'zone' | 'vorm';
  *  `${String(cal.workStartHour).padStart(2, '0')}:00:00`, dus `7.5:00:00` voor half acht. */
 export const OLD_FRACTIONAL_CLOCK = /^\d+\.\d+:00:00$/;
 
+/** Kalendergeldigheid vóór de vormcontrole én de betekenisvergelijking. JavaScript mag een onmogelijke datum
+ *  niet doorschuiven en zo alsnog gedragen laten heten. De bestaande ISO-toets bewaakt ook de klok en offset;
+ *  Alleen in een tijdslot is precies 24:00 een bestaande daggrens; een datum-tijd met T24:00 weigert.
+ *  De oude uurbreuk blijft alleen geldig
+ *  op de plek waar de lezer haar exact draagt, binnen dezelfde klokdag. */
+function existingDateTime(text: string, kind: DateTimeKind, oldClock: boolean): boolean {
+  if (kind === 'tijd' && /^24:00(?::00(?:\.0+)?)?$/.test(text)) return true;
+  if (oldClock && kind === 'tijd' && OLD_FRACTIONAL_CLOCK.test(text)) {
+    const hour = scalarHourFromClock(text);
+    return Number.isFinite(hour) && hour >= 0 && hour < 24;
+  }
+  return (kind !== 'datum' || text.length === 10)
+    && isStrictIsoDateTime(kind === 'tijd' ? `1970-01-01T${text}` : text,
+      { maxFractionDigits: text.length, offsetColonOptional: true });
+}
+
 /** Leest de lezer deze waarde anders dan haar tekst zegt? Een lijst van vormen die mogen; zie `PartialDateTime`.
  *  `oldClock`: de tijd staat waar de lezer een oude klok als uurbreuk exact leest (`dateTimeTexts`); daar mag ook die vorm
  *  (`OLD_FRACTIONAL_CLOCK`, fixronde 7 van #867). */
 export function partialDateTime(text: string, kind: DateTimeKind, oldClock = false): PartialDateTime | undefined {
   const t = text.trim();
+  if (!existingDateTime(t, kind, oldClock)) return 'vorm';
   const clock = '\\d\\d:\\d\\d(?::00(?:\\.0+)?)?';
   const date = '\\d{4}-\\d\\d-\\d\\d';
   const allowed = kind === 'tijd' ? `^${clock}$` : kind === 'datum' ? `^${date}$` : `^${date}(?:T${clock})?$`;
