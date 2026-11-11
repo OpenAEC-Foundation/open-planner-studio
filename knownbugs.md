@@ -3245,7 +3245,8 @@ en noem het in je rapport of PR-tekst.
      Rapport-tabblad schrijft alleen de velden die hij wijzigt (`patchReportSettings` in
      `src/utils/reportSettings.ts`), bovenop wat op dat moment opgeslagen staat. Wijzig je in twee vensters (of in het
      venster en via de host) hetzelfde veld, zoals de kolomlijst of de balkkleuren, dan blijft alleen de laatste
-     wijziging staan; de lijst van het andere venster gaat niet per item samen. In één venster gaat niets verloren. Gezien bij het ombouwen naar één gedeelde stand (#893). Voorstel: alleen
+     wijziging staan; de lijst van het andere venster gaat niet per item samen. Met één venster en werkende opslag is
+     geen verlies bekend. Gezien bij het ombouwen naar één gedeelde stand (#893). Voorstel: alleen
      oplossen als planners echt in twee vensters aan hetzelfde rapport werken. — S
 
 1359. **VERVOLG: een keuze die de opslag weigerde, komt na herstel pas bij de volgende klik in de opslag.** Kan de
@@ -3260,6 +3261,14 @@ en noem het in je rapport of PR-tekst.
      en de varianten `w-20` en `spaced` hebben geen aanroeper meer. Ook `src/services/print/printPreview.ts` (rond :816
      en :1018) verwijst nog naar het oude paneel. Code-review ronde 7 van #893 (GPT-6.1-Terra). Voorstel: varianten
      en verwijzingen weghalen. — B
+
+1361. **VERVOLG: een schrijfactie die de host bewust tegenhoudt, komt later toch in de opslag.** Ingebed houdt
+     `writeLocal` (`src/utils/settingsStore.ts`, `siteHostSettingWriteHeld`) een schrijfactie tegen zolang een laat
+     antwoord van de host nog niet is toegepast. `patchReportSettings` (`src/utils/reportSettings.ts`) zet zo'n keuze
+     in `pending`, en de volgende schrijfactie die lukt, bewaart haar alsnog over de waarde van de host. Proef met een
+     hostfixture (A1 van de host, tegengehouden A2 komt na vrijgeven en een andere klik in de opslag). Alleen ingebed,
+     met een host. Code-review ronde 8 van #893 (GPT-6.1-Terra). Voorstel: een bewust tegengehouden schrijfactie niet in
+     `pending` zetten. — B
 
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in

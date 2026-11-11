@@ -729,6 +729,38 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   expect(await saved()).toMatchObject({ reportType: 'gantt', layoutId: '', followView: true });
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(async () => (await saved()).followView).toBe(false);
+  // Een opslag die even niet te lezen is, is geen verwijderde layout (review Terra #893, ronde 8): naar Start en
+  // terug terwijl lezen faalt, dan na herstel een andere keuze ⇒ de gekozen layout staat nog in de opslag.
+  await storeLayouts([missingFieldLayout]);
+  await page.locator('[data-rs-layout="layout-rapport"]').click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('layout-rapport');
+  await page.locator('[data-ops-ribbon-tab="start"]').click();
+  await page.evaluate(() => {
+    const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
+    const realGetItem = w.opsRealGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      if (key.startsWith('ops-')) throw new DOMException('geweigerd', 'SecurityError');
+      return realGetItem.call(this, key);
+    };
+  });
+  await page.locator('[data-ops-ribbon-tab="report"]').click();
+  await expect(page.locator('[data-rs-studio]')).toBeVisible();
+  // Laat het laden van de layouts en een eventuele terugval eerst lopen, dan pas werkt de opslag weer.
+  await page.evaluate(() => new Promise(resolve => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), 50)));
+  await page.evaluate(() => {
+    Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;
+  });
+  const paperBefore = (await saved()).paperSize;
+  const otherPaper = paperBefore === 'A2' ? 'A3' : 'A2';
+  await openStep(page, 'page');
+  await page.locator(`[data-rs-segmented="paperSize"] [data-rs-value="${otherPaper}"]`).click();
+  await expect.poll(async () => (await saved()).paperSize).toBe(otherPaper);
+  expect(await saved()).toMatchObject({ layoutId: 'layout-rapport', followView: false });
+  await page.locator(`[data-rs-segmented="paperSize"] [data-rs-value="${paperBefore}"]`).click();
+  await expect.poll(async () => (await saved()).paperSize).toBe(paperBefore);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('');
 
   // Een layout kiezen verandert alleen de rijen; kolommen en balkopties neem je over met een knop (fixronde na
   // council ronde 5, de scenario's van Opus en Sol). Eigen stand: de zes standaardkolommen plus Kalenderdagen,
