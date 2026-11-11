@@ -6,6 +6,9 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
+import { parseInstant } from '@/utils/dateUtils';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 
 installBrowserStubs();
 installDeterminism();
@@ -57,6 +60,96 @@ for (const [start, end, startHour, endHour] of [
   const reopened = createAppStoreContext().store;
   await reopened.getState().openOpenedFile({ name: 'heropend.ifc', content: saved, ref: null });
   eq(`${start}: opnieuw geopend`, [reopened.getState().calendar.workStartHour, reopened.getState().calendar.workEndHour], [startHour, endHour]);
+}
+
+// Werkelijk geschreven door d783 (Terra-proef) én release v2026.8.1 (af71257f8).
+// De releasewriter draaide ongewijzigd met weekbanden 450,5–960 minuten, zonder taken.
+for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfractie-v2026.8.1.ifc']) {
+  const old = readFileSync(new URL(`./fixtures/${fixture}`, import.meta.url), 'utf8');
+  // De latere writer kon dezelfde bandenvorm voor een gematerialiseerde dagkalender
+  // gebruiken. Een expliciete scalaire markering blijft beslissend.
+  if (fixture === 'periode-oude-minuutfractie.ifc') {
+    const scalar = old.replace("'IsHourCalendar',$,IFCBOOLEAN(.T.)", "'IsHourCalendar',$,IFCBOOLEAN(.F.)");
+    eq('oude minuutfractie respecteert scalaire markering', readIFC(scalar).calendar.workTime, undefined);
+  }
+  eq('oude writerfixture bevat minuutfractie', old.includes("IFCTIMEPERIOD('07:30.5:00','16:00:00')"), true);
+  const file = memoryFile(old);
+  const { store } = createAppStoreContext();
+  await store.getState().openOpenedFile({ name: 'oude-writer.ifc', content: old, ref: { kind: 'handle', handle: file.handle } });
+  await store.getState().saveFile();
+  eq('oude minuutfractie schrijft zonder bewerken', file.writes.length, 1);
+  if (file.writes[0]) {
+    eq('oude minuutfractie blijft in bron of standaardklok', file.writes[0].includes("'07:30.5:00'") || file.writes[0].includes("'07:30:30'"), true);
+    eq('oude minuutfractie heropent op 450,5 minuten', readIFC(file.writes[0]).calendar.workTime?.byWeekday[1]?.[0]?.start, 450.5);
+  }
+}
+
+// De oude scalaire dag had 8 netto uren binnen een te korte klokspanne: de
+// bestaande minuutmigratie verlengt die bij openen, zonder plannerbewerking.
+{
+  const input = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const file = memoryFile(input);
+  const { store } = createAppStoreContext();
+  await store.getState().openOpenedFile({ name: 'oude-scalar.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  const before = [store.getState().calendar.workStartHour, store.getState().calendar.workEndHour];
+  await store.getState().saveFile();
+  eq('oude scalaire fractie schrijft na automatische migratie', file.writes.length, 1);
+  if (file.writes[0]) {
+    const back = readIFC(file.writes[0]).calendar;
+    eq('omgezette oude scalar heropent exact', [back.workStartHour, back.workEndHour], before);
+  }
+}
+
+// Een expliciete middagpauze blijft effectief, ook als alleen de bronstart seconden krijgt.
+{
+  const withSeconds = source.replace(period, "IFCTIMEPERIOD('07:00:01','16:00:00')");
+  const file = memoryFile(withSeconds);
+  const { store } = createAppStoreContext();
+  await store.getState().openOpenedFile({ name: 'pauze-seconden.ifc', content: withSeconds, ref: { kind: 'handle', handle: file.handle } });
+  const expected = [{ start: 420 + 1 / 60, end: 720 }, { start: 780, end: 960 }];
+  eq('seconden houden effectieve middagpauze', effectiveWorkTimeBands(store.getState().calendar)?.byWeekday[1], expected);
+  const clock = new CalendarEngine(calendarForEngine(store.getState().calendar));
+  eq('middagpauze telt geen werkminuten', clock.workMinutesBetween(parseInstant('2027-03-01T12:00:00'), parseInstant('2027-03-01T13:00:00')), 0);
+  await store.getState().saveFile();
+  eq('pauzekalender met seconden schrijft', file.writes.length, 1);
+  if (file.writes[0]) eq('middagpauze blijft na heropenen', effectiveWorkTimeBands(readIFC(file.writes[0]).calendar)?.byWeekday[1], expected);
+}
+
+// Een echte, zelfs zeer kleine wijziging mag nooit de oude bronklok terugkrijgen.
+{
+  const text = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8').replace("'07:30.5:00'", "'07:30:00.000000001'");
+  const parsed = readIFC(text);
+  const band = parsed.calendar.workTime?.byWeekday[1]?.[0];
+  eq('nanosecondebron heeft bewerkbare band', !!band, true);
+  if (band) {
+    band.start = 450.0000000000167;
+    let refused = false;
+    let output: string | undefined;
+    try { output = writeIFC(parsed); } catch (e) { refused = e instanceof IfcCalendarTimePrecisionError; }
+    eq('gewijzigde band schrijft exact of weigert getypeerd', output ? readIFC(output).calendar.workTime?.byWeekday[1][0].start : refused, output ? 450.0000000000167 : true);
+    const file = memoryFile(text);
+    const { store } = createAppStoreContext();
+    await store.getState().openOpenedFile({ name: 'bandbewerking.ifc', content: text, ref: { kind: 'handle', handle: file.handle } });
+    store.setState(s => { s.calendar.workTime!.byWeekday[1][0].start = 450.0000000000167; });
+    const realError = console.error;
+    console.error = () => {};
+    try { await store.getState().saveFile(); } finally { console.error = realError; }
+    eq('echte opslag volgt exact schrijfbare band', file.writes.length, refused ? 0 : 1);
+    if (file.writes[0]) eq('echte opslag heropent op gewijzigde band', readIFC(file.writes[0]).calendar.workTime?.byWeekday[1][0].start, 450.0000000000167);
+    eq('echte opslag meldt alleen een echte weigering', store.getState().ui.notifications.some(n => n.messageKey === 'notifications.saveFailed'), refused);
+    eq('geweigerde opslag houdt bandbewerking vast', store.getState().calendar.workTime?.byWeekday[1][0].start, 450.0000000000167);
+
+  }
+}
+
+// Ook een bewerkte scalaire klok houdt zijn volledige getalwaarde. De bestaande
+// IFCREAL-metadata bewaart zo nodig meer precisie dan de afgeleide uurwaarde.
+{
+  const parsed = readIFC(source.replace(period, "IFCTIMEPERIOD('07:30:00.000000001','16:00:00')"));
+  parsed.calendar.workStartHour += Number.EPSILON * 8;
+  const value = parsed.calendar.workStartHour;
+  const saved = writeIFC(parsed);
+  eq('bewerkte scalaire klok komt exact terug', readIFC(saved).calendar.workStartHour, value);
 }
 
 // De andere kalenderlussen moeten dezelfde kloklezing gebruiken.
@@ -128,16 +221,19 @@ for (const name of [...readdirSync(new URL('./fixtures/oude-tags/', import.meta.
   eq(`${name}: eigen bestand schrijft zonder bewerken`, file.writes.length, 1);
 }
 
-// Zonder bijpassende bronwaarde mag een nieuwe, fijnere bewerking niet stil afgerond worden.
-const fineImport = readIFC(source);
-fineImport.calendar.workingExceptions = [{ name: 'Bewerkt', startDate: '2027-01-02', endDate: '2027-01-02', bands: [{ start: 450 + 0.0001 / 60, end: 960 }] }];
+// Een bewerkte tijdzoneklok kan het model niet zelfstandig van een zone voorzien.
+// Weiger die opslag, in plaats van een bestaande tijdzone uit het bestand te wissen.
+const zoned = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8')
+  .replace("IFCTIMEPERIOD('07:30.5:00','16:00:00')", "IFCTIMEPERIOD('07:30:01Z','16:00:00Z')");
+const fineImport = readIFC(zoned);
+fineImport.calendar.workTime!.byWeekday[1][0].start += 1;
 let typed = false;
 try { writeIFC(fineImport); } catch (e) { typed = e instanceof IfcCalendarTimePrecisionError; }
-eq('nieuwe fijnere bewerking: writer weigert getypeerd', typed, true);
+eq('bewerkte zoneklok: writer weigert getypeerd', typed, true);
 const fineStore = createAppStoreContext().store;
-const fineFile = memoryFile(source);
-await fineStore.getState().openOpenedFile({ name: 'bewerkt.ifc', content: source, ref: { kind: 'handle', handle: fineFile.handle } });
-fineStore.setState(s => { s.calendar.workingExceptions = fineImport.calendar.workingExceptions; });
+const fineFile = memoryFile(zoned);
+await fineStore.getState().openOpenedFile({ name: 'bewerkt.ifc', content: zoned, ref: { kind: 'handle', handle: fineFile.handle } });
+fineStore.setState(s => { s.calendar.workTime!.byWeekday[1][0].start += 1; });
 const active = fineStore.getState().project.id;
 const realError = console.error;
 console.error = () => {};

@@ -3041,6 +3041,7 @@ function buildCalendarFromEntity(
   // ALLE TimePeriods van één patroon (`TimePeriods` is native een lijst — pauze/split-shift).
   const sourcePeriods: NonNullable<WorkCalendar['ifcTimePeriods']> = [];
   let secondPrecisionWeek = false;
+  let legacyBandWeek = false;
   const readPeriod = (tp: StepEntity, workingWeek = false): { start: number; end: number } | null => {
     const startText = stripQuotes(tp.args[0] || '');
     const endText = stripQuotes(tp.args[1] || '');
@@ -3050,8 +3051,9 @@ function buildCalendarFromEntity(
     const e = end?.minutes ?? clockToMinutes(endText);
     if (s == null || e == null) return null;
     if (workingWeek && (start?.hasSeconds || end?.hasSeconds)) secondPrecisionWeek = true;
-    if (!start || !end || start.preserve || end.preserve) {
-      const source = { start: s, end: e <= s ? e + 1440 : e, startText, endText };
+    if (workingWeek && (start?.legacyBand || end?.legacyBand)) legacyBandWeek = true;
+    if (!start || !end || start.preserve || end.preserve || start.hasSeconds || end.hasSeconds) {
+      const source = { start: s, end: e <= s ? e + 1440 : e, startText, endText, kind: workingWeek ? 'week' as const : 'exception' as const };
       if (!sourcePeriods.some(p => JSON.stringify(p) === JSON.stringify(source))) sourcePeriods.push(source);
     }
     return { start: s, end: e };
@@ -3251,10 +3253,17 @@ function buildCalendarFromEntity(
   // property, dan blijft de derivatie hierboven ongewijzigd staan.
   const hpdOverride = extractCalendarHoursPerDay(cal.id, entities, entityMap);
   if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
-  // Het scalaire pauzepatroon rondt op minuten af. Een bron met seconden blijft
-  // daarom in expliciete banden staan, ook bij een oude scalaire OPS-markering.
+  // Seconden veranderen de kalenderidentiteit niet: het scalaire pauzepatroon
+  // blijft effectief. Alleen de werkelijk expliciete oude bandenvorm promoveert.
   if (sourcePeriods.length > 0) calendar.ifcTimePeriods = sourcePeriods;
-  if (hourMeta.hourMode === true || secondPrecisionWeek) {
+  const scalarSeconds = secondPrecisionWeek && !legacyBandWeek && hourMeta.hourMode !== true
+    && periods.length === 1 && !perDayWeek && !deviates;
+  if (scalarSeconds) {
+    // Zonder netto-override of pauze is de enige periode een ononderbroken dag.
+    // Een expliciete nul voorkomt minuutafronding van de impliciete netto-afleiding.
+    if (hpdOverride == null && calendar.simpleBreakDurationMinutes === undefined) calendar.simpleBreakDurationMinutes = 0;
+    declaredScalarCalendars.add(calendar);
+  } else if (hourMeta.hourMode === true || ((secondPrecisionWeek || legacyBandWeek) && hourMeta.hourMode !== false)) {
     // `promoteHourCalendar` zet `hoursPerDay` op de modale dagsom van de blokken; een expliciete
     // `HoursPerDay` wint daarna. Alleen bij deze markering: zie docs/ifc-round-trip.md, "Uren per dag
     // bij een blokkenkalender".
@@ -3269,6 +3278,17 @@ function buildCalendarFromEntity(
     if (legacy) {
       Object.assign(calendar, legacy);
       declaredScalarCalendars.add(calendar);
+    }
+  }
+
+  if (!calendar.workTime && periods.length === 1 && !perDayWeek) {
+    const first = periods[0];
+    const end = first.end <= first.start ? first.end + 1440 : first.end;
+    for (const source of sourcePeriods) {
+      if (source.kind === 'week' && source.start === first.start && source.end === end) {
+        source.scalarStart = calendar.workStartHour;
+        source.scalarEnd = calendar.workEndHour;
+      }
     }
   }
 

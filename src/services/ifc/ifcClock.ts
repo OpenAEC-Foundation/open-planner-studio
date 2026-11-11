@@ -1,7 +1,8 @@
 /** De klokwaarde én of de bron meer informatie draagt dan een millisecondegetal.
  * Bewaar die informatie vóór de omzetting naar een JS-number (ook bij onderloop). */
-export function parseIfcClock(text: string): { minutes: number; preserve: boolean; hasSeconds: boolean } | null {
-  const match = /^(\d+(?:\.\d+)?(?:e[+-]?\d+)?):(\d{2})(?::(\d{2}(?:\.\d+)?))?(Z|[+-]\d{2}:\d{2})?$/i.exec(text);
+export function parseIfcClock(text: string): { minutes: number; preserve: boolean; hasSeconds: boolean; legacyBand: boolean } | null {
+  // Ook de oude bandenschrijver: MM was String(minuten % 60), dus '07:30.5:00'.
+  const match = /^(\d+(?:\.\d+)?(?:e[+-]?\d+)?):(\d+(?:\.\d+)?(?:e[+-]?\d+)?)(?::(\d{2}(?:\.\d+)?))?(Z|[+-]\d{2}:\d{2})?$/i.exec(text);
   if (!match) return null;
   const hour = Number(match[1]);
   const minute = Number(match[2]);
@@ -18,9 +19,11 @@ export function parseIfcClock(text: string): { minutes: number; preserve: boolea
       || (power < 0 && BigInt(digits) * 3_600_000n % (10n ** BigInt(-power)) !== 0n);
   }
   const fraction = (match[3]?.split('.')[1] ?? '').replace(/0+$/, '');
+  const legacyBand = /[.e]/i.test(match[2]);
   return {
     minutes: hour * 60 + minute + second / 60,
-    preserve: legacyPrecision || !!match[4] || fraction.length > 3,
-    hasSeconds: second !== 0 || fraction.length > 0,
+    preserve: legacyPrecision || legacyBand || !!match[4] || fraction.length > 3,
+    hasSeconds: second !== 0 || fraction.length > 0 || legacyBand,
+    legacyBand,
   };
 }

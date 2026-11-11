@@ -198,12 +198,16 @@ eerste werkdag, en zette de reader die op elke werkdag. Zo staat het nu in het b
   `WorkEndHour` altijd. Zonder die eigenschappen zou een oudere reader ze afleiden uit de eerste
   `IfcWorkTime`, en deze reader uit de eerste werkdag met blokken.
 - **Klokprecisie.** De reader bewaart uren en minuten uit `IfcTimePeriod`, inclusief oude eigen
-  uurfracties zoals `7.5:00:00`. Seconden blijven in expliciete kalenderbanden staan, ook bij een
-  oude scalaire OPS-markering. De schrijver bewaart seconden en milliseconden in de standaardvelden.
+  uurfracties zoals `7.5:00:00` en oude minuutfracties zoals `07:30.5:00`. Seconden veranderen een
+  scalaire kalender niet in een ononderbroken band: de pauze blijft effectief. Expliciete banden
+  blijven expliciet. De schrijver gebruikt gewone seconden/milliseconden waar die exact passen,
+  en zo nodig fijnere decimale seconden die bij teruglezen exact hetzelfde getal opleveren.
   Fijnere bronprecisie en tijdzones blijven daarnaast als oorspronkelijke klokstrings bij het
   kalenderobject (`ifcTimePeriods`). Een ongewijzigd tijdvak schrijft die bronwaarden terug in de
-  standaardvelden. Een nieuwe fijnere waarde zonder passende bron weigert opslag getypeerd vóór het
-  schrijven, met de bestaande opslaanfoutmelding. Ook oude OPS-uurfracties blijven zonder
+  standaardvelden. De koppeling vereist exact dezelfde bandgrenzen of de vastgelegde scalaire
+  importwaarden, zonder getaltolerantie, afzonderlijk per klokgrens. Een waarde die niet exact kan
+  terugkomen, of een bewerkte bronzone die het model niet kan overnemen, weigert opslag getypeerd vóór
+  het schrijven, met de bestaande opslaanfoutmelding. Ook oude OPS-uurfracties blijven zonder
   plannerbewerking opslaanbaar. Regressie: `check-ifc-kalendertijd.ts`.
 - **De reader** (`buildCalendarFromEntity`). Een `IfcWorkTime` met een StartDate of FinishDate doet niet
   mee in de week. Datumgebonden werktijden (een zomer- en een winterweek, een losse werkzaterdag) leest

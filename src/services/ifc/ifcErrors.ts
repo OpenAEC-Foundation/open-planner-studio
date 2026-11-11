@@ -43,7 +43,7 @@ export class IfcParseError extends Error {
 export class IfcCalendarTimePrecisionError extends Error {
   readonly code = 'IFC_CALENDAR_TIME_PRECISION';
   constructor(minutes: number) {
-    super(`Calendar time cannot be saved at millisecond precision: ${minutes} minutes`);
+    super(`Calendar time cannot be saved exactly with its source information: ${minutes} minutes`);
     this.name = 'IfcCalendarTimePrecisionError';
   }
 }
