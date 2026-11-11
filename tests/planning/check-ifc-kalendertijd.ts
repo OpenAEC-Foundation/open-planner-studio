@@ -137,6 +137,33 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   }
 }
 
+// 1120: het kalenderherstel mag de ongewijzigde bronklok niet vervangen.
+{
+  const input = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const original = "IFCTIMEPERIOD('9.123456:00:00','16:00:00')";
+  const file = memoryFile(input);
+  const { store } = createAppStoreContext();
+  await store.getState().openOpenedFile({ name: 'bronklok-herstel.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  const before = structuredClone(store.getState().calendar);
+  eq('1120: effectieve werkdag na openen', [before.workStartHour, before.workEndHour, before.hoursPerDay], [9.123456, 17.123455999999997, 8]);
+  await store.getState().saveFile();
+  eq('1120: gewone opslag behoudt letterlijk de bronperiode', file.writes[0]?.includes(original), true);
+  if (file.writes[0]) console.log('1120 gewone opslag', file.writes[0].split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+  const { openForeign, cloneDomain, tryMerge, mergeProblems } = await import('./ifcMergeKern');
+  const { readbackDifference } = await import('./ifcReadbackEquality');
+  const { generatedModel } = await import('./ifcGeneratedModel');
+  const { fileURLToPath } = await import('node:url');
+  const bytes = generatedModel(fileURLToPath(new URL('../..', import.meta.url)), input, 0);
+  const opened = await openForeign(bytes);
+  const result = await tryMerge(cloneDomain(opened), opened.ifcSource!);
+  eq('1120: de merge schrijft zonder bewerking', result.ok, true);
+  if (result.ok) {
+    eq('1120: merge houdt letterlijk de bronperiode', new TextDecoder().decode(result.bytes).includes(original), true);
+    eq('1120: naad en volledige heropening gelijk', readbackDifference(result.shown, await openForeign(result.bytes)), undefined);
+    eq('1120: vreemde bytes behouden', mergeProblems(bytes, result.bytes), []);
+  } else console.log('1120 merge weigert', JSON.stringify(result.error.cases));
+}
+
 // Een expliciete middagpauze blijft effectief, ook als alleen de bronstart seconden krijgt.
 {
   const withSeconds = source.replace(period, "IFCTIMEPERIOD('07:00:01','16:00:00')");
