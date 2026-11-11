@@ -24,7 +24,7 @@ import { installDeterminism } from './ifcPariteitKern';
 import { bareBytes, plainSaveAfterF5, TRIAS_FILES, TRIAS_MODEL_FILE, type TriasEntry } from './ifcAppRoute';
 import { createHash } from 'node:crypto';
 import {
-  applyEdit, canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, openInStore, ordinaryEdits, plannerEdits, recalculated, reopenPlain, settle,
+  applyEdit, canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, openInStore, ordinaryEdits, plannerEdits, reopenPlain, settle,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
 import { partialDateTime, sameMeaning } from '@/services/ifc/foreign/lossCheck';
@@ -521,7 +521,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const now = withLines(writeIFC(cloneDomain(await openForeignRaw(latin1(readText(rel))))), REVIT_WALL);
   ok('werkende uitzondering: de writer van nu schrijft WorkingExceptionIds', now.includes("'WorkingExceptionIds',$,IFCTEXT('[\""));
   const edit = (kind: EditKind) => async (d: Domain, o: Opened) => {
-    await [...plannerEdits(o, 1), ...ordinaryEdits(o)].find(e => e.kind === kind)!.apply(d);
+    return applyEdit([...plannerEdits(o, 1), ...ordinaryEdits(o)].find(e => e.kind === kind)!, d);
   };
   for (const [label, src] of [['oude writer', walled(rel)], ['writer van nu', now]] as const) {
     await proof('werkende uitzondering', `${label}, zonder bewerking`, src, 'schrijft', undefined, exceptionIds);
@@ -553,9 +553,8 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     ok(`${name}: de invoer is die van de fixture van main (anders: node scripts/proef/maak-main-toets-trias.mjs)`, want?.invoerSha256 === sha256(bare));
     const o = await openForeign(latin1(modelled));
     const edit = ordinaryEdits(o).find(e => e.kind === 'doorrekenen')!;
-    const mine = cloneDomain(o);
-    await edit.apply(mine);
-    const r = await tryMerge(await recalculated(mine), o.ifcSource!);
+    const mine = await applyEdit(edit, cloneDomain(o));
+    const r = await tryMerge(mine, o.ifcSource!);
     if (!r.ok) {
       rows.push(`| ${name} | weigert (${r.kinds.join(', ')}): ${(r.error.cases[0]?.detail ?? '').slice(0, 100).replace(/\|/g, '/')} |`);
       ok(`${name}: de merge schrijft, kreeg ${r.kinds.join(', ')} — ${(r.error.cases[0]?.detail ?? '').slice(0, 200)}`, false);
@@ -582,8 +581,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   const villa = walled(`${OLD}/v2026.43.0-10-villa-wassenaar.ifc`);
   const f5 = async (d: Domain, o: Opened) => {
     const edit = ordinaryEdits(o).find(e => e.kind === 'doorrekenen')!;
-    await edit.apply(d);
-    Object.assign(d, await recalculated(d));
+    return applyEdit(edit, d);
   };
   const named = villa.replace(/IFCTASKTIME\('[^']*'/, "IFCTASKTIME('Eigen naam'");
   ok('grens: de bron heeft een eigen naam in een taaktijd', named !== villa);

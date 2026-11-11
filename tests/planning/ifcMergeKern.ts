@@ -341,7 +341,7 @@ export function basicEdits(d: Domain): Edit[] {
     if (base.parentId) { const p = m.get(base.parentId)!; p.childIds.splice(p.childIds.indexOf(base.id) + 1, 0, task.id); }
   } });
   out.push({ kind: 'hernoemen', label: `${leaf.id} hernoemd`, apply: (x) => { byId(x).get(leaf.id)!.name = 'Hernoemd in 1b'; } });
-  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => { lengthen(x, leaf.id); } });
+  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => lengthen(x, leaf.id) });
   const resource = d.resources[0];
   if (resource) {
     out.push({ kind: 'toewijzing-erbij', label: `${resource.id} op ${leaf.id}`, apply: (x) => {

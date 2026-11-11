@@ -13,7 +13,7 @@ const entry = `
 import { readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { generatedModel } from '${root}/tests/planning/ifcGeneratedModel';
-import { openForeign, cloneDomain, concat, settle, canon, openReadPlanning, ordinaryEdits } from '${root}/tests/planning/ifcMergeKern';
+import { openForeign, cloneDomain, concat, settle, canon, openReadPlanning, applyEdit, ordinaryEdits } from '${root}/tests/planning/ifcMergeKern';
 import { writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { installDeterminism } from '${root}/tests/planning/ifcPariteitKern';
 const reseed = installDeterminism();
@@ -27,13 +27,13 @@ if (mode === 'genereren') {
   const bytes = new Uint8Array(readFileSync(file));
   const opened = await openForeign(bytes);
   if (!opened.ifcSource?.foreign) throw new Error('geen vreemd deel');
-  const input = cloneDomain(opened);
+  let input = cloneDomain(opened);
   globalThis.gc?.();
   const before = process.memoryUsage();
   const t0 = performance.now();
   let callbackMs = 0;
   let shown;
-  if (mode === 'groot') ordinaryEdits(input).find(e => e.kind === 'duur').apply(input);
+  if (mode === 'groot') input = await applyEdit(ordinaryEdits(input).find(e => e.kind === 'duur'), input);
   const parts = await writeIfcMerge(input, opened.ifcSource, async (parsed, side) => {
     const start = performance.now();
     const result = await openReadPlanning(parsed, side);

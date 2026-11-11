@@ -13,6 +13,8 @@ import { join } from 'node:path';
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { ImportResult } from '@/services/importTypes';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 
@@ -83,11 +85,26 @@ export async function recalculated<D extends WriteIFCInput>(d: D): Promise<D> {
 
 /** De taak van de bewerking "een dag langer". */
 export const lengthenedTask = (d: WriteIFCInput) => d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone) ?? d.tasks[0];
-/** Een dag langer, op de taak met id `id` (van `lengthenedTask`). */
-export function lengthen(d: WriteIFCInput, id: string): void {
-  const time = d.tasks.find(t => t.id === id)!.time;
-  time.scheduleDuration += 1;
-  if (time.durationMinutes !== undefined) time.durationMinutes += 480;
+/** Een dag langer via dezelfde duurpatch en storeactie als TaskDurationField/TaskPropertiesPanel.
+ * Dagenmaat: +1 werkdag; urenmaat: het bestaande invoergebaar +480 werkminuten, met de echte kalenderafleiding.
+ * De werkregels laten rest en werk volgen. Geef de verse payload terug, ook als de actie een optioneel veld wist.
+ */
+export async function lengthen(d: WriteIFCInput, id: string): Promise<WriteIFCInput> {
+  const { store, buildWriteIFCInput } = await storeWith(d);
+  const task = store.getState().tasks.find(t => t.id === id)!;
+  const time = { ...task.time };
+  if (time.durationUnit === 'hours') {
+    time.durationMinutes = (time.durationMinutes ?? 0) + 480;
+    const state = store.getState();
+    time.scheduleDuration = hourTaskScheduleDuration(time.durationMinutes, resolveCalendar(task.calendarId, state.calendars, state.calendar));
+  } else {
+    time.durationUnit = 'days';
+    time.scheduleDuration += 1;
+    time.durationMinutes = undefined;
+  }
+  const parts = Object.keys(time).filter(k => time[k as keyof typeof time] !== task.time[k as keyof typeof time]).map(k => `time.${k}`);
+  store.getState().updateTask(id, { time }, { coalesceKey: `taskfield:${id}:${parts.sort().join(',')}` });
+  return buildWriteIFCInput(store.getState());
 }
 
 /** De tien oude eigen bestanden van de toets van Trias, met model (een wand erbij, of hun eigen model). */
@@ -115,8 +132,7 @@ export function withoutModel(rel: string, src: string): string {
 export async function plainSaveAfterF5(bare: Uint8Array): Promise<string> {
   const { store, snapshot } = await openInStore(bare);
   const { ifcSource: _source, ...d } = snapshot(store);
-  const input = structuredClone(d) as WriteIFCInput;
-  lengthen(input, lengthenedTask(input).id);
+  const input = await lengthen(structuredClone(d) as WriteIFCInput, lengthenedTask(d).id);
   return writeIFC(await recalculated(input));
 }
 

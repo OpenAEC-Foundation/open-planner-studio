@@ -25,13 +25,12 @@ assert(saved.ok, saved.ok ? '' : JSON.stringify(saved.error.cases));
 assert.equal(canon(await openForeign(saved.bytes), reseed), canon(saved.shown, reseed), 'naad = bytes-route');
 // Gemaakte proef van Trias: alleen aan de uitvoerkant verandert een invoerveld vóór de echte herberekening.
 await assert.rejects(() => writeIfcMerge(d, source, async (parsed, side) => {
-  const input = structuredClone(parsed);
-  if (side === 'uitvoer') await ordinaryEdits(input).find(e => e.kind === 'duur')!.apply(input);
+  let input = structuredClone(parsed);
+  if (side === 'uitvoer') input = await applyEdit(ordinaryEdits(input).find(e => e.kind === 'duur')!, input);
   return openReadPlanning(input, side);
 }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen' && c.detail.includes('.time.')));
 // Blijvende proef: een duurwijziging zonder F5 schrijft; de twaalf tijdvelden normaliseren gelijk.
-const longer = cloneDomain(opened);
-await ordinaryEdits(longer).find(e => e.kind === 'duur')!.apply(longer);
+const longer = await applyEdit(ordinaryEdits(opened).find(e => e.kind === 'duur')!, cloneDomain(opened));
 const result = await tryMerge(longer, source);
 assert(result.ok, result.ok ? '' : JSON.stringify(result.error.cases));
 const wanted = await shownAfterOpen(longer);

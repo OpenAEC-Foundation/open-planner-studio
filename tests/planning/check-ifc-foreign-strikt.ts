@@ -62,7 +62,7 @@ const REVIT_WALL = [
 type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'open-weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array };
 /** Elk bestand één keer openen; elke merge krijgt een kopie van het domein (de bron blijft gedeeld en onbewerkt). */
 const openedOf = new Map<Uint8Array, Opened>();
-async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void | Promise<void>): Promise<Result> {
+async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>): Promise<Result> {
   let opened = openedOf.get(bytes);
   if (!opened) {
     try { opened = await openForeign(bytes); } catch (e) {
@@ -73,8 +73,9 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
     openedOf.set(bytes, opened);
   }
   if (!opened.ifcSource?.foreign) return { label, outcome: 'fout', kinds: [], details: ['geen vreemd deel'] };
-  const d = cloneDomain(opened);
-  await edit?.(d, opened);
+  let d = cloneDomain(opened);
+  const edited = await edit?.(d, opened);
+  if (edited) d = edited;
   let r: MergeOutcome;
   try { r = await tryMerge(d, opened.ifcSource); } catch (e) {
     return { label, outcome: 'fout', kinds: [], details: [`${(e as Error).name}: ${(e as Error).message.slice(0, 160)}`] };
@@ -88,7 +89,7 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
 }
 const results: Result[] = [];
 /** Een proef met de verwachte uitkomst: `schrijft`, of het geval van de weigering. */
-async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void | Promise<void>, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
+async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
   const r = await merge(`${plek} · ${label}`, bytes, edit);
   if (only && r.outcome === 'weigert') {
     const other = r.details.filter(x => !only.test(x));
@@ -984,7 +985,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   const time63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!.time;
   const other = taskBy(eigenOpened, 65).time;
   await proof('VERVOLG', '.NOTDEFINED., zonder bewerking', notDefined, 'schrijft', undefined, keep);
-  const edits: [string, (x: Domain, o: Opened) => void | Promise<void>][] = [
+  const edits: [string, (x: Domain, o: Opened) => void | Domain | Promise<void | Domain>][] = [
     ['het geplande begin', (x, o) => { time63(x, o).scheduleStart = '2027-05-07'; }],
     ['het geplande einde', (x, o) => { time63(x, o).scheduleFinish = '2027-05-14'; }],
     ['de duur', (x, o) => { time63(x, o).scheduleDuration += 1; }],
@@ -1037,7 +1038,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──
 // Regel: een combinatie schrijft alleen als elk deel apart ook schrijft. Een wijziging van het project verklaart alleen
 // haar eigen velden (B1), en een bewerking nooit het verlies van een andere.
-type Edit = { label: string; apply: (d: Domain) => void };
+type Edit = { label: string; apply: (d: Domain) => void | Promise<void | Domain> };
 const projectEdits = (d: Domain): Edit[] => [
   { label: 'projectnaam', apply: (x) => { x.project.name = 'Andere naam'; } },
   { label: 'projectomschrijving', apply: (x) => { x.project.description = 'Andere omschrijving'; } },
@@ -1069,7 +1070,7 @@ for (const [name, bytes] of files) {
   for (const e of taskEdits) for (const p of projects) pairs.push([e, p]);
   for (let a = 0; a < taskEdits.length; a++) for (let b = a + 1; b < taskEdits.length; b++) pairs.push([taskEdits[a], taskEdits[b]]);
   for (const [e, f] of pairs) {
-    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, (x) => { e.apply(x); f.apply(x); });
+    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, async (x) => { const first = await e.apply(x); return f.apply(first ?? x); });
     combos++;
     if (r.outcome === 'schrijft') combosWritten++;
     const parts = [alone.get(e.label)!, alone.get(f.label)!];
