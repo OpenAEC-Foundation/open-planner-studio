@@ -1372,7 +1372,12 @@ function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: num
       const unchanged = scalarSides.includes(side) && scalarSource !== undefined
         ? original[side === 'start' ? 'scalarStart' : 'scalarEnd'] === cal[side === 'start' ? 'workStartHour' : 'workEndHour']
         : original[side] === band[side];
-      if (unchanged) return text;
+      // Na kalenderherstel wijkt de bron-eindklok af van het effectieve einde bij openen.
+      // Alleen de hele ongewijzigde periode mag die klok houden; gewone klokken blijven per kant gelden.
+      const restoredEnd = side === 'end' && original === scalarSource && original.scalarEnd !== undefined
+        && original.end / 60 !== original.scalarEnd;
+      const samePeriod = original.scalarStart === cal.workStartHour && original.scalarEnd === cal.workEndHour;
+      if (unchanged && (!restoredEnd || samePeriod)) return text;
       // De gewijzigde grens heeft geen eigen zoneveld. Leen geen zone van een
       // andere dag, band of grens, en verwijder de oorspronkelijke zone niet stil.
       if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) throw new IfcCalendarTimePrecisionError(band[side]);

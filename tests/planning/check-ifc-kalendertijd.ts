@@ -7,7 +7,7 @@ import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
-import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
+import { effectiveWorkTimeBands, calendarForEngine, simpleBreakPatch, scalarTimesValid } from '@/utils/effectiveWorkTime';
 import { parseInstant } from '@/utils/dateUtils';
 import type { WorkCalendar } from '@/types/calendar';
 import { hoursPerDayForBlocks, workDaysFromBands } from '@/services/subdayIo';
@@ -179,9 +179,13 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   await again.getState().saveFile();
   eq('1120: tweede opslag dezelfde kalenderbytes', calendarBytes(againFile.writes[0]), calendarBytes(file.writes[0]));
 
-  // De echte kalenderdialoog bewaart via commitCalendarLibrary; de werkregels lopen mee.
-  const changeEnd = (end: number) => store.getState().commitCalendarLibrary(
-    store.getState().calendars.map(c => c.id === before.id ? { ...c, workEndHour: end } : c), before.id);
+  // De afleiding en validatie van het kalenderformulier, gevolgd door de echte opslagactie.
+  const changeEnd = (end: number) => {
+    const current = store.getState().calendar, patch = { workEndHour: end };
+    eq('1120: einde is volgens het formulier geldig', scalarTimesValid(current, patch), true);
+    return store.getState().commitCalendarLibrary(
+      store.getState().calendars.map(c => c.id === before.id ? { ...c, ...simpleBreakPatch(current, patch) } : c), before.id);
+  };
   eq('1120: kalenderbewerking toegepast', changeEnd(18), true);
   await store.getState().saveFile();
   eq('1120: echte kalenderbewerking schrijft 18:00', hasSourceClocks(file.writes.at(-1), '9.123456:00:00', '18:00:00'), true);
@@ -195,10 +199,11 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   await store.getState().saveFile();
   eq('1120: netto ongewijzigd einde hergebruikt bronklok', file.writes.at(-1)?.includes(original), true);
 
+  const returned = structuredClone(store.getState().calendar);
   const originalId = store.getState().activeDocumentId;
   store.getState().newDocument();
   store.getState().switchDocument(originalId);
-  eq('1120: documentwissel houdt kalender en koppeling', [effective(store.getState().calendar), binding(store.getState().calendar)], [effective(before), binding(before)]);
+  eq('1120: documentwissel houdt kalender en koppeling', [effective(store.getState().calendar), binding(store.getState().calendar)], [effective(returned), binding(returned)]);
 
   // De bronfixture heeft geen taken. Eén dagtaak in dezelfde oude IFC maakt ook B5 en de kern toetsbaar.
   // Kale datums laten de scalaire kalender intact, zodat T1 werkelijk loopt vóór de berekening.
@@ -251,6 +256,55 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     eq('1120: naad en volledige heropening gelijk', readbackDifference(result.shown, await openForeign(result.bytes)), undefined);
     eq('1120: vreemde bytes behouden', mergeProblems(bytes, result.bytes), []);
   } else console.log('1120 merge weigert', JSON.stringify(result.error.cases));
+}
+
+// 1120, fixronde 1: een herstelde eindklok hoort bij de hele oorspronkelijke periode.
+{
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const effectiveEnd = '17:07:24.44159999999556';
+  for (const example of [
+    { label: 'Terra pauze 16:45 en begin 16:30', patches: [{ simpleBreakStartMinute: 1005 }, { workStartHour: 16.5 }], end: effectiveEnd, start: '16:30:00', bare: true },
+    { label: 'begin 10:00', patches: [{ workStartHour: 10 }], end: effectiveEnd, start: '10:00:00', bare: true },
+    { label: 'einde 18:00', patches: [{ workEndHour: 18 }], end: '18:00:00', start: '9.123456:00:00', bare: true },
+    // Alleen hoursPerDay verplaatst in simpleBreakPatch geen grens; de dialoog toont netto uren als uitvoer.
+    { label: 'alleen uren per dag', patches: [{ hoursPerDay: 7 }], end: '16:00:00', start: '9.123456:00:00', bare: false },
+    { label: 'alleen pauzeduur', patches: [{ simpleBreakDurationMinutes: 30 }], end: '16:00:00', start: '9.123456:00:00', bare: false },
+    { label: 'gewone bronklok per kant', patches: [{ workStartHour: 10 }], end: '17.5:00:00', start: '10:00:00', bare: false },
+  ] as const) {
+    const input = example.label === 'gewone bronklok per kant' ? old.replace("'16:00:00'", "'17.5:00:00'") : old;
+    const file = memoryFile(input), store = createAppStoreContext().store;
+    await store.getState().openOpenedFile({ name: 'formulier-bronklok.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+    let draft = structuredClone(store.getState().calendar);
+    const originalEnd = draft.workEndHour;
+    for (const patch of example.patches) {
+      eq(`${example.label}: formulier accepteert ${JSON.stringify(patch)}`, scalarTimesValid(draft, patch), true);
+      draft = { ...draft, ...simpleBreakPatch(draft, patch) };
+    }
+    eq(`${example.label}: formulier verplaatst het einde alleen bij een eindbewerking`, draft.workEndHour,
+      example.end === '18:00:00' ? 18 : originalEnd);
+    eq(`${example.label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+      store.getState().calendars.map(c => c.id === draft.id ? draft : c), draft.id), true);
+    const before = structuredClone(store.getState().calendar);
+    await store.getState().saveFile();
+    eq(`${example.label}: gewone opslag schrijft eenmaal`, file.writes.length, 1);
+    const saved = file.writes[0];
+    if (!saved) continue;
+    eq(`${example.label}: standaard-IFC schrijft beide juiste klokken`, hasSourceClocks(saved, example.start, example.end), true);
+    const reopened = createAppStoreContext().store;
+    await reopened.getState().openOpenedFile({ name: 'formulier-heropend.ifc', content: saved, ref: null });
+    const after = reopened.getState().calendar;
+    eq(`${example.label}: volledige heropening geeft de werkdag van de planner`,
+      [after.workStartHour, after.workEndHour, after.hoursPerDay, after.simpleBreakStartMinute, after.simpleBreakDurationMinutes],
+      [before.workStartHour, before.workEndHour, before.hoursPerDay, before.simpleBreakStartMinute, before.simpleBreakDurationMinutes]);
+    if (example.bare) {
+      // Zoals Terra: standaard-IFC mag zonder de eigen eind- en kalendermarkering geen nachtdienst worden.
+      const bare = readIFC(saved.replace(/'WorkEndHour'/g, "'IgnoredEndHour'").replace(/'IsHourCalendar'/g, "'IgnoredCalendar'"));
+      eq(`${example.label}: ook zonder OPS-markeringen dezelfde dagdienst`, effectiveWorkTimeBands(bare.calendar)?.byWeekday[1],
+        [{ start: before.workStartHour * 60, end: before.workEndHour * 60 }]);
+    }
+    console.log('1120 formulier', example.label, JSON.stringify([before.workStartHour, before.workEndHour, before.hoursPerDay]),
+      saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+  }
 }
 
 // Een expliciete middagpauze blijft effectief, ook als alleen de bronstart seconden krijgt.

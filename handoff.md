@@ -129,7 +129,7 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 
 ## Werk
 
-- 2026-11-11: eigen kleine reparatie van 1120: `repairCalendar` werkt bij `extendEnd` alleen de bijbehorende scalar-koppeling bij, vóór `opened`; de bronklok blijft letterlijk staan. Rood op main bij gewone opslag en merge, groen na de wijziging; echte kalenderbewerking, terugzetten, B5-undo/redo, kern, crashherstel, documentwissel en twee opslagrondes zijn beproefd. De tijdelijke uitzondering van #909 vervalt; 1121 en 1122 blijven apart.
+- 2026-11-11: 1120, fixronde 1 na Terra (GPT-6.1-Terra, xhigh) nee: `repairCalendar` koppelt het herstelde einde aan de bronklok; alleen `calendarPeriodClocks` in de gewone writer is aangescherpt, zodat die klok alleen blijft bij hetzelfde begin én effectieve einde. Formulierafleiding en validatie dekken begin 16:30/10:00, einde 18:00, pauze en uren per dag; standaard-IFC blijft bij een gewijzigd begin een dagdienst, ook zonder OPS-eind- en kalendermarkering. Bestaande routes, undo/redo en twee opslagrondes blijven beproefd. De tijdelijke uitzondering van #909 vervalt; 1121 en 1122 blijven apart.
 
 - 2026-11-11: #903 fixronde 1 na Terra (GPT-6.1-Terra, xhigh) nee: ongewijzigde getallen worden in de hele planning bewaakt; de echte extensieactie met alleen een lag-eenheidswijziging weigert nu veilig (1109). De twee leeswegen worden rechtstreeks vergeleken; een gemaakte proef is alleen met echte herberekening ongelijk. Beide mutaties zijn rood, cp/cmp en SHA-256 bevestigen herstel.
 
