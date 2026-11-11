@@ -7,7 +7,7 @@ import { Icon } from '@/components/icons';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
-  saveShowMiniMap, ignoreUnreadable, loadLayouts, saveLayouts,
+  saveShowMiniMap, ignoreUnreadable, loadLayouts, updateLayouts,
 } from '@/utils/settingsStore';
 import { applySetting } from '@/components/settings/applySetting';
 import { ExportFormat } from '@/state/appStore';
@@ -1040,6 +1040,7 @@ export function LayoutGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
+  const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const toggleLayout = useAppStore(s => s.toggleLayout);
   // Als tekst geselecteerd: een selector die telkens een nieuwe array teruggeeft zou elke render
@@ -1047,22 +1048,21 @@ export function LayoutGroupContent() {
   const activeKey = useAppStore(s => activeLayoutIds(s).join('\n'));
   const activeIds = useMemo(() => new Set(activeKey ? activeKey.split('\n') : []), [activeKey]);
 
-  // `null` tot de eigen layouts gelezen zijn: tot dan schrijft de knoppenrij niets, anders zou dupliceren van een
-  // meegeleverde layout de eigen layouts wissen (knownbug 1362, ook als de opslag even niet te lezen is).
-  const [layouts, setLayouts] = useState<Layout[] | null>(null);
+  const [layouts, setLayouts] = useState<Layout[]>([]);
   const reload = useCallback(() => { void loadLayouts().then(setLayouts, ignoreUnreadable); }, []);
   useEffect(() => { reload(); }, [reload]);
   useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
 
-  // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de knoppenrij verversen.
-  const prevOpenRef = useRef(showLayoutsDialog);
+  // Ná het sluiten van de layout- of filterdialoog (mogelijke CRUD) de knoppenrij verversen.
+  const dialogOpen = showLayoutsDialog || showFilterDialog;
+  const prevOpenRef = useRef(dialogOpen);
   useEffect(() => {
-    if (prevOpenRef.current && !showLayoutsDialog) reload();
-    prevOpenRef.current = showLayoutsDialog;
-  }, [showLayoutsDialog, reload]);
+    if (prevOpenRef.current && !dialogOpen) reload();
+    prevOpenRef.current = dialogOpen;
+  }, [dialogOpen, reload]);
 
   const buttons = useMemo(
-    () => [...builtinLayouts(tCommon), ...(layouts ?? [])],
+    () => [...builtinLayouts(tCommon), ...layouts],
     [tCommon, layouts],
   );
 
@@ -1070,11 +1070,13 @@ export function LayoutGroupContent() {
   // alleen te dupliceren. Verwijderen vraagt eerst een bevestiging (geen native dialoog).
   const [menuId, setMenuId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Layout | null>(null);
-  const persist = (next: Layout[]) => { setLayouts(next); void saveLayouts(next); };
+  // Een wijziging op de vers gelezen lijst, nooit de kopie van de knoppenrij terugschrijven: die mist bijvoorbeeld
+  // een filter dat net in de filterdialoog is opgeslagen (`updateLayouts`, knownbug 1362).
+  const persist = (change: (current: Layout[]) => Layout[]) => { void updateLayouts(change).then(setLayouts, ignoreUnreadable); };
   const duplicate = (layout: Layout) => {
-    if (!layouts) return;
     const { id: _id, ...rest } = layout;
-    persist([...layouts, { ...structuredClone(rest), id: generateId('layout'), name: tCommon('view.layout.copyName', { name: layout.name }) }]);
+    const copy: Layout = { ...structuredClone(rest), id: generateId('layout'), name: tCommon('view.layout.copyName', { name: layout.name }) };
+    persist(current => [...current, copy]);
     setMenuId(null);
   };
 
@@ -1112,7 +1114,7 @@ export function LayoutGroupContent() {
                 <span className="ribbon-btn-label">{tCommon('view.layout.edit')}</span>
               </button>
             )}
-            <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} disabled={!layouts} onClick={() => duplicate(layout)}>
+            <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => duplicate(layout)}>
               <span className="ribbon-btn-label">{tCommon('view.layout.duplicate')}</span>
             </button>
             {!builtin && (
@@ -1132,7 +1134,7 @@ export function LayoutGroupContent() {
         <ConfirmDialog
           message={`${tCommon('view.layout.delete')}: ${pendingDelete.name}?`}
           danger
-          onConfirm={() => { if (layouts) persist(layouts.filter(l => l.id !== pendingDelete.id)); setPendingDelete(null); }}
+          onConfirm={() => { const id = pendingDelete.id; persist(current => current.filter(l => l.id !== id)); setPendingDelete(null); }}
           onCancel={() => setPendingDelete(null)}
         />
       )}
@@ -1322,6 +1324,11 @@ function SavedFilterDropdown() {
         return;
       }
       setOpen(value => !value);
+    }, (error: unknown) => {
+      // Niet te lezen: open de filterdialoog; opslaan daar leest de lijst opnieuw (`updateLayouts`).
+      ignoreUnreadable(error);
+      setUI({ showFilterDialog: true });
+      setOpen(false);
     });
   };
 

@@ -8,7 +8,7 @@ import {
   dropBrokenLayouts, liveSessionLayouts, migrateSavedFilters, pickLayoutParts, switchLayoutOff, switchLayoutOn,
   type LayoutViewParts,
 } from '@/engine/view/layoutPresets';
-import { loadLayouts, saveLayouts, SettingsUnreadableError } from '@/utils/settingsStore';
+import { loadLayouts, saveLayouts, SettingsUnreadableError, updateLayouts } from '@/utils/settingsStore';
 import { generateId } from '@/utils/id';
 import type { FilterNode, Layout, LayoutOverlays, SavedFilter } from '@/types/view';
 
@@ -237,6 +237,23 @@ await unreadableCase('ops-savedFilters', () => { storedLayouts(); }, 'opgeslagen
 storage.clear();
 storedLayouts();
 ok((await loadLayouts()).length === 1, 'na herstel laadt de lijst weer');
+
+// `updateLayouts` past de wijziging toe op de vers gelezen lijst, nooit op een kopie (review Terra en Sol #905): een
+// layout die intussen elders is opgeslagen, blijft staan. Is de opslag niet te lezen, dan schrijft het niets.
+const storedElsewhere: Layout = { id: 'elders', name: 'Elders opgeslagen', group: [] };
+storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [resourceDiagram, storedElsewhere] }));
+const added: Layout = { id: 'nieuw', name: 'Nieuw', group: [] };
+const updated = await updateLayouts(current => [...current, added]);
+ok(updated.map(l => l.id).join(',') === 'builtin:resource-diagram,elders,nieuw', 'updateLayouts: de nieuwe layout komt achter de vers gelezen lijst');
+ok((await loadLayouts()).map(l => l.id).join(',') === 'builtin:resource-diagram,elders,nieuw', 'updateLayouts: de layout van elders staat ook in de opslag');
+const beforeBlocked = storage.get('ops-taskGridLayouts');
+const getItemOk = localStorage.getItem;
+localStorage.getItem = (key: string) => { if (key === 'ops-taskGridLayouts') throw new Error('SecurityError'); return storage.get(key) ?? null; };
+let updateError: unknown = null;
+try { await updateLayouts(() => []); } catch (e) { updateError = e; }
+localStorage.getItem = getItemOk;
+ok(updateError instanceof SettingsUnreadableError, 'updateLayouts: een leesfout gooit SettingsUnreadableError');
+ok(storage.get('ops-taskGridLayouts') === beforeBlocked, 'updateLayouts: bij een leesfout is er niets geschreven');
 
 if (failures > 0) process.exit(1);
 console.log('layout-presets: alles groen');

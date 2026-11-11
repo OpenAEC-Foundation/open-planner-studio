@@ -1,5 +1,5 @@
 import { CriticalBarColorsEditor } from '@/components/viewControls/CriticalBarColors';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import type { ParseKeys } from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,7 @@ import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import { LAYOUT_ICON_KEYS, layoutIcon } from '@/components/viewControls/layoutIcons';
 import { layoutParts, pickLayoutParts } from '@/engine/view/layoutPresets';
-import { ignoreUnreadable, loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { ignoreUnreadable, loadLayouts, updateLayouts } from '@/utils/settingsStore';
 import { LAYOUT_PARTS, type Layout, type LayoutPart, type TimeScale } from '@/types/view';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
@@ -98,27 +98,36 @@ export function LayoutsDialog() {
   // de gebruiker hier een overlay omzet, gaan ze mee.
   const [overlaysStored, setOverlaysStored] = useState(true);
 
+  // De eerste lijst die gelezen wordt, vult ook het formulier met de layout die je bewerkt. Mislukt de eerste
+  // lezing (opslag even niet te lezen) en lukt een latere verversing, dan vult die het formulier; anders zou
+  // Opslaan de bestaande layout vervangen door een leeg formulier (knownbug 1362).
+  const filledRef = useRef(false);
+  const receive = useCallback((all: Layout[]) => {
+    setLayouts(all);
+    if (filledRef.current) return;
+    filledRef.current = true;
+    const target = all.find(l => l.id === targetId);
+    if (!target) return;
+    setName(target.name);
+    setIcon(target.icon ?? 'layout');
+    const carried = layoutParts(target);
+    const overlayRow = carried.some(part => partsOfRow('overlays').includes(part)) ? partsOfRow('overlays') : [];
+    setParts([...new Set([...carried, ...overlayRow])]);
+    setOverlaysStored(target.overlays !== undefined);
+    setDraft(current => ({ ...current, ...structuredClone(target) }));
+  }, [targetId]);
+
   // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): alleen de lijst
-  // verversen, niet wat de gebruiker hier invult. Opslaan schrijft dan de actuele lijst terug.
-  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts, ignoreUnreadable); });
+  // verversen, niet wat de gebruiker hier invult. Opslaan leest de lijst toch opnieuw (`updateLayouts`).
+  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(receive, ignoreUnreadable); });
 
   useEffect(() => {
     let cancelled = false;
-    void loadLayouts().then(all => {
-      if (cancelled) return;
-      setLayouts(all);
-      const target = all.find(l => l.id === targetId);
-      if (!target) return;
-      setName(target.name);
-      setIcon(target.icon ?? 'layout');
-      const carried = layoutParts(target);
-      const overlayRow = carried.some(part => partsOfRow('overlays').includes(part)) ? partsOfRow('overlays') : [];
-      setParts([...new Set([...carried, ...overlayRow])]);
-      setOverlaysStored(target.overlays !== undefined);
-      setDraft(current => ({ ...current, ...structuredClone(target) }));
-    }, ignoreUnreadable); // niet te lezen: de lijst blijft ongeladen en Opslaan staat uit (knownbug 1362)
+    filledRef.current = false;
+    // Niet te lezen: de lijst blijft ongeladen en Opslaan staat uit.
+    void loadLayouts().then(all => { if (!cancelled) receive(all); }, ignoreUnreadable);
     return () => { cancelled = true; };
-  }, [targetId]);
+  }, [receive]);
 
   const target = useMemo(() => layouts?.find(l => l.id === targetId), [layouts, targetId]);
   const editing = target !== undefined;
@@ -142,8 +151,9 @@ export function LayoutsDialog() {
     if (!layouts || parts.length === 0) return;
     const finalName = name.trim() || t('common:view.layout.name');
     const layout = build(target?.id ?? fromScreen().id, finalName);
-    const next = target ? layouts.map(l => (l.id === target.id ? layout : l)) : [...layouts, layout];
-    void saveLayouts(next).then(close);
+    // Op de vers gelezen lijst, niet op `layouts`: die mist wat intussen elders is opgeslagen.
+    void updateLayouts(current => (target ? current.map(l => (l.id === target.id ? layout : l)) : [...current, layout]))
+      .then(close, ignoreUnreadable);
   };
 
   const applyOnly = () => {

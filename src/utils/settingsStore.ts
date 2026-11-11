@@ -555,6 +555,18 @@ export async function saveLayouts(layouts: Layout[], origin: SettingWriteOrigin 
   await setSetting('taskGridLayouts', payload, origin);
 }
 
+/**
+ * Wijzig de eigen layouts: lees de lijst vers, pas `change` toe en schrijf het resultaat terug. Een scherm schrijft
+ * nooit zijn eigen kopie van de lijst terug: die mist wat intussen elders is opgeslagen (een filter uit de
+ * filterdialoog, een ander venster), en na een leesfout is ze leeg (knownbug 1362). Gooit
+ * `SettingsUnreadableError` en schrijft niets als de opslag niet te lezen is. Geeft de nieuwe lijst.
+ */
+export async function updateLayouts(change: (current: Layout[]) => Layout[]): Promise<Layout[]> {
+  const next = change(await loadLayouts());
+  await saveLayouts(next);
+  return next;
+}
+
 // Opgeslagen filters: net als layouts app-breed op dit apparaat, maar bewust alleen
 // de filterboom. Daardoor blijft de rest van de actuele weergave onaangetast bij snel wisselen.
 const FILTER_OPERATORS = new Set(['eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'contains', 'startsWith', 'between', 'isEmpty', 'in']);
