@@ -302,7 +302,16 @@
 /* Keuzekaart (Taken): de kaart van de themakeuze in Instellingen (`.settings-theme-card`): rand van een veld,
    gekozen met een accentrand en een lichte accenttint. Een layout is een korte kaart op één regel. */
 .rs-choices { display: flex; flex-direction: column; gap: 6px; }
-.rs-choices-label { margin-top: 6px; }
+.rs-choices-label { margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+/* Het i-icoon naast een kopje, zoals bij *Werkregel* en de rekenprofielen. */
+.rs-info-btn {
+  display: inline-flex;
+  border-radius: 4px;
+  color: var(--theme-text-dim);
+  background: transparent;
+}
+.rs-info-btn:hover { color: var(--theme-text); }
+.rs-info-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 .rs-choice {
   display: grid;
   grid-template-columns: 18px 1fr auto;
@@ -382,6 +391,16 @@
   outline: none;
   user-select: none;
 }
+/* *Zoals de weergave*: de kolommen volgen de tabel naast de Gantt en zijn hier alleen te zien: grijs, zonder greep
+   of knoppen; de uitleg staat in de tooltip van de rij. */
+.rs-cols[data-readonly='true'] .rs-col {
+  grid-template-columns: 1fr;
+  padding-inline-start: 10px;
+  background: transparent;
+  cursor: default;
+}
+/* Grijs zoals een uitgeschakelde knop (`.rs-seg button:disabled`); de focusring van de rij blijft vol. */
+.rs-cols[data-readonly='true'] .rs-col-name { opacity: 0.45; }
 .rs-col:focus-visible, .rs-col[data-focus='true'] { box-shadow: 0 0 0 2px var(--theme-accent); border-color: transparent; }
 .rs-col[data-dragging='true'] { opacity: 0.45; }
 .rs-col[data-flash='true'] { animation: rs-flash 1.2s ease; }

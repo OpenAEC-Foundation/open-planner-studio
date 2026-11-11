@@ -17,9 +17,14 @@ export type ReportColumnsSource = 'table' | 'gantt';
  * tabblad Tabel of van de tabel naast de Gantt over. De taaknaam is verplicht: zijn kruisje staat uit.
  */
 export function ColumnsEditor({
-  ids, onChange, available, recentIds, chooserLabels, onCopy, onReset, focusId, labelFor,
+  ids, onChange, available, recentIds, chooserLabels, onCopy, onReset, focusId, labelFor, readOnlyHint,
 }: {
   ids: readonly string[];
+  /** Alleen tonen, met deze uitleg (*Zoals de weergave*: de kolommen volgen de tabel naast de Gantt). De rijen
+   *  staan grijs en tonen de uitleg meteen als tooltip, bij de muis en bij focus (check Ethan 10-11-2026: "mag
+   *  uitgegrijsd", de melding erboven "kan in een instant tooltip"). Geen toevoegen, overnemen, slepen,
+   *  verplaatsen of weghalen; met de pijltjes door de lijst lopen kan wel. */
+  readOnlyHint?: string;
   onChange: (ids: string[], input: string) => void;
   available: readonly TaskGridAdapterColumn[];
   /** De laatst gebruikte kolommen van de tabel: de kiezer toont ze bovenaan, zoals in de tabel. */
@@ -35,6 +40,7 @@ export function ColumnsEditor({
   labelFor: (id: string) => string;
 }) {
   const { t } = useTranslation('report');
+  const readOnly = readOnlyHint !== undefined;
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -59,7 +65,7 @@ export function ColumnsEditor({
 
   const onRowKeyDown = (e: KeyboardEvent<HTMLDivElement>, id: string, index: number) => {
     if (e.target !== e.currentTarget) return;
-    const move = e.altKey || e.ctrlKey || e.metaKey;
+    const move = !readOnly && (e.altKey || e.ctrlKey || e.metaKey);
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       const delta = e.key === 'ArrowUp' ? -1 : 1;
@@ -72,7 +78,7 @@ export function ColumnsEditor({
     } else if (e.key === 'Home' || e.key === 'End') {
       e.preventDefault();
       focusRow(e.key === 'Home' ? ids[0] : ids[ids.length - 1]);
-    } else if ((e.key === 'Delete' || e.key === 'Backspace') && id !== REPORT_REQUIRED_COLUMN) {
+    } else if (!readOnly && (e.key === 'Delete' || e.key === 'Backspace') && id !== REPORT_REQUIRED_COLUMN) {
       e.preventDefault();
       onChange(removeReportColumn(ids, id), 'column-remove');
       focusRow(ids[index + 1] ?? ids[index - 1]);
@@ -119,6 +125,7 @@ export function ColumnsEditor({
 
   return (
     <div className="rs-cols-editor">
+      {!readOnly && (<>
       {/* Toevoegen boven de lijst: op een laag scherm blijft de knop in beeld, ook bij veel kolommen. Na een
           keuze sluit de kiezer en staat de focus weer op "Kolom toevoegen", zoals in de tabel. */}
       <ColumnChooser
@@ -163,8 +170,11 @@ export function ColumnsEditor({
           </button>
         </div>
       </div>
+      </>)}
 
-      <div className="rs-cols" role="listbox" aria-label={t('studio.columns.listLabel')} aria-describedby="rs-cols-hint" data-rs-columns>
+      <div className="rs-cols" role="listbox" aria-label={t('studio.columns.listLabel')}
+        aria-describedby={readOnly ? undefined : 'rs-cols-hint'} aria-readonly={readOnly || undefined}
+        data-rs-columns data-readonly={readOnly ? 'true' : undefined}>
         {ids.map((id, i) => {
           const required = id === REPORT_REQUIRED_COLUMN;
           const tabbable = (activeId ?? ids[0]) === id;
@@ -182,7 +192,11 @@ export function ColumnsEditor({
                 data-flash={flashId === id ? 'true' : undefined}
                 onFocus={() => setActiveId(id)}
                 onKeyDown={e => onRowKeyDown(e, id, i)}
+                title={readOnlyHint}
+                data-tooltip-instant={readOnly || undefined}
+                data-tooltip-lead={readOnly || undefined}
               >
+                {!readOnly && (
                 <span
                   className="rs-grip"
                   onPointerDown={e => onGripDown(e, id)}
@@ -195,10 +209,12 @@ export function ColumnsEditor({
                 >
                   <span className="rs-grip-dots" />
                 </span>
+                )}
                 <span className="rs-col-name">
                   {labelFor(id)}
                   {required && <small>{t('studio.columns.required')}</small>}
                 </span>
+                {!readOnly && (
                 <span className="rs-col-actions">
                   <button type="button" className="rs-icon-btn" tabIndex={-1} data-reveal
                     disabled={i === 0} onClick={() => { onChange(moveReportColumn(ids, id, -1), 'column-move'); focusRow(id); }}
@@ -225,6 +241,7 @@ export function ColumnsEditor({
                     </button>
                   )}
                 </span>
+                )}
               </div>
             </div>
           );
@@ -233,7 +250,7 @@ export function ColumnsEditor({
       </div>
       {/* De toetsen als vaste regel onder de lijst: hij dekt niets af en niets verspringt als de focus de
           lijst verlaat. */}
-      <p className="rs-hint rs-cols-hint" id="rs-cols-hint" data-rs-cols-hint>{t('studio.columns.keysHint')}</p>
+      {!readOnly && <p className="rs-hint rs-cols-hint" id="rs-cols-hint" data-rs-cols-hint>{t('studio.columns.keysHint')}</p>}
     </div>
   );
 }

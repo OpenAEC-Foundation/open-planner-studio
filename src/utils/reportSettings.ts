@@ -23,6 +23,8 @@
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
+import { parseBarColorSelection } from '@/utils/barColorSettings';
+import { DEFAULT_BAR_COLOR_SELECTION, type BarColorSelection } from '@/types/barColor';
 import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_DAY_WIDTH } from '@/services/print/printPreview';
 import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
@@ -246,6 +248,13 @@ export interface ReportSettings {
    * houdt zijn vaste tabel en laat het veld ongemoeid.
    */
   columns: string[];
+  /**
+   * De balkkleuren van de Gantt-afdruk (keuze Ethan, 10 november 2026: eigen balkkleuren, net als de
+   * kolommen). Alleen het nieuwe Rapport-tabblad leest en schrijft dit veld; het verandert de Gantt op het
+   * scherm nooit. Standaard het kritieke pad, net als een vers scherm. Bij *Zoals de weergave* telt dit veld
+   * niet (`reportBarColors`).
+   */
+  barColors: BarColorSelection;
   /** Zijbalk van het nieuwe Rapport-tabblad (feature flag `reportRedesign`). */
   sidebar: ReportSidebarMode;
   /**
@@ -292,6 +301,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
   columns: [...REPORT_DEFAULT_COLUMNS],
+  barColors: DEFAULT_BAR_COLOR_SELECTION,
   sidebar: 'open',
   studioStep: 'tasks',
   paperHintSeen: false,
@@ -468,6 +478,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     resourceGantt: parseResourceGanttOptions(s.resourceGantt),
     // Oude sleutel zonder kolomlijst ⇒ de vaste tabel van toen, inclusief de keuze Voltooiing.
     columns: parseReportColumns(s.columns) ?? defaultReportColumns(parseBoolean(s.showCompletion) ?? d.showCompletion),
+    // De structuur telt hier; een veld dat dit project niet heeft, vangt `effectiveBarColorSelection` op.
+    barColors: parseBarColorSelection(s.barColors) ?? d.barColors,
     sidebar: parseEnum(SIDEBAR_MODES, s.sidebar) ?? d.sidebar,
     studioStep: parseEnum(STUDIO_STEPS, s.studioStep) ?? d.studioStep,
     paperHintSeen: parseBoolean(s.paperHintSeen) ?? d.paperHintSeen,
