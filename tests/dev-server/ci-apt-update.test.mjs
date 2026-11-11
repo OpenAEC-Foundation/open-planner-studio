@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const script = readFileSync(new URL('../../scripts/ci-apt-update.sh', import.meta.url), 'utf8');
-const original = '# fixture\ndeb [signed-by=/key] mirror+file:/etc/apt/apt-mirrors.txt jammy main\ndeb https://example.invalid jammy main\n';
+const original = '# fixture\ndeb [signed-by=/key] mirror+file:/etc/apt/apt-mirrors.txt jammy main\ndeb https://example.invalid jammy main\ndeb mirror+file:/etc/apt/apt-mirrors-security.txt jammy-security main\ndeb http://security.ubuntu.com/ubuntu/ jammy-security main\ndeb https://archive.ubuntu.com/ubuntu jammy-updates main\n';
+const fallback = '# fixture\ndeb [signed-by=/key] https://mirrors.edge.kernel.org/ubuntu/ jammy main\ndeb https://example.invalid jammy main\ndeb https://mirrors.edge.kernel.org/ubuntu/ jammy-security main\ndeb https://mirrors.edge.kernel.org/ubuntu/ jammy-security main\ndeb https://mirrors.edge.kernel.org/ubuntu/ jammy-updates main\n';
 for (const [name, first, second, expected] of [
   ['officieel bereikbaar', 0, 0, 0],
   ['DNS-fout, mirror bereikbaar', 100, 0, 0],
@@ -25,14 +26,14 @@ for (const [name, first, second, expected] of [
       writeFileSync(join(dir, 'timeout'), '#!/bin/bash\nprintf "%s\\n" "$*" >> "$FIXTURE/timeout.log"\nshift 3\nexec "$@"\n', { mode: 0o755 });
       writeFileSync(join(dir, 'apt-get'), `#!/bin/bash
 printf '%s\n' "$*" >> "$FIXTURE/apt.log"
-if grep -q archive.ubuntu.com "$FIXTURE/sources.list"; then exit ${first}; else exit ${second}; fi
+if ! grep -q mirrors.edge.kernel.org "$FIXTURE/sources.list"; then exit ${first}; else exit ${second}; fi
 `, { mode: 0o755 });
       const result = spawnSync('bash', ['-e', '-c', script.replace('sources=/etc/apt/sources.list', `sources='${sources}'`)], {
         encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FIXTURE: dir },
       });
       assert.equal(result.status, expected, result.stdout + result.stderr);
       const after = readFileSync(sources, 'utf8');
-      assert.equal(after, first === 0 && expected === 0 ? original.replace('mirror+file:/etc/apt/apt-mirrors.txt', 'https://archive.ubuntu.com/ubuntu/') : initial);
+      assert.equal(after, first === 0 && expected === 0 ? original.replace('mirror+file:/etc/apt/apt-mirrors.txt', 'https://archive.ubuntu.com/ubuntu/') : name === 'onbekende bronindeling' ? initial : fallback);
       if (name === 'onbekende bronindeling') {
         assert.match(result.stdout, /Onverwachte APT-bronnen/);
       } else {
@@ -40,7 +41,7 @@ if grep -q archive.ubuntu.com "$FIXTURE/sources.list"; then exit ${first}; else 
         assert.equal(calls.length, first === 0 ? 1 : 2);
         for (const call of calls) assert.match(call, /Acquire::Retries=1.*Acquire::http::Timeout=15.*Acquire::https::Timeout=15 --error-on=any update$/);
         assert.match(readFileSync(join(dir, 'timeout.log'), 'utf8'), /--verbose --kill-after=10s 2m apt-get/);
-        assert.match(result.stdout, expected === 1 ? /runner-mirrors ook mislukt/ : first === 0 ? /gekozen: officieel/ : /gekozen: oorspronkelijke/);
+        assert.match(result.stdout, expected === 1 ? /kernel.org ook mislukt/ : first === 0 ? /gekozen: officieel/ : /gekozen: mirrors.edge.kernel.org/);
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });
