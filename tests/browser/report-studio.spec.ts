@@ -223,20 +223,6 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
     const stored = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
     localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stored, ...next }));
   }, patch);
-  // Een kolom verplaatsen laat een kolom staan die elders net is toegevoegd, in de opslag en op het scherm. Eerder
-  // schreef het tabblad zijn hele lijst uit de kopie terug (review Terra #893, ronde 5).
-  const columnsBefore: string[] = (await saved()).columns;
-  await writeStored({ columns: [...columnsBefore, 'task.time.actualDuration'] });
-  await page.locator('[data-rs-column="task.time.calendarDays"]').focus();
-  await page.keyboard.press('Alt+ArrowDown');
-  await expect.poll(async () => (await saved()).columns)
-    .toEqual([...columnsBefore.slice(0, -2), columnsBefore.at(-1), columnsBefore.at(-2), 'task.time.actualDuration']);
-  await expect(page.locator('[data-rs-column="task.time.actualDuration"]')).toBeVisible();
-  await page.locator('[data-rs-column="task.time.actualDuration"]').focus();
-  await page.keyboard.press('Delete');
-  await page.locator('[data-rs-column="task.time.calendarDays"]').focus();
-  await page.keyboard.press('Alt+ArrowUp');
-  await expect.poll(async () => (await saved()).columns).toEqual(columnsBefore);
   const surfaceIds = (id: 'full-task-grid' | 'gantt-task-grid') => page.evaluate(
     surface => window.__OPS__!.store.getState().taskGridSurfaces[surface].columns.map(column => String(column.id)), id);
   const tableIds = await surfaceIds('full-task-grid');
@@ -895,11 +881,6 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(screenColors).toMatchObject({ mode: 'category' });
   await expect(colorPicker).toContainText(/Per task — automatic|Per taak — automatisch/);
   await expect(paper).toContainText(outline);
-  // Een andere kleurmodus kiezen houdt de eigen kleuren die elders net veranderden (review Terra #893, ronde 5).
-  await writeStored({ barColors: { mode: 'auto', colors: { critical: '#abcdef' } } });
-  await colorPicker.click();
-  await page.getByRole('option', { name: /^(Critical path|Kritiek pad)$/ }).click();
-  await expect.poll(async () => (await saved()).barColors).toEqual({ mode: 'critical', colors: { critical: '#abcdef' } });
   await page.locator('[data-rs-step="bars"] [data-rs-reset="bars"]').click();
   await expect.poll(async () => (await saved()).barColors).toEqual({ mode: 'critical' });
   await expect(colorPicker).toContainText(/Critical path|Kritiek pad/);

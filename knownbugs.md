@@ -3226,14 +3226,6 @@ en noem het in je rapport of PR-tekst.
      ("Export PDF"). Gezien bij het weghalen van de flag `reportRedesign` (#817).
      Voorstel: één tekst voor beide knoppen. — S
 
-1355. **VERVOLG: bij opslag die niet schrijft, toont het wisselen van rapport weer het oude rapport.** Het paneel van de
-     tabelrapporten bewaart het rapporttype en laat de werkruimte wisselen (`src/components/panels/ReportPanel.tsx`
-     rond :186); het nieuwe paneel leest het type daarna uit de opslag. Mislukt het schrijven (opslag vol of
-     geblokkeerd), dan slikt `writeLocal` (`src/utils/settingsStore.ts:75`) de fout in. Met opgeslagen `milestones`
-     en een gesimuleerde volle opslag: Gantt kiezen en daarna Look-ahead toonde weer *Milestone overview*.
-     Code-review ronde 1 van #893 (GPT-6.1-Terra). Voorstel: geef het gekozen type bij het wisselen mee aan het
-     paneel, los van de opslag. — B
-
 1356. **VERVOLG: browserdekking van het Resourcediagram en van bedrijfsnaam en legenda in de PDF is weg.** Met
      `tests/browser/resource-gantt-report.spec.ts` (#893) verdwenen de controles op wat *Taken zonder resource
      meenemen* en *Groeperen op resourcetype* met de rijen doen, en op de melding bij weggevallen toewijzingskolommen
@@ -3248,6 +3240,15 @@ en noem het in je rapport of PR-tekst.
      SVG-papier virtualiseert nog steeds pagina's (`reportStudio/ReportPaperView.tsx:244`). Code-review ronde 1 van
      #893 (GPT-6.1-Terra). Voorstel: een stap met meerdere rijen en kolommen die na scrollen en hertekenen de
      zichtbare pagina's controleert. — B
+
+1358. **VERVOLG: in twee vensters wint de laatste wijziging van hetzelfde rapportveld.** Elke klik op het
+     Rapport-tabblad schrijft alleen de velden die hij wijzigt (`patchReportSettings` in
+     `src/utils/reportSettings.ts`), bovenop wat op dat moment opgeslagen staat. Wijzig je in twee vensters (of in het
+     venster en via de host) hetzelfde veld, zoals de kolomlijst of de balkkleuren, dan blijft alleen de laatste
+     wijziging staan; de lijst van het andere venster gaat niet per item samen. Kan een schrijfactie niet in de opslag
+     (vol of geblokkeerd) en meldt een ander venster daarna een wijziging, dan vervangt die de keuzes uit deze sessie.
+     In één venster gaat niets verloren. Gezien bij het ombouwen naar één gedeelde stand (#893). Voorstel: alleen
+     oplossen als planners echt in twee vensters aan hetzelfde rapport werken. — S
 
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in

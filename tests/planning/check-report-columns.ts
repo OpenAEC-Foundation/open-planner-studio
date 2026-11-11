@@ -27,7 +27,7 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effHoursPerDay, effectiveCalendarOf, effectiveDurationDisplay } from '@/utils/taskDuration';
 import {
   DEFAULT_REPORT_SETTINGS, REPORT_DEFAULT_COLUMNS, REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN,
-  chosenReportChange, loadReportSettings, mergeChosen, parseReportColumns, patchReportSettings,
+  loadReportSettings, parseReportColumns, patchReportSettings, reportSettingsSnapshot,
 } from '@/utils/reportSettings';
 import {
   addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn,
@@ -280,50 +280,43 @@ const CAL_DAYS = 'task.time.calendarDays';
   localStorage.setItem('ops-reportSettings', JSON.stringify({ barColors: { mode: 'regenboog' } }));
   eq((await loadReportSettings()).barColors, { mode: 'critical' }, 'onbekende balkkleur ⇒ de standaard (kritiek pad)');
 
-  // Eén schrijfroute (review Terra #893, ronde 1): een patch leest de opgeslagen stand op het moment van
-  // schrijven. Een wijziging van elders (ander venster, host) die tussen het laden en de patch viel, blijft.
+  // Eén gedeelde stand en één schrijfroute (review Terra #893): een patch leest de opslag op het moment van
+  // schrijven, zodat een wijziging van elders in een ander veld blijft staan, en zet alleen zijn eigen velden.
   patchReportSettings({ ...DEFAULT_REPORT_SETTINGS });
   const stale = await loadReportSettings();
   localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stale, columns: ['task.name', CAL_DAYS] }));
-  patchReportSettings(stored => chosenReportChange(stale, { paperSize: 'A4' }, stored));
+  patchReportSettings({ paperSize: 'A4' });
   const merged = await loadReportSettings();
   eq(merged.paperSize, 'A4', 'patch: het eigen veld staat erin');
   eq(merged.columns, ['task.name', CAL_DAYS], 'patch: de kolommen van elders blijven staan');
-  // Een keuze schrijft elk gekozen veld, ook als de kopie het al had (review Terra #893, ronde 3): de opslag kan
-  // van elders anders zijn, en de velden van één keuze horen bij elkaar.
-  eq(chosenReportChange(stale, { layoutId: stale.layoutId, followView: true }, { ...stale, layoutId: 'elders' }), { layoutId: stale.layoutId, followView: true },
-    'keuze: ook een veld dat de kopie al had');
-  // De optiegroepen per optie (review Terra #893, ronde 2): een tabeloptie of resourceoptie van elders blijft staan.
-  const fresh = await loadReportSettings();
+  // De optiegroepen per optie: een tabeloptie of resourceoptie van elders blijft staan.
   localStorage.setItem('ops-reportSettings', JSON.stringify({
-    ...fresh,
-    tableReports: { ...fresh.tableReports, nearCriticalDays: 11 },
-    resourceGantt: { ...fresh.resourceGantt, groupByType: !fresh.resourceGantt.groupByType },
+    ...merged,
+    tableReports: { ...merged.tableReports, nearCriticalDays: 11 },
+    resourceGantt: { ...merged.resourceGantt, groupByType: !merged.resourceGantt.groupByType },
   }));
-  patchReportSettings(stored => chosenReportChange(fresh, { tableReports: { ...fresh.tableReports, wbsSummaryLevel: 3 } }, stored));
-  patchReportSettings(stored => chosenReportChange(fresh, { resourceGantt: { ...fresh.resourceGantt, includeUnassigned: !fresh.resourceGantt.includeUnassigned } }, stored));
+  patchReportSettings({ tableReports: { wbsSummaryLevel: 3 } });
+  patchReportSettings({ resourceGantt: { includeUnassigned: !merged.resourceGantt.includeUnassigned } });
   const groups = await loadReportSettings();
   eq([groups.tableReports.nearCriticalDays, groups.tableReports.wbsSummaryLevel], [11, 3], 'patch: tabeloptie van elders blijft, de eigen staat erin');
-  eq([groups.resourceGantt.groupByType, groups.resourceGantt.includeUnassigned], [!fresh.resourceGantt.groupByType, !fresh.resourceGantt.includeUnassigned],
+  eq([groups.resourceGantt.groupByType, groups.resourceGantt.includeUnassigned], [!merged.resourceGantt.groupByType, !merged.resourceGantt.includeUnassigned],
     'patch: resourceoptie van elders blijft, de eigen staat erin');
-  // Drie-weg-samenvoegen (review Terra #893, ronde 5): wat de planner veranderde, over wat er nu staat.
-  eq(mergeChosen(['a', 'b'], ['a', 'b', 'c'], ['a', 'b', 'x']), ['a', 'b', 'c', 'x'], 'lijst: eigen toevoeging, die van elders erachter');
-  eq(mergeChosen(['a', 'b', 'c'], ['a', 'c'], ['a', 'b', 'c', 'x']), ['a', 'c', 'x'], 'lijst: eigen weghalen blijft weg');
-  eq(mergeChosen(['a', 'b', 'c'], ['c', 'a', 'b'], ['a', 'c']), ['c', 'a'], 'lijst: eigen volgorde, zonder wat elders is weggehaald');
-  eq(mergeChosen(['a'], ['a', 'b'], ['a']), ['a', 'b'], 'lijst: niets van elders ⇒ de eigen lijst');
-  eq(mergeChosen({ mode: 'critical', colors: { critical: '#123456' } }, { mode: 'auto', colors: { critical: '#123456' } },
-    { mode: 'critical', colors: { critical: '#abcdef' } }), { mode: 'auto', colors: { critical: '#abcdef' } }, 'object: eigen modus, kleur van elders');
-  eq(mergeChosen({ mode: 'category', field: 'f' }, { mode: 'auto' }, { mode: 'category', field: 'f', colors: { normal: '#111111' } }),
-    { mode: 'auto', colors: { normal: '#111111' } }, 'object: een weggehaalde sleutel blijft weg');
-  eq(mergeChosen({ preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, { preset: 'project' }, { preset: 'custom', from: '2026-09-01', to: '2026-10-31' }),
-    { preset: 'project' }, 'periode: eigen preset zonder datums');
-  eq(mergeChosen(1, 2, 3), 2, 'losse waarde: de eigen keuze');
-  // Een wijziging die van de opslag afhangt, krijgt de actuele opslag.
-  localStorage.setItem('ops-reportSettings', JSON.stringify({ ...groups, layoutId: 'elders' }));
-  patchReportSettings(stored => ({ reportType: 'lookAhead', ...(stored.layoutId === 'elders' ? { paperHintSeen: true } : {}) }));
-  eq([(await loadReportSettings()).layoutId, (await loadReportSettings()).paperHintSeen], ['elders', true], 'patch als functie: leest de actuele opslag');
-  // De patch geeft de samengevoegde stand terug: precies wat er nu opgeslagen staat (review Terra #893, ronde 4).
-  eq(patchReportSettings({ paperSize: 'A2' }), await loadReportSettings(), 'patch: geeft de opgeslagen stand terug');
+  // De patch geeft de nieuwe gedeelde stand terug, en de stand is precies wat er opgeslagen staat.
+  const afterA2 = patchReportSettings({ paperSize: 'A2' });
+  eq(afterA2, await loadReportSettings(), 'patch: geeft de opgeslagen stand terug');
+  ok(reportSettingsSnapshot() === afterA2, 'de gedeelde stand is de stand van de laatste patch');
+  // Komt een schrijfactie niet in de opslag (vol, geblokkeerd), dan blijft de keuze in de gedeelde stand en bouwt
+  // de volgende patch daarop voort; het rapporttype wisselt dus ook zonder opslag (was knownbug 1355).
+  const setItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+  patchReportSettings({ reportType: 'lookAhead' });
+  patchReportSettings({ orientation: 'portrait' });
+  eq([reportSettingsSnapshot().reportType, reportSettingsSnapshot().orientation], ['lookAhead', 'portrait'], 'zonder opslag: beide keuzes in de gedeelde stand');
+  eq((await loadReportSettings()).reportType, afterA2.reportType, 'zonder opslag: de opslag zelf is ongewijzigd');
+  localStorage.setItem = setItem;
+  patchReportSettings({ paperSize: 'A1' });
+  const back = await loadReportSettings();
+  eq([back.reportType, back.orientation, back.paperSize], ['lookAhead', 'portrait', 'A1'], 'opslag weer beschikbaar: de keuzes uit de sessie komen erin');
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
   const older = await loadReportSettings();

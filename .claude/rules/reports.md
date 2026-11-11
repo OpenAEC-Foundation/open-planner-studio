@@ -17,8 +17,9 @@ paths:
 
 Het tabblad Rapport (`ReportWorkspace.tsx`) kent elf rapporten (`ReportType` in
 `src/utils/reportSettings.ts`). De Gantt-afdruk staat op het Rapport-tabblad in `reportStudio/` (issue #817:
-zijbalk met stappen, SVG-papier, PDF via `exportGanttReportPdf.ts`); de tien andere staan in `ReportPanel.tsx`,
-dat alleen zijn eigen velden in `ops-reportSettings` schrijft (`patchReportSettings`). `reportType:
+zijbalk met stappen, SVG-papier, PDF via `exportGanttReportPdf.ts`); de tien andere staan in `ReportPanel.tsx`.
+Beide schermen en de werkruimte lezen één gedeelde stand (`useReportSettings`, zonder eigen kopie) en schrijven
+alleen de velden die ze wijzigen via `patchReportSettings` (in `tableReports`/`resourceGantt` per optie). `reportType:
 'resourceGantt'` bestaat alleen nog als oude opslag: die opent de Gantt-afdruk met de layout Resourcediagram
 (`reportTaskSource`). Het **resourcediagram**
 (issue #113, sinds #861 een layout: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit

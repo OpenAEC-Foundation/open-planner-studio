@@ -409,11 +409,8 @@ function storedReportSettings(): unknown {
   try { return JSON.parse(raw); } catch { return raw; }
 }
 
-/**
- * `loadReportSettings`, maar synchroon: voor `patchReportSettings`, dat lezen en schrijven niet mag scheiden,
- * en voor een herstelpunt dat de actuele opslag moet vastleggen (Standaard, overnemen uit een layout).
- */
-export function readReportSettings(): ReportSettings {
+/** `loadReportSettings`, maar synchroon: voor de gedeelde stand hieronder, die lezen en schrijven niet mag scheiden. */
+function readReportSettings(): ReportSettings {
   const raw = storedReportSettings();
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_REPORT_SETTINGS };
   const s = raw as Record<string, unknown>;
@@ -460,8 +457,7 @@ export function readReportSettings(): ReportSettings {
 }
 
 /** De twee optiegroepen die per optie samengaan: elke optie is een eigen keuze. */
-const OPTION_GROUPS = ['tableReports', 'resourceGantt'] as const;
-type OptionGroup = typeof OPTION_GROUPS[number];
+type OptionGroup = 'tableReports' | 'resourceGantt';
 
 /** Een wijziging van de rapportinstellingen: hele velden, en binnen de optiegroepen losse opties. */
 export type ReportSettingsPatch = Partial<Omit<ReportSettings, OptionGroup>> & {
@@ -469,67 +465,65 @@ export type ReportSettingsPatch = Partial<Omit<ReportSettings, OptionGroup>> & {
   resourceGantt?: Partial<ResourceGanttReportOptions>;
 };
 
+// ---- De gedeelde stand --------------------------------------------------------------------------------
+// Het Rapport-tabblad, het paneel van de tabelrapporten en de werkruimte lezen allemaal deze ene stand
+// (`useReportSettings`), en schrijven allemaal via `patchReportSettings`. Niemand houdt een eigen kopie bij, dus
+// in één venster kan een schrijfactie nooit een oudere kopie over een nieuwere stand zetten (review Terra #893;
+// eerder had elk scherm een kopie, en elke schrijfroute moest daar omheen werken). Een ander venster of de host
+// (#818) meldt een wijziging met een `StorageEvent`; dan leest de stand de opslag opnieuw.
+
+let current: ReportSettings | null = null;
+/** Een schrijfactie kwam niet in de opslag (vol, geblokkeerd, of de host houdt hem even tegen): de stand loopt voor. */
+let unsaved = false;
+const listeners = new Set<() => void>();
+
+function onStorage(event: StorageEvent): void {
+  if (event.key !== null && event.key !== `ops-${STORAGE_KEY}`) return;
+  current = readReportSettings();
+  unsaved = false;
+  for (const listener of listeners) listener();
+}
+
 /**
- * De enige schrijfroute voor `ops-reportSettings`. Twee schrijvers delen die sleutel: het Rapport-tabblad
- * (`useStudioSettings`) en het paneel van de tabelrapporten (`ReportPanel`), en een ander venster of de host
- * (#818) kan hem tussendoor vernieuwen. Daarom geeft elke schrijver alleen wat hij zelf wijzigde (binnen de
- * optiegroepen per optie), en leest deze functie de opgeslagen stand, zet de wijziging erover en schrijft het
- * geheel terug in één synchrone stap, zonder `await` ertussen. Hangt de wijziging af van wat er opgeslagen
- * staat, geef dan een functie: die krijgt de actuele opslag, niet een kopie uit het geheugen. Een schrijfactie
- * vanuit zo'n kopie zou een wijziging van elders die nog niet binnen is stil wissen (review Terra #893).
- *
- * Geeft de samengevoegde stand terug, zodat het scherm precies toont wat er staat (ook een optie van elders die
- * deze wijziging niet raakte), of `null` als hij niet in de opslag kwam (opslag vol of geblokkeerd, of de host
- * houdt het schrijven even tegen): dan houdt de aanroeper de keuze alleen in deze sessie.
+ * De nieuwste stand: wat er nu opgeslagen staat, of de gedeelde stand als die voorloopt. Voor een herstelpunt
+ * (Standaard, een overname uit een layout) en een terugval die van de opslag afhangt.
  */
-export function patchReportSettings(patch: ReportSettingsPatch | ((stored: ReportSettings) => ReportSettingsPatch)): ReportSettings | null {
-  const stored = readReportSettings();
-  const change = typeof patch === 'function' ? patch(stored) : patch;
+export function latestReportSettings(): ReportSettings {
+  return unsaved && current ? current : readReportSettings();
+}
+
+/** De gedeelde stand (voor `useSyncExternalStore`): dezelfde waarde tot er iets verandert. */
+export function reportSettingsSnapshot(): ReportSettings {
+  return current ??= readReportSettings();
+}
+
+export function subscribeReportSettings(listener: () => void): () => void {
+  if (listeners.size === 0 && typeof window !== 'undefined') window.addEventListener('storage', onStorage);
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && typeof window !== 'undefined') window.removeEventListener('storage', onStorage);
+  };
+}
+
+/**
+ * De enige schrijfroute voor `ops-reportSettings`: lees de opgeslagen stand, zet de wijziging erover (in de
+ * optiegroepen per optie) en schrijf het geheel terug in één synchrone stap. Kwam een eerdere schrijfactie niet
+ * in de opslag, dan bouwt deze voort op de gedeelde stand, zodat een keuze binnen deze sessie blijft werken.
+ * Geeft de nieuwe gedeelde stand terug.
+ */
+export function patchReportSettings(patch: ReportSettingsPatch): ReportSettings {
+  const base = latestReportSettings();
   const merged: ReportSettings = {
-    ...stored,
-    ...change,
-    tableReports: { ...stored.tableReports, ...change.tableReports },
-    resourceGantt: { ...stored.resourceGantt, ...change.resourceGantt },
+    ...base,
+    ...patch,
+    tableReports: { ...base.tableReports, ...patch.tableReports },
+    resourceGantt: { ...base.resourceGantt, ...patch.resourceGantt },
   };
   const json = JSON.stringify(merged);
   writeLocal(`ops-${STORAGE_KEY}`, json);
-  return readLocal(`ops-${STORAGE_KEY}`) === json ? merged : null;
-}
-
-const differs = (a: unknown, b: unknown) => a !== b && JSON.stringify(a) !== JSON.stringify(b);
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value);
-
-/**
- * Drie-weg-samenvoegen van één gekozen waarde: wat de planner veranderde ten opzichte van wat hij zag (`base`),
- * over wat er nu opgeslagen staat (`stored`). Veranderde er elders niets, dan zijn keuze. Een lijst (de kolommen):
- * zijn lijst, zonder wat elders is weggehaald en met wat elders is toegevoegd erachter. Een object (balkkleuren,
- * een optiegroep, een periode): per sleutel, en een sleutel die hij niet veranderde, houdt de opgeslagen waarde.
- * Een losse waarde: zijn keuze. Zo wist een keuze nooit een wijziging van elders die nog niet binnen is (review
- * Terra #893, rondes 1 tot en met 5). Standaard en een overname uit een layout vervangen bewust alles.
- */
-export function mergeChosen(base: unknown, mine: unknown, stored: unknown): unknown {
-  if (!differs(base, stored)) return mine;
-  if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(stored)) {
-    const result = mine.filter(item => !(base.includes(item) && !stored.includes(item)));
-    for (const item of stored) if (!base.includes(item) && !result.includes(item)) result.push(item);
-    return result;
-  }
-  if (isPlainObject(base) && isPlainObject(mine) && isPlainObject(stored)) {
-    const merged: Record<string, unknown> = {};
-    for (const key of new Set([...Object.keys(stored), ...Object.keys(mine)])) {
-      const value = differs(base[key], mine[key]) ? mergeChosen(base[key], mine[key], stored[key]) : stored[key];
-      if (value !== undefined) merged[key] = value;
-    }
-    return merged;
-  }
-  return mine;
-}
-
-/** Wat een keuze in het Rapport-tabblad wegschrijft: elk gekozen veld, samengevoegd met de opslag (`mergeChosen`). */
-export function chosenReportChange(base: ReportSettings, next: Partial<ReportSettings>, stored: ReportSettings): Partial<ReportSettings> {
-  return Object.fromEntries(Object.entries(next).map(([key, value]) => (
-    [key, mergeChosen(base[key as keyof ReportSettings], value, stored[key as keyof ReportSettings])]
-  ))) as Partial<ReportSettings>;
+  unsaved = readLocal(`ops-${STORAGE_KEY}`) !== json;
+  current = merged;
+  for (const listener of listeners) listener();
+  return merged;
 }

@@ -12,8 +12,8 @@ import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/use
 import { saveBytesDialog } from '@/services/fileAccess';
 import { describeVectorFallback } from '@/services/print/exportGanttReportPdf';
 import {
-  DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings, TABLE_REPORT_TYPES,
-  type ReportPaperSize, type ReportOrientation, type ReportSettings, type ReportType, type TableReportOptions,
+  patchReportSettings, TABLE_REPORT_TYPES,
+  type ReportPaperSize, type ReportOrientation, type ReportType, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { reportFontStyle, TableReportView } from './reports/TableReportView';
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
@@ -28,7 +28,7 @@ import type { PdfTableColumn } from '@/services/pdf/pdfTable';
 import type { TFunction } from 'i18next';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
-import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
+import { useReportSettings } from '@/hooks/useReportSettings';
 
 /*
  * Het rapportpaneel voor de rapporten zonder Gantt: mijlpalen, afwijkingen en de acht tabelrapporten.
@@ -106,22 +106,7 @@ function buildVarianceColumns(t: TFunction<'report'>, taskDate: TaskIdDateText, 
 const SETTINGS_PANEL_DEFAULT_WIDTH = 256;
 const SETTINGS_PANEL_MIN_WIDTH = 200;
 
-/** De velden van `ops-reportSettings` die dit paneel leest en wijzigt. De rest hoort bij het Rapport-tabblad. */
-type PanelSettings = Pick<ReportSettings, 'reportType' | 'tableReports' | 'paperSize' | 'orientation' | 'reportFontFamily'>;
-const panelFields = (s: ReportSettings): PanelSettings => ({
-  reportType: s.reportType, tableReports: s.tableReports, paperSize: s.paperSize,
-  orientation: s.orientation, reportFontFamily: s.reportFontFamily,
-});
-
-export interface ReportPanelProps {
-  /**
-   * Het paneel wil horen wanneer de gebruiker hier de Gantt-afdruk kiest; `ReportWorkspace` toont dan het
-   * Rapport-tabblad. Pas nádat de keuze bewaard is, zodat het tabblad haar bij het laden leest.
-   */
-  onReportTypeChange?: (type: ReportType) => void;
-}
-
-export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
+export function ReportPanel() {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
   // B4 in de PDF van mijlpalen en afwijkingen: een tijd alleen als het moment midden op de werkdag valt.
@@ -144,44 +129,17 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     </div>
   ) : null;
 
-  // De opties starten op de gedeelde defaults en krijgen vlak na de eerste render de opgeslagen stand.
-  const [panel, setPanel] = useState<PanelSettings>(() => panelFields(DEFAULT_REPORT_SETTINGS));
-  const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = panel;
+  // De gedeelde stand van `ops-reportSettings` (`useReportSettings`). Dit paneel schrijft alleen zijn eigen velden
+  // (rapporttype, tabelopties, papier, richting, letter); kiest de planner de Gantt-afdruk, dan volgt de
+  // werkruimte het rapporttype.
+  const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = useReportSettings();
   const reportFont = reportFontStack(reportFontFamily);
-
-  // Lezen bij openen, en opnieuw als een andere bron `ops-reportSettings` vernieuwt (de host na de start,
-  // #818, of een ander tabblad). Opslaan gebeurt alleen bij een keuze van de gebruiker, en dan alleen voor
-  // de velden van dit paneel (`patchReportSettings`): de kolommen, balkkleuren, layout en de rest van het
-  // Rapport-tabblad blijven zoals ze opgeslagen staan. Daardoor kan de eerste render met de standaard ook
-  // nooit de opgeslagen stand overschrijven.
-  const [reportSettingsReload, setReportSettingsReload] = useState(0);
-  useStoredSettingRefresh('ops-reportSettings', () => setReportSettingsReload(n => n + 1));
-  useEffect(() => {
-    let cancelled = false;
-    void loadReportSettings().then(s => {
-      if (!cancelled) setPanel(panelFields(s));
-    }, () => {});
-    return () => { cancelled = true; };
-  }, [reportSettingsReload]);
-
-  // Na het schrijven toont het paneel wat er nu opgeslagen staat (ook een optie van elders). Mislukt het schrijven
-  // (geblokkeerde opslag), dan blijft de keuze binnen deze sessie werken.
-  const update = useCallback((patch: Partial<PanelSettings>) => {
-    const merged = patchReportSettings(patch);
-    setPanel(prev => (merged ? panelFields(merged) : { ...prev, ...patch }));
-  }, []);
-  // Alleen de gewijzigde tabelopties: de andere staan in de opslag mogelijk al nieuwer dan in dit paneel.
-  const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => {
-    const merged = patchReportSettings({ tableReports: patch });
-    setPanel(prev => (merged ? panelFields(merged) : { ...prev, tableReports: { ...prev.tableReports, ...patch } }));
-  }, []);
-  const setPaperSize = useCallback((v: ReportPaperSize) => { update({ paperSize: v }); }, [update]);
-  const setOrientation = useCallback((v: ReportOrientation) => { update({ orientation: v }); }, [update]);
-  const setReportFontFamily = useCallback((v: ReportFontId) => { update({ reportFontFamily: v }); }, [update]);
-  const chooseReportType = useCallback((next: ReportType) => {
-    update({ reportType: next });
-    onReportTypeChange?.(next);
-  }, [update, onReportTypeChange]);
+  // Alleen de gewijzigde tabelopties: `patchReportSettings` voegt de groep per optie samen.
+  const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => { patchReportSettings({ tableReports: patch }); }, []);
+  const setPaperSize = useCallback((v: ReportPaperSize) => { patchReportSettings({ paperSize: v }); }, []);
+  const setOrientation = useCallback((v: ReportOrientation) => { patchReportSettings({ orientation: v }); }, []);
+  const setReportFontFamily = useCallback((v: ReportFontId) => { patchReportSettings({ reportFontFamily: v }); }, []);
+  const chooseReportType = useCallback((next: ReportType) => { patchReportSettings({ reportType: next }); }, []);
 
   // Reden waarom de laatste export-poging is afgebroken (alleen een CPM-cyclus).
   // Het CPM-resultaat met de fout, niet de tekst: vertaald bij het tonen, dus ook na een taalwissel.

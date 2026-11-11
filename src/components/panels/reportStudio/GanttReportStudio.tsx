@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  patchReportSettings, readReportSettings, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  latestReportSettings, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -131,12 +131,12 @@ interface PopoverState { step: StudioStepId; anchor: { x: number; y: number }; f
  * elk deel oplicht en bij een klik zijn stap opent. Is de zijbalk ingeklapt, dan opent dezelfde
  * stapinhoud als klein venster naast dat deel: één bron van bediening, twee wegen ernaartoe.
  */
-export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: (type: ReportType) => void }) {
+export function GanttReportStudio() {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
   const api = useStudioSettings();
-  const { settings, patch, remember, hydrated, applyWithUndo } = api;
+  const { settings, patch, remember, applyWithUndo } = api;
 
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
@@ -176,12 +176,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const [loadedFont, setLoadedFont] = useState<StudioFont | null>(null);
   const chosenFont = settings.reportFontFamily;
   useEffect(() => {
-    if (!hydrated) return;
     let cancelled = false;
     void Promise.all([ensureReportFontLoaded(chosenFont), loadReportTextMetrics(chosenFont, rtl ? 'rtl' : 'ltr')])
       .then(([, metrics]) => { if (!cancelled) setLoadedFont({ id: chosenFont, metrics }); });
     return () => { cancelled = true; };
-  }, [hydrated, chosenFont, rtl]);
+  }, [chosenFont, rtl]);
   const fontReady = loadedFont !== null;
   const fontPending = loadedFont?.id !== chosenFont;
 
@@ -251,12 +250,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   // als die layout ook in de opslag nog gekozen is: koos iemand elders al een andere bron, dan neemt het tabblad
   // die over in plaats van haar te wissen (review Terra #893, ronde 5).
   useEffect(() => {
-    if (!hydrated || !layoutsLoaded || source.kind !== 'layout' || chosenLayout) return;
-    const stored = reportTaskSource(readReportSettings());
+    if (!layoutsLoaded || source.kind !== 'layout' || chosenLayout) return;
+    const stored = reportTaskSource(latestReportSettings());
     const gone = stored.kind === 'layout' && stored.id === source.id;
     remember(taskSourcePatch(gone ? { kind: 'all' } : stored));
     if (gone) useAppStore.getState().notify({ severity: 'info', messageKey: 'notifications.reportLayoutGone' });
-  }, [hydrated, layoutsLoaded, source, chosenLayout, remember]);
+  }, [layoutsLoaded, source, chosenLayout, remember]);
 
   const resourceOptions = settings.resourceGantt;
   const resolvedPeriod = useResolvedPeriod(resourceOptions.period);
@@ -326,8 +325,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     }, `layout:${layoutDiff.id}`);
   }, [layoutDiff, chosenLayout, availableColumnIds, applyWithUndo, t]);
   const patchResourceOptions = useCallback((next: Partial<ResourceGanttReportOptions>, input: string) => {
-    patch({ resourceGantt: { ...resourceOptions, ...next } }, input);
-  }, [patch, resourceOptions]);
+    patch({ resourceGantt: next }, input);
+  }, [patch]);
 
   // Kolommen overnemen van het tabblad Tabel of van de tabel naast de Gantt, elk met een eigen "Ongedaan
   // maken" (check Ethan 9-11-2026). Alleen kolommen die dit project kent; de taaknaam komt vooraan als die
@@ -339,7 +338,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   }, [tableGridColumns, ganttGridColumns, availableColumnIds, applyWithUndo, t]);
 
   // ---- Papier ---------------------------------------------------------------------------------------
-  const options = useStudioPrintOptions(settings, companyName, resolved.columns, hydrated ? loadedFont : null, rowSource);
+  const options = useStudioPrintOptions(settings, companyName, resolved.columns, loadedFont, rowSource);
   const paperMetrics = loadedFont?.metrics ?? null;
   const paperInput = useMemo(() => ({
     tasks, sequences, calendar, projectName, options, metrics: paperMetrics,
@@ -356,7 +355,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   // ---- Stappen: open stap, zijbalk, zwevend venster --------------------------------------------------
   // De open stap staat in de instellingen: bij het eerste bezoek stap 1, daarna de laatst gebruikte.
-  const openStep: StudioStepId | null = !hydrated || settings.studioStep === 'none' ? null : settings.studioStep;
+  const openStep: StudioStepId | null = settings.studioStep === 'none' ? null : settings.studioStep;
   const openStepRef = useRef(openStep);
   openStepRef.current = openStep;
   const setOpenStep = useCallback((step: StudioStepId | null) => remember({ studioStep: step ?? 'none' }), [remember]);
@@ -400,11 +399,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     openStepDirect(openStepRef.current === step ? null : step);
   }, [openStepDirect]);
 
-  const paperHint = useMemo(() => (hydrated && !settings.paperHintSeen ? {
+  const paperHint = useMemo(() => (!settings.paperHintSeen ? {
     text: t('studio.paper.hint'),
     closeLabel: t('studio.paper.hintClose'),
     onClose: () => remember({ paperHintSeen: true }),
-  } : null), [hydrated, settings.paperHintSeen, t, remember]);
+  } : null), [settings.paperHintSeen, t, remember]);
 
   const setSidebar = useCallback((mode: ReportSettings['sidebar']) => {
     setPopover(null);
@@ -1131,15 +1130,10 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       aria-label={t('reportType.label')}
       value="gantt"
       onChange={v => {
-        // Eerst bewaren, dan wisselen: `ReportPanel` leest het rapporttype bij het laden. Een Resourcediagram
-        // dat alleen als `reportType` bewaard staat (een oude opslag), gaat mee in `layoutId`: anders opent de
-        // terugweg met Alle taken (review Sol #847, ronde 4). Dat hangt af van de opslag zelf, niet van de
-        // kopie in dit tabblad: die kan een rijenbron van elders terugzetten (review Terra #893, ronde 2).
-        patchReportSettings(stored => ({
-          ...(stored.reportType === 'resourceGantt' ? taskSourcePatch(reportTaskSource(stored)) : {}),
-          reportType: v as ReportType,
-        }));
-        onReportTypeChange(v as ReportType);
+        // De werkruimte volgt het rapporttype in de gedeelde stand. Een Resourcediagram dat alleen als
+        // `reportType` bewaard staat (een oude opslag), gaat mee in `layoutId`: anders opent de terugweg met Alle
+        // taken (review Sol #847, ronde 4). Verder alleen het rapporttype (review Terra #893, ronde 2).
+        patch({ ...(settings.reportType === 'resourceGantt' ? taskSourcePatch(source) : {}), reportType: v as ReportType }, 'reportType');
       }}
       options={[
         { value: 'gantt', label: t('reportType.gantt') },
@@ -1272,7 +1266,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
       <StudioPaper
         input={paperInput}
-        loading={!hydrated || !fontReady || !options}
+        loading={!fontReady || !options}
         selected={selected}
         onPick={openStepFromPaper}
         regionLabel={regionLabel}
