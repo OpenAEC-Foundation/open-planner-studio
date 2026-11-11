@@ -2134,6 +2134,13 @@ en noem het in je rapport of PR-tekst.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
      ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
 
+1152. **VERVOLG: de foreign-merge weigert enkele duurvormen die de lezer inmiddels exact leest.**
+     `src/services/ifc/foreign/durationForms.ts` houdt de bestaande conservatieve lijst: onder andere komma's,
+     fracties van minuten, een tijddeel in speling en een gemengde werkdag-lag blijven bij opslaan geweigerd.
+     De gewone IFC-lezer verwerkt deze vormen exact; de merge doet geen onveilige schrijfpoging.
+     Richting: de lijst per slot verruimen, met bewijs dat de bronwaarde ook na een bewerking exact blijft.
+     Vastgelegd bij de duurfix voor 1028, 1029 en 1033–1035; `check-ifc-duurvormen.ts` legt de grens vast. — B
+
 1150. **VERVOLG: de doelcontrole na #870 is trager dan op main, en er kan wat weg.** Gemeten in de review van #870,
      ronde 11 (Node, gedeelde machine). De doelcontrole (mediaan van 5 runs; alleen met de flag): een geldig bestand
      van 15 MiB zonder model kost op main ongeveer 100 ms, op de tak ongeveer 630 ms; van 20 MiB 125 ms tegen 880 ms.

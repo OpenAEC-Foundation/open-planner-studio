@@ -197,8 +197,8 @@ for (const form of DURATION_FORMS) {
 }
 ok('elke vorm heeft een unieke naam', new Set(DURATION_FORMS.map(f => f.name)).size === DURATION_FORMS.length);
 
-// ── 3: wat de lezer anders leest, valt buiten de lijst ──
-// [plek, tekst, de waarde die de lezer er nu van maakt, waarom]. `undefined`: alleen buiten de lijst (geen leesfout bekend).
+// ── 3: de merge blijft conservatief; de lezer leest deze vormen exact of weigert ze ──
+// [plek, tekst, de huidige leeswaarde of weigering, historische aanleiding]. `undefined`: alleen buiten de lijst (geen leesfout bekend).
 const OUTSIDE: readonly (readonly [Use, string, Value | 'duration' | undefined, string])[] = [
   ['duur', 'PT-2H', 'duration', 'knownbug 1034: het minteken in het tijddeel valt weg'],
   ['werkelijk', 'PT-12H', 'duration', 'knownbug 1034'],
