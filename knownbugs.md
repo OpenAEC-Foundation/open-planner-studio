@@ -1866,27 +1866,48 @@ en noem het in je rapport of PR-tekst.
      november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
      met main). — B
 
-1108. **BLOKKEERT vóór 1c: drie oude eigen fixtures weigeren met een wand erbij zonder bewerking, ook met de lezer direct.** Sinds
-     #886 loopt de telling (`check-ifc-foreign-merge-telling.ts`) ook over `tests/planning/fixtures/*.ifc`, met een wand.
-     Drie eigen bestanden schrijven daar zonder bewerking niet, op de route van de app en op de oude testroute (de lezer
-     direct); het komt dus niet uit de route van de app:
-     - `h7-kalender-oude-writer.ifc`: de bronwaarden van werkplan en werkschema geven na herlezen een andere planning;
-     - `ifc-arity-oude-writer-merged.ifc`: een werktijd zonder eenduidige tegenhanger (`niet-eenduidig`);
-     - `xer-archief-herschreven.ifc`: `SchemaVersion` van het XER-bronarchief komt niet terug.
-     Geen verlies: de merge weigert getypeerd. De telling noemt ze in `OWN_MAY_REFUSE`. Richting: per bestand nagaan of
-     het een vorm is die OPS zelf schreef, en zo ja die vorm dragen, zoals fixronde 7 van #867 deed voor de oude eigen
-     bestanden. Besluit van Trias (wrakko, 11 november 2026): BLOKKEERT vóór 1c, op te lossen in een eigen kleine PR na
-     #886, samen met 1109; een planner mag zijn eigen oude bestand altijd blijven opslaan. Uit #886. — B
+1108. **Twee fixtures die geen gewone uitvoer van OPS zijn, blijven bewust geweigerd.** Onderzoek in #898:
+     - `h7-kalender-oude-writer.ifc` is echte uitvoer van OPS `531940ac` (de naastliggende JSON noemt de
+       writercommit). Opgelost: `sourceBandCalendarIds` gebruikt nu `workCalendarSlots`, ook bij de oude indeling
+       met de werkweek in slot 5. Zonder bewerking en na hernoemen schrijft hij; heropenen via de app geeft dezelfde planning.
+     - `ifc-arity-oude-writer-merged.ifc` is door IfcOpenShell MergeProjects 0.9.0 herschreven, geen uitvoer van OPS.
+       `check-ifc-legacy-arity.ts` documenteert dat de oude PredefinedType en de verwijzingen in WorkingExceptionIds
+       daar al veranderden. De werktijd heeft geen eenduidige tegenhanger; de merge blijft getypeerd weigeren.
+     - `xer-archief-herschreven.ifc` is een met opzet beschadigde fixture (`check-xer-archive-fallback.ts`, kop en
+       scenario D): `ByteChunkCount = 1` zonder chunk; manifest en selector staan er nog. De kop noemt OPS. De writers
+       van OPS, oud en nieuw, schrijven de telling uit dezelfde verzameling als de chunks, en de gewone route bouwt die
+       verzameling aaneengesloten op; gewone uitvoer van OPS heeft deze vorm dus niet (nagegaan door Terra, review ronde 2
+       van #898). Welk programma of welke handeling zo'n bestand in het echt maakt, is niet vastgesteld. De lezer meldt
+       de ontbrekende chunk en laat het archief weg; de merge weigert het verlies van het bronmanifest. De lezer blijft
+       ongewijzigd.
+     De laatste twee staan met deze redenen in `OWN_MAY_REFUSE`; ze zijn geen voorbeelden van een OPS-versie die zijn
+     eigen uitvoer niet kan opslaan. De weigering blijft veilig; geen toestemming om hun brongegevens weg te schrijven. — B
 
-1109. **BLOKKEERT vóór 1c: voortgang invoeren in `b5-lopend-oude-writer.ifc` met een model laat de merge weigeren.** De planner zet
-     een taak op begonnen, 50 %. De merge zet de duur en de rest van die taak in de vorm van de bron terug ((b)), en
-     herlezen zou dan een andere rest geven (`niet-gedragen`: "de bronwaarden (2: IFCTASKTIME #29 argument 4, IFCTASKTIME
-     #29 argument 18) zouden na herlezen een andere planning geven"). Geen verlies, wel te veel weigeren, en alleen om de
-     taak die de planner zelf bijwerkte. Alleen dit bestand (een lopende taak van de writer uit fase B5) laat het zien; in
-     elk ander eigen bestand van de telling schrijft voortgang. Proef: de telling, `fixtures/b5-lopend-oude-writer.ifc +
-     wand`, `voortgang`. Richting: na een bewerking van de voortgang de rest in de vorm van de writer schrijven. Besluit
-     van Trias (wrakko, 11 november 2026): BLOKKEERT vóór 1c, in dezelfde kleine PR als 1108; voortgang bijwerken is
-     gewoon werk van elke planner. Uit #886. — B
+1109. **BLOKKEERT vóór 1c: voortgang in `b5-lopend-oude-writer.ifc` met een model weigert.** Bron IfcTaskTime #29:
+     slot 4 `P0Y0M5D`, slot 18 `$`. Terugzetten van beide bronwaarden geeft na herlezen een andere planning dan de
+     writeruitvoer zonder terugzetten. De brede afhankelijkheid "voortgang verklaart duur en rest" in #898 gaf verlies:
+     Terra bewees dat alleen voortgang wijzigen in v2026.9.0-17-cijfers een ongewijzigde duur en rest liet afronden van
+     2.3333333333333335 naar 2.333333. Per slot behouden met `carried` liet vervolgens drie bestanden van de toets van
+     Trias weigeren op slot 18: `P0Y0M0.5D` → `PT4H30M0S`, `P0Y0M2.3333333333333335D` → `PT21H0M0S` en
+     `P0Y0M0.5D` → `PT4H0M0S`. `carried` kent voor een duur nu alleen tekstgelijkheid, niet dezelfde betekenis in een
+     andere vorm. Richting: betekenis van een duur dragen binnen de bestaande lijst van exact gelezen vormen
+     (`durationForms.ts`), zonder een brede vrijstelling. Besluit van Trias, 11 november 2026: 1109 uit #898; de tabel en
+     de duur/rest-code daar terug naar main. Een eigen PR ná #903 (volledige herleestoets), met ook 1113. — B
+
+1113. **VERVOLG: een gewone opslag rondt een duur of rest met 17 cijfers af naar 6 decimalen.** Gemeten in #898, zonder
+     model, op code waarvan de gewone writer en de open-route gelijk zijn aan main `d456e6e7b`: open
+     `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` via de app, gewone opslag met `writeIFC`, heropenen via de app. De duur
+     van Set up site gaat van 2.3333333333333335 naar 2.333333 dagen, bij elke bewerking; zonder bewerking ronden duur én
+     rest zo af. Besluit van Trias (wrakko, 11 november 2026): VERVOLG.
+     Geen fout: de rest na een werkelijk einde. Via de echte invoer (eigenschappenpaneel `enterTaskProgress`, Taak
+     bewerken `planProgressEntry` + `saveTaskDialog`, de tabelkolom Werkelijk einde, en de losse `setActualFinish`) staat
+     de rest al vóór opslaan op 0 en de voortgang op 100 %, en na opslaan en heropenen ook. Alleen een kale `updateTask`
+     die enkel `actualFinish` zet, laat de rest op 2.3333333333333335 staan, en de app zet hem dan bij heropenen op 0; dat
+     is geen route van een planner. Hetzelfde geldt voor een kale `updateTask` met alleen 50 % voortgang op een taak
+     zonder rest in de bron (Terra, review ronde 2 van #898: na heropenen staat de rest op één dag). Gevolg voor de tests:
+     proeven en de herleestoets (#903, en de PR voor 1109) bewerken voortgang, werkelijke start en werkelijk einde zoals
+     de app, niet met een kale `updateTask`. Bewijs van de meting: tien gevallen, alle invoerroutes
+     (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 1107. **Vóór 1c: de herleestoets binnen de merge opent niet zoals de app.** `writeIfcMerge` geeft de uitvoer via
      `readPlanning` aan `sourceFormProblems` (`src/services/ifc/foreign/mergeWriter.ts`, de herleestoets van de bronvorm);
@@ -1895,7 +1916,7 @@ en noem het in je rapport of PR-tekst.
      letterlijke kalender raakt. De tests openen wel via de app (`openForeign` in `tests/planning/ifcMergeKern.ts`), maar dat
      is geen controle op iedere merge. Geen verlies gevonden. Eis (besluit van Trias): vóór het aansluiten in 1c een
      volledige herleestoets in de merge, met een proef die rood wordt als de herberekening na openen de planning verandert.
-     Gaat mee in de kleine PR met 1108 en 1109. Gevonden door Terra in review ronde 1 van #886. — B
+     Krijgt een eigen PR: #903. Gevonden door Terra in review ronde 1 van #886. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
@@ -1907,14 +1928,12 @@ en noem het in je rapport of PR-tekst.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
 
-1111. **Vóór 1c: `sameMeaning` vergelijkt een datum-tijd zonder zone in de tijdzone van de machine.** `sameMeaning` in
-     `src/services/ifc/foreign/lossCheck.ts` (de toets "gedragen" van fixronde 1 van #886) leest zo'n tekst met
-     `Date.parse`. Rond de wissel naar zomertijd gelden dan twee verschillende wandkloktijden als gelijk: bron
-     `2027-03-28T02:00:00` en O0 `2027-03-28T03:00:00` in `Europe/Amsterdam`, in `UTC` niet. De planner leest zulke tijden
-     als wandkloktijd zonder zomertijd (`src/utils/dateUtils.ts`). Geen verlies bewezen: Sol draaide 168 volledige merges
-     per tijdzone, en elke geschreven uitvoer behield de bronwaarde. Richting: dezelfde vaste tijdas als de planner, een
-     expliciete zone apart, en een proef in beide tijdzones. Besluit van Trias (wrakko, 11 november 2026): VERVOLG vóór 1c,
-     in de kleine PR met 1107, 1108 en 1109. Terra en Sol, review ronde 2 van #886. — B
+1115. **VERVOLG: de pariteitstest vergelijkt met een oudere main.** `tests/planning/check-ifc-foreign-pariteit.ts` en
+     `tests/planning/fixtures/main-pariteit.json` zijn gemaakt op main `2fbbc4ae1`; sindsdien kwam #886 in main
+     (`d456e6e7b`), met wijzigingen in de opslagguard. De test slaagt tegen de vastgelegde uitkomst, en bewijst dus geen
+     byte-gelijkheid met de main van nu. Richting: de referentie opnieuw maken met `scripts/proef/maak-main-pariteit.mjs`
+     op de main van dat moment, bij het bijwerken met main in #903 of de PR voor 1109. Terra, review ronde 2 van
+     #898. — B
 
 1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
      deel waarvan de bron niet terug te lezen is, zegt het ontwerp
