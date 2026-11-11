@@ -1,6 +1,7 @@
 import { parseIfcDuration } from './isoDuration';
+import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
 import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
-import { calendarExceptionKey } from './calendarExceptionKey';
+import { calendarExceptionKey, calendarExceptionKeyFromClocks } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
@@ -69,8 +70,8 @@ import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
   canonicalizeBands, clockToMinutes, firstBlockedDay, getCalendarBands, hasNonAnchorTime,
-  isoDurationToMinutes, isSubDayMinutes, minutesToClock, promoteHourCalendar, promoteHourCalendars,
-  registerCalendarBands, scalarHourFromClock, workDayFromBlocks,
+  isoDurationToMinutes, isSubDayMinutes, promoteHourCalendar, promoteHourCalendars,
+  registerCalendarBands, workDayFromBlocks,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (discriminator c) en DEFAULT_PRIORITY wonen in ./ifcConstants zodat reader en
@@ -309,6 +310,9 @@ export function readIFC(
   // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
   // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid.
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
+  for (const cal of [calendar, ...resourceCalendars]) {
+    if (cal.ifcTimePeriods?.[0]) cal.ifcTimePeriods[0].layout = ifcCalendarBandLayout(cal);
+  }
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   // Kostenresources (issue #815): geen tarief/kalender/eenheid/ploeg en toewijzingen zonder werkvelden
@@ -3038,14 +3042,32 @@ function buildCalendarFromEntity(
   if (recurrences.length === 0 && datedRecurrences.length > 0) recurrences.push(datedRecurrences[0]);
   const weekRecurrences = recurrences.filter(rec => parseIntList(rec.args[2] || '').length > 0);
   // ALLE TimePeriods van één patroon (`TimePeriods` is native een lijst — pauze/split-shift).
-  const readPeriods = (timePeriodRefs: string[]): { start: number; end: number }[] => {
+  const sourcePeriods: (NonNullable<WorkCalendar['ifcTimePeriods']>[number] & { days: readonly number[] })[] = [];
+  let secondPrecisionWeek = false;
+  let legacyBandWeek = false;
+  const readPeriod = (tp: StepEntity, days: readonly number[] = [], binding = ''): { start: number; end: number } | null => {
+    const startText = stripQuotes(tp.args[0] || '');
+    const endText = stripQuotes(tp.args[1] || '');
+    const start = parseIfcClock(startText);
+    const end = parseIfcClock(endText);
+    const s = start?.minutes ?? clockToMinutes(startText);
+    const e = end?.minutes ?? clockToMinutes(endText);
+    if (s == null || e == null) return null;
+    if (days.length > 0 && (start?.hasSeconds || end?.hasSeconds)) secondPrecisionWeek = true;
+    if (days.length > 0 && (start?.legacyBand || end?.legacyBand)) legacyBandWeek = true;
+    if (!start || !end || start.preserve || end.preserve || start.hasSeconds || end.hasSeconds) {
+      const source = { start: s, end: e <= s ? e + 1440 : e, startText, endText, days, binding };
+      if (!sourcePeriods.some(p => JSON.stringify(p) === JSON.stringify(source))) sourcePeriods.push(source);
+    }
+    return { start: s, end: e };
+  };
+  const readPeriods = (timePeriodRefs: string[], days: readonly number[]): { start: number; end: number }[] => {
     const out: { start: number; end: number }[] = [];
     for (const tpRef of timePeriodRefs) {
       const tp = entityMap.get(tpRef);
       if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-      const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
-      const e = clockToMinutes(stripQuotes(tp.args[1] || ''));
-      if (s != null && e != null) out.push({ start: s, end: e });
+      const period = readPeriod(tp, days);
+      if (period) out.push(period);
     }
     return out;
   };
@@ -3055,7 +3077,7 @@ function buildCalendarFromEntity(
   if (perDayWeek) {
     const listsByDay = new Map<number, { start: number; end: number }[][]>();
     for (const rec of weekRecurrences) {
-      const recPeriods = readPeriods(parseRefs(rec.args[7] || ''));
+      const recPeriods = readPeriods(parseRefs(rec.args[7] || ''), parseIntList(rec.args[2] || ''));
       for (const d of parseIntList(rec.args[2] || '')) {
         if (d < 1 || d > 7) continue;
         const lists = listsByDay.get(d) ?? [];
@@ -3075,10 +3097,9 @@ function buildCalendarFromEntity(
     // (`firstBlockedDay`: zondag, dan maandag t/m zaterdag) — onafhankelijk van de volgorde in de SET.
     periods = (firstBlockedDay({ byWeekday }) ?? []).map(p => ({ ...p }));
     if (periods.length === 1) {
-      // Eén blok: dezelfde afleiding als een enkele periode hieronder, via de klok die de schrijver
-      // voor dit blok schrijft.
-      const startHour = scalarHourFromClock(minutesToClock(periods[0].start));
-      const endHour = scalarHourFromClock(minutesToClock(periods[0].end, true));
+      // Eén blok: dezelfde minuutprecisie als een enkele periode hieronder.
+      const startHour = periods[0].start / 60;
+      const endHour = periods[0].end / 60;
       calendar.workStartHour = startHour;
       calendar.workEndHour = endHour;
       if (endHour > startHour) calendar.hoursPerDay = endHour - startHour;
@@ -3089,22 +3110,17 @@ function buildCalendarFromEntity(
     if (workDays.length > 0) calendar.workDays = workDays;
 
     const timePeriodRefs = parseRefs(rec.args[7] || '');
-    periods = readPeriods(timePeriodRefs);
+    periods = readPeriods(timePeriodRefs, workDays.length > 0 ? workDays : calendar.workDays);
     // Meer periodes: scalar = begin eerste / einde laatste periode (fix werkdag-einde, 2026-10) — zie
     // hieronder. Eén periode: scalar uit die periode, de oude afleiding (ook voor oude klokken als
     // '7.5:00:00'). Houdt de dag-kalender scalair (de post-pass promoveert pas naar uur-modus bij een
     // echte afwijking, discriminator a/b/c).
-    if (timePeriodRefs.length === 1) {
-      const tp = entityMap.get(timePeriodRefs[0]);
-      if (tp && tp.type === 'IFCTIMEPERIOD') {
-        const startHour = scalarHourFromClock(stripQuotes(tp.args[0] || ''));
-        const endHour = scalarHourFromClock(stripQuotes(tp.args[1] || ''));
-        if (Number.isFinite(startHour)) calendar.workStartHour = startHour;
-        if (Number.isFinite(endHour)) calendar.workEndHour = endHour;
-        if (Number.isFinite(startHour) && Number.isFinite(endHour) && endHour > startHour) {
-          calendar.hoursPerDay = endHour - startHour;
-        }
-      }
+    if (timePeriodRefs.length === 1 && periods.length === 1) {
+      const startHour = periods[0].start / 60;
+      const endHour = periods[0].end / 60;
+      calendar.workStartHour = startHour;
+      calendar.workEndHour = endHour;
+      if (endHour > startHour) calendar.hoursPerDay = endHour - startHour;
     }
     // Dezelfde periodes op elke werkdag van het patroon (zonder weekdagen: de standaardwerkdagen).
     const days = (workDays.length > 0 ? workDays : calendar.workDays).filter(d => d >= 1 && d <= 7);
@@ -3182,6 +3198,7 @@ function buildCalendarFromEntity(
     // wrap-band komt als tijd-van-de-dag terug (`e ≤ s`) en krijgt hier `+1440` terug, precies
     // zoals de hoofd-werktijdlus hierboven het aan `canonicalizeBands` overlaat.
     const bands: { start: number; end: number }[] = [];
+    const sourceClocks: [string, string][] = [];
     const excRecRef = parseRef(wt.args[3] || '');
     if (excRecRef) {
       const excRec = entityMap.get(excRecRef);
@@ -3189,20 +3206,21 @@ function buildCalendarFromEntity(
         for (const bRef of parseRefs(excRec.args[7] || '')) {
           const tp = entityMap.get(bRef);
           if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-          const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
-          let e = clockToMinutes(stripQuotes(tp.args[1] || ''));
-          if (s != null && e != null) {
-            if (e <= s) e += 1440;
-            bands.push({ start: s, end: e });
+          const period = readPeriod(tp, [], `exception:${JSON.stringify([range.startDate, range.endDate, ifcSlotText(wt.args[0]) || 'Werkende uitzondering'])}:${bands.length}`);
+          if (period) {
+            bands.push({ start: period.start, end: period.end <= period.start ? period.end + 1440 : period.end });
+            sourceClocks.push([stripQuotes(tp.args[0] || ''), stripQuotes(tp.args[1] || '')]);
           }
         }
       }
     }
     const stableKeys = calendarExceptionMetadata.workingExceptionKeys;
     const recurrence = excRecRef ? entityMap.get(excRecRef) : undefined;
+    const identity = { name: ifcSlotText(wt.args[0]), ...range, bands };
     const isWorking = stableKeys !== undefined
       ? recurrence?.type === 'IFCRECURRENCEPATTERN' && recurrence.args[0] === '.DAILY.'
-        && stableKeys.has(calendarExceptionKey({ name: ifcSlotText(wt.args[0]), ...range, bands }))
+        && (stableKeys.has(calendarExceptionKey(identity))
+          || stableKeys.has(calendarExceptionKeyFromClocks(identity, sourceClocks)))
       : workingExceptionIds?.has(ref);
     if (!isWorking) {
       holidays.push({ name: ifcSlotText(wt.args[0]) || 'Feestdag', ...range });
@@ -3244,7 +3262,16 @@ function buildCalendarFromEntity(
   // property, dan blijft de derivatie hierboven ongewijzigd staan.
   const hpdOverride = extractCalendarHoursPerDay(cal.id, entities, entityMap);
   if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
-  if (hourMeta.hourMode === true) {
+  // Seconden veranderen de kalenderidentiteit niet: het scalaire pauzepatroon
+  // blijft effectief. Alleen de werkelijk expliciete oude bandenvorm promoveert.
+  const scalarSeconds = secondPrecisionWeek && !legacyBandWeek && hourMeta.hourMode !== true
+    && periods.length === 1 && !perDayWeek && !deviates;
+  if (scalarSeconds) {
+    // Zonder netto-override of pauze is de enige periode een ononderbroken dag.
+    // Een expliciete nul voorkomt minuutafronding van de impliciete netto-afleiding.
+    if (hpdOverride == null && calendar.simpleBreakDurationMinutes === undefined) calendar.simpleBreakDurationMinutes = 0;
+    declaredScalarCalendars.add(calendar);
+  } else if (hourMeta.hourMode === true || ((secondPrecisionWeek || legacyBandWeek) && hourMeta.hourMode !== false)) {
     // `promoteHourCalendar` zet `hoursPerDay` op de modale dagsom van de blokken; een expliciete
     // `HoursPerDay` wint daarna. Alleen bij deze markering: zie docs/ifc-round-trip.md, "Uren per dag
     // bij een blokkenkalender".
@@ -3261,6 +3288,35 @@ function buildCalendarFromEntity(
       declaredScalarCalendars.add(calendar);
     }
   }
+
+  // Leg de herkomst bij import vast per dag en band. De writer zoekt nooit een
+  // numeriek gelijke klok elders in de kalender op voor een latere bewerking.
+  const bound: NonNullable<WorkCalendar['ifcTimePeriods']> = [];
+  for (const [day, list] of Object.entries(bands.byWeekday)) {
+    list.forEach((band, index) => {
+      const origins = sourcePeriods.filter(p => p.days.includes(Number(day)));
+      const start = origins.find(p => p.start === band.start);
+      const end = origins.find(p => p.end === band.end);
+      if (start || end) bound.push({
+        binding: `week:${day}:${index}`, start: band.start, end: band.end,
+        startText: start?.startText ?? '', endText: end?.endText ?? '',
+      });
+    });
+  }
+  for (const source of sourcePeriods.filter(p => p.binding)) {
+    const { days: _, ...record } = source;
+    bound.push(record);
+  }
+  if (!calendar.workTime && periods.length === 1 && !perDayWeek) {
+    const first = periods[0];
+    const source = sourcePeriods.find(p => p.days.length > 0 && p.start === first.start);
+    if (source) bound.push({
+      binding: 'scalar', start: source.start, end: source.end,
+      startText: source.startText, endText: source.endText,
+      scalarStart: calendar.workStartHour, scalarEnd: calendar.workEndHour,
+    });
+  }
+  if (bound.length > 0) calendar.ifcTimePeriods = bound;
 
   return calendar;
 }

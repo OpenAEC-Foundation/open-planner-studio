@@ -1,3 +1,4 @@
+import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import type { IFCSaveSource } from '@/state/ifcSaveInput';
 import { recoverySnapshotInput, serializeRecoveryInput } from './recoverySnapshotInput';
 import type { RecoveryWorkerRequest, RecoveryWorkerResponse } from './recoverySnapshot.worker';
@@ -37,7 +38,8 @@ export function createRecoverySnapshotSerializer(
           timeout = setTimeout(() => reject(new Error('Crashherstel-worker antwoordde niet binnen 60 seconden.')), 60_000);
           activeWorker.onmessage = ({ data }: MessageEvent<RecoveryWorkerResponse>) => {
             if (data.id !== id) return;
-            if ('error' in data) reject(new RecoverySerializationError(data.error));
+            if ('error' in data) reject(data.calendarTimeMinutes !== undefined
+              ? new IfcCalendarTimePrecisionError(data.calendarTimeMinutes) : new RecoverySerializationError(data.error));
             else resolve(data.ifc);
           };
           activeWorker.onerror = (event) => { event.preventDefault(); reject(new Error(event.message)); };
@@ -47,7 +49,7 @@ export function createRecoverySnapshotSerializer(
       } catch (error) {
         // Een inhoudelijke writerfout blijft een fout: niets committen, de worker blijft bruikbaar
         // voor de volgende versie. Alleen transport-/opstartfouten gebruiken de synchrone terugval.
-        if (error instanceof RecoverySerializationError) throw error;
+        if (error instanceof RecoverySerializationError || error instanceof IfcCalendarTimePrecisionError) throw error;
         activeWorker.terminate();
         worker = null;
         unavailable = true;

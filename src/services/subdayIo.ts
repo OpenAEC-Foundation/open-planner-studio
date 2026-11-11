@@ -1,4 +1,5 @@
 import { parseIfcDuration } from '@/services/ifc/isoDuration';
+import { parseIfcClock } from '@/services/ifc/ifcClock';
 import type { MilestoneKind, Task } from '@/types/task';
 import { isHourModeCalendar, type WorkCalendar, type WorkTimeBands } from '@/types/calendar';
 import { effectiveWorkTimeBands, firstBlockedDay, seedScalarBands } from '@/utils/effectiveWorkTime';
@@ -45,21 +46,27 @@ const MIN_PER_DAY = 1440;
 export function minutesToClock(min: number, endOfDay = false): string {
   if (endOfDay && min === MIN_PER_DAY) return '24:00:00';
   const m = ((min % MIN_PER_DAY) + MIN_PER_DAY) % MIN_PER_DAY;
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
+  // Klokweergave op dezelfde milliseconden als de engine. De IFC-writer controleert
+  // vóór uitvoer apart dat er geen fijnere bronprecisie verloren zou gaan.
+  const milliseconds = Math.round(m * 60_000);
+  const h = Math.floor(milliseconds / 3_600_000) % 24;
+  const mm = Math.floor(milliseconds / 60_000) % 60;
+  const ss = Math.floor(milliseconds / 1000) % 60;
+  const fraction = milliseconds % 1000;
+  const seconds = String(ss).padStart(2, '0') + (fraction ? `.${String(fraction).padStart(3, '0').replace(/0+$/, '')}` : '');
+  return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${seconds}`;
 }
 
 /**
- * Het scalar UUR dat de IFC-lezer uit een `IFCTIMEPERIOD`-klokstring haalt: het deel vóór de eerste
- * `:` (een minuutdeel valt dus weg; onparseerbaar ⇒ `NaN`). Voor een geldige IfcTime (`hh:mm:ss`) is
- * dat het hele uur; het oudere OPS-formaat met een uurfractie (`'7.5:00:00'`) levert via
- * `parseFloat` zijn fractie exact terug. Gedeeld door lezer én schrijver: de schrijver bepaalt
+ * Het scalar UUR uit een `IFCTIMEPERIOD`-klokstring, inclusief minuten en seconden
+ * (onparseerbaar ⇒ `NaN`). Het oudere OPS-formaat met een uurfractie (`'7.5:00:00'`)
+ * blijft leesbaar. Gedeeld door lezer én schrijver: de schrijver bepaalt
  * hiermee of de scalar werktijd apart in `OPS_Calendar` moet — alleen wanneer deze afleiding uit de
  * eerste geschreven periode hem niet teruggeeft.
  */
 export function scalarHourFromClock(clock: string): number {
-  return parseFloat(clock.split(':')[0]);
+  const parsed = parseIfcClock(clock);
+  return parsed ? parsed.minutes / 60 : NaN;
 }
 
 /** `'HH:MM[:SS]'` → minuten-vanaf-middernacht, of `null` bij een onparseerbare klokstring. */

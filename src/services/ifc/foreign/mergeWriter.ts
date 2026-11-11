@@ -368,6 +368,10 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource): Pr
     }
   }
 
+  // Een al geweigerde bronklok mag niet alsnog door normalisatie in de writer
+  // een andere, ongeclassificeerde precisiefout veroorzaken.
+  if (cases.some(c => c.kind === 'tijd-deels-gelezen')) throw new MergeNeedsPhase2Error(cases);
+
   // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
   function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void) {
