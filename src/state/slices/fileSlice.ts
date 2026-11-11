@@ -1245,7 +1245,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (documentId !== startDocumentId) return false;
     // Opnieuw op de momentopname die de app echt schrijft: niets mag tijdens het wachten een vreemd deel binnenbrengen.
     if (refuseForeignIfcWrite(state)) return false;
-    const content = serializeForSave(state);
     // Gezet zolang er naar de SITE geschreven wordt: dan meldt de catch een sitefout (met conflict-
     // melding) in plaats van de gewone opslaanfout. Zonder site blijft hij `null`.
     let siteName: string | null = null;
@@ -1262,6 +1261,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     };
 
     try {
+      const content = serializeForSave(state);
       const ref = saveTargetRef(state);
       // Fixronde 1: het eigen doel is de bron van een (ander) open document met een vreemd deel. Vóór elke write: site,
       // pad en handle.
@@ -1356,12 +1356,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (refuseForeignIfcWrite(state)) return;
     // Gedeelde helper: één plek voor het state→IFC-options-object, zodat dit
     // pad geen velden kan laten vallen.
-    const content = serializeForSave(state);
     // `state` = momentopname vóór de eerste await; zelfde reden als bij saveFile: isDirty pas
     // wissen als er tijdens de opslaan-als-dialoog niets gewijzigd is.
     let siteName: string | null = null;
 
     try {
+      const content = serializeForSave(state);
       // Site-opslag aanwezig: "Opslaan op de site" maakt altijd een NIEUW site-bestand (opslaan
       // als); "Op deze pc…" valt door naar de bestaande route hieronder.
       if (siteStorageAvailable()) {

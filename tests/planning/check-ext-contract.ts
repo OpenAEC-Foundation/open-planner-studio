@@ -169,7 +169,7 @@ const NIET_PUBLIEK = {
     'anchorsFromOpenDocuments'] as readonly string[],
   // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
   // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
-  calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
+  calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState', 'ifcTimePeriods'] as readonly string[],
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
   // Alleen uren §3.4: de speling in minuten is nog geen extensieveld (F3c); de API toont `totalFloat`/`freeFloat`.
@@ -323,6 +323,7 @@ const VOL_CALENDAR = {
   workTime: { byWeekday: { 1: [{ start: 420, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },
   shift: 'SECOND',
   workingExceptions: [{ name: 'Inhaaldag', startDate: '2026-06-06', endDate: '2026-06-06' }],
+  ifcTimePeriods: [],
   p6Source: 'XER',
   p6NonWorkPenaltyDates: ['2026-06-07'],
   p6NonWorkPenaltyDatesState: 'VALID_VALUES',

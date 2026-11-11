@@ -2812,6 +2812,21 @@ en noem het in je rapport of PR-tekst.
      koppeling naar een bronbestand onder `$HOME`, dat bestand wijzigen zonder het venster te wisselen, en binnen
      enkele seconden de balk verwachten; bewijs met `xwd` vóór en na. Trias legt het aan Ethan voor. — S
 
+1500. **VERVOLG: Playwright doet na de begrensde APT-bronkeuze nog een eigen update.**
+      `.github/workflows/ci.yml` roept eerst `scripts/ci-apt-update.sh` aan en daarna
+      `playwright install --with-deps`. Playwright 1.62.1 voert zelf `apt-get update` uit
+      (`packages/playwright-core/src/server/registry/dependencies.ts`), buiten de timeout,
+      `--error-on=any` en terugval van ons script. Valt de gekozen bron tussen beide updates uit,
+      dan kan de browserinstallatie alsnog hangen of oude indexen gebruiken. Onderzoek een
+      gezamenlijke begrensde route zonder een onderbroken pakketinstallatie te herhalen.
+      Terra-review op 384150c28: [BEVESTIGD] VERVOLG; upstream broncode apart gecontroleerd. — B
+1501. **VERVOLG: APT-timeouttest simuleert exit 124, geen echt beëindigd proces.**
+      `tests/dev-server/ci-apt-update.test.mjs` bewijst de terugval na exit 124 en de
+      timeout-argumenten, maar vervangt `timeout` door een fixture. De workflowtest controleert
+      de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
+      gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
+      Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -3564,3 +3579,18 @@ en noem het in je rapport of PR-tekst.
       `lossCheck.ts` (rond regel 613) geen tegenhanger. Bestaat ook op main (ook zonder dubbele codeteksten); de merge
       wordt nog niet vanuit Opslaan aangeroepen. Fix: hernoemen van codedefinities expliciet ondersteunen in de
       koppeling en de verliesverklaring. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1157. **VERVOLG: de foreign-merge weigert oude eigen minuutfracties conservatief.**
+     Oude OPS-writers schreven een band met 450,5 minuten als `07:30.5:00`. De gewone lezer en
+     opslag behouden die klok na de kalendertijdfix. Met een toegevoegd vreemd modeldeel weigert
+     de experimentele merge deze vorm nog als `tijd-deels-gelezen`; de bron blijft intact.
+     Bewijsbestanden: `periode-oude-minuutfractie.ifc` en `periode-oude-minuutfractie-v2026.8.1.ifc`.
+     Richting: verruim de conservatieve vormenlijst met apart behoudsbewijs bij kalenderbewerkingen.
+     Uit #897, CI en review ronde 3 (GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
+
+1158. **VERVOLG: het precisiefoutbewijs voor crashherstel gebruikt geen echte browser-worker.**
+     `check-recovery-worker.ts` test de getypeerde kalenderweigering met de echte writer en
+     herstelbackend voor meerdere documenten. De afzonderlijke workergrens krijgt het foutantwoord
+     via een transportdubbel; de daadwerkelijke browser-worker wordt niet van weigering tot
+     herstelcommit doorlopen. Richting: één gericht werkelijk workertransportbewijs toevoegen.
+     Uit #897, review ronde 4 (GPT-6.1-Terra, xhigh, BEVESTIGD, VERVOLG). — B

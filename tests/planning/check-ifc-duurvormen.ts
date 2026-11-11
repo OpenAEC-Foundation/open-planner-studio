@@ -311,7 +311,17 @@ ok(`de repo heeft eigen bestanden van OPS (${ownFiles} bestanden, ${ownDurations
 // begint als uurbreuk (`'7.5:00:00'`). `clockToMinutes` leest die niet als tijdblok, `scalarHourFromClock` wel, als 7,5 uur:
 // alleen als enige periode van het enige patroon. Daar staat de vorm sinds fixronde 7 op de lijst (`OLD_FRACTIONAL_CLOCK`,
 // BLOKKEERT 3). Hier vastgelegd hoeveel er per bestand zijn, zodat dat pad niet stil wegvalt.
-const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h7-tijden-oude-writer.ifc': 4 };
+const OLD_CLOCK: Readonly<Record<string, number>> = {
+  'tests/planning/fixtures/h7-tijden-oude-writer.ifc': 4,
+  'tests/planning/fixtures/periode-oude-scalarfractie-v2026.8.1.ifc': 1,
+};
+// Werkelijk door oude schrijvers geproduceerd; de conservatieve foreign-lijst
+// blijft deze minuutfracties weigeren (1157). De gewone opslag wordt apart bewezen.
+const OLD_MINUTE_CLOCK: Readonly<Record<string, string>> = {
+  'tests/planning/fixtures/kalendertijd-oud/werkende-uitzondering.ifc': "IFCTIMEPERIOD #20: tijd '08:30.5:00'",
+  'tests/planning/fixtures/periode-oude-minuutfractie.ifc': "IFCTIMEPERIOD #17: tijd '07:30.5:00'",
+  'tests/planning/fixtures/periode-oude-minuutfractie-v2026.8.1.ifc': "IFCTIMEPERIOD #14: tijd '07:30.5:00'",
+};
 {
   let dates = 0;
   for (const file of files) {
@@ -332,7 +342,8 @@ const OLD_CLOCK: Readonly<Record<string, number>> = { 'tests/planning/fixtures/h
     }
     const old = OLD_CLOCK[relative(ROOT, file)] ?? 0;
     ok(`${relative(ROOT, file)}: elke datum en tijd staat op de lijst (buiten: ${out.slice(0, 3).join(', ')}; oude uurbreuken ${oldClocks}, verwacht ${old})`,
-      out.length === 0 && oldClocks === old);
+      out.length === (OLD_MINUTE_CLOCK[relative(ROOT, file)] ? 1 : 0)
+        && out.every(v => v === OLD_MINUTE_CLOCK[relative(ROOT, file)]) && oldClocks === old);
   }
   ok(`de eigen bestanden hebben datums en tijden (${dates})`, dates > 10000);
 }

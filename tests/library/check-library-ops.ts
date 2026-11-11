@@ -446,6 +446,7 @@ for (const size of [1000, 5000]) {
     shift: 'inhoud',
     workingExceptions: 'inhoud',
     // P6-importherkomst (rekenprofielen-etappe): alleen de XER-reader zet ze; geen bibliotheekinhoud.
+    ifcTimePeriods: 'herkomst',
     p6Source: 'herkomst',
     p6NonWorkPenaltyDates: 'herkomst',
     p6NonWorkPenaltyDatesState: 'herkomst',
