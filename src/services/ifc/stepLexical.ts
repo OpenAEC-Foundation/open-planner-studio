@@ -58,13 +58,13 @@ export function skipStepComment(text: string, at: number): number {
 }
 
 /** Verdubbelde quotes samenvoegen zonder een quote na \S\ met de volgende quote te verwarren. */
-export function unescapeStepQuotes(body: string): string {
+export function unescapeStepQuotes(body: string, literal = false): string {
   let out = '';
   let state = StepStringState.Text;
   for (const ch of body) {
     const c = ch.charCodeAt(0);
     if (!(state === StepStringState.Quote && c === 0x27)) out += ch;
-    state = stepString(state, c);
+    state = stepString(state, c, literal);
   }
   return out;
 }

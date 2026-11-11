@@ -220,8 +220,8 @@ export function readIFC(
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
   if (options.literalStepIds) {
     const literal = options.literalStepIds;
-    decodeEntityStrings(entities.filter(e => !literal.has(e.id)));
-  } else if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
+    decodeEntityStrings(entities.filter(e => !literal.has(e.id)), literalStrings);
+  } else if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities, literalStrings);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
     entityMap.set(e.id, e);
@@ -1253,27 +1253,27 @@ function stringsAreStepEncoded(entities: StepEntity[]): boolean {
 /** Decodeer in place elke stringliteral in de argumenten; de apostrof blijft `''`-verdubbeld, zodat
  *  alle bestaande lezers (`stripQuotes`, `splitArgs`) ongewijzigd werken. Alleen argumenten met een
  *  backslash kunnen iets gecodeerd bevatten. */
-function decodeEntityStrings(entities: StepEntity[]): void {
+function decodeEntityStrings(entities: StepEntity[], literalStrings: boolean): void {
   for (const e of entities) {
     const args = e.args;
     for (let k = 0; k < args.length; k++) {
-      if (args[k].indexOf('\\') >= 0) args[k] = decodeQuotedSegments(args[k]);
+      if (args[k].indexOf('\\') >= 0) args[k] = decodeQuotedSegments(args[k], literalStrings);
     }
   }
 }
 
-function decodeQuotedSegments(arg: string): string {
+function decodeQuotedSegments(arg: string, literalStrings: boolean): string {
   let out = '';
   let i = 0;
   while (i < arg.length) {
     const open = arg.indexOf("'", i);
     if (open < 0) { out += arg.slice(i); break; }
     out += arg.slice(i, open + 1);
-    const close = stepStringEnd(arg, open);
+    const close = stepStringEnd(arg, open, literalStrings);
     const j = close < 0 ? arg.length : close;
     const body = arg.slice(open + 1, j);
     out += body.indexOf('\\') >= 0
-      ? decodeStepText(unescapeStepQuotes(body)).replace(/'/g, "''")
+      ? decodeStepText(unescapeStepQuotes(body, literalStrings)).replace(/'/g, "''")
       : body;
     if (j < arg.length) out += "'";
     i = j + 1;

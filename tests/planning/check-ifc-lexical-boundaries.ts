@@ -61,6 +61,7 @@ assert.notEqual(legacySource, source);
 const legacyBaseline = readIFC(legacySource).tasks.map(t => t.name);
 for (const [label, text, want] of [
   ['oud letterlijk pad', legacySource.replace(`'${original}'`, "'Pad C:\\S\\'"), legacyBaseline.map(n => n === original ? 'Pad C:\\S\\' : n)],
+  ['tolerant letterlijk pad', source.replace(`'${original}'`, "'Pad C:\\S\\'"), baseline.map(n => n === original ? 'Pad C:\\S\\' : n)],
   ['CRLF na backslash', source.replace(`'${original}'`, "'a\\\r\nb'"), baseline.map(n => n === original ? 'a\\\r\nb' : n)],
 ] as const) {
   for (const bytesRoute of [false, true]) {
@@ -74,6 +75,12 @@ for (const [label, text, want] of [
     });
   }
 }
+await check('tolerante quotegrenzen bij expliciete literalStepIds-route', () => {
+  const text = source.replace(`'${original}'`, "'Pad C:\\S\\'");
+  const opened = readIFC(text, {}, { literalStepIds: new Set() });
+  assert.deepEqual(opened.tasks.map(t => t.name), baseline.map(n => n === original ? 'Pad C:\\S\\' : n));
+  assert.deepEqual(readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(opened, null)))).tasks.map(t => t.name), opened.tasks.map(t => t.name));
+});
 // De doelcontrole mag een echte wand ná zo'n oude letterlijke padnaam niet missen.
 const legacyModel = source.slice(0, source.indexOf('DATA;') + 5)
   + "\n#1=IFCAPPLICATION($,'0.1','Open Planner Studio','OPS');\n"

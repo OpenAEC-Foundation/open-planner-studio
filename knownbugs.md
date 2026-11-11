@@ -3557,3 +3557,11 @@ en noem het in je rapport of PR-tekst.
      via een transportdubbel; de daadwerkelijke browser-worker wordt niet van weigering tot
      herstelcommit doorlopen. Richting: één gericht werkelijk workertransportbewijs toevoegen.
      Uit #897, review ronde 4 (GPT-6.1-Terra, xhigh, BEVESTIGD, VERVOLG). — B
+
+1159. **VERVOLG: een onmogelijke IFC-datum wordt bij openen stil genormaliseerd.**
+     `2027-02-30T07:00:00` wordt ook op main als `2027-03-02T07:00` gelezen, zonder melding.
+     Gewone opslag legt daarna `2027-03-02T07:00:00` vast zonder plannerbewerking. Dit is
+     bestaande schuld buiten de lexerfix. Bewijs uit de Sol-review van #898 op aia:
+     `/tmp/claude-1000/review-898-sol-r1/letterlijk-main.log`, in UTC en Europe/Amsterdam.
+     Richting: kalendergeldigheid vóór normalisatie controleren en bronbehoud of een expliciete
+     fout afspreken. Alleen geregistreerd op verzoek; niet opgelost in #894. — B
