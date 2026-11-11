@@ -95,6 +95,7 @@
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
 import { PER_TASK_PSET_BY_NAME, PROP, PSET } from '../ifcPsets';
@@ -215,6 +216,9 @@ export interface LossCheckInput {
   /** De kalenders die bij deze opslag letterlijk worden: letterlijk in O1 en niet in O0 (was knownbug 1102,
    *  `literalWriterForm`). */
   readonly literalCalendarIds?: ReadonlySet<string>;
+  /** Wat de planner wijzigde: de sleutels van `changedScopes` tegenover wat de app na het openen liet zien
+   *  (`ifcSource.opened`; fixronde 1 van #886). Zonder: tegenover de lezing van de bron (`changed`). */
+  readonly plannerChanged?: ReadonlySet<string>;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -340,6 +344,12 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const p0 = pairOutput(input, input.o0);
   const restores = planRestores(input, p0, compareOutput(input, p0, input.owner0));
   for (const r of restores) input.restored?.(r);
+  // Gedragen (fixronde 1 van #886): een slot is volledig gedragen als de writer op de lezing van de bron (O0) dezelfde
+  // waarde teruggeeft als de bron. Zonder (b) is dat zo (O0 is dan gelijk aan de bron); met (b) alleen bij een datum of tijd
+  // met dezelfde betekenis in een andere vorm (`sameMeaning`). Wat niet gedragen is, krijgt nooit de waarde van de writer.
+  const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg]))
+    .map(r => `${r.chunk}:${r.outArg}`));
+  const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
   const o0b = applyEdits(input.o0, restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
@@ -349,7 +359,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
     const p1 = pairOutput(input, input.o1, exact);
     unstableLists(input, p0, p1);
-    const ctx1 = o1Context(input, p1, changed);
+    const ctx1 = o1Context(input, p1, changed, carried);
     const deleted = deletedExceptionItems(input, p1, changed);
     /** Stukken met een bronwaarde zonder regel in O1, terwijl hun object blijft (fixronde 4, plek 5; fixronde 5, BLOKKEERT
      *  4): het wissen van een bekende waarde verklaart niet het wissen van een slot ernaast dat de lezer niet draagt, van
@@ -394,8 +404,9 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       // (dezelfde tabellen per veld als de uitleg van O1), dan vervalt de bronwaarde en geldt de waarde van de writer, ook
       // als die gelijk bleef. Bij een soort die de lezer deels draagt, gaat dan een deel verloren: weigeren.
       if (explainO1(ctx1, after) !== undefined) {
-        // Een datum die de lezer helemaal leest, verliest niets (#886: F5 na een duurwijziging, was knownbug 1102).
-        if (PARTIAL_KINDS.has(r.kind) && !wholeDateTimeRead(input, r)) say(after, true);
+        // Een datum die de planner zelf wijzigde en die de lezer volledig droeg, verliest niets (#886: F5 na een
+        // duurwijziging, was knownbug 1102).
+        if (PARTIAL_KINDS.has(r.kind) && !plannerReplacedDate(ctx1, r)) say(after, true);
         continue;
       }
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
@@ -412,7 +423,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // `explainO1`: een bronwaarde van zo'n stuk weigert al hierboven, en de rest moet een bewerking verklaren.
     const p1b = pairOutput(input, applyEdits(input.o1, edits), exact);
     unstableLists(input, p0, p1b);
-    const ctx = o1Context(input, p1b, changed);
+    const ctx = o1Context(input, p1b, changed, carried);
     for (const d of compareOutput(input, p1b, input.owner1)) {
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
@@ -1557,13 +1568,18 @@ interface O1Context {
   /** De taken van het gelezen en van het bewerkte domein, per id. */
   readonly tasks0: ReadonlyMap<string, Task>;
   readonly tasks1: ReadonlyMap<string, Task>;
+  /** Draagt de lezing van de bron dit slot volledig (zie `lossCheck`, "Gedragen")? Per bronstuk en uitvoerslot. */
+  readonly carried: (chunk: number, outArg: number) => boolean;
+  /** Wat de planner wijzigde (`LossCheckInput.plannerChanged`, anders `changed`). */
+  readonly plannerChanged: ReadonlySet<string>;
 }
 
-function o1Context(input: LossCheckInput, p: Pairing, changed: ChangedScopes): O1Context {
+function o1Context(input: LossCheckInput, p: Pairing, changed: ChangedScopes, carried: O1Context['carried']): O1Context {
   const pao = p.out.get(refOf(p.out.get(input.owner1 ?? -1)?.args[0]));
   return {
     input, p, scopes: sourceScopes(input), changed, ownPerson: refOf(pao?.args[0]), ownOrg: refOf(pao?.args[1]),
     tasks0: new Map(input.pristine.tasks.map(t => [t.id, t])), tasks1: new Map(input.domain.tasks.map(t => [t.id, t])),
+    carried, plannerChanged: input.plannerChanged ?? changed.keys,
   };
 }
 
@@ -1662,29 +1678,30 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   return undefined;
 }
 
-/** De slots met een datum of tijd die de lezer exact leest, en de lijst van periodes van een patroon (#886): de datums van
- *  een taaktijd (zonder de statusdatum, die van het project is) en de werktijden van een kalender. */
-const LITERAL_EXACT_SLOTS: Readonly<Record<string, readonly number[]>> = {
-  IFCTASKTIME: [5, 6, 7, 8, 9, 10, 16, 17], IFCTIMEPERIOD: [0, 1], IFCRECURRENCEPATTERN: [7],
-};
+/** De slots die de writer op een letterlijke kalender in zijn eigen vorm schrijft: de datums en tijden (`DATETIME_SLOTS`)
+ *  en de lijst periodes van een patroon (een werkweek met één periode wordt blokken). Of de lezer de waarde draagt, zegt
+ *  deze lijst niet; dat doet `carried`. */
+const writerFormSlot = (type: string, arg: number) =>
+  DATETIME_SLOTS[type]?.slots.includes(arg) === true || (type === 'IFCRECURRENCEPATTERN' && arg === 7);
 
 /**
  * Was knownbug 1102 (#886, besluit van Trias, 10 november 2026). Wordt de kalender van `scope` (`scopeCalendar`) bij
  * deze opslag letterlijk (`literalCalendarIds`), dan schrijft de writer elke datum en werktijd op die kalender als tijdstip, ook waar de planner
  * niets wijzigde; dat doet een gewone opslag op main ook (`minuteModelPending`). Zo'n datum is een vorm van OPS zelf, die
  * de lezer volledig draagt. Verklaard alleen als: het stuk P is (alleen P-stukken hebben een scope, `sourceScopes`); het
- * slot een datum of tijd is die de lezer exact leest (`LITERAL_EXACT_SLOTS`; een slot dat de lezer niet draagt, houdt de
- * bronwaarde via (b)); en elke datum of tijd van het stuk in de bron een vorm heeft die de lezer exact leest
- * (`partialDateTime`; de merge weigert de andere al in sectie 1).
- * De herleestoets (`sourceFormProblems`) gaat daarna na dat herlezen geeft wat de planner zag.
+ * slot een datum of tijd is (`writerFormSlot`); en de lezing van deze bron de waarde van dat slot volledig draagt
+ * (`carried`: de writer op de lezing geeft dezelfde waarde als de bron). Fixronde 1 van #886: een geldige schrijfwijze
+ * bewijst dat niet; `'07:30:00'` in de enige periode van een scalaire kalender leest de lezer als 07:00. Zo'n slot houdt
+ * de bronwaarde via (b), of de merge weigert.
+ * De herleestoets (`sourceFormProblems`) vergelijkt met het domein waarin de lezer een waarde al kan zijn kwijtgeraakt;
+ * de bewaking rekent er hier niet op.
  */
 function literalWriterForm(ctx: O1Context, d: LossDiff, type: string, arg: number, scope: string): string | undefined {
   const { input } = ctx;
   const calendarId = scopeCalendar(ctx, scope, type);
   if (calendarId === undefined || !input.literalCalendarIds?.has(calendarId)) return undefined;
   if (d.whole) return undefined;
-  if (!LITERAL_EXACT_SLOTS[type]?.includes(arg)) return undefined;
-  if (dateTimeTexts(input.index, d.chunk).some(t => partialDateTime(t.text, t.kind, t.oldClock) !== undefined)) return undefined;
+  if (!writerFormSlot(type, arg) || !ctx.carried(d.chunk, arg)) return undefined;
   return `kalender ${calendarId} wordt letterlijk`;
 }
 
@@ -1692,15 +1709,18 @@ function literalWriterForm(ctx: O1Context, d: LossDiff, type: string, arg: numbe
  * De baselines (`OPS_Baselines.Baselines`, een pset van het live-schema: scope `project`) als een kalender bij deze opslag letterlijk wordt (#886, besluit van Trias): de
  * writer schrijft de datums van een rij op zo'n kalender, en het einde van het project op een letterlijke projectkalender,
  * als tijdstip (`minuteModelWriteView`), zoals een gewone opslag op main. Verklaard alleen als de JSON verder gelijk is:
- * dezelfde baselines en rijen in dezelfde volgorde, met alleen `start`/`finish` (en `projectEnd`) anders, en elke datum die
- * verschilt een vorm die de lezer exact leest. Zet (b) hier een bronwaarde terug (de lezer draagt de JSON niet helemaal),
- * dan weigert de merge al als soort `json`. De herleestoets gaat de baselines na (`sourceForm.ts`).
+ * dezelfde baselines en rijen in dezelfde volgorde, met alleen `start`/`finish` (en `projectEnd`) anders. En alleen als de
+ * lezing van de bron de JSON volledig draagt (`carried`: O0 is hier gelijk aan de bron) en de planner de baselines niet
+ * wijzigde tegenover wat de app na het openen liet zien (`plannerChanged`): dan is elk verschil de vorm van de writer voor
+ * een waarde die de planner zag (fixronde 1 van #886). Sectie 1 ziet de datums in deze JSON niet. De herleestoets gaat de
+ * baselines na (`sourceForm.ts`).
  */
 function literalBaselineForm(ctx: O1Context, d: LossDiff, type: string, arg: number): string | undefined {
   const { input } = ctx;
   const literal = input.literalCalendarIds;
   if (!literal?.size || d.whole || type !== 'IFCPROPERTYSINGLEVALUE' || arg !== 2 || input.index.name(d.chunk) !== PROP.Baselines.Baselines
     || psetNameOf(input.index, d.chunk) !== PSET.Baselines) return undefined;
+  if (!ctx.carried(d.chunk, arg) || ctx.plannerChanged.has('baselines')) return undefined;
   const json = (token: string, decode: (quoted: string) => string): unknown => {
     const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/.exec(token.trim());
     if (!m) return undefined;
@@ -1708,12 +1728,11 @@ function literalBaselineForm(ctx: O1Context, d: LossDiff, type: string, arg: num
   };
   const src = json(d.source, q => input.index.tokenText(d.chunk, q));
   const out = json(d.out, q => decodeStepText(unquote(q)));
-  const exact = (v: unknown) => typeof v === 'string' && partialDateTime(v, 'datum-tijd') === undefined;
   type Obj = Record<string, unknown>;
   const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
-  /** Gelijk, op `free` na: daar mag een exacte datum een andere exacte datum worden. `tasks` vergelijkt de aanroeper. */
+  /** Gelijk, op `free` na: daar mag een datum een andere vorm krijgen. `tasks` vergelijkt de aanroeper. */
   const sameBut = (a: Obj, b: Obj, free: readonly string[]) => [...new Set([...Object.keys(a), ...Object.keys(b)])].every(k =>
-    k === 'tasks' || JSON.stringify(a[k]) === JSON.stringify(b[k]) || (free.includes(k) && exact(a[k]) && exact(b[k])));
+    k === 'tasks' || JSON.stringify(a[k]) === JSON.stringify(b[k]) || (free.includes(k) && typeof a[k] === 'string' && typeof b[k] === 'string'));
   const { domain } = input;
   const calendarOf = (taskId: unknown) =>
     resolveCalendar(ctx.tasks1.get(String(taskId))?.calendarId, domain.resourceCalendars ?? [], domain.calendar).id;
@@ -1753,16 +1772,45 @@ function inLiteralWriterForm(ctx: O1Context, d: LossDiff): boolean {
   return [...scopes].every(scope => literalWriterForm(ctx, d, type, arg, scope) !== undefined);
 }
 
-/** Leest de lezer de datum of tijd van dit bronslot helemaal (`LITERAL_EXACT_SLOTS`, `partialDateTime`)? Dan gaat er geen
- *  deel verloren als de writer er de waarde van de planner schrijft, ook al staat het slot bij de samengestelde soorten
- *  (`COMPOSITE_SLOTS`: daar leest de lezer een datum met seconden of een tijdzone maar deels). */
-function wholeDateTimeRead(input: LossCheckInput, r: SlotRestore): boolean {
-  const type = input.index.type(r.chunk);
-  const at = DATETIME_SLOTS[type];
-  if (!at || !at.slots.includes(r.arg) || !LITERAL_EXACT_SLOTS[type]?.includes(r.outArg)) return false;
-  const t = r.token.trim();
-  const oldClock = at.kind === 'tijd' && onlyPeriodOfOnlyPattern(input.index, r.chunk);
-  return t.startsWith("'") && partialDateTime(input.index.tokenText(r.chunk, t), at.kind, oldClock) === undefined;
+/**
+ * Verving de planner deze datum van een taaktijd zelf (fixronde 1 van #886)? Alleen dan geldt de waarde van de writer in
+ * een slot dat bij de samengestelde soorten staat (`COMPOSITE_SLOTS`): het datumveld van dat slot wijkt af van wat de app
+ * na het openen liet zien (`plannerChanged`; een andere duur van dezelfde taak telt niet), en de lezing van de bron droeg
+ * de waarde volledig (`carried`). Anders blijft de bronwaarde staan of weigert de merge.
+ */
+function plannerReplacedDate(ctx: O1Context, r: SlotRestore): boolean {
+  const type = ctx.input.index.type(r.chunk);
+  if (type !== 'IFCTASKTIME' || r.outArg === 14 || !DATETIME_SLOTS[type].slots.includes(r.outArg) || !ctx.carried(r.chunk, r.outArg)) return false;
+  const field = TASKTIME_SLOT_FIELDS[r.outArg]?.[0];
+  const scopes = ctx.scopes.get(r.chunk);
+  if (!field || !scopes || scopes.size === 0) return false;
+  return [...scopes].every(scope => {
+    const bar = scope.indexOf('|');
+    return scope.startsWith('task:') && ctx.plannerChanged.has(`${scope.slice(0, bar)}#${field}`);
+  });
+}
+
+/**
+ * Heeft het brontoken van een datum- of tijdslot dezelfde betekenis als het token van de writer in O0 (fixronde 1 van
+ * #886)? De betekenis van de tekst, niet hoe de lezer haar in dit slot leest (die kan een deel weglaten): een moment of
+ * klok zoals de ISO-norm het leest (`Date.parse`, met seconden en tijdzone; een klok op een vaste dag), de oude uurbreuk
+ * `'7.25:00:00'` die de lezer in de enige periode van het enige patroon exact leest (`scalarHourFromClock`), een datum als
+ * tekst. Een tekst zonder betekenis, of een ander slot: niet gedragen (de writer schreef iets anders).
+ */
+function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined): boolean {
+  const at = DATETIME_SLOTS[index.type(r.chunk)];
+  const src = r.token.trim(), out = o0Token?.trim() ?? '';
+  if (!at || !at.slots.includes(r.arg) || !src.startsWith("'") || !out.startsWith("'")) return false;
+  const oldClock = at.kind === 'tijd' && onlyPeriodOfOnlyPattern(index, r.chunk);
+  const DAY = '1970-01-01T';
+  const meaning = (text: string): number | string | undefined => {
+    if (at.kind === 'datum') return text;
+    const ms = at.kind === 'tijd' ? Date.parse(DAY + text) - Date.parse(`${DAY}00:00:00`) : Date.parse(text);
+    if (Number.isFinite(ms)) return ms;
+    return oldClock && OLD_FRACTIONAL_CLOCK.test(text) ? scalarHourFromClock(text) * 3_600_000 : undefined;
+  };
+  const a = meaning(index.tokenText(r.chunk, src)), b = meaning(decodeStepText(unquote(out)));
+  return a !== undefined && a === b;
 }
 
 /**

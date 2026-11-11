@@ -53,6 +53,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MINUTE_MODEL_TIME_MODEL, migrateToMinuteModel, TIME_FIELDS } from '@/state/migrations/minuteModel';
 import { inferWbsAutoNumberOnOpen } from '@/utils/wbs';
+import { sameValue } from '@/utils/sameValue';
 import type { WriteIFCInput } from '../ifcWriter';
 
 /** Een veld dat de merge in de vorm van de bron schrijft omdat de omzetting het maakte. */
@@ -72,24 +73,6 @@ export interface SourceForm {
 
 /** Een veld met de bronwaarde die het krijgt, en of de omzetting het maakte (anders de herberekening). */
 type Restore = { readonly leaf: SourceFormLeaf; readonly value: unknown; readonly converted: boolean };
-
-/** Gelijk van inhoud: de volgorde van sleutels telt niet, een sleutel met `undefined` telt als afwezig. */
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a === 'number' && typeof b === 'number') return Number.isNaN(a) && Number.isNaN(b);
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((x, i) => sameValue(x, b[i]));
-  }
-  if (a instanceof Set || b instanceof Set) {
-    return a instanceof Set && b instanceof Set && a.size === b.size && [...a].every(x => b.has(x));
-  }
-  const ka = Object.keys(a).filter(k => (a as Record<string, unknown>)[k] !== undefined);
-  const kb = Object.keys(b).filter(k => (b as Record<string, unknown>)[k] !== undefined);
-  if (ka.length !== kb.length) return false;
-  return ka.every(k => sameValue((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
-}
 
 /** De planning na de omzetting naar het minutenmodel, zoals `payloadFromImport` haar maakt (alleen de delen die de omzetting
  *  raakt). */
