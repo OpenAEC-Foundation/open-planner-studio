@@ -43,6 +43,18 @@ for (const [raw, expected] of [
   });
   await check(`shiftliteral ${raw}: doelcontrole`, () => assert.equal(scanTargetBytes(enc.encode(input)), 'no-model'));
 }
+// De planningparser leest de eerste datasectie: een applicatie in een latere sectie mag haar tekst niet omduiden.
+await check('tekstversie uit latere DATA verandert de eerste planning niet', () => {
+  const external = source.replace(",'OPS');", ",'THIRD');").replace(/'OPS_/g, "'EXT_");
+  const at = external.lastIndexOf('ENDSEC;');
+  const extra = external.slice(0, at) + "ENDSEC;\nDATA;\n#99999=IFCAPPLICATION($,'0.1','Open Planner Studio','OPS');\n" + external.slice(at);
+  const name = "a\\S\\'";
+  const withShift = extra.replace(`'${original}'`, `'${name}'`);
+  const expected = readIFC(external.replace(`'${original}'`, `'${name}'`)).tasks.map(t => t.name);
+  assert.equal(expected.length, baseline.length);
+  assert.ok(expected.includes('a§'));
+  assert.deepEqual(readIFC(withShift).tasks.map(t => t.name), expected);
+});
 // Oude OPS 0.1 schreef backslashes letterlijk. De dialectkeuze moet vóór de quotegrenzen gelden.
 const legacySource = source.replace("'0.2','Open Planner Studio','OPS'", "'0.1','Open Planner Studio','OPS'");
 assert.notEqual(legacySource, source);

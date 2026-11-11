@@ -433,7 +433,7 @@ export class StepFileGrammar {
       case P.InstVal:
       case P.ComplexNext:
         if (kind !== W.Keyword) { this.fail(at); return; }
-        this.meta = this.p !== P.InstVal ? undefined : this.wordIs('IFCAPPLICATION') ? 'application'
+        this.meta = this.p !== P.InstVal || this.dataSections !== 1 ? undefined : this.wordIs('IFCAPPLICATION') ? 'application'
           : this.wordIs('IFCPROPERTYSET') ? 'pset' : undefined;
         this.appVersion = false;
         this.appIdentifier = false;
