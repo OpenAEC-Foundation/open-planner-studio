@@ -35,7 +35,8 @@ export interface WorkCalendar {
    * bewaart deze waarden in de standaard-IfcTimePeriod, niet in een nieuwe pset. */
   ifcTimePeriods?: {
     start: number; end: number; startText: string; endText: string;
-    kind: 'week' | 'exception';
+    /** Plaats in de kalender: weekdag/band, uitzondering/band of scalar. */
+    binding: string;
     /** Exacte scalaire waarden na import; geen herberekende minuutvergelijking. */
     scalarStart?: number; scalarEnd?: number;
   }[];

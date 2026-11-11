@@ -3479,3 +3479,11 @@ en noem het in je rapport of PR-tekst.
       `lossCheck.ts` (rond regel 613) geen tegenhanger. Bestaat ook op main (ook zonder dubbele codeteksten); de merge
       wordt nog niet vanuit Opslaan aangeroepen. Fix: hernoemen van codedefinities expliciet ondersteunen in de
       koppeling en de verliesverklaring. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1157. **VERVOLG: de foreign-merge weigert oude eigen minuutfracties conservatief.**
+     Oude OPS-writers schreven een band met 450,5 minuten als `07:30.5:00`. De gewone lezer en
+     opslag behouden die klok na de kalendertijdfix. Met een toegevoegd vreemd modeldeel weigert
+     de experimentele merge deze vorm nog als `tijd-deels-gelezen`; de bron blijft intact.
+     Bewijsbestanden: `periode-oude-minuutfractie.ifc` en `periode-oude-minuutfractie-v2026.8.1.ifc`.
+     Richting: verruim de conservatieve vormenlijst met apart behoudsbewijs bij kalenderbewerkingen.
+     Uit #897, CI en review ronde 3 (GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B

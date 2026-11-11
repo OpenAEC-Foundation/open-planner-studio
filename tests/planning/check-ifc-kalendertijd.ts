@@ -21,6 +21,9 @@ function eq(label: string, got: unknown, want: unknown) {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) failures.push(`${label}: ${JSON.stringify(got)} ≠ ${JSON.stringify(want)}`);
 }
+function hasSourceClocks(text: string | undefined, start: string, end: string): boolean {
+  return !!text && text.includes(`IFCTIMEPERIOD('${start}',`) && text.includes(`,'${end}');`);
+}
 function memoryFile(initial: string) {
   let content = initial;
   const writes: string[] = [];
@@ -56,7 +59,7 @@ for (const [start, end, startHour, endHour] of [
   // Controleer ook de standaard-IFC-periode: OPS-metadata mag een verkeerde klok niet maskeren.
   const canonicalStart = start === '7.5:00:00' ? '07:30:00' : start;
   const canonicalEnd = end === '16.75:00:00' ? '16:45:00' : end;
-  eq(`${start}: standaardveld`, saved.includes(`IFCTIMEPERIOD('${canonicalStart}','${canonicalEnd}')`), true);
+  eq(`${start}: standaardveld`, hasSourceClocks(saved, canonicalStart, canonicalEnd), true);
   const reopened = createAppStoreContext().store;
   await reopened.getState().openOpenedFile({ name: 'heropend.ifc', content: saved, ref: null });
   eq(`${start}: opnieuw geopend`, [reopened.getState().calendar.workStartHour, reopened.getState().calendar.workEndHour], [startHour, endHour]);
@@ -110,26 +113,22 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   eq('seconden houden effectieve middagpauze', effectiveWorkTimeBands(store.getState().calendar)?.byWeekday[1], expected);
   const clock = new CalendarEngine(calendarForEngine(store.getState().calendar));
   eq('middagpauze telt geen werkminuten', clock.workMinutesBetween(parseInstant('2027-03-01T12:00:00'), parseInstant('2027-03-01T13:00:00')), 0);
+  store.setState(s => { s.tasks[0].time.durationUnit = 'hours'; });
   await store.getState().saveFile();
   eq('pauzekalender met seconden schrijft', file.writes.length, 1);
-  if (file.writes[0]) eq('middagpauze blijft na heropenen', effectiveWorkTimeBands(readIFC(file.writes[0]).calendar)?.byWeekday[1], expected);
-}
-
-// Standaard-IFC moet de effectieve pauze dragen, ook voor een andere lezer.
-{
-  const imported = readIFC(source.replace(period, "IFCTIMEPERIOD('07:00:01','16:00:00')"));
-  imported.tasks[0].durationUnit = 'hours';
-  const saved = writeIFC(imported);
-  eq('standaard-IFC: ochtend eindigt bij pauze', saved.includes("IFCTIMEPERIOD('07:00:01','12:00:00')"), true);
-  eq('standaard-IFC: middag begint na pauze', saved.includes("IFCTIMEPERIOD('13:00:00','16:00:00')"), true);
-  eq('standaard-IFC: geen ononderbroken dag', saved.includes("IFCTIMEPERIOD('07:00:01','16:00:00')"), false);
+  if (file.writes[0]) {
+    eq('middagpauze blijft na heropenen', effectiveWorkTimeBands(readIFC(file.writes[0]).calendar)?.byWeekday[1], expected);
+    eq('standaard-IFC: ochtend eindigt bij pauze', file.writes[0].includes("IFCTIMEPERIOD('07:00:01','12:00:00')"), true);
+    eq('standaard-IFC: middag begint na pauze', file.writes[0].includes("IFCTIMEPERIOD('13:00:00','16:00:00')"), true);
+    eq('standaard-IFC: geen ononderbroken dag', file.writes[0].includes("IFCTIMEPERIOD('07:00:01','16:00:00')"), false);
+  }
 }
 
 // Dezelfde numerieke klok op zaterdag is geen bron voor een maandagbewerking.
 {
   const input = source.replace(period, "IFCTIMEPERIOD('07:30:01Z','16:00:00Z')")
     .replace(',$,$,(#19),', ',$,$,(#19,#9003),')
-    .replace('ENDSEC;\nEND-ISO', "#9001=IFCTIMEPERIOD('08:30:01+01:00','16:00:00+01:00');\n#9002=IFCRECURRENCEPATTERN(.WEEKLY.,$,(6),$,$,$,$,(#9001));\n#9003=IFCWORKTIME('Zaterdag',.PREDICTED.,$,#9002,$,$);\nENDSEC;\nEND-ISO");
+    .replace('ENDSEC;\nEND-ISO', "#9001=IFCTIMEPERIOD('08:30:01+01:00','17:00:00+01:00');\n#9002=IFCRECURRENCEPATTERN(.WEEKLY.,$,(6),$,$,$,$,(#9001));\n#9003=IFCWORKTIME('Zaterdag',.PREDICTED.,$,#9002,$,$);\nENDSEC;\nEND-ISO");
   const file = memoryFile(input);
   const { store } = createAppStoreContext();
   await store.getState().openOpenedFile({ name: 'zones-per-dag.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
@@ -223,17 +222,17 @@ for (const own of [true, false]) {
   await store.getState().saveFile();
   eq(`${label}: gewone opslag zonder bewerken`, file.writes.length, 1);
   if (!file.writes[0]) continue;
-  eq(`${label}: bronseconden in standaardveld`, file.writes[0].includes(`IFCTIMEPERIOD('${start}','${end}')`), true);
+  eq(`${label}: bronseconden in standaardveld`, hasSourceClocks(file.writes[0], start, end), true);
   const reopened = createAppStoreContext().store;
   const savedFile = memoryFile(file.writes[0]);
   await reopened.getState().openOpenedFile({ name: 'eigen-opnieuw.ifc', content: file.writes[0], ref: { kind: 'handle', handle: savedFile.handle } });
   eq(`${label}: expliciete banden behouden`, reopened.getState().calendar.workTime, store.getState().calendar.workTime);
   await reopened.getState().saveFile();
   eq(`${label}: eigen opslag weigert nooit zonder bewerking`, savedFile.writes.length, 1);
-  eq(`${label}: seconden blijven bij tweede opslag`, savedFile.writes[0]?.includes(`IFCTIMEPERIOD('${start}','${end}')`), true);
+  eq(`${label}: seconden blijven bij tweede opslag`, hasSourceClocks(savedFile.writes[0], start, end), true);
   reopened.getState().addTask({ name: 'Werk gewijzigd, kalender gelijk' });
   await reopened.getState().saveFile();
-  eq(`${label}: taakbewerking bewaart seconden`, savedFile.writes[1]?.includes(`IFCTIMEPERIOD('${start}','${end}')`), true);
+  eq(`${label}: taakbewerking bewaart seconden`, hasSourceClocks(savedFile.writes[1], start, end), true);
  }
  }
 }

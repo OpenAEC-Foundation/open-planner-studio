@@ -296,7 +296,6 @@ disposable.dispose();
 await rejected;
 assert.equal(disposedTransport.requests.length, 1);
 await checkRecoveryUpdateFlush(error => { writeError = error; });
-console.log('OK  recovery-worker: pariteit, archiefgrens, volgorde, cache, fallback en stopraces groen');
 
 // Een getypeerde kalenderweigering is lokaal aan het document: andere wijzigingen
 // worden opgeslagen, de geweigerde bron blijft opnieuw aangeboden worden.
@@ -335,3 +334,23 @@ console.log('OK  recovery-worker: pariteit, archiefgrens, volgorde, cache, fallb
   finally { console.warn = warn; }
   assert.deepEqual((await loadRecovery()).docs.map(d => d.id), ['b']);
 }
+
+// De workergrens behoudt de getypeerde weigering; een inhoudsfout schakelt de
+// worker niet uit en start geen synchrone tweede poging voor hetzelfde document.
+{
+  const transport = new Transport();
+  const client = createRecoverySnapshotSerializer(() => transport);
+  const result = client.serialize(newer);
+  const rejected = assert.rejects(result, IfcCalendarTimePrecisionError);
+  await turn();
+  const response = { id: transport.requests[0]!.id, error: 'precisie', calendarTimeMinutes: 451 };
+  transport.emit(response);
+  await rejected;
+  assert.equal(transport.terminated, false);
+  const next = client.serialize(old);
+  await turn();
+  transport.reply(1);
+  parity(old, await next);
+  client.dispose();
+}
+console.log('OK  recovery-worker: pariteit, archiefgrens, volgorde, cache, fallback, afzonderlijke kalenderweigering en stopraces groen');

@@ -42,7 +42,7 @@ export class IfcParseError extends Error {
 /** Schrijven mag bronprecisie nooit stil afkappen. Openen blijft wel mogelijk. */
 export class IfcCalendarTimePrecisionError extends Error {
   readonly code = 'IFC_CALENDAR_TIME_PRECISION';
-  constructor(minutes: number) {
+  constructor(readonly minutes: number) {
     super(`Calendar time cannot be saved exactly with its source information: ${minutes} minutes`);
     this.name = 'IfcCalendarTimePrecisionError';
   }

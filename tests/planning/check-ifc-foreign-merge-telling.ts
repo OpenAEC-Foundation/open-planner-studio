@@ -67,6 +67,8 @@ const withWall = (bytes: Uint8Array): Uint8Array => {
  *  van #867: OPS schreef die nooit (sinds `1eb58ab9d` "afwezig/leeg ⇒ niets geschreven"), en de writer laat hem weg
  *  (knownbug 1101). */
 const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
+  'fixtures/periode-oude-minuutfractie.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
+  'fixtures/periode-oude-minuutfractie-v2026.8.1.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
   'council/r7sol-vreemd-lid-bij-notitie.ifc': "een lege notitielijst '[]' (knownbug 1101)",
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': "een lege notitielijst '[]' (knownbug 1101)",
 };

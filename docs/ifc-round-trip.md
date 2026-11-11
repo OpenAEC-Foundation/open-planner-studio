@@ -204,11 +204,17 @@ eerste werkdag, en zette de reader die op elke werkdag. Zo staat het nu in het b
   en zo nodig fijnere decimale seconden die bij teruglezen exact hetzelfde getal opleveren.
   Fijnere bronprecisie en tijdzones blijven daarnaast als oorspronkelijke klokstrings bij het
   kalenderobject (`ifcTimePeriods`). Een ongewijzigd tijdvak schrijft die bronwaarden terug in de
-  standaardvelden. De koppeling vereist exact dezelfde bandgrenzen of de vastgelegde scalaire
-  importwaarden, zonder getaltolerantie, afzonderlijk per klokgrens. Een waarde die niet exact kan
+  standaardvelden. De koppeling ligt vast per weekdag, band en klokgrens (of per werkende uitzondering);
+  een andere werkdag kan nooit als bron dienen voor een bewerking. Binnen die koppeling moeten
+  de grens of de vastgelegde scalaire importwaarde exact gelijk blijven, zonder getaltolerantie.
+  Bij gematerialiseerde scalaire banden blijven de pauzes in de standaard-IFC staan; de oorspronkelijke
+  precisie reist mee op de buitenste grenzen. Een waarde die niet exact kan
   terugkomen, of een bewerkte bronzone die het model niet kan overnemen, weigert opslag getypeerd vóór
   het schrijven, met de bestaande opslaanfoutmelding. Ook oude OPS-uurfracties blijven zonder
-  plannerbewerking opslaanbaar. Regressie: `check-ifc-kalendertijd.ts`.
+  plannerbewerking opslaanbaar. Bij een getypeerde kalenderweigering slaat crashherstel alleen dat document over en logt dit;
+  zijn vorige snapshot blijft staan, als die er is. Andere documenten worden wel bijgewerkt.
+  De overgeslagen wijzigingen zijn daardoor nog niet beschermd tegen een crash.
+  Regressies: `check-ifc-kalendertijd.ts` en `check-recovery-worker.ts`.
 - **De reader** (`buildCalendarFromEntity`). Een `IfcWorkTime` met een StartDate of FinishDate doet niet
   mee in de week. Datumgebonden werktijden (een zomer- en een winterweek, een losse werkzaterdag) leest
   OPS dus (nog) niet; als gewone week zouden ze in elke week gelden. De terugvalweek van main valt hier
