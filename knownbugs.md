@@ -1632,15 +1632,6 @@ en noem het in je rapport of PR-tekst.
      maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
      host nog dezelfde taal vraagt. — B
 
-880. **Een rapporttab die tijdens het wachten op de host opengaat, geeft een te ruime melding.**
-     `src/components/panels/ReportPanel.tsx` (het opslaan-effect na het laden) schrijft de net geladen
-     rapportinstellingen meteen terug, zonder `'start'` (`SettingWriteOrigin`, #818). Opent de gebruiker het
-     Rapport-tabblad terwijl de tool nog op de instellingen van de host wacht, en heeft de host
-     `ops-reportSettings`, dan zegt de melding na het late antwoord ook "Wat je in de tussentijd wijzigde, is
-     teruggezet.", terwijl de gebruiker alleen het tabblad opende. Alleen de tekst klopt dan niet; de
-     instellingen van de host winnen gewoon. Voorstel: geef bij de eerste terugschrijfactie na het laden
-     `'start'` mee. Afgeleid uit de code bij de late toepassing van #818, niet nagespeeld. — S
-
 881. **VERVOLG: de devlink-uitzondering van de themamelding wordt buiten de echte meldingsroute getest.**
      `tests/planning/check-system-theme.ts:179` geeft de waarden zelf aan `hostThemeWinsNextStart`. Fixrichting: de
      devbundelproef in `check-dev-open-link.ts` uitbreiden (hostthema, echte `?theme=light`, gebruikerswissel via
@@ -1669,16 +1660,6 @@ en noem het in je rapport of PR-tekst.
      subpad laadt (docs, voorbeelden, workers, `theme-prepaint.js`, het manifest), is niet getest. Voorstel: laat
      de spec in CI ook de relatieve variant bouwen en draai dezelfde server en scenario's erop. Gevonden in de
      review van #828. — B
-
-913. **VERVOLG: na een mislukte download van de rapportletter kan een export op verkeerde breedtes tekenen.**
-     `src/services/pdf/fontLoader.ts:130` (`ensureReportFontLoaded`) vangt een laadfout af. De metingen in
-     `src/components/panels/ReportPanel.tsx` (bijv. regel 560) krijgen dan toch de id van de gekozen letter, maar
-     het canvas meet op de terugvalletter. Lukt de nieuwe laadpoging in `runExport` (regel 1128) wél, dan tekent de
-     PDF de gekozen letter op de breedtes van de terugvalletter. Een naam die past, kan dan afgekapt worden. Dit
-     gebeurt alleen na een mislukte download, bijv. even offline in de browser. Richting: laat
-     `ensureReportFontLoaded` melden of het laden lukte, en meet opnieuw na een geslaagde nieuwe poging. Niet
-     nagespeeld: het eerste fontverzoek laten mislukken en de export daarna laten slagen. Uit de review van #837
-     (GPT-6.1-Sol, xhigh, ronde 2, op `dd8f60b0c`, VERMOED zekerheid hoog, VERVOLG). — S
 
 1006. **IfcOpenShell 0.9 opent een bestand met `FILE_SCHEMA(('IFC4X3'))` niet.** De writer van v2026.9.0 en ouder
      schreef die kop. `ifcopenshell.open` (0.9.0.post1) weigert hem met "Unsupported schema"; met `IFC4X3_ADD2` in de
@@ -2766,11 +2747,6 @@ en noem het in je rapport of PR-tekst.
      vastgesteld of de echte SuperCloud de nieuwste eerst levert. Voorstel: neem de volgorde op in het
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
-906. **VERVOLG: het nieuwe Rapport-tabblad bouwt de `PrintOptions` van de Gantt-afdruk opnieuw op.**
-     `src/components/panels/reportStudio/useStudioPrintOptions.ts` herhaalt de koppeling uit `ReportPanel.tsx`
-     (instellingen naar `PrintOptions`, kolommen meten, kalender). Een wijziging in de ene komt niet vanzelf in de
-     andere, zolang de flag `reportRedesign` bestaat. Voorstel: haal de oude Gantt-route uit `ReportPanel` weg in de
-     PR die de flag standaard aanzet, of zet beide op één gedeelde hook. Gezien bij de bouw van #817. — B
 
 915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
      laadt `/` opnieuw (vroeger `/?icons=b2`), nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende;
@@ -2921,8 +2897,7 @@ en noem het in je rapport of PR-tekst.
 834. **VERVOLG: de formulierroute in het lint wordt niet meer gebruikt.** Sinds #791 heeft geen lintknop nog
      `form`. Toch staan er nog: `RibbonButtonSpec.form` (`src/components/layout/Ribbon/ribbonConfig.tsx:77`), de
      doorgifte in `src/components/layout/Ribbon/RibbonTabContent.tsx:61` en `:69`, en de submit-tak in
-     `src/components/layout/Ribbon/ribbonPrimitives.tsx:111–145`. Verouderde verwijzingen naar *Rapport › Afdruk*:
-     het commentaar in `src/components/panels/ReportPanel.tsx:1699` en `tests/browser/table-reports.spec.ts:126`.
+     `src/components/layout/Ribbon/ribbonPrimitives.tsx:111–145`.
      Voorstel: weghalen bij een opruimronde. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`,
      VERVOLG). — B
 
@@ -3107,13 +3082,6 @@ en noem het in je rapport of PR-tekst.
      `openHelpArticle` en daar na sluiten naar terug. Uit council ronde 2 van #817 (Claude Fable 5.1, xhigh,
      VERMOED), in de code bevestigd. — B
 
-946. **VERVOLG: het oude Rapport-tabblad toont een dagbreedte onder 1 px als 1.** Het nieuwe tabblad kan sinds de
-     fixronde na council ronde 2 van #817 een vaste schaal onder 1 px per dag bewaren (`customZoom` in
-     `ops-reportSettings`). Het oude tabblad (flag uit) tekent met die waarde, maar de schuif en het getal tonen
-     `Math.max(1, …)` (`src/components/panels/ReportPanel.tsx:1598`). Na een wissel van de flag klopt het getal
-     dus niet met het papier, tot je de schuif aanraakt. Afgeleid uit de code. Voorstel: de schuif van het oude
-     tabblad ook onder 1 laten gaan, of het oude tabblad laten vervallen als de flag standaard aan gaat. — B
-
 948. **VERVOLG: de melding "Ongedaan maken" in de werkbalk verbergt de stand op een smal papiervlak.** Met de
      zijbalk open op 1280×720 toont de werkbalk 8 s lang alleen "2 pagina's"; papier, kolommen en rijen vallen weg
      achter de melding (`notice` in `ReportPaperView.tsx`). Gezien in de schermafbeeldingen van de fixronde na council
@@ -3184,19 +3152,6 @@ en noem het in je rapport of PR-tekst.
      CJK-extensie. Voorstel: de letter van de extensie ook als `@font-face` voor het scherm registreren en aan
      `assembleReportMeasureFonts` geven, net als Noto Sans Arabic. Gevonden in de fixronde na council ronde 1
      van #817. — S
-
-968. **VERVOLG: het oude rastervoorbeeld kapt nog af met de canvasmeting.** De kolombreedtes van het oude tabblad
-     komen uit de lettermaten van het fontbestand; het afkappen tijdens het tekenen gebruikt de canvas-tekenaar
-     (`measureText` in `src/services/pdf/canvasDraw2d.ts`). Sinds de fixronde na code-review 1 van #847 meet het
-     canvas met `textRendering = 'geometricPrecision'` en Arabisch in Noto; dan is het verschil klein (gemeten:
-     Latijn 348,192 tegen 348,192 px, Arabisch 175,069 tegen 175,068 px). Sinds de fixronde na code-review 2
-     tekent het canvas ook een gemengde Latijns-Arabische naam even breed als de meting, in Chromium en WebKitGTK
-     2.52.6 (Carlito 414,377 tegen 414,377 px). WebKit kent canvas-`textRendering` en -`fontKerning` niet; daar
-     kernt het canvas Latijnse tekst wel (Inter "Stakeholder management" 108,844 tegen gemeten 109,002 px), dus
-     smaller dan de meting: dat kapt niet eerder af. Over blijft wat het canvas met GSUB
-     anders tekent dan de meting telt (Inter "->", de Carlito-ligatuur "ti"): daar kan het oude voorbeeld een
-     teken eerder of later afkappen dan de PDF. Afgeleid uit de code. Voorstel: de canvas-tekenaar laten meten met
-     `ReportTextMetrics`, of het oude voorbeeld laten vervallen als de flag standaard aan gaat. — S
 
 969. **VERVOLG: een maandlabel dat aan de rechterrand van een blad begint, toont alleen een streepje.** Gezien in
      `qa/817-rapport/groot/plan-5000.ifc` (A3 liggend), op elk blad rechtsboven: "Februari 2040" begint 0,7 pt vóór
@@ -3288,7 +3243,7 @@ en noem het in je rapport of PR-tekst.
      verliest. — B
 
 1351. **VERVOLG: de legendaregel "Kritiek pad (rand)" is in elke taal Nederlands.** De sleutel `legend.criticalOutline`
-     staat in geen enkel taalbestand; `ReportPanel.tsx:797` en `reportStudio/useStudioPrintOptions.ts:241` vallen
+     staat in geen enkel taalbestand; `reportStudio/useStudioPrintOptions.ts` valt
      terug op de `defaultValue` 'Kritiek pad (rand)'. Een Engelse afdruk met balkkleuren *Per taak — automatisch*
      toont dus een Nederlandse legendaregel. Gezien bij het verwerken van ronde 1 van #877 (grep op main en de
      branch). Voorstel: voeg de sleutel toe aan `report.json` (nl + en) en haal de `defaultValue` weg. — B
@@ -3301,12 +3256,18 @@ en noem het in je rapport of PR-tekst.
      het gedeelde keuzetype. — B
 
 1353. **VERVOLG: de browserstap voor vaste rapportkleuren vergelijkt geen getekende balkkleuren.**
-     `tests/browser/report-studio.spec.ts:629` leest vóór en na de schermwissel alleen de legendaregel *Kritiek pad
+     `tests/browser/report-studio.spec.ts:760` leest vóór en na de schermwissel alleen de legendaregel *Kritiek pad
      (rand)*. Die regel staat zowel bij automatische kleuren als bij categoriekleuren, dus een gelijkblijvende
      balkvulling meet de stap niet. Ook de overname van een gelijke layoutkleur en het opnieuw kiezen van de getoonde
      kleur (de twee BLOKKEERT uit ronde 1) hebben geen eigen stap. Code-review ronde 2 van #877 (GPT-6.1-Sol); in de
      app zelf gecontroleerd en in orde. Voorstel: vergelijk in dezelfde route `fill` en `stroke` van de balken op het
      papier, en voeg die twee routes toe. — B
+
+1354. **VERVOLG: de exportknop heeft op de twee rapportschermen een andere naam.** Bij de Gantt-afdruk heet hij
+     "PDF exporteren" (`report.json` › `studio.export.button`), bij de andere rapporttypen "Exporteer PDF"
+     (`report.json` › `exportPDF`, `src/components/panels/ReportPanel.tsx`). In het Engels zijn ze gelijk
+     ("Export PDF"). Gezien bij het weghalen van de flag `reportRedesign` (#817).
+     Voorstel: één tekst voor beide knoppen. — S
 
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in

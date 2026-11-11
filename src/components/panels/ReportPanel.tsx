@@ -566,7 +566,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       </div>
 
       {/* Rechts: het rapport */}
-      <div data-tour-anchor="report-panel" className="flex-1 min-w-0 min-h-0" style={{ background: 'var(--theme-bg)' }}>
+      <div className="flex-1 min-w-0 min-h-0" style={{ background: 'var(--theme-bg)' }}>
         {tableSpec ? (
           <div className="h-full overflow-auto p-4">
             <TableReportView ref={tableReportRef} spec={tableSpec} fontStack={reportFont} />

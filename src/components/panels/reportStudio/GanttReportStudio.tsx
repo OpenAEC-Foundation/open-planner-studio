@@ -85,7 +85,7 @@ const daySliderValue = (pos: number) => REPORT_MIN_DAY_WIDTH * (REPORT_MAX_ZOOM 
 
 /** Welke velden "Herstel standaard" per stap terugzet. */
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
-  // De keuze (alle taken, weergave of layout; `reportType: 'resourceGantt'` hoort bij de layout
+  // De keuze (alle taken, weergave of layout; een oude `reportType: 'resourceGantt'` hoort bij de layout
   // Resourcediagram) en de opties van het Resourcediagram.
   tasks: ['followView', 'layoutId', 'reportType', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
@@ -114,7 +114,7 @@ const TARGET_STEP: Record<PaperTarget, StudioStepId> = {
 const TABLE_SHARE_WARN = 0.4;
 /** Vanaf zoveel bladen meldt de stap Pagina dat het veel papier wordt. */
 const MANY_PAGES = 12;
-/** De aan/uit-opties van het Resourcediagram, in de volgorde van het oude paneel (`RESOURCE_GANTT_TOGGLES`). */
+/** De aan/uit-opties van het Resourcediagram, in schermvolgorde (label = `resourceGantt.<sleutel>`). */
 const RESOURCE_TOGGLES = ['pageBreakPerResource', 'includeUnassigned', 'groupByType', 'showAssignmentColumns'] as const;
 /** De toewijzingskolommen van Per resource op het papier (`tableColumnSlots` in printPreview.ts). */
 const ASSIGNMENT_COLUMN_KEYS: ReadonlySet<string> = new Set(['units', 'curve']);
@@ -125,7 +125,7 @@ const LAYOUT_BAR_KEYS: readonly StudioSettingKey[] = ['showDeps', 'showBaselineO
 interface PopoverState { step: StudioStepId; anchor: { x: number; y: number }; from: 'rail' | 'paper' }
 
 /**
- * Het nieuwe Rapport-tabblad voor de Gantt-afdruk (issue #817, feature flag `reportRedesign`; ontwerp
+ * Het Rapport-tabblad voor de Gantt-afdruk (issue #817; ontwerp
  * "schets 4 + 2" van de eigenaar, 7 november 2026). Links een inklapbare zijbalk met stappen die het
  * papier volgen, met onderaan het bestand en de knop PDF exporteren; rechts het papier als SVG, waarop
  * elk deel oplicht en bij een klik zijn stap opent. Is de zijbalk ingeklapt, dan opent dezelfde
@@ -492,8 +492,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       return;
     }
     // Net een andere letter gekozen: wachten tot hij geladen en gemeten is. Anders tekent de PDF de nieuwe
-    // letter op de breedtes van de vorige en kapt hij namen af (zelfde reden als `measuredOnChosenFont`
-    // in het oude paneel).
+    // letter op de breedtes van de vorige en kapt hij namen af (review Sol #837, ronde 1).
     // Net een kolom gekozen die eerst haar celteksten bouwt: wachten tot het papier haar heeft.
     if (fontPending || columnsPending) {
       exportPendingRef.current = true;
@@ -1123,7 +1122,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       aria-label={t('reportType.label')}
       value="gantt"
       onChange={v => {
-        // Eerst bewaren, dan wisselen: het oude paneel leest het rapporttype bij het laden. De rijenbron gaat
+        // Eerst bewaren, dan wisselen: `ReportPanel` leest het rapporttype bij het laden. De rijenbron gaat
         // mee in `layoutId`, ook een Resourcediagram dat alleen als `reportType` bewaard was (een oude
         // opslag): anders opent de terugweg met Alle taken (review Sol #847, ronde 4).
         void saveReportSettings({ ...settings, ...taskSourcePatch(source), reportType: v as ReportType })
@@ -1145,7 +1144,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const exportTitle = `${fileName}\n${t('studio.export.vectorHint')}`;
 
   return (
-    <div className="rs-root" data-tour-anchor="report-panel" data-rs-studio data-rs-sidebar={settings.sidebar}>
+    <div className="rs-root" data-rs-studio data-rs-sidebar={settings.sidebar}>
       <aside className="rs-sidebar" data-mode={settings.sidebar} aria-label={t('studio.sidebar')}>
         {rail ? (
           <>

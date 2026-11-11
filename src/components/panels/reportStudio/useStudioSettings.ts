@@ -60,11 +60,11 @@ export function fieldsAreDefault(settings: ReportSettings, keys: readonly Studio
 }
 
 /**
- * De rapportinstellingen van het nieuwe Rapport-tabblad: dezelfde sleutel `ops-reportSettings` als het
- * oude paneel (per apparaat), geladen bij openen en bewaard bij elke wijziging. Eén object in plaats van
+ * De rapportinstellingen van het Rapport-tabblad: de sleutel `ops-reportSettings`, gedeeld met `ReportPanel`
+ * (per apparaat), geladen bij openen en bewaard bij elke wijziging. Eén object in plaats van
  * vijfentwintig losse states, zodat Standaard en ongedaan maken over een hele stap kunnen gaan.
  *
- * Dezelfde valkuil als in `ReportPanel`: opslaan pas ná het laden, anders overschrijft de eerste render
+ * De valkuil: opslaan pas ná het laden, anders overschrijft de eerste render
  * de opgeslagen voorkeuren met de standaard.
  *
  * Een andere bron kan de opgeslagen stand vernieuwen: de host die pas na de start antwoordt (#818), of

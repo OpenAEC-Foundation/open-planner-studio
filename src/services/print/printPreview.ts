@@ -77,7 +77,7 @@ const MAX_DAILY_WEEKEND_STEPS = 5_000;
 /** Grootste handmatige rapportzoom in logische pixels per dag. */
 export const REPORT_MAX_ZOOM = 40;
 /**
- * De kleinste breedte per dag die een rapport kan hebben (logische px). Het nieuwe Rapport-tabblad (#817)
+ * De kleinste breedte per dag die een rapport kan hebben (logische px). Het Rapport-tabblad (#817)
  * start "Vaste schaal" op de breedte die "passen" gaf; bij een lange planning is dat minder dan 1 px per
  * dag (5000 taken op A3: ±0,2). Met 1 px per dag als ondergrens sprong het rapport bij die wissel
  * van 139 naar 695 pagina's. De opgeslagen instelling (`customZoom`) mag daarom tot deze grens.
@@ -2615,7 +2615,7 @@ function drawTaskTable(
  *  2. `options.showCritical` stuurt hier alléén de lijnkleur (en de legendaregel). De balken
  *     volgen de balkkleurkeuze `computeBarColors` (barColors.ts: `criticalFill` in de modus
  *     *Kritiek pad*, een rode rand daarbuiten) en kijken niet naar het vinkje — een rapporttype
- *     zonder lijnen verbergt het vinkje daarom (`reportTypeShowsCriticalToggle`).
+ *     zonder lijnen zet het vinkje daarom vast aan (`studioRowPrintFields`).
  *  3. TRACE-DIMMING wordt NIET overgenomen: dat is interactieve state (het gedimd tonen van alles
  *     buiten een aangeklikt pad) waar een statisch papieren rapport niets aan heeft.
  *

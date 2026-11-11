@@ -155,10 +155,10 @@ export const REPORT_REQUIRED_COLUMN = 'task.name';
 /** Bovengrens van de kolomlijst; meer past nooit op een blad naast een tijdlijn. */
 export const REPORT_MAX_COLUMNS = 24;
 
-/** Stand van de zijbalk van het nieuwe Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
+/** Stand van de zijbalk van het Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
 export type ReportSidebarMode = 'open' | 'rail';
 
-/** De stappen van het nieuwe Rapport-tabblad, in de volgorde van het papier. */
+/** De stappen van het Rapport-tabblad, in de volgorde van het papier. */
 export const REPORT_STUDIO_STEPS = ['tasks', 'columns', 'bars', 'page', 'headerFooter'] as const;
 export type ReportStudioStep = typeof REPORT_STUDIO_STEPS[number];
 
@@ -180,7 +180,7 @@ export interface ReportSettings {
   taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
-  /** Breedte per dag bij "Vaste schaal" (logische px). Mag een breuk zijn en onder 1 liggen (nieuwe tabblad). */
+  /** Breedte per dag bij "Vaste schaal" (logische px). Mag een breuk zijn en onder 1 liggen (Rapport-tabblad). */
   customZoom: number;
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
@@ -197,10 +197,10 @@ export interface ReportSettings {
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
   followView: boolean;
   /**
-   * De layout waarvan het nieuwe Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
+   * De layout waarvan het Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
    * ("Alle taken" of "Zoals de weergave", via `followView`). Ook de meegeleverde layout Resourcediagram staat
-   * hier, los van het geopende rapporttype (review Sol #847, ronde 4); die keuze zet daarnaast
-   * `reportType: 'resourceGantt'`. Zie `reportTaskSource`.
+   * hier, los van het geopende rapporttype (review Sol #847, ronde 4). Een oude opslag met
+   * `reportType: 'resourceGantt'` opent als die layout. Zie `reportTaskSource`.
    */
   layoutId: string;
   tableReports: TableReportOptions;

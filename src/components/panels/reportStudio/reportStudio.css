@@ -1,4 +1,4 @@
-/* Het nieuwe Rapport-tabblad (feature flag `reportRedesign`, issue #817): zijbalk met stappen links,
+/* Het Rapport-tabblad (issue #817): zijbalk met stappen links,
    het interactieve papier rechts. Alleen themavariabelen en de zes tekstrollen; het papier zelf blijft
    wit in elk thema. De bediening gebruikt de onderdelen van de app (#817, ronde 5): `.btn`, `.input`,
    `Select`, het app-vinkje, `.ops-note`, `.ops-textlink`, `.ui-card-header`, `.ui-pop`, `.ops-toast` en het

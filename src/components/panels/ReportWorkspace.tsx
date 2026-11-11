@@ -15,6 +15,8 @@ const GanttReportStudio = lazy(() => import('./reportStudio/GanttReportStudio').
  * Vernieuwt een andere bron die sleutel (de host na de start, #818, of een ander tabblad), dan volgt de
  * werkruimte het rapporttype daaruit: anders blijft het Rapport-tabblad staan terwijl de opgeslagen keuze
  * een ander rapport is (review Sol #847).
+ *
+ * Het tour-anker `report-panel` staat op de kaart om deze werkruimte (`App.tsx`), niet hierbinnen.
  */
 export function ReportWorkspace() {
   const [type, setType] = useState<ReportType | null>(null);
@@ -32,10 +34,10 @@ export function ReportWorkspace() {
     void loadReportSettings().then(loaded => setType(loaded.reportType), () => {});
   });
 
-  if (type === null) return <div className="flex-1 min-h-0" data-tour-anchor="report-panel" />;
+  if (type === null) return <div className="flex-1 min-h-0" />;
   if (type === 'gantt' || type === 'resourceGantt') {
     return (
-      <Suspense fallback={<div className="flex-1 min-h-0" data-tour-anchor="report-panel" />}>
+      <Suspense fallback={<div className="flex-1 min-h-0" />}>
         <GanttReportStudio onReportTypeChange={setType} />
       </Suspense>
     );

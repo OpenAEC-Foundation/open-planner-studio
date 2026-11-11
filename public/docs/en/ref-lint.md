@@ -114,7 +114,7 @@ In the collapsed ribbon these three sit behind one flag button titled *Baselines
 - **Export progress sheet** — makes an `.xlsx` sheet with the tasks, to fill in progress outside the app. Disabled without tasks.
 - **Update progress from a spreadsheet** — opens the import window for a returned sheet. Disabled without tasks. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
 
-This group is also on *Table* and *Report*.
+This group is also on *Table*.
 
 ## Resources
 
@@ -194,7 +194,7 @@ This group has the same name as the one on *Planning*, but holds the drawing opt
 - **Status date line** — draws a dashed line on the status date. Default: on. You only see it when the progress line is off, because otherwise that line takes its place. The label with the date in the header stays as long as at least one of the two is on. The label follows your date notation, for example 20-09-2006. If the app calculates in hours, line and label sit at the time of day and the label also shows the time, for example 20-09-2006 17:00.
 ### View › Bars
 
-- **Bar colors** — chooses how the bars are coloured: *Critical path* (default), *Per task — automatic* or *By category* with a choice of field. If that field is not in this project, the menu says that *Work category* is used temporarily. Outside *Critical path*, a red outline marks the critical path. Under *Critical path*, choose colours for critical, near-critical and normal tasks; *Restore default* resets them. The choice also applies to the report and is saved with a layout. Very light or dark colours are adjusted to remain visible against the background.
+- **Bar colors** — chooses how the bars are coloured: *Critical path* (default), *Per task — automatic* or *By category* with a choice of field. If that field is not in this project, the menu says that *Work category* is used temporarily. Outside *Critical path*, a red outline marks the critical path. Under *Critical path*, choose colours for critical, near-critical and normal tasks; *Restore default* resets them. The choice is saved with a layout. The report has its own bar colours; only with *As in the view* does it follow this choice. Very light or dark colours are adjusted to remain visible against the background.
 - **Resource accent** — draws a thin strip in the resource colour under each leaf bar, divided in proportion to the units per day. Default: off.
 - **Float band** — draws the green band after a non-critical bar, up to the task's late finish. Default: on.
 - **Relationship lines** — shows or hides the relationship lines between tasks. Default: on. The choice belongs to the document and to the layout.
@@ -228,7 +228,7 @@ The tab shows the IFC panel in the workspace. The ribbon has no buttons here, on
 
 ## Report
 
-The tab shows the report screen in the workspace, with the report choices and *Export PDF*. The ribbon here only has the *Progress* group; it is the same as on *Planning*.
+The tab shows the report screen in the workspace, with the report choices and *Export PDF*. The ribbon has no content here: it collapses to the tab names, so the paper gets the height. The *Progress* group is on *Planning* and *Table*.
 
 ## MCP
 

@@ -26,9 +26,8 @@ export interface StudioFont {
 }
 
 /**
- * De `PrintOptions` van de Gantt-afdruk voor het nieuwe Rapport-tabblad. Dezelfde velden en dezelfde
- * vertaalde teksten als het oude paneel (`ReportPanel.tsx`, type `gantt`), plus de kolomlijst
- * (`tableColumns`, issue #817 deel B). De kolombreedtes en (bij niet afkappen) de naamkolom worden hier
+ * De `PrintOptions` van de Gantt-afdruk voor het Rapport-tabblad, met de vertaalde teksten van de
+ * printlaag en de kolomlijst (`tableColumns`, issue #817 deel B). De kolombreedtes en (bij niet afkappen) de naamkolom worden hier
  * gemeten op de geladen rapportletter — meten hoort in het paneel, niet in de printlaag (`reports.md`).
  *
  * `font`: de rapportletter die geladen is (#770), met de meting van de PDF; `null` zolang er nog geen
@@ -115,7 +114,7 @@ export function useStudioPrintOptions(
     [tasks, reportRows, assignmentColumns, rowAssignments],
   );
 
-  // De curvekolom zo breed als de langste curvenaam die dít rapport toont (zoals het oude paneel).
+  // De curvekolom zo breed als de langste curvenaam die dít rapport toont.
   const curveColumnWidth = useMemo(() => {
     if (!metrics || !assignmentColumns || !rowAssignments) return undefined;
     const cellLabels = new Set<string>();
@@ -175,7 +174,7 @@ export function useStudioPrintOptions(
       companyName,
       taskNameColumnWidth: settings.truncateTaskNames ? settings.taskNameColumnWidth : (autoNameWidth ?? settings.taskNameColumnWidth),
       labels: {
-        // Resourcediagram zonder toewijzing: zeg wat er ontbreekt (zelfde teksten als het oude paneel).
+        // Resourcediagram zonder toewijzing: zeg wat er ontbreekt, niet "geen taken".
         noTasks: resource && tasks.length > 0
           ? (resource.result.counts.inPeriod === 0 && resource.result.counts.outsidePeriod > 0 ? t('resourceGantt.emptyPeriod') : t('resourceGantt.empty'))
           : t('noTasks'),

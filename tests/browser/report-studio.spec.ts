@@ -81,6 +81,14 @@ function expectFullFooterOnEveryPage(shapes: PageShape[]): void {
   }
 }
 
+/** Opent een stap in de zijbalk. Een klik op de kop van een open stap klapt hem dicht, en de open stap blijft
+ *  bewaard, dus klik alleen als hij nog dicht is. */
+async function openStep(page: Page, step: string): Promise<void> {
+  const head = page.locator(`[data-rs-step-head="${step}"]`);
+  if (await head.getAttribute('aria-expanded') !== 'true') await head.click();
+  await expect(head).toHaveAttribute('aria-expanded', 'true');
+}
+
 /** Exporteer via de knop in de zijbalk en geef de bytes van de PDF. */
 async function exportStudioPdf(page: Page, name: RegExp): Promise<Uint8Array> {
   const downloadPromise = page.waitForEvent('download');
@@ -279,7 +287,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   // terug, A2 blijft.
   await page.locator('[data-rs-step="columns"] [data-rs-reset="columns"]').click();
   await expect(page.locator('[data-rs-column]')).toHaveCount(6);
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   await page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A2"]').click();
   await page.locator('[data-rs-undo-button]').click();
   await expect.poll(async () => (await saved()).columns.length).toBe(7);
@@ -407,7 +415,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-head="columns"]').click();
   await page.locator('[data-rs-step="columns"] [data-rs-reset="columns"]').click();
   await expect(page.locator('[data-rs-column]')).toHaveCount(6);
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   await page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A3"]').click();
   await expect.poll(async () => (await saved()).paperSize).toBe('A3');
   await expect(page.locator('[data-rs-undo-button]')).toBeVisible();
@@ -452,7 +460,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
 
   // Voet op elke pagina, ook als de tijdlijn over twee vellen loopt: één rij hoog en twee vellen breed krijgt op
   // beide vellen de volle voetstrook. Zonder de optie heeft geen vel een los voetvenster, wel kop en body.
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   await page.locator('[data-rs-segmented="autoFit"] [data-rs-value="fit"]').click();
   await expect(page.locator('[data-preview-page]')).toHaveCount(1);
   await page.locator('[data-rs-option="timelineColumns-more"]').click();
@@ -460,17 +468,19 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-head="headerFooter"]').click();
   const footerSwitch = page.locator('[data-rs-switch="repeatFooter"]');
   await expect(footerSwitch.locator('input')).toBeChecked();
-  expectFullFooterOnEveryPage(await pageShapes(await exportStudioPdf(page, /^Rapportstudio-.+\.pdf$/)));
+  const withFooter = await pageShapes(await exportStudioPdf(page, /^Rapportstudio-.+\.pdf$/));
+  expectFullFooterOnEveryPage(withFooter);
   await footerSwitch.click();
   await expect(footerSwitch.locator('input')).not.toBeChecked();
   const withoutFooter = await pageShapes(await exportStudioPdf(page, /^Rapportstudio-.+\.pdf$/));
   expect(withoutFooter).toHaveLength(2);
-  for (const shape of withoutFooter) {
-    expect(shape.draws).toBe(2);
+  // Per vel precies één venster minder: de voet.
+  withoutFooter.forEach((shape, i) => {
+    expect(shape.draws).toBe(withFooter[i].draws - 1);
     expect(shape.footerRects).toHaveLength(0);
-  }
+  });
   await footerSwitch.click();
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   await page.locator('[data-rs-option="timelineColumns-less"]').click();
   await expect(page.locator('[data-preview-page]')).toHaveCount(1);
 
@@ -513,12 +523,12 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-relations-off]')).toBeVisible();
   await expect(page.locator('[data-rs-option="showDeps"]')).toBeDisabled();
   await expect(page.locator('[data-rs-option="showDeps"]')).not.toBeChecked();
-  await expect.poll(async () => (await saved()).reportType).toBe('resourceGantt');
+  await expect.poll(async () => (await saved()).layoutId).toBe('builtin:resource-diagram');
   expect(await screen()).toEqual(screenBefore);
   // Een beperkte periode, dan via Rapporttype een ander rapport en terug (review Sol #847, ronde 4): de layout
   // Resourcediagram, zijn banden en zijn periode blijven staan. Eerst kwam de terugweg op Alle taken uit, zonder
   // banden en zonder periode. Alleen met een periode noemen de tellingen ook "Buiten de periode".
-  expect(await saved()).toMatchObject({ reportType: 'resourceGantt', layoutId: 'builtin:resource-diagram' });
+  expect(await saved()).toMatchObject({ reportType: 'gantt', layoutId: 'builtin:resource-diagram' });
   const rdChoice = page.locator('[data-rs-layout="builtin:resource-diagram"]');
   const resourceCounts = page.locator('[data-rs-resource-counts]');
   const periodPicker = page.getByLabel(/^(Reporting period|Rapportageperiode)$/);
@@ -795,7 +805,7 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom op het pa
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const page0 = page.locator('[data-report-page-svg="0"]');
   await expect(page0).toBeVisible();
-  await page.locator('[data-rs-step-head="columns"]').click();
+  await openStep(page, 'columns');
   await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="full"]').click();
 
   // De naamcel in de tabel (de meest linkse tekst met de naam; de andere staat naast de balk), met de
@@ -837,14 +847,17 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom op het pa
   // Een lange Latijnse naam, nu de langste.
   await rename(latin);
   await paperCell(latin);
-  // Afkappen met de schuif op het minimum: de naam eindigt op een beletselteken; terug op Volledig staat hij er weer.
+  // Afkappen met de schuif op het minimum: de naam in de tabel eindigt op een beletselteken; het label naast de
+  // balk blijft heel. Terug op Volledig staat hij er weer.
+  const fullName = page0.locator('text', { hasText: latin });
+  await expect(fullName).toHaveCount(2);
   const cutName = () => page0.evaluate((svg, name) => [...svg.querySelectorAll('text')]
     .map(t => t.textContent ?? '').filter(text => text.endsWith('…') && name.startsWith(text.slice(0, 8))), latin);
   await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="cut"]').click();
   const nameWidth = page.locator('[data-rs-option="taskNameColumnWidth"]');
   await nameWidth.fill(await nameWidth.getAttribute('min') ?? '60');
   await expect.poll(async () => (await cutName()).length).toBeGreaterThan(0);
-  await expect(page0.locator('text', { hasText: latin })).toHaveCount(0);
+  await expect(fullName).toHaveCount(1);
   await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="full"]').click();
   await paperCell(latin);
 
@@ -867,7 +880,7 @@ test('rapport-studio: een Arabische of lange naam past in de naamkolom op het pa
   await rename(mixed);
   await paperCell(mixed);
   // Carlito kiezen in de stap Pagina, met een echte klik in de keuzelijst.
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   const fontPicker = page.getByLabel(/^(Font:|Lettertype:)$/);
   await fontPicker.click();
   await page.getByRole('option', { name: /^Carlito/ }).click();
@@ -955,7 +968,7 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
   await expect(page0).toBeVisible();
 
   // Standaard de letter van vóór de keuzelijst.
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   const fontPicker = page.getByLabel(/^(Font:|Lettertype:)$/);
   await expect(fontPicker).toContainText(/^Inter/);
   await fontPicker.click();
@@ -970,7 +983,7 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
   expect(carlitoFonts).toContainEqual(expect.stringMatching(/Inter/));
 
   // Naamweergave Volledig: de naamkolom krijgt de breedte van de langste naam, gemeten in de rapportletter.
-  await page.locator('[data-rs-step-head="columns"]').click();
+  await openStep(page, 'columns');
   await page.locator('[data-rs-segmented="name-mode"] [data-rs-value="full"]').click();
   await expect(page0.locator('text', { hasText: longName }).first()).toBeAttached();
 
@@ -986,7 +999,7 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
     await fontsReleased;
     await route.continue();
   });
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   await fontPicker.click();
   await page.getByRole('option', { name: /^Liberation Sans/ }).click();
   await expect(fontPicker).toContainText(/^Liberation Sans/);
@@ -1058,6 +1071,6 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
   await expect(page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
   await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
   await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
-  await page.locator('[data-rs-step-head="page"]').click();
+  await openStep(page, 'page');
   await expect(page.getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
 });

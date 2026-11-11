@@ -40,8 +40,7 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   await backstage.locator('.backstage-sidebar').getByRole('button', { name: /^(Print|Afdruk)$/ }).click();
   await backstage.getByRole('button', { name: /^(Open print preview|Open afdrukvoorbeeld)$/ }).click();
   await expect(backstage).toHaveCount(0);
-  // Werkruimte en preview delen dit anker; alleen de werkruimte bevat het exportformulier
-  // in de instellingenkolom naast de preview.
+  // Het tour-anker staat op de kaart om de werkruimte; het exportformulier staat erin.
   const reportWorkspace = page.locator('[data-tour-anchor="report-panel"]').filter({
     has: page.locator('form#report-pdf-export'),
   });

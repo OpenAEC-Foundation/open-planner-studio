@@ -4,13 +4,13 @@ Every report on the *Report* tab, with the options that belong to it: what they 
 
 ## How the report window works
 
-Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with the drop-down *Report type*, the block *Summary* with counts, the block *Settings* or *Report options* and at the bottom the button *Export PDF*. On the right is the preview. What you see in the preview goes into the PDF.
+Open the *Report* tab (or press Ctrl+P). For the Gantt chart, on the left is a sidebar with the drop-down *Report type*, five steps and at the bottom the button *Export PDF*; on the right is the paper. For the other reports, on the left is the *Report* column with the drop-down *Report type*, the block *Summary* with counts, the block *Report options* and at the bottom the button *Export PDF*; on the right is the report. What you see on the screen goes into the PDF.
 
-**Report type** — which report you see. Choose from twelve reports. Default: *Gantt chart*. Where: *Report*, at the top of the *Report* column.
+**Report type** — which report you see. Choose from eleven reports. Default: *Gantt chart*. Where: *Report*, at the top of the sidebar or the *Report* column.
 
-**Export PDF** — makes the PDF. Effect: the result is only a PDF; the app does not send anything to a printer. If the schedule is out of date, the app calculates first. If the calculation gives an error, for example because of a loop in the relations, the button makes no file and shows the error. Where: *Report*, at the bottom of the *Report* column.
+**Export PDF** — makes the PDF. Effect: the result is only a PDF; the app does not send anything to a printer. If the schedule is out of date, the app calculates first. If the calculation gives an error, for example because of a loop in the relations, the button makes no file and shows the error. Where: *Report*, at the bottom of the sidebar or the *Report* column.
 
-**Remembered.** The app keeps all report options on this device, for all your projects. They do not belong to the project file. Only the *Company:* field of the Gantt chart is not kept.
+**Remembered.** The app keeps all report options on this device, for all your projects. They do not belong to the project file. Only the *Company name in the header* field of the Gantt chart is not kept.
 
 **Current schedule.** The reports use the last calculation. If the schedule has changed since then, the table reports show at the top *The schedule changed since the last calculation — press Calculate (F5) for current values.* If nothing has ever been calculated it says *Not calculated yet — press Calculate (F5) for dates and float.* If the project is in the view *Dates as recorded*, the reports show the dates from the source file and a strip says so.
 
@@ -20,77 +20,75 @@ Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with
 
 ## Paper and orientation
 
-**Paper:** — the paper size of the PDF. Choose from A4, A3, A2 and A1. Default: A3. Effect: the pages are laid out for that size. There is one choice for all reports: what you choose for one report also holds for the others. On portrait A4 a wide table gets small, because the table is scaled to the page width. Where: *Settings* (Gantt chart and Resource diagram) or *Report options* (the seven table reports). The Milestone overview and the Variance show no choices.
+**Paper:** — the paper size of the PDF. Choose from A4, A3, A2 and A1. Default: A3. Effect: the pages are laid out for that size. There is one choice for all reports: what you choose for one report also holds for the others. On portrait A4 a wide table gets small, because the table is scaled to the page width. Where: the *Page* step (Gantt chart) or *Report options* (the table reports). The Milestone overview and the Variance show no choices.
 
 **Orientation:** — landscape or portrait. Choose from *Landscape* and *Portrait*. Default: *Landscape*. Effect: like *Paper:*. Where: the same place as *Paper:*.
 
-**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)* and *Liberation Serif (like Times New Roman)*. Default: Inter. Effect: preview and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
+**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)* and *Liberation Serif (like Times New Roman)*. Default: Inter. Effect: screen and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
 
 ## Gantt chart
 
-The schedule as a bar chart, with a table on the left and a timeline on the right, over several pages if needed. The preview shows the paper with page header, table, timeline and legend. The block *Summary* counts *Tasks:*, *Leaf tasks:*, *Critical:* and *Relations:*. All options are under *Settings*.
+The schedule as a bar chart, with a table on the left and a timeline on the right, over more pages if needed. On the right is the paper with page header, table, timeline and legend; the paper is the same as the PDF. The options are in five steps in the sidebar. How you work with them is in [The Gantt chart](docs://howto-rapport-maken-en-afdrukken#the-gantt-chart). Below are the options per step.
 
-**Company:** — the company in the page header. Default: the company from the project settings. Effect: only the header of the report; what you type over here is not kept. Change the company in *Settings › Project › Project settings*, in the field *Client/organization*, and confirm with *Apply*.
+### Tasks and grouping
 
-**Author:** — the author in the page header. Read-only: the app takes it from the project settings.
+**Which tasks** — which rows go on paper. Choose from *All tasks*, *As in the view* and a layout. Default: *All tasks*. Effect: *All tasks* gives the whole task tree. *As in the view* takes the filter, grouping, sorting, collapsed groups, columns and bar colours of your Gantt chart. A layout sets the rows with its filter, grouping and sorting; your Gantt chart does not change.
 
-**Font size:** — size of text and table in the report. Choose from 90%, 100%, 110% and 125%. Default: 100%. Effect: with a larger font, text, rows and table grow and the timeline loses width. Independent of *Text size* in the settings.
+**Per resource** — only with a layout that groups by resource, like the built-in *Resource diagram*. Each resource gets its own band, with its tasks below it by start. The block counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The relation lines are then off, because a task can appear under more than one band, and *Critical path* stays on. With these four switches and the period:
 
-**Bar colors:** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*, with a drop-down *Category field* for *By category*. Default: *Critical path*. Effect: this is the same choice as *Bar colors* on the *View* tab: if you change it here, the Gantt on screen changes with it. If the chosen field does not exist in this project, it says *This field does not exist in this project. Work category is used temporarily.*
+- **Each resource on a new page** — Default: off. Effect: each resource starts on a new page, so you can hand out one sheet per crew or employee.
+- **Include tasks without a resource** — Default: off. Effect: the tasks without a resource come as the last band, to see what nobody has yet.
+- **Group by resource type** — Default: off. Effect: first a band per resource type (labour, crew, subcontractor, equipment, material), within it per resource.
+- **Show units/day and curve** — Default: on. Effect: the *Units/d* and *Curve* columns after the task name. If there is too little room for the timeline, the report leaves the columns out and says *The Units/d and Curve columns were left out: …*.
+- **Reporting period** — Default: *Project duration*. Effect: only the tasks that touch the period, and the time axis runs exactly over the period. If nothing is in the period, it says *No tasks in the reporting period — choose another period or Project duration.*
 
-**Status line:** — a line at the status date. Choose from *None*, *Status date line* and *Progress line*. Default: *None*. Effect: *Status date line* draws a line at the status date; *Progress line* draws the zigzag line that bulges to the progress of each task. If the project has no status date, it says *Set a status date first* and the report draws nothing.
+### Columns
 
-**Follow view (filter, grouping, sort)** — only for the Gantt chart. Default: off. Effect: off puts the whole task tree on paper. On draws exactly the rows of the screen: with your filter, grouping, sorting and collapsed phases.
+**Columns** — the columns of the table, from the same list as the table of the app. Default: WBS, Task name, Duration, Start, End and Completion. The task name is required. With *Copy columns from* you take the columns of the Table tab or of the table next to the Gantt.
 
-**Auto-fit to paper** — scale the timeline to the page width. Default: on. Effect: on scales the timeline to the width of the page; the number of pages follows from the height. Off uses a fixed scale (*Zoom:*) and also tiles across the width, which quickly gives many pages.
+**Task name** — *Truncate* or *Full*. Default: *Truncate*. Effect: *Truncate* cuts names off at the *Width of the name column*; *Full* lets the column grow with the longest name.
 
-**Zoom:** — the fixed scale of the timeline. Only visible when *Auto-fit to paper* is off. Slider from 1 to 40. Default: 22. Effect: a larger value makes the timeline wider, so more pages across.
+### Bars and timeline
 
-**Timeline over:** — spreads the timeline over more page widths. Choice from 1 through 8 pages. Default: 1 page. Effect: only with *Auto-fit to paper*; otherwise the choice is disabled and it says *Only with auto-fit*. Handy for a long schedule that you want to print in readable size.
+**Task names next to the bars** — Default: on. Effect: the name of the task next to the bar.
 
-**Repeat header on each page** — Default: on. Effect: on puts the page header on every page; off only on the first.
-
-**Repeat footer on each page** — Default: on. Effect: on puts the footer (project name, print date and legend) on every page; off only on the last. A handout without a legend is unreadable, hence on.
-
-**Task names on bars** — Default: on. Effect: the name of the task on the bar, where there is room.
-
-**Show completion** — Default: on. Effect: the completed part of the bar turns grey, as in the Gantt, and the column *Compl.* appears in the table. A completed task gets no float band.
-
-**Truncate task names** — Default: on. Effect: on cuts names in the table at the width of *Name column:*. Off lets the column grow with the longest name; it then says *The name column adapts to the longest task name*.
-
-**Name column:** — the width of the name column. Only visible when *Truncate task names* is on. Slider from 60 to 400. Default: 130.
-
-**Show baseline overlay** — the active baseline next to the bars. Default: off. Effect: a thin bar in the baseline colour under the task bar, only for tasks that are in the baseline.
-
-**Critical path** — Default: on. Effect: only controls the red relation lines between two critical tasks and the legend line. The bars themselves follow *Bar colors:*, regardless of this checkbox.
+**Progress in the bar** — Default: on. Effect: the part that is done, dark in the bar. A completed task gets no float band.
 
 **Show float** — Default: on. Effect: the float as a band behind non-critical bars.
 
-**Dependencies** — the relation lines. Default: on. Effect: draws arrows between the bars.
+**Show baseline overlay** — Default: off. Effect: a thin bar in the baseline colour below the task bar, only for tasks that are in the active baseline.
 
-**Show only working days** — compresses the timeline axis in this report. Default: off. Effect: weekends and holidays are skipped, and week bands then replace the weekend shading. Independent of the same setting for the Gantt on screen.
+**Bar colours** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*, with a *Category field* list for *By category*. Default: *Critical path*. Effect: the report only; your Gantt chart does not change. With *As in the view* the bar colours follow your screen. If the chosen field does not exist in this project, it says *This field does not exist in this project. Work category is used temporarily.*
 
-**Weekends** — Default: on. Effect: shades weekends and holidays in the timeline, as long as the scale makes days distinguishable. On the compressed axis (*Show only working days*) this checkbox has no effect.
+**Dependencies** — Default: on. Effect: draws the relation lines between the bars.
+
+**Critical path** — Default: on. Effect: controls only the red relation lines between two critical tasks and the legend line. The bars themselves follow *Bar colours*.
+
+**Status line** — Choose from *None*, *Status date line* and *Progress line*. Default: *None*. Effect: *Status date line* draws a line on the status date; *Progress line* draws the zigzag line that bulges per task towards its progress. If the project has no status date, it says *Set a status date first*, with *Set to today* and a date field.
+
+**Weekends** — Default: on. Effect: shades weekends and holidays in the timeline, as long as the scale makes days distinguishable.
+
+**Show only working days** — Default: off. Effect: weekends and holidays are skipped on the time axis of this report. Separate from the same setting for the Gantt on screen.
+
+### Page
+
+**Paper**, **Orientation** and **Font** — see *Paper and orientation* above.
+
+**Font size** — size of text and table. Choose from 90%, 100%, 110% and 125%. Default: 100%. Effect: with a larger font, text, rows and table grow and the timeline gives up width.
+
+**Fit** — *Fit to width* or *Fixed scale*. Default: *Fit to width*. Effect: *Fit to width* fits the whole timeline on the sheet width; with *Timeline across* (1 to 8 pages) you spread it over more sheets side by side. *Fixed scale* gives every day a fixed *Width per day*.
+
+### Header and footer
+
+**Company name in the header** — Default: the company from the project settings. Effect: only the header of the report; what you type over it is not kept.
+
+**Author (from the project)** — read only.
+
+**Repeat header on each page** — Default: on. Effect: on puts the page header on every page; off only on the first.
+
+**Repeat footer on each page** — Default: on. Effect: on puts the footer (project name, print date and legend) on every page; off only on the last.
 
 **Legend** — Default: on. Effect: the legend in the footer.
-
-**Preview quality** — how sharp the preview is. Choose from *Standard*, *High* and *Maximum*. Default: *High*. Effect: only the sharpness of the preview on screen; the PDF does not change. Where: *Report*, above the preview. With the new Report tab the paper is always sharp, and this choice is not there.
-
-## Resource diagram
-
-The same bars as the Gantt chart, grouped per resource: who does what and when. The block *Summary* counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The diagram shares all options of the Gantt chart, except *Follow view (filter, grouping, sort)*, *Critical path* and *Dependencies*: the rows do not come from the screen, a task can appear under several resources, and the relations are not drawn there. The checkbox *Critical path* is hidden and on. This comes with the options of the Gantt chart under *Settings*, with these four checkboxes and the period:
-
-With the new Report tab the Resource diagram is no longer a report of its own, but a layout in the *Tasks and grouping* step of the Gantt chart. The four checkboxes and the period are there under *Per resource*. You switch the *Units/d* and *Curve* columns on or off there; they are not in the *Columns* step. See [The new Report tab](docs://howto-rapport-maken-en-afdrukken#the-new-report-tab-experimental).
-
-**Each resource on a new page** — Default: off. Effect: each resource starts on a new page, so you can hand out a sheet per crew or employee. Off gives one continuous document.
-
-**Include tasks without a resource** — Default: off. Effect: the tasks without a resource come as the last band in the diagram, to see what nobody has yet.
-
-**Group by resource type** — Default: off. Effect: a layer on top: first a band per resource type (labor, crew, subcontractor, equipment, material), within it per resource.
-
-**Show units/day and curve** — Default: on. Effect: two columns after the task name with the units per day and the distribution curve of the resource of that band. If there is too little room for the timeline, the report leaves the columns out and says *The Units/d and Curve columns were left out: …*; more room comes from a larger paper size or landscape, a smaller font size or a narrower table.
-
-**Reporting period:** — only the tasks that touch the period. Default: *Project duration*. Effect: the time axis runs exactly over the period. If there is nothing in the period it says *No tasks in the reporting period — choose another period or Whole project.* See *Reporting period* below.
 
 ## Milestone overview
 
@@ -217,7 +215,7 @@ The columns include *WBS*, *Name*, *Start*, *Finish*, *Baseline start*, *Baselin
 
 ## Reporting period
 
-Four table reports and the Resource diagram work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading*, *Resource assignments* and the *Resource diagram*. Each report remembers its own period. Below the drop-down are *From* and *To*, with the dates the choice produces.
+Four table reports and the Resource diagram layout of the Gantt chart work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading*, *Resource assignments* and the *Resource diagram*. Each report remembers its own period. Below the drop-down are *From* and *To*, with the dates the choice produces.
 
 **Reference day.** A period with *Next* or *Last* counts from the status date of the project, or from today if there is no status date. Then the table reports say *No status date set — the report uses today (…).* If you move the status date, the window moves along. Both days count.
 
