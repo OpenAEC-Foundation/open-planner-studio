@@ -2134,6 +2134,25 @@ en noem het in je rapport of PR-tekst.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
      ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
 
+1153. **VERVOLG: de lagkalenderproef onderscheidt voorganger en project onvoldoende.**
+     `tests/planning/check-ifc-dagenmaat.ts` geeft beide een dagmaat van 8 uur. Een verwisseling blijft dan groen.
+     De aanvullende reviewproef met 6, 10, 8 en 24 uur gaf bij `P1DT2H` correct 480, 720, 600 en 1560 minuten,
+     ook in de oude lagindeling. Richting: die verschillende dagmaten in de bestaande regressie opnemen.
+     Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
+1154. **VERVOLG: uitleg van de IFC-duurvormen loopt achter op de lezer.**
+     `src/services/ifc/foreign/durationForms.ts` beschrijft nog afronding van seconden en de oude spelings- en
+     laginterpretatie. `docs/ifc-round-trip.md` zegt nog dat de lezer nergens spelingminuten afleidt. De lezer
+     leest tijdslots inmiddels exact; de conservatieve lijst zelf blijft veilig (1152). Richting: de uitleg
+     bijwerken en het verschil tussen leesgedrag en de toegestane bronvormen voor schrijven toelichten.
+     Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — S
+
+1155. **VERVOLG: een tijdlag zoekt opnieuw lineair door alle taken voor de lagkalender.**
+     `readIFC` in `src/services/ifc/ifcReader.ts` gebruikt `tasks.find` in de kalendercallback per tijdlag,
+     ook als de duur geen dagdeel draagt. De herhaling is bevestigd; een merkbare vertraging is niet gemeten.
+     Richting: één taakindex voor de callback en de kalender alleen opzoeken wanneer het dagdeel nodig is.
+     Uit #892, review ronde 3 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
 1152. **VERVOLG: de foreign-merge weigert enkele duurvormen die de lezer inmiddels exact leest.**
      `src/services/ifc/foreign/durationForms.ts` houdt de bestaande conservatieve lijst: onder andere komma's,
      fracties van minuten, een tijddeel in speling en een gemengde werkdag-lag blijven bij opslaan geweigerd.

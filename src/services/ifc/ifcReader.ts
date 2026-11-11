@@ -1562,8 +1562,8 @@ function applyHourModeIFC(
  * `[exacte minuten, geschreven minuten]` in `OPS_WorkRule.ExactMinutes`. Zelfde leesregel: draagt het slot
  * nog de geschreven minuten, dan komt de exacte bron terug; anders geldt het slot.
  * Speling: het slot draagt hele dagen; `OPS_Analysis.ExactFloat` de exacte dagen en de minuten. Het
- * record telt alleen als het slot nog de afgeronde dagen van het record draagt. Zonder geldig record
- * blijft de speling zoals het slot haar gaf, zonder minuten (de lezer leidt niets af).
+ * record telt alleen als een dagvorm nog de afgeronde dagen van het record draagt. Een expliciet
+ * tijdslot houdt zijn eigen exacte dagen en minuten; een dagvorm zonder record levert geen minuten.
  */
 function applyTaskTimeRecords(
   tasks: Task[],
@@ -1657,7 +1657,9 @@ function applyTaskTimeRecords(
       const exact = (key: 'TotalFloat' | 'FreeFloat', slot: number, apply: (days: number, minutes: number | null) => void) => {
         const record = floats[key];
         const raw = e.args[slot];
-        if (!record || !raw || raw === '$') return;
+        // Het record hoort bij de afgeronde dagvorm van OPS. Een extern tijdslot draagt
+        // zelf de exacte speling, ook wanneer het dezelfde afgeronde dagen oplevert.
+        if (!record || !raw || raw === '$' || isoDurationToMinutes(stripQuotes(raw)) !== null) return;
         apply(record[0], record[1]);
       };
       exact('TotalFloat', TASKTIME_SLOT.totalFloat, (days, minutes) => {

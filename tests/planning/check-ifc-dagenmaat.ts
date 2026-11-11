@@ -406,6 +406,23 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   // Een ander programma wijzigt het standaardveld: dan geldt dat, zonder minuten.
   const stale = readIFC(patchLine(text, taskTimeLine(text, 'S1'), "'P0Y0M3D'", "'P0Y0M4D'"));
   eq('(8) gewijzigde TotalFloat: het slot wint, het record telt niet', floats(stale, 'S1'), [4, undefined, 0.75, 360]);
+  // Oude ExactFloat-records horen bij de afgeronde dagvelden van OPS. Een expliciete tijdwaarde
+  // uit een ander programma blijft exact, ook als haar dagen gelijk zijn aan die oude afronding.
+  for (const [label, slotIndex, original, replacement, expected] of [
+    ['totale speling', 12, "'P0Y0M3D'", "'PT24H'", [3, 1440, 0.75, 360]],
+    ['vrije speling', 11, "'P0Y0M1D'", "'PT8H'", [2.5, 1200, 1, 480]],
+  ] as const) {
+    const sourceLine = taskTimeLine(text, 'S1');
+    const prefix = sourceLine.slice(0, sourceLine.indexOf('(') + 1);
+    const args = sourceLine.slice(prefix.length, -2).split(',');
+    eq(`(8) opzet ${label}: het onderzochte slot draagt de afgeronde dagvorm`, args[slotIndex], original);
+    args[slotIndex] = replacement;
+    const changed = readIFC(text.replace(sourceLine, prefix + args.join(',') + ');'));
+    eq(`(8) gewijzigde ${label} in tijd: het oude record telt niet`, floats(changed, 'S1'), expected);
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(changed, null))));
+    eq(`(8) gewijzigde ${label} in tijd: opslaan en heropenen houdt de externe waarde`, floats(reopened, 'S1'), expected);
+  }
+
   // "Datums zoals opgeslagen": een achtergehouden slot krijgt `$` en ook geen record.
   const withheld = writeIFC({ ...buildWriteIFCInput(p), withheldTaskTimeFields: { [p.tasks[0].id]: ['totalFloat'] } });
   const wSlot = taskTimeLine(withheld, 'S1').replace(/^#\d+=IFCTASKTIME\(/, '').split(',');
