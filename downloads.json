@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-11-11T04:01:49.003Z",
-  "downloads": 3970,
+  "generatedAt": "2026-11-11T06:01:53.195Z",
+  "downloads": 3978,
   "releases": [
     {
       "tag": "v2026.45.0",
@@ -11,20 +11,20 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 82,
-          "update": 84,
+          "install": 86,
+          "update": 86,
           "both": 0,
           "byKind": {
-            "exe": 82,
-            "nsis.zip": 84
+            "exe": 86,
+            "nsis.zip": 86
           }
         },
         "macos": {
-          "install": 19,
+          "install": 22,
           "update": 11,
           "both": 0,
           "byKind": {
-            "dmg": 19,
+            "dmg": 22,
             "app.tar.gz": 11
           }
         },
@@ -40,7 +40,7 @@
           }
         }
       },
-      "polls": 563
+      "polls": 585
     },
     {
       "tag": "v2026.44.0",
@@ -159,11 +159,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 1232,
+          "install": 1233,
           "update": 69,
           "both": 0,
           "byKind": {
-            "exe": 1232,
+            "exe": 1233,
             "nsis.zip": 69
           }
         },
@@ -928,20 +928,20 @@
   ],
   "totals": {
     "windows": {
-      "install": 2318,
-      "update": 652,
+      "install": 2323,
+      "update": 654,
       "both": 0,
       "byKind": {
-        "exe": 2318,
-        "nsis.zip": 652
+        "exe": 2323,
+        "nsis.zip": 654
       }
     },
     "macos": {
-      "install": 374,
+      "install": 377,
       "update": 147,
       "both": 0,
       "byKind": {
-        "dmg": 374,
+        "dmg": 377,
         "app.tar.gz": 147
       }
     },
@@ -957,7 +957,7 @@
       }
     }
   },
-  "polls": 8775,
+  "polls": 8797,
   "unknown": [
     "v2026.45.0: open-planner-studio-2026.45.0.mcpb",
     "v2026.44.0: open-planner-studio-2026.44.0.mcpb",
