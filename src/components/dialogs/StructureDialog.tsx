@@ -12,7 +12,7 @@ const FIELD_TYPES: CustomFieldType[] = ['text', 'number', 'integer', 'cost', 'da
 
 /**
  * Beheerdialoog voor projectstructuur: activity-code-types met waarden
- * (code + omschrijving + kleur) en getypeerde custom fields. Wijzigingen gaan zonder concept-kopie
+ * (code + omschrijving + kleur, in een eigen volgorde via ↑/↓) en getypeerde custom fields. Wijzigingen gaan zonder concept-kopie
  * de store in, maar per VOLTOOIDE bewerking (`CommitTextInput`/`CommitColorInput`): tekst bij het
  * verlaten van het veld of Enter, kleur bij het kiezen — één undo-stap per bewerking, niet één per
  * toetsaanslag of sleepstap in de kleurkiezer.
@@ -28,6 +28,7 @@ export function StructureDialog() {
   const addActivityCodeValue = useAppStore(s => s.addActivityCodeValue);
   const updateActivityCodeValue = useAppStore(s => s.updateActivityCodeValue);
   const removeActivityCodeValue = useAppStore(s => s.removeActivityCodeValue);
+  const moveActivityCodeValue = useAppStore(s => s.moveActivityCodeValue);
   const addCustomField = useAppStore(s => s.addCustomField);
   const renameCustomField = useAppStore(s => s.renameCustomField);
   const removeCustomField = useAppStore(s => s.removeCustomField);
@@ -66,7 +67,7 @@ export function StructureDialog() {
                     <Icon id="edit.delete" size={13} />
                   </button>
                 </div>
-                {type.values.map(v => (
+                {type.values.map((v, index) => (
                   <div key={v.id} className="flex items-center gap-1.5 pl-2">
                     <CommitTextInput
                       className="input !text-small !leading-4 !px-2 !py-1 !w-24"
@@ -86,6 +87,22 @@ export function StructureDialog() {
                       onCommit={color => updateActivityCodeValue(type.id, v.id, { color })}
                       className="w-7 h-6 rounded cursor-pointer border border-border bg-transparent"
                     />
+                    <button
+                      onClick={() => moveActivityCodeValue(type.id, v.id, -1)}
+                      disabled={index === 0}
+                      title={t('structure.moveValueUp')} aria-label={t('structure.moveValueUp')}
+                      className="disabled:opacity-30"
+                    >
+                      <span aria-hidden="true">↑</span>
+                    </button>
+                    <button
+                      onClick={() => moveActivityCodeValue(type.id, v.id, 1)}
+                      disabled={index === type.values.length - 1}
+                      title={t('structure.moveValueDown')} aria-label={t('structure.moveValueDown')}
+                      className="disabled:opacity-30"
+                    >
+                      <span aria-hidden="true">↓</span>
+                    </button>
                     <button
                       onClick={() => removeActivityCodeValue(type.id, v.id)}
                       style={{ color: 'var(--error)' }}

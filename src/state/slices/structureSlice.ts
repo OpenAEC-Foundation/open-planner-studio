@@ -23,6 +23,12 @@ export interface StructureSlice {
   removeActivityCodeType: (id: string) => void;
   addActivityCodeValue: (typeId: string, value: Omit<ActivityCodeValue, 'id'>) => string;
   updateActivityCodeValue: (typeId: string, valueId: string, patch: Partial<Omit<ActivityCodeValue, 'id'>>) => void;
+  /**
+   * Zet een waarde één plek omhoog (delta -1) of omlaag (+1) in de eigen volgorde van het type; die volgorde is
+   * die van de keuzelijsten. Verandert nooit een toewijzing op een taak. Aan de rand of bij een onbekende
+   * waarde gebeurt niets (ook geen undo-stap).
+   */
+  moveActivityCodeValue: (typeId: string, valueId: string, delta: -1 | 1) => void;
   /** Verwijdert de waarde én alle taak-toewijzingen ervan. */
   removeActivityCodeValue: (typeId: string, valueId: string) => void;
   /** Wijs een codewaarde toe aan een taak (null = toewijzing weghalen). Max één waarde per type. */
@@ -111,6 +117,20 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       if (!v) return;
       runtime.beginUndoable(s);
       Object.assign(v, patch);
+      runtime.finishMutation(s);
+    });
+    get().recomputeViewRows();
+  },
+
+  moveActivityCodeValue: (typeId, valueId, delta) => {
+    set((s) => {
+      const t = s.activityCodeTypes.find(x => x.id === typeId);
+      const from = t ? t.values.findIndex(v => v.id === valueId) : -1;
+      const to = from + delta;
+      if (!t || from < 0 || to < 0 || to >= t.values.length) return;
+      runtime.beginUndoable(s);
+      const [moved] = t.values.splice(from, 1);
+      t.values.splice(to, 0, moved!);
       runtime.finishMutation(s);
     });
     get().recomputeViewRows();

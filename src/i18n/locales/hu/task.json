@@ -555,6 +555,8 @@
     "valueCode": "Kód",
     "valueDescription": "Leírás",
     "valueColor": "Szín",
+    "moveValueUp": "Érték feljebb",
+    "moveValueDown": "Érték lejjebb",
     "newValuePrefix": "É",
     "newTypePlaceholder": "Új kódtípus (pl. Helyszín)",
     "addField": "Mező hozzáadása",

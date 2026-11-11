@@ -1,6 +1,6 @@
 import { stepStringEnd, skipStepComment, unescapeStepQuotes } from './stepLexical';
 import { parseIfcDuration } from './isoDuration';
-import { milestoneWasAtDayEnd } from './ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
 import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
@@ -2342,6 +2342,16 @@ function extractStructure(
       const taskId = taskStepIdMap.get(objRef);
       const task = taskId ? taskById.get(taskId) : undefined;
       if (!task) continue;
+      // Waarde-id's die de writer bij een dubbele codetekst naast de enumeratie zette (zie ifcWriter).
+      const explicitValueIds = new Map<string, string>();
+      if (psetName === PSET.ActivityCodes) {
+        for (const prop of props) {
+          const name = stripQuotes(prop.args[0] || '');
+          if (prop.type !== 'IFCPROPERTYSINGLEVALUE' || !name.endsWith(ACTIVITY_CODE_ID_SUFFIX)) continue;
+          const id = parseTypedValue(prop.args[2] || '');
+          if (typeof id === 'string') explicitValueIds.set(name.slice(0, -ACTIVITY_CODE_ID_SUFFIX.length), id);
+        }
+      }
       for (const prop of props) {
         const name = stripQuotes(prop.args[0] || '');
         if (psetName === PSET.CustomFields && prop.type === 'IFCPROPERTYSINGLEVALUE') {
@@ -2358,7 +2368,9 @@ function extractStructure(
           const codes = splitArgs((prop.args[2] || '').replace(/^\(|\)$/g, ''))
             .map(v => parseTypedValue(v))
             .filter((v): v is string => typeof v === 'string');
-          const value = type?.values.find(v => v.code === codes[0]);
+          const explicitId = explicitValueIds.get(name);
+          const value = (explicitId !== undefined ? type?.values.find(v => v.id === explicitId && v.code === codes[0]) : undefined)
+            ?? type?.values.find(v => v.code === codes[0]);
           if (type && value) {
             task.activityCodes = { ...(task.activityCodes ?? {}), [type.id]: value.id };
           }

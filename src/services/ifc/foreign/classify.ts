@@ -18,7 +18,7 @@
  * P-stuk, V = de rest.
  */
 import type { StepIndex } from './stepScanner';
-import { OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, PER_TASK_PSETS, PSET, isXerArchiveChunkName } from '../ifcPsets';
+import { ACTIVITY_CODE_ID_SUFFIX, OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, PER_TASK_PSETS, PSET, isXerArchiveChunkName } from '../ifcPsets';
 import { IFC_TO_RESOURCE_TYPE } from '../ifcConstants';
 import { workControlSlots } from '../ifcWorkControlSlots';
 import { ifcDateTime, WRITER_ENTITY_TYPES } from '../ifcWriter';
@@ -383,6 +383,10 @@ export function classify(index: StepIndex, selection: PlanningSelection = select
     const name = index.name(prop) ?? '';
     if (psetName === PSET.Assignments) return t === 'IFCPROPERTYSINGLEVALUE' && isOwnAssignmentKey(name);
     if (psetName === PSET.ActivityCodes) {
+      // Het waarde-id dat de writer bij een dubbele codetekst naast de enumeratie zet (`ifcWriter`, #885).
+      if (t === 'IFCPROPERTYSINGLEVALUE' && name.endsWith(ACTIVITY_CODE_ID_SUFFIX)) {
+        return structure.codes.has(name.slice(0, -ACTIVITY_CODE_ID_SUFFIX.length));
+      }
       const codes = structure.codes.get(name);
       return t === 'IFCPROPERTYENUMERATEDVALUE' && codes !== undefined && codes.has((index.enumValues(prop) ?? [])[0] ?? '\u0000');
     }
