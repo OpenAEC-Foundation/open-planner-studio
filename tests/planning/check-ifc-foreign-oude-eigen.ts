@@ -418,8 +418,9 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
 // Zo'n bronwaarde blijft staan of de merge weigert getypeerd; nooit de waarde van de writer erover. Ook via de echte
 // storeactie (`updateTask`, `runCPM`).
 {
-  const PERIOD = 'tests/fixtures/ifc-foreign/review886-periode-0730.ifc';
-  const START = 'tests/fixtures/ifc-foreign/review886-taaktijd-1100.ifc';
+  const PERIOD = 'tests/planning/fixtures/review886/periode-0730.ifc';
+  const START = 'tests/planning/fixtures/review886/taaktijd-1100.ifc';
+  // De bronnen van Sol (`/tmp/claude-1000/review-886-sol-r1/`), zonder de wand; die zet de proef erbij (`walled`).
   ok('Sol: de periode-bron heeft 07:30', readText(PERIOD).includes("IFCTIMEPERIOD('07:30:00','16:00:00')"));
   ok('Sol: de taaktijd-bron heeft een begin om 11:00', readText(START).includes("'P0Y0M1D','2027-03-01T11:00:00'"));
   /** Schrijft de merge, dan staat `sentinel` er nog; anders weigert hij getypeerd. */
@@ -433,13 +434,13 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     return r;
   };
   const viaInput = (rel: string, edit?: (d: Domain) => void) => async () => {
-    const o = await openForeign(latin1(readText(rel)));
+    const o = await openForeign(latin1(walled(rel)));
     const d = cloneDomain(o);
     edit?.(d);
     return { d, o };
   };
   const viaStore = (rel: string, act: (st: Awaited<ReturnType<typeof openInStore>>['store']) => void) => async () => {
-    const { store, snapshot } = await openInStore(latin1(readText(rel)));
+    const { store, snapshot } = await openInStore(latin1(walled(rel)));
     act(store);
     const o = snapshot(store);
     return { d: cloneDomain(o), o };
