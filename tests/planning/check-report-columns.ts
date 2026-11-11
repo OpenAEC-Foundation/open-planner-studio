@@ -312,6 +312,8 @@ const CAL_DAYS = 'task.time.calendarDays';
   localStorage.setItem('ops-reportSettings', JSON.stringify({ ...groups, layoutId: 'elders' }));
   patchReportSettings(stored => ({ reportType: 'lookAhead', ...(stored.layoutId === 'elders' ? { paperHintSeen: true } : {}) }));
   eq([(await loadReportSettings()).layoutId, (await loadReportSettings()).paperHintSeen], ['elders', true], 'patch als functie: leest de actuele opslag');
+  // De patch geeft de samengevoegde stand terug: precies wat er nu opgeslagen staat (review Terra #893, ronde 4).
+  eq(patchReportSettings({ paperSize: 'A2' }), await loadReportSettings(), 'patch: geeft de opgeslagen stand terug');
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
   const older = await loadReportSettings();

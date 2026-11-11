@@ -306,16 +306,21 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   }, [chosenLayout, availableColumnIds, settings]);
   // Eén deel overnemen, met "Ongedaan maken" voor alleen dat deel (de keuze van de layout blijft). Neemt de
   // planner daarna ook het andere deel van dezelfde layout over, dan zet één "Ongedaan maken" beide terug.
+  // De knop staat er alleen als er iets verschilt (`layoutDiff`), maar de overname schrijft alle waarden van dat
+  // deel: ook een waarde die de kopie van dit tabblad al had, kan in de opslag van elders anders zijn (review
+  // Terra #893, ronde 4).
   const takeOverFromLayout = useCallback((part: 'columns' | 'bars') => {
-    const values = layoutDiff?.[part];
-    if (!layoutDiff || !values) return;
+    if (!layoutDiff?.[part] || !chosenLayout) return;
+    const extra = layoutReportPatch(chosenLayout, availableColumnIds);
+    const partKeys = part === 'columns' ? LAYOUT_COLUMN_KEYS : LAYOUT_BAR_KEYS;
+    const values = Object.fromEntries(partKeys.filter(key => key in extra).map(key => [key, extra[key]])) as Partial<ReportSettings>;
     const layout = layoutDiff.name;
     applyWithUndo('tasks', values, keys => {
       const columns = keys.some(key => LAYOUT_COLUMN_KEYS.includes(key));
       const bars = keys.some(key => LAYOUT_BAR_KEYS.includes(key));
       return t(columns && bars ? 'studio.tasks.appliedBoth' : columns ? 'studio.tasks.appliedColumns' : 'studio.tasks.appliedBars', { layout });
     }, `layout:${layoutDiff.id}`);
-  }, [layoutDiff, applyWithUndo, t]);
+  }, [layoutDiff, chosenLayout, availableColumnIds, applyWithUndo, t]);
   const patchResourceOptions = useCallback((next: Partial<ResourceGanttReportOptions>, input: string) => {
     patch({ resourceGantt: { ...resourceOptions, ...next } }, input);
   }, [patch, resourceOptions]);

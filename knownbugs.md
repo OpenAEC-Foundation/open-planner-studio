@@ -3235,11 +3235,11 @@ en noem het in je rapport of PR-tekst.
      paneel, los van de opslag. — B
 
 1356. **VERVOLG: browserdekking van het Resourcediagram en van bedrijfsnaam en legenda in de PDF is weg.** Met
-     `tests/browser/resource-gantt-report.spec.ts` (#893) verdwenen de controles op *Taken zonder resource
-     meenemen*, *Groeperen op resourcetype*, de melding bij weggevallen toewijzingskolommen en een lege periode.
-     Ook de controle dat een actuele bedrijfsnaam en een uitgeschakelde legenda in het voorbeeld én de raster-PDF
-     staan, is weg. `report-studio.spec.ts` dekt resources, pagina-overgangen, periode en PDF, maar die schakelaars
-     en meldingen niet. Code-review ronde 1 van #893 (GPT-6.1-Terra). Voorstel: zet gerichte stappen terug in de
+     `tests/browser/resource-gantt-report.spec.ts` (#893) verdwenen de controles op wat *Taken zonder resource
+     meenemen* en *Groeperen op resourcetype* met de rijen doen, en op de melding bij weggevallen toewijzingskolommen
+     en bij een lege periode. `report-studio.spec.ts` klikt beide schakelaars wel, maar toetst alleen de opgeslagen
+     waarden. Ook de controle dat een actuele bedrijfsnaam en een uitgeschakelde legenda in het voorbeeld én de PDF
+     staan, is weg. Code-review rondes 1 en 4 van #893 (GPT-6.1-Terra). Voorstel: zet gerichte stappen terug in de
      bestaande route van `report-studio.spec.ts`. — B
 
 1357. **VERVOLG: geen browsercontrole meer voor een papier met meerdere rijen en kolommen van vellen.** De verwijderde

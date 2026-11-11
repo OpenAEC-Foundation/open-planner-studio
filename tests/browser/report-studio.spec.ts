@@ -648,6 +648,15 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-switch="includeUnassigned"]').click();
   await page.locator('[data-rs-switch="groupByType"]').click();
   await expect.poll(async () => (await saved()).resourceGantt).toMatchObject({ includeUnassigned: false, groupByType: false });
+  // Na een keuze toont het tabblad wat er opgeslagen staat, ook een optie van elders die de keuze niet raakte
+  // (review Terra #893, ronde 4): eerst toonde het de oude groep uit zijn kopie.
+  await writeStored({ resourceGantt: { ...(await saved()).resourceGantt, groupByType: true } });
+  await page.locator('[data-rs-switch="includeUnassigned"]').click();
+  await expect.poll(async () => (await saved()).resourceGantt).toMatchObject({ includeUnassigned: true, groupByType: true });
+  await expect(page.locator('[data-rs-switch="groupByType"] input')).toBeChecked();
+  await page.locator('[data-rs-switch="includeUnassigned"]').click();
+  await page.locator('[data-rs-switch="groupByType"]').click();
+  await expect.poll(async () => (await saved()).resourceGantt).toMatchObject({ includeUnassigned: false, groupByType: false });
   await page.locator('[data-rs-step-head="bars"]').click();
   // Eenh./d en Curve staan op het papier achter de taaknaam (Per resource). De samenvatting van Kolommen telt
   // ze mee; het label boven het blad heet zoals de kop, en een klik gaat naar de schakelaar die ze aan- en
@@ -807,12 +816,29 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(own).toEqual(ownBefore);
   await expect(page.locator('[data-rs-undo]')).toHaveCount(0);
   expect(await screen()).toEqual(screenBefore);
+  // Een overname schrijft alle waarden van dat deel, ook een waarde die dit tabblad al zo had maar die elders net
+  // anders is opgeslagen (geen `StorageEvent`). Ongedaan maken zet de stand uit de opslag terug, ook na een tweede
+  // overname uit dezelfde layout (review Terra #893, ronde 4).
+  await page.locator('[data-rs-step-head="bars"]').click();
+  await page.locator('[data-rs-switch="showFloat"]').click();
+  await expect.poll(async () => (await saved()).showFloat).toBe(false);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await expect.poll(async () => (await saved()).studioStep).toBe('tasks');
+  await writeStored({ showFloat: true });
+  await page.locator('[data-rs-take-over="bars"]').click();
+  await expect.poll(own).toEqual({ ...ownBefore, showDeps: true, showFloat: false, showBaselineOverlay: true, statusLine: 'progress', barColors: { mode: 'auto' } });
+  await page.locator('[data-rs-take-over="columns"]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(shortColumns);
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(own).toEqual(ownBefore);
+  await page.locator('[data-rs-step-head="bars"]').click();
+  await expect(page.locator('[data-rs-switch="showFloat"] input')).toBeChecked();
   // Eigen balkkleuren (keuze Ethan, 10-11-2026). Het overnemen liet de balkkleuren van het scherm staan; een
   // keuze in Balken geldt ook alleen voor het rapport. Bij Zoals de weergave volgt het rapport het scherm en
   // staat de keuze uit; bij Alle taken staat de eigen keuze er weer.
   const screenColors = () => page.evaluate(() => window.__OPS__!.store.getState().ui.barColorSelection);
   expect(await screenColors()).toEqual({ mode: 'critical' });
-  await page.locator('[data-rs-step-head="bars"]').click();
+  await openStep(page, 'bars');
   const colorPicker = page.locator('[data-rs-step-body="bars"]').getByRole('button', { name: /^(Bar colours|Balkkleuren)$/ });
   await colorPicker.click();
   await page.getByRole('option', { name: /^(Per task — automatic|Per taak — automatisch)$/ }).click();

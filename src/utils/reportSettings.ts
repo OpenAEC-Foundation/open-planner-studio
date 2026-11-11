@@ -477,16 +477,23 @@ export type ReportSettingsPatch = Partial<Omit<ReportSettings, OptionGroup>> & {
  * geheel terug in één synchrone stap, zonder `await` ertussen. Hangt de wijziging af van wat er opgeslagen
  * staat, geef dan een functie: die krijgt de actuele opslag, niet een kopie uit het geheugen. Een schrijfactie
  * vanuit zo'n kopie zou een wijziging van elders die nog niet binnen is stil wissen (review Terra #893).
+ *
+ * Geeft de samengevoegde stand terug, zodat het scherm precies toont wat er staat (ook een optie van elders die
+ * deze wijziging niet raakte), of `null` als hij niet in de opslag kwam (opslag vol of geblokkeerd, of de host
+ * houdt het schrijven even tegen): dan houdt de aanroeper de keuze alleen in deze sessie.
  */
-export function patchReportSettings(patch: ReportSettingsPatch | ((stored: ReportSettings) => ReportSettingsPatch)): void {
+export function patchReportSettings(patch: ReportSettingsPatch | ((stored: ReportSettings) => ReportSettingsPatch)): ReportSettings | null {
   const stored = readReportSettings();
   const change = typeof patch === 'function' ? patch(stored) : patch;
-  writeLocal(`ops-${STORAGE_KEY}`, JSON.stringify({
+  const merged: ReportSettings = {
     ...stored,
     ...change,
     tableReports: { ...stored.tableReports, ...change.tableReports },
     resourceGantt: { ...stored.resourceGantt, ...change.resourceGantt },
-  }));
+  };
+  const json = JSON.stringify(merged);
+  writeLocal(`ops-${STORAGE_KEY}`, json);
+  return readLocal(`ops-${STORAGE_KEY}`) === json ? merged : null;
 }
 
 const differs = (a: unknown, b: unknown) => a !== b && JSON.stringify(a) !== JSON.stringify(b);

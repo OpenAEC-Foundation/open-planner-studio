@@ -108,6 +108,10 @@ const SETTINGS_PANEL_MIN_WIDTH = 200;
 
 /** De velden van `ops-reportSettings` die dit paneel leest en wijzigt. De rest hoort bij het Rapport-tabblad. */
 type PanelSettings = Pick<ReportSettings, 'reportType' | 'tableReports' | 'paperSize' | 'orientation' | 'reportFontFamily'>;
+const panelFields = (s: ReportSettings): PanelSettings => ({
+  reportType: s.reportType, tableReports: s.tableReports, paperSize: s.paperSize,
+  orientation: s.orientation, reportFontFamily: s.reportFontFamily,
+});
 
 export interface ReportPanelProps {
   /**
@@ -141,13 +145,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   ) : null;
 
   // De opties starten op de gedeelde defaults en krijgen vlak na de eerste render de opgeslagen stand.
-  const [panel, setPanel] = useState<PanelSettings>(() => ({
-    reportType: DEFAULT_REPORT_SETTINGS.reportType,
-    tableReports: DEFAULT_REPORT_SETTINGS.tableReports,
-    paperSize: DEFAULT_REPORT_SETTINGS.paperSize,
-    orientation: DEFAULT_REPORT_SETTINGS.orientation,
-    reportFontFamily: DEFAULT_REPORT_SETTINGS.reportFontFamily,
-  }));
+  const [panel, setPanel] = useState<PanelSettings>(() => panelFields(DEFAULT_REPORT_SETTINGS));
   const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = panel;
   const reportFont = reportFontStack(reportFontFamily);
 
@@ -161,24 +159,21 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   useEffect(() => {
     let cancelled = false;
     void loadReportSettings().then(s => {
-      if (cancelled) return;
-      setPanel({
-        reportType: s.reportType, tableReports: s.tableReports, paperSize: s.paperSize,
-        orientation: s.orientation, reportFontFamily: s.reportFontFamily,
-      });
+      if (!cancelled) setPanel(panelFields(s));
     }, () => {});
     return () => { cancelled = true; };
   }, [reportSettingsReload]);
 
+  // Na het schrijven toont het paneel wat er nu opgeslagen staat (ook een optie van elders). Mislukt het schrijven
+  // (geblokkeerde opslag), dan blijft de keuze binnen deze sessie werken.
   const update = useCallback((patch: Partial<PanelSettings>) => {
-    setPanel(prev => ({ ...prev, ...patch }));
-    // Best-effort: mislukt het schrijven (geblokkeerde opslag), dan blijft de keuze binnen deze sessie werken.
-    patchReportSettings(patch);
+    const merged = patchReportSettings(patch);
+    setPanel(prev => (merged ? panelFields(merged) : { ...prev, ...patch }));
   }, []);
   // Alleen de gewijzigde tabelopties: de andere staan in de opslag mogelijk al nieuwer dan in dit paneel.
   const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => {
-    setPanel(prev => ({ ...prev, tableReports: { ...prev.tableReports, ...patch } }));
-    patchReportSettings({ tableReports: patch });
+    const merged = patchReportSettings({ tableReports: patch });
+    setPanel(prev => (merged ? panelFields(merged) : { ...prev, tableReports: { ...prev.tableReports, ...patch } }));
   }, []);
   const setPaperSize = useCallback((v: ReportPaperSize) => { update({ paperSize: v }); }, [update]);
   const setOrientation = useCallback((v: ReportOrientation) => { update({ orientation: v }); }, [update]);
