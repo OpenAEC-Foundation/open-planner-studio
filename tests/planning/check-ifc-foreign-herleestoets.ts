@@ -80,3 +80,50 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
     assert.equal(canon(merge.shown, reseed), canon(full, reseed));
   }
 }
+
+// Alleen de bibliotheekvolgorde mag verschillen; verlies, toevoeging, inhoud en dubbele ids blijven zichtbaar.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const raw = readFileSync(join(root, 'tests/planning/fixtures/h7-tijden-oude-writer.ifc'), 'utf8');
+  const o = await openForeign(generatedModel(root, raw, 0));
+  const input = cloneDomain(o);
+  assert(input.resourceCalendars && input.resourceCalendars.length > 1);
+  const reordered = cloneDomain(o);
+  reordered.resourceCalendars!.reverse();
+  assert.equal(canon(input, reseed), canon(reordered, reseed), 'kalenderbibliotheek: alleen andere volgorde is gelijk');
+  const id = input.resourceCalendars.find(c => c.id !== input.project.calendarId)!.id;
+  const changed = (edit: (planning: typeof input) => void) => writeIfcMerge(input, o.ifcSource!, async (parsed, side) => {
+    const shown = structuredClone(await openReadPlanning(parsed, side));
+    if (side === 'uitvoer') edit(shown);
+    return shown;
+  });
+  const rejected = (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen');
+  // De callback bootst een fout in de herlezing na; alle gewone open-stappen blijven actief.
+  const orderOnly = await changed(p => { p.resourceCalendars!.reverse(); });
+  assert(orderOnly.length > 0);
+  await assert.rejects(() => changed(p => { p.resourceCalendars = p.resourceCalendars!.filter(c => c.id !== id); }), rejected, 'kalender verdwenen');
+  await assert.rejects(() => changed(p => { p.resourceCalendars!.push({ ...structuredClone(p.resourceCalendars![0]), id: 'cal-onverwacht' }); }), rejected, 'kalender erbij');
+  await assert.rejects(() => changed(p => { p.resourceCalendars!.find(c => c.id === id)!.workStartHour += 1e-9; }), rejected, 'werktijd blijft exact, ook onder de schrijfprecisie');
+  await assert.rejects(() => changed(p => { p.resourceCalendars!.find(c => c.id === id)!.shift = 'FIRST'; }), rejected, 'ook een door de writer genormaliseerd kalenderdetail blijft exact');
+  await assert.rejects(() => changed(p => { p.resourceCalendars!.find(c => c.id === id)!.workingExceptions = [{ name: 'Onverwacht', startDate: '2027-03-06', endDate: '2027-03-06', bands: [{ start: 480, end: 540 }] }]; }), rejected, 'werkende uitzondering veranderd');
+  await assert.rejects(() => changed(p => { p.resourceCalendars!.push(structuredClone(p.resourceCalendars!.find(c => c.id === id)!)); }), rejected, 'dubbel kalender-id valt niet samen');
+  console.log('OK kalenderbibliotheek: volgorde gelijk; ontbreken, toevoegen, werktijd, uitzondering en dubbel id geweigerd');
+
+  const cases = JSON.parse(readFileSync(join(root, 'docs/superpowers/evidence/1107-heropenkosten/v4/nieuwe-weigeringen.json'), 'utf8')) as {bestand:string;bewerking:string}[];
+  let written = 0;
+  for (const c of cases.filter(c => c.bewerking.endsWith(' wissen'))) {
+    const file = c.bestand.startsWith('h7-') ? 'h7-tijden-oude-writer.ifc' : 'urenperdag-oude-writer.ifc';
+    const source = await openForeign(generatedModel(root, readFileSync(join(root, 'tests/planning/fixtures', file), 'utf8'), 0));
+    const { store, buildWriteIFCInput } = await storeWith(cloneDomain(source));
+    store.getState().deleteTasksBulk([c.bewerking.replace(/ wissen$/, '')]);
+    const edited = buildWriteIFCInput(store.getState());
+    const r = await tryMerge(edited, source.ifcSource!);
+    assert(r.ok, r.ok ? '' : `${file}: ${JSON.stringify(r.error.cases)}`);
+    const full = await openForeign(r.bytes);
+    assert.equal(canon(await shownAfterOpen(edited), reseed), canon(full, reseed));
+    assert.equal(canon(r.shown, reseed), canon(full, reseed));
+    written++;
+  }
+  assert.equal(written, 6);
+  console.log('OK zes echte wisacties: schrijven, dezelfde kalenders en inhoud na volledig heropenen');
+}

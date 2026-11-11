@@ -68,12 +68,14 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
    (wrakko, 11 november 2026): een eigen kleine PR na #886, vanaf main, die in main staat vóór 1c begint. 1108: drie
    oude eigen fixtures weigeren met een model zonder bewerking. 1109: voortgang invoeren in
    `b5-lopend-oude-writer.ifc` met een model weigert ("voortgang bijwerken is gewoon werk van elke planner").
+   **De PR voor 1109** begint met opnieuw meten via echte acties wat er nog weigert (`b5-lopend` schrijft via `enterTaskProgress`); 1116 hoort erbij (besluit van Trias, 11 november 2026).
    Ook 1107 (vóór 1c, Terra in review ronde 1 van #886): een volledige herleestoets in de merge, zoals openen via de
    app, met een proef die rood wordt als de herberekening na openen de planning verandert.
    Ook 1111 (vóór 1c, Terra en Sol in review ronde 2 van #886): `sameMeaning` vergelijkt in de tijdzone van de machine.
    Het verlies op main "07:30 wordt 07:00" (`subdayIo.ts:61`) ligt bij de thread "Trias · IFC-lezer".
    Knownbug 1110 (de laatste taak met een eigen taaktype wissen) blijft VERVOLG.
 5. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
+   **Eis voor 1c** (Trias, 11 november 2026): de bewerkingen in de telling lopen via de acties van de app, niet kaal op het domein (nu alleen voortgang).
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
    flag, geen `ifcSource` en geen doelcontrole op inhoud (de gedeelde laadcode herkent wel het kenmerk uit een backup). `planner_export_ifc` roept wel
    `refusedWriteTarget` aan (`src/services/mcp/tools/fileTools.ts:347-349`), maar de headless fs geeft geen

@@ -1956,6 +1956,16 @@ en noem het in je rapport of PR-tekst.
      schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
      1c. — B
 
+1116. **BLOKKEERT vóór 1c: de eerste echte bewerking van een geïmporteerd bestand met een model laat de merge weigeren.**
+     Wat vaststaat: `enterTaskProgress` op `fixtures/ifc-arity-oude-writer.ifc` met een wand wist de vlag `importPristine`;
+     de writer schrijft dan `UnchangedSinceImport`, de pset `OPS_ImportProvenance` en de koppeling niet meer, en de
+     verliesbewaking weigert (`niet-gedragen`: "IFCPROPERTYSINGLEVALUE #412 (UnchangedSinceImport): ontbreekt in de uitvoer
+     na de bewerking"). Geen verlies: getypeerd, geen bytes. Vermoed, niet gemeten: elke echte bewerking wist de vlag;
+     de andere bewerkingen in de telling zijn kale wijzigingen van het domein en raken haar niet. Richting: het
+     wegvallen van die property, pset en koppeling verklaren met de wijziging van `importPristine` tegenover `opened`
+     (vergelijk 1110). Besluit van Trias (11 november 2026): BLOKKEERT vóór 1c, op te lossen in de PR voor 1109.
+     Uit #903. — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
