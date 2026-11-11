@@ -2812,6 +2812,21 @@ en noem het in je rapport of PR-tekst.
      koppeling naar een bronbestand onder `$HOME`, dat bestand wijzigen zonder het venster te wisselen, en binnen
      enkele seconden de balk verwachten; bewijs met `xwd` vóór en na. Trias legt het aan Ethan voor. — S
 
+1500. **VERVOLG: Playwright doet na de begrensde APT-bronkeuze nog een eigen update.**
+      `.github/workflows/ci.yml` roept eerst `scripts/ci-apt-update.sh` aan en daarna
+      `playwright install --with-deps`. Playwright 1.62.1 voert zelf `apt-get update` uit
+      (`packages/playwright-core/src/server/registry/dependencies.ts`), buiten de timeout,
+      `--error-on=any` en terugval van ons script. Valt de gekozen bron tussen beide updates uit,
+      dan kan de browserinstallatie alsnog hangen of oude indexen gebruiken. Onderzoek een
+      gezamenlijke begrensde route zonder een onderbroken pakketinstallatie te herhalen.
+      Terra-review op 384150c28: [BEVESTIGD] VERVOLG; upstream broncode apart gecontroleerd. — B
+1501. **VERVOLG: APT-timeouttest simuleert exit 124, geen echt beëindigd proces.**
+      `tests/dev-server/ci-apt-update.test.mjs` bewijst de terugval na exit 124 en de
+      timeout-argumenten, maar vervangt `timeout` door een fixture. De workflowtest controleert
+      de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
+      gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
+      Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
