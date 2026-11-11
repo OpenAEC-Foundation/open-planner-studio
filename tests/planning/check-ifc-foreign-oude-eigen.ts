@@ -506,6 +506,24 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   }
 }
 
+// Proef 2b (Terra punt 4, met de regel `plannerReplacedDate`): de planner zet de duur van de urentaak van v2026.7.7 in
+// minuten (dezelfde halve dag) en raakt haar datums niet aan. De bron schrijft ze als `'2027-03-01T11:00'`; dezelfde waarde,
+// in een andere vorm dan de writer. Een ander veld van de taak telt niet als wijziging van haar datums: de bronwaarden
+// blijven staan, of de merge weigert.
+{
+  const src = walled(`${OLD}/v2026.7.7-urentaak-10-villa-wassenaar.ifc`);
+  const o = await openForeign(latin1(src));
+  const d = cloneDomain(o);
+  const t = d.tasks.find(x => x.name === 'Bouwplaats inrichten')!;
+  ok('proef 2b: de taak heeft nog geen duur in minuten', t.time.durationMinutes === undefined && t.time.scheduleDuration === 0.5);
+  t.time.durationMinutes = 240;
+  const r = await tryMerge(d, o.ifcSource!);
+  const dates = (s: string) => splitArgs(/^#\d+=IFCTASKTIME\('Bouwplaats inrichten Time',(.*)\);$/m.exec(s)?.[1] ?? '').slice(4, 10);
+  const kept = r.ok && JSON.stringify(dates(text(r.bytes))) === JSON.stringify(dates(src));
+  rows.push(`| proef 2b · urentaak v2026.7.7, de duur in minuten | ${r.ok ? (kept ? 'schrijft, de datums van de bron blijven' : 'schrijft met andere datums') : `weigert (${r.kinds.join(', ')})`} |`);
+  ok(`proef 2b: de datums van de bron blijven staan of de merge weigert (${r.ok ? dates(text(r.bytes)).join(',') : ''})`, kept || !r.ok);
+}
+
 // Proef 4 (Terra punt 3 en Sol): `literalBaselineForm`. Sectie 1 ziet de datums in de JSON van een baseline niet.
 // (a) Een baselinestart met een tijdzone: de writer op de lezing (O0) schrijft haar als `'2027-05-07'`; de lezing draagt de
 // waarde dus niet, (b) zet de JSON terug, en op een kalender die letterlijk wordt (de duur 1,5 dag) weigert de merge.

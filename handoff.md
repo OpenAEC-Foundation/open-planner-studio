@@ -68,6 +68,8 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
    (wrakko, 11 november 2026): een eigen kleine PR na #886, vanaf main, die in main staat vóór 1c begint. 1108: drie
    oude eigen fixtures weigeren met een model zonder bewerking. 1109: voortgang invoeren in
    `b5-lopend-oude-writer.ifc` met een model weigert ("voortgang bijwerken is gewoon werk van elke planner").
+   Ook 1107 (vóór 1c, Terra in review ronde 1 van #886): een volledige herleestoets in de merge, zoals openen via de
+   app, met een proef die rood wordt als de herberekening na openen de planning verandert.
    Knownbug 1110 (de laatste taak met een eigen taaktype wissen) blijft VERVOLG.
 5. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
@@ -187,6 +189,13 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
   deels gelezen als de planner haar wijzigde. F5 schrijft in alle tien oude eigen bestanden, met dezelfde planning als
   een gewone opslag zonder model; de telling ging van 2547 naar 2562 gelukt, 0 anders, niets dat eerst schreef weigert
   nu. Knownbug 1102 is weg; wat bij F5 nog weigert, weigert ook zonder bewerking (1108 en vreemde bestanden).
+- 2026-11-11: review ronde 1 van #886 op `1cb0b0057`: Sol (GPT-6.1-Sol, xhigh) nee, Terra (GPT-6.1-Terra, xhigh) ja met
+  vervolgpunten. Sol vond echt verlies: "de lezer leest dit slot exact" kwam uit de schrijfwijze van de bron, niet uit de
+  waarde (een periode `'07:30:00'` die de lezer als 07:00 leest, ging na een duurwijziging verloren). Fixronde 1: een slot
+  is gedragen als de writer op de lezing van de bron (O0) dezelfde waarde geeft (`sameMeaning` in `lossCheck.ts`); de
+  regel voor een samengestelde datum geldt alleen als de planner die datum zelf wijzigde tegenover `opened`; de toets van
+  Trias vergelijkt met een gewone opslag op main zelf (`ifcAppRoute.ts`, `scripts/proef/maak-main-toets-trias.mjs`). De
+  tien oude eigen bestanden schrijven nog na F5. Knownbug 1107 nieuw (vóór 1c, de kleine PR).
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -197,7 +206,7 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 
 ## Volgende stappen
 
-1. Review van #886 (de merge via de route van de app, met stap 6: de vroegere knownbug 1102).
-2. Een kleine PR vanaf `main` voor knownbugs 1108 en 1109 (BLOKKEERT vóór 1c).
+1. Review ronde 2 van #886 (fixronde 1).
+2. Een kleine PR vanaf `main` voor knownbugs 1107, 1108 en 1109 (vóór 1c).
 3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
 4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.
