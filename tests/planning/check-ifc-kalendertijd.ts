@@ -149,6 +149,95 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   await store.getState().saveFile();
   eq('1120: gewone opslag behoudt letterlijk de bronperiode', file.writes[0]?.includes(original), true);
   if (file.writes[0]) console.log('1120 gewone opslag', file.writes[0].split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+  const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
+  const { scanStep } = await import('@/services/ifc/foreign/stepScanner');
+  const calendarBytes = (text: string) => {
+    const bytes = new TextEncoder().encode(text), ix = scanStep(bytes), picked = new Set<number>();
+    const walk = (c: number) => {
+      if (c < 0 || picked.has(c)) return;
+      picked.add(c);
+      const slots: Record<string, number[]> = { IFCWORKCALENDAR: [6, 7], IFCWORKTIME: [3], IFCRECURRENCEPATTERN: [7], IFCPROPERTYSET: [4] };
+      for (const k of slots[ix.type(c)] ?? []) for (const child of ix.refsAt(c, k)) walk(child);
+    };
+    for (let c = 0; c < ix.count; c++) if (ix.type(c) === 'IFCWORKCALENDAR') {
+      walk(c);
+      for (let r = 0; r < ix.count; r++) if (ix.type(r) === 'IFCRELDEFINESBYPROPERTIES' && ix.refsAt(r, 4).includes(c)) {
+        picked.add(r); walk(ix.refAt(r, 5));
+      }
+    }
+    return [...picked].sort((a, b) => a - b).map(c => new TextDecoder().decode(bytes.subarray(ix.entityStart(c), ix.end(c)))).join('');
+  };
+  const effective = (cal: WorkCalendar) => [cal.workStartHour, cal.workEndHour, cal.hoursPerDay];
+  const binding = (cal: WorkCalendar) => cal.ifcTimePeriods?.find(p => p.binding === 'scalar');
+  eq('1120: koppeling gebruikt exact het berekende einde', binding(before)?.scalarEnd, before.workEndHour);
+  eq('1120: bronwaarden en layout blijven intact', [binding(before)?.end, binding(before)?.endText, before.ifcTimePeriods?.[0]?.layout],
+    [960, '16:00:00', '[[1,2,3,4,5],null,[]]']);
+  const againFile = memoryFile(file.writes[0]);
+  const again = createAppStoreContext().store;
+  await again.getState().openOpenedFile({ name: 'tweede-ronde.ifc', content: file.writes[0], ref: { kind: 'handle', handle: againFile.handle } });
+  eq('1120: heropenen behoudt effectieve dag', effective(again.getState().calendar), effective(before));
+  await again.getState().saveFile();
+  eq('1120: tweede opslag dezelfde kalenderbytes', calendarBytes(againFile.writes[0]), calendarBytes(file.writes[0]));
+
+  // De echte kalenderdialoog bewaart via commitCalendarLibrary; de werkregels lopen mee.
+  const changeEnd = (end: number) => store.getState().commitCalendarLibrary(
+    store.getState().calendars.map(c => c.id === before.id ? { ...c, workEndHour: end } : c), before.id);
+  eq('1120: kalenderbewerking toegepast', changeEnd(18), true);
+  await store.getState().saveFile();
+  eq('1120: echte kalenderbewerking schrijft 18:00', hasSourceClocks(file.writes.at(-1), '9.123456:00:00', '18:00:00'), true);
+  store.getState().undo();
+  await store.getState().saveFile();
+  eq('1120: undo kalenderbewerking herstelt oorspronkelijke klok', file.writes.at(-1)?.includes(original), true);
+  store.getState().redo();
+  await store.getState().saveFile();
+  eq('1120: redo kalenderbewerking schrijft gekozen klok', hasSourceClocks(file.writes.at(-1), '9.123456:00:00', '18:00:00'), true);
+  eq('1120: terugzetten op het oude effectieve einde toegepast', changeEnd(before.workEndHour), true);
+  await store.getState().saveFile();
+  eq('1120: netto ongewijzigd einde hergebruikt bronklok', file.writes.at(-1)?.includes(original), true);
+
+  const originalId = store.getState().activeDocumentId;
+  store.getState().newDocument();
+  store.getState().switchDocument(originalId);
+  eq('1120: documentwissel houdt kalender en koppeling', [effective(store.getState().calendar), binding(store.getState().calendar)], [effective(before), binding(before)]);
+
+  // De bronfixture heeft geen taken. Eén dagtaak in dezelfde oude IFC maakt ook B5 en de kern toetsbaar.
+  // Kale datums laten de scalaire kalender intact, zodat T1 werkelijk loopt vóór de berekening.
+  const taskLines = [
+    "#80010=IFCTASKTIME('Herstel Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2027-03-01','2027-03-01','2027-03-01','2027-03-01','2027-03-01','2027-03-01','P0Y0M0D','P0Y0M0D',.T.,$,$,$,$,'P0Y0M1D',$);",
+    "#80011=IFCTASK('1tOTGtWTg8bYqp7BjjuF0J',#6,'Herstel',$,$,'1',$,$,$,.F.,$,#80010,.LOGISTIC.);",
+    "#80012=IFCRELASSIGNSTOCONTROL('0rlQSjGhGX7H1QflElJHcc',#6,$,$,(#80011),$,#40);",
+  ];
+  const end = input.lastIndexOf('ENDSEC;');
+  const withTask = input.slice(0, end) + taskLines.join('\n') + '\n' + input.slice(end);
+  const b5File = memoryFile(withTask), b5 = createAppStoreContext().store;
+  await b5.getState().openOpenedFile({ name: 'b5-bronklok.ifc', content: withTask, ref: { kind: 'handle', handle: b5File.handle } });
+  eq('1120 B5: de kalender is echt hersteld', effective(b5.getState().calendar), effective(before));
+  eq('1120 B5: een echte omzettingsstap', b5.getState().historyEvents.length, 1);
+  for (const [action, pending] of [['open', false], ['undo', true], ['redo', false]] as const) {
+    if (action === 'undo') b5.getState().undo();
+    if (action === 'redo') b5.getState().redo();
+    eq(`1120 B5 ${action}: omzettingsvlag`, b5.getState().minuteModelPending, pending);
+    eq(`1120 B5 ${action}: koppeling blijft bij het einde`, binding(b5.getState().calendar)?.scalarEnd, b5.getState().calendar.workEndHour);
+    await b5.getState().saveFile();
+    eq(`1120 B5 ${action}: opslaan behoudt bronklok`, b5File.writes.at(-1)?.includes(original), true);
+  }
+  const { openIfc } = await import('@/core');
+  const core = await openIfc(withTask);
+  eq('1120 kern: openen en opslaan houdt bronklok', core.toIfc().includes(original), true);
+  eq('1120 kern: dezelfde effectieve dag', effective(readIFC(core.toIfc()).calendar), effective(before));
+  core.schedule();
+  eq('1120 kern: F5 houdt bronklok', core.toIfc().includes(original), true);
+  for (const active of [true, false]) {
+    const recovered = createAppStoreContext().store;
+    recovered.getState().restoreDocuments([
+      { ...readIFC(withTask), id: 'herstel-1120', filePath: null, isDirty: true },
+      { ...readIFC(source), id: 'ander-1120', filePath: null, isDirty: false },
+    ], active ? 'herstel-1120' : 'ander-1120');
+    if (!active) recovered.getState().switchDocument('herstel-1120');
+    eq(`1120 crashherstel ${active}: effectieve dag`, effective(recovered.getState().calendar), effective(before));
+    eq(`1120 crashherstel ${active}: klokherkomst volgt dezelfde code`, binding(recovered.getState().calendar)?.scalarEnd, before.workEndHour);
+    eq(`1120 crashherstel ${active}: opslag behoudt bronklok`, writeIFC(buildWriteIFCInput(recovered.getState())).includes(original), true);
+  }
   const { openForeign, cloneDomain, tryMerge, mergeProblems } = await import('./ifcMergeKern');
   const { readbackDifference } = await import('./ifcReadbackEquality');
   const { generatedModel } = await import('./ifcGeneratedModel');

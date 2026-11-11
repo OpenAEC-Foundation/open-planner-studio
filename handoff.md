@@ -129,6 +129,8 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 
 ## Werk
 
+- 2026-11-11: eigen kleine reparatie van 1120: `repairCalendar` werkt bij `extendEnd` alleen de bijbehorende scalar-koppeling bij, vóór `opened`; de bronklok blijft letterlijk staan. Rood op main bij gewone opslag en merge, groen na de wijziging; echte kalenderbewerking, terugzetten, B5-undo/redo, kern, crashherstel, documentwissel en twee opslagrondes zijn beproefd. De tijdelijke uitzondering van #909 vervalt; 1121 en 1122 blijven apart.
+
 - 2026-11-11: #903 fixronde 1 na Terra (GPT-6.1-Terra, xhigh) nee: ongewijzigde getallen worden in de hele planning bewaakt; de echte extensieactie met alleen een lag-eenheidswijziging weigert nu veilig (1109). De twee leeswegen worden rechtstreeks vergeleken; een gemaakte proef is alleen met echte herberekening ongelijk. Beide mutaties zijn rood, cp/cmp en SHA-256 bevestigen herstel.
 
 - 2026-11-11: #903 gebruikt één echte duuractie voor duur, doorrekenen en de toets van Trias; tien van tien schrijven. De referentie is opnieuw gemaakt op main `20b9af79a` (vier uitvoerhashes gewijzigd, invoer gelijk). De vier voortgangsgevallen weigeren getypeerd; de mutatie maakt ze alle vier stil schrijvend en rood, cp/cmp en hash herstellen de bron.

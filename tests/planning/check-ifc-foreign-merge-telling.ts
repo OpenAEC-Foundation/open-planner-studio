@@ -95,10 +95,6 @@ const withWall = (bytes: Uint8Array): Uint8Array => {
 const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
   'fixtures/periode-oude-minuutfractie.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
   'fixtures/periode-oude-minuutfractie-v2026.8.1.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
-  // Tijdelijk, alleen dit ene bestand (besluit van Trias, 11 november 2026): sinds #897 en #903 samen in main staan,
-  // weigert de naad het zonder bewerking, omdat de uitvoer van de merge na heropenen een ander einde van de werkperiode
-  // geeft (960 → 1027.40736). #908 lost de oorzaak op en haalt deze regel weer weg (knownbug 1120).
-  'fixtures/periode-oude-scalarfractie-v2026.8.1.ifc + wand': 'oude scalarfractie in een werkperiode: de uitvoer van de merge leest na heropenen een ander einde (knownbug 1120, BLOKKEERT vóór 1c)',
   'council/r7sol-vreemd-lid-bij-notitie.ifc': "een lege notitielijst '[]' (knownbug 1101)",
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': "een lege notitielijst '[]' (knownbug 1101)",
   // Geen ongewijzigde OPS-uitvoer: de bestaande regressieproeven documenteren de externe herschrijving (1108).
