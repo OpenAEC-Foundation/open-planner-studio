@@ -1920,13 +1920,6 @@ en noem het in je rapport of PR-tekst.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
 
-1115. **VERVOLG: de pariteitstest vergelijkt met een oudere main.** `tests/planning/check-ifc-foreign-pariteit.ts` en
-     `tests/planning/fixtures/main-pariteit.json` zijn gemaakt op main `2fbbc4ae1`; sindsdien kwam #886 in main
-     (`d456e6e7b`), met wijzigingen in de opslagguard. De test slaagt tegen de vastgelegde uitkomst, en bewijst dus geen
-     byte-gelijkheid met de main van nu. Richting: de referentie opnieuw maken met `scripts/proef/maak-main-pariteit.mjs`
-     op de main van dat moment, bij het bijwerken met main in #903 of de PR voor 1109. Terra, review ronde 2 van
-     #898. — B
-
 1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
      deel waarvan de bron niet terug te lezen is, zegt het ontwerp
      (`docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md`): "Alleen Opslaan als naar een nieuw

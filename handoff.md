@@ -126,7 +126,7 @@ met 17 cijfers bij gewone opslag blijft, als VERVOLG. Opslaan met een vreemd dee
 
 ## Werk
 
-- 2026-11-11: #903 vergelijkt alleen `resourceCalendars` op id, met exacte inhoud en behoud van dubbele ids; de zes wisgevallen schrijven weer. Verdwenen, extra en gewijzigde kalenders blijven geweigerd. 1116 is BLOKKEERT vóór 1c en hoort bij de PR voor 1109; de telling moet dan volledig via echte app-acties lopen.
+- 2026-11-11: #903 vergelijkt alleen `resourceCalendars` op id, met exacte inhoud en behoud van dubbele ids; de zes wisgevallen schrijven weer. Verdwenen, extra en gewijzigde kalenders blijven geweigerd. 1116 is BLOKKEERT vóór 1c en hoort bij de PR voor 1109; de telling moet dan volledig via echte app-acties lopen. Main met #898 is gemerged; de pariteitsreferentie is opnieuw gemaakt op `20b9af79a`, 1115 is daarmee opgelost.
 - 2026-11-11: fixronde 2 van #898 na de gerichte run van Sol (GPT-6.1-Sol, xhigh: nee, één BLOKKEERT, ook op main): gedeelde kalender- en klokgeldigheid via `isStrictIsoDateTime` vóór vormcontrole en betekenisvergelijking; onmogelijke bronwaarden weigeren getypeerd, 1114 opgelost; de lezer blijft ongewijzigd. Aanvullend besluit: precies 24:00 met nul seconden/fracties is in een tijdslot een geldige daggrens; datum-tijd T24:00 blijft niet gedragen. De bestaande OPS-werkperiode 16:00–24:00 blijft zo behouden. Ook de tweede CI-fixture `urenperdag-oude-writer.ifc` (14:00–24:00) staat in de daggrensproef; `check-ifc-duurvormen.ts` is een aparte eindcheck.
 
 - 2026-11-11: review ronde 2 van #898 op `9bd1e3b2e`: Terra (GPT-6.1-Terra, xhigh) ja, geen blokkade. Vier
