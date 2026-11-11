@@ -1988,6 +1988,20 @@ en noem het in je rapport of PR-tekst.
      de domeinwaarden rechtstreeks vergelijken en de toegelaten afronding van de gewone opslag expliciet benoemen. Sol,
      gerichte run op #903. — B
 
+1120. **BLOKKEERT vóór 1c: een eigen bestand met een oude scalarfractie in een werkperiode weigert zonder bewerking.**
+     `tests/planning/fixtures/periode-oude-scalarfractie-v2026.8.1.ifc` (van #897) heeft
+     `#14=IFCTIMEPERIOD('9.123456:00:00','16:00:00')`. Met een wand erbij en zonder bewerking weigert de merge
+     (`src/services/ifc/foreign/mergeWriter.ts`) getypeerd, zonder bytes: `merge-needs-phase2`, `planning-na-openen`,
+     `planning.calendar.ifcTimePeriods.0.end: 960 → 1027.40736`. 1027.40736 is het begin (547.40736 minuten, 9.123456
+     uur) plus 480: uit de uitvoer van de merge leest de lezer het einde als begin plus acht uur, terwijl de planner
+     16:00 zag. Het ontstond toen #897 (de kalendertijd in minuten, `calendar.ifcTimePeriods`) en #903 (de volledige
+     herleestoets) op 11 november 2026 kort na elkaar in main kwamen; ze zijn niet samen getest. Vermoed, niet
+     uitgezocht: de naad houdt hier echt verlies tegen, en de merge kent de nieuwe velden en schrijfregels van #897 nog
+     niet. Geen planner raakt het: de merge heeft geen aanroeper. Tijdelijk staat alleen dit bestand in
+     `OWN_MAY_REFUSE` in `tests/planning/check-ifc-foreign-merge-telling.ts`, om de CI op main groen te krijgen (besluit
+     van Trias, 11 november 2026). **Eis: #908 lost de oorzaak op en haalt die regel weer weg**; een eigen bestand
+     weigert nooit zonder een wijziging van de planner. — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
