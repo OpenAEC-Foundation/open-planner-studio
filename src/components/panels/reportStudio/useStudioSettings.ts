@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  changedReportFields, DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings, type ReportSettings,
+  chosenReportChange, DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings, readReportSettings, type ReportSettings,
 } from '@/utils/reportSettings';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { markReportInput } from './studioPerf';
@@ -69,24 +69,22 @@ export function fieldsAreDefault(settings: ReportSettings, keys: readonly Studio
  *
  * Een andere bron kan de opgeslagen stand vernieuwen: de host die pas na de start antwoordt (#818), of
  * een ander tabblad. Daarom leest de hook bij elke `StorageEvent` op `ops-reportSettings` opnieuw
- * (`useStoredSettingRefresh`), meteen in de gebeurtenis. Bewaren schrijft alleen de velden die in dit
- * tabblad veranderden (`patchReportSettings`), nooit de hele kopie: een wijziging van elders die nog niet
- * binnen is, blijft zo staan (review Terra #893, ronde 1).
+ * (`useStoredSettingRefresh`), meteen in de gebeurtenis. Elke handeling schrijft meteen, in de klik zelf,
+ * precies wat de planner koos (`patchReportSettings`): een keuze, Standaard, een overname uit een layout,
+ * ongedaan maken. Nooit de hele kopie, en nooit een verschil tussen twee kopieën: een wijziging van elders die
+ * nog niet binnen is, blijft zo staan, en een keuze die de kopie al had, komt toch in de opslag (review Terra
+ * #893, rondes 1 tot en met 3). Het herstelpunt van Standaard en een overname komt uit de opslag.
  */
 export function useStudioSettings(): StudioSettingsApi {
   const [settings, setSettings] = useState<ReportSettings>(DEFAULT_REPORT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
   const [lastReset, setLastReset] = useState<PendingReset | null>(null);
-  // De stand zoals deze hook hem het laatst uit de opslag las of erin schreef. Bewaren schrijft alleen wat
-  // daarvan afwijkt; een stand die net uit de opslag kwam, schrijft dus niets (ook niet naar de host).
-  const persistedRef = useRef<ReportSettings>(DEFAULT_REPORT_SETTINGS);
 
   useEffect(() => {
     let cancelled = false;
     void loadReportSettings().then(loaded => {
       if (cancelled) return;
-      persistedRef.current = loaded;
       setSettings(loaded);
       hydratedRef.current = true;
       setHydrated(true);
@@ -100,19 +98,16 @@ export function useStudioSettings(): StudioSettingsApi {
 
   useStoredSettingRefresh('ops-reportSettings', () => {
     void loadReportSettings().then(loaded => {
-      persistedRef.current = loaded;
       setSettings(loaded);
       // Ongedaan maken zou de stand van vóór Standaard over de vernieuwde stand terugzetten.
       setLastReset(null);
     }, () => {});
   });
 
-  useEffect(() => {
-    if (!hydratedRef.current || settings === persistedRef.current) return;
-    const changed = changedReportFields(persistedRef.current, settings);
-    persistedRef.current = settings;
-    if (Object.keys(changed).length > 0) patchReportSettings(changed);
-  }, [settings]);
+  // Vóór het laden schrijft niets: anders zette de standaard van de eerste render de opslag over.
+  const write = useCallback((change: Parameters<typeof patchReportSettings>[0]) => {
+    if (hydratedRef.current) patchReportSettings(change);
+  }, []);
 
   // De actuele stand voor Standaard en ongedaan maken: buiten een state-updater lezen, zodat er geen
   // tweede setState vanuit een updater nodig is.
@@ -127,43 +122,50 @@ export function useStudioSettings(): StudioSettingsApi {
     // stil wissen. Een wijziging in een andere stap laat het ongedaan maken staan.
     const pending = lastResetRef.current;
     if (pending && Object.keys(next).some(key => key in pending.previous)) setLastReset(null);
+    write(chosenReportChange(settingsRef.current, next));
     setSettings(prev => ({ ...prev, ...next }));
-  }, []);
+  }, [write]);
 
   const remember = useCallback((next: Partial<ReportSettings>) => {
-    setSettings(prev => (Object.entries(next).every(([key, value]) => prev[key as StudioSettingKey] === value) ? prev : { ...prev, ...next }));
-  }, []);
+    if (Object.entries(next).every(([key, value]) => settingsRef.current[key as StudioSettingKey] === value)) return;
+    write(chosenReportChange(settingsRef.current, next));
+    setSettings(prev => ({ ...prev, ...next }));
+  }, [write]);
 
   const resetFields = useCallback((scope: string, keys: readonly StudioSettingKey[], label: string, restoreExtra?: () => void) => {
     markReportInput('reset');
-    const current = settingsRef.current;
+    // Het herstelpunt uit de opslag: een optie die elders net veranderde, komt bij ongedaan maken terug.
+    const stored = readReportSettings();
     const previous: Partial<ReportSettings> = {};
-    const next = { ...current };
+    const defaults: Partial<ReportSettings> = {};
     for (const key of keys) {
-      (previous as Record<string, unknown>)[key] = current[key];
+      (previous as Record<string, unknown>)[key] = stored[key];
       const value = DEFAULT_REPORT_SETTINGS[key];
-      (next as Record<string, unknown>)[key] = Array.isArray(value) ? [...value]
+      (defaults as Record<string, unknown>)[key] = Array.isArray(value) ? [...value]
         : value && typeof value === 'object' ? structuredClone(value) : value;
     }
+    // De hele stap naar de standaard, ook de opties van een groep die de kopie al op de standaard had.
+    write(defaults);
     setLastReset({ scope, label, previous, restoreExtra });
-    setSettings(next);
-  }, []);
+    setSettings(prev => ({ ...prev, ...defaults }));
+  }, [write]);
 
   const applyWithUndo = useCallback((
     scope: string, nextValues: Partial<ReportSettings>, text: (keys: readonly StudioSettingKey[]) => string, mergeKey: string,
   ) => {
     markReportInput('apply');
-    const current = settingsRef.current;
+    const stored = readReportSettings();
     // Een tweede overname uit dezelfde layout: de velden van het open herstelpunt houden hun eerste waarde.
     // Zonder samenvoegen zette "Ongedaan maken" alleen de laatste overname terug.
     const pending = lastResetRef.current;
     const previous: Partial<ReportSettings> = pending?.mergeKey === mergeKey ? { ...pending.previous } : {};
     for (const key of Object.keys(nextValues) as StudioSettingKey[]) {
-      if (!(key in previous)) (previous as Record<string, unknown>)[key] = current[key];
+      if (!(key in previous)) (previous as Record<string, unknown>)[key] = stored[key];
     }
+    write(nextValues);
     setLastReset({ scope, label: scope, text: text(Object.keys(previous) as StudioSettingKey[]), previous, mergeKey });
-    setSettings({ ...current, ...nextValues });
-  }, []);
+    setSettings(prev => ({ ...prev, ...nextValues }));
+  }, [write]);
 
   // Precies de stand van vóór Standaard, alleen voor de velden die Standaard terugzette: een later gekozen
   // papierformaat in een andere stap blijft staan.
@@ -171,10 +173,11 @@ export function useStudioSettings(): StudioSettingsApi {
     const current = lastResetRef.current;
     if (!current) return;
     markReportInput('undo');
+    write(current.previous);
     setSettings(prev => ({ ...prev, ...current.previous }));
     current.restoreExtra?.();
     setLastReset(null);
-  }, []);
+  }, [write]);
 
   const dismissReset = useCallback(() => setLastReset(null), []);
 

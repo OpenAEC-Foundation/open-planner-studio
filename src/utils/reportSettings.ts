@@ -409,8 +409,11 @@ function storedReportSettings(): unknown {
   try { return JSON.parse(raw); } catch { return raw; }
 }
 
-/** `loadReportSettings`, maar synchroon: voor `patchReportSettings`, dat lezen en schrijven niet mag scheiden. */
-function readReportSettings(): ReportSettings {
+/**
+ * `loadReportSettings`, maar synchroon: voor `patchReportSettings`, dat lezen en schrijven niet mag scheiden,
+ * en voor een herstelpunt dat de actuele opslag moet vastleggen (Standaard, overnemen uit een layout).
+ */
+export function readReportSettings(): ReportSettings {
   const raw = storedReportSettings();
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_REPORT_SETTINGS };
   const s = raw as Record<string, unknown>;
@@ -488,18 +491,19 @@ export function patchReportSettings(patch: ReportSettingsPatch | ((stored: Repor
 
 const differs = (a: unknown, b: unknown) => a !== b && JSON.stringify(a) !== JSON.stringify(b);
 
-/** Wat in `after` anders is dan in `before`: hele velden (arrays en objecten op inhoud), in de optiegroepen per optie. */
-export function changedReportFields(before: ReportSettings, after: ReportSettings): ReportSettingsPatch {
-  const changed: Record<string, unknown> = {};
-  for (const key of Object.keys(after) as (keyof ReportSettings)[]) {
-    if (!differs(before[key], after[key])) continue;
-    if ((OPTION_GROUPS as readonly string[]).includes(key)) {
-      const was = before[key] as unknown as Record<string, unknown>;
-      const now = after[key] as unknown as Record<string, unknown>;
-      changed[key] = Object.fromEntries(Object.keys(now).filter(option => differs(was[option], now[option])).map(option => [option, now[option]]));
-    } else {
-      changed[key] = after[key];
-    }
+/**
+ * Wat een keuze in het Rapport-tabblad wegschrijft. Elk gekozen veld, ook als het in de kopie van het tabblad al
+ * zo stond: de opslag kan van elders anders zijn, en een keuze als *Zoals de weergave* hoort bij elkaar (review
+ * Terra #893, ronde 3). Alleen in een optiegroep de opties die de keuze veranderde: de bediening geeft daar de
+ * hele groep uit de kopie door, en de andere opties kunnen in de opslag nieuwer zijn.
+ */
+export function chosenReportChange(current: ReportSettings, next: Partial<ReportSettings>): ReportSettingsPatch {
+  const change: Record<string, unknown> = { ...next };
+  for (const group of OPTION_GROUPS) {
+    const options = next[group] as Record<string, unknown> | undefined;
+    if (!options) continue;
+    const was = current[group] as unknown as Record<string, unknown>;
+    change[group] = Object.fromEntries(Object.entries(options).filter(([option, value]) => differs(was[option], value)));
   }
-  return changed as ReportSettingsPatch;
+  return change as ReportSettingsPatch;
 }

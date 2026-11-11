@@ -27,7 +27,7 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effHoursPerDay, effectiveCalendarOf, effectiveDurationDisplay } from '@/utils/taskDuration';
 import {
   DEFAULT_REPORT_SETTINGS, REPORT_DEFAULT_COLUMNS, REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN,
-  changedReportFields, loadReportSettings, parseReportColumns, patchReportSettings,
+  chosenReportChange, loadReportSettings, parseReportColumns, patchReportSettings,
 } from '@/utils/reportSettings';
 import {
   addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn,
@@ -285,14 +285,14 @@ const CAL_DAYS = 'task.time.calendarDays';
   patchReportSettings({ ...DEFAULT_REPORT_SETTINGS });
   const stale = await loadReportSettings();
   localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stale, columns: ['task.name', CAL_DAYS] }));
-  patchReportSettings(changedReportFields(stale, { ...stale, paperSize: 'A4' }));
+  patchReportSettings(chosenReportChange(stale, { paperSize: 'A4' }));
   const merged = await loadReportSettings();
   eq(merged.paperSize, 'A4', 'patch: het eigen veld staat erin');
   eq(merged.columns, ['task.name', CAL_DAYS], 'patch: de kolommen van elders blijven staan');
-  eq(changedReportFields(stale, { ...stale }), {}, 'gelijke stand ⇒ geen velden');
-  eq(changedReportFields(stale, { ...stale, columns: [...stale.columns] }), {}, 'kolommen op inhoud vergeleken');
-  eq(Object.keys(changedReportFields(stale, { ...stale, showDeps: !stale.showDeps, columns: ['task.name'] })).sort(), ['columns', 'showDeps'],
-    'alleen de gewijzigde velden');
+  // Een keuze schrijft elk gekozen veld, ook als de kopie het al had (review Terra #893, ronde 3): de opslag kan
+  // van elders anders zijn, en de velden van één keuze horen bij elkaar.
+  eq(chosenReportChange(stale, { layoutId: stale.layoutId, followView: true }), { layoutId: stale.layoutId, followView: true },
+    'keuze: ook een veld dat de kopie al had');
   // De optiegroepen per optie (review Terra #893, ronde 2): een tabeloptie of resourceoptie van elders blijft staan.
   const fresh = await loadReportSettings();
   localStorage.setItem('ops-reportSettings', JSON.stringify({
@@ -300,10 +300,10 @@ const CAL_DAYS = 'task.time.calendarDays';
     tableReports: { ...fresh.tableReports, nearCriticalDays: 11 },
     resourceGantt: { ...fresh.resourceGantt, groupByType: !fresh.resourceGantt.groupByType },
   }));
-  const tableChange = changedReportFields(fresh, { ...fresh, tableReports: { ...fresh.tableReports, wbsSummaryLevel: 3 } });
+  const tableChange = chosenReportChange(fresh, { tableReports: { ...fresh.tableReports, wbsSummaryLevel: 3 } });
   eq(tableChange, { tableReports: { wbsSummaryLevel: 3 } }, 'diff: alleen de gewijzigde tabeloptie');
   patchReportSettings(tableChange);
-  patchReportSettings(changedReportFields(fresh, { ...fresh, resourceGantt: { ...fresh.resourceGantt, includeUnassigned: !fresh.resourceGantt.includeUnassigned } }));
+  patchReportSettings(chosenReportChange(fresh, { resourceGantt: { ...fresh.resourceGantt, includeUnassigned: !fresh.resourceGantt.includeUnassigned } }));
   const groups = await loadReportSettings();
   eq([groups.tableReports.nearCriticalDays, groups.tableReports.wbsSummaryLevel], [11, 3], 'patch: tabeloptie van elders blijft, de eigen staat erin');
   eq([groups.resourceGantt.groupByType, groups.resourceGantt.includeUnassigned], [!fresh.resourceGantt.groupByType, !fresh.resourceGantt.includeUnassigned],

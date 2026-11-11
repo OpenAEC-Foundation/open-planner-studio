@@ -496,6 +496,21 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-layout="builtin:resource-diagram"]')).toHaveAttribute('aria-checked', 'true');
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(async () => (await saved()).layoutId).toBe('');
+  // Een rijenbron kiezen schrijft de hele keuze, ook de velden die dit tabblad al zo had: een layout die elders
+  // net gekozen is (geen `StorageEvent`), mag een gekozen *Zoals de weergave* niet overstemmen, en een oude
+  // opslag met alleen `reportType: 'resourceGantt'` mag *Alle taken* niet overstemmen. Eerder schreef het tabblad
+  // alleen wat afweek van zijn eigen kopie (review Terra #893, ronde 3).
+  const writeStored = (patch: Record<string, unknown>) => page.evaluate(next => {
+    const stored = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
+    localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stored, ...next }));
+  }, patch);
+  const rowSource = async () => { const s = await saved(); return [s.reportType, s.layoutId, s.followView]; };
+  await writeStored({ layoutId: 'builtin:resource-diagram' });
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="view"]').click();
+  await expect.poll(rowSource).toEqual(['gantt', '', true]);
+  await writeStored({ reportType: 'resourceGantt', followView: false });
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await expect.poll(rowSource).toEqual(['gantt', '', false]);
 
   // Voet op elke pagina, ook als de tijdlijn over twee vellen loopt: één rij hoog en twee vellen breed krijgt op
   // beide vellen de volle voetstrook. Zonder de optie heeft geen vel een los voetvenster, wel kop en body.
@@ -617,6 +632,22 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await toOtherReportAndBack();
   await expect(rdChoice).toHaveAttribute('aria-checked', 'true');
   await expect(resourceCounts).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
+  // Standaard zet de hele stap terug, ook een resourceoptie die elders net veranderde en hier nog niet binnen is;
+  // ongedaan maken zet de stand uit de opslag terug, met die optie (review Terra #893, ronde 3).
+  await page.locator('[data-rs-switch="includeUnassigned"]').click();
+  await expect.poll(async () => (await saved()).resourceGantt.includeUnassigned).toBe(true);
+  await writeStored({ resourceGantt: { ...(await saved()).resourceGantt, groupByType: true } });
+  await page.locator('[data-rs-step="tasks"] [data-rs-reset="tasks"]').click();
+  await expect.poll(async () => (await saved()).resourceGantt).toEqual({
+    pageBreakPerResource: false, includeUnassigned: false, groupByType: false, period: { preset: 'project' }, showAssignmentColumns: true,
+  });
+  expect(await rowSource()).toEqual(['gantt', '', false]);
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(async () => (await saved()).resourceGantt).toMatchObject({ includeUnassigned: true, groupByType: true });
+  await expect(rdChoice).toHaveAttribute('aria-checked', 'true');
+  await page.locator('[data-rs-switch="includeUnassigned"]').click();
+  await page.locator('[data-rs-switch="groupByType"]').click();
+  await expect.poll(async () => (await saved()).resourceGantt).toMatchObject({ includeUnassigned: false, groupByType: false });
   await page.locator('[data-rs-step-head="bars"]').click();
   // Eenh./d en Curve staan op het papier achter de taaknaam (Per resource). De samenvatting van Kolommen telt
   // ze mee; het label boven het blad heet zoals de kop, en een klik gaat naar de schakelaar die ze aan- en
