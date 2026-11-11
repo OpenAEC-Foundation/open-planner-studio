@@ -1838,37 +1838,6 @@ en noem het in je rapport of PR-tekst.
      Met de flag weigert de merge dat nu (`niet-gedragen`). Niet nagegaan: of dit de bedoelde omzetting naar het
      minutenmodel is, en wat de gewone writer zonder de flag schrijft. Uit #867 (fase 1b, fixronde 2). — S
 
-1028. **De lezer leest geen jaren, maanden of weken in een taakduur.** `parseDurationDays`
-     (`src/services/ifc/ifcReader.ts:1319`) zoekt alleen een getal voor `D`, en anders voor `H`. Proef op
-     `public/examples/showcase-appartementencomplex.ifc` met de duur van 'CPT soundings & soil investigation' (`#55`):
-     `P1W` geeft `scheduleDuration` 0, `P0Y1M0D` geeft 0, en `P1Y0M3D` geeft 3 (het jaar valt weg). De eigen writer
-     schrijft altijd `P0Y0M{n}D` of `PT…`, dus alleen bestanden van een ander programma. Met de flag weigert de merge een
-     eigen bestand met zo'n duur (`duur-deels-gelezen`, fixronde 4 van #867). Richting: een duur met jaren, maanden of
-     weken weigeren bij openen of omrekenen met de kalender (een maand heeft geen vast aantal werkdagen). Uit #867
-     (fase 1b, fixronde 4). — B
-
-1029. **De lezer leest een duur met een decimale komma verkeerd.** `parseDurationDays`
-     (`src/services/ifc/ifcReader.ts:1319`) en `isoDurationToMinutes` (`src/services/subdayIo.ts:111`) kennen alleen een
-     decimale punt, en hun patronen staan niet vast aan het begin van het getal: bij `P1,5D` pakken ze de `5` na de komma.
-     ISO 8601 staat de komma toe (en geeft haar zelfs de voorkeur). Proef op `public/examples/showcase-appartementencomplex.ifc`
-     met de duur van 'CPT soundings & soil investigation' (`#55`), ook op main (`24723581e`, en `9ee06bb71` na #871):
-     `P1,5D` geeft `scheduleDuration` 5 (bedoeld: 1,5), `P0Y0M1,5D` geeft 5, en `PT4,5H` geeft `durationMinutes` 300
-     (bedoeld: 270). De eigen writer schrijft een punt, dus alleen bestanden van een ander programma. Met de flag weigert de
-     merge zo'n duur (`duur-deels-gelezen`), tijdelijk tot de fix van deze knownbug in main staat (fixronde 5 van #867,
-     `check-ifc-foreign-strikt.ts`). Richting: de komma lezen als decimaalteken, in dezelfde functie als 1028. Uit #867
-     (fase 1b, fixronde 5). — B
-
-1030. **De lezer leest een duur buiten de vorm die hij kent zonder melding anders.** Dezelfde twee functies als 1029
-     (`parseDurationDays` in `src/services/ifc/ifcReader.ts`, `isoDurationToMinutes` in `src/services/subdayIo.ts:111`)
-     zoeken een getal voor `D` of `H` ergens in de tekst, zonder de vorm te toetsen. Ook op main: ja, proef op `9ee06bb71`
-     met `public/examples/showcase-appartementencomplex.ifc` en de duur van 'CPT soundings & soil investigation' (`#55`):
-     `p3d` en `P3d` geven 0 dagen (de kleine letter valt weg), `P1E1D` geeft 10 dagen (een exponent kent ISO 8601 niet),
-     `PT1H1H` geeft 60 minuten (het tweede uur valt weg), `PT30M12H` geeft 750 minuten (de volgorde is ongeldig), en `P`,
-     `PT` en een lege tekst geven 0. Een ander programma weigert zo'n waarde, of leest haar anders. Alleen bestanden van een
-     ander programma. Met de flag weigert de merge zo'n duur (`duur-deels-gelezen`; fixronde 5 van #867,
-     `check-ifc-foreign-strikt.ts`). Richting: bij openen de vorm toetsen en een ongeldige duur melden in plaats van stil een
-     getal te nemen. Uit #867 (fase 1b, fixronde 5; gesplitst in fixronde 5b). — B
-
 1031. **De lezer leest een datum-tijd of tijd met tijdzone of seconden zonder melding anders.** `parseImportedInstant`
      (`src/services/importDates.ts:29`) laat een tijdzone en seconden weg, en `clockToMinutes`
      (`src/services/subdayIo.ts:65`) leest alleen uren en minuten aan het begin van de tekst. Ook op main: ja, voor de
@@ -1897,44 +1866,6 @@ en noem het in je rapport of PR-tekst.
      veilig ("bij twijfel weigeren"), en in het corpus geeft het geen extra weigering (telling van fixronde 5). Besluit van
      Trias (10 november 2026): zo laten. Richting: fase 2: koppelen op een echte identiteit. Uit #867 (fase 1b,
      fixronde 5b). — B
-
-1033. **De lezer leest een speling met een tijddeel, en een lag in werktijd met dagen vóór `T`, anders.** Een speling
-     (`FreeFloat`, `TotalFloat` van een `IfcTaskTime`) leest `parseDurationDays` (`src/services/ifc/ifcReader.ts`) alleen in
-     hele dagen: met dagen alleen de dagen, zonder dagen de uren naar boven afgerond op hele dagen, en minuten niet. Een lag
-     in werktijd met dagen vóór `T` telt `isoDurationLeadingDaysMinutes` (`ifcReader.ts`) als 24 uur werktijd per dag,
-     terwijl `P1D` één werkdag is. #871 loste dit niet op: dat ging over de taakduur en de restduur. Ook op main: ja, proef
-     op `9ee06bb71` met de showcase (een kalender van 8 uur per dag): de speling `P2DT12H` geeft 2 dagen, `PT28H` geeft 4 en
-     `PT90M` geeft 0, waar `P0Y0M3.5D` 3,5 geeft; de lag `#631` in werktijd geeft voor `P1D` 1 werkdag, maar voor `P1DT0H`
-     1440 minuten werktijd (drie werkdagen) en voor `P1DT2H` 1560 minuten. De eigen writer schrijft een speling in hele
-     dagen en een lag zonder dagen vóór `T`, dus alleen bestanden van een ander programma. Met de flag weigert de merge
-     zo'n speling en zo'n lag (`duur-deels-gelezen`; fixronde 5b van #867, `check-ifc-foreign-strikt.ts`). In kalendertijd
-     is een dag 24 uur; daar leest de lezer de lag goed, en de merge schrijft. Richting: een speling lezen zoals de taakduur
-     (minuten, met de minuten per dag van de taak), en in werktijd de dagen vóór `T` tellen als werkdagen. Uit #867 (fase
-     1b, fixronde 5b). — B
-     VERVOLG (fixronde 6 van #867): de lijst van duurvormen die de merge laat staan
-     (`src/services/ifc/foreign/durationForms.ts`) laat in een speling alleen dagen toe. Ook `PT8H` op een kalender van 8 uur
-     per dag weigert dus, terwijl de lezer dat exact als 1 dag leest: de lijst kent de kalender niet. Zeldzaam (de eigen
-     writer schrijft een speling altijd in dagen) en veilig. Komt mee met de fix van de speling hierboven.
-
-1034. **De lezer leest een minteken in het tijddeel van een duur als plus.** `isoDurationToMinutes`
-     (`src/services/subdayIo.ts:111`) leest uren, minuten en seconden elk met een eigen teken, telt ze op en neemt daarvan de
-     absolute waarde; het teken komt alleen van een `-` vóór de `P`. ISO 8601 kent geen teken binnen een duur. Ook op main:
-     ja, proef op `4a8f76d9f` met `public/examples/showcase-appartementencomplex.ifc`: de taakduur van 'CPT soundings & soil
-     investigation' (`#55`) en de lag `#631` in werktijd geven voor `PT-2H` allebei +120 minuten, net als voor `PT2H`
-     (`-PT2H` geeft -120). Een ander programma weigert `PT-2H` of leest -2 uur. Alleen bestanden van een ander programma: de
-     eigen writer zet het teken vóór de `P` (`minutesToIsoDuration`). Met de flag weigert de merge zo'n duur
-     (`duur-deels-gelezen`; fixronde 6 van #867, `check-ifc-foreign-strikt.ts` en `check-ifc-duurvormen.ts`), ook als de
-     planner de waarde op 120 minuten zet. Richting: bij openen de vorm toetsen en een teken binnen de duur melden. Uit #867
-     (fase 1b, fixronde 6). — B
-
-1035. **De lezer rondt een tijddeel af op hele minuten.** `isoDurationToMinutes` (`src/services/subdayIo.ts:111`) rekent
-     seconden en uren met een breuk om naar minuten en rondt af (`Math.round`). Ook op main: ja, proef op `4a8f76d9f` met
-     de showcase (taakduur `#55` en lag `#631`): `PT90S` geeft 2 minuten (1,5), `PT30S` geeft 1 (een halve minuut) en
-     `PT0.01H` geeft 1 (0,6 minuut). Een ander programma leest de seconden. Alleen bestanden van een ander programma: de
-     eigen writer schrijft hele minuten (`PT{h}H{m}M0S`). Met de flag weigert de merge een tijddeel dat niet op een hele
-     minuut valt (`duur-deels-gelezen`; fixronde 6 van #867), ook als de planner de waarde op 2 minuten zet; `PT120S` en
-     `PT0.25H` schrijven. Richting: seconden bewaren (het minutenmodel kent geen seconden), of bij openen melden dat de
-     duur is afgerond. Uit #867 (fase 1b, fixronde 6). — B
 
 1101. **VERVOLG: een lege notitielijst `'[]'` in `OPS_TaskNotes` laat de merge weigeren.** De writer schrijft geen
      `OPS_TaskNotes` bij een lege lijst. Een stuk zonder tegenhanger is geen slot, dus (b) zet het niet terug:
