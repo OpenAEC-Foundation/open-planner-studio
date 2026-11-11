@@ -456,8 +456,6 @@
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
     "ifcForeignContent": "IFC met gebouwmodel openen",
     "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Opslaan van zo'n bestand is nog niet mogelijk.",
-    "featureReportRedesign": "Nieuw tabblad Rapport",
-    "featureReportRedesignHint": "De Gantt-afdruk met stappen in een zijbalk en een klikbaar papier. De andere rapporten blijven zoals ze zijn.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",

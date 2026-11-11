@@ -1,6 +1,5 @@
-// De PDF van de Gantt-afdruk en het resourcediagram: één bouwfunctie voor het oude rapportpaneel
-// (`ReportPanel.tsx`) en het nieuwe Rapport-tabblad (feature flag `reportRedesign`, issue #817), zodat
-// beide precies dezelfde PDF maken. Verplaatst uit `ReportPanel.runExport`, ongewijzigd.
+// De PDF van de Gantt-afdruk (ook met de layout Resourcediagram) voor het Rapport-tabblad (issue #817):
+// vector-PDF met de gekozen rapportletter, met raster als terugval.
 
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';

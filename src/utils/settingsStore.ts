@@ -54,10 +54,20 @@ export function localStorageAvailable(): boolean {
 }
 
 export function readLocal(key: string): string | null {
+  const value = tryReadLocal(key);
+  return value === false ? null : value;
+}
+
+/**
+ * Als `readLocal`, maar een opslag die niet te lezen is geeft `false`, niet `null`. Voor wie een
+ * ontbrekende sleutel anders behandelt dan een tijdelijke leesfout: die mag niet tot standaardwaarden
+ * leiden die daarna over de bewaarde waarde heen gaan.
+ */
+export function tryReadLocal(key: string): string | null | false {
   try {
     return localStorage.getItem(key);
   } catch {
-    return null;
+    return false;
   }
 }
 

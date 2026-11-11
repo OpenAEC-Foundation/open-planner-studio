@@ -39,6 +39,7 @@
 import { ifcGuid, writeIFC, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
+import { workCalendarSlots } from '../ifcWorkControlSlots';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
@@ -1059,7 +1060,7 @@ function sourceBandCalendarIds(pristine: WriteIFCInput, domain: WriteIFCInput, i
     if (!was || cal.workTime || JSON.stringify(was) !== JSON.stringify(cal)) continue;
     const step = source.stepIds[`cal:${cal.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
-    const times = chunk >= 0 ? index.refsAt(chunk, 6) : [];
+    const times = chunk >= 0 ? index.refsAt(chunk, workCalendarSlots(index.argTokens(chunk) ?? []).workingTimes) : [];
     if (times.length !== 1 || index.type(times[0]) !== 'IFCWORKTIME') continue;
     const pattern = index.refAt(times[0], 3);
     if (pattern >= 0 && index.type(pattern) === 'IFCRECURRENCEPATTERN' && index.refsAt(pattern, 7).length > 1) out.add(cal.id);

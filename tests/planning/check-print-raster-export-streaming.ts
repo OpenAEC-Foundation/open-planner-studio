@@ -1,4 +1,4 @@
-// Rasterexport-streaming: `exportRaster()` in `ReportPanel.tsx` heeft geen paginalimiet — terecht,
+// Rasterexport-streaming: de raster-terugval van de Gantt-PDF (`exportGanttReportPdf.ts`) heeft geen paginalimiet — terecht,
 // een export moet compleet zijn — maar hield vóór deze batterij WEL alle `rows * cols`
 // pagina-canvassen tegelijk in het geheugen vóór de omzetting naar JPEG. Op `SUPERSAMPLE = 2` is
 // één A3-pagina-canvas ~16 MB; 300 taken met `timelineColumns: 8` (160 pagina's) kwam zo op

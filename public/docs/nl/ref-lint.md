@@ -114,7 +114,7 @@ In het ingeklapte lint staan deze drie achter één vlaggetjesknop met de titel 
 - **Voortgangsblad exporteren** — maakt een `.xlsx`-blad met de taken, om voortgang buiten de app in te vullen. Uitgeschakeld zonder taken.
 - **Voortgang bijwerken uit een blad** — opent het importvenster voor een teruggestuurd blad. Uitgeschakeld zonder taken. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
 
-Deze groep staat ook op *Tabel* en *Rapport*.
+Deze groep staat ook op *Tabel*.
 
 ## Resources
 
@@ -194,7 +194,7 @@ Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties 
 - **Statusdatumlijn** — tekent een gestippelde lijn op de statusdatum. Standaard: aan. Je ziet hem alleen als de voortgangslijn uit staat, want anders neemt die lijn zijn plaats in. Het label met de datum in de kop blijft wel staan zolang minstens één van de twee aan is. Het label volgt je datumnotatie, bijvoorbeeld 20-09-2006. Rekent de app in uren, dan staan lijn en label op het tijdstip en toont het label ook de tijd, bijvoorbeeld 20-09-2006 17:00.
 ### Beeld › Balken
 
-- **Balkkleuren** — kiest waarmee de balken zijn gekleurd: *Kritiek pad* (standaard), *Per taak — automatisch* of *Op categorie* met een keuze van het veld. Is dat veld niet in dit project, dan meldt het menu dat *Werksoort* tijdelijk wordt gebruikt. Buiten *Kritiek pad* markeert een rode rand het kritieke pad. Bij *Kritiek pad* kies je de kleuren voor kritieke, bijna-kritieke en gewone taken; *Herstel standaard* zet ze terug. De keuze geldt ook voor het rapport en wordt met een layout bewaard. Zeer lichte of donkere kleuren worden voor de leesbaarheid aangepast aan de achtergrond.
+- **Balkkleuren** — kiest waarmee de balken zijn gekleurd: *Kritiek pad* (standaard), *Per taak — automatisch* of *Op categorie* met een keuze van het veld. Is dat veld niet in dit project, dan meldt het menu dat *Werksoort* tijdelijk wordt gebruikt. Buiten *Kritiek pad* markeert een rode rand het kritieke pad. Bij *Kritiek pad* kies je de kleuren voor kritieke, bijna-kritieke en gewone taken; *Herstel standaard* zet ze terug. De keuze wordt met een layout bewaard. Het rapport heeft eigen balkkleuren; alleen bij *Zoals de weergave* volgt het deze keuze. Zeer lichte of donkere kleuren worden voor de leesbaarheid aangepast aan de achtergrond.
 - **Resource-accent** — tekent een dun streepje in de resourcekleur onder elke bladbalk, verdeeld naar rato van de eenheden per dag. Standaard: uit.
 - **Spelingsband** — tekent de groene band na een niet-kritieke balk, tot het laatste einde van de taak. Standaard: aan.
 - **Relatielijnen** — toont of verbergt de relatielijnen tussen taken. Standaard: aan. De keuze hoort bij het document en bij de layout.
@@ -228,7 +228,7 @@ Het tabblad toont in de werkruimte het IFC-paneel. Het lint heeft hier geen knop
 
 ## Rapport
 
-Het tabblad toont in de werkruimte het rapportscherm, met de rapportkeuzes en *Exporteer PDF*. Het lint heeft hier alleen de groep *Voortgang*; die is dezelfde als op *Planning*.
+Het tabblad toont in de werkruimte het rapportscherm, met de rapportkeuzes en de knop om de PDF te maken. Het lint heeft hier geen inhoud: het klapt in tot de tabnamen, zodat het papier de hoogte krijgt. De groep *Voortgang* staat op *Planning* en *Tabel*.
 
 ## MCP
 
