@@ -351,7 +351,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const restores = planRestores(input, p0, compareOutput(input, p0, input.owner0));
   for (const r of restores) input.restored?.(r);
   // Gedragen (fixronde 1 van #886): een slot is volledig gedragen als de writer op de lezing van de bron (O0) dezelfde
-  // waarde teruggeeft als de bron. Zonder (b) is dat zo (O0 is dan gelijk aan de bron); met (b) alleen bij een datum of tijd
+  // waarde teruggeeft als de bron. Zonder (b) is dat zo (O0 is dan gelijk aan de bron); met (b) alleen bij een datum, tijd of duur
   // met dezelfde betekenis in een andere vorm (`sameMeaning`). Wat niet gedragen is, krijgt nooit de waarde van de writer.
   const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk)))
     .map(r => `${r.chunk}:${r.outArg}`));
@@ -1854,13 +1854,6 @@ function plannerReplacedDate(ctx: O1Context, r: SlotRestore): boolean {
   });
 }
 
-/**
- * Heeft het brontoken van een datum- of tijdslot dezelfde betekenis als het token van de writer in O0 (fixronde 1 van
- * #886)? De betekenis van de tekst, niet hoe de lezer haar in dit slot leest (die kan een deel weglaten): een moment of
- * klok zoals de ISO-norm het leest (`parseInstant`, vaste tijdas, met seconden en expliciete tijdzone; een klok op een vaste dag), de oude uurbreuk
- * `'7.25:00:00'` die de lezer in de enige periode van het enige patroon exact leest (`scalarHourFromClock`), een datum als
- * tekst. Een tekst zonder betekenis, of een ander slot: niet gedragen (de writer schreef iets anders).
- */
 /** Minuten per dag van de bron-taak van dit slot; gedeelde slots moeten dezelfde maat hebben. */
 function taskTimeMinutesPerDay(input: LossCheckInput, chunk: number): number | undefined {
   const { index, pristine } = input;
@@ -1878,6 +1871,14 @@ function taskTimeMinutesPerDay(input: LossCheckInput, chunk: number): number | u
   return values.size === 1 ? [...values][0] : undefined;
 }
 
+/**
+ * Heeft het brontoken van een datum-, tijd- of duurslot dezelfde betekenis als het token van de writer in O0 (fixronde 1 van
+ * #886)? De betekenis van de tekst, niet hoe de lezer haar in dit slot leest (die kan een deel weglaten): een moment of
+ * klok zoals de ISO-norm het leest (`parseInstant`, vaste tijdas, met seconden en expliciete tijdzone; een klok op een vaste dag), de oude uurbreuk
+ * `'7.25:00:00'` die de lezer in de enige periode van het enige patroon exact leest (`scalarHourFromClock`), een datum als
+ * tekst. Een duur telt alleen binnen de bestaande vormenlijst, met de parser en kalendermaat van de lezer.
+ * Een tekst zonder betekenis, of een ander slot: niet gedragen (de writer schreef iets anders).
+ */
 export function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined, minutesPerDay?: number): boolean {
   if (r.kind === 'duur') {
     const slot = index.type(r.chunk) === 'IFCTASKTIME' ? TASK_TIME_DURATION_SLOTS.get(r.arg) : undefined;

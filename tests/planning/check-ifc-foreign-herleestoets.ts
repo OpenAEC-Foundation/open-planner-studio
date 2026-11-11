@@ -76,6 +76,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   const normalized = shown.tasks.find(t => t.id === task.id)!.time.remainingTime;
   const merge = await tryMerge(input, o.ifcSource!);
   console.log('1113', JSON.stringify({ route: 'setActualFinish', before, afterEntry, normalized, merge: merge.ok ? 'schrijft' : merge.error.cases }));
+  assert(merge.ok, merge.ok ? '' : JSON.stringify(merge.error.cases));
   if (merge.ok) {
     const full = await openForeign(merge.bytes);
     console.log('1113 naad/bytes', merge.shown.tasks.find(t => t.id === task.id)!.time.remainingTime, full.tasks.find(t => t.id === task.id)!.time.remainingTime);
@@ -130,7 +131,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   console.log('OK zes echte wisacties: schrijven, dezelfde kalenders en inhoud na volledig heropenen');
 }
 
-// 1109: alle vier echte invoerroutes schrijven met de ongewijzigde duur letterlijk in het bron-slot.
+// 1109: de vier oorspronkelijke gevallen, plus werkelijk einde en 100%, houden de duur letterlijk in het bron-slot.
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
   const base = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc'), 'utf8');
@@ -142,11 +143,12 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
     const args = splitStepArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
     args[18] = `'P0Y0M${remaining}D'`;
     const raw = base.replace(line, line.slice(0, line.indexOf('(') + 1) + args.join(',') + ');');
-    for (const edit of ['completion', 'actualStart'] as const) {
+    for (const edit of ['completion', 'actualStart', 'actualFinish', 'complete'] as const) {
       const { store, snapshot } = await openInStore(generatedModel(root, raw, 0));
       const task = store.getState().tasks.find(t => t.name === 'Set up site')!;
-      const accepted = edit === 'completion' ? store.getState().setTaskProgress(task.id, 0.5)
-        : store.getState().setActualStart(task.id, task.time.scheduleStart);
+      const accepted = edit === 'completion' || edit === 'complete' ? store.getState().setTaskProgress(task.id, edit === 'complete' ? 1 : 0.5)
+        : edit === 'actualStart' ? store.getState().setActualStart(task.id, task.time.scheduleStart)
+        : store.getState().setActualFinish(task.id, task.time.scheduleFinish);
       assert(accepted);
       const input = cloneDomain(snapshot(store));
       const expected = (await shownAfterOpen(input)).tasks.find(t => t.id === task.id)!;
@@ -164,8 +166,8 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
       written++;
     }
   }
-  assert.equal(written, 4, 'alle vier schrijven met exact behouden duur');
-  console.log('OK 1109: vier echte voortgangsacties schrijven met de precieze bronduur');
+  assert.equal(written, 8, 'alle acht schrijven met exact behouden duur');
+  console.log('OK 1109: acht echte voortgangsacties schrijven met de precieze bronduur');
 }
 
 // Terra R1: de echte extensie-load verandert alleen de lag-eenheid; het ongewijzigde getal moet exact blijven.
