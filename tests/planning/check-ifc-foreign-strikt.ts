@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
-import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
+import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, recalculated, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -991,9 +991,45 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
   ];
   for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);
-  // Wijzigt de planner het veld zelf, dan vervalt de bronwaarde (plek 6).
-  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd', notDefined, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; },
-    has(".PREDICTED.,$,.NOTDEFINED.,", false));
+  // Wijzigt de planner het veld zelf (kalendertijd): na openen via de app heeft de taak de tijdstippen 07:00 en 16:00, en
+  // die vallen op kalendertijd niet op een daggrens, ook niet na doorrekenen. De writer schrijft de kalender dan letterlijk
+  // (zoals een gewone opslag), met elke taak erop als tijdstip; de merge volgt dat (#886, besluit van Trias over de vroegere knownbug
+  // 1102), en herlezen via de app geeft 07:00 tot 16:00, zoals de planner zag.
+  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd (kalender letterlijk)', notDefined, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; });
+  const notDefinedOpened = await openForeign(notDefined);
+  const elapsed = cloneDomain(notDefinedOpened);
+  time63(elapsed, notDefinedOpened).durationType = 'ELAPSEDTIME';
+  const elapsedF5 = await recalculated(elapsed);
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (kalender letterlijk)', notDefined, 'schrijft', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
+  // De baselines op die kalender gaan mee in de vorm van de writer (tijdstippen), zoals bij een gewone opslag. De grens: een
+  // sleutel in een rij die niet over datums gaat, blijft staan (de lezer draagt de JSON van een baseline met alle sleutels);
+  // alleen `start` en `finish` mogen een andere vorm krijgen (`literalBaselineForm`).
+  const ownKey = latin1(text(notDefined).replace('"duration":0,"isMilestone":true,"milestoneKind":"START"}',
+    '"duration":0,"isMilestone":true,"milestoneKind":"START","eigen":1}'));
+  ok('VERVOLG: een baselinerij met een eigen sleutel', text(ownKey) !== text(notDefined));
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd, een baselinerij met een eigen sleutel', ownKey, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; },
+    has('"milestoneKind":"START","eigen":1}'));
+}
+
+// ── #886 (vervolg-PR van #867): een verstopt stuk vóór een eigen stuk ──
+// De scanner hangt commentaar vóór een entiteit aan het volgende stuk. Volgens de norm vallen stuurtekens overal weg, ook
+// in `*⏎/`; dan staat in `/* a *⏎/ #402=…; /* b */` een stuk. De merge schrijft een P-stuk opnieuw, zonder dat commentaar,
+// dus weigert hij als vóór een P-stuk buiten de tokens een `#` met een getal staat (`verstopt-stuk`). Proeven uit review
+// ronde 8 van #867: het stuk vóór `#47=IFCTASK`, en een V-stuk (de pset van de wand) dat ernaar wijst.
+{
+  const before47 = (src: string, inserted: string) => { const at = src.indexOf('#47=IFCTASK'); return src.slice(0, at) + inserted + src.slice(at); };
+  const hidden = "/* a *\n/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',$,IFCLABEL('x'),$); /* b */\n";
+  ok('verstopt stuk: de pset van de wand heeft (#397,#398)', eigen.includes('(#397,#398));'));
+  await proof('verstopt stuk', 'een verstopt stuk vóór een eigen taak', latin1(before47(eigen, hidden)), 'verstopt-stuk');
+  await proof('verstopt stuk', 'idem, en een V-stuk wijst ernaar', latin1(before47(eigen, hidden).replace('(#397,#398));', '(#397,#398,#402));')), 'verstopt-stuk');
+  await proof('verstopt stuk', 'commentaar met #12 vóór een eigen taak', latin1(before47(eigen, '/* zie #12 */\n')), 'verstopt-stuk');
+  await proof('verstopt stuk', 'gewoon commentaar vóór een eigen taak', latin1(before47(eigen, '/* gewoon commentaar */\n')), 'schrijft');
+  // `\S\'` in een string van een eigen stuk (VERMOED van review ronde 8, knownbug 1050): de lezer leest het anders dan de
+  // norm, en het bestand opent met de flag niet (de modelweigering op de tekst van de lezer). De merge krijgt het dus niet.
+  const escaped = eigen.replace("'Start of refurbishment',$,", "'Start of refurbishment','a\\S\\'',");
+  ok("verstopt stuk: de bron heeft \\S\\' in de omschrijving van #47", escaped !== eigen);
+  const refused = await openForeign(latin1(escaped)).then(() => 'opent', (e: unknown) => (e instanceof IfcParseError ? e.reason : String(e)));
+  ok(`verstopt stuk: \\S\\' in een eigen string opent met de flag niet (${refused})`, refused === 'building-model');
 }
 
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──
@@ -1005,9 +1041,12 @@ const projectEdits = (d: Domain): Edit[] => [
   { label: 'projectomschrijving', apply: (x) => { x.project.description = 'Andere omschrijving'; } },
   { label: 'statusdatum', apply: (x) => { x.project.statusDate = '2027-04-01'; } },
   { label: 'modifiedAt', apply: (x) => { x.project.modifiedAt = '2026-12-01T10:00:00.000Z'; } },
+  // Zoals de store: de projectkalender is de kopie van haar regel in de bibliotheek (`syncProjectCalendar`). Na openen via
+  // de app staat de oude projectkalender daar al; de nieuwe komt erbij.
   { label: 'kalenderkeuze', apply: (x) => {
     const other = { ...structuredClone(x.calendar), id: `${d.calendar.id}-b4`, name: 'Andere kalender' };
-    x.resourceCalendars = [...(x.resourceCalendars ?? []), structuredClone(x.calendar)];
+    const library = (x.resourceCalendars ?? []).filter(c => c.id !== x.calendar.id);
+    x.resourceCalendars = [...library, structuredClone(x.calendar), other];
     x.calendar = other;
     x.project.calendarId = other.id;
   } },

@@ -7,8 +7,10 @@
 //      deel weigert, met de rode melding, vóór het schrijven; elke route herkent dat bestand (handle: `isSameEntry`; pad:
 //      hetzelfde pad of dezelfde bestandsidentiteit; site: hetzelfde `siteFileId`), en een ander bestand mag;
 //   3. BLOKKEERT 3: na crashherstel (snapshot, manifest, lezen, herstellen) heeft het document het kenmerk van de bron,
-//      zonder bronbytes en zonder handle; Opslaan als en een export naar het oude bestand weigeren, een ander bestand
-//      krijgt alleen de planning; een oude snapshot zonder kenmerk werkt zoals altijd;
+//      zonder bronbytes en zonder handle; een export naar het oude bestand weigert. Fixronde 2 van #886 (Sol, besluit
+//      Trias): elke IFC-uitvoer weigert, ook naar een nieuw bestand en ook met de flag uit, en de volgende snapshot draagt
+//      het kenmerk nog; een eigen planning zonder model herstelt en slaat op (flag uit en aan); een oude snapshot zonder
+//      kenmerk werkt zoals altijd;
 //   4. het kenmerk in het documentcontract: buiten undo, mee bij wissel en kopie, niet in een gewone opslag;
 //   5. fixronde 2 (review van #864, ronde 2): de app leest het gekozen bestaande doel zelf. Een IFC met een gebouwmodel
 //      krijgt geen planning eroverheen: na herstel ook een gewijzigde modelversie (Sol: één ander byte, een extra
@@ -169,6 +171,8 @@ async function open(name: string, bytes: Uint8Array, ref: import('@/services/fil
 }
 const modelNotices = (store: Store) => store.getState().ui.notifications.filter(n => MODEL_KEYS.includes(n.messageKey));
 const noticeKeys = (store: Store) => modelNotices(store).map(n => [n.messageKey, n.severity, n.refusal === true]);
+const noticeCount = (store: Store, key: string) =>
+  store.getState().ui.notifications.filter(n => n.messageKey === key).reduce((sum, n) => sum + n.count, 0);
 
 // ── 1. BLOKKEERT 1: documentwissel tijdens het wachten ─────────────────────────────────────────────────────────
 // De wachttijd is die van de afhankelijke projecten (`settleDependentAnchors`: schrijven, lezen en doorrekenen op een
@@ -340,33 +344,68 @@ let oldRecoveryText = '';
   const R = () => restored.getState();
   eq('herstel: het document heeft het kenmerk, zonder handle, zonder vreemd deel en zonder doel',
     [R().foreignSourceMark, R().ifcSource?.foreign === true, R().filePath],
-    [{ sha256: sha(bonsai), byteLength: bonsai.length, filePath: 'bonsai-4d.ifc', siteFileId: null, handle: null }, false, null]);
+    [{ sha256: sha(bonsai), byteLength: bonsai.length, filePath: 'bonsai-4d.ifc', siteFileId: null, handle: null, sourceMissing: true }, false, null]);
   ok('herstel: de planning van voor de crash is er', R().tasks.some(t => t.name === 'Werk van voor de crash'));
   eq('herstel: geen melding bij het herstel', noticeKeys(restored), []);
 
+  // #886 fixronde 2 (Sol, BLOKKEERT; besluit Trias 11 november 2026): de bronbytes zijn weg, dus weigert elke IFC-uitvoer,
+  // zoals vóór de crash, met de bestaande melding. Eerst schreef Opslaan als naar een nieuw bestand de planning zonder
+  // model en zonder kenmerk, en was het document daarna niet meer gewijzigd.
   // Na een herstart is de handle van het oude bestand een nieuw object: de app herkent het aan de inhoud.
   const oldFile = fakeHandle('bonsai-4d.ifc', bonsai);
   pick = oldFile;
   pickerCalls = 0;
   await R().saveFile();
-  eq('herstel: Opslaan wordt Opslaan als, naar het oude bestand geweigerd', [pickerCalls, oldFile.writables(), sha(oldFile.text())], [1, 0, sha(bonsai)]);
-  ok('herstel: met de melding "op te slaan"', modelNotices(restored).some(n => n.messageKey === TARGET_SAVE && n.refusal === true));
-  await R().saveFileAs();
-  eq('herstel: Opslaan als naar het oude bestand geweigerd', oldFile.writables(), 0);
+  eq('herstel: Opslaan geweigerd, geen dialoog, het oude bestand blijft', [pickerCalls, oldFile.writables(), sha(oldFile.text())], [0, 0, sha(bonsai)]);
+  ok('herstel: met de melding van een vreemd deel', modelNotices(restored).some(n => n.messageKey === SAVE_BLOCKED && n.refusal === true));
   const csv = await R().exportAs('csv');
   eq('herstel: export naar het oude bestand geweigerd', [csv, oldFile.writables()], [{ ok: true, warnings: [], cancelled: true }, 0]);
   ok('herstel: met de melding "naar te exporteren"', modelNotices(restored).some(n => n.messageKey === TARGET_EXPORT));
   const fresh = fakeHandle('nieuw.ifc', new Uint8Array());
   pick = fresh;
+  pickerCalls = 0;
   await R().saveFileAs();
-  const written = fresh.writes[0] ?? '';
-  ok('herstel: een ander bestand krijgt de planning', written.includes('Werk van voor de crash') && R().isDirty === false);
-  ok('herstel: alleen de planning: geen model en geen herstelkenmerk', !written.includes('IFCWALL') && !written.includes('OPS_RecoveryForeignSource'));
-  // Daarna is het nieuwe bestand het doel; Ctrl+S schrijft er weer naar (de inhoud verschilt van de bron).
-  R().addTask({ name: 'Na herstel' });
-  await R().saveFile();
-  eq('herstel: Ctrl+S naar het nieuwe bestand', [fresh.writes.length, R().isDirty], [2, false]);
+  const ifcExport = await R().exportAs('ifc');
+  eq('herstel (Sol): Opslaan als en de IFC-export naar een nieuw bestand geweigerd, nul writes, het document blijft gewijzigd',
+    [pickerCalls, fresh.writables(), ifcExport, R().isDirty, R().filePath, R().fileHandle],
+    [0, 0, { ok: true, warnings: [], cancelled: true }, true, null, null]);
+  ok('herstel (Sol): met de melding van een vreemd deel, als één melding',
+    noticeCount(restored, SAVE_BLOCKED) === 3 && modelNotices(restored).filter(n => n.messageKey === SAVE_BLOCKED).length === 1);
+  // Twee keer crashen verliest de bescherming niet: de volgende herstelsnapshot draagt het kenmerk nog.
+  const again = serializeRecoverySnapshot(R());
+  ok('herstel: de snapshot ná herstel draagt het kenmerk', again.includes("'OPS_RecoveryForeignSource'") && again.includes(sha(bonsai)));
+  const twice = createAppStoreContext().store;
+  twice.getState().restoreDocuments([recoveryInputFromParsed(await readIfcFromText(again, {}, { ifcBytes: true }), {
+    id: 'twee', filePath: null, foreignSource: { filePath: 'bonsai-4d.ifc', siteFileId: null }, isDirty: true, datesAsRecorded: false,
+  })], 'twee');
+  await twice.getState().saveFileAs();
+  eq('herstel, tweede keer: het kenmerk blijft en Opslaan als weigert (ook met de flag uit)',
+    [twice.getState().foreignSourceMark?.sourceMissing, fresh.writables(), noticeCount(twice, SAVE_BLOCKED)], [true, 0, 1]);
   ok('herstel: het kenmerk blijft tot het document sluit', R().foreignSourceMark?.sha256 === sha(bonsai));
+  pick = null;
+}
+
+// ── 3a. Fixronde 2 (eis van Trias): een eigen planning zonder model herstelt en slaat gewoon op, flag uit en aan ─────
+for (const flag of [false, true]) {
+  const label = flag ? 'flag aan' : 'flag uit';
+  reseed(0x804);
+  const own = createAppStoreContext().store;
+  if (flag) own.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  await own.getState().openOpenedFile({ name: 'showcase.ifc', content: dec(showcase), ref: null });
+  own.getState().addTask({ name: 'Eigen werk van voor de crash' });
+  const snapshot = serializeRecoverySnapshot(own.getState());
+  ok(`eigen planning (${label}): geen kenmerk in de snapshot`, !snapshot.includes('OPS_RecoveryForeignSource'));
+  const back = createAppStoreContext().store;
+  if (flag) back.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  back.getState().restoreDocuments([recoveryInputFromParsed(await readIfcFromText(snapshot, {}, { ifcBytes: flag }), {
+    id: 'eigen', filePath: null, isDirty: true, datesAsRecorded: false,
+  })], 'eigen');
+  const target = fakeHandle('eigen-na-herstel.ifc', new Uint8Array());
+  pick = target;
+  await back.getState().saveFileAs();
+  eq(`eigen planning (${label}): na herstel schrijft Opslaan als, zonder melding`,
+    [back.getState().foreignSourceMark, target.writes.length, back.getState().isDirty, noticeKeys(back)], [null, 1, false, []]);
+  ok(`eigen planning (${label}): de planning staat erin`, target.text().includes('Eigen werk van voor de crash'));
   pick = null;
 }
 
@@ -462,7 +501,11 @@ let oldRecoveryText = '';
     dialogAnswer = modelPath;
     await restored.getState().saveFileAs();
     eq('Tauri herstel: Opslaan als naar het oude pad geweigerd', [unchanged(), restored.getState().filePath], [sha(bonsai), null]);
-    ok('Tauri herstel: met de melding "op te slaan"', modelNotices(restored).some(n => n.messageKey === TARGET_SAVE));
+    ok('Tauri herstel: met de melding van een vreemd deel (fixronde 2 van #886)', modelNotices(restored).some(n => n.messageKey === SAVE_BLOCKED));
+    dialogAnswer = join(dir, 'link.csv');
+    const tauriCsv = await restored.getState().exportAs('csv');
+    eq('Tauri herstel: export via een link naar het oude pad geweigerd', [tauriCsv, unchanged()], [{ ok: true, warnings: [], cancelled: true }, sha(bonsai)]);
+    ok('Tauri herstel: met de melding "naar te exporteren"', modelNotices(restored).some(n => n.messageKey === TARGET_EXPORT));
     const restoredMarks = [restored.getState().foreignSourceMark].filter((m): m is ForeignSourceMark => m !== null);
     eq('Tauri: de route herkent een pad met dezelfde identiteit, en niet een ander bestand', [
       await isForeignSourceTarget({ kind: 'path', path: join(dir, 'link.ifc') }, restoredMarks,
@@ -519,8 +562,6 @@ const extraComment = (() => {
   const at = text.indexOf('DATA;') + 'DATA;'.length;
   return enc.encode(`${text.slice(0, at)}\n/* een extra regel van een ander programma */${text.slice(at)}`);
 })();
-const noticeCount = (store: Store, key: string) =>
-  store.getState().ui.notifications.filter(n => n.messageKey === key).reduce((sum, n) => sum + n.count, 0);
 const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
 
 // ── 5a. Na herstel (browser): een gewijzigde modelversie, een ander modelbestand, CSV, een eigen IFC, niet leesbaar ──
@@ -541,17 +582,17 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
       await isForeignSourceTarget({ kind: 'handle', handle: target.handle }, [mark]),
     ], [true, true, false]);
     pick = target;
-    await R().saveFileAs();
     const csv = await R().exportAs('csv');
-    eq(`herstel 2, ${label}: Opslaan als en export geweigerd, het model is er nog`,
+    eq(`herstel 2, ${label}: export geweigerd, het model is er nog`,
       [target.writables(), csv, target.text() === dec(bytes)], [0, { ok: true, warnings: [], cancelled: true }, true]);
   }
-  eq('herstel 2: met de meldingen "op te slaan" en "naar te exporteren"',
-    [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) > 0], [true, true]);
+  // Sinds fixronde 2 van #886 weigert na herstel elke IFC-opslag al vóór het doel; de doelcontrole na herstel loopt hier
+  // via de export naar CSV.
+  eq('herstel 2: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) > 0, true);
   const otherModel = fakeHandle('ander-model.ifc', modelIfc4);
   pick = otherModel;
-  await R().saveFileAs();
-  eq('herstel 2: een modelbestand dat niet open is, geweigerd', [otherModel.writables(), R().fileHandle], [0, null]);
+  const otherCsv = await R().exportAs('csv');
+  eq('herstel 2: een modelbestand dat niet open is, geweigerd', [otherModel.writables(), otherCsv], [0, { ok: true, warnings: [], cancelled: true }]);
   const csvFile = fakeHandle('planning.csv', enc.encode(OLD_CONTENT));
   pick = csvFile;
   const csvAllowed = await R().exportAs('csv');
@@ -559,14 +600,14 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     csvFile.writes.length, csvFile.text().includes('OUDE-INHOUD')], [true, 1, false]);
   const ownIfc = fakeHandle('eigen.ifc', showcase);
   pick = ownIfc;
-  await R().saveFileAs();
-  eq('herstel 2: een bestaande eigen IFC (geen model) mag', [ownIfc.writes.length, R().fileHandle === ownIfc.handle], [1, true]);
+  await R().exportAs('csv');
+  eq('herstel 2: een bestaande eigen IFC (geen model) als doel mag', ownIfc.writes.length, 1);
   // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
   const locked = fakeHandle('vergrendeld.ifc', modelIfc4);
   locked.unreadableUntilWrite();
   pick = locked;
-  await R().saveFileAs();
-  eq('herstel 2: een doel dat de app niet kan lezen, mag', [locked.writes.length, R().fileHandle === locked.handle], [1, true]);
+  await R().exportAs('csv');
+  eq('herstel 2: een doel dat de app niet kan lezen, mag', locked.writes.length, 1);
   pick = null;
 }
 
