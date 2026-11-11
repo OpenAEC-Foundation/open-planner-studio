@@ -1,9 +1,9 @@
 // Layouts in het Rapport-tabblad (issue #861): de meegeleverde layout Resourcediagram op de Gantt-afdruk moet
-// precies doen wat het oude rapporttype Resourcediagram deed, zodat dat type weg kan. Deze check legt de twee
+// precies doen wat het oude rapporttype Resourcediagram deed (dat type is sinds #817 weg). Deze check legt de twee
 // wegen naast elkaar, op een plan met gelijknamige resources, een naamloze resource, taken met meer resources,
 // een taak met twee records van dezelfde resource, een mijlpaal, een hammock en een taak zonder resource.
 //
-//   oud   = wat `ReportPanel` doet bij `reportType: 'resourceGantt'` (rijen uit `computeResourceGanttRows`, en
+//   oud   = wat het oude rapportpaneel deed bij `reportType: 'resourceGantt'` (rijen uit `computeResourceGanttRows`, en
 //           `showDeps` uit, `showCritical` aan, blad per resource, tijdvenster, toewijzingskolommen);
 //   nieuw = wat het tabblad doet: de keuze uit de opslag (`reportTaskSource`), de layout uit
 //           `builtinLayouts`, de rijen uit `computeLayoutReportRows` en de printvelden uit `studioRowPrintFields`.
@@ -140,15 +140,15 @@ const source = reportTaskSource({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resou
 eq('opslag: reportType resourceGantt ⇒ layout Resourcediagram', source, { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 const rd = builtinLayouts(tLabel).find(l => source.kind === 'layout' && l.id === source.id);
 ok(!!rd, 'de layout Resourcediagram staat in de meegeleverde layouts');
-eq('terug naar de opslag: de layout Resourcediagram ⇒ layoutId én reportType resourceGantt', taskSourcePatch(source), { reportType: 'resourceGantt', layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, followView: false });
+eq('terug naar de opslag: de layout Resourcediagram ⇒ layoutId, en het rapporttype weer de Gantt-afdruk', taskSourcePatch(source), { reportType: 'gantt', layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, followView: false });
 // Een ander rapport bekijken overschrijft alleen `reportType` (review Sol #847, ronde 4): de layout blijft.
 for (const reportType of ['milestones', 'gantt'] as const) {
   eq(`uitstap: reportType ${reportType} met layoutId Resourcediagram ⇒ layout Resourcediagram`,
     reportTaskSource({ ...taskSourcePatch(source), reportType }), { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 }
-// Het oude paneel (flag uit) kiest het rapporttype Resourcediagram terwijl een eigen layout bewaard staat:
-// die latere keuze wint, zoals vóór deze fix.
-eq('flag uit: reportType resourceGantt wint van een bewaarde eigen layout',
+// Een oude opslag: het rapporttype Resourcediagram (vóór #817) naast een bewaarde eigen layout. Het rapporttype
+// was de latere keuze en wint.
+eq('oude opslag: reportType resourceGantt wint van een bewaarde eigen layout',
   reportTaskSource({ reportType: 'resourceGantt', layoutId: 'layout-x', followView: false }), { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 eq('een eigen layout ⇒ gantt + layoutId', taskSourcePatch({ kind: 'layout', id: 'layout-x' }), { reportType: 'gantt', layoutId: 'layout-x', followView: false });
 eq('Zoals de weergave', taskSourcePatch({ kind: 'view' }), { reportType: 'gantt', layoutId: '', followView: true });
@@ -168,7 +168,7 @@ for (const window of windows) {
     };
     const name = `[${Object.entries(opts).filter(([k, v]) => k !== 'period' && v).map(([k]) => k).join(',') || 'geen opties'}${window ? ', periode' : ''}]`;
 
-    // Oud: ReportPanel bij reportType 'resourceGantt'.
+    // Oud: het oude rapportpaneel bij reportType 'resourceGantt'.
     const old = computeResourceGanttRows({ tasks, resources, assignments }, {
       includeUnassigned: opts.includeUnassigned, noneLabel, locale, groupByType: opts.groupByType, typeLabels, window,
     });

@@ -102,7 +102,7 @@ The app also keeps these choices on this device, but you set them at the item it
 
 **Float band** — the float as a band behind non-critical bars; not for completed tasks. Default: on. Where: *View › Bars › Float band*.
 
-**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. In it, critical bars are red by default, near-critical amber and the others blue. Effect: applies to the Gantt and the report at the same time. Where: *View › Bars › Bar colors*.
+**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. In it, critical bars are red by default, near-critical amber and the others blue. Effect: the Gantt on screen. The report has its own bar colours; only with *As in the view* does it follow this choice. Where: *View › Bars › Bar colors*.
 
 **Histogram** — the histogram strip under the Gantt. Default: off. Where: *Resources › Histogram › Histogram*, *View › Panels › Histogram* or Ctrl+Shift+H. You set the height of the strip (default 160 pixels, between 80 and 480) by dragging its edge.
 
