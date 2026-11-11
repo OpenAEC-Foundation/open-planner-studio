@@ -104,7 +104,10 @@ import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControl
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
-import { type DurationSlot } from './durationForms';
+import { durationForm, type DurationSlot } from './durationForms';
+import { parseIfcDuration } from '../isoDuration';
+import { taskMinutesPerDay } from '../dayMeasureIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { foreignScanFrom, readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
 import type { IfcSource } from './ifcSource';
 import { splitStepArgs, type StepIndex } from './stepScanner';
@@ -197,6 +200,8 @@ export interface LossCheckInput {
   /** Het domein zoals gelezen (`pristineDomain`) en het domein dat de merge schrijft. */
   readonly pristine: ImportResult;
   readonly domain: WriteIFCInput;
+  /** Wat de app na openen liet zien; zonder store geldt de lezing van de bron. */
+  readonly opened?: WriteIFCInput;
   /** De eerste owner history die de lezer ziet, als die van de bron is (C of A, vóór het eerste P-stuk); anders -1. */
   readonly sourceOwnerHistory: number;
   /** Schrijft de writer het project zelf (het project van de bron is P)? */
@@ -348,7 +353,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   // Gedragen (fixronde 1 van #886): een slot is volledig gedragen als de writer op de lezing van de bron (O0) dezelfde
   // waarde teruggeeft als de bron. Zonder (b) is dat zo (O0 is dan gelijk aan de bron); met (b) alleen bij een datum of tijd
   // met dezelfde betekenis in een andere vorm (`sameMeaning`). Wat niet gedragen is, krijgt nooit de waarde van de writer.
-  const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg]))
+  const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk)))
     .map(r => `${r.chunk}:${r.outArg}`));
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
@@ -407,7 +412,8 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (explainO1(ctx1, after) !== undefined) {
         // Een datum die de planner zelf wijzigde en die de lezer volledig droeg, verliest niets (#886: F5 na een
         // duurwijziging, was knownbug 1102).
-        if (PARTIAL_KINDS.has(r.kind) && !plannerReplacedDate(ctx1, r)) say(after, true);
+        if ((PARTIAL_KINDS.has(r.kind) && !plannerReplacedDate(ctx1, r))
+          || (r.kind === 'duur' && !ctx1.carried(r.chunk, r.outArg))) say(after, true);
         continue;
       }
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
@@ -1461,7 +1467,7 @@ const WITHHELD = '@withheldTaskTimeFields';
 const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   0: ['name'],
   3: T('durationType'),
-  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime'), 'calendarId'],
+  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType'), 'calendarId'],
   5: [...T('scheduleStart'), ...DATE_FORMAT],
   6: [...T('scheduleFinish'), ...DATE_FORMAT],
   7: [...T('earlyStart'), ...DATE_FORMAT, WITHHELD],
@@ -1475,7 +1481,7 @@ const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   15: [...T('actualDuration', 'durationType'), 'calendarId'],
   16: [...T('actualStart'), ...DATE_FORMAT],
   17: [...T('actualFinish'), ...DATE_FORMAT],
-  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration'), 'calendarId'],
+  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationType'), 'calendarId'],
   19: T('completion'),
 };
 /** De velden waar de writer deze slots van `IfcTaskTime` uit schrijft, als pad (`time.scheduleDuration`, `calendarId`),
@@ -1489,7 +1495,8 @@ export function taskField(task: unknown, path: string): unknown {
   return path.startsWith('time.') ? (t.time as Record<string, unknown> | undefined)?.[path.slice(5)] : t[path];
 }
 /** `IfcRelSequence` en zijn `IfcLagTime` (`writeSequence`); ook de merge-writer leest dit (`sourceDayLagIds`). */
-export const LAG_FIELDS: readonly string[] = ['lagDays', 'lagMinutes', 'lagPercent', 'lagUnit'];
+export const LAG_VALUE_FIELDS: readonly string[] = ['lagDays', 'lagMinutes', 'lagPercent'];
+export const LAG_FIELDS: readonly string[] = [...LAG_VALUE_FIELDS, 'lagUnit'];
 const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   4: ['predecessorId'], 5: ['successorId'], 6: LAG_FIELDS, 7: ['type'],
 };
@@ -1604,6 +1611,8 @@ function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
   // Een slot dat de writer altijd als dezelfde constante schrijft, volgt uit geen enkel veld (fixronde 5, plek 6 en
   // BLOKKEERT 4): geen bewerking verklaart een verschil daar.
   if (!d.whole && CONSTANT_SLOTS[type]?.includes(arg)) return undefined;
+  const provenance = explainImportProvenance(ctx, d);
+  if (provenance !== undefined) return provenance;
   const rel = memberRelation(type);
   if (!d.whole && rel?.related === arg) return explainMembers(ctx, d);
   if (OWNER_CHAIN.has(type)) return explainField(ctx, d, type, arg);
@@ -1630,6 +1639,60 @@ function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
     whys.add(why);
   }
   return [...whys].join('; ');
+}
+
+/**
+ * 1116: de eerste bewerking wist importPristine. Alleen de bijbehorende vlagproperty mag dan weg; de lege pset en
+ * haar koppeling volgen mee. Andere bronproperties, beschrijvingen en koppelingen blijven onder de gewone bewaking.
+ * Met SourceFormat blijft de pset bestaan en mag haar ledenlijst uitsluitend deze vlag verliezen.
+ */
+function explainImportProvenance(ctx: O1Context, d: LossDiff): string | undefined {
+  const { input, p } = ctx;
+  if ((input.opened ?? input.pristine).importPristine !== true || input.domain.importPristine === true
+    || !ctx.plannerChanged.has('importPristine')) return undefined;
+  const { index } = input;
+  const type = index.type(d.chunk);
+  const parents = (chunk: number, type: string, arg: number) => {
+    const found = new Set<number>();
+    for (let k = index.inStart(chunk); k < index.inEnd(chunk); k++) {
+      const from = index.inSource(k);
+      if (from >= 0 && index.type(from) === type && index.inArg(k) === arg) found.add(from);
+    }
+    return [...found];
+  };
+  const sets = type === 'IFCPROPERTYSINGLEVALUE' ? parents(d.chunk, 'IFCPROPERTYSET', 4)
+    : type === 'IFCPROPERTYSET' ? [d.chunk]
+    : type === 'IFCRELDEFINESBYPROPERTIES' ? [index.refAt(d.chunk, 5)] : [];
+  if (sets.length !== 1) return undefined;
+  const set = sets[0];
+  if (set < 0 || index.type(set) !== 'IFCPROPERTYSET' || index.name(set) !== PSET.ImportProvenance) return undefined;
+  const setArgs = index.argTokens(set) ?? [];
+  if (setArgs.length !== 5 || setArgs[3].trim() !== '$') return undefined;
+  const members = index.refsAt(set, 4);
+  const flags = members.filter(c => c >= 0 && index.name(c) === PROP.ImportProvenance.UnchangedSinceImport);
+  if (flags.length !== 1) return undefined;
+  const flag = flags[0];
+  const flagArgs = (index.argTokens(flag) ?? []).map(t => t.trim());
+  if (index.type(flag) !== 'IFCPROPERTYSINGLEVALUE' || flagArgs.length !== 4 || flagArgs[1] !== '$'
+    || flagArgs[2] !== 'IFCBOOLEAN(.T.)' || flagArgs[3] !== '$' || parents(flag, 'IFCPROPERTYSET', 4).length !== 1) return undefined;
+  const rels = parents(set, 'IFCRELDEFINESBYPROPERTIES', 5);
+  if (rels.length !== 1) return undefined;
+  const rel = rels[0];
+  const relArgs = index.argTokens(rel) ?? [];
+  const owners = index.refsAt(rel, 4);
+  if (relArgs.length !== 6 || relArgs[2].trim() !== '$' || relArgs[3].trim() !== '$' || owners.length !== 1
+    || owners[0] < 0 || index.type(owners[0]) !== 'IFCWORKSCHEDULE' || isBaselineHead(index, owners[0])
+    || !input.fixed.has(Number(index.id(owners[0])))) return undefined;
+  if (d.whole === 'ontbreekt') {
+    if (d.chunk === flag || (members.length === 1 && (d.chunk === set || d.chunk === rel))) return 'importPristine vervalt';
+  } else if (!d.whole && d.chunk === set && (d.outArg ?? d.arg) === 4) {
+    const line = p.out.get(p.pairedOut.get(set)?.[0] ?? -1);
+    if (!line) return undefined;
+    const before = members.filter(c => c !== flag);
+    const after = refList(line.args[4]).map(id => sourceChunkOf(input, id, p));
+    if (before.length === after.length && before.every((c, i) => c === after[i])) return 'importPristine vervalt';
+  }
+  return undefined;
 }
 
 /** Eén scope `<object>|<weg>` (zie `sourceScopes`). */
@@ -1798,7 +1861,35 @@ function plannerReplacedDate(ctx: O1Context, r: SlotRestore): boolean {
  * `'7.25:00:00'` die de lezer in de enige periode van het enige patroon exact leest (`scalarHourFromClock`), een datum als
  * tekst. Een tekst zonder betekenis, of een ander slot: niet gedragen (de writer schreef iets anders).
  */
-export function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined): boolean {
+/** Minuten per dag van de bron-taak van dit slot; gedeelde slots moeten dezelfde maat hebben. */
+function taskTimeMinutesPerDay(input: LossCheckInput, chunk: number): number | undefined {
+  const { index, pristine } = input;
+  if (index.type(chunk) !== 'IFCTASKTIME') return undefined;
+  const values = new Set<number>();
+  for (let k = index.inStart(chunk); k < index.inEnd(chunk); k++) {
+    const from = index.inSource(k);
+    if (from < 0 || index.type(from) !== 'IFCTASK') continue;
+    const owner = input.bySource.get(Number(index.id(from)));
+    const task = owner?.kind === 'task' ? pristine.tasks.find(t => t.id === owner.id) : undefined;
+    if (!task) return undefined;
+    const cal = resolveCalendar(task.calendarId, pristine.resourceCalendars ?? [], pristine.calendar);
+    values.add(taskMinutesPerDay(task, effHoursPerDay(cal)));
+  }
+  return values.size === 1 ? [...values][0] : undefined;
+}
+
+export function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined, minutesPerDay?: number): boolean {
+  if (r.kind === 'duur') {
+    const slot = index.type(r.chunk) === 'IFCTASKTIME' ? TASK_TIME_DURATION_SLOTS.get(r.arg) : undefined;
+    if (!slot || !minutesPerDay || !Number.isFinite(minutesPerDay) || minutesPerDay <= 0) return false;
+    const src = index.tokenText(r.chunk, r.token);
+    const out = decodeStepText(unquote(o0Token));
+    if (!durationForm(src, slot) || !durationForm(out, slot)) return false;
+    // Dezelfde parser en kalendermaat als de lezer. Geen tolerantie en geen afronding; de vormenlijst bepaalt of
+    // deze parser dit slot volledig leest. Een gewijzigde rest mag zo van P…D naar PT… gaan.
+    const days = (text: string) => { const d = parseIfcDuration(text); return d.days + (d.timeMinutes ?? 0) / minutesPerDay; };
+    return days(src) === days(out);
+  }
   const at = DATETIME_SLOTS[index.type(r.chunk)];
   const src = r.token.trim(), out = o0Token?.trim() ?? '';
   if (!at || !at.slots.includes(r.arg) || !src.startsWith("'") || !out.startsWith("'")) return false;

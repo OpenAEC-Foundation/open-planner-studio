@@ -130,13 +130,13 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   console.log('OK zes echte wisacties: schrijven, dezelfde kalenders en inhoud na volledig heropenen');
 }
 
-// Trias: alle vier echte invoerroutes weigeren zolang de ongewijzigde duur precisie zou verliezen.
+// 1109: alle vier echte invoerroutes schrijven met de ongewijzigde duur letterlijk in het bron-slot.
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
   const base = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc'), 'utf8');
   const { splitStepArgs } = await import('@/services/ifc/foreign/stepScanner');
   const { openInStore } = await import('./ifcAppRoute');
-  let refused = 0;
+  let written = 0;
   for (const remaining of [2.3333333333333335, 1.2345678901234567]) {
     const line = base.split('\n').find(l => l.includes("IFCTASKTIME('Set up site Time'"))!;
     const args = splitStepArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
@@ -152,18 +152,20 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
       const expected = (await shownAfterOpen(input)).tasks.find(t => t.id === task.id)!;
       assert.equal(expected.time.scheduleDuration, 2.3333333333333335);
       const r = await tryMerge(input, snapshot(store).ifcSource!);
-      if (r.ok) {
-        const back = (await openForeign(r.bytes)).tasks.find(t => t.id === task.id)!;
-        console.log('STIL PRECISIEVERLIES', JSON.stringify({ remaining, edit, duration: back.time.scheduleDuration }));
-      } else {
-        assert(r.error.cases.some(c => c.kind === 'ongewijzigd-getal' && c.detail.includes(task.id)
-          && c.detail.includes('time.scheduleDuration') && c.detail.includes('2.3333333333333335') && c.detail.includes('2.333333')));
-        refused++;
-      }
+      assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+      const full = await openForeign(r.bytes);
+      const back = full.tasks.find(t => t.id === task.id)!;
+      assert.equal(back.time.scheduleDuration, 2.3333333333333335);
+      assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+      assert.equal(readbackDifference(r.shown, full), undefined, 'naad en volledige heropening exact gelijk');
+      const text = new TextDecoder().decode(r.bytes);
+      const tt = text.split('\n').find(l => l.includes("IFCTASKTIME('Set up site Time'"))!;
+      assert.equal(splitStepArgs(tt.slice(tt.indexOf('(') + 1, tt.lastIndexOf(')')))[4], "'P0Y0M2.3333333333333335D'");
+      written++;
     }
   }
-  assert.equal(refused, 4, 'alle vier weigeren getypeerd; geen stille afronding van een ongewijzigde duur');
-  console.log('OK ongewijzigd getal: alle vier echte voortgangsacties weigeren de afgeronde duur');
+  assert.equal(written, 4, 'alle vier schrijven met exact behouden duur');
+  console.log('OK 1109: vier echte voortgangsacties schrijven met de precieze bronduur');
 }
 
 // Terra R1: de echte extensie-load verandert alleen de lag-eenheid; het ongewijzigde getal moet exact blijven.
@@ -186,11 +188,41 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   assert.equal(input.sequences.find(s => s.id === seq.id)!.lagDays, seq.lagDays);
   assert.equal((await shownAfterOpen(input)).sequences.find(s => s.id === seq.id)!.lagDays, seq.lagDays);
   const r = await tryMerge(input, before.ifcSource!);
-  if (r.ok) console.log('STIL LAGVERLIES', (await openForeign(r.bytes)).sequences.find(s => s.id === seq.id)!.lagDays);
-  assert(!r.ok, 'geen bytes met een stil afgeronde ongewijzigde lag');
-  assert(r.error.cases.some(c => c.kind === 'ongewijzigd-getal' && c.detail.includes(seq.id)
-    && c.detail.includes('lagDays') && c.detail.includes('2.3333333333333335') && c.detail.includes('2.333333')));
-  console.log('OK Terra R1: echte lag-eenheidswijziging weigert getypeerd op de ongewijzigde lag');
+  assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+  const full = await openForeign(r.bytes);
+  assert.equal(full.sequences.find(s => s.id === seq.id)!.lagDays, seq.lagDays);
+  assert.equal(full.sequences.find(s => s.id === seq.id)!.lagUnit, 'ELAPSEDTIME');
+  assert(new TextDecoder().decode(r.bytes).includes("IFCDURATION('P2.3333333333333335D'),.ELAPSEDTIME."), 'de lag houdt letterlijk zijn brongetal');
+  assert.equal(readbackDifference(r.shown, full), undefined);
+  console.log('OK 1109: echte lag-eenheidswijziging schrijft met de precieze bronlag');
+}
+
+// 1116: de eerste echte bewerking wist de importvlag, zoals bij gewone opslag zonder model.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const raw = readFileSync(join(root, 'tests/planning/fixtures/ifc-arity-oude-writer.ifc'), 'utf8');
+  const model = generatedModel(root, raw, 0);
+  for (const kind of ['duur', 'doorrekenen', 'voortgang'] as const) {
+    const initial = await openForeign(model);
+    assert.equal(initial.importPristine, true);
+    const input = await applyEdit(ordinaryEdits(initial).find(e => e.kind === kind)!, cloneDomain(initial));
+    assert.equal(input.importPristine, undefined, `${kind}: echte actie wist de importvlag`);
+    const r = await tryMerge(input, initial.ifcSource!);
+    assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+    const full = await openForeign(r.bytes);
+    assert.equal(readbackDifference(r.shown, full), undefined);
+    assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+    const bare = await openForeign(new TextEncoder().encode(raw));
+    const plainInput = await applyEdit(ordinaryEdits(bare).find(e => e.kind === kind)!, cloneDomain(bare));
+    const plainText = writeIFC(plainInput);
+    const plain = await openForeign(new TextEncoder().encode(plainText));
+    for (const field of ['importPristine', 'recordedSourceFormat'] as const) {
+      assert.equal(full[field], plain[field], `${kind}: dezelfde herkomst als gewone opslag`);
+    }
+    assert(!new TextDecoder().decode(r.bytes).includes("'UnchangedSinceImport'"));
+    assert(!plainText.includes("'UnchangedSinceImport'"));
+  }
+  console.log('OK 1116: duur, duur met F5 en enterTaskProgress schrijven; herkomst gelijk aan gewone opslag');
 }
 
 // Rechtstreeks betekent werkelijk exact: dezelfde writer-canon mag deze twee lags gelijk vinden, de leeswegtoets niet.

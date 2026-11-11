@@ -44,7 +44,7 @@ import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_FIELDS, lossCheck, partialDateTime, pristineFromScan, taskField,
+  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, partialDateTime, pristineFromScan, taskField,
   taskTimeSlotFields, type LossDiff,
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
@@ -737,7 +737,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
   // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
   const o0 = built0.lines.filter(l => !l.drop);
   const { edits } = lossCheck({
-    index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain,
+    index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
     sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
     owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
@@ -1023,8 +1023,9 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
 /** Een gebroken dag in de oude vorm van OPS: `P0Y0M0.5D`, `P0Y0M-0.5D`, `-P0Y0M0.5D` of `P0.5D`, ook met een exponent. */
 const FRACTIONAL_DAY_FORM = /^-?P(?:0Y0M)?-?(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
 /** De velden achter de slots van `SourceTaskTime`, uit de ene tabel van de verliesbewaking (`taskTimeSlotFields`): duur en
- *  rest samen (slots 4 en 18), de werkelijke duur (15), en elke speling apart (11 en 12). */
-const DAY_GROUP_FIELDS = taskTimeSlotFields(4, 18);
+ *  rest elk apart (slots 4 en 18), de werkelijke duur (15), en elke speling apart (11 en 12). */
+const DURATION_FIELDS = taskTimeSlotFields(4);
+const REMAINING_FIELDS = taskTimeSlotFields(18);
 const ACTUAL_FIELDS = taskTimeSlotFields(15);
 const FREE_FLOAT_FIELDS = taskTimeSlotFields(11);
 const TOTAL_FLOAT_FIELDS = taskTimeSlotFields(12);
@@ -1056,7 +1057,8 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
       }
     }
     const exactDays = new Set<DayMeasureDurationKey>();
-    if (same(DAY_GROUP_FIELDS) && (fractional.has(4) || fractional.has(18))) { exactDays.add('ScheduleDuration'); exactDays.add('RemainingTime'); }
+    if (same(DURATION_FIELDS) && fractional.has(4)) exactDays.add('ScheduleDuration');
+    if (same(REMAINING_FIELDS) && fractional.has(18)) exactDays.add('RemainingTime');
     if (same(ACTUAL_FIELDS) && fractional.has(15)) exactDays.add('ActualDuration');
     const exactFloat = new Set<'freeFloat' | 'totalFloat'>();
     if (same(FREE_FLOAT_FIELDS) && fractional.has(11)) exactFloat.add('freeFloat');
@@ -1073,7 +1075,7 @@ function sourceDayLagIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
   const out = new Set<string>();
   for (const seq of domain.sequences) {
     const was = before.get(seq.id);
-    if (!was || LAG_FIELDS.some(f => (was as unknown as Record<string, unknown>)[f] !== (seq as unknown as Record<string, unknown>)[f])) continue;
+    if (!was || LAG_VALUE_FIELDS.some(f => (was as unknown as Record<string, unknown>)[f] !== (seq as unknown as Record<string, unknown>)[f])) continue;
     const step = source.stepIds[`seq:${seq.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     const lag = chunk >= 0 ? index.refAt(chunk, 6) : -1;
