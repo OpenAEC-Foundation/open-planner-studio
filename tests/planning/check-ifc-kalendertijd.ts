@@ -5,6 +5,7 @@ import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
+import { parseIfcClock } from '@/services/ifc/ifcClock';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
 import { effectiveWorkTimeBands, calendarForEngine, simpleBreakPatch, scalarTimesValid } from '@/utils/effectiveWorkTime';
@@ -178,6 +179,37 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   eq('1120: heropenen behoudt effectieve dag', effective(again.getState().calendar), effective(before));
   await again.getState().saveFile();
   eq('1120: tweede opslag dezelfde kalenderbytes', calendarBytes(againFile.writes[0]), calendarBytes(file.writes[0]));
+  eq('1120: tweede opslag houdt letterlijk 16:00', againFile.writes[0].includes(original), true);
+
+  // Tweede generatie: het verschil tussen bronklok en effectief einde overleeft de eerste opslag.
+  for (const example of [
+    { label: 'pauze 16:45 en begin 16:30', patches: [{ simpleBreakStartMinute: 1005 }, { workStartHour: 16.5 }], start: '16:30:00' },
+    { label: 'begin 10:00', patches: [{ workStartHour: 10 }], start: '10:00:00' },
+  ] as const) {
+    const label = `1120 tweede generatie ${example.label}`;
+    const nextFile = memoryFile(file.writes[0]), next = createAppStoreContext().store;
+    await next.getState().openOpenedFile({ name: 'tweede-generatie.ifc', content: file.writes[0], ref: { kind: 'handle', handle: nextFile.handle } });
+    let draft = structuredClone(next.getState().calendar);
+    eq(`${label}: klok en effectief einde blijven apart`, [binding(draft)?.end, binding(draft)?.scalarEnd], [960, before.workEndHour]);
+    for (const patch of example.patches) {
+      eq(`${label}: formulier accepteert ${JSON.stringify(patch)}`, scalarTimesValid(draft, patch), true);
+      draft = { ...draft, ...simpleBreakPatch(draft, patch) };
+    }
+    eq(`${label}: echte kalenderactie`, next.getState().commitCalendarLibrary(
+      next.getState().calendars.map(c => c.id === draft.id ? draft : c), draft.id), true);
+    await next.getState().saveFile();
+    eq(`${label}: schrijft eenmaal`, nextFile.writes.length, 1);
+    const saved = nextFile.writes[0];
+    if (!saved) continue;
+    eq(`${label}: effectief einde geschreven`, hasSourceClocks(saved, example.start, '17:07:24.44159999999556'), true);
+    const reopened = createAppStoreContext().store;
+    await reopened.getState().openOpenedFile({ name: 'tweede-generatie-heropend.ifc', content: saved, ref: null });
+    eq(`${label}: dezelfde werkdag na volledig heropenen`, effective(reopened.getState().calendar), effective(next.getState().calendar));
+    const bare = readIFC(saved.replace(/'WorkEndHour'/g, "'IgnoredEndHour'").replace(/'IsHourCalendar'/g, "'IgnoredCalendar'"));
+    eq(`${label}: zonder OPS-markering dezelfde dagdienst`, effectiveWorkTimeBands(bare.calendar)?.byWeekday[1],
+      [{ start: draft.workStartHour * 60, end: draft.workEndHour * 60 }]);
+    console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+  }
 
   // De afleiding en validatie van het kalenderformulier, gevolgd door de echte opslagactie.
   const changeEnd = (end: number) => {
@@ -362,13 +394,131 @@ for (const zone of ['', '+01:00']) {
   eq(`${label}: opslag weigert niet`, file.writes.length, 1);
   const saved = file.writes[0];
   if (!saved) continue;
-  eq(`${label}: tekst van de eindklok blijft letterlijk`, hasSourceClocks(saved, '10:00:00', end), true);
+  // Zonder zone is er geen bronrecord: daar schrijft de bestaande exacte klokschrijver, zoals main.
+  const writtenEnd = zone ? end : '16:20:00.000000000006821210263296962';
+  eq(`${label}: eindklok zoals main`, hasSourceClocks(saved, '10:00:00', writtenEnd), true);
   const reopened = createAppStoreContext().store;
   await reopened.getState().openOpenedFile({ name: 'laatste-decimaal-heropend.ifc', content: saved, ref: null });
   const after = reopened.getState().calendar;
   eq(`${label}: volledig heropenen geeft dezelfde werkdag en netto uren`,
     [after.workStartHour, after.workEndHour, after.hoursPerDay], [before.workStartHour, before.workEndHour, before.hoursPerDay]);
   console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+}
+
+// Fixronde 3: de oude minuutbreuk en WorkEndHour kunnen via verschillende rekenwegen binnenkomen.
+for (const zone of ['', '+01:00']) {
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const end = `15:45.21243617592245:00${zone}`;
+  const input = old.replace("'9.123456:00:00'", "'08:00:00'").replace("'16:00:00'", `'${end}'`)
+    .replace("'HoursPerDay',$,IFCREAL(8)", "'WorkEndHour',$,IFCREAL(15.753540602932038)")
+    .replace('(#36));', "(#36,#80013));\n#80013=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$);");
+  const label = `1120 oude schrijfrekenweg ${zone || 'zonder zone'}`;
+  const file = memoryFile(input), store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'oude-schrijfrekenweg.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  const current = store.getState().calendar, patch = { workStartHour: 10 };
+  eq(`${label}: effectieve eindwaarde uit metadata`, current.workEndHour, 15.753540602932038);
+  eq(`${label}: geldige beginbewerking`, scalarTimesValid(current, patch), true);
+  const draft = { ...current, ...simpleBreakPatch(current, patch) };
+  eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+    store.getState().calendars.map(c => c.id === draft.id ? draft : c), draft.id), true);
+  await store.getState().saveFile();
+  eq(`${label}: opslag weigert niet`, file.writes.length, 1);
+  const saved = file.writes[0];
+  if (!saved) continue;
+  eq(`${label}: bronklok blijft letterlijk`, hasSourceClocks(saved, '10:00:00', end), true);
+  const reopened = createAppStoreContext().store;
+  await reopened.getState().openOpenedFile({ name: 'schrijfrekenweg-heropend.ifc', content: saved, ref: null });
+  const after = reopened.getState().calendar;
+  eq(`${label}: volledig heropenen behoudt effectieve dag en netto uren`,
+    [after.workStartHour, after.workEndHour, after.hoursPerDay], [draft.workStartHour, draft.workEndHour, draft.hoursPerDay]);
+  eq(`${label}: geschreven periode binnen de afgesproken tijdgrens`, Math.abs(parseIfcClock(end)!.minutes - draft.workEndHour * 60) < 1e-9, true);
+  console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+}
+
+// Een echt, maar kleiner herstel dan de grens mag dezelfde bronklok houden, ook bij een beginbewerking.
+for (const changeStart of [false, true]) {
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const end = '15.999999999999998:00:00';
+  const input = old.replace("'9.123456:00:00'", "'08:00:00'").replace("'16:00:00'", `'${end}'`);
+  const label = `1120 klein herstel ${changeStart ? 'begin 10:00' : 'zonder bewerking'}`;
+  const file = memoryFile(input), store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'klein-herstel.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  eq(`${label}: effectief einde is hersteld naar 16`, store.getState().calendar.workEndHour, 16);
+  if (changeStart) {
+    const current = store.getState().calendar, patch = { workStartHour: 10 };
+    eq(`${label}: geldige beginbewerking`, scalarTimesValid(current, patch), true);
+    eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+      store.getState().calendars.map(c => c.id === current.id ? { ...current, ...simpleBreakPatch(current, patch) } : c), current.id), true);
+  }
+  const wanted = structuredClone(store.getState().calendar);
+  await store.getState().saveFile();
+  eq(`${label}: schrijft eenmaal`, file.writes.length, 1);
+  const saved = file.writes[0];
+  if (!saved) continue;
+  eq(`${label}: bronklok blijft`, hasSourceClocks(saved, changeStart ? '10:00:00' : '08:00:00', end), true);
+  eq(`${label}: geschreven eindklok binnen de tijdgrens`, Math.abs(parseIfcClock(end)!.minutes - wanted.workEndHour * 60) < 1e-9, true);
+  const reopened = createAppStoreContext().store;
+  await reopened.getState().openOpenedFile({ name: 'klein-herstel-heropend.ifc', content: saved, ref: null });
+  const after = reopened.getState().calendar;
+  eq(`${label}: volledig heropenen bewaart de werkdag`, [after.workStartHour, after.workEndHour, after.hoursPerDay],
+    [wanted.workStartHour, wanted.workEndHour, wanted.hoursPerDay]);
+  console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+}
+
+// 1124: een tegenstrijdige bron met 24 seconden verschil heeft geen zone voor het effectieve einde.
+for (const zone of ['', '+01:00']) {
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const input = old.replace("'9.123456:00:00'", "'08:00:00'").replace("'16:00:00'", `'16:20:00${zone}'`)
+    .replace("'HoursPerDay',$,IFCREAL(8)", "'WorkEndHour',$,IFCREAL(16.34)");
+  const label = `1124 tegenstrijdige bron ${zone || 'zonder zone'}`;
+  const file = memoryFile(input), store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'tegenstrijdige-bron.ifc', content: input, ref: { kind: 'handle', handle: file.handle } });
+  const current = store.getState().calendar, patch = { workStartHour: 10 };
+  eq(`${label}: geldige beginbewerking`, scalarTimesValid(current, patch), true);
+  eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+    store.getState().calendars.map(c => c.id === current.id ? { ...current, ...simpleBreakPatch(current, patch) } : c), current.id), true);
+  const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
+  let typed = false;
+  try { writeIFC(buildWriteIFCInput(store.getState())); } catch (e) { typed = e instanceof IfcCalendarTimePrecisionError; }
+  eq(`${label}: alleen de tegenstrijdige zone weigert getypeerd`, typed, !!zone);
+  const realError = console.error;
+  console.error = () => {};
+  try { await store.getState().saveFile(); } finally { console.error = realError; }
+  eq(`${label}: opslaguitkomst`, file.writes.length, zone ? 0 : 1);
+  if (zone) {
+    eq(`${label}: zichtbare opslagmelding`, store.getState().ui.notifications.some(n => n.messageKey === 'notifications.saveFailed'), true);
+    continue;
+  }
+  const saved = file.writes[0];
+  if (!saved) continue;
+  eq(`${label}: effectief einde geschreven`, hasSourceClocks(saved, '10:00:00', '16:20:24'), true);
+  const reopened = createAppStoreContext().store;
+  await reopened.getState().openOpenedFile({ name: 'tegenstrijdige-bron-heropend.ifc', content: saved, ref: null });
+  const after = reopened.getState().calendar, wanted = store.getState().calendar;
+  eq(`${label}: volledig heropenen bewaart de werkdag`, [after.workStartHour, after.workEndHour, after.hoursPerDay],
+    [wanted.workStartHour, wanted.workEndHour, wanted.hoursPerDay]);
+}
+
+// Zonder bronrecord blijft de bestaande exacte klokschrijver beslissend, zoals main.
+{
+  const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
+  const file = memoryFile(old), store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'zonder-bronrecord.ifc', content: old, ref: { kind: 'handle', handle: file.handle } });
+  const current = store.getState().calendar;
+  const draft = { ...current, ifcTimePeriods: undefined, workStartHour: 8.000000000000002, workEndHour: 16, hoursPerDay: 8 };
+  eq('1120 zonder bronrecord: echte kalenderactie', store.getState().commitCalendarLibrary(
+    store.getState().calendars.map(c => c.id === current.id ? draft : c), current.id), true);
+  await store.getState().saveFile();
+  eq('1120 zonder bronrecord: schrijft eenmaal', file.writes.length, 1);
+  const saved = file.writes[0];
+  if (saved) {
+    eq('1120 zonder bronrecord: exacte klok zoals main', hasSourceClocks(saved, '08:00:00.000000000006821210263296962', '16:00:00'), true);
+    const reopened = createAppStoreContext().store;
+    await reopened.getState().openOpenedFile({ name: 'zonder-bronrecord-heropend.ifc', content: saved, ref: null });
+    const after = reopened.getState().calendar;
+    eq('1120 zonder bronrecord: volledig heropenen bewaart de werkdag', [after.workStartHour, after.workEndHour, after.hoursPerDay],
+      [draft.workStartHour, draft.workEndHour, draft.hoursPerDay]);
+  }
 }
 
 // Een expliciete middagpauze blijft effectief, ook als alleen de bronstart seconden krijgt.
