@@ -23,6 +23,7 @@ import { cloneDomain, openForeign, settle, type Opened } from './ifcMergeKern';
 import { DURATION_FORMS, durationForm, type DurationSlot } from '@/services/ifc/foreign/durationForms';
 import { OLD_FRACTIONAL_CLOCK, dateTimeTexts, durationTexts, partialDateTime } from '@/services/ifc/foreign/lossCheck';
 import { StepScanError, scanStep, type StepScanReason } from '@/services/ifc/foreign/stepScanner';
+import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -96,7 +97,7 @@ ok(`de lag #631 is te vinden in het domein (${LAG_SEQ})`, LAG_SEQ !== undefined 
 /** De waarde op die plek na openen, als tekst als er iets anders mis is. */
 async function readValue(use: Use, v: string): Promise<Value | string> {
   let o: Opened;
-  try { o = await openForeign(latin1(sourceWith(use, v))); } catch (e) { return `fout bij openen: ${(e as Error).message.slice(0, 100)}`; }
+  try { o = await openForeign(latin1(sourceWith(use, v))); } catch (e) { return e instanceof IfcParseError && e.reason === 'duration' ? 'duration' : `fout bij openen: ${(e as Error).message.slice(0, 100)}`; }
   if (use.startsWith('lag')) {
     const q = o.sequences[lagKey(o).indexOf(LAG_SEQ)];
     if (!q) return 'geen lag';
@@ -196,35 +197,35 @@ for (const form of DURATION_FORMS) {
 }
 ok('elke vorm heeft een unieke naam', new Set(DURATION_FORMS.map(f => f.name)).size === DURATION_FORMS.length);
 
-// ── 3: wat de lezer anders leest, valt buiten de lijst ──
-// [plek, tekst, de waarde die de lezer er nu van maakt, waarom]. `undefined`: alleen buiten de lijst (geen leesfout bekend).
-const OUTSIDE: readonly (readonly [Use, string, Value | undefined, string])[] = [
-  ['duur', 'PT-2H', m(120), 'knownbug 1034: het minteken in het tijddeel valt weg'],
-  ['werkelijk', 'PT-12H', d(1.5), 'knownbug 1034'],
-  ['lag-werktijd', 'PT-2H', m(120), 'knownbug 1034'],
-  ['lag-kalendertijd', 'PT-2H', m(120), 'knownbug 1034'],
-  ['duur', 'PT90S', m(2), 'knownbug 1035: 1,5 minuut wordt 2'],
-  ['duur', 'PT30S', m(1), 'knownbug 1035: een halve minuut wordt 1'],
-  ['duur', 'PT0.01H', m(1), 'knownbug 1035: 0,6 minuut wordt 1'],
-  ['rest-urentaak', 'PT90S', m(2), 'knownbug 1035'],
-  ['lag-werktijd', 'PT90S', m(2), 'knownbug 1035'],
-  ['lag-kalendertijd', 'PT1M30S', m(2), 'knownbug 1035'],
-  ['duur', 'P1,5D', d(5), 'knownbug 1029: alleen de cijfers na de komma'],
-  ['lag-oud', 'P1,5D', d(5), 'knownbug 1029'],
-  ['lag-werktijd-ongetypt', 'P1,5D', d(5), 'knownbug 1029'],
-  ['duur', 'P1W', d(0), 'knownbug 1028: weken'],
-  ['duur', 'P0Y2M3D', d(3), 'knownbug 1028: maanden'],
-  ['duur', 'p3d', d(0), 'knownbug 1030: kleine letters'],
-  ['duur', 'P1E1D', d(10), 'knownbug 1030: een exponent met hoofdletter'],
-  ['duur', 'PT1H1H', m(60), 'knownbug 1030: een deel twee keer'],
-  ['duur', 'PT30M12H', m(750), 'knownbug 1030: de delen in een andere volgorde'],
-  ['vrije-speling', 'PT28H', d(4), 'knownbug 1033: een speling in hele dagen naar boven (3,5 wordt 4)'],
-  ['totale-speling', 'P2DT12H', d(2), 'knownbug 1033: de uren na de dagen vallen weg'],
-  ['totale-speling', 'PT90M', d(0), 'knownbug 1033: minuten vallen weg'],
+// ── 3: de merge blijft conservatief; de lezer leest deze vormen exact of weigert ze ──
+// [plek, tekst, de huidige leeswaarde of weigering, historische aanleiding]. `undefined`: alleen buiten de lijst (geen leesfout bekend).
+const OUTSIDE: readonly (readonly [Use, string, Value | 'duration' | undefined, string])[] = [
+  ['duur', 'PT-2H', 'duration', 'knownbug 1034: het minteken in het tijddeel valt weg'],
+  ['werkelijk', 'PT-12H', 'duration', 'knownbug 1034'],
+  ['lag-werktijd', 'PT-2H', 'duration', 'knownbug 1034'],
+  ['lag-kalendertijd', 'PT-2H', 'duration', 'knownbug 1034'],
+  ['duur', 'PT90S', m(1.5), 'knownbug 1035: 1,5 minuut wordt 2'],
+  ['duur', 'PT30S', m(.5), 'knownbug 1035: een halve minuut wordt 1'],
+  ['duur', 'PT0.01H', m(.6), 'knownbug 1035: 0,6 minuut wordt 1'],
+  ['rest-urentaak', 'PT90S', m(1.5), 'knownbug 1035'],
+  ['lag-werktijd', 'PT90S', m(1.5), 'knownbug 1035'],
+  ['lag-kalendertijd', 'PT1M30S', m(1.5), 'knownbug 1035'],
+  ['duur', 'P1,5D', d(1.5), 'knownbug 1029: alleen de cijfers na de komma'],
+  ['lag-oud', 'P1,5D', d(1.5), 'knownbug 1029'],
+  ['lag-werktijd-ongetypt', 'P1,5D', d(1.5), 'knownbug 1029'],
+  ['duur', 'P1W', 'duration', 'knownbug 1028: weken'],
+  ['duur', 'P0Y2M3D', 'duration', 'knownbug 1028: maanden'],
+  ['duur', 'p3d', 'duration', 'knownbug 1030: kleine letters'],
+  ['duur', 'P1E1D', 'duration', 'knownbug 1030: een exponent met hoofdletter'],
+  ['duur', 'PT1H1H', 'duration', 'knownbug 1030: een deel twee keer'],
+  ['duur', 'PT30M12H', 'duration', 'knownbug 1030: de delen in een andere volgorde'],
+  ['vrije-speling', 'PT28H', d(3.5), 'knownbug 1033: een speling in hele dagen naar boven (3,5 wordt 4)'],
+  ['totale-speling', 'P2DT12H', d(3.5), 'knownbug 1033: de uren na de dagen vallen weg'],
+  ['totale-speling', 'PT90M', d(.1875), 'knownbug 1033: minuten vallen weg'],
   ['totale-speling', 'PT8H', d(1), 'knownbug 1033: hier toevallig exact (8 uur per dag), de lijst kent de kalender niet'],
-  ['lag-werktijd', 'P1DT2H', m(1560), "knownbug 1033: de dag vóór T telt als 24 uur werktijd, terwijl 'P1D' één werkdag is"],
-  ['lag-oud', 'P1DT2H', d(1), 'de oude lagvorm leest alleen dagen: de 2 uur vallen weg'],
-  ['lag-oud', 'PT10H', d(2), 'de oude lagvorm leest uren als hele werkdagen naar boven'],
+  ['lag-werktijd', 'P1DT2H', m(600), "knownbug 1033: de dag vóór T telt als 24 uur werktijd, terwijl 'P1D' één werkdag is"],
+  ['lag-oud', 'P1DT2H', m(600), 'de oude lagvorm leest alleen dagen: de 2 uur vallen weg'],
+  ['lag-oud', 'PT10H', m(600), 'de oude lagvorm leest uren als hele werkdagen naar boven'],
   ['duur', '-P2D', undefined, 'een negatieve taakduur: OPS schrijft die nooit'],
   ['duur', 'P0Y0M-2D', undefined, 'een negatieve taakduur: OPS schrijft die nooit'],
   ['rest-dagtaak', '-PT2H', undefined, 'een negatieve restduur: OPS schrijft die nooit'],
@@ -235,7 +236,7 @@ for (const [use, v, reads, why] of OUTSIDE) {
   ok(`buiten de lijst · ${use} '${v}' (${why}): kreeg de vorm ${form?.name}`, form === undefined);
   if (reads === undefined) continue;
   const got = await readValue(use, v);
-  ok(`buiten de lijst · ${use} '${v}': de lezer leest nu ${show(reads)} (kreeg ${show(got)}; ${why})`, same(got, reads));
+  ok(`buiten de lijst · ${use} '${v}': de lezer leest nu ${show(reads)} (kreeg ${show(got)}; ${why})`, typeof reads === 'string' ? got === reads : same(got, reads));
 }
 
 // ── 4: elke duur in een eigen bestand van OPS staat op de lijst ──

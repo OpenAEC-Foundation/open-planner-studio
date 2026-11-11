@@ -1,3 +1,4 @@
+import { parseIfcDuration } from './isoDuration';
 import { milestoneWasAtDayEnd } from './ifcPsets';
 import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
@@ -281,10 +282,7 @@ export function readIFC(
   const guidLog: Record<string, string> = {};
   // Alleen met `stepIdsOut`: dezelfde sleutels als `guidLog`, met het STEP-id (ook zonder GlobalId).
   const stepLog: Record<string, string> | undefined = options.stepIdsOut ? {} : undefined;
-  const sequences = extractSequences(
-    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
-    stepLog,
-  );
+
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
   // kinderen krijgen (`indentTasks`, `updateTask`, de checkbox) en de writer schrijft die vlag rauw —
@@ -358,6 +356,17 @@ export function readIFC(
   // de OPS_SchedulingProfile-pset wint, anders `legacyOptionsToProfile` over het gelezen blok —, dán
   // conventiesleutels en de XER-bronmarkering strippen: het project draagt alleen projectopties.
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
+  const sequences = extractSequences(
+    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
+    stepLog,
+    (predId, succId) => {
+      const mode = schedulingOptions?.lagCalendar;
+      if (mode === '24hour') return 24;
+      const id = mode === 'successor' ? succId : predId;
+      const task = tasks.find(t => t.id === id);
+      return effHoursPerDay(mode === 'projectDefault' ? calendar : resolveCalendar(task?.calendarId, resourceCalendars, calendar));
+    },
+  );
   const schedulingProfile = profileAfterRead(extractSchedulingProfile(entities, entityMap), schedulingOptions);
   if (schedulingProfile) project.schedulingProfile = schedulingProfile;
   const projectOptions = optionKeysOnly(schedulingOptions);
@@ -1326,68 +1335,13 @@ function parseDateFromIFC(s: string): string {
 
 function parseDurationDays(s: string, hoursPerDay: number): number {
   if (!s || s === '$') return 0;
-  const clean = stripQuotes(s);
-  // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Negatief kan op twee manieren voorkomen:
-  // standaardconform met voorloopteken vóór de P ('-P2D', zo schrijven wij een lead) of als
-  // app-interne legacy-notatie met het teken bij het getal ('P0Y0M-2D'). Beide lezen.
-  // Het getal mag een decimale fractie hebben (ISO 8601 staat die toe op de kleinste component, en
-  // onze writer schrijft een fractionele dag als `P0Y0M2.5D`); een kaal `(\d+)` pakt bij `2.5D`
-  // alleen de cijfers ná de punt. De exponent is er alleen voor oudere bestanden zonder
-  // writer-afronding (`1e-7` mag geen −7 worden); een getal
-  // dat daardoor niet eindig is (`1e999`) telt als 0. Decimaalkomma bewust niet: `isoDurationToMinutes`
-  // leest die ook niet, en een van beide laten afwijken zou `PT4,5H` per pad anders lezen.
-  const leadingNeg = clean.startsWith('-');
-  const applySign = (n: number) => (leadingNeg && n > 0 ? -n : n);
-  const dayMatch = clean.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
-  if (dayMatch) {
-    const d = parseFloat(dayMatch[1]);
-    return Number.isFinite(d) ? applySign(d) : 0;
-  }
-  const hourMatch = clean.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)H/);
-  if (hourMatch) {
-    const h = parseFloat(hourMatch[1]);
-    if (!Number.isFinite(h)) return 0;
-    // Kale `PT{n}H` (andermans bestand) ⇒ werkdagen van de meegegeven kalender, niet van een vaste 8
-    // (zoals de MSPDI-lezer).
-    return applySign(h < 0 ? -Math.ceil(-h / hoursPerDay) : Math.ceil(h / hoursPerDay));
-  }
-  return 0;
+  const duration = parseIfcDuration(stripQuotes(s));
+  return duration.days + (duration.timeMinutes ?? 0) / (hoursPerDay * 60);
 }
 
-/**
- * Het dag-deel (`P{d}D`, VÓÓR een eventuele `T`) van een ISO-8601-duur, in minuten. Bewust LOKAAL
- * (niet in `subdayIo.ts`'s `isoDurationToMinutes`, die andere aanroepers heeft): alleen voor de
- * verdedigende lag-leestak hierboven, voor bestanden van andere tools — onze eigen schrijver
- * (`minutesToIsoDuration`) emitteert nooit een dag-component vóór `T`.
- *
- * Geïnterpreteerd als KALENDERTIJD (1D = 1440 minuten), niet als werkdag × hoursPerDay: ISO 8601 is
- * kalendertijd (`CPMSolver.resolveElapsedMinutes` rekent een ELAPSEDTIME-dag-lag ook ×24×60), en de
- * kalender van de voorganger is hier nog niet bekend (sequences worden vóór de kalendertoewijzing
- * geëxtraheerd). Bij een WORKTIME-lag is `lagMinutes` in dit randgeval dus licht ruw — bewust, want
- * het dag-deel laten verdwijnen is strikt slechter.
- *
- * Geen dag-component vóór `T` ⇒ 0.
- */
-function isoDurationLeadingDaysMinutes(iso: string): number {
-  return Math.round(isoDurationLeadingDays(iso) * 1440);
-}
-
-/** Het dag-deel vóór `T` als aantal dagen (met teken, mag een breuk zijn), of 0. De lag rekent het om als
- *  kalendertijd (`isoDurationLeadingDaysMinutes`); de taakduur met de minuten per dag van de taak
- *  (`applyTaskTimeRecords`, knownbug 1027). */
+/** Het dagdeel wordt pas bij de effectieve taak- of lagkalender omgerekend. */
 function isoDurationLeadingDays(iso: string): number {
-  const clean = iso.trim();
-  const neg = clean.startsWith('-');
-  const tIdx = clean.indexOf('T');
-  const datePart = tIdx >= 0 ? clean.slice(0, tIdx) : '';
-  // Zelfde getalvorm als `parseDurationDays`: een decimale fractie mag (ISO 8601; een kaal `(\d+)`
-  // leest bij `P1.5DT2H` alleen de cijfers ná de punt, 5 dagen). Het resultaat
-  // blijft een hele minuut, zoals `isoDurationToMinutes` levert.
-  const dayMatch = datePart.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
-  if (!dayMatch) return 0;
-  const days = parseFloat(dayMatch[1]);
-  if (!Number.isFinite(days)) return 0;
-  return neg && days > 0 ? -days : days;
+  return !iso || iso === '$' ? 0 : parseIfcDuration(iso).days;
 }
 
 function parseTaskType(s: string): TaskType {
@@ -1608,8 +1562,8 @@ function applyHourModeIFC(
  * `[exacte minuten, geschreven minuten]` in `OPS_WorkRule.ExactMinutes`. Zelfde leesregel: draagt het slot
  * nog de geschreven minuten, dan komt de exacte bron terug; anders geldt het slot.
  * Speling: het slot draagt hele dagen; `OPS_Analysis.ExactFloat` de exacte dagen en de minuten. Het
- * record telt alleen als het slot nog de afgeronde dagen van het record draagt. Zonder geldig record
- * blijft de speling zoals het slot haar gaf, zonder minuten (de lezer leidt niets af).
+ * record telt alleen als een dagvorm nog de afgeronde dagen van het record draagt. Een expliciet
+ * tijdslot houdt zijn eigen exacte dagen en minuten; een dagvorm zonder record levert geen minuten.
  */
 function applyTaskTimeRecords(
   tasks: Task[],
@@ -1632,7 +1586,7 @@ function applyTaskTimeRecords(
     const slotMinutes = (index: number) => {
       const minutes = isoDurationToMinutes(stripQuotes(e.args[index] || ''));
       const days = minutes === null ? 0 : slotDays(index);
-      return minutes === null || days === 0 ? minutes : minutes + Math.round(days * minutesPerDay);
+      return minutes === null || days === 0 ? minutes : minutes + days * minutesPerDay;
     };
     if (t.durationUnit === 'hours' && slotDays(TASKTIME_SLOT.scheduleDuration) !== 0) {
       const minutes = slotMinutes(TASKTIME_SLOT.scheduleDuration)!;
@@ -1687,12 +1641,25 @@ function applyTaskTimeRecords(
       else if (minutesPerDay > 0) t.actualDuration = actualMinutes / minutesPerDay;
     }
 
+    for (const [slot, field, minuteField] of [
+      [TASKTIME_SLOT.totalFloat, 'totalFloat', 'totalFloatMinutes'],
+      [TASKTIME_SLOT.freeFloat, 'freeFloat', 'freeFloatMinutes'],
+    ] as const) {
+      const minutes = slotMinutes(slot);
+      if (minutes !== null && minutesPerDay > 0) {
+        t[field] = minutes / minutesPerDay;
+        t[minuteField] = minutes;
+      }
+    }
+
     const floats = readExactFloat(task);
     if (floats) {
       const exact = (key: 'TotalFloat' | 'FreeFloat', slot: number, apply: (days: number, minutes: number | null) => void) => {
         const record = floats[key];
         const raw = e.args[slot];
-        if (!record || !raw || raw === '$') return;
+        // Het record hoort bij de afgeronde dagvorm van OPS. Een extern tijdslot draagt
+        // zelf de exacte speling, ook wanneer het dezelfde afgeronde dagen oplevert.
+        if (!record || !raw || raw === '$' || isoDurationToMinutes(stripQuotes(raw)) !== null) return;
         apply(record[0], record[1]);
       };
       exact('TotalFloat', TASKTIME_SLOT.totalFloat, (days, minutes) => {
@@ -2021,7 +1988,8 @@ function extractSequences(
   exactMinuteLags: ReadonlyMap<string, ExactMinutesRecord>,
   hoursPerDay: number,
   guidLog: Record<string, string>,
-  stepLog?: Record<string, string>,
+  stepLog: Record<string, string> | undefined,
+  lagHoursPerDay: (predId: string, succId: string) => number,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -2053,35 +2021,21 @@ function extractSequences(
       if (lagEntity && lagEntity.type === 'IFCLAGTIME') {
         // Welk slot de waarde draagt, kiest `lagValueSlot` (gedeeld met de verliesbewaking van de merge).
         const lagValue = lagValueSlot(lagEntity.args);
-        const durType = (lagEntity.args[4] || '').trim();
+        const durType = (lagEntity.args[lagValue.kind === LAG_SLOT.oud ? 3 : 4] || '').trim();
         if (lagValue.kind === LAG_SLOT.ratio) {
           // Ratio → procent; afronden tegen floating-point-ruis (0.33*100 = 33.000000000000004).
           lagPercent = Math.round(parseFloat(lagValue.text) * 100 * 1e6) / 1e6;
-        } else if (lagValue.kind === LAG_SLOT.duur || lagValue.kind === LAG_SLOT.tekst) {
-          // EERST `lagMinutes` proberen (discriminator (c), subdayIo/mspdiReader-conventie "geen
-          // dag-afronding"). Een duur MET tijdcomponent (`PT2H0M0S`) is minuut-precies ⇒ `lagDays`
-          // blijft 0, nooit de grove uur→dag-ceil van `parseDurationDays` (die zou een correcte
-          // `lagMinutes` stilzwijgend overschrijven met een afgeronde dag, 2u → +1d).
-          // Alleen een PUUR dag-duur (`P{d}D`, geen `T`) levert `isoDurationToMinutes === null` en
-          // valt terug op `parseDurationDays`. Een ongetypte duur-string (`tekst`, soepel lezen van
-          // andermans bestanden) gaat langs dezelfde weg.
+        } else {
+          // Huidige en oude stringslots delen dezelfde parser en kalenderkeuze.
           const raw = stripQuotes(lagValue.text);
           const timeMinutes = isoDurationToMinutes(raw);
           if (timeMinutes != null) {
-            // GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
-            // eigen schrijver emitteert nooit een dag-component vóór de `T` (zie `minutesToIsoDuration`),
-            // maar deze soepel-lezen-tak bestaat juist voor andermans bestanden. Zonder dit zou het
-            // dag-deel stil verdwijnen (`isoDurationLeadingDaysMinutes` hieronder). Samen optellen i.p.v.
-            // kiezen voorkomt dataverlies aan beide kanten.
-            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
+            lagMinutes = timeMinutes + isoDurationLeadingDays(raw) * (/ELAPSEDTIME/i.test(durType) ? 1440 : lagHoursPerDay(predId, succId) * 60);
             lagDays = 0;
           } else {
             lagMinutes = undefined;
             lagDays = parseDurationDays(lagValue.text, hoursPerDay);
           }
-        } else {
-          // Legacy-lay-out: de duur staat in arg 5.
-          lagDays = parseDurationDays(lagValue.text, hoursPerDay);
         }
         if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }
