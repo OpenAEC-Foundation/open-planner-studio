@@ -118,6 +118,14 @@ export class SettingsUnreadableError extends Error {
   }
 }
 
+/** De wijziging van de layouts kwam niet in de opslag (vol, geblokkeerd, of de host hield haar tegen). */
+export class LayoutsNotSavedError extends Error {
+  constructor() {
+    super('Layouts niet opgeslagen');
+    this.name = 'LayoutsNotSavedError';
+  }
+}
+
 /**
  * Afwijzing van `loadLayouts().then(set, ignoreUnreadable)`: bij een leesfout blijft de vorige lijst staan (of
  * blijft de lijst ongeladen, zodat er niets op te slaan valt). Een andere fout gaat door.
@@ -572,6 +580,8 @@ export function updateLayouts(change: (current: Layout[]) => Layout[]): Promise<
   const run = layoutUpdates.then(async () => {
     const next = change(await loadLayouts());
     await saveLayouts(next);
+    // `writeLocal` slikt een schrijffout in: lees terug of de lijst er echt staat, anders telt het niet als opgeslagen.
+    if (JSON.stringify(await loadStoredLayouts()) !== JSON.stringify(normalizeLayouts(next))) throw new LayoutsNotSavedError();
     return next;
   });
   layoutUpdates = run.catch(() => undefined);

@@ -103,6 +103,10 @@ export function LayoutsDialog() {
   // lezing (opslag even niet te lezen) en lukt een latere verversing, dan vult die het formulier; anders zou
   // Opslaan de bestaande layout vervangen door een leeg formulier (knownbug 1362).
   const filledRef = useRef(false);
+  // Bewerk je een bestaande layout, dan is het formulier vergrendeld tot die layout gelezen is: invoer van vóór
+  // die tijd zou het vullen anders overschrijven (review Terra #905, ronde 3).
+  const [filled, setFilled] = useState(false);
+  const waiting = targetId !== null && !filled;
   const receive = useCallback((all: Layout[]) => {
     setLayouts(all);
     if (filledRef.current) return;
@@ -111,6 +115,7 @@ export function LayoutsDialog() {
     // binnen, dan vult die lijst het formulier alsnog (review Terra #905, ronde 2).
     if (targetId && !target) return;
     filledRef.current = true;
+    setFilled(true);
     if (!target) return;
     setName(target.name);
     setIcon(target.icon ?? 'layout');
@@ -128,6 +133,7 @@ export function LayoutsDialog() {
   useEffect(() => {
     let cancelled = false;
     filledRef.current = false;
+    setFilled(false);
     // Niet te lezen: de lijst blijft ongeladen en Opslaan staat uit.
     void loadLayouts().then(all => { if (!cancelled) receive(all); }, ignoreUnreadable);
     return () => { cancelled = true; };
@@ -152,7 +158,7 @@ export function LayoutsDialog() {
   });
 
   const save = () => {
-    if (!layouts || parts.length === 0) return;
+    if (!layouts || waiting || parts.length === 0) return;
     const finalName = name.trim() || t('common:view.layout.name');
     const layout = build(target?.id ?? fromScreen().id, finalName);
     // Op de vers gelezen lijst, niet op `layouts`: die mist wat intussen elders is opgeslagen.
@@ -303,7 +309,7 @@ export function LayoutsDialog() {
         }}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4" data-ops-layout-dialog="true">
+      <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4" data-ops-layout-dialog="true" inert={waiting} aria-busy={waiting}>
         <label className="flex flex-col gap-1">
           <span className="ui-card-header !text-small">{t('common:view.layout.name')}</span>
           <input
@@ -387,7 +393,7 @@ export function LayoutsDialog() {
         <button onClick={close} className="btn btn--sm btn--secondary">{t('common:cancel')}</button>
         <button
           onClick={applyOnly}
-          disabled={parts.length === 0}
+          disabled={waiting || parts.length === 0}
           className="btn btn--sm btn--secondary"
           title={t('common:view.layout.infoApplyOnly')}
           data-ops-layout-apply-only="true"
@@ -396,7 +402,7 @@ export function LayoutsDialog() {
         </button>
         <button
           onClick={save}
-          disabled={!layouts || parts.length === 0}
+          disabled={!layouts || waiting || parts.length === 0}
           className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]"
           data-ops-layout-save="true"
         >

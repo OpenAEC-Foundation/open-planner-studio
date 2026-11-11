@@ -8,7 +8,7 @@ import {
   dropBrokenLayouts, liveSessionLayouts, migrateSavedFilters, pickLayoutParts, switchLayoutOff, switchLayoutOn,
   type LayoutViewParts,
 } from '@/engine/view/layoutPresets';
-import { loadLayouts, saveLayouts, SettingsUnreadableError, updateLayouts } from '@/utils/settingsStore';
+import { LayoutsNotSavedError, loadLayouts, saveLayouts, SettingsUnreadableError, updateLayouts } from '@/utils/settingsStore';
 import { generateId } from '@/utils/id';
 import type { FilterNode, Layout, LayoutOverlays, SavedFilter } from '@/types/view';
 
@@ -260,6 +260,18 @@ const first: Layout = { id: 'eerste', name: 'Eerste', group: [] };
 const second: Layout = { id: 'tweede', name: 'Tweede', group: [] };
 await Promise.all([updateLayouts(current => [...current, first]), updateLayouts(current => [...current, second])]);
 ok((await loadLayouts()).map(l => l.id).join(',') === 'builtin:resource-diagram,eerste,tweede', 'updateLayouts: twee gelijktijdige wijzigingen blijven allebei staan');
+// Een schrijffout telt niet als opgeslagen (review Terra #905, ronde 3): `writeLocal` slikt haar in, dus leest
+// `updateLayouts` terug en gooit `LayoutsNotSavedError`.
+const setItemBefore = localStorage.setItem;
+localStorage.setItem = (key: string, value: string) => {
+  if (key === 'ops-taskGridLayouts') throw new Error('QuotaExceededError');
+  storage.set(key, value);
+};
+let writeError: unknown = null;
+try { await updateLayouts(current => [...current, { id: 'vol', name: 'Vol', group: [] }]); } catch (e) { writeError = e; }
+localStorage.setItem = setItemBefore;
+ok(writeError instanceof LayoutsNotSavedError, 'updateLayouts: een schrijffout gooit LayoutsNotSavedError');
+ok(!(await loadLayouts()).some(l => l.id === 'vol'), 'updateLayouts: na een schrijffout staat de layout niet in de opslag');
 
 // De migratie van opgeslagen filters zet haar vlag pas als de samengevoegde lijst echt in de opslag staat (review Sol
 // #905): kan de opslag niet schrijven (vol), dan probeert de volgende lezing het opnieuw en blijft het filter bereikbaar.

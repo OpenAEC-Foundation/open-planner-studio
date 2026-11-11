@@ -173,6 +173,26 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
   await expect.poll(storedNames).toContain('Na een leesfout');
   await expect(nameField).toHaveValue('');
+  // Ook een schrijffout (opslag vol) telt niet als opgeslagen: een melding en de naam blijft (review Terra #905, ronde 3).
+  const notSavedCount = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .filter(n => n.messageKey === 'notifications.layoutsNotSaved').length);
+  const countBefore = await notSavedCount();
+  await page.evaluate(() => {
+    const w = window as unknown as { opsRealSetItem?: Storage['setItem'] };
+    const realSetItem = w.opsRealSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key === 'ops-taskGridLayouts') throw new DOMException('vol', 'QuotaExceededError');
+      return realSetItem.call(this, key, value);
+    };
+  });
+  await nameField.fill('Opslag vol');
+  await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect.poll(notSavedCount).toBeGreaterThan(countBefore);
+  await expect(nameField).toHaveValue('Opslag vol');
+  await page.evaluate(() => {
+    Storage.prototype.setItem = (window as unknown as { opsRealSetItem: Storage['setItem'] }).opsRealSetItem;
+  });
+  expect(await storedNames()).not.toContain('Opslag vol');
   await filterDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
 });
 
@@ -421,12 +441,16 @@ test('layoutdialoog: een oude layout bewerken voegt geen overlays toe', async ({
   await page.locator('[data-ops-layout-button="oud"] button').click({ button: 'right' });
   await page.getByRole('button', { name: /^(Edit…|Bewerken…)$/ }).click();
   await expect(page.locator('[data-ops-layout-save]')).toBeDisabled();
+  // Het formulier is vergrendeld tot de layout gelezen is: invoer van vóór die tijd zou anders verloren gaan
+  // (review Terra #905, ronde 3).
+  await expect(dialog).toHaveAttribute('inert', '');
   await page.evaluate(() => {
     Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;
     const value = localStorage.getItem('ops-taskGridLayouts');
     window.dispatchEvent(new StorageEvent('storage', { key: 'ops-taskGridLayouts', oldValue: value, newValue: value, storageArea: localStorage }));
   });
   await expect(dialog.locator('[data-ops-layout-name]')).toHaveValue('Oud, hernoemd');
+  await expect(dialog).not.toHaveAttribute('inert');
   await page.locator('[data-ops-layout-save]').click();
   await expect(dialog).toHaveCount(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts)).toEqual(stored);

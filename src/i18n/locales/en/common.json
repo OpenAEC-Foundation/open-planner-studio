@@ -347,7 +347,7 @@
     "dependentProjectsFailed": "The folder with dependent projects could not be read.",
     "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library.",
     "reportLayoutGone": "The report's layout no longer exists. The report shows all tasks again.",
-    "layoutsNotSaved": "The saved layouts could not be read. Nothing was saved. Please try again."
+    "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",

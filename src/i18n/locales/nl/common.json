@@ -347,7 +347,7 @@
     "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen.",
     "costTypeChangeRefused": "De resourcebibliotheek wil het type wisselen tussen kosten en een ander type. De resource heeft toewijzingen in dit project, dus het type blijft zoals het is. De resource staat nu als afwijkend van de bibliotheek.",
     "reportLayoutGone": "De layout van het rapport bestaat niet meer. Het rapport toont weer alle taken.",
-    "layoutsNotSaved": "De opgeslagen layouts konden niet worden gelezen. Er is niets opgeslagen. Probeer het opnieuw."
+    "layoutsNotSaved": "De layouts konden niet worden opgeslagen. Er is niets veranderd. Probeer het opnieuw."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
