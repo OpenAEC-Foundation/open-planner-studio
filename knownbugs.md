@@ -2841,6 +2841,21 @@ en noem het in je rapport of PR-tekst.
      toont dus een Nederlandse legendaregel. Gezien bij het verwerken van ronde 1 van #877 (grep op main en de
      branch). Voorstel: voeg de sleutel toe aan `report.json` (nl + en) en haal de `defaultValue` weg. — B
 
+1352. **VERVOLG: twee commentaren beschrijven nog het oude contract van de balkkleuren.**
+     `reportStudio/useStudioPrintOptions.ts:62` zegt dat het rapport zonder eigen keuze de schermkleur gebruikt, en
+     `src/types/barColor.ts:9` noemt `BarColorSelection` één keuze voor scherm én rapport. Sinds #877 heeft het rapport
+     altijd een eigen keuze (standaard het kritieke pad) en volgt het alleen bij *Zoals de weergave* het scherm.
+     Code-review ronde 2 van #877 (GPT-6.1-Sol). Voorstel: haal de achterhaalde bijzin weg en beschrijf het type als
+     het gedeelde keuzetype. — B
+
+1353. **VERVOLG: de browserstap voor vaste rapportkleuren vergelijkt geen getekende balkkleuren.**
+     `tests/browser/report-studio.spec.ts:629` leest vóór en na de schermwissel alleen de legendaregel *Kritiek pad
+     (rand)*. Die regel staat zowel bij automatische kleuren als bij categoriekleuren, dus een gelijkblijvende
+     balkvulling meet de stap niet. Ook de overname van een gelijke layoutkleur en het opnieuw kiezen van de getoonde
+     kleur (de twee BLOKKEERT uit ronde 1) hebben geen eigen stap. Code-review ronde 2 van #877 (GPT-6.1-Sol); in de
+     app zelf gecontroleerd en in orde. Voorstel: vergelijk in dezelfde route `fill` en `stroke` van de balken op het
+     papier, en voeg die twee routes toe. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
