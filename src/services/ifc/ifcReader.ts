@@ -69,7 +69,7 @@ import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
   canonicalizeBands, clockToMinutes, firstBlockedDay, getCalendarBands, hasNonAnchorTime,
-  isoDurationToMinutes, isSubDayMinutes, minutesToClock, promoteHourCalendar, promoteHourCalendars,
+  isoDurationToMinutes, isSubDayMinutes, promoteHourCalendar, promoteHourCalendars,
   registerCalendarBands, scalarHourFromClock, workDayFromBlocks,
 } from '@/services/subdayIo';
 
@@ -1435,6 +1435,16 @@ function extractProject(
     author,
     company,
   };
+}
+
+/** Minuten en seconden uit de bron blijven staan; ook oude OPS-uurfracties. De
+ * bestaande tolerante terugval blijft beschikbaar voor afwijkende klokstrings. */
+function readCalendarClock(clock: string): number | null {
+  if (Number.isFinite(scalarHourFromClock(clock))) {
+    const [hour, minute, second = 0] = clock.split(':').map(Number);
+    return hour * 60 + minute + second / 60;
+  }
+  return clockToMinutes(clock);
 }
 
 function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEntity>): WorkCalendar {
@@ -3043,8 +3053,8 @@ function buildCalendarFromEntity(
     for (const tpRef of timePeriodRefs) {
       const tp = entityMap.get(tpRef);
       if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-      const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
-      const e = clockToMinutes(stripQuotes(tp.args[1] || ''));
+      const s = readCalendarClock(stripQuotes(tp.args[0] || ''));
+      const e = readCalendarClock(stripQuotes(tp.args[1] || ''));
       if (s != null && e != null) out.push({ start: s, end: e });
     }
     return out;
@@ -3075,10 +3085,9 @@ function buildCalendarFromEntity(
     // (`firstBlockedDay`: zondag, dan maandag t/m zaterdag) — onafhankelijk van de volgorde in de SET.
     periods = (firstBlockedDay({ byWeekday }) ?? []).map(p => ({ ...p }));
     if (periods.length === 1) {
-      // Eén blok: dezelfde afleiding als een enkele periode hieronder, via de klok die de schrijver
-      // voor dit blok schrijft.
-      const startHour = scalarHourFromClock(minutesToClock(periods[0].start));
-      const endHour = scalarHourFromClock(minutesToClock(periods[0].end, true));
+      // Eén blok: dezelfde minuutprecisie als een enkele periode hieronder.
+      const startHour = periods[0].start / 60;
+      const endHour = periods[0].end / 60;
       calendar.workStartHour = startHour;
       calendar.workEndHour = endHour;
       if (endHour > startHour) calendar.hoursPerDay = endHour - startHour;
@@ -3094,17 +3103,12 @@ function buildCalendarFromEntity(
     // hieronder. Eén periode: scalar uit die periode, de oude afleiding (ook voor oude klokken als
     // '7.5:00:00'). Houdt de dag-kalender scalair (de post-pass promoveert pas naar uur-modus bij een
     // echte afwijking, discriminator a/b/c).
-    if (timePeriodRefs.length === 1) {
-      const tp = entityMap.get(timePeriodRefs[0]);
-      if (tp && tp.type === 'IFCTIMEPERIOD') {
-        const startHour = scalarHourFromClock(stripQuotes(tp.args[0] || ''));
-        const endHour = scalarHourFromClock(stripQuotes(tp.args[1] || ''));
-        if (Number.isFinite(startHour)) calendar.workStartHour = startHour;
-        if (Number.isFinite(endHour)) calendar.workEndHour = endHour;
-        if (Number.isFinite(startHour) && Number.isFinite(endHour) && endHour > startHour) {
-          calendar.hoursPerDay = endHour - startHour;
-        }
-      }
+    if (timePeriodRefs.length === 1 && periods.length === 1) {
+      const startHour = periods[0].start / 60;
+      const endHour = periods[0].end / 60;
+      calendar.workStartHour = startHour;
+      calendar.workEndHour = endHour;
+      if (endHour > startHour) calendar.hoursPerDay = endHour - startHour;
     }
     // Dezelfde periodes op elke werkdag van het patroon (zonder weekdagen: de standaardwerkdagen).
     const days = (workDays.length > 0 ? workDays : calendar.workDays).filter(d => d >= 1 && d <= 7);
@@ -3189,8 +3193,8 @@ function buildCalendarFromEntity(
         for (const bRef of parseRefs(excRec.args[7] || '')) {
           const tp = entityMap.get(bRef);
           if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-          const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
-          let e = clockToMinutes(stripQuotes(tp.args[1] || ''));
+          const s = readCalendarClock(stripQuotes(tp.args[0] || ''));
+          let e = readCalendarClock(stripQuotes(tp.args[1] || ''));
           if (s != null && e != null) {
             if (e <= s) e += 1440;
             bands.push({ start: s, end: e });
@@ -3244,7 +3248,10 @@ function buildCalendarFromEntity(
   // property, dan blijft de derivatie hierboven ongewijzigd staan.
   const hpdOverride = extractCalendarHoursPerDay(cal.id, entities, entityMap);
   if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
-  if (hourMeta.hourMode === true) {
+  // Het scalaire pauzepatroon rondt op minuten af. Een bron met seconden blijft
+  // daarom in expliciete banden staan, ook bij een oude scalaire OPS-markering.
+  const subMinuteBands = Object.values(bands.byWeekday).some(day => day.some(b => !Number.isInteger(b.start) || !Number.isInteger(b.end)));
+  if (hourMeta.hourMode === true || subMinuteBands) {
     // `promoteHourCalendar` zet `hoursPerDay` op de modale dagsom van de blokken; een expliciete
     // `HoursPerDay` wint daarna. Alleen bij deze markering: zie docs/ifc-round-trip.md, "Uren per dag
     // bij een blokkenkalender".

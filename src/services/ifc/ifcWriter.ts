@@ -1,6 +1,7 @@
 import { minuteModelWriteView } from './minuteModelWrite';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { calendarExceptionKey } from './calendarExceptionKey';
+import { IfcCalendarTimePrecisionError } from './ifcErrors';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
@@ -1335,6 +1336,16 @@ function weekBandGroups(workDays: readonly number[], workTime: WorkTimeBands): W
   return groups;
 }
 
+/** Alleen bij schrijven weigeren: de lezer mag ook fijnere bronklokken openen.
+ * De marge vangt de getalruis van uur/minuutconversies op (één nanoseconde). */
+function calendarClock(minutes: number, endOfDay = false): string {
+  const milliseconds = minutes * 60_000;
+  if (!Number.isFinite(milliseconds) || Math.abs(milliseconds - Math.round(milliseconds)) > 0.000001) {
+    throw new IfcCalendarTimePrecisionError(minutes);
+  }
+  return minutesToClock(minutes, endOfDay);
+}
+
 function writeCalendar(
   ctx: WriteContext,
   cal: WorkCalendar,
@@ -1357,9 +1368,9 @@ function writeCalendar(
   // Alleen aangeroepen met een groep die blokken en dagen heeft (`written` hieronder): geen lege lijst.
   const writeWeek = (days: readonly number[], bands: WeekBandGroup['bands'], label: string): number => {
     const ids = bands.map((b) =>
-      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`),
+      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${calendarClock(b.start)}','${calendarClock(b.end, true)}')`),
     );
-    if (!firstPeriod && bands[0]) firstPeriod = [minutesToClock(bands[0].start), minutesToClock(bands[0].end, true)];
+    if (!firstPeriod && bands[0]) firstPeriod = [calendarClock(bands[0].start), calendarClock(bands[0].end, true)];
     const recurrenceId = addLine(ctx, '_recurrence',
       `IFCRECURRENCEPATTERN(.WEEKLY.,$,(${days.join(',')}),$,$,$,$,(${ids.map((i) => `#${i}`).join(',')}))`);
     return addLine(ctx, '_worktime', `IFCWORKTIME(${ifcStr(label)},.PREDICTED.,$,#${recurrenceId},$,$)`);
@@ -1387,14 +1398,14 @@ function writeCalendar(
       const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
       const bands = (firstDay && workTime.byWeekday[firstDay]) || [];
       const ids = bands.map((b) =>
-        addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`),
+        addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${calendarClock(b.start)}','${calendarClock(b.end, true)}')`),
       );
       timePeriodRefs = ids.map((i) => `#${i}`).join(',');
-      if (bands[0]) firstPeriod = [minutesToClock(bands[0].start), minutesToClock(bands[0].end, true)];
+      if (bands[0]) firstPeriod = [calendarClock(bands[0].start), calendarClock(bands[0].end, true)];
     } else {
       // Geldige IfcTime `hh:mm:ss` (07:30 ⇒ '07:30:00', niet '7.5:00:00'); 24 ⇒ '24:00:00' (einde dag).
-      const startTime = minutesToClock(Math.round(cal.workStartHour * 60));
-      const endTime = minutesToClock(Math.round(cal.workEndHour * 60), true);
+      const startTime = calendarClock(Math.round(cal.workStartHour * 60));
+      const endTime = calendarClock(Math.round(cal.workEndHour * 60), true);
       const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
       timePeriodRefs = `#${timePeriodId}`;
       firstPeriod = [startTime, endTime];
@@ -1444,7 +1455,7 @@ function writeCalendar(
   const workingExceptionStepIds: number[] = [];
   for (const exc of cal.workingExceptions ?? []) {
     const bandIds = (exc.bands ?? []).map((b) =>
-      addLine(ctx, '_excband', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`));
+      addLine(ctx, '_excband', `IFCTIMEPERIOD('${calendarClock(b.start)}','${calendarClock(b.end, true)}')`));
     const bandRefs = bandIds.length > 0 ? `(${bandIds.map((i) => `#${i}`).join(',')})` : '$';
     const excRecId = addLine(ctx, '_excrecurrence', `IFCRECURRENCEPATTERN(.DAILY.,$,$,$,$,$,$,${bandRefs})`);
     const wId = addLine(ctx, `_workexc_${exc.name}`,

@@ -38,3 +38,12 @@ export class IfcParseError extends Error {
     Object.setPrototypeOf(this, IfcParseError.prototype);
   }
 }
+
+/** Schrijven mag bronprecisie nooit stil afkappen. Openen blijft wel mogelijk. */
+export class IfcCalendarTimePrecisionError extends Error {
+  readonly code = 'IFC_CALENDAR_TIME_PRECISION';
+  constructor(minutes: number) {
+    super(`Calendar time cannot be saved at millisecond precision: ${minutes} minutes`);
+    this.name = 'IfcCalendarTimePrecisionError';
+  }
+}
