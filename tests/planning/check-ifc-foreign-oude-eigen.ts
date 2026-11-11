@@ -27,6 +27,8 @@ import {
   canon, cloneDomain, mergeProblems, openForeign, openForeignRaw, openInStore, ordinaryEdits, plannerEdits, recalculated, reopenPlain, settle,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
+import { sameMeaning } from '@/services/ifc/foreign/lossCheck';
+import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 
@@ -155,6 +157,44 @@ const both = (...fs: ((out: string) => string | undefined)[]) => (out: string) =
 const leaves = (d: Domain) => d.tasks.filter(t => t.childIds.length === 0);
 const renameOther = (keep: string) => (d: Domain) => { leaves(d).find(t => t.name !== keep)!.name = 'Hernoemd'; };
 const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name)!;
+
+// 1111: de vergelijking van gedragen waarden gebruikt in elke tijdzone dezelfde tijdas.
+{
+  const previous = process.env.TZ;
+  try {
+    for (const tz of ['UTC', 'Europe/Amsterdam']) {
+      process.env.TZ = tz;
+      const index = scanStep(latin1("ISO-10303-21;HEADER;FILE_SCHEMA(('IFC4X3_ADD2'));ENDSEC;DATA;#1=IFCTASKTIME($,$,$,$,$,'2027-03-28T02:00:00');ENDSEC;END-ISO-10303-21;"));
+      const r = { chunk: index.chunkOf('1'), arg: 5, outArg: 5, token: "'2027-03-28T02:00:00'", kind: 'samengesteld' as const };
+      ok(`1111 ${tz}: twee wandkloktijden verschillen`, !sameMeaning(index, r, "'2027-03-28T03:00:00'"));
+      ok(`1111 ${tz}: expliciete zone behoudt betekenis`, sameMeaning(index, r, "'2027-03-28T03:00:00+01:00'"));
+      await proof(`1111 ${tz}`, 'oude eigen bron via de app', walled('tests/planning/fixtures/b5-lopend-oude-writer.ifc'), 'schrijft');
+    }
+  } finally {
+    if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+  }
+}
+
+// 1109: voortgang invoeren via de echte storeactie, en dezelfde invoer als de telling.
+{
+  const src = walled('tests/planning/fixtures/b5-lopend-oude-writer.ifc');
+  await proof('1109', '50 procent via storeactie', src, 'schrijft', async (d) => {
+    const { store, snapshot } = await openInStore(latin1(src));
+    const task = store.getState().tasks.find(t => !t.isSummary)!;
+    store.getState().updateTask(task.id, { time: { ...task.time, actualStart: task.time.scheduleStart, completion: 0.5 } });
+    Object.assign(d, cloneDomain(snapshot(store) as Opened));
+  });
+  await proof('1109', '50 procent zoals de telling', src, 'schrijft', d => {
+    ordinaryEdits(d).find(e => e.kind === 'voortgang')!.apply(d);
+  });
+}
+
+// 1108: alleen de ongewijzigde OPS-writerfixture moet als eigen bron schrijven.
+{
+  const src = walled('tests/planning/fixtures/h7-kalender-oude-writer.ifc');
+  await proof('1108', 'oude kalender zonder bewerking', src, 'schrijft');
+  await proof('1108', 'oude kalender hernoemen', src, 'schrijft', d => { d.tasks[0].name = 'Nieuwe naam'; });
+}
 
 // ── BLOKKEERT 1: een halve dag (`P0Y0M0.5D`) ──
 // De bron: de villa van v2026.43.0 met een wand, en de duur van één taak een halve dag (zoals OPS die tot `cbde9d4e7`

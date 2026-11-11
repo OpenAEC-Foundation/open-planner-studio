@@ -92,6 +92,7 @@
  *   - `CreationDate` van het eigen werkplan en het eigen live-werkschema (een vast id): het moment van opslaan (een
  *     baselinekop draagt haar eigen datum en valt hier niet onder).
  */
+import { parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -1460,7 +1461,7 @@ const WITHHELD = '@withheldTaskTimeFields';
 const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   0: ['name'],
   3: T('durationType'),
-  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime'), 'calendarId'],
+  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime', 'completion', 'actualStart', 'actualFinish'), 'calendarId'],
   5: [...T('scheduleStart'), ...DATE_FORMAT],
   6: [...T('scheduleFinish'), ...DATE_FORMAT],
   7: [...T('earlyStart'), ...DATE_FORMAT, WITHHELD],
@@ -1474,7 +1475,7 @@ const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   15: [...T('actualDuration', 'durationType'), 'calendarId'],
   16: [...T('actualStart'), ...DATE_FORMAT],
   17: [...T('actualFinish'), ...DATE_FORMAT],
-  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration'), 'calendarId'],
+  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration', 'completion', 'actualStart', 'actualFinish'), 'calendarId'],
   19: T('completion'),
 };
 /** De velden waar de writer deze slots van `IfcTaskTime` uit schrijft, als pad (`time.scheduleDuration`, `calendarId`),
@@ -1793,11 +1794,11 @@ function plannerReplacedDate(ctx: O1Context, r: SlotRestore): boolean {
 /**
  * Heeft het brontoken van een datum- of tijdslot dezelfde betekenis als het token van de writer in O0 (fixronde 1 van
  * #886)? De betekenis van de tekst, niet hoe de lezer haar in dit slot leest (die kan een deel weglaten): een moment of
- * klok zoals de ISO-norm het leest (`Date.parse`, met seconden en tijdzone; een klok op een vaste dag), de oude uurbreuk
+ * klok zoals de ISO-norm het leest (`parseInstant`, vaste tijdas, met seconden en expliciete tijdzone; een klok op een vaste dag), de oude uurbreuk
  * `'7.25:00:00'` die de lezer in de enige periode van het enige patroon exact leest (`scalarHourFromClock`), een datum als
  * tekst. Een tekst zonder betekenis, of een ander slot: niet gedragen (de writer schreef iets anders).
  */
-function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined): boolean {
+export function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined): boolean {
   const at = DATETIME_SLOTS[index.type(r.chunk)];
   const src = r.token.trim(), out = o0Token?.trim() ?? '';
   if (!at || !at.slots.includes(r.arg) || !src.startsWith("'") || !out.startsWith("'")) return false;
@@ -1805,7 +1806,7 @@ function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefin
   const DAY = '1970-01-01T';
   const meaning = (text: string): number | string | undefined => {
     if (at.kind === 'datum') return text;
-    const ms = at.kind === 'tijd' ? Date.parse(DAY + text) - Date.parse(`${DAY}00:00:00`) : Date.parse(text);
+    const ms = at.kind === 'tijd' ? parseInstant(DAY + text).getTime() - parseInstant(`${DAY}00:00:00`).getTime() : parseInstant(text).getTime();
     if (Number.isFinite(ms)) return ms;
     return oldClock && OLD_FRACTIONAL_CLOCK.test(text) ? scalarHourFromClock(text) * 3_600_000 : undefined;
   };
