@@ -43,6 +43,42 @@ for (const [raw, expected] of [
   });
   await check(`shiftliteral ${raw}: doelcontrole`, () => assert.equal(scanTargetBytes(enc.encode(input)), 'no-model'));
 }
+// Oude OPS 0.1 schreef backslashes letterlijk. De dialectkeuze moet vóór de quotegrenzen gelden.
+const legacySource = source.replace("'0.2','Open Planner Studio','OPS'", "'0.1','Open Planner Studio','OPS'");
+assert.notEqual(legacySource, source);
+const legacyBaseline = readIFC(legacySource).tasks.map(t => t.name);
+for (const [label, text, want] of [
+  ['oud letterlijk pad', legacySource.replace(`'${original}'`, "'Pad C:\\S\\'"), legacyBaseline.map(n => n === original ? 'Pad C:\\S\\' : n)],
+  ['CRLF na backslash', source.replace(`'${original}'`, "'a\\\r\nb'"), baseline.map(n => n === original ? 'a\\\r\nb' : n)],
+] as const) {
+  for (const bytesRoute of [false, true]) {
+    await check(`${label}, bytes=${bytesRoute}: openen en opslaan/heropenen`, async () => {
+      const opened = bytesRoute ? await readIfcBytes(enc.encode(text), {}, { createWorker: () => null }) : readIFC(text);
+      assert.deepEqual(opened.tasks.map(t => t.name), want);
+      const saved = writeIFC(buildWriteIFCInput(payloadFromImport(opened, null)));
+      const reopened = bytesRoute ? await readIfcBytes(enc.encode(saved), {}, { createWorker: () => null }) : readIFC(saved);
+      assert.deepEqual(reopened.tasks.map(t => t.name), want);
+      assert.equal(scanTargetBytes(enc.encode(text)), 'no-model');
+    });
+  }
+}
+// De doelcontrole mag een echte wand ná zo'n oude letterlijke padnaam niet missen.
+const legacyModel = source.slice(0, source.indexOf('DATA;') + 5)
+  + "\n#1=IFCAPPLICATION($,'0.1','Open Planner Studio','OPS');\n"
+  + "#2=IFCTASK('g',$,'Pad C:\\S\\',$,$,'1',$,$,$,.F.,$,$,.CONSTRUCTION.);\n"
+  + wall + '\nENDSEC;\nEND-ISO-10303-21;';
+for (const size of [1, 2, 7]) {
+  await check(`oud letterlijk pad, stroom ${size}: echte wand weigeren`, async () => {
+    assert.throws(() => readIFC(legacyModel), (e: unknown) => (e as { reason?: string }).reason === 'building-model');
+    const bytes = enc.encode(legacyModel);
+    let at = 0;
+    const got = await scanTargetSource({
+      next: async () => { if (at === bytes.length) return null; const b = bytes.subarray(at, at + size); at += b.length; return b; },
+      seek: async (offset) => { at = offset; },
+    });
+    assert.equal(got, 'model');
+  });
+}
 for (const control of ['\n', '\r', '\t', '\0', '\x1f', '\x7f']) {
   const fragment = `/${control}* ${wall} */`;
   const commented = insert(fragment);

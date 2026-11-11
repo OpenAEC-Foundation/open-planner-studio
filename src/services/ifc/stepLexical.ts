@@ -6,7 +6,10 @@ export const isStepControl = (c: number): boolean => c < 0x20 || c === 0x7f;
  * De regels komen uit de bestandsgrammatica: '' en \\ zijn ontsnapt; \S\ verbruikt één teken,
  * ook een apostrof. Onbekende backslashes blijven letterlijk voor oude eigen JSON-velden.
  */
-export function stepString(state: StepStringState, c: number): StepStringState {
+export function stepString(state: StepStringState, c: number, literal = false): StepStringState {
+  if (literal) return state === StepStringState.Quote
+    ? (c === 0x27 ? StepStringState.Text : StepStringState.End)
+    : (c === 0x27 ? StepStringState.Quote : StepStringState.Text);
   if (isStepControl(c)) return state;
   switch (state) {
     case StepStringState.Text:
@@ -27,11 +30,11 @@ export function stepString(state: StepStringState, c: number): StepStringState {
 }
 
 /** Index van de sluitquote, of -1 bij een ongesloten literal. */
-export function stepStringEnd(text: string, at: number): number {
+export function stepStringEnd(text: string, at: number, literal = false): number {
   let state = StepStringState.Text;
   let quote = -1;
   for (let i = at + 1; i < text.length; i++) {
-    const next = stepString(state, text.charCodeAt(i));
+    const next = stepString(state, text.charCodeAt(i), literal);
     if (next === StepStringState.End) return quote;
     if (state !== StepStringState.Quote && next === StepStringState.Quote) quote = i;
     state = next;
@@ -60,7 +63,6 @@ export function unescapeStepQuotes(body: string): string {
   let state = StepStringState.Text;
   for (const ch of body) {
     const c = ch.charCodeAt(0);
-    if (isStepControl(c) && state !== StepStringState.Text) continue;
     if (!(state === StepStringState.Quote && c === 0x27)) out += ch;
     state = stepString(state, c);
   }

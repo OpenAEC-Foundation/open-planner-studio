@@ -47,7 +47,7 @@ export class StepDataSectionFinder {
   private prev2 = -1;
 
   /** `utf8`: de tekens zijn UTF-8-bytes; anders UTF-16-code-eenheden. */
-  constructor(private readonly utf8: boolean) {}
+  constructor(private readonly utf8: boolean, private readonly literalStrings = false) {}
 
   /** Eén teken op positie `at`. `true`: op `at` eindigt het strenge `DATA;` (de `;`; de `D` staat op `at - 4`). */
   step(c: number, at: number): boolean {
@@ -81,7 +81,7 @@ export class StepDataSectionFinder {
   private code(c: number): boolean {
     switch (this.mode) {
       case Mode.Str:
-        this.stringState = stepString(this.stringState, c);
+        this.stringState = stepString(this.stringState, c, this.literalStrings);
         if (this.stringState !== StepStringState.End) return false;
         this.mode = Mode.Code;
         break;
@@ -119,8 +119,8 @@ export class StepDataSectionFinder {
  * Begin van de datasectie in `content`: de positie van de `D` van `DATA;` (streng, anders regel-verankerd), of -1.
  * `readIFC` gebruikt dit; de doelcontrole voedt dezelfde vinder als stroom.
  */
-export function indexOfStepDataSection(content: string): number {
-  const finder = new StepDataSectionFinder(false);
+export function indexOfStepDataSection(content: string, literalStrings = false): number {
+  const finder = new StepDataSectionFinder(false, literalStrings);
   for (let i = 0; i < content.length; i++) {
     if (finder.step(content.charCodeAt(i), i)) return i - 4;
   }

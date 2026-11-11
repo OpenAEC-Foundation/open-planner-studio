@@ -145,6 +145,17 @@ export class StepFileGrammar {
   /** Waar het bestand brak (het teken dat niet paste), of -1. */
   failedAt = -1;
 
+  // De bestaande OPS-tekstcodering bepaalt ook de quotegrenzen, niet alleen het decoderen achteraf.
+  // Alleen de relevante top-level velden worden begrensd verzameld; geen kopie van grote strings.
+  private meta: 'application' | 'pset' | undefined;
+  private capture: 'version' | 'identifier' | 'pset' | undefined;
+  private captured = '';
+  private appVersion = false;
+  private appIdentifier = false;
+  private opsApplicationLiteral: boolean | undefined;
+  private opsPset = false;
+  get literalStrings(): boolean { return this.opsApplicationLiteral ?? this.opsPset; }
+
   private result: StepGrammarState = 'running';
   private lex = Lex.Code;
   private stringState = StepStringState.Text;
@@ -196,7 +207,13 @@ export class StepFileGrammar {
       if (this.utf8 && this.bom % 3 !== 0) { this.fail(at); return; } // een half BOM
       this.bom = -1;
     }
-    if (isStepControl(c)) return; // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
+    if (isStepControl(c)) {
+      // De grammatica negeert ze; de bestaande tekstversiemarker vergelijkt de oorspronkelijke veldtekst.
+      if (this.capture && this.stringState !== StepStringState.Quote && this.captured.length < 6) {
+        this.captured += String.fromCharCode(c);
+      }
+      return;
+    } // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
     this.lexStep(c, at);
   }
 
@@ -206,7 +223,7 @@ export class StepFileGrammar {
     const n = content.length;
     for (let i = 0; i < n; i++) {
       if (this.result === 'failed') return;
-      if (this.lex === Lex.Str && this.stringState === StepStringState.Text) {
+      if (this.lex === Lex.Str && this.stringState === StepStringState.Text && !this.capture) {
         let c = content.charCodeAt(i);
         while (c !== QUOTE && c !== BACKSLASH && ++i < n) c = content.charCodeAt(i);
         if (i === n) return;
@@ -241,7 +258,14 @@ export class StepFileGrammar {
     switch (this.lex) {
       case Lex.Str:
         this.stringState = stepString(this.stringState, c);
-        if (this.stringState !== StepStringState.End) return;
+        if (this.stringState !== StepStringState.End) {
+          if (this.capture && this.captured.length < 6) this.captured += String.fromCharCode(c);
+          return;
+        }
+        if (this.capture === 'version') this.appVersion = this.captured === "0.1'";
+        if (this.capture === 'identifier') this.appIdentifier = this.captured === "OPS'";
+        if (this.capture === 'pset' && this.captured.startsWith('OPS_')) this.opsPset = true;
+        this.capture = undefined;
         this.lex = Lex.Code;
         break;
       // Review van #870, ronde 8 (Sol): binair is `"` met een cijfer 0–3 en dan hexadecimale cijfers (tabel 2). Een ander
@@ -409,6 +433,10 @@ export class StepFileGrammar {
       case P.InstVal:
       case P.ComplexNext:
         if (kind !== W.Keyword) { this.fail(at); return; }
+        this.meta = this.p !== P.InstVal ? undefined : this.wordIs('IFCAPPLICATION') ? 'application'
+          : this.wordIs('IFCPROPERTYSET') ? 'pset' : undefined;
+        this.appVersion = false;
+        this.appIdentifier = false;
         if (this.isModelWord()) this.model = true;
         if (this.p === P.ComplexNext) this.complexParts++;
         else this.complexParts = -1; // enkelvoudig
@@ -478,6 +506,12 @@ export class StepFileGrammar {
   private atom(at: number): void {
     switch (this.p) {
       case P.Params:
+        if (this.lex === Lex.Str && this.depth === 1) {
+          this.capture = this.meta === 'application' && this.params === 2 ? 'version'
+            : this.meta === 'application' && this.params === 4 ? 'identifier'
+            : this.meta === 'pset' && this.params === 3 ? 'pset' : undefined;
+          this.captured = '';
+        }
         // Review van #870, ronde 8 (Sol): een URI is geen parameter (alleen in ANCHOR en REFERENCE, tabel 3).
         if (this.lex === Lex.Uri) break;
         if (this.x === X.Value || this.x === X.ValueOrClose) { this.value(); this.x = X.Sep; return; }
@@ -560,6 +594,10 @@ export class StepFileGrammar {
       case P.SimpleSemi:
       case P.ComplexSemi:
         if (c !== SEMI) break;
+        if (this.meta === 'application' && this.appIdentifier && this.opsApplicationLiteral === undefined) {
+          this.opsApplicationLiteral = this.appVersion;
+        }
+        this.meta = undefined;
         this.p = P.Stmt;
         return;
       case P.ComplexNext:

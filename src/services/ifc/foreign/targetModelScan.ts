@@ -182,6 +182,9 @@ export class TargetModelScanner {
   private readonly grammar = new StepFileGrammar(true);
   /** De regels van main voor het begin van de datasectie, voor een eigen bestand dat breekt. */
   private readonly finder = new StepDataSectionFinder(true);
+  private readonly literalFinder = new StepDataSectionFinder(true, true);
+  private literalEnd = -1;
+  private literalStrings = false;
   /** Direct na het eerste `DATA;` op codeniveau (de `;` plus één), of -1. Dat telt meteen; anders aan het einde het
    *  eerste `DATA;` aan het begin van een regel (`finder.anchored`). */
   private mainEnd = -1;
@@ -350,6 +353,7 @@ export class TargetModelScanner {
       this.headByte(b);
       if (this.result !== null) return false;
     }
+    if (this.literalFinder.step(b, abs) && this.literalEnd < 0) this.literalEnd = abs + 1;
     const hit = this.finder.step(b, abs);
     if (hit && this.mainEnd < 0) this.mainEnd = abs + 1;
     return hit;
@@ -357,7 +361,8 @@ export class TargetModelScanner {
 
   /** Direct na het eerste `DATA;` aan het begin van een regel, of -1. */
   private get lineEnd(): number {
-    return this.finder.anchored < 0 ? -1 : this.finder.anchored + DATA_SEMI_LENGTH;
+    const finder = this.grammar.failed || this.grammar.literalStrings ? this.literalFinder : this.finder;
+    return finder.anchored < 0 ? -1 : finder.anchored + DATA_SEMI_LENGTH;
   }
 
   private headOnly(chunk: Uint8Array, start: number, base: number): void {
@@ -505,7 +510,9 @@ export class TargetModelScanner {
    *  'no-model' als de grammatica het hele bestand zonder model las (`valid`), anders 'unreadable'. `true` als de lezer
    *  van plaats verandert of klaar is. */
   private followMain(atEof: boolean, valid: boolean): boolean {
-    const end = this.mainEnd >= 0 ? this.mainEnd : atEof ? this.lineEnd : -1;
+    this.literalStrings = this.grammar.failed || this.grammar.literalStrings;
+    const dataEnd = this.literalStrings ? this.literalEnd : this.mainEnd;
+    const end = dataEnd >= 0 ? dataEnd : atEof ? this.lineEnd : -1;
     if (end < 0) {
       if (!atEof) return false; // nog geen `DATA;` op codeniveau: verder lezen (aan het begin van een regel telt pas aan het einde)
       if (valid) this.result = 'no-model';
@@ -680,7 +687,7 @@ export class TargetModelScanner {
         this.dataByte(b, abs);
         return;
       case Strip.Str:
-        this.stringState = stepString(this.stringState, b);
+        this.stringState = stepString(this.stringState, b, this.literalStrings);
         if (this.stringState !== StepStringState.End) return;
         this.strip = Strip.Code;
         // De lus hoeft de inhoud niet te zien: alleen de twee echte omsluitende quotes.
