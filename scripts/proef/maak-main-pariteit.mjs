@@ -17,7 +17,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BASIS = 'a4783fc35';
+const BASIS = '2fbbc4ae1';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = join(ROOT, 'tests/planning/fixtures/main-pariteit.json');
 const ESBUILD = join(ROOT, 'node_modules/.bin/esbuild');

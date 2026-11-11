@@ -2,7 +2,7 @@
 // byte-gelijk aan main.
 //
 // De verwachting komt uit de code van main zelf: `scripts/proef/maak-main-pariteit.mjs` draaide de kern
-// `ifcPariteitKern.ts` met de src van main (`a4783fc35`, de merge van #867, sinds de vervolg-PR van #867, met de eigen
+// `ifcPariteitKern.ts` met de src van main (`2fbbc4ae1`, de merge van #892, sinds de bijwerking van #886 met main; daarvoor `a4783fc35`, de merge van #867, met de eigen
 // bestanden uit `oude-tags/` en een voorbeeld met `AnchorsFromOpenDocuments`; daarvoor `ccf3ca2a2`, `14f979755` en in 1a
 // `2a66df33c`) en schreef `fixtures/main-pariteit.json`. Deze check draait
 // dezelfde kern met de src van deze branch en eist per bestand:

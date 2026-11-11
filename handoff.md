@@ -196,6 +196,12 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
   regel voor een samengestelde datum geldt alleen als de planner die datum zelf wijzigde tegenover `opened`; de toets van
   Trias vergelijkt met een gewone opslag op main zelf (`ifcAppRoute.ts`, `scripts/proef/maak-main-toets-trias.mjs`). De
   tien oude eigen bestanden schrijven nog na F5. Knownbug 1107 nieuw (vóór 1c, de kleine PR).
+- 2026-11-11: #886 bijgewerkt met main `2fbbc4ae1` (#892, de lezer leest duren exact; #891, alle flags een
+  schakelaar). Eén conflict, in `check-ifc-duurvormen.ts`: de lezer direct (`openForeignRaw`) en de weigering bij openen
+  van #892 gelden samen. Sommige duurvormen weigeren nu al bij openen en bereiken de merge niet; de lijst van de merge
+  (`durationForms.ts`) bleef op main bewust voorzichtig (knownbug 1152), dus er ging geen weigering weg. De referenties
+  van main zijn opnieuw gemaakt op `2fbbc4ae1`, met dezelfde bytes als op `a4783fc35`. Telling gelijk per bestand en
+  bewerking (2562 gelukt, 701 geweigerd, 0 anders); de tien oude eigen bestanden schrijven nog na F5.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
