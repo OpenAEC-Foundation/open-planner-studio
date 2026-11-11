@@ -185,7 +185,9 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
   const full = await openForeign(r.bytes);
   assert.equal(full.tasks.find(t => t.id === task.id)!.time.remainingTime, 2.3333333333333335);
-  assert(new TextDecoder().decode(r.bytes).includes("'P0Y0M2.3333333333333335D'"));
+  const { splitStepArgs } = await import('@/services/ifc/foreign/stepScanner');
+  const line = new TextDecoder().decode(r.bytes).split('\n').find(l => l.includes("IFCTASKTIME('Nieuwe naam voor precieze taak Time'"))!;
+  assert.equal(splitStepArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')))[18], "'P0Y0M2.3333333333333335D'", 'ook het restslot zelf houdt de bronwaarde');
   assert.equal(readbackDifference(r.shown, full), undefined);
   assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
   console.log('OK 1109: echte naamswijziging houdt de niet-lege precieze rest');

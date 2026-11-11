@@ -1047,7 +1047,8 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
     const was = before.get(task.id);
     if (!was) continue;
     const same = (fields: readonly string[]) => fields.every(f => taskField(was, f) === taskField(task, f));
-    // Ook een hele duur blijft in dagvorm als voortgang alleen de rest gebroken maakt.
+    // Ook een hele duur/rest blijft in dagvorm. Werkelijke duur en speling houden hun bestaande breukregel;
+    // hele spelingen kunnen daarnaast een ExactFloat-record met minuten dragen, dat moet blijven staan.
     const daySlots = new Set<number>();
     const step = source.stepIds[`task:${task.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
@@ -1055,7 +1056,8 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
       for (const tt of index.refsAt(chunk, k)) {
         if (index.type(tt) !== 'IFCTASKTIME') continue;
         for (const { text, arg } of durationTexts(index, tt)) {
-          if (DAY_FORM.test(text) && arg !== undefined) daySlots.add(arg);
+          const m = DAY_FORM.exec(text);
+          if (m && arg !== undefined && (arg === 4 || arg === 18 || !Number.isInteger(Number(m[1])))) daySlots.add(arg);
         }
       }
     }
