@@ -7,7 +7,7 @@ import { Icon } from '@/components/icons';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
-  saveShowMiniMap, loadLayouts, saveLayouts,
+  saveShowMiniMap, ignoreUnreadable, loadLayouts, saveLayouts,
 } from '@/utils/settingsStore';
 import { applySetting } from '@/components/settings/applySetting';
 import { ExportFormat } from '@/state/appStore';
@@ -1047,8 +1047,10 @@ export function LayoutGroupContent() {
   const activeKey = useAppStore(s => activeLayoutIds(s).join('\n'));
   const activeIds = useMemo(() => new Set(activeKey ? activeKey.split('\n') : []), [activeKey]);
 
-  const [layouts, setLayouts] = useState<Layout[]>([]);
-  const reload = useCallback(() => { void loadLayouts().then(setLayouts); }, []);
+  // `null` tot de eigen layouts gelezen zijn: tot dan schrijft de knoppenrij niets, anders zou dupliceren van een
+  // meegeleverde layout de eigen layouts wissen (knownbug 1362, ook als de opslag even niet te lezen is).
+  const [layouts, setLayouts] = useState<Layout[] | null>(null);
+  const reload = useCallback(() => { void loadLayouts().then(setLayouts, ignoreUnreadable); }, []);
   useEffect(() => { reload(); }, [reload]);
   useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
 
@@ -1060,7 +1062,7 @@ export function LayoutGroupContent() {
   }, [showLayoutsDialog, reload]);
 
   const buttons = useMemo(
-    () => [...builtinLayouts(tCommon), ...layouts],
+    () => [...builtinLayouts(tCommon), ...(layouts ?? [])],
     [tCommon, layouts],
   );
 
@@ -1070,6 +1072,7 @@ export function LayoutGroupContent() {
   const [pendingDelete, setPendingDelete] = useState<Layout | null>(null);
   const persist = (next: Layout[]) => { setLayouts(next); void saveLayouts(next); };
   const duplicate = (layout: Layout) => {
+    if (!layouts) return;
     const { id: _id, ...rest } = layout;
     persist([...layouts, { ...structuredClone(rest), id: generateId('layout'), name: tCommon('view.layout.copyName', { name: layout.name }) }]);
     setMenuId(null);
@@ -1109,7 +1112,7 @@ export function LayoutGroupContent() {
                 <span className="ribbon-btn-label">{tCommon('view.layout.edit')}</span>
               </button>
             )}
-            <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => duplicate(layout)}>
+            <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} disabled={!layouts} onClick={() => duplicate(layout)}>
               <span className="ribbon-btn-label">{tCommon('view.layout.duplicate')}</span>
             </button>
             {!builtin && (
@@ -1129,7 +1132,7 @@ export function LayoutGroupContent() {
         <ConfirmDialog
           message={`${tCommon('view.layout.delete')}: ${pendingDelete.name}?`}
           danger
-          onConfirm={() => { persist(layouts.filter(l => l.id !== pendingDelete.id)); setPendingDelete(null); }}
+          onConfirm={() => { if (layouts) persist(layouts.filter(l => l.id !== pendingDelete.id)); setPendingDelete(null); }}
           onCancel={() => setPendingDelete(null)}
         />
       )}
@@ -1298,7 +1301,7 @@ function SavedFilterDropdown() {
   const [savedFilters, setSavedFilters] = useState<Layout[]>([]);
 
   const loadFilterLayouts = useCallback(() => loadLayouts().then(all => all.filter(isFilterOnlyLayout)), []);
-  const reload = useCallback(() => { void loadFilterLayouts().then(setSavedFilters); }, [loadFilterLayouts]);
+  const reload = useCallback(() => { void loadFilterLayouts().then(setSavedFilters, ignoreUnreadable); }, [loadFilterLayouts]);
   useEffect(() => { reload(); }, [reload]);
   useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
   const dialogOpen = showFilterDialog || showLayoutsDialog;

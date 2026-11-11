@@ -8,7 +8,7 @@ import {
   dropBrokenLayouts, liveSessionLayouts, migrateSavedFilters, pickLayoutParts, switchLayoutOff, switchLayoutOn,
   type LayoutViewParts,
 } from '@/engine/view/layoutPresets';
-import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { loadLayouts, saveLayouts, SettingsUnreadableError } from '@/utils/settingsStore';
 import { generateId } from '@/utils/id';
 import type { FilterNode, Layout, LayoutOverlays, SavedFilter } from '@/types/view';
 
@@ -210,6 +210,33 @@ storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [
 ] }));
 const guarded = await loadLayouts();
 ok(guarded.length === 1 && guarded[0]?.id === 'builtin:resource-diagram', 'een aanwezig maar misvormd deel laat de hele layout vervallen');
+
+// Een leesfout is geen lege lijst (knownbug 1362): wie de lijst na een mislukte lezing als leeg zou opslaan,
+// wist de eigen layouts. `loadLayouts` gooit dan `SettingsUnreadableError` en schrijft niets (geen migratie,
+// geen vlag), voor elke bron die het leest.
+const unreadableCase = async (blocked: string, setup: () => void, label: string) => {
+  storage.clear();
+  setup();
+  const before = JSON.stringify([...storage]);
+  const getItem = localStorage.getItem;
+  localStorage.getItem = (key: string) => {
+    if (key === blocked) throw new Error('SecurityError');
+    return storage.get(key) ?? null;
+  };
+  let error: unknown = null;
+  try { await loadLayouts(); } catch (e) { error = e; }
+  localStorage.getItem = getItem;
+  ok(error instanceof SettingsUnreadableError, `${label}: loadLayouts gooit SettingsUnreadableError`);
+  ok(JSON.stringify([...storage]) === before, `${label}: de opslag is ongewijzigd`);
+};
+const storedLayouts = () => storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [resourceDiagram] }));
+await unreadableCase('ops-taskGridLayouts', storedLayouts, 'layouts niet te lezen');
+await unreadableCase('ops-layouts', () => {}, 'oude layoutsleutel niet te lezen');
+await unreadableCase('ops-savedFiltersMigrated', storedLayouts, 'migratievlag niet te lezen');
+await unreadableCase('ops-savedFilters', () => { storedLayouts(); }, 'opgeslagen filters niet te lezen');
+storage.clear();
+storedLayouts();
+ok((await loadLayouts()).length === 1, 'na herstel laadt de lijst weer');
 
 if (failures > 0) process.exit(1);
 console.log('layout-presets: alles groen');

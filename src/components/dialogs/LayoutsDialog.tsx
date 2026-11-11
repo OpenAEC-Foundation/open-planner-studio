@@ -11,7 +11,7 @@ import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import { LAYOUT_ICON_KEYS, layoutIcon } from '@/components/viewControls/layoutIcons';
 import { layoutParts, pickLayoutParts } from '@/engine/view/layoutPresets';
-import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { ignoreUnreadable, loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { LAYOUT_PARTS, type Layout, type LayoutPart, type TimeScale } from '@/types/view';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
@@ -100,7 +100,7 @@ export function LayoutsDialog() {
 
   // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): alleen de lijst
   // verversen, niet wat de gebruiker hier invult. Opslaan schrijft dan de actuele lijst terug.
-  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts); });
+  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts, ignoreUnreadable); });
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +116,7 @@ export function LayoutsDialog() {
       setParts([...new Set([...carried, ...overlayRow])]);
       setOverlaysStored(target.overlays !== undefined);
       setDraft(current => ({ ...current, ...structuredClone(target) }));
-    });
+    }, ignoreUnreadable); // niet te lezen: de lijst blijft ongeladen en Opslaan staat uit (knownbug 1362)
     return () => { cancelled = true; };
   }, [targetId]);
 

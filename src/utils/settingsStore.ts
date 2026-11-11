@@ -110,6 +110,33 @@ export async function getSetting<T>(key: string): Promise<T | undefined> {
   try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
 }
 
+/** De opslag is nu niet te lezen (geblokkeerd). Dat is iets anders dan een sleutel die ontbreekt. */
+export class SettingsUnreadableError extends Error {
+  constructor(key: string) {
+    super(`Instelling niet te lezen: ${key}`);
+    this.name = 'SettingsUnreadableError';
+  }
+}
+
+/**
+ * Afwijzing van `loadLayouts().then(set, ignoreUnreadable)`: bij een leesfout blijft de vorige lijst staan (of
+ * blijft de lijst ongeladen, zodat er niets op te slaan valt). Een andere fout gaat door.
+ */
+export function ignoreUnreadable(error: unknown): void {
+  if (!(error instanceof SettingsUnreadableError)) throw error;
+}
+
+/**
+ * Als `getSetting`, maar een leesfout gooit `SettingsUnreadableError` in plaats van "niet ingesteld". Voor een
+ * lijst die de aanroeper later in zijn geheel terugschrijft: een leesfout als lege lijst zou dan alles wissen.
+ */
+async function getSettingOrThrow<T>(key: string): Promise<T | undefined> {
+  const raw = tryReadLocal(`ops-${key}`);
+  if (raw === false) throw new SettingsUnreadableError(key);
+  if (raw === null) return undefined;
+  try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
+}
+
 export async function setSetting<T>(key: string, value: T, origin: SettingWriteOrigin = 'user'): Promise<void> {
   writeLocal(`ops-${key}`, typeof value === 'string' ? value : JSON.stringify(value), origin);
 }
@@ -487,7 +514,7 @@ function normalizeLayouts(raw: unknown): Layout[] | null {
 }
 
 async function loadStoredLayouts(): Promise<Layout[]> {
-  const current = await getSetting<unknown>('taskGridLayouts');
+  const current = await getSettingOrThrow<unknown>('taskGridLayouts');
   if (current && typeof current === 'object') {
     const wrapper = current as Record<string, unknown>;
     if (wrapper.version === TASK_GRID_LAYOUTS_VERSION) {
@@ -497,7 +524,7 @@ async function loadStoredLayouts(): Promise<Layout[]> {
   }
   // Lazy legacy-read: de oude sleutel blijft ongewijzigd staan totdat de gebruiker expliciet
   // opslaat/bijwerkt. Dynamische refs worden hier opaque, zonder actief project te raden.
-  const legacy = await getSetting<unknown>('layouts');
+  const legacy = await getSettingOrThrow<unknown>('layouts');
   return normalizeLayouts(legacy) ?? [];
 }
 
@@ -506,10 +533,13 @@ async function loadStoredLayouts(): Promise<Layout[]> {
  * die alleen een filter dragen. De vlag voorkomt dat een daarna verwijderde filter-layout bij de
  * volgende start terugkomt. `ops-savedFilters` zelf blijft bewust staan: wie terugvalt naar een
  * oudere versie houdt zijn filters.
+ *
+ * Is een van de sleutels niet te lezen, dan gooit dit `SettingsUnreadableError` en schrijft het niets: de
+ * aanroepers schrijven de hele lijst terug, dus een leesfout mag geen lege lijst worden (knownbug 1362).
  */
 export async function loadLayouts(): Promise<Layout[]> {
   const layouts = await loadStoredLayouts();
-  if (await getSetting<boolean>('savedFiltersMigrated')) return layouts;
+  if (await getSettingOrThrow<boolean>('savedFiltersMigrated')) return layouts;
   const savedFilters = await loadSavedFilters();
   const merged = migrateSavedFilters(layouts, savedFilters);
   // Een eenmalige migratie, ook als een dialoog dit pas later aanroept: geen keuze van de gebruiker.
@@ -554,7 +584,7 @@ function isValidSavedFilter(value: unknown): value is SavedFilter {
 }
 
 export async function loadSavedFilters(): Promise<SavedFilter[]> {
-  const raw = await getSetting<unknown>('savedFilters');
+  const raw = await getSettingOrThrow<unknown>('savedFilters');
   return Array.isArray(raw) ? raw.filter(isValidSavedFilter) : [];
 }
 

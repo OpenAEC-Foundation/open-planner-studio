@@ -210,6 +210,31 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).click();
   await page.getByRole('button', { name: /^(Delete|Verwijderen|OK|Confirm|Bevestigen)$/ }).last().click();
   await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
+
+  // Is de opslag even niet te lezen, dan is dat geen lege lijst (knownbug 1362): de dialoog laat Opslaan uit
+  // staan, en de eigen layout blijft in de opslag en op het lint.
+  const storedBefore = await page.evaluate(() => localStorage.getItem('ops-taskGridLayouts'));
+  await page.evaluate(() => {
+    const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
+    const realGetItem = w.opsRealGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      if (key.startsWith('ops-')) throw new DOMException('geweigerd', 'SecurityError');
+      return realGetItem.call(this, key);
+    };
+  });
+  await plus.click();
+  await dialog.locator('[data-ops-layout-name]').fill('Na een leesfout');
+  await expect(page.locator('[data-ops-layout-save]')).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.evaluate(() => {
+    Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;
+  });
+  expect(await page.evaluate(() => localStorage.getItem('ops-taskGridLayouts'))).toBe(storedBefore);
+  await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
+  await plus.click();
+  await expect(page.locator('[data-ops-layout-save]')).toBeEnabled();
+  await page.keyboard.press('Escape');
 });
 
 // Issue #173 punt 1 (manu varkey): een handmatige wijziging aan een deel van de actieve layout zet de

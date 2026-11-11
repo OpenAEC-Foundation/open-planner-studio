@@ -11,7 +11,7 @@ import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { generateId } from '@/utils/id';
-import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { ignoreUnreadable, loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -298,18 +298,20 @@ export function FilterDialog() {
   const [initialRoot] = useState(() => JSON.stringify(root));
   // Een opgeslagen filter is een layout die alleen een filter draagt. Deze dialoog
   // beheert dus een DEEL van de layoutlijst; de overige layouts reizen ongewijzigd mee bij opslaan.
-  const [layouts, setLayouts] = useState<Layout[]>([]);
-  const savedFilters = useMemo(() => layouts.filter(isFilterOnlyLayout), [layouts]);
+  // `null` tot de lijst gelezen is: tot dan schrijft de dialoog niets, anders zou een lege lijst de eigen layouts
+  // wissen (knownbug 1362, ook als de opslag even niet te lezen is).
+  const [layouts, setLayouts] = useState<Layout[] | null>(null);
+  const savedFilters = useMemo(() => (layouts ?? []).filter(isFilterOnlyLayout), [layouts]);
   const [savedFilterName, setSavedFilterName] = useState('');
   const [selectedSavedFilterId, setSelectedSavedFilterId] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    void loadLayouts().then(all => { if (!cancelled) setLayouts(all); });
+    void loadLayouts().then(all => { if (!cancelled) setLayouts(all); }, ignoreUnreadable);
     return () => { cancelled = true; };
   }, []);
   // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): opnieuw laden.
-  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts); });
+  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts, ignoreUnreadable); });
 
   const ctx: FieldCatalogCtx = useFieldCatalogCtx();
   const fields = useMemo(() => filterFieldList(ctx), [ctx]);
@@ -340,7 +342,7 @@ export function FilterDialog() {
   };
 
   const saveCurrentFilter = () => {
-    if (root.children.length === 0) return;
+    if (!layouts || root.children.length === 0) return;
     const saved: Layout = {
       id: generateId('filter'),
       name: savedFilterName.trim() || t('view.layout.name'),
@@ -352,7 +354,7 @@ export function FilterDialog() {
   };
 
   const removeSelectedSavedFilter = () => {
-    if (!selectedSavedFilterId) return;
+    if (!layouts || !selectedSavedFilterId) return;
     persistLayouts(layouts.filter(layout => layout.id !== selectedSavedFilterId));
     setSelectedSavedFilterId('');
   };
@@ -396,7 +398,7 @@ export function FilterDialog() {
               aria-label={t('view.layout.name')}
               className="input !text-small !leading-4 !px-2 !py-1 flex-1 min-w-[120px]"
             />
-            <button onClick={saveCurrentFilter} disabled={root.children.length === 0} className="btn btn--sm btn--secondary">
+            <button onClick={saveCurrentFilter} disabled={!layouts || root.children.length === 0} className="btn btn--sm btn--secondary">
               {t('save')}
             </button>
           </div>

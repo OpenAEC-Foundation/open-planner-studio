@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { loadLayouts, tryReadLocal } from '@/utils/settingsStore';
+import { ignoreUnreadable, loadLayouts } from '@/utils/settingsStore';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { builtinLayouts } from '@/components/viewControls/builtinLayouts';
 import type { Layout } from '@/types/view';
@@ -19,9 +19,7 @@ export function useReportLayouts(): { layouts: Layout[]; loaded: boolean } {
   const { t } = useTranslation('common');
   const [own, setOwn] = useState<Layout[] | null>(null);
   const reload = useCallback(() => {
-    const readable = () => tryReadLocal(LAYOUTS_KEY) !== false;
-    if (!readable()) return;
-    void loadLayouts().then(list => { if (readable()) setOwn(list); }, () => setOwn(prev => prev ?? []));
+    void loadLayouts().then(setOwn, ignoreUnreadable);
   }, []);
   useEffect(() => { reload(); }, [reload]);
   useStoredSettingRefresh(LAYOUTS_KEY, reload);
