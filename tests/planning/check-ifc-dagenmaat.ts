@@ -259,6 +259,13 @@ function solvedAfterIfc(text: string): DocumentPayload {
     eq(`(5) lagkalender ${label}: 0,5 d ⇒ ${want}`, lagLineOf(text, guid).includes(`'${want}'`), true);
     eq(`(5) lagkalender ${label}: record met dezelfde minuten`, dayMeasureLagsOf(text)[guid], [0.5, minutesOf(want)]);
     eq(`(5) lagkalender ${label}: IFC ⇒ OPS 0,5 d`, lagFields(seqByPair(r, 'A', 'B')), { lagDays: 0.5 });
+    // De standaardwaarde is extern gewijzigd: het oude dagrecord mag de gemengde duur niet terugzetten.
+    const lagLine = lagLineOf(text, guid);
+    const mixed = readIFC(text.replace(lagLine, lagLine.replace(`'${want}'`, "'P1DT2H'")));
+    const expectedMixed = lagCalendar === '24hour' ? 1560 : lagCalendar === 'successor' ? 720 : 600;
+    eq(`(5) lagkalender ${label}: extern P1DT2H`, lagFields(seqByPair(mixed, 'A', 'B')),
+      { lagDays: 0, lagMinutes: expectedMixed });
+
   }
 }
 
