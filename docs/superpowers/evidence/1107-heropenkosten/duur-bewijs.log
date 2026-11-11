@@ -1,0 +1,83 @@
+{
+  "bestand": "eigen-plus-model.ifc",
+  "bewerking": "task-mvp6eel7qyht28 een dag langer",
+  "uitvoerBytes": 38275,
+  "naadGelijkAanBytes": true,
+  "planningWijktAf": true,
+  "differences": [
+    {
+      "taak": "task-mvp6eel2x2ge26",
+      "veld": "time.lateStart",
+      "gezien": "2027-05-12T07:00",
+      "heropend": "2027-05-11T07:00"
+    },
+    {
+      "taak": "task-mvp6eel2x2ge26",
+      "veld": "time.lateFinish",
+      "gezien": "2027-05-12T07:00",
+      "heropend": "2027-05-11T07:00"
+    },
+    {
+      "taak": "task-mvp6eel2x2ge26",
+      "veld": "time.totalFloat",
+      "gezien": 3,
+      "heropend": 2
+    },
+    {
+      "taak": "task-mvp6eel2x2ge26",
+      "veld": "time.totalFloatMinutes",
+      "gezien": 1440,
+      "heropend": 960
+    },
+    {
+      "taak": "task-mvp6eel2x2ge26",
+      "veld": "time.interferingFloat",
+      "gezien": 3,
+      "heropend": 2
+    },
+    {
+      "taak": "task-mvp6eel4sh9b27",
+      "veld": "time.lateStart",
+      "gezien": "2027-05-12T07:00",
+      "heropend": "2027-05-11T07:00"
+    },
+    {
+      "taak": "task-mvp6eel7qyht28",
+      "veld": "time.earlyFinish",
+      "gezien": "2027-05-10T16:00",
+      "heropend": "2027-05-11T16:00"
+    },
+    {
+      "taak": "task-mvp6eel7qyht28",
+      "veld": "time.lateStart",
+      "gezien": "2027-05-12T07:00",
+      "heropend": "2027-05-11T07:00"
+    },
+    {
+      "taak": "task-mvp6eel7qyht28",
+      "veld": "time.freeFloat",
+      "gezien": 3,
+      "heropend": 2
+    },
+    {
+      "taak": "task-mvp6eel7qyht28",
+      "veld": "time.totalFloat",
+      "gezien": 3,
+      "heropend": 2
+    },
+    {
+      "taak": "task-mvp6eel7qyht28",
+      "veld": "time.totalFloatMinutes",
+      "gezien": 1440,
+      "heropend": 960
+    },
+    {
+      "taak": "task-mvp6eel7qyht28",
+      "veld": "time.freeFloatMinutes",
+      "gezien": 1440,
+      "heropend": 960
+    }
+  ]
+}
+
+EXIT:0

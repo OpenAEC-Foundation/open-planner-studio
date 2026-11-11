@@ -235,3 +235,13 @@ extra bij 300 MiB. De verplichte naad is nog niet gebouwd; 1107 blijft open. Tri
 delen (optie 1), of alleen het planningsdeel toetsen. Advies: de open-stappen delen, zodat alle stappen van de app gelijk
 blijven en de bestaande scan hergebruikt kan worden. Dit is een voorstel, geen nieuwe afspraak of implementatie.
 Bewijs en beperkingen: `docs/superpowers/evidence/2026-11-11-1107-heropenkosten.md`.
+
+## Vervolg 1107: stop op de nieuwe weigering (11 november 2026)
+
+Trias koos de naad op het planningsdeel (besluit letterlijk in PR #903). De eerste versie is gebouwd, zonder wijziging
+van de open-route. De bouw is gestopt volgens de opdracht: `eigen-plus-model.ifc`, een dag langer op
+`task-mvp6eel7qyht28`, weigert nu met `planning-na-openen`. Zonder die toets schrijft de merge, waarna volledig heropenen
+12 tijdvelden op drie taken anders geeft. De naad en de volledige bytes-route zijn in dat geval gelijk. Geen reparatie.
+Bewijs: `docs/superpowers/evidence/2026-11-11-1107-planningsdeel-stop.md`. Knownbug 1107 blijft open; de volledige telling,
+de tien oude eigen bestanden, het grote model en de nieuwe kosten zijn nog niet getoetst. Eerst beoordeling van de
+bevinding; de stop is geen toestemming om de vergelijking af te zwakken of de bewerking te repareren.

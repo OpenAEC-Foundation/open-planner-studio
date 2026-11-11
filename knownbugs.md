@@ -1907,18 +1907,17 @@ en noem het in je rapport of PR-tekst.
      van Trias (wrakko, 11 november 2026): BLOKKEERT vóór 1c, in dezelfde kleine PR als 1108; voortgang bijwerken is
      gewoon werk van elke planner. Uit #886. — B
 
-1107. **Vóór 1c: de herleestoets binnen de merge opent niet zoals de app.** `writeIfcMerge` geeft de uitvoer via
-     `readPlanning` aan `sourceFormProblems` (`src/services/ifc/foreign/mergeWriter.ts`, de herleestoets van de bronvorm);
-     die doet alleen de omzetting naar het minutenmodel opnieuw (`src/services/ifc/foreign/sourceForm.ts`, `migrated`), niet
-     de herberekening en de verdere stappen van openen via de store, en toetst alleen de velden die de bronvorm of een
-     letterlijke kalender raakt. De tests openen wel via de app (`openForeign` in `tests/planning/ifcMergeKern.ts`), maar dat
-     is geen controle op iedere merge. Geen verlies gevonden. Eis (besluit van Trias): vóór het aansluiten in 1c een
-     volledige herleestoets in de merge, met een proef die rood wordt als de herberekening na openen de planning verandert.
-     Eigen kleine PR na de reparatie van 1108 en 1109. Kostenproef op 11 november 2026: een volledige extra heropening
-     kost 441 ms bij 5 MiB en 621 ms bij 10 MiB met dezelfde 260 taken; lineair doorgetrokken ongeveer 11 s extra bij
-     300 MiB. Bouw gestopt volgens de opdracht, vóór de verplichte naad. Trias kiest eerst tussen de open-stappen delen
-     en alleen het planningsdeel toetsen. Bewijs: `docs/superpowers/evidence/2026-11-11-1107-heropenkosten.md`.
-     Gevonden door Terra in review ronde 1 van #886. — B
+1107. **Vóór 1c: de volledige herleestoets van de merge, gestopt op een nieuwe weigering.** De verplichte naad
+     op het planningsdeel staat als eerste versie in PR #903: `writeIfcMerge` krijgt de open-stappen als callback op
+     `ImportResult`, en vergelijkt hun uitkomst met de invoer. Zonder callback weigert hij getypeerd. De bouw is volgens
+     de opdracht gestopt op `eigen-plus-model.ifc`, gewone bewerking `duur` (`task-mvp6eel7qyht28 een dag langer`): de
+     herberekening bij openen wijzigt 12 tijdvelden op drie taken. Eerste verschil: `task-mvp6eel2x2ge26.time.lateStart`,
+     `2027-05-12T07:00` wordt `2027-05-11T07:00`. De merge schreef dit eerder; de nieuwe toets weigert het. Met de toets
+     tijdelijk uit schrijft hij weer, en de volledige bytes-route bevestigt dezelfde afwijkende planning als de naad.
+     Geen reparatie gedaan. De volledige telling, de tien oude eigen bestanden, het grote model en de nieuwe kosten
+     moeten nog worden getoetst; 1107 is niet afgerond. Bewijs:
+     `docs/superpowers/evidence/2026-11-11-1107-planningsdeel-stop.md`. Gevonden door Terra in review van #886;
+     concrete herberekenafwijking bevestigd op 11 november 2026. — B
 
 1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
      writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
