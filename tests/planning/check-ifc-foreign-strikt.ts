@@ -489,9 +489,16 @@ await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de taak hernoe
 await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('-PT2H0M0S') (zo schrijft OPS een negatieve lag in uren), de taak hernoemd: schrijft", lag631("IFCDURATION('-PT2H0M0S')"), 'schrijft', rename55);
 // BLOKKEERT 3: een tijddeel dat niet op een hele minuut valt (knownbug 1035). De lezer rondt af: `PT90S` wordt 2 minuten.
 await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
-await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de duur op 2 minuten gezet en de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', (x, o) => {
-  const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 2; q.name = 'Hernoemd';
-}, undefined, NOT_LISTED);
+{
+  const r = await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de duur op 2 minuten gezet en de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', (x, o) => {
+    const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 2; q.name = 'Hernoemd';
+  });
+  // 1109 bewaakt nu ook dat een gewijzigde duur volledig gedragen was: de afgeronde 90 seconden mogen niet
+  // als twee minuten worden vervangen. Naast de vormenlijst verwachten we uitsluitend dit ene slotverschil.
+  const other = r.details.filter(x => !NOT_LISTED.test(x));
+  ok('PT90S: vormenlijst en exact het niet-gedragen duurslot weigeren, zonder andere melding', r.details.length === 2
+    && other.length === 1 && other[0] === "niet-gedragen: IFCTASKTIME #55, argument 4 na de bewerking: 'PT90S' → 'PT0H2M0S'");
+}
 await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT0.01H' (0,6 minuut), de taak hernoemd", t55('PT0.01H'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 3', "lag IFCDURATION('PT90S'), de taak hernoemd", lag631("IFCDURATION('PT90S')"), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 3', "lag in kalendertijd IFCDURATION('PT1M30S'), de taak hernoemd", lag631("IFCDURATION('PT1M30S')", '.ELAPSEDTIME.'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
