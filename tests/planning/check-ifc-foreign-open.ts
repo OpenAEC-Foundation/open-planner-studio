@@ -41,6 +41,7 @@ const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { recoverySnapshotInput, serializeRecoverySnapshot } = await import('@/services/recovery/recoverySnapshotInput');
 const { createAppBackupService } = await import('@/services/mcp/backupService');
+const { createDefaultTaskTime } = await import('@/utils/taskDefaults');
 const { ifcSaveBlocked, recoverySaveTarget } = await import('@/state/ifcForeignGuard');
 const { capturePayload } = await import('@/state/documentContract');
 const { createSnapshot } = await import('@/state/snapshot');
@@ -483,6 +484,29 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   try { await readIfcBytesDetailed(bonsai, {}, { createWorker: () => fakeWorker('indeling') }); } catch (e) { failure = (e as Error).message; }
   eq('Worker: een fout in de indeling zelf valt niet terug', failure, 'indeling faalt');
   eq('Worker: elke Worker is gestopt', terminated, 4);
+}
+
+// #885 / review Sol (#889): twee waarden met dezelfde codetekst in één type. De writer zet dan het waarde-id naast de
+// enumeratie in `OPS_ActivityCodes`; de bytesroute moet dat als eigen herkennen (geen vreemd deel, geen verlies) en de
+// taak na herordenen op dezelfde waarde laten wijzen.
+{
+  const dup = createAppStoreContext().store;
+  const D = () => dup.getState();
+  D().newProject();
+  const type = D().addActivityCodeType('Status');
+  const first = D().addActivityCodeValue(type, { code: 'Q', description: 'Offerte ontvangen' });
+  const second = D().addActivityCodeValue(type, { code: 'Q', description: 'Offerte goedgekeurd' });
+  const task = D().addTask({ name: 'Dubbel', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1) });
+  D().setTaskActivityCode(task, type, first);
+  D().moveActivityCodeValue(type, second, -1);
+  const bytes = enc.encode(writeIFC(buildWriteIFCInput(D())));
+  const on = await open(true, 'dubbele-codes.ifc', bytes);
+  const st = on.getState();
+  const ty = st.activityCodeTypes.find(t => t.name === 'Status');
+  eq('dubbele codetekst via bytes: de taak houdt haar waarde',
+    ty?.values.find(v => v.id === st.tasks.find(t => t.name === 'Dubbel')?.activityCodes?.[ty.id])?.description, 'Offerte ontvangen');
+  eq('dubbele codetekst via bytes: geen vreemd deel', st.ifcSource?.foreignObjectCount ?? 0, 0);
+  ok('dubbele codetekst via bytes: opslaan is niet geblokkeerd', !ifcSaveBlocked(st));
 }
 
 console.error = realError;

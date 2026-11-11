@@ -555,6 +555,8 @@
     "valueCode": "Koodi",
     "valueDescription": "Kuvaus",
     "valueColor": "Väri",
+    "moveValueUp": "Siirrä arvoa ylöspäin",
+    "moveValueDown": "Siirrä arvoa alaspäin",
     "newValuePrefix": "A",
     "newTypePlaceholder": "Uusi koodityyppi (esim. Sijainti)",
     "addField": "Lisää kenttä",

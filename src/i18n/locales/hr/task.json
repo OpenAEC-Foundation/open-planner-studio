@@ -559,6 +559,8 @@
     "valueCode": "Šifra",
     "valueDescription": "Opis",
     "valueColor": "Boja",
+    "moveValueUp": "Pomakni vrijednost gore",
+    "moveValueDown": "Pomakni vrijednost dolje",
     "newValuePrefix": "V",
     "newTypePlaceholder": "Nova vrsta šifre (npr. Lokacija)",
     "addField": "Dodaj polje",

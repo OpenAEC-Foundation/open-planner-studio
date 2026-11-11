@@ -563,6 +563,8 @@
     "valueCode": "Kod",
     "valueDescription": "Opis",
     "valueColor": "Kolor",
+    "moveValueUp": "Przesuń wartość w górę",
+    "moveValueDown": "Przesuń wartość w dół",
     "newValuePrefix": "W",
     "newTypePlaceholder": "Nowy typ kodu (np. Lokalizacja)",
     "addField": "Dodaj pole",

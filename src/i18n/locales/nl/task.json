@@ -561,6 +561,8 @@
     "valueCode": "Code",
     "valueDescription": "Omschrijving",
     "valueColor": "Kleur",
+    "moveValueUp": "Waarde omhoog",
+    "moveValueDown": "Waarde omlaag",
     "newValuePrefix": "W",
     "newTypePlaceholder": "Nieuw codetype (bv. Locatie)",
     "addField": "Veld toevoegen",

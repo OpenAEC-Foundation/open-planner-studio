@@ -551,6 +551,8 @@
     "valueCode": "コード",
     "valueDescription": "説明",
     "valueColor": "色",
+    "moveValueUp": "値を上へ",
+    "moveValueDown": "値を下へ",
     "newValuePrefix": "V",
     "newTypePlaceholder": "新しいコードタイプ（例：場所）",
     "addField": "フィールドを追加",

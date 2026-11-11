@@ -3413,6 +3413,38 @@ en noem het in je rapport of PR-tekst.
       en elk canvas telt mee, niet alleen de Gantt. Voorstel: controleer dat het element bij het Gantt-canvas hoort,
       of klik opnieuw als de selectie ontbreekt. Uit de review van B2 standaard, ronde 2, Opus, VERMOED (laag). — S
 
+1204. **VERVOLG: "klik en houd het versienummer vast" klopt niet met de muis.** De regel in AGENTS.md (Feature flags)
+      zegt "klik en houd het versienummer vast", maar muisknop vasthouden opent het blok Experimenteel niet: de knop
+      reageert alleen op losse klikken met hoogstens 0,5 s ertussen (`SettingsPanelContent.tsx`, `activateVersion`).
+      Enter vasthouden werkt wel, door toetsherhaling. De tekst is door Ethan goedgekeurd en blijft staan; een andere
+      tekst (bijv. "klik 5 seconden snel achter elkaar") ligt bij wrakko. Uit de review van #879, Opus, BEVESTIGD. — B
+
+1205. **VERVOLG: AGENTS.md noemt de uitzondering voor `writesNewIfcData` niet bij de schakelaarregel.** De zin
+      "`writesNewIfcData: true` (no checkbox, always off)" en de regel "Elke feature flag krijgt een schakelaar" lijken
+      elkaar tegen te spreken; de uitzondering staat alleen in de code (`experimentalToggleFlags` in
+      `src/utils/featureFlags.ts`). Of zulke flags een schakelaar krijgen, is een open vraag bij Ethan; daarna de
+      tekst laten aansluiten. Uit de review van #879, Opus, BEVESTIGD. — B
+
+
+1450. **VERVOLG: sorteren op een activiteitscode volgt de waardevolgorde niet, groeperen wel.** Sorteren gebruikt de
+      gewone veldresolver (`src/engine/view/filterEval.ts`, geeft het waarde-id terug) en vergelijkt dus op id;
+      alleen de groepsbanden gebruiken de plek van de waarde in het type (`src/engine/view/visibleRows.ts`). Na het
+      herordenen van de waarden in Codes & velden (#885) blijft oplopend sorteren dus op id staan. Gedrag bestond al
+      op main. Een eventuele reparatie hoort in de bestaande sorteersleutel, zonder nieuwe cache. Uit de review van
+      #889, Sol, BEVESTIGD. — B
+
+1451. **VERVOLG: browsertests dekken de keuzelijst in het eigenschappenpaneel en in de tabel niet.** De planningscheck
+      `check-code-value-volgorde.ts` toetst de veldcatalogus en de kolomdefinitie; het browserblok in
+      `structure-dialog-undo.spec.ts` toetst de knoppen, de storevolgorde en undo. De echte keuzelijst van
+      `TaskCodesFieldsSection` en van de tabelcel volgt de volgorde in de code (`type.values`) maar is niet in de
+      browser bewezen. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1452. **VERVOLG: activiteitscodes worden niet geëxporteerd naar XER, P6 XML of MSPDI.** `xerWriter.ts` telt ze als
+      verlies (`lose('activityCodes', …)`); de P6 XML- en MSPDI-writers krijgen de definities niet en schrijven de
+      taakcodes niet. Daardoor kan de nieuwe volgorde (#885) alleen via IFC (en XER-import via `seq_num`) mee. Bestaand
+      verlies op main; wie de export bouwt (ACTVTYPE/ACTVCODE met `seq_num`, P6 `ActivityCode`, MSPDI-opzoektabel)
+      neemt de volgorde mee. Uit de review van #889, Sol, BEVESTIGD. — B
+
 1206. **VERVOLG: browserproef van de IFC-schakelaar leest de geschreven eigen planning niet terug.**
       `tests/browser/settings-tabs.spec.ts` bewijst na Ctrl+S met een stijgende `lastModified` dat het
       ongewijzigde eigen bestand echt is geschreven. Daarna vergelijkt de proef de taken in de levende
@@ -3421,3 +3453,23 @@ en noem het in je rapport of PR-tekst.
       terug en vergelijk de opgeslagen taken met de stand vóór Ctrl+S; geen nieuw browserscenario nodig.
       Uit de review van de vervolgwijziging op #879, GPT-6.1-Sol xhigh, BEVESTIGD (zekerheid hoog),
       VERVOLG. Zelf de assertions nagezien. — B
+
+1453. **VERVOLG: het waarde-id naast een dubbele codetekst deelt de naamruimte van de codetypen.** De extra property
+      `<typenaam> #id` in `OPS_ActivityCodes` (`ifcWriter.ts`, #885) botst met een type dat zelf `<naam> #id` heet en
+      een eigen waarde heeft: dan staat dezelfde propertynaam twee keer in één pset (schendt `UniquePropertyNames`;
+      `checkIfcSchema` meldt het). OPS leest zo'n bestand wel goed terug; het gaat om een zeldzaam naamconflict. Fix:
+      het id buiten de vrije naamruimte van de codetypen bewaren. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1454. **VERVOLG: de bewaking `readAsOwn` voor het waarde-id in de merge heeft geen regressietest.** `readAsOwn` in
+      `src/services/ifc/foreign/mergeWriter.ts` (#885) laat de merge een vreemd lid `<codetype> #id` weigeren als de
+      planning een codetype met die naam heeft. Zonder die regel schrijft de merge door en krijgt de taak bij herlezen
+      de verkeerde waarde (bewezen door Sol). De bestaande proef in `check-ifc-foreign-preserve.ts` (Tower) dekt dit niet.
+      Toe te voegen: een geldige bron zonder codetemplates met een vreemd `Later #id`, daarna codetype `Later` met twee
+      gelijke codeteksten en de tweede gekozen ⇒ de merge weigert met `vreemd-lid`. In dezelfde proef kan de ongebruikte
+      `firstId` weg. Uit de review van #889, Sol, BEVESTIGD. — B
+
+1455. **VERVOLG: een codetype hernoemen laat de merge weigeren (`merge-needs-phase2`).** `Status` → `Nieuwe status` op een
+      bestand met een vreemd deel: de enumeratie en het propertytemplate krijgen door de naamkoppeling in
+      `lossCheck.ts` (rond regel 613) geen tegenhanger. Bestaat ook op main (ook zonder dubbele codeteksten); de merge
+      wordt nog niet vanuit Opslaan aangeroepen. Fix: hernoemen van codedefinities expliciet ondersteunen in de
+      koppeling en de verliesverklaring. Uit de review van #889, Sol, BEVESTIGD. — B

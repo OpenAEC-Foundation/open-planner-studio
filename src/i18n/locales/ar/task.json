@@ -571,6 +571,8 @@
     "valueCode": "الرمز",
     "valueDescription": "الوصف",
     "valueColor": "اللون",
+    "moveValueUp": "نقل القيمة لأعلى",
+    "moveValueDown": "نقل القيمة لأسفل",
     "newValuePrefix": "V",
     "newTypePlaceholder": "نوع رمز جديد (مثل الموقع)",
     "addField": "إضافة حقل",

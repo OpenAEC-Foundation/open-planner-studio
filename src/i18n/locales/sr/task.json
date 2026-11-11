@@ -559,6 +559,8 @@
     "valueCode": "Шифра",
     "valueDescription": "Опис",
     "valueColor": "Боја",
+    "moveValueUp": "Помери вредност нагоре",
+    "moveValueDown": "Помери вредност надоле",
     "newValuePrefix": "В",
     "newTypePlaceholder": "Нови тип шифре (нпр. Локација)",
     "addField": "Додај поље",

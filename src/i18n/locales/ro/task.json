@@ -559,6 +559,8 @@
     "valueCode": "Cod",
     "valueDescription": "Descriere",
     "valueColor": "Culoare",
+    "moveValueUp": "Mută valoarea în sus",
+    "moveValueDown": "Mută valoarea în jos",
     "newValuePrefix": "V",
     "newTypePlaceholder": "Tip de cod nou (de ex. Locație)",
     "addField": "Adăugare câmp",

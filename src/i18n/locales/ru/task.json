@@ -563,6 +563,8 @@
     "valueCode": "Код",
     "valueDescription": "Описание",
     "valueColor": "Цвет",
+    "moveValueUp": "Переместить значение вверх",
+    "moveValueDown": "Переместить значение вниз",
     "newValuePrefix": "З",
     "newTypePlaceholder": "Новый тип кода (например, Местоположение)",
     "addField": "Добавить поле",

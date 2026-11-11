@@ -555,6 +555,8 @@
     "valueCode": "کد",
     "valueDescription": "توضیحات",
     "valueColor": "رنگ",
+    "moveValueUp": "انتقال مقدار به بالا",
+    "moveValueDown": "انتقال مقدار به پایین",
     "newValuePrefix": "V",
     "newTypePlaceholder": "نوع کد جدید (مثلاً موقعیت)",
     "addField": "افزودن فیلد",

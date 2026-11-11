@@ -551,6 +551,8 @@
     "valueCode": "代码",
     "valueDescription": "描述",
     "valueColor": "颜色",
+    "moveValueUp": "上移值",
+    "moveValueDown": "下移值",
     "newValuePrefix": "V",
     "newTypePlaceholder": "新代码类型（例如位置）",
     "addField": "添加字段",
