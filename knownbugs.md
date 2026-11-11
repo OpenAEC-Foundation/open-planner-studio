@@ -1926,6 +1926,23 @@ en noem het in je rapport of PR-tekst.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
 
+1111. **Vóór 1c: `sameMeaning` vergelijkt een datum-tijd zonder zone in de tijdzone van de machine.** `sameMeaning` in
+     `src/services/ifc/foreign/lossCheck.ts` (de toets "gedragen" van fixronde 1 van #886) leest zo'n tekst met
+     `Date.parse`. Rond de wissel naar zomertijd gelden dan twee verschillende wandkloktijden als gelijk: bron
+     `2027-03-28T02:00:00` en O0 `2027-03-28T03:00:00` in `Europe/Amsterdam`, in `UTC` niet. De planner leest zulke tijden
+     als wandkloktijd zonder zomertijd (`src/utils/dateUtils.ts`). Geen verlies bewezen: Sol draaide 168 volledige merges
+     per tijdzone, en elke geschreven uitvoer behield de bronwaarde. Richting: dezelfde vaste tijdas als de planner, een
+     expliciete zone apart, en een proef in beide tijdzones. Besluit van Trias (wrakko, 11 november 2026): VERVOLG vóór 1c,
+     in de kleine PR met 1107, 1108 en 1109. Terra en Sol, review ronde 2 van #886. — B
+
+1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
+     deel waarvan de bron niet terug te lezen is, zegt het ontwerp
+     (`docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md`): "Alleen Opslaan als naar een nieuw
+     bestand kan, met een tekst dat het model er niet in zit." Sinds fixronde 2 van #886 weigert elke IFC-opslag van zo'n
+     document (`sourceMissing` op het kenmerk, `ifcSaveBlocked` in `src/state/ifcForeignGuard.ts`), zoals vóór de crash.
+     Bij 1c: het echte herstel (de bron teruglezen op sha256), en de keuze of Opslaan als met die tekst erbij komt; dat is
+     een productkeuze voor Ethan. Besluit van Trias (wrakko, 11 november 2026). — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een

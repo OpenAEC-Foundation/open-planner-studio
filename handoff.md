@@ -26,7 +26,7 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 
 | Afspraak | Wie, wanneer |
 |---|---|
-| Elke fase op een eigen branch vanaf `main`; Sol (xhigh) en Terra (xhigh, proef) reviewen per PR, elke ronde een nieuwe `delegate_task` met de vorige bevindingen | wrakko, 2026-11-09/10 |
+| Elke fase op een eigen branch vanaf `main`. Reviews gaan naar GPT-6.1-Terra (Codex, xhigh, priority); zegt Terra ja en raakt de PR opslaan, gegevensverlies, het bestandsformaat, het openen van bestanden of beveiliging, dan volgt één gerichte run van GPT-6.1-Sol (xhigh) op die punten, bewezen met echte code en echte bestanden. Bij een BLOKKEERT van Sol een fixronde, daarna kijkt Sol opnieuw naar dat punt. Mergen bij een groene CI en de laatste ja op de laatste code. Elke ronde een nieuwe `delegate_task` met de vorige bevindingen | Ethan, 2026-11-11 |
 | Zolang Codex geen tegoed heeft: review door één reviewer op Opus 5.5 (xhigh), en dat staat in de PR-tekst; daarna weer Sol en Terra. Een commit met alleen `knownbugs.md` na een ja hoeft geen nieuwe review; raakt hij ook ander tekstwerk, dan een korte tekstcheck | wrakko, 2026-11-10 |
 | Mergen doet de orkestrator zelf: `gh pr merge <nr> --merge --admin --match-head-commit <sha>`, bij een groene CI en een ja van Sol op de laatste commit; merge-commit aan wrakko melden (wiki/inzichten/merge met admin.md) | wrakko, 2026-11-10 |
 | De orkestrator (deze thread, sinds 10 november op Fable 5.2) coördineert en bouwt niet zelf; bouwers en reviewers draaien op Opus, Sol of Terra, niet op Fable; een council draait met Opus en Sol | Ethan, 2026-11-09/10 |
@@ -70,6 +70,8 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
    `b5-lopend-oude-writer.ifc` met een model weigert ("voortgang bijwerken is gewoon werk van elke planner").
    Ook 1107 (vóór 1c, Terra in review ronde 1 van #886): een volledige herleestoets in de merge, zoals openen via de
    app, met een proef die rood wordt als de herberekening na openen de planning verandert.
+   Ook 1111 (vóór 1c, Terra en Sol in review ronde 2 van #886): `sameMeaning` vergelijkt in de tijdzone van de machine.
+   Het verlies op main "07:30 wordt 07:00" (`subdayIo.ts:61`) ligt bij de thread "Trias · IFC-lezer".
    Knownbug 1110 (de laatste taak met een eigen taaktype wissen) blijft VERVOLG.
 5. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
    **Eis voor 1c** (wrakko, 10 november 2026; uit de zoektocht van fixronde 3 van #864): de headless MCP-server kent geen
@@ -102,6 +104,9 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
    **Eis voor 1c** (Ethan via wrakko, 10 november 2026): de merge-writer aansluiten mag alleen als hij met de flag aan
    op elke opslagroute (Opslaan, Opslaan als, AutoSave en herstel, export, MCP, headless) veilig is, met een test met
    de flag aan.
+   **Bij 1c** (besluit van Trias, 11 november 2026; knownbug 1112): de toestand "bron ontbreekt" van §4.14 afmaken: het
+   echte herstel (de bron teruglezen op sha256), en de keuze van Ethan of Opslaan als met een tekst erbij komt. Tot dan
+   weigert na herstel elke IFC-opslag van een document met een vreemd deel (#886, fixronde 2).
    **Voor 1c** (review ronde 6 van #867, VERMOED laag): `writeIfcMerge` geeft `literalCalendarIds` niet terug;
    `writeIFCWithChoices` doet dat wel. Na het aansluiten moet de sessie een nieuw letterlijke kalender onthouden.
    **Opgelost in #886** (was knownbug 1102, besluit van Trias 10 november 2026): wordt een kalender bij een opslag
@@ -202,6 +207,11 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
   (`durationForms.ts`) bleef op main bewust voorzichtig (knownbug 1152), dus er ging geen weigering weg. De referenties
   van main zijn opnieuw gemaakt op `2fbbc4ae1`, met dezelfde bytes als op `a4783fc35`. Telling gelijk per bestand en
   bewerking (2562 gelukt, 701 geweigerd, 0 anders); de tien oude eigen bestanden schrijven nog na F5.
+- 2026-11-11: review ronde 2 van #886 op `40b8fbadc`: Terra (GPT-6.1-Terra, xhigh) ja; gerichte run van Sol (GPT-6.1-Sol,
+  xhigh) nee. Sol vond: na herstel van een document met een model schreef Opslaan als een IFC zonder model en zonder
+  kenmerk (ook op main). Fixronde 2 (besluit van Trias): het kenmerk uit herstel draagt `sourceMissing`, en
+  `ifcSaveBlocked` weigert dan elke IFC-uitvoer, met de bestaande melding, ook met de flag uit. Een geopende MCP-backup en
+  een eigen planning zonder model slaan op zoals eerst. Knownbugs 1111 (vóór 1c) en 1112 (bij 1c) nieuw.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -212,7 +222,7 @@ volgt 1c, de controles; tot dan blijft opslaan met een vreemd deel geweigerd.
 
 ## Volgende stappen
 
-1. Review ronde 2 van #886 (fixronde 1).
-2. Een kleine PR vanaf `main` voor knownbugs 1107, 1108 en 1109 (vóór 1c).
+1. Sol opnieuw op het punt van fixronde 2 van #886.
+2. Een kleine PR vanaf `main` voor knownbugs 1107, 1108, 1109 en 1111 (vóór 1c).
 3. Dan 1c op een eigen branch vanaf `main`, met alle eisen voor 1c hierboven.
 4. Vóór de merge van de laatste PR van fase 1: deze handoff naar `docs/archive/handoffs/`.

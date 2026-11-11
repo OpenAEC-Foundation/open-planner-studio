@@ -477,6 +477,9 @@ export function freshPayload(): DocumentPayload {
   return out as unknown as DocumentPayload;
 }
 
+/** Het kenmerk uit crashherstel: de bronbytes zijn weg (#886 fixronde 2, `ForeignSourceMark.sourceMissing`). */
+const restoredMark = (mark: ForeignSourceMark | null): ForeignSourceMark | null => mark && { ...mark, sourceMissing: true };
+
 /** Verse payload uit herstelde recovery-projectdata (view/history/cpm worden vers opgebouwd).
  *
  *  Delegeert naar `payloadFromImport`: een `RecoveryDocInput` ÍS een `ImportResult`
@@ -503,8 +506,9 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   const siteFileId = d.siteFileId ?? null;
   return {
     ...payloadFromImport(d, d.filePath),
-    // Het kenmerk van een bron met een vreemd deel: de vingerafdruk uit de herstel-IFC, het doel uit het manifest.
-    foreignSourceMark: foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource),
+    // Het kenmerk van een bron met een vreemd deel: de vingerafdruk uit de herstel-IFC, het doel uit het manifest. De
+    // bronbytes zijn weg (#886 fixronde 2): `sourceMissing`.
+    foreignSourceMark: restoredMark(foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource)),
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
     isDirty: d.isDirty,
