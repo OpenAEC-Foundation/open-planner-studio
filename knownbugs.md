@@ -3270,6 +3270,31 @@ en noem het in je rapport of PR-tekst.
      met een host. Code-review ronde 8 van #893 (GPT-6.1-Terra). Voorstel: een bewust tegengehouden schrijfactie niet in
      `pending` zetten. — B
 
+1362. **VERVOLG: bij een leesfout van de opslag kan de layoutdialoog de eigen layouts overschrijven.** De lader
+     (`loadStoredLayouts` in `src/utils/settingsStore.ts`, rond :489, ook de oude sleutel `ops-layouts`) leest een
+     leesfout als een lege lijst. `LayoutsDialog` (`src/components/dialogs/LayoutsDialog.tsx`, rond :107) begint dan met
+     een lege lijst, en Opslaan na herstel schrijft alleen de nieuwe layout weg; de oude layouts en de layoutkeuze van
+     het rapport zijn weg. Ook het Rapport-tabblad ziet een leesfout op `ops-layouts` als een verwijderde layout.
+     Alleen met een kunstmatige leesfout gezien; de oorzaak staat al op main. Gerichte review van #893 (GPT-6.1-Sol,
+     ronde 3, label [BEVESTIGD] [BLOKKEERT]) en code-review ronde 9 (GPT-6.1-Terra, [BEVESTIGD] [BLOKKEERT]); als
+     VERVOLG ingedeeld omdat het alleen bij een kunstmatige leesfout gebeurt (projectleiding, 11 november 2026).
+     Voorstel: laat de lader een leesfout teruggeven in plaats van een lege lijst, en schrijf geen lijst terug die op
+     een mislukte lezing berust. — B
+
+1363. **VERVOLG: na een leesfout blijft de gekozen layout van het rapport ongeladen, en toont het rapport alle
+     taken.** `useReportLayouts` (`src/components/panels/reportStudio/useReportLayouts.ts`) laadt bij een leesfout niet en
+     probeert het na herstel niet opnieuw. `GanttReportStudio.tsx` (rond :275) gebruikt dan alle taken, zonder melding,
+     en de PDF-export wacht niet op de layout. Pas naar Start en terug laadt de layout weer. De keuze zelf blijft
+     bewaard. Alleen met een kunstmatige leesfout gezien. Gerichte review van #893 (GPT-6.1-Sol, ronde 3) en
+     code-review ronde 9 (GPT-6.1-Terra), beide [BEVESTIGD] [BLOKKEERT]; als VERVOLG ingedeeld zoals 1362. Voorstel:
+     laad opnieuw zodra de opslag weer te lezen is, en exporteer niet zolang een gekozen layout niet geladen is. — B
+
+1364. **VERVOLG: de browserstap voor een leesfout bij de layouts toetst alleen de bewaarde id.** De stap in
+     `tests/browser/report-studio.spec.ts` (rond :735–765) wacht 50 ms en twee frames en controleert daarna alleen de
+     opgeslagen `layoutId`, niet de aangevinkte layout en de rijen op het papier (zie 1363). Gerichte review van #893
+     (GPT-6.1-Sol, ronde 3) en code-review ronde 9 (GPT-6.1-Terra). Voorstel: wacht op een waarneembare geweigerde
+     lezing en controleer na herstel ook layout en rijen. — B
+
 964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
      (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
      elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
