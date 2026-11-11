@@ -1945,9 +1945,11 @@ en noem het in je rapport of PR-tekst.
      Hoort erbij, ook bij 1c op te lossen: het herstel zet `sourceMissing` op elk kenmerk, ook als het document vóór de
      crash geen vreemd deel had. Het tussengeval: een MCP-backup met kenmerk (gemaakt in een sessie met de flag aan) wordt
      later geopend, ook met de flag uit; hij kan dan opslaan naar een ander doel dan de bron. Crasht de app daarna, dan
-     weigert het herstelde document elke IFC-opslag, terwijl main daar nog schreef. Zonder een sessie met de flag aan
-     ontstaat geen kenmerk, dus een planner die de flag nooit aanzette komt hier niet. Besluit van Trias (11 november
-     2026): zo laten in #886, niet vergeten in 1c. — B
+     weigert het herstelde document elke IFC-opslag, terwijl main daar nog schreef. Zonder een bronkenmerk uit een
+     eerdere sessie met de flag aan ontstaat deze weigering niet. Wie zo'n backup van een ander krijgt, kan haar wel
+     tegenkomen zonder de flag zelf ooit aan te zetten (bewezen door Sol in de herbeoordeling van #886: één keer
+     schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
+     1c. — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
