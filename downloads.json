@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-11-12T16:01:34.689Z",
-  "downloads": 4159,
+  "generatedAt": "2026-11-12T18:01:34.713Z",
+  "downloads": 4169,
   "releases": [
     {
       "tag": "v2026.45.0",
@@ -11,36 +11,36 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 210,
-          "update": 141,
+          "install": 214,
+          "update": 143,
           "both": 0,
           "byKind": {
-            "exe": 210,
-            "nsis.zip": 141
+            "exe": 214,
+            "nsis.zip": 143
           }
         },
         "macos": {
-          "install": 44,
+          "install": 47,
           "update": 13,
           "both": 0,
           "byKind": {
-            "dmg": 44,
+            "dmg": 47,
             "app.tar.gz": 13
           }
         },
         "linux": {
           "install": 2,
           "update": 0,
-          "both": 72,
+          "both": 75,
           "byKind": {
             "snap": 2,
-            "rpm": 6,
-            "AppImage": 51,
+            "rpm": 7,
+            "AppImage": 53,
             "deb": 15
           }
         }
       },
-      "polls": 1158
+      "polls": 1188
     },
     {
       "tag": "v2026.44.0",
@@ -928,36 +928,36 @@
   ],
   "totals": {
     "windows": {
-      "install": 2455,
-      "update": 710,
+      "install": 2459,
+      "update": 712,
       "both": 0,
       "byKind": {
-        "exe": 2455,
-        "nsis.zip": 710
+        "exe": 2459,
+        "nsis.zip": 712
       }
     },
     "macos": {
-      "install": 399,
+      "install": 402,
       "update": 149,
       "both": 0,
       "byKind": {
-        "dmg": 399,
+        "dmg": 402,
         "app.tar.gz": 149
       }
     },
     "linux": {
       "install": 111,
       "update": 0,
-      "both": 1194,
+      "both": 1197,
       "byKind": {
         "snap": 111,
-        "rpm": 179,
-        "AppImage": 614,
+        "rpm": 180,
+        "AppImage": 616,
         "deb": 401
       }
     }
   },
-  "polls": 9370,
+  "polls": 9400,
   "unknown": [
     "v2026.45.0: open-planner-studio-2026.45.0.mcpb",
     "v2026.44.0: open-planner-studio-2026.44.0.mcpb",
