@@ -35,6 +35,7 @@ import {
 import {
   REGISTER_PSET_NAMES, classOf, classify, isOwnAssignmentKey, type ChunkClass, type Classification,
 } from '@/services/ifc/foreign/classify';
+import { scanForeign, foreignScanFrom } from '@/services/ifc/foreign/foreignScan';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { WRITER_ENTITY_TYPES, writeIFC } from '@/services/ifc/ifcWriter';
@@ -739,6 +740,106 @@ if (WITH_PYTHON) {
     compareWithPython(`synthetisch ${s.label}`, tmpFile(`synthetisch-${s.label}.ifc`, bytes), scanOrError(bytes));
   }
 }
+// 9. De ene gemeten oude kopvorm (v2026.2.0 t/m v2026.7.12) vóór de gedeelde indeling.
+{
+  const oldBytes = new Uint8Array(readFileSync(join(ROOT,
+    'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc')));
+  const oldText = new TextDecoder().decode(oldBytes);
+  const body = oldText.slice(oldText.indexOf('\nDATA;\n') + '\nDATA;\n'.length);
+  const prefix = "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\n";
+  const header = (name: string, author: string, company: string) => prefix
+    + `FILE_NAME('${name}.ifc','2026-01-15T12:00:00',('${author}'),('${company}'),'Open Planner Studio 0.1','Open Planner Studio','');\n`
+    + "FILE_SCHEMA(('IFC4X3'));\nENDSEC;\nDATA;\n";
+  const scan = scanForeign(oldBytes);
+  ok('oude kop: ongewijzigde repo-fixture wordt ingedeeld', scan.ok);
+  if (scan.ok) {
+    eq('oude kop: repo-fixture alleen P', [scan.counts.C, scan.counts.A, scan.counts.V], [0, 0, 0]);
+    eq('oude kop: bronbytes onveranderd', Array.from(oldBytes), Array.from(enc.encode(oldText)));
+  }
+  const freeFields = [
+    ["O'Hara", 'Aannemer', 'Bedrijf'], ['Naam', "D'Artagnan", 'Bedrijf'], ['Naam', 'Auteur', "Van 't Hof"],
+    ["O'Hara", "D'Artagnan", "Van 't Hof"], ["O''Hara's", 'Auteur', 'Bedrijf'],
+    ["'Naam", 'Auteur', 'Bedrijf'], ["Naam'", 'Auteur', 'Bedrijf'],
+    ['Naam', "'Auteur", 'Bedrijf'], ['Naam', "Auteur'", 'Bedrijf'],
+    ['Naam', 'Auteur', "'Bedrijf"], ['Naam', 'Auteur', "Bedrijf'"], ["Één O'Hara", 'Auteur', 'Bedrijf'],
+  ];
+  const wall = "#99001=IFCWALL('0abcdefghijkmnopqrstuv',$,'Wand',$,$,$,$,$,$);\n";
+  const pset = "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n"
+    + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\n";
+  for (const [n, a, c] of freeFields) {
+    const h = header(n, a, c);
+    const bytes = enc.encode(h + body);
+    const before = bytes.slice();
+    const result = scanForeign(bytes);
+    ok(`oude kop ${n}/${a}/${c}: herkend`, result.ok);
+    if (!result.ok) continue;
+    eq(`oude kop ${n}/${a}/${c}: alleen P`, [result.counts.C, result.counts.A, result.counts.V], [0, 0, 0]);
+    eq(`oude kop ${n}/${a}/${c}: bron nooit gemuteerd`, Array.from(bytes), Array.from(before));
+    const masked = scanForeign(enc.encode(header('x'.repeat(enc.encode(n).length), 'x'.repeat(a.length), 'x'.repeat(c.length)) + body));
+    ok('oude kop: veilige referentie scant streng', masked.ok);
+    if (masked.ok) eq(`oude kop ${n}: alle posities blijven bronposities`, Array.from(result.chunkStarts), Array.from(masked.chunkStarts));
+    for (let i = 0; i < result.chunkIds.length; i++) {
+      const id = result.chunkIds[i];
+      if (id >= 0) ok(`oude kop ${n}: #${id} staat op zijn echte bronpositie`,
+        new TextDecoder().decode(bytes.subarray(result.chunkStarts[i], result.chunkStarts[i + 1])).includes(`#${id}=`));
+    }
+    for (const [label, extra] of [['wand', wall], ['pset', pset]]) {
+      const foreign = scanForeign(enc.encode(h + body.replace('ENDSEC;', extra + 'ENDSEC;')));
+      ok(`oude kop ${n}/${a}/${c} + ${label}: vreemd deel blijft zichtbaar`, foreign.ok
+        && foreign.counts.C + foreign.counts.A + foreign.counts.V > 0);
+    }
+  }
+  const badHeader = header("O'Hara", 'Auteur', 'Bedrijf');
+  const headerMutations: Array<[string, (h: string) => string]> = [
+    ['ISO', h => h.replace('ISO-10303-21;', 'ISO-10303-22;')],
+    ['HEADER', h => h.replace('HEADER;', 'HEADER ;')],
+    ['beschrijving', h => h.replace('SchedulingView', 'CoordinationView')],
+    ['beschrijving-versie', h => h.replace("'2;1'", "'3;1'")],
+    ['FILE_DESCRIPTION', h => h.replace('FILE_DESCRIPTION', 'FILE_DESCRIPTIOn')],
+    ['FILE_NAME', h => h.replace('FILE_NAME', 'FILE_NAMe')],
+    ['extensie', h => h.replace(".ifc','", ".ifcx','")],
+    ['datumvorm', h => h.replace('T12:00:00', 'T12:00:00Z')],
+    ['datumgeldigheid', h => h.replace('2026-01-15', '2026-02-30')],
+    ['programmaversie', h => h.replace('Open Planner Studio 0.1', 'Open Planner Studio 0.2')],
+    ['programmanaam', h => h.replace("'Open Planner Studio','');", "'Ander programma','');")],
+    ['laatste veld', h => h.replace("'Open Planner Studio','');", "'Open Planner Studio','extern');")],
+    ['extra veld', h => h.replace("'Open Planner Studio','');", "'Open Planner Studio','','extra');")],
+    ['veld minder', h => h.replace("'Open Planner Studio','');", "'Open Planner Studio');")],
+    ['extra auteurveld', h => h.replace("('Auteur')", "('Auteur'),'extra'")],
+    ['extra kopregel', h => h.replace("FILE_SCHEMA", "FILE_POPULATION('extern');\nFILE_SCHEMA")],
+    ['volgorde', h => h.replace(prefix, prefix.replace("HEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');", "FILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\nHEADER;"))],
+    ['commentaar', h => h.replace('HEADER;', 'HEADER;/*extern*/')],
+    ['schema', h => h.replace('IFC4X3', 'IFC4')],
+    ['schema-regel', h => h.replace('FILE_SCHEMA', 'FILE_SCHEMa')],
+    ['ENDSEC', h => h.replace('ENDSEC;', 'ENDSEC ;')],
+    ['DATA', h => h.replace('DATA;', 'DATA ;')],
+    ['CRLF', h => h.replace(/\n/g, '\r\n')],
+    ['BOM', h => '\ufeff' + h],
+  ];
+  for (const [label, mutate] of headerMutations) {
+    const rejected = scanForeign(enc.encode(mutate(badHeader) + body));
+    ok(`oude kop vast deel ${label}: kapotte vreemde kop blijft geweigerd`, !rejected.ok);
+    // Bij een goed leesbare kop blijft uitsluitend de gewone strenge uitkomst gelden.
+    const good = enc.encode(mutate(header('Naam', 'Auteur', 'Bedrijf')) + body);
+    const strict = scanOrError(good);
+    const got = scanForeign(good);
+    if (!(strict instanceof StepScanError)) eq(`oude kop ${label}: goede kop onveranderd`, got, foreignScanFrom(strict, classify(strict), good));
+  }
+  for (const name of ["O'Hara.ifc','2026-01-15T12:00:00',('dubbel", "O'Hara'),('dubbel", "O'Hara;FILE_POPULATION('x')"]) {
+    ok(`oude kop dubbelzinnig ${name}: weigert`, !scanForeign(enc.encode(header(name, 'Auteur', 'Bedrijf') + body)).ok);
+  }
+  for (const badBody of [body.replace('IFCPERSON(', 'IFCPERSON(' + "'"), body.replace('END-ISO-10303-21;', ''),
+    body + "#99003=IFCWALL('x');", body.replace('ENDSEC;', "#99004=IFCWALL('zonder einde\nENDSEC;")]) {
+    ok('oude kop: kapotte DATA blijft streng geweigerd', !scanForeign(enc.encode(badHeader + badBody)).ok);
+  }
+  for (const path of [...ownFiles, ...corpusFiles]) {
+    const bytes = new Uint8Array(readFileSync(path));
+    const strict = scanOrError(bytes);
+    if (strict instanceof StepScanError) continue;
+    eq(`oude kop pariteit ${rel(path)}: leesbare scan bytegelijk`, scanForeign(bytes), foreignScanFrom(strict, classify(strict), bytes));
+  }
+}
+
 if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
 
 const pythonNote = WITH_PYTHON ? `; ${pythonFiles} bestanden gelijk aan classify-v9.py` : '; zonder Python-vergelijking (OPS_IFC_PYTHON=1)';

@@ -6,7 +6,8 @@
  * keuze van `selectPlanning` als stukindexen. Puur: geen store, DOM, bestandstoegang of Tauri. De Worker
  * (`foreignScan.worker.ts`) en de synchrone terugval (`foreignScanRunner.ts`) roepen dezelfde functie aan.
  */
-import { scanStep, StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
+import { StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
+import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 
 /** De keuze van de lezer (§4.2 stap 1) als stukindexen in bronvolgorde. */
@@ -64,7 +65,7 @@ export type ForeignScanOutcome = ForeignScanResult | ForeignScanRefusal;
 export function scanForeign(bytes: Uint8Array): ForeignScanOutcome {
   let index;
   try {
-    index = scanStep(bytes);
+    index = scanForeignStep(bytes);
   } catch (err) {
     if (err instanceof StepScanError) return { ok: false, reason: err.reason, message: err.message };
     throw err;
