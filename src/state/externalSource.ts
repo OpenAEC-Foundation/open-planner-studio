@@ -4,6 +4,7 @@
 import type { ExternalSourceDoc, LateDatesInFile } from '@/engine/externalLinks';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
+import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { Task } from '@/types/task';
 import { parseOpenedFile, readFormatInput, type FormatIO, type FormatReadOptions } from '@/services/formatRegistry';
 import { activeImportResult, type ImportLabels, type ImportResult } from '@/services/importTypes';
@@ -38,6 +39,11 @@ export interface ExternalSourceRead extends ExternalSourceDoc {
  * Die berekening geeft elke brontaak late datums, ook als het bestand ze niet had. Een externe
  * opvolger rekent alleen met een late datum die het bestand zelf droeg; daarom onthoudt de bron per
  * taak welke late as er in het bestand stond (`lateDatesInFile`, review PR #794 ronde 1).
+ *
+ * Draagt het bestand geen projectsleutel (`generatedProjectId`: MSPDI zonder GUID, `.mpp`, CSV), dan is
+ * het project-id van de lezer bij elk inlezen anders. De bron krijgt dan het bestandspad als project-id
+ * (knownbug 837): zo blijft het id bij elk inlezen gelijk, en schrijft "Bron vernieuwen" niet elke keer
+ * een nieuw id in de koppeling (een onnodige undo-stap).
  */
 export function externalSourceFromImport(parsed: ImportResult, filePath: string): ExternalSourceRead {
   const { result } = ensureUniqueImportIds(parsed);
@@ -47,7 +53,7 @@ export function externalSourceFromImport(parsed: ImportResult, filePath: string)
   // invoer niet, en `applyRecordedDatesOnLoad` vergelijkt de vastlegging met de nieuwe berekening.
   applyRecordedDatesOnLoad(payload.tasks, prepared, parsed);
   return {
-    projectId: prepared.project.id,
+    projectId: parsed.generatedProjectId ? sourceProjectIdFromPath(filePath) : prepared.project.id,
     projectName: prepared.project.name,
     filePath,
     fileName: filePath.split(/[\\/]/).pop() || filePath,
@@ -55,6 +61,11 @@ export function externalSourceFromImport(parsed: ImportResult, filePath: string)
     tasks: prepared.tasks,
     lateDatesInFile: lateDatesInFile(payload.tasks, parsed),
   };
+}
+
+/** Het project-id van een bron zonder projectsleutel: het genormaliseerde bestandspad. */
+function sourceProjectIdFromPath(filePath: string): string {
+  return `file:${normalizeExternalSourcePath(filePath) ?? filePath}`;
 }
 
 /**
