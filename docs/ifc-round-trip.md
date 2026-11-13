@@ -420,9 +420,11 @@ zonder feature flag; eerder opende die stil als leeg project en kon Ctrl+S de br
 auteur, bedrijf of alle drie de velden hebben dezelfde bescherming. `O'Hara; Noord` krijgt met de flag een bron
 zonder terugval. Een aanwezige wand blijft vreemd; opslaan blijft geblokkeerd.
 
-Een puntkomma mag in een vrij veld; `',`, `')`, `('`, regeleinden en stuurtekens niet. Andere vaste delen, extra
-velden of kopregels worden niet herkend. Er is geen lengteverschil tussen de drie gebruikers: ook boven 64 KiB
-wordt dezelfde kop herkend. De oude ruimere herkenning met `OPS_PREFIX_MAX` in de doelcontrole is verwijderd:
+Een puntkomma en losse apostrof mogen in een vrij veld; quote/veldgrenzen (ook met witruimte), regeleinden en stuurtekens niet. Andere vaste delen, extra
+velden of kopregels worden niet herkend. Alle drie gebruikers delen de bytegrens van main: maximaal 64 KiB UTF-8 vanaf het bestandsbegin t/m de LF na
+FILE_NAME, inclusief vaste stukken, exclusief de volgende FILE_SCHEMA/ENDSEC/DATA-regels. Daarboven volgt main,
+zonder maskering of grensverplaatsing. Mogelijke entiteitsbeginnen (`#` + woord-id + ASCII-witruimte + `=`),
+commentaarmarkeringen en quote/veldgrenzen (ook met witruimte) behouden eveneens de gewone main-route. De oude ruimere herkenning met `OPS_PREFIX_MAX` in de doelcontrole is verwijderd:
 kapotte huidige IFC4X3_ADD2-koppen, CRLF en afwijkende velden weigeren daar voortaan als 'unreadable'. Regeleinden
 in vrije velden blijven geweigerd. Voor elk niet-herkend bestand volgt de lezer de sectiezoekregel van main
 (knownbug 1061). De lexer, parseSTEP en de overige leesregels zijn hiervoor niet veranderd.

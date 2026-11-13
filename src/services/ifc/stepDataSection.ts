@@ -123,7 +123,7 @@ export class StepDataSectionFinder {
  */
 export function indexOfStepDataSection(content: string, literalStrings = false): number {
   const oldOwn = recognizeOldOwnHeader(content);
-  if (oldOwn) return oldOwn.dataStart;
+  if (oldOwn && oldOwn !== 'main') return oldOwn.dataStart;
   const finder = new StepDataSectionFinder(false, literalStrings);
   for (let i = 0; i < content.length; i++) {
     if (finder.step(content.charCodeAt(i), i)) return i - 4;

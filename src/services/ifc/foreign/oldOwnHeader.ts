@@ -8,7 +8,7 @@ import { recognizeOldOwnHeader } from '../oldOwnHeader';
 /** Even lange, zelfstandige scankopie; ook Buffer.slice() mag de bron niet delen. */
 function oldHeaderForScan(bytes: Uint8Array): Uint8Array | null {
   const header = recognizeOldOwnHeader(bytes);
-  if (!header) return null;
+  if (!header || header === 'main') return null;
   const safe = new Uint8Array(bytes);
   for (const [start, end] of header.fields) safe.fill(0x78, start, end);
   return safe;

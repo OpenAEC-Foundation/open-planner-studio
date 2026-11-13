@@ -43,9 +43,10 @@ Vanaf v2026.7.13 beschermde de writer de vrije velden. Drie gebruikers delen dez
 (`foreign/oldOwnHeader.ts`, pas na een strenge scanfout), de doelcontrole als stroom en de datasectievinder voor
 `readIFC`. De eerste maskeert alleen de drie vrije velden op een even lange zelfstandige kopie, ook bij Node-buffers.
 Bronbytes en byteposities blijven intact; DATA gaat streng door de scanner. De andere twee beginnen bij het DATA
-na de vaste kopregels, zodat DATA; en ENDSEC; in naam, auteur of bedrijf geen sectiegrens zijn. Puntkomma's mogen;
-`',`, `')`, `('`, stuurtekens, regeleinden en afwijkende vaste ankers niet. Geen 64-KiB-grens; de stroom houdt alleen
-de nog onbesliste kop vast. Alle andere bestanden houden de sectiezoekregel van main (1061). De aparte, ruimere
+na de vaste kopregels, zodat DATA; en ENDSEC; in naam, auteur of bedrijf geen sectiegrens zijn. Puntkomma's en losse apostroffen mogen. Veldsyntaxis, ook met witruimte, stuurtekens en afwijkende vaste ankers
+worden niet als vrije tekst herkend. De grens is precies die van main: 64 KiB UTF-8 vanaf het begin t/m de LF na FILE_NAME; de volgende vaste regels
+tellen niet mee. Mogelijke entiteitsbeginnen, commentaar en quote/veldgrenzen (ook met witruimte) behouden de
+main-route en worden niet gemaskeerd of overgeslagen. De stroom houdt alleen de nog onbesliste kop vast. Alle andere bestanden houden de sectiezoekregel van main (1061). De aparte, ruimere
 herkenning in `targetModelScan.ts` is weg; een kapotte huidige kop is geen oude kop en weigert als doel. Een geldig
 bestand volgt de gewone grammatica. Opslaan met een vreemd deel blijft geblokkeerd.
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.

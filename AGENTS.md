@@ -232,7 +232,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   copy. The exact LF/IFC4X3 header of the 17 raw tags v2026.2.0 through v2026.7.12 is recognized once in
   `src/services/ifc/oldOwnHeader.ts`, shared with the target stream and the reader's data-section start. DATA; or
   ENDSEC; inside those free fields is header text; semicolons are allowed, field syntax and controls are refused.
-  There is no 64 KiB header limit. Other inputs retain main's data-section rule (knownbug 1061); broken headers
+  The shared limit equals main: 64 KiB of UTF-8 from the file start through the LF after FILE_NAME. Entity starts,
+  comment markers or quote/field separators (also spaced) retain the main route; they are never masked or skipped.
+  Other inputs retain main's data-section rule (knownbug 1061); broken headers
   outside that exact template are unreadable as targets. Original bytes/positions and strict DATA scanning remain.
   The foreign-content save block stays closed.
 - **IFC 4.3 is the native format**; there is no JSON project format. New domain data must round-trip through

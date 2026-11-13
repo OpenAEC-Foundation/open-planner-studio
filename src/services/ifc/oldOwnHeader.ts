@@ -10,11 +10,12 @@ const END_NAME = "'),'Open Planner Studio 0.1','Open Planner Studio','');";
 // Alleen ASCII-ankers; één code-eenheid per byte, ook bij UTF-8. Nooit terugcoderen voor een positie.
 const byteText = new TextDecoder('latin1');
 const utf8 = new TextDecoder();
+const enc = new TextEncoder();
+/** Main telde de hele UTF-8-prefix t/m de LF na FILE_NAME, niet alleen de vrije tekst. */
+export const OLD_OWN_HEADER_PREFIX_MAX = 64 << 10;
 export interface OldOwnHeader {
   /** Positie van de D van DATA;, in bytes of UTF-16-code-eenheden volgens de invoer. */
   readonly dataStart: number;
-  /** Direct na de LF van DATA;. */
-  readonly end: number;
   readonly fields: ReadonlyArray<readonly [number, number]>;
 }
 
@@ -24,10 +25,12 @@ function uniqueAt(line: string, part: string): number {
   return at >= 0 && line.indexOf(part, at + 1) < 0 ? at : -1;
 }
 
-/** Exacte herkenning: null = anders; undefined = nog onvolledig (alleen bij een stroom, complete=false).
- * Geen grens aan de veldlengte: ook de doelcontrole gebruikt deze regel, voorbij de vroegere 64 KiB.
+/** Exacte herkenning: object = maskeren/vaste DATA-grens; null = anders; undefined = nog onvolledig.
+ * 'main' = de vaste buitenvorm klopt, maar vrije tekst mag niet worden gemaskeerd of overgeslagen. Alleen de
+ * doelcontrole behoudt dan de oude leeslus van main; scan en lezer gebruiken hun gewone route.
+ * De ene 64-KiB-grens is die van main, voor alle drie gebruikers gelijk.
  */
-export function recognizeOldOwnHeader(content: string | Uint8Array, complete = true): OldOwnHeader | null | undefined {
+export function recognizeOldOwnHeader(content: string | Uint8Array, complete = true): OldOwnHeader | 'main' | null | undefined {
   const codeAt = (i: number) => typeof content === 'string' ? content.charCodeAt(i) : content[i];
   const match = (at: number, fixed: string): boolean | undefined => {
     const n = Math.min(fixed.length, content.length - at);
@@ -37,7 +40,13 @@ export function recognizeOldOwnHeader(content: string | Uint8Array, complete = t
   const prefix = match(0, PREFIX);
   if (prefix !== true) return prefix === false ? null : undefined;
   const endLine = typeof content === 'string' ? content.indexOf('\n', PREFIX.length) : content.indexOf(0x0a, PREFIX.length);
-  if (endLine < 0) return complete ? null : undefined;
+  if (endLine < 0) {
+    const size = typeof content === 'string' ? enc.encode(content.slice(0, OLD_OWN_HEADER_PREFIX_MAX)).length : content.length;
+    return complete || size >= OLD_OWN_HEADER_PREFIX_MAX ? null : undefined;
+  }
+  if (endLine >= OLD_OWN_HEADER_PREFIX_MAX) return null;
+  const prefixBytes = typeof content === 'string' ? enc.encode(content.slice(0, endLine + 1)).length : endLine + 1;
+  if (prefixBytes > OLD_OWN_HEADER_PREFIX_MAX) return null;
   const tail = match(endLine, AFTER_LINE);
   if (tail !== true) return tail === false ? null : undefined;
   const line = typeof content === 'string' ? content.slice(PREFIX.length, endLine)
@@ -57,6 +66,7 @@ export function recognizeOldOwnHeader(content: string | Uint8Array, complete = t
   const companyEnd = line.length - END_NAME.length;
   if (authorEnd < authorStart || companyEnd < companyStart) return null;
   const fields = [[0, nameEnd], [authorStart, authorEnd], [companyStart, companyEnd]] as const;
+  let mainOnly = false;
   for (const [start, end] of fields) {
     const value = line.slice(start, end);
     const text = typeof content === 'string' ? value : utf8.decode(content.subarray(PREFIX.length + start, PREFIX.length + end));
@@ -64,9 +74,14 @@ export function recognizeOldOwnHeader(content: string | Uint8Array, complete = t
       const code = text.charCodeAt(i);
       if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029) return null;
     }
-    // Een puntkomma mag: de hele regel tussen de vaste ankers is kop en wordt voor de scan gemaskeerd.
-    if (value.includes("',") || value.includes("')") || value.includes("('")) return null;
+    // readEntity (ifcReader.ts) leest #\w+[ASCII-witruimte]*=; die private regel heeft geen gedeelde export.
+    // Zo'n begin kan voor main echte inhoud zijn en mag dus nooit verdwijnen achter maskering of een latere DATA-grens.
+    // Commentaar kan ids samenvoegen of de rest verbergen; ook dat blijft volledig op de main-route.
+    if (/#\w+[ \t\r\n\v\f]*=/.test(value) || value.includes('/*') || value.includes('*/')) mainOnly = true;
+    // Een losse apostrof en een puntkomma mogen; quote/veldgrenzen, ook met tussenruimte, zijn geen vrije tekst.
+    if (/'[ \t\r\n\v\f]*[,)]|[(,][ \t\r\n\v\f]*'/.test(value)) mainOnly = true;
   }
+  if (mainOnly) return 'main';
   const end = endLine + AFTER_LINE.length;
-  return { dataStart: end - 'DATA;\n'.length, end, fields: fields.map(([a, b]) => [PREFIX.length + a, PREFIX.length + b]) };
+  return { dataStart: end - 'DATA;\n'.length, fields: fields.map(([a, b]) => [PREFIX.length + a, PREFIX.length + b]) };
 }

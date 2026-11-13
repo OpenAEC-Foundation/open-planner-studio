@@ -19,6 +19,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
+import { oldHeaderTable, compareOldHeaderTable, type OldHeaderRow } from './ifcOudeKopVergelijking';
 import { oudeKop, oudeKopVelden, oudeWand } from './ifcOudeKop';
 import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 
@@ -179,6 +180,16 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     eq(`${label}: heropenen geeft volledige planning`, saved(reopened), saved(reference));
     eq(`${label}: heropenen behoudt taken`, reopened.getState().tasks.length, 20);
   }
+}
+
+// #916 fixronde 2: de hele gemaakte-koppentabel tegen vers gemeten productcode van main a599a2b1f.
+{
+  const reference = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/oude-kop-main.json'), 'utf8')) as { basis: string; rows: OldHeaderRow[] };
+  eq('fix2 referentie: de gemeten main-commit', reference.basis, 'a599a2b1f61e8a0974ac0e6f9a47add1e0f0f1d4');
+  const table = compareOldHeaderTable(reference.rows, await oldHeaderTable(ROOT));
+  eq('fix2 algemene vergelijking: nul anders', table.problems, []);
+  eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired, table.cases);
+  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, ${table.other} anders`);
 }
 
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────

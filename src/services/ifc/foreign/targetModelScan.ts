@@ -50,7 +50,7 @@ import { StepStringState, isStepControl, stepString } from '../stepLexical';
 // De lezer stopt bij de eerste modelentiteit. Een groot bestand zonder model leest hij helemaal, maar als stroom.
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { STEP_HEADER, StepDataSectionFinder, startsWithStepHeader } from '../stepDataSection';
-import { recognizeOldOwnHeader } from '../oldOwnHeader';
+import { OLD_OWN_HEADER_PREFIX_MAX, recognizeOldOwnHeader } from '../oldOwnHeader';
 import { StepFileGrammar } from '../stepFileGrammar';
 
 /** Uitkomst van de controle; zie de kop van dit bestand voor de betekenis. */
@@ -481,7 +481,7 @@ export class TargetModelScanner {
           this.prefix = grown;
         }
         this.prefix[this.prefixLength++] = b;
-        if (b === 0x0a || this.prefixLength <= STEP_HEADER.length) this.recognizeOwnHead(false);
+        if (b === 0x0a || this.prefixLength <= STEP_HEADER.length || this.prefixLength === OLD_OWN_HEADER_PREFIX_MAX) this.recognizeOwnHead(false);
       }
       if (!grammar.failed) {
         grammar.step(b, abs);
@@ -525,12 +525,12 @@ export class TargetModelScanner {
     return true;
   }
 
-  /** Dezelfde exacte kopherkenning als de scan en de lezer, ook bij een kop groter dan 64 KiB. */
+  /** Dezelfde exacte kopherkenning als de scan en de lezer, met precies dezelfde 64-KiB-grens als main. Een geweigerd vrij veld behoudt alleen de leeslus van main. */
   private recognizeOwnHead(atEof: boolean): void {
     const own = recognizeOldOwnHeader(this.prefix.subarray(0, this.prefixLength), atEof);
     if (own === undefined) return;
     this.ops = own !== null;
-    if (own) this.ownDataEnd = own.dataStart + DATA_SEMI_LENGTH;
+    if (own && own !== 'main') this.ownDataEnd = own.dataStart + DATA_SEMI_LENGTH;
     this.prefix = EMPTY;
   }
 

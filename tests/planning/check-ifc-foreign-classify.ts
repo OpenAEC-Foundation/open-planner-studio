@@ -822,12 +822,38 @@ if (WITH_PYTHON) {
     const text = h + body;
     const bytes = enc.encode(text);
     const label = `oude kop drie gebruikers ${fields.map(f => f.slice(0, 45)).join('/')}`;
-    eq(`${label}: tekstgrens`, indexOfStepDataSection(text), h.length - 6);
-    eq(`${label}: bytegrens`, recognizeOldOwnHeader(bytes)?.dataStart, enc.encode(h).length - 6);
-    ok(`${label}: scan`, scanForeign(bytes).ok);
-    eq(`${label}: doel zonder model`, scanTargetBytes(bytes), 'no-model');
+    const withinLimit = enc.encode(h.slice(0, h.indexOf('\nFILE_SCHEMA') + 1)).length <= (64 << 10);
+    const recognized = recognizeOldOwnHeader(bytes);
+    eq(`${label}: tekstgrens`, indexOfStepDataSection(text), withinLimit ? h.length - 6 : mainDataStart(text));
+    eq(`${label}: bytegrens`, recognized && recognized !== 'main' ? recognized.dataStart : undefined, withinLimit ? enc.encode(h).length - 6 : undefined);
+    eq(`${label}: scan`, scanForeign(bytes).ok, withinLimit);
+    eq(`${label}: doel zonder model`, scanTargetBytes(bytes), withinLimit ? 'no-model' : 'unreadable');
     const withWall = enc.encode(h + body.replace('ENDSEC;', wall + 'ENDSEC;'));
-    for (const size of [1, 7, 65536, withWall.length]) eq(`${label}: wand bij ${size} B`, targetInChunks(withWall, size), 'model');
+    for (const size of [1, 7, 65536, withWall.length]) eq(`${label}: wand bij ${size} B`, targetInChunks(withWall, size), withinLimit ? 'model' : 'unreadable');
+  }
+  // #916 fixronde 2: vrije tekst mag geen entiteiten of extra veldscheiding verbergen.
+  for (const unsafe of ["X';ENDSEC;DATA;#999999=IFCWALL( 'x' ,$);ENDSEC;/*", "A' , 'extra", "A' ) extra", "A( 'extra", "A, 'extra"]) {
+    const text = header(unsafe, 'Auteur', 'Bedrijf') + body;
+    const got: unknown = recognizeOldOwnHeader(enc.encode(text));
+    ok(`fix2 onveilig veld ${unsafe}: niet maskeren`, got === null || got === 'main');
+    eq(`fix2 onveilig veld ${unsafe}: leesgrens main`, indexOfStepDataSection(text), mainDataStart(text));
+  }
+  const limit = 64 << 10;
+  const lineSize = (h: string) => enc.encode(h.slice(0, h.indexOf('\nFILE_SCHEMA') + 1)).length;
+  for (const unicode of [false, true]) for (const delta of [-1, 0, 1]) {
+    const prefixName = unicode ? "Één O'Hara " : "O'Hara ";
+    const base = header(prefixName, 'Auteur', 'Bedrijf');
+    const h = header(prefixName + 'x'.repeat(limit + delta - lineSize(base)), 'Auteur', 'Bedrijf');
+    eq(`fix2 grens ${unicode}/${delta}: volledige FILE_NAME-prefix in bytes`, lineSize(h), limit + delta);
+    const text = h + body;
+    const recognized = recognizeOldOwnHeader(enc.encode(text));
+    ok(`fix2 grens ${unicode}/${delta}: herkenning volgens main`, delta <= 0 ? recognized !== null && recognized !== undefined : recognized === null);
+    eq(`fix2 grens ${unicode}/${delta}: tekst en bytes dezelfde grens`, !!recognizeOldOwnHeader(text), !!recognized);
+    for (const size of [1, 7, 65536, text.length]) {
+      eq(`fix2 grens ${unicode}/${delta}: doel zonder model ${size}`, targetInChunks(enc.encode(text), size), delta <= 0 ? 'no-model' : 'unreadable');
+      const withWall = h + body.replace('ENDSEC;', wall + 'ENDSEC;');
+      eq(`fix2 grens ${unicode}/${delta}: doel met model ${size}`, targetInChunks(enc.encode(withWall), size), delta <= 0 ? 'model' : 'unreadable');
+    }
   }
   const badHeader = header("O'Hara DATA; Fase 1", 'Auteur', 'Bedrijf');
   const headerMutations: Array<[string, (h: string) => string]> = [
@@ -891,14 +917,15 @@ if (WITH_PYTHON) {
   for (const field of [0, 1, 2]) for (const bad of ["O'Hara',extra", "O'Hara')extra", "O'Hara('extra", "O'Hara\nextra", "O'Hara\rextra", "O'Hara\u0001extra", "O'Hara\u2028extra"]) {
     const fields = ["O'Hara", 'Auteur', 'Bedrijf']; fields[field] = bad;
     const text = header(fields[0], fields[1], fields[2]) + body;
-    eq(`oude kop onveilig veld ${field}/${JSON.stringify(bad)}: geen herkenning`, recognizeOldOwnHeader(text), null);
-    eq('onveilig veld: byteherkenning gelijk', recognizeOldOwnHeader(enc.encode(text)), null);
+    const rejected = recognizeOldOwnHeader(text);
+    ok(`oude kop onveilig veld ${field}/${JSON.stringify(bad)}: geen maskering`, rejected === null || rejected === 'main');
+    eq('onveilig veld: byteherkenning gelijk', recognizeOldOwnHeader(enc.encode(text)), rejected);
     eq('onveilig veld: lezer precies main', indexOfStepDataSection(text), mainDataStart(text));
     const bytes = enc.encode(text);
     const strict = scanOrError(bytes);
     if (strict instanceof StepScanError) ok(`onveilig veld ${field}/${JSON.stringify(bad)}: scan weigert`, !scanForeign(bytes).ok);
     else eq('onveilig veld: gewone strenge uitkomst blijft', scanForeign(bytes), foreignScanFrom(strict, classify(strict), bytes));
-    eq('onveilig veld: doel weigert', scanTargetBytes(enc.encode(text)), 'unreadable');
+    eq('onveilig veld: doel volgt main bij geweigerde vrije tekst', scanTargetBytes(enc.encode(text)), rejected === 'main' ? 'no-model' : 'unreadable');
   }
   for (const badBody of [body.replace('IFCPERSON(', 'IFCPERSON(' + "'"), body.replace('END-ISO-10303-21;', ''),
     body + "#99003=IFCWALL('x');", body.replace('ENDSEC;', "#99004=IFCWALL('zonder einde\nENDSEC;")]) {

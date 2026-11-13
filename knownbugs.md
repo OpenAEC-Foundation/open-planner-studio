@@ -2026,24 +2026,30 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-foreign-strikt.ts`, "geen dubbel `#id`"). Wat blijft: met de flag opent zo'n bestand nog. Uit #881
      (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
-1052. **VERVOLG: een bestand van een ander programma met precies de oude OPS-kop valt nog onder de leeslus.**
-     Sinds #916 delen scan, doelcontrole en datasectievinder `src/services/ifc/oldOwnHeader.ts`: uitsluitend het gemeten
-     LF/IFC4X3-sjabloon van v2026.2.0 t/m v2026.7.12, inclusief datum, alle vaste velden en de regels tot DATA. De oude,
-     ruimere herkenning in `targetModelScan.ts` is verwijderd. Een extra veld/regel, CRLF, een andere schemanaam of
-     veldscheiding in vrije tekst wordt niet herkend; gebroken bestanden daarmee zijn als doel 'unreadable'.
-     Wat blijft: een ander programma kan precies die hele oude kop schrijven. Breekt zijn DATA later, dan volgt de
-     doelcontrole nog de bestaande lus van `parseSTEP`. Een model dat die lus mist (1050, of in een latere sectie na
-     een fout; 1061 punt 7) kan zij dan nog missen. De C/A/V-scan blijft streng op DATA en de opslagblokkade voor een
-     vreemd deel blijft dicht. Uit #870 (ronde 8); afgebakend door #916 fixronde 1. — S
+1052. **VERVOLG: de oude leeslus kan inhoud missen, ook bij precies het oude OPS-kopsjabloon.**
+     #916 deelt één herkenning tussen scan, doelcontrole en datasectievinder. Alleen het gemeten LF/IFC4X3-sjabloon,
+     met geldige datum en vaste velden, mag de drie vrije plaatsen maskeren en DATA na de vaste kop kiezen.
+     Sinds fixronde 2 gebeurt dat niet bij een mogelijk entiteitsbegin (`#` + woord-id + ASCII-witruimte + `=`),
+     commentaarmarkeringen of quote/veldgrenzen, ook met tussenruimte (`' ,`, `' )`, `( '`, `, '`). Een losse apostrof
+     en DATA;/ENDSEC; zonder zulke inhoud blijven ondersteund. Dezelfde functie geeft voor onveilige vrije tekst
+     uitsluitend de bestaande route van main terug: geen maskering of nieuwe leesgrens; de doelcontrole ziet zo ook
+     Sols geïnjecteerde wand. Dit bewijst geen herkomst. De strenge scan houdt voorrang: een al streng leesbare kop
+     houdt de gewone uitkomst, ook als hij extra velden bevat. Er is geen algemene claim dat elke extra veldvorm
+     'unreadable' is. Wat blijft: de bestaande lus van parseSTEP kan model- of vreemde gegevens missen (1050/1061);
+     de herkenning is geen algemene oplossing daarvoor. Uit #870; afgebakend door #916 fixronde 2. — S
 
 1054. **VERVOLG: wat na #870 overblijft bij de grammatica en de doelcontrole.**
      (1) Geen test voor een niet-leesbaar doel via de site (`window.openaecHost`); de handle- en Tauri-routes zijn wel
-     getest (`check-ifc-foreign-target.ts`). (2) Regeleinden en andere stuurtekens in de vrije velden van oude uitvoer
-     blijven buiten de gedeelde herkenning van #916: een kapot bestand opent zoals main, maar weigert als doel
-     ('unreadable'). De oude writer haalde die tekens niet weg. Meer dan 64 KiB vrije tekst is sinds #916 wél herkend,
-     bij alle drie de gebruikers; `OPS_PREFIX_MAX` en de aparte herkenning zijn weg. Een proef van ruim 70 KiB met
-     apostrof, Unicode en DATA; geeft met een wand 'model' in stukken van 1 B, 7 B, 64 KiB en alles; zonder wand
-     'no-model', met een volledige C/A/V-scan en de juiste tekst-/bytegrens. (3) De grammatica kent nog niet elke vorm van de
+     getest (`check-ifc-foreign-target.ts`). (2) Regeleinden en andere stuurtekens in de vrije velden blijven buiten
+     de gedeelde herkenning. De 64-KiB-grens is in #916 fixronde 2 hersteld voor alle drie gebruikers, op precies de
+     maat van main: UTF-8-bytes vanaf het bestandsbegin t/m de LF na FILE_NAME, inclusief de vaste stukken. Tot en
+     met 65.536 bytes kan die regel herkend worden; daarboven geen uitzondering, dus de gewone route van main.
+     De regels erna (FILE_SCHEMA/ENDSEC/DATA) tellen niet mee in die grens. Dit is ook als tekst dezelfde bytegrens,
+     niet een grens in UTF-16-tekens. Net onder/op/boven de grens zijn ASCII en meerbyte-tekst beproefd, in één stuk
+     en in stukken van 1 B, 7 B en 64 KiB. Een lange gewone geldige kop kan de strenge route blijven volgen. Een
+     kapotte auteursregel van ruim 70 KiB geeft, zoals main, 'unreadable' als doel: ook met een wand in de tweede
+     sectie of een vreemde propertyset. De twee nieuw overschrijfbare doelen van fixronde 1 zijn daarmee dicht.
+     (3) De grammatica kent nog niet elke vorm van de
      norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
      met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)
      heeft `\N\` en `\F\` vóór `(` en `;`, maar niet tussen de parameters (`DATA('deel'\N\,('IFC4X3_ADD2'));`).
