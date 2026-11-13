@@ -2036,7 +2036,11 @@ en noem het in je rapport of PR-tekst.
      Sols geïnjecteerde wand. Dit bewijst geen herkomst. De strenge scan houdt voorrang: een al streng leesbare kop
      houdt de gewone uitkomst, ook als hij extra velden bevat. Er is geen algemene claim dat elke extra veldvorm
      'unreadable' is. Wat blijft: de bestaande lus van parseSTEP kan model- of vreemde gegevens missen (1050/1061);
-     de herkenning is geen algemene oplossing daarvoor. Uit #870; afgebakend door #916 fixronde 2. — S
+     de herkenning is geen algemene oplossing daarvoor. De gemaakte-koppentabel van #916 toetst per instelling
+     gelijkheid met main, herstel van een leeg main-project, of uitsluitend een veiligere opening van vreemde inhoud.
+     Die laatste uitkomst vereist de volledige planning, bytegelijke bronregistratie en nul writes bij zowel Opslaan
+     als Opslaan als; ook het bronbestand blijft bytegelijk. Main moet die opening weigeren of die vreemde inhoud
+     wegschrijven. Iedere andere afwijking faalt. Uit #870; afgebakend door #916 fixronde 2. — S
 
 1054. **VERVOLG: wat na #870 overblijft bij de grammatica en de doelcontrole.**
      (1) Geen test voor een niet-leesbaar doel via de site (`window.openaecHost`); de handle- en Tauri-routes zijn wel
@@ -2049,6 +2053,9 @@ en noem het in je rapport of PR-tekst.
      en in stukken van 1 B, 7 B en 64 KiB. Een lange gewone geldige kop kan de strenge route blijven volgen. Een
      kapotte auteursregel van ruim 70 KiB geeft, zoals main, 'unreadable' als doel: ook met een wand in de tweede
      sectie of een vreemde propertyset. De twee nieuw overschrijfbare doelen van fixronde 1 zijn daarmee dicht.
+     Binnen de grens blijft de bestaande doelcontrole van main beperkt tot producttypen en de eerste datasectie;
+     zij beschermt een doel met alleen een vreemde propertyset niet algemeen. Dat hoort bij de doelbescherming van
+     fase 1c. Een geopend document met geregistreerd vreemd deel houdt de bestaande opslagblokkade, ook bij Opslaan als.
      (3) De grammatica kent nog niet elke vorm van de
      norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
      met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)

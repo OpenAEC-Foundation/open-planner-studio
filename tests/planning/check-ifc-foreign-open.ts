@@ -188,8 +188,9 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
   eq('fix2 referentie: de gemeten main-commit', reference.basis, 'a599a2b1f61e8a0974ac0e6f9a47add1e0f0f1d4');
   const table = compareOldHeaderTable(reference.rows, await oldHeaderTable(ROOT));
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
-  eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired, table.cases);
-  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, ${table.other} anders`);
+  eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer, table.cases);
+  for (const line of table.evidence) console.log('TABELGEVAL ' + line);
+  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, ${table.other} anders`);
 }
 
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────

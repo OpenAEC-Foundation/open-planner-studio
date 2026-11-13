@@ -16,6 +16,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -37,6 +45,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -64,6 +80,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -85,6 +109,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -112,6 +144,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -133,6 +173,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -160,6 +208,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -181,6 +237,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -208,6 +272,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -229,6 +301,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -256,6 +336,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -277,6 +365,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -304,6 +400,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -325,6 +429,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -352,6 +464,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -373,6 +493,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -400,6 +528,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -421,6 +557,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -448,6 +592,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -469,6 +621,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -496,6 +656,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -517,6 +685,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -544,6 +720,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -565,6 +749,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -592,6 +784,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -613,6 +813,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -640,6 +848,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -661,6 +877,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -688,6 +912,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -709,6 +941,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -736,6 +976,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -757,6 +1005,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -784,6 +1040,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -805,6 +1069,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -832,6 +1104,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -853,6 +1133,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -880,6 +1168,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -901,6 +1197,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -928,6 +1232,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -949,6 +1261,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -976,6 +1296,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -997,6 +1325,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1024,6 +1360,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1045,6 +1389,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1072,6 +1424,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1093,6 +1453,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1120,6 +1488,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1141,6 +1517,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1168,6 +1552,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1189,6 +1581,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -1216,6 +1616,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1237,6 +1645,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1264,6 +1680,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1285,6 +1709,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1312,6 +1744,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1333,6 +1773,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1360,6 +1808,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1381,6 +1837,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1408,6 +1872,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1429,6 +1901,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1456,6 +1936,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1477,6 +1965,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1504,6 +2000,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1525,6 +2029,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1552,6 +2064,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1573,6 +2093,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1605,6 +2133,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -1627,6 +2161,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -1653,6 +2193,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -1675,6 +2221,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -1701,6 +2253,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -1723,6 +2281,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -1744,6 +2308,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1765,6 +2337,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1792,6 +2372,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1813,6 +2401,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1840,6 +2436,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1861,6 +2465,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -1893,6 +2505,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -1915,6 +2533,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -1941,6 +2565,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -1963,6 +2593,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -1989,6 +2625,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2011,6 +2653,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2037,6 +2685,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2059,6 +2713,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2085,6 +2745,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2107,6 +2773,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2133,6 +2805,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2155,6 +2833,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2181,6 +2865,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2203,6 +2893,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2229,6 +2925,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2251,6 +2953,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2277,6 +2985,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2299,6 +3013,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2325,6 +3045,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2347,6 +3073,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2373,6 +3105,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2395,6 +3133,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2421,6 +3165,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2443,6 +3193,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2464,6 +3220,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2485,6 +3249,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2512,6 +3284,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2533,6 +3313,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2560,6 +3348,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2581,6 +3377,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2613,6 +3417,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2635,6 +3445,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2661,6 +3477,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2683,6 +3505,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2709,6 +3537,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2731,6 +3565,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2757,6 +3597,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2779,6 +3625,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2805,6 +3657,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2827,6 +3685,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2853,6 +3717,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -2875,6 +3745,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -2896,6 +3772,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2917,6 +3801,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2944,6 +3836,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2965,6 +3865,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -2992,6 +3900,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3013,6 +3929,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3040,6 +3964,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3061,6 +3993,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3088,6 +4028,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3109,6 +4057,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3136,6 +4092,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3157,6 +4121,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": false,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3184,6 +4156,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3205,6 +4185,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3237,6 +4225,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3252,6 +4246,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": true,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3282,6 +4282,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3297,6 +4303,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": true,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3322,6 +4334,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3343,6 +4363,14 @@
       "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "c27dee6ebfa6eadc9ad2902f285b9f0aff3040a12bc70d88e42295c24c2cf851"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 0,
@@ -3375,6 +4403,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3397,6 +4431,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -3423,6 +4463,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3438,6 +4484,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": true,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3468,6 +4520,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3483,6 +4541,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": true,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3513,6 +4577,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3535,6 +4605,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -3561,6 +4637,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3583,6 +4665,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -3609,6 +4697,12 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3631,6 +4725,12 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -3652,6 +4752,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3671,6 +4779,14 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3696,6 +4812,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3715,6 +4839,14 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3745,6 +4877,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3767,6 +4905,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -3788,6 +4932,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3809,6 +4961,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3836,6 +4996,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3857,6 +5025,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3889,6 +5065,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -3911,6 +5093,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -3932,6 +5120,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3953,6 +5149,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -3980,6 +5184,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4001,6 +5213,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4033,6 +5253,12 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -4055,6 +5281,12 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -4076,6 +5308,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4095,6 +5335,14 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4120,6 +5368,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4139,6 +5395,14 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4169,6 +5433,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -4191,6 +5461,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -4212,6 +5488,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4233,6 +5517,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4260,6 +5552,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4281,6 +5581,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4313,6 +5621,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -4335,6 +5649,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -4356,6 +5676,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4377,6 +5705,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4404,6 +5740,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4425,6 +5769,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4457,6 +5809,12 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -4479,6 +5837,12 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [],
      "targetIntact": true
@@ -4500,6 +5864,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4519,6 +5891,14 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4544,6 +5924,14 @@
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
      ],
      "intact": false,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": false,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": false,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4563,6 +5951,14 @@
      "target": "unreadable",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [
+      "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
+     ],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,
@@ -4593,6 +5989,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": false,
+     "sourceBytesEqual": false,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": null,
      "targetWrites": [
       "8c2d005d4d3469f9a5818520e9a32aeb3c33de5762e8b7beffa3acdef848afda"
@@ -4608,6 +6010,12 @@
      "target": "model",
      "writes": [],
      "intact": true,
+     "saveAsWrites": [],
+     "saveAsSourceIntact": true,
+     "foreign": true,
+     "sourceBytesEqual": true,
+     "hasForeignBytes": true,
+     "foreignRetained": true,
      "reopen": {
       "opened": true,
       "tasks": 20,

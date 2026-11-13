@@ -90,6 +90,9 @@ function memoryFile(initial: string) {
 export interface OldHeaderRoute {
   flag: boolean; opened: boolean; tasks: number; payload: string; notices: unknown;
   target: string; writes: string[]; intact: boolean; reopen: { opened: boolean; tasks: number; payload: string } | null;
+  // saveAsWrites gaat over dit geopende document; targetWrites over een andere planning naar dit bestaande doel.
+  saveAsWrites: string[]; saveAsSourceIntact: boolean;
+  foreign: boolean; sourceBytesEqual: boolean; hasForeignBytes: boolean; foreignRetained: boolean;
   targetWrites: string[]; targetIntact: boolean;
 }
 export interface OldHeaderRow { name: string; input: string; routes: OldHeaderRoute[]; }
@@ -140,7 +143,21 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
       const opened = state.fileHandle === file.handle;
       const before = { opened, tasks: state.tasks.length, payload: opened ? payload(store) : '',
         notices: stable(state.ui.notifications.map(({ id: _id, ...n }) => n)) };
+      const foreign = state.ifcSource?.foreign === true;
+      const sourceBytesEqual = state.ifcSource !== null && sha(state.ifcSource.bytes) === sha(c.text);
+      const foreignParts = [oudeWand, "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('bewaren'),$);",
+        "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));"].filter(part => c.text.includes(part));
       if (opened) await state.saveFile();
+      const saveWrites = file.writes.map(sha);
+      const intact = file.text() === c.text;
+      const foreignRetained = foreignParts.every(part => file.text().includes(part));
+      // Ook Opslaan als vanuit het geopende document moet nul writes geven bij een vreemd deel.
+      // Een nieuw, leeg doel voorkomt dat de bestaande-doelcontrole deze bronblokkade onbedoeld bewijst.
+      const saveAs = memoryFile('');
+      win.showOpenFilePicker = async () => [];
+      win.showSaveFilePicker = async () => saveAs.handle;
+      try { if (opened) await store.getState().saveFileAs(); } finally { delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
+      const saveAsSourceIntact = file.text() === c.text;
       const reopened = opened ? await open(file.text(), flag, file) : null;
       const reopen = reopened ? { opened: reopened.getState().fileHandle === file.handle, tasks: reopened.getState().tasks.length, payload: payload(reopened) } : null;
       // De bestaande doelen van Sol: echte Opslaan als vanuit een andere, veilige planning.
@@ -149,8 +166,8 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
       win.showOpenFilePicker = async () => [];
       win.showSaveFilePicker = async () => target.handle;
       try { await safe.getState().saveFileAs(); } finally { delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
-      routes.push({ flag, ...before, target: scanTargetBytes(enc.encode(c.text)), writes: file.writes.map(sha), intact: file.text() === c.text,
-        reopen, targetWrites: target.writes.map(sha), targetIntact: target.text() === c.text });
+      routes.push({ flag, ...before, target: scanTargetBytes(enc.encode(c.text)), writes: saveWrites, intact, saveAsWrites: saveAs.writes.map(sha), saveAsSourceIntact,
+        foreign, sourceBytesEqual, hasForeignBytes: foreignParts.length > 0, foreignRetained, reopen, targetWrites: target.writes.map(sha), targetIntact: target.text() === c.text });
     }
     rows.push({ name: c.name, input: sha(c.text), routes });
   }
@@ -167,36 +184,55 @@ if (!isMainThread && workerData?.oldHeaderCase) {
   process.exit(0);
 }
 
-/** Alleen exact main, of het lege main-project hersteld tot de gewone volledige planning (met modelweigering
- * zonder instelling). Ook de volledige payload en uitvoerbytes moeten aan de veilige controlevorm gelijk zijn.
+/** Per geval alleen (a) main, (b) een leeg main-project gerepareerd, of (c) aantoonbaar veiliger.
+ * Bij (c) moeten alle taken én alle bronbytes aanwezig zijn en moeten beide opslagacties nul writes hebben.
  */
 export function compareOldHeaderTable(main: OldHeaderRow[], current: OldHeaderRow[]) {
   const problems: string[] = [];
-  let same = 0, repaired = 0;
+  const evidence: string[] = [];
+  let same = 0, repaired = 0, safer = 0;
   const equal = (a: unknown, b: unknown) => JSON.stringify(stable(a)) === JSON.stringify(stable(b));
+  // Een nieuw geregistreerde eigen bron zonder vreemd deel verandert de open-/opslaguitkomst niet.
+  // Bij een vreemd deel blijft de bytegelijkheid juist onderdeel van de vergelijking.
+  const observable = ({ sourceBytesEqual, ...route }: OldHeaderRoute) => ({ ...route, ...(route.foreign ? { sourceBytesEqual } : {}) });
   const controls = [main.find(r => r.name === 'naam-4')!, main.find(r => r.name === 'controle-wand')!];
   if (main.length !== current.length) problems.push(`aantal: ${current.length} != ${main.length}`);
   for (const row of current) {
     const previous = main.find(r => r.name === row.name);
     if (!previous || previous.input !== row.input) { problems.push(`${row.name}: invoer wijkt af`); continue; }
-    if (equal(row, previous)) { same++; continue; }
-    let allowed = true;
+    let allowed = row.routes.length === previous.routes.length, repair = false, safe = false;
+    const routeCategories: string[] = [];
     for (let i = 0; i < row.routes.length; i++) {
       const got = row.routes[i], before = previous.routes[i];
-      if (equal(got, before)) continue;
+      if (!before || before.flag !== got.flag) { allowed = false; problems.push(`${row.name}: instelling/route wijkt af`); continue; }
+      if (equal(observable(got), observable(before))) { routeCategories[i] = 'a'; continue; }
       const control = controls[row.name.startsWith('Terra-wand-') ? 1 : 0]?.routes[i];
-      if (!before.opened || before.tasks !== 0 || !control || !equal(got, control)) {
-        allowed = false;
+      const fullPlanning = controls[0]?.routes[i];
+      const emptyRepaired = before.opened && before.tasks === 0 && control && equal(observable(got), observable(control));
+      // Het vreemde deel moet concreet in de invoer staan; main moet opening weigeren óf die bytes wegschrijven.
+      // Alle beschermingen zijn EN-voorwaarden, ook nul writes bij beide onafhankelijke opslagacties.
+      const saferRoute = got.hasForeignBytes && got.foreign && got.sourceBytesEqual && got.opened
+        && got.tasks === fullPlanning?.tasks && got.payload === fullPlanning?.payload
+        && got.writes.length === 0 && got.saveAsWrites.length === 0
+        && got.intact && got.saveAsSourceIntact && got.foreignRetained
+        && (!before.opened || (before.writes.length > 0 && !before.foreignRetained));
+      // Een aanvullende weigering van het bestaande doel is veilig bij nul writes en bytebehoud;
+      // een eerder geweigerd doel nieuw vrijgeven mag nooit.
+      const targetSafe = !((before.target === 'model' || before.target === 'unreadable') && got.target === 'no-model')
+        && ((equal(got.targetWrites, before.targetWrites) && got.targetIntact === before.targetIntact)
+          || (got.targetWrites.length === 0 && got.targetIntact));
+      if (emptyRepaired && targetSafe) { repair = true; routeCategories[i] = 'b'; }
+      else if (saferRoute && targetSafe) { safe = true; routeCategories[i] = 'c'; }
+      else {
+        allowed = false; routeCategories[i] = 'ROOD';
         const keys = Object.keys(got) as (keyof OldHeaderRoute)[];
         const changed = keys.filter(k => !equal(got[k], before[k])).join(', ');
-        problems.push(`${row.name} flag=${got.flag}: niet main of lege-projectreparatie (${changed}); taken ${before.tasks}->${got.tasks}; doel ${before.target}->${got.target}`);
-      }
-      // Een reparatie mag een door main geweigerd bestaand doel nooit nieuw vrijgeven.
-      if ((before.target === 'model' || before.target === 'unreadable') && got.target === 'no-model') {
-        allowed = false; problems.push(`${row.name}: nieuw vrijgegeven doel`);
+        problems.push(`${row.name} flag=${got.flag}: buiten (a)/(b)/(c) (${changed}); taken ${before.tasks}->${got.tasks}; doel ${before.target}->${got.target}; writes ${got.writes.length}/${got.saveAsWrites.length}; bron gelijk ${got.intact && got.saveAsSourceIntact}`);
       }
     }
-    if (allowed) repaired++;
+    const category = !allowed ? 'ROOD' : safe ? 'c' : repair ? 'b' : 'a';
+    if (allowed) { if (safe) safer++; else if (repair) repaired++; else same++; }
+    evidence.push(`${row.name}: (${category}) ` + row.routes.map((r, i) => `flag=${r.flag} (${routeCategories[i]}) taken=${r.tasks} (main ${previous.routes[i]?.tasks}), writes Opslaan=${r.writes.length}, Opslaan als=${r.saveAsWrites.length}, bronbytes gelijk=${r.intact && r.saveAsSourceIntact}, vreemd=${r.foreign}, bronregistratie gelijk=${r.sourceBytesEqual}`).join(' | '));
   }
-  return { cases: current.length, same, repaired, other: current.length - same - repaired, problems };
+  return { cases: current.length, same, repaired, safer, other: current.length - same - repaired - safer, problems, evidence };
 }
