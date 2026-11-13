@@ -590,6 +590,7 @@ test('A doelbescherming: model en externe pset blijven bytegelijk zonder flag of
     for (const [name, bytes] of [
       ['model', readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc'))],
       ['externe-pset', Buffer.from(foreign)],
+      ['onleesbaar-step', Buffer.from('ISO-10303-21;\nHEADER;\nENDSEC;\nEND-ISO-10303-21;\n')],
     ] as const) {
       const target = join(rootA, `${name}.ifc`);
       writeFileSync(target, bytes);

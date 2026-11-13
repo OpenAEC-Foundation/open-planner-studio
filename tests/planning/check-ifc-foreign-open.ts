@@ -182,15 +182,16 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
   }
 }
 
-// #916 fixronde 2: de hele gemaakte-koppentabel tegen vers gemeten productcode van main 1c95a8546 (na #917).
+// #916: de gemaakte-koppentabel tegen main 1c95a8546. PR 4 voegt alleen de bewezen sterkere bestaande-doelpoort toe;
+// opening en nieuwe-doeluitvoer blijven op de oude verwachting, de (c)-voorwaarden blijven ongewijzigd.
 {
   const reference = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/oude-kop-main.json'), 'utf8')) as { basis: string; rows: OldHeaderRow[] };
   eq('fix2 referentie: de gemeten main-commit', reference.basis, '1c95a8546fbe5fecb52e66a715402b08a256d0d5');
   const table = compareOldHeaderTable(reference.rows, await oldHeaderTable(ROOT));
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
-  eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer, table.cases);
+  eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer + table.protectedTarget, table.cases);
   for (const line of table.evidence) console.log('TABELGEVAL ' + line);
-  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, ${table.other} anders`);
+  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, (d) ${table.protectedTarget} alleen doelbescherming, ${table.other} anders`);
 }
 
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────

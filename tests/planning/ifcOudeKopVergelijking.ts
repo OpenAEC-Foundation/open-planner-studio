@@ -94,6 +94,7 @@ export interface OldHeaderRoute {
   saveAsWrites: string[]; saveAsSourceIntact: boolean;
   foreign: boolean; sourceBytesEqual: boolean; hasForeignBytes: boolean; foreignRetained: boolean;
   targetWrites: string[]; targetIntact: boolean;
+  saveTargetRefusal?: boolean; asTargetRefusal?: boolean;
 }
 export interface OldHeaderRow { name: string; input: string; routes: OldHeaderRoute[]; }
 export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
@@ -133,6 +134,8 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
     try { await store.getState().openOpenedFile({ name: 'proef.ifc', content: flag ? '' : text, ...(flag ? { bytes: enc.encode(text) } : {}), ref: { kind: 'handle', handle: file.handle } }); } finally { console.error = error; }
     return store;
   };
+  const targetRefused = (store: ReturnType<typeof createAppStoreContext>['store']) => store.getState().ui.notifications
+    .some(n => n.messageKey === 'notifications.ifcForeignTargetSave' || n.messageKey === 'notifications.ifcUnreadableTargetSave');
   const rows: OldHeaderRow[] = [];
   for (const c of oldHeaderCases(root).filter(c => c.name === workerData.oldHeaderCase.name)) {
     const routes: OldHeaderRoute[] = [];
@@ -148,6 +151,7 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
       const foreignParts = [oudeWand, "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('bewaren'),$);",
         "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));"].filter(part => c.text.includes(part));
       if (opened) await state.saveFile();
+      const saveTargetRefusal = targetRefused(store);
       const saveWrites = file.writes.map(sha);
       const intact = file.text() === c.text;
       const foreignRetained = foreignParts.every(part => file.text().includes(part));
@@ -167,7 +171,7 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
       win.showSaveFilePicker = async () => target.handle;
       try { await safe.getState().saveFileAs(); } finally { delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
       routes.push({ flag, ...before, target: scanTargetBytes(enc.encode(c.text)), writes: saveWrites, intact, saveAsWrites: saveAs.writes.map(sha), saveAsSourceIntact,
-        foreign, sourceBytesEqual, hasForeignBytes: foreignParts.length > 0, foreignRetained, reopen, targetWrites: target.writes.map(sha), targetIntact: target.text() === c.text });
+        foreign, sourceBytesEqual, hasForeignBytes: foreignParts.length > 0, foreignRetained, reopen, targetWrites: target.writes.map(sha), targetIntact: target.text() === c.text, saveTargetRefusal, asTargetRefusal: targetRefused(safe) });
     }
     rows.push({ name: c.name, input: sha(c.text), routes });
   }
@@ -184,23 +188,30 @@ if (!isMainThread && workerData?.oldHeaderCase) {
   process.exit(0);
 }
 
-/** Per geval alleen (a) main, (b) een leeg main-project gerepareerd, of (c) aantoonbaar veiliger.
+/** Kopherkenning: (a) main, (b) leeg main-project gerepareerd, of (c) aantoonbaar veiliger.
+ * PR 4: (d) daarnaast alleen de bewezen sterkere doelweigering, met ongewijzigde opening en nieuwe-doeluitvoer.
  * Bij (c) moeten alle taken én alle bronbytes aanwezig zijn en moeten beide opslagacties nul writes hebben.
  */
 export function compareOldHeaderTable(main: OldHeaderRow[], current: OldHeaderRow[]) {
   const problems: string[] = [];
   const evidence: string[] = [];
-  let same = 0, repaired = 0, safer = 0;
+  let same = 0, repaired = 0, safer = 0, protectedTarget = 0;
   const equal = (a: unknown, b: unknown) => JSON.stringify(stable(a)) === JSON.stringify(stable(b));
   // Een nieuw geregistreerde eigen bron zonder vreemd deel verandert de open-/opslaguitkomst niet.
   // Bij een vreemd deel blijft de bytegelijkheid juist onderdeel van de vergelijking.
-  const observable = ({ sourceBytesEqual, ...route }: OldHeaderRoute) => ({ ...route, ...(route.foreign ? { sourceBytesEqual } : {}) });
+  const observable = ({ sourceBytesEqual, saveTargetRefusal: _save, asTargetRefusal: _as, ...route }: OldHeaderRoute) => ({ ...route, ...(route.foreign ? { sourceBytesEqual } : {}) });
+  // PR 4 verandert uitsluitend de doelpoort. De opening én uitvoer naar een nieuw doel blijven exact main.
+  const outsideExistingTarget = (r: OldHeaderRoute) => {
+    const { writes: _writes, intact: _intact, saveAsSourceIntact: _asIntact, foreignRetained: _retained,
+      reopen: _reopen, targetWrites: _targetWrites, targetIntact: _targetIntact, ...rest } = observable(r);
+    return rest;
+  };
   const controls = [main.find(r => r.name === 'naam-4')!, main.find(r => r.name === 'controle-wand')!];
   if (main.length !== current.length) problems.push(`aantal: ${current.length} != ${main.length}`);
   for (const row of current) {
     const previous = main.find(r => r.name === row.name);
     if (!previous || previous.input !== row.input) { problems.push(`${row.name}: invoer wijkt af`); continue; }
-    let allowed = row.routes.length === previous.routes.length, repair = false, safe = false;
+    let allowed = row.routes.length === previous.routes.length, repair = false, safe = false, protect = false;
     const routeCategories: string[] = [];
     for (let i = 0; i < row.routes.length; i++) {
       const got = row.routes[i], before = previous.routes[i];
@@ -221,18 +232,27 @@ export function compareOldHeaderTable(main: OldHeaderRow[], current: OldHeaderRo
       const targetSafe = !((before.target === 'model' || before.target === 'unreadable') && got.target === 'no-model')
         && ((equal(got.targetWrites, before.targetWrites) && got.targetIntact === before.targetIntact)
           || (got.targetWrites.length === 0 && got.targetIntact));
+      // De nieuwe T-weigering is geen ruimere kopherkenning: geen enkele afwijking in openen toestaan.
+      // Beide echte bestaande-doelpogingen moeten getypeerd weigeren en alle doelbytes behouden.
+      const newlyProtected = got.flag && equal(outsideExistingTarget(got), outsideExistingTarget(before))
+        && before.writes.length > 0 && before.targetWrites.length > 0
+        && got.saveTargetRefusal === true && got.asTargetRefusal === true
+        && got.writes.length === 0 && got.targetWrites.length === 0
+        && got.intact && got.saveAsSourceIntact && got.targetIntact && got.foreignRetained
+        && got.reopen?.opened === got.opened && got.reopen?.tasks === got.tasks;
       if (emptyRepaired && targetSafe) { repair = true; routeCategories[i] = 'b'; }
       else if (saferRoute && targetSafe) { safe = true; routeCategories[i] = 'c'; }
+      else if (newlyProtected && targetSafe) { protect = true; routeCategories[i] = 'd'; }
       else {
         allowed = false; routeCategories[i] = 'ROOD';
         const keys = Object.keys(got) as (keyof OldHeaderRoute)[];
         const changed = keys.filter(k => !equal(got[k], before[k])).join(', ');
-        problems.push(`${row.name} flag=${got.flag}: buiten (a)/(b)/(c) (${changed}); taken ${before.tasks}->${got.tasks}; doel ${before.target}->${got.target}; writes ${got.writes.length}/${got.saveAsWrites.length}; bron gelijk ${got.intact && got.saveAsSourceIntact}`);
+        problems.push(`${row.name} flag=${got.flag}: buiten (a)/(b)/(c)/doelbescherming (${changed}); taken ${before.tasks}->${got.tasks}; doel ${before.target}->${got.target}; writes ${got.writes.length}/${got.saveAsWrites.length}; bron gelijk ${got.intact && got.saveAsSourceIntact}`);
       }
     }
-    const category = !allowed ? 'ROOD' : safe ? 'c' : repair ? 'b' : 'a';
-    if (allowed) { if (safe) safer++; else if (repair) repaired++; else same++; }
+    const category = !allowed ? 'ROOD' : protect ? 'd' : safe ? 'c' : repair ? 'b' : 'a';
+    if (allowed) { if (protect) protectedTarget++; else if (safe) safer++; else if (repair) repaired++; else same++; }
     evidence.push(`${row.name}: (${category}) ` + row.routes.map((r, i) => `flag=${r.flag} (${routeCategories[i]}) taken=${r.tasks} (main ${previous.routes[i]?.tasks}), writes Opslaan=${r.writes.length}, Opslaan als=${r.saveAsWrites.length}, bronbytes gelijk=${r.intact && r.saveAsSourceIntact}, vreemd=${r.foreign}, bronregistratie gelijk=${r.sourceBytesEqual}`).join(' | '));
   }
-  return { cases: current.length, same, repaired, safer, other: current.length - same - repaired - safer, problems, evidence };
+  return { cases: current.length, same, repaired, safer, protectedTarget, other: current.length - same - repaired - safer - protectedTarget, problems, evidence };
 }
