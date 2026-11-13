@@ -393,6 +393,54 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   ok('openen: een ander bestand krijgt zijn eigen bron', S().ifcSource !== source && S().ifcSource?.foreign === false);
 }
 
+// ── 7a. Fase 1c: een onbekende kop mag vreemde gegevens niet onbeveiligd openen ────────────────────────────
+{
+  const plain = dec(fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'));
+  const withPset = (text: string) => text.replace(/ENDSEC;\s*END-ISO-10303-21;/,
+    "#999997=IFCPROPERTYSINGLEVALUE('ExternKenmerk',$,IFCLABEL('moet blijven'),$);\n"
+    + "#999998=IFCPROPERTYSET('0123456789012345678901',$,'ExternPakket',$,(#999997));\nENDSEC;\nEND-ISO-10303-21;");
+  for (const schema of ['IFC_ONBEKEND', '']) {
+    const base = plain.replace(/FILE_SCHEMA\(.*?\);/, schema ? `FILE_SCHEMA(('${schema}'));` : '');
+    for (const foreign of [false, true]) {
+      const bytes = enc.encode(foreign ? withPset(base) : base);
+      const name = `kop-${schema || 'ontbreekt'}-${foreign}.ifc`;
+      const off = await open(false, name, bytes);
+      ok(`${name}: zonder flag opent zoals main`, opened(off, name));
+      if (foreign) ok(`${name}: main laat de externe pset bij schrijven weg`, !saved(off).includes('ExternPakket'));
+      const on = await open(true, name, bytes);
+      if (foreign) {
+        ok(`${name}: met flag ontstaat geen document`, !opened(on, name) && on.getState().tasks.length === 0);
+        eq(`${name}: getypeerde openingsmelding`, on.getState().ui.notifications[0]?.messageKey, 'notifications.ifcForeignOpenSchema');
+        const error = await readIfcBytes(bytes).catch((e: unknown) => e) as { code?: string; fallback?: { kind: string } };
+        eq(`${name}: getypeerde reden`, [error.code, error.fallback?.kind], ['IFC_FOREIGN_OPEN_REFUSED', 'schema']);
+      } else {
+        ok(`${name}: zonder vreemd deel opent met flag`, opened(on, name));
+        eq(`${name}: gewone opslag blijft bytegelijk`, saved(on), saved(off));
+        ok(`${name}: gewone opslag niet geblokkeerd`, !ifcSaveBlocked(on.getState()));
+      }
+    }
+  }
+  const { ifcSchemaQuestionFor, ifcSchemaBlocksSilentWrite } = await import('@/services/ifc/ifcSchemaQuestion');
+  for (const schema of ['IFC4', 'IFC4X3', 'IFC4X3_ADD1', 'IFC4X3_ADD2', 'IFC4X3_TC1']) {
+    const bytes = enc.encode(withPset(plain.replace(/FILE_SCHEMA\(.*?\);/, `FILE_SCHEMA(('${schema}'));`)));
+    const store = await open(true, `schema-${schema}.ifc`, bytes);
+    const S = () => store.getState();
+    const before = S().project.ifcSchema;
+    const source = S().ifcSource;
+    eq(`${schema}: letterlijke kop in bron`, source?.schemaName, schema);
+    eq(`${schema}: geen schemavraag`, ifcSchemaQuestionFor(S().project, source), null);
+    ok(`${schema}: stille schemacontrole leest bron`, !ifcSchemaBlocksSilentWrite({ ifcSchemaUnconfirmed: 'IFC2X3' }, source));
+    ok(`${schema}: directe schemakeuze geweigerd`, !S().setIfcSchema(before === 'IFC4' ? 'IFC4X3' : 'IFC4'));
+    S().setProject({ ifcSchema: before === 'IFC4' ? 'IFC4X3' : 'IFC4', name: 'Andere naam' });
+    eq(`${schema}: projectpatch behoudt schema`, S().project.ifcSchema, before);
+    S().undo(); S().redo();
+    eq(`${schema}: undo en redo behouden schema en bron`, [S().project.ifcSchema, S().ifcSource === source], [before, true]);
+    ok(`${schema}: opslagblokkade blijft dicht`, ifcSaveBlocked(S()));
+    const off = await open(false, `schema-uit-${schema}.ifc`, bytes);
+    ok(`${schema}: zonder flag blijft keuze mogelijk`, off.getState().setIfcSchema(before === 'IFC4' ? 'IFC4X3' : 'IFC4'));
+  }
+}
+
 // ── 7. Afwijking 7: weigert de scanner, dan de huidige route ───────────────────────────────────────────────────
 {
   const showcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
@@ -407,22 +455,15 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   ok('grens: #2147483647 gaat door de bytes-route', r1.fallback === undefined && r1.result.ifcSource !== undefined);
   ok('grens: de losse persoon is een vreemd deel', r1.result.ifcSource?.foreign === true);
   const overLimit = enc.encode(withPerson(showcase, '2147483648'));
-  const r2 = await readIfcBytesDetailed(overLimit);
-  eq('afwijking 7: #2147483648 geeft de terugval van de scanner', r2.fallback && 'reason' in r2.fallback ? [r2.fallback.kind, r2.fallback.reason] : null,
-    ['scanner', 'id-te-groot']);
-  eq('afwijking 7: de terugval heeft geen bron', r2.result.ifcSource, undefined);
-  reseed(0x804);
-  const viaFallback = planningOf(r2.result);
-  reseed(0x804);
-  eq('afwijking 7: de terugval geeft wat readIFC nu geeft', sha(viaFallback), sha(planningOf(readIFC(dec(overLimit)))));
-  // Via de store: openen zoals nu, zonder bron, opslaan mag.
+  const r2 = await readIfcBytesDetailed(overLimit).catch((e: Error) => e);
+  ok('fase 1c: #2147483648 weigert de onzekere terugval', r2 instanceof Error);
   const store = await open(true, 'grens.ifc', overLimit);
-  ok('afwijking 7: de store opent het bestand zoals nu, zonder bron', opened(store, 'grens.ifc') && store.getState().ifcSource === null);
-  ok('afwijking 7: opslaan niet geweigerd', !ifcSaveBlocked(store.getState()));
-  // Een tweede weigering van de scanner: een dubbel `#id` (readIFC neemt de laatste).
+  ok('fase 1c: de store maakt geen onbeveiligd document', !opened(store, 'grens.ifc'));
+  eq('fase 1c: getypeerde scannerweigering in het meldingenkanaal', store.getState().ui.notifications[0]?.messageKey,
+    'notifications.ifcForeignOpenUnsafe');
   const dup = enc.encode(withPerson(withPerson(showcase, '999998'), '999998'));
-  const r3 = await readIfcBytesDetailed(dup);
-  eq('afwijking 7: een dubbel #id geeft de terugval', r3.fallback?.kind, 'scanner');
+  const r3 = await readIfcBytesDetailed(dup).catch((e: Error) => e);
+  ok('fase 1c: dubbele ids geven geen onbeveiligde terugval', r3 instanceof Error);
   // Een modelbestand dat de scanner weigert: de huidige route, dus de modelweigering.
   const bonsaiOver = enc.encode(withPerson(dec(bonsai), '2147483648'));
   let refusal = '';

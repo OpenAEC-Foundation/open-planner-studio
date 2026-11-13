@@ -254,7 +254,7 @@ async function refuseSilentSchemaChange(ctx: McpContext, fs: McpFileFs, path: st
   // De echte fs is hierboven al Tauri-only. De expliciete true houdt de injecteerbare naad
   // headless testbaar; site-/handle-doelen zijn ook dan geen lokale paden.
   const own = saveTargetRef(state, true);
-  if (!ifcSchemaBlocksSilentWrite(state.project) || own?.kind !== 'path') return null;
+  if (!ifcSchemaBlocksSilentWrite(state.project, state.ifcSource) || own?.kind !== 'path') return null;
   const identity = await compareFilePaths(fs, path, own.path);
   if (identity === 'different') return null;
   if (identity === 'unknown') {
@@ -263,7 +263,7 @@ async function refuseSilentSchemaChange(ctx: McpContext, fs: McpFileFs, path: st
       'File identity metadata is unavailable or could not be read. Export to a new file name, or ask ' +
       'the user to save the document in the app and choose its IFC schema.');
   }
-  const fileSchema = ifcSchemaQuestionFor(state.project)?.fileSchema ?? '?';
+  const fileSchema = ifcSchemaQuestionFor(state.project, state.ifcSource)?.fileSchema ?? '?';
   return toolError(
     ctx,
     'VALIDATION',
@@ -375,7 +375,7 @@ export const fileTools: McpToolDef[] = [
       const input = buildExportIFCInput(state);
       const { content, literalCalendarIds } = writeIFCWithChoices(input);
       const ifcSchema = projectIfcSchema(input.project);
-      const question = ifcSchemaQuestionFor(state.project);
+      const question = ifcSchemaQuestionFor(state.project, state.ifcSource);
       // Knownbug 1026 (review #872 ronde 3 en 4, Terra): een export over het eigen bestand legt de letterlijke kalenders
       // vast, zoals Opslaan; een aantoonbaar ander bestand niet (`exportHitsOwnFile`). Schrijven en vastleggen staan onder
       // dezelfde lock als Opslaan en AutoSave, zodat AutoSave er niet tussendoor de ankertekst schrijft.

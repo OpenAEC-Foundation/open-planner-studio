@@ -1192,14 +1192,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    */
   const settleIfcSchemaQuestion = async (): Promise<boolean> => {
     const before = get();
-    const question = ifcSchemaQuestionFor(before.project);
+    const question = ifcSchemaQuestionFor(before.project, before.ifcSource);
     if (!question) return true;
     const documentId = before.activeDocumentId;
     const answer = await askIfcSchema(question);
     if (!answer) return false;
     // De dialoog blokkeert een documentwissel; dit is het vangnet.
     if (get().activeDocumentId !== documentId) return false;
-    set((s) => { applyIfcSchemaChoice(s.project, answer); });
+    set((s) => { applyIfcSchemaChoice(s.project, answer, s.ifcSource); });
     return true;
   };
 
@@ -1717,6 +1717,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         get().notify(notice);
       } else if (taskTypesUnlockedDocs > 0) {
         notifyTaskTypesUnlockedClaimed(get().notify);
+      }
+
+      if (results.some(result => result.ifcLegacySchemaLoss)) {
+        get().notify({ severity: 'warning', sticky: true, messageKey: 'notifications.ifc2x3PlanningOnly' });
       }
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;

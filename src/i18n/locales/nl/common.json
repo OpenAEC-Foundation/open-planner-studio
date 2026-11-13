@@ -347,7 +347,10 @@
     "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen.",
     "costTypeChangeRefused": "De resourcebibliotheek wil het type wisselen tussen kosten en een ander type. De resource heeft toewijzingen in dit project, dus het type blijft zoals het is. De resource staat nu als afwijkend van de bibliotheek.",
     "reportLayoutGone": "De layout van het rapport bestaat niet meer. Het rapport toont weer alle taken.",
-    "layoutsNotSaved": "De layouts konden niet worden opgeslagen. Er is niets veranderd. Probeer het opnieuw."
+    "layoutsNotSaved": "De layouts konden niet worden opgeslagen. Er is niets veranderd. Probeer het opnieuw.",
+    "ifcForeignOpenSchema": "Dit IFC-bestand bevat gegevens van een ander programma en heeft een onbekend of ontbrekend schema. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
+    "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
+    "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",

@@ -15,6 +15,7 @@
  * TERUGVAL ZONDER VRAGER (headless, tests): het schema van het bestand houden als de app het kan
  * schrijven, anders niet opslaan. Een ontbrekende vrager verandert zo nooit een bestandstype.
  */
+import { hasForeignContent, type IfcSource } from './foreign/ifcSource';
 import { DEFAULT_IFC_SCHEMA, isIfcSchemaId, type IfcSchemaId, type Project } from '@/types/project';
 
 /** De vraag: het schema in de kop van het geopende bestand, en of de app dat schema kan schrijven. */
@@ -68,7 +69,8 @@ export function ifcSchemaUnconfirmedOnRead(
 }
 
 /** De vraag die het eerste expliciete opslaan van dit project moet stellen, of `null`. */
-export function ifcSchemaQuestionFor(project: Pick<Project, 'ifcSchemaUnconfirmed'>): IfcSchemaQuestion | null {
+export function ifcSchemaQuestionFor(project: Pick<Project, 'ifcSchemaUnconfirmed'>, source?: IfcSource | null): IfcSchemaQuestion | null {
+  if (hasForeignContent(source)) return null;
   const fileSchema = cleanIfcSchemaName(project.ifcSchemaUnconfirmed);
   if (!fileSchema || fileSchema === DEFAULT_IFC_SCHEMA) return null;
   return { fileSchema, keep: isIfcSchemaId(fileSchema) ? fileSchema : null };
@@ -77,8 +79,9 @@ export function ifcSchemaQuestionFor(project: Pick<Project, 'ifcSchemaUnconfirme
 /** Mag automatisch opslaan dit document NIET naar zijn eigen bestand schrijven? Alleen als de vraag
  *  openstaat voor een schema dat de app niet kan schrijven (IFC2X3 e.d.): dan zou automatisch opslaan
  *  het bestandstype stil veranderen. Een schrijfbaar schema (IFC4, IFC4X3) blijft gewoon staan. */
-export function ifcSchemaBlocksSilentWrite(project: Pick<Project, 'ifcSchemaUnconfirmed'>): boolean {
-  const question = ifcSchemaQuestionFor(project);
+export function ifcSchemaBlocksSilentWrite(project: Pick<Project, 'ifcSchemaUnconfirmed'>, source?: IfcSource | null): boolean {
+  // Een vreemde bron houdt haar letterlijke kop; de gewone projectkeuze is dan geen schrijfbeperking.
+  const question = ifcSchemaQuestionFor(project, source);
   return question !== null && question.keep === null;
 }
 
