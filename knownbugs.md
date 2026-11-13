@@ -1985,6 +1985,14 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
+1126. **VERVOLG: de terugleescontrole zonder OPS-markering dekt niet elke opslag van een bewerkte kalender.** In
+     `tests/planning/check-ifc-kalendertijd.ts` slaan de routes na een kalenderbewerking, ongedaan maken en opnieuw
+     doen op en controleren zij de gewone herlezing, maar zij roepen `checkWrittenCalendar` niet aan; daar kunnen
+     de OPS-markeringen een afwijkende standaardperiode maskeren. Bij de letterlijke bronperiode (`literalPeriod`)
+     stopt de hulp na een tekstzoekactie en vergelijkt zij geen andere perioden in dat bestand. Een beginklok met
+     tijdzone en een bewerkte resourcekalender zijn niet tot en met herlezing zonder markeringen beproefd. Een
+     testgat; geen productfout aangetoond. Gevonden door de review van #910 (Terra, ronde 5). — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
