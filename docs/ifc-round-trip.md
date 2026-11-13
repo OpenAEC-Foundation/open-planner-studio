@@ -406,6 +406,29 @@ app-versie negeert Status en maakt zo'n taak bij openen "Voltooid". De motor pla
 van zo'n taak nog niet in (`knownbugs.md` 114). Toets: `check-ifc-lopend-100.ts` en de twee IFC-corpuschecks
 (A3040 in torture).
 
+## Oude eigen FILE_NAME-kop
+
+De 17 tags v2026.2.0 t/m v2026.7.12 (ook `2026.7.12`) schreven projectnaam, auteur en bedrijf onbeschermd in
+FILE_NAME, steeds met hetzelfde LF/IFC4X3-sjabloon. Vanaf v2026.7.13 is de writer gerepareerd. Eén kleine herkenning
+in `src/services/ifc/oldOwnHeader.ts` bedient de C/A/V-scan, de doelcontrole en het begin van de datasectie voor de
+lezer. De vaste kop tot en met DATA moet letterlijk kloppen, inclusief datumvorm en de vaste OPS-velden.
+
+Bij een strenge scanfout maskeert de scan uitsluitend de drie vrije velden op een even lange zelfstandige kopie.
+De echte bytes en alle posities blijven staan; de DATA-sectie wordt streng ingedeeld. De lezer en de doelcontrole
+beginnen bij DATA na de vaste kopregels. Daardoor opent een oude naam `O'Hara DATA; Fase 1` met alle taken, ook
+zonder feature flag; eerder opende die stil als leeg project en kon Ctrl+S de bron wissen. DATA; en ENDSEC; in
+auteur, bedrijf of alle drie de velden hebben dezelfde bescherming. `O'Hara; Noord` krijgt met de flag een bron
+zonder terugval. Een aanwezige wand blijft vreemd; opslaan blijft geblokkeerd.
+
+Een puntkomma en losse apostrof mogen in een vrij veld; quote/veldgrenzen (ook met witruimte), regeleinden en stuurtekens niet. Andere vaste delen, extra
+velden of kopregels worden niet herkend. Alle drie gebruikers delen de bytegrens van main: maximaal 64 KiB UTF-8 vanaf het bestandsbegin t/m de LF na
+FILE_NAME, inclusief vaste stukken, exclusief de volgende FILE_SCHEMA/ENDSEC/DATA-regels. Daarboven volgt main,
+zonder maskering of grensverplaatsing. Mogelijke entiteitsbeginnen (`#` + woord-id + ASCII-witruimte + `=`),
+commentaarmarkeringen en quote/veldgrenzen (ook met witruimte) behouden eveneens de gewone main-route. De oude ruimere herkenning met `OPS_PREFIX_MAX` in de doelcontrole is verwijderd:
+kapotte huidige IFC4X3_ADD2-koppen, CRLF en afwijkende velden weigeren daar voortaan als 'unreadable'. Regeleinden
+in vrije velden blijven geweigerd. Voor elk niet-herkend bestand volgt de lezer de sectiezoekregel van main
+(knownbug 1061). De lexer, parseSTEP en de overige leesregels zijn hiervoor niet veranderd.
+
 ## Wat dit niet dekt
 
 - **De CSV-, MS Project- en P6-adapters.** Dat zijn import/export-adapters, geen opslagformaat; ze

@@ -7,6 +7,7 @@ import { payloadFromImport } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { IfcForeignOpenError, readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { scanForeign } from '@/services/ifc/foreign/foreignScan';
+import { oudeKop } from './ifcOudeKop';
 import { scanTargetBytes, scanTargetSource } from '@/services/ifc/foreign/targetModelScan';
 
 // Het vaste voorbeeld is een volledig IFC-bestand. Alleen de onderzochte naam/commentaar verandert.
@@ -14,6 +15,7 @@ const source = readFileSync('public/examples/showcase-appartementencomplex.ifc',
 const original = 'CPT soundings & soil investigation';
 const baseline = readIFC(source).tasks.map(t => t.name);
 const enc = new TextEncoder();
+const withOldHeader = (text: string) => oudeKop('Eigen planning') + text.slice(text.indexOf('\nDATA;\n') + 7);
 let checks = 0;
 let failures = 0;
 async function check(label: string, run: () => unknown | Promise<unknown>) {
@@ -102,7 +104,11 @@ for (const [label, text, want] of [
       const saved = writeIFC(buildWriteIFCInput(payloadFromImport(opened, null)));
       const reopened = bytesRoute ? await readIfcBytes(enc.encode(saved), {}, { createWorker: () => null }) : readIFC(saved);
       assert.deepEqual(reopened.tasks.map(t => t.name), want);
-      assert.equal(scanTargetBytes(enc.encode(text)), 'no-model');
+      // #916: de huidige kop met gebroken DATA valt buiten het oude sjabloon; geen doelvrijbrief meer.
+      assert.equal(scanTargetBytes(enc.encode(text)), label === 'CRLF na backslash' ? 'no-model' : 'unreadable');
+      const old = withOldHeader(text);
+      assert.deepEqual(readIFC(old).tasks.map(t => t.name), want);
+      assert.equal(scanTargetBytes(enc.encode(old)), 'no-model');
     });
   }
 }
@@ -117,16 +123,18 @@ const legacyModel = source.slice(0, source.indexOf('DATA;') + 5)
   + "\n#1=IFCAPPLICATION($,'0.1','Open Planner Studio','OPS');\n"
   + "#2=IFCTASK('g',$,'Pad C:\\S\\',$,$,'1',$,$,$,.F.,$,$,.CONSTRUCTION.);\n"
   + wall + '\nENDSEC;\nEND-ISO-10303-21;';
-for (const size of [1, 2, 7]) {
-  await check(`oud letterlijk pad, stroom ${size}: echte wand weigeren`, async () => {
-    assert.throws(() => readIFC(legacyModel), (e: unknown) => (e as { reason?: string }).reason === 'building-model');
-    const bytes = enc.encode(legacyModel);
+for (const oldHeader of [false, true]) for (const size of [1, 2, 7]) {
+  await check(`oud letterlijk pad, oude kop=${oldHeader}, stroom ${size}: echte wand weigeren`, async () => {
+    const text = oldHeader ? withOldHeader(legacyModel) : legacyModel;
+    assert.throws(() => readIFC(text), (e: unknown) => (e as { reason?: string }).reason === 'building-model');
+    const bytes = enc.encode(text);
     let at = 0;
     const got = await scanTargetSource({
       next: async () => { if (at === bytes.length) return null; const b = bytes.subarray(at, at + size); at += b.length; return b; },
       seek: async (offset) => { at = offset; },
     });
-    assert.equal(got, 'model');
+    // De huidige kapotte vorm weigert conservatief; het exacte oude sjabloon ziet de wand via de leeslus.
+    assert.equal(got, oldHeader ? 'model' : 'unreadable');
   });
 }
 for (const control of ['\n', '\r', '\t', '\0', '\x1f', '\x7f']) {

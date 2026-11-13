@@ -43,6 +43,7 @@ import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { StepDataSectionFinder, indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
 import { IFC_BUILDING_MODEL_TYPES } from '@/services/ifc/ifcBuildingModelTypes';
+import { oudeKop } from './ifcOudeKop';
 import { brokenHeader, brokenHeaderDataFiles, commentFile, DATA_KOP_VORMEN, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -87,10 +88,12 @@ const readOutcome = (bytes: Uint8Array): string => {
 };
 /** Past het hele bestand (de tekst die `readIFC` krijgt) in de grammatica van `stepFileGrammar.ts`? */
 const fileValid = (bytes: Uint8Array) => stepFileGrammar(decode(bytes)).state === 'valid';
-/** Schreef OPS dit bestand (de vaste kop, en originating_system 'Open Planner Studio' aan het einde van de regel met
- *  FILE_NAME)? Met de hand, als reguliere expressie op de tekst: een tweede beschrijving van de regel in de scanner. */
-const ownFile = (bytes: Uint8Array) => /^ISO-10303-21;\r?\nHEADER;\r?\nFILE_DESCRIPTION\(\('ViewDefinition \[SchedulingView\]'\),'2;1'\);\r?\nFILE_NAME\([^\r\n]*,'Open Planner Studio 0\.1','Open Planner Studio',''\);\r?\n/
-  .test(decode(bytes));
+/** Onafhankelijke verwachting voor het gemeten sjabloon; de byte- en ankermutaties staan in de indelingscheck. */
+const ownFile = (bytes: Uint8Array): boolean => {
+  const m = /^ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION\(\('ViewDefinition \[SchedulingView\]'\),'2;1'\);\nFILE_NAME\('(.*)\.ifc','(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})',\('(.*)'\),\('(.*)'\),'Open Planner Studio 0\.1','Open Planner Studio',''\);\nFILE_SCHEMA\(\('IFC4X3'\)\);\nENDSEC;\nDATA;\n/.exec(decode(bytes));
+  return !!m && [m[1], m[3], m[4]].every(f => !f.includes("',") && !f.includes("')") && !f.includes("('")
+    && !Array.from(f).some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127));
+};
 /**
  * De regel voor een STEP-bestand (besluit Trias, wrakko 10 november 2026; voor "not-ifc" staat de verwachting altijd met
  * de hand in de test):
@@ -213,11 +216,12 @@ const MODEL = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc
 const OWN = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
 /** De kop van een eigen bestand, tot en met `DATA;`: een gebroken datasectie volgt dan de regel van main (de lus van
  *  `parseSTEP`, met terugspoelen). */
-const OWN_HEAD = OWN.slice(0, OWN.indexOf('\nDATA;\n') + '\nDATA;\n'.length);
+const OWN_HEAD = oudeKop('Eigen planning');
+const OLD_OWN = OWN_HEAD + OWN.slice(OWN.indexOf('\nDATA;\n') + '\nDATA;\n'.length);
 const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
 {
   const model = MODEL;
-  const own = OWN;
+  const own = OLD_OWN;
   const longComment = `/*${'x'.repeat((2 << 20) + 1)}*/`;
   const afterHeader = (t: string, insert: string) => t.replace('HEADER;', `HEADER;${insert}`);
   const afterData = (t: string, insert: string) => t.replace('DATA;', `DATA;${insert}`);
@@ -404,7 +408,7 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   eq('commentaar met #900000=IFCWALL(, geldige kop: readIFC opent het', readOutcome(comment), 'ok');
   every('commentaar met #900000=IFCWALL( na DATA;, geldige kop', comment, 'no-model');
   // Een eigen bestand met een kapotte kop: de regel van main (zoals `readIFC`).
-  const commentBroken = enc.encode(commentFile(brokenHeader(OWN)));
+  const commentBroken = enc.encode(commentFile(brokenHeader(OLD_OWN)));
   eq('commentaar met #900000=IFCWALL(, kapotte kop: readIFC opent het', readOutcome(commentBroken), 'ok');
   every('commentaar met #900000=IFCWALL( na DATA;, kapotte kop van een eigen bestand', commentBroken, 'no-model');
   every('commentaar met #900000=IFCWALL(, kleine kop', ifc("/*\n#900000=IFCWALL(\n*/\n#1=IFCTASK('1',$);\n"), 'no-model');
@@ -413,7 +417,7 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   const string = enc.encode(stringFile(OWN));
   eq('meerregelige string met #9=IFCWALL(, geldige kop: readIFC opent het', readOutcome(string), 'ok');
   every('meerregelige string met #9=IFCWALL(, geldige kop', string, 'no-model');
-  const brokenString = enc.encode(stringFile(brokenHeader(OWN)));
+  const brokenString = enc.encode(stringFile(brokenHeader(OLD_OWN)));
   eq('meerregelige string met #9=IFCWALL(, kapotte kop: readIFC opent het (zoals main)', readOutcome(brokenString), 'ok');
   every('meerregelige string met #9=IFCWALL(, kapotte kop van een eigen bestand', brokenString, 'no-model');
   // De randen van de lus van `parseSTEP` en `readEntity`: wat `readIFC` doet, doet de scanner ook.
@@ -493,7 +497,7 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   parity.push({ label: 'kapotte kop, 3 MiB', bytes: brokenLong });
   // Een eigen bestand zonder model met een kapotte kop: `readIFC` opent het zoals main; de doelcontrole volgt de regel
   // van main (poging 3: `DATA;` aan het begin van een regel). Dat deel hield de lezer vast: hij leest niet opnieuw.
-  const brokenOwn = enc.encode(brokenHeader(OWN));
+  const brokenOwn = enc.encode(brokenHeader(OLD_OWN));
   eq('kapotte kop zonder model: readIFC opent het (zoals main)', readOutcome(brokenOwn), 'ok');
   const stats = { seeks: 0, pushed: 0 };
   eq('eigen bestand, kapotte kop zonder model: no-model, zonder de bron opnieuw te lezen',
@@ -882,10 +886,11 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   eq('ronde 8, Terra: wand na de laatste ENDSEC;: buiten de grammatica', fileValid(enc.encode(tussen)), false);
   eq('ronde 8, Terra: wand na de laatste ENDSEC;: readIFC opent alle taken (zoals main)', [readOutcome(enc.encode(tussen)), tasks(tussen)], ['ok', allTasks]);
   // De showcase is een eigen bestand (de kop van OPS): de doelcontrole leest het zoals main, en stopt ook bij `ENDSEC;`.
-  every('ronde 8, Terra: wand na de laatste ENDSEC;: de scanner (eigen bestand, zoals main)', enc.encode(tussen), 'no-model');
+  // #916: de huidige IFC4X3_ADD2-kop is geen gemeten oude kop; gebroken DATA geeft geen vrijbrief meer.
+  every('ronde 8, Terra: wand na de laatste ENDSEC;: huidige kop weigert', enc.encode(tussen), 'unreadable');
   // Een eigen bestand met een kapotte naam en een wand na `ENDSEC;`: de doelcontrole leest zoals main, en stopt ook daar.
   {
-    const eigen = OWN.replace(/^FILE_NAME\('/m, "FILE_NAME('Van 't Hof ");
+    const eigen = OLD_OWN.replace(/^FILE_NAME\('/m, "FILE_NAME('Van 't Hof ");
     const metWand = eigen.slice(0, eigen.lastIndexOf('END-ISO-10303-21;')) + "#999999=IFCWALL('x',$);\n" + eigen.slice(eigen.lastIndexOf('END-ISO-10303-21;'));
     eq('ronde 8, eigen kapot bestand met een wand na ENDSEC;: herkend, buiten de grammatica',
       [ownFile(enc.encode(metWand)), fileValid(enc.encode(metWand))], [true, false]);
@@ -925,8 +930,9 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   eq('ronde 10: twee secties met DATA;: geldig, opent alleen de eerste (zoals main)',
     [fileValid(enc.encode(tweeKaal)), readOutcome(enc.encode(tweeKaal)), tasks(tweeKaal)], [true, 'ok', allTasks - 1]);
   eq('ronde 10: twee secties met DATA;: eigen bestand; van een ander programma niet',
-    [ownFile(enc.encode(tweeKaal)), ownFile(enc.encode(vreemd(tweeKaal)))], [true, false]);
-  every('ronde 10: twee secties met DATA;, eigen bestand: de scanner (zoals main)', enc.encode(tweeKaal), 'no-model');
+    [ownFile(enc.encode(tweeKaal)), ownFile(enc.encode(vreemd(tweeKaal)))], [false, false]);
+  // #916: de huidige kop valt buiten de ene oude herkenning; meer secties blijven geweigerd.
+  every('ronde 10: twee secties met DATA;, huidige eigen kop weigert', enc.encode(tweeKaal), 'unreadable');
   every('ronde 10: twee secties met DATA;, ander programma: de scanner weigert', enc.encode(vreemd(tweeKaal)), 'unreadable');
   every('ronde 10: één sectie, ander programma: de scanner', enc.encode(vreemd(showcase)), 'no-model');
   const tweeWand = tweeKaal.replace(/\nENDSEC;\nEND-ISO/, "\n#999999=IFCWALL('x',$);\nENDSEC;\nEND-ISO");
