@@ -227,8 +227,16 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
   reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
   `ifcSource` (document contract, `snapshot: 'none'`: outside undo, recovery and MCP backup). A document with a foreign
-  part refuses every IFC write with one notice (`src/state/ifcForeignGuard.ts`). Without the flag the app stays
-  byte-identical to main (`check-ifc-foreign-pariteit.ts`).
+  part refuses every IFC write with one notice (`src/state/ifcForeignGuard.ts`). Before classification, only after a
+  strict scan failure, `foreign/oldOwnHeader.ts` masks only the three free fields on an equally long independent
+  copy. The exact LF/IFC4X3 header of the 17 raw tags v2026.2.0 through v2026.7.12 is recognized once in
+  `src/services/ifc/oldOwnHeader.ts`, shared with the target stream and the reader's data-section start. DATA; or
+  ENDSEC; inside those free fields is header text; semicolons are allowed, field syntax and controls are refused.
+  The shared limit equals main: 64 KiB of UTF-8 from the file start through the LF after FILE_NAME. Entity starts,
+  comment markers or quote/field separators (also spaced) retain the main route; they are never masked or skipped.
+  Other inputs retain main's data-section rule (knownbug 1061); broken headers
+  outside that exact template are unreadable as targets. Original bytes/positions and strict DATA scanning remain.
+  The foreign-content save block stays closed.
 - **IFC 4.3 is the native format**; there is no JSON project format. New domain data must round-trip through
   `ifcWriter`/`ifcReader`, or it is gone after saving. CSV/MSPDI/P6/`.mpp`/`.xer` are adapters. The file schema is
   per project (`Project.ifcSchema`, default `IFC4X3_ADD2`); never write silently in another one. Route:

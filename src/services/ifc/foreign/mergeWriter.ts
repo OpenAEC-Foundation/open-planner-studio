@@ -50,7 +50,8 @@ import {
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource } from './ifcSource';
-import { MAX_STEP_ID, scanStep, splitStepArgs, type StepIndex } from './stepScanner';
+import { scanForeignStep } from './oldOwnHeader';
+import { MAX_STEP_ID, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 import { planningCanon, planningDifference } from './planningCanon';
 import { sameValue } from '@/utils/sameValue';
@@ -327,7 +328,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
     throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de verplichte open-stappen van de app ontbreken' }]);
   }
   if (!source.foreign) return [new TextEncoder().encode(writeIFC(input))];
-  const index = scanStep(source.bytes);
+  const index = scanForeignStep(source.bytes);
   const cls = classify(index);
   assertSameSource(index, cls, source);
 
