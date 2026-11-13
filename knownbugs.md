@@ -2265,7 +2265,11 @@ en noem het in je rapport of PR-tekst.
      vóór documentactivatie; beide opslagroutes schrijven nul bytes en de hele bron blijft intact. Met de flag uit
      blijven hun volledige planning, meldingen en opslagbytes gelijk aan de vaste main-referentie. De open-proef
      benoemt alle 23 en toetst de weigering exact, zonder de oude kopherkenning of scanner te verruimen. Bredere
-     ondersteuning blijft buiten fase 1c; de gewone oude eigen kop, waaronder O'Hara, opent wel. Aangetroffen bij
+     ondersteuning blijft buiten fase 1c; de gewone oude eigen kop, waaronder O'Hara, opent wel. Ook de dertien
+     al bestaande `brokenNameFiles`-varianten onder de huidige IFC4X3_ADD2-kop vallen buiten het oude sjabloon:
+     flag aan weigert met `scanner` / `tekst-zonder-einde`, zonder document of write en met alle bronbytes intact;
+     flag uit opent twintig taken en schrijft één keer zoals main. Hun onafhankelijke doelcontrole blijft
+     `unreadable`. Dit zijn eveneens gemaakte namen; de doelproef legt de uitkomsten nu exact vast. Aangetroffen bij
      het integreren van #916 in PR 2, aansluitend op 1054/1061; 1137 is voor de flag aan opgelost. — B
 
 
