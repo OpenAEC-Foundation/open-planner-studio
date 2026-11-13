@@ -1974,6 +1974,21 @@ en noem het in je rapport of PR-tekst.
      letterlijk op 15:30.5:00 houdt. Zelf nagegaan in fase 1c, PR 1, na de gerichte Sol-review van #910. Niet in deze PR
      opgelost. — B
 
+1138. **VERVOLG: de vastgelegde main-uitkomsten van de oude-kopvergelijking zijn grotendeels opmaak.**
+     `tests/planning/fixtures/oude-kop-main.json` (6.030 regels, 172.730 bytes) legt per gemaakte kop vast wat main
+     doet; `tests/planning/ifcOudeKopVergelijking.ts` vergelijkt de branch daarmee. Dezelfde JSON past zonder verlies
+     op ongeveer 102 regels en 132.938 bytes (één geval per regel). Alleen opruimen; het bestand is nodig als vaste
+     verwachting zonder netwerk. Gevonden door de review van #916 (Sol, ronde 3). — B
+
+1137. **VERVOLG: bij de terugval naar de tekstlezer verdwijnt vreemde inhoud die buiten de oude-kopherkenning valt;
+     precies zo op main.** Een bestand met de oude eigen kop en ruim 70 KiB in het auteurveld (boven de grens van
+     65.536 bytes, dus niet herkend) en een wand in de tweede datasectie opent met de flag uit met twintig taken;
+     `saveFile()` schrijft één keer en de wand is weg. Main en #916 doen hier hetzelfde: de route valt terug op de
+     tekstlezer (`src/services/ifc/foreign/ifcBytesRoute.ts`, de terugval) en de oude entiteitenlus in
+     `src/services/ifc/ifcReader.ts` leest alleen de eerste datasectie. Een gemaakt bestand; geen release schreef het.
+     Hoort bij 1054 en 1061. Richting: bij de terugval naar tekst de bescherming van vreemde broninhoud houden (fase
+     1c, PR 2: terugval en schema). Gevonden door de review van #916 (Sol, ronde 3). — B
+
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
      zette. Proef van Terra (review van #871, ronde 2), dezelfde taak op een kalender van 8 uur per dag: `P2D` geeft een
