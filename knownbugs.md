@@ -1933,6 +1933,13 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
+1146. **VERVOLG: de merge kopieert en bevriest de invoer voor de heropening twee keer.** `writeIfcMerge`
+     (`src/services/ifc/foreign/mergeWriter.ts`, rond regel 816) kopieert en bevriest `parsed` vóór de vaste
+     heropening; de adapter (`src/state/ifcMergePlanning.ts`) kopieert de invoer daarna meteen opnieuw. `parsed`
+     rechtstreeks doorgeven en alleen de kopie in de adapter houden spaart één volledige kopie en freeze, zonder een
+     beschermingsgrens weg te nemen. Alleen opruimen; geen tijdwinst gemeten. Gevonden door de review van #918
+     (Sol). — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
