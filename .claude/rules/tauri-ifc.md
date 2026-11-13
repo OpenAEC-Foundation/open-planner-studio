@@ -41,4 +41,3 @@ veranderen, undo/redo behoudt de live bestandskeuze en de schemavraag vervalt. S
 bron; `ifcSaveBlocked` blijft alle vreemde IFC-opslag weigeren tot aansluit-PR 11. Een terugval zonder
 bron is alleen toegestaan na een volledige indeling zonder vreemd deel; onzekere invoer wordt
 getypeerd geweigerd. IFC2X3 zonder model houdt de ontwerpuitzondering met een openingsmelding.
-De tekstkern/HTTP weigert vreemd materiaal tot de publieke bytecontracten van fase 2 bestaan.

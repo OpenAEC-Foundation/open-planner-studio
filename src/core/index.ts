@@ -7,7 +7,7 @@
 // via dezelfde store-acties als de app (`openAsDocument` → `runCPM`), dus met werkregels en het
 // rekenprofiel van het project. `verify:store-boundaries` bewaakt dat hier geen singleton binnenkomt.
 import { createAppStoreContext, type AppState } from '@/state/appStoreFactory';
-import { readIfcFromText } from '@/services/formatRegistry';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -58,20 +58,9 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
   if (!body.startsWith(STEP_HEADER)) {
     throw new PlannerCoreError('INVALID_INPUT', `IFC input must start with "${STEP_HEADER}"`);
   }
-  let parsed: Awaited<ReturnType<typeof readIfcFromText>>;
+  let parsed: Awaited<ReturnType<typeof readIFCWithXerReconstruction>>;
   try {
-    // T3 (#804 fase 1c): het publieke tekstcontract kan vreemde bytes nog niet bewaren. Dezelfde veilige
-    // openpoort als de app, maar geen document/uitvoer bij vreemd materiaal; volledige bytesupport komt in fase 2.
-    parsed = await readIfcFromText(body, undefined, { ifcBytes: true });
-    let foreign = parsed.ifcSource?.foreign === true;
-    if (parsed.ifcLegacySchemaLoss) {
-      const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
-      const scan = scanForeign(new TextEncoder().encode(body));
-      foreign = !scan.ok || scan.counts.C + scan.counts.A + scan.counts.V > 0;
-    }
-    if (foreign) throw new Error('Foreign IFC content is not supported by the text-only core; no document was opened');
-    // De kern belooft geen bronbytecontract en houdt voor eigen planning geen extra bronkopie vast.
-    delete parsed.ifcSource;
+    parsed = await readIFCWithXerReconstruction(body);
   } catch (err) {
     throw new PlannerCoreError('IFC_READ_FAILED', `Could not read IFC: ${errorText(err)}`);
   }

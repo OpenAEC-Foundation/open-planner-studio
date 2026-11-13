@@ -4,11 +4,6 @@ De headless kern is de rekenkern van Open Planner Studio als los Node-pakket. He
 React, geen DOM en geen desktopschil. Het opent een IFC-planning, rekent die door zoals de app en
 geeft een JSON-samenvatting. Het kan de planning ook weer als IFC schrijven.
 
-Het huidige tekstcontract bewaart geen gebouwmodel of gegevens van andere programma's. Zulke invoer
-(ook een externe pset zonder model) wordt vóór documentactivatie geweigerd met `IFC_READ_FAILED`, zodat
-`toIfc()` geen vreemde gegevens kan weglaten. De openpoort controleert ook onzekere terugval. Volledige
-byte-invoer en byte-uitvoer volgen in fase 2 van #804; er is hier nog geen publieke byte-API.
-
 Dit document hoort bij issue #429 (ecosystem readiness) en het gedeelde contract in
 OpenAEC-style-book#12 (library en AWS).
 
