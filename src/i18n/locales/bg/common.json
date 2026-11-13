@@ -216,8 +216,6 @@
     "msProjectLostExternalTasks_other": "{{count}} външни задачи от друг проект са прочетени като обикновени задачи.",
     "msProjectLostInactiveTasks_one": "{{count}} неактивна задача е прочетена като активна задача и се включва в изчислението.",
     "msProjectLostInactiveTasks_other": "{{count}} неактивни задачи са прочетени като активни задачи и се включват в изчислението.",
-    "msProjectLostManualTasks_one": "{{count}} ръчно планирана задача е прочетена като автоматично планирана задача.",
-    "msProjectLostManualTasks_other": "{{count}} ръчно планирани задачи са прочетени като автоматично планирани задачи.",
     "msProjectLostLevelingDelays_one": "Отклонението при нивелиране на {{count}} задача не е прехвърлено.",
     "msProjectLostLevelingDelays_other": "Отклоненията при нивелиране на {{count}} задачи не са прехвърлени.",
     "msProjectLostCriticalSlack_one": "Прагът за критичност от файла (резерв до {{count}} работен ден) не е прехвърлен. Приложението изчислява с праг 0.",

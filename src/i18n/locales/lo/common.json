@@ -170,7 +170,6 @@
     "msProjectLostSubprojects_other": "{{count}} ໂຄງການທີ່ແຊກເຂົ້າ ຖືກອ່ານເປັນໜ້າວຽກທຳມະດາ ໂດຍບໍ່ມີການເຊື່ອມໂຍງໄປຫາໄຟລ໌ອື່ນ.",
     "msProjectLostExternalTasks_other": "{{count}} ໜ້າວຽກພາຍນອກຈາກໂຄງການອື່ນ ຖືກອ່ານເປັນໜ້າວຽກທຳມະດາ.",
     "msProjectLostInactiveTasks_other": "{{count}} ໜ້າວຽກບໍ່ໃຊ້ງານ ຖືກອ່ານເປັນໜ້າວຽກທີ່ໃຊ້ງານ ແລະ ນັບລວມໃນການຄິດໄລ່.",
-    "msProjectLostManualTasks_other": "{{count}} ໜ້າວຽກທີ່ກຳນົດເວລາດ້ວຍຕົນເອງ ຖືກອ່ານເປັນໜ້າວຽກທີ່ກຳນົດເວລາອັດຕະໂນມັດ.",
     "msProjectLostLevelingDelays_other": "ຄວາມຊັກຊ້າຈາກການປັບສົມດຸນຂອງ {{count}} ໜ້າວຽກ ບໍ່ໄດ້ຖືກນຳເຂົ້າ.",
     "msProjectLostCriticalSlack_other": "ເກນກຳນົດສຳລັບວິກິດຈາກໄຟລ໌ (float ເຖິງ {{count}} ມື້ເຮັດວຽກ) ບໍ່ໄດ້ຖືກນຳເຂົ້າ. ແອັບໃຊ້ເກນ 0.",
     "msProjectLostBaselines_other": "{{count}} ແຜນຫຼັກບໍ່ໄດ້ຖືກນຳເຂົ້າ.",

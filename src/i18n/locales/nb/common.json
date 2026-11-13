@@ -216,8 +216,6 @@
     "msProjectLostExternalTasks_other": "{{count}} eksterne aktiviteter fra et annet prosjekt er lest inn som vanlige aktiviteter.",
     "msProjectLostInactiveTasks_one": "{{count}} inaktiv aktivitet er lest inn som aktiv aktivitet og telles med i beregningen.",
     "msProjectLostInactiveTasks_other": "{{count}} inaktive aktiviteter er lest inn som aktive aktiviteter og telles med i beregningen.",
-    "msProjectLostManualTasks_one": "{{count}} manuelt planlagt aktivitet er lest inn som automatisk planlagt aktivitet.",
-    "msProjectLostManualTasks_other": "{{count}} manuelt planlagte aktiviteter er lest inn som automatisk planlagte aktiviteter.",
     "msProjectLostLevelingDelays_one": "Utjevningsforsinkelsen for {{count}} aktivitet er ikke overtatt.",
     "msProjectLostLevelingDelays_other": "Utjevningsforsinkelser for {{count}} aktiviteter er ikke overtatt.",
     "msProjectLostCriticalSlack_one": "Terskelverdien for kritisk fra filen (slakk opptil {{count}} arbeidsdag) er ikke overtatt. Appen regner med terskelverdi 0.",

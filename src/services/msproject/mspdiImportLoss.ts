@@ -139,9 +139,7 @@ export function scanMspdiImportLoss(root: Element, isConsumed: ConsumedExtendedA
     if (directChildText(task, 'IsSubproject') === '1') report.subprojects++;
     // `<ExternalTask>`: een taak uit een ander project; de lezer leest hem als gewone taak.
     if (directChildText(task, 'ExternalTask') === '1') report.externalTasks++;
-    // `<Manual>`: de lezer kent het element niet (zie ook de waarschuwing in mspdiWriter.ts).
-    if (directChildText(task, 'Manual') === '1') report.manualTasks++;
-    // `<LevelingDelay>`: idem.
+    // `<LevelingDelay>`: de lezer kent het element niet (zie ook de waarschuwing in mspdiWriter.ts).
     if (nonZero(directChildText(task, 'LevelingDelay'))) report.levelingDelays++;
     // `<Active>0`: de lezer kent geen inactieve taak; de taak rekent gewoon mee.
     if (directChildText(task, 'Active') === '0') report.inactiveTasks++;

@@ -170,7 +170,6 @@
     "msProjectLostSubprojects_other": "{{count}} 个插入的项目已作为普通任务读取，未保留与另一文件的链接。",
     "msProjectLostExternalTasks_other": "{{count}} 个来自其他项目的外部任务已作为普通任务读取。",
     "msProjectLostInactiveTasks_other": "{{count}} 个非活动任务已作为活动任务读取，并计入计算。",
-    "msProjectLostManualTasks_other": "{{count}} 个手动计划任务已作为自动计划任务读取。",
     "msProjectLostLevelingDelays_other": "未导入 {{count}} 个任务的资源平衡延迟。",
     "msProjectLostCriticalSlack_other": "未导入文件中的关键阈值（浮时最多 {{count}} 个工作日）。应用使用阈值 0。",
     "msProjectLostBaselines_other": "{{count}} 个基线未导入。",

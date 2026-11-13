@@ -216,8 +216,6 @@
     "msProjectLostExternalTasks_other": "Başka bir projeden {{count}} dış görev normal görev olarak okundu.",
     "msProjectLostInactiveTasks_one": "{{count}} devre dışı görev, etkin görev olarak okundu ve hesaplamaya dahil edildi.",
     "msProjectLostInactiveTasks_other": "{{count}} devre dışı görev, etkin görev olarak okundu ve hesaplamaya dahil edildi.",
-    "msProjectLostManualTasks_one": "{{count}} elle planlanan görev, otomatik planlanan görev olarak okundu.",
-    "msProjectLostManualTasks_other": "{{count}} elle planlanan görev, otomatik planlanan görev olarak okundu.",
     "msProjectLostLevelingDelays_one": "{{count}} görevin dengeleme gecikmesi aktarılmadı.",
     "msProjectLostLevelingDelays_other": "{{count}} görevin dengeleme gecikmesi aktarılmadı.",
     "msProjectLostCriticalSlack_one": "Dosyadaki kritik eşik (bolluk {{count}} iş gününe kadar) aktarılmadı. Uygulama eşik 0 ile hesaplıyor.",

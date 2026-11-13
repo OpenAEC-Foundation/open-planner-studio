@@ -228,8 +228,6 @@
     "msProjectLostExternalTasks_other": "{{count}} external tasks from another project were read as normal tasks.",
     "msProjectLostInactiveTasks_one": "{{count}} inactive task was read as an active task and is included in the calculation.",
     "msProjectLostInactiveTasks_other": "{{count}} inactive tasks were read as active tasks and are included in the calculation.",
-    "msProjectLostManualTasks_one": "{{count}} manually scheduled task was read as an auto-scheduled task.",
-    "msProjectLostManualTasks_other": "{{count}} manually scheduled tasks were read as auto-scheduled tasks.",
     "msProjectLostLevelingDelays_one": "The leveling delay of {{count}} task was not imported.",
     "msProjectLostLevelingDelays_other": "The leveling delay of {{count}} tasks was not imported.",
     "msProjectLostCriticalSlack_one": "The critical threshold from the file (slack up to {{count}} working day) was not imported. The app uses threshold 0.",

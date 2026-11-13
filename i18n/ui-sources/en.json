@@ -174,7 +174,6 @@
     "notifications.msProjectLostSubprojects": "f77d961322dcd955",
     "notifications.msProjectLostExternalTasks": "825f84173415a094",
     "notifications.msProjectLostInactiveTasks": "a2ff1183977c12a8",
-    "notifications.msProjectLostManualTasks": "9aab909bec1e5165",
     "notifications.msProjectLostLevelingDelays": "f19d6cd8c8c538b1",
     "notifications.msProjectLostCriticalSlack": "6c988eacc970ee18",
     "notifications.msProjectLostBaselines": "4ca1e91b26010ff4",

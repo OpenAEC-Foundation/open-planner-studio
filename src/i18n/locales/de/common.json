@@ -216,8 +216,6 @@
     "msProjectLostExternalTasks_other": "{{count}} externe Vorgänge aus einem anderen Projekt wurden als normale Vorgänge eingelesen.",
     "msProjectLostInactiveTasks_one": "{{count}} inaktiver Vorgang wurde als aktiver Vorgang eingelesen und wird in der Berechnung berücksichtigt.",
     "msProjectLostInactiveTasks_other": "{{count}} inaktive Vorgänge wurden als aktive Vorgänge eingelesen und werden in der Berechnung berücksichtigt.",
-    "msProjectLostManualTasks_one": "{{count}} manuell geplanter Vorgang wurde als automatisch geplanter Vorgang eingelesen.",
-    "msProjectLostManualTasks_other": "{{count}} manuell geplante Vorgänge wurden als automatisch geplante Vorgänge eingelesen.",
     "msProjectLostLevelingDelays_one": "Die Abgleichsverzögerung von {{count}} Vorgang wurde nicht übernommen.",
     "msProjectLostLevelingDelays_other": "Die Abgleichsverzögerungen von {{count}} Vorgängen wurden nicht übernommen.",
     "msProjectLostCriticalSlack_one": "Die Schwelle für „kritisch“ aus der Datei (Puffer bis {{count}} Arbeitstag) wurde nicht übernommen. Die App rechnet mit Schwelle 0.",

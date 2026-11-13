@@ -216,8 +216,6 @@
     "msProjectLostExternalTasks_other": "{{count}} وظیفهٔ خارجی از پروژهٔ دیگر به عنوان وظیفهٔ معمولی خوانده شدند.",
     "msProjectLostInactiveTasks_one": "{{count}} وظیفهٔ غیرفعال به عنوان وظیفهٔ فعال خوانده شد و در محاسبه لحاظ می‌شود.",
     "msProjectLostInactiveTasks_other": "{{count}} وظیفهٔ غیرفعال به عنوان وظیفهٔ فعال خوانده شدند و در محاسبه لحاظ می‌شوند.",
-    "msProjectLostManualTasks_one": "{{count}} وظیفه با زمان‌بندی دستی به عنوان وظیفه با زمان‌بندی خودکار خوانده شد.",
-    "msProjectLostManualTasks_other": "{{count}} وظیفه با زمان‌بندی دستی به عنوان وظیفه با زمان‌بندی خودکار خوانده شدند.",
     "msProjectLostLevelingDelays_one": "تأخیر تسطیح {{count}} وظیفه وارد نشد.",
     "msProjectLostLevelingDelays_other": "تأخیر تسطیح {{count}} وظیفه وارد نشد.",
     "msProjectLostCriticalSlack_one": "آستانهٔ بحرانی از فایل (شناوری تا {{count}} روز کاری) وارد نشد. نرم‌افزار با آستانهٔ 0 محاسبه می‌کند.",

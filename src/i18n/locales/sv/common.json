@@ -216,8 +216,6 @@
     "msProjectLostExternalTasks_other": "{{count}} externa uppgifter från ett annat projekt lästes in som vanliga uppgifter.",
     "msProjectLostInactiveTasks_one": "{{count}} inaktiv uppgift lästes in som aktiv uppgift och räknas med i beräkningen.",
     "msProjectLostInactiveTasks_other": "{{count}} inaktiva uppgifter lästes in som aktiva uppgifter och räknas med i beräkningen.",
-    "msProjectLostManualTasks_one": "{{count}} manuellt schemalagd uppgift lästes in som automatiskt schemalagd uppgift.",
-    "msProjectLostManualTasks_other": "{{count}} manuellt schemalagda uppgifter lästes in som automatiskt schemalagda uppgifter.",
     "msProjectLostLevelingDelays_one": "Förskjutningen pga utjämning för {{count}} uppgift har inte tagits över.",
     "msProjectLostLevelingDelays_other": "Förskjutningen pga utjämning för {{count}} uppgifter har inte tagits över.",
     "msProjectLostCriticalSlack_one": "Det kritiska tröskelvärdet från filen (slack upp till {{count}} arbetsdag) har inte tagits över. Appen använder tröskelvärde 0.",

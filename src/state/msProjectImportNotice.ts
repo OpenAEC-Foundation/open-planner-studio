@@ -17,7 +17,6 @@ function lines(report: MsProjectImportReport): [number, LineKey][] {
     [report.subprojects, 'notifications.msProjectLostSubprojects'],
     [report.externalTasks, 'notifications.msProjectLostExternalTasks'],
     [report.inactiveTasks, 'notifications.msProjectLostInactiveTasks'],
-    [report.manualTasks, 'notifications.msProjectLostManualTasks'],
     [report.levelingDelays, 'notifications.msProjectLostLevelingDelays'],
     [report.baselines, report.format === 'mspdi'
       ? 'notifications.msProjectLostExtraBaselines'
