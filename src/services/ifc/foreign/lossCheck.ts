@@ -1231,7 +1231,7 @@ function replaceRefsOutsideText(token: string, f: (id: number) => string): strin
 }
 
 /** Een regel van een `IfcRoot`: een GlobalId op 0 en een owner history (of `$`) op 1. */
-function isRootLine(line: OutLine): boolean {
+export function isRootLine(line: Pick<OutLine, 'args'>): boolean {
   return isGuidToken(line.args[0] ?? '') && /^(#\d+|\$)$/.test((line.args[1] ?? '').trim());
 }
 function isGuidToken(token: string): boolean {
