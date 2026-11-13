@@ -50,7 +50,7 @@ import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
-import type { TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
+import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcSaveBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
@@ -76,6 +76,8 @@ const UNREADABLE_TARGET_REFUSAL = (path: string) => `'${path}' is an IFC/STEP fi
 
 /** Minimale bestandssysteem-abstractie voor de twee bestands-tools. */
 export interface McpFileFs extends FileIdentityFs {
+  /** De headless host beschermt bestaande doelen ook zonder UI-flag. */
+  readonly protectExistingTargets?: boolean;
   /** Wortel van de toegestane scope (`$HOME`). */
   homeDir(): Promise<string>;
   exists(path: string): Promise<boolean>;
@@ -94,7 +96,7 @@ export interface McpFileFs extends FileIdentityFs {
    * Optioneel (#804 fixronde 2): een bestaand bestand als stroom lezen voor de doelcontrole (bevat het een
    * gebouwmodel?); `null` = niet leesbaar. Zonder deze functie is het doel niet leesbaar en mag het schrijven door.
    */
-  scanTarget?(path: string): Promise<TargetModelScan | null>;
+  scanTarget?(path: string): Promise<TargetForeignScan | null>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -353,6 +355,7 @@ export const fileTools: McpToolDef[] = [
       // de flag aan ook niet over een bestaand bestand met een gebouwmodel (dezelfde doelcontrole als Opslaan als).
       const foreignTarget = await refusedWriteTarget(checked, { kind: 'path', path }, {
         identityFs: async () => fs,
+        protectExistingTargets: fs.protectExistingTargets,
         readers: () => (fs.scanTarget ? { scanPath: (p: string) => fs.scanTarget!(p) } : {}),
       });
       // Identiteit opvragen is ook async: pauze, dialoog en documentdrift winnen nog steeds.
@@ -367,6 +370,8 @@ export const fileTools: McpToolDef[] = [
       }
       if (refused) return refused;
       if (foreignTarget === 'open-source') return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
+      if (foreignTarget === 'foreign-content') return toolError(ctx, 'VALIDATION',
+        `'${path}' already contains data from other programs. Export to another path.`);
       if (foreignTarget === 'building-model') return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
       if (foreignTarget === 'unreadable-target') return toolError(ctx, 'VALIDATION', UNREADABLE_TARGET_REFUSAL(path));
       if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);

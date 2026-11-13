@@ -12,6 +12,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
 import type {
   CoreErrorCode, PlannerDocument, ScheduleSummary, ScheduleTaskSummary, ScheduleWarning,
 } from './api';
@@ -90,6 +91,8 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
       maxShiftWorkdays: conversion.maxWorkdays });
   }
   const state = (): AppState => ctx.store.getState();
+  // T3: deze tekst-API bewaart nog geen vreemde bytes. Rekenen mag, verliesgevende IFC-uitvoer niet.
+  const inputScan = scanForeignTargetBytes(new TextEncoder().encode(body));
 
   return {
     get openWarnings(): ScheduleWarning[] {
@@ -119,6 +122,11 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
       }
     },
     toIfc(): string {
+      if (inputScan !== 'no-model' && inputScan !== 'not-ifc') {
+        throw new PlannerCoreError('IFC_WRITE_FAILED',
+          'This IFC contains foreign content or cannot be scanned reliably; writing it without byte preservation is not supported.',
+          { reason: inputScan });
+      }
       try {
         return writeIFC(buildWriteIFCInput(state()));
       } catch (err) {

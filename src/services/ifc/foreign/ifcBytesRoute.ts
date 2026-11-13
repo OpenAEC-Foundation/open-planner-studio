@@ -30,7 +30,8 @@ import type { StepScanReason } from './stepScanner';
 
 /** Grootste bron voor de bytes-route: 300 MiB. De meting van fase 0 (vraag 4) liep tot 300 MB zonder harde grens;
  *  daarboven blijft de huidige route, met dezelfde uitkomst als zonder flag. */
-export const IFC_BYTES_ROUTE_MAX_BYTES = 300 * 1024 * 1024;
+export { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
+import { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
 
 /** De kopnamen waarvoor de bytes-route een vreemd deel bewaart (§4.11). */
 const FOREIGN_CONTENT_SCHEMAS: ReadonlySet<string> = new Set(['IFC4', 'IFC4X3', 'IFC4X3_ADD1', 'IFC4X3_ADD2', 'IFC4X3_TC1']);

@@ -30,7 +30,7 @@ function usableIdentity(info: FileIdentityInfo): boolean {
  * hier niet: plugin-fs gebruikt Path::exists, dat ook bij onleesbare metadata false kan geven.
  * Bron: https://github.com/tauri-apps/plugins-workspace/blob/fs-v2.5.0/plugins/fs/src/commands.rs
  */
-function missingTarget(error: unknown): boolean {
+export function missingTarget(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return message.startsWith('failed to get metadata of path: ')
     && message.includes(' with error: ') && message.endsWith(' (os error 2)');

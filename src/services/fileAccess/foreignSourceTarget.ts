@@ -19,7 +19,7 @@
 // vrijbrief.
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { scanTargetBlob, scanTargetBytes, type TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
+import { scanForeignTargetBlob, scanForeignTargetBytes, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
 import type { FileRef } from './index';
@@ -64,7 +64,7 @@ function targetContent(handle: FileSystemFileHandle): (mark: ForeignSourceMark) 
 /** Lezers van een bestaand doel, per route. Ontbreekt een lezer, dan is het doel niet leesbaar. */
 export interface TargetReaders {
   /** Een bestaand pad als stroom lezen (Tauri); `null` = niet leesbaar (bijv. bestaat nog niet). */
-  scanPath?: (path: string) => Promise<TargetModelScan | null>;
+  scanPath?: (path: string) => Promise<TargetForeignScan | null>;
   /** Een bestand op de site lezen; `null` = niet leesbaar. */
   readSite?: (id: string) => Promise<Uint8Array | null>;
 }
@@ -85,21 +85,21 @@ export interface TargetReaders {
  * het schrijven mag door. Besluit Trias (wrakko, 9 november 2026): wat de app niet kan lezen, kan hij niet beoordelen,
  * en een nieuw bestand mag altijd.
  */
-export async function targetRefusal(target: FileRef, readers: TargetReaders = {}): Promise<'model' | 'unreadable' | null> {
-  const refusal = (scan: TargetModelScan | null) => (scan === 'model' || scan === 'unreadable' ? scan : null);
+export async function targetRefusal(target: FileRef, readers: TargetReaders = {}): Promise<'model' | 'foreign' | 'unreadable' | null> {
+  const refusal = (scan: TargetForeignScan | null) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
   try {
     switch (target.kind) {
       case 'handle':
-        return refusal(await scanTargetBlob(await target.handle.getFile()));
+        return refusal(await scanForeignTargetBlob(await target.handle.getFile()));
       case 'path':
-        return readers.scanPath ? refusal(await readers.scanPath(target.path)) : null;
+        return readers.scanPath ? refusal(await readers.scanPath(target.path)) : 'unreadable';
       case 'site': {
         const bytes = readers.readSite ? await readers.readSite(target.id) : null;
-        return bytes ? refusal(scanTargetBytes(bytes)) : null;
+        return bytes ? refusal(scanForeignTargetBytes(bytes)) : 'unreadable';
       }
     }
   } catch {
-    return null;
+    return 'unreadable';
   }
 }
 

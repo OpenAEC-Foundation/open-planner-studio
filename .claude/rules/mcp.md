@@ -57,7 +57,10 @@ per app-sessie zodat een handmatige stop niet stil ongedaan wordt gemaakt.
 
 De kern-bouwstenen nemen hun Tauri-randen als injecteerbare functies, zodat alles headless testbaar
 is — zie `tests/mcp/`. **Headless MCP-server** (`headless/mcp-server/`, #570, `docs/headless-mcp.md`): dezelfde
-tools op Node zonder app. Zolang de desktop-app draait, vervangt hij geen bestaand bestand (het register loopt achter
+tools op Node zonder app. De doelcontrole draait daar onafhankelijk van `ifcForeignContent`: `nodeFs.scanTarget`
+leest binnen de bestaande root-/realpath-/`O_NOFOLLOW`-poort; een bestaand model of C/A/V-deel, of een lees-/scanfout,
+weigert ook met `overwrite: true`. Alleen bewezen ontbrekende en volledig eigen doelen mogen door. De bouw van fase
+1c PR 4 is geblokkeerd op de oude rauwe OPS-kop (knownbug 1132). Zolang de desktop-app draait, vervangt hij geen bestaand bestand (het register loopt achter
 op de app): `appLock.ts` leest bij elke schrijfactie `open-files*.json` uit de mappen van de app (`mcpDiscoveryDirs`)
 of `--discovery-dir`, en weigert bij twijfel. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
 (`requestHandler.ts`), `createMcpContext` (`context.ts`), de backupkern (`backupService.ts`), de versheid

@@ -119,6 +119,8 @@ export interface WriteTargetState {
 
 /** De naden van de doelcontrole: bestandsidentiteit en de lezers van een bestaand doel, per platform. */
 export interface WriteTargetDeps {
+  /** Headless heeft geen UI-flag: bescherm bestaande doelen daar altijd (besluit T3). */
+  protectExistingTargets?: boolean;
   identityFs: () => Promise<FileIdentityFs | undefined>;
   readers: () => TargetReaders;
 }
@@ -138,9 +140,10 @@ export async function refusedWriteTarget(
   s: WriteTargetState,
   target: FileRef,
   deps: WriteTargetDeps,
-): Promise<'open-source' | 'building-model' | 'unreadable-target' | null> {
+): Promise<'open-source' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
   if (await isOpenForeignSourceTarget(s, target, deps.identityFs)) return 'open-source';
-  if (!ifcForeignContentEnabled(s.ui.featureFlags)) return null;
+  if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;
   const refusal = await targetRefusal(target, deps.readers());
-  return refusal === 'model' ? 'building-model' : refusal === 'unreadable' ? 'unreadable-target' : null;
+  return refusal === 'model' ? 'building-model' : refusal === 'foreign' ? 'foreign-content'
+    : refusal === 'unreadable' ? 'unreadable-target' : null;
 }

@@ -1,8 +1,8 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import { writeUserBytesTauri, writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
-import type { FileIdentityFs } from './fileIdentity';
-import { scanTargetSource, type TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
+import { missingTarget, type FileIdentityFs } from './fileIdentity';
+import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 
 /** De bestandsidentiteit van plugin-fs (`stat`: dev en ino) voor `compareFilePaths` (#804 fixronde 1). */
 export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
@@ -17,15 +17,17 @@ export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
  * positie (een mislukte entiteit, of de tweede lezing vanaf het regel-verankerde `DATA;`).
  * `null` als het bestand niet te openen is (bestaat nog niet, geen rechten): dan is het doel niet leesbaar.
  */
-export async function scanTargetPathTauri(path: string): Promise<TargetModelScan | null> {
-  const { open, SeekMode } = await import('@tauri-apps/plugin-fs');
+export async function scanTargetPathTauri(path: string): Promise<TargetForeignScan | null> {
+  const { open, stat, SeekMode } = await import('@tauri-apps/plugin-fs');
   let handle: Awaited<ReturnType<typeof open>>;
   try {
     handle = await open(path, { read: true });
   } catch {
-    return null;
+    // Alleen bewezen afwezig is een nieuw doel; geen rechten of een onzekere stat is geen vrijbrief.
+    try { await stat(path); } catch (error) { if (missingTarget(error)) return null; }
+    return 'unreadable';
   }
-  return scanTargetSource({
+  return scanForeignTargetSource({
     next: async () => {
       const buffer = new Uint8Array(1 << 20);
       const n = await handle.read(buffer);

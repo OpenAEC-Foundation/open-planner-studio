@@ -3585,3 +3585,22 @@ en noem het in je rapport of PR-tekst.
      `/tmp/claude-1000/review-898-sol-r1/letterlijk-main.log`, in UTC en Europe/Amsterdam.
      Richting: kalendergeldigheid vóór normalisatie controleren en bronbehoud of een expliciete
      fout afspreken. Alleen geregistreerd op verzoek; niet opgelost in #894. — B
+
+1132. **BLOKKEERT vóór #804 fase 1c: de uitgebreide doelindeling weigert een ongewijzigd eigen bestand van v2026.7.12.**
+     `tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc` is echte oude
+     OPS-uitvoer met een rauwe apostrof in FILE_NAME. De bestaande modelscanner geeft `no-model`; de nieuwe
+     C/A/V-doelcontrole geeft `unreadable`, omdat `scanForeign` weigert met `tekst-zonder-einde`.
+     De fixture met `Fase DATA; Noord` uit dezelfde release blijft `no-model`. De nieuwe routecheck telt 215
+     afwijkingen op 1509 assertions, waaronder ook gemaakte varianten met kop-/sectievormen die de oude
+     modelscanner toeliet. Volgens de stopregel is de bouw gestopt; geen uitzondering toegevoegd en geen
+     lezer, lexer of gewone writer gewijzigd. Advies: eerst beslissen hoe de bestaande C/A/V-indeling de echte
+     oude eigen kop kan beoordelen zonder vreemde inhoud vrij te geven; daarna deze bouw hervatten.
+     Uit de bouw van fase 1c PR 4 (GPT-6.1-Sol via Codex, BEVESTIGD). — B
+
+1133. **VERVOLG, bestaand op main: met `ifcForeignContent` uit beschermt de app gesloten vreemde doelen niet op inhoud.**
+     De doelguard slaat de inhoudsscan bewust over voor de bestaande app-pariteit. Een gesloten modelbestand of
+     IFC met alleen een externe pset kan dan door Opslaan als, export of AutoSave worden overschreven. De
+     flag-uit-modelproeven in `check-ifc-foreign-target.ts` bevestigen dit bestaande gedrag; de rode fase-1c-proef
+     bevestigt ook dat alleen een modelscan de gesloten pset niet beschermt. In headless hoort die uitzondering
+     volgens T3 niet te bestaan. Geen uitbreiding van de appbescherming met flag uit in deze PR.
+     Uit de bouw van fase 1c PR 4 (GPT-6.1-Sol via Codex, BEVESTIGD). — B

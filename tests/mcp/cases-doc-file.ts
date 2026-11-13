@@ -22,7 +22,7 @@ import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, ex
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
-import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
+import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -1160,7 +1160,7 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     fakeFs.scanTarget = async (p) => {
       scanned.push(p);
       const bytes = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : undefined);
-      return bytes ? scanTargetBytes(bytes) : null;
+      return bytes ? scanForeignTargetBytes(bytes) : null;
     };
     const modelError = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
     assertEq(modelError.code, 'VALIDATION', 'een bestaand modelbestand ⇒ validatiefout');
@@ -1172,6 +1172,15 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assertEq(scanned.includes(target), true, 'een bestaande eigen IFC: gelezen, en hij mag');
     // Review van #870, ronde 6 (besluit Trias): een STEP-bestand waarin de grammatica geen datasectie vindt (hier een
     // kapotte bestandsnaam), weigert als doel: een scan zonder uitkomst is geen vrijbrief.
+    const psetPath = `${HOME}/externe-pset.ifc`;
+    const pset = new TextEncoder().encode(files.get(target)!.replace('ENDSEC;\nEND-ISO-10303-21;',
+      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+      "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;"));
+    setBinaryFile(psetPath, pset);
+    const psetError = await callErr('planner_export_ifc', { path: psetPath, overwrite: true });
+    assertEq(psetError.code, 'VALIDATION', 'gesloten externe pset weigert');
+    assert(psetError.error.includes('data from other programs'), 'getypeerde vreemde-doelweigering');
+    assertEq(binFiles.get(psetPath), pset, 'externe pset blijft bytegelijk');
     const brokenPath = `${HOME}/kapotte-kop.ifc`;
     const brokenText = new TextDecoder().decode(otherModel).replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof.ifc'");
     setBinaryFile(brokenPath, new TextEncoder().encode(brokenText));
@@ -1182,8 +1191,9 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assertEq(new TextDecoder().decode(binFiles.get(brokenPath)), brokenText, 'het bestand met de kapotte kop is niet veranderd');
     // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
     fakeFs.scanTarget = async () => { throw new Error('leesfout'); };
-    await callOk('planner_export_ifc', { path: otherModelPath, overwrite: true });
-    assert(files.get(otherModelPath)?.startsWith('ISO-10303-21') === true, 'een doel dat de app niet kan lezen, mag');
+    const unreadable = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
+    assertEq(unreadable.code, 'VALIDATION', 'leesfout weigert');
+    assertEq(binFiles.get(otherModelPath), otherModel, 'leesfout laat het doel intact');
     // #886 fixronde 2 (Sol, besluit Trias): na crashherstel van een document met een vreemd deel ontbreken de bronbytes;
     // export_ifc weigert zolang het kenmerk er is, ook naar een nieuw pad.
     const gen = generateBenchmarkProject(3);

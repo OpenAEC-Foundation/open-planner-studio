@@ -9,6 +9,9 @@
 import { scanStep, StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 
+/** Bestaande grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting; geen nieuwe grens). */
+export const IFC_FOREIGN_SCAN_MAX_BYTES = 300 * 1024 * 1024;
+
 /** De keuze van de lezer (§4.2 stap 1) als stukindexen in bronvolgorde. */
 export interface ForeignScanSelection {
   /** Het eerste `IfcWorkPlan`, of -1. */

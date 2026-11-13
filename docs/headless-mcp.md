@@ -142,6 +142,17 @@ logging gaat naar stderr.
    Een andere schrijfwijze van een bestaand pad wordt dus geweigerd, nooit toegelaten. De server weigert
    met `SCOPE`: een symlink of junction naar buiten, een dode link, en een bestand met meer dan één harde
    link (dan is niet te bewijzen dat elke naam in de werkmap ligt).
+De gedeelde doelcontrole beschermt een bestaand IFC met model of vreemde gegevens ook zonder appflag en zonder
+lopende desktop-app. `createNodeFileFs` levert daarvoor `scanTarget` en `protectExistingTargets`; de scan leest
+via dezelfde root-, realpath-, mapobject- en `O_NOFOLLOW`-grenzen als de gewone leesroute. `overwrite: true` heft
+de inhoudsweigering niet op. Nieuwe bestanden en volledig eigen IFC-uitvoer blijven schrijfbaar. Een lees-/scanfout
+weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanForeign` (C/A/V), met de bestaande
+300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. **Bouwgrens:** de echte oude OPS-fixture met
+`O'Hara Tower` weigert nu ook; knownbug 1132 blokkeert het afronden van deze wijziging.
+
+Lokaal kan `OPS_HEADLESS_SOURCE_ONLY=1 bash tests/mcp/run.sh cases-headless-server.ts` de bron-/HTTP-proeven uitvoeren
+zonder de zelfstandige bundel te bouwen. Zonder die variabele blijft deel B volledig onderdeel van CI.
+
 3. Slot, alleen bij schrijven (`headless/mcp-server/src/appLock.ts`, aangeroepen in `writeChecked`):
    zolang de desktop-app draait, vervangt de server geen bestaand bestand. Lezen blijft mogen, en een nieuw
    bestand schrijven ook. Bij elke

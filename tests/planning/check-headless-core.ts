@@ -308,6 +308,21 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ok('7f een voorbeeldbestand meldt niets bij het openen', example.openWarnings.length === 0, JSON.stringify(example.openWarnings));
 }
 
+// T3: tekst-API zonder bytesbehoud mag vreemde psets niet stil uit de uitvoer laten verdwijnen.
+{
+  const own = readFileSync(files[0], 'utf8');
+  const foreign = own.replace('ENDSEC;\nEND-ISO-10303-21;',
+    "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+    "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+  ok('8 fixture heeft een externe pset zonder model', foreign !== own && !foreign.includes('IFCWALL('));
+  const doc = await openIfc(foreign);
+  ok('8 kern kan de planning samenvatten', doc.schedule().counts.tasks > 0);
+  let error: unknown;
+  try { doc.toIfc(); } catch (e) { error = e; }
+  ok('8 toIfc weigert met de bestaande vaste code vóór uitvoer',
+    error instanceof PlannerCoreError && error.code === 'IFC_WRITE_FAILED', String(error));
+}
+
 if (diffs.length === 0) {
   console.log(`OK: headless kern — ${checks} checks groen (${files.length} voorbeeldbestanden)`);
 } else {
