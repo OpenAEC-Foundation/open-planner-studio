@@ -72,14 +72,17 @@ export function recognizeOldOwnHeader(content: string | Uint8Array, complete = t
     const text = typeof content === 'string' ? value : utf8.decode(content.subarray(PREFIX.length + start, PREFIX.length + end));
     for (let i = 0; i < text.length; i++) {
       const code = text.charCodeAt(i);
-      if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029) return null;
+      // Main beëindigt de FILE_NAME-regel bij CR/LF. Andere stuurtekens krijgen geen kopuitzondering,
+      // maar behouden wel de bestaande doelroute van main binnen dezelfde bytegrens.
+      if (code === 0x0d || code === 0x0a) return null;
+      if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029) mainOnly = true;
     }
     // readEntity (ifcReader.ts) leest #\w+[ASCII-witruimte]*=; die private regel heeft geen gedeelde export.
     // Zo'n begin kan voor main echte inhoud zijn en mag dus nooit verdwijnen achter maskering of een latere DATA-grens.
     // Commentaar kan ids samenvoegen of de rest verbergen; ook dat blijft volledig op de main-route.
     if (/#\w+[ \t\r\n\v\f]*=/.test(value) || value.includes('/*') || value.includes('*/')) mainOnly = true;
     // Een losse apostrof en een puntkomma mogen; quote/veldgrenzen, ook met tussenruimte, zijn geen vrije tekst.
-    if (/'[ \t\r\n\v\f]*[,)]|[(,][ \t\r\n\v\f]*'/.test(value)) mainOnly = true;
+    if (/'\s*[,)]|[(,]\s*'/.test(value)) mainOnly = true;
   }
   if (mainOnly) return 'main';
   const end = endLine + AFTER_LINE.length;

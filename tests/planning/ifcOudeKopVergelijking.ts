@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { oudeKop, oudeKopVelden, oudeWand } from './ifcOudeKop';
 import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
@@ -21,7 +22,7 @@ export function oldHeaderCases(root: string): OldHeaderCase[] {
     ...["O'Hara", "'Naam", "Naam'", "O''Hara's", 'Gewone naam', "Één O'Hara", "O'Hara; Noord",
       "O'Hara DATA; ENDSEC; Fase 1", "O'Hara DATA; END-ISO-10303-21; Fase 1", "O'Hara DATA; ((Noord))",
       "O'Hara DATA; /* commentaar */ Noord", "O'Hara DATA; /*", "O'Hara DATA; */", "O'Hara DATA; -- commentaar",
-      "O'Hara DATA; FILE_NAME( Noord )", "O'Hara DATA; FILE_NAME( 'Noord' )", "A' , 'extra", "A' ) extra", "A( 'extra", "A, 'extra",
+      "O'Hara DATA; FILE_NAME( Noord )", "O'Hara DATA; FILE_NAME( 'Noord' )", "A' , 'extra", "A' ) extra", "A( 'extra", "A, 'extra", "A'\t, 'extra", "A(\t'extra", "A,\u00a0'extra",
       "X' ); FILE_POPULATION( 'extern' ); FILE_NAME( 'tail",
     ].map((n, i) => [`naam-${i}`, [n, 'Aannemer', 'Bouwbedrijf Van Dijk BV']] as [string, Fields]),
   ];
@@ -29,6 +30,8 @@ export function oldHeaderCases(root: string): OldHeaderCase[] {
     "X';ENDSEC;DATA;#999999=IFCWALL( '0abcdefghijkmnopqrstuv' ,$,'Wand' ,$,$,$,$,$,$);ENDSEC;/*",
     "X;ENDSEC;DATA;#999999=IFCWALL( '0abcdefghijkmnopqrstuv' ,$,'Wand' ,$,$,$,$,$,$);ENDSEC;/*",
     "X';ENDSEC;DATA;#999999=IFCWALL($);ENDSEC;/*",
+    "X';ENDSEC;DATA;#999999=IFCWALL($);ENDSEC;",
+    "X';ENDSEC;DATA;#999999\t=IFCWALL($);ENDSEC;",
     "X';ENDSEC;DATA;#naam_9 = ifcwall( $ );ENDSEC;/*",
     "X';ENDSEC;DATA;# 999999 = IFCWALL( $ );ENDSEC;/*",
     "X';ENDSEC;DATA;#999999 = IFCWALL( $ );ENDSEC;/*",
@@ -79,7 +82,7 @@ function memoryFile(initial: string) {
   const handle = {
     kind: 'file' as const, name: 'proef.ifc', isSameEntry: async (other: unknown) => other === handle,
     getFile: async () => new File([text], 'proef.ifc'), queryPermission: async () => 'granted' as const, requestPermission: async () => 'granted' as const,
-    createWritable: async () => { let next = ''; return { write: async (chunk: unknown) => { next += typeof chunk === 'string' ? chunk : dec.decode(chunk as Uint8Array); },
+    createWritable: async () => { let next = ''; return { write: async (chunk: unknown) => { next += typeof chunk === 'string' ? chunk : chunk instanceof Blob ? await chunk.text() : dec.decode(chunk as Uint8Array); },
       close: async () => { text = next; writes.push(next); } }; },
   };
   return { handle: handle as unknown as FileSystemFileHandle, writes, text: () => text };
@@ -91,15 +94,34 @@ export interface OldHeaderRoute {
 }
 export interface OldHeaderRow { name: string; input: string; routes: OldHeaderRoute[]; }
 export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
+  // generateId heeft een modulelokale teller. Eén verse, seriële worker per geval voorkomt dat een gerepareerde
+  // lezing de ids van een later geval verschuift; er draait steeds maar één worker onder het slot van de check.
+  if (isMainThread) {
+    // De opgeslagen main-referentie is, zoals de bestaande pariteitsproef, in deze tijdzone gemeten.
+    const zone = process.env.TZ; process.env.TZ = 'Europe/Amsterdam';
+    try {
+    const rows: OldHeaderRow[] = [];
+    for (const c of oldHeaderCases(root)) rows.push(await new Promise<OldHeaderRow>((resolve, reject) => {
+      const worker = new Worker(new URL(import.meta.url), { workerData: { oldHeaderCase: { root, name: c.name } } });
+      let row: OldHeaderRow | undefined;
+      worker.once('message', (result: OldHeaderRow) => { row = result; });
+      worker.once('error', reject);
+      worker.once('exit', code => code === 0 && row ? resolve(row) : reject(new Error(`oude kop ${c.name}: worker exit ${code}`)));
+    }));
+    return rows;
+    } finally { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone; }
+  }
   const globals = globalThis as unknown as Record<string, unknown>;
   const previous = { window: globals.window, local: globals.localStorage, session: globals.sessionStorage, date: Date, random: Math.random };
   installBrowserStubs(); const reseed = installDeterminism();
   try {
   const win = window as unknown as Record<string, unknown>;
   const baseline = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  // Bron/vingerafdruk/handle horen bij de concrete invoerbytes, niet bij de planning onder de controlekop.
+  // Opslagblokkade en volledige bronintegriteit worden hieronder apart via writes en intact vergeleken.
   const payload = (store: ReturnType<typeof createAppStoreContext>['store']) => {
-    const { ifcSource: _source, fileHandle: _handle, ...rest } = capturePayload(store.getState());
-    return sha(JSON.stringify(stable(rest)));
+    const { ifcSource: _source, foreignSourceMark: _mark, fileHandle: _handle, ...rest } = capturePayload(store.getState());
+    return sha(JSON.stringify(stable({ ...rest, assignments: rest.assignments.map(({ id: _id, ...a }) => a) })));
   };
   const open = async (text: string, flag: boolean, file: ReturnType<typeof memoryFile>) => {
     reseed(804); const store = createAppStoreContext().store;
@@ -109,14 +131,14 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
     return store;
   };
   const rows: OldHeaderRow[] = [];
-  for (const c of oldHeaderCases(root)) {
+  for (const c of oldHeaderCases(root).filter(c => c.name === workerData.oldHeaderCase.name)) {
     const routes: OldHeaderRoute[] = [];
     for (const flag of [false, true]) {
       const file = memoryFile(c.text);
       const store = await open(c.text, flag, file);
       const state = store.getState();
       const opened = state.fileHandle === file.handle;
-      const before = { opened, tasks: state.tasks.length, payload: payload(store),
+      const before = { opened, tasks: state.tasks.length, payload: opened ? payload(store) : '',
         notices: stable(state.ui.notifications.map(({ id: _id, ...n }) => n)) };
       if (opened) await state.saveFile();
       const reopened = opened ? await open(file.text(), flag, file) : null;
@@ -137,6 +159,12 @@ export async function oldHeaderTable(root: string): Promise<OldHeaderRow[]> {
     globals.window = previous.window; globals.localStorage = previous.local; globals.sessionStorage = previous.session;
     globalThis.Date = previous.date; Math.random = previous.random;
   }
+}
+
+// Dezelfde gebundelde check wordt als worker geladen; stop vóór de overige check-/generatorcode draait.
+if (!isMainThread && workerData?.oldHeaderCase) {
+  parentPort!.postMessage((await oldHeaderTable(workerData.oldHeaderCase.root))[0]);
+  process.exit(0);
 }
 
 /** Alleen exact main, of het lege main-project hersteld tot de gewone volledige planning (met modelweigering
@@ -170,5 +198,5 @@ export function compareOldHeaderTable(main: OldHeaderRow[], current: OldHeaderRo
     }
     if (allowed) repaired++;
   }
-  return { cases: current.length, same, repaired, other: problems.length, problems };
+  return { cases: current.length, same, repaired, other: current.length - same - repaired, problems };
 }
