@@ -790,14 +790,14 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
   for (let i = 0; i < n; i++) if (index.isEntity(i)) chunkOfId.set(sid(i), i);
   for (const id of [...keep.values(), ...keptHeads]) {
     const c = chunkOfId.get(id);
-    if (c === undefined || !isP(c)) throw new Error(`mergeWriter: het vaste id #${id} is geen P-stuk van de bron`);
+    if (c === undefined || !isP(c)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `het vaste id #${id} is geen P-stuk van de bron` }]);
   }
   const present = new Set<number>(emitted);
   for (let i = 0; i < n; i++) if (index.isEntity(i) && !isP(i)) present.add(sid(i));
   for (const line of lines) {
     if (line.drop) continue;
     for (const target of refsInText(line.text)) {
-      if (!present.has(target)) throw new Error(`mergeWriter: #${line.id} wijst naar #${target}, dat niet in de uitvoer staat`);
+      if (!present.has(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
     }
   }
   // Beide controles zien de werkelijke uitvoer, niet het P-blok of de boekhouding van de writer.

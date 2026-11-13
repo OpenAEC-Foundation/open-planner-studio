@@ -1931,16 +1931,6 @@ en noem het in je rapport of PR-tekst.
      apart) en telt voor die twee slots ook een hele dag mee. Alleen tekst; de code doet wat #908 beschrijft. De gewone
      writer mocht in #908 niet wijzigen. Gevonden door de review van #908 (Terra). — B
 
-1118. **Bij 1c: de functie met de open-stappen krijgt de invoer van de merge zelf, niet een kopie.** `writeIfcMerge`
-     (`src/services/ifc/foreign/mergeWriter.ts`, #903) geeft `openPlanning` het domein van de planner door nadat de
-     uitvoerregels al gebouwd zijn. Een foutieve functie die dat domein wijzigt, verandert beide kanten van de
-     vergelijking: in de proef van Sol schreef de merge 35.083 bytes terwijl de domeinkopie een andere taaknaam had dan
-     het heropende bestand. Ook geldt: de merge dwingt af dat er een functie is, niet dat zij de echte open-stappen doet
-     (een functie die niets doet, kan schrijven). Geen verlies in de app: er is geen aanroeper, en de bevroren store
-     weigert zo'n wijziging met een `TypeError`. Richting, bij het aansluiten in 1c: de invoer afschermen tegen
-     wijziging, en een integratieproef dat de opslagroute de vaste, echte open-stappen meegeeft (met de flag aan). Sol,
-     gerichte run op #903. — B
-
 1123. **VERVOLG (fase 2): een uurtaak met kale datums laat de merge weigeren.** Een taak met een duur in uren en datums
      zonder tijd (`'2027-03-01'`), een vorm die geen release van OPS schreef, krijgt bij openen een eindtijd; de writer
      schrijft dan een datum-tijd en de merge weigert getypeerd, zonder bytes (`niet-gedragen`,

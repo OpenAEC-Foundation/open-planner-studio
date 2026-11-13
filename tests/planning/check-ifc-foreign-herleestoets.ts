@@ -80,8 +80,10 @@ const d = cloneDomain(opened);
 // E21: een testfunctie kan de vaste heropening niet vervangen of invoer van de aanroeper wijzigen.
 {
   const { store } = await storeWith(d);
+  const liveState = store.getState();
   const before = structuredClone(d), liveBefore = structuredClone((await loadStore()).buildWriteIFCInput(store.getState()));
   const refused = (e: unknown) => e instanceof MergeNeedsPhase2Error;
+  await assert.rejects(() => writeIfcMerge(d, source, async () => undefined as unknown as typeof d), refused, 'een lege testfunctie wordt geweigerd');
   await assert.rejects(() => writeIfcMerge(d, source, async p => p), refused, 'identiteit mag de open-stappen niet vervangen');
   await assert.rejects(() => writeIfcMerge(d, source, async p => {
     p.tasks[0].name = 'Verborgen wijziging';
@@ -94,6 +96,7 @@ const d = cloneDomain(opened);
   }), refused, 'ook een gewijzigde kopie wordt geweigerd');
   assert.deepEqual(d, before, 'de controle veranderde het domein van de aanroeper niet');
   assert.deepEqual((await loadStore()).buildWriteIFCInput(store.getState()), liveBefore, 'de actieve store is ongewijzigd');
+  assert.strictEqual(store.getState(), liveState, 'ook de documentregistry, historie en UI van de actieve store bleven onaangeraakt');
   assert((await writeIfcMerge(d, source)).length > 0, 'de productieroute heeft zelf de vaste open-stappen');
   console.log('OK E21: vaste open-stappen, identiteit en naamwijziging geweigerd; invoer en actieve store ongewijzigd');
 }
