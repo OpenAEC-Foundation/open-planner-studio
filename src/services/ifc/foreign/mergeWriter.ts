@@ -53,6 +53,7 @@ import type { IfcSource } from './ifcSource';
 import { MAX_STEP_ID, scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 import { planningCanon, planningDifference } from './planningCanon';
+import { sameValue } from '@/utils/sameValue';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -809,7 +810,8 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
 }
 
 /** Trias 1107: gelijk aan opened is ongewijzigd; zonder opened geldt pristine, zoals in de verliesbewaking.
- * Eén doorloop over alle numerieke bladeren van de planning. Id-lijsten koppelen op id, overige lijsten op plek.
+ * Eén doorloop over alle numerieke bladeren van de planning. Id-lijsten koppelen op id, baselineregels op taskId;
+ * overige lijsten blijven op plek gekoppeld.
  * Toewijzings-ids worden niet opgeslagen (ifcReader.extractAssignments maakt ze opnieuw): hun identiteit is het
  * taak/resource-paar met een volgnummer voor dubbele voorkomens. Er verdwijnt geen dubbel object in een Map.
  * Verandert openen van het domein zelf het getal, dan geldt de bestaande vergelijking na dezelfde open-stappen.
@@ -819,30 +821,63 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
   const field = (value: unknown, key: string): unknown => value !== null && typeof value === 'object'
     ? (value as Record<string, unknown>)[key] : undefined;
   const idOf = (value: unknown) => field(value, 'id');
+  const taskIds = new Set([...opened.tasks, ...input.tasks].map(t => t.id));
+  const taskIdByGuid = new Map<string, string | null>();
+  for (const [seed, guid] of Object.entries(opened.ifcGlobalIds ?? input.ifcGlobalIds ?? {})) {
+    if (!seed.startsWith('task:')) continue;
+    const id = seed.slice(5);
+    taskIdByGuid.set(guid, !taskIdByGuid.has(guid) || taskIdByGuid.get(guid) === id ? id : null);
+  }
   const keyOf = (value: unknown, index: number, path: string): string => {
     if (path === 'planning.assignments') return `pair:${field(value, 'taskId')}\0${field(value, 'resourceId')}`;
+    const taskId = field(value, 'taskId');
+    if (/^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path) && typeof taskId === 'string') {
+      // Oude baseline-JSON zonder TaskGuids houdt na het wissen haar interne bron-id (#1104).
+      // De lezer koppelt dat via ifcGuid aan de taak; gebruik alleen een eenduidig bekende bron-GUID.
+      const stable = taskIds.has(taskId) ? taskId : taskIdByGuid.get(ifcGuid(taskId)) ?? taskId;
+      return `task:${stable}`;
+    }
     const id = idOf(value);
     return typeof id === 'string' || typeof id === 'number' ? `id:${id}` : `index:${index}`;
   };
-  const indexed = (value: unknown, path: string) => {
+  const indexed = (value: unknown, path: string, reference?: Map<string, unknown[]>) => {
     const map = new Map<string, unknown[]>();
     if (Array.isArray(value)) value.forEach((item: unknown, index) => {
       const key = keyOf(item, index, path), bucket = map.get(key) ?? [];
       bucket.push(item); map.set(key, bucket);
     });
+    if (reference && /^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path)) {
+      for (const [key, rows] of reference) {
+        const remaining = [...(map.get(key) ?? [])];
+        // Eerst ALLE geheel gelijke voorkomens reserveren, pas daarna de rest op volgorde.
+        // Anders kan een gewijzigde eerste dubbele rij de ongewijzigde tweede rij opsouperen.
+        const exact = rows.map(row => {
+          const at = remaining.findIndex(other => sameValue(row, other));
+          return at < 0 ? undefined : { row: remaining.splice(at, 1)[0] };
+        });
+        map.set(key, exact.map(match => match ? match.row : remaining.shift()));
+      }
+    }
     return map;
   };
   function first(was: unknown, now: unknown, afterOpen: unknown, back: unknown, path: string, paired = false): string | undefined {
     if (typeof now === 'number') {
       if (now === was && now === afterOpen && now !== back) return `${path}: ${now} → ${JSON.stringify(back)}`;
     } else if (Array.isArray(now)) {
-      const before = indexed(was, path), normalized = indexed(afterOpen, path), actual = indexed(back, path);
+      const reference = indexed(now, path);
+      const originalBefore = /^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path) ? indexed(was, path) : undefined;
+      const before = indexed(was, path, reference), normalized = indexed(afterOpen, path, reference), actual = indexed(back, path, reference);
       const seen = new Map<string, number>();
       for (let index = 0; index < now.length; index++) {
         const item: unknown = now[index], key = keyOf(item, index, path), occurrence = seen.get(key) ?? 0;
         seen.set(key, occurrence + 1);
         const itemPath = path === 'planning.tasks' ? `taak ${idOf(item)} (${field(item, 'name')})`
           : `${path}[${key}${occurrence ? `,${occurrence}` : ''}]`;
+        const candidates = originalBefore?.get(key);
+        // Bij niet meer herkenbare dubbele bronregels is een afwijkende uitvoer niet veilig te verklaren.
+        // Exacte uitvoer blijft toegestaan; anders conservatief weigeren, ook als de planner datums wijzigde.
+        if (candidates && candidates.length > 1 && !candidates.some(old => sameValue(old, item))
+          && !sameValue(normalized.get(key)?.[occurrence], actual.get(key)?.[occurrence])) return `${itemPath}: dubbele baselineregels niet eenduidig te koppelen aan een afwijkende uitvoer`;
         const problem = first(before.get(key)?.[occurrence], item, normalized.get(key)?.[occurrence], actual.get(key)?.[occurrence], itemPath, true);
         if (problem) return problem;
       }

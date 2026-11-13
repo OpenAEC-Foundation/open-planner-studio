@@ -21,8 +21,11 @@ import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
+import { relationAddVerdict } from '@/state/relationRules';
+import { isSummaryTask } from '@/utils/taskHierarchy';
+import { isCostResource } from '@/types/resource';
 import { localTodayIso } from '@/utils/dateUtils';
-import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
+import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeEdit, storeWith } from './ifcAppRoute';
 export { openInStore, openReadPlanning } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
@@ -234,9 +237,23 @@ export function firstDiff(a: string, b: string): string {
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
   | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
-/** `applyEdit` neemt een nieuw domein uit een storeactie over, of behoudt het gemuteerde domein; daarna optioneel F5. */
-export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean }
-
+/** Een niet-toepasselijke soort blijft zichtbaar, maar gaat nooit naar de merge. */
+export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean; readonly notApplicable?: string }
+export class EditNotAppliedError extends Error {
+  constructor(readonly outcome: 'niet-van-toepassing' | 'door-app-geweigerd', detail: string) { super(detail); }
+}
+const unavailable = (kind: EditKind, reason: string): Edit => ({ kind, label: reason, notApplicable: reason,
+  apply: () => { throw new EditNotAppliedError('niet-van-toepassing', reason); } });
+/** Meteen na de echte actie de bedoelde wijziging bewaken; een verse payload alleen is geen bewijs.
+ * Deze kandidaten zijn vooraf geldig bevonden. Een weigering/no-op is dus onverwacht en maakt de telling rood.
+ */
+function appEdit(kind: EditKind, label: string, apply: Edit['apply'], changed: (before: Domain, after: Domain) => boolean): Edit {
+  return { kind, label, apply: async d => {
+    const before = structuredClone(d), result = await apply(d), after = result ?? d;
+    if (!changed(before, after)) throw new EditNotAppliedError('door-app-geweigerd', `${kind}: geldige actie veranderde niet wat zij moest veranderen (${label})`);
+    return after;
+  } };
+}
 /** Een bewerking toepassen, met doorrekenen als ze dat vraagt. */
 export async function applyEdit(edit: Edit, d: Domain): Promise<Domain> {
   const changed = await edit.apply(d);
@@ -249,19 +266,12 @@ const isDescendant = (tasks: ReadonlyMap<string, Task>, id: string, ancestor: st
   for (let cur = tasks.get(id); cur?.parentId; cur = tasks.get(cur.parentId)) if (cur.parentId === ancestor) return true;
   return false;
 };
-/** Haal een taak uit de kinderen van haar ouder (of uit de wortels: die volgen de volgorde van `tasks`). */
-function detach(d: Domain, t: Task): void {
-  if (!t.parentId) return;
-  const parent = byId(d).get(t.parentId);
-  if (parent) parent.childIds = parent.childIds.filter(c => c !== t.id);
-}
-
 /**
  * De bewerkingen voor één domein, in vaste volgorde. Keuze (bijsturing 1, punt 2):
  *  - andere ouder: elke taak onder de eerste samenvattingstaak die niet haar ouder, zijzelf of een nakomeling is;
  *  - niveau hoger: elke taak met een ouder gaat naar de ouder van die ouder (achter die ouder);
  *  - volgorde van kinderen: per samenvattingstaak met minstens twee kinderen de volgorde omkeren; plus de wortels;
- *  - relatie erbij: per taak een FS-relatie naar de volgende taak in `tasks`, als die er nog niet is;
+ *  - relatie erbij: per gekozen voorganger de eerste FS-opvolger die de echte appregels toelaten; anders niet toepasbaar;
  *  - taak wissen: per taak, met haar nakomelingen, relaties en toewijzingen.
  * `max` begrenst het aantal per soort met een vaste stap over de taken (een vaste steekproef bij grote bestanden).
  */
@@ -278,78 +288,74 @@ export function plannerEdits(d: Domain, max = Infinity): Edit[] {
     const map = byId(d);
     const target = summaries.find(s => s.id !== t.id && s.id !== t.parentId && !isDescendant(map, s.id, t.id));
     if (!target) continue;
-    out.push({ kind: 'andere-ouder', label: `${t.id} → onder ${target.id}`, apply: (x) => {
-      const m = byId(x); const task = m.get(t.id)!; const parent = m.get(target.id)!;
-      detach(x, task); task.parentId = parent.id; parent.childIds.push(task.id);
-    } });
+    out.push(appEdit('andere-ouder', `${t.id} → onder ${target.id}`, x => storeEdit(x, s => s.moveTask(t.id, target.id, undefined, { phaseAssignments: 'move', answered: true })),
+      (before, after) => before.tasks.find(a => a.id === t.id)?.parentId !== target.id && after.tasks.find(a => a.id === t.id)?.parentId === target.id));
   }
   for (const t of pick(tasks.filter(t => t.parentId))) {
-    out.push({ kind: 'niveau-hoger', label: `${t.id} een niveau hoger`, apply: (x) => {
-      const m = byId(x); const task = m.get(t.id)!; const parent = m.get(task.parentId!)!;
-      detach(x, task);
-      task.parentId = parent.parentId;
-      if (parent.parentId) {
-        const grand = m.get(parent.parentId)!;
-        grand.childIds.splice(grand.childIds.indexOf(parent.id) + 1, 0, task.id);
-      } else {
-        // Een wortel: de volgorde van `tasks` bepaalt de volgorde van de wortels; zet de taak achter haar oude ouder.
-        x.tasks.splice(x.tasks.indexOf(task), 1);
-        x.tasks.splice(x.tasks.indexOf(parent) + 1, 0, task);
-      }
-    } });
+    out.push(appEdit('niveau-hoger', `${t.id} een niveau hoger`, x => storeEdit(x, s => s.outdentTasks([t.id], { phaseAssignments: 'move', answered: true })),
+      (before, after) => after.tasks.some(a => a.id === t.id && a.parentId === (before.tasks.find(p => p.id === t.parentId)?.parentId ?? null))));
   }
   for (const s of pick(summaries.filter(s => s.childIds.length >= 2))) {
-    out.push({ kind: 'volgorde-kinderen', label: `kinderen van ${s.id} omgekeerd`, apply: (x) => { byId(x).get(s.id)!.childIds.reverse(); } });
+    out.push(appEdit('volgorde-kinderen', `kinderen van ${s.id} omgekeerd`, x => storeEdit(x, state => {
+      // Dezelfde rijverplaatsing als slepen; de rauwe taakvolgorde en WBS gaan mee.
+      [...s.childIds].reverse().forEach((id, childIndex) => state.moveTaskTo(id, { parentId: s.id, childIndex }));
+    }), (before, after) => {
+      const was = before.tasks.find(t => t.id === s.id)!.childIds, now = after.tasks.find(t => t.id === s.id)!.childIds;
+      return was.length >= 2 && now.length === was.length && now.every((id, i) => id === was[was.length - 1 - i]);
+    }));
   }
   if (tasks.filter(t => !t.parentId).length >= 2) {
-    out.push({ kind: 'volgorde-kinderen', label: 'wortels omgekeerd', apply: (x) => {
-      const roots = x.tasks.filter(t => !t.parentId).reverse();
-      let k = 0;
-      x.tasks = x.tasks.map(t => (t.parentId ? t : roots[k++]));
-    } });
+    out.push(appEdit('volgorde-kinderen', 'wortels omgekeerd', x => storeEdit(x, state => {
+      tasks.filter(t => !t.parentId).reverse().forEach((t, childIndex) => state.moveTaskTo(t.id, { parentId: null, childIndex }));
+    }), (before, after) => {
+      const was = before.tasks.filter(t => !t.parentId), now = after.tasks.filter(t => !t.parentId);
+      return was.length >= 2 && now.length === was.length && now.every((t, i) => t.id === was[was.length - 1 - i].id);
+    }));
   }
-  const related = new Set(d.sequences.map(s => `${s.predecessorId}>${s.successorId}`));
-  for (let k = 0; k + 1 < tasks.length; k++) {
-    const a = tasks[k], b = tasks[k + 1];
-    if (related.has(`${a.id}>${b.id}`) || related.has(`${b.id}>${a.id}`) || !pick(tasks).includes(a)) continue;
-    out.push({ kind: 'relatie-erbij', label: `FS ${a.id} → ${b.id}`, apply: (x) => {
-      x.sequences.push({ id: `seq-1b-${k}`, predecessorId: a.id, successorId: b.id, type: 'FINISH_START', lagDays: 0 });
-    } });
+  // Eerst in het hele bestand geldige paren zoeken, daarna de vaste steekproef nemen.
+  // Zo verbergt een samenvatting zonder legale opvolger niet de geldige relaties tussen haar bladeren.
+  const relations = tasks.flatMap(a => {
+    const b = tasks.find(b => relationAddVerdict(tasks, d.sequences, { predecessorId: a.id, successorId: b.id, type: 'FINISH_START' }).ok);
+    return b ? [{ a, b }] : [];
+  });
+  if (!relations.length) out.push(unavailable('relatie-erbij', 'geen geldig FS-paar dat de app toelaat'));
+  for (const { a, b } of pick(relations)) {
+    out.push(appEdit('relatie-erbij', `FS ${a.id} → ${b.id}`, x => storeEdit(x, s => {
+      const id = s.addSequence({ predecessorId: a.id, successorId: b.id, type: 'FINISH_START', lagDays: 0 });
+      if (id === null) throw new EditNotAppliedError('door-app-geweigerd', `addSequence weigert de geldige kandidaat ${a.id} → ${b.id}`);
+    }), (before, after) => after.sequences.length === before.sequences.length + 1
+      && after.sequences.some(r => !before.sequences.some(old => old.id === r.id) && r.predecessorId === a.id && r.successorId === b.id && r.type === 'FINISH_START' && r.lagDays === 0)));
   }
   for (const t of pick(tasks)) {
-    out.push({ kind: 'taak-wissen', label: `${t.id} wissen`, apply: (x) => {
-      const m = byId(x);
-      const gone = new Set([t.id, ...x.tasks.filter(o => isDescendant(m, o.id, t.id)).map(o => o.id)]);
-      detach(x, m.get(t.id)!);
-      x.tasks = x.tasks.filter(o => !gone.has(o.id));
-      x.sequences = x.sequences.filter(s => !gone.has(s.predecessorId) && !gone.has(s.successorId));
-      x.assignments = x.assignments.filter(a => !gone.has(a.taskId));
-    } });
+    out.push(appEdit('taak-wissen', `${t.id} wissen`, x => storeEdit(x, s => s.deleteTask(t.id)),
+      (before, after) => before.tasks.some(a => a.id === t.id) && !after.tasks.some(a => a.id === t.id)));
   }
   return out;
 }
 
-/** De bewerkingen van 1b (brief): taak erbij, hernoemen, duur wijzigen, toewijzing erbij. Eén van elk, op een vaste taak. */
+/** Taak erbij, hernoemen en duur op de vaste taak; toewijzing op het eerste vrije, geldige taak/resource-paar. */
 export function basicEdits(d: Domain): Edit[] {
   const leaf = lengthenedTask(d);
   const out: Edit[] = [];
   if (!leaf) return out;
-  out.push({ kind: 'taak-erbij', label: `nieuwe taak naast ${leaf.id}`, apply: (x) => {
-    const m = byId(x); const base = m.get(leaf.id)!;
-    const task: Task = { ...structuredClone(base), id: 'taak-1b-nieuw', name: 'Nieuwe taak 1b', wbsCode: `${base.wbsCode}.9`, resourceIds: [] };
-    x.tasks.splice(x.tasks.indexOf(base) + 1, 0, task);
-    if (base.parentId) { const p = m.get(base.parentId)!; p.childIds.splice(p.childIds.indexOf(base.id) + 1, 0, task.id); }
-  } });
-  out.push({ kind: 'hernoemen', label: `${leaf.id} hernoemd`, apply: (x) => { byId(x).get(leaf.id)!.name = 'Hernoemd in 1b'; } });
-  out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => lengthen(x, leaf.id) });
-  const resource = d.resources[0];
-  if (resource) {
-    out.push({ kind: 'toewijzing-erbij', label: `${resource.id} op ${leaf.id}`, apply: (x) => {
-      x.assignments.push({ id: 'toewijzing-1b', taskId: leaf.id, resourceId: resource.id, unitsPerDay: 4 });
-      const task = byId(x).get(leaf.id)!;
-      if (!task.resourceIds.includes(resource.id)) task.resourceIds.push(resource.id);
-    } });
-  }
+  out.push(appEdit('taak-erbij', `nieuwe taak naast ${leaf.id}`, x => storeEdit(x, s => {
+    s.addTask({ name: 'Nieuwe taak 1b', position: { anchorId: leaf.id, where: 'below' } }, { phaseAssignments: 'move', answered: true });
+  }), (before, after) => after.tasks.length === before.tasks.length + 1 && after.tasks.some(t => !before.tasks.some(old => old.id === t.id) && t.name === 'Nieuwe taak 1b')));
+  const name = leaf.name === 'Hernoemd in 1b' ? 'Opnieuw hernoemd in 1b' : 'Hernoemd in 1b';
+  out.push(appEdit('hernoemen', `${leaf.id} hernoemd`, x => storeEdit(x, s => s.updateTask(leaf.id, { name })),
+    (before, after) => before.tasks.find(t => t.id === leaf.id)?.name !== name && after.tasks.find(t => t.id === leaf.id)?.name === name));
+  out.push(appEdit('duur', `${leaf.id} een dag langer`, x => lengthen(x, leaf.id), (before, after) => {
+    const was = before.tasks.find(t => t.id === leaf.id)!.time, now = after.tasks.find(t => t.id === leaf.id)!.time;
+    return was.durationUnit === 'hours' ? now.durationMinutes === (was.durationMinutes ?? 0) + 480 : now.scheduleDuration === was.scheduleDuration + 1;
+  }));
+  const candidate = d.tasks.filter(t => !isSummaryTask(t)).flatMap(task => d.resources
+    .filter(resource => (!task.isMilestone || isCostResource(resource)) && !d.assignments.some(a => a.taskId === task.id && a.resourceId === resource.id))
+    .map(resource => ({ task, resource })))[0];
+  if (candidate) {
+    const { task, resource } = candidate;
+    out.push(appEdit('toewijzing-erbij', `${resource.id} op ${task.id}`, x => storeEdit(x, s => s.assignResource(task.id, resource.id, 4)),
+      (before, after) => after.assignments.length === before.assignments.length + 1 && after.assignments.some(a => a.taskId === task.id && a.resourceId === resource.id && a.unitsPerDay === (isCostResource(resource) ? 1 : 4))));
+  } else out.push(unavailable('toewijzing-erbij', 'geen vrij taak/resource-paar dat de app toelaat'));
   return out;
 }
 
@@ -361,17 +367,18 @@ export function ordinaryEdits(d: Domain): Edit[] {
   const leaf = d.tasks.find(t => t.childIds.length === 0 && !t.isMilestone);
   if (lengthen) out.push({ kind: 'doorrekenen', label: `${lengthen.label} en doorgerekend`, apply: lengthen.apply, recalculate: true });
   if (leaf) {
-    out.push({ kind: 'voortgang', label: `${leaf.id} voortgang 50 % via invoer`, apply: async (x) => {
+    const completion = leaf.time.completion === 0.5 ? 0.25 : 0.5;
+    out.push(appEdit('voortgang', `${leaf.id} voortgang ${completion * 100} % via invoer`, async x => {
       const { store, buildWriteIFCInput } = await storeWith(x);
-      const edit = { field: 'completion', value: 0.5 } as const;
+      const edit = { field: 'completion', value: completion } as const;
       const opts = { today: localTodayIso() };
       let result = store.getState().enterTaskProgress(leaf.id, edit, opts);
       if (!result.ok && result.reason === 'needsActualStart') {
         result = store.getState().enterTaskProgress(leaf.id, edit, { ...opts, actualStart: result.question.latest });
       }
       if (!result.ok) throw new Error(`voortgangsinvoer ${leaf.id}: ${result.reason}`);
-      return buildWriteIFCInput(store.getState());
-    } });
+      return structuredClone(buildWriteIFCInput(store.getState()));
+    }, (before, after) => before.tasks.find(t => t.id === leaf.id)?.time.completion !== completion && after.tasks.find(t => t.id === leaf.id)?.time.completion === completion));
   }
   return out;
 }
