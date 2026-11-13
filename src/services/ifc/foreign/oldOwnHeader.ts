@@ -55,7 +55,8 @@ function oldHeaderForScan(bytes: Uint8Array): Uint8Array | null {
     const value = line.slice(start, end);
     if (value.includes("',") || value.includes("')") || value.includes("('")) return null;
   }
-  const safe = bytes.slice();
+  // Ook bij Node-buffers een zelfstandige kopie: Buffer.slice() zou de bron delen.
+  const safe = new Uint8Array(bytes);
   for (const [start, end] of fields) safe.fill(0x78, PREFIX.length + start, PREFIX.length + end);
   return safe;
 }

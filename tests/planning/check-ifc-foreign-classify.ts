@@ -26,6 +26,7 @@
 // Draait via run.sh (ook in de tijdzonematrix: `writeIFC` heeft datumlogica). Exit 0 = alles groen.
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { Buffer } from 'node:buffer';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -744,6 +745,11 @@ if (WITH_PYTHON) {
 {
   const oldBytes = new Uint8Array(readFileSync(join(ROOT,
     'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc')));
+  // Node-fs kan een Buffer leveren: Buffer.slice() is een gedeelde view, geen zelfstandige scankopie.
+  const nodeBytes = Buffer.from(oldBytes);
+  const nodeBefore = Buffer.from(nodeBytes);
+  ok('oude kop Node Buffer: indeling slaagt', scanForeign(nodeBytes).ok);
+  ok('oude kop Node Buffer: bronbytes blijven exact gelijk', nodeBytes.equals(nodeBefore));
   const oldText = new TextDecoder().decode(oldBytes);
   const body = oldText.slice(oldText.indexOf('\nDATA;\n') + '\nDATA;\n'.length);
   const prefix = "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\n";
