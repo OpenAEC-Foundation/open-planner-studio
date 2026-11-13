@@ -7,12 +7,13 @@ import { readbackDifference } from './ifcReadbackEquality';
 // `plannerEdits` (`ifcMergeKern.ts`): niets; een taak onder een andere ouder, een niveau hoger, de volgorde van kinderen;
 // een relatie erbij; een taak wissen. Per taak of per paar; boven `MAX_PER_SOORT` een vaste steekproef.
 //
-// Per bewerking één van drie uitkomsten:
+// Per poging: niet van toepassing, onverwacht door de app geweigerd (rood), of na een echte wijziging:
 //   - gelukt: de merge schrijft, de invarianten kloppen (`mergeProblems`), geen object krijgt een tweede `Decomposes`,
 //     `Nests` of `HasContext`, en de herlezing geeft dezelfde planning als dezelfde bewerking zonder vreemd deel (`canon`);
 //   - merge-needs-phase2: de getypeerde weigering, met de gevallen;
 //   - anders: een andere fout, een gebroken invariant of een andere planning na herlezen.
-// De check drukt de tabel af en is rood bij elke "anders": elke bewerking schrijft goed of weigert getypeerd. Ook rood:
+// App-weigeringen en niet-toepasselijke pogingen gaan niet naar de merge en tellen afzonderlijk.
+// De check is rood bij onverwachte app-weigeringen en elke "anders": een geldige setter mag geen no-op worden. Ook rood:
 // een fout bij openen, behalve de verwachte weigering in `REFUSED_AT_OPEN` (met haar reden).
 // Daarna (fixronde 2 van #867, bijsturing punt 2): hoeveel eigen bestanden (zonder vreemde herkomst) al zonder bewerking
 // `niet-gedragen` krijgen, het totaal van die meldingen, en de velden (entiteit + slot, bij een pset of property de naam)
@@ -40,7 +41,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  applyEdit, canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, reopenPlain,
+  applyEdit, EditNotAppliedError, canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, reopenPlain,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -178,7 +179,8 @@ const APP: Route = {
 };
 const RAW: Route = { open: (b) => openForeignRaw(b), same: async (reread, d) => canon(reread, reseed) === canon(readIFC(writeIFC(d)), reseed) };
 
-interface Tally { n: number; ok: number; refused: Map<string, number>; other: Map<string, number> }
+interface Tally { n: number; ok: number; appRejected: number; notApplicable: number; refused: Map<string, number>; other: Map<string, number> }
+const emptyTally = (): Tally => ({ n: 0, ok: 0, appRejected: 0, notApplicable: 0, refused: new Map(), other: new Map() });
 const tally = new Map<string, Map<EditKind, Tally>>();
 const others: string[] = [];
 const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
@@ -259,13 +261,13 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
   if (record) editFields.set(shown, fields);
   const where = shown;
   for (const edit of [...plannerEdits(opened, max), ...ordinaryEdits(opened)]) {
-    const t = perKind.get(edit.kind) ?? { n: 0, ok: 0, refused: new Map(), other: new Map() };
+    const t = perKind.get(edit.kind) ?? emptyTally();
     perKind.set(edit.kind, t);
     t.n++;
-    merges++;
     const fail = (reason: string) => { bump(t.other, reason); others.push(`${where} · ${edit.label}: ${reason}`); };
     try {
       const d = await applyEdit(edit, cloneDomain(opened));
+      if (record) merges++;
       const outcome = await tryMerge(d, source);
       if (record) console.log('UITKOMST GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label,
         uitkomst: outcome.ok ? 'schrijft' : 'weigert', domeinVerschil: edit.kind === 'niets' ? null : readbackDifference(cloneDomain(opened), d) ?? null }));
@@ -297,7 +299,16 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
       if (!await route.same(await route.open(outcome.bytes), d)) { fail('andere planning na herlezen'); continue; }
       t.ok++;
     } catch (e) {
-      fail(`fout: ${(e as Error).message.slice(0, 160)}`);
+      if (e instanceof EditNotAppliedError) {
+        if (e.outcome === 'niet-van-toepassing') t.notApplicable++;
+        else {
+          t.appRejected++;
+          // Een vooraf geldige kandidaat die stil niets doet is een kapotte proef, nooit een groene skip.
+          others.push(`${where} · ${edit.label}: ${e.message}`);
+        }
+        if (record) console.log('UITKOMST GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind,
+          bewerking: edit.label, uitkomst: e.outcome, reden: e.message, domeinVerschil: null }));
+      } else fail(`fout: ${(e as Error).message.slice(0, 160)}`);
     }
   }
   return perKind;
@@ -310,78 +321,84 @@ const KINDS: EditKind[] = [
 ];
 const fmt = (m: Map<string, number>) => [...m].sort().map(([k, v]) => `${k} ${v}`).join(', ') || '–';
 /** Per bestand en per bewerking, dan de totalen per bewerking. Geeft het totaal terug. */
-function printTally(byFile: ReadonlyMap<string, ReadonlyMap<EditKind, Tally>>): { n: number; ok: number; other: number } {
-  console.log('| bestand | bewerking | aantal | gelukt | merge-needs-phase2 (geval: aantal) | anders |');
-  console.log('|---|---|---|---|---|---|');
+function printTally(byFile: ReadonlyMap<string, ReadonlyMap<EditKind, Tally>>): { n: number; ok: number; appRejected: number; notApplicable: number; other: number } {
+  console.log('| bestand | bewerking | pogingen | gelukt | merge-needs-phase2 (geval: aantal) | door app geweigerd | niet van toepassing | anders |');
+  console.log('|---|---|---|---|---|---|---|---|');
   const total = new Map<EditKind, Tally>();
   for (const [file, perKind] of byFile) {
     for (const kind of KINDS) {
       const t = perKind.get(kind);
       if (!t) continue;
-      const refusedN = t.n - t.ok - [...t.other.values()].reduce((a, b) => a + b, 0);
-      console.log(`| ${file} | ${kind} | ${t.n} | ${t.ok} | ${refusedN}${refusedN ? ` (${fmt(t.refused)})` : ''} | ${fmt(t.other)} |`);
-      const all = total.get(kind) ?? { n: 0, ok: 0, refused: new Map(), other: new Map() };
-      all.n += t.n; all.ok += t.ok;
+      const refusedN = t.n - t.ok - t.appRejected - t.notApplicable - [...t.other.values()].reduce((a, b) => a + b, 0);
+      console.log(`| ${file} | ${kind} | ${t.n} | ${t.ok} | ${refusedN}${refusedN ? ` (${fmt(t.refused)})` : ''} | ${t.appRejected} | ${t.notApplicable} | ${fmt(t.other)} |`);
+      const all = total.get(kind) ?? emptyTally();
+      all.n += t.n; all.ok += t.ok; all.appRejected += t.appRejected; all.notApplicable += t.notApplicable;
       for (const [k, v] of t.refused) all.refused.set(k, (all.refused.get(k) ?? 0) + v);
       for (const [k, v] of t.other) all.other.set(k, (all.other.get(k) ?? 0) + v);
       total.set(kind, all);
     }
   }
   console.log('');
-  console.log('| bewerking | aantal | gelukt | merge-needs-phase2 | anders |');
-  console.log('|---|---|---|---|---|');
+  console.log('| bewerking | pogingen | gelukt | merge-needs-phase2 | door app geweigerd | niet van toepassing | anders |');
+  console.log('|---|---|---|---|---|---|---|');
   for (const kind of KINDS) {
     const t = total.get(kind);
     if (!t) continue;
     const otherN = [...t.other.values()].reduce((a, b) => a + b, 0);
-    console.log(`| ${kind} | ${t.n} | ${t.ok} | ${t.n - t.ok - otherN} (${fmt(t.refused)}) | ${otherN} |`);
+    console.log(`| ${kind} | ${t.n} | ${t.ok} | ${t.n - t.ok - t.appRejected - t.notApplicable - otherN} (${fmt(t.refused)}) | ${t.appRejected} | ${t.notApplicable} | ${otherN} |`);
   }
   return {
     n: [...total.values()].reduce((a, t) => a + t.n, 0),
     ok: [...total.values()].reduce((a, t) => a + t.ok, 0),
+    appRejected: [...total.values()].reduce((a, t) => a + t.appRejected, 0),
+    notApplicable: [...total.values()].reduce((a, t) => a + t.notApplicable, 0),
     other: [...total.values()].reduce((a, t) => a + [...t.other.values()].reduce((x, y) => x + y, 0), 0),
   };
 }
 const asRead = printTally(tally);
 console.log('');
-console.log(`Totaal: ${asRead.n} bewerkingen, ${asRead.ok} gelukt, ${asRead.n - asRead.ok - asRead.other} merge-needs-phase2, ${asRead.other} anders; `
+console.log(`Totaal: ${asRead.n} pogingen, ${asRead.ok} gelukt, ${asRead.n - asRead.ok - asRead.appRejected - asRead.notApplicable - asRead.other} merge-needs-phase2, ${asRead.appRejected} door app geweigerd, ${asRead.notApplicable} niet van toepassing, ${asRead.other} anders; `
   + `${tally.size} bestanden met een vreemd deel; geweigerd bij openen: ${refusedAtOpen.join(', ') || '–'}.`);
+if (merges !== asRead.n - asRead.appRejected - asRead.notApplicable) others.push(`aantal merges sluit niet: ${merges} tegenover ${JSON.stringify(asRead)}`);
 const seconds = ((performance.now() - started) / 1000).toFixed(1);
 
 // ── Per groep: eigen bestanden die zonder bewerking schrijven, die al weigeren, en andere programma's ──
 {
   const GROUPS = TALLY_GROUPS;
   const groupOf = (file: string) => tallyGroup(ownOutcome.get(file));
-  const groupTotals = { files: 0, n: 0, ok: 0, refused: 0, other: 0 };
+  const groupTotals = { files: 0, n: 0, ok: 0, refused: 0, appRejected: 0, notApplicable: 0, other: 0 };
   console.log('');
   console.log('Per groep (alle bewerkingen behalve "niets"):');
   console.log('');
-  console.log('| groep | bestanden | bewerkingen | gelukt | merge-needs-phase2 (geval: aantal) | anders |');
-  console.log('|---|---|---|---|---|---|');
+  console.log('| groep | bestanden | pogingen | gelukt | merge-needs-phase2 (geval: aantal) | door app geweigerd | niet van toepassing | anders |');
+  console.log('|---|---|---|---|---|---|---|---|');
   for (const group of GROUPS) {
     const files = [...tally.keys()].filter(f => groupOf(f) === group);
-    let n = 0; let okN = 0; let otherN = 0;
+    let n = 0; let okN = 0; let appN = 0; let naN = 0; let otherN = 0;
     const refusedKinds = new Map<string, number>();
     const fields = new Map<string, number>();
     for (const f of files) {
       for (const [kind, t] of tally.get(f)!) {
         if (kind === 'niets') continue;
-        n += t.n; okN += t.ok; otherN += [...t.other.values()].reduce((a, b) => a + b, 0);
+        n += t.n; okN += t.ok; appN += t.appRejected; naN += t.notApplicable; otherN += [...t.other.values()].reduce((a, b) => a + b, 0);
         for (const [k, v] of t.refused) refusedKinds.set(k, (refusedKinds.get(k) ?? 0) + v);
       }
       for (const [k, v] of editFields.get(f) ?? []) fields.set(k, (fields.get(k) ?? 0) + v);
     }
     groupTotals.files += files.length; groupTotals.n += n; groupTotals.ok += okN;
-    groupTotals.other += otherN; groupTotals.refused += n - okN - otherN;
-    console.log(`| ${group} | ${files.length} | ${n} | ${okN} | ${n - okN - otherN} (${fmt(refusedKinds)}) | ${otherN} |`);
+    groupTotals.appRejected += appN; groupTotals.notApplicable += naN;
+    groupTotals.other += otherN; groupTotals.refused += n - okN - appN - naN - otherN;
+    console.log(`| ${group} | ${files.length} | ${n} | ${okN} | ${n - okN - appN - naN - otherN} (${fmt(refusedKinds)}) | ${appN} | ${naN} | ${otherN} |`);
     const top = [...fields].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3);
     if (top.length > 0) console.log(`|  | velden achter niet-gedragen: ${top.map(([k, v]) => `${v} × ${k}`).join('; ')} | | | | |`);
   }
-  const detail = { files: tally.size, n: 0, ok: 0, refused: 0, other: 0 };
+  const detail = { files: tally.size, n: 0, ok: 0, refused: 0, appRejected: 0, notApplicable: 0, other: 0 };
   for (const perKind of tally.values()) for (const [kind, t] of perKind) {
     if (kind === 'niets') continue;
     const other = [...t.other.values()].reduce((a, b) => a + b, 0);
-    detail.n += t.n; detail.ok += t.ok; detail.other += other; detail.refused += t.n - t.ok - other;
+    detail.n += t.n; detail.ok += t.ok; detail.other += other;
+    detail.appRejected += t.appRejected; detail.notApplicable += t.notApplicable;
+    detail.refused += t.n - t.ok - t.appRejected - t.notApplicable - other;
   }
   if (JSON.stringify(groupTotals) !== JSON.stringify(detail)) others.push(`groepstabel wijkt af: ${JSON.stringify(groupTotals)} tegenover detail ${JSON.stringify(detail)}`);
 
@@ -429,9 +446,9 @@ const ownRefused: string[] = [];
 // ── Met `OPS_TELLING_OUDE_ROUTE=1`: per bestand de route van de app naast de oude testroute ──
 if (FULL_RAW) {
   const sum = (m: ReadonlyMap<EditKind, Tally> | undefined) => {
-    let n = 0; let okN = 0; let otherN = 0;
-    for (const t of m?.values() ?? []) { n += t.n; okN += t.ok; otherN += [...t.other.values()].reduce((a, b) => a + b, 0); }
-    return m ? `${okN}/${n} gelukt, ${n - okN - otherN} geweigerd, ${otherN} anders` : '–';
+    let n = 0; let okN = 0; let appN = 0; let naN = 0; let otherN = 0;
+    for (const t of m?.values() ?? []) { n += t.n; okN += t.ok; appN += t.appRejected; naN += t.notApplicable; otherN += [...t.other.values()].reduce((a, b) => a + b, 0); }
+    return m ? `${okN}/${n} gelukt, ${n - okN - appN - naN - otherN} merge-geweigerd, ${appN} app-geweigerd, ${naN} niet toepasbaar, ${otherN} anders` : '–';
   };
   console.log('');
   console.log('Per bestand, alle bewerkingen: route van de app tegenover de oude testroute:');
@@ -454,5 +471,5 @@ if (others.length > 0) {
   for (const o of others.slice(0, 40)) console.log(`   - ${o}`);
 }
 if (others.length > 0 || ownRefused.length > 0) process.exit(1);
-console.log(`OK  ifc-foreign-merge-telling: ${merges} merges over ${tally.size} bestanden, elk gelukt of getypeerd geweigerd (${seconds} s)`);
+console.log(`OK  ifc-foreign-merge-telling: ${asRead.n} pogingen over ${tally.size} bestanden; ${merges} merges: ${asRead.ok} geschreven, ${asRead.n - asRead.ok - asRead.appRejected - asRead.notApplicable - asRead.other} getypeerd geweigerd; ${asRead.appRejected} door app geweigerd, ${asRead.notApplicable} niet van toepassing, ${asRead.other} anders (${seconds} s)`);
 process.exit(0);

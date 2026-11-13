@@ -53,6 +53,7 @@ import type { IfcSource } from './ifcSource';
 import { MAX_STEP_ID, scanStep, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 import { planningCanon, planningDifference } from './planningCanon';
+import { sameValue } from '@/utils/sameValue';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -839,19 +840,32 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
     const id = idOf(value);
     return typeof id === 'string' || typeof id === 'number' ? `id:${id}` : `index:${index}`;
   };
-  const indexed = (value: unknown, path: string) => {
+  const indexed = (value: unknown, path: string, reference?: Map<string, unknown[]>) => {
     const map = new Map<string, unknown[]>();
     if (Array.isArray(value)) value.forEach((item: unknown, index) => {
       const key = keyOf(item, index, path), bucket = map.get(key) ?? [];
       bucket.push(item); map.set(key, bucket);
     });
+    if (reference && /^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path)) {
+      for (const [key, rows] of reference) {
+        const remaining = [...(map.get(key) ?? [])];
+        // Eerst ALLE geheel gelijke voorkomens reserveren, pas daarna de rest op volgorde.
+        // Anders kan een gewijzigde eerste dubbele rij de ongewijzigde tweede rij opsouperen.
+        const exact = rows.map(row => {
+          const at = remaining.findIndex(other => sameValue(row, other));
+          return at < 0 ? undefined : { row: remaining.splice(at, 1)[0] };
+        });
+        map.set(key, exact.map(match => match ? match.row : remaining.shift()));
+      }
+    }
     return map;
   };
   function first(was: unknown, now: unknown, afterOpen: unknown, back: unknown, path: string, paired = false): string | undefined {
     if (typeof now === 'number') {
       if (now === was && now === afterOpen && now !== back) return `${path}: ${now} → ${JSON.stringify(back)}`;
     } else if (Array.isArray(now)) {
-      const before = indexed(was, path), normalized = indexed(afterOpen, path), actual = indexed(back, path);
+      const reference = indexed(now, path);
+      const before = indexed(was, path, reference), normalized = indexed(afterOpen, path, reference), actual = indexed(back, path, reference);
       const seen = new Map<string, number>();
       for (let index = 0; index < now.length; index++) {
         const item: unknown = now[index], key = keyOf(item, index, path), occurrence = seen.get(key) ?? 0;

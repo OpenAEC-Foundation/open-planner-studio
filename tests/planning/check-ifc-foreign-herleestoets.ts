@@ -1,5 +1,6 @@
 // 1107: de open-stappen zijn verplicht en hun volledige uitkomst wordt getoetst.
 import assert from 'node:assert/strict';
+import { sameValue } from '@/utils/sameValue';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generatedModel } from './ifcGeneratedModel';
@@ -9,7 +10,7 @@ import { ifcGuid, writeIFC } from '@/services/ifc/ifcWriter';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, applyEdit, ordinaryEdits, plannerEdits, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
+import { canon, cloneDomain, applyEdit, EditNotAppliedError, ordinaryEdits, plannerEdits, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
 import { writeIfcMerge, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 
 const reseed = installDeterminism();
@@ -46,6 +47,16 @@ const source = opened.ifcSource!;
       assert(added.id.startsWith('task-'), 'een nieuwe taak krijgt haar id van addTask');
       assert(!added.resourceIds.length, 'een nieuwe taak kopieert geen bron-toewijzingen');
     }
+    // Alleen de bedoelde wijziging telt; een verse maar inhoudelijk ongewijzigde payload is geen bewerking.
+    const taskId = edit.label.split(' ')[0];
+    const task = result.tasks.find(t => t.id === taskId), oldTask = before.tasks.find(t => t.id === taskId);
+    if (edit.kind === 'andere-ouder' || edit.kind === 'niveau-hoger') assert.notEqual(task?.parentId, oldTask?.parentId, edit.label);
+    if (edit.kind === 'volgorde-kinderen') assert.notDeepEqual(result.tasks.map(t => [t.id, t.childIds]), before.tasks.map(t => [t.id, t.childIds]), edit.label);
+    if (edit.kind === 'relatie-erbij') assert.equal(result.sequences.length, before.sequences.length + 1, 'relatie-erbij: de setter heeft echt toegevoegd');
+    if (edit.kind === 'taak-wissen') assert(!task && oldTask, 'taak-wissen: de taak is werkelijk weg');
+    if (edit.kind === 'toewijzing-erbij') assert.equal(result.assignments.length, before.assignments.length + 1, 'toewijzing-erbij: de setter heeft echt toegevoegd');
+    if (edit.kind === 'duur' || edit.kind === 'doorrekenen') assert.notEqual(task?.time.scheduleDuration, oldTask?.time.scheduleDuration, edit.label);
+    if (edit.kind === 'voortgang') assert.equal(task?.time.completion, 0.5, edit.label);
     const ids = new Map(result.tasks.map(t => [t.id, t]));
     for (const task of result.tasks) {
       if (task.parentId) assert(ids.get(task.parentId)?.childIds.includes(task.id), 'ouder en kinderen blijven synchroon');
@@ -54,7 +65,16 @@ const source = opened.ifcSource!;
   }
   assert.equal(kinds.size, 12, 'alle twaalf soorten handelingen zijn beproefd');
   assert.deepEqual(input, before, 'elke handeling begon bij dezelfde ongewijzigde invoer');
-  console.log('OK E4: twaalf soorten echte appacties, verse payload, WBS en bewerkingsherkomst');
+  const single = structuredClone(before);
+  single.tasks = [{ ...single.tasks[1], parentId: null }];
+  single.assignments = single.resources.map((r, i) => ({ id: `vol-${i}`, taskId: single.tasks[0].id, resourceId: r.id, unitsPerDay: 4 }));
+  for (const kind of ['relatie-erbij', 'toewijzing-erbij']) {
+    const edit = [...plannerEdits(single), ...ordinaryEdits(single)].find(e => e.kind === kind)!;
+    assert(edit.notApplicable, `${kind}: onmogelijke kandidaat wordt apart benoemd`);
+    await assert.rejects(() => applyEdit(edit, cloneDomain(single)),
+      (e: unknown) => e instanceof EditNotAppliedError && e.outcome === 'niet-van-toepassing');
+  }
+  console.log('OK E4: twaalf soorten werkelijk gewijzigde appacties; onmogelijke kandidaten apart');
 }
 
 const d = cloneDomain(opened);
@@ -99,7 +119,7 @@ const saved = await tryMerge(d, source);
   const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'unchangedPlanningNumberProblem')!;
   assert(fn, 'de bestaande private getalbewaking is gevonden');
   const code = ts.transpile(fn.getText(ast), { target: ts.ScriptTarget.ES2022 });
-  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`, { ifcGuid }) as
+  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`, { ifcGuid, sameValue }) as
     (input: typeof opened, before: typeof opened, wanted: typeof opened, back: typeof opened) => string | undefined;
   const before = cloneDomain(opened);
   before.tasks = ['eerste', 'blijft', 'derde'].map(id => ({ ...structuredClone(before.tasks[0]), id, parentId: null, childIds: [] }));
@@ -120,7 +140,17 @@ const saved = await tryMerge(d, source);
     const duplicate = structuredClone(input);
     const duplicates = duplicate.baselines![0].tasks.filter(t => t.taskId === 'blijft');
     duplicates.at(-1)!.duration += 1e-12;
-    if (!reorder) assert.match(numberProblem(input, before, input, duplicate) ?? '', /task:blijft,1.*duration/, 'dubbele taakregels vallen niet samen');
+    assert.match(numberProblem(input, before, input, duplicate) ?? '', /task:blijft.*duration/, 'dubbele taakregels vallen ook na omkering niet samen');
+  }
+  const duplicateBefore = structuredClone(before);
+  duplicateBefore.baselines![0].tasks = [row('blijft', 1.0000000000000002), row('blijft', 2.0000000000000004)];
+  const reversed = structuredClone(duplicateBefore);
+  reversed.baselines![0].tasks.reverse();
+  for (const at of [0, 1]) {
+    const back = structuredClone(reversed);
+    back.baselines![0].tasks[at].duration = at === 0 ? 2 : 1;
+    assert.match(numberProblem(reversed, duplicateBefore, reversed, back) ?? '', /task:blijft.*duration/,
+      'Terra E20: omgekeerde dubbele regels bewaken beide precieze getallen');
   }
   before.ifcGlobalIds = { ...before.ifcGlobalIds, 'task:eerste': ifcGuid('oud-intern-id-van-de-verdwenen-taak') };
   const orphaned = structuredClone(before);

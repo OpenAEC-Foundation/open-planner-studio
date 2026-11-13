@@ -1069,7 +1069,7 @@ let combosWritten = 0;
 for (const [name, bytes] of files) {
   const opened = await openForeign(bytes);
   const taskEdits: Edit[] = [
-    ...basicEdits(opened),
+    ...basicEdits(opened).filter(e => !e.notApplicable),
     ...plannerEdits(opened, 2).filter(e => e.kind === 'taak-wissen' || e.kind === 'andere-ouder').slice(0, 2),
   ].map(e => ({ label: e.label, apply: e.apply, realDuration: e.kind === 'duur' }));
   const projects = projectEdits(opened);

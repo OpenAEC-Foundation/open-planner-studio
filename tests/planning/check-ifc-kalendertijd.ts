@@ -66,6 +66,15 @@ function checkWrittenCalendar(label: string, text: string, wanted: WorkCalendar,
       .find(i => ix.type(i) === 'IFCWORKCALENDAR' && str(ix.argTokens(i)?.[0]) === guid);
     eq(`${calLabel}: eigen standaardkalender gevonden`, entity !== undefined, true);
     if (entity === undefined || !gotCal) continue;
+    eq(`${calLabel}: werkdagen blijven gelijk`, [...gotCal.workDays].sort(), [...cal.workDays].sort());
+    eq(`${calLabel}: vrije uitzonderingen blijven gelijk`, gotCal.holidays ?? [], cal.holidays ?? []);
+    // De gewone writer schrijft een onbegrensde wekelijkse herhaling. Ook bij bronklokken blijft die toets staan.
+    for (const workTime of ix.refsAt(entity, 6)) {
+      const args = ix.argTokens(workTime)!, recurrence = ix.argTokens(ix.refAt(workTime, 3))!;
+      eq(`${calLabel}: gewone week zonder datumbereik`, args.slice(4, 6), ['$', '$']);
+      eq(`${calLabel}: wekelijkse herhaling zonder andere beperking`,
+        [recurrence[0], recurrence[1], ...recurrence.slice(3, 7)], ['.WEEKLY.', '$', '$', '$', '$', '$']);
+    }
     const refs = [...new Set(ix.refsAt(entity, 6).flatMap(periodRefs))];
     for (const p of refs) checkedPeriods.add(p);
     if (literalPeriod && id === wanted.id) {
@@ -1091,10 +1100,17 @@ console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo 
   eq('E25 resource: schrijft', file.writes.length, 1);
   if (file.writes[0]) {
     const saved = file.writes[0], state = store.getState(), literal = literalWholePeriod(state.calendar);
+    eq('E25 resource: tegenproeven hebben een letterlijke projectperiode', !!literal, true);
     checkWrittenCalendar('E25 resource', saved, state.calendar, literal, state.calendars);
     const again = createAppStoreContext().store;
     await again.getState().openOpenedFile({ name: 'resource-heropend.ifc', content: saved, ref: null });
     eq('E25 resource: volledig heropend', shape(again.getState().calendars.find(c => c.id === current.id)!), shape(draft));
+    const missingFriday = saved.replace(/(IFCRECURRENCEPATTERN\(\.WEEKLY\.,\$,\()1,2,3,4,5(\))/, '$11,2,3,4$2');
+    eq('E25 weekdagen: tegenproef verandert de weekherhaling', missingFriday !== saved, true);
+    const weekStart = failures.length;
+    checkWrittenCalendar('E25 ontbrekende vrijdag', missingFriday, state.calendar, literal, state.calendars);
+    const missingDay = failures.splice(weekStart);
+    eq('E25 weekdagen: letterlijke klok verbergt de ontbrekende vrijdag niet', missingDay.length > 0, true);
     const parsed = readIFC(saved), ix = scanStep(new TextEncoder().encode(saved));
     const rawCalendar = Array.from({ length: ix.count }, (_, i) => i).find(i => ix.type(i) === 'IFCWORKCALENDAR'
       && ix.argTokens(i)?.[0] === `'${parsed.ifcGlobalIds![`cal:${current.id}`]}'`)!;

@@ -384,7 +384,7 @@ for (const v of OLD_VARIANTS) {
 {
   const bytes = latin1(oldText);
   const opened = await openForeign(bytes);
-  for (const edit of basicEdits(opened)) await roundTrip(`v2026.7.2 · ${edit.label}`, bytes, edit.apply);
+  for (const edit of basicEdits(opened).filter(e => !e.notApplicable)) await roundTrip(`v2026.7.2 · ${edit.label}`, bytes, edit.apply);
 }
 
 /** Een tweede taak (#908, met #907) met de GlobalId van taak #57, in dezelfde nest en control. */
@@ -446,7 +446,7 @@ for (const rel of [...EDIT_FILES, 'tweede live-schema']) {
     diffs.push(`${rel}: settle lukt niet (${(e as Error).message.slice(0, 200)})`); checks++; continue;
   }
   const opened = await openForeign(bytes);
-  for (const edit of basicEdits(opened)) {
+  for (const edit of basicEdits(opened).filter(e => !e.notApplicable)) {
     const r = await roundTrip(`${rel.split('/').pop()} · ${edit.label}`, bytes, edit.apply);
     if (!r) continue;
     edited++;
