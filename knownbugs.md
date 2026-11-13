@@ -1925,15 +1925,6 @@ en noem het in je rapport of PR-tekst.
      schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
      1c. — B
 
-1117. **VERVOLG: de toets "ongewijzigd getal exact" koppelt rijen zonder `id` op plek.** `unchangedPlanningNumberProblem`
-     in `src/services/ifc/foreign/mergeWriter.ts` (#903) koppelt dingen met een `id` op id en de rest op plek in de lijst.
-     Regels van een baseline hebben een `taskId`, geen `id`: wist de planner de eerste regel, dan wordt de volgende regel
-     met de vroegere eerste vergeleken, en een blijvend getal dat daarvan verschilt geldt dan niet als ongewijzigd. Geen
-     verlies aangetoond: de writer bewaart een baseline als JSON. Richting: baselineregels op `taskId` koppelen, met een
-     proef met verschuivende rijen. Terra, review ronde 2 van #903. — B
-     Sol probeerde er in zijn gerichte run verlies mee te maken en kon dat niet: de eerste baselineregel wissen weigert
-     getypeerd (`niet-gedragen`), en na het wissen van de eerste onderbreking blijft de volgende exact.
-
 1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
      `src/services/ifc/ifcWriter.ts` (bij de slots die de writer exact in de dagvorm van de bron schrijft) staat nog dat
      duur en rest samen gaan en dat het om een gebroken dag gaat. Sinds #908 beslist de merge per slot (duur en rest
@@ -1984,6 +1975,16 @@ en noem het in je rapport of PR-tekst.
      release schreef dat) weigert na een wijziging van alleen het begin met `IfcCalendarTimePrecisionError`: het
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
+
+1140. **VERVOLG: een passende scalaire werkdag wordt bij openen een halve minuut langer.** `repairCalendar` in
+     `src/state/migrations/minuteModel.ts` rondt het doel af met `Math.round(hoursPerDay * 60)`. Zonder pauze wordt
+     08:00–15:30:30 met `WorkEndHour = 15.508333333333333` en 7.508333333333333 uur (450,5 minuten) daardoor 08:00–15:31
+     ([480,931]): het afgeronde doel 451 is groter dan de passende spanne 450,5. Met `SimpleBreakDuration = 0` gebeurt
+     dit niet. Dit openen is gelijk op main, 156953509 en d19dcd89f; het komt niet door #910. `repairs` legt `extendEnd`
+     vast; de planner krijgt een blijvende informatiemelding `minuteModelCalendarRepaired`, zonder de tijden in de
+     melding. Gewone opslag schrijft het verlengde `WorkEndHour` en heropent op 15:31, terwijl #910 de standaardperiode
+     letterlijk op 15:30.5:00 houdt. Zelf nagegaan in fase 1c, PR 1, na de gerichte Sol-review van #910. Niet in deze PR
+     opgelost. — B
 
 1126. **VERVOLG: de terugleescontrole zonder OPS-markering dekt niet elke opslag van een bewerkte kalender.** In
      `tests/planning/check-ifc-kalendertijd.ts` slaan de routes na een kalenderbewerking, ongedaan maken en opnieuw

@@ -9,13 +9,54 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, applyEdit, ordinaryEdits, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
+import { canon, cloneDomain, applyEdit, ordinaryEdits, plannerEdits, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
 import { writeIfcMerge, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 
 const reseed = installDeterminism();
 const bytes = new Uint8Array(readFileSync(new URL('../fixtures/ifc-foreign/eigen-plus-model.ifc', import.meta.url)));
 const opened = await openForeign(bytes);
 const source = opened.ifcSource!;
+
+// E4: elke getelde handeling gebruikt een verse apppayload, inclusief WBS en bewerkingsherkomst.
+{
+  const input = cloneDomain(opened), template = input.tasks.find(t => !t.childIds.length)!;
+  input.tasks = [
+    ['fase-a', null, ['a', 'b']], ['a', 'fase-a', []], ['b', 'fase-a', []],
+    ['fase-c', null, ['c']], ['c', 'fase-c', []], ['los', null, []],
+  ].map(([id, parentId, childIds]) => ({ ...structuredClone(template), id: id as string, name: id as string,
+    parentId: parentId as string | null, childIds: childIds as string[], resourceIds: [], isMilestone: false }));
+  input.sequences = []; input.assignments = []; input.baselines = []; input.activeBaselineId = null;
+  input.importPristine = true;
+  input.project.wbsAutoNumber = true;
+  const before = structuredClone(input), kinds = new Set<string>();
+  for (const edit of [...plannerEdits(input), ...ordinaryEdits(input)]) {
+    const candidate = structuredClone(before), pristine = structuredClone(candidate);
+    const result = await applyEdit(edit, candidate);
+    kinds.add(edit.kind);
+    if (edit.kind === 'niets') continue; // De referentie zonder handeling blijft bewust kaal.
+    assert.deepEqual(candidate, pristine, `${edit.kind}: de actie muteert niet de aangeleverde payload`);
+    assert.notStrictEqual(result, candidate, `${edit.kind}: de hele verse payload komt terug`);
+    if (edit.kind === 'hernoemen') {
+      assert.equal(result.tasks.find(t => t.id === 'a')!.name, 'Hernoemd in 1b');
+      assert.equal(result.importPristine, undefined, 'de writerpayload laat de gewiste importvlag weg');
+    }
+    if (edit.kind === 'taak-erbij') {
+      assert.equal(result.tasks.length, before.tasks.length + 1);
+      const added = result.tasks.find(t => !before.tasks.some(old => old.id === t.id))!;
+      assert(added.id.startsWith('task-'), 'een nieuwe taak krijgt haar id van addTask');
+      assert(!added.resourceIds.length, 'een nieuwe taak kopieert geen bron-toewijzingen');
+    }
+    const ids = new Map(result.tasks.map(t => [t.id, t]));
+    for (const task of result.tasks) {
+      if (task.parentId) assert(ids.get(task.parentId)?.childIds.includes(task.id), 'ouder en kinderen blijven synchroon');
+      for (const child of task.childIds) assert.equal(ids.get(child)?.parentId, task.id);
+    }
+  }
+  assert.equal(kinds.size, 12, 'alle twaalf soorten handelingen zijn beproefd');
+  assert.deepEqual(input, before, 'elke handeling begon bij dezelfde ongewijzigde invoer');
+  console.log('OK E4: twaalf soorten echte appacties, verse payload, WBS en bewerkingsherkomst');
+}
+
 const d = cloneDomain(opened);
 await assert.rejects(async () => {
   // Ook voor JS-aanroepers: zonder functie geen uitvoer, vóór de writer iets opbouwt.
@@ -24,6 +65,43 @@ await assert.rejects(async () => {
 }, (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases[0].kind === 'open-stappen-ontbreken');
 
 const saved = await tryMerge(d, source);
+// E20: beproef de zuivere getalbewaking zelf, ook waar de writer-canon al eerder zou weigeren.
+// De functie blijft privé in productcode: lees haar AST en voer precies die functie uit, geen kopie van de logica.
+{
+  const { createRequire } = await import('node:module');
+  const ts = createRequire(import.meta.url)('typescript') as typeof import('typescript');
+  const { runInNewContext } = await import('node:vm');
+  const source = readFileSync(new URL('../../src/services/ifc/foreign/mergeWriter.ts', import.meta.url), 'utf8');
+  const ast = ts.createSourceFile('mergeWriter.ts', source, ts.ScriptTarget.Latest, true);
+  const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'unchangedPlanningNumberProblem')!;
+  assert(fn, 'de bestaande private getalbewaking is gevonden');
+  const code = ts.transpile(fn.getText(ast), { target: ts.ScriptTarget.ES2022 });
+  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`) as
+    (input: typeof opened, before: typeof opened, wanted: typeof opened, back: typeof opened) => string | undefined;
+  const before = cloneDomain(opened);
+  const row = (taskId: string, duration: number) => ({ taskId, duration, start: '2027-03-01T08:00:00', finish: '2027-03-02T16:00:00', isMilestone: false });
+  before.baselines = [{ id: 'sleutelproef', name: 'Baseline', createdAt: '2027-01-01T12:00:00Z',
+    projectEnd: '2027-03-02T16:00:00', projectDuration: 2,
+    tasks: [row('eerste', 1), row('blijft', 2.3333333333333335), row('derde', 3), row('blijft', 4.000000000000001)] }];
+  for (const reorder of [false, true]) {
+    const input = structuredClone(before);
+    input.baselines![0].tasks.shift();
+    if (reorder) input.baselines![0].tasks.reverse();
+    assert.equal(numberProblem(input, before, input, structuredClone(input)), undefined, 'ongewijzigde getallen komen exact terug na wissen/volgorde');
+    const back = structuredClone(input);
+    const target = back.baselines![0].tasks.find(t => t.taskId === 'derde')!;
+    target.duration = 3.000000000000001;
+    assert.match(numberProblem(input, before, input, back) ?? '', /task:derde.*duration/, 'een blijvend getal valt niet door positiekoppeling weg');
+    // De twee voorkomens van hetzelfde taskId blijven afzonderlijk, in hun onderlinge volgorde.
+    const duplicate = structuredClone(input);
+    const duplicates = duplicate.baselines![0].tasks.filter(t => t.taskId === 'blijft');
+    duplicates.at(-1)!.duration += 1e-12;
+    if (!reorder) assert.match(numberProblem(input, before, input, duplicate) ?? '', /task:blijft,1.*duration/, 'dubbele taakregels vallen niet samen');
+  }
+  console.log('OK E20: baseline op taskId, eerste regel weg, andere volgorde en dubbele voorkomens');
+}
+
+
 assert(saved.ok, saved.ok ? '' : JSON.stringify(saved.error.cases));
 assert.equal(readbackDifference(saved.shown, await openForeign(saved.bytes)), undefined, 'naad = bytes-route, diep gelijk');
 // Vergelijkingsproef: een gewijzigde uitvoerduur weigert ook zonder herberekening; dit bewijst alleen de vergelijking.

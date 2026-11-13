@@ -22,7 +22,7 @@ import { planningCanon } from '@/services/ifc/foreign/planningCanon';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import type { Task } from '@/types/task';
 import { localTodayIso } from '@/utils/dateUtils';
-import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeWith } from './ifcAppRoute';
+import { lengthen, lengthenedTask, openInStore, openReadPlanning, recalculated as recalculatedInStore, storeEdit, storeWith } from './ifcAppRoute';
 export { openInStore, openReadPlanning } from './ifcAppRoute';
 
 export type Domain = Parameters<typeof writeIfcMerge>[0];
@@ -234,7 +234,9 @@ export function firstDiff(a: string, b: string): string {
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
   | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
-/** `applyEdit` neemt een nieuw domein uit een storeactie over, of behoudt het gemuteerde domein; daarna optioneel F5. */
+/** `applyEdit` neemt de hele verse payload over, ook als een echte actie optionele velden heeft gewist.
+ * Een door de app geweigerde poging (bijvoorbeeld een kringrelatie of dubbele toewijzing) blijft een gemeten
+ * plannerhandeling: de merge krijgt dan de ongewijzigde payload, geen kale vervanging voor de geweigerde actie. */
 export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean }
 
 /** Een bewerking toepassen, met doorrekenen als ze dat vraagt. */
@@ -249,13 +251,6 @@ const isDescendant = (tasks: ReadonlyMap<string, Task>, id: string, ancestor: st
   for (let cur = tasks.get(id); cur?.parentId; cur = tasks.get(cur.parentId)) if (cur.parentId === ancestor) return true;
   return false;
 };
-/** Haal een taak uit de kinderen van haar ouder (of uit de wortels: die volgen de volgorde van `tasks`). */
-function detach(d: Domain, t: Task): void {
-  if (!t.parentId) return;
-  const parent = byId(d).get(t.parentId);
-  if (parent) parent.childIds = parent.childIds.filter(c => c !== t.id);
-}
-
 /**
  * De bewerkingen voor één domein, in vaste volgorde. Keuze (bijsturing 1, punt 2):
  *  - andere ouder: elke taak onder de eerste samenvattingstaak die niet haar ouder, zijzelf of een nakomeling is;
@@ -278,53 +273,32 @@ export function plannerEdits(d: Domain, max = Infinity): Edit[] {
     const map = byId(d);
     const target = summaries.find(s => s.id !== t.id && s.id !== t.parentId && !isDescendant(map, s.id, t.id));
     if (!target) continue;
-    out.push({ kind: 'andere-ouder', label: `${t.id} → onder ${target.id}`, apply: (x) => {
-      const m = byId(x); const task = m.get(t.id)!; const parent = m.get(target.id)!;
-      detach(x, task); task.parentId = parent.id; parent.childIds.push(task.id);
-    } });
+    out.push({ kind: 'andere-ouder', label: `${t.id} → onder ${target.id}`, apply: (x) => storeEdit(x, s => s.moveTask(t.id, target.id, undefined, { phaseAssignments: 'move', answered: true })) });
   }
   for (const t of pick(tasks.filter(t => t.parentId))) {
-    out.push({ kind: 'niveau-hoger', label: `${t.id} een niveau hoger`, apply: (x) => {
-      const m = byId(x); const task = m.get(t.id)!; const parent = m.get(task.parentId!)!;
-      detach(x, task);
-      task.parentId = parent.parentId;
-      if (parent.parentId) {
-        const grand = m.get(parent.parentId)!;
-        grand.childIds.splice(grand.childIds.indexOf(parent.id) + 1, 0, task.id);
-      } else {
-        // Een wortel: de volgorde van `tasks` bepaalt de volgorde van de wortels; zet de taak achter haar oude ouder.
-        x.tasks.splice(x.tasks.indexOf(task), 1);
-        x.tasks.splice(x.tasks.indexOf(parent) + 1, 0, task);
-      }
-    } });
+    out.push({ kind: 'niveau-hoger', label: `${t.id} een niveau hoger`, apply: (x) => storeEdit(x, s => s.outdentTasks([t.id], { phaseAssignments: 'move', answered: true })) });
   }
   for (const s of pick(summaries.filter(s => s.childIds.length >= 2))) {
-    out.push({ kind: 'volgorde-kinderen', label: `kinderen van ${s.id} omgekeerd`, apply: (x) => { byId(x).get(s.id)!.childIds.reverse(); } });
+    out.push({ kind: 'volgorde-kinderen', label: `kinderen van ${s.id} omgekeerd`, apply: (x) => storeEdit(x, state => {
+      // Dezelfde rijverplaatsing als slepen; de rauwe taakvolgorde en WBS gaan mee.
+      [...s.childIds].reverse().forEach((id, childIndex) => state.moveTaskTo(id, { parentId: s.id, childIndex }));
+    }) });
   }
   if (tasks.filter(t => !t.parentId).length >= 2) {
-    out.push({ kind: 'volgorde-kinderen', label: 'wortels omgekeerd', apply: (x) => {
-      const roots = x.tasks.filter(t => !t.parentId).reverse();
-      let k = 0;
-      x.tasks = x.tasks.map(t => (t.parentId ? t : roots[k++]));
-    } });
+    out.push({ kind: 'volgorde-kinderen', label: 'wortels omgekeerd', apply: (x) => storeEdit(x, state => {
+      tasks.filter(t => !t.parentId).reverse().forEach((t, childIndex) => state.moveTaskTo(t.id, { parentId: null, childIndex }));
+    }) });
   }
   const related = new Set(d.sequences.map(s => `${s.predecessorId}>${s.successorId}`));
   for (let k = 0; k + 1 < tasks.length; k++) {
     const a = tasks[k], b = tasks[k + 1];
     if (related.has(`${a.id}>${b.id}`) || related.has(`${b.id}>${a.id}`) || !pick(tasks).includes(a)) continue;
-    out.push({ kind: 'relatie-erbij', label: `FS ${a.id} → ${b.id}`, apply: (x) => {
-      x.sequences.push({ id: `seq-1b-${k}`, predecessorId: a.id, successorId: b.id, type: 'FINISH_START', lagDays: 0 });
-    } });
+    out.push({ kind: 'relatie-erbij', label: `FS ${a.id} → ${b.id}`, apply: (x) => storeEdit(x, s => {
+      s.addSequence({ predecessorId: a.id, successorId: b.id, type: 'FINISH_START', lagDays: 0 });
+    }) });
   }
   for (const t of pick(tasks)) {
-    out.push({ kind: 'taak-wissen', label: `${t.id} wissen`, apply: (x) => {
-      const m = byId(x);
-      const gone = new Set([t.id, ...x.tasks.filter(o => isDescendant(m, o.id, t.id)).map(o => o.id)]);
-      detach(x, m.get(t.id)!);
-      x.tasks = x.tasks.filter(o => !gone.has(o.id));
-      x.sequences = x.sequences.filter(s => !gone.has(s.predecessorId) && !gone.has(s.successorId));
-      x.assignments = x.assignments.filter(a => !gone.has(a.taskId));
-    } });
+    out.push({ kind: 'taak-wissen', label: `${t.id} wissen`, apply: (x) => storeEdit(x, s => s.deleteTask(t.id)) });
   }
   return out;
 }
@@ -334,21 +308,14 @@ export function basicEdits(d: Domain): Edit[] {
   const leaf = lengthenedTask(d);
   const out: Edit[] = [];
   if (!leaf) return out;
-  out.push({ kind: 'taak-erbij', label: `nieuwe taak naast ${leaf.id}`, apply: (x) => {
-    const m = byId(x); const base = m.get(leaf.id)!;
-    const task: Task = { ...structuredClone(base), id: 'taak-1b-nieuw', name: 'Nieuwe taak 1b', wbsCode: `${base.wbsCode}.9`, resourceIds: [] };
-    x.tasks.splice(x.tasks.indexOf(base) + 1, 0, task);
-    if (base.parentId) { const p = m.get(base.parentId)!; p.childIds.splice(p.childIds.indexOf(base.id) + 1, 0, task.id); }
-  } });
-  out.push({ kind: 'hernoemen', label: `${leaf.id} hernoemd`, apply: (x) => { byId(x).get(leaf.id)!.name = 'Hernoemd in 1b'; } });
+  out.push({ kind: 'taak-erbij', label: `nieuwe taak naast ${leaf.id}`, apply: (x) => storeEdit(x, s => {
+    s.addTask({ name: 'Nieuwe taak 1b', position: { anchorId: leaf.id, where: 'below' } }, { phaseAssignments: 'move', answered: true });
+  }) });
+  out.push({ kind: 'hernoemen', label: `${leaf.id} hernoemd`, apply: (x) => storeEdit(x, s => s.updateTask(leaf.id, { name: 'Hernoemd in 1b' })) });
   out.push({ kind: 'duur', label: `${leaf.id} een dag langer`, apply: (x) => lengthen(x, leaf.id) });
   const resource = d.resources[0];
   if (resource) {
-    out.push({ kind: 'toewijzing-erbij', label: `${resource.id} op ${leaf.id}`, apply: (x) => {
-      x.assignments.push({ id: 'toewijzing-1b', taskId: leaf.id, resourceId: resource.id, unitsPerDay: 4 });
-      const task = byId(x).get(leaf.id)!;
-      if (!task.resourceIds.includes(resource.id)) task.resourceIds.push(resource.id);
-    } });
+    out.push({ kind: 'toewijzing-erbij', label: `${resource.id} op ${leaf.id}`, apply: (x) => storeEdit(x, s => s.assignResource(leaf.id, resource.id, 4)) });
   }
   return out;
 }

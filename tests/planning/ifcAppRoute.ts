@@ -7,6 +7,7 @@
 //   van `ifcMergeKern.ts`).
 // - De toets van Trias (besluit over knownbug 1102): `TRIAS_FILES`, `withoutModel` en `plainSaveAfterF5`, de gewone
 //   opslag van het bestand zonder model na de duurwijziging en F5.
+import type { AppState } from '@/state/appStoreFactory';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -74,6 +75,15 @@ export async function storeWith(d: WriteIFCInput) {
   } as ImportResult;
   store.getState().openAsDocument(parsed, { name: 'getoond.ifc', ref: null });
   return { store, buildWriteIFCInput };
+}
+
+/** Eén plannerhandeling in een verse appcontext; nooit alleen de gewijzigde sleutels terugkopiëren.
+ * Een fasevraag is hier beantwoord met verplaatsen, hetzelfde antwoord dat de planner kan kiezen.
+ */
+export async function storeEdit(d: WriteIFCInput, edit: (state: AppState) => void): Promise<WriteIFCInput> {
+  const { store, buildWriteIFCInput } = await storeWith(d);
+  edit(store.getState());
+  return structuredClone(buildWriteIFCInput(store.getState()));
 }
 
 /** Doorrekenen (F5) zoals de app: het domein in een eigen store, en daar `runCPM`. */

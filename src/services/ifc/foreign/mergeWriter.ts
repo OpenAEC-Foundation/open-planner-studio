@@ -809,7 +809,8 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
 }
 
 /** Trias 1107: gelijk aan opened is ongewijzigd; zonder opened geldt pristine, zoals in de verliesbewaking.
- * Eén doorloop over alle numerieke bladeren van de planning. Id-lijsten koppelen op id, overige lijsten op plek.
+ * Eén doorloop over alle numerieke bladeren van de planning. Id-lijsten koppelen op id, baselineregels op taskId;
+ * overige lijsten blijven op plek gekoppeld.
  * Toewijzings-ids worden niet opgeslagen (ifcReader.extractAssignments maakt ze opnieuw): hun identiteit is het
  * taak/resource-paar met een volgnummer voor dubbele voorkomens. Er verdwijnt geen dubbel object in een Map.
  * Verandert openen van het domein zelf het getal, dan geldt de bestaande vergelijking na dezelfde open-stappen.
@@ -821,6 +822,8 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
   const idOf = (value: unknown) => field(value, 'id');
   const keyOf = (value: unknown, index: number, path: string): string => {
     if (path === 'planning.assignments') return `pair:${field(value, 'taskId')}\0${field(value, 'resourceId')}`;
+    const taskId = field(value, 'taskId');
+    if (/^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path) && typeof taskId === 'string') return `task:${taskId}`;
     const id = idOf(value);
     return typeof id === 'string' || typeof id === 'number' ? `id:${id}` : `index:${index}`;
   };
