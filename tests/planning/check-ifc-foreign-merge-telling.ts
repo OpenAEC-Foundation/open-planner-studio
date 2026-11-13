@@ -47,7 +47,8 @@ import {
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
-import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
+import type { StepIndex } from '@/services/ifc/foreign/stepScanner';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import type { MergePhase2Case } from '@/services/ifc/foreign/mergeWriter';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -192,9 +193,7 @@ let merges = 0;
  *  buiten de bytes-route, en de huidige route weigert een model (knownbug 110). Elke andere fout bij openen is rood. */
 const REFUSED_AT_OPEN: Readonly<Record<string, IfcParseErrorReason>> = {
   'model-ifc2x3.ifc': 'building-model',
-  // De kop van v2026.7.12 breekt de grammatica (een rauwe apostrof in FILE_NAME); met de wand erbij weigert de oude route
-  // het model. Zonder wand opent het (knownbug 1103).
-  [`${OLD_OWN}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`]: 'building-model',
+  // 1103 wordt nu ook met een wand vóór de indeling herkend; het bestand doorloopt hieronder alle bewerkingen.
 };
 const refusedAtOpen: string[] = [];
 
@@ -256,7 +255,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
   const source = opened.ifcSource!;
   const perKind = new Map<EditKind, Tally>();
   const sourceDoubles = doubleMemberships(bytes);
-  const index = scanStep(bytes);
+  const index = scanForeignStep(bytes);
   const fields = new Map<string, number>();
   if (record) editFields.set(shown, fields);
   const where = shown;
@@ -409,7 +408,7 @@ const seconds = ((performance.now() - started) / 1000).toFixed(1);
   const fields = new Map<string, { n: number; files: Set<string> }>();
   let total = 0;
   for (const [file, cases] of notCarried) {
-    const index = scanStep(bytesOf.get(file)!);
+    const index = scanForeignStep(bytesOf.get(file)!);
     for (const c of cases) {
       total++;
       const key = fieldOf(index, c);

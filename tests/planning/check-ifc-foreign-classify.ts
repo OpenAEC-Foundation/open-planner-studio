@@ -26,6 +26,7 @@
 // Draait via run.sh (ook in de tijdzonematrix: `writeIFC` heeft datumlogica). Exit 0 = alles groen.
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { Buffer } from 'node:buffer';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -35,10 +36,15 @@ import {
 import {
   REGISTER_PSET_NAMES, classOf, classify, isOwnAssignmentKey, type ChunkClass, type Classification,
 } from '@/services/ifc/foreign/classify';
+import { scanForeign, foreignScanFrom } from '@/services/ifc/foreign/foreignScan';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { WRITER_ENTITY_TYPES, writeIFC } from '@/services/ifc/ifcWriter';
 import { PER_TASK_PSETS, PSET } from '@/services/ifc/ifcPsets';
+import { recognizeOldOwnHeader } from '@/services/ifc/oldOwnHeader';
+import { indexOfStepDataSection, StepDataSectionFinder } from '@/services/ifc/stepDataSection';
+import { scanTargetBytes, TargetModelScanner, type TargetScanStep } from '@/services/ifc/foreign/targetModelScan';
+import { oudeKopVelden } from './ifcOudeKop';
 import type { ImportResult } from '@/services/importTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -739,6 +745,200 @@ if (WITH_PYTHON) {
     compareWithPython(`synthetisch ${s.label}`, tmpFile(`synthetisch-${s.label}.ifc`, bytes), scanOrError(bytes));
   }
 }
+// 9. De ene gemeten oude kopvorm (v2026.2.0 t/m v2026.7.12) vóór de gedeelde indeling.
+{
+  const oldBytes = new Uint8Array(readFileSync(join(ROOT,
+    'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc')));
+  // Node-fs kan een Buffer leveren: Buffer.slice() is een gedeelde view, geen zelfstandige scankopie.
+  const nodeBytes = Buffer.from(oldBytes);
+  const nodeBefore = Buffer.from(nodeBytes);
+  ok('oude kop Node Buffer: indeling slaagt', scanForeign(nodeBytes).ok);
+  ok('oude kop Node Buffer: bronbytes blijven exact gelijk', nodeBytes.equals(nodeBefore));
+  const oldText = new TextDecoder().decode(oldBytes);
+  const body = oldText.slice(oldText.indexOf('\nDATA;\n') + '\nDATA;\n'.length);
+  const prefix = "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\n";
+  const header = (name: string, author: string, company: string) => prefix
+    + `FILE_NAME('${name}.ifc','2026-01-15T12:00:00',('${author}'),('${company}'),'Open Planner Studio 0.1','Open Planner Studio','');\n`
+    + "FILE_SCHEMA(('IFC4X3'));\nENDSEC;\nDATA;\n";
+  const scan = scanForeign(oldBytes);
+  ok('oude kop: ongewijzigde repo-fixture wordt ingedeeld', scan.ok);
+  if (scan.ok) {
+    eq('oude kop: repo-fixture alleen P', [scan.counts.C, scan.counts.A, scan.counts.V], [0, 0, 0]);
+    eq('oude kop: bronbytes onveranderd', Array.from(oldBytes), Array.from(enc.encode(oldText)));
+  }
+  const freeFields = [
+    ...oudeKopVelden,
+    ["O'Hara", 'Aannemer', 'Bedrijf'], ['Naam', "D'Artagnan", 'Bedrijf'], ['Naam', 'Auteur', "Van 't Hof"],
+    ["O'Hara", "D'Artagnan", "Van 't Hof"], ["O''Hara's", 'Auteur', 'Bedrijf'],
+    ["'Naam", 'Auteur', 'Bedrijf'], ["Naam'", 'Auteur', 'Bedrijf'],
+    ['Naam', "'Auteur", 'Bedrijf'], ['Naam', "Auteur'", 'Bedrijf'],
+    ['Naam', 'Auteur', "'Bedrijf"], ['Naam', 'Auteur', "Bedrijf'"], ["Één O'Hara", 'Auteur', 'Bedrijf'],
+  ];
+  const wall = "#99001=IFCWALL('0abcdefghijkmnopqrstuv',$,'Wand',$,$,$,$,$,$);\n";
+  const pset = "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n"
+    + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\n";
+  for (const [n, a, c] of freeFields) {
+    const h = header(n, a, c);
+    const bytes = enc.encode(h + body);
+    const before = bytes.slice();
+    const result = scanForeign(bytes);
+    ok(`oude kop ${n}/${a}/${c}: herkend`, result.ok);
+    if (!result.ok) continue;
+    eq(`oude kop ${n}/${a}/${c}: alleen P`, [result.counts.C, result.counts.A, result.counts.V], [0, 0, 0]);
+    eq(`oude kop ${n}/${a}/${c}: bron nooit gemuteerd`, Array.from(bytes), Array.from(before));
+    const masked = scanForeign(enc.encode(header('x'.repeat(enc.encode(n).length), 'x'.repeat(a.length), 'x'.repeat(c.length)) + body));
+    ok('oude kop: veilige referentie scant streng', masked.ok);
+    if (masked.ok) eq(`oude kop ${n}: alle posities blijven bronposities`, Array.from(result.chunkStarts), Array.from(masked.chunkStarts));
+    for (let i = 0; i < result.chunkIds.length; i++) {
+      const id = result.chunkIds[i];
+      if (id >= 0) ok(`oude kop ${n}: #${id} staat op zijn echte bronpositie`,
+        new TextDecoder().decode(bytes.subarray(result.chunkStarts[i], result.chunkStarts[i + 1])).includes(`#${id}=`));
+    }
+    for (const [label, extra] of [['wand', wall], ['pset', pset]]) {
+      const foreign = scanForeign(enc.encode(h + body.replace('ENDSEC;', extra + 'ENDSEC;')));
+      ok(`oude kop ${n}/${a}/${c} + ${label}: vreemd deel blijft zichtbaar`, foreign.ok
+        && foreign.counts.C + foreign.counts.A + foreign.counts.V > 0);
+    }
+  }
+  const mainDataStart = (text: string) => {
+    const finder = new StepDataSectionFinder(false);
+    for (let i = 0; i < text.length; i++) if (finder.step(text.charCodeAt(i), i)) return i - 4;
+    return finder.anchored;
+  };
+  const targetInChunks = (bytes: Uint8Array, size: number) => {
+    const scanner = new TargetModelScanner();
+    let at = 0;
+    for (let guard = 0; guard < bytes.length * 3; guard++) {
+      let step: TargetScanStep;
+      if (at < bytes.length) { const end = Math.min(at + size, bytes.length); step = scanner.push(bytes.subarray(at, end)); at = end; }
+      else step = scanner.end();
+      if (step && 'result' in step) return step.result;
+      if (step && 'seek' in step) at = step.seek;
+    }
+    throw new Error('doelcontrole komt niet tot een uitkomst');
+  };
+  for (const fields of [...oudeKopVelden, ["Één O'Hara DATA; " + 'x'.repeat(70 << 10), 'Auteur', 'Bedrijf']]) {
+    const h = header(fields[0], fields[1], fields[2]);
+    const text = h + body;
+    const bytes = enc.encode(text);
+    const label = `oude kop drie gebruikers ${fields.map(f => f.slice(0, 45)).join('/')}`;
+    const withinLimit = enc.encode(h.slice(0, h.indexOf('\nFILE_SCHEMA') + 1)).length <= (64 << 10);
+    const recognized = recognizeOldOwnHeader(bytes);
+    eq(`${label}: tekstgrens`, indexOfStepDataSection(text), withinLimit ? h.length - 6 : mainDataStart(text));
+    eq(`${label}: bytegrens`, recognized && recognized !== 'main' ? recognized.dataStart : undefined, withinLimit ? enc.encode(h).length - 6 : undefined);
+    eq(`${label}: scan`, scanForeign(bytes).ok, withinLimit);
+    eq(`${label}: doel zonder model`, scanTargetBytes(bytes), withinLimit ? 'no-model' : 'unreadable');
+    const withWall = enc.encode(h + body.replace('ENDSEC;', wall + 'ENDSEC;'));
+    for (const size of [1, 7, 65536, withWall.length]) eq(`${label}: wand bij ${size} B`, targetInChunks(withWall, size), withinLimit ? 'model' : 'unreadable');
+  }
+  // #916 fixronde 2: vrije tekst mag geen entiteiten of extra veldscheiding verbergen.
+  for (const unsafe of ["X';ENDSEC;DATA;#999999=IFCWALL( 'x' ,$);ENDSEC;/*", "A' , 'extra", "A' ) extra", "A( 'extra", "A, 'extra"]) {
+    const text = header(unsafe, 'Auteur', 'Bedrijf') + body;
+    const got: unknown = recognizeOldOwnHeader(enc.encode(text));
+    ok(`fix2 onveilig veld ${unsafe}: niet maskeren`, got === null || got === 'main');
+    eq(`fix2 onveilig veld ${unsafe}: leesgrens main`, indexOfStepDataSection(text), mainDataStart(text));
+  }
+  const limit = 64 << 10;
+  const lineSize = (h: string) => enc.encode(h.slice(0, h.indexOf('\nFILE_SCHEMA') + 1)).length;
+  for (const unicode of [false, true]) for (const delta of [-1, 0, 1]) {
+    const prefixName = unicode ? "Één O'Hara " : "O'Hara ";
+    const base = header(prefixName, 'Auteur', 'Bedrijf');
+    const h = header(prefixName + 'x'.repeat(limit + delta - lineSize(base)), 'Auteur', 'Bedrijf');
+    eq(`fix2 grens ${unicode}/${delta}: volledige FILE_NAME-prefix in bytes`, lineSize(h), limit + delta);
+    const text = h + body;
+    const recognized = recognizeOldOwnHeader(enc.encode(text));
+    ok(`fix2 grens ${unicode}/${delta}: herkenning volgens main`, delta <= 0 ? recognized !== null && recognized !== undefined : recognized === null);
+    eq(`fix2 grens ${unicode}/${delta}: tekst en bytes dezelfde grens`, !!recognizeOldOwnHeader(text), !!recognized);
+    for (const size of [1, 7, 65536, text.length]) {
+      eq(`fix2 grens ${unicode}/${delta}: doel zonder model ${size}`, targetInChunks(enc.encode(text), size), delta <= 0 ? 'no-model' : 'unreadable');
+      const withWall = h + body.replace('ENDSEC;', wall + 'ENDSEC;');
+      eq(`fix2 grens ${unicode}/${delta}: doel met model ${size}`, targetInChunks(enc.encode(withWall), size), delta <= 0 ? 'model' : 'unreadable');
+    }
+  }
+  const badHeader = header("O'Hara DATA; Fase 1", 'Auteur', 'Bedrijf');
+  const headerMutations: Array<[string, (h: string) => string]> = [
+    ['ISO', h => h.replace('ISO-10303-21;', 'ISO-10303-22;')],
+    ['HEADER', h => h.replace('HEADER;', 'HEADER ;')],
+    ['beschrijving', h => h.replace('SchedulingView', 'CoordinationView')],
+    ['beschrijving-versie', h => h.replace("'2;1'", "'3;1'")],
+    ['FILE_DESCRIPTION', h => h.replace('FILE_DESCRIPTION', 'FILE_DESCRIPTIOn')],
+    ['FILE_NAME', h => h.replace('FILE_NAME', 'FILE_NAMe')],
+    ['extensie', h => h.replace(".ifc','", ".ifcx','")],
+    ['datumvorm', h => h.replace('T12:00:00', 'T12:00:00Z')],
+    ['datumgeldigheid', h => h.replace('2026-01-15', '2026-02-30')],
+    ['programmaversie', h => h.replace('Open Planner Studio 0.1', 'Open Planner Studio 0.2')],
+    ['programmanaam', h => h.replace("'Open Planner Studio','');", "'Ander programma','');")],
+    ['laatste veld', h => h.replace("'Open Planner Studio','');", "'Open Planner Studio','extern');")],
+    ['extra veld', h => h.replace("'Open Planner Studio','');", "'Open Planner Studio','','extra');")],
+    ['veld minder', h => h.replace("'Open Planner Studio','');", "'Open Planner Studio');")],
+    ['extra auteurveld', h => h.replace("('Auteur')", "('Auteur'),'extra'")],
+    ['extra kopregel', h => h.replace("FILE_SCHEMA", "FILE_POPULATION('extern');\nFILE_SCHEMA")],
+    ['volgorde', h => h.replace(prefix, prefix.replace("HEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');", "FILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\nHEADER;"))],
+    ['commentaar', h => h.replace('HEADER;', 'HEADER;/*extern*/')],
+    ['schema', h => h.replace('IFC4X3', 'IFC4')],
+    ['schema-regel', h => h.replace('FILE_SCHEMA', 'FILE_SCHEMa')],
+    ['ENDSEC', h => h.replace('ENDSEC;', 'ENDSEC ;')],
+    ['DATA', h => h.replace('\nDATA;\n', '\nDATA ;\n')],
+    ['CRLF', h => h.replace(/\n/g, '\r\n')],
+    ['BOM', h => '\ufeff' + h],
+  ];
+  for (const [label, mutate] of headerMutations) {
+    const rejected = scanForeign(enc.encode(mutate(badHeader) + body));
+    ok(`oude kop vast deel ${label}: kapotte vreemde kop blijft geweigerd`, !rejected.ok);
+    const mutatedText = mutate(badHeader) + body;
+    eq(`oude kop vast deel ${label}: geen herkenning`, recognizeOldOwnHeader(mutatedText), null);
+    eq(`oude kop vast deel ${label}: lezer precies main`, indexOfStepDataSection(mutatedText), mainDataStart(mutatedText));
+    eq(`oude kop vast deel ${label}: doel weigert`, scanTargetBytes(enc.encode(mutatedText)), label === 'ISO' ? 'not-ifc' : 'unreadable');
+    // Bij een goed leesbare kop blijft uitsluitend de gewone strenge uitkomst gelden.
+    const good = enc.encode(mutate(header('Naam', 'Auteur', 'Bedrijf')) + body);
+    const strict = scanOrError(good);
+    const got = scanForeign(good);
+    if (!(strict instanceof StepScanError)) eq(`oude kop ${label}: goede kop onveranderd`, got, foreignScanFrom(strict, classify(strict), good));
+  }
+  // Elk vast teken afzonderlijk: ook interpunctie/whitespace is deel van het gemeten sjabloon.
+  const variableParts = ["O'Hara DATA; Fase 1", 'Auteur', 'Bedrijf', '2026-01-15T12:00:00'];
+  const variableRanges = variableParts.map(part => [badHeader.indexOf(part), badHeader.indexOf(part) + part.length]);
+  for (let i = 0; i < badHeader.length; i++) {
+    if (variableRanges.some(([a, b]) => i >= a && i < b)) continue;
+    const mutated = enc.encode(badHeader.slice(0, i) + (badHeader[i] === 'X' ? 'Y' : 'X') + badHeader.slice(i + 1) + body);
+    const text = new TextDecoder().decode(mutated);
+    eq(`oude kop vast teken ${i}: geen herkenning`, recognizeOldOwnHeader(mutated), null);
+    eq(`oude kop vast teken ${i}: lezer precies main`, indexOfStepDataSection(text), mainDataStart(text));
+    const target = scanTargetBytes(mutated);
+    ok(`oude kop vast teken ${i}: doel geeft geen vrijbrief`, target === 'unreadable' || target === 'not-ifc');
+    const strict = scanOrError(mutated);
+    const actual = scanForeign(mutated);
+    if (strict instanceof StepScanError) ok(`oude kop vast teken ${i}: geen verruiming`, !actual.ok);
+    else eq(`oude kop vast teken ${i}: gewone strenge uitkomst`, actual, foreignScanFrom(strict, classify(strict), mutated));
+  }
+  for (const name of ["O'Hara.ifc','2026-01-15T12:00:00',('dubbel", "O'Hara'),('dubbel", "O'Hara;FILE_POPULATION('x')"]) {
+    ok(`oude kop dubbelzinnig ${name}: weigert`, !scanForeign(enc.encode(header(name, 'Auteur', 'Bedrijf') + body)).ok);
+  }
+  for (const field of [0, 1, 2]) for (const bad of ["O'Hara',extra", "O'Hara')extra", "O'Hara('extra", "O'Hara\nextra", "O'Hara\rextra", "O'Hara\u0001extra", "O'Hara\u2028extra"]) {
+    const fields = ["O'Hara", 'Auteur', 'Bedrijf']; fields[field] = bad;
+    const text = header(fields[0], fields[1], fields[2]) + body;
+    const rejected = recognizeOldOwnHeader(text);
+    ok(`oude kop onveilig veld ${field}/${JSON.stringify(bad)}: geen maskering`, rejected === null || rejected === 'main');
+    eq('onveilig veld: byteherkenning gelijk', recognizeOldOwnHeader(enc.encode(text)), rejected);
+    eq('onveilig veld: lezer precies main', indexOfStepDataSection(text), mainDataStart(text));
+    const bytes = enc.encode(text);
+    const strict = scanOrError(bytes);
+    if (strict instanceof StepScanError) ok(`onveilig veld ${field}/${JSON.stringify(bad)}: scan weigert`, !scanForeign(bytes).ok);
+    else eq('onveilig veld: gewone strenge uitkomst blijft', scanForeign(bytes), foreignScanFrom(strict, classify(strict), bytes));
+    eq('onveilig veld: doel volgt main bij geweigerde vrije tekst', scanTargetBytes(enc.encode(text)), rejected === 'main' ? 'no-model' : 'unreadable');
+  }
+  for (const badBody of [body.replace('IFCPERSON(', 'IFCPERSON(' + "'"), body.replace('END-ISO-10303-21;', ''),
+    body + "#99003=IFCWALL('x');", body.replace('ENDSEC;', "#99004=IFCWALL('zonder einde\nENDSEC;")]) {
+    ok('oude kop: kapotte DATA blijft streng geweigerd', !scanForeign(enc.encode(badHeader + badBody)).ok);
+  }
+  for (const path of [...ownFiles, ...corpusFiles]) {
+    const bytes = new Uint8Array(readFileSync(path));
+    const strict = scanOrError(bytes);
+    if (strict instanceof StepScanError) continue;
+    eq(`oude kop pariteit ${rel(path)}: leesbare scan bytegelijk`, scanForeign(bytes), foreignScanFrom(strict, classify(strict), bytes));
+  }
+}
+
 if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
 
 const pythonNote = WITH_PYTHON ? `; ${pythonFiles} bestanden gelijk aan classify-v9.py` : '; zonder Python-vergelijking (OPS_IFC_PYTHON=1)';

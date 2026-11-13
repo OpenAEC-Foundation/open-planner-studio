@@ -9,7 +9,7 @@ import { readbackDifference } from './ifcReadbackEquality';
 import { ifcGuid, writeIFC } from '@/services/ifc/ifcWriter';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, applyEdit, EditNotAppliedError, ordinaryEdits, plannerEdits, openForeign, shownAfterOpen, tryMerge } from './ifcMergeKern';
+import { canon, cloneDomain, applyEdit, EditNotAppliedError, ordinaryEdits, plannerEdits, mergeProblems, openForeign, shownAfterOpen, tryMerge } from './ifcMergeKern';
 import { writeIfcMerge, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 
 const reseed = installDeterminism();
@@ -529,4 +529,45 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
     !Object.is(actual.uitvoer!.tasks.find(x => x.id === t.id)!.time[k], t.time[k]))),
     'de echte solver geeft door de afronding andere rekendatums of speling');
   console.log('OK vaste herberekening: afwijkende rekenuitkomsten worden geweigerd', rejection.cases);
+}
+
+// 1103: dezelfde echte v2026.7.12-kop met een wand; de gedeelde voorbewerking geldt ook vóór de merge-indeling.
+{
+  const original = readFileSync(new URL('./fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc', import.meta.url), 'utf8');
+  const wall = [
+    "#90001=IFCORGANIZATION($,'Arch',$,$,$);", "#90002=IFCAPPLICATION(#90001,'1','Revit','RVT');",
+    "#90003=IFCPERSON($,'Ontwerper',$,$,$,$,$,$);", '#90004=IFCPERSONANDORGANIZATION(#90003,#90001,$);',
+    '#90005=IFCOWNERHISTORY(#90004,#90002,$,.ADDED.,$,$,$,1);',
+    "#90006=IFCWALL('2O2Fr$t4X7Zf8NOew3FLOX',#90005,'Wand',$,$,$,$,$,$);",
+  ].join('\n') + '\n';
+  const at = original.lastIndexOf('ENDSEC;');
+  const bytes = new TextEncoder().encode(original.slice(0, at) + wall + original.slice(at));
+  const before = bytes.slice();
+  const opened = await openForeign(bytes);
+  assert.equal(opened.ifcSource?.foreign, true, '1103 opent met een vreemd deel');
+  const source = opened.ifcSource!;
+  for (const edit of [...plannerEdits(opened, 0), ...ordinaryEdits(opened)]) {
+    // E4 uit #917: alle geldige paren zijn hier al toegewezen; dit is geen uitgevoerde bewerking.
+    if (edit.notApplicable) {
+      assert.equal(edit.kind, 'toewijzing-erbij', '1103: uitsluitend de volle toewijzingen zijn niet toepasbaar');
+      assert.equal(edit.notApplicable, 'geen vrij taak/resource-paar dat de app toelaat');
+      await assert.rejects(() => applyEdit(edit, cloneDomain(opened)),
+        (e: unknown) => e instanceof EditNotAppliedError && e.outcome === 'niet-van-toepassing');
+      assert.deepEqual(bytes, before, '1103: ook een niet-toepasbare kandidaat bewaart de bron');
+      console.log('1103 GEVAL ' + JSON.stringify({ bewerking: edit.label, uitkomst: 'niet-van-toepassing', reden: edit.notApplicable }));
+      continue;
+    }
+    const edited = await applyEdit(edit, cloneDomain(opened));
+    const outcome = await tryMerge(edited, source);
+    if (outcome.ok) {
+      assert.deepEqual(mergeProblems(bytes, outcome.bytes), [], '1103: kop en alle vreemde bytes blijven gelijk');
+      assert.equal(readbackDifference(outcome.shown, await openForeign(outcome.bytes)), undefined,
+        '1103: echte volledige heropening gelijk aan de naad');
+    } else {
+      assert(outcome.error instanceof MergeNeedsPhase2Error, '1103: vaste foutsoort, geen uitvoer');
+      assert(outcome.error.cases.length > 0, '1103: getypeerde reden');
+    }
+    assert.deepEqual(bytes, before, '1103: de bronbytes blijven onveranderd');
+    console.log('1103 GEVAL ' + JSON.stringify({ bewerking: edit.label, uitkomst: outcome.ok ? 'schrijft' : outcome.kinds }));
+  }
 }

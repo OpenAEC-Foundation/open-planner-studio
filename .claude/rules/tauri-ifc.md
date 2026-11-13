@@ -34,3 +34,19 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een bestand met een ander schema in de kop vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen; de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid).
+
+### Oude eigen kop, scan en datasectie (#804)
+
+`oldOwnHeader.ts` naast `stepDataSection.ts` herkent één letterlijk gemeten sjabloon van de 17 tags v2026.2.0 t/m
+v2026.7.12 (ook `2026.7.12`): LF, IFC4X3, SchedulingView, geldige datum zonder fracties/zone, vaste OPS-naam/versie.
+Vanaf v2026.7.13 beschermde de writer de vrije velden. Drie gebruikers delen deze herkenning: de C/A/V-scan
+(`foreign/oldOwnHeader.ts`, pas na een strenge scanfout), de doelcontrole als stroom en de datasectievinder voor
+`readIFC`. De eerste maskeert alleen de drie vrije velden op een even lange zelfstandige kopie, ook bij Node-buffers.
+Bronbytes en byteposities blijven intact; DATA gaat streng door de scanner. De andere twee beginnen bij het DATA
+na de vaste kopregels, zodat DATA; en ENDSEC; in naam, auteur of bedrijf geen sectiegrens zijn. Puntkomma's en losse apostroffen mogen. Veldsyntaxis, ook met witruimte, stuurtekens en afwijkende vaste ankers
+worden niet als vrije tekst herkend. De grens is precies die van main: 64 KiB UTF-8 vanaf het begin t/m de LF na FILE_NAME; de volgende vaste regels
+tellen niet mee. Mogelijke entiteitsbeginnen, commentaar en quote/veldgrenzen (ook met witruimte) behouden de
+main-route en worden niet gemaskeerd of overgeslagen. De stroom houdt alleen de nog onbesliste kop vast. Alle andere bestanden houden de sectiezoekregel van main (1061). De aparte, ruimere
+herkenning in `targetModelScan.ts` is weg; een kapotte huidige kop is geen oude kop en weigert als doel. Een geldig
+bestand volgt de gewone grammatica. Opslaan met een vreemd deel blijft geblokkeerd.
+Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.

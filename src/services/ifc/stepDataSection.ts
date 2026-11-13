@@ -1,3 +1,4 @@
+import { recognizeOldOwnHeader } from './oldOwnHeader';
 import { StepStringState, isStepControl, stepString } from './stepLexical';
 // De kop en het begin van de datasectie van een STEP-bestand: de ENIGE regels daarvoor (#804 fase 1a, fixronde 4; eis
 // van Trias, wrakko 10 november 2026: één bron voor het zoeken naar `DATA;`). `readIFC` (`assertIfcIntegrity` en
@@ -117,9 +118,12 @@ export class StepDataSectionFinder {
 
 /**
  * Begin van de datasectie in `content`: de positie van de `D` van `DATA;` (streng, anders regel-verankerd), of -1.
- * `readIFC` gebruikt dit; de doelcontrole voedt dezelfde vinder als stroom.
+ * `readIFC` gebruikt dit; bij precies de oude eigen kop ligt DATA na de vaste kopregels. Voor andere bestanden
+ * blijft de vinder gelijk aan main. De doelcontrole deelt die kopherkenning en voedt anders dezelfde vinder als stroom.
  */
 export function indexOfStepDataSection(content: string, literalStrings = false): number {
+  const oldOwn = recognizeOldOwnHeader(content);
+  if (oldOwn && oldOwn !== 'main') return oldOwn.dataStart;
   const finder = new StepDataSectionFinder(false, literalStrings);
   for (let i = 0; i < content.length; i++) {
     if (finder.step(content.charCodeAt(i), i)) return i - 4;

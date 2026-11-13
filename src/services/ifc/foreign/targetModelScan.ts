@@ -19,12 +19,12 @@ import { StepStringState, isStepControl, stepString } from '../stepLexical';
 //  4. breekt het bestand, of heeft het meer dan één datasectie, en is het van een ander programma: 'unreadable'. Bij
 //     twijfel weigeren (de regel van #867). `readIFC` leest zoals main alleen de eerste datasectie; wat erna staat zou
 //     opslaan stil wissen (besluit Trias, wrakko 10 november 2026, review van #870 ronde 10);
-//  5. breekt het bestand, of heeft het meer dan één datasectie, en schreef OPS het (de vaste kop van OPS, en de regel met FILE_NAME eindigt met
-//     originating_system 'Open Planner Studio'): de regel van main, zodat de planner kan blijven opslaan. OPS
+//  5. breekt het bestand, of heeft het meer dan één datasectie, en heeft het precies de gemeten oude eigen kop
+//     (`oldOwnHeader.ts`): de bestaande leeslus, zodat de planner kan blijven opslaan. OPS
 //     v2026.2.0 tot en met v2026.7.12 schreef naam, auteur en bedrijf rauw in FILE_NAME (commit 771db15cb), en oudere
 //     versies schreven ook andere dingen buiten de norm (zoals `IFCREAL(NaN)`). De lezer leest dan zoals `readIFC` zo'n
-//     bestand leest: vanaf het begin van de datasectie volgens main (`StepDataSectionFinder`: het eerste `DATA;` op
-//     codeniveau, anders het eerste aan het begin van een regel), met de lus van `parseSTEP`:
+//     bestand leest: vanaf DATA na het vaste kopsjabloon (dus niet bij DATA; in een vrij veld), met de lus van
+//     `parseSTEP`. Voor alle andere bestanden blijft `StepDataSectionFinder` de regel van main gebruiken:
 //      a. commentaar weg, zoals `stripStepComments`;
 //      b. op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen (`#id = TYPE (…) ;`, met haakjes op diepte,
 //         strings en commentaar in de argumenten), tot de eerste `ENDSEC;` op codeniveau. Mislukt een
@@ -50,6 +50,7 @@ import { StepStringState, isStepControl, stepString } from '../stepLexical';
 // De lezer stopt bij de eerste modelentiteit. Een groot bestand zonder model leest hij helemaal, maar als stroom.
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { STEP_HEADER, StepDataSectionFinder, startsWithStepHeader } from '../stepDataSection';
+import { OLD_OWN_HEADER_PREFIX_MAX, recognizeOldOwnHeader } from '../oldOwnHeader';
 import { StepFileGrammar } from '../stepFileGrammar';
 
 /** Uitkomst van de controle; zie de kop van dit bestand voor de betekenis. */
@@ -118,13 +119,6 @@ for (const type of IFC_BUILDING_MODEL_TYPES) {
 const EMPTY = new Uint8Array(0);
 /** De lengte van `DATA;`. */
 const DATA_SEMI_LENGTH = 5;
-/** Zo begint elk bestand dat OPS schreef (alle versies), tot en met `FILE_NAME(`; regeleinde `\n` (of `\r\n`). */
-const OPS_HEAD = "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\nFILE_NAME(";
-/** Zo eindigt de regel met FILE_NAME in elk bestand dat OPS schreef: originating_system 'Open Planner Studio'. */
-const OPS_NAME_END = ",'Open Planner Studio 0.1','Open Planner Studio','');";
-/** Zoveel bytes vooraan houdt de lezer vast voor de herkenning van een eigen bestand. */
-const OPS_PREFIX_MAX = 64 << 10;
-
 const upper = (b: number) => (b >= 0x61 && b <= 0x7a ? b - 0x20 : b);
 /** `isWordCode` en `isSpaceCode` van `ifcReader.ts`. */
 const isWord = (b: number) => WORD[b] === 1;
@@ -189,8 +183,9 @@ export class TargetModelScanner {
    *  eerste `DATA;` aan het begin van een regel (`finder.anchored`). */
   private mainEnd = -1;
   /** De eerste bytes, voor de herkenning van een eigen bestand. */
-  private readonly prefix = new Uint8Array(OPS_PREFIX_MAX);
+  private prefix = new Uint8Array(256);
   private prefixLength = 0;
+  private ownDataEnd = -1;
   /** Schreef OPS dit bestand? `null` = nog niet bekend. Alleen nodig als de grammatica breekt. */
   private ops: boolean | null = null;
   private modelPending = false;
@@ -479,9 +474,14 @@ export class TargetModelScanner {
       const abs = base + i;
       this.frontByte(b, abs);
       if (this.result !== null) return;
-      if (this.prefixLength === abs && abs < OPS_PREFIX_MAX) {
+      if (this.ops === null && this.prefixLength === abs) {
+        if (this.prefixLength === this.prefix.length) {
+          const grown = new Uint8Array(this.prefix.length * 2);
+          grown.set(this.prefix);
+          this.prefix = grown;
+        }
         this.prefix[this.prefixLength++] = b;
-        if (this.ops === null && (b === 0x0a || this.prefixLength === OPS_PREFIX_MAX)) this.ops = this.isOwnFile(false);
+        if (b === 0x0a || this.prefixLength <= STEP_HEADER.length || this.prefixLength === OLD_OWN_HEADER_PREFIX_MAX) this.recognizeOwnHead(false);
       }
       if (!grammar.failed) {
         grammar.step(b, abs);
@@ -500,9 +500,9 @@ export class TargetModelScanner {
    * hij 'model' precies als `readIFC` het bestand weigert. `true` als de lezer van plaats verandert of klaar is.
    */
   private brokenFile(atEof: boolean, next: number): boolean {
-    if (this.ops === null) this.ops = this.isOwnFile(atEof);
+    if (this.ops === null && atEof) this.recognizeOwnHead(true);
     if (this.ops === false) { this.unreadable(); this.pos = next; return true; }
-    if (this.ops === null) return false; // de regel met FILE_NAME is nog niet compleet
+    if (this.ops === null) return false; // de vaste kop tot en met DATA is nog niet compleet
     return this.followMain(atEof, false);
   }
 
@@ -511,7 +511,7 @@ export class TargetModelScanner {
    *  van plaats verandert of klaar is. */
   private followMain(atEof: boolean, valid: boolean): boolean {
     this.literalStrings = this.grammar.failed || this.grammar.literalStrings;
-    const dataEnd = this.literalStrings ? this.literalEnd : this.mainEnd;
+    const dataEnd = this.ownDataEnd >= 0 ? this.ownDataEnd : this.literalStrings ? this.literalEnd : this.mainEnd;
     const end = dataEnd >= 0 ? dataEnd : atEof ? this.lineEnd : -1;
     if (end < 0) {
       if (!atEof) return false; // nog geen `DATA;` op codeniveau: verder lezen (aan het begin van een regel telt pas aan het einde)
@@ -525,30 +525,13 @@ export class TargetModelScanner {
     return true;
   }
 
-  /** Schreef OPS dit bestand? Vooraan staat de kop van OPS, en de regel met FILE_NAME eindigt met originating_system
-   *  'Open Planner Studio'. `null`: nog niet te zeggen (de bytes zijn er nog niet). */
-  private isOwnFile(atEof: boolean): boolean | null {
-    let k = 0;
-    const p = this.prefix;
-    const length = this.prefixLength;
-    const complete = atEof || length === OPS_PREFIX_MAX;
-    // Een BOM vooraan: de decoder haalt hem weg.
-    if (length >= 3 && p[0] === BOM[0] && p[1] === BOM[1] && p[2] === BOM[2]) k = 3;
-    // De vaste kop, met `\r\n` of `\n`.
-    for (let h = 0; h < OPS_HEAD.length; h++, k++) {
-      const want = OPS_HEAD.charCodeAt(h);
-      if (want === 0x0a && k < length && p[k] === 0x0d) k++;
-      if (k >= length) return complete ? false : null;
-      if (p[k] !== want) return false;
-    }
-    // De rest van de regel met FILE_NAME.
-    let lineEnd = k;
-    while (lineEnd < length && p[lineEnd] !== 0x0a && p[lineEnd] !== 0x0d) lineEnd++;
-    if (lineEnd === length) return complete ? false : null;
-    const tail = OPS_NAME_END.length;
-    if (lineEnd - k < tail) return false;
-    for (let t = 0; t < tail; t++) if (p[lineEnd - tail + t] !== OPS_NAME_END.charCodeAt(t)) return false;
-    return true;
+  /** Dezelfde exacte kopherkenning als de scan en de lezer, met precies dezelfde 64-KiB-grens als main. Een geweigerd vrij veld behoudt alleen de leeslus van main. */
+  private recognizeOwnHead(atEof: boolean): void {
+    const own = recognizeOldOwnHeader(this.prefix.subarray(0, this.prefixLength), atEof);
+    if (own === undefined) return;
+    this.ops = own !== null;
+    if (own && own !== 'main') this.ownDataEnd = own.dataStart + DATA_SEMI_LENGTH;
+    this.prefix = EMPTY;
   }
 
   /** De grammatica vond geen datasectie: 'unreadable', zodra de kop beslist is (een andere kop is 'not-ifc'). */

@@ -15,7 +15,8 @@
 // - `editsFor`: de gewone bewerkingen van een planner op het domein, per taak of per paar (bijsturing 1, punt 2).
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
-import { scanStep, StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
+import { StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { planningCanon } from '@/services/ifc/foreign/planningCanon';
@@ -114,7 +115,7 @@ export async function settle(bytes: Uint8Array): Promise<Uint8Array> {
 
 /** Vervang argumenten van entiteiten (op `#id`), byte voor byte; de rest van het bestand blijft gelijk. */
 function patchArgs(bytes: Uint8Array, patches: readonly { id: string; arg: number; value: string }[]): Uint8Array {
-  const index = scanStep(bytes);
+  const index = scanForeignStep(bytes);
   const byChunk = new Map<number, Map<number, string>>();
   for (const p of patches) {
     const i = index.chunkOf(p.id);
@@ -159,13 +160,13 @@ export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutco
 }
 
 function scanOrReason(bytes: Uint8Array): StepIndex | string {
-  try { return scanStep(bytes); } catch (e) { if (e instanceof StepScanError) return `${e.reason}: ${e.message}`; throw e; }
+  try { return scanForeignStep(bytes); } catch (e) { if (e instanceof StepScanError) return `${e.reason}: ${e.message}`; throw e; }
 }
 
 /** De invarianten van de merge-uitvoer tegen de bron. Leeg = alles klopt. */
 export function mergeProblems(source: Uint8Array, out: Uint8Array): string[] {
   const problems: string[] = [];
-  const si = scanStep(source);
+  const si = scanForeignStep(source);
   const sc = classify(si);
   const oi = scanOrReason(out);
   if (typeof oi === 'string') return [`de scanner weigert de uitvoer (${oi})`];
@@ -203,7 +204,7 @@ export function mergeProblems(source: Uint8Array, out: Uint8Array): string[] {
 /** Per relatietype (`Decomposes` via IfcRelAggregates, `Nests`, `HasContext` via IfcRelDeclares) de objecten die in meer
  *  dan één relatie van dat type als lid staan. Die inverse attributen zijn SET [0:1]. */
 export function doubleMemberships(bytes: Uint8Array): string[] {
-  const index = scanStep(bytes);
+  const index = scanForeignStep(bytes);
   const seen = new Map<string, number>();
   for (let i = 0; i < index.count; i++) {
     if (!index.isEntity(i)) continue;
