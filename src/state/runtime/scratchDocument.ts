@@ -50,6 +50,12 @@ export function bindScratchDocumentContextFactory(factory: AppStoreContextFactor
   contextFactory = factory;
 }
 
+/** Een eigen context voor echte documentacties, zonder publicatie naar de app-host. */
+export function createScratchDocumentContext(): AppStoreContext {
+  if (!contextFactory) throw new Error('De scratch-documentcontextfabriek is nog niet gekoppeld');
+  return contextFactory({ emitHostEvents: false });
+}
+
 export interface ScratchRunResult<T> {
   /** De payload ná de bewerking — klaar om in `documents[i].payload` gezet te worden. Bij een
    *  mislukking (`ok: false`) is dit de ONGEWIJZIGDE invoerpayload. */
@@ -87,8 +93,7 @@ export function runInScratchDocument<T>(
   fn: (state: AppState) => T,
   docId?: string,
 ): ScratchRunResult<T> {
-  if (!contextFactory) throw new Error('De scratch-documentcontextfabriek is nog niet gekoppeld');
-  const ctx = contextFactory({ emitHostEvents: false });
+  const ctx = createScratchDocumentContext();
   // 1. Hydrateren via het documentcontract — dezelfde functie die `switchDocument` gebruikt, dus
   //    élk (ook toekomstig) documentveld rijdt automatisch mee.
   //

@@ -146,7 +146,7 @@ export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutco
   try {
     let shown: Domain | undefined;
     const parts = await writeIfcMerge(d, source, async (parsed, side) => {
-      const result = await openReadPlanning(parsed, side);
+      const result = structuredClone(parsed);
       if (side === 'uitvoer') shown = result;
       return result;
     });
