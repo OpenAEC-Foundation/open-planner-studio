@@ -19,6 +19,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
+import { oudeKop, oudeKopVelden, oudeWand } from './ifcOudeKop';
 import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -119,6 +120,65 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     if (gid && classOf(cls, i) === 'V') out.push(gid);
   }
   return out;
+}
+
+// #916 fixronde 1: de echte route Openen → Ctrl+S → volledig heropenen, met beide flagstanden.
+{
+  const original = dec(fileBytes('tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+  const body = original.slice(original.indexOf('\nDATA;\n') + 7);
+  for (const fields of oudeKopVelden) for (const wall of [false, true]) for (const flagOn of [false, true]) {
+    const [name, author, company] = fields;
+    const ownBody = body.split("O''Hara Tower").join(name.replace(/'/g, "''"));
+    const text = oudeKop(name, author, company) + ownBody.replace('\nENDSEC;\nEND-ISO', '\n' + (wall ? oudeWand : '') + 'ENDSEC;\nEND-ISO');
+    let data = text;
+    const writes: string[] = [];
+    const handle = {
+      kind: 'file' as const, name: 'oude-kop.ifc',
+      isSameEntry: async (other: unknown) => other === handle,
+      getFile: async () => new File([data], handle.name),
+      queryPermission: async () => 'granted' as const, requestPermission: async () => 'granted' as const,
+      createWritable: async () => {
+        let next = '';
+        return { write: async (chunk: unknown) => { next += typeof chunk === 'string' ? chunk : dec(chunk as Uint8Array); },
+          close: async () => { data = next; writes.push(next); } };
+      },
+    };
+    reseed(0x804);
+    const store = createAppStoreContext().store;
+    store.setState(s => { s.ui.featureFlags = flagOn ? { ifcForeignContent: true } : {}; });
+    const label = `oude kop ${JSON.stringify(fields)} wand=${wall} flag=${flagOn}`;
+    await store.getState().openOpenedFile({ name: handle.name, content: flagOn ? '' : text,
+      ...(flagOn ? { bytes: enc.encode(text) } : {}), ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle } });
+    const state = store.getState();
+    if (wall && !flagOn) {
+      eq(`${label}: weigert als gebouwmodel`, [state.fileHandle, state.ui.notifications.map(n => n.messageKey)],
+        [null, ['notifications.openFailed']]);
+      ok(`${label}: modelweigering`, String(state.ui.notifications[0]?.detail ?? '').includes('building model'));
+      eq(`${label}: bron intact`, data, text);
+      continue;
+    }
+    eq(`${label}: alle taken en juiste naam`, [state.tasks.length, state.project.name], [20, name]);
+    if (flagOn) ok(`${label}: bytes-route zonder terugval`, !!state.ifcSource && state.ifcSource.foreign === wall);
+    // Onafhankelijke controle: dezelfde DATA onder een correct gequote kop via de gewone app-route.
+    const escaped = oudeKop(...fields.map(f => f.replace(/'/g, "''")) as [string, string, string]);
+    const controlText = escaped + text.slice(oudeKop(...fields).length);
+    const control = await open(flagOn, 'controle.ifc', enc.encode(controlText));
+    const planning = saved(control);
+    eq(`${label}: volledige planning gelijk aan correcte kop`, saved(store), planning);
+    await state.saveFile();
+    eq(`${label}: schrijven of blokkeren`, writes.length, wall ? 0 : 1);
+    if (wall) {
+      eq(`${label}: blokkeermelding`, store.getState().ui.notifications.map(n => n.messageKey), [SAVE_BLOCKED_KEY]);
+      eq(`${label}: volledige bron inclusief wand intact`, data, text);
+    }
+    // Ctrl+S bevestigt ook de bestaande minutenomzetting; vergelijk met de daardoor vastgelegde toestand.
+    const writtenPlanning = saved(store);
+    if (!wall) eq(`${label}: opslag schrijft volledige gewone planning`, writes[0], writtenPlanning);
+    const reopened = await open(flagOn, 'heropend.ifc', enc.encode(data));
+    const reference = await open(flagOn, 'controle-heropend.ifc', enc.encode(wall ? controlText : writtenPlanning));
+    eq(`${label}: heropenen geeft volledige planning`, saved(reopened), saved(reference));
+    eq(`${label}: heropenen behoudt taken`, reopened.getState().tasks.length, 20);
+  }
 }
 
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────

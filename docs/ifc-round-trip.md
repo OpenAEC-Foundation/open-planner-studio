@@ -406,29 +406,26 @@ app-versie negeert Status en maakt zo'n taak bij openen "Voltooid". De motor pla
 van zo'n taak nog niet in (`knownbugs.md` 114). Toets: `check-ifc-lopend-100.ts` en de twee IFC-corpuschecks
 (A3040 in torture).
 
-## Oude eigen FILE_NAME-kop bij de bytes-route
+## Oude eigen FILE_NAME-kop
 
-De tags v2026.2.0, v2026.6.0–v2026.6.1 en v2026.7.0–v2026.7.12 (plus alias 2026.7.12) hebben exact dezelfde
-kop: LF, `IFC4X3`, SchedulingView/2;1, datum `YYYY-MM-DDTHH:mm:ss`, en vaste velden `Open Planner Studio 0.1`,
-`Open Planner Studio` en lege authorization. Naam, auteur en bedrijf werden rauw tussengevoegd; een apostrof
-zoals in O'Hara kon de kop breken. Vanaf v2026.7.13 lopen die drie waarden al via `ifcStr`/`headerText`.
+De 17 tags v2026.2.0 t/m v2026.7.12 (ook `2026.7.12`) schreven projectnaam, auteur en bedrijf onbeschermd in
+FILE_NAME, steeds met hetzelfde LF/IFC4X3-sjabloon. Vanaf v2026.7.13 is de writer gerepareerd. Eén kleine herkenning
+in `src/services/ifc/oldOwnHeader.ts` bedient de C/A/V-scan, de doelcontrole en het begin van de datasectie voor de
+lezer. De vaste kop tot en met DATA moet letterlijk kloppen, inclusief datumvorm en de vaste OPS-velden.
 
-Na een strenge scanfout herkent `oldOwnHeader.ts` uitsluitend die ene vorm. De drie vrije velden worden op een
-**even lange scankopie** gemaskeerd; bronbytes en stukposities blijven origineel. De hele DATA-sectie gaat
-ongewijzigd door `scanStep`. Een extra veld of kopregel, een gewijzigd vast deel, CRLF in de kapotte kop of
-onduidelijke veldgrenzen wordt niet herkend. Losse apostroffen aan het begin/eind en meer dan één apostrof mogen;
-veld-/statementsyntaxis, controles en regeleinden in een vrij veld blijven bewust buiten de herkenning. Een
-gewone, streng leesbare kop komt nooit op deze terugvalroute, ook niet bij een ander programma.
+Bij een strenge scanfout maskeert de scan uitsluitend de drie vrije velden op een even lange zelfstandige kopie.
+De echte bytes en alle posities blijven staan; de DATA-sectie wordt streng ingedeeld. De lezer en de doelcontrole
+beginnen bij DATA na de vaste kopregels. Daardoor opent een oude naam `O'Hara DATA; Fase 1` met alle taken, ook
+zonder feature flag; eerder opende die stil als leeg project en kon Ctrl+S de bron wissen. DATA; en ENDSEC; in
+auteur, bedrijf of alle drie de velden hebben dezelfde bescherming. `O'Hara; Noord` krijgt met de flag een bron
+zonder terugval. Een aanwezige wand blijft vreemd; opslaan blijft geblokkeerd.
 
-Openen met de flag aan krijgt voor de echte O'Hara-fixture nu een `ifcSource`; zonder vreemd deel schrijft de
-gewone opslag hetzelfde als zonder flag. Openen met een wand bewaart de vreemde bytes in die bron; de merge
-gebruikt dezelfde scaningang en neemt bij een geslaagde samenvoeging de **rauwe bronkop** ongewijzigd over. Hij
-repareert de fysieke kop niet en geeft die uitvoer daardoor nog niet vrij voor andere programma's. De app blijft
-elke IFC-opslag van een document met een vreemd deel blokkeren; de mergeproeven openen die productroute niet.
-
-Deze reparatie raakt geen historische DATA-schrijfvormen. Vrije namen/auteur/bedrijf gingen daar via `ifcStr`,
-maar datum-/tijdwaarden werden op plekken rechtstreeks als literals geschreven (`ifcDateTime`, feestdagdatums,
-`IFCTIMEPERIOD`). Een fout in die DATA blijft een scanfout; hier worden geen waarden of strings hersteld.
+Een puntkomma mag in een vrij veld; `',`, `')`, `('`, regeleinden en stuurtekens niet. Andere vaste delen, extra
+velden of kopregels worden niet herkend. Er is geen lengteverschil tussen de drie gebruikers: ook boven 64 KiB
+wordt dezelfde kop herkend. De oude ruimere herkenning met `OPS_PREFIX_MAX` in de doelcontrole is verwijderd:
+kapotte huidige IFC4X3_ADD2-koppen, CRLF en afwijkende velden weigeren daar voortaan als 'unreadable'. Regeleinden
+in vrije velden blijven geweigerd. Voor elk niet-herkend bestand volgt de lezer de sectiezoekregel van main
+(knownbug 1061). De lexer, parseSTEP en de overige leesregels zijn hiervoor niet veranderd.
 
 ## Wat dit niet dekt
 

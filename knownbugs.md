@@ -2026,29 +2026,31 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-foreign-strikt.ts`, "geen dubbel `#id`"). Wat blijft: met de flag opent zo'n bestand nog. Uit #881
      (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
-1052. **VERVOLG: een bestand van een ander programma dat zich uitgeeft als OPS, valt onder de regel van main.** De
-     doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) herkent een eigen bestand aan de vaste kop van OPS en
-     aan het vaste stuk na de vrije tekst in FILE_NAME (`'Open Planner Studio 0.1','Open Planner Studio','');`). Breekt
-     zo'n bestand de grammatica, of heeft het meer dan één datasectie, dan leest zij het zoals `readIFC` op main (besluit Trias, wrakko 10 november 2026: oude
-     versies schreven de kop rauw, en die planners moeten kunnen blijven opslaan). Een bestand van een ander programma
-     dat precies die kop schrijft, en de grammatica breekt, gaat er dan ook doorheen: een modelentiteit die de lus van
-     `parseSTEP` mist (knownbug 1050, of na een kapotte naam), ziet de doelcontrole dan niet, en Opslaan als of AutoSave
-     kan het model overschrijven. Alleen bij opzet of toeval in precies die kop. Uit #870 (ronde 8). — S
+1052. **VERVOLG: een bestand van een ander programma met precies de oude OPS-kop valt nog onder de leeslus.**
+     Sinds #916 delen scan, doelcontrole en datasectievinder `src/services/ifc/oldOwnHeader.ts`: uitsluitend het gemeten
+     LF/IFC4X3-sjabloon van v2026.2.0 t/m v2026.7.12, inclusief datum, alle vaste velden en de regels tot DATA. De oude,
+     ruimere herkenning in `targetModelScan.ts` is verwijderd. Een extra veld/regel, CRLF, een andere schemanaam of
+     veldscheiding in vrije tekst wordt niet herkend; gebroken bestanden daarmee zijn als doel 'unreadable'.
+     Wat blijft: een ander programma kan precies die hele oude kop schrijven. Breekt zijn DATA later, dan volgt de
+     doelcontrole nog de bestaande lus van `parseSTEP`. Een model dat die lus mist (1050, of in een latere sectie na
+     een fout; 1061 punt 7) kan zij dan nog missen. De C/A/V-scan blijft streng op DATA en de opslagblokkade voor een
+     vreemd deel blijft dicht. Uit #870 (ronde 8); afgebakend door #916 fixronde 1. — S
 
 1054. **VERVOLG: wat na #870 overblijft bij de grammatica en de doelcontrole.**
      (1) Geen test voor een niet-leesbaar doel via de site (`window.openaecHost`); de handle- en Tauri-routes zijn wel
-     getest (`check-ifc-foreign-target.ts`). (2) De herkenning van een eigen bestand mist oude uitvoer met een regeleinde
-     in de naam, auteur of bedrijf, of met meer dan 64 KiB vrije tekst in FILE_NAME (`OPS_PREFIX_MAX` in
-     `src/services/ifc/foreign/targetModelScan.ts`): de writer van v2026.7.12 haalde regeleindes niet weg. Zo'n bestand
-     opent zoals main, maar weigert als doel ('unreadable'): opslaan erover kan niet. Richting: het vaste stuk na de vrije
-     tekst als stroom herkennen. (3) De grammatica (`src/services/ifc/stepFileGrammar.ts`) kent nog niet elke vorm van de
+     getest (`check-ifc-foreign-target.ts`). (2) Regeleinden en andere stuurtekens in de vrije velden van oude uitvoer
+     blijven buiten de gedeelde herkenning van #916: een kapot bestand opent zoals main, maar weigert als doel
+     ('unreadable'). De oude writer haalde die tekens niet weg. Meer dan 64 KiB vrije tekst is sinds #916 wél herkend,
+     bij alle drie de gebruikers; `OPS_PREFIX_MAX` en de aparte herkenning zijn weg. Een proef van ruim 70 KiB met
+     apostrof, Unicode en DATA; geeft met een wand 'model' in stukken van 1 B, 7 B, 64 KiB en alles; zonder wand
+     'no-model', met een volledige C/A/V-scan en de juiste tekst-/bytegrens. (3) De grammatica kent nog niet elke vorm van de
      norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
      met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)
      heeft `\N\` en `\F\` vóór `(` en `;`, maar niet tussen de parameters (`DATA('deel'\N\,('IFC4X3_ADD2'));`).
      Uit #870 (ronde 7 en 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
 1061. **VERVOLG: een geldig bestand leest `readIFC` op een paar plekken anders dan de norm; precies zo op main.** `readIFC` (`src/services/ifc/ifcReader.ts`) opent precies zoals main (besluit Trias, review van #870 ronde
-     10): het eerste `DATA;` op codeniveau (`src/services/ifc/stepDataSection.ts`), en de lus van `parseSTEP` tot de
+     10), behalve de exact herkende oude OPS-kop sinds #916: daarvoor staat DATA na het vaste kopsjabloon, ook als naam/auteur/bedrijf DATA; of ENDSEC; bevatten. Voor alle overige bestanden: het eerste `DATA;` op codeniveau (`src/services/ifc/stepDataSection.ts`), en de lus van `parseSTEP` tot de
      eerste `ENDSEC;`. De grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) beslist alleen over
      een model. Gemeten op main (9ee06bb71) en op de tak, met `showcase-verbouwing-eengezinswoning.ifc`; beide gelijk:
       1. `#4⏎8` (een regeleinde midden in een verwijzing): voor de norm `#48`, voor de lus geen verwijzing. Opent met 20
@@ -2062,11 +2064,12 @@ en noem het in je rapport of PR-tekst.
       6. Meer datasecties: `readIFC` leest alleen de eerste. Een model in een latere sectie weigert (de grammatica ziet
          het); taken in een latere sectie ontbreken. Zonder flag (nu altijd in de app) opent zo'n planning dus met een
          deel van de taken, en Ctrl+S wist de rest; zo ook op main. Alleen met de flag `ifcForeignContent` draait de
-         doelcontrole; die weigert zo'n bestand als doel, behalve een eigen bestand.
+         doelcontrole; die weigert zo'n bestand als doel, behalve bij precies de oude kop van #916. De huidige
+         IFC4X3_ADD2-kop met meerdere secties is voortaan ook 'unreadable'.
       7. De grammatica ziet een model alleen tot het punt waar het bestand breekt. Breekt een bestand in de eerste
          sectie (bijvoorbeeld `IFCREAL(1E5)` of een harde spatie na `DATA;`) en staat er een wand in een latere sectie,
          dan opent het met de taken van de eerste sectie, zoals main. Als doel: 'unreadable' voor een vreemd bestand,
-         maar 'no-model' voor een bestand met de kop van OPS (de regel van main, besluit Trias), zodat met de flag
+         maar 'no-model' bij precies het oude LF/IFC4X3-kopsjabloon van #916 (de bestaande leeslus), zodat met de flag
          Opslaan over de wand mag. Gemeten door de review van #870, ronde 11.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
      ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B

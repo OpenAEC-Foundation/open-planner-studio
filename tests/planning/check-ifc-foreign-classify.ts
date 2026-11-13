@@ -41,6 +41,10 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { WRITER_ENTITY_TYPES, writeIFC } from '@/services/ifc/ifcWriter';
 import { PER_TASK_PSETS, PSET } from '@/services/ifc/ifcPsets';
+import { recognizeOldOwnHeader } from '@/services/ifc/oldOwnHeader';
+import { indexOfStepDataSection, StepDataSectionFinder } from '@/services/ifc/stepDataSection';
+import { scanTargetBytes, TargetModelScanner, type TargetScanStep } from '@/services/ifc/foreign/targetModelScan';
+import { oudeKopVelden } from './ifcOudeKop';
 import type { ImportResult } from '@/services/importTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -763,6 +767,7 @@ if (WITH_PYTHON) {
     eq('oude kop: bronbytes onveranderd', Array.from(oldBytes), Array.from(enc.encode(oldText)));
   }
   const freeFields = [
+    ...oudeKopVelden,
     ["O'Hara", 'Aannemer', 'Bedrijf'], ['Naam', "D'Artagnan", 'Bedrijf'], ['Naam', 'Auteur', "Van 't Hof"],
     ["O'Hara", "D'Artagnan", "Van 't Hof"], ["O''Hara's", 'Auteur', 'Bedrijf'],
     ["'Naam", 'Auteur', 'Bedrijf'], ["Naam'", 'Auteur', 'Bedrijf'],
@@ -795,6 +800,35 @@ if (WITH_PYTHON) {
         && foreign.counts.C + foreign.counts.A + foreign.counts.V > 0);
     }
   }
+  const mainDataStart = (text: string) => {
+    const finder = new StepDataSectionFinder(false);
+    for (let i = 0; i < text.length; i++) if (finder.step(text.charCodeAt(i), i)) return i - 4;
+    return finder.anchored;
+  };
+  const targetInChunks = (bytes: Uint8Array, size: number) => {
+    const scanner = new TargetModelScanner();
+    let at = 0;
+    for (let guard = 0; guard < bytes.length * 3; guard++) {
+      let step: TargetScanStep;
+      if (at < bytes.length) { const end = Math.min(at + size, bytes.length); step = scanner.push(bytes.subarray(at, end)); at = end; }
+      else step = scanner.end();
+      if (step && 'result' in step) return step.result;
+      if (step && 'seek' in step) at = step.seek;
+    }
+    throw new Error('doelcontrole komt niet tot een uitkomst');
+  };
+  for (const fields of [...oudeKopVelden, ["Één O'Hara DATA; " + 'x'.repeat(70 << 10), 'Auteur', 'Bedrijf']]) {
+    const h = header(fields[0], fields[1], fields[2]);
+    const text = h + body;
+    const bytes = enc.encode(text);
+    const label = `oude kop drie gebruikers ${fields.map(f => f.slice(0, 45)).join('/')}`;
+    eq(`${label}: tekstgrens`, indexOfStepDataSection(text), h.length - 6);
+    eq(`${label}: bytegrens`, recognizeOldOwnHeader(bytes)?.dataStart, enc.encode(h).length - 6);
+    ok(`${label}: scan`, scanForeign(bytes).ok);
+    eq(`${label}: doel zonder model`, scanTargetBytes(bytes), 'no-model');
+    const withWall = enc.encode(h + body.replace('ENDSEC;', wall + 'ENDSEC;'));
+    for (const size of [1, 7, 65536, withWall.length]) eq(`${label}: wand bij ${size} B`, targetInChunks(withWall, size), 'model');
+  }
   const badHeader = header("O'Hara", 'Auteur', 'Bedrijf');
   const headerMutations: Array<[string, (h: string) => string]> = [
     ['ISO', h => h.replace('ISO-10303-21;', 'ISO-10303-22;')],
@@ -825,6 +859,10 @@ if (WITH_PYTHON) {
   for (const [label, mutate] of headerMutations) {
     const rejected = scanForeign(enc.encode(mutate(badHeader) + body));
     ok(`oude kop vast deel ${label}: kapotte vreemde kop blijft geweigerd`, !rejected.ok);
+    const mutatedText = mutate(badHeader) + body;
+    eq(`oude kop vast deel ${label}: geen herkenning`, recognizeOldOwnHeader(mutatedText), null);
+    eq(`oude kop vast deel ${label}: lezer precies main`, indexOfStepDataSection(mutatedText), mainDataStart(mutatedText));
+    eq(`oude kop vast deel ${label}: doel weigert`, scanTargetBytes(enc.encode(mutatedText)), label === 'ISO' ? 'not-ifc' : 'unreadable');
     // Bij een goed leesbare kop blijft uitsluitend de gewone strenge uitkomst gelden.
     const good = enc.encode(mutate(header('Naam', 'Auteur', 'Bedrijf')) + body);
     const strict = scanOrError(good);
@@ -837,6 +875,11 @@ if (WITH_PYTHON) {
   for (let i = 0; i < badHeader.length; i++) {
     if (variableRanges.some(([a, b]) => i >= a && i < b)) continue;
     const mutated = enc.encode(badHeader.slice(0, i) + (badHeader[i] === 'X' ? 'Y' : 'X') + badHeader.slice(i + 1) + body);
+    const text = new TextDecoder().decode(mutated);
+    eq(`oude kop vast teken ${i}: geen herkenning`, recognizeOldOwnHeader(mutated), null);
+    eq(`oude kop vast teken ${i}: lezer precies main`, indexOfStepDataSection(text), mainDataStart(text));
+    const target = scanTargetBytes(mutated);
+    ok(`oude kop vast teken ${i}: doel geeft geen vrijbrief`, target === 'unreadable' || target === 'not-ifc');
     const strict = scanOrError(mutated);
     const actual = scanForeign(mutated);
     if (strict instanceof StepScanError) ok(`oude kop vast teken ${i}: geen verruiming`, !actual.ok);
@@ -844,6 +887,18 @@ if (WITH_PYTHON) {
   }
   for (const name of ["O'Hara.ifc','2026-01-15T12:00:00',('dubbel", "O'Hara'),('dubbel", "O'Hara;FILE_POPULATION('x')"]) {
     ok(`oude kop dubbelzinnig ${name}: weigert`, !scanForeign(enc.encode(header(name, 'Auteur', 'Bedrijf') + body)).ok);
+  }
+  for (const field of [0, 1, 2]) for (const bad of ["O'Hara',extra", "O'Hara')extra", "O'Hara('extra", "O'Hara\nextra", "O'Hara\rextra", "O'Hara\u0001extra", "O'Hara\u2028extra"]) {
+    const fields = ["O'Hara", 'Auteur', 'Bedrijf']; fields[field] = bad;
+    const text = header(fields[0], fields[1], fields[2]) + body;
+    eq(`oude kop onveilig veld ${field}/${JSON.stringify(bad)}: geen herkenning`, recognizeOldOwnHeader(text), null);
+    eq('onveilig veld: byteherkenning gelijk', recognizeOldOwnHeader(enc.encode(text)), null);
+    eq('onveilig veld: lezer precies main', indexOfStepDataSection(text), mainDataStart(text));
+    const bytes = enc.encode(text);
+    const strict = scanOrError(bytes);
+    if (strict instanceof StepScanError) ok(`onveilig veld ${field}/${JSON.stringify(bad)}: scan weigert`, !scanForeign(bytes).ok);
+    else eq('onveilig veld: gewone strenge uitkomst blijft', scanForeign(bytes), foreignScanFrom(strict, classify(strict), bytes));
+    eq('onveilig veld: doel weigert', scanTargetBytes(enc.encode(text)), 'unreadable');
   }
   for (const badBody of [body.replace('IFCPERSON(', 'IFCPERSON(' + "'"), body.replace('END-ISO-10303-21;', ''),
     body + "#99003=IFCWALL('x');", body.replace('ENDSEC;', "#99004=IFCWALL('zonder einde\nENDSEC;")]) {
