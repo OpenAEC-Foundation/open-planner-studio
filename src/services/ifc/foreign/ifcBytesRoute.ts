@@ -66,8 +66,8 @@ export async function readIfcBytes(bytes: Uint8Array, labels: ImportLabels = {},
 }
 
 /** De gewone lezer houdt zijn modelweigering. Alleen een bewezen eigen deel mag daarna zonder bron verder.
- * Geen kopherkenning of reparatie hier: Trias laat oude eigen koppen vóór de indeling ondersteunen in een aparte PR.
- * Tot die afhankelijkheid in main staat, weigert de bekende v2026.7.12-O'Hara-fixture ook hier (1103). */
+ * De gedeelde herkenning van oude eigen koppen draait vóór de indeling (`foreignScan`); deze terugval voegt
+ * geen eigen kopherkenning of reparatie toe. */
 async function currentRoute(
   bytes: Uint8Array, labels: ImportLabels, opts: IfcBytesRouteOptions, fallback: IfcBytesFallback,
   knownScan?: ForeignScanOutcome,

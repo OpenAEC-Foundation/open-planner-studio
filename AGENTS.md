@@ -225,7 +225,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   section refuses, except a file OPS wrote itself (old versions wrote a raw header).
   Behind the feature flag `ifcForeignContent` (#804 phase 1a; off by default) every IFC open
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
-  reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
+  reader follows `selectPlanning`; a scanner refusal stops document activation) and keeps the source in
   `ifcSource` (document contract, `snapshot: 'none'`: outside undo, recovery and MCP backup). A document with a foreign
   part refuses every IFC write with one notice (`src/state/ifcForeignGuard.ts`). Before classification, only after a
   strict scan failure, `foreign/oldOwnHeader.ts` masks only the three free fields on an equally long independent

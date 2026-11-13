@@ -1846,20 +1846,6 @@ en noem het in je rapport of PR-tekst.
      met 9 argumenten uit die knownbug zijn opgelost in #867, fixronde 7). Richting: een lege lijst lezen als "geen
      notities" en de pset dan als bronstuk laten staan, of de lege lijst schrijven. Uit #867 (fase 1b, fixronde 7). — B
 
-1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
-     van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
-     grammatica, dus de route met de bronbytes leest het niet, en de oude route weigert het model (knownbug 110,
-     `building-model`). Zonder model opent het en slaat het op zoals op main. Proef: de telling
-     (`check-ifc-foreign-merge-telling.ts`, `REFUSED_AT_OPEN`) met
-     `tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc` plus een wand. Een
-     programma dat een model toevoegt, schrijft meestal een eigen kop; dan speelt dit niet. Besluit van Trias (wrakko, 10
-     november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
-     met main). Aanvulling Trias, 13 november 16:00: een aparte kleine PR (`feat/804-1c-oude-kop`) herkent
-     deze oude eigen kop vóór de indeling. PR 2 van 1c weigert scannerterugval veilig, zonder eigen uitzondering;
-     daardoor is tot het binnenhalen van die afhankelijkheid ook de eindproef zonder model rood. De verwachting
-     blijft openen en opslaan zoals main. Dit bekende geval is uitdrukkelijk geen stopreden voor de bouwer. — B
-
-
 1108. **Twee fixtures die geen gewone uitvoer van OPS zijn, blijven bewust geweigerd.** Onderzoek in #898:
      - `h7-kalender-oude-writer.ifc` is echte uitvoer van OPS `531940ac` (de naastliggende JSON noemt de
        writercommit). Opgelost: `sourceBandCalendarIds` gebruikt nu `workCalendarSlots`, ook bij de oude indeling
@@ -1984,14 +1970,16 @@ en noem het in je rapport of PR-tekst.
      op ongeveer 102 regels en 132.938 bytes (één geval per regel). Alleen opruimen; het bestand is nodig als vaste
      verwachting zonder netwerk. Gevonden door de review van #916 (Sol, ronde 3). — B
 
-1137. **VERVOLG: bij de terugval naar de tekstlezer verdwijnt vreemde inhoud die buiten de oude-kopherkenning valt;
-     precies zo op main.** Een bestand met de oude eigen kop en ruim 70 KiB in het auteurveld (boven de grens van
-     65.536 bytes, dus niet herkend) en een wand in de tweede datasectie opent met de flag uit met twintig taken;
-     `saveFile()` schrijft één keer en de wand is weg. Main en #916 doen hier hetzelfde: de route valt terug op de
-     tekstlezer (`src/services/ifc/foreign/ifcBytesRoute.ts`, de terugval) en de oude entiteitenlus in
-     `src/services/ifc/ifcReader.ts` leest alleen de eerste datasectie. Een gemaakt bestand; geen release schreef het.
-     Hoort bij 1054 en 1061. Richting: bij de terugval naar tekst de bescherming van vreemde broninhoud houden (fase
-     1c, PR 2: terugval en schema). Gevonden door de review van #916 (Sol, ronde 3). — B
+1137. **Met de flag aan opgelost in #914; met de flag uit blijft dit bestaande schuld bij 1061.** Het gemaakte
+     reviewerbestand met de oude eigen kop, ruim 70 KiB in het auteurveld (boven de grens van 65.536 bytes) en
+     een wand in de tweede datasectie is niet herkenbaar als oude kop. Met `ifcForeignContent` uit opent het nog
+     steeds met twintig taken; `saveFile()` schrijft één keer en de wand verdwijnt, precies zoals op main (1061).
+     Met de flag aan weigert de terugval vóór documentactivatie met `IFC_FOREIGN_OPEN_REFUSED`, reden `scanner` /
+     `tekst-zonder-einde`: nul taken, nul writes en alle bronbytes intact. Gemeten met het oorspronkelijke bestand
+     `review-916-sol/lange-auteur-wand-tweede-sectie-bron.ifc`, SHA-256
+     `b824f45f24cd49caa2fb427036062d8da680c35f08434ae16357a303b9e8e482`; de open-proef reconstrueert exact die bytes
+     en bewaakt beide flagstanden. Geen uitbreiding van de kopherkenning of wijziging van de tekstlezer. Hoort bij
+     1054/1061; de oorspronkelijke VERVOLG kwam uit de review van #916 (Sol, ronde 3). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
@@ -2268,6 +2256,18 @@ en noem het in je rapport of PR-tekst.
      in `ifcBytesRoute.ts` is 300 MiB. PR 2 van fase 1c beveiligt die terugval zonder de grens te veranderen.
      VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
      grens zonder meting. — B
+
+1128. **VERVOLG: de scanner draagt 23 bestaande gemaakte oude-kopgevallen nog niet.** In de vaste 97-gevallenproef
+     zijn dat naam-10/11/12/15/17/18/19/21, Sol-entiteit-6/9/10 voor elk van de drie vrije velden, de lange auteur
+     met wand in de tweede sectie of een vreemde pset, en de twee overeenkomstige grensgevallen één byte boven
+     64 KiB (ASCII en Unicode). Dit zijn gemaakte proeven, geen ongewijzigde releasebestanden uit de repo.
+     Met de flag aan weigert PR 2 ze getypeerd
+     vóór documentactivatie; beide opslagroutes schrijven nul bytes en de hele bron blijft intact. Met de flag uit
+     blijven hun volledige planning, meldingen en opslagbytes gelijk aan de vaste main-referentie. De open-proef
+     benoemt alle 23 en toetst de weigering exact, zonder de oude kopherkenning of scanner te verruimen. Bredere
+     ondersteuning blijft buiten fase 1c; de gewone oude eigen kop, waaronder O'Hara, opent wel. Aangetroffen bij
+     het integreren van #916 in PR 2, aansluitend op 1054/1061; 1137 is voor de flag aan opgelost. — B
+
 
 
 221. **Mogelijk onjuiste Portugese nulvorm bij aantalmeldingen.** Een nalezer meldde tijdens de

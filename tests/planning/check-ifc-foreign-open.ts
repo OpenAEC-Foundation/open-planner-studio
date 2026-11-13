@@ -185,15 +185,86 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
   }
 }
 
+// 1137: exact hetzelfde gemaakte bestand als de review van #916 (Sol, ronde 3), zonder grote fixture.
+// Bron: review-916-sol/lange-auteur-wand-tweede-sectie-bron.ifc; de SHA-256 bindt deze reconstructie aan die bytes.
+{
+  const original = dec(fileBytes('tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+  const body = original.slice(original.indexOf('\nDATA;\n') + 7);
+  const text = oudeKop('Eigen planning', "O'Hara " + 'x'.repeat(70 << 10))
+    + body.replace('\nENDSEC;\nEND-ISO', '\nENDSEC;\nDATA;\n' + oudeWand + 'ENDSEC;\nEND-ISO');
+  const bytes = enc.encode(text);
+  eq('1137: dezelfde bytes als het reviewerbestand', sha(bytes), 'b824f45f24cd49caa2fb427036062d8da680c35f08434ae16357a303b9e8e482');
+  for (const flagOn of [false, true]) {
+    let data = text;
+    const writes: string[] = [];
+    const handle = {
+      kind: 'file' as const, name: 'lange-auteur-tweede-sectie.ifc',
+      isSameEntry: async (other: unknown) => other === handle,
+      getFile: async () => new File([data], handle.name),
+      queryPermission: async () => 'granted' as const, requestPermission: async () => 'granted' as const,
+      createWritable: async () => {
+        let next = '';
+        return { write: async (chunk: unknown) => { next += typeof chunk === 'string' ? chunk : dec(chunk as Uint8Array); },
+          close: async () => { data = next; writes.push(next); } };
+      },
+    };
+    const store = createAppStoreContext().store;
+    store.setState(s => { s.ui.featureFlags = flagOn ? { ifcForeignContent: true } : {}; });
+    await store.getState().openOpenedFile({ name: handle.name, content: flagOn ? '' : text,
+      ...(flagOn ? { bytes } : {}), ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle } });
+    const state = store.getState();
+    if (flagOn) {
+      eq('1137 flag aan: geen document of taken', [state.fileHandle, state.filePath, state.tasks.length], [null, null, 0]);
+      eq('1137 flag aan: melding in het ene kanaal', state.ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignOpenUnsafe']);
+      const error = await readIfcBytesDetailed(bytes).catch((e: unknown) => e) as { code?: string; fallback?: { kind: string; reason: string } };
+      eq('1137 flag aan: getypeerde scannerweigering', [error.code, error.fallback?.kind, error.fallback?.reason],
+        ['IFC_FOREIGN_OPEN_REFUSED', 'scanner', 'tekst-zonder-einde']);
+      eq('1137 flag aan: nul writes en alle bronbytes intact', [writes.length, sha(data)], [0, sha(text)]);
+    } else {
+      ok('1137 flag uit: main opent twintig taken', state.fileHandle === handle && state.tasks.length === 20);
+      await state.saveFile();
+      eq('1137 flag uit: bestaande schuld 1061 onveranderd, één write zonder wand', [writes.length, data.includes('=IFCWALL(')], [1, false]);
+    }
+  }
+}
+
 // #916 fixronde 2: de hele gemaakte-koppentabel tegen vers gemeten productcode van main 1c95a8546 (na #917).
 {
   const reference = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/oude-kop-main.json'), 'utf8')) as { basis: string; rows: OldHeaderRow[] };
   eq('fix2 referentie: de gemeten main-commit', reference.basis, '1c95a8546fbe5fecb52e66a715402b08a256d0d5');
-  const table = compareOldHeaderTable(reference.rows, await oldHeaderTable(ROOT));
+  const current = await oldHeaderTable(ROOT);
+  // E6 verandert bij precies deze al bestaande gemaakte gevallen de tekstterugval in een scannerweigering (1128).
+  // Pin beide uitkomsten: flag uit blijft de volledige main-rij; flag aan moet weigeren met nul writes en bronbehoud.
+  const scannerRefusals = new Set([
+    'naam-10', 'naam-11', 'naam-12', 'naam-15', 'naam-17', 'naam-18', 'naam-19', 'naam-21',
+    ...[6, 9, 10].flatMap(n => [0, 1, 2].map(field => `Sol-entiteit-${n}-veld-${field}`)),
+    'Sol-lange-auteur-wand-tweede-sectie', 'Sol-lange-auteur-vreemde-property',
+    ...[false, true].flatMap(unicode => ['wand-tweede-sectie', 'vreemde-property'].map(kind => `grens-${unicode}-1-${kind}`)),
+  ]);
+  eq('E6 oude koppentabel: ieder vastgelegd geval bestaat', [...scannerRefusals].filter(name => !current.some(row => row.name === name)), []);
+  for (const row of current.filter(row => scannerRefusals.has(row.name))) {
+    eq(`E6 ${row.name}: beide vaste instellingen`, row.routes.map(route => route.flag), [false, true]);
+    const on = row.routes.find(route => route.flag)!;
+    eq(`E6 ${row.name}: weigering vóór documentactivatie en beide opslagacties`,
+      [on.opened, on.tasks, on.payload, on.writes, on.saveAsWrites, on.intact, on.saveAsSourceIntact, on.reopen],
+      [false, 0, '', [], [], true, true, null]);
+    const notices = on.notices as Array<{ severity: string; messageKey: string; detail?: string }>;
+    eq(`E6 ${row.name}: exacte scannerweigering`, notices.map(n => [n.severity, n.messageKey, n.detail]),
+      [['error', 'notifications.ifcForeignOpenUnsafe', 'IFC open refused: unsafe scanner fallback']]);
+    const before = reference.rows.find(r => r.name === row.name)!.routes.find(route => route.flag)!;
+    eq(`E6 ${row.name}: onafhankelijke doelcontrole onveranderd`, [on.target, on.targetWrites, on.targetIntact],
+      [before.target, before.targetWrites, before.targetIntact]);
+    console.log(`E6 SCANNERGEVAL ${row.name}: getypeerd geweigerd, nul writes, bron intact; flag uit tegen main getoetst`);
+  }
+  // Alleen de hierboven exact getoetste flag-aan-route heeft een nieuw beleid. Alle flag-uit-rijen blijven in de
+  // bestaande byte-/payloadvergelijking, en alle andere flag-aan-rijen houden de oorspronkelijke drie strenge eisen.
+  const comparable = (rows: OldHeaderRow[]) => rows.map(row => scannerRefusals.has(row.name)
+    ? { ...row, routes: row.routes.filter(route => !route.flag) } : row);
+  const table = compareOldHeaderTable(comparable(reference.rows), comparable(current));
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
   eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer, table.cases);
   for (const line of table.evidence) console.log('TABELGEVAL ' + line);
-  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, ${table.other} anders`);
+  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, ${table.other} anders; ${scannerRefusals.size} flag-aan-routes apart exact als E6-scannerweigering getoetst`);
 }
 
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────
