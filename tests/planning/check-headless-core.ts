@@ -323,6 +323,15 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
     error instanceof PlannerCoreError && error.code === 'IFC_WRITE_FAILED', String(error));
 }
 
+// De blokkade op de historische eigen kop (1132) is weg, ook voor echte kernuitvoer.
+for (const name of ['ohara', 'data']) {
+  const text = readFileSync(join(root, `tests/planning/fixtures/oude-tags/v2026.7.12-${name}-showcase-verbouwing-eengezinswoning.ifc`), 'utf8');
+  const doc = await openIfc(text);
+  const written = doc.toIfc();
+  ok(`8 ${name}: oude eigen planning schrijft en heropent met alle twintig taken`,
+    doc.schedule().counts.tasks === 20 && (await openIfc(written)).schedule().counts.tasks === 20);
+}
+
 if (diffs.length === 0) {
   console.log(`OK: headless kern — ${checks} checks groen (${files.length} voorbeeldbestanden)`);
 } else {

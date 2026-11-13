@@ -552,7 +552,7 @@ for (const flag of [false, true]) {
 
 // ── 5. Fixronde 2 (review van #864, ronde 2): de app leest het gekozen bestaande doel zelf ─────────────────────────
 // Besluit Trias (wrakko, 9 november 2026): bevat een bestaand doel dat de app kan lezen een gebouwmodel (een IFC met
-// `IfcProduct`/`IfcTypeProduct`), dan schrijft de app niet. Niet leesbaar ⇒ schrijven mag. Alleen met de flag aan.
+// `IfcProduct`/`IfcTypeProduct`), dan schrijft de app niet. PR 4: ook C/A/V of onleesbaar ⇒ weigeren; alleen met de flag aan.
 const modelIfc4 = fileBytes('tests/fixtures/ifc-foreign/model-ifc4.ifc');
 /** Sol's twee scenario's na herstel: dezelfde lengte met één ander byte, en een extra commentaarregel. */
 const oneByteChanged = (() => {
@@ -606,7 +606,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   pick = ownIfc;
   await R().exportAs('csv');
   eq('herstel 2: een bestaande eigen IFC (geen model) als doel mag', ownIfc.writes.length, 1);
-  // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+  // PR 4: niet leesbaar is met de flag aan geen bewijs voor een veilig doel.
   const locked = fakeHandle('vergrendeld.ifc', modelIfc4);
   locked.unreadableUntilWrite();
   pick = locked;
@@ -679,7 +679,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   await createFileAutoSaveController({ getState: () => store.getState(), enabled: () => true }).flush();
   eq('AutoSave: een eigen doel dat nu een model bevat: niets geschreven, gewijzigd, één melding',
     [own.writables(), own.text() === dec(modelIfc4), store.getState().isDirty, noticeCount(store, TARGET_AUTOSAVE)], [0, true, true, 1]);
-  // Niet leesbaar ⇒ AutoSave mag.
+  // PR 4: ook AutoSave weigert een onleesbaar bestaand doel.
   const locked = fakeHandle('eigen-3.ifc', showcase);
   const store3 = await open('eigen-3.ifc', showcase, { kind: 'handle', handle: locked.handle });
   store3.getState().setAutoSaveToFile(true);
@@ -759,7 +759,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     await S().saveFile();
     eq('Tauri 2: Ctrl+S naar het eigen bestand met nu een model geweigerd', [sha(readFileSync(ownPath)), S().isDirty],
       [sha(modelIfc4), true]);
-    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    // PR 4: niet leesbaar is met de flag aan geen bewijs voor een veilig doel.
     ipc.faults.readError = new Error('Input/output error (os error 5)');
     await S().saveFile();
     ipc.faults.readError = null;
@@ -1132,9 +1132,9 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
 {
   const modelText = dec(modelIfc4);
   const ownText = dec(showcase);
-  type Refuse = 'model' | 'unreadable' | null;
+  type Refuse = 'model' | 'foreign' | 'unreadable' | null;
   const targets: Array<{ name: string; bytes: Uint8Array; refuse: Refuse }> = [
-    { name: 'externe-pset-zonder-model', bytes: externalPset, refuse: 'model' },
+    { name: 'externe-pset-zonder-model', bytes: externalPset, refuse: 'foreign' },
     { name: 'terra', bytes: enc.encode(terraFile(modelText)), refuse: 'unreadable' },
     { name: 'sol', bytes: enc.encode(solFile(modelText)), refuse: 'unreadable' },
     { name: 'sol-alles', bytes: enc.encode(solFileAllSplit(modelText)), refuse: 'unreadable' },
@@ -1142,7 +1142,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     // Ronde 6 (besluit Trias): een STEP-bestand waarin de app geen DATA-sectie vindt, weigert als doel.
     { name: 'zonder-data', bytes: enc.encode(`${ownText.slice(0, ownText.indexOf('\nDATA;') + 1)}END-ISO-10303-21;\n`), refuse: 'unreadable' },
     { name: 'commentaar', bytes: enc.encode(commentFile(ownText)), refuse: null },
-    { name: 'string', bytes: enc.encode(stringFile(ownText)), refuse: 'model' },
+    { name: 'string', bytes: enc.encode(stringFile(ownText)), refuse: 'foreign' },
     // Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las de doelcontrole (zoals `readIFC`) maar
     // tot de eerste `ENDSEC;` en gaf hij "no-model": Opslaan als schreef de planning over het model heen.
     { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), refuse: 'model' as const },
@@ -1155,7 +1155,12 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     ...dataKopBestanden(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
       .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
     ...dataKopBestanden(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
-    ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
+    // PR 4: de hele C/A/V-indeling moet slagen. De 26 ondersteunde eigen kopvormen blijven schrijfbaar;
+    // de 16 al als scannerWeigert benoemde vormen krijgen 'unreadable' (96 routeasserties, knownbug 1134).
+    // Dit zijn gemaakte vormen: kleine letters buiten de norm, of de bestaande scannergrens bij afdruk-/stuurtekens
+    // en ANCHOR. De gewone lezer en de route met de flag uit veranderen niet.
+    ...dataKopBestanden(ownText, 'scanner').map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
+    ...dataKopBestanden(ownText, 'scannerWeigert').map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
     // #916: alle 13 kapotte naamvormen onder de huidige IFC4X3_ADD2-kop vallen buiten het exact gemeten oude
     // LF/IFC4X3-sjabloon. De 12 eerder toegestane vormen worden unreadable; het regeleinde bleef al geweigerd.
     // De echte oude fixtures en de geldige DATA-kopvormen hierboven blijven doelen.
@@ -1344,6 +1349,8 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       const alias = join(dir, `${name}-link.ifc`);
       writeFileSync(target, bytes);
       symlinkSync(target, alias);
+      const csvAlias = join(dir, `${name}-link.csv`);
+      symlinkSync(target, csvAlias);
       for (const route of ['Opslaan als', 'IFC-export', 'CSV-export', 'pool-project', 'pool-bibliotheek', 'bibliotheek', 'dev-bridge'] as const) {
         const store = await open('eigen.ifc', showcase, null);
         const S = () => store.getState();
@@ -1351,7 +1358,9 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
         const companyId = S().seedDemoLibrary();
         S().setProject({ companyId, companyName: 'Proefbedrijf' });
         const projectPath = join(dir, `${name}-${route}-nieuw.ifc`);
-        answers = route === 'pool-bibliotheek' ? [projectPath, alias] : [alias];
+        // De kiezer normaliseert de extensie; ook de CSV-route moet de bestaande IFC-bytes raken.
+        const chosen = route === 'CSV-export' ? csvAlias : alias;
+        answers = route === 'pool-bibliotheek' ? [projectPath, chosen] : [chosen];
         const before = ipc.calls.length;
         if (route === 'Opslaan als') await S().saveFileAs();
         else if (route === 'IFC-export') await S().exportAs('ifc');

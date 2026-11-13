@@ -1189,7 +1189,7 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assert(brokenError.error.includes('cannot read reliably') && brokenError.error.includes('another path'),
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(new TextDecoder().decode(binFiles.get(brokenPath)), brokenText, 'het bestand met de kapotte kop is niet veranderd');
-    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    // PR 4: ook de MCP-route weigert een onleesbaar bestaand doel.
     fakeFs.scanTarget = async () => { throw new Error('leesfout'); };
     const unreadable = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
     assertEq(unreadable.code, 'VALIDATION', 'leesfout weigert');

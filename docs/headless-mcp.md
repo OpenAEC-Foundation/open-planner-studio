@@ -147,8 +147,9 @@ lopende desktop-app. `createNodeFileFs` levert daarvoor `scanTarget` en `protect
 via dezelfde root-, realpath-, mapobject- en `O_NOFOLLOW`-grenzen als de gewone leesroute. `overwrite: true` heft
 de inhoudsweigering niet op. Nieuwe bestanden en volledig eigen IFC-uitvoer blijven schrijfbaar. Een lees-/scanfout
 weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanForeign` (C/A/V), met de bestaande
-300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. **Bouwgrens:** de echte oude OPS-fixture met
-`O'Hara Tower` weigert nu ook; knownbug 1132 blokkeert het afronden van deze wijziging.
+300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. De gemeten oude eigen kop gebruikt de
+gedeelde herkenning; de ongewijzigde v2026.7.12-fixtures met een apostrof of DATA; in de naam blijven gewone doelen.
+De zestien gemaakte kopvormen die de bestaande scanner niet ondersteunt, weigeren veilig (knownbug 1134).
 
 Lokaal kan `OPS_HEADLESS_SOURCE_ONLY=1 bash tests/mcp/run.sh cases-headless-server.ts` de bron-/HTTP-proeven uitvoeren
 zonder de zelfstandige bundel te bouwen. Zonder die variabele blijft deel B volledig onderdeel van CI.

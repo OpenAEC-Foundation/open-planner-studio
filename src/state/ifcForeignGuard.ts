@@ -130,9 +130,9 @@ export interface WriteTargetDeps {
  * schrijven. Weigert:
  *  1. het bronbestand van een open document met een vreemd deel (fixronde 1: handle, pad of bestandsidentiteit,
  *     site-id; na herstel of uit een MCP-backup ook dezelfde lengte en SHA-256 als die bron);
- *  2. met de flag `ifcForeignContent` aan: een bestaand doel dat zelf een gebouwmodel bevat (fixronde 2, besluit Trias,
+ *  2. met de flag `ifcForeignContent` aan: een bestaand doel dat zelf een gebouwmodel of C/A/V-inhoud bevat (besluit Trias,
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
- *     ('unreadable-target', review van #870). Een doel dat de app niet kan openen of lezen (download, nieuw pad) mag. Met
+ *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
  * Meldt niets: de aanroeper kiest de melding. Geeft de reden van de weigering, of `null` als het schrijven mag.
  */

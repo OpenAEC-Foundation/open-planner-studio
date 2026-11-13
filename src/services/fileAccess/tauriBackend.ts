@@ -15,7 +15,7 @@ export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
  * `open`/`read`/`seek` (toegestaan via `fs:allow-home-read-recursive`, dat `read-all` bevat), tot de uitkomst vaststaat.
  * Elk stuk krijgt een eigen buffer: de lezer houdt stukken vast om terug te spoelen. `seek` leest opnieuw vanaf een
  * positie (een mislukte entiteit, of de tweede lezing vanaf het regel-verankerde `DATA;`).
- * `null` als het bestand niet te openen is (bestaat nog niet, geen rechten): dan is het doel niet leesbaar.
+ * `null` uitsluitend bij bewezen ontbreken. Een bestaand of onzeker doel met een leesfout is 'unreadable'.
  */
 export async function scanTargetPathTauri(path: string): Promise<TargetForeignScan | null> {
   const { open, stat, SeekMode } = await import('@tauri-apps/plugin-fs');

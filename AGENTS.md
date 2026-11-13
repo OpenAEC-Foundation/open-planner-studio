@@ -264,7 +264,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   tools confined to `--root` (lexical + exact `realpath` check, operations run synchronously relative to the checked folder
   object via `chdir` + native `realpath('.')`, `O_NOFOLLOW`;
   atomic save with no direct-write fallback), content checks of existing write targets independent of the app flag
-  (`scanForeign` C/A/V; unreadable targets refused, legacy own-header blocker 1132), no replacing of an existing file while the desktop app runs (`appLock.ts`
+  (`scanForeign` C/A/V; unreadable targets refused, historical own headers use the shared recognition), no replacing of an existing file while the desktop app runs (`appLock.ts`
   reads `open-files*.json` from the app's data folders or `--discovery-dir` on every write), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
   MCP backups in its own data folder. It reuses the
   dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams

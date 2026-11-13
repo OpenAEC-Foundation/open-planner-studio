@@ -94,7 +94,7 @@ export interface McpFileFs extends FileIdentityFs {
   confine?(path: string): Promise<string | null>;
   /**
    * Optioneel (#804 fixronde 2): een bestaand bestand als stroom lezen voor de doelcontrole (bevat het een
-   * gebouwmodel?); `null` = niet leesbaar. Zonder deze functie is het doel niet leesbaar en mag het schrijven door.
+   * model of vreemd deel?); `null` = bewezen ontbrekend. Zonder lezer weigert een inhoudscontrole veilig.
    */
   scanTarget?(path: string): Promise<TargetForeignScan | null>;
 }
