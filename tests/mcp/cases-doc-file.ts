@@ -1111,6 +1111,13 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
 // leest import_schedule IFC als bytes, zoals Bestand → Openen.
 test('export_ifc: weigert een document met een vreemd deel, en import_schedule leest met de flag als bytes (#804 fase 1a)', async () => {
   const fakeFs = installFakeFs();
+  // De inhoudslezer hoort ook bij de proef naar een nieuw doel: alleen bewezen afwezig is toestemming.
+  const scanned: string[] = [];
+  fakeFs.scanTarget = async (p) => {
+    scanned.push(p);
+    const bytes = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : undefined);
+    return bytes ? scanForeignTargetBytes(bytes) : null;
+  };
   resetToSingleEmptyDocument();
   loadSmallProject('Met model');
   const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
@@ -1152,16 +1159,10 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
 
     // Fixronde 2: met de flag ook niet over een bestaand bestand met een gebouwmodel dat niet open is (de app leest het
-    // doel als stroom). Een bestaande eigen IFC mag; een doel dat de app niet kan lezen ook.
+    // doel als stroom). Een bestaande eigen IFC mag; een onleesbaar doel weigert.
     const otherModelPath = `${HOME}/ander-model.ifc`;
     const otherModel = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc')));
     setBinaryFile(otherModelPath, otherModel);
-    const scanned: string[] = [];
-    fakeFs.scanTarget = async (p) => {
-      scanned.push(p);
-      const bytes = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : undefined);
-      return bytes ? scanForeignTargetBytes(bytes) : null;
-    };
     const modelError = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
     assertEq(modelError.code, 'VALIDATION', 'een bestaand modelbestand ⇒ validatiefout');
     assert(modelError.error.includes('already contains a building model') && modelError.error.includes('another path'),
