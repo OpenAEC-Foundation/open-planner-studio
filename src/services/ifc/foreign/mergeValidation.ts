@@ -4,7 +4,8 @@
  */
 import { classify, type Classification } from './classify';
 import { isRootLine, refsOutsideText } from './lossCheck';
-import { scanStep, type StepIndex } from './stepScanner';
+import type { StepIndex } from './stepScanner';
+import { scanForeignStep } from './oldOwnHeader';
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
 export function psetOwners(index: StepIndex, pset: number): number[] {
@@ -62,7 +63,7 @@ function structuralCounts(index: StepIndex): { dangling: Map<string, number>; gu
 export function validateMergeOutput(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array,
   bytes: Uint8Array): { index: StepIndex; classification: Classification; problems: string[] } {
   // Ook dubbele #ids en ongeldige STEP worden door de bestaande scanner geweigerd.
-  const index = scanStep(bytes), classification = classify(index), problems: string[] = [];
+  const index = scanForeignStep(bytes), classification = classify(index), problems: string[] = [];
   const preserved: number[] = [];
   for (let i = 0; i < source.count; i++) if (sourceClasses.classes[i] !== 1) preserved.push(i);
   const actual: number[] = [];
