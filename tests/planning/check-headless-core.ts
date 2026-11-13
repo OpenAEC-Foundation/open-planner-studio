@@ -308,6 +308,18 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ok('7f een voorbeeldbestand meldt niets bij het openen', example.openWarnings.length === 0, JSON.stringify(example.openWarnings));
 }
 
+// #804 fase 1c, T3: de kern en HTTP hebben nog een tekstcontract. Geen verliesgevende uitvoer van vreemd materiaal.
+{
+  const own = readFileSync(files[0], 'utf8');
+  const foreign = own.replace(/ENDSEC;\s*END-ISO-10303-21;/,
+    "#999997=IFCPROPERTYSINGLEVALUE('Extern',$,IFCLABEL('behouden'),$);\n"
+    + "#999998=IFCPROPERTYSET('0123456789012345678901',$,'ExternPakket',$,(#999997));\nENDSEC;\nEND-ISO-10303-21;");
+  for (const schema of ['IFC4X3_ADD2', 'IFC_ONBEKEND', 'IFC2X3']) {
+    const text = foreign.replace(/FILE_SCHEMA\(.*?\);/, `FILE_SCHEMA(('${schema}'));`);
+    ok(`vreemd tekstcontract ${schema}: geen uitvoer zonder behoud`, await codeOf(() => openIfc(text)) === 'IFC_READ_FAILED');
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK: headless kern — ${checks} checks groen (${files.length} voorbeeldbestanden)`);
 } else {

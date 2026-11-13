@@ -1,3 +1,5 @@
+import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { splitIfcSchemaPatch } from './ifcSchemaChoice';
 // De kern van "projectvelden wijzigen", gedeeld door `projectSlice.setProject` (UI) en de MCP-draft
 // `setProject` (AI-assistent): die twee moeten zich bij hetzelfde bewerkmoment identiek gedragen.
 // Wat per pad verschilt blijft bij de aanroeper: de no-op-guard en de undo-snapshot (UI),
@@ -33,13 +35,15 @@ export interface ProjectPatchOutcome {
  * documentcontract). De klem-mechaniek zelf zit in `clampProjectStartAnchors`.
  */
 export function applyProjectPatch(
-  s: DefaultWorkRuleSwitchState & { sequences: Sequence[]; taskTypesVisible: boolean },
+  s: DefaultWorkRuleSwitchState & { sequences: Sequence[]; taskTypesVisible: boolean; ifcSource?: IfcSource | null },
   updates: Partial<Project>,
   clear: readonly ClearableProjectKey[] = [],
 ): ProjectPatchOutcome {
   const prevStartDate = s.project.startDate;
   const previousDefault = s.project.defaultWorkRule;
-  Object.assign(s.project, updates);
+  // Ook de MCP-draft gebruikt deze patch rechtstreeks: een bronkop mag nooit via metadata wijzigen.
+  const metadata = hasForeignContent(s.ifcSource) ? splitIfcSchemaPatch(updates, s.project).rest : updates;
+  Object.assign(s.project, metadata);
   for (const key of clear) delete s.project[key];
   s.project.modifiedAt = new Date().toISOString();
   // Een expliciete projectkeuze ontsluit de velden, net als een typekeuze op een taak.

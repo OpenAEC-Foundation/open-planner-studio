@@ -247,7 +247,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `appStoreFactory.ts` and imports no value from `appStore.ts` (`verify:store-boundaries`); the build fails if
   React, Tauri, the singleton or the i18n UI config end up in the bundle. `api.ts` imports nothing and is the
   contract: a change there is a contract change (`docs/headless-kern.md`). Guards: `check-headless-core.ts`
-  (core = app for every example) and `verify:core-package`.
+  (core = app for every example) and `verify:core-package`. The text-only core/HTTP refuses foreign IFC content
+  (including external psets without a building model) with `IFC_READ_FAILED` before opening; public byte contracts remain phase 2 of #804.
   The HTTP API on top of it (`headless/server/`, contract `openapi.yaml`, container `Dockerfile`, AWS ECS
   Fargate template `deploy/aws/ecs-fargate.yaml`) is tested by `.github/workflows/headless-api.yml`
   (local server + container + smoke test, `cfn-lint`), not by `verify`. Detail: `docs/headless-api.md`.

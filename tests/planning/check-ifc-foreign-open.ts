@@ -9,7 +9,7 @@
 //   5. met de flag en een vreemd deel weigeren Opslaan, Opslaan als, de IFC-export en de pool-export, met de melding;
 //   6. de bronbytes en het model zitten niet in de herstelsnapshot, de MCP-backup en de undo-snapshot; het
 //      herstelmanifest krijgt geen opslagdoel; IFC-paneel (`applyProjectEdit`), kopie en undo houden de bron;
-//   7. afwijking 7 (spec §4.9, "v21, fase 1a"): weigert de scanner de bytes, dan de huidige route; ook de grens van
+//   7. veilige terugval (fase 1c, §4.11): alleen bewezen eigen planning; ook de grens van
 //      knownbug 1007 (`#2147483647` mag, `#2147483648` niet) en het schema (IFC2X3 met model blijft geweigerd);
 //   8. de Worker en de terugval zonder Worker geven hetzelfde; een transportfout valt terug, een fout in de indeling niet.
 // Exit 0 = alles groen.
@@ -46,6 +46,7 @@ const { ifcSaveBlocked, recoverySaveTarget } = await import('@/state/ifcForeignG
 const { capturePayload } = await import('@/state/documentContract');
 const { createSnapshot } = await import('@/state/snapshot');
 type Store = ReturnType<typeof createAppStoreContext>['store'];
+const contexts = new WeakMap<Store, ReturnType<typeof createAppStoreContext>>();
 type ForeignScanWorker = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanWorker;
 
 let checks = 0;
@@ -78,7 +79,9 @@ ok('flag: met de testkeuze aan', ifcForeignContentEnabled({ ifcForeignContent: t
 /** Open `bytes` als Bestand → Openen in een verse store (of `into`), met dezelfde leeskeuze als de bestandslaag. */
 async function open(flagOn: boolean, name: string, bytes: Uint8Array, into?: Store): Promise<Store> {
   reseed(0x804);
-  const store = into ?? createAppStoreContext().store;
+  const context = into ? undefined : createAppStoreContext();
+  const store = into ?? context!.store;
+  if (context) contexts.set(store, context);
   store.setState(s => { s.ui.featureFlags = flagOn ? { ifcForeignContent: true } : {}; });
   const asBytes = readsAsBytes(name, { ifcBytes: flagOn });
   await store.getState().openOpenedFile({ name, content: asBytes ? '' : dec(bytes), ...(asBytes ? { bytes } : {}), ref: null });
@@ -420,6 +423,69 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
       }
     }
   }
+  // Verlaag alleen via de bestaande leesopties: geen bestand van 300 MiB nodig. Het integratiebewijs
+  // onder /tmp verlaagt daarnaast tijdelijk de constante en opent dezelfde gevallen via openOpenedFile.
+  for (const foreign of [false, true]) {
+    const bytes = enc.encode(foreign ? withPset(plain) : plain);
+    const value = await readIfcBytesDetailed(bytes, {}, { maxBytes: 1 }).catch((e: unknown) => e);
+    if (foreign) {
+      const e = value as { code?: string; fallback?: { kind: string } };
+      eq('te groot vreemd: getypeerd geweigerd', [e.code, e.fallback?.kind], ['IFC_FOREIGN_OPEN_REFUSED', 'te-groot']);
+    } else {
+      const r = value as Awaited<ReturnType<typeof readIfcBytesDetailed>>;
+      eq('te groot eigen: bewezen gewone route', [r.fallback?.kind, r.result?.ifcSource], ['te-groot', undefined]);
+      const store = createAppStoreContext().store;
+      store.getState().openAsDocument(r.result, { name: 'groot-eigen.ifc', ref: null });
+      ok('te groot eigen: IFC-opslag toegestaan', !ifcSaveBlocked(store.getState()));
+      eq('te groot eigen: zelfde opslag als main', saved(store), saved(await open(false, 'groot-eigen.ifc', bytes)));
+    }
+  }
+  // Dezelfde hele DATA-staart met een kapotte oude kop: zonder vreemd deel bruikbaar, met vreemd deel geweigerd.
+  for (const foreign of [false, true]) {
+    const malformed = (foreign ? withPset(plain) : plain).replace(/FILE_NAME\(.*?\);/, "FILE_NAME('O'Hara',$,$,$,$,$,$);");
+    const bytes = enc.encode(malformed);
+    const off = await open(false, 'scanner-uit.ifc', bytes);
+    const on = await open(true, 'scanner-aan.ifc', bytes);
+    ok(`scanner ${foreign}: main opent`, opened(off, 'scanner-uit.ifc'));
+    eq(`scanner ${foreign}: veilige uitkomst met flag`, opened(on, 'scanner-aan.ifc'), !foreign);
+    if (!foreign) {
+      ok('scanner eigen: opslag blijft vrij', !ifcSaveBlocked(on.getState()));
+      eq('scanner eigen: gewone opslag bytegelijk', saved(on), saved(off));
+    }
+    // IFC2X3 blijft de expliciete uitzondering: planning met melding, de modelweigering is hieronder beproefd.
+    const legacy = enc.encode((foreign ? withPset(plain) : plain).replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));"));
+    const legacyOn = await open(true, 'legacy.ifc', legacy);
+    const legacyOff = await open(false, 'legacy.ifc', legacy);
+    ok(`IFC2X3 ${foreign}: met en zonder flag geopend`, opened(legacyOn, 'legacy.ifc') && opened(legacyOff, 'legacy.ifc'));
+    ok(`IFC2X3 ${foreign}: expliciete verliesmelding`, notices(legacyOn).some(n => n.messageKey === 'notifications.ifc2x3PlanningOnly' && n.sticky));
+    eq(`IFC2X3 ${foreign}: opslag zoals main`, saved(legacyOn), saved(legacyOff));
+  }
+  // Bestaande Worker-naad: alleen de selectie af laten wijken. De bytes, de lezer en de app-route blijven echt.
+  const originalWorker = globalThis.Worker;
+  try {
+    for (const foreign of [false, true]) {
+      class DifferentSelectionWorker {
+        onmessage: ((event: { data: unknown }) => void) | null = null;
+        onerror = null;
+        onmessageerror = null;
+        terminate() {}
+        postMessage(msg: { id: number; bytes: Uint8Array }) {
+          const outcome = scanForeign(msg.bytes);
+          if (!outcome.ok) throw new Error(outcome.message);
+          const data = { id: msg.id, outcome: { ...outcome, selection: { ...outcome.selection, resources: Int32Array.of(-1) } } };
+          queueMicrotask(() => this.onmessage?.({ data }));
+        }
+      }
+      globalThis.Worker = DifferentSelectionWorker as unknown as typeof Worker;
+      const bytes = enc.encode(foreign ? withPset(plain) : plain);
+      const on = await open(true, 'selectie-aan.ifc', bytes);
+      const off = await open(false, 'selectie-uit.ifc', bytes);
+      ok(`selectie ${foreign}: main opent`, opened(off, 'selectie-uit.ifc'));
+      eq(`selectie ${foreign}: veilige uitkomst met flag`, opened(on, 'selectie-aan.ifc'), !foreign);
+      if (foreign) eq('selectie vreemd: getypeerde melding', on.getState().ui.notifications[0]?.messageKey, 'notifications.ifcForeignOpenUnsafe');
+      else eq('selectie eigen: bytegelijk', saved(on), saved(off));
+    }
+  } finally { globalThis.Worker = originalWorker; }
   const { ifcSchemaQuestionFor, ifcSchemaBlocksSilentWrite } = await import('@/services/ifc/ifcSchemaQuestion');
   for (const schema of ['IFC4', 'IFC4X3', 'IFC4X3_ADD1', 'IFC4X3_ADD2', 'IFC4X3_TC1']) {
     const bytes = enc.encode(withPset(plain.replace(/FILE_SCHEMA\(.*?\);/, `FILE_SCHEMA(('${schema}'));`)));
@@ -428,11 +494,26 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
     const before = S().project.ifcSchema;
     const source = S().ifcSource;
     eq(`${schema}: letterlijke kop in bron`, source?.schemaName, schema);
-    eq(`${schema}: geen schemavraag`, ifcSchemaQuestionFor(S().project, source), null);
+    eq(`${schema}: geen schemavraag`, ifcSchemaQuestionFor({ ifcSchemaUnconfirmed: schema === 'IFC4X3_ADD2' ? 'IFC4' : schema }, source), null);
     ok(`${schema}: stille schemacontrole leest bron`, !ifcSchemaBlocksSilentWrite({ ifcSchemaUnconfirmed: 'IFC2X3' }, source));
     ok(`${schema}: directe schemakeuze geweigerd`, !S().setIfcSchema(before === 'IFC4' ? 'IFC4X3' : 'IFC4'));
     S().setProject({ ifcSchema: before === 'IFC4' ? 'IFC4X3' : 'IFC4', name: 'Andere naam' });
     eq(`${schema}: projectpatch behoudt schema`, S().project.ifcSchema, before);
+    S().applyProjectInfo({ ifcSchema: before === 'IFC4' ? 'IFC4X3' : 'IFC4' }, undefined);
+    const { createMcpTransactions } = await import('@/state/runtime/createMcpTransactions');
+    const transactions = createMcpTransactions(contexts.get(store)!);
+    const mcp = transactions.run(() => {
+      transactions.draft.setProject({ ifcSchema: before === 'IFC4' ? 'IFC4X3' : 'IFC4', name: 'Via MCP' });
+    });
+    ok(`${schema}: MCP-draft voert metadata uit`, mcp.ok && S().project.name === 'Via MCP');
+    eq(`${schema}: MCP-draft bewaart schema`, S().project.ifcSchema, before);
+    const { makeMcpContext } = await import('../mcp/harness');
+    const { handleMcpMessage } = await import('@/services/mcp/dispatcher');
+    const response = JSON.parse(await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call',
+      params: { name: 'planner_update_project', arguments: { ifcSchema: 'IFC4', name: 'Ongeoorloofd' } },
+    }), makeMcpContext(contexts.get(store)!)));
+    ok(`${schema}: MCP-tool weigert een schemaparameter`, response.error !== undefined || response.result?.isError === true);
+    eq(`${schema}: MCP-tool wijzigt geen schema`, S().project.ifcSchema, before);
     S().undo(); S().redo();
     eq(`${schema}: undo en redo behouden schema en bron`, [S().project.ifcSchema, S().ifcSource === source], [before, true]);
     ok(`${schema}: opslagblokkade blijft dicht`, ifcSaveBlocked(S()));
@@ -441,7 +522,13 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   }
 }
 
-// ── 7. Afwijking 7: weigert de scanner, dan de huidige route ───────────────────────────────────────────────────
+const component = readFileSync(join(ROOT, 'src/components/settings/ProjectInfoPanelContent.tsx'), 'utf8');
+ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijke kop',
+  component.includes('schemaLocked = !isNew && hasForeignContent(ifcSource)')
+  && component.includes('disabled={schemaLocked}') && component.includes('schemaLocked ? ifcSource!.schemaName')
+  && component.includes("tMenu('projectInfo.ifcSchema.foreignLocked')"));
+
+// ── 7. Grenzen van de scanner: geen onbeveiligde terugval ───────────────────────────────────────────────────
 {
   const showcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
   /** Een losse persoon vlak vóór `ENDSEC;` van de DATA-sectie. */

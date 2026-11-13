@@ -56,7 +56,10 @@ export class IfcForeignOpenError extends Error {
 }
 
 /** De Worker-keuze voor tests, en de herstelnaad voor een XER-archiefverwijzing (crashherstel, zoals de huidige route). */
-export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'>;
+export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> & {
+  /** Proefnaad binnen de bestaande leesopties: alleen lager dan de productiegrens, nooit hoger. */
+  maxBytes?: number;
+};
 
 /** Open IFC-bytes via de bytes-route (`readIfcBytesDetailed`); de open-routes gebruiken deze vorm. */
 export async function readIfcBytes(bytes: Uint8Array, labels: ImportLabels = {}, opts: IfcBytesRouteOptions = {}): Promise<ImportResult> {
@@ -77,7 +80,7 @@ async function currentRoute(
     return { result: { ...result, ifcLegacySchemaLoss: true }, fallback };
   }
   let scan = knownScan ?? await runForeignScan(bytes, opts);
-  if (!scan.ok && fallback.kind === 'scanner') {
+  if (!scan.ok) {
     const at = indexOfStepDataSection(text);
     if (at >= 0) {
       scan = scanForeign(new TextEncoder().encode("ISO-10303-21;\nHEADER;\nENDSEC;\n" + text.slice(at)));
@@ -97,7 +100,7 @@ export async function readIfcBytesDetailed(
   labels: ImportLabels = {},
   opts: IfcBytesRouteOptions = {},
 ): Promise<IfcBytesRead> {
-  if (bytes.length > IFC_BYTES_ROUTE_MAX_BYTES) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
+  if (bytes.length > Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES)) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
   const scan = await runForeignScan(bytes, opts);
   if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message });
 

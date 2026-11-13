@@ -257,3 +257,7 @@ kernbouw, `headless/`, `deploy/aws/`, de lockfile of de workflow raakt:
 - Een Lambda-variant. Die is bewust niet gekozen (zie boven).
 - Publicatie van de image naar een register. De CI bouwt en test de image, maar pusht hem niet.
 - Meer invoerformaten dan IFC, en bewerkingen op de planning. Zie [headless-kern.md](headless-kern.md).
+
+De HTTP-worker gebruikt dezelfde tekstkern. IFC met een gebouwmodel of andere vreemde gegevens
+(ook alleen een externe pset) wordt vóór een uitvoer geweigerd: `IFC_READ_FAILED`, HTTP 422. Volledig
+behoud via `application/octet-stream` hoort bij #804 fase 2; de huidige HTTP-route ondersteunt dat niet.

@@ -34,3 +34,11 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een bestand met een ander schema in de kop vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen; de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid).
+
+Met `ifcForeignContent` en een vreemd deel ligt de letterlijke kopnaam vast in `ifcSource.schemaName`.
+Projectinstellingen toont de keuze uit met een reden; store- en MCP-projectpatches kunnen haar niet
+veranderen, undo/redo behoudt de live bestandskeuze en de schemavraag vervalt. Stille opslag leest de
+bron; `ifcSaveBlocked` blijft alle vreemde IFC-opslag weigeren tot aansluit-PR 11. Een terugval zonder
+bron is alleen toegestaan na een volledige indeling zonder vreemd deel; onzekere invoer wordt
+getypeerd geweigerd. IFC2X3 zonder model houdt de ontwerpuitzondering met een openingsmelding.
+De tekstkern/HTTP weigert vreemd materiaal tot de publieke bytecontracten van fase 2 bestaan.

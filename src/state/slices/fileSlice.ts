@@ -1720,7 +1720,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       if (results.some(result => result.ifcLegacySchemaLoss)) {
-        get().notify({ severity: 'warning', sticky: true, messageKey: 'notifications.ifc2x3PlanningOnly' });
+        get().notify({ severity: 'info', sticky: true, messageKey: 'notifications.ifc2x3PlanningOnly' });
       }
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;

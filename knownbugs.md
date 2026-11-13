@@ -1672,16 +1672,6 @@ en noem het in je rapport of PR-tekst.
      Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
      Gevonden in #804 fase 0. — B
 
-1011. **Eis voor #804 fase 1c: een onbekend schema met een vreemd deel gaat stil verloren bij opslaan.** Met de flag
-     `ifcForeignContent` neemt `readIfcBytesDetailed` bij een schema buiten `FOREIGN_CONTENT_SCHEMAS` (en zonder
-     schema in de kop) de huidige route, zonder `ifcSource` (`src/services/ifc/foreign/ifcBytesRoute.ts:36, 83-84`).
-     Zonder `IfcProduct` opent zo'n bestand dan zoals op main, en opslaan schrijft alleen de planning: vreemde
-     gegevens (een planning van een ander programma, onbekende psets) gaan stil verloren. Dat is niet slechter dan
-     main, en in 1a weigert de app opslaan nog niet op deze route. Ontwerp §4.11 zegt: "met een vreemd deel
-     geweigerd". Eis (wrakko, 9 november 2026): zodra 1c opslaan met een vreemd deel aanzet, mag geen vreemd deel stil
-     verloren gaan, ook niet bij een onbekend schema; anders is 1c niet klaar. Richting: deel ook dit bestand in, en
-     weiger of meld zoals §4.11. Uit #864 (fase 1a). — B
-
 1012. **Niets toetst na de build dat de XER-lezer alleen op verzoek laadt.** `tests/planning/check-xer-chunk-boundary.ts`
      leest alleen de bron: een import uit `@/services/xer/` mag alleen met `await import(` in `formatRegistry.ts` en
      `src/services/ifc/ifcReadWithXer.ts`. De gebouwde importgrafiek toetst hij niet. De Ubuntu-build van `a11864e19`
@@ -2242,6 +2232,14 @@ en noem het in je rapport of PR-tekst.
      Vastgesteld bij de onafhankelijke broncontrole van PR #698. — B
 
 ## Teksten en helpteksten
+
+1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
+     `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
+     de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`
+     in `ifcBytesRoute.ts` is 300 MiB. PR 2 van fase 1c beveiligt die terugval zonder de grens te veranderen.
+     VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
+     grens zonder meting. — B
+
 
 221. **Mogelijk onjuiste Portugese nulvorm bij aantalmeldingen.** Een nalezer meldde tijdens de
     releasevoorbereiding van 2026-10-24 dat het `pt`-pakket nul onder `one` indeelt, terwijl de stijl
