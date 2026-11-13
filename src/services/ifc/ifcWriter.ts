@@ -1365,6 +1365,9 @@ function calendarClock(minutes: number, endOfDay = false): string {
 function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: number }, binding: string, scalarSides: readonly ('start' | 'end')[] = []): [string, string] {
   const source = cal.ifcTimePeriods?.find(p => p.binding === binding);
   const scalarSource = cal.ifcTimePeriods?.find(p => p.binding === 'scalar');
+  // De bronklok blijft alleen op de letterlijke hele werkdag bij openen, of als de geschreven
+  // periode dezelfde lengte heeft als het plannerblok, binnen 1e-9 minuut (60 nanoseconde).
+  const SOURCE_PERIOD_TOLERANCE_MINUTES = 1e-9;
   const clock = (side: 'start' | 'end'): string => {
     const original = scalarSides.includes(side) ? scalarSource ?? source : source;
     const text = original?.[side === 'start' ? 'startText' : 'endText'];
@@ -1372,14 +1375,27 @@ function calendarPeriodClocks(cal: WorkCalendar, band: { start: number; end: num
       const unchanged = scalarSides.includes(side) && scalarSource !== undefined
         ? original[side === 'start' ? 'scalarStart' : 'scalarEnd'] === cal[side === 'start' ? 'workStartHour' : 'workEndHour']
         : original[side] === band[side];
-      if (unchanged) return text;
+      const samePeriod = original.scalarStart !== undefined && original.scalarEnd !== undefined
+        && band.start === original.scalarStart * 60 && band.end === original.scalarEnd * 60;
+      if (unchanged) {
+        if (side === 'start' || samePeriod) return text;
+        // Dezelfde kloklezing en omloop als de lezer: een einde op of vóór het begin gaat
+        // naar de volgende dag. Ook een miniem verschil kan anders bijna 24 uur worden.
+        const start = parseIfcClock(writtenStart)?.minutes ?? clockToMinutes(writtenStart);
+        const end = parseIfcClock(text)?.minutes ?? clockToMinutes(text);
+        if (start !== null && end !== null) {
+          const period = canonicalizeBands({ 1: [{ start, end }] }).bands.byWeekday[1][0];
+          if (Math.abs((period.end - period.start) - (band.end - band.start)) <= SOURCE_PERIOD_TOLERANCE_MINUTES) return text;
+        }
+      }
       // De gewijzigde grens heeft geen eigen zoneveld. Leen geen zone van een
       // andere dag, band of grens, en verwijder de oorspronkelijke zone niet stil.
       if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) throw new IfcCalendarTimePrecisionError(band[side]);
     }
     return calendarClock(band[side], side === 'end');
   };
-  return [clock('start'), clock('end')];
+  const writtenStart = clock('start');
+  return [writtenStart, clock('end')];
 }
 
 function writeCalendar(
@@ -1475,13 +1491,15 @@ function writeCalendar(
       const timePeriodId = writePeriod([startTime, endTime], '_timeperiod');
       timePeriodRefs = `#${timePeriodId}`;
       firstPeriod = [startTime, endTime];
-      // Leest de lezer deze ene periode zelf als afwijkend (een hele dag 00:00–24:00, of over
-      // middernacht; `canonicalizeBands`), dan promoveert hij de dagkalender zonder markering naar een
+      // Leest de lezer deze ene periode zelf als afwijkend (een hele dag 00:00–24:00, over
+      // middernacht, of een oude bandklok), dan promoveert hij de dagkalender zonder markering naar een
       // uurkalender, met de dagsom als uren per dag (0402ScheduleMSP.xml: 8 ⇒ 24). Zelfde toets als de
       // lezer, op dezelfde klokstrings.
       const s = clockToMinutes(startTime);
       const e = clockToMinutes(endTime);
-      scalarPeriodReadsAsHour = s != null && e != null && canonicalizeBands({ 1: [{ start: s, end: e }] }).deviates;
+      scalarPeriodReadsAsHour = parseIfcClock(startTime)?.legacyBand === true
+        || parseIfcClock(endTime)?.legacyBand === true
+        || (s != null && e != null && canonicalizeBands({ 1: [{ start: s, end: e }] }).deviates);
     }
     // WeekdayComponent en TimePeriods zijn OPTIONAL SET/LIST [1:?]: een lege lijst `()` is ongeldig,
     // dus leeg ⇒ `$` (een kalender zonder werkdagen, of een uurkalender zonder blokken). De lezer leest
@@ -1601,7 +1619,8 @@ function writtenWeekHoursPerDay(groups: readonly WeekBandGroup[]): number {
  *    een SCALAIRE kalender zijn (een urentaak gebruikt hem). IFC zelf ziet daar gewoon de lunchpauze
  *    (interop); de OPS-lezer weet zo dat de kalender scalair was en promoveert hem niet naar uur-modus.
  *    Ook bij een SCALAIRE kalender waarvan de lezer de ene periode zelf als afwijkend ziet (een hele dag
- *    00:00–24:00, of over middernacht; `scalarPeriodReadsAsHour`): zonder markering werd zo'n
+ *    00:00–24:00, over middernacht, of een oude bandklok volgens `parseIfcClock(...).legacyBand`;
+ *    `scalarPeriodReadsAsHour`): zonder markering werd zo'n
  *    dagkalender na heropenen een uurkalender met de dagsom als uren per dag.
  */
 function writeCalendarGenerationMeta(
