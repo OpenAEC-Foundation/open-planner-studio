@@ -152,6 +152,15 @@ const saved = await tryMerge(d, source);
     assert.match(numberProblem(reversed, duplicateBefore, reversed, back) ?? '', /task:blijft.*duration/,
       'Terra E20: omgekeerde dubbele regels bewaken beide precieze getallen');
   }
+  // Ook als de planner naast de volgorde de datums wijzigde, mogen oude numerieke waarden niet uit de bewaking vallen.
+  const editedDuplicates = structuredClone(reversed);
+  editedDuplicates.baselines![0].tasks.forEach(t => { t.start = '2027-03-01T09:00:00'; });
+  assert.equal(numberProblem(editedDuplicates, duplicateBefore, editedDuplicates, structuredClone(editedDuplicates)), undefined,
+    'dubbele regels met gewijzigde datums schrijven als de uitvoer exact gelijk blijft');
+  const ambiguousNumber = structuredClone(editedDuplicates);
+  ambiguousNumber.baselines![0].tasks[0].duration = 2;
+  assert(numberProblem(editedDuplicates, duplicateBefore, editedDuplicates, ambiguousNumber),
+    'ook zonder geheel gelijke oude dubbele rij blijft een gewijzigd getal bewaakt');
   before.ifcGlobalIds = { ...before.ifcGlobalIds, 'task:eerste': ifcGuid('oud-intern-id-van-de-verdwenen-taak') };
   const orphaned = structuredClone(before);
   orphaned.tasks = orphaned.tasks.filter(t => t.id !== 'eerste');

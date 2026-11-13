@@ -865,6 +865,7 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
       if (now === was && now === afterOpen && now !== back) return `${path}: ${now} → ${JSON.stringify(back)}`;
     } else if (Array.isArray(now)) {
       const reference = indexed(now, path);
+      const originalBefore = /^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path) ? indexed(was, path) : undefined;
       const before = indexed(was, path, reference), normalized = indexed(afterOpen, path, reference), actual = indexed(back, path, reference);
       const seen = new Map<string, number>();
       for (let index = 0; index < now.length; index++) {
@@ -872,6 +873,11 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
         seen.set(key, occurrence + 1);
         const itemPath = path === 'planning.tasks' ? `taak ${idOf(item)} (${field(item, 'name')})`
           : `${path}[${key}${occurrence ? `,${occurrence}` : ''}]`;
+        const candidates = originalBefore?.get(key);
+        // Bij niet meer herkenbare dubbele bronregels is een afwijkende uitvoer niet veilig te verklaren.
+        // Exacte uitvoer blijft toegestaan; anders conservatief weigeren, ook als de planner datums wijzigde.
+        if (candidates && candidates.length > 1 && !candidates.some(old => sameValue(old, item))
+          && !sameValue(normalized.get(key)?.[occurrence], actual.get(key)?.[occurrence])) return `${itemPath}: dubbele baselineregels niet eenduidig te koppelen aan een afwijkende uitvoer`;
         const problem = first(before.get(key)?.[occurrence], item, normalized.get(key)?.[occurrence], actual.get(key)?.[occurrence], itemPath, true);
         if (problem) return problem;
       }
