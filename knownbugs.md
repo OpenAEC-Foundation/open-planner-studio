@@ -3617,3 +3617,11 @@ en noem het in je rapport of PR-tekst.
      De 26 ondersteunde eigen kopvormen en de echte oude releasebestanden blijven schrijfbaar. Geen lexer- of
      lezerreparatie in #915; vlag uit blijft main. Hoort bij 1054/1061. Uit de bouw van #804 fase 1c PR 4,
      na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex). — B
+
+1135. **VERVOLG: de bestaande doelmeldingen zeggen ook bij alleen een externe pset nog 'gebouwmodel'.**
+     #915 beschermt met dezelfde weigering ook gesloten C/A/V-doelen zonder model. De drie sleutels
+     `ifcForeignTargetSave`, `ifcForeignTargetExport` en `ifcForeignTargetAutoSave` in nl/en `common.json`
+     noemen uitsluitend een building/gebouwmodel; de dev-bridge gebruikt dezelfde te smalle uitleg.
+     De weigering is veilig en noemt de juiste uitweg (een ander bestand); alleen de uitleg is te smal.
+     Tekst verbreden bij de aansluiting in fase 1c PR 11, vóór de flag aan mag; geen UI-tekstwijziging in
+     deze bouw-PR. Broncode en sleutelkeuze bevestigd bij de externe-psetproeven van #915, geen browserproef. — B

@@ -1386,6 +1386,19 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
         eq(`1c ${name} ${route}: getypeerde weigering`, reason, name === 'pset' ? 'foreign-content' : 'building-model');
       }
     }
+    // Ook een bestaand eigen bibliotheekbestand blijft een gewoon doel; geen vrijbrief op bestandsnaam.
+    const libraryStore = await open('eigen.ifc', showcase, null);
+    const libraryId = libraryStore.getState().seedDemoLibrary();
+    const library = libraryStore.getState().exportPoolIFC(libraryId)!;
+    const libraryPath = join(dir, 'eigen-bibliotheek.ifc');
+    writeFileSync(libraryPath, library);
+    answers = [libraryPath];
+    const libraryWrites = ipc.calls.length;
+    const libraryResult = await saveFileDialog('bibliotheek.ifc', library, [{ name: 'IFC', extensions: ['ifc'] }],
+      { refuseTarget: libraryStore.getState().foreignTargetCheck('export') });
+    ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', libraryResult !== null);
+    ok('1c: bestaande eigen bibliotheek echt geschreven', ipc.calls.slice(libraryWrites).some(c => c.command === 'plugin:fs|write'));
+    eq('1c: gewone bibliotheekwriter blijft bytegelijk', readFileSync(libraryPath, 'utf8'), library);
     eq('1c: alle echte bestanden gesloten', ipc.openHandles(), 0);
   } finally {
     ipc.dispose();
