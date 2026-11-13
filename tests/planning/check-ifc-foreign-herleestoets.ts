@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { generatedModel } from './ifcGeneratedModel';
 import { storeWith, loadStore } from './ifcAppRoute';
 import { readbackDifference } from './ifcReadbackEquality';
-import { writeIFC } from '@/services/ifc/ifcWriter';
+import { ifcGuid, writeIFC } from '@/services/ifc/ifcWriter';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
@@ -99,7 +99,7 @@ const saved = await tryMerge(d, source);
   const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'unchangedPlanningNumberProblem')!;
   assert(fn, 'de bestaande private getalbewaking is gevonden');
   const code = ts.transpile(fn.getText(ast), { target: ts.ScriptTarget.ES2022 });
-  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`) as
+  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`, { ifcGuid }) as
     (input: typeof opened, before: typeof opened, wanted: typeof opened, back: typeof opened) => string | undefined;
   const before = cloneDomain(opened);
   before.tasks = ['eerste', 'blijft', 'derde'].map(id => ({ ...structuredClone(before.tasks[0]), id, parentId: null, childIds: [] }));
@@ -122,13 +122,27 @@ const saved = await tryMerge(d, source);
     duplicates.at(-1)!.duration += 1e-12;
     if (!reorder) assert.match(numberProblem(input, before, input, duplicate) ?? '', /task:blijft,1.*duration/, 'dubbele taakregels vallen niet samen');
   }
+  before.ifcGlobalIds = { ...before.ifcGlobalIds, 'task:eerste': ifcGuid('oud-intern-id-van-de-verdwenen-taak') };
   const orphaned = structuredClone(before);
   orphaned.tasks = orphaned.tasks.filter(t => t.id !== 'eerste');
   const backOrphan = structuredClone(orphaned);
   backOrphan.baselines![0].tasks[0].taskId = 'oud-intern-id-van-de-verdwenen-taak';
   assert.equal(numberProblem(orphaned, before, orphaned, backOrphan), undefined, 'een verweesd bron-id veroorzaakt geen valse weigering');
   backOrphan.baselines![0].tasks[0].duration += 1e-12;
-  assert.match(numberProblem(orphaned, before, orphaned, backOrphan) ?? '', /index:0.*duration/, 'ook het verweesde getal houdt de bestaande exacte positietoets');
+  assert.match(numberProblem(orphaned, before, orphaned, backOrphan) ?? '', /task:eerste.*duration/, 'ook het verweesde getal is exact op zijn taak gekoppeld');
+  const ambiguousBefore = structuredClone(before);
+  ambiguousBefore.ifcGlobalIds = { ...ambiguousBefore.ifcGlobalIds, 'task:blijft': ambiguousBefore.ifcGlobalIds!['task:eerste'] };
+  const ambiguousBack = structuredClone(backOrphan);
+  ambiguousBack.baselines![0].tasks[0].duration = orphaned.baselines![0].tasks[0].duration;
+  assert.match(numberProblem(orphaned, ambiguousBefore, orphaned, ambiguousBack) ?? '', /task:eerste.*undefined/,
+    'een dubbele bron-GUID geeft geen willekeurige taakalias');
+  const onlyOrphans = structuredClone(before);
+  onlyOrphans.tasks = [];
+  onlyOrphans.baselines![0].tasks.shift();
+  const orphanBack = structuredClone(onlyOrphans);
+  orphanBack.baselines![0].tasks.find(t => t.taskId === 'derde')!.duration += 1e-12;
+  assert.match(numberProblem(onlyOrphans, before, onlyOrphans, orphanBack) ?? '', /task:derde.*duration/,
+    'ook verweesde regels blijven op taskId gekoppeld als de eerste regel vervalt');
   console.log('OK E20: baseline op taskId, eerste regel weg, andere volgorde en dubbele voorkomens');
 }
 

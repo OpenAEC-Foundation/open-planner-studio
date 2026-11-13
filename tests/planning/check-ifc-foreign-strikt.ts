@@ -1079,7 +1079,11 @@ for (const [name, bytes] of files) {
   for (const e of taskEdits) for (const p of projects) pairs.push([e, p]);
   for (let a = 0; a < taskEdits.length; a++) for (let b = a + 1; b < taskEdits.length; b++) pairs.push([taskEdits[a], taskEdits[b]]);
   for (const [e, f] of pairs) {
-    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, async (x) => { const first = await e.apply(x); return f.apply(first ?? x); });
+    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, async (x) => {
+      const first = await e.apply(x), afterFirst = first ?? x;
+      const second = await f.apply(afterFirst);
+      return second ?? afterFirst; // Een kale tweede patch mag de verse eerste payload niet laten vervallen.
+    });
     combos++;
     if (r.outcome === 'schrijft') combosWritten++;
     const parts = [alone.get(e.label)!, alone.get(f.label)!];

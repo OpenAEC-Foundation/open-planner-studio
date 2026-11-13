@@ -1065,10 +1065,12 @@ console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo 
   await store.getState().saveFile();
   eq('E25 begin met zone: schrijft', file.writes.length, 1);
   if (file.writes[0]) {
+    eq('E25 begin met zone: bronzone letterlijk behouden', hasSourceClocks(file.writes[0], '07:30:00+01:00', '18:00:00'), true);
     checkWrittenCalendar('E25 begin met zone', file.writes[0], draft);
     const again = createAppStoreContext().store;
     await again.getState().openOpenedFile({ name: 'begin-met-zone-heropend.ifc', content: file.writes[0], ref: null });
     eq('E25 begin met zone: volledig heropend', shape(again.getState().calendar), shape(draft));
+    eq('E25 begin met zone: volledig heropend met bronzone', again.getState().calendar.ifcTimePeriods?.some(p => p.startText === '07:30:00+01:00'), true);
   }
 }
 
@@ -1100,6 +1102,8 @@ console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo 
     const oldLine = `#${ix.id(time)}=${ix.type(time)}(${ix.argTokens(time)!.join(',')});`;
     const broken = saved.replace(oldLine, `#${ix.id(time)}=IFCTIMEPERIOD('09:00:00','17:00:00');`)
       .replace('ENDSEC;\nEND-ISO', `#99001=IFCPROPERTYSINGLEVALUE('WorkEndHour',$,IFCREAL(16),$);\n#99002=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$);\n#99003=IFCPROPERTYSET('0000000000000000000001',#6,'OPS_Calendar',$,(#99001,#99002));\n#99004=IFCRELDEFINESBYPROPERTIES('0000000000000000000002',#6,$,$,(#${ix.id(rawCalendar)}),#99003);\nENDSEC;\nEND-ISO`);
+    eq('E25 resource: gewone herlezing maskeert de gemaakte standaardfout volledig',
+      shape(readIFC(broken).resourceCalendars!.find(c => c.id === current.id)!), shape(draft));
     eq('E25 resource: OPS-markeringen maskeren de gemaakte standaardfout',
       effectiveWorkTimeBands(readIFC(broken).resourceCalendars!.find(c => c.id === current.id)!), effectiveWorkTimeBands(draft));
     const start = failures.length;
