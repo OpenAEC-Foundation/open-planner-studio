@@ -538,6 +538,16 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   assert.equal(opened.ifcSource?.foreign, true, '1103 opent met een vreemd deel');
   const source = opened.ifcSource!;
   for (const edit of [...plannerEdits(opened, 0), ...ordinaryEdits(opened)]) {
+    // E4 uit #917: alle geldige paren zijn hier al toegewezen; dit is geen uitgevoerde bewerking.
+    if (edit.notApplicable) {
+      assert.equal(edit.kind, 'toewijzing-erbij', '1103: uitsluitend de volle toewijzingen zijn niet toepasbaar');
+      assert.equal(edit.notApplicable, 'geen vrij taak/resource-paar dat de app toelaat');
+      await assert.rejects(() => applyEdit(edit, cloneDomain(opened)),
+        (e: unknown) => e instanceof EditNotAppliedError && e.outcome === 'niet-van-toepassing');
+      assert.deepEqual(bytes, before, '1103: ook een niet-toepasbare kandidaat bewaart de bron');
+      console.log('1103 GEVAL ' + JSON.stringify({ bewerking: edit.label, uitkomst: 'niet-van-toepassing', reden: edit.notApplicable }));
+      continue;
+    }
     const edited = await applyEdit(edit, cloneDomain(opened));
     const outcome = await tryMerge(edited, source);
     if (outcome.ok) {
