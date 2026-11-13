@@ -1,21 +1,82 @@
 // 1107: de open-stappen zijn verplicht en hun volledige uitkomst wordt getoetst.
 import assert from 'node:assert/strict';
+import { sameValue } from '@/utils/sameValue';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generatedModel } from './ifcGeneratedModel';
 import { storeWith, loadStore } from './ifcAppRoute';
 import { readbackDifference } from './ifcReadbackEquality';
-import { writeIFC } from '@/services/ifc/ifcWriter';
+import { ifcGuid, writeIFC } from '@/services/ifc/ifcWriter';
 import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, applyEdit, ordinaryEdits, plannerEdits, mergeProblems, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
+import { canon, cloneDomain, applyEdit, EditNotAppliedError, ordinaryEdits, plannerEdits, mergeProblems, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
 import { writeIfcMerge, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 
 const reseed = installDeterminism();
 const bytes = new Uint8Array(readFileSync(new URL('../fixtures/ifc-foreign/eigen-plus-model.ifc', import.meta.url)));
 const opened = await openForeign(bytes);
 const source = opened.ifcSource!;
+
+// E4: elke getelde handeling gebruikt een verse apppayload, inclusief WBS en bewerkingsherkomst.
+{
+  const input = cloneDomain(opened), template = input.tasks.find(t => !t.childIds.length)!;
+  input.tasks = [
+    ['fase-a', null, ['a', 'b']], ['a', 'fase-a', []], ['b', 'fase-a', []],
+    ['fase-c', null, ['c']], ['c', 'fase-c', []], ['los', null, []],
+  ].map(([id, parentId, childIds]) => ({ ...structuredClone(template), id: id as string, name: id as string,
+    parentId: parentId as string | null, childIds: childIds as string[], resourceIds: [], isMilestone: false }));
+  input.sequences = []; input.assignments = []; input.baselines = []; input.activeBaselineId = null;
+  input.importPristine = true;
+  input.project.wbsAutoNumber = true;
+  const before = structuredClone(input), kinds = new Set<string>();
+  for (const edit of [...plannerEdits(input), ...ordinaryEdits(input)]) {
+    const candidate = structuredClone(before), pristine = structuredClone(candidate);
+    const result = await applyEdit(edit, candidate);
+    kinds.add(edit.kind);
+    if (edit.kind === 'niets') continue; // De referentie zonder handeling blijft bewust kaal.
+    assert.deepEqual(candidate, pristine, `${edit.kind}: de actie muteert niet de aangeleverde payload`);
+    assert.notStrictEqual(result, candidate, `${edit.kind}: de hele verse payload komt terug`);
+    if (edit.kind === 'hernoemen') {
+      assert.equal(result.tasks.find(t => t.id === 'a')!.name, 'Hernoemd in 1b');
+      assert.equal(result.importPristine, undefined, 'de writerpayload laat de gewiste importvlag weg');
+    }
+    if (edit.kind === 'taak-erbij') {
+      assert.equal(result.tasks.length, before.tasks.length + 1);
+      const added = result.tasks.find(t => !before.tasks.some(old => old.id === t.id))!;
+      assert(added.id.startsWith('task-'), 'een nieuwe taak krijgt haar id van addTask');
+      assert(!added.resourceIds.length, 'een nieuwe taak kopieert geen bron-toewijzingen');
+    }
+    // Alleen de bedoelde wijziging telt; een verse maar inhoudelijk ongewijzigde payload is geen bewerking.
+    const taskId = edit.label.split(' ')[0];
+    const task = result.tasks.find(t => t.id === taskId), oldTask = before.tasks.find(t => t.id === taskId);
+    if (edit.kind === 'andere-ouder' || edit.kind === 'niveau-hoger') assert.notEqual(task?.parentId, oldTask?.parentId, edit.label);
+    if (edit.kind === 'volgorde-kinderen') assert.notDeepEqual(result.tasks.map(t => [t.id, t.childIds]), before.tasks.map(t => [t.id, t.childIds]), edit.label);
+    if (edit.kind === 'relatie-erbij') assert.equal(result.sequences.length, before.sequences.length + 1, 'relatie-erbij: de setter heeft echt toegevoegd');
+    if (edit.kind === 'taak-wissen') assert(!task && oldTask, 'taak-wissen: de taak is werkelijk weg');
+    if (edit.kind === 'toewijzing-erbij') assert.equal(result.assignments.length, before.assignments.length + 1, 'toewijzing-erbij: de setter heeft echt toegevoegd');
+    if (edit.kind === 'duur' || edit.kind === 'doorrekenen') assert.notEqual(task?.time.scheduleDuration, oldTask?.time.scheduleDuration, edit.label);
+    if (edit.kind === 'voortgang') assert.equal(task?.time.completion, 0.5, edit.label);
+    const ids = new Map(result.tasks.map(t => [t.id, t]));
+    for (const task of result.tasks) {
+      if (task.parentId) assert(ids.get(task.parentId)?.childIds.includes(task.id), 'ouder en kinderen blijven synchroon');
+      for (const child of task.childIds) assert.equal(ids.get(child)?.parentId, task.id);
+    }
+  }
+  assert.equal(kinds.size, 12, 'alle twaalf soorten handelingen zijn beproefd');
+  assert.deepEqual(input, before, 'elke handeling begon bij dezelfde ongewijzigde invoer');
+  const single = structuredClone(before);
+  single.tasks = [{ ...single.tasks[1], parentId: null }];
+  single.assignments = single.resources.map((r, i) => ({ id: `vol-${i}`, taskId: single.tasks[0].id, resourceId: r.id, unitsPerDay: 4 }));
+  for (const kind of ['relatie-erbij', 'toewijzing-erbij']) {
+    const edit = [...plannerEdits(single), ...ordinaryEdits(single)].find(e => e.kind === kind)!;
+    assert(edit.notApplicable, `${kind}: onmogelijke kandidaat wordt apart benoemd`);
+    await assert.rejects(() => applyEdit(edit, cloneDomain(single)),
+      (e: unknown) => e instanceof EditNotAppliedError && e.outcome === 'niet-van-toepassing');
+  }
+  console.log('OK E4: twaalf soorten werkelijk gewijzigde appacties; onmogelijke kandidaten apart');
+}
+
 const d = cloneDomain(opened);
 await assert.rejects(async () => {
   // Ook voor JS-aanroepers: zonder functie geen uitvoer, vóór de writer iets opbouwt.
@@ -24,6 +85,107 @@ await assert.rejects(async () => {
 }, (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases[0].kind === 'open-stappen-ontbreken');
 
 const saved = await tryMerge(d, source);
+// E23/E24: dezelfde fixture met een andere getypeerde weigering is rood; groepen volgen de uitkomst.
+{
+  const { matchesRefusal, tallyGroup, TALLY_GROUPS } = await import('./ifcMergeTellingKern');
+  const input = await openForeign(new Uint8Array(readFileSync(new URL('../fixtures/ifc-foreign/council/r7sol-vreemd-lid-bij-notitie.ifc', import.meta.url))));
+  const result = await tryMerge(cloneDomain(input), input.ifcSource!);
+  assert(!result.ok, 'de bekende, gemaakte lege-notitiefixture weigert');
+  const expected = { reason: 'lege notitielijst, knownbug 1101', cases: [
+    'niet-gedragen | 9111 | IFCPROPERTYSET #9111 (OPS_TaskNotes), argument 4 | 4 |  |  | 4 | false',
+    'niet-gedragen | 9110 | IFCPROPERTYSINGLEVALUE #9110 (Notes) | -1 | ontbreekt |  |  | false',
+  ] };
+  assert(matchesRefusal(result.error.cases, expected));
+  assert(matchesRefusal([...result.error.cases].reverse(), expected), 'meldingvolgorde is geen ander geval');
+  assert(!matchesRefusal([{ kind: 'planning-na-openen', detail: 'taak a.time.scheduleDuration: 1 → 2' }], expected),
+    'dezelfde fixture mag niet op een andere soort weigeren');
+  assert(!matchesRefusal(result.error.cases.map(c => ({ ...c, field: c.field ? { ...c.field, arg: 99 } : undefined })), expected),
+    'ook andere velden bij dezelfde soort zijn rood');
+  assert(!matchesRefusal([...result.error.cases, result.error.cases[0]], expected), 'dubbele meldingen blijven zichtbaar');
+  assert.equal(tallyGroup('weigert (planning-na-openen)'), TALLY_GROUPS[1], 'planning-na-openen komt in de weigeraarsgroep');
+  assert.equal(tallyGroup('schrijft'), TALLY_GROUPS[0]);
+  assert.equal(tallyGroup(undefined), TALLY_GROUPS[2]);
+  console.log('OK E23/E24: echte fixture, andere soort/velden/dubbele melding rood; groep volgt werkelijke uitkomst');
+}
+
+// E20: beproef de zuivere getalbewaking zelf, ook waar de writer-canon al eerder zou weigeren.
+// De functie blijft privé in productcode: lees haar AST en voer precies die functie uit, geen kopie van de logica.
+{
+  const { createRequire } = await import('node:module');
+  const ts = createRequire(import.meta.url)('typescript') as typeof import('typescript');
+  const { runInNewContext } = await import('node:vm');
+  const source = readFileSync(new URL('../../src/services/ifc/foreign/mergeWriter.ts', import.meta.url), 'utf8');
+  const ast = ts.createSourceFile('mergeWriter.ts', source, ts.ScriptTarget.Latest, true);
+  const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'unchangedPlanningNumberProblem')!;
+  assert(fn, 'de bestaande private getalbewaking is gevonden');
+  const code = ts.transpile(fn.getText(ast), { target: ts.ScriptTarget.ES2022 });
+  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`, { ifcGuid, sameValue }) as
+    (input: typeof opened, before: typeof opened, wanted: typeof opened, back: typeof opened) => string | undefined;
+  const before = cloneDomain(opened);
+  before.tasks = ['eerste', 'blijft', 'derde'].map(id => ({ ...structuredClone(before.tasks[0]), id, parentId: null, childIds: [] }));
+  const row = (taskId: string, duration: number) => ({ taskId, duration, start: '2027-03-01T08:00:00', finish: '2027-03-02T16:00:00', isMilestone: false });
+  before.baselines = [{ id: 'sleutelproef', name: 'Baseline', createdAt: '2027-01-01T12:00:00Z',
+    projectEnd: '2027-03-02T16:00:00', projectDuration: 2,
+    tasks: [row('eerste', 1), row('blijft', 2.3333333333333335), row('derde', 3), row('blijft', 4.000000000000001)] }];
+  for (const reorder of [false, true]) {
+    const input = structuredClone(before);
+    input.baselines![0].tasks.shift();
+    if (reorder) input.baselines![0].tasks.reverse();
+    assert.equal(numberProblem(input, before, input, structuredClone(input)), undefined, 'ongewijzigde getallen komen exact terug na wissen/volgorde');
+    const back = structuredClone(input);
+    const target = back.baselines![0].tasks.find(t => t.taskId === 'derde')!;
+    target.duration = 3.000000000000001;
+    assert.match(numberProblem(input, before, input, back) ?? '', /task:derde.*duration/, 'een blijvend getal valt niet door positiekoppeling weg');
+    // De twee voorkomens van hetzelfde taskId blijven afzonderlijk, in hun onderlinge volgorde.
+    const duplicate = structuredClone(input);
+    const duplicates = duplicate.baselines![0].tasks.filter(t => t.taskId === 'blijft');
+    duplicates.at(-1)!.duration += 1e-12;
+    assert.match(numberProblem(input, before, input, duplicate) ?? '', /task:blijft.*duration/, 'dubbele taakregels vallen ook na omkering niet samen');
+  }
+  const duplicateBefore = structuredClone(before);
+  duplicateBefore.baselines![0].tasks = [row('blijft', 1.0000000000000002), row('blijft', 2.0000000000000004)];
+  const reversed = structuredClone(duplicateBefore);
+  reversed.baselines![0].tasks.reverse();
+  for (const at of [0, 1]) {
+    const back = structuredClone(reversed);
+    back.baselines![0].tasks[at].duration = at === 0 ? 2 : 1;
+    assert.match(numberProblem(reversed, duplicateBefore, reversed, back) ?? '', /task:blijft.*duration/,
+      'Terra E20: omgekeerde dubbele regels bewaken beide precieze getallen');
+  }
+  // Ook als de planner naast de volgorde de datums wijzigde, mogen oude numerieke waarden niet uit de bewaking vallen.
+  const editedDuplicates = structuredClone(reversed);
+  editedDuplicates.baselines![0].tasks.forEach(t => { t.start = '2027-03-01T09:00:00'; });
+  assert.equal(numberProblem(editedDuplicates, duplicateBefore, editedDuplicates, structuredClone(editedDuplicates)), undefined,
+    'dubbele regels met gewijzigde datums schrijven als de uitvoer exact gelijk blijft');
+  const ambiguousNumber = structuredClone(editedDuplicates);
+  ambiguousNumber.baselines![0].tasks[0].duration = 2;
+  assert(numberProblem(editedDuplicates, duplicateBefore, editedDuplicates, ambiguousNumber),
+    'ook zonder geheel gelijke oude dubbele rij blijft een gewijzigd getal bewaakt');
+  before.ifcGlobalIds = { ...before.ifcGlobalIds, 'task:eerste': ifcGuid('oud-intern-id-van-de-verdwenen-taak') };
+  const orphaned = structuredClone(before);
+  orphaned.tasks = orphaned.tasks.filter(t => t.id !== 'eerste');
+  const backOrphan = structuredClone(orphaned);
+  backOrphan.baselines![0].tasks[0].taskId = 'oud-intern-id-van-de-verdwenen-taak';
+  assert.equal(numberProblem(orphaned, before, orphaned, backOrphan), undefined, 'een verweesd bron-id veroorzaakt geen valse weigering');
+  backOrphan.baselines![0].tasks[0].duration += 1e-12;
+  assert.match(numberProblem(orphaned, before, orphaned, backOrphan) ?? '', /task:eerste.*duration/, 'ook het verweesde getal is exact op zijn taak gekoppeld');
+  const ambiguousBefore = structuredClone(before);
+  ambiguousBefore.ifcGlobalIds = { ...ambiguousBefore.ifcGlobalIds, 'task:blijft': ambiguousBefore.ifcGlobalIds!['task:eerste'] };
+  const ambiguousBack = structuredClone(backOrphan);
+  ambiguousBack.baselines![0].tasks[0].duration = orphaned.baselines![0].tasks[0].duration;
+  assert.match(numberProblem(orphaned, ambiguousBefore, orphaned, ambiguousBack) ?? '', /task:eerste.*undefined/,
+    'een dubbele bron-GUID geeft geen willekeurige taakalias');
+  const onlyOrphans = structuredClone(before);
+  onlyOrphans.tasks = [];
+  onlyOrphans.baselines![0].tasks.shift();
+  const orphanBack = structuredClone(onlyOrphans);
+  orphanBack.baselines![0].tasks.find(t => t.taskId === 'derde')!.duration += 1e-12;
+  assert.match(numberProblem(onlyOrphans, before, onlyOrphans, orphanBack) ?? '', /task:derde.*duration/,
+    'ook verweesde regels blijven op taskId gekoppeld als de eerste regel vervalt');
+  console.log('OK E20: baseline op taskId, eerste regel weg, andere volgorde en dubbele voorkomens');
+}
+
+
 assert(saved.ok, saved.ok ? '' : JSON.stringify(saved.error.cases));
 assert.equal(readbackDifference(saved.shown, await openForeign(saved.bytes)), undefined, 'naad = bytes-route, diep gelijk');
 // Vergelijkingsproef: een gewijzigde uitvoerduur weigert ook zonder herberekening; dit bewijst alleen de vergelijking.

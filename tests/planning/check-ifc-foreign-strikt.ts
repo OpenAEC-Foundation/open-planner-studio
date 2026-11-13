@@ -251,7 +251,7 @@ await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x)
     ['gewoon commentaar', before('/* #888888=IFCWALL($,$,$,$,$,$,$,$,$); */\n')],
     ['een getal boven de grens van de scanner', before('/* #99999999999 */\n')],
   ];
-  const edit = (kind: 'hernoemen' | 'taak-erbij') => async (x: Domain, o: Opened) => { await basicEdits(o).find(e => e.kind === kind)!.apply(x); };
+  const edit = (kind: 'hernoemen' | 'taak-erbij') => async (x: Domain, o: Opened) => basicEdits(o).find(e => e.kind === kind)!.apply(x);
   for (const [label, bytes] of variants) {
     ok(`fixronde 8: ${label}: de bron heeft volgens de norm geen dubbel #id`, once(bytes) === undefined);
     await proof('dubbel id', `${label}, zonder bewerking`, bytes, 'schrijft', undefined, once);
@@ -1069,7 +1069,7 @@ let combosWritten = 0;
 for (const [name, bytes] of files) {
   const opened = await openForeign(bytes);
   const taskEdits: Edit[] = [
-    ...basicEdits(opened),
+    ...basicEdits(opened).filter(e => !e.notApplicable),
     ...plannerEdits(opened, 2).filter(e => e.kind === 'taak-wissen' || e.kind === 'andere-ouder').slice(0, 2),
   ].map(e => ({ label: e.label, apply: e.apply, realDuration: e.kind === 'duur' }));
   const projects = projectEdits(opened);
@@ -1079,7 +1079,11 @@ for (const [name, bytes] of files) {
   for (const e of taskEdits) for (const p of projects) pairs.push([e, p]);
   for (let a = 0; a < taskEdits.length; a++) for (let b = a + 1; b < taskEdits.length; b++) pairs.push([taskEdits[a], taskEdits[b]]);
   for (const [e, f] of pairs) {
-    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, async (x) => { const first = await e.apply(x); return f.apply(first ?? x); });
+    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, async (x) => {
+      const first = await e.apply(x), afterFirst = first ?? x;
+      const second = await f.apply(afterFirst);
+      return second ?? afterFirst; // Een kale tweede patch mag de verse eerste payload niet laten vervallen.
+    });
     combos++;
     if (r.outcome === 'schrijft') combosWritten++;
     const parts = [alone.get(e.label)!, alone.get(f.label)!];
