@@ -1149,8 +1149,11 @@ await expectRefusal('toevoeging: een eigen pset met de owner history van Revit k
   if (r) ok('schrijfvelden: de uitvoer heeft de tijd van opslaan en de versie van nu', !text(r.out).includes(',1700000000);') && !text(r.out).includes("'0.0.9'"));
   const ws = await roundTrip('schrijfvelden: CreationDate van het live-schema', enc.encode(eigen.replace(/^(#43=IFCWORKSCHEDULE\((?:[^,]*,){6})'[^']*'/m, "$1'2020-01-01T00:00:00'")));
   if (ws) ok('schrijfvelden: het live-schema krijgt de tijd van opslaan', /^#43=IFCWORKSCHEDULE\((?:[^,]*,){6}'(?!2020-01-01T00:00:00')[^']*'/m.test(text(ws.out)));
-  const bl = await roundTrip('schrijfvelden: CreationDate van een baselinekop', enc.encode(replaceIn(eigen, "'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',", "'Baseline plan',$,$,$,'2020-01-01T00:00:00',")));
-  if (bl) ok('schrijfvelden: de baselinekop houdt zijn CreationDate', text(bl.out).includes("'Baseline plan',$,$,$,'2020-01-01T00:00:00',"));
+  // 1145: deze gemaakte afwijking tussen de standaarddatum en de baselinegegevens leverde op main
+  // twee dubbele GlobalIds op. De onafhankelijke uitvoercontrole moet die weigeren, zonder bytes.
+  await expectRefusal('schrijfvelden: afwijkende CreationDate van een baselinekop (1145)',
+    enc.encode(replaceIn(eigen, "'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',", "'Baseline plan',$,$,$,'2020-01-01T00:00:00',")),
+    'uitvoer-controle', undefined, /^nieuwe dubbele GlobalId '/);
 }
 
 // ── 5g. O1: na een bewerking mag de uitvoer alleen afwijken waar het domein veranderde ──

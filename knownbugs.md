@@ -1943,6 +1943,15 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
+1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
+     in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
+     op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
+     main schrijft de merge 38.499 bytes met zowel `#44` als `#435` voor dezelfde `IfcWorkSchedule`-GlobalId en
+     zowel `#45` als `#436` voor dezelfde `IfcRelAggregates`-GlobalId; in de bron komt elk maar één keer voor. De
+     onafhankelijke uitvoercontrole van #918 weigert nu getypeerd (`uitvoer-controle`), zonder bytes. De proef
+     bewaakt die veilige weigering; de zeldzame gemaakte vorm wordt hier niet gerepareerd. Het ongewijzigde
+     repo-bestand schrijft wel. Gemeten tegen main `1c95a8546` en #918, fase 1c PR 3. — B
+
 1143. **VERVOLG: de keuze van een toewijzing in de telling bouwt alle geldige paren op en gebruikt er één.**
      `tests/planning/ifcMergeKern.ts` (rond regel 351) verzamelt voor de bewerking "toewijzing erbij" elke geldige
      combinatie van taak en resource en neemt daarna de eerste. Stoppen bij het eerste geldige paar geeft dezelfde
