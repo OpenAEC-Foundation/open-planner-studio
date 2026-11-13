@@ -55,6 +55,9 @@ import { MAX_STEP_ID, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 import { planningCanon, planningDifference } from './planningCanon';
 import { sameValue } from '@/utils/sameValue';
+import { freeze } from 'immer';
+import { openMergePlanning } from '@/state/ifcMergePlanning';
+import { psetOwners, validateMergeOutput } from './mergeValidation';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -119,6 +122,7 @@ export type MergePhase2Kind =
    *  verwijzing van een ander stuk ernaar wees daarna naar niets. */
   | 'verstopt-stuk'
   /** De verplichte open-stappen ontbreken, of openen geeft een andere planning (1107). */
+  | 'uitvoer-controle'
   | 'open-stappen-ontbreken'
   | 'planning-na-openen'
   | 'ongewijzigd-getal';
@@ -318,16 +322,14 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
  * BLOKKEERT 3): de verliesbewaking leest de bron met dezelfde ingang als het openen (`readIFCWithXerReconstruction`), ook
  * bij een compact XER-bronarchief.
  */
-/** De aanroeper voert de gewone open-stappen uit in een eigen documentcontext, zonder modelscan.
- * ImportResult bevat ook TimeModel, herkomst en opgeslagen datums; pad en bestandskop zijn niet nodig.
+/** Alleen voor foutnabootsing: ontvangt de al heropende, bevroren planning. Kan de vaste
+ * adapter niet vervangen; identiteit, mutatie en afwijkende uitkomsten worden geweigerd.
  */
 export type OpenMergePlanning = (planning: WriteIFCInput, side: 'uitvoer' | 'domein') => Promise<WriteIFCInput>;
 
-export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, openPlanning: OpenMergePlanning): Promise<Uint8Array[]> {
-  if (typeof openPlanning !== 'function') {
-    throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de verplichte open-stappen van de app ontbreken' }]);
-  }
+export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<Uint8Array[]> {
   if (!source.foreign) return [new TextEncoder().encode(writeIFC(input))];
+  input = freeze(structuredClone(input), true);
   const index = scanForeignStep(source.bytes);
   const cls = classify(index);
   assertSameSource(index, cls, source);
@@ -789,25 +791,52 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
   for (let i = 0; i < n; i++) if (index.isEntity(i)) chunkOfId.set(sid(i), i);
   for (const id of [...keep.values(), ...keptHeads]) {
     const c = chunkOfId.get(id);
-    if (c === undefined || !isP(c)) throw new Error(`mergeWriter: het vaste id #${id} is geen P-stuk van de bron`);
+    if (c === undefined || !isP(c)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `het vaste id #${id} is geen P-stuk van de bron` }]);
   }
   const present = new Set<number>(emitted);
   for (let i = 0; i < n; i++) if (index.isEntity(i) && !isP(i)) present.add(sid(i));
   for (const line of lines) {
     if (line.drop) continue;
     for (const target of refsInText(line.text)) {
-      if (!present.has(target)) throw new Error(`mergeWriter: #${line.id} wijst naar #${target}, dat niet in de uitvoer staat`);
+      if (!present.has(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
     }
   }
-  // Volledige herleestoets vóór er uitvoer naar de aanroeper gaat; geen modelscan of volle uitvoerbuffer.
-  const shown = await openPlanning(await read(lines.filter(l => !l.drop).map(l => l.text)), 'uitvoer');
-  const wanted = await openPlanning(input, 'domein');
+  // Beide controles zien de werkelijke uitvoer, niet het P-blok of de boekhouding van de writer.
+  const parts = assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
+  const bytes = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+  let at = 0;
+  for (const part of parts) { bytes.set(part, at); at += part.length; }
+  let actual: ReturnType<typeof validateMergeOutput>;
+  let shown: WriteIFCInput, wanted: WriteIFCInput;
+  try {
+    actual = validateMergeOutput(index, cls, source.bytes, bytes);
+    if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
+    const parsed = await pristineFromScan(foreignScanFrom(actual.index, actual.classification, bytes), bytes);
+    // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
+    shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
+    wanted = openMergePlanning(input, 'domein');
+  } catch (e) {
+    if (e instanceof MergeNeedsPhase2Error) throw e;
+    throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
+  }
+  if (probe) {
+    for (const [side, opened] of [['uitvoer', shown], ['domein', wanted]] as const) {
+      const copy = freeze(structuredClone(opened), true);
+      let result: WriteIFCInput;
+      try { result = await probe(copy, side); }
+      catch (e) { throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: `testfunctie veranderde de invoer of faalde: ${String(e)}` }]); }
+      if (!result || result === copy) throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de testfunctie deed niets of gaf de invoer terug' }]);
+      if (planningCanon(opened) !== planningCanon(result)) {
+        throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(opened, result) }]);
+      }
+    }
+  }
   if (planningCanon(wanted) !== planningCanon(shown)) {
     throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
   const numberProblem = unchangedPlanningNumberProblem(input, source.opened ?? pristine, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
-  return assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
+  return parts;
 }
 
 /** Trias 1107: gelijk aan opened is ongewijzigd; zonder opened geldt pristine, zoals in de verliesbewaking.
@@ -990,16 +1019,6 @@ function psetRel(index: StepIndex, pset: number): number {
     if (rel >= 0 && index.type(rel) === DEFINES && index.inArg(k) === 5) return rel;
   }
   return -1;
-}
-
-/** De eigenaren van een pset in de bron (via `IfcRelDefinesByProperties`). */
-function psetOwners(index: StepIndex, pset: number): number[] {
-  const owners: number[] = [];
-  for (let k = index.inStart(pset); k < index.inEnd(pset); k++) {
-    const rel = index.inSource(k);
-    if (rel >= 0 && index.type(rel) === DEFINES && index.inArg(k) === 5) owners.push(...index.refsAt(rel, 4).filter(x => x >= 0));
-  }
-  return owners;
 }
 
 /** De bron moet de bron zijn waaruit `ifcSource` kwam: dezelfde stukken met dezelfde ids en klassen. */

@@ -7,10 +7,9 @@ import { generatedModel } from './ifcGeneratedModel';
 import { storeWith, loadStore } from './ifcAppRoute';
 import { readbackDifference } from './ifcReadbackEquality';
 import { ifcGuid, writeIFC } from '@/services/ifc/ifcWriter';
-import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { readFileSync } from 'node:fs';
 import { installDeterminism } from './ifcPariteitKern';
-import { canon, cloneDomain, applyEdit, EditNotAppliedError, ordinaryEdits, plannerEdits, mergeProblems, openForeign, openReadPlanning, shownAfterOpen, tryMerge } from './ifcMergeKern';
+import { canon, cloneDomain, applyEdit, EditNotAppliedError, ordinaryEdits, plannerEdits, mergeProblems, openForeign, shownAfterOpen, tryMerge } from './ifcMergeKern';
 import { writeIfcMerge, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 
 const reseed = installDeterminism();
@@ -78,11 +77,29 @@ const source = opened.ifcSource!;
 }
 
 const d = cloneDomain(opened);
-await assert.rejects(async () => {
-  // Ook voor JS-aanroepers: zonder functie geen uitvoer, vóór de writer iets opbouwt.
-  // @ts-expect-error De derde parameter is verplicht.
-  await writeIfcMerge(d, source);
-}, (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases[0].kind === 'open-stappen-ontbreken');
+// E21: een testfunctie kan de vaste heropening niet vervangen of invoer van de aanroeper wijzigen.
+{
+  const { store } = await storeWith(d);
+  const liveState = store.getState();
+  const before = structuredClone(d), liveBefore = structuredClone((await loadStore()).buildWriteIFCInput(store.getState()));
+  const refused = (e: unknown) => e instanceof MergeNeedsPhase2Error;
+  await assert.rejects(() => writeIfcMerge(d, source, async () => undefined as unknown as typeof d), refused, 'een lege testfunctie wordt geweigerd');
+  await assert.rejects(() => writeIfcMerge(d, source, async p => p), refused, 'identiteit mag de open-stappen niet vervangen');
+  await assert.rejects(() => writeIfcMerge(d, source, async p => {
+    p.tasks[0].name = 'Verborgen wijziging';
+    return structuredClone(p);
+  }), refused, 'invoer van de controle is niet wijzigbaar');
+  await assert.rejects(() => writeIfcMerge(d, source, async p => {
+    const changed = structuredClone(p);
+    changed.tasks[0].name = 'Verborgen wijziging';
+    return changed;
+  }), refused, 'ook een gewijzigde kopie wordt geweigerd');
+  assert.deepEqual(d, before, 'de controle veranderde het domein van de aanroeper niet');
+  assert.deepEqual((await loadStore()).buildWriteIFCInput(store.getState()), liveBefore, 'de actieve store is ongewijzigd');
+  assert.strictEqual(store.getState(), liveState, 'ook de documentregistry, historie en UI van de actieve store bleven onaangeraakt');
+  assert((await writeIfcMerge(d, source)).length > 0, 'de productieroute heeft zelf de vaste open-stappen');
+  console.log('OK E21: vaste open-stappen, identiteit en naamwijziging geweigerd; invoer en actieve store ongewijzigd');
+}
 
 const saved = await tryMerge(d, source);
 // E23/E24: dezelfde fixture met een andere getypeerde weigering is rood; groepen volgen de uitkomst.
@@ -192,7 +209,7 @@ assert.equal(readbackDifference(saved.shown, await openForeign(saved.bytes)), un
 await assert.rejects(() => writeIfcMerge(d, source, async (parsed, side) => {
   let input = structuredClone(parsed);
   if (side === 'uitvoer') input = await applyEdit(ordinaryEdits(input).find(e => e.kind === 'duur')!, input);
-  return openReadPlanning(input, side);
+  return input;
 }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen' && c.detail.includes('.time.')));
 // Blijvende proef: een duurwijziging zonder F5 schrijft; de twaalf tijdvelden normaliseren gelijk.
 const longer = await applyEdit(ordinaryEdits(opened).find(e => e.kind === 'duur')!, cloneDomain(opened));
@@ -258,7 +275,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   assert.equal(canon(input, reseed), canon(reordered, reseed), 'kalenderbibliotheek: alleen andere volgorde is gelijk');
   const id = input.resourceCalendars.find(c => c.id !== input.project.calendarId)!.id;
   const changed = (edit: (planning: typeof input) => void) => writeIfcMerge(input, o.ifcSource!, async (parsed, side) => {
-    const shown = structuredClone(await openReadPlanning(parsed, side));
+    const shown = structuredClone(parsed);
     if (side === 'uitvoer') edit(shown);
     return shown;
   });
@@ -497,29 +514,21 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
     durationType: 'ELAPSEDTIME', scheduleDuration: 2.9999998 } });
   const input = cloneDomain(snapshot(store));
   for (const t of input.tasks) { delete t.time.interferingFloat; delete t.time.floatPath; }
-  const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
   const actual: Partial<Record<'uitvoer' | 'domein', typeof input>> = {};
-  const run = (recompute: boolean) => writeIfcMerge(input, snapshot(store).ifcSource!, async (p, side) => {
-    const parsed = side === 'domein' ? { ...structuredClone(p), timeModel: MINUTE_MODEL_TIME_MODEL,
-      resourceCalendars: p.resourceCalendars?.filter(c => c.id !== p.project.calendarId) } : structuredClone(p);
-    const { store: fresh } = createAppStoreContext();
-    const apply = fresh.getState().applyLoadedProject;
-    fresh.setState({ applyLoadedProject: (data, opts) => apply(data, { ...opts, recompute }) });
-    fresh.getState().openAsDocument(parsed, { name: 'herberekenproef.ifc', ref: null });
-    return actual[side] = buildWriteIFCInput(fresh.getState());
-  });
-  assert((await run(false)).length > 0, 'alle bestaande controles passeren zonder herberekening');
-  assert.equal(canon(actual.domein!, reseed), canon(actual.uitvoer!, reseed), 'de bestaande writerprojectie is zonder rekenen gelijk');
-  const recompute = true; // Mutatievoorwaarde: alleen dit wordt false, de echte open-stappen blijven lopen.
   let rejection: unknown;
-  try { await run(recompute); console.log('HERBEREKENING UIT: de merge schrijft'); } catch (e) { rejection = e; }
+  try {
+    await writeIfcMerge(input, snapshot(store).ifcSource!, async (p, side) => {
+      actual[side] = structuredClone(p);
+      return structuredClone(p);
+    });
+  } catch (e) { rejection = e; }
   assert(rejection instanceof MergeNeedsPhase2Error && rejection.cases.some(c => c.kind === 'planning-na-openen'),
-    'de echte herberekening moet het verschil veroorzaken en laten weigeren');
+    'de vaste openactie herberekent en weigert de afwijkende rekenuitkomst');
   const computed = ['earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'freeFloat', 'totalFloat', 'freeFloatMinutes', 'totalFloatMinutes', 'isCritical'] as const;
   assert(actual.domein!.tasks.some(t => computed.some(k =>
     !Object.is(actual.uitvoer!.tasks.find(x => x.id === t.id)!.time[k], t.time[k]))),
     'de echte solver geeft door de afronding andere rekendatums of speling');
-  console.log('OK echte herberekening: zonder rekenen schrijft de merge; met rekenen verschillen rekenuitkomsten', rejection.cases);
+  console.log('OK vaste herberekening: afwijkende rekenuitkomsten worden geweigerd', rejection.cases);
 }
 
 // 1103: dezelfde echte v2026.7.12-kop met een wand; de gedeelde voorbewerking geldt ook vóór de merge-indeling.

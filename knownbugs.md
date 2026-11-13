@@ -1911,16 +1911,6 @@ en noem het in je rapport of PR-tekst.
      apart) en telt voor die twee slots ook een hele dag mee. Alleen tekst; de code doet wat #908 beschrijft. De gewone
      writer mocht in #908 niet wijzigen. Gevonden door de review van #908 (Terra). — B
 
-1118. **Bij 1c: de functie met de open-stappen krijgt de invoer van de merge zelf, niet een kopie.** `writeIfcMerge`
-     (`src/services/ifc/foreign/mergeWriter.ts`, #903) geeft `openPlanning` het domein van de planner door nadat de
-     uitvoerregels al gebouwd zijn. Een foutieve functie die dat domein wijzigt, verandert beide kanten van de
-     vergelijking: in de proef van Sol schreef de merge 35.083 bytes terwijl de domeinkopie een andere taaknaam had dan
-     het heropende bestand. Ook geldt: de merge dwingt af dat er een functie is, niet dat zij de echte open-stappen doet
-     (een functie die niets doet, kan schrijven). Geen verlies in de app: er is geen aanroeper, en de bevroren store
-     weigert zo'n wijziging met een `TypeError`. Richting, bij het aansluiten in 1c: de invoer afschermen tegen
-     wijziging, en een integratieproef dat de opslagroute de vaste, echte open-stappen meegeeft (met de flag aan). Sol,
-     gerichte run op #903. — B
-
 1123. **VERVOLG (fase 2): een uurtaak met kale datums laat de merge weigeren.** Een taak met een duur in uren en datums
      zonder tijd (`'2027-03-01'`), een vorm die geen release van OPS schreef, krijgt bij openen een eindtijd; de writer
      schrijft dan een datum-tijd en de merge weigert getypeerd, zonder bytes (`niet-gedragen`,
@@ -1932,6 +1922,22 @@ en noem het in je rapport of PR-tekst.
      release schreef dat) weigert na een wijziging van alleen het begin met `IfcCalendarTimePrecisionError`: het
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
+
+1146. **VERVOLG: de merge kopieert en bevriest de invoer voor de heropening twee keer.** `writeIfcMerge`
+     (`src/services/ifc/foreign/mergeWriter.ts`, rond regel 816) kopieert en bevriest `parsed` vóór de vaste
+     heropening; de adapter (`src/state/ifcMergePlanning.ts`) kopieert de invoer daarna meteen opnieuw. `parsed`
+     rechtstreeks doorgeven en alleen de kopie in de adapter houden spaart één volledige kopie en freeze, zonder een
+     beschermingsgrens weg te nemen. Alleen opruimen; geen tijdwinst gemeten. Gevonden door de review van #918
+     (Sol). — B
+
+1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
+     in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
+     op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
+     main schrijft de merge 38.499 bytes met zowel `#44` als `#435` voor dezelfde `IfcWorkSchedule`-GlobalId en
+     zowel `#45` als `#436` voor dezelfde `IfcRelAggregates`-GlobalId; in de bron komt elk maar één keer voor. De
+     onafhankelijke uitvoercontrole van #918 weigert nu getypeerd (`uitvoer-controle`), zonder bytes. De proef
+     bewaakt die veilige weigering; de zeldzame gemaakte vorm wordt hier niet gerepareerd. Het ongewijzigde
+     repo-bestand schrijft wel. Gemeten tegen main `1c95a8546` en #918, fase 1c PR 3. — B
 
 1143. **VERVOLG: de keuze van een toewijzing in de telling bouwt alle geldige paren op en gebruikt er één.**
      `tests/planning/ifcMergeKern.ts` (rond regel 351) verzamelt voor de bewerking "toewijzing erbij" elke geldige
