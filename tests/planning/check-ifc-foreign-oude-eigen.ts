@@ -288,12 +288,8 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       ok(`${label}: duur na actie ongewijzigd`, after.time.scheduleDuration === precise);
       ok(`${label}: de echte actie bepaalde de rest`, after.time.remainingTime !== remaining);
       const r = await tryMerge(d, snapshot(store).ifcSource!);
-      if (!r.ok) {
-        ok(`${label}: getypeerd geweigerd op ongewijzigde duur`, r.kinds.includes('ongewijzigd-getal')
-          && r.error.cases.some(c => c.detail.includes('time.scheduleDuration') && c.detail.includes(String(precise))));
-        rows.push(`| ${label} | weigert getypeerd op de ongewijzigde duur |`);
-        continue;
-      }
+      ok(`${label}: schrijft met behoud per slot`, r.ok);
+      if (!r.ok) { rows.push(`| ${label} | weigert: ${r.error.cases[0]?.detail} |`); continue; }
       const out = text(r.bytes);
       const line = out.split('\n').find(l => /IFCTASKTIME\('Set up site Time'/.test(l))!;
       const args = splitArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
@@ -301,6 +297,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
       ok(`${label}: rest heeft de writerwaarde van de echte actie`, args[18] !== '$');
       ok(`${label}: vreemde deel behouden`, mergeProblems(latin1(src), r.bytes).length === 0);
       const back = await openForeign(r.bytes);
+      ok(`${label}: de twee leeswegen zijn exact gelijk`, readbackDifference(r.shown, back) === undefined);
       const restored = back.tasks.find(t => t.id === task.id)!;
       ok(`${label}: duur na heropenen exact`, restored.time.scheduleDuration === precise);
       ok(`${label}: de gewijzigde rest volgt gewone opslag`, canon(await shownAfterOpen(d), reseed) === canon(back, reseed));
