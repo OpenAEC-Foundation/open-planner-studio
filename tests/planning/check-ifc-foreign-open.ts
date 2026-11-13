@@ -187,9 +187,21 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
 {
   const reference = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/oude-kop-main.json'), 'utf8')) as { basis: string; rows: OldHeaderRow[] };
   eq('fix2 referentie: de gemeten main-commit', reference.basis, '1c95a8546fbe5fecb52e66a715402b08a256d0d5');
-  const table = compareOldHeaderTable(reference.rows, await oldHeaderTable(ROOT));
+  const rows = await oldHeaderTable(ROOT);
+  const table = compareOldHeaderTable(reference.rows, rows);
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
   eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer + table.protectedTarget, table.cases);
+  // De nieuwe doelweigering mag een andere opening, een write of veranderde nieuwe-doeluitvoer niet verhullen.
+  const protectedRow = rows.find(row => table.evidence.some(e => e.startsWith(`${row.name}: (d)`)));
+  eq('PR 4: de tabel bevat een echte aanvullende doelweigering', protectedRow !== undefined, true);
+  if (protectedRow) for (const field of ['payload', 'writes', 'saveAsWrites'] as const) {
+    const changed = structuredClone(rows);
+    const route = changed.find(row => row.name === protectedRow.name)!.routes.find(r => r.flag)!;
+    if (field === 'payload') route.payload = 'andere opening';
+    else route[field].push('ongewenste write');
+    eq(`PR 4: doelweigering verbergt geen wijziging in ${field}`,
+      compareOldHeaderTable(reference.rows, changed).other > 0, true);
+  }
   for (const line of table.evidence) console.log('TABELGEVAL ' + line);
   console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, (d) ${table.protectedTarget} alleen doelbescherming, ${table.other} anders`);
 }
