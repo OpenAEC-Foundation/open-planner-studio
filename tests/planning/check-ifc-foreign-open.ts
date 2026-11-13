@@ -182,10 +182,10 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
   }
 }
 
-// #916 fixronde 2: de hele gemaakte-koppentabel tegen vers gemeten productcode van main a599a2b1f.
+// #916 fixronde 2: de hele gemaakte-koppentabel tegen vers gemeten productcode van main 1c95a8546 (na #917).
 {
   const reference = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/oude-kop-main.json'), 'utf8')) as { basis: string; rows: OldHeaderRow[] };
-  eq('fix2 referentie: de gemeten main-commit', reference.basis, 'a599a2b1f61e8a0974ac0e6f9a47add1e0f0f1d4');
+  eq('fix2 referentie: de gemeten main-commit', reference.basis, '1c95a8546fbe5fecb52e66a715402b08a256d0d5');
   const table = compareOldHeaderTable(reference.rows, await oldHeaderTable(ROOT));
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
   eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer, table.cases);
