@@ -69,12 +69,17 @@ function checkWrittenCalendar(label: string, text: string, wanted: WorkCalendar,
     eq(`${calLabel}: werkdagen blijven gelijk`, [...gotCal.workDays].sort(), [...cal.workDays].sort());
     eq(`${calLabel}: vrije uitzonderingen blijven gelijk`, gotCal.holidays ?? [], cal.holidays ?? []);
     // De gewone writer schrijft een onbegrensde wekelijkse herhaling. Ook bij bronklokken blijft die toets staan.
+    const rawDays = new Set<number>();
     for (const workTime of ix.refsAt(entity, 6)) {
       const args = ix.argTokens(workTime)!, recurrence = ix.argTokens(ix.refAt(workTime, 3))!;
       eq(`${calLabel}: gewone week zonder datumbereik`, args.slice(4, 6), ['$', '$']);
+      const days = recurrence[2] ?? '';
+      eq(`${calLabel}: wekelijkse herhaling draagt haar weekdagen zelf`, /^\(\s*[1-7](?:\s*,\s*[1-7])*\s*\)$/.test(days), true);
+      for (const day of days.slice(1, -1).split(',')) rawDays.add(Number(day));
       eq(`${calLabel}: wekelijkse herhaling zonder andere beperking`,
         [recurrence[0], recurrence[1], ...recurrence.slice(3, 7)], ['.WEEKLY.', '$', '$', '$', '$', '$']);
     }
+    eq(`${calLabel}: werkelijk geschreven weekdagen`, [...rawDays].sort(), [...new Set(cal.workDays)].sort());
     const refs = [...new Set(ix.refsAt(entity, 6).flatMap(periodRefs))];
     for (const p of refs) checkedPeriods.add(p);
     if (literalPeriod && id === wanted.id) {
@@ -1111,6 +1116,12 @@ console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo 
     checkWrittenCalendar('E25 ontbrekende vrijdag', missingFriday, state.calendar, literal, state.calendars);
     const missingDay = failures.splice(weekStart);
     eq('E25 weekdagen: letterlijke klok verbergt de ontbrekende vrijdag niet', missingDay.length > 0, true);
+    const noWeekdays = saved.replace(/(IFCRECURRENCEPATTERN\(\.WEEKLY\.,\$,)(\(1,2,3,4,5\))/, '$1$$');
+    eq('E25 weekdagen: tegenproef wist het standaardveld', noWeekdays !== saved, true);
+    const emptyStart = failures.length;
+    checkWrittenCalendar('E25 ontbrekend weekdagveld', noWeekdays, state.calendar, literal, state.calendars);
+    const missingField = failures.splice(emptyStart);
+    eq('E25 weekdagen: de standaardweek van de lezer verbergt geen leeg bronveld', missingField.length > 0, true);
     const parsed = readIFC(saved), ix = scanStep(new TextEncoder().encode(saved));
     const rawCalendar = Array.from({ length: ix.count }, (_, i) => i).find(i => ix.type(i) === 'IFCWORKCALENDAR'
       && ix.argTokens(i)?.[0] === `'${parsed.ifcGlobalIds![`cal:${current.id}`]}'`)!;
