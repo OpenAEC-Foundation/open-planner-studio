@@ -11,8 +11,9 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 Het lezen (1a) en het schrijven (1b, #867) zijn gemerged in main: de writer laat het gebouwmodel staan en zet de
 planning ertussen, en bij twijfel weigert hij. #886 is gemerged in main; de merge wordt daar getoetst via de toestand die
 na openen in de app staat. #898 en #903 zijn gemerged in main: de tijdzone en oude kalender zijn afgedekt en de volledige
-herleestoets bewaakt ook ongewijzigde getallen exact. Concept-PR #908 vult het bronbehoud per duur-, rest- en lagslot aan
-(1109) en verklaart smal het vervallen van de importvlag (1116). Daarna volgt 1c, met de eisen hieronder; het afzonderlijke
+herleestoets bewaakt ook ongewijzigde getallen exact. #908 is op 13 november gemerged in main als `c1a21a2b0`: het
+bronbehoud per duur-, rest- en lagslot (1109) en de smalle verklaring voor de vervallen importvlag (1116) zijn daarmee
+binnen. Daarna volgt 1c, met de eisen hieronder; het afzonderlijke
 kalenderherstel van 1120 hoort bij #910. De afronding van een duur of rest met 17 cijfers bij gewone opslag blijft als
 VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
@@ -72,7 +73,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
    fixtures blijven bewust geweigerd, met herkomstbewijs en redenen in de PR-tekst en `OWN_MAY_REFUSE`.
 5. **1107: volledige herleestoets** (#903, eigen branch). Moet vóór het aansluiten in 1c af zijn. Deze PR raakt die
    worktree niet. Kosten van opnieuw openen en rekenen apart meten (1021).
-6. **1109 en 1116**: concept-PR #908 ná #903. Duur en rest behouden hun bronvorm elk apart; `carried` vergelijkt de
+6. **1109 en 1116**: #908 is gemerged in main op 13 november 2026 (`c1a21a2b0`), na #903. Duur en rest behouden hun bronvorm elk apart; `carried` vergelijkt de
    betekenis binnen de bestaande lijst van exact gelezen duurvormen. Een lag-eenheidswijziging laat het getal letterlijk.
    Proeven gebruiken de echte voortgangs- en duuracties; de naad blijft ongewijzigde getallen exact bewaken. Alleen een
    importvlag die tegenover `opened` vervalt verklaart het verdwijnen van haar property, lege pset en koppeling. Extra
@@ -127,7 +128,9 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
-- 2026-11-11: #908 bewaart duur en rest per slot, ook hele dagvormen uitsluitend in slots 4 en 18; werkelijke duur en spelingen houden hun bestaande breukregel en ExactFloat-records. Lag-eenheidswijzigingen behouden het precieze getal; duurbetekenis volgt de bestaande vormenlijst en brontaakmaat. 1116 verklaart alleen de vervallen importvlag en haar lege pset/koppeling; tegenproeven bewaken vlagbehoud en extra inhoud. Zes mutaties zijn rood met cp/cmp en gelijke SHA-256, plus een afzonderlijke duurproef; 1109 en 1116 zijn uit knownbugs gehaald. 1110, 1113 en 1117–1119 blijven afzonderlijk; 1120 en 1123 horen bij #910.
+- 2026-11-13: 1120, fixronde 5 na Terra ronde 5 ja en Sol ja met één bevestigd VERVOLG: alleen de markeringstoets in writeCalendar is uitgebreid met parseIfcClock(...).legacyBand op beide werkelijk geschreven klokken. Een bewaarde oude bandklok houdt zo IsHourCalendar = .F.; scalar, effectieve werkdag en pauze blijven bij volledig heropenen gelijk. Sols minimale bron is letterlijk in de proef nagebouwd; rood met writer/minuteModel van main (bronklok niet letterlijk), rood op 156953509 (markering en werkblokken verloren), groen na de fix. De passende bron met expliciete nulpauze verliest ook op main de scalaire identiteit; dezelfde toets lost dat mee op. Uurtaak en secondenvariant behouden hun bestaande uitvoer. calendarPeriodClocks en de lezer zijn ongewijzigd. Knownbugs 1123, 1124 en 1126 blijven; 1121 en 1122 blijven apart.
+
+- 2026-11-13: #908 is gemerged in main (`c1a21a2b0`, Terra ja, Sol ja, CI groen); bewaart duur en rest per slot, ook hele dagvormen uitsluitend in slots 4 en 18; werkelijke duur en spelingen houden hun bestaande breukregel en ExactFloat-records. Lag-eenheidswijzigingen behouden het precieze getal; duurbetekenis volgt de bestaande vormenlijst en brontaakmaat. 1116 verklaart alleen de vervallen importvlag en haar lege pset/koppeling; tegenproeven bewaken vlagbehoud en extra inhoud. Zes mutaties zijn rood met cp/cmp en gelijke SHA-256, plus een afzonderlijke duurproef; 1109 en 1116 zijn uit knownbugs gehaald. 1110, 1113 en 1117–1119 blijven afzonderlijk; 1120 en 1123 horen bij #910.
 
 - 2026-11-11: #903 fixronde 1 na Terra (GPT-6.1-Terra, xhigh) nee: ongewijzigde getallen worden in de hele planning bewaakt; de echte extensieactie met alleen een lag-eenheidswijziging weigert nu veilig (1109). De twee leeswegen worden rechtstreeks vergeleken; een gemaakte proef is alleen met echte herberekening ongelijk. Beide mutaties zijn rood, cp/cmp en SHA-256 bevestigen herstel.
 
