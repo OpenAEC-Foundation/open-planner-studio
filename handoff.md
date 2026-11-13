@@ -127,7 +127,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
-- 2026-11-13: fase 1c PR 2 beschermt de gewone terugval (1011), behoudt de IFC2X3-uitzondering met melding en vergrendelt de bronkop in Projectinstellingen/store/MCP/undo; tekstkern en HTTP weigeren ongedragen vreemd materiaal. Opslag blijft geblokkeerd; ontwerpverschillen staan in 1127.
+- 2026-11-13: fase 1c PR 2 beschermt alle vier terugvalredenen (1011), zonder eigen kopherkenning; de eindproef van 1103 wacht op main met de aparte oude-kop-PR (besluit Trias 13 november 16:00); behoudt de IFC2X3-uitzondering met melding en vergrendelt de bronkop in Projectinstellingen/store/MCP/undo; tekstkern en HTTP weigeren ongedragen vreemd materiaal. Opslag blijft geblokkeerd; ontwerpverschillen staan in 1127.
 
 - 2026-11-11: #908 bewaart duur en rest per slot, ook hele dagvormen uitsluitend in slots 4 en 18; werkelijke duur en spelingen houden hun bestaande breukregel en ExactFloat-records. Lag-eenheidswijzigingen behouden het precieze getal; duurbetekenis volgt de bestaande vormenlijst en brontaakmaat. 1116 verklaart alleen de vervallen importvlag en haar lege pset/koppeling; tegenproeven bewaken vlagbehoud en extra inhoud. Zes mutaties zijn rood met cp/cmp en gelijke SHA-256, plus een afzonderlijke duurproef; 1109 en 1116 zijn uit knownbugs gehaald. 1110, 1113 en 1117–1119 blijven afzonderlijk; 1120 en 1123 horen bij #910.
 

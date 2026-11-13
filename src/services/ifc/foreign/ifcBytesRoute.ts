@@ -20,8 +20,7 @@ import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { readIFCWithXerReconstruction, type IfcReadWithXerOptions } from '../ifcReadWithXer';
 import { readFileSchemaName } from '../ifcReader';
 import { ifcObjectSeed } from '../ifcWriter';
-import { indexOfStepDataSection } from '../stepDataSection';
-import { readerBytes, readerOptions, scanForeign, type ForeignScanResult } from './foreignScan';
+import { readerBytes, readerOptions, type ForeignScanResult, type ForeignScanOutcome } from './foreignScan';
 import { runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner';
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
@@ -67,25 +66,18 @@ export async function readIfcBytes(bytes: Uint8Array, labels: ImportLabels = {},
 }
 
 /** De gewone lezer houdt zijn modelweigering. Alleen een bewezen eigen deel mag daarna zonder bron verder.
- * Bij een oude kapotte kop (O'Hara, v2026.7.12) scannen we uitsluitend voor deze beslissing opnieuw met een neutrale
- * kop en de VOLLEDIGE oorspronkelijke DATA-staart vanaf dezelfde grens als de gewone lezer. Geen bytes uit DATA
- * repareren of overslaan; een fout daarin blijft onzeker. De oorspronkelijke tekst gaat ongewijzigd naar de lezer. */
+ * Geen kopherkenning of reparatie hier: Trias laat oude eigen koppen vóór de indeling ondersteunen in een aparte PR.
+ * Tot die afhankelijkheid in main staat, weigert de bekende v2026.7.12-O'Hara-fixture ook hier (1103). */
 async function currentRoute(
   bytes: Uint8Array, labels: ImportLabels, opts: IfcBytesRouteOptions, fallback: IfcBytesFallback,
-  knownScan?: ForeignScanResult,
+  knownScan?: ForeignScanOutcome,
 ): Promise<IfcBytesRead> {
   const text = new TextDecoder('utf-8').decode(bytes);
   const result = await readIFCWithXerReconstruction(text, labels, xerOptions(opts));
   if (fallback.kind === 'schema' && fallback.schemaName === 'IFC2X3') {
     return { result: { ...result, ifcLegacySchemaLoss: true }, fallback };
   }
-  let scan = knownScan ?? await runForeignScan(bytes, opts);
-  if (!scan.ok) {
-    const at = indexOfStepDataSection(text);
-    if (at >= 0) {
-      scan = scanForeign(new TextEncoder().encode("ISO-10303-21;\nHEADER;\nENDSEC;\n" + text.slice(at)));
-    }
-  }
+  const scan = knownScan ?? await runForeignScan(bytes, opts);
   if (!scan.ok || scan.counts.C + scan.counts.A + scan.counts.V > 0) throw new IfcForeignOpenError(fallback);
   return { result, fallback };
 }
@@ -102,7 +94,7 @@ export async function readIfcBytesDetailed(
 ): Promise<IfcBytesRead> {
   if (bytes.length > Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES)) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
   const scan = await runForeignScan(bytes, opts);
-  if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message });
+  if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message }, scan);
 
   const readerText = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
   const schemaName = readFileSchemaName(readerText);

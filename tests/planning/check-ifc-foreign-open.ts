@@ -282,9 +282,9 @@ for (const pad of ownFiles) {
   eq(`${pad}: meldingen met en zonder flag`, notices(on), notices(off));
   if (!opened(off, name)) continue;
   if (pad.endsWith('v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc')) {
-    // #870 ronde 8: de kop van v2026.7.12 met `O'Hara Tower` is kapot. De scanner achter de flag weigert hem en valt
-    // terug op de gewone route (`ifcBytesRoute.ts`): geen bron, dezelfde planning als zonder flag.
-    ok(`${pad}: met flag de gewone route (de scanner weigert de kapotte kop)`, src === null);
+    // Eindverwachting (Trias, 13 november 16:00): de aparte oude-kop-PR maakt dit vóór de indeling leesbaar.
+    // Geen uitzondering in de bytes-route. Tot die PR is binnengehaald is alleen dit bekende repogeval rood.
+    ok(`${pad}: met flag geopend en opslag toegestaan zoals main`, opened(on, name) && !ifcSaveBlocked(on.getState()));
     eq(`${pad}: dezelfde planning met en zonder flag`, sha(saved(on)), sha(saved(off)));
     continue;
   }
@@ -442,12 +442,22 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   }
   // Dezelfde hele DATA-staart met een kapotte oude kop: zonder vreemd deel bruikbaar, met vreemd deel geweigerd.
   for (const foreign of [false, true]) {
-    const malformed = (foreign ? withPset(plain) : plain).replace(/FILE_NAME\(.*?\);/, "FILE_NAME('O'Hara',$,$,$,$,$,$);");
+    const oldHeader = dec(fileBytes('tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+    const malformed = foreign ? withPset(oldHeader) : oldHeader;
     const bytes = enc.encode(malformed);
     const off = await open(false, 'scanner-uit.ifc', bytes);
     const on = await open(true, 'scanner-aan.ifc', bytes);
     ok(`scanner ${foreign}: main opent`, opened(off, 'scanner-uit.ifc'));
-    eq(`scanner ${foreign}: veilige uitkomst met flag`, opened(on, 'scanner-aan.ifc'), !foreign);
+    if (foreign) {
+      // Nu veilig geweigerd; na de oude-kop-PR mag dit ook met een bewaarde bron en de bestaande opslagblokkade openen.
+      ok('oude kop met externe pset: geen verliesgevend document', !opened(on, 'scanner-aan.ifc')
+        || (on.getState().ifcSource?.foreign === true && ifcSaveBlocked(on.getState())));
+      ok('oude kop met externe pset: zonder flag laat gewone opslag de pset weg', !saved(off).includes('ExternPakket'));
+    } else {
+      ok('oude kop zonder vreemd deel: eindverwachting opent zoals main (1103)', opened(on, 'scanner-aan.ifc'));
+    }
+    const scan = scanForeign(bytes);
+    console.log(`GEMETEN oude kop: foreign=${foreign}, scan=${scan.ok ? 'ok' : scan.reason}, flag-uit=${opened(off, 'scanner-uit.ifc')}, flag-aan=${opened(on, 'scanner-aan.ifc')}, blocked=${ifcSaveBlocked(on.getState())}`);
     if (!foreign) {
       ok('scanner eigen: opslag blijft vrij', !ifcSaveBlocked(on.getState()));
       eq('scanner eigen: gewone opslag bytegelijk', saved(on), saved(off));

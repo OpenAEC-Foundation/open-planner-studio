@@ -1854,7 +1854,10 @@ en noem het in je rapport of PR-tekst.
      `tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc` plus een wand. Een
      programma dat een model toevoegt, schrijft meestal een eigen kop; dan speelt dit niet. Besluit van Trias (wrakko, 10
      november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
-     met main). — B
+     met main). Aanvulling Trias, 13 november 16:00: een aparte kleine PR (`feat/804-1c-oude-kop`) herkent
+     deze oude eigen kop vóór de indeling. PR 2 van 1c weigert scannerterugval veilig, zonder eigen uitzondering;
+     daardoor is tot het binnenhalen van die afhankelijkheid ook de eindproef zonder model rood. De verwachting
+     blijft openen en opslaan zoals main. Dit bekende geval is uitdrukkelijk geen stopreden voor de bouwer. — B
 
 1108. **Twee fixtures die geen gewone uitvoer van OPS zijn, blijven bewust geweigerd.** Onderzoek in #898:
      - `h7-kalender-oude-writer.ifc` is echte uitvoer van OPS `531940ac` (de naastliggende JSON noemt de
