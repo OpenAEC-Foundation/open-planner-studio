@@ -134,18 +134,20 @@ console.log(JSON.stringify({ result, bytesRead, seeks, streamMs, blobResult, blo
 execFileSync(ESBUILD, [join(work, 'target-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-target.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
 writeFileSync(join(work, 'merge-entry.ts'), `
 import { readFileSync } from 'node:fs';
-import { openReadPlanning } from '${ROOT}/tests/planning/ifcAppRoute';
+import { loadStore } from '${ROOT}/tests/planning/ifcAppRoute';
 import { readIfcBytesDetailed, IFC_BYTES_ROUTE_MAX_BYTES } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 const file = process.argv[2];
 const t = () => performance.now();
 const mb = (n: number) => Math.round(n / 1048576);
+// E21: de entry initialiseert de bestaande storefabriek; de writer bezit zelf de heropening.
+await loadStore();
 const bytes = new Uint8Array(readFileSync(file));
 let t0 = t();
 const opened = await readIfcBytesDetailed(bytes, {}, { createWorker: () => null });
 const openMs = t() - t0;
 const afterOpen = process.memoryUsage();
-const source = opened.result.ifcSource;
+const { ifcSource: source, ...input } = opened.result;
 const base = { bytes: bytes.length, cap: IFC_BYTES_ROUTE_MAX_BYTES, openMs, heapAfterOpenMB: mb(afterOpen.heapUsed),
   arrayBuffersAfterOpenMB: mb(afterOpen.arrayBuffers) };
 if (!source) {
@@ -154,7 +156,7 @@ if (!source) {
   let outcome = 'geschreven';
   let parts: Uint8Array[] = [];
   t0 = t();
-  try { parts = await writeIfcMerge(opened.result, source, openReadPlanning); } catch (e) {
+  try { parts = await writeIfcMerge(input, source); } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     outcome = 'merge-needs-phase2: ' + [...new Set(e.cases.map(c => c.kind))].join(', ');
   }
