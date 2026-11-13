@@ -1188,7 +1188,7 @@ async function lossSetup(bytes: Uint8Array) {
     const found: string[] = [];
     const { edits } = lossCheck({
       index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,
-      pristine, domain, sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: ids.plan.projectSourceId === undefined,
+      pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys, sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: ids.plan.projectSourceId === undefined,
       owner0: ownerOut, owner1: ownerOut,
     }, f => found.push(f.detail));
     return { found, edits };
@@ -1196,6 +1196,35 @@ async function lossSetup(bytes: Uint8Array) {
   const withArg = (lines: OutLine[], line: OutLine, k: number, v: string) => lines.map(l => (l === line ? { ...l, args: l.args.map((a, j) => (j === k ? v : a)) } : l));
   return { opened, o0, owner, run, withArg, lineFor: (pred: (l: OutLine) => boolean) => o0.find(pred)! };
 }
+// 1116: de uitzondering verklaart alleen de vervallen importvlag, nooit andere herkomstgegevens.
+{
+  const raw = withLines(text(read('tests/planning/fixtures/ifc-arity-oude-writer.ifc')), REVIT_WALL);
+  for (const extraProperty of [false, true]) {
+    const src = extraProperty ? withLines(raw.replace('(#412));', '(#412,#89999));'), [
+      "#89999=IFCPROPERTYSINGLEVALUE('ExtraHerkomst',$,IFCLABEL('mspdi'),$);",
+    ]) : raw;
+    const setup = await lossSetup(latin1(src));
+    if (!setup) continue;
+    const { o0, run, withArg, lineFor } = setup;
+    const flag = lineFor(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'UnchangedSinceImport'");
+    const set = lineFor(l => l.type === 'IFCPROPERTYSET' && l.args[2] === "'OPS_ImportProvenance'");
+    const rel = lineFor(l => l.type === 'IFCRELDEFINESBYPROPERTIES' && l.args[5] === `#${set.id}`);
+    const ids = new Set([flag.id, set.id, rel.id]);
+    const removed = o0.filter(l => !ids.has(l.id));
+    const unchanged = run(o0, removed, () => {}).found;
+    ok(`1116 ${extraProperty}: zonder vlagwijziging blijft verlies geweigerd`, unchanged.some(f => f.includes('UnchangedSinceImport'))
+      && unchanged.some(f => f.includes('OPS_ImportProvenance')));
+    const edited = run(o0, removed, d => { delete d.importPristine; }).found;
+    if (!extraProperty) eq('1116: alleen de vlag, lege pset en koppeling mogen vervallen', edited, []);
+    else {
+      ok('1116: verdwijnen van ExtraHerkomst blijft geweigerd', edited.some(f => f.includes('OPS_ImportProvenance')));
+      const source = lineFor(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'ExtraHerkomst'");
+      const withoutFlag = withArg(o0.filter(l => l.id !== flag.id), set, 4, `(#${source.id})`);
+      eq('1116: met ExtraHerkomst mag alleen de vlag uit de pset verdwijnen', run(o0, withoutFlag, d => { delete d.importPristine; }).found, []);
+    }
+  }
+}
+
 const setupEigen = await lossSetup(enc.encode(eigen));
 if (setupEigen) {
   const { o0, run: runLoss, withArg: withArgIn, lineFor } = setupEigen;

@@ -76,6 +76,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   const normalized = shown.tasks.find(t => t.id === task.id)!.time.remainingTime;
   const merge = await tryMerge(input, o.ifcSource!);
   console.log('1113', JSON.stringify({ route: 'setActualFinish', before, afterEntry, normalized, merge: merge.ok ? 'schrijft' : merge.error.cases }));
+  assert(merge.ok, merge.ok ? '' : JSON.stringify(merge.error.cases));
   if (merge.ok) {
     const full = await openForeign(merge.bytes);
     console.log('1113 naad/bytes', merge.shown.tasks.find(t => t.id === task.id)!.time.remainingTime, full.tasks.find(t => t.id === task.id)!.time.remainingTime);
@@ -130,40 +131,97 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   console.log('OK zes echte wisacties: schrijven, dezelfde kalenders en inhoud na volledig heropenen');
 }
 
-// Trias: alle vier echte invoerroutes weigeren zolang de ongewijzigde duur precisie zou verliezen.
+// 1109: de vier oorspronkelijke gevallen, plus werkelijk einde en 100%, houden de duur letterlijk in het bron-slot.
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
   const base = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc'), 'utf8');
   const { splitStepArgs } = await import('@/services/ifc/foreign/stepScanner');
   const { openInStore } = await import('./ifcAppRoute');
-  let refused = 0;
+  let written = 0;
   for (const remaining of [2.3333333333333335, 1.2345678901234567]) {
     const line = base.split('\n').find(l => l.includes("IFCTASKTIME('Set up site Time'"))!;
     const args = splitStepArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')));
     args[18] = `'P0Y0M${remaining}D'`;
     const raw = base.replace(line, line.slice(0, line.indexOf('(') + 1) + args.join(',') + ');');
-    for (const edit of ['completion', 'actualStart'] as const) {
+    for (const edit of ['completion', 'actualStart', 'actualFinish', 'complete'] as const) {
       const { store, snapshot } = await openInStore(generatedModel(root, raw, 0));
       const task = store.getState().tasks.find(t => t.name === 'Set up site')!;
-      const accepted = edit === 'completion' ? store.getState().setTaskProgress(task.id, 0.5)
-        : store.getState().setActualStart(task.id, task.time.scheduleStart);
+      const accepted = edit === 'completion' || edit === 'complete' ? store.getState().setTaskProgress(task.id, edit === 'complete' ? 1 : 0.5)
+        : edit === 'actualStart' ? store.getState().setActualStart(task.id, task.time.scheduleStart)
+        : store.getState().setActualFinish(task.id, task.time.scheduleFinish);
       assert(accepted);
       const input = cloneDomain(snapshot(store));
       const expected = (await shownAfterOpen(input)).tasks.find(t => t.id === task.id)!;
       assert.equal(expected.time.scheduleDuration, 2.3333333333333335);
       const r = await tryMerge(input, snapshot(store).ifcSource!);
-      if (r.ok) {
-        const back = (await openForeign(r.bytes)).tasks.find(t => t.id === task.id)!;
-        console.log('STIL PRECISIEVERLIES', JSON.stringify({ remaining, edit, duration: back.time.scheduleDuration }));
-      } else {
-        assert(r.error.cases.some(c => c.kind === 'ongewijzigd-getal' && c.detail.includes(task.id)
-          && c.detail.includes('time.scheduleDuration') && c.detail.includes('2.3333333333333335') && c.detail.includes('2.333333')));
-        refused++;
-      }
+      assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+      const full = await openForeign(r.bytes);
+      const back = full.tasks.find(t => t.id === task.id)!;
+      assert.equal(back.time.scheduleDuration, 2.3333333333333335);
+      assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+      assert.equal(readbackDifference(r.shown, full), undefined, 'naad en volledige heropening exact gelijk');
+      const text = new TextDecoder().decode(r.bytes);
+      const tt = text.split('\n').find(l => l.includes("IFCTASKTIME('Set up site Time'"))!;
+      assert.equal(splitStepArgs(tt.slice(tt.indexOf('(') + 1, tt.lastIndexOf(')')))[4], "'P0Y0M2.3333333333333335D'");
+      written++;
     }
   }
-  assert.equal(refused, 4, 'alle vier weigeren getypeerd; geen stille afronding van een ongewijzigde duur');
-  console.log('OK ongewijzigd getal: alle vier echte voortgangsacties weigeren de afgeronde duur');
+  assert.equal(written, 8, 'alle acht schrijven met exact behouden duur');
+  console.log('OK 1109: acht echte voortgangsacties schrijven met de precieze bronduur');
+}
+
+// 1109: een echte naamswijziging laat ook een niet-lege precieze rest letterlijk staan.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const raw = readFileSync(join(root, 'tests/planning/fixtures/oude-tags/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc'), 'utf8');
+  const { openInStore } = await import('./ifcAppRoute');
+  const { store, snapshot } = await openInStore(generatedModel(root, raw, 0));
+  const before = snapshot(store);
+  const task = before.tasks.find(t => t.name === 'Set up site')!;
+  store.getState().updateTask(task.id, { name: 'Nieuwe naam voor precieze taak' });
+  const input = cloneDomain(snapshot(store));
+  assert.equal(input.tasks.find(t => t.id === task.id)!.time.remainingTime, 2.3333333333333335);
+  const r = await tryMerge(input, before.ifcSource!);
+  assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+  const full = await openForeign(r.bytes);
+  assert.equal(full.tasks.find(t => t.id === task.id)!.time.remainingTime, 2.3333333333333335);
+  const { splitStepArgs } = await import('@/services/ifc/foreign/stepScanner');
+  const line = new TextDecoder().decode(r.bytes).split('\n').find(l => l.includes("IFCTASKTIME('Nieuwe naam voor precieze taak Time'"))!;
+  assert.equal(splitStepArgs(line.slice(line.indexOf('(') + 1, line.lastIndexOf(')')))[18], "'P0Y0M2.3333333333333335D'", 'ook het restslot zelf houdt de bronwaarde');
+  assert.equal(readbackDifference(r.shown, full), undefined);
+  assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+  console.log('OK 1109: echte naamswijziging houdt de niet-lege precieze rest');
+}
+
+// Hele dagen hebben dezelfde bescherming nodig: voortgang mag alleen de rest wijzigen.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const { scanStep } = await import('@/services/ifc/foreign/stepScanner');
+  for (const file of ['public/examples/10-villa-wassenaar.ifc',
+    'tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc']) {
+    const raw = readFileSync(join(root, file), 'utf8');
+    const bytes = generatedModel(root, raw, 0);
+    const before = await openForeign(bytes);
+    const task = before.tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+    assert(Number.isInteger(task.time.scheduleDuration));
+    const input = await applyEdit(ordinaryEdits(before).find(e => e.kind === 'voortgang')!, cloneDomain(before));
+    assert.equal(input.tasks.find(t => t.id === task.id)!.time.scheduleDuration, task.time.scheduleDuration);
+    const r = await tryMerge(input, before.ifcSource!);
+    assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+    const durationToken = (bytes: Uint8Array) => {
+      const ix = scanStep(bytes);
+      const chunk = ix.chunkOf(String(before.ifcSource!.stepIds[`task:${task.id}`]));
+      for (let k = 0; k < ix.argCount(chunk); k++) for (const time of ix.refsAt(chunk, k)) {
+        if (ix.type(time) === 'IFCTASKTIME') return ix.argTokens(time)?.[4];
+      }
+      throw new Error('de taak heeft geen taaktijd');
+    };
+    assert.equal(durationToken(r.bytes), durationToken(bytes), 'de hele duur houdt letterlijk zijn bronvorm');
+    const full = await openForeign(r.bytes);
+    assert.equal(readbackDifference(r.shown, full), undefined);
+    assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+  }
+  console.log('OK 1109: voortgang op hele duren houdt het duurslot letterlijk');
 }
 
 // Terra R1: de echte extensie-load verandert alleen de lag-eenheid; het ongewijzigde getal moet exact blijven.
@@ -186,11 +244,41 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   assert.equal(input.sequences.find(s => s.id === seq.id)!.lagDays, seq.lagDays);
   assert.equal((await shownAfterOpen(input)).sequences.find(s => s.id === seq.id)!.lagDays, seq.lagDays);
   const r = await tryMerge(input, before.ifcSource!);
-  if (r.ok) console.log('STIL LAGVERLIES', (await openForeign(r.bytes)).sequences.find(s => s.id === seq.id)!.lagDays);
-  assert(!r.ok, 'geen bytes met een stil afgeronde ongewijzigde lag');
-  assert(r.error.cases.some(c => c.kind === 'ongewijzigd-getal' && c.detail.includes(seq.id)
-    && c.detail.includes('lagDays') && c.detail.includes('2.3333333333333335') && c.detail.includes('2.333333')));
-  console.log('OK Terra R1: echte lag-eenheidswijziging weigert getypeerd op de ongewijzigde lag');
+  assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+  const full = await openForeign(r.bytes);
+  assert.equal(full.sequences.find(s => s.id === seq.id)!.lagDays, seq.lagDays);
+  assert.equal(full.sequences.find(s => s.id === seq.id)!.lagUnit, 'ELAPSEDTIME');
+  assert(new TextDecoder().decode(r.bytes).includes("IFCDURATION('P2.3333333333333335D'),.ELAPSEDTIME."), 'de lag houdt letterlijk zijn brongetal');
+  assert.equal(readbackDifference(r.shown, full), undefined);
+  console.log('OK 1109: echte lag-eenheidswijziging schrijft met de precieze bronlag');
+}
+
+// 1116: de eerste echte bewerking wist de importvlag, zoals bij gewone opslag zonder model.
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const raw = readFileSync(join(root, 'tests/planning/fixtures/ifc-arity-oude-writer.ifc'), 'utf8');
+  const model = generatedModel(root, raw, 0);
+  for (const kind of ['duur', 'doorrekenen', 'voortgang'] as const) {
+    const initial = await openForeign(model);
+    assert.equal(initial.importPristine, true);
+    const input = await applyEdit(ordinaryEdits(initial).find(e => e.kind === kind)!, cloneDomain(initial));
+    assert.equal(input.importPristine, undefined, `${kind}: echte actie wist de importvlag`);
+    const r = await tryMerge(input, initial.ifcSource!);
+    assert(r.ok, r.ok ? '' : JSON.stringify(r.error.cases));
+    const full = await openForeign(r.bytes);
+    assert.equal(readbackDifference(r.shown, full), undefined);
+    assert.equal(canon(await shownAfterOpen(input), reseed), canon(full, reseed));
+    const bare = await openForeign(new TextEncoder().encode(raw));
+    const plainInput = await applyEdit(ordinaryEdits(bare).find(e => e.kind === kind)!, cloneDomain(bare));
+    const plainText = writeIFC(plainInput);
+    const plain = await openForeign(new TextEncoder().encode(plainText));
+    for (const field of ['importPristine', 'recordedSourceFormat'] as const) {
+      assert.equal(full[field], plain[field], `${kind}: dezelfde herkomst als gewone opslag`);
+    }
+    assert(!new TextDecoder().decode(r.bytes).includes("'UnchangedSinceImport'"));
+    assert(!plainText.includes("'UnchangedSinceImport'"));
+  }
+  console.log('OK 1116: duur, duur met F5 en enterTaskProgress schrijven; herkomst gelijk aan gewone opslag');
 }
 
 // Rechtstreeks betekent werkelijk exact: dezelfde writer-canon mag deze twee lags gelijk vinden, de leeswegtoets niet.

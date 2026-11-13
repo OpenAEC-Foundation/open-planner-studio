@@ -44,7 +44,7 @@ import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_FIELDS, lossCheck, partialDateTime, pristineFromScan, taskField,
+  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, partialDateTime, pristineFromScan, taskField,
   taskTimeSlotFields, type LossDiff,
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
@@ -741,7 +741,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
   // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
   const o0 = built0.lines.filter(l => !l.drop);
   const { edits } = lossCheck({
-    index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain,
+    index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
     sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
     owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
@@ -1024,18 +1024,19 @@ function assemble(source: IfcSource, index: StepIndex, cls: Classification, bloc
   return parts;
 }
 
-/** Een gebroken dag in de oude vorm van OPS: `P0Y0M0.5D`, `P0Y0M-0.5D`, `-P0Y0M0.5D` of `P0.5D`, ook met een exponent. */
-const FRACTIONAL_DAY_FORM = /^-?P(?:0Y0M)?-?(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
+/** Een dagduur in de oude vormen van OPS, ook met een breuk, minteken of exponent. */
+const DAY_FORM = /^-?P(?:0Y0M)?-?(\d+(?:\.\d+)?(?:e[-+]\d+)?)D$/;
 /** De velden achter de slots van `SourceTaskTime`, uit de ene tabel van de verliesbewaking (`taskTimeSlotFields`): duur en
- *  rest samen (slots 4 en 18), de werkelijke duur (15), en elke speling apart (11 en 12). */
-const DAY_GROUP_FIELDS = taskTimeSlotFields(4, 18);
+ *  rest elk apart (slots 4 en 18), de werkelijke duur (15), en elke speling apart (11 en 12). */
+const DURATION_FIELDS = taskTimeSlotFields(4);
+const REMAINING_FIELDS = taskTimeSlotFields(18);
 const ACTUAL_FIELDS = taskTimeSlotFields(15);
 const FREE_FLOAT_FIELDS = taskTimeSlotFields(11);
 const TOTAL_FLOAT_FIELDS = taskTimeSlotFields(12);
 
 /**
  * Per taak van `domain`: de slots die de writer in de dagvorm van de bron schrijft (`SourceTaskTime` in `ifcWriter.ts`;
- * fixronde 7 van #867, BLOKKEERT 1 en 4). Een slot doet mee als de bron daar een gebroken dag in de oude vorm had en de
+ * fixronde 7 van #867, BLOKKEERT 1 en 4). Een slot doet mee als de bron daar een dagduur in de oude vorm had en de
  * planner het veld niet wijzigde (tegenover `pristine`, het domein zoals de lezer het las). Regel van Trias: wat OPS zelf
  * schreef en de planner niet wijzigde, blijft staan zoals in de bron; wijzigde hij het, dan geldt de writer.
  */
@@ -1046,25 +1047,27 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
     const was = before.get(task.id);
     if (!was) continue;
     const same = (fields: readonly string[]) => fields.every(f => taskField(was, f) === taskField(task, f));
-    // De argumenten van de IfcTaskTime van de bron met een gebroken dag in de oude vorm.
-    const fractional = new Set<number>();
+    // Ook een hele duur/rest blijft in dagvorm. Werkelijke duur en speling houden hun bestaande breukregel;
+    // hele spelingen kunnen daarnaast een ExactFloat-record met minuten dragen, dat moet blijven staan.
+    const daySlots = new Set<number>();
     const step = source.stepIds[`task:${task.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     for (let k = 0; chunk >= 0 && k < index.argCount(chunk); k++) {
       for (const tt of index.refsAt(chunk, k)) {
         if (index.type(tt) !== 'IFCTASKTIME') continue;
         for (const { text, arg } of durationTexts(index, tt)) {
-          const m = FRACTIONAL_DAY_FORM.exec(text);
-          if (m && !Number.isInteger(Number(m[1])) && arg !== undefined) fractional.add(arg);
+          const m = DAY_FORM.exec(text);
+          if (m && arg !== undefined && (arg === 4 || arg === 18 || !Number.isInteger(Number(m[1])))) daySlots.add(arg);
         }
       }
     }
     const exactDays = new Set<DayMeasureDurationKey>();
-    if (same(DAY_GROUP_FIELDS) && (fractional.has(4) || fractional.has(18))) { exactDays.add('ScheduleDuration'); exactDays.add('RemainingTime'); }
-    if (same(ACTUAL_FIELDS) && fractional.has(15)) exactDays.add('ActualDuration');
+    if (same(DURATION_FIELDS) && daySlots.has(4)) exactDays.add('ScheduleDuration');
+    if (same(REMAINING_FIELDS) && daySlots.has(18)) exactDays.add('RemainingTime');
+    if (same(ACTUAL_FIELDS) && daySlots.has(15)) exactDays.add('ActualDuration');
     const exactFloat = new Set<'freeFloat' | 'totalFloat'>();
-    if (same(FREE_FLOAT_FIELDS) && fractional.has(11)) exactFloat.add('freeFloat');
-    if (same(TOTAL_FLOAT_FIELDS) && fractional.has(12)) exactFloat.add('totalFloat');
+    if (same(FREE_FLOAT_FIELDS) && daySlots.has(11)) exactFloat.add('freeFloat');
+    if (same(TOTAL_FLOAT_FIELDS) && daySlots.has(12)) exactFloat.add('totalFloat');
     if (exactDays.size > 0 || exactFloat.size > 0) out.set(task.id, { exactDays, exactFloat });
   }
   return out;
@@ -1077,13 +1080,13 @@ function sourceDayLagIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
   const out = new Set<string>();
   for (const seq of domain.sequences) {
     const was = before.get(seq.id);
-    if (!was || LAG_FIELDS.some(f => (was as unknown as Record<string, unknown>)[f] !== (seq as unknown as Record<string, unknown>)[f])) continue;
+    if (!was || LAG_VALUE_FIELDS.some(f => (was as unknown as Record<string, unknown>)[f] !== (seq as unknown as Record<string, unknown>)[f])) continue;
     const step = source.stepIds[`seq:${seq.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     const lag = chunk >= 0 ? index.refAt(chunk, 6) : -1;
     if (lag < 0 || index.type(lag) !== 'IFCLAGTIME') continue;
     for (const { text } of durationTexts(index, lag)) {
-      const m = FRACTIONAL_DAY_FORM.exec(text);
+      const m = DAY_FORM.exec(text);
       if (m && !Number.isInteger(Number(m[1]))) out.add(seq.id);
     }
   }
