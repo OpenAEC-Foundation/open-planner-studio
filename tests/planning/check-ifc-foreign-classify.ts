@@ -829,7 +829,7 @@ if (WITH_PYTHON) {
     const withWall = enc.encode(h + body.replace('ENDSEC;', wall + 'ENDSEC;'));
     for (const size of [1, 7, 65536, withWall.length]) eq(`${label}: wand bij ${size} B`, targetInChunks(withWall, size), 'model');
   }
-  const badHeader = header("O'Hara", 'Auteur', 'Bedrijf');
+  const badHeader = header("O'Hara DATA; Fase 1", 'Auteur', 'Bedrijf');
   const headerMutations: Array<[string, (h: string) => string]> = [
     ['ISO', h => h.replace('ISO-10303-21;', 'ISO-10303-22;')],
     ['HEADER', h => h.replace('HEADER;', 'HEADER ;')],
@@ -852,7 +852,7 @@ if (WITH_PYTHON) {
     ['schema', h => h.replace('IFC4X3', 'IFC4')],
     ['schema-regel', h => h.replace('FILE_SCHEMA', 'FILE_SCHEMa')],
     ['ENDSEC', h => h.replace('ENDSEC;', 'ENDSEC ;')],
-    ['DATA', h => h.replace('DATA;', 'DATA ;')],
+    ['DATA', h => h.replace('\nDATA;\n', '\nDATA ;\n')],
     ['CRLF', h => h.replace(/\n/g, '\r\n')],
     ['BOM', h => '\ufeff' + h],
   ];
@@ -870,7 +870,7 @@ if (WITH_PYTHON) {
     if (!(strict instanceof StepScanError)) eq(`oude kop ${label}: goede kop onveranderd`, got, foreignScanFrom(strict, classify(strict), good));
   }
   // Elk vast teken afzonderlijk: ook interpunctie/whitespace is deel van het gemeten sjabloon.
-  const variableParts = ["O'Hara", 'Auteur', 'Bedrijf', '2026-01-15T12:00:00'];
+  const variableParts = ["O'Hara DATA; Fase 1", 'Auteur', 'Bedrijf', '2026-01-15T12:00:00'];
   const variableRanges = variableParts.map(part => [badHeader.indexOf(part), badHeader.indexOf(part) + part.length]);
   for (let i = 0; i < badHeader.length; i++) {
     if (variableRanges.some(([a, b]) => i >= a && i < b)) continue;
