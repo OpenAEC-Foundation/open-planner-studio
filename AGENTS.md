@@ -221,8 +221,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   where a file breaks (with the flag the bytes route runs it on the text the reader gets, without the
   model part V).
   Otherwise `readIFC` reads only the first data section: the first `DATA;` up to the first `ENDSEC;`. The save-target
-  check runs only with the flag `ifcForeignContent`: then a target that breaks the grammar or has more than one data
-  section refuses, except a file OPS wrote itself (old versions wrote a raw header).
+  check runs only with the flag `ifcForeignContent`: model content refuses early, then the full C/A/V scan must
+  prove that no foreign part remains. Unreadable existing targets refuse. Historical own headers share the exact
+  recognition below; their DATA sections are still scanned strictly.
   Behind the feature flag `ifcForeignContent` (#804 phase 1a; off by default) every IFC open
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
   reader follows `selectPlanning`; a scanner refusal falls back to the current route) and keeps the source in
