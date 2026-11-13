@@ -251,7 +251,7 @@ await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x)
     ['gewoon commentaar', before('/* #888888=IFCWALL($,$,$,$,$,$,$,$,$); */\n')],
     ['een getal boven de grens van de scanner', before('/* #99999999999 */\n')],
   ];
-  const edit = (kind: 'hernoemen' | 'taak-erbij') => async (x: Domain, o: Opened) => { await basicEdits(o).find(e => e.kind === kind)!.apply(x); };
+  const edit = (kind: 'hernoemen' | 'taak-erbij') => async (x: Domain, o: Opened) => basicEdits(o).find(e => e.kind === kind)!.apply(x);
   for (const [label, bytes] of variants) {
     ok(`fixronde 8: ${label}: de bron heeft volgens de norm geen dubbel #id`, once(bytes) === undefined);
     await proof('dubbel id', `${label}, zonder bewerking`, bytes, 'schrijft', undefined, once);

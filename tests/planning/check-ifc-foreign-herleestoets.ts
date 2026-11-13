@@ -65,6 +65,29 @@ await assert.rejects(async () => {
 }, (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases[0].kind === 'open-stappen-ontbreken');
 
 const saved = await tryMerge(d, source);
+// E23/E24: dezelfde fixture met een andere getypeerde weigering is rood; groepen volgen de uitkomst.
+{
+  const { matchesRefusal, tallyGroup, TALLY_GROUPS } = await import('./ifcMergeTellingKern');
+  const input = await openForeign(new Uint8Array(readFileSync(new URL('../fixtures/ifc-foreign/council/r7sol-vreemd-lid-bij-notitie.ifc', import.meta.url))));
+  const result = await tryMerge(cloneDomain(input), input.ifcSource!);
+  assert(!result.ok, 'de bekende, gemaakte lege-notitiefixture weigert');
+  const expected = { reason: 'lege notitielijst, knownbug 1101', cases: [
+    'niet-gedragen | 9111 | IFCPROPERTYSET #9111 (OPS_TaskNotes), argument 4 | 4 |  |  | 4 | false',
+    'niet-gedragen | 9110 | IFCPROPERTYSINGLEVALUE #9110 (Notes) | -1 | ontbreekt |  |  | false',
+  ] };
+  assert(matchesRefusal(result.error.cases, expected));
+  assert(matchesRefusal([...result.error.cases].reverse(), expected), 'meldingvolgorde is geen ander geval');
+  assert(!matchesRefusal([{ kind: 'planning-na-openen', detail: 'taak a.time.scheduleDuration: 1 → 2' }], expected),
+    'dezelfde fixture mag niet op een andere soort weigeren');
+  assert(!matchesRefusal(result.error.cases.map(c => ({ ...c, field: c.field ? { ...c.field, arg: 99 } : undefined })), expected),
+    'ook andere velden bij dezelfde soort zijn rood');
+  assert(!matchesRefusal([...result.error.cases, result.error.cases[0]], expected), 'dubbele meldingen blijven zichtbaar');
+  assert.equal(tallyGroup('weigert (planning-na-openen)'), TALLY_GROUPS[1], 'planning-na-openen komt in de weigeraarsgroep');
+  assert.equal(tallyGroup('schrijft'), TALLY_GROUPS[0]);
+  assert.equal(tallyGroup(undefined), TALLY_GROUPS[2]);
+  console.log('OK E23/E24: echte fixture, andere soort/velden/dubbele melding rood; groep volgt werkelijke uitkomst');
+}
+
 // E20: beproef de zuivere getalbewaking zelf, ook waar de writer-canon al eerder zou weigeren.
 // De functie blijft privé in productcode: lees haar AST en voer precies die functie uit, geen kopie van de logica.
 {
@@ -79,6 +102,7 @@ const saved = await tryMerge(d, source);
   const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`) as
     (input: typeof opened, before: typeof opened, wanted: typeof opened, back: typeof opened) => string | undefined;
   const before = cloneDomain(opened);
+  before.tasks = ['eerste', 'blijft', 'derde'].map(id => ({ ...structuredClone(before.tasks[0]), id, parentId: null, childIds: [] }));
   const row = (taskId: string, duration: number) => ({ taskId, duration, start: '2027-03-01T08:00:00', finish: '2027-03-02T16:00:00', isMilestone: false });
   before.baselines = [{ id: 'sleutelproef', name: 'Baseline', createdAt: '2027-01-01T12:00:00Z',
     projectEnd: '2027-03-02T16:00:00', projectDuration: 2,
@@ -98,6 +122,13 @@ const saved = await tryMerge(d, source);
     duplicates.at(-1)!.duration += 1e-12;
     if (!reorder) assert.match(numberProblem(input, before, input, duplicate) ?? '', /task:blijft,1.*duration/, 'dubbele taakregels vallen niet samen');
   }
+  const orphaned = structuredClone(before);
+  orphaned.tasks = orphaned.tasks.filter(t => t.id !== 'eerste');
+  const backOrphan = structuredClone(orphaned);
+  backOrphan.baselines![0].tasks[0].taskId = 'oud-intern-id-van-de-verdwenen-taak';
+  assert.equal(numberProblem(orphaned, before, orphaned, backOrphan), undefined, 'een verweesd bron-id veroorzaakt geen valse weigering');
+  backOrphan.baselines![0].tasks[0].duration += 1e-12;
+  assert.match(numberProblem(orphaned, before, orphaned, backOrphan) ?? '', /index:0.*duration/, 'ook het verweesde getal houdt de bestaande exacte positietoets');
   console.log('OK E20: baseline op taskId, eerste regel weg, andere volgorde en dubbele voorkomens');
 }
 

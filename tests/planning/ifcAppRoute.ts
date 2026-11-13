@@ -69,6 +69,7 @@ export async function openInStore(bytes: Uint8Array, name = 'bron.ifc') {
 export async function storeWith(d: WriteIFCInput) {
   const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
   const { store } = createAppStoreContext();
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
   const parsed = {
     ...structuredClone(d), timeModel: MINUTE_MODEL_TIME_MODEL,
     resourceCalendars: (d.resourceCalendars ?? []).filter(c => c.id !== d.project.calendarId).map(c => structuredClone(c)),

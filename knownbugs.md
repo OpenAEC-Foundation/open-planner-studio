@@ -1941,29 +1941,6 @@ en noem het in je rapport of PR-tekst.
      wijziging, en een integratieproef dat de opslagroute de vaste, echte open-stappen meegeeft (met de flag aan). Sol,
      gerichte run op #903. — B
 
-1119. **VERVOLG: "dezelfde planning als gewone opslag op main" is in de toets van Trias gelijkheid na opnieuw schrijven.**
-     `tests/planning/check-ifc-foreign-oude-eigen.ts` vergelijkt de tien bestanden via `planningCanon`
-     (`src/services/ifc/foreign/planningCanon.ts`), die beide kanten met de gewone writer schrijft. Rechtstreeks
-     vergeleken zijn negen van de tien diep gelijk; in `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` blijft
-     `time.actualDuration` van Excavate swimming pool na de merge exact `0.30000000000000004`, terwijl een gewone opslag
-     op main er `0.3` van maakt (de afronding van 1113). De merge bewaart hier dus meer dan main; geen verlies. Richting:
-     de domeinwaarden rechtstreeks vergelijken en de toegelaten afronding van de gewone opslag expliciet benoemen. Sol,
-     gerichte run op #903. — B
-
-1121. **VERVOLG: de telling bewaakt bij een bekende weigering niet de reden.** In
-     `tests/planning/check-ifc-foreign-merge-telling.ts` is voor een eigen bestand zonder bewerking de naam in
-     `OWN_MAY_REFUSE` genoeg: elke getypeerde weigering van dat bestand blijft groen, ook een andere dan de reden die
-     erbij staat (bijvoorbeeld `tijd-deels-gelezen` in plaats van `planning-na-openen`). Een onverwachte fout blijft
-     wel rood. Richting: leg per regel ook het verwachte soort weigering vast en vergelijk dat. Gevonden door de review
-     van #909 (Terra). — B
-
-1122. **VERVOLG: de groepstabel van de telling noemt een weigering "schrijft zonder bewerking".** De indeling per
-     groep in `tests/planning/check-ifc-foreign-merge-telling.ts` kijkt alleen of er `niet-gedragen`-gevallen zijn. Een
-     bestand dat om een andere reden weigert (`planning-na-openen`) komt daardoor in de groep "eigen, schrijft zonder
-     bewerking": de historische run op #909, vóór het herstel van de oude scalarfractie, telde daar 53 bestanden; de tabel
-     per bestand toonde 49 schrijvers. De tabel per bestand en de exitcode kloppen wel. Richting: deel de groepen in op de werkelijke
-     uitkomst. Gevonden door de review van #909 (Terra). — B
-
 1123. **VERVOLG (fase 2): een uurtaak met kale datums laat de merge weigeren.** Een taak met een duur in uren en datums
      zonder tijd (`'2027-03-01'`), een vorm die geen release van OPS schreef, krijgt bij openen een eindtijd; de writer
      schrijft dan een datum-tijd en de merge weigert getypeerd, zonder bytes (`niet-gedragen`,
@@ -1976,6 +1953,14 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
+1141. **VERVOLG: een bron-beginklok met tijdzone laat zich niet verplaatsen.** De gemaakte proef
+     `07:30:00+01:00`–`16:00:00+01:00` opent en schrijft zonder bewerking. Het kalenderformulier accepteert een begin
+     om 10:00, maar gewone opslag weigert daarna met `IfcCalendarTimePrecisionError` (`IFC_CALENDAR_TIME_PRECISION`,
+     600 minuten), zonder nieuwe bytes; de planner krijgt de bestaande opslagfout. De writer kan de gewijzigde grens
+     niet met haar bronzone schrijven en weigert bewust dat zoneverlies. Geen bewezen releasebestand; gemeten bij
+     fase 1c, PR 1. Een eindbewerking met een ongewijzigde bron-beginklok met zone en een zoneloos einde is wel tot en
+     met heropening zonder OPS-markeringen beproefd. Geen writer- of lezerwijziging in deze PR. — B
+
 1140. **VERVOLG: een passende scalaire werkdag wordt bij openen een halve minuut langer.** `repairCalendar` in
      `src/state/migrations/minuteModel.ts` rondt het doel af met `Math.round(hoursPerDay * 60)`. Zonder pauze wordt
      08:00–15:30:30 met `WorkEndHour = 15.508333333333333` en 7.508333333333333 uur (450,5 minuten) daardoor 08:00–15:31
@@ -1985,14 +1970,6 @@ en noem het in je rapport of PR-tekst.
      melding. Gewone opslag schrijft het verlengde `WorkEndHour` en heropent op 15:31, terwijl #910 de standaardperiode
      letterlijk op 15:30.5:00 houdt. Zelf nagegaan in fase 1c, PR 1, na de gerichte Sol-review van #910. Niet in deze PR
      opgelost. — B
-
-1126. **VERVOLG: de terugleescontrole zonder OPS-markering dekt niet elke opslag van een bewerkte kalender.** In
-     `tests/planning/check-ifc-kalendertijd.ts` slaan de routes na een kalenderbewerking, ongedaan maken en opnieuw
-     doen op en controleren zij de gewone herlezing, maar zij roepen `checkWrittenCalendar` niet aan; daar kunnen
-     de OPS-markeringen een afwijkende standaardperiode maskeren. Bij de letterlijke bronperiode (`literalPeriod`)
-     stopt de hulp na een tekstzoekactie en vergelijkt zij geen andere perioden in dat bestand. Een beginklok met
-     tijdzone en een bewerkte resourcekalender zijn niet tot en met herlezing zonder markeringen beproefd. Een
-     testgat; geen productfout aangetoond. Gevonden door de review van #910 (Terra, ronde 5). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul

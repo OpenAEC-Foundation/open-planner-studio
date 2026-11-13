@@ -1,3 +1,4 @@
+import { matchesRefusal, refusalSignature, tallyGroup, TALLY_GROUPS, type ExpectedRefusal } from './ifcMergeTellingKern';
 import { readbackDifference } from './ifcReadbackEquality';
 // #804 fase 1b, bijsturing 1 punt 2: hoe vaak ziet de planner `merge-needs-phase2`?
 //
@@ -92,22 +93,74 @@ const withWall = (bytes: Uint8Array): Uint8Array => {
  *  schrijven (fixronde 7). Beide zijn proeven met een lege notitielijst `'[]'`, met de hand gemaakt in review ronde 7
  *  van #867: OPS schreef die nooit (sinds `1eb58ab9d` "afwezig/leeg ⇒ niets geschreven"), en de writer laat hem weg
  *  (knownbug 1101). */
-const OWN_MAY_REFUSE: Readonly<Record<string, string>> = {
-  'fixtures/periode-oude-minuutfractie.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
-  'fixtures/periode-oude-minuutfractie-v2026.8.1.ifc + wand': 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)',
-  'council/r7sol-vreemd-lid-bij-notitie.ifc': "een lege notitielijst '[]' (knownbug 1101)",
-  'council/r7sol-vreemd-lid-bij-toewijzing.ifc': "een lege notitielijst '[]' (knownbug 1101)",
+const OWN_MAY_REFUSE: Readonly<Record<string, ExpectedRefusal>> = {
+  'fixtures/periode-oude-minuutfractie.ifc + wand': { reason: 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)', cases: [
+    "tijd-deels-gelezen | 17 | IFCTIMEPERIOD #17: de tijd '07:30.5:00' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031)",
+  ] },
+  'fixtures/periode-oude-minuutfractie-v2026.8.1.ifc + wand': { reason: 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)', cases: [
+    "tijd-deels-gelezen | 14 | IFCTIMEPERIOD #14: de tijd '07:30.5:00' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031)",
+  ] },
+  'council/r7sol-vreemd-lid-bij-notitie.ifc': { reason: "een lege notitielijst '[]' (knownbug 1101)", cases: [
+    "niet-gedragen | 9111 | IFCPROPERTYSET #9111 (OPS_TaskNotes), argument 4 | 4 |  |  | 4 | false",
+    "niet-gedragen | 9110 | IFCPROPERTYSINGLEVALUE #9110 (Notes) | -1 | ontbreekt |  |  | false",
+  ] },
+  'council/r7sol-vreemd-lid-bij-toewijzing.ifc': { reason: "een lege notitielijst '[]' (knownbug 1101)", cases: [
+    "niet-gedragen | 9110 | IFCPROPERTYSINGLEVALUE #9110 (Notes) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 9111 | IFCPROPERTYSET #9111 (OPS_TaskNotes) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 9112 | IFCRELDEFINESBYPROPERTIES #9112 | -1 | ontbreekt |  |  | false",
+  ] },
   // Geen ongewijzigde OPS-uitvoer: de bestaande regressieproeven documenteren de externe herschrijving (1108).
-  'fixtures/ifc-arity-oude-writer-merged.ifc': 'door IfcOpenShell MergeProjects 0.9.0 herschreven; oude slotwaarden en WorkingExceptionIds al veranderd (check-ifc-legacy-arity.ts)',
-  'fixtures/xer-archief-herschreven.ifc + wand': 'met opzet beschadigde fixture: XER-bronchunks ontbreken, manifest bleef staan; geen gewone uitvoer van OPS (check-xer-archive-fallback.ts, knownbug 1108)',
-  'fixtures/werkdag-einde-tussenwaarde.ifc': "een speling 'PT72H' met een tijddeel: de lezer leest hem exact, de merge houdt de voorzichtige lijst (knownbug 1152)",
+  'fixtures/ifc-arity-oude-writer-merged.ifc': { reason: 'door IfcOpenShell MergeProjects 0.9.0 herschreven; oude slotwaarden en WorkingExceptionIds al veranderd (check-ifc-legacy-arity.ts)', cases: [
+    "niet-gedragen | 358 | IFCWORKTIME #358, argument 3 | 3 |  |  | 3 | false",
+    "niet-gedragen | 284 | IFCWORKTIME #284, argument 3 | 3 |  |  | 3 | false",
+    "niet-gedragen | 205 | IFCRELASSIGNSTOCONTROL #205, argument 4 | 4 |  |  | 4 | false",
+    "niet-gedragen | 256 | IFCRELNESTS #256, argument 5 | 5 |  |  | 5 | false",
+    "niet-gedragen | 288 | IFCPROPERTYSET #288 (OPS_Calendar), argument 4 | 4 |  |  | 4 | false",
+    "niet-eenduidig | 291 | IFCWORKSCHEDULE #291 (Baseline plan), argument 12 | 12 |  |  | 11 | true",
+    "niet-eenduidig | 291 | IFCWORKSCHEDULE #291 (Baseline plan), argument 13 van de uitvoer (geen slot in de bron) | 13 |  | uitvoer | 13 | true",
+    "niet-eenduidig | 292 | IFCWORKSCHEDULE #292 (Herplanning), argument 12 | 12 |  |  | 11 | true",
+    "niet-eenduidig | 292 | IFCWORKSCHEDULE #292 (Herplanning), argument 13 van de uitvoer (geen slot in de bron) | 13 |  | uitvoer | 13 | true",
+    "niet-gedragen | 363 | IFCPROPERTYSET #363 (OPS_Calendar), argument 4 | 4 |  |  | 4 | false",
+    "niet-gedragen | 282 | IFCTIMEPERIOD #282 | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 283 | IFCRECURRENCEPATTERN #283 | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 287 | IFCPROPERTYSINGLEVALUE #287 (WorkingExceptionIds) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 356 | IFCTIMEPERIOD #356 | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 357 | IFCRECURRENCEPATTERN #357 | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 362 | IFCPROPERTYSINGLEVALUE #362 (WorkingExceptionIds) | -1 | ontbreekt |  |  | false",
+  ] },
+  'fixtures/xer-archief-herschreven.ifc + wand': { reason: 'met opzet beschadigde fixture: XER-bronchunks ontbreken, manifest bleef staan; geen gewone uitvoer van OPS (check-xer-archive-fallback.ts, knownbug 1108)', cases: [
+    "niet-gedragen | 14 | IFCPROPERTYSINGLEVALUE #14 (SchemaVersion) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 15 | IFCPROPERTYSINGLEVALUE #15 (Format) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 16 | IFCPROPERTYSINGLEVALUE #16 (StorageFormat) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 17 | IFCPROPERTYSINGLEVALUE #17 (ByteLength) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 18 | IFCPROPERTYSINGLEVALUE #18 (Sha256) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 19 | IFCPROPERTYSINGLEVALUE #19 (ByteChunkSize) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 20 | IFCPROPERTYSINGLEVALUE #20 (ByteChunkCount) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 22 | IFCPROPERTYSET #22 (OPS_XerSourceArchive) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 23 | IFCRELDEFINESBYPROPERTIES #23 | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 24 | IFCPROPERTYSINGLEVALUE #24 (ArchiveSha256) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 25 | IFCPROPERTYSINGLEVALUE #25 (SourceProjectId) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 26 | IFCPROPERTYSET #26 (OPS_XerDocument) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 27 | IFCRELDEFINESBYPROPERTIES #27 | -1 | ontbreekt |  |  | false",
+  ] },
+  'fixtures/werkdag-einde-tussenwaarde.ifc': { reason: "een speling 'PT72H' met een tijddeel: de lezer leest hem exact, de merge houdt de voorzichtige lijst (knownbug 1152)", cases: [
+    "duur-deels-gelezen | 55 | IFCTASKTIME #55: de speling 'PT72H' staat niet op de lijst van vormen die de lezer exact leest.",
+    "duur-deels-gelezen | 55 | IFCTASKTIME #55: de speling 'PT16H' staat niet op de lijst van vormen die de lezer exact leest.",
+  ] },
   // Een back-up met het kenmerk van een vreemde bron (`OPS_RecoveryForeignSource`): de store haalt het kenmerk bij openen
   // uit het document, en de merge zou het dan laten vallen. Een back-up bevat zelf nooit een vreemd deel (de writer
   // schrijft haar zonder); de wand is hier alleen voor de proef. Op de oude testroute schreef de merge het kenmerk mee.
-  'fixtures/backup-met-kenmerk.ifc + wand': 'het herstelkenmerk van een back-up; een back-up heeft zelf geen vreemd deel',
+  'fixtures/backup-met-kenmerk.ifc + wand': { reason: 'het herstelkenmerk van een back-up; een back-up heeft zelf geen vreemd deel', cases: [
+    "niet-gedragen | 17 | IFCPROPERTYSINGLEVALUE #17 (Sha256) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 18 | IFCPROPERTYSINGLEVALUE #18 (ByteLength) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 19 | IFCPROPERTYSINGLEVALUE #19 (SourcePath) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 20 | IFCPROPERTYSET #20 (OPS_RecoveryForeignSource) | -1 | ontbreekt |  |  | false",
+    "niet-gedragen | 21 | IFCRELDEFINESBYPROPERTIES #21 | -1 | ontbreekt |  |  | false",
+  ] },
 };
 /** Zonder bewerking, per eigen bestand: de uitkomst (`schrijft` of `weigert (gevallen)`). */
 const ownOutcome = new Map<string, string>();
+const ownCases = new Map<string, readonly MergePhase2Case[]>();
 /** Zonder bewerking, per bestand: de uitkomst op de oude testroute (de lezer direct). */
 const rawOutcome = new Map<string, string>();
 const FULL_RAW = process.env.OPS_TELLING_OUDE_ROUTE === '1';
@@ -214,11 +267,14 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
     try {
       const d = await applyEdit(edit, cloneDomain(opened));
       const outcome = await tryMerge(d, source);
+      if (record) console.log('UITKOMST GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label,
+        uitkomst: outcome.ok ? 'schrijft' : 'weigert', domeinVerschil: edit.kind === 'niets' ? null : readbackDifference(cloneDomain(opened), d) ?? null }));
       if (edit.kind === 'niets' && !record) rawOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
       if (record && edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
         ownFiles++;
         notCarried.set(shown, outcome.ok ? [] : outcome.error.cases.filter(c => c.kind === 'niet-gedragen'));
         ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
+        ownCases.set(shown, outcome.ok ? [] : outcome.error.cases);
       }
       if (!outcome.ok) {
         console.log('WEIGERING GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label, gevallen: outcome.error.cases }));
@@ -294,11 +350,9 @@ const seconds = ((performance.now() - started) / 1000).toFixed(1);
 
 // ── Per groep: eigen bestanden die zonder bewerking schrijven, die al weigeren, en andere programma's ──
 {
-  const GROUPS = ['eigen, schrijft zonder bewerking', 'eigen, weigert zonder bewerking', 'ander programma'] as const;
-  const groupOf = (file: string) => {
-    const plain = notCarried.get(file);
-    return plain === undefined ? GROUPS[2] : plain.length === 0 ? GROUPS[0] : GROUPS[1];
-  };
+  const GROUPS = TALLY_GROUPS;
+  const groupOf = (file: string) => tallyGroup(ownOutcome.get(file));
+  const groupTotals = { files: 0, n: 0, ok: 0, refused: 0, other: 0 };
   console.log('');
   console.log('Per groep (alle bewerkingen behalve "niets"):');
   console.log('');
@@ -317,10 +371,20 @@ const seconds = ((performance.now() - started) / 1000).toFixed(1);
       }
       for (const [k, v] of editFields.get(f) ?? []) fields.set(k, (fields.get(k) ?? 0) + v);
     }
+    groupTotals.files += files.length; groupTotals.n += n; groupTotals.ok += okN;
+    groupTotals.other += otherN; groupTotals.refused += n - okN - otherN;
     console.log(`| ${group} | ${files.length} | ${n} | ${okN} | ${n - okN - otherN} (${fmt(refusedKinds)}) | ${otherN} |`);
     const top = [...fields].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3);
     if (top.length > 0) console.log(`|  | velden achter niet-gedragen: ${top.map(([k, v]) => `${v} × ${k}`).join('; ')} | | | | |`);
   }
+  const detail = { files: tally.size, n: 0, ok: 0, refused: 0, other: 0 };
+  for (const perKind of tally.values()) for (const [kind, t] of perKind) {
+    if (kind === 'niets') continue;
+    const other = [...t.other.values()].reduce((a, b) => a + b, 0);
+    detail.n += t.n; detail.ok += t.ok; detail.other += other; detail.refused += t.n - t.ok - other;
+  }
+  if (JSON.stringify(groupTotals) !== JSON.stringify(detail)) others.push(`groepstabel wijkt af: ${JSON.stringify(groupTotals)} tegenover detail ${JSON.stringify(detail)}`);
+
 }
 
 // ── Zonder bewerking: eigen bestanden met `niet-gedragen` ──
@@ -353,8 +417,10 @@ const ownRefused: string[] = [];
   console.log('|---|---|---|');
   for (const [file, outcome] of [...ownOutcome].sort((a, b) => a[0].localeCompare(b[0]))) {
     const allowed = OWN_MAY_REFUSE[file];
-    console.log(`| ${file} | ${outcome}${allowed ? `; mag: ${allowed}` : ''} | ${rawOutcome.get(file) ?? '–'} |`);
-    if (outcome !== 'schrijft' && !allowed) ownRefused.push(`${file}: ${outcome}`);
+    console.log(`| ${file} | ${outcome}${allowed ? `; mag: ${allowed.reason}` : ''} | ${rawOutcome.get(file) ?? '–'} |`);
+    if (outcome !== 'schrijft' && (!allowed || !matchesRefusal(ownCases.get(file) ?? [], allowed))) {
+      ownRefused.push(`${file}: ${outcome}; onverwachte soort/velden: ${JSON.stringify((ownCases.get(file) ?? []).map(refusalSignature))}`);
+    }
     if (outcome === 'schrijft' && allowed) ownRefused.push(`${file}: schrijft nu; haal het uit OWN_MAY_REFUSE`);
   }
   for (const file of Object.keys(OWN_MAY_REFUSE)) if (!ownOutcome.has(file)) ownRefused.push(`${file}: niet als eigen bestand gezien`);

@@ -809,7 +809,7 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, ope
 }
 
 /** Trias 1107: gelijk aan opened is ongewijzigd; zonder opened geldt pristine, zoals in de verliesbewaking.
- * Eén doorloop over alle numerieke bladeren van de planning. Id-lijsten koppelen op id, baselineregels op taskId;
+ * Eén doorloop over alle numerieke bladeren van de planning. Id-lijsten koppelen op id, baselineregels met een bestaande taak op taskId;
  * overige lijsten blijven op plek gekoppeld.
  * Toewijzings-ids worden niet opgeslagen (ifcReader.extractAssignments maakt ze opnieuw): hun identiteit is het
  * taak/resource-paar met een volgnummer voor dubbele voorkomens. Er verdwijnt geen dubbel object in een Map.
@@ -820,10 +820,12 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
   const field = (value: unknown, key: string): unknown => value !== null && typeof value === 'object'
     ? (value as Record<string, unknown>)[key] : undefined;
   const idOf = (value: unknown) => field(value, 'id');
+  const liveTaskIds = new Set(input.tasks.map(t => t.id));
   const keyOf = (value: unknown, index: number, path: string): string => {
     if (path === 'planning.assignments') return `pair:${field(value, 'taskId')}\0${field(value, 'resourceId')}`;
     const taskId = field(value, 'taskId');
-    if (/^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path) && typeof taskId === 'string') return `task:${taskId}`;
+    // Een verweesde rij heeft volgens orphanRowsWithoutId geen betekenisvol taak-id; de oude positietoets blijft daar staan.
+    if (/^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path) && typeof taskId === 'string' && liveTaskIds.has(taskId)) return `task:${taskId}`;
     const id = idOf(value);
     return typeof id === 'string' || typeof id === 'number' ? `id:${id}` : `index:${index}`;
   };

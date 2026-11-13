@@ -490,9 +490,7 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   // Knownbug 1104 (opgelost in de vervolg-PR van #867): een taak uit de baseline wissen. De bron-JSON heeft het interne id,
   // zonder `TaskGuids`; de regel van de gewiste taak houdt met (b) dat id, en wijst net als in de vorm van de writer naar geen
   // taak (`orphanRowsWithoutId`). De bron-JSON blijft staan.
-  await proof('v2026.7.12', 'data, een taak uit de baseline gewist (#886)', src, 'schrijft', (d, o) => {
-    plannerEdits(o, 1).find(e => e.kind === 'taak-wissen')!.apply(d);
-  }, head);
+  await proof('v2026.7.12', 'data, een taak uit de baseline gewist (#886)', src, 'schrijft', (d, o) => applyEdit(plannerEdits(o, 1).find(e => e.kind === 'taak-wissen')!, d), head);
   // Knownbug 1103: de kop breekt de grammatica; met de wand erbij weigert de oude route het model.
   const ohara = readText(`${OLD}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`);
   ok('v2026.7.12: ohara zonder wand opent', await openForeign(latin1(ohara)).then(() => true, () => false));
@@ -561,9 +559,37 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
     reseed(0x804);
     const plain = await plainSaveAfterF5(bare);
     ok(`${name}: de gewone opslag is byte-gelijk aan die van main ${fixture.basis}`, want?.uitvoerSha256 === sha256(plain));
-    const viaMain = canon(await openForeign(new TextEncoder().encode(plain)), reseed);
+    const plainDomain = await openForeign(new TextEncoder().encode(plain));
+    const viaMain = canon(plainDomain, reseed);
     const viaBytes = await openForeign(r.bytes);
     const viaMerge = canon(viaBytes, reseed);
+    // E22/1119: vergelijk daarnaast rechtstreeks, zonder een tweede writer die getallen afrondt.
+    // Alleen deze concrete gewone-writerafronding (1113) mag verschillen, op dit taskId en dit veld.
+    const expected = cloneDomain(plainDomain);
+    if (rel === `${OLD}/v2026.9.0-17-cijfers-10-villa-wassenaar.ifc`) {
+      const id = 'task-ifc-Vzqp3P3HBfgnTr614dGNUJ'; // Excavate swimming pool.
+      const exact = viaBytes.tasks.find(t => t.id === id)!.time.actualDuration;
+      const rounded = expected.tasks.find(t => t.id === id)!.time.actualDuration;
+      ok(`${name}: uitsluitend actualDuration houdt 0.30000000000000004 tegenover gewone opslag 0.3`,
+        exact === 0.30000000000000004 && rounded === 0.3);
+      // Geen algemene afrondingstolerantie: een ander veld, taak-id of getal blijft een verschil.
+      if (exact === 0.30000000000000004 && rounded === 0.3) expected.tasks.find(t => t.id === id)!.time.actualDuration = exact;
+      // #908 bewaart ook deze bron-lag exact; gewone opslag rondt hetzelfde zesdecimalenveld af (1113).
+      const relationId = 'seq-ifc-MZztYNfNSXR1ibSFNtcvFX';
+      const lag = viaBytes.sequences.find(q => q.id === relationId)!.lagDays;
+      const plainLag = expected.sequences.find(q => q.id === relationId)!.lagDays;
+      ok(`${name}: uitsluitend de benoemde lagDays houdt 0.30000000000000004 tegenover gewone opslag 0.3`,
+        lag === 0.30000000000000004 && plainLag === 0.3);
+      if (lag === 0.30000000000000004 && plainLag === 0.3) expected.sequences.find(q => q.id === relationId)!.lagDays = lag;
+    }
+    const direct = readbackDifference(expected, viaBytes);
+    ok(`${name}: domein rechtstreeks gelijk, alleen benoemde afronding 1113 (${direct ?? 'gelijk'})`, direct === undefined);
+    const perturbed = cloneDomain(viaBytes);
+    perturbed.tasks[0].time.scheduleDuration += 1e-10;
+    ok(`${name}: de oude writer-canon zou de getalmutatie maskeren`, canon(perturbed, reseed) === canon(viaBytes, reseed));
+    ok(`${name}: een ongewijzigd getal onder de schrijfprecisie wordt rechtstreeks gezien`,
+      readbackDifference(expected, perturbed)?.includes('scheduleDuration') === true);
+
     const difference = readbackDifference(r.shown, viaBytes);
     if (difference) console.log('LEESWEG VERSCHIL ' + JSON.stringify({ bestand: rel, difference }));
     ok(`${name}: naad en volledige bytes-route diep gelijk (${difference ?? 'gelijk'})`, difference === undefined);
