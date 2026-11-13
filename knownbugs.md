@@ -1953,6 +1953,19 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
+1143. **VERVOLG: de keuze van een toewijzing in de telling bouwt alle geldige paren op en gebruikt er één.**
+     `tests/planning/ifcMergeKern.ts` (rond regel 351) verzamelt voor de bewerking "toewijzing erbij" elke geldige
+     combinatie van taak en resource en neemt daarna de eerste. Stoppen bij het eerste geldige paar geeft dezelfde
+     keuze met één zoekgang. Alleen opruimen in testcode; de uitkomst van de telling verandert niet. Gevonden door de
+     review van #917 (Sol). — B
+
+1142. **VERVOLG: twee toelichtingen bij de merge-telling beschrijven de oude stand.** Het commentaar bovenin
+     `tests/planning/check-ifc-foreign-merge-telling.ts` zegt "Exit 0 = geen "anders" en elk eigen bestand schrijft
+     zonder bewerking"; de poort staat daarnaast acht vastgelegde uitzonderingsbestanden toe, elk met precies de
+     vastgelegde soort weigering en bronvelden (`OWN_MAY_REFUSE`). En `handoff.md` (punt 7, eis E4) zegt nog "(nu duur
+     en voortgang; doorrekenen gebruikt de duuractie plus F5)", terwijl sinds #917 elke soort bewerking via de echte
+     app-actie loopt. Alleen tekst; beide stonden al zo op main. Gevonden door de review van #917 (Sol). — B
+
 1141. **VERVOLG: een bron-beginklok met tijdzone laat zich niet verplaatsen.** De gemaakte proef
      `07:30:00+01:00`–`16:00:00+01:00` opent en schrijft zonder bewerking. Het kalenderformulier accepteert een begin
      om 10:00, maar gewone opslag weigert daarna met `IfcCalendarTimePrecisionError` (`IFC_CALENDAR_TIME_PRECISION`,
