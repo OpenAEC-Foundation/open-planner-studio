@@ -1156,15 +1156,14 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
     ...dataKopBestanden(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
     ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
-    // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam. In ronde 3 gaf de doelcontrole hier "no-model" en
-    // schreven Opslaan als, CSV en AutoSave over het model heen. De eigen planning met zo'n naam blijft een doel.
-    // Ronde 6: de kapotte naam breekt de grammatica; dan weigert het doel als niet leesbaar.
-    // Ronde 8 (besluit Trias, wrakko 10 november 2026): OPS v2026.2.0 tot en met v2026.7.12 schreef de naam rauw (commit
-    // 771db15cb). Voor een eigen bestand geldt daarom de regel van main: het blijft een doel. Alleen een naam met een
-    // regeleinde valt daarbuiten (de regel met FILE_NAME eindigt dan niet met originating_system 'Open Planner Studio').
+    // #916: alle 13 kapotte naamvormen onder de huidige IFC4X3_ADD2-kop vallen buiten het exact gemeten oude
+    // LF/IFC4X3-sjabloon. De 12 eerder toegestane vormen worden unreadable; het regeleinde bleef al geweigerd.
+    // De echte oude fixtures en de geldige DATA-kopvormen hierboven blijven doelen.
     ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
     ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text),
-      refuse: name === 'naam-regeleinde' ? 'unreadable' as const : null })),
+      refuse: 'unreadable' as const })),
+    // #916 fixronde 1: alle kapotte naamvarianten van de huidige IFC4X3_ADD2-kop vallen buiten het gemeten oude
+    // LF/IFC4X3-sjabloon, dus van toegestaan (behalve regeleinde) naar unreadable. De echte oude fixtures blijven doelen.
     // Ronde 8 (Trias): echte bestanden van de writer van v2026.7.12 (`scripts/proef/maak-oude-uitvoer.mjs`), met de
     // projectnaam `O'Hara Tower` (kapotte kop) en `Fase DATA; Noord`. Ze blijven een doel.
     // Ronde 8 (Sol, BLOKKEERT): een wand in een binaire waarde, een URI-parameter of een REFERENCE-sectie na DATA, in een

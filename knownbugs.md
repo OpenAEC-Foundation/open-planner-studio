@@ -1856,16 +1856,6 @@ en noem het in je rapport of PR-tekst.
      met 9 argumenten uit die knownbug zijn opgelost in #867, fixronde 7). Richting: een lege lijst lezen als "geen
      notities" en de pset dan als bronstuk laten staan, of de lege lijst schrijven. Uit #867 (fase 1b, fixronde 7). — B
 
-1103. **VERVOLG: een eigen bestand van v2026.7.12 met een apostrof in de kop en een model erbij opent niet.** De writer
-     van v2026.7.12 schreef de naam rauw in FILE_NAME (`FILE_NAME('O'Hara Tower.ifc',…)`). Zo'n bestand breekt de
-     grammatica, dus de route met de bronbytes leest het niet, en de oude route weigert het model (knownbug 110,
-     `building-model`). Zonder model opent het en slaat het op zoals op main. Proef: de telling
-     (`check-ifc-foreign-merge-telling.ts`, `REFUSED_AT_OPEN`) met
-     `tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc` plus een wand. Een
-     programma dat een model toevoegt, schrijft meestal een eigen kop; dan speelt dit niet. Besluit van Trias (wrakko, 10
-     november 2026): VERVOLG; er gaat niets verloren en het weigert bij openen. Uit #867 (fase 1b, fixronde 7, na de merge
-     met main). — B
-
 1108. **Twee fixtures die geen gewone uitvoer van OPS zijn, blijven bewust geweigerd.** Onderzoek in #898:
      - `h7-kalender-oude-writer.ifc` is echte uitvoer van OPS `531940ac` (de naastliggende JSON noemt de
        writercommit). Opgelost: `sourceBandCalendarIds` gebruikt nu `workCalendarSlots`, ook bij de oude indeling
@@ -1925,15 +1915,6 @@ en noem het in je rapport of PR-tekst.
      schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
      1c. — B
 
-1117. **VERVOLG: de toets "ongewijzigd getal exact" koppelt rijen zonder `id` op plek.** `unchangedPlanningNumberProblem`
-     in `src/services/ifc/foreign/mergeWriter.ts` (#903) koppelt dingen met een `id` op id en de rest op plek in de lijst.
-     Regels van een baseline hebben een `taskId`, geen `id`: wist de planner de eerste regel, dan wordt de volgende regel
-     met de vroegere eerste vergeleken, en een blijvend getal dat daarvan verschilt geldt dan niet als ongewijzigd. Geen
-     verlies aangetoond: de writer bewaart een baseline als JSON. Richting: baselineregels op `taskId` koppelen, met een
-     proef met verschuivende rijen. Terra, review ronde 2 van #903. — B
-     Sol probeerde er in zijn gerichte run verlies mee te maken en kon dat niet: de eerste baselineregel wissen weigert
-     getypeerd (`niet-gedragen`), en na het wissen van de eerste onderbreking blijft de volgende exact.
-
 1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
      `src/services/ifc/ifcWriter.ts` (bij de slots die de writer exact in de dagvorm van de bron schrijft) staat nog dat
      duur en rest samen gaan en dat het om een gebroken dag gaat. Sinds #908 beslist de merge per slot (duur en rest
@@ -1950,45 +1931,63 @@ en noem het in je rapport of PR-tekst.
      wijziging, en een integratieproef dat de opslagroute de vaste, echte open-stappen meegeeft (met de flag aan). Sol,
      gerichte run op #903. — B
 
-1119. **VERVOLG: "dezelfde planning als gewone opslag op main" is in de toets van Trias gelijkheid na opnieuw schrijven.**
-     `tests/planning/check-ifc-foreign-oude-eigen.ts` vergelijkt de tien bestanden via `planningCanon`
-     (`src/services/ifc/foreign/planningCanon.ts`), die beide kanten met de gewone writer schrijft. Rechtstreeks
-     vergeleken zijn negen van de tien diep gelijk; in `v2026.9.0-17-cijfers-10-villa-wassenaar.ifc` blijft
-     `time.actualDuration` van Excavate swimming pool na de merge exact `0.30000000000000004`, terwijl een gewone opslag
-     op main er `0.3` van maakt (de afronding van 1113). De merge bewaart hier dus meer dan main; geen verlies. Richting:
-     de domeinwaarden rechtstreeks vergelijken en de toegelaten afronding van de gewone opslag expliciet benoemen. Sol,
-     gerichte run op #903. — B
+1123. **VERVOLG (fase 2): een uurtaak met kale datums laat de merge weigeren.** Een taak met een duur in uren en datums
+     zonder tijd (`'2027-03-01'`), een vorm die geen release van OPS schreef, krijgt bij openen een eindtijd; de writer
+     schrijft dan een datum-tijd en de merge weigert getypeerd, zonder bytes (`niet-gedragen`,
+     `'2027-03-01' → '2027-03-01T17:07:00'`). Veilig; bij fase 2 met bestanden van andere programma's komt deze vorm
+     terug. Gemeten in #910. — B
 
-1120. **BLOKKEERT vóór 1c: een eigen bestand met een oude scalarfractie in een werkperiode weigert zonder bewerking.**
-     `tests/planning/fixtures/periode-oude-scalarfractie-v2026.8.1.ifc` (van #897) heeft
-     `#14=IFCTIMEPERIOD('9.123456:00:00','16:00:00')`. Met een wand erbij en zonder bewerking weigert de merge
-     (`src/services/ifc/foreign/mergeWriter.ts`) getypeerd, zonder bytes: `merge-needs-phase2`, `planning-na-openen`,
-     `planning.calendar.ifcTimePeriods.0.end: 960 → 1027.40736`. 1027.40736 is het begin (547.40736 minuten, 9.123456
-     uur) plus 480. 960 is de bewaarde eindwaarde van de bronperiode (`ifcTimePeriods`), niet de werktijd die de
-     planner zag: voor deze oude scalaire kalender verlengt de migratie (`repairCalendar` in
-     `src/state/migrations/minuteModel.ts`) het effectieve einde bij openen tot begin plus uren per dag. De melding
-     noemt het eerste verschil in het domein; zij bewijst op zichzelf geen zichtbaar verlies in de planning. Het
-     ontstond toen #897 (de kalendertijd in minuten, `calendar.ifcTimePeriods`) en #903 (de volledige herleestoets) op
-     11 november 2026 kort na elkaar in main kwamen; ze zijn niet samen getest. Vermoed, niet uitgezocht: de merge kent
-     de nieuwe velden en schrijfregels van #897 nog niet, en schrijft de bewaarde bronperiode niet terug zoals zij
-     binnenkwam. Geen planner raakt het: de merge heeft geen aanroeper. Tijdelijk staat alleen dit bestand in
-     `OWN_MAY_REFUSE` in `tests/planning/check-ifc-foreign-merge-telling.ts`, om de CI op main groen te krijgen (besluit
-     van Trias, 11 november 2026). **Eis: #908 lost de oorzaak op en haalt die regel weer weg**; een eigen bestand
-     weigert nooit zonder een wijziging van de planner. — B
+1124. **VERVOLG: een bronklok met tijdzone die niet bij `WorkEndHour` past, laat opslaan weigeren na een
+     beginwijziging.** Een gemaakt bestand met `'16:20:00+01:00'` en `WorkEndHour = 16.34` (24 seconden verschil; geen
+     release schreef dat) weigert na een wijziging van alleen het begin met `IfcCalendarTimePrecisionError`: het
+     effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
+     Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
-1121. **VERVOLG: de telling bewaakt bij een bekende weigering niet de reden.** In
-     `tests/planning/check-ifc-foreign-merge-telling.ts` is voor een eigen bestand zonder bewerking de naam in
-     `OWN_MAY_REFUSE` genoeg: elke getypeerde weigering van dat bestand blijft groen, ook een andere dan de reden die
-     erbij staat (bijvoorbeeld `tijd-deels-gelezen` in plaats van `planning-na-openen`). Een onverwachte fout blijft
-     wel rood. Richting: leg per regel ook het verwachte soort weigering vast en vergelijk dat. Gevonden door de review
-     van #909 (Terra). — B
+1143. **VERVOLG: de keuze van een toewijzing in de telling bouwt alle geldige paren op en gebruikt er één.**
+     `tests/planning/ifcMergeKern.ts` (rond regel 351) verzamelt voor de bewerking "toewijzing erbij" elke geldige
+     combinatie van taak en resource en neemt daarna de eerste. Stoppen bij het eerste geldige paar geeft dezelfde
+     keuze met één zoekgang. Alleen opruimen in testcode; de uitkomst van de telling verandert niet. Gevonden door de
+     review van #917 (Sol). — B
 
-1122. **VERVOLG: de groepstabel van de telling noemt een weigering "schrijft zonder bewerking".** De indeling per
-     groep in `tests/planning/check-ifc-foreign-merge-telling.ts` kijkt alleen of er `niet-gedragen`-gevallen zijn. Een
-     bestand dat om een andere reden weigert (`planning-na-openen`, zoals het bestand van punt 1120) komt daardoor in de
-     groep "eigen, schrijft zonder bewerking": de run op #909 telt daar 53 bestanden, de tabel per bestand toont 49
-     schrijvers. De tabel per bestand en de exitcode kloppen wel. Richting: deel de groepen in op de werkelijke
-     uitkomst. Gevonden door de review van #909 (Terra). — B
+1142. **VERVOLG: twee toelichtingen bij de merge-telling beschrijven de oude stand.** Het commentaar bovenin
+     `tests/planning/check-ifc-foreign-merge-telling.ts` zegt "Exit 0 = geen "anders" en elk eigen bestand schrijft
+     zonder bewerking"; de poort staat daarnaast acht vastgelegde uitzonderingsbestanden toe, elk met precies de
+     vastgelegde soort weigering en bronvelden (`OWN_MAY_REFUSE`). En `handoff.md` (punt 7, eis E4) zegt nog "(nu duur
+     en voortgang; doorrekenen gebruikt de duuractie plus F5)", terwijl sinds #917 elke soort bewerking via de echte
+     app-actie loopt. Alleen tekst; beide stonden al zo op main. Gevonden door de review van #917 (Sol). — B
+
+1141. **VERVOLG: een bron-beginklok met tijdzone laat zich niet verplaatsen.** De gemaakte proef
+     `07:30:00+01:00`–`16:00:00+01:00` opent en schrijft zonder bewerking. Het kalenderformulier accepteert een begin
+     om 10:00, maar gewone opslag weigert daarna met `IfcCalendarTimePrecisionError` (`IFC_CALENDAR_TIME_PRECISION`,
+     600 minuten), zonder nieuwe bytes; de planner krijgt de bestaande opslagfout. De writer kan de gewijzigde grens
+     niet met haar bronzone schrijven en weigert bewust dat zoneverlies. Geen bewezen releasebestand; gemeten bij
+     fase 1c, PR 1. Een eindbewerking met een ongewijzigde bron-beginklok met zone en een zoneloos einde is wel tot en
+     met heropening zonder OPS-markeringen beproefd. Geen writer- of lezerwijziging in deze PR. — B
+
+1140. **VERVOLG: een passende scalaire werkdag wordt bij openen een halve minuut langer.** `repairCalendar` in
+     `src/state/migrations/minuteModel.ts` rondt het doel af met `Math.round(hoursPerDay * 60)`. Zonder pauze wordt
+     08:00–15:30:30 met `WorkEndHour = 15.508333333333333` en 7.508333333333333 uur (450,5 minuten) daardoor 08:00–15:31
+     ([480,931]): het afgeronde doel 451 is groter dan de passende spanne 450,5. Met `SimpleBreakDuration = 0` gebeurt
+     dit niet. Dit openen is gelijk op main, 156953509 en d19dcd89f; het komt niet door #910. `repairs` legt `extendEnd`
+     vast; de planner krijgt een blijvende informatiemelding `minuteModelCalendarRepaired`, zonder de tijden in de
+     melding. Gewone opslag schrijft het verlengde `WorkEndHour` en heropent op 15:31, terwijl #910 de standaardperiode
+     letterlijk op 15:30.5:00 houdt. Zelf nagegaan in fase 1c, PR 1, na de gerichte Sol-review van #910. Niet in deze PR
+     opgelost. — B
+
+1138. **VERVOLG: de vastgelegde main-uitkomsten van de oude-kopvergelijking zijn grotendeels opmaak.**
+     `tests/planning/fixtures/oude-kop-main.json` (6.030 regels, 172.730 bytes) legt per gemaakte kop vast wat main
+     doet; `tests/planning/ifcOudeKopVergelijking.ts` vergelijkt de branch daarmee. Dezelfde JSON past zonder verlies
+     op ongeveer 102 regels en 132.938 bytes (één geval per regel). Alleen opruimen; het bestand is nodig als vaste
+     verwachting zonder netwerk. Gevonden door de review van #916 (Sol, ronde 3). — B
+
+1137. **VERVOLG: bij de terugval naar de tekstlezer verdwijnt vreemde inhoud die buiten de oude-kopherkenning valt;
+     precies zo op main.** Een bestand met de oude eigen kop en ruim 70 KiB in het auteurveld (boven de grens van
+     65.536 bytes, dus niet herkend) en een wand in de tweede datasectie opent met de flag uit met twintig taken;
+     `saveFile()` schrijft één keer en de wand is weg. Main en #916 doen hier hetzelfde: de route valt terug op de
+     tekstlezer (`src/services/ifc/foreign/ifcBytesRoute.ts`, de terugval) en de oude entiteitenlus in
+     `src/services/ifc/ifcReader.ts` leest alleen de eerste datasectie. Een gemaakt bestand; geen release schreef het.
+     Hoort bij 1054 en 1061. Richting: bij de terugval naar tekst de bescherming van vreemde broninhoud houden (fase
+     1c, PR 2: terugval en schema). Gevonden door de review van #916 (Sol, ronde 3). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
@@ -2033,29 +2032,44 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-foreign-strikt.ts`, "geen dubbel `#id`"). Wat blijft: met de flag opent zo'n bestand nog. Uit #881
      (review ronde 1, Claude Opus 5.5, BEVESTIGD, VERVOLG). — B
 
-1052. **VERVOLG: een bestand van een ander programma dat zich uitgeeft als OPS, valt onder de regel van main.** De
-     doelcontrole (`src/services/ifc/foreign/targetModelScan.ts`) herkent een eigen bestand aan de vaste kop van OPS en
-     aan het vaste stuk na de vrije tekst in FILE_NAME (`'Open Planner Studio 0.1','Open Planner Studio','');`). Breekt
-     zo'n bestand de grammatica, of heeft het meer dan één datasectie, dan leest zij het zoals `readIFC` op main (besluit Trias, wrakko 10 november 2026: oude
-     versies schreven de kop rauw, en die planners moeten kunnen blijven opslaan). Een bestand van een ander programma
-     dat precies die kop schrijft, en de grammatica breekt, gaat er dan ook doorheen: een modelentiteit die de lus van
-     `parseSTEP` mist (knownbug 1050, of na een kapotte naam), ziet de doelcontrole dan niet, en Opslaan als of AutoSave
-     kan het model overschrijven. Alleen bij opzet of toeval in precies die kop. Uit #870 (ronde 8). — S
+1052. **VERVOLG: de oude leeslus kan inhoud missen, ook bij precies het oude OPS-kopsjabloon.**
+     #916 deelt één herkenning tussen scan, doelcontrole en datasectievinder. Alleen het gemeten LF/IFC4X3-sjabloon,
+     met geldige datum en vaste velden, mag de drie vrije plaatsen maskeren en DATA na de vaste kop kiezen.
+     Sinds fixronde 2 gebeurt dat niet bij een mogelijk entiteitsbegin (`#` + woord-id + ASCII-witruimte + `=`),
+     commentaarmarkeringen of quote/veldgrenzen, ook met tussenruimte (`' ,`, `' )`, `( '`, `, '`). Een losse apostrof
+     en DATA;/ENDSEC; zonder zulke inhoud blijven ondersteund. Dezelfde functie geeft voor onveilige vrije tekst
+     uitsluitend de bestaande route van main terug: geen maskering of nieuwe leesgrens; de doelcontrole ziet zo ook
+     Sols geïnjecteerde wand. Dit bewijst geen herkomst. De strenge scan houdt voorrang: een al streng leesbare kop
+     houdt de gewone uitkomst, ook als hij extra velden bevat. Er is geen algemene claim dat elke extra veldvorm
+     'unreadable' is. Wat blijft: de bestaande lus van parseSTEP kan model- of vreemde gegevens missen (1050/1061);
+     de herkenning is geen algemene oplossing daarvoor. De gemaakte-koppentabel van #916 toetst per instelling
+     gelijkheid met main, herstel van een leeg main-project, of uitsluitend een veiligere opening van vreemde inhoud.
+     Die laatste uitkomst vereist de volledige planning, bytegelijke bronregistratie en nul writes bij zowel Opslaan
+     als Opslaan als; ook het bronbestand blijft bytegelijk. Main moet die opening weigeren of die vreemde inhoud
+     wegschrijven. Iedere andere afwijking faalt. Uit #870; afgebakend door #916 fixronde 2. — S
 
 1054. **VERVOLG: wat na #870 overblijft bij de grammatica en de doelcontrole.**
      (1) Geen test voor een niet-leesbaar doel via de site (`window.openaecHost`); de handle- en Tauri-routes zijn wel
-     getest (`check-ifc-foreign-target.ts`). (2) De herkenning van een eigen bestand mist oude uitvoer met een regeleinde
-     in de naam, auteur of bedrijf, of met meer dan 64 KiB vrije tekst in FILE_NAME (`OPS_PREFIX_MAX` in
-     `src/services/ifc/foreign/targetModelScan.ts`): de writer van v2026.7.12 haalde regeleindes niet weg. Zo'n bestand
-     opent zoals main, maar weigert als doel ('unreadable'): opslaan erover kan niet. Richting: het vaste stuk na de vrije
-     tekst als stroom herkennen. (3) De grammatica (`src/services/ifc/stepFileGrammar.ts`) kent nog niet elke vorm van de
+     getest (`check-ifc-foreign-target.ts`). (2) Regeleinden en andere stuurtekens in de vrije velden blijven buiten
+     de gedeelde herkenning. De 64-KiB-grens is in #916 fixronde 2 hersteld voor alle drie gebruikers, op precies de
+     maat van main: UTF-8-bytes vanaf het bestandsbegin t/m de LF na FILE_NAME, inclusief de vaste stukken. Tot en
+     met 65.536 bytes kan die regel herkend worden; daarboven geen uitzondering, dus de gewone route van main.
+     De regels erna (FILE_SCHEMA/ENDSEC/DATA) tellen niet mee in die grens. Dit is ook als tekst dezelfde bytegrens,
+     niet een grens in UTF-16-tekens. Net onder/op/boven de grens zijn ASCII en meerbyte-tekst beproefd, in één stuk
+     en in stukken van 1 B, 7 B en 64 KiB. Een lange gewone geldige kop kan de strenge route blijven volgen. Een
+     kapotte auteursregel van ruim 70 KiB geeft, zoals main, 'unreadable' als doel: ook met een wand in de tweede
+     sectie of een vreemde propertyset. De twee nieuw overschrijfbare doelen van fixronde 1 zijn daarmee dicht.
+     Binnen de grens blijft de bestaande doelcontrole van main beperkt tot producttypen en de eerste datasectie;
+     zij beschermt een doel met alleen een vreemde propertyset niet algemeen. Dat hoort bij de doelbescherming van
+     fase 1c. Een geopend document met geregistreerd vreemd deel houdt de bestaande opslagblokkade, ook bij Opslaan als.
+     (3) De grammatica kent nog niet elke vorm van de
      norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
      met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)
      heeft `\N\` en `\F\` vóór `(` en `;`, maar niet tussen de parameters (`DATA('deel'\N\,('IFC4X3_ADD2'));`).
      Uit #870 (ronde 7 en 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
 1061. **VERVOLG: een geldig bestand leest `readIFC` op een paar plekken anders dan de norm; precies zo op main.** `readIFC` (`src/services/ifc/ifcReader.ts`) opent precies zoals main (besluit Trias, review van #870 ronde
-     10): het eerste `DATA;` op codeniveau (`src/services/ifc/stepDataSection.ts`), en de lus van `parseSTEP` tot de
+     10), behalve de exact herkende oude OPS-kop sinds #916: daarvoor staat DATA na het vaste kopsjabloon, ook als naam/auteur/bedrijf DATA; of ENDSEC; bevatten. Voor alle overige bestanden: het eerste `DATA;` op codeniveau (`src/services/ifc/stepDataSection.ts`), en de lus van `parseSTEP` tot de
      eerste `ENDSEC;`. De grammatica van het hele bestand (`src/services/ifc/stepFileGrammar.ts`) beslist alleen over
      een model. Gemeten op main (9ee06bb71) en op de tak, met `showcase-verbouwing-eengezinswoning.ifc`; beide gelijk:
       1. `#4⏎8` (een regeleinde midden in een verwijzing): voor de norm `#48`, voor de lus geen verwijzing. Opent met 20
@@ -2069,11 +2083,12 @@ en noem het in je rapport of PR-tekst.
       6. Meer datasecties: `readIFC` leest alleen de eerste. Een model in een latere sectie weigert (de grammatica ziet
          het); taken in een latere sectie ontbreken. Zonder flag (nu altijd in de app) opent zo'n planning dus met een
          deel van de taken, en Ctrl+S wist de rest; zo ook op main. Alleen met de flag `ifcForeignContent` draait de
-         doelcontrole; die weigert zo'n bestand als doel, behalve een eigen bestand.
+         doelcontrole; die weigert zo'n bestand als doel, behalve bij precies de oude kop van #916. De huidige
+         IFC4X3_ADD2-kop met meerdere secties is voortaan ook 'unreadable'.
       7. De grammatica ziet een model alleen tot het punt waar het bestand breekt. Breekt een bestand in de eerste
          sectie (bijvoorbeeld `IFCREAL(1E5)` of een harde spatie na `DATA;`) en staat er een wand in een latere sectie,
          dan opent het met de taken van de eerste sectie, zoals main. Als doel: 'unreadable' voor een vreemd bestand,
-         maar 'no-model' voor een bestand met de kop van OPS (de regel van main, besluit Trias), zodat met de flag
+         maar 'no-model' bij precies het oude LF/IFC4X3-kopsjabloon van #916 (de bestaande leeslus), zodat met de flag
          Opslaan over de wand mag. Gemeten door de review van #870, ronde 11.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
      ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
