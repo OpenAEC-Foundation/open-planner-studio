@@ -10,6 +10,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
 import { effectiveWorkTimeBands, calendarForEngine, simpleBreakPatch, scalarTimesValid } from '@/utils/effectiveWorkTime';
 import { parseInstant } from '@/utils/dateUtils';
+import { hourTaskScheduleDuration } from '@/utils/taskDuration';
 import type { WorkCalendar } from '@/types/calendar';
 import { hoursPerDayForBlocks, workDaysFromBands } from '@/services/subdayIo';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -331,6 +332,76 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     eq(`${label}: volledig heropenen geeft dezelfde werkblokken`, effectiveWorkTimeBands(reopened.getState().calendar), effectiveWorkTimeBands(wanted));
     checkWrittenCalendar(label, saved, wanted, pause ? undefined : original);
     console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
+  }
+  // Fixronde 5: een bewaarde oude bandklok mag de scalaire markering niet laten vervallen.
+  for (const example of [
+    { label: 'Sol minuutfractie', end: '15:30.5:00', hourTask: false, matching: false },
+    { label: 'Sol minuutfractie met uurtaak', end: '15:30.5:00', hourTask: true, matching: false },
+    { label: 'Sol seconden', end: '15:30:30', hourTask: false, matching: false },
+    { label: 'passend einde zonder herstel', end: '15:30.5:00', hourTask: false, matching: true },
+  ]) {
+    const label = `1120 fixronde 5 ${example.label}`;
+    let source = input.replace("'9.123456:00:00','16:00:00'", `'08:00:00','${example.end}'`)
+      .replace('(#36));', "(#36,#80013));\n#80013=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$);");
+    if (example.matching) {
+      // De expliciete nulpauze voorkomt dat T1 450,5 netto minuten naar 451 afrondt.
+      source = source.replace("'HoursPerDay',$,IFCREAL(8)", "'WorkEndHour',$,IFCREAL(15.508333333333333)")
+        .replace('(#36,#80013));', "(#36,#80013,#80014));\n#80014=IFCPROPERTYSINGLEVALUE('SimpleBreakDuration',$,IFCREAL(0),$);");
+    }
+    const file = memoryFile(source), store = createAppStoreContext().store;
+    await store.getState().openOpenedFile({ name: 'scalar-bandklok.ifc', content: source, ref: { kind: 'handle', handle: file.handle } });
+    if (example.hourTask) {
+      store.getState().addTask({ name: 'Uurtaak bij scalaire bron' });
+      const task = store.getState().tasks.at(-1)!;
+      store.getState().updateTask(task.id, { time: { ...task.time, durationUnit: 'hours', durationMinutes: 60,
+        scheduleDuration: hourTaskScheduleDuration(60, store.getState().calendar) } });
+    }
+    const view = (cal: WorkCalendar) => ({ scalar: !cal.workTime,
+      day: [cal.workStartHour, cal.workEndHour, cal.hoursPerDay], blocks: effectiveWorkTimeBands(cal) });
+    const wanted = structuredClone(store.getState().calendar);
+    eq(`${label}: opent scalair`, !wanted.workTime, true);
+    eq(`${label}: werkdag bij openen`, effective(wanted), example.matching
+      ? [8, 15.508333333333333, 7.508333333333333] : [8, 16, 8]);
+    await store.getState().saveFile();
+    eq(`${label}: schrijft eenmaal`, file.writes.length, 1);
+    const saved = file.writes[0];
+    if (!saved) continue;
+    eq(`${label}: bronperiode letterlijk`, hasSourceClocks(saved, '08:00:00', example.end), true);
+    const scalarMark = "IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$)";
+    eq(`${label}: markering bij oude bandklok of uurtaak`, saved.includes(scalarMark), example.end === '15:30.5:00' || example.hourTask);
+    // Bewust de hele bronperiode: de effectieve eindwaarde staat daarnaast in OPS_Calendar.
+    const sourcePeriod = `IFCTIMEPERIOD('08:00:00','${example.end}')`;
+    checkWrittenCalendar(label, saved, wanted, sourcePeriod);
+    const againFile = memoryFile(saved), again = createAppStoreContext().store;
+    await again.getState().openOpenedFile({ name: 'scalar-bandklok-heropend.ifc', content: saved, ref: { kind: 'handle', handle: againFile.handle } });
+    eq(`${label}: volledig heropenen behoudt scalaire werkdag en blokken`, view(again.getState().calendar), view(wanted));
+    await again.getState().saveFile();
+    eq(`${label}: tweede generatie schrijft eenmaal`, againFile.writes.length, 1);
+    // Bij seconden voegt de bestaande lezer bij heropenen een expliciete nulpauze toe.
+    // De gelijkheid van kalenderbytes is hier vereist voor de oude bandklok van proef 1.
+    if (againFile.writes[0] && example.end === '15:30.5:00') {
+      eq(`${label}: tweede generatie dezelfde kalenderbytes`, calendarBytes(againFile.writes[0]), calendarBytes(saved));
+    }
+
+    const current = store.getState().calendar;
+    const patch = { simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 30 };
+    eq(`${label}: formulier accepteert middagpauze`, scalarTimesValid(current, patch), true);
+    const draft = { ...current, ...simpleBreakPatch(current, patch) };
+    eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
+      store.getState().calendars.map(c => c.id === draft.id ? draft : c), draft.id), true);
+    await store.getState().saveFile();
+    eq(`${label}: pauzebewerking schrijft eenmaal erbij`, file.writes.length, 2);
+    const paused = file.writes[1];
+    if (!paused) continue;
+    checkWrittenCalendar(`${label} pauze`, paused, draft, example.hourTask ? undefined : sourcePeriod);
+    const reopened = createAppStoreContext().store;
+    await reopened.getState().openOpenedFile({ name: 'scalar-bandklok-pauze.ifc', content: paused, ref: null });
+    eq(`${label}: volledig heropenen behoudt scalaire pauze`, view(reopened.getState().calendar), view(draft));
+    eq(`${label}: pauze blijft in de werkblokken`, effectiveWorkTimeBands(reopened.getState().calendar)?.byWeekday[1],
+      [{ start: 480, end: 720 }, { start: 750, end: wanted.workEndHour * 60 }]);
+    console.log(label, JSON.stringify({ before: view(wanted), after: view(again.getState().calendar),
+      periods: saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')),
+      pause: effectiveWorkTimeBands(reopened.getState().calendar)?.byWeekday[1] }));
   }
   const { openForeign, cloneDomain, tryMerge, mergeProblems } = await import('./ifcMergeKern');
   const { readbackDifference } = await import('./ifcReadbackEquality');

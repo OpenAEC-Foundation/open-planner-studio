@@ -1491,13 +1491,15 @@ function writeCalendar(
       const timePeriodId = writePeriod([startTime, endTime], '_timeperiod');
       timePeriodRefs = `#${timePeriodId}`;
       firstPeriod = [startTime, endTime];
-      // Leest de lezer deze ene periode zelf als afwijkend (een hele dag 00:00–24:00, of over
-      // middernacht; `canonicalizeBands`), dan promoveert hij de dagkalender zonder markering naar een
+      // Leest de lezer deze ene periode zelf als afwijkend (een hele dag 00:00–24:00, over
+      // middernacht, of een oude bandklok), dan promoveert hij de dagkalender zonder markering naar een
       // uurkalender, met de dagsom als uren per dag (0402ScheduleMSP.xml: 8 ⇒ 24). Zelfde toets als de
       // lezer, op dezelfde klokstrings.
       const s = clockToMinutes(startTime);
       const e = clockToMinutes(endTime);
-      scalarPeriodReadsAsHour = s != null && e != null && canonicalizeBands({ 1: [{ start: s, end: e }] }).deviates;
+      scalarPeriodReadsAsHour = parseIfcClock(startTime)?.legacyBand === true
+        || parseIfcClock(endTime)?.legacyBand === true
+        || (s != null && e != null && canonicalizeBands({ 1: [{ start: s, end: e }] }).deviates);
     }
     // WeekdayComponent en TimePeriods zijn OPTIONAL SET/LIST [1:?]: een lege lijst `()` is ongeldig,
     // dus leeg ⇒ `$` (een kalender zonder werkdagen, of een uurkalender zonder blokken). De lezer leest
@@ -1617,7 +1619,8 @@ function writtenWeekHoursPerDay(groups: readonly WeekBandGroup[]): number {
  *    een SCALAIRE kalender zijn (een urentaak gebruikt hem). IFC zelf ziet daar gewoon de lunchpauze
  *    (interop); de OPS-lezer weet zo dat de kalender scalair was en promoveert hem niet naar uur-modus.
  *    Ook bij een SCALAIRE kalender waarvan de lezer de ene periode zelf als afwijkend ziet (een hele dag
- *    00:00–24:00, of over middernacht; `scalarPeriodReadsAsHour`): zonder markering werd zo'n
+ *    00:00–24:00, over middernacht, of een oude bandklok volgens `parseIfcClock(...).legacyBand`;
+ *    `scalarPeriodReadsAsHour`): zonder markering werd zo'n
  *    dagkalender na heropenen een uurkalender met de dagsom als uren per dag.
  */
 function writeCalendarGenerationMeta(
