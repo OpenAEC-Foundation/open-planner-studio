@@ -242,6 +242,23 @@ for (const [name, text] of [
     [all.tasks.length - 1, false]);
 }
 
+// Oude ruwe OPS-kop: de bytes-route krijgt nu een bron, zonder terugval, met dezelfde planning/opslag als main.
+{
+  const bytes = fileBytes('tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc');
+  const detail = await readIfcBytesDetailed(bytes, {}, { createWorker: () => null });
+  eq('oude kop: geen scannerterugval meer', detail.fallback, undefined);
+  ok('oude kop: oorspronkelijke bytes in ifcSource', detail.result.ifcSource?.bytes === bytes);
+  eq('oude kop: geen vreemd deel zonder toevoeging', detail.result.ifcSource?.foreign, false);
+  const withWall = enc.encode(dec(bytes).replace('ENDSEC;\nEND-ISO-10303-21;',
+    "#999999=IFCWALL('0abcdefghijkmnopqrstuv',$,'Wand',$,$,$,$,$,$);\nENDSEC;\nEND-ISO-10303-21;"));
+  const wallOn = await open(true, 'oude-kop-wand.ifc', withWall);
+  ok('1103 met flag: bron met wand opent', opened(wallOn, 'oude-kop-wand.ifc') && wallOn.getState().ifcSource?.foreign === true);
+  ok('1103 met flag: opslagblokkade blijft dicht', ifcSaveBlocked(wallOn.getState()));
+  eq('1103 met flag: oorspronkelijke modelbytes blijven de bron', wallOn.getState().ifcSource?.sha256, sha(withWall));
+  const wallOff = await open(false, 'oude-kop-wand.ifc', withWall);
+  ok('1103 zonder flag: modelweigering onveranderd', !opened(wallOff, 'oude-kop-wand.ifc'));
+}
+
 // ── 4. Eigen bestanden: met en zonder flag byte-gelijk ─────────────────────────────────────────────────────────
 /** Eigen bestanden met bewust een vreemd deel (zie OWN_EXCEPTIONS in check-ifc-foreign-classify.ts). Met de flag openen
  *  ze met een vreemd deel en weigert opslaan; zonder flag `opensWithoutFlag`. */
@@ -278,13 +295,7 @@ for (const pad of ownFiles) {
   eq(`${pad}: opslagdoel met en zonder flag`, on.getState().filePath, off.getState().filePath);
   eq(`${pad}: meldingen met en zonder flag`, notices(on), notices(off));
   if (!opened(off, name)) continue;
-  if (pad.endsWith('v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc')) {
-    // #870 ronde 8: de kop van v2026.7.12 met `O'Hara Tower` is kapot. De scanner achter de flag weigert hem en valt
-    // terug op de gewone route (`ifcBytesRoute.ts`): geen bron, dezelfde planning als zonder flag.
-    ok(`${pad}: met flag de gewone route (de scanner weigert de kapotte kop)`, src === null);
-    eq(`${pad}: dezelfde planning met en zonder flag`, sha(saved(on)), sha(saved(off)));
-    continue;
-  }
+  // Ook v2026.7.12 O'Hara krijgt nu een bron: de smalle kopherkenning verandert de planning/opslag niet.
   ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0);
   ok(`${pad}: met flag opslaan toegestaan`, !ifcSaveBlocked(on.getState()));
   eq(`${pad}: zonder flag geen bron`, off.getState().ifcSource, null);

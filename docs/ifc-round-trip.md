@@ -406,6 +406,30 @@ app-versie negeert Status en maakt zo'n taak bij openen "Voltooid". De motor pla
 van zo'n taak nog niet in (`knownbugs.md` 114). Toets: `check-ifc-lopend-100.ts` en de twee IFC-corpuschecks
 (A3040 in torture).
 
+## Oude eigen FILE_NAME-kop bij de bytes-route
+
+De tags v2026.2.0, v2026.6.0–v2026.6.1 en v2026.7.0–v2026.7.12 (plus alias 2026.7.12) hebben exact dezelfde
+kop: LF, `IFC4X3`, SchedulingView/2;1, datum `YYYY-MM-DDTHH:mm:ss`, en vaste velden `Open Planner Studio 0.1`,
+`Open Planner Studio` en lege authorization. Naam, auteur en bedrijf werden rauw tussengevoegd; een apostrof
+zoals in O'Hara kon de kop breken. Vanaf v2026.7.13 lopen die drie waarden al via `ifcStr`/`headerText`.
+
+Na een strenge scanfout herkent `oldOwnHeader.ts` uitsluitend die ene vorm. De drie vrije velden worden op een
+**even lange scankopie** gemaskeerd; bronbytes en stukposities blijven origineel. De hele DATA-sectie gaat
+ongewijzigd door `scanStep`. Een extra veld of kopregel, een gewijzigd vast deel, CRLF in de kapotte kop of
+onduidelijke veldgrenzen wordt niet herkend. Losse apostroffen aan het begin/eind en meer dan één apostrof mogen;
+veld-/statementsyntaxis, controles en regeleinden in een vrij veld blijven bewust buiten de herkenning. Een
+gewone, streng leesbare kop komt nooit op deze terugvalroute, ook niet bij een ander programma.
+
+Openen met de flag aan krijgt voor de echte O'Hara-fixture nu een `ifcSource`; zonder vreemd deel schrijft de
+gewone opslag hetzelfde als zonder flag. Openen met een wand bewaart de vreemde bytes in die bron; de merge
+gebruikt dezelfde scaningang en neemt bij een geslaagde samenvoeging de **rauwe bronkop** ongewijzigd over. Hij
+repareert de fysieke kop niet en geeft die uitvoer daardoor nog niet vrij voor andere programma's. De app blijft
+elke IFC-opslag van een document met een vreemd deel blokkeren; de mergeproeven openen die productroute niet.
+
+Deze reparatie raakt geen historische DATA-schrijfvormen. Vrije namen/auteur/bedrijf gingen daar via `ifcStr`,
+maar datum-/tijdwaarden werden op plekken rechtstreeks als literals geschreven (`ifcDateTime`, feestdagdatums,
+`IFCTIMEPERIOD`). Een fout in die DATA blijft een scanfout; hier worden geen waarden of strings hersteld.
+
 ## Wat dit niet dekt
 
 - **De CSV-, MS Project- en P6-adapters.** Dat zijn import/export-adapters, geen opslagformaat; ze

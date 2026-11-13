@@ -34,3 +34,15 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een bestand met een ander schema in de kop vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen; de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid).
+
+### Oude eigen kop vóór de indeling (#804)
+
+`foreign/oldOwnHeader.ts` is de gedeelde ingang vóór de C/A/V-indeling van `scanForeign` en de merge. Eerst altijd
+`scanStep` op de echte bytes. Alleen na een `StepScanError` mag het ene letterlijk gemeten kopsjabloon van
+v2026.2.0 t/m v2026.7.12 (ook tag `2026.7.12`) herkend worden: LF, IFC4X3, de vaste SchedulingView-beschrijving,
+datum zonder fracties/zone en de vaste naam/versie van OPS. De reparatie van de writer zat al in v2026.7.13.
+Alleen de drie vrije FILE_NAME-velden worden op een even lange scankopie gemaskeerd. Geen nieuwe grenzen of
+heuristiek voor secties; de echte bronbytes blijven staan. DATA gaat ongewijzigd door dezelfde strenge scanner.
+Extra velden/regels, andere vaste delen en dubbelzinnige veldsyntaxis weigeren. Goed leesbare bestanden volgen de
+strenge route zonder kopie. Deze herkenning zet de opslagblokkade niet open. Proeven: `check-ifc-foreign-classify.ts`,
+`check-ifc-foreign-open.ts` en `check-ifc-foreign-herleestoets.ts`.

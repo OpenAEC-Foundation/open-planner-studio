@@ -48,7 +48,12 @@ function oldHeaderForScan(bytes: Uint8Array): Uint8Array | null {
   for (const [start, end] of fields) {
     // Losse apostroffen, ook aan beide uiteinden en meer dan één, zijn juist de oude bug. Een quote met aangrenzende
     // veld-/statementsyntaxis is niet eenduidig te onderscheiden van een extra veld of kopregel: dan niet herkennen.
-    if (/[\x00-\x1f\x7f;]|',|'\)|\('/.test(line.slice(start, end))) return null;
+    for (let i = start; i < end; i++) {
+      const code = line.charCodeAt(i);
+      if (code < 0x20 || code === 0x7f || code === 0x3b) return null;
+    }
+    const value = line.slice(start, end);
+    if (value.includes("',") || value.includes("')") || value.includes("('")) return null;
   }
   const safe = bytes.slice();
   for (const [start, end] of fields) safe.fill(0x78, PREFIX.length + start, PREFIX.length + end);

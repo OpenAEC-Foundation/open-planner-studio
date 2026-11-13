@@ -825,6 +825,17 @@ if (WITH_PYTHON) {
     const got = scanForeign(good);
     if (!(strict instanceof StepScanError)) eq(`oude kop ${label}: goede kop onveranderd`, got, foreignScanFrom(strict, classify(strict), good));
   }
+  // Elk vast teken afzonderlijk: ook interpunctie/whitespace is deel van het gemeten sjabloon.
+  const variableParts = ["O'Hara", 'Auteur', 'Bedrijf', '2026-01-15T12:00:00'];
+  const variableRanges = variableParts.map(part => [badHeader.indexOf(part), badHeader.indexOf(part) + part.length]);
+  for (let i = 0; i < badHeader.length; i++) {
+    if (variableRanges.some(([a, b]) => i >= a && i < b)) continue;
+    const mutated = enc.encode(badHeader.slice(0, i) + (badHeader[i] === 'X' ? 'Y' : 'X') + badHeader.slice(i + 1) + body);
+    const strict = scanOrError(mutated);
+    const actual = scanForeign(mutated);
+    if (strict instanceof StepScanError) ok(`oude kop vast teken ${i}: geen verruiming`, !actual.ok);
+    else eq(`oude kop vast teken ${i}: gewone strenge uitkomst`, actual, foreignScanFrom(strict, classify(strict), mutated));
+  }
   for (const name of ["O'Hara.ifc','2026-01-15T12:00:00',('dubbel", "O'Hara'),('dubbel", "O'Hara;FILE_POPULATION('x')"]) {
     ok(`oude kop dubbelzinnig ${name}: weigert`, !scanForeign(enc.encode(header(name, 'Auteur', 'Bedrijf') + body)).ok);
   }

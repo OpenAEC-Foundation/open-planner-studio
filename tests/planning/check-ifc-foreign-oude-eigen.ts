@@ -30,7 +30,6 @@ import {
 } from './ifcMergeKern';
 import { partialDateTime, sameMeaning } from '@/services/ifc/foreign/lossCheck';
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
-import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { clockToMinutes, getCalendarBands, minutesToClock } from '@/services/subdayIo';
 
@@ -493,13 +492,11 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   await proof('v2026.7.12', 'data, een taak uit de baseline gewist (#886)', src, 'schrijft', (d, o) => {
     plannerEdits(o, 1).find(e => e.kind === 'taak-wissen')!.apply(d);
   }, head);
-  // Knownbug 1103: de kop breekt de grammatica; met de wand erbij weigert de oude route het model.
+  // 1103: de gedeelde kopherkenning laat nu ook deze bron met wand door; kop/model blijven bytegelijk.
   const ohara = readText(`${OLD}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`);
   ok('v2026.7.12: ohara zonder wand opent', await openForeign(latin1(ohara)).then(() => true, () => false));
-  const refused = await openForeign(latin1(walled(`${OLD}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`)))
-    .then(() => 'opent', (e: unknown) => (e instanceof IfcParseError ? e.reason : String(e)));
-  ok(`v2026.7.12: ohara met wand weigert bij openen (building-model), kreeg ${refused}`, refused === 'building-model');
-  rows.push(`| v2026.7.12 · ohara met wand, openen (knownbug 1103) | ${refused === 'building-model' ? 'weigert (building-model)' : refused} |`);
+  await proof('v2026.7.12', 'ohara met wand, zonder bewerking (1103)',
+    walled(`${OLD}/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc`), 'schrijft');
 }
 
 // ── Een werkende uitzondering in een kalender (`WorkingExceptionIds`) ──
