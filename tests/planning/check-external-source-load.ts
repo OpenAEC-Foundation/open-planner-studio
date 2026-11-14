@@ -127,7 +127,7 @@ eq('3d het document blijft rekenkundig actueel', S().scheduleStale, false);
   opener.getState().applyLoadedProject(readIFC(externIfc('ext5')), { filePath: null, recompute: true });
   eq('5a de verse import opent in de modus, met B op 20 maart', [opener.getState().datesAsRecorded, bFinish(opener.getState().tasks)],
     [true, '2026-03-20T16:00']);
-  const savedInMode = writeIFC(buildWriteIFCInput(opener.getState()));
+  const savedInMode = writeIFC(buildWriteIFCInput(opener.getState(), 'planOnly'));
   opener.getState().newProject();
   opener.getState().applyLoadedProject(readIFC(savedInMode), { filePath: null, recompute: true });
   eq('5b het eigen IFC, opgeslagen in de modus, opent weer met B op 20 maart',

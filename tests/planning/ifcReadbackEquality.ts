@@ -3,8 +3,8 @@ import { isDeepStrictEqual, inspect } from 'node:util';
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 
 function readbackValue(input: WriteIFCInput): unknown {
-  // ifcSource is documentcontext met bronbytes; de writer slaat dit niet als planningveld op.
-  const { ifcSource: _source, ...planning } = input as WriteIFCInput & { ifcSource?: unknown };
+  // Bron en schrijfmodus zijn context; de writer slaat ze niet als planningvelden op.
+  const { ifcSource: _source, writeMode: _mode, ...planning } = input as WriteIFCInput & { ifcSource?: unknown; writeMode?: unknown };
   const value = {
     ...planning,
     // Toewijzings-ids worden nooit opgeslagen en door extractAssignments bij elke lezing nieuw gemaakt.

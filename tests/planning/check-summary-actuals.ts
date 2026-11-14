@@ -204,14 +204,14 @@ function completeAll(ids: ReturnType<typeof reset>): void {
 {
   const ids = reset();
   completeAll(ids);
-  const saved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;
+  const saved = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks.find(t => t.name === 'Fase')!;
   eq('Opslaan: het IFC draagt de afgeleide fase-actuals', actualsOf(saved), { as: "2026-03-02", af: "2026-03-13" });
 
   // Oud bestand A (typisch vóór deze wijziging): de fase draagt geen werkelijke datums en de oude
   // 0% "Niet gestart", terwijl haar bladen klaar zijn.
   S().updateTask(ids.P, { status: 'NOT_STARTED' });
   setTime(ids.P, { completion: 0, actualStart: undefined, actualFinish: undefined });
-  const oldA = writeIFC(buildWriteIFCInput(S()));
+  const oldA = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   eq('Fixture A: het bestand draagt geen fase-actuals', actualsOf(readIFC(oldA).tasks.find(t => t.name === 'Fase')!), { as: null, af: null });
   S().applyLoadedProject(readIFC(oldA), { filePath: null, recompute: true });
   eq('Oud bestand A openen: de fase krijgt de afgeleide datums', actualsOf(byName('Fase')), { as: "2026-03-02T07:00", af: "2026-03-13T16:00" });
@@ -223,7 +223,7 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   completeAll(idsB);
   setTime(idsB.P, { actualStart: '2026-02-20', actualFinish: '2026-03-20' });
   setTime(idsB.K3, { earlyStart: '2026-03-16', earlyFinish: '2026-03-20' });
-  const oldB = writeIFC(buildWriteIFCInput(S()));
+  const oldB = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   eq('Fixture B: het bestand draagt de bevroren fase-actuals', actualsOf(readIFC(oldB).tasks.find(t => t.name === 'Fase')!), { as: "2026-02-20", af: "2026-03-20" });
   // Dit deel toetst openen BUITEN de modus: bestand B is buiten de modus opgeslagen en draagt dus
   // geen `recordedSourceFormat` (`ifcSaveInput.ts` schrijft die alleen in de modus). Tot #371 zette
@@ -233,7 +233,7 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   // Zelfde fixturekeuze als check-summary-progress.ts.
   S().applyLoadedProject(readIFC(oldB), { filePath: null, recompute: true });
   eq('Oud bestand B openen: afgeleid, niet bevroren', actualsOf(byName('Fase')), { as: "2026-03-02T07:00", af: "2026-03-13T16:00" });
-  const resaved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;
+  const resaved = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks.find(t => t.name === 'Fase')!;
   eq('Oud bestand B openen + opslaan: het bestand draagt nu de afgeleide waarde', actualsOf(resaved), { as: "2026-03-02", af: "2026-03-13" });
 
   // Geen aanbod-stand meer (eigenaar, 2026-10-17): een buiten de modus opgeslagen eigen IFC vergeet

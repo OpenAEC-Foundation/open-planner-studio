@@ -58,7 +58,7 @@ for (const [raw, expected, refusal] of [
   await check(`shiftliteral ${raw}: openen en heropenen`, () => {
     const opened = readIFC(input);
     assert.deepEqual(opened.tasks.map(t => t.name), want);
-    const reopened = readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(opened, null))));
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(opened, null), 'planOnly')));
     assert.deepEqual(reopened.tasks.map(t => t.name), want);
   });
   await check(`shiftliteral ${raw}: bytes-route`, async () => {
@@ -92,7 +92,7 @@ for (const [label, text, want] of [
     await check(`${label}, bytes=${bytesRoute}: openen en opslaan/heropenen`, async () => {
       const opened = bytesRoute ? await readIfcBytes(enc.encode(text), {}, { createWorker: () => null }) : readIFC(text);
       assert.deepEqual(opened.tasks.map(t => t.name), want);
-      const saved = writeIFC(buildWriteIFCInput(payloadFromImport(opened, null)));
+      const saved = writeIFC(buildWriteIFCInput(payloadFromImport(opened, null), 'planOnly'));
       const reopened = bytesRoute ? await readIfcBytes(enc.encode(saved), {}, { createWorker: () => null }) : readIFC(saved);
       assert.deepEqual(reopened.tasks.map(t => t.name), want);
       // #916: de huidige kop met gebroken DATA valt buiten het oude sjabloon; geen doelvrijbrief meer.
@@ -107,7 +107,7 @@ await check('tolerante quotegrenzen bij expliciete literalStepIds-route', () => 
   const text = source.replace(`'${original}'`, "'Pad C:\\S\\'");
   const opened = readIFC(text, {}, { literalStepIds: new Set() });
   assert.deepEqual(opened.tasks.map(t => t.name), baseline.map(n => n === original ? 'Pad C:\\S\\' : n));
-  assert.deepEqual(readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(opened, null)))).tasks.map(t => t.name), opened.tasks.map(t => t.name));
+  assert.deepEqual(readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(opened, null), 'planOnly'))).tasks.map(t => t.name), opened.tasks.map(t => t.name));
 });
 // De doelcontrole mag een echte wand ná zo'n oude letterlijke padnaam niet missen.
 const legacyModel = source.slice(0, source.indexOf('DATA;') + 5)

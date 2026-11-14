@@ -369,7 +369,7 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     if (!active) recovered.getState().switchDocument('herstel-1120');
     eq(`1120 crashherstel ${active}: effectieve dag`, effective(recovered.getState().calendar), effective(before));
     eq(`1120 crashherstel ${active}: klokherkomst volgt dezelfde code`, binding(recovered.getState().calendar)?.scalarEnd, before.workEndHour);
-    eq(`1120 crashherstel ${active}: opslag behoudt bronklok`, writeIFC(buildWriteIFCInput(recovered.getState())).includes(original), true);
+    eq(`1120 crashherstel ${active}: opslag behoudt bronklok`, writeIFC(buildWriteIFCInput(recovered.getState(), 'planOnly')).includes(original), true);
   }
   // Dezelfde opzet als Terra: eerst openen en herstellen, daarna de taak als urenmaat klaarzetten.
   // De pauzebewerking zelf loopt door de echte formulierafleiding, validatie en kalenderactie.
@@ -709,7 +709,7 @@ for (const zone of ['', '+01:00']) {
     store.getState().calendars.map(c => c.id === current.id ? { ...current, ...simpleBreakPatch(current, patch) } : c), current.id), true);
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
   let typed = false;
-  try { writeIFC(buildWriteIFCInput(store.getState())); } catch (e) { typed = e instanceof IfcCalendarTimePrecisionError; }
+  try { writeIFC(buildWriteIFCInput(store.getState(), 'planOnly')); } catch (e) { typed = e instanceof IfcCalendarTimePrecisionError; }
   eq(`${label}: alleen de tegenstrijdige zone weigert getypeerd`, typed, !!zone);
   const realError = console.error;
   console.error = () => {};

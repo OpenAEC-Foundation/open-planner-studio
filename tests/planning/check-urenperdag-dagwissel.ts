@@ -236,7 +236,7 @@ const changedIds = (a: Record<string, unknown>, b: Record<string, unknown>) =>
   same('§4 urentaak van 40 u op Late ploeg: dagwaarde 4 (40 / 10 klokuren), getoond 4d',
     [lateTask.time.scheduleDuration, formatTaskDurationDisplay(lateTask, before.calendar, 'days')], [4, '4d(40h)']);
 
-  const afterCtx = openInStore(await parseOpenedFile({ name: 'dagwissel.ifc', text: writeIFC(buildWriteIFCInput(before)) }));
+  const afterCtx = openInStore(await parseOpenedFile({ name: 'dagwissel.ifc', text: writeIFC(buildWriteIFCInput(before, 'planOnly')) }));
   const after = payloadOf(afterCtx);
   same('§4 kalenders (werkdagen, uren per dag, za) gelijk na opslaan en heropenen', calView(after), cals);
   const tb = taskView(before);
@@ -292,7 +292,7 @@ if (root && !existsSync(root)) {
       [...names].sort().map((n) => [n, cals[n]?.workDays.includes(4)]),
       [['OCEC', true], ['OCEC All Items-5d/Week', true], ['OCEC Procurment/Curing-7d/W', false]]);
     // Opslaan als IFC en heropenen via de echte openroute.
-    const reparsed = await parseOpenedFile({ name: 'roads.ifc', text: writeIFC(buildWriteIFCInput(before)) });
+    const reparsed = await parseOpenedFile({ name: 'roads.ifc', text: writeIFC(buildWriteIFCInput(before, 'planOnly')) });
     const after = payloadOf(quiet(() => openInStore(reparsed)));
     same('§5 Roads: kalenders (werkdagen, uren per dag, za) gelijk na opslaan en heropenen', calView(after), cals);
     const tb = taskView(before);

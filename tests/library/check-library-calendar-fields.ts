@@ -102,7 +102,7 @@ function poolCalendar(extra: Partial<WorkCalendar> = {}): Omit<WorkCalendar, 'id
 /** Sla het actieve document op en open het opnieuw via het echte open-pad (grens 1), in een nieuw document. */
 function saveAndReopen(store: ReturnType<typeof createAppStore>): ReturnType<typeof readIFC> {
   const S = () => store.getState();
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   S().newDocument();
   S().applyLoadedProject(parsed, { filePath: 'kopie.ifc', linkedOpen: true });
   return parsed;
@@ -143,7 +143,7 @@ for (const variant of ['zonder pauze', 'met pauze'] as const) {
     const c = st.calendars.find((x) => x.id === calId)!;
     c.libraryOrigin!.syncedHash = legacyHash(c as WorkCalendar);
   });
-  const oldText = writeIFC(buildWriteIFCInput(S()));
+  const oldText = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const oldRead = readIFC(oldText).resourceCalendars?.find((c) => c.libraryOrigin?.libraryItemId === poolCalId);
   assert(oldRead?.libraryOrigin?.syncedHash === legacyHash(fresh), `(2) ${variant}: de oude stempel round-tript ongewijzigd via IFC`);
 

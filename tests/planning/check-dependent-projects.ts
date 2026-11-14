@@ -161,7 +161,7 @@ const buildDependent = () => {
 };
 await (async () => {
   const { S, a } = buildDependent();
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const c = await candidateFromIfcText('/map/Aannemer.ifc', ifc);
   eq('5a een IFC-bestand geeft project-id, naam, bestandsnaam en de koppeling',
     c && [c.projectId === S().project.id, c.projectName, c.fileName, c.opened,
@@ -250,7 +250,7 @@ await (async () => {
   S().updateTask(b1, { time: { ...task().time, scheduleDuration: 10 } });
   eq('7B-b de planning is verouderd, het scherm toont nog 5 maart', [S().scheduleStale, task().time.earlyFinish], [true, '2027-03-05T16:00']);
   // Wat de afnemer krijgt: de bestaande bronleesroute op precies dit bestand.
-  const read = externalSourceFromImport(await readIFC(writeIFC(buildWriteIFCInput(S()))), '/p/Installateur.ifc');
+  const read = externalSourceFromImport(await readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), '/p/Installateur.ifc');
   eq('7B-c de bronleesroute rekent het bestand door: 12 maart 16:00',
     read.tasks.find(t => t.id === b1)?.time.earlyFinish, '2027-03-12T16:00');
   const asked: string[][] = [];
@@ -282,7 +282,7 @@ await (async () => {
   dep.getState().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
   const a1 = dep.getState().addTask({ name: 'Afbouw', time: createDefaultTaskTime('2027-03-01', 3, 'days') });
   dep.getState().updateTask(a1, { externalLinks: [link('x', pid, b1, 'predecessor', '2027-03-05T16:00')] });
-  const text = writeIFC(buildWriteIFCInput(dep.getState()));
+  const text = writeIFC(buildWriteIFCInput(dep.getState(), 'planOnly'));
   let reads = 0;
   let release: () => void = () => {};
   const gate = new Promise<void>(r => { release = r; });

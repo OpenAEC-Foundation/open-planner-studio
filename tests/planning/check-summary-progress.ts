@@ -210,7 +210,7 @@ function reset() {
   S().updateTask(ids.P, { status: 'STARTED' });
   setTime(ids.P, { completion: 0.62, actualFinish: undefined, earlyFinish: '2026-03-20' });
   setTime(ids.K3, { earlyStart: '2026-03-16', earlyFinish: '2026-03-20' });
-  const oldFile = writeIFC(buildWriteIFCInput(S()));
+  const oldFile = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const rawOld = readIFC(oldFile).tasks.find(t => t.name === 'Fase')!;
   eq('Fixture: het bestand draagt de bevroren fasewaarde', [rawOld.time.completion, rawOld.status], [0.62, 'STARTED']);
 
@@ -222,7 +222,7 @@ function reset() {
   S().applyLoadedProject(readIFC(oldFile), { filePath: null, recompute: true });
   eq('Openen: de fase krijgt de afgeleide voortgang, niet de bevroren bestandswaarde',
     { completion: byName('Fase').time.completion, status: byName('Fase').status }, { completion: 1, status: 'COMPLETED' });
-  const resaved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;
+  const resaved = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks.find(t => t.name === 'Fase')!;
   eq('Openen + opslaan: het bestand draagt nu de afgeleide waarde', [resaved.time.completion, resaved.status], [1, 'COMPLETED']);
 
   // Geen aanbod-stand meer (eigenaar, 2026-10-17): een buiten de modus opgeslagen eigen IFC vergeet

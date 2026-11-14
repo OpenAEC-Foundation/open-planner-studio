@@ -115,7 +115,7 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
     linkedOpen: false,
   });
   const docs = useAppStore.getState().getOpenDocumentPayloads();
-  const ifcs = docs.map(document => writeIFC(buildWriteIFCInput(document.payload)));
+  const ifcs = docs.map(document => writeIFC(buildWriteIFCInput(document.payload, 'planOnly')));
   const independent = ifcs.map(ifc => readIFC(ifc));
   const exactBytes = independent.every(result => result.xerSourceArchive !== undefined
     && sha256Hex(decodeXerSourceArchive(result.xerSourceArchive)) === archive.sha256);
@@ -161,7 +161,7 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
     editTickBytes = storageWrites.recordBytes + storageWrites.archiveBytes;
     editTickArchiveBytes = storageWrites.archiveBytes;
     const edited = useAppStore.getState().getOpenDocumentPayloads().find((document) => document.id === activeId)!;
-    editedEmbeddedIfcChars = writeIFC(buildWriteIFCInput(edited.payload)).length;
+    editedEmbeddedIfcChars = writeIFC(buildWriteIFCInput(edited.payload, 'planOnly')).length;
     if (storageWrites.readwriteTransactions !== 1) {
       throw new Error(`${label}: recoverydelta gebruikte ${storageWrites.readwriteTransactions} readwrite-transacties`);
     }

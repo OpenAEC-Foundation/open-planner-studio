@@ -82,7 +82,7 @@ expect('C3 een kopie draagt het signaal mee (ook zij mist het archief)', store()
 store().switchDocument(openedDocId);
 
 // ── D. opslaan: geen IFC-round-trip van het signaal, geen archiefsporen meer ────────────────────
-const saved = writeIFC(buildWriteIFCInput(store()));
+const saved = writeIFC(buildWriteIFCInput(store(), 'planOnly'));
 expect('D1 opgeslagen IFC draagt geen archief-psets meer (sporen weg)',
   !saved.includes('OPS_XerSourceArchive') && !saved.includes('OPS_XerDocument'));
 const reopened = readIFC(saved);

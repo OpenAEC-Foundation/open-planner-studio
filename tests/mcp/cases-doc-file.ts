@@ -1013,7 +1013,7 @@ test('import_schedule: hergebruikt een leeg-en-ongewijzigd actief tabblad (geen 
   installFakeFs();
   resetToSingleEmptyDocument();
   loadSmallProject('Bron voor import');
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const path = `${HOME}/onderaannemer.ifc`;
   files.set(path, ifc);
 
@@ -1039,7 +1039,7 @@ test('import_schedule: niet-pristine tabblad ⇒ NIEUW document + drift-anker ve
   resetToSingleEmptyDocument();
   loadSmallProject('Master');
   const path = `${HOME}/onderaannemer.ifc`;
-  files.set(path, writeIFC(buildWriteIFCInput(S())));
+  files.set(path, writeIFC(buildWriteIFCInput(S(), 'planOnly')));
 
   const masterId = S().activeDocumentId;
   const docsBefore = S().documents.length;
@@ -1061,7 +1061,7 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
   const csvPath = `${HOME}/onderaannemer.csv`;
   files.set(csvPath, writeCSV(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments));
   const ifcPath = `${HOME}/onderaannemer.ifc`;
-  files.set(ifcPath, writeIFC(buildWriteIFCInput(s)));
+  files.set(ifcPath, writeIFC(buildWriteIFCInput(s, 'planOnly')));
 
   // Knownbug 128: ook via MCP een gevulde onherkende datum weigeren vóór openAsDocument.
   const badPath = `${HOME}/onleesbaar.csv`;

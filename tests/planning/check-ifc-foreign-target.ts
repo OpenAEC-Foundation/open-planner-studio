@@ -536,8 +536,8 @@ for (const flag of [false, true]) {
   S().addTask({ name: 'Bewerking' });
   S().undo();
   ok('contract: bewerking plus undo houdt het kenmerk', S().foreignSourceMark === mark);
-  ok('contract: een gewone opslag schrijft het kenmerk niet', !writeIFC(buildWriteIFCInput(S())).includes('OPS_RecoveryForeignSource')
-    && !('recoveryForeignSource' in buildWriteIFCInput(S())));
+  ok('contract: een gewone opslag schrijft het kenmerk niet', !writeIFC(buildWriteIFCInput(S(), 'merge')).includes('OPS_RecoveryForeignSource')
+    && !('recoveryForeignSource' in buildWriteIFCInput(S(), 'merge')));
   ok('contract: de herstelsnapshot wel', serializeRecoverySnapshot(S()).includes('OPS_RecoveryForeignSource'));
   S().duplicateDocument();
   ok('contract: een kopie deelt het kenmerk', S().foreignSourceMark === mark);
@@ -988,7 +988,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
 }
 // 7a. Het kenmerk in de pset: heen en terug, met een lastig pad en een site-bestand.
 {
-  const parsed = readIFC(writeIFC({ ...buildWriteIFCInput(createAppStoreContext().store.getState()), recoveryForeignSource: {
+  const parsed = readIFC(writeIFC({ ...buildWriteIFCInput(createAppStoreContext().store.getState(), 'planOnly'), recoveryForeignSource: {
     sha256: sha(externBytes), byteLength: externBytes.length,
     target: { filePath: "C:\\Users\\Jan's map\\modèl één.ifc", siteFileId: 'S-1' },
   } }));
@@ -1042,7 +1042,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       other.writes.some(w => w.includes(PSET_NAME)), S().fileHandle === other.handle, S().isDirty], [true, 3, false, true, false]);
   eq('backup: het kenmerk blijft na Opslaan als in een ander bestand', S().foreignSourceMark?.sha256, sha(externBytes));
   // Een gewone opslag van de bron zelf (met een kenmerk) schrijft de pset ook niet.
-  const plainSave = writeIFC(buildWriteIFCInput(ctxA.store.getState()));
+  const plainSave = writeIFC(buildWriteIFCInput(ctxA.store.getState(), 'merge'));
   ok('backup: buildWriteIFCInput schrijft de pset nooit', !plainSave.includes(PSET_NAME));
 }
 // 7c. Tauri-pad: het doel uit de pset (`SourcePath`); de bron mag intussen veranderd zijn.

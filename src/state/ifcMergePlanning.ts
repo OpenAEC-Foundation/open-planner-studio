@@ -19,5 +19,5 @@ export function openMergePlanning(input: WriteIFCInput, side: 'uitvoer' | 'domei
   }
   const { store } = createScratchDocumentContext();
   store.getState().openAsDocument(parsed, { name: 'mergecontrole.ifc', ref: null });
-  return structuredClone(buildWriteIFCInput(store.getState()));
+  return structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
 }

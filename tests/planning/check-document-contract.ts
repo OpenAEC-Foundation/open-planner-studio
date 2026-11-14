@@ -75,7 +75,7 @@ useAppStore.setState((s) => {
 for (const [label, artifact] of [
   ['DocumentPayload', capturePayload(S())],
   ['undo-snapshot', createSnapshot(S())],
-  ['IFC-schrijfinvoer', buildWriteIFCInput(S())],
+  ['IFC-schrijfinvoer', buildWriteIFCInput(S(), 'planOnly')],
 ] as const) {
   truthy(`gebruikersvoorkeur ontbreekt volledig in ${label}`,
     !JSON.stringify(artifact).includes(taskGridSentinel));
@@ -382,7 +382,7 @@ const kBlBefore = JSON.parse(JSON.stringify(S().baselines[0])) as Baseline;
 truthy('d K3 setup: baseline heeft taken', kBlBefore.tasks.length === 2);
 const kActiveBefore = S().activeBaselineId;
 
-const kIfc = writeIFC(buildWriteIFCInput(S()));
+const kIfc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 truthy('d recovery-IFC bevat geen persoonlijke taakgridvoorkeur', !kIfc.includes(taskGridSentinel));
 const kParsed = readIFC(kIfc);
 // Exact het productiepad: de hook bouwt de recovery-invoer met deze functie, geen replica hier.
@@ -465,7 +465,7 @@ eq('d eigenaarsprincipe: venster IN DE STORE gewist ná de bewerking', eT1AfterE
 eq('d eigenaarsprincipe: contouren IN DE STORE blijven staan ná de bewerking',
   eT1AfterEdit?.timephasedContours?.length, 1);
 
-const eIfc = writeIFC(buildWriteIFCInput(S()));
+const eIfc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const eParsed = readIFC(eIfc);
 const eT1Read = eParsed.tasks.find(t => t.name === 'Eigenaarsprincipe A');
 eq('d eigenaarsprincipe-poort: het GESCHREVEN IFC draagt GEEN timephasedFinishFloor (echt gewist, niet alleen in-memory)',
@@ -495,7 +495,7 @@ truthy('d snapshot draagt geen afleidbare resourceLoadResult', !('resourceLoadRe
 // Mutatiebewijs: writeSchedulingProfileMeta in writeIFC uitgezet ⇒ deze assertie rood.
 S().newProject();
 S().setProject({ name: 'Profielproject', schedulingProfile: builtInProfile('p6') });
-const profIfc = writeIFC(buildWriteIFCInput(capturePayload(S())));
+const profIfc = writeIFC(buildWriteIFCInput(capturePayload(S()), 'planOnly'));
 S().restoreDocuments([recoveryInputFromParsed(readIFC(profIfc),
   { id: 'prof-doc', filePath: '/tmp/prof.ifc', isDirty: true, datesAsRecorded: false })], 'prof-doc');
 eq('d rekenprofiel overleeft de recovery-keten', S().project.schedulingProfile, builtInProfile('p6'));
@@ -566,7 +566,7 @@ for (const target of ['path', 'handle', 'site', 'untitled'] as const) {
     const beforeEdit = createSnapshot(editor());
     const historyBefore = historyDepthsForActiveScope(editor()).undoDepth;
     // Echte writer → reader, met behoud van libraryOrigin op resource én projectkalender.
-    const sourceText = writeIFC(buildWriteIFCInput(editor()));
+    const sourceText = writeIFC(buildWriteIFCInput(editor(), 'planOnly'));
     const editedText = sourceText
       .replace(/(=IFCTASK\('[^']*',#\d+,)'Voor IFC-bewerking'/, "$1'Na IFC-bewerking'")
       // Ook geplakte tekst van een ander project mag de identiteit/binding van deze sessie niet overnemen.
@@ -1030,7 +1030,7 @@ eq('i mutatie na undo wist de redo-stack', S().historyEvents.filter(event => eve
     timephasedDurationWalks: [{ anchor: '2026-08-03T08:00', resourceCalendarId: fCalB }],
   });
 
-  const fIfc = writeIFC(buildWriteIFCInput(S()));
+  const fIfc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const fParsed = readIFC(fIfc);
   const fT1Read = fParsed.tasks.find(t => t.name === 'F1-taak-A');
   const fT2Read = fParsed.tasks.find(t => t.name === 'F1-taak-B');
@@ -1069,7 +1069,7 @@ eq('i mutatie na undo wist de redo-stack', S().historyEvents.filter(event => eve
   const held = S().ifcSource;
   truthy('i ifcSource: de store houdt de bytes zelf (geen kopie)', held?.bytes === source.bytes);
   truthy('i ifcSource: niet in de undo-snapshot', !('ifcSource' in createSnapshot(S())));
-  truthy('i ifcSource: niet in de IFC-schrijfinvoer', !('ifcSource' in buildWriteIFCInput(S())));
+  truthy('i ifcSource: niet in de IFC-schrijfinvoer', !('ifcSource' in buildWriteIFCInput(S(), 'planOnly')));
   truthy('i ifcSource: wel in de documentpayload, per referentie', capturePayload(S()).ifcSource === held);
   S().addTask({ name: 'Bewerking' });
   S().undo();
@@ -1083,7 +1083,7 @@ eq('i mutatie na undo wist de redo-stack', S().historyEvents.filter(event => eve
   S().duplicateDocument();
   truthy('i ifcSource: een kopie deelt de bron (het vreemde deel hoort ook bij de kopie)', S().ifcSource === held);
   S().switchDocument(iDoc);
-  const iInput = recoveryInputFromParsed(readIFC(writeIFC(buildWriteIFCInput(S()))), { id: 'i-doc', filePath: null, isDirty: true, datesAsRecorded: false });
+  const iInput = recoveryInputFromParsed(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), { id: 'i-doc', filePath: null, isDirty: true, datesAsRecorded: false });
   truthy('i ifcSource: niet in de herstelinvoer', !('ifcSource' in iInput));
   eq('i ifcSource: een herstelde payload heeft geen bron', payloadFromInput(iInput).ifcSource, null);
 }

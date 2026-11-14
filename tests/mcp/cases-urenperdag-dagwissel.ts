@@ -76,7 +76,7 @@ test('Late ploeg 8 u/dag, alleen workDays [1..6] ⇒ 8, gelijk aan de dagknop Za
   assertEq(cal.workTime!.byWeekday[6], LATE, 'zaterdag 14–24, zoals maandag');
   assertEq(fields(cal), fields(venster), 'MCP geeft precies wat de dagknop Za in het venster geeft');
 
-  const terug = readIFC(writeIFC(buildWriteIFCInput(S()))).calendar;
+  const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).calendar;
   assertEq([terug.workDays, terug.hoursPerDay], [[1, 2, 3, 4, 5, 6], 8], 'na opslaan en heropenen: ma–za, 8 u/dag');
 });
 
@@ -107,7 +107,7 @@ test('volgt: ma–wo 8 u en do/vr 10 u (8 = modaal 8), alleen workDays [2..5] �
   const cal = calById(id);
   assertEq(cal.hoursPerDay, 10, 'di/wo 8 u en do/vr 10 u: gelijkspel, de hoogste (10) wint');
   assertEq(fields(cal), fields(venster), 'MCP geeft precies wat dezelfde zet in het venster geeft (workDaysSetPatch)');
-  const terug = readIFC(writeIFC(buildWriteIFCInput(S()))).calendar;
+  const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).calendar;
   assertEq([terug.workDays, terug.hoursPerDay], [[2, 3, 4, 5], 10], 'na opslaan en heropenen: di–vr, 10 u/dag');
 });
 
@@ -125,7 +125,7 @@ test('Late ploeg 8 u/dag, workTime met een extra Za-blok ⇒ 8, zoals Werktijden
   assertEq(cal.workTime!.byWeekday[6], LATE, 'zaterdag 14–24');
   assertEq(cal.hoursPerDay, venster, 'MCP geeft wat het blok Werktijden in het venster geeft (hoursPerDayForBlocks)');
 
-  const terug = readIFC(writeIFC(buildWriteIFCInput(S()))).calendar;
+  const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).calendar;
   assertEq([terug.workDays, terug.hoursPerDay], [[1, 2, 3, 4, 5, 6], 8], 'na opslaan en heropenen: ma–za, 8 u/dag');
 });
 
@@ -141,7 +141,7 @@ test('volgt: Late ploeg 10 u/dag (= de blokken), workTime ma–za 14–22 ⇒ 8,
   const cal = calById(id);
   assertEq(cal.hoursPerDay, 8, 'de uren per dag volgen de nieuwe blokken: 8');
   assertEq(cal.hoursPerDay, venster, 'MCP geeft wat het blok Werktijden in het venster geeft (hoursPerDayForBlocks)');
-  const terug = readIFC(writeIFC(buildWriteIFCInput(S()))).calendar;
+  const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).calendar;
   assertEq([terug.workDays, terug.hoursPerDay], [[1, 2, 3, 4, 5, 6], 8], 'na opslaan en heropenen: ma–za, 8 u/dag');
 });
 

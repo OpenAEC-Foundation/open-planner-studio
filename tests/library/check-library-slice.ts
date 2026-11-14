@@ -1666,7 +1666,7 @@ for (const size of [1000, 5000]) {
   assert(after.project.companyName === 'Bouwbedrijf Nieuw', 'R10: renameCompany werkt companyName van het actieve gekoppelde document bij');
   assert(after.documents.find(d => d.id === docB)?.payload?.project.companyName === 'Bouwbedrijf Nieuw', 'R10: …en van een slapend gekoppeld document');
   assert(after.documents.find(d => d.id === docOther)?.payload?.project.companyName === 'Ander Bedrijf', 'R10: een document van een andere bibliotheek blijft ongemoeid');
-  assert(/'CompanyName',\$,IFCTEXT\('Bouwbedrijf Nieuw'\)/.test(writeIFC(buildWriteIFCInput(after))), 'R10: opslaan schrijft de nieuwe bibliotheeknaam in de IFC');
+  assert(/'CompanyName',\$,IFCTEXT\('Bouwbedrijf Nieuw'\)/.test(writeIFC(buildWriteIFCInput(after, 'planOnly'))), 'R10: opslaan schrijft de nieuwe bibliotheeknaam in de IFC');
   assert(after.isDirty === dirtyBefore && after.historyEvents.length === undoBefore, 'R10: zoals removeCompany: geen undo-stap en geen isDirty');
 }
 
@@ -2233,7 +2233,7 @@ for (const size of [1000, 5000]) {
   const calId = S().addLibraryCalendarToProject(cid, poolCalId).calendarId!;
   S().setCalendar({ ...S().calendar, description: '' });
   assert(S().onOpenStatusForCalendar(calId) === 'in-sync', 'lege kalenderomschrijving: voorwaarde — kopie is in sync vóór opslaan');
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   assert(parsed.calendar.description === '', `lege omschrijving projectkalender blijft leeg na round-trip, kreeg ${JSON.stringify(parsed.calendar.description)}`);
   S().newDocument();
   S().applyLoadedProject(parsed, { filePath: 'leeg.ifc', linkedOpen: true });

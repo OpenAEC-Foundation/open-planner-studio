@@ -385,7 +385,7 @@ export function ordinaryEdits(d: Domain): Edit[] {
         result = store.getState().enterTaskProgress(leaf.id, edit, { ...opts, actualStart: result.question.latest });
       }
       if (!result.ok) throw new Error(`voortgangsinvoer ${leaf.id}: ${result.reason}`);
-      return structuredClone(buildWriteIFCInput(store.getState()));
+      return structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
     }, (before, after) => before.tasks.find(t => t.id === leaf.id)?.time.completion !== completion && after.tasks.find(t => t.id === leaf.id)?.time.completion === completion));
   }
   return [...out, ...newObjectEdits(d)];

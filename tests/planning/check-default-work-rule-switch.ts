@@ -64,7 +64,7 @@ function source() {
   app.getState().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
   app.getState().updateTask(b, { constraint: { type: 'SNET', date: B_OPGESLAGEN } });
   app.getState().runCPM();
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(app.getState())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(app.getState(), 'planOnly')));
   parsed.recordedTimesOrigin = 'ifc';
   for (const t of parsed.tasks) if (t.name === 'B') delete t.constraint;
   return parsed;
@@ -249,12 +249,12 @@ for (const withProfile of [false, true]) {
   for (const rule of WORK_RULES) {
     S().applyProjectInfo({ defaultWorkRule: rule }, undefined);
     const reopened = createAppStoreContext();
-    reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), { recompute: true });
+    reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), { recompute: true });
     const back = reopened.store.getState();
     eq(`${label}: IFC bewaart ${rule} en de overerving`,
       [back.project.defaultWorkRule, back.tasks.find(t => t.id === id)?.workRule, back.tasks.find(t => t.id === own)?.workRule],
       [rule, undefined, 'FIXED_DURATION_RATE']);
-    eq(`${label}: tweede IFC-opslag bewaart ${rule}`, readIFC(writeIFC(buildWriteIFCInput(back))).project.defaultWorkRule, rule);
+    eq(`${label}: tweede IFC-opslag bewaart ${rule}`, readIFC(writeIFC(buildWriteIFCInput(back, 'planOnly'))).project.defaultWorkRule, rule);
     if (rule === 'FIXED_WORK') {
       const a = back.assignments.find(a => a.taskId === id)!;
       back.updateAssignment(a.id, { unitsPerDay: 2 });

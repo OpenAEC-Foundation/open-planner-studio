@@ -118,7 +118,7 @@ ok('7 documentpayloads delen geen mutabele project- of taakobjecten',
   && docs[0].payload.calendar !== docs[1].payload.calendar);
 eq('8 elk geopend document kan onafhankelijk als IFC recoverypayload rond-tripen',
   docs.map(document => {
-    const roundTripped = readIFC(writeIFC(buildWriteIFCInput(document.payload)));
+    const roundTripped = readIFC(writeIFC(buildWriteIFCInput(document.payload, 'planOnly')));
     return {
       name: roundTripped.project.name,
       baselines: roundTripped.baselines?.map(baseline => baseline.id) ?? [],
@@ -379,7 +379,7 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   const activePayload = useAppStore.getState().getOpenDocumentPayloads()
     .find((d) => d.id === useAppStore.getState().activeDocumentId)?.payload;
   if (!activePayload) throw new Error('T4-30: actief documentpayload ontbreekt');
-  const reopenedReal = readIFC(writeIFC(buildWriteIFCInput(activePayload)));
+  const reopenedReal = readIFC(writeIFC(buildWriteIFCInput(activePayload, 'planOnly')));
   ok('T4-30 heropende IFC draagt XER-metadata uit het archief', reopenedReal.xer !== undefined);
   eq('T4-31 …en markeert die als archiefherkomst', reopenedReal.xerOrigin, 'xer-archive');
   const notifBeforeReal = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));

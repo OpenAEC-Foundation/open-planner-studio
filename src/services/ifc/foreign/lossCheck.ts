@@ -1291,8 +1291,8 @@ const OBJECT_KINDS: ReadonlySet<string> = new Set(['task', 'res', 'seq', 'cal'])
  *  - `order:task`, `order:seq`, `order:res`, `order:cal`, `order:assignment`: alleen de volgorde veranderde;
  *  - `project.<veld>`: een veld van het project (`project.name`, `project.modifiedAt`, `project.calendarId`, …);
  *  - de naam van elk ander veld van het domein dat veranderde (`activityCodeTypes`, `baselines`, …).
- * `ifcSource` telt niet: dat is de bron zelf. Zonder sleutel is het domein gelijk aan het gelezen domein, en schrijft de
- * writer hetzelfde als in O0.
+ * `ifcSource` (bron) en `writeMode` (schrijfroute) zijn geen planning en tellen niet. Zonder sleutel is het domein gelijk
+ * aan het gelezen domein, en schrijft de writer hetzelfde als in O0.
  */
 export function changedScopes(originalDomain: WriteIFCInput, originalPristine: ImportResult, session?: ImportResult): ChangedScopes {
   const domain = planningIdentityInput(originalDomain), pristine = planningIdentityInput(originalPristine);
@@ -1382,7 +1382,7 @@ export function changedScopes(originalDomain: WriteIFCInput, originalPristine: I
   const pa = domain.project as unknown as Record<string, unknown>;
   const pb = pristine.project as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(pa), ...Object.keys(pb)])) if (json(pa[k]) !== json(pb[k])) keys.add(`project.${k}`);
-  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource']);
+  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource', 'writeMode']);
   const a = domain as unknown as Record<string, unknown>;
   const b = pristine as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!skip.has(k) && json(a[k]) !== json(b[k])) keys.add(k);

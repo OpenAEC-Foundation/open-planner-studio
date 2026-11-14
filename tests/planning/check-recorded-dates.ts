@@ -433,7 +433,7 @@ eq('4a finish voorbij deadline ⇒ gemeld, binnen/op de deadline niet', recDeadl
   eq('4b na berekenen: A en B eindigen ma 16:00 op de deadline-dag ⇒ niet gemist',
     naam(S().cpmResult?.missedDeadlineTaskIds), []);
 
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const times = captureRecordedDates(parsed.tasks, parsed.recordedFields).times;
   const idB = parsed.tasks.find((t) => t.name === 'B')!.id;
   times[idB] = { ...times[idB], start: '2026-07-07T08:00', finish: '2026-07-07T16:00' };
@@ -498,7 +498,7 @@ for (const [label, uur] of [['4f dagtaak', false], ['4g urentaak', true]] as con
   eq(`${label}: na berekenen eindigt A za 11 juli op de zaterdagkalender, niets gemist`,
     [eindeA(), naam(S().cpmResult?.missedDeadlineTaskIds)], ['2026-07-11T16:00', []]);
 
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const times = captureRecordedDates(parsed.tasks, parsed.recordedFields).times;
   const idB = parsed.tasks.find((t) => t.name === 'B')!.id;
   times[idB] = uur
@@ -563,7 +563,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 
 // Knownbug 356: de verworpen solve mag de bronduur van een hammock niet op nul laten staan.
 {
-  const input = buildWriteIFCInput(createAppStoreContext().store.getState());
+  const input = buildWriteIFCInput(createAppStoreContext().store.getState(), 'planOnly');
   for (const durationUnit of ['days', 'hours'] as const) {
     const hammock = mk('hammock', {
       scheduleDuration: 5, durationUnit, ...(durationUnit === 'hours' ? { durationMinutes: 2400 } : {}),
@@ -593,7 +593,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
       eq(`356 ${durationUnit}/${round}: bronduur na verworpen solve`, duration(app.getState().tasks[0]), want);
       eq(`356 ${durationUnit}/${round}: brondatums`, [app.getState().tasks[0].time.earlyStart,
         app.getState().tasks[0].time.earlyFinish], ['2026-03-16T07:00', '2026-03-20T16:00']);
-      text = writeIFC(buildWriteIFCInput(app.getState()));
+      text = writeIFC(buildWriteIFCInput(app.getState(), 'planOnly'));
       app.getState().runCPM();
       eq(`356 ${durationUnit}/${round}: expliciet Bereken mag duur afleiden`, app.getState().tasks[0].time.scheduleDuration, 0);
       app.getState().undo();
@@ -648,7 +648,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   const ownB = S().addTask({ name: 'Eigen B' });
   S().addSequence({ predecessorId: ownA, successorId: ownB, type: 'FINISH_START', lagDays: 0 });
   S().runCPM();
-  const ownIfc = writeIFC(buildWriteIFCInput(S()));
+  const ownIfc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 
   S().newProject();
   S().applyLoadedProject(readIFC(ownIfc), { filePath: null, recompute: true });
@@ -842,7 +842,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // Dezelfde productiehelpers als slapend crashherstel: lees → payload → reconstructie → save.
 // De fasedatums verschillen bewust van de kinderen: dit pad moet de bron bewaren, niet oprollen.
 {
-  const input = buildWriteIFCInput(createAppStoreContext().store.getState());
+  const input = buildWriteIFCInput(createAppStoreContext().store.getState(), 'planOnly');
   const variants: { label: string; children: Task[] }[] = [
     { label: 'lopend op 100 %', children: [mk('L', { completion: 1, actualStart: '2026-03-02' }, { status: 'STARTED' })] },
     { label: 'voltooid + niet-gestarte mijlpaal', children: [
@@ -892,7 +892,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
         { completion: 1, status: 'STARTED', actualStart: '2026-02-26T07:00' });
       eq(`7D ${variant.label}, ronde ${n}: reconstructie toont het opgeslagen fase-einde`,
         payload.cpmResult?.tasks.get(source.id)?.earlyFinish, '2026-03-27T16:00');
-      text = writeIFC(buildWriteIFCInput(payload));
+      text = writeIFC(buildWriteIFCInput(payload, 'planOnly'));
     }
   }
 }
@@ -1651,7 +1651,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   S().applyLoadedProject(readIFC(externIfc('16')), { filePath: null, recompute: true });
   eq('16a verse import uit een ander pakket: vlag aan én modus aan', [S().importPristine, S().datesAsRecorded], [true, true]);
 
-  const savedInMode = writeIFC(buildWriteIFCInput(S()));
+  const savedInMode = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   truthy('16b opslaan ín de modus schrijft OPS_ImportProvenance', savedInMode.includes("'OPS_ImportProvenance'"));
   const reopened = readIFC(savedInMode);
   eq('16c het heropende eigen IFC is een heropening mét vlag', [reopened.recordedTimesOrigin, reopened.importPristine], ['ifc-own', true]);
@@ -1663,7 +1663,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   // F5 verlaat de modus maar is geen bewerking; opslaan evenmin.
   S().runCPM();
   eq('16f F5 verlaat de modus zonder de vlag te wissen', [S().datesAsRecorded, S().importPristine], [false, true]);
-  const savedOutside = writeIFC(buildWriteIFCInput(S()));
+  const savedOutside = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   truthy('16g ook ná F5 draagt het opgeslagen bestand de vlag', savedOutside.includes("'OPS_ImportProvenance'"));
   S().newProject();
   S().applyLoadedProject(readIFC(savedOutside), { filePath: null, recompute: true });
@@ -1676,7 +1676,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   // toetst alleen de vlag en het vuil worden; het verlaten van de modus staat in 9D-8.
   S().updateTask(S().tasks[0]!.id, { name: 'Bewerkt' });
   eq('16i een bewerking (modus stond al uit, 16h) wist de vlag en maakt vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, false, true]);
-  const savedEdited = writeIFC(buildWriteIFCInput(S()));
+  const savedEdited = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   truthy('16j het bewerkte bestand draagt geen OPS_ImportProvenance meer', !savedEdited.includes("'OPS_ImportProvenance'"));
   S().newProject();
   S().applyLoadedProject(readIFC(savedEdited), { filePath: null, recompute: true });
@@ -1922,7 +1922,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   eq('18a tegenproef: een verse import in de modus geeft wél de openingsmelding', importMeldingen() - voorImport, 1);
   S().setProject({ description: 'bewerkt, zonder datumwijziging' });
   eq('18b de bewerking wist de vlag maar laat de modus staan', [S().datesAsRecorded, S().importPristine], [true, false]);
-  const eigen = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const eigen = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   eq('18c het opgeslagen bestand is een eigen IFC zonder vlag', [eigen.recordedTimesOrigin, eigen.importPristine], ['ifc-own', false]);
   S().newProject();
   const voorHeropen = importMeldingen();
@@ -1959,7 +1959,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
       }])),
       total: p.tasks.length, origin: 'ifc-own', sourceFormat: 'ifc',
     };
-    return writeIFC(buildWriteIFCInput(p));
+    return writeIFC(buildWriteIFCInput(p, 'planOnly'));
   };
   const spelingVan = (tasks: readonly Task[]) => Object.fromEntries(tasks.map((t) =>
     [t.name, [t.time.totalFloat, t.time.totalFloatMinutes ?? null, t.time.freeFloat, t.time.freeFloatMinutes ?? null]]));
@@ -1982,7 +1982,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   eq('19c in de modus: dagen én minuten uit het bestand', spelingVan(a.getState().tasks),
     { A: [2.5, 1200, 0.75, 360], B: [2.5, 1200, 0.75, 360] });
   eq('19d de reconstructie (cpmResult) draagt dezelfde minuten', resultaatVan(a), { A: [1200, 360], B: [1200, 360] });
-  const opnieuw = writeIFC(buildWriteIFCInput(a.getState()));
+  const opnieuw = writeIFC(buildWriteIFCInput(a.getState(), 'planOnly'));
   truthy('19e opnieuw opslaan schrijft de exacte speling', opnieuw.includes('"TotalFloat":[2.5,1200]') && opnieuw.includes('"FreeFloat":[0.75,360]'));
   truthy('19f …en nooit de minuten van de verworpen solve', !/"(?:Total|Free)Float":\[[\d.]+,0\]/.test(opnieuw));
   eq('19g opnieuw lezen: dezelfde speling', spelingVan(readIFC(opnieuw).tasks), { A: [2.5, 1200, 0.75, 360], B: [2.5, 1200, 0.75, 360] });
@@ -1998,7 +1998,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   eq('19k in de modus: de dagen uit het bestand, de minuten van de solve gewist', spelingVan(z.getState().tasks),
     { A: [2.5, null, 0.75, null], B: [3, null, 1, null] });
   eq('19l de reconstructie verzint geen minuten', resultaatVan(z), { A: [null, null], B: [null, null] });
-  const zOpnieuw = writeIFC(buildWriteIFCInput(z.getState()));
+  const zOpnieuw = writeIFC(buildWriteIFCInput(z.getState(), 'planOnly'));
   truthy('19m opnieuw opslaan: de breuk zonder minuten, geen 0', zOpnieuw.includes('"TotalFloat":[2.5,null]') && zOpnieuw.includes('"FreeFloat":[0.75,null]'));
   eq('19n opnieuw lezen: dezelfde speling, zonder minuten', spelingVan(readIFC(zOpnieuw).tasks),
     { A: [2.5, null, 0.75, null], B: [3, null, 1, null] });

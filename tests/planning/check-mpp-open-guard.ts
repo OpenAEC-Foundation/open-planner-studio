@@ -131,7 +131,7 @@ eq('00d readFormatForFile: .xml heeft id "xml" (niet "ifc")', readFormatForFile(
   S().newProject();
   S().setProject({ name: 'Guard-IFC-bron', startDate: '2026-08-03' });
   S().addTask({ name: 'Los werkje' });
-  const ifcText = writeIFC(buildWriteIFCInput(S()));
+  const ifcText = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 
   S().newProject(); // vers, ongewijzigd actief tabblad — wordt hergebruikt (isActivePristine)
   nextFile = makeFakeFile('bron.ifc', { text: ifcText });
@@ -283,7 +283,7 @@ function makeFakeHandle(file: unknown): FileSystemFileHandle {
   S().newProject();
   S().setProject({ name: 'Guard-Recents-IFC-bron', startDate: '2026-08-03' });
   S().addTask({ name: 'Recents-werkje' });
-  const ifcText = writeIFC(buildWriteIFCInput(S()));
+  const ifcText = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const handle = makeFakeHandle(makeFakeFile('recents-bron.ifc', { text: ifcText }));
 
   S().newProject();

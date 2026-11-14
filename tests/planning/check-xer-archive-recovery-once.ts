@@ -166,7 +166,7 @@ expect('b5 de store herstelt beide documenten mét archief',
   && store().getOpenDocumentPayloads().every((doc) => doc.payload.xerSourceArchive?.sha256 === sourceSha));
 
 // ── (f) het echte opslaan blijft het archief volledig schrijven (het IFC is de bron) ─────────────
-const savedIfc = writeIFC(buildWriteIFCInput(store().getOpenDocumentPayloads()[0]!.payload));
+const savedIfc = writeIFC(buildWriteIFCInput(store().getOpenDocumentPayloads()[0]!.payload, 'planOnly'));
 const reopened = await readFormatForFile('project.ifc').read({ name: 'project.ifc', text: savedIfc }, {});
 const reopenedResult = Array.isArray((reopened as { results?: unknown }).results) ? null : reopened;
 expect('f1 opslaan als IFC draagt de volledige bronbytes (ingebed, schema 2)',
@@ -197,7 +197,7 @@ expect('d5 een referentiesnapshot buiten crashherstel (zonder resolver) geeft oo
 await clearRecovery();
 const legacyDoc = store().getOpenDocumentPayloads()[0]!;
 await saveRecovery(fullRecoverySave(legacyDoc.id, [{
-  id: legacyDoc.id, ifc: writeIFC(buildWriteIFCInput(legacyDoc.payload)),
+  id: legacyDoc.id, ifc: writeIFC(buildWriteIFCInput(legacyDoc.payload, 'planOnly')),
   filePath: null, isDirty: true, datesAsRecorded: false,
 }]));
 const legacy = await restoreFrom();

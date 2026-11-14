@@ -82,7 +82,7 @@ const d = cloneDomain(opened);
 {
   const { store } = await storeWith(d);
   const liveState = store.getState();
-  const before = structuredClone(d), liveBefore = structuredClone((await loadStore()).buildWriteIFCInput(store.getState()));
+  const before = structuredClone(d), liveBefore = structuredClone((await loadStore()).buildWriteIFCInput(store.getState(), 'merge'));
   const refused = (e: unknown) => e instanceof MergeNeedsPhase2Error;
   await assert.rejects(() => writeIfcMerge(d, source, async () => undefined as unknown as typeof d), refused, 'een lege testfunctie wordt geweigerd');
   await assert.rejects(() => writeIfcMerge(d, source, async p => p), refused, 'identiteit mag de open-stappen niet vervangen');
@@ -96,7 +96,7 @@ const d = cloneDomain(opened);
     return changed;
   }), refused, 'ook een gewijzigde kopie wordt geweigerd');
   assert.deepEqual(d, before, 'de controle veranderde het domein van de aanroeper niet');
-  assert.deepEqual((await loadStore()).buildWriteIFCInput(store.getState()), liveBefore, 'de actieve store is ongewijzigd');
+  assert.deepEqual((await loadStore()).buildWriteIFCInput(store.getState(), 'merge'), liveBefore, 'de actieve store is ongewijzigd');
   assert.strictEqual(store.getState(), liveState, 'ook de documentregistry, historie en UI van de actieve store bleven onaangeraakt');
   assert((await writeIfcMerge(d, source)).length > 0, 'de productieroute heeft zelf de vaste open-stappen');
   console.log('OK E21: vaste open-stappen, identiteit en naamwijziging geweigerd; invoer en actieve store ongewijzigd');
@@ -255,7 +255,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
   const task = store.getState().tasks.find(t => t.name === 'Set up site')!;
   const before = task.time.remainingTime;
   assert.equal(store.getState().setActualFinish(task.id, task.time.scheduleFinish), true);
-  const input = buildWriteIFCInput(store.getState());
+  const input = buildWriteIFCInput(store.getState(), 'merge');
   const afterEntry = input.tasks.find(t => t.id === task.id)!.time.remainingTime;
   assert.equal(afterEntry, 0, 'de echte invoer zet de rest al vóór opslaan op 0');
   const shown = await shownAfterOpen(input);
@@ -305,7 +305,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
     const source = await openForeign(generatedModel(root, readFileSync(join(root, 'tests/planning/fixtures', file), 'utf8'), 0));
     const { store, buildWriteIFCInput } = await storeWith(cloneDomain(source));
     store.getState().deleteTasksBulk([c.bewerking.replace(/ wissen$/, '')]);
-    const edited = buildWriteIFCInput(store.getState());
+    const edited = buildWriteIFCInput(store.getState(), 'merge');
     const r = await tryMerge(edited, source.ifcSource!);
     assert(r.ok, r.ok ? '' : `${file}: ${JSON.stringify(r.error.cases)}`);
     const full = await openForeign(r.bytes);

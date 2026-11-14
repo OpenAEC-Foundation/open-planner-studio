@@ -221,7 +221,7 @@ for (const [value, typed, back] of [
   const before = openInStore(buildProject(dates));
   const t0 = before.tasks[0].time;
   same('§5 controle: de SNET 10:00 zet de start', [t0.earlyStart, t0.earlyFinish], ['2026-03-04T10:00', '2026-03-05T10:00']);
-  const after = openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(before)) }));
+  const after = openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(before, 'planOnly')) }));
   const t1 = after.tasks[0];
   same('§5 constraint, tweede constraint, deadline en eigen veld na heropenen',
     [t1.constraint, t1.constraint2, t1.deadline, Object.values(t1.customFields ?? {})],
@@ -244,7 +244,7 @@ for (const [value, typed, back] of [
     const odd = openInStore(buildProject({ ...dates, constraint, field }));
     const o0 = odd.tasks[0];
     same(`§5 ${label}: controle, de start vóór opslaan`, o0.time.earlyStart, start);
-    const back = openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(odd)) }));
+    const back = openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(odd, 'planOnly')) }));
     const o1 = back.tasks[0];
     same(`§5 ${label}: constraint en eigen veld letterlijk`, [o1.constraint?.date, Object.values(o1.customFields ?? {})], [constraint, [field]]);
     same(`§5 ${label}: datums, speling en kritiek na heropenen`,

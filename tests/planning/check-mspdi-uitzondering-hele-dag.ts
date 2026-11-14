@@ -129,12 +129,12 @@ const calView = (p: DocumentPayload) => Object.fromEntries([p.calendar, ...p.cal
     'Over de werkende zaterdag (nieuw)': ['2026-10-23T08:00', '2026-10-24T16:00'],
     'Over de werkende zaterdag (oud)': ['2026-10-23T08:00', '2026-10-24T16:00'],
   });
-  const ifc = writeIFC(buildWriteIFCInput(before));
+  const ifc = writeIFC(buildWriteIFCInput(before, 'planOnly'));
   const after = openAndRecalc(await parseOpenedFile({ name: 'hele-dag.ifc', text: ifc }));
   same('§3 kalenders gelijk na opslaan als IFC en heropenen', calView(after), calView(before));
   same('§3 F5 ná de IFC-rondgang = F5 ervóór', dates(after), dates(before));
   // Tweede ronde: de canonieke vorm is een vast punt.
-  const again = openAndRecalc(await parseOpenedFile({ name: 'hele-dag-2.ifc', text: writeIFC(buildWriteIFCInput(after)) }));
+  const again = openAndRecalc(await parseOpenedFile({ name: 'hele-dag-2.ifc', text: writeIFC(buildWriteIFCInput(after, 'planOnly')) }));
   same('§3 tweede rondgang: kalenders en F5 ongewijzigd', [calView(again), dates(again)], [calView(before), dates(before)]);
 }
 

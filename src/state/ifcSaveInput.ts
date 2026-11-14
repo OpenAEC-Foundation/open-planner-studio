@@ -42,6 +42,11 @@ export type IFCSaveSource = Pick<
     // voegen het kenmerk zelf toe.
     | 'foreignSourceMark'>>;
 
+export type IFCWriteMode = 'merge' | 'planOnly';
+
+/** Clonebare routemetadata; de gewone writer leest alleen de bestaande inhoudsvelden. */
+export type IFCWriteInput = WriteIFCInput & { readonly writeMode: IFCWriteMode };
+
 /**
  * "Datums zoals opgeslagen": in de modus draagt `task.time` op de
  * assen die het bronbestand NIET vastlegde een weergave-terugval (`applyRecordedTimesToTasks`:
@@ -76,10 +81,13 @@ function withheldFieldsFor(src: IFCSaveSource): WriteIFCInput['withheldTaskTimeF
  * meeschrijven, zodat losse callsites niet stil velden kunnen weglaten (stil dataverlies bij
  * opslaan). De enige naamsvertaling: het store-veld `calendars`
  * (de gedeelde kalender-bibliotheek) heet in de writer-invoer `resourceCalendars`.
+ * `mode` is verplicht; `writeMode` reist met spread/structuredClone mee tot de schrijver.
+ * PR 11 gebruikt die keuze voor de doelbewaking; deze builder verandert de uitvoer niet.
  */
-export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
+export function buildWriteIFCInput(src: IFCSaveSource, mode: IFCWriteMode): IFCWriteInput {
   const withheld = withheldFieldsFor(src);
   return {
+    writeMode: mode,
     project: src.project,
     minuteModelPending: src.minuteModelPending,
     calendar: src.calendar,
@@ -116,8 +124,8 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
 /** De writer-invoer voor een EXPORT naar een nieuw bestand: als `buildWriteIFCInput`, maar zonder een open
  *  schemavraag die niet bij de kop van de export past (`projectForIfcExport`, review #336 punt 4).
  *  Opslaan, AutoSave, crashherstel en de MCP-backup gebruiken `buildWriteIFCInput`. */
-export function buildExportIFCInput(src: IFCSaveSource): WriteIFCInput {
-  const input = buildWriteIFCInput(src);
+export function buildExportIFCInput(src: IFCSaveSource, mode: IFCWriteMode): IFCWriteInput {
+  const input = buildWriteIFCInput(src, mode);
   return { ...input, project: projectForIfcExport(input.project) };
 }
 

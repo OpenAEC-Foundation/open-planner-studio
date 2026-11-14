@@ -139,7 +139,7 @@ for (const target of TARGETS) {
     target.timedConstraintDates);
   for (const [i, doc] of before.entries()) {
     const label = `${target.name} document ${i + 1}`;
-    const input = buildWriteIFCInput(doc);
+    const input = buildWriteIFCInput(doc, 'planOnly');
     const ifc = writeIFC(input);
     for (const schema of ['IFC4X3_ADD2', 'IFC4X3', 'IFC4'] as const) {
       const text = schema === projectIfcSchema(input.project) ? ifc : writeIFC({ ...input, project: { ...input.project, ifcSchema: schema } });

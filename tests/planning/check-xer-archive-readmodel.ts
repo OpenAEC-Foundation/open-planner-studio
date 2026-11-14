@@ -729,7 +729,7 @@ truthy('9a duplicate houdt exact dezelfde X5-filecache en bronrijrefs',
         document.payload.xerImportMetadata.scheduleOptions.sourceRowIndexes[index]!
       ])));
 const recoveredInputs = tabPayloads.map((document, index) => {
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(document.payload)));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(document.payload, 'planOnly')));
   return recoveryInputFromParsed(parsed, { id: `readmodel-recovery-${index}`, filePath: null, isDirty: true, datesAsRecorded: false });
 });
 store().restoreDocuments(recoveredInputs, recoveredInputs[0]!.id);

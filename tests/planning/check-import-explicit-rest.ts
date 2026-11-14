@@ -293,7 +293,7 @@ function xer(dateOnly: boolean): ImportResult {
 // ── 4. De route van de app: openen, meteen opslaan (zonder F5), heropenen ─────────────────────────
 {
   const S = () => useAppStore.getState();
-  const restAfterSave = () => readIFC(writeIFC(buildWriteIFCInput(S()))).tasks
+  const restAfterSave = () => readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks
     .filter(t => t.childIds.length === 0).map(t => t.time.remainingTime);
   S().openAsDocument(readMPP(runningMpp()), { name: 'a07-rest.mpp', ref: null });
   eq('app: MPP openen → opslaan → heropenen houdt 4 d', restAfterSave(), [4]);
@@ -315,7 +315,7 @@ function xer(dateOnly: boolean): ImportResult {
   app.getState().runCPM();
   eq('zonder markering: na openen en F5 einde ma 8 juni 16:00', leaf(app.getState()).time.earlyFinish, '2026-06-08T16:00');
   eq('zonder markering: openen → opslaan → heropenen houdt 4 d',
-    leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState())))).time.remainingTime, 4);
+    leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState(), 'planOnly')))).time.remainingTime, 4);
 }
 
 // ── 6. B1a/B5 → Ctrl+Z → opslaan → heropenen houdt de rest ───────────────────────────────────────
@@ -348,7 +348,7 @@ function xer(dateOnly: boolean): ImportResult {
     [false, 1, 'hours']);
   eq('B1a/B5: na openen 4 d rest', rest(app.getState()), 4);
   app.getState().undo();
-  const saved = writeIFC(buildWriteIFCInput(app.getState()));
+  const saved = writeIFC(buildWriteIFCInput(app.getState(), 'planOnly'));
   eq('B1a/B5 → Ctrl+Z: voorwaarde (omzetting open, bestand zonder markering)',
     [app.getState().minuteModelPending, readIFC(saved).timeModel], [true, undefined]);
   eq('B1a/B5 → Ctrl+Z → opslaan → heropenen houdt 4 d (niet 4,02 d)', rest(readIFC(saved)), 4);
@@ -393,14 +393,14 @@ function xer(dateOnly: boolean): ImportResult {
   const record = (ifc: string) => ifc.match(/"RemainingTime":\[([^,\]]+),(\d+)\]/)?.slice(1, 3).map(Number);
   /** De restduur van C als IFC-duur (de enige duur van 6 uur en iets in dit bestand). */
   const restDurations = (ifc: string) => ifc.match(/'PT6H\d+M0S'/g) ?? [];
-  let ifc = writeIFC(buildWriteIFCInput(prepareLoadedPayload(p, { recompute: true })));
+  let ifc = writeIFC(buildWriteIFCInput(prepareLoadedPayload(p, { recompute: true }), 'planOnly'));
   for (const round of [1, 2, 3]) {
     eq(`357 export ${round}: de rest is 388 min (5/6 × 465), ook in het record`,
       [restDurations(ifc), record(ifc)?.[1]], [["'PT6H28M0S'"], 388]);
     const back = readIFC(ifc);
     eq(`357 heropenen ${round}: de rest is de waarde uit het record, niet 3 × 5/18`,
       back.tasks[0].time.remainingTime, record(ifc)?.[0]);
-    ifc = writeIFC(buildWriteIFCInput(payloadFromImport(back, null)));
+    ifc = writeIFC(buildWriteIFCInput(payloadFromImport(back, null), 'planOnly'));
   }
 }
 
@@ -419,7 +419,7 @@ function threePoints(imported: ImportResult, name: string): Point[] {
   const app = createAppStore();
   app.getState().openAsDocument(imported, { name, ref: null });
   const opened = state(leaf(app.getState()));
-  const back = state(leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState())))));
+  const back = state(leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState(), 'planOnly')))));
   return [read, opened, back];
 }
 /** Dezelfde verwachting op alle drie de meetpunten. */
@@ -513,7 +513,7 @@ for (const [name, imported] of [
   app.getState().runCPM();
   check('berekenen');
   for (let round = 1; round <= 2; round++) {
-    const back = readIFC(writeIFC(buildWriteIFCInput(app.getState())));
+    const back = readIFC(writeIFC(buildWriteIFCInput(app.getState(), 'planOnly')));
     app.getState().openAsDocument(back, { name: `${name}-${round}.ifc`, ref: null });
     check(`IFC ${round}`);
   }

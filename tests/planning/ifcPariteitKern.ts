@@ -292,7 +292,7 @@ export async function runParity(inputs: readonly ParityInput[]): Promise<ParityR
       name: input.name,
       filePath: opened ? state.filePath : null,
       ...((state as { foreignSourceMark?: unknown }).foreignSourceMark ? { mark: true as const } : {}),
-      ...(opened ? { saved: writeIFC(buildWriteIFCInput(state)),
+      ...(opened ? { saved: writeIFC(buildWriteIFCInput(state, 'merge')),
         projectInfo: { author: state.project.author ?? '', company: state.project.company ?? '' } } : {}),
       notices: state.ui.notifications.map(({ id: _id, ...rest }) => JSON.parse(JSON.stringify(rest)) as ParityNotice),
     };

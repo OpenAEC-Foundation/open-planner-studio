@@ -86,7 +86,7 @@ S().addSequence({ predecessorId: idA, successorId: idB, type: 'FINISH_START', la
 S().runCPM();
 S().updateTask(idA, { time: { ...byName(S().tasks, 'A').time, completion: 1 } });
 S().runCPM();
-const base = writeIFC(buildWriteIFCInput(S()));
+const base = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 // IfcTaskTime: 5 ScheduleStart, 6 ScheduleFinish, 7 EarlyStart, 8 EarlyFinish, 9 LateStart, 10 LateFinish.
 const EARLY_LATE = [7, 8, 9, 10];
 const isTaskTime = (name: string) => (args: string[]) => args[0] === `'${name} Time'`;

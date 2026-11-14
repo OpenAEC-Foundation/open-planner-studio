@@ -166,7 +166,7 @@ for (const profile of ['ops', 'p6'] as const) {
   same(`3 ${profile}: de dialoog toont "+0.5d"`, formatExternalLagShort(link(), 'u'), '+0.5d');
   same(`3 ${profile}: de cel toont "SS+0.5d"`, formatExternalRelationVisible(link()).endsWith('SS+0.5d'), true);
   // Opslaan: IFC bewaart de breuk.
-  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S()))).tasks.find(t => t.name === 'Opvolger');
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly'))).tasks.find(t => t.name === 'Opvolger');
   same(`3 ${profile}: na opslaan en openen nog 0,5 d`, reopened?.externalLinks?.map(l => l.lagDays), [0.5]);
   // Het raster: de cel "SS+1,5d" via de relatiecel (klembordvorm) bewaart 1,5 d.
   const text = formatExternalRelationClipboard(id, link()).replace('SS+0.5d', 'SS+1,5d');

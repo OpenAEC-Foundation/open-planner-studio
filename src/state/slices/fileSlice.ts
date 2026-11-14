@@ -1225,7 +1225,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (!result || result.projectId !== before.project.id || result.links.length === 0) return true;
     let tight;
     try {
-      tight = await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(before)));
+      tight = await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(before, 'planOnly')));
     } catch (err) {
       // Het eigen bestand niet terug te lezen: dan de huidige taken, zoals ze op het scherm staan.
       console.warn('Afhankelijke projecten: bron als opgeslagen niet te lezen:', err);
@@ -1524,7 +1524,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // planner wijzigde (`IfcSource.opened`, `sourceForm.ts`). Alleen bij een eigen bron met een vreemd deel, dus alleen
       // met de flag; zonder bron of met de bron van het vorige document (IFC-editor, `loadState`) verandert er niets.
       if (ownSource && !editing && hasForeignContent(ownSource) && activation.payload.ifcSource === ownSource) {
-        activation.payload = { ...activation.payload, ifcSource: { ...ownSource, opened: buildWriteIFCInput(activation.payload) } };
+        activation.payload = { ...activation.payload, ifcSource: { ...ownSource, opened: buildWriteIFCInput(activation.payload, 'merge') } };
       }
       set((s) => {
         // Een nieuwe projectinhoud: de vorige weigeringen gaan weg, net als bij een documentwissel
@@ -1970,7 +1970,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
           {
-            const written = writeIFCWithChoices(buildExportIFCInput(state));
+            const written = writeIFCWithChoices(buildExportIFCInput(state, 'merge'));
             payload = written.content;
             exportedLiteral = written.literalCalendarIds;
           }
@@ -2083,7 +2083,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const state = get();
       // 1. Het project zelf (bevat altijd al alle gebruikte items). Een export: zie `buildExportIFCInput`.
-      const project = writeIFCWithChoices(buildExportIFCInput(state));
+      const project = writeIFCWithChoices(buildExportIFCInput(state, 'planOnly'));
       const base = suggestedFileBase(state);
       const foreignCheck = foreignTargetCheck('export');
       const refuseTarget: SaveTargetCheck = async (target) => (await foreignCheck(target)) || refuseChangedExport(state);

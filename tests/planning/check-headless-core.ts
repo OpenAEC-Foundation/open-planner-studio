@@ -112,7 +112,7 @@ ok('4c geen tekst ⇒ INVALID_INPUT', await codeOf(() => openIfc(42 as unknown a
 ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-10303-21;\nHEADER;')) === 'IFC_READ_FAILED');
 {
   const empty = createAppStoreContext({ emitHostEvents: false }).store.getState();
-  const emptyIfc = writeIFC(buildWriteIFCInput(empty));
+  const emptyIfc = writeIFC(buildWriteIFCInput(empty, 'planOnly'));
   ok('4d IFC zonder taken ⇒ NO_TASKS', await codeOf(() => openIfc(emptyIfc)) === 'NO_TASKS');
 }
 {
@@ -122,7 +122,7 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ctx.store.getState().loadState(readIFC(readFileSync(files[0], 'utf8')));
   const leaves = ctx.store.getState().tasks.filter(t => !t.isSummary && t.childIds.length === 0);
   const [x, y] = [leaves[0].id, leaves[1].id];
-  const input = buildWriteIFCInput(ctx.store.getState());
+  const input = buildWriteIFCInput(ctx.store.getState(), 'planOnly');
   const base = { type: 'FINISH_START' as const, lagDays: 0 };
   input.sequences = [
     ...input.sequences,
@@ -232,7 +232,7 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ok('4g documentwissel behoudt de verwachte span en duur op alle niveaus', hasExpectedSpan(switched.tasks));
   ok('4g documentwissel bewaart WBS, false-vlag en alle zichtbare rijen',
     shape(switched.tasks) === expectedShape && switched.project.wbsAutoNumber === false && switched.viewRows.length === N);
-  const appSaved = readIFC(writeIFC(buildWriteIFCInput(switched)));
+  const appSaved = readIFC(writeIFC(buildWriteIFCInput(switched, 'planOnly')));
   ok('4g laatste IFC-roundtrip bewaart de verwachte span en duur op alle niveaus', hasExpectedSpan(appSaved.tasks));
   ok('4g save na heropenen en documentwissel bewaart structuur en GlobalIds', shape(appSaved.tasks) === expectedShape
     && tasks.every(t => appSaved.ifcGlobalIds?.[`task:${t.id}`] === sourceGuids[`task:${t.id}`]));
@@ -260,12 +260,12 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
     t.time.earlyStart = '2030-01-07';
     t.time.earlyFinish = '2030-01-11';
   });
-  const stale = writeIFC(buildWriteIFCInput(ctx.store.getState()));
+  const stale = writeIFC(buildWriteIFCInput(ctx.store.getState(), 'planOnly'));
   const datesIn = (ifc: string) => JSON.stringify(readIFC(ifc).tasks.map(t => [t.id, t.time.earlyStart, t.time.earlyFinish]));
 
   const app = createAppStoreContext({ emitHostEvents: false });
   app.store.getState().openAsDocument(await readIFCWithXerReconstruction(stale), { name: 'document.ifc', ref: null, saveTarget: false });
-  const appAfterOpen = datesIn(writeIFC(buildWriteIFCInput(app.store.getState())));
+  const appAfterOpen = datesIn(writeIFC(buildWriteIFCInput(app.store.getState(), 'planOnly')));
 
   const doc = await openIfc(stale);
   ok('6 toIfc() vóór schedule() = de app na Bestand → Openen', datesIn(doc.toIfc()) === appAfterOpen);

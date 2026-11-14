@@ -171,7 +171,7 @@ function ifcWith(patch: Partial<WorkCalendar>, hourTask = false): string {
   S().addTask({ name: 'Dagtaak', time: createDefaultTaskTime('2026-06-01', 2) });
   if (hourTask) S().addTask({ name: 'Urentaak', time: createDefaultTaskTime('2026-06-01', 10, 'hours', S().calendar) });
   S().runCPM();
-  return writeIFC(buildWriteIFCInput(S()));
+  return writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 }
 const hourCal = (start: number, end: number): Partial<WorkCalendar> => ({
   workTime: makeBands([1, 2, 3, 4, 5], MSP_DAY), workDays: [1, 2, 3, 4, 5],
@@ -314,7 +314,7 @@ const hourCal = (start: number, end: number): Partial<WorkCalendar> => ({
   S().setCalendar({ ...S().calendar, ...off });
   S().runCPM();
   same('§6 vrijdag uit: taak eindigt maandag 12 jan 17:00', finish(), '2026-01-12T17:00');
-  const reopened = readIFC(writeIFC(buildWriteIFCInput(S()))).calendar;
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).calendar;
   same('§6 vrijdag uit: na opslaan en heropenen geen vrijdag', [reopened.workDays, reopened.workTime?.byWeekday[5] ?? []], [[1, 2, 3, 4], []]);
 
   const on = workDayTogglePatch(S().calendar, 5);

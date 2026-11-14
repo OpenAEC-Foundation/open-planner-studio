@@ -315,7 +315,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
 {
   const { b } = setup();
   type(b, 'task.time.start', '15-06-2026');
-  const back = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const back = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const reread = back.tasks.find(candidate => candidate.name === 'B');
   eq('IFC-round-trip: SNET met datum blijft', reread?.constraint, { type: 'SNET', date: '2026-06-15' });
   eq('IFC-round-trip: anker blijft', reread?.time.scheduleStart, '2026-06-15');

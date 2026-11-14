@@ -514,7 +514,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().newProject();
   S().setProject({ name: 'Herstel-site', startDate: '2026-08-03' });
   S().addTask({ name: 'Werk' });
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'merge'));
   const parsed = readIFC(ifc);
   S().restoreDocuments([
     recoveryInputFromParsed(parsed, { id: 'rs-1', filePath: 'Herstel.ifc', siteFileId: 'site-r', siteFileVersion: 'v4', isDirty: true, datesAsRecorded: false }),
@@ -561,7 +561,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().newProject();
   S().setProject({ name: 'Site-project', startDate: '2026-08-03' });
   S().addTask({ name: 'Fundering' });
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'merge'));
   site.put('p1', 'Site-project.ifc', [ifc, ifc]);
 
   // G1 — Openen van de site (nieuwste versie).
@@ -917,7 +917,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().newProject();
   S().setProject({ name: 'Super', startDate: '2026-08-03' });
   S().addTask({ name: 'Fundering' });
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'merge'));
   st.put('p1', 'Super.ifc', [ifc, ifc]);
   setHost({ ...st.host, initialFileId: 'p1' });
   S().newProject();
