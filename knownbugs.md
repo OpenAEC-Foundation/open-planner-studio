@@ -3835,4 +3835,22 @@ en noem het in je rapport of PR-tekst.
      nieuw type geven, of een andere taak een nieuw gedefinieerd type geven, wijzigt `TaskTypes` slot 2 en weigert
      `niet-gedragen`. De verklaring van 7c draagt alleen nieuwe koppelingen aan bestaande definities, met alle
      oude koppelingen en definities intact. Reproducties in `check-ifc-foreign-preserve.ts` (type-wisselen,
-     type-verliezen, nieuwe-definitie). Een afzonderlijke verklaring van wijzigingen/wissen blijft nodig. — B
+     type-verliezen, nieuwe-definitie). Een afzonderlijke verklaring van wijzigingen/wissen blijft nodig.
+     De review van #930 mat erbij: wisselen tussen twee al opgeslagen typen weigert ook als beide definities
+     ongewijzigd en in gebruik blijven. Besluit Trias 14 november 2026: de tweede taaktypedefinitie en een taak die van
+     type wisselt gaan mee in PR 7d; het verdwijnen van de hele pset (type weg bij de laatste taak, 1110) staat op de
+     eindlijst, verplicht vóór de flag standaard aan gaat. — B
+
+1583. **VERVOLG (#804, gewone handeling): een andere bestaande baseline actief maken bij een gebouwmodel weigert.**
+     In een bestand met een gebouwmodel en twee opgeslagen baselines: alleen `setActiveBaseline` naar de andere
+     baseline → de merge weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (ActiveBaselineId)`, waardeslot 2. De
+     verklaring in `explainScope` (`src/services/ifc/foreign/lossCheck.ts`) eist een toegevoegde baseline en dekt een
+     keuze uit bestaande baselines niet. Bestaat ook op main `fce5a77e9`; komt niet door PR 7c. Richting: een
+     beperkte verklaring voor een werkelijk gewijzigde keuze uit bestaande baselines, geen vrijstelling voor de hele
+     pset. Gevonden door de review van #930 (eigen proef op `council/r4-k1-na-opslaan.ifc`). — B
+
+1584. **VERVOLG (#804, opruimen): dubbele JSON-parser en een overbodige assert uit PR 7c.** `mapJson` in
+     `src/services/ifc/foreign/lossCheck.ts` herhaalt de lokale parser in `literalBaselineForm`; in
+     `tests/planning/check-ifc-foreign-preserve.ts` volgt de assert "iedere nieuwe baselinerij aan de juiste taak"
+     al uit de volledige baselinevergelijking ervoor. Samen ongeveer zeven regels. Gevonden door de review van
+     #930. — B
