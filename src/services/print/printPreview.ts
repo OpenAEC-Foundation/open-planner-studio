@@ -12,7 +12,6 @@ import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema uit het centrale themapalet.
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
-import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { milestoneAnchorX, taskBarSpan } from '@/engine/renderer/barSpan';
 import { taskDateLabel } from '@/utils/taskDateLabel';
@@ -1193,32 +1192,6 @@ function barDateReservePx(m: ReportMetrics, columnWidths: TableColumnWidths | un
   return { left: width('start') + BAR_LABEL_PAD_LEFT, right: BAR_LABEL_GAP + width('end') + 10 };
 }
 
-/**
- * Marge om `[from, to]` voor de datums bij de balken: minstens de gewone 7 dagen vóór en 14 na, en
- * zoveel meer dat de marge bij de uiteindelijke zoom `reserve` px breed is. Bij passend maken hangt de
- * zoom zelf van de marge af; een paar rondes volstaan, want de marge is klein naast de planning.
- */
-function padForBarDates(
-  from: Date,
-  to: Date,
-  reserve: { left: number; right: number },
-  zoomFor: (days: number) => number,
-  axis: GanttAxis,
-): [Date, Date] {
-  let before = 7;
-  let after = 14;
-  for (let round = 0; round < 6; round++) {
-    const start = addCalendarDays(from, -before);
-    const end = addCalendarDays(to, after);
-    const zoom = zoomFor(Math.max(1, Math.ceil(axis.daySpan(start, end))));
-    const left = axis.daySpan(start, from) * zoom;
-    const right = axis.daySpan(to, end) * zoom;
-    if (left >= reserve.left && right >= reserve.right) break;
-    if (left < reserve.left) before = Math.ceil(before * reserve.left / Math.max(left, 1)) + 1;
-    if (right < reserve.right) after = Math.ceil(after * reserve.right / Math.max(right, 1)) + 1;
-  }
-  return [addCalendarDays(from, -before), addCalendarDays(to, after)];
-}
 
 /**
  * Naam met datums bij een staaf (`showBarDates`, issue #868). De begindatum staat rechts uitgelijnd
@@ -1449,17 +1422,17 @@ export function renderReport(
   // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
   // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
   const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
+  // Issue #868: met datums bij de balken een vaste strook in px vóór en achter de tijdas, voor de
+  // begindatum van de vroegste en de einddatum van de laatste balk. In px en niet in dagen: dan is de
+  // breedte bij passend maken en bij de overgenomen vaste schaal dezelfde (zelfde aantal pagina's).
+  // Past de strook niet ruim op het blad, dan vervalt hij; een datum die dan niet past, valt weg.
+  const reserve = options.showBarDates && !options.timeWindow ? barDateReservePx(m, options.columnWidths) : null;
+  const datePad = reserve && reserve.left + reserve.right <= availableChartWidth / 2 ? reserve : { left: 0, right: 0 };
 
   if (options.timeWindow) {
     // Tijdvenster: de as is precies het venster (einde exclusief, dus `to` + 1), zonder marge.
     minDate = parseDate(options.timeWindow.from);
     maxDate = addCalendarDays(parseDate(options.timeWindow.to), 1);
-  } else if (options.showBarDates) {
-    // Issue #868: de marge moet de begindatum links en de einddatum rechts kwijt kunnen, ook bij een
-    // jaarplanning die op het blad gepast wordt (dan is een week marge maar een paar px).
-    [minDate, maxDate] = padForBarDates(minDate, maxDate, barDateReservePx(m, options.columnWidths), (days) =>
-      (options.autoFit ? availableChartWidth / days : options.customZoom || 22),
-    resolveGanttAxis({ calendar: calEngine, compressNonWorkdays: compressed, origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0 }));
   } else {
     // Add padding days
     minDate = addCalendarDays(minDate, -7);
@@ -1489,12 +1462,12 @@ export function renderReport(
 
   let zoom: number;
   if (options.autoFit && timelineDays > 0) {
-    zoom = availableChartWidth / timelineDays;
+    zoom = (availableChartWidth - datePad.left - datePad.right) / timelineDays;
   } else {
     zoom = options.customZoom || 22;
   }
 
-  const chartWidth = timelineDays * zoom;
+  const chartWidth = datePad.left + timelineDays * zoom + datePad.right;
   const canvasWidth = m.tableWidth + chartWidth;
   // Tijdvenster: chart-x klemmen op het chartgebied (zie `PrintOptions.timeWindow`). Zonder venster
   // is dit de identiteit.
@@ -1511,7 +1484,7 @@ export function renderReport(
   // Daarmee kan een PDF nooit andere werkdagen overslaan dan de scherm-Gantt of raster-preview.
   const axis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
-    origin: minDate, chartOriginX: m.tableWidth, zoom, scrollX: 0,
+    origin: minDate, chartOriginX: m.tableWidth + datePad.left, zoom, scrollX: 0,
   });
   const dateToX = (date: Date) => axis.dateToX(date);
   const firstTimelineIndex = Math.ceil(axis.dayIndexOf(minDate));

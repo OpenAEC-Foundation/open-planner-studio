@@ -13,7 +13,7 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
-import { renderReport, type PrintOptions } from '@/services/print/printPreview';
+import { fixedScaleStartDayWidth, renderReport, type PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { TaskTime } from '@/types/task';
 
@@ -64,7 +64,7 @@ function renderPrint(extra: Partial<PrintOptions>) {
   const inRow = (row: number) => chart.filter(t => rowOf(t.y) === row);
   const bar = (row: number) => rects.find(r => r.x >= result.tableWidth && r.y >= result.headerHeight && r.h > 8 && rowOf(r.y) === row);
   const table = texts.filter(t => t.x < result.tableWidth && t.y >= result.headerHeight);
-  return { chart, table, inRow, bar, tableWidth: result.tableWidth };
+  return { chart, table, inRow, bar, tableWidth: result.tableWidth, width: result.width, dayWidth: result.dayWidth };
 }
 const fmt = (ts: TextCall[]) => JSON.stringify(ts.map(t => [t.text, Math.round(t.x * 10) / 10, t.align]));
 const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
@@ -164,6 +164,24 @@ S().runCPM();
   ok(`jaar: begin- en einddatum allebei getekend (${fmt(r)})`, datums.length === 2);
   ok(`jaar: begindatum binnen het chartgebied (${fmt(r)})`,
     datums.some(t => t.align === 'right' && t.x - t.text.length * CHAR_W >= p.tableWidth));
+  // Passen → vaste schaal met de overgenomen dagbreedte: dezelfde breedte (zelfde aantal pagina's),
+  // ook met de datums aan (review Sol #951, ronde 2), op de kalender- en de werkdagas.
+  for (const compressNonWorkdays of [false, true]) {
+    const fit = renderPrint({ showBarDates: true, autoFit: true, compressNonWorkdays });
+    const vast = renderPrint({ showBarDates: true, autoFit: false, customZoom: fixedScaleStartDayWidth(fit.dayWidth ?? 0), compressNonWorkdays });
+    ok(`jaar${compressNonWorkdays ? ' (werkdagas)' : ''}: vaste schaal niet breder dan passen (${fit.width} → ${vast.width})`,
+      vast.width <= fit.width + 1e-6 && vast.width > fit.width - 1);
+  }
+  // Smal blad met grote letters: de strook voor de datums past niet; de maten blijven eindig.
+  for (const reportFontScale of [1, 1.25]) {
+    const smal: Partial<PrintOptions> = { autoFit: true, paperSize: 'A4', orientation: 'portrait', taskNameColumnWidth: 400, showCompletion: true, columnWidths: { start: 80, end: 80, complete: 60, duration: 60, wbs: 60 }, reportFontScale };
+    const aan = renderPrint({ ...smal, showBarDates: true });
+    const uit = renderPrint({ ...smal, showBarDates: false });
+    ok(`A4 staand, letters ${reportFontScale * 100}%: eindige maten (${aan.width}, ${aan.dayWidth})`,
+      Number.isFinite(aan.width) && Number.isFinite(aan.dayWidth ?? NaN) && (aan.dayWidth ?? 0) > 0);
+    ok(`A4 staand, letters ${reportFontScale * 100}%: de tijdas groeit niet uit tot jaren (dagbreedte ${aan.dayWidth} tegen ${uit.dayWidth} zonder datums)`,
+      (aan.dayWidth ?? 0) >= (uit.dayWidth ?? 0) * 0.5);
+  }
   S().deleteTask(J);
   S().runCPM();
 }
