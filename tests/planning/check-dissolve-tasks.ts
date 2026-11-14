@@ -387,6 +387,34 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   });
   eq('25z bestaande externe einde-begin: niets geweigerd', planDissolve(S().tasks, S().sequences, [ids.B]).refused, []);
 }
+{
+  // P → Q tussen twee blijvende fasen, met D in P en B in Q, is ook D → B. Gaan D en B samen weg,
+  // dan loopt A → D → B → C door (review #937 ronde 4).
+  const ids = plan(['A', 'P', 'D', 'X', 'Q', 'B', 'Y', 'C']);
+  S().moveTask(ids.D, ids.P, 0);
+  S().moveTask(ids.X, ids.P, 1);
+  S().moveTask(ids.B, ids.Q, 0);
+  S().moveTask(ids.Y, ids.Q, 1);
+  link(ids, 'A', 'D');
+  link(ids, 'P', 'Q');
+  link(ids, 'B', 'C');
+  S().dissolveTasksBulk([ids.D, ids.B]);
+  eq('25z2 keten via een relatie tussen twee fasen', relations(), ['A>C FS 0', 'A>Q FS 0', 'P>C FS 0', 'P>Q FS 0']);
+  S().runCPM();
+  eq('25z3 na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
+}
+{
+  // Twee relaties van A naar P, waarvan één einde-begin: die draagt de keten, in welke volgorde ook.
+  for (const types of [['START_START', FS], [FS, 'START_START']] as SequenceType[][]) {
+    const ids = plan(['A', 'P', 'B', 'C']);
+    S().moveTask(ids.B, ids.P, 0);
+    S().moveTask(ids.C, ids.P, 1);
+    for (const type of types) link(ids, 'A', 'P', type);
+    link(ids, 'B', 'C');
+    S().dissolveTasksBulk([ids.B]);
+    eq(`25z4 einde-begin op de fase telt, ook als ${types[1]} later komt`, relations(), ['A>P FS 0', 'A>P SS 0']);
+  }
+}
 
 // ── 11) instelling: alleen de kopregel van een samenvattingstaak ────────────
 // Eigenaarsbesluit 2026-11-14: een instelling met twee standen, standaard de hele fase. In de

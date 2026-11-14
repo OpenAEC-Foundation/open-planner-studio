@@ -44,7 +44,7 @@ export interface DissolvePlan {
  *
  * Een relatie op een fase die blijft geldt in de rekenkern voor elke taak eronder: A → P met B in
  * P is ook A → B. Zo'n voorganger of opvolger telt daarom mee (`via`); is de andere kant ook een
- * weggehaalde taak, dan loopt de keten via die relatie door. Een brug is niet nodig als een
+ * weggehaalde taak, of een fase met weggehaalde taken eronder, dan loopt de keten via die relatie door. Een brug is niet nodig als een
  * einde-begin op de fase de keten al draagt: naar een taak in die fase, of als beide kanten via
  * fasen boven hetzelfde blok lopen en er onder die fasen nog een echte taak overblijft. Een relatie
  * van een andere soort draagt de keten niet; dan komt de einde-begin ernaast (review #937 ronde 3).
@@ -91,50 +91,50 @@ export function planDissolve(
   };
   const push = (map: Map<string, Endpoint[]>, key: string, value: Endpoint) => {
     const list = map.get(key);
-    if (!list) map.set(key, [value]);
-    else if (!list.some(e => e.id === value.id && e.link === value.link && e.via === value.via)) list.push(value);
+    const same = list?.find(e => e.id === value.id && e.link === value.link && e.via === value.via);
+    if (same) same.fs ||= value.fs; // een einde-begin naast een andere soort op dezelfde fase telt.
+    else if (list) list.push(value);
+    else map.set(key, [value]);
   };
-  const toSucc = new Map<string, Sequence[]>(); // fase → relaties naar die fase
-  const fromPred = new Map<string, Sequence[]>(); // fase → relaties vanaf die fase
-  const add = (map: Map<string, Sequence[]>, key: string, seq: Sequence) => {
-    const list = map.get(key);
-    if (list) list.push(seq);
-    else map.set(key, [seq]);
-  };
-  for (const seq of sequences) {
-    add(toSucc, seq.successorId, seq);
-    add(fromPred, seq.predecessorId, seq);
-    const fromGone = removeIds.has(seq.predecessorId);
-    const toGone = removeIds.has(seq.successorId);
-    if (!fromGone && toGone) push(into, blockOf(seq.successorId), { id: seq.predecessorId });
-    else if (fromGone && !toGone) push(out, blockOf(seq.predecessorId), { id: seq.successorId });
-    else if (fromGone && toGone) connect(blockOf(seq.predecessorId), blockOf(seq.successorId));
-  }
-  // Relaties op de blijvende fasen boven elk blok.
   const isWithin = (id: string, ancestorId: string): boolean => {
     for (let p = byId.get(id)?.parentId; p; p = byId.get(p)?.parentId) if (p === ancestorId) return true;
     return false;
   };
+  // Per blijvende fase de blokken eronder: een relatie op die fase geldt ook voor hen.
+  const blocks = [...removeIds].filter(id => blockOf(id) === id);
+  const blocksUnder = new Map<string, string[]>();
+  for (const block of blocks) {
+    for (let via = byId.get(block)?.parentId; via; via = byId.get(via)?.parentId) {
+      const list = blocksUnder.get(via);
+      if (list) list.push(block);
+      else blocksUnder.set(via, [block]);
+    }
+  }
+  // De blokken aan één kant van een relatie: het blok van een weggehaalde taak, of de blokken onder
+  // een blijvende fase.
+  const side = (id: string): string[] => (removeIds.has(id) ? [blockOf(id)] : blocksUnder.get(id) ?? []);
+  for (const seq of sequences) {
+    const fromBlocks = side(seq.predecessorId);
+    const toBlocks = side(seq.successorId);
+    for (const from of fromBlocks) for (const to of toBlocks) connect(from, to);
+    const fs = seq.type === 'FINISH_START';
+    if (!removeIds.has(seq.predecessorId)) {
+      const via = removeIds.has(seq.successorId) ? undefined : seq.successorId;
+      for (const to of toBlocks) push(into, to, via ? { id: seq.predecessorId, via, fs } : { id: seq.predecessorId });
+    }
+    if (!removeIds.has(seq.successorId)) {
+      const via = removeIds.has(seq.predecessorId) ? undefined : seq.predecessorId;
+      for (const from of fromBlocks) push(out, from, via ? { id: seq.successorId, via, fs } : { id: seq.successorId });
+    }
+  }
+  // Externe relaties: van een weggehaalde taak, of van een blijvende fase boven een blok.
   const pushExternal = (block: string, links: readonly ExternalLink[] | undefined, via?: string) => {
     for (const link of links ?? []) {
       push(link.direction === 'predecessor' ? into : out, block, via ? { link, via, fs: link.relType === 'FS' } : { link });
     }
   };
   for (const id of removeIds) pushExternal(blockOf(id), byId.get(id)?.externalLinks);
-  const blocks = [...removeIds].filter(id => blockOf(id) === id);
-  for (const block of blocks) {
-    for (let via = byId.get(block)?.parentId; via; via = byId.get(via)?.parentId) {
-      for (const seq of toSucc.get(via) ?? []) {
-        if (removeIds.has(seq.predecessorId)) connect(blockOf(seq.predecessorId), block);
-        else push(into, block, { id: seq.predecessorId, via, fs: seq.type === 'FINISH_START' });
-      }
-      for (const seq of fromPred.get(via) ?? []) {
-        if (removeIds.has(seq.successorId)) connect(block, blockOf(seq.successorId));
-        else push(out, block, { id: seq.successorId, via, fs: seq.type === 'FINISH_START' });
-      }
-      pushExternal(block, byId.get(via)?.externalLinks, via);
-    }
-  }
+  for (const [via, under] of blocksUnder) for (const block of under) pushExternal(block, byId.get(via)?.externalLinks, via);
 
   // De boom zoals hij na het weghalen is: ook `childIds` van een ouder die blijft, want de
   // kringtoets vouwt relaties op een fase uit over zijn kinderen.
