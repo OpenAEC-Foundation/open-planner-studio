@@ -63,7 +63,7 @@ export function createFileAutoSaveController(deps: {
         }
         const refused = refusedTarget.get(id);
         if (refused && (!payload.isDirty || !ref || !sameFileRef(refused, ref))) refusedTarget.delete(id);
-        const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project) && !foreignBlocked
+        const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project, payload.ifcSource) && !foreignBlocked
           && !refusedTarget.has(id);
         return { id, enabled, dirty: payload.isDirty, ref, source: payload };
       });

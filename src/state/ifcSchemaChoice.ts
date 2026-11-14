@@ -1,3 +1,4 @@
+import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { isIfcSchemaId, type IfcSchemaId, type Project } from '@/types/project';
 
 /**
@@ -17,7 +18,8 @@ import { isIfcSchemaId, type IfcSchemaId, type Project } from '@/types/project';
 
 /** Zet het schema van het bestand en wis de open vraag. `false` als er niets verandert. Werkt op een
  *  Immer-draft van het project. */
-export function applyIfcSchemaChoice(project: Project, schema: IfcSchemaId): boolean {
+export function applyIfcSchemaChoice(project: Project, schema: IfcSchemaId, source?: IfcSource | null): boolean {
+  if (hasForeignContent(source)) return false;
   if (project.ifcSchema === schema && project.ifcSchemaUnconfirmed === undefined) return false;
   project.ifcSchema = schema;
   delete project.ifcSchemaUnconfirmed;

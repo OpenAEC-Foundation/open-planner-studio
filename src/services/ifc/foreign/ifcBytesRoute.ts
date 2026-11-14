@@ -12,24 +12,21 @@
  *     werkschema precies de keuze van `selectPlanning` zijn.
  *  4. Het `ImportResult` krijgt `ifcSource` (§4.8).
  *
- * Terugval naar de huidige route (tekst, de modelweigering, geen `ifcSource`), dus hetzelfde als zonder flag:
- *  - de bron is groter dan `IFC_BYTES_ROUTE_MAX_BYTES`;
- *  - de scanner weigert de bytes, ook als `readIFC` het bestand wel opent (afwijking 7, spec §4.9 "v21, fase 1a");
- *  - het schema in de kop is geen IFC4 of IFC4X3 (§4.11: IFC2X3 met model blijft geweigerd, zoals nu);
- *  - de lezer kiest andere objecten dan `selectPlanning` (de controle van stap 3).
+ * Een terugval zonder bron is alleen veilig als de volledige indeling geen vreemd deel vindt. Bij een onzekere
+ * indeling weigert openen. IFC2X3 zonder model houdt de expliciete uitzondering uit §4.11, met verliesmelding.
  */
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { readIFCWithXerReconstruction, type IfcReadWithXerOptions } from '../ifcReadWithXer';
 import { readFileSchemaName } from '../ifcReader';
 import { ifcObjectSeed } from '../ifcWriter';
-import { readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
+import { readerBytes, readerOptions, type ForeignScanResult, type ForeignScanOutcome } from './foreignScan';
 import { runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner';
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
 
 /** Grootste bron voor de bytes-route: 300 MiB. De meting van fase 0 (vraag 4) liep tot 300 MB zonder harde grens;
- *  daarboven blijft de huidige route, met dezelfde uitkomst als zonder flag. */
+ *  daarboven alleen de gewone route als bewezen is dat er geen vreemd deel is. Geen nieuwe grens zonder meting. */
 export { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
 import { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
 
@@ -49,20 +46,41 @@ export interface IfcBytesRead {
   fallback?: IfcBytesFallback;
 }
 
+/** Een geweigerde terugval: geen document activeren dat zijn vreemde deel zou kunnen verliezen. */
+export class IfcForeignOpenError extends Error {
+  readonly code = 'IFC_FOREIGN_OPEN_REFUSED';
+  constructor(readonly fallback: IfcBytesFallback) {
+    super(`IFC open refused: unsafe ${fallback.kind} fallback`);
+    this.name = 'IfcForeignOpenError';
+  }
+}
+
 /** De Worker-keuze voor tests, en de herstelnaad voor een XER-archiefverwijzing (crashherstel, zoals de huidige route). */
-export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'>;
+export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> & {
+  /** Proefnaad binnen de bestaande leesopties: alleen lager dan de productiegrens, nooit hoger. */
+  maxBytes?: number;
+};
 
 /** Open IFC-bytes via de bytes-route (`readIfcBytesDetailed`); de open-routes gebruiken deze vorm. */
 export async function readIfcBytes(bytes: Uint8Array, labels: ImportLabels = {}, opts: IfcBytesRouteOptions = {}): Promise<ImportResult> {
   return (await readIfcBytesDetailed(bytes, labels, opts)).result;
 }
 
-/** De huidige route: de bytes als UTF-8-tekst (zoals `readTextFile` en `File.text()`), met de modelweigering. */
+/** De gewone lezer houdt zijn modelweigering. Alleen een bewezen eigen deel mag daarna zonder bron verder.
+ * De gedeelde herkenning van oude eigen koppen draait vóór de indeling (`foreignScan`); deze terugval voegt
+ * geen eigen kopherkenning of reparatie toe. */
 async function currentRoute(
   bytes: Uint8Array, labels: ImportLabels, opts: IfcBytesRouteOptions, fallback: IfcBytesFallback,
+  knownScan?: ForeignScanOutcome,
 ): Promise<IfcBytesRead> {
   const text = new TextDecoder('utf-8').decode(bytes);
-  return { result: await readIFCWithXerReconstruction(text, labels, xerOptions(opts)), fallback };
+  const result = await readIFCWithXerReconstruction(text, labels, xerOptions(opts));
+  if (fallback.kind === 'schema' && fallback.schemaName === 'IFC2X3') {
+    return { result: { ...result, ifcLegacySchemaLoss: true }, fallback };
+  }
+  const scan = knownScan ?? await runForeignScan(bytes, opts);
+  if (!scan.ok || scan.counts.C + scan.counts.A + scan.counts.V > 0) throw new IfcForeignOpenError(fallback);
+  return { result, fallback };
 }
 
 /** Alleen de herstelnaad gaat naar de lezer; de Worker-keuze niet. */
@@ -75,14 +93,14 @@ export async function readIfcBytesDetailed(
   labels: ImportLabels = {},
   opts: IfcBytesRouteOptions = {},
 ): Promise<IfcBytesRead> {
-  if (bytes.length > IFC_BYTES_ROUTE_MAX_BYTES) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
+  if (bytes.length > Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES)) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
   const scan = await runForeignScan(bytes, opts);
-  if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message });
+  if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message }, scan);
 
   const readerText = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
   const schemaName = readFileSchemaName(readerText);
   if (schemaName === undefined || !FOREIGN_CONTENT_SCHEMAS.has(schemaName)) {
-    return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName });
+    return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName }, scan);
   }
 
   const stepIdsOut: Record<string, string> = {};
@@ -93,7 +111,7 @@ export async function readIfcBytesDetailed(
     ...xerOptions(opts), ...readerOptions(scan), stepIdsOut,
   });
   const mismatch = selectionMismatch(scan, stepIdsOut, result.project.id);
-  if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch });
+  if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch }, scan);
 
   const { C, A, V } = scan.counts;
   const foreignObjectCount = C + A + V;

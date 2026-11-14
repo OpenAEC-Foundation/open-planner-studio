@@ -150,6 +150,7 @@ weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanF
 300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. De gemeten oude eigen kop gebruikt de
 gedeelde herkenning; de ongewijzigde v2026.7.12-fixtures met een apostrof of DATA; in de naam blijven gewone doelen.
 De zestien gemaakte kopvormen die de bestaande scanner niet ondersteunt, weigeren veilig (knownbug 1134).
+De headless server leest IFC als tekst; gegevens van een ander programma zonder gebouwmodel (bijvoorbeeld een externe pset) komen bij `planner_export_ifc` naar een nieuwe naam nu nog niet mee; de bron blijft ongewijzigd (knownbug 1136).
 
 Lokaal kan `OPS_HEADLESS_SOURCE_ONLY=1 bash tests/mcp/run.sh cases-headless-server.ts` de bron-/HTTP-proeven uitvoeren
 zonder de zelfstandige bundel te bouwen. Zonder die variabele blijft deel B volledig onderdeel van CI.

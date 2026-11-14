@@ -230,7 +230,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   setIfcSchema: (schema) => {
     let changed = false;
     set((s) => {
-      changed = applyIfcSchemaChoice(s.project, schema);
+      changed = applyIfcSchemaChoice(s.project, schema, s.ifcSource);
       if (changed) markDocumentUnsaved(s);
     });
     return changed;

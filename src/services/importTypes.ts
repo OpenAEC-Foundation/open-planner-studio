@@ -338,6 +338,8 @@ export interface ImportResult {
   /** Alleen de IFC-bytes-route (#804 fase 1a, flag `ifcForeignContent`): de bron met indeling (§4.8). Afwezig op de
    *  route zonder flag, bij een ander formaat en als de bytes-route terugvalt op de huidige route (afwijking 7). */
   ifcSource?: IfcSource;
+  /** IFC2X3 zonder model via de bytes-route: §4.11 staat alleen planning toe, met verliesmelding bij openen. */
+  ifcLegacySchemaLoss?: true;
   /** Alleen `readIFC` op een herstel-IFC of MCP-backup (#804 fase 1a, fixronde 1 en 3): de pset
    *  `OPS_RecoveryForeignSource`, de vingerafdruk van een bron met een vreemd deel (in een backup met het doel). Alleen
    *  crashherstel en de MCP-backup schrijven hem; een gewone opslag of export niet. Nooit schrijfinvoer. */
