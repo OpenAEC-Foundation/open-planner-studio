@@ -23,6 +23,7 @@ import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags'
 import { displayDate } from '@/utils/displayDate';
 import { localTodayIso } from '@/utils/dateUtils';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
+import { FEATURE_FLAGS } from '@/utils/featureFlags';
 import { applyAutoCalcCPM, applySetting, applyTheme } from '../applySetting';
 import { LANGUAGE_OPTIONS, LanguageSelect } from '../settingControls';
 import {
@@ -31,7 +32,7 @@ import {
 } from '../settingVisuals';
 import {
   BenchmarkControl, ExperimentalControl, FormatNoticesControl, ModifierMapControl, StatsControl, ThemeControl,
-  TourControl, VersionControl, themeSearchTexts,
+  TourControl, VersionControl, modifierMapSearchTexts, themeSearchTexts,
 } from '../settingCustomControls';
 import { SETTING_IDS, SETTINGS_GROUP_IDS, type SettingId, type SettingsGroupId } from '@/utils/settingIds';
 import type { ChoiceOption, CommonKey, SettingBinding, SettingEntry } from './types';
@@ -155,7 +156,7 @@ const ENTRIES: readonly SettingEntry[] = [
   },
   {
     kind: 'custom', id: 'modifierMap', group: 'timeline', labelKey: 'settings.modifierMap', hintKey: 'settings.modifierMapHint',
-    keywordsKey: 'settings.keywords.modifierMap', Control: ModifierMapControl,
+    keywordsKey: 'settings.keywords.modifierMap', Control: ModifierMapControl, searchTexts: modifierMapSearchTexts,
     binding: bind('modifierMap', value => saveZoomSettings({ modifierMap: value })),
     requires: { met: s => s.ui.scrollMode === 'modifier', reasonKey: 'settings.requiresScrollModeModifier', hide: 'browse' },
   },
@@ -245,19 +246,21 @@ const ENTRIES: readonly SettingEntry[] = [
   {
     kind: 'custom', id: 'experimental', group: 'about', labelKey: 'settings.experimentalSection',
     keywordsKey: 'settings.keywords.experimental', Control: ExperimentalControl,
+    searchTexts: t => FEATURE_FLAGS.map(flag => t(flag.nameKey)),
     requires: { met: s => s.ui.experimentalSettingsVisible, reasonKey: 'settings.experimentalSection', hide: 'always' },
   },
   {
     kind: 'custom', id: 'tour', group: 'about', labelKey: 'tour.restartButton', hintKey: 'settings.tourHint',
-    keywordsKey: 'settings.keywords.tour', Control: TourControl,
+    keywordsKey: 'settings.keywords.tour', Control: TourControl, searchTexts: t => [t('tour.backstageRestart')],
   },
   {
     kind: 'custom', id: 'stats', group: 'about', labelKey: 'settings.statsSection', hintKey: 'settings.statsSectionHint',
     keywordsKey: 'settings.keywords.stats', available: DOWNLOAD_STATS_AVAILABLE, Control: StatsControl,
+    searchTexts: t => [t('settings.statsOpen')],
   },
   {
     kind: 'custom', id: 'benchmark', group: 'about', labelKey: 'benchmark.section', hintKey: 'benchmark.sectionHint',
-    keywordsKey: 'settings.keywords.benchmark', Control: BenchmarkControl,
+    keywordsKey: 'settings.keywords.benchmark', Control: BenchmarkControl, searchTexts: t => [t('benchmark.open')],
   },
 ];
 

@@ -399,7 +399,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Feature flags:** add a temporary entry to `src/utils/featureFlags.ts` with an id, typed i18n
   name/description keys and `writesNewIfcData`; read it through `isFeatureEnabled(ui.featureFlags, id)`.
   Flags default to off; `writesNewIfcData` does not hide or disable the experimental switch. The hidden
-  Experimental block in Settings → Advanced is unlocked by activating its version number for
+  Experimental block in Settings → About is unlocked by activating its version number for
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
   removes its flag and the corresponding checks.

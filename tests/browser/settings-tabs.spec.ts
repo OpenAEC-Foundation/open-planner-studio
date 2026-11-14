@@ -116,6 +116,11 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await expect(dialog.locator('[data-ops-setting="theme"]')).toBeVisible();
   await search.fill('Nederlands');
   await expectRows(dialog, ['language']);
+  // En de veld- en toetsnamen van Muiswiel per toets (uitgegrijsd zolang Toetsen niet gekozen is).
+  await search.fill('Ctrl + scroll');
+  await expect(dialog.locator('[data-ops-setting="modifierMap"]')).toBeVisible();
+  await search.fill('horizontal');
+  await expect(dialog.locator('[data-ops-setting="modifierMap"]')).toBeVisible();
   await search.fill('qqqzzz');
   await expect(dialog.locator('[data-ops-settings-empty]')).toBeVisible();
   // Escape wist eerst de zoekterm; de dialoog blijft open en toont weer de groep.

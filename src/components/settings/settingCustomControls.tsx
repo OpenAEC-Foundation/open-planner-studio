@@ -89,6 +89,11 @@ const FUNCTION_LABEL_KEYS = {
   zoom: 'settings.wheelFnZoom',
 } as const;
 
+/** Zoekteksten: de namen van de functies en de toetsen in de keuzelijsten. */
+export const modifierMapSearchTexts = (t: TFunction<'common'>): string[] => [
+  ...FUNCTIONS.map(fn => t(FUNCTION_LABEL_KEYS[fn])), ...CONTROL_KEYS.map(k => t(CONTROL_LABEL_KEYS[k])),
+];
+
 function controlForFunction(map: ModifierMap, fn: WheelFunction): ControlKey {
   return CONTROL_KEYS.find(k => map[k] === fn)!;
 }
