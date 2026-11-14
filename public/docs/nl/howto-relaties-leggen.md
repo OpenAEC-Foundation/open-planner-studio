@@ -53,6 +53,8 @@ Handig als je één taak bekijkt en de voorgangers of opvolgers ervan wilt aanvu
 
 De relaties van de taak staan daarna in *Afhankelijkheden*, elk met het WBS-nummer van de andere taak, het type en de lag.
 
+**Meerdere tegelijk.** In stap 4 kun je meer taken aanvinken. Klik je op een taak in de lijst, dan krijgt hij een vinkje en blijft de lijst open; klik nog eens om het vinkje weg te halen. Met het toetsenbord vinkt Enter de taak aan; typ daarna een nieuwe zoekterm voor de volgende. De gekozen taken staan als labels onder de lijst, met een kruisje om er een weg te halen. Type, lag en richting gelden voor alle gekozen taken, en het vinkje heet dan bijvoorbeeld *2 voorgangers toevoegen*. Eén keer *Ongedaan* haalt ze allemaal weg. Wordt een van de relaties geweigerd, bijvoorbeeld omdat hij al bestaat, dan meldt de app dat; de andere komen er wel bij en de geweigerde blijft aangevinkt staan.
+
 ### Relaties typen in de kolom Voorgangers
 
 Handig als je snel werkt met het toetsenbord en de WBS-nummers kent.

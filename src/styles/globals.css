@@ -2191,8 +2191,9 @@ body {
   width: 6.5rem;
 }
 
-/* De trefferlijst zweeft boven de rest van het paneel: hij mag de conceptrij en de knoppen
-   eronder niet verspringen terwijl er getypt wordt. */
+/* De trefferlijst staat sinds #888 in de conceptrij, onder het zoekveld: met de muis vink je meerdere
+   taken aan, en de knop om ze vast te leggen moet daarbij bereikbaar blijven. Een zwevende lijst lag
+   over die knop heen. */
 .dependency-draft-search {
   position: relative;
   flex: 1 1 auto;
@@ -2200,10 +2201,6 @@ body {
 }
 
 .dependency-draft-options {
-  position: absolute;
-  inset-inline: 0;
-  top: calc(100% + 2px);
-  z-index: var(--z-dropdown);
   max-height: 12rem;
   overflow-y: auto;
   margin: 0;
@@ -2216,7 +2213,9 @@ body {
 }
 
 .dependency-draft-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   width: 100%;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
@@ -2232,6 +2231,52 @@ body {
 .dependency-draft-option:hover,
 [data-ops-dependency-highlighted].dependency-draft-option {
   background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+}
+
+.dependency-draft-check {
+  display: flex;
+  flex: none;
+  width: 10px;
+}
+
+/* De aangevinkte taken als labels met een kruisje (#888). */
+.dependency-draft-picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dependency-draft-chip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 0 2px 0 4px;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-elevated);
+  font-size: var(--text-small);
+}
+
+.dependency-draft-chip button {
+  display: flex;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  color: var(--theme-text-muted);
+  cursor: pointer;
+}
+
+.dependency-draft-chip button:hover {
+  background: var(--theme-hover);
+  color: var(--theme-text);
+}
+
+.dependency-draft-chip button:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 1px;
 }
 
 
