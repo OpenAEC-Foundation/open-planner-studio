@@ -983,6 +983,12 @@ en noem het in je rapport of PR-tekst.
      Nederlandse vormen om te bepalen of een volgende preset de omschrijving mag vervangen; een vertaling moet
      die herkenning dus meenemen. Gezien bij #912 (de fasesjablonen), niet in die PR opgelost. — B
 
+1661. **VERVOLG (#912): geen test dat sjabloonfasen blijven staan na een taalwissel.** Het browserscenario
+     *sjabloon met fasen* in `tests/browser/new-project-timeline-start.spec.ts` toetst alleen de eerste fasenaam
+     tegen de taal bij aanmaak; niets maakt een project in het Engels, wisselt daarna naar het Nederlands en
+     vergelijkt alle acht namen opnieuw. Voor later: die stap in hetzelfde scenario, met de bestaande hulp
+     `chooseLocale`. Gevonden door de review van #943. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
