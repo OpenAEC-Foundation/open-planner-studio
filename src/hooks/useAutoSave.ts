@@ -1,3 +1,5 @@
+import { recoverySourceDocument } from '@/state/recoverySourceDocument';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { useEffect, type MutableRefObject } from 'react';
 import { appStoreContext, useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
@@ -10,7 +12,6 @@ import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { actualAutoSaveDelay } from '@/services/actualAutosave/actualAutoSave';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
-import { recoverySaveTarget } from '@/state/ifcForeignGuard';
 
 // Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
 // schrijven we een recovery-snapshot HOOGSTENS eens per `AUTOSAVE_INTERVAL_MS`, óók tijdens
@@ -52,18 +53,8 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       try {
         // Vergelijk de echte IFC-bronvelden (Immer-referenties) en niet `isDirty`: zo krijgt één
         // taakbewerking één volledige IFC-upsert, terwijl een actieve-tabwissel manifest-only is.
-        const recoveryDocs: RecoverySourceDocument[] = docs.map(({ id, payload }) => ({
-          id,
-          source: payload,
-          // Pad, site-doel en de versie waarop DIT document rust: crashherstel zet ze terug, zodat
-          // Ctrl+S na herstel weer naar hetzelfde doel schrijft (site: mét conflictcontrole). Met een
-          // vreemd deel (#804 fase 1a) geen doel: de snapshot heeft het gebouwmodel niet.
-          ...recoverySaveTarget(payload),
-          isDirty: payload.isDirty,
-          // "Datums zoals opgeslagen" is een weergavestand, geen IFC-inhoud: hij reist als
-          // manifestmetadata mee zodat crashherstel hem terugzet i.p.v. hem te raden.
-          datesAsRecorded: payload.datesAsRecorded,
-        }));
+        const recoveryDocs: RecoverySourceDocument[] = docs.map(({ id, payload }) =>
+          recoverySourceDocument(id, payload, ifcForeignContentEnabled(state.ui.featureFlags)));
         // Backend-keuze (Tauri-bestanden of IndexedDB) zit in recoveryStore. De volledige
         // documentlijst is manifestmetadata; alleen `upserts` bevat IFC-teksten, en die dragen het
         // XER-bronarchief alleen als verwijzing (eigenaarsbesluit plan (9), `serializeRecoverySnapshot`).

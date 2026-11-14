@@ -16,7 +16,7 @@ import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes'
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark, ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
-import { foreignSourceMarkFromRecovery } from '@/services/ifc/foreign/foreignSourceMark';
+import { foreignSourceMarkFor, foreignSourceMarkFromRecovery } from '@/services/ifc/foreign/foreignSourceMark';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -159,6 +159,9 @@ export interface DocumentPayload {
  *  `ImportResult` is uitsluitend de document-identiteit (`id`/`filePath`/`isDirty`), net als
  *  `buildWriteIFCInput` op de schrijfkant. */
 export type RecoveryDocInput = ImportResult & {
+  /** Alleen gezet na teruglezen en hashcontrole van de volledige bron. Geen manifestveld. */
+  sourceRestored?: true;
+  fileHandle?: FileSystemFileHandle | null;
   id: string;
   filePath: string | null;
   /** Zie `RecoveryDocMeta.siteFileId`. */
@@ -478,7 +481,7 @@ export function freshPayload(): DocumentPayload {
   return out as unknown as DocumentPayload;
 }
 
-/** Het kenmerk uit crashherstel: de bronbytes zijn weg (#886 fixronde 2, `ForeignSourceMark.sourceMissing`). */
+/** Zonder geverifieerde bron blijft het herstelkenmerk geblokkeerd (#804, bron ontbreekt). */
 const restoredMark = (mark: ForeignSourceMark | null): ForeignSourceMark | null => mark && { ...mark, sourceMissing: true };
 
 /** Verse payload uit herstelde recovery-projectdata (view/history/cpm worden vers opgebouwd).
@@ -508,8 +511,11 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   return {
     ...payloadFromImport(d, d.filePath),
     // Het kenmerk van een bron met een vreemd deel: de vingerafdruk uit de herstel-IFC, het doel uit het manifest. De
-    // bronbytes zijn weg (#886 fixronde 2): `sourceMissing`.
-    foreignSourceMark: restoredMark(foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource)),
+    // bronbytes ontbreken, tenzij de herstelroute ze werkelijk heeft teruggelezen en gecontroleerd.
+    foreignSourceMark: d.sourceRestored
+      ? foreignSourceMarkFor(d.ifcSource, { filePath: d.filePath, siteFileId, fileHandle: d.fileHandle ?? null })
+      : restoredMark(foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource)),
+    fileHandle: d.sourceRestored ? d.fileHandle ?? null : null,
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
     isDirty: d.isDirty,

@@ -1,3 +1,4 @@
+import { ifcSourceMetaFields, type RecoveryIfcSource } from './recoveryIfcSource';
 import { isTauri } from '@/utils/platform';
 import { IndexedDbUpgradeBlockedError, openDbStores } from '@/utils/idb';
 import {
@@ -25,6 +26,8 @@ export interface RecoveryDocContent {
   siteFileVersion?: string | null;
   /** Zie `RecoveryDocMetadata.foreignSource`. */
   foreignSource?: ForeignSourceTarget | null;
+  /** Optionele bronverwijzing binnen v5, zonder bronbytes. */
+  ifcSource?: RecoveryIfcSource;
 }
 
 /**
@@ -84,6 +87,8 @@ export interface RecoveryDocMetadata {
    * `RecoveryManifestDoc.foreignSource`.
    */
   foreignSource?: ForeignSourceTarget | null;
+  /** Optionele bronverwijzing binnen v5, zonder bronbytes. */
+  ifcSource?: RecoveryIfcSource;
 }
 
 /**
@@ -119,10 +124,11 @@ export function fullRecoverySave(
 ): RecoverySaveInput {
   return {
     activeDocumentId,
-    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded, xerArchive, siteFileId, siteFileVersion, foreignSource }) => ({
+    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded, xerArchive, siteFileId, siteFileVersion, foreignSource, ifcSource }) => ({
       id, filePath, isDirty, datesAsRecorded, ...(xerArchive ? { xerArchive } : {}),
       ...siteMetaFields({ siteFileId, siteFileVersion }),
       ...foreignSourceMetaFields({ foreignSource }),
+      ...ifcSourceMetaFields({ ifcSource }),
     })),
     upserts: docs,
     ...(archives ? { archives } : {}),
@@ -393,6 +399,7 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
         ...(typeof d.xerArchive === 'string' ? { xerArchive: d.xerArchive } : {}),
         ...siteMetaFields(d),
         ...foreignSourceMetaFields(d),
+        ...ifcSourceMetaFields(d),
       });
     }
   }
@@ -572,6 +579,7 @@ export function planTauriV3RecoverySave(
         ...(metadata.xerArchive ? { xerArchive: metadata.xerArchive } : {}),
         ...siteMetaFields(metadata),
         ...foreignSourceMetaFields(metadata),
+        ...ifcSourceMetaFields(metadata),
       });
       writes.push({ name: ifc, ifc: changed.ifc });
       continue;
@@ -589,6 +597,7 @@ export function planTauriV3RecoverySave(
       ...(metadata.xerArchive ? { xerArchive: metadata.xerArchive } : {}),
       ...siteMetaFields(metadata),
       ...foreignSourceMetaFields(metadata),
+      ...ifcSourceMetaFields(metadata),
     });
   }
 
@@ -791,6 +800,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
             // Een manifest van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
             ...siteMetaFields(d),
             ...foreignSourceMetaFields(d),
+            ...ifcSourceMetaFields(d),
           });
         } catch (err) {
           console.error('Recovery: kon documentsnapshot niet lezen:', d.id, err);
@@ -1349,6 +1359,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
               ...(document.xerArchive ? { xerArchive: document.xerArchive } : {}),
               ...siteMetaFields(document),
               ...foreignSourceMetaFields(document),
+              ...ifcSourceMetaFields(document),
             })),
             addedAt: now,
           };
@@ -1473,6 +1484,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
         // Een webrecord van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
         ...siteMetaFields(document),
         ...foreignSourceMetaFields(document),
+        ...ifcSourceMetaFields(document),
         mtime: new Date(rec.addedAt),
         ...(typeof document.xerArchive === 'string' ? { xerArchive: document.xerArchive } : {}),
       });

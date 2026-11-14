@@ -323,6 +323,7 @@ check-recorded-dates.ts matrix
 check-recorded-times-formats.ts matrix
 check-recovery-content.ts matrix
 check-recovery-delta.ts matrix
+check-recovery-ifc-source.ts matrix
 check-recovery-integrity.ts matrix
 check-recovery-isolation.ts matrix
 check-recovery-lock-refusal.ts matrix
