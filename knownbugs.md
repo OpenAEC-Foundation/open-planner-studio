@@ -2429,6 +2429,12 @@ en noem het in je rapport of PR-tekst.
      of schrijf dat de vlag niet waar is. Alleen commentaar; het gedrag klopt.
      Vastgesteld bij de onafhankelijke broncontrole van PR #698. — B
 
+1712. **De tutorial over resources noemt mogelijk nog de oude plek van *Taaktypes gebruiken*.**
+      Sinds #942 staat die instelling in de groep *Planning* (Engels: *Scheduling*) van de
+      app-instellingen. De stapscript-test (`tests/browser/tutorials/tut-5.ts`, stap `werkregel`) is
+      bijgewerkt, maar de tekst van tutorial 5 staat in de tutorials-extensie, buiten deze repo, en is
+      niet nagelopen. Richting: de tekst daar controleren op "tabblad Planning" / "Planning tab". — S
+
 ## Teksten en helpteksten
 
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
@@ -3025,6 +3031,19 @@ en noem het in je rapport of PR-tekst.
       de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
       gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
       Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+
+1710. **VERVOLG: de zoekroute over alle zichtbare teksten slaat het blok Experimenteel over.**
+      `assertVisibleTextsFindTheirSetting` in `tests/browser/settings-tabs.spec.ts` draait vóór het
+      ontgrendelen en leest alleen knoppen en labels. De zoekteksten van Experimenteel (uitleg per
+      schakelaar, knop Verbergen) zijn daardoor niet bewaakt. Richting: na het bestaande ontgrendelen
+      zoeken op "Verbergen" en de uitleg van de twee schakelaars. Het zoeken zelf werkt (met de hand
+      nagelopen in nl en en). Sol-review ronde 4 van #942: [BEVESTIGD] VERVOLG. — B
+1711. **`settings-tabs.spec.ts` overschrijft bij elke run gecommit schermbewijs.** De stap voor
+      Duurweergave schrijft `artifacts/uren-f4a/duurweergave-ops-{light,dark}.png` zodra de rij in
+      de dialoog staat (`tests/browser/settings-tabs.spec.ts`, regel met `durationRow.screenshot`).
+      Schermbewijs in `artifacts/` hoort na de merge niet meer te veranderen, dus elke lokale run laat
+      twee gewijzigde PNG's achter. Richting: naar `test-results/` schrijven, of alleen met een
+      omgevingsvariabele naar `artifacts/`. Gezien tijdens #942 (bestond al eerder). — B
 
 ## Wensen en open taken (geen bug)
 
