@@ -191,6 +191,7 @@ check-ifc-lexical-boundaries.ts matrix
 check-ifc-literaltimes-behoud.ts matrix
 check-ifc-lopend-100.ts matrix
 check-ifc-nesting-index.ts matrix
+check-ifc-prepared-write.ts matrix
 check-ifc-projectdatum-corpus.ts los
 check-ifc-projectdatum-tijd.ts matrix
 check-ifc-property-relations.ts matrix

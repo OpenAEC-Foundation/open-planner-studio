@@ -12,6 +12,20 @@
  * `opened` (vervolg-PR van #867): een verwijzing naar het domein van het document zoals het na openen was.
  */
 import type { WriteIFCInput } from '../ifcWriter';
+import type { StepIndex } from './stepScanner';
+
+/** Eén gecontroleerde schrijfvoorbereiding, nog zonder bestandsschrijf of documentwijziging.
+ * Pas na geslaagde opslag legt de aanroeper `source` en de letterlijke kalender-ids vast.
+ */
+export interface PreparedIfcWrite {
+  /** Delen delen de buffer met source.bytes; de aanroeper wijzigt hun bytes nooit. */
+  readonly parts: readonly Uint8Array[];
+  readonly sha256: string;
+  readonly source: IfcSource;
+  readonly literalCalendarIds: readonly string[];
+  /** Ruimte voor PR 6: een bewaarde uitvoerindex. Deze PR bewaart/hergebruikt hem nog niet. */
+  readonly outputIndex?: StepIndex;
+}
 
 export interface IfcSource {
   /** De bronbytes zoals gelezen. Nooit wijzigen: sha256, stukgrenzen en klassen horen erbij. */

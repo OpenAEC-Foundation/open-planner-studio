@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 8a bouwt één voorbereid schrijfresultaat met delen/sha256/nieuwe sessiebron/literal-ids en bronbytes bij ongewijzigde vreemde invoer; store en opslagblokkade blijven ongemoeid (8b/9/11 sluiten later aan).
+
 - 2026-11-14: fase 1c PR 7 (#920, E16): één stap na de mergeroute-writer behoudt bron-GlobalId en bron-id van eenduidig gekoppelde P-hulpregels, met bijgewerkte verwijzingen en nieuwe ids buiten alle bron-ids; D blijft staan. Kandidaten en kale terugval delen de onafhankelijke uitvoercontrole van #918. De gewone writer, gewone route, herkomstregel en opslagblokkade blijven gelijk. `ownAuxGuid` blijft nodig vóór het behoud en bij ongepaarde/dubbelzinnige regels of terugval. Knownbug 1023 blijft voor de gewone route; 1147 legt de bestaande weigering bij de eerste merge na een nieuwe resource vast. Definitieve checkstand in de concept-PR; bewijs buiten de repo in `/tmp/fase1c-pr7-bewijs/`.
 - 2026-11-14: fase 1c PR 10 bereidt byte-delenopslag voor: nieuw Tauri-einddoel met createNew, webdownload en site-Blob met verplichte basisversie; tekst/PDF en opslagblokkade blijven gelijk, browserhandle en exclusieve vervanging blijven vervolg 1130/1131.
 
