@@ -110,6 +110,7 @@ import { taskMinutesPerDay } from '../dayMeasureIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { foreignScanFrom, readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
 import type { IfcSource } from './ifcSource';
+import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
 
@@ -357,7 +358,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
   for (const d of first) { input.collect?.(d); say(d, false); }
   if (first.length === 0) {
-    const changed = changedScopes(input.domain, input.pristine);
+    const changed = changedScopes(input.domain, input.pristine, input.opened);
     const p1 = pairEditedOutput(input, input.o1, p0, changed);
     const ctx1 = o1Context(input, p1, changed, carried);
     const deleted = deletedExceptionItems(input, p1, changed);
@@ -711,7 +712,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
 
 /** Dezelfde bewerkings- en dubbelzinnigheidsregels voor verliesbewaking en identiteitsbehoud. */
 function pairEditedOutput(input: LossCheckInput, lines: readonly OutLine[], p0: Pairing,
-  changed = changedScopes(input.domain, input.pristine)): Pairing {
+  changed = changedScopes(input.domain, input.pristine, input.opened)): Pairing {
   const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
   const paired = pairOutput(input, lines, exact);
   unstableLists(input, p0, paired);
@@ -1293,8 +1294,21 @@ const OBJECT_KINDS: ReadonlySet<string> = new Set(['task', 'res', 'seq', 'cal'])
  * `ifcSource` telt niet: dat is de bron zelf. Zonder sleutel is het domein gelijk aan het gelezen domein, en schrijft de
  * writer hetzelfde als in O0.
  */
-export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): ChangedScopes {
+export function changedScopes(originalDomain: WriteIFCInput, originalPristine: ImportResult, session?: ImportResult): ChangedScopes {
+  const domain = planningIdentityInput(originalDomain), pristine = planningIdentityInput(originalPristine);
   const keys = new Set<string>();
+  // Vergelijk op IFC-identiteit, maar houd ook de sessiesleutels voor objectKey/bySource beschikbaar.
+  const aliases = new Map<string, Set<string>>();
+  for (const input of [originalDomain, originalPristine, ...(session ? [session] : [])]) {
+    const ids = planningIdentities(input);
+    for (const [kind, objects, mapped] of [['res', input.resources, ids.resource],
+      ['cal', [input.calendar, ...(input.resourceCalendars ?? [])], ids.calendar]] as const) {
+      for (const object of objects) {
+        const key = `${kind}:${mapped.get(object.id) ?? object.id}`, list = aliases.get(key) ?? new Set([key]);
+        list.add(`${kind}:${object.id}`); aliases.set(key, list);
+      }
+    }
+  }
   const json = (x: unknown) => JSON.stringify(x) ?? 'undefined';
   /** De toewijzingen per taak, zonder hun `id`: dat staat niet in het bestand (de lezer maakt het bij elk lezen nieuw). */
   const byTask = (list: readonly { id: string; taskId: string }[]) => {
@@ -1317,16 +1331,19 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
       }
       return m;
     };
+    const add = (id: string, suffix = '') => {
+      const key = `${kind}:${id}`;
+      for (const alias of aliases.get(key) ?? [key]) keys.add(alias + suffix);
+    };
     const ma = byId(a);
     const mb = byId(b);
     for (const id of new Set([...ma.keys(), ...mb.keys()])) {
       const xs = ma.get(id) ?? [];
       const ys = mb.get(id) ?? [];
-      const key = `${kind}:${id}`;
       if (xs.length !== 1 || ys.length !== 1) {
         if (json(xs.map(x => [x, extraA?.(x)])) !== json(ys.map(y => [y, extraB?.(y)]))) {
-          keys.add(key);
-          keys.add(xs.length === 0 || ys.length === 0 ? `${key}#@` : `${key}#*`);
+          add(id);
+          add(id, xs.length === 0 || ys.length === 0 ? '#@' : '#*');
         }
         continue;
       }
@@ -1335,19 +1352,19 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
       const plain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
       for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
         if (json(x[k]) === json(y[k])) continue;
-        keys.add(key);
-        keys.add(`${key}#${k}`);
+        add(id);
+        add(id, `#${k}`);
         // Een veld dat zelf een object is (`time` van een taak): ook per deel, `kind:id#time.scheduleStart` (fixronde 5,
         // VERVOLG: een tijdslot volgt uit zijn eigen delen van `time`, niet uit het hele object).
         const a = x[k];
         const b = y[k];
         if (plain(a) && plain(b)) {
-          for (const s of new Set([...Object.keys(a), ...Object.keys(b)])) if (json(a[s]) !== json(b[s])) keys.add(`${key}#${k}.${s}`);
+          for (const s of new Set([...Object.keys(a), ...Object.keys(b)])) if (json(a[s]) !== json(b[s])) add(id, `#${k}.${s}`);
         } else if (plain(a) || plain(b)) {
-          for (const s of Object.keys((plain(a) ? a : b) as Record<string, unknown>)) keys.add(`${key}#${k}.${s}`);
+          for (const s of Object.keys((plain(a) ? a : b) as Record<string, unknown>)) add(id, `#${k}.${s}`);
         }
       }
-      if (extraA && json(extraA(xs[0])) !== json(extraB?.(ys[0]))) { keys.add(key); keys.add(`${key}#assignments`); }
+      if (extraA && json(extraA(xs[0])) !== json(extraB?.(ys[0]))) { add(id); add(id, '#assignments'); }
     }
     if (a.map(x => x.id).join('\n') !== b.map(x => x.id).join('\n')) keys.add(`order:${kind}`);
   };

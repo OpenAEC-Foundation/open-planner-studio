@@ -1,7 +1,7 @@
 import type { ImportResult } from '@/services/importTypes';
 import { ifcGuid128, ifcObjectSeed } from '../ifcWriter';
 
-/** Eén identiteitskoppeling voor canon en bronvormcontrole; alleen eenduidige resource-/bibliotheekkalender-ids.
+/** Eén identiteitskoppeling voor alle vergelijkingen met heropende gegevens; alleen eenduidige resource-/bibliotheekkalender-ids.
  * Een botsende groep houdt haar interne ids en GUID-sleutels. Ook een bestaand id dat zelf zou verhuizen
  * blijft dan staan: geen doel mag een ander intern id overnemen, ook geen ongekoppelde verwijzing.
  */
@@ -45,4 +45,36 @@ export function planningIdentities(input: ImportResult) {
     guids[ifcObjectSeed(c.kind, c.target)] = c.guid;
   }
   return { resource, calendar, guids };
+}
+
+/** Alleen interne resource-/bibliotheekkalender-ids wisselen bij de eerste heropening.
+ * Vergelijk ze op hun IFC-objectidentiteit, inclusief verwijzingen en de bestaande GUID-kaart.
+ * Geen object, veld, dubbel voorkomen of arrayvolgorde wordt hierdoor weggelaten.
+ */
+export function planningIdentityInput<T extends ImportResult>(input: T): T {
+  const ids = planningIdentities(input);
+  const resource = (id: string) => ids.resource.get(id) ?? id;
+  const calendar = (id: string) => ids.calendar.get(id) ?? id;
+  const leveling = input.project.schedulingOptions?.leveling;
+  return {
+    ...input,
+    ifcGlobalIds: ids.guids,
+    resources: input.resources.map(r => ({ ...r, id: resource(r.id),
+      ...(r.parentId !== undefined ? { parentId: resource(r.parentId) } : {}),
+      ...(r.calendarId !== undefined ? { calendarId: calendar(r.calendarId) } : {}),
+    })),
+    assignments: input.assignments.map(a => ({ ...a, resourceId: resource(a.resourceId) })),
+    tasks: input.tasks.map(t => ({ ...t, resourceIds: t.resourceIds.map(resource),
+      ...(t.calendarId !== undefined ? { calendarId: calendar(t.calendarId) } : {}),
+      ...(t.timephasedContours ? { timephasedContours: t.timephasedContours.map(c => ({ ...c,
+        ...(c.resourceId !== undefined ? { resourceId: resource(c.resourceId) } : {}),
+      })) } : {}),
+      ...(t.timephasedDurationWalks ? { timephasedDurationWalks: t.timephasedDurationWalks.map(w => ({ ...w, resourceCalendarId: calendar(w.resourceCalendarId) })) } : {}),
+    })),
+    ...(input.resourceCalendars ? { resourceCalendars: input.resourceCalendars.map(c => ({ ...c, id: calendar(c.id) })) } : {}),
+    ...(input.ifcLiteralCalendarIds ? { ifcLiteralCalendarIds: input.ifcLiteralCalendarIds.map(calendar) } : {}),
+    ...(leveling?.resources ? { project: { ...input.project, schedulingOptions: { ...input.project.schedulingOptions,
+      leveling: { ...leveling, resources: leveling.resources.map(r => ({ ...r, resourceId: resource(r.resourceId) })) },
+    } } } : {}),
+  };
 }

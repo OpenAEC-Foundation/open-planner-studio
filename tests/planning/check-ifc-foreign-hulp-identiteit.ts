@@ -244,7 +244,7 @@ for (const file of [
       const shown = structuredClone(parsed);
       if (side === 'uitvoer') mutate(shown);
       return shown;
-    }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen'), `${label}: getypeerd geweigerd, geen bytes`);
+    }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === (label.startsWith('d ') || label.startsWith('f ') ? 'ongewijzigd-getal' : 'planning-na-openen')), `${label}: getypeerd geweigerd, geen bytes`);
     console.log(`OK 7b verlies ${label}: getypeerde weigering zonder bytes`);
   }
 }
