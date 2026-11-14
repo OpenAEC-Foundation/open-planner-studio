@@ -338,8 +338,11 @@ function checkAgentDocs(diffs: string[]): void {
   //     `scheduled-job.md` is de bron; de tekst eromheen mag er niet van afwijken.
   const releaseDir = join(ROOT, '.claude', 'skills', 'release');
   const scheduled = readFileSync(join(releaseDir, 'scheduled-job.md'), 'utf8');
-  if (!scheduled.includes('"weekdays":[1]')) {
-    diffs.push('scheduled-job.md: de release hoort op maandag te staan (`"weekdays":[1]`)');
+  const scheduleJson = scheduled.match(/Schedule: `(\{[^`]*\})`/)?.[1];
+  let weekdays: unknown;
+  try { weekdays = scheduleJson ? (JSON.parse(scheduleJson) as { weekdays?: unknown }).weekdays : undefined; } catch { /* hieronder gemeld */ }
+  if (JSON.stringify(weekdays) !== '[1]') {
+    diffs.push('scheduled-job.md: de regel `Schedule: {…}` ontbreekt of staat niet op maandag (`weekdays: [1]`)');
   }
   const releaseDocs: Record<string, string> = {
     'AGENTS.md': agents,
@@ -349,13 +352,14 @@ function checkAgentDocs(diffs: string[]): void {
   for (const file of readdirSync(releaseDir)) {
     if (file.endsWith('.md')) releaseDocs[`.claude/skills/release/${file}`] = readFileSync(join(releaseDir, file), 'utf8');
   }
-  //     De release zelf heeft geen eindtijd (Ethan, 2026-11-09); alleen de reparatie houdt haar eigen 14:00.
-  const staleReleaseDay = /zaterdagjob|zaterdagmandaat|volgende zaterdag|zaterdag 14:00|Saturday job|next Saturday|(?:alongside|for) (?:that|the next) Saturday/i;
-  const staleReleaseEnd = /(?:uiterlijk|deadline[^\n]{0,20}|Stop(?:pen)? om) \*{0,2}14:00/i;
+  //     De release heeft geen eindtijd (Ethan, 2026-11-09): buiten de reparatieskill, die haar eigen 14:00-stop
+  //     houdt, mag er dus geen 14:00 of "deadline" meer staan.
+  const staleReleaseDay = /zaterdagjob|zaterdagmandaat|volgende zaterdag|draait op zaterdag|Saturday job|next Saturday|(?:alongside|for) (?:that|the next) Saturday/i;
+  const staleReleaseEnd = /14:00|\bdeadline\b/i;
   for (const [name, text] of Object.entries(releaseDocs)) {
-    const own14 = name.includes('browsertests-repareren');
-    const hit = text.split('\n').findIndex((line) => staleReleaseDay.test(line) || (!own14 && staleReleaseEnd.test(line)));
-    if (hit >= 0) diffs.push(`${name}:${hit + 1} noemt nog de zaterdag of een eindtijd van 14:00 voor de release (die draait op maandag en stopt niet op een tijd)`);
+    const ownRepairStop = name.includes('browsertests-repareren');
+    const hit = text.split('\n').findIndex((line) => staleReleaseDay.test(line) || (!ownRepairStop && staleReleaseEnd.test(line)));
+    if (hit >= 0) diffs.push(`${name}:${hit + 1} noemt nog de zaterdag of een eindtijd (14:00, deadline) voor de release (die draait op maandag en stopt niet op een tijd)`);
   }
   if (!/next Monday release/i.test(agents)) {
     diffs.push('AGENTS.md: mist de regel dat een reactie aan een melder de datum van de eerstvolgende maandagrelease noemt ("next Monday release")');

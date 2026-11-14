@@ -33,18 +33,30 @@ Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is ee
 - Issue dicht en laatste browserrun op main groen: de release gaat verder.
 - Geen issue, en de laatste browserrun (die van zaterdag 22:00) is rood of ontbreekt: de release doet de reparatie eerst zelf, ook met dat issue.
 - De release heeft geen eindtijd (besluit Ethan, 2026-11-09): hij wacht tot het issue dicht is. Alleen een echte blokkade
-  stopt hem, bijvoorbeeld een reparatie die op een BLOKKEERT of op een rode CI vastzit die niemand zelf kan herstellen.
-  Dan geen tag die week. De release meldt dat aan Ethan, met de reden, en het issue blijft open.
+  stopt hem. De reparatie meldt die zelf: haar laatste opmerking in het issue begint dan met `REPARATIE GEBLOKKEERD`,
+  gevolgd door de reden (een BLOKKEERT, of een rode CI die zij niet kan herstellen). Dan geen tag die week. De release
+  meldt dat aan Ethan, met de reden, en het issue blijft open. Een reparatie die alleen haar stand opschrijft,
+  is geen blokkade: ze hervat de volgende ochtend, en de release wacht.
 
-Wacht zo, met een lus zonder klok. Exit 0: geen open issue. Is de reparatie vastgelopen, stop de lus dan zelf en volg de blokkaderegel hierboven.
-Stopt de shell, start dan dezelfde opdracht opnieuw.
+Wacht zo, met een lus zonder klok. De lus eindigt met een eigen uitkomst: 0 = geen open issue, 3 = blokkade gemeld,
+2 = `gh` faalt (geen stilte als antwoord; lees de fout en start opnieuw). Stopt de shell, start dan dezelfde opdracht opnieuw.
 ```bash
 REPO=OpenAEC-Foundation/open-planner-studio
-open_issues() { gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json number --jq length; }
-until [ "$(open_issues)" = 0 ]; do sleep 300; done
+wacht_op_reparatie() {
+  local n geblokkeerd
+  while true; do
+    n=$(gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json number --jq length) || return 2
+    [ "$n" = 0 ] && return 0
+    geblokkeerd=$(gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json comments \
+      --jq '[.[] | (.comments[-1].body // "") | select(startswith("REPARATIE GEBLOKKEERD"))] | length') || return 2
+    [ "$geblokkeerd" != 0 ] && return 3
+    sleep 300
+  done
+}
+wacht_op_reparatie; echo "EXIT:$?"
 ```
-Blokkade: stop zonder iets op main te doen. Meld Ethan dat de reparatie de release kostte, met de reden uit het issue.
-Issue dicht: maak de worktree uit stap 1 en draai daar de browsercontrole. Dit is dezelfde controle als in de `gate`.
+Uitkomst 3: stop zonder iets op main te doen. Meld Ethan dat de reparatie de release kostte, met de reden uit het issue.
+Uitkomst 0: maak de worktree uit stap 1 en draai daar de browsercontrole. Dit is dezelfde controle als in de `gate`.
 ```bash
 SHA=$(git rev-parse origin/main)
 node scripts/release-ci-check.mjs --browser "$SHA"

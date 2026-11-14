@@ -148,6 +148,13 @@ fix-PR's, reviews, VERVOLG en de bewijsrun.
 Doe geen nieuwe merge of dispatch meer. Open fix-PR's blijven staan. Schrijf de stand in het issue. Het issue blijft
 open. Zet bovenaan het eindrapport wat er nog rood is, voor Ethan. De volgende reparatie hervat dit werk.
 
+## Blokkade melden
+
+Kom je er niet uit (een BLOKKEERT van de review, of een rode CI die je niet zelf kunt herstellen), zet dan als laatste
+opmerking in het issue een tekst die begint met `REPARATIE GEBLOKKEERD`, gevolgd door de reden. De release leest
+daaraan dat ze niet langer hoeft te wachten (zie *Eerst: browsertests* in de release-skill). Een gewone stand bij het
+stoppen om 14:00 begint daar niet mee.
+
 ## Stand voor de release
 
 Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is een open issue met de titel
