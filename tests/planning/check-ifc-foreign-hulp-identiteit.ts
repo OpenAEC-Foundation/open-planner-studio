@@ -85,13 +85,15 @@ const old = model(readFileSync(join(root, TRIAS_FILES[2]), 'utf8'));
 const oldDomain = await openForeign(old), oldSave = await tryMerge(cloneDomain(oldDomain), oldDomain.ifcSource!);
 assert(oldSave.ok, oldSave.ok ? '' : JSON.stringify(oldSave.error.cases));
 const oldIndex = scanForeignStep(old), oldClass = classify(oldIndex), oldOut = scanForeignStep(oldSave.bytes);
-let kept = 0;
+let kept = 0, expectedOld = 0;
 for (let c = 0; c < oldIndex.count; c++) {
-  if (oldClass.classes[c] !== 1 || oldClass.selection.inD[c] || !/^'[0-9A-Za-z_$]{22}'$/.test(oldIndex.argTokens(c)?.[0] ?? '')) continue;
+  const a = oldIndex.argTokens(c);
+  if (oldClass.classes[c] !== 1 || oldClass.selection.inD[c] || !a || a.length < 5 || !/^'[0-9A-Za-z_$]{22}'$/.test(a[0]) || !/^#\d+$/.test(a[1])) continue;
+  expectedOld++;
   const out = oldOut.chunkOf(oldIndex.id(c));
   if (out >= 0 && oldIndex.globalId(c) === oldOut.globalId(out)) kept++;
 }
-check('E16 oud eigen: gekoppelde hulpidentiteit blijft terugkomen', kept > 0);
+check(`E16 oud eigen: alle ${expectedOld} hulp-GlobalIds met hetzelfde bron-id`, expectedOld > 0 && kept === expectedOld);
 check('E16 oud eigen: vreemde bytes intact', !mergeProblems(old, oldSave.bytes).length);
 console.log(`E16 oud eigen: ${kept} hulp-GlobalIds met hetzelfde bron-id`);
 
