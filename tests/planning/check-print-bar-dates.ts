@@ -5,7 +5,8 @@
 // achter de balk, op de plek waar de naam begon; de naam schuift erachter. Een mijlpaal krijgt één
 // datum, tussen de ruit en de naam. De tekst is precies die van de kolommen Start en Einde in dezelfde
 // afdruk (`taskOwnCellTexts`). Met de datums aan valt een naam die rechts niet past NIET terug naar
-// links (daar staat de begindatum), maar wordt hij rechts afgekapt met "…". De optie werkt ook met
+// links (daar staat de begindatum), maar wordt hij rechts afgekapt met "…"; past zelfs de einddatum
+// niet, dan vervalt die en blijft de naam rechts. De optie werkt ook met
 // Taaknamen uit: dan staan alleen de datums er.
 //
 // Tekent met de ECHTE `renderReport` en een opnemende Draw2D.
@@ -141,16 +142,30 @@ S().runCPM();
   S().runCPM();
 }
 
-// ── Balk tot de papierrand (rapportageperiode): geen einddatum, naam links vóór de begindatum ──
+// ── Balk tot de papierrand (rapportageperiode): geen einddatum, en de naam gaat niet naar links ──
 {
   const p = renderPrint({ showBarDates: true, timeWindow: { from: '2026-05-25', to: '2026-06-03' } });
   const r0 = p.inRow(0);
-  const start = r0.find(t => t.text === '01-06-2026');
-  const naam = r0.find(t => t.text.startsWith('Fund'));
+  const bar0 = p.bar(0);
   ok(`rand: geen einddatum (${fmt(r0)})`, !r0.some(t => t.text === '05-06-2026'));
-  ok(`rand: naam rechts uitgelijnd links vóór de begindatum (${fmt(r0)})`,
-    start !== undefined && naam !== undefined && naam.align === 'right'
-    && near(naam.x, start.x - start.text.length * CHAR_W - DATE_GAP));
+  ok(`rand: begindatum staat er (${fmt(r0)})`, r0.some(t => t.text === '01-06-2026'));
+  ok(`rand: geen naam links van de balk (${fmt(r0)})`,
+    bar0 !== undefined && !r0.some(t => t.text.startsWith('Fund') && (t.align === 'right' || t.x < bar0.x)));
+}
+
+// ── Jaarplanning passend op het blad: de marge houdt plek voor beide datums (review Sol #951) ──
+{
+  const J = S().addTask({ name: 'Jaarwerk', time: { durationUnit: 'days', scheduleDuration: 260 } as TaskTime });
+  S().runCPM();
+  const p = renderPrint({ showBarDates: true, autoFit: true });
+  const rij = S().tasks.findIndex(t => t.id === J);
+  const r = p.inRow(rij);
+  const datums = r.filter(t => DATE.test(t.text));
+  ok(`jaar: begin- en einddatum allebei getekend (${fmt(r)})`, datums.length === 2);
+  ok(`jaar: begindatum binnen het chartgebied (${fmt(r)})`,
+    datums.some(t => t.align === 'right' && t.x - t.text.length * CHAR_W >= p.tableWidth));
+  S().deleteTask(J);
+  S().runCPM();
 }
 
 // ── Lange naam bij de rechterrand: rechts afkappen, niet naar links ──

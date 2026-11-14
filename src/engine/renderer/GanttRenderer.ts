@@ -1422,29 +1422,39 @@ export class GanttRenderer {
    * lange balk), dan schuift de naam mee naar links tot hij tegen de canvasrand staat, over het eind
    * van de balk heen. Hij springt dus niet naar de linkerkant van de balk (geen wisselen tussen links
    * en rechts, eigenaar 10-10-2026) en verdwijnt ook niet. De afdruk valt wel terug naar links
-   * (`printPreview.drawBarLabel`); daar schuift niets.
+   * (`printPreview.drawBarLabel`); daar schuift niets. Met de datums aan (#868) schuift er niets:
+   * zie het commentaar in de functie.
    */
-  private drawOutsideBarName(name: string, color: string, barRight: number, textY: number, finishDate = ''): void {
+  private drawOutsideBarName(name: string, color: string, barRight: number, textY: number, dates?: { finish: string; barLeft: number } | null): void {
     const ctx = this.ctx;
     const edge = this.opts.canvasWidth - 4;
     const preferredX = barRight + GanttRenderer.ARROW_STUB + OUTSIDE_LABEL_GAP;
-    // Met `finishDate` (issue #868) staat de einddatum vooraan en schuift de naam erachter; datum en
-    // naam schuiven als één geheel tegen de canvasrand.
-    ctx.font = this.font('small');
-    const dateWidth = finishDate ? ctx.measureText(finishDate).width : 0;
-    const lead = finishDate ? dateWidth + BAR_DATE_GAP : 0;
-    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, edge - 4 - lead);
+    // Met datums (issue #868) staat de einddatum vast direct achter de balk; hij schuift nooit, want
+    // over de balk heen zegt hij niets meer. De naam staat erachter en wordt rechts afgekapt. Past de
+    // einddatum niet vóór de rand, dan vervalt hij en schuift de naam zoals zonder datums, maar nooit
+    // links voorbij het begin van de balk: daar staat de begindatum.
+    let x = preferredX;
+    let floor = -Infinity;
+    if (dates) {
+      ctx.font = this.font('small');
+      const dateWidth = dates.finish ? ctx.measureText(dates.finish).width : 0;
+      if (dates.finish && preferredX + dateWidth <= edge) {
+        this.drawBarDateText(dates.finish, preferredX, textY);
+        x = floor = preferredX + dateWidth + BAR_DATE_GAP;
+      } else {
+        floor = dates.barLeft;
+      }
+    }
+    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, edge - Math.max(floor, 4));
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
     const label = name && maxWidth >= 16 ? this.ellipsize(name, maxWidth) : '';
-    if (!label && !finishDate) return;
-    const labelWidth = label ? ctx.measureText(label).width : 0;
-    // Geen ondergrens: ligt de balk links buiten beeld, dan gaat de naam mee (`labelWidth` is
-    // hooguit `edge - 4`, dus de rechtergrens houdt de naam nooit links van x = 4 vast).
-    const x = Math.min(preferredX, edge - (label ? lead + labelWidth : dateWidth));
-    if (finishDate) this.drawBarDateText(finishDate, x, textY);
     if (!label) return;
-    const nameX = x + lead;
+    const labelWidth = ctx.measureText(label).width;
+    // Zonder datums geen ondergrens: ligt de balk links buiten beeld, dan gaat de naam mee
+    // (`labelWidth` is hooguit `edge - 4`, dus de rechtergrens houdt de naam nooit links van x = 4 vast).
+    x = Math.max(floor, Math.min(x, edge - labelWidth));
+    const nameX = x;
     // Tekst staat op `textBaseline = 'middle'`: het tekstvlak ligt een halve lettergrootte (+1 px)
     // boven en onder `textY`.
     const half = Math.ceil(Math.round(TEXT_ROLE_PX.body * (this.opts.fontScale ?? 1)) / 2) + 1;
@@ -1791,7 +1801,7 @@ export class GanttRenderer {
       const dates = this.barDates(task);
       if (dates) this.drawStartDate(dates.start, x1, textY);
       if (fitsInside) {
-        if (dates) this.drawOutsideBarName('', this.colors.text, x1 + width, textY, dates.finish);
+        if (dates) this.drawOutsideBarName('', this.colors.text, x1 + width, textY, { finish: dates.finish, barLeft: x1 });
         if (isDone && greyTones) {
           drawCheck(x1 + 7);
           this.drawBarName(task.name, greyTones.text, x1, y, width, height, textY, indent);
@@ -1801,7 +1811,7 @@ export class GanttRenderer {
         }
       } else {
         if (isDone && greyTones && width >= checkSize * 2.2 + 10) drawCheck(x1 + (width - checkSize * 2.2) / 2);
-        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY, dates?.finish);
+        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY, dates && { finish: dates.finish, barLeft: x1 });
       }
     }
     return resourceAccentHeight;
@@ -1850,7 +1860,7 @@ export class GanttRenderer {
     // Net als bij samenvattingstaken staat de naam altijd achter de dunne balk.
     const dates = this.barDates(task);
     if (dates) this.drawStartDate(dates.start, x1, y + height / 2);
-    this.drawOutsideBarName(task.name, this.colors.text, x1 + width, y + height / 2, dates?.finish);
+    this.drawOutsideBarName(task.name, this.colors.text, x1 + width, y + height / 2, dates && { finish: dates.finish, barLeft: x1 });
   }
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
@@ -1903,7 +1913,7 @@ export class GanttRenderer {
     // fasebalk is een naam slecht leesbaar, en zo staat hij op dezelfde plek als op de afdruk.
     const dates = this.barDates(task);
     if (dates) this.drawStartDate(dates.start, x1, y + height / 2);
-    this.drawOutsideBarName(task.name, completion >= 1 ? this.colors.textSecondary : this.colors.text, x1 + width, y + height / 2, dates?.finish);
+    this.drawOutsideBarName(task.name, completion >= 1 ? this.colors.textSecondary : this.colors.text, x1 + width, y + height / 2, dates && { finish: dates.finish, barLeft: x1 });
   }
 
   /** Schermpositie (canvas-x) van de mijlpaal-ruit voor `task`, of `null` als er niets is om op te
@@ -2019,7 +2029,9 @@ export class GanttRenderer {
     // Met de datums aan (#868) staat de ene datum van de mijlpaal tussen de ruit en de naam.
     const labelStart = x + size + 6;
     let labelX = labelStart;
-    const date = this.barDates(task)?.finish;
+    // Een mijlpaal met alleen een start (de ruit staat dan op die start) toont die datum.
+    const dates = this.barDates(task);
+    const date = dates && (dates.finish || dates.start);
     if (date) {
       ctx.font = this.font('small');
       const dateWidth = ctx.measureText(date).width;
