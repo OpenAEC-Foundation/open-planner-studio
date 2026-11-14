@@ -561,8 +561,9 @@ S().setUI({ dissolveSummaryMode: 'branch' });
 {
   const registry = fs.readFileSync(path.join(process.cwd(), 'src/utils/settingsRegistry.ts'), 'utf8');
   eq('46 instelling wordt bewaard', /key: 'dissolveSummaryMode', field: 'dissolveSummaryMode'/.test(registry), true);
-  const panel = fs.readFileSync(path.join(process.cwd(), 'src/components/settings/SettingsPanelContent.tsx'), 'utf8');
-  eq('47 instelling staat in het gedeelde paneel', /saveDissolveSummaryMode/.test(panel) && /settings\.dissolveSummaryMode/.test(panel), true);
+  // Het gedeelde paneel leest zijn instellingen uit één lijst (`catalog/settingsCatalog.tsx`).
+  const catalog = fs.readFileSync(path.join(process.cwd(), 'src/components/settings/catalog/settingsCatalog.tsx'), 'utf8');
+  eq('47 instelling staat in het gedeelde paneel', /saveDissolveSummaryMode/.test(catalog) && /settings\.dissolveSummaryMode/.test(catalog), true);
 }
 
 // ── 10) opdracht, lint en rechtsklikmenu ────────────────────────────────────
