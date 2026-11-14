@@ -385,6 +385,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           if (n.action !== undefined) existing.action = { ...n.action };
           if (n.secondaryAction !== undefined) existing.secondaryAction = { ...n.secondaryAction };
           if (n.sticky !== undefined) existing.sticky = n.sticky;
+          // Een herhaalde export met extra detailregels krijgt ook zijn langere leestijd.
+          if (n.durationMs !== undefined) existing.durationMs = n.durationMs;
           if (n.refusal !== undefined) existing.refusal = n.refusal;
           existing.detailKey = n.detailKey;
           existing.detailParams = n.detailParams;

@@ -769,6 +769,59 @@ expect('X-03 projectgegevens en XER-bronverlies als detailregel',
 expect('X-04 notities blijven buiten de XER-categorieën (de writer schrijft ze)',
   !categoriesOf(xerResult).includes('notes'));
 
+// Knownbug 483: één export kan méér verliesmeldingen geven dan de toaststapel kan tonen.
+// Toets de echte exportfunnel, niet alleen de losse meldingsbouwers.
+resetProject('Export met meerdere verliezen');
+const combinedTask = store().addTask({ name: 'A\u0001' + 'x'.repeat(300) });
+const combinedCost = store().addResource({ name: 'Vergunning', type: 'COST', description: '', maxUnits: 1 });
+store().updateTask(combinedTask, {
+  notes: [{ id: 'combined-note', text: 'Blijft in IFC', done: false }],
+});
+store().setTaskSplits(combinedTask, [
+  { kind: 'work', minutes: 480 }, { kind: 'gap', minutes: 480, source: 'user' }, { kind: 'work', minutes: 480 },
+]);
+store().setProject({ schedulingOptions: { criticalDefinition: { mode: 'totalFloat', thresholdHours: 4 } } });
+for (const format of ['p6', 'mspdi'] as const) {
+  clearNotifications();
+  const result = await store().exportAs(format);
+  const primaryKey = format === 'p6' ? 'notifications.exportP6XmlLoss' : 'notifications.exportDataLoss';
+  const primary = store().ui.notifications.find(n => n.messageKey === primaryKey);
+  expect(`${format} 483: geslaagde export houdt verliesmelding met Lees meer zichtbaar`,
+    result.ok && !!primary?.helpArticleId);
+  const lines = primary?.detailLines ?? [];
+  for (const key of ['notifications.exportSplitsLost', 'notifications.exportInvalidXmlChars',
+    format === 'p6' ? 'notifications.exportP6Truncated' : 'notifications.exportCriticalHoursLost',
+    format === 'p6' ? 'notifications.exportXerLossItem.costResources' : 'notifications.exportCostResourcesLost']) {
+    expect(`${format} 483: ${key} blijft precies één keer in hetzelfde verslag`,
+      lines.filter(line => line.messageKey === key).length === 1);
+    expect(`${format} 483: ${key} geen concurrerende toast`,
+      !store().ui.notifications.some(n => n.messageKey === key));
+  }
+  expect(`${format} 483: de envelope bewaart de notitie-waarschuwing`, categoriesOf(result).includes('notes'));
+  expect(`${format} 483: de onderbrekingstelling blijft behouden`,
+    lines.find(line => line.messageKey === 'notifications.exportSplitsLost')?.params?.count === 1);
+  expect(`${format} 483: de kostenresourcetelling blijft behouden`,
+    lines.find(line => line.messageKey === (format === 'p6'
+      ? 'notifications.exportXerLossItem.costResources' : 'notifications.exportCostResourcesLost'))?.params?.count === 1);
+}
+// Dezelfde dedupe-sleutel mag na een volgende export geen verouderde detailregels laten staan.
+store().updateTask(combinedTask, { name: 'Schoon', splitGaps: undefined });
+store().removeResource(combinedCost);
+store().setProject({ schedulingOptions: {} });
+await store().exportAs('mspdi');
+const latestLoss = dataLossNotifications()[0];
+expect('483: herhaalde export ververst detailregels en bewaart de hoofdgids',
+  latestLoss?.count === 2 && !!latestLoss.helpArticleId
+  && !latestLoss.detailLines?.some(line => line.messageKey === 'notifications.exportInvalidXmlChars'
+    || line.messageKey === 'notifications.exportCriticalHoursLost'
+    || line.messageKey === 'notifications.exportCostResourcesLost'));
+clearNotifications();
+failNextSave(new DOMException('geannuleerd', 'AbortError'));
+const combinedCancelled = await store().exportAs('p6');
+restoreDownloadSave();
+expect('483: annuleren toont geen gedeeltelijk samengesteld verslag',
+  combinedCancelled.ok && combinedCancelled.cancelled === true && store().ui.notifications.length === 0);
+
 // Kostenresource (#815, review punt 1): MSPDI, XER en P6 XML slaan COST over, met een verliesmelding.
 // Een export die de eigen app bij openen verkeerd leest (type 2 ⇒ LABOR, geen <Cost>) mag niet.
 resetProject('Kostenresource export');
@@ -791,15 +844,16 @@ resetProject('Kostenresource export');
     expect(`K-${format}-02 de werkresource staat er wel in`, out.includes('Timmerman'));
     expect(`K-${format}-03 geen bedrag in het bestand`, !out.includes('1250.5') && !out.includes('1250,5'));
     const notes = store().ui.notifications;
-    const lines = notes.flatMap(n => (n.detailLines ?? []).map(line => ({ key: line.messageKey as string, count: line.params?.count })));
+    const lines = notes.flatMap(n => [n, ...(n.detailLines ?? [])])
+      .map(line => ({ key: line.messageKey as string, count: line.params?.count }));
     if (format === 'mspdi') {
-      const notice = notes.find(n => (n.messageKey as string) === 'notifications.exportCostResourcesLost');
-      expect('K-mspdi-04 eigen verliesmelding met het aantal kostenresources', notice?.params?.count === 1);
+      const notice = lines.find(line => line.key === 'notifications.exportCostResourcesLost');
+      expect('K-mspdi-04 verliesmelding met het aantal kostenresources', notice?.count === 1);
     } else {
       const item = lines.find(line => line.key === 'notifications.exportXerLossItem.costResources');
       expect(`K-${format}-04 detailregel costResources met aantal 1`, item?.count === 1);
       expect(`K-${format}-05 geen MSPDI-melding bij ${format}`,
-        !notes.some(n => (n.messageKey as string) === 'notifications.exportCostResourcesLost'));
+        !lines.some(line => line.key === 'notifications.exportCostResourcesLost'));
     }
   }
   // Zonder kostenresource: geen melding (geen vals verlies).
@@ -808,8 +862,9 @@ resetProject('Kostenresource export');
     clearNotifications();
     await store().exportAs(format);
     const notes = store().ui.notifications;
-    const anyCost = notes.some(n => (n.messageKey as string) === 'notifications.exportCostResourcesLost'
-      || (n.detailLines ?? []).some(line => (line.messageKey as string) === 'notifications.exportXerLossItem.costResources'));
+    const anyCost = notes.flatMap(n => [n, ...(n.detailLines ?? [])]).some(line =>
+      (line.messageKey as string) === 'notifications.exportCostResourcesLost'
+      || (line.messageKey as string) === 'notifications.exportXerLossItem.costResources');
     expect(`K-${format}-06 zonder kostenresource geen kostenverlies`, !anyCost);
   }
 }

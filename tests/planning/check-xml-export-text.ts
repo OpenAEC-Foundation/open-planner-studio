@@ -80,7 +80,7 @@ expect('de store houdt de taaknaam met het verboden teken',
 // Ook een vrij projectveld gaat door dezelfde uitvoer.
 store().setProject({ author: 'Auteur\u{0}X' });
 
-const invalidCharNotices = () => store().ui.notifications.filter(notification =>
+const invalidCharNotices = () => store().ui.notifications.flatMap(n => [n, ...(n.detailLines ?? [])]).filter(notification =>
   (notification.messageKey as string) === 'notifications.exportInvalidXmlChars');
 
 for (const format of ['mspdi', 'p6'] as const) {
