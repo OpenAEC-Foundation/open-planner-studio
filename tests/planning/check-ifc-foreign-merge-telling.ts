@@ -49,6 +49,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
 import type { StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { classify } from '@/services/ifc/foreign/classify';
 import type { MergePhase2Case } from '@/services/ifc/foreign/mergeWriter';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -91,75 +92,10 @@ const withWall = (bytes: Uint8Array): Uint8Array => {
   const at = src.lastIndexOf('ENDSEC;');
   return Uint8Array.from(`${src.slice(0, at)}${REVIT_WALL.map(l => `${l}\n`).join('')}${src.slice(at)}`, c => c.charCodeAt(0));
 };
-/** Eigen bestanden die zonder bewerking mogen weigeren, met de reden. Elk ander eigen bestand moet zonder bewerking
- *  schrijven (fixronde 7). Beide zijn proeven met een lege notitielijst `'[]'`, met de hand gemaakt in review ronde 7
- *  van #867: OPS schreef die nooit (sinds `1eb58ab9d` "afwezig/leeg ⇒ niets geschreven"), en de writer laat hem weg
- *  (knownbug 1101). */
-const OWN_MAY_REFUSE: Readonly<Record<string, ExpectedRefusal>> = {
-  'fixtures/periode-oude-minuutfractie.ifc + wand': { reason: 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)', cases: [
-    "tijd-deels-gelezen | 17 | IFCTIMEPERIOD #17: de tijd '07:30.5:00' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031)",
-  ] },
-  'fixtures/periode-oude-minuutfractie-v2026.8.1.ifc + wand': { reason: 'oude minuutfractie buiten de conservatieve foreign-lijst (knownbug 1157)', cases: [
-    "tijd-deels-gelezen | 14 | IFCTIMEPERIOD #14: de tijd '07:30.5:00' heeft geen vorm die de lezer kent; hij leest haar anders (knownbug 1031)",
-  ] },
-  'council/r7sol-vreemd-lid-bij-notitie.ifc': { reason: "een lege notitielijst '[]' (knownbug 1101)", cases: [
-    "niet-gedragen | 9111 | IFCPROPERTYSET #9111 (OPS_TaskNotes), argument 4 | 4 |  |  | 4 | false",
-    "niet-gedragen | 9110 | IFCPROPERTYSINGLEVALUE #9110 (Notes) | -1 | ontbreekt |  |  | false",
-  ] },
-  'council/r7sol-vreemd-lid-bij-toewijzing.ifc': { reason: "een lege notitielijst '[]' (knownbug 1101)", cases: [
-    "niet-gedragen | 9110 | IFCPROPERTYSINGLEVALUE #9110 (Notes) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 9111 | IFCPROPERTYSET #9111 (OPS_TaskNotes) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 9112 | IFCRELDEFINESBYPROPERTIES #9112 | -1 | ontbreekt |  |  | false",
-  ] },
-  // Geen ongewijzigde OPS-uitvoer: de bestaande regressieproeven documenteren de externe herschrijving (1108).
-  'fixtures/ifc-arity-oude-writer-merged.ifc': { reason: 'door IfcOpenShell MergeProjects 0.9.0 herschreven; oude slotwaarden en WorkingExceptionIds al veranderd (check-ifc-legacy-arity.ts)', cases: [
-    "niet-gedragen | 358 | IFCWORKTIME #358, argument 3 | 3 |  |  | 3 | false",
-    "niet-gedragen | 284 | IFCWORKTIME #284, argument 3 | 3 |  |  | 3 | false",
-    "niet-gedragen | 205 | IFCRELASSIGNSTOCONTROL #205, argument 4 | 4 |  |  | 4 | false",
-    "niet-gedragen | 256 | IFCRELNESTS #256, argument 5 | 5 |  |  | 5 | false",
-    "niet-gedragen | 288 | IFCPROPERTYSET #288 (OPS_Calendar), argument 4 | 4 |  |  | 4 | false",
-    "niet-eenduidig | 291 | IFCWORKSCHEDULE #291 (Baseline plan), argument 12 | 12 |  |  | 11 | true",
-    "niet-eenduidig | 291 | IFCWORKSCHEDULE #291 (Baseline plan), argument 13 van de uitvoer (geen slot in de bron) | 13 |  | uitvoer | 13 | true",
-    "niet-eenduidig | 292 | IFCWORKSCHEDULE #292 (Herplanning), argument 12 | 12 |  |  | 11 | true",
-    "niet-eenduidig | 292 | IFCWORKSCHEDULE #292 (Herplanning), argument 13 van de uitvoer (geen slot in de bron) | 13 |  | uitvoer | 13 | true",
-    "niet-gedragen | 363 | IFCPROPERTYSET #363 (OPS_Calendar), argument 4 | 4 |  |  | 4 | false",
-    "niet-gedragen | 282 | IFCTIMEPERIOD #282 | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 283 | IFCRECURRENCEPATTERN #283 | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 287 | IFCPROPERTYSINGLEVALUE #287 (WorkingExceptionIds) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 356 | IFCTIMEPERIOD #356 | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 357 | IFCRECURRENCEPATTERN #357 | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 362 | IFCPROPERTYSINGLEVALUE #362 (WorkingExceptionIds) | -1 | ontbreekt |  |  | false",
-  ] },
-  'fixtures/xer-archief-herschreven.ifc + wand': { reason: 'met opzet beschadigde fixture: XER-bronchunks ontbreken, manifest bleef staan; geen gewone uitvoer van OPS (check-xer-archive-fallback.ts, knownbug 1108)', cases: [
-    "niet-gedragen | 14 | IFCPROPERTYSINGLEVALUE #14 (SchemaVersion) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 15 | IFCPROPERTYSINGLEVALUE #15 (Format) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 16 | IFCPROPERTYSINGLEVALUE #16 (StorageFormat) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 17 | IFCPROPERTYSINGLEVALUE #17 (ByteLength) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 18 | IFCPROPERTYSINGLEVALUE #18 (Sha256) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 19 | IFCPROPERTYSINGLEVALUE #19 (ByteChunkSize) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 20 | IFCPROPERTYSINGLEVALUE #20 (ByteChunkCount) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 22 | IFCPROPERTYSET #22 (OPS_XerSourceArchive) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 23 | IFCRELDEFINESBYPROPERTIES #23 | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 24 | IFCPROPERTYSINGLEVALUE #24 (ArchiveSha256) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 25 | IFCPROPERTYSINGLEVALUE #25 (SourceProjectId) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 26 | IFCPROPERTYSET #26 (OPS_XerDocument) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 27 | IFCRELDEFINESBYPROPERTIES #27 | -1 | ontbreekt |  |  | false",
-  ] },
-  'fixtures/werkdag-einde-tussenwaarde.ifc': { reason: "een speling 'PT72H' met een tijddeel: de lezer leest hem exact, de merge houdt de voorzichtige lijst (knownbug 1152)", cases: [
-    "duur-deels-gelezen | 55 | IFCTASKTIME #55: de speling 'PT72H' staat niet op de lijst van vormen die de lezer exact leest.",
-    "duur-deels-gelezen | 55 | IFCTASKTIME #55: de speling 'PT16H' staat niet op de lijst van vormen die de lezer exact leest.",
-  ] },
-  // Een back-up met het kenmerk van een vreemde bron (`OPS_RecoveryForeignSource`): de store haalt het kenmerk bij openen
-  // uit het document, en de merge zou het dan laten vallen. Een back-up bevat zelf nooit een vreemd deel (de writer
-  // schrijft haar zonder); de wand is hier alleen voor de proef. Op de oude testroute schreef de merge het kenmerk mee.
-  'fixtures/backup-met-kenmerk.ifc + wand': { reason: 'het herstelkenmerk van een back-up; een back-up heeft zelf geen vreemd deel', cases: [
-    "niet-gedragen | 17 | IFCPROPERTYSINGLEVALUE #17 (Sha256) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 18 | IFCPROPERTYSINGLEVALUE #18 (ByteLength) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 19 | IFCPROPERTYSINGLEVALUE #19 (SourcePath) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 20 | IFCPROPERTYSET #20 (OPS_RecoveryForeignSource) | -1 | ontbreekt |  |  | false",
-    "niet-gedragen | 21 | IFCRELDEFINESBYPROPERTIES #21 | -1 | ontbreekt |  |  | false",
-  ] },
-};
+/** Stuk 1: iedere ongewijzigde geopende bron blijft bytegelijk. Geen uitzonderingen meer voor
+ * oude minuutfracties, lege notities, een herschreven archief/lay-out of het herstelkenmerk.
+ * Dezelfde bronbeperkingen blijven bij daadwerkelijke bewerkingen getypeerd bewaakt. */
+const OWN_MAY_REFUSE: Readonly<Record<string, ExpectedRefusal>> = {};
 /** Zonder bewerking, per eigen bestand: de uitkomst (`schrijft` of `weigert (gevallen)`). */
 const ownOutcome = new Map<string, string>();
 const ownCases = new Map<string, readonly MergePhase2Case[]>();
@@ -256,6 +192,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
   const perKind = new Map<EditKind, Tally>();
   const sourceDoubles = doubleMemberships(bytes);
   const index = scanForeignStep(bytes);
+  const ownOrigin = classify(index).foreignOrigin.length === 0;
   const fields = new Map<string, number>();
   if (record) editFields.set(shown, fields);
   const where = shown;
@@ -271,7 +208,8 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
       if (record) console.log('UITKOMST GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label,
         uitkomst: outcome.ok ? 'schrijft' : 'weigert', domeinVerschil: edit.kind === 'niets' ? null : readbackDifference(cloneDomain(opened), d) ?? null }));
       if (edit.kind === 'niets' && !record) rawOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);
-      if (record && edit.kind === 'niets' && (outcome.ok || !outcome.kinds.includes('vreemde-herkomst'))) {
+      // Zonder bewerking schrijft nu ook vreemde herkomst: de indeling bepaalt de groep, niet de weigering.
+      if (record && edit.kind === 'niets' && ownOrigin) {
         ownFiles++;
         notCarried.set(shown, outcome.ok ? [] : outcome.error.cases.filter(c => c.kind === 'niet-gedragen'));
         ownOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);

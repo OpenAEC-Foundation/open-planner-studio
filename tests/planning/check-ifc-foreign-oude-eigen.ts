@@ -383,7 +383,10 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   await proof('BLOKKEERT 3', "eigen-plus-model met '7.5:00:00', zonder bewerking", clock, 'schrijft', undefined, has("IFCTIMEPERIOD('7.5:00:00','16:00:00')"));
   const m = /#(\d+)=IFCRECURRENCEPATTERN\(([^\n]*),\((#\d+)\)\);/.exec(clock)!;
   const second = withLines(clock.replace(m[0], `#${m[1]}=IFCRECURRENCEPATTERN(${m[2]},(${m[3]},#90100));`), ["#90100=IFCTIMEPERIOD('16.5:00:00','17:00:00');"]);
-  await proof('BLOKKEERT 3', "dezelfde vorm in een tweede periode ('16.5:00:00')", second, 'tijd-deels-gelezen');
+  await proof('BLOKKEERT 3', "tweede periode ('16.5:00:00'), zonder bewerking", second, 'schrijft', undefined,
+    has("IFCTIMEPERIOD('16.5:00:00','17:00:00')"));
+  await proof('BLOKKEERT 3', "tweede periode ('16.5:00:00'), taak hernoemd", second, 'tijd-deels-gelezen',
+    d => { leaves(d)[0].name = 'Hernoemd'; });
 }
 
 // Het tweede eigen bestand uit de CI heeft dezelfde daggrens, nu in een uurkalender.

@@ -53,6 +53,17 @@ bron; `ifcSaveBlocked` blijft alle vreemde IFC-opslag weigeren tot aansluit-PR 1
 bron is alleen toegestaan na een volledige indeling zonder vreemd deel; onzekere invoer wordt
 getypeerd geweigerd. IFC2X3 zonder model houdt de ontwerpuitzondering met een openingsmelding.
 
+### Voorbereid schrijfresultaat (#804)
+
+`prepareIfcWrite` (`foreign/mergeWriter.ts`, fase 1c PR 8a) levert één `PreparedIfcWrite`:
+`readonly Uint8Array[]`, sha256, de bron van die uitvoer met de writer-sessiekaart en bevroren
+schrijfinvoer, en de letterlijke kalender-ids. De bestaande uitvoercontrole levert de scan;
+de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer gaan de bronbytes
+door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
+gewone writer. Delen van nieuwe uitvoer wijzen naar de nieuwe bronbuffer; het resultaat houdt
+daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
+haar en PR 11 sluit aan. De optionele indexplek is voor PR 6; de opslagblokkade blijft dicht.
+
 ### Auteur en bedrijf (#804 fase 1c)
 
 De bytes-route geeft `selectPlanning` mee via de bestaande leesopties. Alleen daar kiest `extractProject` voor auteur en
