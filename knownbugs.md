@@ -1920,15 +1920,19 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
-1552. **VERVOLG, gewone handeling: een kalender toevoegen weigert bij de oude lopende-taakfixture.**
-     `fixtures/b5-lopend-oude-writer.ifc + wand` schrijft zonder bewerking, maar `addCalendar` met een kopie
-     van de projectkalender, los van resources, weigert `bronvorm-leest-anders`: de nieuwe `cal-…`
-     ontbreekt volgens de controle na herlezen. `sourceFormProblems` zoekt op het interne kalender-id,
+1552. **VERVOLG, gewone handeling: een kalender toevoegen weigert bij zes oude bronvormen.**
+     De nieuwe telling van #924 opent de bronnen met een wand en gebruikt `addCalendar` met een kopie van
+     de projectkalender. Los: `fixtures/b5-lopend-oude-writer.ifc`,
+     `oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc`, `fixtures/urenperdag-oude-writer.ifc` en
+     `fixtures/werkdag-einde-main-bibliotheek.ifc`. Gekoppeld aan een bestaande resource:
+     `oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc` en `fixtures/vast-werk-oude-writer.ifc`.
+     Alle zes schrijven zonder bewerking; de nieuwe handeling weigert `bronvorm-leest-anders`:
+     `kalender cal-…: ontbreekt na herlezen`. `sourceFormProblems` zoekt op het interne kalender-id,
      vóór de canon; de identiteitsprojectie van PR 7b bereikt deze vergelijking dus niet. De precieze
      teruggelezen kalenderinhoud is in deze telling niet vastgelegd. Richting: ook hier de bewezen
-     kalenderidentiteit gebruiken en alle waarden even streng blijven controleren.
-     Niet gerepareerd in PR 7b; bronvormcontrole en mergeWriter vallen buiten die
-     opdracht. Gemeten via de echte acties in de nieuwe telling van #924, zonder bytes. — B
+     kalenderidentiteit gebruiken en alle waarden even streng blijven controleren. Niet gerepareerd
+     in PR 7b; bronvormcontrole en mergeWriter vallen buiten die opdracht. Gemeten via echte appacties,
+     zonder bytes. — B
 
 1553. **VERVOLG, gewone handeling: een baseline toevoegen weigert bij twee oude 7.12-bronnen.**
      `oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand` en de `…-ohara-…`-variant
@@ -1954,7 +1958,13 @@ en noem het in je rapport of PR-tekst.
      zowel `#45` als `#436` voor dezelfde `IfcRelAggregates`-GlobalId; in de bron komt elk maar één keer voor. De
      onafhankelijke uitvoercontrole van #918 weigert nu getypeerd (`uitvoer-controle`), zonder bytes. De proef
      bewaakt die veilige weigering; de zeldzame gemaakte vorm wordt hier niet gerepareerd. Het ongewijzigde
-     repo-bestand schrijft wel. Gemeten tegen main `1c95a8546` en #918, fase 1c PR 3. — B
+     repo-bestand schrijft wel. Gemeten tegen main `1c95a8546` en #918, fase 1c PR 3.
+     Aanvulling #924: `saveBaseline` weigert ook bij `council/fix1-leeg-live-bl.ifc`,
+     `council/fix1-leeg-live.ifc` en `council/r5-eigen-plus-bonsai-baseline.ifc`, die zonder bewerking
+     schrijven: `uitvoer-controle`, nieuwe dubbele GlobalId `3r_tvuxgJO4K6Bs7LAtOAp` (de bron noemt
+     die bij `IfcRelAggregates #45`). Dat zijn gemaakte councilfixtures met een extra baselinekop,
+     geen aangetoond gewone releasebestanden. Geen bytes; de precieze matchingoorzaak is niet verder
+     onderzocht of gelijkgesteld aan de datumvariant hierboven. — B
 
 1143. **VERVOLG: de keuze van een toewijzing in de telling bouwt alle geldige paren op en gebruikt er één.**
      `tests/planning/ifcMergeKern.ts` (rond regel 351) verzamelt voor de bewerking "toewijzing erbij" elke geldige
