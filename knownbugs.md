@@ -1988,6 +1988,13 @@ en noem het in je rapport of PR-tekst.
      herstelsnapshot en de MCP-backup komen. Sinds #925 staat `ifcSource` juist in die lijst; de bescherming komt van
      de writer-invoer, die de bron weglaat. De code klopt; alleen de toelichting bijwerken. Gevonden door de review
      van #925. — B
+1557. **VERVOLG (#804, test opruimen): de testhelper `recalculated<D>` belooft meer dan hij teruggeeft.**
+     `tests/planning/ifcAppRoute.ts` geeft bij `recalculated<D>(d): Promise<D>` altijd een nieuw resultaat van
+     `buildWriteIFCInput(…, 'merge')` terug, via `as WriteIFCInput as D`. Bij een `D` met `writeMode: 'planOnly'`
+     zegt het type dus `planOnly` terwijl de invoer `merge` draagt. De te ruime generieke belofte bestond al; #926
+     voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
+     en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
+     van #926. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
