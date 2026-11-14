@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
@@ -12,6 +12,7 @@ import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
 import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
+import { jumpToRelatedTask, relationTrailTarget, stepRelationTrail } from '@/state/relationTrail';
 import { Icon } from '@/components/icons';
 
 interface HoverState { x: number; y: number; task: Task; }
@@ -67,11 +68,36 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   const cpmResult = useAppStore(s => s.cpmResult);
   const updateSequence = useAppStore(s => s.updateSequence);
   const removeSequence = useAppStore(s => s.removeSequence);
-  const focusOnTask = useAppStore(s => s.focusOnTask);
+  // Terug en vooruit (issue #888): alleen sprongen via dit paneel tellen, zie `relationTrail.ts`.
+  const backId = useAppStore(s => relationTrailTarget(s, 'back'));
+  const forwardId = useAppStore(s => relationTrailTarget(s, 'forward'));
   const [hover, setHover] = useState<HoverState | null>(null);
   // De uitlegzin staat alleen onder de relatie waar de focus in zit: onder élke regel zou het blok
   // bij veel relaties twee keer zo lang maken.
   const [focusedSequenceId, setFocusedSequenceId] = useState<string | null>(null);
+  // De zin verschijnt en verdwijnt met de focus, en schuift daarmee de regels eronder. Gebeurt dat
+  // tussen indrukken en loslaten van de muis, dan landt het loslaten naast de knop en gaat de klik
+  // verloren (issue #888: terug, vooruit en verder springen langs de relaties). Daarom wacht een
+  // focuswissel met de muis met de zin tot de knop is losgelaten.
+  const pointerHeld = useRef(false);
+  const pendingFocus = useRef<string | null>(null);
+  const showSentenceFor = (update: (current: string | null) => string | null) => {
+    if (!pointerHeld.current) { setFocusedSequenceId(update); return; }
+    pendingFocus.current = update(pendingFocus.current);
+  };
+  const holdSentenceUntilPointerUp = () => {
+    if (pointerHeld.current) return;
+    pointerHeld.current = true;
+    pendingFocus.current = focusedSequenceId;
+    const release = () => {
+      window.removeEventListener('pointerup', release, true);
+      window.removeEventListener('pointercancel', release, true);
+      pointerHeld.current = false;
+      setFocusedSequenceId(pendingFocus.current);
+    };
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('pointercancel', release, true);
+  };
 
   // Spooktooltip: onMouseLeave/onClick op de knop zelf zijn niet genoeg. Wisselt de selectie (of
   // verandert de sequence-lijst) zonder dat de muis de knop verlaat — bv. Ctrl+Z, een pijltoets, of
@@ -80,6 +106,14 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   useEffect(() => {
     setHover(null);
   }, [taskId, sequences]);
+
+  // Na een selectiewissel kan de regel met de focus verdwenen zijn zonder blur (React vuurt die niet
+  // bij het weghalen), en zou de zin bij een volgende taak met dezelfde relatie blijven staan terwijl
+  // de focus elders is. Lees daarom opnieuw welke relatie nu echt de focus heeft.
+  useEffect(() => {
+    const focused = document.activeElement?.closest<HTMLElement>('[data-ops-sequence-id]');
+    setFocusedSequenceId(focused?.dataset.opsSequenceId ?? null);
+  }, [taskId]);
 
   // Conceptrelatie: de sectie kan zelf relaties aanmaken. Het concept blijft LOKAAL tot
   // de bevestiging — dezelfde vorm als `RelationTypePopover` op het canvas — zodat type en lag als
@@ -140,7 +174,15 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-small !leading-4">{t('properties.dependencies')}</span>
+      <div className="dependency-head">
+        <span className="ui-card-header !text-small !leading-4">{t('properties.dependencies')}</span>
+        {interactive && (
+          <span className="dependency-trail">
+            <TrailButton direction="back" targetId={backId} />
+            <TrailButton direction="forward" targetId={forwardId} />
+          </span>
+        )}
+      </div>
       <div className="dependency-list">
         {taskSequences.map(seq => {
         const other = seq.predecessorId === taskId
@@ -152,10 +194,12 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           <div
             key={seq.id}
             className="dependency-item"
-            onFocus={() => setFocusedSequenceId(seq.id)}
+            data-ops-sequence-id={seq.id}
+            onPointerDownCapture={holdSentenceUntilPointerUp}
+            onFocus={() => showSentenceFor(() => seq.id)}
             onBlur={e => {
               if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                setFocusedSequenceId(current => (current === seq.id ? null : current));
+                showSentenceFor(current => (current === seq.id ? null : current));
               }
             }}
           >
@@ -176,7 +220,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   setHover({ x: r.left, y: r.bottom, task: other });
                 }}
                 onBlur={() => setHover(null)}
-                onClick={() => { setHover(null); focusOnTask(other.id); }}
+                onClick={() => { setHover(null); jumpToRelatedTask(other.id); }}
               >
                 {other.wbsCode || other.name}
               </button>
@@ -376,5 +420,29 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
         </HoverTooltip>
       )}
     </>
+  );
+}
+
+/** Eén pijl van terug/vooruit; grijs zolang er in die richting geen sprong ligt. */
+function TrailButton({ direction, targetId }: { direction: 'back' | 'forward'; targetId: string | null }) {
+  const { t } = useTranslation('task');
+  const target = useAppStore(s => (targetId ? s.tasks.find(task => task.id === targetId) : undefined));
+  const label = target
+    ? t(direction === 'back' ? 'properties.trailBack' : 'properties.trailForward', {
+      task: `${target.wbsCode} ${target.name}`.trim(),
+    })
+    : t(direction === 'back' ? 'properties.trailBackNone' : 'properties.trailForwardNone');
+  return (
+    <button
+      type="button"
+      className="dependency-trail-button"
+      data-ops-dependency-trail={direction}
+      title={label}
+      aria-label={label}
+      disabled={!target}
+      onClick={() => stepRelationTrail(direction)}
+    >
+      <Icon id={direction === 'back' ? 'nav.back' : 'nav.forward'} size={12} className="ops-icon-inline-flip" />
+    </button>
   );
 }

@@ -94,6 +94,7 @@
   "menu.item-checked",
   "menu.submenu",
   "nav.back",
+  "nav.forward",
   "object.rename",
   "panel.ai-activity",
   "panel.debug-terminal",

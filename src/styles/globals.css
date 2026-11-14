@@ -2101,6 +2101,48 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* Kop van Afhankelijkheden met terug en vooruit (issue #888): de pijlen lopen het spoor af van de
+   taken waar je via het paneel heen sprong. */
+.dependency-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.dependency-trail {
+  display: flex;
+  gap: 2px;
+}
+
+.dependency-trail-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius-sm);
+  color: var(--theme-text-dim);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.dependency-trail-button:hover:not(:disabled) {
+  background: var(--theme-hover);
+  color: var(--theme-text);
+}
+
+.dependency-trail-button:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 1px;
+}
+
+.dependency-trail-button:disabled {
+  color: var(--theme-text-muted);
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Relatie toevoegen vanuit het eigenschappenpaneel (2026-09). De conceptrij hergebruikt bewust
    `.dependency-row` voor type/lag/bevestigen, zodat hij exact onder de bestaande relaties uitlijnt
    — ook in de smalle container-query-variant. Alleen de kop (richting + zoekveld) staat erboven,
