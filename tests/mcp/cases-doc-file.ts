@@ -22,7 +22,7 @@ import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, ex
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
-import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
+import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -1111,6 +1111,13 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
 // leest import_schedule IFC als bytes, zoals Bestand → Openen.
 test('export_ifc: weigert een document met een vreemd deel, en import_schedule leest met de flag als bytes (#804 fase 1a)', async () => {
   const fakeFs = installFakeFs();
+  // De inhoudslezer hoort ook bij de proef naar een nieuw doel: alleen bewezen afwezig is toestemming.
+  const scanned: string[] = [];
+  fakeFs.scanTarget = async (p) => {
+    scanned.push(p);
+    const bytes = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : undefined);
+    return bytes ? scanForeignTargetBytes(bytes) : null;
+  };
   resetToSingleEmptyDocument();
   loadSmallProject('Met model');
   const bonsai = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc')));
@@ -1152,16 +1159,10 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
 
     // Fixronde 2: met de flag ook niet over een bestaand bestand met een gebouwmodel dat niet open is (de app leest het
-    // doel als stroom). Een bestaande eigen IFC mag; een doel dat de app niet kan lezen ook.
+    // doel als stroom). Een bestaande eigen IFC mag; een onleesbaar doel weigert.
     const otherModelPath = `${HOME}/ander-model.ifc`;
     const otherModel = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc')));
     setBinaryFile(otherModelPath, otherModel);
-    const scanned: string[] = [];
-    fakeFs.scanTarget = async (p) => {
-      scanned.push(p);
-      const bytes = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : undefined);
-      return bytes ? scanTargetBytes(bytes) : null;
-    };
     const modelError = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
     assertEq(modelError.code, 'VALIDATION', 'een bestaand modelbestand ⇒ validatiefout');
     assert(modelError.error.includes('already contains a building model') && modelError.error.includes('another path'),
@@ -1172,6 +1173,15 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assertEq(scanned.includes(target), true, 'een bestaande eigen IFC: gelezen, en hij mag');
     // Review van #870, ronde 6 (besluit Trias): een STEP-bestand waarin de grammatica geen datasectie vindt (hier een
     // kapotte bestandsnaam), weigert als doel: een scan zonder uitkomst is geen vrijbrief.
+    const psetPath = `${HOME}/externe-pset.ifc`;
+    const pset = new TextEncoder().encode(files.get(target)!.replace('ENDSEC;\nEND-ISO-10303-21;',
+      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+      "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;"));
+    setBinaryFile(psetPath, pset);
+    const psetError = await callErr('planner_export_ifc', { path: psetPath, overwrite: true });
+    assertEq(psetError.code, 'VALIDATION', 'gesloten externe pset weigert');
+    assert(psetError.error.includes('data from other programs'), 'getypeerde vreemde-doelweigering');
+    assertEq(binFiles.get(psetPath), pset, 'externe pset blijft bytegelijk');
     const brokenPath = `${HOME}/kapotte-kop.ifc`;
     const brokenText = new TextDecoder().decode(otherModel).replace(/FILE_NAME\('[^']*'/, "FILE_NAME('Van 't Hof.ifc'");
     setBinaryFile(brokenPath, new TextEncoder().encode(brokenText));
@@ -1180,10 +1190,11 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assert(brokenError.error.includes('cannot read reliably') && brokenError.error.includes('another path'),
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(new TextDecoder().decode(binFiles.get(brokenPath)), brokenText, 'het bestand met de kapotte kop is niet veranderd');
-    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    // PR 4: ook de MCP-route weigert een onleesbaar bestaand doel.
     fakeFs.scanTarget = async () => { throw new Error('leesfout'); };
-    await callOk('planner_export_ifc', { path: otherModelPath, overwrite: true });
-    assert(files.get(otherModelPath)?.startsWith('ISO-10303-21') === true, 'een doel dat de app niet kan lezen, mag');
+    const unreadable = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
+    assertEq(unreadable.code, 'VALIDATION', 'leesfout weigert');
+    assertEq(binFiles.get(otherModelPath), otherModel, 'leesfout laat het doel intact');
     // #886 fixronde 2 (Sol, besluit Trias): na crashherstel van een document met een vreemd deel ontbreken de bronbytes;
     // export_ifc weigert zolang het kenmerk er is, ook naar een nieuw pad.
     const gen = generateBenchmarkProject(3);

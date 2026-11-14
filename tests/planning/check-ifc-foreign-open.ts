@@ -232,7 +232,7 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
 {
   const reference = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/oude-kop-main.json'), 'utf8')) as { basis: string; rows: OldHeaderRow[] };
   eq('fix2 referentie: de gemeten main-commit', reference.basis, '1c95a8546fbe5fecb52e66a715402b08a256d0d5');
-  const current = await oldHeaderTable(ROOT);
+  const rows = await oldHeaderTable(ROOT);
   // E6 verandert bij precies deze al bestaande gemaakte gevallen de tekstterugval in een scannerweigering (1128).
   // Pin beide uitkomsten: flag uit blijft de volledige main-rij; flag aan moet weigeren met nul writes en bronbehoud.
   const scannerRefusals = new Set([
@@ -241,8 +241,8 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     'Sol-lange-auteur-wand-tweede-sectie', 'Sol-lange-auteur-vreemde-property',
     ...[false, true].flatMap(unicode => ['wand-tweede-sectie', 'vreemde-property'].map(kind => `grens-${unicode}-1-${kind}`)),
   ]);
-  eq('E6 oude koppentabel: ieder vastgelegd geval bestaat', [...scannerRefusals].filter(name => !current.some(row => row.name === name)), []);
-  for (const row of current.filter(row => scannerRefusals.has(row.name))) {
+  eq('E6 oude koppentabel: ieder vastgelegd geval bestaat', [...scannerRefusals].filter(name => !rows.some(row => row.name === name)), []);
+  for (const row of rows.filter(row => scannerRefusals.has(row.name))) {
     eq(`E6 ${row.name}: beide vaste instellingen`, row.routes.map(route => route.flag), [false, true]);
     const on = row.routes.find(route => route.flag)!;
     eq(`E6 ${row.name}: weigering vóór documentactivatie en beide opslagacties`,
@@ -252,19 +252,44 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     eq(`E6 ${row.name}: exacte scannerweigering`, notices.map(n => [n.severity, n.messageKey, n.detail]),
       [['error', 'notifications.ifcForeignOpenUnsafe', 'IFC open refused: unsafe scanner fallback']]);
     const before = reference.rows.find(r => r.name === row.name)!.routes.find(route => route.flag)!;
-    eq(`E6 ${row.name}: onafhankelijke doelcontrole onveranderd`, [on.target, on.targetWrites, on.targetIntact],
-      [before.target, before.targetWrites, before.targetIntact]);
+    eq(`E6 ${row.name}: modelscan onveranderd`, on.target, before.target);
+    eq(`PR 4 ${row.name}: onafhankelijke doelweigering, nul writes en bron intact`,
+      [on.asTargetRefusal, on.targetWrites, on.targetIntact], [true, [], true]);
     console.log(`E6 SCANNERGEVAL ${row.name}: getypeerd geweigerd, nul writes, bron intact; flag uit tegen main getoetst`);
   }
   // Alleen de hierboven exact getoetste flag-aan-route heeft een nieuw beleid. Alle flag-uit-rijen blijven in de
   // bestaande byte-/payloadvergelijking, en alle andere flag-aan-rijen houden de oorspronkelijke drie strenge eisen.
   const comparable = (rows: OldHeaderRow[]) => rows.map(row => scannerRefusals.has(row.name)
     ? { ...row, routes: row.routes.filter(route => !route.flag) } : row);
-  const table = compareOldHeaderTable(comparable(reference.rows), comparable(current));
+  const table = compareOldHeaderTable(comparable(reference.rows), comparable(rows));
+
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
-  eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer, table.cases);
+  eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer + table.protectedTarget, table.cases);
+  // E6 kan de vroegere (d)-opening al vóór activatie weigeren. Bewaak de (d)-vergelijking daarom apart
+  // met dezelfde bestaande invoer: alleen de twee doelacties geblokkeerd, alle opening-/nieuwe-doelvelden uit main.
+  // De echte onafhankelijke doelweigering van dit geval is hierboven al getoetst.
+  const protectedRow = reference.rows.find(row => scannerRefusals.has(row.name)
+    && row.routes.some(r => r.flag && r.writes.length > 0 && r.targetWrites.length > 0));
+  eq('PR 4: bestaande tabel bevat een geval met aanvullende doelbescherming', protectedRow !== undefined, true);
+  if (protectedRow) {
+    const targetOnly = structuredClone(reference.rows);
+    const route = targetOnly.find(row => row.name === protectedRow.name)!.routes.find(r => r.flag)!;
+    Object.assign(route, { writes: [], intact: true, saveAsSourceIntact: true, foreignRetained: true,
+      targetWrites: [], targetIntact: true, saveTargetRefusal: true, asTargetRefusal: true });
+    eq('PR 4: alleen de aanvullende doelweigering valt onder (d)',
+      compareOldHeaderTable(reference.rows, targetOnly).protectedTarget, 1);
+    for (const field of ['payload', 'writes', 'saveAsWrites'] as const) {
+      const changed = structuredClone(targetOnly);
+      const changedRoute = changed.find(row => row.name === protectedRow.name)!.routes.find(r => r.flag)!;
+      if (field === 'payload') changedRoute.payload = 'andere opening';
+      else changedRoute[field].push('ongewenste write');
+      eq(`PR 4: doelweigering verbergt geen wijziging in ${field}`,
+        compareOldHeaderTable(reference.rows, changed).other > 0, true);
+    }
+  }
   for (const line of table.evidence) console.log('TABELGEVAL ' + line);
-  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, ${table.other} anders; ${scannerRefusals.size} flag-aan-routes apart exact als E6-scannerweigering getoetst`);
+  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, (d) ${table.protectedTarget} alleen doelbescherming, ${table.other} anders; ${scannerRefusals.size} flag-aan-routes apart exact als E6-scannerweigering getoetst`);
+
 }
 
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────

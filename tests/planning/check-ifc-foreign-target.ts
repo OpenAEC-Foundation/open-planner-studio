@@ -88,6 +88,10 @@ const dec = (b: Uint8Array) => new TextDecoder('utf-8').decode(b);
 const bonsai = fileBytes('tests/fixtures/ifc-foreign/bonsai-4d.ifc');
 const eigenPlus = fileBytes('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
 const showcase = fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc');
+// Gesloten bron: alleen een externe pset en haar property, zonder gebouwmodel.
+const externalPset = enc.encode(dec(showcase).replace('ENDSEC;\nEND-ISO-10303-21;',
+  "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+  "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;"));
 const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
@@ -549,7 +553,7 @@ for (const flag of [false, true]) {
 
 // ── 5. Fixronde 2 (review van #864, ronde 2): de app leest het gekozen bestaande doel zelf ─────────────────────────
 // Besluit Trias (wrakko, 9 november 2026): bevat een bestaand doel dat de app kan lezen een gebouwmodel (een IFC met
-// `IfcProduct`/`IfcTypeProduct`), dan schrijft de app niet. Niet leesbaar ⇒ schrijven mag. Alleen met de flag aan.
+// `IfcProduct`/`IfcTypeProduct`), dan schrijft de app niet. PR 4: ook C/A/V of onleesbaar ⇒ weigeren; alleen met de flag aan.
 const modelIfc4 = fileBytes('tests/fixtures/ifc-foreign/model-ifc4.ifc');
 /** Sol's twee scenario's na herstel: dezelfde lengte met één ander byte, en een extra commentaarregel. */
 const oneByteChanged = (() => {
@@ -603,12 +607,12 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   pick = ownIfc;
   await R().exportAs('csv');
   eq('herstel 2: een bestaande eigen IFC (geen model) als doel mag', ownIfc.writes.length, 1);
-  // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+  // PR 4: niet leesbaar is met de flag aan geen bewijs voor een veilig doel.
   const locked = fakeHandle('vergrendeld.ifc', modelIfc4);
   locked.unreadableUntilWrite();
   pick = locked;
   await R().exportAs('csv');
-  eq('herstel 2: een doel dat de app niet kan lezen, mag', locked.writes.length, 1);
+  eq('herstel 2: onleesbaar doel weigert zonder write', [locked.writes.length, locked.writables(), noticeCount(store, 'notifications.ifcUnreadableTargetExport')], [0, 0, 1]);
   pick = null;
 }
 
@@ -676,7 +680,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   await createFileAutoSaveController({ getState: () => store.getState(), enabled: () => true }).flush();
   eq('AutoSave: een eigen doel dat nu een model bevat: niets geschreven, gewijzigd, één melding',
     [own.writables(), own.text() === dec(modelIfc4), store.getState().isDirty, noticeCount(store, TARGET_AUTOSAVE)], [0, true, true, 1]);
-  // Niet leesbaar ⇒ AutoSave mag.
+  // PR 4: ook AutoSave weigert een onleesbaar bestaand doel.
   const locked = fakeHandle('eigen-3.ifc', showcase);
   const store3 = await open('eigen-3.ifc', showcase, { kind: 'handle', handle: locked.handle });
   store3.getState().setAutoSaveToFile(true);
@@ -684,7 +688,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   locked.unreadableUntilWrite();
   store3.getState().addTask({ name: 'Werk' });
   await createFileAutoSaveController({ getState: () => store3.getState(), enabled: () => true }).flush();
-  eq('AutoSave: een doel dat de app niet kan lezen, mag', [locked.writes.length, store3.getState().isDirty, noticeKeys(store3)], [1, false, []]);
+  eq('AutoSave: onleesbaar doel weigert zonder write', [locked.writes.length, store3.getState().isDirty, noticeCount(store3, UNREADABLE_AUTOSAVE)], [0, true, 1]);
   // Met de flag uit: AutoSave schrijft zoals op main.
   const plainTarget = fakeHandle('eigen-2.ifc', showcase);
   reseed(0x804);
@@ -756,12 +760,12 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     await S().saveFile();
     eq('Tauri 2: Ctrl+S naar het eigen bestand met nu een model geweigerd', [sha(readFileSync(ownPath)), S().isDirty],
       [sha(modelIfc4), true]);
-    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    // PR 4: niet leesbaar is met de flag aan geen bewijs voor een veilig doel.
     ipc.faults.readError = new Error('Input/output error (os error 5)');
     await S().saveFile();
     ipc.faults.readError = null;
-    eq('Tauri 2: een doel dat de app niet kan lezen, mag', [readFileSync(ownPath, 'utf8').includes('Werk na de wissel'), S().isDirty],
-      [true, false]);
+    eq('Tauri 2: onleesbaar bestaand doel weigert', [sha(readFileSync(ownPath)), S().isDirty, noticeCount(store, UNREADABLE_SAVE)],
+      [sha(modelIfc4), true, 1]);
     eq('Tauri 2: de lezer sluit elk bestand', ipc.openHandles(), 0);
     ok('Tauri 2: de lezer las via plugin-fs read', ipc.calls.some(c => c.command === 'plugin:fs|read'));
   } finally {
@@ -774,7 +778,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
 // ── 5e. Site: het bestaande site-bestand lezen ───────────────────────────────────────────────────────────────────
 {
   const saves: string[] = [];
-  const siteData: Record<string, Uint8Array> = { M1: modelIfc4, O1: showcase };
+  const siteData: Record<string, Uint8Array> = { M1: modelIfc4, O1: showcase, P1: externalPset };
   win.openaecHost = { storage: {
     list: async () => [],
     open: async (id: string) => {
@@ -797,10 +801,14 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   store.setState(s => { s.siteFileId = 'O1'; s.siteFileVersion = 'v1'; s.filePath = 'O1.ifc'; });
   await S().saveFile();
   eq('site 2: een site-bestand zonder model krijgt de nieuwe versie', saves, ['O1']);
+  store.setState(s => { s.siteFileId = 'P1'; s.siteFileVersion = 'v1'; s.filePath = 'P1.ifc'; });
+  S().addTask({ name: 'Werk voor pset' });
+  await S().saveFile();
+  eq('site 2: gesloten externe pset weigert op inhoud, ander id', [saves, noticeCount(store, TARGET_SAVE)], [['O1'], 2]);
   store.setState(s => { s.siteFileId = 'X1'; s.siteFileVersion = 'v1'; s.filePath = 'X1.ifc'; });
   S().addTask({ name: 'Meer werk' });
   await S().saveFile();
-  eq('site 2: een site-bestand dat de app niet kan lezen, mag', saves, ['O1', 'X1']);
+  eq('site 2: een site-bestand dat de app niet kan lezen weigert', [saves, noticeCount(store, UNREADABLE_SAVE)], [['O1'], 1]);
   delete win.openaecHost;
 }
 
@@ -1125,8 +1133,9 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
 {
   const modelText = dec(modelIfc4);
   const ownText = dec(showcase);
-  type Refuse = 'model' | 'unreadable' | null;
+  type Refuse = 'model' | 'foreign' | 'unreadable' | null;
   const targets: Array<{ name: string; bytes: Uint8Array; refuse: Refuse; openRefusal?: true }> = [
+    { name: 'externe-pset-zonder-model', bytes: externalPset, refuse: 'foreign' },
     { name: 'terra', bytes: enc.encode(terraFile(modelText)), refuse: 'unreadable' },
     { name: 'sol', bytes: enc.encode(solFile(modelText)), refuse: 'unreadable' },
     { name: 'sol-alles', bytes: enc.encode(solFileAllSplit(modelText)), refuse: 'unreadable' },
@@ -1134,7 +1143,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     // Ronde 6 (besluit Trias): een STEP-bestand waarin de app geen DATA-sectie vindt, weigert als doel.
     { name: 'zonder-data', bytes: enc.encode(`${ownText.slice(0, ownText.indexOf('\nDATA;') + 1)}END-ISO-10303-21;\n`), refuse: 'unreadable' },
     { name: 'commentaar', bytes: enc.encode(commentFile(ownText)), refuse: null },
-    { name: 'string', bytes: enc.encode(stringFile(ownText)), refuse: null },
+    { name: 'string', bytes: enc.encode(stringFile(ownText)), refuse: 'foreign' },
     // Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las de doelcontrole (zoals `readIFC`) maar
     // tot de eerste `ENDSEC;` en gaf hij "no-model": Opslaan als schreef de planning over het model heen.
     { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), refuse: 'model' as const },
@@ -1147,7 +1156,12 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     ...dataKopBestanden(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
       .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
     ...dataKopBestanden(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
-    ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
+    // PR 4: de hele C/A/V-indeling moet slagen. De 26 ondersteunde eigen kopvormen blijven schrijfbaar;
+    // de 16 al als scannerWeigert benoemde vormen krijgen 'unreadable' (96 routeasserties, knownbug 1134).
+    // Dit zijn gemaakte vormen: kleine letters buiten de norm, of de bestaande scannergrens bij afdruk-/stuurtekens
+    // en ANCHOR. De gewone lezer en de route met de flag uit veranderen niet.
+    ...dataKopBestanden(ownText, 'scanner').map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
+    ...dataKopBestanden(ownText, 'scannerWeigert').map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
     // #916: alle 13 kapotte naamvormen onder de huidige IFC4X3_ADD2-kop vallen buiten het exact gemeten oude
     // LF/IFC4X3-sjabloon. De 12 eerder toegestane vormen worden unreadable; het regeleinde bleef al geweigerd.
     // De echte oude fixtures en de geldige DATA-kopvormen hierboven blijven doelen.
@@ -1325,6 +1339,90 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
         t.refuse ? [sha(t.bytes), true, 1] : [true, false, 0]);
     }
     eq('fixronde 4, Tauri: de lezer sluit elk bestand', ipc.openHandles(), 0);
+  } finally {
+    ipc.dispose();
+    (globalThis as { window?: unknown }).window = savedWindow;
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// ── 9. Fase 1c: gesloten vreemde doelen via elke overige schrijfroute, met echte tijdelijke bestanden ──
+{
+  const dir = mkdtempSync(join(tmpdir(), 'ops-804-1c-doelen-'));
+  const savedWindow = (globalThis as { window?: unknown }).window;
+  const ipc = installNodeFileIpc();
+  const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  tauriWin.parent = tauriWin;
+  let answers: string[] = [];
+  const internals = tauriWin.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+  const invoke = internals.invoke;
+  internals.invoke = async (command, args, options) => command === 'plugin:dialog|save'
+    ? answers.shift() ?? null : invoke(command, args, options);
+  try {
+    const { saveFileDialog, fileIdentityFs, writeTargetReaders } = await import('@/services/fileAccess');
+    const { writeUserTextFileTauri } = await import('@/services/fileAccess/atomicWrite');
+    const { saveToPathWithIO } = await import('@/utils/devBridge');
+    const { useAppStore } = await import('@/state/appStore');
+    const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
+    const { refusedWriteTarget } = await import('@/state/ifcForeignGuard');
+    const scan = scanForeign(externalPset);
+    ok('1c: de pset is volgens de open-scanner vreemd', scan.ok && scan.counts.V > 0);
+    for (const [name, bytes] of [['pset', externalPset], ['model', modelIfc4]] as const) {
+      const target = join(dir, `${name}.ifc`);
+      const alias = join(dir, `${name}-link.ifc`);
+      writeFileSync(target, bytes);
+      symlinkSync(target, alias);
+      const csvAlias = join(dir, `${name}-link.csv`);
+      symlinkSync(target, csvAlias);
+      for (const route of ['Opslaan als', 'IFC-export', 'CSV-export', 'pool-project', 'pool-bibliotheek', 'bibliotheek', 'dev-bridge'] as const) {
+        const store = await open('eigen.ifc', showcase, null);
+        const S = () => store.getState();
+        S().addTask({ name: 'Wijziging voor export' });
+        const companyId = S().seedDemoLibrary();
+        S().setProject({ companyId, companyName: 'Proefbedrijf' });
+        const projectPath = join(dir, `${name}-${route}-nieuw.ifc`);
+        // De kiezer normaliseert de extensie; ook de CSV-route moet de bestaande IFC-bytes raken.
+        const chosen = route === 'CSV-export' ? csvAlias : alias;
+        answers = route === 'pool-bibliotheek' ? [projectPath, chosen] : [chosen];
+        const before = ipc.calls.length;
+        if (route === 'Opslaan als') await S().saveFileAs();
+        else if (route === 'IFC-export') await S().exportAs('ifc');
+        else if (route === 'CSV-export') await S().exportAs('csv');
+        else if (route.startsWith('pool-')) await S().exportProjectWithPool();
+        else if (route === 'bibliotheek') {
+          const content = S().exportPoolIFC(companyId);
+          ok(`1c ${name}: bibliotheek heeft echte IFC-uitvoer`, content !== null);
+          await saveFileDialog('bibliotheek.ifc', content!, [{ name: 'IFC', extensions: ['ifc'] }],
+            { refuseTarget: S().foreignTargetCheck('export') });
+        } else {
+          // De echte dev-functie is aan de singleton gebonden; alleen de invoer komt uit dezelfde open-route.
+          await open('eigen.ifc', showcase, null, useAppStore);
+          let refused = false;
+          try { await saveToPathWithIO(alias, { writeTextFile: writeUserTextFileTauri }); } catch { refused = true; }
+          ok(`1c ${name}: dev-bridge geeft een weigering`, refused);
+        }
+        eq(`1c ${name} ${route}: doel en link bytegelijk`, [sha(readFileSync(target)), sha(readFileSync(alias))], [sha(bytes), sha(bytes)]);
+        // De tweede pooldialoog mag alleen het nieuwe projectbestand hebben geschreven.
+        const writes = ipc.calls.slice(before).filter(c => c.command === 'plugin:fs|write' || c.command === 'plugin:fs|write_text_file');
+        ok(`1c ${name} ${route}: nul doelwrites`, route === 'pool-bibliotheek' ? writes.length > 0 && existsSync(projectPath) : writes.length === 0);
+        const reason = await refusedWriteTarget(S(), { kind: 'path', path: alias }, { identityFs: fileIdentityFs, readers: writeTargetReaders });
+        eq(`1c ${name} ${route}: getypeerde weigering`, reason, name === 'pset' ? 'foreign-content' : 'building-model');
+      }
+    }
+    // Ook een bestaand eigen bibliotheekbestand blijft een gewoon doel; geen vrijbrief op bestandsnaam.
+    const libraryStore = await open('eigen.ifc', showcase, null);
+    const libraryId = libraryStore.getState().seedDemoLibrary();
+    const library = libraryStore.getState().exportPoolIFC(libraryId)!;
+    const libraryPath = join(dir, 'eigen-bibliotheek.ifc');
+    writeFileSync(libraryPath, library);
+    answers = [libraryPath];
+    const libraryWrites = ipc.calls.length;
+    const libraryResult = await saveFileDialog('bibliotheek.ifc', library, [{ name: 'IFC', extensions: ['ifc'] }],
+      { refuseTarget: libraryStore.getState().foreignTargetCheck('export') });
+    ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', libraryResult !== null);
+    ok('1c: bestaande eigen bibliotheek echt geschreven', ipc.calls.slice(libraryWrites).some(c => c.command === 'plugin:fs|write'));
+    eq('1c: gewone bibliotheekwriter blijft bytegelijk', readFileSync(libraryPath, 'utf8'), library);
+    eq('1c: alle echte bestanden gesloten', ipc.openHandles(), 0);
   } finally {
     ipc.dispose();
     (globalThis as { window?: unknown }).window = savedWindow;

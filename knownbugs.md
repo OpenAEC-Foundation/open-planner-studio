@@ -2047,8 +2047,7 @@ en noem het in je rapport of PR-tekst.
      wegschrijven. Iedere andere afwijking faalt. Uit #870; afgebakend door #916 fixronde 2. — S
 
 1054. **VERVOLG: wat na #870 overblijft bij de grammatica en de doelcontrole.**
-     (1) Geen test voor een niet-leesbaar doel via de site (`window.openaecHost`); de handle- en Tauri-routes zijn wel
-     getest (`check-ifc-foreign-target.ts`). (2) Regeleinden en andere stuurtekens in de vrije velden blijven buiten
+     Een niet-leesbaar doel via site, handle of Tauri is sinds #915 getoetst en weigert met de flag aan. (2) Regeleinden en andere stuurtekens in de vrije velden blijven buiten
      de gedeelde herkenning. De 64-KiB-grens is in #916 fixronde 2 hersteld voor alle drie gebruikers, op precies de
      maat van main: UTF-8-bytes vanaf het bestandsbegin t/m de LF na FILE_NAME, inclusief de vaste stukken. Tot en
      met 65.536 bytes kan die regel herkend worden; daarboven geen uitzondering, dus de gewone route van main.
@@ -2057,9 +2056,8 @@ en noem het in je rapport of PR-tekst.
      en in stukken van 1 B, 7 B en 64 KiB. Een lange gewone geldige kop kan de strenge route blijven volgen. Een
      kapotte auteursregel van ruim 70 KiB geeft, zoals main, 'unreadable' als doel: ook met een wand in de tweede
      sectie of een vreemde propertyset. De twee nieuw overschrijfbare doelen van fixronde 1 zijn daarmee dicht.
-     Binnen de grens blijft de bestaande doelcontrole van main beperkt tot producttypen en de eerste datasectie;
-     zij beschermt een doel met alleen een vreemde propertyset niet algemeen. Dat hoort bij de doelbescherming van
-     fase 1c. Een geopend document met geregistreerd vreemd deel houdt de bestaande opslagblokkade, ook bij Opslaan als.
+     Sinds #915 toetst de doelcontrole met de flag aan ook de volledige C/A/V-indeling; ook een gesloten doel met
+     alleen een vreemde propertyset blijft beschermd. Een geopend document met geregistreerd vreemd deel houdt de bestaande opslagblokkade, ook bij Opslaan als.
      (3) De grammatica kent nog niet elke vorm van de
      norm: geen handtekeningsectie na de laatste datasectie, geen constante namen (`#NAAM`, `@NAAM`). Een geldig bestand
      met zo'n vorm breekt, en weigert dan als doel. (4) De tabel van de kopvormen (`tests/planning/ifcDoelBestanden.ts`)
@@ -2077,17 +2075,19 @@ en noem het in je rapport of PR-tekst.
       4. Een regeleinde in een string: de naam blijft "Prepa⏎ration"; de norm laat stuurtekens weg.
       5. Een andere sectiekop dan `DATA;` (`DATA ;`, `DATA('deel',('IFC4'));`, kleine letters, commentaar of een
          regeleinde ertussen): de planning opent niet (`no-data-section`). De doelcontrole schrijft er wel over: het
-         hele bestand past in de grammatica, zonder model.
+         hele bestand past in de grammatica, zonder model. Sinds #915 vereist het doel ook een geslaagde C/A/V-scan;
+         de bekende scannerWeigert-vormen worden veilig geweigerd (1134).
       6. Meer datasecties: `readIFC` leest alleen de eerste. Een model in een latere sectie weigert (de grammatica ziet
          het); taken in een latere sectie ontbreken. Zonder flag (nu altijd in de app) opent zo'n planning dus met een
          deel van de taken, en Ctrl+S wist de rest; zo ook op main. Alleen met de flag `ifcForeignContent` draait de
-         doelcontrole; die weigert zo'n bestand als doel, behalve bij precies de oude kop van #916. De huidige
-         IFC4X3_ADD2-kop met meerdere secties is voortaan ook 'unreadable'.
+         doelcontrole. Sinds #915 vindt de aanvullende C/A/V-scan ook het vreemde deel achter de eerste sectie,
+         of weigert hij veilig als 'unreadable'; ook bij de oude kop van #916.
       7. De grammatica ziet een model alleen tot het punt waar het bestand breekt. Breekt een bestand in de eerste
          sectie (bijvoorbeeld `IFCREAL(1E5)` of een harde spatie na `DATA;`) en staat er een wand in een latere sectie,
          dan opent het met de taken van de eerste sectie, zoals main. Als doel: 'unreadable' voor een vreemd bestand,
-         maar 'no-model' bij precies het oude LF/IFC4X3-kopsjabloon van #916 (de bestaande leeslus), zodat met de flag
-         Opslaan over de wand mag. Gemeten door de review van #870, ronde 11.
+         maar vóór #915 'no-model' bij precies het oude LF/IFC4X3-kopsjabloon van #916 (de bestaande leeslus). Sinds
+         #915 mag alleen een geslaagde C/A/V-scan zonder vreemd deel schrijven; een scanfout weigert. Gemeten door
+         de review van #870, ronde 11; doelgedrag afgebakend door #915.
      Richting: de lus van `parseSTEP` de tokens van de grammatica laten gebruiken (zie ook 1050). Uit #870 (review
      ronde 9 en 10, GPT-6.1-Terra; ronde 11, Claude Opus 5.5; BEVESTIGD, VERVOLG; besluit Trias). — B
 
@@ -3622,3 +3622,41 @@ en noem het in je rapport of PR-tekst.
      `/tmp/claude-1000/review-898-sol-r1/letterlijk-main.log`, in UTC en Europe/Amsterdam.
      Richting: kalendergeldigheid vóór normalisatie controleren en bronbehoud of een expliciete
      fout afspreken. Alleen geregistreerd op verzoek; niet opgelost in #894. — B
+
+1133. **VERVOLG, bestaand op main: met `ifcForeignContent` uit beschermt de app gesloten vreemde doelen niet op inhoud.**
+     De doelguard slaat de inhoudsscan bewust over voor de bestaande app-pariteit. Een gesloten modelbestand of
+     IFC met alleen een externe pset kan dan door Opslaan als, export of AutoSave worden overschreven. De
+     flag-uit-modelproeven in `check-ifc-foreign-target.ts` bevestigen dit bestaande gedrag; de rode fase-1c-proef
+     bevestigt ook dat alleen een modelscan de gesloten pset niet beschermt. In headless hoort die uitzondering
+     volgens T3 niet te bestaan. Geen uitbreiding van de appbescherming met flag uit in deze PR.
+     Uit de bouw van fase 1c PR 4 (GPT-6.1-Sol via Codex, BEVESTIGD). — B
+
+1134. **VERVOLG: de uitgebreide doelcontrole weigert zestien gemaakte eigen DATA-kopvormen die de lezer wel toelaat.**
+     Met `ifcForeignContent` aan moet naast de modelcontrole ook `scanForeign` slagen. De bestaande
+     `scannerWeigert`-groep uit `tests/planning/ifcDoelBestanden.ts` bevat kleine letters buiten de norm en gaten
+     bij afdrukcodes, stuurtekens en ANCHOR; de gewone modelscanner liet de eigen varianten nog als doel toe.
+     Opslaan als, CSV-export en AutoSave weigeren die nu veilig met 'unreadable', via handle en Tauri-pad.
+     De 26 ondersteunde eigen kopvormen en de echte oude releasebestanden blijven schrijfbaar. Geen lexer- of
+     lezerreparatie in #915; vlag uit blijft main. Hoort bij 1054/1061. Uit de bouw van #804 fase 1c PR 4,
+     na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex). — B
+
+1135. **VERVOLG: de bestaande doelmeldingen zeggen ook bij alleen een externe pset nog 'gebouwmodel'.**
+     #915 beschermt met dezelfde weigering ook gesloten C/A/V-doelen zonder model. De drie sleutels
+     `ifcForeignTargetSave`, `ifcForeignTargetExport` en `ifcForeignTargetAutoSave` in nl/en `common.json`
+     noemen uitsluitend een building/gebouwmodel; de dev-bridge gebruikt dezelfde te smalle uitleg.
+     De weigering is veilig en noemt de juiste uitweg (een ander bestand); alleen de uitleg is te smal.
+     Tekst verbreden bij de aansluiting in fase 1c PR 11, vóór de flag aan mag; geen UI-tekstwijziging in
+     deze bouw-PR. Broncode en sleutelkeuze bevestigd bij de externe-psetproeven van #915, geen browserproef.
+     Ook de instructie van de headless MCP-server (`headless/mcp-server/src/host.ts`, de regel over
+     `planner_export_ifc`) belooft nog zonder voorbehoud dat `overwrite: true` het geopende bestand vervangt;
+     sinds #915 geldt dat alleen voor een doel zonder vreemd deel (review van #915, Sol). — B
+
+1136. **VERVOLG, bestaand op main: de headless MCP-server bewaart gegevens van een ander programma niet bij export
+     naar een nieuwe naam.** De headless server leest IFC als tekst (de keuze voor de bytes-route in
+     `src/services/mcp/tools/fileTools.ts` hangt aan de appflag, en die staat headless uit). Een bestand zonder
+     gebouwmodel maar met een externe pset (de villa-fixture met `ExternPset`) opent; export over de bron wordt sinds
+     #915 geweigerd (`VALIDATION`, bron byte voor byte gelijk), maar `planner_export_ifc` naar een nieuwe naam geeft
+     `ok: true` en een bestand zonder `ExternPset`; `ifcSource` en het bronkenmerk blijven leeg. De bron zelf blijft
+     heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
+     (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
+     review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B

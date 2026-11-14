@@ -221,8 +221,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   where a file breaks (with the flag the bytes route runs it on the text the reader gets, without the
   model part V).
   Otherwise `readIFC` reads only the first data section: the first `DATA;` up to the first `ENDSEC;`. The save-target
-  check runs only with the flag `ifcForeignContent`: then a target that breaks the grammar or has more than one data
-  section refuses, except a file OPS wrote itself (old versions wrote a raw header).
+  check runs only with the flag `ifcForeignContent`: model content refuses early, then the full C/A/V scan must
+  prove that no foreign part remains. Unreadable existing targets refuse. Historical own headers share the exact
+  recognition below; their DATA sections are still scanned strictly.
   Behind the feature flag `ifcForeignContent` (#804 phase 1a; off by default) every IFC open
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
   reader follows `selectPlanning`; a scanner refusal stops document activation) and keeps the source in
@@ -263,7 +264,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   (stdio default, streamable HTTP on loopback with the bridge's HTTP contract), on its own store context, with file
   tools confined to `--root` (lexical + exact `realpath` check, operations run synchronously relative to the checked folder
   object via `chdir` + native `realpath('.')`, `O_NOFOLLOW`;
-  atomic save with no direct-write fallback), no replacing of an existing file while the desktop app runs (`appLock.ts`
+  atomic save with no direct-write fallback), content checks of existing write targets independent of the app flag
+  (`scanForeign` C/A/V; unreadable targets refused, historical own headers use the shared recognition), no replacing of an existing file while the desktop app runs (`appLock.ts`
   reads `open-files*.json` from the app's data folders or `--discovery-dir` on every write), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
   MCP backups in its own data folder. It reuses the
   dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
