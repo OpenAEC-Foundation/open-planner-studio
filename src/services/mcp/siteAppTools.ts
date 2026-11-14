@@ -30,7 +30,7 @@
 // krijgt nooit achteraf een fout (de wijziging is al gedaan); dat antwoord wordt één compact rapport
 // (`compactChange`, zie "Grote wijzigingen"). Wat daarin moet blijven en niet zou passen, weigert `run` vóór
 // uitvoering (`linksTooLarge`). Ook een foutantwoord blijft binnen de grens (`boundedFailure`).
-import { AGENT_GUIDE_URL } from './tools/guideTools';
+import { AGENT_GUIDE_URL, publicAssetUrl, skillAssetPath } from './tools/guideTools';
 import type { McpContext, McpToolDef, McpToolOk, McpToolResult } from './contracts';
 import { createRequestHandler, type McpResponseEvent } from './requestHandler';
 import { toolListEntry, type ListedTool } from './toolListing';
@@ -122,7 +122,8 @@ function narrowHint(name: string, def: McpToolDef | undefined): string {
     // De regels staan in de gids zelf; de skill goed-plannen verwijst er alleen naar (#818).
     return (
       'Ask for one part: `part: "guide"` (for building) or `part: "progress-update"` (progress). ' +
-      `If the guide alone is too large, read it at ${AGENT_GUIDE_URL}.`
+      `If the requested part alone is too large, read the building guide at ${AGENT_GUIDE_URL} ` +
+      `or the progress rules at ${publicAssetUrl(skillAssetPath('progress-update'))}.`
     );
   }
   if (name === 'planner_get_resource_histogram') {

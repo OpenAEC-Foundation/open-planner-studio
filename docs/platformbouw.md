@@ -333,6 +333,8 @@ Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createReques
     `limit` en `offset` (ook optioneel op `planner_get_critical_path`, `planner_compare_baseline` en
     `planner_analyze_delay`), een kleiner `part` van `planner_get_planning_guide` (sinds #818 past elk part, ook `both`),
     `planner_list_tasks` in plaats van `planner_get_project_overview`, of minder detail bij het histogram.
+    Wordt één gidsdeel zelf te groot, dan noemt de melding ook de publieke URL's van de opbouwgids én
+    de voortgangsskill; de opbouwgids vervangt de voortgangsregels niet.
 - **Grote wijzigingen.** Een wijzigende tool of `planner_batch` krijgt nooit achteraf een fout, want de wijziging is
   al gedaan. Van een batch gaat eerst `substeps` af (het activiteitenlog, dat de app al verwerkt heeft); een gewone
   batch van tien stappen met 20 tot 40 taken past daarna volledig. Is het antwoord dan nog te groot, dan wordt het

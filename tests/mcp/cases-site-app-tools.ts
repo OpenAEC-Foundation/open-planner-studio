@@ -297,6 +297,15 @@ test('de gids past, ook met de standaardwaarde van part; een te grote gids geeft
     const failBoth = await failure(install(), 'planner_get_planning_guide', { part: 'both' });
     assertEq(failBoth?.code, 'te_groot', `code bij both, kreeg: ${failBoth?.message ?? 'geen fout'}`);
     assert(failBoth!.message.includes('part: "guide"'), `noemt de gids voor het opbouwen: ${failBoth!.message}`);
+    // Knownbug 1004: de opbouwgids is geen uitweg voor de gevraagde voortgangsregels.
+    const progressUrl = `${GUIDE_PUBLIC_BASE}/skills/progress-update/SKILL.md`;
+    const failProgress = await failure(install(), 'planner_get_planning_guide', { part: 'progress-update' });
+    assertEq(failProgress?.code, 'te_groot', `code bij progress-update, kreeg: ${failProgress?.message ?? 'geen fout'}`);
+    for (const failed of [failBoth!, failProgress!]) {
+      assert(failed.message.includes(progressUrl), `noemt de publieke voortgangsskill: ${failed.message}`);
+    }
+    const progressSource = readFileSync(PUBLIC + progressUrl.slice(GUIDE_PUBLIC_BASE.length + 1), 'utf8');
+    assert(progressSource.includes('name: progress-update'), 'de uitweg levert de voortgangsskill, niet de opbouwgids');
     const build = (await install().run('planner_get_planning_guide', { part: 'guide' })) as { ok: boolean; data: { guide?: string } };
     assert(build.ok && fits(build) && (build.data.guide?.length ?? 0) > 1000, 'part guide past en levert de gids');
   } finally {
