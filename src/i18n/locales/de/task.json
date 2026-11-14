@@ -47,6 +47,8 @@
     "recentColumns": "Zuletzt verwendet",
     "noColumns": "Fügen Sie mit + eine Spalte hinzu.",
     "toggleSummary": "Sammelvorgang ein- oder ausklappen",
+    "toggleMilestones": "Meilensteine ein- oder ausklappen",
+    "milestonesRun": "Meilensteine ({{n}})",
     "calculatedReadOnly": "Diese berechnete Spalte kann nicht bearbeitet werden."
   },
   "taskGrid": {

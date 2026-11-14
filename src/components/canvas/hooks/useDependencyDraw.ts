@@ -51,7 +51,7 @@ export function useDependencyDraw({
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        const targetTask = renderer.getTaskAtY(y);
+        const targetTask = renderer.getTaskAt(x, y);
         if (targetTask && targetTask.id !== depDragState.sourceTaskId && isTimelineCanvasX(x, rect.width)) {
           onRelationDrawn(depDragState.sourceTaskId, targetTask.id, e.clientX, e.clientY);
         }

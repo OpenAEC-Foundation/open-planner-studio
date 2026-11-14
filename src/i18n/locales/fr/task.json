@@ -47,6 +47,8 @@
     "recentColumns": "Utilisées récemment",
     "noColumns": "Ajoutez une colonne avec +.",
     "toggleSummary": "Développer ou réduire la tâche récapitulative",
+    "toggleMilestones": "Développer ou réduire les jalons",
+    "milestonesRun": "Jalons ({{n}})",
     "calculatedReadOnly": "Cette colonne calculée ne peut pas être modifiée."
   },
   "taskGrid": {

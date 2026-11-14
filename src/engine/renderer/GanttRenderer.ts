@@ -1334,20 +1334,18 @@ export class GanttRenderer {
         this.ctx.fillRect(0, rowY, this.opts.canvasWidth, this.opts.rowHeight);
         continue;
       }
+      if (row.kind === 'milestones') {
+        this.drawingRowIndex = i;
+        this.drawMilestoneRun(row.tasks, y, barHeight);
+        continue;
+      }
       const task = row.task;
       const isSelected = this.opts.selectedTaskIds.includes(task.id);
       this.drawingRowIndex = i;
 
-      let overrideColor: string | undefined;
-      let dimmed = false;
       const traceRole = classifyTraceTask(trace, task.id);
-      if (traceRole === 'predecessor-driving') overrideColor = this.colors.tracePredDriving;
-      else if (traceRole === 'predecessor') overrideColor = this.colors.tracePred;
-      else if (traceRole === 'successor-driving') overrideColor = this.colors.traceSuccDriving;
-      else if (traceRole === 'successor') overrideColor = this.colors.traceSucc;
-      else if (traceRole === 'dimmed') {
-        dimmed = true;
-      }
+      const overrideColor = this.traceOverrideColor(traceRole);
+      const dimmed = traceRole === 'dimmed';
 
       if (dimmed) this.ctx.globalAlpha = 0.25;
       else if (row.dimmed) this.ctx.globalAlpha = GanttRenderer.DIM_ALPHA; // filter-ouderketen
@@ -1929,7 +1927,38 @@ export class GanttRenderer {
     return { x, half: Math.max(6, this.bar.barHeight * 0.4) };
   }
 
-  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
+  /**
+   * Issue #868: een ingeklapte mijlpalenreeks op één rij. Elk ruitje tekent zoals een losse mijlpaal
+   * (kleur, trace, selectie per mijlpaal); zijn naam kapt af vóór het volgende ruitje, de hele naam
+   * staat in de tooltip.
+   */
+  private drawMilestoneRun(tasks: readonly Task[], y: number, height: number): void {
+    const placed = tasks
+      .map(task => ({ task, x: this.milestoneAnchorX(task) }))
+      .filter((p): p is { task: Task; x: number } => p.x !== null)
+      .sort((a, b) => a.x - b.x);
+    const size = height * 0.4;
+    placed.forEach(({ task, x }, k) => {
+      const next = placed[k + 1];
+      // Ruimte voor datum en naam: van achter dit ruitje tot vlak vóór het volgende.
+      const room = next ? next.x - size - 4 - (x + size + 6) : Infinity;
+      const traceRole = classifyTraceTask(this.opts.trace, task.id);
+      if (traceRole === 'dimmed') this.ctx.globalAlpha = 0.25;
+      this.drawMilestone(task, y, height, this.opts.selectedTaskIds.includes(task.id), this.traceOverrideColor(traceRole), room);
+      this.ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Trace-tint van een taak in een pad-trace (zie `drawTaskBars`); `undefined` buiten een trace. */
+  private traceOverrideColor(traceRole: ReturnType<typeof classifyTraceTask>): string | undefined {
+    if (traceRole === 'predecessor-driving') return this.colors.tracePredDriving;
+    if (traceRole === 'predecessor') return this.colors.tracePred;
+    if (traceRole === 'successor-driving') return this.colors.traceSuccDriving;
+    if (traceRole === 'successor') return this.colors.traceSucc;
+    return undefined;
+  }
+
+  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string, labelRoom = Infinity): void {
     const ctx = this.ctx;
     // Zelfde guard als barGeometry: een datumloze mijlpaal heeft niets om op te
     // ankeren — niets tekenen i.p.v. per frame crashen op `undefined.includes(...)`.
@@ -1988,7 +2017,8 @@ export class GanttRenderer {
     // canvas-einde, maar hoogstens 200 px (voorbij die breedte is een naam als aanduiding klaar en
     // begint hij alleen nog te overlappen).
     // Met de datums aan (#868) staat de ene datum van de mijlpaal tussen de ruit en de naam.
-    let labelX = x + size + 6;
+    const labelStart = x + size + 6;
+    let labelX = labelStart;
     const date = this.barDates(task)?.finish;
     if (date) {
       this.drawBarDateText(date, labelX, cy);
@@ -1998,7 +2028,7 @@ export class GanttRenderer {
     ctx.fillStyle = this.colors.text;
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
-    const msLabel = this.ellipsize(task.name, Math.min(200, this.opts.canvasWidth - labelX - 4));
+    const msLabel = this.ellipsize(task.name, Math.min(200, this.opts.canvasWidth - labelX - 4, labelRoom - (labelX - labelStart)));
     if (msLabel) ctx.fillText(msLabel, labelX, cy);
   }
 
@@ -2626,6 +2656,25 @@ export class GanttRenderer {
     return row?.kind === 'task' ? row.task : null;
   }
 
+  /**
+   * Hit test op x én y: de taak van een gewone rij, of in een ingeklapte mijlpalenreeks (#868) de
+   * mijlpaal waarvan het ruitje onder `canvasX` ligt (het dichtstbijzijnde binnen zijn greepvlak).
+   */
+  getTaskAt(canvasX: number, canvasY: number): Task | null {
+    const row = this.getRowAtY(canvasY);
+    if (row?.kind === 'task') return row.task;
+    if (row?.kind !== 'milestones') return null;
+    let best: Task | null = null;
+    let bestDist = Infinity;
+    for (const task of row.tasks) {
+      const grab = this.milestoneGrab(task);
+      if (!grab) continue;
+      const dist = Math.abs(canvasX - grab.x);
+      if (dist <= grab.half && dist < bestDist) { best = task; bestDist = dist; }
+    }
+    return best;
+  }
+
   /** Hit test: staat `canvasX`/`canvasY` in het tekstvlak van de naam die de laatste render rechts
    *  achter de balk tekende (`drawOutsideBarName`)? Alleen voor selectie, openen, menu en tooltip;
    *  sleep- en relatiegrepen lezen deze naam bewust niet (`getTaskBarBounds`, `getRelationSourceAt`).
@@ -2668,9 +2717,9 @@ export class GanttRenderer {
     const rowIndex = this.rowIndexByTask.get(taskId);
     if (rowIndex === undefined) return null;
     const row = this.rows[rowIndex];
-    if (row?.kind !== 'task') return null;
-    const task = row.task;
-    if (isSummaryTask(task)) return null;
+    // In een ingeklapte mijlpalenreeks (#868) staat de mijlpaal als ruitje op de reeksrij.
+    const task = row?.kind === 'task' ? row.task : row?.kind === 'milestones' ? row.tasks.find(t => t.id === taskId) : undefined;
+    if (!task || isSummaryTask(task)) return null;
     const { barHeight, barOffset } = this.bar;
     const top = this.rowToY(rowIndex) + barOffset;
     // Een ruit met maar één datum staat er wel (`milestoneAnchorX`) en is dus ook te verplaatsen.
@@ -2713,7 +2762,7 @@ export class GanttRenderer {
     task: Task; edge: 'left' | 'right' | 'body'; segmentIndex: number; segmentCount: number;
   } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
-    const task = this.getTaskAtY(canvasY);
+    const task = this.getTaskAt(canvasX, canvasY);
     if (!task || isSummaryTask(task)) return null;
     // Een nulduurmijlpaal (ruit) is verplaatsbaar maar niet rekbaar (issue #691): hij heeft alleen
     // een body, rond de getekende ruit, ook als hij maar één datum heeft (`milestoneAnchorX` leent
@@ -2769,7 +2818,7 @@ export class GanttRenderer {
    *  het contextmenu ("de pauze onder de cursor") en door de splits-modus (klik in een pauze = niets). */
   getSplitGapAt(canvasX: number, canvasY: number): { task: Task; gapIndex: number; segmentCount: number } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
-    const task = this.getTaskAtY(canvasY);
+    const task = this.getTaskAt(canvasX, canvasY);
     if (!task || task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
     const segs = this.drawnSplitSegments(task);
     if (!segs || this.getTaskBarBounds(canvasX, canvasY)) return null;
@@ -2811,7 +2860,7 @@ export class GanttRenderer {
    */
   getRelationSourceAt(canvasX: number, canvasY: number): Task | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
-    const task = this.getTaskAtY(canvasY);
+    const task = this.getTaskAt(canvasX, canvasY);
     if (!task) return null;
 
     const hasStart = !!shownStart(task);

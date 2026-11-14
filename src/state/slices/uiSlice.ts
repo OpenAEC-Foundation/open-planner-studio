@@ -6,6 +6,7 @@ import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { milestoneRunHeadOf, milestoneRunHeads } from '@/engine/view/visibleRows';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 
@@ -453,7 +454,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   collapseTasks: (taskIds) => {
     set((s) => {
-      const summaryIds = s.tasks.filter(isSummaryTask).map((t) => t.id);
+      // Mijlpalenreeksen klappen in als een fase (#868): hun kop telt als inklapbaar.
+      const summaryIds = [...s.tasks.filter(isSummaryTask).map((t) => t.id), ...milestoneRunHeads(s.tasks)];
       if (!taskIds || taskIds.length === 0) {
         // Geen doellijst ⇒ alles. Bewust een VERVANGING (niet toevoegen): zo verdwijnen meteen ook
         // ids van taken die inmiddels geen summary meer zijn.
@@ -473,8 +475,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   expandTasks: (taskIds) => {
     set((s) => {
-      const summaryIds = new Set(s.tasks.filter(isSummaryTask).map((t) => t.id));
-      // Doellijst beperken tot echte summary-taken; zonder lijst gelden ze allemaal.
+      const summaryIds = new Set([...s.tasks.filter(isSummaryTask).map((t) => t.id), ...milestoneRunHeads(s.tasks)]);
+      // Doellijst beperken tot echte summary-taken en reekskoppen; zonder lijst gelden ze allemaal.
       const targets = !taskIds || taskIds.length === 0
         ? summaryIds
         : new Set(taskIds.filter((id) => summaryIds.has(id)));
@@ -492,6 +494,9 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
     // en zonder deze wacht deze lus dan oneindig i.p.v. de vier andere oudersketen-wandelingen in
     // dit project die er wél tegen bewaken.
     const bezocht = new Set<string>();
+    // Staat de taak zelf in een ingeklapte mijlpalenreeks (#868), dan klapt die reeks ook open.
+    const runHead = milestoneRunHeadOf(s.tasks, taskId);
+    if (runHead && s.ui.collapsedTaskIds.includes(runHead)) toExpand.push(runHead);
     let parentId = taskMap.get(taskId)?.parentId ?? null;
     while (parentId && !bezocht.has(parentId)) {
       bezocht.add(parentId);

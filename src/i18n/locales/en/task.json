@@ -47,6 +47,8 @@
     "recentColumns": "Recently used",
     "noColumns": "Use + to add a column.",
     "toggleSummary": "Expand or collapse summary task",
+    "toggleMilestones": "Expand or collapse milestones",
+    "milestonesRun": "Milestones ({{n}})",
     "calculatedReadOnly": "This calculated column cannot be edited."
   },
   "taskGrid": {
