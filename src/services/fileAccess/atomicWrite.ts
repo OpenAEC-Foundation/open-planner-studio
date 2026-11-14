@@ -16,6 +16,7 @@
  */
 
 import { generateId } from '@/utils/id';
+import { BytePartsWriteError } from './byteParts';
 
 /** De drie bestandsoperaties die de schrijf-en-vervang nodig heeft — injecteerbaar voor tests. */
 export interface AtomicWriteFs {
@@ -202,4 +203,39 @@ export async function writeUserTextFileTauri(path: string, text: string): Promis
 export async function writeUserBytesTauri(path: string, bytes: Uint8Array): Promise<void> {
   const fs = await import('@tauri-apps/plugin-fs');
   await replaceUserFile(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o), b => b), path, bytes);
+}
+
+/**
+ * T1: uitsluitend een NIEUW einddoel. Gewone rename vervangt een intussen verschenen bestand;
+ * daarom opent deze ingang het einddoel zelf met createNew, zonder rename of directe terugval.
+ * Dit maakt geen atomaire vervanging of crashvaste publicatie: die primitief hoort bij fase 2.
+ * De aanroeper houdt de delen ongewijzigd tot de opslag klaar is.
+ */
+export async function writeNewByteParts(
+  fs: Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'>,
+  path: string,
+  parts: readonly Uint8Array[],
+): Promise<void> {
+  let file: Awaited<ReturnType<typeof fs.createNew>>;
+  try { file = await fs.createNew(path); }
+  catch (error) { throw new BytePartsWriteError('create-new', error); }
+  let phase: 'write' | 'close' = 'write';
+  try {
+    for (const part of parts) await file.write(part);
+    phase = 'close';
+    await file.close();
+  } catch (error) {
+    if (phase === 'write') {
+      try { await file.close(); } catch { /* behoud de schrijffout */ }
+    }
+    // Alleen na een geslaagde eigen aanmaak opruimen; een botsend doel nooit verwijderen.
+    try { await fs.remove(path); } catch { /* eigen onvolledig bestand kan achterblijven */ }
+    throw new BytePartsWriteError(phase, error);
+  }
+}
+
+/** Tauri: delen afzonderlijk via dezelfde handle; de adapter maakt ook korte writes af. */
+export async function writeUserBytePartsTauri(path: string, parts: readonly Uint8Array[]): Promise<void> {
+  const fs = await import('@tauri-apps/plugin-fs');
+  await writeNewByteParts(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o), b => b), path, parts);
 }

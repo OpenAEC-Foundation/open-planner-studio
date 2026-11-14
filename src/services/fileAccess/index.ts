@@ -2,12 +2,14 @@ import { isTauri } from '@/utils/platform';
 import {
   openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
   fileIdentityFsTauri, scanTargetPathTauri,
+  saveBytePartsDialogTauri, saveBytePartsToRefTauri,
 } from './tauriBackend';
 import type { FileIdentityFs } from './fileIdentity';
 import type { TargetReaders } from './foreignSourceTarget';
 import { readSiteSourceFile } from './siteBackend';
 import {
   openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
+  saveBytePartsDialogWeb, saveBytePartsToRefWeb,
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
 
@@ -159,8 +161,8 @@ export function saveFileDialog(
 
 /**
  * Opslaan-als / export van BYTES via picker — de binaire tegenhanger van `saveFileDialog`,
- * met dezelfde annuleer-, weigerings- en download-terugvalafhandeling. Dit is het ENIGE
- * byte-schrijfpad in de app: een tweede zou onvermijdelijk een eigen foutafhandeling krijgen.
+ * met dezelfde annuleer-, weigerings- en download-terugvalafhandeling. Dit is het bestaande
+ * byte-schrijfpad voor binaire exports; de strikte delen-ingang hieronder vervangt nooit een lokaal bestand.
  */
 export function saveBytesDialog(
   defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts: CheckedSaveDialogOpts,
@@ -168,6 +170,26 @@ export function saveBytesDialog(
   return isTauri()
     ? saveBytesDialogTauri(defaultName, bytes, filters, opts)
     : saveBytesDialogWeb(defaultName, bytes, filters, opts);
+}
+
+/**
+ * #804, T1: voorbereid schrijfresultaat als delen. Desktop maakt alleen een nieuw einddoel aan;
+ * web downloadt altijd. De doelcontrole blijft verplicht, ook bij een nieuw bedoelde naam.
+ * Site-opslag gebruikt de delen-functies in siteBackend, met de documentversie als verplichte basis.
+ */
+export function saveBytePartsDialog(
+  defaultName: string, parts: readonly Uint8Array[], filters: FileFilter[], opts: CheckedSaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  return isTauri()
+    ? saveBytePartsDialogTauri(defaultName, parts, filters, opts)
+    : saveBytePartsDialogWeb(defaultName, parts, opts);
+}
+
+/** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een BytePartsWriteError.
+ * Geen permissieprompt of terugval. Een site-ref geeft false: daar is de basisversie nodig. */
+export function saveBytePartsToRef(ref: FileRef, parts: readonly Uint8Array[]): Promise<boolean> {
+  if (ref.kind === 'site') return Promise.resolve(false);
+  return isTauri() ? saveBytePartsToRefTauri(ref, parts) : saveBytePartsToRefWeb(ref, parts);
 }
 
 // Een site-ref gaat hieronder NOOIT naar de Tauri- of webbackend. Schrijven naar de site kan via
