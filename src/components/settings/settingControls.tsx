@@ -64,7 +64,7 @@ export function SettingToggle({ label, hint, checked, onChange, disabled, style,
         />
         <span>{label}</span>
       </label>
-      {hint && <p className="scrollzoom-hint">{hint}</p>}
+      {hint && <p className="settings-hint">{hint}</p>}
     </>
   );
 }

@@ -28,6 +28,7 @@ import {
 import { checkDocs, checkDocsArticle, checkUi } from '../../scripts/translate/gates';
 import type { Concept, LangTermbase } from '../../scripts/translate/common';
 import { applyUiPackage, buildUiPackages, uiUnitStates, type NsInput, type UiOut, type UiSources } from '../../scripts/translate/ui';
+import { SETTINGS_GROUP_IDS } from '../../src/utils/settingIds';
 import { unitMap } from '../../scripts/translate/common';
 import type { JsonObject } from '../../scripts/i18n-tools';
 
@@ -413,18 +414,18 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   const nlM: JsonObject = { ribbon: { planning: 'Planning', start: 'Start' }, columns: { planning: 'Planning' } };
   const enM: JsonObject = { ribbon: { planning: 'Planning', start: 'Home' }, columns: { planning: 'Planning' } };
   const csM: JsonObject = { ribbon: { planning: 'Plán', start: 'Domů' }, columns: { planning: 'Plánování' } };
-  const nlC: JsonObject = { settings: { planningTab: 'Planning' }, dlg: { deps: 'Relaties' } };
-  const enC: JsonObject = { settings: { planningTab: 'Planning' }, dlg: { deps: 'Relations' } };
-  const csC: JsonObject = { settings: { planningTab: 'Plán' }, dlg: { deps: 'Závislosti' } };
+  const nlC: JsonObject = { settings: { groups: { planning: 'Planning' } }, dlg: { deps: 'Relaties' } };
+  const enC: JsonObject = { settings: { groups: { planning: 'Planning' } }, dlg: { deps: 'Relations' } };
+  const csC: JsonObject = { settings: { groups: { planning: 'Plán' } }, dlg: { deps: 'Závislosti' } };
   const tIndex = buildEnLabelIndex([{ ns: 'menu', nl: nlM, en: enM, target: csM }, { ns: 'common', nl: nlC, en: enC, target: csC }], 'cs',
-    { menu: { 'ribbon.planning': 'x', 'ribbon.start': 'x', 'columns.planning': 'x' }, common: { 'settings.planningTab': 'x', 'dlg.deps': 'x' } });
+    { menu: { 'ribbon.planning': 'x', 'ribbon.start': 'x', 'columns.planning': 'x' }, common: { 'settings.groups.planning': 'x', 'dlg.deps': 'x' } });
   const TAB = '# T\n\nThe same button is on *Planning › Relations*. Turn it on in tab *Planning*. Under *Planning*, choose the column.\n';
   const r = sectionLabels(0, TAB, tIndex, new Set());
   const tab = r.labels.find(l => l.en === 'Planning' && l.role === 'tab');
   const free = r.labels.find(l => l.en === 'Planning' && !l.role);
   eq('16b tabbladplek: alleen de tabbladnaam als kandidaat, met role en aantal', [tab?.targets, tab?.count], [['Plán'], 2]);
   eq('16c dezelfde naam buiten een tabbladplek: alle kandidaten', free?.targets, ['Plán', 'Plánování']);
-  ok('16d C3 houdt alle sleutels van het label (geen nieuwe digest)', 'menu:columns.planning' in r.keys && 'common:settings.planningTab' in r.keys);
+  ok('16d C3 houdt alle sleutels van het label (geen nieuwe digest)', 'menu:columns.planning' in r.keys && 'common:settings.groups.planning' in r.keys);
   eq('16d\' classifyItalic op een tabbladplek: role tab', classifyItalic('Planning', tIndex, new Set(), true)[0]?.role, 'tab');
   eq('16d" "*X* tab" telt, "tabs: *X*" niet', ['On the *Planning* tab.', 'Three tabs: *Planning* and more.']
     .map(t => sectionLabels(0, t, tIndex, new Set()).labels.find(l => l.en === 'Planning')?.role ?? null), ['tab', null]);
@@ -492,9 +493,8 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   const ribbon = readFileSync(resolve(root, 'src/components/layout/Ribbon/Ribbon.tsx'), 'utf8');
   ok('16u\' Ribbon.tsx toont menu:ribbon.<tab> met beeld→view en instellingen→settings', ribbon.includes("tMenu(`ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`)")
     && ribbonTabKey('beeld') === 'menu:ribbon.view' && ribbonTabKey('planning') === 'menu:ribbon.planning');
-  const panel = readFileSync(resolve(root, 'src/components/settings/SettingsPanelContent.tsx'), 'utf8');
-  eq('16v SETTINGS_TAB_KEYS = de tabbladen van het instellingenvenster', [...SETTINGS_TAB_KEYS],
-    [...panel.matchAll(/t\('(settings\.\w+Tab)'\)/g)].map(m => `common:${m[1]}`));
+  eq('16v SETTINGS_TAB_KEYS = de groepen van het instellingenvenster', [...SETTINGS_TAB_KEYS],
+    SETTINGS_GROUP_IDS.map(group => `common:settings.groups.${group}`));
 }
 
 // ── 17. Getallen in UI-labels (labelregel gaat voor de cijferregel) ──────────────────────────

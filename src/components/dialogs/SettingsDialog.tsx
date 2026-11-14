@@ -80,7 +80,7 @@ export function SettingsDialog() {
 
         {/* Body — shared settings panel */}
         <div className="settings-body">
-          <SettingsPanelContent />
+          <SettingsPanelContent autoFocusSearch />
         </div>
 
         {/* Footer */}
