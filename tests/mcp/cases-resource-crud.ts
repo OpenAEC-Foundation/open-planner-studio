@@ -503,7 +503,7 @@ test('IFC-round-trip: elk schrijfbaar resourceveld overleeft opslaan + herladen'
   });
   await makeResource({ name: 'Zand', type: 'MATERIAL', unitOfMeasure: 'm3', maxUnits: 100 });
 
-  const ifc = writeIFC(buildWriteIFCInput(store.getState() as any));
+  const ifc = writeIFC(buildWriteIFCInput(store.getState() as any, 'planOnly'));
   const back = readIFC(ifc);
 
   const kraan = back.resources!.find((r) => r.name === 'Torenkraan')!;

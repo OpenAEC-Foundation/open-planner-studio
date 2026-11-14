@@ -103,7 +103,7 @@ async function openAndRecalc(name: string, input: { text?: string; bytes?: Uint8
 async function storeRoute(name: string, input: { text?: string; bytes?: Uint8Array }, write: (p: DocumentPayload) => string):
   Promise<[string, DocumentPayload][]> {
   const opened = await openAndRecalc(name, input);
-  const reopened = await openAndRecalc('heropend.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened))) });
+  const reopened = await openAndRecalc('heropend.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened, 'planOnly'))) });
   const again = await openAndRecalc('tweede-export.xml', { text: write(reopened) });
   return [['geopend', opened], ['IFC heropend', reopened], ['tweede export', again]];
 }
@@ -444,7 +444,7 @@ for (const fmt of FORMATS) {
   ok('(7) 274 P6 XML: de kalender blijft scalair (08:00 is geen uursignaal)', read.calendar.workTime === undefined);
   const loaded = load(read);
   eq('(7) 274 P6 XML: werkelijk einde blijft 08:00 na laden', byName(loaded, 'Oplevering')?.time.actualFinish, '2026-06-01T08:00');
-  const reopened = load(quiet(() => readIFC(writeIFC(buildWriteIFCInput(loaded)))));
+  const reopened = load(quiet(() => readIFC(writeIFC(buildWriteIFCInput(loaded, 'planOnly')))));
   eq('(7) 274 P6 XML: ook na opslaan als IFC en heropenen', byName(reopened, 'Oplevering')?.time.actualFinish, '2026-06-01T08:00');
   eq('(7) 274 P6 XML: de statusdatum houdt zijn 08:00 (vreemd bestand)', loaded.project.statusDate, '2026-06-02T08:00');
   // Dezelfde mijlpaal in MSPDI, zonder OPS-definities.
@@ -658,7 +658,7 @@ for (const c of LAG_CASES) {
   const opened = await openAndRecalc('lag.mpp', { bytes: mppLagBytes(c.unit, c.raw) });
   eq(`(13) ${c.label}: .mpp in de store, na Bereken`, lagOf(opened), want);
   // IFC: het slot draagt hele minuten, het record de breuk.
-  const ifc = quiet(() => writeIFC(buildWriteIFCInput(opened)));
+  const ifc = quiet(() => writeIFC(buildWriteIFCInput(opened, 'planOnly')));
   const record = ifc.match(/IFCPROPERTYSINGLEVALUE\('ExactMinuteLags',\$,IFCTEXT\('\{"[^"]+":(\[[^\]]*\])\}'\),\$\)/)?.[1];
   eq(`(13) ${c.label}: IFC-record [exacte minuten, geschreven minuten]`, record, `[${c.minutes},${Math.round(c.minutes)}]`);
   const reopened = await openAndRecalc('lag.ifc', { text: ifc });
@@ -688,7 +688,7 @@ for (const c of LAG_CASES) {
 {
   // Hele minuten krijgen geen record.
   const whole = await openAndRecalc('lag.mpp', { bytes: mppLagBytes(5, 1500) });
-  ok('(13) 150 min: geen ExactMinuteLags in IFC', !quiet(() => writeIFC(buildWriteIFCInput(whole))).includes('ExactMinuteLags'));
+  ok('(13) 150 min: geen ExactMinuteLags in IFC', !quiet(() => writeIFC(buildWriteIFCInput(whole, 'planOnly'))).includes('ExactMinuteLags'));
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -714,7 +714,7 @@ for (const c of LAG_CASES) {
   if (!isMultiDocumentImport(noise)) eq('(14) XER 0,12 u: precies 7,2 min, zonder floatruis', noise.sequences[0]?.lagMinutes, 7.2);
   const opened = await openAndRecalc('lag.xer', { bytes: xerWithLag('0.33') });
   eq('(14) XER 0,33 u: in de store, na Bereken', lagMinOf(opened), want);
-  const ifc = quiet(() => writeIFC(buildWriteIFCInput(opened)));
+  const ifc = quiet(() => writeIFC(buildWriteIFCInput(opened, 'planOnly')));
   const record = ifc.match(/IFCPROPERTYSINGLEVALUE\('ExactMinuteLags',\$,IFCTEXT\('\{"[^"]+":(\[[^\]]*\])\}'\),\$\)/)?.[1];
   eq('(14) XER 0,33 u: IFC-record [19.8,20]', record, '[19.8,20]');
   const reopened = await openAndRecalc('lag.ifc', { text: ifc });
@@ -796,7 +796,7 @@ for (const c of LAG_CASES) {
   if (!isMultiDocumentImport(direct)) eq('(15) XER: readXER', minutesOf(direct), want);
   const opened = await openAndRecalc('duur.xer', { bytes: new TextEncoder().encode(text) });
   eq('(15) XER: in de store, na Bereken', minutesOf(opened), want);
-  const reopened = await openAndRecalc('duur.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened))) });
+  const reopened = await openAndRecalc('duur.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened, 'planOnly'))) });
   eq('(15) XER: IFC opgeslagen, heropend en berekend', minutesOf(reopened), want);
   eq('(15) XER: MSPDI heropend en berekend', minutesOf(await openAndRecalc('duur.xml', { text: MSPDI.write(reopened) })), want);
   eq('(15) XER: P6 XML heropend en berekend', minutesOf(await openAndRecalc('duur-p6.xml', { text: P6.write(reopened) })), want);
@@ -811,7 +811,7 @@ for (const c of LAG_CASES) {
   const want = ['hours', 2419.8, 979.8];
   const opened = await openAndRecalc('duur.mpp', { bytes: mppTaskBytes({ durationRaw: 24198, remainingRaw: 9798 }) });
   eq('(15) .mpp 2419,8 en 979,8 min: in de store, na Bereken', minutesOf(opened), want);
-  const reopened = await openAndRecalc('duur.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened))) });
+  const reopened = await openAndRecalc('duur.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened, 'planOnly'))) });
   eq('(15) .mpp: IFC opgeslagen, heropend en berekend', minutesOf(reopened), want);
   eq('(15) .mpp: MSPDI heropend en berekend', minutesOf(await openAndRecalc('duur.xml', { text: MSPDI.write(reopened) })), want);
   eq('(15) .mpp: P6 XML heropend en berekend', minutesOf(await openAndRecalc('duur-p6.xml', { text: P6.write(reopened) })), want);

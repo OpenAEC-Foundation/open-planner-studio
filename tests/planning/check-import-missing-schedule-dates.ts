@@ -180,7 +180,7 @@ function blankTaskTimeSlots(ifc: string, name: string, slots: number[]): string 
   throw new Error(`geen IFCTASKTIME voor ${name}`);
 }
 {
-  let ifc = writeIFC(buildWriteIFCInput(src));
+  let ifc = writeIFC(buildWriteIFCInput(src, 'planOnly'));
   // 5 ScheduleStart, 6 ScheduleFinish, 7-10 Early/Late, 16/17 ActualStart/-Finish.
   for (const n of ['B', 'M']) ifc = blankTaskTimeSlots(ifc, n, [5, 6, 7, 8, 9, 10, 16, 17]);
   const parsed = readIFC(ifc);

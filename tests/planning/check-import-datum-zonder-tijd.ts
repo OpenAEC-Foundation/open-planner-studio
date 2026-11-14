@@ -87,7 +87,7 @@ function chain(
     eq(`${format} laden met berekening "${name}"`, view(loaded.store.getState(), name), want);
   }
 
-  const saved = writeIFC(buildWriteIFCInput(loaded.store.getState()));
+  const saved = writeIFC(buildWriteIFCInput(loaded.store.getState(), 'planOnly'));
   const reopened = createAppStoreContext();
   reopened.store.getState().applyLoadedProject(reopen(saved), { recompute: true });
   for (const [name, want] of Object.entries(normalized)) {

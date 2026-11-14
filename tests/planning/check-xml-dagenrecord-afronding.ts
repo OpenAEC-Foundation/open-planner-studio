@@ -199,8 +199,8 @@ for (const fmt of FORMATS) {
 // IFC-lezer houdt de rest uit het record (knownbug 357 is gesloten in #663).
 {
   const original = quiet(() => prepareLoadedPayload(payload(), { recompute: true }));
-  const ifc1 = quiet(() => writeIFC(buildWriteIFCInput(original)));
-  const ifc2 = quiet(() => writeIFC(buildWriteIFCInput(payloadFromImport(quiet(() => readIFC(ifc1)), null))));
+  const ifc1 = quiet(() => writeIFC(buildWriteIFCInput(original, 'planOnly')));
+  const ifc2 = quiet(() => writeIFC(buildWriteIFCInput(payloadFromImport(quiet(() => readIFC(ifc1)), null), 'planOnly')));
   const times = (ifc: string) => [...ifc.matchAll(/IFC(?:TASKTIME|LAGTIME)\(('[^']*'|\$)[^\n]*/g)]
     .map(m => m[0].replace(/#\d+/g, '#')).sort();
   const first = times(ifc1);

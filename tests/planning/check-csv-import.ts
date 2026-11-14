@@ -394,7 +394,7 @@ const lagsByLink = (r: ImportResult) => {
   context.store.getState().applyLoadedProject(readCSV(csv), { recompute: true });
   eq('352 laden en berekenen behoudt echte actuals', actuals(context.store.getState().tasks), expected);
   const reopened = createAppStoreContext();
-  reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(context.store.getState()))), { recompute: true });
+  reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(context.store.getState(), 'planOnly'))), { recompute: true });
   eq('352 IFC opslaan en heropenen behoudt echte actuals', actuals(reopened.store.getState().tasks), expected);
   // 100 % met een starttijd en zonder werkelijk einde: het afgeleide einde (geplande finish, een kale
   // datum) is de hele werkdag en wordt het einde van die dag, niet de starttijd (nulduur).
@@ -418,7 +418,7 @@ const lagsByLink = (r: ImportResult) => {
     loaded.store.getState().applyLoadedProject(parsed, { recompute: true });
     eq(`352 alleen start, ${label}: laden en berekenen`, actuals(loaded.store.getState().tasks), want);
     const back = createAppStoreContext();
-    back.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(loaded.store.getState()))), { recompute: true });
+    back.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(loaded.store.getState(), 'planOnly'))), { recompute: true });
     eq(`352 alleen start, ${label}: IFC opslaan en heropenen`, actuals(back.store.getState().tasks), want);
   }
   const startOnlyContext = createAppStoreContext();
@@ -426,7 +426,7 @@ const lagsByLink = (r: ImportResult) => {
   eq('352 alleen start: laden en berekenen geeft het einde van de werkdag', actuals(startOnlyContext.store.getState().tasks), derived);
   const startOnlyReopened = createAppStoreContext();
   startOnlyReopened.store.getState().applyLoadedProject(
-    readIFC(writeIFC(buildWriteIFCInput(startOnlyContext.store.getState()))), { recompute: true });
+    readIFC(writeIFC(buildWriteIFCInput(startOnlyContext.store.getState(), 'planOnly'))), { recompute: true });
   eq('352 alleen start: IFC opslaan en heropenen houdt het einde van de werkdag',
     actuals(startOnlyReopened.store.getState().tasks), derived);
   const midnight = readCSV(csvOf(['Name', 'Actual Start', 'Actual Finish'],

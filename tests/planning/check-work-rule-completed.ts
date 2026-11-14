@@ -46,7 +46,7 @@ for (const rule of WORK_RULES) {
       eq(`${name}: vooraf totaal`, load(0), expected);
       const roundTrip = () => {
         const fields = own().map(a => [a.unitsPerDay, a.actualWorkMinutes, a.remainingWorkMinutes]);
-        S().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), {
+        S().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), {
           linkedOpen: true, recompute: true, filePath: null,
         });
         eq(`${name}: werkvelden overleven IFC`, own().map(a => [a.unitsPerDay, a.actualWorkMinutes, a.remainingWorkMinutes]), fields);

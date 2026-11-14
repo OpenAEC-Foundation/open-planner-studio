@@ -377,7 +377,7 @@ export const fileTools: McpToolDef[] = [
       if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
-      const input = buildExportIFCInput(state);
+      const input = buildExportIFCInput(state, 'merge');
       const { content, literalCalendarIds } = writeIFCWithChoices(input);
       const ifcSchema = projectIfcSchema(input.project);
       const question = ifcSchemaQuestionFor(state.project, state.ifcSource);

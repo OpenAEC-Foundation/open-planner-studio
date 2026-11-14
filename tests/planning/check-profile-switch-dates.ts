@@ -143,7 +143,7 @@ eq('09 OPS → P6: 2 taken terug', switchTo(ctx, 'p6').shifted, 2);
 
 // 3. "Gaat zo het IFC in": opslaan ná een berekening onder OPS, heropenen, terug naar P6.
 switchTo(ctx, 'ops');
-const ifc = writeIFC(buildWriteIFCInput(S()));
+const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const reopened = createAppStoreContext();
 reopened.store.getState().applyOpenedImport(readXerArchiveIFC(ifc), { filePath: null, recompute: true });
 // Sinds 2026-09-24 draagt OPS hier geen A19-afwijking meer: het is het kale standaardprofiel (afwezig ≡ ops).

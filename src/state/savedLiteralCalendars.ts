@@ -15,7 +15,7 @@ const written = new WeakMap<object, readonly string[]>();
 /** De IFC-tekst van een opslag naar het eigen bestand. Onthoudt welke kalenders letterlijk werden, voor het vastleggen
  *  van die opslag (`literalCalendarIdsWritten`). */
 export function serializeForSave(source: IFCSaveSource): string {
-  const { content, literalCalendarIds } = writeIFCWithChoices(buildWriteIFCInput(source));
+  const { content, literalCalendarIds } = writeIFCWithChoices(buildWriteIFCInput(source, 'merge'));
   written.set(source, literalCalendarIds);
   return content;
 }

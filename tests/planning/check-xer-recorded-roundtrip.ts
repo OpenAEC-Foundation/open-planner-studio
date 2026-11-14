@@ -177,7 +177,7 @@ expect('1h het besluit is niet triviaal: deze fixture verschuift echt taken (aan
 store().runCPM();
 const outsidePayload = store().getOpenDocumentPayloads()[0]!.payload;
 expect('2z runCPM verlaat de modus echt', outsidePayload.datesAsRecorded === false);
-const ifcOutsideMode = writeIFC(buildWriteIFCInput(outsidePayload));
+const ifcOutsideMode = writeIFC(buildWriteIFCInput(outsidePayload, 'planOnly'));
 const reopenedOutside = readXerArchiveIFC(ifcOutsideMode);
 eq('2a heropend IFC levert exact dezelfde vastlegging (alle zes assen, incl. de undefined-assen)',
   reopenedOutside.recordedTimes, originalTimes);
@@ -196,7 +196,7 @@ expect('2e de IFC-`recordedFields`-route wordt NIET gemengd met het bron-orakel'
 // ── 3. Opslaan ÍN de modus: P6's waarden staan in `task.time` ────────────────────────────────
 // `basePayload` (sectie 1) staat dankzij het T4-beleid AL in de modus — dat IS de "ín de modus
 // opgeslagen"-toestand, geen aparte `applyRecordedTimesToTasks`-constructie meer nodig.
-const ifcInMode = writeIFC(buildWriteIFCInput(basePayload));
+const ifcInMode = writeIFC(buildWriteIFCInput(basePayload, 'planOnly'));
 const reopenedInMode = readXerArchiveIFC(ifcInMode);
 eq('3a in de modus opgeslagen IFC levert dezelfde vastlegging', reopenedInMode.recordedTimes, originalTimes);
 eq('3b in de modus opgeslagen IFC draagt de HEROPEN-herkomst', reopenedInMode.recordedTimesOrigin, 'xer-archive');
@@ -237,7 +237,7 @@ expect('4b heropenen van een ongewijzigd, ín-de-modus opgeslagen IFC gaat óók
 store().updateTask(store().tasks[0]!.id, { name: 'Bewerkt na import' });
 const editedPayload = store().getOpenDocumentPayloads()[0]!.payload;
 expect('4e één bewerking wist "ongewijzigd sinds import"', editedPayload.importPristine === false && editedPayload.isDirty === true);
-const ifcEdited = writeIFC(buildWriteIFCInput(editedPayload));
+const ifcEdited = writeIFC(buildWriteIFCInput(editedPayload, 'planOnly'));
 // Een naam wijzigen laat de modus staan (datumneutraal); opslaan in de modus schrijft het pset dan
 // nog wél, maar alleen met `SourceFormat` — de vlag zelf is weg (zelfde stand als na `renumberWbs`).
 expect('4f het bewerkte bestand draagt "ongewijzigd sinds import" niet meer', !ifcEdited.includes("'UnchangedSinceImport'"));
@@ -258,7 +258,7 @@ eq('4h de vastlegging zelf is daarbij onveranderd (zelfde herkomst en zesassige 
 // `SourceFormat`, en heropenen toont de berekening — nooit stil P6's oude datums.
 store().updateTask(store().tasks[0]!.id, { priority: store().tasks[0]!.priority + 1 });
 expect('4i0 voorwaarde: de planningsbewerking verliet de modus', store().datesAsRecorded === false);
-const ifcEditedOutside = writeIFC(buildWriteIFCInput(store().getOpenDocumentPayloads()[0]!.payload));
+const ifcEditedOutside = writeIFC(buildWriteIFCInput(store().getOpenDocumentPayloads()[0]!.payload, 'planOnly'));
 store().newProject();
 store().applyOpenedImport(readXerArchiveIFC(ifcEditedOutside), {
   filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: false,
@@ -274,7 +274,7 @@ eq('4d ... en dat geldt ook voor de buiten-de-modus-heropening',
 
 // ── 5. IFC ZÓNDER XER-archief blijft byte-identiek gedrag houden ─────────────────────────────
 const ifcWithoutArchive = writeIFC({
-  ...buildWriteIFCInput(basePayload),
+  ...buildWriteIFCInput(basePayload, 'planOnly'),
   xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
 });
 const reopenedPlain = readXerArchiveIFC(ifcWithoutArchive);
@@ -292,7 +292,7 @@ expect('5b de bestaande #63-IFC-route (recordedFields) werkt daar onveranderd',
 // onrechte weer aanzette.
 async function recoverSingleDocument(label: string, payload: DocumentPayload): Promise<DocumentPayload> {
   await clearRecovery();
-  const ifc = writeIFC(buildWriteIFCInput(payload));
+  const ifc = writeIFC(buildWriteIFCInput(payload, 'planOnly'));
   await saveRecovery(fullRecoverySave('doc-1', [{ id: 'doc-1', ifc, filePath: null, isDirty: true, datesAsRecorded: payload.datesAsRecorded }]));
   const loaded = await loadRecovery();
   expect(`${label}: recoveryStore levert de snapshot terug`, loaded.docs.length === 1);
@@ -374,7 +374,7 @@ expect('6f ... en vergeet de opgeslagen datums (geen aanbod-stand meer, eigenaar
   await clearRecovery();
   await saveRecovery(fullRecoverySave(secondId, before.map(document => ({
     id: document.id,
-    ifc: writeIFC(buildWriteIFCInput(document.payload)),
+    ifc: writeIFC(buildWriteIFCInput(document.payload, 'planOnly')),
     filePath: null,
     isDirty: true,
     datesAsRecorded: document.payload.datesAsRecorded,
@@ -432,7 +432,7 @@ function chainOf(mutate: boolean): { times: Record<string, RecordedTime>; cpm: s
     filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: false,
   });
   const payload = store().getOpenDocumentPayloads()[0]!.payload;
-  const reopened = readXerArchiveIFC(writeIFC(buildWriteIFCInput(payload)));
+  const reopened = readXerArchiveIFC(writeIFC(buildWriteIFCInput(payload, 'planOnly')));
   store().newProject();
   store().applyOpenedImport(reopened, {
     filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: false,
@@ -503,7 +503,7 @@ if (isMultiDocumentImport(twoProject)) {
   for (const doc of docs) {
     const selector = doc.payload.xerSourceProjectId!;
     const before = twoProject.results.find(r => r.xer?.sourceProjectId === selector)!;
-    const after = readXerArchiveIFC(writeIFC(buildWriteIFCInput(doc.payload)));
+    const after = readXerArchiveIFC(writeIFC(buildWriteIFCInput(doc.payload, 'planOnly')));
     eq(`9c ${selector} — heropend document krijgt de vastlegging van zijn EIGEN project`,
       after.recordedTimes, before.recordedTimes);
     eq(`9d ${selector} — en uitsluitend zijn eigen taak-id`,
@@ -539,7 +539,7 @@ function corpusRoundTrip(label: string, path: string): void {
     filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: false,
   });
   const payload = store().getOpenDocumentPayloads().find(d => d.payload.xerSourceProjectId === parsed.xer?.sourceProjectId)!.payload;
-  const ifc = writeIFC(buildWriteIFCInput(payload));
+  const ifc = writeIFC(buildWriteIFCInput(payload, 'planOnly'));
   const tWrite = Date.now();
   const reopened = readXerArchiveIFC(ifc);
   const tReopen = Date.now();

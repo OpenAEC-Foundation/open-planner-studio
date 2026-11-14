@@ -50,9 +50,9 @@ async function open(name: string, content: string): Promise<Store> {
   await store.getState().openOpenedFile({ name, content, ref: { kind: 'path', path: `/tmp/ops-1026/${name}` } });
   return store;
 }
-const save = (store: Store) => writeIFC(buildWriteIFCInput(store.getState()));
+const save = (store: Store) => writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
 /** Zoals main: zonder het nieuwe veld. */
-const saveWithoutField = (store: Store) => writeIFC(buildWriteIFCInput({ ...store.getState(), ifcLiteralCalendarIds: null }));
+const saveWithoutField = (store: Store) => writeIFC(buildWriteIFCInput({ ...store.getState(), ifcLiteralCalendarIds: null }, 'planOnly'));
 
 /** Naam van de taak → [ScheduleFinish, EarlyFinish, LateFinish] uit de `IFCTASKTIME`-regels. */
 function finishes(ifc: string): Map<string, string[]> {

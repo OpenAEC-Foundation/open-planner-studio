@@ -59,7 +59,7 @@ export async function openInStore(bytes: Uint8Array, name = 'bron.ifc') {
   if (failure !== undefined) throw failure;
   const snapshot = (s: typeof store) => {
     const st = s.getState();
-    return { ...buildWriteIFCInput(st), ...(st.ifcSource ? { ifcSource: st.ifcSource } : {}) };
+    return { ...buildWriteIFCInput(st, 'merge'), ...(st.ifcSource ? { ifcSource: st.ifcSource } : {}) };
   };
   return { store, snapshot };
 }
@@ -84,14 +84,14 @@ export async function storeWith(d: WriteIFCInput) {
 export async function storeEdit(d: WriteIFCInput, edit: (state: AppState) => void): Promise<WriteIFCInput> {
   const { store, buildWriteIFCInput } = await storeWith(d);
   edit(store.getState());
-  return structuredClone(buildWriteIFCInput(store.getState()));
+  return structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
 }
 
 /** Doorrekenen (F5) zoals de app: het domein in een eigen store, en daar `runCPM`. */
 export async function recalculated<D extends WriteIFCInput>(d: D): Promise<D> {
   const { store, buildWriteIFCInput } = await storeWith(d);
   store.getState().runCPM();
-  return buildWriteIFCInput(store.getState()) as D;
+  return buildWriteIFCInput(store.getState(), 'merge') as WriteIFCInput as D;
 }
 
 /** De taak van de bewerking "een dag langer". */
@@ -116,7 +116,7 @@ export async function lengthen(d: WriteIFCInput, id: string): Promise<WriteIFCIn
   const parts = Object.keys(time).filter(k => time[k as keyof typeof time] !== task.time[k as keyof typeof time]).map(k => `time.${k}`);
   store.getState().updateTask(id, { time }, { coalesceKey: `taskfield:${id}:${parts.sort().join(',')}` });
   // Volgende proefbewerkingen mogen deze payload muteren; store-objecten blijven bevroren.
-  return structuredClone(buildWriteIFCInput(store.getState()));
+  return structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
 }
 
 /** De tien oude eigen bestanden van de toets van Trias, met model (een wand erbij, of hun eigen model). */
@@ -170,13 +170,13 @@ export async function trias(root: string): Promise<TriasEntry[]> {
 export async function openReadPlanning(parsed: WriteIFCInput, side: 'uitvoer' | 'domein'): Promise<WriteIFCInput> {
   if (side === 'domein') {
     const { store, buildWriteIFCInput } = await storeWith(parsed);
-    return buildWriteIFCInput(store.getState());
+    return buildWriteIFCInput(store.getState(), 'merge');
   }
   const { createAppStoreContext, buildWriteIFCInput } = await loadStore();
   const { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
   store.getState().openAsDocument(structuredClone(parsed), { name: 'bron.ifc', ref: null });
-  return buildWriteIFCInput(store.getState());
+  return buildWriteIFCInput(store.getState(), 'merge');
 }
 
 /** Voortgang in een proef langs dezelfde setters als de app; ook status, rest en bewerkingsherkomst gaan mee. */
@@ -189,5 +189,5 @@ export async function applyTaskProgress(input: WriteIFCInput, taskId: string,
       : edit.field === 'actualStart' ? state.setActualStart(taskId, edit.value) : state.setActualFinish(taskId, edit.value);
     if (!accepted) throw new Error(`voortgangsinvoer geweigerd: ${taskId}.${edit.field}`);
   }
-  Object.assign(input, buildWriteIFCInput(store.getState()));
+  Object.assign(input, buildWriteIFCInput(store.getState(), 'merge'));
 }

@@ -162,7 +162,7 @@ function gridDuration(ctx: Ctx, code: string, text: string): void {
   checks++;
 }
 async function reopenAsIfc(ctx: Ctx): Promise<Ctx> {
-  const ifc = quiet(() => writeIFC(buildWriteIFCInput(payloadOf(ctx))));
+  const ifc = quiet(() => writeIFC(buildWriteIFCInput(payloadOf(ctx), 'planOnly')));
   return openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.ifc', text: ifc }));
 }
 const ctx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer', bytes: XER_BYTES }));

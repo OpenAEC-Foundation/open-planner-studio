@@ -46,7 +46,7 @@ export function IFCPanel() {
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
       recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource,
-    }));
+    }, 'planOnly'));
   }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource]);
 
   const [content, setContent] = useState(generated);
@@ -57,7 +57,7 @@ export function IFCPanel() {
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
       recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource,
-    }));
+    }, 'planOnly'));
     setContent(ifc);
     setDirty(false);
   }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource]);

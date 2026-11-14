@@ -48,8 +48,8 @@ eq('ifcGuid128: alle vier eerste tekens komen voor', new Set([...seen].map((g) =
 S().newProject();
 const a = S().addTask({ name: 'A' });
 S().addTask({ name: 'B' });
-const first = writeIFC(buildWriteIFCInput(S()));
-const second = writeIFC(buildWriteIFCInput(S()));
+const first = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
+const second = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 eq('nieuwe taak: GlobalId = ifcGuid128(id)', taskGuidsByName(first).A, ifcGuid128(ifcObjectSeed('task', a)));
 eq('nieuwe taken: conform', Object.values(taskGuidsByName(first)).every((g) => CONFORM.test(g)), true);
 eq('twee keer opslaan zonder heropenen: zelfde GlobalIds', taskGuidsByName(second), taskGuidsByName(first));
@@ -57,9 +57,9 @@ eq('project: conform GlobalId', CONFORM.test(projectGuid(first) ?? ''), true);
 
 // 3. Openen en opslaan via de store: taken én project houden hun GlobalId, over twee rondes.
 S().applyLoadedProject(readIFC(first), { filePath: null });
-const round1 = writeIFC(buildWriteIFCInput(S()));
+const round1 = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 S().applyLoadedProject(readIFC(round1), { filePath: null });
-const round2 = writeIFC(buildWriteIFCInput(S()));
+const round2 = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 eq('ronde 1: taak-GlobalIds ongewijzigd', taskGuidsByName(round1), taskGuidsByName(first));
 eq('ronde 2: taak-GlobalIds ongewijzigd', taskGuidsByName(round2), taskGuidsByName(first));
 eq('project-GlobalId stabiel over openen en opslaan', [projectGuid(round1), projectGuid(round2)], [projectGuid(first), projectGuid(first)]);
@@ -70,7 +70,7 @@ const oldGuid = ifcGuid('legacy-task-id');
 const legacyFile = first.replace(`'${taskGuidsByName(first).A}'`, `'${oldGuid}'`);
 S().applyLoadedProject(readIFC(legacyFile), { filePath: null });
 const added = S().addTask({ name: 'C' });
-const resaved = writeIFC(buildWriteIFCInput(S()));
+const resaved = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 eq('bestaande taak houdt haar oude GlobalId', taskGuidsByName(resaved).A, oldGuid);
 eq('nieuwe taak ernaast: ifcGuid128', taskGuidsByName(resaved).C, ifcGuid128(ifcObjectSeed('task', added)));
 
@@ -79,7 +79,7 @@ eq('nieuwe taak ernaast: ifcGuid128', taskGuidsByName(resaved).C, ifcGuid128(ifc
 S().newProject();
 const fresh = S().addTask({ name: 'Nieuw' });
 const kept = S().addTask({ name: 'Bewaard' });
-const clash = writeIFC({ ...buildWriteIFCInput(S()), ifcGlobalIds: { [ifcObjectSeed('task', kept)]: ifcGuid128(ifcObjectSeed('task', fresh)) } });
+const clash = writeIFC({ ...buildWriteIFCInput(S(), 'planOnly'), ifcGlobalIds: { [ifcObjectSeed('task', kept)]: ifcGuid128(ifcObjectSeed('task', fresh)) } });
 const guids = taskGuidsByName(clash);
 eq('bewaard object houdt zijn GlobalId', guids.Bewaard, ifcGuid128(ifcObjectSeed('task', fresh)));
 eq('nieuw object wijkt uit, conform', guids.Nieuw !== guids.Bewaard && CONFORM.test(guids.Nieuw), true);
@@ -109,7 +109,7 @@ function fixture() {
 {
   const f = fixture();
   const seqId = S().sequences[0].id;
-  let json = JSON.stringify(buildWriteIFCInput(S()));
+  let json = JSON.stringify(buildWriteIFCInput(S(), 'planOnly'));
   for (const id of [f.t1, seqId, f.calId, S().project.id]) json = json.split(`"${id}"`).join('"1234"');
   const text = writeIFC(JSON.parse(json));
   const guids = allGuids(text);
@@ -119,7 +119,7 @@ function fixture() {
 // 7. Drie rondes: resources, kalenders en relaties houden hun GlobalId én hun id.
 {
   fixture();
-  const r0 = writeIFC(buildWriteIFCInput(S()));
+  const r0 = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const p1 = readIFC(r0);
   const r1 = writeIFC(p1);
   const p2 = readIFC(r1);
@@ -139,7 +139,7 @@ function fixture() {
 //    GlobalId, en bij het tweede openen wijst de contour er nog steeds naar.
 {
   const f = fixture();
-  const input = buildWriteIFCInput(S());
+  const input = buildWriteIFCInput(S(), 'planOnly');
   const contourTask = { ...input.tasks.find((t) => t.id === f.t1)!, timephasedContours: [{ resourceUid: null, resourceId: f.r1, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 480, kind: 'remaining' as const }] }] };
   const written = writeIFC({ ...input, tasks: input.tasks.map((t) => (t.id === f.t1 ? contourTask : t)) });
   const legacyGuid = ifcGuid(f.r1);
@@ -158,7 +158,7 @@ function fixture() {
 // 9. Vreemd bestand met twee resources onder hetzelfde GlobalId: twee id's, twee GlobalIds.
 {
   const f = fixture();
-  const written = writeIFC(buildWriteIFCInput(S()));
+  const written = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const dupe = written.split(ifcGuid128(ifcObjectSeed('res', f.r2))).join(ifcGuid128(ifcObjectSeed('res', f.r1)));
   const p = readIFC(dupe);
   eq('dubbel GlobalId: twee resources met elk een eigen id', new Set(p.resources.map((r) => r.id)).size, 2);
@@ -172,11 +172,11 @@ function fixture() {
 {
   S().newProject();
   S().addTask({ name: 'Eén' });
-  const a1 = writeIFC(buildWriteIFCInput(S()));
-  const a2 = writeIFC(buildWriteIFCInput(S()));
+  const a1 = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
+  const a2 = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   S().newProject();
   S().addTask({ name: 'Eén' });
-  const b = writeIFC(buildWriteIFCInput(S()));
+  const b = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const shared = allGuids(a1).filter((g) => new Set(allGuids(b)).has(g));
   eq('twee projecten: geen gedeelde GlobalIds', shared.length, 0);
   eq('zelfde project twee keer opgeslagen: identieke GlobalIds', allGuids(a2), allGuids(a1));
@@ -188,7 +188,7 @@ function fixture() {
 {
   S().newProject();
   S().addTask({ name: 'Eén' });
-  const text = writeIFC(buildWriteIFCInput(S()));
+  const text = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const wp = guidsOfType(text, /^IFCWORKPLAN$/)[0];
   const ws = guidsOfType(text, /^IFCWORKSCHEDULE$/)[0];
   const foreignWp = '3' + wp.slice(1);
@@ -207,9 +207,9 @@ function fixture() {
   const key = ifcObjectSeed('task', taskId);
   const originalGuid = ifcGuid128('editor-task-original');
   const editedGuid = ifcGuid128('editor-task-edited');
-  const source = writeIFC({ ...buildWriteIFCInput(S()), ifcGlobalIds: { [key]: originalGuid } });
+  const source = writeIFC({ ...buildWriteIFCInput(S(), 'planOnly'), ifcGlobalIds: { [key]: originalGuid } });
   S().applyLoadedProject(readIFC(source), { recompute: true });
-  const savedBefore = writeIFC(buildWriteIFCInput(S()));
+  const savedBefore = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   eq('editor: opslag vóór bewerking bewaart het ingelezen taak-GUID', taskGuidsByName(savedBefore)['GUID-proef'], originalGuid);
   const editedText = savedBefore.replace(`=IFCTASK('${originalGuid}'`, `=IFCTASK('${editedGuid}'`);
   eq('editor: IFCTASK-GlobalId werkelijk gewijzigd in de tekst', taskGuidsByName(editedText)['GUID-proef'], editedGuid);
@@ -225,13 +225,13 @@ function fixture() {
 
   S().applyProjectEdit(parsedEdit);
   eq('editor apply: GUID-kaart gewijzigd', S().ifcGlobalIds?.[key], editedGuid);
-  eq('editor apply: opslag schrijft gewijzigd taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S())))['GUID-proef'], editedGuid);
+  eq('editor apply: opslag schrijft gewijzigd taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S(), 'planOnly')))['GUID-proef'], editedGuid);
   S().undo();
   eq('editor undo: GUID-kaart hersteld', S().ifcGlobalIds?.[key], originalGuid);
-  eq('editor undo: opslag schrijft oorspronkelijk taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S())))['GUID-proef'], originalGuid);
+  eq('editor undo: opslag schrijft oorspronkelijk taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S(), 'planOnly')))['GUID-proef'], originalGuid);
   S().redo();
   eq('editor redo: GUID-kaart opnieuw gewijzigd', S().ifcGlobalIds?.[key], editedGuid);
-  eq('editor redo: opslag schrijft opnieuw gewijzigd taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S())))['GUID-proef'], editedGuid);
+  eq('editor redo: opslag schrijft opnieuw gewijzigd taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S(), 'planOnly')))['GUID-proef'], editedGuid);
 }
 
 // 13. InternalProjectId A → B in de IFC-TEKST, vóór readIFC: de sessie blijft project A. De
@@ -246,9 +246,9 @@ function fixture() {
   // Afwijkende bron-GUIDs bewijzen dat de writer werkelijk bewaart, niet op dezelfde hash terugvalt.
   const originalGuids = Object.fromEntries(anchors.map(([kind]) =>
     [ifcObjectSeed(kind, projectA), ifcGuid128(`editor-${kind}-original`)]));
-  const source = writeIFC({ ...buildWriteIFCInput(S()), ifcGlobalIds: originalGuids });
+  const source = writeIFC({ ...buildWriteIFCInput(S(), 'planOnly'), ifcGlobalIds: originalGuids });
   S().applyLoadedProject(readIFC(source), { recompute: true });
-  const savedBefore = writeIFC(buildWriteIFCInput(S()));
+  const savedBefore = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const originalTaskGuids = taskGuidsByName(savedBefore);
   let editedText = savedBefore.replace(
     `IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT('${projectA}')`,
@@ -274,7 +274,7 @@ function fixture() {
     eq(`editor ${kind}: geparste invoer niet gemuteerd`, parsedEdit.ifcGlobalIds?.[ifcObjectSeed(kind, projectB)], ifcGuid128(`editor-${kind}-edited`));
   }
   const checkSavedAnchors = (label: string, edited: boolean) => {
-    const saved = writeIFC(buildWriteIFCInput(S()));
+    const saved = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
     eq(`${label}: project-id A in de opslagtekst`, readIFC(saved).project.id, projectA);
     eq(`${label}: taak-GUIDs ongemoeid`, taskGuidsByName(saved), originalTaskGuids);
     for (const [kind, entity] of anchors) {

@@ -190,7 +190,7 @@ const source = (extra: Partial<ExternalSourceDoc>): ExternalSourceDoc => ({
 
   // Opslaan en weer openen.
   const opened = createAppStoreContext().store;
-  opened.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), { filePath: null, recompute: true });
+  opened.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), { filePath: null, recompute: true });
   const reopened = opened.getState().tasks.find(t => t.name === 'Afbouw')!.externalLinks![0];
   eq('5i na opslaan en openen: lag 1d en dezelfde herkomst', [reopened.lagDays, ...provenanceOf(reopened)],
     [1, '12', '2026-11-02T14:10:00.000Z', 'site-1']);

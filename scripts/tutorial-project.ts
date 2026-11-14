@@ -362,7 +362,7 @@ class Builder {
   }
 
   snapshot(id: StageId): TutorialStage {
-    return { id, ifc: writeIFC(buildWriteIFCInput(S())), facts: this.facts() };
+    return { id, ifc: writeIFC(buildWriteIFCInput(S(), 'planOnly')), facts: this.facts() };
   }
 }
 

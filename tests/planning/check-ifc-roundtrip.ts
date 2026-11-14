@@ -1628,7 +1628,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   let threw: unknown;
   let ifcOut = '';
   try {
-    ifcOut = writeIFC(buildWriteIFCInput(S()));
+    ifcOut = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   } catch (e) {
     threw = e;
   }
@@ -1668,7 +1668,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   let threw: unknown;
   let ifcOut = '';
   try {
-    ifcOut = writeIFC(buildWriteIFCInput(S()));
+    ifcOut = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   } catch (e) {
     threw = e;
   }
@@ -1839,7 +1839,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   let threw: unknown;
   let ifcOut = '';
   try {
-    ifcOut = writeIFC(buildWriteIFCInput(S()));
+    ifcOut = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   } catch (e) {
     threw = e;
   }
@@ -1887,7 +1887,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   let threw: unknown;
   let ifcOut = '';
   try {
-    ifcOut = writeIFC(buildWriteIFCInput(S()));
+    ifcOut = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   } catch (e) {
     threw = e;
   }
@@ -1930,7 +1930,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   let threw: unknown;
   let ifcOut = '';
   try {
-    ifcOut = writeIFC(buildWriteIFCInput(S()));
+    ifcOut = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   } catch (e) {
     threw = e;
   }

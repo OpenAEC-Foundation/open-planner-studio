@@ -66,7 +66,7 @@ function stateSnapshot(s: AppState) {
 /** Niveau 1 — serialiseer de huidige state naar IFC en parse 'm terug; meet dataverlies. Werkt ook in de browser. */
 async function roundTrip() {
   const s = useAppStore.getState();
-  const content = writeIFC(buildWriteIFCInput(s));
+  const content = writeIFC(buildWriteIFCInput(s, 'planOnly'));
   // Geen `labels`: dev-only zelftesthaak (`window.__OPS__`), geen productie-UI — `readIFC` valt
   // terug op de Engelse default voor een bestand zonder IFCPROJECT (zie ImportLabels).
   const parsed = await readIFCWithXerReconstruction(content);
@@ -99,7 +99,7 @@ export async function saveToPathWithIO(
   if (await refusedWriteTarget(s, { kind: 'path', path }, targetDeps)) {
     throw new Error('saveToPath: dit bestand bevat een gebouwmodel; kies een ander pad.');
   }
-  const content = writeIFC(buildWriteIFCInput(s));
+  const content = writeIFC(buildWriteIFCInput(s, 'merge'));
   await io.writeTextFile(path, content);
   return { path, bytes: content.length };
 }

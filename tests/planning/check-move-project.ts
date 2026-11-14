@@ -397,7 +397,7 @@ const movedAnchors = S().tasks.map(t => [t.name, t.time.scheduleStart, t.time.sc
 const movedConstraint = S().tasks.find(t => t.id === rtB)?.constraint?.date;
 const movedDeadline = S().tasks.find(t => t.id === rtB)?.deadline;
 
-const ifc = writeIFC(buildWriteIFCInput(S()));
+const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const back = readIFC(ifc);
 
 eq('150 round-trip: project.startDate identiek terug', back.project?.startDate, movedProject.start);

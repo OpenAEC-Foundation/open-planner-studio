@@ -102,7 +102,7 @@ test('import van een oud bestand meldt de omzetting: aantal taken en grootste ve
 
 test('import van een nieuw bestand (met TimeModel) meldt niets', async () => {
   // De omgezette stand van de vorige test, zoals de app hem nu opslaat: met `TimeModel`.
-  const modern = writeIFC(buildWriteIFCInput(S()));
+  const modern = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   assertEq(readIFC(modern).timeModel, 'MINUTES-1', 'het nieuwe bestand draagt de markering');
   files.set(MODERN_PATH, modern);
   resetToSingleEmptyDocument();

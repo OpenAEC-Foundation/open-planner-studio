@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 8c maakt de schrijfmodus verplicht op beide IFC-invoerbuilders (E27); `writeMode` draagt de keuze tot de writer, alle aanroepen kiezen expliciet en de gewone uitvoer/opslagblokkade blijven gelijk. Doelweigering en aansluiten volgen in PR 11.
+
 - 2026-11-14: fase 1c PR 8b legt een voorbereid schrijfresultaat met één opslagcommit vast voor actief/slapend document, onafhankelijk van tussentijds dirty werk; bronidentiteit staat buiten inhoudsvergelijkingen en in de AutoSave-versheidscontrole. Worker/undo/backup en de opslagblokkade blijven ongemoeid; PR 9 en 11 sluiten verder aan. E27 blijft volgens de omvanggrens apart: 318 aanroepen in 115 bestanden buiten state (6 productie, 109 tests); bestaande aanroepen en schrijfmodus zijn hier niet veranderd.
 - 2026-11-14: fase 1c PR 8a levert één voorbereid schrijfresultaat met delen/sha256/nieuwe sessiebron/literal-ids en bronbytes bij ongewijzigde vreemde invoer; store en opslagblokkade blijven ongemoeid (8b/9/11 sluiten later aan).
 

@@ -89,7 +89,7 @@ async function open(flagOn: boolean, name: string, bytes: Uint8Array, into?: Sto
   await store.getState().openOpenedFile({ name, content: asBytes ? '' : dec(bytes), ...(asBytes ? { bytes } : {}), ref: null });
   return store;
 }
-const saved = (store: Store) => writeIFC(buildWriteIFCInput(store.getState()));
+const saved = (store: Store) => writeIFC(buildWriteIFCInput(store.getState(), 'merge'));
 const notices = (store: Store) => store.getState().ui.notifications.map(({ id: _id, ...rest }) => rest);
 const opened = (store: Store, name: string) => store.getState().filePath === name;
 
@@ -389,7 +389,7 @@ for (const [name, text] of [
   const on = await open(true, 'eigen-plus-model.ifc', eigenPlus);
   const showcase = await open(false, 'showcase.ifc', fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'));
   eq('eigen-plus-model met flag: dezelfde planning als het eigen bestand zonder model',
-    sha(planningOf(buildWriteIFCInput(on.getState()))), sha(planningOf(buildWriteIFCInput(showcase.getState()))));
+    sha(planningOf(buildWriteIFCInput(on.getState(), 'merge'))), sha(planningOf(buildWriteIFCInput(showcase.getState(), 'planOnly'))));
   eq('eigen-plus-model met flag: aantal objecten in het vreemde deel (C + A + V)', on.getState().ifcSource?.foreignObjectCount, 13 + 0 + 77);
   const b = await open(true, 'bonsai-4d.ifc', bonsai);
   eq('bonsai-4d met flag: aantal objecten in het vreemde deel (C + A + V)', b.getState().ifcSource?.foreignObjectCount, 15 + 13 + 127);
@@ -557,7 +557,7 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   S().undo();
   ok('undo: de bron blijft na bewerking en undo', S().ifcSource === source && ifcSaveBlocked(S()));
   // IFC-paneel: de tekst van het eigen deel toepassen op hetzelfde doel houdt de bron (anders schreef Ctrl+S het model weg).
-  const edited = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const edited = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   S().applyProjectEdit(edited);
   ok('IFC-paneel: een bewerking houdt de bron', S().ifcSource === source && ifcSaveBlocked(S()));
   // Kopie: dezelfde bron, zonder opslagdoel; opslaan blijft geweigerd.
@@ -816,7 +816,7 @@ ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijk
   const task = D().addTask({ name: 'Dubbel', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1) });
   D().setTaskActivityCode(task, type, first);
   D().moveActivityCodeValue(type, second, -1);
-  const bytes = enc.encode(writeIFC(buildWriteIFCInput(D())));
+  const bytes = enc.encode(writeIFC(buildWriteIFCInput(D(), 'planOnly')));
   const on = await open(true, 'dubbele-codes.ifc', bytes);
   const st = on.getState();
   const ty = st.activityCodeTypes.find(t => t.name === 'Status');

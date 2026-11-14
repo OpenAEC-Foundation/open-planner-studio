@@ -473,7 +473,7 @@ if (mutant === 'duplicate') app.setState({ xerSourceProjectId: 'P-RET' });
 const openDocs = state().getOpenDocumentPayloads();
 const recoveryWrites = openDocs.map(document => ({
   id: document.id,
-  ifc: writeIFC(buildWriteIFCInput(document.payload)),
+  ifc: writeIFC(buildWriteIFCInput(document.payload, 'planOnly')),
   filePath: null,
   isDirty: true,
   datesAsRecorded: false,
@@ -541,7 +541,7 @@ await clearRecovery();
 
 // IFC-write en onafhankelijke STEP-inspectie op het herstelde actieve document.
 const finalState = recoveryShapeOk ? recoveredApp.getState() : state();
-const writtenIfc = writeIFC(buildWriteIFCInput(finalState));
+const writtenIfc = writeIFC(buildWriteIFCInput(finalState, 'planOnly'));
 const inspectedIfc = mutant === 'independent-step'
   ? reorderArchiveProperties(writtenIfc)
   : writtenIfc;

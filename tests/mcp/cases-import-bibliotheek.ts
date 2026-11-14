@@ -91,7 +91,7 @@ function writeLinkedSource(): { companyId: string; poolResId: string } {
   S().addLibraryResourceToProject(companyId, poolResId);
   S().addTask({ name: 'Taak A' });
   S().runCPM();
-  const content = writeIFC(buildWriteIFCInput(S()));
+  const content = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   // Nulmeting: het BRONBESTAND draagt de koppeling — anders bewijst de rest niets.
   assert(content.includes("'CompanyId'"), 'nulmeting: het bronbestand draagt de bibliotheekkoppeling (CompanyId)');
   assert(content.includes("'LibraryOrigin'"), 'nulmeting: het bronbestand draagt herkomststempels (LibraryOrigin)');
@@ -145,7 +145,7 @@ test('opnieuw opslaan na een AI-import behoudt de koppeling in het bronbestand',
 
   // (a) Ctrl+S: `saveFile` schrijft `writeIFC(buildWriteIFCInput(state))` naar `filePath` (= SOURCE).
   assertEq(S().filePath, SOURCE, 'Ctrl+S-doel is het bronbestand');
-  const ctrlS = writeIFC(buildWriteIFCInput(S()));
+  const ctrlS = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   assert(ctrlS.includes("'CompanyId'"), 'wat Ctrl+S terugschrijft draagt de bibliotheekkoppeling nog (CompanyId)');
   assert(ctrlS.includes("'LibraryOrigin'"), 'wat Ctrl+S terugschrijft draagt de herkomststempels nog (LibraryOrigin)');
 

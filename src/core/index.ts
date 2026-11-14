@@ -128,7 +128,7 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
           { reason: inputScan });
       }
       try {
-        return writeIFC(buildWriteIFCInput(state()));
+        return writeIFC(buildWriteIFCInput(state(), 'planOnly'));
       } catch (err) {
         throw new PlannerCoreError('IFC_WRITE_FAILED', `Could not write IFC: ${errorText(err)}`);
       }

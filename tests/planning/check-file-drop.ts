@@ -109,7 +109,7 @@ function projectText(name: string, taskName: string, as: 'ifc' | 'csv'): string 
   S().setProject({ name, startDate: '2026-08-03' });
   S().addTask({ name: taskName });
   const s = S();
-  return as === 'ifc' ? writeIFC(buildWriteIFCInput(s)) : writeCSV(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments);
+  return as === 'ifc' ? writeIFC(buildWriteIFCInput(s, 'planOnly')) : writeCSV(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments);
 }
 const ifcA = projectText('Sleep-A', 'Taak A', 'ifc');
 const csvB = projectText('Sleep-B', 'Taak B', 'csv');

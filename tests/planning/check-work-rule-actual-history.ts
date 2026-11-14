@@ -88,7 +88,7 @@ function started(name: string, units = [1]) {
   const snapshot = () => JSON.stringify({ time: task().time, assignments: own() });
   const roundTrip = () => {
     const workBefore = own().map(a => [a.unitsPerDay, a.actualWorkMinutes, a.remainingWorkMinutes]);
-    const ifc = writeIFC(buildWriteIFCInput(S()));
+    const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
     S().applyLoadedProject(readIFC(ifc), { linkedOpen: true, recompute: true, filePath: null });
     ok(`${name}: beide werkvelden overleven IFC`,
       JSON.stringify(own().map(a => [a.unitsPerDay, a.actualWorkMinutes, a.remainingWorkMinutes])) === JSON.stringify(workBefore));

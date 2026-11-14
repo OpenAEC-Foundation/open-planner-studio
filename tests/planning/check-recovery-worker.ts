@@ -45,7 +45,7 @@ const normalize = (ifc: string) => {
     .replace(/^(#\d+=IFCOWNERHISTORY\((?:[^,]*,){7})\d+\)/m, '$1<tijd>)');
 };
 const parity = (source: IFCSaveSource, actual: string) => assert.equal(normalize(actual), normalize(
-  writeIFC({ ...buildWriteIFCInput(source), xerSourceArchiveStorage: 'recovery-reference' }),
+  writeIFC({ ...buildWriteIFCInput(source, 'planOnly'), xerSourceArchiveStorage: 'recovery-reference' }),
 ));
 
 class Transport implements RecoveryWorker {

@@ -27,7 +27,7 @@ async function main() {
   const key = (t: ImportResult['tasks'][number]) => t.wbsCode;
   for (const file of files) {
     const payload = prepareLoadedPayload(payloadFromImport(readIFC(file.text), null), { recompute: true });
-    const text = file.rewrite ? writeIFC(buildWriteIFCInput(payload)) : file.text;
+    const text = file.rewrite ? writeIFC(buildWriteIFCInput(payload, 'planOnly')) : file.text;
     const expected = readIFC(text), back = old.readIFC(text);
     const byKey = new Map(back.tasks.map(t => [key(t), t]));
     if (byKey.size !== back.tasks.length) throw new Error(`${file.name}: dubbele WBS-code in de oude lezer`);

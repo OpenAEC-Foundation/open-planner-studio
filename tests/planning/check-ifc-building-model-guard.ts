@@ -33,7 +33,7 @@ const S = () => useAppStore.getState();
 async function main(): Promise<void> {
   S().newProject();
   S().addTask({ name: 'Bestaande planning' });
-  const planning = writeIFC(buildWriteIFCInput(S()));
+  const planning = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const add = (record: string) => planning.replace('DATA;', `DATA;\n${record}\n`);
   // Alle schema-subtypen, niet alleen muren of entiteiten met geometrie. Minimale records zijn
   // opzettelijk genoeg: de veiligheidsbeslissing hangt af van het type, niet van referenties.

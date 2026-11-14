@@ -115,7 +115,7 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
   S().switchDocument(first);
   eq('p10 documentwissel: de belasting van het teruggehaalde document leest het profiel', loadOf(context), P6_LOAD);
 
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   eq('p11 IFC: het profiel gaat mee', parsed.project.schedulingProfile?.baseId, 'p6');
   const reopened = createAppStoreContext();
   reopened.store.getState().applyLoadedProject(parsed, { recompute: true });

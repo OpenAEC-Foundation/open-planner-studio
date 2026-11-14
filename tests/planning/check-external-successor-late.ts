@@ -121,7 +121,7 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
   s().addSequence({ predecessorId: inst, successorId: handover, type: 'FINISH_START', lagDays: 0 });
   s().addSequence({ predecessorId: pipes, successorId: handover, type: 'FINISH_START', lagDays: 0 });
   s().runCPM();
-  const sourceText = writeIFC(buildWriteIFCInput(s()));
+  const sourceText = writeIFC(buildWriteIFCInput(s(), 'planOnly'));
   const sourcePath = '/projecten/installateur.ifc';
   const io: FormatIO = {
     readTextFile: async () => sourceText,
@@ -301,7 +301,7 @@ const tt = (o: { start: string; finish: string; days: number; lateStart?: string
   s().updateTask(inst, { time: { ...timeOf(inst), actualStart: '2027-03-01T07:00', actualFinish: '2027-03-05T16:00', completion: 1 } });
   s().updateTask(mount, { time: { ...timeOf(mount), actualStart: '2027-03-01T07:00', completion: 0.4 } });
   s().runCPM();
-  const text = writeIFC(buildWriteIFCInput(s()));
+  const text = writeIFC(buildWriteIFCInput(s(), 'planOnly'));
   const path = '/projecten/installateur-fasen.ifc';
   const source = await memorySource(path, text);
   const byName = (name: string) => source.tasks.find(t => t.name === name)!;

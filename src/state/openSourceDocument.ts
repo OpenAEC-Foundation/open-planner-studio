@@ -109,7 +109,7 @@ export async function externalSourceFromOpenDocument(
 ): Promise<ExternalSourceRead> {
   const fileName = openSourceName(locator, payload);
   const name = fileName.toLowerCase().endsWith('.ifc') ? fileName : `${fileName}.ifc`;
-  const text = writeIFC(buildWriteIFCInput(payload));
+  const text = writeIFC(buildWriteIFCInput(payload, 'planOnly'));
   const { filePath: _path, version: _version, ...read } = externalSourceFromImport(
     activeImportResult(await parseOpenedFile({ name, text }, labels)), name,
   );

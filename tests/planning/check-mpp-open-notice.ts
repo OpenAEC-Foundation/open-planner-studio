@@ -555,7 +555,7 @@ async function main(): Promise<void> {
     eq(`46 ${raw}: twee bladtaken getoetst`, S().tasks.length, 2);
     eq(`46 ${raw}: berekende kritiekvlag gebruikt de grens`,
       S().tasks.map(task => task.time.isCritical), S().tasks.map(task => task.time.totalFloat <= expected));
-    const restored = readIFC(writeIFC(buildWriteIFCInput(S())));
+    const restored = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
     eq(`46 ${raw}: IFC-round-trip behoudt de grens`, restored.project.schedulingOptions?.criticalDefinition, want);
     S().applyOpenedImport(restored, { filePath: null, recompute: true, fit: false, linkedOpen: true });
     eq(`46 ${raw}: heropend project behoudt de grens`, S().project.schedulingOptions?.criticalDefinition, want);
