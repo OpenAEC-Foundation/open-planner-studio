@@ -221,6 +221,37 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setGroup([]);
 }
 
+// ── 7) Review #947 ronde 5: Resource → WBS, met onder R1 de band van C ingeklapt. Na verwijderen van B
+// onder R2 krijgt C WBS 2 en verschijnt ze ook weer onder R1. De buurrij blijft die in de groep van
+// de cursor: C onder R2, niet het eerste voorkomen (R1). ──
+{
+  S().newProject();
+  const add = (name: string) => S().addTask({
+    name, isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1),
+  });
+  const ids3 = [add('A'), add('B'), add('C')];
+  const [, b, c] = ids3;
+  for (const name of ['R1', 'R2']) {
+    const r = S().addResource({ name, type: 'LABOR', description: '', maxUnits: 1 });
+    for (const id of ids3) S().assignResource(id, r, 1);
+  }
+  S().setGroup([{ field: { src: 'resource' }, dir: 'asc' }, { field: { src: 'builtin', key: 'wbsCode' }, dir: 'asc' }]);
+  const firstC = S().viewRows.findIndex(row => row.kind === 'task' && row.task.id === c);
+  const band = S().viewRows[firstC - 1];
+  if (band.kind === 'group') S().setCollapsedGroupKey(band.key, true);
+  const rowsOf = (id: string) => S().viewRows.filter(row => row.kind === 'task' && row.task.id === id).map(row => row.rowKey);
+  eq('Resource → WBS: C alleen nog onder R2 zichtbaar', rowsOf(c).length, 1);
+  const cUnderR2Before = JSON.parse(rowsOf(c)[0]).groupPath[0];
+  S().selectTask(b);
+  S().setUI({ gridActiveRowKey: rowsOf(b)[1] });
+  S().deleteTasksBulk([b]);
+  eq('Resource → WBS: B verwijderd ⇒ C', sel(), { selected: ['C'], active: 'C' });
+  const chosen = S().ui.gridActiveRowKey;
+  eq('Resource → WBS: de buurrij blijft in de groep van de cursor (R2)',
+    chosen ? JSON.parse(chosen).groupPath[0] : null, cUnderR2Before);
+  S().setGroup([]);
+}
+
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ${d}`);
   console.log(`selectie na inklappen/verwijderen: ${diffs.length}/${checks} ROOD`);

@@ -142,6 +142,45 @@ async function deleteInWbsGroupKeepsPlace(page: Page, surface: Surface, doomed: 
   await page.evaluate(() => window.__OPS__!.store.getState().setGroup([]));
 }
 
+/**
+ * Groepering Resource → WBS, met onder de eerste resource de band van z ingeklapt. y onder de tweede
+ * resource verwijderen hernummert z, en z verschijnt weer onder de eerste. De cursor blijft in de groep
+ * waarin de planner werkte: z onder de tweede resource. Review #947.
+ */
+async function deleteInNestedGroupStaysInGroup(page: Page, surface: Surface, x: string, y: string, z: string): Promise<void> {
+  const setup = await page.evaluate(({ x, y, z, surface }) => {
+    const store = window.__OPS__!.store;
+    for (const name of [`${surface}-P1`, `${surface}-P2`]) {
+      const r = store.getState().addResource({ name, type: 'LABOR', description: '', maxUnits: 1 });
+      for (const id of [x, y, z]) store.getState().assignResource(id, r, 1);
+    }
+    store.getState().setGroup([
+      { field: { src: 'resource' }, dir: 'asc' }, { field: { src: 'builtin', key: 'wbsCode' }, dir: 'asc' },
+    ]);
+    const rows = () => store.getState().viewRows;
+    const keysOf = (id: string) => rows().filter(row => row.kind === 'task' && row.task.id === id).map(row => row.rowKey);
+    const band = rows()[rows().findIndex(row => row.kind === 'task' && row.task.id === z) - 1];
+    const bandKey = band.kind === 'group' ? band.key : '';
+    store.getState().setCollapsedGroupKey(bandKey, true);
+    return { y: keysOf(y), z: keysOf(z), bandKey };
+  }, { x, y, z, surface });
+  expect(setup.y).toHaveLength(2);
+  expect(setup.z).toHaveLength(1);
+  const group = (rowKey: string) => (JSON.parse(rowKey) as { groupPath: string[] }).groupPath[0];
+  const belowNow = () => page.evaluate(z => window.__OPS__!.store.getState().viewRows
+    .filter(row => row.kind === 'task' && row.task.id === z).map(row => row.rowKey), z);
+  await deleteKeepsPlace(page, surface, setup.y[1], async () => {
+    const keys = await belowNow();
+    expect(keys).toHaveLength(2);
+    return keys.find(key => group(key) === group(setup.y[1]))!;
+  }, () => z);
+  await page.evaluate(bandKey => {
+    const s = window.__OPS__!.store.getState();
+    s.setCollapsedGroupKey(bandKey, false);
+    s.setGroup([]);
+  }, setup.bandKey);
+}
+
 test('lange planning: inklappen en verwijderen houden de selectie op haar plek (issue #899)', async ({ page, ops: _ops }) => {
   test.setTimeout(60_000); // twee rasters, elk met scrollen, inklappen en verwijderen
   const { phases, children } = await seedLongPlan(page);
@@ -151,6 +190,7 @@ test('lange planning: inklappen en verwijderen houden de selectie op haar plek (
   await deleteKeepsPlace(page, 'gantt-task-grid', children[3][4], children[3][5]);
   await deleteInGroupStaysInGroup(page, 'gantt-task-grid', children[1][0], children[1][1]);
   await deleteInWbsGroupKeepsPlace(page, 'gantt-task-grid', children[2][5], children[2][6]);
+  await deleteInNestedGroupStaysInGroup(page, 'gantt-task-grid', children[0][0], children[0][1], children[0][2]);
 
   // Tabel: dezelfde rasterkern, dezelfde afspraak.
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
@@ -159,4 +199,5 @@ test('lange planning: inklappen en verwijderen houden de selectie op haar plek (
   await deleteKeepsPlace(page, 'full-task-grid', children[3][7], children[3][8]);
   await deleteInGroupStaysInGroup(page, 'full-task-grid', children[1][3], children[1][4]);
   await deleteInWbsGroupKeepsPlace(page, 'full-task-grid', children[2][7], children[2][8]);
+  await deleteInNestedGroupStaysInGroup(page, 'full-task-grid', children[0][4], children[0][5], children[0][6]);
 });

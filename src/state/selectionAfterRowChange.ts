@@ -44,6 +44,37 @@ export function liftSelectionOutOfCollapsed(s: SelectionDraft, visibleBefore: Re
   s.activeTaskId = nextActive;
 }
 
+/** Het groepspad uit een gegroepeerde rijsleutel (`encodeGroupedTaskRowKey`); buiten een groepering leeg. */
+function groupPathOf(rowKey: string): readonly string[] {
+  if (!rowKey.startsWith('{')) return [];
+  const path: unknown = (JSON.parse(rowKey) as { groupPath?: unknown }).groupPath;
+  return Array.isArray(path) ? path.map(String) : [];
+}
+
+/**
+ * De rij van de buur in de NIEUWE rijen. Een sleutel kan veranderen (groeperen op WBS: verwijderen
+ * hernummert). Dan de rij waarvan het groepspad het langst gelijk begint met het oude (Resource → WBS:
+ * ["R2", "3"] wordt ["R2", "2"], niet ["R1", "2"]); bij gelijke stand de bovenste.
+ */
+function currentRowKey(rowsNow: readonly ViewRow[], neighbour: Extract<ViewRow, { kind: 'task' }>): string | null {
+  const now = rowsNow.flatMap(row => row.kind === 'task' && row.task.id === neighbour.task.id ? [row.rowKey] : []);
+  if (now.includes(neighbour.rowKey)) return neighbour.rowKey;
+  const before = groupPathOf(neighbour.rowKey);
+  const shared = (rowKey: string) => {
+    const path = groupPathOf(rowKey);
+    let length = 0;
+    while (length < path.length && path[length] === before[length]) length++;
+    return length;
+  };
+  let best: string | null = null;
+  let bestShared = -1;
+  for (const rowKey of now) {
+    const length = shared(rowKey);
+    if (length > bestShared) { best = rowKey; bestShared = length; }
+  }
+  return best;
+}
+
 /**
  * Na verwijderen: is de hele selectie weg, dan wordt de eerste rij onder de verwijderde rij
  * geselecteerd die nu zichtbaar is, en anders de dichtstbijzijnde erboven. Dezelfde regel als de
@@ -59,21 +90,6 @@ export function liftSelectionOutOfCollapsed(s: SelectionDraft, visibleBefore: Re
  * geselecteerde rij. De gekozen buurRIJ gaat naar `ui.gridActiveRowKey`: verdwijnt een taak uit
  * meer groepen, dan schuift de oude cursorplek op en kan het raster de groep niet meer raden.
  */
-/**
- * De rij van de buur in de NIEUWE rijen. Een sleutel kan veranderen (groeperen op WBS: verwijderen
- * hernummert); dan hetzelfde voorkomen van die taak (het derde blijft het derde), anders het laatste.
- */
-function currentRowKey(
-  rowsBefore: ReadonlyArray<Extract<ViewRow, { kind: 'task' }>>,
-  rowsNow: readonly ViewRow[],
-  neighbour: Extract<ViewRow, { kind: 'task' }>,
-): string | null {
-  const now = rowsNow.flatMap(row => row.kind === 'task' && row.task.id === neighbour.task.id ? [row.rowKey] : []);
-  if (now.includes(neighbour.rowKey)) return neighbour.rowKey;
-  const ordinal = rowsBefore.filter(row => row.task.id === neighbour.task.id).indexOf(neighbour);
-  return now[Math.min(ordinal, now.length - 1)] ?? null;
-}
-
 export function selectNeighbourAfterRemoval(
   s: SelectionDraft,
   rowsBefore: readonly ViewRow[],
@@ -100,5 +116,5 @@ export function selectNeighbourAfterRemoval(
   if (!neighbour) return;
   s.selectedTaskIds = [neighbour.task.id];
   s.activeTaskId = neighbour.task.id;
-  s.ui.gridActiveRowKey = currentRowKey(rows, s.viewRows, neighbour);
+  s.ui.gridActiveRowKey = currentRowKey(s.viewRows, neighbour);
 }
