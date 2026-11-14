@@ -1924,7 +1924,36 @@ en noem het in je rapport of PR-tekst.
      veronderstelde, weigert main bij een vers geopende backup alleen het oorspronkelijke doel: een andere
      naam mag planning zonder model schrijven (`check-ifc-foreign-target.ts`, §7). 9b verandert die
      productroute niet. De productkeuze wat de planner daarbij ziet blijft bij de eigenaar; PR 9b bouwt geen backupaansluiting. De tekst voor een ontbrekende
-     bron staat op de tekstlijst in `handoff.md`. — B
+     bron staat op de tekstlijst in `handoff.md`. De review van #931 mat het met de flag aan en een echte `IFCWALL`:
+     backup maken → openen → taak toevoegen → downloaden geeft een bestand met de taak, zonder gebouwmodel en zonder
+     bronkenmerk; bij het openen verschijnt niets, bij het opslaan alleen `notifications.savedViaDownload`. Besluit
+     Trias 14 november 2026: een eigen kleine PR direct na 9b laat een geopende backup van een document met een
+     gebouwmodel zich met de flag aan gedragen als "bron ontbreekt" (elke IFC-opslag geweigerd, met de melding van
+     9b); met de flag uit blijft het main. Met die stap erin is 9c niet verplicht vóór de flag standaard aan gaat. — B
+
+1576. **VERVOLG (#804, opruimen): productiecode voegt zich naar de testdubbel van IndexedDB.** In
+     `src/services/recovery/recoverySourceCopies.ts` melden twee `queueMicrotask(resolve)`-paden in
+     `cleanupRecoverySourceCopies` het opruimen klaar vóór het einde van de transactie, omdat
+     `tests/planning/fakeRecoveryIndexedDb.ts` alleen transacties met een schrijfactie voltooit. Een echte browser
+     voltooit ook een readwrite-transactie die alleen leest. De gewone volgorde breekt er niet door: het schrijven van
+     de kopie wacht wel op `tx.oncomplete`, en de vroege paden wissen niets. Richting: de dubbel laten voltooien zoals
+     IndexedDB, daarna de twee paden en de `changed`-administratie weg; `getAllKeys().includes(sha256)` kan één
+     `getKey(sha256)` worden. De dubbel bewijst geen echte rollback. Gevonden door de review van #931. — B
+
+1577. **VERVOLG (#804, gemaakt geval): een herstelde sitebron zonder eigen verwijzing houdt een sitedoel zonder
+     basisversie.** Delen twee sitedocumenten dezelfde bronbytes en ontbreekt de verwijzing van één ervan in de
+     kopie-database, dan geeft `src/state/readRecoveryDocument.ts` dat document een teruggelezen bron met het site-id
+     maar zonder basisversie. Opslaan doet dan nul schrijfacties naar de host (de veiligheidsgrens houdt), maar de
+     melding `ifcForeignTargetSave` zegt niet dat de herstelbasis ontbreekt. Het document neemt de basis van het
+     andere document niet over. Richting: het sitedoel alleen teruggeven met een passende basis, of deze toestand
+     gericht melden. Gevonden door de review van #931 (eigen proef met twee documenten op één sha256). — B
+
+1578. **VERVOLG (#804, niet gemeten): de bronkopie bij grote bestanden en in een echte browser.** De kopie gaat als
+     `Uint8Array` in IndexedDB (de vorm van het XER-archief); bij herstel maakt de scanner-Worker tijdelijk nog een
+     volledige kopie. Niet gemeten: tijd en geheugen bij 150 tot 300 MB, een echte procescrash, wat een echte browser
+     achterlaat na de afgebroken eerste upgrade in `existingDatabase` (volgens de specificatie niets), en een echte
+     sitehost. Hoort bij de meting van PR 6 en de proef in een echte browser van 1574, vóór de flag standaard aan
+     gaat. Gevonden door de review van #931. — S
 1574. **VERVOLG (#804, niet gemeten): een bewaarde browserhandle kan na een echte herstart opnieuw toestemming
      vragen.** Het herstel leest de bron via de bewaarde `FileSystemFileHandle`. De proeven gebruiken een testdubbel;
      of een echte browser na een herstart de leesrechten nog geeft, is niet gemeten. Zonder rechten valt het herstel
