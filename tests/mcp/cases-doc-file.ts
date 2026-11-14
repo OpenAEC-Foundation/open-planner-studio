@@ -1440,10 +1440,10 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
       assert(result.ok, `byte-export ${fixture} slaagt: ${result.ok ? '' : result.error}`);
       const output = binFiles.get(target)!; assert(!!output, 'de bytenaad schreef het bestand');
       const data = (result as McpToolOk).data as { byteLength?: number; characters?: number; overwritten: boolean };
+      assertEq(mergeProblems(bytes, output).length, 0, 'vreemde bytes bytegelijk');
       assertEq(data.byteLength, output.byteLength, 'antwoord geeft byteLength');
       assertEq(data.characters, undefined, 'geen characters bij byte-uitvoer');
       assertEq(data.overwritten, false, 'nieuw bestand');
-      assertEq(mergeProblems(bytes, output).length, 0, 'vreemde bytes bytegelijk');
       const reopened = await openForeign(output);
       assertEq(reopened.tasks.length, before.tasks.length, 'volledig heropend');
       for (const task of before.tasks) assertEq(reopened.tasks.find(t => t.id === task.id)?.time.scheduleDuration,
