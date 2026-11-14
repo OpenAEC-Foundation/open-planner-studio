@@ -36,7 +36,8 @@ herstelsnapshot of bestands-AutoSave nodig. Een bestaande AutoSave-kandidaat toe
 onder het schrijfslot vóór I/O. `markAutoSaveVersionSaved(id, savedSource, prepared?)` gebruikt dezelfde
 `commitSavedDocument` als handmatige opslag: bron en kalenderkeuzes volgen de geschreven versie, ook als een latere
 bewerking dirty blijft. De Worker-invoer en MCP-backup blijven planning zonder bronbytes. Bronherstel en nieuwe
-manifestmetadata zijn PR 9; aansluiten van de voorbereide writes is PR 11. De opslagblokkade blijft dicht.
+manifestmetadata zijn PR 9; PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
+met de bestaande ene melding per document per sessie; site-AutoSave blijft uit.
 
 ### Afsluiten van de app (schone exit)
 

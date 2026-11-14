@@ -16,18 +16,18 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveBytePartsDialog, saveBytePartsToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
 import {
-  latestSiteVersion, listSiteFiles, openSiteFile, readSiteSourceFile, saveNewSiteFile, saveSiteFileVersion,
+  latestSiteVersion, listSiteFiles, openSiteFile, readSiteSourceFile, saveNewSiteFile, saveSiteFileVersion, saveNewSiteFileParts, saveSiteFileVersionParts,
 } from '@/services/fileAccess/siteBackend';
 import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAccess/siteDialogs';
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
 import { withOpenNoticeSticky } from '@/state/openNoticeSticky';
-import { clearRefusals } from '@/state/refusalNotice';
+import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
 import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
@@ -36,9 +36,11 @@ import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, p
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
-  IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcSaveBlocked,
+  IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcSaveBlocked, ifcDocumentSaveBlocked,
+  IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   refusedWriteTarget,
 } from '../ifcForeignGuard';
+import { prepareIfcWrite, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
@@ -58,7 +60,7 @@ import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPa
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
-import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
+import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource, type IFCSaveSource, type IFCWriteInput } from '../ifcSaveInput';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import {
@@ -725,6 +727,63 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
+  const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
+    if (!ifcDocumentSaveBlocked(state)) return false;
+    get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+    return true;
+  };
+
+  type DocumentWrite = { content: string; prepared?: never } | { content?: never; prepared: PreparedIfcWrite };
+  /** De ene bewaakte documentingang handelt de verplichte modus af vóór enige bestandsactie. */
+  const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput): Promise<DocumentWrite | null> => {
+    if (refuseForeignDocumentWrite(state)) return null;
+    if (!hasForeignContent(state.ifcSource)) return { content: serializeForSave(state, input) };
+    if (input.writeMode !== 'merge') {
+      get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+      return null;
+    }
+    try {
+      return { prepared: await prepareIfcWrite(input, state.ifcSource!) };
+    } catch (error) {
+      if (!(error instanceof MergeNeedsPhase2Error)) throw error;
+      get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
+      return null;
+    }
+  };
+
+  /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. */
+  const refuseChangedDocumentWrite = (snapshot: AppState, write: DocumentWrite): boolean => {
+    if (!write.prepared) return false;
+    if (refuseForeignDocumentWrite()) return true;
+    const now = get();
+    if (now.activeDocumentId === snapshot.activeDocumentId && now.ifcSource === snapshot.ifcSource) return false;
+    get().notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
+    return true;
+  };
+
+  const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite): SaveTargetCheck => async target => {
+    if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
+    const ownSiteVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
+      ? { id: target.id, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! } : undefined;
+    const reason = await refusedWriteTarget(get(), target,
+      { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownSiteVersion);
+    if (reason) {
+      get().notify(hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
+        ? IFC_FOREIGN_REPLACE_BLOCKED_NOTICE
+        : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_SAVE_NOTICE);
+      return true;
+    }
+    return write ? refuseChangedDocumentWrite(snapshot, write) : false;
+  };
+
+  const documentSaveDialog = (snapshot: AppState, write: DocumentWrite, name: string) => {
+    const options = { refuseTarget: documentTargetCheck(snapshot, write),
+      refuseDownload: () => refuseChangedDocumentWrite(snapshot, write) };
+    return write.prepared
+      ? saveBytePartsDialog(name, write.prepared.parts, [{ name: 'IFC Files', extensions: ['ifc'] }], options)
+      : saveFileDialog(name, write.content, [{ name: 'IFC Files', extensions: ['ifc'] }], options);
+  };
+
   /** Fixronde 1 en 2: weigert het doel als het de bron is van een open document met een vreemd deel, of (met de flag) als
    *  het bestaande doel zelf een gebouwmodel bevat (zie `refusedWriteTarget`). */
   const foreignTargetCheck = (purpose: 'save' | 'export'): SaveTargetCheck => async (target) => {
@@ -1032,13 +1091,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.siteFileVersion = destination.siteFileId ? destination.siteFileVersion : null;
       if (destination.siteFileId) target.autoSaveToFile = false;
     };
+    const applyPrepared = (target: Pick<AppState, 'ifcSource' | 'foreignSourceMark' | keyof SaveDestination>) => {
+      if (!prepared) return;
+      target.ifcSource = castDraft(prepared.source);
+      target.foreignSourceMark = foreignSourceMarkFor(prepared.source, target);
+    };
     // Knownbug 1026: wat deze opslag letterlijk schreef, blijft letterlijk (`savedLiteralCalendars.ts`), ook als het
     // document intussen veranderde: het bestand heeft die kalenders nu letterlijk.
     const written = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
     set((state) => {
       if (state.activeDocumentId === documentId) {
         applyDestination(state);
-        if (prepared) state.ifcSource = castDraft(prepared.source);
+        applyPrepared(state);
         state.ifcLiteralCalendarIds = mergeLiteralCalendarIds(state.ifcLiteralCalendarIds, written);
         if (unchanged) state.isDirty = false;
         return;
@@ -1046,7 +1110,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const entry = state.documents.find(document => document.id === documentId);
       if (!entry?.payload) return;
       applyDestination(entry.payload);
-      if (prepared) entry.payload.ifcSource = castDraft(prepared.source);
+      applyPrepared(entry.payload);
       entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, written);
       if (unchanged) entry.payload.isDirty = false;
     });
@@ -1101,11 +1165,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   /** Sla het document op als NIEUW bestand op de site; daarna is de site het opslagdoel. Gooit bij
    *  een fout van de site (de aanroeper meldt hem). */
-  const saveAsNewSiteFile = async (documentId: string, state: AppState, content: string, name: string): Promise<boolean> => {
-    const info = await saveNewSiteFile(name, content);
+  const saveAsNewSiteFile = async (documentId: string, state: AppState, write: DocumentWrite, name: string): Promise<boolean> => {
+    if (refuseChangedDocumentWrite(state, write)) return false;
+    const info = write.prepared ? await saveNewSiteFileParts(name, write.prepared.parts) : await saveNewSiteFile(name, write.content);
     const saved = commitSavedDocument(documentId, state, {
       filePath: info.name, fileHandle: null, siteFileId: info.id, siteFileVersion: info.version,
-    });
+    }, write.prepared);
     await pushRecent({ kind: 'site', id: info.id }, info.name);
     return saved;
   };
@@ -1244,14 +1309,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // schemavraag, de afhankelijke projecten met een luie import), dan stopt opslaan stil, zoals bij een verwacht id.
     const startDocumentId = get().activeDocumentId;
     if (expectedDocumentId && expectedDocumentId !== startDocumentId) return false;
-    if (refuseForeignIfcWrite()) return false;
+    if (refuseForeignDocumentWrite()) return false;
     if (!(await settleIfcSchemaQuestion())) return false;
     if (!(await settleDependentAnchors())) return false;
     const state = get();
     const documentId = state.activeDocumentId;
     if (documentId !== startDocumentId) return false;
     // Opnieuw op de momentopname die de app echt schrijft: niets mag tijdens het wachten een vreemd deel binnenbrengen.
-    if (refuseForeignIfcWrite(state)) return false;
+    if (refuseForeignDocumentWrite(state)) return false;
     // Gezet zolang er naar de SITE geschreven wordt: dan meldt de catch een sitefout (met conflict-
     // melding) in plaats van de gewone opslaanfout. Zonder site blijft hij `null`.
     let siteName: string | null = null;
@@ -1268,23 +1333,29 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     };
 
     try {
-      const content = serializeForSave(state);
       const ref = saveTargetRef(state);
+      // Het eigen bestaande lokale modeldoel blijft in 1c dicht, ook als de merge de inhoud niet draagt.
+      if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site'
+        && await documentTargetCheck(state)(ref)) return false;
+      const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
+      if (!write || refuseChangedDocumentWrite(state, write)) return false;
       // Fixronde 1: het eigen doel is de bron van een (ander) open document met een vreemd deel. Vóór elke write: site,
       // pad en handle.
-      if (ref && await foreignTargetCheck('save')(ref)) return false;
+      if (ref && await documentTargetCheck(state, write)(ref)) return false;
       // Een site-doel: een nieuwe versie van dat bestand, met de basis van DIT document. De net
       // geschreven versie wordt zijn nieuwe basis. Is de site-opslag weg (bijv. een hersteld
       // site-document buiten de site), dan geldt het als "geen doel" en loopt de gewone route.
       if (ref?.kind === 'site' && siteStorageAvailable()) {
         siteName = documentFileName(state);
-        const saved = await saveSiteFileVersion(ref.id, siteName, content, state.siteFileVersion);
+        const saved = write.prepared
+          ? await saveSiteFileVersionParts(ref.id, siteName, write.prepared.parts, state.siteFileVersion)
+          : await saveSiteFileVersion(ref.id, siteName, write.content, state.siteFileVersion);
         if (saved.conflictCopy) {
           // De SuperCloud bewaarde het werk na een conflict in een KOPIE (#818). Die kopie wordt het
           // opslagdoel van dit document; het telt als opgeslagen, en de gebruiker hoort de naam.
           const committed = commitSavedDocument(documentId, state, {
             filePath: saved.name, fileHandle: null, siteFileId: saved.id, siteFileVersion: saved.version,
-          });
+          }, write.prepared);
           await pushRecent({ kind: 'site', id: saved.id }, saved.name);
           get().notify({
             // Blijvend: het werk staat nu onder een andere naam.
@@ -1295,16 +1366,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
         return commitSavedDocument(documentId, state, {
           filePath: state.filePath ?? saved.name, fileHandle: null, siteFileId: ref.id, siteFileVersion: saved.version,
-        });
+        }, write.prepared);
       }
       // Een site-ref geeft hier altijd `false` (zie `saveToRef`): dan loopt de route hieronder.
       if (ref) {
         try {
-          if (await saveToRef(ref, content)) return commitSavedDocument(documentId, state);
+          if (refuseChangedDocumentWrite(state, write)) return false;
+          const saved = write.prepared ? await saveBytePartsToRef(ref, write.prepared.parts) : await saveToRef(ref, write.content);
+          if (saved) return commitSavedDocument(documentId, state, undefined, write.prepared);
         } catch (err) {
           // Alleen de browser biedt na een echte handle-schrijffout de bestaande uitweg Opslaan als.
           // Meld de fout eerst; `false` (geen toestemming/annulering) blijft zonder foutmelding.
-          if (isTauri() || ref.kind !== 'handle') throw err;
+          if (write.prepared || isTauri() || ref.kind !== 'handle') throw err;
           handleWriteFailed = true;
           notifyWriteError(err);
         }
@@ -1317,21 +1390,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (!choice) return false;
         if (choice.kind === 'site') {
           siteName = choice.name;
-          return await saveAsNewSiteFile(documentId, state, content, choice.name);
+          return await saveAsNewSiteFile(documentId, state, write, choice.name);
         }
       }
 
       // Hier is de opslag NIET teruggeschreven naar een bestaand bestand. In de browser legt
       // `browserSaveNotice` één keer per sessie uit waarom er weer een venster of download komt.
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
-      const outcome = await saveFileDialog(
-        `${suggestedFileBase(state)}.ifc`,
-        content,
-        [{ name: 'IFC Files', extensions: ['ifc'] }],
-        { refuseTarget: foreignTargetCheck('save') },
-      );
+      const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
-      const saved = commitSavedDocument(documentId, state, localDestination(outcome));
+      const saved = write.prepared && outcome.viaDownload
+        ? commitSavedDocument(documentId, state)
+        : commitSavedDocument(documentId, state, localDestination(outcome), write.prepared);
       await pushRecent(outcome.ref, outcome.name);
       // Een geslaagde kopie na een schrijffout bewijst geen browserbeperking. De echte fout is al
       // gemeld; alleen een download vraagt dan nog om uitleg over de nieuwe locatie.
@@ -1354,13 +1424,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const saveActiveDocumentAs = (): Promise<void> => runProjectFileWrite(async () => {
     // Fixronde 1 (BLOKKEERT 1): zie `writeActiveDocument`.
     const startDocumentId = get().activeDocumentId;
-    if (refuseForeignIfcWrite()) return;
+    if (refuseForeignDocumentWrite()) return;
     if (!(await settleIfcSchemaQuestion())) return;
     if (!(await settleDependentAnchors())) return;
     const state = get();
     const documentId = state.activeDocumentId;
     if (documentId !== startDocumentId) return;
-    if (refuseForeignIfcWrite(state)) return;
+    if (refuseForeignDocumentWrite(state)) return;
     // Gedeelde helper: één plek voor het state→IFC-options-object, zodat dit
     // pad geen velden kan laten vallen.
     // `state` = momentopname vóór de eerste await; zelfde reden als bij saveFile: isDirty pas
@@ -1368,7 +1438,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     let siteName: string | null = null;
 
     try {
-      const content = serializeForSave(state);
+      const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
+      if (!write || refuseChangedDocumentWrite(state, write)) return;
       // Site-opslag aanwezig: "Opslaan op de site" maakt altijd een NIEUW site-bestand (opslaan
       // als); "Op deze pc…" valt door naar de bestaande route hieronder.
       if (siteStorageAvailable()) {
@@ -1376,18 +1447,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (!choice) return;
         if (choice.kind === 'site') {
           siteName = choice.name;
-          await saveAsNewSiteFile(documentId, state, content, choice.name);
+          await saveAsNewSiteFile(documentId, state, write, choice.name);
           return;
         }
       }
-      const outcome = await saveFileDialog(
-        state.filePath ?? `${suggestedFileBase(state)}.ifc`,
-        content,
-        [{ name: 'IFC Files', extensions: ['ifc'] }],
-        { refuseTarget: foreignTargetCheck('save') },
-      );
+      const outcome = await documentSaveDialog(state, write, state.filePath ?? `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return;
-      commitSavedDocument(documentId, state, localDestination(outcome));
+      if (write.prepared && outcome.viaDownload) commitSavedDocument(documentId, state);
+      else commitSavedDocument(documentId, state, localDestination(outcome), write.prepared);
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
     } catch (err) {

@@ -210,17 +210,17 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
   `commitSavedDocument(id, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
-  bron en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
+  bron, bronkenmerk en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
   `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
-  verouderde AutoSave-kandidaten toetsen haar identiteit apart. Herstel en aansluiting horen
-  bij PR 9/11; de opslagblokkade blijft dicht.
+  verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
+  PR 11a sluit de documentroutes aan. De overige IFC-routes en bestands-AutoSave blijven geblokkeerd.
 - **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
   accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
   directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
   weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130). `saveNewSiteFileParts` en
   `saveSiteFileVersionParts` schrijven een Blob; de laatste eist een basisversie en bewaart de
   eventuele conflictkopie in het antwoord. Tekst en bestaande binaire exports houden hun gedrag.
-  `ifcSaveBlocked` blijft dicht tot PR 11; exclusieve vervanging/bronhash en crashvaste publicatie
+  `ifcSaveBlocked` houdt de overige routes dicht; exclusieve vervanging/bronhash en crashvaste publicatie
   zijn fase 2 (1131). Bewijs: `check-file-byte-parts.ts`.
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
@@ -247,7 +247,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   route reads bytes through `src/services/ifc/foreign/ifcBytesRoute.ts` (scanner and classification in a Worker, the
   reader follows `selectPlanning`; a scanner refusal stops document activation) and keeps the source in
   `ifcSource` (document contract, `snapshot: 'none'`: outside undo, recovery and MCP backup). A document with a foreign
-  part refuses every IFC write with one notice (`src/state/ifcForeignGuard.ts`). Before classification, only after a
+  part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
+  with a mandatory base version (1c PR 11a). `ifcDocumentSaveBlocked` guards those routes; `ifcSaveBlocked`
+  keeps all other IFC writes and file AutoSave blocked. Local existing targets remain refused (1131).
+  A successful document write commits source, target mark and literal calendars together; a download keeps the
+  opening source and target. Missing source bytes always block IFC output (`src/state/ifcForeignGuard.ts`). Before classification, only after a
   strict scan failure, `foreign/oldOwnHeader.ts` masks only the three free fields on an equally long independent
   copy. The exact LF/IFC4X3 header of the 17 raw tags v2026.2.0 through v2026.7.12 is recognized once in
   `src/services/ifc/oldOwnHeader.ts`, shared with the target stream and the reader's data-section start. DATA; or

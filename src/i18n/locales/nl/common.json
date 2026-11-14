@@ -350,7 +350,10 @@
     "layoutsNotSaved": "De layouts konden niet worden opgeslagen. Er is niets veranderd. Probeer het opnieuw.",
     "ifcForeignOpenSchema": "Dit IFC-bestand bevat gegevens van een ander programma en heeft een onbekend of ontbrekend schema. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
-    "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan."
+    "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan.",
+    "ifcForeignReplaceBlocked": "Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.",
+    "ifcForeignMergeRefused": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven.",
+    "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",

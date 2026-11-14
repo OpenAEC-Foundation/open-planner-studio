@@ -1,7 +1,7 @@
-// #804 fase 1a: een document met een vreemd deel (gebouwmodel of gegevens van andere programma's) mag nog niet naar IFC
-// geschreven worden. De writer bewaart dat deel pas in fase 1b; opslaan gaat er in fase 1c weer aan. Tot dan weigeren
-// Opslaan, Opslaan als, de IFC-export, de AutoSave naar het bestand, MCP-opslaan en `devBridge.saveToPath`, met één
-// melding via het meldingenkanaal. Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
+// #804 fase 1c: de documentroutes schrijven een voorbereide merge naar nieuwe lokale doelen,
+// browserdownloads en siteversies met een verplichte basisversie. De andere IFC-routes en AutoSave
+// houden de strikte opslagblokkade. Ontbrekende bronbytes blokkeren iedere IFC-opslag, ook met de flag uit.
+// Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 import { isForeignSourceTarget, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
@@ -28,6 +28,22 @@ export function ifcSaveBlocked(s: {
 }): boolean {
   return hasForeignContent(s.ifcSource) || s.foreignSourceMark?.sourceMissing === true;
 }
+
+/** Alleen de documentroutes mogen met de flag aan voorbereide merge-uitvoer schrijven.
+ * Export, paneel, hersteldoel en AutoSave houden de strikte `ifcSaveBlocked` hierboven. */
+export function ifcDocumentSaveBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
+  readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
+}): boolean {
+  return s.foreignSourceMark?.sourceMissing === true
+    || (hasForeignContent(s.ifcSource) && !ifcForeignContentEnabled(s.ui.featureFlags));
+}
+
+export const IFC_FOREIGN_REPLACE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignReplaceBlocked', dedupeKey: 'ifc-foreign-replace-blocked',
+});
+export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
+});
 
 /** Het opslagdoel dat het herstelmanifest bewaart (§4.14). De herstelsnapshot heeft geen bronbytes; met een vreemd deel
  *  zou Ctrl+S na herstel het modelbestand overschrijven met alleen planning. Dan geen doel: opslaan wordt opslaan als.
@@ -140,8 +156,17 @@ export async function refusedWriteTarget(
   s: WriteTargetState,
   target: FileRef,
   deps: WriteTargetDeps,
+  // Alleen een volledige documentmerge naar het eigen sitebestand; de host bewaakt de basisversie.
+  ownSiteVersion?: { readonly id: string; readonly baseVersion: string | null; readonly source: IfcSource },
 ): Promise<'open-source' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
-  if (await isOpenForeignSourceTarget(s, target, deps.identityFs)) return 'open-source';
+  const isOwnVersion = target.kind === 'site' && ownSiteVersion?.id === target.id
+    && !!ownSiteVersion.baseVersion && hasForeignContent(ownSiteVersion.source)
+    && ifcForeignContentEnabled(s.ui.featureFlags)
+    && openForeignSourceMarks(s).some(mark => mark.siteFileId === target.id && !mark.sourceMissing
+      && mark.sha256 === ownSiteVersion.source.sha256);
+  const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
+  if (openSource && !isOwnVersion) return 'open-source';
+  if (isOwnVersion) return null;
   if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;
   const refusal = await targetRefusal(target, deps.readers());
   return refusal === 'model' ? 'building-model' : refusal === 'foreign' ? 'foreign-content'

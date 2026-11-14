@@ -1980,9 +1980,11 @@ en noem het in je rapport of PR-tekst.
      geopend kantoorvoorbeeld, duur wijzigen en gewone Opslaan als: de geschreven bytes hebben een nieuwe sha256,
      maar het document houdt hetzelfde openingsbronobject. Dit is het behouden gedrag van main; alleen een expliciet
      meegegeven `PreparedIfcWrite` vervangt de bron in de opslagcommit van 8b. De volgende gewone opslag gebruikt de
-     gewone writer en leunt niet op die oude bytes. PR 9 mag zo'n bron niet als bewezen huidige schijfversie behandelen;
-     PR 11 moet de bron verversen of expliciet ongeldig verklaren zonder de gewone uitvoer te veranderen. Niet in 8b
-     gerepareerd, volgens punt 7 van de opdracht. Bewezen in `check-ifc-saved-source.ts`. — B
+     gewone writer en leunt niet op die oude bytes.
+     PR 11a laat deze bron bewust staan: alleen een bron met een vreemd deel bereikt de merge-route; een proef met
+     twee gewone opslagacties bewaakt bytepariteit en bronidentiteit. PR 9 mag een bron zonder vreemd deel niet als
+     huidige schijfversie gebruiken; verversen zou een extra scan/heropening per gewone opslag vragen. Bewezen in
+     `check-ifc-saved-source.ts` en `check-ifc-document-save.ts`. — B
 1559. **VERVOLG (#804, tekst): een toelichting in `ifcSource.ts` beschrijft de bronloze herstelgrens verkeerd.** De kop
      van `src/services/ifc/foreign/ifcSource.ts` schrijft toe aan `IFC_SAVE_KEYS` dat de bronbytes niet in de
      herstelsnapshot en de MCP-backup komen. Sinds #925 staat `ifcSource` juist in die lijst; de bescherming komt van
@@ -1995,6 +1997,24 @@ en noem het in je rapport of PR-tekst.
      voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
      en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
      van #926. — B
+1560. **VERVOLG (#804, test): de I/O-foutproef van de documentopslag bereikt de schrijffout niet.** In
+     `tests/planning/check-ifc-document-save.ts` wordt de naam van het geval, `I/O-fout`, letterlijk deel van het
+     doelpad. De map `I` bestaat niet, dus `open` faalt met `ENOENT` vóór de ingestelde fout na twee geschreven bytes;
+     de proef is groen zonder die schrijffout te toetsen. De review van #927 bereikte de fout met een eigen proef wel:
+     bron, kenmerk, doel en dirty-vlag blijven intact, het nieuwe bestand wordt verwijderd en er komt één melding.
+     Richting: een bestandsnaam zonder slash, en controleren dat de schrijfaanroep werkelijk is bereikt. Gevonden door
+     de review van #927. — B
+1561. **VERVOLG (#804, vorm): de uitzondering voor de eigen siteversie is over twee functies verdeeld.**
+     `refusedWriteTarget` (`src/state/ifcForeignGuard.ts`) zoekt een passend site-id en sha256 tussen de kenmerken van
+     alle open documenten; dat het om het schrijvende document gaat, volgt mede uit de aanroeper in `fileSlice.ts`
+     (dezelfde momentopname, document-id, bronidentiteit en guard opnieuw getoetst). Alleen de documentroute geeft de
+     uitzondering mee; een bereikbare route naar een verkeerd document is niet gevonden. Richting: de binding aan het
+     schrijvende document op één plek leggen. Een export geeft deze uitzondering nooit mee. Gevonden door de review
+     van #927. — B
+1562. **VERVOLG (#804, tekst): de melding bij een geweigerde merge noemt geen uitweg.**
+     `notifications.ifcForeignMergeRefused` zegt dat er niet is opgeslagen en waarom, maar niet wat de planner wel kan
+     doen. Aanvullen met een uitweg die werkelijk bestaat, in nl en en; de tekst gaat mee op de lijst voor de eigenaar
+     in `handoff.md`. Gevonden door de review van #927. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
@@ -2317,6 +2337,8 @@ en noem het in je rapport of PR-tekst.
 
 1131. **VERVOLG (fase 2, #804, E32): lokale byte-opslag heeft nog geen exclusieve vervanging met bronhash.**
      T1 laat alleen een nieuw einddoel met `createNew` toe; een bestaand doel blijft geweigerd.
+     Verplicht vóór de flag aan mag: het gewone vervolg Opslaan als → Ctrl+S op het zojuist gemaakte bestand
+     moet kunnen, net als bronherstel (1112). PR 11a meldt nu waarom dit nog weigert en verwijst naar Opslaan als.
      Voor vervanging zijn de bron-sha256 en de exclusieve plaatsing uit ontwerp §4.10 nodig,
      met `place_file_exclusive` (Rust, uitsluitend fase 2) en herstel na onderbreking. Plugin-fs-rename
      vervangt bestaande bestanden en is daarvoor ongeschikt. De nieuwe route schrijft na createNew
