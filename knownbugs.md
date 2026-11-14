@@ -2673,6 +2673,13 @@ en noem het in je rapport of PR-tekst.
      koptekst die beide berekeningen noemt, of een neutrale tekst. Stond al op main. Uit de review van #874
      (GPT-6.1-Terra, xhigh, op `c38ac7d9e`, VERVOLG). — B
 
+1730. **VERVOLG: 26 gidsvertalingen moeten de correctie over afzonderlijke resource-uren nog overnemen.**
+      `public/docs/{ar,bg,cs,da,de,es,fa,fi,fr,hr,hu,it,ja,ko,lo,nb,pl,pt,ro,ru,sk,sr,sv,tr,uk,zh}/howto-werkregel-kiezen.md`
+      is in #954 nog niet bijgewerkt met de Nederlandse en Engelse broncorrectie: eigen werkinvoer kan
+      afwijken van inzet × resterende duur; onder Vaste inzet blijven andere toewijzingen alleen bij gelijke
+      duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
+      bewust niet met de hand gewijzigd. — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
