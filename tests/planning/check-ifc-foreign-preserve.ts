@@ -728,7 +728,14 @@ for (const file of ['fix1-leeg-live', 'fix1-leeg-live-bl', 'r4-k2', 'r4-k3', 'r5
 
 // §4.4: de aanwezige velden in OPS_ProjectSettings winnen van de eigen werkplaneigenaar, ook bewust leeg.
 {
-  const input = readFileSync(join(ROOT, 'tests/fixtures/ifc-project-owner/vreemde-eerste-eigenaar.ifc'), 'utf8')
+  const original = readFileSync(join(ROOT, 'tests/fixtures/ifc-project-owner/vreemde-eerste-eigenaar.ifc'), 'utf8');
+  const selected = await openForeign(enc.encode(original));
+  const context = selected.ifcSource;
+  ok('bytes-route: de eerste OTHER-eigenaar blijft C-context in de leesinvoer', !!context
+    && context.classes[context.chunkIds.indexOf(90006)] === 2);
+  eq('bytes-route: de eigen werkplaneigenaar bepaalt auteur en bedrijf',
+    [selected.project.author, selected.project.company], ['Eigen auteur', 'Eigen bedrijf']);
+  const input = original
     .replace(/('OPS_ProjectSettings',\$,\()([^)]*)\)/, '$1$2,#90101,#90102)');
   ok('projectgegevens: de twee voorrangsvelden hangen aan de bestaande settings', input.includes('#90101,#90102'));
   const settings = await openForeign(enc.encode(withLines(input, [
