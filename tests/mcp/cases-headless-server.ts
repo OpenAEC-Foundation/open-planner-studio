@@ -10,7 +10,7 @@ import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 //      openen → taken en een relatie toevoegen → rekenen → opslaan → opnieuw openen → vergelijken, de
 //      MCP-backup, en de padbeveiliging (buiten de werkmap, `..`, symlinks, dode link, relatief pad).
 //      Over HTTP: tools/list, fout token, ontbrekende sessie-id, Origin, en de startweigeringen.
-import { test, assert, assertEq, run } from './harness';
+import { test as registerTest, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { chmodSync, cpSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -37,6 +37,12 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { externalClientChecks, connectClient, type AppProbe } from './externalClient';
+
+// Lokaal alleen bronproeven; de zelfstandige bundel en CLI draaien volledig in CI.
+function test(name: string, fn: () => void | Promise<void>): void {
+  if (process.env.OPS_HEADLESS_SOURCE_ONLY === '1' && name.startsWith('B')) return;
+  registerTest(name, fn);
+}
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const PUBLIC = join(ROOT, 'public');
@@ -571,6 +577,39 @@ test('A2 late scopeweigering bereikt de MCP-client bij import en export zonder b
   }
 });
 
+test('A doelbescherming: model en externe pset blijven bytegelijk zonder flag of draaiende app', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    const own = readFileSync(EXAMPLE, 'utf8');
+    const foreign = own.replace('ENDSEC;\nEND-ISO-10303-21;',
+      "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+      "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+    writeFileSync(join(rootA, 'eigen-bron.ifc'), own);
+    await ok(client, 'planner_import_schedule', { path: join(rootA, 'eigen-bron.ifc') });
+    assertEq(app.store.getState().ui.featureFlags.ifcForeignContent, undefined, 'headless zet geen flag');
+    for (const [name, bytes] of [
+      ['model', readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc'))],
+      ['externe-pset', Buffer.from(foreign)],
+      ['onleesbaar-step', Buffer.from('ISO-10303-21;\nHEADER;\nENDSEC;\nEND-ISO-10303-21;\n')],
+    ] as const) {
+      const target = join(rootA, `${name}.ifc`);
+      writeFileSync(target, bytes);
+      const alias = join(rootA, `${name}-link.ifc`);
+      symlinkSync(target, alias);
+      for (const path of [target, alias]) {
+        await refused(client, 'planner_export_ifc', { path, overwrite: true }, 'VALIDATION', name);
+        assert(readFileSync(target).equals(bytes), `${name}: geen byte gewijzigd`);
+      }
+    }
+    for (const name of ['eigen-doel.ifc', 'nieuw-doel.ifc']) {
+      const path = join(rootA, name);
+      if (name.startsWith('eigen')) writeFileSync(path, own);
+      await ok(client, 'planner_export_ifc', { path, overwrite: true });
+      assert(readFileSync(path, 'utf8').includes('IFCTASK('), `${name}: geschreven`);
+    }
+  } finally { await client.close(); }
+});
+
 test('A: afsluiten', async () => { await httpA.close(); });
 
 // --- B. De gebouwde server, gekopieerd naar een lege map --------------------------------------------
@@ -581,6 +620,7 @@ const work = join(tmp, 'werkmap');
 const outside = join(tmp, 'buiten');
 const dataB = join(tmp, 'data-b');
 const server = join(runDir, 'server.mjs');
+if (process.env.OPS_HEADLESS_SOURCE_ONLY === '1') mkdirSync(work);
 
 test('B: bouwen en de uitvoer naar een lege map buiten de repo kopiëren', () => {
   const r = spawnSync(process.execPath, [join(ROOT, 'scripts/build-mcp-server.mjs'), '--out', buildDir], { cwd: ROOT, encoding: 'utf8' });

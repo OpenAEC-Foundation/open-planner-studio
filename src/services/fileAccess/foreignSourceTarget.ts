@@ -19,7 +19,7 @@
 // vrijbrief.
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { scanTargetBlob, scanTargetBytes, type TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
+import { scanForeignTargetBlob, scanForeignTargetBytes, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
 import type { FileRef } from './index';
@@ -63,43 +63,33 @@ function targetContent(handle: FileSystemFileHandle): (mark: ForeignSourceMark) 
 
 /** Lezers van een bestaand doel, per route. Ontbreekt een lezer, dan is het doel niet leesbaar. */
 export interface TargetReaders {
-  /** Een bestaand pad als stroom lezen (Tauri); `null` = niet leesbaar (bijv. bestaat nog niet). */
-  scanPath?: (path: string) => Promise<TargetModelScan | null>;
-  /** Een bestand op de site lezen; `null` = niet leesbaar. */
+  /** Een bestaand pad als stroom lezen (Tauri); `null` = bewezen ontbrekend nieuw pad; leesfouten geven unreadable. */
+  scanPath?: (path: string) => Promise<TargetForeignScan | null>;
+  /** Een bestand op de site lezen; `null` = niet leesbaar, dus weigeren. */
   readSite?: (id: string) => Promise<Uint8Array | null>;
 }
 
-/**
- * Wat staat er in het gekozen bestaande doel: een gebouwmodel (een IFC met `IfcProduct`/`IfcTypeProduct`), een
- * STEP-bestand dat de app niet kan lezen, of geen van beide (`null`)? Leest als stroom en stopt bij de eerste
- * modelentiteit (`targetModelScan.ts`). Per uitkomst van de scan (fixronde 3):
- *  - 'model': niet schrijven;
- *  - 'unreadable': een STEP-bestand waarin de grammatica van ISO 10303-21 geen datasectie vindt: niet schrijven (besluit
- *    Trias, wrakko 10 november 2026, review van #870: een scan zonder uitkomst is geen vrijbrief);
- *  - 'not-ifc': het eerste statement is niet `ISO-10303-21;` (een CSV, XML, leeg bestand): schrijven mag;
- *  - 'no-model': het hele bestand is gelezen en er is geen modelentiteit: schrijven mag.
- * Een scan zonder uitkomst bestaat niet: de scanner geeft 'no-model' alleen na het einde van het bestand, dus een lange
- * kop of een groot bestand geeft geen vrijbrief.
- *
- * Niet leesbaar (een download in de browser, geen handle, een pad dat nog niet bestaat, een leesfout): dan `false`, en
- * het schrijven mag door. Besluit Trias (wrakko, 9 november 2026): wat de app niet kan lezen, kan hij niet beoordelen,
- * en een nieuw bestand mag altijd.
+/** Doelindeling met de flag aan (in headless altijd): model eerst als stroom, daarna dezelfde C/A/V-scan als openen.
+ * 'model' en 'foreign' weigeren. Een scanfout, onleesbaar bestaand doel of ontbrekende lezer is 'unreadable'.
+ * 'no-model' is pas veilig na de volledige indeling zonder vreemd deel; 'not-ifc' blijft een normaal ander formaat.
+ * Alleen een bewezen nieuw pad (scanPath geeft null) of een lege picker-file is een nieuw doel. Een download heeft
+ * geen bestaand FileRef en komt hier niet langs. De app met de flag uit slaat deze controle nog altijd over.
  */
-export async function targetRefusal(target: FileRef, readers: TargetReaders = {}): Promise<'model' | 'unreadable' | null> {
-  const refusal = (scan: TargetModelScan | null) => (scan === 'model' || scan === 'unreadable' ? scan : null);
+export async function targetRefusal(target: FileRef, readers: TargetReaders = {}): Promise<'model' | 'foreign' | 'unreadable' | null> {
+  const refusal = (scan: TargetForeignScan | null) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
   try {
     switch (target.kind) {
       case 'handle':
-        return refusal(await scanTargetBlob(await target.handle.getFile()));
+        return refusal(await scanForeignTargetBlob(await target.handle.getFile()));
       case 'path':
-        return readers.scanPath ? refusal(await readers.scanPath(target.path)) : null;
+        return readers.scanPath ? refusal(await readers.scanPath(target.path)) : 'unreadable';
       case 'site': {
         const bytes = readers.readSite ? await readers.readSite(target.id) : null;
-        return bytes ? refusal(scanTargetBytes(bytes)) : null;
+        return bytes ? refusal(scanForeignTargetBytes(bytes)) : 'unreadable';
       }
     }
   } catch {
-    return null;
+    return 'unreadable';
   }
 }
 
