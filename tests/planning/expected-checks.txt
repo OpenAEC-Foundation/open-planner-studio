@@ -179,6 +179,7 @@ check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-eigen-uitvoer.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
