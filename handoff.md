@@ -131,6 +131,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 ## Werk
 
 - PR 7c (#804, 1571): één strenge groeicontrole voor `OPS_Baselines.TaskGuids` en `OPS_TaskTypes.TaskTypes`; echte opgeslagen reeksen op drie bronnen, bron-/uitvoermutaties en twaalf vaste tellinggevallen; 1580 gaat naar 7d, 1581/1582 blijven op de eindlijst.
+- 2026-11-14: fase 1c PR 11b deelt de bewaakte voorbereiding met volledige IFC-export en app-MCP naar nieuwe doelen; exports laten documentbron, doel, dirty en kalenderkeuzes intact. 1135/1560/1561/1562 opgelost; pool/planOnly en handleiding blijven eindlijst 1565/1566.
 
 - 2026-11-14: fase 1c PR 11a sluit de documentroutes aan op de voorbereide merge: nieuwe desktopnaam, browserdownload en siteversie met basis; bron en kenmerk volgen één commit, bestaande lokale doelen en de overige IFC-routes blijven geweigerd.
 
@@ -436,3 +437,30 @@ krijgen een onafhankelijke volledige heropening in plaats van de te algemene oud
 Geen uitzondering in de writer. Bewijs en alle nieuwe gevallen:
 `docs/superpowers/evidence/2026-11-11-1107-herleestoets.md`.
 De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
+
+## Teksten voor de planner (te beoordelen vóór de flag aan mag)
+
+- `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route, ontbrekende bron of de flag uit na openen.
+  - nl: Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
+  - en: This file contains a building model; saving is not possible yet.
+- `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel.
+  - nl: Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.
+  - en: File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.
+- `notifications.ifcForeignMergeRefused` — Als de voorbereiding verlies zou geven en daarom niets schrijft.
+  - nl: Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan of exporteer de planning naar een ander formaat.
+  - en: The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change or export the schedule to another format.
+- `notifications.ifcSaveChangedWhileWaiting` — Als document of bron tijdens voorbereiding of bestandskeuze veranderde.
+  - nl: Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.
+  - en: File not saved. The document or the building model source changed during preparation. Try saving again.
+- `notifications.ifcForeignTargetSave` — Bij Opslaan naar een beschermd bestaand doel.
+  - nl: Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.
+  - en: This file contains a building model or data from another program. Choose another file to save to.
+- `notifications.ifcForeignTargetExport` — Bij export naar een beschermd bestaand doel.
+  - nl: Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om naar te exporteren.
+  - en: This file contains a building model or data from another program. Choose another file to export to.
+- `notifications.ifcForeignTargetAutoSave` — Als Automatisch opslaan een beschermd bestaand doel weigert.
+  - nl: Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.
+  - en: Auto-save has stopped: this file contains a building model or data from another program. Choose another file to save to.
+- `notifications.ifcForeignExportNewTarget` — Als de volledige IFC-export geen exclusief nieuw doel kan aanmaken.
+  - nl: Niet geëxporteerd. Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geëxporteerd. Kies een naam die nog niet bestaat.
+  - en: Not exported. This IFC file can only be exported to a new file name. Choose a name that does not exist yet.

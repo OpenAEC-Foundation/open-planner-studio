@@ -213,7 +213,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   bron, bronkenmerk en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
   `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
   verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
-  PR 11a sluit de documentroutes aan. De overige IFC-routes en bestands-AutoSave blijven geblokkeerd.
+  PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
+  met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
+  Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
 - **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
   accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
   directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
@@ -248,8 +250,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   reader follows `selectPlanning`; a scanner refusal stops document activation) and keeps the source in
   `ifcSource` (document contract, `snapshot: 'none'`: outside undo, recovery and MCP backup). A document with a foreign
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
-  with a mandatory base version (1c PR 11a). `ifcDocumentSaveBlocked` guards those routes; `ifcSaveBlocked`
-  keeps all other IFC writes and file AutoSave blocked. Local existing targets remain refused (1131).
+  with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
+  for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131).
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes always block IFC output (`src/state/ifcForeignGuard.ts`). Before classification, only after a
   strict scan failure, `foreign/oldOwnHeader.ts` masks only the three free fields on an equally long independent
@@ -260,7 +263,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   comment markers or quote/field separators (also spaced) retain the main route; they are never masked or skipped.
   Other inputs retain main's data-section rule (knownbug 1061); broken headers
   outside that exact template are unreadable as targets. Original bytes/positions and strict DATA scanning remain.
-  The foreign-content save block stays closed.
+  Other foreign-content write routes stay blocked.
 - **IFC 4.3 is the native format**; there is no JSON project format. New domain data must round-trip through
   `ifcWriter`/`ifcReader`, or it is gone after saving. CSV/MSPDI/P6/`.mpp`/`.xer` are adapters. The file schema is
   per project (`Project.ifcSchema`, default `IFC4X3_ADD2`); never write silently in another one. Route:
