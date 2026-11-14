@@ -1908,17 +1908,14 @@ en noem het in je rapport of PR-tekst.
      in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
      of van herstel van zulke id-uitzonderingen. — S
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
-     §4.12/E31 is een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag aan mag.
-     De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. Anders dan de opdracht van 9b
-     veronderstelde, weigert main bij een vers geopende backup alleen het oorspronkelijke doel: een andere
-     naam mag planning zonder model schrijven (`check-ifc-foreign-target.ts`, §7). 9b verandert die
-     productroute niet. De productkeuze wat de planner daarbij ziet blijft bij de eigenaar; PR 9b bouwt geen backupaansluiting. De tekst voor een ontbrekende
-     bron staat op de tekstlijst in `handoff.md`. De review van #931 mat het met de flag aan en een echte `IFCWALL`:
-     backup maken → openen → taak toevoegen → downloaden geeft een bestand met de taak, zonder gebouwmodel en zonder
-     bronkenmerk; bij het openen verschijnt niets, bij het opslaan alleen `notifications.savedViaDownload`. Besluit
-     Trias 14 november 2026: een eigen kleine PR direct na 9b laat een geopende backup van een document met een
-     gebouwmodel zich met de flag aan gedragen als "bron ontbreekt" (elke IFC-opslag geweigerd, met de melding van
-     9b); met de flag uit blijft het main. Met die stap erin is 9c niet verplicht vóór de flag standaard aan gaat. — B
+     §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
+     De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
+     met `ifcForeignContent` aan `sourceMissing` op dat kenmerk: iedere IFC-opslag weigert via de bestaande
+     opslagbewaking, met `notifications.ifcForeignSourceMissing`; export naar een ander formaat blijft mogelijk.
+     Met de flag uit blijft de bestaande route gelijk: een andere naam mag planning zonder model schrijven.
+     Beproefd via de echte backupdienst en openroute, met een echte `IFCWALL`, browserhandle en Tauri-pad;
+     bron en backup blijven sha256-gelijk. De bron opnieuw koppelen en de planner daarbij een keuze geven
+     blijven 9c en een productkeuze van de eigenaar. De melding staat op de tekstlijst in `handoff.md`. — B
 
 1576. **VERVOLG (#804, opruimen): productiecode voegt zich naar de testdubbel van IndexedDB.** In
      `src/services/recovery/recoverySourceCopies.ts` melden twee `queueMicrotask(resolve)`-paden in

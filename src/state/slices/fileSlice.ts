@@ -1552,11 +1552,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         : inheritsTarget ? current.foreignSourceMark : null;
       // Fixronde 3: een MCP-backup van een document met een kenmerk draagt dat kenmerk, met het doel van de bron (pset
       // `OPS_RecoveryForeignSource`, `backupService.ts`). Wie zo'n backup opent, krijgt het kenmerk terug, en het
-      // opslagdoel valt weg: Ctrl+S wordt Opslaan als. Anders schreef Ctrl+S de backup over zonder kenmerk, en mocht
+      // opslagdoel valt weg; met de flag uit wordt Ctrl+S Opslaan als. Anders schreef Ctrl+S de backup over zonder kenmerk, en mocht
       // Opslaan als daarna over de bron. Een eigen bron met een vreemd deel gaat voor; de IFC-editor houdt zijn kenmerk.
       const recordMark = !editing && !payload.foreignSourceMark ? foreignSourceMarkFromRecord(uniqueParsed.recoveryForeignSource) : null;
       if (recordMark) {
-        payload.foreignSourceMark = recordMark;
+        // De backup heeft alleen planning: met de flag aan dezelfde opslagblokkade als herstel zonder bron.
+        payload.foreignSourceMark = ifcForeignContentEnabled(current.ui.featureFlags)
+          ? { ...recordMark, sourceMissing: true } : recordMark;
         payload.filePath = null;
         payload.fileHandle = null;
         payload.siteFileId = null;
