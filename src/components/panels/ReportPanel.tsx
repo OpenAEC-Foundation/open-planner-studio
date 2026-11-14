@@ -135,8 +135,9 @@ export function ReportPanel() {
   const reportSettings = useReportSettings();
   const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = reportSettings;
   const reportFont = reportFontStack(reportFontFamily);
-  // De voorvertoning tekent in de rapportletter: registreer en laad hem (`@font-face`) zodra hij gekozen is,
-  // niet pas bij de export. Ook bij een ander eigen lettertype (zelfde id, andere sleutel).
+  // De voorvertoning tekent in de rapportletter: registreer en laad hem (`@font-face`) zodra hij gekozen is, niet
+  // pas bij de export (review Sol #938). Anders toont de tabel een letter die nog niet geladen is in Inter. Ook bij
+  // een ander eigen lettertype (zelfde id, andere sleutel).
   const reportFontLoadKey = reportFontKey(reportSettings);
   useEffect(() => { void ensureReportFontLoaded(reportFontFamily); }, [reportFontFamily, reportFontLoadKey]);
   // Alleen de gewijzigde tabelopties: `patchReportSettings` voegt de groep per optie samen.

@@ -1163,6 +1163,15 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
   await expect(tableFontPicker).toContainText(/^Liberation Sans/);
   const tableReport = page.locator('[data-ops-table-report]');
   await expect(tableReport).toHaveCSS('font-family', /OpsReportLiberationSans/);
+  // Een letter die nog nergens geladen is, gekozen terwijl het tabelrapport open staat (review Sol #938): de
+  // voorvertoning moet hem meteen laden, niet pas bij de export. Daarna terug naar Liberation Sans voor de rest.
+  await tableFontPicker.click();
+  await page.getByRole('option', { name: /^Liberation Mono/ }).click();
+  await expect(tableReport).toHaveCSS('font-family', /OpsReportLiberationMono/);
+  await expect.poll(() => loadedWeights('OpsReportLiberationMono'), { timeout: 20_000 }).toEqual(['400', '700']);
+  await tableFontPicker.click();
+  await page.getByRole('option', { name: /^Liberation Sans/ }).click();
+  await expect(tableReport).toHaveCSS('font-family', /OpsReportLiberationSans/);
 
   // Raster-terugval (review Sol #837, ronde 1): zonder CJK-letter in de app valt de vector-export van een
   // CJK-naam terug op een DOM-opname (modern-screenshot). Die opname moet de gekozen letter meenemen. De haak
