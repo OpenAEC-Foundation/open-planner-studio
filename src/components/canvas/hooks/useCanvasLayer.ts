@@ -1,4 +1,14 @@
-import { RefObject, useCallback, useEffect } from 'react';
+import { RefObject, useCallback, useEffect, useEffectEvent } from 'react';
+
+interface MeasuredCanvasBox {
+  width: number;
+  height: number;
+  dpr: number;
+  pixels: ResizeObserverSize;
+}
+
+// Ook de overlays gebruiken de gemeten pixelmaat van hun hoofdlaag.
+const measuredBoxes = new WeakMap<HTMLElement, MeasuredCanvasBox>();
 
 /** Lokale timelinegrens: de linker pixel is 0, de eerste pixel buiten beeld is exact `width`. */
 export function isTimelineCanvasX(x: number, width: number): boolean {
@@ -16,14 +26,20 @@ export function sizeCanvasToContainer(
 ): { ctx: CanvasRenderingContext2D; width: number; height: number } | null {
   const dpr = window.devicePixelRatio || 1;
   const rect = container.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const box = measuredBoxes.get(container);
+  const pixels = box?.dpr === dpr && box.width === rect.width && box.height === rect.height
+    ? box.pixels
+    : undefined;
+  // Rond beide randen af: bij een fractionele oorsprong kan round(breedte * dpr) afwijken.
+  canvas.width = Math.max(1, pixels?.inlineSize ?? Math.round(rect.right * dpr) - Math.round(rect.left * dpr));
+  canvas.height = Math.max(1, pixels?.blockSize ?? Math.round(rect.bottom * dpr) - Math.round(rect.top * dpr));
   canvas.style.width = `${rect.width}px`;
   canvas.style.height = `${rect.height}px`;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  ctx.scale(dpr, dpr);
+  ctx.setTransform(canvas.width / rect.width, 0, 0, canvas.height / rect.height, 0, 0);
   return { ctx, width: rect.width, height: rect.height };
 }
 
@@ -77,15 +93,53 @@ export function useCanvasLayer({
     return () => cancelAnimationFrame(frame);
   }, [paint, enabled, renderRevision]);
 
-  // ResizeObserver op de container (was: één observer-effect per laag).
+  const paintObservedSize = useEffectEvent(paint);
+
+  // Observeer CSS-maat én device-pixels: beide kunnen onafhankelijk wijzigen.
   useEffect(() => {
     if (!enabled) return;
     const container = containerRef.current;
     if (!container) return;
-    const obs = new ResizeObserver(() => requestAnimationFrame(paint));
-    obs.observe(container);
-    return () => obs.disconnect();
-  }, [paint, enabled, containerRef]);
+    let frame: number | undefined;
+    const schedulePaint = () => {
+      if (frame !== undefined) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        paintObservedSize();
+      });
+    };
+    const measure: ResizeObserverCallback = ([entry]) => {
+      const pixels = entry.devicePixelContentBoxSize?.[0];
+      if (pixels) {
+        const { width, height } = container.getBoundingClientRect();
+        measuredBoxes.set(container, { width, height, dpr: window.devicePixelRatio || 1, pixels });
+      }
+      schedulePaint();
+    };
+    const cssObserver = new ResizeObserver(measure);
+    cssObserver.observe(container);
+    const pixelObserver = new ResizeObserver(measure);
+    if ('devicePixelContentBoxSize' in ResizeObserverEntry.prototype) {
+      pixelObserver.observe(container, { box: 'device-pixel-content-box' });
+    }
+
+    // Ook browsers zonder device-pixel-box moeten hertekenen bij een monitorwissel.
+    let resolution = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    const onResolutionChange = () => {
+      resolution.removeEventListener('change', onResolutionChange);
+      resolution = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      resolution.addEventListener('change', onResolutionChange);
+      schedulePaint();
+    };
+    resolution.addEventListener('change', onResolutionChange);
+    return () => {
+      resolution.removeEventListener('change', onResolutionChange);
+      cssObserver.disconnect();
+      pixelObserver.disconnect();
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      measuredBoxes.delete(container);
+    };
+  }, [enabled, containerRef]);
 
   return paint;
 }
