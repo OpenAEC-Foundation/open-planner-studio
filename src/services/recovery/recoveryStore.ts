@@ -1,3 +1,4 @@
+import { cleanupRecoverySourceCopies, sourceCopyReferenceKey, writeRecoverySourceCopy, type RecoverySourceCopy } from './recoverySourceCopies';
 import { ifcSourceMetaFields, type RecoveryIfcSource } from './recoveryIfcSource';
 import { isTauri } from '@/utils/platform';
 import { IndexedDbUpgradeBlockedError, openDbStores } from '@/utils/idb';
@@ -114,6 +115,9 @@ export interface RecoverySaveInput {
    * opslaglaag hem vóór het manifest. Afwezig = geen verwijzingen.
    */
   archives?: ReadonlyMap<string, RecoveryArchiveSupplier>;
+  /** Alleen runtime; bronbytes gaan uitsluitend naar de aparte browserdatabase. */
+  ifcSourceCopies?: ReadonlyMap<string, RecoverySourceCopy>;
+  onSourceCopyFailure?: (documentId: string) => void;
 }
 
 /** Gebruik uitsluitend in tests en voor expliciete compatibiliteitsmigraties: alles is nieuw. */
@@ -161,6 +165,8 @@ function suppliedArchiveBytes(input: RecoverySaveInput, sha256: string): Uint8Ar
 /** Geladen record incl. weergave-mtime (Tauri: bestand-mtime; web: addedAt). */
 export interface LoadedRecoveryDoc extends RecoveryDocContent {
   mtime: Date | null;
+  /** Bestaande webrecordsleutel, alleen voor het terugvinden van de bronkopie/sitebasis. */
+  sourceCopyDocumentKey?: string;
 }
 
 export interface LoadedRecovery {
@@ -1237,6 +1243,75 @@ function webArchiveReferences(records: readonly WebRecord[]): Set<string> {
 const docKey = (sid: string, docId: string): string => `${sid}::doc::${docId}`;
 const manifestKey = (sid: string): string => `${sid}::manifest`;
 
+/** Kopie-opruimen gebruikt dezelfde index plus canonieke sleutels als saveWeb. */
+async function sourceCopyManifests(db: IDBDatabase): Promise<WebRecord[]> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(WEB_STORE, 'readonly'), store = tx.objectStore(WEB_STORE);
+    const keys = store.getAllKeys(), indexed = store.index(WEB_KIND_INDEX).getAll('manifest');
+    keys.onerror = indexed.onerror = () => reject(keys.error ?? indexed.error);
+    let pending = 2;
+    const done = () => {
+      if (--pending) return;
+      const records = indexed.result as WebRecord[];
+      const ids = new Set(records.map(r => r.id));
+      const extra = keys.result.filter((k): k is string => typeof k === 'string' && k.endsWith('::manifest') && !ids.has(k));
+      if (!extra.length) { resolve(records); return; }
+      let remaining = extra.length;
+      for (const key of extra) {
+        const request = store.get(key);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          if (request.result !== undefined) records.push(request.result as WebRecord);
+          if (--remaining === 0) resolve(records);
+        };
+      }
+    };
+    keys.onsuccess = indexed.onsuccess = done;
+  });
+}
+
+async function cleanupWebSourceCopies(generations = new Set<string>()): Promise<void> {
+  const db = await openRecoveryDb();
+  const manifests = await sourceCopyManifests(db);
+  // Bij een onbekend contract kennen we niet alle verwijzingen: helemaal niets wissen.
+  if (manifests.some(m => !readableWebManifest(m))) return;
+  const references = new Set<string>(), hashes = new Set<string>();
+  for (const manifest of manifests as WebManifestRecord[]) for (const document of manifest.documents ?? []) {
+    const source = ifcSourceMetaFields(document).ifcSource;
+    if (!source) { if (document.ifcSource) return; continue; }
+    hashes.add(source.sha256);
+    references.add(sourceCopyReferenceKey(document.ifc, source.sha256));
+  }
+  if (generations.size === 0) for (const id of [await sessionId(), ...await heldSessionIds()]) generations.add(id);
+  await cleanupRecoverySourceCopies(generations, references, hashes);
+}
+
+// Na één mislukking geen tiensecondenlus van grote kopieerpogingen of meldingen.
+let sourceCopiesUsed = false;
+const failedSourceCopies = new Set<string>();
+async function prepareWebSourceCopies(input: RecoverySaveInput): Promise<{ input: RecoverySaveInput; failed: string[] }> {
+  if (!input.ifcSourceCopies?.size) return { input, failed: [] };
+  sourceCopiesUsed = true;
+  const sid = await sessionId(), db = await openRecoveryDb();
+  checkWebGenerations(await sourceCopyManifests(db), [sid, ...await heldSessionIds()]);
+  const failed: string[] = [], missing = new Set<string>();
+  for (const document of input.documents) {
+    const copy = input.ifcSourceCopies.get(document.id);
+    if (!copy || !document.ifcSource) continue;
+    if (failedSourceCopies.has(document.id)) { missing.add(document.id); continue; }
+    try { await writeRecoverySourceCopy(docKey(sid, document.id), document.ifcSource.sha256, copy); }
+    catch {
+      failedSourceCopies.add(document.id); missing.add(document.id); failed.push(document.id);
+    }
+  }
+  const withoutMissing = <T extends RecoveryDocMetadata>(document: T): T => {
+    if (!missing.has(document.id)) return document;
+    const { ifcSource: _source, ...rest } = document;
+    return rest as T;
+  };
+  return { input: { ...input, documents: input.documents.map(withoutMissing), upserts: input.upserts.map(withoutMissing) }, failed };
+}
+
 /**
  * Schrijf de héle webdelta in ÉÉN strikte IndexedDB readwrite-transactie. Eerst lezen we de
  * bestaande records in dezelfde transactie, daarna valideren we alle referenties, schrijven we
@@ -1473,6 +1548,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
       seen.add(docId);
       docs.push({
         id: rec.docId,
+        ...(ifcSourceMetaFields(document).ifcSource ? { sourceCopyDocumentKey: rec.id } : {}),
         ifc: rec.ifc,
         filePath: document.filePath ?? rec.filePath ?? null,
         // docIds-manifesten hadden geen documentmetadata: hun synthetische defaults
@@ -1580,8 +1656,14 @@ export function saveRecovery(input: RecoverySaveInput): Promise<void> {
   return serializeRecoveryWrite(async () => {
     if (isTauri()) { await saveTauri(input); return; }
     if (webStorageUnavailable) throw new RecoveryStorageUnavailableError();
-    try { await saveWeb(input); } catch (error) { throw asStorageRefusal(error); }
-    webStorageProven = true;
+    try {
+      const prepared = await prepareWebSourceCopies(input);
+      await saveWeb(prepared.input);
+      webStorageProven = true;
+      for (const id of prepared.failed) input.onSourceCopyFailure?.(id);
+      // Best effort: een opruimfout mag het geslaagde manifest niet ongedaan maken.
+      if (sourceCopiesUsed) await cleanupWebSourceCopies().catch(() => {});
+    } catch (error) { throw asStorageRefusal(error); }
   });
 }
 
@@ -1603,7 +1685,11 @@ export async function loadRecovery(): Promise<LoadedRecovery> {
 }
 
 export function clearRecovery(): Promise<void> {
-  return serializeRecoveryWrite(() => (isTauri() ? clearTauri() : quietWhenRefused(clearWeb)));
+  return serializeRecoveryWrite(() => (isTauri() ? clearTauri() : quietWhenRefused(async () => {
+    const generations = new Set([await sessionId(), ...await heldSessionIds()]);
+    await clearWeb();
+    await cleanupWebSourceCopies(generations).catch(() => {});
+  })));
 }
 
 /**

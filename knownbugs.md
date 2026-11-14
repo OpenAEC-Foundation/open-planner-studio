@@ -1890,14 +1890,16 @@ en noem het in je rapport of PR-tekst.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
 
-1112. **Bij 1c: herstel van site/download en de productkeuze bij een ontbrekende bron afronden.**
+1112. **Bij 1c: de productkeuze bij een ontbrekende bron afronden.**
      PR 9a leest desktopbron en browserhandle terug op grootte en sha256, via de gewone bytes-route;
      de planning komt uit de snapshot. Een nieuwe herstelset van een inmiddels gewone planning blokkeert
      zonder bron niet meer. Een oud manifest of herstel met de flag uit houdt het eerdere gedrag.
-     PR 9b bouwt de bronkopie voor site en browser zonder handle, en de aansluiting van MCP-backups.
+     PR 9b bewaart bronkopieën voor site en browser zonder handle in een eigen IndexedDB-database;
+     de bestaande hersteldatabase blijft v3. MCP-backups terugzetten op het open document is 9c (1575).
      Ontbreekt de vreemde bron of wijkt de hash af, dan blijft elke IFC-opslag geweigerd (`sourceMissing`).
      De keuze van Ethan of er bewust Opslaan als zonder gebouwmodel met uitleg komt, blijft open;
-     PR 9a voert die productkeuze niet in. Verplicht vóór de flag aan mag. — B
+     PR 9a/9b voeren die productkeuze niet in. De productkeuze blijft vóór de flag aan mag;
+     9c is niet verplicht vóór de flag aan mag. — B
 
 1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
      PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
@@ -1905,20 +1907,48 @@ en noem het in je rapport of PR-tekst.
      de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
      in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
      of van herstel van zulke id-uitzonderingen. — S
-1572. **VERVOLG (#804, test): de herstelcheck bewaakt vreemde verwijzingen minder rechtstreeks dan haar tekst zegt.**
-     `tests/planning/check-recovery-ifc-source.ts` vergelijkt de verzameling GlobalIds; `mergeProblems` bewaakt de
-     vreemde bytes en de aanwezigheid. Een directe controle dat elk vreemd doel-`#id` na herstel en opslag hetzelfde
-     planningobject aanwijst (type en GlobalId op dat `#id`) ontbreekt. De review van #929 deed die controle met een
-     eigen proef: alle ketens groen. Richting: die controle in de blijvende check opnemen. — B
-1573. **VERVOLG (#804, tekst): een toelichting in `foreignSourceMark.ts` over browserhandles loopt achter.** Daar staat
-     dat de handle alleen in het geheugen leeft. Sinds #929 bewaart het herstel hem in de herstelopslag (het optionele
-     manifestveld `ifcSource.handle`); de Worker en de planningssnapshot blijven wel zonder handle. Alleen de
-     toelichting bijwerken. Gevonden door de review van #929. — B
+1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
+     §4.12/E31 is een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag aan mag.
+     De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. Anders dan de opdracht van 9b
+     veronderstelde, weigert main bij een vers geopende backup alleen het oorspronkelijke doel: een andere
+     naam mag planning zonder model schrijven (`check-ifc-foreign-target.ts`, §7). 9b verandert die
+     productroute niet. De productkeuze wat de planner daarbij ziet blijft bij de eigenaar; PR 9b bouwt geen backupaansluiting. De tekst voor een ontbrekende
+     bron staat op de tekstlijst in `handoff.md`. De review van #931 mat het met de flag aan en een echte `IFCWALL`:
+     backup maken → openen → taak toevoegen → downloaden geeft een bestand met de taak, zonder gebouwmodel en zonder
+     bronkenmerk; bij het openen verschijnt niets, bij het opslaan alleen `notifications.savedViaDownload`. Besluit
+     Trias 14 november 2026: een eigen kleine PR direct na 9b laat een geopende backup van een document met een
+     gebouwmodel zich met de flag aan gedragen als "bron ontbreekt" (elke IFC-opslag geweigerd, met de melding van
+     9b); met de flag uit blijft het main. Met die stap erin is 9c niet verplicht vóór de flag standaard aan gaat. — B
+
+1576. **VERVOLG (#804, opruimen): productiecode voegt zich naar de testdubbel van IndexedDB.** In
+     `src/services/recovery/recoverySourceCopies.ts` melden twee `queueMicrotask(resolve)`-paden in
+     `cleanupRecoverySourceCopies` het opruimen klaar vóór het einde van de transactie, omdat
+     `tests/planning/fakeRecoveryIndexedDb.ts` alleen transacties met een schrijfactie voltooit. Een echte browser
+     voltooit ook een readwrite-transactie die alleen leest. De gewone volgorde breekt er niet door: het schrijven van
+     de kopie wacht wel op `tx.oncomplete`, en de vroege paden wissen niets. Richting: de dubbel laten voltooien zoals
+     IndexedDB, daarna de twee paden en de `changed`-administratie weg; `getAllKeys().includes(sha256)` kan één
+     `getKey(sha256)` worden. De dubbel bewijst geen echte rollback. Gevonden door de review van #931. — B
+
+1577. **VERVOLG (#804, gemaakt geval): een herstelde sitebron zonder eigen verwijzing houdt een sitedoel zonder
+     basisversie.** Delen twee sitedocumenten dezelfde bronbytes en ontbreekt de verwijzing van één ervan in de
+     kopie-database, dan geeft `src/state/readRecoveryDocument.ts` dat document een teruggelezen bron met het site-id
+     maar zonder basisversie. Opslaan doet dan nul schrijfacties naar de host (de veiligheidsgrens houdt), maar de
+     melding `ifcForeignTargetSave` zegt niet dat de herstelbasis ontbreekt. Het document neemt de basis van het
+     andere document niet over. Richting: het sitedoel alleen teruggeven met een passende basis, of deze toestand
+     gericht melden. Gevonden door de review van #931 (eigen proef met twee documenten op één sha256). — B
+
+1578. **VERVOLG (#804, niet gemeten): de bronkopie bij grote bestanden en in een echte browser.** De kopie gaat als
+     `Uint8Array` in IndexedDB (de vorm van het XER-archief); bij herstel maakt de scanner-Worker tijdelijk nog een
+     volledige kopie. Niet gemeten: tijd en geheugen bij 150 tot 300 MB, een echte procescrash, wat een echte browser
+     achterlaat na de afgebroken eerste upgrade in `existingDatabase` (volgens de specificatie niets), en een echte
+     sitehost. Hoort bij de meting van PR 6 en de proef in een echte browser van 1574, vóór de flag standaard aan
+     gaat. Gevonden door de review van #931. — S
 1574. **VERVOLG (#804, niet gemeten): een bewaarde browserhandle kan na een echte herstart opnieuw toestemming
      vragen.** Het herstel leest de bron via de bewaarde `FileSystemFileHandle`. De proeven gebruiken een testdubbel;
      of een echte browser na een herstart de leesrechten nog geeft, is niet gemeten. Zonder rechten valt het herstel
-     terug op "bron ontbreekt" (opslag geweigerd, niets verloren). Richting: een proef in een echte browser vóór de
-     flag standaard aan gaat; zo nodig de bronkopie van PR 9b als terugval. Gevonden door de review van #929. — S
+     op een bestaande kopie terug (PR 9b), anders op "bron ontbreekt" (opslag geweigerd, niets verloren).
+     Voor handles wordt geen extra kopie gemaakt: dat zou voor grote bestanden extra opslag vragen en
+     afwijken van de afgesproken kopiegrens. Richting: een proef in een echte browser vóór de flag standaard aan gaat. Gevonden door de review van #929. — S
 
 
 1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
@@ -2036,19 +2066,10 @@ en noem het in je rapport of PR-tekst.
 
 1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
      `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
-     planner ziet haar ook bij een ontbrekende bron (na een crash, bij een geopende backup) en bij een export, en ook
-     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de ontbrekende bron niet en biedt geen
-     vervolgstap. Richting: een eigen tekst voor "bron ontbreekt" (PR 9b), en de rest bij de lijst "Teksten voor de
-     planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
-
-1564. **VERVOLG (#804, tekst en documentatie): de flag `ifcForeignContent` heeft wél een schakelaar.** In het
-     verborgen blok Experimenteel (Instellingen → Geavanceerd) staat elke geregistreerde flag, ook deze
-     (`SettingsPanelContent.tsx`; besluit van de eigenaar van 10 november 2026, zie `handoff.md`). De omschrijving
-     `settings.ifcForeignContentHint` zegt nog "Opslaan van zo'n bestand is nog niet mogelijk", terwijl Opslaan als
-     naar een nieuwe naam, de site, de download en de IFC-export sinds #927 en #928 het volledige bestand schrijven.
-     `AGENTS.md` en knownbug 1205 beschrijven nog "`writesNewIfcData: true` (no checkbox, always off)". Richting: de
-     omschrijving en de documentatie laten aansluiten op de schakelaar, met wat wel en niet kan; de handleiding van
-     1566 hoort bij de PR die de flag standaard aanzet. Gevonden door de review van #928. — B
+     planner ziet haar bij een geblokkeerde route (bijvoorbeeld pool-export of de flag uit), en ook
+     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de geweigerde route en het
+     passende alternatief niet. PR 9b geeft bron ontbreekt een eigen tekst met de reden en export naar een ander formaat;
+     de overige weigeringen blijven bij de lijst "Teksten voor de planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
 
 1558. **VERVOLG (#804, opruimen): de alias `type DocumentWrite = IfcOutput` in `fileSlice.ts` voegt niets toe.** Eén
      regel in `src/state/slices/fileSlice.ts`; het type `IfcOutput` uit `src/state/prepareIfcOutput.ts` volstaat.
@@ -3709,12 +3730,6 @@ en noem het in je rapport of PR-tekst.
       reageert alleen op losse klikken met hoogstens 0,5 s ertussen (`SettingsPanelContent.tsx`, `activateVersion`).
       Enter vasthouden werkt wel, door toetsherhaling. De tekst is door Ethan goedgekeurd en blijft staan; een andere
       tekst (bijv. "klik 5 seconden snel achter elkaar") ligt bij wrakko. Uit de review van #879, Opus, BEVESTIGD. — B
-
-1205. **VERVOLG: AGENTS.md noemt de uitzondering voor `writesNewIfcData` niet bij de schakelaarregel.** De zin
-      "`writesNewIfcData: true` (no checkbox, always off)" en de regel "Elke feature flag krijgt een schakelaar" lijken
-      elkaar tegen te spreken; de uitzondering staat alleen in de code (`experimentalToggleFlags` in
-      `src/utils/featureFlags.ts`). Of zulke flags een schakelaar krijgen, is een open vraag bij Ethan; daarna de
-      tekst laten aansluiten. Uit de review van #879, Opus, BEVESTIGD. — B
 
 
 1450. **VERVOLG: sorteren op een activiteitscode volgt de waardevolgorde niet, groeperen wel.** Sorteren gebruikt de

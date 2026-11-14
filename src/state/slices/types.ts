@@ -223,6 +223,8 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignOpenUnsafe'
   | 'notifications.ifc2x3PlanningOnly'
   | 'notifications.ifcForeignSaveBlocked'
+  | 'notifications.ifcForeignSourceMissing'
+  | 'notifications.ifcSourceCopyFailed'
   | 'notifications.ifcForeignReplaceBlocked'
   | 'notifications.ifcForeignMergeRefused'
   | 'notifications.ifcForeignExportNewTarget'

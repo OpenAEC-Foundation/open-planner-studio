@@ -130,9 +130,11 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 9b bewaart site-/browserbronkopieën vóór het manifest in een eigen IndexedDB-database; bestaande database v3 en manifest v5 blijven staan, sitebasis alleen naast de kopie, veilige opruiming en best effort. 1572/1573/1205/1564 opgelost; handle-rechten 1574 en backupaansluiting 9c (1575) blijven vervolg.
+
 - PR 7c (#804, 1571): één strenge groeicontrole voor `OPS_Baselines.TaskGuids` en `OPS_TaskTypes.TaskTypes`; echte opgeslagen reeksen op drie bronnen, bron-/uitvoermutaties en twaalf vaste tellinggevallen; 1580 gaat naar 7d, 1581/1582 blijven op de eindlijst.
 - 2026-11-14: fase 1c PR 11b deelt de bewaakte voorbereiding met volledige IFC-export en app-MCP naar nieuwe doelen; exports laten documentbron, doel, dirty en kalenderkeuzes intact. 1135/1560/1561/1562 opgelost; pool/planOnly en handleiding blijven eindlijst 1565/1566.
-- PR 9a (#804, 1c): desktopbron/browserhandle na crash teruglezen op grootte + sha256 via de bytes-openroute; snapshotplanning erop, optionele bronverwijzing binnen v5 en lege manifestdoelen, geen pending/idExceptions; site/download en MCP-backup volgen in 9b.
+- PR 9a (#804, 1c): desktopbron/browserhandle na crash teruglezen op grootte + sha256 via de bytes-openroute; snapshotplanning erop, optionele bronverwijzing binnen v5 en lege manifestdoelen, geen pending/idExceptions; site/download volgt in 9b, de MCP-backup in 9c (knownbug 1575).
 
 - 2026-11-14: fase 1c PR 11a sluit de documentroutes aan op de voorbereide merge: nieuwe desktopnaam, browserdownload en siteversie met basis; bron en kenmerk volgen één commit, bestaande lokale doelen en de overige IFC-routes blijven geweigerd.
 
@@ -441,7 +443,19 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 
 ## Teksten voor de planner (te beoordelen vóór de flag aan mag)
 
-- `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route, ontbrekende bron of de flag uit na openen.
+- `settings.ifcForeignContentHint` — Bij de experimentele IFC-schakelaar; stand na PR 9b.
+  - nl: Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken. Opslaan over een bestaand lokaal bestand en een project met resourcepool exporteren zijn nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.
+  - en: Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC. Saving over an existing local file and exporting a project with a resource pool are not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.
+
+- `notifications.ifcForeignSourceMissing` — Bij bron ontbreekt na herstel; geen IFC-uitvoer, export naar een ander formaat blijft mogelijk.
+  - nl: Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma ontbreken in dit herstelde document of deze backup; ze staan in het oorspronkelijke IFC-bestand. Je kunt de planning naar een ander formaat exporteren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.
+  - en: File not saved. The building model or data from another program are missing from this recovered document or backup; they are in the original IFC file. You can export the schedule to another format. Open the original IFC file to work with the complete file again.
+
+- `notifications.ifcSourceCopyFailed` — Eén keer na een mislukte bronkopie en een geslaagde planningcommit.
+  - nl: De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.
+  - en: The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.
+
+- `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route of de flag uit na openen.
   - nl: Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
   - en: This file contains a building model; saving is not possible yet.
 - `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel.

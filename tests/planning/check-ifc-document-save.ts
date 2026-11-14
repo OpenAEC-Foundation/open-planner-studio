@@ -297,7 +297,7 @@ for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`${cause
       let siteCalls = 0;
       if (site) win.openaecHost = { storage: { list: async () => [], open: async () => null, versions: async () => [], save: async () => { siteCalls++; throw new Error('geen writes'); } } };
       for (const save of [() => store.getState().saveFile(), () => store.getState().saveFileAs(), () => store.getState().saveFileForDocument(store.getState().activeDocumentId)]) {
-        clearNotices(store); await save(); unchanged(store, before); assertNotice(store, 'notifications.ifcForeignSaveBlocked');
+        clearNotices(store); await save(); unchanged(store, before); assertNotice(store, cause === 'sourceMissing' ? 'notifications.ifcForeignSourceMissing' : 'notifications.ifcForeignSaveBlocked');
       }
       assert.equal(siteCalls, 0); delete win.openaecHost;
     }
@@ -475,7 +475,7 @@ for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering', 'pool'] as c
     const result = cause === 'pool' ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc');
     assert(result.ok && result.cancelled); assert.equal(ipc.picks(), 0); assert.equal(existsSync(target), false);
     unchanged(store, before);
-    assertNotice(store, cause === 'mergeweigering' ? 'notifications.ifcForeignMergeRefused' : 'notifications.ifcForeignSaveBlocked');
+    assertNotice(store, cause === 'mergeweigering' ? 'notifications.ifcForeignMergeRefused' : cause === 'sourceMissing' ? 'notifications.ifcForeignSourceMissing' : 'notifications.ifcForeignSaveBlocked');
   } finally { ipc.dispose(); }
 });
 

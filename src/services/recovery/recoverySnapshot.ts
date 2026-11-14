@@ -25,6 +25,7 @@ export async function runRecoveryTick(
   documents: readonly RecoverySourceDocument[],
   serialize: (source: IFCSaveSource) => Promise<string> = async source => serializeRecoverySnapshot(source),
   enabled: () => boolean = () => true,
+  onSourceCopyFailure?: (documentId: string) => void,
 ): Promise<boolean> {
   return tracker.runExclusive(async () => {
     if (!enabled()) return false;
@@ -32,7 +33,7 @@ export async function runRecoveryTick(
     // Stop/clean quit kan tijdens workerwerk plaatsvinden. Bied daarna nooit een late save aan;
     // een al aangeboden save staat in de backendketen vóór het wissen.
     if (!save || !enabled()) return false;
-    await saveRecovery(save);
+    await saveRecovery({ ...save, onSourceCopyFailure });
     tracker.commit(activeDocumentId, documents);
     return true;
   });
