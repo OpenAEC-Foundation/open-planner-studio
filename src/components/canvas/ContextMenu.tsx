@@ -44,6 +44,7 @@ export interface ContextMenuProps {
   onCollapse: () => void;
   onExpand: () => void;
   onDelete: () => void;
+  onDissolve: () => void;
   onAddTask: () => void;
   // Golf 2 — taakrij
   onInsertAbove: () => void;
@@ -97,7 +98,7 @@ export const CONTEXT_MENU_ITEM_CLASS =
 export function ContextMenu({
   x, y, task, barHit, group, traceActive, isTreeMode, calendars, canPaste, onClose,
   onEdit, onAddSubtask, onAddMilestone, onAddRelation, addRelationDisabledReason, onTracePath, onSaveTemplate,
-  onCollapse, onExpand, onDelete, onAddTask,
+  onCollapse, onExpand, onDelete, onDissolve, onAddTask,
   onInsertAbove, onInsertBelow, onIndent, onOutdent, onToggleMilestone,
   onSetCalendar, onSetProgress, onSetPriority,
   onStartRelationFromBar, splitGapIndex = null, onRemoveSplitGap, onRemoveAllSplitGaps,
@@ -274,6 +275,7 @@ export function ContextMenu({
             </>
           )}
           <Separator />
+          <MenuItem label={t('context.dissolve')} onClick={() => { onDissolve(); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <MenuItem label={t('context.delete')} danger onClick={() => { onDelete(); closeAll(); }} onEnter={() => setOpenSub(null)} />
         </>
       ) : (

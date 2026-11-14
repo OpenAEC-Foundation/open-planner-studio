@@ -29,7 +29,8 @@ import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
 } from '@/state/taskTree';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
-import { refusalNotice } from '@/state/refusalNotice';
+import { refusalNotice, refusedNamesLine, refusedSetKey } from '@/state/refusalNotice';
+import { planDissolve } from '@/state/dissolveTasks';
 import {
   applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseAssignmentQuestion, phaseRefusalNotice,
   phaseTransitionNotices, planPhaseTransitions, type PendingChild, type PhaseAssignmentChoice,
@@ -111,6 +112,9 @@ export interface TaskSlice {
   deleteTask: (id: string) => void;
   /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
   deleteTasksBulk: (ids: readonly string[]) => void;
+  /** Hef taken op (issue #887): ze gaan weg zoals bij `deleteTasksBulk`, en elke voorganger wordt
+   *  einde-begin zonder vertraging gekoppeld aan elke opvolger (`planDissolve`). Eén undo-stap. */
+  dissolveTasksBulk: (ids: readonly string[]) => void;
   /** Verplaats `id` onder een nieuwe ouder (null = root). `position` afwezig ⇒ achteraan, in
    *  childIds én in de rauwe array (zie `moveTaskEdit`). `position` aanwezig ⇒ insert op die
    *  index — consistent in childIds (zichtbare volgorde niet-root, visibleRows.ts) ÉN in de rauwe
@@ -1438,6 +1442,32 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
+  },
+
+  dissolveTasksBulk: (ids) => {
+    // Rekenen op de bevroren state, vóór de producer (de kringtoets per brug leest de hele graaf).
+    const current = get();
+    const plan = planDissolve(current.tasks, current.sequences, ids);
+    if (plan.removeIds.size === 0) return; // niets bekends: geen snapshot, geen loze undo-stap.
+    const roots = ids.filter(id => plan.removeIds.has(id));
+    set((s) => {
+      runtime.beginUndoable(s);
+      removeTaskSubtrees(s, roots);
+      for (const bridge of plan.bridges) s.sequences.push({ ...bridge, id: generateId('seq') });
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      runtime.finishMutation(s, { stale: true });
+    });
+    get().recomputeViewRows();
+    if (plan.refused.length > 0) {
+      // Deels gelukt is een weigering (eigenaarsbesluit 2026-10-17): de taken zijn weg, deze
+      // relaties niet aangemaakt. De detailregel noemt ze.
+      get().notify(refusalNotice({
+        messageKey: 'notifications.relationsSkippedOnDissolve',
+        params: { count: plan.refused.length },
+        detailLines: refusedNamesLine(plan.refused, 'relations'),
+        dedupeKey: refusedSetKey('dissolve', plan.refused),
+      }));
+    }
   },
 
   // Alle verhangroutes lopen via `applyHierarchyEdit`: eerst de proef met de kringtoets

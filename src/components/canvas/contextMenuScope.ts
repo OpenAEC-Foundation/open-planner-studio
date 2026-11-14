@@ -190,4 +190,9 @@ export const contextMenuBulk = {
   remove(taskId: string): void {
     appTaskBulkActions.deleteTasksBulk(contextMenuOutlineScope(taskId));
   },
+
+  /** Opheffen (issue #887) volgt dezelfde reikwijdte als Verwijderen. */
+  dissolve(taskId: string): void {
+    appTaskBulkActions.dissolveTasksBulk(contextMenuOutlineScope(taskId));
+  },
 };

@@ -293,6 +293,7 @@ export type NotificationMessageKey =
   | 'notifications.summaryRelationsDropped'
   | 'notifications.duplicateIdsRenamed'
   | 'notifications.relationsSkippedOnInsert'
+  | 'notifications.relationsSkippedOnDissolve'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'

@@ -1,0 +1,122 @@
+// Opheffen (Dissolve, issue #887): een taak gaat weg en de keten blijft heel.
+//
+// Eigenaarsbesluit 2026-11-14: A → B → C wordt A → C, en elke nieuwe relatie is einde-begin
+// zonder vertraging, van elke voorganger naar elke opvolger. Wat weggaat volgt Verwijderen
+// (`removeTaskSubtrees`): een samenvattingstaak neemt zijn hele tak mee, toewijzingen gaan mee weg.
+//
+// Deze module rekent alleen uit WELKE relaties er bij komen; de store-actie voert de verwijdering
+// en de nieuwe relaties samen uit als één undo-stap.
+import type { Sequence } from '@/types/sequence';
+import type { Task } from '@/types/task';
+import { relationAddVerdict } from '@/state/relationRules';
+import { subtreeCollector } from '@/state/taskTree';
+
+export interface DissolvePlan {
+  /** Alle taken die weggaan (de opgegeven taken plus hun deelbomen). */
+  removeIds: Set<string>;
+  /** De nieuwe einde-begin-relaties, zonder id; de aanroeper geeft ze een id. */
+  bridges: Omit<Sequence, 'id'>[];
+  /** Bruggen die de relatieregels weigeren (bv. naar een eigen kind, of een kring), als "A → C". */
+  refused: string[];
+}
+
+/**
+ * Bepaal wat Opheffen van `rootIds` doet, op de bevroren state.
+ *
+ * Een samenvattingstaak met zijn tak telt als één blok: elke voorganger van buiten de tak (naar
+ * de kopregel of naar een kind) gaat naar elke opvolger buiten de tak. Opgeheven taken die
+ * onderling gekoppeld zijn worden doorlopen, zodat A → B → C → D met B en C samen A → D geeft.
+ * Losse opgeheven taken worden niet aan elkaar geknoopt: B en D in A → B → C → D → E geeft
+ * A → C en C → E, niet A → E.
+ *
+ * Een einde-begin die tussen voorganger en opvolger al bestaat blijft zoals ze is (de app kent
+ * één relatie per soort per paar) en geldt niet als weigering. Andere weigeringen van
+ * `relationAddVerdict` komen in `refused`.
+ */
+export function planDissolve(
+  tasks: readonly Task[],
+  sequences: readonly Sequence[],
+  rootIds: readonly string[],
+): DissolvePlan {
+  const byId = new Map(tasks.map(task => [task.id, task] as const));
+  const collect = subtreeCollector([...tasks]);
+  const removeIds = new Set<string>();
+  for (const id of rootIds) if (byId.has(id)) for (const sub of collect(id)) removeIds.add(sub);
+
+  // Elk weggaand id hoort bij het blok van zijn hoogste weggaande voorouder.
+  const blockOf = (id: string): string => {
+    let current = id;
+    for (;;) {
+      const parent = byId.get(current)?.parentId;
+      if (!parent || !removeIds.has(parent)) return current;
+      current = parent;
+    }
+  };
+
+  const into = new Map<string, string[]>(); // blok → voorgangers die blijven
+  const out = new Map<string, string[]>(); // blok → opvolgers die blijven
+  const next = new Map<string, Set<string>>(); // blok → blokken waar het naar wijst
+  const push = (map: Map<string, string[]>, key: string, value: string) => {
+    const list = map.get(key);
+    if (!list) map.set(key, [value]);
+    else if (!list.includes(value)) list.push(value);
+  };
+  for (const seq of sequences) {
+    const fromGone = removeIds.has(seq.predecessorId);
+    const toGone = removeIds.has(seq.successorId);
+    if (!fromGone && toGone) push(into, blockOf(seq.successorId), seq.predecessorId);
+    else if (fromGone && !toGone) push(out, blockOf(seq.predecessorId), seq.successorId);
+    else if (fromGone && toGone) {
+      const from = blockOf(seq.predecessorId);
+      const to = blockOf(seq.successorId);
+      if (from === to) continue;
+      const set = next.get(from) ?? new Set<string>();
+      set.add(to);
+      next.set(from, set);
+    }
+  }
+
+  // De boom zoals hij na het weghalen is: ook `childIds` van een ouder die blijft, want de
+  // kringtoets vouwt relaties op een fase uit over zijn kinderen.
+  const remainingTasks = tasks
+    .filter(task => !removeIds.has(task.id))
+    .map(task => (task.childIds.some(id => removeIds.has(id))
+      ? { ...task, childIds: task.childIds.filter(id => !removeIds.has(id)) }
+      : task));
+  const remaining: Sequence[] = sequences.filter(
+    seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId),
+  );
+  const bridges: Omit<Sequence, 'id'>[] = [];
+  const refused: string[] = [];
+  const name = (id: string) => byId.get(id)?.name ?? '?';
+
+  for (const [block, predecessors] of into) {
+    // Alle opvolgers die je vanuit dit blok via opgeheven taken bereikt.
+    const successors: string[] = [];
+    const seen = new Set<string>();
+    const stack = [block];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (seen.has(current)) continue;
+      seen.add(current);
+      for (const succ of out.get(current) ?? []) if (!successors.includes(succ)) successors.push(succ);
+      for (const nb of next.get(current) ?? []) stack.push(nb);
+    }
+    for (const predecessorId of predecessors) {
+      for (const successorId of successors) {
+        if (predecessorId === successorId) continue;
+        const bridge: Omit<Sequence, 'id'> = {
+          predecessorId, successorId, type: 'FINISH_START', lagDays: 0,
+        };
+        const verdict = relationAddVerdict(remainingTasks, remaining, bridge);
+        if (verdict.ok) {
+          remaining.push({ ...bridge, id: `__dissolve-${bridges.length}` });
+          bridges.push(bridge);
+        } else if (verdict.reason !== 'duplicate') {
+          refused.push(`${name(predecessorId)} → ${name(successorId)}`);
+        }
+      }
+    }
+  }
+  return { removeIds, bridges, refused };
+}
