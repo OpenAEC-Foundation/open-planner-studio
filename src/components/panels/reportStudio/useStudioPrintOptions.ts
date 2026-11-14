@@ -168,6 +168,7 @@ export function useStudioPrintOptions(
       showLegend: settings.showLegend,
       showTaskNames: settings.showTaskNames,
       showCompletion: settings.showCompletion,
+      showBarDates: settings.showBarDates,
       showBaselineOverlay: settings.showBaselineOverlay,
       autoFit: settings.autoFit,
       customZoom: settings.customZoom,
@@ -246,7 +247,7 @@ export function useStudioPrintOptions(
     // Alleen de velden die op het papier staan: de zijbalkstand of de kolomlijst zelf (die via
     // `tableColumns` binnenkomt) mag geen nieuwe opname veroorzaken.
   }, [fontReady, settings.showFloat, settings.showWeekends, settings.showLegend,
-    settings.showTaskNames, settings.showCompletion, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
+    settings.showTaskNames, settings.showCompletion, settings.showBarDates, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
     settings.paperSize, settings.orientation, settings.truncateTaskNames, settings.taskNameColumnWidth,
     settings.compressNonWorkdays, settings.timelineColumns, settings.reportFontScale, settings.statusLine,
     companyName, autoNameWidth, t, tTask, tableHeaders, daySuffix, locale, project.startDate,
