@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { localTodayIso } from '@/utils/dateUtils';
 import type { MoveProjectPreview } from '@/state/slices/projectSlice';
 import { MOVE_PROJECT_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -123,15 +124,18 @@ export function MoveProjectDialog() {
               <span className="font-medium">{fmt(project.startDate)}</span>
             </div>
 
-            <label className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <span style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.newStart')}</span>
-              <input
-                type="date"
-                value={newStart}
-                onChange={e => changeStart(e.target.value)}
-                className="input !text-small !leading-4 !px-2 !py-1 !w-[160px]"
-              />
-            </label>
+              <span className="w-[160px]" data-ops-move-project-new-start>
+                <DateTextInput
+                  value={newStart}
+                  ariaLabel={t('moveProject.newStart')}
+                  required
+                  onCommit={changeStart}
+                  className="input w-full !text-small !leading-4 !px-2 !py-1"
+                />
+              </span>
+            </div>
 
             {!validNewStart ? (
               <div className="!text-body" style={{ color: 'var(--error)' }}>{t('moveProject.invalidDate')}</div>

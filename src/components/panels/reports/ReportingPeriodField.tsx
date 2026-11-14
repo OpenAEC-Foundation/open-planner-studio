@@ -14,18 +14,15 @@ import {
  * Het gedeelde rapportageperiode-control: één preset-keuzelijst (volgende/afgelopen
  * N weken of maand, hele project, aangepast) plus twee datumvelden. Bij een preset tonen de velden
  * de berekende datums alleen-lezen als tekst in de datumnotatie van de app (`useDisplayDate`, net
- * als de rapportondertitel); bij *Aangepast* worden het bewerkbare `<input type="date">`-velden —
- * bewust de native invoer en niet `DateTextInput`, omdat hier een kalenderkiezer gewenst is; de
- * browser toont daarin zijn eigen locale-notatie. Uitzondering: `compact` (het Rapport-tabblad)
- * gebruikt `DateTextInput`, zodat dat tabblad één soort datumveld heeft. Een omgekeerd bereik (tot < van) of een leeg/
+ * als de rapportondertitel); bij *Aangepast* worden het bewerkbare datumvelden van de app
+ * (`DateTextInput`, met de eigen kalender van #904). Een omgekeerd bereik (tot < van) of een leeg/
  * onvolledig veld wordt niet doorgegeven maar rood gemarkeerd met een melding — het rapport blijft
  * op de laatste geldige periode staan. Wisselen van *Aangepast* terug naar een preset laat de eigen
  * datums vallen; wisselen náár *Aangepast* start met de datums van de preset die op dat moment gold.
  *
  * LAYOUT: de datumvelden staan op een eigen rij die bij de standaardbreedte van de instellingen-
- * kolom (256 px) omslaat naar twee volle regels — een `<input type="date">` heeft ~120 px nodig om
- * een datum plus kalenderknop te tonen (de app staat op 13 px root-fontsize, dus 8.5rem ≈ 110 px
- * als ondergrens); onder een `w-32`-label ingesprongen blijft er 18 px over. Het Van/Tot-label
+ * kolom (256 px) omslaat naar twee volle regels — een datumveld heeft ~120 px nodig om een datum
+ * plus kalenderknop te tonen; onder een `w-32`-label ingesprongen blijft er 18 px over. Het Van/Tot-label
  * heeft bewust géén vaste breedte: "Başlangıç" (tr) is breder dan "Van" en wordt met `w-8` afgekapt.
  *
  * De opgeloste datums komen uit dezelfde pure functie als de engine (`resolveReportingPeriod`,
@@ -40,8 +37,7 @@ interface Props {
   dataKey: string;
   /**
    * Dicht, zoals een veld in het eigenschappenpaneel: de labels klein en in hoofdletters zonder dubbele punt
-   * (`Field`, `.rs-field-label`), de keuzelijst met de opvulling van de andere keuzelijsten en bij *Aangepast*
-   * het datumveld van de app (`DateTextInput`), zoals de statusdatum in hetzelfde tabblad. Alleen in de
+   * (`Field`, `.rs-field-label`) en de keuzelijst met de opvulling van de andere keuzelijsten. Alleen in de
    * zijbalk van het Rapport-tabblad (#817; fixronde na council ronde 5).
    */
   compact?: boolean;
@@ -103,45 +99,24 @@ export function ReportingPeriodField({ id, value, onChange, dataKey, compact = f
         </div>
       );
     }
-    if (compact) {
-      // Het datumveld van de app: het commit pas bij Enter of bij het verlaten, en alleen een bestaande datum.
-      return (
-        <span className="flex items-center gap-2 min-w-0 flex-1">
-          <span className={labelClass} data-ops-report-period-label={which}>{label}</span>
-          <span className="flex-1 min-w-0" data-ops-report-option={`${dataKey}.${which}`}>
-            <DateTextInput
-              value={draft}
-              ariaLabel={label}
-              onCommit={next => {
-                setDraft(next);
-                if (which === 'from') commitCustom(next, draftTo); else commitCustom(draftFrom, next);
-              }}
-              className="input w-full !text-small !leading-4 !px-2.5 !py-1.5"
-              style={invalid ? { borderColor: 'var(--error)' } : undefined}
-            />
-          </span>
-        </span>
-      );
-    }
+    // Het datumveld van de app, met de eigen kalender (#904): het commit pas bij Enter, bij het verlaten of
+    // bij een gekozen dag, en alleen een bestaande datum.
     return (
-      <label className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: '11rem' }}>
+      <span className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: compact ? undefined : '11rem' }}>
         <span className={labelClass} data-ops-report-period-label={which}>{label}</span>
-        <input
-          type="date"
-          value={draft}
-          aria-label={label}
-          aria-invalid={invalid ? true : undefined}
-          aria-describedby={invalid ? `${id}-invalid` : undefined}
-          onChange={e => {
-            const next = e.target.value;
-            setDraft(next);
-            if (which === 'from') commitCustom(next, draftTo); else commitCustom(draftFrom, next);
-          }}
-          className="input flex-1 min-w-0 !text-small !leading-4 !px-2 !py-1"
-          style={{ minWidth: '8.5rem', ...(invalid ? { borderColor: 'var(--error)' } : {}) }}
-          data-ops-report-option={`${dataKey}.${which}`}
-        />
-      </label>
+        <span className="flex-1 min-w-0" data-ops-report-option={`${dataKey}.${which}`}>
+          <DateTextInput
+            value={draft}
+            ariaLabel={label}
+            onCommit={next => {
+              setDraft(next);
+              if (which === 'from') commitCustom(next, draftTo); else commitCustom(draftFrom, next);
+            }}
+            className={compact ? 'input w-full !text-small !leading-4 !px-2.5 !py-1.5' : 'input w-full !text-small !leading-4 !px-2 !py-1'}
+            invalid={invalid}
+          />
+        </span>
+      </span>
     );
   };
 

@@ -1284,7 +1284,14 @@
     "group": "Date",
     "day": "day",
     "month": "month",
-    "year": "year"
+    "year": "year",
+    "openCalendar": "Open calendar",
+    "calendar": "Choose a date",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today",
+    "weekShort": "wk",
+    "weekNumber": "Week {{number}}"
   },
   "recordedDates": {
     "activeCount_one": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} task.",

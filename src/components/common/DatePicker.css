@@ -1,0 +1,186 @@
+/* ============================================================================
+   Eigen datumkiezer bij het gedeelde datumveld (#904). Zelfde paneeltaal als de open
+   lijst van Select (dropdown-achtergrond, rand, radius-md, shadow-pop) en dezelfde
+   keuzekleuren: gekozen = accent, aanwijzen = hover.
+   ============================================================================ */
+
+.ops-date-picker {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  background: var(--theme-dropdown-bg);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  user-select: none;
+}
+
+.ops-date-picker__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding-bottom: var(--sp-1);
+}
+
+.ops-date-picker__title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: var(--text-large);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ops-date-picker__nav,
+.ops-date-picker__day,
+.ops-date-picker__today {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.ops-date-picker__nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--theme-text-dim);
+}
+
+.ops-date-picker__nav:hover {
+  background: var(--theme-hover);
+  color: var(--theme-text);
+}
+
+/* Vorige wijst naar het begin van de leesrichting, volgende naar het einde; in RTL gespiegeld. */
+.ops-date-picker__nav-icon.is-next { transform: scaleX(-1); }
+.ops-date-picker[dir="rtl"] .ops-date-picker__nav-icon.is-previous { transform: scaleX(-1); }
+.ops-date-picker[dir="rtl"] .ops-date-picker__nav-icon.is-next { transform: none; }
+
+.ops-date-picker__grid {
+  border-collapse: separate;
+  border-spacing: 1px;
+}
+
+.ops-date-picker__weekday,
+.ops-date-picker__week {
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--theme-text-muted);
+  text-align: center;
+  padding: 0;
+  height: 1.5rem;
+}
+
+/* Weeknummers: planners rekenen in weken. Rustig, met een scheidingslijn naar de dagen. */
+.ops-date-picker__week {
+  width: 1.75rem;
+  padding-inline-end: var(--sp-1);
+  border-inline-end: 1px solid var(--theme-border-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-date-picker__day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-date-picker__day:hover {
+  background: var(--theme-hover);
+}
+
+.ops-date-picker__day.is-weekend {
+  color: var(--theme-text-dim);
+}
+
+.ops-date-picker__day.is-outside {
+  color: var(--theme-text-muted);
+  opacity: 0.6;
+}
+
+/* Vandaag: een dunne accentrand, zodat hij naast de gekozen dag herkenbaar blijft. */
+.ops-date-picker__day.is-today {
+  box-shadow: inset 0 0 0 1px var(--theme-accent);
+  font-weight: 600;
+}
+
+.ops-date-picker__day.is-selected {
+  background: var(--theme-accent);
+  color: var(--theme-accent-on);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.ops-date-picker__day.is-selected:hover {
+  background: var(--theme-accent-hover);
+}
+
+.ops-date-picker__day.is-selected.is-today {
+  box-shadow: inset 0 0 0 1px var(--theme-accent-on);
+}
+
+.ops-date-picker__nav:focus-visible,
+.ops-date-picker__day:focus-visible,
+.ops-date-picker__today:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 1px;
+}
+
+.ops-date-picker__foot {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--theme-border-light);
+  padding-top: var(--sp-1);
+}
+
+.ops-date-picker__today {
+  padding: var(--sp-1) var(--sp-3);
+  font-weight: 500;
+  color: var(--theme-text);
+}
+
+.ops-date-picker__today:hover {
+  background: var(--theme-hover);
+}
+
+/* De knop in het datumveld zelf. */
+.ops-date-input__picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+  padding: 0 2px;
+  align-self: stretch;
+  border: none;
+  background: transparent;
+  color: var(--theme-text-dim);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.ops-date-input__picker:hover:not(:disabled),
+.ops-date-input__picker[aria-expanded="true"] {
+  color: var(--theme-text);
+  background: var(--theme-hover);
+}
+
+.ops-date-input__picker:disabled {
+  cursor: not-allowed;
+}

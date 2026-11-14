@@ -31,9 +31,6 @@ import { holidayIssue } from '@/utils/holidayRange';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
-/** Rode rand voor een ongeldige feestdagdatum; `DateTextInput` legt `style` op de omrande groep. */
-const INVALID_DATE_STYLE = { borderColor: 'var(--error)' } as const;
-
 type ScalarTimeField = 'workStart' | 'workEnd' | 'breakStart' | 'breakDuration';
 type ScalarTimeIssue = 'invalidWorkStart' | 'invalidWorkEnd' | 'invalidWorkTimeOrder' | 'invalidStart' | 'invalidDuration' | 'outsideWorkingDay' | 'consumesWorkingDay';
 
@@ -854,14 +851,14 @@ export function CalendarForm({
                       value={h.startDate}
                       onCommit={v => updateHoliday(i, { startDate: v })}
                       className={inputCls}
-                      style={startInvalid ? INVALID_DATE_STYLE : undefined}
+                      invalid={startInvalid}
                       ariaLabel={tMenu('ribbon.calendarDialog.from')}
                     />
                     <DateTextInput
                       value={h.endDate}
                       onCommit={v => updateHoliday(i, { endDate: v })}
                       className={inputCls}
-                      style={endInvalid ? INVALID_DATE_STYLE : undefined}
+                      invalid={endInvalid}
                       ariaLabel={tMenu('ribbon.calendarDialog.until')}
                     />
                     <button
