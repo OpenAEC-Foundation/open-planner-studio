@@ -195,6 +195,20 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('24 weigering gemeld met aantal', notice?.params, { count: 1 });
   eq('25 weigering noemt de relatie', notice?.detailLines?.[0]?.params, { names: 'X → Y' });
 }
+{
+  // Review #937 ronde 1: X → B1 en B2 → X met losse kinderen is geen kring, maar als blok zou het
+  // X → X worden. Die brug komt er niet, en de melding noemt hem (eerder stil overgeslagen).
+  const ids = plan(['X', 'F', 'B1', 'B2']);
+  S().moveTask(ids.B1, ids.F, 0);
+  S().moveTask(ids.B2, ids.F, 1);
+  link(ids, 'X', 'B1');
+  link(ids, 'B2', 'X');
+  S().dissolveTasksBulk([ids.F]);
+  eq('25b zelfrelatie niet aangemaakt', relations(), []);
+  const notice = S().ui.notifications.find(n => n.messageKey === 'notifications.relationsSkippedOnDissolve'
+    && n.detailLines?.[0]?.params?.names === 'X → X');
+  eq('25c zelfrelatie gemeld', notice?.params, { count: 1 });
+}
 
 // ── 11) instelling: alleen de kopregel van een samenvattingstaak ────────────
 // Eigenaarsbesluit 2026-11-14: een instelling met twee standen, standaard de hele fase. In de
@@ -252,6 +266,40 @@ S().setUI({ dissolveSummaryMode: 'header' });
   eq('43 subfase op de plek van de kopregel', order(), ['A', 'S', 'S1', 'C', 'D']);
   eq('44 subfase krijgt de relaties, de gewone taak wordt overbrugd', relations(),
     ['A>S FS 0', 'C>D FS 0', 'S>C FS 0']);
+}
+{
+  // Review #937 ronde 1: geneste subfasen. De eerste en laatste subtaken worden op de echte taken
+  // bepaald; een subfase krijgt de relatie als geheel alleen als al haar taken aan die kant vooraan
+  // (of achteraan) staan, anders gaat de relatie naar de taken in die subfase.
+  const ids = plan(['A', 'F', 'P', 'P1', 'P2', 'Q', 'Q1', 'Q2', 'C']);
+  S().moveTask(ids.P, ids.F, 0);
+  S().moveTask(ids.Q, ids.F, 1);
+  S().moveTask(ids.P1, ids.P, 0);
+  S().moveTask(ids.P2, ids.P, 1);
+  S().moveTask(ids.Q1, ids.Q, 0);
+  S().moveTask(ids.Q2, ids.Q, 1);
+  link(ids, 'A', 'F');
+  link(ids, 'F', 'C');
+  link(ids, 'P1', 'Q1');
+  link(ids, 'Q2', 'P2');
+  S().dissolveTasksBulk([ids.F]);
+  eq('44b kruislings tussen subfasen: niets valt weg', relations(),
+    ['A>P1 FS 0', 'A>Q2 FS 0', 'P1>Q1 FS 0', 'P2>C FS 0', 'Q1>C FS 0', 'Q2>P2 FS 0']);
+}
+{
+  const ids = plan(['A', 'F', 'P', 'P1', 'P2', 'Q', 'Q1', 'Q2', 'C']);
+  S().moveTask(ids.P, ids.F, 0);
+  S().moveTask(ids.Q, ids.F, 1);
+  S().moveTask(ids.P1, ids.P, 0);
+  S().moveTask(ids.P2, ids.P, 1);
+  S().moveTask(ids.Q1, ids.Q, 0);
+  S().moveTask(ids.Q2, ids.Q, 1);
+  link(ids, 'A', 'F');
+  link(ids, 'F', 'C');
+  link(ids, 'P1', 'Q1');
+  S().dissolveTasksBulk([ids.F]);
+  eq('44c één richting: subfase als geheel waar het kan, losse taken waar het moet', relations(),
+    ['A>P FS 0', 'A>Q2 FS 0', 'P1>Q1 FS 0', 'P2>C FS 0', 'Q>C FS 0']);
 }
 {
   // Een gewone taak in de stand "alleen de kopregel": geen verschil.

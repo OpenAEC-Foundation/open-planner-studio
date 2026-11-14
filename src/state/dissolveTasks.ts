@@ -107,7 +107,7 @@ export function planDissolve(
     }
     for (const predecessorId of predecessors) {
       for (const successorId of successors) {
-        if (predecessorId === successorId) continue;
+        // Een brug naar zichzelf (X → blok → X) weigert `relationAddVerdict`; zo komt hij in de melding.
         if (alreadyLinked(remaining, predecessorId, successorId)) continue;
         const bridge: Omit<Sequence, 'id'> = {
           predecessorId, successorId, type: 'FINISH_START', lagDays: 0,
@@ -141,41 +141,59 @@ function alreadyLinked(sequences: readonly Sequence[], predecessorId: string, su
 
 /**
  * Stand "alleen de kopregel": de relaties van samenvattingstaak `summaryId` zelf, overgezet naar
- * haar directe subtaken, met soort en vertraging. Een relatie op een fase geldt in de rekenkern
- * voor elke subtaak; overzetten naar de begin- en eindsubtaken houdt de planning gelijk zolang de
- * fase intern aaneengeschakeld is, zonder een pijl naar elke subtaak. Een beginsubtaak heeft
- * binnen de fase geen voorganger, een eindsubtaak geen opvolger (over hun hele deelboom gemeten).
+ * haar eerste en laatste subtaken, met soort en vertraging (eigenaarsbesluit 2026-11-14). Een
+ * relatie op een fase geldt in de rekenkern voor elke taak eronder; overzetten naar de eerste en
+ * laatste houdt de planning gelijk zolang de fase intern aaneengeschakeld is, zonder een pijl naar
+ * elke subtaak.
+ *
+ * Eerste en laatste worden op de echte taken (bladtaken) bepaald, want daar rekent de solver mee:
+ * een bladtaak is eerste als ze binnen de fase geen voorganger heeft, laatste als ze er geen
+ * opvolger heeft. Een relatie op een subfase telt daarbij voor al haar bladtaken. Daarna wordt het
+ * weer leesbaar gemaakt: staan alle bladtaken van een subtaak aan die kant, dan krijgt die subtaak
+ * de relatie als geheel; anders gaat de relatie naar de subtaken daarbinnen die het wel zijn.
  */
 export function headerTransfers(
   tasks: readonly Task[],
   sequences: readonly Sequence[],
   summaryId: string,
 ): Omit<Sequence, 'id'>[] {
-  const summary = tasks.find(task => task.id === summaryId);
+  const byId = new Map(tasks.map(task => [task.id, task] as const));
+  const summary = byId.get(summaryId);
   if (!summary) return [];
-  const collect = subtreeCollector([...tasks]);
-  const childOf = new Map<string, string>(); // taak in de fase → directe subtaak waaronder ze valt
-  for (const childId of summary.childIds) for (const id of collect(childId)) childOf.set(id, childId);
+  const inside = new Set(subtreeCollector([...tasks])(summaryId));
+  inside.delete(summaryId);
+
+  const leaves = new Map<string, string[]>();
+  const leavesOf = (id: string): string[] => {
+    const known = leaves.get(id);
+    if (known) return known;
+    const children = byId.get(id)?.childIds ?? [];
+    const found = children.length === 0 ? [id] : children.flatMap(leavesOf);
+    leaves.set(id, found);
+    return found;
+  };
 
   const hasPredecessor = new Set<string>();
   const hasSuccessor = new Set<string>();
   for (const seq of sequences) {
-    const from = childOf.get(seq.predecessorId);
-    const to = childOf.get(seq.successorId);
-    if (from && to && from !== to) {
-      hasSuccessor.add(from);
-      hasPredecessor.add(to);
-    }
+    if (!inside.has(seq.predecessorId) || !inside.has(seq.successorId)) continue;
+    for (const leaf of leavesOf(seq.predecessorId)) hasSuccessor.add(leaf);
+    for (const leaf of leavesOf(seq.successorId)) hasPredecessor.add(leaf);
   }
-  const begin = summary.childIds.filter(id => !hasPredecessor.has(id));
-  const end = summary.childIds.filter(id => !hasSuccessor.has(id));
+  // De hoogste subtaken waarvan alle bladtaken aan deze kant staan.
+  const targets = (id: string, blocked: Set<string>): string[] => {
+    if (leavesOf(id).every(leaf => !blocked.has(leaf))) return [id];
+    return (byId.get(id)?.childIds ?? []).flatMap(child => targets(child, blocked));
+  };
+  const first = summary.childIds.flatMap(id => targets(id, hasPredecessor));
+  const last = summary.childIds.flatMap(id => targets(id, hasSuccessor));
 
   const out: Omit<Sequence, 'id'>[] = [];
   for (const seq of sequences) {
-    if (seq.successorId === summaryId && !childOf.has(seq.predecessorId)) {
-      for (const childId of begin) out.push(withEndpoints(seq, seq.predecessorId, childId));
-    } else if (seq.predecessorId === summaryId && !childOf.has(seq.successorId)) {
-      for (const childId of end) out.push(withEndpoints(seq, childId, seq.successorId));
+    if (seq.successorId === summaryId && !inside.has(seq.predecessorId)) {
+      for (const id of first) out.push(withEndpoints(seq, seq.predecessorId, id));
+    } else if (seq.predecessorId === summaryId && !inside.has(seq.successorId)) {
+      for (const id of last) out.push(withEndpoints(seq, id, seq.successorId));
     }
   }
   return out;
