@@ -41,7 +41,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  applyEdit, EditNotAppliedError, canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, reopenPlain,
+  fixedSequenceEdits, savedSequenceStart, type Edit, applyEdit, EditNotAppliedError, canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, reopenPlain,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -187,16 +187,16 @@ for (const file of files) {
 /** De gewone bewerkingen op één bestand, met per bewerking één van de drie uitkomsten. `record`: de uitkomst zonder
  *  bewerking telt mee in de tabellen per eigen bestand (de route van de app); anders alleen in `rawOutcome`. */
 async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route: Route, others: string[], record: boolean,
-  max: number): Promise<Map<EditKind, Tally>> {
+  max: number, edits = [...plannerEdits(opened, max), ...ordinaryEdits(opened)] as Edit[]): Promise<Map<EditKind, Tally>> {
   const source = opened.ifcSource!;
   const perKind = new Map<EditKind, Tally>();
   const sourceDoubles = doubleMemberships(bytes);
   const index = scanForeignStep(bytes);
   const ownOrigin = classify(index).foreignOrigin.length === 0;
-  const fields = new Map<string, number>();
+  const fields = (record ? editFields.get(shown) : undefined) ?? new Map<string, number>();
   if (record) editFields.set(shown, fields);
   const where = shown;
-  for (const edit of [...plannerEdits(opened, max), ...ordinaryEdits(opened)]) {
+  for (const edit of edits) {
     const t = perKind.get(edit.kind) ?? emptyTally();
     perKind.set(edit.kind, t);
     t.n++;
@@ -251,11 +251,27 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
   return perKind;
 }
 
+// 1571: exact twaalf vaste reeksen, ieder op een werkelijk opgeslagen en heropende beginstand.
+for (const file of ['eigen-plus-model.ifc', `${EXAMPLES}/03-kantoorgebouw-zuidas.ifc`, 'oud-eigen-0.1-plus-model.ifc']) {
+  const shown = shownName(file) + (ownPath(file) ? ' + wand' : '');
+  try {
+    const bytes = await savedSequenceStart(bytesOf.get(shown)!);
+    const opened = await openForeign(bytes);
+    const result = await runEdits(shown, bytes, opened, APP, others, true, 0, fixedSequenceEdits(opened));
+    const existing = tally.get(shown)!;
+    for (const [kind, counts] of result) {
+      existing.set(kind, counts);
+      if (counts.n !== 1 || counts.ok !== 1) others.push(`${shown} · vaste reeks ${kind} schrijft niet één keer goed`);
+    }
+  } catch (e) { others.push(`${shown} · voorbereiding vaste reeksen mislukt: ${(e as Error).message}`); }
+}
+
 // ── De tabellen ──
 const KINDS: EditKind[] = [
   'niets', 'andere-ouder', 'niveau-hoger', 'volgorde-kinderen', 'relatie-erbij', 'taak-wissen', 'taak-erbij', 'hernoemen', 'duur',
   'toewijzing-erbij', 'voortgang', 'doorrekenen',
   'resource-erbij', 'kalender-erbij', 'baseline-vastleggen',
+  'reeks-taak-baseline', 'reeks-resource-kalender-toewijzing', 'reeks-taak-bestaand-type', 'reeks-twee-baselines',
 ];
 const fmt = (m: Map<string, number>) => [...m].sort().map(([k, v]) => `${k} ${v}`).join(', ') || '–';
 /** Per bestand en per bewerking, dan de totalen per bewerking. Geeft het totaal terug. */

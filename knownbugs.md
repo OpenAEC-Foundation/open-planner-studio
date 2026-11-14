@@ -1907,17 +1907,6 @@ en noem het in je rapport of PR-tekst.
      de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
      in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
      of van herstel van zulke id-uitzonderingen. — S
-1571. **VERVOLG (#804, gewone handeling): een nieuwe taak in een nieuwe baseline, of met een bestaand eigen taaktype,
-     weigert bij opslaan.** In een bestand met een gebouwmodel dat al een opgeslagen baseline heeft: taak toevoegen →
-     baseline vastleggen → de voorbereiding weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (TaskGuids)`,
-     waardeslot 2 (`OPS_Baselines`, de kaart baseline-taak-id → GlobalId); geen bestand geschreven. Elke handeling apart
-     schrijft wel. De verliescontrole (`explainScope` in `src/services/ifc/foreign/lossCheck.ts`) verklaart bij een nieuwe
-     baseline alleen `Baselines` en `ActiveBaselineId`. Dezelfde vorm bij `OPS_TaskTypes.TaskTypes`: een nieuwe taak
-     een bestaand eigen taaktype geven weigert. Ook gemeten: een tweede activiteitscodedefinitie maken (templatelijst
-     `OPS_ActivityCodes`) en alle baselines wissen (de pset verdwijnt, zoals 1110). Bestaat ook op main `650d7aaa0`.
-     Onderzoek met reproducties: 14 november 2026. In behandeling als fase 1c PR 7c (de twee kaarten) en 7d (de
-     codedefinitie); het wissen van de laatste baseline is verplicht vóór de flag standaard aan gaat. Gevonden door de
-     review van #929. — B
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 is een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. Anders dan de opdracht van 9b
@@ -3840,3 +3829,43 @@ en noem het in je rapport of PR-tekst.
      heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
      (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
      review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
+
+1580. **VERVOLG, PR 7d: een tweede activiteitscodedefinitie bij een gebouwmodel weigert.** Open
+     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met `ifcForeignContent`, maak een codedefinitie met een waarde,
+     wijs die toe en sla via de merge op. Heropen de uitvoer, voeg een taak en een tweede, anders genoemde
+     codedefinitie met waarde toe en wijs die aan de nieuwe taak toe. `prepareIfcWrite` weigert `niet-gedragen`
+     op `IFCPROPERTYSETTEMPLATE (OPS_ActivityCodes)`, argument 6: de templatelijst groeit van één naar twee.
+     Reproductie in `check-ifc-foreign-preserve.ts` (1580). Besluit Trias 14 november 2026: direct na 7c als 7d. — B
+
+1581. **VERVOLG, vóór de flag standaard aan gaat: alle baselines wissen bij een gebouwmodel weigert.** Open
+     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met de flag en wis de bestaande baseline via `deleteBaseline`.
+     De merge weigert op `IFCRELAGGREGATES #45` slot 5 en de verdwenen `Baselines #319`, `TaskGuids #320`,
+     `ActiveBaselineId #321`, `OPS_Baselines #322` en relatie `#323`. Het verdwijnen van de complete pset vraagt
+     een afzonderlijke verklaring, zoals de taaktype-pset van 1110. Wissen → taak → nieuwe baseline schrijft wel
+     na 7c. Reproductie in `check-ifc-foreign-preserve.ts` (1581); eindlijst, verplicht vóór standaard aan. — B
+
+1582. **VERVOLG: de opgeslagen taaktypecatalogus wijzigen bij een gebouwmodel weigert.** Maak met de flag in
+     `eigen-plus-model.ifc` een eigen taaktype, geef het aan een taak, sla via de merge op en heropen. Dat type bij
+     de laatste taak weghalen laat `OPS_TaskTypes` verdwijnen (dezelfde levenscyclus als 1110); die taak een
+     nieuw type geven, of een andere taak een nieuw gedefinieerd type geven, wijzigt `TaskTypes` slot 2 en weigert
+     `niet-gedragen`. De verklaring van 7c draagt alleen nieuwe koppelingen aan bestaande definities, met alle
+     oude koppelingen en definities intact. Reproducties in `check-ifc-foreign-preserve.ts` (type-wisselen,
+     type-verliezen, nieuwe-definitie). Een afzonderlijke verklaring van wijzigingen/wissen blijft nodig.
+     De review van #930 mat erbij: wisselen tussen twee al opgeslagen typen weigert ook als beide definities
+     ongewijzigd en in gebruik blijven. Besluit Trias 14 november 2026: de tweede taaktypedefinitie en een taak die van
+     type wisselt gaan mee in PR 7d; het verdwijnen van de hele pset (type weg bij de laatste taak, 1110) staat op de
+     eindlijst, verplicht vóór de flag standaard aan gaat. — B
+
+1583. **VERVOLG (#804, gewone handeling): een andere bestaande baseline actief maken bij een gebouwmodel weigert.**
+     In een bestand met een gebouwmodel en twee opgeslagen baselines: alleen `setActiveBaseline` naar de andere
+     baseline → de merge weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (ActiveBaselineId)`, waardeslot 2. De
+     verklaring in `explainScope` (`src/services/ifc/foreign/lossCheck.ts`) eist een toegevoegde baseline en dekt een
+     keuze uit bestaande baselines niet. Bestaat ook op main `fce5a77e9`; komt niet door PR 7c. Richting: een
+     beperkte verklaring voor een werkelijk gewijzigde keuze uit bestaande baselines, geen vrijstelling voor de hele
+     pset. Gevonden door de review van #930 (eigen proef op `council/r4-k1-na-opslaan.ifc`). — B
+
+1584. **VERVOLG (#804, opruimen): dubbele JSON-parser en een overbodige assert uit PR 7c.** `mapJson` in
+     `src/services/ifc/foreign/lossCheck.ts` herhaalt de lokale parser in `literalBaselineForm`; in
+     `tests/planning/check-ifc-foreign-preserve.ts` volgt de assert "iedere nieuwe baselinerij aan de juiste taak"
+     al uit de volledige baselinevergelijking ervoor. Samen ongeveer zeven regels. Gevonden door de review van
+     #930. — B

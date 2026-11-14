@@ -14,7 +14,7 @@
 //   hebben die de leesverliestoets doorstaat (fixronde 2 van #867).
 // - `editsFor`: de gewone bewerkingen van een planner op het domein, per taak of per paar (bijsturing 1, punt 2).
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
-import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { MergeNeedsPhase2Error, prepareIfcWrite, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
@@ -244,7 +244,8 @@ export function firstDiff(a: string, b: string): string {
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
   | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen'
-  | 'resource-erbij' | 'kalender-erbij' | 'baseline-vastleggen';
+  | 'resource-erbij' | 'kalender-erbij' | 'baseline-vastleggen'
+  | 'reeks-taak-baseline' | 'reeks-resource-kalender-toewijzing' | 'reeks-taak-bestaand-type' | 'reeks-twee-baselines';
 /** Een niet-toepasselijke soort blijft zichtbaar, maar gaat nooit naar de merge. */
 export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean; readonly notApplicable?: string }
 export class EditNotAppliedError extends Error {
@@ -413,5 +414,55 @@ export function newObjectEdits(d: Domain): Edit[] {
       return (after.baselines?.length ?? 0) === (before.baselines?.length ?? 0) + 1
         && added?.name === 'Nieuwe baseline 1c' && after.activeBaselineId === added.id;
     }),
+  ];
+}
+
+/** 1571: één werkelijk opgeslagen beginstand voor de vier vaste reeksen; nooit een stille skip bij setupfouten. */
+export async function savedSequenceStart(bytes: Uint8Array): Promise<Uint8Array> {
+  const { store, snapshot } = await openInStore(bytes);
+  const state = store.getState();
+  const leaf = state.tasks.find(t => !t.isMilestone && !t.childIds.length);
+  if (!leaf) throw new Error('vaste reeksen: geen gewone taak in de beginstand');
+  state.saveBaseline('Opgeslagen beginbaseline 7c');
+  state.ensureProjectTaskType({ id: 'type-7c', name: 'Opgeslagen taaktype 7c' });
+  state.updateTask(leaf.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7c' });
+  const input = snapshot(store);
+  const prepared = await prepareIfcWrite(input, input.ifcSource!);
+  const output = concat(prepared.parts);
+  const reopened = await openForeign(output);
+  if (!reopened.baselines?.some(b => b.name === 'Opgeslagen beginbaseline 7c')
+    || reopened.tasks.find(t => t.id === leaf.id)?.customTaskTypeId !== 'type-7c'
+    || mergeProblems(bytes, output).length) throw new Error('vaste reeksen: opgeslagen beginstand niet behouden');
+  return output;
+}
+
+/** Alleen op drie vaste bronnen aanroepen: deze reeksen horen niet in ordinaryEdits van het hele corpus. */
+export function fixedSequenceEdits(d: Domain): Edit[] {
+  const leaf = d.tasks.find(t => !t.isMilestone && !t.childIds.length)!;
+  const add = (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => {
+    const id = s.addTask({ name: 'Nieuwe taak 7c', position: { anchorId: leaf.id, where: 'below' } }, { phaseAssignments: 'move', answered: true });
+    if (!id) throw new Error('vaste reeksen: taak toevoegen geweigerd');
+    return id;
+  };
+  return [
+    appEdit('reeks-taak-baseline', 'taak toevoegen → baseline vastleggen', x => storeEdit(x, s => {
+      add(s); s.saveBaseline('Nieuwe baseline 7c');
+    }), (a, b) => b.tasks.length === a.tasks.length + 1 && b.baselines?.length === (a.baselines?.length ?? 0) + 1),
+    appEdit('reeks-resource-kalender-toewijzing', 'resource → kalender → koppelen → toewijzing', x => storeEdit(x, s => {
+      const resource = s.addResource({ name: 'Resource 7c', type: 'EQUIPMENT', description: 'Vaste reeks', maxUnits: 2, costPerHour: 42 });
+      const { id: _id, ...calendar } = structuredClone(s.calendar);
+      const id = s.addCalendar({ ...calendar, name: 'Kalender 7c' });
+      s.updateResource(resource, { calendarId: id }); s.assignResource(leaf.id, resource, 1);
+    }), (a, b) => {
+      const resource = b.resources.find(r => !a.resources.some(old => old.id === r.id));
+      return !!resource && b.resourceCalendars?.some(c => c.id === resource.calendarId && c.name === 'Kalender 7c') === true
+        && b.assignments.some(v => v.taskId === leaf.id && v.resourceId === resource.id && v.unitsPerDay === 1);
+    }),
+    appEdit('reeks-taak-bestaand-type', 'taak toevoegen → bestaand eigen taaktype geven', x => storeEdit(x, s => {
+      const id = add(s); s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7c' });
+    }), (a, b) => b.tasks.some(t => !a.tasks.some(old => old.id === t.id) && t.customTaskTypeId === 'type-7c')),
+    appEdit('reeks-twee-baselines', 'twee baselines achter elkaar', x => storeEdit(x, s => {
+      s.saveBaseline('Baseline A 7c'); s.saveBaseline('Baseline B 7c');
+    }), (a, b) => b.baselines?.length === (a.baselines?.length ?? 0) + 2),
   ];
 }
