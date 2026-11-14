@@ -420,6 +420,10 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
       await duration.press('Enter');
       await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, task.id)).toBe(task.duration + 1);
       await page.keyboard.press('F5');
+      // De eerdere Ctrl+S-weigeringen en openingsmeldingen eerst echt sluiten: zij kunnen de exportkaart bedekken.
+      while (await page.locator('[data-ops-toast-close]').count()) {
+        await page.locator('[data-ops-toast-close]').last().click();
+      }
       // Eerst de echte IFC-export: volledig downloaden en heropenen, zonder documentcommit.
       const beforeExport = await page.evaluate(() => {
         const state = window.__OPS__!.store.getState();

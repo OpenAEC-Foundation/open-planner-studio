@@ -2017,6 +2017,15 @@ en noem het in je rapport of PR-tekst.
      uitkomsten. De merge, lezer en lexer zijn in PR 11b niet gewijzigd; geen ruimere uitzondering.
      Gevonden bij de aansluiting van de volledige IFC-export in fase 1c PR 11b. — B
 
+1568. **VERVOLG (bediening): blijvende meldingen kunnen de IFC-exportkaart bedekken.**
+     In de echte browserroute van `settings-tabs.spec.ts` liggen na openen, een geweigerde Ctrl+S en F5
+     bestaande fout-/openingsmeldingen over de IFC-kaart in Bestand → Exporteren. De klik wordt door
+     `.ops-toast-message` onderschept; de eenmalige browserrun van PR 11b eindigde na 60 seconden vóór
+     de exportklik. De planner kan de meldingen met hun sluitknop weghalen. Het scenario doet dat nu via
+     echte klikken; wegens de opdracht van één browserrun is die aanpassing nog niet opnieuw uitgevoerd.
+     Richting: de plaatsing van meldingen tegenover Backstage-kaarten apart beoordelen, geen wijziging
+     in deze IFC-aansluiting. Trace en screenshot in `/tmp/fase1c-pr11b-bewijs/browser-eerste-run/`. — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
