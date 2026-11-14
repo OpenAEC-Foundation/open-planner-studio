@@ -782,7 +782,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   };
   const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
   // De eigen groepen waar (b) bronwaarden terugzette: daar toetst (c) niet, want de writer schrijft ze niet uit het domein.
-  const o1Members = ownGroupMembers(linesView(lines.filter(l => !l.drop)));
+  // Een verwijzing naar een stuk dat de writer niet schrijft (het `IfcProject` van een ander programma), leest het type uit de bron.
+  const o1Members = ownGroupMembers(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }));
   const restoredGroups = new Set(edits.map(e => editedOwnGroup(o1Members, byId.get(e.id)!, e.arg)).filter((g): g is string => g !== undefined));
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
