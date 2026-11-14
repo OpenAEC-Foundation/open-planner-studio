@@ -54,6 +54,8 @@ export function SettingRow({ entry, highlighted }: { entry: SettingEntry; highli
       data-ops-setting={entry.id}
       data-ops-setting-changed={changed || undefined}
       data-ops-legacy-settings={entry.legacy || undefined}
+      // Focusbaar voor een directe link naar een instelling die nu uitgegrijsd is (geen bediening).
+      tabIndex={-1}
     >
       <div className="settings-item-head">
         {changed && <span className="settings-changed-dot" title={t('settings.changedMarker')} aria-hidden="true" />}

@@ -41,6 +41,8 @@ import { readLocal, removeLocal, writeLocal } from '@/utils/settingsStore';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
 import { HELP_DOCS_LANG_KEY } from '@/utils/helpArticlePrompt';
+import { isSettingId } from '@/utils/settingIds';
+import { openSettingsAt } from '@/components/settings/openSettingsAt';
 
 // De documentatietaal wordt persistent los van de UI-taal bewaard, zodat een gebruiker de docs in
 // bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft. Het venster
@@ -333,6 +335,8 @@ export function HelpPanel() {
       ...(!startQuestionOpen ? {
         onOpenExample: (f: string) => { void handleOpenExample(f); },
         ...(openProject ? { onOpenProject: openProject } : {}),
+        // `settings://<id>`: Backstage wisselt naar App-instellingen, op precies die instelling.
+        onOpenSetting: (id: string) => { if (isSettingId(id)) openSettingsAt(id); },
       } : {}),
       resolveImage,
     });

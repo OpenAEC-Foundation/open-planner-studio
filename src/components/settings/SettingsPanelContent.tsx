@@ -79,7 +79,9 @@ export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSea
     if (!highlight) return;
     const row = rootRef.current?.querySelector<HTMLElement>(`[data-ops-setting="${highlight}"]`);
     row?.scrollIntoView({ block: 'center' });
-    row?.querySelector<HTMLElement>('input, button, [tabindex]:not([tabindex="-1"])')?.focus({ preventScroll: true });
+    // De eerste bediening die werkt; staat alles uit (de instelling doet nu niets), dan de rij zelf.
+    const control = row?.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)');
+    (control ?? row)?.focus({ preventScroll: true });
     const timer = window.setTimeout(() => setHighlight(null), HIGHLIGHT_MS);
     return () => window.clearTimeout(timer);
   }, [highlight]);

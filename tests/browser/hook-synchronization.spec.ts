@@ -272,7 +272,7 @@ test('hook synchronization: de updatecontrole start eenmaal per open sessie', as
     window.__OPS__!.store.getState().setUI({ showSettingsDialog: true });
   });
 
-  await page.getByRole('button', { name: /^(Advanced|Geavanceerd)$/ }).click();
+  await page.locator('[data-ops-settings-group="about"]').click();
   await page.getByRole('button', { name: /^(Check for updates|Controleren op updates)$/ }).click();
   await expect.poll(() => page.evaluate(() => (
     window as Window & { __opsUpdateCheckStarts?: number }
@@ -288,7 +288,7 @@ test('hook synchronization: de updatecontrole start eenmaal per open sessie', as
 
   await page.getByRole('dialog').getByTitle(/^(Close|Sluiten)$/).click();
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  await page.getByRole('button', { name: /^(Advanced|Geavanceerd)$/ }).click();
+  await page.locator('[data-ops-settings-group="about"]').click();
   await page.getByRole('button', { name: /^(Check for updates|Controleren op updates)$/ }).click();
   await expect.poll(() => page.evaluate(() => (
     window as Window & { __opsUpdateCheckStarts?: number }
