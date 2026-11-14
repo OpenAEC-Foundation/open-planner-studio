@@ -66,6 +66,15 @@ gewone writer. Delen van nieuwe uitvoer wijzen naar de nieuwe bronbuffer; het re
 daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
 haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6; pool, planOnly, paneel, dev-bridge en AutoSave blijven geblokkeerd.
 
+Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
+op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij
+`OPS_StructureMeta` ook templates en `IfcRelDeclares`, plus de tweede vormen baselinekop en `ObjectType` van een
+`.USERDEFINED.`-taak) moeten in de uitvoer gelijk zijn aan wat de writer schrijft uit de herlezing die er al is, met de
+schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId, owner history en vreemde leden, en met de
+weesregel van de canon voor `TaskGuids`. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
+Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren; de verliescontrole verandert niet.
+Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,

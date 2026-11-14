@@ -2109,6 +2109,43 @@ en noem het in je rapport of PR-tekst.
      bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
      mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
+1700. **VERVOLG (#804, gebouwmodel): één bestaande baseline wissen weigert.**
+     Op `eigen-plus-model.ifc`, het kantoorvoorbeeld met een wand en `oud-eigen-0.1-plus-model.ifc` weigert de merge
+     "één bestaande baseline wissen" met `niet-gedragen` op de `IfcRelAggregates` van het werkplan (de kop van de
+     gewiste baseline). Zelfde oorzaak als 1581, maar een gewonere handeling. Gemeten in het onderzoek van 14 november
+     (`logs/v1/7c7d-*.jsonl`) en opnieuw in `check-ifc-foreign-eigen-uitvoer.ts` (PR 12a). Richting: stap 3 van de
+     overstap (de baselinekop). — B
+
+1701. **VERVOLG (#804, controle): de verliescontrole toetst de typenaam op de taak niet op zijn waarde.**
+     Een verkeerde `ObjectType` op de taak waarvan de planner het type veranderde (nieuw type, typewissel), lieten de
+     verliescontrole en de controle "planning na openen" allebei door: de verliescontrole ziet alleen dat dat slot mocht
+     veranderen, en de lezer leest het type uit het JSON. Alleen een fout van de writer kan dit geven. Sinds PR 12a vangt
+     controle (c) het in de echte uitvoer (`eigen-uitvoer`, `check-ifc-foreign-eigen-uitvoer.ts`). Open: de
+     verliescontrole zelf blijft het slot niet op waarde toetsen tot stap 4 van de overstap. — B
+
+1702. **VERVOLG (#804, gebouwmodel): een baselinerij van een gewiste taak verandert bij herlezen.**
+     Op een oud bestand krijgt na een merge met "taak wissen" de rij van de gewiste taak bij heropenen een nieuwe taak-id
+     (oude showcase) of een nieuwe GlobalId in `TaskGuids` (`oud-eigen-0.1-plus-model.ifc`); een gewone opslag houdt
+     beide. De canon ziet het bewust niet (`orphanRowsWithoutId`), en controle (c) volgt die regel (PR 12a; zonder die
+     regel weigert de keten op het oude bestand een goede uitvoer, gemeten met een mutatie). Gevolg: in de opslag daarna is
+     `OPS_Baselines` niet gedragen, en dan weigert bijvoorbeeld "B1 wissen, B2 actief, type aan nieuwe taak". Gemeten in
+     het onderzoek van 14 november (`logs/wees.jsonl`, `logs/v1/taskguids-oud.jsonl`). Richting: vóór stap 5 van de
+     overstap de GlobalId en taak-id van zo'n rij stabiel maken. — B
+
+1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
+     `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
+     omdat de writer het kenmerk bij Opslaan bewust nooit schrijft. Een backup heeft nooit een model, dus de combinatie
+     ontstaat alleen met de hand. Gemeten in het onderzoek van 14 november (`logs/v1/telling-backup-met-kenmerk.jsonl`).
+     Advies uit het onderzoek: zo laten. — B
+
+1704. **VERVOLG (#804, classificatie): een tekstwijziging in een eigen regel laat een eigen `IfcPerson` als niet-P zien.**
+     In de tegenproeven van PR 12a (`check-ifc-foreign-eigen-uitvoer.ts`) geeft het veranderen van de naam van een
+     codetemplate, de naam of aanmaakdatum van een baselinekop, of het weghalen van een template uit de lijst, een
+     weigering `uitvoer-controle` met "extra niet-P-stuk #691" (`IFCPERSON($,'Contractor',…)`), en een gewijzigde
+     codewaarde in `OPS_StructureMeta` "extra niet-P-stuk" op een `IfcPropertyEnumeratedValue`. Dat weigert terecht,
+     maar om een reden die niets met de fout te maken heeft. Niet uitgezocht waarom `classify` die regels dan anders
+     indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
@@ -3943,10 +3980,10 @@ en noem het in je rapport of PR-tekst.
      de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
      #932. — B
 
-1591. **VERVOLG (#804, grens voor het onderzoek): alleen teruglezen tot het domein ziet een fout in de standaard-IFC-vorm
-     van activiteitscodes niet.** De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates
-     (`IFCSIMPLEPROPERTYTEMPLATE`, `IFCPROPERTYENUMERATION`) alleen als terugval (`src/services/ifc/ifcReader.ts`).
-     Gemeten door de review van #932: verander in de schrijfuitvoer alleen het enumeratielabel `WAND` in `DAK`;
-     volledig heropenen geeft dezelfde codedefinities, de verliescontrole van nu weigert die fout wel. Een toets
-     "de geschreven eigen pset leest terug tot precies het domein" moet zulke dubbel geschreven gegevens dus apart
-     bewaken, of de vormcontrole in `explainCodeDefinitions` blijft nodig. — B
+1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft nodig tot de andere toets er is.**
+     De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates (`IFCSIMPLEPROPERTYTEMPLATE`,
+     `IFCPROPERTYENUMERATION`) alleen als terugval, dus volledig heropenen ziet een fout in die tweede vorm niet. Sinds
+     PR 12a vangt controle (c) zo'n fout in de echte uitvoer wel: het enumeratielabel `WAND` → `DAK` bij een oude en bij
+     een nieuwe code weigert met `eigen-uitvoer` (`check-ifc-foreign-eigen-uitvoer.ts`). Open blijft alleen dat
+     `explainCodeDefinitions` in `lossCheck.ts` de vorm van de bron blijft bewaken tot stap 2 en 5 van de overstap
+     (onderzoek van 14 november, vraag 7); daar pas mag hij weg. — B
