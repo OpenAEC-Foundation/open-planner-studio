@@ -3879,3 +3879,29 @@ en noem het in je rapport of PR-tekst.
      binnen een gebruikte definitie blijft bij ander werk wel letterlijk behouden; bij typegroei blijft het geweigerd.
      Reproductie `1588 ongebruikte brondefinitie bij alleen projectbeschrijving` in
      `check-ifc-foreign-preserve.ts`; basisbewijs in `/tmp/fase1c-pr7d-bewijs/ongebruikt-main.log`. — B
+
+1589. **VERVOLG (#804, gewone handeling): een taak met een eigen taaktype wissen bij een gebouwmodel weigert.** In een
+     opgeslagen beginstand met twee taken van type A en twee van type B: alleen de tweede A-taak wissen → de merge
+     weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (TaskTypes)`, waardeslot 2, terwijl beide definities en de
+     pset blijven bestaan. `explainOwnMapGrowth` in `src/services/ifc/foreign/lossCheck.ts` bekijkt alleen de taken
+     die overblijven; een koppeling die verdwijnt omdat haar taak is gewist, verklaart zij niet. Bestaat ook op main
+     `648a75c0d`. Dit is niet 1110 (de laatste getypeerde taak) en niet 1586 (een definitie verdwijnt). Besluit Trias
+     14 november 2026: geen nieuwe losse verklaringen meer; dit geval, 1585 en 1586 gaan mee in het onderzoek naar een
+     andere toets voor gegevens die volledig van de app zelf zijn. Gevonden door de review van #932 (eigen proef op
+     `council/r4-k1-na-opslaan.ifc`). — B
+
+1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle, en twee restjes uit PR 7d.**
+     Regel A (`ownDefinitionsGrow`) is gedeeld door codes en taaktypes. Regel B (een bestaande waarde volgt een
+     bewerking) staat er twee keer in eigen vorm: de typewissel via verwachte kaartparen en `ownMapGrows`, de actieve
+     baseline in `explainActiveBaseline`. Beide zijn smal; de review vond geen ruimere vrijstelling. Verder: de
+     ongebruikte parameter van `fixedCatalogEdits` in `tests/planning/ifcMergeKern.ts` (vijf nutteloze argumenten bij
+     de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
+     #932. — B
+
+1591. **VERVOLG (#804, grens voor het onderzoek): alleen teruglezen tot het domein ziet een fout in de standaard-IFC-vorm
+     van activiteitscodes niet.** De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates
+     (`IFCSIMPLEPROPERTYTEMPLATE`, `IFCPROPERTYENUMERATION`) alleen als terugval (`src/services/ifc/ifcReader.ts`).
+     Gemeten door de review van #932: verander in de schrijfuitvoer alleen het enumeratielabel `WAND` in `DAK`;
+     volledig heropenen geeft dezelfde codedefinities, de verliescontrole van nu weigert die fout wel. Een toets
+     "de geschreven eigen pset leest terug tot precies het domein" moet zulke dubbel geschreven gegevens dus apart
+     bewaken, of de vormcontrole in `explainCodeDefinitions` blijft nodig. — B
