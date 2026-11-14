@@ -180,7 +180,7 @@
   cursor: pointer;
 }
 
-.settings-reset:hover { background: var(--theme-hover); color: var(--theme-accent); border-color: var(--theme-control-border); }
+.settings-reset:hover { background: var(--theme-hover); color: var(--theme-text); border-color: var(--theme-control-border); }
 .settings-reset:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 
 .settings-badge {
