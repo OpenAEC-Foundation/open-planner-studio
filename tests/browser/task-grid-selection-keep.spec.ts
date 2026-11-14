@@ -11,10 +11,11 @@ type Surface = 'gantt-task-grid' | 'full-task-grid';
 
 const grid = (page: Page, surface: Surface): Locator =>
   page.locator(`[data-task-grid-surface-id="${surface}"] [role="grid"]`);
-const row = (page: Page, surface: Surface, id: string): Locator =>
-  page.locator(`[data-task-grid-surface-id="${surface}"] [data-grid-data-row="true"][data-grid-row-key="${id}"]`);
-const nameCell = (page: Page, surface: Surface, id: string): Locator =>
-  row(page, surface, id).locator('[data-grid-data-cell="true"][data-grid-column-id="task.name"]');
+// In een groepering is de rijsleutel JSON; JSON.stringify citeert hem als geldige CSS-string.
+const row = (page: Page, surface: Surface, rowKey: string): Locator =>
+  page.locator(`[data-task-grid-surface-id="${surface}"] [data-grid-data-row="true"][data-grid-row-key=${JSON.stringify(rowKey)}]`);
+const nameCell = (page: Page, surface: Surface, rowKey: string): Locator =>
+  row(page, surface, rowKey).locator('[data-grid-data-cell="true"][data-grid-column-id="task.name"]');
 
 /** Vier fases met elk tien taken: ruim langer dan het raster hoog is. */
 async function seedLongPlan(page: Page): Promise<{ phases: string[]; children: string[][] }> {
@@ -39,7 +40,9 @@ async function seedLongPlan(page: Page): Promise<{ phases: string[]; children: s
 async function scrollUntilVisible(page: Page, surface: Surface, id: string): Promise<void> {
   const box = await grid(page, surface).boundingBox();
   await page.mouse.move(box!.x + 80, box!.y + box!.height / 2);
+  // Eerst omlaag; staat de rij erboven (na een groepering), dan omhoog.
   for (let i = 0; i < 40 && !(await isInGrid(page, surface, id)); i++) await page.mouse.wheel(0, 100);
+  for (let i = 0; i < 80 && !(await isInGrid(page, surface, id)); i++) await page.mouse.wheel(0, -100);
   expect(await isInGrid(page, surface, id)).toBe(true);
 }
 
@@ -74,8 +77,14 @@ async function collapseParentKeepsPlace(page: Page, surface: Surface, phase: str
   await expect.poll(() => selection(page).then(s => s.active)).toBe(phase);
 }
 
-/** Rechtsklik › Verwijderen: de taak eronder neemt de selectie over en staat in beeld. */
-async function deleteKeepsPlace(page: Page, surface: Surface, doomed: string, below: string): Promise<void> {
+/**
+ * Rechtsklik › Verwijderen: de taak eronder neemt de selectie over en staat in beeld. Ids zijn
+ * rijsleutels; buiten een groepering is dat het taak-id.
+ */
+async function deleteKeepsPlace(
+  page: Page, surface: Surface, doomed: string, below: string,
+  taskOf: (rowKey: string) => string = rowKey => rowKey,
+): Promise<void> {
   await scrollUntilVisible(page, surface, doomed);
   await nameCell(page, surface, doomed).click();
   // Het raster meldt zijn rij aan de store: in een groepering is dat het vertrekpunt.
@@ -85,10 +94,33 @@ async function deleteKeepsPlace(page: Page, surface: Surface, doomed: string, be
   await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ })
     .and(page.locator(':not([data-ops-ribbon-item])')).click();
   await expect(row(page, surface, doomed)).toHaveCount(0);
-  await expect.poll(() => selection(page)).toMatchObject({ selected: [below], active: below, rowKey: below });
+  await expect.poll(() => selection(page))
+    .toMatchObject({ selected: [taskOf(below)], active: taskOf(below), rowKey: below });
   await expect(row(page, surface, below).locator('[data-grid-active="true"]')).toHaveCount(1);
   expect(await isInGrid(page, surface, below)).toBe(true);
   expect((await selection(page)).scrollY).toBeGreaterThan(0);
+}
+
+/**
+ * Groepering op resource: A en C staan allebei onder R1 en onder R2. A onder R2 verwijderen ⇒ de
+ * cursor op C onder R2, niet op het eerste voorkomen van C (onder R1). Review #947.
+ */
+async function deleteInGroupStaysInGroup(page: Page, surface: Surface, a: string, c: string): Promise<void> {
+  const keys = await page.evaluate(({ a, c }) => {
+    const store = window.__OPS__!.store;
+    const r1 = store.getState().addResource({ name: 'R1', type: 'LABOR', description: '', maxUnits: 1 });
+    const r2 = store.getState().addResource({ name: 'R2', type: 'LABOR', description: '', maxUnits: 1 });
+    for (const id of [a, c]) for (const r of [r1, r2]) store.getState().assignResource(id, r, 1);
+    store.getState().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
+    const of = (id: string) => store.getState().viewRows
+      .filter(row => row.kind === 'task' && row.task.id === id).map(row => row.rowKey);
+    return { a: of(a), c: of(c) };
+  }, { a, c });
+  expect(keys.a).toHaveLength(2);
+  expect(keys.c).toHaveLength(2);
+  const taskOf = (rowKey: string) => (keys.c.includes(rowKey) ? c : a);
+  await deleteKeepsPlace(page, surface, keys.a[1], keys.c[1], taskOf);
+  await page.evaluate(() => window.__OPS__!.store.getState().setGroup([]));
 }
 
 test('lange planning: inklappen en verwijderen houden de selectie op haar plek (issue #899)', async ({ page, ops: _ops }) => {
@@ -98,10 +130,12 @@ test('lange planning: inklappen en verwijderen houden de selectie op haar plek (
   // Takenlijst naast de Gantt.
   await collapseParentKeepsPlace(page, 'gantt-task-grid', phases[2], children[2][2]);
   await deleteKeepsPlace(page, 'gantt-task-grid', children[3][4], children[3][5]);
+  await deleteInGroupStaysInGroup(page, 'gantt-task-grid', children[1][0], children[1][1]);
 
   // Tabel: dezelfde rasterkern, dezelfde afspraak.
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect(grid(page, 'full-task-grid')).toBeVisible();
   await collapseParentKeepsPlace(page, 'full-task-grid', phases[3], children[3][2]);
   await deleteKeepsPlace(page, 'full-task-grid', children[3][7], children[3][8]);
+  await deleteInGroupStaysInGroup(page, 'full-task-grid', children[1][3], children[1][4]);
 });

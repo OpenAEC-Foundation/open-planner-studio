@@ -955,6 +955,14 @@ en noem het in je rapport of PR-tekst.
      MutationObserver slaat een lege `#root` over; het foutscherm (`src/startup/fatalError.ts`) maakt juist die root
      leeg. Een foutscherm als eindstand valt zo niet op. Voorstel: in hetzelfde blok `.help-panel` zichtbaar en
      `#ops-fatal-error` afwezig eisen. Uit de review van #941 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+1673. **VERVOLG: binnen één gebundelde wijziging kan de selectie na verwijderen op een verborgen fase landen.**
+     `selectNeighbourAfterRemoval` (`src/state/selectionAfterRowChange.ts`) kiest de buur uit `viewRows`. Binnen
+     een transactie die het herberekenen van de rijen uitstelt (`runtime.deferViewRows`, bijvoorbeeld
+     `withTransaction(() => deleteTask(B))`), is `viewRows` nog de oude stand. Een fase die alleen zichtbaar was
+     als ouder van het gefilterde kind B, telt dan nog als zichtbaar en wordt geselecteerd. Een tweede Verwijderen
+     wist die fase met haar verborgen kinderen. Welke routes in de app zo'n transactie gebruiken, is niet nagelopen.
+     Voorstel: de buur kiezen na het herberekenen aan het eind van de transactie. Uit de review van #947
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
