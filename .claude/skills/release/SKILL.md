@@ -36,7 +36,8 @@ Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is ee
   stopt hem. De reparatie meldt die zelf: haar laatste opmerking in het issue begint dan met `REPARATIE GEBLOKKEERD`,
   gevolgd door de reden (een BLOKKEERT, of een rode CI die zij niet kan herstellen). Dan geen tag die week. De release
   meldt dat aan Ethan, met de reden, en het issue blijft open. Een reparatie die alleen haar stand opschrijft,
-  is geen blokkade: ze hervat de volgende ochtend, en de release wacht.
+  is geen blokkade: de ochtendreparatie hervat haar bij de eerstvolgende dag van maandag tot en met zaterdag
+  (zie de reparatieskill), en de release wacht.
 
 Wacht zo, met een lus zonder klok. De lus eindigt met een eigen uitkomst: 0 = geen open issue, 3 = blokkade gemeld,
 2 = `gh` faalt (geen stilte als antwoord; lees de fout en start opnieuw). Stopt de shell, start dan dezelfde opdracht opnieuw.

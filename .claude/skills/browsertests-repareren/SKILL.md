@@ -146,7 +146,10 @@ fix-PR's, reviews, VERVOLG en de bewijsrun.
 ## Stoppen om 14:00
 
 Doe geen nieuwe merge of dispatch meer. Open fix-PR's blijven staan. Schrijf de stand in het issue. Het issue blijft
-open. Zet bovenaan het eindrapport wat er nog rood is, voor Ethan. De volgende reparatie hervat dit werk.
+open. Zet bovenaan het eindrapport wat er nog rood is, voor Ethan. De volgende reparatie hervat dit werk: de
+ochtendtaak van Trias (zie *Taken die nu draaien*), de eerstvolgende dag van maandag tot en met zaterdag om 08:00.
+Zaterdag na 23:50 en op zondag werkt niemand; een reparatie die dan nog openstaat, wacht tot maandag 08:00, en de
+release wacht zolang op het issue.
 
 ## Blokkade melden
 
@@ -170,7 +173,18 @@ De release-skill wacht vóór alles op main, in [Eerst: browsertests](../release
 De gate, de release en deze skill gebruiken één browsercontrole, `scripts/release-ci-check.mjs`. Zo oordelen ze over
 dezelfde run. Bewijs telt vanaf de laatste vrijdag 22:00 Nederlandse tijd (de gate-regel in `release-ci-check.mjs`); eerder groen vervangt de laatste browserrun niet.
 
-## Geplande taak
+## Taken die nu draaien
+
+Sinds besluit Ethan, 2026-11-06 (vraag 12), staan er twee geplande taken van Trias op aia09-mp50, beide maandag tot en
+met zaterdag. Ze vervangen de vrijdagtaak hieronder, die uitstaat.
+
+- **Avondrun, 22:00.** Start `gh workflow run ci.yml --ref main`, volgt de run en leest de browsercontrole. Rood:
+  open het issue `Browsertests repareren` met het label `browsertests-reparatie` en repareer niet 's nachts. De laatste
+  browserrun vóór de maandagrelease is die van zaterdag 22:00.
+- **Ochtendreparatie, 08:00.** Is er een open issue, dan repareert deze taak volgens deze skill, tot uiterlijk 14:00
+  dezelfde dag. Is er geen, dan is dat één regel in het eindrapport.
+
+## Geplande taak (vrijdag, staat uit)
 
 Dit deel is configuratie-invoer en prompttekst; het maakt geen taak aan. De orkestrator maakt de taak na de merge.
 Vorm gekozen door de orkestrator, 2026-10-31.
