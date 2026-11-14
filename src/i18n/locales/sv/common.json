@@ -682,7 +682,6 @@
     "sentTitle": "Tack, din anmälan har skickats.",
     "alreadyIn": "Den här anmälan har redan kommit in till oss. Vill du lägga till något? Ändra då texten och skicka igen.",
     "sentScreenshotDropped": "Skärmbilden var för stor och skickades inte med.",
-    "viewOnGithub": "Visa på GitHub",
     "errorValidation": "Anmälan godtogs inte. Kontrollera texten (inte bara länkar) och e-postadressen och försök igen.",
     "errorRateLimited": "Du har skickat många anmälningar på kort tid. Försök igen om en timme.",
     "errorFailed": "Det gick inte att skicka. Kontrollera din internetanslutning och försök igen, eller öppna anmälan på GitHub.",

@@ -780,7 +780,6 @@
     "sentTitle": "Grazie, la tua segnalazione è stata inviata.",
     "alreadyIn": "Questa segnalazione è già arrivata da noi. Vuoi aggiungere qualcosa? Modifica il testo e invia di nuovo.",
     "sentScreenshotDropped": "Lo screenshot era troppo grande e non è stato inviato.",
-    "viewOnGithub": "Vedi su GitHub",
     "errorValidation": "La segnalazione non è stata accettata. Controlla il testo (non solo i link) e l'indirizzo e-mail, e riprova.",
     "errorRateLimited": "Hai inviato molte segnalazioni in poco tempo. Riprova tra un'ora.",
     "errorFailed": "Invio non riuscito. Controlla la connessione internet e riprova, oppure apri la segnalazione su GitHub.",
