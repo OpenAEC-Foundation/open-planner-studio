@@ -213,7 +213,15 @@ test('Ontbrekend gebouwmodel: Opslaan als vraagt bewust doorgaan, Annuleren heef
       await page.keyboard.press('Control+Shift+s');
       await expect(dialog).toBeVisible();
       const download = page.waitForEvent('download');
-      await dialog.getByRole('button', { name: /^(Continue|Doorgaan)$/ }).click();
+      const proceed = dialog.getByRole('button', { name: /^(Continue|Doorgaan)$/ });
+      if (entry === 'herstel') await proceed.click();
+      else {
+        // Toetsenbord: vanaf Annuleren via de sluitknop naar Doorgaan (de focus blijft in de dialoog), dan Enter.
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Tab');
+        await expect(proceed).toBeFocused();
+        await page.keyboard.press('Enter');
+      }
       const text = await readFile((await (await download).path())!, 'utf8');
       await expect(dialog).toHaveCount(0);
       expect(text).toContain('Planning zonder gevonden gebouwmodel');

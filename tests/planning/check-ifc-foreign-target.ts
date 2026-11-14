@@ -1407,6 +1407,86 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   }
 }
 
+// ── 7f. 9e op de site: het oorspronkelijke sitebestand blijft beschermd, Opslaan als maakt een nieuw sitebestand ──
+// Herstel van een document dat van de site kwam; de bewaarde kopie is weg, dus het gebouwmodel ontbreekt.
+{
+  const label = '9e site';
+  const siteData: Record<string, Uint8Array> = { origineel: eigenPlus };
+  const saves: (string | null)[] = [];
+  win.openaecHost = { storage: {
+    list: async () => [],
+    versions: async () => [{ version: 'v1' }],
+    open: async (id: string) => {
+      if (!(id in siteData)) throw new Error('niet gevonden');
+      return { file: { id, name: 'model.ifc', version: 'v1' }, data: siteData[id] };
+    },
+    save: async (request: { id?: string; name: string; data: Blob }) => {
+      const id = request.id ?? `nieuw${saves.length + 1}`;
+      saves.push(request.id ?? null);
+      siteData[id] = new Uint8Array(await request.data.arrayBuffer());
+      return { id, name: request.name, version: `v${saves.length + 1}` };
+    },
+  } };
+  const tick = async (store: Store) => {
+    const docs = store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true));
+    await runRecoveryTick(new RecoveryDeltaTracker(), store.getState().activeDocumentId, docs);
+    return loadRecovery();
+  };
+  const restore = async (loaded: Awaited<ReturnType<typeof loadRecovery>>): Promise<Store> => {
+    const inputs = [];
+    for (const d of loaded.docs) inputs.push(await readRecoveryDocument(d, loaded.archives, true));
+    const restored = createAppStoreContext().store;
+    restored.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    restored.getState().restoreDocuments(inputs, loaded.activeDocumentId);
+    return restored;
+  };
+  let questions = 0;
+  try {
+    const ctx = createAppStoreContext();
+    await open('model.ifc', eigenPlus, { kind: 'site', id: 'origineel' }, ctx.store);
+    eq(`${label}: het kenmerk kent het oorspronkelijke sitebestand`, ctx.store.getState().foreignSourceMark?.siteFileId, 'origineel');
+    ctx.store.getState().addTask({ name: 'Werk vóór de crash 9e site' });
+    const loaded = await tick(ctx.store);
+    const { SOURCE_COPY_DB } = await import('@/services/recovery/recoverySourceCopies');
+    idb.store('sources', SOURCE_COPY_DB).clear();
+    let store = await restore(loaded);
+    let S = () => store.getState();
+    eq(`${label}: herstel geeft bron ontbreekt zonder sitedoel`, [S().foreignSourceMark?.sourceMissing, S().siteFileId], [true, null]);
+    setIfcMissingSourceAsker(async () => { questions++; return true; });
+    // Dezelfde naam als het oorspronkelijke sitebestand: Opslaan op de site maakt toch een nieuw bestand.
+    setSiteSaveAsker(async () => ({ kind: 'site', name: 'model.ifc' }));
+    await S().saveFileAs();
+    eq(`${label}: na bevestigen één nieuw sitebestand, het oorspronkelijke ongewijzigd`,
+      [questions, saves, sha(siteData.origineel), S().siteFileId], [1, [null], sha(eigenPlus), 'nieuw1']);
+    const written = dec(siteData.nieuw1 ?? new Uint8Array());
+    ok(`${label}: het nieuwe sitebestand heeft de planning zonder gebouwmodel`,
+      readIFC(written).tasks.some(t => t.name === 'Werk vóór de crash 9e site') && !written.includes('IFCWALL(')
+      && !written.includes(PSET_NAME));
+    eq(`${label}: gewoon document dat het oorspronkelijke sitebestand blijft kennen`,
+      [S().foreignSourceMark?.sourceMissing, S().foreignSourceMark?.siteFileId], [false, 'origineel']);
+    S().addTask({ name: 'Ctrl+S op de site 9e' });
+    await S().saveFile();
+    eq(`${label}: Ctrl+S schrijft een nieuwe versie van het nieuwe sitebestand`, saves, [null, 'nieuw1']);
+    ok(`${label}: met de nieuwe taak`, dec(siteData.nieuw1).includes('Ctrl+S op de site 9e'));
+    // Het oorspronkelijke sitebestand als doel: weigert op de inhoud (flag aan) én op het kenmerk (flag uit).
+    for (const flag of [true, false]) {
+      store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; s.siteFileId = 'origineel'; s.siteFileVersion = 'v1'; });
+      S().addTask({ name: `Naar het oorspronkelijke sitebestand 9e ${flag}` });
+      const notices = noticeCount(store, TARGET_SAVE);
+      await S().saveFile();
+      eq(`${label}: oorspronkelijk sitebestand als doel geweigerd (flag ${flag ? 'aan' : 'uit'})`,
+        [saves, sha(siteData.origineel), noticeCount(store, TARGET_SAVE) > notices], [[null, 'nieuw1'], sha(eigenPlus), true]);
+    }
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; s.siteFileId = 'nieuw1'; s.siteFileVersion = 'v3'; });
+    store = await restore(await tick(store)); S = () => store.getState();
+    eq(`${label}: crash erna houdt het nieuwe sitedoel en de bescherming`,
+      [S().foreignSourceMark?.sourceMissing, S().foreignSourceMark?.siteFileId, S().siteFileId], [false, 'origineel', 'nieuw1']);
+    eq(`${label}: geen vraag meer voor het gewone document`, questions, 1);
+  } finally {
+    resetIfcMissingSourceAsker(); resetSiteAskers(); delete win.openaecHost;
+  }
+}
+
 // ── 8. Fixronde 3 (Sol, VERVOLG): hoogstens één vingerafdruk van het doel per controle ─────────────────────────────
 {
   let getFiles = 0;
