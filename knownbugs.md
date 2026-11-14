@@ -3025,6 +3025,12 @@ en noem het in je rapport of PR-tekst.
       de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
       gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
       Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+1670. **De meting "Taakselectie meten" (`task-grid-published-selection.yml`) faalt op elke PR die haar paden raakt.**
+     Ze vergelijkt een vaste basiscommit (`BASE_SHA: fbd4a3f9…`) met de kop van de PR en eist dat
+     `package-lock.json` in beide gelijk is. Sinds main verder is, verschilt die altijd: PR #947 (die alleen
+     `check-task-grid-published-selection.ts` raakte) kreeg `base/package-lock.json head/package-lock.json differ`
+     in de stap "Controleer revisies", run 43617221845. De controle is niet verplicht. Voorstel: de eenmalige
+     meting weghalen, of als basis de merge-base van de PR nemen. — B
 
 ## Wensen en open taken (geen bug)
 
