@@ -1922,11 +1922,12 @@ en noem het in je rapport of PR-tekst.
 
 1552. **VERVOLG, gewone handeling: een kalender toevoegen weigert bij de oude lopende-taakfixture.**
      `fixtures/b5-lopend-oude-writer.ifc + wand` schrijft zonder bewerking, maar `addCalendar` met een kopie
-     van de projectkalender en koppeling aan een resource weigert `bronvorm-leest-anders`: de nieuwe `cal-…`
-     ontbreekt na herlezen. `sourceFormProblems` zoekt op het interne kalender-id; de herlezing heeft het
-     `rescal-ifc-…`-id. Deze controle komt vóór de canon, dus de identiteitsprojectie van PR 7b bereikt haar
-     niet. Richting: de bronvormcontrole ook de bewezen kalenderidentiteit laten gebruiken, met dezelfde
-     strenge waardecontrole. Niet gerepareerd in PR 7b; bronvormcontrole en mergeWriter vallen buiten die
+     van de projectkalender, los van resources, weigert `bronvorm-leest-anders`: de nieuwe `cal-…`
+     ontbreekt volgens de controle na herlezen. `sourceFormProblems` zoekt op het interne kalender-id,
+     vóór de canon; de identiteitsprojectie van PR 7b bereikt deze vergelijking dus niet. De precieze
+     teruggelezen kalenderinhoud is in deze telling niet vastgelegd. Richting: ook hier de bewezen
+     kalenderidentiteit gebruiken en alle waarden even streng blijven controleren.
+     Niet gerepareerd in PR 7b; bronvormcontrole en mergeWriter vallen buiten die
      opdracht. Gemeten via de echte acties in de nieuwe telling van #924, zonder bytes. — B
 
 1553. **VERVOLG, gewone handeling: een baseline toevoegen weigert bij twee oude 7.12-bronnen.**
