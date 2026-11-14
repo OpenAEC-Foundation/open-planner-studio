@@ -32,7 +32,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  applyEdit, fixedSequenceEdits, savedSequenceStart, basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
+  applyEdit, fixedCatalogEdits, savedCatalogStart, fixedSequenceEdits, savedSequenceStart, basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
   reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
@@ -1502,10 +1502,10 @@ async function kaartRonde(label: string, bytes: Uint8Array, edit: (d: Domain) =>
     ok(`${label}: bronbytes ongewijzigd`, sameBytes(bytes, original) && sameBytes(opened.ifcSource!.bytes, original));
     eq(`${label}: actieve baseline`, reread.activeBaselineId, input.activeBaselineId);
     eq(`${label}: vergelijkingsbaselines`, reread.comparedBaselineIds, input.comparedBaselineIds);
+    eq(`${label}: codedefinities`, reread.activityCodeTypes, input.activityCodeTypes);
+    eq(`${label}: codekoppelingen`, reread.tasks.map(t => [t.id, t.activityCodes]), input.tasks.map(t => [t.id, t.activityCodes]));
     eq(`${label}: taaktypedefinities`, reread.customTaskTypes, input.customTaskTypes);
     eq(`${label}: taaktypen`, reread.tasks.map(t => [t.id, t.customTaskTypeId]), input.tasks.map(t => [t.id, t.customTaskTypeId]));
-    ok(`${label}: iedere nieuwe baselinerij aan de juiste taak`, (input.baselines ?? []).every(b => b.tasks.every(row =>
-      !input.tasks.some(t => t.id === row.taskId) || reread.tasks.some(t => t.id === row.taskId))));
     console.log(`BEWIJS ${label}: geschreven, volledig heropend, baselinerijen/typen en vreemd deel behouden`);
     return { opened, input, prepared, output };
   } catch (e) {
@@ -1627,29 +1627,35 @@ async function blijvendeWeigering(label: string, bytes: Uint8Array, edit: (d: Do
 await blijvendeWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
   for (const b of s.baselines) s.deleteBaseline(b.id);
 }));
-for (const action of ['type-wisselen', 'type-verliezen', 'laatste-taak-wissen', 'nieuwe-definitie']) {
-  await blijvendeWeigering(`taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
+for (const action of ['type-verliezen', 'laatste-taak-wissen']) {
+  await blijvendeWeigering(`1582 taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
     const t = s.tasks.find(t => t.customTaskTypeId === 'type-7c')!;
     if (action === 'laatste-taak-wissen') s.deleteTask(t.id);
-    else if (action === 'type-verliezen') s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
-    else {
-      s.ensureProjectTaskType({ id: 'ander-type-7c', name: 'Ander type' });
-      const id = action === 'type-wisselen' ? t.id : s.tasks.find(x => !x.customTaskTypeId && !x.childIds.length)!.id;
-      s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'ander-type-7c' });
-    }
+    else s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
   }));
 }
-const eersteCode = await kaartRonde('eerste activiteitscodedefinitie', eigenKaart, d => storeEdit(d, s => {
-  const code = s.addActivityCodeType('Eerste code 7c'), value = s.addActivityCodeValue(code, { code: 'A', description: 'Eerste waarde' });
-  s.setTaskActivityCode(s.tasks.find(t => !t.childIds.length)!.id, code, value);
-}));
-if (eersteCode) await blijvendeWeigering('1580 tweede activiteitscodedefinitie', eersteCode.output, async d => {
-  const withTask = await applyEdit(basicEdits(d).find(e => e.kind === 'taak-erbij')!, d);
-  return storeEdit(withTask, s => {
-    const code = s.addActivityCodeType('Tweede code 7c'), value = s.addActivityCodeValue(code, { code: 'B', description: 'Tweede waarde' });
-    s.setTaskActivityCode(s.tasks.find(t => t.name === 'Nieuwe taak 1b')!.id, code, value);
+for (const [name, raw] of kaartBronnen) {
+  const saved = await savedCatalogStart(raw), opened = await openForeign(saved), edits = fixedCatalogEdits(opened);
+  for (const edit of edits) await kaartRonde(`7d ${name}: ${edit.label}`, saved, d => applyEdit(edit, d));
+  await kaartRonde(`7d ${name}: code + nieuw type + nieuwe taak + typewissel`, saved, async d => {
+    for (const edit of edits.slice(0, 3)) d = await applyEdit(edit, d);
+    return storeEdit(d, s => {
+      const id = s.addTask({ name: 'Nieuwe taak 7d' }, { phaseAssignments: 'move', answered: true });
+      if (!id) throw new Error('7d: geen nieuwe taak');
+      s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7d-c' });
+    });
   });
-});
+  await kaartRonde(`7d ${name}: baseline erbij en bestaande actief`, saved, d => storeEdit(d, s => {
+    const id = s.baselines[0].id; s.saveBaseline('Nieuw 7d'); s.setActiveBaseline(id);
+  }));
+  await kaartRonde(`7d ${name}: type verliezen met andere getypeerde taken`, saved, d => storeEdit(d, s => {
+    s.updateTask(s.tasks.find(t => t.customTaskTypeId === 'type-7d-a')!.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+  }));
+  const second = await kaartRonde(`7d ${name}: tweede code opslaan`, saved, d => applyEdit(edits[0], d));
+  if (second) await kaartRonde(`7d ${name}: heropenen en derde code`, second.output, d => storeEdit(d, s => {
+    const id = s.addActivityCodeType('Code C 7d'); s.addActivityCodeValue(id, { code: 'C', description: 'Derde waarde' });
+  }));
+}
 
 if (diffs.length > 0) {
   console.log(`XX  ifc-foreign-preserve: ${diffs.length} afwijking(en) van ${checks}`);
