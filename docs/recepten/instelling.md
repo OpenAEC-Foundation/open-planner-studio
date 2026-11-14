@@ -52,7 +52,7 @@ telkens erbij; loopt dit document ooit achter, dan heeft de code gelijk.
    plaatje uit `settingVisuals.tsx`) of `custom` (een eigen bediening uit `settingCustomControls.tsx`).
    Geef haar een groep, een uitleg van één zin (`hintKey`; details horen in het Help-artikel
    `ref-instellingen`), zoekwoorden per taal (`settings.keywords.<id>`, ook termen uit MS Project/P6) en
-   een `binding` (veld + opslaan); de standaard voor "gewijzigd" komt vanzelf uit `createDefaultUI()`.
+   een `binding` (veld + opslaan); de standaard voor "gewijzigd" komt vanzelf uit `createDefaultUI()` (alleen als die de bewaarde keuze al inleest, zoals bij het thema, geef je `defaultValue`). Een eigen bediening (`custom`) geeft haar keuzes via `searchTexts` aan de zoekbalk.
    Doet de instelling alleen iets als een andere aanstaat, geef dan `requires` met de reden. Bouw geen
    los stuk UI buiten de lijst: dan mist de instelling zoeken, terugzetten en de directe link.
 5. **Roep `t(...)` aan voor elk zichtbaar label** (zie *i18n* in `.claude/rules/i18n.md` en

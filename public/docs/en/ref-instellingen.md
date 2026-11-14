@@ -8,7 +8,7 @@ The settings panel is in three places, and everywhere it is the same panel: the 
 
 **Search.** Type part of the name, a word from the explanation or a term from MS Project or P6, such as *Task Type*, in the search bar at the top. You then see the matching settings from all groups, under a heading per group. In the window the cursor is in the search bar straight away. / or Ctrl+F puts it back there, and Escape clears the search. A setting that does nothing right now, such as *Screen division* outside the *Position* mode, is greyed out in the search results, with the reason below it.
 
-**Changed and reset.** When a setting differs from its starting value, a dot appears before its name and at its group, and a button on the right resets the starting value. The button *Changed only* shows only those settings; the number after it is how many there are. *Theme* and *Language* do not count: there is no starting value for them that applies to everyone.
+**Changed and reset.** When a setting differs from its starting value, a dot appears before its name and at its group, and a button on the right resets the starting value. The button *Changed only* shows only those settings; the number after it is how many there are. *Language* does not count: there is no starting value for it that applies to everyone. For *Theme* the starting value is *Dark*; when Open Planner Studio runs embedded in a website, it is the theme of that website.
 
 **Pictures.** For some settings each choice is a picture with its name below. Click a picture to make that choice. The picture shows what changes in the app, for example where the document tabs go or how a bar is drawn around a break.
 

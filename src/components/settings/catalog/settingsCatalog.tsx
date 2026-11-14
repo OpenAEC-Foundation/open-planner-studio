@@ -7,7 +7,7 @@
 // `settingsStore.ts`. Weergavekeuzes die je in het lint of door te slepen instelt, staan hier niet.
 
 import { createDefaultUI } from '@/state/slices/uiSlice';
-import type { UIState } from '@/state/slices/types';
+import type { UIState, UITheme } from '@/state/slices/types';
 import {
   BAR_SPLIT_MODES, DATE_NOTATIONS, DURATION_DISPLAYS, TIME_NOTATIONS, UI_FONT_FAMILIES, UI_FONT_SCALES,
 } from '@/state/slices/types';
@@ -15,7 +15,7 @@ import {
   saveAiAutostart, saveAllowMixedDayHour, saveAutoFitColumns, saveBarSplitMode, saveCompressNonWorkdays,
   saveConstructionMode, saveDateNotation, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveDurationDisplay,
   saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveShowClassicViewControls, saveShowTaskTypes,
-  saveTimeNotation, saveUIFontFamily, saveUIFontScale, saveZoomSettings,
+  saveTimeNotation, saveUIFontFamily, saveUIFontScale, saveZoomSettings, startTheme,
 } from '@/utils/settingsStore';
 import { profileCountsWorkdays } from '@/utils/taskDuration';
 import { applyAiModeLive } from '@/services/mcp/server';
@@ -23,15 +23,15 @@ import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags'
 import { displayDate } from '@/utils/displayDate';
 import { localTodayIso } from '@/utils/dateUtils';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
-import { applyAutoCalcCPM, applySetting } from '../applySetting';
-import { LanguageSelect } from '../settingControls';
+import { applyAutoCalcCPM, applySetting, applyTheme } from '../applySetting';
+import { LANGUAGE_OPTIONS, LanguageSelect } from '../settingControls';
 import {
   BarSplitVisual, CompressNonWorkdaysVisual, DocumentChromeVisual, DurationDisplayVisual, PositionDivisionVisual,
   QuarterHourVisual, ScrollModeVisual,
 } from '../settingVisuals';
 import {
   BenchmarkControl, ExperimentalControl, FormatNoticesControl, ModifierMapControl, StatsControl, ThemeControl,
-  TourControl, VersionControl,
+  TourControl, VersionControl, themeSearchTexts,
 } from '../settingCustomControls';
 import { SETTING_IDS, SETTINGS_GROUP_IDS, type SettingId, type SettingsGroupId } from '@/utils/settingIds';
 import type { ChoiceOption, CommonKey, SettingBinding, SettingEntry } from './types';
@@ -65,11 +65,15 @@ const ENTRIES: readonly SettingEntry[] = [
   // Uiterlijk
   {
     kind: 'custom', id: 'theme', group: 'appearance', labelKey: 'settings.theme', hintKey: 'settings.themeHint',
-    keywordsKey: 'settings.keywords.theme', Control: ThemeControl,
+    keywordsKey: 'settings.keywords.theme', Control: ThemeControl, searchTexts: themeSearchTexts,
+    // `applyTheme` bewaart de keuze en meldt ingebed dat de host bij de volgende start wint. De
+    // standaard is het thema van een eerste start: dat van de host of de dev-link, anders Donker.
+    binding: { field: 'uiTheme', apply: value => applyTheme(value as UITheme), defaultValue: startTheme },
   },
   {
     kind: 'custom', id: 'language', group: 'appearance', labelKey: 'settings.language', hintKey: 'settings.languageHint',
     keywordsKey: 'settings.keywords.language', Control: LanguageSelect, inline: true,
+    searchTexts: () => LANGUAGE_OPTIONS.map(o => o.label),
   },
   {
     kind: 'choice', id: 'fontFamily', group: 'appearance', labelKey: 'settings.fontFamilyLabel', hintKey: 'settings.fontHint',
@@ -292,10 +296,11 @@ export const SETTINGS_GROUPS: readonly SettingsGroupId[] = SETTINGS_GROUP_IDS
 
 let defaults: UIState | null = null;
 
-/** De standaard van een veld: die van een nieuwe store, dus dezelfde als bij een eerste start. */
-export function defaultSettingValue(field: keyof UIState): unknown {
+/** De standaard van een instelling: die van een nieuwe store, dus dezelfde als bij een eerste start. */
+export function defaultSettingValue(binding: SettingBinding): unknown {
+  if (binding.defaultValue) return binding.defaultValue();
   defaults ??= createDefaultUI();
-  return defaults[field];
+  return defaults[binding.field];
 }
 
 /** Gelijk voor de doeleinden van "gewijzigd": waarden, lijsten en platte objecten (de wieltoewijzing). */
@@ -313,13 +318,13 @@ function sameValue(a: unknown, b: unknown): boolean {
   return false;
 }
 
-/** Wijkt de instelling af van de standaard? Instellingen zonder binding (thema, taal) tellen niet. */
+/** Wijkt de instelling af van de standaard? Instellingen zonder binding (taal, knoppen) tellen niet. */
 export function isSettingChanged(entry: SettingEntry, ui: UIState): boolean {
   const binding = entry.binding;
   if (!binding) return false;
-  return !sameValue(ui[binding.field], defaultSettingValue(binding.field));
+  return !sameValue(ui[binding.field], defaultSettingValue(binding));
 }
 
 export function resetSetting(entry: SettingEntry): void {
-  entry.binding?.apply(defaultSettingValue(entry.binding.field));
+  if (entry.binding) entry.binding.apply(defaultSettingValue(entry.binding));
 }

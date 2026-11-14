@@ -8,7 +8,7 @@ Het instellingenpaneel staat op drie plekken, en overal is het hetzelfde paneel:
 
 **Zoeken.** Typ in de zoekbalk bovenaan een deel van de naam, een woord uit de uitleg of een term uit MS Project of P6, zoals *Task Type*. Je ziet dan de passende instellingen uit alle groepen, per groep onder een kop. In het venster staat de cursor meteen in de zoekbalk. / of Ctrl+F zet hem er weer in, en Escape wist de zoekterm. Een instelling die nu niets doet, zoals *Schermverdeling* buiten de modus *Positie*, staat bij zoeken uitgegrijsd, met de reden eronder.
 
-**Gewijzigd en terugzetten.** Wijkt een instelling af van haar beginwaarde, dan staat er een stip voor de naam en bij haar groep, en rechts een knop die de beginwaarde terugzet. De knop *Alleen gewijzigd* toont alleen die instellingen; het getal erachter is hun aantal. *Thema* en *Taal* tellen niet mee: daarvoor is geen beginwaarde die voor iedereen geldt.
+**Gewijzigd en terugzetten.** Wijkt een instelling af van haar beginwaarde, dan staat er een stip voor de naam en bij haar groep, en rechts een knop die de beginwaarde terugzet. De knop *Alleen gewijzigd* toont alleen die instellingen; het getal erachter is hun aantal. *Taal* telt niet mee: daarvoor is geen beginwaarde die voor iedereen geldt. Voor *Thema* is de beginwaarde *Donker*; draait Open Planner Studio ingebed in een website, dan het thema van die website.
 
 **Plaatjes.** Bij een aantal instellingen staat elke keuze als plaatje met de naam eronder. Klik op een plaatje om die keuze te maken. Het plaatje laat zien wat er in de app verandert, bijvoorbeeld waar de documenttabbladen komen of hoe een balk rond een pauze wordt getekend.
 

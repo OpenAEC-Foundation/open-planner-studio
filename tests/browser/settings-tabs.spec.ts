@@ -111,6 +111,11 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await search.fill('Ctrl');
   await expect(dialog.locator('[data-ops-setting="modifierMap"] fieldset button').first()).toBeDisabled();
   await expect(dialog.locator('[data-ops-setting="modifierMap"] .settings-unavailable-reason')).toBeVisible();
+  // Ook keuzes binnen een eigen bediening: de schakelaar onder Thema en de namen van de talen.
+  await search.fill('follow system');
+  await expect(dialog.locator('[data-ops-setting="theme"]')).toBeVisible();
+  await search.fill('Nederlands');
+  await expectRows(dialog, ['language']);
   await search.fill('qqqzzz');
   await expect(dialog.locator('[data-ops-settings-empty]')).toBeVisible();
   // Escape wist eerst de zoekterm; de dialoog blijft open en toont weer de groep.
@@ -118,11 +123,18 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await expect(search).toHaveValue('');
   await expect(dialog).toBeVisible();
   await expect(group(dialog, 'appearance')).toHaveAttribute('aria-current', 'page');
-  // "/" ergens in het paneel springt naar de zoekbalk.
+  // "/" ergens in het paneel springt naar de zoekbalk, ook vanaf een vinkje; Ctrl+F ook vanaf de
+  // sluitknop in de kop van de dialoog.
   await group(dialog, 'timeline').click();
   await page.keyboard.press('/');
   await expect(search).toBeFocused();
   await expect(search).toHaveValue('');
+  await dialog.locator('[data-ops-setting="quarterHourZoom"]').getByRole('checkbox').focus();
+  await page.keyboard.press('/');
+  await expect(search).toBeFocused();
+  await dialog.locator('.modal-close-btn').focus();
+  await page.keyboard.press('Control+f');
+  await expect(search).toBeFocused();
 
   // Een gewijzigde instelling krijgt een stip, ook bij haar groep, en telt mee in het filter. De
   // fixture zet de formaatuitleg al uit (`ops-formatNoticeHidden`), dus die telt vanaf het begin mee.
@@ -146,6 +158,18 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await filter.click();
   await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toHaveCount(0);
 
+  // Het thema telt ook mee: zonder bewaarde keuze start de app Donker.
+  await group(dialog, 'appearance').click();
+  const theme = dialog.locator('[data-ops-setting="theme"]');
+  await expect(theme).not.toHaveAttribute('data-ops-setting-changed', 'true');
+  await theme.locator('[data-ops-theme-card="light"]').click();
+  await expect(theme).toHaveAttribute('data-ops-setting-changed', 'true');
+  await expect(filter).toHaveText(/\(2\)$/);
+  await theme.locator('[data-ops-setting-reset="theme"]').click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme)).toBe('dark');
+  expect(await page.evaluate(() => localStorage.getItem('ops-theme'))).toBe('dark');
+  await expect(filter).toHaveText(/\(1\)$/);
+
   // Directe link: opent op de groep, ook op een instelling die bij de huidige modus verborgen is,
   // en laat hem oplichten met de focus erin.
   await group(dialog, 'appearance').click();
@@ -167,6 +191,16 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await group(dialog, 'timeline').click();
   await expect(division).toHaveCount(0);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.settingsFocusId)).toBeNull();
+
+  // Een link naar het vergrendelde blok Experimenteel toont het niet, maar landt op het versienummer.
+  await page.evaluate(async () => {
+    const path = '/src/components/settings/openSettingsAt.ts';
+    const { openSettingsAt } = await import(/* @vite-ignore */ path);
+    openSettingsAt('experimental');
+  });
+  await expect(group(dialog, 'about')).toHaveAttribute('aria-current', 'page');
+  await expect(dialog.locator('[data-ops-setting="version"]')).toHaveClass(/is-highlighted/);
+  await expect(dialog.locator('[data-ops-setting="experimental"]')).toHaveCount(0);
 }
 
 /** Lees via dezelfde functie als de titelbalk, zonder de geteste actie te vervangen. */
@@ -232,6 +266,9 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   const backstage = page.locator('.backstage');
   await expect(backstage).toBeVisible();
   await backstage.locator('.backstage-nav-item').filter({ hasText: /^(App settings|App-instellingen)$/ }).click();
+  // Ctrl+F werkt ook als de focus nog op de navigatie van Backstage staat.
+  await page.keyboard.press('Control+f');
+  await expect(backstage.locator('[data-ops-settings-search]')).toBeFocused();
   await assertGroupsAndSettings(backstage.locator('.backstage-main'));
 
   // Taalfixture: dezelfde groepen en instellingen ook in het Nederlands.

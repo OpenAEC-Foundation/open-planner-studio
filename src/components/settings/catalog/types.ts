@@ -12,6 +12,8 @@ export interface SettingBinding {
   field: keyof UIState;
   /** Zet de waarde live en bewaart hem (het vaste recept van `applySetting`). */
   apply: (value: unknown) => void;
+  /** Alleen als de nieuwe store de bewaarde keuze al inleest (het thema): de waarde zonder die keuze. */
+  defaultValue?: () => unknown;
 }
 
 /** Een instelling die alleen iets doet als een andere instelling of het project dat toelaat. */

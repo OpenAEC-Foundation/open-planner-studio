@@ -4,6 +4,7 @@
 
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { UI_THEMES, type ModifierMap, type UIState, type WheelFunction } from '@/state/slices/types';
@@ -28,6 +29,11 @@ function openFromSettings(patch: Partial<UIState>): void {
 }
 
 // --- Thema ---------------------------------------------------------------------------------------
+
+/** Zoekteksten van het thema: de kaarten en de schakelaar eronder. */
+export const themeSearchTexts = (t: TFunction<'common'>): string[] => [
+  ...UI_THEMES.map(({ id }) => t(THEME_LABEL_KEYS[id])), t('settings.themeFollowSystem'),
+];
 
 export function ThemeControl() {
   const { t } = useTranslation('common');

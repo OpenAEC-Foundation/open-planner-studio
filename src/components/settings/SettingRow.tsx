@@ -16,7 +16,7 @@ export function choiceOptionLabel(entry: ChoiceEntry, option: ChoiceOption, t: T
 /** De standaardwaarde als tekst voor de knop terugzetten; leeg als er geen korte tekst voor is. */
 function defaultValueLabel(entry: SettingEntry, t: TFunction<'common'>): string {
   if (!entry.binding) return '';
-  const value = defaultSettingValue(entry.binding.field);
+  const value = defaultSettingValue(entry.binding);
   if (entry.kind === 'toggle') return t(value ? 'settings.visualOn' : 'settings.visualOff');
   if (entry.kind === 'choice') {
     const option = entry.options.find(o => o.value === value);

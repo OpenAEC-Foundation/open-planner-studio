@@ -54,9 +54,9 @@ export function SettingsPanelContent() {
   const filtering = terms.length > 0 || changedOnly;
 
   const visible = (entry: SettingEntry): boolean => {
-    if (!filtering && entry.id === revealed) return true;
     const met = available.has(entry.id);
     if (entry.requires?.hide === 'always' && !met) return false;
+    if (!filtering && entry.id === revealed) return true;
     if (!filtering) return entry.group === group && (met || !entry.requires?.hide);
     if (changedOnly && !changed.has(entry.id)) return false;
     return matchesSearch(searchIndex.get(entry.id) ?? [], terms);
@@ -70,7 +70,11 @@ export function SettingsPanelContent() {
   useEffect(() => {
     if (!focusId) return;
     setUI({ settingsFocusId: null });
-    const entry = settingEntry(focusId);
+    const linked = settingEntry(focusId);
+    // Een vergrendeld blok (Experimenteel) blijft verborgen; de link landt dan op het versienummer
+    // waarmee je het ontgrendelt.
+    const locked = linked?.requires?.hide === 'always' && !linked.requires.met(useAppStore.getState());
+    const entry = locked ? settingEntry('version') : linked;
     if (!entry) return;
     setQuery('');
     setChangedOnly(false);
@@ -90,16 +94,25 @@ export function SettingsPanelContent() {
     return () => window.clearTimeout(timer);
   }, [highlight]);
 
-  // "/" of Ctrl+F (Cmd+F) ergens in het paneel springt naar de zoekbalk, zoals in een browser.
-  const onPanelKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const inField = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-    const find = (e.key === 'f' || e.key === 'F') && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
-    if (find || (e.key === '/' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey)) {
+  // "/" of Ctrl+F (Cmd+F) springt naar de zoekbalk zolang de instellingen open zijn, ook vanuit de kop
+  // en voet van de dialoog of de Backstage-navigatie. Niet als een ander venster erboven de focus heeft.
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      const root = rootRef.current;
+      const target = e.target instanceof Element ? e.target : null;
+      if (e.defaultPrevented || !root || !target) return;
+      const dialog = target.closest('[role="dialog"], [aria-modal="true"]');
+      if (dialog && !dialog.contains(root)) return;
+      const find = e.key.toLowerCase() === 'f' && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+      const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTextEntry(target);
+      if (!find && !slash) return;
       e.preventDefault();
       searchRef.current?.focus();
       searchRef.current?.select();
-    }
-  };
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // Escape in een gevulde zoekbalk wist eerst de zoekterm; pas de volgende sluit de dialoog.
   const onSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -117,7 +130,7 @@ export function SettingsPanelContent() {
   };
 
   return (
-    <div className="settings-content" ref={rootRef} onKeyDown={onPanelKeyDown}>
+    <div className="settings-content" ref={rootRef}>
       <nav className="settings-tabs" aria-label={t('settings.groupsNav')}>
         {SETTINGS_GROUPS.map(g => (
           <button
@@ -194,6 +207,14 @@ export function SettingsPanelContent() {
       </div>
     </div>
   );
+}
+
+/** Velden waarin "/" een teken is; in een vinkje, knop of keuzelijst is het de sneltoets. */
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image']);
+function isTextEntry(el: Element): boolean {
+  if (el instanceof HTMLTextAreaElement) return true;
+  if (el instanceof HTMLInputElement) return !NON_TEXT_INPUTS.has(el.type);
+  return el instanceof HTMLElement && el.isContentEditable;
 }
 
 /** Alles waarop een instelling gevonden moet worden: naam, uitleg, keuzes, zoekwoorden en groep. */
