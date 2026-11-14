@@ -2251,6 +2251,13 @@ en noem het in je rapport of PR-tekst.
      via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone
      I/O-fout is best effort en biedt geen padslot tegen externe wissels. Proeven toetsen botsing,
      schrijf-/sluitfout en geen directe terugval; crash, stroomuitval en externe padwissels niet gemeten. — B (code/proef)
+1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
+     De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
+     `new Uint8Array(await data.arrayBuffer())`, omdat het hostcontract één `Uint8Array` vraagt. De bytes blijven gelijk
+     (bewezen via de adapter); bij een uitvoer van 300 MB is die buffer even groot. Piekgeheugen en looptijd zijn niet
+     gemeten. Bestaand gedrag, geen verbouwing voor PR 11. "Geen samenvoegen" geldt dus alleen voor Tauri en een host die
+     de Blob rechtstreeks aanneemt. Richting: meten bij de grote-bestandenmeting vóór de flag aan mag (PR 6); een ruimer
+     hostcontract zou de buffer wegnemen, geen tweede adapter. Gevonden door de review van #922. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
