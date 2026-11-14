@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- PR 7c (#804, 1571): één strenge groeicontrole voor `OPS_Baselines.TaskGuids` en `OPS_TaskTypes.TaskTypes`; echte opgeslagen reeksen op drie bronnen, bron-/uitvoermutaties en twaalf vaste tellinggevallen; 1580 gaat naar 7d, 1581/1582 blijven op de eindlijst.
+
 - 2026-11-14: fase 1c PR 11a sluit de documentroutes aan op de voorbereide merge: nieuwe desktopnaam, browserdownload en siteversie met basis; bron en kenmerk volgen één commit, bestaande lokale doelen en de overige IFC-routes blijven geweigerd.
 
 - 2026-11-14: fase 1c PR 8c maakt de schrijfmodus verplicht op beide IFC-invoerbuilders (E27); `writeMode` draagt de keuze tot de writer, alle aanroepen kiezen expliciet en de gewone uitvoer/opslagblokkade blijven gelijk. Doelweigering en aansluiten volgen in PR 11.

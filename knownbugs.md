@@ -3787,3 +3787,25 @@ en noem het in je rapport of PR-tekst.
      heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
      (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
      review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
+
+1580. **VERVOLG, PR 7d: een tweede activiteitscodedefinitie bij een gebouwmodel weigert.** Open
+     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met `ifcForeignContent`, maak een codedefinitie met een waarde,
+     wijs die toe en sla via de merge op. Heropen de uitvoer, voeg een taak en een tweede, anders genoemde
+     codedefinitie met waarde toe en wijs die aan de nieuwe taak toe. `prepareIfcWrite` weigert `niet-gedragen`
+     op `IFCPROPERTYSETTEMPLATE (OPS_ActivityCodes)`, argument 6: de templatelijst groeit van één naar twee.
+     Reproductie in `check-ifc-foreign-preserve.ts` (1580). Besluit Trias 14 november 2026: direct na 7c als 7d. — B
+
+1581. **VERVOLG, vóór de flag standaard aan gaat: alle baselines wissen bij een gebouwmodel weigert.** Open
+     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met de flag en wis de bestaande baseline via `deleteBaseline`.
+     De merge weigert op `IFCRELAGGREGATES #45` slot 5 en de verdwenen `Baselines #319`, `TaskGuids #320`,
+     `ActiveBaselineId #321`, `OPS_Baselines #322` en relatie `#323`. Het verdwijnen van de complete pset vraagt
+     een afzonderlijke verklaring, zoals de taaktype-pset van 1110. Wissen → taak → nieuwe baseline schrijft wel
+     na 7c. Reproductie in `check-ifc-foreign-preserve.ts` (1581); eindlijst, verplicht vóór standaard aan. — B
+
+1582. **VERVOLG: de opgeslagen taaktypecatalogus wijzigen bij een gebouwmodel weigert.** Maak met de flag in
+     `eigen-plus-model.ifc` een eigen taaktype, geef het aan een taak, sla via de merge op en heropen. Dat type bij
+     de laatste taak weghalen laat `OPS_TaskTypes` verdwijnen (dezelfde levenscyclus als 1110); die taak een
+     nieuw type geven, of een andere taak een nieuw gedefinieerd type geven, wijzigt `TaskTypes` slot 2 en weigert
+     `niet-gedragen`. De verklaring van 7c draagt alleen nieuwe koppelingen aan bestaande definities, met alle
+     oude koppelingen en definities intact. Reproducties in `check-ifc-foreign-preserve.ts` (type-wisselen,
+     type-verliezen, nieuwe-definitie). Een afzonderlijke verklaring van wijzigingen/wissen blijft nodig. — B
