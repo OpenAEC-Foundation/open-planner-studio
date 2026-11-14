@@ -963,6 +963,13 @@ en noem het in je rapport of PR-tekst.
      wist die fase met haar verborgen kinderen. Welke routes in de app zo'n transactie gebruiken, is niet nagelopen.
      Voorstel: de buur kiezen na het herberekenen aan het eind van de transactie. Uit de review van #947
      (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+1675. **VERVOLG: na verwijderen kiest de cursor de verkeerde groep als een vroeg groepsniveau verandert.**
+     `currentRowKey` (`src/state/selectionAfterRowChange.ts`) zoekt de rij van de buur op het langste gelijke begin
+     van het groepspad en stopt bij het eerste verschil. Groepeer op WBS aflopend → Resource, met A en B (WBS 1 en 2)
+     allebei onder R1 en R2: rijen B/R1, B/R2, A/R1, A/R2. Verwijder A onder R2: B wordt goed gekozen, maar de
+     cursor landt op B/R1 in plaats van B/R2, want B kreeg WBS 1 en geen pad deelt het begin `["2"]`. Voorstel: ook
+     gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
+     BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
