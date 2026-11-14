@@ -32,12 +32,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
+  applyEdit, fixedSequenceEdits, savedSequenceStart, basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
   reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
-import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { MergeNeedsPhase2Error, prepareIfcWrite, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import type { Task } from '@/types/task';
@@ -1482,6 +1482,43 @@ if (setupEigen) {
   }
   eq('invariant: de echte uitvoer is schoon', mergeProblems(secondSchedule, out), []);
 }
+
+// 1571: echte bytes → acties → voorbereiden → volledige bytes heropenen, met behoud van alle baselinerijen en typen.
+const kaartBronnen = [
+  ['eigen', read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')],
+  ['kantoor', latin1(withLines(text(read('public/examples/03-kantoorgebouw-zuidas.ifc')), REVIT_WALL))],
+  ['oud', read('tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc')],
+] as const;
+async function kaartRonde(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    const prepared = await prepareIfcWrite(input, opened.ifcSource!);
+    const output = concat(prepared.parts), reread = await openForeign(output);
+    eq(`${label}: vreemd deel bytegelijk`, mergeProblems(bytes, output), []);
+    eq(`${label}: alle oude en nieuwe baselinerijen`, reread.baselines, input.baselines);
+    eq(`${label}: actieve baseline`, reread.activeBaselineId, input.activeBaselineId);
+    eq(`${label}: taaktypen`, reread.tasks.map(t => [t.id, t.customTaskTypeId]), input.tasks.map(t => [t.id, t.customTaskTypeId]));
+    ok(`${label}: iedere nieuwe baselinerij aan de juiste taak`, (input.baselines ?? []).every(b => b.tasks.every(row =>
+      !input.tasks.some(t => t.id === row.taskId) || reread.tasks.some(t => t.id === row.taskId))));
+    return { opened, input, prepared, output };
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: schrijft, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+    return undefined;
+  }
+}
+for (const [name, raw] of kaartBronnen) {
+  const saved = await savedSequenceStart(raw), opened = await openForeign(saved);
+  for (const edit of fixedSequenceEdits(opened)) await kaartRonde(`${name}: ${edit.label}`, saved, d => applyEdit(edit, d));
+}
+const eigenKaart = kaartBronnen[0][1];
+const taakBaseline = async (d: Domain) => applyEdit(fixedSequenceEdits(d)[0], d);
+await kaartRonde('oorspronkelijke eigen bron: taak → baseline', eigenKaart, taakBaseline);
+await kaartRonde('baselines wissen → taak → nieuwe baseline', eigenKaart, async d => taakBaseline(await storeEdit(d, s => {
+  for (const b of s.baselines) s.deleteBaseline(b.id);
+})));
+const metTaak = await kaartRonde('taak tussentijds opslaan', eigenKaart, async d => applyEdit(basicEdits(d).find(e => e.kind === 'taak-erbij')!, d));
+if (metTaak) await kaartRonde('heropenen → baseline', metTaak.output, d => storeEdit(d, s => { s.saveBaseline('Na tussentijdse opslag'); }));
 
 if (diffs.length > 0) {
   console.log(`XX  ifc-foreign-preserve: ${diffs.length} afwijking(en) van ${checks}`);
