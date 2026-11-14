@@ -14,6 +14,7 @@ import { openInStore, storeEdit, lengthen, lengthenedTask, TRIAS_FILES } from '.
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
 import { readbackDifference } from './ifcReadbackEquality';
+import { changedScopes } from '@/services/ifc/foreign/lossCheck';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const reseed = installDeterminism();
@@ -103,6 +104,116 @@ for (const [label, bytes] of [
     assert.equal(result.sha256, hash(bytes));
   });
 }
+
+await check('7b met 8a: vier echte resource-/kalenderhandelingen schrijven; zonder wijziging bronbytes', async () => {
+  const bytes = read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
+  const { store, snapshot } = await openInStore(bytes), state = () => store.getState();
+  let source = snapshot(store).ifcSource!;
+  const unchanged = async () => {
+    const result = await prepareIfcWrite(cloneDomain(snapshot(store)), source);
+    assert.strictEqual(result.source, source, 'zonder wijziging blijft de bron dezelfde');
+    assert.equal(result.parts.length, 1);
+    assert.strictEqual(result.parts[0], source.bytes, 'zonder wijziging zijn het letterlijk de bronbytes');
+  };
+  const save = async (label: string, verify: (actual: WriteIFCInput, input: WriteIFCInput) => void) => {
+    const input = cloneDomain(snapshot(store)), before = source;
+    const result = await prepareIfcWrite(input, before), written = concat(result.parts);
+    assert.notStrictEqual(result.source, before, `${label}: nieuwe bron, geen snelle bronretour`);
+    assert(!sameBytes(written, before.bytes), `${label}: gewijzigde bytes`);
+    assert.deepEqual(result.source.opened, input, `${label}: de schrijfmomentopname draagt de wijziging`);
+    assert.deepEqual(mergeProblems(bytes, written), [], `${label}: vreemd deel bytegelijk`);
+    const reopened = await openForeign(written);
+    verify(reopened, input);
+    assert(![...changedScopes(input, reopened, before.opened).keys].some(k => /^(res|cal):|^order:(res|cal)$/.test(k)),
+      `${label}: andere interne ids zijn geen resource- of kalenderbewerking`);
+    source = result.source;
+    await unchanged();
+    console.log(`OK 7b/8a ${label}: wijziging heropend; daarna letterlijke bronretour`);
+  };
+  await unchanged();
+  const resource = state().addResource({ name: 'Nieuwe resource prepare 7b', type: 'EQUIPMENT', description: 'Eerste voorbereiding', maxUnits: 2, costPerHour: 37.5 });
+  await save('resource toevoegen', actual => {
+    const added = actual.resources.find(r => r.name === 'Nieuwe resource prepare 7b')!;
+    assert(added); assert.equal(added.description, 'Eerste voorbereiding');
+    assert.equal(added.maxUnits, 2); assert.equal(added.costPerHour, 37.5);
+  });
+  const { id: _id, ...calendar } = structuredClone(state().calendar);
+  const calendarId = state().addCalendar({ ...calendar, name: 'Nieuwe kalender prepare 7b' });
+  await save('kalender toevoegen', (actual, input) => {
+    const added = actual.resourceCalendars!.find(c => c.name === 'Nieuwe kalender prepare 7b')!;
+    assert(added);
+    assert.deepEqual({ ...added, id: calendarId }, input.resourceCalendars!.find(c => c.id === calendarId), 'alle kalenderwaarden, alleen intern id anders');
+  });
+  assert.notEqual(state().resources.find(r => r.id === resource)!.calendarId ?? state().calendar.id, calendarId);
+  state().updateResource(resource, { calendarId });
+  await save('resource kiest andere kalender', actual => {
+    const added = actual.resourceCalendars!.find(c => c.name === 'Nieuwe kalender prepare 7b')!;
+    assert.equal(actual.resources.find(r => r.name === 'Nieuwe resource prepare 7b')!.calendarId, added.id);
+  });
+  const assignment = structuredClone(state().assignments[0]);
+  state().unassignResource(assignment.id);
+  state().assignResource(assignment.taskId, resource, assignment.unitsPerDay);
+  assert(!state().assignments.some(a => a.id === assignment.id));
+  assert(state().assignments.some(a => a.taskId === assignment.taskId && a.resourceId === resource));
+  await save('toewijzing naar andere resource', actual => {
+    const added = actual.resources.find(r => r.name === 'Nieuwe resource prepare 7b')!;
+    assert(actual.assignments.some(a => a.taskId === assignment.taskId && a.resourceId === added.id && a.unitsPerDay === assignment.unitsPerDay));
+    assert(!actual.assignments.some(a => a.taskId === assignment.taskId && a.resourceId === assignment.resourceId));
+    assert(actual.tasks.find(t => t.id === assignment.taskId)!.resourceIds.includes(added.id));
+  });
+});
+
+await check('losse kalender en baseline: eerste voorbereiding schrijft, tweede geeft de bronbytes', async () => {
+  for (const kind of ['kalender', 'baseline'] as const) {
+    const { store, snapshot } = await openInStore(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+    const source = snapshot(store).ifcSource!;
+    if (kind === 'kalender') {
+      const { id: _id, ...calendar } = structuredClone(store.getState().calendar);
+      store.getState().addCalendar({ ...calendar, name: 'Losse kalender herhaald opslaan' });
+    } else store.getState().saveBaseline('Baseline herhaald opslaan');
+    const input = cloneDomain(snapshot(store)), first = await prepareIfcWrite(input, source);
+    assert.notStrictEqual(first.source, source);
+    assert(!sameBytes(concat(first.parts), source.bytes));
+    const reopened = await openForeign(concat(first.parts));
+    if (kind === 'kalender') {
+      const expected = input.resourceCalendars!.find(c => c.name === 'Losse kalender herhaald opslaan')!;
+      const actual = reopened.resourceCalendars!.find(c => c.name === expected.name)!;
+      assert(actual); assert.deepEqual({ ...actual, id: expected.id }, expected);
+    } else assert.deepEqual(reopened.baselines, input.baselines);
+    const second = await prepareIfcWrite(cloneDomain(snapshot(store)), first.source);
+    assert.strictEqual(second.source, first.source);
+    assert.strictEqual(second.parts[0], first.source.bytes);
+    assert.deepEqual(mergeProblems(source.bytes, concat(second.parts)), []);
+    console.log(`OK fix2 ${kind}: toevoegen/vastleggen → voorbereiden → zonder wijziging bronbytes`);
+  }
+});
+
+await check('getalcontrole: vier verliezen op nieuwe objecten weigeren zonder bytes', async () => {
+  const { store, snapshot } = await openInStore(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const state = () => store.getState();
+  state().addResource({ name: 'Getalproef A', type: 'EQUIPMENT', description: '', maxUnits: 2, costPerHour: 37.5 });
+  state().addResource({ name: 'Getalproef B', type: 'EQUIPMENT', description: '', maxUnits: 3, costPerHour: 12.75 });
+  const { id: _id, ...calendar } = structuredClone(state().calendar);
+  state().addCalendar({ ...calendar, name: 'Getalproef kalender' });
+  const input = cloneDomain(snapshot(store)), first = await prepareIfcWrite(input, snapshot(store).ifcSource!);
+  const losses: [string, (shown: WriteIFCInput) => void][] = [
+    ['maxUnits anders', p => { p.resources.find(r => r.name === 'Getalproef A')!.maxUnits += 1e-12; }],
+    ['tarieven verwisseld', p => {
+      const a = p.resources.find(r => r.name === 'Getalproef A')!, b = p.resources.find(r => r.name === 'Getalproef B')!;
+      [a.costPerHour, b.costPerHour] = [b.costPerHour, a.costPerHour];
+    }],
+    ['werktijd anders', p => { p.resourceCalendars!.find(c => c.name === 'Getalproef kalender')!.workStartHour += 1e-9; }],
+    ['resource verdwenen', p => { p.resources = p.resources.filter(r => r.name !== 'Getalproef A'); }],
+  ];
+  for (const [label, mutate] of losses) {
+    await assert.rejects(() => prepareIfcWrite(input, first.source, async (parsed, side) => {
+      const shown = structuredClone(parsed);
+      if (side === 'uitvoer') mutate(shown);
+      return shown;
+    }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'ongewijzigd-getal'), `${label}: geen bytes`);
+    console.log(`OK fix2 getalverlies ${label}: ongewijzigd-getal, geen bytes`);
+  }
+});
 
 await check('vreemde herkomst: niets wijzigen bewaart de bron; wijzigen blijft veilig geweigerd', async () => {
   const bytes = read('tests/fixtures/ifc-foreign/bonsai-4d.ifc');

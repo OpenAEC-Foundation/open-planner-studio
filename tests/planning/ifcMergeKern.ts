@@ -243,7 +243,8 @@ export function firstDiff(a: string, b: string): string {
 // ── De gewone bewerkingen (bijsturing 1, punt 2) ──
 
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
-  | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen';
+  | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen'
+  | 'resource-erbij' | 'kalender-erbij' | 'baseline-vastleggen';
 /** Een niet-toepasselijke soort blijft zichtbaar, maar gaat nooit naar de merge. */
 export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean; readonly notApplicable?: string }
 export class EditNotAppliedError extends Error {
@@ -387,5 +388,30 @@ export function ordinaryEdits(d: Domain): Edit[] {
       return structuredClone(buildWriteIFCInput(store.getState(), 'merge'));
     }, (before, after) => before.tasks.find(t => t.id === leaf.id)?.time.completion !== completion && after.tasks.find(t => t.id === leaf.id)?.time.completion === completion));
   }
-  return out;
+  return [...out, ...newObjectEdits(d)];
+}
+
+/** Eerste opslag van nieuwe eigen stukken: dezelfde acties als de resource-/kalender- en baselinepanelen. */
+export function newObjectEdits(d: Domain): Edit[] {
+  const resource = d.resources.find(r => !isCostResource(r));
+  const { id: _id, ...calendar } = structuredClone(d.calendar);
+  return [
+    appEdit('resource-erbij', 'nieuwe resource', x => storeEdit(x, s => {
+      s.addResource({ name: 'Nieuwe resource 1c', type: 'EQUIPMENT', description: 'Eerste opslag', maxUnits: 2, costPerHour: 37.5 });
+    }), (before, after) => after.resources.length === before.resources.length + 1
+      && after.resources.some(r => !before.resources.some(old => old.id === r.id) && r.name === 'Nieuwe resource 1c' && r.maxUnits === 2 && r.costPerHour === 37.5)),
+    appEdit('kalender-erbij', resource ? `nieuwe kalender op ${resource.id}` : 'nieuwe losse kalender', x => storeEdit(x, s => {
+      const id = s.addCalendar({ ...calendar, name: 'Nieuwe kalender 1c' });
+      if (resource) s.updateResource(resource.id, { calendarId: id });
+    }), (before, after) => {
+      const added = (after.resourceCalendars ?? []).find(c => !(before.resourceCalendars ?? []).some(old => old.id === c.id));
+      return (after.resourceCalendars?.length ?? 0) === (before.resourceCalendars?.length ?? 0) + 1
+        && added?.name === 'Nieuwe kalender 1c' && (!resource || after.resources.find(r => r.id === resource.id)?.calendarId === added.id);
+    }),
+    appEdit('baseline-vastleggen', 'nieuwe baseline vastgelegd', x => storeEdit(x, s => { s.saveBaseline('Nieuwe baseline 1c'); }), (before, after) => {
+      const added = after.baselines?.find(b => !before.baselines?.some(old => old.id === b.id));
+      return (after.baselines?.length ?? 0) === (before.baselines?.length ?? 0) + 1
+        && added?.name === 'Nieuwe baseline 1c' && after.activeBaselineId === added.id;
+    }),
+  ];
 }

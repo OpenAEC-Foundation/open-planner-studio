@@ -1799,8 +1799,9 @@ en noem het in je rapport of PR-tekst.
      eenduidig gekoppelde P-hulpregels; dezelfde uitvoercontrole blijft beslissen en valt zo nodig terug op de
      kale writer-uitvoer. Dubbelzinnige/ongepaarde regels houden het bestaande gedrag. `ownAuxGuid` blijft
      nodig voor de vergelijking vóór deze stap en voor die terugval. De gewone writer en de route zonder
-     model blijven ongewijzigd; daarvoor staat dit punt open. Een pas toegevoegde resource zonder bronpaar
-     kan vóór de eerste opslag nog weigeren: zie 1147. Uit #867; bijgewerkt in #804 fase 1c PR 7. — B
+     model blijven ongewijzigd; daarvoor staat dit punt open. PR 7b vergelijkt bij nieuwe resources en
+     bibliotheekkalenders hun interne ids alleen in de canon op IFC-objectidentiteit, zodat de eerste merge schrijft.
+     Uit #867; bijgewerkt in #804 fase 1c PR 7/7b. — B
 
 1025. **De lezer maakt van de kalender een uurkalender als een eigen taak niet op de werkdag past.** Proef:
      `tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc` plus een eigen taak van één dag van 07:00 tot 16:00
@@ -1923,31 +1924,26 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
-1147. **VERVOLG: de eerste merge na een resource toevoegen weigert al op main.** Open
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` via de app en voeg met `addResource` een resource toe.
-     De merge weigert `planning-na-openen`: het nieuwe `res-…`-id wordt bij heropenen `res-ifc-…`. In de
-     canonieke vergelijking verschillen uitsluitend de GlobalIds van de nieuwe `OPS_Resource`-pset en
-     haar definitierelatie; de gewone writer gebruikt hun interne resource-id als zaad. Voor deze nieuwe
-     hulpstukken bestaat nog geen bronpaar, dus het bronbehoud van PR 7 lost dit niet op. Gemeten met de
-     volledige productcode van main `2c114446b` en op de branch; geen bytes teruggegeven. De exacte proef
-     nieuwe resource → eerste merge → openen → tweede merge is daardoor nog niet haalbaar. Vraagt een
-     afzonderlijk besluit over de canonieke identiteitsvergelijking; de controles zijn hier niet versoepeld.
-     Gevonden bij #804 fase 1c PR 7. Aanvulling uit de review van #920: hetzelfde geldt voor een nieuwe
-     bibliotheekkalender (`addCalendar`): twee hulp-GlobalIds van `OPS_Calendar` plus het interne kalender-id in de
-     exact vergeleken bibliotheek (`planningCanon.ts`), en gekoppeld aan een resource ook de GlobalId van
-     `IfcRelAssignsToControl`. Een nieuwe taak, relatie en toewijzing schrijven wel. Richting van de reviewer: in de
-     canonieke vergelijking de resource- en kalender-ids op hun IFC-objectidentiteit projecteren, met hun verwijzingen
-     en GUID-kaart, en al het andere even streng vergelijken; de gewone writer en de lezer niet wijzigen. Moet werken
-     voordat fase 1c klaar is (een resource of kalender toevoegen en opslaan is een gewoon geval). — B
-1149. **VERVOLG: de eerste merge na een baseline vastleggen weigert al op main.** `saveBaseline` op
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` geeft drie keer `niet-gedragen`: de werkplanrelatie, de
-     property `Baselines` en de property `ActiveBaselineId`. De merge komt niet bij de canoncontrole; het nieuwe
-     baseline-id blijft bij een gewone schrijf- en leesronde wel behouden. De baselinegegevens onder het live-schema
-     krijgen in de verliesbewaking de scope `project`; de uitzondering voor de scope `baselines` dekt deze wijzigingen
-     niet (`lossCheck.ts`, bij de scopes van de psets). Richting: de concrete baselinevelden en het toegevoegde
-     baselineschema aan de echte baselineactie koppelen; geen algemene uitzondering voor project-psets. Gemeten op
-     main `4e01894d7` en op de branch van #920; geen bytes teruggegeven. Moet werken voordat fase 1c klaar is.
-     Gevonden door de review van #920. — B
+1556. **VERVOLG: een botsing tussen objectsoorten kan dezelfde kalender ongelijk verklaren.**
+     `planningIdentities` reserveert ids per planning. In gemaakte invoer kan het doel-id van een
+     bibliotheekkalender ook het id van een activiteitcodetype zijn: vóór heropenen blokkeert dat de
+     omzetting; na heropenen heet dezelfde kalender al zo. GlobalId, kalenderinhoud en koppeling zijn
+     gelijk, maar de canon verschilt en `sourceFormProblems` meldt dat de kalender ontbreekt.
+     Veilige onterechte weigering, geen verlies; geen gewoon geval uit de telling verslechtert.
+     Richting: het onderscheid tussen objectsoorten expliciet maken, zonder resource- of
+     kalenderverwijzingen minder streng te controleren; geen algemeen normalisatieraamwerk.
+     Gevonden door de review van #924 (Sol, ronde 2; `identity-probes.ts`). Niet gerepareerd. — B
+
+1553. **VERVOLG, gewone handeling: een baseline toevoegen weigert bij twee oude 7.12-bronnen.**
+     `oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand` en de `…-ohara-…`-variant
+     schrijven zonder bewerking; `saveBaseline` weigert `niet-gedragen` op property `#125` (`Baselines`),
+     waardeslot 2. De bestaande rijen gebruiken in de bron oude `task-…`-ids en in de uitvoerlijst
+     `task-ifc-…`-ids. De JSON-bronwaarde wordt conservatief als deels gedragen behandeld; een wijziging
+     blijft daarom geweigerd, ook nadat PR 7b de baselinevelden aan de juiste handeling koppelt. Richting:
+     de identiteitsomzetting per baselineregel bewijzen en onbekende JSON-inhoud behouden; geen algemene
+     vrijstelling voor Baselines-JSON. Niet gerepareerd in PR 7b. Gemeten in de nieuwe telling van #924,
+     zonder bytes; geen zeldzame invoer genoemd, dit is een gewone baselinehandeling op de oude vorm.
+     Eindlijst vóór de flag aan gaat; blijft liggen in fixronde 1 van #924. — B
 
 1146. **VERVOLG: de merge kopieert en bevriest de invoer voor de heropening twee keer.** `writeIfcMerge`
      (`src/services/ifc/foreign/mergeWriter.ts`, rond regel 816) kopieert en bevriest `parsed` vóór de vaste
@@ -2000,7 +1996,13 @@ en noem het in je rapport of PR-tekst.
      zowel `#45` als `#436` voor dezelfde `IfcRelAggregates`-GlobalId; in de bron komt elk maar één keer voor. De
      onafhankelijke uitvoercontrole van #918 weigert nu getypeerd (`uitvoer-controle`), zonder bytes. De proef
      bewaakt die veilige weigering; de zeldzame gemaakte vorm wordt hier niet gerepareerd. Het ongewijzigde
-     repo-bestand schrijft wel. Gemeten tegen main `1c95a8546` en #918, fase 1c PR 3. — B
+     repo-bestand schrijft wel. Gemeten tegen main `1c95a8546` en #918, fase 1c PR 3.
+     Aanvulling #924: `saveBaseline` weigert ook bij `council/fix1-leeg-live-bl.ifc`,
+     `council/fix1-leeg-live.ifc` en `council/r5-eigen-plus-bonsai-baseline.ifc`, die zonder bewerking
+     schrijven: `uitvoer-controle`, nieuwe dubbele GlobalId `3r_tvuxgJO4K6Bs7LAtOAp` (de bron noemt
+     die bij `IfcRelAggregates #45`). Dat zijn gemaakte councilfixtures met een extra baselinekop,
+     geen aangetoond gewone releasebestanden. Geen bytes; de precieze matchingoorzaak is niet verder
+     onderzocht of gelijkgesteld aan de datumvariant hierboven. — B
 
 1143. **VERVOLG: de keuze van een toewijzing in de telling bouwt alle geldige paren op en gebruikt er één.**
      `tests/planning/ifcMergeKern.ts` (rond regel 351) verzamelt voor de bewerking "toewijzing erbij" elke geldige

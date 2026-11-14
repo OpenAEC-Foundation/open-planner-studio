@@ -58,6 +58,7 @@ import { scanForeignStep } from './oldOwnHeader';
 import { MAX_STEP_ID, splitStepArgs, type StepIndex } from './stepScanner';
 import type { DayMeasureDurationKey } from '../dayMeasureIo';
 import { planningCanon, planningDifference } from './planningCanon';
+import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
@@ -413,8 +414,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // doet dit voor het bewerkte domein (O1) en voor het domein zoals de lezer het las (O0, de verliesbewaking). ──
   function buildLines(input: WriteIFCInput, caseAt: (kind: MergePhase2Kind, chunk: number, detail: string) => void) {
     // ── 2. Het domein ──
-    const tasks = new Map(input.tasks.map(t => [t.id, t]));
-    const resources = new Map(input.resources.map(r => [r.id, r]));
+    const comparison = planningIdentityInput(input);
+    const sourceIds = planningIdentities(source.opened ?? pristine);
+    const resourceId = (id: string) => sourceIds.resource.get(id) ?? id;
+    const calendarId = (id: string) => sourceIds.calendar.get(id) ?? id;
+    const tasks = new Map(comparison.tasks.map(t => [t.id, t]));
+    const resources = new Map(comparison.resources.map(r => [r.id, r]));
 
     // ── 3. De writer ──
     // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
@@ -472,7 +477,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         if (SINGLE_MEMBERSHIP.has(type)) noOwnRel.get(type)!.add(sid(m));
         if (type === NESTS) {
           const d = domainOf(m);
-          const moved = d?.kind === 'task' ? !!tasks.get(d.id)?.parentId : d?.kind === 'res' ? resources.get(d.id)?.parentId != null : false;
+          const moved = d?.kind === 'task' ? !!tasks.get(d.id)?.parentId : d?.kind === 'res' ? resources.get(resourceId(d.id))?.parentId != null : false;
           if (moved) caseAt('verplaatst', m, `${label(m)} staat in ${label(r)} van een ander, maar heeft in de planning een ouder`);
         }
         if ((type === NESTS || type === CONTROL) && relatingIsSchedule && index.type(m) === 'IFCTASK') otherScheduleTasks.add(sid(m));
@@ -485,7 +490,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       const bag = bagFor(type, sid(relating));
       // Een lid dat niet meer bestaat (of dat de planning niet kent): dat meldt de controle op verwijzingen (stap 7).
       const missing = members.some(m => (!domainOf(m) && !keptHeads.has(sid(m))) || (domainOf(m)?.kind === 'task' ? !tasks.has(domainOf(m)!.id)
-        : domainOf(m)?.kind === 'res' ? !resources.has(domainOf(m)!.id) : false));
+        : domainOf(m)?.kind === 'res' ? !resources.has(resourceId(domainOf(m)!.id)) : false));
       if (missing) return;
       if (type === NESTS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
         const parent = tasks.get(relatingDomain.id);
@@ -510,10 +515,10 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       } else if (type === CONTROL && relType === 'IFCWORKSCHEDULE') {
         // Elke taak hangt aan het D-schema; de leden bestaan nog (hierboven).
       } else if (type === CONTROL && relType === 'IFCWORKCALENDAR' && relatingDomain?.kind === 'cal') {
-        const calId = relatingDomain.id;
+        const calId = calendarId(relatingDomain.id);
         for (const m of members) {
           const d = domainOf(m)!;
-          const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(d.id)?.calendarId : undefined;
+          const own = d.kind === 'task' ? tasks.get(d.id)?.calendarId : d.kind === 'res' ? resources.get(resourceId(d.id))?.calendarId : undefined;
           const same = calId === input.calendar.id ? !own || own === input.calendar.id : own === calId;
           if (!same) {
             caseAt('gemengde-relatie', r, `${label(r)}: ${label(m)} heeft een andere kalender`);
@@ -522,8 +527,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
         }
       } else if (type === PROCESS && relType === 'IFCTASK' && relatingDomain?.kind === 'task') {
         const taskId = relatingDomain.id;
-        const domainRes = input.assignments.filter(a => a.taskId === taskId).map(a => a.resourceId);
-        const s = members.map(m => domainOf(m)?.id);
+        const domainRes = comparison.assignments.filter(a => a.taskId === taskId).map(a => a.resourceId);
+        const s = members.map(m => { const d = domainOf(m); return d?.kind === 'res' ? resourceId(d.id) : d?.id; });
         const count = (list: readonly (string | undefined)[], id: string | undefined) => list.filter(x => x === id).length;
         for (const id of new Set(s)) {
           // Meer toewijzingen van dezelfde resource: de wachtrij van `OPS_Assignments` kan dan schuiven.
@@ -703,7 +708,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
   const built0 = buildLines(pristine, () => {});
-  const literal0 = new Set(built0.literalCalendarIds);
+  const pristineIds = planningIdentities(pristine).calendar, domainIds = planningIdentities(input).calendar;
+  const literal0 = new Set(built0.literalCalendarIds.map(id => pristineIds.get(id) ?? id));
   // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,
   // niet in O0), krijgt al haar datums in de vorm van de writer, zoals een gewone opslag op main; zie `sourceForm.ts`. De
   // bronvorm hangt daarvan af, dus de merge bouwt O1 opnieuw tot de kalenders die letterlijk worden niet meer veranderen.
@@ -713,7 +719,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   let pending: Parameters<typeof caseAt>[] = [];
   let built = buildLines(form.input, (...a) => { pending.push(a); });
   for (let round = 0; ; round++) {
-    const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(id))]);
+    const next = new Set([...newlyLiteral, ...built.literalCalendarIds.filter(id => !literal0.has(domainIds.get(id) ?? id))]);
     if (next.size === newlyLiteral.size) break;
     if (round === 3) throw new Error('mergeWriter: de kalenders die letterlijk worden, blijven veranderen');
     newlyLiteral = next;
@@ -913,14 +919,19 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
   }
   if (probe) {
-    for (const [side, opened] of [['uitvoer', shown], ['domein', wanted]] as const) {
-      const copy = freeze(structuredClone(opened), true);
+    for (const [side, probeOpened] of [['uitvoer', shown], ['domein', wanted]] as const) {
+      const copy = freeze(structuredClone(probeOpened), true);
       let result: WriteIFCInput;
       try { result = await probe(copy, side); }
       catch (e) { throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: `testfunctie veranderde de invoer of faalde: ${String(e)}` }]); }
       if (!result || result === copy) throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de testfunctie deed niets of gaf de invoer terug' }]);
-      if (planningCanon(opened) !== planningCanon(result)) {
-        throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(opened, result) }]);
+      // Foutnabootsing doorloopt ook de exacte getalcontrole; de vaste heropening blijft staan.
+      if (side === 'uitvoer' && !sameValue(probeOpened, result)) {
+        const problem = unchangedPlanningNumberProblem(input, opened, wanted, result);
+        if (problem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: problem }]);
+      }
+      if (planningCanon(probeOpened) !== planningCanon(result)) {
+        throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(probeOpened, result) }]);
       }
     }
   }
@@ -941,6 +952,12 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
  */
 function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCInput,
   wanted: WriteIFCInput, shown: WriteIFCInput): string | undefined {
+  // Alleen de objectidentiteit en haar verwijzingen; geen getal wordt genormaliseerd.
+  const view = (value: WriteIFCInput) => {
+    const normalized = planningIdentityInput(value);
+    return { ...normalized, resourceCalendars: (normalized.resourceCalendars ?? []).filter(c => c.id !== normalized.project.calendarId) };
+  };
+  [input, opened, wanted, shown] = [input, opened, wanted, shown].map(view);
   const field = (value: unknown, key: string): unknown => value !== null && typeof value === 'object'
     ? (value as Record<string, unknown>)[key] : undefined;
   const idOf = (value: unknown) => field(value, 'id');
@@ -990,6 +1007,14 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
       const reference = indexed(now, path);
       const originalBefore = /^planning\.baselines\[[\s\S]*\]\.tasks$/.test(path) ? indexed(was, path) : undefined;
       const before = indexed(was, path, reference), normalized = indexed(afterOpen, path, reference), actual = indexed(back, path, reference);
+      if (path === 'planning.resources' || path === 'planning.resourceCalendars') {
+        for (const [key, items] of reference) {
+          if (normalized.get(key)?.length !== items.length || actual.get(key)?.length !== items.length) {
+            return `${path}[${key}]: tegenhanger ontbreekt of aantal voorkomens verschilt`;
+          }
+        }
+        if ([...normalized.keys(), ...actual.keys()].some(key => !reference.has(key))) return `${path}: onverwachte tegenhanger`;
+      }
       const seen = new Map<string, number>();
       for (let index = 0; index < now.length; index++) {
         const item: unknown = now[index], key = keyOf(item, index, path), occurrence = seen.get(key) ?? 0;
@@ -1007,8 +1032,6 @@ function unchangedPlanningNumberProblem(input: WriteIFCInput, opened: WriteIFCIn
     } else if (now !== null && typeof now === 'object') {
       if (!paired && idOf(now) !== undefined && idOf(now) !== idOf(was)) return; // Nieuw/vervangen ding: niet ongewijzigd.
       for (const [key, value] of Object.entries(now)) {
-        // Deze hele bibliotheek wordt al exact op id getoetst door planningCanon; geen tweede controle.
-        if (path === 'planning' && key === 'resourceCalendars') continue;
         const problem = first(field(was, key), value, field(afterOpen, key), field(back, key), `${path}.${key}`);
         if (problem) return problem;
       }
@@ -1262,11 +1285,13 @@ function legacyBaselineHeadGuids(domain: WriteIFCInput, baselineHeads: ReadonlyM
 }
 
 function sourceBandCalendarIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlySet<string> {
-  const before = new Map([pristine.calendar, ...(pristine.resourceCalendars ?? [])].map(c => [c.id, c]));
+  const a = planningIdentityInput(pristine), b = planningIdentityInput(domain), ids = planningIdentities(domain).calendar;
+  const before = new Map([a.calendar, ...(a.resourceCalendars ?? [])].map(c => [c.id, c]));
+  const after = new Map([b.calendar, ...(b.resourceCalendars ?? [])].map(c => [c.id, c]));
   const out = new Set<string>();
   for (const cal of [domain.calendar, ...(domain.resourceCalendars ?? [])]) {
-    const was = before.get(cal.id);
-    if (!was || cal.workTime || JSON.stringify(was) !== JSON.stringify(cal)) continue;
+    const id = ids.get(cal.id) ?? cal.id, was = before.get(id);
+    if (!was || cal.workTime || JSON.stringify(was) !== JSON.stringify(after.get(id))) continue;
     const step = source.stepIds[`cal:${cal.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     const times = chunk >= 0 ? index.refsAt(chunk, workCalendarSlots(index.argTokens(chunk) ?? []).workingTimes) : [];
