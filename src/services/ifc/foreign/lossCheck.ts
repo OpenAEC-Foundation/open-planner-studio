@@ -425,9 +425,22 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // `explainO1`: een bronwaarde van zo'n stuk weigert al hierboven, en de rest moet een bewerking verklaren.
     const p1b = pairEditedOutput(input, applyEdits(input.o1, edits), p0, changed);
     const ctx = o1Context(input, p1b, changed, carried);
-    for (const d of compareOutput(input, p1b, input.owner1)) {
+    const differences = compareOutput(input, p1b, input.owner1);
+    for (const d of differences) {
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
+    }
+    // Een writerfout kan alle nieuwe koppelingen weglaten, zodat de kaart precies de bron blijft.
+    // Ook zonder slotverschil moet een werkelijk verwachte groei volledig aanwezig zijn.
+    const different = new Set(differences.map(d => d.chunk));
+    for (const [chunk, scopes] of ctx.scopes) {
+      if (different.has(chunk) || scopes.size !== 1 || index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE') continue;
+      const scope = [...scopes][0];
+      if (scope !== `project|pset:${PSET.Baselines}` && scope !== `project|pset:${PSET.TaskTypes}`) continue;
+      const line = p1b.out.get(p1b.pairedOut.get(chunk)?.[0] ?? -1);
+      if (!line) continue;
+      const d = { chunk, arg: 2, outArg: 2, source: index.argTokens(chunk)![2], out: line.args[2] };
+      if (explainOwnMapGrowth(ctx, d, scope.slice(8)) === false) say(d, true);
     }
   }
 
@@ -1750,6 +1763,95 @@ function explainImportProvenance(ctx: O1Context, d: LossDiff): string | undefine
   return undefined;
 }
 
+/** Eén regel voor beide eigen kaarten: volledig gedragen bron, alle oude paren exact behouden,
+ * uitsluitend de door de aanroeper bewezen nieuwe koppelingen. Geen gedeeltelijke JSON-samenvoeging. */
+function ownMapGrows(ctx: O1Context, d: LossDiff, before: unknown, after: unknown, expected: ReadonlyMap<string, string>): boolean {
+  if (!ctx.carried(d.chunk, 2) || !stringMap(before) || !stringMap(after) || expected.size === 0) return false;
+  const old = Object.keys(before);
+  return old.every(k => Object.prototype.hasOwnProperty.call(after, k) && after[k] === before[k])
+    && Object.keys(after).length === old.length + expected.size
+    && [...expected].every(([k, value]) => !Object.prototype.hasOwnProperty.call(before, k) && Object.prototype.hasOwnProperty.call(after, k) && after[k] === value);
+}
+function jsonObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+function stringMap(value: unknown): value is Record<string, string> {
+  return jsonObject(value) && Object.values(value).every(v => typeof v === 'string');
+}
+function mapJson(token: string, decode: (quoted: string) => string): unknown {
+  const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/.exec(token.trim());
+  if (!m) return undefined;
+  try { return JSON.parse(decode(m[1])); } catch { return undefined; }
+}
+/** Lees de echte IFCTASK-regel bij de domeinsleutel van de writer; geen eigen GUID-afleiding. */
+function writtenTaskGuids(ctx: O1Context): ReadonlyMap<string, string> | undefined {
+  const guids = new Map<string, string>();
+  for (const [id, key] of ctx.input.objects1 ?? []) if (key.startsWith('task:')) {
+    const line = ctx.p.out.get(id), taskId = key.slice(5);
+    if (line?.type !== 'IFCTASK' || guids.has(taskId)) return undefined;
+    guids.set(taskId, unquote(line.args[0]));
+  }
+  return guids;
+}
+/** Alleen deze twee properties in hun ene eigen project/live-schema-pset, eenduidig gepaard op waardeslot 2. */
+function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string | false | undefined {
+  const { input, p } = ctx, { index } = input;
+  if (d.whole || d.slotless || d.ambiguous || p.ambiguous[d.chunk] || index.type(d.chunk) !== 'IFCPROPERTYSINGLEVALUE'
+    || d.arg !== 2 || (d.outArg ?? d.arg) !== 2 || ctx.scopes.get(d.chunk)?.size !== 1) return undefined;
+  const name = index.name(d.chunk);
+  const baseline = way === `pset:${PSET.Baselines}` && name === PROP.Baselines.TaskGuids;
+  const taskTypes = way === `pset:${PSET.TaskTypes}` && name === PROP.TaskTypes.TaskTypes;
+  if (!baseline && !taskTypes) return undefined;
+  const parents = new Set<number>();
+  for (let k = index.inStart(d.chunk); k < index.inEnd(d.chunk); k++) {
+    const parent = index.inSource(k);
+    if (parent >= 0) {
+      if (index.type(parent) !== 'IFCPROPERTYSET' || index.inArg(k) !== 4) return undefined;
+      parents.add(parent);
+    }
+  }
+  const ids = p.pairedOut.get(d.chunk);
+  const line = ids?.length === 1 ? p.out.get(ids[0]) : undefined;
+  if (parents.size !== 1 || index.name([...parents][0]) !== (baseline ? PSET.Baselines : PSET.TaskTypes)
+    || !line || line.type !== 'IFCPROPERTYSINGLEVALUE' || line.args.length !== 4 || unquote(line.args[0]) !== name) return undefined;
+  const before = mapJson(d.source, q => index.tokenText(d.chunk, q));
+  const after = mapJson(d.out, q => decodeStepText(unquote(q)));
+  const expected = new Map<string, string>(), taskGuids = writtenTaskGuids(ctx);
+  if (!taskGuids) return undefined;
+  if (baseline) {
+    const added = addedBaselineIds(ctx);
+    if (!added.size || !stringMap(before)) return undefined;
+    for (const b of input.domain.baselines ?? []) if (added.has(b.id)) {
+      for (const row of b.tasks) if (!Object.prototype.hasOwnProperty.call(before, row.taskId)) {
+        const guid = taskGuids.get(row.taskId);
+        if (!guid) return undefined;
+        expected.set(row.taskId, guid);
+      }
+    }
+    if (!expected.size) return undefined;
+    return ownMapGrows(ctx, d, before, after, expected) ? 'nieuwe baselinekoppelingen' : false;
+  }
+  if (!jsonObject(before) || !jsonObject(after)
+    || Object.keys(before).sort().join(',') !== 'definitions,taskTypeIds'
+    || Object.keys(after).sort().join(',') !== 'definitions,taskTypeIds'
+    || !Array.isArray(before.definitions) || JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
+    || !stringMap(before.taskTypeIds)) return undefined;
+  const definitions = new Set(before.definitions.filter(jsonObject).map(t => t.id));
+  const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
+  for (const task of input.domain.tasks) {
+    const typeId = task.customTaskTypeId;
+    if (!typeId) continue;
+    const guid = taskGuids.get(task.id);
+    if (!guid) return undefined;
+    if (Object.prototype.hasOwnProperty.call(before.taskTypeIds, guid)) continue;
+    if (!definitions.has(typeId) || oldTasks.get(task.id)?.customTaskTypeId
+      || !(ctx.plannerChanged.has(`task:${task.id}#@`) || ctx.plannerChanged.has(`task:${task.id}#customTaskTypeId`))) return undefined;
+    expected.set(guid, typeId);
+  }
+  if (!expected.size) return undefined;
+  return ownMapGrows(ctx, d, before.taskTypeIds, after.taskTypeIds, expected) ? 'nieuwe koppelingen aan bestaand taaktype' : false;
+}
+
 /** Eén scope `<object>|<weg>` (zie `sourceScopes`). */
 function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, scope: string): string | undefined {
   const { input, changed } = ctx;
@@ -1758,6 +1860,8 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   const obj = scope.slice(0, bar);
   const way = scope.slice(bar + 1);
   if (obj === 'project') {
+    const mapGrowth = explainOwnMapGrowth(ctx, d, way);
+    if (mapGrowth) return mapGrowth;
     // De live-schema-pset hoort bij project, maar deze twee waarden volgen uit de baselineactie.
     // Alleen hun waardeslot; andere properties, namen en beschrijvingen krijgen geen vrijstelling.
     if (!d.whole && type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && way === `pset:${PSET.Baselines}`

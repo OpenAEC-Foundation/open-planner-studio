@@ -32,12 +32,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
+  applyEdit, fixedSequenceEdits, savedSequenceStart, basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
   reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
-import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { MergeNeedsPhase2Error, prepareIfcWrite, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import type { Task } from '@/types/task';
@@ -45,6 +45,8 @@ import { classify } from '@/services/ifc/foreign/classify';
 import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { ifcJson, ifcStr } from '@/services/ifc/ifcPsets';
+import { decodeStepText } from '@/services/ifc/stepText';
 import { projectInfoPatch } from '@/state/projectInfoPatch';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -1482,6 +1484,172 @@ if (setupEigen) {
   }
   eq('invariant: de echte uitvoer is schoon', mergeProblems(secondSchedule, out), []);
 }
+
+// 1571: echte bytes → acties → voorbereiden → volledige bytes heropenen, met behoud van alle baselinerijen en typen.
+const kaartBronnen = [
+  ['eigen', read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')],
+  ['kantoor', latin1(withLines(text(read('public/examples/03-kantoorgebouw-zuidas.ifc')), REVIT_WALL))],
+  ['oud', read('tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc')],
+] as const;
+async function kaartRonde(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const original = bytes.slice();
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    const prepared = await prepareIfcWrite(input, opened.ifcSource!);
+    const output = concat(prepared.parts), reread = await openForeign(output);
+    eq(`${label}: vreemd deel bytegelijk`, mergeProblems(bytes, output), []);
+    eq(`${label}: alle oude en nieuwe baselinerijen`, reread.baselines, input.baselines);
+    ok(`${label}: bronbytes ongewijzigd`, sameBytes(bytes, original) && sameBytes(opened.ifcSource!.bytes, original));
+    eq(`${label}: actieve baseline`, reread.activeBaselineId, input.activeBaselineId);
+    eq(`${label}: vergelijkingsbaselines`, reread.comparedBaselineIds, input.comparedBaselineIds);
+    eq(`${label}: taaktypedefinities`, reread.customTaskTypes, input.customTaskTypes);
+    eq(`${label}: taaktypen`, reread.tasks.map(t => [t.id, t.customTaskTypeId]), input.tasks.map(t => [t.id, t.customTaskTypeId]));
+    ok(`${label}: iedere nieuwe baselinerij aan de juiste taak`, (input.baselines ?? []).every(b => b.tasks.every(row =>
+      !input.tasks.some(t => t.id === row.taskId) || reread.tasks.some(t => t.id === row.taskId))));
+    console.log(`BEWIJS ${label}: geschreven, volledig heropend, baselinerijen/typen en vreemd deel behouden`);
+    return { opened, input, prepared, output };
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: schrijft, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+    return undefined;
+  }
+}
+for (const [name, raw] of kaartBronnen) {
+  const saved = await savedSequenceStart(raw), opened = await openForeign(saved);
+  for (const edit of fixedSequenceEdits(opened)) await kaartRonde(`${name}: ${edit.label}`, saved, d => applyEdit(edit, d));
+}
+const eigenKaart = kaartBronnen[0][1];
+const taakBaseline = async (d: Domain) => applyEdit(fixedSequenceEdits(d)[0], d);
+await kaartRonde('oorspronkelijke eigen bron: taak → baseline', eigenKaart, taakBaseline);
+await kaartRonde('baselines wissen → taak → nieuwe baseline', eigenKaart, async d => taakBaseline(await storeEdit(d, s => {
+  for (const b of s.baselines) s.deleteBaseline(b.id);
+})));
+const metTaak = await kaartRonde('taak tussentijds opslaan', eigenKaart, async d => applyEdit(basicEdits(d).find(e => e.kind === 'taak-erbij')!, d));
+if (metTaak) await kaartRonde('heropenen → baseline', metTaak.output, d => storeEdit(d, s => { s.saveBaseline('Na tussentijdse opslag'); }));
+
+// Uitvoermutaties: de echte O1 van een geslaagde voorbereiding, direct door dezelfde verliespoort als de merge.
+// O0 is de opgeslagen actuele beginstand; de ongemuteerde O1 moet eerst zonder bevindingen slagen.
+const regelsVan = (bytes: Uint8Array) => text(bytes).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);
+const jsonVan = (line: OutLine): any => {
+  const quoted = /^IFCTEXT\(('[\s\S]*')\)$/.exec(line.args[2])![1];
+  return JSON.parse(decodeStepText(quoted.slice(1, -1).replace(/''/g, "'")));
+};
+const vervangJson = (lines: OutLine[], target: OutLine, value: unknown) => lines.map(l => l === target
+  ? { ...l, args: l.args.map((a, k) => k === 2 ? `IFCTEXT(${ifcJson(value)})` : a) } : l);
+const opgeslagenKaarten = await savedSequenceStart(eigenKaart);
+for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
+  const opened = await openForeign(opgeslagenKaarten), source = opened.ifcSource!;
+  const edit = fixedSequenceEdits(opened)[kind === 'TaskGuids' ? 0 : 2];
+  const input = await applyEdit(edit, cloneDomain(opened));
+  let prepared;
+  try { prepared = await prepareIfcWrite(input, source); } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${kind}: voorbereiding voor uitvoermutaties schrijft`, false); continue;
+  }
+  const index = scanStep(opgeslagenKaarten), cls = classify(index);
+  const plan = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
+  const o0 = regelsVan(opgeslagenKaarten), o1 = regelsVan(concat(prepared.parts));
+  const objects1 = new Map(Object.entries(prepared.source.stepIds).map(([key, id]) => [id, key]));
+  for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
+  const pristine = await pristineDomain(index, cls, source);
+  const domain = sourceFormWhereUnchanged(input, source.opened, pristine).input;
+  const run = (lines: OutLine[]) => {
+    const found: number[] = [];
+    lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
+      o0, o1: lines, pristine, domain, opened: source.opened, objects1,
+      plannerChanged: changedScopes(input, source.opened ?? pristine).keys,
+      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+    }, f => found.push(f.chunk));
+    return found;
+  };
+  eq(`${kind}: echte O1 slaagt door verliespoort`, run(o1), []);
+  const target = o1.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === `'${kind}'`)!;
+  const original = jsonVan(target), oldLine = o0.find(l => l.type === target.type && l.args[0] === target.args[0])!;
+  const oldMap = kind === 'TaskGuids' ? jsonVan(oldLine) : jsonVan(oldLine).taskTypeIds;
+  const getMap = (v: any): Record<string, string> => kind === 'TaskGuids' ? v : v.taskTypeIds;
+  const oldKey = Object.keys(oldMap)[0], newKey = Object.keys(getMap(original)).find(k => !Object.prototype.hasOwnProperty.call(oldMap, k))!;
+  ok(`${kind}: echte O1 breidt de kaart uit`, !!newKey);
+  const variants: [string, (v: any) => void][] = [
+    ['oude koppeling weg', v => { delete getMap(v)[oldKey]; }],
+    ['oude koppeling gewijzigd', v => { getMap(v)[oldKey] = 'verkeerde-waarde'; }],
+    ['nieuwe koppeling weg', v => { delete getMap(v)[newKey]; }],
+    ['nieuwe GUID verkeerd', v => {
+      if (kind === 'TaskGuids') getMap(v)[newKey] = 'verkeerde-guid';
+      else { getMap(v)['verkeerde-guid'] = getMap(v)[newKey]; delete getMap(v)[newKey]; }
+    }],
+    ['onverwachte nieuwe sleutel', v => { getMap(v)['onverwacht'] = getMap(v)[newKey]; }],
+  ];
+  if (kind === 'TaskTypes') variants.push(['definitie gewijzigd', v => { v.definitions[0].name = 'Ongevraagde naam'; }],
+    ['nieuw type verkeerd', v => { getMap(v)[newKey] = 'onbekend-type'; }]);
+  for (const [label, mutate] of variants) {
+    const value = structuredClone(original); mutate(value);
+    const found = run(vervangJson(o1, target, value));
+    const refused = found.includes(index.chunkOf(String(oldLine.id)));
+    ok(`${kind}: uitvoermutatie ${label} weigert op de kaart`, refused);
+    console.log(`BEWIJS ${kind} uitvoermutatie ${label}: ${refused ? 'geweigerd' : 'FOUT'}`);
+  }
+  // Vier bronmutaties, zonder bewerking exact terug; bij groei getypeerd geweigerd.
+  for (const mutation of ['extra-koppeling', 'ongeldige-json', 'verkeerde-jsonvorm', 'verkeerde-bestaande-guid']) {
+    const value = jsonVan(oldLine), map = getMap(value);
+    if (mutation === 'extra-koppeling') map['bewaar-onbekende-koppeling'] = Object.values(map)[0];
+    if (mutation === 'verkeerde-bestaande-guid') map[oldKey] = kind === 'TaskGuids' ? Object.values(map)[1] : 'onbekend-type';
+    const token = mutation === 'ongeldige-json' ? ifcStr('{') : ifcJson(mutation === 'verkeerde-jsonvorm' ? 'geen kaart' : value);
+    const raw = text(opgeslagenKaarten), line = lineOf(opgeslagenKaarten, String(oldLine.id));
+    const changed = { ...oldLine, args: oldLine.args.map((a, k) => k === 2 ? `IFCTEXT(${token})` : a) };
+    const bytes = latin1(raw.replace(line, `#${changed.id}=${changed.type}(${changed.args.join(',')});`));
+    const broken = await openForeign(bytes);
+    const unchanged = await prepareIfcWrite(cloneDomain(broken), broken.ifcSource!);
+    ok(`${kind}: bronmutatie ${mutation} zonder bewerking bytegelijk`, sameBytes(concat(unchanged.parts), bytes));
+    const d = await applyEdit(fixedSequenceEdits(broken)[kind === 'TaskGuids' ? 0 : 2], cloneDomain(broken));
+    let refused = false;
+    try { await prepareIfcWrite(d, broken.ifcSource!); } catch (e) {
+      if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+      refused = e.cases.some(c => c.sourceId === oldLine.id && c.kind === 'niet-gedragen');
+    }
+    ok(`${kind}: bronmutatie ${mutation} bij groei weigert op de kaart`, refused);
+    console.log(`BEWIJS ${kind} bronmutatie ${mutation}: ${refused ? 'geweigerd' : 'FOUT'}`);
+  }
+}
+
+// Afbakening: deze bestaande weigeringen blijven buiten de twee groeiende kaarten.
+async function blijvendeWeigering(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    await prepareIfcWrite(input, opened.ifcSource!);
+    ok(`${label}: blijft getypeerd weigeren`, false);
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: blijft getypeerd weigeren`, true);
+    console.log(`BEWIJS blijvende weigering ${label}: ${e.cases.map(c => c.detail).join(' | ')}`);
+  }
+}
+await blijvendeWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
+  for (const b of s.baselines) s.deleteBaseline(b.id);
+}));
+for (const action of ['type-wisselen', 'type-verliezen', 'laatste-taak-wissen', 'nieuwe-definitie']) {
+  await blijvendeWeigering(`taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
+    const t = s.tasks.find(t => t.customTaskTypeId === 'type-7c')!;
+    if (action === 'laatste-taak-wissen') s.deleteTask(t.id);
+    else if (action === 'type-verliezen') s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+    else {
+      s.ensureProjectTaskType({ id: 'ander-type-7c', name: 'Ander type' });
+      const id = action === 'type-wisselen' ? t.id : s.tasks.find(x => !x.customTaskTypeId && !x.childIds.length)!.id;
+      s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'ander-type-7c' });
+    }
+  }));
+}
+const eersteCode = await kaartRonde('eerste activiteitscodedefinitie', eigenKaart, d => storeEdit(d, s => {
+  const code = s.addActivityCodeType('Eerste code 7c'), value = s.addActivityCodeValue(code, { code: 'A', description: 'Eerste waarde' });
+  s.setTaskActivityCode(s.tasks.find(t => !t.childIds.length)!.id, code, value);
+}));
+if (eersteCode) await blijvendeWeigering('1580 tweede activiteitscodedefinitie', eersteCode.output, async d => {
+  const withTask = await applyEdit(basicEdits(d).find(e => e.kind === 'taak-erbij')!, d);
+  return storeEdit(withTask, s => {
+    const code = s.addActivityCodeType('Tweede code 7c'), value = s.addActivityCodeValue(code, { code: 'B', description: 'Tweede waarde' });
+    s.setTaskActivityCode(s.tasks.find(t => t.name === 'Nieuwe taak 1b')!.id, code, value);
+  });
+});
 
 if (diffs.length > 0) {
   console.log(`XX  ifc-foreign-preserve: ${diffs.length} afwijking(en) van ${checks}`);
