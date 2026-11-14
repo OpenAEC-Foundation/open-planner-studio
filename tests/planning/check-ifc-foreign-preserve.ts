@@ -694,7 +694,7 @@ for (const file of ['fix1-leeg-live', 'fix1-leeg-live-bl', 'r4-k2', 'r4-k3', 'r5
   const shared = Array.from({ length: index.count }, (_, i) => i)
     .filter(i => classes[i] === 2 && contextTypes.has(index.type(i)));
   ok(`${file}: een gedeelde owner history in C`, shared.some(i => index.type(i) === 'IFCOWNERHISTORY'));
-  let bytes = original;
+  let bytes: Uint8Array = original;
   for (const round of [1, 2]) {
     const { store, snapshot } = await openInStore(bytes, `${file}.ifc`);
     const source = store.getState().ifcSource;
