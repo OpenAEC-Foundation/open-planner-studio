@@ -1,4 +1,6 @@
 // #804 fase 1c PR 8b: afronden na geslaagde I/O, zonder de opslagblokkade te openen.
+// Vergelijk bronidentiteit als boolean: een assert-diff op de volledige bron maakt van
+// ieder bronbyte een regel en kan bij een verwachte rode proef veel geheugen vragen.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -12,7 +14,7 @@ import { planRecoveryDelta, persistedRecoveryState, type RecoverySourceDocument 
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { openInStore, lengthenedTask } from './ifcAppRoute';
-import { concat, mergeProblems, openForeign } from './ifcMergeKern';
+import { concat, mergeProblems, openForeign, sameBytes } from './ifcMergeKern';
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
 
@@ -40,8 +42,12 @@ const longer = (store: Store) => {
 };
 let passed = 0, failed = 0;
 async function check(name: string, action: () => Promise<void>) {
+  console.log(`START ${name}`);
   try { await action(); passed++; console.log(`OK ${name}`); }
-  catch (error) { failed++; console.error(`XX ${name}`, error); }
+  catch (error) {
+    failed++;
+    console.error(`XX ${name}: ${String(error instanceof Error ? error.message : error).slice(0, 1500)}`);
+  }
 }
 
 for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
@@ -60,7 +66,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
       const saved = payload(store), input = buildWriteIFCInput(saved);
       const expected = await prepareIfcWrite(input, reference);
       const prepared = await prepareIfcWrite(input, saved.ifcSource!);
-      assert.deepEqual(concat(prepared.parts), concat(expected.parts), `stap ${step}: dezelfde invoer als de zelfstandige 8a-keten`);
+      assert(sameBytes(concat(prepared.parts), concat(expected.parts)), `stap ${step}: dezelfde invoer als de zelfstandige 8a-keten`);
       assert.deepEqual(mergeProblems(bytes, prepared.source.bytes), []);
       if (sleeping) store.getState().switchDocument(other);
       const publications: { source: unknown; dirty: boolean; path: string | null }[] = [];
@@ -72,9 +78,12 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
       const unchanged = store.getState().commitSavedDocument(id, saved, destination, prepared);
       unsubscribe();
       assert.equal(unchanged, true);
-      assert.deepEqual(publications, [{ source: prepared.source, dirty: false, path: destination.filePath }], 'één atomaire publicatie');
+      assert.equal(publications.length, 1, 'één atomaire publicatie');
+      assert(publications[0].source === prepared.source, 'de publicatie draagt de nieuwe bron');
+      assert.equal(publications[0].dirty, false);
+      assert.equal(publications[0].path, destination.filePath);
       const current = payload(store, id);
-      assert.strictEqual(current.ifcSource, prepared.source);
+      assert(current.ifcSource === prepared.source, 'de bron is het voorbereide object');
       assert.equal(current.isDirty, false);
       for (const cal of prepared.literalCalendarIds) assert(current.ifcLiteralCalendarIds?.includes(cal));
       assert.equal(store.getState().activeDocumentId, sleeping ? other : id);
@@ -82,10 +91,10 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
     }
     store.getState().switchDocument(id);
     const current = payload(store).ifcSource;
-    store.getState().undo(); assert.strictEqual(payload(store).ifcSource, current);
-    store.getState().redo(); assert.strictEqual(payload(store).ifcSource, current);
+    store.getState().undo(); assert(payload(store).ifcSource === current, 'undo/redo houdt dezelfde bron');
+    store.getState().redo(); assert(payload(store).ifcSource === current, 'undo/redo houdt dezelfde bron');
     store.getState().switchDocument(other); store.getState().switchDocument(id);
-    assert.strictEqual(payload(store).ifcSource, current, 'wisselen bewaart de nieuwe bron');
+    assert(payload(store).ifcSource === current, 'wisselen bewaart de nieuwe bron');
     assert(ifcSaveBlocked(payload(store)), 'de opslagblokkade blijft dicht');
   });
 
@@ -98,7 +107,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
     const other = sleeping ? store.getState().newDocument() : id;
     store.getState().markAutoSaveVersionSaved(id, saved, prepared);
     const current = payload(store, id);
-    assert.strictEqual(current.ifcSource, prepared.source);
+    assert(current.ifcSource === prepared.source, 'de bron is het voorbereide object');
     assert.equal(current.isDirty, true, 'een tussentijdse bewerking blijft ongeopgeslagen');
     assert(!prepared.source.opened!.tasks.some(t => t.name === lateName), 'opened is de geschreven, eerdere stand');
     const next = await prepareIfcWrite(buildWriteIFCInput(current), current.ifcSource!);
@@ -121,7 +130,7 @@ await check('alleen een nieuwe bron: niet dirty, geen herstelsnapshot, geen Auto
   const prepared = await prepareIfcWrite(buildWriteIFCInput(before), before.ifcSource!);
   store.getState().commitSavedDocument(id, before, undefined, prepared);
   const after = payload(store);
-  assert.notStrictEqual(after.ifcSource, before.ifcSource);
+  assert(after.ifcSource !== before.ifcSource, 'de bron is vervangen');
   assert(sameIFCSource(before, after), 'bronidentiteit is geen inhoudsverschil');
   assert.equal(after.isDirty, false);
   const delta = planRecoveryDelta(id, [recoveryDoc(store, id)], baseline);
@@ -171,7 +180,7 @@ await check('AutoSave: een kandidaat van de oude bron schrijft niet na een opsla
   const saved = payload(store), prepared = await prepareIfcWrite(buildWriteIFCInput(saved), saved.ifcSource!);
   await createFileAutoSaveController({ getState: store.getState, enabled: () => true }).flush();
   assert(fired, 'de kandidaat wachtte werkelijk op de permissiecontrole');
-  assert.strictEqual(payload(store).ifcSource, prepared.source);
+  assert(payload(store).ifcSource === prepared.source, 'de nieuwe bron staat vast');
   assert.equal(own.writes.length, 0, 'de verouderde kandidaat wordt vóór I/O geweigerd');
   assert.equal(payload(store).isDirty, false);
 });
@@ -205,12 +214,12 @@ for (const foreign of [true, false]) await check(`${foreign ? 'vreemd' : 'eigen'
       const result = await store.getState().exportAs(format);
       assert(result.ok);
       assert.equal(!!result.cancelled, foreign && format === 'ifc');
-      assert.strictEqual(store.getState().ifcSource, old);
+      assert(store.getState().ifcSource === old, 'de bronidentiteit blijft gelijk');
     }
     const pooled = await store.getState().exportProjectWithPool();
     assert(pooled.ok);
     assert.equal(!!pooled.cancelled, foreign);
-    assert.strictEqual(store.getState().ifcSource, old);
+    assert(store.getState().ifcSource === old, 'de bronidentiteit blijft gelijk');
     assert(copy.writes.length > 0, 'er is daadwerkelijk naar het andere doel geëxporteerd');
   } finally { delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
 });
@@ -225,7 +234,7 @@ await check('zonder vreemd deel: gewone Opslaan als laat de openingsbron ongewij
   try { await store.getState().saveFileAs(); }
   finally { delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
   assert.equal(copy.writes.length, 1);
-  assert.strictEqual(store.getState().ifcSource, old);
+  assert(store.getState().ifcSource === old, 'de bronidentiteit blijft gelijk');
   assert.equal(store.getState().isDirty, false);
   assert.notEqual(createHash('sha256').update(copy.writes[0]).digest('hex'), old.sha256, 'de openingsbron is na een gewone opslag verouderd');
 });
