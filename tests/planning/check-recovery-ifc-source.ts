@@ -56,6 +56,10 @@ const idb = installFakeRecoveryIndexedDb({
     if (interruptCleanup && store === 'references' && method === 'getAll') throw new Error('crash vóór opruimen');
   },
   onPut: (store, value) => {
+    if (store === 'xer-archives') {
+      const written = Reflect.get(value, 'bytes');
+      if (written instanceof Uint8Array) assert(hash(written) !== hash(bytes), 'geen IFC-bronbytes in de bestaande herstel-database');
+    }
     if (store === 'sources') { copyWrites++; if (failCopy) throw new DOMException('quotum', 'QuotaExceededError'); }
     if (store === 'records' && Reflect.get(value, 'kind') === 'manifest') {
       if (failManifest) throw new Error('crash vóór manifest');
@@ -185,6 +189,9 @@ async function noWrites(store: Store) {
     const id = store.getState().activeDocumentId;
     await store.getState().saveFile(); await store.getState().saveFileAs();
     assert.equal(await store.getState().saveFileForDocument(id), false);
+    const exported = await store.getState().exportAs('ifc');
+    assert(exported.ok && exported.cancelled === true);
+    await store.getState().exportProjectWithPool();
     store.setState(s => { s.autoSaveToFile = true; });
     await createFileAutoSaveController({ getState: store.getState, enabled: () => true }).flush();
     let closed = false;
@@ -278,7 +285,7 @@ const copyRefs = () => idb.store('references', SOURCE_COPY_DB);
 assert.equal(idb.databases.has(SOURCE_COPY_DB), false, 'desktop en handle maakten geen kopiedatabase');
 const offCopy = await openAt(bytes, null); durationEdit(offCopy);
 const offPayload = offCopy.getState().getOpenDocumentPayloads()[0];
-assert.equal(recoverySourceDocument(offPayload.id, offPayload.payload, false).sourceCopy, undefined, 'flag uit draagt geen kopie');
+assert(recoverySourceDocument(offPayload.id, offPayload.payload, false).sourceCopy === undefined, 'flag uit draagt geen kopie');
 await tick(offCopy, false);
 assert.equal(idb.databases.has(SOURCE_COPY_DB), false, 'flag uit maakt geen extra database');
 await clearRecovery();
@@ -288,6 +295,7 @@ const browserCrash = await tick(withoutHandle, true, browserTracker);
 assert.equal(sourceStore().size, 1);
 assert.equal(copyWrites, 1);
 assert.equal(idb.databases.get('ops-recovery')?.version, 3);
+assert.equal(idb.store('xer-archives').size, 0, 'bronkopieën gebruiken de XER-store niet');
 assert.deepEqual([...idb.databases.get('ops-recovery')!.stores].sort(), ['records', 'xer-archives']);
 assert.deepEqual([...idb.databases.get(SOURCE_COPY_DB)!.stores].sort(), ['references', 'sources']);
 const browserRecovered = await restore(browserCrash);
@@ -499,6 +507,10 @@ assert(!snapshot.includes('IFCWALL('));
 assert(!JSON.stringify(recoverySnapshotInput(mixed.getState().getOpenDocumentPayloads().find(d => d.id === foreignId)!.payload)).includes('IFCWALL('));
 assert(!JSON.stringify(manifest).includes('IFCWALL('));
 assert(!JSON.stringify(records).includes('IFCWALL('));
+const containsBytes = (value: unknown): boolean => value instanceof Uint8Array || value instanceof ArrayBuffer
+  || (value !== null && typeof value === 'object' && Object.values(value).some(containsBytes));
+assert.equal(containsBytes(records), false, 'geen buffers in bestaande herstelrecords');
+assert.equal(containsBytes(recoverySnapshotInput(mixed.getState().getOpenDocumentPayloads().find(d => d.id === foreignId)!.payload)), false, 'geen buffers in Worker-invoer');
 console.log(`PROEF 7 GROEN: bron ${bytes.length} bytes, snapshot ${Buffer.byteLength(snapshot)} bytes, bronverwijzing ${JSON.stringify(foreign.ifcSource).length} tekens; geen modelinhoud in snapshot/Worker/opslag.`);
 
 // Metadata-only bronupdate gebruikt de nieuwe hash, zonder de oude bytebuffer in de caches.

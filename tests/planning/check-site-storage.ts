@@ -72,9 +72,10 @@ function fakeRequest(compute: () => unknown) {
   queueMicrotask(() => { request.result = compute(); request.onsuccess?.(); });
   return request;
 }
-function fakeDb(name: string) {
+function fakeDb(name: string, version = 1) {
   const indexes = new Map<string, string>();
   return {
+    version,
     objectStoreNames: { contains: () => true },
     createObjectStore: () => undefined,
     close: () => undefined,
@@ -110,10 +111,16 @@ function fakeDb(name: string) {
   };
 }
 g.indexedDB = {
-  open: (name: string) => {
-    const db = fakeDb(name);
-    const request = { result: db, transaction: db.transaction(), error: null, onupgradeneeded: null as (() => void) | null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-    queueMicrotask(() => { request.onupgradeneeded?.(); request.onsuccess?.(); });
+  open: (name: string, version?: number) => {
+    const existed = databases.has(name), db = fakeDb(name, version);
+    let aborted = false;
+    const transaction = { ...db.transaction(), abort: () => { aborted = true; } };
+    const request = { result: db, transaction, error: null as unknown, onupgradeneeded: null as (() => void) | null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
+    queueMicrotask(() => {
+      if (!existed || version !== undefined) request.onupgradeneeded?.();
+      if (aborted) { request.error = new Error('AbortError'); request.onerror?.(); }
+      else request.onsuccess?.();
+    });
     return request;
   },
 };

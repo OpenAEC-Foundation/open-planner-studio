@@ -1548,7 +1548,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
       seen.add(docId);
       docs.push({
         id: rec.docId,
-        sourceCopyDocumentKey: rec.id,
+        ...(ifcSourceMetaFields(document).ifcSource ? { sourceCopyDocumentKey: rec.id } : {}),
         ifc: rec.ifc,
         filePath: document.filePath ?? rec.filePath ?? null,
         // docIds-manifesten hadden geen documentmetadata: hun synthetische defaults

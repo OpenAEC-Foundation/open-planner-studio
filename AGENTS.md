@@ -351,7 +351,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   best-effort source copies in a separate `ops-ifc-sources.<recoveryBase>` IndexedDB database (created only when needed
   with the flag on): one byte blob per sha256 plus small per-session/document references and site base versions.
   Copies commit before the manifest; cleanup follows it and keeps referenced bytes, other sessions and unknown sets.
-  Copy failures keep planning recovery working without a dangling source reference, with one notice/attempt per document.
+  Copy failures keep planning recovery working without a dangling source reference, with one notice and no retries for that document in the session.
   The existing recovery database stays v3 and its stores/records remain unchanged. Unknown/invalid manifests also block later writes,
   clearing and session rotation for that recovery set; unknown foreign web generations and shared archive blobs
   are preserved during cleanup. A manifest has unique document IDs (also historical web `docIds`). Web recovery DB v3

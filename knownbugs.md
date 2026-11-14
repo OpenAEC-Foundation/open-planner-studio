@@ -2049,8 +2049,8 @@ en noem het in je rapport of PR-tekst.
 1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
      `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
      planner ziet haar bij een geblokkeerde route (bijvoorbeeld pool-export of de flag uit), en ook
-     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de ontbrekende bron niet en biedt geen
-     vervolgstap. PR 9b geeft bron ontbreekt een eigen tekst met de reden en export naar een ander formaat;
+     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de geweigerde route en het
+     passende alternatief niet. PR 9b geeft bron ontbreekt een eigen tekst met de reden en export naar een ander formaat;
      de overige weigeringen blijven bij de lijst "Teksten voor de planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
 
 1558. **VERVOLG (#804, opruimen): de alias `type DocumentWrite = IfcOutput` in `fileSlice.ts` voegt niets toe.** Eén
