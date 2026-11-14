@@ -203,6 +203,13 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
   command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+- **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
+  levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
+  `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde
+  vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
+  uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
+  `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet. Broncommit,
+  herstel en aansluiting horen bij PR 8b/9/11; de opslagblokkade blijft dicht.
 - **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
   accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
   directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle

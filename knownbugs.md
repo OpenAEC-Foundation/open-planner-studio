@@ -1790,11 +1790,6 @@ en noem het in je rapport of PR-tekst.
      er één leesplek en één propertieslus is. Twee toelichtingen beschrijven nog de oude verdeling: bij
      `extractStructure` ("vier projectvelden") en in `ifcWriter.ts` bij het schrijven van die properties. Gevonden door
      de review van #921. — B
-1144. **VERVOLG (#804, opruimen): ongebruikte boekhouding na het vervallen van de weigering `projectgegevens`.**
-     `sourceOwnerHistory` en `projectWritten` in `lossCheck.ts` worden sinds #921 niet meer gebruikt; `mergeWriter.ts`
-     berekent en geeft de eerste nog door, met `firstP`. Richting: de twee invoervelden, het retourveld en de
-     berekening verwijderen; er hoeft niets voor terug te komen. Gevonden door de review van #921. — B
-
 1023. **VERVOLG: zonder model veranderen de hulp-GlobalIds bij de eerste opslag na openen.** De gewone writer
      leidt de GlobalId van de resource-pset en haar `IfcRelDefinesByProperties` af van `res.id`
      (`pset_res_<id>` in `src/services/ifc/ifcWriter.ts`); de lezer leidt dat id af van de resource-GlobalId.
@@ -1960,6 +1955,18 @@ en noem het in je rapport of PR-tekst.
      rechtstreeks doorgeven en alleen de kopie in de adapter houden spaart één volledige kopie en freeze, zonder een
      beschermingsgrens weg te nemen. Alleen opruimen; geen tijdwinst gemeten. Gevonden door de review van #918
      (Sol). — B
+1550. **VERVOLG (#804): de canonieke vergelijking van de planning hangt af van het schrijfmoment.** `planningCanon`
+     (`src/services/ifc/foreign/planningCanon.ts`) zet de klok van de eigen owner history op nul, maar de gewone writer
+     schrijft ook de actuele `CreationDate` van het werkplan en het live-schema. Twee aanroepen aan weerszijden van een
+     secondegrens kunnen dezelfde planning dus verschillend vergelijken: de merge weigert dan onnodig, of "niets
+     veranderd" (#923) geeft niet de bronbytes terug. Geen verlies. In de code vastgesteld, niet gereproduceerd; bestaat
+     ook op main. Kan een proef laten haperen. Richting: één vaste vergelijkingsklok, of alleen deze writerklokken
+     normaliseren. Gevonden door de review van #923. — S
+1551. **VERVOLG (#804, opruimen): zonder vreemd deel draait de planningwriter twee keer in `prepareIfcWrite`.** Eén keer
+     voor de tekst en de kalenderkeuzes (`writeIFCWithChoices`) en één keer alleen voor de sessiekaart
+     (`writeIfcMergeLines` met een leeg id-plan). Beide gebruiken dezelfde schrijfkern en nummering; geen verkeerde kaart
+     gevonden. Richting: één writerresultaat met tekst, kalenderkeuzes en kaart. Meenemen bij de meting van grote
+     bestanden (PR 6). Gevonden door de review van #923. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`

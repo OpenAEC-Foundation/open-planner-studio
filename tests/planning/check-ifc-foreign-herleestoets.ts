@@ -4,7 +4,7 @@ import { sameValue } from '@/utils/sameValue';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generatedModel } from './ifcGeneratedModel';
-import { storeWith, loadStore } from './ifcAppRoute';
+import { storeWith, loadStore, storeEdit } from './ifcAppRoute';
 import { readbackDifference } from './ifcReadbackEquality';
 import { ifcGuid, writeIFC } from '@/services/ifc/ifcWriter';
 import { readFileSync } from 'node:fs';
@@ -106,8 +106,14 @@ const saved = await tryMerge(d, source);
 {
   const { matchesRefusal, tallyGroup, TALLY_GROUPS } = await import('./ifcMergeTellingKern');
   const input = await openForeign(new Uint8Array(readFileSync(new URL('../fixtures/ifc-foreign/council/r7sol-vreemd-lid-bij-notitie.ifc', import.meta.url))));
-  const result = await tryMerge(cloneDomain(input), input.ifcSource!);
-  assert(!result.ok, 'de bekende, gemaakte lege-notitiefixture weigert');
+  const untouched = await tryMerge(cloneDomain(input), input.ifcSource!);
+  assert(untouched.ok, 'zonder bewerking gaan de gecontroleerde bronbytes terug');
+  assert.deepEqual(untouched.bytes, input.ifcSource!.bytes);
+  const edited = await storeEdit(cloneDomain(input), state => {
+    state.setProject({ description: `${input.project.description ?? ''} (herleestoets)` });
+  });
+  const result = await tryMerge(edited, input.ifcSource!);
+  assert(!result.ok, 'de bekende, gemaakte lege-notitiefixture weigert na een echte bewerking');
   const expected = { reason: 'lege notitielijst, knownbug 1101', cases: [
     'niet-gedragen | 9111 | IFCPROPERTYSET #9111 (OPS_TaskNotes), argument 4 | 4 |  |  | 4 | false',
     'niet-gedragen | 9110 | IFCPROPERTYSINGLEVALUE #9110 (Notes) | -1 | ontbreekt |  |  | false',

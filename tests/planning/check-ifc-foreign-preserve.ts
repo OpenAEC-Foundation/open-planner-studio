@@ -36,7 +36,7 @@ import {
   reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
-import { applyTaskProgress, openInStore } from './ifcAppRoute';
+import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
 import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
@@ -69,6 +69,12 @@ const text = (b: Uint8Array) => {
   return s;
 };
 const read = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
+
+// Na stuk 1 vraagt een proef op herschrijven om een echte bewerking. De projectbeschrijving
+// veranderen laat de naam/structuur van de getoetste objecten ongemoeid; de hele apppayload komt terug.
+const rewrite = (d: Domain) => storeEdit(d, state => {
+  state.setProject({ description: `${d.project.description} (herschrijfproef)` });
+});
 
 // ── Hulp: lidmaatschappen en tellingen in een bestand ──
 
@@ -187,8 +193,10 @@ for (const file of corpus) {
   const foreignWant = REFUSED[file];
   const ownWant = OWN_REFUSED[file];
   if (foreignWant || ownWant) {
-    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource);
-    if (outcome.ok) { diffs.push(`${file}: de merge schrijft, maar weigeren werd verwacht`); checks++; continue; }
+    const unchanged = await tryMerge(cloneDomain(opened), opened.ifcSource);
+    ok(`${file}: zonder bewerking schrijft dezelfde bronbytes`, unchanged.ok && sameBytes(unchanged.bytes, bytes));
+    const outcome = await tryMerge(await rewrite(cloneDomain(opened)), opened.ifcSource);
+    if (outcome.ok) { diffs.push(`${file}: met gewijzigde projectbeschrijving werd weigeren verwacht`); checks++; continue; }
     eq(`${file}: de gevallen van de weigering`, outcome.kinds, foreignWant ?? ['niet-gedragen']);
     eq(`${file}: de vaste code`, outcome.error.code, 'merge-needs-phase2');
     ok(`${file}: elk geval heeft een id en een uitleg`, outcome.error.cases.every(c => c.detail.length > 0));
@@ -308,7 +316,7 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
   let projectChunk = -1;
   for (let i = 0; i < sourceIndex.count; i++) if (sourceIndex.isEntity(i) && sourceIndex.type(i) === 'IFCPROJECT') projectChunk = i;
   ok(`${label}: in de bron is het project niet P`, projectChunk >= 0 && sourceCls.classes[projectChunk] !== 1);
-  const r = await roundTrip(label, bytes);
+  const r = await roundTrip(`${label} na een bewerking`, bytes, rewrite);
   if (r) {
     eq(`${label}: na openen`, r.opened.project.name, 'Proj');
     eq(`${label}: één IfcProject, byte-gelijk aan de bron`, [countType(r.out, 'IFCPROJECT'), lineOf(r.out, sourceIndex.id(projectChunk))], [1, lineOf(bytes, sourceIndex.id(projectChunk))]);
@@ -366,7 +374,7 @@ const OLD_VARIANTS: readonly { label: string; src: string; keep: readonly string
 for (const v of OLD_VARIANTS) {
   ok(`${v.label}: de proef verandert de bron`, v === OLD_VARIANTS[0] || v.src !== oldText);
   const bytes = latin1(v.src);
-  const r = await roundTrip(v.label, bytes);
+  const r = await roundTrip(`${v.label} na een bewerking`, bytes, rewrite);
   if (!r) continue;
   eq(`${v.label}: één IfcProject`, countType(r.out, 'IFCPROJECT'), 1);
   // Project, eenheden, context (en het model) byte-gelijk, met hetzelfde #id. Het project is hetzelfde object: de eigen
@@ -463,8 +471,9 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
   let opened: Opened;
   try { opened = await openForeign(bytes); } catch (e) { diffs.push(`${label}: openen faalt (${(e as Error).message.slice(0, 120)})`); checks++; return; }
   if (!opened.ifcSource?.foreign) { diffs.push(`${label}: geen vreemd deel`); checks++; return; }
-  const d = cloneDomain(opened);
-  await edit?.(d);
+  let d = cloneDomain(opened);
+  if (edit) await edit(d);
+  else d = await rewrite(d); // Een weigering betreft gewijzigde invoer; ongewijzigd = bronbytes.
   let error: unknown;
   let parts: Uint8Array[] | undefined;
   try { parts = await writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
@@ -834,7 +843,7 @@ await roundTrip('zoektocht: showcase met een wand van Revit', enc.encode(showcas
   // Een gedeelde persoon (C) blijft byte-gelijk staan, en de eigen owner history wijst naar de persoon van de writer, een
   // kopie (`id`). Sinds fixronde 3 krijgt die kopie de GivenName van de bron terug (b): de persoon staat er twee keer.
   const k1Jan = enc.encode(replaceLine(r4, '#1=', "#1=IFCPERSON($,'','Jan',$,$,$,$,$);"));
-  const r = await roundTrip('zoektocht: r4-k1 met een GivenName op de gedeelde persoon', k1Jan);
+  const r = await roundTrip('zoektocht: r4-k1 met een GivenName op de gedeelde persoon', k1Jan, rewrite);
   if (r) eq('zoektocht: r4-k1 met een GivenName: de gedeelde persoon en de kopie hebben Jan', text(r.out).split("'','Jan',").length - 1, 2);
 }
 const has = (out: Uint8Array, keep: string | RegExp) => (typeof keep === 'string' ? text(out).includes(keep) : keep.test(text(out)));
@@ -867,7 +876,7 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   // project P (de writer schrijft het opnieuw); in eigen-plus-model is het C (het model hangt eronder).
   for (const [label, src, want] of [['r4-k1 (project P)', r4, false], ['eigen-plus-model (project C)', eigen, true]] as const) {
     const opened = await openForeign(enc.encode(src));
-    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource!);
+    const outcome = await tryMerge(await rewrite(cloneDomain(opened)), opened.ifcSource!);
     if (!outcome.ok) { diffs.push(`${label}: de merge weigert (${outcome.error.cases.map(c => c.detail).slice(0, 2).join(' | ')})`); checks++; continue; }
     const saved = text(outcome.bytes);
     eq(`${label}: de merge schrijft ProjectName in OPS_ProjectSettings`, saved.includes("IFCPROPERTYSINGLEVALUE('ProjectName'"), want);
@@ -1168,7 +1177,7 @@ eq('normalisatie duur, exact per onderdeel', [
 // tekst: dezelfde tekens na het decoderen; `\X2\00E9\X0\` en een rauw UTF-8-teken leest elk programma als 'é'.
 {
   const cafe = enc.encode(replaceIn(replaceIn(eigen, "'Set up site',$,$,'2.1'", "'Bouwplaats café',$,$,'2.1'"), "'Set up site Time'", "'Bouwplaats café Time'"));
-  const r = await roundTrip('normalisatie tekst: een rauw UTF-8-teken in een taaknaam', cafe);
+  const r = await roundTrip('normalisatie tekst: een rauw UTF-8-teken in een taaknaam na bewerking', cafe, rewrite);
   if (r) ok('normalisatie tekst: de writer schrijft \\X2\\00E9\\X0\\', lineOf(r.out, '51').includes('caf\\X2\\00E9\\X0\\'));
 }
 // id: de vergelijking staat hernummeren toe; E16 behoudt het bron-id van een gekoppeld hulpstuk.
@@ -1206,9 +1215,9 @@ await expectRefusal('toevoeging: een eigen pset met de owner history van Revit k
 // writer (5g), zijn applicatie, en het eigen werkplan en live-schema; de CreationDate van een baselinekop blijft.
 {
   const src = replaceIn(replaceIn(r4, '$,.NOCHANGE.,$,$,$,1787775670);', '$,.NOCHANGE.,$,$,$,1700000000);'), "IFCAPPLICATION(#4,'0.1',", "IFCAPPLICATION(#4,'0.0.9',");
-  const r = await roundTrip('schrijfvelden: CreationDate van de eigen owner history en de versie van de app', enc.encode(src));
+  const r = await roundTrip('schrijfvelden: CreationDate van de eigen owner history en de versie van de app', enc.encode(src), rewrite);
   if (r) ok('schrijfvelden: de uitvoer heeft de tijd van opslaan en de versie van nu', !text(r.out).includes(',1700000000);') && !text(r.out).includes("'0.0.9'"));
-  const ws = await roundTrip('schrijfvelden: CreationDate van het live-schema', enc.encode(eigen.replace(/^(#43=IFCWORKSCHEDULE\((?:[^,]*,){6})'[^']*'/m, "$1'2020-01-01T00:00:00'")));
+  const ws = await roundTrip('schrijfvelden: CreationDate van het live-schema', enc.encode(eigen.replace(/^(#43=IFCWORKSCHEDULE\((?:[^,]*,){6})'[^']*'/m, "$1'2020-01-01T00:00:00'")), rewrite);
   if (ws) ok('schrijfvelden: het live-schema krijgt de tijd van opslaan', /^#43=IFCWORKSCHEDULE\((?:[^,]*,){6}'(?!2020-01-01T00:00:00')[^']*'/m.test(text(ws.out)));
   // 1145: deze gemaakte afwijking tussen de standaarddatum en de baselinegegevens leverde op main
   // twee dubbele GlobalIds op. De onafhankelijke uitvoercontrole moet die weigeren, zonder bytes.
@@ -1223,6 +1232,13 @@ await expectRefusal('toevoeging: een eigen pset met de owner history van Revit k
 // `niet-gedragen` "na de bewerking"; op de taak die hij wel bewerkte, of op haar taaktijd → niets.
 /** `lossCheck` op een bestand, met de uitvoer van de merge als O0 (die is gelijk aan de bron). */
 async function lossSetup(bytes: Uint8Array) {
+  // O0 voor deze eenheidstoets is een actuele writerlay-out. Stuk 1 normaliseert een
+  // ongewijzigde oude bron niet meer: maak de baseline via een echte bewerking en opslag.
+  const initial = await openForeign(bytes);
+  const baseline = await rewrite(cloneDomain(initial));
+  // Deze fixture toetst juist de importvlag: behoud haar als expliciete proefinvoer.
+  if (initial.importPristine !== undefined) baseline.importPristine = initial.importPristine;
+  bytes = concat(await writeIfcMerge(baseline, initial.ifcSource!));
   const opened = await openForeign(bytes);
   const source = opened.ifcSource!;
   const index = scanStep(bytes);
@@ -1252,7 +1268,7 @@ async function lossSetup(bytes: Uint8Array) {
     const found: string[] = [];
     const { edits } = lossCheck({
       index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,
-      pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys, sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: ids.plan.projectSourceId === undefined,
+      pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
       owner0: ownerOut, owner1: ownerOut,
     }, f => found.push(f.detail));
     return { found, edits };

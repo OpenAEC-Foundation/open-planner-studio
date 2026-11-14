@@ -10,7 +10,7 @@ import { mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { MAX_STEP_ID } from '@/services/ifc/foreign/stepScanner';
 import { psetOwners, validateMergeOutput } from '@/services/ifc/foreign/mergeValidation';
-import { openInStore, TRIAS_FILES } from './ifcAppRoute';
+import { openInStore, storeEdit, TRIAS_FILES } from './ifcAppRoute';
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
 import { applyEdit, cloneDomain, concat, mergeProblems, openForeign, ordinaryEdits, tryMerge } from './ifcMergeKern';
@@ -22,6 +22,11 @@ const check = (message: string, yes: boolean) => { if (!yes) failures.push(messa
 const read = (rel: string) => new Uint8Array(readFileSync(join(root, rel)));
 const model = (text: string) => generatedModel(root, text, 0);
 const basis = read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
+// Deze proef moet werkelijk herschrijven: een ongewijzigde planning geeft sinds
+// PR 8a de bronbytes terug en zou de behoudstap niet meer beproeven.
+const rewrite = (input: Parameters<typeof storeEdit>[0]) => storeEdit(input, state => {
+  state.setProject({ description: `${input.project.description ?? ''} (hulpidentiteit)` });
+});
 
 function resourceHelpers(bytes: Uint8Array) {
   const index = scanForeignStep(bytes), result = new Map<string, { pset: string; relation: string; psetId: string; relationId: string }>();
@@ -56,9 +61,9 @@ check('1147: bestaande weigering bij de eerste opslag van een nieuwe resource bl
 const born = new TextEncoder().encode(writeIFC(input));
 const withModel = model(new TextDecoder().decode(born));
 const opened = await openForeign(withModel);
-const one = await tryMerge(cloneDomain(opened), opened.ifcSource!);
+const one = await tryMerge(await rewrite(cloneDomain(opened)), opened.ifcSource!);
 assert(one.ok, one.ok ? '' : JSON.stringify(one.error.cases));
-const next = await openForeign(one.bytes), two = await tryMerge(cloneDomain(next), next.ifcSource!);
+const next = await openForeign(one.bytes), two = await tryMerge(await rewrite(cloneDomain(next)), next.ifcSource!);
 assert(two.ok, two.ok ? '' : JSON.stringify(two.error.cases));
 const original = resourceHelpers(withModel), first = resourceHelpers(one.bytes), second = resourceHelpers(two.bytes);
 for (const [id, expected] of original) {
@@ -70,9 +75,9 @@ check('E16: C/A/V zijn na beide merges bytegelijk', !mergeProblems(withModel, on
 console.log(`E16 resource: ${original.size} resources, bron → merge → openen → merge`);
 
 // De meting van 1023: het repo-voorbeeld is met verse resource-ids geschreven; de lezer
-// leidt die bij openen uit hun GlobalId af. Main verliest hier 36 hulp-GlobalIds.
+// leidt die bij openen uit hun GlobalId af. Vóór PR 7 verloor de merge hier 36 hulp-GlobalIds.
 const office = model(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'), 'utf8'));
-const officeDomain = await openForeign(office), officeSave = await tryMerge(cloneDomain(officeDomain), officeDomain.ifcSource!);
+const officeDomain = await openForeign(office), officeSave = await tryMerge(await rewrite(cloneDomain(officeDomain)), officeDomain.ifcSource!);
 assert(officeSave.ok, officeSave.ok ? '' : JSON.stringify(officeSave.error.cases));
 const before = rootGuids(office), after = rootGuids(officeSave.bytes);
 const added = [...after].filter(guid => !before.has(guid));
@@ -82,7 +87,7 @@ console.log(`E16 kantoor: ${before.size} GlobalIds, ${added.length} nieuw`);
 
 // Eén echt oud eigen bestand; de uitgebreide toets blijft daarnaast tien van tien.
 const old = model(readFileSync(join(root, TRIAS_FILES[2]), 'utf8'));
-const oldDomain = await openForeign(old), oldSave = await tryMerge(cloneDomain(oldDomain), oldDomain.ifcSource!);
+const oldDomain = await openForeign(old), oldSave = await tryMerge(await rewrite(cloneDomain(oldDomain)), oldDomain.ifcSource!);
 assert(oldSave.ok, oldSave.ok ? '' : JSON.stringify(oldSave.error.cases));
 const oldIndex = scanForeignStep(old), oldClass = classify(oldIndex), oldOut = scanForeignStep(oldSave.bytes);
 let kept = 0, expectedOld = 0;
@@ -108,7 +113,7 @@ const relation = lines.find(l => l.type === 'IFCRELDEFINESBYPROPERTIES' && l.arg
 const last = Math.max(...lines.map(l => l.id));
 const duplicates = [...lines, { ...pset, id: last + 1 }, { ...relation, id: last + 2, args: relation.args.map((v, k) => k === 5 ? `#${last + 1}` : v) }];
 const pairingInput: LossCheckInput = { index: idx, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
-  o0: duplicates, o1: duplicates, pristine: await pristineDomain(idx, cls, source), domain: cloneDomain(officeDomain), sourceOwnerHistory: plan.sourceOwnerHistory, projectWritten: plan.plan.projectSourceId === undefined };
+  o0: duplicates, o1: duplicates, pristine: await pristineDomain(idx, cls, source), domain: cloneDomain(officeDomain) };
 const ambiguous = preserveAuxiliaryIdentities(pairingInput, duplicates);
 const owner = Number(relation.args[4].replace(/[()#]/g, ''));
 const sourcePset = Array.from({ length: idx.count }, (_, c) => c).find(c => idx.type(c) === 'IFCPROPERTYSET' && idx.name(c) === 'OPS_Resource' && psetOwners(idx, c).some(o => Number(idx.id(o)) === owner))!;
