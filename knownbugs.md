@@ -1976,7 +1976,10 @@ en noem het in je rapport of PR-tekst.
      maar niet de bronreferentie in `serialized`. Alleen het vasthouden van de referenties is in code vastgesteld;
      piekgeheugen bij grote bestanden is niet gemeten. Richting voor PR 9/6: bewaar voor inhoudsvergelijking alleen de
      dirty-velden, of ververs een gelijke cachebron zonder de planning opnieuw te serialiseren. In 8b mocht in
-     `recoveryDelta.ts` alleen de inhoudsvergelijking veranderen; daarom niet opgelost. Gevonden bij fase 1c PR 8b. — B
+     `recoveryDelta.ts` alleen de inhoudsvergelijking veranderen; daarom niet opgelost. Gevonden bij fase 1c PR 8b.
+     Aanvulling uit de review van #925: geen verkeerde herstelinhoud (een volgende taakbewerking wordt met de actuele
+     bron geserialiseerd); PR 9 neemt de actuele bronhash rechtstreeks uit de momentopname van het document, niet uit
+     deze caches. — B
 1555. **VERVOLG (#804): een gewone opslag zonder vreemd deel houdt een verouderde `ifcSource`.** Met de flag aan
      geopend kantoorvoorbeeld, duur wijzigen en gewone Opslaan als: de geschreven bytes hebben een nieuwe sha256,
      maar het document houdt hetzelfde openingsbronobject. Dit is het behouden gedrag van main; alleen een expliciet
@@ -1984,6 +1987,11 @@ en noem het in je rapport of PR-tekst.
      gewone writer en leunt niet op die oude bytes. PR 9 mag zo'n bron niet als bewezen huidige schijfversie behandelen;
      PR 11 moet de bron verversen of expliciet ongeldig verklaren zonder de gewone uitvoer te veranderen. Niet in 8b
      gerepareerd, volgens punt 7 van de opdracht. Bewezen in `check-ifc-saved-source.ts`. — B
+1559. **VERVOLG (#804, tekst): een toelichting in `ifcSource.ts` beschrijft de bronloze herstelgrens verkeerd.** De kop
+     van `src/services/ifc/foreign/ifcSource.ts` schrijft toe aan `IFC_SAVE_KEYS` dat de bronbytes niet in de
+     herstelsnapshot en de MCP-backup komen. Sinds #925 staat `ifcSource` juist in die lijst; de bescherming komt van
+     de writer-invoer, die de bron weglaat. De code klopt; alleen de toelichting bijwerken. Gevonden door de review
+     van #925. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
