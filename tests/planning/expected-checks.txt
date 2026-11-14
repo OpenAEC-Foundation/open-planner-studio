@@ -315,6 +315,7 @@ check-progress-sheet-values.ts matrix
 check-progress-sinds-export.ts matrix
 check-progress-xlsx-writer.ts matrix
 check-project-start-anchor.ts matrix
+check-project-template-i18n.ts matrix
 check-raster-datum-ongewijzigd.ts matrix
 check-recent-open.ts matrix
 check-recorded-bak4-differential.ts matrix

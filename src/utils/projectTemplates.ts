@@ -1,47 +1,52 @@
 import type { WorkCalendar } from '@/types/calendar';
 import { materializeHolidays, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import { loadConstructionMode } from '@/utils/settingsStore';
+import type { TFunction } from 'i18next';
+import type nlMenu from '@/i18n/locales/nl/menu.json';
 
 /**
  * Fasering-templates voor de nieuw-project-wizard: een herbruikbaar skelet van
- * hoofdfasen waarmee een nieuw project start i.p.v. een lege takenlijst. De
- * faseNamen zijn projectdata (geen UI-chrome) en staan daarom in de werktaal
- * (Nederlands); de gebruiker past ze daarna naar wens aan.
+ * hoofdfasen waarmee een nieuw project start i.p.v. een lege takenlijst. Een fase is een
+ * vertaalsleutel; `templatePhases` vertaalt hem alleen bij aanmaak naar de interfacetaal (#912).
+ * Daarna zijn de namen gewone projectgegevens: een latere taalwissel hernoemt ze niet.
  */
 export type TemplateKey = 'empty' | 'woningbouw' | 'utiliteit';
 
-export const PROJECT_TEMPLATES: { key: TemplateKey; phases: string[] }[] = [
+type PhaseKey = `newProject.phase.${keyof typeof nlMenu.newProject.phase}`;
+
+export const PROJECT_TEMPLATES: { key: TemplateKey; phases: readonly PhaseKey[] }[] = [
   { key: 'empty', phases: [] },
   {
     key: 'woningbouw',
     phases: [
-      'Bouwplaats & grondwerk',
-      'Fundering',
-      'Ruwbouw / casco',
-      'Dak',
-      'Gevel & afbouw',
-      'Installaties (W/E)',
-      'Afwerking',
-      'Oplevering',
+      'newProject.phase.siteGroundwork',
+      'newProject.phase.foundation',
+      'newProject.phase.shell',
+      'newProject.phase.roof',
+      'newProject.phase.facadeFitOut',
+      'newProject.phase.services',
+      'newProject.phase.finishes',
+      'newProject.phase.handover',
     ],
   },
   {
     key: 'utiliteit',
     phases: [
-      'Sloop & strip-out',
-      'Grondwerk & fundering',
-      'Hoofddraagconstructie',
-      'Gevel & dak',
-      'Installaties (W/E)',
-      'Afbouw',
-      'Inregelen & testen',
-      'Oplevering',
+      'newProject.phase.demolitionStripOut',
+      'newProject.phase.groundworkFoundation',
+      'newProject.phase.mainStructure',
+      'newProject.phase.facadeRoof',
+      'newProject.phase.services',
+      'newProject.phase.fitOut',
+      'newProject.phase.commissioning',
+      'newProject.phase.handover',
     ],
   },
 ];
 
-export function templatePhases(key: TemplateKey): string[] {
-  return PROJECT_TEMPLATES.find((t) => t.key === key)?.phases ?? [];
+/** De fasenamen van een sjabloon in de taal van `t` (de `menu`-namespace). */
+export function templatePhases(key: TemplateKey, t: TFunction<'menu'>): string[] {
+  return (PROJECT_TEMPLATES.find((tmpl) => tmpl.key === key)?.phases ?? []).map((phase) => t(phase));
 }
 
 /**

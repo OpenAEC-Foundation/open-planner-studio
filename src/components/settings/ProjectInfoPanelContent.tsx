@@ -367,7 +367,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         createNewProject({
           name, description, author, company, startDate, endDate,
           calendar,
-          phaseNames: templatePhases(template),
+          phaseNames: templatePhases(template, tMenu),
           defaultTaskDurationUnit: defaultTaskDurationUnit,
           // Rekenprofiel uit de keuzelijst hoort bij de aanmaak zelf (geen losse undo-stap erna).
           schedulingProfile: scheduling.profile,
