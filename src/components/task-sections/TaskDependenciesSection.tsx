@@ -12,7 +12,7 @@ import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
 import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
 import { createRelationsWithFeedback } from '@/state/relationActions';
-import { jumpToRelatedTask, relationTrailTarget, stepRelationTrail } from '@/state/relationTrail';
+import { relationStepTarget, type RelationStepDirection } from '@/state/relationStep';
 import { Icon } from '@/components/icons';
 
 interface HoverState { x: number; y: number; task: Task; }
@@ -71,9 +71,13 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   const cpmResult = useAppStore(s => s.cpmResult);
   const updateSequence = useAppStore(s => s.updateSequence);
   const removeSequence = useAppStore(s => s.removeSequence);
-  // Terug en vooruit (issue #888): alleen sprongen via dit paneel tellen, zie `relationTrail.ts`.
-  const backId = useAppStore(s => relationTrailTarget(s, 'back'));
-  const forwardId = useAppStore(s => relationTrailTarget(s, 'forward'));
+  const focusOnTask = useAppStore(s => s.focusOnTask);
+  // De pijlen lopen de keten af (issue #888): links de voorganger, rechts de opvolger, volgens de
+  // regel in `relationStep.ts` (bij meerdere: de sturende, dan de kritiekste).
+  const stepTargets = useMemo(() => ({
+    predecessor: relationStepTarget({ tasks, sequences, cpmResult }, taskId, 'predecessor'),
+    successor: relationStepTarget({ tasks, sequences, cpmResult }, taskId, 'successor'),
+  }), [tasks, sequences, cpmResult, taskId]);
   const [hover, setHover] = useState<HoverState | null>(null);
   // De uitlegzin staat alleen onder de relatie waar de focus in zit: onder élke regel zou het blok
   // bij veel relaties twee keer zo lang maken.
@@ -206,9 +210,9 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
       <div className="dependency-head">
         <span className="ui-card-header !text-small !leading-4">{t('properties.dependencies')}</span>
         {interactive && (
-          <span className="dependency-trail">
-            <TrailButton direction="back" targetId={backId} />
-            <TrailButton direction="forward" targetId={forwardId} />
+          <span className="dependency-step">
+            <StepButton direction="predecessor" targetId={stepTargets.predecessor} onStep={focusOnTask} />
+            <StepButton direction="successor" targetId={stepTargets.successor} onStep={focusOnTask} />
           </span>
         )}
       </div>
@@ -249,7 +253,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   setHover({ x: r.left, y: r.bottom, task: other });
                 }}
                 onBlur={() => setHover(null)}
-                onClick={() => { setHover(null); jumpToRelatedTask(other.id); }}
+                onClick={() => { setHover(null); focusOnTask(other.id); }}
               >
                 {other.wbsCode || other.name}
               </button>
@@ -482,26 +486,30 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   );
 }
 
-/** Eén pijl van terug/vooruit; grijs zolang er in die richting geen sprong ligt. */
-function TrailButton({ direction, targetId }: { direction: 'back' | 'forward'; targetId: string | null }) {
+/** Eén pijl: naar de voorganger (links) of de opvolger (rechts); grijs als er in die richting geen relatie is. */
+function StepButton({ direction, targetId, onStep }: {
+  direction: RelationStepDirection;
+  targetId: string | null;
+  onStep: (taskId: string) => void;
+}) {
   const { t } = useTranslation('task');
   const target = useAppStore(s => (targetId ? s.tasks.find(task => task.id === targetId) : undefined));
   const label = target
-    ? t(direction === 'back' ? 'properties.trailBack' : 'properties.trailForward', {
+    ? t(direction === 'predecessor' ? 'properties.stepPredecessor' : 'properties.stepSuccessor', {
       task: `${target.wbsCode} ${target.name}`.trim(),
     })
-    : t(direction === 'back' ? 'properties.trailBackNone' : 'properties.trailForwardNone');
+    : t(direction === 'predecessor' ? 'properties.stepPredecessorNone' : 'properties.stepSuccessorNone');
   return (
     <button
       type="button"
-      className="dependency-trail-button"
-      data-ops-dependency-trail={direction}
+      className="dependency-step-button"
+      data-ops-dependency-step={direction}
       title={label}
       aria-label={label}
       disabled={!target}
-      onClick={() => stepRelationTrail(direction)}
+      onClick={() => { if (target) onStep(target.id); }}
     >
-      <Icon id={direction === 'back' ? 'nav.back' : 'nav.forward'} size={12} className="ops-icon-inline-flip" />
+      <Icon id={direction === 'predecessor' ? 'nav.back' : 'nav.forward'} size={12} className="ops-icon-inline-flip" />
     </button>
   );
 }
