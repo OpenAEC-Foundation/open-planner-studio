@@ -72,8 +72,8 @@ op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen
 `.USERDEFINED.`-taak) moeten in de uitvoer gelijk zijn aan wat de writer schrijft uit de herlezing die er al is, met de
 schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId en owner history, en met de weesregel van de
 canon voor `TaskGuids`. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
-van een pset, template of relatie niet, en een pset met alleen vreemde leden (die de merge schrijft om ze te bewaren)
-is geen groep. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
+van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
+vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren; de verliescontrole verandert niet.
 Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
 

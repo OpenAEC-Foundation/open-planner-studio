@@ -245,6 +245,13 @@ async function foreignMember() {
     const same = await save(cloneDomain(opened), opened.ifcSource!);
     ok('vreemd lid in het codetemplate: niets bewerkt geeft de bronbytes terug', same.ok && sameBytes(same.bytes, tmpl));
   }
+  // Het laatste eigen lid valt weg, alleen het vreemde lid blijft (review van #953, ronde 2): een pset met uitsluitend
+  // vreemde leden is geen groep van (c). De verliescontrole weigert dit al, net als op main; (c) voegt niets toe.
+  {
+    const { o } = await edited('vreemd lid in OPS_Baselines: alle baselines weg', bl, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }));
+    ok('vreemd lid in OPS_Baselines: alle baselines weg weigert als niet-gedragen, niet als eigen-uitvoer',
+      !o.ok && o.kinds.includes('niet-gedragen') && !o.kinds.includes('eigen-uitvoer'), summary(o));
+  }
   // Niets bewerkt: de bronbytes terug.
   clockStart();
   const opened = await openForeign(bl);
@@ -266,6 +273,21 @@ async function foreignMember() {
   ];
   const m = ownGroupMembers(linesView(lines));
   ok("indeling: IFCTEXT('#6') verwijst niet; #6 hoort bij OPS_Project", m.get(6) === PSET.Project && m.get(2) === PSET.ProjectSettings, `${m.get(6)} / ${m.get(2)}`);
+}
+{
+  // Review van #953, ronde 2: alleen een niet-lege lijst met uitsluitend vreemde leden maakt een pset of IfcRelDeclares geen groep.
+  const groupsOf = (members: string, declared: string) => new Set(ownGroupMembers(linesView([
+    { id: 1, type: 'IFCPROJECT', args: [] },
+    { id: 2, type: 'IFCPROPERTYSINGLEVALUE', args: ["'Eigen'", '$', "IFCLABEL('x')", '$'] },
+    { id: 3, type: 'IFCPROPERTYSET', args: ["'g1'", '$', `'${PSET.SchedulingProfile}'`, '$', members] },
+    { id: 4, type: 'IFCRELDEFINESBYPROPERTIES', args: ["'g2'", '$', '$', '$', '(#1)', '#3'] },
+    { id: 5, type: 'IFCPROPERTYSETTEMPLATE', args: ["'g3'", '$', `'${PSET.ActivityCodes}'`, '$', '.PSET_TYPEDRIVENOVERRIDE.', '$', '()'] },
+    { id: 6, type: 'IFCRELDECLARES', args: ["'g4'", '$', '$', '$', '#1', declared] },
+  ])).values());
+  const empty = groupsOf('()', '()'), own = groupsOf('(#2,#900)', '(#5,#901)'), foreign = groupsOf('(#900)', '(#901)');
+  ok('indeling: een lege pset en een lege IfcRelDeclares zijn een groep', empty.has(PSET.SchedulingProfile) && empty.has(PSET.StructureMeta), [...empty].join(','));
+  ok('indeling: met minstens één eigen lid een groep', own.has(PSET.SchedulingProfile) && own.has(PSET.StructureMeta), [...own].join(','));
+  ok('indeling: uitsluitend vreemde leden is geen groep', !foreign.has(PSET.SchedulingProfile) && !foreign.has(PSET.StructureMeta), [...foreign].join(','));
 }
 
 for (const mode of ['vast', 'lopend'] as const) {
@@ -406,6 +428,22 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     const added = b.input.tasks.find(t => !b.source.opened!.tasks.some(o => o.id === t.id))!;
     await counterProof(b, 'TaskGuids: nieuwe GUID verkeerd', alterJson('TaskGuids', v => { v[added.id] = 'verkeerde-guid'; }), true);
     await counterProof(b, 'TaskGuids: oude koppeling weg', alterJson('TaskGuids', v => { delete v[Object.keys(v).find(k => k !== added.id)!]; }), true);
+  }
+  // Een lege eigen pset erbij (review van #953, ronde 2): de writer schrijft geen OPS_SchedulingProfile, (c) moet hem vangen.
+  {
+    const b = await base('lege eigen pset: projectbeschrijving', eigen, se(s => s.setProject({ description: 'Review 953 psetgrens' })));
+    const ls = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    ok('lege eigen pset: de goede uitvoer heeft geen OPS_SchedulingProfile', !ls.some(l => l.type === 'IFCPROPERTYSET' && l.args[2] === `'${PSET.SchedulingProfile}'`));
+    const owner = ls.find(l => l.type === 'IFCPROPERTYSET')!.args[1];
+    const schedule = ls.find(l => l.type === 'IFCWORKSCHEDULE' && !l.args.includes('.BASELINE.'))!;
+    const m = bytesOf(withLines(latin1(b.bytes), [
+      `#95500=IFCPROPERTYSET('0R953REVIEWEMPTYPS0000',${owner},'${PSET.SchedulingProfile}',$,());`,
+      `#95501=IFCRELDEFINESBYPROPERTIES('0R953REVIEWEMPTYREL000',${owner},$,$,(#${schedule.id}),#95500);`,
+    ]));
+    const without = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
+    console.log(`TEGENPROEF lege eigen ${PSET.SchedulingProfile}-pset erbij: zonder (c) ${without}; met (c) ${withC} (${lastDetail})`);
+    ok('tegenproef lege eigen pset erbij: de basis laat hem door, (c) vangt hem', without === 'laat door' && withC === 'eigen-uitvoer', `${without} / ${withC}`);
+    if (without === 'laat door' && withC === 'eigen-uitvoer') caughtOnlyByC.push('lege eigen pset erbij');
   }
   console.log(`BEWIJS alleen (c) vangt: ${caughtOnlyByC.length} — ${caughtOnlyByC.join('; ')}`);
 }

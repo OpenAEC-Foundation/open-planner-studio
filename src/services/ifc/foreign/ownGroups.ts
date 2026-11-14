@@ -62,6 +62,14 @@ const isBaselineHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.so
 function refs(view: OwnLinesView, token: string | undefined): number[] {
   return refsOutsideText(token ?? '').filter(id => view.line(id) !== undefined || view.typeOf(id) === 'IFCPROJECT');
 }
+/**
+ * Een ledenlijst die niet leeg is en uitsluitend naar vreemde stukken wijst. Zo'n pset of `IfcRelDeclares` schreef de
+ * merge alleen om vreemde leden te bewaren; de writer schrijft hem niet, dus hij is geen groep. Een lege lijst en een lijst
+ * met minstens één eigen lid tellen wel: die komen uit de writer of horen tegen diens uitvoer getoetst te worden.
+ */
+function onlyForeignMembers(view: OwnLinesView, token: string | undefined): boolean {
+  return refsOutsideText(token ?? '').length > 0 && refs(view, token).length === 0;
+}
 function unquote(token: string | undefined): string {
   const t = (token ?? '').trim();
   return t.length >= 2 && t.startsWith("'") && t.endsWith("'") ? decodeStepText(t.slice(1, -1).replace(/''/g, "'")) : t;
@@ -81,13 +89,13 @@ function groupRoots(view: OwnLinesView): Map<string, OutLine[]> {
   for (const l of view.lines) {
     if (l.type === 'IFCRELDEFINESBYPROPERTIES') {
       const related = refs(view, l.args[4]), pset = view.line(refs(view, l.args[5])[0] ?? -1);
-      // Een pset zonder eigen leden schreef de merge alleen om vreemde leden te bewaren; de writer schrijft hem niet.
-      if (pset?.type === 'IFCPROPERTYSET' && refs(view, pset.args[4]).length > 0 && related.length > 0 && related.every(id => anchor(view, id))) {
+      if (pset?.type === 'IFCPROPERTYSET' && !onlyForeignMembers(view, pset.args[4])
+        && related.length > 0 && related.every(id => anchor(view, id))) {
         add(unquote(pset.args[2]), l);
       }
     } else if (l.type === 'IFCRELDECLARES') {
       const related = refs(view, l.args[5]).map(id => view.line(id));
-      if (refs(view, l.args[4]).every(id => anchor(view, id)) && related.length > 0
+      if (refs(view, l.args[4]).every(id => anchor(view, id)) && !onlyForeignMembers(view, l.args[5])
         && related.every(t => t?.type === 'IFCPROPERTYSETTEMPLATE')) add(PSET.StructureMeta, l);
     }
   }
