@@ -126,19 +126,25 @@ test('gantt en tabel: de subtaak-plus staat rechts in de naamkolom, achter de te
   }
 
   // Issue #901: de Tabel toont hetzelfde plusje met hetzelfde gedrag. Automatisch passen (dubbelklik
-  // op de kolomrand) rekent het plusje en de vette samenvattingsnaam mee, zodat de naam heel blijft.
-  await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, {
-    name: 'Casco met een behoorlijk lange samenvattingsnaam',
-  }), tree.summary);
+  // op de kolomrand) rekent inspringing, triehoekje en plusje mee, zodat elke naam heel blijft. Eerst
+  // bepaalt een middellange samenvatting op niveau 0 de breedte, daarna een lange op niveau 1.
+  await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, { name: 'Ruwbouw hoofdgebouw' }), tree.root);
   await openTable(page);
   const tableCell = taskCell(page, tree.summary, 'task.name');
   const tablePlus = tableCell.locator('.task-grid-add-child');
   const tableLabel = tableCell.locator('.full-task-grid-name-label');
   await expect(tablePlus).toBeVisible();
   await expect(taskCell(page, tree.leaf1, 'task.name').locator('.task-grid-add-child')).toHaveCount(0);
-  await page.locator('[data-task-grid-surface-id="full-task-grid"] [data-grid-column-id="task.name"] .task-grid-resize-handle').dblclick();
-  await expect.poll(() => tableLabel.evaluate(el => el.scrollWidth <= el.clientWidth),
-    { message: 'samenvattingsnaam niet afgekapt na automatisch passen' }).toBe(true);
+  const autoFitName = () => page.locator('[data-task-grid-surface-id="full-task-grid"] [data-grid-column-id="task.name"] .task-grid-resize-handle').dblclick();
+  const clippedNames = () => page.locator('[data-task-grid-surface-id="full-task-grid"] .full-task-grid-name-label')
+    .evaluateAll(labels => labels.filter(el => el.scrollWidth > el.clientWidth).map(el => el.textContent));
+  await autoFitName();
+  await expect.poll(clippedNames, { message: 'geen afgekapte middellange naam na automatisch passen' }).toEqual([]);
+  await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, {
+    name: 'Casco met een behoorlijk lange samenvattingsnaam',
+  }), tree.summary);
+  await autoFitName();
+  await expect.poll(clippedNames, { message: 'geen afgekapte lange naam na automatisch passen' }).toEqual([]);
   const tablePlusBox = (await tablePlus.boundingBox())!;
   const tableLabelBox = (await tableLabel.boundingBox())!;
   expect(tablePlusBox.x).toBeGreaterThan(tableLabelBox.x + tableLabelBox.width);

@@ -40,3 +40,13 @@ export function taskNameIndent(depth: number, hasDisclosure: boolean, mode: Task
   if (mode === 'grouped') return level * GROUPED_NAME_INDENT_UNIT;
   return level * TASK_NAME_INDENT_UNIT + (hasDisclosure ? 0 : TASK_NAME_INDENT_UNIT);
 }
+
+/**
+ * Vaste ruimte in de naamrij naast de tekst, voor automatisch passen: de inspringing, bij een
+ * samenvatting het triehoekje met zijn gap (samen één `TASK_NAME_INDENT_UNIT`, ook gegroepeerd waar
+ * het triehoekje gewoon staat) en het subtaak-plusje erachter.
+ */
+export function taskNameFixedWidth(depth: number, hasDisclosure: boolean, mode: TaskNameIndentMode = 'tree'): number {
+  return taskNameIndent(depth, hasDisclosure, mode)
+    + (hasDisclosure ? TASK_NAME_INDENT_UNIT + SUMMARY_ADD_SLOT_WIDTH : 0);
+}

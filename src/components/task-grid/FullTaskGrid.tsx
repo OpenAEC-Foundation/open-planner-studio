@@ -22,7 +22,7 @@ import { useGanttRowDragBridge } from '@/components/canvas/ganttRowDragBridge';
 import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { humanizeTaskGridKey, resolveColumnLabel } from '@/engine/taskGrid/columnLabel';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
-import { SUMMARY_ADD_SLOT_WIDTH, taskNameIndent } from '@/engine/taskGrid/nameIndent';
+import { taskNameFixedWidth, taskNameIndent } from '@/engine/taskGrid/nameIndent';
 import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
 import {
@@ -855,8 +855,7 @@ export function TaskGridSurface({
   // voor de auto-fit-meting, die anders de inspringing en de subtaak-plus niet meetelt.
   const nameIndentMode = isTreeMode(view) ? 'tree' : 'grouped';
   const nameLeadingWidth = useCallback((depth: number, task: Task): number => (
-    taskNameIndent(depth, task.childIds.length > 0, nameIndentMode)
-      + (task.childIds.length > 0 ? SUMMARY_ADD_SLOT_WIDTH : 0)
+    taskNameFixedWidth(depth, task.childIds.length > 0, nameIndentMode)
   ), [nameIndentMode]);
 
   const computeAutoFitWidth = useCallback(async (columnId: TaskColumnId): Promise<number | null> => {
