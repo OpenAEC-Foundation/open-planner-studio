@@ -388,8 +388,9 @@ const SCENES: Record<string, Scene> = {
       await dismissOwnRecovery();
       seedF4bProject('light');
       await dismissLateWelcome();
-      useAppStore.getState().setUI({ showSettingsDialog: true });
-      return tagWhere('.settings-section', el => ['Duurweergave', 'Duration display'].includes(el.querySelector('h3')?.textContent?.trim() ?? ''));
+      // De directe link opent de instellingen op Duurweergave (groep Notatie).
+      useAppStore.getState().setUI({ showSettingsDialog: true, settingsFocusId: 'durationDisplay' });
+      return tagWhere('[data-ops-setting="durationDisplay"]', () => true);
     },
   },
   // Blauwe (nu oranje) infoblokken in Projectinfo › Rekenprofiel.

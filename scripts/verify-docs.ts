@@ -61,6 +61,7 @@ import {
   splitHelpTarget,
 } from '@/utils/helpManifest';
 import * as APP_HELP_ARTICLES from '@/state/helpArticles';
+import { isSettingId } from '@/utils/settingIds';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
 import { stripCode, subsetErrors } from './lib/docs-structure';
 import { checkOptionalDocLang, optionalLangReportLine } from './lib/docs-translations';
@@ -142,12 +143,12 @@ function extractHeadingLevels(source: string): number[] {
   return levels;
 }
 
-/** Alle interne link-targets (docs://, examples://) gesorteerd — voor de bron↔vertaling-pariteit:
+/** Alle interne link-targets (docs://, examples://, settings://) gesorteerd — voor de bron↔vertaling-pariteit:
  *  een vertaling mag geen link laten vallen, toevoegen of het target wijzigen (labels mogen wél
  *  vertaald zijn; die staan hier niet in). */
 function extractLinkTargets(source: string): string[] {
   // Het `#anker` telt niet mee: dat volgt de koptekst en verschilt dus per taal.
-  return [...source.matchAll(/(docs|examples):\/\/([^\s)\]#]+)/g)]
+  return [...source.matchAll(/(docs|examples|settings):\/\/([^\s)\]#]+)/g)]
     .map((m) => `${m[1]}://${m[2]}`)
     .sort();
 }
@@ -756,6 +757,11 @@ function main() {
       const exLinks = [...source.matchAll(/examples:\/\/([^\s)\]]+)/g)].map((m) => m[1]);
       for (const file of exLinks) {
         expect(diffs, exampleFiles.has(file), `${lang}: examples://${file} staat niet in public/examples/manifest.json`);
+      }
+
+      // 3b. settings://-links: een bestaande instelling (`SETTING_IDS`), anders opent de link niets.
+      for (const m of source.matchAll(/settings:\/\/([^\s)\]]+)/g)) {
+        expect(diffs, isSettingId(m[1]), `${lang}: settings://${m[1]} is geen instelling uit src/utils/settingIds.ts`);
       }
 
       // 5. Parser-compatibiliteit.

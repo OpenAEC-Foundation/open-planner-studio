@@ -60,7 +60,7 @@ export function DownloadStatsSection() {
     <div className="settings-section-list" data-ops-download-stats>
       <div className="settings-section">
         <h3>{t('settings.statsDownloadsSection')}</h3>
-        <p className="scrollzoom-hint" style={{ marginTop: 0, marginBottom: 8 }}>{t('settings.statsIntro')}</p>
+        <p className="settings-hint" style={{ marginTop: 0, marginBottom: 8 }}>{t('settings.statsIntro')}</p>
 
         {loading && !stats && <div className="settings-row">{t('settings.statsLoading')}</div>}
         {error && (
@@ -100,7 +100,7 @@ export function DownloadStatsSection() {
                 </tr>
               </tbody>
             </table>
-            <p className="scrollzoom-hint">{t('settings.statsLinuxHint')}</p>
+            <p className="settings-hint">{t('settings.statsLinuxHint')}</p>
             <div className="settings-row" style={{ marginTop: 6 }}>
               {t('settings.statsUpdaterChecks', { n: n(stats.polls) })}
             </div>
@@ -151,7 +151,7 @@ export function DownloadStatsSection() {
         <button className="settings-link" disabled={loading} onClick={() => { void load(true); }}>
           {loading ? t('settings.statsLoading') : t('settings.statsRefresh')}
         </button>
-        <p className="scrollzoom-hint">{t('settings.statsSnapHint')}</p>
+        <p className="settings-hint">{t('settings.statsSnapHint')}</p>
       </div>
     </div>
   );

@@ -87,6 +87,7 @@ export function createDefaultUI(): UIState {
     backstageSection: 'recent',
     collapsedTaskIds: [],
     showSettingsDialog: false,
+    settingsFocusId: null,
     showCalendarDialog: false,
     showUpdateDialog: false,
     justUpdated: null,

@@ -43,7 +43,7 @@ async function setXerNoticeInSettings(page: Page, shown: boolean): Promise<void>
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   const settings = page.locator('.settings-dialog');
   await expect(settings).toBeVisible();
-  await settings.getByRole('button', { name: /^(Advanced|Geavanceerd)$/ }).click();
+  await settings.locator('[data-ops-settings-group="notices"]').click();
   const box = settings.locator('[data-ops-setting-format-notice-kind="xer"]');
   await expect(box).toBeChecked({ checked: !shown });
   await box.click();

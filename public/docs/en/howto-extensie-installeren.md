@@ -35,7 +35,7 @@ A ZIP file must contain a `manifest.json` and the main file of the extension. If
 
 If the app cannot install the ZIP or JS file, for example because a ZIP file is damaged, it shows the error message *The extension could not be installed. Check the file and try again.* If you cancel the file selection or decline the permission question, no error message appears.
 
-Additional technical details are in the debug terminal. Turn it on with *Settings › Project › App settings*, tab *Advanced*, *Enable debug terminal*, and open it with the button *Show debug terminal* in the status bar. There it says, for example, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (this technical log entry is in Dutch).
+Additional technical details are in the debug terminal. Turn it on with *Settings › Project › App settings*, group *Advanced*, [Enable debug terminal](settings://debugTerminal), and open it with the button *Show debug terminal* in the status bar. There it says, for example, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (this technical log entry is in Dutch).
 
 ### Read the permission question
 

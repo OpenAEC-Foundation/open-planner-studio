@@ -35,7 +35,7 @@ If you run in Claude Code:
 If you run somewhere else, such as claude.ai in the browser, tell me that this needs Claude Desktop or Claude Code. If you do not know where you run, ask me.
 
 When the installation is done, explain in a few sentences:
-- how I let you work in the open app: in Open Planner Studio, choose Settings › Project › App settings, tab Advanced, and turn on Allow MCP connection. Then click Start bridge on the tab MCP.
+- how I let you work in the open app: in Open Planner Studio, choose Settings › Project › App settings, group Advanced, and turn on Allow MCP connection. Then click Start bridge on the tab MCP.
 - that without the app a change is in the file only after you save it, and that you do not overwrite an existing file while the app is open.
 If a step fails, tell me in one sentence what went wrong and what I can do. Do not guess.
 ```
@@ -53,7 +53,7 @@ The bridge only works in the desktop app. If you allow the MCP connection in the
 ### 1. Allow the MCP connection
 
 1. Choose *Settings › Project › App settings*. You can also choose *File › App settings*, or the gear at the top.
-2. Choose the tab *Advanced* and turn on *Allow MCP connection*. The tab *MCP* appears in the ribbon.
+2. Choose the group *Advanced* on the left and turn on [Allow MCP connection](settings://aiMode). The tab *MCP* appears in the ribbon.
 3. If you want the bridge to be live as soon as the app starts, also turn on *Start bridge automatically*. That only switches when the MCP connection is on and only works in the desktop app. It is off by default, because opening a port is a deliberate choice.
 
 If you turn the MCP connection off, the bridge stops and the tab *MCP* disappears.

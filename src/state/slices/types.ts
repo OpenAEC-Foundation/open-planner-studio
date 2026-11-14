@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from '../appStore';
+import type { SettingId } from '@/utils/settingIds';
 import type { StoreRuntime } from '../runtime/storeRuntime';
 
 /**
@@ -698,6 +699,9 @@ export interface UIState {
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   showSettingsDialog: boolean;
+  /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die
+   *  instelling, laat hem oplichten en zet dit daarna terug op `null`. Sessiewerk, niet bewaard. */
+  settingsFocusId: SettingId | null;
   showCalendarDialog: boolean;
   showUpdateDialog: boolean;
   /** Als de app zojuist naar een nieuwe versie is geüpdatet — of voor het

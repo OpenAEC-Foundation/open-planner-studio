@@ -17,7 +17,7 @@ The two windows share the task list, the rows and the vertical scroll. What each
 
 ### Giving each window its own stretch of time
 
-- Zoom and scroll in the window your mouse is over. With the default setting for *Scroll & zoom* (*Zoom + drag*) the mouse wheel zooms in that window, centered on your mouse. If your setting follows another mode, the wheel does in both windows what that mode says.
+- Zoom and scroll in the window your mouse is over. With the default setting for [Scroll and zoom](settings://scrollMode) (*Zoom + drag*) the mouse wheel zooms in that window, centered on your mouse. If your setting follows another mode, the wheel does in both windows what that mode says.
 - With the default setting you scroll through the rows with Shift plus the mouse wheel. That applies to both windows at once.
 - The buttons *Zoom +* and *Zoom -* and the time scale list (for example *Quarter*) only work on the left window. So you zoom the right window with the mouse wheel.
 - Drag the bar between the two windows to the left or right to make them wider or narrower. They start at half.

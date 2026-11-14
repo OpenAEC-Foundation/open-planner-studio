@@ -25,7 +25,7 @@ Vlak voordat de update wordt geïnstalleerd, legt de app nog een herstelsnapshot
 ### Zelf controleren op een nieuwe versie
 
 1. Kies *Instellingen › Project › App-instellingen*. Je kunt ook *Bestand › App-instellingen* kiezen, of het tandwiel bovenaan.
-2. Kies het tabblad *Geavanceerd*. Bij *Versie* staat het nummer van je huidige versie.
+2. Kies links de groep *Over de app*. Bij [Versie](settings://version) staat het nummer van je huidige versie.
 3. Klik op *Controleren op updates*. Het venster *Software-update* opent en meldt *Bezig met controleren…*. Daarna staat er *Je gebruikt de nieuwste versie* of de melding dat er een nieuwe versie is, met dezelfde knop *Downloaden & installeren*.
 
 In de browser doet deze knop niets bijzonders: het venster meldt meteen *Je gebruikt de nieuwste versie*, zonder dat de app iets controleert.
@@ -39,7 +39,7 @@ In de browser doet deze knop niets bijzonders: het venster meldt meteen *Je gebr
 5. Onder *Deze update in cijfers* staan het aantal dagen sinds de vorige release, het aantal commits en het aantal toegevoegde regels code. Kan de app het verschil in grootte van het installatiepakket opzoeken, dan staat dat er ook. Elk cijfer staat er alleen als het beschikbaar is.
 6. Klik op *Begrepen* om het venster te sluiten.
 
-Wil je dit venster later nog een keer zien, dan kies je *Instellingen › Project › App-instellingen*, tabblad *Geavanceerd*, bij *Versie* de knop *Wat is er nieuw*. Het venster opent dan voor je huidige versie, zonder vorige versie.
+Wil je dit venster later nog een keer zien, dan kies je *Instellingen › Project › App-instellingen*, groep *Over de app*, bij [Versie](settings://version) de knop *Wat is er nieuw*. Het venster opent dan voor je huidige versie, zonder vorige versie.
 
 ## Valkuilen en wat de app dan doet
 

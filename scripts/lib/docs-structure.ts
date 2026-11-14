@@ -76,7 +76,7 @@ export function sectionHash(text: string): string {
 export interface DocStructure {
   /** Kopniveaus (1/2/3) in volgorde; niet de tekst, want die wordt vertaald. */
   headings: number[];
-  /** Doelen van `docs://`-, `examples://`- en `project://`-links in volgorde, zonder `#anker` (dat volgt de koptekst). */
+  /** Doelen van `docs://`-, `examples://`-, `project://`- en `settings://`-links in volgorde, zonder `#anker` (dat volgt de koptekst). */
   links: string[];
   /** Afbeeldingspaden in volgorde. */
   images: string[];
@@ -95,7 +95,7 @@ export function structureOf(md: string): DocStructure {
     if (h) headings.push(h[1].length);
     if (UL_RE.test(line) || OL_RE.test(line)) listItems++;
     for (const m of line.matchAll(/!\[[^\]]*\]\(([^)]*)\)/g)) images.push(m[1].trim());
-    for (const m of line.matchAll(/(docs|examples|project):\/\/([^\s)\]#]+)/g)) links.push(`${m[1]}://${m[2]}`);
+    for (const m of line.matchAll(/(docs|examples|project|settings):\/\/([^\s)\]#]+)/g)) links.push(`${m[1]}://${m[2]}`);
   }
   return { headings, links, images, listItems };
 }
@@ -133,11 +133,11 @@ export function subsetErrors(md: string, imageCheck?: (path: string, line: numbe
     if (/~~[^~]+~~/.test(line)) out.push(`${n} doorhaal-syntax (~~tekst~~) niet ondersteund door miniMarkdown`);
     const htmlTag = /<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^<>]*)?>/.exec(line);
     if (htmlTag) out.push(`${n} raw HTML-tag (${htmlTag[0]}) wordt niet geïnterpreteerd, alleen als platte tekst getoond`);
-    // Linkschema's anders dan docs://, examples://. `(?<!!)`: een afbeelding is geen link.
+    // Linkschema's anders dan docs://, examples://, settings://. `(?<!!)`: een afbeelding is geen link.
     for (const lm of line.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)) {
       const href = lm[1];
-      if (!href.startsWith('docs://') && !href.startsWith('examples://')) {
-        out.push(`${n} linkschema niet toegestaan (alleen docs:// en examples://): ${href}`);
+      if (!href.startsWith('docs://') && !href.startsWith('examples://') && !href.startsWith('settings://')) {
+        out.push(`${n} linkschema niet toegestaan (alleen docs://, examples:// en settings://): ${href}`);
       }
     }
   });

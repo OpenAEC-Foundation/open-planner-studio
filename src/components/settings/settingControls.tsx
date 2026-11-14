@@ -21,7 +21,7 @@ function applyLocale(locale: Locale): void {
   void saveLocale(locale);
 }
 
-const LANGUAGE_OPTIONS = [...supportedLanguages]
+export const LANGUAGE_OPTIONS = [...supportedLanguages]
   .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
   .map(code => {
     const [short, label] = LANGUAGE_LABELS[code];
@@ -64,7 +64,7 @@ export function SettingToggle({ label, hint, checked, onChange, disabled, style,
         />
         <span>{label}</span>
       </label>
-      {hint && <p className="scrollzoom-hint">{hint}</p>}
+      {hint && <p className="settings-hint">{hint}</p>}
     </>
   );
 }

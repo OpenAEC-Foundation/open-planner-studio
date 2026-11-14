@@ -28,12 +28,12 @@ const FIXTURE = {
   ],
 };
 
-/** Instellingen → tab Geavanceerd → knop Statistieken… → de dialoog. De instellingen-dialoog sluit daarbij. */
+/** Instellingen → groep Over de app → knop Statistieken… → de dialoog. De instellingen-dialoog sluit daarbij. */
 async function openStatsDialog(page: Page): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.locator('.settings-dialog');
   await expect(settings).toBeVisible();
-  await settings.getByRole('button', { name: 'Advanced' }).click();
+  await settings.locator('[data-ops-settings-group="about"]').click();
   await settings.getByRole('button', { name: 'Statistics…' }).click();
   await expect(settings).toHaveCount(0);
   await expect(page.locator('[data-ops-stats-dialog]')).toBeVisible();
@@ -45,9 +45,9 @@ test('Statistieken achter de knop op tab Geavanceerd: downloads per OS en per re
   let hits = 0;
   await page.route(STATS_URL, route => { hits++; void route.fulfill({ json: FIXTURE }); });
 
-  // Geen eigen tabblad meer: de instellingen-dialoog heeft precies drie tabs (U1).
+  // Geen eigen groep: de statistieken zijn een knop onder Over de app, naast de andere groepen.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  await expect(page.locator('.settings-dialog .settings-tab')).toHaveCount(3);
+  await expect(page.locator('.settings-dialog [data-ops-settings-group="stats"]')).toHaveCount(0);
   await openStatsDialog(page);
 
   const dialog = page.locator('[data-ops-stats-dialog]');

@@ -35,7 +35,7 @@ Een ZIP-bestand moet een `manifest.json` en het hoofdbestand van de extensie bev
 
 Kan de app het ZIP- of JS-bestand niet installeren, bijvoorbeeld omdat een ZIP-bestand beschadigd is, dan toont de app de foutmelding *De extensie kon niet worden geïnstalleerd. Controleer het bestand en probeer opnieuw.* Annuleer je de bestandskeuze of weiger je de toestemmingsvraag, dan verschijnt er geen foutmelding.
 
-Aanvullende technische details staan in de debug-terminal. Zet die aan met *Instellingen › Project › App-instellingen*, tabblad *Geavanceerd*, *Debug-terminal inschakelen*, en open hem met de knop *Debug-terminal tonen* in de statusbalk. Daar staat dan bijvoorbeeld *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP*.
+Aanvullende technische details staan in de debug-terminal. Zet die aan met *Instellingen › Project › App-instellingen*, groep *Geavanceerd*, [Debug-terminal inschakelen](settings://debugTerminal), en open hem met de knop *Debug-terminal tonen* in de statusbalk. Daar staat dan bijvoorbeeld *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP*.
 
 ### De toestemmingsvraag lezen
 

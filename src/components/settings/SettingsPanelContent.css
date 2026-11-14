@@ -1,12 +1,339 @@
-/* Shared settings panel — used by the gear dialog, the ribbon (via dialog),
-   and the File → Backstage section. Reuses the .settings-* classes from
-   SettingsDialog.css and adds the theme-picker + checkbox styling. */
+/* Shared settings panel — used by the gear dialog, the ribbon (via dialog), and the
+   File → Backstage section. The shell (.settings-content, .settings-tabs) lives in
+   SettingsDialog.css; this file styles the toolbar, the rows and the visual pickers. */
 
 /* In the Backstage there is no fixed-height shell, so give the panel a
    sensible working height; inside the dialog the flex shell already
    stretches it to 100%. */
 .settings-content {
   min-height: 360px;
+}
+
+/* --- Zoekbalk en filter --- */
+.settings-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--theme-border);
+  flex-shrink: 0;
+}
+
+.settings-search {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding-inline: 8px;
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  background: var(--theme-input-bg);
+  color: var(--theme-text-dim);
+}
+
+.settings-search:focus-within {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+
+.settings-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--theme-text);
+  font-family: inherit;
+  font-size: var(--text-body);
+}
+
+/* De eigen wisknop vervangt die van de browser (die niet in alle thema's leesbaar is). */
+.settings-search input::-webkit-search-cancel-button { display: none; }
+
+.settings-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--theme-text-dim);
+  cursor: pointer;
+}
+
+.settings-search-clear:hover { background: var(--theme-hover); color: var(--theme-text); }
+
+.settings-filter {
+  flex-shrink: 0;
+  height: 28px;
+  padding-inline: 10px;
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--theme-text);
+  font-family: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.settings-filter:hover:not(:disabled) { background: var(--theme-hover); }
+.settings-filter.active {
+  border-color: var(--theme-accent);
+  background: rgba(217, 119, 6, 0.10);
+  color: var(--theme-accent);
+}
+.settings-filter:disabled { opacity: 0.5; cursor: default; }
+.settings-filter:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+
+.settings-empty {
+  margin: 24px 0;
+  text-align: center;
+  font-size: var(--text-body);
+  color: var(--theme-text-muted);
+}
+
+/* --- Groepen en rijen --- */
+.settings-group + .settings-group { margin-top: 10px; }
+
+.settings-group-title {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 0 6px;
+  background: var(--theme-surface);
+  font-family: var(--font-heading);
+  font-size: var(--text-large);
+  font-weight: 700;
+  color: var(--theme-text);
+}
+
+/* Een rij: links een kantlijn voor de stip "gewijzigd", zodat de namen recht onder elkaar blijven. */
+.settings-item {
+  position: relative;
+  padding: 8px 8px 8px 14px;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.settings-item:focus { outline: none; }
+
+.settings-item + .settings-item { border-top: 1px solid var(--theme-border-light); }
+
+.settings-item.is-highlighted {
+  border-radius: var(--radius-md);
+  background: rgba(217, 119, 6, 0.12);
+  box-shadow: inset 0 0 0 1px var(--theme-accent);
+}
+
+.settings-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.settings-item-label {
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--theme-text);
+}
+
+.settings-item.is-unavailable .settings-item-label { color: var(--theme-text-muted); }
+
+.settings-item-spacer { flex: 1; }
+
+.settings-item-select { width: 210px; flex-shrink: 0; }
+
+.settings-changed-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  flex-shrink: 0;
+}
+
+.settings-item-head > .settings-changed-dot {
+  position: absolute;
+  inset-inline-start: 4px;
+  top: 17px;
+}
+
+.settings-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--theme-text-dim);
+  cursor: pointer;
+}
+
+.settings-reset:hover { background: var(--theme-hover); color: var(--theme-accent); border-color: var(--theme-control-border); }
+.settings-reset:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+
+.settings-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--theme-control-border);
+  font-size: var(--text-caption);
+  color: var(--theme-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settings-unavailable-reason { color: var(--theme-warning-text); }
+
+/* De eigen bediening onder een rij: een fieldset zodat "uitgegrijsd" alles erin uitschakelt. */
+.settings-item-body {
+  margin: 6px 0 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.settings-item-body:disabled { opacity: 0.55; }
+
+.settings-item .ops-note { margin-top: 6px; }
+
+/* Stats-dialoog (DownloadStatsSection) gebruikt nog de klassieke secties met kop. */
+.settings-section-list > .settings-section + .settings-section { margin-top: 10px; }
+
+/* Checkbox rows */
+.settings-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-body);
+  color: var(--theme-text);
+  cursor: pointer;
+}
+
+.settings-toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 4px;
+}
+
+.settings-button-row .settings-link + .settings-link { margin-top: 0; }
+
+/* --- Kaarten met plaatje (thema en elke instelling met een plaatje) --- */
+.settings-visual-choice {
+  display: grid;
+  grid-template-columns: repeat(var(--settings-visual-columns, 3), minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Twee kaarten (uit/aan) worden niet breder dan drie: dan blijven alle plaatjes even groot. */
+.settings-visual-choice.is-pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: calc((100% - 16px) / 3 * 2 + 8px);
+}
+
+.settings-visual-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  border: 1.5px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  cursor: pointer;
+  background: var(--theme-surface);
+  text-align: start;
+  font-family: inherit;
+  color: var(--theme-text);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-visual-card:hover { border-color: var(--theme-accent); }
+.settings-visual-card:focus-visible {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
+}
+.settings-visual-card.active {
+  border-color: var(--theme-accent);
+  background: rgba(217, 119, 6, 0.10);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.10);
+}
+
+/* Uitgegrijsd (bv. thema's zolang "Volg systeemthema" aanstaat): de kaarten tonen dan alleen nog WAT
+   er geldt, ze zijn geen keuze. De tweede regel houdt de gemarkeerde kaart ook bij hover herkenbaar. */
+.settings-visual-card:disabled { cursor: default; opacity: 0.45; }
+.settings-visual-card:disabled:hover { border-color: var(--theme-control-border); }
+.settings-visual-card.active:disabled:hover { border-color: var(--theme-accent); }
+
+.settings-visual-card-label {
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.settings-visual-card.active .settings-visual-card-label { font-weight: 600; }
+
+.settings-theme-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.settings-theme-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--theme-border);
+}
+
+.settings-item [data-ops-follow-system-theme] { margin: 0; }
+.settings-item .settings-visual-choice + .settings-checkbox-row { margin-top: 8px; }
+
+/* --- Muiswiel per toets: drie keuzelijsten met het plaatje ernaast --- */
+.settings-wheelmap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 150px);
+  gap: 12px;
+  align-items: center;
+}
+
+.settings-wheelmap-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-inline-field {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-body);
+  color: var(--theme-text);
+}
+
+/* --- Over de app --- */
+.settings-version-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* Versienummer blijft selecteerbaar; de native knop ondersteunt focus en Enter-herhaling. */
@@ -26,91 +353,9 @@
   outline-offset: 3px;
 }
 
-/* U1: subkop binnen een tab die een paar secties groepeert (bv. "Gantt" onder
-   Weergave) zonder zelf een nieuwe tab te worden. Iets prominenter dan een
-   gewone sectie-h3 (die is uppercase/gedimd), zonder de vorm te herontwerpen. */
-.settings-subhead {
-  margin: 4px 0 0 0;
-  font-family: var(--font-heading);
-  font-size: var(--text-large);
-  font-weight: 700;
-  color: var(--theme-text);
-}
-
-/* Checkbox rows */
-.settings-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-body);
-  color: var(--theme-text);
-  cursor: pointer;
-}
-
-/* Theme picker — visual swatch cards */
-.settings-theme-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.settings-theme-card {
-  border: 1.5px solid var(--theme-control-border);
-  border-radius: var(--radius-md);
-  padding: 8px;
-  cursor: pointer;
-  background: var(--theme-surface);
-  text-align: left;
-  font-family: inherit;
-  color: var(--theme-text);
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.settings-theme-card:hover { border-color: var(--theme-accent); }
-.settings-theme-card:focus-visible {
-  outline: none;
-  border-color: var(--theme-accent);
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
-}
-.settings-theme-card.active {
-  border-color: var(--theme-accent);
-  background: rgba(217, 119, 6, 0.10);
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.10);
-}
-
-/* Uitgegrijsd zolang "Volg systeemthema" aanstaat: de kaarten tonen dan alleen nog WAT het
-   systeem oplevert, ze zijn geen keuze meer. De tweede regel houdt de gemarkeerde kaart ook bij
-   hover herkenbaar — zonder die uitzondering wint de disabled-hoverregel van `.active`. */
-.settings-theme-card:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-.settings-theme-card:disabled:hover { border-color: var(--theme-control-border); }
-.settings-theme-card.active:disabled:hover { border-color: var(--theme-accent); }
-
-.settings-theme-card h4 {
-  margin: 0 0 6px 0;
-  font-size: var(--text-body);
-  font-weight: 600;
-  color: var(--theme-text);
-}
-
-.settings-theme-swatches {
-  display: flex;
-  gap: 4px;
-}
-
-.settings-theme-swatch {
-  width: 16px;
-  height: 16px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--theme-border);
-}
-
-/* Tab Statistieken — compacte cijfertabellen die in de 520 px brede popup passen. Geen vaste
-   kolombreedtes: de browser verdeelt op inhoud, en `.num` lijnt cijfers rechts uit met tabulaire
-   cijfers zodat kolommen op elkaar staan. De tabel scrolt nooit horizontaal (issue-klasse
-   "past niet in de tandwiel-popup"): bij krapte breken de koppen, niet de cijfers. */
+/* Tab Statistieken — compacte cijfertabellen die in de popup passen. Geen vaste kolombreedtes: de
+   browser verdeelt op inhoud, en `.num` lijnt cijfers rechts uit met tabulaire cijfers zodat kolommen
+   op elkaar staan. De tabel scrolt nooit horizontaal: bij krapte breken de koppen, niet de cijfers. */
 .settings-stats-table {
   width: 100%;
   border-collapse: collapse;

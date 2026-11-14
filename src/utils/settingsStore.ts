@@ -206,6 +206,11 @@ function sessionTheme(): UITheme | null {
   return devSessionTheme() ?? siteHostTheme();
 }
 
+/** Het thema van een eerste start, zonder bewaarde voorkeur: de standaard van de instelling Thema. */
+export function startTheme(): UITheme {
+  return sessionTheme() ?? 'dark';
+}
+
 /** Kiest de volgende start het thema van de host (#818)? Dat is zo als de host nu een geldig `thema`
  *  geeft en er geen dev-link-thema is (dat wint bij elke start, zie `sessionTheme`). Dan geldt een
  *  themakeuze in de app alleen tot de volgende start. De parameters zijn er voor de headless check:

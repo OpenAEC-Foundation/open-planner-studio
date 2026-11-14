@@ -19,6 +19,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripCode, structureHash, subsetErrors } from './docs-structure';
+import { isSettingId } from '../../src/utils/settingIds';
 
 export interface OptionalLangInput {
   /** `public/docs`. */
@@ -176,6 +177,9 @@ export function checkOptionalDocLang(input: OptionalLangInput): OptionalLangResu
     }
     for (const m of text.matchAll(/examples:\/\/([^\s)\]]+)/g)) {
       if (!exampleFiles.has(m[1])) result.unknownLinks.push(`${id}: examples://${m[1]}`);
+    }
+    for (const m of code.matchAll(/settings:\/\/([^\s)\]]+)/g)) {
+      if (!isSettingId(m[1])) result.unknownLinks.push(`${id}: settings://${m[1]}`);
     }
 
     // Structuur tegen de en-bron waaruit de vertaling kwam (alleen voor manifestartikelen).

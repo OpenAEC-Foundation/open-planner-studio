@@ -1,614 +1,228 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
-import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
-import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
-import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveAutoFitColumns } from '@/utils/settingsStore';
-import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNoticeKinds';
-import { applyAiModeLive } from '@/services/mcp/server';
-import { isTauri } from '@/utils/platform';
-import { Select } from '@/components/common/Select';
 import { Icon } from '@/components/icons';
-import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
-import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
-import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
-import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
-import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
-import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
-import { AppLogo } from '@/components/common/AppLogo';
+import {
+  GROUP_LABEL_KEYS, SETTINGS_CATALOG, SETTINGS_GROUPS, isSettingChanged, settingEntry,
+} from './catalog/settingsCatalog';
+import type { SettingId, SettingsGroupId } from '@/utils/settingIds';
+import type { SettingEntry } from './catalog/types';
+import { matchesSearch, searchTerms, splitKeywords } from './catalog/settingsSearch';
+import { SettingRow, choiceOptionLabel } from './SettingRow';
 
-// Drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
-// planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie);
-// zie docs/recepten/instelling.md en public/docs/{nl,en}/ref-instellingen.md.
-type SettingsTab = 'appearance' | 'planning' | 'advanced';
-
-// Representatieve kleurstalen per thema voor de visuele theme-picker.
-const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
-  'dark':          ['#2A2A32', '#36363E', '#D97706', '#FAFAF9'],
-  // Licht volgt Blueprint v2026.45.0: titelbalk `frame`, paneel, accent en tekst (geen crème).
-  'light':         ['#F4F4F5', '#FFFFFF', '#D97706', '#2A2A31'],
-  'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
-};
-
-// i18n-sleutels voor de lettertype-familie-opties — zelfde patroon als THEME_LABEL_KEYS.
-// `as const satisfies` i.p.v. een `Record<UIFontFamily, string>`-annotatie: die annotatie zou de
-// waarden verbreden naar `string`, en dan accepteert de getypeerde `t(...)` ze niet meer (i18next
-// valideert de sleutel tegen een union van bestaande keys). `satisfies` houdt de
-// volledigheidscheck op UIFontFamily én de letterlijke sleuteltypen.
-const FONT_FAMILY_LABEL_KEYS = {
-  'default': 'settings.fontFamilyDefault',
-  'system':  'settings.fontFamilySystem',
-  'serif':   'settings.fontFamilySerif',
-  'mono':    'settings.fontFamilyMono',
-} as const satisfies Record<UIFontFamily, string>;
+/** Hoe lang een instelling oplicht na een directe link (`openSettingsAt`). */
+const HIGHLIGHT_MS = 2000;
 
 /**
- * Eén gedeelde settings-UI die in alle drie de toegangspunten draait
- * (gear-dialog, Instellingen-ribbon → dialog, en File → Backstage).
- * Alle wijzigingen worden LIVE toegepast en gepersisteerd — geen pending/OK.
+ * Eén gedeelde settings-UI die in alle drie de toegangspunten draait (tandwiel, Instellingen-lint →
+ * dialoog, en Bestand → Backstage). Links de groepen, rechts de instellingen van de gekozen groep.
+ * Zoeken of "Alleen gewijzigd" toont de passende instellingen uit alle groepen, per groep onder een
+ * kop. Alle wijzigingen gelden meteen en worden bewaard; er is geen OK of Annuleren.
+ * De instellingen zelf staan in `catalog/settingsCatalog.tsx`.
  */
 export function SettingsPanelContent() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
-  const currentTheme = useAppStore(s => s.ui.uiTheme);
-  // Zolang de systeemschakelaar aanstaat is er geen eigen keuze om te tonen: de kaarten staan uit
-  // en de kaart die het systeem oplevert is de gemarkeerde.
-  const resolvedTheme = useResolvedUITheme();
-  const followSystem = currentTheme === 'system';
-  const uiFontFamily = useAppStore(s => s.ui.uiFontFamily);
-  const uiFontScale = useAppStore(s => s.ui.uiFontScale);
-  const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
-  const weekStartDay = useAppStore(s => s.ui.weekStartDay);
-  const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
-  const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
-  const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
-  const autoFitColumns = useAppStore(s => s.ui.autoFitColumns);
-  const showClassicViewControls = useAppStore(s => s.ui.showClassicViewControls);
-  const ribbonWheelSwitchesTabs = useAppStore(s => s.ui.ribbonWheelSwitchesTabs);
-  const constructionMode = useAppStore(s => s.ui.constructionMode);
-  const dateNotation = useAppStore(s => s.ui.dateNotation);
-  const timeNotation = useAppStore(s => s.ui.timeNotation);
-  // B9: Duurweergave staat grijs zolang het profiel de dagenmaat telt (het OPS-profiel); dezelfde regel
-  // als de schermen (`useEffectiveDurationDisplay`) en de invoer (B8).
-  const opsProfile = useProfileCountsWorkdays();
-  const showTaskTypes = useAppStore(s => s.ui.showTaskTypes);
-  const formatNoticeHidden = useAppStore(s => s.ui.formatNoticeHidden);
-  const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
-  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
-  const barSplitMode = useAppStore(s => s.ui.barSplitMode);
-  const aiMode = useAppStore(s => s.ui.aiMode);
-  const aiAutostart = useAppStore(s => s.ui.aiAutostart);
-  const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
-  const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
-  const featureFlags = useAppStore(s => s.ui.featureFlags);
-  const availableFlags = FEATURE_FLAGS;
+  const [group, setGroup] = useState<SettingsGroupId>('appearance');
+  const [query, setQuery] = useState('');
+  const [changedOnly, setChangedOnly] = useState(false);
+  const [highlight, setHighlight] = useState<SettingId | null>(null);
+  // Een directe link naar een instelling die in haar groep verborgen is (bv. Schermverdeling buiten de
+  // modus Positie) laat haar zien tot je een andere groep kiest of gaat zoeken; oplichten duurt korter.
+  const [revealed, setRevealed] = useState<SettingId | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
-  const versionRef = useRef<HTMLButtonElement>(null);
-  const unlockSequence = useRef<{ start: number; last: number } | null>(null);
+  // Welke instellingen nu beschikbaar en gewijzigd zijn, als tekst zodat de selector alleen bij een
+  // echte verandering opnieuw rendert (de ui-state verandert ook om andere redenen).
+  const availableIds = useAppStore(s => SETTINGS_CATALOG
+    .filter(e => !e.requires || e.requires.met(s)).map(e => e.id).join(' '));
+  const changedIds = useAppStore(s => SETTINGS_CATALOG
+    .filter(e => isSettingChanged(e, s.ui)).map(e => e.id).join(' '));
+  const available = useMemo(() => new Set(availableIds.split(' ')), [availableIds]);
+  const changed = useMemo(() => new Set(changedIds === '' ? [] : changedIds.split(' ')), [changedIds]);
 
-  // Geen timer: alleen een nieuwe activering kan ontgrendelen. Een pauze van > 0,5 s
-  // begint opnieuw. De native knop levert ook clicks bij Enter-toetsherhaling.
-  const activateVersion = () => {
-    if (experimentalSettingsVisible) return;
-    const now = performance.now();
-    const sequence = unlockSequence.current;
-    if (!sequence || now - sequence.last > 500) {
-      unlockSequence.current = { start: now, last: now };
-    } else if (now - sequence.start >= 5_000) {
-      unlockSequence.current = null;
-      applySetting('experimentalSettingsVisible', true, saveExperimentalSettingsVisible);
-    } else {
-      sequence.last = now;
+  // De zoekteksten per instelling in de huidige taal.
+  const searchIndex = useMemo(() => new Map(SETTINGS_CATALOG.map(entry => [entry.id, searchTextsOf(entry, t)])),
+    // `i18n.language`: de teksten veranderen met de taal, ook als `t` dezelfde functie blijft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t, i18n.language]);
+
+  const terms = searchTerms(query);
+  const filtering = terms.length > 0 || changedOnly;
+
+  const visible = (entry: SettingEntry): boolean => {
+    const met = available.has(entry.id);
+    if (entry.requires?.hide === 'always' && !met) return false;
+    if (!filtering && entry.id === revealed) return true;
+    if (!filtering) return entry.group === group && (met || !entry.requires?.hide);
+    if (changedOnly && !changed.has(entry.id)) return false;
+    return matchesSearch(searchIndex.get(entry.id) ?? [], terms);
+  };
+  const shown = SETTINGS_CATALOG.filter(visible);
+  const shownGroups = filtering ? SETTINGS_GROUPS.filter(g => shown.some(e => e.group === g)) : [group];
+
+  // Directe link: een ander scherm zet `settingsFocusId` (via `openSettingsAt`). Het paneel gaat naar
+  // de groep, laat de instelling oplichten en geeft hem de focus; daarna is de link verbruikt.
+  const focusId = useAppStore(s => s.ui.settingsFocusId);
+  useEffect(() => {
+    if (!focusId) return;
+    setUI({ settingsFocusId: null });
+    const linked = settingEntry(focusId);
+    // Een vergrendeld blok (Experimenteel) blijft verborgen; de link landt dan op het versienummer
+    // waarmee je het ontgrendelt.
+    const locked = linked?.requires?.hide === 'always' && !linked.requires.met(useAppStore.getState());
+    const entry = locked ? settingEntry('version') : linked;
+    if (!entry) return;
+    setQuery('');
+    setChangedOnly(false);
+    setGroup(entry.group);
+    setHighlight(entry.id);
+    setRevealed(entry.id);
+  }, [focusId, setUI]);
+
+  useEffect(() => {
+    if (!highlight) return;
+    const row = rootRef.current?.querySelector<HTMLElement>(`[data-ops-setting="${highlight}"]`);
+    row?.scrollIntoView({ block: 'center' });
+    // De eerste bediening die werkt; staat alles uit (de instelling doet nu niets), dan de rij zelf.
+    const control = row?.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)');
+    (control ?? row)?.focus({ preventScroll: true });
+    const timer = window.setTimeout(() => setHighlight(null), HIGHLIGHT_MS);
+    return () => window.clearTimeout(timer);
+  }, [highlight]);
+
+  // "/" of Ctrl+F (Cmd+F) springt naar de zoekbalk zolang de instellingen open zijn, ook vanuit de kop
+  // en voet van de dialoog of de Backstage-navigatie. Niet als een ander venster erboven de focus heeft.
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      const root = rootRef.current;
+      const target = e.target instanceof Element ? e.target : null;
+      if (e.defaultPrevented || !root || !target) return;
+      const dialog = target.closest('[role="dialog"], [aria-modal="true"]');
+      if (dialog && !dialog.contains(root)) return;
+      const find = e.key.toLowerCase() === 'f' && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+      const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTextEntry(target);
+      if (!find && !slash) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Escape in een gevulde zoekbalk wist eerst de zoekterm; pas de volgende sluit de dialoog.
+  const onSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape' && query !== '') {
+      e.stopPropagation();
+      setQuery('');
     }
   };
 
-  // "Wat is er nieuw" handmatig openen: toon JustUpdatedDialog voor de HUIDIGE versie (dus zonder
-  // "van"-versie). KRITIEK: `@tauri-apps/*` alleen dynamisch achter `isTauri()` — in de web-build
-  // valt dit terug op de build-time versie uit vite-define.
-  const openWhatsNew = async () => {
-    let version = __APP_VERSION__;
-    if (isTauri()) {
-      try {
-        const { getVersion } = await import('@tauri-apps/api/app');
-        version = await getVersion();
-      } catch {
-        /* terugval op __APP_VERSION__ */
-      }
-    }
-    setUI({ justUpdated: { from: null, to: version }, showSettingsDialog: false });
+  const chooseGroup = (next: SettingsGroupId) => {
+    setGroup(next);
+    setQuery('');
+    setChangedOnly(false);
+    setRevealed(null);
   };
-
-  // --- Live appliers (geen pending state): elke wijziging meteen setUI + persisteren --------
-  // Uitzetten landt op het thema dat op dát moment op het scherm staat, niet op een vaste waarde:
-  // zo springt er niets bij het omzetten en kies je daarna verder vanaf wat je ziet.
-  const applyFollowSystem = (checked: boolean) => applyTheme(checked ? 'system' : resolvedTheme);
-
-  // Knoppen die een andere dialoog openen sluiten eerst de Instellingen-dialoog (tandwiel/ribbon)
-  // én Backstage (activeRibbonTab terug naar 'start'), zodat die dialoog vrij opent.
-  const openFromSettings = (patch: Partial<UIState>) =>
-    setUI({ showSettingsDialog: false, activeRibbonTab: 'start', ...patch });
 
   return (
-    <div className="settings-content">
-      {/* Left sidebar tabs */}
-      <div className="settings-tabs">
-        <button
-          className={`settings-tab ${activeTab === 'appearance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('appearance')}
-        >
-          {t('settings.appearanceTab')}
-        </button>
-        <button
-          className={`settings-tab ${activeTab === 'planning' ? 'active' : ''}`}
-          onClick={() => setActiveTab('planning')}
-        >
-          {t('settings.planningTab')}
-        </button>
-        <button
-          className={`settings-tab ${activeTab === 'advanced' ? 'active' : ''}`}
-          onClick={() => setActiveTab('advanced')}
-        >
-          {t('settings.advancedTab')}
-        </button>
-      </div>
-
-      {/* Right content */}
-      <div className="settings-tab-content">
-        {activeTab === 'appearance' && (
-          <div className="settings-section-list">
-            <div className="settings-section">
-              <h3>{t('settings.theme')}</h3>
-              <p className="scrollzoom-hint">{t('settings.themeHint')}</p>
-              <div className="settings-theme-grid">
-                {UI_THEMES.map(({ id }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`settings-theme-card ${(followSystem ? resolvedTheme : currentTheme) === id ? 'active' : ''}`}
-                    data-ops-theme-card={id}
-                    aria-pressed={(followSystem ? resolvedTheme : currentTheme) === id}
-                    disabled={followSystem}
-                    onClick={() => applyTheme(id)}
-                  >
-                    <h4>{t(THEME_LABEL_KEYS[id])}</h4>
-                    <div className="settings-theme-swatches">
-                      {THEME_SWATCHES[id].map((hex, i) => (
-                        <span key={i} className="settings-theme-swatch" style={{ background: hex }} />
-                      ))}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <SettingToggle
-                label={t('settings.themeFollowSystem')}
-                checked={followSystem}
-                onChange={applyFollowSystem}
-                style={{ marginTop: 8 }}
-                inputProps={{ 'data-ops-follow-system-theme': true }}
-              />
-              {followSystem && (
-                <p className="scrollzoom-hint">
-                  {t('settings.themeSystemHint', { theme: t(THEME_LABEL_KEYS[resolvedTheme]) })}
-                </p>
-              )}
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.language')}</h3>
-              <LanguageSelect />
-              <p className="scrollzoom-hint">{t('settings.languageHint')}</p>
-            </div>
-
-            {/* Lettertype interface: familie + grootte. Web-apps volgen — anders dan
-                native apps — niet automatisch de systeemlettertype-instelling, wat leesbaarheid/
-                toegankelijkheid kan beïnvloeden; hier kiest de gebruiker beide. Familie overschrijft
-                via App.tsx de --font-heading/--font-body-variabelen (of herstelt ze bij 'default');
-                de schaal stuurt de rem-basis + de calc-px-sizes in de chrome-css. Het effect dat de
-                CSS-variabelen/rem-basis daadwerkelijk schrijft zit in App.tsx (één plek). */}
-            <div className="settings-section">
-              <h3>{t('settings.fontFamilyLabel')}</h3>
-              <Select
-                aria-label={t('settings.fontFamilyLabel')}
-                value={uiFontFamily}
-                onChange={v => applySetting('uiFontFamily', v as UIFontFamily, saveUIFontFamily)}
-                options={UI_FONT_FAMILIES.map(f => ({ value: f, label: t(FONT_FAMILY_LABEL_KEYS[f]) }))}
-              />
-              <p className="scrollzoom-hint">{t('settings.fontHint')}</p>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.fontScaleLabel')}</h3>
-              <Select
-                aria-label={t('settings.fontScaleLabel')}
-                value={String(uiFontScale)}
-                onChange={v => applySetting('uiFontScale', Number(v), saveUIFontScale)}
-                options={UI_FONT_SCALES.map(s => ({ value: String(s), label: `${s}%` }))}
-              />
-              <p className="scrollzoom-hint">{t('settings.fontScaleHint')}</p>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.dateNotation')}</h3>
-              <Select
-                aria-label={t('settings.dateNotation')}
-                value={dateNotation}
-                onChange={v => applySetting('dateNotation', v as DateNotation, saveDateNotation)}
-                // De patroonletters zijn taalgebonden (nl jjjj, en yyyy, de JJJJ, fr aaaa, …),
-                // dus door t() en niet hardgecodeerd.
-                options={[
-                  { value: 'dmy', label: t('settings.dateNotationDmy') },
-                  { value: 'mdy', label: t('settings.dateNotationMdy') },
-                  { value: 'ymd', label: t('settings.dateNotationYmd') },
-                ]}
-              />
-              <p className="scrollzoom-hint">{t('settings.dateNotationHint')}</p>
-            </div>
-
-            <div className="settings-section" data-ops-setting="timeNotation">
-              <h3>{t('settings.timeNotation')}</h3>
-              <Select
-                aria-label={t('settings.timeNotation')}
-                value={timeNotation}
-                onChange={v => applySetting('timeNotation', v as TimeNotation, saveTimeNotation)}
-                options={[
-                  { value: '24h', label: t('settings.timeNotation24h') },
-                  { value: '12h', label: t('settings.timeNotation12h') },
-                ]}
-              />
-              <p className="scrollzoom-hint">{t('settings.timeNotationHint')}</p>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.durationDisplay')}</h3>
-              <Select
-                aria-label={t('settings.durationDisplay')}
-                value={durationDisplay}
-                disabled={opsProfile}
-                onChange={v => applySetting('durationDisplay', v as DurationDisplay, saveDurationDisplay)}
-                options={[
-                  { value: 'auto', label: t('settings.durationDisplayAuto') },
-                  { value: 'days', label: t('settings.durationDisplayDays') },
-                  { value: 'hours', label: t('settings.durationDisplayHours') },
-                ]}
-              />
-              <p className="scrollzoom-hint">{t(opsProfile ? 'settings.durationDisplayOpsHint' : 'settings.durationDisplayHint')}</p>
-              <SettingToggle
-                label={t('settings.allowMixedDayHour')}
-                checked={allowMixedDayHour}
-                onChange={checked => applySetting('allowMixedDayHour', checked, saveAllowMixedDayHour)}
-              />
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.documentChrome')}</h3>
-              <Select
-                aria-label={t('settings.documentChrome')}
-                value={documentChromeStyle}
-                onChange={v => applySetting('documentChromeStyle', v as DocumentChromeStyle, saveDocumentChromeStyle)}
-                options={[
-                  { value: 'tabs', label: t('settings.documentChromeTabs') },
-                  { value: 'rail', label: t('settings.documentChromeRail') },
-                  { value: 'switcher', label: t('settings.documentChromeSwitcher') },
-                ]}
-              />
-              <p className="scrollzoom-hint">{t('settings.documentChromeHint')}</p>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.ribbonSection')}</h3>
-              {/* #688: muiswiel boven de lint-tabs wisselt van tab (useRibbonTabWheel). */}
-              <SettingToggle
-                label={t('settings.ribbonWheelSwitchesTabs')}
-                hint={t('settings.ribbonWheelSwitchesTabsHint')}
-                checked={ribbonWheelSwitchesTabs}
-                onChange={checked => applySetting('ribbonWheelSwitchesTabs', checked, saveRibbonWheelSwitchesTabs)}
-                inputProps={{ 'data-ops-ribbon-wheel-setting': '' }}
-              />
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.taskGridSection')}</h3>
-              {/* Kolommen automatisch aanpassen: de breedte volgt de inhoud; een met de hand
-                  versleepte kolom blijft staan tot een dubbelklik op de rand. */}
-              <SettingToggle
-                label={t('settings.autoFitColumns')}
-                hint={t('settings.autoFitColumnsHint')}
-                checked={autoFitColumns}
-                onChange={checked => applySetting('autoFitColumns', checked, saveAutoFitColumns)}
-                inputProps={{ 'data-ops-auto-fit-columns': '' }}
-              />
-            </div>
-
-            {/* Subkop die de Gantt-tijdlijninstellingen groepeert — geen eigen tab, wel een
-                herkenbare knip binnen Weergave. Werkdagen-as, kwartierzoom, taakbalksplitsing en
-                scroll/zoom-gedrag horen allemaal bij hoe de tijdlijn zich gedraagt. */}
-            <h3 className="settings-subhead">{t('settings.ganttSection')}</h3>
-
-            <div className="settings-section">
-              <h3>{t('settings.compressNonWorkdaysSection')}</h3>
-              {/* «Alleen werkbare dagen tonen». */}
-              <SettingToggle
-                label={t('settings.compressNonWorkdays')}
-                hint={t('settings.compressNonWorkdaysHint')}
-                checked={compressNonWorkdays}
-                onChange={checked => applySetting('compressNonWorkdays', checked, saveCompressNonWorkdays)}
-              />
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.quarterHourSection')}</h3>
-              <SettingToggle
-                label={t('settings.enableQuarterHourZoom')}
-                hint={t('settings.enableQuarterHourZoomHint')}
-                checked={enableQuarterHourZoom}
-                onChange={checked => applySetting('enableQuarterHourZoom', checked, v => saveZoomSettings({ enableQuarterHourZoom: v }))}
-              />
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.barSplitMode')}</h3>
-              <Select
-                aria-label={t('settings.barSplitMode')}
-                value={barSplitMode}
-                onChange={v => applySetting('barSplitMode', v as BarSplitMode, saveBarSplitMode)}
-                options={[
-                  { value: 'never', label: t('settings.barSplitNever') },
-                  { value: 'selection', label: t('settings.barSplitSelection') },
-                  { value: 'always', label: t('settings.barSplitAlways') },
-                ]}
-              />
-              <p className="scrollzoom-hint">{t('settings.barSplitModeHint')}</p>
-            </div>
-
-            <ScrollZoomSettings />
-          </div>
-        )}
-
-        {activeTab === 'planning' && (
-          <div className="settings-section-list">
-            {/* Bouwmodus: app-brede schakelaar. AAN = bouwgerichte defaults/framing
-                (default). UIT = bouw-agnostisch. Verschijnt via deze gedeelde component op alle 3
-                de ingangen (gear/ribbontab/backstage). */}
-            <div className="settings-section">
-              <h3>{t('settings.constructionModeSection')}</h3>
-              {/* De synchrone kalenderfabriek leest de vlag rechtstreeks uit localStorage, dus de save
-                  moet vóór een eventuele nieuw-project-actie geschreven zijn — vandaar direct (niet
-                  gedebounced). */}
-              <SettingToggle
-                label={t('settings.constructionMode')}
-                hint={t('settings.constructionModeHint')}
-                checked={constructionMode}
-                onChange={checked => applySetting('constructionMode', checked, saveConstructionMode)}
-              />
-            </div>
-
-
-            <div className="settings-section">
-              <h3>{t('settings.weekStartDay')}</h3>
-              <Select
-                aria-label={t('settings.weekStartDay')}
-                value={weekStartDay}
-                onChange={v => applySetting('weekStartDay', v as 'monday' | 'sunday', value => saveZoomSettings({ weekStartDay: value }))}
-                options={[
-                  { value: 'monday', label: t('settings.weekStartMonday') },
-                  { value: 'sunday', label: t('settings.weekStartSunday') },
-                ]}
-              />
-              <p className="scrollzoom-hint">{t('settings.weekStartDayHint')}</p>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.calculationSection')}</h3>
-              <SettingToggle
-                label={t('settings.autoCalcCPM')}
-                hint={t('settings.autoCalcCPMHint')}
-                checked={autoCalcCPM}
-                onChange={applyAutoCalcCPM}
-              />
-              {/* Werkregels en werk tonen — onder Berekenen (het
-                  werkt ook op dagtaken, niet alleen bij urenplanning), zonder eigen sectiekop; de
-                  toelichting is één zin in een gekleurd blok i.p.v. een los formulebijschrift. */}
-              <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={showTaskTypes}
-                  onChange={e => applySetting('showTaskTypes', e.target.checked, saveShowTaskTypes)}
-                  data-ops-setting-show-task-types
-                />
-                <span>{t('settings.showTaskTypes')}</span>
-              </label>
-              <div className="ops-note" data-ops-setting-show-task-types-note>
-                <Icon id="status.info" size={12} aria-hidden />
-                <span>{t('settings.showTaskTypesHint')}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'advanced' && (
-          <div className="settings-section-list">
-            {/* Uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`): per formaat
-                aan/uit. "Niet meer tonen" in die dialoog zet hier het vinkje uit; hier zet je hem
-                weer aan. Via deze gedeelde component op alle 3 de ingangen. */}
-            <div className="settings-section" data-ops-setting-format-notice>
-              <h3>{t('formatNotice.settingsSection')}</h3>
-              {FORMAT_NOTICE_KINDS.map(kind => (
-                <SettingToggle
-                  key={kind}
-                  label={t(`formatNotice.formats.${kind}.name`)}
-                  checked={!formatNoticeHidden.includes(kind)}
-                  onChange={checked => applySetting(
-                    'formatNoticeHidden',
-                    withFormatNoticeShown(useAppStore.getState().ui.formatNoticeHidden, kind, checked),
-                    saveFormatNoticeHidden,
-                  )}
-                  inputProps={{ 'data-ops-setting-format-notice-kind': kind }}
-                />
-              ))}
-            </div>
-
-            {/* AI-modus + automatisch starten: de enige twee AI-instellingen hier — de rest van
-                de bediening leeft op het AI-tabblad. AAN ⇒ tabblad verschijnt; UIT ⇒ tabblad weg +
-                bridge geforceerd gestopt (`applyAiModeLive` → `stopMcpServer` + status off). Via deze
-                gedeelde component op alle 3 de ingangen (gear/Instellingen-ribbontab/Backstage).
-                Automatisch starten hangt ONDER AI-modus: zonder AI-modus is er geen bridge om te
-                starten, dus die schakelaar staat dan uit-gegrijsd i.p.v. dat hij stil niets doet.
-                Platformbouw (#307): geen AI-modus, dus deze sectie ontbreekt. */}
-            {AI_MODE_AVAILABLE && (
-            <div className="settings-section">
-              <h3>{t('settings.aiModeSection')}</h3>
-              <SettingToggle
-                label={t('settings.aiMode')}
-                hint={t('settings.aiModeHint')}
-                checked={aiMode}
-                onChange={checked => { void applyAiModeLive(checked); }}
-              />
-              <SettingToggle
-                label={t('settings.aiAutostart')}
-                hint={t('settings.aiAutostartHint')}
-                checked={aiAutostart}
-                disabled={!aiMode}
-                onChange={checked => applySetting('aiAutostart', checked, saveAiAutostart)}
-                style={{ opacity: aiMode ? 1 : 0.5 }}
-              />
-            </div>
+    <div className="settings-content" ref={rootRef}>
+      <nav className="settings-tabs" aria-label={t('settings.groupsNav')}>
+        {SETTINGS_GROUPS.map(g => (
+          <button
+            key={g}
+            type="button"
+            className={`settings-tab ${!filtering && group === g ? 'active' : ''}`}
+            aria-current={!filtering && group === g ? 'page' : undefined}
+            data-ops-settings-group={g}
+            onClick={() => chooseGroup(g)}
+          >
+            <span>{t(GROUP_LABEL_KEYS[g])}</span>
+            {SETTINGS_CATALOG.some(e => e.group === g && changed.has(e.id)) && (
+              <span className="settings-changed-dot" title={t('settings.groupHasChanges')} aria-hidden="true" />
             )}
+          </button>
+        ))}
+      </nav>
 
-            <div className="settings-section">
-              <h3>{t('settings.debugTerminal')}</h3>
-              <SettingToggle
-                label={t('settings.debugTerminalEnable')}
-                hint={t('settings.debugTerminalHint')}
-                checked={debugTerminalEnabled}
-                onChange={checked => applySetting('debugTerminalEnabled', checked, saveDebugTerminalEnabled)}
-              />
-            </div>
-
-            {/* Benchmark-tool: via deze gedeelde component zichtbaar op alle 3 de
-                ingangen (gear/Instellingen-ribbontab/Backstage). */}
-            <div className="settings-section">
-              <h3>{t('benchmark.section')}</h3>
-              <p className="scrollzoom-hint">{t('benchmark.sectionHint')}</p>
-              <button className="settings-link" onClick={() => openFromSettings({ showBenchmarkDialog: true })}>
-                {t('benchmark.open')}
-              </button>
-            </div>
-
-            {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
-                van de stats-branch). Bewust een KNOP naast Benchmark in Geavanceerd en geen eigen
-                tabblad — de gemiddelde gebruiker heeft er niets aan. */}
-            {DOWNLOAD_STATS_AVAILABLE && (
-              <div className="settings-section" data-ops-settings-stats>
-                <h3>{t('settings.statsSection')}</h3>
-                <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
-                <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
-                  {t('settings.statsOpen')}
-                </button>
-              </div>
-            )}
-
-            {/* [Rondleiding]: derde herstart-ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
-                zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
-                Via openFromSettings start de tour altijd vanaf een schone body (zoals Backstage's
-                eigen closeBackstage()), ongeacht welke van de 3 ingangen. */}
-            <div className="settings-section">
-              <h3>{t('tour.restartButton')}</h3>
-              <p className="scrollzoom-hint">{t('settings.tourHint')}</p>
+      <div className="settings-main">
+        <div className="settings-toolbar">
+          <div className="settings-search">
+            <Icon id="view.search" size={14} aria-hidden />
+            <input
+              ref={searchRef}
+              type="search"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setRevealed(null); }}
+              onKeyDown={onSearchKeyDown}
+              placeholder={t('settings.searchPlaceholder')}
+              aria-label={t('settings.searchLabel')}
+              data-ops-settings-search
+            />
+            {query !== '' && (
               <button
-                className="settings-link"
-                onClick={() => openFromSettings({ showTourOverlay: true, tourStepIndex: 0 })}
+                type="button"
+                className="settings-search-clear"
+                aria-label={t('settings.searchClear')}
+                title={t('settings.searchClear')}
+                onClick={() => { setQuery(''); searchRef.current?.focus(); }}
               >
-                {t('tour.backstageRestart')}
+                <Icon id="ui.close" size={12} aria-hidden />
               </button>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.version')}</h3>
-              <p className="scrollzoom-hint">{t('settings.versionHint')}</p>
-              <div className="settings-row flex items-center gap-3">
-                <AppLogo size={32} />
-                <button
-                  ref={versionRef}
-                  type="button"
-                  className="settings-version"
-                  data-ops-settings-version
-                  onClick={activateVersion}
-                  onBlur={() => { unlockSequence.current = null; }}
-                >
-                  {__APP_VERSION__}
-                </button>
-              </div>
-              {/* Platformbouw (#818): geen update-check en geen releasegegevens van GitHub. */}
-              {UPDATES_AVAILABLE && (
-                <>
-                  <button
-                    className="settings-link"
-                    onClick={() => {
-                      // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
-                      setUI({ showSettingsDialog: false, showUpdateDialog: true });
-                    }}
-                  >
-                    {t('updates.checkButton')}
-                  </button>
-                  <button
-                    className="settings-link"
-                    onClick={() => { void openWhatsNew(); }}
-                  >
-                    {t('updates.justUpdated.whatsNewButton')}
-                  </button>
-                </>
-              )}
-            </div>
-            {experimentalSettingsVisible && (
-              <div className="settings-section" data-ops-experimental-settings>
-                <h3>{t('settings.experimentalSection')}</h3>
-                {availableFlags.length === 0 && (
-                  <p className="scrollzoom-hint">{t('settings.experimentalEmpty')}</p>
-                )}
-                {availableFlags.map(flag => (
-                  <SettingToggle
-                    key={flag.id}
-                    label={t(flag.nameKey)}
-                    hint={flag.descriptionKey ? t(flag.descriptionKey) : undefined}
-                    checked={isFeatureEnabled(featureFlags, flag.id)}
-                    onChange={checked => applySetting(
-                      'featureFlags',
-                      { ...useAppStore.getState().ui.featureFlags, [flag.id]: checked },
-                      saveFeatureFlags,
-                    )}
-                    inputProps={{ 'data-ops-feature-flag': flag.id }}
-                  />
-                ))}
-                <button
-                  type="button"
-                  className="settings-link"
-                  onClick={() => {
-                    applySetting('experimentalSettingsVisible', false, saveExperimentalSettingsVisible);
-                    unlockSequence.current = null;
-                    versionRef.current?.focus();
-                  }}
-                >
-                  {t('settings.experimentalHide')}
-                </button>
-              </div>
             )}
-            {/* Legacy-functies: vervangen functies, duidelijk als zodanig gemarkeerd. */}
-            <div className="settings-section" data-ops-legacy-settings="true">
-              <h3>{t('settings.legacySection')}</h3>
-              <SettingToggle
-                label={t('settings.classicViewControls')}
-                hint={t('settings.classicViewControlsHint')}
-                checked={showClassicViewControls}
-                onChange={checked => applySetting('showClassicViewControls', checked, saveShowClassicViewControls)}
-              />
-            </div>
           </div>
-        )}
+          <button
+            type="button"
+            className={`settings-filter ${changedOnly ? 'active' : ''}`}
+            aria-pressed={changedOnly}
+            disabled={changed.size === 0 && !changedOnly}
+            data-ops-settings-changed-only
+            onClick={() => { setChangedOnly(v => !v); setRevealed(null); }}
+          >
+            {t('settings.changedOnly', { n: changed.size })}
+          </button>
+        </div>
+
+        <div className="settings-tab-content">
+          {shown.length === 0 && (
+            <p className="settings-empty" data-ops-settings-empty>
+              {terms.length > 0 ? t('settings.searchEmpty', { query: query.trim() }) : t('settings.changedEmpty')}
+            </p>
+          )}
+          {shownGroups.map(g => (
+            <section key={g} className="settings-group" aria-label={t(GROUP_LABEL_KEYS[g])}>
+              <h3 className="settings-group-title">{t(GROUP_LABEL_KEYS[g])}</h3>
+              <div className="settings-section-list">
+                {shown.filter(e => e.group === g).map(entry => (
+                  <SettingRow key={entry.id} entry={entry} highlighted={entry.id === highlight} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
     </div>
   );
+}
+
+/** Velden waarin "/" een teken is; in een vinkje, knop of keuzelijst is het de sneltoets. */
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image']);
+function isTextEntry(el: Element): boolean {
+  if (el instanceof HTMLTextAreaElement) return true;
+  if (el instanceof HTMLInputElement) return !NON_TEXT_INPUTS.has(el.type);
+  return el instanceof HTMLElement && el.isContentEditable;
+}
+
+/** Alles waarop een instelling gevonden moet worden: naam, uitleg, keuzes, zoekwoorden en groep. */
+function searchTextsOf(entry: SettingEntry, t: ReturnType<typeof useTranslation<'common'>>['t']): string[] {
+  const texts = [t(entry.labelKey), t(GROUP_LABEL_KEYS[entry.group])];
+  if (entry.hintKey) texts.push(t(entry.hintKey));
+  if (entry.keywordsKey) texts.push(...splitKeywords(t(entry.keywordsKey)));
+  if (entry.kind === 'choice') texts.push(...entry.options.map(o => choiceOptionLabel(entry, o, t)));
+  if (entry.kind === 'custom' && entry.searchTexts) texts.push(...entry.searchTexts(t));
+  return texts;
 }

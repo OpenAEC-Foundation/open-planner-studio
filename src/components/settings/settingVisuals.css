@@ -1,0 +1,174 @@
+/* Plaatjes bij instellingen (settingVisuals.tsx): schetsen van een stukje app in themakleuren.
+   Eén vaste hoogte, zodat de kaarten in een rij even hoog zijn. Logische eigenschappen (inline-start)
+   zodat de schets in een rechts-naar-links-taal meespiegelt, net als de app. */
+
+.sv {
+  position: relative;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-bg);
+  overflow: hidden;
+  color: var(--theme-text-dim);
+  font-size: var(--text-caption);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 2px;
+  /* Dezelfde bron als de Gantt (themePalette.ts): de thema-var, anders de merkkleur. */
+  background: var(--theme-bar-normal, var(--color-task-normal));
+}
+
+.sv-track {
+  position: relative;
+  display: block;
+  height: 8px;
+}
+
+.sv-glyph {
+  font-size: var(--text-large);
+  line-height: 1;
+  color: var(--theme-text);
+}
+
+/* --- Venster (documentwissel-stijl) --- */
+.sv-window { display: flex; flex-direction: column; }
+.sv-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 7px;
+  padding-inline: 4px;
+  background: var(--theme-titlebar-bg);
+  border-bottom: 1px solid var(--theme-border);
+}
+.sv-dots { width: 10px; height: 3px; border-radius: 2px; background: var(--theme-text-muted); opacity: 0.6; }
+.sv-pill { width: 22px; height: 5px; border-radius: 4px; }
+.sv-accent-outline { border: 1px solid var(--theme-accent); background: color-mix(in srgb, var(--theme-accent) 25%, transparent); }
+.sv-ribbon { height: 8px; background: var(--theme-ribbon-bg); border-bottom: 1px solid var(--theme-border); }
+.sv-doctabs {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  padding-inline: 4px;
+  background: var(--theme-docbar-bg);
+  border-bottom: 1px solid var(--theme-border);
+}
+.sv-doctab { width: 18px; height: 100%; background: var(--theme-surface-alt); }
+.sv-doctab.is-active { background: var(--theme-surface); box-shadow: inset 0 -2px 0 var(--theme-accent); }
+.sv-window-body { flex: 1; display: flex; min-height: 0; }
+.sv-docrail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 14px;
+  padding: 3px 2px;
+  background: var(--theme-docbar-bg);
+  border-inline-end: 1px solid var(--theme-border);
+}
+.sv-docrail span { height: 5px; border-radius: 1px; background: var(--theme-surface-alt); }
+.sv-docrail span.is-active { background: var(--theme-accent); }
+.sv-tracks { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding-inline: 4px; }
+.sv-tracks .sv-track { height: 6px; }
+.sv-tracks .sv-bar { top: 1px; bottom: 1px; }
+
+/* --- Raster (duurweergave) --- */
+.sv-grid { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding-inline: 6px; }
+.sv-grid-row { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 6px; }
+.sv-cell { color: var(--theme-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* --- Tijdlijn (werkdagen, kwartieren) --- */
+.sv-timeline { display: flex; flex-direction: column; padding: 4px 6px; gap: 3px; }
+.sv-scale { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; text-align: center; }
+.sv-scale span { padding-block: 1px; }
+.sv-scale span.is-off { color: var(--theme-text-muted); }
+.sv-scale-hours { text-align: start; }
+.sv-scale-hours span { padding-inline-start: 2px; border-inline-start: 1px solid var(--theme-border); }
+.sv-scale-quarters { height: 5px; }
+.sv-scale-quarters span { border-inline-start: 1px solid var(--theme-border); }
+.sv-scale-quarters span:nth-child(odd) { border-inline-start-color: var(--theme-text-muted); }
+.sv-days { position: relative; display: grid; flex: 1; }
+.sv-days > span { border-inline-start: 1px solid var(--theme-border); }
+.sv-days > span.is-off { background: color-mix(in srgb, var(--theme-text-muted) 18%, transparent); }
+.sv-days .sv-bar { top: 30%; bottom: 30%; }
+.sv-track-tall { flex: 1; height: auto; }
+.sv-track-tall .sv-bar { top: 30%; bottom: 30%; }
+
+/* --- Gesplitste balken --- */
+.sv-split { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding-block: 6px; }
+.sv-split .sv-track-row { height: 14px; }
+.sv-split .sv-track-row .sv-bar { top: 3px; bottom: 3px; }
+.sv-split .sv-track-row.is-selected { background: color-mix(in srgb, var(--theme-accent) 14%, transparent); box-shadow: inset 2px 0 0 var(--theme-accent); }
+.sv-break {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  inset-inline-start: 44%;
+  width: 12%;
+  background: color-mix(in srgb, var(--theme-text-muted) 18%, transparent);
+}
+
+/* --- Muiswiel --- */
+.sv-wheelmap { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding-inline: 8px; }
+.sv-wheelmap-row { display: flex; align-items: center; gap: 4px; min-height: 13px; }
+.sv-arrow { color: var(--theme-text-muted); }
+.sv-key {
+  padding: 1px 3px;
+  border: 1px solid var(--theme-control-border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+}
+.sv-mouse {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 12px;
+  border: 1px solid var(--theme-text-dim);
+  border-radius: 4px;
+}
+.sv-mouse span {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 2px;
+  height: 3px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--theme-accent);
+}
+.sv-grab {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--theme-text-dim);
+  background: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+}
+
+/* --- Schermverdeling: het accentvlak scrolt horizontaal. Bewust fysiek links/rechts, net als de
+   instelling zelf (de zones liggen op het scherm, niet in de leesrichting). --- */
+.sv-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sv-zone-horizontal { background: color-mix(in srgb, var(--theme-accent) 22%, transparent); }
+.sv-zones-left-right .sv-zone-vertical { inset: 0 50% 0 0; }
+.sv-zones-left-right .sv-zone-horizontal { inset: 0 0 0 50%; border-left: 1px dashed var(--theme-accent); }
+.sv-zones-top-bottom .sv-zone-vertical { inset: 30% 0 0 0; }
+.sv-zones-top-bottom .sv-zone-horizontal { inset: 0 0 70% 0; border-bottom: 1px dashed var(--theme-accent); }
+.sv-zones-corner .sv-zone-vertical { inset: 0; }
+.sv-zones-corner .sv-zone-horizontal {
+  inset: 0 0 50% 50%;
+  border-left: 1px dashed var(--theme-accent);
+  border-bottom: 1px dashed var(--theme-accent);
+}
+.sv-zones-corner .sv-zone-vertical .sv-glyph { margin-right: 50%; margin-top: 18px; }

@@ -54,11 +54,13 @@ const published = manifest.articles.filter((a) => a.draft !== true);
 const draftIds = new Set(manifest.articles.filter((a) => a.draft === true).map((a) => a.id));
 const idToSlug = new Map(published.map((a) => [a.id, slugify(a.title.en)]));
 
-// Rewrite the two in-app link schemes used by the source docs into wiki-friendly links.
+// Rewrite the in-app link schemes used by the source docs into wiki-friendly links.
 function rewriteLinks(md, sourceLabel) {
   // examples://foo.ifc opens a bundled example project in the app — meaningless on a web page.
   // Drop the link, keep the visible text.
   md = md.replace(/\[([^\]]+)\]\(examples:\/\/[^)]+\)/g, '$1');
+  // settings://<id> opens one app setting in the app — likewise only the visible text on the wiki.
+  md = md.replace(/\[([^\]]+)\]\(settings:\/\/[^)]+\)/g, '$1');
   // docs://<id>[#anchor] cross-links another help article → the matching wiki page slug. An old id
   // follows its alias; the anchor is the GitHub heading slug, so it keeps working on the wiki page.
   // A link to a draft (not published) keeps its visible text only.

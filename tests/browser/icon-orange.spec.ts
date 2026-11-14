@@ -136,7 +136,7 @@ for (const theme of ['light', 'dark'] as const) {
       expect.soft(await iconColourErrors(page), `Bestand › ${section}`).toEqual([]);
     }
 
-    // Menu Bestand › App-instellingen, elk tabblad (review van Sol op #765, ronde 2: de melding bij de taaktypes
+    // Menu Bestand › App-instellingen, elke groep (review van Sol op #765, ronde 2: de melding bij de taaktypes
     // in Planning was helemaal oranje).
     await setUI(page, { activeRibbonTab: 'file', backstageSection: 'settings' });
     const tabs = page.locator('.settings-tab');
@@ -145,8 +145,8 @@ for (const theme of ['light', 'dark'] as const) {
     for (let i = 0; i < await tabs.count(); i++) {
       await tabs.nth(i).click();
       await expect(tabs.nth(i)).toHaveClass(/\bactive\b/);
-      taskTypesNote += await page.locator('[data-ops-setting-show-task-types-note] svg[data-icon]').count();
-      expect.soft(await iconColourErrors(page), `App-instellingen, tabblad ${i + 1}`).toEqual([]);
+      taskTypesNote += await page.locator('[data-ops-setting-note="taskTypes"] svg[data-icon]').count();
+      expect.soft(await iconColourErrors(page), `App-instellingen, groep ${i + 1}`).toEqual([]);
     }
     expect(taskTypesNote, 'de melding bij de taaktypes is gemeten').toBe(1);
 
