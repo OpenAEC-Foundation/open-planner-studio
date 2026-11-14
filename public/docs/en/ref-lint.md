@@ -157,7 +157,7 @@ This group is also on *Table*.
 
 ### View › Outline
 
-- **Collapse** — collapses the selected summary tasks; without a selection all of them. In a grouped view it collapses all groups and a selection has no effect.
+- **Collapse** — collapses the selected summary tasks; without a selection all of them. Series of milestones directly below each other collapse with them into one row. In a grouped view it collapses all groups and a selection has no effect.
 - **Expand** — the reverse.
 
 ### View › Layout
