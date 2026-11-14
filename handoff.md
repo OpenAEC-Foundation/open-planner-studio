@@ -131,6 +131,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 ## Werk
 
 - PR 7d (#804): strenge definitiegroei voor activiteitscodes/taaktypen en gewijzigde taaktype-/baselinekeuzen; dezelfde nacontrole bewaakt ontbrekende uitvoer, twaalf vaste tellinggevallen erbij; 1581/1582/1585–1588 blijven vervolg.
+- 2026-11-14: fase 1c PR 9d zet bij het openen van een MCP-backup met bronkenmerk alleen met `ifcForeignContent` aan `sourceMissing`; alle IFC-opslag gebruikt de bestaande weigering, CSV blijft mogelijk en flag uit blijft gelijk. De bestaande nl/en-melding noemt backups al; opnieuw koppelen en de productkeuze blijven 9c (1575), niet verplicht vóór de flag standaard aan mag.
+
 - 2026-11-14: fase 1c PR 9b bewaart site-/browserbronkopieën vóór het manifest in een eigen IndexedDB-database; bestaande database v3 en manifest v5 blijven staan, sitebasis alleen naast de kopie, veilige opruiming en best effort. 1572/1573/1205/1564 opgelost; handle-rechten 1574 en backupaansluiting 9c (1575) blijven vervolg.
 
 - PR 7c (#804, 1571): één strenge groeicontrole voor `OPS_Baselines.TaskGuids` en `OPS_TaskTypes.TaskTypes`; echte opgeslagen reeksen op drie bronnen, bron-/uitvoermutaties en twaalf vaste tellinggevallen; 1580 gaat naar 7d, 1581/1582 blijven op de eindlijst.
@@ -448,7 +450,7 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
   - nl: Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken. Opslaan over een bestaand lokaal bestand en een project met resourcepool exporteren zijn nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.
   - en: Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC. Saving over an existing local file and exporting a project with a resource pool are not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.
 
-- `notifications.ifcForeignSourceMissing` — Bij bron ontbreekt na herstel; geen IFC-uitvoer, export naar een ander formaat blijft mogelijk.
+- `notifications.ifcForeignSourceMissing` — Bij bron ontbreekt na herstel of het openen van een MCP-backup; geen IFC-uitvoer, export naar een ander formaat blijft mogelijk.
   - nl: Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma ontbreken in dit herstelde document of deze backup; ze staan in het oorspronkelijke IFC-bestand. Je kunt de planning naar een ander formaat exporteren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.
   - en: File not saved. The building model or data from another program are missing from this recovered document or backup; they are in the original IFC file. You can export the schedule to another format. Open the original IFC file to work with the complete file again.
 

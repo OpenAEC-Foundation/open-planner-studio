@@ -32,8 +32,8 @@ export interface ForeignSourceMark extends ForeignSourceFingerprint, ForeignSour
   /** De handle van de bron (browser). Herstel bewaart hem optioneel in manifest v5; nooit in snapshot of Worker. */
   readonly handle: FileSystemFileHandle | null;
   /** #886 fixronde 2 (§4.14, "bron ontbreekt"): het kenmerk komt uit crashherstel, de bronbytes met het vreemde deel
-   *  zijn weg. Dan weigert elke IFC-uitvoer, zoals vóór de crash (`ifcSaveBlocked`). Een geopende MCP-backup heeft dit
-   *  niet: dat is een eigen bestand. */
+   *  zijn weg. Dan weigert elke IFC-uitvoer (`ifcSaveBlocked`). Met `ifcForeignContent` aan krijgt een geopende
+   *  MCP-backup met bronkenmerk dezelfde toestand: ook daarin ontbreken de bronbytes. */
   readonly sourceMissing?: true;
 }
 

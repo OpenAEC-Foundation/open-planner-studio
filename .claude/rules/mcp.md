@@ -31,6 +31,11 @@ lopende bewerking (`editHold.ts`) en na een mislukte berekening met ongewijzigde
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
 temp-id-resolutie).
 
+Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
+`ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel
+zonder bron, met één melding `notifications.ifcForeignSourceMissing`; andere exportformaten blijven mogelijk.
+Met de flag uit blijft de bestaande backuproute gelijk. Opnieuw koppelen aan de actuele bron is 9c (1575).
+
 Alles wat de agent via MCP leest (tool- en schema-beschrijvingen, foutmeldingen, waarschuwingen, `MCP_INSTRUCTIONS`)
 is Engels; codecommentaar blijft Nederlands. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
 agentgids `public/agent/planning-guide.md` (per principe de tools, niet het Help-artikel voor mensen) en de skills
