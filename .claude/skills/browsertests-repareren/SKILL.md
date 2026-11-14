@@ -10,6 +10,7 @@ komt moet dan automatisch gefixt worden zodat de release door kan gaan."
 
 `ci.yml` draait de browsersuite elke vrijdag om 22:00 Nederlandse tijd op main. Deze job zoekt die run en
 repareert alles wat rood is, zonder de eigenaar. Stel geen vragen. Het doel is een groene browserrun op main.
+De laatste browserrun vóór de release (maandag 07:00) is die van zaterdag 22:00; de gate leest die als laatste run.
 
 ## Grenzen
 
@@ -21,9 +22,10 @@ repareert alles wat rood is, zonder de eigenaar. Stel geen vragen. Het doel is e
 - Er werkt nooit meer dan één Sol-taak tegelijk op main. Hervat bestaand werk (zie stap 1); maak geen dubbel
   issue of dubbele PR.
 
-**Tijd.** Reken altijd in Europe/Amsterdam. Wees klaar vóór zaterdag 07:00. Lukt dat niet, ga dan door tot
-uiterlijk **zaterdag 14:00**, de grens van de release. Controleer de tijd vóór elke rerun, delegatie, merge en
-dispatch. Om 14:00 stop je: volg *Stoppen om 14:00*.
+**Tijd.** Reken altijd in Europe/Amsterdam. Wees klaar vóór maandag 07:00, de start van de release. Lukt dat niet, ga dan
+door tot uiterlijk **14:00**. Controleer de tijd vóór elke rerun, delegatie, merge en dispatch. Om 14:00 stop je: volg
+*Stoppen om 14:00*. Het issue blijft dan open en de release wacht erop; de release zelf heeft geen eindtijd
+(besluit Ethan, 2026-11-09). De weekendstop (zaterdag 23:00 tot maandag 01:00) en zondag blijven gelden.
 
 **Node.** Deze job heeft geen Node-uitzondering; de serverregel uit `AGENTS.md` geldt. Draai zo min mogelijk lokaal.
 De browsersuite draait in CI, nooit op aia. Ook geen volledige `npm test` of `npm run verify`, geen Playwright-run
@@ -144,7 +146,7 @@ fix-PR's, reviews, VERVOLG en de bewijsrun.
 ## Stoppen om 14:00
 
 Doe geen nieuwe merge of dispatch meer. Open fix-PR's blijven staan. Schrijf de stand in het issue. Het issue blijft
-open. Zet bovenaan het eindrapport wat er nog rood is, voor Ethan. De job van de volgende vrijdag hervat dit werk.
+open. Zet bovenaan het eindrapport wat er nog rood is, voor Ethan. De volgende reparatie hervat dit werk.
 
 ## Stand voor de release
 
@@ -153,13 +155,13 @@ Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is ee
 
 - Issue open: de release wacht. Geen vertalingen, geen versie, geen PR en geen tag.
 - Issue dicht en laatste browserrun op main groen: de release gaat verder.
-- Geen issue, en de vrijdagrun is rood of ontbreekt: de release doet de reparatie eerst zelf, ook met dat issue.
-- Nog geen tag om 14:00: geen tag die week. De release meldt dat aan Ethan, met de reden.
-  Is de reparatie dan niet klaar, dan blijft het issue open.
+- Geen issue, en de laatste browserrun (die van zaterdag 22:00) is rood of ontbreekt: de release doet de reparatie eerst zelf, ook met dat issue.
+- De release stopt niet op een tijd. Alleen een echte blokkade stopt haar (een BLOKKEERT, of een rode CI die niemand zelf
+  kan herstellen): dan geen tag die week, een melding aan Ethan met de reden, en het issue blijft open.
 
 De release-skill wacht vóór alles op main, in [Eerst: browsertests](../release/SKILL.md#eerst-browsertests).
 De gate, de release en deze skill gebruiken één browsercontrole, `scripts/release-ci-check.mjs`. Zo oordelen ze over
-dezelfde run. Bewijs telt vanaf de laatste vrijdag 22:00 Nederlandse tijd; eerder groen vervangt de vrijdagrun niet.
+dezelfde run. Bewijs telt vanaf de laatste vrijdag 22:00 Nederlandse tijd (de gate-regel in `release-ci-check.mjs`); eerder groen vervangt de laatste browserrun niet.
 
 ## Geplande taak
 
@@ -210,7 +212,7 @@ Merge na reviewakkoord en groene PR-CI met --merge --admin. Schrijf bevindingen 
 Start na de laatste merge de browserrun op main opnieuw en bewijs dat hij groen is. Dat is het einde van de job.
 Geen tag, geen release, geen andere releasestappen. Kom niet aan de gate in release.yml.
 Draai zo min mogelijk lokaal. De browsersuite draait in CI, niet op aia. Volg de Node-grenzen uit de skill.
-Wees klaar vóór zaterdag 07:00. Lukt dat niet, ga dan door tot uiterlijk zaterdag 14:00 Europe/Amsterdam.
+Wees klaar vóór maandag 07:00, de start van de release. Lukt dat niet, ga dan door tot uiterlijk 14:00 Europe/Amsterdam.
 Stop dan. Zet bovenaan je eindrapport wat er nog rood is, voor Ethan. Open fix-PR's en het issue blijven staan.
 Draai zware runs in de voorgrond of wacht met een echte until-lus; beëindig je beurt niet terwijl je wacht.
 ----------

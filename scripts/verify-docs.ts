@@ -349,9 +349,12 @@ function checkAgentDocs(diffs: string[]): void {
   for (const file of readdirSync(releaseDir)) {
     if (file.endsWith('.md')) releaseDocs[`.claude/skills/release/${file}`] = readFileSync(join(releaseDir, file), 'utf8');
   }
-  const staleReleaseDay = /zaterdagjob|zaterdagmandaat|volgende zaterdag|(?:uiterlijk|tot|stopt|deadline[^\n]{0,20}) (?:zaterdag )?14:00|Saturday job|next Saturday|(?:alongside|for) (?:that|the next) Saturday/i;
+  //     De release zelf heeft geen eindtijd (Ethan, 2026-11-09); alleen de reparatie houdt haar eigen 14:00.
+  const staleReleaseDay = /zaterdagjob|zaterdagmandaat|volgende zaterdag|zaterdag 14:00|Saturday job|next Saturday|(?:alongside|for) (?:that|the next) Saturday/i;
+  const staleReleaseEnd = /(?:uiterlijk|deadline[^\n]{0,20}|Stop(?:pen)? om) \*{0,2}14:00/i;
   for (const [name, text] of Object.entries(releaseDocs)) {
-    const hit = text.split('\n').findIndex((line) => staleReleaseDay.test(line));
+    const own14 = name.includes('browsertests-repareren');
+    const hit = text.split('\n').findIndex((line) => staleReleaseDay.test(line) || (!own14 && staleReleaseEnd.test(line)));
     if (hit >= 0) diffs.push(`${name}:${hit + 1} noemt nog de zaterdag of een eindtijd van 14:00 voor de release (die draait op maandag en stopt niet op een tijd)`);
   }
   if (!/next Monday release/i.test(agents)) {
