@@ -1796,21 +1796,17 @@ en noem het in je rapport of PR-tekst.
      de planner bij een eigen bestand met een model zijn auteur of bedrijf niet kan wijzigen. Uit #867 (fase 1b,
      fixronde 1). — B
 
-1023. **VERVOLG: de GlobalIds van `OPS_Resource` veranderen bij de eerste keer opslaan na openen.** De writer leidt de
-     GlobalId van de pset van een resource en van haar `IfcRelDefinesByProperties` af van `res.id` (`pset_res_<id>`,
-     `src/services/ifc/ifcWriter.ts:1918`). De lezer maakt het id van een resource uit haar GlobalId (`stableIdFromGuid`,
-     `src/services/ifc/ifcReader.ts:2481`); een nieuwe resource in de app heeft `generateId('res')`. Na opslaan en openen
-     krijgt elke `OPS_Resource` bij het volgende opslaan dus een nieuwe GlobalId, net als haar relatie. Taken hebben dit
-     niet: hun id staat in het bestand. Gemeten op `03-kantoorgebouw-zuidas.ifc` met verse ids: 36 van de 426 GlobalIds van
-     hulpstukken zijn nieuw, alle 36 van `OPS_Resource` (18 psets, 18 relaties); de ronde daarna is stabiel. Met de flag
-     weigerde de leesverliestoets van fase 1b zo'n bestand daarom zodra er een model bij kwam: 204 van de 775 meldingen
-     `niet-gedragen` in de telling van fixronde 2 (9 van de 26 eigen bestanden). In oudere bestanden veranderen ook de
-     GlobalIds van andere hulpstukken (`OPS_ProjectSettings`, `OPS_Calendar`, `OPS_Assignments`, `OPS_TaskIdentity`,
-     relaties): samen 533 van de 775 meldingen, in 22 bestanden. Sinds fixronde 3 (besluit 1 van wrakko, 10 november 2026)
-     staat de toets een andere GlobalId van een eigen hulpstuk toe als het stuk P is en geen stuk van buiten ernaar wijst
-     (`ownAuxGuid` in `src/services/ifc/foreign/lossCheck.ts`); de writer zelf blijft ze vernieuwen, dus een ander
-     programma ziet na elk opslaan een nieuwe pset. Bij voorkeur in 1c (wrakko). Richting: de GlobalId afleiden van de
-     GlobalId van de resource, of de GlobalId van de pset bewaren (`preservedGuids`). Uit #867 (fase 1b, fixronde 2). — B
+1023. **VERVOLG: zonder model veranderen de hulp-GlobalIds bij de eerste opslag na openen.** De gewone writer
+     leidt de GlobalId van de resource-pset en haar `IfcRelDefinesByProperties` af van `res.id`
+     (`pset_res_<id>` in `src/services/ifc/ifcWriter.ts`); de lezer leidt dat id af van de resource-GlobalId.
+     Op `03-kantoorgebouw-zuidas.ifc` met verse ids veranderen daardoor 36 van de 426 hulp-GlobalIds
+     (18 psets en 18 relaties); de volgende ronde is stabiel. In oude eigen bestanden vernieuwt de writer ook
+     andere hulp-GlobalIds. Fase 1c PR 7 behoudt op de mergeroute de bron-GlobalId en het bron-`#id` van
+     eenduidig gekoppelde P-hulpregels; dezelfde uitvoercontrole blijft beslissen en valt zo nodig terug op de
+     kale writer-uitvoer. Dubbelzinnige/ongepaarde regels houden het bestaande gedrag. `ownAuxGuid` blijft
+     nodig voor de vergelijking vóór deze stap en voor die terugval. De gewone writer en de route zonder
+     model blijven ongewijzigd; daarvoor staat dit punt open. Een pas toegevoegde resource zonder bronpaar
+     kan vóór de eerste opslag nog weigeren: zie 1147. Uit #867; bijgewerkt in #804 fase 1c PR 7. — B
 
 1025. **De lezer maakt van de kalender een uurkalender als een eigen taak niet op de werkdag past.** Proef:
      `tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc` plus een eigen taak van één dag van 07:00 tot 16:00
@@ -1932,6 +1928,17 @@ en noem het in je rapport of PR-tekst.
      release schreef dat) weigert na een wijziging van alleen het begin met `IfcCalendarTimePrecisionError`: het
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
+
+1147. **VERVOLG: de eerste merge na een resource toevoegen weigert al op main.** Open
+     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` via de app en voeg met `addResource` een resource toe.
+     De merge weigert `planning-na-openen`: het nieuwe `res-…`-id wordt bij heropenen `res-ifc-…`. In de
+     canonieke vergelijking verschillen uitsluitend de GlobalIds van de nieuwe `OPS_Resource`-pset en
+     haar definitierelatie; de gewone writer gebruikt hun interne resource-id als zaad. Voor deze nieuwe
+     hulpstukken bestaat nog geen bronpaar, dus het bronbehoud van PR 7 lost dit niet op. Gemeten met de
+     volledige productcode van main `2c114446b` en op de branch; geen bytes teruggegeven. De exacte proef
+     nieuwe resource → eerste merge → openen → tweede merge is daardoor nog niet haalbaar. Vraagt een
+     afzonderlijk besluit over de canonieke identiteitsvergelijking; de controles zijn hier niet versoepeld.
+     Gevonden bij #804 fase 1c PR 7. — B
 
 1146. **VERVOLG: de merge kopieert en bevriest de invoer voor de heropening twee keer.** `writeIfcMerge`
      (`src/services/ifc/foreign/mergeWriter.ts`, rond regel 816) kopieert en bevriest `parsed` vóór de vaste
