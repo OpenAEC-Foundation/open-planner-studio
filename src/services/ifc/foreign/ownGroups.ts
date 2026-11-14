@@ -20,7 +20,7 @@
  */
 import { decodeStepText } from '../stepText';
 import { PSET } from '../ifcPsets';
-import type { OutLine } from './lossCheck';
+import { refsOutsideText, type OutLine } from './lossCheck';
 
 /** De tweede vorm van `OPS_Baselines`: de baselinekoppen en hun lidmaatschap van een aggregatie. */
 export const BASELINE_HEADS = `kop:${PSET.Baselines}`;
@@ -43,7 +43,7 @@ export interface OwnLinesView {
 export function linesView(lines: readonly OutLine[], fallbackType: (id: number) => string | undefined = () => undefined): OwnLinesView {
   const byId = new Map(lines.map(l => [l.id, l]));
   const aggregated = new Set<number>();
-  for (const l of lines) if (l.type === 'IFCRELAGGREGATES') for (const id of refs(l.args[5])) aggregated.add(id);
+  for (const l of lines) if (l.type === 'IFCRELAGGREGATES') for (const id of refsOutsideText(l.args[5] ?? '')) aggregated.add(id);
   return { lines, line: id => byId.get(id), typeOf: id => byId.get(id)?.type ?? fallbackType(id), aggregated };
 }
 
@@ -54,8 +54,13 @@ const ROOT_TYPES: ReadonlySet<string> = new Set(['IFCPROPERTYSET', 'IFCRELDEFINE
   'IFCSIMPLEPROPERTYTEMPLATE', 'IFCRELDECLARES']);
 
 const isBaselineHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
-function refs(token: string | undefined): number[] {
-  return [...(token ?? '').matchAll(/#(\d+)/g)].map(m => Number(m[1]));
+/**
+ * De verwijzingen in een argument die meetellen: buiten tekst (`refsOutsideText`), en alleen naar een eigen regel of naar
+ * het `IfcProject` (de writer verwijst ook naar een project van een ander programma). Een verwijzing naar een ander stuk is
+ * een vreemd lid dat de merge bewaart (in een pset, een template, een relatie): dat telt in geen enkele groep mee.
+ */
+function refs(view: OwnLinesView, token: string | undefined): number[] {
+  return refsOutsideText(token ?? '').filter(id => view.line(id) !== undefined || view.typeOf(id) === 'IFCPROJECT');
 }
 function unquote(token: string | undefined): string {
   const t = (token ?? '').trim();
@@ -75,11 +80,14 @@ function groupRoots(view: OwnLinesView): Map<string, OutLine[]> {
   const add = (g: string, l: OutLine) => { const a = roots.get(g) ?? []; a.push(l); roots.set(g, a); };
   for (const l of view.lines) {
     if (l.type === 'IFCRELDEFINESBYPROPERTIES') {
-      const related = refs(l.args[4]), pset = view.line(refs(l.args[5])[0] ?? -1);
-      if (pset?.type === 'IFCPROPERTYSET' && related.length > 0 && related.every(id => anchor(view, id))) add(unquote(pset.args[2]), l);
+      const related = refs(view, l.args[4]), pset = view.line(refs(view, l.args[5])[0] ?? -1);
+      // Een pset zonder eigen leden schreef de merge alleen om vreemde leden te bewaren; de writer schrijft hem niet.
+      if (pset?.type === 'IFCPROPERTYSET' && refs(view, pset.args[4]).length > 0 && related.length > 0 && related.every(id => anchor(view, id))) {
+        add(unquote(pset.args[2]), l);
+      }
     } else if (l.type === 'IFCRELDECLARES') {
-      const related = refs(l.args[5]).map(id => view.line(id));
-      if (refs(l.args[4]).every(id => anchor(view, id)) && related.length > 0
+      const related = refs(view, l.args[5]).map(id => view.line(id));
+      if (refs(view, l.args[4]).every(id => anchor(view, id)) && related.length > 0
         && related.every(t => t?.type === 'IFCPROPERTYSETTEMPLATE')) add(PSET.StructureMeta, l);
     }
   }
@@ -93,7 +101,7 @@ export function ownGroupMembers(view: OwnLinesView): Map<number, string> {
     const l = view.line(id);
     if (!l || OBJECT_TYPES.has(l.type) || out.has(id)) return;
     out.set(id, g);
-    for (const a of l.args) for (const r of refs(a)) walk(r, g);
+    for (const a of l.args) for (const r of refs(view, a)) walk(r, g);
   };
   for (const [g, roots] of groupRoots(view)) for (const l of roots) walk(l.id, g);
   for (const l of view.lines) if (isBaselineHead(l)) out.set(l.id, BASELINE_HEADS);
@@ -108,7 +116,7 @@ export function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLi
 
 /**
  * Per groep een gesorteerde lijst boomvormen, zonder GlobalId en owner history; een object staat er alleen met zijn type.
- * Alleen eigen leden van een pset tellen mee (een vreemd lid staat niet in `view.line`). `taskIds`: de taken van de
+ * Alleen eigen leden tellen mee (`refs`: een vreemd lid van een pset, template of relatie niet). `taskIds`: de taken van de
  * herlezing; een sleutel van `TaskGuids` zonder taak telt niet mee (de regel van de canon, `orphanRowsWithoutId`).
  */
 export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>): Map<string, string[]> {
@@ -125,10 +133,8 @@ export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>):
     if (l.type === 'IFCPROPERTYSINGLEVALUE' && k === 2 && unquote(l.args[0]) === 'TaskGuids') return withoutOrphans(t, taskIds);
     const list = /^\(([\s\S]*)\)$/.exec(t);
     if (list && /^#\d+(\s*,\s*#\d+)*$/.test(list[1].trim())) {
-      let ids = refs(list[1]);
       const members = l.type === 'IFCPROPERTYSET' && k === 4;
-      if (members) ids = ids.filter(x => view.line(x) !== undefined);
-      const parts = ids.map(x => tree(x, depth + 1));
+      const parts = refs(view, list[1]).map(x => tree(x, depth + 1));
       if (members) parts.sort();
       return `(${parts.join(',')})`;
     }

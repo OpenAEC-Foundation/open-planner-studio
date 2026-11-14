@@ -2164,6 +2164,13 @@ en noem het in je rapport of PR-tekst.
      maar om een reden die niets met de fout te maken heeft. Niet uitgezocht waarom `classify` die regels dan anders
      indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
 
+1705. **VERVOLG (#804, controle (c)): de tweede vorm van de baselinekop bewaakt alleen lidmaatschap van enige aggregatie.**
+     `ownGroupTrees` in `src/services/ifc/foreign/ownGroups.ts` schrijft per baselinekop alleen "in aggregatie" of "los".
+     Een kop van de werkplanaggregatie naar een andere aggregatie (zoals die van het project) verplaatsen, geeft daar geen
+     verschil. De volledige uitvoercontrole weigert die proef nu wel (`uitvoer-controle`, extra niet-P-stuk), dus de
+     opslag van nu heeft geen gat. Gevonden door de review van #953 (Sol, ronde 1). Richting: aanscherpen in stap 3, vóór
+     de baselinekop een verschil mag dragen: de koppeling naar het eigen werkplan vastleggen. — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op

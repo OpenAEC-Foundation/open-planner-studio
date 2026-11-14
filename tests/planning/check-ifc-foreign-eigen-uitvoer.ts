@@ -199,6 +199,24 @@ function withForeignMember(bytes: Uint8Array, pset: string): Uint8Array {
   return bytesOf(`${t.slice(0, at)}#95000=IFCPROPERTYSINGLEVALUE('VendorNote',$,IFCTEXT('van een ander programma'),$);\n${t.slice(at)}`);
 }
 
+/** Een onbekende `IfcSimplePropertyTemplate` van een ander programma in de lijst van het codetemplate (review van #953). */
+function withForeignTemplate(bytes: Uint8Array): Uint8Array {
+  let owner = '';
+  let t = latin1(bytes).split('\n').map(s => {
+    const l = parseOutLine(s.replace(/\r$/, ''));
+    if (!l || l.type !== 'IFCPROPERTYSETTEMPLATE' || l.args[2] !== `'${PSET.ActivityCodes}'`) return s;
+    owner = l.args[1];
+    const args = [...l.args]; args[6] = args[6].replace(/\)$/, ',#95001)');
+    return `#${l.id}=${l.type}(${args.join(',')});${s.endsWith('\r') ? '\r' : ''}`;
+  }).join('\n');
+  assert(owner, 'codetemplate niet gevonden');
+  const at = t.lastIndexOf('ENDSEC;');
+  t = `${t.slice(0, at)}#95001=IFCSIMPLEPROPERTYTEMPLATE('0MVR953FOREIGNTEMPLATE',${owner},'VendorReviewTemplate',$,.P_SINGLEVALUE.,'IfcText',$,$,$,$,$,$);\n${t.slice(at)}`;
+  return bytesOf(t);
+}
+const foreignTemplateKept = (text: string) => text.includes("#95001=IFCSIMPLEPROPERTYTEMPLATE('0MVR953FOREIGNTEMPLATE'")
+  && new RegExp(`=IFCPROPERTYSETTEMPLATE\\('[^']*',#\\d+,'${PSET.ActivityCodes}',[^\\n]*#95001[,)]`).test(text);
+
 async function foreignMember() {
   const eigen = SOURCES.eigen;
   const bl = withForeignMember(eigen, PSET.Baselines);
@@ -215,12 +233,39 @@ async function foreignMember() {
     ok(`${label}: het vreemde lid blijft staan`, text.includes("#95000=IFCPROPERTYSINGLEVALUE('VendorNote'")
       && new RegExp(`=IFCPROPERTYSET\\('[^']*',#\\d+,'${label.includes('Baselines') ? PSET.Baselines : PSET.StructureMeta}',\\$,\\([^)]*#95000[,)]`).test(text));
   }
+  // Een vreemd lid in een eigen template (review van #953, ronde 1): de basis schrijft dit met lid en koppeling.
+  const tmpl = withForeignTemplate(await savedCatalogStart(eigen));
+  {
+    const { o } = await edited('vreemd lid in het codetemplate: projectbeschrijving', tmpl, se(s => s.setProject({ description: 'Alleen de projectbeschrijving door review 953' })), true);
+    if (o.ok) {
+      ok('vreemd lid in het codetemplate: lid en koppeling blijven staan', foreignTemplateKept(latin1(o.bytes)));
+    }
+    clockStart();
+    const opened = await openForeign(tmpl);
+    const same = await save(cloneDomain(opened), opened.ifcSource!);
+    ok('vreemd lid in het codetemplate: niets bewerkt geeft de bronbytes terug', same.ok && sameBytes(same.bytes, tmpl));
+  }
   // Niets bewerkt: de bronbytes terug.
   clockStart();
   const opened = await openForeign(bl);
   const o = await save(cloneDomain(opened), opened.ifcSource!);
   console.log(`UITKOMST ${clockMode} vreemd lid in OPS_Baselines: niets: ${summary(o)}`);
   ok('vreemd lid in OPS_Baselines: niets bewerkt geeft de bronbytes terug', o.ok && sameBytes(o.bytes, bl));
+}
+
+{
+  // Een `#n` in tekst is geen verwijzing (review van #953, ronde 1): #6 hoort via #7/#8 bij OPS_Project.
+  const lines: OutLine[] = [
+    { id: 1, type: 'IFCPROJECT', args: [] },
+    { id: 2, type: 'IFCPROPERTYSINGLEVALUE', args: ["'Author'", '$', "IFCTEXT('#6')", '$'] },
+    { id: 3, type: 'IFCPROPERTYSET', args: ["'g1'", '$', `'${PSET.ProjectSettings}'`, '$', '(#2)'] },
+    { id: 4, type: 'IFCRELDEFINESBYPROPERTIES', args: ["'g2'", '$', '$', '$', '(#1)', '#3'] },
+    { id: 6, type: 'IFCPROPERTYSINGLEVALUE', args: ["'TimeModel'", '$', "IFCLABEL('MINUTES')", '$'] },
+    { id: 7, type: 'IFCPROPERTYSET', args: ["'g3'", '$', `'${PSET.Project}'`, '$', '(#6)'] },
+    { id: 8, type: 'IFCRELDEFINESBYPROPERTIES', args: ["'g4'", '$', '$', '$', '(#1)', '#7'] },
+  ];
+  const m = ownGroupMembers(linesView(lines));
+  ok("indeling: IFCTEXT('#6') verwijst niet; #6 hoort bij OPS_Project", m.get(6) === PSET.Project && m.get(2) === PSET.ProjectSettings, `${m.get(6)} / ${m.get(2)}`);
 }
 
 for (const mode of ['vast', 'lopend'] as const) {
@@ -344,6 +389,15 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     await counterProof(b, 'baselinekop: omschrijving anders', ls => { setArg(head(ls), 3, "'Andere omschrijving'"); }, true);
     await counterProof(b, 'baselinekop: aanmaakdatum anders', ls => { setArg(head(ls), 6, "'2001-01-01T00:00:00'"); });
     await counterProof(b, 'ActiveBaselineId wijst naar een onbekende', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr('onbekend')})`); });
+  }
+  // Een fout in een eigen template van een bestand met een vreemd templatelid blijft geweigerd (review van #953).
+  {
+    const b = await base('vreemd templatelid: projectbeschrijving', withForeignTemplate(cat), se(s => s.setProject({ description: 'Alleen beschrijving' })));
+    const own = (ls: OutLine[]) => {
+      const t = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2] === `'${PSET.ActivityCodes}'`)!;
+      return ls.find(l => `#${l.id}` === t.args[6].trim().slice(1, -1).split(',')[0].trim())!;
+    };
+    await counterProof(b, 'vreemd templatelid: AccessState van een eigen template $ → .READONLY.', ls => { setArg(own(ls), 11, '.READONLY.'); }, true);
   }
   // 7c: TaskGuids groeit (taak + baseline).
   {
