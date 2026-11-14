@@ -202,10 +202,6 @@ export interface LossCheckInput {
   readonly domain: WriteIFCInput;
   /** Wat de app na openen liet zien; zonder store geldt de lezing van de bron. */
   readonly opened?: WriteIFCInput;
-  /** De eerste owner history die de lezer ziet, als die van de bron is (C of A, vóór het eerste P-stuk); anders -1. */
-  readonly sourceOwnerHistory: number;
-  /** Schrijft de writer het project zelf (het project van de bron is P)? */
-  readonly projectWritten: boolean;
   /** De eigen owner history van de writer in O0 en in O1 (`_owner`): alleen daar zijn CreationDate en de versie van
    *  de applicatie schrijfvelden. */
   readonly owner0?: number;

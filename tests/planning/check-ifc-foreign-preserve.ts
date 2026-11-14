@@ -1268,7 +1268,7 @@ async function lossSetup(bytes: Uint8Array) {
     const found: string[] = [];
     const { edits } = lossCheck({
       index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,
-      pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys, sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: ids.plan.projectSourceId === undefined,
+      pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
       owner0: ownerOut, owner1: ownerOut,
     }, f => found.push(f.detail));
     return { found, edits };

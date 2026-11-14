@@ -1790,11 +1790,6 @@ en noem het in je rapport of PR-tekst.
      er één leesplek en één propertieslus is. Twee toelichtingen beschrijven nog de oude verdeling: bij
      `extractStructure` ("vier projectvelden") en in `ifcWriter.ts` bij het schrijven van die properties. Gevonden door
      de review van #921. — B
-1144. **VERVOLG (#804, opruimen): ongebruikte boekhouding na het vervallen van de weigering `projectgegevens`.**
-     `sourceOwnerHistory` en `projectWritten` in `lossCheck.ts` worden sinds #921 niet meer gebruikt; `mergeWriter.ts`
-     berekent en geeft de eerste nog door, met `firstP`. Richting: de twee invoervelden, het retourveld en de
-     berekening verwijderen; er hoeft niets voor terug te komen. Gevonden door de review van #921. — B
-
 1023. **VERVOLG: zonder model veranderen de hulp-GlobalIds bij de eerste opslag na openen.** De gewone writer
      leidt de GlobalId van de resource-pset en haar `IfcRelDefinesByProperties` af van `res.id`
      (`pset_res_<id>` in `src/services/ifc/ifcWriter.ts`); de lezer leidt dat id af van de resource-GlobalId.

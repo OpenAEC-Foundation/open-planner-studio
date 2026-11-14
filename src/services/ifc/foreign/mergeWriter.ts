@@ -232,8 +232,6 @@ export interface MergeIdPlan {
   readonly baselineHeads: ReadonlyMap<string, number>;
   /** De stukken met `IfcProject`, in bronvolgorde. */
   readonly projects: readonly number[];
-  /** De eerste owner history die de lezer ziet, als die van de bron is: C of A en vóór het eerste P-stuk; anders -1. */
-  readonly sourceOwnerHistory: number;
 }
 
 /**
@@ -285,8 +283,6 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
   }
   const reserved = new Set<number>();
   let maxNonP = 0;
-  let firstP = -1;
-  let sourceOwnerHistory = -1;
   for (let i = 0; i < n; i++) {
     // Elk byte dat de merge letterlijk overneemt (elk stuk dat niet P is, ook kop en staart) telt mee voor het eerste
     // nieuwe id, ook een `#` in commentaar of een string (knownbug 1100). De P-stukken vervangt de writer helemaal
@@ -294,10 +290,6 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
     if (!isP(i)) maxNonP = Math.max(maxNonP, highestHashNumber(bytes, index.start(i), index.end(i)));
     if (!index.isEntity(i)) continue;
     if (inD[i]) reserved.add(sid(i));
-    if (isP(i)) { if (firstP < 0) firstP = i; continue; }
-    if (firstP < 0 && sourceOwnerHistory < 0 && index.type(i) === 'IFCOWNERHISTORY' && (cls.classes[i] === 2 || cls.classes[i] === 3)) {
-      sourceOwnerHistory = i;
-    }
   }
   // Ook een vast id buiten D (het project als het P is) mag de reeks niet uitgeven.
   for (const id of keep.values()) reserved.add(id);
@@ -317,7 +309,7 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
     keep, firstId: maxNonP + 1, reserved, baselineHeads,
     ...(projectIsP || projectChunk < 0 ? {} : { projectSourceId: sid(projectChunk) }),
   };
-  return { plan, keep, bySource, reserved, baselineHeads, projects, sourceOwnerHistory };
+  return { plan, keep, bySource, reserved, baselineHeads, projects };
 }
 
 /**
@@ -774,7 +766,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const o0 = built0.lines.filter(l => !l.drop);
   const lossInput: LossCheckInput = {
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
-    sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
     owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
