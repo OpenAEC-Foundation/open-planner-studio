@@ -430,8 +430,8 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
-    // Een writerfout kan alle nieuwe koppelingen weglaten, zodat de kaart precies de bron blijft.
-    // Ook zonder slotverschil moet een werkelijk verwachte groei volledig aanwezig zijn.
+    // Een writerfout kan de verwachte definitie, koppeling of baselinekeuze geheel weglaten.
+    // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
     const different = new Set(differences.map(d => d.chunk));
     for (const [chunk, scopes] of ctx.scopes) {
       if (different.has(chunk) || scopes.size !== 1) continue;
@@ -1792,9 +1792,13 @@ function mapJson(token: string, decode: (quoted: string) => string): unknown {
 function ownDefinitionsGrow(before: readonly unknown[], domain: readonly { id: string }[], after: unknown): boolean {
   if (!Array.isArray(after) || domain.length <= before.length || after.length !== domain.length) return false;
   const ids = new Set<string>();
-  return domain.every((v, i) => !ids.has(v.id) && !!ids.add(v.id)
-    && JSON.stringify(after[i]) === JSON.stringify(v)
-    && (i >= before.length || JSON.stringify(before[i]) === JSON.stringify(v)));
+  for (let i = 0; i < domain.length; i++) {
+    const v = domain[i];
+    if (ids.has(v.id) || JSON.stringify(after[i]) !== JSON.stringify(v)
+      || (i < before.length && JSON.stringify(before[i]) !== JSON.stringify(v))) return false;
+    ids.add(v.id);
+  }
+  return true;
 }
 /** Alleen de templatelijst van onze activiteitscodes; een nieuwe verwijzing bewijst haar echte template en enumeratie. */
 function explainCodeDefinitions(ctx: O1Context, d: LossDiff): string | false | undefined {
@@ -1908,16 +1912,22 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
   // Dezelfde kaartcontrole bewaakt alle overige paren en de volledige verwachte uitvoer.
   return ownMapGrows(ctx, d, unchanged, after.taskTypeIds, expected)
     ? 'taaktypedefinities en koppelingen volgens de bewerking' : false;
-
 }
 
 /** Een echte keuze uit de behouden baselines, ook na toevoegen; nooit een vrijstelling voor de hele pset. */
 function explainActiveBaseline(ctx: O1Context, d: LossDiff, way: string): string | false | undefined {
   const { input, p } = ctx, { index } = input;
-  if (way !== `pset:${PSET.Baselines}` || index.type(d.chunk) !== 'IFCPROPERTYSINGLEVALUE'
-    || index.name(d.chunk) !== PROP.Baselines.ActiveBaselineId || d.slotless || d.ambiguous || p.ambiguous[d.chunk]
+  if (way !== `pset:${PSET.Baselines}` || d.slotless || d.ambiguous || p.ambiguous[d.chunk]
     || ctx.scopes.get(d.chunk)?.size !== 1 || !ctx.plannerChanged.has('activeBaselineId')) return undefined;
   const id = input.domain.activeBaselineId;
+  if (index.type(d.chunk) === 'IFCPROPERTYSET' && index.name(d.chunk) === PSET.Baselines && !id
+    && !d.whole && d.arg === 4 && (d.outArg ?? d.arg) === 4 && input.domain.baselines?.length) {
+    const members = index.refsAt(d.chunk, 4), active = members.filter(c => index.name(c) === PROP.Baselines.ActiveBaselineId);
+    if (active.length !== 1 || !ctx.carried(d.chunk, 4) || !ctx.carried(active[0], 2)) return false;
+    const expected = members.filter(c => c !== active[0]).map(c => p.pairedOut.get(c)?.[0]);
+    return JSON.stringify(refList(d.out)) === JSON.stringify(expected) ? 'actieve baseline uitgezet' : false;
+  }
+  if (index.type(d.chunk) !== 'IFCPROPERTYSINGLEVALUE' || index.name(d.chunk) !== PROP.Baselines.ActiveBaselineId) return undefined;
   if (!ctx.carried(d.chunk, 2)) return false;
   // De gewone writer laat de property weg als de planner de actieve baseline uitzet.
   if (!id) return input.domain.baselines?.length && d.whole === 'ontbreekt' ? 'actieve baseline uitgezet' : false;
@@ -1939,7 +1949,7 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
     if (active) return active;
     const mapGrowth = explainOwnMapGrowth(ctx, d, way);
     if (mapGrowth) return mapGrowth;
-    // De live-schema-pset hoort bij project, maar deze twee waarden volgen uit de baselineactie.
+    // De live-schema-pset hoort bij project; de baselinerijen volgen uit de baselineactie.
     // Alleen hun waardeslot; andere properties, namen en beschrijvingen krijgen geen vrijstelling.
     if (!d.whole && type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && way === `pset:${PSET.Baselines}`
       && changed.keys.has('baselines') && addedBaselineIds(ctx).size > 0) {

@@ -469,11 +469,11 @@ export function fixedSequenceEdits(d: Domain): Edit[] {
 }
 
 /** 7d: twee gebruikte typen, één code en twee baselines in één echte eerste opslag. */
-export async function savedCatalogStart(bytes: Uint8Array): Promise<Uint8Array> {
+export async function savedCatalogStart(bytes: Uint8Array, twoTypes = true): Promise<Uint8Array> {
   const { store, snapshot } = await openInStore(bytes);
   const s = store.getState(), leaves = s.tasks.filter(t => !t.isMilestone && !t.childIds.length);
   if (leaves.length < 4) throw new Error('catalogusreeksen: vier gewone taken nodig');
-  for (const [i, id] of ['type-7d-a', 'type-7d-b'].entries()) {
+  for (const [i, id] of (twoTypes ? ['type-7d-a', 'type-7d-b'] : ['type-7d-a']).entries()) {
     s.ensureProjectTaskType({ id, name: `Type ${i} 7d` });
     s.updateTask(leaves[i].id, { taskType: 'USERDEFINED', customTaskTypeId: id });
   }

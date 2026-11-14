@@ -1536,6 +1536,27 @@ const jsonVan = (line: OutLine): any => {
 };
 const vervangJson = (lines: OutLine[], target: OutLine, value: unknown) => lines.map(l => l === target
   ? { ...l, args: l.args.map((a, k) => k === 2 ? `IFCTEXT(${ifcJson(value)})` : a) } : l);
+async function verliesProef(bytes: Uint8Array, input: Domain, output: Uint8Array) {
+  const opened = await openForeign(bytes), source = opened.ifcSource!;
+  const index = scanStep(bytes), cls = classify(index);
+  const plan = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
+  const o0 = regelsVan(bytes), o1 = regelsVan(output);
+  const reread = await openForeign(output);
+  const objects1 = new Map(Object.entries(reread.ifcSource!.stepIds).map(([key, id]) => [id, key]));
+  for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
+  const pristine = await pristineDomain(index, cls, source);
+  const run = (lines: OutLine[], edited = input, lines0 = o0) => {
+    const found: number[] = [];
+    lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
+      o0: lines0, o1: lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
+      plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
+      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+    }, f => found.push(f.chunk));
+    return found;
+  };
+  return { index, o0, o1, run, opened };
+}
 const opgeslagenKaarten = await savedSequenceStart(eigenKaart);
 for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
   const opened = await openForeign(opgeslagenKaarten), source = opened.ifcSource!;
@@ -1546,23 +1567,7 @@ for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     ok(`${kind}: voorbereiding voor uitvoermutaties schrijft`, false); continue;
   }
-  const index = scanStep(opgeslagenKaarten), cls = classify(index);
-  const plan = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
-  const o0 = regelsVan(opgeslagenKaarten), o1 = regelsVan(concat(prepared.parts));
-  const objects1 = new Map(Object.entries(prepared.source.stepIds).map(([key, id]) => [id, key]));
-  for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
-  const pristine = await pristineDomain(index, cls, source);
-  const domain = sourceFormWhereUnchanged(input, source.opened, pristine).input;
-  const run = (lines: OutLine[]) => {
-    const found: number[] = [];
-    lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
-      o0, o1: lines, pristine, domain, opened: source.opened, objects1,
-      plannerChanged: changedScopes(input, source.opened ?? pristine).keys,
-      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-    }, f => found.push(f.chunk));
-    return found;
-  };
+  const { index, o0, o1, run } = await verliesProef(opgeslagenKaarten, input, concat(prepared.parts));
   eq(`${kind}: echte O1 slaagt door verliespoort`, run(o1), []);
   const target = o1.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === `'${kind}'`)!;
   const original = jsonVan(target), oldLine = o0.find(l => l.type === target.type && l.args[0] === target.args[0])!;
@@ -1636,15 +1641,18 @@ for (const action of ['type-verliezen', 'laatste-taak-wissen']) {
 }
 for (const [name, raw] of kaartBronnen) {
   const saved = await savedCatalogStart(raw), opened = await openForeign(saved), edits = fixedCatalogEdits(opened);
-  for (const edit of edits) await kaartRonde(`7d ${name}: ${edit.label}`, saved, d => applyEdit(edit, d));
-  await kaartRonde(`7d ${name}: code + nieuw type + nieuwe taak + typewissel`, saved, async d => {
-    for (const edit of edits.slice(0, 3)) d = await applyEdit(edit, d);
+  const single = await savedCatalogStart(raw, false);
+  for (const [i, edit] of edits.entries()) await kaartRonde(`7d ${name}: ${edit.label}`, i === 1 ? single : saved, d => applyEdit(edit, d));
+  await kaartRonde(`7d ${name}: code + nieuw type + nieuwe taak + typewissel`, single, async d => {
+    for (const edit of edits.slice(0, 2)) d = await applyEdit(edit, d);
     return storeEdit(d, s => {
+      s.updateTask(s.tasks.find(t => t.customTaskTypeId === 'type-7d-a')!.id, { customTaskTypeId: 'type-7d-c' });
       const id = s.addTask({ name: 'Nieuwe taak 7d' }, { phaseAssignments: 'move', answered: true });
       if (!id) throw new Error('7d: geen nieuwe taak');
       s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7d-c' });
     });
   });
+  await kaartRonde(`7d ${name}: actieve baseline uitzetten`, saved, d => storeEdit(d, s => { s.setActiveBaseline(null); }));
   await kaartRonde(`7d ${name}: baseline erbij en bestaande actief`, saved, d => storeEdit(d, s => {
     const id = s.baselines[0].id; s.saveBaseline('Nieuw 7d'); s.setActiveBaseline(id);
   }));
@@ -1655,6 +1663,111 @@ for (const [name, raw] of kaartBronnen) {
   if (second) await kaartRonde(`7d ${name}: heropenen en derde code`, second.output, d => storeEdit(d, s => {
     const id = s.addActivityCodeType('Code C 7d'); s.addActivityCodeValue(id, { code: 'C', description: 'Derde waarde' });
   }));
+}
+
+// 7d: een volledige gewijzigde waarde moet verklaard zijn; ook als de writer haar geheel op de bron laat staan.
+const catalogusBron = await savedCatalogStart(eigenKaart);
+for (const [i, property] of ['OPS_ActivityCodes', 'TaskTypes', 'TaskTypes', 'ActiveBaselineId'].entries()) {
+  const bytes = i === 1 ? await savedCatalogStart(eigenKaart, false) : catalogusBron;
+  const opened = await openForeign(bytes), input = await applyEdit(fixedCatalogEdits(opened)[i], cloneDomain(opened));
+  let prepared;
+  try { prepared = await prepareIfcWrite(input, opened.ifcSource!); } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`7d ${i}: voorbereiding tegenproeven schrijft`, false); continue;
+  }
+  const { index, o0, o1, run } = await verliesProef(bytes, input, concat(prepared.parts));
+  eq(`7d ${i}: echte uitvoer door verliespoort`, run(o1), []);
+  const template = property === 'OPS_ActivityCodes';
+  const target = o1.find(l => l.type === (template ? 'IFCPROPERTYSETTEMPLATE' : 'IFCPROPERTYSINGLEVALUE')
+    && l.args[template ? 2 : 0] === `'${property}'`)!;
+  const oldLine = o0.find(l => l.type === target.type && l.args[template ? 2 : 0] === `'${property}'`)!;
+  const chunk = index.chunkOf(String(oldLine.id));
+  const changeArg = (line: OutLine, arg: number, value: string) => o1.map(l => l === line ? { ...l, args: l.args.map((a, k) => k === arg ? value : a) } : l);
+  const refuses = (label: string, lines: OutLine[], edited = input, lines0 = o0) => {
+    const rejected = run(lines, edited, lines0).includes(chunk);
+    ok(`7d ${i} ${property}: ${label} weigert`, rejected);
+    console.log(`BEWIJS 7d ${i} ${label}: ${rejected ? 'geweigerd' : 'FOUT'}`);
+  };
+  const slot = template ? 6 : 2;
+  // Gebruik de echte O0-tegenhangers voor bronverwijzingen; ids veranderen op de mergeroute.
+  const unchanged = template ? `(${index.refsAt(chunk, 6).map(c => {
+    const name = index.name(c); return '#' + o1.find(l => l.type === 'IFCSIMPLEPROPERTYTEMPLATE' && decodeStepText(l.args[2].slice(1, -1)) === name)!.id;
+  }).join(',')})` : oldLine.args[2];
+  refuses('verwachte wijziging ontbreekt', changeArg(target, slot, unchanged));
+  if (template) {
+    const refs = target.args[6].slice(1, -1).split(',');
+    refuses('oude definitie weg', changeArg(target, 6, `(${refs.slice(1).join(',')})`));
+    refuses('verwijzing naar andere template', changeArg(target, 6, `(${refs[0]},${refs[0]})`));
+    refuses('extra definitie zonder handeling', changeArg(target, 6, `(${refs.join(',')},${refs[0]})`));
+    const added = o1.find(l => `#${l.id}` === refs[1])!;
+    refuses('nieuwe definitie verkeerde inhoud', changeArg(added, 2, "'Ongevraagde code'"));
+    const oldTemplate = o1.find(l => `#${l.id}` === refs[0])!;
+    refuses('oude definitie gewijzigd', changeArg(oldTemplate, 2, "'Verloren oude code'"));
+    refuses('codedefinitie zonder plannerhandeling', o1, cloneDomain(opened));
+  } else if (property === 'TaskTypes') {
+    const original = jsonVan(target), before = jsonVan(oldLine);
+    const changed = Object.keys(original.taskTypeIds).find(k => before.taskTypeIds[k] !== original.taskTypeIds[k])!;
+    const other = Object.keys(before.taskTypeIds).find(k => k !== changed)!;
+    const variants: [string, (v: any) => void][] = [
+      ['oude definitie weg', v => { v.definitions.shift(); }],
+      ['oude definitie gewijzigd', v => { v.definitions[0].name = 'Verloren naam'; }],
+      ['extra definitie zonder handeling', v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }],
+      ['onaangeraakte koppeling gewijzigd', v => { v.taskTypeIds[other] = 'type-7d-b'; if (v.taskTypeIds[other] === before.taskTypeIds[other]) v.taskTypeIds[other] = 'type-7d-a'; }],
+      ['gewijzigde koppeling verkeerde waarde', v => { v.taskTypeIds[changed] = 'type-7d-a'; }],
+      ['koppeling naar onbekende definitie', v => { v.taskTypeIds[changed] = 'onbekend'; }],
+    ];
+    if (i === 1) variants.push(['nieuwe definitie verkeerde inhoud', v => { v.definitions[v.definitions.length - 1].name = 'Verkeerd'; }],
+      ['nieuwe definitie ontbreekt', v => { v.definitions.pop(); }]);
+    for (const [label, mutate] of variants) {
+      const value = structuredClone(original); mutate(value); refuses(label, vervangJson(o1, target, value));
+    }
+    refuses('koppeling zonder plannerhandeling', o1, cloneDomain(opened));
+    // De nieuwe verklaringen mogen de bestaande gedragen-bronvoorwaarde niet omzeilen.
+    refuses('O0 draagt de bron niet', o1, input, vervangJson(o0, oldLine, { ...before, taskTypeIds: {} }));
+  } else {
+    for (const id of ['onbekend', opened.activeBaselineId!]) refuses(`actief wijst naar ${id}`, changeArg(target, 2, `IFCTEXT(${ifcStr(id)})`));
+    refuses('actieve baseline zonder handeling', o1, cloneDomain(opened));
+    const other = input.baselines!.find(b => b.id !== input.activeBaselineId)!.id;
+    refuses('bestaande baseline anders dan domein', changeArg(target, 2, `IFCTEXT(${ifcStr(other)})`));
+    refuses('O0 draagt actieve baseline niet', o1, input, o0.map(l => l === oldLine ? { ...l, args: l.args.map((a, k) => k === 2 ? "IFCTEXT('onbekend')" : a) } : l));
+  }
+}
+// Meet de bestaande grenzen met echte acties; geen extra verklaringen voor wijzigen of wissen van definities.
+for (const [label, edit] of [
+  ['codedefinitie hernoemen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Andere codenaam')],
+  ['laatste codedefinitie wissen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.removeActivityCodeType(s.activityCodeTypes[0].id)],
+] as const) await blijvendeWeigering(`7d grens ${label}`, catalogusBron, d => storeEdit(d, edit));
+await kaartRonde('7d waarde bij bestaande codedefinitie', catalogusBron, d => storeEdit(d, s => {
+  s.addActivityCodeValue(s.activityCodeTypes[0].id, { code: 'EXTRA', description: 'Extra' });
+}));
+await kaartRonde('7d actieve baseline uitzetten', catalogusBron, d => storeEdit(d, s => { s.setActiveBaseline(null); }));
+
+const tweeCodes = await kaartRonde('7d grenzen: tweede code voorbereiden', catalogusBron, d => applyEdit(fixedCatalogEdits(d)[0], d));
+if (tweeCodes) {
+  await blijvendeWeigering('1585 code hernoemen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+    s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code');
+  }));
+  await blijvendeWeigering('1585 code wissen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+    s.removeActivityCodeType(s.activityCodeTypes[0].id);
+  }));
+}
+await blijvendeWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
+  for (const t of s.tasks.filter(t => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
+}));
+// Er is geen actie die de projectkopie van een taaktype hernoemt (de beheer-UI hernoemt alleen persoonlijke typen).
+// Meet de writergrens daarom expliciet op domeininvoer; dit is geen geclaimde UI-route.
+await blijvendeWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)', catalogusBron, async d => {
+  d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d;
+});
+// Uitzetten mag geen andere property uit de baseline-pset laten verdwijnen.
+{
+  const opened = await openForeign(catalogusBron), input = await storeEdit(cloneDomain(opened), s => { s.setActiveBaseline(null); });
+  const prepared = await prepareIfcWrite(input, opened.ifcSource!);
+  const { index, o0, o1, run } = await verliesProef(catalogusBron, input, concat(prepared.parts));
+  const set = o1.find(l => l.type === 'IFCPROPERTYSET' && l.args[2] === "'OPS_Baselines'")!;
+  const oldSet = o0.find(l => l.type === set.type && l.args[2] === set.args[2])!;
+  const broken = o1.map(l => l === set ? { ...l, args: l.args.map((a, k) => k === 4 ? `(${a.slice(1, -1).split(',').slice(1).join(',')})` : a) } : l);
+  ok('7d actieve baseline uitzetten: rest van de pset blijft bewaakt', run(broken).includes(index.chunkOf(String(oldSet.id))));
 }
 
 if (diffs.length > 0) {

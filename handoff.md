@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- PR 7d (#804): strenge definitiegroei voor activiteitscodes/taaktypen en gewijzigde taaktype-/baselinekeuzen; dezelfde nacontrole bewaakt ontbrekende uitvoer, twaalf vaste tellinggevallen erbij; 1581/1582/1585–1587 blijven vervolg.
+
 - PR 7c (#804, 1571): één strenge groeicontrole voor `OPS_Baselines.TaskGuids` en `OPS_TaskTypes.TaskTypes`; echte opgeslagen reeksen op drie bronnen, bron-/uitvoermutaties en twaalf vaste tellinggevallen; 1580 gaat naar 7d, 1581/1582 blijven op de eindlijst.
 - 2026-11-14: fase 1c PR 11b deelt de bewaakte voorbereiding met volledige IFC-export en app-MCP naar nieuwe doelen; exports laten documentbron, doel, dirty en kalenderkeuzes intact. 1135/1560/1561/1562 opgelost; pool/planOnly en handleiding blijven eindlijst 1565/1566.
 - PR 9a (#804, 1c): desktopbron/browserhandle na crash teruglezen op grootte + sha256 via de bytes-openroute; snapshotplanning erop, optionele bronverwijzing binnen v5 en lege manifestdoelen, geen pending/idExceptions; site/download en MCP-backup volgen in 9b.

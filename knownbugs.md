@@ -3815,13 +3815,6 @@ en noem het in je rapport of PR-tekst.
      (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
      review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
 
-1580. **VERVOLG, PR 7d: een tweede activiteitscodedefinitie bij een gebouwmodel weigert.** Open
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met `ifcForeignContent`, maak een codedefinitie met een waarde,
-     wijs die toe en sla via de merge op. Heropen de uitvoer, voeg een taak en een tweede, anders genoemde
-     codedefinitie met waarde toe en wijs die aan de nieuwe taak toe. `prepareIfcWrite` weigert `niet-gedragen`
-     op `IFCPROPERTYSETTEMPLATE (OPS_ActivityCodes)`, argument 6: de templatelijst groeit van één naar twee.
-     Reproductie in `check-ifc-foreign-preserve.ts` (1580). Besluit Trias 14 november 2026: direct na 7c als 7d. — B
-
 1581. **VERVOLG, vóór de flag standaard aan gaat: alle baselines wissen bij een gebouwmodel weigert.** Open
      `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met de flag en wis de bestaande baseline via `deleteBaseline`.
      De merge weigert op `IFCRELAGGREGATES #45` slot 5 en de verdwenen `Baselines #319`, `TaskGuids #320`,
@@ -3829,28 +3822,35 @@ en noem het in je rapport of PR-tekst.
      een afzonderlijke verklaring, zoals de taaktype-pset van 1110. Wissen → taak → nieuwe baseline schrijft wel
      na 7c. Reproductie in `check-ifc-foreign-preserve.ts` (1581); eindlijst, verplicht vóór standaard aan. — B
 
-1582. **VERVOLG: de opgeslagen taaktypecatalogus wijzigen bij een gebouwmodel weigert.** Maak met de flag in
-     `eigen-plus-model.ifc` een eigen taaktype, geef het aan een taak, sla via de merge op en heropen. Dat type bij
-     de laatste taak weghalen laat `OPS_TaskTypes` verdwijnen (dezelfde levenscyclus als 1110); die taak een
-     nieuw type geven, of een andere taak een nieuw gedefinieerd type geven, wijzigt `TaskTypes` slot 2 en weigert
-     `niet-gedragen`. De verklaring van 7c draagt alleen nieuwe koppelingen aan bestaande definities, met alle
-     oude koppelingen en definities intact. Reproducties in `check-ifc-foreign-preserve.ts` (type-wisselen,
-     type-verliezen, nieuwe-definitie). Een afzonderlijke verklaring van wijzigingen/wissen blijft nodig.
-     De review van #930 mat erbij: wisselen tussen twee al opgeslagen typen weigert ook als beide definities
-     ongewijzigd en in gebruik blijven. Besluit Trias 14 november 2026: de tweede taaktypedefinitie en een taak die van
-     type wisselt gaan mee in PR 7d; het verdwijnen van de hele pset (type weg bij de laatste taak, 1110) staat op de
+1582. **VERVOLG, vóór de flag standaard aan gaat: het type weghalen bij de laatste getypeerde taak weigert.**
+     Maak in `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` een eigen taaktype, geef het aan één taak, sla via
+     de merge op en heropen. Zet die taak terug naar een standaardtype: de writer laat de volledige project-pset
+     `OPS_TaskTypes` weg en de merge weigert. Dezelfde levenscyclus als 1110 (laatste getypeerde taak wissen).
+     PR 7d verklaart nieuwe definities en gewijzigde/verwijderde koppelingen zolang alle oude definities behouden
+     blijven; het verdwijnen van de hele pset blijft afzonderlijk. Reproductie `1582 taaktype type-verliezen`
+     in `check-ifc-foreign-preserve.ts`. Eindlijst, verplicht vóór de flag standaard aan gaat. — B
+
+1585. **VERVOLG: een bestaande activiteitscodedefinitie hernoemen of wissen bij een gebouwmodel weigert.**
+     Begin met twee opgeslagen codedefinities met waarden en taaktoewijzingen (de drie bronnen van PR 7d).
+     `renameActivityCodeType` op de eerste of `removeActivityCodeType` op de eerste laat de bestaande
+     `OPS_ActivityCodes`-templatelijst veranderen en de oude template/enumeratie verdwijnen: `niet-gedragen`.
+     Gemeten op `eigen-plus-model.ifc` via echte acties, voorbereiding en volledige bytes-opening; proeven
+     `1585 code hernoemen met andere definitie over` en `1585 code wissen met andere definitie over` in
+     `check-ifc-foreign-preserve.ts`. Een waarde toevoegen aan een bestaande code schrijft en heropent al.
+     PR 7d verklaart uitsluitend toegevoegde definities met alle bestaande exact behouden. — B
+
+1586. **VERVOLG: het laatste gebruik van één eigen taaktype weghalen terwijl een ander gebruikt blijft weigert.**
+     Begin met twee opgeslagen gebruikte typen A en B, geef alle taken van A via `updateTask` het type B.
+     De gewone writer neemt alleen gebruikte definities op, dus `TaskTypes.definitions` verliest A; de merge
+     weigert `niet-gedragen` op waardeslot 2. Dit is definitieverwijdering, buiten de groei-/koppelingsregel van
+     PR 7d. Reproductie `1586 laatste gebruik van een definitie weg terwijl ander type blijft` op de opgeslagen
+     beginstand van `eigen-plus-model.ifc` in `check-ifc-foreign-preserve.ts`. Een projectdefinitie hernoemen
+     weigert eveneens, gemeten alleen op domeininvoer: er is geen store-actie voor die projectkopie, de beheer-UI
+     hernoemt persoonlijke typen. Die aparte grensproef claimt dus geen UI-route. — B
+
+1587. **VERVOLG, vóór de flag standaard aan gaat: de laatste activiteitscodedefinitie wissen weigert.**
+     Open de opgeslagen beginstand met één code uit PR 7d en wis die met `removeActivityCodeType`.
+     `OPS_StructureMeta`, de template/enumeratie en `OPS_ActivityCodes` verdwijnen geheel; de merge weigert
+     `niet-gedragen`. Reproductie `7d grens laatste codedefinitie wissen` in `check-ifc-foreign-preserve.ts`,
+     gemeten op `eigen-plus-model.ifc`. Het verdwijnen van een hele pset blijft naast 1110 en 1581 op de
      eindlijst, verplicht vóór de flag standaard aan gaat. — B
-
-1583. **VERVOLG (#804, gewone handeling): een andere bestaande baseline actief maken bij een gebouwmodel weigert.**
-     In een bestand met een gebouwmodel en twee opgeslagen baselines: alleen `setActiveBaseline` naar de andere
-     baseline → de merge weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (ActiveBaselineId)`, waardeslot 2. De
-     verklaring in `explainScope` (`src/services/ifc/foreign/lossCheck.ts`) eist een toegevoegde baseline en dekt een
-     keuze uit bestaande baselines niet. Bestaat ook op main `fce5a77e9`; komt niet door PR 7c. Richting: een
-     beperkte verklaring voor een werkelijk gewijzigde keuze uit bestaande baselines, geen vrijstelling voor de hele
-     pset. Gevonden door de review van #930 (eigen proef op `council/r4-k1-na-opslaan.ifc`). — B
-
-1584. **VERVOLG (#804, opruimen): dubbele JSON-parser en een overbodige assert uit PR 7c.** `mapJson` in
-     `src/services/ifc/foreign/lossCheck.ts` herhaalt de lokale parser in `literalBaselineForm`; in
-     `tests/planning/check-ifc-foreign-preserve.ts` volgt de assert "iedere nieuwe baselinerij aan de juiste taak"
-     al uit de volledige baselinevergelijking ervoor. Samen ongeveer zeven regels. Gevonden door de review van
-     #930. — B

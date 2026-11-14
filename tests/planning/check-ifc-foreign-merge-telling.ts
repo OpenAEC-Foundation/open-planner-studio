@@ -41,7 +41,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  fixedSequenceEdits, savedSequenceStart, type Edit, applyEdit, EditNotAppliedError, canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, reopenPlain,
+  fixedCatalogEdits, savedCatalogStart, fixedSequenceEdits, savedSequenceStart, type Edit, applyEdit, EditNotAppliedError, canon, cloneDomain, doubleMemberships, mergeProblems, openForeign, openForeignRaw, ordinaryEdits, plannerEdits, reopenPlain,
   shownAfterOpen, tryMerge, type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -266,12 +266,30 @@ for (const file of ['eigen-plus-model.ifc', `${EXAMPLES}/03-kantoorgebouw-zuidas
   } catch (e) { others.push(`${shown} · voorbereiding vaste reeksen mislukt: ${(e as Error).message}`); }
 }
 
+// 7d: vier aanvullende reeksen op dezelfde drie bronnen, elk met echte opgeslagen voorbereiding.
+for (const file of ['eigen-plus-model.ifc', `${EXAMPLES}/03-kantoorgebouw-zuidas.ifc`, 'oud-eigen-0.1-plus-model.ifc']) {
+  const shown = shownName(file) + (ownPath(file) ? ' + wand' : '');
+  try {
+    const raw = bytesOf.get(shown)!, saved = await savedCatalogStart(raw), single = await savedCatalogStart(raw, false);
+    const opened = await openForeign(saved);
+    for (const [i, edit] of fixedCatalogEdits(opened).entries()) {
+      const bytes = i === 1 ? single : saved;
+      const result = await runEdits(shown, bytes, await openForeign(bytes), APP, others, true, 0, [edit]);
+      for (const [kind, counts] of result) {
+        tally.get(shown)!.set(kind, counts);
+        if (counts.n !== 1 || counts.ok !== 1) others.push(`${shown} · catalogusreeks ${kind} schrijft niet één keer goed`);
+      }
+    }
+  } catch (e) { others.push(`${shown} · voorbereiding catalogusreeksen mislukt: ${(e as Error).message}`); }
+}
+
 // ── De tabellen ──
 const KINDS: EditKind[] = [
   'niets', 'andere-ouder', 'niveau-hoger', 'volgorde-kinderen', 'relatie-erbij', 'taak-wissen', 'taak-erbij', 'hernoemen', 'duur',
   'toewijzing-erbij', 'voortgang', 'doorrekenen',
   'resource-erbij', 'kalender-erbij', 'baseline-vastleggen',
   'reeks-taak-baseline', 'reeks-resource-kalender-toewijzing', 'reeks-taak-bestaand-type', 'reeks-twee-baselines',
+  'reeks-tweede-code', 'reeks-tweede-type', 'reeks-type-wisselen', 'reeks-actieve-baseline',
 ];
 const fmt = (m: Map<string, number>) => [...m].sort().map(([k, v]) => `${k} ${v}`).join(', ') || '–';
 /** Per bestand en per bewerking, dan de totalen per bewerking. Geeft het totaal terug. */
