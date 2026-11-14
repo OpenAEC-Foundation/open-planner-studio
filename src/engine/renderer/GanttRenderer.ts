@@ -134,6 +134,8 @@ export interface GanttRenderOptions {
   activityCodeTypes?: ActivityCodeType[];
   customFieldDefs?: CustomFieldDef[];
   taskTypeLabels?: Record<string, string>;
+  /** Eigen werkcategorieën van het project: naam en kleur per categorie (issue #856). */
+  customTaskTypes?: import('@/types/task').CustomTaskType[];
   barColorNoneLabel?: string;
   /** Voor het accent: resources + toewijzingen (de renderer leeft buiten de store). */
   resources?: import('@/types/resource').Resource[];
@@ -413,6 +415,7 @@ export class GanttRenderer {
       resources: opts.resources ?? [],
       assignments: opts.assignments ?? [],
       taskTypeLabels: opts.taskTypeLabels,
+      customTaskTypes: opts.customTaskTypes,
       noneLabel: opts.barColorNoneLabel ?? '(geen)',
     };
     // `opts.axis` (indien meegegeven door GanttCanvas — de gedeelde instantie met

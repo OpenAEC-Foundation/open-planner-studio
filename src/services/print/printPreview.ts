@@ -1,5 +1,5 @@
 import { ensureCustomBarVisible } from '@/engine/renderer/resourcePalette';
-import { Task } from '@/types/task';
+import type { CustomTaskType, Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { isHourModeCalendar, WorkCalendar } from '@/types/calendar';
 import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart, localNowOnDayAxis } from '@/utils/dateUtils';
@@ -1024,6 +1024,8 @@ export interface PrintOptions {
   activityCodeTypes?: ActivityCodeType[];
   customFieldDefs?: CustomFieldDef[];
   taskTypeLabels?: Record<string, string>;
+  /** Eigen werkcategorieën van het project: naam en kleur per categorie (issue #856). */
+  customTaskTypes?: CustomTaskType[];
   barColorNoneLabel?: string;
   /** Statuslijn in de export: 'none' (default) | 'statusDate' (stippellijn) | 'progress' (zigzag). */
   statusLine?: 'none' | 'statusDate' | 'progress';
@@ -1676,6 +1678,7 @@ export function renderReport(
     resources,
     assignments,
     taskTypeLabels: options.taskTypeLabels,
+    customTaskTypes: options.customTaskTypes,
     noneLabel: options.barColorNoneLabel ?? '(geen)',
   };
   const colorAdvice = (task: Task, width?: number): BarFill => computeBarColors(
@@ -2860,6 +2863,7 @@ function drawFooter(
         resources: options.resources ?? [],
         assignments: options.assignments ?? [],
         taskTypeLabels: options.taskTypeLabels,
+        customTaskTypes: options.customTaskTypes,
         noneLabel: options.barColorNoneLabel ?? '(geen)',
       };
       const selection = options.barColorSelection ?? { mode: 'critical' };

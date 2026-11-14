@@ -11,6 +11,7 @@
 //
 // De lichtheden lopen bewust sterk uiteen: band 1/12 breed per kleur.
 import type { Resource } from '@/types/resource';
+import { TASK_TYPES } from '@/types/task';
 import { contrastRatio } from '@/engine/renderer/themePalette';
 
 // Samengesteld op lichtheid (relatieve lichtheid via 0.2126R+0.7152G+0.0722B): twaalf tinten over
@@ -52,6 +53,58 @@ function hashId(id: string): number {
 /** Weergavekleur voor een willekeurig id (resource of taak): hash → paletindex. Puur. */
 export function paletteColorForId(id: string): string {
   return RESOURCE_PALETTE[hashId(id) % RESOURCE_PALETTE.length];
+}
+
+// --- Eigen werkcategorieën (issue #856) -----------------------------------------------------------
+//
+// Een eigen werkcategorie is in de data `taskType: 'USERDEFINED'` met een `customTaskTypeId`. Kleurde
+// de balk op de hash van 'USERDEFINED', dan kreeg elke eigen categorie de kleur van "Overig". Nu krijgt
+// elke eigen categorie een plek in het palet die geen vaste categorie gebruikt. Plek 1 (rood-700) doet
+// niet mee: in het donkere thema is die bijna kritiek-rood (zie de paletkop). Zijn die plekken op, dan
+// volgen de overige plekken; pas daarna deelt een categorie een kleur.
+//
+// Vast per categorie: de hash van het id kiest de voorkeursplek; bij een botsing wint het kleinste id
+// en schuift het andere door. Ids beginnen met een tijdstempel (`generateId`), dus een nieuwe
+// categorie sorteert achteraan en verschuift nooit de kleur van een bestaande, ook niet als de
+// catalogus van een project een andere volgorde heeft.
+const CRITICAL_LOOKALIKE_SLOT = 1;
+const BUILTIN_TASK_TYPE_SLOTS = new Set(TASK_TYPES.map(type => hashId(type) % RESOURCE_PALETTE.length));
+const CUSTOM_TASK_TYPE_TIERS: readonly (readonly number[])[] = (() => {
+  const usable = RESOURCE_PALETTE.map((_, slot) => slot).filter(slot => slot !== CRITICAL_LOOKALIKE_SLOT);
+  return [usable.filter(slot => !BUILTIN_TASK_TYPE_SLOTS.has(slot)), usable.filter(slot => BUILTIN_TASK_TYPE_SLOTS.has(slot))];
+})();
+const customTaskTypeColors = new WeakMap<ReadonlyArray<{ id: string }>, Map<string, string>>();
+
+function assignCustomTaskTypeColors(catalogue: ReadonlyArray<{ id: string }>): Map<string, string> {
+  const taken = new Set<number>();
+  const colors = new Map<string, string>();
+  const pick = (id: string): number => {
+    for (const tier of CUSTOM_TASK_TYPE_TIERS) {
+      const start = hashId(id) % tier.length;
+      for (let step = 0; step < tier.length; step++) {
+        const slot = tier[(start + step) % tier.length];
+        if (!taken.has(slot)) return slot;
+      }
+    }
+    const first = CUSTOM_TASK_TYPE_TIERS[0];
+    return first[hashId(id) % first.length]; // alles bezet: delen
+  };
+  for (const id of catalogue.map(type => type.id).sort()) {
+    const slot = pick(id);
+    taken.add(slot);
+    colors.set(id, RESOURCE_PALETTE[slot]);
+  }
+  return colors;
+}
+
+/** Vaste, onderscheidbare paletkleur voor een eigen werkcategorie binnen haar catalogus. Puur. */
+export function customTaskTypeColor(id: string, catalogue: ReadonlyArray<{ id: string }>): string {
+  let colors = customTaskTypeColors.get(catalogue);
+  if (!colors) {
+    colors = assignCustomTaskTypeColors(catalogue);
+    customTaskTypeColors.set(catalogue, colors);
+  }
+  return colors.get(id) ?? paletteColorForId(id);
 }
 
 /**
