@@ -51,7 +51,12 @@ Een handleleesfout probeert een bestaande kopie, zonder voor handles een kopie t
 verwijzingen van de eigen/vastgehouden generaties die geen manifest meer noemt; andere sessies en onbekende
 herstelsets blijven staan. Zonder verwijzing of manifest mag de blob weg. Document sluiten en herstelset wissen
 gebruiken dezelfde opruiming; desktop heeft geen kopieën, web houdt bij tabsluiten zijn herstelset.
-Geen bron of andere hash: bron ontbreekt en IFC-opslag geblokkeerd. Een inmiddels gewone planning
+Geen bron of andere hash: bron ontbreekt en IFC-opslag geblokkeerd. Alleen handmatig Opslaan als mag met de flag aan
+na een bevestiging met Annuleren als beginfocus planning zonder model schrijven. Na succes blijft hetzelfde kenmerk
+uitsluitend voor doelbescherming staan met `sourceMissing: false`; die expliciete waarde reist mee in `foreignSource`
+binnen manifest v5. De vingerafdruk blijft in de herstelsnapshot, nooit in de gewone IFC-opslag. Herstel houdt zo de
+planning gewoon en het oorspronkelijke doel beschermd, ook met de flag uit. Oude metadata zonder die waarde houdt
+het oude veilige gedrag. Een nieuwe MCP-backup van die gewone planning draagt geen modelkenmerk. Een inmiddels gewone planning
 herstelt zonder bronblokkade; een oud manifest of flag uit houdt het oude gedrag. Geen pending of manifestversie 6.
 PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
 met de bestaande ene melding per document per sessie; site-AutoSave blijft uit.

@@ -41,6 +41,7 @@ import {
   refusedWriteTarget,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
+import { askIfcMissingSourceSaveAs } from '@/services/ifc/ifcMissingSourceQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
@@ -520,7 +521,7 @@ export interface FileSlice {
   saveFileAs: () => Promise<void>;
   /** Alleen na geslaagde I/O naar het eigen doel. Bron en kalenderkeuzes volgen de geschreven
    * momentopname, ook als tussentijds werk het document dirty houdt. Exports gebruiken dit niet. */
-  commitSavedDocument: (documentId: string, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite) => boolean;
+  commitSavedDocument: (documentId: string, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean) => boolean;
   exportAs: (format: ExportFormat) => Promise<ExportResult>;
   /** Exporteer het project + schrijf de gebonden bedrijfs-pool als tweede, LOS bestand
    *  ernaast. Géén embed. No-op op de pool-kant als het project niet aan een bedrijf gebonden is.
@@ -738,7 +739,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  type DocumentWrite = IfcOutput;
+  type DocumentWrite = IfcOutput & { readonly missingSourceSaveAs?: true };
+  const missingSourceSaveAsAllowed = (state: AppState) => state.foreignSourceMark?.sourceMissing === true
+    && !hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags);
   /** Alle volledige IFC-routes delen de modus- en bronbewaking; hier krijgt een weigering de appmelding. */
   const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput): Promise<IfcOutput | null> => {
     try { return await prepareIfcOutput(state, input); }
@@ -757,6 +760,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. */
   const refuseChangedDocumentWrite = (snapshot: AppState, write: DocumentWrite): boolean => {
+    if (write.missingSourceSaveAs) {
+      const now = get();
+      if (now.activeDocumentId === snapshot.activeDocumentId && now.ifcSource === snapshot.ifcSource
+        && now.foreignSourceMark === snapshot.foreignSourceMark && missingSourceSaveAsAllowed(now)) return false;
+      get().notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
+      return true;
+    }
     if (!write.prepared) return false;
     if (refuseForeignDocumentWrite()) return true;
     const now = get();
@@ -1083,6 +1093,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     savedSource: IFCSaveSource,
     destination?: SaveDestination,
     prepared?: PreparedIfcWrite,
+    missingSourceSaveAs = false,
   ): boolean => {
     const currentSource = saveSourceForDocument(get(), documentId);
     if (!currentSource) return false;
@@ -1096,6 +1107,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (destination.siteFileId) target.autoSaveToFile = false;
     };
     const applyPrepared = (target: Pick<AppState, 'ifcSource' | 'foreignSourceMark' | keyof SaveDestination>) => {
+      if (missingSourceSaveAs && savedSource.foreignSourceMark) {
+        target.ifcSource = null;
+        // Alleen nog doelbescherming, door dezelfde refusedWriteTarget als op iedere andere route.
+        target.foreignSourceMark = { ...savedSource.foreignSourceMark, sourceMissing: false };
+        return;
+      }
       if (!prepared) return;
       target.ifcSource = castDraft(prepared.source);
       target.foreignSourceMark = foreignSourceMarkFor(prepared.source, target);
@@ -1176,7 +1193,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const info = write.prepared ? await saveNewSiteFileParts(name, write.prepared.parts) : await saveNewSiteFile(name, write.content);
     const saved = commitSavedDocument(documentId, state, {
       filePath: info.name, fileHandle: null, siteFileId: info.id, siteFileVersion: info.version,
-    }, write.prepared);
+    }, write.prepared, write.missingSourceSaveAs);
     await pushRecent({ kind: 'site', id: info.id }, info.name);
     return saved;
   };
@@ -1242,7 +1259,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  naamveld van "Opslaan op de site" zou anders na het antwoord nog een versie schrijven. Zonder
    *  site zijn beide vlaggen altijd `null`. Ook de schemavraag bij opslaan telt mee (issue #292). */
   const siteQuestionOpen = () => get().ui.pendingSiteSave !== null || get().ui.pendingSiteOpen !== null
-    || get().ui.pendingIfcSchemaQuestion !== null || get().ui.pendingDependentAnchorWarning !== null;
+    || get().ui.pendingIfcSchemaQuestion !== null || get().ui.pendingDependentAnchorWarning !== null
+    || get().ui.pendingIfcMissingSourceSaveAs;
 
   /** Uitleg na het openen van een ander formaat dan IFC (`services/formatNotice.ts`). Alleen de
    *  open-routes die de GEBRUIKER start roepen dit aan (Bestand → Openen, Recente bestanden, Openen
@@ -1429,14 +1447,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Opslaan als (Ctrl+Shift+S / Bestand → Opslaan als). */
   const saveActiveDocumentAs = (): Promise<void> => runProjectFileWrite(async () => {
     // Fixronde 1 (BLOKKEERT 1): zie `writeActiveDocument`.
-    const startDocumentId = get().activeDocumentId;
-    if (refuseForeignDocumentWrite()) return;
+    const before = get();
+    const startDocumentId = before.activeDocumentId;
+    const missingSourceSaveAs = missingSourceSaveAsAllowed(before);
+    if (missingSourceSaveAs) {
+      if (!(await askIfcMissingSourceSaveAs())) return;
+      if (get().activeDocumentId !== startDocumentId || get().foreignSourceMark !== before.foreignSourceMark
+        || get().ifcSource !== before.ifcSource || !missingSourceSaveAsAllowed(get())) return;
+    } else if (refuseForeignDocumentWrite()) return;
     if (!(await settleIfcSchemaQuestion())) return;
     if (!(await settleDependentAnchors())) return;
     const state = get();
     const documentId = state.activeDocumentId;
     if (documentId !== startDocumentId) return;
-    if (refuseForeignDocumentWrite(state)) return;
+    if (missingSourceSaveAs) {
+      if (!missingSourceSaveAsAllowed(state) || state.foreignSourceMark !== before.foreignSourceMark
+        || state.ifcSource !== before.ifcSource) return;
+    } else if (refuseForeignDocumentWrite(state)) return;
     // Gedeelde helper: één plek voor het state→IFC-options-object, zodat dit
     // pad geen velden kan laten vallen.
     // `state` = momentopname vóór de eerste await; zelfde reden als bij saveFile: isDirty pas
@@ -1444,7 +1471,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     let siteName: string | null = null;
 
     try {
-      const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
+      // De bevestiging geldt uitsluitend voor deze planOnly-momentopname. De globale guard blijft dicht.
+      const output = await prepareDocumentWrite(missingSourceSaveAs ? { ...state, ifcSource: null, foreignSourceMark: null } : state,
+        buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'));
+      const write: DocumentWrite | null = output && missingSourceSaveAs ? { ...output, missingSourceSaveAs: true } : output;
+      if (write?.missingSourceSaveAs) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
       if (!write || refuseChangedDocumentWrite(state, write)) return;
       // Site-opslag aanwezig: "Opslaan op de site" maakt altijd een NIEUW site-bestand (opslaan
       // als); "Op deze pc…" valt door naar de bestaande route hieronder.
@@ -1460,7 +1491,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await documentSaveDialog(state, write, state.filePath ?? `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(documentId, state);
-      else commitSavedDocument(documentId, state, localDestination(outcome), write.prepared);
+      else commitSavedDocument(documentId, state, localDestination(outcome), write.prepared, write.missingSourceSaveAs);
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
     } catch (err) {

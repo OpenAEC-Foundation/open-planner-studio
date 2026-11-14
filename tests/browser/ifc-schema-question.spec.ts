@@ -162,3 +162,71 @@ function readRecoverySnapshot(page: Page, needle: string): Promise<string | null
     };
   }), needle);
 }
+
+// Andere beginstand dan de schemavraag: planning zonder de oorspronkelijke modelbytes.
+// De fixture mag de herstel-/backupstand zetten; de vraag, toetsen en opslag blijven echte bediening.
+test('Ontbrekend gebouwmodel: Opslaan als vraagt bewust doorgaan, Annuleren heeft de beginfocus',
+  async ({ page, ops: _ops }) => {
+    const model = readFileSync(join(process.cwd(), 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), 'utf8');
+    let downloads = 0;
+    page.on('download', () => { downloads++; });
+    for (const entry of ['herstel', 'backup'] as const) {
+      await page.evaluate(async ({ model, entry }) => {
+        const store = window.__OPS__!.store;
+        store.getState().setUI({ featureFlags: { ifcForeignContent: true } });
+        await store.getState().openOpenedFile({ name: 'met-gebouwmodel.ifc', content: '', bytes: new TextEncoder().encode(model), ref: null });
+        store.getState().addTask({ name: 'Planning zonder gevonden gebouwmodel' });
+        const inputPath = '/src/state/ifcSaveInput.ts';
+        const writerPath = '/src/services/ifc/ifcWriter.ts';
+        const markPath = '/src/services/ifc/foreign/foreignSourceMark.ts';
+        const { buildWriteIFCInput } = await import(/* @vite-ignore */ inputPath);
+        const { writeIFC } = await import(/* @vite-ignore */ writerPath);
+        const { foreignSourceBackupRecord, foreignSourceTargetOf } = await import(/* @vite-ignore */ markPath);
+        const state = store.getState();
+        const text = writeIFC({ ...buildWriteIFCInput(state, 'planOnly'), recoveryForeignSource: foreignSourceBackupRecord(state.foreignSourceMark) });
+        if (entry === 'backup') await state.openOpenedFile({ name: 'backup.ifc', content: '', bytes: new TextEncoder().encode(text), ref: null });
+        else {
+          const recoveryPath = '/src/state/readRecoveryDocument.ts';
+          const { readRecoveryDocument } = await import(/* @vite-ignore */ recoveryPath);
+          const restored = await readRecoveryDocument({ id: 'hersteld', filePath: null, isDirty: true, datesAsRecorded: false,
+            ifc: text, foreignSource: foreignSourceTargetOf(state.foreignSourceMark) }, new Map(), true);
+          state.restoreDocuments([restored], 'hersteld');
+        }
+      }, { model, entry });
+      const dialog = page.locator('[data-ops-ifc-missing-source-save-as]');
+      const before = downloads;
+      await page.keyboard.press('Control+s');
+      await expect(dialog).toHaveCount(0);
+      for (const cancel of ['Enter', 'Escape', 'klik'] as const) {
+        await page.keyboard.press('Control+Shift+s');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ })).toBeFocused();
+        // Terwijl de vraag wacht blijven globale opslag- en documentacties stil.
+        await page.keyboard.press('Control+s');
+        await expect(dialog).toBeVisible();
+        if (cancel === 'klik') await dialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
+        else await page.keyboard.press(cancel);
+        await expect(dialog).toHaveCount(0);
+        expect(downloads).toBe(before);
+        expect(await page.evaluate(() => window.__OPS__!.store.getState().foreignSourceMark?.sourceMissing)).toBe(true);
+      }
+      await page.keyboard.press('Control+Shift+s');
+      await expect(dialog).toBeVisible();
+      const download = page.waitForEvent('download');
+      const proceed = dialog.getByRole('button', { name: /^(Continue|Doorgaan)$/ });
+      if (entry === 'herstel') await proceed.click();
+      else {
+        // Toetsenbord: vanaf Annuleren via de sluitknop naar Doorgaan (de focus blijft in de dialoog), dan Enter.
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Tab');
+        await expect(proceed).toBeFocused();
+        await page.keyboard.press('Enter');
+      }
+      const text = await readFile((await (await download).path())!, 'utf8');
+      await expect(dialog).toHaveCount(0);
+      expect(text).toContain('Planning zonder gevonden gebouwmodel');
+      expect(text).not.toContain('IFCWALL(');
+      expect(text).not.toContain('OPS_RecoveryForeignSource');
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().foreignSourceMark?.sourceMissing)).toBe(false);
+    }
+  });
