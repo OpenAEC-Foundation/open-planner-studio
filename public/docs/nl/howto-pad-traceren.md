@@ -16,6 +16,8 @@ Het dakwerk begint pas over drie weken en je wilt weten welke taak dat bepaalt. 
 
 Selecteer je tijdens het traceren een andere taak, dan volgt het pad de nieuwe selectie.
 
+Wil je het pad stap voor stap aflopen, bijvoorbeeld terug langs het kritieke pad, klik dan in het paneel *Eigenschappen* onder *Afhankelijkheden* op de WBS-code van een voorganger. De app springt naar die taak en het pad volgt mee. Met de pijlen *Terug* en *Vooruit* naast de kop *Afhankelijkheden* ga je weer terug langs de taken waar je zo heen sprong, en weer vooruit.
+
 ## Het resultaat lezen
 
 - Voorgangers staan in goud, opvolgers in paars. In de Gantt kleuren de balken, in de takenlijst staat links van de rij een streep: effen voor voorgangers, gestreept voor opvolgers. De gekozen taak heeft een omlijning.

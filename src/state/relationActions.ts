@@ -4,6 +4,7 @@ import type { Sequence, SequenceType } from '@/types/sequence';
 import type { NotificationMessageKey } from '@/state/slices/types';
 import { cycleLabel } from '@/state/notificationLabels';
 import { refusalNotice } from '@/state/refusalNotice';
+import { withTransaction } from '@/state/batchTransaction';
 
 /** Welke melding hoort bij een weigering? `self` is via de UI niet te maken: de selectie is een
  *  Set-unie en de Gantt-sleep guardt op een ander doel. `unknown-task` is wél bereikbaar, maar
@@ -68,4 +69,23 @@ export function createRelationDraftWithFeedback(relation: Omit<Sequence, 'id'>):
   // Een geslaagde relatie meldt zich niet: de pijl in de Gantt en de kolom Voorgangers tonen hem al
   // (eigenaarsbesluit 2026-10-12, toast "Relatie aangemaakt" weg). Alleen een weigering meldt zich.
   return st.addSequence(relation);
+}
+
+/**
+ * Meerdere relaties in één gebaar (issue #888, het relatiepaneel): elke relatie gaat door dezelfde
+ * deur als {@link createRelationDraftWithFeedback}, op volgorde, zodat ook een kring met een eerdere
+ * relatie uit dezelfde reeks geweigerd wordt. Wat mag komt erbij als ÉÉN undo-stap; een weigering
+ * meldt zich en houdt de rest niet tegen. Bij één relatie geen batch: dan maakt een weigering geen
+ * lege undo-stap en heet de stap zoals elke losse relatie.
+ *
+ * @returns per relatie de nieuwe id, of `null` wanneer zij geweigerd is.
+ */
+export function createRelationsWithFeedback(relations: readonly Omit<Sequence, 'id'>[]): (string | null)[] {
+  if (relations.length <= 1) return relations.map(createRelationDraftWithFeedback);
+  const st = useAppStore.getState();
+  // Vooraf toetsen of er iets doorkomt: een batch waarin alles geweigerd wordt laat anders een lege
+  // undo-stap achter. De echte toets blijft per relatie in `addSequence`.
+  const anyAllowed = relations.some(rel => relationAddVerdict(st.tasks, st.sequences, rel).ok);
+  if (!anyAllowed) return relations.map(createRelationDraftWithFeedback);
+  return withTransaction(() => relations.map(createRelationDraftWithFeedback), 'Relaties toevoegen');
 }

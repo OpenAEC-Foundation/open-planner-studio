@@ -1,8 +1,13 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Select } from '@/components/common/Select';
-import type { ReportOrientation, ReportPaperSize } from '@/utils/reportSettings';
-import { isReportFontId, REPORT_FONT_IDS, type ReportFontId } from '@/services/pdf/reportFont';
+import { latestReportSettings, patchReportSettings, type ReportOrientation, type ReportPaperSize } from '@/utils/reportSettings';
+import { isReportFontId, REPORT_FONT_IDS, type ReportFontChoice, type ReportFontId } from '@/services/pdf/reportFont';
+import { getCustomFont, saveCustomFont } from '@/services/pdf/customFontStore';
+import type { PickedFont } from '@/services/pdf/systemFonts';
+import { useReportSettings } from '@/hooks/useReportSettings';
+import { useAppStore } from '@/state/appStore';
+import { CustomReportFontDialog } from './CustomReportFontDialog';
 
 // Bouwstenen van de instellingenkaarten op het Rapport-tabblad: het Gantt-/resourcediagramblok in
 // `ReportPanel` en het optieblok van de tabelrapporten delen dezelfde kaart, rijen en keuzelijsten.
@@ -69,29 +74,98 @@ const REPORT_FONT_LABEL_KEYS = {
   liberationSans: 'reportFontFamily.liberationSans',
   carlito: 'reportFontFamily.carlito',
   liberationSerif: 'reportFontFamily.liberationSerif',
+  liberationMono: 'reportFontFamily.liberationMono',
 } as const satisfies Record<ReportFontId, string>;
+
+/** De optie onderaan de keuzelijst die het venster *Ander lettertype…* opent; nooit een gekozen waarde. */
+const OTHER_FONT = '__other';
 
 /**
  * Keuzelijst *Lettertype* (issue #770). Eén keuze voor álle rapporten, dus hij staat overal waar ook
  * Papier en Oriëntatie staan: in het Gantt-/resourcediagramblok en in het blok van de tabelrapporten.
+ *
+ * Onder het vaste setje staat het eigen lettertype (als de planner er een koos) en *Ander lettertype…*
+ * (besluit Ethan, 14 november 2026). Dat eigen lettertype zet deze keuzelijst zelf in de rapportinstellingen
+ * (naam en versie; de bytes in `customFontStore.ts`); de aanroeper krijgt alleen de keuze `custom`.
  */
 export function ReportFontSelect({ id, className, value, onChange }: {
   id?: string;
   className: string;
-  value: ReportFontId;
-  onChange: (font: ReportFontId) => void;
+  value: ReportFontChoice;
+  onChange: (font: ReportFontChoice) => void;
 }) {
   const { t } = useTranslation('report');
+  const { customReportFont } = useReportSettings();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  useCustomReportFontGuard(value);
+
+  const picked = async (font: PickedFont) => {
+    const saved = await saveCustomFont(font);
+    patchReportSettings({ customReportFont: { name: saved.name, rev: saved.rev } });
+    onChange('custom');
+    setDialogOpen(false);
+    if (!saved.bold) {
+      useAppStore.getState().notify({
+        severity: 'info', messageKey: 'notifications.reportFontNoBold', params: { name: saved.name }, dedupeKey: 'report-font-no-bold',
+      });
+    }
+  };
+
   return (
-    <Select
-      id={id}
-      className={className}
-      aria-label={t('reportFontFamilyLabel')}
-      value={value}
-      onChange={v => { if (isReportFontId(v)) onChange(v); }}
-      options={REPORT_FONT_IDS.map(font => ({ value: font, label: t(REPORT_FONT_LABEL_KEYS[font]) }))}
-    />
+    <>
+      <Select
+        id={id}
+        className={className}
+        aria-label={t('reportFontFamilyLabel')}
+        value={value}
+        onChange={v => {
+          if (v === OTHER_FONT) setDialogOpen(true);
+          else if (v === 'custom' || isReportFontId(v)) onChange(v);
+        }}
+        options={[
+          ...REPORT_FONT_IDS.map(font => ({ value: font, label: t(REPORT_FONT_LABEL_KEYS[font]) })),
+          ...(customReportFont ? [{ value: 'custom', label: t('reportFontFamily.custom', { name: customReportFont.name }) }] : []),
+          { value: OTHER_FONT, label: t('reportFontFamily.other') },
+        ]}
+      />
+      {dialogOpen && <CustomReportFontDialog onPicked={picked} onClose={() => setDialogOpen(false)} />}
+    </>
   );
+}
+
+/** Eén melding per sessie dat het eigen lettertype weg is, ook als beide rapportschermen het merken. */
+let missingNoticeShown = false;
+
+/**
+ * Staat de keuze op het eigen lettertype, maar is de kopie op dit apparaat weg (opslag gewist, privévenster),
+ * dan valt het rapport terug op Inter, met één melding (besluit Ethan, 14 november 2026). Staat er in de opslag
+ * een nieuwere versie dan in de instellingen, dan neemt deze stand die naam en versie over; leest altijd vers.
+ */
+function useCustomReportFontGuard(value: ReportFontChoice): void {
+  const { customReportFont } = useReportSettings();
+  const rev = customReportFont?.rev;
+  useEffect(() => {
+    if (value !== 'custom') return;
+    let cancelled = false;
+    void getCustomFont({ fresh: true }).then(font => {
+      if (cancelled) return;
+      const ref = latestReportSettings().customReportFont;
+      if (!font) {
+        patchReportSettings({ reportFontFamily: 'inter', customReportFont: null });
+        if (missingNoticeShown) return;
+        missingNoticeShown = true;
+        useAppStore.getState().notify({
+          severity: 'info', messageKey: 'notifications.reportFontMissing',
+          params: { name: ref?.name ?? '' }, dedupeKey: 'report-font-missing',
+        });
+      } else if (font.rev > (ref?.rev ?? 0)) {
+        // Alleen een nieuwere kopie overnemen (een ander venster bewaarde de bytes, maar de instelling kwam hier
+        // nog niet aan); nooit een oudere versie terugschrijven (review Sol #946, ronde 1).
+        patchReportSettings({ customReportFont: { name: font.name, rev: font.rev } });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [value, rev]);
 }
 
 export function PaperSizeSelect({ id, className, value, onChange }: {

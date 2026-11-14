@@ -45,7 +45,8 @@ Het tabblad Rapport heeft geen lint en dus geen Bereken-knop, maar F5 werkt hier
 De Gantt-afdruk stel je af in de vijf stappen van de zijbalk; zie [De Gantt-afdruk](docs://howto-rapport-maken-en-afdrukken#de-gantt-afdruk). Look-ahead, Kritiek & near-critical, Voortgangsrapport, Voortgangscurve, Planningsgezondheid, Resourcebelasting, Resourcetoewijzingen en WBS-samenvatting hebben *Papier:*, *Oriëntatie:* en *Lettertype:*, plus een blok *Rapportopties* met de keuzes van dat rapport. Het Mijlpalen-overzicht en de Variance hebben geen eigen keuzes. Voor de periode van een rapport zie [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen).
 
 - *Papier:* en *Oriëntatie:* bepalen het vel. Standaard staat dit op A3 liggend, wat voor een bouwplanning handig is, maar niet elke printer drukt A3 af. Heb je een A4-printer, kies dan nu A4: de app legt de pagina's dan voor A4 op, in plaats van dat je ze later moet laten krimpen.
-- *Lettertype:* kiest de letter van alle rapporten: *Inter* (standaard), *Liberation Sans* (zoals Arial), *Carlito* (zoals Calibri) of *Liberation Serif* (zoals Times New Roman). De keuze geldt voor elk rapport, net als het papier.
+- *Lettertype:* kiest de letter van alle rapporten: *Inter* (standaard), *Liberation Sans* (zoals Arial), *Carlito* (zoals Calibri), *Liberation Serif* (zoals Times New Roman) of *Liberation Mono* (vaste breedte, zoals Courier New). Bij vaste breedte is elk teken even breed, zodat codes en getallen recht onder elkaar staan. De keuze geldt voor elk rapport, net als het papier.
+- *Ander lettertype…* onderaan die lijst opent een venster voor een eigen lettertype; zie [Een eigen lettertype gebruiken](docs://howto-rapport-maken-en-afdrukken#een-eigen-lettertype-gebruiken).
 
 ### 5. Controleer het rapport
 
@@ -84,6 +85,22 @@ Links staat een zijbalk met vijf stappen, in de volgorde van het papier: *Taken 
 - **Zijbalk inklappen.** Met de knop naast de keuzelijst of `Ctrl+\` klap je de zijbalk in tot een smalle rand met de stappen. Een klik op een stap of op het papier opent die stap als klein venster. Versleep het venster aan zijn kop als het iets afdekt; het blijft naast de rand en boven de knop *PDF exporteren*. Linksonder staat dan de knop *PDF exporteren*. Het papier blijft vrij van die knop: raakt een blad zijn hoek, dan stopt het papier erboven.
 - **Exporteren.** *PDF exporteren* staat onderaan de zijbalk. Het papier op het scherm is gelijk aan de PDF: dezelfde pagina's, en namen en datums worden op dezelfde plek afgekapt.
 - **Planning niet doorgerekend.** Wijzig je iets in de planning zonder F5 (en staat *Automatisch berekenen* uit), dan toont het papier nog de laatste berekening. Boven het papier staat dan *De planning is niet doorgerekend. De PDF rekent eerst door.* De PDF heeft dus de nieuwe datums en het papier nog niet. Klik op *Nu doorrekenen* (dat doet hetzelfde als F5); daarna is het papier weer gelijk aan de PDF.
+
+## Een eigen lettertype gebruiken
+
+1. Kies bij *Lettertype:* onderaan de lijst *Ander lettertype…*.
+2. Kies een lettertype uit de lijst van deze computer, of klik *Bestand kiezen…* en kies een lettertypebestand (.ttf of .ttc). Kies je de gewone en de vette letter samen, dan gebruikt het rapport ze allebei.
+3. Het lettertype staat nu in de lijst als *Naam (eigen lettertype)*, en het rapport gebruikt het.
+
+De app bewaart een kopie op dit apparaat en zet het lettertype in de PDF. Wie de PDF opent, ziet hetzelfde, ook zonder dat lettertype. Er is één eigen lettertype tegelijk; een nieuwe keuze vervangt het vorige.
+
+**Waar de lijst van de computer werkt.** In de desktopapp altijd. In de browser alleen in Chrome en Edge, nadat je de browser toestemming geeft. In andere browsers kies je een lettertypebestand.
+
+**Niet elk lettertype kan.** Een lettertype dat niet in een PDF mag, een variabel lettertype en een lettertype met PostScript-contouren (veel .otf-bestanden) staan in de lijst met de reden erbij, en zijn niet te kiezen.
+
+**Zonder vette variant.** Heeft het lettertype geen vette letter, dan staat vette tekst in de gewone letter. De app meldt dat één keer.
+
+**Het lettertype is weg.** Is de kopie op dit apparaat verdwenen, bijvoorbeeld omdat de opslag van de browser is gewist, dan gebruikt het rapport weer Inter. De app meldt dat één keer.
 
 ## Valkuilen en wat de app dan doet
 

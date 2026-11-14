@@ -28,7 +28,7 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     ui.pendingSiteOpen !== null || ui.pendingSiteSave !== null ||
     // De schemavraag bij opslaan wacht op een keuze; de opslaanroute houdt intussen de
     // schrijfvergrendeling vast.
-    ui.pendingIfcSchemaQuestion !== null ||
+    ui.pendingIfcSchemaQuestion !== null || ui.pendingIfcMissingSourceSaveAs ||
     // De vraag over te krappe ankers van afhankelijke projecten (stap 1.11) wacht op een keuze; de
     // opslaanroute houdt intussen de schrijfvergrendeling vast.
     ui.pendingDependentAnchorWarning !== null ||

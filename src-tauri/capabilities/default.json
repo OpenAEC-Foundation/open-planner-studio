@@ -12,6 +12,7 @@
     "core:window:allow-close",
     "core:window:allow-destroy",
     "core:window:allow-set-focus",
+    "core:window:allow-show",
     "core:window:allow-start-dragging",
     "shell:allow-open",
     "dialog:default",
@@ -21,6 +22,36 @@
     "fs:allow-appdata-write-recursive",
     "fs:allow-home-read-recursive",
     "fs:allow-home-write-recursive",
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "/usr/share/fonts" }, { "path": "/usr/share/fonts/**" },
+        { "path": "/usr/local/share/fonts" }, { "path": "/usr/local/share/fonts/**" },
+        { "path": "/System/Library/Fonts" }, { "path": "/System/Library/Fonts/**" },
+        { "path": "/Library/Fonts" }, { "path": "/Library/Fonts/**" },
+        { "path": "C:\\Windows\\Fonts" }, { "path": "C:\\Windows\\Fonts\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-open",
+      "allow": [
+        { "path": "/usr/share/fonts" }, { "path": "/usr/share/fonts/**" },
+        { "path": "/usr/local/share/fonts" }, { "path": "/usr/local/share/fonts/**" },
+        { "path": "/System/Library/Fonts" }, { "path": "/System/Library/Fonts/**" },
+        { "path": "/Library/Fonts" }, { "path": "/Library/Fonts/**" },
+        { "path": "C:\\Windows\\Fonts" }, { "path": "C:\\Windows\\Fonts\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "/usr/share/fonts" }, { "path": "/usr/share/fonts/**" },
+        { "path": "/usr/local/share/fonts" }, { "path": "/usr/local/share/fonts/**" },
+        { "path": "/System/Library/Fonts" }, { "path": "/System/Library/Fonts/**" },
+        { "path": "/Library/Fonts" }, { "path": "/Library/Fonts/**" },
+        { "path": "C:\\Windows\\Fonts" }, { "path": "C:\\Windows\\Fonts\\**" }
+      ]
+    },
     "store:default",
     "os:default",
     "updater:default",

@@ -203,6 +203,9 @@ export type NotificationMessageKey =
   | 'notifications.openFailed'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
+  // Eigen rapportlettertype (#770): zonder vette variant (vet in de gewone letter), of de kopie is weg (terug op Inter).
+  | 'notifications.reportFontNoBold'
+  | 'notifications.reportFontMissing'
   | 'notifications.layoutsNotSaved'
   // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
   | 'notifications.fileDropRefused'
@@ -634,6 +637,15 @@ export interface PhaseAssignmentQuestion {
  * Een bron van het actieve document met een nieuwe versie (keuze 1, Ethan 2026-11-03; stap 1.5). De balk onder
  * het lint toont er één per bron, met *Bekijken* en *Later*. Sessie-only: na herstarten kijkt de app opnieuw.
  */
+/** Het spoor van terug en vooruit in het relatiepaneel voor één document (issue #888). */
+export interface RelationTrail {
+  documentId: string;
+  /** De taken waar het paneel heen sprong, met het vertrekpunt van de eerste sprong vooraan. */
+  taskIds: string[];
+  /** Waar je in het spoor staat; een eigen klik in tabel of Gantt verzet dit niet. */
+  index: number;
+}
+
 /** Het zoekresultaat *Afhankelijke projecten* van één document (stap 1.11). */
 export interface DependentProjectsResult {
   documentId: string;
@@ -796,6 +808,9 @@ export interface UIState {
   /** session — het laatste zoekresultaat *Afhankelijke projecten* per document (stap 1.11). Afgeleide
    *  data, geen projectdata: niet in `DOCUMENT_FIELDS` en niet in het IFC-bestand. */
   dependentProjects: DependentProjectsResult[];
+  /** session — terug en vooruit in het relatiepaneel, per document (issue #888). Geen projectdata:
+   *  niet in `DOCUMENT_FIELDS`, niet in undo en niet in het IFC-bestand. */
+  relationTrails: RelationTrail[];
   /** session — de vraag vóór opslaan: deze ankers van afhankelijke projecten worden te krap. */
   pendingDependentAnchorWarning: TightAnchor[] | null;
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt
@@ -882,6 +897,8 @@ export interface UIState {
    *  of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
    *  `state/ifcSchemaQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingIfcSchemaQuestion: IfcSchemaQuestion | null;
+  /** Opslaan als zonder het ontbrekende gebouwmodel wacht op een bewuste keuze. */
+  pendingIfcMissingSourceSaveAs: boolean;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg
