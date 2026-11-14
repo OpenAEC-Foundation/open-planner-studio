@@ -1490,7 +1490,7 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
     assert(exportedLatin.ok, 'onbewerkte Latin-1-corpus exporteert via dispatcher');
     assertEq(binFiles.get(latinExport)!.length, latin.length, 'dispatcher schrijft de bronlengte');
     assertEq(hash(binFiles.get(latinExport)!), hash(latin), 'dispatcher schrijft exact de bronbytes');
-    S().updateProject({ name: 'Werkelijk gewijzigde vreemde planning' });
+    S().setProject({ name: 'Werkelijk gewijzigde vreemde planning' });
     let typedRefusal = false;
     try { await prepareIfcWrite(buildWriteIFCInput(S(), 'merge'), S().ifcSource!); }
     catch (error) { typedRefusal = error instanceof MergeNeedsPhase2Error && error.cases.some(c => c.kind === 'vreemde-herkomst'); }
@@ -1499,6 +1499,7 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
     assert(!deniedLatin.ok && deniedLatin.code === 'VALIDATION' && deniedLatin.error.includes('vreemde-herkomst'),
       'corpusweigering getypeerd via dispatcher, nul bytes');
     assertEq(binFiles.has(`${HOME}/latin1-corpus-bewerkt.ifc`), false, 'geen bewerkte corpusuitvoer');
+    assertEq(hash(binFiles.get(latinPath)!), hash(latin), 'de bron blijft intact na export en weigering');
     assertEq(byteWrites, 3, 'drie volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
   } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
 });

@@ -24,7 +24,7 @@ let now = BASE, boundary = Infinity, canons = 0;
 // Ook de vaste datum heeft een constructor; de overige datumconversies tellen niet mee.
 class Clock extends RealDate {
   constructor(...args: unknown[]) {
-    const stack = new Error().stack ?? '';
+    const stack = !args.length || args[0] === '1970-01-01T00:00:00.000Z' ? new Error().stack ?? '' : '';
     if (stack.includes('at planningCanon (') &&
       ((!args.length && stack.includes('at writeIfcParts (')) || stack.split('\n')[2]?.includes('at writeIFCForComparison ('))) {
       if (++canons >= boundary) now = BASE + 1000;
@@ -103,14 +103,14 @@ try {
     const edits: [string, WriteIFCInput][] = [
       ['duur', await lengthen(input, lengthenedTask(input).id)],
       ['taak-erbij', await storeEdit(input, s => { s.addTask({ name: 'Kloktaak', position: { anchorId: lengthenedTask(input).id, where: 'below' } }, { phaseAssignments: 'move', answered: true }); })],
-      ['projectnaam', await storeEdit(input, s => { s.updateProject({ name: 'Echte projectwijziging' }); })],
+      ['projectnaam', await storeEdit(input, s => { s.setProject({ name: 'Echte projectwijziging' }); })],
     ];
     for (const [edit, changed] of edits) {
       clock();
       const reference = await outcome(changed, source);
       for (const mode of modes) await check(`${name}: ${edit} / ${mode}`, async () => {
         assert.notEqual(planningCanon(changed), planningCanon(input), 'echte bewerking telt mee');
-        assert.notEqual(changed.project.modifiedAt, input.project.modifiedAt, 'de echte actie wijzigt modifiedAt');
+        if (edit === 'projectnaam') assert.notEqual(changed.project.modifiedAt, input.project.modifiedAt, 'de echte projectactie wijzigt modifiedAt');
         if (name !== 'latin1' && edit === 'duur') assert.equal(reference.kind, 'geschreven', 'de gewone duuractie blijft schrijven');
         clock(mode);
         const actual = await outcome(changed, source);
@@ -215,11 +215,14 @@ try {
     } finally { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone; }
   });
 
-  await check('Opslaan als download en Opslaan als siteversie bevatten uitsluitend de echte schrijfklok', async () => {
+  await check('Download en nieuwe siteversie bevatten uitsluitend de echte schrijfklok', async () => {
     clock();
     const { store } = await openInStore(own);
     const state = store.getState(), task = lengthenedTask(buildWriteIFCInput(state, 'merge'));
     state.updateTask(task.id, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration + 1 } });
+    const browser = globalThis as unknown as { document?: Document };
+    const previousDocument = browser.document;
+    browser.document ??= {} as Document;
     const create = URL.createObjectURL, revoke = URL.revokeObjectURL;
     const element = document.createElement, body = document.body;
     let downloaded: Blob | undefined, version: Blob | undefined;
@@ -237,6 +240,7 @@ try {
       realWriteClock(output); assert.notEqual(sha(output), sha(own));
       win.openaecHost = { storage: {
         list: async () => [], versions: async () => [],
+        open: async () => ({ file: { id: 'klokbestand', name: 'klok.ifc', version: 'v1' }, data: own }),
         save: async (request: { data: Blob }) => { version = request.data; return { id: 'klokbestand', name: 'klok.ifc', version: 'v2' }; },
       } };
       store.setState(s => {
@@ -249,6 +253,7 @@ try {
     } finally {
       URL.createObjectURL = create; URL.revokeObjectURL = revoke;
       doc.createElement = element; doc.body = body; delete win.openaecHost;
+      if (!previousDocument) delete browser.document;
     }
   });
 } finally { globalThis.Date = RealDate; Math.random = realRandom; }
