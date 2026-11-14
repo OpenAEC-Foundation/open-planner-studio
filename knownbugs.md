@@ -1905,17 +1905,6 @@ en noem het in je rapport of PR-tekst.
      de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
      in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
      of van herstel van zulke id-uitzonderingen. — S
-1571. **VERVOLG (#804, gewone handeling): een nieuwe taak in een nieuwe baseline, of met een bestaand eigen taaktype,
-     weigert bij opslaan.** In een bestand met een gebouwmodel dat al een opgeslagen baseline heeft: taak toevoegen →
-     baseline vastleggen → de voorbereiding weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (TaskGuids)`,
-     waardeslot 2 (`OPS_Baselines`, de kaart baseline-taak-id → GlobalId); geen bestand geschreven. Elke handeling apart
-     schrijft wel. De verliescontrole (`explainScope` in `src/services/ifc/foreign/lossCheck.ts`) verklaart bij een nieuwe
-     baseline alleen `Baselines` en `ActiveBaselineId`. Dezelfde vorm bij `OPS_TaskTypes.TaskTypes`: een nieuwe taak
-     een bestaand eigen taaktype geven weigert. Ook gemeten: een tweede activiteitscodedefinitie maken (templatelijst
-     `OPS_ActivityCodes`) en alle baselines wissen (de pset verdwijnt, zoals 1110). Bestaat ook op main `650d7aaa0`.
-     Onderzoek met reproducties: 14 november 2026. In behandeling als fase 1c PR 7c (de twee kaarten) en 7d (de
-     codedefinitie); het wissen van de laatste baseline is verplicht vóór de flag standaard aan gaat. Gevonden door de
-     review van #929. — B
 1572. **VERVOLG (#804, test): de herstelcheck bewaakt vreemde verwijzingen minder rechtstreeks dan haar tekst zegt.**
      `tests/planning/check-recovery-ifc-source.ts` vergelijkt de verzameling GlobalIds; `mergeProblems` bewaakt de
      vreemde bytes en de aanwezigheid. Een directe controle dat elk vreemd doel-`#id` na herstel en opslag hetzelfde
