@@ -10,8 +10,9 @@ export function recoverySourceDocument(id: string, payload: DocumentPayload, ena
   return {
     id,
     // Een inmiddels gewone planning (bijvoorbeeld een opgeslagen backup) heeft geen modelbron
-    // meer nodig. Oude manifesten/flag uit houden hun bestaande bron-ontbreekt-gedrag.
-    source: enabled && payload.ifcSource && !payload.ifcSource.foreign && !payload.foreignSourceMark?.sourceMissing
+    // meer nodig. Expliciet sourceMissing: false bewaart juist de doelbescherming van 9e;
+    // oude manifesten/flag uit houden hun bestaande bron-ontbreekt-gedrag.
+    source: enabled && payload.ifcSource && !payload.ifcSource.foreign && payload.foreignSourceMark?.sourceMissing === undefined
       ? { ...payload, foreignSourceMark: null } : payload,
     ...recoverySaveTarget(payload),
     ...recoveryIfcSourceFields(payload, enabled),

@@ -254,7 +254,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
   `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131).
   A successful document write commits source, target mark and literal calendars together; a download keeps the
-  opening source and target. Missing source bytes always block IFC output (`src/state/ifcForeignGuard.ts`). Before classification, only after a
+  opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
+  write planning alone after a cancel-by-default question. The original target stays protected by the same mark
+  with `sourceMissing: false`, persisted in the existing recovery metadata (1c PR 9e). Before classification, only after a
   strict scan failure, `foreign/oldOwnHeader.ts` masks only the three free fields on an equally long independent
   copy. The exact LF/IFC4X3 header of the 17 raw tags v2026.2.0 through v2026.7.12 is recognized once in
   `src/services/ifc/oldOwnHeader.ts`, shared with the target stream and the reader's data-section start. DATA; or
@@ -324,7 +326,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `workdayAxis.ts`); interaction in `src/components/canvas/hooks/`. Change visual Gantt behaviour in the
   renderer, not in components.
 - **Notifications go through one channel** from the store — no `alert()` or ad-hoc toasts.
-- **Pending modal questions.** While the actual-start or phase-assignment question waits,
+- **Pending modal questions.** While the actual-start, phase-assignment or missing-model Save As question waits,
   `isGlobalShortcutFrozen` blocks global app shortcuts and the surrounding shell controls are inert,
   including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
 - **Tailwind sources.** `src/styles/globals.css` disables automatic detection with `source(none)` and

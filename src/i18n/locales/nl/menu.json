@@ -290,7 +290,23 @@
     "template": "Fasering-template",
     "tmplEmpty": "Leeg",
     "tmplWoningbouw": "Woningbouw",
-    "tmplUtiliteit": "Utiliteitsbouw / renovatie"
+    "tmplUtiliteit": "Utiliteitsbouw / renovatie",
+    "phase": {
+      "siteGroundwork": "Bouwplaats & grondwerk",
+      "foundation": "Fundering",
+      "shell": "Ruwbouw / casco",
+      "roof": "Dak",
+      "facadeFitOut": "Gevel & afbouw",
+      "services": "Installaties (W/E)",
+      "finishes": "Afwerking",
+      "handover": "Oplevering",
+      "demolitionStripOut": "Sloop & strip-out",
+      "groundworkFoundation": "Grondwerk & fundering",
+      "mainStructure": "Hoofddraagconstructie",
+      "facadeRoof": "Gevel & dak",
+      "fitOut": "Afbouw",
+      "commissioning": "Inregelen & testen"
+    }
   },
   "status": {
     "tasks": "Taken:",
