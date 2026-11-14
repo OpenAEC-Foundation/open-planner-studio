@@ -356,7 +356,7 @@
     "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.",
     "ifcForeignExportNewTarget": "Niet geëxporteerd. Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geëxporteerd. Kies een naam die nog niet bestaat.",
     "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
-    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma ontbreken in dit herstelde document of deze backup; ze staan in het oorspronkelijke IFC-bestand. Je kunt de planning naar een ander formaat exporteren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
+    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -1929,6 +1929,12 @@
     "colOwnTask": "Taak hier",
     "colAnchor": "Anker: oud → nieuw",
     "saveAnyway": "Toch opslaan",
+    "cancel": "Annuleren"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "Alleen de planning opslaan?",
+    "body": "Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Het nieuwe bestand bevat alleen de planning. Het oorspronkelijke bestand blijft ongewijzigd. Wil je doorgaan?",
+    "continue": "Doorgaan",
     "cancel": "Annuleren"
   }
 }

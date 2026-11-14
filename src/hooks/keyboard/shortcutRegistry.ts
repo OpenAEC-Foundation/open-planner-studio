@@ -87,7 +87,7 @@ export function isShortcutBlockedByDialog(): boolean {
  * Andere dialogen behouden hun bestaande toetscontract.
  */
 export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui): boolean {
-  return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null;
+  return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingIfcMissingSourceSaveAs;
 }
 
 /**

@@ -106,6 +106,9 @@ import {
 export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceReconstruction;
 
 export interface IfcReadOptions {
+  /** Alleen interne merge-herlezingen: ontbrekende projectdatums krijgen de waarden van het openen.
+   * Aanwezige CreatedAt/ModifiedAt uit OPS_ProjectSettings blijven leidend. Gewoon openen geeft dit niet mee. */
+  projectTimestampFallback?: Pick<Project, 'createdAt' | 'modifiedAt'>;
   /** Alleen `readIFCWithXerReconstruction` vult dit. De lage sync-lezer mag schema-2 nooit
    * afhankelijk maken van een toevallig eerder geïmporteerde module. */
   reconstructXerArchive?: XerArchiveReconstructor;
@@ -1448,8 +1451,8 @@ function extractProject(
     calendarId: 'cal-default',
     // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
     // extractStructure als het bestand ze draagt (oude bestanden ⇒ deze default blijft staan).
-    createdAt: new Date().toISOString(),
-    modifiedAt: new Date().toISOString(),
+    createdAt: options.projectTimestampFallback?.createdAt ?? new Date().toISOString(),
+    modifiedAt: options.projectTimestampFallback?.modifiedAt ?? new Date().toISOString(),
     author,
     company,
   };
