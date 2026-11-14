@@ -34,6 +34,8 @@ temp-id-resolutie).
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel
 zonder bron, met één melding `notifications.ifcForeignSourceMissing`; andere exportformaten blijven mogelijk.
+PR 9e staat uitsluitend handmatig Opslaan als toe na bevestiging met Annuleren als standaard, naar een ander doel
+met alleen planning. MCP-export stelt die vraag nooit en blijft geblokkeerd tot de handmatige opslag is geslaagd.
 Met de flag uit blijft de bestaande backuproute gelijk. Opnieuw koppelen aan de actuele bron is 9c (1575).
 
 Alles wat de agent via MCP leest (tool- en schema-beschrijvingen, foutmeldingen, waarschuwingen, `MCP_INSTRUCTIONS`)

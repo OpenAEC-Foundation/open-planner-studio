@@ -1,7 +1,8 @@
 // #804 fase 1c: de documentroutes schrijven een voorbereide merge naar nieuwe lokale doelen,
 // browserdownloads en siteversies met een verplichte basisversie. Ook IFC-export en app-MCP schrijven volledig
 // naar nieuwe doelen, zonder documentcommit. De andere IFC-routes en AutoSave
-// houden de strikte opslagblokkade. Ontbrekende bronbytes blokkeren iedere IFC-opslag, ook met de flag uit.
+// houden de strikte opslagblokkade. Ontbrekende bronbytes blokkeren IFC-opslag, ook met de flag uit. Alleen expliciet Opslaan als mag
+// met de flag aan na bevestiging planning zonder model naar een ander doel schrijven (fileSlice, PR 9e).
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';

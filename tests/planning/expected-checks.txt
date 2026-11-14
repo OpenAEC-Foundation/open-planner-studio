@@ -179,6 +179,7 @@ check-ifc-foreign-classify.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
+check-ifc-foreign-klok.ts matrix
 check-ifc-foreign-merge-telling.ts los
 check-ifc-foreign-open.ts matrix
 check-ifc-foreign-oude-eigen.ts matrix
@@ -315,6 +316,7 @@ check-progress-sheet-values.ts matrix
 check-progress-sinds-export.ts matrix
 check-progress-xlsx-writer.ts matrix
 check-project-start-anchor.ts matrix
+check-project-template-i18n.ts matrix
 check-raster-datum-ongewijzigd.ts matrix
 check-recent-open.ts matrix
 check-recorded-bak4-differential.ts matrix
@@ -458,6 +460,7 @@ check-tutorial-project.ts matrix
 check-undo-bound.ts matrix
 check-undo-coalesce-grid.ts matrix
 check-undo-memory-cap.ts matrix
+check-updater-zip.ts matrix
 check-uren-f5a-adapters.ts matrix
 check-uren-f5a2-adapters.ts matrix
 check-uren-f5b-adapters.ts matrix
