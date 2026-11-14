@@ -78,6 +78,7 @@ assert.equal(starts, 1);
 assert.equal(transport.requests.length, 1, 'maximaal één actieve serialisatie');
 assert.equal('fileHandle' in transport.requests[0]!.snapshot.input, false);
 assert.equal('siteFileId' in transport.requests[0]!.snapshot.input, false);
+assert.equal('ifcSource' in transport.requests[0]!.snapshot.input, false, 'de bron reist niet mee nu zij in IFCSaveSource staat');
 let completed = false;
 void first.then(() => { completed = true; });
 transport.emit({ id: 999, ifc: 'achterhaald antwoord' });

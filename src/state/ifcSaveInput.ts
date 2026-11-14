@@ -5,8 +5,8 @@ import type { DocumentPayload } from './documentContract';
 import { unrecordedExportFields } from './recordedDatesSelectors';
 
 /**
- * De projectdata-velden die in een IFC-save meeschrijven — precies de round-trip-velden van het
- * documentcontract. Zowel de live (top-level) `AppState` als een `DocumentPayload` voldoen
+ * De round-trip-velden en de bronidentiteit die een IFC-save nodig heeft. De bronbytes staan
+ * nooit in de gewone writer-invoer hieronder. Zowel de live (top-level) `AppState` als een `DocumentPayload` voldoen
  * structureel aan deze vorm, dus alle callsites (canoniek save-pad, IFCPanel, auto-save, devBridge)
  * kunnen dezelfde bron doorgeven.
  */
@@ -30,6 +30,8 @@ export type IFCSaveSource = Pick<
   | 'ifcGlobalIds'
   // Knownbug 1026: verplicht om dezelfde reden als `ifcGlobalIds`.
   | 'ifcLiteralCalendarIds'
+  // De bronidentiteit hoort bij de schrijfkeuze, nooit bij de planningtekst of Worker-invoer.
+  | 'ifcSource'
   | 'minuteModelPending'
 >
   & Partial<Pick<DocumentPayload,
@@ -126,6 +128,7 @@ const IFC_SAVE_KEYS = [
   'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId', 'comparedBaselineIds',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
   'recordedDates', 'datesAsRecorded', 'minuteModelPending', 'ifcGlobalIds', 'ifcLiteralCalendarIds', 'foreignSourceMark',
+  'ifcSource',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;
@@ -135,11 +138,24 @@ const _assertSaveKeysNoExtras: ExtraSaveKey extends never ? true : ['IFC_SAVE_KE
 void _assertSaveKeysComplete;
 void _assertSaveKeysNoExtras;
 
+/** Een nieuwe bron is opslagmetadata, geen bewerking en geen reden voor een nieuwe herstelsnapshot. */
+const IFC_DIRTY_KEYS = IFC_SAVE_KEYS.filter(
+  (key): key is Exclude<typeof IFC_SAVE_KEYS[number], 'ifcSource'> => key !== 'ifcSource',
+);
+type DirtyKey = Exclude<keyof IFCSaveSource, 'ifcSource'>;
+type MissingDirtyKey = Exclude<DirtyKey, typeof IFC_DIRTY_KEYS[number]>;
+type ExtraDirtyKey = Exclude<typeof IFC_DIRTY_KEYS[number], DirtyKey>;
+const _assertDirtyKeysComplete: MissingDirtyKey extends never ? true : ['IFC_DIRTY_KEYS mist:', MissingDirtyKey] = true;
+const _assertDirtyKeysNoExtras: ExtraDirtyKey extends never ? true : ['IFC_DIRTY_KEYS bevat onbekende sleutels:', ExtraDirtyKey] = true;
+void _assertDirtyKeysComplete;
+void _assertDirtyKeysNoExtras;
+
 /** Is de op te slaan documentinhoud nog dezelfde? Referentievergelijking volstaat: Immer geeft
- *  elk gemuteerd veld een NIEUWE referentie, dus ongelijkheid = "er is iets gewijzigd". Gebruikt
+ *  elk gemuteerd inhoudsveld een NIEUWE referentie, dus ongelijkheid = "er is iets gewijzigd".
+ *  `ifcSource` telt niet mee; de AutoSave-kandidaat bewaakt haar identiteit afzonderlijk. Gebruikt
  *  door `saveFile`/`saveFileAs` om te bepalen of `isDirty` gewist mag worden ná een opslaan-dialoog
  *  die minuten open kan hebben gestaan (stil `isDirty=false` zetten terwijl de gebruiker intussen
  *  wijzigde, is stil dataverlies). */
 export function sameIFCSource(a: IFCSaveSource, b: IFCSaveSource): boolean {
-  return IFC_SAVE_KEYS.every((k) => a[k] === b[k]);
+  return IFC_DIRTY_KEYS.every((k) => a[k] === b[k]);
 }

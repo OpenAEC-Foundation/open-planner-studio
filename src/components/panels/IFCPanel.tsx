@@ -35,6 +35,7 @@ export function IFCPanel() {
   const ifcGlobalIds = useAppStore(s => s.ifcGlobalIds);
   // Knownbug 1026: kalenders die letterlijk waren bij het openen, blijven letterlijk.
   const ifcLiteralCalendarIds = useAppStore(s => s.ifcLiteralCalendarIds);
+  const ifcSource = useAppStore(s => s.ifcSource);
   const applyProjectEdit = useAppStore(s => s.applyProjectEdit);
   // #804 §4.12: met een vreemd deel staat Toepassen uit. De tekst hier bevat alleen de planning; de bron blijft staan.
   const foreignContent = useAppStore(s => ifcSaveBlocked(s));
@@ -44,9 +45,9 @@ export function IFCPanel() {
     return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
-      recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds,
+      recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource,
     }));
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
@@ -55,11 +56,11 @@ export function IFCPanel() {
     const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
-      recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds,
+      recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource,
     }));
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds, ifcLiteralCalendarIds, ifcSource]);
 
   const handleApply = useCallback(() => {
     void (async () => {

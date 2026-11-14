@@ -51,7 +51,14 @@ Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CP
 | `documentContract.ts` | `DOCUMENT_FIELDS` — één descriptorlijst met per veld: waar het in de live state woont (`get`/`set`), de verse default (`fresh`), de rol in de undo-snapshot (`data` = muteerbare projectdata, `derived` = afgeleid resultaat/scalar, beide per referentie bewaard; `none` = niet in de snapshot), en optioneel een leesmigratie. `capturePayload`/`hydratePayload`/`freshPayload` lopen key-gedreven over die ene lijst, dus capture en hydrate kúnnen niet divergeren. Een nieuw veld in `DocumentPayload` dat de lijst mist geeft een **compile-fout**. |
 | `snapshot.ts` | de undo/redo-snapshot als expliciete `Pick<>`-subset van datzelfde contract, gestuurd door de `snapshot`-rol per veld. |
 | `transaction.ts` | compatibele re-export (`createStoreRuntime`, `MAX_UNDO`, `markScheduleStale`/`markDateMutation`); het muteer-ritueel zelf zit in `runtime/storeRuntime.ts`: `beginUndoable` legt de vóór-snapshot vast, `finishMutation` roept `markDocumentEdited` (`isDirty`) en bij `stale` `markDateMutation` aan en sluit af via `finishUndoable`, dat het event in de sessiechronologie `historyEvents` zet (geen aparte redo-stapel) — op één plek in plaats van per actie. |
-| `ifcSaveInput.ts` | welke velden een IFC-save meeschrijft — precies de round-trip-velden van het contract, zodat alle callsites (opslaan, auto-save, IFCPanel, devBridge) dezelfde bron doorgeven. |
+| `ifcSaveInput.ts` | `IFCSaveSource`/`IFC_SAVE_KEYS` dragen de round-trip-velden en `ifcSource`; `IFC_DIRTY_KEYS` sluit alleen die bronidentiteit uit. Beide lijsten hebben compile-asserts. De gewone writer-invoer bevat geen bronbytes. |
 | `defaults.ts` | de `fresh`-fabrieken (`createDefaultProject`/`createDefaultView`) als **bladmodule**: hij importeert niets uit `slices/`. Dat is geen stijlkeuze — stonden ze in hun slice, dan ontstaat de cyclus `projectSlice → transaction → snapshot → documentContract → projectSlice`, die alleen werkt zolang het function *declarations* zijn (hoisting). `npm run verify:cycles` bewaakt dat. |
 
 Voeg je projectdata toe, dan hoort die dus in `DOCUMENT_FIELDS` — anders overleeft hij geen documentwissel, geen undo, geen crashherstel en geen opslaan. `tests/planning/check-document-contract.ts` bewaakt de keten.
+
+Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(id, savedSource, destination?, prepared?)`.
+Met `PreparedIfcWrite` worden doel, `ifcSource` en letterlijke kalenderkeuzes samen vastgelegd, voor actief of slapend
+document. De inhoudsvergelijking gebeurt vóór de Immer-producer: tussentijds werk blijft dirty, maar de bron volgt
+de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde commit. Exports gebruiken hem niet.
+Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
+PR 11 sluit de voorbereide opslag aan; `ifcSaveBlocked` blijft dicht.

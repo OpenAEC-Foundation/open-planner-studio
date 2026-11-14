@@ -31,6 +31,13 @@ De webdatabase is v3: een niet-unieke index `records.kind` vindt alle `kind: 'ma
 
 De zware IFC-serialisatie loopt op één herbruikbare Web Worker (`recoverySnapshotSerializer.ts`), met dezelfde writer als terugval zonder Worker. Alleen writer-invoer en archiefverwijzing gaan over die grens, nooit filehandles of archiefbytes. Een herstelronde houdt delta, immutable documentbron, serialisatie en manifestcommit in één volgorde. De stoppoort wordt na workerwerk opnieuw getoetst vóór `saveRecovery`, zodat een late workerrespons geen gewiste snapshots terugzet. `flushRecoveryNow` wacht de volledige lopende ronde en een aangevraagde vervolgversie af; unmount beëindigt de worker.
 
+Voor #804 fase 1c gebruikt de inhoudsvergelijking `IFC_DIRTY_KEYS`: een vervangen `ifcSource` maakt geen nieuwe
+herstelsnapshot of bestands-AutoSave nodig. Een bestaande AutoSave-kandidaat toetst die bronidentiteit juist wél,
+onder het schrijfslot vóór I/O. `markAutoSaveVersionSaved(id, savedSource, prepared?)` gebruikt dezelfde
+`commitSavedDocument` als handmatige opslag: bron en kalenderkeuzes volgen de geschreven versie, ook als een latere
+bewerking dirty blijft. De Worker-invoer en MCP-backup blijven planning zonder bronbytes. Bronherstel en nieuwe
+manifestmetadata zijn PR 9; aansluiten van de voorbereide writes is PR 11. De opslagblokkade blijft dicht.
+
 ### Afsluiten van de app (schone exit)
 
 Op desktop vuurt de sluitknop, Alt+F4 of het OS-menu `CloseRequested`. `src/services/appQuit/appQuitController.ts` (store- en Tauri-vrij, alle randen geïnjecteerd; bedrading in `src/hooks/useAppCloseGuard.ts`) loopt alle open documenten langs `ui.pendingCloseDocId` (`CloseDocumentDialog`: Opslaan, Niet opslaan, Annuleren). Annuleren of een mislukte opslag breekt het afsluiten af. Is niets meer ongeopgeslagen, dan stopt de controller het crashherstel, ruimt hij de herstelsnapshots op (schone exit) en sluit hij het venster. Wie `useAutoSave` of `recoveryStore` wijzigt, raakt dit contract: zonder opruimen meldt de volgende start altijd "niet normaal afgesloten". Test: `tests/planning/check-app-quit.ts`.

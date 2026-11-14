@@ -102,7 +102,8 @@ export interface DocumentPayload {
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
   /** De IFC-bron met indeling (#804 §4.8), alleen via de bytes-route achter de flag `ifcForeignContent`. Onveranderlijk
-   *  en buiten undo (`snapshot: 'none'`); niet in de herstelsnapshot en niet in de MCP-backup (geen `IFC_SAVE_KEYS`). */
+   *  en buiten undo (`snapshot: 'none'`). Wel schrijfcontext (`IFC_SAVE_KEYS`), geen dirty-veld;
+   *  de writer-invoer laat haar weg, dus geen bronbytes in herstelsnapshot, Worker of MCP-backup. */
   ifcSource: IfcSource | null;
   /** Kwam dit document uit een IFC-bestand met een vreemd deel (#804 fase 1a, fixronde 1)? Dan de vingerafdruk en het doel
    *  van die bron, zodat Opslaan als en een export dat bestand weigeren. Gezet bij het openen (`applyLoadedProject`) en

@@ -86,7 +86,7 @@ export function createFileAutoSaveController(deps: {
       // laten overschrijven. Kijk dus OPNIEUW onder de exclusieve lock, vlak vóór de write.
       const current = getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
       if (!current) return false;
-      if (!sameIFCSource(candidate.source, current)) return 'stale';
+      if (candidate.source.ifcSource !== current.ifcSource || !sameIFCSource(candidate.source, current)) return 'stale';
       return saveToRefWithoutPrompt(candidate.ref!, content);
     }),
     markSavedIfUnchanged: candidate => getState().markAutoSaveVersionSaved(candidate.id, candidate.source),
