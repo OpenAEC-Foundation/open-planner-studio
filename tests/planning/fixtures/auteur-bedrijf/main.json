@@ -1,0 +1,103 @@
+{
+  "basis": "4e01894d75d125ea966d5d6efd4d3fc7d1177b18",
+  "input": "tests/fixtures/ifc-project-owner/vreemde-eerste-eigenaar.ifc",
+  "inputSha256": "7009ea4049bef708bd8aeb647a6134f276a339684bc2663a5c59f5cd093c86f8",
+  "result": {
+    "name": "vreemde-eerste-eigenaar.ifc",
+    "filePath": "vreemde-eerste-eigenaar.ifc",
+    "projectInfo": {
+      "author": "Auteur van ander programma",
+      "company": "Bedrijf van ander programma"
+    },
+    "notices": [],
+    "saved": {
+      "sha256": "9fa8c33b91aa32246a225e344ae909e76025d202ca80a37923cd5c7d6057edf0",
+      "length": 9585
+    },
+    "actions": [
+      {
+        "action": "saveFile",
+        "outcome": "klaar",
+        "pickerCalls": 1,
+        "writes": [
+          {
+            "sha256": "9fa8c33b91aa32246a225e344ae909e76025d202ca80a37923cd5c7d6057edf0",
+            "length": 9585
+          }
+        ],
+        "filePath": "vreemde-eerste-eigenaar.ifc",
+        "isDirty": false,
+        "notices": []
+      },
+      {
+        "action": "saveFileAs",
+        "outcome": "klaar",
+        "pickerCalls": 1,
+        "writes": [
+          {
+            "sha256": "9fa8c33b91aa32246a225e344ae909e76025d202ca80a37923cd5c7d6057edf0",
+            "length": 9585
+          }
+        ],
+        "filePath": "kopie-vreemde-eerste-eigenaar.ifc",
+        "isDirty": false,
+        "notices": []
+      }
+    ],
+    "targetActions": [
+      {
+        "route": "handle",
+        "outcome": "klaar",
+        "writes": [
+          {
+            "sha256": "9fa8c33b91aa32246a225e344ae909e76025d202ca80a37923cd5c7d6057edf0",
+            "length": 9585
+          }
+        ],
+        "filePath": "vreemde-eerste-eigenaar.ifc",
+        "isDirty": false,
+        "calls": [
+          "queryPermission",
+          "createWritable"
+        ],
+        "notices": []
+      },
+      {
+        "route": "pad",
+        "outcome": "klaar",
+        "writes": [
+          {
+            "sha256": "9fa8c33b91aa32246a225e344ae909e76025d202ca80a37923cd5c7d6057edf0",
+            "length": 9585
+          }
+        ],
+        "filePath": "<map>/vreemde-eerste-eigenaar.ifc",
+        "isDirty": false,
+        "calls": [
+          "plugin:fs|lstat",
+          "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
+          "plugin:fs|write",
+          "plugin:resources|close",
+          "plugin:fs|rename"
+        ],
+        "notices": []
+      },
+      {
+        "route": "site",
+        "outcome": "klaar",
+        "writes": [
+          {
+            "sha256": "9fa8c33b91aa32246a225e344ae909e76025d202ca80a37923cd5c7d6057edf0",
+            "length": 9585
+          }
+        ],
+        "filePath": "vreemde-eerste-eigenaar.ifc",
+        "isDirty": false,
+        "calls": [
+          "save S1"
+        ],
+        "notices": []
+      }
+    ]
+  }
+}

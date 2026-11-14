@@ -127,9 +127,9 @@ export interface IfcReadOptions {
   /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
    *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
   stepIdsOut?: Record<string, string>;
-  /** Het `IfcProject` is niet P (§4.4): naam, omschrijving, auteur en bedrijf in `OPS_ProjectSettings` winnen dan van het
-   *  project en de eerste owner history. Zonder deze optie leest de lezer die vier properties niet, zoals main
-   *  (fixronde 1 van #867, BLOKKEERT 1). */
+  /** Het `IfcProject` is niet P (§4.4): naam en omschrijving in `OPS_ProjectSettings` winnen dan van het project.
+   *  Auteur en bedrijf worden op de bytes-route altijd daaruit gelezen als ze aanwezig zijn; deze expliciete optie
+   *  behoudt die lezing ook zonder planningsselectie (fixronde 1 van #867, BLOKKEERT 1). */
   projectDataInSettings?: boolean;
 }
 
@@ -235,7 +235,7 @@ export function readIFC(
   const taskIdentityByStepId = extractTaskIdentityByStepId(entities, entityMap);
 
   // Extract project
-  const project = extractProject(entities, entityMap, labels);
+  const project = extractProject(entities, entityMap, labels, options);
   // Het schema uit de kop (issue #292): de kop is de opslag van `Project.ifcSchema`, zodat een geopend
   // IFC4- of IFC4X3-bestand bij opslaan in zijn eigen schema blijft. Een ander schema (IFC2X3,
   // IFC4X3_ADD1, …) laat het veld weg: dan schrijft opslaan de standaard. Of het eerste opslaan eerst
@@ -1355,6 +1355,7 @@ function extractProject(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   labels: ImportLabels,
+  options: IfcReadOptions,
 ): Project {
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const wp = entities.find(e => e.type === 'IFCWORKPLAN');
@@ -1376,7 +1377,18 @@ function extractProject(
   // of is een slot leeg (`$`) ⇒ ''.
   let author = '';
   let company = '';
-  const owner = entities.find(e => e.type === 'IFCOWNERHISTORY');
+  // E8 / 1022: alleen de bytes-route geeft de selectie van selectPlanning mee. Met de flag uit blijft de eerste
+  // owner history leidend, ook bij een bestand van een ander programma. De writer geeft project/werkplan een eigen
+  // eigenaar; de gedeelde eigenaar van de bron kan als C vóór die nieuwe keten blijven staan.
+  const preferProjectOwner = options.planningTaskStepIds !== undefined;
+  const ownOwner = (object: StepEntity | undefined): StepEntity | undefined => {
+    const history = entityMap.get(parseRef(object?.args[1] ?? '') ?? '');
+    if (history?.type !== 'IFCOWNERHISTORY') return undefined;
+    const app = entityMap.get(parseRef(history.args[1] ?? '') ?? '');
+    return app?.type === 'IFCAPPLICATION' && ifcSlotText(app.args[3]) === 'OPS' ? history : undefined;
+  };
+  const owner = (preferProjectOwner ? ownOwner(proj) ?? ownOwner(wp) : undefined)
+    ?? entities.find(e => e.type === 'IFCOWNERHISTORY');
   if (owner) {
     const po = entityMap.get(parseRef(owner.args[0] || '') || '');
     if (po && po.type === 'IFCPERSONANDORGANIZATION') {
@@ -1384,6 +1396,22 @@ function extractProject(
       if (person && person.type === 'IFCPERSON') author = ifcSlotText(person.args[1]);
       const org = entityMap.get(parseRef(po.args[1] || '') || '');
       if (org && org.type === 'IFCORGANIZATION') company = ifcSlotText(org.args[1]);
+    }
+  }
+  // §4.4: gedragen projectproperties winnen, ook als ze bewust leeg zijn. Alleen auteur en bedrijf; de bestaande
+  // lezing van naam/beschrijving en alle overige projectvelden blijven bij extractStructure.
+  if (preferProjectOwner || options.projectDataInSettings === true) {
+    for (const set of entities) {
+      if (set.type !== 'IFCPROPERTYSET' || stripQuotes(set.args[2] || '') !== PSET.ProjectSettings) continue;
+      for (const ref of parseRefs(set.args[4] || '')) {
+        const prop = entityMap.get(ref);
+        if (prop?.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+        const name = stripQuotes(prop.args[0] || '');
+        if (name !== PROP.ProjectSettings.Author && name !== PROP.ProjectSettings.Organization) continue;
+        const value = parseTypedValue(prop.args[2] || '');
+        if (name === PROP.ProjectSettings.Author) author = typeof value === 'string' ? value : '';
+        else company = typeof value === 'string' ? value : '';
+      }
     }
   }
 
@@ -2333,16 +2361,12 @@ function extractStructure(
           // Ankers uit geopende documenten halen (spiegel van writeStructure, stap 1.7).
           if (v === true) project.anchorsFromOpenDocuments = true;
         } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectName) {
-          // #804 §4.4: het project is niet P (het project van een model). Deze vier winnen van IfcProject en de eerste
-          // owner history (`extractProject`), ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$`
+          // #804 §4.4: het project is niet P (het project van een model). Naam en omschrijving winnen van IfcProject,
+          // ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$`
           // (⇒ undefined). Zonder de property blijft wat die gaf. Zonder de optie (main, de flag uit) leest de lezer ze niet.
           project.name = typeof v === 'string' ? v : '';
         } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectDescription) {
           project.description = typeof v === 'string' ? v : '';
-        } else if (projectDataInSettings && name === PROP.ProjectSettings.Author) {
-          project.author = typeof v === 'string' ? v : '';
-        } else if (projectDataInSettings && name === PROP.ProjectSettings.Organization) {
-          project.company = typeof v === 'string' ? v : '';
         }
       }
       continue;
