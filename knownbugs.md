@@ -2232,6 +2232,30 @@ en noem het in je rapport of PR-tekst.
      schrijft `, ` en houdt zijn betekenis. Richting: een melding als beide lezingen naar bestaande WBS-codes wijzen, of
      de normalisatie laten vallen samen met 1250. Uit de review van #876 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
+1130. **VERVOLG (#804, T1): browserhandles kunnen een nieuwe IFC-naam niet exclusief plaatsen.**
+     `FileSystemFileHandle.createWritable()` heeft geen `createNew` bij de uiteindelijke plaatsing;
+     een leeg bestand of een voorafgaande controle sluit een intussen verschenen bestand niet uit.
+     De strikte delen-ingang weigert een handle getypeerd vóór elke write; de webdialoog downloadt
+     een Blob, ook als FSA beschikbaar is. Getoetst in `check-file-byte-parts.ts`; geen echte browserrun.
+     Richting: download behouden totdat de browser een passende exclusieve primitief biedt.
+     Contract: https://fs.spec.whatwg.org/#api-filesystemfilehandle-createwritable. — B
+
+1131. **VERVOLG (fase 2, #804, E32): lokale byte-opslag heeft nog geen exclusieve vervanging met bronhash.**
+     T1 laat alleen een nieuw einddoel met `createNew` toe; een bestaand doel blijft geweigerd.
+     Voor vervanging zijn de bron-sha256 en de exclusieve plaatsing uit ontwerp §4.10 nodig,
+     met `place_file_exclusive` (Rust, uitsluitend fase 2) en herstel na onderbreking. Plugin-fs-rename
+     vervangt bestaande bestanden en is daarvoor ongeschikt. De nieuwe route schrijft na createNew
+     via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone
+     I/O-fout is best effort en biedt geen padslot tegen externe wissels. Proeven toetsen botsing,
+     schrijf-/sluitfout en geen directe terugval; crash, stroomuitval en externe padwissels niet gemeten. — B (code/proef)
+1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
+     De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
+     `new Uint8Array(await data.arrayBuffer())`, omdat het hostcontract één `Uint8Array` vraagt. De bytes blijven gelijk
+     (bewezen via de adapter); bij een uitvoer van 300 MB is die buffer even groot. Piekgeheugen en looptijd zijn niet
+     gemeten. Bestaand gedrag, geen verbouwing voor PR 11. "Geen samenvoegen" geldt dus alleen voor Tauri en een host die
+     de Blob rechtstreeks aanneemt. Richting: meten bij de grote-bestandenmeting vóór de flag aan mag (PR 6); een ruimer
+     hostcontract zou de buffer wegnemen, geen tweede adapter. Gevonden door de review van #922. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
