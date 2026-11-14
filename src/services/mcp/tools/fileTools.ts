@@ -34,7 +34,8 @@ import { ScopeEscapeError } from '../fileScopeError';
 
 import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
-import { writeIFCWithChoices } from '@/services/ifc/ifcWriter';
+import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
+import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
@@ -46,15 +47,15 @@ import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
-import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
+import { writeUserTextFileTauri, writeUserBytePartsTauri } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
-import { ifcSaveBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
+import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
-/** #804 fase 1a: IFC-uitvoer van een document met een vreemd deel is nog geweigerd (`state/ifcForeignGuard.ts`). */
+/** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
 const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
   'save or export it as IFC yet, because the IFC would lose that content. Other export formats still work.';
 
@@ -82,6 +83,8 @@ export interface McpFileFs extends FileIdentityFs {
   homeDir(): Promise<string>;
   exists(path: string): Promise<boolean>;
   writeTextFile(path: string, content: string): Promise<void>;
+  /** Alleen een nieuw einddoel, exclusief en zonder tekstrondgang. Headless biedt dit nog niet (fase 2). */
+  writeNewByteParts?(path: string, parts: readonly Uint8Array[]): Promise<void>;
   readTextFile(path: string): Promise<string>;
   readFile(path: string): Promise<Uint8Array>;
   /**
@@ -117,6 +120,11 @@ async function realFs(): Promise<McpFileFs> {
     readTextFile: (p) => readTextFile(p),
     readFile: (p) => readFile(p),
     scanTarget: (p) => scanTargetPathTauri(p),
+    writeNewByteParts: async (p, parts) => {
+      const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
+      if (dir) await mkdir(dir, { recursive: true });
+      await writeUserBytePartsTauri(p, parts);
+    },
     writeTextFile: async (p, content) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true }); // no-op wanneer de map al bestaat
@@ -282,7 +290,7 @@ export const fileTools: McpToolDef[] = [
     name: 'planner_export_ifc',
     description:
       'Write the ACTIVE document to `path` as IFC (complete, the native format), inside the home folder. ' +
-      'Replaces a file only with `overwrite: true`. An export, not "save as": the document stays unsaved. Tell ' +
+      'Replaces a file only with `overwrite: true`; documents with preserved foreign content require a new file name. Returns characters for text or byteLength for bytes. An export, not "save as": the document stays unsaved. Tell ' +
       'the user the path; pass on `schemaNotice`. Writing over the source file of an unwritable schema (e.g. IFC2X3), or over a file ' +
       'not provably different from it, is refused: choose a new file name or let the user save in the app.',
     kind: 'other',
@@ -301,7 +309,7 @@ export const fileTools: McpToolDef[] = [
       // Volle guard incl. drift: we schrijven de inhoud van het ACTIEVE document weg.
       const blocked = guardNonTransactional(ctx);
       if (blocked) return blocked;
-      if (ifcSaveBlocked(ctx.app.store.getState())) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+      if (ifcFullWriteBlocked(ctx.app.store.getState())) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       const raw = (args ?? {}) as { path?: unknown; overwrite?: unknown };
       if (typeof raw.path !== 'string' || raw.path.trim() === '') {
         return toolError(ctx, 'VALIDATION', 'Parameter \'path\' (text) is required: the absolute target path of the IFC file.');
@@ -374,11 +382,22 @@ export const fileTools: McpToolDef[] = [
         `'${path}' already contains data from other programs. Export to another path.`);
       if (foreignTarget === 'building-model') return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
       if (foreignTarget === 'unreadable-target') return toolError(ctx, 'VALIDATION', UNREADABLE_TARGET_REFUSAL(path));
-      if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+      if (ifcFullWriteBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.
       const input = buildExportIFCInput(state, 'merge');
-      const { content, literalCalendarIds } = writeIFCWithChoices(input);
+      let output: Awaited<ReturnType<typeof prepareIfcOutput>>;
+      try { output = await prepareIfcOutput(state, input); }
+      catch (error) {
+        if (error instanceof IfcWriteBlockedError) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
+        if (error instanceof MergeNeedsPhase2Error) return toolError(ctx, 'VALIDATION',
+          `IFC export refused (${error.message}): the building model or data from other programs would not be fully preserved. ` +
+          'Undo the last change or export the schedule to another format.');
+        throw error;
+      }
+      if (output.prepared && (existed || !fs.writeNewByteParts)) return toolError(ctx, 'VALIDATION',
+        existed ? 'IFC export with a building model or data from other programs requires a new file name, even with overwrite: true.'
+          : 'This file host cannot create an exclusive new byte file. Nothing was written.');
       const ifcSchema = projectIfcSchema(input.project);
       const question = ifcSchemaQuestionFor(state.project, state.ifcSource);
       // Knownbug 1026 (review #872 ronde 3 en 4, Terra): een export over het eigen bestand legt de letterlijke kalenders
@@ -391,16 +410,19 @@ export const fileTools: McpToolDef[] = [
         if (waitBlocked) return waitBlocked;
         const now = ctx.app.store.getState();
         if (now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now)
+          || (output.prepared && now.ifcSource !== state.ifcSource)
           || now.filePath !== state.filePath || now.fileHandle !== state.fileHandle || now.siteFileId !== state.siteFileId) {
           return toolError(ctx, 'VALIDATION', 'The document changed while the export waited for another save. Nothing was written. Retry the export.');
         }
+        if (ifcFullWriteBlocked(now)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
         try {
-          await fs.writeTextFile(path, content);
+          if (output.prepared) await fs.writeNewByteParts!(path, output.prepared.parts);
+          else await fs.writeTextFile(path, output.content);
         } catch (e) {
           return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
         }
-        if (literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
-          ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, literalCalendarIds);
+        if (!output.prepared && output.literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
+          ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);
         }
         return null;
       });
@@ -412,7 +434,9 @@ export const fileTools: McpToolDef[] = [
           path,
           // Aantal TEKENS van het IFC-document (geen bytes: UTF-8 is multi-byte voor niet-ASCII
           // projectnamen/omschrijvingen, dus `length` zou als byte-telling onjuist zijn).
-          characters: content.length,
+          ...(output.prepared
+            ? { byteLength: output.prepared.parts.reduce((length, part) => length + part.byteLength, 0) }
+            : { characters: output.content.length }),
           tasks: state.tasks.length,
           /** Werkelijke uitkomst: stond er al een bestand op dit pad dat nu vervangen is? */
           overwritten: existed,

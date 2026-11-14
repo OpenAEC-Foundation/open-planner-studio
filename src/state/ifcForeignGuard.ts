@@ -1,5 +1,6 @@
 // #804 fase 1c: de documentroutes schrijven een voorbereide merge naar nieuwe lokale doelen,
-// browserdownloads en siteversies met een verplichte basisversie. De andere IFC-routes en AutoSave
+// browserdownloads en siteversies met een verplichte basisversie. Ook IFC-export en app-MCP schrijven volledig
+// naar nieuwe doelen, zonder documentcommit. De andere IFC-routes en AutoSave
 // houden de strikte opslagblokkade. Ontbrekende bronbytes blokkeren iedere IFC-opslag, ook met de flag uit.
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -29,9 +30,9 @@ export function ifcSaveBlocked(s: {
   return hasForeignContent(s.ifcSource) || s.foreignSourceMark?.sourceMissing === true;
 }
 
-/** Alleen de documentroutes mogen met de flag aan voorbereide merge-uitvoer schrijven.
- * Export, paneel, hersteldoel en AutoSave houden de strikte `ifcSaveBlocked` hierboven. */
-export function ifcDocumentSaveBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
+/** Documentopslag en volledige IFC-export mogen met de flag aan voorbereide merge-uitvoer schrijven.
+ * Paneel, pool, hersteldoel en AutoSave houden de strikte `ifcSaveBlocked` hierboven. */
+export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }): boolean {
   return s.foreignSourceMark?.sourceMissing === true
@@ -129,7 +130,8 @@ export async function isOpenForeignSourceTarget(
 
 /** Wat de doelcontrole nodig heeft: de open documenten en de flag. */
 export interface WriteTargetState {
-  getOpenDocumentPayloads(): readonly { readonly payload: Pick<DocumentPayload, 'foreignSourceMark'> }[];
+  getOpenDocumentPayloads(): readonly { readonly id: string; readonly payload: Pick<DocumentPayload,
+    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion'> }[];
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }
 
@@ -157,13 +159,15 @@ export async function refusedWriteTarget(
   target: FileRef,
   deps: WriteTargetDeps,
   // Alleen een volledige documentmerge naar het eigen sitebestand; de host bewaakt de basisversie.
-  ownSiteVersion?: { readonly id: string; readonly baseVersion: string | null; readonly source: IfcSource },
+  ownSiteVersion?: { readonly documentId: string; readonly baseVersion: string | null; readonly source: IfcSource },
 ): Promise<'open-source' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
-  const isOwnVersion = target.kind === 'site' && ownSiteVersion?.id === target.id
-    && !!ownSiteVersion.baseVersion && hasForeignContent(ownSiteVersion.source)
+  const own = ownSiteVersion && s.getOpenDocumentPayloads().find(d => d.id === ownSiteVersion.documentId)?.payload;
+  const isOwnVersion = target.kind === 'site' && ownSiteVersion && own?.siteFileId === target.id
+    && !!ownSiteVersion.baseVersion && own.siteFileVersion === ownSiteVersion.baseVersion
+    && own.ifcSource === ownSiteVersion.source && hasForeignContent(own.ifcSource)
     && ifcForeignContentEnabled(s.ui.featureFlags)
-    && openForeignSourceMarks(s).some(mark => mark.siteFileId === target.id && !mark.sourceMissing
-      && mark.sha256 === ownSiteVersion.source.sha256);
+    && own.foreignSourceMark?.siteFileId === target.id && !own.foreignSourceMark.sourceMissing
+    && own.foreignSourceMark.sha256 === ownSiteVersion.source.sha256;
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;

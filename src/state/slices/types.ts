@@ -225,6 +225,7 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignReplaceBlocked'
   | 'notifications.ifcForeignMergeRefused'
+  | 'notifications.ifcForeignExportNewTarget'
   | 'notifications.ifcSaveChangedWhileWaiting'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'

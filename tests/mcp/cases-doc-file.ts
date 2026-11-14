@@ -22,6 +22,8 @@ import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, ex
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
+import { mergeProblems, openForeign } from '../planning/ifcMergeKern';
+import { createHash } from 'node:crypto';
 import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
@@ -1138,10 +1140,13 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assert(S().ifcSource?.foreign === true && S().ifcSource?.bytes === bonsai, 'het document houdt de bron met het vreemde deel');
     assertEq(imported.filePath, bonsaiPath, 'het bestand is het opslagdoel');
 
+    const task = S().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    S().updateTask(task.id, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration + 1 } });
+    S().runCPM();
     const target = `${HOME}/export/model.ifc`;
     const error = await callErr('planner_export_ifc', { path: target, overwrite: true }, ctx);
     assertEq(error.code, 'VALIDATION', 'een vreemd deel ⇒ validatiefout');
-    assert(error.error.includes('building model') && error.error.includes('Other export formats'),
+    assert(error.error.includes('merge-needs-phase2') && error.error.includes('another format'),
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(files.has(target), false, 'er is niets geschreven');
 
@@ -1392,6 +1397,101 @@ test('veiligheidsvlaggen: pauze en alleen-lezen weigeren de document-/bestands-t
   // Leestool mag WEL door (spec regel 116).
   const data = await callOk('planner_list_documents', {}, makeCtx({ paused: true, readOnly: true }));
   assert(data.documents.length >= 1, 'list_documents blijft werken tijdens pauze/alleen-lezen');
+});
+
+// PR 11b: de echte dispatcher en openroute, met volledige heropening of aantoonbaar nul writes.
+test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact (#804 fase 1c)', async () => {
+  const fs = installFakeFs(); resetToSingleEmptyDocument();
+  let byteWrites = 0, textWrites = 0;
+  const textWrite = fs.writeTextFile;
+  fs.writeTextFile = async (p, c) => { textWrites++; await textWrite(p, c); };
+  fs.writeNewByteParts = async (p, parts) => {
+    if (await fs.exists(p)) throw new Error('EEXIST');
+    byteWrites++;
+    const output = new Uint8Array(parts.reduce((n, part) => n + part.byteLength, 0));
+    let at = 0; for (const part of parts) { output.set(part, at); at += part.byteLength; }
+    binFiles.set(p, output);
+  };
+  fs.scanTarget = async p => {
+    const data = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : null);
+    return data ? scanForeignTargetBytes(data) : null;
+  };
+  const hash = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
+  useAppStore.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  try {
+    for (const fixture of ['eigen-plus-model.ifc', 'eigen-latin1-variant.ifc']) {
+      const raw = readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+      if (fixture === 'eigen-latin1-variant.ifc') {
+        const at = raw.indexOf(Buffer.from('Wand B')); assert(at >= 0, 'variant wijzigt uitsluitend de modelnaam');
+        raw[at + 5] = 0xe9;
+      }
+      const bytes = new Uint8Array(raw);
+      const original = `${HOME}/${fixture}`; setBinaryFile(original, bytes);
+      const ctx = makeCtx();
+      const imported = await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id: 804, method: 'tools/call',
+        params: { name: 'planner_import_schedule', arguments: { path: original } } }), ctx);
+      assert(JSON.parse(imported).result.structuredContent.ok, 'bytes-import via dispatcher opent');
+      if (fixture === 'eigen-plus-model.ifc') {
+        const task = S().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+        S().updateTask(task.id, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration + 1 } }); S().runCPM();
+      }
+      const before = S(), target = `${HOME}/export-${fixture}`;
+      const result = await exportRpc(target, false, ctx);
+      assert(result.ok, `byte-export ${fixture} slaagt: ${result.ok ? '' : result.error}`);
+      const output = binFiles.get(target)!; assert(!!output, 'de bytenaad schreef het bestand');
+      const data = (result as McpToolOk).data as { byteLength?: number; characters?: number; overwritten: boolean };
+      assertEq(mergeProblems(bytes, output).length, 0, 'vreemde bytes bytegelijk');
+      assertEq(data.byteLength, output.byteLength, 'antwoord geeft byteLength');
+      assertEq(data.characters, undefined, 'geen characters bij byte-uitvoer');
+      assertEq(data.overwritten, false, 'nieuw bestand');
+      const reopened = await openForeign(output);
+      assertEq(reopened.tasks.length, before.tasks.length, 'volledig heropend');
+      for (const task of before.tasks) assertEq(reopened.tasks.find(t => t.id === task.id)?.time.scheduleDuration,
+        task.time.scheduleDuration, 'duur heropent');
+      if (fixture === 'eigen-latin1-variant.ifc') {
+        assertEq(hash(output), hash(bytes), 'ongewijzigde Latin-1-bron exact terug');
+        assert(hash(new TextEncoder().encode(new TextDecoder().decode(output))) !== hash(output), 'fixture detecteert tekstrondgang');
+      }
+      const unchanged = () => {
+        const now = S(); assert(now.ifcSource === before.ifcSource, 'bronidentiteit intact');
+        assert(now.foreignSourceMark === before.foreignSourceMark, 'kenmerk intact');
+        assert(now.ifcLiteralCalendarIds === before.ifcLiteralCalendarIds, 'kalenderkeuzes intact');
+        assertEq(now.filePath, before.filePath, 'doel intact'); assertEq(now.isDirty, before.isDirty, 'dirty intact');
+      };
+      unchanged();
+      const count = byteWrites, targetHash = hash(output);
+      for (const path of [target, original]) {
+        const denied = await exportRpc(path, true, ctx);
+        assert(!denied.ok && denied.code === 'VALIDATION', 'bestaand en eigen doel weigeren ook met overwrite');
+        assertEq(byteWrites, count, 'nul nieuwe bytewrites'); unchanged();
+      }
+      assertEq(hash(binFiles.get(target)!), targetHash, 'exportdoel intact');
+      assertEq(hash(binFiles.get(original)!), hash(bytes), 'bron intact');
+      for (const cause of ['flag-uit', 'sourceMissing'] as const) {
+        useAppStore.setState(s => {
+          if (cause === 'flag-uit') s.ui.featureFlags = {};
+          else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+        });
+        const path = `${HOME}/${cause}-${fixture}`, denied = await exportRpc(path, false, ctx);
+        assert(!denied.ok && denied.code === 'VALIDATION', `${cause} weigert`);
+        assertEq(binFiles.has(path), false, 'nul bytes'); assertEq(byteWrites, count, 'geen bytewrite');
+        useAppStore.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; s.foreignSourceMark = before.foreignSourceMark; });
+      }
+    }
+    const latin = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/latin1.ifc')));
+    const latinPath = `${HOME}/latin1-corpus.ifc`; setBinaryFile(latinPath, latin);
+    const latinCtx = makeCtx(); await callOk('planner_import_schedule', { path: latinPath }, latinCtx);
+    const { prepareIfcWrite, MergeNeedsPhase2Error } = await import('@/services/ifc/foreign/mergeWriter');
+    let sameRefusal = false;
+    try { await prepareIfcWrite(buildWriteIFCInput(S(), 'merge'), S().ifcSource!); }
+    catch (error) { sameRefusal = error instanceof MergeNeedsPhase2Error && error.cases.some(c => c.kind === 'planning-na-openen'); }
+    assert(sameRefusal, 'Latin-1-corpus weigert al in de bestaande documentvoorbereiding (1567)');
+    const deniedLatin = await exportRpc(`${HOME}/latin1-corpus-export.ifc`, false, latinCtx);
+    assert(!deniedLatin.ok && deniedLatin.code === 'VALIDATION' && deniedLatin.error.includes('planning-na-openen'),
+      'corpusweigering getypeerd via dispatcher, nul bytes');
+    assertEq(binFiles.has(`${HOME}/latin1-corpus-export.ifc`), false, 'geen corpusuitvoer');
+    assertEq(byteWrites, 2, 'twee volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
+  } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
 });
 
 await run();

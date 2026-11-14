@@ -420,6 +420,36 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
       await duration.press('Enter');
       await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, task.id)).toBe(task.duration + 1);
       await page.keyboard.press('F5');
+      // De eerdere Ctrl+S-weigeringen en openingsmeldingen eerst echt sluiten: zij kunnen de exportkaart bedekken.
+      while (await page.locator('[data-ops-toast-close]').count()) {
+        await page.locator('[data-ops-toast-close]').last().click();
+      }
+      // Eerst de echte IFC-export: volledig downloaden en heropenen, zonder documentcommit.
+      const beforeExport = await page.evaluate(() => {
+        const state = window.__OPS__!.store.getState();
+        return { path: state.filePath, dirty: state.isDirty, sha256: state.ifcSource!.sha256 };
+      });
+      await page.getByRole('button', { name: /^(File|Bestand)$/ }).click();
+      await page.locator('.backstage-sidebar').getByRole('button', { name: /^(Export|Exporteren)$/ }).click();
+      const exportedEvent = page.waitForEvent('download');
+      await page.locator('.backstage-export-card').filter({ has: page.getByRole('heading', { name: /^IFC/ }) }).first().click();
+      const exported = await exportedEvent;
+      expect(await page.evaluate(() => {
+        const state = window.__OPS__!.store.getState();
+        return { path: state.filePath, dirty: state.isDirty, sha256: state.ifcSource!.sha256 };
+      })).toEqual(beforeExport);
+      const exportChooser = page.waitForEvent('filechooser');
+      await page.keyboard.press('Control+o');
+      await (await exportChooser).setFiles({ name: exported.suggestedFilename(), mimeType: 'application/octet-stream',
+        buffer: await readFile((await exported.path())!) });
+      await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.time.scheduleDuration, task.id)).toBe(task.duration + 1);
+      const exportChunks = await page.evaluate(() => {
+        const source = window.__OPS__!.store.getState().ifcSource!;
+        return Array.from(source.classes, (kind, i) => ({ kind, i })).filter(c => c.kind > 1).map(({ i }) => ({
+          id: source.chunkIds[i], bytes: btoa(String.fromCharCode(...source.bytes.subarray(source.chunkStarts[i], source.chunkStarts[i + 1]))),
+        }));
+      });
+      expect(exportChunks).toEqual(task.foreign);
       const downloadEvent = page.waitForEvent('download');
       await page.keyboard.press('Control+Shift+s');
       const download = await downloadEvent;

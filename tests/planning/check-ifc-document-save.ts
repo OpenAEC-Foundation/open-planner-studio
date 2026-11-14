@@ -9,7 +9,8 @@ import { createHash } from 'node:crypto';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { ifcDocumentSaveBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
+import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
+import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
@@ -176,7 +177,7 @@ for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', '
   await check(`${fault}: na voorbereiden nul bytes, bron en doel intact`, async () => {
     const { store } = await openInStore(bytes); longer(store);
     const before = preserved(store), id = store.getState().activeDocumentId;
-    const ipc = desktop(), target = join(dir, `${fault}.ifc`);
+    const ipc = desktop(), target = join(dir, `${fault.replace('/', '-')}.ifc`);
     ipc.choose(fault === 'annuleren' ? null : target);
     if (fault === 'I/O-fout') ipc.faults.writeErrorAfter = 2;
     let expectedSource = before.source;
@@ -195,7 +196,10 @@ for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', '
         assert(store.getState().ifcSource === expectedSource, 'de inmiddels gecommitte bron blijft staan');
         assert.equal(store.getState().filePath, before.path);
       } else unchanged(store, before);
-      if (fault === 'I/O-fout') assertNotice(store, 'notifications.saveFailed');
+      if (fault === 'I/O-fout') {
+        assert(ipc.calls.some(c => c.command === 'plugin:fs|write'), 'de schrijffout is werkelijk bereikt');
+        assertNotice(store, 'notifications.saveFailed');
+      }
     } finally { ipc.dispose(); }
   });
 }
@@ -344,7 +348,7 @@ await check('zonder vreemd deel en flag aan: beide acties bytegelijk aan de gewo
   writeFileSync(first, plain); writeFileSync(second, plain);
   try {
     const store = await openAt({ kind: 'path', path: first }, plain), source = store.getState().ifcSource;
-    assert.equal(ifcSaveBlocked(store.getState()), false); assert.equal(ifcDocumentSaveBlocked(store.getState()), false);
+    assert.equal(ifcSaveBlocked(store.getState()), false); assert.equal(ifcFullWriteBlocked(store.getState()), false);
     for (const as of [false, true]) {
       longer(store); const expected = new TextEncoder().encode(writeIFC(buildWriteIFCInput(store.getState(), 'merge')));
       if (as) { ipc.choose(second); await store.getState().saveFileAs(); } else await store.getState().saveFile();
@@ -368,6 +372,149 @@ await check('AutoSave: nul bytes, één bestaande melding per document per sessi
     await controller.flush(); await controller.flush();
     unchanged(store, before); assertNotice(store, 'notifications.ifcForeignSaveBlocked');
     assert.equal(ipc.calls.length, count); assert.equal(hash(new Uint8Array(readFileSync(original))), hash(bytes));
+  } finally { ipc.dispose(); }
+});
+
+await check('planOnly met vreemd deel: bewaakte voorbereiding weigert vóór I/O', async () => {
+  const { store } = await openInStore(bytes);
+  let refused = false;
+  try { await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'planOnly')); }
+  catch (error) { refused = error instanceof IfcWriteBlockedError; }
+  assert(refused, 'planOnly mag geen IFC-bestand zonder model afleveren');
+});
+
+await check('site-uitzondering is aan één schrijvend document gebonden; export krijgt haar nooit', async () => {
+  const store = await openAt({ kind: 'site', id: 'model-site' });
+  store.setState(s => { s.siteFileVersion = 'v1'; });
+  const snapshot = store.getState(), target = { kind: 'site' as const, id: 'model-site' };
+  const deps = { identityFs: async () => undefined, readers: () => ({}) };
+  assert.equal(await refusedWriteTarget(snapshot, target, deps), 'open-source', 'een export krijgt nooit de uitzondering');
+  assert.equal(await refusedWriteTarget(snapshot, target, deps, {
+    documentId: snapshot.activeDocumentId, baseVersion: 'v1', source: snapshot.ifcSource!,
+  }), null, 'volledige documentopslag naar eigen siteversie mag');
+  for (const documentId of ['ander-document', snapshot.activeDocumentId]) {
+    assert.equal(await refusedWriteTarget(snapshot, target, deps, {
+      documentId, baseVersion: documentId === snapshot.activeDocumentId ? 'verkeerde-basis' : 'v1', source: snapshot.ifcSource!,
+    }), 'open-source', 'ander document of andere basis geeft geen uitzondering');
+  }
+});
+
+await check('IFC-export desktop: volledig bestand, document intact, daarna Opslaan als op de openingsbron', async () => {
+  const original = join(dir, 'export-bron.ifc'); writeFileSync(original, bytes);
+  const store = await openAt({ kind: 'path', path: original }), ipc = desktop();
+  try {
+    const id = longer(store), before = preserved(store), literal = store.getState().ifcLiteralCalendarIds;
+    const target = join(dir, 'export-volledig.ifc'); ipc.choose(target);
+    const result = await store.getState().exportAs('ifc');
+    assert(result.ok && !result.cancelled, 'IFC-export schrijft');
+    assert(existsSync(target), 'nieuw exportbestand bestaat');
+    const output = new Uint8Array(readFileSync(target)), reopened = await openForeign(output);
+    assert.deepEqual(mergeProblems(bytes, output), []);
+    assert.equal(reopened.tasks.find(t => t.id === id)!.time.scheduleDuration,
+      store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration);
+    unchanged(store, before);
+    assert(store.getState().ifcLiteralCalendarIds === literal, 'export legt geen letterlijke kalenders vast');
+    store.getState().addResource({ name: 'Na export', type: 'EQUIPMENT', description: '', maxUnits: 2, costPerHour: 37.5 });
+    const saved = join(dir, 'opslag-na-export.ifc'); ipc.choose(saved);
+    await store.getState().saveFileAs();
+    const again = new Uint8Array(readFileSync(saved)), after = await openForeign(again);
+    assert.deepEqual(mergeProblems(bytes, again), []);
+    assert(after.resources.some(r => r.name === 'Na export'));
+    assert.equal(after.tasks.find(t => t.id === id)!.time.scheduleDuration, reopened.tasks.find(t => t.id === id)!.time.scheduleDuration);
+    // Een gesloten exportbestand blijft op inhoud beschermd tegen een gewone planningwrite.
+    store.getState().newDocument(); ipc.choose(target);
+    assert.equal((await store.getState().exportAs('ifc')).ok, true);
+    assert.equal(hash(new Uint8Array(readFileSync(target))), hash(output));
+    assertNotice(store, 'notifications.ifcForeignTargetExport');
+  } finally { ipc.dispose(); }
+});
+
+for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await check(`IFC-export ${kind}: nul bytes, één melding`, async () => {
+  const target = join(dir, `export-${kind}.ifc`);
+  const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+  writeFileSync(target, kind === 'bestaand' ? plain : bytes);
+  const store = kind === 'bestaand' ? (await openInStore(bytes)).store : await openAt({ kind: 'path', path: target });
+  if (kind === 'andere-bron') {
+    store.getState().newDocument();
+    await store.getState().openOpenedFile({ name: 'ander.ifc', content: '', bytes, ref: null });
+  }
+  longer(store); const before = preserved(store), ipc = desktop(), oldHash = hash(new Uint8Array(readFileSync(target)));
+  ipc.choose(target);
+  try {
+    clearNotices(store); const result = await store.getState().exportAs('ifc');
+    assert(result.ok && result.cancelled); unchanged(store, before);
+    assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash);
+    assert.equal(ipc.calls.filter(c => c.command === 'plugin:fs|write').length, 0);
+    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignExportNewTarget' : 'notifications.ifcForeignTargetExport');
+  } finally { ipc.dispose(); }
+});
+
+await check('IFC-export browser: volledige download, bron/doel/dirty/kalenders intact', async () => {
+  const { store } = await openInStore(bytes); const id = longer(store);
+  const before = preserved(store), literal = store.getState().ifcLiteralCalendarIds, browser = browserDownload();
+  try {
+    const result = await store.getState().exportAs('ifc');
+    assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 1);
+    const output = new Uint8Array(await browser.downloads[0].arrayBuffer()), reopened = await openForeign(output);
+    assert.deepEqual(mergeProblems(bytes, output), []);
+    assert.equal(reopened.tasks.find(t => t.id === id)!.time.scheduleDuration, store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration);
+    unchanged(store, before); assert(store.getState().ifcLiteralCalendarIds === literal);
+  } finally { browser.dispose(); }
+});
+
+for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering', 'pool'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
+  const data = cause === 'mergeweigering' ? new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'))) : bytes;
+  const { store } = await openInStore(data); longer(store);
+  store.setState(s => {
+    if (cause === 'flag-uit') s.ui.featureFlags = {};
+    if (cause === 'sourceMissing') s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+  });
+  const before = preserved(store), ipc = desktop(), target = join(dir, `export-${cause}.ifc`); ipc.choose(target);
+  try {
+    clearNotices(store);
+    const result = cause === 'pool' ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc');
+    assert(result.ok && result.cancelled); assert.equal(ipc.picks(), 0); assert.equal(existsSync(target), false);
+    unchanged(store, before);
+    assertNotice(store, cause === 'mergeweigering' ? 'notifications.ifcForeignMergeRefused' : 'notifications.ifcForeignSaveBlocked');
+  } finally { ipc.dispose(); }
+});
+
+for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-bron', 'documentwissel'] as const) {
+  await check(`IFC-export ${cause}: nul bytes na voorbereiding`, async () => {
+    const { store } = await openInStore(bytes); longer(store);
+    const before = preserved(store), id = store.getState().activeDocumentId, ipc = desktop();
+    const target = join(dir, `export-laat-${cause}.ifc`); ipc.choose(target);
+    const other = cause === 'nieuwe-bron'
+      ? await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!) : null;
+    ipc.onPick(() => {
+      if (cause === 'documentwissel') store.getState().newDocument();
+      else if (other) store.getState().commitSavedDocument(id, store.getState(), undefined, other);
+      else store.setState(s => {
+        if (cause === 'flag-uit-na-kiezer') s.ui.featureFlags = {};
+        else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+      });
+    });
+    try {
+      const result = await store.getState().exportAs('ifc'); assert(result.ok && result.cancelled);
+      assert.equal(existsSync(target), false); assert.equal(ipc.calls.filter(c => c.command === 'plugin:fs|write').length, 0);
+      if (cause === 'documentwissel') store.getState().switchDocument(id);
+      if (other) assert(store.getState().ifcSource === other.source, 'de nieuwe opslagbron blijft staan');
+      else assert(store.getState().ifcSource === before.source, 'de openingsbron blijft staan');
+    } finally { ipc.dispose(); }
+  });
+}
+
+for (const flag of [true, false]) await check(`gewone IFC-export, flag ${flag}: main-tekst en bestaande vervanging`, async () => {
+  const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+  const { store } = await openInStore(plain);
+  store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; }); longer(store);
+  const before = preserved(store), ipc = desktop(), target = join(dir, `export-gewoon-${flag}.ifc`); writeFileSync(target, plain); ipc.choose(target);
+  try {
+    const { buildExportIFCInput } = await import('@/state/ifcSaveInput');
+    const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), 'merge')));
+    const result = await store.getState().exportAs('ifc'); assert(result.ok && !result.cancelled);
+    const output = new Uint8Array(readFileSync(target)); assert.equal(hash(output), hash(expected)); await openForeign(output);
+    unchanged(store, before);
   } finally { ipc.dispose(); }
 });
 rmSync(dir, { recursive: true, force: true });

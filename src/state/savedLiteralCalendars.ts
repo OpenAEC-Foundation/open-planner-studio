@@ -16,8 +16,13 @@ const written = new WeakMap<object, readonly string[]>();
  *  van die opslag (`literalCalendarIdsWritten`). */
 export function serializeForSave(source: IFCSaveSource, input: IFCWriteInput = buildWriteIFCInput(source, 'merge')): string {
   const { content, literalCalendarIds } = writeIFCWithChoices(input);
-  written.set(source, literalCalendarIds);
+  rememberLiteralCalendarsWritten(source, literalCalendarIds);
   return content;
+}
+
+/** Onthoud de gewone voorbereiding voor de latere documentcommit; exports roepen dit niet aan. */
+export function rememberLiteralCalendarsWritten(source: IFCSaveSource, ids: readonly string[]): void {
+  written.set(source, ids);
 }
 
 /** De kalenders die de opslag van `source` letterlijk schreef; leeg als `source` niet via `serializeForSave` ging. */

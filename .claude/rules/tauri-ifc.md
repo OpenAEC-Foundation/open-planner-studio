@@ -33,7 +33,9 @@ overschrijven of rename. Dit is geen atomaire publicatie van een compleet bestan
 downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileParts` en
 `saveSiteFileVersionParts` dragen een Blob; de laatste weigert vóór I/O zonder basisversie en
 behoudt de conflictkopie van de host. De aanroeper houdt de delen ongewijzigd tot voltooiing.
-PR 11a sluit alleen de documentroutes aan: nieuwe lokale naam, download en siteversie met basis. Bestaande tekst-/PDF-routes
+PR 11a sluit de documentroutes aan: nieuwe lokale naam, download en siteversie met basis.
+PR 11b sluit IFC-export en app-MCP aan op dezelfde `state/prepareIfcOutput.ts`, zonder documentcommit.
+De MCP-naad `writeNewByteParts` gebruikt dezelfde exclusieve byte-ingang; headless biedt haar nog niet. Bestaande tekst-/PDF-routes
 veranderen niet. Bestaande vreemde lokale doelen en de bronhash horen bij fase 2 (1131).
 
 The application's persistence model is IFC 4.3 (buildingSMART). Loading a project = parsing IFC via `src/services/ifc/ifcReader`; saving = serializing the entire app state via `ifcWriter`. There is no separate JSON project format. When adding new domain data (tasks, sequences, resources, assignments, calendar), it must round-trip through the IFC layer or it will be lost on save/reload. CSV/MS Project/P6 services in `src/services/` are import/export adapters, not the source of truth. The other `src/services/` areas — `fileAccess/` (Tauri↔web bestands-I/O + handle-backed recents), `recovery/` (auto-save/restore, Tauri fs + web IndexedDB), `actualAutosave/` (opt-in, promptvrije writes to an existing project file), `benchmark/` (ingebouwde benchmark-tool via Instellingen), `print/` (printvoorbeeld), `pdf/` (vector-PDF-export via `pdf-lib`; Arabic and Persian stay vector, while CJK rasterizes only without an optional `pdf-fonts` extension), `updater/`, `feedback/` (feedbackdialoog + screenshot-annotator), `mcp/` (AI-assistent, zie `.claude/rules/mcp.md`) and `debug/appLog` (log-bus achter de DebugTerminal) — are app plumbing with no IFC impact. `library/` is de uitzondering: bibliotheekdata is app-globaal, maar herkomststempels round-trippen wél door het project-IFC (zie *Resourcebibliotheken*).
@@ -49,7 +51,7 @@ Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_
 Met `ifcForeignContent` en een vreemd deel ligt de letterlijke kopnaam vast in `ifcSource.schemaName`.
 Projectinstellingen toont de keuze uit met een reden; store- en MCP-projectpatches kunnen haar niet
 veranderen, undo/redo behoudt de live bestandskeuze en de schemavraag vervalt. Stille opslag leest de
-bron; `ifcDocumentSaveBlocked` laat de voorbereide documentroutes toe; `ifcSaveBlocked` blijft de andere IFC-routes weigeren. Een terugval zonder
+bron; `ifcFullWriteBlocked` laat de voorbereide document- en volledige exportroutes toe; `ifcSaveBlocked` blijft de andere IFC-routes weigeren. Een terugval zonder
 bron is alleen toegestaan na een volledige indeling zonder vreemd deel; onzekere invoer wordt
 getypeerd geweigerd. IFC2X3 zonder model houdt de ontwerpuitzondering met een openingsmelding.
 
@@ -62,7 +64,7 @@ de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer 
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
 gewone writer. Delen van nieuwe uitvoer wijzen naar de nieuwe bronbuffer; het resultaat houdt
 daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
-haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. De optionele indexplek is voor PR 6; de overige opslagroutes blijven geblokkeerd.
+haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6; pool, planOnly, paneel, dev-bridge en AutoSave blijven geblokkeerd.
 
 ### Auteur en bedrijf (#804 fase 1c)
 
@@ -87,5 +89,5 @@ worden niet als vrije tekst herkend. De grens is precies die van main: 64 KiB UT
 tellen niet mee. Mogelijke entiteitsbeginnen, commentaar en quote/veldgrenzen (ook met witruimte) behouden de
 main-route en worden niet gemaskeerd of overgeslagen. De stroom houdt alleen de nog onbesliste kop vast. Alle andere bestanden houden de sectiezoekregel van main (1061). De aparte, ruimere
 herkenning in `targetModelScan.ts` is weg; een kapotte huidige kop is geen oude kop en weigert als doel. Een geldig
-bestand volgt de gewone grammatica. Opslaan met een vreemd deel gebruikt uitsluitend de voorbereide documentroutes; bestaande lokale doelen blijven geblokkeerd.
+bestand volgt de gewone grammatica. IFC schrijven met een vreemd deel gebruikt uitsluitend de voorbereide document- en volledige exportroutes; bestaande lokale doelen blijven geblokkeerd.
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.

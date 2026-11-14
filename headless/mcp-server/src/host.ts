@@ -76,7 +76,7 @@ export function headlessInstructions(root: string): string {
     '',
     'Headless mode: no desktop app and no user interface; the schedule lives in memory and nobody else edits it.',
     `- Files only inside the working folder '${root}': "home folder" in tool texts means this folder, \`~/name.ifc\` is a file in it.`,
-    '- No save or auto-save: write the active document with planner_export_ifc (`overwrite: true` replaces the file you opened); what you do not export is lost when the server stops.',
+    '- No save or auto-save: write the active document with planner_export_ifc (`overwrite: true` replaces only a target without a building model or data from other programs); what you do not export is lost when the server stops.',
     '- While the desktop app runs, the server does not replace an existing file (SCOPE): use a new file name. Reading still works.',
   ].join('\n');
 }
