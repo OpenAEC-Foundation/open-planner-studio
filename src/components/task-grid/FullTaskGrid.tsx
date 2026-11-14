@@ -72,6 +72,7 @@ import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
+import { pastesGridTaskCopy } from '@/state/slices/selectionSlice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -269,6 +270,7 @@ export function TaskGridSurface({
   const refreshExternalAnchorsFrom = useAppStore(state => state.refreshExternalAnchorsFrom);
   const addTask = useAppStore(state => state.addTask);
   const pasteTasks = useAppStore(state => state.pasteTasks);
+  const copyTasks = useAppStore(state => state.copyTasks);
   const taskClipboard = useAppStore(state => state.taskClipboard);
   const setUI = useAppStore(state => state.setUI);
   const ganttVisible = useAppStore(state => isGanttWorkspaceVisible(state.ui));
@@ -1167,12 +1169,18 @@ export function TaskGridSurface({
           if (!copied.ok) return;
           event.preventDefault();
           event.clipboardData.setData('text/plain', copied.value);
+          // Ook naar het app-brede takenklembord, voor plakken in een andere planning (issue #900).
+          copyTasks(undefined, copied.value);
         }}
         onPaste={event => {
           if (!finishEditing()) return;
-          const planned = planTaskGridPaste(
-            event.clipboardData.getData('text/plain'), clipboardEnvironment(), { skipReadOnlyCells: true },
-          );
+          const text = event.clipboardData.getData('text/plain');
+          if (pastesGridTaskCopy(useAppStore.getState().taskClipboard, text, activeDocumentId)) {
+            event.preventDefault();
+            pasteTasks();
+            return;
+          }
+          const planned = planTaskGridPaste(text, clipboardEnvironment(), { skipReadOnlyCells: true });
           if (!planned.ok) {
             setSurfaceError(validationMessage(planned.errors[0], 'taskGrid.validation.pasteNotPossible'));
             return;

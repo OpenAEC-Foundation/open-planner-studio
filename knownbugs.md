@@ -967,6 +967,13 @@ en noem het in je rapport of PR-tekst.
      verwacht percentages (`90`, `100`, `110`, `125`) en kiest de dichtstbijzijnde: beide gevallen worden 90%. Het
      label noemt 100% en 125%. De echte 100%- en 125%-gevallen zijn los nagemeten en goed (eindig, zelfde dagbreedte
      als zonder datums). Voorstel: `[100, 125]` en het label zonder `* 100`. Bron: review Sol ronde 3 van #951. — B
+1674. **VERVOLG: een rasterkopie zonder taakselectie kan de herkomst van een oudere kopie laten staan.** Kopieer
+     in planning A de naamcel `Fase`, klik in planning B (die ook een taak `Fase` heeft) haar naamcel en druk Escape:
+     de taakselectie is leeg, het celbereik blijft. Ctrl+C kopieert opnieuw de tekst `Fase`, maar `copyTasks`
+     (`src/state/slices/selectionSlice.ts`) stopt bij een lege selectie en laat `fromGrid` van A staan. Ctrl+V in B
+     plakt dan de oude taak uit A in plaats van de celwaarde. Voorstel: bij een geslaagde rasterkopie zonder
+     kopieerbare taken `fromGrid` wissen, met een regressiecheck. Uit de review van #957 (GPT-6.1-Sol, xhigh,
+     ronde 1, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 

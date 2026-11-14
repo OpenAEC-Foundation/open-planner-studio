@@ -53,6 +53,21 @@ export interface TaskClipboard {
    *  niet aan `costAmount` of `curve` (een kostentoewijzing kan zonder bedrag). Een resource die in de
    *  bron ontbrak, staat er niet in: die soort is onbekend en de toewijzing wordt niet geplakt. */
   resourceKinds: Record<string, TaskAssignmentResourceKind>;
+  /** Kopieerde het raster (de kolommen) deze taken, dan de celtekst die het op het systeemklembord zette
+   *  en de planning waaruit (issue #900). Zie `pastesGridTaskCopy`. */
+  fromGrid?: { text: string; documentId: string };
+}
+
+const sameClipboardText = (text: string) => text.replace(/\r\n/g, '\n');
+
+/**
+ * Plakt het raster de taken in plaats van celwaarden? Alleen als de tekst op het systeemklembord nog
+ * die van de laatste rasterkopie is EN het doel een andere planning is (issue #900). Binnen dezelfde
+ * planning, en met tekst van buiten (Excel), blijft het raster celwaarden plakken.
+ */
+export function pastesGridTaskCopy(clip: TaskClipboard | null, text: string, documentId: string): boolean {
+  return !!clip?.fromGrid && clip.fromGrid.documentId !== documentId
+    && clip.fromGrid.text === sameClipboardText(text);
 }
 
 export interface SelectionSlice {
@@ -75,8 +90,9 @@ export interface SelectionSlice {
    *  toe aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). Geen undo. */
   selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null) => void;
 
-  /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord. */
-  copyTasks: (ids?: string[]) => void;
+  /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord.
+   *  `gridText`: de celtekst als het raster kopieert (zie `TaskClipboard.fromGrid`). */
+  copyTasks: (ids?: string[], gridText?: string) => void;
   /** Plak het klembord als nieuwe takken; geeft de nieuwe root-ids terug (leeg als er niets te
    *  plakken viel). Dit pusht WEL een undo-snapshot — er ontstaan taken. */
   pasteTasks: () => string[];
@@ -171,7 +187,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       s.activeTaskId = nextActiveTaskId;
     }),
 
-  copyTasks: (ids) =>
+  copyTasks: (ids, gridText) =>
     set((s) => {
       const sourceIds = ids ?? s.selectedTaskIds;
       if (sourceIds.length === 0) return;
@@ -194,6 +210,9 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
       // Deep-clone: het klembord blijft geldig na latere edits/undo van de bron.
       s.taskClipboard = JSON.parse(JSON.stringify({ tasks, sequences, assignments, resourceKinds }));
+      if (gridText !== undefined) {
+        s.taskClipboard!.fromGrid = { text: sameClipboardText(gridText), documentId: s.activeDocumentId };
+      }
     }),
 
   pasteTasks: () => {
