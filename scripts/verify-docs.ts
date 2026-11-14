@@ -332,6 +332,31 @@ function checkAgentDocs(diffs: string[]): void {
   if (claudeStub !== '@AGENTS.md') {
     diffs.push('CLAUDE.md hoort alleen `@AGENTS.md` te bevatten — zet nieuwe agentinstructies in AGENTS.md');
   }
+
+  // 7g. De releasedag. De geplande release draait op maandag (besluit Ethan, 2026-11-07); de docs
+  //     bleven daarna "zaterdag" zeggen en sessies beloofden gebruikers een verkeerde datum. De dag in
+  //     `scheduled-job.md` is de bron; de tekst eromheen mag er niet van afwijken.
+  const releaseDir = join(ROOT, '.claude', 'skills', 'release');
+  const scheduled = readFileSync(join(releaseDir, 'scheduled-job.md'), 'utf8');
+  if (!scheduled.includes('"weekdays":[1]')) {
+    diffs.push('scheduled-job.md: de release hoort op maandag te staan (`"weekdays":[1]`)');
+  }
+  const releaseDocs: Record<string, string> = {
+    'AGENTS.md': agents,
+    '.claude/rules/ci-release.md': rules['.claude/rules/ci-release.md'] ?? '',
+    '.claude/skills/browsertests-repareren/SKILL.md': readFileSync(join(ROOT, '.claude', 'skills', 'browsertests-repareren', 'SKILL.md'), 'utf8'),
+  };
+  for (const file of readdirSync(releaseDir)) {
+    if (file.endsWith('.md')) releaseDocs[`.claude/skills/release/${file}`] = readFileSync(join(releaseDir, file), 'utf8');
+  }
+  const staleReleaseDay = /zaterdagjob|zaterdagmandaat|volgende zaterdag|(?:uiterlijk|tot|stopt|deadline[^\n]{0,20}) (?:zaterdag )?14:00|Saturday job|next Saturday|(?:alongside|for) (?:that|the next) Saturday/i;
+  for (const [name, text] of Object.entries(releaseDocs)) {
+    const hit = text.split('\n').findIndex((line) => staleReleaseDay.test(line));
+    if (hit >= 0) diffs.push(`${name}:${hit + 1} noemt nog de zaterdag of een eindtijd van 14:00 voor de release (die draait op maandag en stopt niet op een tijd)`);
+  }
+  if (!/next Monday release/i.test(agents)) {
+    diffs.push('AGENTS.md: mist de regel dat een reactie aan een melder de datum van de eerstvolgende maandagrelease noemt ("next Monday release")');
+  }
 }
 
 /** Knipt fenced code blocks (```…```) uit vóórdat we op backtick-spans scannen, zodat een
