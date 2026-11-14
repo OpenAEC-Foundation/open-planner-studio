@@ -347,7 +347,12 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `ifcSource` reference (sha256, byteLength, foreign and optional browser handle) restores a foreign source through
   the ordinary bytes-open route after hash verification; the snapshot supplies the edited planning. Foreign documents
   keep no save target in the manifest, so older readers restore planning with `sourceMissing` and no target.
-  Desktop paths and browser handles are supported; site/download copies follow in 9b. Unknown/invalid manifests also block later writes,
+  Desktop paths and browser handles read the source again. Browser files without a handle and site files use
+  best-effort source copies in a separate `ops-ifc-sources.<recoveryBase>` IndexedDB database (created only when needed
+  with the flag on): one byte blob per sha256 plus small per-session/document references and site base versions.
+  Copies commit before the manifest; cleanup follows it and keeps referenced bytes, other sessions and unknown sets.
+  Copy failures keep planning recovery working without a dangling source reference, with one notice and no retries for that document in the session.
+  The existing recovery database stays v3 and its stores/records remain unchanged. Unknown/invalid manifests also block later writes,
   clearing and session rotation for that recovery set; unknown foreign web generations and shared archive blobs
   are preserved during cleanup. A manifest has unique document IDs (also historical web `docIds`). Web recovery DB v3
   adds a non-unique `records.kind` index without rewriting record/blob content: every `kind: manifest` record
@@ -391,7 +396,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   small PRs to `main`; keep unfinished user-visible work behind a feature flag until it is complete.
 - **Feature flags:** add a temporary entry to `src/utils/featureFlags.ts` with an id, typed i18n
   name/description keys and `writesNewIfcData`; read it through `isFeatureEnabled(ui.featureFlags, id)`.
-  Flags default to off. The hidden
+  Flags default to off; `writesNewIfcData` does not hide or disable the experimental switch. The hidden
   Experimental block in Settings → Advanced is unlocked by activating its version number for
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also

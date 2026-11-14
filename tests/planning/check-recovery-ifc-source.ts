@@ -10,6 +10,8 @@ import { installDeterminism } from './ifcPariteitKern';
 import { installNodeFileIpc } from './nodeFileIpc';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { mergeProblems, openForeign } from './ifcMergeKern';
+import { SOURCE_COPY_DB, sourceCopyReferenceKey } from '@/services/recovery/recoverySourceCopies';
+import { classify } from '@/services/ifc/foreign/classify';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
@@ -34,14 +36,41 @@ class Handle {
   readonly kind = 'file';
   constructor(readonly name: string) {}
   async queryPermission() { return 'granted'; }
-  async getFile() { return new File([new Uint8Array(handleData.get(this.name)!).buffer], this.name); }
+  async getFile() {
+    const bytes = handleData.get(this.name);
+    if (!bytes) throw new DOMException('Geen leestoestemming', 'NotAllowedError');
+    return new File([new Uint8Array(bytes).buffer], this.name);
+  }
 }
 function hydrateHandles(value: unknown): void {
   if (!value || typeof value !== 'object') return;
   if (Reflect.get(value, 'kind') === 'file' && handleData.has(Reflect.get(value, 'name'))) Object.setPrototypeOf(value, Handle.prototype);
   else for (const child of Object.values(value)) hydrateHandles(child);
 }
-const idb = installFakeRecoveryIndexedDb({ onRead: (_store, _method, value) => hydrateHandles(value) });
+let failCopy = false, failManifest = false, interruptCleanup = false;
+let copyWrites = 0, enforceCopyOrder = false;
+const copyNotices: string[] = [];
+const idb = installFakeRecoveryIndexedDb({
+  onRead: (store, method, value) => {
+    hydrateHandles(value);
+    if (interruptCleanup && store === 'references' && method === 'getAll') throw new Error('crash vóór opruimen');
+  },
+  onPut: (store, value) => {
+    if (store === 'xer-archives') {
+      const written = Reflect.get(value, 'bytes');
+      if (written instanceof Uint8Array) assert(hash(written) !== hash(bytes), 'geen IFC-bronbytes in de bestaande herstel-database');
+    }
+    if (store === 'sources') { copyWrites++; if (failCopy) throw new DOMException('quotum', 'QuotaExceededError'); }
+    if (store === 'records' && Reflect.get(value, 'kind') === 'manifest') {
+      if (failManifest) throw new Error('crash vóór manifest');
+      for (const doc of Reflect.get(value, 'documents') as { ifcSource?: { sha256: string; handle?: unknown }; foreignSource?: { filePath?: string } }[]) {
+        if (enforceCopyOrder && doc.ifcSource && !doc.ifcSource.handle && !doc.foreignSource?.filePath?.startsWith('/')) {
+          assert(idb.store('sources', SOURCE_COPY_DB).has(doc.ifcSource.sha256), 'de kopie staat vóór het manifest');
+        }
+      }
+    }
+  },
+});
 const session = new Map<string, string>();
 Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
   getItem: (k: string) => session.get(k) ?? null, setItem: (k: string, v: string) => session.set(k, v),
@@ -68,8 +97,13 @@ async function saveAs(store: Store, name: string) {
   return new Uint8Array(readFileSync(target));
 }
 async function tick(store: Store, enabled = true, tracker = new RecoveryDeltaTracker()) {
-  await runRecoveryTick(tracker, store.getState().activeDocumentId,
-    store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, enabled)));
+  // De desktopproeven gebruiken de webopslagnaad voor het manifest, maar vangen de
+  // documentmomentopname op het juiste platform (op desktop is geen bronkopie nodig).
+  const desktopCapture = store.getState().filePath?.startsWith(dir) && !store.getState().siteFileId ? desktop() : null;
+  let docs;
+  try { docs = store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, enabled)); }
+  finally { desktopCapture?.dispose(); }
+  await runRecoveryTick(tracker, store.getState().activeDocumentId, docs, undefined, undefined, id => copyNotices.push(id));
   return loadRecovery();
 }
 async function restore(loaded: Awaited<ReturnType<typeof loadRecovery>>, enabled = true) {
@@ -114,6 +148,25 @@ const rootGuids = (data: Uint8Array) => {
 };
 assert.deepEqual(rootGuids(second), rootGuids(first), 'alle bestaande objecten, ook hulpobjecten, behouden hun GlobalId');
 assert.deepEqual(mergeProblems(first, second), [], 'vreemde verwijzingen en bytes intact');
+function sameForeignTargets(before: Uint8Array, after: Uint8Array): void {
+  const old = scanForeignStep(before), next = scanForeignStep(after), classes = classify(old).classes;
+  let checked = 0;
+  for (let i = 0; i < old.count; i++) {
+    if (!old.isEntity(i) || classes[i] === 1) continue;
+    for (let k = old.outStart(i); k < old.outEnd(i); k++) {
+      const target = old.outTarget(k);
+      if (target < 0) continue;
+      const id = old.id(target), actual = next.chunkOf(id);
+      assert(actual >= 0, `vreemd doel #${id} bestaat`);
+      assert.equal(next.type(actual), old.type(target), `type op vreemd doel #${id}`);
+      assert.equal(next.globalId(actual), old.globalId(target), `GlobalId op vreemd doel #${id}`);
+      checked++;
+    }
+  }
+  assert(checked > 0, 'de fixture bevat vreemde verwijzingen');
+  console.log(`DIRECTE DOELCONTROLE: ${checked} vreemde verwijzingen behouden type en GlobalId op hetzelfde #id.`);
+}
+sameForeignTargets(first, second);
 console.log('PROEF 2 GROEN: twee bewerkingen, volledig heropenen, dezelfde GlobalId; geen idExceptions.');
 assert(idb.store('records').size > 0);
 await clearRecovery();
@@ -136,6 +189,9 @@ async function noWrites(store: Store) {
     const id = store.getState().activeDocumentId;
     await store.getState().saveFile(); await store.getState().saveFileAs();
     assert.equal(await store.getState().saveFileForDocument(id), false);
+    const exported = await store.getState().exportAs('ifc');
+    assert(exported.ok && exported.cancelled === true);
+    await store.getState().exportProjectWithPool();
     store.setState(s => { s.autoSaveToFile = true; });
     await createFileAutoSaveController({ getState: store.getState, enabled: () => true }).flush();
     let closed = false;
@@ -146,6 +202,7 @@ async function noWrites(store: Store) {
       restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
     }).save();
     assert.equal(closed, false);
+    assert(store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignSourceMissing'));
     assert.equal(ipc.calls.some(c => c.options?.write || c.command.includes('write_file') || c.command.includes('write_text_file')), false);
     assert.equal(existsSync(join(dir, 'mag-nooit-bestaan.ifc')), false);
   } finally { ipc.dispose(); }
@@ -221,15 +278,160 @@ assert.equal(changedHandle.getState().foreignSourceMark?.sourceMissing, true);
 assert.equal(changedHandle.getState().fileHandle, null);
 console.log('PROEF 5 GROEN: handle teruggelezen; gewijzigde inhoud geweigerd.');
 await clearRecovery();
-for (const ref of [null, { kind: 'site' as const, id: 'site-model' }]) {
-  const unavailable = await openAt(bytes, ref); durationEdit(unavailable);
-  const unavailableRestored = await restore(await tick(unavailable));
-  assert.equal(unavailableRestored.getState().foreignSourceMark?.sourceMissing, true);
-  assert.equal(unavailableRestored.getState().filePath, null);
-  assert.equal(unavailableRestored.getState().siteFileId, null);
-  await noWrites(unavailableRestored); await clearRecovery();
+// PR 9b: de echte browser-/siteketen met een eigen database naast ops-recovery v3.
+enforceCopyOrder = true;
+const sourceStore = () => idb.store('sources', SOURCE_COPY_DB);
+const copyRefs = () => idb.store('references', SOURCE_COPY_DB);
+assert.equal(idb.databases.has(SOURCE_COPY_DB), false, 'desktop en handle maakten geen kopiedatabase');
+const offCopy = await openAt(bytes, null); durationEdit(offCopy);
+const offPayload = offCopy.getState().getOpenDocumentPayloads()[0];
+assert(recoverySourceDocument(offPayload.id, offPayload.payload, false).sourceCopy === undefined, 'flag uit draagt geen kopie');
+await tick(offCopy, false);
+assert.equal(idb.databases.has(SOURCE_COPY_DB), false, 'flag uit maakt geen extra database');
+await clearRecovery();
+const withoutHandle = await openAt(bytes, null), browserEdit = durationEdit(withoutHandle);
+const browserTracker = new RecoveryDeltaTracker();
+const browserCrash = await tick(withoutHandle, true, browserTracker);
+assert.equal(sourceStore().size, 1);
+assert.equal(copyWrites, 1);
+assert.equal(idb.databases.get('ops-recovery')?.version, 3);
+assert.equal(idb.store('xer-archives').size, 0, 'bronkopieën gebruiken de XER-store niet');
+assert.deepEqual([...idb.databases.get('ops-recovery')!.stores].sort(), ['records', 'xer-archives']);
+assert.deepEqual([...idb.databases.get(SOURCE_COPY_DB)!.stores].sort(), ['references', 'sources']);
+const browserRecovered = await restore(browserCrash);
+assert.equal(browserRecovered.getState().ifcSource!.sha256, hash(bytes));
+assert.equal(browserRecovered.getState().foreignSourceMark?.sourceMissing, undefined);
+assert.equal(browserRecovered.getState().tasks.find(t => t.id === browserEdit.id)!.time.scheduleDuration, browserEdit.duration);
+// Opslaan als in de browser levert werkelijk een Blob-download; de openingsbron blijft gelijk.
+const win = window as unknown as Record<string, unknown>, previousDocument = globalThis.document;
+const previousCreate = URL.createObjectURL, previousRevoke = URL.revokeObjectURL;
+let downloaded: Blob | undefined;
+URL.createObjectURL = blob => { downloaded = blob as Blob; return 'blob:test'; };
+URL.revokeObjectURL = () => {};
+Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+  createElement: () => ({ href: '', download: '', click: () => {}, remove: () => {}, style: {} }),
+  body: { appendChild: () => {} },
+} });
+try { await browserRecovered.getState().saveFileAs(); }
+finally {
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: previousDocument });
+  URL.createObjectURL = previousCreate; URL.revokeObjectURL = previousRevoke;
 }
-console.log('PROEF 5b GROEN: site en browser zonder handle houden bron ontbreekt en nul writes.');
+assert(downloaded, 'Opslaan als leverde een download');
+const downloadBytes = new Uint8Array(await downloaded.arrayBuffer());
+assert.equal((await openForeign(downloadBytes)).tasks.find(t => t.id === browserEdit.id)!.time.scheduleDuration, browserEdit.duration);
+assert.deepEqual(mergeProblems(bytes, downloadBytes), []); sameForeignTargets(bytes, downloadBytes);
+assert.equal(browserRecovered.getState().ifcSource!.sha256, hash(bytes), 'download vervangt de bron niet');
+await tick(withoutHandle, true, browserTracker);
+assert.equal(copyWrites, 1, 'ongewijzigde tick kopieert niet opnieuw');
+
+// Gewist en beschadigd: de centrale hashcontrole blijft verplicht; elke bestaande documentroute nul bytes.
+const stored = sourceStore().get(hash(bytes))!;
+for (const broken of ['weg', 'hash'] as const) {
+  if (broken === 'weg') sourceStore().delete(hash(bytes));
+  else {
+    const changed = new Uint8Array(bytes); changed[Buffer.from(changed).indexOf("FILE_NAME('") + 11] ^= 1;
+    sourceStore().set(hash(bytes), { id: hash(bytes), bytes: changed });
+  }
+  const missing = await restore(browserCrash);
+  assert.equal(missing.getState().foreignSourceMark?.sourceMissing, true, broken);
+  assert.equal(missing.getState().filePath, null); assert.equal(missing.getState().siteFileId, null);
+  await noWrites(missing);
+  sourceStore().set(hash(bytes), stored);
+}
+// Een oude kopie kan wél als terugval dienen bij geweigerde handletoegang; geen kopie voor handles bijbouwen.
+const denied = new Handle('geen-toestemming') as unknown as FileSystemFileHandle;
+const withDeniedHandle = { ...browserCrash, docs: browserCrash.docs.map(d => ({ ...d, ifcSource: { ...d.ifcSource!, handle: denied } })) };
+assert.equal((await restore(withDeniedHandle)).getState().foreignSourceMark?.sourceMissing, undefined);
+await clearRecovery(); assert.equal(sourceStore().size, 0); assert.equal(copyRefs().size, 0);
+console.log('PROEF 9b browser: download en heropenen volledig; gewiste/beschadigde kopie geweigerd; handle-terugval.');
+
+// Sitebasis alleen naast de kopie: geen nieuwe doelvelden in het manifest.
+const site = await openAt(bytes, { kind: 'site', id: 'site-model' });
+site.setState(s => { s.siteFileVersion = 'v1'; });
+const siteTracker = new RecoveryDeltaTracker(); durationEdit(site);
+const siteCrash = await tick(site, true, siteTracker);
+const recoveredSite = await restore(siteCrash);
+assert.equal(recoveredSite.getState().siteFileId, 'site-model');
+assert.equal(recoveredSite.getState().siteFileVersion, 'v1');
+assert.equal(siteCrash.docs[0].siteFileId ?? null, null); assert.equal(siteCrash.docs[0].siteFileVersion ?? null, null);
+const requests: { id?: string; data: Blob; baseVersion?: string }[] = [];
+win.openaecHost = { storage: { list: async () => [], versions: async () => [], open: async () => null,
+  save: async (request: { id?: string; data: Blob; baseVersion?: string }) => {
+    requests.push(request); return { id: request.id, name: 'site.ifc', version: `v${requests.length + 1}` };
+  },
+} };
+try {
+  await recoveredSite.getState().saveFile();
+  assert.equal(requests.length, 1); assert.equal(requests[0].baseVersion, 'v1');
+  const hostBytes = new Uint8Array(await requests[0].data.arrayBuffer());
+  assert.deepEqual(mergeProblems(bytes, hostBytes), []); sameForeignTargets(bytes, hostBytes);
+  // Eerst de gewijzigde planning snapshotten, dan site-opslag: bronupdate is metadata-only.
+  durationEdit(site); await tick(site, true, siteTracker);
+  const oldCrash = await loadRecovery(), oldSha = site.getState().ifcSource!.sha256;
+  await site.getState().saveFile();
+  const newSha = site.getState().ifcSource!.sha256;
+  assert.notEqual(newSha, oldSha);
+  failManifest = true;
+  await assert.rejects(() => tick(site, true, siteTracker), /crash vóór manifest/);
+  failManifest = false;
+  assert(sourceStore().has(newSha), 'crashvenster 1: nieuwe kopie staat er');
+  const oldWindow = await restore(await loadRecovery());
+  assert.equal(oldWindow.getState().ifcSource!.sha256, oldSha, 'crashvenster 1: oud manifest herstelt oude kopie');
+  assert.equal(oldWindow.getState().siteFileVersion, 'v1');
+  interruptCleanup = true;
+  const newCrash = await tick(site, true, siteTracker);
+  interruptCleanup = false;
+  assert(sourceStore().has(oldSha), 'crashvenster 2: oude kopie nog niet opgeruimd');
+  assert.equal((await restore(newCrash)).getState().ifcSource!.sha256, newSha, 'crashvenster 2: nieuw manifest herstelt nieuwe kopie');
+  assert.equal((await restore(newCrash)).getState().siteFileVersion, 'v3');
+  durationEdit(site); const latest = await tick(site, true, siteTracker);
+  assert.equal(sourceStore().has(oldSha), false, 'oude kopie weg na nieuwe manifestcommit');
+  assert.equal((await restore(latest)).getState().ifcSource!.sha256, newSha);
+  assert.equal(oldCrash.docs[0].ifcSource!.sha256, oldSha);
+} finally { delete win.openaecHost; }
+await clearRecovery(); assert.equal(sourceStore().size, 0);
+console.log('PROEF 9b site: basisversie, volledige hostbytes, nieuwe bronkopie; beide crashvensters en opruimen.');
+
+// Best effort: schrijfnaad weigert één keer; snapshotten en bewerken blijven doorgaan.
+const quota = await openAt(bytes, null), quotaTracker = new RecoveryDeltaTracker(); durationEdit(quota);
+const attemptsBefore = copyWrites; failCopy = true;
+for (let i = 0; i < 3; i++) {
+  durationEdit(quota); const failed = await tick(quota, true, quotaTracker);
+  assert.equal(failed.docs[0].ifcSource, undefined, 'geen verwijzing naar een mislukte kopie');
+  const recovered = await restore(failed);
+  assert.equal(recovered.getState().foreignSourceMark?.sourceMissing, true);
+  assert(recovered.getState().tasks.length > 0, 'planning blijft herstelbaar');
+}
+failCopy = false;
+assert.equal(copyWrites - attemptsBefore, 1, 'geen lus van kopieerpogingen');
+assert.equal(copyNotices.filter(id => id === quota.getState().activeDocumentId).length, 1);
+await clearRecovery();
+
+// Gedeelde kopie, document sluiten, onbekende generatie en andere instantie.
+const shared = await openAt(bytes, null), sharedTracker = new RecoveryDeltaTracker(); durationEdit(shared);
+const firstId = shared.getState().activeDocumentId;
+shared.getState().newDocument();
+await shared.getState().openOpenedFile({ name: 'zelfde.ifc', content: '', bytes, ref: null }); durationEdit(shared);
+const lastId = shared.getState().activeDocumentId;
+await tick(shared, true, sharedTracker); assert.equal(sourceStore().size, 1); assert.equal(copyRefs().size, 2);
+shared.getState().closeDocument(firstId); await tick(shared, true, sharedTracker);
+assert.equal(sourceStore().size, 1); assert.equal(copyRefs().size, 1);
+const otherSha = 'b'.repeat(64), otherKey = 'andere-instantie::doc::extern';
+sourceStore().set(otherSha, { id: otherSha, bytes: new Uint8Array([1]) });
+copyRefs().set(sourceCopyReferenceKey(otherKey, otherSha), { id: sourceCopyReferenceKey(otherKey, otherSha), documentKey: otherKey, sha256: otherSha });
+const unknownKey = 'vreemd::manifest';
+idb.store('records').set(unknownKey, { id: unknownKey, kind: 'manifest', sessionId: 'vreemd', version: 999, addedAt: 0 });
+shared.getState().closeDocument(lastId); await tick(shared, true, sharedTracker);
+assert(sourceStore().has(hash(bytes)), 'onbekende herstelset blokkeert opruimen');
+idb.store('records').delete(unknownKey);
+shared.getState().addTask({ name: 'Nieuw werk na sluiten' }); await tick(shared, true, sharedTracker);
+assert.equal(sourceStore().has(hash(bytes)), false, 'laatste document gesloten: eigen kopie opgeruimd');
+assert(sourceStore().has(otherSha), 'andere instantie blijft staan');
+await clearRecovery(); assert(sourceStore().has(otherSha));
+sourceStore().delete(otherSha); copyRefs().clear();
+enforceCopyOrder = false;
+console.log('PROEF 9b best effort/opruimen: één poging/melding, gedeelde bron, sluiten/wissen, onbekende en vreemde generaties.');
 
 // Proef 6: echte gemengde herstelset; de basislezer krijgt deze ongewijzigde records in /tmp.
 const mixed = await openAt(bytes, { kind: 'path', path }); durationEdit(mixed);
@@ -305,6 +507,10 @@ assert(!snapshot.includes('IFCWALL('));
 assert(!JSON.stringify(recoverySnapshotInput(mixed.getState().getOpenDocumentPayloads().find(d => d.id === foreignId)!.payload)).includes('IFCWALL('));
 assert(!JSON.stringify(manifest).includes('IFCWALL('));
 assert(!JSON.stringify(records).includes('IFCWALL('));
+const containsBytes = (value: unknown): boolean => value instanceof Uint8Array || value instanceof ArrayBuffer
+  || (value !== null && typeof value === 'object' && Object.values(value).some(containsBytes));
+assert.equal(containsBytes(records), false, 'geen buffers in bestaande herstelrecords');
+assert.equal(containsBytes(recoverySnapshotInput(mixed.getState().getOpenDocumentPayloads().find(d => d.id === foreignId)!.payload)), false, 'geen buffers in Worker-invoer');
 console.log(`PROEF 7 GROEN: bron ${bytes.length} bytes, snapshot ${Buffer.byteLength(snapshot)} bytes, bronverwijzing ${JSON.stringify(foreign.ifcSource).length} tekens; geen modelinhoud in snapshot/Worker/opslag.`);
 
 // Metadata-only bronupdate gebruikt de nieuwe hash, zonder de oude bytebuffer in de caches.
@@ -324,3 +530,24 @@ const flagOff = await restore(crash, false);
 assert.equal(flagOff.getState().foreignSourceMark?.sourceMissing, true);
 assert.equal(flagOff.getState().filePath, null);
 console.log('Alle bronherstelproeven GROEN.');
+
+// Compatibiliteitsinvoer voor de echte lezer/terugzetcode van de basiscommit.
+await clearRecovery();
+const compatibility = await openAt(bytes, { kind: 'site', id: 'compat-site' });
+compatibility.setState(s => { s.siteFileVersion = 'v7'; }); durationEdit(compatibility);
+const compatForeignId = compatibility.getState().activeDocumentId;
+compatibility.getState().newDocument();
+await compatibility.getState().openOpenedFile({ name: 'gewoon.ifc', content: '', bytes: plain, ref: null });
+durationEdit(compatibility);
+const compatPlainId = compatibility.getState().activeDocumentId;
+await tick(compatibility);
+const compatInput = new RecoveryDeltaTracker().prepare(compatPlainId,
+  compatibility.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true)),
+  source => writeIFC(recoverySnapshotInput(source).input))!;
+writeFileSync(join(evidenceDir, 'compat-input.json'), JSON.stringify({
+  records: [...idb.store('records')], copies: [...sourceStore()].map(([key, value]) => [key,
+    { ...(value as object), bytes: [...(value as { bytes: Uint8Array }).bytes] }]),
+  references: [...copyRefs()], database: SOURCE_COPY_DB, input: compatInput,
+  foreignId: compatForeignId, ordinaryId: compatPlainId,
+}));
+console.log(`COMPAT-INVOER: ${evidenceDir}/compat-input.json; bestaande database v3 met uitsluitend records/xer-archives; bronkopie apart.`);

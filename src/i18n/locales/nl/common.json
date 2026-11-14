@@ -354,7 +354,9 @@
     "ifcForeignReplaceBlocked": "Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.",
     "ifcForeignMergeRefused": "Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan of exporteer de planning naar een ander formaat.",
     "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.",
-    "ifcForeignExportNewTarget": "Niet geëxporteerd. Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geëxporteerd. Kies een naam die nog niet bestaat."
+    "ifcForeignExportNewTarget": "Niet geëxporteerd. Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geëxporteerd. Kies een naam die nog niet bestaat.",
+    "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
+    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma ontbreken in dit herstelde document of deze backup; ze staan in het oorspronkelijke IFC-bestand. Je kunt de planning naar een ander formaat exporteren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -463,7 +465,7 @@
     "demoTopbarAnimation": "Demo: animatie in de bovenbalk",
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
     "ifcForeignContent": "IFC met gebouwmodel openen",
-    "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Opslaan van zo'n bestand is nog niet mogelijk.",
+    "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken. Opslaan over een bestaand lokaal bestand en een project met resourcepool exporteren zijn nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
