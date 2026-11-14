@@ -1078,6 +1078,8 @@ async function pdfTextsInFont(pdf: PDFDocument, fontKey: string, fontFile: strin
 // laadt. Het blok van de tabelrapporten toont dezelfde keuze, ook in de raster-terugval, en na een herstart van de
 // app staat de keuze er nog. Alleen een voorkeur op dit apparaat.
 test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een herstart', async ({ page, ops: _ops }) => {
+  // Vier letters, drie exports, het eigen lettertype en twee herstarts (~28 s lokaal); ruimte voor drukte in CI.
+  test.slow();
   const longName = 'Afwerking begane grond noordzijde';
   const [letterTaskId] = await seedProject(page, [
     // Cyrillisch dekt Carlito zelf; het vinkje niet, dat komt in de PDF uit Inter.
