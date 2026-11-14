@@ -76,10 +76,10 @@
     "mppEncrypted": "This .mpp file is password-protected. In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "saveFailed": "Failed to save",
     "ifcForeignSaveBlocked": "This file contains a building model; saving is not possible yet.",
-    "ifcForeignTargetSave": "This file also contains a building model. Choose another file to save to.",
-    "ifcForeignTargetExport": "This file also contains a building model. Choose another file to export to.",
+    "ifcForeignTargetSave": "This file contains a building model or data from another program. Choose another file to save to.",
+    "ifcForeignTargetExport": "This file contains a building model or data from another program. Choose another file to export to.",
     "ifcExportChangedWhileWaiting": "The schedule changed while the export was waiting for another save. Nothing was exported. Export again.",
-    "ifcForeignTargetAutoSave": "Autosave has stopped: this file also contains a building model. Choose another file to save to.",
+    "ifcForeignTargetAutoSave": "Auto-save has stopped: this file contains a building model or data from another program. Choose another file to save to.",
     "ifcUnreadableTargetSave": "The app cannot read this file properly; it may contain a building model. Choose another file to save to.",
     "ifcUnreadableTargetExport": "The app cannot read this file properly; it may contain a building model. Choose another file to export to.",
     "ifcUnreadableTargetAutoSave": "Autosave has stopped: the app cannot read this file properly; it may contain a building model. Choose another file to save to.",
@@ -352,8 +352,9 @@
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
     "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving.",
     "ifcForeignReplaceBlocked": "File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.",
-    "ifcForeignMergeRefused": "File not saved. The building model or data from another program would not be fully preserved.",
-    "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again."
+    "ifcForeignMergeRefused": "The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change or export the schedule to another format.",
+    "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again.",
+    "ifcForeignExportNewTarget": "Not exported. This IFC file can only be exported to a new file name. Choose a name that does not exist yet."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",

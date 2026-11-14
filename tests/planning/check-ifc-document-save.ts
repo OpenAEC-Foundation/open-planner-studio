@@ -9,7 +9,8 @@ import { createHash } from 'node:crypto';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { ifcDocumentSaveBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
+import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
+import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
@@ -347,7 +348,7 @@ await check('zonder vreemd deel en flag aan: beide acties bytegelijk aan de gewo
   writeFileSync(first, plain); writeFileSync(second, plain);
   try {
     const store = await openAt({ kind: 'path', path: first }, plain), source = store.getState().ifcSource;
-    assert.equal(ifcSaveBlocked(store.getState()), false); assert.equal(ifcDocumentSaveBlocked(store.getState()), false);
+    assert.equal(ifcSaveBlocked(store.getState()), false); assert.equal(ifcFullWriteBlocked(store.getState()), false);
     for (const as of [false, true]) {
       longer(store); const expected = new TextEncoder().encode(writeIFC(buildWriteIFCInput(store.getState(), 'merge')));
       if (as) { ipc.choose(second); await store.getState().saveFileAs(); } else await store.getState().saveFile();
@@ -372,6 +373,30 @@ await check('AutoSave: nul bytes, één bestaande melding per document per sessi
     unchanged(store, before); assertNotice(store, 'notifications.ifcForeignSaveBlocked');
     assert.equal(ipc.calls.length, count); assert.equal(hash(new Uint8Array(readFileSync(original))), hash(bytes));
   } finally { ipc.dispose(); }
+});
+
+await check('planOnly met vreemd deel: bewaakte voorbereiding weigert vóór I/O', async () => {
+  const { store } = await openInStore(bytes);
+  let refused = false;
+  try { await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'planOnly')); }
+  catch (error) { refused = error instanceof IfcWriteBlockedError; }
+  assert(refused, 'planOnly mag geen IFC-bestand zonder model afleveren');
+});
+
+await check('site-uitzondering is aan één schrijvend document gebonden; export krijgt haar nooit', async () => {
+  const store = await openAt({ kind: 'site', id: 'model-site' });
+  store.setState(s => { s.siteFileVersion = 'v1'; });
+  const snapshot = store.getState(), target = { kind: 'site' as const, id: 'model-site' };
+  const deps = { identityFs: async () => undefined, readers: () => ({}) };
+  assert.equal(await refusedWriteTarget(snapshot, target, deps), 'open-source', 'een export krijgt nooit de uitzondering');
+  assert.equal(await refusedWriteTarget(snapshot, target, deps, {
+    documentId: snapshot.activeDocumentId, baseVersion: 'v1', source: snapshot.ifcSource!,
+  }), null, 'volledige documentopslag naar eigen siteversie mag');
+  for (const documentId of ['ander-document', snapshot.activeDocumentId]) {
+    assert.equal(await refusedWriteTarget(snapshot, target, deps, {
+      documentId, baseVersion: documentId === snapshot.activeDocumentId ? 'verkeerde-basis' : 'v1', source: snapshot.ifcSource!,
+    }), 'open-source', 'ander document of andere basis geeft geen uitzondering');
+  }
 });
 
 await check('IFC-export desktop: volledig bestand, document intact, daarna Opslaan als op de openingsbron', async () => {
@@ -408,8 +433,8 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
   const target = join(dir, `export-${kind}.ifc`);
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
   writeFileSync(target, kind === 'bestaand' ? plain : bytes);
-  const store = await openAt({ kind: 'path', path: target });
-  if (kind !== 'eigen-bron') {
+  const store = kind === 'bestaand' ? (await openInStore(bytes)).store : await openAt({ kind: 'path', path: target });
+  if (kind === 'andere-bron') {
     store.getState().newDocument();
     await store.getState().openOpenedFile({ name: 'ander.ifc', content: '', bytes, ref: null });
   }

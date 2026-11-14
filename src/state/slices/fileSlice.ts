@@ -1,5 +1,5 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
-import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, serializeForSave } from '../savedLiteralCalendars';
+import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
@@ -36,14 +36,16 @@ import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, p
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
-  IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcSaveBlocked, ifcDocumentSaveBlocked,
+  IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcSaveBlocked, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   refusedWriteTarget,
 } from '../ifcForeignGuard';
-import { prepareIfcWrite, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
+import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
+import { prepareIfcOutput, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
+import { BytePartsWriteError } from '@/services/fileAccess/byteParts';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -728,27 +730,26 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
-    if (!ifcDocumentSaveBlocked(state)) return false;
+    if (!ifcFullWriteBlocked(state)) return false;
     get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
     return true;
   };
 
-  type DocumentWrite = { content: string; prepared?: never } | { content?: never; prepared: PreparedIfcWrite };
-  /** De ene bewaakte documentingang handelt de verplichte modus af vóór enige bestandsactie. */
+  type DocumentWrite = IfcOutput;
+  /** Alle volledige IFC-routes delen de modus- en bronbewaking; hier krijgt een weigering de appmelding. */
+  const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput): Promise<IfcOutput | null> => {
+    try { return await prepareIfcOutput(state, input); }
+    catch (error) {
+      if (error instanceof IfcWriteBlockedError) get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+      else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
+      else throw error;
+      return null;
+    }
+  };
   const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput): Promise<DocumentWrite | null> => {
-    if (refuseForeignDocumentWrite(state)) return null;
-    if (!hasForeignContent(state.ifcSource)) return { content: serializeForSave(state, input) };
-    if (input.writeMode !== 'merge') {
-      get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
-      return null;
-    }
-    try {
-      return { prepared: await prepareIfcWrite(input, state.ifcSource!) };
-    } catch (error) {
-      if (!(error instanceof MergeNeedsPhase2Error)) throw error;
-      get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
-      return null;
-    }
+    const write = await prepareAppIfcWrite(state, input);
+    if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
+    return write;
   };
 
   /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. */
@@ -764,7 +765,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
     const ownSiteVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
-      ? { id: target.id, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! } : undefined;
+      ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! } : undefined;
     const reason = await refusedWriteTarget(get(), target,
       { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownSiteVersion);
     if (reason) {
@@ -1132,7 +1133,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  melding. `true` = weigeren (zoals `SaveTargetCheck`). */
   const refuseChangedExport = (snapshot: AppState): boolean => {
     const now = get();
-    if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)) return false;
+    if (hasForeignContent(snapshot.ifcSource) && refuseForeignDocumentWrite(now)) return true;
+    if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)
+      && now.ifcSource === snapshot.ifcSource) return false;
     get().notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
     return true;
   };
@@ -1899,9 +1902,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // gezet én task.time nog op de oude waarden — een guard die alleen op scheduleStale kijkt
       // zou de export in dat geval wél met verouderde datums doorlaten. De guard staat vóór de
       // eerste await (saveFileDialog), zodat er niets half gebeurt.
-      // Fase 1a (#804): een IFC-export zou het vreemde deel weglaten. Geweigerd, met de melding; telt als geannuleerd.
+      // Volledige IFC-export deelt de documentbewaking; pool en planOnly houden de strikte blokkade.
       // De andere formaten dragen alleen planning en blijven mogelijk.
-      if (format === 'ifc' && refuseForeignIfcWrite()) return { ok: true, warnings: [], cancelled: true };
+      if (format === 'ifc' && refuseForeignDocumentWrite()) return { ok: true, warnings: [], cancelled: true };
       if (get().scheduleStale) get().runCPM();
       const cpmFailure = get().cpmResult;
       if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
@@ -1924,6 +1927,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // staat één keer, ná de switch — niet per tak — zodat de recents-, download- en
       // meldingsafhandeling voor beide vormen letterlijk dezelfde regels zijn.
       let payload: string | Uint8Array;
+      let preparedExport: PreparedIfcWrite | undefined;
       let ext: string;
       let p6Truncated = 0;
       let xerLoss: readonly XerWriteLoss[] | null = null;
@@ -2037,8 +2041,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
           {
-            const written = writeIFCWithChoices(buildExportIFCInput(state, 'merge'));
-            payload = written.content;
+            const written = await prepareAppIfcWrite(state, buildExportIFCInput(state, 'merge'));
+            if (!written) return { ok: true, warnings: [], cancelled: true };
+            preparedExport = written.prepared;
+            payload = written.content ?? '';
             exportedLiteral = written.literalCalendarIds;
           }
           ext = 'ifc';
@@ -2064,10 +2070,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // doel en dus zonder `refuseTarget`. Daarom ook meteen na het wachten op de lock: is het document veranderd, dan
         // niets schrijven of downloaden.
         if (ext === 'ifc' && refuseChangedExport(state)) return null;
-        const written = typeof payload === 'string'
-          ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
-          : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
-        if (written) await recordOwnFileExport(state, written, exportedLiteral);
+        let written: SaveOutcome | null;
+        try {
+          written = preparedExport
+            ? await saveBytePartsDialog(defaultName, preparedExport.parts, filters, dialogOpts)
+            : typeof payload === 'string'
+              ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
+              : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
+        } catch (error) {
+          if (!preparedExport) throw error;
+          get().notify(refusalNotice({
+            messageKey: error instanceof BytePartsWriteError && error.reason === 'create-new'
+              ? 'notifications.ifcForeignExportNewTarget' : 'notifications.saveFailed',
+            dedupeKey: 'ifc-export-write-failed',
+          }));
+          return null;
+        }
+        if (written && !preparedExport) await recordOwnFileExport(state, written, exportedLiteral);
         return written;
       };
       // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
