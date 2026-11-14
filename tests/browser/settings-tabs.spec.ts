@@ -302,9 +302,13 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   const backstage = page.locator('.backstage');
   await expect(backstage).toBeVisible();
   await backstage.locator('.backstage-nav-item').filter({ hasText: /^(App settings|App-instellingen)$/ }).click();
-  // Ctrl+F werkt ook als de focus nog op de navigatie van Backstage staat.
+  // Ctrl+F werkt ook als de focus nog op de navigatie van Backstage staat. Eerst wachten tot het
+  // paneel er staat: in CI drukte de test soms vóór het paneel geladen was (geen gebruikersgeval).
+  const backstageSearch = backstage.locator('[data-ops-settings-search]');
+  await expect(backstageSearch).toBeVisible();
+  await expect(backstage.locator('.backstage-nav-item').filter({ hasText: /^(App settings|App-instellingen)$/ })).toBeFocused();
   await page.keyboard.press('Control+f');
-  await expect(backstage.locator('[data-ops-settings-search]')).toBeFocused();
+  await expect(backstageSearch).toBeFocused();
   await assertGroupsAndSettings(backstage.locator('.backstage-main'));
 
   // Taalfixture: dezelfde groepen en instellingen ook in het Nederlands.
