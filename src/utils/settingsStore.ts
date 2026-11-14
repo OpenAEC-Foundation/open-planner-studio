@@ -370,6 +370,11 @@ export async function saveShowFloatBand(value: boolean): Promise<void> {
   await setSetting('showFloatBand', value);
 }
 
+/** Begin- en einddatum naast de Gantt-balken (#868) — view-state, zelfde model als hierboven. */
+export async function saveShowBarDates(value: boolean): Promise<void> {
+  await setSetting('showBarDates', value);
+}
+
 export async function saveShowResourceAccent(value: boolean): Promise<void> {
   await setSetting('showResourceAccent', value);
 }

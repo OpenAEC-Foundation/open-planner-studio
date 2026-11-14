@@ -10,6 +10,8 @@ import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import type { RibbonTab, UIState } from '@/state/slices/types';
 import { BaselineOverlaySplitButton } from './BaselineOverlaySplitButton';
+import { applySetting } from '@/components/settings/applySetting';
+import { saveShowBarDates } from '@/utils/settingsStore';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -828,6 +830,15 @@ const beeldTab: RibbonTabConfig = [
               const showRelations = useAppStore(s => s.view.showRelations ?? true);
               const setShowRelations = useAppStore(s => s.setShowRelations);
               return { active: showRelations, onClick: () => setShowRelations(!showRelations) };
+            },
+          },
+          {
+            // Issue #868: begindatum links en einddatum rechts van elke balk. Een instelling van de
+            // planner (`ops-showBarDates`), standaard uit; geen layoutdeel.
+            kind: 'small', id: 'toggleBarDates', icon: <Icon id="status.recorded-dates" size={16} />, labelKey: 'menu:ribbon.toggleBarDates',
+            use: () => {
+              const showBarDates = useAppStore(s => s.ui.showBarDates);
+              return { active: showBarDates, onClick: () => applySetting('showBarDates', !showBarDates, saveShowBarDates) };
             },
           },
         ],

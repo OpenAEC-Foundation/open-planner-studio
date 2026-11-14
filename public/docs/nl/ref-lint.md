@@ -198,6 +198,7 @@ Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties 
 - **Resource-accent** — tekent een dun streepje in de resourcekleur onder elke bladbalk, verdeeld naar rato van de eenheden per dag. Standaard: uit.
 - **Spelingsband** — tekent de groene band na een niet-kritieke balk, tot het laatste einde van de taak. Standaard: aan.
 - **Relatielijnen** — toont of verbergt de relatielijnen tussen taken. Standaard: aan. De keuze hoort bij het document en bij de layout.
+- **Datums bij balken** — zet de begindatum links van elke balk en de einddatum rechts ervan, in je datumnotatie. Een mijlpaal krijgt één datum, tussen het ruitje en de naam. Standaard: uit. De keuze geldt voor de app, niet per document.
 
 ## Instellingen
 

@@ -56,6 +56,7 @@ export const HOST_PERSISTED_KEYS: readonly string[] = [
   'ops-showStatusDateLine',
   'ops-showResourceAccent',
   'ops-showFloatBand',
+  'ops-showBarDates',
   'ops-showMiniMap',
   'ops-showClassicViewControls',
   'ops-autoCalcCPM',

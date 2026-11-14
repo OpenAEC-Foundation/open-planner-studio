@@ -128,6 +128,7 @@ check-focus-task.ts matrix
 check-format-notice.ts matrix
 check-full-task-grid-surface.ts matrix
 check-gantt-arrow-clip.ts matrix
+check-gantt-bar-dates.ts matrix
 check-gantt-boundaries.ts los
 check-gantt-coordinate-contracts.ts matrix
 check-gantt-coordinator-contracts.ts matrix

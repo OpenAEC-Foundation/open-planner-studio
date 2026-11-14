@@ -102,6 +102,8 @@ Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onde
 
 **Spelingsband** — de speling als band achter niet-kritieke balken; niet bij voltooide taken. Standaard: aan. Waar: *Beeld › Balken › Spelingsband*.
 
+**Datums bij balken** — de begindatum links en de einddatum rechts van elke balk, in de datumnotatie. Standaard: uit. Waar: *Beeld › Balken › Datums bij balken*.
+
 **Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Daarin zijn kritieke balken standaard rood, bijna-kritieke amber en de andere blauw. Effect: de Gantt op het scherm. Het rapport heeft eigen balkkleuren; alleen bij *Zoals de weergave* volgt het deze keuze. Waar: *Beeld › Balken › Balkkleuren*.
 
 **Histogram** — de histogramstrook onder de Gantt. Standaard: uit. Waar: *Resources › Histogram › Histogram*, *Beeld › Panelen › Histogram* of Ctrl+Shift+H. De hoogte van de strook (standaard 160 pixels, tussen 80 en 480) stel je in door de rand te slepen.

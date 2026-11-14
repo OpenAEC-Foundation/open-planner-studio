@@ -198,6 +198,7 @@ This group has the same name as the one on *Planning*, but holds the drawing opt
 - **Resource accent** — draws a thin strip in the resource colour under each leaf bar, divided in proportion to the units per day. Default: off.
 - **Float band** — draws the green band after a non-critical bar, up to the task's late finish. Default: on.
 - **Relationship lines** — shows or hides the relationship lines between tasks. Default: on. The choice belongs to the document and to the layout.
+- **Dates beside bars** — puts the start date to the left of each bar and the finish date to the right of it, in your date notation. A milestone gets one date, between the diamond and the name. Default: off. The choice applies to the app, not per document.
 
 ## Settings
 
