@@ -4,7 +4,7 @@
 // kolombreedte. Pure functies worden direct getoetst; de DOM-/CSS-afspraken via de bron.
 import fs from 'node:fs';
 import path from 'node:path';
-import { GROUPED_NAME_INDENT_UNIT, TASK_NAME_INDENT_UNIT, taskNameIndent } from '@/engine/taskGrid/nameIndent';
+import { GROUPED_NAME_INDENT_UNIT, SUMMARY_ADD_SLOT_WIDTH, TASK_NAME_INDENT_UNIT, taskNameFixedWidth, taskNameIndent } from '@/engine/taskGrid/nameIndent';
 import { isClippedBoxTruncated, isGridCellTruncated, resolveGridCellTitle } from '@/engine/taskGrid/cellTitle';
 
 const diffs: string[] = [];
@@ -54,9 +54,27 @@ const fullGrid = read('src/components/task-grid/FullTaskGrid.tsx');
 ok('De naamrij springt in via taskNameIndent (boom óf gegroepeerd) en niet via een losse diepte-vermenigvuldiging',
   /taskNameIndent\(row\.depth,\s*hasDisclosure,\s*nameIndentMode\)/.test(fullGrid)
     && !/row\.depth\s*\*\s*14/.test(fullGrid));
+const addChildRule = cssRule(/\.task-grid-add-child\s*\{([^}]*)\}/);
 ok('De subtaak-plus wordt rechts uitgelijnd en staat vrij van de kolomrand',
-  cssRule(/\.gantt-task-grid-add-child\s*\{([^}]*)\}/).includes('margin-inline-start: auto')
-    && /margin-inline-end:\s*[4-9]px/.test(cssRule(/\.gantt-task-grid-add-child\s*\{([^}]*)\}/)));
+  addChildRule.includes('margin-inline-start: auto') && /margin-inline-end:\s*[4-9]px/.test(addChildRule));
+eq('De plek van de subtaak-plus in de auto-fit is exact gap + knop + marge uit globals.css',
+  nameGap + Number(/(?:^|[^-])width:\s*(\d+)px/.exec(addChildRule)?.[1] ?? NaN)
+    + Number(/margin-inline-end:\s*(\d+)px/.exec(addChildRule)?.[1] ?? NaN),
+  SUMMARY_ADD_SLOT_WIDTH);
+// Issue #901: automatisch passen reserveert de hele naamrij naast de tekst. In de boom begint de tekst
+// van blad en samenvatting op dezelfde kolom; de samenvatting heeft daarachter nog het plusje.
+for (const depth of [0, 1, 3]) {
+  eq(`Vaste naamruimte op niveau ${depth}: blad = tekstbegin, samenvatting = tekstbegin + plusje`,
+    [taskNameFixedWidth(depth, false), taskNameFixedWidth(depth, true)],
+    [taskNameIndent(depth, false), taskNameIndent(depth, false) + SUMMARY_ADD_SLOT_WIDTH]);
+}
+eq('Gegroepeerd telt een samenvatting haar triehoekje (met gap) en plusje mee',
+  [taskNameFixedWidth(2, false, 'grouped'), taskNameFixedWidth(2, true, 'grouped')],
+  [2 * GROUPED_NAME_INDENT_UNIT, 2 * GROUPED_NAME_INDENT_UNIT + TASK_NAME_INDENT_UNIT + SUMMARY_ADD_SLOT_WIDTH]);
+ok('Auto-fit van de naamkolom rekent met taskNameFixedWidth',
+  /taskNameFixedWidth\(depth,\s*task\.childIds\.length > 0,\s*nameIndentMode\)/.test(fullGrid));
+ok('Het subtaak-plusje staat op elk taakoppervlak (Gantt-takenlijst én Tabel), zonder schakelaar',
+  !/showSummaryAdd/.test(fullGrid) && !/showSummaryAdd/.test(read('src/components/task-grid/GanttTaskGrid.tsx')));
 ok('Auto-fit van de naamkolom telt inspringing en plus mee',
   /leadingWidth:\s*columnId === 'task\.name'/.test(fullGrid)
     && /row\.leadingWidth/.test(read('src/engine/taskGrid/preferences.ts')));

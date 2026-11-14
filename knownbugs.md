@@ -931,6 +931,12 @@ en noem het in je rapport of PR-tekst.
      beweging aflopen. Voorstel: vul de voorvertoning bij de start met de kolom en haar huidige breedte. Dit verklaart
      de ontbrekende cursor niet die de gebruiker meldde (de greep en `col-resize` zijn los van deze pauze). Uit de
      review van #851 (GPT-6.1-Sol, xhigh, ronde 3, BEVESTIGD, VERVOLG). — B
+1600. **Automatisch passen meet de naamkolom met het lettertype van het raster, niet van de naamcel.**
+     `src/components/task-grid/FullTaskGrid.tsx` (`computeAutoFitWidth`) zet de canvasmeting op
+     `getComputedStyle(gridNode).font` (12px normaal), terwijl `.full-task-grid-name-label` 11px toont, vet bij een
+     samenvatting of mijlpaal. Gemeten in de Tabel voor "Casco met een behoorlijk lange samenvattingsnaam": de meting
+     rekent 296px, de naam heeft 282px nodig. De kolom wordt dus te breed, niet te smal. Gevonden bij #901 (PR #936).
+     Voorstel: meet met het berekende lettertype van de cel die de tekst toont, per soort rij. — B
 
 ## Kalenders
 
@@ -1890,17 +1896,6 @@ en noem het in je rapport of PR-tekst.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
 
-1112. **Bij 1c: de productkeuze bij een ontbrekende bron afronden.**
-     PR 9a leest desktopbron en browserhandle terug op grootte en sha256, via de gewone bytes-route;
-     de planning komt uit de snapshot. Een nieuwe herstelset van een inmiddels gewone planning blokkeert
-     zonder bron niet meer. Een oud manifest of herstel met de flag uit houdt het eerdere gedrag.
-     PR 9b bewaart bronkopieën voor site en browser zonder handle in een eigen IndexedDB-database;
-     de bestaande hersteldatabase blijft v3. MCP-backups terugzetten op het open document is 9c (1575).
-     Ontbreekt de vreemde bron of wijkt de hash af, dan blijft elke IFC-opslag geweigerd (`sourceMissing`).
-     De keuze van Ethan of er bewust Opslaan als zonder gebouwmodel met uitleg komt, blijft open;
-     PR 9a/9b voeren die productkeuze niet in. De productkeuze blijft vóór de flag aan mag;
-     9c is niet verplicht vóór de flag aan mag. — B
-
 1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
      PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
      toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
@@ -1910,12 +1905,15 @@ en noem het in je rapport of PR-tekst.
 1575. **VERVOLG (#804, 9c): een MCP-backup op het open document terugzetten met de actuele gebouwmodelbron.**
      §4.12/E31 blijft een eigen onderdeel 9c op de eindlijst, niet verplicht vóór de flag standaard aan mag.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
-     met `ifcForeignContent` aan `sourceMissing` op dat kenmerk: iedere IFC-opslag weigert via de bestaande
-     opslagbewaking, met `notifications.ifcForeignSourceMissing`; export naar een ander formaat blijft mogelijk.
+     met `ifcForeignContent` aan `sourceMissing` op dat kenmerk. PR 9e geeft in diezelfde toestand uitsluitend
+     Opslaan als vrij na een bevestiging (Annuleren als standaard): alleen planning naar een ander doel,
+     met bescherming van het oorspronkelijke bestand zolang dit document open is, ook na een crash (grens: 1595).
+     Alle andere IFC-routes blijven weigeren,
+     met `notifications.ifcForeignSourceMissing`; export naar een ander formaat blijft mogelijk.
      Met de flag uit blijft de bestaande route gelijk: een andere naam mag planning zonder model schrijven.
      Beproefd via de echte backupdienst en openroute, met een echte `IFCWALL`, browserhandle en Tauri-pad;
-     bron en backup blijven sha256-gelijk. De bron opnieuw koppelen en de planner daarbij een keuze geven
-     blijven 9c en een productkeuze van de eigenaar. De melding staat op de tekstlijst in `handoff.md`. — B
+     bron en backup blijven sha256-gelijk. De actuele gebouwmodelbron opnieuw koppelen blijft 9c; de keuze voor Opslaan als zonder model is gemaakt.
+     Er is geen extra toestand voor een geopende backup. De melding staat op de tekstlijst in `handoff.md`. — B
 
 1576. **VERVOLG (#804, opruimen): productiecode voegt zich naar de testdubbel van IndexedDB.** In
      `src/services/recovery/recoverySourceCopies.ts` melden twee `queueMicrotask(resolve)`-paden in
@@ -2049,12 +2047,8 @@ en noem het in je rapport of PR-tekst.
      `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
      planner ziet haar bij een geblokkeerde route (bijvoorbeeld pool-export of de flag uit), en ook
      als het bestand alleen gegevens van een ander programma bevat. Zij noemt de geweigerde route en het
-     passende alternatief niet. PR 9b geeft bron ontbreekt een eigen tekst met de reden en export naar een ander formaat;
-     de overige weigeringen blijven bij de lijst "Teksten voor de planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
-
-1558. **VERVOLG (#804, opruimen): de alias `type DocumentWrite = IfcOutput` in `fileSlice.ts` voegt niets toe.** Eén
-     regel in `src/state/slices/fileSlice.ts`; het type `IfcOutput` uit `src/state/prepareIfcOutput.ts` volstaat.
-     Gevonden door de review van #928. — B
+     passende alternatief niet. PR 9e geeft bron ontbreekt de uitweg Opslaan als naar een nieuw bestand na bevestigen,
+     voor crashherstel en geopende backups; de overige weigeringen blijven bij de lijst "Teksten voor de planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
 
 1593. **VERVOLG (#804, test): drie opslagscenario's staan nog niet blijvend in de klokproef.**
      `tests/planning/check-ifc-foreign-klok.ts` toetst een gewijzigde `modifiedAt`, een lege planstart en een baseline
@@ -2072,6 +2066,33 @@ en noem het in je rapport of PR-tekst.
      klok; dat doet `check-ifc-foreign-klok.ts`. Richting: bij een volgende wijziging van de telling ten minste één
      reeks met een lopende of verspringende klok opnemen, en de weigerreden per geval meevergelijken. Gevonden door de
      review van #934. — B
+
+1595. **VERVOLG (#804, gemaakt geval): na Opslaan als zonder gebouwmodel kent alleen het open document het oorspronkelijke bestand.**
+     PR 9e houdt het kenmerk na de bewuste opslag als doelbescherming (`sourceMissing: false`), ook na een crash en met
+     de flag uit. Het nieuwe bestand zelf en een latere MCP-backup van dat document dragen geen kenmerk (anders zou een
+     geopende backup met de flag aan weer "bron ontbreekt" worden). Wie in een nieuwe sessie het nieuwe bestand of zo'n
+     backup opent, de flag uitzet en Opslaan als over het oorspronkelijke bestand kiest, schrijft daar alleen planning
+     overheen, zoals main met elk gewoon document doet. Met de flag aan weigert de inhoudscontrole van het doel dit wel.
+     Alleen uit de code gelezen, niet gemeten. Richting: bij fase 2 of 9c beslissen of de bescherming met het bestand
+     mee moet. — S
+
+1596. **VERVOLG (#804, tekst): met de flag uit noemt de melding bij "bron ontbreekt" Opslaan als, dat dan weigert.**
+     `notifications.ifcForeignSourceMissing` zegt sinds PR 9e "Gebruik Opslaan als om alleen de planning in een nieuw
+     bestand te bewaren". Die uitweg bestaat alleen met `ifcForeignContent` aan. Een document met dat kenmerk ontstaat
+     alleen met de flag aan; zet iemand de flag uit tussen crash en herstel, dan weigert Opslaan als met dezelfde
+     melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
+     zin voor de flag uit. — S
+
+1597. **VERVOLG (#804, MCP): de fout bij een geblokkeerde MCP-handeling noemt de vraag "Alleen de planning opslaan?" niet bij naam.**
+     `isBlockingDialogOpen()` (`src/state/blockingDialogs.ts`) blokkeert correct terwijl de vraag van PR 9e wacht, maar
+     `BLOCKING_UI_FLAGS` in `src/services/mcp/tools/runtime.ts` mist `pendingIfcMissingSourceSaveAs`. De fout zegt dan
+     alleen dat er "a dialog" open staat, niet welke. Richting: de vlagnaam toevoegen aan die lijst (de inhoud van beide
+     lijsten hoort gelijk te zijn). Gevonden door de review van #935. — B
+
+1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
+     Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
+     bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
+     mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`

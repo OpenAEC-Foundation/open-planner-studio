@@ -41,7 +41,7 @@ Bij een meervoudige selectie komt er één nieuwe taak: *Invoegen boven* zet hem
 
 ### Een subtaak toevoegen
 
-Klik met de rechtermuisknop op de taak en kies *Subtaak toevoegen*. De nieuwe taak komt onderaan de subtaken van die taak. In de takenlijst naast de Gantt staat achter de naam van een samenvattingstaak ook een kleine **+** die hetzelfde doet.
+Klik met de rechtermuisknop op de taak en kies *Subtaak toevoegen*. De nieuwe taak komt onderaan de subtaken van die taak. In de takenlijst naast de Gantt en in de Tabel staat achter de naam van een samenvattingstaak ook een kleine **+** die hetzelfde doet.
 
 ### Een mijlpaal toevoegen
 

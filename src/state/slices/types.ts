@@ -882,6 +882,8 @@ export interface UIState {
    *  of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
    *  `state/ifcSchemaQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingIfcSchemaQuestion: IfcSchemaQuestion | null;
+  /** Opslaan als zonder het ontbrekende gebouwmodel wacht op een bewuste keuze. */
+  pendingIfcMissingSourceSaveAs: boolean;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg
