@@ -166,7 +166,7 @@ const REFUSAL_KEYS = [
   'dragStartIsActual', 'dragDatesAreActual', 'milestoneRefusedAssignments', 'milestoneRefusedSummary',
   'milestoneRefusedAssignmentsMany', 'milestoneRefusedSummaryMany',
   'phaseRefusedNoAssignableChild', 'phaseRefusedDuplicateResource', 'taskEditRevertBlocked', 'pasteSkippedReadOnly',
-  'relationsSkippedOnInsert', 'schedulingTemplateLimit', 'phaseQuestionOutdated', 'ambiguousThousands',
+  'relationsSkippedOnInsert', 'relationsSkippedOnDissolve', 'schedulingTemplateLimit', 'phaseQuestionOutdated', 'ambiguousThousands',
   'ifcForeignSaveBlocked', 'ifcForeignSourceMissing',
   'ifcForeignReplaceBlocked',
   'ifcForeignMergeRefused',

@@ -285,6 +285,27 @@ const editGroup: RibbonGroupSpec = {
         },
       ],
     },
+    {
+      // Dissolve (issue #887) naast Verwijderen: dezelfde selectie, maar de keten blijft heel.
+      // Alleen een lintknop en een menu-item, geen sneltoets; daarom niet in `COMMANDS`.
+      kind: 'stack', id: 'editStack2', items: [
+        {
+          kind: 'small', id: 'dissolve', icon: <Icon id="planning.relations-menu" size={16} />, labelKey: 'menu:ribbon.dissolve',
+          use: () => {
+            const { t } = useTranslation('menu');
+            const hasSelection = useAppStore(s => s.selectedTaskIds.length > 0);
+            return {
+              title: t('ribbon.dissolveTitle'),
+              disabled: !hasSelection,
+              onClick: () => {
+                const s = useAppStore.getState();
+                s.dissolveTasksBulk(s.selectedTaskIds);
+              },
+            };
+          },
+        },
+      ],
+    },
   ],
 };
 

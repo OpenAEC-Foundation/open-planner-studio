@@ -65,6 +65,7 @@ check-dependent-projects.ts matrix
 check-dev-bridge-poller.ts matrix
 check-dev-open-link.ts matrix
 check-dialog-backdrop.ts matrix
+check-dissolve-tasks.ts matrix
 check-docs-dagen-en-uren.ts matrix
 check-docs-resources-voorbeelden.ts matrix
 check-docs-structure.ts matrix

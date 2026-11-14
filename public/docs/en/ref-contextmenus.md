@@ -47,6 +47,8 @@ The items are in this order. A line between groups is a separator in the menu.
 
 **Collapse**, **Expand** and **Save branch as template** — only for a summary task. *Collapse* and *Expand* are always both there, even if the task is already collapsed or expanded, and apply to the whole scope. *Save branch as template* saves the task with its subtasks and the relations between them as a WBS template. See [Saving and inserting WBS templates](docs://howto-wbs-sjablonen).
 
+**Dissolve (keep chain)** — deletes the tasks of the scope like *Delete*, and links every predecessor finish-to-start to every successor, so the chain stays intact. See [Selecting, deleting and undoing tasks](docs://howto-taken-selecteren-verwijderen).
+
 **Delete** — deletes the tasks of the scope, with their subtasks. There is no confirmation; you get them back with Ctrl+Z, one step for the whole scope. See [Selecting, deleting and undoing tasks](docs://howto-taken-selecteren-verwijderen).
 
 ## The menu of a group header

@@ -1150,6 +1150,9 @@ export function GanttCanvas({
           onDelete={() => {
             if (contextMenu.task) contextMenuBulk.remove(contextMenu.task.id);
           }}
+          onDissolve={() => {
+            if (contextMenu.task) contextMenuBulk.dissolve(contextMenu.task.id);
+          }}
           onAddTask={() => {
             // Alleen in het menu op lege ruimte: onderaan, op de aangeklikte datum.
             addAtClickedDate(false);

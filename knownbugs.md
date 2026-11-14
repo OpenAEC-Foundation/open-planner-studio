@@ -3040,6 +3040,13 @@ en noem het in je rapport of PR-tekst.
       de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
       gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
       Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+1620. **VERVOLG: Dissolve in lint, rechtsklikmenu en instelling is niet in de browser getest.**
+      `tests/planning/check-dissolve-tasks.ts` controleert lint en menu grotendeels met reguliere
+      expressies op de broncode en roept `contextMenuBulk.dissolve` rechtstreeks aan. Een echte klik
+      op de lintknop en op *Dissolve (keten behouden)*, de uitgeschakelde knop zonder selectie en het
+      bewaren en herladen van *Dissolve bij een samenvattingstaak* zijn niet getest. Voorstel: stappen
+      toevoegen aan een bestaande browserroute voor verwijderen en ongedaan maken. Sol-review #937
+      ronde 1 op 017ab4afd: [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 

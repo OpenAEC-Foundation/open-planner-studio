@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
-import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
-import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveAutoFitColumns } from '@/utils/settingsStore';
+import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, DissolveSummaryMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
+import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveDissolveSummaryMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveAutoFitColumns } from '@/utils/settingsStore';
 import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNoticeKinds';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
@@ -79,6 +79,7 @@ export function SettingsPanelContent() {
   const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
+  const dissolveSummaryMode = useAppStore(s => s.ui.dissolveSummaryMode);
   const aiMode = useAppStore(s => s.ui.aiMode);
   const aiAutostart = useAppStore(s => s.ui.aiAutostart);
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
@@ -425,6 +426,21 @@ export function SettingsPanelContent() {
                 <Icon id="status.info" size={12} aria-hidden />
                 <span>{t('settings.showTaskTypesHint')}</span>
               </div>
+            </div>
+
+            {/* Dissolve bij een samenvattingstaak (issue #887, eigenaarsbesluit 2026-11-14). */}
+            <div className="settings-section">
+              <h3>{t('settings.dissolveSummaryMode')}</h3>
+              <Select
+                aria-label={t('settings.dissolveSummaryMode')}
+                value={dissolveSummaryMode}
+                onChange={v => applySetting('dissolveSummaryMode', v as DissolveSummaryMode, saveDissolveSummaryMode)}
+                options={[
+                  { value: 'branch', label: t('settings.dissolveSummaryBranch') },
+                  { value: 'header', label: t('settings.dissolveSummaryHeader') },
+                ]}
+              />
+              <p className="scrollzoom-hint">{t('settings.dissolveSummaryModeHint')}</p>
             </div>
           </div>
         )}
