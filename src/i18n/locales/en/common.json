@@ -356,7 +356,7 @@
     "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again.",
     "ifcForeignExportNewTarget": "Not exported. This IFC file can only be exported to a new file name. Choose a name that does not exist yet.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
-    "ifcForeignSourceMissing": "File not saved. The building model or data from another program are missing from this recovered document or backup; they are in the original IFC file. You can export the schedule to another format. Open the original IFC file to work with the complete file again."
+    "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -1929,6 +1929,12 @@
     "colOwnTask": "Task here",
     "colAnchor": "Anchor: old → new",
     "saveAnyway": "Save anyway",
+    "cancel": "Cancel"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "Save only the schedule?",
+    "body": "The building model or data from another program could not be found. The new file will contain only the schedule. The original file will remain unchanged. Do you want to continue?",
+    "continue": "Continue",
     "cancel": "Cancel"
   }
 }

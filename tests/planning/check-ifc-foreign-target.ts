@@ -381,7 +381,7 @@ let oldRecoveryText = '';
     [pickerCalls, fresh.writables(), ifcExport, R().isDirty, R().filePath, R().fileHandle],
     [0, 0, { ok: true, warnings: [], cancelled: true }, true, null, null]);
   ok('herstel (Sol): met de melding van een vreemd deel, als één melding',
-    noticeCount(restored, SOURCE_MISSING) === 3 && modelNotices(restored).filter(n => n.messageKey === SOURCE_MISSING).length === 1);
+    noticeCount(restored, SOURCE_MISSING) === 2 && modelNotices(restored).filter(n => n.messageKey === SOURCE_MISSING).length === 1);
   // Twee keer crashen verliest de bescherming niet: de volgende herstelsnapshot draagt het kenmerk nog.
   const again = serializeRecoverySnapshot(R());
   ok('herstel: de snapshot ná herstel draagt het kenmerk', again.includes("'OPS_RecoveryForeignSource'") && again.includes(sha(bonsai)));
@@ -1226,7 +1226,7 @@ for (const route of ['handle', 'pad'] as const) for (const foreign of [true, fal
           ipc?.calls.slice(writesBefore).some(c => c.options?.write || ['plugin:fs|write', 'plugin:fs|write_text_file', 'plugin:fs|write_file'].includes(c.command)) ?? false],
         [0, 0, 0, false, 0, 0, false]);
       eq(`${label}: één rode melding voor alle opslagweigeringen`, noticeKeys(store), [[SOURCE_MISSING, 'error', true]]);
-      ok(`${label}: herhalingen tellen op in diezelfde melding`, noticeCount(store, SOURCE_MISSING) >= 5);
+      ok(`${label}: herhalingen tellen op in diezelfde melding`, noticeCount(store, SOURCE_MISSING) >= 4);
       // Een niet-IFC-export blijft mogelijk; hij krijgt een ander doel.
       store.setState(s => { s.filePath = null; s.fileHandle = null; s.siteFileId = null; s.siteFileVersion = null; });
       dialogAnswer = join(dir, 'planning.csv');
@@ -1267,7 +1267,8 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   const ipc = route === 'pad' ? installNodeFileIpc() : null;
   const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
   activeWindow.parent = activeWindow;
-  let target = newPath, dialogs = 0, questions = 0, answer = false;
+  let target: string | null = newPath;
+  let dialogs = 0, questions = 0, answer = false;
   if (ipc) {
     const internals = activeWindow.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
     const invoke = internals.invoke;
@@ -1336,22 +1337,48 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     await S().saveFile();
     delete activeWindow.openaecHost;
     eq(`${label}: andere opslag weigert zonder vraag of bytes`, [questions, closed, siteWrites, fresh.writables(), existsSync(newPath)], [beforeQuestions, false, 0, 0, false]);
+    const mcpContext = { ...createAppStoreContext(), store };
+    const oldFs = fileToolDeps.getFs;
+    let mcpWrites = 0;
+    fileToolDeps.getFs = async () => ({ homeDir: async () => '/home/proef', exists: async () => false,
+      stat: async () => { throw new Error('bestaat niet'); }, scanTarget: async () => null,
+      writeTextFile: async () => { mcpWrites++; }, readTextFile: async () => '', readFile: async () => new Uint8Array() });
+    try {
+      const result = await fileTools.find(t => t.name === 'planner_export_ifc')!.handler({ path: '/home/proef/9e.ifc' },
+        createMcpContext(mcpContext, createMcpTransactions(mcpContext), { ensureBackup: async () => null, markDuplicateBorn: () => {} }));
+      eq(`${label}: MCP-export weigert zonder vraag`, [result.ok, mcpWrites, questions], [false, 0, beforeQuestions]);
+    } finally { fileToolDeps.getFs = oldFs; }
+    if (route === 'handle') {
+      const createUrl = URL.createObjectURL, picker = win.showSaveFilePicker, opener = win.showOpenFilePicker;
+      let downloads = 0;
+      URL.createObjectURL = () => { downloads++; return 'blob:9e'; };
+      delete win.showSaveFilePicker; delete win.showOpenFilePicker;
+      try {
+        await S().saveFile(); await S().exportAs('ifc');
+        eq(`${label}: de downloadroute weigert zonder vraag`, [downloads, questions], [0, beforeQuestions]);
+      } finally { URL.createObjectURL = createUrl; win.showSaveFilePicker = picker; win.showOpenFilePicker = opener; }
+    }
     store.setState(s => { s.filePath = null; s.fileHandle = null; s.siteFileId = null; s.siteFileVersion = null; });
     store = await restore(await tick(store)); S = () => store.getState();
     eq(`${label}: tweede crash houdt bron ontbreekt`, S().foreignSourceMark?.sourceMissing, true);
     answer = true;
+    pick = null; target = null;
+    await S().saveFileAs();
+    eq(`${label}: kiezer annuleren houdt de toestand en schrijft niets`, [S().foreignSourceMark?.sourceMissing, fresh.writables(), existsSync(newPath)], [true, 0, false]);
     pick = orig; target = sourcePath;
     await S().saveFileAs();
     eq(`${label}: oorspronkelijk doel geweigerd na bevestigen`, [orig.writables(), sha(readFileSync(sourcePath)), S().foreignSourceMark?.sourceMissing], [0, sha(eigenPlus), true]);
     pick = fresh; target = newPath;
     await S().saveFileAs();
     const written = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
-    ok(`${label}: nieuwe planning geschreven`, written.includes('Werk vóór de crash of backup 9e'));
+    ok(`${label}: nieuwe planning geschreven`, !!written && readIFC(written).tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
     ok(`${label}: geen gebouwmodel of herstelkenmerk in uitvoer`, !!written && !written.includes('IFCWALL(') && !written.includes('OPS_RecoveryForeignSource'));
     const reopened = written ? await open('alleen-planning.ifc', enc.encode(written), null) : null;
     ok(`${label}: echte heropening houdt de bewerking zonder vreemd deel`, !!reopened && !reopened.getState().ifcSource?.foreign
       && reopened.getState().tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
     eq(`${label}: gewoon document met bescherming van het oorspronkelijke doel`, [S().foreignSourceMark?.sourceMissing, S().ifcSource?.foreign === true, S().isDirty], [false, false, false]);
+    const ordinaryContext = { ...createAppStoreContext(), store };
+    ok(`${label}: een nieuwe MCP-backup is alleen gewone planning`, !(await backupOf(ordinaryContext)).includes(PSET_NAME));
     S().addTask({ name: 'Ctrl+S na gewone opslag 9e' });
     await S().saveFile();
     const latest = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
@@ -1360,6 +1387,12 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     await backupAutoSave({ getState: S, enabled: () => true }).flush();
     const autoText = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
     ok(`${label}: AutoSave schrijft het nieuwe doel`, autoText.includes('AutoSave na gewone opslag 9e'));
+    S().addTask({ name: 'Sluitvraag na gewone opslag 9e' });
+    closed = false;
+    await backupCloseActions({ pendingId: S().activeDocumentId, getActiveDocumentId: () => S().activeDocumentId,
+      switchDocument: S().switchDocument, closeDocument: () => { closed = true; }, saveFile: () => S().saveFileForDocument(S().activeDocumentId),
+      clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {} }).save();
+    eq(`${label}: de sluitvraag kan het gewone document opslaan en sluiten`, [closed, S().isDirty], [true, false]);
     pick = orig; target = sourcePath;
     await S().saveFileAs();
     eq(`${label}: latere Opslaan als beschermt het oorspronkelijke doel`, [orig.writables(), sha(readFileSync(sourcePath))], [0, sha(eigenPlus)]);

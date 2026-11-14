@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 9e laat alleen met de flag aan bij `sourceMissing` Opslaan als toe na een vraag met Annuleren als standaard, voor crashherstel en geopende MCP-backups. De gewone planOnly-route schrijft naar een ander doel; het bestaande kenmerk blijft als doelbescherming met `sourceMissing: false`, ook in manifest-v5-metadata. Ctrl+S, bestands-AutoSave en sluiten werken daarna op het nieuwe doel; alle overige IFC-routes blijven bij ontbrekend model weigeren. 1112 opgelost; opnieuw koppelen blijft 9c (1575).
+
 - PR 7d (#804): strenge definitiegroei voor activiteitscodes/taaktypen en gewijzigde taaktype-/baselinekeuzen; dezelfde nacontrole bewaakt ontbrekende uitvoer, twaalf vaste tellinggevallen erbij; 1581/1582/1585–1588 blijven vervolg.
 - 2026-11-14: fase 1c PR 9d zet bij het openen van een MCP-backup met bronkenmerk alleen met `ifcForeignContent` aan `sourceMissing`; alle IFC-opslag gebruikt de bestaande weigering, CSV blijft mogelijk en flag uit blijft gelijk. De bestaande nl/en-melding noemt backups al; opnieuw koppelen en de productkeuze blijven 9c (1575), niet verplicht vóór de flag standaard aan mag.
 
@@ -450,9 +452,21 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
   - nl: Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken. Opslaan over een bestaand lokaal bestand en een project met resourcepool exporteren zijn nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.
   - en: Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC. Saving over an existing local file and exporting a project with a resource pool are not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.
 
-- `notifications.ifcForeignSourceMissing` — Bij bron ontbreekt na herstel of het openen van een MCP-backup; geen IFC-uitvoer, export naar een ander formaat blijft mogelijk.
-  - nl: Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma ontbreken in dit herstelde document of deze backup; ze staan in het oorspronkelijke IFC-bestand. Je kunt de planning naar een ander formaat exporteren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.
-  - en: File not saved. The building model or data from another program are missing from this recovered document or backup; they are in the original IFC file. You can export the schedule to another format. Open the original IFC file to work with the complete file again.
+- `ifcMissingSourceSaveAs.title` — Vraag vóór Opslaan als bij ontbrekend gebouwmodel, na herstel én bij een geopende MCP-backup; Annuleren heeft de beginfocus.
+  - nl: Alleen de planning opslaan?
+  - en: Save only the schedule?
+- `ifcMissingSourceSaveAs.body`
+  - nl: Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Het nieuwe bestand bevat alleen de planning. Het oorspronkelijke bestand blijft ongewijzigd. Wil je doorgaan?
+  - en: The building model or data from another program could not be found. The new file will contain only the schedule. The original file will remain unchanged. Do you want to continue?
+- `ifcMissingSourceSaveAs.continue`
+  - nl: Doorgaan
+  - en: Continue
+- `ifcMissingSourceSaveAs.cancel`
+  - nl: Annuleren
+  - en: Cancel
+- `notifications.ifcForeignSourceMissing` — Bij alle andere IFC-opslag in die toestand; Opslaan als vraagt apart om bevestiging en blijft met de flag uit geweigerd.
+  - nl: Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.
+  - en: File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.
 
 - `notifications.ifcSourceCopyFailed` — Eén keer na een mislukte bronkopie en een geslaagde planningcommit.
   - nl: De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.
