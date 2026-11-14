@@ -931,6 +931,12 @@ en noem het in je rapport of PR-tekst.
      beweging aflopen. Voorstel: vul de voorvertoning bij de start met de kolom en haar huidige breedte. Dit verklaart
      de ontbrekende cursor niet die de gebruiker meldde (de greep en `col-resize` zijn los van deze pauze). Uit de
      review van #851 (GPT-6.1-Sol, xhigh, ronde 3, BEVESTIGD, VERVOLG). — B
+1600. **Automatisch passen meet de naamkolom met het lettertype van het raster, niet van de naamcel.**
+     `src/components/task-grid/FullTaskGrid.tsx` (`computeAutoFitWidth`) zet de canvasmeting op
+     `getComputedStyle(gridNode).font` (12px normaal), terwijl `.full-task-grid-name-label` 11px toont, vet bij een
+     samenvatting of mijlpaal. Gemeten in de Tabel voor "Casco met een behoorlijk lange samenvattingsnaam": de meting
+     rekent 296px, de naam heeft 282px nodig. De kolom wordt dus te breed, niet te smal. Gevonden bij #901 (PR #936).
+     Voorstel: meet met het berekende lettertype van de cel die de tekst toont, per soort rij. — B
 
 ## Kalenders
 
