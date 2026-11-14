@@ -33,12 +33,13 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
     const m1 = api().addTask({ name: 'Start ruwbouw', parentId, isMilestone: true, time: zero as never });
     const m2 = api().addTask({ name: 'Keuring wapening', parentId, isMilestone: true, time: zero as never });
     const m3 = api().addTask({ name: 'Betonstort', parentId, isMilestone: true, time: zero as never });
+    const next = api().addTask({ name: 'Kolommen', parentId, time: { durationUnit: 'days', scheduleDuration: 3 } as never });
     // Drie verschillende dagen, zodat de ruitjes los van elkaar op de regel staan.
     api().addSequence({ predecessorId: work, successorId: m1, type: 'FINISH_START', lagDays: 0 });
     api().addSequence({ predecessorId: work, successorId: m2, type: 'FINISH_START', lagDays: 4 });
     api().addSequence({ predecessorId: work, successorId: m3, type: 'FINISH_START', lagDays: 8 });
     api().runCPM();
-    return { work, m1, m2, m3 };
+    return { work, m1, m2, m3, next };
   }, phase);
   const runKey = `milestones:${ids.m1}`;
 
@@ -74,12 +75,28 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect.poll(async () => (await state(page)).tasks.find(task => task.id === ids.m2)!.scheduleStart).not.toBe(before);
   await expect(nameCell(page, runKey)).toBeVisible();
 
-  // 6. Het pijltje op de regel klapt de reeks weer uit.
+  // 6. De regel in de tabel onder "Kolommen" slepen verplaatst de hele reeks.
+  const childNames = () => page.evaluate((parentId) => {
+    const s = window.__OPS__!.store.getState();
+    return s.tasks.find(t => t.id === parentId)!.childIds.map(id => s.tasks.find(t => t.id === id)!.name);
+  }, phase);
+  const runBox = (await ganttRow(page, runKey).boundingBox())!;
+  const nextBox = (await ganttRow(page, ids.next).boundingBox())!;
+  const from = { x: runBox.x + Math.min(120, runBox.width / 2), y: runBox.y + runBox.height / 2 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 2, nextBox.y + nextBox.height - 2, { steps: 5 });
+  await expect(ganttRow(page, ids.next)).toHaveAttribute('data-grid-drop-zone', /after/);
+  await page.mouse.up();
+  await expect.poll(childNames).toEqual(['Fundering', 'Kolommen', 'Start ruwbouw', 'Keuring wapening', 'Betonstort']);
+  await expect(nameCell(page, runKey)).toBeVisible();
+
+  // 7. Het pijltje op de regel klapt de reeks weer uit.
   await nameCell(page, runKey).locator('.full-task-grid-disclosure').click();
   await expect(ganttRow(page, ids.m2)).toBeVisible();
   await expect(ganttRow(page, runKey)).toHaveCount(0);
 
-  // 7. Inklappen in het lint (Beeld › Overzicht) met een mijlpaal uit de reeks gekozen, klapt de
+  // 8. Inklappen in het lint (Beeld › Overzicht) met een mijlpaal uit de reeks gekozen, klapt de
   //    reeks in; Uitklappen klapt hem weer uit.
   await ganttRow(page, ids.m3).click();
   await page.getByRole('button', { name: /^(Beeld|View)$/ }).click();

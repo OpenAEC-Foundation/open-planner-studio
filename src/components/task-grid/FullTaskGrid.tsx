@@ -825,7 +825,8 @@ export function TaskGridSurface({
     return {
       ...row,
       ghost: row.rowKey === GHOST_ROW_KEY,
-      dragging: meta?.kind === 'task' && dragState?.taskId === meta.taskId,
+      dragging: (meta?.kind === 'task' && dragState?.taskId === meta.taskId)
+        || (meta?.kind === 'milestones' && dragState?.taskId === meta.taskIds[0]),
       dropZone: dragState?.hoverRowIndex === absoluteIndex ? dragState.hoverZone : null,
     };
   }), [adapter.rowMetaByKey, adapter.rows, dragState]);
@@ -1238,6 +1239,11 @@ export function TaskGridSurface({
           if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey
             || (event.target as HTMLElement).closest('button,input,select,textarea')) return;
           const meta = adapter.rowMetaByKey.get(row.rowKey);
+          // Een ingeklapte mijlpalenreeks verhuist als geheel (#868, punt 8).
+          if (meta?.kind === 'milestones') {
+            startRowDrag({ taskId: meta.taskIds[0], taskIds: meta.taskIds, startClientX: event.clientX, startClientY: event.clientY });
+            return;
+          }
           if (meta?.kind !== 'task') return;
           startRowDrag({ taskId: meta.taskId, startClientX: event.clientX, startClientY: event.clientY });
         }}
