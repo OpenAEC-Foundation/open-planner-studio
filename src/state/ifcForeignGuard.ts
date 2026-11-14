@@ -20,6 +20,13 @@ export const IFC_FOREIGN_SAVE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   dedupeKey: 'ifc-foreign-save-blocked',
 });
 
+/** De bron ontbreekt na crashherstel; het kenmerk kan ook uit een planningsbackup komen. */
+export function ifcWriteBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0]): NotifyInput {
+  return s.foreignSourceMark?.sourceMissing
+    ? refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissing', dedupeKey: 'ifc-foreign-source-missing' })
+    : IFC_FOREIGN_SAVE_BLOCKED_NOTICE;
+}
+
 /** Weigert de app IFC-uitvoer van dit document (fase 1a)? Met een `ifcSource` met een vreemd deel, en na crashherstel
  *  van zo'n document zolang de bronbytes ontbreken (#886 fixronde 2, besluit Trias 11 november 2026; ook met de flag
  *  uit: de veilige kant). */

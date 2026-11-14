@@ -35,7 +35,7 @@ import { formatNoticeToShow } from '@/services/formatNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
-  IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
+  ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcSaveBlocked, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   refusedWriteTarget,
@@ -725,13 +725,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Weigert de IFC-uitvoer van het actieve document (fase 1a: een vreemd deel) en meldt dat. */
   const refuseForeignIfcWrite = (state: AppState = get()): boolean => {
     if (!ifcSaveBlocked(state)) return false;
-    get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+    get().notify(ifcWriteBlockedNotice(state));
     return true;
   };
 
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
     if (!ifcFullWriteBlocked(state)) return false;
-    get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+    get().notify(ifcWriteBlockedNotice(state));
     return true;
   };
 
@@ -740,7 +740,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput): Promise<IfcOutput | null> => {
     try { return await prepareIfcOutput(state, input); }
     catch (error) {
-      if (error instanceof IfcWriteBlockedError) get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+      if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
       else throw error;
       return null;

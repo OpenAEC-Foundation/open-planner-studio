@@ -1,3 +1,4 @@
+import { readRecoverySourceCopy } from '@/services/recovery/recoverySourceCopies';
 import { readIfcFromText } from '@/services/formatRegistry';
 import { readBytesFromRef } from '@/services/fileAccess';
 import type { ImportLabels } from '@/services/importTypes';
@@ -9,7 +10,7 @@ import { createAppStoreContext } from './appStoreFactory';
 import { recoveryInputFromParsed, type RecoveryDocInput } from './documentContract';
 
 /** Bronbytes + planningstekst: dezelfde bytes-openroute als Bestand → Openen, daarna de
- * snapshot als bewerkte stand. Ook bruikbaar voor de backuproute van 9b, los van bron-I/O.
+ * snapshot als bewerkte stand, los van bron-I/O. De MCP-backup is een apart onderdeel 9c.
  */
 export async function recoveryDocumentWithSource(
   bytes: Uint8Array, snapshot: RecoveryDocInput, reference: RecoveryIfcSource, labels?: ImportLabels,
@@ -25,6 +26,8 @@ export async function recoveryDocumentWithSource(
   return { ...snapshot, ifcSource: source, sourceRestored: true,
     filePath: snapshot.foreignSource?.filePath ?? null,
     fileHandle: reference.handle ?? null,
+    siteFileId: snapshot.foreignSource?.siteFileId ?? null,
+    siteFileVersion: snapshot.foreignSource?.siteFileId ? snapshot.siteFileVersion ?? null : null,
   };
 }
 
@@ -47,7 +50,7 @@ export async function readRecoveryDocument(
     return snapshot;
   }
   // Het manifest geeft een vreemd document nooit een schrijfdoel. Alleen na bewezen bronherstel
-  // krijgt deze versie het lokale doel terug; site/download zonder handle volgen in 9b.
+  // krijgt deze versie het doel terug; sitebasis komt uitsluitend uit de bijpassende kopie.
   snapshot.filePath = null; snapshot.siteFileId = null; snapshot.siteFileVersion = null;
   // De manifesthash is actueel, ook als de planningstekst sinds een broncommit niet opnieuw
   // geserialiseerd is. De bytes van die planningstekst zijn zelf nooit de volledige bron.
@@ -56,11 +59,22 @@ export async function readRecoveryDocument(
   try {
     const reference = document.ifcSource;
     const path = document.foreignSource?.filePath;
-    if (document.foreignSource?.siteFileId) return snapshot;
-    const ref = reference.handle ? { kind: 'handle' as const, handle: reference.handle }
+    const ref = document.foreignSource?.siteFileId ? null : reference.handle
+      ? { kind: 'handle' as const, handle: reference.handle }
       : isTauri() && path ? { kind: 'path' as const, path } : null;
-    const bytes = ref ? await readBytesFromRef(ref) : null;
-    return bytes ? await recoveryDocumentWithSource(bytes, snapshot, reference, labels) : snapshot;
+    if (ref) {
+      try {
+        const bytes = await readBytesFromRef(ref);
+        if (bytes) return await recoveryDocumentWithSource(bytes, snapshot, reference, labels);
+      }
+      catch { /* Geen leesrecht of andere bron: probeer de bewaarde kopie, als die bestaat. */ }
+    }
+    if (isTauri() || !document.sourceCopyDocumentKey) return snapshot;
+    const copy = await readRecoverySourceCopy(document.sourceCopyDocumentKey, reference.sha256);
+    if (!copy) return snapshot;
+    const siteFileId = snapshot.foreignSource?.siteFileId;
+    const withSite = { ...snapshot, siteFileVersion: siteFileId && copy.siteFileId === siteFileId ? copy.siteFileVersion : null };
+    return await recoveryDocumentWithSource(copy.bytes, withSite, reference, labels);
   } catch {
     return snapshot;
   }

@@ -92,7 +92,7 @@ archief-terugval — `check-ifc-xer-archive-container.ts` (per foutcode één ca
 `check-xer-archive-fallback.ts` (echt beschadigde fixture `fixtures/xer-archief-herschreven.ifc`
 door productie-ingang, store, melding, documentwissel, opslaan en crashherstel).
 
-## IFC-bronherstel achter de featureflag (#804, PR 9a)
+## IFC-bronherstel achter de featureflag (#804, PR 9a/9b)
 
 Manifestversie 5 blijft staan. Alleen met `ifcForeignContent` en een actuele bron met een vreemd deel
 krijgt een document het optionele veld `ifcSource: { sha256, byteLength, foreign: true, handle? }`.
@@ -106,9 +106,41 @@ opslagdoel. Oudere v5-lezers negeren de nieuwe verwijzing en herstellen de plann
 en zonder opslagdoel. De nieuwe lezer leest desktopbron of browserhandle, controleert grootte én
 sha256 en gebruikt vervolgens dezelfde bytes-openroute als Bestand → Openen. Daarna vormt de
 snapshot de bewerkte planning; `source.opened` blijft de stand van de teruggelezen bron. Alleen na
-dat bewijs mag het lokale doel in het herstelde document terugkomen. Een ontbrekende of gewijzigde
-bron, sitedocument of browserdocument zonder handle blijft geblokkeerd; de kopie volgt in 9b.
-Bronbytes komen nooit in deze metadata, snapshot, Worker-invoer of herstelopslag.
+dat bewijs mag het doel in het herstelde document terugkomen. Een ontbrekende of gewijzigde
+bron blijft geblokkeerd. Bronbytes komen nooit in deze metadata, snapshot, Worker-invoer of de bestaande herstel-database.
+
+Voor een sitebestand en een browserbestand zonder blijvende bestandstoegang bewaart PR 9b de oorspronkelijke
+`ifcSource.bytes` als Uint8Array, zonder tekst/base64, in **een eigen database**
+`ops-ifc-sources.<recoveryBase>` (v1). De naam gebruikt dezelfde build/worktree-slug als de herstelnamen.
+Alleen met de flag aan en als zo'n kopie nodig is ontstaat zij. `sources` bevat één record per sha256;
+`references` bevat kleine verwijzingen per sessie/document/sha256, met site-id en basisversie.
+De bronbytes staan dus niet in `ops-recovery` en niet in zijn `xer-archives`: een oudere release kent de
+extra database niet en kan `ops-recovery` gewoon op versie 3 openen. De manifestvorm blijft precies die van 9a.
+
+Bytes en kopieverwijzing committen samen, **vóór** het manifest dat de sha256 noemt. De transaction-completion
+is het bewijs dat de kopie staat. Na site-opslag volgt de nieuwe `prepared.source`; na download blijft de
+openingsbron staan. Pas na een geslaagde manifestcommit wordt opgeruimd. Een crash tussen kopie en manifest
+laat de oude kopie staan; tussen manifest en opruimen staat de nieuwe kopie er al. Herstel controleert
+lengte en sha256 op dezelfde ingang als pad/handle en legt daarna de snapshotplanning op de bron.
+De sitebasis komt alleen uit de bijpassende kopieverwijzing, en alleen na geslaagde broncontrole in het
+document terug; de drie doelvelden in het manifest blijven leeg. De host houdt zijn bestaande conflictcontrole.
+
+Opruimen leest alle manifestkandidaten via de bestaande index plus canonieke sleutels, nooit alle bronbytes.
+Alleen verwijzingen van de eigen/vastgehouden sessies mogen weg als geen manifest ze meer noemt. Verwijzingen
+van een andere sessie beschermen ook haar kopie die nog op een manifestcommit wacht; zo kan een ander tabblad
+die niet tussendoor wissen. Een blob gaat pas weg zonder manifest én zonder overblijvende kopieverwijzing.
+Een onbekend/ongeldig manifest verhindert opruimen. Dit geldt bij document sluiten, herstelset wissen en
+schone afsluiting waar de herstelset gewist wordt; de browser heeft geen betrouwbaar schoon afsluitmoment
+en houdt bij tabsluiten daarom zijn herstelset. Lezen/wissen maakt geen lege kopiedatabase aan.
+
+De kopie is **best effort**. Een kopiefout (bijvoorbeeld quota, blokkade of sandbox) stopt de planning niet:
+het nieuwe manifest laat dan de bronverwijzing weg, en herstel meldt ontbrekende bron en blokkeert IFC-opslag.
+Na één fout geen nieuwe kopieerpogingen in dezelfde sessie voor dat document; hoogstens één melding, na een
+geslaagde planningcommit. Als de bestaande herstelopslag zelf weigert, geldt haar bestaande sessiepoort en
+melding/stille iframegrens. Opruimfouten laten de geslaagde herstelcommit staan en bewaren liever een wees.
+Er wordt geen kopie voor desktop of een browserhandle gemaakt. Faalt handlelezen, dan probeert herstel een
+al bestaande kopie. Werkelijke browserrechten na een procesherstart en schaalmetingen met honderden MB
+zijn hiermee niet bewezen; de laatste horen bij PR 6.
 
 De nieuwe route staat in `check-recovery-ifc-source.ts`: volledige heropening na herstel,
 resource-identiteit na een eerdere opslag, bronfouten, handle, veilige manifestdoelen en de grens

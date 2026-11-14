@@ -39,9 +39,19 @@ bewerking dirty blijft. De Worker-invoer en MCP-backup blijven planning zonder b
 sha256, byteLength, foreign en eventueel een browserhandle, nooit bytes. Pad/site-id blijven alleen in `foreignSource`.
 De hash komt uit de actuele documentmomentopname, niet uit de recoverycache; de cache bewaart geen `ifcSource`.
 `readRecoveryDocument` leest pad/handle, controleert grootte en sha256, opent via de gewone bytes-route en legt daarna
-de snapshotplanning erop. Alleen geverifieerd herstel krijgt het lokale doel terug; de manifestdoelen blijven leeg
-voor een vreemd document, zodat oudere lezers geen modelpad als schrijfdoel terugkrijgen. Geen bron/andere hash,
-site of browser zonder handle: bron ontbreekt en IFC-opslag geblokkeerd (9b volgt). Een inmiddels gewone planning
+de snapshotplanning erop. Alleen geverifieerd herstel krijgt het lokale of site-doel terug; de manifestdoelen blijven leeg
+voor een vreemd document, zodat oudere lezers geen modelpad als schrijfdoel terugkrijgen. PR 9b bewaart voor site en browser zonder handle bronbytes als Uint8Array in de aparte IndexedDB-database
+`ops-ifc-sources.<recoveryBase>` v1 (`sources` per sha256, `references` per sessie/document/sha256 met de sitebasis).
+Alleen de flag aan plus een benodigde kopie maakt die database aan; desktop en handle krijgen geen kopie.
+Eerst committen bytes en verwijzing, dan het ongewijzigde v5-manifest in `ops-recovery` v3, dan opruimen.
+Een kopiefout laat de planning doorgaan zonder bronverwijzing in het manifest, één poging en melding per document
+per sessie; een al falende herstelopslag houdt haar bestaande foutroute. De deltacache bewaart geen bronbytes.
+De sitebasis komt na gecontroleerd teruglezen uit de kopieverwijzing; een download vervangt de bron niet.
+Een handleleesfout probeert een bestaande kopie, zonder voor handles een kopie te maken. Opruimen verwijdert alleen
+verwijzingen van de eigen/vastgehouden generaties die geen manifest meer noemt; andere sessies en onbekende
+herstelsets blijven staan. Zonder verwijzing of manifest mag de blob weg. Document sluiten en herstelset wissen
+gebruiken dezelfde opruiming; desktop heeft geen kopieën, web houdt bij tabsluiten zijn herstelset.
+Geen bron of andere hash: bron ontbreekt en IFC-opslag geblokkeerd. Een inmiddels gewone planning
 herstelt zonder bronblokkade; een oud manifest of flag uit houdt het oude gedrag. Geen pending of manifestversie 6.
 PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
 met de bestaande ene melding per document per sessie; site-AutoSave blijft uit.

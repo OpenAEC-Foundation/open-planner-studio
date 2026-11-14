@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 9b bewaart site-/browserbronkopieën vóór het manifest in een eigen IndexedDB-database; bestaande database v3 en manifest v5 blijven staan, sitebasis alleen naast de kopie, veilige opruiming en best effort. 1572/1573/1205/1564 opgelost; handle-rechten 1574 en backupaansluiting 9c (1575) blijven vervolg.
+
 - 2026-11-14: fase 1c PR 11b deelt de bewaakte voorbereiding met volledige IFC-export en app-MCP naar nieuwe doelen; exports laten documentbron, doel, dirty en kalenderkeuzes intact. 1135/1560/1561/1562 opgelost; pool/planOnly en handleiding blijven eindlijst 1565/1566.
 - PR 9a (#804, 1c): desktopbron/browserhandle na crash teruglezen op grootte + sha256 via de bytes-openroute; snapshotplanning erop, optionele bronverwijzing binnen v5 en lege manifestdoelen, geen pending/idExceptions; site/download en MCP-backup volgen in 9b.
 
@@ -440,7 +442,7 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 
 ## Teksten voor de planner (te beoordelen vóór de flag aan mag)
 
-- `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route, ontbrekende bron of de flag uit na openen.
+- `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route of de flag uit na openen.
   - nl: Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
   - en: This file contains a building model; saving is not possible yet.
 - `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel.

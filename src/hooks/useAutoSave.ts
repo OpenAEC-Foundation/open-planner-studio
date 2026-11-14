@@ -58,7 +58,10 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
         // Backend-keuze (Tauri-bestanden of IndexedDB) zit in recoveryStore. De volledige
         // documentlijst is manifestmetadata; alleen `upserts` bevat IFC-teksten, en die dragen het
         // XER-bronarchief alleen als verwijzing (eigenaarsbesluit plan (9), `serializeRecoverySnapshot`).
-        await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, enabled);
+        await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, enabled, id => {
+          useAppStore.getState().notify({ severity: 'error', messageKey: 'notifications.ifcSourceCopyFailed',
+            dedupeKey: `ifc-source-copy-${id}` });
+        });
       } catch (err) {
         if (!enabled()) return;
         if (!notifyRecoveryError(err, useAppStore.getState().notify)) {

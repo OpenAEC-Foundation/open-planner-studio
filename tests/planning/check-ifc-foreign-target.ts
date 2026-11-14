@@ -93,12 +93,13 @@ const externalPset = enc.encode(dec(showcase).replace('ENDSEC;\nEND-ISO-10303-21
   "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
   "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;"));
 const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
+const SOURCE_MISSING = 'notifications.ifcForeignSourceMissing';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
 const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
 const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
-const MODEL_KEYS = [SAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
+const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
 
 
 /** Een nep-FSA-handle met echte `isSameEntry` (zelfde object), `getFile` en `createWritable`. Functies erin: een
@@ -362,7 +363,7 @@ let oldRecoveryText = '';
   pickerCalls = 0;
   await R().saveFile();
   eq('herstel: Opslaan geweigerd, geen dialoog, het oude bestand blijft', [pickerCalls, oldFile.writables(), sha(oldFile.text())], [0, 0, sha(bonsai)]);
-  ok('herstel: met de melding van een vreemd deel', modelNotices(restored).some(n => n.messageKey === SAVE_BLOCKED && n.refusal === true));
+  ok('herstel: met de melding van een vreemd deel', modelNotices(restored).some(n => n.messageKey === SOURCE_MISSING && n.refusal === true));
   const csv = await R().exportAs('csv');
   eq('herstel: export naar het oude bestand geweigerd', [csv, oldFile.writables()], [{ ok: true, warnings: [], cancelled: true }, 0]);
   ok('herstel: met de melding "naar te exporteren"', modelNotices(restored).some(n => n.messageKey === TARGET_EXPORT));
@@ -375,7 +376,7 @@ let oldRecoveryText = '';
     [pickerCalls, fresh.writables(), ifcExport, R().isDirty, R().filePath, R().fileHandle],
     [0, 0, { ok: true, warnings: [], cancelled: true }, true, null, null]);
   ok('herstel (Sol): met de melding van een vreemd deel, als één melding',
-    noticeCount(restored, SAVE_BLOCKED) === 3 && modelNotices(restored).filter(n => n.messageKey === SAVE_BLOCKED).length === 1);
+    noticeCount(restored, SOURCE_MISSING) === 3 && modelNotices(restored).filter(n => n.messageKey === SOURCE_MISSING).length === 1);
   // Twee keer crashen verliest de bescherming niet: de volgende herstelsnapshot draagt het kenmerk nog.
   const again = serializeRecoverySnapshot(R());
   ok('herstel: de snapshot ná herstel draagt het kenmerk', again.includes("'OPS_RecoveryForeignSource'") && again.includes(sha(bonsai)));
@@ -385,7 +386,7 @@ let oldRecoveryText = '';
   })], 'twee');
   await twice.getState().saveFileAs();
   eq('herstel, tweede keer: het kenmerk blijft en Opslaan als weigert (ook met de flag uit)',
-    [twice.getState().foreignSourceMark?.sourceMissing, fresh.writables(), noticeCount(twice, SAVE_BLOCKED)], [true, 0, 1]);
+    [twice.getState().foreignSourceMark?.sourceMissing, fresh.writables(), noticeCount(twice, SOURCE_MISSING)], [true, 0, 1]);
   ok('herstel: het kenmerk blijft tot het document sluit', R().foreignSourceMark?.sha256 === sha(bonsai));
   pick = null;
 }
@@ -506,7 +507,7 @@ for (const flag of [false, true]) {
     dialogAnswer = modelPath;
     await restored.getState().saveFileAs();
     eq('Tauri herstel: Opslaan als naar het oude pad geweigerd', [unchanged(), restored.getState().filePath], [sha(bonsai), null]);
-    ok('Tauri herstel: met de melding van een vreemd deel (fixronde 2 van #886)', modelNotices(restored).some(n => n.messageKey === SAVE_BLOCKED));
+    ok('Tauri herstel: met de melding van een vreemd deel (fixronde 2 van #886)', modelNotices(restored).some(n => n.messageKey === SOURCE_MISSING));
     dialogAnswer = join(dir, 'link.csv');
     const tauriCsv = await restored.getState().exportAs('csv');
     eq('Tauri herstel: export via een link naar het oude pad geweigerd', [tauriCsv, unchanged()], [{ ok: true, warnings: [], cancelled: true }, sha(bonsai)]);

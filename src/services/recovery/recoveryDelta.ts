@@ -1,3 +1,4 @@
+import type { RecoverySourceCopy } from './recoverySourceCopies';
 import { ifcSourceMetaFields, sameRecoveryIfcSource } from './recoveryIfcSource';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
@@ -11,6 +12,7 @@ import { decodeXerSourceArchive } from '@/services/xerSourceArchive';
 /** Eén open document, precies zoals de auto-save het aan de recoverylaag aanbiedt. */
 export interface RecoverySourceDocument extends RecoveryDocMetadata {
   source: IFCSaveSource;
+  sourceCopy?: RecoverySourceCopy;
 }
 
 /** De manifeststaat die na een geslaagde opslagronde werkelijk gepersisteerd is. */
@@ -18,6 +20,8 @@ export interface PersistedRecoveryState {
   activeDocumentId: string | null;
   documents: RecoveryDocMetadata[];
   sources: ReadonlyMap<string, IFCSaveSource>;
+  /** De sitebasis bij de kopie; geen bronbytes in deze vergelijkingscache. */
+  copyVersions?: ReadonlyMap<string, string | null>;
 }
 
 export interface RecoveryDelta {
@@ -98,7 +102,8 @@ export function planRecoveryDelta(
   });
   const manifestChanged = persisted === null
     || persisted.activeDocumentId !== activeDocumentId
-    || !sameMetadata(persisted.documents, metadata);
+    || !sameMetadata(persisted.documents, metadata)
+    || documents.some(d => d.sourceCopy && d.sourceCopy.siteFileVersion !== persisted.copyVersions?.get(d.id));
   return {
     changedDocuments,
     manifestChanged,
@@ -115,6 +120,7 @@ export function persistedRecoveryState(
     activeDocumentId,
     documents: documents.map(metadataOf),
     sources: new Map(documents.map((document) => [document.id, comparisonSource(document.source)])),
+    copyVersions: new Map(documents.flatMap(d => d.sourceCopy ? [[d.id, d.sourceCopy.siteFileVersion] as const] : [])),
   };
 }
 
@@ -208,6 +214,7 @@ export class RecoveryDeltaTracker {
       documents: documents.map(metadataOf),
       upserts,
       ...(archives.size > 0 ? { archives } : {}),
+      ifcSourceCopies: new Map(documents.flatMap(d => d.sourceCopy ? [[d.id, d.sourceCopy] as const] : [])),
     };
   }
 

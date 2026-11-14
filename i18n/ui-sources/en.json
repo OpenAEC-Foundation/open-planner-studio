@@ -246,6 +246,8 @@
     "notifications.ifcForeignMergeRefused": "1e57db2ee1270845",
     "notifications.ifcSaveChangedWhileWaiting": "6cd756a521ebd351",
     "notifications.ifcForeignExportNewTarget": "bbbd0744d1f96b43",
+    "notifications.ifcSourceCopyFailed": "52d2769bf6e6fae2",
+    "notifications.ifcForeignSourceMissing": "c9a0ce1706b1f742",
     "scheduleErrors.cycle": "add6dec1772d91f1",
     "scheduleErrors.noWorkingDays": "f99738f50f5271ea",
     "scheduleErrors.invalidDayDuration": "9570c6555e03a9f4",
