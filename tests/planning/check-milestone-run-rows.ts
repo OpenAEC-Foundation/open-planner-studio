@@ -81,6 +81,14 @@ eq('na fase uitklappen staan de reeksen nog in', shape(S().viewRows),
 S().collapseTasks([T1, A]); // T1 is al in, A is een blad: niets nieuws
 eq('inklappen met een doellijst accepteert reekskoppen, geen bladen', [...S().ui.collapsedTaskIds].sort(), [M1, T1].sort());
 
+// ── Inklappen/Uitklappen met een gekozen mijlpaal uit een reeks: de reeks doet mee ──
+S().expandTasks();
+S().collapseTasks([M2]);
+eq('inklappen met een mijlpaal midden in de reeks klapt de reeks in', S().ui.collapsedTaskIds, [M1]);
+S().expandTasks([M3]);
+eq('uitklappen met een mijlpaal uit de reeks klapt de reeks uit', S().ui.collapsedTaskIds, []);
+S().collapseTasks([M1, T1]);
+
 // ── Een verborgen mijlpaal tonen klapt zijn reeks uit ──
 S().expandAncestorsOf(M3);
 eq('expandAncestorsOf klapt de eigen reeks uit', S().ui.collapsedTaskIds.includes(M1), false);

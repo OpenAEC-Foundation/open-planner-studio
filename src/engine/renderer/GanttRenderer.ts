@@ -2021,9 +2021,13 @@ export class GanttRenderer {
     let labelX = labelStart;
     const date = this.barDates(task)?.finish;
     if (date) {
-      this.drawBarDateText(date, labelX, cy);
       ctx.font = this.font('small');
-      labelX += ctx.measureText(date).width + BAR_DATE_GAP;
+      const dateWidth = ctx.measureText(date).width;
+      // In een mijlpalenreeks (#868) vervalt de datum als hij niet vóór het volgende ruitje past.
+      if (dateWidth <= labelRoom) {
+        this.drawBarDateText(date, labelX, cy);
+        labelX += dateWidth + BAR_DATE_GAP;
+      }
     }
     ctx.fillStyle = this.colors.text;
     ctx.font = this.font('body');

@@ -464,7 +464,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       }
       const isSummary = new Set(summaryIds);
       const collapsed = new Set(s.ui.collapsedTaskIds);
-      for (const id of taskIds) {
+      // Een gekozen mijlpaal uit een reeks klapt zijn reeks in (#868).
+      for (const id of taskIds.map((taskId) => milestoneRunHeadOf(s.tasks, taskId) ?? taskId)) {
         if (!isSummary.has(id) || collapsed.has(id)) continue; // blad of al ingeklapt ⇒ overslaan
         collapsed.add(id);
         s.ui.collapsedTaskIds.push(id);
@@ -479,7 +480,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       // Doellijst beperken tot echte summary-taken en reekskoppen; zonder lijst gelden ze allemaal.
       const targets = !taskIds || taskIds.length === 0
         ? summaryIds
-        : new Set(taskIds.filter((id) => summaryIds.has(id)));
+        : new Set(taskIds.map((id) => milestoneRunHeadOf(s.tasks, id) ?? id).filter((id) => summaryIds.has(id)));
       s.ui.collapsedTaskIds = s.ui.collapsedTaskIds.filter((id) => !targets.has(id));
     });
     get().recomputeViewRows();
