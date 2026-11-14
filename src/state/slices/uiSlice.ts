@@ -8,6 +8,7 @@ import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { liftSelectionOutOfCollapsed, visibleTaskIdSet } from '@/state/selectionAfterRowChange';
 
 export interface UiSlice {
   ui: UIState;
@@ -437,6 +438,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
     }),
 
   toggleCollapse: (taskId) => {
+    const visibleBefore = visibleTaskIdSet(get().viewRows);
     set((s) => {
       const idx = s.ui.collapsedTaskIds.indexOf(taskId);
       if (idx >= 0) {
@@ -446,9 +448,12 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       }
     });
     get().recomputeViewRows(); // taak-collapse verandert de zichtbaarheid van kinderen.
+    // Een verborgen geselecteerde taak gaat over op de ingeklapte ouder (issue #899).
+    set((s) => { liftSelectionOutOfCollapsed(s, visibleBefore); });
   },
 
   collapseTasks: (taskIds) => {
+    const visibleBefore = visibleTaskIdSet(get().viewRows);
     set((s) => {
       const summaryIds = s.tasks.filter(isSummaryTask).map((t) => t.id);
       if (!taskIds || taskIds.length === 0) {
@@ -466,6 +471,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       }
     });
     get().recomputeViewRows(); // collapse verandert de zichtbaarheid van kinderen.
+    set((s) => { liftSelectionOutOfCollapsed(s, visibleBefore); }); // zie toggleCollapse
   },
 
   expandTasks: (taskIds) => {

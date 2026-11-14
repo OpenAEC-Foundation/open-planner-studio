@@ -380,6 +380,7 @@ check-scheduling-profile-draft.ts matrix
 check-scheduling-profile-notice.ts matrix
 check-scheduling-profile-roundtrip.ts matrix
 check-scratch-document.ts matrix
+check-selection-after-collapse-delete.ts matrix
 check-session-history-boundaries.ts matrix
 check-session-history-migration.ts matrix
 check-session-history-model.ts matrix

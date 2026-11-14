@@ -28,6 +28,7 @@ import type { WbsTemplate } from '@/utils/wbsTemplates';
 import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
 } from '@/state/taskTree';
+import { selectNeighbourAfterRemoval } from '@/state/selectionAfterRowChange';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { refusalNotice } from '@/state/refusalNotice';
 import {
@@ -1409,11 +1410,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   deleteTask: (id) => {
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore } = get();
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
       removeTaskSubtrees(s, [id]);
+      selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore); // issue #899
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie: planning verouderd tot F5.
     });
@@ -1428,12 +1431,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       return;
     }
 
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore } = get();
     set((s) => {
       const existing = new Set(s.tasks.map((task) => task.id)); // één keer, niet per wortel
       const roots = frozen.filter((id) => existing.has(id));
       if (roots.length === 0) return;
       runtime.beginUndoable(s);
       removeTaskSubtrees(s, roots);
+      selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore); // issue #899
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true });
     });

@@ -546,6 +546,11 @@ export function TaskGridSurface({
         return;
       }
     }
+    // De vorige rijen/kolommen NU vastleggen: React voert de updater pas bij de volgende render uit,
+    // en dan staan de refs hieronder al op de nieuwe waarde. Dan kende de herstelregel de oude plek
+    // van een verborgen of verwijderde rij niet en viel hij terug op de bovenste rij (issue #899).
+    const previousRows = previousRowsRef.current;
+    const previousColumns = previousColumnsRef.current;
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -567,9 +572,9 @@ export function TaskGridSurface({
       }
       const reconciled = reconcileGridSelection(
         current,
-        previousRowsRef.current,
+        previousRows,
         rowIndex,
-        previousColumnsRef.current,
+        previousColumns,
         visibleColumnIds,
       );
       let samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length;
