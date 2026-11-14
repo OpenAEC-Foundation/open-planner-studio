@@ -172,3 +172,41 @@ test('datumkiezer in een dialoog: Escape, Enter en klikken blijven bij de kiezer
   await expect(dialog).toHaveCount(0);
   await expect.poll(projectStart).toBe('2026-10-05');
 });
+
+test('datumkiezer in een tabelcel: kiezen legt de cel vast, Escape laat de editor open', async ({ page, ops: _ops }) => {
+  const [taskId] = await seedProject(page, [{ name: 'Fundering', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 }]);
+  const startOf = () => page.evaluate(
+    id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleStart.slice(0, 10), taskId,
+  );
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const cell = page.locator(
+    `[data-task-grid-surface-id="full-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${taskId}"] `
+    + '[data-grid-data-cell="true"][data-grid-column-id="task.time.start"]',
+  );
+  await cell.click();
+  await page.keyboard.press('Enter');
+  const input = cell.locator('input[data-task-editor-kind]');
+  await expect(input).toBeFocused();
+  // De knop is die van de app, niet de kiezer van de browser.
+  const button = cell.locator('button[data-task-editor-picker]');
+  await expect(cell.locator('input[type="date"], input[type="datetime-local"]')).toHaveCount(0);
+
+  // Escape sluit alleen de kiezer: de editor blijft open, de focus terug in het tekstveld.
+  const depth = (await state(page)).undoDepth;
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect.poll(() => focusedIso(page)).toBe('2026-09-07');
+  await page.keyboard.press('Escape');
+  await expect(picker(page)).toHaveCount(0);
+  await expect(input).toBeFocused();
+
+  // Een klik in de kiezer kiest geen andere cel; een gekozen dag legt de cel in één stap vast.
+  await button.click();
+  await expect(title(page)).toHaveText('September 2026');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => focusedIso(page)).toBe('2026-09-14');
+  await page.keyboard.press('Enter');
+  await expect(picker(page)).toHaveCount(0);
+  await expect(input).toHaveCount(0);
+  await expect.poll(startOf).toBe('2026-09-14');
+  expect((await state(page)).undoDepth).toBe(depth + 1);
+});

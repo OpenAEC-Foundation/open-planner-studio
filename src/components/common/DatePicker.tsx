@@ -200,7 +200,12 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
       data-open-up={pos?.openUp || undefined}
       style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: 'hidden' }}
       onKeyDown={onPanelKeyDown}
+      // Het paneel is via de portal nog een React-kind van zijn veld (bv. een tabelcel of een dialoog):
+      // zonder deze stops zou een klik erin ook daar als klik tellen (cel kiezen, achtergrond sluiten).
+      onPointerDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
       onMouseDown={e => {
+        e.stopPropagation();
         // Een klik op een lege plek in het paneel haalt de focus niet weg (het veld blijft "in bewerking").
         if (!(e.target as HTMLElement).closest('button')) e.preventDefault();
       }}

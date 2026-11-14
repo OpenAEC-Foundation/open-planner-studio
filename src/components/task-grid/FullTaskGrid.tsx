@@ -975,7 +975,7 @@ export function TaskGridSurface({
             adapter={adapter}
             cell={cell}
             label={column.label}
-            calendarPickerLabel={column.label}
+            calendarPickerLabel={`${tCommon('dateInput.openCalendar')} — ${column.label}`}
             initialText={editing.replacement}
             previousCell={editorNeighbour(cell, rowIndex.taskRows, -1)}
             nextCell={editorNeighbour(cell, rowIndex.taskRows, 1)}
