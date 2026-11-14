@@ -2077,6 +2077,17 @@ en noem het in je rapport of PR-tekst.
      melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
      zin voor de flag uit. — S
 
+1597. **VERVOLG (#804, MCP): de fout bij een geblokkeerde MCP-handeling noemt de vraag "Alleen de planning opslaan?" niet bij naam.**
+     `isBlockingDialogOpen()` (`src/state/blockingDialogs.ts`) blokkeert correct terwijl de vraag van PR 9e wacht, maar
+     `BLOCKING_UI_FLAGS` in `src/services/mcp/tools/runtime.ts` mist `pendingIfcMissingSourceSaveAs`. De fout zegt dan
+     alleen dat er "a dialog" open staat, niet welke. Richting: de vlagnaam toevoegen aan die lijst (de inhoud van beide
+     lijsten hoort gelijk te zijn). Gevonden door de review van #935. — B
+
+1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
+     Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
+     bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
+     mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
