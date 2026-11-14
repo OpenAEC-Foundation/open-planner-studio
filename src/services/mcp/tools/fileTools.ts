@@ -410,7 +410,7 @@ export const fileTools: McpToolDef[] = [
         if (waitBlocked) return waitBlocked;
         const now = ctx.app.store.getState();
         if (now.activeDocumentId !== state.activeDocumentId || !sameIFCSource(state, now)
-          || now.ifcSource !== state.ifcSource
+          || (output.prepared && now.ifcSource !== state.ifcSource)
           || now.filePath !== state.filePath || now.fileHandle !== state.fileHandle || now.siteFileId !== state.siteFileId) {
           return toolError(ctx, 'VALIDATION', 'The document changed while the export waited for another save. Nothing was written. Retry the export.');
         }

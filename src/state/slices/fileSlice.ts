@@ -1135,7 +1135,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const now = get();
     if (hasForeignContent(snapshot.ifcSource) && refuseForeignDocumentWrite(now)) return true;
     if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)
-      && now.ifcSource === snapshot.ifcSource) return false;
+      && (!hasForeignContent(snapshot.ifcSource) || now.ifcSource === snapshot.ifcSource)) return false;
     get().notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
     return true;
   };
