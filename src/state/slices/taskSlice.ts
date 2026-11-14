@@ -431,6 +431,17 @@ function dissolveSummaryHeader(s: AppState, id: string): string[] {
   const transfers = headerTransfers(before.tasks, before.sequences, id);
   const summary = s.tasks.find(task => task.id === id);
   if (!summary) return [];
+  // Externe relaties van de kopregel gaan net zo naar de eerste en laatste subtaken, met soort,
+  // vertraging, anker en bron; anders verdwenen ze met de kopregel (review #937 ronde 2).
+  for (const link of summary.externalLinks ?? []) {
+    const targets = link.direction === 'predecessor' ? transfers.first : transfers.last;
+    for (const targetId of targets) {
+      const target = s.tasks.find(task => task.id === targetId);
+      if (!target) continue;
+      target.externalLinks = [...(target.externalLinks ?? []), { ...link, id: generateId('extlink') }];
+      Object.assign(target, normalizeTaskDates(target, s));
+    }
+  }
   const parentId = summary.parentId ?? null;
   const siblings = parentId
     ? (s.tasks.find(task => task.id === parentId)?.childIds ?? [])
@@ -448,7 +459,7 @@ function dissolveSummaryHeader(s: AppState, id: string): string[] {
   const sequences = [...after.sequences];
   const name = (taskId: string) => after.tasks.find(task => task.id === taskId)?.name ?? '?';
   const refused: string[] = [];
-  for (const relation of transfers) {
+  for (const relation of transfers.relations) {
     const verdict = relationAddVerdict(after.tasks, sequences, relation);
     if (verdict.ok) {
       const added = { ...relation, id: generateId('seq') };
@@ -1511,6 +1522,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const plan = planDissolve(plain.tasks, plain.sequences, roots);
         removeTaskSubtrees(s, roots);
         for (const bridge of plan.bridges) s.sequences.push({ ...bridge, id: generateId('seq') });
+        for (const { taskId, link } of plan.externalBridges) {
+          const target = s.tasks.find(task => task.id === taskId);
+          if (!target) continue;
+          target.externalLinks = [...(target.externalLinks ?? []), { ...link, id: generateId('extlink') }];
+          Object.assign(target, normalizeTaskDates(target, s));
+        }
         refused.push(...plan.refused);
       }
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);

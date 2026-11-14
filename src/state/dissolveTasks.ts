@@ -9,16 +9,25 @@
 // (`headerTransfers`). Deze module rekent alleen uit WELKE relaties er bij komen; de store-actie
 // voert verhangen, verwijderen en de nieuwe relaties samen uit als één undo-stap.
 import type { Sequence } from '@/types/sequence';
-import type { Task } from '@/types/task';
+import type { ExternalLink, Task } from '@/types/task';
+import { externalAnchorSideIsCompatible } from '@/engine/taskGrid/relationFormat';
 import { relationAddVerdict } from '@/state/relationRules';
 import { subtreeCollector } from '@/state/taskTree';
+import { isSummaryTask } from '@/utils/taskHierarchy';
+
+/**
+ * Een voorganger of opvolger van een blok: een taak in dit project (`id`) of een externe relatie
+ * (`link`, een taak in een ander project). `via` = de blijvende fase waarop de relatie ligt.
+ */
+type Endpoint = ({ id: string; link?: undefined } | { id?: undefined; link: ExternalLink }) & { via?: string };
 
 export interface DissolvePlan {
-  /** Alle taken die weggaan (de opgegeven taken plus hun deelbomen). */
-  removeIds: Set<string>;
   /** De nieuwe einde-begin-relaties, zonder id; de aanroeper geeft ze een id. */
   bridges: Omit<Sequence, 'id'>[];
-  /** Bruggen die de relatieregels weigeren (bv. naar een eigen kind, of een kring), als "A → C". */
+  /** De nieuwe externe relaties (einde-begin zonder vertraging) per taak, zonder id. */
+  externalBridges: { taskId: string; link: Omit<ExternalLink, 'id'> }[];
+  /** Bruggen die de relatieregels weigeren (bv. naar een eigen kind, een kring, of een extern
+   *  anker van de verkeerde kant), als "A → C". */
   refused: string[];
 }
 
@@ -30,6 +39,17 @@ export interface DissolvePlan {
  * onderling gekoppeld zijn worden doorlopen, zodat A → B → C → D met B en C samen A → D geeft.
  * Losse weggehaalde taken worden niet aan elkaar geknoopt: B en D in A → B → C → D → E geeft
  * A → C en C → E, niet A → E.
+ *
+ * Een relatie op een fase die blijft geldt in de rekenkern voor elke taak eronder: A → P met B in
+ * P is ook A → B. Zo'n voorganger of opvolger telt daarom mee (`via`). Een brug is alleen nodig
+ * als ten minste één kant rechtstreeks aan de weggehaalde taken hing, of als de keten door andere
+ * weggehaalde taken liep; en niet naar een taak in de fase waar de relatie al voor geldt.
+ *
+ * Een externe voorganger of opvolger (een taak in een ander project) telt ook mee: E ⇢ B → C wordt
+ * E ⇢ C, en A → B ⇢ E wordt A ⇢ E (wrakko 2026-11-14, uit het besluit "elke voorganger naar elke
+ * opvolger"). De nieuwe externe relatie houdt het anker en de bron van de oude. Het anker is de
+ * datum van één kant van de brontaak; vraagt einde-begin de andere kant, dan weigert de app de
+ * koppeling, net als bij kopiëren (`externalAnchorSideIsCompatible`).
  *
  * Een einde-begin die tussen voorganger en opvolger al bestaat blijft zoals ze is en geldt niet
  * als weigering (`alreadyLinked`). Weigeringen van `relationAddVerdict` komen in `refused`.
@@ -56,19 +76,28 @@ export function planDissolve(
     }
   };
 
-  const into = new Map<string, string[]>(); // blok → voorgangers die blijven
-  const out = new Map<string, string[]>(); // blok → opvolgers die blijven
+  const into = new Map<string, Endpoint[]>(); // blok → voorgangers die blijven
+  const out = new Map<string, Endpoint[]>(); // blok → opvolgers die blijven
   const next = new Map<string, Set<string>>(); // blok → blokken waar het naar wijst
-  const push = (map: Map<string, string[]>, key: string, value: string) => {
+  const push = (map: Map<string, Endpoint[]>, key: string, value: Endpoint) => {
     const list = map.get(key);
     if (!list) map.set(key, [value]);
-    else if (!list.includes(value)) list.push(value);
+    else if (!list.some(e => e.id === value.id && e.link === value.link && e.via === value.via)) list.push(value);
+  };
+  const toSucc = new Map<string, Sequence[]>(); // fase → relaties naar die fase
+  const fromPred = new Map<string, Sequence[]>(); // fase → relaties vanaf die fase
+  const add = (map: Map<string, Sequence[]>, key: string, seq: Sequence) => {
+    const list = map.get(key);
+    if (list) list.push(seq);
+    else map.set(key, [seq]);
   };
   for (const seq of sequences) {
+    add(toSucc, seq.successorId, seq);
+    add(fromPred, seq.predecessorId, seq);
     const fromGone = removeIds.has(seq.predecessorId);
     const toGone = removeIds.has(seq.successorId);
-    if (!fromGone && toGone) push(into, blockOf(seq.successorId), seq.predecessorId);
-    else if (fromGone && !toGone) push(out, blockOf(seq.predecessorId), seq.successorId);
+    if (!fromGone && toGone) push(into, blockOf(seq.successorId), { id: seq.predecessorId });
+    else if (fromGone && !toGone) push(out, blockOf(seq.predecessorId), { id: seq.successorId });
     else if (fromGone && toGone) {
       const from = blockOf(seq.predecessorId);
       const to = blockOf(seq.successorId);
@@ -76,6 +105,23 @@ export function planDissolve(
       const set = next.get(from) ?? new Set<string>();
       set.add(to);
       next.set(from, set);
+    }
+  }
+  // Relaties op de blijvende fasen boven elk blok.
+  const isWithin = (id: string, ancestorId: string): boolean => {
+    for (let p = byId.get(id)?.parentId; p; p = byId.get(p)?.parentId) if (p === ancestorId) return true;
+    return false;
+  };
+  const pushExternal = (block: string, links: readonly ExternalLink[] | undefined, via?: string) => {
+    for (const link of links ?? []) push(link.direction === 'predecessor' ? into : out, block, { link, via });
+  };
+  for (const id of removeIds) pushExternal(blockOf(id), byId.get(id)?.externalLinks);
+  const blocks = [...removeIds].filter(id => blockOf(id) === id);
+  for (const block of blocks) {
+    for (let via = byId.get(block)?.parentId; via; via = byId.get(via)?.parentId) {
+      for (const seq of toSucc.get(via) ?? []) push(into, block, { id: seq.predecessorId, via });
+      for (const seq of fromPred.get(via) ?? []) push(out, block, { id: seq.successorId, via });
+      pushExternal(block, byId.get(via)?.externalLinks, via);
     }
   }
 
@@ -90,23 +136,48 @@ export function planDissolve(
     seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId),
   );
   const bridges: Omit<Sequence, 'id'>[] = [];
+  const externalBridges: DissolvePlan['externalBridges'] = [];
   const refused: string[] = [];
-  const name = (id: string) => byId.get(id)?.name ?? '?';
+  const name = (e: Endpoint) => (e.link
+    ? `${e.link.sourceRef.projectName || e.link.sourceRef.projectId} / ${e.link.sourceRef.taskName || e.link.sourceRef.taskId}`
+    : byId.get(e.id)?.name ?? '?');
 
-  for (const [block, predecessors] of into) {
+  for (const block of blocks) {
+    const predecessors = into.get(block) ?? [];
     // Alle opvolgers die je vanuit dit blok via weggehaalde taken bereikt.
-    const successors: string[] = [];
+    const successors: (Endpoint & { block: string })[] = [];
     const seen = new Set<string>();
     const stack = [block];
     while (stack.length > 0) {
       const current = stack.pop()!;
       if (seen.has(current)) continue;
       seen.add(current);
-      for (const succ of out.get(current) ?? []) if (!successors.includes(succ)) successors.push(succ);
+      for (const succ of out.get(current) ?? []) successors.push({ ...succ, block: current });
       for (const nb of next.get(current) ?? []) stack.push(nb);
     }
-    for (const predecessorId of predecessors) {
-      for (const successorId of successors) {
+    const done = new Set<string>();
+    for (const pred of predecessors) {
+      for (const succ of successors) {
+        // Beide kanten via fasen boven hetzelfde blok: die fasen blijven en dragen de keten zelf.
+        if (pred.via && succ.via && succ.block === block) continue;
+        // De relatie op de fase geldt al voor de taken erin.
+        if (pred.via && succ.id !== undefined && isWithin(succ.id, pred.via)) continue;
+        if (succ.via && pred.id !== undefined && isWithin(pred.id, succ.via)) continue;
+        const key = `${pred.id ?? pred.link.id}|${succ.id ?? succ.link.id}`;
+        if (done.has(key)) continue;
+        done.add(key);
+        if (pred.link && succ.link) continue; // beide kanten in een ander project: niets te koppelen.
+        if (pred.link || succ.link) {
+          const external = pred.link ? { taskId: succ.id!, link: pred.link } : { taskId: pred.id!, link: succ.link! };
+          const bridge = externalBridge(external.link);
+          if (!bridge) refused.push(`${name(pred)} → ${name(succ)}`);
+          else if (!hasExternalFinishStart(byId.get(external.taskId), externalBridges, external.taskId, bridge)) {
+            externalBridges.push({ taskId: external.taskId, link: bridge });
+          }
+          continue;
+        }
+        const predecessorId = pred.id;
+        const successorId = succ.id!;
         // Een brug naar zichzelf (X → blok → X) weigert `relationAddVerdict`; zo komt hij in de melding.
         if (alreadyLinked(remaining, predecessorId, successorId)) continue;
         const bridge: Omit<Sequence, 'id'> = {
@@ -117,12 +188,36 @@ export function planDissolve(
           remaining.push({ ...bridge, id: `__dissolve-${bridges.length}` });
           bridges.push(bridge);
         } else {
-          refused.push(`${name(predecessorId)} → ${name(successorId)}`);
+          refused.push(`${name(pred)} → ${name(succ)}`);
         }
       }
     }
   }
-  return { removeIds, bridges, refused };
+  return { bridges, externalBridges, refused };
+}
+
+/** De externe relatie als einde-begin zonder vertraging, of `null` als het anker de andere kant is. */
+function externalBridge(link: ExternalLink): Omit<ExternalLink, 'id'> | null {
+  if (!externalAnchorSideIsCompatible(link.direction, link.relType, link.direction, 'FS')) return null;
+  const next: Partial<ExternalLink> = { ...link, relType: 'FS', lagDays: 0 };
+  delete next.id;
+  delete next.lagMinutes;
+  return next as Omit<ExternalLink, 'id'>;
+}
+
+/** Heeft de taak (of een eerdere brug) al een externe einde-begin naar dezelfde brontaak? */
+function hasExternalFinishStart(
+  task: Task | undefined,
+  planned: DissolvePlan['externalBridges'],
+  taskId: string,
+  link: Omit<ExternalLink, 'id'>,
+): boolean {
+  const same = (other: Omit<ExternalLink, 'id'>) => other.direction === link.direction
+    && other.relType === 'FS'
+    && other.sourceRef.projectId === link.sourceRef.projectId
+    && other.sourceRef.taskId === link.sourceRef.taskId;
+  return (task?.externalLinks ?? []).some(same)
+    || planned.some(p => p.taskId === taskId && same(p.link));
 }
 
 /**
@@ -150,16 +245,18 @@ function alreadyLinked(sequences: readonly Sequence[], predecessorId: string, su
  * een bladtaak is eerste als ze binnen de fase geen voorganger heeft, laatste als ze er geen
  * opvolger heeft. Een relatie op een subfase telt daarbij voor al haar bladtaken. Daarna wordt het
  * weer leesbaar gemaakt: staan alle bladtaken van een subtaak aan die kant, dan krijgt die subtaak
- * de relatie als geheel; anders gaat de relatie naar de subtaken daarbinnen die het wel zijn.
+ * de relatie als geheel; anders gaat de relatie naar de subtaken daarbinnen die het wel zijn. Een
+ * lege WBS-fase (`isSummary` zonder kinderen) heeft geen bladtaken en telt niet mee, net als in de
+ * rekenkern. `first` en `last` gebruikt de store-actie ook voor de externe relaties van de kopregel.
  */
 export function headerTransfers(
   tasks: readonly Task[],
   sequences: readonly Sequence[],
   summaryId: string,
-): Omit<Sequence, 'id'>[] {
+): { relations: Omit<Sequence, 'id'>[]; first: string[]; last: string[] } {
   const byId = new Map(tasks.map(task => [task.id, task] as const));
   const summary = byId.get(summaryId);
-  if (!summary) return [];
+  if (!summary) return { relations: [], first: [], last: [] };
   const inside = new Set(subtreeCollector([...tasks])(summaryId));
   inside.delete(summaryId);
 
@@ -167,8 +264,8 @@ export function headerTransfers(
   const leavesOf = (id: string): string[] => {
     const known = leaves.get(id);
     if (known) return known;
-    const children = byId.get(id)?.childIds ?? [];
-    const found = children.length === 0 ? [id] : children.flatMap(leavesOf);
+    const task = byId.get(id);
+    const found = !isSummaryTask(task) ? [id] : (task?.childIds ?? []).flatMap(leavesOf);
     leaves.set(id, found);
     return found;
   };
@@ -177,26 +274,31 @@ export function headerTransfers(
   const hasSuccessor = new Set<string>();
   for (const seq of sequences) {
     if (!inside.has(seq.predecessorId) || !inside.has(seq.successorId)) continue;
-    for (const leaf of leavesOf(seq.predecessorId)) hasSuccessor.add(leaf);
-    for (const leaf of leavesOf(seq.successorId)) hasPredecessor.add(leaf);
+    const from = leavesOf(seq.predecessorId);
+    const to = leavesOf(seq.successorId);
+    if (from.length === 0 || to.length === 0) continue; // de rekenkern laat zo'n relatie ook vallen.
+    for (const leaf of from) hasSuccessor.add(leaf);
+    for (const leaf of to) hasPredecessor.add(leaf);
   }
   // De hoogste subtaken waarvan alle bladtaken aan deze kant staan.
   const targets = (id: string, blocked: Set<string>): string[] => {
-    if (leavesOf(id).every(leaf => !blocked.has(leaf))) return [id];
+    const own = leavesOf(id);
+    if (own.length === 0) return [];
+    if (own.every(leaf => !blocked.has(leaf))) return [id];
     return (byId.get(id)?.childIds ?? []).flatMap(child => targets(child, blocked));
   };
   const first = summary.childIds.flatMap(id => targets(id, hasPredecessor));
   const last = summary.childIds.flatMap(id => targets(id, hasSuccessor));
 
-  const out: Omit<Sequence, 'id'>[] = [];
+  const relations: Omit<Sequence, 'id'>[] = [];
   for (const seq of sequences) {
     if (seq.successorId === summaryId && !inside.has(seq.predecessorId)) {
-      for (const id of first) out.push(withEndpoints(seq, seq.predecessorId, id));
+      for (const id of first) relations.push(withEndpoints(seq, seq.predecessorId, id));
     } else if (seq.predecessorId === summaryId && !inside.has(seq.successorId)) {
-      for (const id of last) out.push(withEndpoints(seq, id, seq.successorId));
+      for (const id of last) relations.push(withEndpoints(seq, id, seq.successorId));
     }
   }
-  return out;
+  return { relations, first, last };
 }
 
 /** Een kopie van `seq` met andere eindpunten en zonder id. */

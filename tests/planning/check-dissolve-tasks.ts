@@ -210,6 +210,108 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('25c zelfrelatie gemeld', notice?.params, { count: 1 });
 }
 
+// ── 9b) relaties die via een blijvende fase gelden (review #937 ronde 2) ────
+// Een relatie op een fase geldt voor elke taak eronder. A → P met B in P is dus ook A → B.
+const taskOf = (name: string) => S().tasks.find(t => t.name === name)!;
+const timeOf = (name: string) => taskOf(name).time;
+{
+  const ids = plan(['A', 'P', 'B', 'D', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().moveTask(ids.D, ids.P, 1);
+  link(ids, 'A', 'P');
+  link(ids, 'B', 'C');
+  S().dissolveTasksBulk([ids.B]);
+  eq('25d voorganger via de fase gaat naar de opvolger', relations(), ['A>C FS 0', 'A>P FS 0']);
+  S().runCPM();
+  eq('25e na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
+}
+{
+  const ids = plan(['A', 'P', 'B', 'D', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().moveTask(ids.D, ids.P, 1);
+  link(ids, 'A', 'B');
+  link(ids, 'P', 'C');
+  S().dissolveTasksBulk([ids.B]);
+  eq('25f opvolger via de fase krijgt de voorganger', relations(), ['A>C FS 0', 'P>C FS 0']);
+  S().runCPM();
+  eq('25g na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
+}
+{
+  // Ligt de opvolger in dezelfde fase, dan geldt A → P daar al: geen extra pijl.
+  const ids = plan(['A', 'P', 'B', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().moveTask(ids.C, ids.P, 1);
+  link(ids, 'A', 'P');
+  link(ids, 'B', 'C');
+  S().dissolveTasksBulk([ids.B]);
+  eq('25h opvolger in dezelfde fase: geen dubbele pijl', relations(), ['A>P FS 0']);
+}
+{
+  // Voorganger én opvolger hangen alleen aan de fase: de fase blijft en draagt de keten zelf.
+  const ids = plan(['A', 'P', 'B', 'D', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().moveTask(ids.D, ids.P, 1);
+  link(ids, 'A', 'P');
+  link(ids, 'P', 'C');
+  S().dissolveTasksBulk([ids.B]);
+  eq('25i alleen relaties op de fase: geen nieuwe pijl', relations(), ['A>P FS 0', 'P>C FS 0']);
+}
+
+// ── 9c) externe relaties van een weggehaalde taak (wrakko 2026-11-14, optie 1) ─
+// Een externe voorganger of opvolger is ook een voorganger of opvolger: E ⇢ B → C wordt E ⇢ C, en
+// A → B ⇢ E wordt A ⇢ E, einde-begin zonder vertraging, met het anker en de bron van de oude relatie.
+const westSource = { projectId: 'west', projectName: 'Project West', taskId: 'bron-1', taskName: 'Fundering' };
+const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
+  .map(l => `${l.direction} ${l.relType} ${l.lagDays ?? 0} ${l.sourceRef.taskId}`);
+{
+  const ids = plan(['A', 'B', 'C']);
+  link(ids, 'A', 'B');
+  link(ids, 'B', 'C');
+  S().addExternalLink(ids.B, {
+    direction: 'predecessor', relType: 'FF', lagDays: 3, anchorDate: '2026-06-10T16:00', sourceMissing: false, sourceRef: westSource,
+  });
+  S().addExternalLink(ids.B, {
+    direction: 'successor', relType: 'SS', lagDays: 1, anchorDate: '2026-07-01T07:00', sourceMissing: false, sourceRef: westSource,
+  });
+  const anchors = (taskOf('B').externalLinks ?? []).map(l => l.anchorDate);
+  S().dissolveTasksBulk([ids.B]);
+  eq('25j externe voorganger naar de opvolger, einde-begin zonder vertraging', extOf('C'), ['predecessor FS 0 bron-1']);
+  eq('25k externe opvolger naar de voorganger, einde-begin zonder vertraging', extOf('A'), ['successor FS 0 bron-1']);
+  eq('25l anker van de oude relatie blijft', [taskOf('C').externalLinks?.[0]?.anchorDate, taskOf('A').externalLinks?.[0]?.anchorDate], anchors);
+  S().runCPM();
+  eq('25m na F5 wacht C nog steeds op de externe voorganger', timeOf('C').earlyStart >= anchors[0].slice(0, 10), true);
+  S().undo();
+  eq('25n undo: externe relaties terug op B', [extOf('A'), extOf('B'), extOf('C')],
+    [[], ['predecessor FF 3 bron-1', 'successor SS 1 bron-1'], []]);
+}
+{
+  // Een begin-begin-voorganger bewaart de begindatum van de brontaak; einde-begin heeft de einddatum
+  // nodig. Zonder nieuw bronanker weigert de app dat, net als bij kopiëren: geen koppeling, wel een melding.
+  const ids = plan(['B', 'C']);
+  link(ids, 'B', 'C');
+  S().addExternalLink(ids.B, {
+    direction: 'predecessor', relType: 'SS', lagDays: 0, anchorDate: '2026-06-10T07:00', sourceMissing: false, sourceRef: westSource,
+  });
+  S().dissolveTasksBulk([ids.B]);
+  eq('25o ander bronanker nodig: geen externe relatie', extOf('C'), []);
+  const notice = S().ui.notifications.find(n => n.messageKey === 'notifications.relationsSkippedOnDissolve'
+    && n.detailLines?.[0]?.params?.names === 'Project West / Fundering → C');
+  eq('25p en wel gemeld', notice?.params, { count: 1 });
+}
+{
+  // Externe voorganger op een fase die blijft: E ⇢ P met B in P is ook E ⇢ B, dus E ⇢ C.
+  const ids = plan(['P', 'B', 'D', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().moveTask(ids.D, ids.P, 1);
+  link(ids, 'B', 'C');
+  S().addExternalLink(ids.P, {
+    direction: 'predecessor', relType: 'FS', lagDays: 2, anchorDate: '2026-06-10T16:00', sourceMissing: false, sourceRef: westSource,
+  });
+  S().dissolveTasksBulk([ids.B]);
+  eq('25q externe voorganger via de fase gaat naar de opvolger', [extOf('C'), extOf('P')],
+    [['predecessor FS 0 bron-1'], ['predecessor FS 2 bron-1']]);
+}
+
 // ── 11) instelling: alleen de kopregel van een samenvattingstaak ────────────
 // Eigenaarsbesluit 2026-11-14: een instelling met twee standen, standaard de hele fase. In de
 // stand "alleen de kopregel" schuiven de subtaken een niveau omhoog, op de plek van de kopregel,
@@ -300,6 +402,48 @@ S().setUI({ dissolveSummaryMode: 'header' });
   S().dissolveTasksBulk([ids.F]);
   eq('44c één richting: subfase als geheel waar het kan, losse taken waar het moet', relations(),
     ['A>P FS 0', 'A>Q2 FS 0', 'P1>Q1 FS 0', 'P2>C FS 0', 'Q>C FS 0']);
+}
+{
+  // Review #937 ronde 2: de externe relaties van de kopregel gaan mee naar de eerste en laatste
+  // subtaken, met soort, vertraging, anker en bron.
+  const ids = plan(['F', 'B1', 'B2']);
+  S().moveTask(ids.B1, ids.F, 0);
+  S().moveTask(ids.B2, ids.F, 1);
+  link(ids, 'B1', 'B2');
+  const source = { projectId: 'west', projectName: 'Project West', taskId: 'bron-1', taskName: 'Fundering' };
+  S().addExternalLink(ids.F, {
+    direction: 'predecessor', relType: 'FS', lagDays: 2, anchorDate: '2026-06-10T16:00', sourceMissing: false, sourceRef: source,
+  });
+  S().addExternalLink(ids.F, {
+    direction: 'successor', relType: 'SS', lagDays: 1, anchorDate: '2026-07-01T08:00', sourceMissing: false, sourceRef: source,
+  });
+  const anchors = (taskOf('F').externalLinks ?? []).map(l => l.anchorDate);
+  S().runCPM();
+  const startBefore = timeOf('B1').earlyStart;
+  eq('44c2 vóór Dissolve telt de externe voorganger van de fase', startBefore > '2026-06-10', true);
+  S().dissolveTasksBulk([ids.F]);
+  const ext = (name: string) => (taskOf(name).externalLinks ?? [])
+    .map(l => `${l.direction} ${l.relType} ${l.lagDays} ${l.anchorDate} ${l.sourceRef.taskId}`);
+  eq('44d externe voorganger van de fase naar de eerste subtaak', ext('B1'), [`predecessor FS 2 ${anchors[0]} bron-1`]);
+  eq('44e externe opvolger van de fase naar de laatste subtaak', ext('B2'), [`successor SS 1 ${anchors[1]} bron-1`]);
+  S().runCPM();
+  eq('44f na F5 start B1 nog steeds na de externe voorganger', timeOf('B1').earlyStart, startBefore);
+}
+{
+  // Review #937 ronde 2: een lege WBS-fase (isSummary zonder kinderen) is geen taak. Haar relatie
+  // E → L telt in de rekenkern niet, dus L blijft een eerste en laatste subtaak.
+  const ids = plan(['A', 'F', 'P', 'L', 'E', 'C']);
+  S().moveTask(ids.P, ids.F, 0);
+  S().moveTask(ids.L, ids.P, 0);
+  S().moveTask(ids.E, ids.P, 1);
+  useAppStore.setState((st) => {
+    st.tasks.find(t => t.id === ids.E)!.isSummary = true;
+    st.sequences.push({ id: 'seq-leeg', predecessorId: ids.E, successorId: ids.L, type: 'FINISH_START', lagDays: 0 });
+  });
+  link(ids, 'A', 'F');
+  link(ids, 'F', 'C');
+  S().dissolveTasksBulk([ids.F]);
+  eq('44g lege WBS-fase telt niet als eerste taak', relations(), ['A>P FS 0', 'E>L FS 0', 'P>C FS 0']);
 }
 {
   // Een gewone taak in de stand "alleen de kopregel": geen verschil.
