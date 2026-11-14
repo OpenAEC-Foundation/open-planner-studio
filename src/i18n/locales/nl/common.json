@@ -347,6 +347,8 @@
     "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen.",
     "costTypeChangeRefused": "De resourcebibliotheek wil het type wisselen tussen kosten en een ander type. De resource heeft toewijzingen in dit project, dus het type blijft zoals het is. De resource staat nu als afwijkend van de bibliotheek.",
     "reportLayoutGone": "De layout van het rapport bestaat niet meer. Het rapport toont weer alle taken.",
+    "reportFontNoBold": "{{name}} heeft geen vette variant. Vette tekst in het rapport staat in de gewone letter.",
+    "reportFontMissing": "Het eigen lettertype {{name}} is niet meer op dit apparaat. Het rapport gebruikt weer Inter.",
     "layoutsNotSaved": "De layouts konden niet worden opgeslagen. Er is niets veranderd. Probeer het opnieuw.",
     "ifcForeignOpenSchema": "Dit IFC-bestand bevat gegevens van een ander programma en heeft een onbekend of ontbrekend schema. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",

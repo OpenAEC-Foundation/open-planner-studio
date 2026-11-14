@@ -1213,4 +1213,41 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
   await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
   await openStep(page, 'page');
   await expect(page.getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
+
+  // Eigen lettertype (besluit Ethan, 14 november 2026): *Ander lettertype…* → *Bestand kiezen…*, een bestand
+  // zonder vette variant. Een tekstbestand weigert met de reden in het venster. Het lettertype komt in de lijst,
+  // het papier tekent ermee, er komt één melding over het ontbrekende vet en de PDF bedt het in, ook als vet.
+  const studioFontPicker = page.getByLabel(/^(Font:|Lettertype:)$/);
+  await studioFontPicker.click();
+  await page.getByRole('option', { name: /^(Other font…|Ander lettertype…)$/ }).click();
+  const fontDialog = page.locator('[data-ops-custom-font-dialog]');
+  await expect(fontDialog).toBeVisible();
+  await fontDialog.locator('[data-ops-custom-font-file]').setInputFiles('README.md');
+  await expect(fontDialog.getByRole('alert')).toContainText(/(not a readable font file|geen leesbaar lettertypebestand)/);
+  await fontDialog.locator('[data-ops-custom-font-file]').setInputFiles('src/services/pdf/fonts/LiberationSerif-Regular.ttf');
+  await expect(fontDialog).toHaveCount(0);
+  await expect(studioFontPicker).toContainText(/^Liberation Serif \((own font|eigen lettertype)\)/);
+  await expect.poll(() => loadedWeights('OpsReportCustom'), { timeout: 20_000 }).toEqual(['400', '700']);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .filter(n => n.messageKey === 'notifications.reportFontNoBold').map(n => n.params?.name))).toEqual(['Liberation Serif']);
+  // Na de herstart is er geen project meer open; de naam van de PDF doet hier niet ter zake.
+  const ownFonts = type0BaseFonts(await PDFDocument.load(await exportStudioPdf(page, /\.pdf$/)));
+  expect(ownFonts.filter(font => /^\/LiberationSerif-\d+$/.test(font))).toHaveLength(2);
+
+  // De kopie op dit apparaat is weg (opslag gewist): na een herstart valt het rapport terug op Inter, met één melding.
+  await page.evaluate(() => new Promise(resolve => {
+    const request = indexedDB.deleteDatabase('ops-report-font');
+    request.onsuccess = request.onerror = request.onblocked = () => resolve(null);
+  }));
+  await page.reload();
+  await waitForOps(page);
+  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  if (await recovery.count() > 0) await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
+  await waitForWelcomeDialog(page);
+  await page.evaluate(() => { window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }); });
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  await openStep(page, 'page');
+  await expect(studioFontPicker).toContainText(/^Inter/);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .filter(n => n.messageKey === 'notifications.reportFontMissing').map(n => n.params?.name))).toEqual(['Liberation Serif']);
 });
