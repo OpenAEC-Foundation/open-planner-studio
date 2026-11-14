@@ -426,7 +426,8 @@
     "inter": "Inter (default)",
     "liberationSans": "Liberation Sans (like Arial)",
     "carlito": "Carlito (like Calibri)",
-    "liberationSerif": "Liberation Serif (like Times New Roman)"
+    "liberationSerif": "Liberation Serif (like Times New Roman)",
+    "liberationMono": "Liberation Mono (monospace)"
   },
   "studio": {
     "sidebar": "Report settings",
