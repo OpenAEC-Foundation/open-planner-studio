@@ -2020,11 +2020,13 @@ en noem het in je rapport of PR-tekst.
 1568. **VERVOLG (bediening): blijvende meldingen kunnen de IFC-exportkaart bedekken.**
      In de echte browserroute van `settings-tabs.spec.ts` liggen na openen, een geweigerde Ctrl+S en F5
      bestaande fout-/openingsmeldingen over de IFC-kaart in Bestand → Exporteren. De klik wordt door
-     `.ops-toast-message` onderschept; de eenmalige browserrun van PR 11b eindigde na 60 seconden vóór
-     de exportklik. De planner kan de meldingen met hun sluitknop weghalen. Het scenario doet dat nu via
-     echte klikken; wegens de opdracht van één browserrun is die aanpassing nog niet opnieuw uitgevoerd.
-     Richting: de plaatsing van meldingen tegenover Backstage-kaarten apart beoordelen, geen wijziging
-     in deze IFC-aansluiting. Trace en screenshot in `/tmp/fase1c-pr11b-bewijs/browser-eerste-run/`. — B
+     `.ops-toast-message` onderschept. De planner kan de meldingen met hun gewone sluitknoppen weghalen;
+     daarna werkt de kaart. De browserproef sluit de meldingen via echte klikken en bewijst vervolgens
+     IFC-export → download → heropenen met behoud van planning en gebouwmodel (exit 0, één test).
+     Richting: de plaatsing van meldingen tegenover Backstage-kaarten apart beoordelen; er ontbreekt geen
+     browserbewijs meer voor de IFC-export. Trace van de bedekking in
+     `/tmp/fase1c-pr11b-bewijs/browser-eerste-run/`; geslaagde route en screenshot-herstel in
+     `/tmp/fase1c-pr11b-bewijs/browser-vervolg-1/`. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
