@@ -463,7 +463,7 @@
     "demoTopbarAnimation": "Demo: top bar animation",
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
     "ifcForeignContent": "Open IFC with a building model",
-    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. Saving such a file is not possible yet.",
+    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC. Saving over an existing file is not possible yet. After a crash, the building model is still missing for a site file or a file opened in the browser without lasting access to the file. Exporting a project with a resource pool is not possible yet.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
