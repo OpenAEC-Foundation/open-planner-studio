@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -47,6 +47,7 @@ import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
+import { fontsSettled, revealAppWindow } from '@/startup/appWindow';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
@@ -107,8 +108,38 @@ const TourOverlay = lazy(() => import('@/components/tour/TourOverlay').then(m =>
 const TutorialOfferDialog = EXTENSIONS_ENABLED
   ? lazy(() => import('@/components/dialogs/TutorialOfferDialog').then(m => ({ default: m.TutorialOfferDialog })))
   : () => null;
-const Backstage = lazy(() => import('@/components/backstage/Backstage').then(m => ({ default: m.Backstage })));
+// Bestand (Backstage, #895): laadt vooraf, zodra het venster getoond is (`useEffect` in AppContent), zodat
+// de eerste klik op Bestand meteen de navigatie toont. Is hij nog niet binnen, dan een gestileerde
+// laadweergave in plaats van een lege vlakte (`BackstageLoading`).
+type BackstageComponent = typeof import('@/components/backstage/Backstage').Backstage;
+let loadedBackstage: BackstageComponent | null = null;
+const loadBackstage = () => import('@/components/backstage/Backstage').then(m => {
+  loadedBackstage = m.Backstage;
+  return m;
+});
+const LazyBackstage = lazy(() => loadBackstage().then(m => ({ default: m.Backstage })));
 const GuidePanel = lazy(() => import('@/components/guide/GuidePanel').then(m => ({ default: m.GuidePanel })));
+
+function BackstageLoading() {
+  const { t } = useTranslation('menu');
+  return (
+    <div className="backstage" role="region" aria-label={t('backstage.fileMenu')} aria-busy="true" data-ops-backstage-loading>
+      <aside className="backstage-sidebar" aria-hidden />
+      <main className="backstage-main">
+        <div className="backstage-empty">{t('backstage.loading')}</div>
+      </main>
+    </div>
+  );
+}
+
+/** Bestand: de al geladen Backstage direct, anders via Suspense met `BackstageLoading`. De keuze ligt vast
+ *  per keer dat Bestand opengaat (`useState`): wisselen tussen de twee elementen zou Backstage halverwege
+ *  opnieuw mounten en zijn lokale stand (bijv. onbevestigde instellingen) weggooien. */
+function BackstageView() {
+  const [Loaded] = useState(() => loadedBackstage);
+  if (Loaded) return <Loaded />;
+  return <Suspense fallback={<BackstageLoading />}><LazyBackstage /></Suspense>;
+}
 
 /** Loopt er een begeleiding van een extensie (`api.help.startGuide`)? Module-state, geen store-vlag:
  *  zie `extensions/guideRuntime.ts`. */
@@ -163,6 +194,16 @@ function AppContent() {
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
   const guideActive = useSyncExternalStore(subscribeGuideView, guideActiveSnapshot);
 
+
+  // Het venster tonen (#895): de eerste weergave is vastgelegd en de lettertypen zijn binnen. Het venster
+  // start verborgen (`tauri.conf.json`); zie `startup/appWindow.ts`. Daarna Bestand vooraf laden; mislukt
+  // dat, dan probeert het openen van Bestand het opnieuw.
+  useEffect(() => {
+    void fontsSettled()
+      .then(() => revealAppWindow('gereed'))
+      .then(() => loadBackstage())
+      .catch(() => { /* zie hierboven: Bestand laadt dan bij openen */ });
+  }, []);
 
   // Recovery-restore bij opstarten (Tauri én web): detectie + RecoveryDialog-callbacks; levert ook
   // de auto-save-poort (`autoSaveEnabled`) en het reactieve "flow afgehandeld"-signaal.
@@ -258,8 +299,10 @@ function AppContent() {
   useSystemColorSchemeSync();
 
   // Apply theme to document — de VOORKEUR met 'system' al opgelost naar dark/light; er is geen
-  // 'system'-blok in globals.css. Zet `data-theme` en `data-oa-theme` samen.
-  useEffect(() => {
+  // 'system'-blok in globals.css. Zet `data-theme` en `data-oa-theme` samen. Een layout-effect, net
+  // als het lettertype hieronder: `theme-prepaint.js` zet het thema al vóór de eerste weergave, en een
+  // afwijkende keuze (bv. de dev-link `?theme=`) staat er zo ook vóór het eerste frame.
+  useLayoutEffect(() => {
     applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
 
@@ -270,7 +313,9 @@ function AppContent() {
   // defaults (Space Grotesk / Inter) weer gelden. Eén effect = één render-pas bij wijzigen.
   // De stacks komen uit `@/utils/uiFont` — dezelfde tabel die `GanttCanvas` gebruikt om de
   // Canvas-2D-renderers hun `ctx.font`-familie te geven (een canvas leest geen CSS-variabelen).
-  useEffect(() => {
+  // Een layout-effect (#895): de bewaarde instellingen staan al vóór de eerste render in de store
+  // (`main.tsx`), en zo staan schaal en familie er al vóór de eerste weergave, niet een frame later.
+  useLayoutEffect(() => {
     const style = document.documentElement.style;
     style.setProperty('--ui-font-scale', String(uiFontScale / 100));
     if (uiFontFamily === 'default') {
@@ -377,7 +422,7 @@ function AppContent() {
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}
       {activeTab === 'file' ? (
-        <Suspense fallback={null}><Backstage /></Suspense>
+        <BackstageView />
       ) : (
         <>
       {/* A · Documenttabs — tabstrip onder het lint (multi-document) */}

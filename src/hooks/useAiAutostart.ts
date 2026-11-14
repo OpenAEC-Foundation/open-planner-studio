@@ -5,10 +5,10 @@ import { startMcpServer } from '@/services/mcp/server';
 /**
  * Bridge automatisch starten bij het opstarten van de app (instelling `ops-aiAutostart`).
  *
- * Waarom een effect dat op de state REAGEERT en niet één keer bij mount vuurt: de instellingen
- * worden asynchroon gehydrateerd (`useSettingsBootstrap` → `loadAllSettings().then(setUI)`), dus bij
- * de eerste render staan `aiMode`/`aiAutostart` nog op hun default (uit). Dit effect wacht dus tot
- * beide vlaggen daadwerkelijk waar zijn.
+ * Waarom een effect dat op de state REAGEERT en niet één keer bij mount vuurt: de instellingen staan
+ * sinds #895 al vóór de eerste render in de store (`startup/initialSettings.ts`), maar ingebed kunnen
+ * ze later van de host komen (`useSiteHostPreferences`). Dit effect wacht dus tot beide vlaggen
+ * daadwerkelijk waar zijn.
  *
  * De `started`-ref maakt het EENMALIG per app-sessie: zet de gebruiker de bridge daarna handmatig
  * uit, dan mag deze hook hem niet stilletjes opnieuw aanzetten — dat zou een uit-knop zijn die niet

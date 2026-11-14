@@ -399,6 +399,7 @@ check-split-smoke.ts matrix
 check-split-solver-placement.ts matrix
 check-split-walk.ts matrix
 check-start-snet.ts matrix
+check-startup-window.ts matrix
 check-statusdatum-lijn.ts matrix
 check-statusdatum-tijd.ts matrix
 check-step-strings.ts matrix

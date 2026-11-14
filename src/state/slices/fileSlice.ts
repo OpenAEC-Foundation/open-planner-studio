@@ -538,6 +538,9 @@ export interface FileSlice {
   foreignTargetCheck: (purpose: 'save' | 'export') => SaveTargetCheck;
   /** App-globale MRU-lijst van recente bestanden. Async gehydrateerd bij opstart. */
   recentFiles: RecentEntry[];
+  /** De recents zijn gelezen (ook als dat mislukte). Tot dan toont Bestand een laadstand en niet "geen
+   *  recente projecten" (#895). */
+  recentFilesLoaded: boolean;
   /** Lees de recents uit IndexedDB (met eenmalige localStorage-migratie) in de store. */
   hydrateRecentFiles: () => Promise<void>;
   openRecentFile: (id: string, labels?: ImportLabels) => Promise<void>;
@@ -2204,10 +2207,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     foreignTargetCheck,
 
     recentFiles: [],
+    recentFilesLoaded: false,
 
     hydrateRecentFiles: async () => {
-      const list = await loadRecents();
-      set((s) => { s.recentFiles = list; });
+      try {
+        const list = await loadRecents();
+        set((s) => { s.recentFiles = list; });
+      } finally {
+        set((s) => { s.recentFilesLoaded = true; });
+      }
     },
 
     parseExternalSource: async (filePath: string, labels) => {
