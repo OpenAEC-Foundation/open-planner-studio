@@ -1,15 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { ExportProfileHint } from '@/components/common/ExportProfileHint';
 import { BackstageSection } from '@/state/slices/types';
-import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { ProjectInfoPanelContent, type ProjectInfoPanelContentHandle } from '@/components/settings/ProjectInfoPanelContent';
-import { ExtensionManagerPanel } from '@/components/backstage/ExtensionManagerPanel';
-import { HelpPanel } from '@/components/backstage/HelpPanel';
-import { LibrarySection } from './LibrarySection';
 import { useDocumentActions } from '@/components/layout/DocumentChrome/useDocumentCards';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import type { ExtensionImporter } from '@/state/slices/extensionSlice';
@@ -27,6 +23,34 @@ import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import './Backstage.css';
+
+// Bestand zelf (navigatie, opmaak, de lichte secties) zit in de eerste bundel, zodat het meteen af
+// staat als je erop klikt (#895). De vier zware secties laden apart, binnen het afgewerkte scherm
+// (`SectionLoading`), en vooraf zodra het venster getoond is (`preloadBackstageSections`).
+const loadSettingsPanel = () => import('@/components/settings/SettingsPanelContent');
+const loadExtensionManager = () => import('@/components/backstage/ExtensionManagerPanel');
+const loadHelpPanel = () => import('@/components/backstage/HelpPanel');
+const loadLibrarySection = () => import('./LibrarySection');
+const SettingsPanelContent = lazy(() => loadSettingsPanel().then(m => ({ default: m.SettingsPanelContent })));
+const ExtensionManagerPanel = lazy(() => loadExtensionManager().then(m => ({ default: m.ExtensionManagerPanel })));
+const HelpPanel = lazy(() => loadHelpPanel().then(m => ({ default: m.HelpPanel })));
+const LibrarySection = lazy(() => loadLibrarySection().then(m => ({ default: m.LibrarySection })));
+
+/** Laadt de zware secties van Bestand op de achtergrond. Gooit nooit: mislukt het, dan laadt een sectie
+ *  bij openen opnieuw. */
+export function preloadBackstageSections(): Promise<void> {
+  return Promise.all([loadSettingsPanel(), EXTENSIONS_ENABLED ? loadExtensionManager() : null, loadHelpPanel(), loadLibrarySection()])
+    .then(() => undefined, () => undefined);
+}
+
+function SectionLoading({ children }: { children: ReactNode }) {
+  const { t } = useTranslation('menu');
+  return (
+    <Suspense fallback={<div className="backstage-empty" aria-busy="true" data-ops-backstage-loading>{t('backstage.loading')}</div>}>
+      {children}
+    </Suspense>
+  );
+}
 
 export function Backstage() {
   const { t: tMenu } = useTranslation('menu');
@@ -177,7 +201,7 @@ export function Backstage() {
         )}
         {section === 'settings' && <SettingsSection />}
         {EXTENSIONS_ENABLED && section === 'extensions' && <ExtensionsSection />}
-        {section === 'library' && <LibrarySection />}
+        {section === 'library' && <SectionLoading><LibrarySection /></SectionLoading>}
         {section === 'help' && <HelpSection />}
       </main>
 
@@ -591,7 +615,7 @@ function SettingsSection() {
     <>
       {/* `ribbon.projectSettings` = App-instellingen; de sleutelnaam bleef bewust gelijk. */}
       <h2 className="backstage-title">{tMenu('ribbon.projectSettings')}</h2>
-      <SettingsPanelContent />
+      <SectionLoading><SettingsPanelContent /></SectionLoading>
     </>
   );
 }
@@ -684,7 +708,7 @@ function ExtensionsSection() {
     <>
       <h2 className="backstage-title">{tMenu('extensions.title')}</h2>
       <p className="backstage-subtitle">{tMenu('extensions.subtitle')}</p>
-      <ExtensionManagerPanel />
+      <SectionLoading><ExtensionManagerPanel /></SectionLoading>
     </>
   );
 }
@@ -699,7 +723,7 @@ function HelpSection() {
     <>
       <h2 className="backstage-title">{tMenu('backstage.help')}</h2>
       <p className="backstage-subtitle">{tMenu('backstage.helpSubtitle')}</p>
-      <HelpPanel />
+      <SectionLoading><HelpPanel /></SectionLoading>
     </>
   );
 }

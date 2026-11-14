@@ -48,6 +48,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { fontsSettled, revealAppWindow } from '@/startup/appWindow';
+import { Backstage, preloadBackstageSections } from '@/components/backstage/Backstage';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
@@ -108,38 +109,7 @@ const TourOverlay = lazy(() => import('@/components/tour/TourOverlay').then(m =>
 const TutorialOfferDialog = EXTENSIONS_ENABLED
   ? lazy(() => import('@/components/dialogs/TutorialOfferDialog').then(m => ({ default: m.TutorialOfferDialog })))
   : () => null;
-// Bestand (Backstage, #895): laadt vooraf, zodra het venster getoond is (`useEffect` in AppContent), zodat
-// de eerste klik op Bestand meteen de navigatie toont. Is hij nog niet binnen, dan een gestileerde
-// laadweergave in plaats van een lege vlakte (`BackstageLoading`).
-type BackstageComponent = typeof import('@/components/backstage/Backstage').Backstage;
-let loadedBackstage: BackstageComponent | null = null;
-const loadBackstage = () => import('@/components/backstage/Backstage').then(m => {
-  loadedBackstage = m.Backstage;
-  return m;
-});
-const LazyBackstage = lazy(() => loadBackstage().then(m => ({ default: m.Backstage })));
 const GuidePanel = lazy(() => import('@/components/guide/GuidePanel').then(m => ({ default: m.GuidePanel })));
-
-function BackstageLoading() {
-  const { t } = useTranslation('menu');
-  return (
-    <div className="backstage" role="region" aria-label={t('backstage.fileMenu')} aria-busy="true" data-ops-backstage-loading>
-      <aside className="backstage-sidebar" aria-hidden />
-      <main className="backstage-main">
-        <div className="backstage-empty">{t('backstage.loading')}</div>
-      </main>
-    </div>
-  );
-}
-
-/** Bestand: de al geladen Backstage direct, anders via Suspense met `BackstageLoading`. De keuze ligt vast
- *  per keer dat Bestand opengaat (`useState`): wisselen tussen de twee elementen zou Backstage halverwege
- *  opnieuw mounten en zijn lokale stand (bijv. onbevestigde instellingen) weggooien. */
-function BackstageView() {
-  const [Loaded] = useState(() => loadedBackstage);
-  if (Loaded) return <Loaded />;
-  return <Suspense fallback={<BackstageLoading />}><LazyBackstage /></Suspense>;
-}
 
 /** Loopt er een begeleiding van een extensie (`api.help.startGuide`)? Module-state, geen store-vlag:
  *  zie `extensions/guideRuntime.ts`. */
@@ -196,13 +166,12 @@ function AppContent() {
 
 
   // Het venster tonen (#895): de eerste weergave is vastgelegd en de lettertypen zijn binnen. Het venster
-  // start verborgen (`tauri.conf.json`); zie `startup/appWindow.ts`. Daarna Bestand vooraf laden; mislukt
-  // dat, dan probeert het openen van Bestand het opnieuw.
+  // start verborgen (`tauri.conf.json`); zie `startup/appWindow.ts`. Daarna de zware secties van Bestand
+  // vooraf laden.
   useEffect(() => {
     void fontsSettled()
       .then(() => revealAppWindow('gereed'))
-      .then(() => loadBackstage())
-      .catch(() => { /* zie hierboven: Bestand laadt dan bij openen */ });
+      .then(() => preloadBackstageSections());
   }, []);
 
   // Recovery-restore bij opstarten (Tauri én web): detectie + RecoveryDialog-callbacks; levert ook
@@ -422,7 +391,7 @@ function AppContent() {
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}
       {activeTab === 'file' ? (
-        <BackstageView />
+        <Backstage />
       ) : (
         <>
       {/* A · Documenttabs — tabstrip onder het lint (multi-document) */}
