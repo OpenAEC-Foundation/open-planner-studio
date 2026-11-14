@@ -27,7 +27,7 @@ const GROUP_SETTINGS: Record<string, string[]> = {
   notation: ['dateNotation', 'timeNotation', 'durationDisplay', 'weekStartDay'],
   timeline: ['compressNonWorkdays', 'quarterHourZoom', 'barSplitMode', 'scrollMode'],
   workspace: ['documentChrome', 'ribbonWheel', 'autoFitColumns'],
-  planning: ['constructionMode', 'autoCalc', 'taskTypes', 'mixedDayHour'],
+  planning: ['constructionMode', 'autoCalc', 'taskTypes', 'mixedDayHour', 'dissolveSummaryMode'],
   notices: ['formatNotices'],
   advanced: ['aiMode', 'aiAutostart', 'debugTerminal', 'classicViewControls'],
   about: ['version', 'tour', 'stats', 'benchmark'],
@@ -268,7 +268,8 @@ async function reloadSettingsApp(page: Page): Promise<void> {
 }
 
 test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde experimentele schakelaars', async ({ page, ops: _ops }) => {
-  test.setTimeout(60_000);
+  // Lange route: drie ingangen, twee talen en een zoekopdracht per zichtbare tekst van elke instelling.
+  test.setTimeout(120_000);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   const titleBar = page.locator('.title-bar');
   const animation = titleBar.locator('[data-ops-topbar-animation]');

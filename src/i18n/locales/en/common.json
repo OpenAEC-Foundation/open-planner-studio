@@ -117,6 +117,8 @@
     "duplicateIdsRenamed": "Objects with a duplicate id in this file: {{total}}. They were given their own id; references to them stay with the first occurrence. Check relations and assignments.",
     "relationsSkippedOnInsert_one": "{{count}} relation was not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
     "relationsSkippedOnInsert_other": "{{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
+    "relationsSkippedOnDissolve_one": "Dissolved, but {{count}} relation was not created: invalid link (for example a task linked to its own (grand)parent summary task, or a loop).",
+    "relationsSkippedOnDissolve_other": "Dissolved, but {{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a loop).",
     "mppSourceScheduleNotes_one": "This MS Project file contains {{count}} task with a split, leveled, or resource-driven schedule. It is imported and shown as such.",
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
     "exportSplitsLost_one": "{{count}} task with breaks was exported without its breaks: MS Project/P6 only know breaks as a work distribution.",
@@ -347,6 +349,8 @@
     "dependentProjectsFailed": "The folder with dependent projects could not be read.",
     "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library.",
     "reportLayoutGone": "The report's layout no longer exists. The report shows all tasks again.",
+    "reportFontNoBold": "{{name}} has no bold style. Bold text in the report uses the regular style.",
+    "reportFontMissing": "Your own font {{name}} is no longer on this device. The report uses Inter again.",
     "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again.",
     "ifcForeignOpenSchema": "This IFC file contains data from another application and has an unknown or missing schema. Opening was stopped to prevent data loss when saving.",
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
@@ -356,7 +360,7 @@
     "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again.",
     "ifcForeignExportNewTarget": "Not exported. This IFC file can only be exported to a new file name. Choose a name that does not exist yet.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
-    "ifcForeignSourceMissing": "File not saved. The building model or data from another program are missing from this recovered document or backup; they are in the original IFC file. You can export the schedule to another format. Open the original IFC file to work with the complete file again."
+    "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -396,6 +400,7 @@
     "addSubtask": "Add subtask",
     "addMilestone": "Add milestone",
     "addRelation": "Add relation",
+    "dissolve": "Dissolve (keep chain)",
     "delete": "Delete",
     "newTask": "New task",
     "tracePath": "Trace path",
@@ -472,6 +477,10 @@
     "themeSystemHint": "Follows your system colour scheme (currently: {{theme}}).",
     "showTaskTypes": "Use task types",
     "showTaskTypesHint": "Choose per task what adjusts when duration, units or work changes, like Task Type in MS Project and Duration Type in P6. Off: duration and units stay fixed. A file with task types or stored work shows them even when this is off.",
+    "dissolveSummaryMode": "Dissolve on a summary task",
+    "dissolveSummaryBranch": "The whole phase, with subtasks",
+    "dissolveSummaryHeader": "Only the summary row",
+    "dissolveSummaryModeHint": "What Dissolve does with a summary task. The whole phase: the subtasks go with it, as with Delete. Only the summary row: the subtasks move up one level and stay.",
     "allowMixedDayHour": "Allow mixed day/hour planning",
     "defaultTaskDurationUnit": "Default measure for new tasks",
     "defaultTaskDurationUnitHint": "Day measure: a duration counts in working days of the calendar. Hour measure: a duration counts in working hours. Existing tasks do not change. A task with fixed work always uses the hour measure.",
@@ -608,6 +617,7 @@
       "autoCalc": "calculate, recalculate, schedule, F5, CPM, automatic",
       "taskTypes": "task type, Task Type, Duration Type, work, units, MS Project, P6",
       "mixedDayHour": "hours, days, duration unit, hourly scheduling",
+      "dissolveSummaryMode": "dissolve, summary task, phase, subtasks, chain, relationships",
       "formatNotices": "explanation, notice, import, open, XER, MPP, P6, MS Project, CSV",
       "aiMode": "AI, MCP, assistant, Claude, bridge, connection",
       "aiAutostart": "AI, MCP, bridge, startup, automatic",
@@ -1983,5 +1993,17 @@
     "colAnchor": "Anchor: old → new",
     "saveAnyway": "Save anyway",
     "cancel": "Cancel"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "Save only the schedule?",
+    "body": "The building model or data from another program could not be found. The new file will contain only the schedule. The original file will remain unchanged. Do you want to continue?",
+    "continue": "Continue",
+    "cancel": "Cancel"
+  },
+  "fatalError": {
+    "title": "Something went wrong",
+    "body": "Open Planner Studio cannot continue. Reload the app. If this keeps happening, please report it and include the details below.",
+    "reload": "Reload",
+    "details": "Details"
   }
 }

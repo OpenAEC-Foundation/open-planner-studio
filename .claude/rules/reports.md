@@ -130,7 +130,8 @@ terugval valt de hele PDF om één `≤` of één Cyrillische naam terug op rast
 uit `hbSubset.ts`) komt als optie binnen, zodat de pagineerder headless te bundelen is; bewaking:
 `tests/planning/check-report-font.ts`. De keuzelijst *Lettertype* (`ReportFontSelect`, naast Papier en
 Oriëntatie, dus ook in `TableReportOptionsBlock`) kiest één id uit het vaste setje `REPORT_FONTS` in
-`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07), bewaard
+`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07; plus Liberation Mono met vaste
+breedte, vraag in #770), bewaard
 als `reportFontFamily` in `ops-reportSettings` — nooit in het IFC-bestand. Uit die id volgen de
 fontstack (`reportFontStack`: de letter, dan `InterPDF`; dezelfde stack voor het canvas en, via
 `reportFontStyle`, voor de DOM-kaarten van mijlpalen, variance en tabelrapporten) en de bytes
@@ -141,3 +142,15 @@ neemt alleen `@font-face`-regels uit de stylesheets mee. Een export wacht tot de
 datakolommen op de gekozen letter gemeten zijn (`fontPending` in `GanttReportStudio`): direct na
 een wissel staan er nog breedtes van de vorige letter, en dan kapt de PDF namen af die wel passen.
 Een nieuwe letter: zie `src/services/pdf/fonts/README.md`.
+
+**Eigen lettertype** (besluit Ethan 2026-11-14). Naast het vaste setje kent de keuzelijst `custom` (`ReportFontChoice`):
+*Ander lettertype…* opent `CustomReportFontDialog` met de lijst van de computer (`systemFonts.ts`: desktop leest de
+lettertypemappen via plugin-fs, met een scope per opdracht (`read_dir`, `open`, `read_file`) in `src-tauri/capabilities/default.json`; browser alleen
+`queryLocalFonts` in Chrome/Edge op een beveiligde pagina) en *Bestand kiezen…* (overal). `customReportFont.ts`
+leest en beoordeelt de bestanden zonder DOM (`check-custom-report-font.ts`): weigert inbedden verboden (fsType),
+variabel (`fvar`), zonder contouren en CFF-contouren (pdf-lib 1.17 bedt die als TrueType in), kiest gewoon en vet
+per familie en haalt een face uit een `.ttc`. De app bewaart een kopie van de bytes (`customFontStore.ts`,
+IndexedDB `ops-report-font`); `ops-reportSettings` krijgt alleen naam en versie (`customReportFont`). Zonder vet
+zijn de vette bytes de gewone, op het scherm (`@font-face` 700 met hetzelfde bestand) en in de PDF. Is de kopie weg,
+dan zet `useCustomReportFontGuard` de keuze terug op Inter met één melding. Een ander eigen lettertype heeft
+dezelfde id en familie (`OpsReportCustom`) maar een andere `reportFontKey`; laad- en meetcaches gaan op die sleutel.

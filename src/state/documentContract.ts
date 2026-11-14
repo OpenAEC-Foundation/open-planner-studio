@@ -384,6 +384,7 @@ type AppGlobalKey =
   | 'taskClipboard'
   // Recente bestanden: een eigenschap van de installatie, niet van een project.
   | 'recentFiles'
+  | 'recentFilesLoaded'
   // Multi-document-boekhouding zelf — dit ís de laag die de rest swapt.
   | 'documents' | 'activeDocumentId'
   // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
@@ -481,8 +482,9 @@ export function freshPayload(): DocumentPayload {
   return out as unknown as DocumentPayload;
 }
 
-/** Zonder geverifieerde bron blijft het herstelkenmerk geblokkeerd (#804, bron ontbreekt). */
-const restoredMark = (mark: ForeignSourceMark | null): ForeignSourceMark | null => mark && { ...mark, sourceMissing: true };
+/** Zonder geverifieerde bron blijft het herstelkenmerk geblokkeerd. Expliciet false is alleen nog doelbescherming na
+ * bewuste planOnly-opslag (9e); geen bron teruglezen en geen nieuwe bronblokkade. Oude metadata blijft veilig dicht. */
+const restoredMark = (mark: ForeignSourceMark | null): ForeignSourceMark | null => mark && { ...mark, sourceMissing: mark.sourceMissing !== false };
 
 /** Verse payload uit herstelde recovery-projectdata (view/history/cpm worden vers opgebouwd).
  *

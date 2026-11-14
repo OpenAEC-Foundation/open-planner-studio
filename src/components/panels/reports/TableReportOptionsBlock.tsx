@@ -6,7 +6,7 @@ import {
   type TableReportPeriodKey,
 } from '@/utils/reportSettings';
 import type { ResourceLoadingBucket } from '@/engine/reports';
-import type { ReportFontId } from '@/services/pdf/reportFont';
+import type { ReportFontChoice } from '@/services/pdf/reportFont';
 import { ReportingPeriodField } from './ReportingPeriodField';
 import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportFontSelect, ReportOptionsCard } from './reportFormPrimitives';
 
@@ -27,8 +27,8 @@ interface Props {
   onPaperSize: (p: ReportPaperSize) => void;
   onOrientation: (o: ReportOrientation) => void;
   /** De rapportletter (issue #770): één keuze voor alle rapporten, dus ook hier, naast het vel. */
-  fontFamily: ReportFontId;
-  onFontFamily: (font: ReportFontId) => void;
+  fontFamily: ReportFontChoice;
+  onFontFamily: (font: ReportFontChoice) => void;
 }
 
 const range = (min: number, max: number): number[] => Array.from({ length: max - min + 1 }, (_, i) => min + i);

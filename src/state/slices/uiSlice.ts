@@ -172,6 +172,7 @@ export function createDefaultUI(): UIState {
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
+    dissolveSummaryMode: 'branch',
     // «Alleen werkbare dagen tonen»: default UIT.
     compressNonWorkdays: false,
 
@@ -188,6 +189,7 @@ export function createDefaultUI(): UIState {
     pendingSiteOpen: null,
     pendingSiteSave: null,
     pendingIfcSchemaQuestion: null,
+    pendingIfcMissingSourceSaveAs: false,
     pendingFormatNotice: null,
     formatNoticeHidden: [],
     showPoolImportDialog: false,

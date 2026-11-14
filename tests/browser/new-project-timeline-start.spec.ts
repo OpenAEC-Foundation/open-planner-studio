@@ -188,6 +188,9 @@ test('sjabloon met fasen en latere start: zoom blijft gelijk, fasen in raster en
 
   const after = await state(page);
   expect(after.tasks.length).toBeGreaterThan(0);
+  // #912: de fasenamen volgen de interfacetaal bij aanmaak, niet vast het Nederlands.
+  const lang = await page.evaluate(() => document.documentElement.lang);
+  expect(after.tasks[0]!.name).toBe(lang === 'nl' ? 'Bouwplaats & grondwerk' : 'Site setup & groundwork');
   expect(after.view.zoom).toBe(30);
   // Zonder herberekende rijen bleef het raster leeg en tekende de Gantt geen balken.
   expect(after.viewRows.map(row => row.kind === 'task' ? row.taskId : null)).toEqual(after.tasks.map(task => task.id));

@@ -50,6 +50,7 @@ check-count-labels-i18n.ts matrix
 check-cpm-writeback.ts matrix
 check-critical-bar-colors-route.ts matrix
 check-csv-import.ts matrix
+check-custom-report-font.ts matrix
 check-custom-task-types.ts matrix
 check-dag-is-werktijd.ts matrix
 check-dag-uur-lag.ts matrix
@@ -65,6 +66,7 @@ check-dependent-projects.ts matrix
 check-dev-bridge-poller.ts matrix
 check-dev-open-link.ts matrix
 check-dialog-backdrop.ts matrix
+check-dissolve-tasks.ts matrix
 check-docs-dagen-en-uren.ts matrix
 check-docs-resources-voorbeelden.ts matrix
 check-docs-structure.ts matrix
@@ -315,6 +317,7 @@ check-progress-sheet-values.ts matrix
 check-progress-sinds-export.ts matrix
 check-progress-xlsx-writer.ts matrix
 check-project-start-anchor.ts matrix
+check-project-template-i18n.ts matrix
 check-raster-datum-ongewijzigd.ts matrix
 check-recent-open.ts matrix
 check-recorded-bak4-differential.ts matrix
@@ -344,6 +347,7 @@ check-relation-ribbon-trace.ts matrix
 check-relation-routes.ts matrix
 check-relation-rules.ts matrix
 check-relation-set-plan.ts matrix
+check-relation-step.ts matrix
 check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix
@@ -400,6 +404,7 @@ check-split-smoke.ts matrix
 check-split-solver-placement.ts matrix
 check-split-walk.ts matrix
 check-start-snet.ts matrix
+check-startup-window.ts matrix
 check-statusdatum-lijn.ts matrix
 check-statusdatum-tijd.ts matrix
 check-step-strings.ts matrix
@@ -459,6 +464,7 @@ check-tutorial-project.ts matrix
 check-undo-bound.ts matrix
 check-undo-coalesce-grid.ts matrix
 check-undo-memory-cap.ts matrix
+check-updater-zip.ts matrix
 check-uren-f5a-adapters.ts matrix
 check-uren-f5a2-adapters.ts matrix
 check-uren-f5b-adapters.ts matrix

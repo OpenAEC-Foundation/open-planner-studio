@@ -46,6 +46,7 @@ export const SETTING_IDS = [
   'autoCalc',
   'taskTypes',
   'mixedDayHour',
+  'dissolveSummaryMode',
   // Meldingen
   'formatNotices',
   // Geavanceerd

@@ -71,6 +71,8 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Allow mixed day/hour planning** — whether you choose the unit per task. Default: on. Effect: on shows the *Duration unit* drop-down next to the duration of every task. Off hides that drop-down. Where: [Scheduling](settings://mixedDayHour). See [Plan a task in hours](docs://howto-taak-in-uren-plannen).
 
+**Dissolve on a summary task** — what *Dissolve* does with a summary task. Choose from *The whole phase, with subtasks* and *Only the summary row*. Default: *The whole phase, with subtasks*. Effect: the whole phase removes the summary task with all its subtasks, like *Delete*, and links every predecessor from outside the phase to every successor outside the phase. Only the summary row removes just the summary task: its subtasks move up one level, into its place, and its own relations move to the first and last subtasks, with their type and lag. Where: [Scheduling](settings://dissolveSummaryMode). See [Selecting, deleting and undoing tasks](docs://howto-taken-selecteren-verwijderen).
+
 ## Notices
 
 **Show an explanation after opening** — one checkbox per format: *Primavera file (.xer)*, *MS Project file (.mpp)*, *MS Project XML*, *Primavera P6 XML* and *CSV file*. Default: all on. Effect: on shows a window with a short explanation of the format after you open such a file: what the app took over, what it did not, and how saving and writing back work. *Don't show again for …* in that window clears the checkbox here; here you turn it back on. An IFC file, an example and a project that an MCP client or an extension opens never get this explanation. Where: [Notices](settings://formatNotices). See [Opening and saving a file](docs://howto-bestand-openen-en-opslaan).

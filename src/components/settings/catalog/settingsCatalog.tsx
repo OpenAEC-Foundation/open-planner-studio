@@ -9,11 +9,11 @@
 import { createDefaultUI } from '@/state/slices/uiSlice';
 import type { UIState, UITheme } from '@/state/slices/types';
 import {
-  BAR_SPLIT_MODES, DATE_NOTATIONS, DURATION_DISPLAYS, TIME_NOTATIONS, UI_FONT_FAMILIES, UI_FONT_SCALES,
+  BAR_SPLIT_MODES, DATE_NOTATIONS, DISSOLVE_SUMMARY_MODES, DURATION_DISPLAYS, TIME_NOTATIONS, UI_FONT_FAMILIES, UI_FONT_SCALES,
 } from '@/state/slices/types';
 import {
   saveAiAutostart, saveAllowMixedDayHour, saveAutoFitColumns, saveBarSplitMode, saveCompressNonWorkdays,
-  saveConstructionMode, saveDateNotation, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveDurationDisplay,
+  saveConstructionMode, saveDateNotation, saveDebugTerminalEnabled, saveDissolveSummaryMode, saveDocumentChromeStyle, saveDurationDisplay,
   saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveShowClassicViewControls, saveShowTaskTypes,
   saveTimeNotation, saveUIFontFamily, saveUIFontScale, saveZoomSettings, startTheme,
 } from '@/utils/settingsStore';
@@ -51,6 +51,7 @@ function options<T>(entries: readonly (readonly [T, CommonKey])[]): ChoiceOption
 const DATE_NOTATION_KEYS = { dmy: 'settings.dateNotationDmy', mdy: 'settings.dateNotationMdy', ymd: 'settings.dateNotationYmd' } as const;
 const TIME_NOTATION_KEYS = { '24h': 'settings.timeNotation24h', '12h': 'settings.timeNotation12h' } as const;
 const DURATION_KEYS = { auto: 'settings.durationDisplayAuto', days: 'settings.durationDisplayDays', hours: 'settings.durationDisplayHours' } as const;
+const DISSOLVE_SUMMARY_KEYS = { branch: 'settings.dissolveSummaryBranch', header: 'settings.dissolveSummaryHeader' } as const;
 const BAR_SPLIT_KEYS = { never: 'settings.barSplitNever', selection: 'settings.barSplitSelection', always: 'settings.barSplitAlways' } as const;
 const FONT_FAMILY_KEYS = {
   default: 'settings.fontFamilyDefault',
@@ -202,6 +203,12 @@ const ENTRIES: readonly SettingEntry[] = [
   {
     kind: 'toggle', id: 'mixedDayHour', group: 'planning', labelKey: 'settings.allowMixedDayHour', hintKey: 'settings.allowMixedDayHourHint',
     keywordsKey: 'settings.keywords.mixedDayHour', binding: bind('allowMixedDayHour', saveAllowMixedDayHour),
+  },
+  {
+    kind: 'choice', id: 'dissolveSummaryMode', group: 'planning', labelKey: 'settings.dissolveSummaryMode',
+    hintKey: 'settings.dissolveSummaryModeHint', keywordsKey: 'settings.keywords.dissolveSummaryMode',
+    binding: bind('dissolveSummaryMode', saveDissolveSummaryMode),
+    options: options(DISSOLVE_SUMMARY_MODES.map(m => [m, DISSOLVE_SUMMARY_KEYS[m]] as const)),
   },
 
   // Meldingen

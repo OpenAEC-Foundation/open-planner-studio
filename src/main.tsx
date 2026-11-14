@@ -7,6 +7,7 @@ import { appLog } from '@/services/debug/appLog';
 import { installSiteAppTools } from '@/services/mcp/siteAppTools';
 import { PLATFORM_BUILD } from '@/utils/buildFlags';
 import { hydrateSiteHostSettings } from '@/services/fileAccess/siteHostSettings';
+import { showFatalError } from './startup/fatalError';
 
 // OpenAEC stylebook fonts (self-hosted via @fontsource, bundled with app for offline use)
 import '@fontsource/inter/400.css';
@@ -56,17 +57,24 @@ hostSettingsReady
     // maken al instellingen (bouwmodus → startkalender). Vóór de app, zodat het koppelvlak er staat als de app
     // het startbestand opent. Bewaakt door `tests/planning/check-site-start-order.ts`.
     if (PLATFORM_BUILD) installSiteAppTools();
-    return import('./App');
+    // De bewaarde instellingen gaan vóór de eerste render in de store (#895), zodat de eerste weergave al
+    // het gekozen uiterlijk heeft; zie `startup/initialSettings.ts`.
+    return Promise.all([
+      import('./App'),
+      import('./startup/initialSettings').then(({ loadSettingsBeforeFirstRender }) => loadSettingsBeforeFirstRender()),
+    ]);
   })
-  .then(({ default: App }) => {
-    ReactDOM.createRoot(document.getElementById('root')!).render(
+  .then(([{ default: App }]) => {
+    // Een fout die niemand opving, haalt de hele boom weg; dan het foutscherm in plaats van een leeg venster.
+    ReactDOM.createRoot(document.getElementById('root')!, { onUncaughtError: showFatalError }).render(
       <React.StrictMode>
         <App />
       </React.StrictMode>
     );
     installDevHooks();
   })
-  .catch(error => console.error('De app kon niet laden:', error));
+  // De start liep vast (bijv. de app-bundel laadde niet): het foutscherm, en het venster komt tevoorschijn.
+  .catch(showFatalError);
 
 function installDevHooks(): void {
   // Zelftesthaak (window.__OPS__) voor geautomatiseerd testen via Playwright MCP en de expliciete

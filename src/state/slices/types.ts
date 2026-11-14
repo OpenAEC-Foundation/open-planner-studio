@@ -86,6 +86,10 @@ export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
 
+/** Dissolve bij een samenvattingstaak (issue #887): de hele fase met subtaken, of alleen de kopregel. */
+export type DissolveSummaryMode = 'branch' | 'header';
+export const DISSOLVE_SUMMARY_MODES: DissolveSummaryMode[] = ['branch', 'header'];
+
 // 'system' is een VOORKEUR, geen tekenbaar thema: hij lost via `resolveUITheme`
 // (`@/utils/theme`) op naar 'dark' of 'light' op basis van `prefers-color-scheme`. Er is dus geen
 // `[data-theme="system"]`-blok in globals.css, en alles wat een thema toepast werkt met
@@ -204,6 +208,9 @@ export type NotificationMessageKey =
   | 'notifications.openFailed'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
+  // Eigen rapportlettertype (#770): zonder vette variant (vet in de gewone letter), of de kopie is weg (terug op Inter).
+  | 'notifications.reportFontNoBold'
+  | 'notifications.reportFontMissing'
   | 'notifications.layoutsNotSaved'
   // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
   | 'notifications.fileDropRefused'
@@ -294,6 +301,7 @@ export type NotificationMessageKey =
   | 'notifications.summaryRelationsDropped'
   | 'notifications.duplicateIdsRenamed'
   | 'notifications.relationsSkippedOnInsert'
+  | 'notifications.relationsSkippedOnDissolve'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'
@@ -833,6 +841,7 @@ export interface UIState {
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
+  dissolveSummaryMode: DissolveSummaryMode;  // persisted — Dissolve bij een samenvattingstaak (default 'branch')
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT
@@ -886,6 +895,8 @@ export interface UIState {
    *  of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
    *  `state/ifcSchemaQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingIfcSchemaQuestion: IfcSchemaQuestion | null;
+  /** Opslaan als zonder het ontbrekende gebouwmodel wacht op een bewuste keuze. */
+  pendingIfcMissingSourceSaveAs: boolean;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg
