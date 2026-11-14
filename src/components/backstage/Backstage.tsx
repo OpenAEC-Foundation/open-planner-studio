@@ -256,6 +256,7 @@ function RecentSection() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const allRecentFiles = useAppStore(s => s.recentFiles);
+  const recentFilesLoaded = useAppStore(s => s.recentFilesLoaded);
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
 
@@ -272,6 +273,8 @@ function RecentSection() {
       {supported && <p className="backstage-subtitle">{tMenu('backstage.recentSubtitle')}</p>}
       {!supported ? (
         <div className="backstage-empty" data-ops-recent-unavailable>{tMenu('backstage.recentUnavailable')}</div>
+      ) : !recentFilesLoaded ? (
+        <div className="backstage-empty" aria-busy="true" data-ops-recent-loading>{tMenu('backstage.recentLoading')}</div>
       ) : recentFiles.length === 0 ? (
         <div className="backstage-empty">{tMenu('backstage.recentEmpty')}</div>
       ) : (

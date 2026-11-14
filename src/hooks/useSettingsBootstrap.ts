@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { loadWelcomeSeen, localStorageAvailable, welcomeSeenAtStartup } from '@/utils/settingsStore';
-import { loadAllSettings } from '@/utils/settingsRegistry';
 import { loadAllExtensions } from '@/extensions';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
 import type { RecoveryState } from './useRecoveryRestore';
@@ -19,9 +18,8 @@ const skipWelcomeReason = (): string | null =>
 /** Uitkomst van de welkomstcontrole in de app-log (DebugTerminal); de browsertests wachten hierop. */
 const logWelcomeCheck = (outcome: string) => appLog.emit('event', 'welkomst', `welkomstcontrole: ${outcome}`);
 
-// Bootstrap van app-instellingen bij het opstarten: hydrateert de store uit localStorage
-// (thema, locale, zoom, panelen, urenplanning, …) plus extensies, en toont de eerste-keer
-// welkomstdialoog. De welkomstcheck hangt af van de recovery-flow (zie hieronder).
+// Bootstrap bij het opstarten: extensies, recente bestanden en taakgridvoorkeuren, en de eerste-keer
+// welkomstdialoog (de instellingen zelf staan er al vóór de eerste render, `startup/initialSettings.ts`). De welkomstcheck hangt af van de recovery-flow (zie hieronder).
 export function useSettingsBootstrap(recoveryResolved: boolean, recovery: RecoveryState | null): void {
   const setUI = useAppStore(s => s.setUI);
   const taskGridChecked = useRef(false);
@@ -45,14 +43,8 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // daarop (`welcomePending`, `isOnboardingActive`). Slaan we de welkomst over (`skipWelcomeReason`),
     // dan komt ze niet en wacht er dus ook niets.
     if (!welcomeSeenAtStartup() && skipWelcomeReason() === null) setUI({ welcomePending: true });
-    // initLocale() is naar main.tsx verhuisd (pré-render, zodat de actieve taal-chunk vóór
-    // de eerste paint geladen is). Hier alleen nog de overige app-instellingen hydrateren.
-    // Eén registergedreven hydratatie: `loadAllSettings` itereert het `SETTINGS`-register + de drie
-    // afwijkers (thema-migratie, synchrone bouwmodus, balkkleurkeuze) en levert één `setUI`-patch
-    // (geen veld overlapt).
-    void loadAllSettings().then(patch => setUI(patch)).catch(error => {
-      console.error('Instellingen laden mislukt; de app draait op de standaardwaarden:', error);
-    });
+    // Taal (`initLocale`) en de overige app-instellingen (`loadSettingsBeforeFirstRender`) laadt main.tsx
+    // al vóór de eerste render (#895), zodat de eerste weergave het gekozen uiterlijk heeft.
     // Platformbouw (#311): geen extensies, dus ook niets uit IndexedDB laden of uitvoeren.
     if (EXTENSIONS_ENABLED) {
       void loadAllExtensions().catch(error => {
@@ -61,7 +53,9 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     }
     // Recente bestanden leven in IndexedDB (async, met eenmalige localStorage-migratie) —
     // één keer bij opstart in de store hydrateren.
-    void useAppStore.getState().hydrateRecentFiles();
+    void useAppStore.getState().hydrateRecentFiles().catch(error => {
+      console.error('Recente bestanden laden mislukt:', error);
+    });
   }, [setUI]);
 
   // Taakgridvoorkeuren wachten bewust tot de recoverykeuze volledig is afgehandeld. Bij mount is

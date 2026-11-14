@@ -1930,5 +1930,11 @@
     "colAnchor": "Anker: oud → nieuw",
     "saveAnyway": "Toch opslaan",
     "cancel": "Annuleren"
+  },
+  "fatalError": {
+    "title": "Er ging iets mis",
+    "body": "Open Planner Studio kan niet verder. Laad de app opnieuw. Gebeurt dit steeds, meld het dan en stuur de details hieronder mee.",
+    "reload": "Opnieuw laden",
+    "details": "Details"
   }
 }

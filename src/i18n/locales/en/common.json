@@ -1930,5 +1930,11 @@
     "colAnchor": "Anchor: old → new",
     "saveAnyway": "Save anyway",
     "cancel": "Cancel"
+  },
+  "fatalError": {
+    "title": "Something went wrong",
+    "body": "Open Planner Studio cannot continue. Reload the app. If this keeps happening, please report it and include the details below.",
+    "reload": "Reload",
+    "details": "Details"
   }
 }
