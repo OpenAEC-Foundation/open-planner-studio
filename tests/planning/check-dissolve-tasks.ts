@@ -13,6 +13,7 @@ import { useAppStore } from '@/state/appStore';
 import { contextMenuBulk } from '@/components/canvas/contextMenuScope';
 import { RIBBON_TABS, type RibbonGroupSpec } from '@/components/layout/Ribbon/ribbonConfig';
 import type { SequenceType } from '@/types/sequence';
+import { planDissolve } from '@/state/dissolveTasks';
 import { flattenOrder } from '@/utils/wbs';
 
 const S = () => useAppStore.getState();
@@ -310,6 +311,81 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   S().dissolveTasksBulk([ids.B]);
   eq('25q externe voorganger via de fase gaat naar de opvolger', [extOf('C'), extOf('P')],
     [['predecessor FS 0 bron-1'], ['predecessor FS 2 bron-1']]);
+}
+
+// ── 9d) review #937 ronde 3 ─────────────────────────────────────────────────
+{
+  // B → P met D in P is ook B → D. Gaan B en D samen weg, dan loopt de keten A → B → D → C door.
+  const ids = plan(['A', 'B', 'P', 'D', 'X', 'C']);
+  S().moveTask(ids.D, ids.P, 0);
+  S().moveTask(ids.X, ids.P, 1);
+  link(ids, 'A', 'B');
+  link(ids, 'B', 'P');
+  link(ids, 'D', 'C');
+  S().dissolveTasksBulk([ids.B, ids.D]);
+  eq('25r keten via een fase tussen twee weggehaalde taken', relations(), ['A>C FS 0', 'A>P FS 0']);
+  S().runCPM();
+  eq('25s na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
+}
+{
+  // Gespiegeld: A → D, P → B met D in P (dus D → B), B → C.
+  const ids = plan(['A', 'P', 'D', 'X', 'B', 'C']);
+  S().moveTask(ids.D, ids.P, 0);
+  S().moveTask(ids.X, ids.P, 1);
+  link(ids, 'A', 'D');
+  link(ids, 'P', 'B');
+  link(ids, 'B', 'C');
+  S().dissolveTasksBulk([ids.B, ids.D]);
+  eq('25t gespiegelde keten via een fase', relations(), ['A>C FS 0', 'P>C FS 0']);
+}
+{
+  // A → P is begin-begin: die vervangt de einde-begin naar C binnen P niet (besluit 2 en 3).
+  const ids = plan(['A', 'P', 'B', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().moveTask(ids.C, ids.P, 1);
+  link(ids, 'A', 'P', 'START_START');
+  link(ids, 'B', 'C');
+  S().dissolveTasksBulk([ids.B]);
+  eq('25u andere soort op de fase: einde-begin komt erbij', relations(), ['A>C FS 0', 'A>P SS 0']);
+  S().runCPM();
+  eq('25v na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
+}
+{
+  // Hetzelfde voor een externe einde-einde-voorganger op de fase.
+  const ids = plan(['P', 'B', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().moveTask(ids.C, ids.P, 1);
+  link(ids, 'B', 'C');
+  S().addExternalLink(ids.P, {
+    direction: 'predecessor', relType: 'FF', lagDays: 0, anchorDate: '2026-06-30T16:00', sourceMissing: false, sourceRef: westSource,
+  });
+  S().dissolveTasksBulk([ids.B]);
+  eq('25w externe einde-einde op de fase: einde-begin naar C', extOf('C'), ['predecessor FS 0 bron-1']);
+  S().runCPM();
+  eq('25x na F5 wacht C op het einde van de brontaak', timeOf('C').earlyStart >= '2026-06-30', true);
+}
+{
+  // Wordt de fase leeg, dan draagt ze de keten niet meer: A → P → C met alleen B in P.
+  const ids = plan(['A', 'P', 'B', 'C']);
+  S().moveTask(ids.B, ids.P, 0);
+  S().updateTask(ids.P, { isSummary: true });
+  link(ids, 'A', 'P');
+  link(ids, 'P', 'C');
+  S().dissolveTasksBulk([ids.B]);
+  S().runCPM();
+  eq('25y fase leeg: na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
+}
+{
+  // C heeft al een externe einde-begin van dezelfde brontaak: geen weigering voor het anker.
+  const ids = plan(['B', 'C']);
+  link(ids, 'B', 'C');
+  S().addExternalLink(ids.B, {
+    direction: 'predecessor', relType: 'SS', lagDays: 0, anchorDate: '2026-06-10T07:00', sourceMissing: false, sourceRef: westSource,
+  });
+  S().addExternalLink(ids.C, {
+    direction: 'predecessor', relType: 'FS', lagDays: 1, anchorDate: '2026-06-12T16:00', sourceMissing: false, sourceRef: westSource,
+  });
+  eq('25z bestaande externe einde-begin: niets geweigerd', planDissolve(S().tasks, S().sequences, [ids.B]).refused, []);
 }
 
 // ── 11) instelling: alleen de kopregel van een samenvattingstaak ────────────

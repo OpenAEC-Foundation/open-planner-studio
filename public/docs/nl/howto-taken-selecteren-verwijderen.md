@@ -38,7 +38,7 @@ Wat er mee verdwijnt: alle subtaken van een verwijderde samenvattingstaak, alle 
 Selecteer de taken en kies *Start › Bewerken › Dissolve* (ook op het tabblad *Tabel*), of *Dissolve (keten behouden)* in het rechtermuismenu. Het rechtermuismenu volgt dezelfde regel als *Verwijderen*: zit de aangeklikte taak in de selectie, dan geldt het voor de hele selectie.
 
 - Elke voorganger krijgt een relatie naar elke opvolger, altijd einde-begin zonder vertraging. Welk type en welke vertraging de oude relaties hadden, telt niet mee.
-- Een relatie op een samenvattingstaak boven de taak telt ook: met A → fase P en B → C, waarbij B in P staat, wordt *Dissolve* op B ook A → C.
+- Een relatie op een samenvattingstaak boven de taak telt ook: met A → fase P en B → C, waarbij B in P staat, wordt *Dissolve* op B ook A → C. Alleen een einde-begin-relatie op de fase maakt een nieuwe relatie naar een taak in die fase overbodig; bij een ander type komt de einde-begin erbij.
 - Een externe relatie (naar een taak in een ander project) telt ook: de opvolgers krijgen de externe voorganger en de voorgangers de externe opvolger, einde-begin zonder vertraging, met dezelfde vaste datum. Bewaart die datum de verkeerde kant van de taak in het andere project (bijvoorbeeld bij een begin-begin-voorganger), dan laat de app die koppeling weg en meldt hij dat.
 - Gebruik je *Dissolve* op taken die aan elkaar vastzitten, dan loopt de keten erdoorheen: uit A → B → C → D wordt met *Dissolve* op B en C samen A → D.
 - Bestaat er tussen voorganger en opvolger al een einde-begin-relatie, dan blijft die zoals ze is, ook met haar vertraging. Een relatie van een ander type blijft ook staan; de nieuwe einde-begin komt ernaast.

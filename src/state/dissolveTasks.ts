@@ -17,9 +17,11 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /**
  * Een voorganger of opvolger van een blok: een taak in dit project (`id`) of een externe relatie
- * (`link`, een taak in een ander project). `via` = de blijvende fase waarop de relatie ligt.
+ * (`link`, een taak in een ander project). `via` = de blijvende fase waarop de relatie ligt, `fs` =
+ * die relatie is einde-begin.
  */
-type Endpoint = ({ id: string; link?: undefined } | { id?: undefined; link: ExternalLink }) & { via?: string };
+type Endpoint = ({ id: string; link?: undefined } | { id?: undefined; link: ExternalLink })
+  & { via?: string; fs?: boolean };
 
 export interface DissolvePlan {
   /** De nieuwe einde-begin-relaties, zonder id; de aanroeper geeft ze een id. */
@@ -41,9 +43,11 @@ export interface DissolvePlan {
  * A → C en C → E, niet A → E.
  *
  * Een relatie op een fase die blijft geldt in de rekenkern voor elke taak eronder: A → P met B in
- * P is ook A → B. Zo'n voorganger of opvolger telt daarom mee (`via`). Een brug is alleen nodig
- * als ten minste één kant rechtstreeks aan de weggehaalde taken hing, of als de keten door andere
- * weggehaalde taken liep; en niet naar een taak in de fase waar de relatie al voor geldt.
+ * P is ook A → B. Zo'n voorganger of opvolger telt daarom mee (`via`); is de andere kant ook een
+ * weggehaalde taak, dan loopt de keten via die relatie door. Een brug is niet nodig als een
+ * einde-begin op de fase de keten al draagt: naar een taak in die fase, of als beide kanten via
+ * fasen boven hetzelfde blok lopen en er onder die fasen nog een echte taak overblijft. Een relatie
+ * van een andere soort draagt de keten niet; dan komt de einde-begin ernaast (review #937 ronde 3).
  *
  * Een externe voorganger of opvolger (een taak in een ander project) telt ook mee: E ⇢ B → C wordt
  * E ⇢ C, en A → B ⇢ E wordt A ⇢ E (wrakko 2026-11-14, uit het besluit "elke voorganger naar elke
@@ -79,6 +83,12 @@ export function planDissolve(
   const into = new Map<string, Endpoint[]>(); // blok → voorgangers die blijven
   const out = new Map<string, Endpoint[]>(); // blok → opvolgers die blijven
   const next = new Map<string, Set<string>>(); // blok → blokken waar het naar wijst
+  const connect = (from: string, to: string) => {
+    if (from === to) return;
+    const set = next.get(from) ?? new Set<string>();
+    set.add(to);
+    next.set(from, set);
+  };
   const push = (map: Map<string, Endpoint[]>, key: string, value: Endpoint) => {
     const list = map.get(key);
     if (!list) map.set(key, [value]);
@@ -98,14 +108,7 @@ export function planDissolve(
     const toGone = removeIds.has(seq.successorId);
     if (!fromGone && toGone) push(into, blockOf(seq.successorId), { id: seq.predecessorId });
     else if (fromGone && !toGone) push(out, blockOf(seq.predecessorId), { id: seq.successorId });
-    else if (fromGone && toGone) {
-      const from = blockOf(seq.predecessorId);
-      const to = blockOf(seq.successorId);
-      if (from === to) continue;
-      const set = next.get(from) ?? new Set<string>();
-      set.add(to);
-      next.set(from, set);
-    }
+    else if (fromGone && toGone) connect(blockOf(seq.predecessorId), blockOf(seq.successorId));
   }
   // Relaties op de blijvende fasen boven elk blok.
   const isWithin = (id: string, ancestorId: string): boolean => {
@@ -113,14 +116,22 @@ export function planDissolve(
     return false;
   };
   const pushExternal = (block: string, links: readonly ExternalLink[] | undefined, via?: string) => {
-    for (const link of links ?? []) push(link.direction === 'predecessor' ? into : out, block, { link, via });
+    for (const link of links ?? []) {
+      push(link.direction === 'predecessor' ? into : out, block, via ? { link, via, fs: link.relType === 'FS' } : { link });
+    }
   };
   for (const id of removeIds) pushExternal(blockOf(id), byId.get(id)?.externalLinks);
   const blocks = [...removeIds].filter(id => blockOf(id) === id);
   for (const block of blocks) {
     for (let via = byId.get(block)?.parentId; via; via = byId.get(via)?.parentId) {
-      for (const seq of toSucc.get(via) ?? []) push(into, block, { id: seq.predecessorId, via });
-      for (const seq of fromPred.get(via) ?? []) push(out, block, { id: seq.successorId, via });
+      for (const seq of toSucc.get(via) ?? []) {
+        if (removeIds.has(seq.predecessorId)) connect(blockOf(seq.predecessorId), block);
+        else push(into, block, { id: seq.predecessorId, via, fs: seq.type === 'FINISH_START' });
+      }
+      for (const seq of fromPred.get(via) ?? []) {
+        if (removeIds.has(seq.successorId)) connect(block, blockOf(seq.successorId));
+        else push(out, block, { id: seq.successorId, via, fs: seq.type === 'FINISH_START' });
+      }
       pushExternal(block, byId.get(via)?.externalLinks, via);
     }
   }
@@ -132,6 +143,12 @@ export function planDissolve(
     .map(task => (task.childIds.some(id => removeIds.has(id))
       ? { ...task, childIds: task.childIds.filter(id => !removeIds.has(id)) }
       : task));
+  const remainingById = new Map(remainingTasks.map(task => [task.id, task] as const));
+  // Houdt de fase na het weghalen nog een echte taak? Anders draagt een relatie erop niets meer.
+  const carries = (id: string): boolean => {
+    const task = remainingById.get(id);
+    return !!task && (!isSummaryTask(task) || task.childIds.some(carries));
+  };
   const remaining: Sequence[] = sequences.filter(
     seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId),
   );
@@ -158,22 +175,24 @@ export function planDissolve(
     const done = new Set<string>();
     for (const pred of predecessors) {
       for (const succ of successors) {
-        // Beide kanten via fasen boven hetzelfde blok: die fasen blijven en dragen de keten zelf.
-        if (pred.via && succ.via && succ.block === block) continue;
-        // De relatie op de fase geldt al voor de taken erin.
-        if (pred.via && succ.id !== undefined && isWithin(succ.id, pred.via)) continue;
-        if (succ.via && pred.id !== undefined && isWithin(pred.id, succ.via)) continue;
+        // Beide kanten via einde-begin op fasen boven hetzelfde blok: die fasen dragen de keten zelf,
+        // zolang onder de diepste ervan een echte taak overblijft.
+        if (pred.fs && succ.fs && succ.block === block
+          && carries(isWithin(pred.via!, succ.via!) ? pred.via! : succ.via!)) continue;
+        // Een einde-begin op de fase geldt al voor de taken erin.
+        if (pred.fs && succ.id !== undefined && isWithin(succ.id, pred.via!)) continue;
+        if (succ.fs && pred.id !== undefined && isWithin(pred.id, succ.via!)) continue;
         const key = `${pred.id ?? pred.link.id}|${succ.id ?? succ.link.id}`;
         if (done.has(key)) continue;
         done.add(key);
         if (pred.link && succ.link) continue; // beide kanten in een ander project: niets te koppelen.
         if (pred.link || succ.link) {
           const external = pred.link ? { taskId: succ.id!, link: pred.link } : { taskId: pred.id!, link: succ.link! };
+          // Een bestaande einde-begin naar dezelfde brontaak blijft; dan is er niets te weigeren.
+          if (hasExternalFinishStart(byId.get(external.taskId), externalBridges, external.taskId, external.link)) continue;
           const bridge = externalBridge(external.link);
-          if (!bridge) refused.push(`${name(pred)} → ${name(succ)}`);
-          else if (!hasExternalFinishStart(byId.get(external.taskId), externalBridges, external.taskId, bridge)) {
-            externalBridges.push({ taskId: external.taskId, link: bridge });
-          }
+          if (bridge) externalBridges.push({ taskId: external.taskId, link: bridge });
+          else refused.push(`${name(pred)} → ${name(succ)}`);
           continue;
         }
         const predecessorId = pred.id;
@@ -210,7 +229,7 @@ function hasExternalFinishStart(
   task: Task | undefined,
   planned: DissolvePlan['externalBridges'],
   taskId: string,
-  link: Omit<ExternalLink, 'id'>,
+  link: Pick<ExternalLink, 'direction' | 'sourceRef'>,
 ): boolean {
   const same = (other: Omit<ExternalLink, 'id'>) => other.direction === link.direction
     && other.relType === 'FS'

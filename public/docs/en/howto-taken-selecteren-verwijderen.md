@@ -38,7 +38,7 @@ What disappears with them: all subtasks of a deleted summary task, all relations
 Select the tasks and choose *Home › Edit › Dissolve* (also on the *Table* tab), or *Dissolve (keep chain)* in the right-click menu. The right-click menu follows the same rule as *Delete*: if the task you clicked is part of the selection, it applies to the whole selection.
 
 - Every predecessor gets a relation to every successor, always finish-to-start without lag. The type and lag of the old relations do not count.
-- A relation on a summary task above the task counts too: with A → phase P and B → C, where B is in P, *Dissolve* on B also gives A → C.
+- A relation on a summary task above the task counts too: with A → phase P and B → C, where B is in P, *Dissolve* on B also gives A → C. Only a finish-to-start relation on the phase makes a new relation to a task inside that phase unnecessary; with another type, the finish-to-start is added.
 - An external relation (to a task in another project) counts too: the successors get the external predecessor and the predecessors get the external successor, finish-to-start without lag, with the same fixed date. If that date is the wrong side of the task in the other project (for example with a start-to-start predecessor), the app leaves out that link and says so.
 - If you use *Dissolve* on tasks that are linked to each other, the chain runs through them: *Dissolve* on B and C together in A → B → C → D gives A → D.
 - If a finish-to-start relation already exists between predecessor and successor, it stays as it is, lag included. A relation of another type stays as well; the new finish-to-start is added next to it.
