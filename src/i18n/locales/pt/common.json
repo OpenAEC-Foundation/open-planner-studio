@@ -780,7 +780,6 @@
     "sentTitle": "Obrigado, a sua mensagem foi enviada.",
     "alreadyIn": "Esta mensagem já nos chegou. Quer acrescentar algo? Então altere o texto e envie-o novamente.",
     "sentScreenshotDropped": "A captura de ecrã era demasiado grande e não foi enviada.",
-    "viewOnGithub": "Ver no GitHub",
     "errorValidation": "A mensagem não foi aceite. Verifique o texto (não só ligações) e o endereço de e-mail, e tente novamente.",
     "errorRateLimited": "Enviou muitas mensagens num curto espaço de tempo. Tente novamente dentro de uma hora.",
     "errorFailed": "Não foi possível enviar. Verifique a sua ligação à internet e tente novamente, ou abra a mensagem no GitHub.",

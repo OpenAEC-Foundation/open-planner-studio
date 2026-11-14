@@ -780,7 +780,6 @@
     "sentTitle": "Hvala, vaša prijava je poslana.",
     "alreadyIn": "Ova prijava je već zaprimljena. Želite li nešto dodati? Tada promijenite tekst i pošaljite ga ponovno.",
     "sentScreenshotDropped": "Snimka zaslona bila je prevelika i nije poslana.",
-    "viewOnGithub": "Pogledaj na GitHubu",
     "errorValidation": "Prijava nije prihvaćena. Provjerite tekst (ne samo poveznice) i e-adresu te pokušajte ponovno.",
     "errorRateLimited": "U kratkom vremenu poslali ste mnogo prijava. Pokušajte ponovno za sat vremena.",
     "errorFailed": "Slanje nije uspjelo. Provjerite internetsku vezu i pokušajte ponovno ili otvorite prijavu na GitHubu.",

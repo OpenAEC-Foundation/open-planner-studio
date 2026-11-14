@@ -682,7 +682,6 @@
     "sentTitle": "Danke, Ihre Meldung wurde gesendet.",
     "alreadyIn": "Diese Meldung ist bei uns bereits eingegangen. Möchten Sie etwas hinzufügen? Dann ändern Sie den Text und senden Sie ihn erneut.",
     "sentScreenshotDropped": "Der Screenshot war zu groß und wurde nicht mitgesendet.",
-    "viewOnGithub": "Auf GitHub ansehen",
     "errorValidation": "Die Meldung wurde nicht angenommen. Prüfen Sie den Text (nicht nur Links) und die E-Mail-Adresse und versuchen Sie es erneut.",
     "errorRateLimited": "Sie haben in kurzer Zeit viele Meldungen gesendet. Versuchen Sie es in einer Stunde erneut.",
     "errorFailed": "Das Senden ist fehlgeschlagen. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut oder öffnen Sie die Meldung auf GitHub.",

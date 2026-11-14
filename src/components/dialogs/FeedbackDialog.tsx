@@ -372,6 +372,20 @@ export function FeedbackDialog() {
             /* ── Bedankscherm (hoofdweg geslaagd) ── */
             <div className="feedback-confirm" data-feedback-sent>
               <p className="feedback-confirm-title" role="status">{t('feedback.sentTitle')}</p>
+              {sent.githubIssueUrl && (
+                <p className="feedback-confirm-issue">
+                  {t('feedback.sentIssue')}{' '}
+                  <a
+                    className="feedback-confirm-link"
+                    href={sent.githubIssueUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => { e.preventDefault(); if (sent.githubIssueUrl) void openFeedbackUrl(sent.githubIssueUrl); }}
+                  >
+                    {sent.githubIssueUrl.replace(/^https:\/\//, '')}
+                  </a>
+                </p>
+              )}
               {sent.screenshotDropped && (
                 <p className="feedback-confirm-fallback">{t('feedback.sentScreenshotDropped')}</p>
               )}
@@ -523,14 +537,6 @@ export function FeedbackDialog() {
         <div className="feedback-dialog-footer">
           {sent ? (
             <>
-              {sent.githubIssueUrl && (
-                <button
-                  className="btn btn--sm btn--secondary"
-                  onClick={() => { if (sent.githubIssueUrl) void openFeedbackUrl(sent.githubIssueUrl); }}
-                >
-                  {t('feedback.viewOnGithub')}
-                </button>
-              )}
               <button className="btn btn--sm btn--primary" onClick={close} autoFocus>
                 {t('feedback.close')}
               </button>
