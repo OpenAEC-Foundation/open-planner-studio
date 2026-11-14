@@ -62,6 +62,17 @@ export const REPORT_FONTS: Record<ReportFontId, ReportFontDef> = {
   liberationMono: { family: 'OpsReportLiberationMono', files: { regular: 'LiberationMono-Regular.ttf', bold: 'LiberationMono-Bold.ttf' }, generic: 'monospace' },
 };
 
+/**
+ * Wat de keuzelijst kan kiezen: een letter uit het vaste setje, of `custom`, het eigen lettertype van de
+ * planner (besluit Ethan, 14 november 2026: van de computer of uit een bestand). Van dat eigen lettertype
+ * bewaart de app een kopie van de bytes (`customFontStore.ts`); de familie op het scherm is
+ * {@link CUSTOM_REPORT_FAMILY}, de bytes in de PDF zijn dezelfde.
+ */
+export type ReportFontChoice = ReportFontId | 'custom';
+
+/** De `@font-face`-familie van het eigen lettertype; een eigen naam, net als bij het vaste setje. */
+export const CUSTOM_REPORT_FAMILY = 'OpsReportCustom';
+
 export function isReportFontId(value: unknown): value is ReportFontId {
   return typeof value === 'string' && (REPORT_FONT_IDS as readonly string[]).includes(value);
 }
@@ -144,8 +155,9 @@ export function reportTextFont(text: string, font: string): string {
  * generieke familie. Inter staat er bewust tussen: een teken dat de gekozen letter mist, tekent het
  * canvas dan in Inter, net als de vector-PDF (`fallbackFonts` in `paginateVector.ts`).
  */
-export function reportFontStack(id: ReportFontId): string {
+export function reportFontStack(id: ReportFontChoice): string {
   if (id === 'inter') return DEFAULT_REPORT_FONT_STACK;
+  if (id === 'custom') return `"${CUSTOM_REPORT_FAMILY}", ${INTER_PDF_FAMILY}, sans-serif`;
   const def = REPORT_FONTS[id];
   return `"${def.family}", ${INTER_PDF_FAMILY}, ${def.generic}`;
 }

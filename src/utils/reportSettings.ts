@@ -30,7 +30,7 @@ import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
 } from '@/engine/reports/reportingPeriod';
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
-import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontId } from '@/services/pdf/reportFont';
+import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontChoice } from '@/services/pdf/reportFont';
 
 /** De `localStorage`-sleutel van de rapportinstellingen. */
 const LOCAL_KEY = 'ops-reportSettings';
@@ -189,9 +189,13 @@ export interface ReportSettings {
   repeatFooter: boolean;
   timelineColumns: number;
   reportFontScale: number;
-  /** Lettertype van alle rapporttekst (issue #770): een id uit het vaste setje in `reportFont.ts`.
-   *  Alleen deze voorkeur op het apparaat; het IFC-bestand weet er niets van. */
-  reportFontFamily: ReportFontId;
+  /** Lettertype van alle rapporttekst (issue #770): een id uit het vaste setje in `reportFont.ts`, of
+   *  `custom` voor het eigen lettertype hieronder. Alleen deze voorkeur op het apparaat; het IFC-bestand weet
+   *  er niets van. */
+  reportFontFamily: ReportFontChoice;
+  /** Het eigen lettertype (besluit Ethan, 14 november 2026): de naam voor de keuzelijst en de versie van de
+   *  kopie in `customFontStore.ts`. De bytes staan daar, niet hier. `null`: geen eigen lettertype gekozen. */
+  customReportFont: CustomReportFontRef | null;
   /** Statuslijn in de export: drie opties. */
   statusLine: 'none' | 'statusDate' | 'progress';
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
@@ -256,6 +260,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   reportFontScale: 100,
   // De letter van vóór de keuzelijst: een verse installatie en een oude opslag drukken ongewijzigd af.
   reportFontFamily: DEFAULT_REPORT_FONT_ID,
+  customReportFont: null,
   statusLine: 'none',
   followView: false,
   layoutId: '',
@@ -398,6 +403,29 @@ function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
  * hij ontbreekt (verse installatie), hij mist velden (opgeslagen door een oudere versie), of een
  * veld bevat rommel (handmatig geprutst). In alle gevallen wint de default voor precies dat veld.
  */
+/** Het eigen lettertype in de rapportinstellingen: alleen naam en versie; de bytes staan in `customFontStore.ts`. */
+export interface CustomReportFontRef {
+  name: string;
+  rev: number;
+}
+
+function parseCustomReportFont(raw: unknown): CustomReportFontRef | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const { name, rev } = raw as Record<string, unknown>;
+  return typeof name === 'string' && name.trim() !== '' && typeof rev === 'number' && Number.isFinite(rev) ? { name, rev } : null;
+}
+
+/** De gekozen letter: een id uit het vaste setje, `custom` alleen als er een eigen lettertype is, anders Inter. */
+export function parseReportFontChoice(raw: unknown, custom: CustomReportFontRef | null): ReportFontChoice {
+  if (raw === 'custom') return custom ? 'custom' : DEFAULT_REPORT_FONT_ID;
+  return parseEnum(REPORT_FONT_IDS, raw) ?? DEFAULT_REPORT_FONT_ID;
+}
+
+/** Een sleutel die verandert als de letter verandert, ook bij een ander eigen lettertype (een nieuwe versie). */
+export function reportFontKey(settings: Pick<ReportSettings, 'reportFontFamily' | 'customReportFont'>): string {
+  return settings.reportFontFamily === 'custom' ? `custom:${settings.customReportFont?.rev ?? 0}` : settings.reportFontFamily;
+}
+
 export async function loadReportSettings(): Promise<ReportSettings> {
   return readReportSettings();
 }
@@ -445,7 +473,8 @@ function parseReportSettings(raw: unknown): ReportSettings {
     // `snapToChoice`: dezelfde "getal buiten de keuzelijst"-semantiek als de settings-loader.
     reportFontScale: snapToChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
     // Een onbekende id (een letter die een latere versie toevoegde, of geprutst) ⇒ Inter.
-    reportFontFamily: parseEnum(REPORT_FONT_IDS, s.reportFontFamily) ?? d.reportFontFamily,
+    reportFontFamily: parseReportFontChoice(s.reportFontFamily, parseCustomReportFont(s.customReportFont)),
+    customReportFont: parseCustomReportFont(s.customReportFont),
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
