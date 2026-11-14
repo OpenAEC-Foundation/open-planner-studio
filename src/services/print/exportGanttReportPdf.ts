@@ -9,7 +9,7 @@ import { paginateCanvasToPdfBytes, type PaginateOptions } from '@/services/print
 import { computeTileLayout, footerLayoutWidthFor } from '@/services/print/tileLayout';
 import { computeHighResScale } from '@/utils/miniPdf';
 import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes } from '@/services/pdf/fontLoader';
-import type { ReportFontId } from '@/services/pdf/reportFont';
+import type { ReportFontChoice } from '@/services/pdf/reportFont';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { ganttTileOptions } from '@/services/print/reportPaperModel';
 
@@ -42,7 +42,7 @@ export interface GanttReportPdfInput {
    * De rapportletter (#770). Moet dezelfde zijn als de stack in `options.fontFamily`: de raster-tak
    * tekent met die stack, de vector-tak bedt de bytes van deze letter in. Zonder waarde: Inter.
    */
-  fontId?: ReportFontId;
+  fontId?: ReportFontChoice;
 }
 
 /**

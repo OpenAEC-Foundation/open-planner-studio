@@ -962,6 +962,11 @@ en noem het in je rapport of PR-tekst.
      (`taskDateLabel`, kant `end`) toont een einde op een dagbegin met de tijd. Datums bij balken (#868) volgen de
      tabel en tonen hetzelfde. Voorstel: een fase-einde op een dagbegin dat van een mijlpaal komt als datum tonen, of
      de rollup laten afronden zoals de mijlpaal zelf. Gezien in de app tijdens #868. — B
+1651. **De A4-regressietest voor datums bij balken in de afdruk draait twee keer op 90%.**
+     `tests/planning/check-print-bar-dates.ts` geeft `reportFontScale` als `1` en `1.25` door, maar de renderer
+     verwacht percentages (`90`, `100`, `110`, `125`) en kiest de dichtstbijzijnde: beide gevallen worden 90%. Het
+     label noemt 100% en 125%. De echte 100%- en 125%-gevallen zijn los nagemeten en goed (eindig, zelfde dagbreedte
+     als zonder datums). Voorstel: `[100, 125]` en het label zonder `* 100`. Bron: review Sol ronde 3 van #951. — B
 
 ## Kalenders
 
@@ -2680,6 +2685,13 @@ en noem het in je rapport of PR-tekst.
      koptekst die beide berekeningen noemt, of een neutrale tekst. Stond al op main. Uit de review van #874
      (GPT-6.1-Terra, xhigh, op `c38ac7d9e`, VERVOLG). — B
 
+1730. **VERVOLG: 26 gidsvertalingen moeten de correctie over afzonderlijke resource-uren nog overnemen.**
+      `public/docs/{ar,bg,cs,da,de,es,fa,fi,fr,hr,hu,it,ja,ko,lo,nb,pl,pt,ro,ru,sk,sr,sv,tr,uk,zh}/howto-werkregel-kiezen.md`
+      is in #954 nog niet bijgewerkt met de Nederlandse en Engelse broncorrectie: eigen werkinvoer kan
+      afwijken van inzet × resterende duur; onder Vaste inzet blijven andere toewijzingen alleen bij gelijke
+      duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
+      bewust niet met de hand gewijzigd. — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
@@ -3086,6 +3098,13 @@ en noem het in je rapport of PR-tekst.
       de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
       gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
       Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+1620. **VERVOLG: Dissolve in lint, rechtsklikmenu en instelling is niet in de browser getest.**
+      `tests/planning/check-dissolve-tasks.ts` controleert lint en menu grotendeels met reguliere
+      expressies op de broncode en roept `contextMenuBulk.dissolve` rechtstreeks aan. Een echte klik
+      op de lintknop en op *Dissolve (keten behouden)*, de uitgeschakelde knop zonder selectie en het
+      bewaren en herladen van *Dissolve bij een samenvattingstaak* zijn niet getest. Voorstel: stappen
+      toevoegen aan een bestaande browserroute voor verwijderen en ongedaan maken. Sol-review #937
+      ronde 1 op 017ab4afd: [BEVESTIGD] VERVOLG. — B
 1690. **VERVOLG: geen test voert een echte Windows-update met een gedeflate `.nsis.zip` uit.**
       `tests/planning/check-updater-zip.ts` leest alleen `src-tauri/Cargo.toml` en `Cargo.lock`, en de drie
       platformbuilds in `ci.yml` bouwen met `--no-bundle`. Een groene CI bewijst dus niet dat de updater een
@@ -3975,3 +3994,50 @@ en noem het in je rapport of PR-tekst.
      volledig heropenen geeft dezelfde codedefinities, de verliescontrole van nu weigert die fout wel. Een toets
      "de geschreven eigen pset leest terug tot precies het domein" moet zulke dubbel geschreven gegevens dus apart
      bewaken, of de vormcontrole in `explainCodeDefinitions` blijft nodig. — B
+
+1640. **VERVOLG (#770, eigen rapportlettertype): de terugval op Inter bij een verdwenen kopie werkt alleen als de
+     keuzelijst Lettertype zichtbaar is.** De controle (`useCustomReportFontGuard` in
+     `src/components/panels/reports/reportFormPrimitives.tsx`) zit in `ReportFontSelect`. Start met de keuze `custom`,
+     een verdwenen kopie in IndexedDB (`ops-report-font`) en een andere stap open of de zijbalk ingeklapt: de keuze
+     blijft `custom`, de melding ontbreekt en de vector-export valt bij gebrek aan bytes terug op raster. Pas de stap
+     Pagina openen herstelt het. Richting: de controle in de rapportwerkruimte, die altijd gemount is, één keer voor
+     alle rapporten. Gevonden door de review van #946 (Sol, ronde 1). — B
+
+1720. **VERVOLG (#949, blokkadecontrole bij het wachten op de browserreparatie): bij meer dan honderd reacties leest ze
+     een verouderde laatste reactie.** `.claude/skills/release/SKILL.md`, de lus `wacht_op_reparatie`, gebruikt
+     `gh issue list --json comments` en dan `.comments[-1]`. `gh` 2.45.0 vraagt `comments(first: 100)` op: bij honderd
+     gewone reacties en daarna `REPARATIE GEBLOKKEERD` als reactie 101 ziet de lus geen blokkade; omgekeerd blijft een
+     oude blokkade op positie 100 zichtbaar nadat het werk is hervat. Richting: de laatste reactie echt opvragen
+     (`comments(last: 1)` via `gh api graphql`), en beide beslissingen uit één antwoord nemen in plaats van twee
+     `gh`-aanroepen per ronde. Gevonden door de review van #949 (Sol, ronde 2). — B
+
+1721. **VERVOLG (#949, controle 7g in `verify:docs`): ze verwart verboden woorden met verboden releasegedrag.**
+     `scripts/verify-docs.ts` keurt elke `14:00` of `deadline` buiten de reparatieskill af, en stelt de hele
+     reparatieskill ervan vrij. Gedraaid in het geheugen: `De release heeft geen deadline.` wordt afgekeurd; een
+     toelichting in de releaseskill dat de reparatie om 14:00 stopt wordt afgekeurd; `Om 14:00 stopt ook de release`
+     in de reparatieskill wordt geaccepteerd. Richting: de controle en de uitzondering beperken tot de bedoelde
+     afspraken, niet tot een heel bestand. Gevonden door de review van #949 (Sol, ronde 2). — B
+
+1722. **VERVOLG (#949, `ci.yml`): de cron op vrijdag 22:00 is overbodig naast de avondrun.** `.github/workflows/ci.yml`
+     heeft `cron: '0 22 * * 5'` (`timezone: Europe/Amsterdam`); sinds 2026-11-06 start de geplande Trias-taak elke
+     avond van maandag tot en met zaterdag om 22:00 zelf een browserrun op `main`. De cron levert op vrijdag een
+     dubbele run op. Bewust niet aangepast in #949 (geen workflowwijziging in die PR). — S
+
+1723. **VERVOLG (#949, `scripts/release-ci-check.mjs`): ze rekent nog vanaf "de laatste vrijdag 22:00".**
+     `fridayEvening` en de melding `geen browserrun sinds vrijdag …` kennen alleen de vrijdagrun; de laatste
+     browserrun vóór de maandagrelease is die van zaterdag 22:00. De gate pakt de laatste run sinds die vrijdag en
+     werkt dus, maar naam, commentaar en de documentatie in `scripts/README.md` en `ci-release.md` noemen de vrijdag.
+     Bewust niet aangepast in #949 (geen script- of gatewijziging in die PR). — S
+
+1724. **VERVOLG (#949, reparatieskill en `ci-release.md`): de ingangstekst noemt nog de uitgeschakelde vrijdagtaak.**
+     `.claude/skills/browsertests-repareren/SKILL.md:3` (de `description`: "Gebruik alleen wanneer de geplande
+     vrijdagjob of de release-skill deze skill start") en `.claude/rules/ci-release.md:27` (vrijdag 23:30 als de taak
+     die rode browserruns repareert) wijzen nog naar de vrijdagtaak die uitstaat; de ochtendreparatie van Trias (ma–za
+     08:00) voert de skill nu uit. De sectie "Geplande taak (vrijdag, staat uit)" onderaan de skill (circa 54 regels)
+     kan bij het opruimen terug tot één historische mededeling. Gevonden door de review van #949 (Sol, ronde 3). — B
+
+1725. **VERVOLG (#949, reparatieskill): "Zaterdag na 23:50" wijkt af van de weekendstop van zaterdag 23:00.**
+     `.claude/skills/browsertests-repareren/SKILL.md`, sectie "Stoppen om 14:00". De 23:50 komt uit de letterlijke
+     prompt van de geplande ochtendtaak van Trias; de weekendstop van de eigenaar is zaterdag 23:00 tot maandag 01:00.
+     Zet beide op dezelfde grens (23:00), in de skill én in die prompt. Gevonden door de review van #949 (Sol,
+     ronde 3). — B

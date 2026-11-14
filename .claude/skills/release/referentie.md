@@ -2,7 +2,7 @@
 
 Lees het passende onderdeel tijdens de release. Dit bestand geeft geen zelfstandig publicatiemandaat.
 
-## Node-uitzondering voor de zaterdagjob
+## Node-uitzondering voor de maandagjob
 
 **Besluit 9: eigenaar, verduidelijkt door de orkestrator op 2026-10-23.** Lichte release-scripts
 mogen op de server; de bedoeling is overbelasting voorkomen, niet de release blokkeren.
@@ -58,9 +58,9 @@ Ook de lichte stappen uit [update-ui-lang](../update-ui-lang/SKILL.md) vallen bi
 inclusief pakketselectie, pakketchecks, i18n-onderhoud en termbaseherstel.
 Gebruik de bestaande release-worktree en zijn eenmaal geïnstalleerde dependencies. Sla de losse
 werkplekinrichting van `update-ui-lang` over; geen extra worktree, installatie of `node_modules`-link.
-Geef elk T3-Haiku-station expliciet het zaterdagmandaat, de release-worktree en toestemming voor
+Geef elk T3-Haiku-station expliciet het maandagmandaat, de release-worktree en toestemming voor
 zijn eigen `build/translate/check.mjs`-pakketcheck uit deze lijst mee. Dit geldt voor vertalen,
-nalezen en herstellen, uitsluitend binnen deze zaterdagjob. De stations installeren niets.
+nalezen en herstellen, uitsluitend binnen deze maandagjob. De stations installeren niets.
 Behoud de bestaande pakketpoorten en wacht op alle vereiste stations vóór `apply ui`.
 
 ## Hervatten
@@ -70,7 +70,7 @@ Doe dit vóór “niets veranderd” en vóór `npm run bump`. Neem de numeriek 
 `TAG` is die bestaande tag, `SHA` zijn gepelde commit en `VERSION="${TAG#v}"`.
 Werk voor publicatie in een schone worktree op `SHA`; CI-fixes krijgen apart een branch vanaf main.
 Een incomplete app-uitlevering wordt nooit stil als vorige voltooide release gebruikt.
-Alleen open websitewerk blokkeert een volgende app-release niet; probeer het de volgende zaterdag opnieuw.
+Alleen open websitewerk blokkeert een volgende app-release niet; probeer het de volgende maandag opnieuw.
 Een bewezen [ontbrekend AUR-secret](#ontbrekend-aur-secret) is geen open werk; meld het in het eindrapport.
 
 **Controleer eerst afschrijving**, vóór enige release-/workflowpoging voor deze tag.
@@ -102,7 +102,7 @@ JS
 Bewaar in de app-release-PR (titel `Release v<VERSION>`) één bijwerkbaar commentaar met marker
 `<!-- ops-release:TAG -->`: tag/SHA, run-ID's en eindstatus van release/Snap/AUR, wiki-bron-SHA en
 wiki-commit, website-PR-URL, merge-SHA en deployrun, resterende fout. Leg ook reruns, fix-PR's,
-review-taak-ID's/head-SHA's, BLOKKEERT/VERVOLG en de deadline vast. Vul `TAG` in de marker echt in.
+review-taak-ID's/head-SHA's, BLOKKEERT/VERVOLG en een eventuele blokkade vast. Vul `TAG` in de marker echt in.
 Schrijf het commentaar vóór de tag en na elke stap bij. Een lokaal bestand of chatbericht is geen
 hervatbewijs. Zonder bestaand verslag: reconstrueer dezelfde gegevens uit GitHub en de wiki;
 controleer de werkelijkheid ook als het verslag “klaar” zegt. Maak geen dubbele release of PR.
@@ -117,12 +117,12 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    Hun eigen `head_sha` kan de defaultbranch zijn: koppel via getagde checkout/versie in de logs
    en de vastgelegde run-ID's, niet blind via `--commit`. Een PR-run of overgeslagen publicatie
    telt niet; alleen een [ontbrekend AUR-secret](#ontbrekend-aur-secret) is hierop een uitzondering.
-   Wacht binnen de deadline op een lopende run; start geen tweede.
+   Wacht op een lopende run; start geen tweede.
 2. **Release herstellen.** Is de bijbehorende `release.yml`-run mislukt of geannuleerd: bekijk
    eerst de fout en de geslaagde jobs met `gh run view <run-id> --json jobs` en `--log-failed`.
    Volg [CI herstellen](#ci-herstellen): eerst eenmaal `gh run rerun <run-id> --failed`, ook bij een
-   inhoudelijke fout. Blijft hij rood: fix-PR met Sol-review, binnen de deadline.
-   Dit is publiceren en valt onder het zaterdagmandaat. Bewaar de gebruikte rerunpoging.
+   inhoudelijke fout. Blijft hij rood: fix-PR met Sol-review.
+   Dit is publiceren en valt onder het maandagmandaat. Bewaar de gebruikte rerunpoging.
    Nooit een hele release-run opnieuw starten als `create-release` al slaagde: die maakt een nieuwe
    draft met `createRelease`, zonder bestaande-releasecontrole. Gebruik de bestaande run en outputs.
    Ontbreken zowel release als run: start eenmaal de gate op **de bestaande tag**:
@@ -157,7 +157,7 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    Een geslaagde deploy op de merge-SHA of een bewezen afstammeling telt, mits beide blokken live staan.
    Staat de juiste inhoud al op main zonder PR, leg die main-SHA vast als basis voor dezelfde controle.
    Bij ontbrekende wijziging maak je de versie-PR alsnog. Bij een gesloten, ongemergede PR of
-   blijvend mislukte/ontbrekende deploy: meld en bewaar het resterende werk voor de volgende zaterdag.
+   blijvend mislukte/ontbrekende deploy: meld en bewaar het resterende werk voor de volgende maandag.
    De app-release blijft staan; dit websitewerk blokkeert ook de volgende app-release niet.
 
 Na alle toepasselijke hervatstappen, uitgesteld websitewerk of vastgelegde afschrijving: noteer de tag als `PREV`.
@@ -251,7 +251,7 @@ JS
   notes/highlights en de bestaande gemergde release-PR met zijn verslag. Hervat direct bij de
   main-poorten van stap 3. Ontbreekt nog inhoud: vul die voor **dezelfde versie** aan via een
   correctie-PR (`RELEASE_MODE=pr`) met normale PR/main-poorten; vernieuw de cijfers voor de extra
-  commit. Geen bump, ook niet op de volgende zaterdag.
+  commit. Geen bump, ook niet op de volgende maandag.
 - **Geen van beide:** `RELEASE_MODE=nieuw`. Pas nu mag de wijzigingscontrole tot een nieuwe
   `npm run bump` leiden. Een afgeschreven tag met nog te maken opvolger blijft onafgerond werk;
   anders is er zonder nieuwe commits sinds `PREV` niets te releasen.
@@ -267,15 +267,17 @@ maakt de route naar een nieuwe opvolgversie vrij; een bestaande ongetagde opvolg
 Besluit 8: eigenaar, gesprek 2026-10-22. Dit geldt voor rode main-CI, release-PR-CI en releaseworkflows
 na de tag. Een rode browserrun volgt de skill `browsertests-repareren`. Een rode poort blijft blokkeren; de job repareert de oorzaak zelf.
 
-### Deadline en voortgang
+### Geen eindtijd en voortgang
 
-De zaterdagjob stopt uiterlijk **14:00 Europe/Amsterdam**, dezelfde zaterdag als de start om 07:00.
-Gebruik de lokale datum/tijd met die IANA-tijdzone; geen vaste UTC-offset (zomer-/wintertijd).
-Controleer de tijd vóór reruns, delegaties, commits, merges, dispatches en tag/publicatie.
-Wacht begrensd op runs en reviewtaken. Start geen nieuwe stap die niet meer binnen de deadline past.
-Om 14:00: geen nieuwe mutaties; bewaar de actuele status en rapporteer de precieze oorzaak.
+De maandagjob start op maandag om 07:00 Europe/Amsterdam en heeft geen eindtijd (besluit Ethan, 2026-11-09). Hij gaat door
+tot hij af is, ook 's avonds, en vraagt geen toestemming om door te gaan. Alleen een echte blokkade stopt hem:
+een BLOKKEERT, een rode CI die je niet zelf kunt repareren, of een vaste regel. De weekendstop (zaterdag 23:00
+tot maandag 01:00) en zondag blijven gelden.
+Gebruik de lokale datum/tijd met de IANA-tijdzone Europe/Amsterdam; geen vaste UTC-offset (zomer-/wintertijd).
+Wacht begrensd op runs en reviewtaken; meld een taak die vastzit als blokkade.
+Bij een blokkade: geen nieuwe mutaties; bewaar de actuele status en rapporteer de precieze oorzaak.
 Nog geen nieuwe tag: die week geen tag meer. Een open fix-PR blijft staan. Al getagd: niets terugdraaien.
-De volgende zaterdag hervat de bestaande voortgang: dezelfde tag tenzij afgeschreven, dan zijn
+De volgende maandag hervat de bestaande voortgang: dezelfde tag tenzij afgeschreven, dan zijn
 fix/opvolger. Een al ongetagde opvolgversie behoudt zijn nummer, ook na een weekwissel.
 
 Leg run-ID/attempt, rerunpoging, foutbewijs, fix-PR/branch/head, review-taak-ID's en resterend werk
@@ -288,7 +290,7 @@ maak geen dubbele PR. Een al verbruikte rerunpoging begint na een weekwissel nie
 1. Lees de rode jobs en logs van de **exacte** main-/PR-head of getagde run:
    `gh run view <run-id> --json jobs` en `gh run view <run-id> --log-failed`.
    Draai de mislukte checks eerst eenmaal opnieuw met `gh run rerun <run-id> --failed`.
-   Bewaar de poging en wacht binnen de deadline. Groen: hercontroleer de SHA en vervolg de poorten.
+   Bewaar de poging en wacht op de uitkomst. Groen: hercontroleer de SHA en vervolg de poorten.
    Ontbrekende runs of auth-/netwerkfouten zijn geen rode check; verzin geen succes of nieuwe run.
 2. Nog rood: maak een eigen fixbranch vanaf vers opgehaalde `origin/main` en een fix-PR tegen main.
    Reproduceer de oorzaak in PR-CI en maak de kleinste fix die haar repareert. Geen test uitzetten of
@@ -336,10 +338,10 @@ Gebruik een nieuwe T3 `delegate_task` per reviewronde:
 Vul de brief concreet in. BLOKKEERT omvat fouten die correct herstel verhinderen of regressies
 veroorzaken; VERVOLG omvat niet-blokkerende verbeteringen. Behoud [BEVESTIGD]/[VERMOED] en onderbouwing.
 Controleer geretourneerde provider, model en opties. Bewaar elk `taskId` en het rapport voor die head.
-Een timeout laat de child doorlopen: lees `task_status(taskId)` binnen de deadline, start geen duplicaat.
+Een timeout laat de child doorlopen: lees `task_status(taskId)`, start geen duplicaat.
 Gebruik `childThreadId` nooit als vervolgronde. Elke nieuwe ronde krijgt een nieuwe `delegate_task`
 met de oorspronkelijke brief én eerdere bevindingen/antwoorden; een retry van dezelfde aanvraag
-houdt dezelfde `clientRequestId`. Bij de deadline: leg een nog actieve taak vast en hervat die eerst.
+houdt dezelfde `clientRequestId`. Bij een blokkade of onderbreking: leg een nog actieve taak vast en hervat die eerst.
 
 ### Herstel na de tag
 
@@ -359,7 +361,7 @@ punt 2 hieronder en maak een opvolgversie. Verander de gate niet om een tag door
 **Besluit orkestrator, 2026-10-22:** heeft de tag gewijzigde broncode of workflow nodig, dan geldt:
 
 1. Repareer de oorzaak via de fix-PR-route op main: rerun → kleinste fix-PR → tweede Sol-review →
-   groene PR-CI → merge → groene CI op de exacte main-SHA. Behoud de fix-PR bij de deadline.
+   groene PR-CI → merge → groene CI op de exacte main-SHA. Behoud de fix-PR bij een blokkade.
 2. Schrijf de mislukte tag af. Zet in de body van zijn gemergde release-PR een eigen, vaste regel:
    ```text
    Afgeschreven tag: v2026.43.0
@@ -367,7 +369,7 @@ punt 2 hieronder en maak een opvolgversie. Verander de gate niet om een tag door
    Vul de echte tag in. Noteer eronder reden, fout/run-URL, fix-PR en later de opvolger-PR/tag.
    Bewaar ook het bestaande hervatverslag. Er komt geen apart register of nieuwe release-status.
    Lees de opgeslagen body terug voordat je doorgaat. Een nog niet vastgelegde afschrijving is
-   geen vrijbrief voor een nieuwe bump. Staat de fix bij de deadline nog open, zet de afschrijfregel
+   geen vrijbrief voor een nieuwe bump. Staat de fix bij een blokkade nog open, zet de afschrijfregel
    alvast met het foutbewijs en die fix-PR; de volgende job rondt eerst de fix af, vóór een nieuwe bump.
 3. **Vanaf die regel geen enkele nieuwe poging meer op de afgeschreven tag.** Verplaats, verwijder
    of push hem nooit opnieuw. Een eventuele draft blijft draft; publiceer hem niet. Laat een reeds
@@ -384,8 +386,8 @@ punt 2 hieronder en maak een opvolgversie. Verander de gate niet om een tag door
    inhoud en vernieuw de cijfers/JSON. De bestaande cijferverifier blijft de nieuwste origin-tag
    als basis gebruiken, ook bij afschrijving; verwissel die niet stil met de vorige publicatie.
 6. Doorloop de normale release-PR, poorten, groene main, nieuwe tag en uitlevering. De afschrijving
-   slaat geen enkele poort over. Is het 14:00: stop en bewaar fix/opvolger in de PR's. De volgende
-   zaterdag herkent de vaste regel de afschrijving en hervat dezelfde opvolger, zonder extra bump.
+   slaat geen enkele poort over. Bij een blokkade: stop en bewaar fix/opvolger in de PR's. De volgende
+   maandag herkent de vaste regel de afschrijving en hervat dezelfde opvolger, zonder extra bump.
 
 ## Releasecijfers
 
@@ -483,7 +485,7 @@ annuleren; soms ontbreekt die run geheel. De merge-SHA blijft de inhoudsbasis. O
 
 1. Zoek eerst `gh run list --repo OpenAEC-Foundation/website --workflow deploy.yml --event push
    --branch main --commit <merge-SHA>`. Lees ook nieuwere `deploy.yml`-runs op main, met event
-   `push` of `workflow_dispatch`. Wacht binnen de deadline op een lopende toepasselijke run;
+   `push` of `workflow_dispatch`. Wacht op een lopende toepasselijke run;
    start geen tweede zolang die loopt. Auth-/netwerkfouten zijn geen bewijs van een ontbrekende run.
 2. Bewijs vereist `conclusion=success` én beide juiste releaseblokken live (`#whats-new` en de tijdlijn).
    Een geslaagde run op de merge-SHA telt. Een geslaagde run op een afstammeling telt ook:
@@ -491,15 +493,15 @@ annuleren; soms ontbreekt die run geheel. De merge-SHA blijft de inhoudsbasis. O
    in de websitecheckout (exit 0). Noteer beide SHA's en het voorouderbewijs. Een oudere of niet-verwante
    groene deploy, alleen live inhoud of alleen de dagelijkse stats-run volstaat niet.
 3. Ontbreekt dit bewijs na een ontbrekende, geannuleerde of mislukte run, en loopt er geen
-   toepasselijke deploy: start binnen het zaterdagmandaat eenmaal per job
+   toepasselijke deploy: start binnen het maandagmandaat eenmaal per job
    `gh workflow run deploy.yml --repo OpenAEC-Foundation/website`.
    Noteer dispatchtijd en de actuele main-SHA. Zoek de bijbehorende `workflow_dispatch`-run,
-   wacht binnen de deadline en toets zijn SHA, conclusie en liveblokken volgens stap 2.
+   wacht op de run en toets zijn SHA, conclusie en liveblokken volgens stap 2.
    Dit is het herstelpad zonder bruikbaar run-ID; maak geen dubbele website-PR.
 4. Noteer website-PR, merge-SHA, deploy-SHA, run-ID/URL, conclusie en livecontrole in het hervatverslag.
-   Blijft de deploy rood, ontbreekt bevestiging of verstrijkt de deadline: laat de app-release staan,
+   Blijft de deploy rood, ontbreekt bevestiging of loopt de job vast: laat de app-release staan,
    meld de fout in het eindrapport en bewaar het websitewerk. **Dit blokkeert de volgende app-release niet.**
-   Probeer het de volgende zaterdag opnieuw naast de nieuwe release en draag open werk over in diens verslag.
+   Probeer het de volgende maandag opnieuw naast de nieuwe release en draag open werk over in diens verslag.
 
 ## Uitlevering controleren
 

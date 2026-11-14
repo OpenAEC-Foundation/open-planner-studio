@@ -24,6 +24,8 @@
     "undo": "Undo",
     "redo": "Redo",
     "delete": "Delete",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: deletes the selected tasks and links every predecessor to every successor (finish-to-start, no lag)",
     "undoTitle": "Undo (Ctrl+Z)",
     "redoTitle": "Redo (Ctrl+Y)",
     "deleteTitle": "Delete selection (Delete)",

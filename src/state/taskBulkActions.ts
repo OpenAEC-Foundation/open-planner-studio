@@ -17,6 +17,8 @@ export interface TaskBulkActions {
     run: (state: AppState, id: string) => void,
   ): void;
   deleteTasksBulk(ids: readonly string[]): void;
+  /** Dissolve (issue #887): als verwijderen, maar elke voorganger gaat naar elke opvolger. */
+  dissolveTasksBulk(ids: readonly string[]): void;
 }
 
 /** Bind taakbulkmutaties en hun batchruntime aan precies één storecontext. */
@@ -55,7 +57,11 @@ export function createTaskBulkActions(context: AppStoreContext): TaskBulkActions
     context.store.getState().deleteTasksBulk([...ids]);
   }
 
-  return { applyToTaskIds, deleteTasksBulk };
+  function dissolveTasksBulk(ids: readonly string[]): void {
+    context.store.getState().dissolveTasksBulk([...ids]);
+  }
+
+  return { applyToTaskIds, deleteTasksBulk, dissolveTasksBulk };
 }
 
 /** Expliciete compatibiliteitsadapter voor de ene gemounte productinterface. */

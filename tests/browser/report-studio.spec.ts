@@ -1078,6 +1078,8 @@ async function pdfTextsInFont(pdf: PDFDocument, fontKey: string, fontFile: strin
 // laadt. Het blok van de tabelrapporten toont dezelfde keuze, ook in de raster-terugval, en na een herstart van de
 // app staat de keuze er nog. Alleen een voorkeur op dit apparaat.
 test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een herstart', async ({ page, ops: _ops }) => {
+  // Vier letters, drie exports, het eigen lettertype en twee herstarts (~28 s lokaal); ruimte voor drukte in CI.
+  test.slow();
   const longName = 'Afwerking begane grond noordzijde';
   const [letterTaskId] = await seedProject(page, [
     // Cyrillisch dekt Carlito zelf; het vinkje niet, dat komt in de PDF uit Inter.
@@ -1222,4 +1224,67 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
   await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
   await openStep(page, 'page');
   await expect(page.getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
+
+  // Eigen lettertype (besluit Ethan, 14 november 2026): *Ander lettertype…* → *Bestand kiezen…*, een bestand
+  // zonder vette variant. Een tekstbestand weigert met de reden in het venster. Het lettertype komt in de lijst,
+  // het papier tekent ermee, er komt één melding over het ontbrekende vet en de PDF bedt het in, ook als vet.
+  const studioFontPicker = page.getByLabel(/^(Font:|Lettertype:)$/);
+  await studioFontPicker.click();
+  await page.getByRole('option', { name: /^(Other font…|Ander lettertype…)$/ }).click();
+  const fontDialog = page.locator('[data-ops-custom-font-dialog]');
+  await expect(fontDialog).toBeVisible();
+  await fontDialog.locator('[data-ops-custom-font-file]').setInputFiles('README.md');
+  await expect(fontDialog.getByRole('alert')).toContainText(/(not a readable font file|geen leesbaar lettertypebestand)/);
+  await fontDialog.locator('[data-ops-custom-font-file]').setInputFiles('src/services/pdf/fonts/LiberationSerif-Regular.ttf');
+  await expect(fontDialog).toHaveCount(0);
+  await expect(studioFontPicker).toContainText(/^Liberation Serif \((own font|eigen lettertype)\)/);
+  await expect.poll(() => loadedWeights('OpsReportCustom'), { timeout: 20_000 }).toEqual(['400', '700']);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .filter(n => n.messageKey === 'notifications.reportFontNoBold').map(n => n.params?.name))).toEqual(['Liberation Serif']);
+  // Na de herstart is er geen project meer open; de naam van de PDF doet hier niet ter zake.
+  const ownFonts = type0BaseFonts(await PDFDocument.load(await exportStudioPdf(page, /\.pdf$/)));
+  expect(ownFonts.filter(font => /^\/LiberationSerif-\d+$/.test(font))).toHaveLength(2);
+
+  // Een tweede tabblad kiest een ander eigen lettertype (review Sol #946, ronde 1). Dit tabblad neemt naam, versie
+  // en bytes over, en geen van beide schrijft daarna een andere versie terug.
+  const pageB = await page.context().newPage();
+  await pageB.goto('/');
+  await waitForOps(pageB);
+  await waitForWelcomeDialog(pageB);
+  await pageB.evaluate(() => { window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }); });
+  await pageB.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  await openStep(pageB, 'page');
+  const fontPickerB = pageB.getByLabel(/^(Font:|Lettertype:)$/);
+  await fontPickerB.click();
+  await pageB.getByRole('option', { name: /^(Other font…|Ander lettertype…)$/ }).click();
+  await pageB.locator('[data-ops-custom-font-file]').setInputFiles(['src/services/pdf/fonts/Carlito-Regular.ttf', 'src/services/pdf/fonts/Carlito-Bold.ttf']);
+  await expect(fontPickerB).toContainText(/^Carlito \((own font|eigen lettertype)\)/);
+  await expect(studioFontPicker).toContainText(/^Carlito \((own font|eigen lettertype)\)/);
+  const storedFont = (target: Page) => target.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').customReportFont));
+  const chosenByB = await storedFont(pageB);
+  await page.waitForTimeout(1500);
+  expect(await storedFont(page)).toBe(chosenByB);
+  expect(await storedFont(pageB)).toBe(chosenByB);
+  await expect(studioFontPicker).toContainText(/^Carlito /);
+  const fontsA = type0BaseFonts(await PDFDocument.load(await exportStudioPdf(page, /\.pdf$/)));
+  expect(fontsA).toContainEqual(expect.stringMatching(/^\/Carlito-Regular-\d+$/));
+  expect(fontsA).toContainEqual(expect.stringMatching(/^\/Carlito-Bold-\d+$/));
+  await pageB.close();
+
+  // De kopie op dit apparaat is weg (opslag gewist): na een herstart valt het rapport terug op Inter, met één melding.
+  await page.evaluate(() => new Promise(resolve => {
+    const request = indexedDB.deleteDatabase('ops-report-font');
+    request.onsuccess = request.onerror = request.onblocked = () => resolve(null);
+  }));
+  await page.reload();
+  await waitForOps(page);
+  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  if (await recovery.count() > 0) await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
+  await waitForWelcomeDialog(page);
+  await page.evaluate(() => { window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }); });
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  await openStep(page, 'page');
+  await expect(studioFontPicker).toContainText(/^Inter/);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .filter(n => n.messageKey === 'notifications.reportFontMissing').map(n => n.params?.name))).toEqual(['Carlito']);
 });

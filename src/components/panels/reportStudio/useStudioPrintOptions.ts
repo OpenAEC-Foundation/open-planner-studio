@@ -16,12 +16,14 @@ import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import type { ReportTextMetrics } from '@/services/pdf/reportTextMeasure';
 import type { ReportSettings } from '@/utils/reportSettings';
-import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
+import { reportFontStack, type ReportFontChoice } from '@/services/pdf/reportFont';
 import { reportBarColors } from './reportLayouts';
 
 /** De rapportletter die geladen is, met zijn meting (dezelfde als de vector-PDF, `loadReportTextMetrics`). */
 export interface StudioFont {
-  id: ReportFontId;
+  id: ReportFontChoice;
+  /** `reportFontKey`: verschilt ook tussen twee eigen lettertypen. */
+  key: string;
   metrics: ReportTextMetrics;
 }
 

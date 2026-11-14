@@ -682,7 +682,6 @@
     "sentTitle": "Köszönjük, a bejelentését elküldtük.",
     "alreadyIn": "Ez a bejelentés már megérkezett hozzánk. Szeretne valamit hozzáfűzni? Akkor módosítsa a szöveget, és küldje el újra.",
     "sentScreenshotDropped": "A képernyőkép túl nagy volt, ezért nem lett elküldve.",
-    "viewOnGithub": "Megtekintés a GitHubon",
     "errorValidation": "A bejelentést nem fogadtuk el. Ellenőrizze a szöveget (nem csak hivatkozásokat) és az e-mail-címet, majd próbálja újra.",
     "errorRateLimited": "Rövid idő alatt sok bejelentést küldött. Próbálja újra egy óra múlva.",
     "errorFailed": "A küldés nem sikerült. Ellenőrizze az internetkapcsolatot, és próbálja újra, vagy nyissa meg a bejelentést a GitHubon.",
