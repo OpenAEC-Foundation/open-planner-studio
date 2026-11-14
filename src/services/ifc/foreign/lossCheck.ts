@@ -431,17 +431,21 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
-    // Een writerfout kan alle nieuwe koppelingen weglaten, zodat de kaart precies de bron blijft.
-    // Ook zonder slotverschil moet een werkelijk verwachte groei volledig aanwezig zijn.
+    // Een writerfout kan de verwachte definitie, koppeling of baselinekeuze geheel weglaten.
+    // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
     const different = new Set(differences.map(d => d.chunk));
     for (const [chunk, scopes] of ctx.scopes) {
-      if (different.has(chunk) || scopes.size !== 1 || index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (different.has(chunk) || scopes.size !== 1) continue;
       const scope = [...scopes][0];
-      if (scope !== `project|pset:${PSET.Baselines}` && scope !== `project|pset:${PSET.TaskTypes}`) continue;
+      const codes = index.type(chunk) === 'IFCPROPERTYSETTEMPLATE' && index.name(chunk) === PSET.ActivityCodes;
+      if (!codes && (index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE'
+        || (scope !== `project|pset:${PSET.Baselines}` && scope !== `project|pset:${PSET.TaskTypes}`))) continue;
       const line = p1b.out.get(p1b.pairedOut.get(chunk)?.[0] ?? -1);
       if (!line) continue;
-      const d = { chunk, arg: 2, outArg: 2, source: index.argTokens(chunk)![2], out: line.args[2] };
-      if (explainOwnMapGrowth(ctx, d, scope.slice(8)) === false) say(d, true);
+      const arg = codes ? 6 : 2;
+      const d = { chunk, arg, outArg: arg, source: index.argTokens(chunk)![arg], out: line.args[arg] };
+      if ((codes ? explainCodeDefinitions(ctx, d) : explainOwnMapGrowth(ctx, d, scope.slice(8))) === false
+        || (!codes && explainActiveBaseline(ctx, d, scope.slice(8)) === false)) say(d, true);
     }
   }
 
@@ -1767,7 +1771,7 @@ function explainImportProvenance(ctx: O1Context, d: LossDiff): string | undefine
 /** Eén regel voor beide eigen kaarten: volledig gedragen bron, alle oude paren exact behouden,
  * uitsluitend de door de aanroeper bewezen nieuwe koppelingen. Geen gedeeltelijke JSON-samenvoeging. */
 function ownMapGrows(ctx: O1Context, d: LossDiff, before: unknown, after: unknown, expected: ReadonlyMap<string, string>): boolean {
-  if (!ctx.carried(d.chunk, 2) || !stringMap(before) || !stringMap(after) || expected.size === 0) return false;
+  if (!ctx.carried(d.chunk, 2) || !stringMap(before) || !stringMap(after)) return false;
   const old = Object.keys(before);
   return old.every(k => Object.prototype.hasOwnProperty.call(after, k) && after[k] === before[k])
     && Object.keys(after).length === old.length + expected.size
@@ -1783,6 +1787,51 @@ function mapJson(token: string, decode: (quoted: string) => string): unknown {
   const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/.exec(token.trim());
   if (!m) return undefined;
   try { return JSON.parse(decode(m[1])); } catch { return undefined; }
+}
+/** De writer bewaart de domeinvolgorde. Alle bestaande definities blijven exact op hun plaats;
+ * alleen werkelijk nieuwe ids mogen achteraan, met precies de domeininhoud. */
+function ownDefinitionsGrow(before: readonly unknown[], domain: readonly { id: string }[], after: unknown): boolean {
+  if (!Array.isArray(after) || domain.length <= before.length || after.length !== domain.length) return false;
+  const ids = new Set<string>();
+  for (let i = 0; i < domain.length; i++) {
+    const v = domain[i];
+    if (ids.has(v.id) || JSON.stringify(after[i]) !== JSON.stringify(v)
+      || (i < before.length && JSON.stringify(before[i]) !== JSON.stringify(v))) return false;
+    ids.add(v.id);
+  }
+  return true;
+}
+/** Alleen de templatelijst van onze activiteitscodes; een nieuwe verwijzing bewijst haar echte template en enumeratie. */
+function explainCodeDefinitions(ctx: O1Context, d: LossDiff): string | false | undefined {
+  const { input, p } = ctx, { index } = input;
+  if (d.whole || d.slotless || d.ambiguous || p.ambiguous[d.chunk] || d.arg !== 6 || (d.outArg ?? d.arg) !== 6
+    || index.type(d.chunk) !== 'IFCPROPERTYSETTEMPLATE' || index.name(d.chunk) !== PSET.ActivityCodes
+    || ctx.scopes.get(d.chunk)?.size !== 1) return undefined;
+  const before = (input.opened ?? input.pristine).activityCodeTypes ?? [], domain = input.domain.activityCodeTypes ?? [];
+  if (!ctx.plannerChanged.has('activityCodeTypes') || domain.length <= before.length) return undefined;
+  if (!ctx.carried(d.chunk, 6) || !ownDefinitionsGrow(before, domain, domain)) return false;
+  const oldRefs = index.refsAt(d.chunk, 6), refs = refList(d.out);
+  if (oldRefs.length !== before.length || refs.length !== domain.length || new Set(refs).size !== refs.length) return false;
+  for (let i = 0; i < domain.length; i++) {
+    const code = domain[i], line = p.out.get(refs[i]);
+    if (i < oldRefs.length && p.pairedOut.get(oldRefs[i])?.[0] !== refs[i]) return false;
+    if (!line || line.type !== 'IFCSIMPLEPROPERTYTEMPLATE' || line.args.length !== 12
+      || decodeStepText(unquote(line.args[2])) !== code.name || line.args[3] !== '$' || line.args[4] !== '.P_ENUMERATEDVALUE.'
+      || [5, 6, 8, 9, 10, 11].some(k => line.args[k] !== '$')) return false;
+    if (!code.values.length) { if (line.args[7] !== '$') return false; }
+    else {
+      const enumeration = p.out.get(refOf(line.args[7]));
+      if (!enumeration || enumeration.type !== 'IFCPROPERTYENUMERATION' || enumeration.args.length !== 3
+        || decodeStepText(unquote(enumeration.args[0])) !== code.name || enumeration.args[2] !== '$') return false;
+      // Vergelijk getypeerde labels na STEP-decodering, ook voor oude letterlijk geschreven bronnen.
+      const labels = splitStepArgs(enumeration.args[1].slice(1, -1));
+      if (labels.length !== code.values.length || labels.some((token, k) => {
+        const m = /^IFCLABEL\(('[\s\S]*')\)$/.exec(token);
+        return !m || decodeStepText(unquote(m[1])) !== code.values[k].code;
+      })) return false;
+    }
+  }
+  return 'nieuwe activiteitscodedefinities';
 }
 /** Lees de echte IFCTASK-regel bij de domeinsleutel van de writer; geen eigen GUID-afleiding. */
 function writtenTaskGuids(ctx: O1Context): ReadonlyMap<string, string> | undefined {
@@ -1832,27 +1881,65 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
     if (!expected.size) return undefined;
     return ownMapGrows(ctx, d, before, after, expected) ? 'nieuwe baselinekoppelingen' : false;
   }
+  const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
+  // Zonder typehandeling is er geen verwachte wijziging. Een gedeeltelijk gedragen bron mag dan
+  // haar onbekende inhoud via (b) behouden; een werkelijk uitvoerverschil blijft gewoon onverklaard.
+  if (!ctx.plannerChanged.has('customTaskTypes')
+    && !input.domain.tasks.some(t => t.customTaskTypeId !== oldTasks.get(t.id)?.customTaskTypeId)) return undefined;
   if (!jsonObject(before) || !jsonObject(after)
     || Object.keys(before).sort().join(',') !== 'definitions,taskTypeIds'
     || Object.keys(after).sort().join(',') !== 'definitions,taskTypeIds'
-    || !Array.isArray(before.definitions) || JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
-    || !stringMap(before.taskTypeIds)) return undefined;
-  const definitions = new Set(before.definitions.filter(jsonObject).map(t => t.id));
-  const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
+    || !Array.isArray(before.definitions) || !stringMap(before.taskTypeIds) || !stringMap(after.taskTypeIds)) return undefined;
+  const used = new Set(input.domain.tasks.map(t => t.customTaskTypeId).filter(Boolean));
+  const definitions = (input.domain.customTaskTypes ?? []).filter(t => used.has(t.id));
+  const grows = definitions.length > before.definitions.length;
+  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(before.definitions, definitions, after.definitions)
+    : JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
+      || JSON.stringify(definitions) !== JSON.stringify(after.definitions)) return false;
+  const valid = new Set(definitions.map(t => t.id));
+  const replacements = new Map<string, string | undefined>();
   for (const task of input.domain.tasks) {
-    const typeId = task.customTaskTypeId;
-    if (!typeId) continue;
+    const typeId = task.customTaskTypeId, oldType = oldTasks.get(task.id)?.customTaskTypeId;
     const guid = taskGuids.get(task.id);
     if (!guid) return undefined;
-    if (Object.prototype.hasOwnProperty.call(before.taskTypeIds, guid)) continue;
-    if (!definitions.has(typeId) || oldTasks.get(task.id)?.customTaskTypeId
-      || !(ctx.plannerChanged.has(`task:${task.id}#@`) || ctx.plannerChanged.has(`task:${task.id}#customTaskTypeId`))) return undefined;
-    expected.set(guid, typeId);
+    if (typeId === oldType) continue;
+    if (!(ctx.plannerChanged.has(`task:${task.id}#@`) || ctx.plannerChanged.has(`task:${task.id}#customTaskTypeId`))
+      || (typeId && !valid.has(typeId))) return false;
+    if (Object.prototype.hasOwnProperty.call(before.taskTypeIds, guid)) replacements.set(guid, typeId);
+    else if (typeId) expected.set(guid, typeId);
   }
-  if (!expected.size) return undefined;
-  return ownMapGrows(ctx, d, before.taskTypeIds, after.taskTypeIds, expected) ? 'nieuwe koppelingen aan bestaand taaktype' : false;
+  if (!grows && !replacements.size && !expected.size) return undefined;
+  const unchanged: Record<string, string> = { ...before.taskTypeIds };
+  for (const [guid, type] of replacements) {
+    delete unchanged[guid];
+    if (type) expected.set(guid, type);
+  }
+  // Dezelfde kaartcontrole bewaakt alle overige paren en de volledige verwachte uitvoer.
+  return ownMapGrows(ctx, d, unchanged, after.taskTypeIds, expected)
+    ? 'taaktypedefinities en koppelingen volgens de bewerking' : false;
 }
 
+/** Een echte keuze uit de behouden baselines, ook na toevoegen; nooit een vrijstelling voor de hele pset. */
+function explainActiveBaseline(ctx: O1Context, d: LossDiff, way: string): string | false | undefined {
+  const { input, p } = ctx, { index } = input;
+  if (way !== `pset:${PSET.Baselines}` || d.slotless || d.ambiguous || p.ambiguous[d.chunk]
+    || ctx.scopes.get(d.chunk)?.size !== 1 || !ctx.plannerChanged.has('activeBaselineId')) return undefined;
+  const id = input.domain.activeBaselineId;
+  if (index.type(d.chunk) === 'IFCPROPERTYSET' && index.name(d.chunk) === PSET.Baselines && !id
+    && !d.whole && d.arg === 4 && (d.outArg ?? d.arg) === 4 && input.domain.baselines?.length) {
+    const members = index.refsAt(d.chunk, 4), active = members.filter(c => index.name(c) === PROP.Baselines.ActiveBaselineId);
+    if (active.length !== 1 || !ctx.carried(d.chunk, 4) || !ctx.carried(active[0], 2)) return false;
+    const expected = members.filter(c => c !== active[0]).map(c => p.pairedOut.get(c)?.[0]);
+    return JSON.stringify(refList(d.out)) === JSON.stringify(expected) ? 'actieve baseline uitgezet' : false;
+  }
+  if (index.type(d.chunk) !== 'IFCPROPERTYSINGLEVALUE' || index.name(d.chunk) !== PROP.Baselines.ActiveBaselineId) return undefined;
+  if (!ctx.carried(d.chunk, 2)) return false;
+  // De gewone writer laat de property weg als de planner de actieve baseline uitzet.
+  if (!id) return input.domain.baselines?.length && d.whole === 'ontbreekt' ? 'actieve baseline uitgezet' : false;
+  if (d.whole || d.arg !== 2 || (d.outArg ?? d.arg) !== 2 || !input.domain.baselines?.some(b => b.id === id)) return false;
+  const m = /^IFCTEXT\(('[\s\S]*')\)$/.exec(d.out);
+  return m && decodeStepText(unquote(m[1])) === id ? 'actieve baseline volgens de keuze' : false;
+}
 /** Eén scope `<object>|<weg>` (zie `sourceScopes`). */
 function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, scope: string): string | undefined {
   const { input, changed } = ctx;
@@ -1861,16 +1948,18 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   const obj = scope.slice(0, bar);
   const way = scope.slice(bar + 1);
   if (obj === 'project') {
+    const codes = explainCodeDefinitions(ctx, d);
+    if (codes) return codes;
+    const active = explainActiveBaseline(ctx, d, way);
+    if (active) return active;
     const mapGrowth = explainOwnMapGrowth(ctx, d, way);
     if (mapGrowth) return mapGrowth;
-    // De live-schema-pset hoort bij project, maar deze twee waarden volgen uit de baselineactie.
+    // De live-schema-pset hoort bij project; de baselinerijen volgen uit de baselineactie.
     // Alleen hun waardeslot; andere properties, namen en beschrijvingen krijgen geen vrijstelling.
     if (!d.whole && type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && way === `pset:${PSET.Baselines}`
       && changed.keys.has('baselines') && addedBaselineIds(ctx).size > 0) {
       const name = index.name(d.chunk);
       if (name === PROP.Baselines.Baselines) return 'baselinegegevens';
-      if (name === PROP.Baselines.ActiveBaselineId && changed.keys.has('activeBaselineId')
-        && ctx.plannerChanged.has('activeBaselineId') && addedBaselineIds(ctx).has(input.domain.activeBaselineId ?? '')) return 'actieve baseline na baselinehandeling';
     }
     return explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg);
   }
@@ -1956,13 +2045,8 @@ function literalBaselineForm(ctx: O1Context, d: LossDiff, type: string, arg: num
   if (!literal?.size || d.whole || type !== 'IFCPROPERTYSINGLEVALUE' || arg !== 2 || input.index.name(d.chunk) !== PROP.Baselines.Baselines
     || psetNameOf(input.index, d.chunk) !== PSET.Baselines) return undefined;
   if (!ctx.carried(d.chunk, arg) || ctx.plannerChanged.has('baselines')) return undefined;
-  const json = (token: string, decode: (quoted: string) => string): unknown => {
-    const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/.exec(token.trim());
-    if (!m) return undefined;
-    try { return JSON.parse(decode(m[1])); } catch { return undefined; }
-  };
-  const src = json(d.source, q => input.index.tokenText(d.chunk, q));
-  const out = json(d.out, q => decodeStepText(unquote(q)));
+  const src = mapJson(d.source, q => input.index.tokenText(d.chunk, q));
+  const out = mapJson(d.out, q => decodeStepText(unquote(q)));
   type Obj = Record<string, unknown>;
   const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
   /** Gelijk, op `free` na: daar mag een datum een andere vorm krijgen. `tasks` vergelijkt de aanroeper. */

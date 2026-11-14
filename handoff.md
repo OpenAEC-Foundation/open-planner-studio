@@ -132,6 +132,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 - 2026-11-14: fase 1c PR 7e (#804) maakt alleen de planningsvergelijking klokvast; interne herlezingen hergebruiken ontbrekende projectdatums van het openen, opgeslagen datums blijven leidend en gewone opslag houdt haar echte schrijfklok. 1550/1567 opgelost; klokgrenzen, bronbytes, echte bewerkingen en uitvoer zonder vergelijkingsdatum bewaakt.
 
+- PR 7d (#804): strenge definitiegroei voor activiteitscodes/taaktypen en gewijzigde taaktype-/baselinekeuzen; dezelfde nacontrole bewaakt ontbrekende uitvoer, twaalf vaste tellinggevallen erbij; 1581/1582/1585–1588 blijven vervolg.
 - 2026-11-14: fase 1c PR 9d zet bij het openen van een MCP-backup met bronkenmerk alleen met `ifcForeignContent` aan `sourceMissing`; alle IFC-opslag gebruikt de bestaande weigering, CSV blijft mogelijk en flag uit blijft gelijk. De bestaande nl/en-melding noemt backups al; opnieuw koppelen en de productkeuze blijven 9c (1575), niet verplicht vóór de flag standaard aan mag.
 
 - 2026-11-14: fase 1c PR 9b bewaart site-/browserbronkopieën vóór het manifest in een eigen IndexedDB-database; bestaande database v3 en manifest v5 blijven staan, sitebasis alleen naast de kopie, veilige opruiming en best effort. 1572/1573/1205/1564 opgelost; handle-rechten 1574 en backupaansluiting 9c (1575) blijven vervolg.
