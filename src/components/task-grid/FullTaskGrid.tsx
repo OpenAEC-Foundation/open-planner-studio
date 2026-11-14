@@ -1340,6 +1340,9 @@ export function TaskGridSurface({
           onDelete={() => {
             if (contextMenu.task) contextMenuBulk.remove(contextMenu.task.id);
           }}
+          onDissolve={() => {
+            if (contextMenu.task) contextMenuBulk.dissolve(contextMenu.task.id);
+          }}
           onAddTask={() => addAtEndAndEditName(false)}
           showViewItems={false}
           onInsertAbove={() => {

@@ -171,6 +171,7 @@ export function createDefaultUI(): UIState {
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
+    dissolveSummaryMode: 'branch',
     // «Alleen werkbare dagen tonen»: default UIT.
     compressNonWorkdays: false,
 
