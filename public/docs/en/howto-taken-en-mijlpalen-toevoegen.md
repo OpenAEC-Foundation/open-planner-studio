@@ -73,7 +73,7 @@ If you turn it off again, it stays an ordinary task with duration 0: enter a dur
 
 The copy has the same name, the same dates and the same progress. It goes in as a sibling of the selected task (with several: the one you clicked first), at the bottom among those siblings. If nothing is selected, it goes at the bottom of the list. The copied tasks are selected afterwards, the WBS codes (each task's number in the tree, such as 1.2; see [Adjusting the structure](docs://howto-structuur-aanpassen)) are determined again and the schedule is out of date.
 
-The clipboard is shared by the whole app, so you can also paste into another document. What does not exist there, such as a task calendar, a custom work category, an activity code or a custom field, the app clears and tells you.
+The clipboard is shared by the whole app, so you can also paste into another document. That also works from the columns to the left of the Gantt or in the *Table*: click a cell of the task, press Ctrl+C, click a cell in the other plan and press Ctrl+V. In the same plan, Ctrl+V in the columns pastes only the cell values. What does not exist there, such as a task calendar, a custom work category, an activity code or a custom field, the app clears and tells you.
 
 ### Afterwards
 

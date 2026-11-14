@@ -144,6 +144,7 @@ check-gantt-trace-progress.ts matrix
 check-gantt-workspace.ts matrix
 check-grid-nav.ts matrix
 check-grid-resource-load-reuse.ts matrix
+check-grid-task-paste.ts matrix
 check-grid-transaction.ts matrix
 check-guide-placement.ts matrix
 check-header-compress.ts matrix
