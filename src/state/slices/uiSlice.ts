@@ -151,6 +151,7 @@ export function createDefaultUI(): UIState {
     showStatusDateLine: true,
     showResourceAccent: false,   // opt-in: expliciet aanzetten
     showFloatBand: true,         // standaard zichtbaar; uitzetten is een keuze
+    showBarDates: false,         // standaard uit: de Gantt verandert voor niemand ongevraagd (#868)
     barColorSelection: DEFAULT_BAR_COLOR_SELECTION,
     presentationMode: false,
     showMiniMap: false,

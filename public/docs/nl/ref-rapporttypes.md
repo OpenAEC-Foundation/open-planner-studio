@@ -52,6 +52,8 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 
 **Taaknamen bij de balken** — Standaard: aan. Effect: de naam van de taak naast de balk.
 
+**Datums bij de balken** — Standaard: uit. Effect: de begindatum links en de einddatum rechts van de balk, met dezelfde tekst als de kolommen Start en Einde; een mijlpaal krijgt één datum. De naam staat dan achter de einddatum; past hij rechts niet meer op het papier, dan wordt hij afgekapt met … in plaats van links van de balk gezet. Los van de knop *Datums bij balken* op het scherm.
+
 **Voortgang in de balk** — Standaard: aan. Effect: het deel dat klaar is, donker in de balk. Een voltooide taak krijgt geen spelingsband.
 
 **Speling tonen** — Standaard: aan. Effect: de speling als band achter niet-kritieke balken.

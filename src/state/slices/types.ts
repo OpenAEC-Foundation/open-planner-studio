@@ -813,6 +813,7 @@ export interface UIState {
    *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
   showResourceAccent: boolean;               // persisted
   showFloatBand: boolean;                    // persisted — groene spelingsband ná niet-kritieke balken
+  showBarDates: boolean;                     // persisted — begin- en einddatum naast de Gantt-balken (#868)
   /** Canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
   barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus; niet gepersisteerd
