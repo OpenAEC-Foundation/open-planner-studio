@@ -181,6 +181,10 @@ const noticeKeys = (store: Store) => modelNotices(store).map(n => [n.messageKey,
 const noticeCount = (store: Store, key: string) =>
   store.getState().ui.notifications.filter(n => n.messageKey === key).reduce((sum, n) => sum + n.count, 0);
 
+const { setIfcMissingSourceAsker, resetIfcMissingSourceAsker } = await import('@/services/ifc/ifcMissingSourceQuestion');
+const { readRecoveryDocument } = await import('@/state/readRecoveryDocument');
+const { recoverySourceDocument } = await import('@/state/recoverySourceDocument');
+
 // ── 1. BLOKKEERT 1: documentwissel tijdens het wachten ─────────────────────────────────────────────────────────
 // De wachttijd is die van de afhankelijke projecten (`settleDependentAnchors`: schrijven, lezen en doorrekenen op een
 // kopie). Het wisselen gebeurt binnen dat wachten, op een vaste plek: de eerste lezing van de koppeling na het lezen van
@@ -1250,6 +1254,123 @@ for (const route of ['handle', 'pad'] as const) for (const foreign of [true, fal
       return pick.handle;
     };
     rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// ── 7e. Opslaan als zonder gevonden gebouwmodel, na herstel en bij een MCP-backup. ──────────────────────────────
+for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle', 'pad'] as const) {
+  const label = `9e ${entry}, ${route}`;
+  const dir = mkdtempSync(join(tmpdir(), 'ops-9e-'));
+  const sourcePath = join(dir, 'oorspronkelijk.ifc'), newPath = join(dir, 'alleen-planning.ifc');
+  const orig = fakeHandle('oorspronkelijk.ifc', eigenPlus), fresh = fakeHandle('alleen-planning.ifc', new Uint8Array());
+  writeFileSync(sourcePath, eigenPlus);
+  const ipc = route === 'pad' ? installNodeFileIpc() : null;
+  const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  activeWindow.parent = activeWindow;
+  let target = newPath, dialogs = 0, questions = 0, answer = false;
+  if (ipc) {
+    const internals = activeWindow.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+    const invoke = internals.invoke;
+    internals.invoke = async (c, a, o) => {
+      if (c === 'plugin:dialog|save') { dialogs++; return target; }
+      return invoke(c, a, o);
+    };
+  }
+  const tick = async (store: Store) => {
+    const docs = store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true));
+    const internals = activeWindow.__TAURI_INTERNALS__;
+    delete activeWindow.__TAURI_INTERNALS__;
+    try { await runRecoveryTick(new RecoveryDeltaTracker(), store.getState().activeDocumentId, docs); return await loadRecovery(); }
+    finally { if (internals) activeWindow.__TAURI_INTERNALS__ = internals; }
+  };
+  const restore = async (loaded: Awaited<ReturnType<typeof loadRecovery>>): Promise<Store> => {
+    const inputs = [];
+    for (const d of loaded.docs) inputs.push(await readRecoveryDocument(d, loaded.archives, true));
+    const restored = createAppStoreContext().store;
+    restored.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    restored.getState().restoreDocuments(inputs, loaded.activeDocumentId);
+    return restored;
+  };
+  try {
+    const ctx = createAppStoreContext();
+    await open('oorspronkelijk.ifc', eigenPlus, route === 'pad' ? { kind: 'path', path: sourcePath }
+      : entry === 'herstel' ? null : { kind: 'handle', handle: orig.handle }, ctx.store);
+    ctx.store.getState().addTask({ name: 'Werk vóór de crash of backup 9e' });
+    let store: Store;
+    if (entry === 'backup') store = await open('backup.ifc', enc.encode(await backupOf(ctx)), null);
+    else {
+      const loaded = await tick(ctx.store);
+      const { SOURCE_COPY_DB } = await import('@/services/recovery/recoverySourceCopies');
+      idb.store('sources', SOURCE_COPY_DB).clear(); // De bewaarde kopie is niet terug te vinden.
+      if (ipc) ipc.faults.readError = new Error('geen toegang tot de bron');
+      store = await restore(loaded);
+      if (ipc) ipc.faults.readError = null;
+    }
+    let S = () => store.getState();
+    eq(`${label}: de werkelijke ingang geeft bron ontbreekt`, S().foreignSourceMark?.sourceMissing, true);
+    ok(`${label}: de eerdere bewerking is hersteld`, S().tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
+    const beforeMark = S().foreignSourceMark;
+    setIfcMissingSourceAsker(async () => { questions++; return answer; });
+    pick = fresh; pickerCalls = 0;
+    await S().saveFileAs();
+    eq(`${label}: annuleren stelt één vraag, geen kiezer of write`, [questions, pickerCalls, dialogs, fresh.writables(), existsSync(newPath)], [1, 0, 0, 0, false]);
+    eq(`${label}: annuleren bewaart de toestand`, [S().foreignSourceMark === beforeMark, S().filePath], [true, null]);
+    // Geen andere IFC-route stelt de vraag, ook niet met een bestaand doel of een site.
+    const beforeQuestions = questions;
+    await S().saveFile();
+    await S().exportAs('ifc');
+    store.setState(s => { s.filePath = route === 'pad' ? newPath : fresh.handle.name; s.fileHandle = route === 'handle' ? fresh.handle : null; });
+    S().setAutoSaveToFile(true);
+    await backupAutoSave({ getState: S, enabled: () => true }).flush();
+    let closed = false;
+    await backupCloseActions({ pendingId: S().activeDocumentId, getActiveDocumentId: () => S().activeDocumentId,
+      switchDocument: S().switchDocument, closeDocument: () => { closed = true; }, saveFile: () => S().saveFileForDocument(S().activeDocumentId),
+      clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {} }).save();
+    let siteWrites = 0;
+    activeWindow.openaecHost = { storage: {
+      list: async () => [], versions: async () => [],
+      open: async () => ({ file: { id: 'origineel', name: 'model.ifc', version: 'v1' }, data: eigenPlus }),
+      save: async () => { siteWrites++; return { id: 'origineel', name: 'model.ifc', version: 'v2' }; },
+    } };
+    store.setState(s => { s.siteFileId = 'origineel'; s.siteFileVersion = 'v1'; });
+    await S().saveFile();
+    delete activeWindow.openaecHost;
+    eq(`${label}: andere opslag weigert zonder vraag of bytes`, [questions, closed, siteWrites, fresh.writables(), existsSync(newPath)], [beforeQuestions, false, 0, 0, false]);
+    store.setState(s => { s.filePath = null; s.fileHandle = null; s.siteFileId = null; s.siteFileVersion = null; });
+    store = await restore(await tick(store)); S = () => store.getState();
+    eq(`${label}: tweede crash houdt bron ontbreekt`, S().foreignSourceMark?.sourceMissing, true);
+    answer = true;
+    pick = orig; target = sourcePath;
+    await S().saveFileAs();
+    eq(`${label}: oorspronkelijk doel geweigerd na bevestigen`, [orig.writables(), sha(readFileSync(sourcePath)), S().foreignSourceMark?.sourceMissing], [0, sha(eigenPlus), true]);
+    pick = fresh; target = newPath;
+    await S().saveFileAs();
+    const written = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
+    ok(`${label}: nieuwe planning geschreven`, written.includes('Werk vóór de crash of backup 9e'));
+    ok(`${label}: geen gebouwmodel of herstelkenmerk in uitvoer`, !!written && !written.includes('IFCWALL(') && !written.includes('OPS_RecoveryForeignSource'));
+    const reopened = written ? await open('alleen-planning.ifc', enc.encode(written), null) : null;
+    ok(`${label}: echte heropening houdt de bewerking zonder vreemd deel`, !!reopened && !reopened.getState().ifcSource?.foreign
+      && reopened.getState().tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
+    eq(`${label}: gewoon document met bescherming van het oorspronkelijke doel`, [S().foreignSourceMark?.sourceMissing, S().ifcSource?.foreign === true, S().isDirty], [false, false, false]);
+    S().addTask({ name: 'Ctrl+S na gewone opslag 9e' });
+    await S().saveFile();
+    const latest = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
+    ok(`${label}: Ctrl+S schrijft het nieuwe doel`, latest.includes('Ctrl+S na gewone opslag 9e'));
+    S().setAutoSaveToFile(true); S().addTask({ name: 'AutoSave na gewone opslag 9e' });
+    await backupAutoSave({ getState: S, enabled: () => true }).flush();
+    const autoText = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
+    ok(`${label}: AutoSave schrijft het nieuwe doel`, autoText.includes('AutoSave na gewone opslag 9e'));
+    pick = orig; target = sourcePath;
+    await S().saveFileAs();
+    eq(`${label}: latere Opslaan als beschermt het oorspronkelijke doel`, [orig.writables(), sha(readFileSync(sourcePath))], [0, sha(eigenPlus)]);
+    store = await restore(await tick(store)); S = () => store.getState();
+    eq(`${label}: crash erna is een gewoon document`, S().foreignSourceMark?.sourceMissing, false);
+    await S().saveFileAs();
+    eq(`${label}: ook na crash blijft het oorspronkelijke doel beschermd`, [orig.writables(), sha(readFileSync(sourcePath))], [0, sha(eigenPlus)]);
+  } finally {
+    resetIfcMissingSourceAsker(); ipc?.dispose();
+    (globalThis as { window?: unknown }).window = win;
+    delete win.openaecHost; pick = null; rmSync(dir, { recursive: true, force: true });
   }
 }
 
