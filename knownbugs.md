@@ -955,6 +955,13 @@ en noem het in je rapport of PR-tekst.
      MutationObserver slaat een lege `#root` over; het foutscherm (`src/startup/fatalError.ts`) maakt juist die root
      leeg. Een foutscherm als eindstand valt zo niet op. Voorstel: in hetzelfde blok `.help-panel` zichtbaar en
      `#ops-fatal-error` afwezig eisen. Uit de review van #941 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+1674. **VERVOLG: een rasterkopie zonder taakselectie kan de herkomst van een oudere kopie laten staan.** Kopieer
+     in planning A de naamcel `Fase`, klik in planning B (die ook een taak `Fase` heeft) haar naamcel en druk Escape:
+     de taakselectie is leeg, het celbereik blijft. Ctrl+C kopieert opnieuw de tekst `Fase`, maar `copyTasks`
+     (`src/state/slices/selectionSlice.ts`) stopt bij een lege selectie en laat `fromGrid` van A staan. Ctrl+V in B
+     plakt dan de oude taak uit A in plaats van de celwaarde. Voorstel: bij een geslaagde rasterkopie zonder
+     kopieerbare taken `fromGrid` wissen, met een regressiecheck. Uit de review van #957 (GPT-6.1-Sol, xhigh,
+     ronde 1, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
