@@ -66,6 +66,16 @@ gewone writer. Delen van nieuwe uitvoer wijzen naar de nieuwe bronbuffer; het re
 daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
 haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6; pool, planOnly, paneel, dev-bridge en AutoSave blijven geblokkeerd.
 
+### Vergelijkingsklok (#804 fase 1c)
+
+`planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,
+ook voor owner history, lege planstart en baselines zonder eigen datum. Gewone schrijfingangen geven
+geen vergelijkingsdatum mee. Projectdatums en bestaande baseline-aanmaakdatums blijven meetellen.
+`pristineFromScan` krijgt bij interne merge-herlezingen de projectdatums van het openen als terugval;
+`OPS_ProjectSettings.CreatedAt/ModifiedAt` overschrijven die wanneer aanwezig. Gewoon openen blijft
+ontbrekende datums met de echte klok vullen. `check-ifc-foreign-klok.ts` bewaakt beide klokgrenzen,
+bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkingsdatum.
+
 ### Auteur en bedrijf (#804 fase 1c)
 
 De bytes-route geeft `selectPlanning` mee via de bestaande leesopties. Alleen daar kiest `extractProject` voor auteur en

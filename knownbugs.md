@@ -1984,13 +1984,6 @@ en noem het in je rapport of PR-tekst.
      rechtstreeks doorgeven en alleen de kopie in de adapter houden spaart één volledige kopie en freeze, zonder een
      beschermingsgrens weg te nemen. Alleen opruimen; geen tijdwinst gemeten. Gevonden door de review van #918
      (Sol). — B
-1550. **VERVOLG (#804): de canonieke vergelijking van de planning hangt af van het schrijfmoment.** `planningCanon`
-     (`src/services/ifc/foreign/planningCanon.ts`) zet de klok van de eigen owner history op nul, maar de gewone writer
-     schrijft ook de actuele `CreationDate` van het werkplan en het live-schema. Twee aanroepen aan weerszijden van een
-     secondegrens kunnen dezelfde planning dus verschillend vergelijken: de merge weigert dan onnodig, of "niets
-     veranderd" (#923) geeft niet de bronbytes terug. Geen verlies. In de code vastgesteld, niet gereproduceerd; bestaat
-     ook op main. Kan een proef laten haperen. Richting: één vaste vergelijkingsklok, of alleen deze writerklokken
-     normaliseren. Gevonden door de review van #923. — S
 1551. **VERVOLG (#804, opruimen): zonder vreemd deel draait de planningwriter twee keer in `prepareIfcWrite`.** Eén keer
      voor de tekst en de kalenderkeuzes (`writeIFCWithChoices`) en één keer alleen voor de sessiekaart
      (`writeIfcMergeLines` met een leeg id-plan). Beide gebruiken dezelfde schrijfkern en nummering; geen verkeerde kaart
@@ -2024,15 +2017,6 @@ en noem het in je rapport of PR-tekst.
      volledige exportroute en de nog geldende opslaggrenzen. Ook de meldingen in `handoff.md` moeten
      vóór die vrijgave door de eigenaar beoordeeld zijn. Afspraak van Trias, 14 november 2026. — B
 
-1567. **VERVOLG (#804, gemaakte corpusinvoer): `latin1.ifc` weigert onbewerkt op de herleestoets.**
-     De Bonsai-achtige corpusfixture `tests/fixtures/ifc-foreign/latin1.ifc` opent via de bytes-route,
-     maar de bestaande `prepareIfcWrite(buildWriteIFCInput(..., 'merge'), source)` weigert met
-     `merge-needs-phase2`, geval `planning-na-openen`. Ook app-MCP export weigert getypeerd vóór schrijven.
-     Dit is geen door OPS geschreven bestand. Een aparte variant van `eigen-plus-model.ifc` met alleen
-     een rauw Latin-1-byte in een wandnaam exporteert volledig en bytegelijk; de MCP-proef bewaakt beide
-     uitkomsten. De merge, lezer en lexer zijn in PR 11b niet gewijzigd; geen ruimere uitzondering.
-     Gevonden bij de aansluiting van de volledige IFC-export in fase 1c PR 11b. — B
-
 1568. **VERVOLG (bediening): blijvende meldingen kunnen de IFC-exportkaart bedekken.**
      In de echte browserroute van `settings-tabs.spec.ts` liggen na openen, een geweigerde Ctrl+S en F5
      bestaande fout-/openingsmeldingen over de IFC-kaart in Bestand → Exporteren. De klik wordt door
@@ -2062,6 +2046,23 @@ en noem het in je rapport of PR-tekst.
 1558. **VERVOLG (#804, opruimen): de alias `type DocumentWrite = IfcOutput` in `fileSlice.ts` voegt niets toe.** Eén
      regel in `src/state/slices/fileSlice.ts`; het type `IfcOutput` uit `src/state/prepareIfcOutput.ts` volstaat.
      Gevonden door de review van #928. — B
+
+1593. **VERVOLG (#804, test): drie opslagscenario's staan nog niet blijvend in de klokproef.**
+     `tests/planning/check-ifc-foreign-klok.ts` toetst een gewijzigde `modifiedAt`, een lege planstart en een baseline
+     zonder eigen aanmaakdatum alleen op ongelijkheid van de canon, niet met daadwerkelijk schrijven en heropenen. De
+     review van #934 deed dat met een eigen proef (zorgcentrum met een toegevoegde wand, en `latin1.ifc`; vier
+     bewerkingen bij drie opslagmomenten): alles groen. Richting: die stappen in de bestaande check opnemen; geen nieuw
+     testbestand. Geen aangetoonde productfout. — B
+
+1594. **VERVOLG (#804, meting): de telling ziet geen fouten die van de klok afhangen en vergelijkt geen weigerredenen.**
+     `tests/planning/check-ifc-foreign-merge-telling.ts` zet de klok (`Date` en `Date.now`) vast vóór het openen. De
+     twee klokfouten die PR 7e repareerde (de schrijfklok in de canon, de leesklok bij ontbrekende projecttijdstempels)
+     waren daardoor in de telling nooit zichtbaar: onbewerkte `latin1.ifc` stond er al als "schrijft", terwijl de app
+     hem altijd weigerde. De vergelijkscripts van de bouwers vergelijken bovendien alleen de uitkomst per geval, niet de
+     reden van een weigering. De telling bewaakt dus regressie onder een vaste klok, niet het gedrag bij een lopende
+     klok; dat doet `check-ifc-foreign-klok.ts`. Richting: bij een volgende wijziging van de telling ten minste één
+     reeks met een lopende of verspringende klok opnemen, en de weigerreden per geval meevergelijken. Gevonden door de
+     review van #934. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`

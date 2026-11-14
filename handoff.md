@@ -130,6 +130,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 7e (#804) maakt alleen de planningsvergelijking klokvast; interne herlezingen hergebruiken ontbrekende projectdatums van het openen, opgeslagen datums blijven leidend en gewone opslag houdt haar echte schrijfklok. 1550/1567 opgelost; klokgrenzen, bronbytes, echte bewerkingen en uitvoer zonder vergelijkingsdatum bewaakt.
 - 2026-11-14: fase 1c PR 9e laat alleen met de flag aan bij `sourceMissing` Opslaan als toe na een vraag met Annuleren als standaard, voor crashherstel en geopende MCP-backups. De gewone planOnly-route schrijft naar een ander doel; het bestaande kenmerk blijft als doelbescherming met `sourceMissing: false`, ook in manifest-v5-metadata. Ctrl+S, bestands-AutoSave en sluiten werken daarna op het nieuwe doel; alle overige IFC-routes blijven bij ontbrekend model weigeren. 1112 opgelost; opnieuw koppelen blijft 9c (1575).
 
 - PR 7d (#804): strenge definitiegroei voor activiteitscodes/taaktypen en gewijzigde taaktype-/baselinekeuzen; dezelfde nacontrole bewaakt ontbrekende uitvoer, twaalf vaste tellinggevallen erbij; 1581/1582/1585–1588 blijven vervolg.

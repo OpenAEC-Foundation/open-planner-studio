@@ -410,6 +410,12 @@ export function writeIFC(input: WriteIFCInput): string {
   return writeIFCWithChoices(input).content;
 }
 
+/** Alleen de planningsvergelijking: deze vaste schrijfdatum gaat nooit naar een opslagresultaat.
+ * Domeindatums (project, baselines) blijven ongewijzigd. Gewone opslag gebruikt de ingang hieronder. */
+export function writeIFCForComparison(input: WriteIFCInput): string {
+  return writeIfcParts(input, undefined, new Date('1970-01-01T00:00:00.000Z')).text;
+}
+
 /** `writeIFC`, plus de kalenders die de writer letterlijk schreef (`LiteralTimes`). Opslaan naar het eigen bestand voegt
  *  die toe aan `DocumentPayload.ifcLiteralCalendarIds` (knownbug 1026): wat eenmaal letterlijk in het bestand stond,
  *  blijft letterlijk. */
@@ -429,7 +435,7 @@ export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds):
   return { lines, idMap, literalCalendarIds };
 }
 
-function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
+function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds, comparisonDate?: Date): {
   text: string; lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: string[];
 } {
   const {
@@ -469,7 +475,7 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
     preservedGuids, reservedGuids: new Set(preservedGuids.values()), auxSalt: project.id,
     ...(merge ? { merge } : {}),
   };
-  const now = new Date().toISOString().split('.')[0];
+  const now = (comparisonDate ?? new Date()).toISOString().split('.')[0];
 
   // Header. Naam/auteur/bedrijf MOETEN door `ifcStr`: rauw geïnterpoleerd levert een gewone
   // apostrof al syntactisch ongeldig STEP op (`FILE_NAME('O'Hara Tower.ifc',…)`), en `DATA;`/`ENDSEC;`
@@ -518,7 +524,7 @@ function writeIfcParts(input: WriteIFCInput, merge?: WriterMergeIds): {
   const appOrgId = addLine(ctx, '_apporg', `IFCORGANIZATION($,'OpenAEC Foundation',$,$,$)`);
   // Version is een formaatteken (zie `OPS_APP_VERSION`): de lezer decodeert STEP-tekst pas vanaf '0.2'.
   const appId = addLine(ctx, '_app', `IFCAPPLICATION(#${appOrgId},${ifcStr(OPS_APP_VERSION)},'Open Planner Studio','OPS')`);
-  const ownerHistId = addLine(ctx, '_owner', `IFCOWNERHISTORY(#${personOrgId},#${appId},$,.NOCHANGE.,$,$,$,${Math.floor(Date.now() / 1000)})`);
+  const ownerHistId = addLine(ctx, '_owner', `IFCOWNERHISTORY(#${personOrgId},#${appId},$,.NOCHANGE.,$,$,$,${Math.floor((comparisonDate?.getTime() ?? Date.now()) / 1000)})`);
 
   if (merge?.projectSourceId !== undefined) {
     // #804 §4.4: het project van de bron is niet P (een model met zijn eigen eenheden en context). Geen eigen
