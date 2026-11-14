@@ -428,7 +428,7 @@ export function SettingsPanelContent() {
               </div>
             </div>
 
-            {/* Dissolve op een samenvattingstaak (issue #887, eigenaarsbesluit 2026-11-14). */}
+            {/* Dissolve bij een samenvattingstaak (issue #887, eigenaarsbesluit 2026-11-14). */}
             <div className="settings-section">
               <h3>{t('settings.dissolveSummaryMode')}</h3>
               <Select
