@@ -1770,6 +1770,28 @@ await blijvendeWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)
   ok('7d actieve baseline uitzetten: rest van de pset blijft bewaakt', run(broken).includes(index.chunkOf(String(oldSet.id))));
 }
 
+// De nacontrole geldt alleen voor verwachte wijzigingen; onbekende broninhoud blijft bij ander werk via (b) staan.
+{
+  const original = regelsVan(catalogusBron).find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'TaskTypes'")!;
+  const value = jsonVan(original); value.definitions[0].onbekend = 'bewaar-mij';
+  const changed = vervangJson([original], original, value)[0];
+  const bytes = latin1(text(catalogusBron).replace(lineOf(catalogusBron, String(original.id)), `#${changed.id}=${changed.type}(${changed.args.join(',')});`));
+  const written = await kaartRonde('7d onbekend definitieveld bij alleen projectbeschrijving', bytes, d => storeEdit(d, s => {
+    s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' });
+  }));
+  if (written) {
+    const after = regelsVan(written.output).find(l => l.type === original.type && l.args[0] === original.args[0])!;
+    eq('7d onbekend definitieveld letterlijk behouden', jsonVan(after).definitions[0].onbekend, 'bewaar-mij');
+  }
+  await blijvendeWeigering('7d onbekend definitieveld bij typegroei', bytes, d => applyEdit(fixedCatalogEdits(d)[1], d));
+  const unused = jsonVan(original); unused.definitions.push({ id: 'ongebruikt', name: 'Ongebruikt bron-type' });
+  const unusedLine = vervangJson([original], original, unused)[0];
+  const unusedBytes = latin1(text(catalogusBron).replace(lineOf(catalogusBron, String(original.id)), `#${unusedLine.id}=${unusedLine.type}(${unusedLine.args.join(',')});`));
+  await blijvendeWeigering('1588 ongebruikte brondefinitie bij alleen projectbeschrijving', unusedBytes, d => storeEdit(d, s => {
+    s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' });
+  }));
+}
+
 if (diffs.length > 0) {
   console.log(`XX  ifc-foreign-preserve: ${diffs.length} afwijking(en) van ${checks}`);
   for (const d of diffs.slice(0, 60)) console.log(`   - ${d}`);

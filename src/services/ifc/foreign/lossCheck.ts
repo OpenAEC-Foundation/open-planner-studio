@@ -1880,6 +1880,11 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
     if (!expected.size) return undefined;
     return ownMapGrows(ctx, d, before, after, expected) ? 'nieuwe baselinekoppelingen' : false;
   }
+  const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
+  // Zonder typehandeling is er geen verwachte wijziging. Een gedeeltelijk gedragen bron mag dan
+  // haar onbekende inhoud via (b) behouden; een werkelijk uitvoerverschil blijft gewoon onverklaard.
+  if (!ctx.plannerChanged.has('customTaskTypes')
+    && !input.domain.tasks.some(t => t.customTaskTypeId !== oldTasks.get(t.id)?.customTaskTypeId)) return undefined;
   if (!jsonObject(before) || !jsonObject(after)
     || Object.keys(before).sort().join(',') !== 'definitions,taskTypeIds'
     || Object.keys(after).sort().join(',') !== 'definitions,taskTypeIds'
@@ -1891,7 +1896,6 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
     : JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
       || JSON.stringify(definitions) !== JSON.stringify(after.definitions)) return false;
   const valid = new Set(definitions.map(t => t.id));
-  const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
   const replacements = new Map<string, string | undefined>();
   for (const task of input.domain.tasks) {
     const typeId = task.customTaskTypeId, oldType = oldTasks.get(task.id)?.customTaskTypeId;

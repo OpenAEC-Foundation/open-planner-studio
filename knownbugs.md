@@ -3869,3 +3869,13 @@ en noem het in je rapport of PR-tekst.
      `niet-gedragen`. Reproductie `7d grens laatste codedefinitie wissen` in `check-ifc-foreign-preserve.ts`,
      gemeten op `eigen-plus-model.ifc`. Het verdwijnen van een hele pset blijft naast 1110 en 1581 op de
      eindlijst, verplicht vóór de flag standaard aan gaat. — B
+
+1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
+     Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra
+     `{ id, name }` toe zonder taakkoppeling. Open de bytes en wijzig alleen de projectbeschrijving.
+     Main weigert al: de gewone writer laat ongebruikte definities weg, terwijl het terugzetten van de bronwaarde
+     een andere planning geeft bij de onafhankelijke heropening (`customTaskTypes`). Geen nieuw verlies en geen
+     regressie van 7d; gemeten met de verliescontrole van main 648a75c0d en de nieuwe controle. Een onbekend veld
+     binnen een gebruikte definitie blijft bij ander werk wel letterlijk behouden; bij typegroei blijft het geweigerd.
+     Reproductie `1588 ongebruikte brondefinitie bij alleen projectbeschrijving` in
+     `check-ifc-foreign-preserve.ts`; basisbewijs in `/tmp/fase1c-pr7d-bewijs/ongebruikt-main.log`. — B
