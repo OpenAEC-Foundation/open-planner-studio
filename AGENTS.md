@@ -63,7 +63,7 @@ New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k line
 **`npm run verify` is one definition, in `package.json`** — ci.yml runs its steps in parallel jobs via
 `scripts/verify-parts.mjs`, which reads them from that definition, but not the browser suite on an ordinary PR or
 push (see *Testing pitfalls*). The release gate runs no verify of its own: `scripts/release-ci-check.mjs` checks that
-the CI push run on the tagged commit and the last browser run on `main` since Friday 22:00 Dutch time are green (owner
+the CI push run on the tagged commit and the last browser run on `main` since Friday 22:00 Dutch time (in practice Saturday 22:00) are green (owner
 decision 2026-10-31; what reaches `main` after that gets no browser test). The deploy (live.yml)
 runs no verify of its own: it starts after a green ci.yml run on `main` (`workflow_run`) and only for the commit CI
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
@@ -425,11 +425,15 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   Those guides use a limited Markdown subset (no tables/blockquotes/h4/HTML). The GitHub wiki is generated,
   never edited by hand (`wiki` skill).
 - **Releases**: only via the `release` skill; a `v*` tag is irreversible and rolls out to all users
-  (updater + Snap Store). The weekly Saturday job on aia09-mp50 runs that skill automatically,
-  without human approval before the tag (owner, conversation 2026-10-22). Green main CI, a green
-  Friday browser run and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
+  (updater + Snap Store). The weekly job on aia09-mp50 runs that skill automatically,
+  without human approval before the tag (owner, conversation 2026-10-22). It runs on Monday at 07:00
+  (owner, 2026-11-07) and has no end time: it continues until done, and only a real blocker stops it
+  (owner, 2026-11-09); the weekend stop (Saturday 23:00 to Monday 01:00) and Sunday still apply.
+  When you tell a reporter in an issue comment when a fix ships, name the date of the next Monday release,
+  checked against today's date (`date`). Green main CI, a green
+  last browser run (Saturday 22:00) and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
-  Saturday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
+  Monday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
   neither unfinished work nor a stop reason, also for an older tag; the final report says Arch got no package
   yet and why. A real AUR failure still stops the release (owner decision, 2026-10-31).
   Also resume open release PRs and untagged versions on main without another bump,
@@ -491,7 +495,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `browsertests-repareren` (the Friday-night repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
+Skills in `.claude/skills/`: `release`, `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
 UI, a release step), `update-docs-lang` (pipeline for the guides, on request), `goed-plannen`, `progress-update` (source of the
 last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
 `planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).
