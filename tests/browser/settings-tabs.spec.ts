@@ -109,7 +109,7 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await expectRows(dialog, ['taskTypes']);
   // Een instelling die nu niets doet, staat bij zoeken uitgegrijsd in beeld, met de reden.
   await search.fill('Ctrl');
-  await expect(dialog.locator('[data-ops-setting="modifierMap"] fieldset')).toBeDisabled();
+  await expect(dialog.locator('[data-ops-setting="modifierMap"] fieldset button').first()).toBeDisabled();
   await expect(dialog.locator('[data-ops-setting="modifierMap"] .settings-unavailable-reason')).toBeVisible();
   await search.fill('qqqzzz');
   await expect(dialog.locator('[data-ops-settings-empty]')).toBeVisible();
@@ -124,22 +124,25 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await expect(search).toBeFocused();
   await expect(search).toHaveValue('');
 
-  // Een gewijzigde instelling krijgt een stip, ook bij haar groep, en telt mee in het filter.
+  // Een gewijzigde instelling krijgt een stip, ook bij haar groep, en telt mee in het filter. De
+  // fixture zet de formaatuitleg al uit (`ops-formatNoticeHidden`), dus die telt vanaf het begin mee.
   const filter = dialog.locator('[data-ops-settings-changed-only]');
-  await expect(filter).toBeDisabled();
+  await expect(filter).toHaveText(/\(1\)$/);
+  await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toHaveCount(0);
   const compress = dialog.locator('[data-ops-setting="compressNonWorkdays"]');
   await compress.getByRole('button', { name: /^(On|Aan)$/ }).click();
   await expect(compress.getByRole('checkbox')).toBeChecked();
   await expect(compress).toHaveAttribute('data-ops-setting-changed', 'true');
   await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toBeVisible();
-  await expect(filter).toHaveText(/\(1\)$/);
+  await expect(filter).toHaveText(/\(2\)$/);
   await filter.click();
   await expect(filter).toHaveAttribute('aria-pressed', 'true');
-  await expectRows(dialog, ['compressNonWorkdays']);
+  await expectRows(dialog, ['compressNonWorkdays', 'formatNotices']);
   await compress.locator('[data-ops-setting-reset="compressNonWorkdays"]').click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.compressNonWorkdays)).toBe(false);
   expect(await page.evaluate(() => localStorage.getItem('ops-compressNonWorkdays'))).toBe('false');
-  await expect(dialog.locator('[data-ops-settings-empty]')).toBeVisible();
+  await expectRows(dialog, ['formatNotices']);
+  await expect(filter).toHaveText(/\(1\)$/);
   await filter.click();
   await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toHaveCount(0);
 
@@ -157,7 +160,12 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await expect(division).toBeInViewport();
   // Schermverdeling doet in de modus Zoom + slepen niets: de rij zelf krijgt de focus.
   await expect(division).toBeFocused();
+  // Het oplichten stopt; de rij blijft in beeld tot je een andere groep kiest.
   await expect(division).not.toHaveClass(/is-highlighted/, { timeout: 5_000 });
+  await expect(division).toBeVisible();
+  await group(dialog, 'appearance').click();
+  await group(dialog, 'timeline').click();
+  await expect(division).toHaveCount(0);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.settingsFocusId)).toBeNull();
 }
 

@@ -31,10 +31,11 @@ telkens erbij; loopt dit document ooit achter, dan heeft de code gelijk.
    dunne functie die `setSetting(key, value)` aanroept. Bestaat de sleutel al (je hergebruikt een
    bestaand veld), dan is deze stap overbodig.
 4. **Zet de UI op de juiste plek.** Er zijn twee soorten onthouden waarden:
-   - een **instelling** (taal, thema, datumnotatie, …) hoort in het instellingenpaneel, en verschijnt
-     daarmee op **alle drie** de plekken — niet als drie losse implementaties, maar als drie
-     aanroeppunten van hetzelfde gedeelde component `src/components/settings/SettingsPanelContent.tsx`
-     (zie de tabel hieronder);
+   - een **instelling** (taal, thema, datumnotatie, …) hoort in het instellingenpaneel: één entry in
+     `src/components/settings/catalog/settingsCatalog.tsx` plus haar id in `src/utils/settingIds.ts`
+     (die bepaalt ook de volgorde). Daarmee verschijnt ze op **alle drie** de plekken (zie de tabel
+     hieronder), is ze vindbaar met de zoekbalk, krijgt ze de stip "gewijzigd" en de knop terugzetten,
+     en opent `openSettingsAt(id)` of een Help-link `settings://<id>` het paneel op die instelling;
    - een **weergavekeuze** die je in het werk zelf aan- of uitzet — een lintknop (spelingsband,
      histogram, voortgangslijn) of iets dat je sleept (paneelbreedte, histogramhoogte) — krijgt
      óók een descriptor en `saveX`, maar houdt zijn eigen bediening en komt níét in het paneel.
@@ -47,9 +48,13 @@ telkens erbij; loopt dit document ooit achter, dan heeft de code gelijk.
    | Instellingen-ribbontab | de knop "projectSettings" in `instellingenTab` (`ribbonConfig.tsx`) zet dezelfde `ui.showSettingsDialog: true` |
    | Backstage → Instellingen | `Backstage.tsx` rendert `<SettingsPanelContent />` rechtstreeks, zonder dialoog |
 
-   Voeg je UI-element dus toe binnen `SettingsPanelContent.tsx` zelf — dat verschijnt daarmee
-   automatisch op alle drie de plekken. Een los stuk UI ergens anders bouwen breekt deze conventie
-   stilzwijgend.
+   Een entry kiest een soort: `toggle` (vinkje), `choice` (keuzelijst, of met `visual` kaarten met een
+   plaatje uit `settingVisuals.tsx`) of `custom` (een eigen bediening uit `settingCustomControls.tsx`).
+   Geef haar een groep, een uitleg van één zin (`hintKey`; details horen in het Help-artikel
+   `ref-instellingen`), zoekwoorden per taal (`settings.keywords.<id>`, ook termen uit MS Project/P6) en
+   een `binding` (veld + opslaan); de standaard voor "gewijzigd" komt vanzelf uit `createDefaultUI()`.
+   Doet de instelling alleen iets als een andere aanstaat, geef dan `requires` met de reden. Bouw geen
+   los stuk UI buiten de lijst: dan mist de instelling zoeken, terugzetten en de directe link.
 5. **Roep `t(...)` aan voor elk zichtbaar label** (zie *i18n* in `.claude/rules/i18n.md` en
    `docs/recepten/i18n-sleutel.md`) — nooit hardgecodeerde tekst in het instellingenpaneel.
 6. **Zet de sleutel in `HOST_PERSISTED_KEYS`** (`src/services/fileAccess/siteHostSettingKeys.ts`), zodat
@@ -92,14 +97,14 @@ daadwerkelijk op de drie UI-plekken verschijnt. Concreet onbewaakt:
 
 - Een `UIState`-veld zonder descriptor compileert prima; hij persisteert dan gewoon niet (reset elke
   sessie naar zijn store-default). Niets waarschuwt hierover.
-- Een descriptor zonder UI in `SettingsPanelContent` compileert en laadt prima; de instelling is dan
+- Een descriptor zonder entry in `settingsCatalog.tsx` compileert en laadt prima; de instelling is dan
   alleen via de devtools/store te zetten, nooit door een gebruiker.
 - De `key`/`field`-koppeling wordt niet tegen dubbel gebruik gecontroleerd — twee descriptors met
   hetzelfde `field` overschrijven elkaars gelezen waarde in stilte (de lus schrijft `patch[d.field]`,
   dus de botsing zit op `field`, niet op `key`; laatste wint in de `for`-lus).
 
 Dit is dus mensenwerk: controleer bij een review of de descriptor, de `saveX`-aanroep vanuit de UI, en
-de zichtbare bediening (in `SettingsPanelContent`, of bij een weergavekeuze de lintknop of sleepgreep)
+de zichtbare bediening (een entry in `settingsCatalog.tsx`, of bij een weergavekeuze de lintknop of sleepgreep)
 alle drie aanwezig zijn.
 
 ## Waar het echt staat
@@ -108,7 +113,8 @@ alle drie aanwezig zijn.
 |---|---|
 | descriptor-register + `loadAllSettings()` + de drie afwijkers | `src/utils/settingsRegistry.ts` |
 | `saveX`-functies, localStorage-sleutels, klem-constanten | `src/utils/settingsStore.ts` |
-| gedeelde UI (alle drie de plekken) | `src/components/settings/SettingsPanelContent.tsx` |
+| de lijst van het paneel (naam, groep, zoekwoorden, bediening, plaatje) | `src/components/settings/catalog/settingsCatalog.tsx`, ids in `src/utils/settingIds.ts` |
+| gedeelde UI (alle drie de plekken): zoekbalk, groepen, rijen | `src/components/settings/SettingsPanelContent.tsx`, `SettingRow.tsx` |
 | tandwiel-popup | `src/components/layout/TitleBar/TitleBar.tsx` |
 | Instellingen-ribbontab | `src/components/layout/Ribbon/ribbonConfig.tsx` (`instellingenTab`) |
 | Backstage → Instellingen | `src/components/backstage/Backstage.tsx` |

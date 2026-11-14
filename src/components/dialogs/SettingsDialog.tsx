@@ -9,6 +9,10 @@ import { DialogHelpButton } from '@/components/common/Dialog';
 import { SETTINGS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import './SettingsDialog.css';
 
+/** Beginfocus in de zoekbalk: zoeken is de snelste weg naar een instelling. Een vaste functie, want
+ *  `useFocusTrap` zet de beginfocus opnieuw zodra deze functie een andere identiteit krijgt. */
+const searchField = () => document.querySelector<HTMLElement>('.settings-dialog [data-ops-settings-search]');
+
 export function SettingsDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
@@ -25,7 +29,7 @@ export function SettingsDialog() {
   // eigen CSS-chrome, bewust géén backdrop-close), dus geen `Dialog`-migratie hier.
   useDialogKeys({ onCancel: close });
   // Focus-trap (a11y): custom overlay zonder shared Dialog; hergebruikt de bestaande drag-ref.
-  useFocusTrap(dialogRef);
+  useFocusTrap(dialogRef, searchField);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -80,7 +84,7 @@ export function SettingsDialog() {
 
         {/* Body — shared settings panel */}
         <div className="settings-body">
-          <SettingsPanelContent autoFocusSearch />
+          <SettingsPanelContent />
         </div>
 
         {/* Footer */}

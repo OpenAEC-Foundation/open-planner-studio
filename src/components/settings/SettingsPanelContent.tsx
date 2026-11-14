@@ -22,13 +22,16 @@ const HIGHLIGHT_MS = 2000;
  * kop. Alle wijzigingen gelden meteen en worden bewaard; er is geen OK of Annuleren.
  * De instellingen zelf staan in `catalog/settingsCatalog.tsx`.
  */
-export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSearch?: boolean }) {
+export function SettingsPanelContent() {
   const { t, i18n } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const [group, setGroup] = useState<SettingsGroupId>('appearance');
   const [query, setQuery] = useState('');
   const [changedOnly, setChangedOnly] = useState(false);
   const [highlight, setHighlight] = useState<SettingId | null>(null);
+  // Een directe link naar een instelling die in haar groep verborgen is (bv. Schermverdeling buiten de
+  // modus Positie) laat haar zien tot je een andere groep kiest of gaat zoeken; oplichten duurt korter.
+  const [revealed, setRevealed] = useState<SettingId | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +54,7 @@ export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSea
   const filtering = terms.length > 0 || changedOnly;
 
   const visible = (entry: SettingEntry): boolean => {
-    if (entry.id === highlight) return true;
+    if (!filtering && entry.id === revealed) return true;
     const met = available.has(entry.id);
     if (entry.requires?.hide === 'always' && !met) return false;
     if (!filtering) return entry.group === group && (met || !entry.requires?.hide);
@@ -73,6 +76,7 @@ export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSea
     setChangedOnly(false);
     setGroup(entry.group);
     setHighlight(entry.id);
+    setRevealed(entry.id);
   }, [focusId, setUI]);
 
   useEffect(() => {
@@ -85,10 +89,6 @@ export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSea
     const timer = window.setTimeout(() => setHighlight(null), HIGHLIGHT_MS);
     return () => window.clearTimeout(timer);
   }, [highlight]);
-
-  useEffect(() => {
-    if (autoFocusSearch) searchRef.current?.focus();
-  }, [autoFocusSearch]);
 
   // "/" of Ctrl+F (Cmd+F) ergens in het paneel springt naar de zoekbalk, zoals in een browser.
   const onPanelKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -113,6 +113,7 @@ export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSea
     setGroup(next);
     setQuery('');
     setChangedOnly(false);
+    setRevealed(null);
   };
 
   return (
@@ -143,7 +144,7 @@ export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSea
               ref={searchRef}
               type="search"
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={e => { setQuery(e.target.value); setRevealed(null); }}
               onKeyDown={onSearchKeyDown}
               placeholder={t('settings.searchPlaceholder')}
               aria-label={t('settings.searchLabel')}
@@ -167,7 +168,7 @@ export function SettingsPanelContent({ autoFocusSearch = false }: { autoFocusSea
             aria-pressed={changedOnly}
             disabled={changed.size === 0 && !changedOnly}
             data-ops-settings-changed-only
-            onClick={() => setChangedOnly(v => !v)}
+            onClick={() => { setChangedOnly(v => !v); setRevealed(null); }}
           >
             {t('settings.changedOnly', { n: changed.size })}
           </button>
