@@ -44,7 +44,7 @@ const basis = read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
   const c = structuredClone(a), d = structuredClone(b), canonical = `res-ifc-${guid}`;
   for (const p of [c, d]) {
     p.resources[0].id = canonical;
-    p.ifcGlobalIds![ifcObjectSeed('res', canonical)] = guid;
+    p.ifcGlobalIds = { ...p.ifcGlobalIds, [ifcObjectSeed('res', canonical)]: guid };
   }
   assigned(c, canonical);
   check('fix1 b: een bestaand canoniek id en een nieuwe resource blijven onderscheiden', planningCanon(c) !== planningCanon(d));
