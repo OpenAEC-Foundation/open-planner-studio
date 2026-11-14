@@ -1920,6 +1920,25 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
+1552. **VERVOLG, gewone handeling: een kalender toevoegen weigert bij de oude lopende-taakfixture.**
+     `fixtures/b5-lopend-oude-writer.ifc + wand` schrijft zonder bewerking, maar `addCalendar` met een kopie
+     van de projectkalender en koppeling aan een resource weigert `bronvorm-leest-anders`: de nieuwe `cal-…`
+     ontbreekt na herlezen. `sourceFormProblems` zoekt op het interne kalender-id; de herlezing heeft het
+     `rescal-ifc-…`-id. Deze controle komt vóór de canon, dus de identiteitsprojectie van PR 7b bereikt haar
+     niet. Richting: de bronvormcontrole ook de bewezen kalenderidentiteit laten gebruiken, met dezelfde
+     strenge waardecontrole. Niet gerepareerd in PR 7b; bronvormcontrole en mergeWriter vallen buiten die
+     opdracht. Gemeten via de echte acties in de nieuwe telling van #924, zonder bytes. — B
+
+1553. **VERVOLG, gewone handeling: een baseline toevoegen weigert bij twee oude 7.12-bronnen.**
+     `oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand` en de `…-ohara-…`-variant
+     schrijven zonder bewerking; `saveBaseline` weigert `niet-gedragen` op property `#125` (`Baselines`),
+     waardeslot 2. De bestaande rijen gebruiken in de bron oude `task-…`-ids en in de uitvoerlijst
+     `task-ifc-…`-ids. De JSON-bronwaarde wordt conservatief als deels gedragen behandeld; een wijziging
+     blijft daarom geweigerd, ook nadat PR 7b de baselinevelden aan de juiste handeling koppelt. Richting:
+     de identiteitsomzetting per baselineregel bewijzen en onbekende JSON-inhoud behouden; geen algemene
+     vrijstelling voor Baselines-JSON. Niet gerepareerd in PR 7b. Gemeten in de nieuwe telling van #924,
+     zonder bytes; geen zeldzame invoer genoemd, dit is een gewone baselinehandeling op de oude vorm. — B
+
 1146. **VERVOLG: de merge kopieert en bevriest de invoer voor de heropening twee keer.** `writeIfcMerge`
      (`src/services/ifc/foreign/mergeWriter.ts`, rond regel 816) kopieert en bevriest `parsed` vóór de vaste
      heropening; de adapter (`src/state/ifcMergePlanning.ts`) kopieert de invoer daarna meteen opnieuw. `parsed`
