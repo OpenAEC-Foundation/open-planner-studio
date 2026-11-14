@@ -1,10 +1,11 @@
 /** Eén maat voor de opgeslagen planning, gedeeld door de merge en zijn proeven (1107).
  * De bestaande canon uit ifcMergeKern: de gewone writer draagt alle planningsvelden en normaliseert
- * opnieuw afgeleide hulp-ids. Alleen de bestandskop en de klok van onze owner history tellen niet mee.
+ * opnieuw afgeleide hulp-ids. De bestandskop telt niet mee; de vergelijkingswriter gebruikt één vaste
+ * schrijfklok (ook voor owner history, lege planstart en baselines zonder eigen aanmaakdatum).
  * Baselineregels zonder bestaande taak tellen zonder dat taak-id, zoals voorheen (#886).
  * Alleen de bibliotheeklijst resourceCalendars telt op id; haar inhoud wordt ook zonder schrijfafronding vergeleken.
  */
-import { writeIFC, type WriteIFCInput } from '../ifcWriter';
+import { writeIFCForComparison, type WriteIFCInput } from '../ifcWriter';
 import { planningIdentityInput } from './planningIdentity';
 import { orphanRowsWithoutId } from './sourceForm';
 
@@ -16,9 +17,8 @@ function calendarInput(input: WriteIFCInput): WriteIFCInput {
 
 export function planningCanon(input: WriteIFCInput): string {
   const ordered = calendarInput(planningIdentityInput(input));
-  const written = writeIFC(orphanRowsWithoutId(ordered)).split('\n')
-    .filter(line => line.startsWith('#'))
-    .map(line => line.includes('=IFCOWNERHISTORY(') ? line.replace(/,\d+\);$/, ',0);') : line).join('\n');
+  const written = writeIFCForComparison(orphanRowsWithoutId(ordered)).split('\n')
+    .filter(line => line.startsWith('#')).join('\n');
   // De writer kan kloktijden afronden of een optioneel veld niet schrijven. De bibliotheekinhoud telt hier exact,
   // zonder zo'n schrijfnormalisatie. Alleen object-sleutelvolgorde vervalt; alle geneste arrays blijven op volgorde.
   const exact = JSON.stringify(ordered.resourceCalendars, (_key, value: unknown) =>
