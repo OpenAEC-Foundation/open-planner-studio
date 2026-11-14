@@ -869,6 +869,12 @@ export interface PrintOptions {
   showTaskNames: boolean;
   showCompletion: boolean;
   /**
+   * Issue #868: begindatum links vóór en einddatum rechts achter elke balk, met precies de tekst van de
+   * kolommen Start en Einde; een mijlpaal krijgt één datum tussen ruit en naam. Eigen rapportoptie,
+   * los van de scherminstelling (besluit Ethan 14-11-2026). Ontbreekt ⇒ uit.
+   */
+  showBarDates?: boolean;
+  /**
    * Breedte van de naamkolom in de taaktabel, ongeschaald (schaalt mee met `reportFontScale`).
    * Ontbreekt ⇒ {@link NAME_COLUMN_WIDTH_DEFAULT}; buiten bereik ⇒ geklemd. Een naam die er niet in
    * past wordt met een ellipsis afgekapt. "Niet afkappen" is géén aparte modus van de printlaag:
@@ -1171,6 +1177,48 @@ function drawBarLabel(
   } else {
     fillLabelText(d2d, ellipsize(d2d, name, leftAvail), leftEnd, y, 'right', color);
   }
+}
+
+/** Ruimte tussen de einddatum en de naam erachter (#868), ongeschaald zoals `BAR_LABEL_GAP`. */
+const BAR_DATE_GAP = 6;
+
+/**
+ * Naam met datums bij een staaf (`showBarDates`, issue #868). De begindatum staat rechts uitgelijnd
+ * links vóór de staaf (alleen als hij binnen het chartgebied past), de einddatum op de plek waar de
+ * naam anders begint, en de naam erachter. Anders dan {@link drawBarLabel} valt de naam NIET terug naar
+ * links (daar staat de begindatum): wat rechts niet past, wordt afgekapt met '…' (besluit Ethan
+ * 14-11-2026). Datums in de gedempte tekstkleur, één punt kleiner dan de naam.
+ */
+function drawBarLabelWithDates(
+  d2d: Draw2D,
+  m: ReportMetrics,
+  name: string,
+  dates: { start: string; finish: string },
+  barRightX: number,
+  barLeftX: number,
+  y: number,
+  canvasWidth: number,
+  bold: boolean,
+) {
+  const rightMargin = 10;
+  d2d.textBaseline = 'alphabetic';
+  d2d.font = m.font(8);
+  const leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
+  if (dates.start && d2d.measureText(dates.start).width <= leftEnd - m.tableWidth) {
+    fillLabelText(d2d, dates.start, leftEnd, y, 'right', PRINT_COLORS.textSecondary);
+  }
+  let x = barRightX + BAR_LABEL_GAP;
+  const edge = canvasWidth - rightMargin;
+  if (dates.finish) {
+    d2d.font = m.font(8);
+    const w = d2d.measureText(dates.finish).width;
+    if (x + w > edge) return;
+    fillLabelText(d2d, dates.finish, x, y, 'left', PRINT_COLORS.textSecondary);
+    x += w + BAR_DATE_GAP;
+  }
+  if (!name) return;
+  d2d.font = m.font(9, bold);
+  fillLabelText(d2d, ellipsize(d2d, name, edge - x), x, y, 'left', PRINT_COLORS.text);
 }
 
 /**
@@ -1658,8 +1706,22 @@ export function renderReport(
     y: number;
     /** Vetgedrukt (alleen samenvattingstaken). */
     bold: boolean;
+    /** Met `showBarDates` (#868): begindatum links vóór de balk (leeg bij een mijlpaal) en einddatum
+     *  vóór de naam. */
+    dates?: { start: string; finish: string };
   }
   const barLabelJobs: BarLabelJob[] = [];
+  // Naam en/of datums naast een balk (#868). Met alleen de datums aan blijft de naam leeg.
+  const barCellOptions: CellTextOptions = { ...options, calendar };
+  const wantBarLabel = options.showTaskNames || options.showBarDates === true;
+  const barLabel = (task: Task, job: Omit<BarLabelJob, 'name' | 'dates'>, milestone = false): BarLabelJob => {
+    const cells = options.showBarDates ? taskOwnCellTexts(task, barCellOptions) : undefined;
+    return {
+      ...job,
+      name: options.showTaskNames ? task.name : '',
+      ...(cells ? { dates: { start: milestone ? '' : cells.start, finish: cells.end } } : {}),
+    };
+  };
 
   // Kleurmodi-context: resources + toewijzingen komen binnen via options; de printlaag
   // houdt zelf geen state. Eén palet-object voor alle balken van deze render.
@@ -1739,8 +1801,8 @@ export function renderReport(
         if (advies.outline) d2d.stroke();
 
         // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
-        if (options.showTaskNames) {
-          barLabelJobs.push({ name: task.name, barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false });
+        if (wantBarLabel) {
+          barLabelJobs.push(barLabel(task, { barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false }, true));
         }
       }
     } else if (isSummaryTask(task)) {
@@ -1789,8 +1851,8 @@ export function renderReport(
       }
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
-        barLabelJobs.push({ name: task.name, barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true });
+      if (wantBarLabel) {
+        barLabelJobs.push(barLabel(task, { barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true }));
       }
     } else {
       // Normal task bar, met de balkgrenzen van het scherm (`taskBarSpan`): met momenten van het startmoment
@@ -1894,9 +1956,9 @@ export function renderReport(
       }
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
+      if (wantBarLabel) {
         const barRightX = bandEnd ? Math.max(x2, floatEndX) : x2;
-        barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
+        barLabelJobs.push(barLabel(task, { barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false }));
       }
     }
 
@@ -1969,7 +2031,8 @@ export function renderReport(
   }
 
   for (const job of barLabelJobs) {
-    drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
+    if (job.dates) drawBarLabelWithDates(d2d, m, job.name, job.dates, job.barRightX, job.barLeftX, job.y, canvasWidth, job.bold);
+    else drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
   }
 
   // De referentielijn is bewust de laatste chart-laag: staven, relatiepijlen en taaklabels mogen

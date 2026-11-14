@@ -532,6 +532,8 @@
     "bars": {
       "onBars": "Op de balken",
       "names": "Taaknamen bij de balken",
+      "dates": "Datums bij de balken",
+      "datesSub": "Begindatum links, einddatum rechts van de balk",
       "completion": "Voortgang in de balk",
       "completionSub": "Het deel dat klaar is, donker in de balk",
       "criticalSub": "Kritieke relatielijnen in rood, en het kritieke pad in de legenda. De kleur van de balken kies je bij Balkkleuren.",
@@ -549,6 +551,7 @@
         "float": "Speling",
         "completion": "Voortgang",
         "names": "Namen",
+        "dates": "Datums",
         "baseline": "Baseline",
         "statusLine": "Statuslijn"
       },

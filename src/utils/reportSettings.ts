@@ -173,6 +173,8 @@ export interface ReportSettings {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /** Begin- en einddatum naast de balken (#868); los van de scherminstelling, standaard uit. */
+  showBarDates: boolean;
   /** Taaknamen in de tabel afkappen op `taskNameColumnWidth` (aan), of de kolom aan de langste
    *  naam laten aanpassen (uit). */
   truncateTaskNames: boolean;
@@ -242,6 +244,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   showLegend: true,
   showTaskNames: true,
   showCompletion: true,
+  showBarDates: false,
   truncateTaskNames: true,
   taskNameColumnWidth: NAME_COLUMN_WIDTH_DEFAULT,
   showBaselineOverlay: false,
@@ -432,6 +435,7 @@ function parseReportSettings(raw: unknown): ReportSettings {
     showLegend: parseBoolean(s.showLegend) ?? d.showLegend,
     showTaskNames: parseBoolean(s.showTaskNames) ?? d.showTaskNames,
     showCompletion: parseBoolean(s.showCompletion) ?? d.showCompletion,
+    showBarDates: parseBoolean(s.showBarDates) ?? d.showBarDates,
     truncateTaskNames: parseBoolean(s.truncateTaskNames) ?? d.truncateTaskNames,
     taskNameColumnWidth: parseClampedInt(s.taskNameColumnWidth, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_WIDTH_MAX) ?? d.taskNameColumnWidth,
     showBaselineOverlay: parseBoolean(s.showBaselineOverlay) ?? d.showBaselineOverlay,

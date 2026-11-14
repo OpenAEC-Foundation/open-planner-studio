@@ -52,6 +52,8 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 **Task names next to the bars** — Default: on. Effect: the name of the task next to the bar.
 
+**Dates next to the bars** — Default: off. Effect: the start date to the left and the finish date to the right of the bar, with the same text as the Start and Finish columns; a milestone gets one date. The name then comes after the finish date; if it no longer fits on the paper to the right, it is cut off with … instead of being placed to the left of the bar. Separate from the *Dates beside bars* button on screen.
+
 **Progress in the bar** — Default: on. Effect: the part that is done, dark in the bar. A completed task gets no float band.
 
 **Show float** — Default: on. Effect: the float as a band behind non-critical bars.

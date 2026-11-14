@@ -431,5 +431,14 @@
     "liberationSans": "Liberation Sans (comme Arial)",
     "carlito": "Carlito (comme Calibri)",
     "liberationSerif": "Liberation Serif (comme Times New Roman)"
+  },
+  "studio": {
+    "bars": {
+      "dates": "Dates à côté des barres",
+      "datesSub": "Date de début à gauche, date de fin à droite de la barre",
+      "short": {
+        "dates": "Dates"
+      }
+    }
   }
 }
