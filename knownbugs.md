@@ -2263,6 +2263,15 @@ en noem het in je rapport of PR-tekst.
      VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
      grens zonder meting. — B
 
+1129. **VERVOLG: de proef voor het vergrendelde schema in Projectinstellingen toetst broncodetekst.**
+     `tests/planning/check-ifc-foreign-open.ts` (het blok "Projectinstellingen: keuze gebonden aan vreemd deel")
+     zoekt vier stukjes tekst in `src/components/settings/ProjectInfoPanelContent.tsx`. Dat toetst de schrijfwijze,
+     niet de bediening. De bediening klopt: de review van #914 heeft in Chromium een bestaand IFC4-model geopend,
+     Projectinstellingen bekeken in licht en donker, de naam gewijzigd en Ctrl+S gebruikt; de keuze staat uit, de
+     bronkop en de uitleg zijn zichtbaar, het schema blijft IFC4 en opslaan weigert zonder download of schemavraag.
+     Richting: de tekstzoekactie vervangen door een stap in een bestaande browserroute voor de schemavraag
+     (`tests/browser/`), bij het onderhoud van de browserproeven. Gevonden door de review van #914 (Sol). — B
+
 1128. **VERVOLG: de scanner draagt 23 bestaande gemaakte oude-kopgevallen nog niet.** In de vaste 97-gevallenproef
      zijn dat naam-10/11/12/15/17/18/19/21, Sol-entiteit-6/9/10 voor elk van de drie vrije velden, de lange auteur
      met wand in de tweede sectie of een vreemde pset, en de twee overeenkomstige grensgevallen één byte boven
