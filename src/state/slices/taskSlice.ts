@@ -1410,17 +1410,18 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   deleteTask: (id) => {
-    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore } = get();
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
       removeTaskSubtrees(s, [id]);
-      selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore); // issue #899
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie: planning verouderd tot F5.
     });
     get().recomputeViewRows();
+    // Na de nieuwe rijen: de buur moet zichtbaar zijn (issue #899).
+    set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); });
   },
 
   deleteTasksBulk: (ids) => {
@@ -1431,18 +1432,18 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       return;
     }
 
-    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore } = get();
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
     set((s) => {
       const existing = new Set(s.tasks.map((task) => task.id)); // één keer, niet per wortel
       const roots = frozen.filter((id) => existing.has(id));
       if (roots.length === 0) return;
       runtime.beginUndoable(s);
       removeTaskSubtrees(s, roots);
-      selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore); // issue #899
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
+    set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); }); // zie deleteTask
   },
 
   // Alle verhangroutes lopen via `applyHierarchyEdit`: eerst de proef met de kringtoets

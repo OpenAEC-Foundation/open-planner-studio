@@ -596,6 +596,15 @@ export function TaskGridSurface({
     previousColumnsRef.current = visibleColumnIds;
   }, [publishedActiveTaskId, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
 
+  // De store kent alleen taak-ids; in een groepering staat een taak meer dan eens. Verwijderen kiest
+  // de buur vanaf de rij van de celcursor (issue #899). De spookregel is geen taakrij.
+  const activeRowKey = selection.active?.rowKey ?? null;
+  useEffect(() => {
+    const rowKey = activeRowKey === GHOST_ROW_KEY ? null : activeRowKey;
+    if (useAppStore.getState().ui.gridActiveRowKey !== rowKey) setUI({ gridActiveRowKey: rowKey });
+  }, [activeRowKey, setUI]);
+  useEffect(() => () => setUI({ gridActiveRowKey: null }), [setUI]);
+
   useEffect(() => {
     if (!editing || editing.documentId !== activeDocumentId) return;
     const liveRowExists = editing.cell.rowKey === GHOST_ROW_KEY

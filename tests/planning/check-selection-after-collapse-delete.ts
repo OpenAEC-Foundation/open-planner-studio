@@ -123,6 +123,55 @@ S().selectTask(only);
 S().deleteTask(only);
 eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
 
+// ── 3) Review #947: de buur moet NA het verwijderen zichtbaar zijn, niet alleen nog bestaan. ──
+// Filter "naam bevat match": zichtbaar zijn match A, P (als ouder van match B) en match B. Na het
+// verwijderen van B valt P weg (C past niet). De selectie mag dus niet op de verborgen P landen —
+// een tweede Verwijderen zou P met het verborgen kind C wissen.
+{
+  S().newProject();
+  const add = (name: string, parentId: string | null = null) => S().addTask({
+    name, isMilestone: false, parentId, time: createDefaultTaskTime('2026-06-01', 1),
+  });
+  add('match A');
+  const p = add('P');
+  const b = add('match B', p);
+  add('C', p);
+  S().setFilter({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'contains', value: 'match' });
+  eq('filter: zichtbaar match A, P, match B', visible(), ['match A', 'P', 'match B']);
+  S().selectTask(b);
+  S().deleteTask(b);
+  eq('filter: na verwijderen zichtbaar alleen match A', visible(), ['match A']);
+  eq('filter: selectie op de zichtbare buur match A, niet op de verborgen P', sel(), { selected: ['match A'], active: 'match A' });
+  S().setFilter(null);
+}
+
+// ── 4) Review #947: in een groepering staat een taak meer dan eens. Vertrekpunt is de rij van de
+// celcursor (ui.gridActiveRowKey), niet het eerste voorkomen van het taak-id. ──
+{
+  S().newProject();
+  const add = (name: string) => S().addTask({
+    name, isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1),
+  });
+  const a = add('A');
+  const b = add('B');
+  const c = add('C');
+  const r1 = S().addResource({ name: 'R1', type: 'LABOR', description: '', maxUnits: 1 });
+  const r2 = S().addResource({ name: 'R2', type: 'LABOR', description: '', maxUnits: 1 });
+  S().assignResource(a, r1, 1);
+  S().assignResource(a, r2, 1);
+  S().assignResource(b, r1, 1);
+  S().assignResource(c, r2, 1);
+  S().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
+  eq('groep: A onder R1 en onder R2', visible(), ['A', 'B', 'A', 'C']);
+  const rowsOfA = S().viewRows.filter(row => row.kind === 'task' && row.task.id === a).map(row => row.rowKey);
+  // De cursor staat op A onder R2 (tweede voorkomen).
+  S().selectTask(a);
+  S().setUI({ gridActiveRowKey: rowsOfA[1] });
+  S().deleteTasksBulk([a]);
+  eq('groep: A onder R2 verwijderd ⇒ C (eronder in R2), niet B in R1', sel(), { selected: ['C'], active: 'C' });
+  S().setGroup([]);
+}
+
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ${d}`);
   console.log(`selectie na inklappen/verwijderen: ${diffs.length}/${checks} ROOD`);

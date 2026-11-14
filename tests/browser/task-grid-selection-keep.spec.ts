@@ -51,7 +51,7 @@ async function isInGrid(page: Page, surface: Surface, id: string): Promise<boole
 
 const selection = (page: Page) => page.evaluate(() => {
   const s = window.__OPS__!.store.getState();
-  return { selected: s.selectedTaskIds, active: s.activeTaskId, scrollY: s.view.scrollY };
+  return { selected: s.selectedTaskIds, active: s.activeTaskId, scrollY: s.view.scrollY, rowKey: s.ui.gridActiveRowKey };
 });
 
 async function collapseParentKeepsPlace(page: Page, surface: Surface, phase: string, child: string): Promise<void> {
@@ -74,30 +74,34 @@ async function collapseParentKeepsPlace(page: Page, surface: Surface, phase: str
   await expect.poll(() => selection(page).then(s => s.active)).toBe(phase);
 }
 
+/** Rechtsklik › Verwijderen: de taak eronder neemt de selectie over en staat in beeld. */
+async function deleteKeepsPlace(page: Page, surface: Surface, doomed: string, below: string): Promise<void> {
+  await scrollUntilVisible(page, surface, doomed);
+  await nameCell(page, surface, doomed).click();
+  // Het raster meldt zijn rij aan de store: in een groepering is dat het vertrekpunt.
+  await expect.poll(() => selection(page).then(s => s.rowKey)).toBe(doomed);
+  await nameCell(page, surface, doomed).click({ button: 'right' });
+  // Het menu-item, niet de lintknop met dezelfde naam.
+  await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ })
+    .and(page.locator(':not([data-ops-ribbon-item])')).click();
+  await expect(row(page, surface, doomed)).toHaveCount(0);
+  await expect.poll(() => selection(page)).toMatchObject({ selected: [below], active: below, rowKey: below });
+  await expect(row(page, surface, below).locator('[data-grid-active="true"]')).toHaveCount(1);
+  expect(await isInGrid(page, surface, below)).toBe(true);
+  expect((await selection(page)).scrollY).toBeGreaterThan(0);
+}
+
 test('lange planning: inklappen en verwijderen houden de selectie op haar plek (issue #899)', async ({ page, ops: _ops }) => {
-  test.setTimeout(60_000); // twee rasters, elk met scrollen en inklappen
+  test.setTimeout(60_000); // twee rasters, elk met scrollen, inklappen en verwijderen
   const { phases, children } = await seedLongPlan(page);
 
   // Takenlijst naast de Gantt.
   await collapseParentKeepsPlace(page, 'gantt-task-grid', phases[2], children[2][2]);
-
-  // Verwijderen via rechtsklik › Verwijderen: de taak eronder neemt de selectie over, in beeld.
-  const doomed = children[3][4];
-  const below = children[3][5];
-  await scrollUntilVisible(page, 'gantt-task-grid', doomed);
-  await nameCell(page, 'gantt-task-grid', doomed).click();
-  await nameCell(page, 'gantt-task-grid', doomed).click({ button: 'right' });
-  // Het menu-item, niet de lintknop met dezelfde naam.
-  await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ })
-    .and(page.locator(':not([data-ops-ribbon-item])')).click();
-  await expect(row(page, 'gantt-task-grid', doomed)).toHaveCount(0);
-  await expect.poll(() => selection(page)).toMatchObject({ selected: [below], active: below });
-  await expect(row(page, 'gantt-task-grid', below).locator('[data-grid-active="true"]')).toHaveCount(1);
-  expect(await isInGrid(page, 'gantt-task-grid', below)).toBe(true);
-  expect((await selection(page)).scrollY).toBeGreaterThan(0);
+  await deleteKeepsPlace(page, 'gantt-task-grid', children[3][4], children[3][5]);
 
   // Tabel: dezelfde rasterkern, dezelfde afspraak.
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect(grid(page, 'full-task-grid')).toBeVisible();
   await collapseParentKeepsPlace(page, 'full-task-grid', phases[3], children[3][2]);
+  await deleteKeepsPlace(page, 'full-task-grid', children[3][7], children[3][8]);
 });
