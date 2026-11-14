@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  latestReportSettings, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  latestReportSettings, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -173,16 +173,19 @@ export function GanttReportStudio() {
   // blijft het papier op de vorige letter staan tot de nieuwe geladen is (beide laders wijzen nooit af).
   // Twee dingen per letter: de `@font-face` waarmee de browser de SVG-tekst tekent, en de lettermaten
   // uit hetzelfde fontbestand waarmee het papier, de kolombreedtes en de PDF meten (`reportTextMeasure.ts`).
+  // Een ander eigen lettertype heeft dezelfde id (`custom`) maar een andere sleutel (`reportFontKey`): dan laadt
+  // en meet het papier opnieuw.
   const [loadedFont, setLoadedFont] = useState<StudioFont | null>(null);
   const chosenFont = settings.reportFontFamily;
+  const chosenFontKey = reportFontKey(settings);
   useEffect(() => {
     let cancelled = false;
     void Promise.all([ensureReportFontLoaded(chosenFont), loadReportTextMetrics(chosenFont, rtl ? 'rtl' : 'ltr')])
-      .then(([, metrics]) => { if (!cancelled) setLoadedFont({ id: chosenFont, metrics }); });
+      .then(([, metrics]) => { if (!cancelled) setLoadedFont({ id: chosenFont, key: chosenFontKey, metrics }); });
     return () => { cancelled = true; };
-  }, [chosenFont, rtl]);
+  }, [chosenFont, chosenFontKey, rtl]);
   const fontReady = loadedFont !== null;
-  const fontPending = loadedFont?.id !== chosenFont;
+  const fontPending = loadedFont?.key !== chosenFontKey;
 
   // De bedrijfsnaam komt uit het project en wordt bewust niet per apparaat bewaard (zie reportSettings.ts).
   const [companyName, setCompanyName] = useState(project.company || '');
@@ -611,7 +614,9 @@ export function GanttReportStudio() {
       text: [
         paperLabel,
         !settings.autoFit && t('studio.page.fixedScale').toLocaleLowerCase(i18n.language),
-        settings.reportFontFamily !== DEFAULT_REPORT_FONT_ID && t(`reportFontFamily.${settings.reportFontFamily}`),
+        settings.reportFontFamily !== DEFAULT_REPORT_FONT_ID && (settings.reportFontFamily === 'custom'
+          ? settings.customReportFont?.name
+          : t(`reportFontFamily.${settings.reportFontFamily}`)),
         settings.reportFontScale !== 100 && `${settings.reportFontScale} %`,
       ].filter((v): v is string => typeof v === 'string').join(listSep),
       warn: tableTooWide,

@@ -34,7 +34,7 @@ export const DEFAULT_REPORT_FONT_STACK = `${INTER_PDF_FAMILY}, -apple-system, Bl
  * Alleen deze id gaat naar de rapportinstellingen (`ops-reportSettings`); een onbekende id valt
  * terug op `inter`. Een id hernoemen = de opgeslagen keuze van bestaande gebruikers kwijtraken.
  */
-export const REPORT_FONT_IDS = ['inter', 'liberationSans', 'carlito', 'liberationSerif'] as const;
+export const REPORT_FONT_IDS = ['inter', 'liberationSans', 'carlito', 'liberationSerif', 'liberationMono'] as const;
 export type ReportFontId = (typeof REPORT_FONT_IDS)[number];
 export const DEFAULT_REPORT_FONT_ID: ReportFontId = 'inter';
 
@@ -46,7 +46,7 @@ export interface ReportFontDef {
   /** Bestandsnamen in `src/services/pdf/fonts/` (ongewijzigde upstreambestanden, zie README). */
   files: { regular: string; bold: string };
   /** Generieke CSS-familie als allerlaatste terugval. */
-  generic: 'sans-serif' | 'serif';
+  generic: 'sans-serif' | 'serif' | 'monospace';
 }
 
 export const REPORT_FONTS: Record<ReportFontId, ReportFontDef> = {
@@ -57,7 +57,21 @@ export const REPORT_FONTS: Record<ReportFontId, ReportFontDef> = {
   carlito: { family: 'OpsReportCarlito', files: { regular: 'Carlito-Regular.ttf', bold: 'Carlito-Bold.ttf' }, generic: 'sans-serif' },
   // Zelfde tekenbreedtes als Times New Roman.
   liberationSerif: { family: 'OpsReportLiberationSerif', files: { regular: 'LiberationSerif-Regular.ttf', bold: 'LiberationSerif-Bold.ttf' }, generic: 'serif' },
+  // Vaste tekenbreedte, dezelfde breedtes als Courier New (vraag van manuvarkey in #770: cijfers en
+  // codes in kolommen recht onder elkaar).
+  liberationMono: { family: 'OpsReportLiberationMono', files: { regular: 'LiberationMono-Regular.ttf', bold: 'LiberationMono-Bold.ttf' }, generic: 'monospace' },
 };
+
+/**
+ * Wat de keuzelijst kan kiezen: een letter uit het vaste setje, of `custom`, het eigen lettertype van de
+ * planner (besluit Ethan, 14 november 2026: van de computer of uit een bestand). Van dat eigen lettertype
+ * bewaart de app een kopie van de bytes (`customFontStore.ts`); de familie op het scherm is
+ * {@link CUSTOM_REPORT_FAMILY}, de bytes in de PDF zijn dezelfde.
+ */
+export type ReportFontChoice = ReportFontId | 'custom';
+
+/** De `@font-face`-familie van het eigen lettertype; een eigen naam, net als bij het vaste setje. */
+export const CUSTOM_REPORT_FAMILY = 'OpsReportCustom';
 
 export function isReportFontId(value: unknown): value is ReportFontId {
   return typeof value === 'string' && (REPORT_FONT_IDS as readonly string[]).includes(value);
@@ -141,8 +155,9 @@ export function reportTextFont(text: string, font: string): string {
  * generieke familie. Inter staat er bewust tussen: een teken dat de gekozen letter mist, tekent het
  * canvas dan in Inter, net als de vector-PDF (`fallbackFonts` in `paginateVector.ts`).
  */
-export function reportFontStack(id: ReportFontId): string {
+export function reportFontStack(id: ReportFontChoice): string {
   if (id === 'inter') return DEFAULT_REPORT_FONT_STACK;
+  if (id === 'custom') return `"${CUSTOM_REPORT_FAMILY}", ${INTER_PDF_FAMILY}, sans-serif`;
   const def = REPORT_FONTS[id];
   return `"${def.family}", ${INTER_PDF_FAMILY}, ${def.generic}`;
 }

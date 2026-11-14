@@ -22,7 +22,7 @@ import { useGanttRowDragBridge } from '@/components/canvas/ganttRowDragBridge';
 import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { humanizeTaskGridKey, resolveColumnLabel } from '@/engine/taskGrid/columnLabel';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
-import { taskNameIndent } from '@/engine/taskGrid/nameIndent';
+import { taskNameFixedWidth, taskNameIndent } from '@/engine/taskGrid/nameIndent';
 import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
 import {
@@ -138,9 +138,6 @@ function useElementSize() {
   return { ref, size };
 }
 
-/** Breedte die de subtaak-plus (Gantt-takenlijst) in de naamkolom inneemt: 18px knop + 4px gap. */
-const SUMMARY_ADD_BUTTON_WIDTH = 22;
-
 /** Het taakraster is een UI-route voor voortgang: de invoerregels van `engine/progressEntry.ts`
  *  gelden (statusdatum op vandaag zonder statusdatum; zo nodig eerst de startvraag). Per
  *  handeling vers, zodat een sessie die over middernacht heen openstaat de juiste dag gebruikt. */
@@ -218,14 +215,12 @@ function editorNeighbour(
 export interface TaskGridSurfaceProps {
   surfaceId: TaskGridSurfaceId;
   baseHeaderHeight?: number;
-  showSummaryAdd?: boolean;
   onPlainTaskClick?: (task: Task) => void;
 }
 
 export function TaskGridSurface({
   surfaceId,
   baseHeaderHeight = 32,
-  showSummaryAdd = false,
   onPlainTaskClick,
 }: TaskGridSurfaceProps) {
   const { t: tTask, i18n: taskI18n } = useTranslation('task');
@@ -874,9 +869,8 @@ export function TaskGridSurface({
   // voor de auto-fit-meting, die anders de inspringing en de subtaak-plus niet meetelt.
   const nameIndentMode = isTreeMode(view) ? 'tree' : 'grouped';
   const nameLeadingWidth = useCallback((depth: number, task: Task): number => (
-    taskNameIndent(depth, task.childIds.length > 0, nameIndentMode)
-      + (showSummaryAdd && task.childIds.length > 0 ? SUMMARY_ADD_BUTTON_WIDTH : 0)
-  ), [nameIndentMode, showSummaryAdd]);
+    taskNameFixedWidth(depth, task.childIds.length > 0, nameIndentMode)
+  ), [nameIndentMode]);
 
   const computeAutoFitWidth = useCallback(async (columnId: TaskColumnId): Promise<number | null> => {
     const descriptor = adapter.descriptorsById.get(columnId);
@@ -962,10 +956,10 @@ export function TaskGridSurface({
             </button>
           )}
           {body}
-          {hasDisclosure && showSummaryAdd && !editingName && (
+          {hasDisclosure && !editingName && (
             <button
               type="button"
-              className="gantt-task-grid-add-child"
+              className="task-grid-add-child"
               aria-label={`${tTask('defaultTask', { defaultValue: 'Nieuwe taak' })}: ${summary.name}`}
               onPointerDown={event => event.stopPropagation()}
               onClick={event => {
@@ -1078,7 +1072,7 @@ export function TaskGridSurface({
         false,
       ) : undefined,
     };
-  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, ghostTask, nameIndentMode, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
+  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, ghostTask, nameIndentMode, rowIndex, selection, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
 
   // Zelfde basis als de Gantt-tijdlijn (`taskGrid/rowHeight.ts`), zodat raster en balken rij-op-rij lopen.
   const rowHeight = Math.max(25, Math.round(TASK_ROW_HEIGHT * uiFontScale / 100));

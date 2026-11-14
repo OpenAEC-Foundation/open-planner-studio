@@ -45,7 +45,8 @@ The Report tab has no ribbon and so no Calculate button, but F5 works here just 
 You adjust the Gantt chart in the five steps of the sidebar; see [The Gantt chart](docs://howto-rapport-maken-en-afdrukken#the-gantt-chart). Look-ahead, Critical & near-critical, Progress report, Progress curve, Schedule health, Resource loading, Resource assignments and WBS summary have *Paper:*, *Orientation:* and *Font:*, plus a *Report options* block with the choices of that report. The Milestone overview and the Variance have no choices of their own. For the period of a report see [Choosing the reporting period](docs://howto-rapportageperiode-kiezen).
 
 - *Paper:* and *Orientation:* determine the sheet. By default this is A3 landscape, which is handy for a construction schedule, but not every printer prints A3. If you have an A4 printer, choose A4 now: the app then lays out the pages for A4, instead of you having to shrink them later.
-- *Font:* chooses the font of all reports: *Inter* (default), *Liberation Sans* (like Arial), *Carlito* (like Calibri) or *Liberation Serif* (like Times New Roman). The choice applies to every report, like the paper.
+- *Font:* chooses the font of all reports: *Inter* (default), *Liberation Sans* (like Arial), *Carlito* (like Calibri), *Liberation Serif* (like Times New Roman) or *Liberation Mono* (monospace, like Courier New). In a monospace font every character has the same width, so codes and numbers line up. The choice applies to every report, like the paper.
+- *Other font…* at the bottom of that list opens a window for your own font; see [Use your own font](docs://howto-rapport-maken-en-afdrukken#use-your-own-font).
 
 ### 5. Check the report
 
@@ -82,6 +83,22 @@ On the left is a sidebar with five steps, in the order of the paper: *Tasks and 
 - **Collapse the sidebar.** With the button next to the list or `Ctrl+\` you collapse the sidebar to a narrow rail with the steps. A click on a step or on the paper opens that step as a small window. Drag the window by its header if it covers something; it stays next to the rail and above the *Export PDF* button. At the bottom left there is then the *Export PDF* button. The paper stays clear of that button: if a sheet reaches its corner, the paper stops above it.
 - **Export.** *Export PDF* is at the bottom of the sidebar. The paper on the screen is the same as the PDF: the same pages, and names and dates are truncated in the same place.
 - **Schedule not recalculated.** If you change something in the schedule without F5 (and *Calculate automatically* is off), the paper still shows the last calculation. Above the paper it then says *The schedule has not been recalculated. The PDF recalculates it first.* So the PDF has the new dates and the paper does not yet. Click *Recalculate now* (it does the same as F5); after that the paper is the same as the PDF again.
+
+## Use your own font
+
+1. In *Font:*, choose *Other font…* at the bottom of the list.
+2. Choose a font from this computer's list, or click *Choose file…* and choose a font file (.ttf or .ttc). If you choose the regular and the bold file together, the report uses both.
+3. The font is now in the list as *Name (own font)*, and the report uses it.
+
+The app keeps a copy on this device and puts the font in the PDF. Anyone who opens the PDF sees the same, even without that font. There is one own font at a time; a new choice replaces the previous one.
+
+**Where the computer's list works.** Always in the desktop app. In the browser only in Chrome and Edge, after you give the browser permission. In other browsers, choose a font file.
+
+**Not every font works.** A font that may not go into a PDF, a variable font and a font with PostScript outlines (many .otf files) are in the list with the reason, and cannot be chosen.
+
+**Without a bold style.** If the font has no bold style, bold text uses the regular style. The app tells you once.
+
+**The font is gone.** If the copy on this device has gone, for example because the browser storage was cleared, the report uses Inter again. The app tells you once.
 
 ## Pitfalls and what the app does
 

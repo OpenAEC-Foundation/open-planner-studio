@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -7,6 +7,7 @@ import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
+import { installIfcMissingSourceAsker } from '@/state/ifcMissingSourceQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { EXTENSIONS_ENABLED, FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
@@ -47,6 +48,8 @@ import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
+import { fontsSettled, revealAppWindow } from '@/startup/appWindow';
+import { Backstage, preloadBackstageSections } from '@/components/backstage/Backstage';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
@@ -85,6 +88,7 @@ const SiteOpenDialog = lazy(() => import('@/components/dialogs/SiteOpenDialog').
 const FormatNoticeDialog = lazy(() => import('@/components/dialogs/FormatNoticeDialog').then(m => ({ default: m.FormatNoticeDialog })));
 const SiteSaveDialog = lazy(() => import('@/components/dialogs/SiteSaveDialog').then(m => ({ default: m.SiteSaveDialog })));
 const DependentAnchorWarningDialog = lazy(() => import('@/components/dialogs/DependentAnchorWarningDialog').then(m => ({ default: m.DependentAnchorWarningDialog })));
+const IfcMissingSourceSaveAsDialog = lazy(() => import('@/components/dialogs/IfcMissingSourceSaveAsDialog').then(m => ({ default: m.IfcMissingSourceSaveAsDialog })));
 const IfcSchemaQuestionDialog = lazy(() => import('@/components/dialogs/IfcSchemaQuestionDialog').then(m => ({ default: m.IfcSchemaQuestionDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
@@ -107,7 +111,6 @@ const TourOverlay = lazy(() => import('@/components/tour/TourOverlay').then(m =>
 const TutorialOfferDialog = EXTENSIONS_ENABLED
   ? lazy(() => import('@/components/dialogs/TutorialOfferDialog').then(m => ({ default: m.TutorialOfferDialog })))
   : () => null;
-const Backstage = lazy(() => import('@/components/backstage/Backstage').then(m => ({ default: m.Backstage })));
 const GuidePanel = lazy(() => import('@/components/guide/GuidePanel').then(m => ({ default: m.GuidePanel })));
 
 /** Loopt er een begeleiding van een extensie (`api.help.startGuide`)? Module-state, geen store-vlag:
@@ -164,6 +167,15 @@ function AppContent() {
   const guideActive = useSyncExternalStore(subscribeGuideView, guideActiveSnapshot);
 
 
+  // Het venster tonen (#895): de eerste weergave is vastgelegd en de lettertypen zijn binnen. Het venster
+  // start verborgen (`tauri.conf.json`); zie `startup/appWindow.ts`. Daarna de zware secties van Bestand
+  // vooraf laden.
+  useEffect(() => {
+    void fontsSettled()
+      .then(() => revealAppWindow('gereed'))
+      .then(() => preloadBackstageSections());
+  }, []);
+
   // Recovery-restore bij opstarten (Tauri én web): detectie + RecoveryDialog-callbacks; levert ook
   // de auto-save-poort (`autoSaveEnabled`) en het reactieve "flow afgehandeld"-signaal.
   const { recovery, recoveryResolved, autoSaveEnabled } = useRecoveryRestore();
@@ -190,7 +202,7 @@ function AppContent() {
   useEffect(() => { installSiteDialogAskers(); }, []);
   // De schemavraag bij opslaan (issue #292): zonder deze registratie houdt opslaan stil het schema van
   // het bestand (de veilige terugval), maar dan krijgt de gebruiker de keuze niet.
-  useEffect(() => { installIfcSchemaAsker(); }, []);
+  useEffect(() => { installIfcSchemaAsker(); installIfcMissingSourceAsker(); }, []);
   // De waarschuwing vóór opslaan over te krappe ankers van afhankelijke projecten (stap 1.11). Zonder
   // deze registratie slaat de app zonder vraag op.
   useEffect(() => { installDependentAnchorAsker(); }, []);
@@ -258,8 +270,10 @@ function AppContent() {
   useSystemColorSchemeSync();
 
   // Apply theme to document — de VOORKEUR met 'system' al opgelost naar dark/light; er is geen
-  // 'system'-blok in globals.css. Zet `data-theme` en `data-oa-theme` samen.
-  useEffect(() => {
+  // 'system'-blok in globals.css. Zet `data-theme` en `data-oa-theme` samen. Een layout-effect, net
+  // als het lettertype hieronder: `theme-prepaint.js` zet het thema al vóór de eerste weergave, en een
+  // afwijkende keuze (bv. de dev-link `?theme=`) staat er zo ook vóór het eerste frame.
+  useLayoutEffect(() => {
     applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
 
@@ -270,7 +284,9 @@ function AppContent() {
   // defaults (Space Grotesk / Inter) weer gelden. Eén effect = één render-pas bij wijzigen.
   // De stacks komen uit `@/utils/uiFont` — dezelfde tabel die `GanttCanvas` gebruikt om de
   // Canvas-2D-renderers hun `ctx.font`-familie te geven (een canvas leest geen CSS-variabelen).
-  useEffect(() => {
+  // Een layout-effect (#895): de bewaarde instellingen staan al vóór de eerste render in de store
+  // (`main.tsx`), en zo staan schaal en familie er al vóór de eerste weergave, niet een frame later.
+  useLayoutEffect(() => {
     const style = document.documentElement.style;
     style.setProperty('--ui-font-scale', String(uiFontScale / 100));
     if (uiFontFamily === 'default') {
@@ -377,7 +393,7 @@ function AppContent() {
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}
       {activeTab === 'file' ? (
-        <Suspense fallback={null}><Backstage /></Suspense>
+        <Backstage />
       ) : (
         <>
       {/* A · Documenttabs — tabstrip onder het lint (multi-document) */}
@@ -508,6 +524,7 @@ function AppContent() {
         <SiteSaveDialog />
         {/* De schemavraag bij opslaan (issue #292): rendert alleen bij `ui.pendingIfcSchemaQuestion`. */}
         <IfcSchemaQuestionDialog />
+        <IfcMissingSourceSaveAsDialog />
         {/* Te krappe ankers van afhankelijke projecten vóór opslaan (stap 1.11). */}
         {pendingDependentAnchorWarning && <DependentAnchorWarningDialog />}
         {/* Uitleg na het openen van een ander formaat dan IFC; `key` = vinkje leeg bij elke nieuwe uitleg. */}
