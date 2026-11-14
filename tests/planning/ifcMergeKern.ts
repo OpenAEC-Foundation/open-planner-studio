@@ -245,7 +245,8 @@ export function firstDiff(a: string, b: string): string {
 export type EditKind = 'niets' | 'andere-ouder' | 'niveau-hoger' | 'volgorde-kinderen' | 'relatie-erbij' | 'taak-wissen'
   | 'taak-erbij' | 'hernoemen' | 'duur' | 'toewijzing-erbij' | 'voortgang' | 'doorrekenen'
   | 'resource-erbij' | 'kalender-erbij' | 'baseline-vastleggen'
-  | 'reeks-taak-baseline' | 'reeks-resource-kalender-toewijzing' | 'reeks-taak-bestaand-type' | 'reeks-twee-baselines';
+  | 'reeks-taak-baseline' | 'reeks-resource-kalender-toewijzing' | 'reeks-taak-bestaand-type' | 'reeks-twee-baselines'
+  | 'reeks-tweede-code' | 'reeks-tweede-type' | 'reeks-type-wisselen' | 'reeks-actieve-baseline';
 /** Een niet-toepasselijke soort blijft zichtbaar, maar gaat nooit naar de merge. */
 export interface Edit { readonly kind: EditKind; readonly label: string; apply(d: Domain): void | Promise<Domain | void>; readonly recalculate?: boolean; readonly notApplicable?: string }
 export class EditNotAppliedError extends Error {
@@ -464,5 +465,46 @@ export function fixedSequenceEdits(d: Domain): Edit[] {
     appEdit('reeks-twee-baselines', 'twee baselines achter elkaar', x => storeEdit(x, s => {
       s.saveBaseline('Baseline A 7c'); s.saveBaseline('Baseline B 7c');
     }), (a, b) => b.baselines?.length === (a.baselines?.length ?? 0) + 2),
+  ];
+}
+
+/** 7d: twee gebruikte typen, één code en twee baselines in één echte eerste opslag. */
+export async function savedCatalogStart(bytes: Uint8Array, twoTypes = true): Promise<Uint8Array> {
+  const { store, snapshot } = await openInStore(bytes);
+  const s = store.getState(), leaves = s.tasks.filter(t => !t.isMilestone && !t.childIds.length);
+  if (leaves.length < 4) throw new Error('catalogusreeksen: vier gewone taken nodig');
+  for (const [i, id] of (twoTypes ? ['type-7d-a', 'type-7d-b'] : ['type-7d-a']).entries()) {
+    s.ensureProjectTaskType({ id, name: `Type ${i} 7d` });
+    s.updateTask(leaves[i].id, { taskType: 'USERDEFINED', customTaskTypeId: id });
+  }
+  // Beide typen blijven gebruikt wanneer de eerste taak wisselt of haar type verliest.
+  s.updateTask(leaves[2].id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7d-a' });
+  const code = s.addActivityCodeType('Code A 7d'), value = s.addActivityCodeValue(code, { code: 'A', description: 'Waarde A' });
+  s.setTaskActivityCode(leaves[0].id, code, value);
+  s.saveBaseline('Baseline A 7d'); s.saveBaseline('Baseline B 7d');
+  const input = snapshot(store), output = concat((await prepareIfcWrite(input, input.ifcSource!)).parts);
+  const reread = await openForeign(output);
+  if (JSON.stringify(reread.customTaskTypes) !== JSON.stringify(input.customTaskTypes)
+    || JSON.stringify(reread.activityCodeTypes) !== JSON.stringify(input.activityCodeTypes)
+    || JSON.stringify(reread.baselines) !== JSON.stringify(input.baselines)
+    || mergeProblems(bytes, output).length) throw new Error('catalogusreeksen: beginstand niet behouden');
+  return output;
+}
+export function fixedCatalogEdits(_d: Domain): Edit[] {
+  return [
+    appEdit('reeks-tweede-code', 'tweede codedefinitie', x => storeEdit(x, s => {
+      const code = s.addActivityCodeType('Code B 7d'), value = s.addActivityCodeValue(code, { code: 'B', description: 'Waarde B' });
+      s.setTaskActivityCode(s.tasks.find(t => !t.childIds.length && !t.customTaskTypeId)!.id, code, value);
+    }), (a, b) => b.activityCodeTypes!.length === a.activityCodeTypes!.length + 1),
+    appEdit('reeks-tweede-type', 'nieuwe taaktypedefinitie en koppeling', x => storeEdit(x, s => {
+      s.ensureProjectTaskType({ id: 'type-7d-c', name: 'Type C 7d' });
+      s.updateTask(s.tasks.find(t => !t.childIds.length && !t.customTaskTypeId)!.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7d-c' });
+    }), (a, b) => b.customTaskTypes!.length === a.customTaskTypes!.length + 1),
+    appEdit('reeks-type-wisselen', 'taak wisselt naar bestaand type', x => storeEdit(x, s => {
+      s.updateTask(s.tasks.find(t => t.customTaskTypeId === 'type-7d-a')!.id, { customTaskTypeId: 'type-7d-b' });
+    }), (a, b) => b.tasks.some(t => t.customTaskTypeId !== a.tasks.find(old => old.id === t.id)?.customTaskTypeId)),
+    appEdit('reeks-actieve-baseline', 'andere bestaande baseline actief', x => storeEdit(x, s => {
+      s.setActiveBaseline(s.baselines.find(b => b.id !== s.activeBaselineId)!.id);
+    }), (a, b) => a.activeBaselineId !== b.activeBaselineId),
   ];
 }
