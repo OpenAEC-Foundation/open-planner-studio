@@ -3,17 +3,22 @@
  * die daar begint, ziet zijn datumveld niet. Opslaan en herberekenen ronden eerst de invoer van het
  * actieve veld af; zonder deze brug sloeg Ctrl+S vanuit de kiezer de vorige datum op (review #940).
  */
-const closers = new WeakMap<Element, () => void>();
+const closers = new WeakMap<object, () => void>();
+
+type Closest = { closest?: (selector: string) => object | null };
+/** Het paneel rond `target`, zonder `instanceof Element` (de headless sneltoetstests hebben geen DOM). */
+const panelOf = (target: EventTarget | null): object | null =>
+  (target as Closest | null)?.closest?.('[data-ops-date-picker]') ?? null;
 
 /** De kiezer meldt zich aan met de handeling die hem sluit en de focus terugzet in zijn veld. */
-export function registerDatePickerPanel(panel: Element, close: () => void): () => void {
+export function registerDatePickerPanel(panel: object, close: () => void): () => void {
   closers.set(panel, close);
   return () => { closers.delete(panel); };
 }
 
 /** Staat dit element in een open kiezer? Dan geldt het voor sneltoetsen als een invoerveld. */
 export function isInDatePicker(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('[data-ops-date-picker]') !== null;
+  return panelOf(target) !== null;
 }
 
 /**
@@ -21,7 +26,7 @@ export function isInDatePicker(target: EventTarget | null): boolean {
  * Buiten een kiezer komt `target` ongewijzigd terug.
  */
 export function leaveDatePicker(target: EventTarget | null): EventTarget | null {
-  const panel = target instanceof Element ? target.closest('[data-ops-date-picker]') : null;
+  const panel = panelOf(target);
   const close = panel ? closers.get(panel) : undefined;
   if (!close) return target;
   close();
