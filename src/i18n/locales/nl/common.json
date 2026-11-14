@@ -1284,7 +1284,14 @@
     "group": "Datum",
     "day": "dag",
     "month": "maand",
-    "year": "jaar"
+    "year": "jaar",
+    "openCalendar": "Kalender openen",
+    "calendar": "Kies een datum",
+    "previousMonth": "Vorige maand",
+    "nextMonth": "Volgende maand",
+    "today": "Vandaag",
+    "weekShort": "wk",
+    "weekNumber": "Week {{number}}"
   },
   "recordedDates": {
     "activeCount_one": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt {{count}} taak af.",

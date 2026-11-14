@@ -1,5 +1,5 @@
-// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch main (lokaal) (0e88d98d8acd)
-// (B2-revisie 107, 217 iconen). Niet met de hand bewerken; zie de kop van dat script.
+// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/datumkiezer (lokaal) (9a2c11a6cb22)
+// (B2-revisie 107, 220 iconen). Niet met de hand bewerken; zie de kop van dat script.
 // Bron en licentie van de iconen: de Blueprint (voorlopig LGPL-3.0-only, besluit over een eigen
 // iconenlicentie open in issue #15 daar). Hoofdkleur `currentColor`, accent `var(--icon-accent)`.
 
@@ -86,6 +86,9 @@ export type IconId =
   | "guide.tutorials"
   | "help.context-hint"
   | "input.confirm-draft"
+  | "input.date-picker"
+  | "input.month-next"
+  | "input.month-previous"
   | "input.time-decrease"
   | "input.time-increase"
   | "layout.crew"
@@ -511,6 +514,18 @@ export const B2_ICONS: Readonly<Record<IconId, IconDef>> = {
   "input.confirm-draft": {
     s16: { w: 1.25, parts: [[0, 0, "M2.5 8.5L6.22 12.22Q6.5 12.5 6.78 12.22L13.5 5.5"]] },
     s24: { w: 1.75, parts: [[0, 0, "M4 12.5L9.08 17.58Q9.5 18 9.92 17.58L20.5 7"]] },
+  },
+  "input.date-picker": {
+    s16: { w: 1.25, parts: [[1, 1, "M7 11A1 1 0 1 0 9 11A1 1 0 1 0 7 11Z"], [0, 0, "M3 3.5L13 3.5Q14.5 3.5 14.5 5L14.5 13Q14.5 14.5 13 14.5L3 14.5Q1.5 14.5 1.5 13L1.5 5Q1.5 3.5 3 3.5Z"], [0, 0, "M4.5 1.5L4.5 4.5"], [0, 0, "M11.5 1.5L11.5 4.5"], [0, 0, "M1.5 7.5L14.5 7.5"], [1, 0, "M4 11A1 1 0 1 0 6 11A1 1 0 1 0 4 11Z"], [1, 0, "M10 11A1 1 0 1 0 12 11A1 1 0 1 0 10 11Z"]] },
+    s24: { w: 1.75, parts: [[1, 1, "M10.9 17.5A1.1 1.1 0 1 0 13.1 17.5A1.1 1.1 0 1 0 10.9 17.5Z"], [0, 0, "M5.2 4L18.8 4Q21 4 21 6.2L21 18.8Q21 21 18.8 21L5.2 21Q3 21 3 18.8L3 6.2Q3 4 5.2 4Z"], [0, 0, "M8 2L8 6"], [0, 0, "M16 2L16 6"], [0, 0, "M3 10L21 10"], [1, 0, "M6.9 13.5A1.1 1.1 0 1 0 9.1 13.5A1.1 1.1 0 1 0 6.9 13.5Z"], [1, 0, "M10.9 13.5A1.1 1.1 0 1 0 13.1 13.5A1.1 1.1 0 1 0 10.9 13.5Z"], [1, 0, "M14.9 13.5A1.1 1.1 0 1 0 17.1 13.5A1.1 1.1 0 1 0 14.9 13.5Z"], [1, 0, "M6.9 17.5A1.1 1.1 0 1 0 9.1 17.5A1.1 1.1 0 1 0 6.9 17.5Z"], [1, 0, "M14.9 17.5A1.1 1.1 0 1 0 17.1 17.5A1.1 1.1 0 1 0 14.9 17.5Z"]] },
+  },
+  "input.month-next": {
+    s16: { w: 1.25, parts: [[0, 0, "M5.5 2.5L10.15 7.15Q10.5 7.5 10.15 7.85L5.5 12.5"]] },
+    s24: { w: 1.75, parts: [[0, 0, "M9 5L15.51 11.51Q16 12 15.51 12.49L9 19"]] },
+  },
+  "input.month-previous": {
+    s16: { w: 1.25, parts: [[0, 0, "M10.5 2.5L5.85 7.15Q5.5 7.5 5.85 7.85L10.5 12.5"]] },
+    s24: { w: 1.75, parts: [[0, 0, "M15 5L8.49 11.51Q8 12 8.49 12.49L15 19"]] },
   },
   "input.time-decrease": {
     s16: { w: 1.25, parts: [[0, 0, "M2.5 5.5L7.15 10.15Q7.5 10.5 7.85 10.15L12.5 5.5"]] },

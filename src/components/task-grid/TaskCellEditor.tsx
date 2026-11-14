@@ -22,6 +22,7 @@ import {
 import { controlKeyDown, RelationCellEditor } from './RelationCellEditor';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { Icon } from '@/components/icons';
+import { DATE_PICKER_ICONS, DatePickerPanel } from '@/components/common/DatePicker';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -153,14 +154,14 @@ export function TaskCellEditor({
   const dateEditorKind = descriptor?.editorKind === 'date' || descriptor?.editorKind === 'datetime'
     ? descriptor.editorKind
     : null;
-  const pickerValue = dateEditorKind === 'date'
-    ? parseGridDate(text, dateNotation) ?? ''
-    : dateEditorKind === 'datetime'
-      ? (() => {
-          const parsed = parseGridDateTime(text, dateNotation);
-          return parsed?.length === 10 ? `${parsed}T00:00` : parsed ?? '';
-        })()
-      : '';
+  // De eigen datumkiezer (#904) achter een knop in de datumeditor: hij opent op de getypte datum.
+  const parsedDateText = dateEditorKind === 'date'
+    ? parseGridDate(text, dateNotation)
+    : dateEditorKind === 'datetime' ? parseGridDateTime(text, dateNotation) : null;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const dateEditorRef = useRef<HTMLDivElement>(null);
+  const pickerButtonRef = useRef<HTMLButtonElement>(null);
+  const pickerPanelRef = useRef<HTMLDivElement>(null);
   const relationDirection = String(cell.columnId) === 'relation.predecessors'
     ? 'predecessor'
     : String(cell.columnId) === 'relation.successors' ? 'successor' : null;
@@ -271,6 +272,20 @@ export function TaskCellEditor({
       preventDefault: () => {},
       stopPropagation: () => {},
     } as KeyboardEvent<HTMLElement>);
+  };
+
+  /** Een dag uit de kiezer: dezelfde tekst als typen, met de getypte tijd erbij, en meteen vastleggen
+   *  (een keuze is één handeling, zoals in een keuzelijst). Zonder getypte tijd blijft het een datum:
+   *  de store zet die op de dagrand van het veld, net als een getypte datum. */
+  const pickGridDate = (iso: string, inputProps: GridEditorInputProps) => {
+    inputRef.current?.focus();
+    setPickerOpen(false);
+    const time = dateEditorKind === 'datetime' && parsedDateText && parsedDateText.length > 10
+      ? parsedDateText.slice(10)
+      : '';
+    commitPickedValue(time
+      ? formatGridDateTime(iso + time, dateNotation, adapter.context.timeNotation ?? '24h')
+      : formatGridDate(iso, dateNotation), inputProps);
   };
 
   // Escape in een keuzelijst-editor (enum/boolean): annuleer de celbewerking vóórdat `Select` de
@@ -506,7 +521,7 @@ export function TaskCellEditor({
             />
           </div>
         ) : dateEditorKind ? (
-          <div className="task-grid-date-editor">
+          <div className="task-grid-date-editor" ref={dateEditorRef}>
             <input
               {...inputProps}
               ref={node => { inputRef.current = node; }}
@@ -514,26 +529,52 @@ export function TaskCellEditor({
               aria-label={label}
               value={text}
               onChange={event => setText(event.currentTarget.value)}
+              onKeyDown={event => {
+                if (event.key === 'ArrowDown' && event.altKey) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setPickerOpen(true);
+                  return;
+                }
+                inputProps.onKeyDown(event);
+              }}
               className="task-grid-editor-input"
               data-task-editor-kind={dateEditorKind}
             />
-            <input
-              {...inputProps}
-              type={dateEditorKind === 'date' ? 'date' : 'datetime-local'}
-              step={dateEditorKind === 'datetime' ? 60 : undefined}
+            <button
+              ref={pickerButtonRef}
+              type="button"
+              tabIndex={-1}
               aria-label={calendarPickerLabel}
-              value={pickerValue}
-              onChange={event => {
-                const value = event.currentTarget.value;
-                setText(value === ''
-                  ? ''
-                  : dateEditorKind === 'date'
-                    ? formatGridDate(value, dateNotation)
-                    : formatGridDateTime(value, dateNotation, adapter.context.timeNotation ?? '24h'));
+              title={calendarPickerLabel}
+              aria-haspopup="dialog"
+              aria-expanded={pickerOpen}
+              aria-keyshortcuts="Alt+ArrowDown"
+              // De focus blijft in het tekstveld (of in het open paneel).
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => {
+                if (pickerOpen) inputRef.current?.focus();
+                setPickerOpen(open => !open);
               }}
               className="task-grid-date-picker"
               data-task-editor-picker={dateEditorKind}
-            />
+            >
+              <Icon id={DATE_PICKER_ICONS.open} size={14} />
+            </button>
+            {pickerOpen && (
+              <DatePickerPanel
+                anchorRef={dateEditorRef}
+                panelRef={pickerPanelRef}
+                ignoreRef={pickerButtonRef}
+                value={parsedDateText?.slice(0, 10) ?? ''}
+                ariaLabel={label}
+                onPick={iso => pickGridDate(iso, inputProps)}
+                onClose={restoreFocus => {
+                  if (restoreFocus) inputRef.current?.focus();
+                  setPickerOpen(false);
+                }}
+              />
+            )}
           </div>
         ) : (
           <>

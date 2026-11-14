@@ -911,15 +911,26 @@
   border-inline-end: 0;
 }
 
+/* De knop die de eigen datumkiezer opent (#904); zelfde rand als het tekstveld ernaast. */
 .task-grid-date-picker {
-  width: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
   min-width: 0;
   height: 100%;
-  padding: 0 2px;
-  color: var(--theme-text);
+  padding: 0;
+  color: var(--theme-text-dim);
   background: var(--theme-surface);
   border: 1px solid var(--theme-accent);
-  font: inherit;
+  border-inline-start: 0;
+  cursor: pointer;
+}
+
+.task-grid-date-picker:hover,
+.task-grid-date-picker[aria-expanded="true"] {
+  color: var(--theme-text);
+  background: var(--theme-hover);
 }
 
 .task-grid-assignment-editor {

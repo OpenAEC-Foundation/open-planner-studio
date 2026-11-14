@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
+import { Icon } from '@/components/icons';
+import { DATE_PICKER_ICONS, DatePickerPanel } from './DatePicker';
 import { parsePersonalDate } from '@/utils/displayDate';
 import type { DateNotation } from '@/state/slices/types';
 
@@ -224,6 +226,12 @@ interface DateTextInputProps {
    * {@link resolveDateCommit}). Voor de startdatum en beperkingsdatums.
    */
   required?: boolean;
+  /**
+   * De aanroeper keurt de (geldige) datum af, bv. een omgekeerd bereik: dezelfde rode rand en
+   * `aria-invalid` als bij een onbestaande datum, zonder eigen melding (die toont de aanroeper). Gebruik
+   * dit in plaats van een rand via `style`: het veld zet zijn rand als `border`-shorthand.
+   */
+  invalid?: boolean;
   className?: string;
   style?: React.CSSProperties;
   ariaLabel?: string;
@@ -244,8 +252,8 @@ interface DateTextInputProps {
 }
 
 /**
- * Gedeeld datum-invoerveld — vervangt overal de native datumprikker (`input[type=date]`).
- * Bewust géén eigen kalender-widget.
+ * Gedeeld datum-invoerveld — vervangt overal de native datumprikker (`input[type=date]`), met een
+ * eigen kalender achter een knop in het veld (#904, {@link DatePickerPanel}).
  *
  * GESEGMENTEERDE INVOER — het veld is één omrande groep (`role=group`) met drie sub-vakjes
  * `dd | mm | jjjj`, gescheiden door streepjes. De opgeslagen/gecommitte waarde (`value`/`onCommit`)
@@ -296,10 +304,18 @@ interface DateTextInputProps {
  * {@link dateCommitValue}. Tijdinvoer bouwt het veld bewust niet.
  *
  * VERPLICHT (`required`): leeg afronden valt stil terug op de huidige waarde, zoals incomplete invoer.
+ *
+ * KALENDER (#904): de knop aan het eind van het veld, of Alt+Pijl-omlaag in een vakje, opent
+ * {@link DatePickerPanel}. De knop zit bewust niet in de tabvolgorde: Tab gaat zoals altijd in één stap
+ * naar het volgende veld. Het paneel opent op de getypte datum als die geldig is, anders op de opgeslagen
+ * datum (of vandaag). Een gekozen dag is, net als plakken, één bewuste handeling: die commit meteen, ook
+ * in `'blur'`-modus, en zet de focus terug in het veld. Escape sluit zonder keuze en zet de focus ook
+ * terug; een klik ernaast sluit en rondt het veld af zoals een gewone blur. Het paneel hangt via een
+ * portal aan `body`; voor de focuslogica telt het als deel van het veld.
  */
 export function DateTextInput({
   value, onCommit, className = '', style, ariaLabel, title, disabled, placeholder, id,
-  commitMode = 'blur', required = false,
+  commitMode = 'blur', required = false, invalid = false,
 }: DateTextInputProps) {
   const { t } = useTranslation('common');
   // Weergave-/segmentvolgorde volgt de instelling (reactief: hertekent bij wijziging).
@@ -318,6 +334,10 @@ export function DateTextInput({
   const [activeKind, setActiveKind] = useState<SegKind>(order[0].kind);
 
   const refs = useRef<Partial<Record<SegKind, HTMLInputElement | null>>>({});
+  const groupRef = useRef<HTMLDivElement>(null);
+  const pickerButtonRef = useRef<HTMLButtonElement>(null);
+  const pickerPanelRef = useRef<HTMLDivElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Zolang de groep niet in bewerking is (en er geen fout getoond wordt), volgen de segmenten de
   // opgeslagen (ISO-)waarde. `showError` in de guard voorkomt dat een compleet-maar-ongeldige invoer
@@ -407,6 +427,12 @@ export function DateTextInput({
     const atStart = el.selectionStart === 0 && el.selectionEnd === 0;
     const atEnd = el.selectionStart === val.length && el.selectionEnd === val.length;
 
+    if (e.key === 'ArrowDown' && e.altKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      setPickerOpen(true);
+      return;
+    }
     if (e.key === 'Enter') {
       const { blocked } = finish(seg);
       // Ongeldig/incompleet mag de dialoog-Enter niet doorlaten (zie JSDoc). Een GESLAAGDE commit
@@ -463,29 +489,60 @@ export function DateTextInput({
 
   const handleGroupFocus = () => setGroupFocused(true);
 
-  const handleGroupBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-    // Verlaat de focus de héle groep, of springt hij alleen tussen segmenten?
-    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+  const handleGroupBlur = (e: React.FocusEvent<HTMLSpanElement>) => {
+    // Verlaat de focus de héle groep (inclusief het kalenderpaneel, dat via een portal elders in de
+    // DOM hangt), of springt hij alleen tussen segmenten, de knop en het paneel?
+    const next = e.relatedTarget as Node | null;
+    if (e.currentTarget.contains(next) || pickerPanelRef.current?.contains(next)) return;
+    setPickerOpen(false);
     setGroupFocused(false);
     finish(seg);
   };
 
-  const groupBorder = disabled ? null : showError ? ERROR_STYLE : groupFocused ? FOCUS_STYLE : null;
+  /** De focus terug in het veld, op het vakje dat laatst actief was. Vóór het sluiten van het paneel,
+   *  zodat de focus nooit op `body` valt (dan zou het veld als verlaten gelden). */
+  const focusField = () => focusSeg(Math.max(0, order.findIndex(d => d.kind === activeKind)), 'all');
+
+  const pickDate = (iso: string) => {
+    focusField();
+    setPickerOpen(false);
+    setSeg(isoToSegments(iso));
+    setShowError(false);
+    const next = dateCommitValue(iso, value);
+    if (next !== null && onCommit(next) === false) setSeg(isoToSegments(value));
+  };
+
+  const closePicker = (restoreFocus: boolean) => {
+    if (restoreFocus) focusField();
+    setPickerOpen(false);
+  };
+
+  // De datum waarop het paneel opent: de getypte als die al een bestaande datum is, anders de opgeslagen.
+  const typed = computeSeg(seg);
+  const pickerValue = typed.status === 'valid' && typed.iso ? typed.iso : splitDateValue(value).date;
+
+  const groupBorder = disabled ? null : showError || invalid ? ERROR_STYLE : groupFocused ? FOCUS_STYLE : null;
 
   return (
-    <span style={{ position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <span
+      style={{ position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}
+      onFocus={handleGroupFocus}
+      onBlur={handleGroupBlur}
+    >
       <div
+        ref={groupRef}
         id={id}
         role="group"
         aria-label={ariaLabel ?? t('dateInput.group')}
         aria-disabled={disabled || undefined}
         title={title}
         className={className}
-        onFocus={handleGroupFocus}
-        onBlur={handleGroupBlur}
         onMouseDown={e => {
           if (disabled) return;
-          if ((e.target as HTMLElement).tagName !== 'INPUT') { e.preventDefault(); focusEntry(); }
+          const target = e.target as HTMLElement;
+          // De kalenderknop: de focus blijft waar hij is (het vakje, of het open paneel).
+          if (pickerButtonRef.current?.contains(target)) { e.preventDefault(); return; }
+          if (target.tagName !== 'INPUT') { e.preventDefault(); focusEntry(); }
         }}
         style={{
           display: 'flex', alignItems: 'center', minWidth: 0,
@@ -507,7 +564,7 @@ export function DateTextInput({
               disabled={disabled}
               tabIndex={def.kind === activeKind ? 0 : -1}
               aria-label={t(def.labelKey)}
-              aria-invalid={showError || undefined}
+              aria-invalid={showError || invalid || undefined}
               value={seg[def.kind]}
               placeholder={placeholders[i]}
               maxLength={def.maxLen}
@@ -528,7 +585,34 @@ export function DateTextInput({
             />
           </Fragment>
         ))}
+        <button
+          ref={pickerButtonRef}
+          type="button"
+          className="ops-date-input__picker"
+          tabIndex={-1}
+          disabled={disabled}
+          aria-label={t('dateInput.openCalendar')}
+          title={t('dateInput.openCalendar')}
+          aria-haspopup="dialog"
+          aria-expanded={pickerOpen}
+          aria-keyshortcuts="Alt+ArrowDown"
+          data-ops-date-picker-button
+          onClick={() => { if (pickerOpen) closePicker(true); else setPickerOpen(true); }}
+        >
+          <Icon id={DATE_PICKER_ICONS.open} size={14} />
+        </button>
       </div>
+      {pickerOpen && !disabled && (
+        <DatePickerPanel
+          anchorRef={groupRef}
+          panelRef={pickerPanelRef}
+          ignoreRef={pickerButtonRef}
+          value={pickerValue}
+          ariaLabel={ariaLabel}
+          onPick={pickDate}
+          onClose={closePicker}
+        />
+      )}
       {showError && (
         <span
           role="alert"

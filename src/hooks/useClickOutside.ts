@@ -25,6 +25,13 @@ export interface UseClickOutsideOptions {
 }
 
 /**
+ * Panelen die via een portal aan `document.body` hangen maar bij een trigger binnen een ander paneel
+ * horen: de open lijst van `Select` en de kalender van `DateTextInput`. Een klik daarin is geen klik naast
+ * het paneel eromheen. Ook voor eigen buiten-klik-afhandelingen (bv. de stappen van de Rapportstudio).
+ */
+export const PORTALED_MENU_SELECTOR = '.ops-select__menu, .ops-date-picker';
+
+/**
  * Gedeelde click-outside-hook: één implementatie van `document`-listeners plus
  * `ref.current.contains(e.target)`, i.p.v. losse `useEffect`s per component.
  *
@@ -56,13 +63,13 @@ export function useClickOutside<T extends HTMLElement>(
       const node = target as Node | null;
       const insideMain = ref.current !== null && ref.current.contains(node);
       const insideExtra = extraRef?.current != null && extraRef.current.contains(node);
-      // Het open menu van een `Select` hangt via een portal aan `document.body`. Het hoort altijd bij
-      // een trigger die zelf binnen staat (stond die buiten, dan had het openen al als "buiten"
-      // geteld), dus een klik op een optie is geen klik ernaast.
+      // Het open menu van een `Select` en de kalender van een datumveld hangen via een portal aan
+      // `document.body`. Ze horen altijd bij een trigger die zelf binnen staat (stond die buiten, dan
+      // had het openen al als "buiten" geteld), dus een klik daarin is geen klik ernaast.
       const element = node instanceof Element ? node : node?.parentElement ?? null;
-      const insideSelectMenu = element?.closest('.ops-select__menu') != null;
+      const insideFloatingMenu = element?.closest(PORTALED_MENU_SELECTOR) != null;
       const insideIgnored = ignoreSelector !== undefined && element?.closest(ignoreSelector) != null;
-      return !insideMain && !insideExtra && !insideSelectMenu && !insideIgnored;
+      return !insideMain && !insideExtra && !insideFloatingMenu && !insideIgnored;
     };
 
     const onPointer = (e: MouseEvent) => { if (isOutside(e.target)) cbRef.current(); };
