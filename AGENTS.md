@@ -208,8 +208,12 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
-  `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet. Broncommit,
-  herstel en aansluiting horen bij PR 8b/9/11; de opslagblokkade blijft dicht.
+  `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
+  `commitSavedDocument(id, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
+  bron en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
+  `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
+  verouderde AutoSave-kandidaten toetsen haar identiteit apart. Herstel en aansluiting horen
+  bij PR 9/11; de opslagblokkade blijft dicht.
 - **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
   accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
   directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle

@@ -198,6 +198,7 @@ check-ifc-property-relations.ts matrix
 check-ifc-pset-register.ts matrix
 check-ifc-real-values.ts matrix
 check-ifc-roundtrip.ts matrix
+check-ifc-saved-source.ts matrix
 check-ifc-schema-question.ts matrix
 check-ifc-schema-reader.ts matrix
 check-ifc-schema.ts matrix
