@@ -1968,6 +1968,23 @@ en noem het in je rapport of PR-tekst.
      gevonden. Richting: één writerresultaat met tekst, kalenderkeuzes en kaart. Meenemen bij de meting van grote
      bestanden (PR 6). Gevonden door de review van #923. — B
 
+1554. **VERVOLG (#804, geheugen): de recoverydeltacache kan een vervangen IFC-bron blijven vasthouden.**
+     `persistedRecoveryState.sources` en `RecoveryDeltaTracker.serialized` in
+     `src/services/recovery/recoveryDelta.ts` bewaren de volledige aangeleverde documentbron. Daar staat ook
+     `ifcSource` op. Na een opslagcommit kan de planning referentieel gelijk blijven terwijl de nieuwe bron een andere
+     bytebuffer heeft; de cache houdt dan nog de oude bron vast. Een metadata-only commit vernieuwt wel `sources`,
+     maar niet de bronreferentie in `serialized`. Alleen het vasthouden van de referenties is in code vastgesteld;
+     piekgeheugen bij grote bestanden is niet gemeten. Richting voor PR 9/6: bewaar voor inhoudsvergelijking alleen de
+     dirty-velden, of ververs een gelijke cachebron zonder de planning opnieuw te serialiseren. In 8b mocht in
+     `recoveryDelta.ts` alleen de inhoudsvergelijking veranderen; daarom niet opgelost. Gevonden bij fase 1c PR 8b. — B
+1555. **VERVOLG (#804): een gewone opslag zonder vreemd deel houdt een verouderde `ifcSource`.** Met de flag aan
+     geopend kantoorvoorbeeld, duur wijzigen en gewone Opslaan als: de geschreven bytes hebben een nieuwe sha256,
+     maar het document houdt hetzelfde openingsbronobject. Dit is het behouden gedrag van main; alleen een expliciet
+     meegegeven `PreparedIfcWrite` vervangt de bron in de opslagcommit van 8b. De volgende gewone opslag gebruikt de
+     gewone writer en leunt niet op die oude bytes. PR 9 mag zo'n bron niet als bewezen huidige schijfversie behandelen;
+     PR 11 moet de bron verversen of expliciet ongeldig verklaren zonder de gewone uitvoer te veranderen. Niet in 8b
+     gerepareerd, volgens punt 7 van de opdracht. Bewezen in `check-ifc-saved-source.ts`. — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op

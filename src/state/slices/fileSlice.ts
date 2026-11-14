@@ -40,7 +40,8 @@ import {
   refusedWriteTarget,
 } from '../ifcForeignGuard';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
-import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
+import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { castDraft } from 'immer';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -57,7 +58,7 @@ import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPa
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
-import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
+import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import {
@@ -513,6 +514,9 @@ export interface FileSlice {
   /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
+  /** Alleen na geslaagde I/O naar het eigen doel. Bron en kalenderkeuzes volgen de geschreven
+   * momentopname, ook als tussentijds werk het document dirty houdt. Exports gebruiken dit niet. */
+  commitSavedDocument: (documentId: string, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite) => boolean;
   exportAs: (format: ExportFormat) => Promise<ExportResult>;
   /** Exporteer het project + schrijf de gebonden bedrijfs-pool als tweede, LOS bestand
    *  ernaast. Géén embed. No-op op de pool-kant als het project niet aan een bedrijf gebonden is.
@@ -701,7 +705,7 @@ export type ChosenExternalSource =
 const SOURCE_FILE_FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
 
 /** Het opslagdoel van een document na een geslaagde opslag (zie `commitSavedDocument`). */
-interface SaveDestination {
+export interface SaveDestination {
   filePath: string;
   fileHandle: FileSystemFileHandle | null;
   siteFileId: string | null;
@@ -1013,8 +1017,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   // zet ook AutoSave uit (automatisch opslaan naar de site bestaat niet).
   const commitSavedDocument = (
     documentId: string,
-    savedSource: AppState,
+    savedSource: IFCSaveSource,
     destination?: SaveDestination,
+    prepared?: PreparedIfcWrite,
   ): boolean => {
     const currentSource = saveSourceForDocument(get(), documentId);
     if (!currentSource) return false;
@@ -1029,10 +1034,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     };
     // Knownbug 1026: wat deze opslag letterlijk schreef, blijft letterlijk (`savedLiteralCalendars.ts`), ook als het
     // document intussen veranderde: het bestand heeft die kalenders nu letterlijk.
-    const written = literalCalendarIdsWritten(savedSource);
+    const written = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
     set((state) => {
       if (state.activeDocumentId === documentId) {
         applyDestination(state);
+        if (prepared) state.ifcSource = castDraft(prepared.source);
         state.ifcLiteralCalendarIds = mergeLiteralCalendarIds(state.ifcLiteralCalendarIds, written);
         if (unchanged) state.isDirty = false;
         return;
@@ -1040,6 +1046,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const entry = state.documents.find(document => document.id === documentId);
       if (!entry?.payload) return;
       applyDestination(entry.payload);
+      if (prepared) entry.payload.ifcSource = castDraft(prepared.source);
       entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, written);
       if (unchanged) entry.payload.isDirty = false;
     });
@@ -1398,6 +1405,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   );
 
   return {
+    commitSavedDocument,
     applyProjectEdit: (parsed, opts) => get().applyLoadedProject(parsed, {
       intent: 'edit',
       recompute: true,

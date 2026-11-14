@@ -134,7 +134,7 @@ await check('alleen een nieuwe bron: niet dirty, geen herstelsnapshot, geen Auto
   assert(sameIFCSource(before, after), 'bronidentiteit is geen inhoudsverschil');
   assert.equal(after.isDirty, false);
   const delta = planRecoveryDelta(id, [recoveryDoc(store, id)], baseline);
-  assert.deepEqual(delta.changedDocuments, []);
+  assert.equal(delta.changedDocuments.length, 0);
   assert.equal(delta.needsPersist, false, 'alleen de bron veroorzaakt geen herstelsnapshot of metadatawijziging');
   const input = recoverySnapshotInput(after);
   assert(!('ifcSource' in input.input));

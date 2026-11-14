@@ -1,5 +1,5 @@
 import { SCHEDULE_SHIFT_NOTICE_KEY } from '../scheduleShift';
-import { literalCalendarIdsWritten, mergeLiteralCalendarIds } from '../savedLiteralCalendars';
+import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { castDraft } from 'immer';
@@ -37,7 +37,7 @@ import {
   prepareLoadedPayload,
   type DocumentActivationMaterialization,
 } from '../documentActivation';
-import { sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
+import type { IFCSaveSource } from '../ifcSaveInput';
 import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { clearRefusals } from '../refusalNotice';
@@ -195,7 +195,7 @@ export interface DocumentSlice {
   /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
   setAutoSaveToFile: (enabled: boolean) => void;
   /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
-  markAutoSaveVersionSaved: (id: string, source: IFCSaveSource) => void;
+  markAutoSaveVersionSaved: (id: string, source: IFCSaveSource, prepared?: PreparedIfcWrite) => void;
 }
 
 /** Diepe JSON-kloon (de projectdata is JSON-veilig). */
@@ -600,30 +600,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     set((s) => { s.autoSaveToFile = enabled; });
   },
 
-  markAutoSaveVersionSaved: (id, source) => {
-    const state = get();
-    // Knownbug 1026: wat deze opslag letterlijk schreef, blijft letterlijk (`savedLiteralCalendars.ts`), ook als het
-    // document intussen veranderde.
-    const written = literalCalendarIdsWritten(source);
-    if (id === state.activeDocumentId) {
-      const unchanged = sameIFCSource(source, state);
-      set((s) => {
-        s.ifcLiteralCalendarIds = mergeLiteralCalendarIds(s.ifcLiteralCalendarIds, written);
-        if (unchanged) s.isDirty = false;
-      });
-      return;
-    }
-    const sleeping = state.documents.find((d) => d.id === id)?.payload;
-    if (!sleeping) return;
-    const unchanged = sameIFCSource(source, sleeping);
-    set((s) => {
-      const target = s.documents.find((d) => d.id === id)?.payload;
-      if (!target) return;
-      target.ifcLiteralCalendarIds = mergeLiteralCalendarIds(target.ifcLiteralCalendarIds, written);
-      // De bronvergelijking gebeurde vóór de producer tegen de plain payload. Binnen Immer zou
-      // `target` een proxy zijn en dus nooit referentie-gelijk kunnen zijn met `source`.
-      if (unchanged) target.isDirty = false;
-    });
+  markAutoSaveVersionSaved: (id, source, prepared) => {
+    get().commitSavedDocument(id, source, undefined, prepared);
   },
 
   restoreDocuments: (docs, activeId) => {
