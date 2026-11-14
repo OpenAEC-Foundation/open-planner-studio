@@ -1,5 +1,6 @@
 // #804 fase 1a, bijsturing 1 punt 2 van de orkestrator: met de flag `ifcForeignContent` uit gedraagt de app zich
 // byte-gelijk aan main.
+// #804 fase 1c, PR 7: bronidentiteit alleen op de mergeroute; de gewone writer en deze referentie veranderen niet.
 //
 // De verwachting komt uit de code van main zelf: `scripts/proef/maak-main-pariteit.mjs` draaide de kern
 // `ifcPariteitKern.ts` met de src van main (`20b9af79a74e7d886c2a38f93bba1adbcbb2ba5c`, de merge van #898; daarvoor `2fbbc4ae1`,

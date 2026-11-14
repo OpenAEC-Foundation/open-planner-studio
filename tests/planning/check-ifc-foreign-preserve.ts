@@ -1136,13 +1136,14 @@ await expectRefusal('(b) verwijzing: de writer zet een eenheid in de projecteenh
 }
 
 // ── 5i. De GlobalId van een eigen hulpstuk (fixronde 3 van #867, besluit 1) ──
-// Toegestaan als het stuk P is en geen stuk dat niet P is ernaar wijst; de toets gaat beide zelf na (`ownAuxGuid`). De
+// De kale writer mag dit wijzigen als het stuk P is en geen stuk dat niet P is ernaar wijst (`ownAuxGuid`). De
+// behoudstap geeft een eenduidig gekoppelde hulpregel daarna haar bron-GlobalId en bron-id terug. De
 // twee gevallen waarin het niet mag, staan in sectie 5 (een vreemde relatie naar een eigen pset: C; een vreemd stuk dat
 // naar de eigen IfcRelNests #58 wijst: P, maar met een inkomende verwijzing).
 {
   const src = enc.encode(replaceLine(baseText, '#65=', "#65=IFCPROPERTYSET('0andereGuid00000000000',#6,'OPS_ProjectSettings',$,(#60,#61,#62,#63,#64));"));
   const r = await roundTrip('besluit 1: een eigen pset met een andere GlobalId', src);
-  if (r) ok('besluit 1: de writer geeft de pset een eigen GlobalId', !text(r.out).includes("'0andereGuid00000000000'") && /IFCPROPERTYSET\('[^']*',#\d+,'OPS_ProjectSettings'/.test(text(r.out)));
+  if (r) ok('E16: de gekoppelde pset houdt haar bron-GlobalId en bron-id', lineOf(r.out, '65').startsWith("#65=IFCPROPERTYSET('0andereGuid00000000000',"));
 }
 
 // ── 5f. De normalisaties (`lossCheck.ts`, kop): elk met de reden waarom de waarde gelijk blijft ──
@@ -1170,10 +1171,10 @@ eq('normalisatie duur, exact per onderdeel', [
   const r = await roundTrip('normalisatie tekst: een rauw UTF-8-teken in een taaknaam', cafe);
   if (r) ok('normalisatie tekst: de writer schrijft \\X2\\00E9\\X0\\', lineOf(r.out, '51').includes('caf\\X2\\00E9\\X0\\'));
 }
-// id: een hulpstuk krijgt een nieuw `#id` (de taaktijd #50 van taak #51); een `#id` is geen waarde in het bestand.
+// id: de vergelijking staat hernummeren toe; E16 behoudt het bron-id van een gekoppeld hulpstuk.
 {
   const r = await roundTrip('normalisatie id', enc.encode(eigen));
-  if (r) ok('normalisatie id: de taaktijd van #51 heeft een ander #id', !lineOf(r.out, '50').startsWith('#50=IFCTASKTIME') && /#51=IFCTASK\([^;]*,#\d+,\.LOGISTIC\.\);/.test(text(r.out)));
+  if (r) ok('E16: de taaktijd van #51 houdt bron-id #50 en de verwijzing gaat mee', lineOf(r.out, '50').startsWith('#50=IFCTASKTIME') && /#51=IFCTASK\([^;]*,#50,\.LOGISTIC\.\);/.test(text(r.out)));
 }
 // lay-out: een oud werkplan met 15 argumenten (de bron van sectie 2) staat in de uitvoer met 14; elke waarde op haar
 // plek in het schema. Een IfcTask zonder WorkMethod (12 argumenten) idem.
