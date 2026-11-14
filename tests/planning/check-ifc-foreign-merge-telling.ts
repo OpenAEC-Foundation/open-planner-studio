@@ -255,6 +255,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
 const KINDS: EditKind[] = [
   'niets', 'andere-ouder', 'niveau-hoger', 'volgorde-kinderen', 'relatie-erbij', 'taak-wissen', 'taak-erbij', 'hernoemen', 'duur',
   'toewijzing-erbij', 'voortgang', 'doorrekenen',
+  'resource-erbij', 'kalender-erbij', 'baseline-vastleggen',
 ];
 const fmt = (m: Map<string, number>) => [...m].sort().map(([k, v]) => `${k} ${v}`).join(', ') || '–';
 /** Per bestand en per bewerking, dan de totalen per bewerking. Geeft het totaal terug. */

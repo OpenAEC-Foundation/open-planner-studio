@@ -110,6 +110,7 @@ import { taskMinutesPerDay } from '../dayMeasureIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { foreignScanFrom, readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
 import type { IfcSource } from './ifcSource';
+import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
 
@@ -357,7 +358,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
   for (const d of first) { input.collect?.(d); say(d, false); }
   if (first.length === 0) {
-    const changed = changedScopes(input.domain, input.pristine);
+    const changed = changedScopes(input.domain, input.pristine, input.opened);
     const p1 = pairEditedOutput(input, input.o1, p0, changed);
     const ctx1 = o1Context(input, p1, changed, carried);
     const deleted = deletedExceptionItems(input, p1, changed);
@@ -711,7 +712,7 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
 
 /** Dezelfde bewerkings- en dubbelzinnigheidsregels voor verliesbewaking en identiteitsbehoud. */
 function pairEditedOutput(input: LossCheckInput, lines: readonly OutLine[], p0: Pairing,
-  changed = changedScopes(input.domain, input.pristine)): Pairing {
+  changed = changedScopes(input.domain, input.pristine, input.opened)): Pairing {
   const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
   const paired = pairOutput(input, lines, exact);
   unstableLists(input, p0, paired);
@@ -1293,8 +1294,21 @@ const OBJECT_KINDS: ReadonlySet<string> = new Set(['task', 'res', 'seq', 'cal'])
  * `ifcSource` telt niet: dat is de bron zelf. Zonder sleutel is het domein gelijk aan het gelezen domein, en schrijft de
  * writer hetzelfde als in O0.
  */
-export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): ChangedScopes {
+export function changedScopes(originalDomain: WriteIFCInput, originalPristine: ImportResult, session?: ImportResult): ChangedScopes {
+  const domain = planningIdentityInput(originalDomain), pristine = planningIdentityInput(originalPristine);
   const keys = new Set<string>();
+  // Vergelijk op IFC-identiteit, maar houd ook de sessiesleutels voor objectKey/bySource beschikbaar.
+  const aliases = new Map<string, Set<string>>();
+  for (const input of [originalDomain, originalPristine, ...(session ? [session] : [])]) {
+    const ids = planningIdentities(input);
+    for (const [kind, objects, mapped] of [['res', input.resources, ids.resource],
+      ['cal', [input.calendar, ...(input.resourceCalendars ?? [])], ids.calendar]] as const) {
+      for (const object of objects) {
+        const key = `${kind}:${mapped.get(object.id) ?? object.id}`, list = aliases.get(key) ?? new Set([key]);
+        list.add(`${kind}:${object.id}`); aliases.set(key, list);
+      }
+    }
+  }
   const json = (x: unknown) => JSON.stringify(x) ?? 'undefined';
   /** De toewijzingen per taak, zonder hun `id`: dat staat niet in het bestand (de lezer maakt het bij elk lezen nieuw). */
   const byTask = (list: readonly { id: string; taskId: string }[]) => {
@@ -1317,16 +1331,19 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
       }
       return m;
     };
+    const add = (id: string, suffix = '') => {
+      const key = `${kind}:${id}`;
+      for (const alias of aliases.get(key) ?? [key]) keys.add(alias + suffix);
+    };
     const ma = byId(a);
     const mb = byId(b);
     for (const id of new Set([...ma.keys(), ...mb.keys()])) {
       const xs = ma.get(id) ?? [];
       const ys = mb.get(id) ?? [];
-      const key = `${kind}:${id}`;
       if (xs.length !== 1 || ys.length !== 1) {
         if (json(xs.map(x => [x, extraA?.(x)])) !== json(ys.map(y => [y, extraB?.(y)]))) {
-          keys.add(key);
-          keys.add(xs.length === 0 || ys.length === 0 ? `${key}#@` : `${key}#*`);
+          add(id);
+          add(id, xs.length === 0 || ys.length === 0 ? '#@' : '#*');
         }
         continue;
       }
@@ -1335,19 +1352,19 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
       const plain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
       for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
         if (json(x[k]) === json(y[k])) continue;
-        keys.add(key);
-        keys.add(`${key}#${k}`);
+        add(id);
+        add(id, `#${k}`);
         // Een veld dat zelf een object is (`time` van een taak): ook per deel, `kind:id#time.scheduleStart` (fixronde 5,
         // VERVOLG: een tijdslot volgt uit zijn eigen delen van `time`, niet uit het hele object).
         const a = x[k];
         const b = y[k];
         if (plain(a) && plain(b)) {
-          for (const s of new Set([...Object.keys(a), ...Object.keys(b)])) if (json(a[s]) !== json(b[s])) keys.add(`${key}#${k}.${s}`);
+          for (const s of new Set([...Object.keys(a), ...Object.keys(b)])) if (json(a[s]) !== json(b[s])) add(id, `#${k}.${s}`);
         } else if (plain(a) || plain(b)) {
-          for (const s of Object.keys((plain(a) ? a : b) as Record<string, unknown>)) keys.add(`${key}#${k}.${s}`);
+          for (const s of Object.keys((plain(a) ? a : b) as Record<string, unknown>)) add(id, `#${k}.${s}`);
         }
       }
-      if (extraA && json(extraA(xs[0])) !== json(extraB?.(ys[0]))) { keys.add(key); keys.add(`${key}#assignments`); }
+      if (extraA && json(extraA(xs[0])) !== json(extraB?.(ys[0]))) { add(id); add(id, '#assignments'); }
     }
     if (a.map(x => x.id).join('\n') !== b.map(x => x.id).join('\n')) keys.add(`order:${kind}`);
   };
@@ -1740,7 +1757,18 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   const bar = scope.indexOf('|');
   const obj = scope.slice(0, bar);
   const way = scope.slice(bar + 1);
-  if (obj === 'project') return explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg);
+  if (obj === 'project') {
+    // De live-schema-pset hoort bij project, maar deze twee waarden volgen uit de baselineactie.
+    // Alleen hun waardeslot; andere properties, namen en beschrijvingen krijgen geen vrijstelling.
+    if (!d.whole && type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && way === `pset:${PSET.Baselines}`
+      && changed.keys.has('baselines') && addedBaselineIds(ctx).size > 0) {
+      const name = index.name(d.chunk);
+      if (name === PROP.Baselines.Baselines) return 'baselinegegevens';
+      if (name === PROP.Baselines.ActiveBaselineId && changed.keys.has('activeBaselineId')
+        && ctx.plannerChanged.has('activeBaselineId') && addedBaselineIds(ctx).has(input.domain.activeBaselineId ?? '')) return 'actieve baseline na baselinehandeling';
+    }
+    return explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg);
+  }
   if (obj === 'baselines') return changed.keys.has('baselines') ? 'baselines' : undefined;
   const kind = obj.slice(0, obj.indexOf(':'));
   const has = (f: string) => changed.keys.has(`${obj}#${f}`) || changed.keys.has(`${obj}#*`);
@@ -2011,11 +2039,14 @@ function membersGone(ctx: O1Context, r: number, type: string): string | undefine
   return members.length > 0 && members.every(c => memberMoved(ctx, type, objectKey(ctx.input, c))) ? 'leden weg' : undefined;
 }
 
-/**
- * Is het object van een lid (per veld, fixronde 4): verdwenen of erbij gekomen (`#@`), of veranderde het veld dat bepaalt
- * of het in de relatie staat: de ouder (`parentId`) bij `IfcRelNests`, de kalender (`calendarId`) bij
- * `IfcRelAssignsToControl`. Bij een andere relatie alleen verdwijnen of erbij komen.
- */
+/** Nieuwe baseline-ids tegenover de toestand bij openen; geen automatische wijziging van bestaande baselinerijen. */
+function addedBaselineIds(ctx: O1Context): ReadonlySet<string> {
+  if (!ctx.plannerChanged.has('baselines')) return new Set();
+  const before = new Set(((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).map(b => b.id));
+  return new Set((ctx.input.domain.baselines ?? []).filter(b => !before.has(b.id)).map(b => b.id));
+}
+
+/** Is het object van een lid verdwenen/erbij gekomen, of wisselde het zijn ouder/kalender? */
 function memberMoved(ctx: O1Context, type: string, key: string | undefined): boolean {
   if (key === undefined) return false;
   const has = (f: string) => ctx.changed.keys.has(`${key}#${f}`) || ctx.changed.keys.has(`${key}#*`);
@@ -2049,10 +2080,17 @@ function explainMembers(ctx: O1Context, d: LossDiff): string | undefined {
   }
   const src = index.refsAt(s, d.arg).filter(c => c >= 0 && !memberMoved(ctx, type, keyOf(c)));
   const out: number[] = [];
+  const newHeads = type === 'IFCRELAGGREGATES' && relating >= 0 && index.type(relating) === 'IFCWORKPLAN'
+    && input.cls.classes[relating] === 1 && input.fixed.has(Number(index.id(relating))) ? addedBaselineIds(ctx).size : 0;
+  let addedHeads = 0;
   for (const id of refList(line.args[d.outArg])) {
     const known = input.objects1?.get(id);
     if (known !== undefined && memberMoved(ctx, type, known)) continue; // een object dat erbij kwam of hierheen ging
     const c = sourceChunkOf(input, id, p);
+    // Alleen de toegevoegde koppen; bestaande baselineleden blijven exact en in volgorde vergeleken.
+    const head = p.out.get(id);
+    if (c === undefined && known === 'baselines' && addedHeads < newHeads && head?.type === 'IFCWORKSCHEDULE'
+      && head.args[workControlSlots(head.args).predefinedType]?.trim() === '.BASELINE.') { addedHeads++; continue; }
     if (c === undefined) return undefined; // een lid zonder bronstuk dat geen nieuw object is
     if (!memberMoved(ctx, type, keyOf(c))) out.push(c);
   }

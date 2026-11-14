@@ -5,6 +5,7 @@
  * Alleen de bibliotheeklijst resourceCalendars telt op id; haar inhoud wordt ook zonder schrijfafronding vergeleken.
  */
 import { writeIFC, type WriteIFCInput } from '../ifcWriter';
+import { planningIdentityInput } from './planningIdentity';
 import { orphanRowsWithoutId } from './sourceForm';
 
 /** Alleen de bibliotheek is op id geordend. Een array blijft een array: dubbele ids verdwijnen niet. */
@@ -14,7 +15,7 @@ function calendarInput(input: WriteIFCInput): WriteIFCInput {
 }
 
 export function planningCanon(input: WriteIFCInput): string {
-  const ordered = calendarInput(input);
+  const ordered = calendarInput(planningIdentityInput(input));
   const written = writeIFC(orphanRowsWithoutId(ordered)).split('\n')
     .filter(line => line.startsWith('#'))
     .map(line => line.includes('=IFCOWNERHISTORY(') ? line.replace(/,\d+\);$/, ',0);') : line).join('\n');

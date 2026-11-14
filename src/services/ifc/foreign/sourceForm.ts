@@ -55,6 +55,7 @@ import { MINUTE_MODEL_TIME_MODEL, migrateToMinuteModel, TIME_FIELDS } from '@/st
 import { inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { sameValue } from '@/utils/sameValue';
 import type { WriteIFCInput } from '../ifcWriter';
+import { planningIdentities } from './planningIdentity';
 
 /** Een veld dat de merge in de vorm van de bron schrijft omdat de omzetting het maakte. */
 export type SourceFormLeaf =
@@ -269,12 +270,17 @@ const leafLabel = (leaf: SourceFormLeaf) => leaf.kind === 'baseline' ? `baseline
  */
 export function sourceFormProblems(checked: readonly SourceFormLeaf[], domain: WriteIFCInput, back: ImportResult): string[] {
   if (checked.length === 0) return [];
+  const wantIds = planningIdentities(domain).calendar, gotIds = planningIdentities(back).calendar;
+  const calendarIds = (calendars: readonly WorkCalendar[], ids: ReadonlyMap<string, string>) =>
+    calendars.map(c => ({ ...c, id: ids.get(c.id) ?? c.id }));
   const m = orphanRowsWithoutId(migrated(back));
-  const shown = { ...orphanRowsWithoutId(domain), calendars: [domain.calendar, ...(domain.resourceCalendars ?? [])] };
+  const shown = { ...orphanRowsWithoutId(domain), calendars: calendarIds([domain.calendar, ...(domain.resourceCalendars ?? [])], wantIds) };
+  const actual = { ...m, calendars: calendarIds(m.calendars, gotIds) };
   const out: string[] = [];
   for (const leaf of checked) {
-    const want = leafValue(shown, leaf);
-    const got = leafValue(m, leaf);
+    const identityLeaf = leaf.kind === 'calendar' ? { ...leaf, id: wantIds.get(leaf.id) ?? leaf.id } : leaf;
+    const want = leafValue(shown, identityLeaf);
+    const got = leafValue(actual, identityLeaf);
     if (!got.found) { out.push(`${leafLabel(leaf)}: ontbreekt na herlezen`); continue; }
     if (!sameValue(got.value, want.value)) {
       out.push(`${leafLabel(leaf)}: ${JSON.stringify(got.value)?.slice(0, 80)} na herlezen in plaats van ${JSON.stringify(want.value)?.slice(0, 80)}`);

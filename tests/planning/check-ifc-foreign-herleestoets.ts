@@ -1,6 +1,7 @@
 // 1107: de open-stappen zijn verplicht en hun volledige uitkomst wordt getoetst.
 import assert from 'node:assert/strict';
 import { sameValue } from '@/utils/sameValue';
+import { planningIdentityInput } from '@/services/ifc/foreign/planningIdentity';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generatedModel } from './ifcGeneratedModel';
@@ -62,7 +63,7 @@ const source = opened.ifcSource!;
       for (const child of task.childIds) assert.equal(ids.get(child)?.parentId, task.id);
     }
   }
-  assert.equal(kinds.size, 12, 'alle twaalf soorten handelingen zijn beproefd');
+  assert.equal(kinds.size, 15, 'alle vijftien soorten handelingen zijn beproefd');
   assert.deepEqual(input, before, 'elke handeling begon bij dezelfde ongewijzigde invoer');
   const single = structuredClone(before);
   single.tasks = [{ ...single.tasks[1], parentId: null }];
@@ -73,7 +74,7 @@ const source = opened.ifcSource!;
     await assert.rejects(() => applyEdit(edit, cloneDomain(single)),
       (e: unknown) => e instanceof EditNotAppliedError && e.outcome === 'niet-van-toepassing');
   }
-  console.log('OK E4: twaalf soorten werkelijk gewijzigde appacties; onmogelijke kandidaten apart');
+  console.log('OK E4: vijftien soorten werkelijk gewijzigde appacties; onmogelijke kandidaten apart');
 }
 
 const d = cloneDomain(opened);
@@ -142,7 +143,7 @@ const saved = await tryMerge(d, source);
   const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'unchangedPlanningNumberProblem')!;
   assert(fn, 'de bestaande private getalbewaking is gevonden');
   const code = ts.transpile(fn.getText(ast), { target: ts.ScriptTarget.ES2022 });
-  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`, { ifcGuid, sameValue }) as
+  const numberProblem = runInNewContext(`${code}; unchangedPlanningNumberProblem`, { ifcGuid, sameValue, planningIdentityInput }) as
     (input: typeof opened, before: typeof opened, wanted: typeof opened, back: typeof opened) => string | undefined;
   const before = cloneDomain(opened);
   before.tasks = ['eerste', 'blijft', 'derde'].map(id => ({ ...structuredClone(before.tasks[0]), id, parentId: null, childIds: [] }));
@@ -216,7 +217,7 @@ await assert.rejects(() => writeIfcMerge(d, source, async (parsed, side) => {
   let input = structuredClone(parsed);
   if (side === 'uitvoer') input = await applyEdit(ordinaryEdits(input).find(e => e.kind === 'duur')!, input);
   return input;
-}), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen' && c.detail.includes('.time.')));
+}), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => (c.kind === 'planning-na-openen' || c.kind === 'ongewijzigd-getal') && c.detail.includes('.time.')));
 // Blijvende proef: een duurwijziging zonder F5 schrijft; de twaalf tijdvelden normaliseren gelijk.
 const longer = await applyEdit(ordinaryEdits(opened).find(e => e.kind === 'duur')!, cloneDomain(opened));
 const result = await tryMerge(longer, source);
@@ -285,7 +286,7 @@ console.log('OK herleestoets: verplichte naad, afwijkende herberekening van de u
     if (side === 'uitvoer') edit(shown);
     return shown;
   });
-  const rejected = (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen');
+  const rejected = (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen' || c.kind === 'ongewijzigd-getal');
   // De callback bootst een fout in de herlezing na; alle gewone open-stappen blijven actief.
   const orderOnly = await changed(p => { p.resourceCalendars!.reverse(); });
   assert(orderOnly.length > 0);
