@@ -28,18 +28,22 @@ import './Backstage.css';
 // staat als je erop klikt (#895). De vier zware secties laden apart, binnen het afgewerkte scherm
 // (`SectionLoading`), en vooraf zodra het venster getoond is (`preloadBackstageSections`).
 const loadSettingsPanel = () => import('@/components/settings/SettingsPanelContent');
-const loadExtensionManager = () => import('@/components/backstage/ExtensionManagerPanel');
+// Platformbouw (#311): geen extensies. De voorwaarde staat hier, zodat de bundelaar de dynamische import (en
+// daarmee de catalogus-URL) weglaat, net als bij de extensiedialogen in App.tsx.
+const loadExtensionManager = EXTENSIONS_ENABLED ? () => import('@/components/backstage/ExtensionManagerPanel') : null;
 const loadHelpPanel = () => import('@/components/backstage/HelpPanel');
 const loadLibrarySection = () => import('./LibrarySection');
 const SettingsPanelContent = lazy(() => loadSettingsPanel().then(m => ({ default: m.SettingsPanelContent })));
-const ExtensionManagerPanel = lazy(() => loadExtensionManager().then(m => ({ default: m.ExtensionManagerPanel })));
+const ExtensionManagerPanel = loadExtensionManager
+  ? lazy(() => loadExtensionManager().then(m => ({ default: m.ExtensionManagerPanel })))
+  : () => null;
 const HelpPanel = lazy(() => loadHelpPanel().then(m => ({ default: m.HelpPanel })));
 const LibrarySection = lazy(() => loadLibrarySection().then(m => ({ default: m.LibrarySection })));
 
 /** Laadt de zware secties van Bestand op de achtergrond. Gooit nooit: mislukt het, dan laadt een sectie
  *  bij openen opnieuw. */
 export function preloadBackstageSections(): Promise<void> {
-  return Promise.all([loadSettingsPanel(), EXTENSIONS_ENABLED ? loadExtensionManager() : null, loadHelpPanel(), loadLibrarySection()])
+  return Promise.all([loadSettingsPanel(), loadExtensionManager?.(), loadHelpPanel(), loadLibrarySection()])
     .then(() => undefined, () => undefined);
 }
 
