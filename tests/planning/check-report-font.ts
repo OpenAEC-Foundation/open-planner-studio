@@ -286,6 +286,12 @@ ok(appLetters.size > 150, `C0 te weinig letters uit de taalbestanden gelezen (${
 ok(REPORT_FONT_IDS[0] === DEFAULT_REPORT_FONT_ID && DEFAULT_REPORT_FONT_ID === 'inter', `C0 standaardletter is niet Inter: ${DEFAULT_REPORT_FONT_ID}`);
 ok(reportFontStack('inter') === OLD_STACK, `C0 stack van 'inter' wijkt af van de oude stack: ${reportFontStack('inter')}`);
 ok(new Set(REPORT_FONT_IDS.map(id => REPORT_FONTS[id].family)).size === REPORT_FONT_IDS.length, 'C0 twee letters delen een familienaam');
+// Vraag van manuvarkey in #770: ook een letter met vaste breedte, voor rapporten met kolommen cijfers en codes.
+const MONO_IDS = REPORT_FONT_IDS.filter(id => REPORT_FONTS[id].generic === 'monospace');
+ok(MONO_IDS.length === 1, `C0 het setje heeft niet precies één letter met vaste breedte: ${MONO_IDS.join(', ') || 'geen'}`);
+for (const id of MONO_IDS) {
+  ok(reportFontStack(id).endsWith(', monospace'), `C0 ${id}: de stack eindigt niet op de generieke familie monospace: ${reportFontStack(id)}`);
+}
 
 /** Een Gantt met een taaknaam uit vijf talen plus een vinkje, dat geen van de drie nieuwe letters heeft. */
 // Het vinkje vooraan: de naamkolom kapt een lange naam achteraan af.
@@ -313,6 +319,15 @@ for (const id of REPORT_FONT_IDS) {
   for (const [weight, fk] of [['regular', regularFk], ['bold', boldFk]] as const) {
     const missing = [...appLetters].filter(([cp]) => !fk.hasGlyphForCodePoint(cp));
     ok(missing.length === 0, `C1 ${id} ${weight} mist letters uit de app-talen: ${missing.map(([cp, loc]) => `${String.fromCodePoint(cp)} (${loc})`).join(', ')}`);
+  }
+  if (def.generic === 'monospace') {
+    // C1m. Vaste breedte: elke letter van de app-talen, elk cijfer en de spatie even breed, in beide gewichten.
+    // Anders lopen de kolommen tekens in een rapport toch niet recht onder elkaar.
+    const probe = [...appLetters.keys(), ...'0123456789 .,:-/%'].map(c => (typeof c === 'number' ? c : c.codePointAt(0)!));
+    for (const [weight, fk] of [['regular', regularFk], ['bold', boldFk]] as const) {
+      const widths = new Set(probe.filter(cp => fk.hasGlyphForCodePoint(cp)).map(cp => fk.glyphForCodePoint(cp).advanceWidth));
+      ok(widths.size === 1, `C1m ${id} ${weight}: tekens hebben ${widths.size} verschillende breedtes (${[...widths].join(', ')})`);
+    }
   }
   const stack = reportFontStack(id);
   ok(stack.startsWith(id === 'inter' ? 'InterPDF' : `"${def.family}", InterPDF`), `C1 ${id}: stack begint niet met de letter en dan Inter: ${stack}`);

@@ -50,7 +50,7 @@ inclusief de copyright-regel van The Noto Project Authors in
 
 ## De keuzelijst *Lettertype* (issue #770)
 
-Naast Inter levert de app drie rapportletters mee, voor de keuzelijst *Lettertype* op het tabblad
+Naast Inter levert de app vier rapportletters mee, voor de keuzelijst *Lettertype* op het tabblad
 Rapport. Welke letters er zijn, onder welke bestandsnaam en welke `@font-face`-familie, staat op één
 plek: `REPORT_FONTS` in `../reportFont.ts`. `fontLoader.ts` haalt de bestanden op via die namen;
 `tests/planning/check-report-font.ts` leest dezelfde namen van schijf en maakt met elke letter een
@@ -63,6 +63,8 @@ van alle bestanden is 0 (installeerbaar inbedden).
 
 - `LiberationSans-Regular.ttf`, `LiberationSans-Bold.ttf` — zelfde tekenbreedtes als Arial.
 - `LiberationSerif-Regular.ttf`, `LiberationSerif-Bold.ttf` — zelfde tekenbreedtes als Times New Roman.
+- `LiberationMono-Regular.ttf`, `LiberationMono-Bold.ttf` — vaste tekenbreedte, zelfde breedtes als Courier New
+  (vraag van manuvarkey in #770; `check-report-font.ts` toetst dat elke letter en elk cijfer even breed is).
 
   **Herkomst**: [`liberationfonts/liberation-fonts`](https://github.com/liberationfonts/liberation-fonts),
   release **2.1.5** (2021-09-30), `liberation-fonts-ttf-2.1.5.tar.gz`. **Licentie**: OFL 1.1, met
@@ -84,16 +86,20 @@ SHA-256 van de bestanden zoals overgenomen:
 788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173  LiberationSans-Bold.ttf
 058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74  LiberationSerif-Regular.ttf
 d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce  LiberationSerif-Bold.ttf
+f2b83c763e8afd21709333370bed4774337fae82267937e2b5aea7e2fbd922c1  LiberationMono-Regular.ttf
+bd62a0672d0b9b6710b01df434c80ad54fa5f0835207eb7b17b7a761463067bb  LiberationMono-Bold.ttf
 f6418f708baede9789daef5d458c0f53d2a888af9820e8062934e504fedc6595  Carlito-Regular.ttf
 bb5d20f79b82599ec72983597437373a80f2d2085fa91fc144fd74e876a594db  Carlito-Bold.ttf
 ```
 
-**Waarom deze drie** (besluit Ethan, 7 november 2026: een klein vast setje, geen systeemletters):
+**Waarom deze letters** (besluit Ethan, 7 november 2026: een klein vast setje, geen systeemletters;
+Liberation Mono kwam er later bij op vraag in #770):
 ze staan onder de OFL (meeleveren en inbedden mag), hebben TrueType-contouren (`glyf`, dus
 `CIDFontType2` in pdf-lib, net als Inter), en elk dekt zelf alle letters van de Latijnse en
 Cyrillische talen van de app. Wat ze missen (✓, ✗, ⌘) tekent de PDF uit Inter; Arabisch en Perzisch
 uit Noto Sans Arabic; CJK via de fontproviders. Ze hebben de tekenbreedtes van de drie letters die
-in bouwbedrijven het meest voorkomen, zodat een rapport naast bestaande stukken van het bedrijf past.
+in bouwbedrijven het meest voorkomen, zodat een rapport naast bestaande stukken van het bedrijf past;
+Liberation Mono is de letter met vaste breedte, voor codes en getallen die recht onder elkaar moeten staan.
 
 **Een letter toevoegen**: zet het ongewijzigde upstreambestand (regular + bold, statische `glyf`-TTF)
 in deze map met de licentietekst, voeg een regel toe aan `REPORT_FONTS` en `REPORT_FONT_IDS`, en een

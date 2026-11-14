@@ -24,7 +24,7 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Bij de Gantt-afdruk staat links 
 
 **Oriëntatie:** (bij de Gantt-afdruk *Richting*) — liggend of staand. Keuze uit *Liggend* en *Staand*. Standaard: *Liggend*. Effect: zoals *Papier:*. Waar: dezelfde plek als *Papier:*.
 
-**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)* en *Liberation Serif (zoals Times New Roman)*. Standaard: Inter. Effect: scherm en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
+**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)*, *Liberation Serif (zoals Times New Roman)* en *Liberation Mono (vaste breedte)*. Standaard: Inter. Effect: scherm en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes; Liberation Mono die van Courier New. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
 
 ## Gantt-afdruk
 

@@ -45,7 +45,7 @@ Het tabblad Rapport heeft geen lint en dus geen Bereken-knop, maar F5 werkt hier
 De Gantt-afdruk stel je af in de vijf stappen van de zijbalk; zie [De Gantt-afdruk](docs://howto-rapport-maken-en-afdrukken#de-gantt-afdruk). Look-ahead, Kritiek & near-critical, Voortgangsrapport, Voortgangscurve, Planningsgezondheid, Resourcebelasting, Resourcetoewijzingen en WBS-samenvatting hebben *Papier:*, *Oriëntatie:* en *Lettertype:*, plus een blok *Rapportopties* met de keuzes van dat rapport. Het Mijlpalen-overzicht en de Variance hebben geen eigen keuzes. Voor de periode van een rapport zie [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen).
 
 - *Papier:* en *Oriëntatie:* bepalen het vel. Standaard staat dit op A3 liggend, wat voor een bouwplanning handig is, maar niet elke printer drukt A3 af. Heb je een A4-printer, kies dan nu A4: de app legt de pagina's dan voor A4 op, in plaats van dat je ze later moet laten krimpen.
-- *Lettertype:* kiest de letter van alle rapporten: *Inter* (standaard), *Liberation Sans* (zoals Arial), *Carlito* (zoals Calibri) of *Liberation Serif* (zoals Times New Roman). De keuze geldt voor elk rapport, net als het papier.
+- *Lettertype:* kiest de letter van alle rapporten: *Inter* (standaard), *Liberation Sans* (zoals Arial), *Carlito* (zoals Calibri), *Liberation Serif* (zoals Times New Roman) of *Liberation Mono* (vaste breedte, zoals Courier New). Bij vaste breedte is elk teken even breed, zodat codes en getallen recht onder elkaar staan. De keuze geldt voor elk rapport, net als het papier.
 
 ### 5. Controleer het rapport
 
