@@ -44,30 +44,23 @@ const rootGuids = (bytes: Uint8Array) => {
   return result;
 };
 
-// Eerst een nieuwe resource in de app maken en als eigen IFC vastleggen. Dat levert haar
-// eerste bronidentiteit; de twee volgende opslagen zijn merges met een model.
+// Direct na toevoegen opslaan als merge: geen gewone opslag als tussenstap (1147).
 const fresh = await openInStore(basis);
 fresh.store.getState().addResource({ name: 'Nieuwe kraan E16', type: 'EQUIPMENT', description: '', maxUnits: 1 });
 const input = cloneDomain(fresh.snapshot(fresh.store));
-// 1147: de eerste merge direct na addResource weigert al op main. De bronkoppeling
-// kan een nog niet bestaand hulpstuk niet herstellen; de eindcontrole blijft intact.
-const direct = await tryMerge(input, fresh.snapshot(fresh.store).ifcSource!);
-check('1147: bestaande weigering bij de eerste opslag van een nieuwe resource blijft zichtbaar', !direct.ok && direct.kinds.includes('planning-na-openen'));
 const born = new TextEncoder().encode(writeIFC(input));
-const withModel = model(new TextDecoder().decode(born));
-const opened = await openForeign(withModel);
-const one = await tryMerge(cloneDomain(opened), opened.ifcSource!);
+const one = await tryMerge(input, fresh.snapshot(fresh.store).ifcSource!);
 assert(one.ok, one.ok ? '' : JSON.stringify(one.error.cases));
 const next = await openForeign(one.bytes), two = await tryMerge(cloneDomain(next), next.ifcSource!);
 assert(two.ok, two.ok ? '' : JSON.stringify(two.error.cases));
-const original = resourceHelpers(withModel), first = resourceHelpers(one.bytes), second = resourceHelpers(two.bytes);
+const original = resourceHelpers(basis), first = resourceHelpers(one.bytes), second = resourceHelpers(two.bytes);
 for (const [id, expected] of original) {
   check(`E16 resource ${id}: pset en relatie houden bron-GlobalId en bron-id`, same(first.get(id), expected));
-  check(`E16 resource ${id}: na openen en tweede merge dezelfde identiteit`, same(second.get(id), expected));
 }
-assert.equal(original.size, input.resources.length);
-check('E16: C/A/V zijn na beide merges bytegelijk', !mergeProblems(withModel, one.bytes).length && !mergeProblems(one.bytes, two.bytes).length);
-console.log(`E16 resource: ${original.size} resources, bron → merge → openen → merge`);
+for (const [id, expected] of first) check(`E16 resource ${id}: na openen en tweede merge dezelfde identiteit`, same(second.get(id), expected));
+assert.equal(first.size, input.resources.length);
+check('E16: C/A/V zijn na beide merges bytegelijk', !mergeProblems(basis, one.bytes).length && !mergeProblems(one.bytes, two.bytes).length);
+console.log(`E16 resource: ${first.size} resources, toevoegen → merge → openen → merge`);
 
 // De meting van 1023: het repo-voorbeeld is met verse resource-ids geschreven; de lezer
 // leidt die bij openen uit hun GlobalId af. Main verliest hier 36 hulp-GlobalIds.

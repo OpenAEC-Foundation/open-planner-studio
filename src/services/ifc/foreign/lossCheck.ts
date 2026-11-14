@@ -1753,7 +1753,18 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   const bar = scope.indexOf('|');
   const obj = scope.slice(0, bar);
   const way = scope.slice(bar + 1);
-  if (obj === 'project') return explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg);
+  if (obj === 'project') {
+    // De live-schema-pset hoort bij project, maar deze twee waarden volgen uit de baselineactie.
+    // Alleen hun waardeslot; andere properties, namen en beschrijvingen krijgen geen vrijstelling.
+    if (!d.whole && type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && way === `pset:${PSET.Baselines}`
+      && changed.keys.has('baselines') && addedBaselineIds(ctx).size > 0) {
+      const name = index.name(d.chunk);
+      if (name === PROP.Baselines.Baselines) return 'baselinegegevens';
+      if (name === PROP.Baselines.ActiveBaselineId && changed.keys.has('activeBaselineId')
+        && ctx.plannerChanged.has('activeBaselineId') && addedBaselineIds(ctx).has(input.domain.activeBaselineId ?? '')) return 'actieve baseline na baselinehandeling';
+    }
+    return explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg);
+  }
   if (obj === 'baselines') return changed.keys.has('baselines') ? 'baselines' : undefined;
   const kind = obj.slice(0, obj.indexOf(':'));
   const has = (f: string) => changed.keys.has(`${obj}#${f}`) || changed.keys.has(`${obj}#*`);
@@ -2024,11 +2035,14 @@ function membersGone(ctx: O1Context, r: number, type: string): string | undefine
   return members.length > 0 && members.every(c => memberMoved(ctx, type, objectKey(ctx.input, c))) ? 'leden weg' : undefined;
 }
 
-/**
- * Is het object van een lid (per veld, fixronde 4): verdwenen of erbij gekomen (`#@`), of veranderde het veld dat bepaalt
- * of het in de relatie staat: de ouder (`parentId`) bij `IfcRelNests`, de kalender (`calendarId`) bij
- * `IfcRelAssignsToControl`. Bij een andere relatie alleen verdwijnen of erbij komen.
- */
+/** Nieuwe baseline-ids tegenover de toestand bij openen; geen automatische wijziging van bestaande baselinerijen. */
+function addedBaselineIds(ctx: O1Context): ReadonlySet<string> {
+  if (!ctx.plannerChanged.has('baselines')) return new Set();
+  const before = new Set(((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).map(b => b.id));
+  return new Set((ctx.input.domain.baselines ?? []).filter(b => !before.has(b.id)).map(b => b.id));
+}
+
+/** Is het object van een lid verdwenen/erbij gekomen, of wisselde het zijn ouder/kalender? */
 function memberMoved(ctx: O1Context, type: string, key: string | undefined): boolean {
   if (key === undefined) return false;
   const has = (f: string) => ctx.changed.keys.has(`${key}#${f}`) || ctx.changed.keys.has(`${key}#*`);
@@ -2062,10 +2076,17 @@ function explainMembers(ctx: O1Context, d: LossDiff): string | undefined {
   }
   const src = index.refsAt(s, d.arg).filter(c => c >= 0 && !memberMoved(ctx, type, keyOf(c)));
   const out: number[] = [];
+  const newHeads = type === 'IFCRELAGGREGATES' && relating >= 0 && index.type(relating) === 'IFCWORKPLAN'
+    && input.cls.classes[relating] === 1 && input.fixed.has(Number(index.id(relating))) ? addedBaselineIds(ctx).size : 0;
+  let addedHeads = 0;
   for (const id of refList(line.args[d.outArg])) {
     const known = input.objects1?.get(id);
     if (known !== undefined && memberMoved(ctx, type, known)) continue; // een object dat erbij kwam of hierheen ging
     const c = sourceChunkOf(input, id, p);
+    // Alleen de toegevoegde koppen; bestaande baselineleden blijven exact en in volgorde vergeleken.
+    const head = p.out.get(id);
+    if (c === undefined && known === 'baselines' && addedHeads < newHeads && head?.type === 'IFCWORKSCHEDULE'
+      && head.args[workControlSlots(head.args).predefinedType]?.trim() === '.BASELINE.') { addedHeads++; continue; }
     if (c === undefined) return undefined; // een lid zonder bronstuk dat geen nieuw object is
     if (!memberMoved(ctx, type, keyOf(c))) out.push(c);
   }

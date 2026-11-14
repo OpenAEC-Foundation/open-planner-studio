@@ -4,8 +4,51 @@
  * Baselineregels zonder bestaande taak tellen zonder dat taak-id, zoals voorheen (#886).
  * Alleen de bibliotheeklijst resourceCalendars telt op id; haar inhoud wordt ook zonder schrijfafronding vergeleken.
  */
-import { writeIFC, type WriteIFCInput } from '../ifcWriter';
+import { ifcGuid128, ifcObjectSeed, writeIFC, type WriteIFCInput } from '../ifcWriter';
 import { orphanRowsWithoutId } from './sourceForm';
+
+/** Alleen interne resource-/bibliotheekkalender-ids wisselen bij de eerste heropening.
+ * Vergelijk ze op hun IFC-objectidentiteit, inclusief verwijzingen en de bestaande GUID-kaart.
+ * Geen object, veld, dubbel voorkomen of arrayvolgorde wordt hierdoor weggelaten.
+ */
+function identityInput(input: WriteIFCInput): WriteIFCInput {
+  const guids = { ...input.ifcGlobalIds };
+  const identity = (kind: 'res' | 'cal', ids: readonly string[]) => {
+    const mapped = new Map<string, string>();
+    for (const id of ids) {
+      const seed = ifcObjectSeed(kind, id), guid = input.ifcGlobalIds?.[seed] ?? ifcGuid128(seed);
+      const canonical = `${kind === 'res' ? 'res' : 'rescal'}-ifc-${guid}`;
+      mapped.set(id, canonical);
+      delete guids[seed];
+      guids[ifcObjectSeed(kind, canonical)] = guid;
+    }
+    return (id: string) => mapped.get(id) ?? id;
+  };
+  const resource = identity('res', input.resources.map(r => r.id));
+  const calendar = identity('cal', (input.resourceCalendars ?? []).filter(c => c.id !== input.project.calendarId).map(c => c.id));
+  const leveling = input.project.schedulingOptions?.leveling;
+  return {
+    ...input,
+    ifcGlobalIds: guids,
+    resources: input.resources.map(r => ({ ...r, id: resource(r.id),
+      ...(r.parentId !== undefined ? { parentId: resource(r.parentId) } : {}),
+      ...(r.calendarId !== undefined ? { calendarId: calendar(r.calendarId) } : {}),
+    })),
+    assignments: input.assignments.map(a => ({ ...a, resourceId: resource(a.resourceId) })),
+    tasks: input.tasks.map(t => ({ ...t, resourceIds: t.resourceIds.map(resource),
+      ...(t.calendarId !== undefined ? { calendarId: calendar(t.calendarId) } : {}),
+      ...(t.timephasedContours ? { timephasedContours: t.timephasedContours.map(c => ({ ...c,
+        ...(c.resourceId !== undefined ? { resourceId: resource(c.resourceId) } : {}),
+      })) } : {}),
+      ...(t.timephasedDurationWalks ? { timephasedDurationWalks: t.timephasedDurationWalks.map(w => ({ ...w, resourceCalendarId: calendar(w.resourceCalendarId) })) } : {}),
+    })),
+    ...(input.resourceCalendars ? { resourceCalendars: input.resourceCalendars.map(c => ({ ...c, id: calendar(c.id) })) } : {}),
+    ...(input.ifcLiteralCalendarIds ? { ifcLiteralCalendarIds: input.ifcLiteralCalendarIds.map(calendar) } : {}),
+    ...(leveling?.resources ? { project: { ...input.project, schedulingOptions: { ...input.project.schedulingOptions,
+      leveling: { ...leveling, resources: leveling.resources.map(r => ({ ...r, resourceId: resource(r.resourceId) })) },
+    } } } : {}),
+  };
+}
 
 /** Alleen de bibliotheek is op id geordend. Een array blijft een array: dubbele ids verdwijnen niet. */
 function calendarInput(input: WriteIFCInput): WriteIFCInput {
@@ -14,7 +57,7 @@ function calendarInput(input: WriteIFCInput): WriteIFCInput {
 }
 
 export function planningCanon(input: WriteIFCInput): string {
-  const ordered = calendarInput(input);
+  const ordered = calendarInput(identityInput(input));
   const written = writeIFC(orphanRowsWithoutId(ordered)).split('\n')
     .filter(line => line.startsWith('#'))
     .map(line => line.includes('=IFCOWNERHISTORY(') ? line.replace(/,\d+\);$/, ',0);') : line).join('\n');

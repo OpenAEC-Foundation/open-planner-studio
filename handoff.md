@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 7b vergelijkt interne resource- en bibliotheekkalender-ids met hun verwijzingen/GUID-kaart op IFC-objectidentiteit; de gewone writer en reader blijven gelijk. Alleen Baselines/ActiveBaselineId en toegevoegde baselineschema's volgen de echte baselinehandeling; overige projectvelden blijven bewaakt. De telling krijgt resource toevoegen, kalender toevoegen en baseline vastleggen via appacties. Directe opslag-, teruglees- en verliesproeven, de nieuwe begintelling en de checkstand staan bij de concept-PR; bewijs in `/tmp/fase1c-pr7b-bewijs/`. Opslagblokkade dicht; mergeWriter.ts blijft bij PR 8a.
+
 - 2026-11-14: fase 1c PR 7 (#920, E16): één stap na de mergeroute-writer behoudt bron-GlobalId en bron-id van eenduidig gekoppelde P-hulpregels, met bijgewerkte verwijzingen en nieuwe ids buiten alle bron-ids; D blijft staan. Kandidaten en kale terugval delen de onafhankelijke uitvoercontrole van #918. De gewone writer, gewone route, herkomstregel en opslagblokkade blijven gelijk. `ownAuxGuid` blijft nodig vóór het behoud en bij ongepaarde/dubbelzinnige regels of terugval. Knownbug 1023 blijft voor de gewone route; 1147 legt de bestaande weigering bij de eerste merge na een nieuwe resource vast. Definitieve checkstand in de concept-PR; bewijs buiten de repo in `/tmp/fase1c-pr7-bewijs/`.
 - 2026-11-14: fase 1c PR 10 bereidt byte-delenopslag voor: nieuw Tauri-einddoel met createNew, webdownload en site-Blob met verplichte basisversie; tekst/PDF en opslagblokkade blijven gelijk, browserhandle en exclusieve vervanging blijven vervolg 1130/1131.
 

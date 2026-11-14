@@ -62,7 +62,7 @@ const source = opened.ifcSource!;
       for (const child of task.childIds) assert.equal(ids.get(child)?.parentId, task.id);
     }
   }
-  assert.equal(kinds.size, 12, 'alle twaalf soorten handelingen zijn beproefd');
+  assert.equal(kinds.size, 15, 'alle vijftien soorten handelingen zijn beproefd');
   assert.deepEqual(input, before, 'elke handeling begon bij dezelfde ongewijzigde invoer');
   const single = structuredClone(before);
   single.tasks = [{ ...single.tasks[1], parentId: null }];
@@ -73,7 +73,7 @@ const source = opened.ifcSource!;
     await assert.rejects(() => applyEdit(edit, cloneDomain(single)),
       (e: unknown) => e instanceof EditNotAppliedError && e.outcome === 'niet-van-toepassing');
   }
-  console.log('OK E4: twaalf soorten werkelijk gewijzigde appacties; onmogelijke kandidaten apart');
+  console.log('OK E4: vijftien soorten werkelijk gewijzigde appacties; onmogelijke kandidaten apart');
 }
 
 const d = cloneDomain(opened);
