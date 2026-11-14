@@ -66,6 +66,7 @@ check-dependent-projects.ts matrix
 check-dev-bridge-poller.ts matrix
 check-dev-open-link.ts matrix
 check-dialog-backdrop.ts matrix
+check-dissolve-tasks.ts matrix
 check-docs-dagen-en-uren.ts matrix
 check-docs-resources-voorbeelden.ts matrix
 check-docs-structure.ts matrix
@@ -346,7 +347,7 @@ check-relation-ribbon-trace.ts matrix
 check-relation-routes.ts matrix
 check-relation-rules.ts matrix
 check-relation-set-plan.ts matrix
-check-relation-trail.ts matrix
+check-relation-step.ts matrix
 check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix

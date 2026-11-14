@@ -301,6 +301,35 @@ const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.sta
   ok('FIXED_RATE, twee toewijzingen: a 1 → 0,5 → 1 ⇒ 10 d (b afgeleid 40 u) — bekende afwijking, MSP: 5 d', r2.ok && r2.state.remainingMinutes === 4800
     && r2.state.assignments[1].remainingWorkMinutes === undefined);
 }
+// #954: bij Vaste inzet en GELIJKE duur blijft eerder ingevoerd werk van andere personen staan.
+// De derde persoon houdt de duur vast; de fractie met inzet 0,9 geeft alleen deel-/vermenigvuldigruis.
+for (const remainingMinutes of [80 * 60, 4800.123]) for (const effortDriven of [undefined, false, true]) {
+  const s: TriangleState = {
+    ...base, rule: 'FIXED_RATE', effortDriven, remainingMinutes,
+    assignments: [
+      { id: 'a', unitsPerDay: 1, drivesDuration: true, remainingWorkMinutes: 16 * 60 },
+      { id: 'b', unitsPerDay: 1, drivesDuration: true, remainingWorkMinutes: 80 * 60 },
+      { id: 'c', unitsPerDay: 0.9, drivesDuration: true },
+    ],
+  };
+  for (const [edit, result] of [
+    ['werk', applyWorkEdit(s, 'b', 40 * 60)],
+    ['inzet', applyUnitsEdit(s, 'b', 2)],
+  ] as const) {
+    const label = `#954 ${edit}, ${remainingMinutes} min, effortDriven=${effortDriven}`;
+    ok(`${label}: bewerking aanvaard`, result.ok);
+    if (!result.ok) continue;
+    near(`${label}: derde persoon houdt de duur vast`, result.state.remainingMinutes, s.remainingMinutes);
+    for (const id of ['a', 'c']) {
+      ok(`${label}: andere toewijzing ${id} blijft volledig gelijk`,
+        JSON.stringify(result.state.assignments.find(a => a.id === id)) === JSON.stringify(s.assignments.find(a => a.id === id)));
+    }
+    const b = result.state.assignments.find(a => a.id === 'b')!;
+    near(`${label}: ingevoerd werk/inzet wordt wel toegepast`, edit === 'werk' ? b.remainingWorkMinutes : b.unitsPerDay,
+      edit === 'werk' ? 40 * 60 : 2);
+  }
+}
+
 // T14 vervangt de oude afrondingsregel: geen dag- of minuutafronding in de werkdriehoek.
 for (const minutes of [1200, 1440, 1440 + 1e-10, 1, 100.2]) {
   const result = applyDurationEdit(base, minutes);

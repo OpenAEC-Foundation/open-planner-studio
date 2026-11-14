@@ -682,7 +682,6 @@
     "sentTitle": "Takk, meldingen din er sendt.",
     "alreadyIn": "Denne meldingen er allerede hos oss. Vil du legge til noe? Endre da teksten og send den på nytt.",
     "sentScreenshotDropped": "Skjermbildet var for stort og ble ikke sendt med.",
-    "viewOnGithub": "Se på GitHub",
     "errorValidation": "Meldingen er ikke godtatt. Kontroller teksten (ikke bare lenker) og e-postadressen, og prøv igjen.",
     "errorRateLimited": "Du har sendt mange meldinger på kort tid. Prøv igjen om en time.",
     "errorFailed": "Sending mislyktes. Kontroller internettforbindelsen og prøv igjen, eller åpne meldingen på GitHub.",

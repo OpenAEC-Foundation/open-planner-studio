@@ -148,7 +148,6 @@ export function createDefaultUI(): UIState {
     externalSourceUpdates: [],
     externalSourceReview: null,
     dependentProjects: [],
-    relationTrails: [],
     pendingDependentAnchorWarning: null,
     showBaselineOverlay: true,
     showProgressLine: true,
@@ -175,6 +174,7 @@ export function createDefaultUI(): UIState {
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
+    dissolveSummaryMode: 'branch',
     // «Alleen werkbare dagen tonen»: default UIT.
     compressNonWorkdays: false,
 

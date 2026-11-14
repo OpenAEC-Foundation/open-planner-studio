@@ -85,6 +85,10 @@ export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
 
+/** Dissolve bij een samenvattingstaak (issue #887): de hele fase met subtaken, of alleen de kopregel. */
+export type DissolveSummaryMode = 'branch' | 'header';
+export const DISSOLVE_SUMMARY_MODES: DissolveSummaryMode[] = ['branch', 'header'];
+
 // 'system' is een VOORKEUR, geen tekenbaar thema: hij lost via `resolveUITheme`
 // (`@/utils/theme`) op naar 'dark' of 'light' op basis van `prefers-color-scheme`. Er is dus geen
 // `[data-theme="system"]`-blok in globals.css, en alles wat een thema toepast werkt met
@@ -296,6 +300,7 @@ export type NotificationMessageKey =
   | 'notifications.summaryRelationsDropped'
   | 'notifications.duplicateIdsRenamed'
   | 'notifications.relationsSkippedOnInsert'
+  | 'notifications.relationsSkippedOnDissolve'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'
@@ -637,15 +642,6 @@ export interface PhaseAssignmentQuestion {
  * Een bron van het actieve document met een nieuwe versie (keuze 1, Ethan 2026-11-03; stap 1.5). De balk onder
  * het lint toont er één per bron, met *Bekijken* en *Later*. Sessie-only: na herstarten kijkt de app opnieuw.
  */
-/** Het spoor van terug en vooruit in het relatiepaneel voor één document (issue #888). */
-export interface RelationTrail {
-  documentId: string;
-  /** De taken waar het paneel heen sprong, met het vertrekpunt van de eerste sprong vooraan. */
-  taskIds: string[];
-  /** Waar je in het spoor staat; een eigen klik in tabel of Gantt verzet dit niet. */
-  index: number;
-}
-
 /** Het zoekresultaat *Afhankelijke projecten* van één document (stap 1.11). */
 export interface DependentProjectsResult {
   documentId: string;
@@ -811,9 +807,6 @@ export interface UIState {
   /** session — het laatste zoekresultaat *Afhankelijke projecten* per document (stap 1.11). Afgeleide
    *  data, geen projectdata: niet in `DOCUMENT_FIELDS` en niet in het IFC-bestand. */
   dependentProjects: DependentProjectsResult[];
-  /** session — terug en vooruit in het relatiepaneel, per document (issue #888). Geen projectdata:
-   *  niet in `DOCUMENT_FIELDS`, niet in undo en niet in het IFC-bestand. */
-  relationTrails: RelationTrail[];
   /** session — de vraag vóór opslaan: deze ankers van afhankelijke projecten worden te krap. */
   pendingDependentAnchorWarning: TightAnchor[] | null;
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt
@@ -847,6 +840,7 @@ export interface UIState {
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
+  dissolveSummaryMode: DissolveSummaryMode;  // persisted — Dissolve bij een samenvattingstaak (default 'branch')
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT

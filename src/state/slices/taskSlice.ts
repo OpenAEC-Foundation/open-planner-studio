@@ -2,7 +2,7 @@ import { changesOnlyDateNeutralFields } from '../taskDateChanges';
 import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
-import { taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
+import { currentAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -30,7 +30,9 @@ import {
 } from '@/state/taskTree';
 import { selectNeighbourAfterRemoval } from '@/state/selectionAfterRowChange';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
-import { refusalNotice } from '@/state/refusalNotice';
+import { refusalNotice, refusedNamesLine, refusedSetKey } from '@/state/refusalNotice';
+import { headerTransfers, planDissolve } from '@/state/dissolveTasks';
+import { relationAddVerdict } from '@/state/relationRules';
 import {
   applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseAssignmentQuestion, phaseRefusalNotice,
   phaseTransitionNotices, planPhaseTransitions, type PendingChild, type PhaseAssignmentChoice,
@@ -112,6 +114,9 @@ export interface TaskSlice {
   deleteTask: (id: string) => void;
   /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
   deleteTasksBulk: (ids: readonly string[]) => void;
+  /** Hef taken op (issue #887): ze gaan weg zoals bij `deleteTasksBulk`, en elke voorganger wordt
+   *  einde-begin zonder vertraging gekoppeld aan elke opvolger (`planDissolve`). Eén undo-stap. */
+  dissolveTasksBulk: (ids: readonly string[]) => void;
   /** Verplaats `id` onder een nieuwe ouder (null = root). `position` afwezig ⇒ achteraan, in
    *  childIds én in de rauwe array (zie `moveTaskEdit`). `position` aanwezig ⇒ insert op die
    *  index — consistent in childIds (zichtbare volgorde niet-root, visibleRows.ts) ÉN in de rauwe
@@ -412,6 +417,60 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
     if (anchorRawIdx >= 0) tasks.splice(anchorRawIdx, 0, node);
     else tasks.push(node);
   }
+}
+
+/**
+ * Dissolve in de stand "alleen de kopregel" (issue #887, eigenaarsbesluit 2026-11-14): de
+ * subtaken van `id` schuiven een niveau omhoog, op de plek van de kopregel en in hun volgorde
+ * (dezelfde plaatsing als uitspringen), de kopregel gaat weg, en haar relaties gaan over naar de
+ * begin- en eindsubtaken (`headerTransfers`). Een overgezette relatie die er al is vervalt stil;
+ * een die de relatieregels weigeren komt in de teruggegeven lijst. Muteert de draft; de aanroeper
+ * doet snapshot, WBS en `finishMutation`.
+ */
+function dissolveSummaryHeader(s: AppState, id: string): string[] {
+  const before = currentAppState(s);
+  const transfers = headerTransfers(before.tasks, before.sequences, id);
+  const summary = s.tasks.find(task => task.id === id);
+  if (!summary) return [];
+  // Externe relaties van de kopregel gaan net zo naar de eerste en laatste subtaken, met soort,
+  // vertraging, anker en bron; anders verdwenen ze met de kopregel (review #937 ronde 2).
+  for (const link of summary.externalLinks ?? []) {
+    const targets = link.direction === 'predecessor' ? transfers.first : transfers.last;
+    for (const targetId of targets) {
+      const target = s.tasks.find(task => task.id === targetId);
+      if (!target) continue;
+      target.externalLinks = [...(target.externalLinks ?? []), { ...link, id: generateId('extlink') }];
+      Object.assign(target, normalizeTaskDates(target, s));
+    }
+  }
+  const parentId = summary.parentId ?? null;
+  const siblings = parentId
+    ? (s.tasks.find(task => task.id === parentId)?.childIds ?? [])
+    : s.tasks.filter(task => !task.parentId).map(task => task.id);
+  let childIndex = siblings.indexOf(id) + 1;
+  for (const childId of [...summary.childIds]) {
+    const plan = planTaskPlacement(s.tasks, childId, { parentId, childIndex }, { rejectNoOp: false });
+    if (!plan) continue; // alleen bij een kapotte boom.
+    applyTaskPlacement(s.tasks, childId, plan);
+    childIndex += 1;
+  }
+  removeTaskSubtrees(s, [id]);
+
+  const after = currentAppState(s);
+  const sequences = [...after.sequences];
+  const name = (taskId: string) => after.tasks.find(task => task.id === taskId)?.name ?? '?';
+  const refused: string[] = [];
+  for (const relation of transfers.relations) {
+    const verdict = relationAddVerdict(after.tasks, sequences, relation);
+    if (verdict.ok) {
+      const added = { ...relation, id: generateId('seq') };
+      sequences.push(added);
+      s.sequences.push(added);
+    } else if (verdict.reason !== 'duplicate') {
+      refused.push(`${name(relation.predecessorId)} → ${name(relation.successorId)}`);
+    }
+  }
+  return refused;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -1444,6 +1503,53 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     });
     get().recomputeViewRows();
     set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); }); // zie deleteTask
+  },
+
+  dissolveTasksBulk: (ids) => {
+    const existing = new Set(get().tasks.map(task => task.id));
+    const known = ids.filter(id => existing.has(id));
+    if (known.length === 0) return; // niets bekends: geen snapshot, geen loze undo-stap.
+    const headerOnly = get().ui.dissolveSummaryMode === 'header';
+    const refused: string[] = [];
+    set((s) => {
+      runtime.beginUndoable(s);
+      let roots = known;
+      if (headerOnly) {
+        // Bovenste kopregel eerst: een geselecteerde subfase is daarna nog een kopregel en volgt.
+        const position = new Map(flattenOrder(s.tasks).map((task, index) => [task.id, index] as const));
+        const isSummary = (id: string) => (s.tasks.find(task => task.id === id)?.childIds.length ?? 0) > 0;
+        const headers = known.filter(isSummary).sort((x, y) => (position.get(x) ?? 0) - (position.get(y) ?? 0));
+        for (const id of headers) refused.push(...dissolveSummaryHeader(s, id));
+        roots = known.filter(id => !headers.includes(id));
+      }
+      if (roots.length > 0) {
+        // De kringtoets per brug leest de hele graaf: op een gewone momentopname, niet door de draft.
+        const plain = currentAppState(s);
+        const plan = planDissolve(plain.tasks, plain.sequences, roots);
+        removeTaskSubtrees(s, roots);
+        for (const bridge of plan.bridges) s.sequences.push({ ...bridge, id: generateId('seq') });
+        for (const { taskId, link } of plan.externalBridges) {
+          const target = s.tasks.find(task => task.id === taskId);
+          if (!target) continue;
+          target.externalLinks = [...(target.externalLinks ?? []), { ...link, id: generateId('extlink') }];
+          Object.assign(target, normalizeTaskDates(target, s));
+        }
+        refused.push(...plan.refused);
+      }
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      runtime.finishMutation(s, { stale: true });
+    });
+    get().recomputeViewRows();
+    if (refused.length > 0) {
+      // Deels gelukt is een weigering (eigenaarsbesluit 2026-10-17): de taken zijn weg, deze
+      // relaties niet aangemaakt. De detailregel noemt ze.
+      get().notify(refusalNotice({
+        messageKey: 'notifications.relationsSkippedOnDissolve',
+        params: { count: refused.length },
+        detailLines: refusedNamesLine(refused, 'relations'),
+        dedupeKey: refusedSetKey('dissolve', refused),
+      }));
+    }
   },
 
   // Alle verhangroutes lopen via `applyHierarchyEdit`: eerst de proef met de kringtoets

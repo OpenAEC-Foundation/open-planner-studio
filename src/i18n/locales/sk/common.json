@@ -878,7 +878,6 @@
     "sentTitle": "Ďakujeme, vaše hlásenie bolo odoslané.",
     "alreadyIn": "Toto hlásenie už máme. Chcete niečo doplniť? Potom upravte text a odošlite ho znova.",
     "sentScreenshotDropped": "Snímka obrazovky bola príliš veľká a nebola priložená.",
-    "viewOnGithub": "Zobraziť na GitHube",
     "errorValidation": "Hlásenie nebolo prijaté. Skontrolujte text (nielen odkazy) a e-mailovú adresu a skúste to znova.",
     "errorRateLimited": "V krátkom čase ste odoslali veľa hlásení. Skúste to znova o hodinu.",
     "errorFailed": "Odoslanie zlyhalo. Skontrolujte pripojenie na internet a skúste to znova, alebo otvorte hlásenie na GitHube.",
