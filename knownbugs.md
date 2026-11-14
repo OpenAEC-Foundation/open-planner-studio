@@ -1795,8 +1795,9 @@ en noem het in je rapport of PR-tekst.
      eenduidig gekoppelde P-hulpregels; dezelfde uitvoercontrole blijft beslissen en valt zo nodig terug op de
      kale writer-uitvoer. Dubbelzinnige/ongepaarde regels houden het bestaande gedrag. `ownAuxGuid` blijft
      nodig voor de vergelijking vóór deze stap en voor die terugval. De gewone writer en de route zonder
-     model blijven ongewijzigd; daarvoor staat dit punt open. Een pas toegevoegde resource zonder bronpaar
-     kan vóór de eerste opslag nog weigeren: zie 1147. Uit #867; bijgewerkt in #804 fase 1c PR 7. — B
+     model blijven ongewijzigd; daarvoor staat dit punt open. PR 7b vergelijkt bij nieuwe resources en
+     bibliotheekkalenders hun interne ids alleen in de canon op IFC-objectidentiteit, zodat de eerste merge schrijft.
+     Uit #867; bijgewerkt in #804 fase 1c PR 7/7b. — B
 
 1025. **De lezer maakt van de kalender een uurkalender als een eigen taak niet op de werkdag past.** Proef:
      `tests/fixtures/ifc-foreign/council/r6sol-twee-werkplannen.ifc` plus een eigen taak van één dag van 07:00 tot 16:00
@@ -1918,32 +1919,6 @@ en noem het in je rapport of PR-tekst.
      release schreef dat) weigert na een wijziging van alleen het begin met `IfcCalendarTimePrecisionError`: het
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
-
-1147. **VERVOLG: de eerste merge na een resource toevoegen weigert al op main.** Open
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` via de app en voeg met `addResource` een resource toe.
-     De merge weigert `planning-na-openen`: het nieuwe `res-…`-id wordt bij heropenen `res-ifc-…`. In de
-     canonieke vergelijking verschillen uitsluitend de GlobalIds van de nieuwe `OPS_Resource`-pset en
-     haar definitierelatie; de gewone writer gebruikt hun interne resource-id als zaad. Voor deze nieuwe
-     hulpstukken bestaat nog geen bronpaar, dus het bronbehoud van PR 7 lost dit niet op. Gemeten met de
-     volledige productcode van main `2c114446b` en op de branch; geen bytes teruggegeven. De exacte proef
-     nieuwe resource → eerste merge → openen → tweede merge is daardoor nog niet haalbaar. Vraagt een
-     afzonderlijk besluit over de canonieke identiteitsvergelijking; de controles zijn hier niet versoepeld.
-     Gevonden bij #804 fase 1c PR 7. Aanvulling uit de review van #920: hetzelfde geldt voor een nieuwe
-     bibliotheekkalender (`addCalendar`): twee hulp-GlobalIds van `OPS_Calendar` plus het interne kalender-id in de
-     exact vergeleken bibliotheek (`planningCanon.ts`), en gekoppeld aan een resource ook de GlobalId van
-     `IfcRelAssignsToControl`. Een nieuwe taak, relatie en toewijzing schrijven wel. Richting van de reviewer: in de
-     canonieke vergelijking de resource- en kalender-ids op hun IFC-objectidentiteit projecteren, met hun verwijzingen
-     en GUID-kaart, en al het andere even streng vergelijken; de gewone writer en de lezer niet wijzigen. Moet werken
-     voordat fase 1c klaar is (een resource of kalender toevoegen en opslaan is een gewoon geval). — B
-1149. **VERVOLG: de eerste merge na een baseline vastleggen weigert al op main.** `saveBaseline` op
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` geeft drie keer `niet-gedragen`: de werkplanrelatie, de
-     property `Baselines` en de property `ActiveBaselineId`. De merge komt niet bij de canoncontrole; het nieuwe
-     baseline-id blijft bij een gewone schrijf- en leesronde wel behouden. De baselinegegevens onder het live-schema
-     krijgen in de verliesbewaking de scope `project`; de uitzondering voor de scope `baselines` dekt deze wijzigingen
-     niet (`lossCheck.ts`, bij de scopes van de psets). Richting: de concrete baselinevelden en het toegevoegde
-     baselineschema aan de echte baselineactie koppelen; geen algemene uitzondering voor project-psets. Gemeten op
-     main `4e01894d7` en op de branch van #920; geen bytes teruggegeven. Moet werken voordat fase 1c klaar is.
-     Gevonden door de review van #920. — B
 
 1146. **VERVOLG: de merge kopieert en bevriest de invoer voor de heropening twee keer.** `writeIfcMerge`
      (`src/services/ifc/foreign/mergeWriter.ts`, rond regel 816) kopieert en bevriest `parsed` vóór de vaste

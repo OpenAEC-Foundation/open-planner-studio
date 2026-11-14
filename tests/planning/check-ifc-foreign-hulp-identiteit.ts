@@ -6,14 +6,15 @@ import { fileURLToPath } from 'node:url';
 import { writeIFC, writeIfcMergeLines } from '@/services/ifc/ifcWriter';
 import { classify } from '@/services/ifc/foreign/classify';
 import { preserveAuxiliaryIdentities, pristineDomain, replaceRefsOutsideText, parseOutLine, type LossCheckInput } from '@/services/ifc/foreign/lossCheck';
-import { mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { mergeIdPlan, MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { MAX_STEP_ID } from '@/services/ifc/foreign/stepScanner';
 import { psetOwners, validateMergeOutput } from '@/services/ifc/foreign/mergeValidation';
 import { openInStore, TRIAS_FILES } from './ifcAppRoute';
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
-import { applyEdit, cloneDomain, concat, mergeProblems, openForeign, ordinaryEdits, tryMerge } from './ifcMergeKern';
+import { applyEdit, cloneDomain, concat, mergeProblems, newObjectEdits, openForeign, ordinaryEdits, tryMerge, type Domain } from './ifcMergeKern';
+import { readbackDifference } from './ifcReadbackEquality';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const reseed = installDeterminism();
@@ -89,6 +90,82 @@ for (let c = 0; c < oldIndex.count; c++) {
 check(`E16 oud eigen: alle ${expectedOld} hulp-GlobalIds met hetzelfde bron-id`, expectedOld > 0 && kept === expectedOld);
 check('E16 oud eigen: vreemde bytes intact', !mergeProblems(old, oldSave.bytes).length);
 console.log(`E16 oud eigen: ${kept} hulp-GlobalIds met hetzelfde bron-id`);
+
+// 7b: de drie echte handelingen op beide bronnen; de kalender ook zonder gebruiker.
+for (const [label, bytes] of [['eigen', basis], ['kantoor', office]] as const) {
+  for (const kind of ['resource-erbij', 'kalender-los', 'kalender-erbij', 'baseline-vastleggen'] as const) {
+    const { store, snapshot } = await openInStore(bytes);
+    const before = snapshot(store), initial = cloneDomain(before);
+    let input: Domain;
+    if (kind === 'kalender-los') {
+      const { id: _id, ...calendar } = structuredClone(initial.calendar);
+      store.getState().addCalendar({ ...calendar, name: 'Nieuwe losse kalender 1c' });
+      input = cloneDomain(snapshot(store));
+    } else input = await applyEdit(newObjectEdits(initial).find(e => e.kind === kind)!, initial);
+    const saved = await tryMerge(input, before.ifcSource!);
+    check(`${label} ${kind}: eerste opslag schrijft`, saved.ok);
+    if (!saved.ok) { console.error(label, kind, saved.error.cases); continue; }
+    const reopened = await openForeign(saved.bytes);
+    const again = await tryMerge(cloneDomain(reopened), reopened.ifcSource!);
+    check(`${label} ${kind}: tweede opslag schrijft`, again.ok);
+    if (!again.ok) continue;
+    const twice = await openForeign(again.bytes);
+    check(`${label} ${kind}: C/A/V beide keren bytegelijk`, !mergeProblems(bytes, saved.bytes).length && !mergeProblems(saved.bytes, again.bytes).length);
+    assert.equal(readbackDifference(reopened, twice), undefined, `${label} ${kind}: twee volledige heropeningen gelijk`);
+    if (kind === 'resource-erbij') {
+      const first = resourceHelpers(saved.bytes), second = resourceHelpers(again.bytes);
+      assert.equal(first.size, input.resources.length);
+      assert.deepEqual(second, first, `${label}: ook de nieuwe resource houdt pset-/relatie-identiteit`);
+    } else if (kind.startsWith('kalender')) {
+      const added = input.resourceCalendars!.find(c => !before.resourceCalendars!.some(old => old.id === c.id))!;
+      const actual = reopened.resourceCalendars!.find(c => c.name === added.name)!;
+      assert(actual, 'de toegevoegde kalender is na volledig heropenen aanwezig');
+      assert.equal(readbackDifference({ ...input, resourceCalendars: [{ ...added, id: 'vergelijk-kalender' }] },
+        { ...input, resourceCalendars: [{ ...actual, id: 'vergelijk-kalender' }] }), undefined, 'alle kalenderinhoud exact, alleen intern id anders');
+      if (kind === 'kalender-erbij') {
+        const owner = input.resources.find(r => r.calendarId === added.id)!;
+        assert.equal(reopened.resources.find(r => r.name === owner.name)!.calendarId, actual.id, 'de verwijzing blijft bij dezelfde kalender');
+      }
+    } else assert.deepEqual(reopened.baselines, input.baselines, 'baseline met exact dezelfde rijen na volledig heropenen');
+    console.log(`OK 7b ${label} ${kind}: eerste merge → openen → tweede merge, C/A/V bytegelijk`);
+  }
+}
+
+// Zes verliesproeven op de echte heropening: identiteitsprojectie mag inhoud en koppelingen nooit maskeren.
+{
+  const { store, snapshot } = await openInStore(basis), state = () => store.getState();
+  const resourceIds = state().resources.slice(0, 2).map(r => r.id);
+  const { id: _id, ...calendar } = structuredClone(state().calendar);
+  const a = state().addCalendar({ ...calendar, name: 'Verliesproef A' });
+  const b = state().addCalendar({ ...calendar, name: 'Verliesproef B' });
+  state().updateResource(resourceIds[0], { calendarId: a });
+  state().updateResource(resourceIds[1], { calendarId: b });
+  state().addResource({ name: 'Nieuwe verliesproefresource', type: 'EQUIPMENT', description: 'Niet verliezen', maxUnits: 2, costPerHour: 37.5 });
+  state().saveBaseline('Baseline verliesproef');
+  const rich = snapshot(store), input = cloneDomain(rich);
+  assert((await tryMerge(input, rich.ifcSource!)).ok, 'de combinatie schrijft zonder foutnabootsing');
+  const mutations: [string, (shown: Domain) => void][] = [
+    ['a kalenderkoppelingen verwisseld', p => {
+      const first = p.resources.find(r => r.id === resourceIds[0])!, second = p.resources.find(r => r.id === resourceIds[1])!;
+      [first.calendarId, second.calendarId] = [second.calendarId, first.calendarId];
+    }],
+    ['b resource-psetwaarde weg', p => { delete p.resources.find(r => r.name === 'Nieuwe verliesproefresource')!.costPerHour; }],
+    ['c werktijd anders', p => { p.resourceCalendars!.find(c => c.name === 'Verliesproef A')!.workStartHour += 1e-9; }],
+    ['d toewijzing op andere resource', p => {
+      p.assignments[0].resourceId = p.resources.find(r => r.id !== p.assignments[0].resourceId)!.id;
+    }],
+    ['e ander projectveld bij baselinehandeling', p => { p.project.wbsAutoNumber = !p.project.wbsAutoNumber; }],
+    ['f resource verdwenen', p => { p.resources = p.resources.filter(r => r.name !== 'Nieuwe verliesproefresource'); }],
+  ];
+  for (const [label, mutate] of mutations) {
+    await assert.rejects(() => writeIfcMerge(input, rich.ifcSource!, async (parsed, side) => {
+      const shown = structuredClone(parsed);
+      if (side === 'uitvoer') mutate(shown);
+      return shown;
+    }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen'), `${label}: getypeerd geweigerd, geen bytes`);
+    console.log(`OK 7b verlies ${label}: getypeerde weigering zonder bytes`);
+  }
+}
 
 // Twee uitvoerrelaties/psets met dezelfde eigenaar en naam: de bestaande koppeling
 // markeert dit dubbelzinnig. Geen van beide mag willekeurig de bron-GlobalId krijgen.
