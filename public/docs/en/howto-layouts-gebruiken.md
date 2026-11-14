@@ -83,7 +83,7 @@ Layouts that do not store the same parts can be on together. If you have a layou
 
 **Layouts are on your device, not in the project.** The app keeps your layouts and the columns for all your projects on this device. The overlays from a layout (baseline, progress line and the rest) apply to all your projects. The filter, grouping and sorting that are on right now belong to the open project, but do not go into the project file: after saving and reopening the view is clean again. They also do not make the project "modified".
 
-**The separate buttons are hidden.** *Columns…*, *Filter…*, *Group…* and *Sort…* as separate buttons on the *View* tab are an old view. You bring them back with *Show classic view buttons* under *Legacy features* on the *Advanced* tab of the *App settings* window (⚙ in the title bar). Prefer layouts.
+**The separate buttons are hidden.** *Columns…*, *Filter…*, *Group…* and *Sort…* as separate buttons on the *View* tab are an old view. You bring them back with [Show classic view buttons](settings://classicViewControls) in the *Advanced* group of the *App settings* window (⚙ in the title bar). Prefer layouts.
 
 ## See also
 

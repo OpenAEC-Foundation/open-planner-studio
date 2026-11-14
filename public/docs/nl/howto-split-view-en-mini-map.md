@@ -17,7 +17,7 @@ De twee vensters delen de takenlijst, de rijen en de verticale scroll. Wat elk v
 
 ### Elk venster een eigen stuk tijd geven
 
-- Zoom en scrol in het venster waar je muis boven staat. Met de standaardinstelling voor *Scrollen & zoomen* (*Zoom + slepen*) zoomt het muiswiel in dat venster, gecentreerd op je muis. Volgt je instelling een andere modus, dan doet het wiel in beide vensters wat die modus zegt.
+- Zoom en scrol in het venster waar je muis boven staat. Met de standaardinstelling voor [Scrollen en zoomen](settings://scrollMode) (*Zoom + slepen*) zoomt het muiswiel in dat venster, gecentreerd op je muis. Volgt je instelling een andere modus, dan doet het wiel in beide vensters wat die modus zegt.
 - Met de standaardinstelling scrol je met Shift plus het muiswiel door de rijen. Dat geldt voor beide vensters tegelijk.
 - De knoppen *Zoomen +* en *Zoomen -* en de keuzelijst van de tijdschaal (bijvoorbeeld *Kwartaal*) werken alleen op het linker venster. Het rechter venster zoom je dus met het muiswiel.
 - Sleep de balk tussen de twee vensters naar links of rechts om ze meer of minder breed te maken. Ze beginnen op de helft.

@@ -81,7 +81,7 @@ Voorbeeld: het beton van de fundering moet uitharden voordat de metselaar erop k
 
 ### Tot slot: opnieuw berekenen
 
-Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*. Pas dan krijgen de opvolgers hun nieuwe datums. Wil je dat de app dit zelf doet, zet dan *Automatisch berekenen* aan onder *Instellingen › Project › App-instellingen*, tabblad *Planning*.
+Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*. Pas dan krijgen de opvolgers hun nieuwe datums. Wil je dat de app dit zelf doet, zet dan [Automatisch berekenen](settings://autoCalc) aan onder *Instellingen › Project › App-instellingen*, groep *Planning*.
 
 ## Valkuilen en wat de app dan doet
 

@@ -14,8 +14,8 @@ The task type decides which of the three quantities duration, units and work mov
 
 The task type is not shown by default. Turn it on once:
 
-1. Choose *Settings › Project › App settings*, tab *Planning*.
-2. Under the heading *Calculation*, tick *Use task types*.
+1. Choose *Settings › Project › App settings* and, on the left, the group *Scheduling*.
+2. Turn on [Use task types](settings://taskTypes).
 3. Close the window with *Close*.
 
 This is a setting of the app, not of the project file. If a file already contains task types or stored work, such as a file from MS Project or Primavera P6, the app shows the task type for that file even without this setting. The same goes as soon as you choose a task type in a file yourself: the display then stays on for that file, even if you turn the setting off again. It stays on as long as the file is open, and after reopening as long as the file contains a task type or stored work.
@@ -47,7 +47,7 @@ If you choose a task type, no number changes yet. Under a task type that protect
 
 The task type only calculates when you change the duration, the *Units*, the *Work (h)*, add or remove a resource, or change the calendar's working time per day. **Calculate** (F5) does not change duration, units or work. The work is duration × units × the working time per day from the task's calendar.
 
-If that changes the task's duration, the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*, to see the new dates. If *Calculate automatically* is on (same *Planning* tab, heading *Calculation*), the app does this itself.
+If that changes the task's duration, the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*, to see the new dates. If [Calculate automatically](settings://autoCalc) is on (same group *Scheduling*), the app does this itself.
 
 ## Which task type fits
 

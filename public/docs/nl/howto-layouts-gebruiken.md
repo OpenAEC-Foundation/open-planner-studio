@@ -83,7 +83,7 @@ Layouts die niet dezelfde onderdelen vastleggen kunnen samen aan staan. Heb je e
 
 **Layouts staan op je apparaat, niet in het project.** Je layouts en de kolommen bewaart de app voor al je projecten op dit apparaat. De overlays uit een layout (baseline, voortgangslijn en de rest) gelden voor al je projecten. Het filter, de groepering en de sortering die op dit moment aan staan, horen bij het geopende project, maar komen niet in het projectbestand: na opslaan en heropenen is het beeld weer schoon. Ze maken het project ook niet "gewijzigd".
 
-**De losse knoppen zijn verborgen.** *Kolommen…*, *Filteren…*, *Groeperen…* en *Sorteren…* als losse knoppen op het tabblad *Beeld* zijn een oude weergave. Je zet ze terug met *Klassieke weergaveknoppen tonen* onder *Legacy-functies* op het tabblad *Geavanceerd* van het venster *App-instellingen* (⚙ in de titelbalk). Gebruik liever layouts.
+**De losse knoppen zijn verborgen.** *Kolommen…*, *Filteren…*, *Groeperen…* en *Sorteren…* als losse knoppen op het tabblad *Beeld* zijn een oude weergave. Je zet ze terug met [Klassieke weergaveknoppen tonen](settings://classicViewControls) in de groep *Geavanceerd* van het venster *App-instellingen* (⚙ in de titelbalk). Gebruik liever layouts.
 
 ## Zie ook
 

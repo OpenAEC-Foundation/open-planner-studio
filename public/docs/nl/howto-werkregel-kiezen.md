@@ -14,8 +14,8 @@ Het taaktype bepaalt welke van de drie grootheden duur, inzet en werk meebeweegt
 
 Het taaktype staat standaard niet in beeld. Zet het eenmalig aan:
 
-1. Kies *Instellingen › Project › App-instellingen*, tabblad *Planning*.
-2. Vink onder het kopje *Berekenen* het vakje *Taaktypes gebruiken* aan.
+1. Kies *Instellingen › Project › App-instellingen* en links de groep *Planning*.
+2. Zet [Taaktypes gebruiken](settings://taskTypes) aan.
 3. Sluit het venster met *Sluiten*.
 
 Dit is een instelling van de app, niet van het projectbestand. Bevat een bestand al taaktypes of opgeslagen werk, zoals een bestand uit MS Project of Primavera P6, dan toont de app het taaktype voor dat bestand ook zonder deze instelling. Hetzelfde geldt zodra je in een bestand zelf een taaktype kiest: de weergave blijft dan voor dat bestand aan, ook als je de instelling weer uitzet. Ze blijft aan zolang het bestand open is, en na opnieuw openen zolang er een taaktype of opgeslagen werk in staat.
@@ -47,7 +47,7 @@ Kies je een taaktype, dan verandert er nog geen getal. Onder een taaktype dat we
 
 Het taaktype rekent alleen bij een wijziging van de duur, de *Inzet*, het *Werk (u)*, een resource erbij of eraf, of de werktijd per dag van de kalender. **Bereken** (F5) verandert duur, inzet en werk niet. Het werk is duur × inzet × de werktijd per dag uit de kalender van de taak.
 
-Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*, om de nieuwe datums te zien. Staat *Automatisch berekenen* aan (zelfde tabblad *Planning*, kopje *Berekenen*), dan doet de app dat zelf.
+Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*, om de nieuwe datums te zien. Staat [Automatisch berekenen](settings://autoCalc) aan (zelfde groep *Planning*), dan doet de app dat zelf.
 
 ## Welk taaktype past
 

@@ -40,7 +40,7 @@ Sluit je het laatste project, dan blijft er een lege planning met de naam *Nieuw
 
 ### De wisselstijl kiezen
 
-De tabbladen zijn een keuze. Open het venster *App-instellingen* met het tandwiel in de titelbalk, ga naar het tabblad *Weergave* en kies bij *Documentwissel-stijl*:
+De tabbladen zijn een keuze. Open het venster *App-instellingen* met het tandwiel in de titelbalk, kies links de groep *Werkruimte* en kies bij [Documentwissel-stijl](settings://documentChrome):
 
 - *Horizontale tabbladen*: de standaard. Een rij tabbladen onder het lint.
 - *Verticale tabbladen*: een smalle balk links met een knop per project (de beginletters van de naam) en een plusje. Ga je met de muis op een knop staan, dan zie je naam, bestandsnaam, aantal taken, aantal kritieke taken en einddatum. De knop bovenaan opent het overzicht.
