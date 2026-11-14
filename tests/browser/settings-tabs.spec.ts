@@ -94,6 +94,35 @@ async function assertGroupsAndSettings(container: Locator): Promise<void> {
   await expect(container.getByText(PROJECT_SECTION_TEXT, { exact: true })).toHaveCount(0);
 }
 
+/**
+ * Elke zichtbare knop- en labeltekst in een instelling vindt die instelling via de zoekbalk. Zo valt
+ * een eigen bediening die haar teksten niet aan de zoekindex geeft meteen op (review #942).
+ */
+async function assertVisibleTextsFindTheirSetting(dialog: Locator): Promise<void> {
+  const search = dialog.locator('[data-ops-settings-search]');
+  for (const g of Object.keys(GROUP_SETTINGS)) {
+    await search.fill('');
+    await group(dialog, g).click();
+    const rows = await dialog.locator('[data-ops-setting]').evaluateAll(els => els.map(el => ({
+      id: el.getAttribute('data-ops-setting')!,
+      // Bij een kaart met plaatje telt de naam eronder, niet de tekst in het plaatje.
+      texts: [...el.querySelectorAll<HTMLElement>('button:not(.settings-visual-card), label, .settings-visual-card-label')]
+        .filter(e => e.offsetParent !== null)
+        .map(e => e.innerText.replace(/\s+/g, ' ').trim())
+        // Aan/Uit onder een schakelaar is geen naam om op te zoeken.
+        .filter(text => text !== '' && !/^(On|Off)$/.test(text)),
+    })));
+    for (const { id, texts } of rows) {
+      for (const text of texts) {
+        await search.fill(text);
+        await expect(dialog.locator(`[data-ops-setting="${id}"]`), `zoeken op "${text}"`).toBeVisible();
+      }
+    }
+  }
+  await search.fill('');
+  await group(dialog, 'appearance').click();
+}
+
 /** Zoeken, "Alleen gewijzigd", terugzetten en de directe link, in de tandwiel-popup. */
 async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   const page = dialog.page();
@@ -111,6 +140,8 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await search.fill('Ctrl');
   await expect(dialog.locator('[data-ops-setting="modifierMap"] fieldset button').first()).toBeDisabled();
   await expect(dialog.locator('[data-ops-setting="modifierMap"] .settings-unavailable-reason')).toBeVisible();
+  await assertVisibleTextsFindTheirSetting(dialog);
+  await search.click();
   // Ook keuzes binnen een eigen bediening: de schakelaar onder Thema en de namen van de talen.
   await search.fill('follow system');
   await expect(dialog.locator('[data-ops-setting="theme"]')).toBeVisible();

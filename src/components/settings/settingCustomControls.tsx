@@ -157,6 +157,12 @@ export function FormatNoticesControl() {
 
 // --- Versie en Experimenteel ---------------------------------------------------------------------
 
+/** Zoekteksten: het versienummer en de knoppen voor updates (niet in de platformbouw). */
+export const versionSearchTexts = (t: TFunction<'common'>): string[] => [
+  __APP_VERSION__,
+  ...(UPDATES_AVAILABLE ? [t('updates.checkButton'), t('updates.justUpdated.whatsNewButton')] : []),
+];
+
 /** De versie met de knoppen voor updates. Het versienummer is ook de verborgen ontgrendeling van
  *  Experimenteel: 5 seconden lang activeren, met hoogstens 0,5 s tussen twee activeringen. */
 export function VersionControl() {
@@ -224,6 +230,12 @@ export function VersionControl() {
     </>
   );
 }
+
+/** Zoekteksten: naam en uitleg van elke schakelaar en de knop Verbergen. */
+export const experimentalSearchTexts = (t: TFunction<'common'>): string[] => [
+  ...FEATURE_FLAGS.flatMap(flag => (flag.descriptionKey ? [t(flag.nameKey), t(flag.descriptionKey)] : [t(flag.nameKey)])),
+  t('settings.experimentalHide'),
+];
 
 /** De verborgen experimentele functies; zichtbaarheid en keuzes worden los van elkaar bewaard. */
 export function ExperimentalControl() {

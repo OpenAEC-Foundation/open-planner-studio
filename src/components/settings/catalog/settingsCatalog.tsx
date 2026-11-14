@@ -23,7 +23,6 @@ import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags'
 import { displayDate } from '@/utils/displayDate';
 import { localTodayIso } from '@/utils/dateUtils';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
-import { FEATURE_FLAGS } from '@/utils/featureFlags';
 import { applyAutoCalcCPM, applySetting, applyTheme } from '../applySetting';
 import { LANGUAGE_OPTIONS, LanguageSelect } from '../settingControls';
 import {
@@ -32,7 +31,7 @@ import {
 } from '../settingVisuals';
 import {
   BenchmarkControl, ExperimentalControl, FormatNoticesControl, ModifierMapControl, StatsControl, ThemeControl,
-  TourControl, VersionControl, modifierMapSearchTexts, themeSearchTexts,
+  TourControl, VersionControl, experimentalSearchTexts, modifierMapSearchTexts, themeSearchTexts, versionSearchTexts,
 } from '../settingCustomControls';
 import { SETTING_IDS, SETTINGS_GROUP_IDS, type SettingId, type SettingsGroupId } from '@/utils/settingIds';
 import type { ChoiceOption, CommonKey, SettingBinding, SettingEntry } from './types';
@@ -241,12 +240,12 @@ const ENTRIES: readonly SettingEntry[] = [
   // Over de app
   {
     kind: 'custom', id: 'version', group: 'about', labelKey: 'settings.version', hintKey: 'settings.versionHint',
-    keywordsKey: 'settings.keywords.version', Control: VersionControl,
+    keywordsKey: 'settings.keywords.version', Control: VersionControl, searchTexts: versionSearchTexts,
   },
   {
     kind: 'custom', id: 'experimental', group: 'about', labelKey: 'settings.experimentalSection',
     keywordsKey: 'settings.keywords.experimental', Control: ExperimentalControl,
-    searchTexts: t => FEATURE_FLAGS.map(flag => t(flag.nameKey)),
+    searchTexts: experimentalSearchTexts,
     requires: { met: s => s.ui.experimentalSettingsVisible, reasonKey: 'settings.experimentalSection', hide: 'always' },
   },
   {
