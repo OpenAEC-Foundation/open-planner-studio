@@ -101,7 +101,13 @@ export async function settle(bytes: Uint8Array): Promise<Uint8Array> {
   for (let round = 0; round < 4; round++) {
     const opened = await openForeign(current);
     if (!opened.ifcSource?.foreign) throw new Error('settle: geen vreemd deel');
-    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource);
+    // Stuk 1 schrijft een ongewijzigde bron letterlijk terug. Deze fixturevoorbereiding
+    // moet juist de herschrijf-/verliespoort onderzoeken; alleen de proefbeschrijving wijzigt.
+    // De geslaagde uitvoer wordt niet de fixture: zoals voorheen patchen we uitsluitend
+    // de concrete niet-gedragen tokens, met behoud van bron-ids en vreemde bytes.
+    const candidate = cloneDomain(opened);
+    candidate.project.description = `${candidate.project.description} (fixturevoorbereiding)`;
+    const outcome = await tryMerge(candidate, opened.ifcSource);
     if (outcome.ok) return current;
     const cases = outcome.error.cases;
     const refOutsideText = (tok: string) => /#\d/.test(tok.replace(/'(?:[^']|'')*'/g, "''"));

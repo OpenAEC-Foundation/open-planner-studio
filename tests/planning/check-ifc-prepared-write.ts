@@ -9,7 +9,7 @@ import { prepareIfcWrite, MergeNeedsPhase2Error } from '@/services/ifc/foreign/m
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
-import { cloneDomain, concat, mergeProblems, openForeign, sameBytes } from './ifcMergeKern';
+import { cloneDomain, concat, mergeProblems, openForeign, sameBytes, recalculated } from './ifcMergeKern';
 import { openInStore, storeEdit, lengthen, lengthenedTask, TRIAS_FILES } from './ifcAppRoute';
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
@@ -64,10 +64,16 @@ for (const [label, bytes] of [
     let newId = '';
     for (let step = 0; step < 3; step++) {
       const reopened = await openForeign(previous);
-      const edit = async (d: WriteIFCInput) => step === 0 ? lengthen(d, lengthenedTask(d).id)
-        : step === 1 ? storeEdit(d, state => {
-          state.addTask({ name: 'Nieuwe taak PR 8a' }, { phaseAssignments: 'move', answered: true });
-        }) : storeEdit(d, state => { state.deleteTask(newId); });
+      const edit = async (d: WriteIFCInput, replayId?: string) => {
+        const changed = step === 0 ? await lengthen(d, lengthenedTask(d).id)
+          : step === 1 ? await storeEdit(d, state => {
+            const made = state.addTask({ name: 'Nieuwe taak PR 8a' }, { phaseAssignments: 'move', answered: true });
+            // Twee appcontexten hebben een oplopende id-teller. Alleen de ene nieuwe,
+            // ongerelateerde worteltaak krijgt voor de replay dezelfde sessie-identiteit.
+            if (replayId) state.updateTask(made, { id: replayId });
+          }) : await storeEdit(d, state => { state.deleteTask(newId); });
+        return recalculated(changed); // Voor iedere opslag F5, dus geen vergelijking met verouderde datums.
+      };
       reseed(0x8a + step);
       input = await edit(input);
       if (step === 1) newId = input.tasks.find(t => t.name === 'Nieuwe taak PR 8a')!.id;
@@ -76,7 +82,7 @@ for (const [label, bytes] of [
       await sourceProof(result, frozenBefore);
       assert.deepEqual(mergeProblems(bytes, result.source.bytes), []);
       reseed(0x8a + step);
-      const inputReopen = await edit(cloneDomain(reopened));
+      const inputReopen = await edit(cloneDomain(reopened), step === 1 ? newId : undefined);
       const viaReopen = await prepareIfcWrite(inputReopen, reopened.ifcSource!);
       const left = new TextDecoder().decode(concat(result.parts)).split('\n');
       const right = new TextDecoder().decode(concat(viaReopen.parts)).split('\n');
@@ -85,6 +91,8 @@ for (const [label, bytes] of [
       source = result.source;
       previous = source.bytes;
       assert.deepEqual(input, frozenBefore, 'de aanroeper is niet gewijzigd');
+      // Het verbruik van deze metadata is de afspraak voor 8b; de writer muteert de invoer niet.
+      input = { ...input, ifcLiteralCalendarIds: [...new Set([...(input.ifcLiteralCalendarIds ?? []), ...result.literalCalendarIds])] };
     }
   });
   await check(`${label}: zonder bewerking zijn bytes en bron dezelfde`, async () => {
@@ -122,6 +130,38 @@ await check('stuk 1 doorloopt dezelfde vaste uitvoercontrole', async () => {
   const opened = await openForeign(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
   await assert.rejects(prepareIfcWrite(cloneDomain(opened), opened.ifcSource!, async input => input),
     (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'open-stappen-ontbreken'));
+});
+
+await check('E13: nieuwe uurtaak maakt kalender letterlijk; wissen met het resultaat houdt dat vast', async () => {
+  const opened = await openForeign(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const before = cloneDomain(opened), cal = before.calendar.id;
+  assert(!before.ifcLiteralCalendarIds?.includes(cal), 'de bronkalender was nog niet letterlijk');
+  let added = '';
+  const input = await storeEdit(before, state => {
+    const time = { ...lengthenedTask(before).time, durationUnit: 'hours' as const, durationMinutes: 60, scheduleDuration: 0.125 };
+    added = state.addTask({ name: 'Uurtaak voor letterlijke kalender', time }, { phaseAssignments: 'move', answered: true });
+  });
+  assert(added);
+  const first = await prepareIfcWrite(input, opened.ifcSource!);
+  assert(first.literalCalendarIds.includes(cal));
+  const carried = { ...input, ifcLiteralCalendarIds: [...new Set([...(input.ifcLiteralCalendarIds ?? []), ...first.literalCalendarIds])] };
+  const deleted = await storeEdit(carried, state => { state.deleteTask(added); });
+  const second = await prepareIfcWrite(deleted, first.source);
+  assert(second.literalCalendarIds.includes(cal));
+  const reopened = await openForeign(concat(second.parts));
+  assert(reopened.ifcLiteralCalendarIds?.includes(cal));
+  assert(new TextDecoder().decode(second.source.bytes).includes("'LiteralTimes',$,IFCBOOLEAN(.T.)"));
+});
+
+await check('de nieuwe bron houdt de schrijfmomentopname vast bij later doorwerken', async () => {
+  const opened = await openForeign(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const input = await lengthen(cloneDomain(opened), lengthenedTask(opened).id);
+  const before = structuredClone(input);
+  const result = await prepareIfcWrite(input, opened.ifcSource!);
+  input.tasks[0].name = 'Latere bewerking';
+  assert.deepEqual(result.source.opened, before);
+  assert.notStrictEqual(result.source.opened, input);
+  assert(Object.isFrozen(result.source.opened!.tasks[0]));
 });
 
 await check('zonder vreemd deel: gewone writer met en zonder bewerking, ook op oud bestand', async () => {

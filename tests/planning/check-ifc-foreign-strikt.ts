@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyTaskProgress } from './ifcAppRoute';
+import { applyTaskProgress, storeEdit } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
 import { basicEdits, canon, cloneDomain, mergeProblems, openForeign, plannerEdits, recalculated, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { readXER } from '@/services/xer/xerReader';
@@ -28,6 +28,10 @@ const diffs: string[] = [];
 let checks = 0;
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 const read = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
+// De onderstaande bronbeperkingen gelden bij herschrijven; stuk 1 bewaart ongewijzigde bytes.
+const rewrite = (d: Domain) => storeEdit(d, state => {
+  state.setProject({ description: `${d.project.description} (herschrijfproef)` });
+});
 const latin1 = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 const text = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode(...b.subarray(i, i + 8192)); return s; };
 const lineOf = (bytes: Uint8Array, id: string) => {
@@ -260,17 +264,17 @@ await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x)
   }
   // Na de wand #402 begint het eerste nieuwe id boven 402, na de string boven 999999 (te hoog beginnen kan geen kwaad).
   const firstNew = async (bytes: Uint8Array) => {
-    const r = await merge('dubbel id · eerste nieuwe id', bytes);
+    const r = await merge('dubbel id · eerste nieuwe id na een bewerking', bytes, rewrite);
     const own = new Set(normIds(text(bytes)));
     return r.out ? Math.min(...normIds(text(r.out)).filter(id => !own.has(id))) : -1;
   };
   const afterWall = await firstNew(variants[0][1]);
-  ok(`fixronde 8: na de verstopte wand #402 is het eerste nieuwe id ${afterWall}, verwacht boven 402`, afterWall > 402);
+  ok(`fixronde 8: na de verstopte wand #402 is het eerste nieuwe id ${afterWall}, verwacht boven 402`, Number.isFinite(afterWall) && afterWall > 402);
   const afterString = await firstNew(variants[3][1]);
-  ok(`fixronde 8: na 'zie #999999' is het eerste nieuwe id ${afterString}, verwacht boven 999999`, afterString > 999999);
+  ok(`fixronde 8: na 'zie #999999' is het eerste nieuwe id ${afterString}, verwacht boven 999999`, Number.isFinite(afterString) && afterString > 999999);
   // Een getal net onder de grens: de nieuwe regels passen er niet meer onder. De scanner weigert een groter id (knownbug
   // 1007), dus de merge weigert getypeerd.
-  await proof('dubbel id', 'een getal net onder de grens van de scanner', before('/* #2147483600 */\n'), 'id-te-groot');
+  await proof('dubbel id', 'een getal net onder de grens van de scanner', before('/* #2147483600 */\n'), 'id-te-groot', rewrite);
 }
 
 // ── B2: een duur met dagen vóór T (knownbug 1027, opgelost met #871), en een duur met weken (knownbug 1028) ──
@@ -658,8 +662,8 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
 {
   // Plek 26: twee gelijke eigen psets `OPS_Calendar` op de kalender, elk met een eigen relatie.
   const twice = after(eigen, 41, "#9039=IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(8.),$);\n#9040=IFCPROPERTYSET('0yQpbypZj4u9f68zIkoEO1',#6,'OPS_Calendar',$,(#9039));\n#9041=IFCRELDEFINESBYPROPERTIES('0EGdQpeHVqDZMJewwgwnUd',#6,$,$,(#38),#9040);");
-  await proof('B5, plek 26', 'f0: OPS_Calendar twee keer op de kalender', latin1(twice), 'niet-eenduidig');
-  await proof('B5, plek 26', 'f1: de tweede met een andere waarde', latin1(twice.replace("IFCREAL(8.),$);\n#9040", "IFCREAL(8.),'BEWAAR-TWEEDE');\n#9040")), 'niet-eenduidig');
+  await proof('B5, plek 26', 'f0: OPS_Calendar twee keer op de kalender', latin1(twice), 'niet-eenduidig', rewrite);
+  await proof('B5, plek 26', 'f1: de tweede met een andere waarde', latin1(twice.replace("IFCREAL(8.),$);\n#9040", "IFCREAL(8.),'BEWAAR-TWEEDE');\n#9040")), 'niet-eenduidig', rewrite);
 }
 {
   // Plek 27: werktijden met dezelfde naam (een feestdag per jaar). Een bronwaarde die de lezer niet draagt, staat op #21.
@@ -976,7 +980,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   const noAsg = [152, 153, 154, 155].reduce((acc, id) => acc.replace(new RegExp(`^#${id}=.*;\\n`, 'm'), ''), eigen);
   ok('plek 34: #152 tot #155 zijn weg', ![152, 153, 154, 155].some(id => new RegExp(`^#${id}=`, 'm').test(noAsg)));
   const psets = (out: string) => linesOfType(latin1(out), 'IFCPROPERTYSET').filter(l => l.includes("'OPS_Assignments'")).length;
-  await proof('plek 34', 'Trias: OPS_Assignments van #63 weg uit de bron; de writer schrijft haar weer (een registerpset)', latin1(noAsg), 'schrijft', undefined,
+  await proof('plek 34', 'Trias: OPS_Assignments van #63 weg uit de bron; de writer schrijft haar weer (een registerpset)', latin1(noAsg), 'schrijft', rewrite,
     (out) => (psets(text(out)) === psets(noAsg) + 1 ? undefined : `OPS_Assignments: ${psets(text(out))} in de uitvoer, ${psets(noAsg)} in de bron`));
 }
 
@@ -1031,9 +1035,9 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   const before47 = (src: string, inserted: string) => { const at = src.indexOf('#47=IFCTASK'); return src.slice(0, at) + inserted + src.slice(at); };
   const hidden = "/* a *\n/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',$,IFCLABEL('x'),$); /* b */\n";
   ok('verstopt stuk: de pset van de wand heeft (#397,#398)', eigen.includes('(#397,#398));'));
-  await proof('verstopt stuk', 'een verstopt stuk vóór een eigen taak', latin1(before47(eigen, hidden)), 'verstopt-stuk');
-  await proof('verstopt stuk', 'idem, en een V-stuk wijst ernaar', latin1(before47(eigen, hidden).replace('(#397,#398));', '(#397,#398,#402));')), 'verstopt-stuk');
-  await proof('verstopt stuk', 'commentaar met #12 vóór een eigen taak', latin1(before47(eigen, '/* zie #12 */\n')), 'verstopt-stuk');
+  await proof('verstopt stuk', 'een verstopt stuk vóór een eigen taak', latin1(before47(eigen, hidden)), 'verstopt-stuk', rewrite);
+  await proof('verstopt stuk', 'idem, en een V-stuk wijst ernaar', latin1(before47(eigen, hidden).replace('(#397,#398));', '(#397,#398,#402));')), 'verstopt-stuk', rewrite);
+  await proof('verstopt stuk', 'commentaar met #12 vóór een eigen taak', latin1(before47(eigen, '/* zie #12 */\n')), 'verstopt-stuk', rewrite);
   await proof('verstopt stuk', 'gewoon commentaar vóór een eigen taak', latin1(before47(eigen, '/* gewoon commentaar */\n')), 'schrijft');
   // `\S\'` in een string van een eigen stuk (VERMOED van review ronde 8, knownbug 1050): de lezer leest het anders dan de
   // norm, en het bestand opent met de flag niet (de modelweigering op de tekst van de lezer). De merge krijgt het dus niet.

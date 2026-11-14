@@ -4,7 +4,8 @@
  * Opbouw van de uitvoer (§4.10): de kop van de bron; de niet-P-stukken die vóór het eerste P-stuk staan; het hele P-blok
  * in de volgorde van de writer; de overige niet-P-stukken in bronvolgorde; de staart. Heeft de bron geen P-stuk, dan komt
  * het P-blok na het laatste bronstuk, vóór de staart. Niet-P-stukken blijven byte-gelijk en houden hun volgorde. De
- * uitvoer is een lijst `Uint8Array`-delen: stukken van de bron als `subarray` (geen kopie), het P-blok in een paar delen.
+ * samenstelling gebruikt bron-`subarray`'s en het P-blok in een paar delen. De uitvoercontrole maakt daar één buffer
+ * van; de teruggegeven delen zijn views op die nieuwe bronbuffer, zodat het resultaat de oude buffer niet vasthoudt.
  *
  * Ids (§4.3): elk D-stuk houdt zijn bron-`#id` (via `ifcSource.stepIds`). Gekoppelde P-hulpstukken houden hun bron-id en GlobalId; overige
  * regels krijgen ids boven alle bron- en uitvoerids. De kale, volledig gecontroleerde terugval
@@ -35,7 +36,7 @@
  * merge leest de planning daarna terug, en geeft dat een andere planning, dan weigert hij (`readPlanning`). De tabel per
  * entiteittype staat in de PR-body van #867, secties "Fixronde 2" en "Fixronde 3".
  *
- * Fase 1b: alleen tests gebruiken deze writer. Opslaan met een vreemd deel blijft geweigerd tot 1c.
+ * Voorbereiding 1c: alleen tests gebruiken deze ingang. De opslagblokkade blijft dicht tot PR 11.
  */
 import { ifcGuid, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
@@ -344,6 +345,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const scan = foreignScanFrom(index, classify(index), bytes);
     // Elk stuk is hier door de gewone writer geschreven; de scan geeft alleen grenzen/ids.
     const classes = Uint8Array.from(scan.chunkIds, id => id < 0 ? 0 : 1);
+    // De gewone writer blijft ongemoeid. Deze bestaande ingang levert met een leeg id-plan
+    // dezelfde nummering vanaf 1 en de sessiekaart, zonder nieuwe indeling tot eigenaar te maken.
     const metadata = writeIfcMergeLines(input, { firstId: 1, keep: new Map(), reserved: new Set(), baselineHeads: new Map() });
     const next = await writtenSource(input, bytes, scan, writerStepIds(input, metadata.idMap), classes, []);
     return { parts: [bytes], sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
@@ -351,11 +354,10 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const index = scanForeignStep(source.bytes);
   const cls = classify(index);
   assertSameSource(index, cls, source);
-  const opened = source.opened ?? await pristineFromScan(foreignScanFrom(index, cls, source.bytes), source.bytes);
   // Stuk 1: de canon is dezelfde maat als de verliesbewaking. Ook teruggedraaide bewerkingen
   // mogen de bron letterlijk teruggeven; dit staat vóór herkomst-/project-/verstopt-stukregels.
-  if (planningCanon(input) === planningCanon(opened)) {
-    await checkedParts([source.bytes], input, source, index, cls, opened, probe);
+  if (source.opened && planningCanon(input) === planningCanon(source.opened)) {
+    await checkedParts([source.bytes], input, source, index, cls, source.opened, probe);
     return { parts: [source.bytes], sha256: source.sha256, source,
       literalCalendarIds: input.ifcLiteralCalendarIds ?? [] };
   }

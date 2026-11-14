@@ -2,7 +2,8 @@
  * `ifcSource`: waar de IFC-bron woont (#804, ontwerp "Gebouwmodel behouden" §4.8). Een bladmodule met alleen het type
  * en twee kleine vragen, zodat store, documentcontract en meldingen het kunnen lezen zonder de scanner te laden.
  *
- * Fase 1a vult het veld alleen via de bytes-route (`ifcBytesRoute.ts`, achter de flag `ifcForeignContent`). Nog niet in
+ * De bytes-route vult de openingsbron (`ifcBytesRoute.ts`, achter de flag `ifcForeignContent`). `prepareIfcWrite` levert
+ * in fase 1c de bron van de gecontroleerde uitvoer; de store legt die pas na geslaagde opslag vast (PR 8b/11). Nog niet in
  * fase 1a (fase 2): `sourceSlots`, `jsonExtras`, `unusedKeys`, `idExceptions`, herkomstmerken, `elementLinks`,
  * `detached`, de wijzigingstijd op het doel en het manifest 6.
  *
@@ -57,7 +58,8 @@ export interface IfcSource {
    * van een bron met een vreemd deel (`applyLoadedProject`). De merge leest er af wat de planner wijzigde: een veld dat
    * gelijk is aan `opened`, wijzigde hij niet, ook als de omzetting het anders maakte dan de lezing van de bron
    * (`sourceForm.ts`). Ontbreekt het (de bytes-route zonder store), dan is de lezing van de bron wat de app liet zien.
-   * Het zijn dezelfde objecten als in het document (geen kopie); ze veranderen niet, want de store is onveranderlijk.
+   * Bij openen zijn dit dezelfde onveranderlijke objecten als in het document. Een voorbereide opslag draagt een diep
+   * bevroren kopie van haar schrijfinvoer, zodat later doorwerken nooit de momentopname achter de bron verandert.
    */
   readonly opened?: WriteIFCInput;
 }
