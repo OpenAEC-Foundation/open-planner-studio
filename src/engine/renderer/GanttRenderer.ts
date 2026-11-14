@@ -60,7 +60,14 @@ interface ArrowEntry {
   pred: Task;
   succ: Task;
 }
-/** De tekenbare relaties (beide eindpunten een taakrij, eerste occurrence) in relatievolgorde, per
+/** De taak `id` in rij `row`: een taakrij, of één mijlpaal uit een ingeklapte reeks (#868). */
+function rowTask(row: ViewRow | undefined, id: string): Task | undefined {
+  if (row?.kind === 'task') return row.task;
+  if (row?.kind === 'milestones') return row.tasks.find(task => task.id === id);
+  return undefined;
+}
+
+/** De tekenbare relaties (beide eindpunten een taakrij of een mijlpalenreeks, eerste occurrence) in relatievolgorde, per
  *  (relaties, rijen) één keer opgebouwd. */
 const arrowEntryCache = new WeakMap<Sequence[], { rows: ViewRow[]; entries: ArrowEntry[] }>();
 function cachedArrowEntries(sequences: Sequence[], rows: ViewRow[], rowIndexByTask: Map<string, number>): ArrowEntry[] {
@@ -72,12 +79,12 @@ function cachedArrowEntries(sequences: Sequence[], rows: ViewRow[], rowIndexByTa
     const predIdx = rowIndexByTask.get(seq.predecessorId) ?? -1;
     const succIdx = rowIndexByTask.get(seq.successorId) ?? -1;
     if (predIdx < 0 || succIdx < 0) continue;
-    const predRow = rows[predIdx];
-    const succRow = rows[succIdx];
-    if (predRow?.kind !== 'task' || succRow?.kind !== 'task') continue;
+    const pred = rowTask(rows[predIdx], seq.predecessorId);
+    const succ = rowTask(rows[succIdx], seq.successorId);
+    if (!pred || !succ) continue;
     entries.push({
       seq, predIdx, succIdx, loIdx: Math.min(predIdx, succIdx), hiIdx: Math.max(predIdx, succIdx),
-      pred: predRow.task, succ: succRow.task,
+      pred, succ,
     });
   }
   if (cacheable) arrowEntryCache.set(sequences, { rows, entries });

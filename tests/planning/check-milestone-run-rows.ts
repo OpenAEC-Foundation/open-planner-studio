@@ -17,6 +17,10 @@ import { resolveDropTarget } from '@/engine/view/dropTarget';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { firstRowIndexByTask, milestoneRunHeads, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
 import type { TaskTime } from '@/types/task';
+import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
+import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
+import { createEmptyGridSelection, reconcileGridSelection, updateGridSelection } from '@/engine/taskGrid/selection';
+import type { Sequence } from '@/types/sequence';
 
 const S = () => useAppStore.getState();
 
@@ -165,6 +169,71 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   S().moveTasksTo([M1, M2, M3], { parentId: P, childIndex: 4 });
   eq('na verhuizen van de reeks achter Kolommen', byId.get(P) && S().tasks.find(t => t.id === P)!.childIds.map(id => S().tasks.find(t => t.id === id)!.name),
     ['Fundering', 'Kolommen', 'Start ruwbouw', 'Keuring wapening', 'Betonstort', 'Los']);
+}
+
+// ── Relatielijnen naar, vanuit en binnen een ingeklapte reeks blijven getekend (review Sol #956) ──
+{
+  S().expandTasks();
+  const lijnen = (sequences: Sequence[]): number => {
+    let n = 0;
+    const target: Record<string, unknown> = { measureText: (t: string) => ({ width: String(t).length * 6 }), getLineDash: () => [] };
+    const ctx = new Proxy(target, {
+      get(obj, prop: string) {
+        if (prop in obj) return obj[prop];
+        return () => { if (prop === 'lineTo') n++; return prop === 'createLinearGradient' ? { addColorStop: () => {} } : undefined; };
+      },
+      set(obj, prop: string, value) { obj[prop] = value; return true; },
+    });
+    const st = S();
+    new GanttRenderer(ctx as unknown as CanvasRenderingContext2D, {
+      rows: st.viewRows, sequences, calendar: st.calendar,
+      view: { ...st.view, zoom: 18, scrollX: 0, scrollY: 0 },
+      selectedTaskIds: [], canvasWidth: 1400, canvasHeight: 700, rowHeight: 24, headerHeight: 50,
+    }).render();
+    return n;
+  };
+  // Naast de inkomende relaties van Fundering: één uitgaande en één binnen de reeks.
+  S().addSequence({ predecessorId: M3, successorId: M4, type: 'FINISH_START', lagDays: 0 });
+  S().addSequence({ predecessorId: M1, successorId: M2, type: 'START_START', lagDays: 0 });
+  S().runCPM();
+  const seqs = S().sequences.filter(q => [M1, M2, M3].includes(q.predecessorId) || [M1, M2, M3].includes(q.successorId));
+  eq('opzet: inkomend, uitgaand en binnen de reeks', seqs.length, 5);
+  S().collapseTasks([M1]);
+  eq('opzet: de reeks is ingeklapt', S().viewRows.some(r => r.rowKey === `milestones:${M1}`), true);
+  const kaal = lijnen([]);
+  for (const q of seqs) {
+    eq(`ingeklapt: relatie ${q.predecessorId}→${q.successorId} wordt getekend`, lijnen([q]) > kaal, true);
+  }
+}
+
+// ── Toetsenbord en muis kiezen de ingeklapte regel op dezelfde manier (review Sol #956) ──
+{
+  S().expandTasks();
+  S().collapseTasks([M1]);
+  const index = createTaskGridRowIndex(S().viewRows);
+  const col = taskColumnId('task.name');
+  const cols = [col];
+  const runKey = `milestones:${M1}`;
+  const rowKeys = S().viewRows.map(r => r.rowKey);
+  const runPos = rowKeys.indexOf(runKey);
+  const leden = uniqueTaskIds([S().viewRows[runPos]]);
+  const vorige = { rowKey: rowKeys[runPos - 1], columnId: col };
+  const volgende = { rowKey: rowKeys[runPos + 1], columnId: col };
+  const opA = updateGridSelection(createEmptyGridSelection(), vorige, index, cols, 'replace');
+  // Pijl omlaag stuurt de cursor naar de volgende gegevensrij: de reeksregel.
+  const opRegel = updateGridSelection(opA, { rowKey: runKey, columnId: col }, index, cols, 'replace');
+  eq('pijl omlaag: de cursor staat op de reeksregel', opRegel.active?.rowKey, runKey);
+  eq('pijl omlaag: de hele reeks is gekozen', [...opRegel.selectedTaskIds].sort(), [...leden].sort());
+  eq('pijl omlaag: de actieve taak is de eerste mijlpaal', opRegel.activeTaskId, M1);
+  const verder = updateGridSelection(opRegel, volgende, index, cols, 'replace');
+  eq('nog een keer omlaag: voorbij de reeks', verder.active?.rowKey, volgende.rowKey);
+  const uitgebreid = updateGridSelection(opA, { rowKey: runKey, columnId: col }, index, cols, 'extend');
+  eq('Shift+omlaag: taak plus de hele reeks', uitgebreid.selectedTaskIds.length, leden.length + 1);
+  const weg = updateGridSelection(opRegel, { rowKey: runKey, columnId: col }, index, cols, 'toggle-task');
+  eq('Ctrl+klik op de regel: de reeks gaat uit de keuze', weg.selectedTaskIds.filter(id => leden.includes(id)), []);
+  const blijft = reconcileGridSelection(opRegel, index, createTaskGridRowIndex(S().viewRows), cols, cols);
+  eq('na een nieuwe rijenlijst blijft de cursor op de reeksregel', blijft.active?.rowKey, runKey);
+  S().expandTasks();
 }
 
 void B; void M4; void T2; void MD; void T3;

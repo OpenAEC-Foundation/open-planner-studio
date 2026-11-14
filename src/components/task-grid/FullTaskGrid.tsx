@@ -551,8 +551,12 @@ export function TaskGridSurface({
         const preferredTaskIds = publishedActiveTaskId
           ? [publishedActiveTaskId, ...selectedTaskIds.filter(id => id !== publishedActiveTaskId)]
           : selectedTaskIds;
+        const runRows = [...rowIndex.runByRowKey.values()];
         const selectedRows = preferredTaskIds
-          .flatMap(id => rowIndex.taskRows.filter(row => row.task.id === id));
+          .flatMap(id => [
+            ...rowIndex.taskRows.filter(row => row.task.id === id),
+            ...runRows.filter(run => run.tasks.some(task => task.id === id)),
+          ]);
         // Nooit vanzelf op de spookregel beginnen: dan zie je zijn grijze label "Nieuwe taak" niet.
         const selected = selectedRows[0] ?? rowIndex.taskRows.find(row => row.rowKey !== GHOST_ROW_KEY);
         const columnId = visibleColumnIds[0];
@@ -644,12 +648,6 @@ export function TaskGridSurface({
   ) => {
     if (event.button !== 0) return;
     if (!sameCellAddress(editing?.cell ?? null, cell) && !finishEditing()) return;
-    // Een ingeklapte mijlpalenreeks (#868, punt 7): een klik op de regel kiest de hele reeks.
-    const runMeta = adapter.rowMetaByKey.get(cell.rowKey);
-    if (runMeta?.kind === 'milestones') {
-      applySelection({ ...createEmptyGridSelection(), selectedTaskIds: runMeta.taskIds, activeTaskId: runMeta.taskIds[0] });
-      return;
-    }
     const gesture = event.shiftKey ? 'extend' : event.ctrlKey || event.metaKey ? 'toggle-task' : 'replace';
     const next = updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
     if (next !== selection) applySelection(next);

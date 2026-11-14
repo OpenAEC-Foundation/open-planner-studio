@@ -52,7 +52,13 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect(nameCell(page, runKey)).toContainText(/Mijlpalen \(3\)|Milestones \(3\)/);
   await expect(ganttRow(page, ids.m2)).toHaveCount(0);
 
-  // 3. Een klik op de regel kiest de hele reeks.
+  // 3. Pijl omlaag vanaf Fundering komt op de regel en kiest de hele reeks; nog een keer gaat
+  //    voorbij de reeks naar Kolommen. Een klik op de regel kiest ook de hele reeks.
+  await nameCell(page, ids.work).click();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m2, ids.m3].sort());
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => selected(page)).toEqual([ids.next]);
   await nameCell(page, runKey).click();
   await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m2, ids.m3].sort());
 

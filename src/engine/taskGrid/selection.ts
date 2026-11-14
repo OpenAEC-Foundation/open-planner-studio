@@ -26,7 +26,18 @@ function validCell(
   rowIndex: TaskGridRowIndex,
   columns: readonly TaskColumnId[],
 ): cell is GridCellAddress {
-  return cell !== null && columns.includes(cell.columnId) && rowIndex.taskByRowKey.has(cell.rowKey);
+  return cell !== null && columns.includes(cell.columnId) && selectableRow(rowIndex, cell.rowKey) !== null;
+}
+
+/**
+ * Een kiesbare regel: een taakrij, of een ingeklapte mijlpalenreeks (#868) die al haar mijlpalen
+ * kiest. Muis en toetsenbord gebruiken allebei deze ene definitie.
+ */
+function selectableRow(rowIndex: TaskGridRowIndex, rowKey: string): { rowKey: string; taskIds: string[] } | null {
+  const task = rowIndex.taskByRowKey.get(rowKey);
+  if (task) return { rowKey, taskIds: [task.task.id] };
+  const run = rowIndex.runByRowKey.get(rowKey);
+  return run ? { rowKey, taskIds: run.tasks.map(t => t.id) } : null;
 }
 
 function indexedTaskRowsInRange(
@@ -39,7 +50,7 @@ function indexedTaskRowsInRange(
   if (fromIndex === undefined || toIndex === undefined) return [];
   const start = Math.min(fromIndex, toIndex);
   const end = Math.max(fromIndex, toIndex);
-  return index.rows.slice(start, end + 1).filter(row => row.kind === 'task');
+  return index.rows.slice(start, end + 1).filter(row => row.kind === 'task' || row.kind === 'milestones');
 }
 
 function sameOrderedIds(left: readonly string[], right: readonly string[]): boolean {
@@ -55,6 +66,7 @@ function visibleSelectedTaskIds(
   rowIndex: TaskGridRowIndex,
 ): string[] {
   const visibleIds = new Set(rowIndex.taskRows.map(row => row.task.id));
+  for (const run of rowIndex.runByRowKey.values()) for (const task of run.tasks) visibleIds.add(task.id);
   return selectedTaskIds.filter(id => visibleIds.has(id));
 }
 
@@ -80,26 +92,26 @@ export function updateGridSelection(
   columns: readonly TaskColumnId[],
   gesture: GridSelectionGesture,
 ): GridSelectionState {
-  const row = rowIndex.taskByRowKey.get(cell.rowKey);
+  const row = selectableRow(rowIndex, cell.rowKey);
   if (!row || !columns.includes(cell.columnId)) return state as GridSelectionState;
+  const activeTaskId = row.taskIds[0];
 
   if (gesture === 'replace') {
     const alreadySingleCell = sameCellAddress(state.active, cell)
       && sameCellAddress(state.anchor, cell)
       && sameCellAddress(state.range?.start ?? null, cell)
       && sameCellAddress(state.range?.end ?? null, cell)
-      && state.activeTaskId === row.task.id
-      && state.selectedTaskIds.length === 1
-      && state.selectedTaskIds[0] === row.task.id;
-    return alreadySingleCell ? state as GridSelectionState : singleCellSelection(cell, row.task.id);
+      && state.activeTaskId === activeTaskId
+      && sameOrderedIds(state.selectedTaskIds, row.taskIds);
+    return alreadySingleCell ? state as GridSelectionState : singleCellSelection(cell, activeTaskId, row.taskIds);
   }
 
   if (gesture === 'toggle-task') {
-    const selectedTaskIds = [...state.selectedTaskIds];
-    const index = selectedTaskIds.indexOf(row.task.id);
-    if (index >= 0) selectedTaskIds.splice(index, 1);
-    else selectedTaskIds.push(row.task.id);
-    return singleCellSelection(cell, row.task.id, selectedTaskIds);
+    const all = row.taskIds.every(id => state.selectedTaskIds.includes(id));
+    const selectedTaskIds = all
+      ? state.selectedTaskIds.filter(id => !row.taskIds.includes(id))
+      : [...state.selectedTaskIds, ...row.taskIds.filter(id => !state.selectedTaskIds.includes(id))];
+    return singleCellSelection(cell, activeTaskId, selectedTaskIds);
   }
 
   const anchor = validCell(state.anchor, rowIndex, columns) ? state.anchor : cell;
@@ -109,7 +121,7 @@ export function updateGridSelection(
     anchor,
     range: { start: anchor, end: cell },
     selectedTaskIds,
-    activeTaskId: row.task.id,
+    activeTaskId,
   };
 }
 
@@ -157,7 +169,9 @@ export function reconcileGridSelection(
   }
 
   const oldRowIndex = previousRows.absoluteIndexByRowKey.get(state.active.rowKey) ?? 0;
-  const row = nextRows.taskByRowKey.get(state.active.rowKey) ?? nearestIndexedTaskRow(nextRows, oldRowIndex);
+  const nearest = nearestIndexedTaskRow(nextRows, oldRowIndex);
+  const row = selectableRow(nextRows, state.active.rowKey)
+    ?? (nearest ? { rowKey: nearest.rowKey, taskIds: [nearest.task.id] } : null);
   if (!row) {
     const empty = createEmptyGridSelection();
     return sameGridSelection(empty, state) ? state : empty;
@@ -184,7 +198,7 @@ export function reconcileGridSelection(
     && validCell(state.range.start, nextRows, nextColumns)
     && validCell(state.range.end, nextRows, nextColumns);
   if (!canKeepRange) {
-    const next = singleCellSelection(active, row.task.id, reconciledAdditiveIds ?? [row.task.id]);
+    const next = singleCellSelection(active, row.taskIds[0], reconciledAdditiveIds ?? row.taskIds);
     return sameGridSelection(next, state) ? state : next;
   }
 
@@ -195,7 +209,7 @@ export function reconcileGridSelection(
     range,
     selectedTaskIds: reconciledAdditiveIds
       ?? uniqueTaskIds(indexedTaskRowsInRange(nextRows, range.start.rowKey, range.end.rowKey)),
-    activeTaskId: row.task.id,
+    activeTaskId: row.taskIds[0],
   };
   return sameGridSelection(next, state) ? state : next;
 }
