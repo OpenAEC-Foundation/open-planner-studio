@@ -119,6 +119,7 @@ check-f4b-voortgangsduur.ts matrix
 check-feature-flags.ts matrix
 check-fidelity-cells-gate.ts los
 check-fidelity-core.ts matrix
+check-file-byte-parts.ts matrix
 check-file-drop.ts matrix
 check-first-start.ts matrix
 check-float-band-end.ts matrix

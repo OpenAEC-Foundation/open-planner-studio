@@ -1,6 +1,6 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
-import { writeUserBytesTauri, writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
+import { writeUserBytesTauri, writeUserTextFileTauri, writeUserBytePartsTauri } from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 
@@ -120,6 +120,23 @@ export async function saveBytesDialogTauri(
 export async function saveToRefTauri(ref: FileRef, content: string): Promise<boolean> {
   if (ref.kind !== 'path') return false;
   await writeUserTextFileTauri(ref.path, content);
+  return true;
+}
+
+/** Strikte byte-ingang: dezelfde kiezer/doelcontrole, uitsluitend exclusieve nieuwe aanmaak. */
+export async function saveBytePartsDialogTauri(
+  defaultName: string, parts: readonly Uint8Array[], filters: FileFilter[], opts: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  const savedPath = await pickSavePathTauri(defaultName, filters, opts);
+  if (!savedPath) return null;
+  if (await opts.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
+  await writeUserBytePartsTauri(savedPath, parts);
+  return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
+}
+
+export async function saveBytePartsToRefTauri(ref: FileRef, parts: readonly Uint8Array[]): Promise<boolean> {
+  if (ref.kind !== 'path') return false;
+  await writeUserBytePartsTauri(ref.path, parts);
   return true;
 }
 
