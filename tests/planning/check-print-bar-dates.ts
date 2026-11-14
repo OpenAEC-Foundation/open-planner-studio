@@ -126,6 +126,33 @@ S().runCPM();
   ok(`jaar-maand-dag (${fmt(r0)})`, r0.some(t => t.text === '2026-06-01') && r0.some(t => t.text === '2026-06-05'));
 }
 
+// ── Met de spelingsband: de einddatum staat direct achter de balk, niet achter de band ──
+{
+  const B = S().addTask({ name: 'Parallel', time: { durationUnit: 'days', scheduleDuration: 1 } as TaskTime });
+  S().runCPM();
+  const p = renderPrint({ showBarDates: true, showFloat: true });
+  const rij = S().tasks.findIndex(t => t.id === B);
+  const r = p.inRow(rij);
+  const bar = p.bar(rij);
+  const eind = r.find(t => t.text === '01-06-2026' && t.align === 'left');
+  ok(`spelingsband: einddatum direct achter de balk (${fmt(r)})`,
+    bar !== undefined && eind !== undefined && near(eind.x, bar.x + bar.w + BAR_LABEL_GAP));
+  S().deleteTask(B);
+  S().runCPM();
+}
+
+// ── Balk tot de papierrand (rapportageperiode): geen einddatum, naam links vóór de begindatum ──
+{
+  const p = renderPrint({ showBarDates: true, timeWindow: { from: '2026-05-25', to: '2026-06-03' } });
+  const r0 = p.inRow(0);
+  const start = r0.find(t => t.text === '01-06-2026');
+  const naam = r0.find(t => t.text.startsWith('Fund'));
+  ok(`rand: geen einddatum (${fmt(r0)})`, !r0.some(t => t.text === '05-06-2026'));
+  ok(`rand: naam rechts uitgelijnd links vóór de begindatum (${fmt(r0)})`,
+    start !== undefined && naam !== undefined && naam.align === 'right'
+    && near(naam.x, start.x - start.text.length * CHAR_W - DATE_GAP));
+}
+
 // ── Lange naam bij de rechterrand: rechts afkappen, niet naar links ──
 {
   S().updateTask(A, { name: 'Fundering '.repeat(60).trim() });

@@ -1184,17 +1184,19 @@ const BAR_DATE_GAP = 6;
 
 /**
  * Naam met datums bij een staaf (`showBarDates`, issue #868). De begindatum staat rechts uitgelijnd
- * links vóór de staaf (alleen als hij binnen het chartgebied past), de einddatum op de plek waar de
- * naam anders begint, en de naam erachter. Anders dan {@link drawBarLabel} valt de naam NIET terug naar
- * links (daar staat de begindatum): wat rechts niet past, wordt afgekapt met '…' (besluit Ethan
- * 14-11-2026). Datums in de gedempte tekstkleur, één punt kleiner dan de naam.
+ * links vóór de staaf (alleen als hij binnen het chartgebied past), de einddatum direct achter de
+ * staaf zelf (`barEndX`, niet achter de spelingsband: daar zou hij een ander einde suggereren) en de
+ * naam erachter. Wat rechts niet past wordt afgekapt met '…' (besluit Ethan 14-11-2026); de naam gaat
+ * niet naar links zolang de einddatum rechts staat. Past rechts zelfs de einddatum niet (de staaf
+ * loopt tot de papierrand), dan vervalt die en staat de naam links vóór de begindatum, zodat hij niet
+ * verdwijnt. Datums in de gedempte tekstkleur, één punt kleiner dan de naam.
  */
 function drawBarLabelWithDates(
   d2d: Draw2D,
   m: ReportMetrics,
   name: string,
   dates: { start: string; finish: string },
-  barRightX: number,
+  barEndX: number,
   barLeftX: number,
   y: number,
   canvasWidth: number,
@@ -1203,22 +1205,26 @@ function drawBarLabelWithDates(
   const rightMargin = 10;
   d2d.textBaseline = 'alphabetic';
   d2d.font = m.font(8);
-  const leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
-  if (dates.start && d2d.measureText(dates.start).width <= leftEnd - m.tableWidth) {
+  let leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
+  const startW = dates.start ? d2d.measureText(dates.start).width : 0;
+  if (dates.start && startW <= leftEnd - m.tableWidth) {
     fillLabelText(d2d, dates.start, leftEnd, y, 'right', PRINT_COLORS.textSecondary);
+    leftEnd -= startW + BAR_DATE_GAP;
   }
-  let x = barRightX + BAR_LABEL_GAP;
+  const x = barEndX + BAR_LABEL_GAP;
   const edge = canvasWidth - rightMargin;
-  if (dates.finish) {
-    d2d.font = m.font(8);
-    const w = d2d.measureText(dates.finish).width;
-    if (x + w > edge) return;
-    fillLabelText(d2d, dates.finish, x, y, 'left', PRINT_COLORS.textSecondary);
-    x += w + BAR_DATE_GAP;
+  const finishW = dates.finish ? d2d.measureText(dates.finish).width : 0;
+  if (x + finishW > edge) {
+    if (!name) return;
+    d2d.font = m.font(9, bold);
+    fillLabelText(d2d, ellipsize(d2d, name, leftEnd - m.tableWidth), leftEnd, y, 'right', PRINT_COLORS.text);
+    return;
   }
+  if (dates.finish) fillLabelText(d2d, dates.finish, x, y, 'left', PRINT_COLORS.textSecondary);
   if (!name) return;
+  const nameX = dates.finish ? x + finishW + BAR_DATE_GAP : x;
   d2d.font = m.font(9, bold);
-  fillLabelText(d2d, ellipsize(d2d, name, edge - x), x, y, 'left', PRINT_COLORS.text);
+  fillLabelText(d2d, ellipsize(d2d, name, edge - nameX), nameX, y, 'left', PRINT_COLORS.text);
 }
 
 /**
@@ -1709,6 +1715,9 @@ export function renderReport(
     /** Met `showBarDates` (#868): begindatum links vóór de balk (leeg bij een mijlpaal) en einddatum
      *  vóór de naam. */
     dates?: { start: string; finish: string };
+    /** Rechterrand van de staaf zelf, zonder spelingsband: daar begint de einddatum (#868). Ontbreekt
+     *  ⇒ `barRightX`. */
+    barEndX?: number;
   }
   const barLabelJobs: BarLabelJob[] = [];
   // Naam en/of datums naast een balk (#868). Met alleen de datums aan blijft de naam leeg.
@@ -1958,7 +1967,7 @@ export function renderReport(
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (wantBarLabel) {
         const barRightX = bandEnd ? Math.max(x2, floatEndX) : x2;
-        barLabelJobs.push(barLabel(task, { barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false }));
+        barLabelJobs.push(barLabel(task, { barRightX, barEndX: x2, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false }));
       }
     }
 
@@ -2031,7 +2040,7 @@ export function renderReport(
   }
 
   for (const job of barLabelJobs) {
-    if (job.dates) drawBarLabelWithDates(d2d, m, job.name, job.dates, job.barRightX, job.barLeftX, job.y, canvasWidth, job.bold);
+    if (job.dates) drawBarLabelWithDates(d2d, m, job.name, job.dates, job.barEndX ?? job.barRightX, job.barLeftX, job.y, canvasWidth, job.bold);
     else drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
   }
 
