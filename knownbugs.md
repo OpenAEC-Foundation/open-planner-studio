@@ -4002,3 +4002,16 @@ en noem het in je rapport of PR-tekst.
      browserrun vóór de maandagrelease is die van zaterdag 22:00. De gate pakt de laatste run sinds die vrijdag en
      werkt dus, maar naam, commentaar en de documentatie in `scripts/README.md` en `ci-release.md` noemen de vrijdag.
      Bewust niet aangepast in #949 (geen script- of gatewijziging in die PR). — S
+
+1724. **VERVOLG (#949, reparatieskill en `ci-release.md`): de ingangstekst noemt nog de uitgeschakelde vrijdagtaak.**
+     `.claude/skills/browsertests-repareren/SKILL.md:3` (de `description`: "Gebruik alleen wanneer de geplande
+     vrijdagjob of de release-skill deze skill start") en `.claude/rules/ci-release.md:27` (vrijdag 23:30 als de taak
+     die rode browserruns repareert) wijzen nog naar de vrijdagtaak die uitstaat; de ochtendreparatie van Trias (ma–za
+     08:00) voert de skill nu uit. De sectie "Geplande taak (vrijdag, staat uit)" onderaan de skill (circa 54 regels)
+     kan bij het opruimen terug tot één historische mededeling. Gevonden door de review van #949 (Sol, ronde 3). — B
+
+1725. **VERVOLG (#949, reparatieskill): "Zaterdag na 23:50" wijkt af van de weekendstop van zaterdag 23:00.**
+     `.claude/skills/browsertests-repareren/SKILL.md`, sectie "Stoppen om 14:00". De 23:50 komt uit de letterlijke
+     prompt van de geplande ochtendtaak van Trias; de weekendstop van de eigenaar is zaterdag 23:00 tot maandag 01:00.
+     Zet beide op dezelfde grens (23:00), in de skill én in die prompt. Gevonden door de review van #949 (Sol,
+     ronde 3). — B
