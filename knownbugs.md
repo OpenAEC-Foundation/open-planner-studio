@@ -3044,6 +3044,11 @@ en noem het in je rapport of PR-tekst.
       Schermbewijs in `artifacts/` hoort na de merge niet meer te veranderen, dus elke lokale run laat
       twee gewijzigde PNG's achter. Richting: naar `test-results/` schrijven, of alleen met een
       omgevingsvariabele naar `artifacts/`. Gezien tijdens #942 (bestond al eerder). — B
+1713. **VERVOLG: commentaar bij de Backstage-stap in `settings-tabs.spec.ts` noemt de oorzaak te
+      stellig.** Er staat dat de test in CI Ctrl+F drukte vóór het paneel geladen was ("geen
+      gebruikersgeval"). Dat is afgeleid, niet uit een trace bewezen. Richting: alleen beschrijven wat
+      de stap doet (wachten tot het paneel zichtbaar is, focus op de navigatie controleren). Sol-review
+      ronde 5 van #942: [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 
