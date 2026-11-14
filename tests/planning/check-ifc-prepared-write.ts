@@ -14,7 +14,9 @@ import { openInStore, storeEdit, lengthen, lengthenedTask, TRIAS_FILES } from '.
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
 import { readbackDifference } from './ifcReadbackEquality';
-import { changedScopes } from '@/services/ifc/foreign/lossCheck';
+import { changedScopes, pristineDomain } from '@/services/ifc/foreign/lossCheck';
+import { planningCanon, planningDifference } from '@/services/ifc/foreign/planningCanon';
+import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const reseed = installDeterminism();
@@ -110,14 +112,36 @@ await check('7b met 8a: vier echte resource-/kalenderhandelingen schrijven; zond
   const { store, snapshot } = await openInStore(bytes), state = () => store.getState();
   let source = snapshot(store).ifcSource!;
   const unchanged = async () => {
-    const result = await prepareIfcWrite(cloneDomain(snapshot(store)), source);
-    assert.strictEqual(result.source, source, 'zonder wijziging blijft de bron dezelfde');
-    assert.equal(result.parts.length, 1);
-    assert.strictEqual(result.parts[0], source.bytes, 'zonder wijziging zijn het letterlijk de bronbytes');
+    const original = cloneDomain(snapshot(store));
+    const index = scanForeignStep(source.bytes), pristine = await pristineDomain(index, classify(index), source);
+    const basis = sourceFormWhereUnchanged(original, source.opened, pristine);
+    for (const mode of ['merge', 'planOnly'] as const) {
+      const input = { ...original, writeMode: mode };
+      assert.equal(changedScopes(input, original).keys.size, 0, `${mode}: alleen modus is geen scopewijziging`);
+      assert.equal(planningCanon(input), planningCanon(original), `${mode}: dezelfde canon`);
+      assert.equal(planningDifference(input, original), planningDifference(original, original), `${mode}: dezelfde verschilomschrijving`);
+      assert.equal(readbackDifference(input, original), undefined, `${mode}: dezelfde herlezen planning`);
+      const form = sourceFormWhereUnchanged(input, source.opened, pristine);
+      assert.deepEqual(form.checked, basis.checked, `${mode}: dezelfde bronvormcontrole`);
+      assert.equal(changedScopes(form.input, basis.input).keys.size, 0, `${mode}: dezelfde planning in bronvorm`);
+      const result = await prepareIfcWrite(input, source);
+      assert(result.source === source, `${mode}: zonder wijziging blijft de bron dezelfde`);
+      assert.equal(result.parts.length, 1);
+      assert(result.parts[0] === source.bytes, `${mode}: zonder wijziging zijn het letterlijk de bronbytes`);
+      console.log(`OK E27 ${mode}: scopes/canon/bronvorm gelijk en letterlijke bronretour`);
+    }
   };
   const save = async (label: string, verify: (actual: WriteIFCInput, input: WriteIFCInput) => void) => {
     const input = cloneDomain(snapshot(store)), before = source;
     const result = await prepareIfcWrite(input, before), written = concat(result.parts);
+    const otherMode = { ...input, writeMode: 'planOnly' as const };
+    const alternative = await prepareIfcWrite(otherMode, before);
+    assert.equal(alternative.sha256, result.sha256, `${label}: alleen modus verandert de uitvoerhash niet`);
+    assert(sameBytes(concat(alternative.parts), written), `${label}: alleen modus geeft dezelfde bytes, zonder weigering`);
+    const afterAlternative = await prepareIfcWrite(input, alternative.source);
+    assert(afterAlternative.source === alternative.source, `${label}: planOnly-bron en merge-invoer blijven ongewijzigd`);
+    assert(afterAlternative.parts[0] === alternative.source.bytes, `${label}: ook andersom letterlijke bronretour`);
+    console.log(`OK E27 ${label}: merge/planOnly bytegelijk, daarna dezelfde bron in beide richtingen`);
     assert.notStrictEqual(result.source, before, `${label}: nieuwe bron, geen snelle bronretour`);
     assert(!sameBytes(written, before.bytes), `${label}: gewijzigde bytes`);
     assert.deepEqual(result.source.opened, input, `${label}: de schrijfmomentopname draagt de wijziging`);
@@ -206,11 +230,14 @@ await check('getalcontrole: vier verliezen op nieuwe objecten weigeren zonder by
     ['resource verdwenen', p => { p.resources = p.resources.filter(r => r.name !== 'Getalproef A'); }],
   ];
   for (const [label, mutate] of losses) {
-    await assert.rejects(() => prepareIfcWrite(input, first.source, async (parsed, side) => {
-      const shown = structuredClone(parsed);
-      if (side === 'uitvoer') mutate(shown);
-      return shown;
-    }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'ongewijzigd-getal'), `${label}: geen bytes`);
+    for (const mode of ['merge', 'planOnly'] as const) {
+      const modeInput = { ...input, writeMode: mode };
+      await assert.rejects(() => prepareIfcWrite(modeInput, first.source, async (parsed, side) => {
+        const shown = structuredClone(parsed);
+        if (side === 'uitvoer') mutate(shown);
+        return shown;
+      }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'ongewijzigd-getal'), `${label}, ${mode}: geen bytes`);
+    }
     console.log(`OK fix2 getalverlies ${label}: ongewijzigd-getal, geen bytes`);
   }
 });

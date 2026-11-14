@@ -177,7 +177,6 @@ const OWN_REFUSED: Readonly<Record<string, RegExp>> = {
  *  herkomst van een import): geen planning, en de writer leidt het niet uit het domein af. */
 const READ_ONLY_KEYS: ReadonlySet<string> = new Set([
   'timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimesOrigin', 'minuteModelPending', 'importPristine',
-  'writeMode', // Routemetadata van de builder; geen gelezen of geschreven planningveld.
 ]);
 const corpus = [
   ...readdirSync(FOREIGN).filter(f => f.endsWith('.ifc')),

@@ -34,6 +34,7 @@ export function planningDifference(a: WriteIFCInput, b: WriteIFCInput): string {
     if (x && y && typeof x === 'object' && typeof y === 'object') {
       const left = x as Record<string, unknown>, right = y as Record<string, unknown>;
       for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
+        if (path === 'planning' && key === 'writeMode') continue; // Routemetadata, geen planningsverschil.
         const found = first(left[key], right[key], `${path}.${key}`);
         if (found) return found;
       }
