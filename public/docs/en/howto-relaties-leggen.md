@@ -81,7 +81,7 @@ Example: the foundation concrete has to cure before the bricklayer can work on i
 
 ### Finally: recalculate
 
-A new relation does not move any bars yet; the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example through *Home › Schedule › Calculate*. Only then do the successors get their new dates. If you want the app to do this for you, turn on *Calculate automatically* under *Settings › Project › App settings*, tab *Planning*.
+A new relation does not move any bars yet; the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example through *Home › Schedule › Calculate*. Only then do the successors get their new dates. If you want the app to do this for you, turn on [Calculate automatically](settings://autoCalc) under *Settings › Project › App settings*, group *Scheduling*.
 
 ## Pitfalls and what the app does
 

@@ -52,7 +52,7 @@ Typ je een resterende duur, dan rekent de app het percentage terug: bij een taak
 
 ### 3. Reken de planning door
 
-Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Planning › Planning › Bereken*. Staat *Automatisch berekenen* aan (onder *Instellingen › Project › App-instellingen*, tabblad *Planning*), dan doet de app dit zelf.
+Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Planning › Planning › Bereken*. Staat [Automatisch berekenen](settings://autoCalc) aan (onder *Instellingen › Project › App-instellingen*, groep *Planning*), dan doet de app dit zelf.
 
 ## Resultaat controleren
 

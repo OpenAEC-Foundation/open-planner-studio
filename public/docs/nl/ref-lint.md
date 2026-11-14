@@ -5,7 +5,7 @@ Het lint bovenin het scherm heeft tabbladen, en elk tabblad heeft groepen met kn
 ## Hoe het lint zich gedraagt
 
 - **Tabbladen** — links staat *Bestand*, daarna *Start*, *Planning*, *Resources*, *Beeld*, *Instellingen*, *Tabel*, *IFC*, *Rapport* en, alleen met de MCP-koppeling aan, *MCP*.
-- **Wisselen met het muiswiel** — draai het muiswiel boven het lint, boven de tabbladen of boven de knoppen. Omlaag gaat naar het volgende tabblad, omhoog naar het vorige. Bij het eerste en het laatste tabblad stopt het. *Bestand* doet niet mee. Uitzetten: *App-instellingen*, tabblad *Weergave*, onderdeel *Lint*.
+- **Wisselen met het muiswiel** — draai het muiswiel boven het lint, boven de tabbladen of boven de knoppen. Omlaag gaat naar het volgende tabblad, omhoog naar het vorige. Bij het eerste en het laatste tabblad stopt het. *Bestand* doet niet mee. Uitzetten: *App-instellingen*, groep *Werkruimte*, [Van tab wisselen met het muiswiel](settings://ribbonWheel).
 - **Smal venster** — past het lint niet, dan krimpen knoppen van rechts naar links tot een icoon. De naam staat dan als tooltip op de knop. Elke knop zonder eigen tooltip toont zijn naam.
 - **Lint inklappen** — het pijltje rechtsonder in het lint maakt er een platte strip van, met alleen iconen. De groep *Baselines & voortgang* en de groep *Verbinding* op het MCP-tabblad verdwijnen dan achter één knop met een uitklapvenster. Standaard: uitgeklapt. De keuze blijft bewaard.
 - **Extensieknoppen** — een extensie kan achteraan een tabblad een eigen groep zetten. Zo'n knop doet wat de extensie hem meegeeft.
@@ -54,7 +54,7 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 
 ### Start › Planning
 
-- **Bereken** — rekent de planning door: datums, speling, kritiek pad en resourcebelasting. Dat gebeurt nooit vanzelf, tenzij je *Automatisch berekenen* aanzet (*App-instellingen*, tabblad *Planning*, kop *Berekenen*). Zolang de planning verouderd is, staat onderaan *Verouderd — herbereken (F5)*.
+- **Bereken** — rekent de planning door: datums, speling, kritiek pad en resourcebelasting. Dat gebeurt nooit vanzelf, tenzij je [Automatisch berekenen](settings://autoCalc) aanzet (*App-instellingen*, groep *Planning*). Zolang de planning verouderd is, staat onderaan *Verouderd — herbereken (F5)*.
 
 ### Start › Zoomen
 
@@ -153,7 +153,7 @@ Deze groep staat ook op *Tabel*.
 
 ### Beeld › Weergave
 
-- **Kolommen…**, **Filteren…**, **Groeperen…** en **Sorteren…** — alleen zichtbaar als *Klassieke weergaveknoppen tonen* aan staat (*App-instellingen*, tabblad *Geavanceerd*, kop *Legacy-functies*). Standaard: uit. *Kolommen…* brengt je naar *Tabel* en opent daar de kolomkiezer. *Filteren…* opent meteen het filtervenster zolang er geen opgeslagen filter is; met opgeslagen filters opent het een menu met *Filteren…*, *Wissen* (alleen als er een filter actief is) en de opgeslagen filters. *Groeperen…* laat twee niveaus toe. *Sorteren…* laat meer niveaus toe. Een knop licht op als die weergave actief is. In het nieuwe lint doe je dit met layoutknoppen; zie [Een layout maken en gebruiken](docs://howto-layouts-gebruiken).
+- **Kolommen…**, **Filteren…**, **Groeperen…** en **Sorteren…** — alleen zichtbaar als [Klassieke weergaveknoppen tonen](settings://classicViewControls) aan staat (*App-instellingen*, groep *Geavanceerd*). Standaard: uit. *Kolommen…* brengt je naar *Tabel* en opent daar de kolomkiezer. *Filteren…* opent meteen het filtervenster zolang er geen opgeslagen filter is; met opgeslagen filters opent het een menu met *Filteren…*, *Wissen* (alleen als er een filter actief is) en de opgeslagen filters. *Groeperen…* laat twee niveaus toe. *Sorteren…* laat meer niveaus toe. Een knop licht op als die weergave actief is. In het nieuwe lint doe je dit met layoutknoppen; zie [Een layout maken en gebruiken](docs://howto-layouts-gebruiken).
 
 ### Beeld › Overzicht
 
@@ -204,7 +204,7 @@ Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties 
 ### Instellingen › Project
 
 - **Projectinstellingen** — opent het venster *Projectinstellingen*: de metadata van het project en, in het blok *Rekenprofiel en reken-opties*, hoe het project rekent. Zie [Nieuw project en Projectinstellingen](docs://ref-projectinfo).
-- **App-instellingen** — opent het venster *App-instellingen* met de tabbladen *Weergave*, *Planning* en *Geavanceerd*. Dezelfde instellingen staan onder *Bestand › App-instellingen*.
+- **App-instellingen** — opent het venster *App-instellingen* met links acht groepen en bovenaan een zoekbalk. Dezelfde instellingen staan onder *Bestand › App-instellingen*.
 
 ### Instellingen › Kalender
 
@@ -232,7 +232,7 @@ Het tabblad toont in de werkruimte het rapportscherm, met de rapportkeuzes en de
 
 ## MCP
 
-Het tabblad *MCP* bestaat alleen als *MCP-koppeling toestaan* aan staat (*App-instellingen*, tabblad *Geavanceerd*, kop *MCP-koppeling*). Standaard: uit. Uitzetten haalt het tabblad weg en stopt de bridge. Een MCP-client werkt met je planning via een MCP-bridge die je hier start. Zie [Een MCP-client koppelen](docs://howto-ai-assistent-koppelen).
+Het tabblad *MCP* bestaat alleen als [MCP-koppeling toestaan](settings://aiMode) aan staat (*App-instellingen*, groep *Geavanceerd*). Standaard: uit. Uitzetten haalt het tabblad weg en stopt de bridge. Een MCP-client werkt met je planning via een MCP-bridge die je hier start. Zie [Een MCP-client koppelen](docs://howto-ai-assistent-koppelen).
 
 ### MCP › Server
 

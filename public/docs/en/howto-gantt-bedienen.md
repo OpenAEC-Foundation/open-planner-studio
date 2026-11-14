@@ -38,7 +38,7 @@ One drag is one step in *Undo*, however long you drag. On a split bar the edges 
 
 ### Shifting the timeline
 
-What a drag on the empty background does depends on your scroll mode. You choose it in *App settings*, tab *Appearance*, under *Gantt › Scroll & zoom* at *Mode*:
+What a drag on the empty background does depends on your scroll mode. You choose it in *App settings*, group *Timeline*, at [Scroll and zoom](settings://scrollMode):
 
 - **Zoom + drag** (default): if you drag on the empty background with the left mouse button, the timeline moves with the mouse, like a map. The cursor is a hand. On a bar, a drag simply starts a bar gesture.
 - **Position** and **Keys**: the same drag makes a selection box. You shift the timeline with the wheel (see [App settings](docs://ref-instellingen)) or with the middle mouse button.
