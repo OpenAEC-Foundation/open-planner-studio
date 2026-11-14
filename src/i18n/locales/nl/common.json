@@ -465,7 +465,7 @@
     "demoTopbarAnimation": "Demo: animatie in de bovenbalk",
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
     "ifcForeignContent": "IFC met gebouwmodel openen",
-    "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. U kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken. Opslaan over een bestaand bestand is nog niet mogelijk. Na een crash ontbreekt het gebouwmodel nog bij een sitebestand of een bestand dat in de browser is geopend zonder blijvende toegang tot het bestand. Een project met resourcepool exporteren is nog niet mogelijk.",
+    "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken. Opslaan over een bestaand bestand is nog niet mogelijk. Na een crash ontbreekt het gebouwmodel nog bij een sitebestand of een bestand dat in de browser is geopend zonder blijvende toegang tot het bestand. Een project met resourcepool exporteren is nog niet mogelijk.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
