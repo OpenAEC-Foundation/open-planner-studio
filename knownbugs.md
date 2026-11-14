@@ -2028,6 +2028,34 @@ en noem het in je rapport of PR-tekst.
      `/tmp/fase1c-pr11b-bewijs/browser-eerste-run/`; geslaagde route en screenshot-herstel in
      `/tmp/fase1c-pr11b-bewijs/browser-vervolg-1/`. — B
 
+1569. **VERVOLG (#804, MCP-tekst): het advies van `planner_export_ifc` bij een bestaand doel klopt niet bij een vreemd
+     deel.** `src/services/mcp/tools/fileTools.ts` adviseert bij een bestaand doel zonder `overwrite` nog om
+     `overwrite: true` te sturen. Heeft het document een vreemd deel, dan blijft dat doel ook daarna geweigerd: de
+     route eist een nieuwe naam (via de dispatcher nagegaan, nul schrijfacties). De tekst van de bronweigering zegt
+     bovendien nog dat alleen planning zou worden geschreven. Richting: bij een vreemd deel meteen de uitleg "kies een
+     nieuwe naam" geven en zeggen dat veilig vervangen nog ontbreekt (1131); geen nieuwe foutklasse. Gevonden door de
+     review van #928. — B
+
+1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
+     `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
+     planner ziet haar ook bij een ontbrekende bron (na een crash, bij een geopende backup) en bij een export, en ook
+     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de ontbrekende bron niet en biedt geen
+     vervolgstap. Richting: een eigen tekst voor "bron ontbreekt" (PR 9b), en de rest bij de lijst "Teksten voor de
+     planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
+
+1564. **VERVOLG (#804, tekst en documentatie): de flag `ifcForeignContent` heeft wél een schakelaar.** In het
+     verborgen blok Experimenteel (Instellingen → Geavanceerd) staat elke geregistreerde flag, ook deze
+     (`SettingsPanelContent.tsx`; besluit van de eigenaar van 10 november 2026, zie `handoff.md`). De omschrijving
+     `settings.ifcForeignContentHint` zegt nog "Opslaan van zo'n bestand is nog niet mogelijk", terwijl Opslaan als
+     naar een nieuwe naam, de site, de download en de IFC-export sinds #927 en #928 het volledige bestand schrijven.
+     `AGENTS.md` en knownbug 1205 beschrijven nog "`writesNewIfcData: true` (no checkbox, always off)". Richting: de
+     omschrijving en de documentatie laten aansluiten op de schakelaar, met wat wel en niet kan; de handleiding van
+     1566 hoort bij de PR die de flag standaard aanzet. Gevonden door de review van #928. — B
+
+1558. **VERVOLG (#804, opruimen): de alias `type DocumentWrite = IfcOutput` in `fileSlice.ts` voegt niets toe.** Eén
+     regel in `src/state/slices/fileSlice.ts`; het type `IfcOutput` uit `src/state/prepareIfcOutput.ts` volstaat.
+     Gevonden door de review van #928. — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
