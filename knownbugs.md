@@ -937,6 +937,16 @@ en noem het in je rapport of PR-tekst.
      samenvatting of mijlpaal. Gemeten in de Tabel voor "Casco met een behoorlijk lange samenvattingsnaam": de meting
      rekent 296px, de naam heeft 282px nodig. De kolom wordt dus te breed, niet te smal. Gevonden bij #901 (PR #936).
      Voorstel: meet met het berekende lettertype van de cel die de tekst toont, per soort rij. — B
+1671. **Groeperen en filteren op Werkcategorie zien elke eigen categorie als "Overig".** `src/engine/view/filterEval.ts:139`
+     geeft voor het veld `taskType` alleen `task.taskType` terug, en een eigen categorie is daar `USERDEFINED`;
+     de opties in `fieldCatalog.ts:236` komen alleen uit de vaste labels. Taken met verschillende eigen
+     categorieën vallen dus in één band "Overig", en een filter kan er niet op kiezen. Gezien bij #856 (de
+     balkkleur is daar apart opgelost). Voorstel: dezelfde sleutel `customTaskType:<id>` en naam als de
+     balkkleuring (`resolveBarCategoryValues`). — B (code)
+1672. **Vaste werkcategorieën delen een balkkleur.** De kleur is de hash van de typenaam over twaalf
+     paletkleuren (`paletteColorForId`): Constructie en Renovatie krijgen allebei leisteen (#1E293B), Sloop en
+     Overig allebei violet (#A78BFA). Nagerekend met de FNV-hash uit `resourcePalette.ts`. Voorstel: vaste
+     paletplekken per vaste categorie; dat verandert wel kleuren die gebruikers nu kennen. — B
 
 ## Kalenders
 
