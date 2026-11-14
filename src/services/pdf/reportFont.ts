@@ -34,7 +34,7 @@ export const DEFAULT_REPORT_FONT_STACK = `${INTER_PDF_FAMILY}, -apple-system, Bl
  * Alleen deze id gaat naar de rapportinstellingen (`ops-reportSettings`); een onbekende id valt
  * terug op `inter`. Een id hernoemen = de opgeslagen keuze van bestaande gebruikers kwijtraken.
  */
-export const REPORT_FONT_IDS = ['inter', 'liberationSans', 'carlito', 'liberationSerif'] as const;
+export const REPORT_FONT_IDS = ['inter', 'liberationSans', 'carlito', 'liberationSerif', 'liberationMono'] as const;
 export type ReportFontId = (typeof REPORT_FONT_IDS)[number];
 export const DEFAULT_REPORT_FONT_ID: ReportFontId = 'inter';
 
@@ -46,7 +46,7 @@ export interface ReportFontDef {
   /** Bestandsnamen in `src/services/pdf/fonts/` (ongewijzigde upstreambestanden, zie README). */
   files: { regular: string; bold: string };
   /** Generieke CSS-familie als allerlaatste terugval. */
-  generic: 'sans-serif' | 'serif';
+  generic: 'sans-serif' | 'serif' | 'monospace';
 }
 
 export const REPORT_FONTS: Record<ReportFontId, ReportFontDef> = {
@@ -57,6 +57,9 @@ export const REPORT_FONTS: Record<ReportFontId, ReportFontDef> = {
   carlito: { family: 'OpsReportCarlito', files: { regular: 'Carlito-Regular.ttf', bold: 'Carlito-Bold.ttf' }, generic: 'sans-serif' },
   // Zelfde tekenbreedtes als Times New Roman.
   liberationSerif: { family: 'OpsReportLiberationSerif', files: { regular: 'LiberationSerif-Regular.ttf', bold: 'LiberationSerif-Bold.ttf' }, generic: 'serif' },
+  // Vaste tekenbreedte, dezelfde breedtes als Courier New (vraag van manuvarkey in #770: cijfers en
+  // codes in kolommen recht onder elkaar).
+  liberationMono: { family: 'OpsReportLiberationMono', files: { regular: 'LiberationMono-Regular.ttf', bold: 'LiberationMono-Bold.ttf' }, generic: 'monospace' },
 };
 
 export function isReportFontId(value: unknown): value is ReportFontId {

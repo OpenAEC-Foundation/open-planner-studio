@@ -24,7 +24,7 @@ Open the *Report* tab (or press Ctrl+P). For the Gantt chart, on the left is a s
 
 **Orientation:** — landscape or portrait. Choose from *Landscape* and *Portrait*. Default: *Landscape*. Effect: like *Paper:*. Where: the same place as *Paper:*.
 
-**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)* and *Liberation Serif (like Times New Roman)*. Default: Inter. Effect: screen and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
+**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)*, *Liberation Serif (like Times New Roman)* and *Liberation Mono (monospace)*. Default: Inter. Effect: screen and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets; Liberation Mono those of Courier New. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
 
 ## Gantt chart
 

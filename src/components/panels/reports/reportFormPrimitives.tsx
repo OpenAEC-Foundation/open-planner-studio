@@ -69,6 +69,7 @@ const REPORT_FONT_LABEL_KEYS = {
   liberationSans: 'reportFontFamily.liberationSans',
   carlito: 'reportFontFamily.carlito',
   liberationSerif: 'reportFontFamily.liberationSerif',
+  liberationMono: 'reportFontFamily.liberationMono',
 } as const satisfies Record<ReportFontId, string>;
 
 /**

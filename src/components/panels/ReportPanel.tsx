@@ -134,6 +134,9 @@ export function ReportPanel() {
   // werkruimte het rapporttype.
   const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = useReportSettings();
   const reportFont = reportFontStack(reportFontFamily);
+  // De voorvertoning tekent in de rapportletter: registreer en laad hem (`@font-face`) zodra hij gekozen is, niet
+  // pas bij de export (review Sol #938). Anders toont de tabel een letter die nog niet geladen is in Inter.
+  useEffect(() => { void ensureReportFontLoaded(reportFontFamily); }, [reportFontFamily]);
   // Alleen de gewijzigde tabelopties: `patchReportSettings` voegt de groep per optie samen.
   const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => { patchReportSettings({ tableReports: patch }); }, []);
   const setPaperSize = useCallback((v: ReportPaperSize) => { patchReportSettings({ paperSize: v }); }, []);

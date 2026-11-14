@@ -426,7 +426,8 @@
     "inter": "Inter (standaard)",
     "liberationSans": "Liberation Sans (zoals Arial)",
     "carlito": "Carlito (zoals Calibri)",
-    "liberationSerif": "Liberation Serif (zoals Times New Roman)"
+    "liberationSerif": "Liberation Serif (zoals Times New Roman)",
+    "liberationMono": "Liberation Mono (vaste breedte)"
   },
   "studio": {
     "sidebar": "Instellingen van het rapport",

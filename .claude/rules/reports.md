@@ -130,7 +130,8 @@ terugval valt de hele PDF om één `≤` of één Cyrillische naam terug op rast
 uit `hbSubset.ts`) komt als optie binnen, zodat de pagineerder headless te bundelen is; bewaking:
 `tests/planning/check-report-font.ts`. De keuzelijst *Lettertype* (`ReportFontSelect`, naast Papier en
 Oriëntatie, dus ook in `TableReportOptionsBlock`) kiest één id uit het vaste setje `REPORT_FONTS` in
-`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07), bewaard
+`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07; plus Liberation Mono met vaste
+breedte, vraag in #770), bewaard
 als `reportFontFamily` in `ops-reportSettings` — nooit in het IFC-bestand. Uit die id volgen de
 fontstack (`reportFontStack`: de letter, dan `InterPDF`; dezelfde stack voor het canvas en, via
 `reportFontStyle`, voor de DOM-kaarten van mijlpalen, variance en tabelrapporten) en de bytes

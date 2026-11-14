@@ -45,7 +45,7 @@ The Report tab has no ribbon and so no Calculate button, but F5 works here just 
 You adjust the Gantt chart in the five steps of the sidebar; see [The Gantt chart](docs://howto-rapport-maken-en-afdrukken#the-gantt-chart). Look-ahead, Critical & near-critical, Progress report, Progress curve, Schedule health, Resource loading, Resource assignments and WBS summary have *Paper:*, *Orientation:* and *Font:*, plus a *Report options* block with the choices of that report. The Milestone overview and the Variance have no choices of their own. For the period of a report see [Choosing the reporting period](docs://howto-rapportageperiode-kiezen).
 
 - *Paper:* and *Orientation:* determine the sheet. By default this is A3 landscape, which is handy for a construction schedule, but not every printer prints A3. If you have an A4 printer, choose A4 now: the app then lays out the pages for A4, instead of you having to shrink them later.
-- *Font:* chooses the font of all reports: *Inter* (default), *Liberation Sans* (like Arial), *Carlito* (like Calibri) or *Liberation Serif* (like Times New Roman). The choice applies to every report, like the paper.
+- *Font:* chooses the font of all reports: *Inter* (default), *Liberation Sans* (like Arial), *Carlito* (like Calibri), *Liberation Serif* (like Times New Roman) or *Liberation Mono* (monospace, like Courier New). In a monospace font every character has the same width, so codes and numbers line up. The choice applies to every report, like the paper.
 
 ### 5. Check the report
 
