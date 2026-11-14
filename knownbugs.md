@@ -3630,4 +3630,18 @@ en noem het in je rapport of PR-tekst.
      noemen uitsluitend een building/gebouwmodel; de dev-bridge gebruikt dezelfde te smalle uitleg.
      De weigering is veilig en noemt de juiste uitweg (een ander bestand); alleen de uitleg is te smal.
      Tekst verbreden bij de aansluiting in fase 1c PR 11, vóór de flag aan mag; geen UI-tekstwijziging in
-     deze bouw-PR. Broncode en sleutelkeuze bevestigd bij de externe-psetproeven van #915, geen browserproef. — B
+     deze bouw-PR. Broncode en sleutelkeuze bevestigd bij de externe-psetproeven van #915, geen browserproef.
+     Ook de instructie van de headless MCP-server (`headless/mcp-server/src/host.ts`, de regel over
+     `planner_export_ifc`) belooft nog zonder voorbehoud dat `overwrite: true` het geopende bestand vervangt;
+     sinds #915 geldt dat alleen voor een doel zonder vreemd deel (review van #915, Sol). — B
+
+1136. **VERVOLG, bestaand op main: de headless MCP-server bewaart gegevens van een ander programma niet bij export
+     naar een nieuwe naam.** De headless server leest IFC als tekst (de keuze voor de bytes-route in
+     `src/services/mcp/tools/fileTools.ts` hangt aan de appflag, en die staat headless uit). Een bestand zonder
+     gebouwmodel maar met een externe pset (de villa-fixture met `ExternPset`) opent; export over de bron wordt sinds
+     #915 geweigerd (`VALIDATION`, bron byte voor byte gelijk), maar `planner_export_ifc` naar een nieuwe naam geeft
+     `ok: true` en een bestand zonder `ExternPset`; `ifcSource` en het bronkenmerk blijven leeg. De bron zelf blijft
+     heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
+     (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Besluit T3 legt de volledige bytes voor headless, kern en HTTP
+     in fase 2; tot dan volstaat een kleine weigering of een vermelding in `docs/headless-mcp.md`. Gevonden door de
+     review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
