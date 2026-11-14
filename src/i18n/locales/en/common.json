@@ -350,7 +350,10 @@
     "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again.",
     "ifcForeignOpenSchema": "This IFC file contains data from another application and has an unknown or missing schema. Opening was stopped to prevent data loss when saving.",
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
-    "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving."
+    "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving.",
+    "ifcForeignReplaceBlocked": "File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.",
+    "ifcForeignMergeRefused": "File not saved. The building model or data from another program would not be fully preserved.",
+    "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",

@@ -392,7 +392,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
     await page.keyboard.press('Control+s');
     if (fixture.foreign) {
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
-        .filter(n => n.messageKey === 'notifications.ifcForeignSaveBlocked').length)).toBeGreaterThan(0);
+        .filter(n => n.messageKey === 'notifications.ifcForeignReplaceBlocked' || n.messageKey === 'notifications.ifcForeignMergeRefused').length)).toBeGreaterThan(0);
       expect(await page.evaluate(async () => (await window.__OPS__!.store.getState().fileHandle!.getFile()).text())).toBe(text);
     } else {
       await expect.poll(() => page.evaluate(async () =>
@@ -400,6 +400,45 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
       expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.filter(n => n.refusal))).toEqual([]);
     }
     expect(await page.evaluate(() => JSON.stringify(window.__OPS__!.store.getState().tasks))).toBe(before.tasks);
+    if (fixture.path.endsWith('eigen-plus-model.ifc')) {
+      // De fixture en selectie via de brug; duur bewerken, Opslaan als en heropenen via echte bediening.
+      const task = await page.evaluate(() => {
+        const state = window.__OPS__!.store.getState();
+        const task = state.tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+        state.selectTask(task.id);
+        state.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+        const source = state.ifcSource!;
+        const foreign = Array.from(source.classes, (kind, i) => ({ kind, i })).filter(c => c.kind > 1).map(({ i }) => ({
+          id: source.chunkIds[i],
+          bytes: btoa(String.fromCharCode(...source.bytes.subarray(source.chunkStarts[i], source.chunkStarts[i + 1]))),
+        }));
+        return { id: task.id, duration: task.time.scheduleDuration, foreign };
+      });
+      const duration = page.locator('[data-ops-task-duration] [data-ops-duration-value]').first();
+      await expect(duration).toBeVisible();
+      await duration.fill(String(task.duration + 1));
+      await duration.press('Enter');
+      await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, task.id)).toBe(task.duration + 1);
+      await page.keyboard.press('F5');
+      const downloadEvent = page.waitForEvent('download');
+      await page.keyboard.press('Control+Shift+s');
+      const download = await downloadEvent;
+      const downloadedPath = (await download.path())!;
+      const chooserEvent = page.waitForEvent('filechooser');
+      await page.keyboard.press('Control+o');
+      await (await chooserEvent).setFiles({ name: download.suggestedFilename(), mimeType: 'application/octet-stream', buffer: await readFile(downloadedPath) });
+      await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.time.scheduleDuration, task.id)).toBe(task.duration + 1);
+      const reopened = await page.evaluate(() => {
+        const source = window.__OPS__!.store.getState().ifcSource!;
+        return { foreign: source.foreign, chunks: Array.from(source.classes, (kind, i) => ({ kind, i }))
+          .filter(c => c.kind > 1).map(({ i }) => ({ id: source.chunkIds[i],
+            bytes: btoa(String.fromCharCode(...source.bytes.subarray(source.chunkStarts[i], source.chunkStarts[i + 1]))),
+          })) };
+      });
+      expect(reopened.foreign).toBe(true);
+      expect(reopened.chunks).toEqual(task.foreign);
+    }
+
   }
 
 });

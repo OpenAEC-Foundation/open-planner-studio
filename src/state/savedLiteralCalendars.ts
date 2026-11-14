@@ -7,15 +7,15 @@
 import { writeIFCWithChoices } from '@/services/ifc/ifcWriter';
 import type { FileRef } from '@/services/fileAccess';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import { buildWriteIFCInput, type IFCSaveSource } from './ifcSaveInput';
+import { buildWriteIFCInput, type IFCSaveSource, type IFCWriteInput } from './ifcSaveInput';
 
 /** Per momentopname die naar het eigen bestand ging: de kalenders die de writer letterlijk schreef. */
 const written = new WeakMap<object, readonly string[]>();
 
 /** De IFC-tekst van een opslag naar het eigen bestand. Onthoudt welke kalenders letterlijk werden, voor het vastleggen
  *  van die opslag (`literalCalendarIdsWritten`). */
-export function serializeForSave(source: IFCSaveSource): string {
-  const { content, literalCalendarIds } = writeIFCWithChoices(buildWriteIFCInput(source, 'merge'));
+export function serializeForSave(source: IFCSaveSource, input: IFCWriteInput = buildWriteIFCInput(source, 'merge')): string {
+  const { content, literalCalendarIds } = writeIFCWithChoices(input);
   written.set(source, literalCalendarIds);
   return content;
 }

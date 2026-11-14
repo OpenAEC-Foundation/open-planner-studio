@@ -477,7 +477,7 @@ for (const pad of ownFiles) {
 }
 eq('eigen bestanden: elke uitzondering bestaat nog', Object.keys(OWN_FOREIGN).filter(p => !ownFiles.includes(p)), []);
 
-// ── 5. Opslaan met een vreemd deel: geweigerd, met de melding ──────────────────────────────────────────────────
+// ── 5. Ongedragen merge en de overige IFC-routes blijven geweigerd ──────────────────────────────────────────────────
 let pickerCalls = 0;
 win.showOpenFilePicker = () => { throw new Error('niet in deze test'); };
 win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('geannuleerd', 'AbortError'); };
@@ -487,16 +487,17 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   S().addTask({ name: 'Nieuwe taak' });
   const dirty = S().isDirty;
   const blockedNotices = () => S().ui.notifications.filter(n => n.messageKey === SAVE_BLOCKED_KEY);
+  const mergeNotices = () => S().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignMergeRefused');
   await S().saveFile();
-  eq('opslaan: Opslaan geweigerd met de melding', blockedNotices().length, 1);
-  eq('opslaan: de melding is een weigering (rood) en vouwt samen', blockedNotices().map(n => [n.severity, n.refusal, n.dedupeKey]),
-    [['error', true, 'ifc-foreign-save-blocked']]);
+  eq('opslaan: ongedragen documentmerge geweigerd met de melding', mergeNotices().length, 1);
+  eq('opslaan: de melding is een weigering (rood) en vouwt samen', mergeNotices().map(n => [n.severity, n.refusal, n.dedupeKey]),
+    [['error', true, 'ifc-foreign-merge-refused']]);
   await S().saveFileAs();
   const ifcExport = await S().exportAs('ifc');
   eq('opslaan: IFC-export telt als geannuleerd', ifcExport, { ok: true, warnings: [], cancelled: true });
   const pool = await S().exportProjectWithPool();
   eq('opslaan: pool-export telt als geannuleerd', pool, { ok: true, warnings: [], cancelled: true });
-  eq('opslaan: vier weigeringen, één melding', blockedNotices().length, 1);
+  eq('opslaan: twee documentweigeringen en twee exportweigeringen', [mergeNotices()[0]?.count, blockedNotices()[0]?.count], [2, 2]);
   eq('opslaan: geen opslagdialoog geopend', pickerCalls, 0);
   eq('opslaan: het document blijft gewijzigd en houdt zijn doel', [S().isDirty, S().filePath], [dirty, 'bonsai-4d.ifc']);
   // Andere formaten dragen alleen planning en blijven mogelijk: de CSV-export komt tot de opslagdialoog.
