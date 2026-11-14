@@ -1936,5 +1936,11 @@
     "body": "The building model or data from another program could not be found. The new file will contain only the schedule. The original file will remain unchanged. Do you want to continue?",
     "continue": "Continue",
     "cancel": "Cancel"
+  },
+  "fatalError": {
+    "title": "Something went wrong",
+    "body": "Open Planner Studio cannot continue. Reload the app. If this keeps happening, please report it and include the details below.",
+    "reload": "Reload",
+    "details": "Details"
   }
 }

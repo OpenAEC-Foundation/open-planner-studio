@@ -184,6 +184,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Tauri guard.** `const isTauri = () => '__TAURI_INTERNALS__' in window;` — anything touching `@tauri-apps/*`
   is imported dynamically inside an `isTauri()` branch. A top-level import breaks the web build.
   Updater and MCP bridge are Tauri-only; the browser does its own file I/O and recovery.
+- **Hidden start window (#895).** The desktop window starts with `visible: false` (also in
+  `tauri.macos.conf.json`, which replaces the whole `windows` list). `src/startup/appWindow.ts` shows it once the
+  first render has committed and fonts are loaded, or with the error screen (`src/startup/fatalError.ts`) when
+  start-up fails; `main.rs` shows it after 10 s as a safety net. Saved settings reach the store before the first
+  render (`src/startup/initialSettings.ts`), so anything you add to start-up before `render` delays the window.
 - **Platform build.** `npm run build:platform -- --base /pad/` builds the bundle the OpenAEC app on Frappe serves
   under a sub-path (Vite mode `platform`, `.env.platform`, `build.manifest`, `dist-platform/`); `npm run build` gets
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start,

@@ -937,6 +937,24 @@ en noem het in je rapport of PR-tekst.
      samenvatting of mijlpaal. Gemeten in de Tabel voor "Casco met een behoorlijk lange samenvattingsnaam": de meting
      rekent 296px, de naam heeft 282px nodig. De kolom wordt dus te breed, niet te smal. Gevonden bij #901 (PR #936).
      Voorstel: meet met het berekende lettertype van de cel die de tekst toont, per soort rij. — B
+1645. **VERVOLG: het startvenster kan verschijnen vóór de eerste Gantt-tekening.** `src/App.tsx` toont het
+     verborgen desktopvenster na de eerste React-commit en `fontsSettled()` (`src/startup/appWindow.ts`, hoogstens
+     1 s), maar het canvas tekent apart via `requestAnimationFrame` (`src/components/canvas/hooks/useCanvasLayer.ts`).
+     In een verborgen webview kunnen animatieframes stilliggen, dus het eerste zichtbare frame kan een lege Gantt-kaart
+     hebben. Niet gereproduceerd; vergt een pakketproef op WebView2, WKWebView en WebKitGTK. Voorstel: daar meten in
+     welke volgorde lettertypen, eerste canvastekening en tonen komen, en zo nodig tonen na de eerste tekening. Uit de
+     review van #941 (GPT-6.1-Sol, xhigh, ronde 1, VERMOED midden, VERVOLG). — S
+1646. **VERVOLG: het vangnet voor het startvenster toont geen uitleg als de app-bundel niet laadt.**
+     `src-tauri/src/main.rs` (`reveal_window_fallback`) toont het venster na 10 s als het dan nog verborgen is. Laadt
+     of draait de hoofdmodule niet, dan kan `showFatalError` (`src/startup/fatalError.ts`) nooit lopen en ziet de
+     gebruiker een leeg venster zonder uitleg of knop om opnieuw te laden. Zeldzaam: alleen bij een kapotte bundel of
+     webview. Voorstel: eenvoudige foutinhoud die zonder de bundel werkt, bijvoorbeeld in `index.html`. Uit de review
+     van #941 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+1647. **VERVOLG: de #895-browsertest bewijst niet dat Help na het laden verschijnt.** `tests/browser/smoke.spec.ts`
+     (blok "de eerste weergave heeft het bewaarde uiterlijk…") eist alleen dat "Laden…" verdwijnt, en de
+     MutationObserver slaat een lege `#root` over; het foutscherm (`src/startup/fatalError.ts`) maakt juist die root
+     leeg. Een foutscherm als eindstand valt zo niet op. Voorstel: in hetzelfde blok `.help-panel` zichtbaar en
+     `#ops-fatal-error` afwezig eisen. Uit de review van #941 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
