@@ -682,7 +682,6 @@
     "sentTitle": "Teşekkürler, geri bildiriminiz gönderildi.",
     "alreadyIn": "Bu geri bildirim bize zaten ulaşmış. Bir şey eklemek ister misiniz? O zaman metni değiştirin ve yeniden gönderin.",
     "sentScreenshotDropped": "Ekran görüntüsü çok büyüktü ve gönderilmedi.",
-    "viewOnGithub": "GitHub’da görüntüleyin",
     "errorValidation": "Geri bildirim kabul edilmedi. Metni (yalnızca bağlantılar değil) ve e-posta adresini kontrol edin; sonra yeniden deneyin.",
     "errorRateLimited": "Kısa sürede çok geri bildirim gönderdiniz. Bir saat sonra yeniden deneyin.",
     "errorFailed": "Gönderilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin, ya da geri bildirimi GitHub’da açın.",

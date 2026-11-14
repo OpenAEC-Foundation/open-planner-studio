@@ -878,7 +878,6 @@
     "sentTitle": "Dziękujemy, Twoja wiadomość została wysłana.",
     "alreadyIn": "Ta wiadomość jest już u nas. Chcesz coś dodać? Zmień wtedy tekst i wyślij ponownie.",
     "sentScreenshotDropped": "Zrzut ekranu był za duży i nie został dołączony.",
-    "viewOnGithub": "Zobacz na GitHub",
     "errorValidation": "Wiadomość nie została przyjęta. Sprawdź tekst (nie tylko linki) i adres e-mail, i spróbuj ponownie.",
     "errorRateLimited": "Wysłano w krótkim czasie dużo wiadomości. Spróbuj ponownie za godzinę.",
     "errorFailed": "Wysyłanie się nie powiodło. Sprawdź połączenie z internetem i spróbuj ponownie albo otwórz wiadomość na GitHub.",

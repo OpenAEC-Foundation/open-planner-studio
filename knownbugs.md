@@ -937,6 +937,24 @@ en noem het in je rapport of PR-tekst.
      samenvatting of mijlpaal. Gemeten in de Tabel voor "Casco met een behoorlijk lange samenvattingsnaam": de meting
      rekent 296px, de naam heeft 282px nodig. De kolom wordt dus te breed, niet te smal. Gevonden bij #901 (PR #936).
      Voorstel: meet met het berekende lettertype van de cel die de tekst toont, per soort rij. — B
+1645. **VERVOLG: het startvenster kan verschijnen vóór de eerste Gantt-tekening.** `src/App.tsx` toont het
+     verborgen desktopvenster na de eerste React-commit en `fontsSettled()` (`src/startup/appWindow.ts`, hoogstens
+     1 s), maar het canvas tekent apart via `requestAnimationFrame` (`src/components/canvas/hooks/useCanvasLayer.ts`).
+     In een verborgen webview kunnen animatieframes stilliggen, dus het eerste zichtbare frame kan een lege Gantt-kaart
+     hebben. Niet gereproduceerd; vergt een pakketproef op WebView2, WKWebView en WebKitGTK. Voorstel: daar meten in
+     welke volgorde lettertypen, eerste canvastekening en tonen komen, en zo nodig tonen na de eerste tekening. Uit de
+     review van #941 (GPT-6.1-Sol, xhigh, ronde 1, VERMOED midden, VERVOLG). — S
+1646. **VERVOLG: het vangnet voor het startvenster toont geen uitleg als de app-bundel niet laadt.**
+     `src-tauri/src/main.rs` (`reveal_window_fallback`) toont het venster na 10 s als het dan nog verborgen is. Laadt
+     of draait de hoofdmodule niet, dan kan `showFatalError` (`src/startup/fatalError.ts`) nooit lopen en ziet de
+     gebruiker een leeg venster zonder uitleg of knop om opnieuw te laden. Zeldzaam: alleen bij een kapotte bundel of
+     webview. Voorstel: eenvoudige foutinhoud die zonder de bundel werkt, bijvoorbeeld in `index.html`. Uit de review
+     van #941 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+1647. **VERVOLG: de #895-browsertest bewijst niet dat Help na het laden verschijnt.** `tests/browser/smoke.spec.ts`
+     (blok "de eerste weergave heeft het bewaarde uiterlijk…") eist alleen dat "Laden…" verdwijnt, en de
+     MutationObserver slaat een lege `#root` over; het foutscherm (`src/startup/fatalError.ts`) maakt juist die root
+     leeg. Een foutscherm als eindstand valt zo niet op. Voorstel: in hetzelfde blok `.help-panel` zichtbaar en
+     `#ops-fatal-error` afwezig eisen. Uit de review van #941 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
@@ -2692,6 +2710,13 @@ en noem het in je rapport of PR-tekst.
      koptekst die beide berekeningen noemt, of een neutrale tekst. Stond al op main. Uit de review van #874
      (GPT-6.1-Terra, xhigh, op `c38ac7d9e`, VERVOLG). — B
 
+1730. **VERVOLG: 26 gidsvertalingen moeten de correctie over afzonderlijke resource-uren nog overnemen.**
+      `public/docs/{ar,bg,cs,da,de,es,fa,fi,fr,hr,hu,it,ja,ko,lo,nb,pl,pt,ro,ru,sk,sr,sv,tr,uk,zh}/howto-werkregel-kiezen.md`
+      is in #954 nog niet bijgewerkt met de Nederlandse en Engelse broncorrectie: eigen werkinvoer kan
+      afwijken van inzet × resterende duur; onder Vaste inzet blijven andere toewijzingen alleen bij gelijke
+      duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
+      bewust niet met de hand gewijzigd. — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
@@ -3098,6 +3123,13 @@ en noem het in je rapport of PR-tekst.
       de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
       gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
       Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+1620. **VERVOLG: Dissolve in lint, rechtsklikmenu en instelling is niet in de browser getest.**
+      `tests/planning/check-dissolve-tasks.ts` controleert lint en menu grotendeels met reguliere
+      expressies op de broncode en roept `contextMenuBulk.dissolve` rechtstreeks aan. Een echte klik
+      op de lintknop en op *Dissolve (keten behouden)*, de uitgeschakelde knop zonder selectie en het
+      bewaren en herladen van *Dissolve bij een samenvattingstaak* zijn niet getest. Voorstel: stappen
+      toevoegen aan een bestaande browserroute voor verwijderen en ongedaan maken. Sol-review #937
+      ronde 1 op 017ab4afd: [BEVESTIGD] VERVOLG. — B
 1690. **VERVOLG: geen test voert een echte Windows-update met een gedeflate `.nsis.zip` uit.**
       `tests/planning/check-updater-zip.ts` leest alleen `src-tauri/Cargo.toml` en `Cargo.lock`, en de drie
       platformbuilds in `ci.yml` bouwen met `--no-bundle`. Een groene CI bewijst dus niet dat de updater een
@@ -3987,3 +4019,50 @@ en noem het in je rapport of PR-tekst.
      een nieuwe code weigert met `eigen-uitvoer` (`check-ifc-foreign-eigen-uitvoer.ts`). Open blijft alleen dat
      `explainCodeDefinitions` in `lossCheck.ts` de vorm van de bron blijft bewaken tot stap 2 en 5 van de overstap
      (onderzoek van 14 november, vraag 7); daar pas mag hij weg. — B
+
+1640. **VERVOLG (#770, eigen rapportlettertype): de terugval op Inter bij een verdwenen kopie werkt alleen als de
+     keuzelijst Lettertype zichtbaar is.** De controle (`useCustomReportFontGuard` in
+     `src/components/panels/reports/reportFormPrimitives.tsx`) zit in `ReportFontSelect`. Start met de keuze `custom`,
+     een verdwenen kopie in IndexedDB (`ops-report-font`) en een andere stap open of de zijbalk ingeklapt: de keuze
+     blijft `custom`, de melding ontbreekt en de vector-export valt bij gebrek aan bytes terug op raster. Pas de stap
+     Pagina openen herstelt het. Richting: de controle in de rapportwerkruimte, die altijd gemount is, één keer voor
+     alle rapporten. Gevonden door de review van #946 (Sol, ronde 1). — B
+
+1720. **VERVOLG (#949, blokkadecontrole bij het wachten op de browserreparatie): bij meer dan honderd reacties leest ze
+     een verouderde laatste reactie.** `.claude/skills/release/SKILL.md`, de lus `wacht_op_reparatie`, gebruikt
+     `gh issue list --json comments` en dan `.comments[-1]`. `gh` 2.45.0 vraagt `comments(first: 100)` op: bij honderd
+     gewone reacties en daarna `REPARATIE GEBLOKKEERD` als reactie 101 ziet de lus geen blokkade; omgekeerd blijft een
+     oude blokkade op positie 100 zichtbaar nadat het werk is hervat. Richting: de laatste reactie echt opvragen
+     (`comments(last: 1)` via `gh api graphql`), en beide beslissingen uit één antwoord nemen in plaats van twee
+     `gh`-aanroepen per ronde. Gevonden door de review van #949 (Sol, ronde 2). — B
+
+1721. **VERVOLG (#949, controle 7g in `verify:docs`): ze verwart verboden woorden met verboden releasegedrag.**
+     `scripts/verify-docs.ts` keurt elke `14:00` of `deadline` buiten de reparatieskill af, en stelt de hele
+     reparatieskill ervan vrij. Gedraaid in het geheugen: `De release heeft geen deadline.` wordt afgekeurd; een
+     toelichting in de releaseskill dat de reparatie om 14:00 stopt wordt afgekeurd; `Om 14:00 stopt ook de release`
+     in de reparatieskill wordt geaccepteerd. Richting: de controle en de uitzondering beperken tot de bedoelde
+     afspraken, niet tot een heel bestand. Gevonden door de review van #949 (Sol, ronde 2). — B
+
+1722. **VERVOLG (#949, `ci.yml`): de cron op vrijdag 22:00 is overbodig naast de avondrun.** `.github/workflows/ci.yml`
+     heeft `cron: '0 22 * * 5'` (`timezone: Europe/Amsterdam`); sinds 2026-11-06 start de geplande Trias-taak elke
+     avond van maandag tot en met zaterdag om 22:00 zelf een browserrun op `main`. De cron levert op vrijdag een
+     dubbele run op. Bewust niet aangepast in #949 (geen workflowwijziging in die PR). — S
+
+1723. **VERVOLG (#949, `scripts/release-ci-check.mjs`): ze rekent nog vanaf "de laatste vrijdag 22:00".**
+     `fridayEvening` en de melding `geen browserrun sinds vrijdag …` kennen alleen de vrijdagrun; de laatste
+     browserrun vóór de maandagrelease is die van zaterdag 22:00. De gate pakt de laatste run sinds die vrijdag en
+     werkt dus, maar naam, commentaar en de documentatie in `scripts/README.md` en `ci-release.md` noemen de vrijdag.
+     Bewust niet aangepast in #949 (geen script- of gatewijziging in die PR). — S
+
+1724. **VERVOLG (#949, reparatieskill en `ci-release.md`): de ingangstekst noemt nog de uitgeschakelde vrijdagtaak.**
+     `.claude/skills/browsertests-repareren/SKILL.md:3` (de `description`: "Gebruik alleen wanneer de geplande
+     vrijdagjob of de release-skill deze skill start") en `.claude/rules/ci-release.md:27` (vrijdag 23:30 als de taak
+     die rode browserruns repareert) wijzen nog naar de vrijdagtaak die uitstaat; de ochtendreparatie van Trias (ma–za
+     08:00) voert de skill nu uit. De sectie "Geplande taak (vrijdag, staat uit)" onderaan de skill (circa 54 regels)
+     kan bij het opruimen terug tot één historische mededeling. Gevonden door de review van #949 (Sol, ronde 3). — B
+
+1725. **VERVOLG (#949, reparatieskill): "Zaterdag na 23:50" wijkt af van de weekendstop van zaterdag 23:00.**
+     `.claude/skills/browsertests-repareren/SKILL.md`, sectie "Stoppen om 14:00". De 23:50 komt uit de letterlijke
+     prompt van de geplande ochtendtaak van Trias; de weekendstop van de eigenaar is zaterdag 23:00 tot maandag 01:00.
+     Zet beide op dezelfde grens (23:00), in de skill én in die prompt. Gevonden door de review van #949 (Sol,
+     ronde 3). — B

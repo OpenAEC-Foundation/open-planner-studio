@@ -384,6 +384,7 @@ type AppGlobalKey =
   | 'taskClipboard'
   // Recente bestanden: een eigenschap van de installatie, niet van een project.
   | 'recentFiles'
+  | 'recentFilesLoaded'
   // Multi-document-boekhouding zelf — dit ís de laag die de rest swapt.
   | 'documents' | 'activeDocumentId'
   // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.

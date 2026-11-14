@@ -17,7 +17,7 @@ De planning rekent iets door dat je niet begrijpt, een knop doet niet wat hij zo
 7. *Opnieuw maken* maakt een nieuw screenshot en wist je annotaties. *Weghalen* haalt het screenshot weg en zet het vinkje uit.
 8. Kijk onder het formulier naar de grijze regel *Meegestuurd*. Die toont wat de app zelf meestuurt: de versie, het besturingssysteem en de taal, bijvoorbeeld *Meegestuurd: v2026.10.1 · Windows · Nederlands*.
 9. Klik op *Versturen*. Tijdens het versturen staat er *Bezig met versturen…* op de knop.
-10. Je ziet *Bedankt, je melding is verstuurd.* Is er voor je melding een issue op GitHub gemaakt, dan staat er ook de knop *Bekijk op GitHub*. Klik op *Sluiten*.
+10. Je ziet *Bedankt, je melding is verstuurd.* Is er voor je melding een issue op GitHub gemaakt, dan staat eronder *Je melding staat als issue op GitHub. Daar lees je ons antwoord terug:* met de link naar dat issue. Klik op de link om het issue in je browser te openen, of bewaar hem om later terug te kijken. Klik op *Sluiten*.
 
 ## Waar je melding heen gaat
 

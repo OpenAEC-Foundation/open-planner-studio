@@ -427,7 +427,9 @@
     "liberationSans": "Liberation Sans (zoals Arial)",
     "carlito": "Carlito (zoals Calibri)",
     "liberationSerif": "Liberation Serif (zoals Times New Roman)",
-    "liberationMono": "Liberation Mono (vaste breedte)"
+    "liberationMono": "Liberation Mono (vaste breedte)",
+    "custom": "{{name}} (eigen lettertype)",
+    "other": "Ander lettertype…"
   },
   "studio": {
     "sidebar": "Instellingen van het rapport",
@@ -641,6 +643,31 @@
       "chart": "Balken en tijdlijn",
       "footer": "Legenda en voet",
       "page": "Pagina"
+    }
+  },
+  "customFont": {
+    "title": "Ander lettertype",
+    "intro": "Kies een lettertype van deze computer of een lettertypebestand (.ttf of .ttc). De app bewaart een kopie op dit apparaat en zet het lettertype in de PDF, zodat die overal hetzelfde afdrukt.",
+    "showList": "Lettertypen van deze computer tonen",
+    "loadingList": "Lettertypen van deze computer zoeken…",
+    "noList": "Deze browser kan de lettertypen van de computer niet tonen; dat kan alleen in Chrome en Edge. Kies een lettertypebestand.",
+    "listDenied": "De lettertypen van deze computer zijn niet te lezen; de browser gaf geen toestemming. Kies een lettertypebestand.",
+    "search": "Zoeken",
+    "listLabel": "Lettertypen van deze computer",
+    "empty": "Geen lettertypen gevonden.",
+    "loadingFont": "Lettertype laden…",
+    "chooseFile": "Bestand kiezen…",
+    "cancel": "Annuleren",
+    "theFile": "Dit bestand",
+    "refused": "{{name}} kan niet: {{reason}}.",
+    "saveFailed": "Het lettertype kon niet op dit apparaat bewaard worden.",
+    "refusal": {
+      "embeddingRestricted": "inbedden in een PDF is niet toegestaan",
+      "variable": "variabel lettertype; de PDF kan alleen vaste gewichten bevatten",
+      "noOutlines": "geen contouren van letters om in de PDF te zetten",
+      "postscriptOutlines": "PostScript-contouren (.otf); die kan de PDF-export nog niet bevatten",
+      "noRegular": "alleen cursief, geen gewone letter",
+      "unreadable": "geen leesbaar lettertypebestand"
     }
   }
 }

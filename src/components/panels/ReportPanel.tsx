@@ -5,14 +5,14 @@ import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
 import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes, loadReportTextMetrics } from '@/services/pdf/fontLoader';
-import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
+import { reportFontStack, type ReportFontChoice } from '@/services/pdf/reportFont';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
 import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
 import { describeVectorFallback } from '@/services/print/exportGanttReportPdf';
 import {
-  patchReportSettings, TABLE_REPORT_TYPES,
+  patchReportSettings, reportFontKey, TABLE_REPORT_TYPES,
   type ReportPaperSize, type ReportOrientation, type ReportType, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { reportFontStyle, TableReportView } from './reports/TableReportView';
@@ -132,16 +132,19 @@ export function ReportPanel() {
   // De gedeelde stand van `ops-reportSettings` (`useReportSettings`). Dit paneel schrijft alleen zijn eigen velden
   // (rapporttype, tabelopties, papier, richting, letter); kiest de planner de Gantt-afdruk, dan volgt de
   // werkruimte het rapporttype.
-  const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = useReportSettings();
+  const reportSettings = useReportSettings();
+  const { reportType, tableReports: tableOptions, paperSize, orientation, reportFontFamily } = reportSettings;
   const reportFont = reportFontStack(reportFontFamily);
   // De voorvertoning tekent in de rapportletter: registreer en laad hem (`@font-face`) zodra hij gekozen is, niet
-  // pas bij de export (review Sol #938). Anders toont de tabel een letter die nog niet geladen is in Inter.
-  useEffect(() => { void ensureReportFontLoaded(reportFontFamily); }, [reportFontFamily]);
+  // pas bij de export (review Sol #938). Anders toont de tabel een letter die nog niet geladen is in Inter. Ook bij
+  // een ander eigen lettertype (zelfde id, andere sleutel).
+  const reportFontLoadKey = reportFontKey(reportSettings);
+  useEffect(() => { void ensureReportFontLoaded(reportFontFamily); }, [reportFontFamily, reportFontLoadKey]);
   // Alleen de gewijzigde tabelopties: `patchReportSettings` voegt de groep per optie samen.
   const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => { patchReportSettings({ tableReports: patch }); }, []);
   const setPaperSize = useCallback((v: ReportPaperSize) => { patchReportSettings({ paperSize: v }); }, []);
   const setOrientation = useCallback((v: ReportOrientation) => { patchReportSettings({ orientation: v }); }, []);
-  const setReportFontFamily = useCallback((v: ReportFontId) => { patchReportSettings({ reportFontFamily: v }); }, []);
+  const setReportFontFamily = useCallback((v: ReportFontChoice) => { patchReportSettings({ reportFontFamily: v }); }, []);
   const chooseReportType = useCallback((next: ReportType) => { patchReportSettings({ reportType: next }); }, []);
 
   // Reden waarom de laatste export-poging is afgebroken (alleen een CPM-cyclus).
