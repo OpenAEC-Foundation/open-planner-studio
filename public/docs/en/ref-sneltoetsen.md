@@ -128,6 +128,26 @@ These keys work in the task grid (on the *Table* tab and in the table to the lef
 
 The resource table has its own key handling between the input fields; that is not in this list.
 
+## Date field and calendar
+
+These keys are not in the *Keyboard shortcuts* window. They work in every date field and in a date cell of the table that you are editing. See [Entering a date](docs://howto-datum-invoeren).
+
+**Alt+↓** (in a date field) — opens the calendar. So in a date field Alt+↓ does not move a task.
+
+**Left and right arrow** (in the calendar) — a day back or forward; the other way round in a language that reads right to left.
+
+**Up and down arrow** (in the calendar) — a week back or forward.
+
+**Home** and **End** (in the calendar) — the first or last day of the week.
+
+**Page Up** and **Page Down** (in the calendar) — a month back or forward. With Shift a year.
+
+**Enter** or **space** (in the calendar) — picks the day. In a dialog, Enter then does not confirm the dialog.
+
+**Esc** (in the calendar) — closes the calendar without a choice. The dialog or cell around it stays open.
+
+**Tab** and **Shift+Tab** (in the calendar) — go round the buttons of the calendar and the day.
+
 ## Dialogs and other windows
 
 These keys are not in the *Keyboard Shortcuts* window.

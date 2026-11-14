@@ -59,7 +59,7 @@ De periode werkt niet in elk rapport hetzelfde.
 
 **De periode ligt buiten je planning.** Dan is het rapport leeg. Het Resourcediagram zegt dat met *Geen taken in de rapportageperiode — kies een andere periode of Hele project.* Bij de andere rapporten zie je nul activiteiten of geen regels.
 
-**De datums staan in je eigen notatie.** *Van* en *Tot* volgen de datumnotatie uit je instellingen, behalve in de datumvelden van *Aangepast*: die tonen de notatie van je browser. Bij het Resourcediagram volgen ook die velden je eigen notatie; daar tik je de datum in hetzelfde veld als de statusdatum.
+**De datums staan in je eigen notatie.** *Van* en *Tot* volgen de datumnotatie uit je instellingen, ook in de datumvelden van *Aangepast*. Je typt de datum of klikt hem aan in de kalender, net als bij de statusdatum (zie [Een datum invoeren](docs://howto-datum-invoeren)).
 
 **De periode schuift mee.** Een relatieve keuze zoals *Volgende maand* wordt telkens opnieuw bepaald: verandert de statusdatum, of is het zonder statusdatum een dag later, dan schuift de periode direct mee. Wil je een vaste periode, kies dan *Aangepast*.
 

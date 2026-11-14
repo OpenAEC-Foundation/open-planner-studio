@@ -22,7 +22,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Tekengrootte** — schaal van de interface. Keuze uit 90%, 100%, 110% en 125%. Standaard: 100%. Effect: tekst en indeling van het lint, de panelen en dialogen worden groter of kleiner, en de rijhoogte van de tabel en de Gantt schaalt mee. Boven 125% is er geen keuze, omdat de knoplabels in het lint dan over meerdere regels breken. Waar: *Weergave*.
 
-**Datumnotatie** — hoe datums in de app staan. Keuze uit *dd-mm-jjjj*, *mm-dd-jjjj* en *jjjj-mm-dd*. Standaard: *dd-mm-jjjj*. Effect: datums in de tabel, de dialogen, de rapporten en de afdruk. Bestanden en berekeningen veranderen niet: alleen de weergave. Waar: *Weergave*.
+**Datumnotatie** — hoe datums in de app staan. Keuze uit *dd-mm-jjjj*, *mm-dd-jjjj* en *jjjj-mm-dd*. Standaard: *dd-mm-jjjj*. Effect: datums in de tabel, de dialogen, de rapporten en de afdruk, en de volgorde van de drie vakjes in een datumveld. Bestanden en berekeningen veranderen niet: alleen de weergave. Waar: *Weergave*.
 
 **Tijdnotatie** — hoe kloktijden in de app staan. Keuze uit *24 uur (13:00)* en *12 uur (1:00 PM)*. Standaard: *24 uur (13:00)*. Effect: de tijden in het kalendervenster, de datum met tijd van taken in uren (tabel, splitsingen, meldingen) en de tijdschaal *Uur* in de Gantt. In een tijdveld mag je beide vormen typen: *13:00*, *1300*, *13*, *1:00 PM* of *1 pm*. Middernacht als einde van de dag is *24:00* of *12:00 AM*. Bestanden en berekeningen veranderen niet: die blijven 24 uur. Waar: *Weergave*.
 
@@ -52,7 +52,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Bouwmodus inschakelen** — bouwgerichte beginwaarden voor nieuwe projecten. Standaard: aan. Effect: aan geeft een nieuw project de kalender *Bouwkalender NL* met de Nederlandse feestdagen, laat je bij het genereren van feestdagen een bouwvak kiezen, biedt de fasesjablonen *Woningbouw* en *Utiliteitsbouw / renovatie* aan en geeft nieuwe taken de werksoort *Bouw*. Uit geeft de kalender *Standaardkalender* zonder feestdagen, alleen het sjabloon *Leeg* en de werksoort *Overig*. Een nieuwe taak onder een bovenliggende taak met een werksoort neemt eerst die werksoort over; *Bouw* of *Overig* geldt daarna. Bestaande taken en kalenders veranderen niet. Waar: *Planning*.
 
-**Week begint op** — de eerste dag van de week. Keuze uit *Maandag* en *Zondag*. Standaard: *Maandag*. Effect: de weekindeling en weeknummers van de tijdschaal in de Gantt en in de rapporten (de Gantt-afdruk), en de volgorde van de weekdagen in het venster *Kalenders*. Waar: *Planning*.
+**Week begint op** — de eerste dag van de week. Keuze uit *Maandag* en *Zondag*. Standaard: *Maandag*. Effect: de weekindeling en weeknummers van de tijdschaal in de Gantt en in de rapporten (de Gantt-afdruk), de volgorde van de weekdagen in het venster *Kalenders*, en de eerste kolom en de weeknummers van de kalender bij een datumveld (zie [Een datum invoeren](docs://howto-datum-invoeren)). Waar: *Planning*.
 
 **Automatisch berekenen** — rekent de planning door zodra ze verouderd is. Standaard: uit. Effect: uit betekent dat je zelf op *Bereken* drukt (F5). Aan laat de app na een wijziging van taken, relaties of kalender de planning binnen een fractie van een seconde herberekenen. Tijdens een sleepgebaar of terwijl je in een veld typt, wacht de app en rekent hij één keer als je klaar bent. Na een mislukte berekening rekent hij pas opnieuw nadat je iets hebt gewijzigd. Waar: *Planning*, onder *Berekenen*.
 
