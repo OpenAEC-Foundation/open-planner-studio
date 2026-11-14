@@ -126,10 +126,10 @@ export function planDissolve(
 }
 
 /**
- * KEUZEPUNT 2, bestaande relatie tussen voorganger en opvolger (ligt bij de eigenaar, 2026-11-14).
- * Nu: alleen een einde-begin telt als "al gekoppeld"; die blijft zoals ze is, met haar vertraging.
- * Een relatie van een ander type blijft ook staan en de einde-begin komt ernaast. Kiest de eigenaar
- * "bij elke bestaande relatie komt er niets bij", dan vervalt hier de typevoorwaarde.
+ * Bestaande relatie tussen voorganger en opvolger (eigenaarsbesluit 2026-11-14): alleen een
+ * einde-begin telt als "al gekoppeld"; die blijft zoals ze is, met haar vertraging. Een relatie van
+ * een andere soort blijft ook staan en de einde-begin komt ernaast, want via de opgeheven taak moest
+ * de opvolger wachten tot de voorganger klaar was.
  */
 function alreadyLinked(sequences: readonly Sequence[], predecessorId: string, successorId: string): boolean {
   return sequences.some(seq => (
