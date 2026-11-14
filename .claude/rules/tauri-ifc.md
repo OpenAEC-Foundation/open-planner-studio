@@ -42,6 +42,16 @@ bron; `ifcSaveBlocked` blijft alle vreemde IFC-opslag weigeren tot aansluit-PR 1
 bron is alleen toegestaan na een volledige indeling zonder vreemd deel; onzekere invoer wordt
 getypeerd geweigerd. IFC2X3 zonder model houdt de ontwerpuitzondering met een openingsmelding.
 
+### Auteur en bedrijf (#804 fase 1c)
+
+De bytes-route geeft `selectPlanning` mee via de bestaande leesopties. Alleen daar kiest `extractProject` voor auteur en
+bedrijf de eigen (`IFCAPPLICATION` identifier `OPS`) owner history van `IfcProject`, daarna die van het werkplan, daarna
+de eerste owner history. Aanwezige `Author`/`Organization` in `OPS_ProjectSettings` winnen, ook bewust leeg. Die twee
+velden worden op één plek gelezen; naam/beschrijving blijven hun bestaande pset-regel houden. Met de flag uit blijft
+de eerste owner history leidend, ook als die van een ander programma is (Trias 13 november 2026, knownbug 1022).
+`check-ifc-foreign-preserve.ts` bewaakt twee echte Projectgegevens-bewerkingen in acht bronnen met bytegelijke C-keten;
+`check-ifc-foreign-pariteit.ts` bewaakt naast de 47-referentie ook een vreemde eerste eigenaar met main-verwachting.
+
 ### Oude eigen kop, scan en datasectie (#804)
 
 `oldOwnHeader.ts` naast `stepDataSection.ts` herkent één letterlijk gemeten sjabloon van de 17 tags v2026.2.0 t/m

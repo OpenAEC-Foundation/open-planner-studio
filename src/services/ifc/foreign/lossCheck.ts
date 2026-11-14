@@ -437,17 +437,8 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     }
   }
 
-  // Auteur en bedrijf (§4.4). Schrijft de writer het project zelf, dan leest de lezer ze uit de eerste owner history die
-  // hij ziet. Is die van de bron, dan komt een wijziging niet terug.
-  if (input.sourceOwnerHistory >= 0 && input.projectWritten) {
-    const want = input.domain.project;
-    if ((want.author ?? '') !== (input.pristine.project.author ?? '') || (want.company ?? '') !== (input.pristine.project.company ?? '')) {
-      report({
-        kind: 'projectgegevens', chunk: input.sourceOwnerHistory,
-        detail: `auteur of bedrijf veranderde, maar de lezer leest ze uit ${index.type(input.sourceOwnerHistory)} #${index.id(input.sourceOwnerHistory)} van de bron`,
-      });
-    }
-  }
+  // E8 / 1022: de bytes-lezer kiest de project-/werkplaneigenaar na OPS_ProjectSettings. De oude onvoorwaardelijke
+  // weigering 'projectgegevens' vervalt; de onafhankelijke heropening controleert de werkelijk geschreven velden.
   return { edits };
 }
 

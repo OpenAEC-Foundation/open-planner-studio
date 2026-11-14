@@ -1770,21 +1770,18 @@ en noem het in je rapport of PR-tekst.
      2026): 13 s en een piek van 1,7 GB bij 300 MB is te veel voor een tabblad in de browser; doel ongeveer het niveau van
      ronde 1 (merge 6,7 s, piek 1,2 GB bij 300 MB). Uit #867 (fase 1b). — B
 
-1022. **VERVOLG: auteur of bedrijf wijzigen geeft `merge-needs-phase2` als de eerste owner history gedeeld is.** Met de flag
-     aan, een eigen project (P) en een owner history die ook vreemde stukken gebruiken (C), leest de lezer auteur en
-     bedrijf uit die eerste owner history (`src/services/ifc/ifcReader.ts:1419`). De writer schrijft de vier projectvelden
-     alleen als het project niet P is (BLOKKEERT 1 van fixronde 1). Een gewijzigde auteur komt dus niet terug, en de
-     merge weigert met `projectgegevens` (`src/services/ifc/foreign/lossCheck.ts:560`). Zonder wijziging schrijft de
-     merge gewoon. Gemeten met een gewijzigde auteur: 8 eigen bestanden in `tests/fixtures/ifc-foreign/council/` die zonder
-     wijziging schrijven, weigeren dan, namelijk `fix1-leeg-live`, `fix1-leeg-live-bl`, `r4-k2`, `r4-k3`,
-     `r5-eigen-plus-bonsai-baseline`, `r5sol-gedeelde-calendar-pset`, `r6sol-twee-werkplannen` en
-     `r7sol-twee-werkplannen-bronplek`. Proef: `check-ifc-foreign-preserve.ts`, "auteur
-     wijzigen bij een gedeelde owner history". Richting: op de bytes-route auteur en bedrijf lezen uit de owner history
-     van het IfcProject of het werkplan (dat schrijft de writer zelf), of de vier velden ook bij een gedeelde owner
-     history in `OPS_ProjectSettings` zetten. **Eis voor 1c** (wrakko, 10 november 2026): richting 1 (auteur en bedrijf
-     op de bytes-route uit de owner history van het IfcProject of het werkplan lezen); opslaan gaat in 1c niet aan zolang
-     de planner bij een eigen bestand met een model zijn auteur of bedrijf niet kan wijzigen. Uit #867 (fase 1b,
-     fixronde 1). — B
+1022. **VERVOLG: met `ifcForeignContent` uit blijft de eerste owner history auteur en bedrijf bepalen.** De tekstroute
+     leest dezelfde persoon en organisatie als main, ook als die eerste eigenaar van een ander programma is en het
+     project of werkplan een andere eigenaar heeft. Dit blijft bewust gelijk volgens het besluit van Trias van
+     13 november 2026; ook zonder flag repareren vraagt een afzonderlijk besluit.
+     Fase 1c PR 5 repareert de bytes-route: aanwezige Author/Organization in OPS_ProjectSettings winnen (ook leeg),
+     daarna de eigen eigenaar van IfcProject of werkplan, daarna de bestaande terugval. De acht council-bestanden
+     `fix1-leeg-live`, `fix1-leeg-live-bl`, `r4-k2`, `r4-k3`, `r5-eigen-plus-bonsai-baseline`,
+     `r5sol-gedeelde-calendar-pset`, `r6sol-twee-werkplannen` en `r7sol-twee-werkplannen-bronplek` bewaken twee echte
+     Projectgegevens-bewerkingen met heropening en bytegelijke gedeelde C-keten. De oude onvoorwaardelijke
+     weigering `projectgegevens` vervalt; de onafhankelijke uitvoer-/herleestoets blijft gelden. De extra
+     flag-uit-pariteitsproef heeft een vaste verwachting uit main 4e01894d7 met een eerste OTHER-eigenaar.
+     Uit #867, smal hersteld op de bytes-route in #804 fase 1c PR 5 (GPT-6.1-Sol via Codex). — B
 
 1023. **VERVOLG: de GlobalIds van `OPS_Resource` veranderen bij de eerste keer opslaan na openen.** De writer leidt de
      GlobalId van de pset van een resource en van haar `IfcRelDefinesByProperties` af van `res.id` (`pset_res_<id>`,

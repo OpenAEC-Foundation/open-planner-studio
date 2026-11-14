@@ -27,6 +27,7 @@
 //
 // Eigen regel in run.sh, buiten de tijdzonematrix: de fixture is gemaakt met TZ=Europe/Amsterdam.
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +40,7 @@ const fixture = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/main
 // De open-route meldt een weigering ook op de console; dat is hier verwacht.
 const realError = console.error;
 console.error = () => {};
-const { parityFixture } = await import('./ifcPariteitKern');
+const { parityFixture, paritySummary, runParity } = await import('./ifcPariteitKern');
 // De open-route en de opslagacties melden ook op de console; dat is hier verwacht.
 const realWarn = console.warn;
 console.warn = () => {};
@@ -121,6 +122,26 @@ for (const want of fixture.bestanden.filter(b => b.filePath === null && b.pad !=
 // (`fixtures/ankers-uit-open-documenten/`) erbij, 47.
 eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [47, 6, 1]);
 
+// E8 / besluit Trias 13 november: óók een vreemd project waarvan de eerste eigenaar niet van OPS is.
+// Apart vastgelegd met src van main 4e01894d7; de oorspronkelijke 47-referentie hierboven blijft ongewijzigd.
+// Het script/bewijs staat in /tmp/fase1c-pr5-bewijs/maak-e8-main.mjs. Zelfde voorgeschiedenis als die meting:
+// runParity start hier na de 47-proef, omdat generateId een modulelokale teller heeft.
+const extra = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/auteur-bedrijf/main.json'), 'utf8')) as {
+  basis: string; input: string; inputSha256: string; result: ReturnType<typeof paritySummary>;
+};
+const extraText = readFileSync(join(ROOT, extra.input), 'utf8');
+eq('vreemde eerste eigenaar: dezelfde invoer als de main-meting',
+  createHash('sha256').update(extraText).digest('hex'), extra.inputSha256);
+const extraResult = (await runParity([{ name: 'vreemde-eerste-eigenaar.ifc', text: extraText }])).results[0];
+eq(`vreemde eerste eigenaar: auteur en bedrijf gelijk aan main ${extra.basis}`, extraResult.projectInfo, extra.result.projectInfo);
+eq('vreemde eerste eigenaar: opslagbytes, doelen, meldingen en alle echte opslagacties gelijk aan main',
+  paritySummary(extraResult), extra.result);
+eq('vreemde eerste eigenaar: beide opslagacties schrijven werkelijk',
+  extraResult.actions?.map(a => [a.outcome, a.writes.length]), [['klaar', 1], ['klaar', 1]]);
+eq('vreemde eerste eigenaar: alle drie bestaande doelroutes schrijven werkelijk',
+  extraResult.targetActions?.map(a => [a.route, a.outcome, a.writes.length]),
+  [['handle', 'klaar', 1], ['pad', 'klaar', 1], ['site', 'klaar', 1]]);
+
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ifc-foreign-pariteit: ${d}`);
   if (outDir) console.log(`..  uitvoer van de branch: ${outDir} (main: node scripts/proef/maak-main-pariteit.mjs --uitvoer <map>)`);
@@ -128,5 +149,5 @@ if (diffs.length > 0) {
 }
 console.log(`OK  ifc-foreign-pariteit: alle checks groen (${checks}; ${own} eigen bestanden byte-gelijk aan main ${fixture.basis}, `
   + `${actions} echte opslagacties en ${targetActions} Ctrl+S naar een bestaand doel gelijk, ${refused} modelbestanden met `
-  + `dezelfde weigering, ${markedBackup} backup met kenmerk gelijk aan main)`);
+  + `dezelfde weigering, ${markedBackup} backup met kenmerk gelijk aan main; extra vreemd bestand met eerste OTHER-eigenaar gelijk aan main ${extra.basis})`);
 process.exit(0);
