@@ -1997,24 +1997,64 @@ en noem het in je rapport of PR-tekst.
      voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
      en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
      van #926. — B
-1560. **VERVOLG (#804, test): de I/O-foutproef van de documentopslag bereikt de schrijffout niet.** In
-     `tests/planning/check-ifc-document-save.ts` wordt de naam van het geval, `I/O-fout`, letterlijk deel van het
-     doelpad. De map `I` bestaat niet, dus `open` faalt met `ENOENT` vóór de ingestelde fout na twee geschreven bytes;
-     de proef is groen zonder die schrijffout te toetsen. De review van #927 bereikte de fout met een eigen proef wel:
-     bron, kenmerk, doel en dirty-vlag blijven intact, het nieuwe bestand wordt verwijderd en er komt één melding.
-     Richting: een bestandsnaam zonder slash, en controleren dat de schrijfaanroep werkelijk is bereikt. Gevonden door
-     de review van #927. — B
-1561. **VERVOLG (#804, vorm): de uitzondering voor de eigen siteversie is over twee functies verdeeld.**
-     `refusedWriteTarget` (`src/state/ifcForeignGuard.ts`) zoekt een passend site-id en sha256 tussen de kenmerken van
-     alle open documenten; dat het om het schrijvende document gaat, volgt mede uit de aanroeper in `fileSlice.ts`
-     (dezelfde momentopname, document-id, bronidentiteit en guard opnieuw getoetst). Alleen de documentroute geeft de
-     uitzondering mee; een bereikbare route naar een verkeerd document is niet gevonden. Richting: de binding aan het
-     schrijvende document op één plek leggen. Een export geeft deze uitzondering nooit mee. Gevonden door de review
-     van #927. — B
-1562. **VERVOLG (#804, tekst): de melding bij een geweigerde merge noemt geen uitweg.**
-     `notifications.ifcForeignMergeRefused` zegt dat er niet is opgeslagen en waarom, maar niet wat de planner wel kan
-     doen. Aanvullen met een uitweg die werkelijk bestaat, in nl en en; de tekst gaat mee op de lijst voor de eigenaar
-     in `handoff.md`. Gevonden door de review van #927. — B
+1565. **VERVOLG (#804, eindlijst): pool-export en IFC-export zonder gebouwmodel wachten op de verliesvraag.**
+     Bij een document met een vreemd deel blijven `exportProjectWithPool` en de bewaakte `planOnly`-voorbereiding
+     geweigerd, met nul bytes. De vraag vooraf dat het gebouwmodel niet meegaat (§4.12) en de aparte bediening
+     voor Exporteren zonder gebouwmodel zijn nog niet gebouwd. Verplicht afmaken vóór de flag aan mag;
+     andere exportformaten blijven mogelijk. Vastgelegd en beproefd in fase 1c PR 11b. — B
+1566. **VERVOLG (#804, documentatie): handleiding nl/en vóór vrijgeven van de flag.**
+     Fase 1c PR 11b voegt bewust geen gids in `public/docs/` toe: `ifcForeignContent` staat standaard uit.
+     De PR die de flag aanzet moet de handleiding nl/en en de manifestvermelding toevoegen, met de
+     volledige exportroute en de nog geldende opslaggrenzen. Ook de meldingen in `handoff.md` moeten
+     vóór die vrijgave door de eigenaar beoordeeld zijn. Afspraak van Trias, 14 november 2026. — B
+
+1567. **VERVOLG (#804, gemaakte corpusinvoer): `latin1.ifc` weigert onbewerkt op de herleestoets.**
+     De Bonsai-achtige corpusfixture `tests/fixtures/ifc-foreign/latin1.ifc` opent via de bytes-route,
+     maar de bestaande `prepareIfcWrite(buildWriteIFCInput(..., 'merge'), source)` weigert met
+     `merge-needs-phase2`, geval `planning-na-openen`. Ook app-MCP export weigert getypeerd vóór schrijven.
+     Dit is geen door OPS geschreven bestand. Een aparte variant van `eigen-plus-model.ifc` met alleen
+     een rauw Latin-1-byte in een wandnaam exporteert volledig en bytegelijk; de MCP-proef bewaakt beide
+     uitkomsten. De merge, lezer en lexer zijn in PR 11b niet gewijzigd; geen ruimere uitzondering.
+     Gevonden bij de aansluiting van de volledige IFC-export in fase 1c PR 11b. — B
+
+1568. **VERVOLG (bediening): blijvende meldingen kunnen de IFC-exportkaart bedekken.**
+     In de echte browserroute van `settings-tabs.spec.ts` liggen na openen, een geweigerde Ctrl+S en F5
+     bestaande fout-/openingsmeldingen over de IFC-kaart in Bestand → Exporteren. De klik wordt door
+     `.ops-toast-message` onderschept. De planner kan de meldingen met hun gewone sluitknoppen weghalen;
+     daarna werkt de kaart. De browserproef sluit de meldingen via echte klikken en bewijst vervolgens
+     IFC-export → download → heropenen met behoud van planning en gebouwmodel (exit 0, één test).
+     Richting: de plaatsing van meldingen tegenover Backstage-kaarten apart beoordelen; er ontbreekt geen
+     browserbewijs meer voor de IFC-export. Trace van de bedekking in
+     `/tmp/fase1c-pr11b-bewijs/browser-eerste-run/`; geslaagde route en screenshot-herstel in
+     `/tmp/fase1c-pr11b-bewijs/browser-vervolg-1/`. — B
+
+1569. **VERVOLG (#804, MCP-tekst): het advies van `planner_export_ifc` bij een bestaand doel klopt niet bij een vreemd
+     deel.** `src/services/mcp/tools/fileTools.ts` adviseert bij een bestaand doel zonder `overwrite` nog om
+     `overwrite: true` te sturen. Heeft het document een vreemd deel, dan blijft dat doel ook daarna geweigerd: de
+     route eist een nieuwe naam (via de dispatcher nagegaan, nul schrijfacties). De tekst van de bronweigering zegt
+     bovendien nog dat alleen planning zou worden geschreven. Richting: bij een vreemd deel meteen de uitleg "kies een
+     nieuwe naam" geven en zeggen dat veilig vervangen nog ontbreekt (1131); geen nieuwe foutklasse. Gevonden door de
+     review van #928. — B
+
+1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
+     `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
+     planner ziet haar ook bij een ontbrekende bron (na een crash, bij een geopende backup) en bij een export, en ook
+     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de ontbrekende bron niet en biedt geen
+     vervolgstap. Richting: een eigen tekst voor "bron ontbreekt" (PR 9b), en de rest bij de lijst "Teksten voor de
+     planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
+
+1564. **VERVOLG (#804, tekst en documentatie): de flag `ifcForeignContent` heeft wél een schakelaar.** In het
+     verborgen blok Experimenteel (Instellingen → Geavanceerd) staat elke geregistreerde flag, ook deze
+     (`SettingsPanelContent.tsx`; besluit van de eigenaar van 10 november 2026, zie `handoff.md`). De omschrijving
+     `settings.ifcForeignContentHint` zegt nog "Opslaan van zo'n bestand is nog niet mogelijk", terwijl Opslaan als
+     naar een nieuwe naam, de site, de download en de IFC-export sinds #927 en #928 het volledige bestand schrijven.
+     `AGENTS.md` en knownbug 1205 beschrijven nog "`writesNewIfcData: true` (no checkbox, always off)". Richting: de
+     omschrijving en de documentatie laten aansluiten op de schakelaar, met wat wel en niet kan; de handleiding van
+     1566 hoort bij de PR die de flag standaard aanzet. Gevonden door de review van #928. — B
+
+1558. **VERVOLG (#804, opruimen): de alias `type DocumentWrite = IfcOutput` in `fileSlice.ts` voegt niets toe.** Eén
+     regel in `src/state/slices/fileSlice.ts`; het type `IfcOutput` uit `src/state/prepareIfcOutput.ts` volstaat.
+     Gevonden door de review van #928. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
@@ -3766,17 +3806,6 @@ en noem het in je rapport of PR-tekst.
      De 26 ondersteunde eigen kopvormen en de echte oude releasebestanden blijven schrijfbaar. Geen lexer- of
      lezerreparatie in #915; vlag uit blijft main. Hoort bij 1054/1061. Uit de bouw van #804 fase 1c PR 4,
      na de nieuwe werkwijze van de eigenaar (13 november 2026, GPT-6.1-Sol via Codex). — B
-
-1135. **VERVOLG: de bestaande doelmeldingen zeggen ook bij alleen een externe pset nog 'gebouwmodel'.**
-     #915 beschermt met dezelfde weigering ook gesloten C/A/V-doelen zonder model. De drie sleutels
-     `ifcForeignTargetSave`, `ifcForeignTargetExport` en `ifcForeignTargetAutoSave` in nl/en `common.json`
-     noemen uitsluitend een building/gebouwmodel; de dev-bridge gebruikt dezelfde te smalle uitleg.
-     De weigering is veilig en noemt de juiste uitweg (een ander bestand); alleen de uitleg is te smal.
-     Tekst verbreden bij de aansluiting in fase 1c PR 11, vóór de flag aan mag; geen UI-tekstwijziging in
-     deze bouw-PR. Broncode en sleutelkeuze bevestigd bij de externe-psetproeven van #915, geen browserproef.
-     Ook de instructie van de headless MCP-server (`headless/mcp-server/src/host.ts`, de regel over
-     `planner_export_ifc`) belooft nog zonder voorbehoud dat `overwrite: true` het geopende bestand vervangt;
-     sinds #915 geldt dat alleen voor een doel zonder vreemd deel (review van #915, Sol). — B
 
 1136. **VERVOLG, bestaand op main: de headless MCP-server bewaart gegevens van een ander programma niet bij export
      naar een nieuwe naam.** De headless server leest IFC als tekst (de keuze voor de bytes-route in

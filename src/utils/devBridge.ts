@@ -97,7 +97,7 @@ export async function saveToPathWithIO(
   // #804 fixronde 2: dezelfde doelcontrole als Opslaan als, vóór de write. Het pad is de bron van een open document met
   // een vreemd deel, of een bestaande IFC met een gebouwmodel (flag aan): dan schrijft deze route niet.
   if (await refusedWriteTarget(s, { kind: 'path', path }, targetDeps)) {
-    throw new Error('saveToPath: dit bestand bevat een gebouwmodel; kies een ander pad.');
+    throw new Error('saveToPath: dit bestand bevat een gebouwmodel of gegevens van een ander programma; kies een ander pad.');
   }
   const content = writeIFC(buildWriteIFCInput(s, 'planOnly'));
   await io.writeTextFile(path, content);

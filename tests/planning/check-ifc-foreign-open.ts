@@ -497,7 +497,7 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   eq('opslaan: IFC-export telt als geannuleerd', ifcExport, { ok: true, warnings: [], cancelled: true });
   const pool = await S().exportProjectWithPool();
   eq('opslaan: pool-export telt als geannuleerd', pool, { ok: true, warnings: [], cancelled: true });
-  eq('opslaan: twee documentweigeringen en twee exportweigeringen', [mergeNotices()[0]?.count, blockedNotices()[0]?.count], [2, 2]);
+  eq('opslaan: drie mergeweigeringen en één poolweigering', [mergeNotices()[0]?.count, blockedNotices()[0]?.count], [3, 1]);
   eq('opslaan: geen opslagdialoog geopend', pickerCalls, 0);
   eq('opslaan: het document blijft gewijzigd en houdt zijn doel', [S().isDirty, S().filePath], [dirty, 'bonsai-4d.ifc']);
   // Andere formaten dragen alleen planning en blijven mogelijk: de CSV-export komt tot de opslagdialoog.

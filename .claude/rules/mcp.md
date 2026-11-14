@@ -103,3 +103,10 @@ wachtrij, atomair, `0600`), meldingen via `onBridgeStarted`/`onBridgeStopped` in
 register via `src/hooks/useMcpDiscovery.ts`, opruimen bij afsluiten in `useAppCloseGuard`. Het proces-id komt
 uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Detail: `docs/mcp-ontdekking.md`;
 test `tests/mcp/cases-discovery.ts` en de echte-app-run.
+
+**IFC-export van de app (#804, 1c PR 11b).** `planner_export_ifc` deelt `state/prepareIfcOutput.ts` met
+de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan uitsluitend naar een nieuw doel,
+via de optionele `McpFileFs.writeNewByteParts` (Tauri `createNew`, geen tekstrondgang). Het antwoord bevat
+`byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
+doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
+Headless biedt de nieuwe bytenaad niet en blijft op zijn bestaande tekstgedrag (1136, fase 2).

@@ -76,10 +76,10 @@
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",
     "ifcForeignSaveBlocked": "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.",
-    "ifcForeignTargetSave": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
-    "ifcForeignTargetExport": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om naar te exporteren.",
+    "ifcForeignTargetSave": "Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.",
+    "ifcForeignTargetExport": "Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om naar te exporteren.",
     "ifcExportChangedWhileWaiting": "De planning veranderde terwijl de export op een andere opslag wachtte. Er is niets geëxporteerd. Exporteer opnieuw.",
-    "ifcForeignTargetAutoSave": "Automatisch opslaan is gestopt: dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
+    "ifcForeignTargetAutoSave": "Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.",
     "ifcUnreadableTargetSave": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
     "ifcUnreadableTargetExport": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om naar te exporteren.",
     "ifcUnreadableTargetAutoSave": "Automatisch opslaan is gestopt: de app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
@@ -352,8 +352,9 @@
     "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan.",
     "ifcForeignReplaceBlocked": "Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.",
-    "ifcForeignMergeRefused": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven.",
-    "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan."
+    "ifcForeignMergeRefused": "Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan of exporteer de planning naar een ander formaat.",
+    "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.",
+    "ifcForeignExportNewTarget": "Niet geëxporteerd. Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geëxporteerd. Kies een naam die nog niet bestaat."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
