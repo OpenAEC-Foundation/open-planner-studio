@@ -39,6 +39,8 @@ export type ParityNotice = Record<string, unknown>;
 
 export interface ParityOutput {
   name: string;
+  /** Initiële auteur/bedrijf: de extra E8-proef controleert ook wat de planner vóór opslaan ziet. */
+  projectInfo?: { author: string; company: string };
   /** Het opslagdoel na het openen; `null` als het openen mislukte. */
   filePath: string | null;
   /** Wat Opslaan schrijft; afwezig als het openen mislukte. */
@@ -290,7 +292,8 @@ export async function runParity(inputs: readonly ParityInput[]): Promise<ParityR
       name: input.name,
       filePath: opened ? state.filePath : null,
       ...((state as { foreignSourceMark?: unknown }).foreignSourceMark ? { mark: true as const } : {}),
-      ...(opened ? { saved: writeIFC(buildWriteIFCInput(state)) } : {}),
+      ...(opened ? { saved: writeIFC(buildWriteIFCInput(state)),
+        projectInfo: { author: state.project.author ?? '', company: state.project.company ?? '' } } : {}),
       notices: state.ui.notifications.map(({ id: _id, ...rest }) => JSON.parse(JSON.stringify(rest)) as ParityNotice),
     };
     if (opened) {
@@ -377,6 +380,18 @@ export interface ParityFixture {
 }
 
 const sha256 = (data: string | Uint8Array) => createHash('sha256').update(data).digest('hex');
+
+/** Volledige pariteitsuitkomst, met hashes van de uitvoer zodat de extra E8-referentie klein blijft. */
+export function paritySummary(result: ParityOutput) {
+  const { saved, actions, targetActions, ...rest } = result;
+  const digest = (text: string) => ({ sha256: sha256(text), length: text.length });
+  return {
+    ...rest,
+    ...(saved !== undefined ? { saved: digest(saved) } : {}),
+    ...(actions ? { actions: actions.map(a => ({ ...a, writes: a.writes.map(digest) })) } : {}),
+    ...(targetActions ? { targetActions: targetActions.map(a => ({ ...a, writes: a.writes.map(digest) })) } : {}),
+  };
+}
 
 /** Alle invoerbestanden, gesorteerd, met hun tekst (UTF-8, zoals `File.text()`). */
 export function parityInputs(root: string): { pad: string; input: ParityInput; sha256: string }[] {

@@ -36,7 +36,7 @@ import {
   reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
-import { applyTaskProgress, storeEdit } from './ifcAppRoute';
+import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
 import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
@@ -45,6 +45,7 @@ import { classify } from '@/services/ifc/foreign/classify';
 import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
@@ -691,9 +692,68 @@ await expectRefusal('een weggelaten property met een Description', enc.encode(wi
   const renamed = await roundTrip("werkplan 'Plan' naast project 'Proj', project hernoemd", src, (d) => { d.project.name = 'Nieuw'; });
   if (renamed) ok("werkplan 'Plan', project hernoemd: het werkplan heet 'Nieuw'", /^#\d+=IFCWORKPLAN\('[^']*',#\d+,'Nieuw',/m.test(text(renamed.out)));
 }
-// BLOKKEERT 1, gevolg: het project is P en de eerste owner history is van de bron (C). De lezer leest auteur en bedrijf
-// daar terug; een gewijzigde auteur komt dus niet terug. Zonder wijziging schrijft de merge gewoon (sectie 1).
-await expectRefusal('auteur wijzigen bij een gedeelde owner history', enc.encode(baseText), 'projectgegevens', (d) => { d.project.author = 'Ethan'; });
+// #804 fase 1c E8 / 1022: Projectgegevens gebruikt applyProjectInfo. Twee echte bewerkingen, elk gevolgd door merge en
+// de normale heropening. De oorspronkelijke gedeelde C-keten blijft ook in de tweede ronde letterlijk gelijk.
+for (const file of ['fix1-leeg-live', 'fix1-leeg-live-bl', 'r4-k2', 'r4-k3', 'r5-eigen-plus-bonsai-baseline',
+  'r5sol-gedeelde-calendar-pset', 'r6sol-twee-werkplannen', 'r7sol-twee-werkplannen-bronplek']) {
+  const original = read(`tests/fixtures/ifc-foreign/council/${file}.ifc`);
+  const index = scanStep(original);
+  const classes = classify(index).classes;
+  const contextTypes = new Set(['IFCOWNERHISTORY', 'IFCPERSONANDORGANIZATION', 'IFCPERSON', 'IFCORGANIZATION', 'IFCAPPLICATION']);
+  const shared = Array.from({ length: index.count }, (_, i) => i)
+    .filter(i => classes[i] === 2 && contextTypes.has(index.type(i)));
+  ok(`${file}: een gedeelde owner history in C`, shared.some(i => index.type(i) === 'IFCOWNERHISTORY'));
+  let bytes: Uint8Array = original;
+  for (const round of [1, 2]) {
+    const { store, snapshot } = await openInStore(bytes, `${file}.ifc`);
+    const source = store.getState().ifcSource;
+    if (!source?.foreign) { ok(`${file}: bron met vreemd deel`, false); break; }
+    const wanted = { author: `Auteur ronde ${round}`, company: `Bedrijf ronde ${round}` };
+    const patch = projectInfoPatch(store.getState().project, { ...store.getState().project, ...wanted });
+    ok(`${file}, ronde ${round}: Projectgegevens past de wijziging toe`, store.getState().applyProjectInfo(patch, undefined).changed);
+    eq(`${file}, ronde ${round}: Projectgegevens wijzigt beide velden`,
+      [store.getState().project.author, store.getState().project.company], [wanted.author, wanted.company]);
+    const merged = await tryMerge(snapshot(store), source);
+    if (!merged.ok) {
+      ok(`${file}, ronde ${round}: auteur en bedrijf schrijven (${merged.kinds.join(', ')})`, false);
+      console.log(`BEWIJS auteur-bedrijf ${file} ronde ${round}: weigert ${merged.kinds.join(', ')}`);
+      break;
+    }
+    bytes = merged.bytes;
+    const reopened = await openForeign(bytes, `${file}.ifc`);
+    eq(`${file}, ronde ${round}: auteur en bedrijf na heropenen`,
+      [reopened.project.author, reopened.project.company], [wanted.author, wanted.company]);
+    eq(`${file}, ronde ${round}: alle vreemde stukken blijven gelijk`, mergeProblems(original, bytes), []);
+    const after = scanStep(bytes);
+    const byId = new Map(Array.from({ length: after.count }, (_, i) => [after.id(i), i]));
+    for (const i of shared) {
+      const j = byId.get(index.id(i));
+      ok(`${file}, ronde ${round}: C-keten #${index.id(i)} bytegelijk`, j !== undefined
+        && sameBytes(original.subarray(index.start(i), index.end(i)), bytes.subarray(after.start(j), after.end(j))));
+    }
+    console.log(`BEWIJS auteur-bedrijf ${file} ronde ${round}: heropend, auteur=${reopened.project.author}, bedrijf=${reopened.project.company}, C-keten=${shared.length}`);
+  }
+}
+
+// §4.4: de aanwezige velden in OPS_ProjectSettings winnen van de eigen werkplaneigenaar, ook bewust leeg.
+{
+  const original = readFileSync(join(ROOT, 'tests/fixtures/ifc-project-owner/vreemde-eerste-eigenaar.ifc'), 'utf8');
+  const selected = await openForeign(enc.encode(original));
+  const context = selected.ifcSource;
+  ok('bytes-route: de eerste OTHER-eigenaar blijft C-context in de leesinvoer', !!context
+    && context.classes[context.chunkIds.indexOf(90006)] === 2);
+  eq('bytes-route: de eigen werkplaneigenaar bepaalt auteur en bedrijf',
+    [selected.project.author, selected.project.company], ['Eigen auteur', 'Eigen bedrijf']);
+  const input = original
+    .replace(/('OPS_ProjectSettings',\$,\()([^)]*)\)/, '$1$2,#90101,#90102)');
+  ok('projectgegevens: de twee voorrangsvelden hangen aan de bestaande settings', input.includes('#90101,#90102'));
+  const settings = await openForeign(enc.encode(withLines(input, [
+    "#90101=IFCPROPERTYSINGLEVALUE('Author',$,$,$);",
+    "#90102=IFCPROPERTYSINGLEVALUE('Organization',$,IFCLABEL('Bedrijf uit settings'),$);",
+  ])));
+  eq('projectgegevens: settings winnen, een lege auteur blijft leeg',
+    [settings.project.author, settings.project.company], ['', 'Bedrijf uit settings']);
+}
 
 // ── 5d. Eigen zoektocht (fixronde 1 van #867): per P-entiteittype dat de writer opnieuw schrijft een proef ──
 // Elke proef zet in een eigen bestand met een vreemd deel één waarde die de writer niet terugschrijft. Tot fixronde 2
