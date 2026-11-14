@@ -12,6 +12,7 @@ import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema uit het centrale themapalet.
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
+import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { milestoneAnchorX, taskBarSpan } from '@/engine/renderer/barSpan';
 import { taskDateLabel } from '@/utils/taskDateLabel';
@@ -1183,13 +1184,50 @@ function drawBarLabel(
 const BAR_DATE_GAP = 6;
 
 /**
+ * Ruimte in px die de datums bij de balken (#868) links en rechts van de tijdas nodig hebben. De
+ * breedte van een datum is die van de gemeten kolom Start of Einde (dezelfde teksten, in de iets
+ * grotere tabelletter, dus een bovengrens); zonder meting de grootste vaste breedte.
+ */
+function barDateReservePx(m: ReportMetrics, columnWidths: TableColumnWidths | undefined): { left: number; right: number } {
+  const width = (key: 'start' | 'end') => m.s(columnWidths?.[key] ?? COL[key].max);
+  return { left: width('start') + BAR_LABEL_PAD_LEFT, right: BAR_LABEL_GAP + width('end') + 10 };
+}
+
+/**
+ * Marge om `[from, to]` voor de datums bij de balken: minstens de gewone 7 dagen vóór en 14 na, en
+ * zoveel meer dat de marge bij de uiteindelijke zoom `reserve` px breed is. Bij passend maken hangt de
+ * zoom zelf van de marge af; een paar rondes volstaan, want de marge is klein naast de planning.
+ */
+function padForBarDates(
+  from: Date,
+  to: Date,
+  reserve: { left: number; right: number },
+  zoomFor: (days: number) => number,
+  axis: GanttAxis,
+): [Date, Date] {
+  let before = 7;
+  let after = 14;
+  for (let round = 0; round < 6; round++) {
+    const start = addCalendarDays(from, -before);
+    const end = addCalendarDays(to, after);
+    const zoom = zoomFor(Math.max(1, Math.ceil(axis.daySpan(start, end))));
+    const left = axis.daySpan(start, from) * zoom;
+    const right = axis.daySpan(to, end) * zoom;
+    if (left >= reserve.left && right >= reserve.right) break;
+    if (left < reserve.left) before = Math.ceil(before * reserve.left / Math.max(left, 1)) + 1;
+    if (right < reserve.right) after = Math.ceil(after * reserve.right / Math.max(right, 1)) + 1;
+  }
+  return [addCalendarDays(from, -before), addCalendarDays(to, after)];
+}
+
+/**
  * Naam met datums bij een staaf (`showBarDates`, issue #868). De begindatum staat rechts uitgelijnd
  * links vóór de staaf (alleen als hij binnen het chartgebied past), de einddatum direct achter de
  * staaf zelf (`barEndX`, niet achter de spelingsband: daar zou hij een ander einde suggereren) en de
  * naam erachter. Wat rechts niet past wordt afgekapt met '…' (besluit Ethan 14-11-2026); de naam gaat
- * niet naar links zolang de einddatum rechts staat. Past rechts zelfs de einddatum niet (de staaf
- * loopt tot de papierrand), dan vervalt die en staat de naam links vóór de begindatum, zodat hij niet
- * verdwijnt. Datums in de gedempte tekstkleur, één punt kleiner dan de naam.
+ * nooit naar links. Past de einddatum rechts niet (de staaf loopt tot de papierrand), dan vervalt hij
+ * en wordt de naam afgekapt op wat er rechts nog over is. Datums in de gedempte tekstkleur, één punt
+ * kleiner dan de naam.
  */
 function drawBarLabelWithDates(
   d2d: Draw2D,
@@ -1205,26 +1243,21 @@ function drawBarLabelWithDates(
   const rightMargin = 10;
   d2d.textBaseline = 'alphabetic';
   d2d.font = m.font(8);
-  let leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
+  const leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
   const startW = dates.start ? d2d.measureText(dates.start).width : 0;
   if (dates.start && startW <= leftEnd - m.tableWidth) {
     fillLabelText(d2d, dates.start, leftEnd, y, 'right', PRINT_COLORS.textSecondary);
-    leftEnd -= startW + BAR_DATE_GAP;
   }
   const x = barEndX + BAR_LABEL_GAP;
   const edge = canvasWidth - rightMargin;
   const finishW = dates.finish ? d2d.measureText(dates.finish).width : 0;
-  if (x + finishW > edge) {
-    if (!name) return;
-    d2d.font = m.font(9, bold);
-    fillLabelText(d2d, ellipsize(d2d, name, leftEnd - m.tableWidth), leftEnd, y, 'right', PRINT_COLORS.text);
-    return;
-  }
-  if (dates.finish) fillLabelText(d2d, dates.finish, x, y, 'left', PRINT_COLORS.textSecondary);
+  const finishFits = dates.finish !== '' && x + finishW <= edge;
+  if (finishFits) fillLabelText(d2d, dates.finish, x, y, 'left', PRINT_COLORS.textSecondary);
   if (!name) return;
-  const nameX = dates.finish ? x + finishW + BAR_DATE_GAP : x;
+  const nameX = finishFits ? x + finishW + BAR_DATE_GAP : x;
   d2d.font = m.font(9, bold);
-  fillLabelText(d2d, ellipsize(d2d, name, edge - nameX), nameX, y, 'left', PRINT_COLORS.text);
+  const label = ellipsize(d2d, name, edge - nameX);
+  if (label) fillLabelText(d2d, label, nameX, y, 'left', PRINT_COLORS.text);
 }
 
 /**
@@ -1397,10 +1430,36 @@ export function renderReport(
     if (reach.latest) { const d = parseDate(reach.latest); if (d > maxDate) maxDate = d; }
   }
 
+  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
+  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
+  // werkdag valt gecontroleerd terug op de gewone kalender-as).
+  const calEngine = new CalendarEngine(calendar);
+  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
+  // Calculate zoom: auto-fit or custom
+  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden.
+  const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
+  // Beschikbare chart-breedte over N papierbreedtes.
+  //
+  // `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
+  // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
+  // zet. Daardoor geldt voor N kolommen:
+  //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
+  //  ⇒  chartWidth = N·(printableWidth - tableWidth)
+  // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
+  // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
+  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
+  const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
+
   if (options.timeWindow) {
     // Tijdvenster: de as is precies het venster (einde exclusief, dus `to` + 1), zonder marge.
     minDate = parseDate(options.timeWindow.from);
     maxDate = addCalendarDays(parseDate(options.timeWindow.to), 1);
+  } else if (options.showBarDates) {
+    // Issue #868: de marge moet de begindatum links en de einddatum rechts kwijt kunnen, ook bij een
+    // jaarplanning die op het blad gepast wordt (dan is een week marge maar een paar px).
+    [minDate, maxDate] = padForBarDates(minDate, maxDate, barDateReservePx(m, options.columnWidths), (days) =>
+      (options.autoFit ? availableChartWidth / days : options.customZoom || 22),
+    resolveGanttAxis({ calendar: calEngine, compressNonWorkdays: compressed, origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0 }));
   } else {
     // Add padding days
     minDate = addCalendarDays(minDate, -7);
@@ -1409,11 +1468,6 @@ export function renderReport(
 
   const calendarDays = diffCalendarDays(minDate, maxDate);
 
-  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
-  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
-  // werkdag valt gecontroleerd terug op de gewone kalender-as).
-  const calEngine = new CalendarEngine(calendar);
-  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
   let measureAxis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
     origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
@@ -1432,21 +1486,6 @@ export function renderReport(
   const timelineDays = compressed
     ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
     : calendarDays;
-
-  // Calculate zoom: auto-fit or custom
-  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden.
-  const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
-  // Beschikbare chart-breedte over N papierbreedtes.
-  //
-  // `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
-  // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
-  // zet. Daardoor geldt voor N kolommen:
-  //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
-  //  ⇒  chartWidth = N·(printableWidth - tableWidth)
-  // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
-  // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
-  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
-  const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
 
   let zoom: number;
   if (options.autoFit && timelineDays > 0) {
@@ -1728,7 +1767,7 @@ export function renderReport(
     return {
       ...job,
       name: options.showTaskNames ? task.name : '',
-      ...(cells ? { dates: { start: milestone ? '' : cells.start, finish: cells.end } } : {}),
+      ...(cells ? { dates: { start: milestone ? '' : cells.start, finish: milestone ? (cells.end || cells.start) : cells.end } } : {}),
     };
   };
 

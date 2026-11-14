@@ -164,6 +164,50 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
   }
 }
 
+// ── Weinig ruimte rechts (review Sol #951): datums en naam overlappen nooit ──
+{
+  const span = (t: TextCall) => [t.x, t.x + t.text.length * CHAR_W] as const;
+  const overlap = (ts: TextCall[]) => ts.some((a, i) => ts.some((b, j) => j > i && span(a)[0] < span(b)[1] && span(b)[0] < span(a)[1]));
+  // 450 px: de einddatum past nog achter de balk, de naam niet helemaal.
+  const smal = render({ showBarDates: true, dateNotation: 'dmy', canvasWidth: 450 });
+  const rect = smal.renderer.getTaskBarRect('lang');
+  const r1 = inRow(smal.texts, 1);
+  const eind = r1.find(t => t.text === '09-01-2026');
+  const naam = r1.find(t => t.text.startsWith('Gevel'));
+  ok(`smal: einddatum blijft direct achter de balk (${fmt(r1)})`, rect !== null && eind !== undefined && near(eind.x, rect.right + OUTSIDE_GAP));
+  ok(`smal: naam afgekapt achter de einddatum (${fmt(r1)})`,
+    eind !== undefined && naam !== undefined && naam.text.endsWith('…') && near(naam.x, eind.x + eind.text.length * CHAR_W + DATE_GAP));
+  ok(`smal: niets overlapt (${fmt(r1)})`, !overlap(r1));
+  // Zo smal dat de einddatum niet past: die vervalt, en de naam schuift niet over de begindatum.
+  if (rect) {
+    const krap = render({ showBarDates: true, dateNotation: 'dmy', canvasWidth: Math.round(rect.right + OUTSIDE_GAP + 30) });
+    const k1 = inRow(krap.texts, 1);
+    const k0 = inRow(krap.texts, 0);
+    ok(`krap: geen einddatum (${fmt(k1)})`, !k1.some(t => t.text === '09-01-2026'));
+    ok(`krap: begindatum staat er nog (${fmt(k1)})`, k1.some(t => t.text === '05-01-2026'));
+    ok(`krap: naam niet links van de balk (${fmt(k1)})`, k1.filter(t => !/\d{2}-\d{2}-\d{4}/.test(t.text)).every(t => t.x >= rect.left));
+    ok(`krap: niets overlapt (${fmt(k1)})`, !overlap(k1));
+    ok(`krap: naam in de balk raakt geen einddatum (${fmt(k0)})`, !overlap(k0));
+  }
+}
+
+// ── Mijlpaal met alleen een start: die datum staat bij de ruit ──
+{
+  const losseStart: Task = { ...mijlpaal, time: { ...mijlpaal.time, scheduleFinish: '', earlyFinish: '', lateFinish: '' } } as Task;
+  const { ctx, texts } = makeCtx();
+  const st = S();
+  new GanttRenderer(ctx, {
+    rows: [{ kind: 'task', rowKey: losseStart.id, task: losseStart, depth: 0, dimmed: false }],
+    sequences: [], calendar: st.calendar,
+    view: { ...st.view, scrollX: 0, scrollY: 0, zoom: ZOOM, viewStartDate: VIEW_START },
+    selectedTaskIds: [], showStatusDateLine: false, showProgressLine: false,
+    canvasWidth: W, canvasHeight: H, rowHeight: ROWH, headerHeight: HDRH,
+    showBarDates: true, dateNotation: 'dmy',
+  }).render();
+  const r0 = inRow(texts, 0);
+  ok(`mijlpaal met alleen start: datum 09-01-2026 (${fmt(r0)})`, r0.some(t => t.text === '09-01-2026'));
+}
+
 // ── Andere Datumnotatie ──
 {
   const { texts } = render({ showBarDates: true, dateNotation: 'mdy' });
