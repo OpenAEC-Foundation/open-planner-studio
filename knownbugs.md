@@ -1929,20 +1929,6 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
-1552. **VERVOLG, gewone handeling: een kalender toevoegen weigert bij zes oude bronvormen.**
-     De nieuwe telling van #924 opent de bronnen met een wand en gebruikt `addCalendar` met een kopie van
-     de projectkalender. Los: `fixtures/b5-lopend-oude-writer.ifc`,
-     `oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc`, `fixtures/urenperdag-oude-writer.ifc` en
-     `fixtures/werkdag-einde-main-bibliotheek.ifc`. Gekoppeld aan een bestaande resource:
-     `oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc` en `fixtures/vast-werk-oude-writer.ifc`.
-     Alle zes schrijven zonder bewerking; de nieuwe handeling weigert `bronvorm-leest-anders`:
-     `kalender cal-…: ontbreekt na herlezen`. `sourceFormProblems` zoekt op het interne kalender-id,
-     vóór de canon; de identiteitsprojectie van PR 7b bereikt deze vergelijking dus niet. De precieze
-     teruggelezen kalenderinhoud is in deze telling niet vastgelegd. Richting: ook hier de bewezen
-     kalenderidentiteit gebruiken en alle waarden even streng blijven controleren. Niet gerepareerd
-     in PR 7b; bronvormcontrole en mergeWriter vallen buiten die opdracht. Gemeten via echte appacties,
-     zonder bytes. — B
-
 1553. **VERVOLG, gewone handeling: een baseline toevoegen weigert bij twee oude 7.12-bronnen.**
      `oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand` en de `…-ohara-…`-variant
      schrijven zonder bewerking; `saveBaseline` weigert `niet-gedragen` op property `#125` (`Baselines`),
@@ -1951,7 +1937,8 @@ en noem het in je rapport of PR-tekst.
      blijft daarom geweigerd, ook nadat PR 7b de baselinevelden aan de juiste handeling koppelt. Richting:
      de identiteitsomzetting per baselineregel bewijzen en onbekende JSON-inhoud behouden; geen algemene
      vrijstelling voor Baselines-JSON. Niet gerepareerd in PR 7b. Gemeten in de nieuwe telling van #924,
-     zonder bytes; geen zeldzame invoer genoemd, dit is een gewone baselinehandeling op de oude vorm. — B
+     zonder bytes; geen zeldzame invoer genoemd, dit is een gewone baselinehandeling op de oude vorm.
+     Eindlijst vóór de flag aan gaat; blijft liggen in fixronde 1 van #924. — B
 
 1146. **VERVOLG: de merge kopieert en bevriest de invoer voor de heropening twee keer.** `writeIfcMerge`
      (`src/services/ifc/foreign/mergeWriter.ts`, rond regel 816) kopieert en bevriest `parsed` vóór de vaste
