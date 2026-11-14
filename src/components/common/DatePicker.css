@@ -65,9 +65,8 @@
 }
 
 /* Vorige wijst naar het begin van de leesrichting, volgende naar het einde; in RTL gespiegeld. */
-.ops-date-picker__nav-icon.is-next { transform: scaleX(-1); }
-.ops-date-picker[dir="rtl"] .ops-date-picker__nav-icon.is-previous { transform: scaleX(-1); }
-.ops-date-picker[dir="rtl"] .ops-date-picker__nav-icon.is-next { transform: none; }
+/* In rtl staat de kalender gespiegeld: vorige maand rechts, met de punthaak naar rechts. */
+.ops-date-picker[dir="rtl"] .ops-date-picker__nav-icon { transform: scaleX(-1); }
 
 .ops-date-picker__grid {
   border-collapse: separate;

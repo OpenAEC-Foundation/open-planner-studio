@@ -27,9 +27,9 @@ import './DatePicker.css';
 
 /** Iconen van de kiezer, op één plek. */
 export const DATE_PICKER_ICONS = {
-  open: 'calendar.manage',
-  previous: 'nav.back',
-  next: 'nav.back',
+  open: 'input.date-picker',
+  previous: 'input.month-previous',
+  next: 'input.month-next',
 } as const satisfies Record<string, IconId>;
 
 /** Weekdagnamen uit de bestaande kalendervertalingen (ISO 1 = maandag … 7 = zondag), zoals de Gantt. */
