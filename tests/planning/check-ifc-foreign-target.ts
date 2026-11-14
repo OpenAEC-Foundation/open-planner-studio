@@ -1350,13 +1350,20 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     } finally { fileToolDeps.getFs = oldFs; }
     if (route === 'handle') {
       const createUrl = URL.createObjectURL, picker = win.showSaveFilePicker, opener = win.showOpenFilePicker;
+      // Een download die er toch komt, telt (en breekt de check niet af).
+      const doc = (globalThis as unknown as { document: Record<string, unknown> }).document;
+      const createElement = doc.createElement;
       let downloads = 0;
       URL.createObjectURL = () => { downloads++; return 'blob:9e'; };
+      doc.createElement = () => ({ click() {} });
       delete win.showSaveFilePicker; delete win.showOpenFilePicker;
       try {
         await S().saveFile(); await S().exportAs('ifc');
         eq(`${label}: de downloadroute weigert zonder vraag`, [downloads, questions], [0, beforeQuestions]);
-      } finally { URL.createObjectURL = createUrl; win.showSaveFilePicker = picker; win.showOpenFilePicker = opener; }
+      } finally {
+        URL.createObjectURL = createUrl; doc.createElement = createElement;
+        win.showSaveFilePicker = picker; win.showOpenFilePicker = opener;
+      }
     }
     store.setState(s => { s.filePath = null; s.fileHandle = null; s.siteFileId = null; s.siteFileVersion = null; });
     store = await restore(await tick(store)); S = () => store.getState();

@@ -1901,7 +1901,8 @@ en noem het in je rapport of PR-tekst.
      De backup bevat planning en een bronkenmerk, geen gebouwmodelbytes. De kleine stap 9d zet bij het openen
      met `ifcForeignContent` aan `sourceMissing` op dat kenmerk. PR 9e geeft in diezelfde toestand uitsluitend
      Opslaan als vrij na een bevestiging (Annuleren als standaard): alleen planning naar een ander doel,
-     met blijvende bescherming van het oorspronkelijke bestand. Alle andere IFC-routes blijven weigeren,
+     met bescherming van het oorspronkelijke bestand zolang dit document open is, ook na een crash (grens: 1595).
+     Alle andere IFC-routes blijven weigeren,
      met `notifications.ifcForeignSourceMissing`; export naar een ander formaat blijft mogelijk.
      Met de flag uit blijft de bestaande route gelijk: een andere naam mag planning zonder model schrijven.
      Beproefd via de echte backupdienst en openroute, met een echte `IFCWALL`, browserhandle en Tauri-pad;
@@ -2043,10 +2044,6 @@ en noem het in je rapport of PR-tekst.
      passende alternatief niet. PR 9e geeft bron ontbreekt de uitweg Opslaan als naar een nieuw bestand na bevestigen,
      voor crashherstel en geopende backups; de overige weigeringen blijven bij de lijst "Teksten voor de planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
 
-1558. **VERVOLG (#804, opruimen): de alias `type DocumentWrite = IfcOutput` in `fileSlice.ts` voegt niets toe.** Eén
-     regel in `src/state/slices/fileSlice.ts`; het type `IfcOutput` uit `src/state/prepareIfcOutput.ts` volstaat.
-     Gevonden door de review van #928. — B
-
 1593. **VERVOLG (#804, test): drie opslagscenario's staan nog niet blijvend in de klokproef.**
      `tests/planning/check-ifc-foreign-klok.ts` toetst een gewijzigde `modifiedAt`, een lege planstart en een baseline
      zonder eigen aanmaakdatum alleen op ongelijkheid van de canon, niet met daadwerkelijk schrijven en heropenen. De
@@ -2063,6 +2060,22 @@ en noem het in je rapport of PR-tekst.
      klok; dat doet `check-ifc-foreign-klok.ts`. Richting: bij een volgende wijziging van de telling ten minste één
      reeks met een lopende of verspringende klok opnemen, en de weigerreden per geval meevergelijken. Gevonden door de
      review van #934. — B
+
+1595. **VERVOLG (#804, gemaakt geval): na Opslaan als zonder gebouwmodel kent alleen het open document het oorspronkelijke bestand.**
+     PR 9e houdt het kenmerk na de bewuste opslag als doelbescherming (`sourceMissing: false`), ook na een crash en met
+     de flag uit. Het nieuwe bestand zelf en een latere MCP-backup van dat document dragen geen kenmerk (anders zou een
+     geopende backup met de flag aan weer "bron ontbreekt" worden). Wie in een nieuwe sessie het nieuwe bestand of zo'n
+     backup opent, de flag uitzet en Opslaan als over het oorspronkelijke bestand kiest, schrijft daar alleen planning
+     overheen, zoals main met elk gewoon document doet. Met de flag aan weigert de inhoudscontrole van het doel dit wel.
+     Alleen uit de code gelezen, niet gemeten. Richting: bij fase 2 of 9c beslissen of de bescherming met het bestand
+     mee moet. — S
+
+1596. **VERVOLG (#804, tekst): met de flag uit noemt de melding bij "bron ontbreekt" Opslaan als, dat dan weigert.**
+     `notifications.ifcForeignSourceMissing` zegt sinds PR 9e "Gebruik Opslaan als om alleen de planning in een nieuw
+     bestand te bewaren". Die uitweg bestaat alleen met `ifcForeignContent` aan. Een document met dat kenmerk ontstaat
+     alleen met de flag aan; zet iemand de flag uit tussen crash en herstel, dan weigert Opslaan als met dezelfde
+     melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
+     zin voor de flag uit. — S
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
