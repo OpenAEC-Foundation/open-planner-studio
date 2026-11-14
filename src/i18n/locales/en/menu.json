@@ -290,7 +290,23 @@
     "template": "Phasing template",
     "tmplEmpty": "Empty",
     "tmplWoningbouw": "Residential construction",
-    "tmplUtiliteit": "Commercial / renovation"
+    "tmplUtiliteit": "Commercial / renovation",
+    "phase": {
+      "siteGroundwork": "Site setup & groundwork",
+      "foundation": "Foundations",
+      "shell": "Structural shell",
+      "roof": "Roof",
+      "facadeFitOut": "Facade & fit-out",
+      "services": "Building services (MEP)",
+      "finishes": "Finishes",
+      "handover": "Handover",
+      "demolitionStripOut": "Demolition & strip-out",
+      "groundworkFoundation": "Groundwork & foundations",
+      "mainStructure": "Primary structure",
+      "facadeRoof": "Facade & roof",
+      "fitOut": "Fit-out",
+      "commissioning": "Commissioning & testing"
+    }
   },
   "status": {
     "tasks": "Tasks:",
