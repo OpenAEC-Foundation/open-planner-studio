@@ -138,6 +138,14 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
   await expect(picked).toHaveCount(1);
   await options.nth(5).click();
   await expect(picked).toHaveCount(2);
+  // Enter met de lijst open op een al aangevinkte treffer sluit alleen de lijst; pas de volgende
+  // Enter (of het vinkje) legt vast. Zo blijft er ruimte om type en lag in te stellen.
+  for (let i = 0; i < 3; i++) await search.press('ArrowDown');
+  await expect(options.nth(3)).toHaveAttribute('data-ops-dependency-highlighted', 'true');
+  await search.press('Enter');
+  await expect(options).toHaveCount(0);
+  await expect(picked).toHaveCount(2);
+  expect((await state(page)).sequences).toEqual(before.sequences);
   await draft.locator('.dependency-lag-field').fill('1d');
   await draft.locator('[data-ops-dependency-confirm]').click();
   await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
@@ -145,6 +153,21 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
     [extra(3), 1], [extra(5), 1],
   ]);
   expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
+
+  // Deels geweigerd: Extra werk 3 bestaat al, Extra werk 6 komt erbij. Het concept blijft staan met
+  // de weigering aangevinkt, en Ctrl+Z neemt de toevoeging terug (niet het typen in het zoekveld).
+  await add.click();
+  await search.pressSequentially('Extra werk 3');
+  await search.press('Enter');
+  await search.fill('Extra werk 6');
+  await search.press('Enter');
+  await search.press('Enter');
+  await expect.poll(() => state(page).then(s => s.sequences.map(q => q.predecessorId))).toEqual([extra(3), extra(5), extra(6)]);
+  await expect(draft).toBeVisible();
+  await expect(picked).toHaveCount(1);
+  await expect(picked).toHaveAttribute('data-ops-dependency-picked', extra(3));
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => state(page).then(s => s.sequences.map(q => q.predecessorId))).toEqual([extra(3), extra(5)]);
 });
 
 test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweigerd', async ({ page, ops: _ops }) => {

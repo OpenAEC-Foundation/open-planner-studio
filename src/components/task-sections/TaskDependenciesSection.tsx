@@ -122,6 +122,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   // de bevestiging — dezelfde vorm als `RelationTypePopover` op het canvas — zodat type en lag als
   // één undoable mutatie landen en Escape niets hoeft terug te draaien.
   const [draft, setDraft] = useState<RelationDraft | null>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
 
   // Zelfde reden als de spooktooltip hieronder: een selectiewissel (pijltoets, Ctrl+Z, AI) mag geen
   // half ingevulde conceptrij van de vórige taak laten staan — die zou bij bevestigen op de nieuwe
@@ -188,8 +189,11 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     // Alleen wat lukte valt weg: een weigering (duplicaat/voorouder/kring) meldt zichzelf via het
     // gecentraliseerde kanaal en blijft aangevinkt staan, zodat de keuze te corrigeren is.
     const refused = pickedTasks.filter((_task, index) => created[index] === null).map(task => task.id);
-    if (refused.length === 0) setDraft(null);
-    else setDraft(current => (current ? { ...current, picked: refused } : current));
+    if (refused.length === 0) { setDraft(null); return; }
+    setDraft(current => (current ? { ...current, picked: refused } : current));
+    // Kwam er iets bij, dan haalt Ctrl+Z dat terug. In het zoekveld zou Ctrl+Z alleen de tekst
+    // terugdraaien (een tekstveld houdt zijn eigen undo), dus de focus gaat naar het vinkje.
+    if (refused.length < pickedTasks.length) confirmRef.current?.focus();
   };
   const directionKey = draft?.direction === 'successor' ? 'Successors' : 'Predecessors';
   const confirmLabel = pickedTasks.length > 1
@@ -349,7 +353,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                     // Eerst kiezen, dan bevestigen: zolang de trefferlijst open staat betekent
                     // Enter "vink deze taak aan", daarna pas "leg de relaties vast".
                     const option = draft.listOpen ? options[draft.highlight] : undefined;
-                    if (option && !draft.picked.includes(option.taskId)) toggleOption(option, true);
+                    if (option) toggleOption(option, true);
                     else commitDraft();
                   }
                 }}
@@ -441,6 +445,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               title={confirmLabel}
               aria-label={confirmLabel}
               data-ops-dependency-confirm
+              ref={confirmRef}
               disabled={pickedTasks.length === 0}
               className="dependency-remove-button justify-self-center"
               style={{ color: pickedTasks.length > 0 ? ('var(--theme-text)') : 'var(--theme-text-muted)' }}
