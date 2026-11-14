@@ -1782,6 +1782,18 @@ en noem het in je rapport of PR-tekst.
      weigering `projectgegevens` vervalt; de onafhankelijke uitvoer-/herleestoets blijft gelden. De extra
      flag-uit-pariteitsproef heeft een vaste verwachting uit main 4e01894d7 met een eerste OTHER-eigenaar.
      Uit #867, smal hersteld op de bytes-route in #804 fase 1c PR 5 (GPT-6.1-Sol via Codex). — B
+1139. **VERVOLG (#804, opruimen): auteur en bedrijf uit `OPS_ProjectSettings` worden gelezen via alle property sets.**
+     Sinds #921 doorloopt `extractProject` (`ifcReader.ts`) op de bytes-route alle `IFCPROPERTYSET`-entiteiten met de naam
+     `OPS_ProjectSettings`; de oude plek in `extractStructure` volgde de gekoppelde sets via `propertySetRelations`, in
+     relatievolgorde. Een losse set wordt nu dus ook gelezen, en bij meer sets kan de volgorde van toekennen anders
+     zijn. Geen gewoon faalgeval vastgesteld. Richting: op de nieuwe plek de bestaande relatie-index gebruiken, zodat
+     er één leesplek en één propertieslus is. Twee toelichtingen beschrijven nog de oude verdeling: bij
+     `extractStructure` ("vier projectvelden") en in `ifcWriter.ts` bij het schrijven van die properties. Gevonden door
+     de review van #921. — B
+1144. **VERVOLG (#804, opruimen): ongebruikte boekhouding na het vervallen van de weigering `projectgegevens`.**
+     `sourceOwnerHistory` en `projectWritten` in `lossCheck.ts` worden sinds #921 niet meer gebruikt; `mergeWriter.ts`
+     berekent en geeft de eerste nog door, met `firstP`. Richting: de twee invoervelden, het retourveld en de
+     berekening verwijderen; er hoeft niets voor terug te komen. Gevonden door de review van #921. — B
 
 1023. **VERVOLG: zonder model veranderen de hulp-GlobalIds bij de eerste opslag na openen.** De gewone writer
      leidt de GlobalId van de resource-pset en haar `IfcRelDefinesByProperties` af van `res.id`
