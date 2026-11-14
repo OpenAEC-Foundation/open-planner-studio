@@ -49,6 +49,10 @@ export async function readRecoveryDocument(
   // Het manifest geeft een vreemd document nooit een schrijfdoel. Alleen na bewezen bronherstel
   // krijgt deze versie het lokale doel terug; site/download zonder handle volgen in 9b.
   snapshot.filePath = null; snapshot.siteFileId = null; snapshot.siteFileVersion = null;
+  // De manifesthash is actueel, ook als de planningstekst sinds een broncommit niet opnieuw
+  // geserialiseerd is. De bytes van die planningstekst zijn zelf nooit de volledige bron.
+  snapshot.recoveryForeignSource = { sha256: document.ifcSource.sha256, byteLength: document.ifcSource.byteLength };
+  delete snapshot.ifcSource;
   try {
     const reference = document.ifcSource;
     const path = document.foreignSource?.filePath;

@@ -10,9 +10,10 @@ import { installDeterminism } from './ifcPariteitKern';
 import { installNodeFileIpc } from './nodeFileIpc';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { mergeProblems, openForeign } from './ifcMergeKern';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
-import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
+import { loadRecovery, clearRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { recoverySnapshotInput } from '@/services/recovery/recoverySnapshotInput';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -103,6 +104,15 @@ const resourceGuid = (d: typeof reopenedFirst) => {
 };
 assert(resourceGuid(reopenedFirst));
 assert.equal(resourceGuid(reopenedSecond), resourceGuid(reopenedFirst), 'geen nieuwe GlobalId voor de opgeslagen resource');
+const rootGuids = (data: Uint8Array) => {
+  const index = scanForeignStep(data), guids: string[] = [];
+  for (let c = 0; c < index.count; c++) {
+    const args = index.argTokens(c);
+    if (args && args.length >= 5 && /^'[0-9A-Za-z_$]{22}'$/.test(args[0]) && /^#\d+$/.test(args[1])) guids.push(index.globalId(c));
+  }
+  return guids.sort();
+};
+assert.deepEqual(rootGuids(second), rootGuids(first), 'alle bestaande objecten, ook hulpobjecten, behouden hun GlobalId');
 assert.deepEqual(mergeProblems(first, second), [], 'vreemde verwijzingen en bytes intact');
 console.log('PROEF 2 GROEN: twee bewerkingen, volledig heropenen, dezelfde GlobalId; geen idExceptions.');
 assert(idb.store('records').size > 0);
@@ -167,6 +177,10 @@ for (const kind of ['gewijzigd', 'weg', 'verkeerde-grootte'] as const) {
   assert.equal(missing!.getState().filePath, null, kind);
   assert.equal(missing!.getState().fileHandle, null);
   await noWrites(missing!);
+  const repeat = await restore(await tick(missing!));
+  assert.equal(repeat.getState().foreignSourceMark?.sourceMissing, true, 'ook na een tweede crash blijft de ontbrekende bron geblokkeerd');
+  assert.equal(repeat.getState().filePath, null);
+  await noWrites(repeat);
 }
 writeFileSync(path, bytes);
 console.log('PROEF 3 GROEN: gewist, één byte anders en andere grootte: bron ontbreekt, doel weg, nul writes.');
@@ -268,13 +282,17 @@ try {
 } finally { Object.defineProperty(globalThis, 'window', prior); }
 
 // Manifestpariteit bij flag uit en flag aan zonder vreemd deel, op dezelfde invoer/generatie.
+const mixedSnapshot = (await loadRecovery()).docs.find(d => d.id === foreignId)!.ifc;
 const parity = [];
 for (const enabled of [false, true]) {
   const docs = (enabled ? normal : mixed).getState().getOpenDocumentPayloads()
     .map(({ id, payload }) => recoverySourceDocument(id, payload, enabled));
   const save = new RecoveryDeltaTracker().prepare(docs[0].id, docs, source => writeIFC(recoverySnapshotInput(source).input))!;
   assert(save.documents.every(d => !('ifcSource' in d)));
-  parity.push({ input: save, plan: planTauriV3RecoverySave(null, save, 'pariteit', ownRecoveryNames) });
+  await clearRecovery(); await saveRecovery(save);
+  const webManifest = [...idb.store('records').values()].find(r => r && typeof r === 'object' && Reflect.get(r, 'kind') === 'manifest');
+  assert(webManifest);
+  parity.push({ input: save, plan: planTauriV3RecoverySave(null, save, 'pariteit', ownRecoveryNames), webManifest });
 }
 writeFileSync(join(evidenceDir, 'main-input.json'), JSON.stringify({ records, foreignId, ordinaryId, path,
   disk: [...tauriDisk].map(([path, bytes]) => [path, Buffer.from(bytes).toString('base64')]), parity,
@@ -282,7 +300,7 @@ writeFileSync(join(evidenceDir, 'main-input.json'), JSON.stringify({ records, fo
 console.log('PROEF 6c GROEN: v5 + documentcontrole, vreemde documentdoelen leeg; basisinput geschreven.');
 
 // Geen bytes van het model in snapshot, Worker-invoer, manifest of herstelrecords.
-const snapshot = (await loadRecovery()).docs.find(d => d.id === foreignId)!.ifc;
+const snapshot = mixedSnapshot;
 assert(!snapshot.includes('IFCWALL('));
 assert(!JSON.stringify(recoverySnapshotInput(mixed.getState().getOpenDocumentPayloads().find(d => d.id === foreignId)!.payload)).includes('IFCWALL('));
 assert(!JSON.stringify(manifest).includes('IFCWALL('));
