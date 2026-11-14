@@ -286,7 +286,7 @@ const editGroup: RibbonGroupSpec = {
       ],
     },
     {
-      // Opheffen (issue #887) naast Verwijderen: dezelfde selectie, maar de keten blijft heel.
+      // Dissolve (issue #887) naast Verwijderen: dezelfde selectie, maar de keten blijft heel.
       // Alleen een lintknop en een menu-item, geen sneltoets; daarom niet in `COMMANDS`.
       kind: 'stack', id: 'editStack2', items: [
         {

@@ -1,4 +1,4 @@
-// Opheffen (Dissolve, issue #887): een taak gaat weg en de keten blijft heel.
+// Dissolve (issue #887): een taak gaat weg en de keten blijft heel.
 //
 // Eigenaarsbesluit 2026-11-14: A → B → C wordt A → C, en elke nieuwe relatie is einde-begin
 // zonder vertraging, van elke voorganger naar elke opvolger. Wat weggaat volgt Verwijderen
@@ -23,12 +23,12 @@ export interface DissolvePlan {
 }
 
 /**
- * Bepaal wat Opheffen van `rootIds` doet, op de bevroren state.
+ * Bepaal wat Dissolve op `rootIds` doet, op de bevroren state.
  *
  * Een samenvattingstaak met zijn tak telt als één blok: elke voorganger van buiten de tak (naar
- * de kopregel of naar een kind) gaat naar elke opvolger buiten de tak. Opgeheven taken die
+ * de kopregel of naar een kind) gaat naar elke opvolger buiten de tak. Weggehaalde taken die
  * onderling gekoppeld zijn worden doorlopen, zodat A → B → C → D met B en C samen A → D geeft.
- * Losse opgeheven taken worden niet aan elkaar geknoopt: B en D in A → B → C → D → E geeft
+ * Losse weggehaalde taken worden niet aan elkaar geknoopt: B en D in A → B → C → D → E geeft
  * A → C en C → E, niet A → E.
  *
  * Een einde-begin die tussen voorganger en opvolger al bestaat blijft zoals ze is en geldt niet
@@ -46,7 +46,7 @@ export function planDissolve(
 
   // Stand "de hele fase" (`ui.dissolveSummaryMode`): de tak gaat weg zoals bij Verwijderen en telt
   // als één blok. Elk weggaand id hoort bij het blok van zijn hoogste weggaande voorouder. In de
-  // stand "alleen de kopregel" heeft de store-actie de kopregels al met `headerTransfers` opgeheven.
+  // stand "alleen de kopregel" heeft de store-actie de kopregels al met `headerTransfers` weggehaald.
   const blockOf = (id: string): string => {
     let current = id;
     for (;;) {
@@ -94,7 +94,7 @@ export function planDissolve(
   const name = (id: string) => byId.get(id)?.name ?? '?';
 
   for (const [block, predecessors] of into) {
-    // Alle opvolgers die je vanuit dit blok via opgeheven taken bereikt.
+    // Alle opvolgers die je vanuit dit blok via weggehaalde taken bereikt.
     const successors: string[] = [];
     const seen = new Set<string>();
     const stack = [block];
@@ -128,7 +128,7 @@ export function planDissolve(
 /**
  * Bestaande relatie tussen voorganger en opvolger (eigenaarsbesluit 2026-11-14): alleen een
  * einde-begin telt als "al gekoppeld"; die blijft zoals ze is, met haar vertraging. Een relatie van
- * een andere soort blijft ook staan en de einde-begin komt ernaast, want via de opgeheven taak moest
+ * een andere soort blijft ook staan en de einde-begin komt ernaast, want via de weggehaalde taak moest
  * de opvolger wachten tot de voorganger klaar was.
  */
 function alreadyLinked(sequences: readonly Sequence[], predecessorId: string, successorId: string): boolean {

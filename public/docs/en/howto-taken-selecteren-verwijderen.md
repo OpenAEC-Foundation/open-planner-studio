@@ -31,20 +31,20 @@ The app asks for no confirmation. If you delete several tasks at once, that is o
 
 What disappears with them: all subtasks of a deleted summary task, all relations from and to the deleted tasks, and their resource assignments. If you delete the last subtask of a summary task, it stays behind as an ordinary task. If *WBS auto* is on, the app renumbers the tree. The schedule is out of date afterwards: press **Calculate** (F5), unless *Calculate automatically* is on.
 
-### Dissolving tasks and keeping the chain
+### Dissolve: removing tasks and keeping the chain
 
-Dissolve removes a task like Delete does, but the chain stays intact: the task's predecessors are linked directly to its successors. So dissolving B in A → B → C gives A → C.
+*Dissolve* removes a task like Delete does, but the chain stays intact: the task's predecessors are linked directly to its successors. So *Dissolve* on B in A → B → C gives A → C.
 
 Select the tasks and choose *Home › Edit › Dissolve* (also on the *Table* tab), or *Dissolve (keep chain)* in the right-click menu. The right-click menu follows the same rule as *Delete*: if the task you clicked is part of the selection, it applies to the whole selection.
 
 - Every predecessor gets a relation to every successor, always finish-to-start without lag. The type and lag of the old relations do not count.
-- If you dissolve tasks that are linked to each other, the chain runs through them: dissolving B and C together in A → B → C → D gives A → D.
+- If you use *Dissolve* on tasks that are linked to each other, the chain runs through them: *Dissolve* on B and C together in A → B → C → D gives A → D.
 - If a finish-to-start relation already exists between predecessor and successor, it stays as it is, lag included. A relation of another type stays as well; the new finish-to-start is added next to it.
-- If you dissolve a summary task, its subtasks go with it by default, just as with deleting. The phase counts as one block: every predecessor from outside the phase (of the phase itself or of a subtask) goes to every successor outside the phase.
-- To keep the subtasks, set *Dissolving a summary task* to *Only the summary row* in the settings (*Planning* tab). Then only the summary task goes: its subtasks move up one level, into its place. Its own relations move to the first and last subtasks (those without a predecessor or successor inside the phase), with their type and lag.
-- Assignments of the dissolved tasks go with them. Dissolving is one step for *Undo*, also for a whole selection. The schedule is out of date afterwards: press **Calculate** (F5).
+- If you use *Dissolve* on a summary task, its subtasks go with it by default, just as with deleting. The phase counts as one block: every predecessor from outside the phase (of the phase itself or of a subtask) goes to every successor outside the phase.
+- To keep the subtasks, set *Dissolve on a summary task* to *Only the summary row* in the settings (*Planning* tab). Then only the summary task goes: its subtasks move up one level, into its place. Its own relations move to the first and last subtasks (those without a predecessor or successor inside the phase), with their type and lag.
+- Assignments of the removed tasks go with them. *Dissolve* is one step for *Undo*, also for a whole selection. The schedule is out of date afterwards: press **Calculate** (F5).
 
-If a new relation would create a loop or link a task to its own summary task, the app leaves out that one relation. The tasks are still dissolved, and a notification names the relations that were not created.
+If a new relation would create a loop or link a task to its own summary task, the app leaves out that one relation. The tasks are still removed, and a notification names the relations that were not created.
 
 ### Collapsing and expanding
 

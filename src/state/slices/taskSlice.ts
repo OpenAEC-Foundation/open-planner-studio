@@ -419,7 +419,7 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
 }
 
 /**
- * Opheffen in de stand "alleen de kopregel" (issue #887, eigenaarsbesluit 2026-11-14): de
+ * Dissolve in de stand "alleen de kopregel" (issue #887, eigenaarsbesluit 2026-11-14): de
  * subtaken van `id` schuiven een niveau omhoog, op de plek van de kopregel en in hun volgorde
  * (dezelfde plaatsing als uitspringen), de kopregel gaat weg, en haar relaties gaan over naar de
  * begin- en eindsubtaken (`headerTransfers`). Een overgezette relatie die er al is vervalt stil;

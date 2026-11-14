@@ -31,20 +31,20 @@ De app vraagt niets om te bevestigen. Verwijder je meer taken tegelijk, dan is d
 
 Wat er mee verdwijnt: alle subtaken van een verwijderde samenvattingstaak, alle relaties van en naar de verwijderde taken, en hun resource-toewijzingen. Verwijder je de laatste subtaak van een samenvattingstaak, dan blijft die als gewone taak over. Staat *WBS auto* aan, dan nummert de app de boom opnieuw. De planning is daarna verouderd: druk op **Bereken** (F5), tenzij *Automatisch berekenen* aan staat.
 
-### Taken opheffen en de keten behouden
+### Dissolve: taken weghalen en de keten behouden
 
-Opheffen haalt een taak weg zoals Verwijderen, maar de keten blijft heel: de voorgangers van de taak worden direct aan haar opvolgers gekoppeld. Uit A → B → C wordt bij het opheffen van B dus A → C.
+*Dissolve* haalt een taak weg zoals Verwijderen, maar de keten blijft heel: de voorgangers van de taak worden direct aan haar opvolgers gekoppeld. Uit A → B → C wordt met *Dissolve* op B dus A → C.
 
-Selecteer de taken en kies *Start › Bewerken › Opheffen* (ook op het tabblad *Tabel*), of *Opheffen (keten behouden)* in het rechtermuismenu. Het rechtermuismenu volgt dezelfde regel als *Verwijderen*: zit de aangeklikte taak in de selectie, dan geldt het voor de hele selectie.
+Selecteer de taken en kies *Start › Bewerken › Dissolve* (ook op het tabblad *Tabel*), of *Dissolve (keten behouden)* in het rechtermuismenu. Het rechtermuismenu volgt dezelfde regel als *Verwijderen*: zit de aangeklikte taak in de selectie, dan geldt het voor de hele selectie.
 
 - Elke voorganger krijgt een relatie naar elke opvolger, altijd einde-begin zonder vertraging. Welk type en welke vertraging de oude relaties hadden, telt niet mee.
-- Hef je taken op die aan elkaar vastzitten, dan loopt de keten erdoorheen: uit A → B → C → D wordt bij het opheffen van B en C samen A → D.
+- Gebruik je *Dissolve* op taken die aan elkaar vastzitten, dan loopt de keten erdoorheen: uit A → B → C → D wordt met *Dissolve* op B en C samen A → D.
 - Bestaat er tussen voorganger en opvolger al een einde-begin-relatie, dan blijft die zoals ze is, ook met haar vertraging. Een relatie van een ander type blijft ook staan; de nieuwe einde-begin komt ernaast.
-- Hef je een samenvattingstaak op, dan gaan haar subtaken standaard mee, net als bij verwijderen. De fase telt als één blok: elke voorganger van buiten de fase (van de fase zelf of van een subtaak) gaat naar elke opvolger buiten de fase.
-- Wil je de subtaken houden, zet dan in de instellingen (tabblad *Planning*) *Opheffen van een samenvattingstaak* op *Alleen de kopregel*. Dan gaat alleen de samenvattingstaak weg: haar subtaken schuiven een niveau omhoog, op haar plek. Haar eigen relaties gaan over naar de eerste en laatste subtaken (zonder voorganger of opvolger binnen de fase), met hun type en vertraging.
-- Toewijzingen van de opgeheven taken gaan mee weg. Opheffen is één stap voor *Ongedaan*, ook voor een hele selectie. De planning is daarna verouderd: druk op **Bereken** (F5).
+- Gebruik je *Dissolve* op een samenvattingstaak, dan gaan haar subtaken standaard mee, net als bij verwijderen. De fase telt als één blok: elke voorganger van buiten de fase (van de fase zelf of van een subtaak) gaat naar elke opvolger buiten de fase.
+- Wil je de subtaken houden, zet dan in de instellingen (tabblad *Planning*) *Dissolve op een samenvattingstaak* op *Alleen de kopregel*. Dan gaat alleen de samenvattingstaak weg: haar subtaken schuiven een niveau omhoog, op haar plek. Haar eigen relaties gaan over naar de eerste en laatste subtaken (zonder voorganger of opvolger binnen de fase), met hun type en vertraging.
+- Toewijzingen van de weggehaalde taken gaan mee weg. *Dissolve* is één stap voor *Ongedaan*, ook voor een hele selectie. De planning is daarna verouderd: druk op **Bereken** (F5).
 
-Zou een nieuwe relatie een kring maken of een taak aan haar eigen samenvattingstaak koppelen, dan laat de app die ene relatie weg. De taken worden wel opgeheven, en een melding noemt de relaties die niet zijn aangemaakt.
+Zou een nieuwe relatie een kring maken of een taak aan haar eigen samenvattingstaak koppelen, dan laat de app die ene relatie weg. De taken gaan wel weg, en een melding noemt de relaties die niet zijn aangemaakt.
 
 ### In- en uitklappen
 
@@ -67,7 +67,7 @@ Onder *Ongedaan* vallen wijzigingen in je projectgegevens (taken, relaties, reso
 
 **Wat niet terugkomt.** De selectie, in- en uitklappen en de knop *Wissen* in de strook *Niet beschikbaar tijdens filteren/groeperen/sorteren* staan niet in *Ongedaan*. Druk je na *Wissen* op Ctrl+Z, dan draai je dus je vorige stap terug, niet het wissen.
 
-**Een taak weghalen waar andere taken aan vastzitten.** De relaties van en naar die taak verdwijnen ook. Taken die alleen daaraan vastzaten, hangen dan los en beginnen na **Bereken** weer op hun eigen geplande start. Wil je de keten houden, kies dan *Opheffen* in plaats van *Verwijder*. Of leg zelf nieuwe relaties, zie [Relaties leggen](docs://howto-relaties-leggen).
+**Een taak weghalen waar andere taken aan vastzitten.** De relaties van en naar die taak verdwijnen ook. Taken die alleen daaraan vastzaten, hangen dan los en beginnen na **Bereken** weer op hun eigen geplande start. Wil je de keten houden, kies dan *Dissolve* in plaats van *Verwijder*. Of leg zelf nieuwe relaties, zie [Relaties leggen](docs://howto-relaties-leggen).
 
 ## Zie ook
 

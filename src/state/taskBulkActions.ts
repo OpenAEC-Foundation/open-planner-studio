@@ -17,7 +17,7 @@ export interface TaskBulkActions {
     run: (state: AppState, id: string) => void,
   ): void;
   deleteTasksBulk(ids: readonly string[]): void;
-  /** Opheffen (issue #887): als verwijderen, maar elke voorganger gaat naar elke opvolger. */
+  /** Dissolve (issue #887): als verwijderen, maar elke voorganger gaat naar elke opvolger. */
   dissolveTasksBulk(ids: readonly string[]): void;
 }
 

@@ -85,7 +85,7 @@ export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
 
-/** Opheffen van een samenvattingstaak (issue #887): de hele fase met subtaken, of alleen de kopregel. */
+/** Dissolve op een samenvattingstaak (issue #887): de hele fase met subtaken, of alleen de kopregel. */
 export type DissolveSummaryMode = 'branch' | 'header';
 export const DISSOLVE_SUMMARY_MODES: DissolveSummaryMode[] = ['branch', 'header'];
 
@@ -834,7 +834,7 @@ export interface UIState {
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
-  dissolveSummaryMode: DissolveSummaryMode;  // persisted — Opheffen van een samenvattingstaak (default 'branch')
+  dissolveSummaryMode: DissolveSummaryMode;  // persisted — Dissolve op een samenvattingstaak (default 'branch')
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT

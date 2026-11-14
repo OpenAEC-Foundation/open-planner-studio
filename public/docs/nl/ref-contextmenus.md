@@ -47,7 +47,7 @@ De items staan in deze volgorde. Een lijn tussen groepen is een scheidingslijn i
 
 **Inklappen**, **Uitklappen** en **Bewaar tak als sjabloon** — alleen bij een samenvattingstaak. *Inklappen* en *Uitklappen* staan er altijd allebei, ook als de taak al in- of uitgeklapt is, en gelden voor het hele bereik. *Bewaar tak als sjabloon* bewaart de taak met haar subtaken en de relaties daartussen als WBS-sjabloon. Zie [WBS-sjablonen](docs://howto-wbs-sjablonen).
 
-**Opheffen (keten behouden)** — verwijdert de taken van het bereik zoals *Verwijderen*, en koppelt elke voorganger einde-begin aan elke opvolger, zodat de keten heel blijft. Zie [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen).
+**Dissolve (keten behouden)** — verwijdert de taken van het bereik zoals *Verwijderen*, en koppelt elke voorganger einde-begin aan elke opvolger, zodat de keten heel blijft. Zie [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen).
 
 **Verwijderen** — verwijdert de taken van het bereik, met hun subtaken. Er is geen bevestiging; je haalt het terug met Ctrl+Z, één stap voor het hele bereik. Zie [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen).
 

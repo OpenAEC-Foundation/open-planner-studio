@@ -1,8 +1,8 @@
-// Opheffen (Dissolve, issue #887) — headless tegen de echte store.
+// Dissolve (issue #887) — headless tegen de echte store.
 //
-// Eigenaarsbesluit 2026-11-14: Opheffen staat naast Verwijderen. De taak gaat weg en de keten
+// Eigenaarsbesluit 2026-11-14: Dissolve staat naast Verwijderen. De taak gaat weg en de keten
 // blijft heel: A → B → C wordt A → C. De nieuwe relatie is altijd einde-begin zonder vertraging,
-// van elke voorganger naar elke opvolger. Verder volgt Opheffen Verwijderen: toewijzingen gaan mee
+// van elke voorganger naar elke opvolger. Verder volgt Dissolve Verwijderen: toewijzingen gaan mee
 // weg, een samenvattingstaak neemt zijn hele tak mee, en één Ctrl+Z zet alles terug.
 //
 // Draait via run.sh. Exit 0 = alles groen.
@@ -180,7 +180,7 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
 
 // ── 9) een brug die een kring zou sluiten: weigering, de rest gaat door ───
 {
-  // Fase F met losse kinderen B1 en B2: X → B1, B2 → Y en Y → X is geen kring. Als blok opgeheven
+  // Fase F met losse kinderen B1 en B2: X → B1, B2 → Y en Y → X is geen kring. Met Dissolve als blok
   // zou X → Y er wel een sluiten; die brug komt er niet, B2 → Z wel.
   const ids = plan(['X', 'Y', 'Z', 'F', 'B1', 'B2']);
   S().moveTask(ids.B1, ids.F, 0);
@@ -239,7 +239,7 @@ S().setUI({ dissolveSummaryMode: 'header' });
 }
 {
   // Een fase op het hoogste niveau, een subfase als begin- en eindsubtaak, en een gewone taak in
-  // dezelfde selectie: die laatste wordt gewoon opgeheven.
+  // dezelfde selectie: die laatste krijgt gewoon Dissolve.
   const ids = plan(['A', 'F', 'S', 'S1', 'X', 'C', 'D']);
   S().moveTask(ids.S, ids.F, 0);
   S().moveTask(ids.S1, ids.S, 0);
@@ -283,15 +283,15 @@ S().setUI({ dissolveSummaryMode: 'branch' });
 {
   const groups: RibbonGroupSpec[] = Object.values(RIBBON_TABS).flat();
   const ids = JSON.stringify(groups.filter(g => g.id === 'edit'));
-  eq('30 lint: Opheffen in de groep Bewerken', ids.includes('"dissolve"'), true);
+  eq('30 lint: Dissolve in de groep Bewerken', ids.includes('"dissolve"'), true);
   const ribbon = fs.readFileSync(path.join(process.cwd(), 'src/components/layout/Ribbon/ribbonConfig.tsx'), 'utf8');
   eq('30b lintknop: uit zonder selectie, heft de selectie op',
     /disabled: !hasSelection,\s*onClick: \(\) => \{\s*const s = useAppStore\.getState\(\);\s*s\.dissolveTasksBulk\(s\.selectedTaskIds\)/.test(ribbon), true);
   const menu = fs.readFileSync(path.join(process.cwd(), 'src/components/canvas/ContextMenu.tsx'), 'utf8');
-  eq('31 rechtsklikmenu kent Opheffen', /context\.dissolve/.test(menu) && /onDissolve/.test(menu), true);
+  eq('31 rechtsklikmenu kent Dissolve', /context\.dissolve/.test(menu) && /onDissolve/.test(menu), true);
   for (const file of ['src/components/canvas/GanttCanvas.tsx', 'src/components/task-grid/FullTaskGrid.tsx']) {
     const src = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
-    eq(`32 ${file} hangt Opheffen aan de gedeelde route`, /contextMenuBulk\.dissolve/.test(src), true);
+    eq(`32 ${file} hangt Dissolve aan de gedeelde route`, /contextMenuBulk\.dissolve/.test(src), true);
   }
 }
 
