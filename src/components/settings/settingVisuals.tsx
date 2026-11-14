@@ -12,6 +12,7 @@ import { formatClock } from '@/utils/displayTime';
 import { durationSuffixesFrom, formatMeasuredDurationText, type MeasuredDuration } from '@/utils/taskDuration';
 import type { DurationDisplay } from '@/types/view';
 import { Icon } from '@/components/icons';
+import { DOC_PALETTE } from '@/utils/documents';
 import './settingVisuals.css';
 
 /** Een balk in procenten van de breedte van zijn spoor. */
@@ -46,34 +47,59 @@ export function ThemeSwatches({ theme }: { theme: ResolvedUITheme }) {
 
 // --- Documentwissel-stijl ------------------------------------------------------------------------
 
-/** Een venster met titelbalk en lint; de stijl bepaalt waar de geopende projecten staan. */
+/** Drie open projecten in hun documentkleur; het laatste is actief. */
+const DOC_COLORS = [DOC_PALETTE[3], DOC_PALETTE[1], DOC_PALETTE[4]];
+
+/** Een naam als streepje: het plaatje gaat over waar de wisselaar staat, niet over de tekst. */
+const Name = ({ width }: { width: number }) => <span className="sv-name" style={{ width }} />;
+
+/**
+ * Een venster waarin alleen de wisselaar scherp staat, zoals hij er in de app uitziet: tabbladen in
+ * een eigen balk onder het lint, een kolom met projectblokjes links, of een pil in de titelbalk. De
+ * rest van het venster is gedimd en leeg, zodat het oog naar de wisselaar gaat.
+ */
 export function DocumentChromeVisual({ value }: { value: string }) {
+  const active = DOC_COLORS.length - 1;
   return (
-    <Frame className="sv-window">
+    <Frame className={`sv-window sv-chrome-${value}`}>
       <div className="sv-titlebar">
-        <span className="sv-dots" />
-        {value === 'switcher' && <span className="sv-pill sv-accent-outline" />}
+        <span className="sv-dots sv-dim" />
+        {value === 'switcher' && (
+          <span className="sv-switcher">
+            <span className="sv-docdot" style={{ background: DOC_COLORS[active] }} />
+            <Name width={24} />
+            <span className="sv-chevron" />
+            <span className="sv-count">3</span>
+          </span>
+        )}
       </div>
-      <div className="sv-ribbon" />
+      <div className="sv-ribbon sv-dim" />
       {value === 'tabs' && (
         <div className="sv-doctabs">
-          <span className="sv-doctab is-active" />
-          <span className="sv-doctab" />
-          <span className="sv-doctab" />
+          <span className="sv-overview" />
+          {DOC_COLORS.map((color, i) => (
+            <span key={color} className={`sv-doctab${i === active ? ' is-active' : ''}`}
+              style={i === active ? { borderBottomColor: color } : undefined}>
+              <span className="sv-docdot" style={{ background: color }} />
+              <Name width={i === 0 ? 20 : 14} />
+              <span className="sv-close" />
+            </span>
+          ))}
+          <span className="sv-plus" />
         </div>
       )}
       <div className="sv-window-body">
         {value === 'rail' && (
           <div className="sv-docrail">
-            <span className="is-active" />
-            <span />
-            <span />
+            <span className="sv-overview" />
+            {DOC_COLORS.map((color, i) => (
+              <span key={color} className={`sv-railcard${i === active ? ' is-active' : ''}`}
+                style={i === active ? { background: color } : undefined} />
+            ))}
           </div>
         )}
-        <div className="sv-tracks">
-          <div className="sv-track"><Bar from={6} to={46} /></div>
-          <div className="sv-track"><Bar from={30} to={78} /></div>
-          <div className="sv-track"><Bar from={52} to={94} /></div>
+        <div className="sv-workspace sv-dim">
+          <span /><span /><span />
         </div>
       </div>
     </Frame>
