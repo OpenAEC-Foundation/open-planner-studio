@@ -40,7 +40,8 @@ Selecteer de taken en kies *Start › Bewerken › Opheffen* (ook op het tabblad
 - Elke voorganger krijgt een relatie naar elke opvolger, altijd einde-begin zonder vertraging. Welk type en welke vertraging de oude relaties hadden, telt niet mee.
 - Hef je taken op die aan elkaar vastzitten, dan loopt de keten erdoorheen: uit A → B → C → D wordt bij het opheffen van B en C samen A → D.
 - Bestaat er tussen voorganger en opvolger al een einde-begin-relatie, dan blijft die zoals ze is, ook met haar vertraging. Een relatie van een ander type blijft ook staan; de nieuwe einde-begin komt ernaast.
-- Hef je een samenvattingstaak op, dan gaan haar subtaken mee, net als bij verwijderen. De fase telt als één blok: elke voorganger van buiten de fase (van de fase zelf of van een subtaak) gaat naar elke opvolger buiten de fase.
+- Hef je een samenvattingstaak op, dan gaan haar subtaken standaard mee, net als bij verwijderen. De fase telt als één blok: elke voorganger van buiten de fase (van de fase zelf of van een subtaak) gaat naar elke opvolger buiten de fase.
+- Wil je de subtaken houden, zet dan in de instellingen (tabblad *Planning*) *Opheffen van een samenvattingstaak* op *Alleen de kopregel*. Dan gaat alleen de samenvattingstaak weg: haar subtaken schuiven een niveau omhoog, op haar plek. Haar eigen relaties gaan over naar de eerste en laatste subtaken (zonder voorganger of opvolger binnen de fase), met hun type en vertraging.
 - Toewijzingen van de opgeheven taken gaan mee weg. Opheffen is één stap voor *Ongedaan*, ook voor een hele selectie. De planning is daarna verouderd: druk op **Bereken** (F5).
 
 Zou een nieuwe relatie een kring maken of een taak aan haar eigen samenvattingstaak koppelen, dan laat de app die ene relatie weg. De taken worden wel opgeheven, en een melding noemt de relaties die niet zijn aangemaakt.

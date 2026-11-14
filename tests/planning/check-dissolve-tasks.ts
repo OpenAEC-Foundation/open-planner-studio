@@ -13,6 +13,7 @@ import { useAppStore } from '@/state/appStore';
 import { contextMenuBulk } from '@/components/canvas/contextMenuScope';
 import { RIBBON_TABS, type RibbonGroupSpec } from '@/components/layout/Ribbon/ribbonConfig';
 import type { SequenceType } from '@/types/sequence';
+import { flattenOrder } from '@/utils/wbs';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -193,6 +194,79 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   const notice = S().ui.notifications.find(n => n.messageKey === 'notifications.relationsSkippedOnDissolve');
   eq('24 weigering gemeld met aantal', notice?.params, { count: 1 });
   eq('25 weigering noemt de relatie', notice?.detailLines?.[0]?.params, { names: 'X → Y' });
+}
+
+// ── 11) instelling: alleen de kopregel van een samenvattingstaak ────────────
+// Eigenaarsbesluit 2026-11-14: een instelling met twee standen, standaard de hele fase. In de
+// stand "alleen de kopregel" schuiven de subtaken een niveau omhoog, op de plek van de kopregel,
+// en gaan de relaties van de kopregel over naar de begin- en eindsubtaken, met soort en vertraging
+// (begin = zonder voorganger binnen de fase, eind = zonder opvolger binnen de fase).
+const order = () => flattenOrder(S().tasks).map(t => t.name);
+const parentName = (name: string) => {
+  const task = S().tasks.find(t => t.name === name);
+  return S().tasks.find(t => t.id === task?.parentId)?.name ?? null;
+};
+eq('33 standaard: de hele fase', S().ui.dissolveSummaryMode, 'branch');
+S().setUI({ dissolveSummaryMode: 'header' });
+{
+  const ids = plan(['A', 'G', 'F', 'B1', 'B2', 'B3', 'H', 'C']);
+  S().moveTask(ids.F, ids.G, 0);
+  S().moveTask(ids.H, ids.G, 1);
+  S().moveTask(ids.B1, ids.F, 0);
+  S().moveTask(ids.B2, ids.F, 1);
+  S().moveTask(ids.B3, ids.F, 2);
+  link(ids, 'A', 'F', 'START_START', 2);
+  link(ids, 'F', 'C');
+  link(ids, 'B1', 'B2');
+  link(ids, 'B2', 'C', FS, 4);
+  const res = S().addResource({ name: 'Timmerman', type: 'LABOR' } as Parameters<ReturnType<typeof S>['addResource']>[0]);
+  S().assignResource(ids.B1, res, 1);
+  const before = appliedEvents();
+  S().dissolveTasksBulk([ids.F]);
+  eq('34 alleen de kopregel weg', names(), ['A', 'B1', 'B2', 'B3', 'C', 'G', 'H']);
+  eq('35 subtaken schuiven op de plek van de kopregel', order(), ['A', 'G', 'B1', 'B2', 'B3', 'H', 'C']);
+  eq('36 subtaken hangen nu onder de ouder van de kopregel', ['B1', 'B2', 'B3'].map(parentName), ['G', 'G', 'G']);
+  eq('37 relaties van de kopregel naar begin- en eindsubtaken, met soort en vertraging', relations(), [
+    'A>B1 SS 2', 'A>B3 SS 2',
+    'B1>B2 FS 0', 'B2>C FS 4', 'B3>C FS 0',
+  ]);
+  // B2 → C einde-begin +4 bestond al: de overgezette einde-begin is dan een duplicaat en vervalt.
+  eq('38 toewijzing van een subtaak blijft', S().assignments.map(a => a.taskId), [ids.B1]);
+  eq('39 één undo-stap', appliedEvents(), before + 1);
+  S().undo();
+  eq('40 undo: fase terug met haar subtaken', ['B1', 'B2', 'B3'].map(parentName), ['F', 'F', 'F']);
+  eq('41 undo: relaties terug', relations(), ['A>F SS 2', 'B1>B2 FS 0', 'B2>C FS 4', 'F>C FS 0']);
+}
+{
+  // Een fase op het hoogste niveau, een subfase als begin- en eindsubtaak, en een gewone taak in
+  // dezelfde selectie: die laatste wordt gewoon opgeheven.
+  const ids = plan(['A', 'F', 'S', 'S1', 'X', 'C', 'D']);
+  S().moveTask(ids.S, ids.F, 0);
+  S().moveTask(ids.S1, ids.S, 0);
+  link(ids, 'A', 'F');
+  link(ids, 'F', 'C');
+  link(ids, 'C', 'X');
+  link(ids, 'X', 'D');
+  S().dissolveTasksBulk([ids.F, ids.X]);
+  eq('42 fase op het hoogste niveau: subfase wordt een fase op het hoogste niveau', parentName('S'), null);
+  eq('43 subfase op de plek van de kopregel', order(), ['A', 'S', 'S1', 'C', 'D']);
+  eq('44 subfase krijgt de relaties, de gewone taak wordt overbrugd', relations(),
+    ['A>S FS 0', 'C>D FS 0', 'S>C FS 0']);
+}
+{
+  // Een gewone taak in de stand "alleen de kopregel": geen verschil.
+  const ids = plan(['A', 'B', 'C']);
+  link(ids, 'A', 'B');
+  link(ids, 'B', 'C');
+  S().dissolveTasksBulk([ids.B]);
+  eq('45 gewone taak: zoals altijd', relations(), ['A>C FS 0']);
+}
+S().setUI({ dissolveSummaryMode: 'branch' });
+{
+  const registry = fs.readFileSync(path.join(process.cwd(), 'src/utils/settingsRegistry.ts'), 'utf8');
+  eq('46 instelling wordt bewaard', /key: 'dissolveSummaryMode', field: 'dissolveSummaryMode'/.test(registry), true);
+  const panel = fs.readFileSync(path.join(process.cwd(), 'src/components/settings/SettingsPanelContent.tsx'), 'utf8');
+  eq('47 instelling staat in het gedeelde paneel', /saveDissolveSummaryMode/.test(panel) && /settings\.dissolveSummaryMode/.test(panel), true);
 }
 
 // ── 10) opdracht, lint en rechtsklikmenu ────────────────────────────────────

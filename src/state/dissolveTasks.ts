@@ -4,8 +4,10 @@
 // zonder vertraging, van elke voorganger naar elke opvolger. Wat weggaat volgt Verwijderen
 // (`removeTaskSubtrees`): een samenvattingstaak neemt zijn hele tak mee, toewijzingen gaan mee weg.
 //
-// Deze module rekent alleen uit WELKE relaties er bij komen; de store-actie voert de verwijdering
-// en de nieuwe relaties samen uit als één undo-stap.
+// Een samenvattingstaak volgt de instelling `ui.dissolveSummaryMode` (eigenaarsbesluit
+// 2026-11-14): de hele fase als één blok (`planDissolve`, standaard), of alleen de kopregel
+// (`headerTransfers`). Deze module rekent alleen uit WELKE relaties er bij komen; de store-actie
+// voert verhangen, verwijderen en de nieuwe relaties samen uit als één undo-stap.
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { relationAddVerdict } from '@/state/relationRules';
@@ -42,11 +44,9 @@ export function planDissolve(
   const removeIds = new Set<string>();
   for (const id of rootIds) if (byId.has(id)) for (const sub of collect(id)) removeIds.add(sub);
 
-  // KEUZEPUNT 1, samenvattingstaak (ligt bij de eigenaar, 2026-11-14). Nu: de hele tak gaat weg
-  // zoals bij Verwijderen en telt als één blok. Elk weggaand id hoort bij het blok van zijn
-  // hoogste weggaande voorouder. Kiest de eigenaar "niet op een samenvattingstaak", dan weigert de
-  // store-actie vóór deze functie; kiest hij "alleen de kopregel", dan komen de kinderen niet in
-  // `removeIds` en verhuizen ze in de store-actie naar de ouder van de kopregel.
+  // Stand "de hele fase" (`ui.dissolveSummaryMode`): de tak gaat weg zoals bij Verwijderen en telt
+  // als één blok. Elk weggaand id hoort bij het blok van zijn hoogste weggaande voorouder. In de
+  // stand "alleen de kopregel" heeft de store-actie de kopregels al met `headerTransfers` opgeheven.
   const blockOf = (id: string): string => {
     let current = id;
     for (;;) {
@@ -137,4 +137,53 @@ function alreadyLinked(sequences: readonly Sequence[], predecessorId: string, su
       && seq.successorId === successorId
       && seq.type === 'FINISH_START'
   ));
+}
+
+/**
+ * Stand "alleen de kopregel": de relaties van samenvattingstaak `summaryId` zelf, overgezet naar
+ * haar directe subtaken, met soort en vertraging. Een relatie op een fase geldt in de rekenkern
+ * voor elke subtaak; overzetten naar de begin- en eindsubtaken houdt de planning gelijk zolang de
+ * fase intern aaneengeschakeld is, zonder een pijl naar elke subtaak. Een beginsubtaak heeft
+ * binnen de fase geen voorganger, een eindsubtaak geen opvolger (over hun hele deelboom gemeten).
+ */
+export function headerTransfers(
+  tasks: readonly Task[],
+  sequences: readonly Sequence[],
+  summaryId: string,
+): Omit<Sequence, 'id'>[] {
+  const summary = tasks.find(task => task.id === summaryId);
+  if (!summary) return [];
+  const collect = subtreeCollector([...tasks]);
+  const childOf = new Map<string, string>(); // taak in de fase → directe subtaak waaronder ze valt
+  for (const childId of summary.childIds) for (const id of collect(childId)) childOf.set(id, childId);
+
+  const hasPredecessor = new Set<string>();
+  const hasSuccessor = new Set<string>();
+  for (const seq of sequences) {
+    const from = childOf.get(seq.predecessorId);
+    const to = childOf.get(seq.successorId);
+    if (from && to && from !== to) {
+      hasSuccessor.add(from);
+      hasPredecessor.add(to);
+    }
+  }
+  const begin = summary.childIds.filter(id => !hasPredecessor.has(id));
+  const end = summary.childIds.filter(id => !hasSuccessor.has(id));
+
+  const out: Omit<Sequence, 'id'>[] = [];
+  for (const seq of sequences) {
+    if (seq.successorId === summaryId && !childOf.has(seq.predecessorId)) {
+      for (const childId of begin) out.push(withEndpoints(seq, seq.predecessorId, childId));
+    } else if (seq.predecessorId === summaryId && !childOf.has(seq.successorId)) {
+      for (const childId of end) out.push(withEndpoints(seq, childId, seq.successorId));
+    }
+  }
+  return out;
+}
+
+/** Een kopie van `seq` met andere eindpunten en zonder id. */
+function withEndpoints(seq: Sequence, predecessorId: string, successorId: string): Omit<Sequence, 'id'> {
+  const next: Partial<Sequence> = { ...seq, predecessorId, successorId };
+  delete next.id;
+  return next as Omit<Sequence, 'id'>;
 }

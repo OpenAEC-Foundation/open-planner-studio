@@ -68,6 +68,7 @@ export const HOST_PERSISTED_KEYS: readonly string[] = [
   'ops-allowMixedDayHour',
   'ops-durationDisplay',
   'ops-barSplitMode',
+  'ops-dissolveSummaryMode',
   'ops-compressNonWorkdays',
   'ops-tutorialOfferAnswered',
   'ops-formatNoticeHidden',
