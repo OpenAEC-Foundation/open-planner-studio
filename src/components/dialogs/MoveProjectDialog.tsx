@@ -44,7 +44,9 @@ export function MoveProjectDialog() {
   const changeShiftBaselines = (v: boolean) => { setShiftBaselines(v); setPreview(null); };
 
   const hasCurrentStart = !!project.startDate && !isNaN(new Date(project.startDate).getTime());
-  const validNewStart = /^\d{4}-\d{2}-\d{2}$/.test(newStart) && !isNaN(new Date(newStart).getTime());
+  // Het veld commit live; een halve of onbestaande datum commit niet, dus `newStart` is dan nog de vorige.
+  const [draftValid, setDraftValid] = useState(true);
+  const validNewStart = draftValid && /^\d{4}-\d{2}-\d{2}$/.test(newStart) && !isNaN(new Date(newStart).getTime());
   const delta = preview?.deltaDays ?? NaN;
   const isZero = validNewStart && hasCurrentStart && newStart === project.startDate.slice(0, 10);
 
@@ -53,7 +55,7 @@ export function MoveProjectDialog() {
     setPreview(previewMoveProject(newStart, { shiftBaselines }));
   };
 
-  const canApply = !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
+  const canApply = validNewStart && !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
 
   /** Toepassen; `false` = niets verplaatst (nog geen geldig voorbeeld, of de actie weigerde). */
   const apply = (): boolean => {
@@ -131,6 +133,8 @@ export function MoveProjectDialog() {
                   value={newStart}
                   ariaLabel={t('moveProject.newStart')}
                   required
+                  commitMode="live"
+                  onDraftValidChange={setDraftValid}
                   onCommit={changeStart}
                   className="input w-full !text-small !leading-4 !px-2 !py-1"
                 />

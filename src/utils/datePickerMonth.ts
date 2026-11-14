@@ -95,8 +95,6 @@ export interface DatePickerLabels {
   monthTitle: (year: number, month: number) => string;
   /** Toegankelijke naam van een dag, bv. "woensdag 18 november 2026". */
   dayLabel: (iso: string) => string;
-  /** Het dagnummer in de cel, altijd in Latijnse cijfers. */
-  dayNumber: (iso: string) => string;
 }
 
 /**
@@ -107,10 +105,8 @@ export interface DatePickerLabels {
 export function datePickerLabels(locale: string): DatePickerLabels {
   const title = gregorianDateFormat(locale, { month: 'long', year: 'numeric' });
   const full = gregorianDateFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const num = gregorianDateFormat(locale, { day: 'numeric' });
   return {
     monthTitle: (year, month) => title.format(new Date(Date.UTC(year, month - 1, 1))),
     dayLabel: iso => full.format(parseDate(iso)),
-    dayNumber: iso => num.format(parseDate(iso)),
   };
 }

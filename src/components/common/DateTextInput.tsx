@@ -232,6 +232,12 @@ interface DateTextInputProps {
    * dit in plaats van een rand via `style`: het veld zet zijn rand als `border`-shorthand.
    */
   invalid?: boolean;
+  /**
+   * Meldt of de getoonde invoer een geldige waarde is (een bestaande datum, of leeg bij een niet-verplicht
+   * veld). Voor een dialoog die zelf een knop vrijgeeft: een ongeldige of halve datum commit niet, dus
+   * zonder deze melding ziet de dialoog nog de vorige waarde.
+   */
+  onDraftValidChange?: (valid: boolean) => void;
   className?: string;
   style?: React.CSSProperties;
   ariaLabel?: string;
@@ -315,7 +321,7 @@ interface DateTextInputProps {
  */
 export function DateTextInput({
   value, onCommit, className = '', style, ariaLabel, title, disabled, placeholder, id,
-  commitMode = 'blur', required = false, invalid = false,
+  commitMode = 'blur', required = false, invalid = false, onDraftValidChange,
 }: DateTextInputProps) {
   const { t } = useTranslation('common');
   // Weergave-/segmentvolgorde volgt de instelling (reactief: hertekent bij wijziging).
@@ -519,6 +525,10 @@ export function DateTextInput({
 
   // De datum waarop het paneel opent: de getypte als die al een bestaande datum is, anders de opgeslagen.
   const typed = computeSeg(seg);
+  const draftValid = typed.status === 'valid' || (typed.status === 'empty' && !required);
+  const draftValidRef = useRef(onDraftValidChange);
+  draftValidRef.current = onDraftValidChange;
+  useEffect(() => { draftValidRef.current?.(draftValid); }, [draftValid]);
   const pickerValue = typed.status === 'valid' && typed.iso ? typed.iso : splitDateValue(value).date;
 
   const groupBorder = disabled ? null : showError || invalid ? ERROR_STYLE : groupFocused ? FOCUS_STYLE : null;

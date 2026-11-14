@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon, type IconId } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { localTodayIso } from '@/utils/dateUtils';
+import { registerDatePickerPanel } from '@/utils/datePickerFocus';
 import {
   addMonthsClamped, datePickerKeyTarget, datePickerLabels, monthGrid, monthOf,
 } from '@/utils/datePickerMonth';
@@ -84,6 +85,12 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
   const focusActive = useRef(true);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+
+  // Een sneltoets als Ctrl+S of F5 vanuit het paneel sluit het en rondt eerst het veld af.
+  useEffect(() => {
+    const panel = panelRef.current;
+    return panel ? registerDatePickerPanel(panel, () => closeRef.current(true)) : undefined;
+  }, [panelRef]);
 
   // Plaats het paneel onder het veld (of erboven als er onder te weinig ruimte is) en houd het bij als
   // een voorouder scrolt of het venster van maat verandert.
@@ -183,7 +190,8 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
       return;
     }
     // Losse toetsen (Delete, letters) horen bij het paneel, niet bij een geselecteerde taak erachter.
-    if (!e.ctrlKey && !e.metaKey && !e.altKey) e.stopPropagation();
+    // Functietoetsen gaan wel door: F5 rekent (na afronden van het veld) en herlaadt de pagina niet.
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !/^F\d{1,2}$/.test(e.key)) e.stopPropagation();
   };
 
   const title = labels.monthTitle(year, month);
@@ -271,7 +279,7 @@ export function DatePickerPanel({ anchorRef, value, onPick, onClose, ignoreRef, 
                       data-iso={d.iso}
                       onClick={() => onPick(d.iso)}
                     >
-                      {labels.dayNumber(d.iso)}
+                      {d.day}
                     </button>
                   </td>
                 );

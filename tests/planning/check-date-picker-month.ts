@@ -107,7 +107,6 @@ console.log('── teksten in de taal van de app ──');
   check(`maandkop ar staat op 2026 in Latijnse cijfers (kreeg ${ar.monthTitle(2026, 11)})`, ar.monthTitle(2026, 11).includes('2026'));
   const unknown = datePickerLabels('xx-onbekend');
   eq('onbekende taal valt terug op Engels', unknown.monthTitle(2026, 11), 'November 2026');
-  eq('dagnummer in Latijnse cijfers (fa)', fa.dayNumber('2026-11-08'), '8');
 }
 
 if (failures > 0) {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
 import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
@@ -106,6 +107,26 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   await expect(picker(page)).toHaveCount(0);
   await expect.poll(() => deadlineOf(page, taskId)).toBe('2027-11-15');
 
+  // ── Opslaan en herberekenen vanuit de open kiezer ronden eerst de getypte datum af (review #940):
+  // het bestand bevat de datum die het veld toont, en F5 herlaadt de pagina niet.
+  await segments(field).nth(0).fill('20');
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect.poll(() => focusedIso(page)).toBe('2027-11-20');
+  const download = page.waitForEvent('download');
+  await page.keyboard.press('Control+s');
+  const ifc = readFileSync(await (await download).path(), 'utf8');
+  expect(await deadlineOf(page, taskId)).toBe('2027-11-20');
+  expect(ifc).toContain('2027-11-20');
+  await expect(picker(page)).toHaveCount(0);
+  await expect.poll(() => focusInField(field)).toBe(true);
+  await segments(field).nth(0).fill('22');
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect.poll(() => focusedIso(page)).toBe('2027-11-22');
+  await page.keyboard.press('F5');
+  await expect(picker(page)).toHaveCount(0);
+  await expect.poll(() => deadlineOf(page, taskId)).toBe('2027-11-22');
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+
   // ── Notatie en eerste weekdag uit de instellingen, taal Engels.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ dateNotation: 'mdy', weekStartDay: 'sunday' }));
   await chooseLocale(page, LOCALE_CASES.find(l => l.code === 'en')!);
@@ -164,6 +185,23 @@ test('datumkiezer in een dialoog: Escape, Enter en klikken blijven bij de kiezer
   await button.click();
   await day(page, '2026-10-05').click();
   await expect(dialog).toBeVisible();
+  await expect(segments(field).nth(0)).toHaveValue('05');
+
+  // Een ongeldige getypte datum blokkeert berekenen en toepassen, ook met een eerder berekend voorbeeld
+  // (review #940: Verplaatsen paste anders de vorige datum toe).
+  const calc = dialog.getByRole('button', { name: /^(Calculate preview|Voorbeeld berekenen)$/ });
+  const apply = dialog.getByRole('button', { name: /^(Move|Verplaatsen)$/ });
+  await calc.click();
+  await expect(apply).toBeEnabled();
+  await segments(field).nth(0).fill('31');
+  await segments(field).nth(1).fill('02');
+  await page.keyboard.press('Tab');
+  await expect(segments(field).nth(0)).toHaveAttribute('aria-invalid', 'true');
+  await expect(apply).toBeDisabled();
+  await expect(calc).toBeDisabled();
+  // Een geldige datum maakt het weer mogelijk.
+  await button.click();
+  await day(page, '2026-10-05').click();
   await expect(segments(field).nth(0)).toHaveValue('05');
 
   // De gekozen datum is de invoer van de dialoog: voorbeeld berekenen en toepassen verplaatst het project.
