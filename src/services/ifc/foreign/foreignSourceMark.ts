@@ -13,6 +13,9 @@ export interface ForeignSourceFingerprint {
 
 /** Het doel van de bron: wat het herstelmanifest bewaart (`RecoveryManifestDoc.foreignSource`). */
 export interface ForeignSourceTarget {
+  /** Expliciet false: de planner heeft alleen planning opgeslagen; dit doel blijft beschermd.
+   * Afwezig blijft het oude herstelgedrag. Alleen metadata, nooit in een gewone IFC-opslag. */
+  readonly sourceMissing?: boolean;
   /** Pad (Tauri) of naam (browser) van de bron bij het openen; `null` als onbekend. */
   readonly filePath: string | null;
   /** Het site-bestand van de bron; `null` als het geen site-bestand is. */
@@ -33,8 +36,9 @@ export interface ForeignSourceMark extends ForeignSourceFingerprint, ForeignSour
   readonly handle: FileSystemFileHandle | null;
   /** #886 fixronde 2 (§4.14, "bron ontbreekt"): het kenmerk komt uit crashherstel, de bronbytes met het vreemde deel
    *  zijn weg. Dan weigert elke IFC-uitvoer (`ifcSaveBlocked`). Met `ifcForeignContent` aan krijgt een geopende
-   *  MCP-backup met bronkenmerk dezelfde toestand: ook daarin ontbreken de bronbytes. */
-  readonly sourceMissing?: true;
+   *  MCP-backup met bronkenmerk dezelfde toestand: ook daarin ontbreken de bronbytes.
+   * false na bewust Opslaan als: de bron is niet meer nodig; alleen dit doel blijft beschermd. */
+  readonly sourceMissing?: boolean;
 }
 
 /** Het kenmerk voor een net geopend document: alleen als de bron een vreemd deel heeft. */
@@ -62,20 +66,24 @@ export function parseForeignSourceFingerprint(sha256: unknown, byteLength: unkno
 /** Een geldig doel uit een manifest (soepel gelezen), anders `null`. */
 export function parseForeignSourceTarget(raw: unknown): ForeignSourceTarget | null {
   if (!raw || typeof raw !== 'object') return null;
-  const { filePath, siteFileId } = raw as Record<string, unknown>;
+  const { filePath, siteFileId, sourceMissing } = raw as Record<string, unknown>;
   const text = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : null);
-  return { filePath: text(filePath), siteFileId: text(siteFileId) };
+  return { filePath: text(filePath), siteFileId: text(siteFileId),
+    ...(sourceMissing === false ? { sourceMissing: false } : {}),
+  };
 }
 
 /** Het doel van een kenmerk voor het herstelmanifest: zonder vingerafdruk en zonder handle. */
 export function foreignSourceTargetOf(mark: ForeignSourceMark | null | undefined): ForeignSourceTarget | null {
-  return mark ? { filePath: mark.filePath, siteFileId: mark.siteFileId } : null;
+  return mark ? { filePath: mark.filePath, siteFileId: mark.siteFileId,
+    ...(mark.sourceMissing === false ? { sourceMissing: false } : {}),
+  } : null;
 }
 
 /** Zelfde doel in het manifest? (`null` en afwezig zijn gelijk.) */
 export function sameForeignSourceTarget(a: ForeignSourceTarget | null | undefined, b: ForeignSourceTarget | null | undefined): boolean {
   if (!a || !b) return !a && !b;
-  return a.filePath === b.filePath && a.siteFileId === b.siteFileId;
+  return a.filePath === b.filePath && a.siteFileId === b.siteFileId && a.sourceMissing === b.sourceMissing;
 }
 
 /**
@@ -94,12 +102,13 @@ export function foreignSourceMarkFromRecovery(
     filePath: target?.filePath ?? null,
     siteFileId: target?.siteFileId ?? null,
     handle: null,
+    ...(target?.sourceMissing === false ? { sourceMissing: false } : {}),
   };
 }
 
 /** De pset-invoer voor een MCP-backup: vingerafdruk en doel, nooit de handle of de bronbytes (fixronde 3). */
 export function foreignSourceBackupRecord(mark: ForeignSourceMark | null | undefined): ForeignSourceRecord | undefined {
-  if (!mark) return undefined;
+  if (!mark || mark.sourceMissing === false) return undefined;
   return { sha256: mark.sha256, byteLength: mark.byteLength, target: { filePath: mark.filePath, siteFileId: mark.siteFileId } };
 }
 

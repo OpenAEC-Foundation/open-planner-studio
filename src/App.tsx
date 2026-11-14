@@ -7,6 +7,7 @@ import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
+import { installIfcMissingSourceAsker } from '@/state/ifcMissingSourceQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { EXTENSIONS_ENABLED, FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
@@ -85,6 +86,7 @@ const SiteOpenDialog = lazy(() => import('@/components/dialogs/SiteOpenDialog').
 const FormatNoticeDialog = lazy(() => import('@/components/dialogs/FormatNoticeDialog').then(m => ({ default: m.FormatNoticeDialog })));
 const SiteSaveDialog = lazy(() => import('@/components/dialogs/SiteSaveDialog').then(m => ({ default: m.SiteSaveDialog })));
 const DependentAnchorWarningDialog = lazy(() => import('@/components/dialogs/DependentAnchorWarningDialog').then(m => ({ default: m.DependentAnchorWarningDialog })));
+const IfcMissingSourceSaveAsDialog = lazy(() => import('@/components/dialogs/IfcMissingSourceSaveAsDialog').then(m => ({ default: m.IfcMissingSourceSaveAsDialog })));
 const IfcSchemaQuestionDialog = lazy(() => import('@/components/dialogs/IfcSchemaQuestionDialog').then(m => ({ default: m.IfcSchemaQuestionDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
@@ -190,7 +192,7 @@ function AppContent() {
   useEffect(() => { installSiteDialogAskers(); }, []);
   // De schemavraag bij opslaan (issue #292): zonder deze registratie houdt opslaan stil het schema van
   // het bestand (de veilige terugval), maar dan krijgt de gebruiker de keuze niet.
-  useEffect(() => { installIfcSchemaAsker(); }, []);
+  useEffect(() => { installIfcSchemaAsker(); installIfcMissingSourceAsker(); }, []);
   // De waarschuwing vóór opslaan over te krappe ankers van afhankelijke projecten (stap 1.11). Zonder
   // deze registratie slaat de app zonder vraag op.
   useEffect(() => { installDependentAnchorAsker(); }, []);
@@ -508,6 +510,7 @@ function AppContent() {
         <SiteSaveDialog />
         {/* De schemavraag bij opslaan (issue #292): rendert alleen bij `ui.pendingIfcSchemaQuestion`. */}
         <IfcSchemaQuestionDialog />
+        <IfcMissingSourceSaveAsDialog />
         {/* Te krappe ankers van afhankelijke projecten vóór opslaan (stap 1.11). */}
         {pendingDependentAnchorWarning && <DependentAnchorWarningDialog />}
         {/* Uitleg na het openen van een ander formaat dan IFC; `key` = vinkje leeg bij elke nieuwe uitleg. */}

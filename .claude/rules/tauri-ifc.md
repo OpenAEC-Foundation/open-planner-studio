@@ -101,3 +101,14 @@ main-route en worden niet gemaskeerd of overgeslagen. De stroom houdt alleen de 
 herkenning in `targetModelScan.ts` is weg; een kapotte huidige kop is geen oude kop en weigert als doel. Een geldig
 bestand volgt de gewone grammatica. IFC schrijven met een vreemd deel gebruikt uitsluitend de voorbereide document- en volledige exportroutes; bestaande lokale doelen blijven geblokkeerd.
 Proeven: `check-ifc-foreign-classify.ts`, `-open.ts`, `-target.ts`, `check-ifc-target-model-scan.ts` en de herleestoets.
+
+### Opslaan als bij ontbrekend gebouwmodel (#804, PR 9e)
+
+Alleen `saveFileAs` mag met de flag aan `sourceMissing` na een expliciete bevestiging als planOnly schrijven.
+De globale `ifcFullWriteBlocked`/`ifcSaveBlocked` blijven dicht voor elke andere IFC-route; de voorbereiding gebruikt
+alleen voor deze bevestigde opslag een momentopname zonder bron. De gedeelde `Dialog` begint op Annuleren
+(Enter/Escape annuleren), bevriest de globale sneltoetsen en shellbediening en opent pas daarna de gewone kiezer.
+`refusedWriteTarget` blijft vóór schrijven actief. Na succes gaat het document naar het nieuwe doel, zonder modelbron;
+hetzelfde kenmerk blijft alleen als doelbescherming met `sourceMissing: false`. Die expliciete waarde staat ook in
+de bestaande `foreignSource`-manifestmetadata, zonder hogere manifest- of databaseversie. De gewone IFC krijgt geen
+herstelkenmerk; een volgende crash maakt er geen ontbrekend model meer van. Met de flag uit blijft de oude weigering.
