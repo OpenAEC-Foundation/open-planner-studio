@@ -5,7 +5,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { payloadFromImport } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
-import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
+import { IfcForeignOpenError, readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
 import { oudeKop } from './ifcOudeKop';
 import { scanTargetBytes, scanTargetSource } from '@/services/ifc/foreign/targetModelScan';
 
@@ -20,6 +20,12 @@ let failures = 0;
 async function check(label: string, run: () => unknown | Promise<unknown>) {
   checks++;
   try { await run(); } catch (error) { failures++; console.error('XX', label, String(error)); }
+}
+// Fase 1c: deze bestaande gemaakte varianten weigeren bij de scanner; geen vrije keuze tussen openen en weigeren.
+async function scannerRefuses(text: string, reason: 'tekst-zonder-einde' | 'onbekend-statement') {
+  await assert.rejects(() => readIfcBytes(enc.encode(text), {}, { createWorker: () => null }),
+    (error: unknown) => error instanceof IfcForeignOpenError && error.code === 'IFC_FOREIGN_OPEN_REFUSED'
+      && error.fallback.kind === 'scanner' && error.fallback.reason === reason);
 }
 const insert = (fragment: string) => {
   const at = source.lastIndexOf('ENDSEC;');
@@ -41,11 +47,11 @@ await check('doelcontrole zoekt lineair door veel korte strings zonder backslash
   // Meet doorzochte bytes, geen wandkloklimiet die van de runner afhangt.
   assert.ok(searched <= bytes.length * 50, `${searched} doorzochte bytes bij ${bytes.length} bronbytes`);
 });
-for (const [raw, expected] of [
-  ["a\\S\\'", 'a§'],
-  ["a\\S\\', (x); #99999=IFCWALL($); /* tekst */", 'a§, (x); #99999=IFCWALL($); /* tekst */'],
-  ["a\\S\\'''b", "a§'b"],
-  ["a\\\\S\\\\''b", "a\\S\\'b"],
+for (const [raw, expected, refusal] of [
+  ["a\\S\\'", 'a§', 'tekst-zonder-einde'],
+  ["a\\S\\', (x); #99999=IFCWALL($); /* tekst */", 'a§, (x); #99999=IFCWALL($); /* tekst */', 'tekst-zonder-einde'],
+  ["a\\S\\'''b", "a§'b", 'tekst-zonder-einde'],
+  ["a\\\\S\\\\''b", "a\\S\\'b", null],
 ] as const) {
   const input = source.replace(`'${original}'`, `'${raw}'`);
   const want = baseline.map(n => n === original ? expected : n);
@@ -56,7 +62,8 @@ for (const [raw, expected] of [
     assert.deepEqual(reopened.tasks.map(t => t.name), want);
   });
   await check(`shiftliteral ${raw}: bytes-route`, async () => {
-    assert.deepEqual((await readIfcBytes(enc.encode(input), {}, { createWorker: () => null })).tasks.map(t => t.name), want);
+    if (refusal) await scannerRefuses(input, refusal);
+    else assert.deepEqual((await readIfcBytes(enc.encode(input), {}, { createWorker: () => null })).tasks.map(t => t.name), want);
   });
   await check(`shiftliteral ${raw}: doelcontrole`, () => assert.equal(scanTargetBytes(enc.encode(input)), 'no-model'));
 }
@@ -131,9 +138,7 @@ for (const control of ['\n', '\r', '\t', '\0', '\x1f', '\x7f']) {
   await check(`commentaarstart ${JSON.stringify(control)}: geen model`, async () => {
     assert.deepEqual(readIFC(commented).tasks.map(t => t.name), baseline);
     assert.equal(scanTargetBytes(enc.encode(commented)), 'no-model');
-    const opened = await readIfcBytes(enc.encode(commented), {}, { createWorker: () => null });
-    assert.deepEqual(opened.tasks.map(t => t.name), baseline);
-    assert.equal(opened.ifcSource?.foreign ?? false, false);
+    await scannerRefuses(commented, 'onbekend-statement');
   });
   const exposed = insert(`/* tekst *${control}/ ${wall} /* tekst */`);
   await check(`commentaareinde ${JSON.stringify(control)}: model geweigerd`, () => {

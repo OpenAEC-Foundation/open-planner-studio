@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
@@ -129,6 +130,8 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const { t: tCommon } = useTranslation('common');
     const { t: tTask } = useTranslation('task');
     const project = useAppStore(s => s.project);
+    const ifcSource = useAppStore(s => s.ifcSource);
+    const schemaLocked = !isNew && hasForeignContent(ifcSource);
     const activeDocumentId = useAppStore(s => s.activeDocumentId);
     const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
     const createNewProject = useAppStore(s => s.createNewProject);
@@ -621,7 +624,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
             <label className="text-text-secondary font-medium">{tMenu('projectInfo.ifcSchema.label')}</label>
             <Select
               aria-label={tMenu('projectInfo.ifcSchema.label')}
-              value={ifcSchema}
+              disabled={schemaLocked}
+              value={schemaLocked ? ifcSource!.schemaName : ifcSchema}
+              valueLabel={schemaLocked ? ifcSource!.schemaName : undefined}
               onChange={value => setIfcSchema(value as IfcSchemaId)}
               options={[
                 { value: 'IFC4X3_ADD2', label: tMenu('projectInfo.ifcSchema.optionIfc4x3Add2') },
@@ -629,6 +634,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                 { value: 'IFC4', label: tMenu('projectInfo.ifcSchema.optionIfc4') },
               ]}
             />
+            {schemaLocked && <p className="text-caption text-text-secondary">{tMenu('projectInfo.ifcSchema.foreignLocked')}</p>}
           </div>
         )}
 

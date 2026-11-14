@@ -1672,16 +1672,6 @@ en noem het in je rapport of PR-tekst.
      Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
      Gevonden in #804 fase 0. — B
 
-1011. **Eis voor #804 fase 1c: een onbekend schema met een vreemd deel gaat stil verloren bij opslaan.** Met de flag
-     `ifcForeignContent` neemt `readIfcBytesDetailed` bij een schema buiten `FOREIGN_CONTENT_SCHEMAS` (en zonder
-     schema in de kop) de huidige route, zonder `ifcSource` (`src/services/ifc/foreign/ifcBytesRoute.ts:36, 83-84`).
-     Zonder `IfcProduct` opent zo'n bestand dan zoals op main, en opslaan schrijft alleen de planning: vreemde
-     gegevens (een planning van een ander programma, onbekende psets) gaan stil verloren. Dat is niet slechter dan
-     main, en in 1a weigert de app opslaan nog niet op deze route. Ontwerp §4.11 zegt: "met een vreemd deel
-     geweigerd". Eis (wrakko, 9 november 2026): zodra 1c opslaan met een vreemd deel aanzet, mag geen vreemd deel stil
-     verloren gaan, ook niet bij een onbekend schema; anders is 1c niet klaar. Richting: deel ook dit bestand in, en
-     weiger of meld zoals §4.11. Uit #864 (fase 1a). — B
-
 1012. **Niets toetst na de build dat de XER-lezer alleen op verzoek laadt.** `tests/planning/check-xer-chunk-boundary.ts`
      leest alleen de bron: een import uit `@/services/xer/` mag alleen met `await import(` in `formatRegistry.ts` en
      `src/services/ifc/ifcReadWithXer.ts`. De gebouwde importgrafiek toetst hij niet. De Ubuntu-build van `a11864e19`
@@ -1993,14 +1983,16 @@ en noem het in je rapport of PR-tekst.
      op ongeveer 102 regels en 132.938 bytes (één geval per regel). Alleen opruimen; het bestand is nodig als vaste
      verwachting zonder netwerk. Gevonden door de review van #916 (Sol, ronde 3). — B
 
-1137. **VERVOLG: bij de terugval naar de tekstlezer verdwijnt vreemde inhoud die buiten de oude-kopherkenning valt;
-     precies zo op main.** Een bestand met de oude eigen kop en ruim 70 KiB in het auteurveld (boven de grens van
-     65.536 bytes, dus niet herkend) en een wand in de tweede datasectie opent met de flag uit met twintig taken;
-     `saveFile()` schrijft één keer en de wand is weg. Main en #916 doen hier hetzelfde: de route valt terug op de
-     tekstlezer (`src/services/ifc/foreign/ifcBytesRoute.ts`, de terugval) en de oude entiteitenlus in
-     `src/services/ifc/ifcReader.ts` leest alleen de eerste datasectie. Een gemaakt bestand; geen release schreef het.
-     Hoort bij 1054 en 1061. Richting: bij de terugval naar tekst de bescherming van vreemde broninhoud houden (fase
-     1c, PR 2: terugval en schema). Gevonden door de review van #916 (Sol, ronde 3). — B
+1137. **Met de flag aan opgelost in #914; met de flag uit blijft dit bestaande schuld bij 1061.** Het gemaakte
+     reviewerbestand met de oude eigen kop, ruim 70 KiB in het auteurveld (boven de grens van 65.536 bytes) en
+     een wand in de tweede datasectie is niet herkenbaar als oude kop. Met `ifcForeignContent` uit opent het nog
+     steeds met twintig taken; `saveFile()` schrijft één keer en de wand verdwijnt, precies zoals op main (1061).
+     Met de flag aan weigert de terugval vóór documentactivatie met `IFC_FOREIGN_OPEN_REFUSED`, reden `scanner` /
+     `tekst-zonder-einde`: nul taken, nul writes en alle bronbytes intact. Gemeten met het oorspronkelijke bestand
+     `review-916-sol/lange-auteur-wand-tweede-sectie-bron.ifc`, SHA-256
+     `b824f45f24cd49caa2fb427036062d8da680c35f08434ae16357a303b9e8e482`; de open-proef reconstrueert exact die bytes
+     en bewaakt beide flagstanden. Geen uitbreiding van de kopherkenning of wijziging van de tekstlezer. Hoort bij
+     1054/1061; de oorspronkelijke VERVOLG kwam uit de review van #916 (Sol, ronde 3). — B
 
 1042. **VERVOLG: een mijlpaal met `P2DT0H` krijgt een duur, met `P2D` niet.** `src/services/ifc/ifcReader.ts:1620`
      (`applyTaskTimeRecords`, #871) zet de duur met de dagen erbij opnieuw, nadat de lezer hem voor een mijlpaal op nul
@@ -2270,6 +2262,39 @@ en noem het in je rapport of PR-tekst.
      Vastgesteld bij de onafhankelijke broncontrole van PR #698. — B
 
 ## Teksten en helpteksten
+
+1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
+     `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
+     de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`
+     in `ifcBytesRoute.ts` is 300 MiB. PR 2 van fase 1c beveiligt die terugval zonder de grens te veranderen.
+     VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
+     grens zonder meting. — B
+
+1129. **VERVOLG: de proef voor het vergrendelde schema in Projectinstellingen toetst broncodetekst.**
+     `tests/planning/check-ifc-foreign-open.ts` (het blok "Projectinstellingen: keuze gebonden aan vreemd deel")
+     zoekt vier stukjes tekst in `src/components/settings/ProjectInfoPanelContent.tsx`. Dat toetst de schrijfwijze,
+     niet de bediening. De bediening klopt: de review van #914 heeft in Chromium een bestaand IFC4-model geopend,
+     Projectinstellingen bekeken in licht en donker, de naam gewijzigd en Ctrl+S gebruikt; de keuze staat uit, de
+     bronkop en de uitleg zijn zichtbaar, het schema blijft IFC4 en opslaan weigert zonder download of schemavraag.
+     Richting: de tekstzoekactie vervangen door een stap in een bestaande browserroute voor de schemavraag
+     (`tests/browser/`), bij het onderhoud van de browserproeven. Gevonden door de review van #914 (Sol). — B
+
+1128. **VERVOLG: de scanner draagt 23 bestaande gemaakte oude-kopgevallen nog niet.** In de vaste 97-gevallenproef
+     zijn dat naam-10/11/12/15/17/18/19/21, Sol-entiteit-6/9/10 voor elk van de drie vrije velden, de lange auteur
+     met wand in de tweede sectie of een vreemde pset, en de twee overeenkomstige grensgevallen één byte boven
+     64 KiB (ASCII en Unicode). Dit zijn gemaakte proeven, geen ongewijzigde releasebestanden uit de repo.
+     Met de flag aan weigert PR 2 ze getypeerd
+     vóór documentactivatie; beide opslagroutes schrijven nul bytes en de hele bron blijft intact. Met de flag uit
+     blijven hun volledige planning, meldingen en opslagbytes gelijk aan de vaste main-referentie. De open-proef
+     benoemt alle 23 en toetst de weigering exact, zonder de oude kopherkenning of scanner te verruimen. Bredere
+     ondersteuning blijft buiten fase 1c; de gewone oude eigen kop, waaronder O'Hara, opent wel. Ook de dertien
+     al bestaande `brokenNameFiles`-varianten onder de huidige IFC4X3_ADD2-kop vallen buiten het oude sjabloon:
+     flag aan weigert met `scanner` / `tekst-zonder-einde`, zonder document of write en met alle bronbytes intact;
+     flag uit opent twintig taken en schrijft één keer zoals main. Hun onafhankelijke doelcontrole blijft
+     `unreadable`. Dit zijn eveneens gemaakte namen; de doelproef legt de uitkomsten nu exact vast. Aangetroffen bij
+     het integreren van #916 in PR 2, aansluitend op 1054/1061; 1137 is voor de flag aan opgelost. — B
+
+
 
 221. **Mogelijk onjuiste Portugese nulvorm bij aantalmeldingen.** Een nalezer meldde tijdens de
     releasevoorbereiding van 2026-10-24 dat het `pt`-pakket nul onder `one` indeelt, terwijl de stijl
@@ -3649,6 +3674,5 @@ en noem het in je rapport of PR-tekst.
      #915 geweigerd (`VALIDATION`, bron byte voor byte gelijk), maar `planner_export_ifc` naar een nieuwe naam geeft
      `ok: true` en een bestand zonder `ExternPset`; `ifcSource` en het bronkenmerk blijven leeg. De bron zelf blijft
      heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
-     (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Besluit T3 legt de volledige bytes voor headless, kern en HTTP
-     in fase 2; tot dan volstaat een kleine weigering of een vermelding in `docs/headless-mcp.md`. Gevonden door de
+     (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
      review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B

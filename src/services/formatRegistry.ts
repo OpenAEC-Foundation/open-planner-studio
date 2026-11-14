@@ -281,6 +281,8 @@ export function saveTargetFor(
 export function importErrorMessageKey(
   err: unknown,
 ):
+  | 'notifications.ifcForeignOpenSchema'
+  | 'notifications.ifcForeignOpenUnsafe'
   | 'notifications.openFailed'
   | 'notifications.xmlUnknownSchedule'
   | 'notifications.mppEncrypted'
@@ -300,7 +302,9 @@ export function importErrorMessageKey(
   | 'notifications.xerDuplicateId'
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
-  const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string } | null | undefined;
+  const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string; code?: string; fallback?: { kind?: string } } | null | undefined;
+  if (typed?.code === 'IFC_FOREIGN_OPEN_REFUSED') return typed.fallback?.kind === 'schema'
+    ? 'notifications.ifcForeignOpenSchema' : 'notifications.ifcForeignOpenUnsafe';
   if (typed?.xmlCode === 'XML_UNKNOWN_SCHEDULE') return 'notifications.xmlUnknownSchedule';
   if (typed?.cfbCode === 'CFB_INVALID') return 'notifications.mppInvalidContainer';
   if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';

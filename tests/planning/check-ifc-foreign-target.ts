@@ -56,6 +56,7 @@ console.warn = () => {};
 
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { readsAsBytes, readIfcFromText } = await import('@/services/formatRegistry');
+const { IfcForeignOpenError, readIfcBytesDetailed } = await import('@/services/ifc/foreign/ifcBytesRoute');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { recoverySnapshotInput, serializeRecoverySnapshot } = await import('@/services/recovery/recoverySnapshotInput');
@@ -1133,7 +1134,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   const modelText = dec(modelIfc4);
   const ownText = dec(showcase);
   type Refuse = 'model' | 'foreign' | 'unreadable' | null;
-  const targets: Array<{ name: string; bytes: Uint8Array; refuse: Refuse }> = [
+  const targets: Array<{ name: string; bytes: Uint8Array; refuse: Refuse; openRefusal?: true }> = [
     { name: 'externe-pset-zonder-model', bytes: externalPset, refuse: 'foreign' },
     { name: 'terra', bytes: enc.encode(terraFile(modelText)), refuse: 'unreadable' },
     { name: 'sol', bytes: enc.encode(solFile(modelText)), refuse: 'unreadable' },
@@ -1166,7 +1167,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     // De echte oude fixtures en de geldige DATA-kopvormen hierboven blijven doelen.
     ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
     ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text),
-      refuse: 'unreadable' as const })),
+      refuse: 'unreadable' as const, openRefusal: true as const })),
     // #916 fixronde 1: alle kapotte naamvarianten van de huidige IFC4X3_ADD2-kop vallen buiten het gemeten oude
     // LF/IFC4X3-sjabloon, dus van toegestaan (behalve regeleinde) naar unreadable. De echte oude fixtures blijven doelen.
     // Ronde 8 (Trias): echte bestanden van de writer van v2026.7.12 (`scripts/proef/maak-oude-uitvoer.mjs`), met de
@@ -1181,26 +1182,48 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.
   const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
   for (const t of targets) {
-    // Ronde 6 (besluit Trias): hetzelfde bestand opent zoals main (de eigen planning met al haar 20 taken). Als doel
-    // (hieronder): de regel van main, behalve met een regeleinde in de naam (ronde 8).
+    // E6: de 13 gemaakte namen onder een huidige kop weigeren bij openen; ze vallen buiten #916.
+    // De twee echte oude releasebestanden blijven openen en naar zichzelf opslaan zoals main.
     if (t.name.startsWith('eigen-naam')) {
-      const opened = await open(`${t.name}.ifc`, t.bytes, null);
-      eq(`fixronde 4, ${t.name}: opent zoals main, met 20 taken en zonder modelweigering`,
-        [opened.getState().tasks.length, modelNotices(opened).length], [20, 0]);
-      // Ronde 8 (besluit Trias): Ctrl+S en AutoSave naar dat eigen bestand zelf werken (de regel van main), behalve met
-      // een regeleinde in de naam: dan weigert de doelcontrole en blijft het document gewijzigd.
-      for (const route of ['Ctrl+S', 'AutoSave'] as const) {
+      if (t.openRefusal) {
+        const error: unknown = await readIfcBytesDetailed(t.bytes).catch((e: unknown) => e);
+        ok(`E6 ${t.name}: getypeerd geweigerd met vaste scannerreden`, error instanceof IfcForeignOpenError
+          && error.code === 'IFC_FOREIGN_OPEN_REFUSED' && error.fallback.kind === 'scanner'
+          && error.fallback.reason === 'tekst-zonder-einde');
         const self = fakeHandle(`${t.name}-zelf.ifc`, t.bytes);
-        const selfStore = await open(`${t.name}-zelf.ifc`, t.bytes, { kind: 'handle', handle: self.handle });
-        const D = () => selfStore.getState();
-        D().addTask({ name: 'Nieuw werk' });
-        if (route === 'Ctrl+S') await D().saveFile();
-        else {
-          D().setAutoSaveToFile(true);
-          await createFileAutoSaveController({ getState: D, enabled: () => true }).flush();
+        const refused = await open(`${t.name}-zelf.ifc`, t.bytes, { kind: 'handle', handle: self.handle });
+        const state = refused.getState();
+        eq(`E6 ${t.name}: geen document, nul writes en bron intact`,
+          [state.tasks.length, state.filePath, state.fileHandle, self.writables(), sha(self.text())],
+          [0, null, null, 0, sha(t.bytes)]);
+        eq(`E6 ${t.name}: scannerweigering via het meldingenkanaal`,
+          state.ui.notifications.map(n => [n.messageKey, n.severity, n.detail]),
+          [['notifications.ifcForeignOpenUnsafe', 'error', 'IFC open refused: unsafe scanner fallback']]);
+        // Flag uit houdt de gewone route: twintig taken en één gewone opslag, zoals vóór E6.
+        const offSource = fakeHandle(`${t.name}-uit.ifc`, t.bytes);
+        const off = createAppStoreContext().store;
+        off.setState(s => { s.ui.featureFlags = {}; });
+        await off.getState().openOpenedFile({ name: `${t.name}-uit.ifc`, content: dec(t.bytes),
+          ref: { kind: 'handle', handle: offSource.handle } });
+        await off.getState().saveFile();
+        eq(`E6 ${t.name}: flag uit opent en slaat op zoals main`,
+          [off.getState().tasks.length, offSource.writes.length, noticeCount(off, 'notifications.ifcForeignOpenUnsafe')], [20, 1, 0]);
+      } else {
+        const opened = await open(`${t.name}.ifc`, t.bytes, null);
+        eq(`fixronde 4, ${t.name}: opent zoals main, met 20 taken en zonder modelweigering`,
+          [opened.getState().tasks.length, modelNotices(opened).length], [20, 0]);
+        for (const route of ['Ctrl+S', 'AutoSave'] as const) {
+          const self = fakeHandle(`${t.name}-zelf.ifc`, t.bytes);
+          const selfStore = await open(`${t.name}-zelf.ifc`, t.bytes, { kind: 'handle', handle: self.handle });
+          const D = () => selfStore.getState();
+          D().addTask({ name: 'Nieuw werk' });
+          if (route === 'Ctrl+S') await D().saveFile();
+          else {
+            D().setAutoSaveToFile(true);
+            await createFileAutoSaveController({ getState: D, enabled: () => true }).flush();
+          }
+          eq(`ronde 8, ${t.name}: ${route} naar het eigen bestand schrijft`, [self.writes.length, D().isDirty], [1, false]);
         }
-        eq(`ronde 8, ${t.name}: ${route} naar het eigen bestand ${t.refuse ? 'weigert' : 'schrijft'}`,
-          [self.writes.length, D().isDirty], t.refuse ? [0, true] : [1, false]);
       }
       // En een IFC-export over dat bestand, vanuit een andere planning.
       const other = await open('ander.ifc', showcase, null);

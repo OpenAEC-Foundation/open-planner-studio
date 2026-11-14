@@ -281,7 +281,8 @@
       "label": "IFC-schema bij opslaan",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (standaard)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Het bestand bevat gegevens van een ander programma. Daarom blijft het schema uit de oorspronkelijke kop behouden."
     }
   },
   "newProject": {

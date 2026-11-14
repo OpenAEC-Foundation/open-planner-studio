@@ -9,7 +9,7 @@
 //   5. met de flag en een vreemd deel weigeren Opslaan, Opslaan als, de IFC-export en de pool-export, met de melding;
 //   6. de bronbytes en het model zitten niet in de herstelsnapshot, de MCP-backup en de undo-snapshot; het
 //      herstelmanifest krijgt geen opslagdoel; IFC-paneel (`applyProjectEdit`), kopie en undo houden de bron;
-//   7. afwijking 7 (spec §4.9, "v21, fase 1a"): weigert de scanner de bytes, dan de huidige route; ook de grens van
+//   7. veilige terugval (fase 1c, §4.11): alleen bewezen eigen planning; ook de grens van
 //      knownbug 1007 (`#2147483647` mag, `#2147483648` niet) en het schema (IFC2X3 met model blijft geweigerd);
 //   8. de Worker en de terugval zonder Worker geven hetzelfde; een transportfout valt terug, een fout in de indeling niet.
 // Exit 0 = alles groen.
@@ -48,6 +48,7 @@ const { ifcSaveBlocked, recoverySaveTarget } = await import('@/state/ifcForeignG
 const { capturePayload } = await import('@/state/documentContract');
 const { createSnapshot } = await import('@/state/snapshot');
 type Store = ReturnType<typeof createAppStoreContext>['store'];
+const contexts = new WeakMap<Store, ReturnType<typeof createAppStoreContext>>();
 type ForeignScanWorker = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanWorker;
 
 let checks = 0;
@@ -80,7 +81,9 @@ ok('flag: met de testkeuze aan', ifcForeignContentEnabled({ ifcForeignContent: t
 /** Open `bytes` als Bestand → Openen in een verse store (of `into`), met dezelfde leeskeuze als de bestandslaag. */
 async function open(flagOn: boolean, name: string, bytes: Uint8Array, into?: Store): Promise<Store> {
   reseed(0x804);
-  const store = into ?? createAppStoreContext().store;
+  const context = into ? undefined : createAppStoreContext();
+  const store = into ?? context!.store;
+  if (context) contexts.set(store, context);
   store.setState(s => { s.ui.featureFlags = flagOn ? { ifcForeignContent: true } : {}; });
   const asBytes = readsAsBytes(name, { ifcBytes: flagOn });
   await store.getState().openOpenedFile({ name, content: asBytes ? '' : dec(bytes), ...(asBytes ? { bytes } : {}), ref: null });
@@ -182,28 +185,111 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
   }
 }
 
-// #916: de gemaakte-koppentabel tegen main 1c95a8546. PR 4 voegt alleen de bewezen sterkere bestaande-doelpoort toe;
-// opening en nieuwe-doeluitvoer blijven op de oude verwachting, de (c)-voorwaarden blijven ongewijzigd.
+// 1137: exact hetzelfde gemaakte bestand als de review van #916 (Sol, ronde 3), zonder grote fixture.
+// Bron: review-916-sol/lange-auteur-wand-tweede-sectie-bron.ifc; de SHA-256 bindt deze reconstructie aan die bytes.
+{
+  const original = dec(fileBytes('tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+  const body = original.slice(original.indexOf('\nDATA;\n') + 7);
+  const text = oudeKop('Eigen planning', "O'Hara " + 'x'.repeat(70 << 10))
+    + body.replace('\nENDSEC;\nEND-ISO', '\nENDSEC;\nDATA;\n' + oudeWand + 'ENDSEC;\nEND-ISO');
+  const bytes = enc.encode(text);
+  eq('1137: dezelfde bytes als het reviewerbestand', sha(bytes), 'b824f45f24cd49caa2fb427036062d8da680c35f08434ae16357a303b9e8e482');
+  for (const flagOn of [false, true]) {
+    let data = text;
+    const writes: string[] = [];
+    const handle = {
+      kind: 'file' as const, name: 'lange-auteur-tweede-sectie.ifc',
+      isSameEntry: async (other: unknown) => other === handle,
+      getFile: async () => new File([data], handle.name),
+      queryPermission: async () => 'granted' as const, requestPermission: async () => 'granted' as const,
+      createWritable: async () => {
+        let next = '';
+        return { write: async (chunk: unknown) => { next += typeof chunk === 'string' ? chunk : dec(chunk as Uint8Array); },
+          close: async () => { data = next; writes.push(next); } };
+      },
+    };
+    const store = createAppStoreContext().store;
+    store.setState(s => { s.ui.featureFlags = flagOn ? { ifcForeignContent: true } : {}; });
+    await store.getState().openOpenedFile({ name: handle.name, content: flagOn ? '' : text,
+      ...(flagOn ? { bytes } : {}), ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle } });
+    const state = store.getState();
+    if (flagOn) {
+      eq('1137 flag aan: geen document of taken', [state.fileHandle, state.filePath, state.tasks.length], [null, null, 0]);
+      eq('1137 flag aan: melding in het ene kanaal', state.ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignOpenUnsafe']);
+      const error = await readIfcBytesDetailed(bytes).catch((e: unknown) => e) as { code?: string; fallback?: { kind: string; reason: string } };
+      eq('1137 flag aan: getypeerde scannerweigering', [error.code, error.fallback?.kind, error.fallback?.reason],
+        ['IFC_FOREIGN_OPEN_REFUSED', 'scanner', 'tekst-zonder-einde']);
+      eq('1137 flag aan: nul writes en alle bronbytes intact', [writes.length, sha(data)], [0, sha(text)]);
+    } else {
+      ok('1137 flag uit: main opent twintig taken', state.fileHandle === handle && state.tasks.length === 20);
+      await state.saveFile();
+      eq('1137 flag uit: bestaande schuld 1061 onveranderd, één write zonder wand', [writes.length, data.includes('=IFCWALL(')], [1, false]);
+    }
+  }
+}
+
+// #916 fixronde 2: de hele gemaakte-koppentabel tegen vers gemeten productcode van main 1c95a8546 (na #917).
 {
   const reference = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/oude-kop-main.json'), 'utf8')) as { basis: string; rows: OldHeaderRow[] };
   eq('fix2 referentie: de gemeten main-commit', reference.basis, '1c95a8546fbe5fecb52e66a715402b08a256d0d5');
   const rows = await oldHeaderTable(ROOT);
-  const table = compareOldHeaderTable(reference.rows, rows);
+  // E6 verandert bij precies deze al bestaande gemaakte gevallen de tekstterugval in een scannerweigering (1128).
+  // Pin beide uitkomsten: flag uit blijft de volledige main-rij; flag aan moet weigeren met nul writes en bronbehoud.
+  const scannerRefusals = new Set([
+    'naam-10', 'naam-11', 'naam-12', 'naam-15', 'naam-17', 'naam-18', 'naam-19', 'naam-21',
+    ...[6, 9, 10].flatMap(n => [0, 1, 2].map(field => `Sol-entiteit-${n}-veld-${field}`)),
+    'Sol-lange-auteur-wand-tweede-sectie', 'Sol-lange-auteur-vreemde-property',
+    ...[false, true].flatMap(unicode => ['wand-tweede-sectie', 'vreemde-property'].map(kind => `grens-${unicode}-1-${kind}`)),
+  ]);
+  eq('E6 oude koppentabel: ieder vastgelegd geval bestaat', [...scannerRefusals].filter(name => !rows.some(row => row.name === name)), []);
+  for (const row of rows.filter(row => scannerRefusals.has(row.name))) {
+    eq(`E6 ${row.name}: beide vaste instellingen`, row.routes.map(route => route.flag), [false, true]);
+    const on = row.routes.find(route => route.flag)!;
+    eq(`E6 ${row.name}: weigering vóór documentactivatie en beide opslagacties`,
+      [on.opened, on.tasks, on.payload, on.writes, on.saveAsWrites, on.intact, on.saveAsSourceIntact, on.reopen],
+      [false, 0, '', [], [], true, true, null]);
+    const notices = on.notices as Array<{ severity: string; messageKey: string; detail?: string }>;
+    eq(`E6 ${row.name}: exacte scannerweigering`, notices.map(n => [n.severity, n.messageKey, n.detail]),
+      [['error', 'notifications.ifcForeignOpenUnsafe', 'IFC open refused: unsafe scanner fallback']]);
+    const before = reference.rows.find(r => r.name === row.name)!.routes.find(route => route.flag)!;
+    eq(`E6 ${row.name}: modelscan onveranderd`, on.target, before.target);
+    eq(`PR 4 ${row.name}: onafhankelijke doelweigering, nul writes en bron intact`,
+      [on.asTargetRefusal, on.targetWrites, on.targetIntact], [true, [], true]);
+    console.log(`E6 SCANNERGEVAL ${row.name}: getypeerd geweigerd, nul writes, bron intact; flag uit tegen main getoetst`);
+  }
+  // Alleen de hierboven exact getoetste flag-aan-route heeft een nieuw beleid. Alle flag-uit-rijen blijven in de
+  // bestaande byte-/payloadvergelijking, en alle andere flag-aan-rijen houden de oorspronkelijke drie strenge eisen.
+  const comparable = (rows: OldHeaderRow[]) => rows.map(row => scannerRefusals.has(row.name)
+    ? { ...row, routes: row.routes.filter(route => !route.flag) } : row);
+  const table = compareOldHeaderTable(comparable(reference.rows), comparable(rows));
+
   eq('fix2 algemene vergelijking: nul anders', table.problems, []);
   eq('fix2 algemene vergelijking: ieder geval ingedeeld', table.same + table.repaired + table.safer + table.protectedTarget, table.cases);
-  // De nieuwe doelweigering mag een andere opening, een write of veranderde nieuwe-doeluitvoer niet verhullen.
-  const protectedRow = rows.find(row => table.evidence.some(e => e.startsWith(`${row.name}: (d)`)));
-  eq('PR 4: de tabel bevat een echte aanvullende doelweigering', protectedRow !== undefined, true);
-  if (protectedRow) for (const field of ['payload', 'writes', 'saveAsWrites'] as const) {
-    const changed = structuredClone(rows);
-    const route = changed.find(row => row.name === protectedRow.name)!.routes.find(r => r.flag)!;
-    if (field === 'payload') route.payload = 'andere opening';
-    else route[field].push('ongewenste write');
-    eq(`PR 4: doelweigering verbergt geen wijziging in ${field}`,
-      compareOldHeaderTable(reference.rows, changed).other > 0, true);
+  // E6 kan de vroegere (d)-opening al vóór activatie weigeren. Bewaak de (d)-vergelijking daarom apart
+  // met dezelfde bestaande invoer: alleen de twee doelacties geblokkeerd, alle opening-/nieuwe-doelvelden uit main.
+  // De echte onafhankelijke doelweigering van dit geval is hierboven al getoetst.
+  const protectedRow = reference.rows.find(row => scannerRefusals.has(row.name)
+    && row.routes.some(r => r.flag && r.writes.length > 0 && r.targetWrites.length > 0));
+  eq('PR 4: bestaande tabel bevat een geval met aanvullende doelbescherming', protectedRow !== undefined, true);
+  if (protectedRow) {
+    const targetOnly = structuredClone(reference.rows);
+    const route = targetOnly.find(row => row.name === protectedRow.name)!.routes.find(r => r.flag)!;
+    Object.assign(route, { writes: [], intact: true, saveAsSourceIntact: true, foreignRetained: true,
+      targetWrites: [], targetIntact: true, saveTargetRefusal: true, asTargetRefusal: true });
+    eq('PR 4: alleen de aanvullende doelweigering valt onder (d)',
+      compareOldHeaderTable(reference.rows, targetOnly).protectedTarget, 1);
+    for (const field of ['payload', 'writes', 'saveAsWrites'] as const) {
+      const changed = structuredClone(targetOnly);
+      const changedRoute = changed.find(row => row.name === protectedRow.name)!.routes.find(r => r.flag)!;
+      if (field === 'payload') changedRoute.payload = 'andere opening';
+      else changedRoute[field].push('ongewenste write');
+      eq(`PR 4: doelweigering verbergt geen wijziging in ${field}`,
+        compareOldHeaderTable(reference.rows, changed).other > 0, true);
+    }
   }
   for (const line of table.evidence) console.log('TABELGEVAL ' + line);
-  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, (d) ${table.protectedTarget} alleen doelbescherming, ${table.other} anders`);
+  console.log(`TABEL oude kop: ${table.cases} gevallen, (a) ${table.same} gelijk aan main, (b) ${table.repaired} lege-projectreparatie, (c) ${table.safer} veiliger met drie bewijzen, (d) ${table.protectedTarget} alleen doelbescherming, ${table.other} anders; ${scannerRefusals.size} flag-aan-routes apart exact als E6-scannerweigering getoetst`);
+
 }
 
 // ── 2 en 3. Modelbestanden zonder en met de flag ───────────────────────────────────────────────────────────────
@@ -489,7 +575,149 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   ok('openen: een ander bestand krijgt zijn eigen bron', S().ifcSource !== source && S().ifcSource?.foreign === false);
 }
 
-// ── 7. Afwijking 7: weigert de scanner, dan de huidige route ───────────────────────────────────────────────────
+// ── 7a. Fase 1c: een onbekende kop mag vreemde gegevens niet onbeveiligd openen ────────────────────────────
+{
+  const plain = dec(fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'));
+  const withPset = (text: string) => text.replace(/ENDSEC;\s*END-ISO-10303-21;/,
+    "#999997=IFCPROPERTYSINGLEVALUE('ExternKenmerk',$,IFCLABEL('moet blijven'),$);\n"
+    + "#999998=IFCPROPERTYSET('0123456789012345678901',$,'ExternPakket',$,(#999997));\nENDSEC;\nEND-ISO-10303-21;");
+  for (const schema of ['IFC_ONBEKEND', '']) {
+    const base = plain.replace(/FILE_SCHEMA\(.*?\);/, schema ? `FILE_SCHEMA(('${schema}'));` : '');
+    for (const foreign of [false, true]) {
+      const bytes = enc.encode(foreign ? withPset(base) : base);
+      const name = `kop-${schema || 'ontbreekt'}-${foreign}.ifc`;
+      const off = await open(false, name, bytes);
+      ok(`${name}: zonder flag opent zoals main`, opened(off, name));
+      if (foreign) ok(`${name}: main laat de externe pset bij schrijven weg`, !saved(off).includes('ExternPakket'));
+      const on = await open(true, name, bytes);
+      if (foreign) {
+        ok(`${name}: met flag ontstaat geen document`, !opened(on, name) && on.getState().tasks.length === 0);
+        eq(`${name}: getypeerde openingsmelding`, on.getState().ui.notifications[0]?.messageKey, 'notifications.ifcForeignOpenSchema');
+        const error = await readIfcBytes(bytes).catch((e: unknown) => e) as { code?: string; fallback?: { kind: string } };
+        eq(`${name}: getypeerde reden`, [error.code, error.fallback?.kind], ['IFC_FOREIGN_OPEN_REFUSED', 'schema']);
+      } else {
+        ok(`${name}: zonder vreemd deel opent met flag`, opened(on, name));
+        eq(`${name}: gewone opslag blijft bytegelijk`, saved(on), saved(off));
+        ok(`${name}: gewone opslag niet geblokkeerd`, !ifcSaveBlocked(on.getState()));
+      }
+    }
+  }
+  // Verlaag alleen via de bestaande leesopties: geen bestand van 300 MiB nodig. Het integratiebewijs
+  // onder /tmp verlaagt daarnaast tijdelijk de constante en opent dezelfde gevallen via openOpenedFile.
+  for (const foreign of [false, true]) {
+    const bytes = enc.encode(foreign ? withPset(plain) : plain);
+    const value = await readIfcBytesDetailed(bytes, {}, { maxBytes: 1 }).catch((e: unknown) => e);
+    if (foreign) {
+      const e = value as { code?: string; fallback?: { kind: string } };
+      eq('te groot vreemd: getypeerd geweigerd', [e.code, e.fallback?.kind], ['IFC_FOREIGN_OPEN_REFUSED', 'te-groot']);
+    } else {
+      const r = value as Awaited<ReturnType<typeof readIfcBytesDetailed>>;
+      eq('te groot eigen: bewezen gewone route', [r.fallback?.kind, r.result?.ifcSource], ['te-groot', undefined]);
+      const store = createAppStoreContext().store;
+      store.getState().openAsDocument(r.result, { name: 'groot-eigen.ifc', ref: null });
+      ok('te groot eigen: IFC-opslag toegestaan', !ifcSaveBlocked(store.getState()));
+      eq('te groot eigen: zelfde opslag als main', saved(store), saved(await open(false, 'groot-eigen.ifc', bytes)));
+    }
+  }
+  // Dezelfde hele DATA-staart met een kapotte oude kop: zonder vreemd deel bruikbaar, met vreemd deel geweigerd.
+  for (const foreign of [false, true]) {
+    const oldHeader = dec(fileBytes('tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc'));
+    const malformed = foreign ? withPset(oldHeader) : oldHeader;
+    const bytes = enc.encode(malformed);
+    const off = await open(false, 'scanner-uit.ifc', bytes);
+    const on = await open(true, 'scanner-aan.ifc', bytes);
+    ok(`scanner ${foreign}: main opent`, opened(off, 'scanner-uit.ifc'));
+    if (foreign) {
+      // Nu veilig geweigerd; na de oude-kop-PR mag dit ook met een bewaarde bron en de bestaande opslagblokkade openen.
+      ok('oude kop met externe pset: geen verliesgevend document', !opened(on, 'scanner-aan.ifc')
+        || (on.getState().ifcSource?.foreign === true && ifcSaveBlocked(on.getState())));
+      ok('oude kop met externe pset: zonder flag laat gewone opslag de pset weg', !saved(off).includes('ExternPakket'));
+    } else {
+      ok('oude kop zonder vreemd deel: eindverwachting opent zoals main (1103)', opened(on, 'scanner-aan.ifc'));
+    }
+    const scan = scanForeign(bytes);
+    console.log(`GEMETEN oude kop: foreign=${foreign}, scan=${scan.ok ? 'ok' : scan.reason}, flag-uit=${opened(off, 'scanner-uit.ifc')}, flag-aan=${opened(on, 'scanner-aan.ifc')}, blocked=${ifcSaveBlocked(on.getState())}`);
+    if (!foreign) {
+      ok('scanner eigen: opslag blijft vrij', !ifcSaveBlocked(on.getState()));
+      eq('scanner eigen: gewone opslag bytegelijk', saved(on), saved(off));
+    }
+    // IFC2X3 blijft de expliciete uitzondering: planning met melding, de modelweigering is hieronder beproefd.
+    const legacy = enc.encode((foreign ? withPset(plain) : plain).replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));"));
+    const legacyOn = await open(true, 'legacy.ifc', legacy);
+    const legacyOff = await open(false, 'legacy.ifc', legacy);
+    ok(`IFC2X3 ${foreign}: met en zonder flag geopend`, opened(legacyOn, 'legacy.ifc') && opened(legacyOff, 'legacy.ifc'));
+    ok(`IFC2X3 ${foreign}: expliciete verliesmelding`, notices(legacyOn).some(n => n.messageKey === 'notifications.ifc2x3PlanningOnly' && n.sticky));
+    eq(`IFC2X3 ${foreign}: opslag zoals main`, saved(legacyOn), saved(legacyOff));
+  }
+  // Bestaande Worker-naad: alleen de selectie af laten wijken. De bytes, de lezer en de app-route blijven echt.
+  const originalWorker = globalThis.Worker;
+  try {
+    for (const foreign of [false, true]) {
+      class DifferentSelectionWorker {
+        onmessage: ((event: { data: unknown }) => void) | null = null;
+        onerror = null;
+        onmessageerror = null;
+        terminate() {}
+        postMessage(msg: { id: number; bytes: Uint8Array }) {
+          const outcome = scanForeign(msg.bytes);
+          if (!outcome.ok) throw new Error(outcome.message);
+          const data = { id: msg.id, outcome: { ...outcome, selection: { ...outcome.selection, resources: Int32Array.of(-1) } } };
+          queueMicrotask(() => this.onmessage?.({ data }));
+        }
+      }
+      globalThis.Worker = DifferentSelectionWorker as unknown as typeof Worker;
+      const bytes = enc.encode(foreign ? withPset(plain) : plain);
+      const on = await open(true, 'selectie-aan.ifc', bytes);
+      const off = await open(false, 'selectie-uit.ifc', bytes);
+      ok(`selectie ${foreign}: main opent`, opened(off, 'selectie-uit.ifc'));
+      eq(`selectie ${foreign}: veilige uitkomst met flag`, opened(on, 'selectie-aan.ifc'), !foreign);
+      if (foreign) eq('selectie vreemd: getypeerde melding', on.getState().ui.notifications[0]?.messageKey, 'notifications.ifcForeignOpenUnsafe');
+      else eq('selectie eigen: bytegelijk', saved(on), saved(off));
+    }
+  } finally { globalThis.Worker = originalWorker; }
+  const { ifcSchemaQuestionFor, ifcSchemaBlocksSilentWrite } = await import('@/services/ifc/ifcSchemaQuestion');
+  for (const schema of ['IFC4', 'IFC4X3', 'IFC4X3_ADD1', 'IFC4X3_ADD2', 'IFC4X3_TC1']) {
+    const bytes = enc.encode(withPset(plain.replace(/FILE_SCHEMA\(.*?\);/, `FILE_SCHEMA(('${schema}'));`)));
+    const store = await open(true, `schema-${schema}.ifc`, bytes);
+    const S = () => store.getState();
+    const before = S().project.ifcSchema;
+    const source = S().ifcSource;
+    eq(`${schema}: letterlijke kop in bron`, source?.schemaName, schema);
+    eq(`${schema}: geen schemavraag`, ifcSchemaQuestionFor({ ifcSchemaUnconfirmed: schema === 'IFC4X3_ADD2' ? 'IFC4' : schema }, source), null);
+    ok(`${schema}: stille schemacontrole leest bron`, !ifcSchemaBlocksSilentWrite({ ifcSchemaUnconfirmed: 'IFC2X3' }, source));
+    ok(`${schema}: directe schemakeuze geweigerd`, !S().setIfcSchema(before === 'IFC4' ? 'IFC4X3' : 'IFC4'));
+    S().setProject({ ifcSchema: before === 'IFC4' ? 'IFC4X3' : 'IFC4', name: 'Andere naam' });
+    eq(`${schema}: projectpatch behoudt schema`, S().project.ifcSchema, before);
+    S().applyProjectInfo({ ifcSchema: before === 'IFC4' ? 'IFC4X3' : 'IFC4' }, undefined);
+    const { createMcpTransactions } = await import('@/state/runtime/createMcpTransactions');
+    const transactions = createMcpTransactions(contexts.get(store)!);
+    const mcp = transactions.run(() => {
+      transactions.draft.setProject({ ifcSchema: before === 'IFC4' ? 'IFC4X3' : 'IFC4', name: 'Via MCP' });
+    });
+    ok(`${schema}: MCP-draft voert metadata uit`, mcp.ok && S().project.name === 'Via MCP');
+    eq(`${schema}: MCP-draft bewaart schema`, S().project.ifcSchema, before);
+    const { makeMcpContext } = await import('../mcp/harness');
+    const { handleMcpMessage } = await import('@/services/mcp/dispatcher');
+    const response = JSON.parse(await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call',
+      params: { name: 'planner_update_project', arguments: { ifcSchema: 'IFC4', name: 'Ongeoorloofd' } },
+    }), makeMcpContext(contexts.get(store)!)));
+    ok(`${schema}: MCP-tool weigert een schemaparameter`, response.error !== undefined || response.result?.isError === true);
+    eq(`${schema}: MCP-tool wijzigt geen schema`, S().project.ifcSchema, before);
+    S().undo(); S().redo();
+    eq(`${schema}: undo en redo behouden schema en bron`, [S().project.ifcSchema, S().ifcSource === source], [before, true]);
+    ok(`${schema}: opslagblokkade blijft dicht`, ifcSaveBlocked(S()));
+    const off = await open(false, `schema-uit-${schema}.ifc`, bytes);
+    ok(`${schema}: zonder flag blijft keuze mogelijk`, off.getState().setIfcSchema(before === 'IFC4' ? 'IFC4X3' : 'IFC4'));
+  }
+}
+
+const component = readFileSync(join(ROOT, 'src/components/settings/ProjectInfoPanelContent.tsx'), 'utf8');
+ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijke kop',
+  component.includes('schemaLocked = !isNew && hasForeignContent(ifcSource)')
+  && component.includes('disabled={schemaLocked}') && component.includes('schemaLocked ? ifcSource!.schemaName')
+  && component.includes("tMenu('projectInfo.ifcSchema.foreignLocked')"));
+
+// ── 7. Grenzen van de scanner: geen onbeveiligde terugval ───────────────────────────────────────────────────
 {
   const showcase = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
   /** Een losse persoon vlak vóór `ENDSEC;` van de DATA-sectie. */
@@ -503,22 +731,15 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   ok('grens: #2147483647 gaat door de bytes-route', r1.fallback === undefined && r1.result.ifcSource !== undefined);
   ok('grens: de losse persoon is een vreemd deel', r1.result.ifcSource?.foreign === true);
   const overLimit = enc.encode(withPerson(showcase, '2147483648'));
-  const r2 = await readIfcBytesDetailed(overLimit);
-  eq('afwijking 7: #2147483648 geeft de terugval van de scanner', r2.fallback && 'reason' in r2.fallback ? [r2.fallback.kind, r2.fallback.reason] : null,
-    ['scanner', 'id-te-groot']);
-  eq('afwijking 7: de terugval heeft geen bron', r2.result.ifcSource, undefined);
-  reseed(0x804);
-  const viaFallback = planningOf(r2.result);
-  reseed(0x804);
-  eq('afwijking 7: de terugval geeft wat readIFC nu geeft', sha(viaFallback), sha(planningOf(readIFC(dec(overLimit)))));
-  // Via de store: openen zoals nu, zonder bron, opslaan mag.
+  const r2 = await readIfcBytesDetailed(overLimit).catch((e: Error) => e);
+  ok('fase 1c: #2147483648 weigert de onzekere terugval', r2 instanceof Error);
   const store = await open(true, 'grens.ifc', overLimit);
-  ok('afwijking 7: de store opent het bestand zoals nu, zonder bron', opened(store, 'grens.ifc') && store.getState().ifcSource === null);
-  ok('afwijking 7: opslaan niet geweigerd', !ifcSaveBlocked(store.getState()));
-  // Een tweede weigering van de scanner: een dubbel `#id` (readIFC neemt de laatste).
+  ok('fase 1c: de store maakt geen onbeveiligd document', !opened(store, 'grens.ifc'));
+  eq('fase 1c: getypeerde scannerweigering in het meldingenkanaal', store.getState().ui.notifications[0]?.messageKey,
+    'notifications.ifcForeignOpenUnsafe');
   const dup = enc.encode(withPerson(withPerson(showcase, '999998'), '999998'));
-  const r3 = await readIfcBytesDetailed(dup);
-  eq('afwijking 7: een dubbel #id geeft de terugval', r3.fallback?.kind, 'scanner');
+  const r3 = await readIfcBytesDetailed(dup).catch((e: Error) => e);
+  ok('fase 1c: dubbele ids geven geen onbeveiligde terugval', r3 instanceof Error);
   // Een modelbestand dat de scanner weigert: de huidige route, dus de modelweigering.
   const bonsaiOver = enc.encode(withPerson(dec(bonsai), '2147483648'));
   let refusal = '';

@@ -281,7 +281,8 @@
       "label": "IFC schema when saving",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (default)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "The file contains data from another application, so the schema from its original header is kept."
     }
   },
   "newProject": {

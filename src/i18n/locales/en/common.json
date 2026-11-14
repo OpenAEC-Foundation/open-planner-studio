@@ -347,7 +347,10 @@
     "dependentProjectsFailed": "The folder with dependent projects could not be read.",
     "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library.",
     "reportLayoutGone": "The report's layout no longer exists. The report shows all tasks again.",
-    "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again."
+    "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again.",
+    "ifcForeignOpenSchema": "This IFC file contains data from another application and has an unknown or missing schema. Opening was stopped to prevent data loss when saving.",
+    "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
+    "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",

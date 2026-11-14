@@ -174,6 +174,8 @@ const REFUSAL_KEYS = [
 ];
 const NOT_A_REFUSAL: Record<string, string> = {
   mppInvalidContainer: 'echte importfout (ongeldige bestandsstructuur), geen documentgebonden bewerkingsweigering',
+  ifcForeignOpenSchema: 'echte importfout (onbekend schema met vreemde inhoud); er is geen document geactiveerd',
+  ifcForeignOpenUnsafe: 'echte importfout (inhoud niet veilig in te delen); er is geen document geactiveerd',
   extensionInstallFailed: 'app-globale installatiefout (bijv. ongeldig bestand of opslag); geen documentgebonden weigering',
   extHelpProjectOpenFailed: 'storing (bestand niet te openen), echte fout',
   siteSaveConflict: 'opslaan geweigerd door de site: data staat op het spel, blijft een echte fout die nooit weggeduwd wordt',
