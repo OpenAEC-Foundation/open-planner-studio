@@ -12,13 +12,13 @@ tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-persisted-scope = "=2.3.6"
 tauri-plugin-store = "2"
 tauri-plugin-os = "2"
-tauri-plugin-updater = "2"
+tauri-plugin-updater = "2.14.1"
 # Directe dependency op de zip-crate om via feature-unification de deflate-
 # backend (pure-Rust flate2/miniz_oxide) te forceren. Zonder deze feature bouwt
 # tauri-plugin-updater's zip zonder deflate-decompressie en faalt de Windows-
 # NSIS-updater met "Compression method not supported" (method=8 / Deflate).
 # deflate-flate2 = flate2 met default backend miniz_oxide (geen C-toolchain).
-zip = { version = "4", default-features = false, features = ["deflate-flate2"] }
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 tauri-plugin-process = "2"
 tauri-plugin-clipboard-manager = "2"
 # MCP-bridge (fase 1, Tauri-only): een piepklein HTTP-doorgeefluik op 127.0.0.1.

@@ -458,6 +458,7 @@ check-tutorial-project.ts matrix
 check-undo-bound.ts matrix
 check-undo-coalesce-grid.ts matrix
 check-undo-memory-cap.ts matrix
+check-updater-zip.ts matrix
 check-uren-f5a-adapters.ts matrix
 check-uren-f5a2-adapters.ts matrix
 check-uren-f5b-adapters.ts matrix
