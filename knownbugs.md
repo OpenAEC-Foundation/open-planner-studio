@@ -1996,13 +1996,6 @@ en noem het in je rapport of PR-tekst.
      rechtstreeks doorgeven en alleen de kopie in de adapter houden spaart één volledige kopie en freeze, zonder een
      beschermingsgrens weg te nemen. Alleen opruimen; geen tijdwinst gemeten. Gevonden door de review van #918
      (Sol). — B
-1550. **VERVOLG (#804): de canonieke vergelijking van de planning hangt af van het schrijfmoment.** `planningCanon`
-     (`src/services/ifc/foreign/planningCanon.ts`) zet de klok van de eigen owner history op nul, maar de gewone writer
-     schrijft ook de actuele `CreationDate` van het werkplan en het live-schema. Twee aanroepen aan weerszijden van een
-     secondegrens kunnen dezelfde planning dus verschillend vergelijken: de merge weigert dan onnodig, of "niets
-     veranderd" (#923) geeft niet de bronbytes terug. Geen verlies. In de code vastgesteld, niet gereproduceerd; bestaat
-     ook op main. Kan een proef laten haperen. Richting: één vaste vergelijkingsklok, of alleen deze writerklokken
-     normaliseren. Gevonden door de review van #923. — S
 1551. **VERVOLG (#804, opruimen): zonder vreemd deel draait de planningwriter twee keer in `prepareIfcWrite`.** Eén keer
      voor de tekst en de kalenderkeuzes (`writeIFCWithChoices`) en één keer alleen voor de sessiekaart
      (`writeIfcMergeLines` met een leeg id-plan). Beide gebruiken dezelfde schrijfkern en nummering; geen verkeerde kaart
@@ -2035,15 +2028,6 @@ en noem het in je rapport of PR-tekst.
      De PR die de flag aanzet moet de handleiding nl/en en de manifestvermelding toevoegen, met de
      volledige exportroute en de nog geldende opslaggrenzen. Ook de meldingen in `handoff.md` moeten
      vóór die vrijgave door de eigenaar beoordeeld zijn. Afspraak van Trias, 14 november 2026. — B
-
-1567. **VERVOLG (#804, gemaakte corpusinvoer): `latin1.ifc` weigert onbewerkt op de herleestoets.**
-     De Bonsai-achtige corpusfixture `tests/fixtures/ifc-foreign/latin1.ifc` opent via de bytes-route,
-     maar de bestaande `prepareIfcWrite(buildWriteIFCInput(..., 'merge'), source)` weigert met
-     `merge-needs-phase2`, geval `planning-na-openen`. Ook app-MCP export weigert getypeerd vóór schrijven.
-     Dit is geen door OPS geschreven bestand. Een aparte variant van `eigen-plus-model.ifc` met alleen
-     een rauw Latin-1-byte in een wandnaam exporteert volledig en bytegelijk; de MCP-proef bewaakt beide
-     uitkomsten. De merge, lezer en lexer zijn in PR 11b niet gewijzigd; geen ruimere uitzondering.
-     Gevonden bij de aansluiting van de volledige IFC-export in fase 1c PR 11b. — B
 
 1568. **VERVOLG (bediening): blijvende meldingen kunnen de IFC-exportkaart bedekken.**
      In de echte browserroute van `settings-tabs.spec.ts` liggen na openen, een geweigerde Ctrl+S en F5

@@ -1482,15 +1482,24 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
     const latinPath = `${HOME}/latin1-corpus.ifc`; setBinaryFile(latinPath, latin);
     const latinCtx = makeCtx(); await callOk('planner_import_schedule', { path: latinPath }, latinCtx);
     const { prepareIfcWrite, MergeNeedsPhase2Error } = await import('@/services/ifc/foreign/mergeWriter');
-    let sameRefusal = false;
+    const unchangedLatin = await prepareIfcWrite(buildWriteIFCInput(S(), 'merge'), S().ifcSource!);
+    assertEq(unchangedLatin.parts.reduce((n, part) => n + part.length, 0), latin.length, 'Latin-1-bronlengte exact');
+    assertEq(unchangedLatin.sha256, hash(latin), 'Latin-1-bronhash exact');
+    const latinExport = `${HOME}/latin1-corpus-export.ifc`;
+    const exportedLatin = await exportRpc(latinExport, false, latinCtx);
+    assert(exportedLatin.ok, 'onbewerkte Latin-1-corpus exporteert via dispatcher');
+    assertEq(binFiles.get(latinExport)!.length, latin.length, 'dispatcher schrijft de bronlengte');
+    assertEq(hash(binFiles.get(latinExport)!), hash(latin), 'dispatcher schrijft exact de bronbytes');
+    S().updateProject({ name: 'Werkelijk gewijzigde vreemde planning' });
+    let typedRefusal = false;
     try { await prepareIfcWrite(buildWriteIFCInput(S(), 'merge'), S().ifcSource!); }
-    catch (error) { sameRefusal = error instanceof MergeNeedsPhase2Error && error.cases.some(c => c.kind === 'planning-na-openen'); }
-    assert(sameRefusal, 'Latin-1-corpus weigert al in de bestaande documentvoorbereiding (1567)');
-    const deniedLatin = await exportRpc(`${HOME}/latin1-corpus-export.ifc`, false, latinCtx);
-    assert(!deniedLatin.ok && deniedLatin.code === 'VALIDATION' && deniedLatin.error.includes('planning-na-openen'),
+    catch (error) { typedRefusal = error instanceof MergeNeedsPhase2Error && error.cases.some(c => c.kind === 'vreemde-herkomst'); }
+    assert(typedRefusal, 'werkelijke bewerking van vreemde corpusplanning weigert getypeerd');
+    const deniedLatin = await exportRpc(`${HOME}/latin1-corpus-bewerkt.ifc`, false, latinCtx);
+    assert(!deniedLatin.ok && deniedLatin.code === 'VALIDATION' && deniedLatin.error.includes('vreemde-herkomst'),
       'corpusweigering getypeerd via dispatcher, nul bytes');
-    assertEq(binFiles.has(`${HOME}/latin1-corpus-export.ifc`), false, 'geen corpusuitvoer');
-    assertEq(byteWrites, 2, 'twee volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
+    assertEq(binFiles.has(`${HOME}/latin1-corpus-bewerkt.ifc`), false, 'geen bewerkte corpusuitvoer');
+    assertEq(byteWrites, 3, 'drie volledige byte-exports'); assertEq(textWrites, 0, 'geen tekstrondgang');
   } finally { useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument(); }
 });
 

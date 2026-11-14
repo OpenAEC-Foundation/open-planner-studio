@@ -702,7 +702,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
   const scan = foreignScanFrom(index, cls, source.bytes);
-  const pristine = await pristineFromScan(scan, source.bytes);
+  const pristine = await pristineFromScan(scan, source.bytes, (source.opened ?? input).project);
   // "De planner wijzigde dit veld" betekent: het wijkt af van wat de app na het openen liet zien (`source.opened`), niet van
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
@@ -910,7 +910,7 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
     actual = validateMergeOutput(index, cls, source.bytes, bytes);
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
-    const parsed = await pristineFromScan(outputScan, bytes);
+    const parsed = await pristineFromScan(outputScan, bytes, opened.project);
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');

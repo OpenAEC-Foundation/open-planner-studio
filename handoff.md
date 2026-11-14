@@ -130,6 +130,8 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-14: fase 1c PR 7e (#804) maakt alleen de planningsvergelijking klokvast; interne herlezingen hergebruiken ontbrekende projectdatums van het openen, opgeslagen datums blijven leidend en gewone opslag houdt haar echte schrijfklok. 1550/1567 opgelost; klokgrenzen, bronbytes, echte bewerkingen en uitvoer zonder vergelijkingsdatum bewaakt.
+
 - 2026-11-14: fase 1c PR 9b bewaart site-/browserbronkopieën vóór het manifest in een eigen IndexedDB-database; bestaande database v3 en manifest v5 blijven staan, sitebasis alleen naast de kopie, veilige opruiming en best effort. 1572/1573/1205/1564 opgelost; handle-rechten 1574 en backupaansluiting 9c (1575) blijven vervolg.
 
 - PR 7c (#804, 1571): één strenge groeicontrole voor `OPS_Baselines.TaskGuids` en `OPS_TaskTypes.TaskTypes`; echte opgeslagen reeksen op drie bronnen, bron-/uitvoermutaties en twaalf vaste tellinggevallen; 1580 gaat naar 7d, 1581/1582 blijven op de eindlijst.

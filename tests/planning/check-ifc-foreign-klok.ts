@@ -26,7 +26,7 @@ class Clock extends RealDate {
   constructor(...args: unknown[]) {
     const stack = new Error().stack ?? '';
     if (stack.includes('at planningCanon (') &&
-      ((!args.length && stack.includes('at writeIfcParts (')) || stack.includes('at writeIFCForComparison ('))) {
+      ((!args.length && stack.includes('at writeIfcParts (')) || stack.split('\n')[2]?.includes('at writeIFCForComparison ('))) {
       if (++canons >= boundary) now = BASE + 1000;
     }
     if (args.length) super(...args as [number]); else super(now);
@@ -71,9 +71,14 @@ async function outcome(input: WriteIFCInput, source: IfcSource) {
 try {
   const own = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
   const office = readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'), 'utf8');
-  // Alleen de bestaande wand erbij; geen grote gegenereerde fixture nodig.
-  const wall = new TextDecoder().decode(own).split('\n').find(line => line.includes('=IFCWALL('))!;
-  const withWall = new TextEncoder().encode(office.replace(/ENDSEC;\s*END-ISO-10303-21;\s*$/, `${wall.replace(/^#\d+=/, '#999999=')}\nENDSEC;\nEND-ISO-10303-21;\n`));
+  const wall = [
+    "#90001=IFCORGANIZATION($,'Arch',$,$,$);", "#90002=IFCAPPLICATION(#90001,'1','Revit','RVT');",
+    "#90003=IFCPERSON($,'Ontwerper',$,$,$,$,$,$);", '#90004=IFCPERSONANDORGANIZATION(#90003,#90001,$);',
+    '#90005=IFCOWNERHISTORY(#90004,#90002,$,.ADDED.,$,$,$,1);',
+    "#90006=IFCWALL('2O2Fr$t4X7Zf8NOew3FLOX',#90005,'Wand',$,$,$,$,$,$);",
+  ].join('\n');
+  const at = office.lastIndexOf('ENDSEC;');
+  const withWall = new TextEncoder().encode(`${office.slice(0, at)}${wall}\n${office.slice(at)}`);
   const fixtures = [
     ['eigen-plus-model', own], ['kantoor-plus-wand', withWall],
     ['latin1', new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/latin1.ifc')))],
@@ -94,7 +99,7 @@ try {
       identical(concat(output.prepared.parts), bytes);
       assert.equal(canons, 4);
     });
-    clock();
+    clock('milliseconde');
     const edits: [string, WriteIFCInput][] = [
       ['duur', await lengthen(input, lengthenedTask(input).id)],
       ['taak-erbij', await storeEdit(input, s => { s.addTask({ name: 'Kloktaak', position: { anchorId: lengthenedTask(input).id, where: 'below' } }, { phaseAssignments: 'move', answered: true }); })],
@@ -105,6 +110,8 @@ try {
       const reference = await outcome(changed, source);
       for (const mode of modes) await check(`${name}: ${edit} / ${mode}`, async () => {
         assert.notEqual(planningCanon(changed), planningCanon(input), 'echte bewerking telt mee');
+        assert.notEqual(changed.project.modifiedAt, input.project.modifiedAt, 'de echte actie wijzigt modifiedAt');
+        if (name !== 'latin1' && edit === 'duur') assert.equal(reference.kind, 'geschreven', 'de gewone duuractie blijft schrijven');
         clock(mode);
         const actual = await outcome(changed, source);
         assert.equal(actual.kind, reference.kind);
@@ -121,6 +128,24 @@ try {
       assert.notEqual(planningCanon(changed), planningCanon(input));
     });
   }
+
+  await check('terugval is per ontbrekend projectveld; gewoon openen houdt zijn klok', () => {
+    clock();
+    const original = readIFC(office).project;
+    const fallback = { createdAt: '2040-01-02T03:04:05.000Z', modifiedAt: '2041-02-03T04:05:06.000Z' };
+    for (const [property, field, present] of [
+      ['CreatedAt', 'createdAt', 'modifiedAt'], ['ModifiedAt', 'modifiedAt', 'createdAt'],
+    ] as const) {
+      const missing = office.replace(`'${property}'`, `'Ontbrekend${property}'`);
+      assert.notEqual(missing, office);
+      clock('milliseconde');
+      const ordinary = readIFC(missing).project;
+      assert.equal(ordinary[field], new RealDate(BASE + 1).toISOString());
+      const reread = readIFC(missing, {}, { projectTimestampFallback: fallback }).project;
+      assert.equal(reread[field], fallback[field]);
+      assert.equal(reread[present], original[present], 'opgeslagen waarde wint van de terugval');
+    }
+  });
 
   await check('echte opgeslagen projectdatums blijven leidend bij de herlezing', async () => {
     clock();
@@ -174,17 +199,20 @@ try {
   }
 ];
   for (const row of writerReference) await check(`gewone writer bytegelijk aan basis: ${row.name}`, async () => {
-    clock(); reseed(0x804);
-    const input = readIFC(readFileSync(join(root, 'public/examples', row.name), 'utf8'));
-    const output = writeIFC(input);
-    assert.equal(Buffer.byteLength(output), row.bytes);
-    assert.equal(sha(output), row.sha256);
-    realWriteClock(output);
-    const { store } = await openInStore(new TextEncoder().encode(output));
-    const prepared = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
-    realWriteClock(concat(prepared.parts));
-    const regular = await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'merge'));
-    assert.equal(typeof regular.content, 'string'); realWriteClock(regular.content!);
+    const zone = process.env.TZ; process.env.TZ = 'Europe/Amsterdam';
+    try {
+      clock(); reseed(0x804);
+      const input = readIFC(readFileSync(join(root, 'public/examples', row.name), 'utf8'));
+      const output = writeIFC(input);
+      assert.equal(Buffer.byteLength(output), row.bytes);
+      assert.equal(sha(output), row.sha256);
+      realWriteClock(output);
+      const { store } = await openInStore(new TextEncoder().encode(output));
+      const prepared = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+      realWriteClock(concat(prepared.parts));
+      const regular = await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'merge'));
+      assert.equal(typeof regular.content, 'string'); realWriteClock(regular.content!);
+    } finally { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone; }
   });
 
   await check('Opslaan als download en Opslaan als siteversie bevatten uitsluitend de echte schrijfklok', async () => {
