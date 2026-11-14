@@ -99,7 +99,7 @@ export async function saveToPathWithIO(
   if (await refusedWriteTarget(s, { kind: 'path', path }, targetDeps)) {
     throw new Error('saveToPath: dit bestand bevat een gebouwmodel; kies een ander pad.');
   }
-  const content = writeIFC(buildWriteIFCInput(s, 'merge'));
+  const content = writeIFC(buildWriteIFCInput(s, 'planOnly'));
   await io.writeTextFile(path, content);
   return { path, bytes: content.length };
 }
