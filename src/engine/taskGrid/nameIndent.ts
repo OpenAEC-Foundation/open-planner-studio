@@ -24,6 +24,14 @@ export const TASK_NAME_INDENT_UNIT = 20;
 /** Stap per groepsniveau; dezelfde als de inspringing van de groepskop in DataGridCore. */
 export const GROUPED_NAME_INDENT_UNIT = 14;
 
+/**
+ * Ruimte die het subtaak-plusje achter de naam van een samenvatting inneemt (Gantt-takenlijst én
+ * Tabel): de flex-gap van de naamrij (4px), de knop zelf (`.task-grid-add-child`, 18px) en zijn
+ * marge tot de kolomrand (6px). Automatisch passen telt dit mee; een bronchecker bewaakt dat het
+ * gelijk blijft aan globals.css.
+ */
+export const SUMMARY_ADD_SLOT_WIDTH = 28;
+
 export type TaskNameIndentMode = 'tree' | 'grouped';
 
 /** Padding-inline-start van de naamrij in pixels, vóór het (eventuele) triehoekje. */

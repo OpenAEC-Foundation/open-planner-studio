@@ -424,7 +424,7 @@
 /* Issue #89: de subtaak-plus staat ná de naam en wordt met `margin-inline-start: auto` tegen
  * de rechter kolomrand gedrukt, zodat hij op elke samenvattende rij op dezelfde plek staat en
  * de naamtekst links de hiërarchie kan laten zien. De lichte rand maakt hem als knop herkenbaar. */
-.gantt-task-grid-add-child {
+.task-grid-add-child {
   flex: none;
   margin-inline-start: auto;
   /* Vrij van de kolomrand (issue #89, punt 4 vroeg juist om lucht rond zo'n knop). */
@@ -439,8 +439,8 @@
   line-height: 1;
 }
 
-.gantt-task-grid-add-child:hover,
-.gantt-task-grid-add-child:focus-visible {
+.task-grid-add-child:hover,
+.task-grid-add-child:focus-visible {
   color: var(--theme-accent);
   border-color: var(--theme-accent);
   background: var(--theme-hover);

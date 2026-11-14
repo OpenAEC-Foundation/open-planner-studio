@@ -76,11 +76,11 @@ test('tabel: taaknamen springen per niveau in en het triehoekje staat onder de o
   expect(Math.round(topText - rootText)).toBe(0);
 });
 
-test('gantt: de subtaak-plus staat rechts in de naamkolom, achter de tekst', async ({ page, ops: _ops }) => {
+test('gantt en tabel: de subtaak-plus staat rechts in de naamkolom, achter de tekst', async ({ page, ops: _ops }) => {
   const tree = await seedTree(page);
   const cell = taskCell(page, tree.root, 'task.name', 'gantt-task-grid');
   const cellBox = (await cell.boundingBox())!;
-  const plus = cell.locator('.gantt-task-grid-add-child');
+  const plus = cell.locator('.task-grid-add-child');
   await expect(plus).toBeVisible();
   const plusBox = (await plus.boundingBox())!;
   const labelBox = (await cell.locator('.full-task-grid-name-label').boundingBox())!;
@@ -124,6 +124,31 @@ test('gantt: de subtaak-plus staat rechts in de naamkolom, achter de tekst', asy
     }), { message: `volledige duurtekst zichtbaar op ${viewport.width}px` })
       .toEqual({ clippedBy: [], suffixInsideCell: true });
   }
+
+  // Issue #901: de Tabel toont hetzelfde plusje met hetzelfde gedrag. Automatisch passen (dubbelklik
+  // op de kolomrand) rekent het plusje en de vette samenvattingsnaam mee, zodat de naam heel blijft.
+  await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, {
+    name: 'Casco met een behoorlijk lange samenvattingsnaam',
+  }), tree.summary);
+  await openTable(page);
+  const tableCell = taskCell(page, tree.summary, 'task.name');
+  const tablePlus = tableCell.locator('.task-grid-add-child');
+  const tableLabel = tableCell.locator('.full-task-grid-name-label');
+  await expect(tablePlus).toBeVisible();
+  await expect(taskCell(page, tree.leaf1, 'task.name').locator('.task-grid-add-child')).toHaveCount(0);
+  await page.locator('[data-task-grid-surface-id="full-task-grid"] [data-grid-column-id="task.name"] .task-grid-resize-handle').dblclick();
+  await expect.poll(() => tableLabel.evaluate(el => el.scrollWidth <= el.clientWidth),
+    { message: 'samenvattingsnaam niet afgekapt na automatisch passen' }).toBe(true);
+  const tablePlusBox = (await tablePlus.boundingBox())!;
+  const tableLabelBox = (await tableLabel.boundingBox())!;
+  expect(tablePlusBox.x).toBeGreaterThan(tableLabelBox.x + tableLabelBox.width);
+  await tablePlus.click();
+  await expect.poll(() => page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    const parent = s.tasks.find(task => task.id === id)!;
+    const added = s.tasks.find(task => task.id === parent.childIds[2]);
+    return { children: parent.childIds.length, parentOfNew: added?.parentId };
+  }, tree.summary)).toEqual({ children: 3, parentOfNew: tree.summary });
 });
 
 test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde alleen bij afknippen', async ({ page, ops: _ops }) => {
