@@ -46,12 +46,26 @@ function taskDays(task: Task, dayOf: DayOf): { startDay: number; endDay: number 
   };
 }
 
+/** Dagen van een rij: een taak, of bij een ingeklapte mijlpalenreeks (#868) de vroegste tot de
+ *  laatste mijlpaal. Bandrijen hebben geen dagen. */
+function rowDays(row: ViewRow, dayOf: DayOf): { startDay: number; endDay: number } | null {
+  if (row.kind === 'task') return taskDays(row.task, dayOf);
+  if (row.kind !== 'milestones') return null;
+  let out: { startDay: number; endDay: number } | null = null;
+  for (const task of row.tasks) {
+    const days = taskDays(task, dayOf);
+    if (!days) continue;
+    out = out ? { startDay: Math.min(out.startDay, days.startDay), endDay: Math.max(out.endDay, days.endDay) } : days;
+  }
+  return out;
+}
+
 /** Projectperiode (min start .. max finish) in dagen t.o.v. originDate. */
 function projectSpan(rows: ViewRow[], dayOf: DayOf): Span | null {
   let min = Infinity;
   let max = -Infinity;
   for (const row of rows) {
-    const days = row.kind === 'task' ? taskDays(row.task, dayOf) : null;
+    const days = rowDays(row, dayOf);
     if (!days) continue;
     if (days.startDay < min) min = days.startDay;
     if (days.endDay > max) max = days.endDay;
@@ -75,7 +89,7 @@ function layoutFor(rows: ViewRow[], originDate: string, axisDayOf: DayOf | undef
   const origin = parseDate(originDate);
   const dayOf: DayOf = axisDayOf ?? ((date) => diffCalendarDays(origin, date));
   const layout: Layout = {
-    days: rows.map((row) => (row.kind === 'task' ? taskDays(row.task, dayOf) : null)),
+    days: rows.map((row) => rowDays(row, dayOf)),
     span: projectSpan(rows, dayOf),
   };
   if (cacheable) layoutCache.set(rows, { originDate, axisDayOf, layout });
@@ -122,13 +136,14 @@ export class MiniMapRenderer {
       const miniRowH = taskRowCount > 0 ? canvasHeight / taskRowCount : canvasHeight;
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        if (row.kind !== 'task') continue;
+        if (row.kind === 'group') continue;
         const days = this.days[i];
         if (!days) continue;
         const x0 = this.dayToMiniX(days.startDay);
         const x1 = this.dayToMiniX(days.endDay);
         const y = i * miniRowH;
-        ctx.fillStyle = row.task.time.isCritical ? colors.critical : colors.bar;
+        const critical = row.kind === 'task' ? row.task.time.isCritical : row.tasks.some(t => t.time.isCritical);
+        ctx.fillStyle = critical ? colors.critical : colors.bar;
         ctx.fillRect(x0, y, Math.max(1, x1 - x0), Math.max(1, miniRowH - 1));
       }
 

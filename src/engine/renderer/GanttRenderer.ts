@@ -2347,7 +2347,17 @@ export class GanttRenderer {
     const x2 = new Float64Array(len).fill(-Infinity);
     for (let i = first; i <= last; i++) {
       const row = this.rows[i];
-      if (row.kind !== 'task') continue;
+      if (row.kind === 'group') continue;
+      // Een ingeklapte mijlpalenreeks (#868): van het eerste tot het laatste ruitje is bezet.
+      if (row.kind === 'milestones') {
+        for (const task of row.tasks) {
+          const anchor = this.milestoneAnchorX(task);
+          if (anchor === null) continue;
+          x1[i - first] = Math.min(x1[i - first], anchor - 6);
+          x2[i - first] = Math.max(x2[i - first], anchor + 6);
+        }
+        continue;
+      }
       const geo = this.barGeometry(row.task);
       // Een mijlpaalruit steekt buiten [x1,x2] uit (anker + halve ruitbreedte); ruimer padden i.p.v.
       // de anker-logica van `drawMilestone` te dupliceren (die zou stil uit de pas kunnen lopen).

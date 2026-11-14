@@ -56,8 +56,10 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await nameCell(page, runKey).click();
   await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m2, ids.m3].sort());
 
-  // 4. Een klik op een ruitje in de Gantt kiest die ene mijlpaal.
+  // 4. Een ruitje toont de hele naam in de tooltip, en een klik erop kiest die ene mijlpaal.
   const diamond = await barPoint(page, ids.m2);
+  await page.mouse.move(diamond.x, diamond.y);
+  await expect(page.locator('.gantt-tooltip')).toContainText('Keuring wapening');
   await page.mouse.click(diamond.x, diamond.y);
   await expect.poll(() => selected(page)).toEqual([ids.m2]);
 

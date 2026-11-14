@@ -37,6 +37,7 @@ export interface OpsStateSnapshot {
   selectedTaskIds: string[];
   viewRows: Array<
     | { kind: 'task'; taskId: string }
+    | { kind: 'milestones'; taskIds: string[] }
     | { kind: 'group'; key: string }
   >;
   view: {
@@ -128,7 +129,9 @@ export async function state(page: Page): Promise<OpsStateSnapshot> {
       viewRows: s.viewRows.map(row => (
         row.kind === 'task'
           ? { kind: 'task' as const, taskId: row.task.id }
-          : { kind: 'group' as const, key: row.key }
+          : row.kind === 'milestones'
+            ? { kind: 'milestones' as const, taskIds: row.tasks.map(task => task.id) }
+            : { kind: 'group' as const, key: row.key }
       )),
       view: {
         zoom: s.view.zoom,
