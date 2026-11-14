@@ -24,6 +24,7 @@
 //   7. fixronde 3, BLOKKEERT 2: een MCP-backup houdt het kenmerk (vingerafdruk en doel in de pset). De backup openen in
 //      een nieuwe sessie: Ctrl+S wordt Opslaan als, de bron als doel weigert (handle: inhoud; Tauri: pad, ook na een
 //      wijziging van de bron), een ander bestand mag en krijgt de pset nooit; de pset telt als eigen planning (100 % P);
+//      fase 1c PR 9d: met de flag aan is de bron ontbrekend, iedere IFC-route weigert en CSV blijft mogelijk;
 //   8. fixronde 3: hoogstens één `getFile()` en één SHA-256 van het doel per controle;
 //   9. fixronde 4: Terra's bestand (kapotte kop, alles op één regel) en Sol's bestand (kapotte kop, `#30=\nIFCWALL(`)
 //      als doel: Opslaan als, CSV-export en AutoSave schrijven niet, de bestaande tekst blijft, A blijft gewijzigd; per
@@ -167,11 +168,11 @@ win.showSaveFilePicker = async () => {
 };
 
 /** Open `bytes` als Bestand → Openen (met de flag), in een verse store of `into`. */
-async function open(name: string, bytes: Uint8Array, ref: import('@/services/fileAccess').FileRef | null, into?: Store): Promise<Store> {
+async function open(name: string, bytes: Uint8Array, ref: import('@/services/fileAccess').FileRef | null, into?: Store, flag = true): Promise<Store> {
   reseed(0x804);
   const store = into ?? createAppStoreContext().store;
-  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  const asBytes = readsAsBytes(name, { ifcBytes: true });
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+  const asBytes = readsAsBytes(name, { ifcBytes: flag });
   await store.getState().openOpenedFile({ name, content: asBytes ? '' : dec(bytes), ...(asBytes ? { bytes } : {}), ref });
   return store;
 }
@@ -997,7 +998,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     sha256: sha(externBytes), byteLength: externBytes.length, target: { filePath: "C:\\Users\\Jan's map\\modèl één.ifc", siteFileId: 'S-1' },
   });
 }
-// 7b. Handle-route (browser).
+// 7b. Handle-route (browser), flag uit: bestaand gedrag blijft gelijk.
 {
   const orig = fakeHandle('extern.ifc', externBytes);
   const ctxA = createAppStoreContext();
@@ -1010,13 +1011,13 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       backup.includes('ExternInformatie')], [true, true, true, false]);
   // Een nieuwe sessie: een verse store opent de backup.
   const backupFile = fakeHandle('backup.ifc', enc.encode(backup));
-  const store = await open('backup.ifc', enc.encode(backup), { kind: 'handle', handle: backupFile.handle });
+  const store = await open('backup.ifc', enc.encode(backup), { kind: 'handle', handle: backupFile.handle }, undefined, false);
   const S = () => store.getState();
   const mark = S().foreignSourceMark;
   eq('backup geopend: het kenmerk van de bron, zonder handle; geen opslagdoel',
     [mark?.sha256, mark?.byteLength, mark?.filePath, mark?.handle, S().filePath, S().fileHandle],
     [sha(externBytes), externBytes.length, 'extern.ifc', null, null, null]);
-  eq('backup geopend: de pset is eigen planning (100 % P, geen vreemd deel)', S().ifcSource?.foreign, false);
+  eq('backup geopend: de pset is eigen planning (100 % P, geen vreemd deel)', S().ifcSource?.foreign ?? false, false);
   // Ctrl+S wordt Opslaan als; de bron als doel weigert.
   S().addTask({ name: 'Werk in de backup' });
   pick = orig;
@@ -1046,7 +1047,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   const plainSave = writeIFC(buildWriteIFCInput(ctxA.store.getState(), 'merge'));
   ok('backup: buildWriteIFCInput schrijft de pset nooit', !plainSave.includes(PSET_NAME));
 }
-// 7c. Tauri-pad: het doel uit de pset (`SourcePath`); de bron mag intussen veranderd zijn.
+// 7c. Tauri-pad, flag uit: het doel uit de pset (`SourcePath`); de bron mag intussen veranderd zijn.
 {
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-backup-'));
   const externPath = join(dir, 'extern.ifc');
@@ -1070,7 +1071,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     await open('extern.ifc', externBytes, { kind: 'path', path: externPath }, ctxA.store);
     const backup = await backupOf(ctxA);
     writeFileSync(backupPath, backup);
-    const store = await open('backup.ifc', enc.encode(backup), { kind: 'path', path: backupPath });
+    const store = await open('backup.ifc', enc.encode(backup), { kind: 'path', path: backupPath }, undefined, false);
     const S = () => store.getState();
     eq('Tauri, backup geopend: het kenmerk met het pad van de bron; geen opslagdoel',
       [S().foreignSourceMark?.filePath, S().filePath], [externPath, null]);
@@ -1093,6 +1094,161 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   } finally {
     ipc.dispose();
     (globalThis as { window?: unknown }).window = savedWindow;
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// 7d. #804 fase 1c: echte MCP-backup met gebouwmodel, openen zonder bronbytes.
+// Dezelfde open- en opslagacties voor handles en paden; flag uit en gewone backups blijven schrijfbaar.
+const { createFileAutoSaveController: backupAutoSave } = await import('@/services/actualAutosave/fileAutoSave');
+const { createCloseDocumentDialogActions: backupCloseActions } = await import('@/components/layout/DocumentChrome/closeDocumentActions');
+const { createMcpContext } = await import('@/services/mcp/context');
+const { createMcpTransactions } = await import('@/state/runtime/createMcpTransactions');
+const { fileTools, fileToolDeps } = await import('@/services/mcp/tools/fileTools');
+const { setSiteSaveAsker, resetSiteAskers } = await import('@/services/fileAccess/siteDialogs');
+for (const route of ['handle', 'pad'] as const) for (const foreign of [true, false]) for (const flag of [true, false]) {
+  const label = `backup 9d, ${route}, ${foreign ? 'gebouwmodel' : 'gewone planning'}, flag ${flag ? 'aan' : 'uit'}`;
+  const bytes = foreign ? eigenPlus : showcase;
+  const dir = mkdtempSync(join(tmpdir(), 'ops-backup-9d-'));
+  const sourcePath = join(dir, 'bron.ifc'), backupPath = join(dir, 'backup.ifc'), otherPath = join(dir, 'ander.ifc');
+  const orig = fakeHandle('bron.ifc', bytes), backupFile = fakeHandle('backup.ifc', new Uint8Array());
+  const other = fakeHandle('ander.ifc', new Uint8Array());
+  writeFileSync(sourcePath, bytes);
+  const ipc = route === 'pad' ? installNodeFileIpc() : null;
+  const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  activeWindow.parent = activeWindow;
+  let dialogAnswer = otherPath, dialogs = 0;
+  if (ipc) {
+    const internals = activeWindow.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+    const invoke = internals.invoke;
+    internals.invoke = async (command, args, options) => {
+      if (command === 'plugin:dialog|save') { dialogs++; return dialogAnswer; }
+      return invoke(command, args, options);
+    };
+  }
+  try {
+    const ctxA = createAppStoreContext();
+    await open('bron.ifc', bytes, route === 'pad' ? { kind: 'path', path: sourcePath }
+      : { kind: 'handle', handle: orig.handle }, ctxA.store, foreign || flag);
+    eq(`${label}: de echte bron geopend`, ctxA.store.getState().ifcSource?.foreign === true, foreign);
+    const backup = await backupOf(ctxA);
+    writeFileSync(backupPath, backup);
+    backupFile.replace(enc.encode(backup));
+    eq(`${label}: backup bevat planning en alleen bij vreemd deel het kenmerk`,
+      [readIFC(backup).tasks.length > 0, backup.includes(PSET_NAME), backup.includes('IFCWALL(')], [true, foreign, false]);
+    const ctxB = createAppStoreContext();
+    const store = await open('backup.ifc', enc.encode(backup), route === 'pad' ? { kind: 'path', path: backupPath }
+      : { kind: 'handle', handle: backupFile.handle }, ctxB.store, flag);
+    const S = () => store.getState();
+    const blocked = foreign && flag;
+    eq(`${label}: ontbrekende bron alleen met flag aan en bronkenmerk`, S().foreignSourceMark?.sourceMissing === true, blocked);
+    eq(`${label}: gewoon openen meldt niets`, noticeKeys(store), []);
+    S().addTask({ name: 'Werk uit de backup 9d' });
+    pick = other;
+    const pickerBefore = pickerCalls;
+    const writesBefore = ipc?.calls.length ?? 0;
+    if (blocked) {
+      await S().saveFile();
+      await S().saveFileAs();
+      const exported = await S().exportAs('ifc');
+      eq(`${label}: IFC-export geweigerd`, exported, { ok: true, warnings: [], cancelled: true });
+      // Een bestaand schrijfrecht/doel mag de bestands-AutoSave evenmin vrijgeven.
+      store.setState(s => {
+        s.filePath = route === 'pad' ? otherPath : 'ander.ifc';
+        s.fileHandle = route === 'handle' ? other.handle : null;
+      });
+      S().setAutoSaveToFile(true);
+      const autosave = backupAutoSave({ getState: S, enabled: () => true });
+      await autosave.flush();
+      await autosave.flush();
+      let closed = false;
+      await backupCloseActions({
+        pendingId: S().activeDocumentId, getActiveDocumentId: () => S().activeDocumentId,
+        switchDocument: S().switchDocument, closeDocument: () => { closed = true; },
+        saveFile: () => S().saveFileForDocument(S().activeDocumentId),
+        clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+      }).save();
+      eq(`${label}: sluitvraag laat gewijzigd document open`, [closed, S().isDirty], [false, true]);
+      if (route === 'handle') {
+        let siteWrites = 0;
+        activeWindow.openaecHost = { storage: {
+          list: async () => [], versions: async () => [],
+          open: async () => ({ file: { id: 'backup-site', name: 'backup.ifc', version: 'v1' }, data: enc.encode(backup) }),
+          save: async (request: { name: string }) => { siteWrites++; return { id: 'backup-site', name: request.name, version: 'v2' }; },
+        } };
+        setSiteSaveAsker(async () => ({ kind: 'site', name: 'nieuwe-backup.ifc' }));
+        try {
+          store.setState(s => { s.siteFileId = 'backup-site'; s.siteFileVersion = 'v1'; s.fileHandle = null; });
+          await S().saveFile();
+          await S().saveFileAs();
+          eq(`${label}: site schrijft niets`, siteWrites, 0);
+        } finally { delete activeWindow.openaecHost; resetSiteAskers(); }
+        // Ook zonder FSA-kiezer mag geen Blob voor download ontstaan.
+        const createUrl = URL.createObjectURL;
+        const savedDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+        Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ click() {} }) } });
+        let downloads = 0;
+        URL.createObjectURL = () => { downloads++; return 'blob:backup-9d'; };
+        delete win.showSaveFilePicker;
+        delete win.showOpenFilePicker;
+        try {
+          await S().saveFileAs();
+          await S().exportAs('ifc');
+          eq(`${label}: download schrijft niets`, downloads, 0);
+        } finally {
+          URL.createObjectURL = createUrl;
+          if (savedDocument) Object.defineProperty(globalThis, 'document', savedDocument);
+          else Reflect.deleteProperty(globalThis, 'document');
+          win.showOpenFilePicker = () => { throw new Error('niet in deze test'); };
+          win.showSaveFilePicker = async () => { pickerCalls++; return other.handle; };
+        }
+      }
+      const oldFs = fileToolDeps.getFs;
+      let mcpWrites = 0;
+      fileToolDeps.getFs = async () => ({
+        homeDir: async () => '/home/proef', exists: async () => false,
+        stat: async () => { throw new Error('bestaat niet'); },
+        scanTarget: async () => null,
+        writeTextFile: async () => { mcpWrites++; },
+        readTextFile: async () => '', readFile: async () => new Uint8Array(),
+      });
+      try {
+        const result = await fileTools.find(t => t.name === 'planner_export_ifc')!.handler({ path: '/home/proef/nieuw.ifc' },
+          createMcpContext(ctxB, createMcpTransactions(ctxB), { ensureBackup: async () => null, markDuplicateBorn: () => {} }));
+        eq(`${label}: MCP-export weigert vóór schrijven`, [result.ok, !result.ok && result.code, mcpWrites], [false, 'VALIDATION', 0]);
+      } finally { fileToolDeps.getFs = oldFs; }
+      eq(`${label}: nergens een schrijfpoging of dialoog`,
+        [orig.writables(), backupFile.writables(), other.writables(), existsSync(otherPath), pickerCalls - pickerBefore, dialogs,
+          ipc?.calls.slice(writesBefore).some(c => c.options?.write || ['plugin:fs|write', 'plugin:fs|write_text_file', 'plugin:fs|write_file'].includes(c.command)) ?? false],
+        [0, 0, 0, false, 0, 0, false]);
+      eq(`${label}: één rode melding voor alle opslagweigeringen`, noticeKeys(store), [[SOURCE_MISSING, 'error', true]]);
+      ok(`${label}: herhalingen tellen op in diezelfde melding`, noticeCount(store, SOURCE_MISSING) >= 5);
+      // Een niet-IFC-export blijft mogelijk; hij krijgt een ander doel.
+      store.setState(s => { s.filePath = null; s.fileHandle = null; s.siteFileId = null; s.siteFileVersion = null; });
+      dialogAnswer = join(dir, 'planning.csv');
+      const csv = await S().exportAs('csv');
+      const csvText = route === 'pad' ? readFileSync(dialogAnswer, 'utf8') : other.text();
+      eq(`${label}: CSV schrijft de bewerkte planning`, [csv.ok, csvText.includes('Werk uit de backup 9d')], [true, true]);
+    } else {
+      await S().saveFileAs();
+      await S().exportAs('ifc');
+      S().addTask({ name: 'Meer werk uit de backup 9d' });
+      await S().saveFile();
+      const output = route === 'pad' ? readFileSync(otherPath, 'utf8') : other.text();
+      eq(`${label}: Opslaan als, export en Ctrl+S blijven werken`,
+        [S().isDirty, output.includes('Meer werk uit de backup 9d'), output.includes(PSET_NAME), noticeKeys(store)], [false, true, false, []]);
+    }
+    eq(`${label}: bron en backup blijven sha256-gelijk`,
+      [sha(readFileSync(sourcePath)), sha(orig.text()), sha(readFileSync(backupPath)), sha(backupFile.text())],
+      [sha(bytes), sha(bytes), sha(backup), sha(backup)]);
+  } finally {
+    ipc?.dispose();
+    pick = null;
+    win.showSaveFilePicker = async () => {
+      pickerCalls++;
+      if (!pick) throw new DOMException('geannuleerd', 'AbortError');
+      return pick.handle;
+    };
     rmSync(dir, { recursive: true, force: true });
   }
 }
