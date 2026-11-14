@@ -41,7 +41,7 @@ With several tasks selected, one new task is created: *Insert above* puts it abo
 
 ### Adding a subtask
 
-Right-click the task and choose *Add subtask*. The new task goes at the bottom of that task's subtasks. In the task list next to the Gantt, a summary task also has a small **+** after its name that does the same.
+Right-click the task and choose *Add subtask*. The new task goes at the bottom of that task's subtasks. In the task list next to the Gantt and in the Table, a summary task also has a small **+** after its name that does the same.
 
 ### Adding a milestone
 
