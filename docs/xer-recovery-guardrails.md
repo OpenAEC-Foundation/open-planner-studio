@@ -92,6 +92,28 @@ archief-terugval — `check-ifc-xer-archive-container.ts` (per foutcode één ca
 `check-xer-archive-fallback.ts` (echt beschadigde fixture `fixtures/xer-archief-herschreven.ifc`
 door productie-ingang, store, melding, documentwissel, opslaan en crashherstel).
 
+## IFC-bronherstel achter de featureflag (#804, PR 9a)
+
+Manifestversie 5 blijft staan. Alleen met `ifcForeignContent` en een actuele bron met een vreemd deel
+krijgt een document het optionele veld `ifcSource: { sha256, byteLength, foreign: true, handle? }`.
+De hash en grootte volgen rechtstreeks de documentmomentopname, ook na Opslaan als. Het pad/site-id
+staat alleen in het bestaande `foreignSource`; de browserhandle blijft buiten de Worker en snapshot.
+Deze verwijzing is geen bronkopie. Geen pending-velden: de vorige lokale bron blijft in 1c onaangeroerd.
+Zonder vreemd deel of met de flag uit blijft de manifestvorm bytegelijk aan de basis.
+
+Het manifest geeft een vreemd document geen `filePath`, `siteFileId` of `siteFileVersion` als
+opslagdoel. Oudere v5-lezers negeren de nieuwe verwijzing en herstellen de planning met `sourceMissing`
+en zonder opslagdoel. De nieuwe lezer leest desktopbron of browserhandle, controleert grootte én
+sha256 en gebruikt vervolgens dezelfde bytes-openroute als Bestand → Openen. Daarna vormt de
+snapshot de bewerkte planning; `source.opened` blijft de stand van de teruggelezen bron. Alleen na
+dat bewijs mag het lokale doel in het herstelde document terugkomen. Een ontbrekende of gewijzigde
+bron, sitedocument of browserdocument zonder handle blijft geblokkeerd; de kopie volgt in 9b.
+Bronbytes komen nooit in deze metadata, snapshot, Worker-invoer of herstelopslag.
+
+De nieuwe route staat in `check-recovery-ifc-source.ts`: volledige heropening na herstel,
+resource-identiteit na een eerdere opslag, bronfouten, handle, veilige manifestdoelen en de grens
+zonder modelbytes. De bestaande versie-/documentcontrole accepteert het optionele veld.
+
 ## Webdatabase v3: upgrade en beperkingen
 
 `openDbStores` opent `ops-recovery` op versie 3. In de versionchange-transactie maakt hij ontbrekende

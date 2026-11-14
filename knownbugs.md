@@ -1890,21 +1890,21 @@ en noem het in je rapport of PR-tekst.
      Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
      van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
 
-1112. **Bij 1c: de toestand "bron ontbreekt" van het ontwerp §4.14 afmaken.** Na herstel van een document met een vreemd
-     deel waarvan de bron niet terug te lezen is, zegt het ontwerp
-     (`docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md`): "Alleen Opslaan als naar een nieuw
-     bestand kan, met een tekst dat het model er niet in zit." Sinds fixronde 2 van #886 weigert elke IFC-opslag van zo'n
-     document (`sourceMissing` op het kenmerk, `ifcSaveBlocked` in `src/state/ifcForeignGuard.ts`), zoals vóór de crash.
-     Bij 1c: het echte herstel (de bron teruglezen op sha256), en de keuze of Opslaan als met die tekst erbij komt; dat is
-     een productkeuze voor Ethan. Besluit van Trias (wrakko, 11 november 2026).
-     Hoort erbij, ook bij 1c op te lossen: het herstel zet `sourceMissing` op elk kenmerk, ook als het document vóór de
-     crash geen vreemd deel had. Het tussengeval: een MCP-backup met kenmerk (gemaakt in een sessie met de flag aan) wordt
-     later geopend, ook met de flag uit; hij kan dan opslaan naar een ander doel dan de bron. Crasht de app daarna, dan
-     weigert het herstelde document elke IFC-opslag, terwijl main daar nog schreef. Zonder een bronkenmerk uit een
-     eerdere sessie met de flag aan ontstaat deze weigering niet. Wie zo'n backup van een ander krijgt, kan haar wel
-     tegenkomen zonder de flag zelf ooit aan te zetten (bewezen door Sol in de herbeoordeling van #886: één keer
-     schrijven vóór de crash, nul keer erna). Besluit van Trias (11 november 2026): zo laten in #886, niet vergeten in
-     1c. — B
+1112. **Bij 1c: herstel van site/download en de productkeuze bij een ontbrekende bron afronden.**
+     PR 9a leest desktopbron en browserhandle terug op grootte en sha256, via de gewone bytes-route;
+     de planning komt uit de snapshot. Een nieuwe herstelset van een inmiddels gewone planning blokkeert
+     zonder bron niet meer. Een oud manifest of herstel met de flag uit houdt het eerdere gedrag.
+     PR 9b bouwt de bronkopie voor site en browser zonder handle, en de aansluiting van MCP-backups.
+     Ontbreekt de vreemde bron of wijkt de hash af, dan blijft elke IFC-opslag geweigerd (`sourceMissing`).
+     De keuze van Ethan of er bewust Opslaan als zonder gebouwmodel met uitleg komt, blijft open;
+     PR 9a voert die productkeuze niet in. Verplicht vóór de flag aan mag. — B
+
+1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
+     PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
+     toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
+     de GlobalId en het vreemde deel. Een geconstrueerd dubbel-GlobalId-geval (`-dup-N`) is niet
+     in die herstelketen gemeten. Alleen dit gemaakte geval blijft vervolg; geen claim van verlies
+     of van herstel van zulke id-uitzonderingen. — S
 
 1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
      `src/services/ifc/ifcWriter.ts` (bij de slots die de writer exact in de dagvorm van de bron schrijft) staat nog dat
@@ -1964,18 +1964,6 @@ en noem het in je rapport of PR-tekst.
      gevonden. Richting: één writerresultaat met tekst, kalenderkeuzes en kaart. Meenemen bij de meting van grote
      bestanden (PR 6). Gevonden door de review van #923. — B
 
-1554. **VERVOLG (#804, geheugen): de recoverydeltacache kan een vervangen IFC-bron blijven vasthouden.**
-     `persistedRecoveryState.sources` en `RecoveryDeltaTracker.serialized` in
-     `src/services/recovery/recoveryDelta.ts` bewaren de volledige aangeleverde documentbron. Daar staat ook
-     `ifcSource` op. Na een opslagcommit kan de planning referentieel gelijk blijven terwijl de nieuwe bron een andere
-     bytebuffer heeft; de cache houdt dan nog de oude bron vast. Een metadata-only commit vernieuwt wel `sources`,
-     maar niet de bronreferentie in `serialized`. Alleen het vasthouden van de referenties is in code vastgesteld;
-     piekgeheugen bij grote bestanden is niet gemeten. Richting voor PR 9/6: bewaar voor inhoudsvergelijking alleen de
-     dirty-velden, of ververs een gelijke cachebron zonder de planning opnieuw te serialiseren. In 8b mocht in
-     `recoveryDelta.ts` alleen de inhoudsvergelijking veranderen; daarom niet opgelost. Gevonden bij fase 1c PR 8b.
-     Aanvulling uit de review van #925: geen verkeerde herstelinhoud (een volgende taakbewerking wordt met de actuele
-     bron geserialiseerd); PR 9 neemt de actuele bronhash rechtstreeks uit de momentopname van het document, niet uit
-     deze caches. — B
 1555. **VERVOLG (#804): een gewone opslag zonder vreemd deel houdt een verouderde `ifcSource`.** Met de flag aan
      geopend kantoorvoorbeeld, duur wijzigen en gewone Opslaan als: de geschreven bytes hebben een nieuwe sha256,
      maar het document houdt hetzelfde openingsbronobject. Dit is het behouden gedrag van main; alleen een expliciet
@@ -1985,11 +1973,6 @@ en noem het in je rapport of PR-tekst.
      twee gewone opslagacties bewaakt bytepariteit en bronidentiteit. PR 9 mag een bron zonder vreemd deel niet als
      huidige schijfversie gebruiken; verversen zou een extra scan/heropening per gewone opslag vragen. Bewezen in
      `check-ifc-saved-source.ts` en `check-ifc-document-save.ts`. — B
-1559. **VERVOLG (#804, tekst): een toelichting in `ifcSource.ts` beschrijft de bronloze herstelgrens verkeerd.** De kop
-     van `src/services/ifc/foreign/ifcSource.ts` schrijft toe aan `IFC_SAVE_KEYS` dat de bronbytes niet in de
-     herstelsnapshot en de MCP-backup komen. Sinds #925 staat `ifcSource` juist in die lijst; de bescherming komt van
-     de writer-invoer, die de bron weglaat. De code klopt; alleen de toelichting bijwerken. Gevonden door de review
-     van #925. — B
 1557. **VERVOLG (#804, test opruimen): de testhelper `recalculated<D>` belooft meer dan hij teruggeeft.**
      `tests/planning/ifcAppRoute.ts` geeft bij `recalculated<D>(d): Promise<D>` altijd een nieuw resultaat van
      `buildWriteIFCInput(…, 'merge')` terug, via `as WriteIFCInput as D`. Bij een `D` met `writeMode: 'planOnly'`

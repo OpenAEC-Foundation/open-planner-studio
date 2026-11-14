@@ -340,7 +340,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
   Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
-  1–5 plus the historical unversioned web `docIds` form. Unknown/invalid manifests also block later writes,
+  1–5 plus the historical unversioned web `docIds` form. With `ifcForeignContent`, an optional per-document
+  `ifcSource` reference (sha256, byteLength, foreign and optional browser handle) restores a foreign source through
+  the ordinary bytes-open route after hash verification; the snapshot supplies the edited planning. Foreign documents
+  keep no save target in the manifest, so older readers restore planning with `sourceMissing` and no target.
+  Desktop paths and browser handles are supported; site/download copies follow in 9b. Unknown/invalid manifests also block later writes,
   clearing and session rotation for that recovery set; unknown foreign web generations and shared archive blobs
   are preserved during cleanup. A manifest has unique document IDs (also historical web `docIds`). Web recovery DB v3
   adds a non-unique `records.kind` index without rewriting record/blob content: every `kind: manifest` record
