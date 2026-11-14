@@ -944,6 +944,11 @@ en noem het in je rapport of PR-tekst.
      gebruiker een leeg venster zonder uitleg of knop om opnieuw te laden. Zeldzaam: alleen bij een kapotte bundel of
      webview. Voorstel: eenvoudige foutinhoud die zonder de bundel werkt, bijvoorbeeld in `index.html`. Uit de review
      van #941 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+1647. **VERVOLG: de #895-browsertest bewijst niet dat Help na het laden verschijnt.** `tests/browser/smoke.spec.ts`
+     (blok "de eerste weergave heeft het bewaarde uiterlijk…") eist alleen dat "Laden…" verdwijnt, en de
+     MutationObserver slaat een lege `#root` over; het foutscherm (`src/startup/fatalError.ts`) maakt juist die root
+     leeg. Een foutscherm als eindstand valt zo niet op. Voorstel: in hetzelfde blok `.help-panel` zichtbaar en
+     `#ops-fatal-error` afwezig eisen. Uit de review van #941 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
