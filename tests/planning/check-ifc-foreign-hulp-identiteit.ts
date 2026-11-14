@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeIFC, writeIfcMergeLines } from '@/services/ifc/ifcWriter';
+import { ifcGuid128, ifcObjectSeed, writeIFC, writeIfcMergeLines } from '@/services/ifc/ifcWriter';
+import { planningCanon } from '@/services/ifc/foreign/planningCanon';
+import { sourceFormProblems } from '@/services/ifc/foreign/sourceForm';
 import { classify } from '@/services/ifc/foreign/classify';
 import { preserveAuxiliaryIdentities, pristineDomain, replaceRefsOutsideText, parseOutLine, type LossCheckInput } from '@/services/ifc/foreign/lossCheck';
 import { mergeIdPlan, MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
@@ -23,6 +25,38 @@ const check = (message: string, yes: boolean) => { if (!yes) failures.push(messa
 const read = (rel: string) => new Uint8Array(readFileSync(join(root, rel)));
 const model = (text: string) => generatedModel(root, text, 0);
 const basis = read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
+
+// Fixronde 1: een dubbel GlobalId mag twee verschillende koppelingen niet gelijk maken.
+{
+  const opened = await openInStore(basis), base = cloneDomain(opened.snapshot(opened.store));
+  const a = structuredClone(base), guid = ifcGuid128('review-924-collision');
+  a.resources = [{ ...a.resources[0], id: 'review-a', name: 'Kraan A', costPerHour: 10 },
+    { ...a.resources[0], id: 'review-b', name: 'Kraan B', costPerHour: 20 }];
+  a.ifcGlobalIds = { ...a.ifcGlobalIds, [ifcObjectSeed('res', 'review-a')]: guid, [ifcObjectSeed('res', 'review-b')]: guid };
+  a.assignments = [{ ...a.assignments[0], resourceId: 'review-a' }];
+  const assigned = (p: Domain, id: string) => {
+    p.assignments[0].resourceId = id;
+    p.tasks = p.tasks.map(t => ({ ...t, resourceIds: t.id === p.assignments[0].taskId ? [id] : [] }));
+  };
+  assigned(a, 'review-a');
+  const b = structuredClone(a); assigned(b, 'review-b');
+  check('fix1 a: twee resources met dezelfde GlobalId houden verschillende toewijzingen', planningCanon(a) !== planningCanon(b));
+  const c = structuredClone(a), d = structuredClone(b), canonical = `res-ifc-${guid}`;
+  for (const p of [c, d]) {
+    p.resources[0].id = canonical;
+    p.ifcGlobalIds![ifcObjectSeed('res', canonical)] = guid;
+  }
+  assigned(c, canonical);
+  check('fix1 b: een bestaand canoniek id en een nieuwe resource blijven onderscheiden', planningCanon(c) !== planningCanon(d));
+  const e = structuredClone(base), calendarGuid = ifcGuid128('review-924-calendar-collision');
+  e.resourceCalendars = [...(e.resourceCalendars ?? []),
+    { ...structuredClone(e.calendar), id: 'review-cal-a', name: 'Ochtend', workStartHour: 7 },
+    { ...structuredClone(e.calendar), id: 'review-cal-b', name: 'Middag', workStartHour: 9 }];
+  e.ifcGlobalIds = { ...e.ifcGlobalIds, [ifcObjectSeed('cal', 'review-cal-a')]: calendarGuid, [ifcObjectSeed('cal', 'review-cal-b')]: calendarGuid };
+  e.resources[0].calendarId = 'review-cal-a';
+  const f = structuredClone(e); f.resources[0].calendarId = 'review-cal-b';
+  check('fix1 c: twee kalenders met dezelfde doelidentiteit houden verschillende resourcekoppelingen', planningCanon(e) !== planningCanon(f));
+}
 
 function resourceHelpers(bytes: Uint8Array) {
   const index = scanForeignStep(bytes), result = new Map<string, { pset: string; relation: string; psetId: string; relationId: string }>();
@@ -129,6 +163,41 @@ for (const [label, bytes] of [['eigen', basis], ['kantoor', office]] as const) {
     } else assert.deepEqual(reopened.baselines, input.baselines, 'baseline met exact dezelfde rijen na volledig heropenen');
     console.log(`OK 7b ${label} ${kind}: eerste merge → openen → tweede merge, C/A/V bytegelijk`);
   }
+}
+
+// 1552: dezelfde identiteit in de bronvormcontrole, met alle kalenderwaarden nog exact.
+for (const file of [
+  'b5-lopend-oude-writer.ifc', 'oude-tags/v2026.7.7-urentaak-10-villa-wassenaar.ifc',
+  'oude-tags/v2026.9.0-urentaak-10-villa-wassenaar.ifc', 'urenperdag-oude-writer.ifc',
+  'vast-werk-oude-writer.ifc', 'werkdag-einde-main-bibliotheek.ifc',
+]) {
+  const bytes = model(readFileSync(join(root, 'tests/planning/fixtures', file), 'utf8'));
+  const { store, snapshot } = await openInStore(bytes), before = snapshot(store), base = cloneDomain(before);
+  const input = await applyEdit(newObjectEdits(base).find(e => e.kind === 'kalender-erbij')!, base);
+  const added = input.resourceCalendars!.find(c => !base.resourceCalendars!.some(old => old.id === c.id))!;
+  const first = await tryMerge(input, before.ifcSource!);
+  assert(first.ok, `${file}: ${first.ok ? '' : JSON.stringify(first.error.cases)}`);
+  const opened = await openForeign(first.bytes), second = await tryMerge(cloneDomain(opened), opened.ifcSource!);
+  assert(second.ok, `${file}: tweede merge schrijft`);
+  const twice = await openForeign(second.bytes), actual = opened.resourceCalendars!.find(c => c.name === added.name)!;
+  assert(actual, `${file}: nieuwe kalender aanwezig na volledig heropenen`);
+  assert.equal(readbackDifference({ ...input, resourceCalendars: [{ ...added, id: 'kalender' }] },
+    { ...input, resourceCalendars: [{ ...actual, id: 'kalender' }] }), undefined, `${file}: alle kalenderinhoud exact`);
+  assert.equal(readbackDifference(opened, twice), undefined, `${file}: twee volledige heropeningen gelijk`);
+  assert.equal(mergeProblems(bytes, first.bytes).length, 0, `${file}: vreemde bytes eerste opslag`);
+  assert.equal(mergeProblems(first.bytes, second.bytes).length, 0, `${file}: vreemde bytes tweede opslag`);
+  const leaf = [{ kind: 'calendar' as const, id: added.id }];
+  assert.deepEqual(sourceFormProblems(leaf, input, opened), [], `${file}: gedeelde identiteit vindt dezelfde kalender`);
+  const wrong = structuredClone(opened);
+  wrong.resourceCalendars!.find(c => c.id === actual.id)!.workStartHour += 1e-9;
+  assert(sourceFormProblems(leaf, input, wrong).length > 0, `${file}: bronvormcontrole blijft exact op werktijd`);
+  await assert.rejects(() => writeIfcMerge(input, before.ifcSource!, async (parsed, side) => {
+    const shown = structuredClone(parsed);
+    if (side === 'uitvoer') shown.resourceCalendars!.find(c => c.name === added.name)!.workStartHour += 1e-9;
+    return shown;
+  }), (e: unknown) => e instanceof MergeNeedsPhase2Error && e.cases.some(c => c.kind === 'planning-na-openen'),
+  `${file}: andere werktijd na heropenen geeft getypeerde weigering zonder bytes`);
+  console.log(`OK fix1 1552 ${file}: twee merges, kalender exact, C/A/V bytegelijk, werktijdverlies geweigerd`);
 }
 
 // Zes verliesproeven op de echte heropening: identiteitsprojectie mag inhoud en koppelingen nooit maskeren.

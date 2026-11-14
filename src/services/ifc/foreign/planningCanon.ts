@@ -4,7 +4,8 @@
  * Baselineregels zonder bestaande taak tellen zonder dat taak-id, zoals voorheen (#886).
  * Alleen de bibliotheeklijst resourceCalendars telt op id; haar inhoud wordt ook zonder schrijfafronding vergeleken.
  */
-import { ifcGuid128, ifcObjectSeed, writeIFC, type WriteIFCInput } from '../ifcWriter';
+import { writeIFC, type WriteIFCInput } from '../ifcWriter';
+import { planningIdentities } from './planningIdentity';
 import { orphanRowsWithoutId } from './sourceForm';
 
 /** Alleen interne resource-/bibliotheekkalender-ids wisselen bij de eerste heropening.
@@ -12,24 +13,13 @@ import { orphanRowsWithoutId } from './sourceForm';
  * Geen object, veld, dubbel voorkomen of arrayvolgorde wordt hierdoor weggelaten.
  */
 function identityInput(input: WriteIFCInput): WriteIFCInput {
-  const guids = { ...input.ifcGlobalIds };
-  const identity = (kind: 'res' | 'cal', ids: readonly string[]) => {
-    const mapped = new Map<string, string>();
-    for (const id of ids) {
-      const seed = ifcObjectSeed(kind, id), guid = input.ifcGlobalIds?.[seed] ?? ifcGuid128(seed);
-      const canonical = `${kind === 'res' ? 'res' : 'rescal'}-ifc-${guid}`;
-      mapped.set(id, canonical);
-      delete guids[seed];
-      guids[ifcObjectSeed(kind, canonical)] = guid;
-    }
-    return (id: string) => mapped.get(id) ?? id;
-  };
-  const resource = identity('res', input.resources.map(r => r.id));
-  const calendar = identity('cal', (input.resourceCalendars ?? []).filter(c => c.id !== input.project.calendarId).map(c => c.id));
+  const ids = planningIdentities(input);
+  const resource = (id: string) => ids.resource.get(id) ?? id;
+  const calendar = (id: string) => ids.calendar.get(id) ?? id;
   const leveling = input.project.schedulingOptions?.leveling;
   return {
     ...input,
-    ifcGlobalIds: guids,
+    ifcGlobalIds: ids.guids,
     resources: input.resources.map(r => ({ ...r, id: resource(r.id),
       ...(r.parentId !== undefined ? { parentId: resource(r.parentId) } : {}),
       ...(r.calendarId !== undefined ? { calendarId: calendar(r.calendarId) } : {}),
