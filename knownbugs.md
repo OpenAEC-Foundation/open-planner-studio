@@ -955,6 +955,18 @@ en noem het in je rapport of PR-tekst.
      MutationObserver slaat een lege `#root` over; het foutscherm (`src/startup/fatalError.ts`) maakt juist die root
      leeg. Een foutscherm als eindstand valt zo niet op. Voorstel: in hetzelfde blok `.help-panel` zichtbaar en
      `#ops-fatal-error` afwezig eisen. Uit de review van #941 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+1650. **Een fase die eindigt op een eindmijlpaal toont haar einde mét tijd.** In
+     `examples/03-kantoorgebouw-zuidas.ifc`, na F5: fase "1. Preparation" eindigt in de kolom Einde op
+     `30-03-2027 07:00`, terwijl haar laatste kind, de mijlpaal "Start of construction", `30-03-2027` toont. De
+     rollup neemt het mijlpaalmoment (`earlyFinish 2027-03-30T07:00`, het begin van de werkdag) over, en de B4-regel
+     (`taskDateLabel`, kant `end`) toont een einde op een dagbegin met de tijd. Datums bij balken (#868) volgen de
+     tabel en tonen hetzelfde. Voorstel: een fase-einde op een dagbegin dat van een mijlpaal komt als datum tonen, of
+     de rollup laten afronden zoals de mijlpaal zelf. Gezien in de app tijdens #868. — B
+1651. **De A4-regressietest voor datums bij balken in de afdruk draait twee keer op 90%.**
+     `tests/planning/check-print-bar-dates.ts` geeft `reportFontScale` als `1` en `1.25` door, maar de renderer
+     verwacht percentages (`90`, `100`, `110`, `125`) en kiest de dichtstbijzijnde: beide gevallen worden 90%. Het
+     label noemt 100% en 125%. De echte 100%- en 125%-gevallen zijn los nagemeten en goed (eindig, zelfde dagbreedte
+     als zonder datums). Voorstel: `[100, 125]` en het label zonder `* 100`. Bron: review Sol ronde 3 van #951. — B
 1674. **VERVOLG: een rasterkopie zonder taakselectie kan de herkomst van een oudere kopie laten staan.** Kopieer
      in planning A de naamcel `Fase`, klik in planning B (die ook een taak `Fase` heeft) haar naamcel en druk Escape:
      de taakselectie is leeg, het celbereik blijft. Ctrl+C kopieert opnieuw de tekst `Fase`, maar `copyTasks`

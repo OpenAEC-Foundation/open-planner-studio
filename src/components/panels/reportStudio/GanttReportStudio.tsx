@@ -89,7 +89,7 @@ const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
   // Resourcediagram) en de opties van het Resourcediagram.
   tasks: ['followView', 'layoutId', 'reportType', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
-  bars: ['showTaskNames', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
+  bars: ['showTaskNames', 'showBarDates', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
   page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontFamily', 'reportFontScale'],
   headerFooter: ['repeatHeader', 'repeatFooter', 'showLegend'],
 };
@@ -581,6 +581,7 @@ export function GanttReportStudio() {
     settings.showFloat && t('studio.bars.short.float'),
     settings.showCompletion && t('studio.bars.short.completion'),
     settings.showTaskNames && t('studio.bars.short.names'),
+    settings.showBarDates && t('studio.bars.short.dates'),
     settings.showBaselineOverlay && t('studio.bars.short.baseline'),
     settings.statusLine !== 'none' && t('studio.bars.short.statusLine'),
   ].filter((v): v is string => typeof v === 'string');
@@ -869,6 +870,7 @@ export function GanttReportStudio() {
           <>
             <StudioGroup label={t('studio.bars.onBars')}>
               <StudioSwitch checked={settings.showTaskNames} onChange={v => patch({ showTaskNames: v }, 'showTaskNames')} label={t('studio.bars.names')} dataKey="showTaskNames" />
+              <StudioSwitch checked={settings.showBarDates} onChange={v => patch({ showBarDates: v }, 'showBarDates')} label={t('studio.bars.dates')} title={t('studio.bars.datesSub')} dataKey="showBarDates" />
               <StudioSwitch checked={settings.showCompletion} onChange={v => patch({ showCompletion: v }, 'showCompletion')} label={t('studio.bars.completion')} title={t('studio.bars.completionSub')} dataKey="showCompletion" />
               <StudioSwitch checked={settings.showFloat} onChange={v => patch({ showFloat: v }, 'showFloat')} label={t('showFloat')} dataKey="showFloat" />
               <StudioSwitch checked={settings.showBaselineOverlay} onChange={v => patch({ showBaselineOverlay: v }, 'showBaselineOverlay')} label={t('showBaselineOverlay')} dataKey="showBaselineOverlay" />

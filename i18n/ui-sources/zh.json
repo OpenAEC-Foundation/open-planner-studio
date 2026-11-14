@@ -2515,7 +2515,10 @@
     "reportFontFamily.inter": "02cbd34d883e5c14",
     "reportFontFamily.liberationSans": "05e2a9d626eaae43",
     "reportFontFamily.carlito": "ccd5b419ee928080",
-    "reportFontFamily.liberationSerif": "a752f0d273ffc10e"
+    "reportFontFamily.liberationSerif": "a752f0d273ffc10e",
+    "studio.bars.dates": "7cb2f50c30500ecd",
+    "studio.bars.datesSub": "8c3e3d4630508047",
+    "studio.bars.short.dates": "78d4f92e9a6ed5b4"
   },
   "menu": {
     "ribbon.start": "e9fe5cc8014381f0",
@@ -2724,6 +2727,7 @@
     "ribbon.columnsHintGoToTable": "a3edb7fc9580f7ae",
     "ribbon.toggleResourceAccent": "bd6c0ffb64e6bb7b",
     "ribbon.toggleFloatBand": "3dcf464bf8ce1b1c",
+    "ribbon.toggleBarDates": "10caa6f693f19ea4",
     "ribbon.screenColors": "24b8fd774c58faf8",
     "ribbon.screenColors_critical": "145b330a3da37824",
     "ribbon.screenColors_auto": "8961820942000251",

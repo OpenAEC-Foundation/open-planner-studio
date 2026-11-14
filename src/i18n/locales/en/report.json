@@ -534,6 +534,8 @@
     "bars": {
       "onBars": "On the bars",
       "names": "Task names next to the bars",
+      "dates": "Dates next to the bars",
+      "datesSub": "Start date to the left, finish date to the right of the bar",
       "completion": "Progress in the bar",
       "completionSub": "The finished part, dark in the bar",
       "criticalSub": "Critical relation lines in red, and the critical path in the legend. You choose the colour of the bars under Bar colours.",
@@ -551,6 +553,7 @@
         "float": "Float",
         "completion": "Progress",
         "names": "Names",
+        "dates": "Dates",
         "baseline": "Baseline",
         "statusLine": "Status line"
       },
