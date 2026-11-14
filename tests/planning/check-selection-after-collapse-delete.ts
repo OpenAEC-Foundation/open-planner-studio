@@ -172,6 +172,34 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setGroup([]);
 }
 
+// ── 5) Review #947 ronde 3: A en C allebei onder R1–R4. Verdwijnt A uit alle vier de groepen, dan
+// schuift de oude cursorplek een groep op. De store geeft daarom de gekozen buurRIJ door
+// (ui.gridActiveRowKey), niet alleen de taak: C onder R3, niet C onder R4. ──
+{
+  S().newProject();
+  const add = (name: string) => S().addTask({
+    name, isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1),
+  });
+  const a = add('A');
+  const c = add('C');
+  for (const name of ['R1', 'R2', 'R3', 'R4']) {
+    const r = S().addResource({ name, type: 'LABOR', description: '', maxUnits: 1 });
+    S().assignResource(a, r, 1);
+    S().assignResource(c, r, 1);
+  }
+  S().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
+  const keysOf = (id: string) => S().viewRows.filter(row => row.kind === 'task' && row.task.id === id).map(row => row.rowKey);
+  const rowsOfA = keysOf(a);
+  const rowsOfC = keysOf(c);
+  eq('vier groepen: A en C elk vier keer', [rowsOfA.length, rowsOfC.length], [4, 4]);
+  S().selectTask(a);
+  S().setUI({ gridActiveRowKey: rowsOfA[2] });
+  S().deleteTasksBulk([a]);
+  eq('vier groepen: A onder R3 verwijderd ⇒ C', sel(), { selected: ['C'], active: 'C' });
+  eq('vier groepen: de buurrij is C onder R3', S().ui.gridActiveRowKey, rowsOfC[2]);
+  S().setGroup([]);
+}
+
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ${d}`);
   console.log(`selectie na inklappen/verwijderen: ${diffs.length}/${checks} ROOD`);

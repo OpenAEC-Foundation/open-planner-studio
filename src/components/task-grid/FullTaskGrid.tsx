@@ -546,6 +546,8 @@ export function TaskGridSurface({
     // van een verborgen of verwijderde rij niet en viel hij terug op de bovenste rij (issue #899).
     const previousRows = previousRowsRef.current;
     const previousColumns = previousColumnsRef.current;
+    // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899).
+    const preferredRowKey = useAppStore.getState().ui.gridActiveRowKey;
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -585,7 +587,9 @@ export function TaskGridSurface({
       // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
       // die functie voor waarom dat zonder deze aanroep uit elkaar loopt tussen een gantt-klik en
       // pijltjesnavigatie.
-      return syncActiveCellToPublishedTask(reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds);
+      return syncActiveCellToPublishedTask(
+        reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds, preferredRowKey,
+      );
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;

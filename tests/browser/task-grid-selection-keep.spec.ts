@@ -102,24 +102,26 @@ async function deleteKeepsPlace(
 }
 
 /**
- * Groepering op resource: A en C staan allebei onder R1 en onder R2. A onder R2 verwijderen ⇒ de
- * cursor op C onder R2, niet op het eerste voorkomen van C (onder R1). Review #947.
+ * Groepering op resource: A en C staan allebei onder R1 tot en met R4. A onder R3 verwijderen ⇒ de
+ * cursor op C onder R3. Niet op het eerste voorkomen van C (R1), en ook niet op C onder R4: daar
+ * schuift de oude cursorplek heen als A uit alle vier de groepen verdwijnt. Review #947.
  */
 async function deleteInGroupStaysInGroup(page: Page, surface: Surface, a: string, c: string): Promise<void> {
   const keys = await page.evaluate(({ a, c }) => {
     const store = window.__OPS__!.store;
-    const r1 = store.getState().addResource({ name: 'R1', type: 'LABOR', description: '', maxUnits: 1 });
-    const r2 = store.getState().addResource({ name: 'R2', type: 'LABOR', description: '', maxUnits: 1 });
-    for (const id of [a, c]) for (const r of [r1, r2]) store.getState().assignResource(id, r, 1);
+    for (const name of ['R1', 'R2', 'R3', 'R4']) {
+      const r = store.getState().addResource({ name, type: 'LABOR', description: '', maxUnits: 1 });
+      for (const id of [a, c]) store.getState().assignResource(id, r, 1);
+    }
     store.getState().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
     const of = (id: string) => store.getState().viewRows
       .filter(row => row.kind === 'task' && row.task.id === id).map(row => row.rowKey);
     return { a: of(a), c: of(c) };
   }, { a, c });
-  expect(keys.a).toHaveLength(2);
-  expect(keys.c).toHaveLength(2);
+  expect(keys.a).toHaveLength(4);
+  expect(keys.c).toHaveLength(4);
   const taskOf = (rowKey: string) => (keys.c.includes(rowKey) ? c : a);
-  await deleteKeepsPlace(page, surface, keys.a[1], keys.c[1], taskOf);
+  await deleteKeepsPlace(page, surface, keys.a[2], keys.c[2], taskOf);
   await page.evaluate(() => window.__OPS__!.store.getState().setGroup([]));
 }
 

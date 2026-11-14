@@ -256,6 +256,11 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   const onG1 = updateGridSelection(createEmptyGridSelection(), cell('g1/0', 1), rowIndex, columns, 'replace');
   eq('Groep: vanuit groep 1 is het voorkomen in groep 1 het dichtst',
     syncActiveCellToPublishedTask(onG1, ids[2], [ids[2]], rowIndex, columns).active, cell('g1/2', 1));
+  // De store gaf een concrete buurrij door: die wint, ook als de cursor al op een ander voorkomen staat.
+  eq('Groep: de doorgegeven buurrij wint van een verschoven cursor',
+    syncActiveCellToPublishedTask(onSecond, ids[2], [ids[2]], rowIndex, columns, 'g1/2').active, cell('g1/2', 1));
+  eq('Groep: een doorgegeven rij van een andere taak telt niet',
+    syncActiveCellToPublishedTask(onSecond, ids[2], [ids[2]], rowIndex, columns, 'g2/1').active, cell('g2/2', 1));
 }
 
 // De rij-index wordt buiten het commando gememoized: een gewone klik mag geen 50.000 rijen scannen.

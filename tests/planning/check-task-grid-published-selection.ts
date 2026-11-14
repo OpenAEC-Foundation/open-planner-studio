@@ -25,7 +25,7 @@ const columns = [taskColumnId('task.name'), taskColumnId('task.time.scheduleDura
 const runUpdater = new Function(
   'current', 'selectedTaskIds', 'publishedActiveTaskId', 'rowIndex', 'previousRows',
   'visibleColumnIds', 'previousColumns', 'createEmptyGridSelection', 'updateGridSelection',
-  'reconcileGridSelection', 'syncActiveCellToPublishedTask', 'GHOST_ROW_KEY', bodies[0][1],
+  'reconcileGridSelection', 'syncActiveCellToPublishedTask', 'GHOST_ROW_KEY', 'preferredRowKey', bodies[0][1],
 ) as (...args: unknown[]) => GridSelectionState;
 
 function run(
@@ -33,7 +33,8 @@ function run(
   previousRows: TaskGridRowIndex = rows,
 ) {
   return runUpdater(current, published, active, rows, previousRows, columns, columns,
-    createEmptyGridSelection, updateGridSelection, reconcileGridSelection, syncActiveCellToPublishedTask, GHOST_ROW_KEY);
+    createEmptyGridSelection, updateGridSelection, reconcileGridSelection, syncActiveCellToPublishedTask, GHOST_ROW_KEY,
+    null);
 }
 const row = (id: string, rowKey = id): ViewRow => ({
   kind: 'task', rowKey, task: { id } as Task, depth: 0, dimmed: false,
