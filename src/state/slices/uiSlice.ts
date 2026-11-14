@@ -145,7 +145,6 @@ export function createDefaultUI(): UIState {
     externalSourceUpdates: [],
     externalSourceReview: null,
     dependentProjects: [],
-    relationTrails: [],
     pendingDependentAnchorWarning: null,
     showBaselineOverlay: true,
     showProgressLine: true,

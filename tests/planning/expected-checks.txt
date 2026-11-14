@@ -50,6 +50,7 @@ check-count-labels-i18n.ts matrix
 check-cpm-writeback.ts matrix
 check-critical-bar-colors-route.ts matrix
 check-csv-import.ts matrix
+check-custom-report-font.ts matrix
 check-custom-task-types.ts matrix
 check-dag-is-werktijd.ts matrix
 check-dag-uur-lag.ts matrix
@@ -345,7 +346,7 @@ check-relation-ribbon-trace.ts matrix
 check-relation-routes.ts matrix
 check-relation-rules.ts matrix
 check-relation-set-plan.ts matrix
-check-relation-trail.ts matrix
+check-relation-step.ts matrix
 check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix

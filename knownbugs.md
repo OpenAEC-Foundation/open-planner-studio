@@ -3968,3 +3968,11 @@ en noem het in je rapport of PR-tekst.
      volledig heropenen geeft dezelfde codedefinities, de verliescontrole van nu weigert die fout wel. Een toets
      "de geschreven eigen pset leest terug tot precies het domein" moet zulke dubbel geschreven gegevens dus apart
      bewaken, of de vormcontrole in `explainCodeDefinitions` blijft nodig. — B
+
+1640. **VERVOLG (#770, eigen rapportlettertype): de terugval op Inter bij een verdwenen kopie werkt alleen als de
+     keuzelijst Lettertype zichtbaar is.** De controle (`useCustomReportFontGuard` in
+     `src/components/panels/reports/reportFormPrimitives.tsx`) zit in `ReportFontSelect`. Start met de keuze `custom`,
+     een verdwenen kopie in IndexedDB (`ops-report-font`) en een andere stap open of de zijbalk ingeklapt: de keuze
+     blijft `custom`, de melding ontbreekt en de vector-export valt bij gebrek aan bytes terug op raster. Pas de stap
+     Pagina openen herstelt het. Richting: de controle in de rapportwerkruimte, die altijd gemount is, één keer voor
+     alle rapporten. Gevonden door de review van #946 (Sol, ronde 1). — B

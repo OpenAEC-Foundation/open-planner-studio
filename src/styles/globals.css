@@ -2101,8 +2101,8 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* Kop van Afhankelijkheden met terug en vooruit (issue #888): de pijlen lopen het spoor af van de
-   taken waar je via het paneel heen sprong. */
+/* Kop van Afhankelijkheden met de pijlen naar voorganger en opvolger (issue #888): zo loop je de
+   keten af, bij meerdere relaties langs de sturende. */
 .dependency-head {
   display: flex;
   align-items: center;
@@ -2110,12 +2110,12 @@ body {
   gap: 0.25rem;
 }
 
-.dependency-trail {
+.dependency-step {
   display: flex;
   gap: 2px;
 }
 
-.dependency-trail-button {
+.dependency-step-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2127,17 +2127,17 @@ body {
   transition: background-color 120ms ease, color 120ms ease;
 }
 
-.dependency-trail-button:hover:not(:disabled) {
+.dependency-step-button:hover:not(:disabled) {
   background: var(--theme-hover);
   color: var(--theme-text);
 }
 
-.dependency-trail-button:focus-visible {
+.dependency-step-button:focus-visible {
   outline: 2px solid var(--theme-text);
   outline-offset: 1px;
 }
 
-.dependency-trail-button:disabled {
+.dependency-step-button:disabled {
   color: var(--theme-text-muted);
   opacity: 0.5;
   cursor: default;
