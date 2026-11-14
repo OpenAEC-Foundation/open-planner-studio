@@ -87,6 +87,7 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
 }
 
 // ── 3) bestaande relatie tussen voorganger en opvolger ──────────────────────
+// Keuzepunt 2 (`alreadyLinked`), ligt bij de eigenaar: check 12 volgt de aanbeveling.
 {
   const ids = plan(['A', 'B', 'C']);
   link(ids, 'A', 'B');
@@ -160,6 +161,7 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
 }
 
 // ── 8) samenvattingstaak: de hele tak gaat weg en telt als één blok ─────────
+// Keuzepunt 1 (`blockOf`), ligt bij de eigenaar: checks 21 en 22 volgen de aanbeveling.
 {
   const ids = plan(['A', 'A2', 'F', 'B1', 'B2', 'C', 'C2']);
   S().moveTask(ids.B1, ids.F, 0);

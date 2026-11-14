@@ -29,9 +29,8 @@ export interface DissolvePlan {
  * Losse opgeheven taken worden niet aan elkaar geknoopt: B en D in A → B → C → D → E geeft
  * A → C en C → E, niet A → E.
  *
- * Een einde-begin die tussen voorganger en opvolger al bestaat blijft zoals ze is (de app kent
- * één relatie per soort per paar) en geldt niet als weigering. Andere weigeringen van
- * `relationAddVerdict` komen in `refused`.
+ * Een einde-begin die tussen voorganger en opvolger al bestaat blijft zoals ze is en geldt niet
+ * als weigering (`alreadyLinked`). Weigeringen van `relationAddVerdict` komen in `refused`.
  */
 export function planDissolve(
   tasks: readonly Task[],
@@ -43,7 +42,11 @@ export function planDissolve(
   const removeIds = new Set<string>();
   for (const id of rootIds) if (byId.has(id)) for (const sub of collect(id)) removeIds.add(sub);
 
-  // Elk weggaand id hoort bij het blok van zijn hoogste weggaande voorouder.
+  // KEUZEPUNT 1, samenvattingstaak (ligt bij de eigenaar, 2026-11-14). Nu: de hele tak gaat weg
+  // zoals bij Verwijderen en telt als één blok. Elk weggaand id hoort bij het blok van zijn
+  // hoogste weggaande voorouder. Kiest de eigenaar "niet op een samenvattingstaak", dan weigert de
+  // store-actie vóór deze functie; kiest hij "alleen de kopregel", dan komen de kinderen niet in
+  // `removeIds` en verhuizen ze in de store-actie naar de ouder van de kopregel.
   const blockOf = (id: string): string => {
     let current = id;
     for (;;) {
@@ -105,6 +108,7 @@ export function planDissolve(
     for (const predecessorId of predecessors) {
       for (const successorId of successors) {
         if (predecessorId === successorId) continue;
+        if (alreadyLinked(remaining, predecessorId, successorId)) continue;
         const bridge: Omit<Sequence, 'id'> = {
           predecessorId, successorId, type: 'FINISH_START', lagDays: 0,
         };
@@ -112,11 +116,25 @@ export function planDissolve(
         if (verdict.ok) {
           remaining.push({ ...bridge, id: `__dissolve-${bridges.length}` });
           bridges.push(bridge);
-        } else if (verdict.reason !== 'duplicate') {
+        } else {
           refused.push(`${name(predecessorId)} → ${name(successorId)}`);
         }
       }
     }
   }
   return { removeIds, bridges, refused };
+}
+
+/**
+ * KEUZEPUNT 2, bestaande relatie tussen voorganger en opvolger (ligt bij de eigenaar, 2026-11-14).
+ * Nu: alleen een einde-begin telt als "al gekoppeld"; die blijft zoals ze is, met haar vertraging.
+ * Een relatie van een ander type blijft ook staan en de einde-begin komt ernaast. Kiest de eigenaar
+ * "bij elke bestaande relatie komt er niets bij", dan vervalt hier de typevoorwaarde.
+ */
+function alreadyLinked(sequences: readonly Sequence[], predecessorId: string, successorId: string): boolean {
+  return sequences.some(seq => (
+    seq.predecessorId === predecessorId
+      && seq.successorId === successorId
+      && seq.type === 'FINISH_START'
+  ));
 }
