@@ -1924,6 +1924,16 @@ en noem het in je rapport of PR-tekst.
      effectieve einde moet geschreven worden en de zone kan niet mee. Op main bleef de klok met zone staan.
      Zichtbaar, geen stil verlies. Gevonden door de review van #910 (Terra). — B
 
+1556. **VERVOLG: een botsing tussen objectsoorten kan dezelfde kalender ongelijk verklaren.**
+     `planningIdentities` reserveert ids per planning. In gemaakte invoer kan het doel-id van een
+     bibliotheekkalender ook het id van een activiteitcodetype zijn: vóór heropenen blokkeert dat de
+     omzetting; na heropenen heet dezelfde kalender al zo. GlobalId, kalenderinhoud en koppeling zijn
+     gelijk, maar de canon verschilt en `sourceFormProblems` meldt dat de kalender ontbreekt.
+     Veilige onterechte weigering, geen verlies; geen gewoon geval uit de telling verslechtert.
+     Richting: het onderscheid tussen objectsoorten expliciet maken, zonder resource- of
+     kalenderverwijzingen minder streng te controleren; geen algemeen normalisatieraamwerk.
+     Gevonden door de review van #924 (Sol, ronde 2; `identity-probes.ts`). Niet gerepareerd. — B
+
 1553. **VERVOLG, gewone handeling: een baseline toevoegen weigert bij twee oude 7.12-bronnen.**
      `oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc + wand` en de `…-ohara-…`-variant
      schrijven zonder bewerking; `saveBaseline` weigert `niet-gedragen` op property `#125` (`Baselines`),

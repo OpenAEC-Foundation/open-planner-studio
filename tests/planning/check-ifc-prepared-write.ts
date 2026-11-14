@@ -104,6 +104,61 @@ for (const [label, bytes] of [
   });
 }
 
+await check('7b met 8a: vier echte resource-/kalenderhandelingen schrijven; zonder wijziging bronbytes', async () => {
+  const bytes = read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
+  const { store, snapshot } = await openInStore(bytes), state = () => store.getState();
+  let source = snapshot(store).ifcSource!;
+  const unchanged = async () => {
+    const result = await prepareIfcWrite(cloneDomain(snapshot(store)), source);
+    assert.strictEqual(result.source, source, 'zonder wijziging blijft de bron dezelfde');
+    assert.equal(result.parts.length, 1);
+    assert.strictEqual(result.parts[0], source.bytes, 'zonder wijziging zijn het letterlijk de bronbytes');
+  };
+  const save = async (label: string, verify: (actual: WriteIFCInput, input: WriteIFCInput) => void) => {
+    const input = cloneDomain(snapshot(store)), before = source;
+    const result = await prepareIfcWrite(input, before), written = concat(result.parts);
+    assert.notStrictEqual(result.source, before, `${label}: nieuwe bron, geen snelle bronretour`);
+    assert(!sameBytes(written, before.bytes), `${label}: gewijzigde bytes`);
+    assert.deepEqual(result.source.opened, input, `${label}: de schrijfmomentopname draagt de wijziging`);
+    assert.deepEqual(mergeProblems(bytes, written), [], `${label}: vreemd deel bytegelijk`);
+    verify(await openForeign(written), input);
+    source = result.source;
+    await unchanged();
+    console.log(`OK 7b/8a ${label}: wijziging heropend; daarna letterlijke bronretour`);
+  };
+  await unchanged();
+  const resource = state().addResource({ name: 'Nieuwe resource prepare 7b', type: 'EQUIPMENT', description: 'Eerste voorbereiding', maxUnits: 2, costPerHour: 37.5 });
+  await save('resource toevoegen', actual => {
+    const added = actual.resources.find(r => r.name === 'Nieuwe resource prepare 7b')!;
+    assert(added); assert.equal(added.description, 'Eerste voorbereiding');
+    assert.equal(added.maxUnits, 2); assert.equal(added.costPerHour, 37.5);
+  });
+  const { id: _id, ...calendar } = structuredClone(state().calendar);
+  const calendarId = state().addCalendar({ ...calendar, name: 'Nieuwe kalender prepare 7b' });
+  await save('kalender toevoegen', (actual, input) => {
+    const added = actual.resourceCalendars!.find(c => c.name === 'Nieuwe kalender prepare 7b')!;
+    assert(added);
+    assert.deepEqual({ ...added, id: calendarId }, input.resourceCalendars!.find(c => c.id === calendarId), 'alle kalenderwaarden, alleen intern id anders');
+  });
+  assert.notEqual(state().resources.find(r => r.id === resource)!.calendarId ?? state().calendar.id, calendarId);
+  state().updateResource(resource, { calendarId });
+  await save('resource kiest andere kalender', actual => {
+    const added = actual.resourceCalendars!.find(c => c.name === 'Nieuwe kalender prepare 7b')!;
+    assert.equal(actual.resources.find(r => r.name === 'Nieuwe resource prepare 7b')!.calendarId, added.id);
+  });
+  const assignment = structuredClone(state().assignments[0]);
+  state().unassignResource(assignment.id);
+  state().assignResource(assignment.taskId, resource, assignment.unitsPerDay);
+  assert(!state().assignments.some(a => a.id === assignment.id));
+  assert(state().assignments.some(a => a.taskId === assignment.taskId && a.resourceId === resource));
+  await save('toewijzing naar andere resource', actual => {
+    const added = actual.resources.find(r => r.name === 'Nieuwe resource prepare 7b')!;
+    assert(actual.assignments.some(a => a.taskId === assignment.taskId && a.resourceId === added.id && a.unitsPerDay === assignment.unitsPerDay));
+    assert(!actual.assignments.some(a => a.taskId === assignment.taskId && a.resourceId === assignment.resourceId));
+    assert(actual.tasks.find(t => t.id === assignment.taskId)!.resourceIds.includes(added.id));
+  });
+});
+
 await check('vreemde herkomst: niets wijzigen bewaart de bron; wijzigen blijft veilig geweigerd', async () => {
   const bytes = read('tests/fixtures/ifc-foreign/bonsai-4d.ifc');
   const opened = await openForeign(bytes), input = cloneDomain(opened);
