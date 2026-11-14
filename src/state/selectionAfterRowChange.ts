@@ -59,6 +59,21 @@ export function liftSelectionOutOfCollapsed(s: SelectionDraft, visibleBefore: Re
  * geselecteerde rij. De gekozen buurRIJ gaat naar `ui.gridActiveRowKey`: verdwijnt een taak uit
  * meer groepen, dan schuift de oude cursorplek op en kan het raster de groep niet meer raden.
  */
+/**
+ * De rij van de buur in de NIEUWE rijen. Een sleutel kan veranderen (groeperen op WBS: verwijderen
+ * hernummert); dan hetzelfde voorkomen van die taak (het derde blijft het derde), anders het laatste.
+ */
+function currentRowKey(
+  rowsBefore: ReadonlyArray<Extract<ViewRow, { kind: 'task' }>>,
+  rowsNow: readonly ViewRow[],
+  neighbour: Extract<ViewRow, { kind: 'task' }>,
+): string | null {
+  const now = rowsNow.flatMap(row => row.kind === 'task' && row.task.id === neighbour.task.id ? [row.rowKey] : []);
+  if (now.includes(neighbour.rowKey)) return neighbour.rowKey;
+  const ordinal = rowsBefore.filter(row => row.task.id === neighbour.task.id).indexOf(neighbour);
+  return now[Math.min(ordinal, now.length - 1)] ?? null;
+}
+
 export function selectNeighbourAfterRemoval(
   s: SelectionDraft,
   rowsBefore: readonly ViewRow[],
@@ -68,8 +83,7 @@ export function selectNeighbourAfterRemoval(
   if (s.selectedTaskIds.length > 0 || selectedBefore.length === 0) return;
   const existing = new Set(s.tasks.map(task => task.id));
   // Binnen een batch kan `viewRows` nog de oude stand zijn: dan telt ook het bestaan mee.
-  const visibleNow = new Set(s.viewRows.flatMap(row =>
-    row.kind === 'task' && existing.has(row.task.id) ? [row.rowKey] : []));
+  const visibleNow = new Set(uniqueTaskIds(s.viewRows).filter(id => existing.has(id)));
   const rows = rowsBefore.flatMap(row => row.kind === 'task' ? [row] : []);
   const removedSelection = (row: (typeof rows)[number]) =>
     selectedBefore.includes(row.task.id) && !existing.has(row.task.id);
@@ -78,13 +92,13 @@ export function selectNeighbourAfterRemoval(
   if (anchor < 0) return;
   let neighbour: (typeof rows)[number] | undefined;
   for (let index = anchor + 1; index < rows.length && !neighbour; index++) {
-    if (visibleNow.has(rows[index].rowKey)) neighbour = rows[index];
+    if (visibleNow.has(rows[index].task.id)) neighbour = rows[index];
   }
   for (let index = anchor - 1; index >= 0 && !neighbour; index--) {
-    if (visibleNow.has(rows[index].rowKey)) neighbour = rows[index];
+    if (visibleNow.has(rows[index].task.id)) neighbour = rows[index];
   }
   if (!neighbour) return;
   s.selectedTaskIds = [neighbour.task.id];
   s.activeTaskId = neighbour.task.id;
-  s.ui.gridActiveRowKey = neighbour.rowKey;
+  s.ui.gridActiveRowKey = currentRowKey(rows, s.viewRows, neighbour);
 }

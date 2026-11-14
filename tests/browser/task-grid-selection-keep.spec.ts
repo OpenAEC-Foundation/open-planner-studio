@@ -79,10 +79,11 @@ async function collapseParentKeepsPlace(page: Page, surface: Surface, phase: str
 
 /**
  * Rechtsklik › Verwijderen: de taak eronder neemt de selectie over en staat in beeld. Ids zijn
- * rijsleutels; buiten een groepering is dat het taak-id.
+ * rijsleutels; buiten een groepering is dat het taak-id. Verandert de sleutel van de buur door het
+ * verwijderen (groeperen op WBS), geef dan een functie die de nieuwe sleutel leest.
  */
 async function deleteKeepsPlace(
-  page: Page, surface: Surface, doomed: string, below: string,
+  page: Page, surface: Surface, doomed: string, belowKey: string | (() => Promise<string>),
   taskOf: (rowKey: string) => string = rowKey => rowKey,
 ): Promise<void> {
   await scrollUntilVisible(page, surface, doomed);
@@ -94,6 +95,7 @@ async function deleteKeepsPlace(
   await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ })
     .and(page.locator(':not([data-ops-ribbon-item])')).click();
   await expect(row(page, surface, doomed)).toHaveCount(0);
+  const below = typeof belowKey === 'string' ? belowKey : await belowKey();
   await expect.poll(() => selection(page))
     .toMatchObject({ selected: [taskOf(below)], active: taskOf(below), rowKey: below });
   await expect(row(page, surface, below).locator('[data-grid-active="true"]')).toHaveCount(1);
@@ -125,6 +127,21 @@ async function deleteInGroupStaysInGroup(page: Page, surface: Surface, a: string
   await page.evaluate(() => window.__OPS__!.store.getState().setGroup([]));
 }
 
+/**
+ * Groepering op WBS: verwijderen hernummert, dus de taak eronder krijgt een nieuwe groep en rijsleutel
+ * (bijv. 2.7 → 2.6). Ze blijft de buur. Review #947.
+ */
+async function deleteInWbsGroupKeepsPlace(page: Page, surface: Surface, doomed: string, below: string): Promise<void> {
+  const keyOf = (id: string) => page.evaluate(id => window.__OPS__!.store.getState().viewRows
+    .find(row => row.kind === 'task' && row.task.id === id)!.rowKey, id);
+  await page.evaluate(() => window.__OPS__!.store.getState()
+    .setGroup([{ field: { src: 'builtin', key: 'wbsCode' }, dir: 'asc' }]));
+  const before = await keyOf(below);
+  await deleteKeepsPlace(page, surface, await keyOf(doomed), () => keyOf(below), () => below);
+  expect(await keyOf(below)).not.toBe(before);
+  await page.evaluate(() => window.__OPS__!.store.getState().setGroup([]));
+}
+
 test('lange planning: inklappen en verwijderen houden de selectie op haar plek (issue #899)', async ({ page, ops: _ops }) => {
   test.setTimeout(60_000); // twee rasters, elk met scrollen, inklappen en verwijderen
   const { phases, children } = await seedLongPlan(page);
@@ -133,6 +150,7 @@ test('lange planning: inklappen en verwijderen houden de selectie op haar plek (
   await collapseParentKeepsPlace(page, 'gantt-task-grid', phases[2], children[2][2]);
   await deleteKeepsPlace(page, 'gantt-task-grid', children[3][4], children[3][5]);
   await deleteInGroupStaysInGroup(page, 'gantt-task-grid', children[1][0], children[1][1]);
+  await deleteInWbsGroupKeepsPlace(page, 'gantt-task-grid', children[2][5], children[2][6]);
 
   // Tabel: dezelfde rasterkern, dezelfde afspraak.
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
@@ -140,4 +158,5 @@ test('lange planning: inklappen en verwijderen houden de selectie op haar plek (
   await collapseParentKeepsPlace(page, 'full-task-grid', phases[3], children[3][2]);
   await deleteKeepsPlace(page, 'full-task-grid', children[3][7], children[3][8]);
   await deleteInGroupStaysInGroup(page, 'full-task-grid', children[1][3], children[1][4]);
+  await deleteInWbsGroupKeepsPlace(page, 'full-task-grid', children[2][7], children[2][8]);
 });

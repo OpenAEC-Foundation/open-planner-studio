@@ -200,6 +200,27 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setGroup([]);
 }
 
+// ── 6) Review #947 ronde 4: groeperen op WBS. Verwijderen hernummert, dus de buur C krijgt een andere
+// groep en rijsleutel (WBS 3 → 2). Ze blijft zichtbaar en moet de buur blijven. ──
+{
+  S().newProject();
+  const add = (name: string) => S().addTask({
+    name, isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1),
+  });
+  add('A');
+  const b = add('B');
+  const c = add('C');
+  S().setGroup([{ field: { src: 'builtin', key: 'wbsCode' }, dir: 'asc' }]);
+  eq('WBS-groep: A, B, C', visible(), ['A', 'B', 'C']);
+  S().selectTask(b);
+  S().setUI({ gridActiveRowKey: S().viewRows.find(row => row.kind === 'task' && row.task.id === b)!.rowKey });
+  S().deleteTasksBulk([b]);
+  eq('WBS-groep: B verwijderd ⇒ C (eronder), niet A', sel(), { selected: ['C'], active: 'C' });
+  eq('WBS-groep: de buurrij is de actuele rij van C',
+    S().ui.gridActiveRowKey, S().viewRows.find(row => row.kind === 'task' && row.task.id === c)?.rowKey ?? null);
+  S().setGroup([]);
+}
+
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ${d}`);
   console.log(`selectie na inklappen/verwijderen: ${diffs.length}/${checks} ROOD`);
