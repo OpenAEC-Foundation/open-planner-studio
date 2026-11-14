@@ -138,8 +138,8 @@ let missingNoticeShown = false;
 
 /**
  * Staat de keuze op het eigen lettertype, maar is de kopie op dit apparaat weg (opslag gewist, privévenster),
- * dan valt het rapport terug op Inter, met één melding (besluit Ethan, 14 november 2026). Koos een ander
- * venster intussen een ander eigen lettertype, dan neemt deze stand diens naam en versie over.
+ * dan valt het rapport terug op Inter, met één melding (besluit Ethan, 14 november 2026). Staat er in de opslag
+ * een nieuwere versie dan in de instellingen, dan neemt deze stand die naam en versie over; leest altijd vers.
  */
 function useCustomReportFontGuard(value: ReportFontChoice): void {
   const { customReportFont } = useReportSettings();
@@ -147,7 +147,7 @@ function useCustomReportFontGuard(value: ReportFontChoice): void {
   useEffect(() => {
     if (value !== 'custom') return;
     let cancelled = false;
-    void getCustomFont().then(font => {
+    void getCustomFont({ fresh: true }).then(font => {
       if (cancelled) return;
       const ref = latestReportSettings().customReportFont;
       if (!font) {
@@ -158,7 +158,9 @@ function useCustomReportFontGuard(value: ReportFontChoice): void {
           severity: 'info', messageKey: 'notifications.reportFontMissing',
           params: { name: ref?.name ?? '' }, dedupeKey: 'report-font-missing',
         });
-      } else if (ref?.rev !== font.rev) {
+      } else if (font.rev > (ref?.rev ?? 0)) {
+        // Alleen een nieuwere kopie overnemen (een ander venster bewaarde de bytes, maar de instelling kwam hier
+        // nog niet aan); nooit een oudere versie terugschrijven (review Sol #946, ronde 1).
         patchReportSettings({ customReportFont: { name: font.name, rev: font.rev } });
       }
     });
