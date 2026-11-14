@@ -27,7 +27,7 @@ import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAc
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
 import { withOpenNoticeSticky } from '@/state/openNoticeSticky';
-import { clearRefusals } from '@/state/refusalNotice';
+import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
 import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
@@ -757,7 +757,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (refuseForeignDocumentWrite()) return true;
     const now = get();
     if (now.activeDocumentId === snapshot.activeDocumentId && now.ifcSource === snapshot.ifcSource) return false;
-    get().notify({ severity: 'error', messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' });
+    get().notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
     return true;
   };
 

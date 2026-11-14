@@ -172,7 +172,7 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     await state.saveFile();
     eq(`${label}: schrijven of blokkeren`, writes.length, wall ? 0 : 1);
     if (wall) {
-      eq(`${label}: blokkeermelding`, store.getState().ui.notifications.map(n => n.messageKey), [SAVE_BLOCKED_KEY]);
+      eq(`${label}: bestaand lokaal modeldoel krijgt de Opslaan-als-melding`, store.getState().ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignReplaceBlocked']);
       eq(`${label}: volledige bron inclusief wand intact`, data, text);
     }
     // Ctrl+S bevestigt ook de bestaande minutenomzetting; vergelijk met de daardoor vastgelegde toestand.
