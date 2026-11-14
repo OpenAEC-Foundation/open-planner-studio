@@ -1,5 +1,6 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { extensionOf } from '@/utils/filePath';
+import { bytePartsBlob, BytePartsWriteError } from './byteParts';
 
 const hasFSA = (): boolean => typeof window !== 'undefined' && 'showOpenFilePicker' in window;
 
@@ -138,7 +139,7 @@ function openViaInput(filters: FileFilter[], opts?: OpenDialogOpts): Promise<Ope
   });
 }
 
-function downloadBlob(name: string, content: string | Uint8Array, mime?: string): void {
+function downloadBlob(name: string, content: string | Uint8Array | Blob, mime?: string): void {
   const blob = new Blob([content as BlobPart], { type: mime ?? 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -146,6 +147,25 @@ function downloadBlob(name: string, content: string | Uint8Array, mime?: string)
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Een browserhandle heeft geen createNew op het uiteindelijke doel. Daarom kiest de nieuwe
+ * byte-dialoog in 1c altijd een download, ook wanneer de gewone tekstkiezer beschikbaar is.
+ */
+export async function saveBytePartsDialogWeb(
+  defaultName: string, parts: readonly Uint8Array[], opts: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  if (opts.refuseDownload?.()) return null;
+  try { downloadBlob(defaultName, bytePartsBlob(parts, opts.mime ?? 'application/octet-stream'), opts.mime); }
+  catch (error) { throw new BytePartsWriteError('download', error); }
+  return { ref: null, name: defaultName, viaDownload: true };
+}
+
+/** Ook een leeg bestand bewijst geen nieuwe naam; vóór createWritable veilig weigeren (1130). */
+export async function saveBytePartsToRefWeb(ref: FileRef, _parts: readonly Uint8Array[]): Promise<boolean> {
+  if (ref.kind !== 'handle') return false;
+  throw new BytePartsWriteError('handle-not-exclusive');
 }
 
 /** Een bestand dat de planner koos, met het handvat als de browser dat geeft (Chromium). */
