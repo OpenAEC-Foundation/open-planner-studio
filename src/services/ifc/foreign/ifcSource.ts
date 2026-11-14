@@ -5,10 +5,10 @@
  * De bytes-route vult de openingsbron (`ifcBytesRoute.ts`, achter de flag `ifcForeignContent`). `prepareIfcWrite` levert
  * in fase 1c de bron van de gecontroleerde uitvoer; de store legt die pas na geslaagde opslag vast (PR 8b/11). Nog niet in
  * fase 1a (fase 2): `sourceSlots`, `jsonExtras`, `unusedKeys`, `idExceptions`, herkomstmerken, `elementLinks`,
- * `detached`, de wijzigingstijd op het doel en het manifest 6.
+ * `detached` en de wijzigingstijd op het doel. Bronherstel in 1c gebruikt een optioneel documentveld binnen manifest 5.
  *
  * De bronbytes blijven buiten undo (documentcontract, `snapshot: 'none'`), buiten de herstelsnapshot
- * (`recoverySnapshotInput` neemt alleen `IFC_SAVE_KEYS`) en buiten de MCP-backup (die schrijft
+ * (`recoverySnapshotInput` gebruikt writer-invoer die `ifcSource` weglaat) en buiten de MCP-backup (die schrijft
  * `writeIFC(buildWriteIFCInput(…))`, zonder dit veld). `check-ifc-foreign-open.ts` eist dat. Dat geldt ook voor
  * `opened` (vervolg-PR van #867): een verwijzing naar het domein van het document zoals het na openen was.
  */

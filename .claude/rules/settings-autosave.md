@@ -35,8 +35,15 @@ Voor #804 fase 1c gebruikt de inhoudsvergelijking `IFC_DIRTY_KEYS`: een vervange
 herstelsnapshot of bestands-AutoSave nodig. Een bestaande AutoSave-kandidaat toetst die bronidentiteit juist wél,
 onder het schrijfslot vóór I/O. `markAutoSaveVersionSaved(id, savedSource, prepared?)` gebruikt dezelfde
 `commitSavedDocument` als handmatige opslag: bron en kalenderkeuzes volgen de geschreven versie, ook als een latere
-bewerking dirty blijft. De Worker-invoer en MCP-backup blijven planning zonder bronbytes. Bronherstel en nieuwe
-manifestmetadata zijn PR 9; PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
+bewerking dirty blijft. De Worker-invoer en MCP-backup blijven planning zonder bronbytes. Bronherstel (PR 9a) gebruikt met de flag aan een optioneel documentveld `ifcSource` binnen manifest v5:
+sha256, byteLength, foreign en eventueel een browserhandle, nooit bytes. Pad/site-id blijven alleen in `foreignSource`.
+De hash komt uit de actuele documentmomentopname, niet uit de recoverycache; de cache bewaart geen `ifcSource`.
+`readRecoveryDocument` leest pad/handle, controleert grootte en sha256, opent via de gewone bytes-route en legt daarna
+de snapshotplanning erop. Alleen geverifieerd herstel krijgt het lokale doel terug; de manifestdoelen blijven leeg
+voor een vreemd document, zodat oudere lezers geen modelpad als schrijfdoel terugkrijgen. Geen bron/andere hash,
+site of browser zonder handle: bron ontbreekt en IFC-opslag geblokkeerd (9b volgt). Een inmiddels gewone planning
+herstelt zonder bronblokkade; een oud manifest of flag uit houdt het oude gedrag. Geen pending of manifestversie 6.
+PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
 met de bestaande ene melding per document per sessie; site-AutoSave blijft uit.
 
 ### Afsluiten van de app (schone exit)

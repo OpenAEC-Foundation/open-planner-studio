@@ -1,3 +1,4 @@
+import { ifcSourceMetaFields, sameRecoveryIfcSource } from './recoveryIfcSource';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { foreignSourceTargetOf } from '@/services/ifc/foreign/foreignSourceMark';
@@ -43,7 +44,8 @@ function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
     ...siteMetaFields(document),
     // #804 fase 1a, fixronde 1: het doel van een bron met een vreemd deel volgt uit de bron zelf, net als `xerArchive`,
     // zodat manifest en snapshot (de vingerafdruk) per constructie bij elkaar horen. Zonder kenmerk: weggelaten.
-    ...foreignSourceMetaFields({ foreignSource: foreignSourceTargetOf(document.source.foreignSourceMark) }),
+    ...foreignSourceMetaFields({ foreignSource: document.foreignSource !== undefined ? document.foreignSource : foreignSourceTargetOf(document.source.foreignSourceMark) }),
+    ...ifcSourceMetaFields(document),
   };
 }
 
@@ -74,7 +76,8 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
       // Het site-doel en zijn basisversie zijn ook manifestmetadata: een opslag op de site (nieuwe
       // versie) of een nieuw doel geeft zonder inhoudswijziging een manifest-only schrijfactie.
       && sameRecoverySiteMeta(value, other)
-      && sameRecoveryForeignSource(value, other);
+      && sameRecoveryForeignSource(value, other)
+      && sameRecoveryIfcSource(value, other);
   });
 }
 
@@ -111,8 +114,13 @@ export function persistedRecoveryState(
   return {
     activeDocumentId,
     documents: documents.map(metadataOf),
-    sources: new Map(documents.map((document) => [document.id, document.source])),
+    sources: new Map(documents.map((document) => [document.id, comparisonSource(document.source)])),
   };
+}
+
+/** De vergelijkingscache heeft de bronbytes niet nodig (IFC_DIRTY_KEYS). */
+function comparisonSource(source: IFCSaveSource): IFCSaveSource {
+  return source.ifcSource ? { ...source, ifcSource: null } : source;
 }
 
 /**
@@ -148,7 +156,7 @@ export class RecoveryDeltaTracker {
       if (!cached || !sameIFCSource(cached.source, document.source)) {
         try {
           const ifc = await serialize(document.source);
-          this.serialized.set(document.id, { source: document.source, ifc });
+          this.serialized.set(document.id, { source: comparisonSource(document.source), ifc });
         } catch (error) {
           if (!(error instanceof IfcCalendarTimePrecisionError)) throw error;
           this.skipped.add(document.id);
@@ -191,7 +199,7 @@ export class RecoveryDeltaTracker {
       const ifc = cached && sameIFCSource(cached.source, document.source)
         ? cached.ifc
         : serialize(document.source);
-      this.serialized.set(document.id, { source: document.source, ifc });
+      this.serialized.set(document.id, { source: comparisonSource(document.source), ifc });
       return { ...metadataOf(document), ifc };
     });
     const archives = archiveSuppliers(documents);
