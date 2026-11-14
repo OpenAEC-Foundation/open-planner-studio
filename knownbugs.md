@@ -2056,6 +2056,23 @@ en noem het in je rapport of PR-tekst.
      regel in `src/state/slices/fileSlice.ts`; het type `IfcOutput` uit `src/state/prepareIfcOutput.ts` volstaat.
      Gevonden door de review van #928. — B
 
+1593. **VERVOLG (#804, test): drie opslagscenario's staan nog niet blijvend in de klokproef.**
+     `tests/planning/check-ifc-foreign-klok.ts` toetst een gewijzigde `modifiedAt`, een lege planstart en een baseline
+     zonder eigen aanmaakdatum alleen op ongelijkheid van de canon, niet met daadwerkelijk schrijven en heropenen. De
+     review van #934 deed dat met een eigen proef (zorgcentrum met een toegevoegde wand, en `latin1.ifc`; vier
+     bewerkingen bij drie opslagmomenten): alles groen. Richting: die stappen in de bestaande check opnemen; geen nieuw
+     testbestand. Geen aangetoonde productfout. — B
+
+1594. **VERVOLG (#804, meting): de telling ziet geen fouten die van de klok afhangen en vergelijkt geen weigerredenen.**
+     `tests/planning/check-ifc-foreign-merge-telling.ts` zet de klok (`Date` en `Date.now`) vast vóór het openen. De
+     twee klokfouten die PR 7e repareerde (de schrijfklok in de canon, de leesklok bij ontbrekende projecttijdstempels)
+     waren daardoor in de telling nooit zichtbaar: onbewerkte `latin1.ifc` stond er al als "schrijft", terwijl de app
+     hem altijd weigerde. De vergelijkscripts van de bouwers vergelijken bovendien alleen de uitkomst per geval, niet de
+     reden van een weigering. De telling bewaakt dus regressie onder een vaste klok, niet het gedrag bij een lopende
+     klok; dat doet `check-ifc-foreign-klok.ts`. Richting: bij een volgende wijziging van de telling ten minste één
+     reeks met een lopende of verspringende klok opnemen, en de weigerreden per geval meevergelijken. Gevonden door de
+     review van #934. — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
