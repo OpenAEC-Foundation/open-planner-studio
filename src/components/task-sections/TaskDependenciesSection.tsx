@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
@@ -11,7 +11,8 @@ import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
 import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
-import { createRelationDraftWithFeedback } from '@/state/relationActions';
+import { createRelationsWithFeedback } from '@/state/relationActions';
+import { jumpToRelatedTask, relationTrailTarget, stepRelationTrail } from '@/state/relationTrail';
 import { Icon } from '@/components/icons';
 
 interface HoverState { x: number; y: number; task: Task; }
@@ -21,8 +22,10 @@ type DraftDirection = 'predecessor' | 'successor';
 
 interface RelationDraft {
   direction: DraftDirection;
-  /** De gekozen tegenpartij; `null` zolang er alleen gezocht wordt. */
-  otherTaskId: string | null;
+  /** De aangevinkte tegenpartijen, in de volgorde van kiezen (issue #888: meerdere tegelijk). */
+  picked: string[];
+  /** Staat de trefferlijst open? Dicht na een keuze met Enter; typen opent hem weer. */
+  listOpen: boolean;
   query: string;
   /** Index in de zichtbare trefferlijst voor pijltoetsbediening. */
   highlight: number;
@@ -36,7 +39,8 @@ const MAX_OPTIONS = 8;
 
 const EMPTY_DRAFT: RelationDraft = {
   direction: 'predecessor',
-  otherTaskId: null,
+  picked: [],
+  listOpen: true,
   query: '',
   highlight: 0,
   type: 'FINISH_START',
@@ -67,11 +71,36 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   const cpmResult = useAppStore(s => s.cpmResult);
   const updateSequence = useAppStore(s => s.updateSequence);
   const removeSequence = useAppStore(s => s.removeSequence);
-  const focusOnTask = useAppStore(s => s.focusOnTask);
+  // Terug en vooruit (issue #888): alleen sprongen via dit paneel tellen, zie `relationTrail.ts`.
+  const backId = useAppStore(s => relationTrailTarget(s, 'back'));
+  const forwardId = useAppStore(s => relationTrailTarget(s, 'forward'));
   const [hover, setHover] = useState<HoverState | null>(null);
   // De uitlegzin staat alleen onder de relatie waar de focus in zit: onder élke regel zou het blok
   // bij veel relaties twee keer zo lang maken.
   const [focusedSequenceId, setFocusedSequenceId] = useState<string | null>(null);
+  // De zin verschijnt en verdwijnt met de focus, en schuift daarmee de regels eronder. Gebeurt dat
+  // tussen indrukken en loslaten van de muis, dan landt het loslaten naast de knop en gaat de klik
+  // verloren (issue #888: terug, vooruit en verder springen langs de relaties). Daarom wacht een
+  // focuswissel met de muis met de zin tot de knop is losgelaten.
+  const pointerHeld = useRef(false);
+  const pendingFocus = useRef<string | null>(null);
+  const showSentenceFor = (update: (current: string | null) => string | null) => {
+    if (!pointerHeld.current) { setFocusedSequenceId(update); return; }
+    pendingFocus.current = update(pendingFocus.current);
+  };
+  const holdSentenceUntilPointerUp = () => {
+    if (pointerHeld.current) return;
+    pointerHeld.current = true;
+    pendingFocus.current = focusedSequenceId;
+    const release = () => {
+      window.removeEventListener('pointerup', release, true);
+      window.removeEventListener('pointercancel', release, true);
+      pointerHeld.current = false;
+      setFocusedSequenceId(pendingFocus.current);
+    };
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('pointercancel', release, true);
+  };
 
   // Spooktooltip: onMouseLeave/onClick op de knop zelf zijn niet genoeg. Wisselt de selectie (of
   // verandert de sequence-lijst) zonder dat de muis de knop verlaat — bv. Ctrl+Z, een pijltoets, of
@@ -80,6 +109,14 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   useEffect(() => {
     setHover(null);
   }, [taskId, sequences]);
+
+  // Na een selectiewissel kan de regel met de focus verdwenen zijn zonder blur (React vuurt die niet
+  // bij het weghalen), en zou de zin bij een volgende taak met dezelfde relatie blijven staan terwijl
+  // de focus elders is. Lees daarom opnieuw welke relatie nu echt de focus heeft.
+  useEffect(() => {
+    const focused = document.activeElement?.closest<HTMLElement>('[data-ops-sequence-id]');
+    setFocusedSequenceId(focused?.dataset.opsSequenceId ?? null);
+  }, [taskId]);
 
   // Conceptrelatie: de sectie kan zelf relaties aanmaken. Het concept blijft LOKAAL tot
   // de bevestiging — dezelfde vorm als `RelationTypePopover` op het canvas — zodat type en lag als
@@ -106,41 +143,71 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   );
   if (taskSequences.length === 0 && !interactive) return null;
 
-  const draftOther = draft?.otherTaskId ? tasks.find(t => t.id === draft.otherTaskId) : undefined;
-  const draftSequence: Sequence = {
+  const pickedTasks = (draft?.picked ?? [])
+    .map(id => tasks.find(t => t.id === id))
+    .filter((task): task is Task => task !== undefined);
+  const draftOther = pickedTasks.length === 1 ? pickedTasks[0] : undefined;
+  /** De conceptrelatie met één tegenpartij; type en lag gelden voor elke aangevinkte taak. */
+  const draftSequenceWith = (otherId: string): Sequence => ({
     id: 'relation-draft',
-    predecessorId: draft?.direction === 'predecessor' ? (draft.otherTaskId ?? '') : taskId,
-    successorId: draft?.direction === 'predecessor' ? taskId : (draft?.otherTaskId ?? ''),
+    predecessorId: draft?.direction === 'predecessor' ? otherId : taskId,
+    successorId: draft?.direction === 'predecessor' ? taskId : otherId,
     type: draft?.type ?? 'FINISH_START',
     ...(draft?.lag ?? { lagDays: 0 }),
+  });
+  const draftSequence = draftSequenceWith(draftOther?.id ?? '');
+
+  /** Vink een treffer aan of uit. Met `close` (Enter) gaat de lijst dicht en staat de keuze in het
+   *  zoekveld, zoals bij één taak; met de muis blijft de lijst open om door te vinken. */
+  const toggleOption = (option: { taskId: string; label: string }, close: boolean) => {
+    setDraft(current => {
+      if (!current) return current;
+      const on = current.picked.includes(option.taskId);
+      if (close) {
+        return on
+          ? { ...current, listOpen: false, highlight: 0 }
+          : { ...current, picked: [...current.picked, option.taskId], listOpen: false, query: option.label, highlight: 0 };
+      }
+      return {
+        ...current,
+        picked: on ? current.picked.filter(id => id !== option.taskId) : [...current.picked, option.taskId],
+      };
+    });
   };
 
-  const chooseOption = (option: { taskId: string; label: string }) => {
-    setDraft(current => (current
-      ? { ...current, otherTaskId: option.taskId, query: option.label, highlight: 0 }
-      : current));
-  };
+  const unpick = (id: string) => setDraft(current => (current
+    ? { ...current, picked: current.picked.filter(p => p !== id) }
+    : current));
 
   const commitDraft = () => {
-    if (!draft?.otherTaskId) return;
-    const created = createRelationDraftWithFeedback({
-      predecessorId: draftSequence.predecessorId,
-      successorId: draftSequence.successorId,
-      type: draftSequence.type,
-      lagDays: draftSequence.lagDays,
-      lagUnit: draftSequence.lagUnit,
-      lagPercent: draftSequence.lagPercent,
-      lagMinutes: draftSequence.lagMinutes,
-    });
-    // Alleen bij succes sluiten: een weigering (duplicaat/voorouder) meldt zichzelf via het
-    // gecentraliseerde kanaal en laat de conceptrij staan zodat de keuze te corrigeren is.
-    if (created !== null) setDraft(null);
+    if (pickedTasks.length === 0) return;
+    const created = createRelationsWithFeedback(pickedTasks.map(task => {
+      const { id: _id, ...relation } = draftSequenceWith(task.id);
+      return relation;
+    }));
+    // Alleen wat lukte valt weg: een weigering (duplicaat/voorouder/kring) meldt zichzelf via het
+    // gecentraliseerde kanaal en blijft aangevinkt staan, zodat de keuze te corrigeren is.
+    const refused = pickedTasks.filter((_task, index) => created[index] === null).map(task => task.id);
+    if (refused.length === 0) setDraft(null);
+    else setDraft(current => (current ? { ...current, picked: refused } : current));
   };
+  const directionKey = draft?.direction === 'successor' ? 'Successors' : 'Predecessors';
+  const confirmLabel = pickedTasks.length > 1
+    ? t(`properties.addRelationConfirm${directionKey}`, { count: pickedTasks.length })
+    : t('properties.addRelationConfirm');
 
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-small !leading-4">{t('properties.dependencies')}</span>
+      <div className="dependency-head">
+        <span className="ui-card-header !text-small !leading-4">{t('properties.dependencies')}</span>
+        {interactive && (
+          <span className="dependency-trail">
+            <TrailButton direction="back" targetId={backId} />
+            <TrailButton direction="forward" targetId={forwardId} />
+          </span>
+        )}
+      </div>
       <div className="dependency-list">
         {taskSequences.map(seq => {
         const other = seq.predecessorId === taskId
@@ -152,10 +219,12 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           <div
             key={seq.id}
             className="dependency-item"
-            onFocus={() => setFocusedSequenceId(seq.id)}
+            data-ops-sequence-id={seq.id}
+            onPointerDownCapture={holdSentenceUntilPointerUp}
+            onFocus={() => showSentenceFor(() => seq.id)}
             onBlur={e => {
               if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                setFocusedSequenceId(current => (current === seq.id ? null : current));
+                showSentenceFor(current => (current === seq.id ? null : current));
               }
             }}
           >
@@ -176,7 +245,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   setHover({ x: r.left, y: r.bottom, task: other });
                 }}
                 onBlur={() => setHover(null)}
-                onClick={() => { setHover(null); focusOnTask(other.id); }}
+                onClick={() => { setHover(null); jumpToRelatedTask(other.id); }}
               >
                 {other.wbsCode || other.name}
               </button>
@@ -255,18 +324,19 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                 autoFocus
                 type="text"
                 role="combobox"
-                aria-expanded={options.length > 0}
+                aria-expanded={draft.listOpen && options.length > 0}
                 aria-label={t('properties.addRelationSearch')}
                 placeholder={t('properties.addRelationSearch')}
                 data-ops-dependency-search
                 value={draft.query}
                 onChange={e => setDraft(current => (current
-                  ? { ...current, query: e.target.value, otherTaskId: null, highlight: 0 }
+                  ? { ...current, query: e.target.value, listOpen: true, highlight: 0 }
                   : current))}
                 onKeyDown={e => {
                   if (e.key === 'Escape') { e.preventDefault(); setDraft(null); return; }
                   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                     e.preventDefault();
+                    if (!draft.listOpen) { setDraft(current => (current ? { ...current, listOpen: true } : current)); return; }
                     if (options.length === 0) return;
                     const step = e.key === 'ArrowDown' ? 1 : options.length - 1;
                     setDraft(current => (current
@@ -277,32 +347,14 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     // Eerst kiezen, dan bevestigen: zolang de trefferlijst open staat betekent
-                    // Enter "deze taak", daarna pas "leg de relatie vast".
-                    const option = options[draft.highlight];
-                    if (!draft.otherTaskId && option) chooseOption(option);
+                    // Enter "vink deze taak aan", daarna pas "leg de relaties vast".
+                    const option = draft.listOpen ? options[draft.highlight] : undefined;
+                    if (option && !draft.picked.includes(option.taskId)) toggleOption(option, true);
                     else commitDraft();
                   }
                 }}
                 className="input !w-full !text-small !px-1 !py-0.5"
               />
-              {!draft.otherTaskId && options.length > 0 && (
-                <ul className="dependency-draft-options" role="listbox">
-                  {options.map((option, index) => (
-                    <li key={option.taskId} role="option" aria-selected={index === draft.highlight}>
-                      <button
-                        type="button"
-                        data-ops-dependency-option={index}
-                        data-ops-dependency-highlighted={index === draft.highlight || undefined}
-                        className="dependency-draft-option"
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => chooseOption(option)}
-                      >
-                        {option.label}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
             <button
               type="button"
@@ -315,9 +367,55 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               <Icon id="ui.close" size={10} />
             </button>
           </div>
+          {/* De lijst staat in de rij en niet erboven: met de muis vink je door, en de knop om vast
+              te leggen moet daarbij bereikbaar blijven (schets #888). */}
+          {draft.listOpen && options.length > 0 && (
+            <ul className="dependency-draft-options" role="listbox" aria-multiselectable="true">
+              {options.map((option, index) => {
+                const on = draft.picked.includes(option.taskId);
+                return (
+                  <li key={option.taskId} role="option" aria-selected={on}>
+                    <button
+                      type="button"
+                      data-ops-dependency-option={index}
+                      data-ops-dependency-highlighted={index === draft.highlight || undefined}
+                      className="dependency-draft-option"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => toggleOption(option, false)}
+                    >
+                      <span className="dependency-draft-check" aria-hidden="true">
+                        {on ? <Icon id="menu.item-checked" size={10} /> : null}
+                      </span>
+                      <span className="truncate">{option.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {pickedTasks.length > 0 && (
+            <ul className="dependency-draft-picked">
+              {pickedTasks.map(task => (
+                <li key={task.id} className="dependency-draft-chip" data-ops-dependency-picked={task.id}>
+                  <span className="truncate" title={`${task.wbsCode} ${task.name}`.trim()}>{task.wbsCode || task.name}</span>
+                  <button
+                    type="button"
+                    data-ops-dependency-unpick
+                    title={t('properties.addRelationUnpick', { task: `${task.wbsCode} ${task.name}`.trim() })}
+                    aria-label={t('properties.addRelationUnpick', { task: `${task.wbsCode} ${task.name}`.trim() })}
+                    onClick={() => unpick(task.id)}
+                  >
+                    <Icon id="ui.close" size={8} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="dependency-row !text-small">
             <span className="dependency-wbs-cell min-w-0 truncate">
-              {draftOther ? (draftOther.wbsCode || draftOther.name) : t('properties.addRelationPick')}
+              {pickedTasks.length > 1
+                ? t(`properties.addRelationPicked${directionKey}`, { count: pickedTasks.length })
+                : draftOther ? (draftOther.wbsCode || draftOther.name) : t('properties.addRelationPick')}
             </span>
             <span className="dependency-driving-slot" />
             <span className="dependency-type-field" data-ops-dependency-type>
@@ -340,12 +438,12 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
             />
             <button
               type="button"
-              title={t('properties.addRelationConfirm')}
-              aria-label={t('properties.addRelationConfirm')}
+              title={confirmLabel}
+              aria-label={confirmLabel}
               data-ops-dependency-confirm
-              disabled={!draft.otherTaskId}
+              disabled={pickedTasks.length === 0}
               className="dependency-remove-button justify-self-center"
-              style={{ color: draft.otherTaskId ? ('var(--theme-text)') : 'var(--theme-text-muted)' }}
+              style={{ color: pickedTasks.length > 0 ? ('var(--theme-text)') : 'var(--theme-text-muted)' }}
               onClick={commitDraft}
             >
               <Icon id="input.confirm-draft" size={10} />
@@ -376,5 +474,29 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
         </HoverTooltip>
       )}
     </>
+  );
+}
+
+/** Eén pijl van terug/vooruit; grijs zolang er in die richting geen sprong ligt. */
+function TrailButton({ direction, targetId }: { direction: 'back' | 'forward'; targetId: string | null }) {
+  const { t } = useTranslation('task');
+  const target = useAppStore(s => (targetId ? s.tasks.find(task => task.id === targetId) : undefined));
+  const label = target
+    ? t(direction === 'back' ? 'properties.trailBack' : 'properties.trailForward', {
+      task: `${target.wbsCode} ${target.name}`.trim(),
+    })
+    : t(direction === 'back' ? 'properties.trailBackNone' : 'properties.trailForwardNone');
+  return (
+    <button
+      type="button"
+      className="dependency-trail-button"
+      data-ops-dependency-trail={direction}
+      title={label}
+      aria-label={label}
+      disabled={!target}
+      onClick={() => stepRelationTrail(direction)}
+    >
+      <Icon id={direction === 'back' ? 'nav.back' : 'nav.forward'} size={12} className="ops-icon-inline-flip" />
+    </button>
   );
 }

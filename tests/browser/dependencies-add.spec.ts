@@ -98,6 +98,53 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
   await page.keyboard.press('Control+z');
   await expect.poll(() => state(page).then(s => s.sequences)).toEqual(before.sequences);
   expect((await state(page)).undoDepth).toBe(before.undoDepth);
+
+  // Meerdere voorgangers tegelijk (issue #888, besluit Ethan 2026-11-14 "1"): vinkjes in dezelfde
+  // zoekrij. Met het toetsenbord: zoeken, Enter vinkt aan; opnieuw zoeken houdt de keuze vast; een
+  // Enter met de lijst dicht legt alles vast als één stap.
+  const picked = draft.locator('[data-ops-dependency-picked]');
+  const extra = (n: number) => ids[3 + n]!;
+  await add.click();
+  await search.pressSequentially('Grond');
+  await search.press('Enter');
+  await expect(picked).toHaveCount(1);
+  await search.fill('Extra werk 4');
+  await expect(options).toHaveCount(1);
+  await search.press('Enter');
+  await expect(picked).toHaveCount(2);
+  await expect(draft.locator('[data-ops-dependency-confirm]')).toHaveAttribute('aria-label', /2/);
+  await search.press('Enter');
+  await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
+  await expect.poll(() => state(page).then(s => s.sequences.map(q => [q.predecessorId, q.successorId]))).toEqual([
+    [grondwerk, fundering], [extra(4), fundering],
+  ]);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => state(page).then(s => s.sequences)).toEqual(before.sequences);
+
+  // Met de muis: een klik vinkt aan en laat de lijst open; nog eens klikken haalt het vinkje weg,
+  // het kruisje op een label ook. Type en lag gelden voor alle gekozen taken.
+  await add.click();
+  await search.pressSequentially('Extra werk');
+  await options.nth(1).click();
+  await options.nth(2).click();
+  await options.nth(3).click();
+  await expect(options).toHaveCount(8);
+  await expect(draft.locator('[role="option"][aria-selected="true"]')).toHaveCount(3);
+  await options.nth(2).click();
+  await expect(draft.locator('[role="option"][aria-selected="true"]')).toHaveCount(2);
+  await expect(picked).toHaveCount(2);
+  await picked.first().locator('[data-ops-dependency-unpick]').click();
+  await expect(picked).toHaveCount(1);
+  await options.nth(5).click();
+  await expect(picked).toHaveCount(2);
+  await draft.locator('.dependency-lag-field').fill('1d');
+  await draft.locator('[data-ops-dependency-confirm]').click();
+  await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
+  await expect.poll(() => state(page).then(s => s.sequences.map(q => [q.predecessorId, q.lagDays]))).toEqual([
+    [extra(3), 1], [extra(5), 1],
+  ]);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
 });
 
 test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweigerd', async ({ page, ops: _ops }) => {
@@ -189,4 +236,71 @@ test('lag-veld: in- en uittabben zonder wijziging raakt het document niet', asyn
   await expect.poll(() => state(page).then(s => s.sequences.map(q => q.lagDays))).toEqual([3]);
   expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
   expect(await documentState()).toEqual({ isDirty: true, stale: true });
+});
+
+// Terug en vooruit (issue #888, eigenaarsbesluit 2026-11-14 "3"): alleen sprongen via het paneel
+// tellen. Een eigen klik in de taaktabel telt niet mee en wist het spoor ook niet.
+test('terug en vooruit lopen de sprongen via het paneel af, een klik in de tabel telt niet', async ({ page, ops: _ops }) => {
+  const ids = await seedProject(page, [
+    { name: 'Grondwerk', start: '2026-09-07', finish: '2026-09-18' },
+    { name: 'Fundering', start: '2026-09-21', finish: '2026-10-02' },
+    { name: 'Ruwbouw', start: '2026-10-05', finish: '2026-10-16' },
+    { name: 'Afbouw', start: '2026-10-05', finish: '2026-10-16' },
+  ]);
+  const [grondwerk, fundering, ruwbouw, afbouw] = ids;
+  await page.evaluate(([a, b, c]) => {
+    const s = window.__OPS__!.store.getState();
+    s.addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+    s.addSequence({ predecessorId: b, successorId: c, type: 'FINISH_START', lagDays: 0 });
+    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+    s.selectTask(c);
+  }, [grondwerk, fundering, ruwbouw]);
+
+  const active = () => page.evaluate(() => window.__OPS__!.store.getState().activeTaskId);
+  const back = page.locator('[data-ops-dependency-trail="back"]');
+  const forward = page.locator('[data-ops-dependency-trail="forward"]');
+  const link = (role: 'predecessor' | 'successor') => page.locator(`.dependency-wbs-link[data-dependency-role="${role}"]`);
+  const wbs = async (id: string) => page.evaluate(i => {
+    const task = window.__OPS__!.store.getState().tasks.find(t => t.id === i)!;
+    return `${task.wbsCode} ${task.name}`.trim();
+  }, id);
+
+  // Nog geen sprong: beide pijlen grijs.
+  await expect(back).toBeDisabled();
+  await expect(forward).toBeDisabled();
+
+  // Backward pass: Ruwbouw → Fundering → Grondwerk via de nummers in het paneel.
+  await link('predecessor').click();
+  await expect.poll(active).toBe(fundering);
+  await link('predecessor').click();
+  await expect.poll(active).toBe(grondwerk);
+  await expect(back).toBeEnabled();
+  await expect(back).toHaveAttribute('title', new RegExp(`${await wbs(fundering)}$`));
+  await expect(forward).toBeDisabled();
+  const undoDepth = (await state(page)).undoDepth;
+
+  // Een eigen klik in de tabel: het spoor blijft, terug wijst nog naar Fundering.
+  await page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${afbouw}"] [data-grid-column-id="task.name"]`).click();
+  await expect.poll(active).toBe(afbouw);
+  await expect(back).toHaveAttribute('title', new RegExp(`${await wbs(fundering)}$`));
+  await back.click();
+  await expect.poll(active).toBe(fundering);
+  await back.click();
+  await expect.poll(active).toBe(ruwbouw);
+  await expect(back).toBeDisabled();
+  await forward.click();
+  await expect.poll(active).toBe(fundering);
+  await expect(forward).toHaveAttribute('title', new RegExp(`${await wbs(grondwerk)}$`));
+
+  // De focus staat in de bovenste relatie (de uitlegzin staat eronder). Een klik op de onderste
+  // springt toch: de zin verhuist pas na het loslaten, anders schuift de knop onder de muis weg.
+  await page.locator('.dependency-item').first().locator('.dependency-lag-field').click();
+  await expect(page.locator('.dependency-item').first().locator('.relation-sentence')).toBeVisible();
+  // Een nieuwe sprong vanaf het midden vervangt wat vooruit lag, zoals in een browser.
+  await link('successor').click();
+  await expect.poll(active).toBe(ruwbouw);
+  await expect(forward).toBeDisabled();
+
+  // Lopen door het spoor verandert de planning niet.
+  expect((await state(page)).undoDepth).toBe(undoDepth);
 });

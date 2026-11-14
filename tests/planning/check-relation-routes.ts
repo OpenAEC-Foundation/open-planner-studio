@@ -27,7 +27,11 @@ import './domStub';
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { runGridMutation } from '@/state/gridTransaction';
-import { createRelationDraftWithFeedback, createRelationWithFeedback } from '@/state/relationActions';
+import {
+  createRelationDraftWithFeedback,
+  createRelationsWithFeedback,
+  createRelationWithFeedback,
+} from '@/state/relationActions';
 import type { RelationSetIntent } from '@/types/taskGrid';
 
 const S = () => useAppStore.getState();
@@ -368,6 +372,55 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('10.1 inspringen los van de bestaande kring gaat door', parentName(taak), 'Fase');
   eq('10.2 zonder kringmelding', cycleNotes(), []);
   ok('10.3 (fase bestaat)', fase.length > 0);
+}
+
+// ── 11. Meerdere relaties tegelijk (issue #888): één undo-stap, weigeringen per relatie ──────────
+// Het paneel kan meerdere voorgangers of opvolgers in één keer leggen. Wat mag komt erbij als ÉÉN
+// undo-stap; wat geweigerd wordt (dubbel, kring — ook een kring met een eerdere relatie uit dezelfde
+// reeks) meldt zich zoals bij één relatie en houdt de rest niet tegen.
+{
+  fresh();
+  const a = S().addTask({ name: 'A' });
+  const b = S().addTask({ name: 'B' });
+  const c = S().addTask({ name: 'C' });
+  const d = S().addTask({ name: 'D' });
+  S().addSequence({ predecessorId: a, successorId: d, type: 'FINISH_START', lagDays: 0 });
+  useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; });
+  const depth = undoDepth();
+  const ids = createRelationsWithFeedback([
+    { predecessorId: b, successorId: d, type: 'FINISH_START', lagDays: 2 },
+    { predecessorId: a, successorId: d, type: 'FINISH_START', lagDays: 0 }, // dubbel
+    { predecessorId: c, successorId: d, type: 'START_START', lagDays: 0 },
+  ]);
+  eq('11.1 per relatie een id of null', ids.map(id => id === null ? null : 'id'), ['id', null, 'id']);
+  eq('11.2 nieuwe relaties staan erin', pairs(), ['A→D', 'B→D', 'C→D']);
+  eq('11.3 lag en type per relatie', S().sequences.slice(1).map(q => [q.type, q.lagDays]), [['FINISH_START', 2], ['START_START', 0]]);
+  eq('11.4 precies één undo-stap', undoDepth(), depth + 1);
+  eq('11.5 de weigering meldt zich', notes().map(n => n.key), ['notifications.relationDuplicate']);
+  S().undo();
+  eq('11.6 één Ctrl+Z haalt ze allebei weg', pairs(), ['A→D']);
+
+  // Kring binnen de reeks: D → B is goed, daarna B → D zou de kring sluiten met de eerste.
+  fresh();
+  const p = S().addTask({ name: 'P' });
+  const q = S().addTask({ name: 'Q' });
+  const r = S().addTask({ name: 'R' });
+  const before = undoDepth();
+  const loop = createRelationsWithFeedback([
+    { predecessorId: q, successorId: p, type: 'FINISH_START', lagDays: 0 },
+    { predecessorId: p, successorId: q, type: 'FINISH_START', lagDays: 0 },
+    { predecessorId: r, successorId: p, type: 'FINISH_START', lagDays: 0 },
+  ]);
+  eq('11.7 de kring met een eerdere relatie uit de reeks wordt geweigerd', loop.map(id => id !== null), [true, false, true]);
+  eq('11.8 kringmelding', notes().map(n => n.key), ['notifications.relationCycle']);
+  eq('11.9 één undo-stap', undoDepth(), before + 1);
+
+  // Alles geweigerd ⇒ geen loze undo-stap.
+  clearNotes();
+  const none = createRelationsWithFeedback([{ predecessorId: q, successorId: p, type: 'FINISH_START', lagDays: 0 }]);
+  eq('11.10 alles geweigerd: geen relatie', none, [null]);
+  eq('11.11 alles geweigerd: geen undo-stap', undoDepth(), before + 1);
+  eq('11.12 lege lijst doet niets', createRelationsWithFeedback([]), []);
 }
 
 // Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.

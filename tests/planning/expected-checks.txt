@@ -344,6 +344,7 @@ check-relation-ribbon-trace.ts matrix
 check-relation-routes.ts matrix
 check-relation-rules.ts matrix
 check-relation-set-plan.ts matrix
+check-relation-trail.ts matrix
 check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix
