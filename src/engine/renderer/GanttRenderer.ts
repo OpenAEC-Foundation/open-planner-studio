@@ -449,12 +449,24 @@ export class GanttRenderer {
    *  normaal-blauw. `overrideColor` (trace-tint) wint altijd. Near-critical en de
    *  float-path-tint zijn analyse-overlays die alleen bestaan wanneer hun optie aanstaat
    *  (`isNearCritical`/`floatPath` anders afwezig). */
+  private highContrastBackgrounds(): string[] {
+    return [this.colors.bg, this.compressed ? this.colors.gridWeekBand : this.colors.gridWeekend];
+  }
+
+  /** Kleur per categorie (werksoort, resource, code): in hoog contrast dezelfde 7:1-grens als de
+   *  eigen kritiek-padkleuren, anders zichtbaar gemaakt voor het thema (review #952). */
+  private categoryColor(color: string): string {
+    return this.highContrast
+      ? ensureHighContrastBarVisible(color, this.highContrastBackgrounds())
+      : ensureThemeVisible(color, this.opts.darkTheme === true);
+  }
+
   private barColor(task: Task, overrideColor?: string): string {
     if (overrideColor) return overrideColor;
     const selection = this.opts.barColorSelection;
     const custom = selection?.mode === 'critical' ? selection.colors : undefined;
     const visible = (color: string) => this.highContrast
-      ? ensureHighContrastBarVisible(color, [this.colors.bg, this.compressed ? this.colors.gridWeekBand : this.colors.gridWeekend])
+      ? ensureHighContrastBarVisible(color, this.highContrastBackgrounds())
       : ensureCustomBarVisible(color, this.opts.darkTheme === true);
     if (task.time.isCritical) return custom?.critical ? visible(custom.critical) : this.colors.critical;
     if (task.time.isNearCritical) return custom?.nearCritical ? visible(custom.nearCritical) : this.colors.nearCritical;
@@ -1491,7 +1503,7 @@ export class GanttRenderer {
           width,
         );
     const modeColor = modeAdvies && modeAdvies.kind === 'solid'
-      ? ensureThemeVisible(modeAdvies.fill, dark)
+      ? this.categoryColor(modeAdvies.fill)
       : null;
     // Resource-segmenten als x-intervallen over [x1,x2] — buiten de uur-split-lus voorbereid, zodat
     // elk werkblok-segment zijn deel van de kleursegmenten tekent (gaten blijven gaten).
@@ -1501,7 +1513,7 @@ export class GanttRenderer {
       modeAdvies.segments.forEach((seg, si) => {
         const isLast = si === modeAdvies.segments.length - 1;
         const w = isLast ? x2 - cx : (x2 - x1) * seg.weight;
-        modeSegments.push({ cx1: cx, cx2: cx + w, color: ensureThemeVisible(seg.color, dark) });
+        modeSegments.push({ cx1: cx, cx2: cx + w, color: this.categoryColor(seg.color) });
         cx += w;
       });
     }
@@ -1704,7 +1716,7 @@ export class GanttRenderer {
           const w = isLast ? x2 - ax : (x2 - x1) * (r.unitsPerDay / total);
           // Donker thema: te donkere resourcekleuren verlichten — anders is het streepje onzichtbaar
           // tegen de donkere werkruimte (hue/verzadiging intact, dus nog steeds herkenbaar dezelfde).
-          ctx.fillStyle = ensureThemeVisible(r.color, this.opts.darkTheme === true);
+          ctx.fillStyle = this.categoryColor(r.color);
           ctx.fillRect(ax, accentY, Math.max(w, 1), accentH);
           ax += w;
         });
@@ -1901,7 +1913,9 @@ export class GanttRenderer {
           uncategorized: this.colors.ghost,
         });
     const milestoneFill = advice?.kind === 'segments' ? advice.segments[0].color : advice?.fill;
-    ctx.fillStyle = overrideColor ?? ensureThemeVisible(milestoneFill ?? this.colors.milestone, this.opts.darkTheme === true);
+    ctx.fillStyle = overrideColor ?? (milestoneFill
+      ? this.categoryColor(milestoneFill)
+      : ensureThemeVisible(this.colors.milestone, this.opts.darkTheme === true));
     diamond(size);
     ctx.fill();
 
