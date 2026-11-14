@@ -347,6 +347,8 @@
     "dependentProjectsFailed": "The folder with dependent projects could not be read.",
     "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library.",
     "reportLayoutGone": "The report's layout no longer exists. The report shows all tasks again.",
+    "reportFontNoBold": "{{name}} has no bold style. Bold text in the report uses the regular style.",
+    "reportFontMissing": "Your own font {{name}} is no longer on this device. The report uses Inter again.",
     "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again.",
     "ifcForeignOpenSchema": "This IFC file contains data from another application and has an unknown or missing schema. Opening was stopped to prevent data loss when saving.",
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",

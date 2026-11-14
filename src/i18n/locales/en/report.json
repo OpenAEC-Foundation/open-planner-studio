@@ -427,7 +427,9 @@
     "liberationSans": "Liberation Sans (like Arial)",
     "carlito": "Carlito (like Calibri)",
     "liberationSerif": "Liberation Serif (like Times New Roman)",
-    "liberationMono": "Liberation Mono (monospace)"
+    "liberationMono": "Liberation Mono (monospace)",
+    "custom": "{{name}} (own font)",
+    "other": "Other font…"
   },
   "studio": {
     "sidebar": "Report settings",
@@ -641,6 +643,31 @@
       "chart": "Bars and timeline",
       "footer": "Legend and footer",
       "page": "Page"
+    }
+  },
+  "customFont": {
+    "title": "Other font",
+    "intro": "Choose a font from this computer or a font file (.ttf or .ttc). The app keeps a copy on this device and puts the font in the PDF, so it prints the same everywhere.",
+    "showList": "Show this computer’s fonts",
+    "loadingList": "Looking for this computer’s fonts…",
+    "noList": "This browser cannot show the computer’s fonts; only Chrome and Edge can. Choose a font file.",
+    "listDenied": "This computer’s fonts cannot be read; the browser gave no permission. Choose a font file.",
+    "search": "Search",
+    "listLabel": "This computer’s fonts",
+    "empty": "No fonts found.",
+    "loadingFont": "Loading font…",
+    "chooseFile": "Choose file…",
+    "cancel": "Cancel",
+    "theFile": "This file",
+    "refused": "{{name}} cannot be used: {{reason}}.",
+    "saveFailed": "The font could not be kept on this device.",
+    "refusal": {
+      "embeddingRestricted": "embedding in a PDF is not allowed",
+      "variable": "variable font; the PDF can only contain fixed weights",
+      "noOutlines": "no glyph outlines to put in the PDF",
+      "postscriptOutlines": "PostScript outlines (.otf); the PDF export cannot contain those yet",
+      "noRegular": "italic only, no regular style",
+      "unreadable": "not a readable font file"
     }
   }
 }
