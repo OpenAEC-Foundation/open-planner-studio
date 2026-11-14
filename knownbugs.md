@@ -1997,6 +1997,24 @@ en noem het in je rapport of PR-tekst.
      voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
      en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
      van #926. — B
+1560. **VERVOLG (#804, test): de I/O-foutproef van de documentopslag bereikt de schrijffout niet.** In
+     `tests/planning/check-ifc-document-save.ts` wordt de naam van het geval, `I/O-fout`, letterlijk deel van het
+     doelpad. De map `I` bestaat niet, dus `open` faalt met `ENOENT` vóór de ingestelde fout na twee geschreven bytes;
+     de proef is groen zonder die schrijffout te toetsen. De review van #927 bereikte de fout met een eigen proef wel:
+     bron, kenmerk, doel en dirty-vlag blijven intact, het nieuwe bestand wordt verwijderd en er komt één melding.
+     Richting: een bestandsnaam zonder slash, en controleren dat de schrijfaanroep werkelijk is bereikt. Gevonden door
+     de review van #927. — B
+1561. **VERVOLG (#804, vorm): de uitzondering voor de eigen siteversie is over twee functies verdeeld.**
+     `refusedWriteTarget` (`src/state/ifcForeignGuard.ts`) zoekt een passend site-id en sha256 tussen de kenmerken van
+     alle open documenten; dat het om het schrijvende document gaat, volgt mede uit de aanroeper in `fileSlice.ts`
+     (dezelfde momentopname, document-id, bronidentiteit en guard opnieuw getoetst). Alleen de documentroute geeft de
+     uitzondering mee; een bereikbare route naar een verkeerd document is niet gevonden. Richting: de binding aan het
+     schrijvende document op één plek leggen. Een export geeft deze uitzondering nooit mee. Gevonden door de review
+     van #927. — B
+1562. **VERVOLG (#804, tekst): de melding bij een geweigerde merge noemt geen uitweg.**
+     `notifications.ifcForeignMergeRefused` zegt dat er niet is opgeslagen en waarom, maar niet wat de planner wel kan
+     doen. Aanvullen met een uitweg die werkelijk bestaat, in nl en en; de tekst gaat mee op de lijst voor de eigenaar
+     in `handoff.md`. Gevonden door de review van #927. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
