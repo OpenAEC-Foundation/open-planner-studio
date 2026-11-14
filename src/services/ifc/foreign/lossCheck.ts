@@ -99,7 +99,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
-import { PER_TASK_PSET_BY_NAME, PROP, PSET } from '../ifcPsets';
+import { PER_TASK_PSET_BY_NAME, PROP, PSET, ifcJson } from '../ifcPsets';
 import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { decodeStepText, stepTextIsValid } from '../stepText';
@@ -362,9 +362,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   for (const d of first) { input.collect?.(d); say(d, false); }
   if (first.length === 0) {
     const changed = changedScopes(input.domain, input.pristine);
-    const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
-    const p1 = pairOutput(input, input.o1, exact);
-    unstableLists(input, p0, p1);
+    const p1 = pairEditedOutput(input, input.o1, p0, changed);
     const ctx1 = o1Context(input, p1, changed, carried);
     const deleted = deletedExceptionItems(input, p1, changed);
     /** Stukken met een bronwaarde zonder regel in O1, terwijl hun object blijft (fixronde 4, plek 5; fixronde 5, BLOKKEERT
@@ -428,8 +426,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // bewerking aantoonbaar verklaren, per veld (`explainO1`); anders weigert de merge. De toets draait altijd, ook als
     // `changedScopes` niets ziet (een veld dat JSON niet ziet: plek 4). Een stuk dat niet eenduidig paarde, gaat ook door
     // `explainO1`: een bronwaarde van zo'n stuk weigert al hierboven, en de rest moet een bewerking verklaren.
-    const p1b = pairOutput(input, applyEdits(input.o1, edits), exact);
-    unstableLists(input, p0, p1b);
+    const p1b = pairEditedOutput(input, applyEdits(input.o1, edits), p0, changed);
     const ctx = o1Context(input, p1b, changed, carried);
     for (const d of compareOutput(input, p1b, input.owner1)) {
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
@@ -725,6 +722,57 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
   return { out, pairs, pairedOut, sourceOf, matched, ambiguous, shared };
 }
 
+/** Dezelfde bewerkings- en dubbelzinnigheidsregels voor verliesbewaking en identiteitsbehoud. */
+function pairEditedOutput(input: LossCheckInput, lines: readonly OutLine[], p0: Pairing,
+  changed = changedScopes(input.domain, input.pristine)): Pairing {
+  const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
+  const paired = pairOutput(input, lines, exact);
+  unstableLists(input, p0, paired);
+  return paired;
+}
+
+/** Eén stap ná de writer: eenduidig gekoppelde P-hulpregels houden hun bronidentiteit.
+ * D en de bestaande vaste ids blijven staan. De regelvolgorde blijft die van de writer;
+ * er gaan geen bronregels letterlijk terug. De werkelijke uitvoercontrole beslist daarna.
+ */
+export function preserveAuxiliaryIdentities(input: LossCheckInput, lines: readonly OutLine[]): readonly OutLine[] {
+  const { index, cls, fixed } = input;
+  const paired = pairEditedOutput(input, lines, pairOutput(input, input.o0));
+  const ids = new Map<number, number>();
+  const guids = new Map<number, string>();
+  for (const [s, oldId] of paired.pairs) {
+    if (cls.classes[s] !== 1 || cls.selection.inD[s] || fixed.has(Number(index.id(s)))) continue;
+    if (paired.ambiguous[s] || paired.pairedOut.get(s)?.length !== 1 || paired.sourceOf.get(oldId) !== s) continue;
+    ids.set(oldId, Number(index.id(s)));
+    const line = paired.out.get(oldId)!;
+    const args = index.argTokens(s);
+    if (hasOwnOrigin(index, s) && args && args.length >= 5 && isRootLine(line) && isRootLine({ args })) {
+      guids.set(oldId, args[0]);
+    }
+  }
+  // Alleen nieuwe/ongepaarde regels krijgen een nieuw nummer. Geen daarvan raakt een bron-id;
+  // ook niet wanneer de kale writer dat nummer toevallig al voor een ander stuk gebruikte.
+  let next = 0;
+  for (let s = 0; s < index.count; s++) if (index.isEntity(s)) next = Math.max(next, Number(index.id(s)));
+  for (const line of lines) next = Math.max(next, line.id);
+  for (const line of lines) if (!ids.has(line.id)) ids.set(line.id, fixed.has(line.id) ? line.id : ++next);
+  const remap = (id: number) => ids.get(id) ?? id;
+  let changed = false;
+  const kept = lines.map(line => {
+    const args = line.args.map(token => replaceRefsOutsideText(token, id => `#${remap(id)}`));
+    if (guids.has(line.id)) args[0] = guids.get(line.id)!;
+    // Deze bestaande native property bewaart STEP-ids als JSON-tekst, niet als #verwijzingen.
+    if (line.type === 'IFCPROPERTYSINGLEVALUE' && ID_LIST_PROPS.has(decodeStepText(unquote(line.args[0])))) {
+      const list = textIdList(line.args[2], token => decodeStepText(unquote(token)));
+      if (list) args[2] = `IFCTEXT(${ifcJson(list.map(id => String(remap(id))))})`;
+    }
+    const id = remap(line.id);
+    changed ||= id !== line.id || args.some((arg, k) => arg !== line.args[k]);
+    return { id, type: line.type, args };
+  });
+  return changed ? kept : lines;
+}
+
 /** Het enige stuk van de bron dat naar `t` wijst, of -1 (geen of meer dan één). */
 function onlyParent(index: StepIndex, t: number): number {
   let parent = -1;
@@ -873,6 +921,9 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
   };
   /** GlobalId van een eigen hulpstuk (besluit 1): het stuk is P, heeft geen vast id, heeft eigen herkomst, en geen stuk dat
    *  niet P is, wijst ernaar (de inkomende verwijzingen uit de index). De toets gaat dat zelf na. */
+  // De verliesbewaking toetst de kale O0/O1 vóór het identiteitsbehoud. Deze bestaande
+  // uitzondering blijft ook nodig voor ongepaarde/dubbelzinnige hulpregels en de veilige
+  // terugval naar de kale uitvoer; de behoudstap en de uitvoercontrole volgen hierna.
   const ownAuxGuid = (s: number): boolean => {
     if (!isP(s) || fixed.has(sid(s)) || !hasOwnOrigin(index, s)) return false;
     for (let k = index.inStart(s); k < index.inEnd(s); k++) {
@@ -1204,7 +1255,7 @@ export function refsOutsideText(token: string): number[] {
   return out;
 }
 /** Vervang elke `#id` buiten tekst (`'…'`, met `''` als aanhalingsteken erin). `f` krijgt het id en geeft de vervanging. */
-function replaceRefsOutsideText(token: string, f: (id: number) => string): string {
+export function replaceRefsOutsideText(token: string, f: (id: number) => string): string {
   let res = '';
   let i = 0;
   while (i < token.length) {

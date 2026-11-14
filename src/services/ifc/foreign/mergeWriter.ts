@@ -44,8 +44,8 @@ import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, partialDateTime, pristineFromScan, taskField,
-  taskTimeSlotFields, type LossDiff,
+  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, partialDateTime, preserveAuxiliaryIdentities, pristineFromScan, taskField,
+  taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
@@ -744,14 +744,15 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
   // bronwaarde terug zolang de planner dat veld niet wijzigde (`lossCheck`, `edits`). De bronwaarden komen uit
   // `ifcSource.bytes`: geen tweede kopie, en niets nieuws in het document, undo, herstel of de MCP-backup.
   const o0 = built0.lines.filter(l => !l.drop);
-  const { edits } = lossCheck({
+  const lossInput: LossCheckInput = {
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
     sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: plan.projectSourceId === undefined,
     owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
-  }, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  };
+  const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
@@ -801,42 +802,55 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
       if (!present.has(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
     }
   }
-  // Beide controles zien de werkelijke uitvoer, niet het P-blok of de boekhouding van de writer.
-  const parts = assemble(source, index, cls, lines.filter(l => !l.drop).map(l => l.text));
-  const bytes = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
-  let at = 0;
-  for (const part of parts) { bytes.set(part, at); at += part.length; }
-  let actual: ReturnType<typeof validateMergeOutput>;
-  let shown: WriteIFCInput, wanted: WriteIFCInput;
-  try {
-    actual = validateMergeOutput(index, cls, source.bytes, bytes);
-    if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
-    const parsed = await pristineFromScan(foreignScanFrom(actual.index, actual.classification, bytes), bytes);
-    // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
-    shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
-    wanted = openMergePlanning(input, 'domein');
-  } catch (e) {
-    if (e instanceof MergeNeedsPhase2Error) throw e;
-    throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
-  }
-  if (probe) {
-    for (const [side, opened] of [['uitvoer', shown], ['domein', wanted]] as const) {
-      const copy = freeze(structuredClone(opened), true);
-      let result: WriteIFCInput;
-      try { result = await probe(copy, side); }
-      catch (e) { throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: `testfunctie veranderde de invoer of faalde: ${String(e)}` }]); }
-      if (!result || result === copy) throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de testfunctie deed niets of gaf de invoer terug' }]);
-      if (planningCanon(opened) !== planningCanon(result)) {
-        throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(opened, result) }]);
+  async function checkedOutput(block: readonly OutLine[]): Promise<Uint8Array[]> {
+    // Beide controles zien de werkelijke uitvoer, niet het P-blok of de boekhouding van de writer.
+    const parts = assemble(source, index, cls, block.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`));
+    const bytes = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+    let at = 0;
+    for (const part of parts) { bytes.set(part, at); at += part.length; }
+    let actual: ReturnType<typeof validateMergeOutput>;
+    let shown: WriteIFCInput, wanted: WriteIFCInput;
+    try {
+      actual = validateMergeOutput(index, cls, source.bytes, bytes);
+      if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
+      const parsed = await pristineFromScan(foreignScanFrom(actual.index, actual.classification, bytes), bytes);
+      // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
+      shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
+      wanted = openMergePlanning(input, 'domein');
+    } catch (e) {
+      if (e instanceof MergeNeedsPhase2Error) throw e;
+      throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
+    }
+    if (probe) {
+      for (const [side, opened] of [['uitvoer', shown], ['domein', wanted]] as const) {
+        const copy = freeze(structuredClone(opened), true);
+        let result: WriteIFCInput;
+        try { result = await probe(copy, side); }
+        catch (e) { throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: `testfunctie veranderde de invoer of faalde: ${String(e)}` }]); }
+        if (!result || result === copy) throw new MergeNeedsPhase2Error([{ kind: 'open-stappen-ontbreken', detail: 'de testfunctie deed niets of gaf de invoer terug' }]);
+        if (planningCanon(opened) !== planningCanon(result)) {
+          throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(opened, result) }]);
+        }
       }
     }
+    if (planningCanon(wanted) !== planningCanon(shown)) {
+      throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
+    }
+    const numberProblem = unchangedPlanningNumberProblem(input, source.opened ?? pristine, wanted, shown);
+    if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
+    return parts;
   }
-  if (planningCanon(wanted) !== planningCanon(shown)) {
-    throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
+  const block = lines.filter(l => !l.drop);
+  let preserved: readonly OutLine[] | undefined;
+  try {
+    preserved = preserveAuxiliaryIdentities(lossInput, block);
+    return await checkedOutput(preserved);
+  } catch (error) {
+    if (preserved === block) throw error;
+    // De optimalisatie mag nooit een nieuwe weigering introduceren. Ook de kale uitvoer
+    // gaat door dezelfde volledige bytes-, open-, canon- en getalcontrole.
+    return checkedOutput(block);
   }
-  const numberProblem = unchangedPlanningNumberProblem(input, source.opened ?? pristine, wanted, shown);
-  if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
-  return parts;
 }
 
 /** Trias 1107: gelijk aan opened is ongewijzigd; zonder opened geldt pristine, zoals in de verliesbewaking.
