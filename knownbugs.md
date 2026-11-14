@@ -3046,6 +3046,17 @@ en noem het in je rapport of PR-tekst.
       de koppeling en volgorde, geen echte Playwright-installatie. Voor procesbewijs is een
       gerichte controle met echte `timeout` en een gecontroleerd hangend testproces nodig.
       Terra-review op 384150c28: [BEVESTIGD] VERVOLG. — B
+1690. **VERVOLG: geen test voert een echte Windows-update met een gedeflate `.nsis.zip` uit.**
+      `tests/planning/check-updater-zip.ts` leest alleen `src-tauri/Cargo.toml` en `Cargo.lock`, en de drie
+      platformbuilds in `ci.yml` bouwen met `--no-bundle`. Een groene CI bewijst dus niet dat de updater een
+      Deflate-zip met onze zip-features uitpakt (de fout "Compression method not supported" zou pas bij de
+      gebruiker verschijnen). Voor bewijs is een gerichte Windows-proef nodig die een kleine Deflate-zip met
+      dezelfde Cargo-features uitpakt. Sol-review op 2fe63a9e4 (PR #944): [BEVESTIGD] VERVOLG. — B
+1691. **VERVOLG: het commentaar bij de directe zip-regel zegt dat `deflate-flate2` de backend `miniz_oxide` forceert.**
+      `src-tauri/Cargo.toml:16-21`: de feature zet alleen `_deflate-any` en de optionele `flate2` aan (zip zet
+      daarbij `default-features = false`, in zip 4.6.1 en 9.5.1). Dat `miniz_oxide` actief is komt doordat
+      `flate2/rust_backend` via andere dependencies binnenkomt. Pas de toelichting aan. Sol-review op
+      2fe63a9e4 (PR #944): [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 
