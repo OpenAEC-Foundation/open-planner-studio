@@ -1479,17 +1479,17 @@ mod tests {
         );
     }
 
-    // Blokkade 1 van de review van #972: de scope is die van plugin-fs `rename`, uit de echte
-    // `tauri.conf.json` en `capabilities/default.json`. Een nep-app van Tauri (`tauri::test`, geen echte
-    // webview) levert de webview; de opvraging en de omzetting van `$HOME` en dergelijke zijn echt.
-    #[test]
-    fn place_file_scope_volgt_plugin_fs() {
-        use tauri::Manager;
-        use tauri_plugin_fs::FsExt;
+    type NepApp = tauri::App<tauri::test::MockRuntime>;
+    type NepVenster = tauri::WebviewWindow<tauri::test::MockRuntime>;
+
+    /// Een nep-app van Tauri (`tauri::test`, geen echte webview) met de echte `tauri.conf.json` en alle
+    /// capabilities in `src-tauri/capabilities/`, plus het hoofdvenster. De opvraging van de scope en de
+    /// omzetting van `$HOME`, `$APPDATA` en dergelijke zijn echt.
+    fn echte_app() -> (NepApp, NepVenster) {
         let app = tauri::test::mock_builder()
             .plugin(tauri_plugin_fs::init())
             .build(tauri::generate_context!())
-            .expect("nep-app met de echte config en capability");
+            .expect("nep-app met de echte config en capabilities");
         let config = app
             .config()
             .app
@@ -1501,6 +1501,99 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
+        (app, window)
+    }
+
+    /// De scope die plugin-fs voor `command` gebruikt, opgebouwd zoals [`FsRenameScope::new`] dat voor
+    /// `rename` doet (de regel van `resolve_path`, `tauri-plugin-fs-2.5.0/src/commands.rs:1528-1570`).
+    /// Met `met_verbod` onwaar alleen de toestemmingen van de capability, zonder runtime-scope: zo is te
+    /// zien dat een weigering van het verbod komt en niet van een ontbrekende toestemming.
+    /// `None`: de capability staat het commando niet toe.
+    fn scope_voor(
+        webview: &tauri::Webview<tauri::test::MockRuntime>,
+        command: &str,
+        met_verbod: bool,
+    ) -> Option<FsRenameScope> {
+        use tauri_plugin_fs::FsExt;
+        let resolved = webview
+            .resolve_command_scope::<FsScopeEntry>("fs", command)
+            .unwrap()?;
+        let paths = |entries: &Vec<Arc<FsScopeEntry>>| -> Vec<PathBuf> {
+            entries.iter().filter_map(|e| e.path.clone()).collect()
+        };
+        let mut allow = paths(resolved.global_scope().allows());
+        allow.extend(paths(resolved.command_scope().allows()));
+        let mut deny = paths(resolved.global_scope().denies());
+        deny.extend(paths(resolved.command_scope().denies()));
+        if !met_verbod {
+            deny.clear();
+        }
+        // `tauri.conf.json` laat `plugins.fs` leeg, dus geen `requireLiteralLeadingDot` (zoals `new`).
+        let configured = tauri::scope::fs::Scope::new(
+            webview,
+            &tauri::utils::config::FsScope::Scope {
+                allow,
+                deny,
+                require_literal_leading_dot: None,
+            },
+        )
+        .unwrap();
+        Some(FsRenameScope {
+            runtime: if met_verbod {
+                webview.try_fs_scope()
+            } else {
+                None
+            },
+            configured,
+        })
+    }
+
+    /// Het verbod op de webviewgegevens dat de capabilities per platform zetten (knownbug 1796),
+    /// relatief aan `$APPLOCALDATA`: dezelfde lijst als `permissions/deny-webview-data.toml` van
+    /// tauri-plugin-fs vanaf 2.5.2. Linux: de submappen en bestanden van WebKitGTK (de gegevensmap van de
+    /// webview is daar `$APPLOCALDATA` zelf, `tauri-2.12.3/src/manager/webview.rs:559-568` en
+    /// `wry-0.57.0/src/webkitgtk/web_context.rs:32-47`); Windows: de map van WebView2.
+    const VERBOD_LINUX: [&str; 9] = [
+        "CacheStorage/**",
+        "cookies",
+        "hsts-storage.sqlite",
+        "serviceworkers/**",
+        "WebKitCache/**",
+        "databases/**",
+        "localstorage/**",
+        "mediakeys/**",
+        "storage/**",
+    ];
+    const VERBOD_WINDOWS: [&str; 1] = ["EBWebView/**"];
+
+    /// Het verbod op dit platform. macOS: geen; Tauri geeft WKWebView daar geen gegevensmap
+    /// (`webview.rs:559-568` alleen voor Linux en Windows) en wry gebruikt dan de standaardopslag van
+    /// WebKit (`wry-0.57.0/src/wkwebview/mod.rs:234-244`), buiten `$APPLOCALDATA`.
+    fn verbod_hier() -> &'static [&'static str] {
+        if cfg!(target_os = "linux") {
+            &VERBOD_LINUX
+        } else if cfg!(windows) {
+            &VERBOD_WINDOWS
+        } else {
+            &[]
+        }
+    }
+
+    /// Een pad onder een verbodspatroon: in de map (`map/**`), of het bestand zelf.
+    fn onder(local: &Path, patroon: &str) -> PathBuf {
+        match patroon.strip_suffix("/**") {
+            Some(map) => local.join(map).join("proef").join("plan.ifc"),
+            None => local.join(patroon),
+        }
+    }
+
+    // Blokkade 1 van de review van #972: de scope is die van plugin-fs `rename`, uit de echte
+    // `tauri.conf.json` en de echte capabilities.
+    #[test]
+    fn place_file_scope_volgt_plugin_fs() {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let (app, window) = echte_app();
         let webview: &tauri::Webview<_> = window.as_ref();
         let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
 
@@ -1519,27 +1612,298 @@ mod tests {
         runtime.allow_file(&buiten).unwrap();
         assert!(scope.allows(&buiten));
 
-        // Struikeldraad (knownbug 1796): `fs:default` bedoelt `$APPLOCALDATA/**` en
-        // `$APPLOCALDATA/EBWebView/**` te verbieden, maar `deny-webview-data.toml` van
-        // tauri-plugin-fs 2.5.0 zet ze onder `[[scope.deny]]` in plaats van `[[permission.scope.deny]]`,
-        // dus de opgeloste ACL heeft voor fs geen enkel verbod en plugin-fs `rename` laat die paden toe.
-        // Het commando volgt plugin-fs. Levert een nieuwere plugin-fs het verbod wel, dan faalt deze regel:
-        // toets dan hier dat `$APPLOCALDATA` geweigerd wordt.
+        // Het verbod op de webviewgegevens (knownbug 1796) staat in de globale scope van fs, precies de
+        // lijst van dit platform en niets ruimers. Het standaardverbod van tauri-plugin-fs 2.5.0 levert
+        // niets (`[[scope.deny]]` in plaats van `[[permission.scope.deny]]`); de capabilities
+        // `webviewgegevens-linux.json` en `-windows.json` zetten het zelf.
         let resolved = webview
             .resolve_command_scope::<FsScopeEntry>("fs", "rename")
             .unwrap()
             .unwrap();
-        assert!(
-            resolved.global_scope().denies().is_empty()
-                && resolved.command_scope().denies().is_empty(),
-            "plugin-fs levert nu verboden paden: {:?} {:?}",
-            resolved.global_scope().denies(),
-            resolved.command_scope().denies()
-        );
+        let local = app.path().app_local_data_dir().unwrap();
+        let gewoon = |p: &Path| p.components().collect::<PathBuf>();
+        let mut verboden: Vec<PathBuf> = resolved
+            .global_scope()
+            .denies()
+            .iter()
+            .filter_map(|e| e.path.as_deref().map(gewoon))
+            .collect();
+        verboden.sort();
+        let mut verwacht: Vec<PathBuf> = verbod_hier()
+            .iter()
+            .map(|p| gewoon(&local.join(p)))
+            .collect();
+        verwacht.sort();
+        assert_eq!(verboden, verwacht);
+        assert!(resolved.command_scope().denies().is_empty());
+    }
+
+    // Knownbug 1796, proef 1: het verbod geldt voor `rename` (dus dit commando) en voor de lees- en
+    // schrijfcommando's van plugin-fs die de capability toestaat.
+    #[test]
+    fn place_file_webviewgegevens_verboden() {
+        use tauri::Manager;
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let local = app.path().app_local_data_dir().unwrap();
+        let rename = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
+        for patroon in verbod_hier() {
+            let pad = onder(&local, patroon);
+            assert!(!rename.allows(&pad), "rename: {pad:?}");
+            for command in [
+                "read_file",
+                "read_text_file",
+                "read_dir",
+                "exists",
+                "stat",
+                "open",
+                "write_file",
+                "write_text_file",
+                "mkdir",
+                "remove",
+            ] {
+                let scope = scope_voor(webview, command, true)
+                    .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
+                assert!(!scope.allows(&pad), "{command}: {pad:?}");
+            }
+        }
+    }
+
+    /// Mappen die een proef onder `$APPLOCALDATA` aanmaakt; weg na de proef, ook na een fout. Alleen wat
+    /// de proef zelf maakte: de eigen map helemaal, de mappen erboven alleen als ze er nog niet waren en
+    /// weer leeg zijn.
+    struct EigenMap {
+        eigen: PathBuf,
+        nieuw_erboven: Vec<PathBuf>,
+    }
+
+    impl EigenMap {
+        fn maak(eigen: PathBuf) -> Self {
+            let nieuw_erboven = eigen
+                .ancestors()
+                .skip(1)
+                .take_while(|p| !p.exists())
+                .map(Path::to_path_buf)
+                .collect();
+            let _ = std::fs::remove_dir_all(&eigen);
+            std::fs::create_dir_all(&eigen).unwrap();
+            Self {
+                eigen,
+                nieuw_erboven,
+            }
+        }
+    }
+
+    impl Drop for EigenMap {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.eigen);
+            for map in &self.nieuw_erboven {
+                let _ = std::fs::remove_dir(map);
+            }
+        }
+    }
+
+    // Knownbug 1796, proef 1 en 2 voor het commando zelf: een echt bestand in een echte map onder het
+    // verbod. De capability (Linux `$APPDATA/**`, dezelfde map; Windows `$HOME/**`) en de runtime-scope
+    // staan het pad toe, en toch weigert `place_file_exclusive` het: het verbod wint.
+    #[test]
+    fn place_file_weigert_webviewgegevens() {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let local = app.path().app_local_data_dir().unwrap();
+        // Eerst de mappen, dan de scope: Tauri neemt bij het opbouwen ook de canonieke vorm van een
+        // bestaand deel van een patroon op (`tauri-2.12.3/src/scope/fs.rs:92-140`), en het commando toetst
+        // het echte pad van de open map.
+        let mappen: Vec<EigenMap> = verbod_hier()
+            .iter()
+            .filter_map(|p| p.strip_suffix("/**"))
+            .map(|map| {
+                EigenMap::maak(
+                    local
+                        .join(map)
+                        .join(format!("ops-place-file-{}", std::process::id())),
+                )
+            })
+            .collect();
+        assert_eq!(mappen.is_empty(), cfg!(target_os = "macos"));
+        let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
+        runtime.allow_directory(&local, true).unwrap();
+        let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
+        let zonder_verbod = scope_voor(webview, "rename", false).unwrap();
+        for map in &mappen {
+            let from = map.eigen.join(TMP);
+            let to = map.eigen.join(DOEL);
+            std::fs::write(&from, b"proef").unwrap();
+            let real = std::fs::canonicalize(&map.eigen).unwrap();
+            for pad in [real.join(TMP), real.join(DOEL)] {
+                assert!(zonder_verbod.allows(&pad), "capability: {pad:?}");
+                assert!(runtime.is_allowed(&pad), "runtime-scope: {pad:?}");
+                assert!(!scope.allows(&pad), "verbod: {pad:?}");
+            }
+            assert_eq!(
+                place(
+                    &text(&from),
+                    &text(&to),
+                    &|p: &Path| scope.allows(p),
+                    &SystemOps
+                ),
+                refused(RefusalReason::Scope),
+                "{from:?}"
+            );
+            assert_eq!(std::fs::read(&from).unwrap(), b"proef");
+            assert!(!exists(&to));
+        }
+    }
+
+    // Knownbug 1796, proef 2: een toestemming heft het verbod niet op, niet in de capability en niet in
+    // de runtime-scope (bestandsdialoog, `persisted-scope`), ook niet voor een lees- of schrijfcommando.
+    #[test]
+    fn place_file_toestemming_heft_webviewverbod_niet_op() {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let local = app.path().app_local_data_dir().unwrap();
+        let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
+        runtime.allow_directory(&local, true).unwrap();
+        for patroon in verbod_hier() {
+            let pad = onder(&local, patroon);
+            runtime.allow_file(&pad).unwrap();
+            assert!(runtime.is_allowed(&pad), "runtime-scope: {pad:?}");
+            for command in ["rename", "read_file", "write_file"] {
+                let zonder_verbod = scope_voor(webview, command, false).unwrap();
+                assert!(zonder_verbod.allows(&pad), "capability {command}: {pad:?}");
+                let scope = scope_voor(webview, command, true).unwrap();
+                assert!(!scope.allows(&pad), "verbod {command}: {pad:?}");
+            }
+            assert!(!FsRenameScope::new(webview).unwrap().allows(&pad));
+        }
+    }
+
+    /// Wat de app zelf in `appDataDir` leest en schrijft, met de fs-commando's per onderdeel, uit de code:
+    /// herstel na een crash (`recoveryPaths.ts`, `recoveryStore.ts`, `atomicWrite.ts`; ook de naam van
+    /// een dev-build `recovery.<slug>`), het MCP-register (`discoveryContract.ts`, `discoveryFiles.ts`),
+    /// de dev-brug (`devBridge.ts`), de resourcebibliotheek (`libraryStore.ts`), de AI-backup
+    /// (`backupService.ts`) en de feedback-schermafbeelding (`feedbackService.ts`). `""` is de map zelf.
+    const EIGEN_GEBRUIK: [(&[&str], &[&str]); 6] = [
+        (
+            &[
+                "",
+                "recovery.documents.json",
+                "recovery.documents.json.tmp",
+                "recovery.snapshot.doc-mhx1q2k9ab3.mhx1q2k9ab4.ifc",
+                "recovery.snapshot.doc-mhx1q2k9ab3.mhx1q2k9ab4.ifc.tmp",
+                "recovery.xerarchive.0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.bin",
+                "recovery.xerarchive.0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.bin.tmp",
+                "recovery.doc-mhx1q2k9ab3.ifc",
+                "recovery.ifc",
+                "recovery.t3-proef.documents.json",
+            ],
+            &[
+                "exists",
+                "stat",
+                "read_dir",
+                "read_text_file",
+                "read_file",
+                "mkdir",
+                "write_text_file",
+                "write_file",
+                "rename",
+                "remove",
+            ],
+        ),
+        (
+            &[
+                "mcp",
+                "mcp/open-files.json",
+                "mcp/open-files.json.tmp",
+                "mcp/runtime.json",
+                "mcp/runtime.t3-proef.json",
+            ],
+            &["mkdir", "read_dir", "open", "rename", "remove", "exists"],
+        ),
+        (
+            &[
+                "ops-test",
+                "ops-test/cmd.json",
+                "ops-test/res.json",
+                "ops-test/ready.json",
+                "ops-test/feedback-capture.png",
+            ],
+            &[
+                "mkdir",
+                "exists",
+                "read_text_file",
+                "write_text_file",
+                "write_file",
+                "remove",
+            ],
+        ),
+        (
+            &["", "ops-library.json", "ops-library.json.tmp"],
+            &[
+                "mkdir",
+                "exists",
+                "read_text_file",
+                "write_text_file",
+                "rename",
+                "remove",
+            ],
+        ),
+        (
+            &[
+                "ai-backups",
+                "ai-backups/doc-mhx1q2k9ab3",
+                "ai-backups/doc-mhx1q2k9ab3/plan-2026-11-16T20-00-00-000Z.ifc",
+            ],
+            &["mkdir", "read_dir", "write_text_file", "remove"],
+        ),
+        (
+            &["feedback", "feedback/feedback-2026-11-16T20-00-00-000Z.png"],
+            &["mkdir", "write_file"],
+        ),
+    ];
+
+    // Knownbug 1796, proef 3: het herstel, het MCP-register en de dev-brug (en de andere eigen bestanden
+    // in `appDataDir`) blijven toegestaan, op elk platform; op Linux is dat dezelfde map als
+    // `$APPLOCALDATA`. En geen eigen naam valt onder een verbodspatroon van Linux of Windows.
+    #[test]
+    fn place_file_eigen_appdata_blijft_toegestaan() {
+        use tauri::Manager;
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let data = app.path().app_data_dir().unwrap();
+        let rename = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
+        let verboden_namen: Vec<&str> = VERBOD_LINUX
+            .iter()
+            .chain(VERBOD_WINDOWS.iter())
+            .map(|p| p.trim_end_matches("/**"))
+            .collect();
+        for (namen, commands) in EIGEN_GEBRUIK {
+            for naam in namen {
+                let pad = if naam.is_empty() {
+                    data.clone()
+                } else {
+                    data.join(naam)
+                };
+                if let Some(eerste) = naam.split('/').next().filter(|e| !e.is_empty()) {
+                    assert!(!verboden_namen.contains(&eerste), "eigen naam {naam}");
+                }
+                assert!(rename.allows(&pad), "rename: {pad:?}");
+                for command in commands.iter() {
+                    let scope = scope_voor(webview, command, true)
+                        .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
+                    assert!(scope.allows(&pad), "{command}: {pad:?}");
+                }
+            }
+        }
     }
 
     // Blokkade 1: de regel van plugin-fs met een verbod erin. Echte `tauri::scope::fs::Scope`'s uit een
-    // nep-app; het verbod komt hier van de proef, omdat de capability er nu geen levert (zie hierboven).
+    // nep-app; het verbod komt hier van de proef, zodat de regel ook op macOS getoetst wordt (daar zet de
+    // capability geen verbod).
     #[test]
     fn place_file_scope_verbod_wint() {
         use tauri::Manager;
