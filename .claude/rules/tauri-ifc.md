@@ -75,8 +75,11 @@ schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId en ow
 herlezing de GlobalId van het domein, dus een extra sleutel, een ontbrekende of een andere waarde weigert. De kop draagt
 zijn GlobalId (knownbug 1746): de writer leidt die af uit het id van zijn baseline, dus verwisselde koppen, of de kop van
 een gewiste baseline in de plaats van een blijvende, weigeren ook bij gelijke inhoud. De merge geeft de writer voor elke
-weesrij de GlobalId die de lezer ervoor aanneemt (`withOrphanRowGuids`, `fileRowGuid` in `foreign/sourceForm.ts`, knownbug
-1702), anders gaf hij na heropenen een nieuwe hash en was `OPS_Baselines` daarna niet meer gedragen. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
+weesrij de GlobalId die de lezer ervoor aannam (knownbug 1702), anders gaf hij na heropenen een nieuwe hash en was
+`OPS_Baselines` daarna niet meer gedragen. Die waarde komt uit de lezing van de bron zelf: `extractBaselines` zet per rij
+zonder levende taak de GlobalId waarmee hij haar zocht in `ImportResult.baselineOrphanGuids`, en de merge neemt die over
+(`assumedRowGuid` en `withOrphanRowGuids` in `foreign/sourceForm.ts`), zonder eigen afleiding. Het veld is geen documentveld:
+`payloadFromImport` neemt het niet over. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
 van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
 vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.

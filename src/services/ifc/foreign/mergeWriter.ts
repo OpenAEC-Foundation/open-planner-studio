@@ -44,9 +44,9 @@ import { decodeStepText } from '../stepText';
 import { workCalendarSlots } from '../ifcWorkControlSlots';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
-import { fileRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
+import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineFromScan, taskField,
+  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
@@ -372,8 +372,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const inD = cls.selection.inD;
   const sid = (chunk: number) => Number(index.id(chunk));
   const label = (chunk: number) => `${index.type(chunk)} #${index.id(chunk)}`;
-  // De GlobalId van een weesrij zoals de lezer hem in de bron aanneemt (PR 12e, was knownbug 1702): de writer houdt hem.
-  const rowGuid = fileRowGuid(index);
 
   // ── 1. Wat de bron zelf al uitsluit ──
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
@@ -708,6 +706,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
   const scan = foreignScanFrom(index, cls, source.bytes);
   const pristine = await pristineFromScan(scan, source.bytes, (source.opened ?? input).project);
+  // De GlobalId van een weesrij zoals de lezer hem in de bron aannam (PR 12e, was knownbug 1702): de writer houdt hem, in O0
+  // en O1 (`buildLines`), in de andere toets (`openedOwnGroups`) en in de verwachting van (c) (`OwnOutputCheck.sourceRowGuid`).
+  const rowGuid = assumedRowGuid(pristine);
   // "De planner wijzigde dit veld" betekent: het wijkt af van wat de app na het openen liet zien (`source.opened`), niet van
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
@@ -846,7 +847,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
     const actual = await checkedParts(assembled, input, source, index, cls, source.opened ?? pristine, probe,
-      { stepIds, writtenAt, skip: restoredGroups });
+      { stepIds, writtenAt, skip: restoredGroups, sourceRowGuid: rowGuid });
     const written = new Set(candidate.map(line => line.id));
     const classes = Uint8Array.from(actual.scan.chunkIds, id => {
       if (id < 0) return 0;
@@ -913,14 +914,19 @@ export interface OwnOutputCheck {
   readonly stepIds: Readonly<Record<string, number>>;
   readonly writtenAt: Date;
   readonly skip: ReadonlySet<string>;
+  /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
+  readonly sourceRowGuid: (taskId: string) => string | undefined;
 }
 
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
  *  uitvoer). Gooit `MergeNeedsPhase2Error` zoals bij opslaan. */
-export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource, own?: OwnOutputCheck): Promise<void> {
+export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
+  own?: Omit<OwnOutputCheck, 'sourceRowGuid'>): Promise<void> {
   const index = scanForeignStep(source.bytes), cls = classify(index);
   assertSameSource(index, cls, source);
-  await checkedParts([bytes], freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, own);
+  // Zoals bij opslaan: de GlobalId van een weesrij uit de lezing van de bron.
+  const checked = own && { ...own, sourceRowGuid: assumedRowGuid(await pristineDomain(index, cls, source)) };
+  await checkedParts([bytes], freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
 }
 
 /** De vaste uitvoercontrole van #918, ook voor ongewijzigd teruggegeven bronbytes. */
@@ -989,7 +995,7 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
   // Een weesrij krijgt in de herlezing de GlobalId die de writer uit het domein had (PR 12e, was knownbug 1706), niet die uit de
   // uitvoer zelf: zo ziet (c) een verkeerde waarde in `TaskGuids`, net als een sleutel zonder rij.
-  const domainGuids = withOrphanRowGuids(input, fileRowGuid(sourceIndex)).ifcGlobalIds ?? {};
+  const domainGuids = withOrphanRowGuids(input, own.sourceRowGuid).ifcGlobalIds ?? {};
   const reread = withOrphanRowGuids(parsed, id => domainGuids[ifcObjectSeed('task', id)]);
   const rewritten = writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
     .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
@@ -1021,7 +1027,7 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
   const out = new Map<number, string>(), forms = new Set<string>();
   if (members.size === 0) return { ownGroups: out, secondFormsUnchanged: forms };
   const withForeign = groupsWithForeignMembers(source, members);
-  const rowGuid = fileRowGuid(index);
+  const rowGuid = assumedRowGuid(pristine);
   const trees = (d: WriteIFCInput) => {
     const lines = writeIfcMergeLines(withOrphanRowGuids(d, rowGuid), sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
       .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);

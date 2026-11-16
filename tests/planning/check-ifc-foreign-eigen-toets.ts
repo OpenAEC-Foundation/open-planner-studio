@@ -34,8 +34,7 @@ import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { PSET, ifcJson } from '@/services/ifc/ifcPsets';
 import { decodeStepText } from '@/services/ifc/stepText';
-import { fileRowGuid } from '@/services/ifc/foreign/sourceForm';
-import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import {
   applyEdit, basicEdits, canon, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, lossProbe, mergeProblems, openForeign, ordinaryEdits,
   reopenPlain, sameBytes, savedCatalogStart, savedSequenceStart, shownAfterOpen, type Domain,
@@ -668,7 +667,7 @@ const setSlot = (ls: readonly OutLine[], target: OutLine, k: number, v: string) 
 // Wist de planner een taak die in een baseline staat, dan blijft haar rij in de baseline (een weesrij). De lezer zet in
 // `ifcGlobalIds` alleen de GlobalIds van taken die er zijn; tot PR 12e schreef de writer daarom na heropenen een nieuwe hash
 // in `TaskGuids` voor die rij, en was `OPS_Baselines` in het bestand daarna niet meer gedragen. De merge geeft de writer nu
-// de GlobalId die de lezer zelf voor de rij aanneemt (`withOrphanRowGuids`, `fileRowGuid` in `sourceForm.ts`).
+// de GlobalId die de lezer zelf voor de rij aannam (`withOrphanRowGuids` met `ImportResult.baselineOrphanGuids`).
 // 7a. De weesrij zelf: taak wissen → opslaan → heropenen → opslaan zonder bewerking (de bytes van de eerste), met een
 //     kleine bewerking, met een baseline erbij en die baseline weer wissen (dat vraagt een gedragen `OPS_Baselines`) →
 //     heropenen. Per weesrij (baseline en plaats) de taak-id en de GlobalId zoals de lezer hem aanneemt:
@@ -682,10 +681,12 @@ const setSlot = (ls: readonly OutLine[], target: OutLine, k: number, v: string) 
 //     niet zonder weesrij: zijn JSON blijft in de vorm van de bron (een baseline vastleggen of wissen weigert daar al op het
 //     onbewerkte bestand, ook op de basis). Daar meet 7b alleen de weesrij na taak wissen, en dat het zo blijft.
 const showcase = withWall(read('tests/planning/fixtures/oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc'));
-/** Per weesrij (`baseline#plaats`): de taak-id en de GlobalId die de lezer van `bytes` ervoor aanneemt; `guids`: in plaats van
- *  de lezer (een domein dat nog niet geschreven is) de GlobalIds van het domein. */
-function orphanRows(d: Domain, bytes: Uint8Array, guids?: Readonly<Record<string, string>>): Map<string, { id: string; guid: string }> {
-  const read = fileRowGuid(scanForeignStep(bytes)), live = new Set(d.tasks.map(t => t.id));
+/** Per weesrij (`baseline#plaats`): de taak-id en de GlobalId die de lezer van `bytes` ervoor aannam (zijn eigen lezing,
+ *  `baselineOrphanGuids`); `guids`: eerst de GlobalIds van het domein (een domein dat nog niet geschreven is). */
+async function orphanRows(d: Domain, bytes: Uint8Array, guids?: Readonly<Record<string, string>>): Promise<Map<string, { id: string; guid: string }>> {
+  const reading = (await readIfcBytesDetailed(bytes, {}, { createWorker: () => null })).result;
+  const assumed = new Map(Object.entries(reading.baselineOrphanGuids ?? {}));
+  const read = (id: string) => assumed.get(id) ?? '(geen weesrij voor de lezer)', live = new Set(d.tasks.map(t => t.id));
   const out = new Map<string, { id: string; guid: string }>();
   for (const b of d.baselines ?? []) b.tasks.forEach((r, i) => {
     if (!live.has(r.taskId)) out.set(`${b.id}#${i}`, { id: r.taskId, guid: guids?.[`task:${r.taskId}`] ?? read(r.taskId) });
@@ -737,7 +738,7 @@ for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]
     ok(`${label}: taak wissen schrijft`, o1.ok, o1.ok ? '' : o1.detail);
   }
   if (!o1.ok) continue;
-  const shown = orphanRows(d1, start, d1.ifcGlobalIds);
+  const shown = await orphanRows(d1, start, d1.ifcGlobalIds);
   ok(`${label}: weesrijen`, shown.size >= (withSummary ? 2 : 1), rowsText(shown));
   const r1 = await openForeign(o1.bytes);
   if (legacy) {
@@ -755,18 +756,18 @@ for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]
   // tot PR 12e kreeg de weesrij dan een nieuwe hash, en weigerde de merge (de groep was niet gedragen). Niet op de oude
   // showcase: daar weigert een baseline erbij al op het onbewerkte bestand.
   // Daarna die baseline weer wissen: dat schrijft alleen als `OPS_Baselines` gedragen is (de kop beweegt mee, E1).
-  let l4: ReturnType<typeof orphanRows> | undefined, l5: ReturnType<typeof orphanRows> | undefined;
+  let l4: Awaited<ReturnType<typeof orphanRows>> | undefined, l5: Awaited<ReturnType<typeof orphanRows>> | undefined;
   if (!legacy) {
     const o4 = await attempt(`${label}: daarna een baseline erbij`, start, r3.ifcSource!, await se(s => s.saveBaseline('Wees B2'))(cloneDomain(r3)), 'schrijft');
     if (o4.ok) {
       const r4 = await openForeign(o4.bytes);
-      l4 = orphanRows(r4, o4.bytes);
+      l4 = await orphanRows(r4, o4.bytes);
       const o5 = await attempt(`${label}: daarna die baseline weer wissen`, start, r4.ifcSource!,
         await se(s => s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Wees B2').id))(cloneDomain(r4)), 'schrijft');
-      if (o5.ok) l5 = orphanRows(await openForeign(o5.bytes), o5.bytes);
+      if (o5.ok) l5 = await orphanRows(await openForeign(o5.bytes), o5.bytes);
     }
   }
-  const [l1, l2, l3] = [orphanRows(r1, o1.bytes), orphanRows(r2, again.ok ? again.bytes : o1.bytes), orphanRows(r3, o3.ok ? o3.bytes : o1.bytes)];
+  const [l1, l2, l3] = [await orphanRows(r1, o1.bytes), await orphanRows(r2, again.ok ? again.bytes : o1.bytes), await orphanRows(r3, o3.ok ? o3.bytes : o1.bytes)];
   console.log(`WEESRIJ ${label}: domein ${rowsText(shown)}`);
   console.log(`WEESRIJ ${label}: lezing 1 ${rowsText(l1)}; lezing 2 ${rowsText(l2)}; lezing 3 ${rowsText(l3)}${l4 ? `; lezing 4 ${rowsText(l4)}` : ''}${l5 ? `; lezing 5 ${rowsText(l5)}` : ''}`);
   ok(`${label}: taak-id en GlobalId gelijk in alle lezingen`, rowsText(l1) === rowsText(l2) && rowsText(l1) === rowsText(l3) && l1.size === shown.size
@@ -781,7 +782,7 @@ for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]
 const measured = (tag: string, carriedAfter: boolean) => async (label: string, before: Uint8Array, written: Uint8Array) => {
   const reread = await openForeign(written), prior = await openForeign(before);
   // Elke weesrij van de vorige uitvoer die er nog is, houdt haar taak-id en GlobalId (op baseline en plaats).
-  const was = orphanRows(prior, before), now = orphanRows(reread, written);
+  const was = await orphanRows(prior, before), now = await orphanRows(reread, written);
   const kept = [...was].filter(([k]) => now.has(k));
   ok(`keten ${tag}: stap ${label}: de weesrijen houden taak-id en GlobalId`, kept.every(([k, v]) => now.get(k)!.guid === v.guid && now.get(k)!.id === v.id),
     `${rowsText(was)} | ${rowsText(now)}`);
