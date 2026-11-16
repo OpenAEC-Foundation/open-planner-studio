@@ -7,7 +7,7 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, sameEntry, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef } from '@/services/fileAccess';
@@ -50,6 +50,17 @@ export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
 
 export const IFC_FOREIGN_REPLACE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignReplaceBlocked', dedupeKey: 'ifc-foreign-replace-blocked',
+});
+// Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle. Staat daar niet meer precies de bron, of kan het
+// crashherstel de komende versie niet vastleggen, dan schrijft de app niet.
+export const IFC_FOREIGN_TARGET_CHANGED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetChanged', dedupeKey: 'ifc-foreign-target-changed',
+});
+export const IFC_FOREIGN_TARGET_GONE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetGone', dedupeKey: 'ifc-foreign-target-gone',
+});
+export const IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignReplaceNotRecorded', dedupeKey: 'ifc-foreign-replace-not-recorded',
 });
 export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
@@ -140,7 +151,7 @@ export async function isOpenForeignSourceTarget(
 /** Wat de doelcontrole nodig heeft: de open documenten en de flag. */
 export interface WriteTargetState {
   getOpenDocumentPayloads(): readonly { readonly id: string; readonly payload: Pick<DocumentPayload,
-    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion'> }[];
+    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle'> }[];
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }
 
@@ -161,22 +172,34 @@ export interface WriteTargetDeps {
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
  *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
+ * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
+ * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
+ *  - site: de eigen siteversie met de basisversie van het document; de host bewaakt die basis;
+ *  - handle (knownbug 1131 stap 2): dezelfde handle als het document en zijn kenmerk (`isSameEntry`). Een ander open
+ *    document met hetzelfde bestand als bron blijft geweigerd. Of op dat bestand nog de bron staat, toetst de aanroeper
+ *    (`sourceTargetContent`, vóór de merge en vlak vóór `close()`);
+ *  - een pad (desktop) krijgt de uitzondering niet: opslaan over het eigen bestand weigert daar tot stap 5.
  * Meldt niets: de aanroeper kiest de melding. Geeft de reden van de weigering, of `null` als het schrijven mag.
  */
 export async function refusedWriteTarget(
   s: WriteTargetState,
   target: FileRef,
   deps: WriteTargetDeps,
-  // Alleen een volledige documentmerge naar het eigen sitebestand; de host bewaakt de basisversie.
-  ownSiteVersion?: { readonly documentId: string; readonly baseVersion: string | null; readonly source: IfcSource },
+  ownVersion?: { readonly documentId: string; readonly baseVersion?: string | null; readonly source: IfcSource },
 ): Promise<'open-source' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
-  const own = ownSiteVersion && s.getOpenDocumentPayloads().find(d => d.id === ownSiteVersion.documentId)?.payload;
-  const isOwnVersion = target.kind === 'site' && ownSiteVersion && own?.siteFileId === target.id
-    && !!ownSiteVersion.baseVersion && own.siteFileVersion === ownSiteVersion.baseVersion
-    && own.ifcSource === ownSiteVersion.source && hasForeignContent(own.ifcSource)
+  const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
+  const ownSource = !!own && own.ifcSource === ownVersion.source && hasForeignContent(own.ifcSource)
     && ifcForeignContentEnabled(s.ui.featureFlags)
-    && own.foreignSourceMark?.siteFileId === target.id && !own.foreignSourceMark.sourceMissing
-    && own.foreignSourceMark.sha256 === ownSiteVersion.source.sha256;
+    && !!own.foreignSourceMark && !own.foreignSourceMark.sourceMissing
+    && own.foreignSourceMark.sha256 === ownVersion.source.sha256;
+  const isOwnVersion = ownSource && target.kind === 'site' && own.siteFileId === target.id
+    && !!ownVersion.baseVersion && own.siteFileVersion === ownVersion.baseVersion
+    && own.foreignSourceMark!.siteFileId === target.id;
+  if (ownSource && target.kind === 'handle' && !own.siteFileId && own.fileHandle && own.foreignSourceMark!.handle
+    && await sameEntry(own.fileHandle, target.handle) && await sameEntry(own.foreignSourceMark!.handle, target.handle)) {
+    const others = { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== ownVersion.documentId) };
+    return await isOpenForeignSourceTarget(others, target, deps.identityFs) ? 'open-source' : null;
+  }
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;

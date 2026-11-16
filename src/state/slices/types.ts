@@ -234,6 +234,11 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignSourceMissing'
   | 'notifications.ifcSourceCopyFailed'
   | 'notifications.ifcForeignReplaceBlocked'
+  // Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle.
+  | 'notifications.ifcForeignTargetChanged'
+  | 'notifications.ifcForeignTargetGone'
+  | 'notifications.ifcForeignReplaceNotRecorded'
+  | 'notifications.ifcForeignReplaceFailed'
   | 'notifications.ifcForeignMergeRefused'
   | 'notifications.ifcForeignExportNewTarget'
   | 'notifications.ifcSaveChangedWhileWaiting'
