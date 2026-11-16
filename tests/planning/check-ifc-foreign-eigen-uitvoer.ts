@@ -13,7 +13,9 @@ import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { checkMergeOutput, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
-import { BASELINE_HEADS, linesView, ownGroupMembers } from '@/services/ifc/foreign/ownGroups';
+import { BASELINE_HEADS, indexView, linesView, ownGroupMembers, ownGroupTrees } from '@/services/ifc/foreign/ownGroups';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { classify } from '@/services/ifc/foreign/classify';
 import { PSET, ifcJson, ifcStr } from '@/services/ifc/ifcPsets';
 import { decodeStepText } from '@/services/ifc/stepText';
 import {
@@ -21,15 +23,23 @@ import {
   savedCatalogStart, savedSequenceStart, type Domain,
 } from './ifcMergeKern';
 import {
-  BASE, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, latin1, leaves, ok, save, se, summary,
+  BASE, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, save, se, summary,
   withForeignMember, withLines, type S,
 } from './ifcEigenKern';
 
 const clockStart = () => clock.start();
+let caseNo = 0;
+/** Een nieuw geval: de teller van `generateId` op zijn eigen vaste stand (`idsAt`), de klok op de begintijd. Zo krijgt een
+ *  geval op de basiscode dezelfde invoer, ook als een eerder geval daar weigerde en hier schrijft (PR 12c). */
+function nextCase() { idsAt(++caseNo * 50_000); clockStart(); }
+/** De opgeslagen beginstanden, elk met een eigen vaste stand van de teller (anders hangen hun nieuwe ids af van de gevallen
+ *  ervoor). */
+const savedCatalog = (raw: Uint8Array, twoTypes = true) => { nextCase(); return savedCatalogStart(raw, twoTypes); };
+const savedSequence = (raw: Uint8Array) => { nextCase(); return savedSequenceStart(raw); };
 
 /** Eén geval: openen, bewerken, opslaan. Geen weigering met `eigen-uitvoer`; `expectWrite`: het schrijft. */
 async function edited(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, expectWrite = false) {
-  clockStart();
+  nextCase();
   const opened = await openForeign(bytes);
   assert(opened.ifcSource?.foreign, `${label}: echte vreemde bytes-openroute`);
   const d = await edit(cloneDomain(opened));
@@ -44,7 +54,7 @@ async function edited(label: string, bytes: Uint8Array, edit: (d: Domain) => Pro
 // ── 1 en 4. Geen nieuwe weigering, met een vaste en een lopende klok ──
 async function noNewRefusal(which: keyof typeof SOURCES) {
   const raw = SOURCES[which], tag = which;
-  const saved = await savedCatalogStart(raw), single = await savedCatalogStart(raw, false);
+  const saved = await savedCatalog(raw), single = await savedCatalog(raw, false);
   // 7d: de vier vaste bewerkingen op de catalogus (de tweede op de bron met één type) schrijven op de basis.
   for (const i of [0, 1, 2, 3]) await edited(`7d ${tag}: ${fixedCatalogEdits({} as Domain)[i].label}`, i === 1 ? single : saved, d => applyEdit(fixedCatalogEdits(d)[i], d), true);
   await edited(`7d ${tag}: actieve baseline uitzetten`, saved, se(s => { s.setActiveBaseline(null); }));
@@ -54,7 +64,7 @@ async function noNewRefusal(which: keyof typeof SOURCES) {
   await edited(`7d ${tag}: één bestaande baseline wissen`, saved, se(s => { s.deleteBaseline(s.baselines[0].id); }));
   // 7c: de vaste reeksen op een opgeslagen beginstand (alleen op de eigen bron, zoals check-ifc-foreign-preserve).
   if (which === 'eigen') {
-    const seq = await savedSequenceStart(raw);
+    const seq = await savedSequence(raw);
     for (const i of [0, 1, 2, 3]) await edited(`7c ${tag}: vaste reeks ${i}`, seq, d => applyEdit(fixedSequenceEdits(d)[i], d), true);
   }
   // Reeksen in één sessie.
@@ -106,7 +116,7 @@ async function session(which: 'eigen' | 'kantoor') {
     }],
     ['7 niets bewerken (opnieuw Ctrl+S)', () => {}],
   ];
-  clockStart();
+  nextCase();
   const opened = await openForeign(SOURCES[which]);
   let source = opened.ifcSource!, d: Domain = cloneDomain(opened);
   for (const [label, f] of steps) {
@@ -141,7 +151,7 @@ const foreignTemplateKept = (text: string) => text.includes("#95001=IFCSIMPLEPRO
 async function foreignMember() {
   const eigen = SOURCES.eigen;
   const bl = withForeignMember(eigen, PSET.Baselines);
-  const cat = withForeignMember(await savedCatalogStart(eigen), PSET.StructureMeta);
+  const cat = withForeignMember(await savedCatalog(eigen), PSET.StructureMeta);
   const cases: [string, Uint8Array, (d: Domain) => Promise<Domain> | Domain][] = [
     ['vreemd lid in OPS_Baselines: projectbeschrijving', bl, se(s => s.setProject({ description: 'Alleen beschrijving' }))],
     ['vreemd lid in OPS_Baselines: baseline erbij', bl, se(s => s.saveBaseline('Met vreemd lid'))],
@@ -154,7 +164,7 @@ async function foreignMember() {
     ok(`${label}: het vreemde lid blijft staan`, foreignMemberKept(text, label.includes('Baselines') ? PSET.Baselines : PSET.StructureMeta));
   }
   // Een vreemd lid in een eigen template (review van #953, ronde 1): de basis schrijft dit met lid en koppeling.
-  const tmpl = withForeignTemplate(await savedCatalogStart(eigen));
+  const tmpl = withForeignTemplate(await savedCatalog(eigen));
   {
     const { o } = await edited('vreemd lid in het codetemplate: projectbeschrijving', tmpl, se(s => s.setProject({ description: 'Alleen de projectbeschrijving door review 953' })), true);
     if (o.ok) {
@@ -270,7 +280,7 @@ async function verdict(bytes: Uint8Array, input: WriteIFCInput, source: IfcSourc
 }
 /** Een basis: een geslaagde opslag, en wat (c) daarvoor nodig heeft (de sessiekaart en de klok van die opslag). */
 async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain) {
-  clockStart();
+  nextCase();
   const opened = await openForeign(bytes), source = opened.ifcSource!;
   const input = await edit(cloneDomain(opened));
   const o = await save(input, source);
@@ -280,8 +290,8 @@ async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promi
   return { bytes: o.bytes, input, source, own };
 }
 const caughtOnlyByC: string[] = [];
-async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate, onlyC = false) {
-  const m = mutated(b.bytes, mutate);
+async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate | Uint8Array, onlyC = false) {
+  const m = mutate instanceof Uint8Array ? mutate : mutated(b.bytes, mutate);
   const without = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
   console.log(`TEGENPROEF ${label}: zonder (c) ${without}; met (c) ${withC} (${lastDetail})`);
   const named = /niet-P-stuk #(\d+)/.exec(lastDetail);
@@ -293,7 +303,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
 
 {
   const eigen = SOURCES.eigen;
-  const cat = await savedCatalogStart(eigen), single = await savedCatalogStart(eigen, false);
+  const cat = await savedCatalog(eigen), single = await savedCatalog(eigen, false);
   // De twee die de basis doorlaat: een verkeerde typenaam (ObjectType) op de taak waarvan de planner het type veranderde.
   for (const [label, bytes, i] of [['nieuw type', single, 1], ['typewissel', cat, 2]] as const) {
     const b = await base(`7d ${label}`, bytes, d => applyEdit(fixedCatalogEdits(d)[i], d));
@@ -332,6 +342,61 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     await counterProof(b, 'baselinekop: aanmaakdatum anders', ls => { setArg(head(ls), 6, "'2001-01-01T00:00:00'"); });
     await counterProof(b, 'ActiveBaselineId wijst naar een onbekende', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr('onbekend')})`); });
   }
+  // PR 12c: fouten rond de baselinekop in de echte uitvoer van "één baseline wissen" (sinds PR 12c schrijft die opslag; de
+  // kop in de aggregatie van het werkplan beweegt in de verliescontrole mee met zijn baseline). Elke fout moet de controle
+  // op de echte uitvoer vangen; de regel zegt welke.
+  {
+    const b = await base('kop: één baseline wissen', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }));
+    const ls0 = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const isHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
+    const planId = ls0.find(l => l.type === 'IFCWORKPLAN')!.id;
+    const agg = (ls: OutLine[]) => ls.find(l => l.type === 'IFCRELAGGREGATES' && l.args[4].trim() === `#${planId}`)!;
+    const projectAgg = (ls: OutLine[]) => ls.find(l => l.type === 'IFCRELAGGREGATES' && ls.find(x => `#${x.id}` === l.args[4].trim())?.type === 'IFCPROJECT')!;
+    const members = (l: OutLine) => l.args[5].trim().slice(1, -1).split(',').map(x => x.trim());
+    const heads = ls0.filter(isHead);
+    assert(heads.length === 2 && projectAgg(ls0), 'kop: twee koppen na wissen, en een aggregatie van het project');
+    const [h1] = heads;
+    const gone = linesIn(cat).find(l => /^#\d+=IFCWORKSCHEDULE\(/.test(l) && l.includes('.BASELINE.')
+      && !heads.some(h => l.startsWith(`#${h.id}=`)))!;
+    assert(gone, 'kop: de kop van de gewiste baseline in de bron');
+    const goneId = /^#(\d+)=/.exec(gone)![1];
+    const nextId = Math.max(...ls0.map(l => l.id)) + 1;
+    const dropLine = (bytes: Uint8Array, id: number) => bytesOf(linesIn(bytes).filter(l => !l.startsWith(`#${id}=`)).join('\n'));
+    const moved = mutated(b.bytes, ls => {
+      setArg(agg(ls), 5, `(${members(agg(ls)).filter(id => id !== `#${h1.id}`).join(',')})`);
+      setArg(projectAgg(ls), 5, `(${[...members(projectAgg(ls)), `#${h1.id}`].join(',')})`);
+    });
+    const proofs: [string, Uint8Array][] = [
+      ['een kop te veel', bytesOf(withLines(latin1(mutated(b.bytes, ls => { setArg(agg(ls), 5, `(${[...members(agg(ls)), `#${nextId}`].join(',')})`); })),
+        [`#${nextId}=IFCWORKSCHEDULE('0R12CEXTRAKOP0000000000',${h1.args.slice(1).join(',')});`]))],
+      ['een kop te weinig', dropLine(mutated(b.bytes, ls => { setArg(agg(ls), 5, `(${members(agg(ls)).filter(id => id !== `#${h1.id}`).join(',')})`); }), h1.id)],
+      ['een kop met een verkeerde naam', mutated(b.bytes, ls => { setArg(ls.find(l => l.id === h1.id)!, 2, "'Verkeerde kopnaam'"); })],
+      ['een kop met een verkeerde aanmaakdatum', mutated(b.bytes, ls => { setArg(ls.find(l => l.id === h1.id)!, 6, "'2001-01-01T00:00:00'"); })],
+      ['een kop in de aggregatie van het project (1705)', moved],
+      ['de kop van de gewiste baseline blijft staan', bytesOf(withLines(latin1(mutated(b.bytes, ls => {
+        setArg(agg(ls), 5, `(${[...members(agg(ls)), `#${goneId}`].join(',')})`);
+      })), [gone.replace(/\r$/, '')]))],
+    ];
+    // (c) zelf: de boomvorm van de koppen in de uitvoer. De lezer leest de koppen niet (de baselines staan in het JSON), dus
+    // de herschreven kant is voor elke tegenproef dezelfde als voor de goede uitvoer; ziet de boomvorm van de uitvoer een
+    // verschil, dan weigert (c), ook als de volledige uitvoercontrole hem niet eerder had gevangen. Zo ook knownbug 1705: de
+    // boomvorm noemt de aggregatie van elke kop.
+    // Eigen regels zoals in `ownOutputProblem`: een stuk dat in de bron P is, of nieuw.
+    const sourceIndex = scanForeignStep(b.source.bytes), sourceCls = classify(sourceIndex);
+    const headTrees = (bytes: Uint8Array) => {
+      const index = scanForeignStep(bytes);
+      const own = (i: number) => { const c = sourceIndex.chunkOf(index.id(i)); return c < 0 || sourceCls.classes[c] === 1; };
+      return ownGroupTrees(indexView(index, own), new Set(b.input.tasks.map(t => t.id))).get(BASELINE_HEADS)?.join('\n') ?? '';
+    };
+    const good = headTrees(b.bytes);
+    ok('kop: de koppen staan in de aggregatie van het eigen werkplan', good.split('\n').every(t => t.startsWith('eigen IFCWORKPLAN|')), good);
+    for (const [label, m] of proofs) {
+      await counterProof(b, `kop: ${label}`, m);
+      const tree = headTrees(m);
+      console.log(`BEWIJS (c) kop: ${label}: ${tree === good ? 'GEEN VERSCHIL' : `verschil, «${tree.split('\n').filter(t => !good.split('\n').includes(t)).join(' / ').slice(0, 160) || `${tree.split('\n').length} koppen in plaats van ${good.split('\n').length}`}»`}`);
+      ok(`kop: ${label}: (c) zelf ziet het`, tree !== good);
+    }
+  }
   // Een fout in een eigen template van een bestand met een vreemd templatelid blijft geweigerd (review van #953).
   {
     const b = await base('vreemd templatelid: projectbeschrijving', withForeignTemplate(cat), se(s => s.setProject({ description: 'Alleen beschrijving' })));
@@ -343,7 +408,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   }
   // 7c: TaskGuids groeit (taak + baseline).
   {
-    const seq = await savedSequenceStart(eigen);
+    const seq = await savedSequence(eigen);
     const b = await base('7c taak + baseline', seq, d => applyEdit(fixedSequenceEdits(d)[0], d));
     const added = b.input.tasks.find(t => !b.source.opened!.tasks.some(o => o.id === t.id))!;
     await counterProof(b, 'TaskGuids: nieuwe GUID verkeerd', alterJson('TaskGuids', v => { v[added.id] = 'verkeerde-guid'; }), true);
@@ -376,7 +441,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
 // tegen het onbewerkte domein.
 {
   const eigen = SOURCES.eigen;
-  const seq = await savedSequenceStart(eigen), cat = await savedCatalogStart(eigen), single = await savedCatalogStart(eigen, false);
+  const seq = await savedSequence(eigen), cat = await savedCatalog(eigen), single = await savedCatalog(eigen, false);
   const json = (bytes: Uint8Array, name: string) => jsonOf(prop(linesIn(bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l), name));
   const unedited = async (b: Awaited<ReturnType<typeof base>>, label: string) => {
     const withC = await verdict(b.bytes, cloneDomain(b.source.opened! as Parameters<typeof cloneDomain>[0]), b.source, b.own);
@@ -460,7 +525,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
 // ── De indeling: wat de writer op project en werkschema zet, is een groep; per-taak-psets niet. ──
 {
   clockStart();
-  const out = await base('indeling', await savedCatalogStart(SOURCES.eigen), d => d);
+  const out = await base('indeling', await savedCatalog(SOURCES.eigen), d => d);
   const lines = linesIn(out.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
   const groups = new Set(ownGroupMembers(linesView(lines)).values());
   const register = new Set<string>(Object.values(PSET));
