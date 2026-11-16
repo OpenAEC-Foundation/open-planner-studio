@@ -2,20 +2,20 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "webviewgegevens-windows",
   "description": "Het verbod op de gegevens van WebView2 in $APPLOCALDATA/EBWebView ($APPLOCALDATA is de app-datamap). Binnen de grens: ook de map zelf, geen fs-commando mag EBWebView of iets eronder bereiken (fs:scope: EBWebView en EBWebView/**; deny-webview-data-windows van tauri-plugin-fs vanaf 2.5.2, met de map zelf erbij); rename en remove van $APPLOCALDATA zelf zijn verboden (fs:allow-rename en fs:allow-remove met deny); mkdir, read_dir, lezen en schrijven in $APPLOCALDATA blijven. Buiten de grens: een map boven de app-datamap (AppData\\Local, AppData) hernoemen of verwijderen; wie die mappen kan hernoemen of wissen, kan dat al met de hele thuismap (knownbug 1770). Knownbug 1797: tauri-plugin-fs 2.5.0 verbiedt hier zelf niets.",
-  "windows": [
-    "main"
-  ],
-  "platforms": [
-    "windows"
-  ],
+  "windows": ["main"],
+  "platforms": ["windows"],
   "permissions": [
     {
       "identifier": "fs:scope",
-      "deny": [
-        {
-          "path": "$APPLOCALDATA/EBWebView/**"
-        }
-      ]
+      "deny": [{ "path": "$APPLOCALDATA/EBWebView" }, { "path": "$APPLOCALDATA/EBWebView/**" }]
+    },
+    {
+      "identifier": "fs:allow-rename",
+      "deny": [{ "path": "$APPLOCALDATA" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "deny": [{ "path": "$APPLOCALDATA" }]
     }
   ]
 }
