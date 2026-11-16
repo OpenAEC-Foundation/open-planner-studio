@@ -712,7 +712,7 @@ expect('herhaalde export vanuit dezelfde centrale funnel dedupet tot één meldi
 const backstageSource = readFileSync('src/components/backstage/Backstage.tsx', 'utf8');
 const ribbonSource = readFileSync('src/components/layout/Ribbon/ribbonWidgets.tsx', 'utf8');
 expect('Backstage en ribbon roepen beide uitsluitend de centrale exportAs-funnel aan',
-  backstageSource.includes('await exportAs(format)')
+  backstageSource.includes('await exportAs(format, ')
   && ribbonSource.includes('void exportAs(f.format)')
   && !backstageSource.includes('notifications.xerExportLoss')
   && !ribbonSource.includes('notifications.xerExportLoss'));

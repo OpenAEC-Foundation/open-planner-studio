@@ -356,7 +356,7 @@
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
     "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving.",
     "ifcForeignReplaceBlocked": "File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.",
-    "ifcForeignMergeRefused": "The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change or export the schedule to another format.",
+    "ifcForeignMergeRefused": "The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change, or export the schedule only: to IFC with Without building model, or to another format.",
     "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again.",
     "ifcForeignExportNewTarget": "Not exported. This IFC file can only be exported to a new file name. Choose a name that does not exist yet.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
@@ -470,7 +470,7 @@
     "demoTopbarAnimation": "Demo: top bar animation",
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
     "ifcForeignContent": "Open IFC with a building model",
-    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC. Saving over an existing local file and exporting a project with a resource pool are not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.",
+    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). Saving over an existing local file is not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
@@ -1951,5 +1951,13 @@
     "body": "Open Planner Studio cannot continue. Reload the app. If this keeps happening, please report it and include the details below.",
     "reload": "Reload",
     "details": "Details"
+  },
+  "ifcExportWithoutModel": {
+    "option": "Without building model",
+    "title": "Export without building model?",
+    "body": "The new file will contain only the schedule. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?",
+    "bodyWithPool": "The project file will contain only the schedule; the resource library goes into a second file. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?",
+    "continue": "Export",
+    "cancel": "Cancel"
   }
 }

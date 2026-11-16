@@ -495,14 +495,20 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   await S().saveFileAs();
   const ifcExport = await S().exportAs('ifc');
   eq('opslaan: IFC-export telt als geannuleerd', ifcExport, { ok: true, warnings: [], cancelled: true });
+  // PR 13: de export met bibliotheek is zonder gebouwmodel en vraagt eerst; nee telt als geannuleerd, zonder melding.
+  const { setPlanOnlyAsker, resetPlanOnlyAsker } = await import('@/services/ifc/planOnlyQuestion');
+  const asked: string[] = [];
+  setPlanOnlyAsker(async reason => { asked.push(reason); return false; });
   const pool = await S().exportProjectWithPool();
-  eq('opslaan: pool-export telt als geannuleerd', pool, { ok: true, warnings: [], cancelled: true });
-  eq('opslaan: drie mergeweigeringen en één poolweigering', [mergeNotices()[0]?.count, blockedNotices()[0]?.count], [3, 1]);
+  resetPlanOnlyAsker();
+  eq('opslaan: pool-export vraagt eerst en telt na nee als geannuleerd', [pool, asked],
+    [{ ok: true, warnings: [], cancelled: true }, ['exportWithPool']]);
+  eq('opslaan: drie mergeweigeringen en geen opslagweigering', [mergeNotices()[0]?.count, blockedNotices().length], [3, 0]);
   eq('opslaan: geen opslagdialoog geopend', pickerCalls, 0);
   eq('opslaan: het document blijft gewijzigd en houdt zijn doel', [S().isDirty, S().filePath], [dirty, 'bonsai-4d.ifc']);
   // Andere formaten dragen alleen planning en blijven mogelijk: de CSV-export komt tot de opslagdialoog.
   await S().exportAs('csv');
-  eq('opslaan: CSV-export komt tot de opslagdialoog, zonder nieuwe melding', [pickerCalls, blockedNotices().length], [1, 1]);
+  eq('opslaan: CSV-export komt tot de opslagdialoog, zonder nieuwe melding', [pickerCalls, blockedNotices().length], [1, 0]);
   pickerCalls = 0;
   // Zonder vreemd deel wordt niets geweigerd: Opslaan als komt tot de dialoog.
   const own = await open(true, 'showcase.ifc', fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'));

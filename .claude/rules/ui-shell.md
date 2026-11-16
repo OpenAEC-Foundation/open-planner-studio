@@ -30,3 +30,12 @@ The active tab is in `ui.activeRibbonTab`. De rechterrail bevat conditioneel `Ta
 ### Eerste start: welkom, rondleiding, tutorialvraag
 
 `src/state/onboarding.ts` bevat de regels als pure functies: welkomstdialoog, dan de rondleiding, dan de tutorialvraag. Ingebed (een host op `window.openaecHost` of de platformbouw, #716) en zonder `localStorage` (#706) komt er geen welkomstdialoog, en dus ook geen rondleiding of tutorialvraag (`useSettingsBootstrap`); de taal komt dan van de host (`embeddedLocale` in `src/i18n/config.ts`). De tutorialvraag komt alleen na een VOLTOOIDE rondleiding (Volgende/Klaar op de laatste stap) en eenmalig. Zolang de eerste start loopt, wacht "Update beschikbaar". Overgangen gaan in ÉÉN `setUI`. De rondleiding staat in `src/components/tour/`: stappen en ankers (`data-tour-anchor`) in `tourSteps.ts`; `TourOverlay` slaat een stap zonder anker over. "Ja" op de tutorialvraag loopt via `src/extensions/firstTutorial.ts` en stuurt `host:tutorial-requested` (zie `docs/extensions.md`, Host-events). Test: `tests/planning/check-first-start.ts`.
+
+### De vraag "alleen de planning" (#804)
+
+`PlanOnlyQuestionDialog` (`src/components/dialogs/`) toont één vraag met de tekst per reden uit
+`ui.pendingPlanOnlyQuestion` (`missingSourceSaveAs`, `export`, `exportWithPool`); de bedrading staat in
+`state/planOnlyQuestionBridge.ts`, de regel in `.claude/rules/state.md`. Annuleren is de standaardknop (beginfocus;
+Enter en Escape annuleren). Het is een wachtende modale vraag: `isGlobalShortcutFrozen` bevriest de sneltoetsen, de
+schil is inert, `isBlockingDialogOpen` en `BLOCKING_UI_FLAGS` (MCP) blokkeren. Het vinkje "Zonder gebouwmodel" op de
+IFC-kaart van Bestand → Exporteren staat er alleen bij een document met gebouwmodel en de flag `ifcForeignContent` aan.

@@ -428,10 +428,11 @@ export function writeIFCWithChoices(input: WriteIFCInput): { content: string; li
  * #804 fase 1b: de entiteitregels van de writer (`#id=…`, zonder `;`-regeleinde-scheiding) met een merge-plan
  * (`foreign/mergeWriter.ts`). Kop en staart komen dan uit de bron (§4.1, §4.10).
  */
-export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds): {
+export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, writtenAt?: Date): {
   lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: readonly string[];
 } {
-  const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge);
+  // `writtenAt`: één schrijfklok voor de hele merge, zodat de uitvoercontrole dezelfde klok kan geven (PR 12a).
+  const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge, writtenAt);
   return { lines, idMap, literalCalendarIds };
 }
 

@@ -1,8 +1,9 @@
 // #804 fase 1c: de documentroutes schrijven een voorbereide merge naar nieuwe lokale doelen,
 // browserdownloads en siteversies met een verplichte basisversie. Ook IFC-export en app-MCP schrijven volledig
 // naar nieuwe doelen, zonder documentcommit. De andere IFC-routes en AutoSave
-// houden de strikte opslagblokkade. Ontbrekende bronbytes blokkeren IFC-opslag, ook met de flag uit. Alleen expliciet Opslaan als mag
-// met de flag aan na bevestiging planning zonder model naar een ander doel schrijven (fileSlice, PR 9e).
+// houden de strikte opslagblokkade. Ontbrekende bronbytes blokkeren IFC-opslag, ook met de flag uit. Met de flag aan
+// schrijven alleen na de vraag "alleen de planning" planning zonder model naar een ander doel: Opslaan als bij een
+// ontbrekende bron (PR 9e), en Exporteren → IFC zonder gebouwmodel en de export met bibliotheek (PR 13).
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
@@ -38,8 +39,8 @@ export function ifcSaveBlocked(s: {
   return hasForeignContent(s.ifcSource) || s.foreignSourceMark?.sourceMissing === true;
 }
 
-/** Documentopslag en volledige IFC-export mogen met de flag aan voorbereide merge-uitvoer schrijven.
- * Paneel, pool, hersteldoel en AutoSave houden de strikte `ifcSaveBlocked` hierboven. */
+/** Documentopslag en IFC-export (ook de export met bibliotheek) gaan met de flag aan door de bewaakte voorbereiding.
+ * Paneel, hersteldoel en AutoSave houden de strikte `ifcSaveBlocked` hierboven. */
 export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }): boolean {

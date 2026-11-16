@@ -51,7 +51,7 @@ Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CP
 | `documentContract.ts` | `DOCUMENT_FIELDS` — één descriptorlijst met per veld: waar het in de live state woont (`get`/`set`), de verse default (`fresh`), de rol in de undo-snapshot (`data` = muteerbare projectdata, `derived` = afgeleid resultaat/scalar, beide per referentie bewaard; `none` = niet in de snapshot), en optioneel een leesmigratie. `capturePayload`/`hydratePayload`/`freshPayload` lopen key-gedreven over die ene lijst, dus capture en hydrate kúnnen niet divergeren. Een nieuw veld in `DocumentPayload` dat de lijst mist geeft een **compile-fout**. |
 | `snapshot.ts` | de undo/redo-snapshot als expliciete `Pick<>`-subset van datzelfde contract, gestuurd door de `snapshot`-rol per veld. |
 | `transaction.ts` | compatibele re-export (`createStoreRuntime`, `MAX_UNDO`, `markScheduleStale`/`markDateMutation`); het muteer-ritueel zelf zit in `runtime/storeRuntime.ts`: `beginUndoable` legt de vóór-snapshot vast, `finishMutation` roept `markDocumentEdited` (`isDirty`) en bij `stale` `markDateMutation` aan en sluit af via `finishUndoable`, dat het event in de sessiechronologie `historyEvents` zet (geen aparte redo-stapel) — op één plek in plaats van per actie. |
-| `ifcSaveInput.ts` | `IFCSaveSource`/`IFC_SAVE_KEYS` dragen de round-trip-velden en `ifcSource`; `IFC_DIRTY_KEYS` sluit alleen die bronidentiteit uit. Beide lijsten hebben compile-asserts. De gewone writer-invoer bevat geen bronbytes. `buildWriteIFCInput(src, mode)` en `buildExportIFCInput(src, mode)` eisen `'merge'` of `'planOnly'`; het clonebare veld `writeMode` bewaart de keuze tot de schrijver, zonder de huidige uitvoer te veranderen. De modus is routemetadata en telt niet als planningsverschil. De gedeelde ingang `prepareIfcOutput` handelt de modus af: merge met een vreemd deel gaat door de voorbereiding; planOnly wordt daar geweigerd. |
+| `ifcSaveInput.ts` | `IFCSaveSource`/`IFC_SAVE_KEYS` dragen de round-trip-velden en `ifcSource`; `IFC_DIRTY_KEYS` sluit alleen die bronidentiteit uit. Beide lijsten hebben compile-asserts. De gewone writer-invoer bevat geen bronbytes. `buildWriteIFCInput(src, mode)` en `buildExportIFCInput(src, mode)` eisen `'merge'` of `'planOnly'`; het clonebare veld `writeMode` bewaart de keuze tot de schrijver, zonder de huidige uitvoer te veranderen. De modus is routemetadata en telt niet als planningsverschil. De gedeelde ingang `prepareIfcOutput` handelt de modus af: merge met een vreemd deel gaat door de voorbereiding; planOnly met een vreemd deel of een ontbrekende bron gaat alleen door met een ongebruikt ja op de vraag "alleen de planning" (zie hieronder), anders geweigerd. |
 | `defaults.ts` | de `fresh`-fabrieken (`createDefaultProject`/`createDefaultView`) als **bladmodule**: hij importeert niets uit `slices/`. Dat is geen stijlkeuze — stonden ze in hun slice, dan ontstaat de cyclus `projectSlice → transaction → snapshot → documentContract → projectSlice`, die alleen werkt zolang het function *declarations* zijn (hoisting). `npm run verify:cycles` bewaakt dat. |
 
 Voeg je projectdata toe, dan hoort die dus in `DOCUMENT_FIELDS` — anders overleeft hij geen documentwissel, geen undo, geen crashherstel en geen opslaan. `tests/planning/check-document-contract.ts` bewaakt de keten.
@@ -64,7 +64,15 @@ Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSour
 PR 11a sluit documentroutes aan en PR 11b IFC-export en app-MCP, via `ifcFullWriteBlocked`.
 `state/prepareIfcOutput.ts` bewaakt de modus en deelt één voorbereiding zonder I/O of documentcommit.
 De gewone documentroute onthoudt alleen voor haar commit de letterlijke kalenderkeuzes; exports doen dit niet.
-`ifcSaveBlocked` houdt pool, planOnly, paneel, dev-bridge en AutoSave dicht.
+`ifcSaveBlocked` houdt paneel, dev-bridge en AutoSave dicht.
+**De vraag "alleen de planning"** (#804 PR 9e en 13) is één vraag met een reden (`PlanOnlyReason` in
+`services/ifc/planOnlyQuestion.ts`): Opslaan als bij een ontbrekend gebouwmodel (`missingSourceSaveAs`), Exporteren → IFC
+met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliotheek (`exportWithPool`). Alleen
+`askPlanOnly` maakt een bevestiging; `prepareIfcOutput(state, input, planOnly)` laat haar één keer gelden en alleen als
+`planOnlyQuestionApplies(state, reason)` klopt (flag aan; bij ontbrekend model alleen Opslaan als, de twee exports alleen
+met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blijft planOnly met een vreemd deel
+geweigerd. De exports vragen vóór de bestandskiezer en schrijven niet als het document tijdens de vraag veranderde
+(`refuseChangedExport` onder het schrijfslot); ze raken het document niet.
 De site-uitzondering in `refusedWriteTarget` bindt document-id, bronidentiteit, kenmerk en basisversie op één plek; exports geven haar niet mee. De voorbereiding
 loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd.
 Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit.

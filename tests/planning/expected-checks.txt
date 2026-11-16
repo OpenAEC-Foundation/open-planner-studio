@@ -145,6 +145,7 @@ check-gantt-trace-progress.ts matrix
 check-gantt-workspace.ts matrix
 check-grid-nav.ts matrix
 check-grid-resource-load-reuse.ts matrix
+check-grid-task-paste.ts matrix
 check-grid-transaction.ts matrix
 check-guide-placement.ts matrix
 check-header-compress.ts matrix
@@ -178,6 +179,7 @@ check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-eigen-uitvoer.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
@@ -387,6 +389,7 @@ check-scheduling-profile-draft.ts matrix
 check-scheduling-profile-notice.ts matrix
 check-scheduling-profile-roundtrip.ts matrix
 check-scratch-document.ts matrix
+check-selection-after-collapse-delete.ts matrix
 check-session-history-boundaries.ts matrix
 check-session-history-migration.ts matrix
 check-session-history-model.ts matrix
@@ -448,6 +451,7 @@ check-task-resource-scope.ts matrix
 check-task-slice.ts matrix
 check-task-tree.ts matrix
 check-task-trigger-changes.ts matrix
+check-tauri-capability-scopes.ts matrix
 check-tauri-refresh-evidence.ts matrix
 check-text-asset.ts matrix
 check-theme-bar-contrast.ts matrix
