@@ -1152,20 +1152,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const now = get();
     if (hasForeignContent(snapshot.ifcSource) && refuseForeignDocumentWrite(now)) return true;
     if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)
-      && (!hasForeignContent(snapshot.ifcSource)
-        || (now.ifcSource === snapshot.ifcSource && now.foreignSourceMark === snapshot.foreignSourceMark))) return false;
+      && (!hasForeignContent(snapshot.ifcSource) || now.ifcSource === snapshot.ifcSource)) return false;
     get().notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
     return true;
   };
 
   /** De vraag "alleen de planning" vóór een IFC-export zonder gebouwmodel (#804 PR 13). `undefined`: geen vraag nodig
-   *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde, of het document veranderde tijdens de vraag
-   *  (dan met de melding van `refuseChangedExport`). Het ja geldt voor de momentopname `state`. */
-  const askPlanOnlyExport = async (state: AppState, reason: 'export' | 'exportWithPool'): Promise<PlanOnlyConfirmation | null | undefined> => {
-    if (!planOnlyQuestionApplies(state, reason)) return undefined;
-    const confirmation = await askPlanOnly(reason);
-    return confirmation && !refuseChangedExport(state) ? confirmation : null;
-  };
+   *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde. Het ja geldt voor de momentopname `state`: de
+   *  export bouwt daarop, en `refuseChangedExport(state)` weigert onder het schrijfslot, vóór de bestandskiezer, als het
+   *  document tijdens de vraag veranderde. */
+  const askPlanOnlyExport = (state: AppState, reason: 'export' | 'exportWithPool'): Promise<PlanOnlyConfirmation | null | undefined> =>
+    planOnlyQuestionApplies(state, reason) ? askPlanOnly(reason) : Promise.resolve(undefined);
 
   /** Het opslagdoel van een lokale opslaan-als-uitkomst (Tauri-pad, handle of alleen een naam). */
   const localDestination = (outcome: SaveOutcome): SaveDestination => ({
