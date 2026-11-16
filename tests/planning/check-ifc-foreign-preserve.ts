@@ -1629,11 +1629,31 @@ async function blijvendeWeigering(label: string, bytes: Uint8Array, edit: (d: Do
     console.log(`BEWIJS blijvende weigering ${label}: ${e.cases.map(c => c.detail).join(' | ')}`);
   }
 }
+/**
+ * Was een blijvende weigering; sinds PR 12b (de andere toets voor de eigen projectgroepen) schrijft de merge. Het vreemde
+ * deel blijft byte voor byte, en de codes, typen en baselines heropenen zoals na een gewone opslag zonder vreemd deel
+ * (die laat bijvoorbeeld een ongebruikte taaktypedefinitie ook weg).
+ */
+async function opgelosteWeigering(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    const output = concat((await prepareIfcWrite(input, opened.ifcSource!)).parts);
+    const reread = await openForeign(output), plain = await reopenPlain(input);
+    eq(`${label}: vreemd deel bytegelijk`, mergeProblems(bytes, output), []);
+    const fields = (x: Domain) => [x.activityCodeTypes, x.customTaskTypes, x.baselines, x.activeBaselineId,
+      x.tasks.map(t => [t.id, t.customTaskTypeId ?? null, t.activityCodes ?? null])];
+    eq(`${label}: heropend zoals een gewone opslag`, fields(reread), fields(plain));
+    console.log(`BEWIJS opgeloste weigering ${label}: geschreven, vreemd deel bytegelijk`);
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: schrijft sinds PR 12b, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+  }
+}
 await blijvendeWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
   for (const b of s.baselines) s.deleteBaseline(b.id);
 }));
 for (const action of ['type-verliezen', 'laatste-taak-wissen']) {
-  await blijvendeWeigering(`1582 taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
+  await opgelosteWeigering(`1582 taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
     const t = s.tasks.find(t => t.customTaskTypeId === 'type-7c')!;
     if (action === 'laatste-taak-wissen') s.deleteTask(t.id);
     else s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
@@ -1732,11 +1752,11 @@ for (const [i, property] of ['OPS_ActivityCodes', 'TaskTypes', 'TaskTypes', 'Act
     refuses('O0 draagt actieve baseline niet', o1, input, o0.map(l => l === oldLine ? { ...l, args: l.args.map((a, k) => k === 2 ? "IFCTEXT('onbekend')" : a) } : l));
   }
 }
-// Meet de bestaande grenzen met echte acties; geen extra verklaringen voor wijzigen of wissen van definities.
+// De grenzen van 7d met echte acties: sinds PR 12b schrijft de merge ze (geen extra verklaringen in de verliescontrole).
 for (const [label, edit] of [
   ['codedefinitie hernoemen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Andere codenaam')],
   ['laatste codedefinitie wissen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.removeActivityCodeType(s.activityCodeTypes[0].id)],
-] as const) await blijvendeWeigering(`7d grens ${label}`, catalogusBron, d => storeEdit(d, edit));
+] as const) await opgelosteWeigering(`7d grens ${label}`, catalogusBron, d => storeEdit(d, edit));
 await kaartRonde('7d waarde bij bestaande codedefinitie', catalogusBron, d => storeEdit(d, s => {
   s.addActivityCodeValue(s.activityCodeTypes[0].id, { code: 'EXTRA', description: 'Extra' });
 }));
@@ -1744,14 +1764,14 @@ await kaartRonde('7d actieve baseline uitzetten', catalogusBron, d => storeEdit(
 
 const tweeCodes = await kaartRonde('7d grenzen: tweede code voorbereiden', catalogusBron, d => applyEdit(fixedCatalogEdits(d)[0], d));
 if (tweeCodes) {
-  await blijvendeWeigering('1585 code hernoemen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+  await opgelosteWeigering('1585 code hernoemen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
     s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code');
   }));
-  await blijvendeWeigering('1585 code wissen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+  await opgelosteWeigering('1585 code wissen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
     s.removeActivityCodeType(s.activityCodeTypes[0].id);
   }));
 }
-await blijvendeWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
+await opgelosteWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
   for (const t of s.tasks.filter(t => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
 }));
 // Er is geen actie die de projectkopie van een taaktype hernoemt (de beheer-UI hernoemt alleen persoonlijke typen).
