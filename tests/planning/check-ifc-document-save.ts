@@ -957,6 +957,16 @@ await check('handle Ctrl+S, crash na close() en vóór het manifest: herstel vin
     assert.equal((payload.fileHandle as unknown as FakeHandle | null)?.name, name, 'en geeft het doel terug');
     assert.equal(payload.tasks.find(t => t.id === edit)!.time.scheduleDuration,
       store.getState().tasks.find(t => t.id === edit)!.time.scheduleDuration);
+    // Na het herstel werkt Ctrl+S weer op hetzelfde bestand, met de herstelde versie als bron.
+    handleFaults.clear(); unregister();
+    restored.getState().switchDocument(id); longer(restored);
+    const restoredRounds = recoveryRounds(restored);
+    try {
+      clearNotices(restored);
+      assert.equal(await ctrlS(restored), true, 'Ctrl+S na herstel schrijft');
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+      assert.equal(restored.getState().ifcSource!.sha256, hash(fileOf(name)));
+    } finally { restoredRounds(); }
   } finally { handleFaults.clear(); unregister(); await clearRecovery(); }
 });
 
