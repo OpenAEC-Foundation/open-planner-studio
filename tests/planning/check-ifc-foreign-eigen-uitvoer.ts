@@ -8,6 +8,10 @@
 //    (`checkMergeOutput`): zonder (c), zoals de basis, en met (c).
 // 3. Niets veranderd: de bronbytes komen terug, zonder (c).
 // 4. De klok: de gevallen van 1 ook met een lopende klok (elke "nu" een seconde later).
+// 5. PR 12c: fouten rond de baselinekop in de echte uitvoer van "één baseline wissen"; per tegenproef welke controle hem
+//    vangt, en dat de boomvorm van (c) zelf hem ziet (ook knownbug 1705: de aggregatie waarin een kop staat).
+// Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
+// dezelfde invoer heeft.
 import assert from 'node:assert/strict';
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
