@@ -326,9 +326,10 @@ for (const kind of ['text', 'bytes'] as const) {
       ipc.faults.beforeOpen = null;
       truthy(`7 ${kind}/${collision}: echte aanmaakbotsing gemeld`, /EEXIST/.test(String(err)));
       eq(`7 ${kind}/${collision}: bron en doel ongewijzigd`, [readFileSync(source, 'utf8'), readFileSync(target, 'utf8')], [OUD, OUD]);
-      truthy(`7 ${kind}/${collision}: botsend object bestaat nog`, !!collided && !!lstatSync(collided));
-      if (collision === 'file') eq(`7 ${kind}/botsing: bestandinhoud behouden`, readFileSync(collided, 'utf8'), 'ANDERMANS VERS PAD');
-      if (collision === 'symlink') eq(`7 ${kind}/botsing: bronlink behouden`, readlinkSync(collided), source);
+      truthy(`7 ${kind}/${collision}: botsend object bestaat nog`, !!collided && !!lstatSync(collided, { throwIfNoEntry: false }));
+      const still = !!collided && !!lstatSync(collided, { throwIfNoEntry: false });
+      if (collision === 'file') eq(`7 ${kind}/botsing: bestandinhoud behouden`, still && readFileSync(collided, 'utf8'), 'ANDERMANS VERS PAD');
+      if (collision === 'symlink') eq(`7 ${kind}/botsing: bronlink behouden`, still && readlinkSync(collided), source);
       truthy(`7 ${kind}/${collision}: alleen de ene geweigerde aanmaak; geen schrijven, rename of cleanup na botsing`,
         ipc.calls.filter(fileWrite).length === 1 && ipc.calls.filter(created).length === 1
         && !ipc.calls.some(c => ['plugin:fs|write', 'plugin:fs|rename', 'plugin:fs|remove'].includes(c.command)));
@@ -397,7 +398,7 @@ for (const kind of ['text', 'bytes'] as const) {
       // zou (behalve als root) met EACCES falen en de opslag laten mislukken.
       reset();
       writeFileSync(target, OUD, { mode: 0o444 });
-      await save(target);
+      eq(`7 ${kind}/mode 0444: opslaan slaagt`, String(await save(target).then(() => '', (e: unknown) => e)), '');
       eq(`7 ${kind}/mode 0444: uitvoer compleet, zoals vóór de rauwe route`, read(target), [...payload]);
       eq(`7 ${kind}/mode 0444: blijft alleen-lezen`, lstatSync(target).mode & 0o777, 0o444 & ~process.umask());
       eq(`7 ${kind}/mode 0444: geen resten`, readdirSync(root).sort(), ['bron.ifc', 'kopie.ifc']);

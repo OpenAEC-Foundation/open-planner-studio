@@ -2557,10 +2557,11 @@ en noem het in je rapport of PR-tekst.
      moet kunnen, net als bronherstel (1112). PR 11a meldt nu waarom dit nog weigert en verwijst naar Opslaan als.
      Voor vervanging zijn de bron-sha256 en de exclusieve plaatsing uit ontwerp §4.10 nodig,
      met `place_file_exclusive` (Rust, uitsluitend fase 2) en herstel na onderbreking. Plugin-fs-rename
-     vervangt bestaande bestanden en is daarvoor ongeschikt. De nieuwe route schrijft na createNew
-     via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone
-     I/O-fout is best effort en biedt geen padslot tegen externe wissels. Proeven toetsen botsing,
-     schrijf-/sluitfout en geen directe terugval; crash, stroomuitval en externe padwissels niet gemeten. — B (code/proef)
+     vervangt bestaande bestanden en is daarvoor ongeschikt. De nieuwe route schrijft het eerste deel in
+     de createNew-aanroep en voegt volgende delen op pad toe (#973): een crash kan een onvolledig nieuw bestand
+     laten staan; cleanup na een gewone I/O-fout is best effort en biedt geen padslot tegen externe wissels.
+     Proeven toetsen botsing, schrijffout en geen directe terugval; crash, stroomuitval en externe padwissels
+     niet gemeten. — B (code/proef)
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
      `new Uint8Array(await data.arrayBuffer())`, omdat het hostcontract één `Uint8Array` vraagt. De bytes blijven gelijk
@@ -2568,6 +2569,22 @@ en noem het in je rapport of PR-tekst.
      gemeten. Bestaand gedrag, geen verbouwing voor PR 11. "Geen samenvoegen" geldt dus alleen voor Tauri en een host die
      de Blob rechtstreeks aanneemt. Richting: meten bij de grote-bestandenmeting vóór de flag aan mag (PR 6); een ruimer
      hostcontract zou de buffer wegnemen, geen tweede adapter. Gevonden door de review van #922. — B
+1790. **VERVOLG (#973, desktop rauwe bytes): niet gemeten in de echte app.** Sinds #973 schrijft de desktop een
+     bestand van de gebruiker met `writeFile`/`writeTextFile` (rauwe body) in plaats van `FileHandle.write`
+     (JSON, één getal per byte; in V8 274 ms per MiB, ongeveer 2,4 s per opslag bij 10.000 taken). Bewezen is alleen
+     de payload bij `window.__TAURI_INTERNALS__.invoke` (Node-adapter). Open: (1) of de webview het eigen
+     IPC-protocol gebruikt of terugvalt op `postMessage` (`ipc-protocol.js` in tauri 2.12.3: na één mislukte
+     `fetch` voor de hele sessie; dan wordt ook de rauwe body JSON); (2) de winst in WebView2, WebKitGTK en
+     WKWebView; (3) of een deel boven ongeveer 173 MB op Windows nu wel opslaat. Richting: in de echte app met
+     de ontwikkelaarstools een groot plan opslaan en de duur en de console (`IPC custom protocol failed`) nagaan,
+     op elk platform. — S
+1791. **`src/services/mcp/discoveryFiles.ts` schrijft de MCP-ontdekkingsbestanden nog via `FileHandle.write`.**
+     `createNew` geeft daar een handle en `file.write(bytes)` stuurt de bytes in een object (`{ rid, data }`), dus als
+     JSON met één getal per byte; ook de lus voor korte writes staat er nog. Het gaat om kleine JSON-bestanden in de
+     datamap van de app, dus de kosten zijn verwaarloosbaar, maar het botst met de regel in `tauri-ifc.md` dat bytes
+     nooit in een object naar Tauri gaan. Richting: dezelfde vorm als `atomicWrite.ts` (`writeTextFile` met
+     `createNew` en modus 0600 in één aanroep, eigendom alleen bij de schrijffout na aanmaak). Gevonden bij #973,
+     alleen in de code gelezen. — B (code)
 
 ## Rondleiding, Help en extensie-gidsen
 
