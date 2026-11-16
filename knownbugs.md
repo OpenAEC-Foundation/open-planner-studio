@@ -2142,18 +2142,18 @@ en noem het in je rapport of PR-tekst.
      bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
      mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
-1702. **VERVOLG (#804, gebouwmodel): een baselinerij van een gewiste taak verandert bij herlezen.**
-     Op een oud bestand krijgt na een merge met "taak wissen" de rij van de gewiste taak bij heropenen een nieuwe taak-id
-     (oude showcase) of een nieuwe GlobalId in `TaskGuids` (`oud-eigen-0.1-plus-model.ifc`); een gewone opslag houdt
-     beide. De canon ziet het bewust niet (`orphanRowsWithoutId`), en controle (c) volgt die regel (PR 12a; zonder die
-     regel weigert de keten op het oude bestand een goede uitvoer, gemeten met een mutatie). Gevolg: in de opslag daarna is
-     `OPS_Baselines` niet gedragen, en dan weigert bijvoorbeeld "B1 wissen, B2 actief, type aan nieuwe taak". Gemeten in
-     het onderzoek van 14 november (`logs/wees.jsonl`, `logs/v1/taskguids-oud.jsonl`). Sinds PR 12b ook gezien in
-     `check-ifc-foreign-eigen-toets.ts`: in de keten op het oude bestand schrijft stap 2 (code hernoemen, getypeerde taak
-     wissen, baseline B2), en weigert daarna "taak en baseline erbij" op `TaskGuids` (de groep is dan niet gedragen).
-     Sinds PR 12c weigeren daar om dezelfde reden ook "B1 wissen, B2 actief" en "alles wissen": in een niet-gedragen
-     `OPS_Baselines` beweegt de baselinekop niet mee. Richting: vóór stap 5 van de overstap de GlobalId en taak-id van zo'n
-     rij stabiel maken. — B
+1770. **VERVOLG (#804, gebouwmodel): op een baseline van OPS v2026.7.4 tot v2026.7.14 krijgt een weesrij na de eerste merge de interne id uit de bron.**
+     Op de oude showcase (`v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc` met een wand) zet de herleestoets (b)
+     het baseline-JSON in de vorm van de bron terug (#1104: zonder `TaskGuids`, met de interne taak-ids van toen). Wist de
+     planner een taak uit die baseline, dan leest de rij van die taak na de eerste merge met de interne id uit het JSON
+     (`task-mkfedmo…`) in plaats van de id uit het domein (`task-ifc-…`); haar GlobalId blijft dezelfde, en vanaf die
+     lezing blijven id en GlobalId gelijk (PR 12e, `check-ifc-foreign-eigen-toets.ts` blok 7a). De canon ziet het bewust
+     niet (`orphanRowsWithoutId`), en de rij wijst in beide vormen naar geen taak; de planning is dezelfde. `OPS_Baselines`
+     is op zo'n bestand al vóór het wissen niet gedragen (een baseline vastleggen of wissen weigert daar ook op het
+     onbewerkte bestand), dus dit maakt niets strenger. De `TaskGuids` van die uitvoer heeft daarom sleutels in de vorm van
+     het domein naast rijen in de vorm van de bron; (c) toetst die groep daar niet, omdat (b) hem terugzette. Richting: zo
+     laten, tenzij zulke bestanden met een gebouwmodel vaak voorkomen; dan het JSON bij de eerste baselinebewerking in de
+     vorm van de writer schrijven, zoals nu al gebeurt. — B
 
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
@@ -2170,19 +2170,6 @@ en noem het in je rapport of PR-tekst.
      of datum, een kop in de aggregatie van het project, de kop van een gewiste baseline die blijft of in de plaats van
      een blijvende staat) weigeren om dezelfde reden; dat (c) ze zelf ook ziet, toetst die check apart. Niet uitgezocht
      waarom `classify` die regels dan anders indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
-
-1706. **VERVOLG (#804, controle (c)): een extra sleutel zonder taak in `TaskGuids` ziet geen enkele controle meer.**
-     Tegenproef in `check-ifc-foreign-eigen-uitvoer.ts`: zet in de uitvoer van "taak + baseline" (7c) een extra sleutel
-     `onverwacht` in `TaskGuids`. Controle (c) laat hem door, omdat de weesregel van de canon (`orphanRowsWithoutId`)
-     sleutels zonder taak niet meetelt, en de controle na openen ook. Op de basis ving de verliescontrole dit in O1; sinds
-     PR 12b niet meer in een gedragen `OPS_Baselines`. Alleen een fout van de writer kan dit geven, en er gaat niets
-     verloren (een overbodige regel). Gemeten door de review van #960 (Sol): een verkeerde GlobalId bij de rij van een
-     gewiste taak gaat om dezelfde reden door (met een nagebootste writerfout weigert de basis op `TaskGuids`, PR 12b
-     schrijft); de weesrijen zelf, het vreemde deel en de getoonde planning blijven daarbij gelijk, en wijst de GlobalId
-     naar een taak die nog bestaat, dan weigert de merge met `bronvorm-leest-anders`. Geen verlies door een gewone
-     bewerking aangetoond. Richting: in (c) ook het verband tussen de sleutels van `TaskGuids` en de baselinerijen toetsen
-     in plaats van elke sleutel zonder levende taak weg te laten, na meten dat dat op een oud bestand geen goede uitvoer
-     weigert (1702). — B
 
 1707. **VERVOLG (#804, de andere toets): een eigen groep met een vreemd lid valt terug op de controle van main.**
      Een property van een ander programma in `OPS_Baselines`, `OPS_TaskTypes` of `OPS_StructureMeta` maakt de groep in
@@ -2201,20 +2188,6 @@ en noem het in je rapport of PR-tekst.
      catalogus in `check-ifc-foreign-eigen-toets.ts`) schrijft het wel. Met de StartTime ingevuld zoals de writer hem
      schrijft, schrijft het wissen ook op de bron (de proef van (a′) op de bronvorm). Richting: alleen als oude bestanden
      zonder StartTime op de kop vaak voorkomen; dan de lege StartTime van een kop als gedragen zien. — B
-
-1746. **VERVOLG (#804, de baselinekop): geen controle toetst de identiteit van een baselinekop.**
-     De verliescontrole telt in de aggregatie van het werkplan de koppen die wegvallen of erbij komen (hooguit zoveel als
-     de planner wiste of maakte) en eist de rest exact en in volgorde (PR 12c, `headsFollowBaselines`). Staat na het wissen
-     van baseline A de kop van A er nog en die van een blijvende baseline niet, dan laat zij dat door
-     (`check-ifc-foreign-eigen-toets.ts`, "verwisselde kop", een nagebootste fout van de writer). Controle (c) bewaakt per
-     kop het aantal, de inhoud (de argumenten vanaf de naam) en de plaats (`ownGroupTrees`, `aggregatedIn`), niet de
-     GlobalId of het STEP-id: zij weigert een verwisseling van koppen met verschillende inhoud
-     (`check-ifc-foreign-eigen-uitvoer.ts`, "een kop verwisseld"). Gemeten door de review van #962 (Sol): alleen de
-     GlobalIds van twee koppen verwisselen blijft onzichtbaar, en bij twee inhoudelijk gelijke koppen wordt een uitvoer
-     waarin de gewiste kop blijft staan en de blijvende verdwijnt door alle controles aanvaard. Op de basis weigerde de
-     verliescontrole elk wissen van een baseline. Alleen een fout van de writer kan dit geven: de gewone writer koppelt de
-     kop via baseline-id en GlobalId, en geen gewone bewerking liet de verkeerde kop verdwijnen. Richting: in (c) de
-     GlobalId van de kop per baseline meenemen, of de verliescontrole die laten kennen. — B
 
 1747. **VERVOLG (#804, controle (c)): zette (b) ergens een typenaam terug, dan toetst geen controle de typenaam op de taak.**
      Controle (c) slaat de groep `taak:ObjectType` over zodra de herleestoets (b) bij één taak slot 4 of 12 terugzette

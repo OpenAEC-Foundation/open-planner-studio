@@ -12,6 +12,8 @@
 //    vangt, en dat de boomvorm van (c) zelf hem ziet (ook knownbug 1705: de aggregatie waarin een kop staat).
 // 6. PR 12d: fouten rond de typenaam op de taak in de echte uitvoer (een hernoemd type, een taak die haar type verloor);
 //    per tegenproef wat de verliescontrole (met de toets) en wat de uitvoercontrole zonder en met (c) ervan zegt.
+// 7. PR 12e: de identiteit van de weesrij in `TaskGuids` (knownbug 1706) en van de baselinekop (knownbug 1746); de vier
+//    tegenproeven van de reviews van #960 en #962.
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
@@ -396,7 +398,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     const headTrees = (bytes: Uint8Array) => {
       const index = scanForeignStep(bytes);
       const own = (i: number) => { const c = sourceIndex.chunkOf(index.id(i)); return c < 0 || sourceCls.classes[c] === 1; };
-      return ownGroupTrees(indexView(index, own), new Set(b.input.tasks.map(t => t.id))).get(BASELINE_HEADS)?.join('\n') ?? '';
+      return ownGroupTrees(indexView(index, own)).get(BASELINE_HEADS)?.join('\n') ?? '';
     };
     const good = headTrees(b.bytes);
     ok('kop: de koppen staan in de aggregatie van het eigen werkplan', good.split('\n').every(t => t.startsWith('eigen IFCWORKPLAN|')), good);
@@ -469,15 +471,9 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
       ['oude koppeling gewijzigd', v => { map(v)[oldKey] = 'verkeerde-waarde'; }],
       ['nieuwe koppeling weg', v => { delete map(v)[newKey]; }],
     ];
-    if (kind === 'TaskGuids') {
-      // Bekend gat (knownbug 1706): een extra sleutel zonder taak in `TaskGuids` ziet (c) niet (de weesregel van de canon),
-      // en de controle na openen ook niet. Op de basis ving de verliescontrole hem in O1; in een gedragen `OPS_Baselines`
-      // niet meer. Er gaat niets verloren. Slaat deze proef om, dan is het gat dicht: werk dan 1706 bij.
-      const m = mutated(b.bytes, alterJson(kind, v => { map(v)['onverwacht'] = map(v)[newKey]; }));
-      const withC = await verdict(m, b.input, b.source, b.own);
-      console.log(`TEGENPROEF 7c TaskGuids: onverwachte nieuwe sleutel zonder taak: met (c) ${withC} (bekend gat, knownbug 1706)`);
-      ok('tegenproef 7c TaskGuids: onverwachte nieuwe sleutel zonder taak: laat door (bekend gat, knownbug 1706)', withC === 'laat door', withC);
-    } else variants.push(['onverwachte nieuwe sleutel', v => { map(v)['onverwacht'] = map(v)[newKey]; }]);
+    // Tot PR 12e liet (c) een extra sleutel zonder taak in `TaskGuids` door (de weesregel van de canon, knownbug 1706).
+    if (kind === 'TaskGuids') await counterProof(b, '7c TaskGuids: onverwachte nieuwe sleutel zonder taak (1706)', alterJson(kind, v => { map(v)['onverwacht'] = map(v)[newKey]; }), true);
+    else variants.push(['onverwachte nieuwe sleutel', v => { map(v)['onverwacht'] = map(v)[newKey]; }]);
     if (kind === 'TaskTypes') variants.push(['oude koppeling weg', v => { delete map(v)[oldKey]; }],
       ['nieuwe sleutel verkeerd', v => { map(v)['verkeerde-taak'] = map(v)[newKey]; delete map(v)[newKey]; }],
       ['definitie gewijzigd', v => { v.definitions[0].name = 'Ongevraagde naam'; }], ['nieuw type verkeerd', v => { map(v)[newKey] = 'onbekend-type'; }]);
@@ -604,6 +600,64 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     ok('tegenproef typenaam: (b) zet een typenaam terug, verkeerde naam na typewissel: laat door (bekend gat, knownbug 1747)', found.length === 0 && withC === 'laat door', `${found.length} / ${withC}`);
   }
   console.log(`BEWIJS alleen (c) vangt, met de typenaam: ${caughtOnlyByC.length}`);
+}
+
+// ── 7. PR 12e: (c) toetst de identiteit van de weesrij en van de baselinekop (knownbugs 1706 en 1746) ──
+// De tegenproeven van de reviews van #960 en #962, op de echte uitvoer van een gewone opslag, als nagebootste fout van de
+// writer. Tot PR 12e liet (c) ze alle vier door: een sleutel van `TaskGuids` zonder levende taak telde niet mee (de weesregel),
+// en van een baselinekop telde de GlobalId niet. Nu krijgt een weesrij in de herlezing de GlobalId van het domein
+// (`ownOutputProblem`), telt `TaskGuids` helemaal mee, en staat de kop met zijn GlobalId in de boomvorm (`ownGroupTrees`).
+{
+  const cat = await savedCatalog(SOURCES.eigen);
+  const json = (bytes: Uint8Array, name: string) => jsonOf(prop(linesIn(bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l), name));
+  // 1706: een ongetypeerde taak uit de baselines wissen (de proef van de review van #960).
+  {
+    let removed = '';
+    const b = await base('weesrij: een taak uit de baselines wissen', cat, se(s => {
+      const t = leaves(s).find((t: any) => !t.customTaskTypeId && s.baselines.some((x: any) => x.tasks.some((r: any) => r.taskId === t.id)));
+      removed = t.id; s.deleteTask(t.id);
+    }));
+    assert(json(b.bytes, 'TaskGuids')[removed], 'weesrij: de gewiste taak heeft een sleutel in TaskGuids');
+    await counterProof(b, '1706: een extra sleutel zonder rij in TaskGuids', alterJson('TaskGuids', v => { v['review-960-zonder-taak'] = '0000000000000000000001'; }), true);
+    await counterProof(b, '1706: een verkeerde GlobalId bij de rij van de gewiste taak', alterJson('TaskGuids', v => { v[removed] = '0000000000000000000001'; }), true);
+    await counterProof(b, '1706: de rij van de gewiste taak wijst naar een taak die er nog is', alterJson('TaskGuids', v => {
+      v[removed] = v[Object.keys(v).find(k => b.input.tasks.some(t => t.id === k))!];
+    }));
+    await counterProof(b, '1706: de sleutel van de gewiste taak weg', alterJson('TaskGuids', v => { delete v[removed]; }), true);
+  }
+  // 1746 (de proeven van de review van #962): twee koppen met verwisselde GlobalIds, na één baseline wissen.
+  {
+    const b = await base('kop: één baseline wissen (identiteit)', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }));
+    const heads = (ls: OutLine[]) => ls.filter(l => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.'));
+    await counterProof(b, '1746: de GlobalIds van twee koppen verwisseld', ls => {
+      const [x, y] = heads(ls), g = x.args[0]; setArg(x, 0, y.args[0]); setArg(y, 0, g);
+    }, true);
+  }
+  // 1746: twee inhoudelijk gelijke koppen; de planner wist de eerste, en in de uitvoer blijft die staan in plaats van de
+  // blijvende (met de owner history van de goede uitvoer).
+  {
+    nextCase();
+    const opened = await openForeign(cat);
+    const renamed = await save(await se(s => { s.renameBaseline(s.baselines[2].id, s.baselines[1].name); })(cloneDomain(opened)), opened.ifcSource!);
+    assert(renamed.ok, 'kop: twee baselines met dezelfde naam schrijven');
+    const before = await openForeign(renamed.bytes), removeId = before.baselines![1].id;
+    const isHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
+    const from = linesIn(renamed.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const twins = from.filter(l => isHead(l) && l.args[2] === `'${before.baselines![1].name}'`);
+    assert(twins.length === 2 && twins[0].args.slice(2).join(',') === twins[1].args.slice(2).join(','), 'kop: twee inhoudelijk gelijke koppen');
+    const b = await base('kop: van twee gelijke koppen de eerste wissen', renamed.bytes, se(s => { s.deleteBaseline(removeId); }));
+    const ls = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const kept = ls.find(l => isHead(l) && l.args[2] === twins[0].args[2])!, gone = twins.find(l => l.id !== kept.id)!;
+    assert(kept && gone, 'kop: de blijvende en de gewiste kop');
+    const agg = ls.find(l => l.type === 'IFCRELAGGREGATES' && l.args[5].split(/[^\d]+/).includes(String(kept.id)))!;
+    const wrong = bytesOf(linesIn(b.bytes).map(t => {
+      const l = parseOutLine(t.replace(/\r$/, ''));
+      const r = !l ? undefined : l.id === kept.id ? { ...gone, args: gone.args.map((a, k) => k === 1 ? kept.args[1] : a) }
+        : l.id === agg.id ? { ...l, args: l.args.map((a, k) => k === 5 ? a.replace(new RegExp(`#${kept.id}(?=[,)])`), `#${gone.id}`) : a) } : undefined;
+      return r ? `#${r.id}=${r.type}(${r.args.join(',')});${t.endsWith('\r') ? '\r' : ''}` : t;
+    }).join('\n'));
+    await counterProof(b, '1746: bij gelijke koppen blijft de gewiste staan en verdwijnt de blijvende', wrong, true);
+  }
 }
 
 finish();

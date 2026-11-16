@@ -184,10 +184,14 @@ export function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLi
 
 /**
  * Per groep een gesorteerde lijst boomvormen, zonder GlobalId en owner history; een object staat er alleen met zijn type.
- * Alleen eigen leden tellen mee (`refs`: een vreemd lid van een pset, template of relatie niet). `taskIds`: de taken van de
- * herlezing; een sleutel van `TaskGuids` zonder taak telt niet mee (de regel van de canon, `orphanRowsWithoutId`).
+ * Alleen eigen leden tellen mee (`refs`: een vreemd lid van een pset, template of relatie niet). `TaskGuids` telt helemaal
+ * mee, ook de sleutel en de GlobalId van een weesrij (PR 12e, was knownbug 1706): de merge houdt die GlobalId
+ * (`withOrphanRowGuids` in `sourceForm.ts`), dus een extra sleutel, een ontbrekende of een andere waarde leest anders dan
+ * wat de writer schrijft. Een baselinekop staat er met zijn GlobalId (was knownbug 1746): de writer leidt die af uit het id van
+ * zijn baseline, dus twee verwisselde koppen, of de kop van een gewiste baseline in de plaats van een blijvende, lezen ook
+ * bij gelijke inhoud anders.
  */
-export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>): Map<string, string[]> {
+export function ownGroupTrees(view: OwnLinesView): Map<string, string[]> {
   const tree = (id: number, depth: number): string => {
     const l = view.line(id);
     if (!l) return view.typeOf(id) ?? `?#${id}`;
@@ -198,7 +202,6 @@ export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>):
   const argsOf = (l: OutLine, depth: number) => l.args.map((a, k) => {
     const t = a.trim();
     if (ROOT_TYPES.has(l.type) && k < 2) return k === 0 ? 'G' : 'OH';
-    if (l.type === 'IFCPROPERTYSINGLEVALUE' && k === 2 && unquote(l.args[0]) === 'TaskGuids') return withoutOrphans(t, taskIds);
     const list = /^\(([\s\S]*)\)$/.exec(t);
     if (list && /^#\d+(\s*,\s*#\d+)*$/.test(list[1].trim())) {
       const members = l.type === 'IFCPROPERTYSET' && k === 4;
@@ -214,7 +217,7 @@ export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>):
   for (const l of view.lines) {
     // De kop met de aggregaties waarin hij staat (knownbug 1705): een kop in een andere aggregatie dan die van het eigen
     // werkplan (die van het project, of een vreemde) leest anders dan wat de writer schrijft.
-    if (isBaselineHead(l)) add(BASELINE_HEADS, `${[...view.aggregatedIn.get(l.id) ?? ['los']].sort().join('+')}|${argsOf({ ...l, args: l.args.slice(2) }, 0).join(',')}`);
+    if (isBaselineHead(l)) add(BASELINE_HEADS, `${[...view.aggregatedIn.get(l.id) ?? ['los']].sort().join('+')}|${l.args[0].trim()}|${argsOf({ ...l, args: l.args.slice(2) }, 0).join(',')}`);
     // De typenaam per taak (op GlobalId), met het PredefinedType erbij (PR 12d): ook een typenaam op een taak zonder
     // `.USERDEFINED.`, en een `.USERDEFINED.` dat wegviel terwijl de taak haar type houdt, lezen anders dan wat de writer
     // schrijft (de lezer leest het type per taak uit `OPS_TaskTypes`, niet uit deze twee slots).
@@ -224,17 +227,6 @@ export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>):
   }
   for (const v of groups.values()) v.sort();
   return groups;
-}
-
-/** `TaskGuids` zonder de sleutels van taken die na herlezen niet bestaan, op sleutel gesorteerd. */
-function withoutOrphans(token: string, taskIds: ReadonlySet<string>): string {
-  const m = /^IFCTEXT\(('[\s\S]*')\)$/.exec(token);
-  if (!m) return token;
-  let map: unknown;
-  try { map = JSON.parse(unquote(m[1])); } catch { return token; }
-  if (!map || typeof map !== 'object' || Array.isArray(map)) return token;
-  const kept = Object.entries(map as Record<string, unknown>).filter(([k]) => taskIds.has(k)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
-  return `TaskGuids${JSON.stringify(kept)}`;
 }
 
 /** Het eerste verschil tussen twee indelingen: de groep en een stukje van beide kanten rond het eerste andere teken. */

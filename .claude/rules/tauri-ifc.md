@@ -69,9 +69,14 @@ haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden sa
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
 op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij
 `OPS_StructureMeta` ook templates en `IfcRelDeclares`, plus de tweede vormen baselinekop en de typenaam per taak
-(GlobalId, `ObjectType` en `PredefinedType` van elke eigen taak met `.USERDEFINED.` of een `ObjectType`); een kop met de aggregaties waarin hij staat, `eigen IFCWORKPLAN` of anders) moeten in de uitvoer gelijk zijn aan wat de writer schrijft uit de herlezing die er al is, met de
-schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId en owner history, en met de weesregel van de
-canon voor `TaskGuids`. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
+(GlobalId, `ObjectType` en `PredefinedType` van elke eigen taak met `.USERDEFINED.` of een `ObjectType`); een kop met zijn GlobalId en de aggregaties waarin hij staat, `eigen IFCWORKPLAN` of anders) moeten in de uitvoer gelijk zijn aan wat de writer schrijft uit de herlezing die er al is, met de
+schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId en owner history van psets en hun leden.
+`TaskGuids` telt helemaal mee (PR 12e, knownbug 1706): een weesrij (de baselinerij van een gewiste taak) krijgt in de
+herlezing de GlobalId van het domein, dus een extra sleutel, een ontbrekende of een andere waarde weigert. De kop draagt
+zijn GlobalId (knownbug 1746): de writer leidt die af uit het id van zijn baseline, dus verwisselde koppen, of de kop van
+een gewiste baseline in de plaats van een blijvende, weigeren ook bij gelijke inhoud. De merge geeft de writer voor elke
+weesrij de GlobalId die de lezer ervoor aanneemt (`withOrphanRowGuids`, `fileRowGuid` in `foreign/sourceForm.ts`, knownbug
+1702), anders gaf hij na heropenen een nieuwe hash en was `OPS_Baselines` daarna niet meer gedragen. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
 van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
 vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
@@ -85,7 +90,7 @@ de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de 
 E1, `headsFollowBaselines`): valt `OPS_Baselines` onder de toets, veranderde het openen ook de koppen
 niet en zette (b) geen kop terug, dan mag in de aggregatie van het eigen werkplan een kop met zijn baseline wegvallen of
 erbij komen (hooguit zoveel als de planner wiste of maakte); de rest van die aggregatie blijft exact en in volgorde. (c)
-bewaakt van de koppen het aantal, de inhoud en de plaats, niet hun identiteit (knownbug 1746). De typenaam op de taak
+bewaakt van de koppen het aantal, de inhoud, de plaats en de GlobalId per baseline. De typenaam op de taak
 (PR 12d, E2, `typeNameFollowsDefinition`): valt `OPS_TaskTypes` onder de toets, veranderde het openen ook de typenamen niet
 en zette (b) geen typenaam terug, dan mag slot 4 (`ObjectType`) veranderen van een eigen taak die in de bron en in O1
 `.USERDEFINED.` is, met hetzelfde type als bij openen, waarvan de definitie nu een andere naam heeft (een hernoemd type).

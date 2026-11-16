@@ -25,11 +25,17 @@
 //    taak met dat type mee (1586), op drie bronnen, samen met andere bewerkingen, in een keten en in een sessie met een vaste
 //    en een lopende klok; wat moet blijven weigeren; en de verliescontrole zelf op een nagebootste fout van de writer.
 //    Een projecttype hernoemen kan in de app niet (de beheer-UI hernoemt alleen persoonlijke typen): dat deel is domeininvoer.
+// 7. PR 12e, de weesrij (knownbug 1702): de rij van een gewiste taak in een baseline houdt haar taak-id en GlobalId over
+//    opslaan en heropenen, en `OPS_Baselines` blijft daarna gedragen; daardoor schrijft de keten op het oude bestand nu ook
+//    de stappen na "taak wissen". Op de oude showcase houdt de weesrij haar GlobalId (haar taak-id wordt één keer de interne
+//    id uit de bron, knownbug 1770), en blijft `OPS_Baselines` niet gedragen, zoals op het onbewerkte bestand.
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { PSET, ifcJson } from '@/services/ifc/ifcPsets';
 import { decodeStepText } from '@/services/ifc/stepText';
+import { fileRowGuid } from '@/services/ifc/foreign/sourceForm';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import {
   applyEdit, basicEdits, canon, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, lossProbe, mergeProblems, openForeign, ordinaryEdits,
   reopenPlain, sameBytes, savedCatalogStart, savedSequenceStart, shownAfterOpen, type Domain,
@@ -101,7 +107,8 @@ async function applied(label: string, f: () => Promise<Domain>): Promise<Domain 
  * Een keten over opslaan en heropenen: elke stap opent de laatste uitvoer die schreef. Weigert een stap, dan gaat de keten
  * verder zonder die stap (de planner draait hem terug).
  */
-async function reopenedChain(tag: string, bytes: Uint8Array, steps: readonly [string, Step, Expect][]) {
+async function reopenedChain(tag: string, bytes: Uint8Array, steps: readonly [string, Step, Expect][],
+  after?: (label: string, before: Uint8Array, written: Uint8Array) => Promise<void>) {
   nextCase();
   for (const [label, f, expect] of steps) {
     clock.start();
@@ -109,7 +116,9 @@ async function reopenedChain(tag: string, bytes: Uint8Array, steps: readonly [st
     const d = await applied(`keten ${tag}: stap ${label}`, () => runStep(f, cloneDomain(opened)));
     if (!d) continue;
     const o = await attempt(`keten ${tag}: stap ${label}`, bytes, opened.ifcSource!, d, expect);
-    if (o.ok) bytes = o.bytes;
+    if (!o.ok) continue;
+    await after?.(label, bytes, o.bytes);
+    bytes = o.bytes;
   }
 }
 /**
@@ -269,6 +278,30 @@ for (const which of ['eigen', 'kantoor', 'oud'] as const) {
 }
 
 // ── 1 en 4. De reeksen en de sessieketen, met een vaste en een lopende klok ──
+/**
+ * De keten over opslaan en heropenen (ook in blok 7, op de oude showcase). Tot PR 12e was `OPS_Baselines` op het oude
+ * bestand na stap 2 niet meer gedragen: de GlobalId van de baselinerij van de gewiste taak veranderde bij herlezen (knownbug
+ * 1702), en dan weigerden de stappen 3 tot en met 5. De merge houdt die GlobalId nu (`withOrphanRowGuids`); blok 7 meet het.
+ */
+const CHAIN: [string, Step, Expect][] = [
+  ['1 type, code en baseline maken', s => {
+    s.ensureProjectTaskType({ id: 'type-k', name: 'Type keten' });
+    for (const t of leaves(s).slice(0, 2)) s.updateTask(t.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-k' });
+    const c = s.addActivityCodeType('Code keten'), v = s.addActivityCodeValue(c, { code: 'K', description: 'Keten' });
+    s.setTaskActivityCode(leaves(s)[0].id, c, v); s.saveBaseline('Keten B1');
+  }, 'schrijft'],
+  ['2 code hernoemen, getypeerde taak wissen, baseline B2', s => {
+    s.renameActivityCodeType(s.activityCodeTypes.find((c: any) => c.name === 'Code keten').id, 'Code keten hernoemd');
+    s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-k').id); s.saveBaseline('Keten B2');
+  }, 'schrijft'],
+  ['3 baseline B1 wissen, B2 actief, type aan nieuwe taak', s => {
+    s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Keten B1').id);
+    s.setActiveBaseline(s.baselines.find((b: any) => b.name === 'Keten B2').id);
+    const id = addTask(s, 'Keten nieuw'); s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-k' });
+  }, 'schrijft'],
+  ['4 alles wissen', deleteAll, 'schrijft'],
+  ['5 taak en baseline erbij', s => { addTask(s, 'Keten na wissen'); s.saveBaseline('Keten B3'); }, 'schrijft'],
+];
 async function series(which: Which) {
   const raw = RAW[which], { saved } = prepared.get(which)!;
   await one(`reeks ${which}: taak + baseline (bron)`, raw, se(s => { addTask(s, 'Reeks taak'); s.saveBaseline('Reeks baseline'); }), 'schrijft');
@@ -296,28 +329,7 @@ async function series(which: Which) {
   // Op `ifc-arity-oude-writer.ifc` heeft geen kop een StartTime; de writer schrijft er een, dus (b) zet `$` terug en de koppen
   // zijn in de bron niet gedragen. Dan beweegt een kop niet mee (E1): (c) toetst zo'n groep niet.
   await one(`reeks ${which}: alles wissen (bron)`, raw, se(deleteAll), which === 'arity' ? 'weigert' : 'schrijft');
-  await reopenedChain(which, raw, [
-    ['1 type, code en baseline maken', s => {
-      s.ensureProjectTaskType({ id: 'type-k', name: 'Type keten' });
-      for (const t of leaves(s).slice(0, 2)) s.updateTask(t.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-k' });
-      const c = s.addActivityCodeType('Code keten'), v = s.addActivityCodeValue(c, { code: 'K', description: 'Keten' });
-      s.setTaskActivityCode(leaves(s)[0].id, c, v); s.saveBaseline('Keten B1');
-    }, 'schrijft'],
-    ['2 code hernoemen, getypeerde taak wissen, baseline B2', s => {
-      s.renameActivityCodeType(s.activityCodeTypes.find((c: any) => c.name === 'Code keten').id, 'Code keten hernoemd');
-      s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-k').id); s.saveBaseline('Keten B2');
-    }, 'schrijft'],
-    // Op het oude bestand is `OPS_Baselines` na stap 2 niet meer gedragen: de GlobalId van de baselinerij van de gewiste
-    // taak verandert bij herlezen (knownbug 1702). Dan geldt de controle van main, en die kan een kop die wegvalt niet
-    // verklaren.
-    ['3 baseline B1 wissen, B2 actief, type aan nieuwe taak', s => {
-      s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Keten B1').id);
-      s.setActiveBaseline(s.baselines.find((b: any) => b.name === 'Keten B2').id);
-      const id = addTask(s, 'Keten nieuw'); s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-k' });
-    }, which === 'oud' ? 'weigert' : 'schrijft'],
-    ['4 alles wissen', deleteAll, which === 'oud' ? 'weigert' : 'schrijft'],
-    ['5 taak en baseline erbij', s => { addTask(s, 'Keten na wissen'); s.saveBaseline('Keten B3'); }, which === 'oud' ? 'weigert' : 'schrijft'],
-  ]);
+  await reopenedChain(which, raw, CHAIN);
 }
 const SESSION: [string, Step, Expect][] = [
   ['1 type, code en twee baselines maken', s => {
@@ -650,6 +662,129 @@ const setSlot = (ls: readonly OutLine[], target: OutLine, k: number, v: string) 
   const found = p.run(mutated, await hernoemA(structuredClone(d)));
   console.log(`VERLIESPROEF typenaam: niet gedragen, de typenaam beweegt zonder JSON: ${found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR'}`);
   ok('verliesproef typenaam: niet gedragen: de typenaam weigert op de taak', found.includes(p.index.chunkOf(String(lines[0].id))));
+}
+
+// ── 7. PR 12e: de weesrij houdt haar identiteit (knownbug 1702) ──
+// Wist de planner een taak die in een baseline staat, dan blijft haar rij in de baseline (een weesrij). De lezer zet in
+// `ifcGlobalIds` alleen de GlobalIds van taken die er zijn; tot PR 12e schreef de writer daarom na heropenen een nieuwe hash
+// in `TaskGuids` voor die rij, en was `OPS_Baselines` in het bestand daarna niet meer gedragen. De merge geeft de writer nu
+// de GlobalId die de lezer zelf voor de rij aanneemt (`withOrphanRowGuids`, `fileRowGuid` in `sourceForm.ts`).
+// 7a. De weesrij zelf: taak wissen → opslaan → heropenen → opslaan zonder bewerking (de bytes van de eerste) en met een
+//     kleine bewerking → heropenen. Per weesrij (baseline en plaats) de taak-id en de GlobalId zoals de lezer hem aanneemt:
+//     gelijk in alle lezingen, en de GlobalId gelijk aan die in het domein. Op drie bronnen, met een gewone taak en met een
+//     samenvattingstaak (de rijen van de kinderen). Op de oude showcase (OPS v2026.7.12, baseline-JSON zonder `TaskGuids`
+//     en met de interne ids van toen) zet (b) het JSON in de vorm van de bron terug (#1104): daar krijgt de weesrij bij de
+//     eerste lezing de interne id uit de bron terug, met dezelfde GlobalId (knownbug 1770); de canon ziet dat bewust niet.
+// 7b. De keten op het oude bestand: na elke geschreven stap houdt elke weesrij haar taak-id en GlobalId in de volgende
+//     uitvoer, en is `OPS_Baselines` in de volgende opslag gedragen. Gemeten met de handeling die alleen schrijft als hij
+//     gedragen is (één baseline wissen: de kop beweegt dan mee, E1). Op de oude showcase is `OPS_Baselines` dat nooit, ook
+//     niet zonder weesrij: zijn JSON blijft in de vorm van de bron (een baseline vastleggen of wissen weigert daar al op het
+//     onbewerkte bestand, ook op de basis). Daar meet 7b alleen de weesrij na taak wissen, en dat het zo blijft.
+const showcase = withWall(read('tests/planning/fixtures/oude-tags/v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc'));
+/** Per weesrij (`baseline#plaats`): de taak-id en de GlobalId die de lezer van `bytes` ervoor aanneemt; `guids`: in plaats van
+ *  de lezer (een domein dat nog niet geschreven is) de GlobalIds van het domein. */
+function orphanRows(d: Domain, bytes: Uint8Array, guids?: Readonly<Record<string, string>>): Map<string, { id: string; guid: string }> {
+  const read = fileRowGuid(scanForeignStep(bytes)), live = new Set(d.tasks.map(t => t.id));
+  const out = new Map<string, { id: string; guid: string }>();
+  for (const b of d.baselines ?? []) b.tasks.forEach((r, i) => {
+    if (!live.has(r.taskId)) out.set(`${b.id}#${i}`, { id: r.taskId, guid: guids?.[`task:${r.taskId}`] ?? read(r.taskId) });
+  });
+  return out;
+}
+const rowsText = (m: ReadonlyMap<string, { id: string; guid: string }>) => [...m].map(([k, v]) => `${k}=${v.id}/${v.guid}`).join(' ');
+const sameGuids = (a: ReadonlyMap<string, { guid: string }>, b: ReadonlyMap<string, { guid: string }>) =>
+  a.size === b.size && [...a].every(([k, v]) => b.get(k)?.guid === v.guid);
+const sameIds = (a: ReadonlyMap<string, { id: string }>, b: ReadonlyMap<string, { id: string }>) =>
+  a.size === b.size && [...a].every(([k, v]) => b.get(k)?.id === v.id);
+/** De taak die de proef wist: een gewone taak in een baseline, of een samenvattingstaak waarvan de kinderen in een baseline
+ *  staan (een baseline van nu heeft alleen rijen van gewone taken; die van v2026.7.12 ook van de samenvatting). */
+function orphanTarget(d: Domain, withSummary: boolean) {
+  const inBaseline = new Set((d.baselines ?? []).flatMap(b => b.tasks.map(r => r.taskId)));
+  return withSummary
+    ? d.tasks.find(t => t.childIds.length > 0 && t.childIds.every(c => inBaseline.has(c)) && t.childIds.every(c => !d.tasks.find(x => x.id === c)?.childIds.length))
+    : d.tasks.find(t => !t.isMilestone && !t.childIds.length && inBaseline.has(t.id) && !t.customTaskTypeId);
+}
+const ORPHAN_SOURCES: [string, Uint8Array][] = [['eigen', SOURCES.eigen], ['oud', SOURCES.oud], ['showcase', showcase]];
+for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]) {
+  const label = `weesrij ${tag} (${withSummary ? 'samenvattingstaak' : 'gewone taak'})`;
+  nextCase();
+  // De beginstand: een baseline met de taak; zonder zo'n taak eerst een samenvatting met twee kinderen en een baseline.
+  let start = raw;
+  if (!orphanTarget(await openForeign(raw), withSummary)) {
+    const { o } = await one(`${label}: beginstand`, raw, se(s => {
+      if (withSummary) {
+        const parent = addTask(s, 'Wees ouder'), opts = { phaseAssignments: 'move', answered: true };
+        const c1 = s.addTask({ name: 'Wees kind 1', position: { anchorId: parent, where: 'below' } }, opts);
+        const c2 = s.addTask({ name: 'Wees kind 2', position: { anchorId: c1, where: 'below' } }, opts);
+        s.indentTasks([c1, c2], opts);
+      }
+      s.saveBaseline('Wees B');
+    }), 'schrijft');
+    if (!o.ok) continue;
+    start = o.bytes;
+  }
+  const opened = await openForeign(start);
+  const target = orphanTarget(opened, withSummary);
+  assert(target, `${label}: een taak in een baseline`);
+  const d1 = await se(s => s.deleteTask(target.id))(cloneDomain(opened));
+  // Op de oude showcase geeft de canon de weesrij zonder id terug (#1104), een gewone opslag houdt de id: `whole` zou dat
+  // als anders zien. Daar toetst de proef het vreemde deel en de planning zonder de ids van de weesrijen.
+  const legacy = tag === 'showcase';
+  const o1 = legacy ? await save(d1, opened.ifcSource!) : await attempt(`${label}: taak wissen`, start, opened.ifcSource!, d1, 'schrijft');
+  if (legacy) {
+    console.log(`UITKOMST ${clock.mode} ${label}: taak wissen: ${summary(o1)}`);
+    ok(`${label}: taak wissen schrijft`, o1.ok, o1.ok ? '' : o1.detail);
+  }
+  if (!o1.ok) continue;
+  const shown = orphanRows(d1, start, d1.ifcGlobalIds);
+  ok(`${label}: weesrijen`, shown.size >= (withSummary ? 2 : 1), rowsText(shown));
+  const r1 = await openForeign(o1.bytes);
+  if (legacy) {
+    ok(`${label}: vreemd deel byte voor byte`, mergeProblems(start, o1.bytes).length === 0);
+    ok(`${label}: heropend zoals getoond, op de ids van de weesrijen na`, canon(r1, () => {}) === canon(await shownAfterOpen(d1), () => {}));
+  }
+  const again = await save(cloneDomain(r1), r1.ifcSource!);
+  ok(`${label}: opslaan zonder bewerking geeft de bytes van de eerste`, again.ok && sameBytes(again.bytes, o1.bytes));
+  const r2 = again.ok ? await openForeign(again.bytes) : r1;
+  const o3 = legacy ? await save(await beschrijving(cloneDomain(r1)), r1.ifcSource!)
+    : await attempt(`${label}: daarna alleen de projectbeschrijving`, start, r1.ifcSource!, await beschrijving(cloneDomain(r1)), 'schrijft');
+  if (legacy) ok(`${label}: daarna alleen de projectbeschrijving schrijft`, o3.ok, o3.ok ? '' : o3.detail);
+  const r3 = o3.ok ? await openForeign(o3.bytes) : r1;
+  const [l1, l2, l3] = [orphanRows(r1, o1.bytes), orphanRows(r2, again.ok ? again.bytes : o1.bytes), orphanRows(r3, o3.ok ? o3.bytes : o1.bytes)];
+  console.log(`WEESRIJ ${label}: domein ${rowsText(shown)}`);
+  console.log(`WEESRIJ ${label}: lezing 1 ${rowsText(l1)}; lezing 2 ${rowsText(l2)}; lezing 3 ${rowsText(l3)}`);
+  ok(`${label}: taak-id en GlobalId gelijk in alle lezingen`, rowsText(l1) === rowsText(l2) && rowsText(l1) === rowsText(l3) && l1.size === shown.size,
+    `${rowsText(l1)} | ${rowsText(l2)} | ${rowsText(l3)}`);
+  ok(`${label}: de GlobalId van het domein blijft`, sameGuids(shown, l1), `${rowsText(shown)} | ${rowsText(l1)}`);
+  // De taak-id van het domein: gelijk, behalve op de oude showcase (knownbug 1770).
+  ok(`${label}: de taak-id van het domein ${legacy ? 'wordt bij de eerste lezing de interne id uit de bron (1770)' : 'blijft'}`,
+    sameIds(shown, l1) === !legacy, `${rowsText(shown)} | ${rowsText(l1)}`);
+}
+// 7b. De keten, met na elke geschreven stap de meting op de uitvoer.
+const measured = (tag: string, carriedAfter: boolean) => async (label: string, before: Uint8Array, written: Uint8Array) => {
+  const reread = await openForeign(written), prior = await openForeign(before);
+  // Elke weesrij van de vorige uitvoer die er nog is, houdt haar taak-id en GlobalId (op baseline en plaats).
+  const was = orphanRows(prior, before), now = orphanRows(reread, written);
+  const kept = [...was].filter(([k]) => now.has(k));
+  ok(`keten ${tag}: stap ${label}: de weesrijen houden taak-id en GlobalId`, kept.every(([k, v]) => now.get(k)!.guid === v.guid && now.get(k)!.id === v.id),
+    `${rowsText(was)} | ${rowsText(now)}`);
+  if (!reread.baselines?.length) return;
+  const probe = await save(await se(s => s.deleteBaseline(s.baselines[0].id))(cloneDomain(reread)), reread.ifcSource!);
+  console.log(`GEDRAGEN keten ${tag}: na stap ${label}: één baseline wissen ${summary(probe)}; weesrijen ${rowsText(now) || 'geen'}`);
+  ok(`keten ${tag}: na stap ${label}: OPS_Baselines ${carriedAfter ? 'gedragen (één baseline wissen schrijft)' : 'niet gedragen, zoals op de onbewerkte bron'}`,
+    probe.ok === carriedAfter, probe.ok ? 'schrijft' : `${probe.kinds.join(',')}: ${probe.detail}`);
+};
+await reopenedChain('weesrij oud', SOURCES.oud, CHAIN, measured('weesrij oud', true));
+// De oude showcase: `OPS_Baselines` is daar al op het onbewerkte bestand niet gedragen, en na een taak wissen ook niet.
+{
+  nextCase();
+  const opened = await openForeign(showcase);
+  const before = await save(await se(s => s.deleteBaseline(s.baselines[0].id))(cloneDomain(opened)), opened.ifcSource!);
+  console.log(`GEDRAGEN weesrij showcase: onbewerkt: één baseline wissen ${summary(before)}`);
+  ok('weesrij showcase: onbewerkt: OPS_Baselines niet gedragen (één baseline wissen weigert)', !before.ok);
+  const wiped = await save(await se(s => s.deleteTask(orphanTarget(s, false)!.id))(cloneDomain(opened)), opened.ifcSource!);
+  assert(wiped.ok, 'weesrij showcase: taak wissen schrijft');
+  await measured('weesrij showcase', false)('1 een taak uit de baseline wissen', showcase, wiped.bytes);
 }
 
 finish();

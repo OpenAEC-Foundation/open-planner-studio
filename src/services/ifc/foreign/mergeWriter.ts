@@ -38,13 +38,13 @@
  *
  * Voorbereiding 1c: alleen tests gebruiken deze ingang. De opslagblokkade blijft dicht tot PR 11.
  */
-import { ifcGuid, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
+import { ifcGuid, ifcObjectSeed, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { workCalendarSlots } from '../ifcWorkControlSlots';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
-import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
+import { fileRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
   changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineFromScan, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
@@ -372,6 +372,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const inD = cls.selection.inD;
   const sid = (chunk: number) => Number(index.id(chunk));
   const label = (chunk: number) => `${index.type(chunk)} #${index.id(chunk)}`;
+  // De GlobalId van een weesrij zoals de lezer hem in de bron aanneemt (PR 12e, was knownbug 1702): de writer houdt hem.
+  const rowGuid = fileRowGuid(index);
 
   // ── 1. Wat de bron zelf al uitsluit ──
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
@@ -430,7 +432,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 3. De writer ──
     // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
-    const written = writeIfcMergeLines(input, sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
+    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
     for (const line of lines) {
@@ -968,7 +970,7 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
-  const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, own) : undefined;
+  const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own) : undefined;
   if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
   return { bytes, index: actual.index, scan: outputScan };
 }
@@ -976,19 +978,22 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
 /**
  * Controle (c), PR 12a: de eigen groepen op projectniveau in de uitvoer (`ownGroups.ts`) zijn gelijk aan wat de writer
  * schrijft uit de herlezing van die uitvoer (`parsed`, de lezing die `checkedParts` al deed), met dezelfde schrijfklok en
- * dezelfde keuzes voor de bronvorm als bij het schrijven, als boomvorm zonder GlobalId en owner history en zonder vreemde
- * leden. Zo leest elke geschreven groep terug tot precies wat de writer ervan maakt; een verschil kan alleen een fout van de
+ * dezelfde keuzes voor de bronvorm als bij het schrijven, als boomvorm zonder GlobalId en owner history van psets en hun
+ * leden en zonder vreemde leden; een baselinekop wel met zijn GlobalId, en `TaskGuids` helemaal (PR 12e). Zo leest elke geschreven groep terug tot precies wat de writer ervan maakt; een verschil kan alleen een fout van de
  * writer of de lezer zijn. Alleen de stukken die de writer schreef tellen (de regel van `validateMergeOutput`); geen tweede
  * scan of herlezing. Groepen in `own.skip` toetst (c) niet: daar zette (b) bronwaarden terug.
  */
 function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
-  parsed: WriteIFCInput, own: OwnOutputCheck): string | undefined {
+  parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
   const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
-  const rewritten = writeIfcMergeLines(parsed, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
+  // Een weesrij krijgt in de herlezing de GlobalId die de writer uit het domein had (PR 12e, was knownbug 1706), niet die uit de
+  // uitvoer zelf: zo ziet (c) een verkeerde waarde in `TaskGuids`, net als een sleutel zonder rij.
+  const domainGuids = withOrphanRowGuids(input, fileRowGuid(sourceIndex)).ifcGlobalIds ?? {};
+  const reread = withOrphanRowGuids(parsed, id => domainGuids[ifcObjectSeed('task', id)]);
+  const rewritten = writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
     .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
-  const taskIds = new Set(parsed.tasks.map(t => t.id));
-  return ownGroupDifference(ownGroupTrees(output, taskIds), ownGroupTrees(linesView(rewritten, output.typeOf), taskIds), own.skip)?.detail;
+  return ownGroupDifference(ownGroupTrees(output), ownGroupTrees(linesView(rewritten, output.typeOf)), own.skip)?.detail;
 }
 
 /**
@@ -1016,11 +1021,11 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
   const out = new Map<number, string>(), forms = new Set<string>();
   if (members.size === 0) return { ownGroups: out, secondFormsUnchanged: forms };
   const withForeign = groupsWithForeignMembers(source, members);
-  const taskIds = new Set([...pristine.tasks, ...opened.tasks].map(t => t.id));
+  const rowGuid = fileRowGuid(index);
   const trees = (d: WriteIFCInput) => {
-    const lines = writeIfcMergeLines(d, sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
+    const lines = writeIfcMergeLines(withOrphanRowGuids(d, rowGuid), sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
       .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
-    return ownGroupTrees(linesView(lines, source.typeOf), taskIds);
+    return ownGroupTrees(linesView(lines, source.typeOf));
   };
   const read = trees(pristine), shown = trees(sourceFormWhereUnchanged(opened, opened, pristine).input);
   const unchanged = (g: string) => (read.get(g) ?? []).join('\n') === (shown.get(g) ?? []).join('\n');
@@ -1030,7 +1035,7 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
     const chunk = index.chunkOf(String(id));
     if (chunk >= 0) out.set(chunk, group);
   }
-  const inSource = ownGroupTrees(source, taskIds);
+  const inSource = ownGroupTrees(source);
   for (const [pset, form] of SECOND_FORMS) if (inSource.has(form) && !withForeign.has(form) && unchanged(form)) forms.add(pset);
   return { ownGroups: out, secondFormsUnchanged: forms };
 }
