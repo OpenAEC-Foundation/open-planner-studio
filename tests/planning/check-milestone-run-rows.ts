@@ -21,6 +21,7 @@ import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { createEmptyGridSelection, reconcileGridSelection, updateGridSelection } from '@/engine/taskGrid/selection';
 import type { Sequence } from '@/types/sequence';
+import { milestoneGroups } from '@/engine/renderer/milestoneGroups';
 
 const S = () => useAppStore.getState();
 
@@ -201,8 +202,15 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   S().collapseTasks([M1]);
   eq('opzet: de reeks is ingeklapt', S().viewRows.some(r => r.rowKey === `milestones:${M1}`), true);
   const kaal = lijnen([]);
+  // M3→M4 (FS, lag 0) zet Betonstort en Los (sinds de verhuizing hierboven het einde van de reeks) op
+  // dezelfde dag: één groepsruitje, en een pijl van dat ruitje naar zichzelf vervalt.
+  const groepen = milestoneGroups(S().viewRows);
+  eq('opzet: Betonstort en Los delen een ruitje, M1 en M2 niet',
+    [groepen.get(M4)?.map(t => t.id), groepen.has(M1), groepen.has(M2)], [[M3, M4], false, false]);
   for (const q of seqs) {
-    eq(`ingeklapt: relatie ${q.predecessorId}→${q.successorId} wordt getekend`, lijnen([q]) > kaal, true);
+    const binnenGroep = groepen.get(q.predecessorId) !== undefined && groepen.get(q.predecessorId) === groepen.get(q.successorId);
+    eq(`ingeklapt: relatie ${q.predecessorId}→${q.successorId} ${binnenGroep ? 'vervalt (één ruitje)' : 'wordt getekend'}`,
+      lijnen([q]) > kaal, !binnenGroep);
   }
 }
 
@@ -234,6 +242,60 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   const blijft = reconcileGridSelection(opRegel, index, createTaskGridRowIndex(S().viewRows), cols, cols);
   eq('na een nieuwe rijenlijst blijft de cursor op de reeksregel', blijft.active?.rowKey, runKey);
   S().expandTasks();
+}
+
+// ── Mijlpalen op dezelfde dag: één ruitje met hun aantal (#868 punt 3, keuze Ethan: optie 2) ──
+{
+  S().newProject();
+  const at = (moment: string) => ({
+    durationUnit: 'days', scheduleDuration: 0,
+    scheduleStart: moment, scheduleFinish: moment, earlyStart: moment, earlyFinish: moment,
+  } as TaskTime);
+  const F = S().addTask({ name: 'Afbouw' });
+  const V = S().addTask({ name: 'Voorwerk', parentId: F, time: days(2) });
+  const G1 = S().addTask({ name: 'Keuring ochtend', parentId: F, isMilestone: true, time: at('2026-03-03T08:00') });
+  const G2 = S().addTask({ name: 'Keuring middag', parentId: F, isMilestone: true, time: at('2026-03-03T16:00') });
+  const G3 = S().addTask({ name: 'Oplevering', parentId: F, isMilestone: true, time: at('2026-03-05T08:00') });
+  S().collapseTasks([G1]);
+  eq('opzet: één reeksrij met drie mijlpalen', S().viewRows.filter(r => r.kind === 'milestones').map(r => r.tasks.length), [3]);
+  const groepen = milestoneGroups(S().viewRows);
+  eq('dezelfde dag deelt een groep, de vroegste eerst', [groepen.get(G2)?.map(t => t.id), groepen.get(G1) === groepen.get(G2)], [[G1, G2], true]);
+  eq('een andere dag staat alleen', groepen.has(G3), false);
+  eq('uitgeklapt bestaan er geen groepen', (S().expandTasks(), milestoneGroups(S().viewRows).size), 0);
+  S().collapseTasks([G1]);
+
+  const teksten: string[] = [];
+  const target: Record<string, unknown> = {
+    measureText: (t: string) => ({ width: String(t).length * 6 }), getLineDash: () => [],
+    fillText: (t: string) => { teksten.push(String(t)); },
+  };
+  const ctx = new Proxy(target, {
+    get(obj, prop: string) {
+      if (prop in obj) return obj[prop];
+      return () => (prop === 'createLinearGradient' ? { addColorStop: () => {} } : undefined);
+    },
+    set(obj, prop: string, value) { obj[prop] = value; return true; },
+  });
+  const st = S();
+  const renderer = new GanttRenderer(ctx as unknown as CanvasRenderingContext2D, {
+    rows: st.viewRows, sequences: [], calendar: st.calendar,
+    view: { ...st.view, viewStartDate: '2026-03-01', zoom: 200, scrollX: 0, scrollY: 0 },
+    selectedTaskIds: [], canvasWidth: 1400, canvasHeight: 400, rowHeight: 24, headerHeight: 50,
+  });
+  renderer.render();
+  const namen = teksten.indexOf('Keuring ochtend, Keuring middag');
+  eq('achter het ruitje staan het aantal en de namen van de groep', namen > 0 && teksten[namen - 1] === '2', true);
+  eq('het losse ruitje toont zijn eigen naam', teksten.includes('Oplevering'), true);
+  eq('getMilestoneGroup: de hele groep voor elk lid', [renderer.getMilestoneGroup(G1)?.length, renderer.getMilestoneGroup(G2)?.length, renderer.getMilestoneGroup(G3)], [2, 2, null]);
+  const r1 = renderer.getTaskBarRect(G1);
+  const r2 = renderer.getTaskBarRect(G2);
+  const r3 = renderer.getTaskBarRect(G3);
+  eq('beide leden staan op hetzelfde ruitje', r1 !== null && JSON.stringify(r1) === JSON.stringify(r2), true);
+  eq('de mijlpaal op een andere dag staat ernaast', r1 !== null && r3 !== null && r3.left > r1.right, true);
+  const midden = (r: { left: number; right: number; top: number; bottom: number }) => [(r.left + r.right) / 2, (r.top + r.bottom) / 2] as const;
+  eq('een klik op het groepsruitje raakt de voorman', r2 && renderer.getTaskAt(...midden(r2))?.id, G1);
+  eq('een klik op het losse ruitje raakt die mijlpaal', r3 && renderer.getTaskAt(...midden(r3))?.id, G3);
+  void V;
 }
 
 void B; void M4; void T2; void MD; void T3;

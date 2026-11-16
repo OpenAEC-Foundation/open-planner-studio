@@ -83,6 +83,37 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect.poll(async () => (await state(page)).tasks.find(task => task.id === ids.m2)!.scheduleStart).not.toBe(before);
   await expect(nameCell(page, runKey)).toBeVisible();
 
+  // 5b. Twee mijlpalen op dezelfde dag delen één ruitje met hun aantal (#868 punt 3, keuze Ethan):
+  //     de tooltip noemt ze allebei, een klik kiest ze allebei en slepen verplaatst ze allebei.
+  await page.evaluate(({ m1, m3 }) => {
+    const api = () => window.__OPS__!.store.getState();
+    api().addSequence({ predecessorId: m3, successorId: m1, type: 'FINISH_START', lagDays: 0 });
+    api().runCPM();
+    // Tien dagen verder kijken: de groep staat nu rechts van het beeld.
+    api().setScroll(api().view.scrollX + 10 * api().view.zoom, api().view.scrollY);
+  }, ids);
+  const day = async (id: string) => (await state(page)).tasks.find(task => task.id === id)!.scheduleStart.slice(0, 10);
+  await expect.poll(async () => (await day(ids.m1)) === (await day(ids.m3))).toBe(true);
+  // Na de herberekening staan beide op hetzelfde ruitje (de hertekening kan een frame later komen).
+  await expect.poll(async () => JSON.stringify(await barPoint(page, ids.m1)) === JSON.stringify(await barPoint(page, ids.m3))).toBe(true);
+  const group = await barPoint(page, ids.m1);
+  await page.mouse.move(group.x, group.y);
+  await expect(page.locator('.gantt-tooltip')).toContainText(/Mijlpalen \(2\)|Milestones \(2\)/);
+  await expect(page.locator('.gantt-tooltip')).toContainText('Start ruwbouw');
+  await expect(page.locator('.gantt-tooltip')).toContainText('Betonstort');
+  await page.mouse.click(group.x, group.y);
+  await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
+  const groupDay = await day(ids.m1);
+  await page.mouse.move(group.x, group.y);
+  await page.mouse.down();
+  await page.mouse.move(group.x + dayWidth, group.y, { steps: 4 });
+  await page.mouse.move(group.x + 2 * dayWidth, group.y, { steps: 4 });
+  // Tijdens de sleep is de hele groep gekozen (de klik na het loslaten valt waar het ruitje niet meer staat).
+  await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
+  await page.mouse.up();
+  await expect.poll(() => day(ids.m1)).not.toBe(groupDay);
+  expect(await day(ids.m3)).toBe(await day(ids.m1));
+
   // 6. De regel in de tabel onder "Kolommen" slepen verplaatst de hele reeks.
   const childNames = () => page.evaluate((parentId) => {
     const s = window.__OPS__!.store.getState();

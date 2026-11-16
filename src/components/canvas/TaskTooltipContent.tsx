@@ -73,3 +73,20 @@ export function TaskTooltipContent({ task }: { task: Task }) {
     </>
   );
 }
+
+/**
+ * Issue #868: de tooltip van een groepsruitje in een ingeklapte mijlpalenreeks — alle mijlpalen op die
+ * dag, elk met zijn naam en moment.
+ */
+export function MilestoneGroupTooltipContent({ tasks }: { tasks: readonly Task[] }) {
+  const { t: tTask } = useTranslation('task');
+  const taskDate = useTaskDateText();
+  return (
+    <>
+      <div className="tooltip-title">{tTask('table.milestonesRun', { n: tasks.length })}</div>
+      {tasks.map(task => (
+        <TooltipRow key={task.id} label={task.name} value={taskDate(task, shownFinish(task) || shownStart(task), 'end') || '-'} />
+      ))}
+    </>
+  );
+}
