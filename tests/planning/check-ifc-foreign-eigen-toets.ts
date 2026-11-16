@@ -463,8 +463,8 @@ async function probe(label: string, bytes: Uint8Array, edit: Edit) {
   const p = await lossProbe(bytes, d, o.bytes, true);
   ok(`verliesproef ${label}: de echte O1 slaagt`, p.run(p.o1).length === 0);
   const agg = planAggregate(p.o1), chunk = p.index.chunkOf(String(agg.id));
-  const refuses = (what: string, lines: OutLine[]) => {
-    const found = p.run(lines);
+  const refuses = (what: string, lines: OutLine[], edited?: Domain) => {
+    const found = p.run(lines, edited);
     console.log(`VERLIESPROEF ${label}: ${what}: ${found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR'}`);
     ok(`verliesproef ${label}: ${what} weigert op de aggregatie`, found.includes(chunk));
   };
@@ -491,6 +491,29 @@ async function probe(label: string, bytes: Uint8Array, edit: Edit) {
   const m = membersOf(agg), head = m[2];
   refuses('een kop valt weg zonder dat de planner een baseline wiste', p.o1.filter(l => `#${l.id}` !== head)
     .map(l => l === agg ? withMembers(l, m.filter(id => id !== head)) : l));
+}
+{
+  // `OPS_Baselines` niet gedragen (een vreemd lid in de pset): dan beweegt geen kop mee. Bij een echte opslag weigert de
+  // controle van main dan al op het JSON van de gewiste baseline; hier valt alleen de kop weg en blijft het JSON staan
+  // (een nagebootste fout van de writer), zodat alleen deze voorwaarde de weigering draagt.
+  const { p, agg, refuses } = await probe('kop: vreemd lid in OPS_Baselines, projectbeschrijving', withForeignMember(cat, PSET.Baselines), beschrijving);
+  const m = membersOf(agg), head = m[1];
+  const deleted = await wisEen(cloneDomain(p.opened));
+  refuses('niet gedragen: de kop van een gewiste baseline valt weg, het JSON niet', p.o1.filter(l => `#${l.id}` !== head)
+    .map(l => l === agg ? withMembers(l, m.filter(id => id !== head)) : l), deleted);
+}
+{
+  // Welke kop bij welke baseline hoort, ziet de verliescontrole niet: zij telt de koppen die wegvallen. Staat na het wissen
+  // van baseline A de kop van A er nog en die van een blijvende baseline niet (een nagebootste fout van de writer), dan laat
+  // zij dat door; controle (c) vangt het op de echte uitvoer (`check-ifc-foreign-eigen-uitvoer.ts`, "een kop verwisseld").
+  const { p, agg } = await probe('kop: één baseline wissen (verwisselde kop)', cat, wisEen);
+  const source = parsedLines(cat), sourceAgg = planAggregate(source);
+  const goneId = membersOf(sourceAgg).find(id => !membersOf(agg).includes(id))!, gone = source.find(l => `#${l.id}` === goneId)!;
+  const keptHead = membersOf(agg).find(id => isHead(p.o1.find(l => `#${l.id}` === id)!))!;
+  const swapped = [...p.o1.filter(l => `#${l.id}` !== keptHead).map(l => l === agg ? withMembers(l, membersOf(sourceAgg).filter(id => id !== keptHead)) : l), gone];
+  const found = p.run(swapped);
+  console.log(`VERLIESPROEF verwisselde kop: ${found.length ? 'geweigerd' : 'laat door'} (bekend: alleen (c) toetst welke kop bij welke baseline hoort)`);
+  ok('verliesproef: een verwisselde kop laat de verliescontrole door (alleen (c) vangt hem)', found.length === 0);
 }
 
 finish();

@@ -376,6 +376,9 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
       ['de kop van de gewiste baseline blijft staan', bytesOf(withLines(latin1(mutated(b.bytes, ls => {
         setArg(agg(ls), 5, `(${[...members(agg(ls)), `#${goneId}`].join(',')})`);
       })), [gone.replace(/\r$/, '')]))],
+      ['een kop verwisseld (die van de gewiste baseline in plaats van een blijvende)', bytesOf(withLines(latin1(dropLine(mutated(b.bytes, ls => {
+        setArg(agg(ls), 5, `(${members(agg(ls)).map(id => id === `#${h1.id}` ? `#${goneId}` : id).join(',')})`);
+      }), h1.id)), [gone.replace(/\r$/, '')]))],
     ];
     // (c) zelf: de boomvorm van de koppen in de uitvoer. De lezer leest de koppen niet (de baselines staan in het JSON), dus
     // de herschreven kant is voor elke tegenproef dezelfde als voor de goede uitvoer; ziet de boomvorm van de uitvoer een
