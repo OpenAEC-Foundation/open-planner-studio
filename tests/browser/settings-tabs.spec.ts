@@ -38,6 +38,8 @@ const SECTION_HEADINGS: RegExp[][] = [
     /^(Construction mode|Bouwmodus)$/,
     /^(Week starts on|Week begint op)$/,
     /^(Calculation|Berekenen)$/,
+    // De instelling voor Dissolve bij een samenvattingstaak heeft een eigen sectie (sinds #887).
+    /^(Dissolve on a summary task|Dissolve bij een samenvattingstaak)$/,
   ],
   [
     // Uitleg na het openen van een ander formaat dan IFC (FormatNoticeDialog), per formaat aan/uit.
@@ -424,6 +426,45 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
       while (await page.locator('[data-ops-toast-close]').count()) {
         await page.locator('[data-ops-toast-close]').last().click();
       }
+      // #804 PR 13: Exporteren → IFC zonder gebouwmodel. Echte klikken: vinkje, kaart, de vraag; Enter en Escape
+      // annuleren (Annuleren heeft de focus), Exporteren geeft een download met alleen de planning. Het document blijft
+      // zoals het was; het volledig heropenen van zo'n bestand staat in check-ifc-document-save.ts.
+      const beforePlanOnly = await page.evaluate(() => {
+        const state = window.__OPS__!.store.getState();
+        return { id: state.activeDocumentId, path: state.filePath, dirty: state.isDirty, sha256: state.ifcSource!.sha256 };
+      });
+      await page.getByRole('button', { name: /^(File|Bestand)$/ }).click();
+      await page.locator('.backstage-sidebar').getByRole('button', { name: /^(Export|Exporteren)$/ }).click();
+      await page.locator('[data-ops-export-without-model]').check();
+      let planOnlyDownloads = 0;
+      const countDownload = () => { planOnlyDownloads++; };
+      page.on('download', countDownload);
+      const ifcCard = page.locator('.backstage-export-card').filter({ has: page.getByRole('heading', { name: /^IFC/ }) }).first();
+      const question = page.locator('[data-ops-plan-only-question="export"]');
+      for (const key of ['Enter', 'Escape']) {
+        await ifcCard.click();
+        await expect(question).toBeVisible();
+        await expect(question.getByRole('button', { name: /^(Cancel|Annuleren)$/ })).toBeFocused();
+        await page.keyboard.press(key);
+        await expect(question).toHaveCount(0);
+      }
+      expect(planOnlyDownloads).toBe(0);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.filter(n => n.refusal))).toEqual([]);
+      const planOnlyEvent = page.waitForEvent('download');
+      await ifcCard.click();
+      await question.getByRole('button', { name: /^(Export|Exporteren)$/ }).click();
+      const planOnly = await readFile((await (await planOnlyEvent).path())!, 'utf8');
+      page.off('download', countDownload);
+      expect(planOnly).toContain('IFCTASK(');
+      expect(planOnly).not.toContain('IFCWALL(');
+      expect(planOnly).not.toContain('IFCBUILDINGSTOREY(');
+      expect(await page.evaluate(() => {
+        const state = window.__OPS__!.store.getState();
+        return { id: state.activeDocumentId, path: state.filePath, dirty: state.isDirty, sha256: state.ifcSource!.sha256 };
+      })).toEqual(beforePlanOnly);
+      while (await page.locator('[data-ops-toast-close]').count()) {
+        await page.locator('[data-ops-toast-close]').last().click();
+      }
       // Eerst de echte IFC-export: volledig downloaden en heropenen, zonder documentcommit.
       const beforeExport = await page.evaluate(() => {
         const state = window.__OPS__!.store.getState();
@@ -467,6 +508,13 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
       });
       expect(reopened.foreign).toBe(true);
       expect(reopened.chunks).toEqual(task.foreign);
+    }
+    if (!fixture.foreign) {
+      // Zonder gebouwmodel is er geen keuze "Zonder gebouwmodel" op de exportkaart.
+      await page.getByRole('button', { name: /^(File|Bestand)$/ }).click();
+      await page.locator('.backstage-sidebar').getByRole('button', { name: /^(Export|Exporteren)$/ }).click();
+      await expect(page.locator('.backstage-export-card').first()).toBeVisible();
+      await expect(page.locator('[data-ops-export-without-model]')).toHaveCount(0);
     }
 
   }
