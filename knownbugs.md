@@ -2785,6 +2785,14 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1783. **VERVOLG, BEVESTIGD: Deense commandostijl botst met een vaste termvorm.**
+     In `da/ui-report-01` bleef `studio.stale.action` op "Genberegne nu" staan, terwijl de pakketstijl
+     voor opdrachten de gebiedende wijs vraagt. De nalezer stelde "Genberegn nu" voor; het
+     herstelstation zette die correctie terug wegens de vaste `recalculate`-vormen in het pakket.
+     De release behoudt de termbase volgens het eigenaarsbesluit. Richting: toets via de termenstraat
+     de gebiedende vorm en de prioriteit van termvorm tegenover commandostijl. Alleen een
+     knoptekst; geen nieuwe fixronde voor dit VERVOLG-punt. — B
+
 1782. **VERVOLG: grote vertaalpakketten passen niet in één leesbeurt van een nalezer.**
      Bij `ar/ui-report-01` (150 broneenheden) verloren twee Haiku-nalezers na een compactie de
      bestandsopdracht en eindigden ze onvolledig met de algemene zin dat alleen tekst gevraagd was.
@@ -2795,16 +2803,20 @@ en noem het in je rapport of PR-tekst.
      plakken tweemaal, dan alleen dat pakket door Sonnet 5.5 laten nalezen en dat melden. — B
 
 1781. **VERVOLG: de vertaalbrief moet de schrijfgrens van het station zelf expliciet noemen.**
-     Tijdens de maandagrelease van 16 november 2026 schreef de Finse vertaler naast zijn toegestane
-     `.out.json` ook een eigen reviewbestand. De algemene brief bevatte naleesinstructies die niet bij
-     zijn rol hoorden. Beide bestanden bleven binnen het gitignored `build/translate/`; alle 5316
-     gevolgde bestanden en de checkerhash bleven gelijk. Richting: elke vertaalbrief noemt letterlijk
-     uitsluitend zijn `.out.json` als uitvoer en verbiedt een reviewbestand of andere bestanden.
-     De eigenaar liet de bestanden bewaren als bewijs en het pakket opnieuw vertalen en nalezen.
-     Nieuwe grens, besluit eigenaar 16 november 2026 om 11:55: tijdelijke bestanden in
-     `build/translate/` en `/tmp` zijn toegestaan, ook scratchpads onder `/tmp/claude-*`.
-     Stop alleen bij schrijven in de repo buiten `build/translate/`, of buiten de repo én buiten
-     `/tmp`. Controleer ook shellredirecties en `cp`; bewaar eerdere incidentbewijzen. — B
+     Tijdens de maandagrelease van 16 november 2026 schreef een Finse vertaler naast zijn
+     `.out.json` ook een reviewbestand; later maakte een Perzisch herstelstation tijdelijk een
+     `.mjs`-hulpscript in de repowortel en verwijderde dat zelf. Bewijs en afgewezen uitvoer blijven
+     bewaard. Definitief besluit eigenaar 16 november 2026: na elk station moeten alle gevolgde
+     bestanden en de checkerhash gelijk zijn en mag buiten `build/translate/` geen nieuw ongevolgd
+     bestand blijven staan. Een zelf verwijderd tijdelijk bestand stopt de release niet; de uitvoer
+     van het afwijkende station telt niet en het station draait opnieuw met het bestaande pakket.
+     Verplaats een achtergebleven bestand veilig naar de bewijsmap. Stop alleen bij een gewijzigd
+     gevolgd bestand, of een blijvend bestand buiten `build/translate/` en `/tmp` dat niet veilig
+     verplaatst kan worden. Elke brief bevat letterlijk:
+     "Maak geen bestanden in de repo buiten build/translate/. Een hulpscript zet je in /tmp."
+     Elke vertaalbrief noemt bovendien letterlijk
+     "Schrijf alleen <pad>.out.json. Schrijf geen reviewbestand en niets anders." Geen algemene
+     naleesinstructies in vertaalbriefs; behoud alle poorten. Controleer shellredirecties en `cp`. — B
 
 1780. **VERVOLG, VERMOED: de Perzische term voor een Gantt-balk kan met de Windows-taakbalk worden verward.**
      `i18n/termbase/fa.json`, concept `gantt-bar`: `نوار وظیفه` (bron `existing-ui`, status `arbitrated`).
