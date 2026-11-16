@@ -2800,6 +2800,15 @@ en noem het in je rapport of PR-tekst.
       lijst laten openen (dan verplaatst Alt+↓ daar geen taak meer), of zo laten. Uit de review van #974
       (GPT-6.1-Sol, xhigh, op `badd1cfe9`, VERVOLG). — B
 
+1802. **VERVOLG (#974): na een geweigerde Shift+Enter in een keuzelijstcel gaat een latere muiskeuze een rij omhoog.**
+      `src/components/task-grid/TaskCellEditor.tsx` (`pickedWithShiftEnterRef`, gezet in `onListKeyDownCapture`)
+      onthoudt Shift+Enter tot de volgende toets. Weigert de cel de keuze (bijv. *Mijlpaal* op `—`: *Gebruik ja of
+      nee.*), dan blijft de editor open en de vlag staan; klik je daarna met de muis een geldige optie, dan wordt die
+      goed opgeslagen, maar gaat de focus naar de rij erboven in plaats van eronder. Nagespeeld in Tabel en Gantt.
+      Voorstel: de vlag wissen bij een pointeractie op trigger of menu, en het scenario in
+      `tests/browser/select-keys.spec.ts` uitbreiden met deze herstelroute. Uit de review van #974 (GPT-6.1-Sol,
+      xhigh, op `dbf5ed227`, VERVOLG). — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
