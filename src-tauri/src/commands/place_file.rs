@@ -601,11 +601,8 @@ fn split_path(path: &str) -> Option<(&str, &str)> {
 /// Een padtekst die plugin-fs `rename` als `SafeFilePath::Path` aanneemt (dezelfde ontleding, ook de
 /// weigering van `..` door `SafePathBuf`), gesplitst door [`split_path`].
 fn plain_path(path: &str) -> Option<(&str, &str)> {
-    use std::str::FromStr;
-    match tauri_plugin_fs::SafeFilePath::from_str(path).ok()? {
-        tauri_plugin_fs::SafeFilePath::Path(_) => split_path(path),
-        tauri_plugin_fs::SafeFilePath::Url(_) => None,
-    }
+    // MUTATIE B (alleen bewijs, wordt teruggezet): geen toets op de padtekst zoals plugin-fs.
+    split_path(path)
 }
 
 /// `place_file_exclusive(from, to)`: verplaats `from` exclusief naar `to`, in dezelfde map.
@@ -637,7 +634,8 @@ pub(crate) fn place(
 
     // 2. De scope op de padteksten van de aanroeper, in de volgorde van plugin-fs `rename`. Een doel dat
     // nog niet bestaat, maakt Tauri niet canoniek: een link in de map telt dus mee zoals hij er staat.
-    if !in_scope(Path::new(from)) || !in_scope(Path::new(to)) {
+    // MUTATIE B: geen scope op de padteksten.
+    if false && (!in_scope(Path::new(from)) || !in_scope(Path::new(to))) {
         return Err(refused(RefusalReason::Scope));
     }
 
@@ -686,14 +684,20 @@ pub(crate) fn place(
     // 8. De exclusieve stap. Een fout blijft een fout, ook als op het doel hetzelfde inode staat (een
     // harde link): dan is er niets verplaatst. Een netwerkschijf kan de fout pas geven nadat de
     // hernoeming gebeurde; dat vangt het commando niet (knownbug 1795).
-    ops.rename_exclusive(&dir, &source, from_name, to_name)
-        .map_err(step_error)?;
+    // MUTATIE A (alleen bewijs, wordt teruggezet): de regel van 1795 terug.
+    if let Err(error) = ops.rename_exclusive(&dir, &source, from_name, to_name) {
+        if sys::id_in_dir(&dir, to_name).ok() != Some(source_id) {
+            return Err(step_error(error));
+        }
+    }
 
     // 9. Staat op het doel de gecontroleerde bron, in de open map én waar de aanroeper kijkt? Zo niet,
     // dan geen tweede stap: die zou op naam werken en kan een ander bestand raken (knownbug 1799).
     let in_dir = sys::id_in_dir(&dir, to_name).ok() == Some(source_id);
     let at_caller = sys::id_of_path(Path::new(to)).ok() == Some(source_id);
     if !(in_dir && at_caller) {
+        // MUTATIE C (alleen bewijs, wordt teruggezet): het terugzetten terug.
+        let _ = ops.rename_exclusive(&dir, &source, to_name, from_name);
         return Err(PlaceError::SourceChanged);
     }
 
