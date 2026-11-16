@@ -215,4 +215,30 @@ test('echte app: de Claude Desktop-bundel gaat via de bridge, en na stoppen erva
   }
 });
 
+// Gewoon openen en Opslaan in de echte app lopen via plugin-fs `open`/`readFile` (doelscan, atomisch
+// opslaan met createNew, binaire formaten). Een ongeldig scopepatroon in de capability laat die
+// commando's op elk pad weigeren, terwijl `readTextFile`/`writeTextFile` blijven werken (rood na PR #946).
+test('echte app: Opslaan van een geopend IFC-bestand en openen van een .xer werken via plugin-fs', async () => {
+  const dir = mkdtempSync(join(homedir(), 'ops-real-app-'));
+  try {
+    const xer = join(dir, 'plan.xer');
+    copyFileSync(join(ROOT, 'tests/browser/fixtures/xer/zonder-bijzonderheden.xer'), xer);
+    const openedXer = await ops('open', { path: xer }) as { tasks: number };
+    assert(openedXer.tasks > 0, `geen taken na openen van de .xer: ${JSON.stringify(openedXer)}`);
+
+    const ifc = join(dir, 'plan.ifc');
+    await ops('save', { path: ifc });
+    await ops('open', { path: ifc });
+    const marker = 'Opslaanproef echte app';
+    await ops('dispatch', { action: 'addTask', args: [{ name: marker }] });
+    await ops('dispatch', { action: 'saveFile', args: [] });
+    const written = readFileSync(ifc, 'utf8');
+    assert(written.includes(marker), 'Opslaan schreef de nieuwe taak niet naar het geopende bestand');
+    const leftovers = readdirSync(dir).filter((n) => n.endsWith('.tmp'));
+    assertEq(leftovers, [], 'geen halffabricaten na opslaan');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 await run();
