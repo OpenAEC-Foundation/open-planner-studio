@@ -450,6 +450,7 @@ check-task-resource-scope.ts matrix
 check-task-slice.ts matrix
 check-task-tree.ts matrix
 check-task-trigger-changes.ts matrix
+check-tauri-capability-scopes.ts matrix
 check-tauri-refresh-evidence.ts matrix
 check-text-asset.ts matrix
 check-theme-bar-contrast.ts matrix

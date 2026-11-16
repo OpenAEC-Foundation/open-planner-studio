@@ -29,7 +29,7 @@
         { "path": "/usr/local/share/fonts" }, { "path": "/usr/local/share/fonts/**" },
         { "path": "/System/Library/Fonts" }, { "path": "/System/Library/Fonts/**" },
         { "path": "/Library/Fonts" }, { "path": "/Library/Fonts/**" },
-        { "path": "C:\\Windows\\Fonts" }, { "path": "C:\\Windows\\Fonts\\**" }
+        { "path": "C:/Windows/Fonts" }, { "path": "C:/Windows/Fonts/**" }
       ]
     },
     {
@@ -39,7 +39,7 @@
         { "path": "/usr/local/share/fonts" }, { "path": "/usr/local/share/fonts/**" },
         { "path": "/System/Library/Fonts" }, { "path": "/System/Library/Fonts/**" },
         { "path": "/Library/Fonts" }, { "path": "/Library/Fonts/**" },
-        { "path": "C:\\Windows\\Fonts" }, { "path": "C:\\Windows\\Fonts\\**" }
+        { "path": "C:/Windows/Fonts" }, { "path": "C:/Windows/Fonts/**" }
       ]
     },
     {
@@ -49,7 +49,7 @@
         { "path": "/usr/local/share/fonts" }, { "path": "/usr/local/share/fonts/**" },
         { "path": "/System/Library/Fonts" }, { "path": "/System/Library/Fonts/**" },
         { "path": "/Library/Fonts" }, { "path": "/Library/Fonts/**" },
-        { "path": "C:\\Windows\\Fonts" }, { "path": "C:\\Windows\\Fonts\\**" }
+        { "path": "C:/Windows/Fonts" }, { "path": "C:/Windows/Fonts/**" }
       ]
     },
     "store:default",
