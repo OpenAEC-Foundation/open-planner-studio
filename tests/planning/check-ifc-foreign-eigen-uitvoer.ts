@@ -16,6 +16,8 @@
 //    tegenproeven van de reviews van #960 en #962.
 // 8. Fixronde 1 van PR 12e: de merge neemt de GlobalId van een weesrij uit de lezing van de bron, ook als `TaskGuids` daar een
 //    getal heeft of de sleutel mist.
+// 9. Knownbug 1709: een weigering `planning-na-openen` in een tegenproef noemt het echte verschil (bij `TaskTypes` het
+//    taaktype, bij de baselines de baseline), geen toewijzings-id; de uitkomst per geval blijft gelijk.
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
