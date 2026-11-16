@@ -15,18 +15,29 @@ import type { DocumentPayload } from './documentContract';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
-/** De melding bij een geweigerde opslag: een weigering (eigenaarsbesluit 2026-10-17: rood, blijft staan tot het
- *  kruisje). Een herhaling telt op in dezelfde melding. */
+/** De melding bij een geweigerde IFC-opslag of -export met de flag uit: een weigering (eigenaarsbesluit 2026-10-17:
+ *  rood, blijft staan tot het kruisje). Een herhaling telt op in dezelfde melding. Met de flag aan bereikt alleen een
+ *  ongeldig ja op de vraag "alleen de planning" deze melding (`prepareIfcOutput`, verdedigend). */
 export const IFC_FOREIGN_SAVE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignSaveBlocked',
   dedupeKey: 'ifc-foreign-save-blocked',
 });
 
-/** De bron ontbreekt na crashherstel; het kenmerk kan ook uit een planningsbackup komen. */
-export function ifcWriteBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0]): NotifyInput {
-  return s.foreignSourceMark?.sourceMissing
+/** De melding van een geweigerde IFC-route (knownbugs 1563 en 1596). De bron ontbreekt na crashherstel (het kenmerk kan
+ *  ook uit een planningsbackup komen): met de flag aan is Opslaan als de uitweg, met de flag uit niet. */
+export function ifcWriteBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0], flags: Readonly<FeatureFlagValues>): NotifyInput {
+  if (!s.foreignSourceMark?.sourceMissing) return IFC_FOREIGN_SAVE_BLOCKED_NOTICE;
+  return ifcForeignContentEnabled(flags)
     ? refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissing', dedupeKey: 'ifc-foreign-source-missing' })
-    : IFC_FOREIGN_SAVE_BLOCKED_NOTICE;
+    : refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissingFlagOff', dedupeKey: 'ifc-foreign-source-missing' });
+}
+
+/** AutoSave schrijft nooit naar een bestand met een gebouwmodel (`fileAutoSave.ts`). Met de flag aan en de bron aanwezig
+ *  kan de planner zelf opslaan (1563); anders de melding van de andere IFC-routes. */
+export function ifcAutoSaveBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0], flags: Readonly<FeatureFlagValues>): NotifyInput {
+  return !s.foreignSourceMark?.sourceMissing && ifcForeignContentEnabled(flags)
+    ? refusalNotice({ messageKey: 'notifications.ifcForeignAutoSaveBlocked', dedupeKey: 'ifc-foreign-autosave-blocked' })
+    : ifcWriteBlockedNotice(s, flags);
 }
 
 /** Weigert de app IFC-uitvoer van dit document (fase 1a)? Met een `ifcSource` met een vreemd deel, en na crashherstel
@@ -50,6 +61,16 @@ export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
 
 export const IFC_FOREIGN_REPLACE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignReplaceBlocked', dedupeKey: 'ifc-foreign-replace-blocked',
+});
+/** Knownbug 1766: Ctrl+S op het eigen bestand achter een handle weigert, omdat een ander open document hetzelfde bestand
+ *  als bron heeft. Sluit de planner dat document, dan mag Ctrl+S weer. */
+export const IFC_FOREIGN_OPEN_ELSEWHERE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignOpenElsewhere', dedupeKey: 'ifc-foreign-open-elsewhere',
+});
+/** Knownbug 1760: Opslaan naar een gekozen bestand dat al bestaat. Een document met een gebouwmodel schrijft alleen naar
+ *  een nieuw bestand (T1); dezelfde vorm als `ifcForeignExportNewTarget`. */
+export const IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignSaveNewTarget', dedupeKey: 'ifc-foreign-save-new-target',
 });
 // Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle. Staat daar niet meer precies de bron, of kan het
 // crashherstel de komende versie niet vastleggen, dan schrijft de app niet.

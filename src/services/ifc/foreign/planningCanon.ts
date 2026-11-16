@@ -27,8 +27,17 @@ export function planningCanon(input: WriteIFCInput): string {
   return `${written}\nresourceCalendars=${exact}`;
 }
 
+/** De vorm waarin de canon vergelijkt, voor de melding: dezelfde identiteiten, kalendervolgorde en weesrijen. Het id van
+ *  een toewijzing schrijft de writer niet; de lezer maakt het bij elke lezing nieuw. Het telt in de canon dus niet, en
+ *  hoort ook niet als eerste verschil in de melding (knownbug 1709). */
+function comparedForm(input: WriteIFCInput): WriteIFCInput {
+  const ordered = orphanRowsWithoutId(calendarInput(planningIdentityInput(input)));
+  return { ...ordered, assignments: ordered.assignments.map(a => ({ ...a, id: '' })) };
+}
+
 /** Benoem het eerste verschil met domeinpad en taak-id; de canon bepaalt óf er een verschil is. */
-export function planningDifference(a: WriteIFCInput, b: WriteIFCInput): string {
+export function planningDifference(wanted: WriteIFCInput, shown: WriteIFCInput): string {
+  const a = comparedForm(wanted), b = comparedForm(shown);
   function first(x: unknown, y: unknown, path: string): string | undefined {
     if (Object.is(x, y)) return;
     if (x && y && typeof x === 'object' && typeof y === 'object') {
@@ -47,5 +56,5 @@ export function planningDifference(a: WriteIFCInput, b: WriteIFCInput): string {
     const diff = first(task, other, `taak ${task.id}`);
     if (diff) return diff;
   }
-  return first(calendarInput(a), calendarInput(b), 'planning') ?? 'de geschreven planning verschilt';
+  return first(a, b, 'planning') ?? 'de geschreven planning verschilt';
 }

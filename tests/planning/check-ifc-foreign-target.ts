@@ -100,7 +100,9 @@ const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
 const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
 const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
-const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
+const AUTOSAVE_BLOCKED = 'notifications.ifcForeignAutoSaveBlocked';
+const SOURCE_MISSING_FLAG_OFF = 'notifications.ifcForeignSourceMissingFlagOff';
+const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, SOURCE_MISSING_FLAG_OFF, AUTOSAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
 
 
 /** Een nep-FSA-handle met echte `isSameEntry` (zelfde object), `getFile` en `createWritable`. Functies erin: een

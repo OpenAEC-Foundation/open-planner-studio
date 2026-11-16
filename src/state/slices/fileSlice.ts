@@ -39,7 +39,8 @@ import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
-  IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
+  IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE, IFC_FOREIGN_OPEN_ELSEWHERE_NOTICE,
+  IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE, isOpenForeignSourceTarget,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
   refusedWriteTarget,
 } from '../ifcForeignGuard';
@@ -735,7 +736,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
     if (!ifcFullWriteBlocked(state)) return false;
-    get().notify(ifcWriteBlockedNotice(state));
+    get().notify(ifcWriteBlockedNotice(state, state.ui.featureFlags));
     return true;
   };
 
@@ -746,7 +747,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
     try { return await prepareIfcOutput(state, input, planOnly); }
     catch (error) {
-      if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
+      if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state, state.ui.featureFlags));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
       else throw error;
       return null;
@@ -786,9 +787,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const reason = await refusedWriteTarget(get(), target,
       { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownVersion);
     if (reason) {
-      get().notify(hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
-        ? IFC_FOREIGN_REPLACE_BLOCKED_NOTICE
-        : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_SAVE_NOTICE);
+      const ownSourceRefused = hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site';
+      // Knownbug 1766: Ctrl+S op de eigen handle weigert alleen nog als een ander open document dit bestand als bron heeft.
+      const others = { getOpenDocumentPayloads: () => get().getOpenDocumentPayloads().filter(d => d.id !== snapshot.activeDocumentId) };
+      const openElsewhere = ownSourceRefused && ownTarget && target.kind === 'handle'
+        && await isOpenForeignSourceTarget(others, target, fileIdentityFs);
+      get().notify(openElsewhere ? IFC_FOREIGN_OPEN_ELSEWHERE_NOTICE
+        : ownSourceRefused ? IFC_FOREIGN_REPLACE_BLOCKED_NOTICE
+          : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_SAVE_NOTICE);
       return true;
     }
     return write ? refuseChangedDocumentWrite(snapshot, write) : false;
@@ -1383,6 +1389,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /** Knownbug 1760: het gekozen doel van een volledige merge bestaat al (T1: alleen een nieuw bestand). Een andere
+   *  schrijffout houdt "Opslaan mislukt" met de fout eronder. */
+  const targetExists = (err: unknown) => err instanceof BytePartsWriteError && err.reason === 'target-exists';
+
   let saveAttemptSequence = 0;
   const writeActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
     // Fixronde 1 (BLOKKEERT 1): het document van de start. Wisselt het actieve document tijdens het wachten (de
@@ -1506,6 +1516,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         notifySiteSaveError(err, siteName, failureNoticeKey);
         return false;
       }
+      if (targetExists(err)) { get().notify(IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE); return false; }
       notifyWriteError(err);
       return false;
     }
@@ -1566,6 +1577,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         notifySiteSaveError(err, siteName);
         return;
       }
+      if (targetExists(err)) { get().notify(IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE); return; }
       console.error('Save As failed:', err);
       get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err) });
     }
@@ -2186,7 +2198,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         } catch (error) {
           if (!preparedExport) throw error;
           get().notify(refusalNotice({
-            messageKey: error instanceof BytePartsWriteError && error.reason === 'create-new'
+            messageKey: error instanceof BytePartsWriteError && (error.reason === 'create-new' || error.reason === 'target-exists')
               ? 'notifications.ifcForeignExportNewTarget' : 'notifications.saveFailed',
             dedupeKey: 'ifc-export-write-failed',
           }));

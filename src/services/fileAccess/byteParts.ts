@@ -2,7 +2,8 @@
 export class BytePartsWriteError extends Error {
   readonly code = 'BYTE_PARTS_WRITE_FAILED';
   constructor(
-    readonly reason: 'create-new' | 'write' | 'close' | 'handle-not-exclusive' | 'base-version' | 'download',
+    /** `target-exists`: het exclusief aan te maken doel bestond al (knownbug 1760); `create-new`: aanmaken mislukte anders. */
+    readonly reason: 'create-new' | 'target-exists' | 'write' | 'close' | 'handle-not-exclusive' | 'base-version' | 'download',
     readonly cause?: unknown,
   ) {
     super(`Byte-delen konden niet worden opgeslagen (${reason}).`);

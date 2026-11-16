@@ -75,11 +75,12 @@
     "xmlUnknownSchedule": "Onbekend XML-planningsformaat. Open een MS Project-XML (Project) of Primavera P6-XML (APIBusinessObjects).",
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",
-    "ifcForeignSaveBlocked": "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.",
+    "ifcForeignSaveBlocked": "Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Met de huidige instellingen kan de app het niet als IFC opslaan of exporteren. Exporteer alleen de planning naar een ander formaat om je wijzigingen te bewaren.",
     "ifcForeignTargetSave": "Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.",
     "ifcForeignTargetExport": "Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om naar te exporteren.",
     "ifcExportChangedWhileWaiting": "De planning veranderde terwijl de export op een andere opslag wachtte. Er is niets geëxporteerd. Exporteer opnieuw.",
     "ifcForeignTargetAutoSave": "Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.",
+    "ifcForeignAutoSaveBlocked": "Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Sla je wijzigingen zelf op met Opslaan of Opslaan als.",
     "ifcUnreadableTargetSave": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
     "ifcUnreadableTargetExport": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om naar te exporteren.",
     "ifcUnreadableTargetAutoSave": "Automatisch opslaan is gestopt: de app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
@@ -356,15 +357,18 @@
     "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan.",
     "ifcForeignReplaceBlocked": "Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.",
+    "ifcForeignOpenElsewhere": "Niet opgeslagen. Dit bestand is ook in een ander tabblad geopend. Sluit dat tabblad en sla opnieuw op, of kies Opslaan als om je wijzigingen in een nieuw bestand te bewaren.",
     "ifcForeignTargetChanged": "Niet opgeslagen. Het bestand is intussen door een ander programma gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignTargetGone": "Niet opgeslagen. Het bestand is verplaatst, verwijderd of niet meer te lezen. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignReplaceNotRecorded": "Niet opgeslagen. Het bestand kan nu niet veilig worden vervangen, omdat het crashherstel niet kan worden bijgewerkt. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignReplaceFailed": "Niet opgeslagen. Het bestand kon niet worden geschreven. Je wijzigingen staan nog in de app. Probeer opnieuw op te slaan, of kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignMergeRefused": "Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan, of exporteer alleen de planning: naar IFC met Zonder gebouwmodel, of naar een ander formaat.",
     "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.",
+    "ifcForeignSaveNewTarget": "Niet opgeslagen. Dit IFC-bestand kan alleen onder een nieuwe bestandsnaam worden opgeslagen. Kies een naam die nog niet bestaat.",
     "ifcForeignExportNewTarget": "Niet geëxporteerd. Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geëxporteerd. Kies een naam die nog niet bestaat.",
     "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
-    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
+    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.",
+    "ifcForeignSourceMissingFlagOff": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Exporteer alleen de planning naar een ander formaat om je wijzigingen te bewaren."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -1959,8 +1963,8 @@
   "ifcExportWithoutModel": {
     "option": "Zonder gebouwmodel",
     "title": "Exporteren zonder gebouwmodel?",
-    "body": "Het nieuwe bestand bevat alleen de planning. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?",
-    "bodyWithPool": "Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?",
+    "body": "Het nieuwe bestand bevat alleen de planning. Het gebouwmodel, de koppelingen tussen taken en bouwdelen en de gegevens van een ander programma, zoals een planning uit dat programma, gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?",
+    "bodyWithPool": "Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel, de koppelingen tussen taken en bouwdelen en de gegevens van een ander programma, zoals een planning uit dat programma, gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?",
     "continue": "Exporteren",
     "cancel": "Annuleren"
   }

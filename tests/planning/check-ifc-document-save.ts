@@ -157,15 +157,26 @@ await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam, nul bytes
 
 await check('Opslaan als bestaand eigen bestand: createNew weigert, oude bytes intact', async () => {
   const { store } = await openInStore(bytes); longer(store);
+  // Zonder opslagdoel opent ook Ctrl+S de kiezer (een eigen pad weigert eerder, met ifcForeignReplaceBlocked).
+  store.setState(s => { s.filePath = null; });
   const ipc = desktop(), target = join(dir, 'bestaand.ifc');
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
   writeFileSync(target, plain); ipc.choose(target);
   const before = preserved(store);
   try {
-    clearNotices(store); await store.getState().saveFileAs(); unchanged(store, before);
-    assert.equal(hash(new Uint8Array(readFileSync(target))), hash(plain));
-    assertNotice(store, 'notifications.saveFailed');
+    // Knownbug 1760: Opslaan als en Ctrl+S met de kiezer zeggen dat de naam al bestaat, zoals Exporteren.
+    for (const save of [() => store.getState().saveFileAs(), () => store.getState().saveFile()]) {
+      clearNotices(store); await save(); unchanged(store, before);
+      assert.equal(hash(new Uint8Array(readFileSync(target))), hash(plain));
+      assertNotice(store, 'notifications.ifcForeignSaveNewTarget');
+    }
     assert(ipc.calls.some(c => c.path === target && c.options?.createNew));
+    // Een andere fout bij het aanmaken van een nieuwe naam houdt "Opslaan mislukt" met de fout eronder.
+    const fresh = join(dir, 'nieuw-maar-fout.ifc'); ipc.choose(fresh);
+    ipc.faults.openError = new Error('schijf vol');
+    clearNotices(store); await store.getState().saveFileAs(); unchanged(store, before);
+    assertNotice(store, 'notifications.saveFailed'); assert.equal(existsSync(fresh), false);
+    assert.match(String(store.getState().ui.notifications[0].detail), /\(create-new\)/, 'de fouttekst blijft zoals hij was');
   } finally { ipc.dispose(); }
 });
 
@@ -280,11 +291,15 @@ for (const kind of ['nieuw', 'versie', 'conflictkopie', 'zonder-basis'] as const
   });
 }
 
-for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`${cause}: alle documentroutes nul bytes`, async () => {
+const blockedNotice = {
+  'flag-uit': 'notifications.ifcForeignSaveBlocked', sourceMissing: 'notifications.ifcForeignSourceMissing',
+  'sourceMissing-flag-uit': 'notifications.ifcForeignSourceMissingFlagOff',
+} as const;
+for (const cause of ['flag-uit', 'sourceMissing', 'sourceMissing-flag-uit'] as const) await check(`${cause}: alle documentroutes nul bytes`, async () => {
   const { store } = await openInStore(bytes); longer(store);
   store.setState(s => {
-    if (cause === 'flag-uit') s.ui.featureFlags = {};
-    else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+    if (cause !== 'sourceMissing') s.ui.featureFlags = {};
+    if (cause !== 'flag-uit') s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
   });
   const before = preserved(store), browser = browserDownload();
   try {
@@ -293,14 +308,22 @@ for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`${cause
       let siteCalls = 0;
       if (site) win.openaecHost = { storage: { list: async () => [], open: async () => null, versions: async () => [], save: async () => { siteCalls++; throw new Error('geen writes'); } } };
       for (const save of [() => store.getState().saveFile(), () => store.getState().saveFileAs(), () => store.getState().saveFileForDocument(store.getState().activeDocumentId)]) {
-        clearNotices(store); await save(); unchanged(store, before); assertNotice(store, cause === 'sourceMissing' ? 'notifications.ifcForeignSourceMissing' : 'notifications.ifcForeignSaveBlocked');
+        clearNotices(store); await save(); unchanged(store, before); assertNotice(store, blockedNotice[cause]);
       }
       assert.equal(siteCalls, 0); delete win.openaecHost;
     }
     assert.equal(browser.downloads.length, 0);
     const ipc = desktop(); ipc.choose(join(dir, `${cause}.ifc`));
-    try { await store.getState().saveFileAs(); assert.equal(ipc.picks(), 0); unchanged(store, before); }
-    finally { ipc.dispose(); }
+    try {
+      await store.getState().saveFileAs(); assert.equal(ipc.picks(), 0); unchanged(store, before);
+      // De uitweg die de melding met de flag uit noemt (1563, 1596): de planning naar een ander formaat exporteren.
+      if (cause !== 'sourceMissing') {
+        const csv = join(dir, `${cause}.csv`); ipc.choose(csv); clearNotices(store);
+        const result = await store.getState().exportAs('csv');
+        assert(result.ok && !result.cancelled, 'de export naar een ander formaat gaat door'); assert(existsSync(csv));
+        assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+      }
+    } finally { ipc.dispose(); }
   } finally { browser.dispose(); }
 });
 
@@ -358,18 +381,27 @@ await check('zonder vreemd deel en flag aan: beide acties bytegelijk aan de gewo
   } finally { ipc.dispose(); }
 });
 
-await check('AutoSave: nul bytes, één bestaande melding per document per sessie', async () => {
-  const ipc = desktop(), original = join(dir, 'autosave-bron.ifc'); writeFileSync(original, bytes);
-  try {
-    const store = await openAt({ kind: 'path', path: original }); longer(store);
-    store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);
-    const before = preserved(store), count = ipc.calls.length;
-    const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true });
-    await controller.flush(); await controller.flush();
-    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignSaveBlocked');
-    assert.equal(ipc.calls.length, count); assert.equal(hash(new Uint8Array(readFileSync(original))), hash(bytes));
-  } finally { ipc.dispose(); }
-});
+// Knownbug 1563: met de flag aan kan de planner zelf opslaan; met de flag uit of zonder bron de melding van die reden.
+for (const [cause, notice] of [['flag aan', 'notifications.ifcForeignAutoSaveBlocked'], ['flag uit', 'notifications.ifcForeignSaveBlocked'],
+  ['sourceMissing', 'notifications.ifcForeignSourceMissing'], ['sourceMissing en flag uit', 'notifications.ifcForeignSourceMissingFlagOff']] as const) {
+  await check(`AutoSave ${cause}: nul bytes, één melding per document per sessie`, async () => {
+    const ipc = desktop(), original = join(dir, `autosave-bron-${cause.replace(/ /g, '-')}.ifc`); writeFileSync(original, bytes);
+    try {
+      const store = await openAt({ kind: 'path', path: original }); longer(store);
+      store.setState(s => {
+        s.autoSaveToFile = true;
+        if (cause.includes('flag uit')) s.ui.featureFlags = {};
+        if (cause.startsWith('sourceMissing')) s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+      });
+      clearNotices(store);
+      const before = preserved(store), count = ipc.calls.length;
+      const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true });
+      await controller.flush(); await controller.flush();
+      unchanged(store, before); assertNotice(store, notice);
+      assert.equal(ipc.calls.length, count); assert.equal(hash(new Uint8Array(readFileSync(original))), hash(bytes));
+    } finally { ipc.dispose(); }
+  });
+}
 
 await check('planOnly met vreemd deel: bewaakte voorbereiding weigert vóór I/O', async () => {
   const { store } = await openInStore(bytes);
@@ -690,6 +722,21 @@ await check('export met bibliotheek: vraag, projectbestand met alleen de plannin
   } finally { ipc.dispose(); resetPlanOnlyAsker(); }
 });
 
+// Knownbug 1741: de vraag die beide exports stellen (hierboven: `export` en `exportWithPool`) noemt concreet wat wegvalt,
+// zonder telling; de volledige opsomming hoort in de handleiding (1566).
+await check('1741: de vraag vóór beide exports zonder gebouwmodel noemt de koppelingen en de planning van een ander programma', async () => {
+  const { PLAN_ONLY_TEXTS } = await import('@/components/dialogs/PlanOnlyQuestionDialog');
+  for (const locale of ['nl', 'en'] as const) {
+    const texts = JSON.parse(readFileSync(join(root, `src/i18n/locales/${locale}/common.json`), 'utf8')) as Record<string, Record<string, string>>;
+    for (const reason of ['export', 'exportWithPool'] as const) {
+      const [ns, key] = PLAN_ONLY_TEXTS[reason].body.split('.'), text = texts[ns][key];
+      assert.match(text, locale === 'nl' ? /koppelingen tussen taken en bouwdelen/ : /links between tasks and building elements/, `${locale} ${reason}`);
+      assert.match(text, locale === 'nl' ? /een planning uit dat programma/ : /a schedule from that program/, `${locale} ${reason}`);
+      assert.doesNotMatch(text, /\d/, `${locale} ${reason}: zonder telling`);
+    }
+  }
+});
+
 for (const cause of ['sourceMissing', 'flag-uit'] as const) await check(`${cause}: beide routes zonder gebouwmodel geweigerd met de bestaande melding, geen vraag`, async () => {
   const { store } = await openInStore(bytes); longer(store);
   store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
@@ -1007,11 +1054,16 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
     longer(store); clearNotices(store); writableLog.length = 0;
     const before = preserved(store);
     assert.equal(await ctrlS(store), false);
-    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignReplaceBlocked');
+    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignOpenElsewhere');
     assert.deepEqual(writableLog, []); assert.equal(hash(fileOf(name)), hash(bytes));
     const s = store.getState(), deps = { identityFs: async () => undefined, readers: () => ({}) };
     const own = { documentId: s.activeDocumentId, source: s.ifcSource! };
     assert.equal(await refusedWriteTarget(s, { kind: 'handle', handle: s.fileHandle! }, deps, own), 'open-source');
+    // De uitweg uit de melding (1766): het andere tabblad sluiten en opnieuw opslaan.
+    const first = s.documents.find(d => d.id !== s.activeDocumentId)!.id, second = s.activeDocumentId;
+    store.getState().closeDocument(first); store.getState().switchDocument(second);
+    assert.equal(await ctrlS(store), true, 'na het sluiten van het andere tabblad schrijft Ctrl+S');
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
   } finally { unregister(); await clearRecovery(); }
 });
 

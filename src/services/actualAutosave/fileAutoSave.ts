@@ -10,7 +10,7 @@ import {
 } from '@/services/fileAccess';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
-  ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
+  ifcAutoSaveBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
 } from '@/state/ifcForeignGuard';
 import {
   AutoSaveTargetUnavailableError, createActualAutoSaveController, type ActualAutoSaveCandidate, type ActualAutoSaveController,
@@ -59,7 +59,7 @@ export function createFileAutoSaveController(deps: {
         const foreignBlocked = ifcSaveBlocked(payload);
         if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
           foreignNotified.add(id);
-          getState().notify(ifcWriteBlockedNotice(payload));
+          getState().notify(ifcAutoSaveBlockedNotice(payload, getState().ui.featureFlags));
         }
         const refused = refusedTarget.get(id);
         if (refused && (!payload.isDirty || !ref || !sameFileRef(refused, ref))) refusedTarget.delete(id);
