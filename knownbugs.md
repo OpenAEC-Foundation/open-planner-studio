@@ -2674,6 +2674,14 @@ en noem het in je rapport of PR-tekst.
      dat de hulpnaam nog bestaat. De proef `place_file_fout_na_uitgevoerde_hernoeming` legt vast dat de fout terugkomt.
      Op een echte netwerkschijf niet gemeten. Uit 1131 stap 3. — S
 
+1798. **VERVOLG (#804, Windows): een harde link van de bron op het doel geeft daar `placed`, niet `target-exists`.**
+     De grens van `place_file_exclusive` zegt dat een bestaand doel `target-exists` geeft, ook bij hetzelfde inode. Op
+     Unix klopt dat (`EEXIST`, beide namen blijven). Op Windows geeft `SetFileInformationByHandle` zonder vervangen geen
+     fout als het doel een harde link naar de bron zelf is: de uitkomst is `placed`, de hulpnaam is weg, het doel
+     bestaat en de inhoud is ongewijzigd (proef `place_file_harde_link_op_het_doel`, gemeten in de Rust-tests, run
+     43947435718). Er is één verplaatsing en geen ander bestand is vervangen; alleen de uitkomst wijkt af van Unix.
+     Stap 4 en 5 maken zelf geen harde link van een hulpbestand op het doel. Uit 1131 stap 3 (fixronde 2). — B (proef)
+
 1799. **VERVOLG (#804, Unix): tussen controle en stap kan een ander object onder de hulpnaam komen.**
      Buiten de grens van `place_file_exclusive` (besluit van de technisch beslisser, 16 november 2026): op Unix kan
      een partij met hernoemrechten in die map tussen controle en stap een ander object onder de hulpnaam zetten. Het
