@@ -780,7 +780,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
     // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
-    ...(source.opened ? { ownGroups: openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) } : {}),
+    ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
   const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
   // De eigen groepen waar (b) bronwaarden terugzette: daar toetst (c) niet, want de writer schrijft ze niet uit het domein.
@@ -999,18 +999,21 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
  * schrijven: op de ruwe vorm verschilt een oud bestand al door de omzetting, en weigert de toets te veel). Zo valt een
  * groep die het openen zelf veranderde (een herstelkenmerk dat bij openen verdwijnt, knownbug 1703) terug op de
  * verliescontrole van main. Een groep die het openen nieuw maakt, staat niet in de bron en telt dus niet. De baselinekoppen
- * horen er niet bij: hun toets komt in stap 3 (knownbug 1700).
+ * staan niet in `ownGroups`: zij zijn geen pset, en wat er met hen mag, beslist de verliescontrole apart (PR 12c, E1:
+ * `headsUnchanged`, "het openen veranderde de koppen niet", in dezelfde bronvorm).
  *
  * Voorwaarde (a), "de groep is in de bron gedragen": een groep met een vreemd lid is het niet (`groupsWithForeignMembers`:
  * dat lid schrijft de writer niet), en verder toetst de verliescontrole dat geen stuk van de groep de herleestoets (b) nodig
  * had (`lossCheck`, `ownGroups`).
+ *
+ * Geëxporteerd voor de proeven van de verliescontrole (`check-ifc-foreign-eigen-toets.ts`).
  */
-function openedOwnGroups(index: StepIndex, cls: Classification, plan: WriterMergeIds, pristine: ImportResult, opened: WriteIFCInput,
-  stepIds: Readonly<Record<string, number>>, writtenAt: Date): Map<number, string> {
+export function openedOwnGroups(index: StepIndex, cls: Classification, plan: WriterMergeIds, pristine: ImportResult, opened: WriteIFCInput,
+  stepIds: Readonly<Record<string, number>>, writtenAt: Date): { ownGroups: Map<number, string>; headsUnchanged: boolean } {
   const source = indexView(index, i => cls.classes[i] === 1);
   const members = ownGroupMembers(source);
   const out = new Map<number, string>();
-  if (members.size === 0) return out;
+  if (members.size === 0) return { ownGroups: out, headsUnchanged: false };
   const withForeign = groupsWithForeignMembers(source, members);
   const taskIds = new Set([...pristine.tasks, ...opened.tasks].map(t => t.id));
   const trees = (d: WriteIFCInput) => {
@@ -1025,7 +1028,8 @@ function openedOwnGroups(index: StepIndex, cls: Classification, plan: WriterMerg
     const chunk = index.chunkOf(String(id));
     if (chunk >= 0) out.set(chunk, group);
   }
-  return out;
+  const heads = [...members.values()].includes(BASELINE_HEADS);
+  return { ownGroups: out, headsUnchanged: heads && !withForeign.has(BASELINE_HEADS) && unchanged(BASELINE_HEADS) };
 }
 
 /** Het merge-plan met de keuzes voor de bronvorm (fixronde 7 van #867): wat de planner niet wijzigde, in de vorm van de bron. */

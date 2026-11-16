@@ -12,23 +12,27 @@
 //
 // 1. Wat de nieuwe toets laat schrijven: de knownbugs 1582, 1585, 1586 (laatste gebruik van één type), 1587, 1589, 1110 en
 //    de grens van 7d; de gevallen van 7c en 7d op drie bronnen; de reeksen; de sessieketen.
-// 2. Wat blijft weigeren: 1581 en één baseline wissen (stap 3, knownbug 1700), een typedefinitie hernoemen (stap 4), 1588 en
-//    een onbekend definitieveld (de groep is niet gedragen), de backup met herstelkenmerk (a′, knownbug 1703), en alles
-//    buiten de eigen groepen (de r7sol-bestanden, de volgorde in `IfcRelNests`).
+// 2. Wat blijft weigeren: een typedefinitie hernoemen (stap 4), 1588 en een onbekend definitieveld (de groep is niet
+//    gedragen), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
+//    volgorde in `IfcRelNests`).
 // 3. Een vreemd lid in een eigen pset.
 // 4. De klok: de reeksen en de sessieketen ook met een lopende klok.
+// 5. PR 12c, de baselinekop (E1): een kop in de aggregatie van het werkplan beweegt mee met zijn baseline (1581, 1700, de
+//    baselinestappen van de reeksen en de sessieketen); de rest van die aggregatie blijft exact en in volgorde, ook in de
+//    verliescontrole zelf op een nagebootste fout van de writer (`lossProbe`); en wat moet blijven weigeren. Daarin ook de
+//    proef van knownbug 1708: (a′) op de bronvorm schrijft op `ifc-arity-oude-writer.ifc` waar de ruwe vorm zou weigeren.
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { parseOutLine } from '@/services/ifc/foreign/lossCheck';
+import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { PSET, ifcJson } from '@/services/ifc/ifcPsets';
 import { decodeStepText } from '@/services/ifc/stepText';
 import {
-  applyEdit, basicEdits, canon, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, mergeProblems, openForeign, ordinaryEdits,
+  applyEdit, basicEdits, canon, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, lossProbe, mergeProblems, openForeign, ordinaryEdits,
   reopenPlain, sameBytes, savedCatalogStart, savedSequenceStart, shownAfterOpen, type Domain,
 } from './ifcMergeKern';
 import {
   SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, read, save, se, summary,
-  withForeignMember, withWall, type Outcome, type S,
+  withForeignMember, withLines, withWall, type Outcome, type S,
 } from './ifcEigenKern';
 
 type Expect = 'schrijft' | 'weigert';
@@ -189,8 +193,8 @@ await one('grens: onbekend definitieveld, alleen de projectbeschrijving', unknow
 await one('grens: onbekende baselinesleutel, alleen de projectbeschrijving', unknownKey, beschrijving, 'schrijft');
 await one('grens: onbekende baselinesleutel, baseline erbij', unknownKey, se(s => { s.saveBaseline('Nieuwe baseline grens'); }), 'schrijft');
 
-await one('1581 alle baselines wissen (stap 3)', eigen, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), 'weigert');
-await one('één baseline wissen (stap 3, 1700)', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }), 'weigert');
+await one('1581 alle baselines wissen', eigen, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), 'schrijft');
+await one('1700 één baseline wissen', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }), 'schrijft');
 await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'weigert');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
 await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
@@ -199,7 +203,7 @@ await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbes
 await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
 await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
 await one('grens: onbekend definitieveld, taak met dat type wissen', unknownField, se(s => { s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id); }), 'weigert');
-await one('grens: onbekende baselinesleutel, een andere baseline wissen (stap 3)', unknownKey, se(s => { s.deleteBaseline(s.baselines[1].id); }), 'weigert');
+await one('grens: onbekende baselinesleutel, een andere baseline wissen', unknownKey, se(s => { s.deleteBaseline(s.baselines[1].id); }), 'schrijft');
 // (a′): bij het openen van een backup met een vreemd deel verdwijnt het herstelkenmerk (knownbug 1703); de toets weigert
 // daar zoals main.
 const backup = withWall(read('tests/planning/fixtures/backup-met-kenmerk.ifc'));
@@ -279,10 +283,11 @@ async function series(which: Which) {
       s.saveBaseline('Reeks X'); s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Reeks X').id); s.saveBaseline('Reeks Y');
     }), 'schrijft');
   }
-  await one(`reeks ${which}: oude baseline wissen + nieuwe maken (catalogus; stap 3)`, saved, se(s => { s.deleteBaseline(s.baselines[0].id); s.saveBaseline('Reeks vervanger'); }), 'weigert');
-  await one(`reeks ${which}: alles wissen (catalogus; stap 3)`, saved, se(deleteAll), 'weigert');
-  // Met baselines in de bron weigert alles wissen om de baselinekop (stap 3).
-  await one(`reeks ${which}: alles wissen (bron)`, raw, se(deleteAll), which === 'eigen' || which === 'arity' ? 'weigert' : 'schrijft');
+  await one(`reeks ${which}: oude baseline wissen + nieuwe maken (catalogus)`, saved, se(s => { s.deleteBaseline(s.baselines[0].id); s.saveBaseline('Reeks vervanger'); }), 'schrijft');
+  await one(`reeks ${which}: alles wissen (catalogus)`, saved, se(deleteAll), 'schrijft');
+  // Op `ifc-arity-oude-writer.ifc` heeft geen kop een StartTime; de writer schrijft er een, dus (b) zet `$` terug en de koppen
+  // zijn in de bron niet gedragen. Dan beweegt een kop niet mee (E1): (c) toetst zo'n groep niet.
+  await one(`reeks ${which}: alles wissen (bron)`, raw, se(deleteAll), which === 'arity' ? 'weigert' : 'schrijft');
   await reopenedChain(which, raw, [
     ['1 type, code en baseline maken', s => {
       s.ensureProjectTaskType({ id: 'type-k', name: 'Type keten' });
@@ -294,14 +299,15 @@ async function series(which: Which) {
       s.renameActivityCodeType(s.activityCodeTypes.find((c: any) => c.name === 'Code keten').id, 'Code keten hernoemd');
       s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-k').id); s.saveBaseline('Keten B2');
     }, 'schrijft'],
-    ['3 baseline B1 wissen, B2 actief, type aan nieuwe taak (stap 3)', s => {
+    // Op het oude bestand is `OPS_Baselines` na stap 2 niet meer gedragen: de GlobalId van de baselinerij van de gewiste
+    // taak verandert bij herlezen (knownbug 1702). Dan geldt de controle van main, en die kan een kop die wegvalt niet
+    // verklaren.
+    ['3 baseline B1 wissen, B2 actief, type aan nieuwe taak', s => {
       s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Keten B1').id);
       s.setActiveBaseline(s.baselines.find((b: any) => b.name === 'Keten B2').id);
       const id = addTask(s, 'Keten nieuw'); s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-k' });
-    }, 'weigert'],
-    ['4 alles wissen (stap 3)', deleteAll, 'weigert'],
-    // Op het oude bestand is `OPS_Baselines` na stap 2 niet meer gedragen: de GlobalId van de baselinerij van de gewiste
-    // taak verandert bij herlezen (knownbug 1702). Dan geldt de controle van main.
+    }, which === 'oud' ? 'weigert' : 'schrijft'],
+    ['4 alles wissen', deleteAll, which === 'oud' ? 'weigert' : 'schrijft'],
     ['5 taak en baseline erbij', s => { addTask(s, 'Keten na wissen'); s.saveBaseline('Keten B3'); }, which === 'oud' ? 'weigert' : 'schrijft'],
   ]);
 }
@@ -317,9 +323,9 @@ const SESSION: [string, (s: S) => void, Expect][] = [
     s.setTaskActivityCode(leaves(s)[1].id, c.id, c.values[0].id);
   }, 'schrijft'],
   ['3 een getypeerde taak wissen', s => { s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-s').id); }, 'schrijft'],
-  ['4 baseline B1 wissen en B2 actief (stap 3)', s => {
+  ['4 baseline B1 wissen en B2 actief', s => {
     s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Sessie B1').id); s.setActiveBaseline(s.baselines.find((b: any) => b.name === 'Sessie B2').id);
-  }, 'weigert'],
+  }, 'schrijft'],
   ['5 het type van de laatste taak weghalen', s => { for (const t of s.tasks.filter((t: any) => t.customTaskTypeId)) s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined }); }, 'schrijft'],
   ['6 code wissen', s => { for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id); }, 'schrijft'],
   ['7 niets bewerken (opnieuw Ctrl+S)', () => {}, 'schrijft'],
@@ -347,12 +353,144 @@ clock.mode = 'vast';
   await kept('vreemd lid in OPS_Baselines: baseline erbij', bl, PSET.Baselines, se(s => s.saveBaseline('Met vreemd lid')), 'schrijft');
   await kept('vreemd lid in OPS_StructureMeta: tweede code', meta, PSET.StructureMeta, se(s => { const c = s.addActivityCodeType('Code met vreemd lid'); s.addActivityCodeValue(c, { code: 'V', description: 'V' }); }), 'schrijft');
   // Het laatste eigen lid valt weg: alleen het vreemde lid blijft in de pset over. Een groep met een vreemd lid is niet
-  // gedragen (de writer schrijft dat lid niet): de controle van main weigert, zoals op de basis.
-  await kept('vreemd lid in OPS_Baselines: alle baselines wissen (stap 3)', bl, PSET.Baselines, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), 'weigert');
+  // gedragen (de writer schrijft dat lid niet): de controle van main weigert, zoals op de basis. Dan beweegt ook de
+  // baselinekop niet mee (E1 eist een gedragen `OPS_Baselines`).
+  await kept('vreemd lid in OPS_Baselines: alle baselines wissen', bl, PSET.Baselines, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), 'weigert');
   await kept('vreemd lid in OPS_TaskTypes: type weghalen bij de laatste taak', types, PSET.TaskTypes, se(s => {
     const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-7c'); s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
   }), 'weigert');
   await kept('vreemd lid in OPS_StructureMeta: de laatste code wissen', meta, PSET.StructureMeta, se(s => { for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id); }), 'weigert');
+}
+
+// ── 5. PR 12c: de baselinekop beweegt mee met zijn baseline (E1) ──
+const parsedLines = (bytes: Uint8Array) => latin1(bytes).split('\n').map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+const isHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
+/** De aggregatie van het eigen werkplan: de `IfcRelAggregates` met het `IfcWorkPlan` als geheel. */
+const planAggregate = (ls: readonly OutLine[]) => {
+  const plan = ls.find(l => l.type === 'IFCWORKPLAN')!;
+  const agg = ls.find(l => l.type === 'IFCRELAGGREGATES' && l.args[4].trim() === `#${plan.id}`);
+  assert(agg, 'aggregatie van het werkplan niet gevonden'); return agg;
+};
+const membersOf = (l: OutLine) => l.args[5].trim().slice(1, -1).split(',').map(x => x.trim());
+const withMembers = (l: OutLine, m: readonly string[]): OutLine => ({ ...l, args: l.args.map((a, k) => k === 5 ? `(${m.join(',')})` : a) });
+/** Vervang regels in de bytes (op id); de rest byte voor byte gelijk. */
+function replaced(bytes: Uint8Array, changed: readonly OutLine[], extra: readonly string[] = []): Uint8Array {
+  const byId = new Map(changed.map(l => [l.id, l]));
+  const text = latin1(bytes).split('\n').map(t => {
+    const l = parseOutLine(t.replace(/\r$/, ''));
+    const c = l && byId.get(l.id);
+    return c ? `#${c.id}=${c.type}(${c.args.join(',')});${t.endsWith('\r') ? '\r' : ''}` : t;
+  }).join('\n');
+  return bytesOf(extra.length ? withLines(text, extra) : text);
+}
+const wisEen = se(s => { s.deleteBaseline(s.baselines[0].id); });
+const wisAlle = se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); });
+
+// 1700 en 1581 op de drie bronnen (de catalogus van elk: de baselines van de bron plus twee, de laatste actief), en de
+// baselinestappen.
+for (const which of ['eigen', 'kantoor', 'oud'] as const) {
+  const { saved } = prepared.get(which)!;
+  await one(`kop ${which}: één bestaande baseline wissen (1700)`, saved, wisEen, 'schrijft');
+  await one(`kop ${which}: de actieve baseline wissen (1700)`, saved, se(s => { s.deleteBaseline(s.activeBaselineId); }), 'schrijft');
+  await one(`kop ${which}: alle baselines wissen (1581)`, saved, wisAlle, 'schrijft');
+  await one(`kop ${which}: een baseline wissen en een nieuwe met dezelfde naam maken`, saved, se(s => {
+    const b = s.baselines[0]; s.deleteBaseline(b.id); s.saveBaseline(b.name);
+  }), 'schrijft');
+  await one(`kop ${which}: actieve baseline wisselen, dan de oude actieve wissen`, saved, se(s => {
+    const was = s.activeBaselineId; s.setActiveBaseline(s.baselines.find((b: any) => b.id !== was).id); s.deleteBaseline(was);
+  }), 'schrijft');
+  await one(`kop ${which}: actieve baseline wisselen, dan de nieuwe actieve wissen`, saved, se(s => {
+    const next = s.baselines.find((b: any) => b.id !== s.activeBaselineId).id; s.setActiveBaseline(next); s.deleteBaseline(next);
+  }), 'schrijft');
+  await one(`kop ${which}: een baseline hernoemen`, saved, se(s => { s.renameBaseline(s.baselines[0].id, 'Hernoemde baseline'); }), 'schrijft');
+  await reopenedChain(`kop ${which} vergelijking`, saved, [
+    ['1 baseline C erbij, de eerste in de vergelijking', s => { s.saveBaseline('Baseline C kop'); s.toggleComparedBaseline(s.baselines[0].id); }, 'schrijft'],
+    ['2 de vergeleken baseline wissen', s => { s.deleteBaseline(s.comparedBaselineIds.find((id: any) => id)); }, 'schrijft'],
+  ]);
+}
+// Knownbug 1708: op `ifc-arity-oude-writer.ifc` (+ wand) verandert het openen `OPS_Baselines` in de ruwe vorm, niet in de
+// bronvorm. Op dat bestand zelf beweegt de kop niet mee: (b) zet de lege StartTime van de koppen terug (hierboven). In een
+// variant met de StartTime van de koppen zoals de writer hem schrijft (de baselines zelf blijven in hun oude vorm) valt
+// `OPS_Baselines` met (a′) op de bronvorm onder de toets en beweegt de kop mee; met (a′) op de ruwe vorm gold de controle
+// van main, en die verklaart een kop die wegvalt niet.
+await one('arity: één baseline wissen (koppen niet gedragen)', arity, wisEen, 'weigert');
+const arityKoppen = (() => {
+  let n = 0;
+  const text = latin1(arity).split('\n').map(t => {
+    const l = parseOutLine(t.replace(/\r$/, ''));
+    if (!l || !isHead(l) || l.args.length !== 15 || l.args[12].trim() !== '$') return t;
+    n++;
+    return `#${l.id}=${l.type}(${l.args.map((a, k) => k === 12 ? "'2027-05-07T07:00:00'" : a).join(',')});${t.endsWith('\r') ? '\r' : ''}`;
+  }).join('\n');
+  assert(n === 2, 'arity: twee koppen zonder StartTime');
+  return bytesOf(text);
+})();
+await one('1708 arity met koppen in writervorm: projectbeschrijving', arityKoppen, beschrijving, 'schrijft');
+await one('1708 arity met koppen in writervorm: één baseline wissen (a′ op de bronvorm)', arityKoppen, wisEen, 'schrijft');
+await one('1708 arity met koppen in writervorm: alle baselines wissen (a′ op de bronvorm)', arityKoppen, wisAlle, 'schrijft');
+
+// Wat moet blijven weigeren: de bronnen.
+{
+  const ls = parsedLines(cat), agg = planAggregate(ls), m = membersOf(agg);
+  assert(m.length === 4 && m.slice(1).every(id => isHead(ls.find(l => `#${l.id}` === id)!)), 'catalogus: live schema en drie koppen');
+  // Een lid van een ander programma in de aggregatie van het werkplan: de aggregatie is dan gemengd en blijft byte voor
+  // byte staan; een kop die daaruit weg moet, weigert (`verwijderd`, fase 2).
+  const vreemdLid = replaced(cat, [withMembers(agg, [m[0], '#95200', ...m.slice(1)])],
+    ["#95200=IFCCOSTSCHEDULE('0R12CVREEMDSCHEMA00000',$,'Kosten van een ander programma',$,$,$,$,$,$,$);"]);
+  await one('kop: vreemd lid in de werkplanaggregatie, projectbeschrijving', vreemdLid, beschrijving, 'schrijft');
+  await one('kop: vreemd lid in de werkplanaggregatie, één baseline wissen', vreemdLid, wisEen, 'weigert');
+  // Een andere volgorde van de leden (een ander programma schreef de aggregatie anders): de writer schrijft zijn eigen
+  // volgorde, dus de leden zouden van plaats wisselen.
+  const volgorde = replaced(cat, [withMembers(agg, [m[1], m[0], m[2]])]);
+  await one('kop: aggregatie in een andere volgorde, één baseline wissen', volgorde, se(s => { s.deleteBaseline(s.baselines[1].id); }), 'weigert');
+  // Een kop met een omschrijving van een ander programma: de lezer leest haar niet, (b) zet haar terug, dus de koppen zijn in
+  // de bron niet gedragen.
+  const head = ls.find(l => `#${l.id}` === m[2])!;
+  const omschrijving = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 3 ? "'Omschrijving van een ander programma'" : a) }]);
+  await one('kop: omschrijving van een ander programma op een kop, projectbeschrijving', omschrijving, beschrijving, 'schrijft');
+  await one('kop: omschrijving van een ander programma op een kop, de andere baseline wissen', omschrijving, wisEen, 'weigert');
+  // `OPS_Baselines` niet gedragen: een vreemd lid in de pset.
+  const vreemdePset = withForeignMember(cat, PSET.Baselines);
+  await one('kop: vreemd lid in OPS_Baselines, projectbeschrijving', vreemdePset, beschrijving, 'schrijft');
+  await one('kop: vreemd lid in OPS_Baselines, één baseline wissen', vreemdePset, wisEen, 'weigert');
+}
+
+// Wat moet blijven weigeren: de verliescontrole zelf, op een nagebootste fout van de writer in O1 (`lossProbe`, met de
+// andere toets en de kop aan, zoals `prepareIfcWrite`). De echte O1 slaagt; elke fout in de aggregatie weigert daar.
+async function probe(label: string, bytes: Uint8Array, edit: Edit) {
+  const { o, d } = await one(label, bytes, edit, 'schrijft');
+  assert(o.ok, `${label}: basis voor de verliesproef schrijft`);
+  const p = await lossProbe(bytes, d, o.bytes, true);
+  ok(`verliesproef ${label}: de echte O1 slaagt`, p.run(p.o1).length === 0);
+  const agg = planAggregate(p.o1), chunk = p.index.chunkOf(String(agg.id));
+  const refuses = (what: string, lines: OutLine[]) => {
+    const found = p.run(lines);
+    console.log(`VERLIESPROEF ${label}: ${what}: ${found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR'}`);
+    ok(`verliesproef ${label}: ${what} weigert op de aggregatie`, found.includes(chunk));
+  };
+  const swap = (f: (m: string[]) => string[]) => p.o1.map(l => l === agg ? withMembers(l, f(membersOf(l))) : l);
+  return { p, agg, refuses, swap };
+}
+{
+  const { p, agg, refuses, swap } = await probe('kop: één baseline wissen', cat, wisEen);
+  const m = membersOf(agg);
+  assert(m.length === 3, 'na wissen: live schema en twee koppen');
+  refuses('het live schema valt weg', swap(x => x.slice(1)));
+  refuses('een ander lid erbij (een bouwdeel)', swap(x => [...x, `#${p.o1.find(l => l.type === 'IFCBUILDING' || l.type === 'IFCWALL')?.id ?? p.o1.find(l => l.type === 'IFCPROJECT')!.id}`]));
+  refuses('de leden wisselen van plaats', swap(x => [...x].reverse()));
+  refuses('de kop van de blijvende baseline valt weg', swap(x => x.filter(id => !isHead(p.o1.find(l => `#${l.id}` === id)!))));
+  const other = p.o1.find(l => l.type === 'IFCRELAGGREGATES' && l !== agg);
+  if (other) {
+    const head = m.find(id => isHead(p.o1.find(l => `#${l.id}` === id)!))!;
+    refuses('de kop verhuist naar een andere aggregatie', p.o1.map(l => l === agg ? withMembers(l, m.filter(id => id !== head))
+      : l === other ? withMembers(l, [...membersOf(l), head]) : l));
+  }
+}
+{
+  const { p, agg, refuses } = await probe('kop: projectbeschrijving', cat, beschrijving);
+  const m = membersOf(agg), head = m[2];
+  refuses('een kop valt weg zonder dat de planner een baseline wiste', p.o1.filter(l => `#${l.id}` !== head)
+    .map(l => l === agg ? withMembers(l, m.filter(id => id !== head)) : l));
 }
 
 finish();

@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
   applyEdit, fixedCatalogEdits, savedCatalogStart, fixedSequenceEdits, savedSequenceStart, basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
-  reopenPlain, shownAfterOpen, tryMerge,
+  lossProbe, reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
@@ -1536,27 +1536,7 @@ const jsonVan = (line: OutLine): any => {
 };
 const vervangJson = (lines: OutLine[], target: OutLine, value: unknown) => lines.map(l => l === target
   ? { ...l, args: l.args.map((a, k) => k === 2 ? `IFCTEXT(${ifcJson(value)})` : a) } : l);
-async function verliesProef(bytes: Uint8Array, input: Domain, output: Uint8Array) {
-  const opened = await openForeign(bytes), source = opened.ifcSource!;
-  const index = scanStep(bytes), cls = classify(index);
-  const plan = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
-  const o0 = regelsVan(bytes), o1 = regelsVan(output);
-  const reread = await openForeign(output);
-  const objects1 = new Map(Object.entries(reread.ifcSource!.stepIds).map(([key, id]) => [id, key]));
-  for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
-  const pristine = await pristineDomain(index, cls, source);
-  const run = (lines: OutLine[], edited = input, lines0 = o0) => {
-    const found: number[] = [];
-    lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
-      o0: lines0, o1: lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
-      plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
-      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-    }, f => found.push(f.chunk));
-    return found;
-  };
-  return { index, o0, o1, run, opened };
-}
+const verliesProef = (bytes: Uint8Array, input: Domain, output: Uint8Array) => lossProbe(bytes, input, output);
 const opgeslagenKaarten = await savedSequenceStart(eigenKaart);
 for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
   const opened = await openForeign(opgeslagenKaarten), source = opened.ifcSource!;
@@ -1630,9 +1610,9 @@ async function blijvendeWeigering(label: string, bytes: Uint8Array, edit: (d: Do
   }
 }
 /**
- * Was een blijvende weigering; sinds PR 12b (de andere toets voor de eigen projectgroepen) schrijft de merge. Het vreemde
- * deel blijft byte voor byte, en de codes, typen en baselines heropenen zoals na een gewone opslag zonder vreemd deel
- * (die laat bijvoorbeeld een ongebruikte taaktypedefinitie ook weg).
+ * Was een blijvende weigering; sinds PR 12b (de andere toets voor de eigen projectgroepen) of PR 12c (de baselinekop beweegt
+ * mee met zijn baseline) schrijft de merge. Het vreemde deel blijft byte voor byte, en de codes, typen en baselines heropenen
+ * zoals na een gewone opslag zonder vreemd deel (die laat bijvoorbeeld een ongebruikte taaktypedefinitie ook weg).
  */
 async function opgelosteWeigering(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
   const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
@@ -1646,10 +1626,10 @@ async function opgelosteWeigering(label: string, bytes: Uint8Array, edit: (d: Do
     console.log(`BEWIJS opgeloste weigering ${label}: geschreven, vreemd deel bytegelijk`);
   } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
-    ok(`${label}: schrijft sinds PR 12b, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+    ok(`${label}: schrijft sinds PR 12b/12c, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
   }
 }
-await blijvendeWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
+await opgelosteWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
   for (const b of s.baselines) s.deleteBaseline(b.id);
 }));
 for (const action of ['type-verliezen', 'laatste-taak-wissen']) {
