@@ -6,9 +6,13 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { buildExportIFCInput, buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
-import { writeIFC } from '@/services/ifc/ifcWriter';
+import { writeIFC, writeIFCWithChoices } from '@/services/ifc/ifcWriter';
+import { askPlanOnly, resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
+import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { classify } from '@/services/ifc/foreign/classify';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
@@ -17,9 +21,9 @@ import { createCloseDocumentDialogActions } from '@/components/layout/DocumentCh
 import { openInStore, loadStore } from './ifcAppRoute';
 import { installNodeFileIpc } from './nodeFileIpc';
 import { installDeterminism } from './ifcPariteitKern';
-import { mergeProblems, openForeign } from './ifcMergeKern';
+import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
 
-installDeterminism();
+const reseed = installDeterminism();
 await loadStore();
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const bytes = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
@@ -462,7 +466,7 @@ await check('IFC-export browser: volledige download, bron/doel/dirty/kalenders i
   } finally { browser.dispose(); }
 });
 
-for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering', 'pool'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
+for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
   const data = cause === 'mergeweigering' ? new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'))) : bytes;
   const { store } = await openInStore(data); longer(store);
   store.setState(s => {
@@ -472,7 +476,7 @@ for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering', 'pool'] as c
   const before = preserved(store), ipc = desktop(), target = join(dir, `export-${cause}.ifc`); ipc.choose(target);
   try {
     clearNotices(store);
-    const result = cause === 'pool' ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc');
+    const result = await store.getState().exportAs('ifc');
     assert(result.ok && result.cancelled); assert.equal(ipc.picks(), 0); assert.equal(existsSync(target), false);
     unchanged(store, before);
     assertNotice(store, cause === 'mergeweigering' ? 'notifications.ifcForeignMergeRefused' : cause === 'sourceMissing' ? 'notifications.ifcForeignSourceMissing' : 'notifications.ifcForeignSaveBlocked');
@@ -516,6 +520,248 @@ for (const flag of [true, false]) await check(`gewone IFC-export, flag ${flag}: 
     const output = new Uint8Array(readFileSync(target)); assert.equal(hash(output), hash(expected)); await openForeign(output);
     unchanged(store, before);
   } finally { ipc.dispose(); }
+});
+
+// ── PR 13: Exporteren → IFC zonder gebouwmodel en de export met bibliotheek, na de vraag "alleen de planning" ──
+const asked: PlanOnlyReason[] = [];
+const answer = (yes: boolean, during?: () => void) => setPlanOnlyAsker(async reason => { asked.push(reason); during?.(); return yes; });
+const withoutModel = { withoutBuildingModel: true } as const;
+/** De bibliotheek krijgt bij elke uitvoer een nieuw project (GlobalIds en intern id); de rest vergelijkt letterlijk. */
+const withoutGlobalIds = (text: string | null) => text?.replace(/'[0-9A-Za-z_$]{22}'/g, "'<GlobalId>'")
+  .replace(/'proj-[0-9a-z]+'/g, "'proj-<id>'");
+const writeCalls = (ipc: ReturnType<typeof desktop>) => ipc.calls.filter(c => c.command === 'plugin:fs|write'
+  || c.command === 'plugin:fs|write_text_file' || c.options?.write).length;
+/** De GlobalIds van de A- en V-stukken: het gebouwmodel en de gegevens van een ander programma. C (gedeelde context,
+ *  zoals het `IfcProject`) houdt in de planning zijn GlobalId; dat is de planning zelf. */
+function foreignGlobalIds(source: Uint8Array): string[] {
+  const index = scanForeignStep(source), { classes } = classify(index), ids: string[] = [];
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i) || classes[i] < 3) continue;
+    const m = /^\s*#\d+\s*=\s*\w+\s*\(\s*'([0-9A-Za-z_$]{22})'/.exec(new TextDecoder().decode(source.subarray(index.start(i), index.end(i))));
+    if (m) ids.push(`${m[1]} ${index.type(i)} ${'PCAV'[classes[i] - 1]}`);
+  }
+  return ids;
+}
+/** Het bestand bevat alleen planning: na indeling geen C, A of V, en geen GlobalId van het vreemde deel. */
+function assertPlanOnly(source: Uint8Array, out: Uint8Array) {
+  const { counts } = classify(scanForeignStep(out));
+  assert.deepEqual([counts.C, counts.A, counts.V], [0, 0, 0], 'het nieuwe bestand bevat alleen planning');
+  const ids = foreignGlobalIds(source), text = new TextDecoder().decode(out);
+  assert(ids.length > 0, 'de bron heeft een vreemd deel met GlobalIds');
+  assert.deepEqual(ids.filter(id => text.includes(id.slice(0, 22))), [], 'geen object van het vreemde deel in het nieuwe bestand');
+}
+/** Heropenen zoals Bestand → Openen, met de flag aan of uit: een gewoon document zonder vreemd deel. */
+async function reopenOrdinary(out: Uint8Array, flag: boolean) {
+  const { createAppStoreContext, buildWriteIFCInput: input } = await loadStore(), { store } = createAppStoreContext();
+  store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
+  await store.getState().openOpenedFile({ name: 'zonder-model.ifc', content: new TextDecoder().decode(out), bytes: out, ref: null });
+  const s = store.getState();
+  assert(s.tasks.length > 0, `flag ${flag}: de planning is geopend`);
+  assert.deepEqual(s.ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), [], `flag ${flag}: geen fout`);
+  assert.equal(hasForeignContent(s.ifcSource), false, `flag ${flag}: geen vreemd deel`);
+  assert.equal(s.foreignSourceMark, null, `flag ${flag}: geen bronkenmerk`);
+  assert.equal(ifcSaveBlocked(s), false, `flag ${flag}: gewoon op te slaan`);
+  return input(s, 'merge');
+}
+
+await check('zonder gebouwmodel, desktop: ja → alleen de planning, heropent gewoon, document intact, daarna volledig Opslaan als', async () => {
+  const original = join(dir, 'zonder-model-bron.ifc'); writeFileSync(original, bytes);
+  const store = await openAt({ kind: 'path', path: original }), ipc = desktop();
+  asked.length = 0; answer(true);
+  try {
+    longer(store); clearNotices(store);
+    const before = preserved(store), literal = store.getState().ifcLiteralCalendarIds;
+    const expected = writeIFCWithChoices(buildExportIFCInput(store.getState(), 'planOnly')).content;
+    const seen = await shownAfterOpen(buildWriteIFCInput(store.getState(), 'planOnly'));
+    const full = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!);
+    const target = join(dir, 'zonder-model.ifc'); ipc.choose(target);
+    const result = await store.getState().exportAs('ifc', withoutModel);
+    assert(result.ok && !result.cancelled, 'de export schrijft');
+    assert.deepEqual(asked, ['export'], 'één vraag, met de reden export');
+    const output = new Uint8Array(readFileSync(target));
+    assert.equal(new TextDecoder().decode(output), expected, 'de gewone writer met planOnly, van dezelfde staat');
+    assertPlanOnly(bytes, output);
+    for (const flag of [true, false]) {
+      assert.equal(canon(await reopenOrdinary(output, flag), reseed), canon(seen, reseed), `flag ${flag}: het domein dat de planner zag`);
+    }
+    unchanged(store, before);
+    assert(store.getState().ifcLiteralCalendarIds === literal, 'export legt geen letterlijke kalenders vast');
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), [], 'geen weigering');
+    const saved = join(dir, 'zonder-model-daarna-volledig.ifc'); ipc.choose(saved);
+    await store.getState().saveFileAs();
+    const again = new Uint8Array(readFileSync(saved));
+    assert.equal(hash(again), full.sha256, 'Opslaan als schrijft dezelfde bytes als zonder de export ervoor');
+    assert.deepEqual(mergeProblems(bytes, again), []);
+    assert.deepEqual(asked, ['export'], 'Opslaan als vraagt niets');
+  } finally { ipc.dispose(); resetPlanOnlyAsker(); }
+});
+
+await check('zonder gebouwmodel, browser: ja → download met alleen de planning', async () => {
+  const { store } = await openInStore(bytes); longer(store);
+  asked.length = 0; answer(true);
+  const before = preserved(store), browser = browserDownload();
+  try {
+    const expected = writeIFCWithChoices(buildExportIFCInput(store.getState(), 'planOnly')).content;
+    const result = await store.getState().exportAs('ifc', withoutModel);
+    assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 1);
+    assert.equal(await browser.downloads[0].text(), expected);
+    assertPlanOnly(bytes, new Uint8Array(await browser.downloads[0].arrayBuffer()));
+    assert.deepEqual(asked, ['export']); unchanged(store, before);
+  } finally { browser.dispose(); resetPlanOnlyAsker(); }
+});
+
+for (const route of ['export', 'pool'] as const) await check(`${route}: nee op de vraag → nul schrijfacties, geen melding`, async () => {
+  const { store } = await openInStore(bytes); longer(store);
+  if (route === 'pool') store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+  asked.length = 0; answer(false); clearNotices(store);
+  const before = preserved(store), ipc = desktop(), target = join(dir, `nee-${route}.ifc`); ipc.choose(target);
+  try {
+    const result = route === 'pool' ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc', withoutModel);
+    assert(result.ok && result.cancelled, 'telt als geannuleerd');
+    assert.deepEqual(asked, [route === 'pool' ? 'exportWithPool' : 'export']);
+    assert.equal(ipc.picks(), 0, 'geen bestandskiezer'); assert.equal(writeCalls(ipc), 0); assert.equal(existsSync(target), false);
+    assert.deepEqual(store.getState().ui.notifications, [], 'geen melding');
+    unchanged(store, before);
+  } finally { ipc.dispose(); resetPlanOnlyAsker(); }
+});
+
+for (const kind of ['eigen-bron', 'andere-bron', 'bestaand-model'] as const) for (const route of ['export', 'pool'] as const) {
+  await check(`${route} zonder gebouwmodel naar ${kind}: nul bytes, één melding`, async () => {
+    const target = join(dir, `zonder-model-${kind}-${route}.ifc`); writeFileSync(target, bytes);
+    const store = kind === 'bestaand-model' ? (await openInStore(bytes)).store : await openAt({ kind: 'path', path: target });
+    if (kind === 'andere-bron') {
+      // Het doel is de bron van het eerste document; de export komt uit een tweede document.
+      store.getState().newDocument();
+      await store.getState().openOpenedFile({ name: 'ander.ifc', content: '', bytes, ref: null });
+    }
+    if (route === 'pool') store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+    longer(store); asked.length = 0; answer(true); clearNotices(store);
+    const before = preserved(store), ipc = desktop(), oldHash = hash(new Uint8Array(readFileSync(target))); ipc.choose(target);
+    try {
+      const result = route === 'pool' ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc', withoutModel);
+      assert(result.ok && result.cancelled); assert.equal(asked.length, 1);
+      assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash, 'het bestand met gebouwmodel blijft heel');
+      assert.equal(writeCalls(ipc), 0); unchanged(store, before);
+      assertNotice(store, 'notifications.ifcForeignTargetExport');
+    } finally { ipc.dispose(); resetPlanOnlyAsker(); }
+  });
+}
+
+for (const change of ['documentwissel', 'bewerking', 'nieuwe-bron', 'ander-kenmerk', 'flag-uit'] as const) for (const route of ['export', 'pool'] as const) {
+  await check(`${route}: ${change} tijdens de vraag → nul bytes`, async () => {
+    const { store } = await openInStore(bytes); longer(store);
+    if (route === 'pool') store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+    const id = store.getState().activeDocumentId, before = preserved(store);
+    const other = change === 'nieuwe-bron' ? await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!) : null;
+    asked.length = 0; clearNotices(store);
+    answer(true, () => {
+      if (change === 'documentwissel') store.getState().newDocument();
+      else if (change === 'bewerking') longer(store);
+      else if (other) store.getState().commitSavedDocument(id, store.getState(), undefined, other);
+      else store.setState(s => {
+        if (change === 'flag-uit') s.ui.featureFlags = {};
+        else s.foreignSourceMark = { ...s.foreignSourceMark! };
+      });
+    });
+    const ipc = desktop(), target = join(dir, `tijdens-${change}-${route}.ifc`); ipc.choose(target);
+    try {
+      const result = route === 'pool' ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc', withoutModel);
+      assert(result.ok && result.cancelled); assert.equal(asked.length, 1);
+      assert.equal(ipc.picks(), 0, 'geen bestandskiezer'); assert.equal(writeCalls(ipc), 0); assert.equal(existsSync(target), false);
+      if (change === 'documentwissel') store.getState().switchDocument(id);
+      assertNotice(store, change === 'flag-uit' ? 'notifications.ifcForeignSaveBlocked' : 'notifications.ifcExportChangedWhileWaiting');
+    } finally { ipc.dispose(); resetPlanOnlyAsker(); }
+  });
+}
+
+await check('export met bibliotheek: vraag, projectbestand met alleen de planning, bibliotheek gelijk aan main, document intact', async () => {
+  const { store } = await openInStore(bytes); longer(store);
+  const companyId = store.getState().seedDemoLibrary();
+  store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+  asked.length = 0; answer(true); clearNotices(store);
+  const before = preserved(store), ipc = desktop();
+  const project = join(dir, 'pool-project.ifc'), library = join(dir, 'pool-bibliotheek.ifc');
+  ipc.choose(project); ipc.onPick(() => { if (ipc.picks() === 2) ipc.choose(library); });
+  try {
+    const expected = writeIFCWithChoices(buildExportIFCInput(store.getState(), 'planOnly')).content;
+    const expectedLibrary = store.getState().exportPoolIFC(companyId);
+    const result = await store.getState().exportProjectWithPool();
+    assert(result.ok && !result.cancelled, 'beide bestanden geschreven');
+    assert.deepEqual(asked, ['exportWithPool'], 'één vraag, ook zonder het vinkje Zonder gebouwmodel');
+    assert.equal(ipc.picks(), 2);
+    const output = new Uint8Array(readFileSync(project));
+    assert.equal(new TextDecoder().decode(output), expected); assertPlanOnly(bytes, output);
+    const libraryText = withoutGlobalIds(readFileSync(library, 'utf8'))!, mainLibrary = withoutGlobalIds(expectedLibrary)!;
+    assert(libraryText === mainLibrary, `de bibliotheek zoals main hem schrijft: ${firstDiff(libraryText, mainLibrary)}`);
+    await reopenOrdinary(output, true);
+    unchanged(store, before);
+  } finally { ipc.dispose(); resetPlanOnlyAsker(); }
+});
+
+for (const cause of ['sourceMissing', 'flag-uit'] as const) await check(`${cause}: beide routes zonder gebouwmodel geweigerd met de bestaande melding, geen vraag`, async () => {
+  const { store } = await openInStore(bytes); longer(store);
+  store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+  store.setState(s => {
+    if (cause === 'flag-uit') s.ui.featureFlags = {};
+    else { s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true }; s.ifcSource = null; }
+  });
+  asked.length = 0; answer(true);
+  const before = preserved(store), ipc = desktop(), target = join(dir, `geweigerd-${cause}.ifc`); ipc.choose(target);
+  try {
+    for (const run of [() => store.getState().exportAs('ifc', withoutModel), () => store.getState().exportProjectWithPool()]) {
+      clearNotices(store); const result = await run();
+      assert(result.ok && result.cancelled); assert.equal(ipc.picks(), 0); assert.equal(existsSync(target), false);
+      assertNotice(store, cause === 'sourceMissing' ? 'notifications.ifcForeignSourceMissing' : 'notifications.ifcForeignSaveBlocked');
+      unchanged(store, before);
+    }
+    assert.deepEqual(asked, [], 'geen vraag');
+  } finally { ipc.dispose(); resetPlanOnlyAsker(); }
+});
+
+for (const flag of [true, false]) await check(`zonder vreemd deel, flag ${flag}: geen vraag, dezelfde bytes als de gewone export`, async () => {
+  const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+  const { store } = await openInStore(plain);
+  store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; }); longer(store);
+  const companyId = store.getState().seedDemoLibrary();
+  store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+  asked.length = 0; answer(false);
+  const ipc = desktop();
+  try {
+    const exportTarget = join(dir, `gewoon-zonder-model-${flag}.ifc`); ipc.choose(exportTarget);
+    const expected = writeIFC(buildExportIFCInput(store.getState(), 'merge'));
+    assert((await store.getState().exportAs('ifc', withoutModel)).ok);
+    assert.equal(readFileSync(exportTarget, 'utf8'), expected, 'het vinkje verandert niets zonder gebouwmodel');
+    const project = join(dir, `gewoon-pool-${flag}.ifc`), library = join(dir, `gewoon-pool-bib-${flag}.ifc`);
+    ipc.choose(project); ipc.onPick(() => { if (ipc.picks() === 3) ipc.choose(library); });
+    const expectedProject = writeIFCWithChoices(buildExportIFCInput(store.getState(), 'planOnly')).content;
+    const pooled = await store.getState().exportProjectWithPool();
+    assert(pooled.ok && !pooled.cancelled);
+    assert.equal(readFileSync(project, 'utf8'), expectedProject);
+    const libraryText = withoutGlobalIds(readFileSync(library, 'utf8'))!, mainLibrary = withoutGlobalIds(store.getState().exportPoolIFC(companyId))!;
+    assert(libraryText === mainLibrary, `de bibliotheek zoals main hem schrijft: ${firstDiff(libraryText, mainLibrary)}`);
+    assert.deepEqual(asked, [], 'geen vraag');
+  } finally { ipc.dispose(); resetPlanOnlyAsker(); }
+});
+
+await check('zonder ja blijft planOnly geweigerd; een ja geldt één keer en alleen voor zijn reden', async () => {
+  const { store } = await openInStore(bytes);
+  const state = store.getState(), input = buildWriteIFCInput(state, 'planOnly');
+  const refused = async (confirmation?: Parameters<typeof prepareIfcOutput>[2], write = input) => {
+    try { await prepareIfcOutput(state, write, confirmation); return false; }
+    catch (error) { return error instanceof IfcWriteBlockedError; }
+  };
+  assert(await refused(), 'zonder bevestiging (MCP, paneel, kern) weigert planOnly');
+  assert(await refused({ reason: 'export' }), 'een zelfgemaakte bevestiging telt niet');
+  answer(true);
+  try {
+    const yes = (await askPlanOnly('export'))!;
+    assert.equal(await refused(yes), false, 'het ja laat precies deze ene voorbereiding door');
+    assert(await refused(yes), 'een tweede keer geldt hetzelfde ja niet');
+    assert(await refused((await askPlanOnly('export'))!, buildWriteIFCInput(state, 'merge')), 'een ja geldt niet voor merge');
+    assert(await refused((await askPlanOnly('missingSourceSaveAs'))!), 'het ja van Opslaan als geldt niet bij een aanwezig gebouwmodel');
+    answer(false);
+    assert.equal(await askPlanOnly('export'), null, 'nee geeft geen bevestiging');
+  } finally { resetPlanOnlyAsker(); }
 });
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);
