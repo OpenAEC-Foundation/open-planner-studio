@@ -312,6 +312,12 @@ export interface ImportResult {
    *  een ander formaat) krijgen `ifcGuid128`.
    *  Audit 2026-09-26. */
   ifcGlobalIds?: Readonly<Record<string, string>>;
+  /** Per baselinerij zonder levende taak (de rij houdt haar oude id, een "weesrij"): de GlobalId die `readIFC` ervoor
+   *  aannam, gesleuteld op die id. Precies de waarde waarmee `extractBaselines` de rij probeerde te koppelen. Alleen de
+   *  merge-route leest dit (PR 12e van #804, was knownbug 1702): zo houdt een weesrij bij een merge-opslag de GlobalId
+   *  van de bron, zonder tweede afleiding. Bewust geen documentveld: `payloadFromImport` neemt het niet over, en het gaat
+   *  dus niet naar het document, undo, herstel of de gewone writer. */
+  baselineOrphanGuids?: Readonly<Record<string, string>>;
   /** De kalenders die in het geopende IFC `LiteralTimes = .T.` hadden (`OPS_Calendar`, alleen `readIFC`). Knownbug 1026;
    *  het waarom en de afwijking van T17 staan bij `DocumentPayload.ifcLiteralCalendarIds`. */
   ifcLiteralCalendarIds?: string[];
