@@ -2785,6 +2785,15 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1781. **VERVOLG: de vertaalbrief moet de schrijfgrens van het station zelf expliciet noemen.**
+     Tijdens de maandagrelease van 16 november 2026 schreef de Finse vertaler naast zijn toegestane
+     `.out.json` ook een eigen reviewbestand. De algemene brief bevatte naleesinstructies die niet bij
+     zijn rol hoorden. Beide bestanden bleven binnen het gitignored `build/translate/`; alle 5316
+     gevolgde bestanden en de checkerhash bleven gelijk. Richting: elke vertaalbrief noemt letterlijk
+     uitsluitend zijn `.out.json` als uitvoer en verbiedt een reviewbestand of andere bestanden.
+     De eigenaar liet de bestanden bewaren als bewijs en het pakket opnieuw vertalen en nalezen.
+     Een herhaling binnen `build/translate/` krijgt dezelfde herstelroute; schrijven daarbuiten stopt. — B
+
 1780. **VERVOLG, VERMOED: de Perzische term voor een Gantt-balk kan met de Windows-taakbalk worden verward.**
      `i18n/termbase/fa.json`, concept `gantt-bar`: `نوار وظیفه` (bron `existing-ui`, status `arbitrated`).
      De Perzische Haiku-nalezer meldde bij `ui-menu-01` in de maandagrelease van 16 november 2026 dat deze
