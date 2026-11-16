@@ -701,10 +701,12 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
       const { store } = await openInStore(source);
       ok(`één afleiding ${label}: het veld staat nergens in de store na openen`, !hasKey(store.getState(), 'baselineOrphanGuids'));
     }
-    for (const [what, change] of [['een baseline erbij', se(s => s.saveBaseline('Eén afleiding'))],
+    for (const [what, change] of [['een taak en een baseline erbij', se(s => { addTask(s, 'Eén afleiding'); s.saveBaseline('Eén afleiding'); })],
       ['alleen de projectbeschrijving', se(s => { s.setProject({ description: 'Eén afleiding' }); })]] as const) {
       // Met een getal schrijft de merge het getal zoals de lezer het aannam; (b) hoeft niets terug te zetten, dus ook een
-      // baseline erbij schrijft (tot de fixronde: niet-gedragen). Zonder sleutel: de uitkomst wordt hier alleen gemeten.
+      // taak en een baseline erbij schrijft. Die geeft `TaskGuids` een nieuwe sleutel, dus daar schrijft de writer de kaart
+      // zelf, en zet (b) haar niet terug: alleen daar ziet de proef een eigen afleiding van de merge (een baseline alleen
+      // geeft dezelfde kaart, en dan zet (b) de bronwaarde terug). Zonder sleutel: de uitkomst wordt hier alleen gemeten.
       const { o } = await edited(`één afleiding ${label}: ${what}`, source, change, number);
       if (!o.ok) { console.log(`ÉÉN AFLEIDING ${label}: ${what}: ${o.kinds.join(',')}: ${o.detail.slice(0, 200)}`); continue; }
       const guids = json(o.bytes, 'TaskGuids') as Record<string, unknown>;
