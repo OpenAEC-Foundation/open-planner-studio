@@ -12,12 +12,29 @@
 //! één van beide namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`),
 //! en alleen wat plugin-fs `rename` voor deze webview ook toelaat.
 //!
-//! **Wat geplaatst wordt, is wat gecontroleerd is** (review #972, blokkade 2). Het commando opent de map
-//! één keer en houdt haar vast; de scope geldt het echte pad van die open map. Het opent de bron zonder
-//! links te volgen, stelt op de open bron vast dat het een gewoon bestand is, en doet de stap relatief
-//! aan de open map (Unix) of aan de open bron (Windows). Daarna gaat het na dat op het doel nu de open
-//! bron staat, zowel in de open map als via het pad van de aanroeper. Is dat niet zo, dan is er tussen
-//! controle en stap gewisseld: het zet exclusief terug en geeft `source-changed`, nooit "geplaatst".
+//! **De grens van dit commando** (besluit van de technisch beslisser, 16 november 2026; review #972).
+//!
+//! Eisen:
+//! - nooit een bestaand doel vervangen;
+//! - nooit een pad toelaten dat plugin-fs weigert (de oorspronkelijke `from`/`to`-tekst plus de echte map);
+//! - een fout van de stap blijft een fout (`EEXIST` is `target-exists`, ook bij hetzelfde inode);
+//! - na de stap hoogstens één verplaatsing, geen herstel.
+//!
+//! Buiten de grens (benoemd, knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen
+//! controle en stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als
+//! het dat achteraf ziet, en kan het missen bij een wissel-terug. Op Windows speelt dit niet.
+//!
+//! Waarom: op Linux en macOS hernoemt het systeem op naam, dus een strikte binding bestaat daar niet
+//! zonder een omweg in twee stappen die alleen Linux heeft. Wie tussen controle en stap een object onder
+//! de hulpnaam kan zetten, heeft via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`.
+//!
+//! Hoe: het commando toetst eerst de padteksten zoals plugin-fs `rename` (`SafeFilePath`, dan de scope
+//! van `from` en daarna van `to`). Het opent de map één keer en houdt haar vast; de scope geldt ook het
+//! echte pad van die open map. Het opent de bron zonder links te volgen en stelt op de open bron vast dat
+//! het een gewoon bestand is. De stap gaat relatief aan de open map (Unix) of hernoemt de open bron
+//! (Windows; map en bron zijn geopend zonder `FILE_SHARE_DELETE`). Daarna gaat het na dat op het doel de
+//! open bron staat, in de open map en via het pad van de aanroeper. Is dat niet zo, dan geeft het
+//! `source-changed` en raakt het niets meer aan; die uitkomst belooft geen stand op schijf.
 //!
 //! Geen terugval: kent het bestandssysteem of het platform de gebonden exclusieve stap niet, dan is de
 //! uitkomst *niet ondersteund* en is er niets verplaatst. Een `link()` + `unlink()` liet een bestand
@@ -55,12 +72,12 @@ pub enum PlaceError {
     Unsupported { message: String },
     /// Geweigerd vóór enige wijziging.
     Refused { reason: RefusalReason },
-    /// Tussen de controle en de stap is de bron of de map gewisseld: op het doel stond daarna niet de
-    /// gecontroleerde bron. Het commando zette exclusief terug wat het verplaatste (`restored`); lukte
-    /// dat niet, dan staat het verplaatste op `to` en meldt `restored: false` dat.
-    SourceChanged { restored: bool },
-    /// Een andere fout van het systeem, met zijn tekst. Er is niets verplaatst (zie knownbug 1795 voor
-    /// netwerkschijven).
+    /// Na de stap stond op het doel niet de gecontroleerde bron: tussen controle en stap is de bron of
+    /// de map gewisseld, of daarna het doel. Het commando raakt daarna niets meer aan en belooft geen
+    /// stand op schijf: wat de stap verplaatste, kan op `to` staan of al weer weg zijn.
+    SourceChanged,
+    /// Een andere fout van het systeem, met zijn tekst. Er is niets verplaatst, behalve op een
+    /// netwerkschijf die de fout pas meldt nadat de hernoeming gebeurde (knownbug 1795).
     Io { message: String },
 }
 
@@ -68,7 +85,8 @@ pub enum PlaceError {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RefusalReason {
-    /// Geen absoluut pad, geen gewone bestandsnaam, of niet dezelfde map.
+    /// Geen pad dat plugin-fs aanneemt (`SafeFilePath`: geen `..`, geen URL), geen absoluut pad, geen
+    /// gewone bestandsnaam, of niet dezelfde map.
     PathShape,
     /// Niet precies één van beide namen is een eigen hulpbestand.
     HelperName,
@@ -478,8 +496,7 @@ mod sys {
     }
 
     /// `FlushFileBuffers` op de open bron na de hernoeming. Een map is op Windows niet als bestand vast
-    /// te leggen; `MoveFileExW` met `MOVEFILE_WRITE_THROUGH` doet volgens zijn documentatie ook niets
-    /// anders dan pas terugkeren als de verplaatsing op schijf staat.
+    /// te leggen; of dit de nieuwe naam bij stroomuitval vasthoudt, is niet met een proef bewezen.
     pub fn sync_dir(_dir: &OpenDir, source: &File) -> io::Result<()> {
         source.sync_all()
     }
@@ -581,19 +598,30 @@ fn split_path(path: &str) -> Option<(&str, &str)> {
     plain.then_some((dir, name))
 }
 
+/// Een padtekst die plugin-fs `rename` als `SafeFilePath::Path` aanneemt (dezelfde ontleding, ook de
+/// weigering van `..` door `SafePathBuf`), gesplitst door [`split_path`].
+fn plain_path(path: &str) -> Option<(&str, &str)> {
+    use std::str::FromStr;
+    match tauri_plugin_fs::SafeFilePath::from_str(path).ok()? {
+        tauri_plugin_fs::SafeFilePath::Path(_) => split_path(path),
+        tauri_plugin_fs::SafeFilePath::Url(_) => None,
+    }
+}
+
 /// `place_file_exclusive(from, to)`: verplaats `from` exclusief naar `to`, in dezelfde map.
 ///
 /// Volgorde; bij de eerste weigering stopt het en is er niets veranderd:
-/// 1. vorm: beide absoluut, gewone bestandsnamen; de map van `from` geopend en vastgehouden, en die
-///    van `to` is dezelfde open map (zelfde identiteit);
-/// 2. precies één van beide namen is een eigen hulpbestand;
-/// 3. beide paden in de scope, getoetst op het echte pad van de open map;
-/// 4. de bron, geopend in de open map zonder links te volgen, is een gewoon bestand;
-/// 5. fsync van de open bron;
-/// 6. de exclusieve stap, gebonden aan de open map (Unix) of de open bron (Windows);
-/// 7. controle: op het doel staat nu de open bron, in de open map én via het pad van de aanroeper;
-///    anders exclusief terugzetten en [`PlaceError::SourceChanged`];
-/// 8. fsync van de map; faalt alleen deze, dan is de uitkomst [`PlaceOutcome::DirNotSynced`].
+/// 1. de padteksten zoals plugin-fs ze aanneemt (`SafeFilePath`), absoluut, gewone bestandsnamen;
+/// 2. de padteksten in de scope, zoals plugin-fs `rename`: eerst `from`, dan `to`;
+/// 3. de map van `from` geopend en vastgehouden, en die van `to` is dezelfde open map;
+/// 4. precies één van beide namen is een eigen hulpbestand;
+/// 5. beide paden in de scope, ook op het echte pad van de open map;
+/// 6. de bron, geopend in de open map zonder links te volgen, is een gewoon bestand;
+/// 7. fsync van de open bron;
+/// 8. de exclusieve stap; een fout blijft een fout;
+/// 9. controle: op het doel staat nu de open bron, in de open map én via het pad van de aanroeper;
+///    anders [`PlaceError::SourceChanged`], zonder verdere stap;
+/// 10. fsync van de map; faalt alleen deze, dan is de uitkomst [`PlaceOutcome::DirNotSynced`].
 pub(crate) fn place(
     from: &str,
     to: &str,
@@ -602,10 +630,19 @@ pub(crate) fn place(
 ) -> Result<PlaceOutcome, PlaceError> {
     let refused = |reason| PlaceError::Refused { reason };
 
-    // 1. Vorm. Een map die niet te openen is, geeft dezelfde weigering zonder systeemtekst: dit gebeurt
-    // vóór de scopecontrole, en mag dus niets zeggen over paden buiten de scope.
-    let (from_dir, from_name) = split_path(from).ok_or(refused(RefusalReason::PathShape))?;
-    let (to_dir, to_name) = split_path(to).ok_or(refused(RefusalReason::PathShape))?;
+    // 1. De padteksten, zoals plugin-fs `rename` ze als `SafeFilePath` aanneemt: geen `..`
+    // (`SafePathBuf`). Een URL neemt dit commando niet aan.
+    let (from_dir, from_name) = plain_path(from).ok_or(refused(RefusalReason::PathShape))?;
+    let (to_dir, to_name) = plain_path(to).ok_or(refused(RefusalReason::PathShape))?;
+
+    // 2. De scope op de padteksten van de aanroeper, in de volgorde van plugin-fs `rename`. Een doel dat
+    // nog niet bestaat, maakt Tauri niet canoniek: een link in de map telt dus mee zoals hij er staat.
+    if !in_scope(Path::new(from)) || !in_scope(Path::new(to)) {
+        return Err(refused(RefusalReason::Scope));
+    }
+
+    // 3. Dezelfde map, één keer geopend. Een map die niet te openen is, geeft dezelfde weigering
+    // zonder systeemtekst.
     let shape = |_| refused(RefusalReason::PathShape);
     let dir = sys::open_dir(Path::new(from_dir)).map_err(shape)?;
     let dir_id = sys::file_id(&dir).map_err(shape)?;
@@ -616,12 +653,12 @@ pub(crate) fn place(
         return Err(refused(RefusalReason::PathShape));
     }
 
-    // 2. Precies één hulpnaam.
+    // 4. Precies één hulpnaam.
     if is_helper_name(from_name) == is_helper_name(to_name) {
         return Err(refused(RefusalReason::HelperName));
     }
 
-    // 3. Scope, op het echte pad van de open map.
+    // 5. De scope ook op het echte pad van de open map.
     let real = sys::real_path(&dir).map_err(|e| PlaceError::Unsupported {
         message: e.to_string(),
     })?;
@@ -630,7 +667,7 @@ pub(crate) fn place(
         return Err(refused(RefusalReason::Scope));
     }
 
-    // 4. De bron, geopend in de open map zonder links te volgen, is een gewoon bestand.
+    // 6. De bron, geopend in de open map zonder links te volgen, is een gewoon bestand.
     let source = sys::open_source(&dir, from_name).map_err(|e| {
         if sys::is_link_refusal(&e) {
             refused(RefusalReason::NotRegularFile)
@@ -643,28 +680,24 @@ pub(crate) fn place(
     }
     let source_id = sys::file_id(&source).map_err(io_error)?;
 
-    // 5. Inhoud vastleggen vóór de naam verandert.
+    // 7. Inhoud vastleggen vóór de naam verandert.
     ops.sync_file(&source).map_err(io_error)?;
 
-    // 6. De exclusieve stap. Een fout kan op een netwerkschijf ook komen nádat de hernoeming gebeurde
-    // (knownbug 1795): staat de open bron nu op het doel, dan is ze verplaatst en gaat de controle door.
-    if let Err(error) = ops.rename_exclusive(&dir, &source, from_name, to_name) {
-        if sys::id_in_dir(&dir, to_name).ok() != Some(source_id) {
-            return Err(step_error(error));
-        }
-    }
+    // 8. De exclusieve stap. Een fout blijft een fout, ook als op het doel hetzelfde inode staat (een
+    // harde link): dan is er niets verplaatst. Een netwerkschijf kan de fout pas geven nadat de
+    // hernoeming gebeurde; dat vangt het commando niet (knownbug 1795).
+    ops.rename_exclusive(&dir, &source, from_name, to_name)
+        .map_err(step_error)?;
 
-    // 7. Staat op het doel de gecontroleerde bron, in de open map én waar de aanroeper kijkt?
+    // 9. Staat op het doel de gecontroleerde bron, in de open map én waar de aanroeper kijkt? Zo niet,
+    // dan geen tweede stap: die zou op naam werken en kan een ander bestand raken (knownbug 1799).
     let in_dir = sys::id_in_dir(&dir, to_name).ok() == Some(source_id);
     let at_caller = sys::id_of_path(Path::new(to)).ok() == Some(source_id);
     if !(in_dir && at_caller) {
-        let restored = ops
-            .rename_exclusive(&dir, &source, to_name, from_name)
-            .is_ok();
-        return Err(PlaceError::SourceChanged { restored });
+        return Err(PlaceError::SourceChanged);
     }
 
-    // 8. De map vastleggen.
+    // 10. De map vastleggen.
     match ops.sync_dir(&dir, &source) {
         Ok(()) => Ok(PlaceOutcome::Placed),
         Err(e) => Ok(PlaceOutcome::DirNotSynced {
@@ -769,8 +802,8 @@ impl FsRenameScope {
 
 /// Het Tauri-commando. Het werk (fsync kan even duren) draait buiten de hoofdthread.
 #[tauri::command]
-pub async fn place_file_exclusive(
-    webview: tauri::Webview,
+pub async fn place_file_exclusive<R: tauri::Runtime>(
+    webview: tauri::Webview<R>,
     from: String,
     to: String,
 ) -> Result<PlaceOutcome, PlaceError> {
@@ -825,11 +858,12 @@ mod tests {
             text(&path)
         }
 
-        /// De naad voor de scope: alles onder de echte map van de proef. De echte scope van plugin-fs
-        /// toetst `place_file_scope_volgt_plugin_fs`.
+        /// De naad voor de scope: alles onder de map van de proef, in de gewone en de echte schrijfwijze
+        /// (macOS: `/var` en `/private/var`). De echte scope van plugin-fs toetsen
+        /// `place_file_scope_volgt_plugin_fs` en `place_file_weigert_wat_plugin_fs_weigert`.
         fn scope(&self) -> impl Fn(&Path) -> bool {
-            let root = self.real.clone();
-            move |path: &Path| path.starts_with(&root)
+            let roots = [self.path.clone(), self.real.clone()];
+            move |path: &Path| roots.iter().any(|root| path.starts_with(root))
         }
     }
 
@@ -866,6 +900,7 @@ mod tests {
         rename_error: Option<fn() -> io::Error>,
         error_after_rename: bool,
         before_rename: RefCell<Option<Box<dyn FnOnce()>>>,
+        after_rename: RefCell<Option<Box<dyn FnOnce()>>>,
         fail_sync_dir: bool,
     }
 
@@ -894,6 +929,12 @@ mod tests {
                 return Err(make());
             }
             let result = SystemOps.rename_exclusive(dir, source, from, to);
+            if result.is_ok() {
+                let hook = self.after_rename.borrow_mut().take();
+                if let Some(hook) = hook {
+                    hook();
+                }
+            }
             if self.error_after_rename && result.is_ok() {
                 return Err(io::Error::other("nagebootste fout na de hernoeming"));
             }
@@ -958,8 +999,8 @@ mod tests {
             r#"{"code":"io","message":"m"}"#
         );
         assert_eq!(
-            json(&PlaceError::SourceChanged { restored: true }),
-            r#"{"code":"source-changed","restored":true}"#
+            json(&PlaceError::SourceChanged),
+            r#"{"code":"source-changed"}"#
         );
         for (reason, text) in [
             (RefusalReason::PathShape, "path-shape"),
@@ -1116,35 +1157,37 @@ mod tests {
         );
     }
 
-    // Proef 4: dezelfde map via een andere schrijfwijze telt als dezelfde map.
+    // Review #972 ronde 2, blokkade 3: `sub/..` wijst naar dezelfde echte map, maar plugin-fs neemt zo'n
+    // padtekst niet aan (`SafePathBuf`), dus dit commando ook niet.
     #[test]
-    fn place_file_zelfde_map_andere_schrijfwijze() {
+    fn place_file_ouderverwijzing_geweigerd() {
+        use std::str::FromStr;
         let dir = TempDir::new("schrijfwijze");
         std::fs::create_dir(dir.file("sub")).unwrap();
         let bytes = content(8, 1_000);
         let from = dir.write(TMP, &bytes);
-        // `sub/..` wijst naar dezelfde echte map.
         let sep = std::path::MAIN_SEPARATOR;
         let to = format!("{}{sep}sub{sep}..{sep}{DOEL}", text(&dir.path));
+        assert!(tauri_plugin_fs::SafeFilePath::from_str(&to).is_err());
         assert_eq!(
             place(&from, &to, &dir.scope(), &SystemOps),
-            Ok(PlaceOutcome::Placed)
+            refused(RefusalReason::PathShape)
         );
-        assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
+        assert_eq!(std::fs::read(dir.file(TMP)).unwrap(), bytes);
+        assert!(!exists(&dir.file(DOEL)));
     }
 
     #[cfg(unix)]
     #[test]
     fn place_file_zelfde_map_via_een_link() {
+        // Een link in de map van de proef naar die map zelf: de padtekst valt in de scope.
         let dir = TempDir::new("maplink");
-        let alias = dir.path.with_extension("alias");
-        let _ = std::fs::remove_file(&alias);
+        let alias = dir.file("alias");
         std::os::unix::fs::symlink(&dir.path, &alias).unwrap();
         let bytes = content(9, 1_000);
         let from = dir.write(TMP, &bytes);
         let to = text(&alias.join(DOEL));
         let uitkomst = place(&from, &to, &dir.scope(), &SystemOps);
-        let _ = std::fs::remove_file(&alias);
         assert_eq!(uitkomst, Ok(PlaceOutcome::Placed));
         assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
     }
@@ -1389,13 +1432,15 @@ mod tests {
         };
         let uitkomst = place(&from, &to, &dir.scope(), &ops);
         if gewisseld.get() {
-            assert_eq!(uitkomst, Err(PlaceError::SourceChanged { restored: true }));
-            assert!(dir.file(TMP).is_dir());
+            // Unix hernoemt op naam: de stap verplaatste de map die nu onder de hulpnaam stond. Het
+            // commando ziet dat en zet niets terug (knownbug 1799).
+            assert_eq!(uitkomst, Err(PlaceError::SourceChanged));
+            assert!(dir.file(DOEL).is_dir());
             assert_eq!(
-                std::fs::read(dir.file(TMP).join("binnen.txt")).unwrap(),
+                std::fs::read(dir.file(DOEL).join("binnen.txt")).unwrap(),
                 b"binnen"
             );
-            assert!(!exists(&dir.file(DOEL)));
+            assert!(!exists(&dir.file(TMP)));
             assert_eq!(std::fs::read(dir.file("opzij.bin")).unwrap(), bytes);
         } else {
             assert_eq!(uitkomst, Ok(PlaceOutcome::Placed));
@@ -1438,9 +1483,11 @@ mod tests {
         };
         let uitkomst = place(&from, &to, &dir.scope(), &ops);
         if gewisseld.get() {
-            assert_eq!(uitkomst, Err(PlaceError::SourceChanged { restored: true }));
-            assert_eq!(std::fs::read(opzij.join(TMP)).unwrap(), bytes);
-            assert!(!exists(&opzij.join(DOEL)));
+            // De stap ging in de open map (nu `werk-opzij`); via het pad van de aanroeper staat de bron
+            // niet op het doel. Niets teruggezet: de bron staat op het doel in de open map.
+            assert_eq!(uitkomst, Err(PlaceError::SourceChanged));
+            assert_eq!(std::fs::read(opzij.join(DOEL)).unwrap(), bytes);
+            assert!(!exists(&opzij.join(TMP)));
             assert!(!exists(&ander.join(DOEL)));
             assert!(!exists(&ander.join(TMP)));
             assert_eq!(std::fs::read(ander.join("ander.txt")).unwrap(), b"ander");
@@ -1456,7 +1503,8 @@ mod tests {
         );
     }
 
-    // Knownbug 1795: een fout die komt nádat de hernoeming gebeurde (NFS), met de open bron op het doel.
+    // Knownbug 1795: een fout die komt nádat de hernoeming gebeurde (netwerkschijf). Een fout van de stap
+    // blijft een fout; het commando vangt dit geval niet (de bron staat dan toch op het doel).
     #[test]
     fn place_file_fout_na_uitgevoerde_hernoeming() {
         let dir = TempDir::new("foutna");
@@ -1469,25 +1517,85 @@ mod tests {
         };
         assert_eq!(
             place(&from, &to, &dir.scope(), &ops),
-            Ok(PlaceOutcome::Placed)
+            Err(PlaceError::Io {
+                message: "nagebootste fout na de hernoeming".into()
+            })
         );
         assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
         assert!(!exists(&dir.file(TMP)));
+        assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
+    }
+
+    // Review #972 ronde 2, blokkade 2: een harde link van de bron op het doel. De echte stap weigert
+    // (`EEXIST`, Windows "bestaat al"); dat blijft `target-exists`, ook al is het hetzelfde bestand.
+    #[test]
+    fn place_file_harde_link_op_het_doel() {
+        let dir = TempDir::new("hardelink");
+        let bytes = content(34, 2_000);
+        let from = dir.write(TMP, &bytes);
+        std::fs::hard_link(dir.file(TMP), dir.file(DOEL)).unwrap();
+        let to = text(&dir.file(DOEL));
+        let ops = Recorder::default();
         assert_eq!(
-            *ops.events.borrow(),
-            ["sync_file", "rename_exclusive", "sync_dir"]
+            place(&from, &to, &dir.scope(), &ops),
+            Err(PlaceError::TargetExists)
+        );
+        assert_eq!(std::fs::read(dir.file(TMP)).unwrap(), bytes);
+        assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
+        assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
+    }
+
+    // Review #972 ronde 2, blokkade 1: na de stap zet een ander het doel opzij en een eigen bestand B op
+    // `to`. Het commando meldt `source-changed` en verplaatst niets meer: B blijft op `to`, de hulpnaam
+    // ontstaat niet opnieuw. Windows: het doel is de open bron (zonder `FILE_SHARE_DELETE`), opzij zetten
+    // lukt niet en de bron is geplaatst.
+    #[test]
+    fn place_file_doelwissel_na_de_stap() {
+        let dir = TempDir::new("doelwissel");
+        let bytes = content(35, 3_000);
+        let ander = content(36, 700);
+        let from = dir.write(TMP, &bytes);
+        let to = text(&dir.file(DOEL));
+        let (doel, opzij, b) = (dir.file(DOEL), dir.file("opzij.ifc"), ander.clone());
+        let gewisseld = Rc::new(Cell::new(false));
+        let vlag = Rc::clone(&gewisseld);
+        let ops = Recorder {
+            after_rename: RefCell::new(Some(Box::new(move || {
+                if std::fs::rename(&doel, &opzij).is_ok() {
+                    std::fs::write(&doel, &b).unwrap();
+                    vlag.set(true);
+                }
+            }))),
+            ..Recorder::default()
+        };
+        let uitkomst = place(&from, &to, &dir.scope(), &ops);
+        if gewisseld.get() {
+            assert_eq!(uitkomst, Err(PlaceError::SourceChanged));
+            assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), ander);
+            assert!(!exists(&dir.file(TMP)));
+            assert_eq!(std::fs::read(dir.file("opzij.ifc")).unwrap(), bytes);
+            assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
+        } else {
+            assert_eq!(uitkomst, Ok(PlaceOutcome::Placed));
+            assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
+        }
+        assert_eq!(
+            cfg!(unix),
+            gewisseld.get(),
+            "wissel gelukt: {}",
+            gewisseld.get()
         );
     }
 
-    // Blokkade 1 van de review van #972: de scope is die van plugin-fs `rename`, uit de echte
-    // `tauri.conf.json` en `capabilities/default.json`. Een nep-app van Tauri (`tauri::test`, geen echte
-    // webview) levert de webview; de opvraging en de omzetting van `$HOME` en dergelijke zijn echt.
-    #[test]
-    fn place_file_scope_volgt_plugin_fs() {
-        use tauri::Manager;
-        use tauri_plugin_fs::FsExt;
+    type MockApp = tauri::App<tauri::test::MockRuntime>;
+    type MockWindow = tauri::WebviewWindow<tauri::test::MockRuntime>;
+
+    /// Een nep-app van Tauri (`tauri::test`, geen echte webview) met de echte `tauri.conf.json` en
+    /// `capabilities/default.json`, plugin-fs en dit commando, plus het hoofdvenster.
+    fn echte_app() -> (MockApp, MockWindow) {
         let app = tauri::test::mock_builder()
             .plugin(tauri_plugin_fs::init())
+            .invoke_handler(tauri::generate_handler![super::place_file_exclusive])
             .build(tauri::generate_context!())
             .expect("nep-app met de echte config en capability");
         let config = app
@@ -1501,6 +1609,134 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
+        (app, window)
+    }
+
+    /// Een aanroep door de IPC van Tauri, zoals een pagina met een lokale oorsprong hem doet.
+    fn ipc(
+        window: &MockWindow,
+        cmd: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, serde_json::Value> {
+        let url = if cfg!(windows) {
+            "http://tauri.localhost"
+        } else {
+            "tauri://localhost"
+        };
+        tauri::test::get_ipc_response(
+            window,
+            tauri::webview::InvokeRequest {
+                cmd: cmd.into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: url.parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(body),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        )
+        .map(|body| body.deserialize::<serde_json::Value>().unwrap())
+    }
+
+    /// Ruimt de mappen in de thuismap op, ook als de proef faalt.
+    struct Opruimen(Vec<PathBuf>);
+
+    impl Drop for Opruimen {
+        fn drop(&mut self) {
+            for path in &self.0 {
+                if std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+                    let _ = std::fs::remove_file(path);
+                } else {
+                    let _ = std::fs::remove_dir_all(path);
+                }
+            }
+        }
+    }
+
+    // Review #972 ronde 2, blokkade 3: dezelfde invoer door de echte IPC naar plugin-fs `rename` en naar
+    // dit commando, met de echte capability. Wat plugin-fs weigert, weigert dit commando ook, en er
+    // verandert niets op schijf. Eerst een controle dat beide ingangen via de IPC werken.
+    #[test]
+    fn place_file_weigert_wat_plugin_fs_weigert() {
+        use serde_json::json;
+        use tauri::Manager;
+        let (app, window) = echte_app();
+        let home = app.path().home_dir().unwrap();
+        let naam = format!("ops-place-file-{}-ipc", std::process::id());
+        let echt = home.join(&naam);
+        let _opruimen = Opruimen(vec![echt.clone(), home.join(format!(".{naam}"))]);
+        let _ = std::fs::remove_dir_all(&echt);
+        std::fs::create_dir_all(echt.join("sub")).unwrap();
+        let bytes = content(40, 1_000);
+        std::fs::write(echt.join(TMP), &bytes).unwrap();
+        let from = text(&echt.join(TMP));
+
+        // Controle: plugin-fs `rename` werkt via deze IPC in deze map.
+        std::fs::write(echt.join("a.txt"), b"a").unwrap();
+        assert_eq!(
+            ipc(
+                &window,
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&echt.join("a.txt")), "newPath": text(&echt.join("b.txt")) })
+            ),
+            Ok(serde_json::Value::Null)
+        );
+        assert!(echt.join("b.txt").is_file());
+
+        let sep = std::path::MAIN_SEPARATOR;
+        #[allow(unused_mut)]
+        let mut gevallen = vec![(
+            format!("{}{sep}sub{sep}..{sep}{DOEL}", text(&echt)),
+            "path-shape",
+        )];
+        // Unix: `$HOME/.alias/doel.ifc` met `.alias` een link naar de toegestane map. Het doel bestaat
+        // nog niet, dus Tauri toetst de tekst, en `$HOME/**` laat een punt vooraan niet toe.
+        #[cfg(unix)]
+        {
+            let alias = home.join(format!(".{naam}"));
+            std::os::unix::fs::symlink(&echt, &alias).unwrap();
+            gevallen.push((text(&alias.join(DOEL)), "scope"));
+        }
+        for (to, reden) in &gevallen {
+            let fs = ipc(
+                &window,
+                "plugin:fs|rename",
+                json!({ "oldPath": from, "newPath": to }),
+            );
+            assert!(fs.is_err(), "plugin-fs nam {to} aan: {fs:?}");
+            assert_eq!(
+                ipc(
+                    &window,
+                    "place_file_exclusive",
+                    json!({ "from": from, "to": to })
+                ),
+                Err(json!({ "code": "refused", "reason": reden })),
+                "{to}"
+            );
+            assert_eq!(std::fs::read(echt.join(TMP)).unwrap(), bytes);
+            assert!(!exists(&echt.join(DOEL)));
+        }
+
+        // Controle: dezelfde bron naar een gewoon doel plaatst dit commando via dezelfde IPC.
+        assert_eq!(
+            ipc(
+                &window,
+                "place_file_exclusive",
+                json!({ "from": from, "to": text(&echt.join(DOEL)) })
+            ),
+            Ok(json!({ "code": "placed" }))
+        );
+        assert_eq!(std::fs::read(echt.join(DOEL)).unwrap(), bytes);
+    }
+
+    // Blokkade 1 van de review van #972: de scope is die van plugin-fs `rename`, uit de echte
+    // `tauri.conf.json` en `capabilities/default.json`. Een nep-app van Tauri (`tauri::test`, geen echte
+    // webview) levert de webview; de opvraging en de omzetting van `$HOME` en dergelijke zijn echt.
+    #[test]
+    fn place_file_scope_volgt_plugin_fs() {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let (app, window) = echte_app();
         let webview: &tauri::Webview<_> = window.as_ref();
         let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
 
