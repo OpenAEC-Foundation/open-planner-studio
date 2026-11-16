@@ -141,15 +141,32 @@ const twee = await (async () => {
   assert(o.ok, 'voorbereiding: tweede code schrijft'); return o.bytes;
 })();
 const prepared = new Map<string, { saved: Uint8Array; single: Uint8Array }>();
-for (const which of ['eigen', 'kantoor', 'oud'] as const) {
-  const raw = SOURCES[which];
+const arity = withWall(read('tests/planning/fixtures/ifc-arity-oude-writer.ifc'));
+/** De bronnen van de 7d-gevallen en de reeksen; `arity`: een oud eigen bestand waar het openen `OPS_Baselines` in de ruwe
+ *  vorm verandert, niet in de bronvorm (onderzoek, vraag 2, tegenvoorbeeld 1). */
+const RAW = { ...SOURCES, arity } as const;
+type Which = keyof typeof RAW;
+for (const which of ['eigen', 'kantoor', 'oud', 'arity'] as const) {
+  const raw = RAW[which];
   prepared.set(which, { saved: await savedCatalogStart(raw), single: await savedCatalogStart(raw, false) });
 }
-const arity = withWall(read('tests/planning/fixtures/ifc-arity-oude-writer.ifc'));
 const unused = withJson(cat, 'TaskTypes', v => { v.definitions.push({ id: 'ongebruikt', name: 'Ongebruikt bron-type' }); });
 const unknownField = withJson(cat, 'TaskTypes', v => { v.definitions[0].onbekend = 'bewaar-mij'; });
 const unknownKey = withJson(cat, 'Baselines', v => { v[0].onbekendeSleutel = 'bewaar-mij'; });
 const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' }); });
+/** Een omschrijving op elk eigen codetemplate (`IfcSimplePropertyTemplate`, argument 3): de lezer leest haar niet, dus de
+ *  herleestoets (b) zet haar terug en `OPS_StructureMeta` is in de bron niet gedragen. */
+const describedTemplates = (() => {
+  let n = 0;
+  const text = latin1(twee).split('\n').map(l => {
+    const line = parseOutLine(l.replace(/\r$/, ''));
+    if (line?.type !== 'IFCSIMPLEPROPERTYTEMPLATE' || line.args[3].trim() !== '$') return l;
+    n++;
+    return `#${line.id}=${line.type}(${line.args.map((a, k) => k === 3 ? "'Omschrijving van een ander programma'" : a).join(',')});${l.endsWith('\r') ? '\r' : ''}`;
+  }).join('\n');
+  assert(n >= 2, 'twee codetemplates zonder omschrijving');
+  return bytesOf(text);
+})();
 
 // ── 1 en 2. De knownbugs en hun grenzen ──
 await one('1582 type weghalen bij de laatste getypeerde taak', seq, se(s => {
@@ -177,6 +194,9 @@ await one('één baseline wissen (stap 3, 1700)', cat, se(s => { s.deleteBaselin
 await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'weigert');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
 await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+// (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken; (c) toetst zo'n groep niet.
+await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbeschrijving', describedTemplates, beschrijving, 'schrijft');
+await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
 await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
 await one('grens: onbekend definitieveld, taak met dat type wissen', unknownField, se(s => { s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id); }), 'weigert');
 await one('grens: onbekende baselinesleutel, een andere baseline wissen (stap 3)', unknownKey, se(s => { s.deleteBaseline(s.baselines[1].id); }), 'weigert');
@@ -237,8 +257,8 @@ for (const which of ['eigen', 'kantoor', 'oud'] as const) {
 }
 
 // ── 1 en 4. De reeksen en de sessieketen, met een vaste en een lopende klok ──
-async function series(which: 'eigen' | 'kantoor' | 'oud') {
-  const raw = SOURCES[which], { saved } = prepared.get(which)!;
+async function series(which: Which) {
+  const raw = RAW[which], { saved } = prepared.get(which)!;
   await one(`reeks ${which}: taak + baseline (bron)`, raw, se(s => { addTask(s, 'Reeks taak'); s.saveBaseline('Reeks baseline'); }), 'schrijft');
   await one(`reeks ${which}: taak + baseline (catalogus)`, saved, se(s => { addTask(s, 'Reeks taak'); s.saveBaseline('Reeks baseline'); }), 'schrijft');
   await one(`reeks ${which}: code hernoemen + toewijzen (catalogus)`, saved, se(s => {
@@ -261,7 +281,8 @@ async function series(which: 'eigen' | 'kantoor' | 'oud') {
   }
   await one(`reeks ${which}: oude baseline wissen + nieuwe maken (catalogus; stap 3)`, saved, se(s => { s.deleteBaseline(s.baselines[0].id); s.saveBaseline('Reeks vervanger'); }), 'weigert');
   await one(`reeks ${which}: alles wissen (catalogus; stap 3)`, saved, se(deleteAll), 'weigert');
-  await one(`reeks ${which}: alles wissen (bron)`, raw, se(deleteAll), which === 'eigen' ? 'weigert' : 'schrijft');
+  // Met baselines in de bron weigert alles wissen om de baselinekop (stap 3).
+  await one(`reeks ${which}: alles wissen (bron)`, raw, se(deleteAll), which === 'eigen' || which === 'arity' ? 'weigert' : 'schrijft');
   await reopenedChain(which, raw, [
     ['1 type, code en baseline maken', s => {
       s.ensureProjectTaskType({ id: 'type-k', name: 'Type keten' });
@@ -305,7 +326,7 @@ const SESSION: [string, (s: S) => void, Expect][] = [
 ];
 for (const mode of ['vast', 'lopend'] as const) {
   clock.mode = mode;
-  for (const which of ['eigen', 'kantoor', 'oud'] as const) await series(which);
+  for (const which of mode === 'vast' ? ['eigen', 'kantoor', 'oud', 'arity'] as const : ['eigen', 'kantoor', 'oud'] as const) await series(which);
   for (const which of ['eigen', 'kantoor'] as const) await session(which, SOURCES[which], SESSION);
 }
 clock.mode = 'vast';
