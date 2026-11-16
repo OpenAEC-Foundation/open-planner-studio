@@ -2707,7 +2707,8 @@ en noem het in je rapport of PR-tekst.
      `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
 
 1770. **VERVOLG (beveiliging, buiten de grens van #975): een map bóven de app-datamap kan hernoemd of verwijderd worden.**
-     De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en alles eronder, en `rename`
+     De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en wat eronder ligt (op 1771
+     na), en `rename`
      en `remove` van `$APPLOCALDATA` zelf. Een map daarboven valt erbuiten (besluit van de technisch beslisser, 16
      november 2026): op Windows staat `$HOME/**` `AppData\Local` en `AppData` toe, en `rename` of recursief `remove`
      daarvan neemt `$APPLOCALDATA` met `EBWebView` mee (plugin-fs toetst alleen de opgegeven paden). Reden, letterlijk:
@@ -2715,6 +2716,18 @@ en noem het in je rapport of PR-tekst.
      `~/.local` en vallen ze niet onder `$HOME/**` (een punt vooraan); op elk platform kan een map die de gebruiker via
      de bestandsdialoog als map toestaat (`dependentFolder.ts`, `open({ directory: true })`) wel een bovenmap zijn.
      Niet in een echte app nagegaan. — B (bron gelezen)
+
+1771. **VERVOLG (beveiliging, buiten de grens van #975): een puntbestand in een beschermde webviewmap dat de gebruiker zelf kiest.**
+     Buiten de grens (besluit van de technisch beslisser, 17 november 2026): een bestand met een punt vooraan (of onder
+     een map met een punt vooraan) in een beschermde map, dat de gebruiker zelf in een bestandsdialoog kiest. De
+     puntregel van de matcher laat het verbod dat pad niet raken; code in de webview komt er zonder die keuze van de
+     gebruiker niet. Hoe het werkt: op Unix staat `require_literal_leading_dot` aan, en dan matcht `map/**` geen
+     padcomponent die met een punt begint (`glob-0.3.3/src/lib.rs:818-820`); `$APPDATA/**` laat zo'n bestand om
+     dezelfde reden ook niet toe, maar de bestandsdialoog geeft het gekozen bestand een letterlijke toestemming
+     (`tauri-plugin-dialog-2.7.0/src/commands.rs:204-210`). Geen extra patronen: elke eindige lijst laat een volgende
+     nesting open (`map/.a/.b`), en de puntregel uitzetten zou `$HOME/**` verborgen thuismappen laten toelaten. Op
+     Windows geldt de puntregel standaard niet. Gevonden door de review van #975 (ronde 2, uit de bron; niet uitgevoerd).
+     — B (bron gelezen)
 
 1797. **VERVOLG (beveiliging): `tauri-plugin-fs` staat op 2.5.0; upstream is 2.7.1.**
      `src-tauri/Cargo.lock` vergrendelt 2.5.0 (`Cargo.toml` vraagt `2`, `tauri-plugin-persisted-scope` staat vast op

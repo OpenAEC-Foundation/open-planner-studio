@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "webviewgegevens-linux",
-  "description": "Het verbod op de gegevens van WebKitGTK in $APPLOCALDATA (de app-datamap; op Linux dezelfde map als $APPDATA). Binnen de grens: per beschermde map ook de map zelf, geen fs-commando mag de map of iets eronder bereiken (fs:scope: de zeven mappen zelf en met /**, plus de bestanden cookies en hsts-storage.sqlite; de lijst van deny-webview-data-linux van tauri-plugin-fs vanaf 2.5.2, met de mappen zelf erbij); rename en remove van $APPLOCALDATA zelf zijn verboden (fs:allow-rename en fs:allow-remove met deny); mkdir, read_dir, lezen en schrijven in $APPLOCALDATA blijven, zodat het herstel na een crash werkt. Buiten de grens: zie knownbug 1770. Knownbug 1797: tauri-plugin-fs 2.5.0 verbiedt hier zelf niets.",
+  "description": "Verbiedt de fs-commando's de gegevens van WebKitGTK in $APPLOCALDATA (de app-datamap; op Linux dezelfde map als $APPDATA): de zeven mappen zelf en wat eronder ligt, de bestanden cookies en hsts-storage.sqlite, en rename en remove van $APPLOCALDATA zelf. mkdir, read_dir, lezen en schrijven in $APPLOCALDATA blijven, voor het herstel na een crash. De grens en wat erbuiten valt staan in .claude/rules/tauri-ifc.md en in knownbugs 1770 en 1771; tauri-plugin-fs 2.5.0 verbiedt hier zelf niets (knownbug 1797).",
   "windows": ["main"],
   "platforms": ["linux"],
   "permissions": [

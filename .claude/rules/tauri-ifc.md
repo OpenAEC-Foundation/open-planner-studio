@@ -54,7 +54,9 @@ Het verbod op de webviewgegevens zet de app zelf, in de capabilities `webviewgeg
 (`fs:allow-rename` en `fs:allow-remove` met `deny`, een commandoscope); `mkdir`, `read_dir`, lezen en schrijven in
 `$APPLOCALDATA` blijven, zodat het herstel na een crash werkt. Buiten de grens (knownbug 1770): op Windows een map
 bóven de app-datamap (`AppData\Local`, `AppData`) hernoemen of verwijderen; "wie die mappen kan hernoemen of wissen,
-kan dat al met de hele thuismap." De globale scope geldt voor elk fs-commando, de commandoscope voor dat commando;
+kan dat al met de hele thuismap." Ook buiten de grens (knownbug 1771): een bestand met een punt vooraan (of onder een
+map met een punt vooraan) in een beschermde map, dat de gebruiker zelf in een bestandsdialoog kiest. De puntregel van
+de matcher laat het verbod dat pad niet raken; code in de webview komt er zonder die keuze van de gebruiker niet. De globale scope geldt voor elk fs-commando, de commandoscope voor dat commando;
 `FsRenameScope` leest beide, dus ook hier; bouw het in de code niet na. Linux: de mappen en bestanden van WebKitGTK uit
 `deny-webview-data.toml` van plugin-fs 2.5.2+, nooit heel `$APPLOCALDATA` (op Linux dezelfde map als `$APPDATA`, met
 het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `EBWebView`; macOS geen (WKWebView krijgt geen
