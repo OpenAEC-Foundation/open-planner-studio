@@ -129,9 +129,7 @@ impl PlaceOps for SystemOps {
     }
 
     fn rename_exclusive(&self, from: &Path, to: &Path) -> io::Result<()> {
-        // MUTATIE M1 (alleen bewijs, wordt teruggezet): gewone rename in plaats van de exclusieve stap.
-        let _ = rename_exclusive_system;
-        std::fs::rename(from, to)
+        rename_exclusive_system(from, to)
     }
 
     fn sync_dir(&self, dir: &Path) -> io::Result<()> {
@@ -302,8 +300,7 @@ pub(crate) fn place(
     }
 
     // 2. Precies één hulpnaam.
-    // MUTATIE M3 (alleen bewijs, wordt teruggezet): hulpnaamcontrole uit.
-    if false && is_helper_name(from_name) == is_helper_name(to_name) {
+    if is_helper_name(from_name) == is_helper_name(to_name) {
         return Err(refused(RefusalReason::HelperName));
     }
 
@@ -312,8 +309,7 @@ pub(crate) fn place(
     let to_path: PathBuf = dir.join(to_name);
 
     // 3. Scope.
-    // MUTATIE M2 (alleen bewijs, wordt teruggezet): scopecontrole uit.
-    if false && (!in_scope(&from_path) || !in_scope(&to_path)) {
+    if !in_scope(&from_path) || !in_scope(&to_path) {
         return Err(refused(RefusalReason::Scope));
     }
 
