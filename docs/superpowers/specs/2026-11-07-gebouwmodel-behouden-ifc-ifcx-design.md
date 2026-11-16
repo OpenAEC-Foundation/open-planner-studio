@@ -660,6 +660,14 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     `writeFile(…, { createNew: true })`, en die kan een bestaand doel niet opzij zetten. Geeft het commando *niet
     ondersteund*, dan laat de app het doel staan en biedt hij *Opslaan als* aan; Opslaan als naar een nieuwe naam maakt
     het bestand met `createNew`.
+  - **Fsync en scope in het commando** (knownbug 1761; 1131 stap 3). De eis noemt stroomuitval, en in stap 4 is het
+    doel een vrije naam, waar `auto_da_alloc` van ext4 niet helpt. Daarom legt het commando zelf de inhoud van `from`
+    vast vóór de stap (`sync_all`; Windows `FlushFileBuffers`) en de map erna (Unix: de map openen en `sync_all`;
+    Windows: `MOVEFILE_WRITE_THROUGH`). Faalt alleen die laatste, dan is het bestand wel geplaatst; dat is een eigen
+    uitkomst, geen mislukking. De scopecontrole staat in de code, niet in een eigen permissie met `CommandScope`: het
+    pad staat in de scope die tijdens het draaien groeit (`app.fs_scope()`) of onder de thuismap, zoals
+    `fs:allow-home-write-recursive`, met dezelfde globregels als plugin-fs (besluit van de technisch beslisser,
+    16 november 2026).
   - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
     (§4.14). Kan de app dat niet veilig vastleggen (herstelopslag niet beschikbaar of geblokkeerd), dan stopt opslaan
     hier: zonder `pendingReplace` vindt herstel de restbestanden niet terug. De melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de

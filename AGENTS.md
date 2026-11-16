@@ -205,8 +205,12 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `config.ts`, `discovery.ts`, `headlessChild.ts`). Its manifest version is in the bump register;
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **macOS shell.** `src-tauri/tauri.macos.conf.json` restores native window decorations; custom window buttons stay Windows/Linux-only. `useMacOSMenu` installs translated native menus and `nativeMenuActions` reuses shortcut actions/guards and pending-text commits. Native Quit goes through window close so the unsaved-document guard remains active. The ribbon stays available on every platform.
-- **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
-  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. The command-less
+- **Rust is thin.** Exactly four commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`,
+  `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
+  Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
+  same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renamex_np`/`RENAME_EXCL`,
+  `MoveFileExW` without replace); it refuses unless exactly one name is an own helper file and both paths are in the
+  fs scope, has no fallback, and is not yet used by any route (TS entry `fileAccess/placeFileExclusive.ts`). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
   levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
@@ -522,5 +526,5 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 | IFC read/write | `src/services/ifc/ifcReader`, `ifcWriter` |
 | File I/O (Tauri↔web↔site) | `src/services/fileAccess/` (+ `recentFiles.ts`; site contract `siteHost.ts`) |
 | Auto-save / recovery | `src/hooks/useAutoSave.ts`, `src/services/recovery/recoveryStore.ts` |
-| Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |
+| Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/commands/place_file.rs` (`place_file_exclusive`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |
 | Tauri config | `src-tauri/tauri.conf.json` (app id `org.openaec.planner`) |

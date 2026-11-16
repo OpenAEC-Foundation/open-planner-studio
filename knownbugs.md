@@ -2566,13 +2566,17 @@ en noem het in je rapport of PR-tekst.
         in `refusedWriteTarget` (alleen een handle), de inhoudscontrole vóór de merge en vlak vóór `close()`, de
         vervanging in `replaceWithRecoveryPending`. De desktop (een pad) weigert nog zoals voorheen en wacht op stap 3
         tot en met 5.
-     3. Het Rust-commando `place_file_exclusive` met fsync, los en per platform getoetst (wacht op een productkeuze).
+     3. Gebouwd (stap 3, #972): het Rust-commando `place_file_exclusive` (`src-tauri/src/commands/place_file.rs`) met
+        fsync van `from` vóór en de map na de stap, de scopecontrole in de code en de TS-ingang
+        `placeFileExclusive.ts`; nog door geen route gebruikt. De code compileert in de builds van `ci.yml`; de
+        `cargo test place_file`-proeven per platform wachten op de workflow (1763).
      4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
      6. Teksten en handleiding, met de eigenaar.
      Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; van stap 2:
-     `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle). Crash, stroomuitval en externe
+     `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
+     en `check-place-file-exclusive.ts`. Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1760. **VERVOLG (#804, tekst): Opslaan als over een bestaand planningsbestand met een gebouwmodel geeft een interne fouttekst.**
@@ -2580,12 +2584,6 @@ en noem het in je rapport of PR-tekst.
      Exporteren heeft wel een eigen zin (`ifcForeignExportNewTarget`). `fileSlice.ts` (de catch van Opslaan als),
      `byteParts.ts:8`; de proef `check-ifc-document-save.ts` toetst alleen de sleutel. Richting: dezelfde zin als bij
      Exporteren. Uit het onderzoek naar 1131 (16 november 2026). — B (code)
-
-1761. **VERVOLG (#804, ontwerp): het ontwerp noemt geen fsync bij het vervangen, terwijl de eis stroomuitval noemt.**
-     In stap 4 van §4.10 is het doel een vrije naam; daar helpt `auto_da_alloc` van ext4 niet, dus na stroomuitval kan
-     het doel leeg of half zijn terwijl de opzijgezette versie volledig is. Richting: `sync_all` op het tijdelijke
-     bestand en een fsync van de map in `place_file_exclusive` (Windows: `FlushFileBuffers` en `MOVEFILE_WRITE_THROUGH`),
-     en §4.10 aanvullen. Uit het onderzoek naar 1131. — S
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
      De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
@@ -2596,7 +2594,10 @@ en noem het in je rapport of PR-tekst.
 1763. **VERVOLG (#804, CI): de Rust-proeven per platform uit het besluit over `place_file_exclusive` hebben nog geen workflow.**
      `cargo test` draait alleen op Ubuntu, voor `mcp_bridge` en `desktop_integration`
      (`.github/workflows/mcp-real-app.yml:42, 74-75`); de builds op Windows en macOS in `ci.yml` draaien geen tests.
-     Nodig vóór stap 3 van 1131; de workflowwijziging pusht Trias. Uit het onderzoek naar 1131. — B
+     Stap 3 van 1131 staat (#972) met tests die zo heten dat `cargo test place_file` ze allemaal pakt; het concept
+     `.github/workflows/rust-tests.yml` (Ubuntu 22.04, macOS, Windows) is geschreven maar staat nog niet in de repo,
+     dus de proeven hebben op 16 november 2026 nog op geen platform gedraaid. De workflowwijziging pusht Trias.
+     Uit het onderzoek naar 1131. — B
 
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
@@ -2612,8 +2613,9 @@ en noem het in je rapport of PR-tekst.
      via plugin-fs) en in de browser met de standaardduurzaamheid van IndexedDB, zonder `durability: 'strict'`. Na
      stroomuitval kan de nieuwe versie op het doel staan terwijl het manifest nog de oude noemt: herstel geeft dan
      "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
-     gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: meenemen bij de fsync van 1761. Gevonden
-     in stap 1 van 1131. — S
+     gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: een eigen fsync voor de herstelopslag;
+     die van `place_file_exclusive` (1131 stap 3) dekt alleen het verplaatste bestand en zijn map. Gevonden in stap 1
+     van 1131. — S
 
 1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
      Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
@@ -2646,6 +2648,18 @@ en noem het in je rapport of PR-tekst.
      geschreven is. Het bewerkte deel van de proef schrijft wel andere bytes en heropent die. Richting: de begintoestand
      toetsen en wachten op een waargenomen schrijfronde, bijvoorbeeld via `lastModified` van het bestand. Niet gemeten
      door de reviewer (de run kwam niet aan de beurt). Gevonden door de review van #967. — S
+
+1778. **VERVOLG (Rust, opruimen): `cargo fmt --check` is rood op `desktop_integration.rs` en `mcp_bridge.rs`.**
+     Gemeten op de basis van #972 (`44ebc95d9`): rustfmt wil op vijf plekken in `mcp_bridge.rs` en op drie in
+     `desktop_integration.rs` anders afbreken (standaardinstellingen, geen `rustfmt.toml`). Geen CI-job draait
+     `cargo fmt --check`, dus het valt niemand op. Richting: één opmaakcommit, daarna eventueel een fmt-stap in CI.
+     Uit 1131 stap 3. — B (gemeten)
+
+1779. **VERVOLG (#804, Windows): `place_file_exclusive` kan een alleen-lezen bestand niet als `from` gebruiken.**
+     Op Windows vraagt `FlushFileBuffers` een handle met schrijfrecht; het commando opent `from` daarom met schrijfrecht,
+     en een bestand met het kenmerk alleen-lezen geeft dan `io` (niets verplaatst). Dat raakt stap 3 van §4.10 (het
+     doel opzij zetten) bij een alleen-lezen doel; opslaan stopt dan veilig. Verwant aan 162. Niet gemeten (geen
+     Windows hier). Uit 1131 stap 3. — S
 
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
