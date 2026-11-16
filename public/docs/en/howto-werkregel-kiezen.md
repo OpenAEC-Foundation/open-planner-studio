@@ -45,7 +45,7 @@ If you want to change the work yourself, type the hours in the field and press E
 
 If you choose a task type, no number changes yet. Under a task type that protects work, the app only fixes the current work, so *Work (h)* has a stored value. Only at the next change does the task type decide what moves along. Change the *Units*, for example, and see what happens to the duration and the work.
 
-The task type only calculates when you change the duration, the *Units*, the *Work (h)*, add or remove a resource, or change the calendar's working time per day. **Calculate** (F5) does not change duration, units or work. The work is duration × units × the working time per day from the task's calendar.
+The task type only calculates when you change the duration, the *Units*, the *Work (h)*, add or remove a resource, or change the calendar's working time per day. **Calculate** (F5) does not change duration, units or work. Without stored work, work is derived as duration × units × the working time per day from the task's calendar.
 
 If that changes the task's duration, the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*, to see the new dates. If [Calculate automatically](settings://autoCalc) is on (same group *Scheduling*), the app does this itself.
 
@@ -62,7 +62,11 @@ If that changes the task's duration, the status bar says *Out of date — recalc
 
 **The duration changes without me changing it.** Under *Fixed work* and *Fixed units* the duration follows from units and work. If you change one of those or the number of resources, the app adjusts the duration. The app does not round the duration: at units of 3 on 32 hours of work the duration becomes 10 hours and 40 minutes.
 
-**The work does not exactly match units × duration.** That can happen for a task from P6 or MS Project, if the file holds a different remaining work. In the *Work (h)* field a warning sign then appears, *Differs from units × duration*. The histogram follows the stored work. A change you make yourself gives no difference, because the app does not round. If you change the duration of such a task, the app follows the task type. Under *Fixed duration and units* and *Fixed units* the remaining work becomes units × new remaining duration. The app then reports *Remaining work of ‘…’ recalculated: …h → …h (the value came from the file). Ctrl+Z restores it.* Under *Fixed duration and work* and *Fixed work* the work stays and the units adjust. The tooltip at the warning sign tells you per task which of the two happens.
+**The work does not exactly match units × duration.** This can come from a P6 or MS Project file, but can also happen when you change one resource's work yourself under *Fixed work* or *Fixed units*. On a task of 10 working days of 8 hours, one resource can have 40 hours of work after your own input at units of 1, while another resource keeps the duration at 10 working days. Units × remaining duration is then 80 hours, but the stored work is 40 hours. A warning sign, *Differs from units × duration*, appears in the *Work (h)* field. The histogram follows the stored work and spreads those 40 hours over the task duration.
+
+Under *Fixed units*, the other assignments stay as they are when you change units or work, as long as the remaining task duration stays the same. If that duration changes, the other resources' work follows their units over the new duration.
+
+If you change the duration itself, the app follows the task type. The tooltip at the warning sign tells you for each task whether remaining work is recalculated as units × new remaining duration, or work stays the same and units adjust. A notification appears when differing stored remaining work is recalculated. Ctrl+Z restores the previous value.
 
 **Material does not count.** For a material resource *Work (h)* shows a dash. Material never drives the duration.
 

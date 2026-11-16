@@ -669,7 +669,6 @@
     "sentTitle": "Kiitos, ilmoitus on lähetetty.",
     "alreadyIn": "Tämä ilmoitus on jo meillä. Halutaanko lisätä jotakin? Muokkaa silloin tekstiä ja lähetä se uudelleen.",
     "sentScreenshotDropped": "Kuvakaappaus oli liian suuri, eikä sitä lähetetty mukaan.",
-    "viewOnGithub": "Näytä GitHubissa",
     "errorValidation": "Ilmoitusta ei hyväksytty. Tarkista teksti (ei pelkkiä linkkejä) ja sähköpostiosoite ja yritä uudelleen.",
     "errorRateLimited": "Ilmoituksia on lähetetty lyhyessä ajassa paljon. Yritä uudelleen tunnin kuluttua.",
     "errorFailed": "Lähettäminen ei onnistunut. Tarkista internetyhteys ja yritä uudelleen, tai avaa ilmoitus GitHubissa.",

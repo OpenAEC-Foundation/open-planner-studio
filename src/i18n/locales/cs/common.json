@@ -865,7 +865,6 @@
     "sentTitle": "Děkujeme, vaše hlášení bylo odesláno.",
     "alreadyIn": "Toto hlášení už máme. Chcete něco přidat? Pak upravte text a odešlete ho znovu.",
     "sentScreenshotDropped": "Snímek obrazovky byl příliš velký a nebyl odeslán.",
-    "viewOnGithub": "Zobrazit na GitHubu",
     "errorValidation": "Hlášení nebylo přijato. Zkontrolujte text (ne jen odkazy) a e-mailovou adresu a zkuste to znovu.",
     "errorRateLimited": "Za krátkou dobu jste odeslali hodně hlášení. Zkuste to znovu za hodinu.",
     "errorFailed": "Odeslání se nezdařilo. Zkontrolujte připojení k internetu a zkuste to znovu, nebo otevřete hlášení na GitHubu.",

@@ -1,32 +1,36 @@
-# Voorstel zaterdagjob
+# Voorstel maandagjob
 
 Dit bestand is configuratie-invoer en prompttekst. Het maakt geen schedule aan.
-Besluit: eigenaar, gesprek 2026-10-22.
+Besluit: eigenaar, gesprek 2026-10-22. De dag is verplaatst van zaterdag naar maandag: besluit Ethan, 2026-11-07.
 
 - Host: **aia09-mp50**, T3 Code scheduled job.
 - Agent: **Sol (Codex)**. Kies de actuele Sol-model-ID uit de T3-modelcatalogus bij het instellen.
 - Tijdzone: **Europe/Amsterdam**. Controleer dat de scheduler deze lokale tijdzone gebruikt.
-- Schedule: `{"type":"fixed_time","timeOfDay":"07:00","weekdays":[6]}`.
+- Schedule: `{"type":"fixed_time","timeOfDay":"07:00","weekdays":[1]}`.
 - Begroting: **4–6 uur** voor vertalingen, PR-CI, main-CI, release-gate, installers en website.
-  Vanaf 07:00 is de verwachte afronding 11:00–13:00.
+  Vanaf maandag 07:00 is de verwachte afronding 11:00–13:00.
   Dit is een schatting, geen garantie bij runnerwachtrijen of vertaalachterstand.
-- Harde deadline: **zaterdag 14:00 Europe/Amsterdam**, ook tijdens CI-herstel en hervatten.
-  Nog geen tag: geen tag die week. Open fix-PR's blijven staan. Al getagd: behoud de release.
-  Rapporteer de oorzaak en hervat de volgende zaterdag dezelfde voortgang. Afgeschreven tag: hervat de fix/opvolger.
+- Geen eindtijd (besluit Ethan, 2026-11-09). De release gaat door tot hij af is, ook 's avonds en ook tijdens
+  CI-herstel en hervatten. Vraag geen toestemming om door te gaan. Alleen een echte blokkade stopt hem: een BLOKKEERT,
+  een rode CI die je niet zelf kunt repareren, of een vaste regel. Nog geen tag: geen tag die week. Open fix-PR's
+  blijven staan. Al getagd: behoud de release. Rapporteer de oorzaak en hervat de volgende maandag dezelfde voortgang.
+  Afgeschreven tag: hervat de fix/opvolger.
+- De weekendstop (zaterdag 23:00 tot maandag 01:00) en zondag blijven gelden.
 - Werkplek: repo `OpenAEC-Foundation/open-planner-studio`; schone eigen worktree vanaf `origin/main`.
 - Besluit 9, eigenaar, 2026-10-23: alleen deze job heeft de Node-uitzondering uit AGENTS.md en
-  [de exacte lijst](referentie.md#node-uitzondering-voor-de-zaterdagjob). Eenmaal `npm ci` per run,
+  [de exacte lijst](referentie.md#node-uitzondering-voor-de-maandagjob). Eenmaal `npm ci` per run,
   uitsluitend in de release-worktree. Geen lokale tests, app-builds, volledige verify of dev-servers.
   Verduidelijking orkestrator, 2026-10-23: de lichte vertaalscripts en pakketchecks bij ouder
   en T3-Haiku-stations zijn inbegrepen, alleen binnen deze job en dezelfde release-worktree.
 - Eén actieve run tegelijk. Volg het hervatpad; alleen afschrijving opent de route naar een opvolgversie.
 - Besluit eigenaar, 2026-10-31: een ontbrekend `AUR_SSH_PRIVATE_KEY` is geen stopreden. Het rapport zegt
   dat Arch nog geen pakket kreeg, en waarom. Een echte AUR-fout stopt wel; zie de referentie.
-- Besluit eigenaar, 2026-10-31: de browsersuite draait vrijdag om 22:00 en de taak van vrijdag 23:30 repareert
-  wat rood is ([skill](../browsertests-repareren/SKILL.md)). Is het issue `Browsertests repareren` open, dan wacht
-  de zaterdagjob vóór alles op main, tot uiterlijk 14:00. Zie *Eerst: browsertests* in de release-skill.
+- Besluit eigenaar, 2026-10-31: de browsersuite draait op main en wat rood is wordt gerepareerd
+  ([skill](../browsertests-repareren/SKILL.md)). De laatste browserrun vóór de release is die van zaterdag 22:00.
+  Is het issue `Browsertests repareren` open, dan wacht de maandagjob vóór alles op main tot het dicht is.
+  Zie *Eerst: browsertests* in de release-skill.
 - Besluit eigenaar, 2026-10-31: de gate in `release.yml` test niets dubbel. Hij en stap 3 van de skill lezen met
-  `scripts/release-ci-check.mjs` of de pushrun en de browserrun van vrijdag groen zijn. Geen browserrun alleen voor de tag.
+  `scripts/release-ci-check.mjs` of de pushrun en de laatste browserrun groen zijn. Geen browserrun alleen voor de tag.
 - Rode main-/release-PR-/releaseworkflow: eerst eenmaal `gh run rerun <id> --failed`.
   Blijft hij rood: kleinste fix-PR vanaf main, tweede Sol-review via T3 `delegate_task`
   (`codex`, `gpt-6.1-sol`, `reasoningEffort: xhigh`). Letterlijke reviewerbrief en BLOKKEERT/VERVOLG
@@ -39,7 +43,7 @@ Besluit: eigenaar, gesprek 2026-10-22.
 - Website: merge de PR direct met `--merge --admin`. Eis een geslaagde `deploy.yml` op de merge-SHA
   of een bewezen afstammeling en beide blokken live. Ontbrekend/geannuleerd: opvolgruns, anders eenmaal dispatch.
   Geen websitecheckers of PR-checks vereist. Generatoren, diffcontrole en het deploy-/livebewijs volstaan.
-  Blijvende websitefout: meld en bewaar voor de volgende zaterdag; blokkeer de volgende app-release niet.
+  Blijvende websitefout: meld en bewaar voor de volgende maandag; blokkeer de volgende app-release niet.
 
 ## Letterlijke prompt
 
@@ -51,11 +55,11 @@ en werkplekgrenzen in referentie.md. Eenmaal npm ci per run in de release-worktr
 node_modules in de hoofdcheckout. Tests, app-builds en volledige verify draaien alleen in CI.
 Volg de release-skill en de gekoppelde referentie en skills volledig.
 De lichte vertaalscripts, i18n-onderhoud en pakketchecks uit update-ui-lang vallen binnen de lijst.
-Geef elk T3-Haiku-station het zaterdagmandaat en toestemming voor zijn eigen pakketcheck mee,
+Geef elk T3-Haiku-station het maandagmandaat en toestemming voor zijn eigen pakketcheck mee,
 alleen in dezelfde release-worktree. De stations installeren niets. Behoud alle vertaalpoorten.
-Het zaterdagmandaat omvat publiceren en gecontroleerd hervatten, zonder menselijk akkoord.
+Het maandagmandaat omvat publiceren en gecontroleerd hervatten, zonder menselijk akkoord.
 Doe vóór alles op main eerst de stap Eerst: browsertests uit de release-skill. Is het issue Browsertests
-repareren open, wacht dan tot uiterlijk 14:00. Geen vertalingen, geen versie, geen PR en geen tag.
+repareren open, wacht dan tot het dicht is. Geen vertalingen, geen versie, geen PR en geen tag.
 Rond daarna onafgerond werk voor de laatste tag af. Respecteer alle stopregels.
 Een ontbrekend AUR_SSH_PRIVATE_KEY is geen stopreden; volg daarvoor de referentie.
 Meld in het rapport dat Arch nog geen pakket kreeg, en waarom. Een echte AUR-fout stopt wel.
@@ -68,14 +72,16 @@ Wacht daarna op groene CI voor de exacte main-SHA. Behoud kandidaatversie en bes
 Vereist een tag gewijzigde broncode/workflow, schrijf hem af volgens de referentie. Geen nieuwe
 poging meer op die tag; draft blijft draft. Fix op main en maak zonder bestaande opvolger een
 nieuwe versie via npm run bump zonder argument. Neem de releasetekst plus fix mee; doorloop alle poorten.
-Stop uiterlijk zaterdag 14:00 Europe/Amsterdam. Geen tag die week als er nog geen staat.
-Laat open fix-PR's staan. Hervat de volgende zaterdag de fix/opvolger; herken afschrijving vóór tagherstel.
+Een release stopt niet op een tijd. Hij gaat door tot hij af is, ook 's avonds. Alleen een echte blokkade stopt hem:
+een BLOKKEERT, een rode CI die je niet zelf kunt repareren, of een vaste regel. Vraag geen toestemming om door te gaan.
+De weekendstop (zaterdag 23:00 tot maandag 01:00) en zondag blijven gelden. Geen tag die week als er nog geen staat.
+Laat open fix-PR's staan. Hervat de volgende maandag de fix/opvolger; herken afschrijving vóór tagherstel.
 Rapporteer waarom het niet lukte en welke tags zijn afgeschreven.
 Merge de website-PR direct met --merge --admin. Controleer deploy.yml op de merge-SHA of een
 bewezen afstammeling en beide blokken live. Ontbrekend/geannuleerd: zoek opvolgruns, anders eenmaal
 gh workflow run deploy.yml --repo OpenAEC-Foundation/website, volgens de referentie.
 Geen websitecheckers of PR-checks vereist. Generatoren, diffcontrole en het deploy-/livebewijs volstaan.
 Een blijvende websitefout laat de app-release staan en blokkeert de volgende app-release niet.
-Meld en bewaar het werk voor de volgende zaterdag naast de nieuwe release.
+Meld en bewaar het werk voor de volgende maandag naast de nieuwe release.
 Rapporteer versie, SHA, workflowstatus, fix-PR's/reviews, VERVOLG, wiki, website en eventuele blokkade.
 ```

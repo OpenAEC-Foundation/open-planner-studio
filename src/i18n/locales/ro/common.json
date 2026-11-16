@@ -767,7 +767,6 @@
     "sentTitle": "Vă mulțumim, sesizarea a fost trimisă.",
     "alreadyIn": "Această sesizare a ajuns deja la noi. Doriți să adăugați ceva? Modificați atunci textul și trimiteți din nou.",
     "sentScreenshotDropped": "Captura de ecran era prea mare și nu a fost trimisă.",
-    "viewOnGithub": "Vizualizare pe GitHub",
     "errorValidation": "Sesizarea nu a fost acceptată. Verificați textul (nu doar linkuri) și adresa de e-mail, apoi încercați din nou.",
     "errorRateLimited": "Ați trimis multe sesizări într-un timp scurt. Încercați din nou peste o oră.",
     "errorFailed": "Trimiterea nu a reușit. Verificați conexiunea la internet și încercați din nou sau deschideți sesizarea pe GitHub.",

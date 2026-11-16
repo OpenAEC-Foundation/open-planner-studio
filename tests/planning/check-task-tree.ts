@@ -207,7 +207,9 @@ const tree = (): Task[] => [
   S().selectTasks([x, y], false);
   useAppStore.setState({ activeTaskId: x });
   S().deleteTasksBulk([x, y]);
-  eq('39 store: deleteTasksBulk laat geen actieve taak achter die niet meer bestaat', S().activeTaskId, null);
+  // Issue #899: de overgebleven buur Z neemt de selectie over; nooit een verdwenen taak als actief.
+  eq('39 store: deleteTasksBulk laat geen actieve taak achter die niet meer bestaat',
+    S().tasks.find(t => t.id === S().activeTaskId)?.name ?? null, 'Z');
 }
 
 // ── Bron-assert: de aangesloten plekken blijven aangesloten. ───────────────

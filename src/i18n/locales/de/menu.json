@@ -211,6 +211,7 @@
     "columnsHintGoToTable": "Spalten der Tabellenansicht wählen — sichtbar im Register Tabelle",
     "toggleResourceAccent": "Ressourcen-Akzent",
     "toggleFloatBand": "Pufferband",
+    "toggleBarDates": "Datumsangaben an Balken",
     "screenColors": "Balkenfarben",
     "screenColors_critical": "Kritischer Pfad",
     "screenColors_auto": "Pro Vorgang — automatisch",

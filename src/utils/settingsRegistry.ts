@@ -183,6 +183,7 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'showStatusDateLine', field: 'showStatusDateLine', parse: parseBoolean }),
   setting({ key: 'showResourceAccent', field: 'showResourceAccent', parse: parseBoolean }),
   setting({ key: 'showFloatBand', field: 'showFloatBand', parse: parseBoolean }),
+  setting({ key: 'showBarDates', field: 'showBarDates', parse: parseBoolean }),
 
   // Mini-map (view-state)
   setting({ key: 'showMiniMap', field: 'showMiniMap', parse: parseBoolean }),

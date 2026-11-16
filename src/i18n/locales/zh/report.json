@@ -423,5 +423,14 @@
     "liberationSans": "Liberation Sans（类似 Arial）",
     "carlito": "Carlito（类似 Calibri）",
     "liberationSerif": "Liberation Serif（类似 Times New Roman）"
+  },
+  "studio": {
+    "bars": {
+      "dates": "横道旁显示日期",
+      "datesSub": "开始日期在横道左侧，结束日期在右侧",
+      "short": {
+        "dates": "日期"
+      }
+    }
   }
 }

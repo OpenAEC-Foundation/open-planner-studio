@@ -64,7 +64,18 @@ de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer 
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
 gewone writer. Delen van nieuwe uitvoer wijzen naar de nieuwe bronbuffer; het resultaat houdt
 daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
-haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6; pool, planOnly, paneel, dev-bridge en AutoSave blijven geblokkeerd.
+haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel, dev-bridge en AutoSave blijven geblokkeerd.
+
+Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
+op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij
+`OPS_StructureMeta` ook templates en `IfcRelDeclares`, plus de tweede vormen baselinekop en `ObjectType` van een
+`.USERDEFINED.`-taak) moeten in de uitvoer gelijk zijn aan wat de writer schrijft uit de herlezing die er al is, met de
+schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId en owner history, en met de weesregel van de
+canon voor `TaskGuids`. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
+van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
+vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
+Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren; de verliescontrole verandert niet.
+Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
 
 ### Vergelijkingsklok (#804 fase 1c)
 

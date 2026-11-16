@@ -130,6 +130,7 @@ check-focus-task.ts matrix
 check-format-notice.ts matrix
 check-full-task-grid-surface.ts matrix
 check-gantt-arrow-clip.ts matrix
+check-gantt-bar-dates.ts matrix
 check-gantt-boundaries.ts los
 check-gantt-coordinate-contracts.ts matrix
 check-gantt-coordinator-contracts.ts matrix
@@ -144,6 +145,7 @@ check-gantt-trace-progress.ts matrix
 check-gantt-workspace.ts matrix
 check-grid-nav.ts matrix
 check-grid-resource-load-reuse.ts matrix
+check-grid-task-paste.ts matrix
 check-grid-transaction.ts matrix
 check-guide-placement.ts matrix
 check-header-compress.ts matrix
@@ -177,6 +179,7 @@ check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-eigen-uitvoer.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
@@ -301,6 +304,7 @@ check-p6xml-writer-p6.ts matrix
 check-p6xml-xer-parity.ts matrix
 check-paste-references.ts matrix
 check-placement-load.ts matrix
+check-print-bar-dates.ts matrix
 check-print-bar-moments.ts matrix
 check-print-compress-week-banding.ts matrix
 check-print-raster-export-streaming.ts matrix
@@ -384,6 +388,7 @@ check-scheduling-profile-draft.ts matrix
 check-scheduling-profile-notice.ts matrix
 check-scheduling-profile-roundtrip.ts matrix
 check-scratch-document.ts matrix
+check-selection-after-collapse-delete.ts matrix
 check-session-history-boundaries.ts matrix
 check-session-history-migration.ts matrix
 check-session-history-model.ts matrix

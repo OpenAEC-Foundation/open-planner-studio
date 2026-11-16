@@ -244,6 +244,21 @@
   margin: 0;
 }
 
+.feedback-confirm-issue {
+  font-size: var(--text-body);
+  color: var(--theme-text);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* De link staat voluit in beeld: de melder moet hem kunnen terugvinden of overnemen. */
+.feedback-confirm-link {
+  color: var(--theme-accent);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .feedback-confirm-steps {
   margin: 0;
   /* Native <ol>-nummering tonen: GEEN display:flex (dat verwijdert de

@@ -427,5 +427,14 @@
     "liberationSans": "Liberation Sans (wie Arial)",
     "carlito": "Carlito (wie Calibri)",
     "liberationSerif": "Liberation Serif (wie Times New Roman)"
+  },
+  "studio": {
+    "bars": {
+      "dates": "Datumsangaben an den Balken",
+      "datesSub": "Startdatum links, Enddatum rechts vom Balken",
+      "short": {
+        "dates": "Datumsangaben"
+      }
+    }
   }
 }

@@ -571,7 +571,6 @@
     "sentTitle": "谢谢，你的反馈已发送。",
     "alreadyIn": "我们已收到此反馈。想补充些什么？请修改文本后再次发送。",
     "sentScreenshotDropped": "截图太大，未随附发送。",
-    "viewOnGithub": "在 GitHub 上查看",
     "errorValidation": "反馈未被接受。请检查文本（不能只包含链接）和电子邮件地址，然后重试。",
     "errorRateLimited": "你在短时间内发送了很多反馈。请一小时后再试。",
     "errorFailed": "发送失败。请检查网络连接后重试，或在 GitHub 上打开此反馈。",

@@ -5,12 +5,12 @@ description: Gebruik alleen bij een expliciete /release of een verzoek om een ni
 
 # Wekelijkse release — Open Planner Studio
 
-Besluit 9: eigenaar, verduidelijkt door de orkestrator op 2026-10-23. Alleen de zaterdagjob heeft de smalle
-Node-uitzondering op [AGENTS.md](../../../AGENTS.md). De [exacte lijst en werkplekgrenzen](referentie.md#node-uitzondering-voor-de-zaterdagjob)
+Besluit 9: eigenaar, verduidelijkt door de orkestrator op 2026-10-23. Alleen de maandagjob heeft de smalle
+Node-uitzondering op [AGENTS.md](../../../AGENTS.md). De [exacte lijst en werkplekgrenzen](referentie.md#node-uitzondering-voor-de-maandagjob)
 omvatten de lichte vertaalscripts en pakketchecks door de ouder en zijn Haiku-stations.
 Alleen binnen die job en release-worktree. Andere runs en onderhoud aan deze skill krijgen geen uitzondering.
 
-Mandaat: eigenaar, gesprek 2026-10-22. De zaterdagjob op aia09-mp50 voert deze skill
+Mandaat: eigenaar, gesprek 2026-10-22. De maandagjob op aia09-mp50 (maandag 07:00; verplaatst van zaterdag, besluit Ethan 2026-11-07) voert deze skill
 volledig automatisch uit. Er is geen menselijk akkoord vóór de tag. Stel geen vragen.
 Een `v*`-tag is onomkeerbaar: installers, updater en Snap Store leveren aan alle gebruikers.
 Alleen deze skill mag een release uitvoeren. Een verzoek om de skill te wijzigen publiceert niets.
@@ -31,21 +31,33 @@ Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is ee
 
 - Issue open: de release wacht. Geen vertalingen, geen versie, geen PR en geen tag.
 - Issue dicht en laatste browserrun op main groen: de release gaat verder.
-- Geen issue, en de vrijdagrun is rood of ontbreekt: de release doet de reparatie eerst zelf, ook met dat issue.
-- Nog geen tag om 14:00: geen tag die week. De release meldt dat aan Ethan, met de reden.
-  Is de reparatie dan niet klaar, dan blijft het issue open.
+- Geen issue, en de laatste browserrun (die van zaterdag 22:00) is rood of ontbreekt: de release doet de reparatie eerst zelf, ook met dat issue.
+- De release heeft geen eindtijd (besluit Ethan, 2026-11-09): hij wacht tot het issue dicht is. Alleen een echte blokkade
+  stopt hem. De reparatie meldt die zelf: haar laatste opmerking in het issue begint dan met `REPARATIE GEBLOKKEERD`,
+  gevolgd door de reden (een BLOKKEERT, of een rode CI die zij niet kan herstellen). Dan geen tag die week. De release
+  meldt dat aan Ethan, met de reden, en het issue blijft open. Een reparatie die alleen haar stand opschrijft,
+  is geen blokkade: de ochtendreparatie hervat haar bij de eerstvolgende dag van maandag tot en met zaterdag
+  (zie de reparatieskill), en de release wacht.
 
-Wacht zo, met een lus die om 14:00 stopt. Exit 0: geen open issue. Exit 1: het is 14:00 en het issue is nog open.
-Stopt de shell eerder, start dan dezelfde opdracht opnieuw; de grens blijft 14:00.
+Wacht zo, met een lus zonder klok. De lus eindigt met een eigen uitkomst: 0 = geen open issue, 3 = blokkade gemeld,
+2 = `gh` faalt (geen stilte als antwoord; lees de fout en start opnieuw). Stopt de shell, start dan dezelfde opdracht opnieuw.
 ```bash
 REPO=OpenAEC-Foundation/open-planner-studio
-GRENS=$(TZ=Europe/Amsterdam date -d 14:00 +%s)
-open_issues() { gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json number --jq length; }
-until [ "$(open_issues)" = 0 ] || [ "$(date +%s)" -ge "$GRENS" ]; do sleep 300; done
-[ "$(open_issues)" = 0 ]
+wacht_op_reparatie() {
+  local n geblokkeerd
+  while true; do
+    n=$(gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json number --jq length) || return 2
+    [ "$n" = 0 ] && return 0
+    geblokkeerd=$(gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json comments \
+      --jq '[.[] | (.comments[-1].body // "") | select(startswith("REPARATIE GEBLOKKEERD"))] | length') || return 2
+    [ "$geblokkeerd" != 0 ] && return 3
+    sleep 300
+  done
+}
+wacht_op_reparatie; echo "EXIT:$?"
 ```
-Exit 1: stop zonder iets op main te doen. Meld Ethan dat de reparatie de release kostte, met de reden uit het issue.
-Exit 0: maak de worktree uit stap 1 en draai daar de browsercontrole. Dit is dezelfde controle als in de `gate`.
+Uitkomst 3: stop zonder iets op main te doen. Meld Ethan dat de reparatie de release kostte, met de reden uit het issue.
+Uitkomst 0: maak de worktree uit stap 1 en draai daar de browsercontrole. Dit is dezelfde controle als in de `gate`.
 ```bash
 SHA=$(git rev-parse origin/main)
 node scripts/release-ci-check.mjs --browser "$SHA"
@@ -60,16 +72,18 @@ de regel `BROWSERRUN=<id>` uit de uitvoer door. Daarna ga je verder.
   Een andere repo, ontbrekende origin of netwerkfout: stop vóór schrijven of publiceren.
 - Gebruik een schone, eigen release-worktree vanaf vers opgehaalde `origin/main`.
   Neem geen ongecommit werk over. Haal volledige historie en origin-tags op.
-  Alleen de zaterdagjob: eenmaal per run `npm ci` in die worktree vóór de eerste Node-stap.
+  Alleen de maandagjob: eenmaal per run `npm ci` in die worktree vóór de eerste Node-stap.
   De hoofdcheckout heeft geen `node_modules`; maak geen link daarheen. Zie de exacte lijst hierboven.
-- Harde deadline zaterdagjob: **14:00 Europe/Amsterdam**. Stop dan met herstel/publicatie.
-  Vóór de tag: geen tag die week; behoud open fix-PR's en rapporteer de oorzaak.
-  Na de tag: behoud tag/draft en hervat de voortgang de volgende zaterdag; sla afgeschreven tags over.
+- De maandagjob heeft geen eindtijd (besluit Ethan, 2026-11-09). Hij gaat door tot hij af is, ook 's avonds, en vraagt
+  geen toestemming om door te gaan. Alleen een echte blokkade stopt hem: een BLOKKEERT, een rode CI die je niet zelf
+  kunt repareren, of een vaste regel. De weekendstop (zaterdag 23:00 tot maandag 01:00) en zondag blijven gelden.
+  Vóór de tag bij een blokkade: geen tag die week; behoud open fix-PR's en rapporteer de oorzaak.
+  Na de tag bij een blokkade: behoud tag/draft en hervat de voortgang de volgende maandag; sla afgeschreven tags over.
 - Noteer de nieuwste stabiele origin-tag (`vJJJJ.W.N`, numeriek gesorteerd). Geen tag: stop.
   **Vóór de wijzigingscontrole en bump:** volg [Hervatten](referentie.md#hervatten).
   Controleer GitHub-publicatie, release-/Snap-/AUR-runs, wiki en website. Rond onafgerond werk
   voor dezelfde tag af, ook zonder nieuwe commits. Onopgelost: stop, tenzij de tag is afgeschreven
-  of alleen websitewerk openstaat. Probeer dat de volgende zaterdag opnieuw naast de nieuwe release.
+  of alleen websitewerk openstaat. Probeer dat de volgende maandag opnieuw naast de nieuwe release.
   Een [ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret) is geen onafgerond werk.
 - Na herstel, uitgesteld websitewerk of vastgelegde afschrijving geldt die nieuwste tag als `PREV`.
   Volg daarna de [kandidaatselectie](referentie.md#kandidaatselectie): zoek open release-PR's
@@ -77,12 +91,12 @@ de regel `BROWSERRUN=<id>` uit de uitvoer door. Daarna ga je verder.
   lager of gelijk: stop zonder tag. Hervat dezelfde versie/PR; bump uitsluitend bij `RELEASE_MODE=nieuw`.
   Haal `origin/main` opnieuw op als basis-SHA; `PREV` moet daarvan een voorouder zijn.
 - Zoek de `ci.yml`-run op **die exacte basis-SHA** met event `push` en branch `main`.
-  Ontbreekt hij: stop zonder tag. Loopt hij nog: wacht binnen de deadline.
+  Ontbreekt hij: stop zonder tag. Loopt hij nog: wacht.
   Rood: volg [CI herstellen](referentie.md#ci-herstellen): eenmaal rerun, dan een fix-PR
   met tweede Sol-review. Ga pas verder na groene CI op de actuele main-SHA.
 - Geen commits sinds `PREV` en geen onafgerond app-werk: stop zonder bump/tag; meld “niets veranderd”.
 - Falende `verify:translations`, `verify` in CI of ontbrekende/lege releasetekst blokkeert de tag.
-  Herstel binnen de deadline volgens de referentie. Omzeil nooit een poort.
+  Herstel volgens de referentie. Omzeil nooit een poort.
 - Geen gelijktijdige release-run. Een bestaande doeltag gaat uitsluitend via het hervatpad;
   verplaats, verwijder of push hem nooit opnieuw. Geen force-push, secretwijziging of ongepoort dispatch.
   De handmatige browserrun van `ci.yml` (de reparatie en het herstel van de gate) is hierop de enige uitzondering: die publiceert niets.
@@ -141,7 +155,7 @@ Hiervoor is geen menselijke review nodig. Bewaak de basis en cijfers zoals in de
 
 Haal `origin/main` opnieuw op en gebruik een schone checkout van de gemergede releasecommit.
 Wacht op de `ci.yml`-pushrun voor exact die commit: **alle jobs groen**.
-Controleer daarna de pushrun en de browserrun van vrijdag, met dezelfde regels als de `gate` van `release.yml`.
+Controleer daarna de pushrun en de laatste browserrun (die van zaterdag 22:00), met dezelfde regels als de `gate` van `release.yml`.
 Zo loopt de release niet pas ná de onomkeerbare tag vast. Start geen browserrun alleen voor de tag.
 ```bash
 SHA=$(git rev-parse origin/main)
@@ -149,7 +163,7 @@ node scripts/release-ci-check.mjs "$SHA"
 ```
 Exit 1: geen tag. Elke `::error::`-regel zegt wat er ontbreekt. Rode pushrun: volg CI herstellen.
 Browserrun afgewezen: voer de [reparatie](../browsertests-repareren/SKILL.md) uit, ook met dat issue, en geef haar
-de regel `BROWSERRUN=<id>` door. Bewijs telt vanaf de laatste vrijdag 22:00; eerder groen vervangt de vrijdagrun niet.
+de regel `BROWSERRUN=<id>` door. Bewijs telt vanaf de laatste vrijdag 22:00 (de gate-regel in `release-ci-check.mjs`); eerder groen vervangt de laatste browserrun niet.
 Controleer vóór de tag opnieuw dat `origin/main` nog die SHA heeft. Bij nieuwe commits:
 behoud kandidaatversie en voortgang; werk de basis, cijfers en CI bij zonder nieuwe bump.
 Draai op de releasecommit; vergelijk ook hier jaar, week en volgnummer numeriek met `PREV`:
@@ -180,7 +194,7 @@ de `gate` leest met hetzelfde script of de pushrun en de browserrun groen zijn.
 Daarna bouwt en signeert hij installers, verifieert de draft en publiceert `latest.json`.
 `snap.yml` en `aur.yml` volgen automatisch. Volg ze tot hun eindstatus en werk het hervatverslag bij.
 Een [ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret) is geen falen.
-Bij falen na de tag: volg [Herstel na de tag](referentie.md#herstel-na-de-tag), binnen de deadline.
+Bij falen na de tag: volg [Herstel na de tag](referentie.md#herstel-na-de-tag).
 Vereist herstel gewijzigde broncode/workflow: fix op main, schrijf de tag af en maak een opvolgversie.
 De afgeschreven tag blijft staan; een eventuele draft blijft draft. Hervat die tag nooit meer.
 
@@ -199,14 +213,14 @@ notes in de body én `latest.json`, juiste versie, volledige assets en groene Sn
   plus beide blokken live. Ontbrekend/geannuleerd: controleer opvolgruns, anders eenmaal dispatch.
   Geen websitecheckers of PR-checks vereist; generatoren, diffcontrole en dit deploy-/livebewijs volstaan.
   Bij falen blijft de app-release staan en blokkeert websitewerk de volgende app-release niet.
-  Meld de fout; bewaar PR, merge-SHA en deployrun voor een nieuwe poging de volgende zaterdag.
+  Meld de fout; bewaar PR, merge-SHA en deployrun voor een nieuwe poging de volgende maandag.
 
 ## 6. Opruimen en rapporteren
 
 Verwijder alleen eigen of aantoonbaar gemergede, schone worktrees zonder actieve sessie/dev-server.
 Controleer per worktree `git status --porcelain`; behoud ongemergd of twijfelachtig werk.
 Gebruik `git worktree remove` zonder force en daarna `git worktree prune`.
-Meld versie, tag-SHA, workflow-URL's, fix-PR's/reviews, deadline, UI-vertalingen, wiki en websitedeploy.
+Meld versie, tag-SHA, workflow-URL's, fix-PR's/reviews, een eventuele blokkade, UI-vertalingen, wiki en websitedeploy.
 Ontbreekt `AUR_SSH_PRIVATE_KEY`: meld dat Arch nog geen pakket kreeg, en waarom.
 Bij een stop vóór de tag: meld de precieze reden en dat niets is uitgebracht.
 Leg bijvangst buiten deze release vast in `knownbugs.md`; los die niet stil mee op.

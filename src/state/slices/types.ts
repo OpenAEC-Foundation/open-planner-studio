@@ -36,6 +36,7 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 // Opslag via de site: de VRAAG van de twee site-dialogen. Type-only import, net als hierboven.
 import type { SiteOpenRequest, SiteSaveRequest } from '@/services/fileAccess/siteDialogs';
 import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
+import type { PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
@@ -706,6 +707,9 @@ export interface UIState {
   activeRibbonTab: RibbonTab;
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
+  /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
+   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899). */
+  gridActiveRowKey: string | null;
   showSettingsDialog: boolean;
   /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die
    *  instelling, laat hem oplichten en zet dit daarna terug op `null`. Sessiewerk, niet bewaard. */
@@ -817,6 +821,7 @@ export interface UIState {
    *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
   showResourceAccent: boolean;               // persisted
   showFloatBand: boolean;                    // persisted — groene spelingsband ná niet-kritieke balken
+  showBarDates: boolean;                     // persisted — begin- en einddatum naast de Gantt-balken (#868)
   /** Canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
   barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus; niet gepersisteerd
@@ -895,8 +900,9 @@ export interface UIState {
    *  of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
    *  `state/ifcSchemaQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingIfcSchemaQuestion: IfcSchemaQuestion | null;
-  /** Opslaan als zonder het ontbrekende gebouwmodel wacht op een bewuste keuze. */
-  pendingIfcMissingSourceSaveAs: boolean;
+  /** session — de openstaande vraag "alleen de planning" met haar reden (`services/ifc/planOnlyQuestion.ts`), of `null`.
+   *  Het antwoord gaat via `state/planOnlyQuestionBridge.ts`. Een wachtende modale vraag: bevriest sneltoetsen. */
+  pendingPlanOnlyQuestion: PlanOnlyReason | null;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg

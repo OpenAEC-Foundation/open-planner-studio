@@ -4,7 +4,7 @@ import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, 
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
-import { writeIFC, writeIFCWithChoices, ifcObjectSeed } from '@/services/ifc/ifcWriter';
+import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
@@ -36,16 +36,16 @@ import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, p
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
-  IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcSaveBlocked, ifcFullWriteBlocked,
+  IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   refusedWriteTarget,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
-import { askIfcMissingSourceSaveAs } from '@/services/ifc/ifcMissingSourceQuestion';
+import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
-import { prepareIfcOutput, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
+import { prepareIfcOutput, planOnlyQuestionApplies, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
 import { BytePartsWriteError } from '@/services/fileAccess/byteParts';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -436,6 +436,10 @@ export type ExportResult =
   | { ok: true; warnings: readonly XerExportLossWarning[]; cancelled?: true }
   | { ok: false; error: string; errorInfo?: ScheduleErrorInfo };
 
+/** Keuzes van Bestand → Exporteren. `withoutBuildingModel` geldt alleen voor IFC: na de vraag "alleen de planning" een
+ *  gewoon IFC-bestand met alleen de planning (#804 PR 13). Zonder gebouwmodel in het document verandert het niets. */
+export interface ExportOptions { readonly withoutBuildingModel?: boolean }
+
 /** Opties voor `applyLoadedProject` — de één gedeelde "vul de actieve document-state met een
  *  geparsed project"-implementatie. Elke variant (de drie open-paden + `loadState`) kiest zijn
  *  gedrag met deze vlaggen; defaults staan bewust op "niets doen". */
@@ -522,7 +526,7 @@ export interface FileSlice {
   /** Alleen na geslaagde I/O naar het eigen doel. Bron en kalenderkeuzes volgen de geschreven
    * momentopname, ook als tussentijds werk het document dirty houdt. Exports gebruiken dit niet. */
   commitSavedDocument: (documentId: string, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean) => boolean;
-  exportAs: (format: ExportFormat) => Promise<ExportResult>;
+  exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   /** Exporteer het project + schrijf de gebonden bedrijfs-pool als tweede, LOS bestand
    *  ernaast. Géén embed. No-op op de pool-kant als het project niet aan een bedrijf gebonden is.
    *  Geeft hetzelfde `ExportResult` terug als `exportAs` — inclusief de cyclusguard. */
@@ -726,13 +730,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  actie gelezen, zodat bestandslaag en lezer dezelfde keuze maken. */
   const formatReadOptions = (): FormatReadOptions => ({ ifcBytes: ifcForeignContentEnabled(get().ui.featureFlags) });
 
-  /** Weigert de IFC-uitvoer van het actieve document (fase 1a: een vreemd deel) en meldt dat. */
-  const refuseForeignIfcWrite = (state: AppState = get()): boolean => {
-    if (!ifcSaveBlocked(state)) return false;
-    get().notify(ifcWriteBlockedNotice(state));
-    return true;
-  };
-
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
     if (!ifcFullWriteBlocked(state)) return false;
     get().notify(ifcWriteBlockedNotice(state));
@@ -740,11 +737,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   type DocumentWrite = IfcOutput & { readonly missingSourceSaveAs?: true };
-  const missingSourceSaveAsAllowed = (state: AppState) => state.foreignSourceMark?.sourceMissing === true
-    && !hasForeignContent(state.ifcSource) && ifcForeignContentEnabled(state.ui.featureFlags);
-  /** Alle volledige IFC-routes delen de modus- en bronbewaking; hier krijgt een weigering de appmelding. */
-  const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput): Promise<IfcOutput | null> => {
-    try { return await prepareIfcOutput(state, input); }
+  const missingSourceSaveAsAllowed = (state: AppState) => planOnlyQuestionApplies(state, 'missingSourceSaveAs');
+  /** Alle IFC-routes van de app delen de modus- en bronbewaking; hier krijgt een weigering de appmelding. Een ja op de
+   *  vraag "alleen de planning" gaat mee als `planOnly` en geldt voor deze ene voorbereiding. */
+  const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
+    try { return await prepareIfcOutput(state, input, planOnly); }
     catch (error) {
       if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
@@ -752,8 +749,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return null;
     }
   };
-  const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput): Promise<DocumentWrite | null> => {
-    const write = await prepareAppIfcWrite(state, input);
+  const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<DocumentWrite | null> => {
+    const write = await prepareAppIfcWrite(state, input, planOnly);
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
     return write;
   };
@@ -1160,6 +1157,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
+  /** De vraag "alleen de planning" vóór een IFC-export zonder gebouwmodel (#804 PR 13). `undefined`: geen vraag nodig
+   *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde. Het ja geldt voor de momentopname `state`: de
+   *  export bouwt daarop, en `refuseChangedExport(state)` weigert onder het schrijfslot, vóór de bestandskiezer, als het
+   *  document tijdens de vraag veranderde. */
+  const askPlanOnlyExport = (state: AppState, reason: 'export' | 'exportWithPool'): Promise<PlanOnlyConfirmation | null | undefined> =>
+    planOnlyQuestionApplies(state, reason) ? askPlanOnly(reason) : Promise.resolve(undefined);
+
   /** Het opslagdoel van een lokale opslaan-als-uitkomst (Tauri-pad, handle of alleen een naam). */
   const localDestination = (outcome: SaveOutcome): SaveDestination => ({
     filePath: outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name,
@@ -1260,7 +1264,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  site zijn beide vlaggen altijd `null`. Ook de schemavraag bij opslaan telt mee (issue #292). */
   const siteQuestionOpen = () => get().ui.pendingSiteSave !== null || get().ui.pendingSiteOpen !== null
     || get().ui.pendingIfcSchemaQuestion !== null || get().ui.pendingDependentAnchorWarning !== null
-    || get().ui.pendingIfcMissingSourceSaveAs;
+    || get().ui.pendingPlanOnlyQuestion !== null;
 
   /** Uitleg na het openen van een ander formaat dan IFC (`services/formatNotice.ts`). Alleen de
    *  open-routes die de GEBRUIKER start roepen dit aan (Bestand → Openen, Recente bestanden, Openen
@@ -1450,8 +1454,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const before = get();
     const startDocumentId = before.activeDocumentId;
     const missingSourceSaveAs = missingSourceSaveAsAllowed(before);
+    let planOnly: PlanOnlyConfirmation | undefined;
     if (missingSourceSaveAs) {
-      if (!(await askIfcMissingSourceSaveAs())) return;
+      planOnly = await askPlanOnly('missingSourceSaveAs') ?? undefined;
+      if (!planOnly) return;
       if (get().activeDocumentId !== startDocumentId || get().foreignSourceMark !== before.foreignSourceMark
         || get().ifcSource !== before.ifcSource || !missingSourceSaveAsAllowed(get())) return;
     } else if (refuseForeignDocumentWrite()) return;
@@ -1471,11 +1477,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     let siteName: string | null = null;
 
     try {
-      // De bevestiging geldt uitsluitend voor deze planOnly-momentopname. De globale guard blijft dicht.
-      const output = await prepareDocumentWrite(missingSourceSaveAs ? { ...state, ifcSource: null, foreignSourceMark: null } : state,
-        buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'));
+      // De bevestiging geldt uitsluitend voor deze planOnly-momentopname (`prepareIfcOutput`). De globale guard blijft dicht.
+      const output = await prepareDocumentWrite(state, buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'), planOnly);
       const write: DocumentWrite | null = output && missingSourceSaveAs ? { ...output, missingSourceSaveAs: true } : output;
-      if (write?.missingSourceSaveAs) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
       if (!write || refuseChangedDocumentWrite(state, write)) return;
       // Site-opslag aanwezig: "Opslaan op de site" maakt altijd een NIEUW site-bestand (opslaan
       // als); "Op deze pc…" valt door naar de bestaande route hieronder.
@@ -1928,7 +1932,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       await saveActiveDocumentAs();
     },
 
-    exportAs: async (format: ExportFormat): Promise<ExportResult> => {
+    exportAs: async (format: ExportFormat, options?: ExportOptions): Promise<ExportResult> => {
       // Alle vier exporters schrijven de CPM-uitvoer
       // (task.time.earlyStart en afgeleiden) weg naar derden die die datums contractueel lezen.
       // Een verouderde of cyclische planning mag dus niet stil worden uitgevoerd. Daarom: bij een
@@ -1938,7 +1942,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // gezet én task.time nog op de oude waarden — een guard die alleen op scheduleStale kijkt
       // zou de export in dat geval wél met verouderde datums doorlaten. De guard staat vóór de
       // eerste await (saveFileDialog), zodat er niets half gebeurt.
-      // Volledige IFC-export deelt de documentbewaking; pool en planOnly houden de strikte blokkade.
+      // IFC-export deelt de documentbewaking: volledig bestand, of na de vraag alleen de planning (PR 13).
       // De andere formaten dragen alleen planning en blijven mogelijk.
       if (format === 'ifc' && refuseForeignDocumentWrite()) return { ok: true, warnings: [], cancelled: true };
       if (get().scheduleStale) get().runCPM();
@@ -1946,6 +1950,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
 
       const state = get();
+      const withoutModel = format === 'ifc' && options?.withoutBuildingModel === true;
+      const planOnly = withoutModel ? await askPlanOnlyExport(state, 'export') : undefined;
+      if (planOnly === null) return { ok: true, warnings: [], cancelled: true };
       const warnings = detectXerExportLoss(format, {
         sourceArchive: state.xerSourceArchive,
         importMetadata: state.xerImportMetadata,
@@ -2077,7 +2084,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
           {
-            const written = await prepareAppIfcWrite(state, buildExportIFCInput(state, 'merge'));
+            const written = await prepareAppIfcWrite(state, buildExportIFCInput(state, withoutModel ? 'planOnly' : 'merge'), planOnly);
             if (!written) return { ok: true, warnings: [], cancelled: true };
             preparedExport = written.prepared;
             payload = written.content ?? '';
@@ -2122,7 +2129,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           }));
           return null;
         }
-        if (written && !preparedExport) await recordOwnFileExport(state, written, exportedLiteral);
+        // Na een ja op "alleen de planning" is het eigen bestand nooit het doel (het bevat het gebouwmodel).
+        if (written && !preparedExport && !planOnly) await recordOwnFileExport(state, written, exportedLiteral);
         return written;
       };
       // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
@@ -2197,15 +2205,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     exportProjectWithPool: async (): Promise<ExportResult> => {
       // Zelfde stale/cyclus-guard als `exportAs`: dit pad schrijft óók de CPM-uitvoer weg, dus een
       // stale of cyclische planning mag hier evenmin stil worden geëxporteerd.
-      // Fase 1a (#804): geen IFC zonder het vreemde deel; telt als geannuleerd, de melding zegt waarom.
-      if (refuseForeignIfcWrite()) return { ok: true, warnings: [], cancelled: true };
+      // Deze export is altijd zonder gebouwmodel (uitwisseling van resources). Met een gebouwmodel eerst de vraag
+      // (#804 PR 13); bij een ontbrekend gebouwmodel of met de flag uit geweigerd, de melding zegt waarom.
+      if (refuseForeignDocumentWrite()) return { ok: true, warnings: [], cancelled: true };
       if (get().scheduleStale) get().runCPM();
       const cpmFailure = get().cpmResult;
       if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
 
       const state = get();
+      const planOnly = await askPlanOnlyExport(state, 'exportWithPool');
+      if (planOnly === null) return { ok: true, warnings: [], cancelled: true };
       // 1. Het project zelf (bevat altijd al alle gebruikte items). Een export: zie `buildExportIFCInput`.
-      const project = writeIFCWithChoices(buildExportIFCInput(state, 'planOnly'));
+      const project = await prepareAppIfcWrite(state, buildExportIFCInput(state, 'planOnly'), planOnly);
+      if (!project || project.prepared) return { ok: true, warnings: [], cancelled: true };
+      const projectContent = project.content;
       const base = suggestedFileBase(state);
       const foreignCheck = foreignTargetCheck('export');
       const refuseTarget: SaveTargetCheck = async (target) => (await foreignCheck(target)) || refuseChangedExport(state);
@@ -2213,9 +2226,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // direct vóór de write kijken of het document nog gelijk is (`refuseChangedExport`).
       const outcome = await runProjectFileWrite(async () => {
         if (refuseChangedExport(state)) return null; // ook zonder doel (download), zie `exportAs`
-        const written = await saveFileDialog(`${base}.ifc`, project.content, [{ name: 'IFC Files', extensions: ['ifc'] }],
+        const written = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }],
           { refuseTarget, refuseDownload: () => refuseChangedExport(state) });
-        if (written) await recordOwnFileExport(state, written, project.literalCalendarIds);
+        if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         return written;
       });
       if (!outcome) return { ok: true, warnings: [], cancelled: true }; // dialoog geannuleerd — geen fout

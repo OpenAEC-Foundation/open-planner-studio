@@ -767,7 +767,6 @@
     "sentTitle": "Merci, votre signalement a été envoyé.",
     "alreadyIn": "Ce signalement est déjà reçu. Voulez-vous ajouter quelque chose ? Modifiez alors le texte et envoyez-le à nouveau.",
     "sentScreenshotDropped": "La capture d'écran était trop grande et n'a pas été envoyée.",
-    "viewOnGithub": "Voir sur GitHub",
     "errorValidation": "Le signalement n'a pas été accepté. Vérifiez le texte (pas seulement des URL) et l'adresse e-mail, puis réessayez.",
     "errorRateLimited": "Vous avez envoyé beaucoup de signalements en peu de temps. Réessayez dans une heure.",
     "errorFailed": "L'envoi a échoué. Vérifiez votre connexion internet et réessayez, ou ouvrez le signalement sur GitHub.",

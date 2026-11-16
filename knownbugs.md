@@ -955,6 +955,40 @@ en noem het in je rapport of PR-tekst.
      MutationObserver slaat een lege `#root` over; het foutscherm (`src/startup/fatalError.ts`) maakt juist die root
      leeg. Een foutscherm als eindstand valt zo niet op. Voorstel: in hetzelfde blok `.help-panel` zichtbaar en
      `#ops-fatal-error` afwezig eisen. Uit de review van #941 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+1650. **Een fase die eindigt op een eindmijlpaal toont haar einde mét tijd.** In
+     `examples/03-kantoorgebouw-zuidas.ifc`, na F5: fase "1. Preparation" eindigt in de kolom Einde op
+     `30-03-2027 07:00`, terwijl haar laatste kind, de mijlpaal "Start of construction", `30-03-2027` toont. De
+     rollup neemt het mijlpaalmoment (`earlyFinish 2027-03-30T07:00`, het begin van de werkdag) over, en de B4-regel
+     (`taskDateLabel`, kant `end`) toont een einde op een dagbegin met de tijd. Datums bij balken (#868) volgen de
+     tabel en tonen hetzelfde. Voorstel: een fase-einde op een dagbegin dat van een mijlpaal komt als datum tonen, of
+     de rollup laten afronden zoals de mijlpaal zelf. Gezien in de app tijdens #868. — B
+1651. **De A4-regressietest voor datums bij balken in de afdruk draait twee keer op 90%.**
+     `tests/planning/check-print-bar-dates.ts` geeft `reportFontScale` als `1` en `1.25` door, maar de renderer
+     verwacht percentages (`90`, `100`, `110`, `125`) en kiest de dichtstbijzijnde: beide gevallen worden 90%. Het
+     label noemt 100% en 125%. De echte 100%- en 125%-gevallen zijn los nagemeten en goed (eindig, zelfde dagbreedte
+     als zonder datums). Voorstel: `[100, 125]` en het label zonder `* 100`. Bron: review Sol ronde 3 van #951. — B
+1673. **VERVOLG: binnen één gebundelde wijziging kan de selectie na verwijderen op een verborgen fase landen.**
+     `selectNeighbourAfterRemoval` (`src/state/selectionAfterRowChange.ts`) kiest de buur uit `viewRows`. Binnen
+     een transactie die het herberekenen van de rijen uitstelt (`runtime.deferViewRows`, bijvoorbeeld
+     `withTransaction(() => deleteTask(B))`), is `viewRows` nog de oude stand. Een fase die alleen zichtbaar was
+     als ouder van het gefilterde kind B, telt dan nog als zichtbaar en wordt geselecteerd. Een tweede Verwijderen
+     wist die fase met haar verborgen kinderen. Welke routes in de app zo'n transactie gebruiken, is niet nagelopen.
+     Voorstel: de buur kiezen na het herberekenen aan het eind van de transactie. Uit de review van #947
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+1674. **VERVOLG: een rasterkopie zonder taakselectie kan de herkomst van een oudere kopie laten staan.** Kopieer
+     in planning A de naamcel `Fase`, klik in planning B (die ook een taak `Fase` heeft) haar naamcel en druk Escape:
+     de taakselectie is leeg, het celbereik blijft. Ctrl+C kopieert opnieuw de tekst `Fase`, maar `copyTasks`
+     (`src/state/slices/selectionSlice.ts`) stopt bij een lege selectie en laat `fromGrid` van A staan. Ctrl+V in B
+     plakt dan de oude taak uit A in plaats van de celwaarde. Voorstel: bij een geslaagde rasterkopie zonder
+     kopieerbare taken `fromGrid` wissen, met een regressiecheck. Uit de review van #957 (GPT-6.1-Sol, xhigh,
+     ronde 1, BEVESTIGD, VERVOLG). — B
+1675. **VERVOLG: na verwijderen kiest de cursor de verkeerde groep als een vroeg groepsniveau verandert.**
+     `currentRowKey` (`src/state/selectionAfterRowChange.ts`) zoekt de rij van de buur op het langste gelijke begin
+     van het groepspad en stopt bij het eerste verschil. Groepeer op WBS aflopend → Resource, met A en B (WBS 1 en 2)
+     allebei onder R1 en R2: rijen B/R1, B/R2, A/R1, A/R2. Verwijder A onder R2: B wordt goed gekozen, maar de
+     cursor landt op B/R1 in plaats van B/R2, want B kreeg WBS 1 en geen pad deelt het begin `["2"]`. Voorstel: ook
+     gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
+     BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
@@ -2046,16 +2080,13 @@ en noem het in je rapport of PR-tekst.
      voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
      en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
      van #926. — B
-1565. **VERVOLG (#804, eindlijst): pool-export en IFC-export zonder gebouwmodel wachten op de verliesvraag.**
-     Bij een document met een vreemd deel blijven `exportProjectWithPool` en de bewaakte `planOnly`-voorbereiding
-     geweigerd, met nul bytes. De vraag vooraf dat het gebouwmodel niet meegaat (§4.12) en de aparte bediening
-     voor Exporteren zonder gebouwmodel zijn nog niet gebouwd. Verplicht afmaken vóór de flag aan mag;
-     andere exportformaten blijven mogelijk. Vastgelegd en beproefd in fase 1c PR 11b. — B
 1566. **VERVOLG (#804, documentatie): handleiding nl/en vóór vrijgeven van de flag.**
      Fase 1c PR 11b voegt bewust geen gids in `public/docs/` toe: `ifcForeignContent` staat standaard uit.
      De PR die de flag aanzet moet de handleiding nl/en en de manifestvermelding toevoegen, met de
      volledige exportroute en de nog geldende opslaggrenzen. Ook de meldingen in `handoff.md` moeten
-     vóór die vrijgave door de eigenaar beoordeeld zijn. Afspraak van Trias, 14 november 2026. — B
+     vóór die vrijgave door de eigenaar beoordeeld zijn. Afspraak van Trias, 14 november 2026. Sinds fase 1c PR 13
+     hoort daar ook bij: Exporteren → IFC met het vinkje Zonder gebouwmodel en de export met de resourcebibliotheek,
+     allebei na de vraag "Exporteren zonder gebouwmodel?", met wat het nieuwe bestand wel en niet bevat (1741). — B
 
 1568. **VERVOLG (bediening): blijvende meldingen kunnen de IFC-exportkaart bedekken.**
      In de echte browserroute van `settings-tabs.spec.ts` liggen na openen, een geweigerde Ctrl+S en F5
@@ -2116,16 +2147,90 @@ en noem het in je rapport of PR-tekst.
      melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
      zin voor de flag uit. — S
 
-1597. **VERVOLG (#804, MCP): de fout bij een geblokkeerde MCP-handeling noemt de vraag "Alleen de planning opslaan?" niet bij naam.**
-     `isBlockingDialogOpen()` (`src/state/blockingDialogs.ts`) blokkeert correct terwijl de vraag van PR 9e wacht, maar
-     `BLOCKING_UI_FLAGS` in `src/services/mcp/tools/runtime.ts` mist `pendingIfcMissingSourceSaveAs`. De fout zegt dan
-     alleen dat er "a dialog" open staat, niet welke. Richting: de vlagnaam toevoegen aan die lijst (de inhoud van beide
-     lijsten hoort gelijk te zijn). Gevonden door de review van #935. — B
-
 1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
      Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
      bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
      mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
+
+1700. **VERVOLG (#804, gebouwmodel): één bestaande baseline wissen weigert.**
+     Op `eigen-plus-model.ifc`, het kantoorvoorbeeld met een wand en `oud-eigen-0.1-plus-model.ifc` weigert de merge
+     "één bestaande baseline wissen" met `niet-gedragen` op de `IfcRelAggregates` van het werkplan (de kop van de
+     gewiste baseline). Zelfde oorzaak als 1581, maar een gewonere handeling. Gemeten in het onderzoek van 14 november
+     (`logs/v1/7c7d-*.jsonl`) en opnieuw in `check-ifc-foreign-eigen-uitvoer.ts` (PR 12a). Richting: stap 3 van de
+     overstap (de baselinekop). — B
+
+1701. **VERVOLG (#804, controle): de verliescontrole toetst de typenaam op de taak niet op zijn waarde.**
+     Een verkeerde `ObjectType` op de taak waarvan de planner het type veranderde (nieuw type, typewissel), lieten de
+     verliescontrole en de controle "planning na openen" allebei door: de verliescontrole ziet alleen dat dat slot mocht
+     veranderen, en de lezer leest het type uit het JSON. Alleen een fout van de writer kan dit geven. Sinds PR 12a vangt
+     controle (c) het in de echte uitvoer (`eigen-uitvoer`, `check-ifc-foreign-eigen-uitvoer.ts`). Open: de
+     verliescontrole zelf blijft het slot niet op waarde toetsen tot stap 4 van de overstap. — B
+
+1702. **VERVOLG (#804, gebouwmodel): een baselinerij van een gewiste taak verandert bij herlezen.**
+     Op een oud bestand krijgt na een merge met "taak wissen" de rij van de gewiste taak bij heropenen een nieuwe taak-id
+     (oude showcase) of een nieuwe GlobalId in `TaskGuids` (`oud-eigen-0.1-plus-model.ifc`); een gewone opslag houdt
+     beide. De canon ziet het bewust niet (`orphanRowsWithoutId`), en controle (c) volgt die regel (PR 12a; zonder die
+     regel weigert de keten op het oude bestand een goede uitvoer, gemeten met een mutatie). Gevolg: in de opslag daarna is
+     `OPS_Baselines` niet gedragen, en dan weigert bijvoorbeeld "B1 wissen, B2 actief, type aan nieuwe taak". Gemeten in
+     het onderzoek van 14 november (`logs/wees.jsonl`, `logs/v1/taskguids-oud.jsonl`). Richting: vóór stap 5 van de
+     overstap de GlobalId en taak-id van zo'n rij stabiel maken. — B
+
+1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
+     `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
+     omdat de writer het kenmerk bij Opslaan bewust nooit schrijft. Een backup heeft nooit een model, dus de combinatie
+     ontstaat alleen met de hand. Gemeten in het onderzoek van 14 november (`logs/v1/telling-backup-met-kenmerk.jsonl`).
+     Advies uit het onderzoek: zo laten. — B
+
+1704. **VERVOLG (#804, classificatie): een tekstwijziging in een eigen regel laat een eigen `IfcPerson` als niet-P zien.**
+     In de tegenproeven van PR 12a (`check-ifc-foreign-eigen-uitvoer.ts`) geeft het veranderen van de naam van een
+     codetemplate, de naam of aanmaakdatum van een baselinekop, of het weghalen van een template uit de lijst, een
+     weigering `uitvoer-controle` met "extra niet-P-stuk #691" (`IFCPERSON($,'Contractor',…)`), en een gewijzigde
+     codewaarde in `OPS_StructureMeta` "extra niet-P-stuk" op een `IfcPropertyEnumeratedValue`. Dat weigert terecht,
+     maar om een reden die niets met de fout te maken heeft. Niet uitgezocht waarom `classify` die regels dan anders
+     indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
+
+1705. **VERVOLG (#804, controle (c)): de tweede vorm van de baselinekop bewaakt alleen lidmaatschap van enige aggregatie.**
+     `ownGroupTrees` in `src/services/ifc/foreign/ownGroups.ts` schrijft per baselinekop alleen "in aggregatie" of "los".
+     Een kop van de werkplanaggregatie naar een andere aggregatie (zoals die van het project) verplaatsen, geeft daar geen
+     verschil. De volledige uitvoercontrole weigert die proef nu wel (`uitvoer-controle`, extra niet-P-stuk), dus de
+     opslag van nu heeft geen gat. Gevonden door de review van #953 (Sol, ronde 1). Richting: aanscherpen in stap 3, vóór
+     de baselinekop een verschil mag dragen: de koppeling naar het eigen werkplan vastleggen. — B
+
+1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
+     Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
+     Het model gaat niet mee." Nu exporteren CSV, MSPDI, XER en het voortgangsblad vanuit zo'n document zonder vraag; alleen
+     de IFC-export zonder gebouwmodel en de export met de resourcebibliotheek stellen de vraag (PR 13). Er gaat niets
+     verloren: het geopende bestand blijft ongewijzigd en die formaten dragen nooit een gebouwmodel. Niet gebouwd in PR 13
+     (besluit Trias, 16 november 2026). Op de eindlijst vóór de flag standaard aan mag; of de vraag er bij deze formaten
+     echt bij moet, beslist de eigenaar. Richting als het ja wordt: dezelfde vraag "alleen de planning" met een eigen
+     reden. — B
+
+1741. **VERVOLG (#804, uitleg): de vraag vóór Exporteren zonder gebouwmodel noemt niet wat er van de planning van een ander programma wegvalt.**
+     Gemeten in fase 1c PR 13 op `tests/fixtures/ifc-foreign/bonsai-4d.ifc` (bewijs in `/tmp/fase1c-pr13-bewijs/proef2/`
+     op aia09-mp50): het nieuwe bestand heeft alleen planning (82 stukken, geen gedeelde, gekoppelde of vreemde) en heropent
+     met dezelfde 4 taken, 1 relatie, 1 resource, 1 toewijzing en 2 kalenders. Het `IfcProject` houdt zijn GlobalId. Weg zijn,
+     zoals bedoeld: het gebouwmodel (wanden, geometrie, terrein, gebouw, verdieping), maar ook de koppelingen taak↔wand
+     (`IfcRelAssignsToProduct`), het tweede werkschema en de baseline van het andere programma met hun drie taken, de
+     vreemde pset-waarden en de herkomst (owner history) van het andere programma. De vraag zegt alleen in het algemeen
+     dat "de gegevens van een ander programma" niet meegaan. Richting: in de handleiding (1566) opsommen wat wegvalt;
+     een telling in de vraag alleen als de eigenaar dat wil. — B
+
+1742. **VERVOLG (browsertest): in `settings-tabs.spec.ts` verschijnt na de twee heropeningen nog een vierde document.**
+     Na Exporteren → IFC (download, Ctrl+O) en Ctrl+Shift+S (download, Ctrl+O) staat het heropende bestand actief. Kort
+     na het sluiten van de melding "Opgeslagen als download" opent de app nog een document met de naam van het eerste exportbestand
+     (`eigen-plus-model.ifc`) en maakt het actief. Ook met de Backstage van main; dus niet uit PR 13. Gemeten in de
+     meetruns `/tmp/fase1c-pr13-bewijs/browser/run4-probe.log` en `run6-main-toasts.log` op aia09-mp50. De oorzaak is niet
+     gezocht (mogelijk een tweede open-actie van dezelfde bestandskiezer). PR 13 zet zijn stappen daarom vóór die
+     heropeningen. Richting: nagaan of de planner dit ook ziet (twee keer hetzelfde bestand open na één keer kiezen). — S
+
+1743. **VERVOLG (#804, Opslaan als zonder gebouwmodel): een bewerking tijdens de vraag gaat mee in het nieuwe bestand.**
+     Bij "bron ontbreekt" stelt Opslaan als de vraag "Alleen de planning opslaan?" (9e). Na het ja controleert
+     `saveActiveDocumentAs` (`src/state/slices/fileSlice.ts`) het document, de bron, het kenmerk en of de vraag nog past,
+     maar niet de inhoud; die wordt daarna opnieuw gelezen. Proef van de review van #961 (Sol): tijdens de vraag een
+     taaknaam wijzigen en dan ja geven schrijft het bestand met de nieuwe naam. De twee exportroutes van PR 13 vergelijken
+     de inhoud wel met hun momentopname. Een gemaakte toestand (de vraag is modaal; alleen MCP of een script komt ertussen)
+     en er gaat niets verloren. Het late lezen stond al in #935. Richting: direct na het antwoord ook de inhoud met de
+     momentopname van vóór de vraag vergelijken. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
@@ -2679,6 +2784,13 @@ en noem het in je rapport of PR-tekst.
      koptekst die beide berekeningen noemt, of een neutrale tekst. Stond al op main. Uit de review van #874
      (GPT-6.1-Terra, xhigh, op `c38ac7d9e`, VERVOLG). — B
 
+1730. **VERVOLG: 26 gidsvertalingen moeten de correctie over afzonderlijke resource-uren nog overnemen.**
+      `public/docs/{ar,bg,cs,da,de,es,fa,fi,fr,hr,hu,it,ja,ko,lo,nb,pl,pt,ro,ru,sk,sr,sv,tr,uk,zh}/howto-werkregel-kiezen.md`
+      is in #954 nog niet bijgewerkt met de Nederlandse en Engelse broncorrectie: eigen werkinvoer kan
+      afwijken van inzet × resterende duur; onder Vaste inzet blijven andere toewijzingen alleen bij gelijke
+      duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
+      bewust niet met de hand gewijzigd. — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
@@ -3103,6 +3215,12 @@ en noem het in je rapport of PR-tekst.
       daarbij `default-features = false`, in zip 4.6.1 en 9.5.1). Dat `miniz_oxide` actief is komt doordat
       `flate2/rust_backend` via andere dependencies binnenkomt. Pas de toelichting aan. Sol-review op
       2fe63a9e4 (PR #944): [BEVESTIGD] VERVOLG. — B
+1670. **De meting "Taakselectie meten" (`task-grid-published-selection.yml`) faalt op elke PR die haar paden raakt.**
+     Ze vergelijkt een vaste basiscommit (`BASE_SHA: fbd4a3f9…`) met de kop van de PR en eist dat
+     `package-lock.json` in beide gelijk is. Sinds main verder is, verschilt die altijd: PR #947 (die alleen
+     `check-task-grid-published-selection.ts` raakte) kreeg `base/package-lock.json head/package-lock.json differ`
+     in de stap "Controleer revisies", run 43617221845. De controle is niet verplicht. Voorstel: de eenmalige
+     meting weghalen, of als basis de merge-base van de PR nemen. — B
 
 1710. **VERVOLG: de zoekroute over alle zichtbare teksten slaat het blok Experimenteel over.**
       `assertVisibleTextsFindTheirSetting` in `tests/browser/settings-tabs.spec.ts` draait vóór het
@@ -3992,13 +4110,13 @@ en noem het in je rapport of PR-tekst.
      de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
      #932. — B
 
-1591. **VERVOLG (#804, grens voor het onderzoek): alleen teruglezen tot het domein ziet een fout in de standaard-IFC-vorm
-     van activiteitscodes niet.** De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates
-     (`IFCSIMPLEPROPERTYTEMPLATE`, `IFCPROPERTYENUMERATION`) alleen als terugval (`src/services/ifc/ifcReader.ts`).
-     Gemeten door de review van #932: verander in de schrijfuitvoer alleen het enumeratielabel `WAND` in `DAK`;
-     volledig heropenen geeft dezelfde codedefinities, de verliescontrole van nu weigert die fout wel. Een toets
-     "de geschreven eigen pset leest terug tot precies het domein" moet zulke dubbel geschreven gegevens dus apart
-     bewaken, of de vormcontrole in `explainCodeDefinitions` blijft nodig. — B
+1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft nodig tot de andere toets er is.**
+     De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates (`IFCSIMPLEPROPERTYTEMPLATE`,
+     `IFCPROPERTYENUMERATION`) alleen als terugval, dus volledig heropenen ziet een fout in die tweede vorm niet. Sinds
+     PR 12a vangt controle (c) zo'n fout in de echte uitvoer wel: het enumeratielabel `WAND` → `DAK` bij een oude en bij
+     een nieuwe code weigert met `eigen-uitvoer` (`check-ifc-foreign-eigen-uitvoer.ts`). Open blijft alleen dat
+     `explainCodeDefinitions` in `lossCheck.ts` de vorm van de bron blijft bewaken tot stap 2 en 5 van de overstap
+     (onderzoek van 14 november, vraag 7); daar pas mag hij weg. — B
 
 1640. **VERVOLG (#770, eigen rapportlettertype): de terugval op Inter bij een verdwenen kopie werkt alleen als de
      keuzelijst Lettertype zichtbaar is.** De controle (`useCustomReportFontGuard` in
@@ -4007,3 +4125,42 @@ en noem het in je rapport of PR-tekst.
      blijft `custom`, de melding ontbreekt en de vector-export valt bij gebrek aan bytes terug op raster. Pas de stap
      Pagina openen herstelt het. Richting: de controle in de rapportwerkruimte, die altijd gemount is, één keer voor
      alle rapporten. Gevonden door de review van #946 (Sol, ronde 1). — B
+
+1720. **VERVOLG (#949, blokkadecontrole bij het wachten op de browserreparatie): bij meer dan honderd reacties leest ze
+     een verouderde laatste reactie.** `.claude/skills/release/SKILL.md`, de lus `wacht_op_reparatie`, gebruikt
+     `gh issue list --json comments` en dan `.comments[-1]`. `gh` 2.45.0 vraagt `comments(first: 100)` op: bij honderd
+     gewone reacties en daarna `REPARATIE GEBLOKKEERD` als reactie 101 ziet de lus geen blokkade; omgekeerd blijft een
+     oude blokkade op positie 100 zichtbaar nadat het werk is hervat. Richting: de laatste reactie echt opvragen
+     (`comments(last: 1)` via `gh api graphql`), en beide beslissingen uit één antwoord nemen in plaats van twee
+     `gh`-aanroepen per ronde. Gevonden door de review van #949 (Sol, ronde 2). — B
+
+1721. **VERVOLG (#949, controle 7g in `verify:docs`): ze verwart verboden woorden met verboden releasegedrag.**
+     `scripts/verify-docs.ts` keurt elke `14:00` of `deadline` buiten de reparatieskill af, en stelt de hele
+     reparatieskill ervan vrij. Gedraaid in het geheugen: `De release heeft geen deadline.` wordt afgekeurd; een
+     toelichting in de releaseskill dat de reparatie om 14:00 stopt wordt afgekeurd; `Om 14:00 stopt ook de release`
+     in de reparatieskill wordt geaccepteerd. Richting: de controle en de uitzondering beperken tot de bedoelde
+     afspraken, niet tot een heel bestand. Gevonden door de review van #949 (Sol, ronde 2). — B
+
+1722. **VERVOLG (#949, `ci.yml`): de cron op vrijdag 22:00 is overbodig naast de avondrun.** `.github/workflows/ci.yml`
+     heeft `cron: '0 22 * * 5'` (`timezone: Europe/Amsterdam`); sinds 2026-11-06 start de geplande Trias-taak elke
+     avond van maandag tot en met zaterdag om 22:00 zelf een browserrun op `main`. De cron levert op vrijdag een
+     dubbele run op. Bewust niet aangepast in #949 (geen workflowwijziging in die PR). — S
+
+1723. **VERVOLG (#949, `scripts/release-ci-check.mjs`): ze rekent nog vanaf "de laatste vrijdag 22:00".**
+     `fridayEvening` en de melding `geen browserrun sinds vrijdag …` kennen alleen de vrijdagrun; de laatste
+     browserrun vóór de maandagrelease is die van zaterdag 22:00. De gate pakt de laatste run sinds die vrijdag en
+     werkt dus, maar naam, commentaar en de documentatie in `scripts/README.md` en `ci-release.md` noemen de vrijdag.
+     Bewust niet aangepast in #949 (geen script- of gatewijziging in die PR). — S
+
+1724. **VERVOLG (#949, reparatieskill en `ci-release.md`): de ingangstekst noemt nog de uitgeschakelde vrijdagtaak.**
+     `.claude/skills/browsertests-repareren/SKILL.md:3` (de `description`: "Gebruik alleen wanneer de geplande
+     vrijdagjob of de release-skill deze skill start") en `.claude/rules/ci-release.md:27` (vrijdag 23:30 als de taak
+     die rode browserruns repareert) wijzen nog naar de vrijdagtaak die uitstaat; de ochtendreparatie van Trias (ma–za
+     08:00) voert de skill nu uit. De sectie "Geplande taak (vrijdag, staat uit)" onderaan de skill (circa 54 regels)
+     kan bij het opruimen terug tot één historische mededeling. Gevonden door de review van #949 (Sol, ronde 3). — B
+
+1725. **VERVOLG (#949, reparatieskill): "Zaterdag na 23:50" wijkt af van de weekendstop van zaterdag 23:00.**
+     `.claude/skills/browsertests-repareren/SKILL.md`, sectie "Stoppen om 14:00". De 23:50 komt uit de letterlijke
+     prompt van de geplande ochtendtaak van Trias; de weekendstop van de eigenaar is zaterdag 23:00 tot maandag 01:00.
+     Zet beide op dezelfde grens (23:00), in de skill én in die prompt. Gevonden door de review van #949 (Sol,
+     ronde 3). — B
