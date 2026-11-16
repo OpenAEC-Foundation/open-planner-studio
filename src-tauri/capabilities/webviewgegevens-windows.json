@@ -7,7 +7,7 @@
   "permissions": [
     {
       "identifier": "fs:scope",
-      "deny": [{ "path": "$APPLOCALDATA/EBWebView/**" }]
+      "deny": []
     }
   ]
 }
