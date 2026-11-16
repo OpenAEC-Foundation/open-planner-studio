@@ -224,11 +224,15 @@ export function useGanttPointerCoordinator(
       deselectAll();
       return;
     }
-    // Een groepsruitje (#868) kiest alle mijlpalen op die dag; Ctrl/Cmd zet ze samen aan of uit.
+    // Een groepsruitje (#868) kiest alle mijlpalen op die dag; Ctrl/Cmd zet ze samen aan of uit, Shift
+    // neemt ze allemaal mee in het bereik.
     const group = renderer.getMilestoneGroup(task.id);
-    if (group && !event.shiftKey) {
+    if (group) {
       const ids = group.map(member => member.id);
-      if (!(event.ctrlKey || event.metaKey)) selectTasks(ids, false);
+      if (event.shiftKey) {
+        selectTask(task.id, false, true);
+        selectTasks(ids, true);
+      } else if (!(event.ctrlKey || event.metaKey)) selectTasks(ids, false);
       else if (ids.every(id => selectedTaskIds.includes(id))) ids.forEach(id => selectTask(id, true, false));
       else selectTasks(ids, true);
       return;

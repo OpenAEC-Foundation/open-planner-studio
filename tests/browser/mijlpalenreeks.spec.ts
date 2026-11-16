@@ -113,6 +113,28 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await page.mouse.click(group.x, group.y, { button: 'right' });
   await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
   await expect(taskMenu).toHaveCount(0);
+  // Shift+klik op het groepsruitje neemt de hele groep mee in het bereik (review Sol ronde 3).
+  await nameCell(page, ids.work).click();
+  await page.keyboard.down('Shift');
+  await page.mouse.click(group.x, group.y);
+  await page.keyboard.up('Shift');
+  await expect.poll(() => selected(page)).toEqual([ids.work, ids.m1, ids.m3].sort());
+  // F2 opent een losse mijlpaal, maar geen lid van een groepsruitje (review Sol ronde 3).
+  const dialog = () => page.evaluate(() => {
+    const ui = window.__OPS__!.store.getState().ui;
+    return ui.showTaskDialog ? ui.editingTaskId : null;
+  });
+  await page.mouse.click(single.x, single.y);
+  await expect.poll(() => selected(page)).toEqual([ids.m2]);
+  await page.keyboard.press('F2');
+  await expect.poll(dialog).toBe(ids.m2);
+  await page.keyboard.press('Escape');
+  await expect.poll(dialog).toBeNull();
+  await page.mouse.click(group.x, group.y);
+  await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
+  await page.keyboard.press('F2');
+  await page.waitForTimeout(300);
+  expect(await dialog()).toBeNull();
   // Een klik op het groepsruitje zet de tabelcursor op de reeksregel (review Sol ronde 2).
   await nameCell(page, ids.work).click();
   await page.mouse.click(group.x, group.y);
