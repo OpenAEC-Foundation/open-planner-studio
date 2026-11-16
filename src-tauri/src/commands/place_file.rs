@@ -657,8 +657,7 @@ pub(crate) fn place(
     // 7. Staat op het doel de gecontroleerde bron, in de open map én waar de aanroeper kijkt?
     let in_dir = sys::id_in_dir(&dir, to_name).ok() == Some(source_id);
     let at_caller = sys::id_of_path(Path::new(to)).ok() == Some(source_id);
-    // MUTATIE M2 (alleen bewijs, wordt teruggezet): geen controle na de stap.
-    if false && !(in_dir && at_caller) {
+    if !(in_dir && at_caller) {
         let restored = ops
             .rename_exclusive(&dir, &source, to_name, from_name)
             .is_ok();
