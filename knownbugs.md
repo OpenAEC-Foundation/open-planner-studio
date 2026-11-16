@@ -2155,6 +2155,23 @@ en noem het in je rapport of PR-tekst.
      laten, tenzij zulke bestanden met een gebouwmodel vaak voorkomen; dan het JSON bij de eerste baselinebewerking in de
      vorm van de writer schrijven, zoals nu al gebeurt. — B
 
+1771. **VERVOLG (#804, test): `check-ifc-foreign-strikt.ts` rekent lokaal ongeveer vijf minuten en zit op de tijdgrens.**
+     Op aia09-mp50 duurt de check ongeveer vijf minuten (gemeten op 16 november 2026: 05:12 tot 05:17 op `519221cb0`,
+     groen; om 07:57 bij load 3 gestopt door `timeout 300`). Hij schrijft pas aan het eind uitvoer, dus hij lijkt te
+     hangen; het proces rekent (ongeveer 150% CPU, 450 MB). In de CI is hij groen. Tot hij sneller is: lokaal alleen met
+     `timeout 600` als de machine rustig is; verder geldt de CI als bewijs (besluit van de technisch beslisser,
+     16 november 2026). Richting: de check splitsen of de dubbele opslagrondes per proef verminderen, en tussentijds
+     uitvoer schrijven. — B
+
+1772. **VERVOLG (#804, gebouwmodel): op de showcase met een wand weigert een tweede taak wissen na opslaan en heropenen.**
+     `public/examples/showcase-appartementencomplex.ifc` met een wand, flag aan: één taak wissen, opslaan, heropenen en
+     een tweede taak wissen weigert met `planning-na-openen`, met als verschil een duur
+     (`task-ifc-h7C5E3LHT12RvX1VuT3fYF.time.scheduleDuration: 3 → 5`). De eerste opslag schrijft (22.419 bytes). Zo was
+     het ook vóór PR 12e (dezelfde bytes en dezelfde weigering op `3fcd4d628`); er gaat niets verloren. De oorzaak is
+     niet uitgezocht; het is niet de toewijzings-id van 1709, en 1770 is niet als oorzaak bewezen. Richting: eerst meten
+     waar de duur verandert (het openen, de herberekening of de bronvorm). Gevonden door de bouwer van PR 12e, gemeten
+     door de review van #968. — B (proef)
+
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
      omdat de writer het kenmerk bij Opslaan bewust nooit schrijft. Een backup heeft nooit een model, dus de combinatie
