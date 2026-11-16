@@ -2628,6 +2628,25 @@ en noem het in je rapport of PR-tekst.
      bestanden: twee volledige inhoudscontroles en de merge, alle op de hoofdthread. Richting: meenemen in de proef in
      een echte browser van 1574 en de meting van PR 6. — S
 
+1768. **VERVOLG (#804, productkeuze): na een download omdat de browser schrijftoestemming weigert, staat het document als opgeslagen.**
+     Browser, flag aan, document met een gebouwmodel dat via de bestandskiezer geopend is. Weigert de browser de
+     schrijftoestemming, dan wordt Ctrl+S een download van het volledige bestand (planning en gebouwmodel). De bron, het
+     kenmerk, de handle en de naam blijven die van het geopende bestand, en dat is juist: daar staat nog de oude versie.
+     Maar `isDirty` gaat uit, dus de sluitvraag komt niet meer, terwijl het geopende bestand niet is bijgewerkt en het
+     werk alleen in de downloadmap staat. Geen verlies aangetoond: de download is heel, en met later verleende
+     toestemming schrijft Ctrl+S alsnog op dezelfde handle (proef van de review van #967). "Zoals main" klopt maar ten
+     dele: de gewone route probeert eerst de opslaankiezer en verliest bij een download haar handle; de mergeroute
+     downloadt altijd (1130) en houdt het openingsdoel. Richting: de eigenaar kiest wat "opgeslagen" hier betekent (het
+     document blijft gewijzigd tot het geopende bestand is bijgewerkt, of een kopie telt), en de melding zegt het; met
+     de teksten van stap 6 van 1131. Gevonden door de review van #967. — B (proef)
+
+1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**
+     `tests/browser/settings-tabs.spec.ts` wacht in de stap zonder bewerking op `isDirty === false`, leest dezelfde
+     bytes terug en toetst dat de oude weigering ontbreekt. Opent het document schoon, dan bewijst dat niet dat er
+     geschreven is. Het bewerkte deel van de proef schrijft wel andere bytes en heropent die. Richting: de begintoestand
+     toetsen en wachten op een waargenomen schrijfronde, bijvoorbeeld via `lastModified` van het bestand. Niet gemeten
+     door de reviewer (de run kwam niet aan de beurt). Gevonden door de review van #967. — S
+
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
      `new Uint8Array(await data.arrayBuffer())`, omdat het hostcontract één `Uint8Array` vraagt. De bytes blijven gelijk
