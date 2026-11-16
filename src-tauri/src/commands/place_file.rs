@@ -4,23 +4,31 @@
 //! plugin-fs is `std::fs::rename` en vervangt een bestaand doel altijd. Wie een bestand van een ander
 //! programma veilig wil vervangen, moet een stap hebben die faalt als er op de nieuwe naam al iets staat.
 //! Dit commando doet precies die ene stap, met de systeemaanroep die het doel nooit vervangt:
-//! Linux `renameat2` met `RENAME_NOREPLACE`, macOS `renamex_np` met `RENAME_EXCL`, Windows `MoveFileExW`
-//! zonder `MOVEFILE_REPLACE_EXISTING`.
+//! Linux `renameat2` met `RENAME_NOREPLACE`, macOS `renameatx_np` met `RENAME_EXCL`, Windows
+//! `SetFileInformationByHandle(FileRenameInfo)` zonder vervangen.
 //!
 //! Het is bewust geen algemene bestands-API (AGENTS.md, *Rust is thin*): niet kopiëren, niet verwijderen,
-//! niet lezen, geen map maken. Het weigert alles behalve een verplaatsing binnen één echte map waarvan
-//! precies één van beide namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of
-//! `<naam>.ops-vorige-<id>`), binnen de scope van plugin-fs.
+//! niet lezen, geen map maken. Het weigert alles behalve een verplaatsing binnen één map waarvan precies
+//! één van beide namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`),
+//! en alleen wat plugin-fs `rename` voor deze webview ook toelaat.
 //!
-//! Geen terugval: kent het bestandssysteem de exclusieve stap niet, dan is de uitkomst *niet
-//! ondersteund* en is er niets verplaatst. Een `link()` + `unlink()` liet een bestand verdwijnen dat
-//! tussen de twee aanroepen op het doel kwam (review #839, ronde 4), en "eerst kijken, dan hernoemen"
-//! heeft hetzelfde venster.
+//! **Wat geplaatst wordt, is wat gecontroleerd is** (review #972, blokkade 2). Het commando opent de map
+//! één keer en houdt haar vast; de scope geldt het echte pad van die open map. Het opent de bron zonder
+//! links te volgen, stelt op de open bron vast dat het een gewoon bestand is, en doet de stap relatief
+//! aan de open map (Unix) of aan de open bron (Windows). Daarna gaat het na dat op het doel nu de open
+//! bron staat, zowel in de open map als via het pad van de aanroeper. Is dat niet zo, dan is er tussen
+//! controle en stap gewisseld: het zet exclusief terug en geeft `source-changed`, nooit "geplaatst".
+//!
+//! Geen terugval: kent het bestandssysteem of het platform de gebonden exclusieve stap niet, dan is de
+//! uitkomst *niet ondersteund* en is er niets verplaatst. Een `link()` + `unlink()` liet een bestand
+//! verdwijnen dat tussen de twee aanroepen op het doel kwam (review #839, ronde 4), en "eerst kijken,
+//! dan hernoemen" heeft hetzelfde venster.
 //!
 //! Een app-commando heeft geen permissie nodig: zonder eigen ACL-manifest laat Tauri elk commando van de
 //! app toe vanuit elke webview met een lokale oorsprong (`tauri-2.12.3/src/webview/mod.rs:2076-2083`),
 //! dus ook vanuit extensiecode. Alle controles staan daarom hier in de code.
 
+use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -37,17 +45,22 @@ pub enum PlaceOutcome {
     DirNotSynced { message: String },
 }
 
-/// Waarom het commando niets deed. De TypeScript-kant (`placeFileExclusive.ts`) kiest op `code`.
+/// Waarom het commando niet plaatste. De TypeScript-kant (`placeFileExclusive.ts`) kiest op `code`.
 #[derive(Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "code", rename_all = "kebab-case")]
 pub enum PlaceError {
     /// Op `to` staat al iets (bestand, map of link, ook een dode link). Beide blijven onaangeroerd.
     TargetExists,
-    /// Het bestandssysteem of het platform kent de exclusieve stap niet. Er is niets verplaatst.
+    /// Het bestandssysteem of het platform kent de gebonden exclusieve stap niet. Er is niets verplaatst.
     Unsupported { message: String },
     /// Geweigerd vóór enige wijziging.
     Refused { reason: RefusalReason },
-    /// Een andere fout van het systeem, met zijn tekst. Er is niets verplaatst.
+    /// Tussen de controle en de stap is de bron of de map gewisseld: op het doel stond daarna niet de
+    /// gecontroleerde bron. Het commando zette exclusief terug wat het verplaatste (`restored`); lukte
+    /// dat niet, dan staat het verplaatste op `to` en meldt `restored: false` dat.
+    SourceChanged { restored: bool },
+    /// Een andere fout van het systeem, met zijn tekst. Er is niets verplaatst (zie knownbug 1795 voor
+    /// netwerkschijven).
     Io { message: String },
 }
 
@@ -55,11 +68,11 @@ pub enum PlaceError {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RefusalReason {
-    /// Geen absoluut pad, geen gewone bestandsnaam, of niet dezelfde echte map.
+    /// Geen absoluut pad, geen gewone bestandsnaam, of niet dezelfde map.
     PathShape,
     /// Niet precies één van beide namen is een eigen hulpbestand.
     HelperName,
-    /// Een pad valt buiten de scope van plugin-fs.
+    /// Een pad valt buiten wat plugin-fs `rename` voor deze webview toelaat.
     Scope,
     /// `from` is geen gewoon bestand (een map of een symbolische link).
     NotRegularFile,
@@ -71,6 +84,7 @@ pub enum RefusalReason {
 // (`src/utils/id.ts`) geeft `save-` + `Date.now()` in grondtal 36 + tot vier tekens uit
 // `Math.random()` in grondtal 36 + een teller in cijfers. Het `<id>` is dus kleine letters en cijfers.
 // De vorige versie krijgt `<naam>.ops-vorige-<id>` met hetzelfde soort `<id>` (ontwerp §4.10, stap 3).
+// De naamvorm bewijst geen eigendom; herstelcode mag dat er niet uit afleiden.
 
 const SAVE_TMP_PREFIX: &str = "save-";
 const SAVE_TMP_SUFFIX: &str = ".ops-save.tmp";
@@ -102,136 +116,434 @@ fn is_helper_name(name: &str) -> bool {
     }
 }
 
-// ── De naad voor de proeven ──────────────────────────────────────────────────────────────────────
+// ── De open map en de naad voor de proeven ───────────────────────────────────────────────────────
 
-/// De drie systeemstappen. De proeven zetten er een eigen variant tussen om *niet ondersteund* en
-/// mislukte fsyncs na te bootsen en de volgorde te zien; het commando gebruikt [`SystemOps`].
+/// De map, één keer geopend en vastgehouden tot het eind, met haar echte pad zoals het systeem het
+/// voor de open map geeft (niet een padtekst van eerder).
+pub(crate) struct OpenDir {
+    // Windows leest de handle niet terug: zij houdt de map alleen vast (zonder `FILE_SHARE_DELETE`).
+    #[cfg_attr(windows, allow(dead_code))]
+    file: File,
+    real: PathBuf,
+}
+
+/// De drie stappen rond de verplaatsing. De proeven zetten er een eigen variant tussen om fouten na te
+/// bootsen, de volgorde te zien en tussen controle en stap te wisselen; het commando gebruikt
+/// [`SystemOps`]. De controles zelf (vorm, hulpnaam, scope, gewoon bestand, de controle na de stap)
+/// zitten niet in de naad.
 pub(crate) trait PlaceOps {
-    /// Leg de inhoud van het bestand vast (fsync).
-    fn sync_file(&self, path: &Path) -> io::Result<()>;
-    /// Verplaats exclusief: faalt met `AlreadyExists` als er op `to` iets staat.
-    fn rename_exclusive(&self, from: &Path, to: &Path) -> io::Result<()>;
-    /// Leg de map vast (fsync), zodat de nieuwe naam een stroomuitval overleeft.
-    fn sync_dir(&self, dir: &Path) -> io::Result<()>;
+    /// Leg de inhoud van de open bron vast (fsync).
+    fn sync_file(&self, source: &File) -> io::Result<()>;
+    /// Verplaats `from` exclusief naar `to` in de open map: faalt met `AlreadyExists` als er op `to`
+    /// iets staat. Unix: relatief aan de open map; Windows: via de open bron.
+    fn rename_exclusive(
+        &self,
+        dir: &OpenDir,
+        source: &File,
+        from: &str,
+        to: &str,
+    ) -> io::Result<()>;
+    /// Leg de map vast, zodat de nieuwe naam een stroomuitval overleeft.
+    fn sync_dir(&self, dir: &OpenDir, source: &File) -> io::Result<()>;
 }
 
 /// De echte systeemaanroepen.
 pub(crate) struct SystemOps;
 
 impl PlaceOps for SystemOps {
-    fn sync_file(&self, path: &Path) -> io::Result<()> {
-        // Windows: `sync_all` is `FlushFileBuffers`, en dat vraagt schrijfrecht op de handle.
-        #[cfg(windows)]
-        let file = std::fs::OpenOptions::new().write(true).open(path)?;
-        #[cfg(not(windows))]
-        let file = std::fs::File::open(path)?;
-        file.sync_all()
+    fn sync_file(&self, source: &File) -> io::Result<()> {
+        source.sync_all()
     }
 
-    fn rename_exclusive(&self, from: &Path, to: &Path) -> io::Result<()> {
-        rename_exclusive_system(from, to)
+    fn rename_exclusive(
+        &self,
+        dir: &OpenDir,
+        source: &File,
+        from: &str,
+        to: &str,
+    ) -> io::Result<()> {
+        sys::rename_exclusive(dir, source, from, to)
     }
 
-    fn sync_dir(&self, dir: &Path) -> io::Result<()> {
-        sync_dir_system(dir)
+    fn sync_dir(&self, dir: &OpenDir, source: &File) -> io::Result<()> {
+        sys::sync_dir(dir, source)
     }
 }
 
-#[cfg(all(target_os = "linux", target_env = "gnu"))]
-fn rename_exclusive_system(from: &Path, to: &Path) -> io::Result<()> {
-    let (from, to) = (c_path(from)?, c_path(to)?);
-    // SAFETY: beide pointers wijzen naar geldige, met NUL afgesloten C-strings die tot na de aanroep leven.
-    let rc = unsafe {
-        libc::renameat2(
-            libc::AT_FDCWD,
-            from.as_ptr(),
-            libc::AT_FDCWD,
-            to.as_ptr(),
-            libc::RENAME_NOREPLACE,
-        )
+/// Identiteit van een bestand: apparaat en inode (Unix), volumenummer en bestandsindex (Windows).
+type FileId = (u64, u64);
+
+#[cfg(unix)]
+mod sys {
+    use super::{FileId, OpenDir};
+    use std::ffi::CString;
+    use std::fs::File;
+    use std::io;
+    use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+    use std::os::unix::io::{AsRawFd, FromRawFd};
+    use std::path::{Path, PathBuf};
+
+    pub fn open_dir(path: &Path) -> io::Result<File> {
+        std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC)
+            .open(path)
+    }
+
+    pub fn file_id(file: &File) -> io::Result<FileId> {
+        let meta = file.metadata()?;
+        Ok((meta.dev(), meta.ino()))
+    }
+
+    pub fn id_of_path(path: &Path) -> io::Result<FileId> {
+        let meta = std::fs::symlink_metadata(path)?;
+        Ok((meta.dev(), meta.ino()))
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn real_path(dir: &File) -> io::Result<PathBuf> {
+        std::fs::read_link(format!("/proc/self/fd/{}", dir.as_raw_fd()))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn real_path(dir: &File) -> io::Result<PathBuf> {
+        use std::os::unix::ffi::OsStringExt;
+        let mut buf = vec![0u8; libc::MAXPATHLEN as usize];
+        // SAFETY: F_GETPATH schrijft hoogstens MAXPATHLEN bytes, met NUL, in de buffer.
+        let rc = unsafe { libc::fcntl(dir.as_raw_fd(), libc::F_GETPATH, buf.as_mut_ptr()) };
+        if rc == -1 {
+            return Err(io::Error::last_os_error());
+        }
+        let len = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+        buf.truncate(len);
+        Ok(PathBuf::from(std::ffi::OsString::from_vec(buf)))
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    pub fn real_path(_dir: &File) -> io::Result<PathBuf> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "het echte pad van een open map kent dit platform niet",
+        ))
+    }
+
+    /// Open de bron in de open map zonder een link te volgen (`O_NOFOLLOW`); `O_NONBLOCK` zodat een
+    /// fifo niet blijft hangen (die wordt daarna als geen gewoon bestand geweigerd).
+    pub fn open_source(dir: &OpenDir, name: &str) -> io::Result<File> {
+        let name = CString::new(name)?;
+        // SAFETY: geldige map-descriptor en een met NUL afgesloten naam die tot na de aanroep leeft.
+        let fd = unsafe {
+            libc::openat(
+                dir.file.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: `fd` is net geopend en van niemand anders.
+        Ok(unsafe { File::from_raw_fd(fd) })
+    }
+
+    /// `O_NOFOLLOW` op een symbolische link geeft `ELOOP`.
+    pub fn is_link_refusal(error: &io::Error) -> bool {
+        error.raw_os_error() == Some(libc::ELOOP)
+    }
+
+    pub fn is_regular(file: &File) -> io::Result<bool> {
+        Ok(file.metadata()?.file_type().is_file())
+    }
+
+    pub fn id_in_dir(dir: &OpenDir, name: &str) -> io::Result<FileId> {
+        let name = CString::new(name)?;
+        // SAFETY: `stat` is een gewone C-struct; nul is een geldige beginwaarde.
+        let mut st: libc::stat = unsafe { std::mem::zeroed() };
+        // SAFETY: geldige map-descriptor, naam en uitvoerbuffer.
+        let rc = unsafe {
+            libc::fstatat(
+                dir.file.as_raw_fd(),
+                name.as_ptr(),
+                &mut st,
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if rc != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok((st.st_dev as u64, st.st_ino as u64))
+    }
+
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    pub fn rename_exclusive(dir: &OpenDir, _source: &File, from: &str, to: &str) -> io::Result<()> {
+        let (from, to) = (CString::new(from)?, CString::new(to)?);
+        let fd = dir.file.as_raw_fd();
+        // SAFETY: geldige map-descriptor; beide namen zijn met NUL afgesloten en leven tot na de aanroep.
+        let rc =
+            unsafe { libc::renameat2(fd, from.as_ptr(), fd, to.as_ptr(), libc::RENAME_NOREPLACE) };
+        if rc == 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn rename_exclusive(dir: &OpenDir, _source: &File, from: &str, to: &str) -> io::Result<()> {
+        let (from, to) = (CString::new(from)?, CString::new(to)?);
+        let fd = dir.file.as_raw_fd();
+        // SAFETY: geldige map-descriptor; beide namen zijn met NUL afgesloten en leven tot na de aanroep.
+        let rc =
+            unsafe { libc::renameatx_np(fd, from.as_ptr(), fd, to.as_ptr(), libc::RENAME_EXCL) };
+        if rc == 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+
+    #[cfg(not(any(all(target_os = "linux", target_env = "gnu"), target_os = "macos")))]
+    pub fn rename_exclusive(
+        _dir: &OpenDir,
+        _source: &File,
+        _from: &str,
+        _to: &str,
+    ) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "exclusief plaatsen kent dit platform niet",
+        ))
+    }
+
+    /// De open map vastleggen (fsync op de map-descriptor).
+    pub fn sync_dir(dir: &OpenDir, _source: &File) -> io::Result<()> {
+        dir.file.sync_all()
+    }
+
+    /// Systeemfouten van de exclusieve stap die betekenen: dit bestandssysteem kent hem niet.
+    pub const UNSUPPORTED_CODES: &[i32] =
+        &[libc::EINVAL, libc::ENOTSUP, libc::EOPNOTSUPP, libc::ENOSYS];
+}
+
+#[cfg(windows)]
+mod sys {
+    //! Windows heeft geen `openat`. De binding komt hier uit de deelmodus: de map en de bron worden
+    //! geopend zonder `FILE_SHARE_DELETE`, dus zolang het commando ze vasthoudt, kan niemand ze
+    //! hernoemen of verplaatsen (een hernoeming vraagt toegang `DELETE`, en die deelt niemand). Een map
+    //! met een open bestand erin is ook niet te verplaatsen. Het echte pad van de open map blijft dus
+    //! kloppen. De stap hernoemt de open bron zelf (`SetFileInformationByHandle`, `FileRenameInfo`,
+    //! `ReplaceIfExists` onwaar): wat verplaatst wordt, is precies het geopende bestand.
+    use super::{FileId, OpenDir};
+    use std::fs::File;
+    use std::io;
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    use std::os::windows::fs::OpenOptionsExt;
+    use std::os::windows::io::AsRawHandle;
+    use std::path::{Path, PathBuf};
+    use windows_sys::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE};
+    use windows_sys::Win32::Storage::FileSystem::{
+        FileRenameInfo, GetFileInformationByHandle, GetFinalPathNameByHandleW,
+        SetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, DELETE, FILE_ATTRIBUTE_DIRECTORY,
+        FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
+        FILE_NAME_NORMALIZED, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO, FILE_SHARE_DELETE,
+        FILE_SHARE_READ, FILE_SHARE_WRITE, VOLUME_NAME_DOS,
     };
-    if rc == 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
+
+    fn info(file: &File) -> io::Result<BY_HANDLE_FILE_INFORMATION> {
+        let mut info = BY_HANDLE_FILE_INFORMATION::default();
+        // SAFETY: geldige handle en een uitvoerstruct van de juiste grootte.
+        let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut info) };
+        if ok == 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(info)
+        }
     }
-}
 
-#[cfg(target_os = "macos")]
-fn rename_exclusive_system(from: &Path, to: &Path) -> io::Result<()> {
-    let (from, to) = (c_path(from)?, c_path(to)?);
-    // SAFETY: beide pointers wijzen naar geldige, met NUL afgesloten C-strings die tot na de aanroep leven.
-    let rc = unsafe { libc::renamex_np(from.as_ptr(), to.as_ptr(), libc::RENAME_EXCL) };
-    if rc == 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
+    fn id(info: &BY_HANDLE_FILE_INFORMATION) -> FileId {
+        (
+            u64::from(info.dwVolumeSerialNumber),
+            (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+        )
     }
-}
 
-#[cfg(windows)]
-fn rename_exclusive_system(from: &Path, to: &Path) -> io::Result<()> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_WRITE_THROUGH};
-
-    fn wide(path: &Path) -> Vec<u16> {
-        path.as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect()
+    pub fn open_dir(path: &Path) -> io::Result<File> {
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+            .open(path)?;
+        if info(&file)?.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY == 0 {
+            return Err(io::Error::new(io::ErrorKind::NotADirectory, "geen map"));
+        }
+        Ok(file)
     }
-    let (from, to) = (wide(from), wide(to));
-    // Geen MOVEFILE_REPLACE_EXISTING (dan faalt het op een bestaand doel) en geen MOVEFILE_COPY_ALLOWED
-    // (dan zou het tussen volumes kopiëren). MOVEFILE_WRITE_THROUGH keert pas terug als de verplaatsing
-    // op schijf staat; dat is op Windows de fsync van de map.
-    // SAFETY: beide pointers wijzen naar geldige, met NUL afgesloten UTF-16-strings die tot na de aanroep leven.
-    let ok = unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), MOVEFILE_WRITE_THROUGH) };
-    if ok != 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
+
+    pub fn file_id(file: &File) -> io::Result<FileId> {
+        Ok(id(&info(file)?))
     }
+
+    /// Open zonder een link te volgen en zonder iets te verhinderen, alleen om de identiteit te lezen.
+    pub fn id_of_path(path: &Path) -> io::Result<FileId> {
+        let file = std::fs::OpenOptions::new()
+            .access_mode(FILE_READ_ATTRIBUTES)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
+            .open(path)?;
+        file_id(&file)
+    }
+
+    pub fn real_path(dir: &File) -> io::Result<PathBuf> {
+        let mut buf = vec![0u16; 512];
+        loop {
+            // SAFETY: geldige handle; de buffer is `buf.len()` tekens groot.
+            let len = unsafe {
+                GetFinalPathNameByHandleW(
+                    dir.as_raw_handle(),
+                    buf.as_mut_ptr(),
+                    buf.len() as u32,
+                    FILE_NAME_NORMALIZED | VOLUME_NAME_DOS,
+                )
+            } as usize;
+            if len == 0 {
+                return Err(io::Error::last_os_error());
+            }
+            if len < buf.len() {
+                buf.truncate(len);
+                return Ok(PathBuf::from(std::ffi::OsString::from_wide(&buf)));
+            }
+            buf.resize(len + 1, 0);
+        }
+    }
+
+    /// Open de bron zonder een link te volgen, met `DELETE` (voor de hernoeming via deze handle) en
+    /// schrijfrecht (`FlushFileBuffers`), en zonder `FILE_SHARE_DELETE`, zodat niemand haar tussen
+    /// controle en stap kan wegzetten.
+    pub fn open_source(dir: &OpenDir, name: &str) -> io::Result<File> {
+        std::fs::OpenOptions::new()
+            .access_mode(GENERIC_READ | GENERIC_WRITE | DELETE)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
+            .open(dir.real.join(name))
+    }
+
+    /// Een link wordt zelf geopend (`FILE_FLAG_OPEN_REPARSE_POINT`) en daarna aan haar kenmerk geweigerd.
+    pub fn is_link_refusal(_error: &io::Error) -> bool {
+        false
+    }
+
+    pub fn is_regular(file: &File) -> io::Result<bool> {
+        let attributes = info(file)?.dwFileAttributes;
+        Ok(attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT) == 0)
+    }
+
+    pub fn id_in_dir(dir: &OpenDir, name: &str) -> io::Result<FileId> {
+        id_of_path(&dir.real.join(name))
+    }
+
+    /// Hernoem de open bron naar `to` in de vastgehouden map, zonder te vervangen: een bezet doel geeft
+    /// `ERROR_ALREADY_EXISTS`. `from` is hier de naam van de open bron en wordt niet opnieuw opgezocht.
+    pub fn rename_exclusive(dir: &OpenDir, source: &File, _from: &str, to: &str) -> io::Result<()> {
+        let name: Vec<u16> = dir.real.join(to).as_os_str().encode_wide().collect();
+        let name_bytes = name.len() * std::mem::size_of::<u16>();
+        // De struct eindigt op `FileName: [u16; 1]`; die ene plaats is de afsluitende NUL.
+        let size = std::mem::size_of::<FILE_RENAME_INFO>() + name_bytes;
+        let mut buf = vec![0u64; size.div_ceil(std::mem::size_of::<u64>())];
+        let info = buf.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+        // SAFETY: de buffer is nul-geïnitialiseerd (dus `ReplaceIfExists` onwaar en de NUL aan het
+        // eind), groot genoeg, en uitgelijnd op 8 bytes, genoeg voor `FILE_RENAME_INFO`.
+        unsafe {
+            (*info).RootDirectory = std::ptr::null_mut();
+            (*info).FileNameLength = name_bytes as u32;
+            std::ptr::copy_nonoverlapping(
+                name.as_ptr(),
+                std::ptr::addr_of_mut!((*info).FileName).cast::<u16>(),
+                name.len(),
+            );
+        }
+        // SAFETY: geldige handle met `DELETE`; de buffer is `size` bytes groot.
+        let ok = unsafe {
+            SetFileInformationByHandle(
+                source.as_raw_handle(),
+                FileRenameInfo,
+                info.cast_const().cast::<core::ffi::c_void>(),
+                size as u32,
+            )
+        };
+        if ok == 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// `FlushFileBuffers` op de open bron na de hernoeming. Een map is op Windows niet als bestand vast
+    /// te leggen; `MoveFileExW` met `MOVEFILE_WRITE_THROUGH` doet volgens zijn documentatie ook niets
+    /// anders dan pas terugkeren als de verplaatsing op schijf staat.
+    pub fn sync_dir(_dir: &OpenDir, source: &File) -> io::Result<()> {
+        source.sync_all()
+    }
+
+    /// Systeemfouten van de exclusieve stap die betekenen: dit bestandssysteem kent hem niet.
+    pub const UNSUPPORTED_CODES: &[i32] = &[
+        windows_sys::Win32::Foundation::ERROR_NOT_SUPPORTED as i32,
+        windows_sys::Win32::Foundation::ERROR_INVALID_FUNCTION as i32,
+    ];
 }
 
-#[cfg(not(any(
-    all(target_os = "linux", target_env = "gnu"),
-    target_os = "macos",
-    windows
-)))]
-fn rename_exclusive_system(_from: &Path, _to: &Path) -> io::Result<()> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "exclusief plaatsen kent dit platform niet",
-    ))
-}
-
-#[cfg(any(all(target_os = "linux", target_env = "gnu"), target_os = "macos"))]
-fn c_path(path: &Path) -> io::Result<std::ffi::CString> {
-    use std::os::unix::ffi::OsStrExt;
-    Ok(std::ffi::CString::new(path.as_os_str().as_bytes())?)
-}
-
-#[cfg(unix)]
-fn sync_dir_system(dir: &Path) -> io::Result<()> {
-    std::fs::File::open(dir)?.sync_all()
-}
-
-/// Windows: `MOVEFILE_WRITE_THROUGH` legt de verplaatsing al vast; een map is daar niet als bestand te openen.
-#[cfg(not(unix))]
-fn sync_dir_system(_dir: &Path) -> io::Result<()> {
-    Ok(())
-}
-
-/// Systeemfouten van de exclusieve stap die betekenen: dit bestandssysteem kent hem niet.
-#[cfg(unix)]
-const UNSUPPORTED_CODES: &[i32] = &[libc::EINVAL, libc::ENOTSUP, libc::EOPNOTSUPP, libc::ENOSYS];
-#[cfg(windows)]
-const UNSUPPORTED_CODES: &[i32] = &[
-    windows_sys::Win32::Foundation::ERROR_NOT_SUPPORTED as i32,
-    windows_sys::Win32::Foundation::ERROR_INVALID_FUNCTION as i32,
-];
 #[cfg(not(any(unix, windows)))]
-const UNSUPPORTED_CODES: &[i32] = &[];
+mod sys {
+    use super::{FileId, OpenDir};
+    use std::fs::File;
+    use std::io;
+    use std::path::{Path, PathBuf};
+
+    fn unsupported<T>() -> io::Result<T> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "exclusief plaatsen kent dit platform niet",
+        ))
+    }
+    pub fn open_dir(_: &Path) -> io::Result<File> {
+        unsupported()
+    }
+    pub fn file_id(_: &File) -> io::Result<FileId> {
+        unsupported()
+    }
+    pub fn id_of_path(_: &Path) -> io::Result<FileId> {
+        unsupported()
+    }
+    pub fn real_path(_: &File) -> io::Result<PathBuf> {
+        unsupported()
+    }
+    pub fn open_source(_: &OpenDir, _: &str) -> io::Result<File> {
+        unsupported()
+    }
+    pub fn is_link_refusal(_: &io::Error) -> bool {
+        false
+    }
+    pub fn is_regular(_: &File) -> io::Result<bool> {
+        unsupported()
+    }
+    pub fn id_in_dir(_: &OpenDir, _: &str) -> io::Result<FileId> {
+        unsupported()
+    }
+    pub fn rename_exclusive(_: &OpenDir, _: &File, _: &str, _: &str) -> io::Result<()> {
+        unsupported()
+    }
+    pub fn sync_dir(_: &OpenDir, _: &File) -> io::Result<()> {
+        unsupported()
+    }
+    pub const UNSUPPORTED_CODES: &[i32] = &[];
+}
+
+use sys::UNSUPPORTED_CODES;
+
+fn io_error(error: io::Error) -> PlaceError {
+    PlaceError::Io {
+        message: error.to_string(),
+    }
+}
 
 fn step_error(error: io::Error) -> PlaceError {
     if error.kind() == io::ErrorKind::AlreadyExists {
@@ -245,9 +557,7 @@ fn step_error(error: io::Error) -> PlaceError {
             message: error.to_string(),
         }
     } else {
-        PlaceError::Io {
-            message: error.to_string(),
-        }
+        io_error(error)
     }
 }
 
@@ -274,13 +584,16 @@ fn split_path(path: &str) -> Option<(&str, &str)> {
 /// `place_file_exclusive(from, to)`: verplaats `from` exclusief naar `to`, in dezelfde map.
 ///
 /// Volgorde; bij de eerste weigering stopt het en is er niets veranderd:
-/// 1. vorm: beide absoluut, gewone bestandsnamen, dezelfde echte map (`canonicalize`);
+/// 1. vorm: beide absoluut, gewone bestandsnamen; de map van `from` geopend en vastgehouden, en die
+///    van `to` is dezelfde open map (zelfde identiteit);
 /// 2. precies één van beide namen is een eigen hulpbestand;
-/// 3. beide paden in de scope;
-/// 4. `from` is een gewoon bestand (geen link, geen map); `to` wordt niet gevolgd;
-/// 5. fsync van `from`;
-/// 6. de exclusieve stap;
-/// 7. fsync van de map; faalt alleen deze, dan is de uitkomst [`PlaceOutcome::DirNotSynced`].
+/// 3. beide paden in de scope, getoetst op het echte pad van de open map;
+/// 4. de bron, geopend in de open map zonder links te volgen, is een gewoon bestand;
+/// 5. fsync van de open bron;
+/// 6. de exclusieve stap, gebonden aan de open map (Unix) of de open bron (Windows);
+/// 7. controle: op het doel staat nu de open bron, in de open map én via het pad van de aanroeper;
+///    anders exclusief terugzetten en [`PlaceError::SourceChanged`];
+/// 8. fsync van de map; faalt alleen deze, dan is de uitkomst [`PlaceOutcome::DirNotSynced`].
 pub(crate) fn place(
     from: &str,
     to: &str,
@@ -293,9 +606,13 @@ pub(crate) fn place(
     // vóór de scopecontrole, en mag dus niets zeggen over paden buiten de scope.
     let (from_dir, from_name) = split_path(from).ok_or(refused(RefusalReason::PathShape))?;
     let (to_dir, to_name) = split_path(to).ok_or(refused(RefusalReason::PathShape))?;
-    let dir = std::fs::canonicalize(from_dir).map_err(|_| refused(RefusalReason::PathShape))?;
-    let other_dir = std::fs::canonicalize(to_dir).map_err(|_| refused(RefusalReason::PathShape))?;
-    if dir != other_dir {
+    let shape = |_| refused(RefusalReason::PathShape);
+    let dir = sys::open_dir(Path::new(from_dir)).map_err(shape)?;
+    let dir_id = sys::file_id(&dir).map_err(shape)?;
+    let other_id = sys::open_dir(Path::new(to_dir))
+        .and_then(|other| sys::file_id(&other))
+        .map_err(shape)?;
+    if dir_id != other_id {
         return Err(refused(RefusalReason::PathShape));
     }
 
@@ -304,34 +621,51 @@ pub(crate) fn place(
         return Err(refused(RefusalReason::HelperName));
     }
 
-    // Vanaf hier alleen de echte map: wat gecontroleerd is, is ook wat verplaatst wordt.
-    let from_path: PathBuf = dir.join(from_name);
-    let to_path: PathBuf = dir.join(to_name);
-
-    // 3. Scope.
-    if !in_scope(&from_path) || !in_scope(&to_path) {
+    // 3. Scope, op het echte pad van de open map.
+    let real = sys::real_path(&dir).map_err(|e| PlaceError::Unsupported {
+        message: e.to_string(),
+    })?;
+    let dir = OpenDir { file: dir, real };
+    if !in_scope(&dir.real.join(from_name)) || !in_scope(&dir.real.join(to_name)) {
         return Err(refused(RefusalReason::Scope));
     }
 
-    // 4. `from` is een gewoon bestand.
-    let meta = std::fs::symlink_metadata(&from_path).map_err(|e| PlaceError::Io {
-        message: e.to_string(),
+    // 4. De bron, geopend in de open map zonder links te volgen, is een gewoon bestand.
+    let source = sys::open_source(&dir, from_name).map_err(|e| {
+        if sys::is_link_refusal(&e) {
+            refused(RefusalReason::NotRegularFile)
+        } else {
+            io_error(e)
+        }
     })?;
-    if meta.file_type().is_symlink() || !meta.is_file() {
+    if !sys::is_regular(&source).map_err(io_error)? {
         return Err(refused(RefusalReason::NotRegularFile));
     }
+    let source_id = sys::file_id(&source).map_err(io_error)?;
 
     // 5. Inhoud vastleggen vóór de naam verandert.
-    ops.sync_file(&from_path).map_err(|e| PlaceError::Io {
-        message: e.to_string(),
-    })?;
+    ops.sync_file(&source).map_err(io_error)?;
 
-    // 6. De exclusieve stap.
-    ops.rename_exclusive(&from_path, &to_path)
-        .map_err(step_error)?;
+    // 6. De exclusieve stap. Een fout kan op een netwerkschijf ook komen nádat de hernoeming gebeurde
+    // (knownbug 1795): staat de open bron nu op het doel, dan is ze verplaatst en gaat de controle door.
+    if let Err(error) = ops.rename_exclusive(&dir, &source, from_name, to_name) {
+        if sys::id_in_dir(&dir, to_name).ok() != Some(source_id) {
+            return Err(step_error(error));
+        }
+    }
 
-    // 7. De map vastleggen.
-    match ops.sync_dir(&dir) {
+    // 7. Staat op het doel de gecontroleerde bron, in de open map én waar de aanroeper kijkt?
+    let in_dir = sys::id_in_dir(&dir, to_name).ok() == Some(source_id);
+    let at_caller = sys::id_of_path(Path::new(to)).ok() == Some(source_id);
+    if !(in_dir && at_caller) {
+        let restored = ops
+            .rename_exclusive(&dir, &source, to_name, from_name)
+            .is_ok();
+        return Err(PlaceError::SourceChanged { restored });
+    }
+
+    // 8. De map vastleggen.
+    match ops.sync_dir(&dir, &source) {
         Ok(()) => Ok(PlaceOutcome::Placed),
         Err(e) => Ok(PlaceOutcome::DirNotSynced {
             message: e.to_string(),
@@ -339,65 +673,121 @@ pub(crate) fn place(
     }
 }
 
-/// De scope zoals plugin-fs hem voor zijn eigen schrijfcommando's toetst (`resolve_path` in
-/// `tauri-plugin-fs-2.5.0/src/commands.rs:1534-1566`): de scope die tijdens het draaien groeit
-/// (`app.fs_scope()`, waar de bestandsdialoog en `persisted-scope` gekozen bestanden aan toevoegen) of
-/// de scope uit de capability. Een app-commando krijgt die laatste niet van Tauri mee, dus hier staat
-/// hetzelfde als `fs:allow-home-write-recursive` (`$HOME` en `$HOME/**`,
-/// `permissions/autogenerated/base-directories/home.toml`). Met dezelfde `tauri::scope::fs::Scope`
-/// gelden dezelfde globregels, ook `require_literal_leading_dot` (Unix: een map met een punt vooraan
-/// telt niet mee), omdat `tauri.conf.json` voor fs niets instelt.
-struct AppScope {
-    scopes: Vec<tauri::scope::fs::Scope>,
+// ── De scope: die van plugin-fs `rename`, niet nagebouwd ─────────────────────────────────────────
+
+/// Eén scope-item van plugin-fs. Zijn eigen type (`scope::Entry`) is privé
+/// (`tauri-plugin-fs-2.5.0/src/lib.rs:39`); dit is dezelfde vorm met dezelfde omzetting
+/// (`lib.rs:356-375`): een pad of `{ path }`, met `$HOME`, `$APPLOCALDATA` en dergelijke opgelost door
+/// `PathResolver::parse` van Tauri, en `None` voor een basismap die dit systeem niet kent.
+#[derive(Debug)]
+struct FsScopeEntry {
+    path: Option<PathBuf>,
 }
 
-impl AppScope {
-    fn new(app: &tauri::AppHandle) -> Self {
-        use tauri_plugin_fs::FsExt;
-        let home = tauri::scope::fs::Scope::new(
-            app,
-            &tauri::utils::config::FsScope::Scope {
-                allow: vec![PathBuf::from("$HOME"), PathBuf::from("$HOME/**")],
-                deny: Vec::new(),
-                require_literal_leading_dot: None,
-            },
-        )
-        .ok();
-        Self {
-            scopes: app.try_fs_scope().into_iter().chain(home).collect(),
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum FsScopeEntryRaw {
+    Value(PathBuf),
+    Object { path: PathBuf },
+}
+
+impl tauri::ipc::ScopeObject for FsScopeEntry {
+    type Error = io::Error;
+
+    fn deserialize<R: tauri::Runtime>(
+        app: &tauri::AppHandle<R>,
+        raw: tauri::utils::acl::Value,
+    ) -> Result<Self, Self::Error> {
+        use tauri::Manager;
+        let raw: FsScopeEntryRaw = serde_json::from_value(raw.into()).map_err(io::Error::other)?;
+        let path = match raw {
+            FsScopeEntryRaw::Value(path) | FsScopeEntryRaw::Object { path } => path,
+        };
+        match app.path().parse(path) {
+            Ok(path) => Ok(Self { path: Some(path) }),
+            Err(tauri::Error::UnknownPath) => Ok(Self { path: None }),
+            Err(error) => Err(io::Error::other(error.to_string())),
         }
     }
+}
 
-    /// Toegestaan als geen van beide het pad verbiedt en minstens één het toestaat, zoals plugin-fs.
-    fn allows(&self, path: &Path) -> bool {
-        !self.scopes.iter().any(|s| s.is_forbidden(path))
-            && self.scopes.iter().any(|s| s.is_allowed(path))
+/// Wat plugin-fs `rename` voor deze webview toelaat, met dezelfde regel als `resolve_path` in
+/// `tauri-plugin-fs-2.5.0/src/commands.rs:1528-1570`: de toegestane en verboden paden van de capability
+/// (globaal en voor het commando, via [`tauri::Webview::resolve_command_scope`]) in één scope, naast de
+/// scope die tijdens het draaien groeit (`fs_scope()`: de bestandsdialoog en `persisted-scope`). Een
+/// verbod in een van beide wint; daarna moet een van beide het pad toestaan.
+pub(crate) struct FsRenameScope {
+    runtime: Option<tauri::scope::fs::Scope>,
+    configured: tauri::scope::fs::Scope,
+}
+
+impl FsRenameScope {
+    /// `None` als de capability `rename` van plugin-fs voor deze webview niet toelaat.
+    pub(crate) fn new<R: tauri::Runtime>(webview: &tauri::Webview<R>) -> Option<Self> {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let resolved = webview
+            .resolve_command_scope::<FsScopeEntry>("fs", "rename")
+            .ok()??;
+        let paths = |entries: &Vec<std::sync::Arc<FsScopeEntry>>| -> Vec<PathBuf> {
+            entries.iter().filter_map(|e| e.path.clone()).collect()
+        };
+        let mut allow = paths(resolved.global_scope().allows());
+        allow.extend(paths(resolved.command_scope().allows()));
+        let mut deny = paths(resolved.global_scope().denies());
+        deny.extend(paths(resolved.command_scope().denies()));
+        // plugin-fs neemt `requireLiteralLeadingDot` uit zijn eigen config (`plugins.fs`).
+        let require_literal_leading_dot = webview
+            .config()
+            .plugins
+            .0
+            .get("fs")
+            .and_then(|fs| fs.get("requireLiteralLeadingDot"))
+            .and_then(|value| value.as_bool());
+        let configured = tauri::scope::fs::Scope::new(
+            webview,
+            &tauri::utils::config::FsScope::Scope {
+                allow,
+                deny,
+                require_literal_leading_dot,
+            },
+        )
+        .ok()?;
+        Some(Self {
+            runtime: webview.try_fs_scope(),
+            configured,
+        })
+    }
+
+    pub(crate) fn allows(&self, path: &Path) -> bool {
+        let scopes: Vec<&tauri::scope::fs::Scope> =
+            self.runtime.iter().chain([&self.configured]).collect();
+        !scopes.iter().any(|scope| scope.is_forbidden(path))
+            && scopes.iter().any(|scope| scope.is_allowed(path))
     }
 }
 
 /// Het Tauri-commando. Het werk (fsync kan even duren) draait buiten de hoofdthread.
 #[tauri::command]
 pub async fn place_file_exclusive(
-    app: tauri::AppHandle,
+    webview: tauri::Webview,
     from: String,
     to: String,
 ) -> Result<PlaceOutcome, PlaceError> {
-    let scope = AppScope::new(&app);
+    let scope = FsRenameScope::new(&webview);
     tauri::async_runtime::spawn_blocking(move || {
-        place(&from, &to, &|path| scope.allows(path), &SystemOps)
+        let in_scope = |path: &Path| scope.as_ref().is_some_and(|scope| scope.allows(path));
+        place(&from, &to, &in_scope, &SystemOps)
     })
     .await
-    .unwrap_or_else(|e| {
-        Err(PlaceError::Io {
-            message: e.to_string(),
-        })
-    })
+    .unwrap_or_else(|e| Err(io_error(io::Error::other(e.to_string()))))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
+    use std::rc::Rc;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Barrier};
 
@@ -435,6 +825,8 @@ mod tests {
             text(&path)
         }
 
+        /// De naad voor de scope: alles onder de echte map van de proef. De echte scope van plugin-fs
+        /// toetst `place_file_scope_volgt_plugin_fs`.
         fn scope(&self) -> impl Fn(&Path) -> bool {
             let root = self.real.clone();
             move |path: &Path| path.starts_with(&root)
@@ -461,38 +853,59 @@ mod tests {
         Err(PlaceError::Refused { reason })
     }
 
-    /// Volgt [`SystemOps`], legt de volgorde vast en kan elke stap laten falen.
+    fn exists(path: &Path) -> bool {
+        std::fs::symlink_metadata(path).is_ok()
+    }
+
+    /// Volgt [`SystemOps`], legt de volgorde vast, kan elke stap laten falen en kan vlak vóór de eerste
+    /// stap iets wisselen (na alle controles, vóór de echte systeemaanroep).
     #[derive(Default)]
     struct Recorder {
         events: RefCell<Vec<&'static str>>,
         fail_sync_file: bool,
         rename_error: Option<fn() -> io::Error>,
+        error_after_rename: bool,
+        before_rename: RefCell<Option<Box<dyn FnOnce()>>>,
         fail_sync_dir: bool,
     }
 
     impl PlaceOps for Recorder {
-        fn sync_file(&self, path: &Path) -> io::Result<()> {
+        fn sync_file(&self, source: &File) -> io::Result<()> {
             self.events.borrow_mut().push("sync_file");
             if self.fail_sync_file {
                 return Err(io::Error::other("nagebootste fout bij fsync van from"));
             }
-            SystemOps.sync_file(path)
+            SystemOps.sync_file(source)
         }
 
-        fn rename_exclusive(&self, from: &Path, to: &Path) -> io::Result<()> {
+        fn rename_exclusive(
+            &self,
+            dir: &OpenDir,
+            source: &File,
+            from: &str,
+            to: &str,
+        ) -> io::Result<()> {
             self.events.borrow_mut().push("rename_exclusive");
+            let hook = self.before_rename.borrow_mut().take();
+            if let Some(hook) = hook {
+                hook();
+            }
             if let Some(make) = self.rename_error {
                 return Err(make());
             }
-            SystemOps.rename_exclusive(from, to)
+            let result = SystemOps.rename_exclusive(dir, source, from, to);
+            if self.error_after_rename && result.is_ok() {
+                return Err(io::Error::other("nagebootste fout na de hernoeming"));
+            }
+            result
         }
 
-        fn sync_dir(&self, dir: &Path) -> io::Result<()> {
+        fn sync_dir(&self, dir: &OpenDir, source: &File) -> io::Result<()> {
             self.events.borrow_mut().push("sync_dir");
             if self.fail_sync_dir {
                 return Err(io::Error::other("nagebootste fout bij fsync van de map"));
             }
-            SystemOps.sync_dir(dir)
+            SystemOps.sync_dir(dir, source)
         }
     }
 
@@ -543,6 +956,10 @@ mod tests {
                 message: "m".into()
             }),
             r#"{"code":"io","message":"m"}"#
+        );
+        assert_eq!(
+            json(&PlaceError::SourceChanged { restored: true }),
+            r#"{"code":"source-changed","restored":true}"#
         );
         for (reason, text) in [
             (RefusalReason::PathShape, "path-shape"),
@@ -946,5 +1363,169 @@ mod tests {
                 inhoud[verliezer]
             );
         }
+    }
+
+    // Blokkade 2 van de review van #972, scenario a: de gecontroleerde bron gaat opzij en een map krijgt
+    // haar naam, tussen de controles en de echte systeemstap.
+    #[test]
+    fn place_file_bronwissel_tussen_controle_en_stap() {
+        let dir = TempDir::new("bronwissel");
+        let bytes = content(31, 5_000);
+        let from = dir.write(TMP, &bytes);
+        let to = text(&dir.file(DOEL));
+        let (bron, opzij) = (dir.file(TMP), dir.file("opzij.bin"));
+        let gewisseld = Rc::new(Cell::new(false));
+        let vlag = Rc::clone(&gewisseld);
+        let ops = Recorder {
+            before_rename: RefCell::new(Some(Box::new(move || {
+                // Windows: de open bron is niet weg te zetten (geopend zonder FILE_SHARE_DELETE).
+                if std::fs::rename(&bron, &opzij).is_ok() {
+                    std::fs::create_dir(&bron).unwrap();
+                    std::fs::write(bron.join("binnen.txt"), b"binnen").unwrap();
+                    vlag.set(true);
+                }
+            }))),
+            ..Recorder::default()
+        };
+        let uitkomst = place(&from, &to, &dir.scope(), &ops);
+        if gewisseld.get() {
+            assert_eq!(uitkomst, Err(PlaceError::SourceChanged { restored: true }));
+            assert!(dir.file(TMP).is_dir());
+            assert_eq!(
+                std::fs::read(dir.file(TMP).join("binnen.txt")).unwrap(),
+                b"binnen"
+            );
+            assert!(!exists(&dir.file(DOEL)));
+            assert_eq!(std::fs::read(dir.file("opzij.bin")).unwrap(), bytes);
+        } else {
+            assert_eq!(uitkomst, Ok(PlaceOutcome::Placed));
+            assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
+        }
+        assert_eq!(
+            cfg!(unix),
+            gewisseld.get(),
+            "wissel gelukt: {}",
+            gewisseld.get()
+        );
+    }
+
+    // Blokkade 2, scenario b: de oudermap gaat opzij en haar naam wordt een link naar een andere map.
+    #[test]
+    fn place_file_mapwissel_tussen_controle_en_stap() {
+        let dir = TempDir::new("mapwissel");
+        let (werk, ander, opzij) = (dir.file("werk"), dir.file("ander"), dir.file("werk-opzij"));
+        std::fs::create_dir(&werk).unwrap();
+        std::fs::create_dir(&ander).unwrap();
+        let bytes = content(32, 5_000);
+        std::fs::write(werk.join(TMP), &bytes).unwrap();
+        std::fs::write(ander.join("ander.txt"), b"ander").unwrap();
+        let from = text(&werk.join(TMP));
+        let to = text(&werk.join(DOEL));
+        let gewisseld = Rc::new(Cell::new(false));
+        let vlag = Rc::clone(&gewisseld);
+        let (w, a, o) = (werk.clone(), ander.clone(), opzij.clone());
+        let ops = Recorder {
+            before_rename: RefCell::new(Some(Box::new(move || {
+                // Windows: de open map is niet te verplaatsen (geopend zonder FILE_SHARE_DELETE).
+                if std::fs::rename(&w, &o).is_ok() {
+                    #[cfg(unix)]
+                    std::os::unix::fs::symlink(&a, &w).unwrap();
+                    let _ = &a;
+                    vlag.set(true);
+                }
+            }))),
+            ..Recorder::default()
+        };
+        let uitkomst = place(&from, &to, &dir.scope(), &ops);
+        if gewisseld.get() {
+            assert_eq!(uitkomst, Err(PlaceError::SourceChanged { restored: true }));
+            assert_eq!(std::fs::read(opzij.join(TMP)).unwrap(), bytes);
+            assert!(!exists(&opzij.join(DOEL)));
+            assert!(!exists(&ander.join(DOEL)));
+            assert!(!exists(&ander.join(TMP)));
+            assert_eq!(std::fs::read(ander.join("ander.txt")).unwrap(), b"ander");
+        } else {
+            assert_eq!(uitkomst, Ok(PlaceOutcome::Placed));
+            assert_eq!(std::fs::read(werk.join(DOEL)).unwrap(), bytes);
+        }
+        assert_eq!(
+            cfg!(unix),
+            gewisseld.get(),
+            "wissel gelukt: {}",
+            gewisseld.get()
+        );
+    }
+
+    // Knownbug 1795: een fout die komt nádat de hernoeming gebeurde (NFS), met de open bron op het doel.
+    #[test]
+    fn place_file_fout_na_uitgevoerde_hernoeming() {
+        let dir = TempDir::new("foutna");
+        let bytes = content(33, 2_000);
+        let from = dir.write(TMP, &bytes);
+        let to = text(&dir.file(DOEL));
+        let ops = Recorder {
+            error_after_rename: true,
+            ..Recorder::default()
+        };
+        assert_eq!(
+            place(&from, &to, &dir.scope(), &ops),
+            Ok(PlaceOutcome::Placed)
+        );
+        assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
+        assert!(!exists(&dir.file(TMP)));
+        assert_eq!(
+            *ops.events.borrow(),
+            ["sync_file", "rename_exclusive", "sync_dir"]
+        );
+    }
+
+    // Blokkade 1 van de review van #972: de scope is die van plugin-fs `rename`, uit de echte
+    // `tauri.conf.json` en `capabilities/default.json`, met de verboden paden van `fs:default`.
+    // Een nep-app van Tauri (`tauri::test`, geen echte webview) levert de webview.
+    #[test]
+    fn place_file_scope_volgt_plugin_fs() {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let app = tauri::test::mock_builder()
+            .plugin(tauri_plugin_fs::init())
+            .build(tauri::generate_context!())
+            .expect("nep-app met de echte config en capability");
+        let config = app
+            .config()
+            .app
+            .windows
+            .first()
+            .expect("hoofdvenster in tauri.conf.json")
+            .clone();
+        let window = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)
+            .unwrap()
+            .build()
+            .unwrap();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
+
+        let home = app.path().home_dir().unwrap();
+        let local = app.path().app_local_data_dir().unwrap();
+        assert!(scope.allows(&home.join("projecten").join("plan.ifc")));
+        // deny-default: `$APPLOCALDATA/**` en `$APPLOCALDATA/EBWebView/**`, beide onder `$HOME`.
+        let verboden = local.join("plan.ifc");
+        for pad in [verboden.clone(), local.join("EBWebView").join("plan.ifc")] {
+            assert!(!scope.allows(&pad), "{pad:?}");
+        }
+        // Unix: een map met een punt vooraan valt niet onder `$HOME/**`.
+        #[cfg(unix)]
+        assert!(!scope.allows(&home.join(".verborgen").join("plan.ifc")));
+        #[cfg(unix)]
+        let buiten = PathBuf::from("/ops-place-file-buiten/plan.ifc");
+        #[cfg(windows)]
+        let buiten = PathBuf::from(r"C:\ops-place-file-buiten\plan.ifc");
+        assert!(!scope.allows(&buiten));
+
+        // De scope die tijdens het draaien groeit (bestandsdialoog): wel een pad erbij, nooit een verbod eraf.
+        let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
+        runtime.allow_file(&buiten).unwrap();
+        runtime.allow_file(&verboden).unwrap();
+        assert!(scope.allows(&buiten));
+        assert!(!scope.allows(&verboden));
     }
 }

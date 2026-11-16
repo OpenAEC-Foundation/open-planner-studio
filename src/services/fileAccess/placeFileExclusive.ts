@@ -3,9 +3,10 @@
  * één bestand exclusief onder een nieuwe naam in dezelfde map plaatsen. Faalt als er op de nieuwe
  * naam al iets staat, in één systeemstap; nooit een terugval (`src-tauri/src/commands/place_file.rs`).
  *
- * Het commando weigert tenzij beide paden absoluut zijn, in dezelfde echte map staan, precies één
- * van beide namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`) en
- * beide binnen de scope van plugin-fs vallen. Buiten Tauri: altijd `unsupported`.
+ * Het commando weigert tenzij beide paden absoluut zijn, in dezelfde map staan, precies één van beide
+ * namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`) en plugin-fs
+ * `rename` beide paden voor deze webview toelaat. Wat het plaatst, is de bron die het controleerde
+ * (open map, open bron, controle na de stap). Buiten Tauri: altijd `unsupported`.
  *
  * Nog door geen route gebruikt; Opslaan als en Ctrl+S op de desktop (stap 4 en 5) bouwen erop.
  */
@@ -23,6 +24,8 @@ export type PlaceFileRefusal = 'path-shape' | 'helper-name' | 'scope' | 'not-reg
  * - `target-exists`: op het doel stond al iets; beide bestanden onaangeroerd.
  * - `unsupported`: het bestandssysteem of platform kent de exclusieve stap niet; niets verplaatst.
  * - `refused`: een controle weigerde vóór elke wijziging.
+ * - `source-changed`: tussen controle en stap is de bron of de map gewisseld; niet geplaatst. `restored`
+ *   zegt of het commando het verplaatste exclusief terugzette (anders staat het op het doel).
  * - `io`: een andere systeemfout; niets verplaatst.
  */
 export type PlaceFileOutcome =
@@ -31,6 +34,7 @@ export type PlaceFileOutcome =
   | { code: 'target-exists' }
   | { code: 'unsupported'; message: string }
   | { code: 'refused'; reason: PlaceFileRefusal }
+  | { code: 'source-changed'; restored: boolean }
   | { code: 'io'; message: string };
 
 const REFUSALS: readonly string[] = ['path-shape', 'helper-name', 'scope', 'not-regular-file'] satisfies PlaceFileRefusal[];
@@ -56,6 +60,10 @@ function toPlaceFileOutcome(value: unknown): PlaceFileOutcome {
       if (typeof record.reason === 'string' && REFUSALS.includes(record.reason)) {
         return { code: 'refused', reason: record.reason as PlaceFileRefusal };
       }
+      break;
+    case 'source-changed':
+      if (typeof record.restored === 'boolean') return { code: 'source-changed', restored: record.restored };
+      break;
   }
   return { code: 'io', message };
 }
