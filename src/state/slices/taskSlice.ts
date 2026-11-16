@@ -28,6 +28,7 @@ import type { WbsTemplate } from '@/utils/wbsTemplates';
 import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
 } from '@/state/taskTree';
+import { selectNeighbourAfterRemoval } from '@/state/selectionAfterRowChange';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { refusalNotice, refusedNamesLine, refusedSetKey } from '@/state/refusalNotice';
 import { headerTransfers, planDissolve } from '@/state/dissolveTasks';
@@ -1468,6 +1469,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   deleteTask: (id) => {
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
@@ -1477,6 +1479,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie: planning verouderd tot F5.
     });
     get().recomputeViewRows();
+    // Na de nieuwe rijen: de buur moet zichtbaar zijn (issue #899).
+    set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); });
   },
 
   deleteTasksBulk: (ids) => {
@@ -1487,6 +1491,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       return;
     }
 
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
     set((s) => {
       const existing = new Set(s.tasks.map((task) => task.id)); // één keer, niet per wortel
       const roots = frozen.filter((id) => existing.has(id));
@@ -1497,6 +1502,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
+    set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); }); // zie deleteTask
   },
 
   dissolveTasksBulk: (ids) => {

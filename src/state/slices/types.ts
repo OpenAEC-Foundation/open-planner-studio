@@ -705,6 +705,9 @@ export interface UIState {
   activeRibbonTab: RibbonTab;
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
+  /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
+   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899). */
+  gridActiveRowKey: string | null;
   showSettingsDialog: boolean;
   showCalendarDialog: boolean;
   showUpdateDialog: boolean;

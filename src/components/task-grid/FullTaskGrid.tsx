@@ -543,6 +543,13 @@ export function TaskGridSurface({
         return;
       }
     }
+    // De vorige rijen/kolommen NU vastleggen: React voert de updater pas bij de volgende render uit,
+    // en dan staan de refs hieronder al op de nieuwe waarde. Dan kende de herstelregel de oude plek
+    // van een verborgen of verwijderde rij niet en viel hij terug op de bovenste rij (issue #899).
+    const previousRows = previousRowsRef.current;
+    const previousColumns = previousColumnsRef.current;
+    // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899).
+    const preferredRowKey = useAppStore.getState().ui.gridActiveRowKey;
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -564,9 +571,9 @@ export function TaskGridSurface({
       }
       const reconciled = reconcileGridSelection(
         current,
-        previousRowsRef.current,
+        previousRows,
         rowIndex,
-        previousColumnsRef.current,
+        previousColumns,
         visibleColumnIds,
       );
       let samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length;
@@ -582,11 +589,22 @@ export function TaskGridSurface({
       // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
       // die functie voor waarom dat zonder deze aanroep uit elkaar loopt tussen een gantt-klik en
       // pijltjesnavigatie.
-      return syncActiveCellToPublishedTask(reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds);
+      return syncActiveCellToPublishedTask(
+        reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds, preferredRowKey,
+      );
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;
   }, [publishedActiveTaskId, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
+
+  // De store kent alleen taak-ids; in een groepering staat een taak meer dan eens. Verwijderen kiest
+  // de buur vanaf de rij van de celcursor (issue #899). De spookregel is geen taakrij.
+  const activeRowKey = selection.active?.rowKey ?? null;
+  useEffect(() => {
+    const rowKey = activeRowKey === GHOST_ROW_KEY ? null : activeRowKey;
+    if (useAppStore.getState().ui.gridActiveRowKey !== rowKey) setUI({ gridActiveRowKey: rowKey });
+  }, [activeRowKey, setUI]);
+  useEffect(() => () => setUI({ gridActiveRowKey: null }), [setUI]);
 
   useEffect(() => {
     if (!editing || editing.documentId !== activeDocumentId) return;

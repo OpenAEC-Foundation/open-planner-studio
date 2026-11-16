@@ -967,6 +967,14 @@ en noem het in je rapport of PR-tekst.
      verwacht percentages (`90`, `100`, `110`, `125`) en kiest de dichtstbijzijnde: beide gevallen worden 90%. Het
      label noemt 100% en 125%. De echte 100%- en 125%-gevallen zijn los nagemeten en goed (eindig, zelfde dagbreedte
      als zonder datums). Voorstel: `[100, 125]` en het label zonder `* 100`. Bron: review Sol ronde 3 van #951. — B
+1673. **VERVOLG: binnen één gebundelde wijziging kan de selectie na verwijderen op een verborgen fase landen.**
+     `selectNeighbourAfterRemoval` (`src/state/selectionAfterRowChange.ts`) kiest de buur uit `viewRows`. Binnen
+     een transactie die het herberekenen van de rijen uitstelt (`runtime.deferViewRows`, bijvoorbeeld
+     `withTransaction(() => deleteTask(B))`), is `viewRows` nog de oude stand. Een fase die alleen zichtbaar was
+     als ouder van het gefilterde kind B, telt dan nog als zichtbaar en wordt geselecteerd. Een tweede Verwijderen
+     wist die fase met haar verborgen kinderen. Welke routes in de app zo'n transactie gebruiken, is niet nagelopen.
+     Voorstel: de buur kiezen na het herberekenen aan het eind van de transactie. Uit de review van #947
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
 1674. **VERVOLG: een rasterkopie zonder taakselectie kan de herkomst van een oudere kopie laten staan.** Kopieer
      in planning A de naamcel `Fase`, klik in planning B (die ook een taak `Fase` heeft) haar naamcel en druk Escape:
      de taakselectie is leeg, het celbereik blijft. Ctrl+C kopieert opnieuw de tekst `Fase`, maar `copyTasks`
@@ -974,6 +982,13 @@ en noem het in je rapport of PR-tekst.
      plakt dan de oude taak uit A in plaats van de celwaarde. Voorstel: bij een geslaagde rasterkopie zonder
      kopieerbare taken `fromGrid` wissen, met een regressiecheck. Uit de review van #957 (GPT-6.1-Sol, xhigh,
      ronde 1, BEVESTIGD, VERVOLG). — B
+1675. **VERVOLG: na verwijderen kiest de cursor de verkeerde groep als een vroeg groepsniveau verandert.**
+     `currentRowKey` (`src/state/selectionAfterRowChange.ts`) zoekt de rij van de buur op het langste gelijke begin
+     van het groepspad en stopt bij het eerste verschil. Groepeer op WBS aflopend → Resource, met A en B (WBS 1 en 2)
+     allebei onder R1 en R2: rijen B/R1, B/R2, A/R1, A/R2. Verwijder A onder R2: B wordt goed gekozen, maar de
+     cursor landt op B/R1 in plaats van B/R2, want B kreeg WBS 1 en geen pad deelt het begin `["2"]`. Voorstel: ook
+     gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
+     BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
@@ -3167,6 +3182,12 @@ en noem het in je rapport of PR-tekst.
       daarbij `default-features = false`, in zip 4.6.1 en 9.5.1). Dat `miniz_oxide` actief is komt doordat
       `flate2/rust_backend` via andere dependencies binnenkomt. Pas de toelichting aan. Sol-review op
       2fe63a9e4 (PR #944): [BEVESTIGD] VERVOLG. — B
+1670. **De meting "Taakselectie meten" (`task-grid-published-selection.yml`) faalt op elke PR die haar paden raakt.**
+     Ze vergelijkt een vaste basiscommit (`BASE_SHA: fbd4a3f9…`) met de kop van de PR en eist dat
+     `package-lock.json` in beide gelijk is. Sinds main verder is, verschilt die altijd: PR #947 (die alleen
+     `check-task-grid-published-selection.ts` raakte) kreeg `base/package-lock.json head/package-lock.json differ`
+     in de stap "Controleer revisies", run 43617221845. De controle is niet verplicht. Voorstel: de eenmalige
+     meting weghalen, of als basis de merge-base van de PR nemen. — B
 
 ## Wensen en open taken (geen bug)
 
