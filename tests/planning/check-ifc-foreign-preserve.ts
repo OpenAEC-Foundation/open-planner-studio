@@ -1610,8 +1610,8 @@ async function blijvendeWeigering(label: string, bytes: Uint8Array, edit: (d: Do
   }
 }
 /**
- * Was een blijvende weigering; sinds PR 12b (de andere toets voor de eigen projectgroepen) of PR 12c (de baselinekop beweegt
- * mee met zijn baseline) schrijft de merge. Het vreemde deel blijft byte voor byte, en de codes, typen en baselines heropenen
+ * Was een blijvende weigering; sinds PR 12b (de andere toets voor de eigen projectgroepen), PR 12c (de baselinekop beweegt
+ * mee met zijn baseline) of PR 12d (de typenaam op de taak beweegt mee met een hernoemd type) schrijft de merge. Het vreemde deel blijft byte voor byte, en de codes, typen en baselines heropenen
  * zoals na een gewone opslag zonder vreemd deel (die laat bijvoorbeeld een ongebruikte taaktypedefinitie ook weg).
  */
 async function opgelosteWeigering(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
@@ -1626,7 +1626,7 @@ async function opgelosteWeigering(label: string, bytes: Uint8Array, edit: (d: Do
     console.log(`BEWIJS opgeloste weigering ${label}: geschreven, vreemd deel bytegelijk`);
   } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
-    ok(`${label}: schrijft sinds PR 12b/12c, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+    ok(`${label}: schrijft sinds PR 12b/12c/12d, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
   }
 }
 await opgelosteWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
@@ -1754,9 +1754,9 @@ if (tweeCodes) {
 await opgelosteWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
   for (const t of s.tasks.filter(t => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
 }));
-// Er is geen actie die de projectkopie van een taaktype hernoemt (de beheer-UI hernoemt alleen persoonlijke typen).
-// Meet de writergrens daarom expliciet op domeininvoer; dit is geen geclaimde UI-route.
-await blijvendeWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)', catalogusBron, async d => {
+// Er is geen actie die de projectkopie van een taaktype hernoemt (de beheer-UI hernoemt alleen persoonlijke typen, knownbug
+// 1748). Meet de writergrens daarom expliciet op domeininvoer; dit is geen geclaimde UI-route. Sinds PR 12d schrijft het (E2).
+await opgelosteWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)', catalogusBron, async d => {
   d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d;
 });
 // Uitzetten mag geen andere property uit de baseline-pset laten verdwijnen.
