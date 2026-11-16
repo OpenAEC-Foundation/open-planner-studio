@@ -308,6 +308,67 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await expect(calendarCell).toContainText(calendarFixture.projectName);
   expect((await taskOf()).calendar).toBeUndefined();
 
+  // #970: een eigen code (activiteitcode) opent dezelfde keuzelijst: "—" plus de waarden in de volgorde
+  // uit Codes en velden, zonder interne id; Enter en typen openen hem.
+  const code = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const typeId = s.addActivityCodeType('PCM');
+    const ids = ['Design Freeze', 'RFQ Issued', 'Quote Received', 'Order Placed', 'N/A']
+      .map(value => s.addActivityCodeValue(typeId, { code: value }));
+    const columnId = `activity-code:${encodeURIComponent(s.project.id)}:${encodeURIComponent(typeId)}`;
+    const columns = window.__OPS__!.store.getState().taskGridSurfaces['full-task-grid'].columns;
+    s.commitTaskGridColumns('full-task-grid', 'Codekolom voor browsertest', [
+      ...columns, { id: columnId as (typeof columns)[number]['id'], width: 90, pinned: false },
+    ]);
+    return { typeId, ids, columnId };
+  });
+  const codeOf = () => page.evaluate(({ taskId, typeId }) =>
+    window.__OPS__!.store.getState().tasks.find(x => x.id === taskId)!.activityCodes?.[typeId] ?? null, { taskId: id, typeId: code.typeId });
+  const codeCell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="${code.columnId}"]`);
+  await codeCell.click();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-task-editor-kind="enum"]')).toBeVisible();
+  await expect(menu(page).getByRole('option')).toHaveText(['—', 'Design Freeze', 'RFQ Issued', 'Quote Received', 'Order Placed', 'N/A']);
+  expect(await menu(page).innerText()).not.toContain('acv-');
+  // De lijst is niet smaller dan de langste waarde (de oude suggestielijst was op macOS te smal).
+  expect(await menu(page).getByRole('option').evaluateAll(options =>
+    options.every(option => option.scrollWidth <= option.clientWidth))).toBe(true);
+  await menu(page).getByRole('option', { name: 'RFQ Issued', exact: true }).click();
+  await expect(codeCell).toHaveText('RFQ Issued');
+  expect(await codeOf()).toBe(code.ids[1]);
+
+  await codeCell.click();
+  await page.keyboard.press('Enter');
+  await expect(menu(page)).toBeVisible();
+  await expect(menu(page).locator('[role="option"][aria-selected="true"]')).toHaveText('RFQ Issued');
+  await page.keyboard.press('o');
+  await page.keyboard.press('Enter');
+  await expect(codeCell).toHaveText('Order Placed');
+  expect(await codeOf()).toBe(code.ids[3]);
+
+  // Typen op de dichte cel opent de lijst op de passende waarde, niet op de letter als tekst.
+  await codeCell.click();
+  await page.keyboard.press('d');
+  await expect(menu(page)).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(codeCell).toHaveText('Design Freeze');
+  expect(await codeOf()).toBe(code.ids[0]);
+
+  await codeCell.click();
+  await page.keyboard.press('Enter');
+  await menu(page).getByRole('option', { name: '—', exact: true }).click();
+  await expect(codeCell).toHaveText('—');
+  expect(await codeOf()).toBeNull();
+
+  // Dezelfde keuzelijst: typen op een dichte ja/nee-cel opent de lijst en Enter legt de passende waarde vast, zonder fout.
+  const milestoneCell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="task.isMilestone"]`);
+  await milestoneCell.click();
+  await page.keyboard.press('n');
+  await expect(menu(page)).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-task-editor-kind="boolean"]')).toHaveCount(0);
+  await expect(milestoneCell).toHaveText('No');
+  expect((await taskOf()).milestone).toBe(false);
 });
 
 test('Tabel: de al gekozen optie opnieuw kiezen (klik, Spatie, Enter) legt vast en sluit de editor', async ({ page, ops: _ops }) => {

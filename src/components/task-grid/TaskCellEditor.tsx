@@ -139,8 +139,14 @@ export function TaskCellEditor({
   onOpenExternal,
 }: TaskCellEditorProps) {
   const initialCell = adapter.getCell(cell.rowKey, cell.columnId);
+  const descriptor = adapter.descriptorsById.get(cell.columnId);
+  // Een keuzelijst (ja/nee, keuze, code) start altijd op de huidige waarde; een getypt teken springt
+  // in de open lijst naar een passende optie (#970) in plaats van als waarde te gelden.
+  const isListEditor = descriptor?.editorKind === 'boolean'
+    || (descriptor?.editorKind === 'enum' && descriptor.editorOptions !== undefined);
+  const listTypeahead = isListEditor && initialText ? initialText : undefined;
   const [text, setText] = useState(
-    () => initialText ?? initialCell?.editText ?? '',
+    () => (isListEditor ? undefined : initialText) ?? initialCell?.editText ?? '',
   );
   const [assignmentTokens, setAssignmentTokens] = useState<TaskAssignmentToken[]>(() => (
     Array.isArray(initialCell?.value)
@@ -148,7 +154,6 @@ export function TaskCellEditor({
       : []
   ));
   const [resourceQuery, setResourceQuery] = useState('');
-  const descriptor = adapter.descriptorsById.get(cell.columnId);
   const dateNotation = adapter.dateNotation ?? 'dmy';
   const dateEditorKind = descriptor?.editorKind === 'date' || descriptor?.editorKind === 'datetime'
     ? descriptor.editorKind
@@ -471,6 +476,7 @@ export function TaskCellEditor({
           >
             <Select
               autoOpen
+              initialTypeahead={listTypeahead}
               aria-label={label}
               aria-invalid={inputProps['aria-invalid']}
               aria-describedby={inputProps['aria-describedby']}
@@ -492,6 +498,7 @@ export function TaskCellEditor({
           >
             <Select
               autoOpen
+              initialTypeahead={listTypeahead}
               aria-label={label}
               aria-invalid={inputProps['aria-invalid']}
               aria-describedby={inputProps['aria-describedby']}
