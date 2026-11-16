@@ -1661,23 +1661,32 @@ mod tests {
         })
     }
 
-    /// Het verbod op de webviewgegevens dat de capabilities per platform zetten (knownbug 1796),
-    /// relatief aan `$APPLOCALDATA`: dezelfde lijst als `permissions/deny-webview-data.toml` van
-    /// tauri-plugin-fs vanaf 2.5.2. Linux: de submappen en bestanden van WebKitGTK (de gegevensmap van de
-    /// webview is daar `$APPLOCALDATA` zelf, `tauri-2.12.3/src/manager/webview.rs:559-568` en
+    /// Het verbod op de webviewgegevens dat de capabilities per platform in de globale scope van fs zetten
+    /// (knownbug 1796), relatief aan `$APPLOCALDATA`: de lijst van `permissions/deny-webview-data.toml` van
+    /// tauri-plugin-fs vanaf 2.5.2, met per map ook de map zelf (review #975 ronde 1: `map/**` matcht
+    /// `map` niet, `glob-0.3.3/src/lib.rs:640-650`, en `rename`/`remove` toetsen alleen de opgegeven
+    /// paden). Linux: de mappen en bestanden van WebKitGTK (de gegevensmap van de webview is daar
+    /// `$APPLOCALDATA` zelf, `tauri-2.12.3/src/manager/webview.rs:559-568` en
     /// `wry-0.57.0/src/webkitgtk/web_context.rs:32-47`); Windows: de map van WebView2.
-    const VERBOD_LINUX: [&str; 9] = [
+    const VERBOD_LINUX: [&str; 16] = [
+        "CacheStorage",
         "CacheStorage/**",
         "cookies",
         "hsts-storage.sqlite",
+        "serviceworkers",
         "serviceworkers/**",
+        "WebKitCache",
         "WebKitCache/**",
+        "databases",
         "databases/**",
+        "localstorage",
         "localstorage/**",
+        "mediakeys",
         "mediakeys/**",
+        "storage",
         "storage/**",
     ];
-    const VERBOD_WINDOWS: [&str; 1] = ["EBWebView/**"];
+    const VERBOD_WINDOWS: [&str; 2] = ["EBWebView", "EBWebView/**"];
 
     /// Het verbod op dit platform. macOS: geen; Tauri geeft WKWebView daar geen gegevensmap
     /// (`webview.rs:559-568` alleen voor Linux en Windows) en wry gebruikt dan de standaardopslag van
@@ -1692,7 +1701,15 @@ mod tests {
         }
     }
 
-    /// Een pad onder een verbodspatroon: in de map (`map/**`), of het bestand zelf.
+    /// De beschermde mappen van dit platform (de patronen `map/**`), relatief aan `$APPLOCALDATA`.
+    fn mappen_hier() -> Vec<&'static str> {
+        verbod_hier()
+            .iter()
+            .filter_map(|p| p.strip_suffix("/**"))
+            .collect()
+    }
+
+    /// Een pad onder een verbodspatroon: in de map (`map/**`), of de map of het bestand zelf.
     fn onder(local: &Path, patroon: &str) -> PathBuf {
         match patroon.strip_suffix("/**") {
             Some(map) => local.join(map).join("proef").join("plan.ifc"),
@@ -1706,6 +1723,40 @@ mod tests {
         cmd: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, serde_json::Value> {
+        ipc_met(
+            window,
+            cmd,
+            tauri::ipc::InvokeBody::Json(body),
+            Default::default(),
+        )
+    }
+
+    /// `write_text_file` van plugin-fs door de IPC: de inhoud als ruwe body en het pad in de kop `path`,
+    /// zoals `writeTextFile` van `@tauri-apps/plugin-fs` het stuurt (`commands.rs:1089-1110`).
+    fn ipc_schrijf(
+        window: &MockWindow,
+        path: &Path,
+        bytes: &[u8],
+    ) -> Result<serde_json::Value, serde_json::Value> {
+        let mut headers = tauri::http::HeaderMap::new();
+        headers.insert(
+            "path",
+            tauri::http::HeaderValue::from_str(&text(path)).unwrap(),
+        );
+        ipc_met(
+            window,
+            "plugin:fs|write_text_file",
+            tauri::ipc::InvokeBody::Raw(bytes.to_vec()),
+            headers,
+        )
+    }
+
+    fn ipc_met(
+        window: &MockWindow,
+        cmd: &str,
+        body: tauri::ipc::InvokeBody,
+        headers: tauri::http::HeaderMap,
+    ) -> Result<serde_json::Value, serde_json::Value> {
         let url = if cfg!(windows) {
             "http://tauri.localhost"
         } else {
@@ -1718,21 +1769,21 @@ mod tests {
                 callback: tauri::ipc::CallbackFn(0),
                 error: tauri::ipc::CallbackFn(1),
                 url: url.parse().unwrap(),
-                body: tauri::ipc::InvokeBody::Json(body),
-                headers: Default::default(),
+                body,
+                headers,
                 invoke_key: tauri::test::INVOKE_KEY.to_string(),
             },
         )
         .map(|body| body.deserialize::<serde_json::Value>().unwrap())
     }
 
-    /// Ruimt de mappen in de thuismap op, ook als de proef faalt.
+    /// Ruimt eigen mappen en bestanden van een proef op, ook als de proef faalt.
     struct Opruimen(Vec<PathBuf>);
 
     impl Drop for Opruimen {
         fn drop(&mut self) {
             for path in &self.0 {
-                if std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+                if std::fs::symlink_metadata(path).is_ok_and(|m| !m.file_type().is_dir()) {
                     let _ = std::fs::remove_file(path);
                 } else {
                     let _ = std::fs::remove_dir_all(path);
@@ -1865,7 +1916,39 @@ mod tests {
             .collect();
         verwacht.sort();
         assert_eq!(verboden, verwacht);
-        assert!(resolved.command_scope().denies().is_empty());
+
+        // Per commando: `rename` en `remove` van `$APPLOCALDATA` zelf zijn verboden (Linux en Windows);
+        // de andere commando's hebben geen eigen verbod, dus `mkdir`, `read_dir`, lezen en schrijven in de
+        // app-datamap blijven (review #975 ronde 1).
+        let verbod_op_l = if verbod_hier().is_empty() {
+            vec![]
+        } else {
+            vec![gewoon(&local)]
+        };
+        for command in [
+            "rename",
+            "remove",
+            "mkdir",
+            "read_dir",
+            "read_file",
+            "write_file",
+        ] {
+            let resolved = webview
+                .resolve_command_scope::<FsScopeEntry>("fs", command)
+                .unwrap()
+                .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
+            let verboden: Vec<PathBuf> = resolved
+                .command_scope()
+                .denies()
+                .iter()
+                .filter_map(|e| e.path.as_deref().map(gewoon))
+                .collect();
+            if command == "rename" || command == "remove" {
+                assert_eq!(verboden, verbod_op_l, "{command}");
+            } else {
+                assert!(verboden.is_empty(), "{command}: {verboden:?}");
+            }
+        }
     }
 
     // Knownbug 1796, proef 1: het verbod geldt voor `rename` (dus dit commando) en voor de lees- en
@@ -1933,6 +2016,14 @@ mod tests {
         }
     }
 
+    /// De proeven die in de echte `$APPLOCALDATA` van deze machine mappen maken, hernoemen of verwijderen,
+    /// draaien na elkaar: een proef ruimt een map erboven op als hij die zelf maakte en ze weer leeg is.
+    static ECHTE_APPDATAMAP: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn echte_appdatamap() -> std::sync::MutexGuard<'static, ()> {
+        ECHTE_APPDATAMAP.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     // Knownbug 1796, proef 1 en 2 voor het commando zelf: een echt bestand in een echte map onder het
     // verbod. De capability (Linux `$APPDATA/**`, dezelfde map; Windows `$HOME/**`) en de runtime-scope
     // staan het pad toe, en toch weigert `place_file_exclusive` het: het verbod wint.
@@ -1940,15 +2031,15 @@ mod tests {
     fn place_file_weigert_webviewgegevens() {
         use tauri::Manager;
         use tauri_plugin_fs::FsExt;
+        let _slot = echte_appdatamap();
         let (app, window) = echte_app();
         let webview: &tauri::Webview<_> = window.as_ref();
         let local = app.path().app_local_data_dir().unwrap();
         // Eerst de mappen, dan de scope: Tauri neemt bij het opbouwen ook de canonieke vorm van een
         // bestaand deel van een patroon op (`tauri-2.12.3/src/scope/fs.rs:92-140`), en het commando toetst
         // eerst de padtekst van de aanroeper en daarna het echte pad van de open map.
-        let mappen: Vec<EigenMap> = verbod_hier()
-            .iter()
-            .filter_map(|p| p.strip_suffix("/**"))
+        let mappen: Vec<EigenMap> = mappen_hier()
+            .into_iter()
             .map(|map| {
                 EigenMap::maak(
                     local
@@ -2017,10 +2108,11 @@ mod tests {
     /// een dev-build `recovery.<slug>`), het MCP-register (`discoveryContract.ts`, `discoveryFiles.ts`),
     /// de dev-brug (`devBridge.ts`), de resourcebibliotheek (`libraryStore.ts`), de AI-backup
     /// (`backupService.ts`) en de feedback-schermafbeelding (`feedbackService.ts`). `""` is de map zelf.
-    const EIGEN_GEBRUIK: [(&[&str], &[&str]); 6] = [
+    const EIGEN_GEBRUIK: [(&[&str], &[&str]); 7] = [
+        // De map zelf: aanmaken, lezen en kijken, nooit hernoemen of verwijderen (gezocht in `src/`).
+        (&[""], &["exists", "stat", "read_dir", "mkdir"]),
         (
             &[
-                "",
                 "recovery.documents.json",
                 "recovery.documents.json.tmp",
                 "recovery.snapshot.doc-mhx1q2k9ab3.mhx1q2k9ab4.ifc",
@@ -2072,7 +2164,7 @@ mod tests {
             ],
         ),
         (
-            &["", "ops-library.json", "ops-library.json.tmp"],
+            &["ops-library.json", "ops-library.json.tmp"],
             &[
                 "mkdir",
                 "exists",
@@ -2128,6 +2220,229 @@ mod tests {
                     assert!(scope.allows(&pad), "{command}: {pad:?}");
                 }
             }
+        }
+    }
+
+    /// Zet een map terug als een proef haar toch verplaatste (alleen als het verbod ontbreekt, zoals in de
+    /// mutatie): staat `weg` er en `terug` niet, dan gaat `weg` terug naar `terug`.
+    struct Terugzetten {
+        weg: PathBuf,
+        terug: PathBuf,
+    }
+
+    impl Drop for Terugzetten {
+        fn drop(&mut self) {
+            if exists(&self.weg) && !exists(&self.terug) {
+                let _ = std::fs::rename(&self.weg, &self.terug);
+            }
+        }
+    }
+
+    // Review #975 ronde 1, proef 1: een beschermde map zelf hernoemen (als bron en als doel) en recursief
+    // verwijderen, door de echte IPC van plugin-fs: geweigerd, en de map en haar inhoud staan er nog.
+    // plugin-fs toetst bij `rename` en `remove` alleen de opgegeven paden (`commands.rs:737-830`), en
+    // `map/**` matcht `map` zelf niet; zonder het verbod op de map zelf verhuist of verdwijnt de inhoud.
+    #[test]
+    fn place_file_ipc_webviewmappen_dicht() {
+        use serde_json::json;
+        use tauri::Manager;
+        let _slot = echte_appdatamap();
+        let (app, window) = echte_app();
+        let local = app.path().app_local_data_dir().unwrap();
+        let eigen = format!("ops-place-file-{}", std::process::id());
+        assert_eq!(mappen_hier().is_empty(), cfg!(target_os = "macos"));
+        for map in mappen_hier() {
+            let beschermd = local.join(map);
+            let elders = local.join(format!("{map}-{eigen}"));
+            let _opruimen = Opruimen(vec![elders.clone()]);
+
+            // Als doel: een eigen map naar de naam van de beschermde map. Die mag er dan nog niet zijn,
+            // anders weigert het systeem het hernoemen al; op de runner van de CI is ze er nooit.
+            if exists(&beschermd) {
+                assert!(
+                    std::env::var_os("CI").is_none(),
+                    "{beschermd:?} bestaat al op de runner"
+                );
+            } else {
+                let bron = EigenMap::maak(local.join(format!("{eigen}-bron")));
+                std::fs::write(bron.eigen.join("proef.txt"), b"proef").unwrap();
+                let verplaatst = Opruimen(vec![beschermd.clone()]);
+                let uitkomst = ipc(
+                    &window,
+                    "plugin:fs|rename",
+                    json!({ "oldPath": text(&bron.eigen), "newPath": text(&beschermd) }),
+                );
+                assert!(uitkomst.is_err(), "rename naar {beschermd:?}: {uitkomst:?}");
+                assert!(!exists(&beschermd));
+                assert_eq!(
+                    std::fs::read(bron.eigen.join("proef.txt")).unwrap(),
+                    b"proef"
+                );
+                drop(verplaatst);
+            }
+
+            // Als bron, en recursief verwijderen: de beschermde map met eigen, synthetische inhoud.
+            let inhoud = EigenMap::maak(beschermd.join(&eigen));
+            let bestand = inhoud.eigen.join("proef.txt");
+            std::fs::write(&bestand, b"proef").unwrap();
+            let _terug = Terugzetten {
+                weg: elders.clone(),
+                terug: beschermd.clone(),
+            };
+            let uitkomst = ipc(
+                &window,
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&beschermd), "newPath": text(&elders) }),
+            );
+            assert!(uitkomst.is_err(), "rename van {beschermd:?}: {uitkomst:?}");
+            assert!(!exists(&elders));
+            let uitkomst = ipc(
+                &window,
+                "plugin:fs|remove",
+                json!({ "path": text(&beschermd), "options": { "recursive": true } }),
+            );
+            assert!(uitkomst.is_err(), "remove van {beschermd:?}: {uitkomst:?}");
+            assert_eq!(std::fs::read(&bestand).unwrap(), b"proef");
+        }
+    }
+
+    // Review #975 ronde 1, proef 2: de app-datamap zelf hernoemen of verwijderen (ook recursief), door de
+    // echte IPC: geweigerd op Linux en Windows. Het doel van het hernoemen ligt in de thuismap, die de
+    // capability toestaat (eerst een controle daarvan); zonder het verbod verhuist de hele map. macOS:
+    // geen verbod, want daar staan geen webviewgegevens in die map.
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn place_file_ipc_appdatamap_zelf_dicht() {
+        use serde_json::json;
+        use tauri::Manager;
+        let _slot = echte_appdatamap();
+        let (app, window) = echte_app();
+        let local = app.path().app_local_data_dir().unwrap();
+        let home = app.path().home_dir().unwrap();
+        let eigen = format!("ops-place-file-{}", std::process::id());
+        let inhoud = EigenMap::maak(local.join(format!("{eigen}-l")));
+        let bestand = inhoud.eigen.join("proef.txt");
+        std::fs::write(&bestand, b"proef").unwrap();
+        let elders = home.join(format!("{eigen}-appdatamap"));
+        let _terug = Terugzetten {
+            weg: elders.clone(),
+            terug: local.clone(),
+        };
+        let a = home.join(format!("{eigen}-a"));
+        let b = home.join(format!("{eigen}-b"));
+        let _opruimen = Opruimen(vec![a.clone(), b.clone()]);
+
+        // Controle: plugin-fs hernoemt via deze IPC een eigen map in de thuismap.
+        std::fs::create_dir_all(&a).unwrap();
+        assert_eq!(
+            ipc(
+                &window,
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&a), "newPath": text(&b) })
+            ),
+            Ok(serde_json::Value::Null)
+        );
+        assert!(b.is_dir());
+
+        let uitkomst = ipc(
+            &window,
+            "plugin:fs|rename",
+            json!({ "oldPath": text(&local), "newPath": text(&elders) }),
+        );
+        assert!(uitkomst.is_err(), "rename van {local:?}: {uitkomst:?}");
+        assert!(!exists(&elders));
+        for opties in [json!({}), json!({ "recursive": true })] {
+            let uitkomst = ipc(
+                &window,
+                "plugin:fs|remove",
+                json!({ "path": text(&local), "options": opties.clone() }),
+            );
+            assert!(
+                uitkomst.is_err(),
+                "remove {opties} van {local:?}: {uitkomst:?}"
+            );
+        }
+        assert_eq!(std::fs::read(&bestand).unwrap(), b"proef");
+    }
+
+    // Review #975 ronde 1, proef 4: het herstel blijft werken, door de echte IPC en op elk platform, in de
+    // map waar het herstel schrijft (`appDataDir`) en in `$APPLOCALDATA` (op Linux en macOS dezelfde
+    // map): de map aanmaken, een halffabricaat schrijven, lezen, hernoemen naar de echte naam, de map
+    // lezen en het bestand verwijderen. Met de namen van het herstel (`recovery.<slug>.documents.json` en
+    // `.tmp`, `recoveryPaths.ts`), met een eigen slug: nooit het herstel van een echte app hier.
+    #[test]
+    fn place_file_ipc_herstel_blijft_werken() {
+        use serde_json::json;
+        use tauri::Manager;
+        let _slot = echte_appdatamap();
+        let (app, window) = echte_app();
+        let mut mappen = vec![app.path().app_data_dir().unwrap()];
+        let local = app.path().app_local_data_dir().unwrap();
+        if !mappen.contains(&local) {
+            mappen.push(local);
+        }
+        let base = format!("recovery.ops-place-file-{}", std::process::id());
+        let inhoud = br#"{"version":5,"documents":[]}"#;
+        for map in mappen {
+            let naam = format!("{base}.documents.json");
+            let manifest = map.join(&naam);
+            let tmp = map.join(format!("{naam}.tmp"));
+            let _opruimen = Opruimen(vec![manifest.clone(), tmp.clone()]);
+            let null = Ok(serde_json::Value::Null);
+            assert_eq!(
+                ipc(
+                    &window,
+                    "plugin:fs|mkdir",
+                    json!({ "path": text(&map), "options": { "recursive": true } })
+                ),
+                null,
+                "mkdir {map:?}"
+            );
+            assert_eq!(ipc_schrijf(&window, &tmp, inhoud), null, "schrijven");
+            let gelezen = ipc(
+                &window,
+                "plugin:fs|read_text_file",
+                json!({ "path": text(&tmp) }),
+            )
+            .expect("lezen");
+            assert_eq!(serde_json::from_value::<Vec<u8>>(gelezen).unwrap(), inhoud);
+            assert_eq!(
+                ipc(
+                    &window,
+                    "plugin:fs|rename",
+                    json!({ "oldPath": text(&tmp), "newPath": text(&manifest) })
+                ),
+                null,
+                "hernoemen"
+            );
+            assert_eq!(
+                ipc(
+                    &window,
+                    "plugin:fs|exists",
+                    json!({ "path": text(&manifest) })
+                ),
+                Ok(json!(true))
+            );
+            let lijst = ipc(&window, "plugin:fs|read_dir", json!({ "path": text(&map) }))
+                .expect("de map lezen");
+            assert!(
+                lijst
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| e["name"] == json!(naam)),
+                "{naam} in {map:?}"
+            );
+            assert_eq!(
+                ipc(
+                    &window,
+                    "plugin:fs|remove",
+                    json!({ "path": text(&manifest) })
+                ),
+                null,
+                "verwijderen"
+            );
+            assert!(!exists(&manifest) && !exists(&tmp));
         }
     }
 
