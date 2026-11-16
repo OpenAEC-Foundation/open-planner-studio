@@ -1,0 +1,61 @@
+name: Rust-tests per platform
+
+# De Rust-unit-tests van `place_file_exclusive` (src-tauri/src/commands/place_file.rs) op Linux, macOS en Windows.
+# Het commando plaatst een bestand exclusief onder een nieuwe naam; de systeemaanroep verschilt per platform
+# (`renameat2`, `renamex_np`, `MoveFileExW`), dus het bewijs moet per platform komen (besluit van 9 november 2026,
+# ontwerp #804 §11; knownbug 1763). Bewust NIET in de verplichte CI-keten: hij compileert de Rust-app op drie
+# platforms. Hij draait alleen als `src-tauri/` verandert, of met de hand.
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/rust-tests.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/rust-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  place-file:
+    name: place_file (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build (src-tauri)
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: 'src-tauri -> target'
+
+      - name: Install Tauri-afhankelijkheden (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # `dist/` hoeft alleen te bestaan: de standaardfeature `custom-protocol` sluit de frontend in bij het compileren.
+      - name: Rust-tests van place_file_exclusive
+        shell: bash
+        run: |
+          mkdir -p dist
+          cargo test --manifest-path src-tauri/Cargo.toml place_file
