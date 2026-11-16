@@ -244,8 +244,10 @@ test('taakdialoog: Ctrl+Z en Ctrl+V na een muiskeuze veranderen niets achter de 
 });
 
 test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleert de bewerking', async ({ page, ops: _ops }) => {
-  const [id] = await seedProject(page, [
+  const [id, id2, id3] = await seedProject(page, [
     { name: 'Metselwerk', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
+    { name: 'Kozijnen', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
+    { name: 'Dakbedekking', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
   ]);
   await page.evaluate(() => {
     const store = window.__OPS__!.store.getState();
@@ -359,6 +361,22 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await menu(page).getByRole('option', { name: '—', exact: true }).click();
   await expect(codeCell).toHaveText('—');
   expect(await codeOf()).toBeNull();
+
+  // Enter gaat na een keuze een rij omlaag, Shift+Enter een rij omhoog; ook bij de al gekozen waarde.
+  const focusedRow = () => page.evaluate(() =>
+    document.activeElement?.closest('[data-grid-row-key]')?.getAttribute('data-grid-row-key') ?? null);
+  const codeCellOf = (rowKey: string) => page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${rowKey}"][data-grid-column-id="${code.columnId}"]`);
+  for (const [pick, key, want] of [
+    ['same', 'Shift+Enter', id], ['other', 'Shift+Enter', id], ['same', 'Enter', id3], ['other', 'Enter', id3],
+  ] as const) {
+    await codeCellOf(id2).click();
+    await page.keyboard.press('Enter');
+    await expect(menu(page)).toBeVisible();
+    if (pick === 'other') await page.keyboard.press('ArrowDown');
+    await page.keyboard.press(key);
+    await expect(menu(page)).toHaveCount(0);
+    await expect.poll(focusedRow, { message: `${pick} + ${key}` }).toBe(want);
+  }
 
   // Dezelfde keuzelijst: typen op een dichte ja/nee-cel opent de lijst en Enter legt de passende waarde vast, zonder fout.
   const milestoneCell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="task.isMilestone"]`);

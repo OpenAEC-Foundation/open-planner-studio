@@ -266,13 +266,15 @@ export function TaskCellEditor({
   // dus dit is de ENIGE plek die de commit voor een gekozen waarde triggert — geen dubbele afhandeling.
   // `Select` roept `onChange` niet aan als de gebruiker de al gekozen optie opnieuw kiest. De cel
   // legt dan via `onReselect` toch vast en sluit, bij klik, Enter en Spatie, net als bij een andere
-  // waarde.
+  // waarde. Shift+Enter gaat zoals overal in de grid een rij omhoog: de capture hieronder onthoudt of
+  // de laatste toets Shift+Enter was, want `Select` geeft bij een keuze alleen de waarde door.
+  const pickedWithShiftEnterRef = useRef(false);
   const commitPickedValue = (value: string, inputProps: GridEditorInputProps) => {
     textRef.current = value;
     setText(value);
     inputProps.onKeyDown({
       key: 'Enter',
-      shiftKey: false,
+      shiftKey: pickedWithShiftEnterRef.current,
       preventDefault: () => {},
       stopPropagation: () => {},
     } as KeyboardEvent<HTMLElement>);
@@ -280,7 +282,8 @@ export function TaskCellEditor({
 
   // Escape in een keuzelijst-editor (enum/boolean): annuleer de celbewerking vóórdat `Select` de
   // toets ziet. `Select` stopt Escape in een open lijst; zonder deze capture bleef de editor open.
-  const cancelOnEscapeCapture = (e: KeyboardEvent<HTMLElement>, inputProps: GridEditorInputProps) => {
+  const onListKeyDownCapture = (e: KeyboardEvent<HTMLElement>, inputProps: GridEditorInputProps) => {
+    pickedWithShiftEnterRef.current = e.key === 'Enter' && e.shiftKey;
     if (e.key === 'Escape') inputProps.onKeyDown(e);
   };
 
@@ -462,7 +465,7 @@ export function TaskCellEditor({
           // component (open/highlight/typeahead/Enter-commit/Escape-annuleer) — hier met `autoOpen`
           // zodat de volledige lijst er meteen staat. Select stopt Escape in een open lijst (anders
           // sloot dezelfde toets ook een omringende dialoog). Daarom vangt de WRAPPER Escape al in de
-          // capture-fase af (`cancelOnEscapeCapture`): één Escape sluit de lijst én annuleert de
+          // capture-fase af (`onListKeyDownCapture`): één Escape sluit de lijst én annuleert de
           // celbewerking, zoals vroeger. `onKeyDown={inputProps.onKeyDown}` op de wrapper (niet op
           // Select zelf, dat kent die prop niet) blijft voor de overige toetsen. Enter/klik op een
           // optie roept `onChange` hieronder aan (of `onReselect` bij de al gekozen optie), die de
@@ -471,7 +474,7 @@ export function TaskCellEditor({
           <div
             className="task-grid-editor-input"
             data-task-editor-kind="enum"
-            onKeyDownCapture={e => cancelOnEscapeCapture(e, inputProps)}
+            onKeyDownCapture={e => onListKeyDownCapture(e, inputProps)}
             onKeyDown={inputProps.onKeyDown}
           >
             <Select
@@ -493,7 +496,7 @@ export function TaskCellEditor({
           <div
             className="task-grid-editor-input"
             data-task-editor-kind="boolean"
-            onKeyDownCapture={e => cancelOnEscapeCapture(e, inputProps)}
+            onKeyDownCapture={e => onListKeyDownCapture(e, inputProps)}
             onKeyDown={inputProps.onKeyDown}
           >
             <Select
