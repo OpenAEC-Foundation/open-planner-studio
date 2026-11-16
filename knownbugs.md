@@ -2801,7 +2801,10 @@ en noem het in je rapport of PR-tekst.
      gevolgde bestanden en de checkerhash bleven gelijk. Richting: elke vertaalbrief noemt letterlijk
      uitsluitend zijn `.out.json` als uitvoer en verbiedt een reviewbestand of andere bestanden.
      De eigenaar liet de bestanden bewaren als bewijs en het pakket opnieuw vertalen en nalezen.
-     Een herhaling binnen `build/translate/` krijgt dezelfde herstelroute; schrijven daarbuiten stopt. — B
+     Nieuwe grens, besluit eigenaar 16 november 2026 om 11:55: tijdelijke bestanden in
+     `build/translate/` en `/tmp` zijn toegestaan, ook scratchpads onder `/tmp/claude-*`.
+     Stop alleen bij schrijven in de repo buiten `build/translate/`, of buiten de repo én buiten
+     `/tmp`. Controleer ook shellredirecties en `cp`; bewaar eerdere incidentbewijzen. — B
 
 1780. **VERVOLG, VERMOED: de Perzische term voor een Gantt-balk kan met de Windows-taakbalk worden verward.**
      `i18n/termbase/fa.json`, concept `gantt-bar`: `نوار وظیفه` (bron `existing-ui`, status `arbitrated`).
