@@ -64,7 +64,7 @@ de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer 
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
 gewone writer. Delen van nieuwe uitvoer wijzen naar de nieuwe bronbuffer; het resultaat houdt
 daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
-haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6; pool, planOnly, paneel, dev-bridge en AutoSave blijven geblokkeerd.
+haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel, dev-bridge en AutoSave blijven geblokkeerd.
 
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
 op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij

@@ -2070,16 +2070,13 @@ en noem het in je rapport of PR-tekst.
      voegde de tussen-cast toe. De huidige aanroepers hebben er geen last van. Richting: de helper niet-generiek maken
      en zijn werkelijke type laten teruggeven; dan vervallen de typeparameter en beide casts. Gevonden door de review
      van #926. — B
-1565. **VERVOLG (#804, eindlijst): pool-export en IFC-export zonder gebouwmodel wachten op de verliesvraag.**
-     Bij een document met een vreemd deel blijven `exportProjectWithPool` en de bewaakte `planOnly`-voorbereiding
-     geweigerd, met nul bytes. De vraag vooraf dat het gebouwmodel niet meegaat (§4.12) en de aparte bediening
-     voor Exporteren zonder gebouwmodel zijn nog niet gebouwd. Verplicht afmaken vóór de flag aan mag;
-     andere exportformaten blijven mogelijk. Vastgelegd en beproefd in fase 1c PR 11b. — B
 1566. **VERVOLG (#804, documentatie): handleiding nl/en vóór vrijgeven van de flag.**
      Fase 1c PR 11b voegt bewust geen gids in `public/docs/` toe: `ifcForeignContent` staat standaard uit.
      De PR die de flag aanzet moet de handleiding nl/en en de manifestvermelding toevoegen, met de
      volledige exportroute en de nog geldende opslaggrenzen. Ook de meldingen in `handoff.md` moeten
-     vóór die vrijgave door de eigenaar beoordeeld zijn. Afspraak van Trias, 14 november 2026. — B
+     vóór die vrijgave door de eigenaar beoordeeld zijn. Afspraak van Trias, 14 november 2026. Sinds fase 1c PR 13
+     hoort daar ook bij: Exporteren → IFC met het vinkje Zonder gebouwmodel en de export met de resourcebibliotheek,
+     allebei na de vraag "Exporteren zonder gebouwmodel?", met wat het nieuwe bestand wel en niet bevat (1741). — B
 
 1568. **VERVOLG (bediening): blijvende meldingen kunnen de IFC-exportkaart bedekken.**
      In de echte browserroute van `settings-tabs.spec.ts` liggen na openen, een geweigerde Ctrl+S en F5
@@ -2139,12 +2136,6 @@ en noem het in je rapport of PR-tekst.
      alleen met de flag aan; zet iemand de flag uit tussen crash en herstel, dan weigert Opslaan als met dezelfde
      melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
      zin voor de flag uit. — S
-
-1597. **VERVOLG (#804, MCP): de fout bij een geblokkeerde MCP-handeling noemt de vraag "Alleen de planning opslaan?" niet bij naam.**
-     `isBlockingDialogOpen()` (`src/state/blockingDialogs.ts`) blokkeert correct terwijl de vraag van PR 9e wacht, maar
-     `BLOCKING_UI_FLAGS` in `src/services/mcp/tools/runtime.ts` mist `pendingIfcMissingSourceSaveAs`. De fout zegt dan
-     alleen dat er "a dialog" open staat, niet welke. Richting: de vlagnaam toevoegen aan die lijst (de inhoud van beide
-     lijsten hoort gelijk te zijn). Gevonden door de review van #935. — B
 
 1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
      Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
@@ -2235,6 +2226,42 @@ en noem het in je rapport of PR-tekst.
      of weg) of in de baselines terecht met `planning-na-openen`, maar de melding noemt als eerste verschil
      `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
      `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
+
+1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
+     Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
+     Het model gaat niet mee." Nu exporteren CSV, MSPDI, XER en het voortgangsblad vanuit zo'n document zonder vraag; alleen
+     de IFC-export zonder gebouwmodel en de export met de resourcebibliotheek stellen de vraag (PR 13). Er gaat niets
+     verloren: het geopende bestand blijft ongewijzigd en die formaten dragen nooit een gebouwmodel. Niet gebouwd in PR 13
+     (besluit Trias, 16 november 2026). Op de eindlijst vóór de flag standaard aan mag; of de vraag er bij deze formaten
+     echt bij moet, beslist de eigenaar. Richting als het ja wordt: dezelfde vraag "alleen de planning" met een eigen
+     reden. — B
+
+1741. **VERVOLG (#804, uitleg): de vraag vóór Exporteren zonder gebouwmodel noemt niet wat er van de planning van een ander programma wegvalt.**
+     Gemeten in fase 1c PR 13 op `tests/fixtures/ifc-foreign/bonsai-4d.ifc` (bewijs in `/tmp/fase1c-pr13-bewijs/proef2/`
+     op aia09-mp50): het nieuwe bestand heeft alleen planning (82 stukken, geen gedeelde, gekoppelde of vreemde) en heropent
+     met dezelfde 4 taken, 1 relatie, 1 resource, 1 toewijzing en 2 kalenders. Het `IfcProject` houdt zijn GlobalId. Weg zijn,
+     zoals bedoeld: het gebouwmodel (wanden, geometrie, terrein, gebouw, verdieping), maar ook de koppelingen taak↔wand
+     (`IfcRelAssignsToProduct`), het tweede werkschema en de baseline van het andere programma met hun drie taken, de
+     vreemde pset-waarden en de herkomst (owner history) van het andere programma. De vraag zegt alleen in het algemeen
+     dat "de gegevens van een ander programma" niet meegaan. Richting: in de handleiding (1566) opsommen wat wegvalt;
+     een telling in de vraag alleen als de eigenaar dat wil. — B
+
+1742. **VERVOLG (browsertest): in `settings-tabs.spec.ts` verschijnt na de twee heropeningen nog een vierde document.**
+     Na Exporteren → IFC (download, Ctrl+O) en Ctrl+Shift+S (download, Ctrl+O) staat het heropende bestand actief. Kort
+     na het sluiten van de melding "Opgeslagen als download" opent de app nog een document met de naam van het eerste exportbestand
+     (`eigen-plus-model.ifc`) en maakt het actief. Ook met de Backstage van main; dus niet uit PR 13. Gemeten in de
+     meetruns `/tmp/fase1c-pr13-bewijs/browser/run4-probe.log` en `run6-main-toasts.log` op aia09-mp50. De oorzaak is niet
+     gezocht (mogelijk een tweede open-actie van dezelfde bestandskiezer). PR 13 zet zijn stappen daarom vóór die
+     heropeningen. Richting: nagaan of de planner dit ook ziet (twee keer hetzelfde bestand open na één keer kiezen). — S
+
+1743. **VERVOLG (#804, Opslaan als zonder gebouwmodel): een bewerking tijdens de vraag gaat mee in het nieuwe bestand.**
+     Bij "bron ontbreekt" stelt Opslaan als de vraag "Alleen de planning opslaan?" (9e). Na het ja controleert
+     `saveActiveDocumentAs` (`src/state/slices/fileSlice.ts`) het document, de bron, het kenmerk en of de vraag nog past,
+     maar niet de inhoud; die wordt daarna opnieuw gelezen. Proef van de review van #961 (Sol): tijdens de vraag een
+     taaknaam wijzigen en dan ja geven schrijft het bestand met de nieuwe naam. De twee exportroutes van PR 13 vergelijken
+     de inhoud wel met hun momentopname. Een gemaakte toestand (de vraag is modaal; alleen MCP of een script komt ertussen)
+     en er gaat niets verloren. Het late lezen stond al in #935. Richting: direct na het antwoord ook de inhoud met de
+     momentopname van vóór de vraag vergelijken. — B
 
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
