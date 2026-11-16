@@ -19,7 +19,8 @@ import { firstRowIndexByTask, milestoneRunHeads, uniqueTaskIds, type ViewRow } f
 import type { TaskTime } from '@/types/task';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
-import { createEmptyGridSelection, reconcileGridSelection, updateGridSelection } from '@/engine/taskGrid/selection';
+import { createEmptyGridSelection, reconcileGridSelection, syncActiveCellToPublishedTask, updateGridSelection } from '@/engine/taskGrid/selection';
+import { copyTaskGridSelection, planTaskGridPaste } from '@/engine/taskGrid/clipboard';
 import type { Sequence } from '@/types/sequence';
 import { milestoneGroups } from '@/engine/renderer/milestoneGroups';
 
@@ -49,6 +50,20 @@ const T1 = S().addTask({ name: 'Oplevering', isMilestone: true, time: zero });
 const T2 = S().addTask({ name: 'Nazorg klaar', isMilestone: true, time: zero });
 const MD = S().addTask({ name: 'Mijlpaal met duur', isMilestone: true, time: days(2) });
 const T3 = S().addTask({ name: 'Eind', isMilestone: true, time: zero });
+
+const adapterFor = () => {
+  const s = S();
+  return createTaskGridAdapter({
+    projectId: s.project.id, tasks: s.tasks, sequences: s.sequences, cpmResult: s.cpmResult,
+    assignments: s.assignments, resources: s.resources, baselines: s.baselines,
+    activityCodeTypes: s.activityCodeTypes, customFieldDefs: s.customFieldDefs, customTaskTypes: s.customTaskTypes,
+    scheduleStale: s.scheduleStale, wbsAutoNumber: false,
+    effectiveHoursPerDay: t => effHoursPerDay(effectiveCalendarOf(t, s.calendar, s.calendars)),
+    labelForColumn: k => k, labelForText: k => k,
+    dateNotation: 'dmy', numberLocale: 'nl',
+    surfaceId: 'full-task-grid', rows: s.viewRows, selectedTaskIds: s.selectedTaskIds,
+  });
+};
 
 const shape = (rows: readonly ViewRow[]) => rows.map(r =>
   r.kind === 'milestones' ? `[${r.tasks.map(t => t.name).join('|')}]@${r.depth}`
@@ -120,19 +135,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   S().addSequence({ predecessorId: A, successorId: M3, type: 'FINISH_START', lagDays: 3 });
   S().runCPM();
   const s0 = S();
-  const adapterFor = () => {
-    const s = S();
-    return createTaskGridAdapter({
-      projectId: s.project.id, tasks: s.tasks, sequences: s.sequences, cpmResult: s.cpmResult,
-      assignments: s.assignments, resources: s.resources, baselines: s.baselines,
-      activityCodeTypes: s.activityCodeTypes, customFieldDefs: s.customFieldDefs, customTaskTypes: s.customTaskTypes,
-      scheduleStale: s.scheduleStale, wbsAutoNumber: false,
-      effectiveHoursPerDay: t => effHoursPerDay(effectiveCalendarOf(t, s.calendar, s.calendars)),
-      labelForColumn: k => k, labelForText: k => k,
-      dateNotation: 'dmy', numberLocale: 'nl',
-      surfaceId: 'full-task-grid', rows: s.viewRows, selectedTaskIds: s.selectedTaskIds,
-    });
-  };
   const open = adapterFor();
   const own = (id: string, col: string) => open.getCell(id, taskColumnId(col))?.text;
   const startM1 = own(M1, 'task.time.start');
@@ -241,6 +243,25 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   eq('Ctrl+klik op de regel: de reeks gaat uit de keuze', weg.selectedTaskIds.filter(id => leden.includes(id)), []);
   const blijft = reconcileGridSelection(opRegel, index, createTaskGridRowIndex(S().viewRows), cols, cols);
   eq('na een nieuwe rijenlijst blijft de cursor op de reeksregel', blijft.active?.rowKey, runKey);
+
+  // Kopiëren (review Sol ronde 2): de gekozen regel kopieert als haar mijlpalen, één regel per mijlpaal.
+  const adapter = adapterFor();
+  const omgeving = (selection: typeof opRegel) => ({
+    selection, rowIndex: index, columns: cols, descriptors: adapter.descriptorsById, context: adapter.context, dateNotation: 'dmy' as const,
+  });
+  const gekopieerd = copyTaskGridSelection(omgeving(opRegel));
+  const namen = leden.map(id => S().tasks.find(t => t.id === id)!.name);
+  eq('Ctrl+C op de reeksregel: één regel per mijlpaal', gekopieerd.ok ? gekopieerd.value.trim().split(/\r?\n/) : gekopieerd, namen);
+  const metBuren = updateGridSelection(opA, volgende, index, cols, 'extend');
+  const drie = copyTaskGridSelection(omgeving(metBuren));
+  eq('Ctrl+C over taak, reeks en taak: alle regels in volgorde', drie.ok ? drie.value.trim().split(/\r?\n/).length : drie, leden.length + 2);
+  eq('plakken op de ingeklapte regel weigert (welke mijlpaal?)', planTaskGridPaste('X', omgeving(opRegel)).ok, false);
+
+  // Cursor (review Sol ronde 2): een klik op een ruitje publiceert een mijlpaal uit de reeks; de cursor gaat naar de reeksregel.
+  const gesynct = syncActiveCellToPublishedTask(opA, leden[1], leden, index, cols);
+  eq('ruitjesklik: de cursor springt naar de reeksregel', gesynct.active?.rowKey, runKey);
+  eq('ruitjesklik: de gekozen taken blijven die van het ruitje', [...gesynct.selectedTaskIds], leden);
+  eq('vanaf daar gaat omlaag voorbij de reeks', updateGridSelection(gesynct, volgende, index, cols, 'replace').active?.rowKey, volgende.rowKey);
   S().expandTasks();
 }
 

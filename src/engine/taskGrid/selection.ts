@@ -40,6 +40,14 @@ function selectableRow(rowIndex: TaskGridRowIndex, rowKey: string): { rowKey: st
   return run ? { rowKey, taskIds: run.tasks.map(t => t.id) } : null;
 }
 
+/** De ingeklapte reeksrij (#868) waarin mijlpaal `taskId` staat. */
+function runRowKeyOf(rowIndex: TaskGridRowIndex, taskId: string): string | undefined {
+  for (const [rowKey, run] of rowIndex.runByRowKey) {
+    if (run.tasks.some(task => task.id === taskId)) return rowKey;
+  }
+  return undefined;
+}
+
 function indexedTaskRowsInRange(
   index: TaskGridRowIndex,
   fromRowKey: string,
@@ -125,11 +133,13 @@ export function updateGridSelection(
   };
 }
 
-/** Geordende taakcellen in de rechthoek; groepskoppen tussen de grenzen worden overgeslagen. */
+/** Geordende taakcellen in de rechthoek; groepskoppen tussen de grenzen worden overgeslagen. Een ingeklapte
+ *  mijlpalenreeks (#868) telt alleen mee met `withRuns` (kopiëren); bewerken en plakken raken hem niet. */
 export function gridSelectionCells(
   state: Readonly<GridSelectionState>,
   rowIndex: TaskGridRowIndex,
   columns: readonly TaskColumnId[],
+  withRuns = false,
 ): GridCellAddress[] {
   const range = state.range;
   if (!range || !validCell(range.start, rowIndex, columns) || !validCell(range.end, rowIndex, columns)) return [];
@@ -144,7 +154,7 @@ export function gridSelectionCells(
   const cells: GridCellAddress[] = [];
   for (let absoluteIndex = rowStart; absoluteIndex <= rowEnd; absoluteIndex++) {
     const row = rowIndex.rows[absoluteIndex];
-    if (row.kind !== 'task') continue;
+    if (row.kind !== 'task' && !(withRuns && row.kind === 'milestones')) continue;
     for (let columnIndex = columnStart; columnIndex <= columnEnd; columnIndex++) {
       cells.push({ rowKey: row.rowKey, columnId: columns[columnIndex] });
     }
@@ -281,12 +291,15 @@ export function syncActiveCellToPublishedTask(
   const activeRow = publishedActiveTaskId
     ? nearestOccurrence(rowIndex, publishedActiveTaskId, reconciled.active?.rowKey ?? null, preferredRowKey)
     : undefined;
-  if (activeRow && activeRow.rowKey !== reconciled.active?.rowKey) {
+  // Een mijlpaal in een ingeklapte reeks (#868) heeft geen eigen rij: de cursor gaat naar de reeksrij.
+  const activeRowKey = activeRow?.rowKey
+    ?? (publishedActiveTaskId ? runRowKeyOf(rowIndex, publishedActiveTaskId) : undefined);
+  if (activeRowKey && activeRowKey !== reconciled.active?.rowKey) {
     const columnId = reconciled.active?.columnId ?? columns[0];
     if (columnId) {
       const jumped = updateGridSelection(
         createEmptyGridSelection(),
-        { rowKey: activeRow.rowKey, columnId },
+        { rowKey: activeRowKey, columnId },
         rowIndex,
         columns,
         'replace',

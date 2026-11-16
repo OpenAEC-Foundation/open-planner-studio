@@ -280,11 +280,14 @@ export function useGanttPointerCoordinator(
       });
       return;
     }
+    // Een groepsruitje (#868) kiest de groep maar opent geen menu, net als de ingeklapte regel in de tabel:
+    // het taakmenu bedient één mijlpaal, en dat doe je na uitklappen. Delete en Ctrl+C werken op de keuze.
     const group = renderer.getMilestoneGroup(task.id);
     if (group) {
-      // Het menu van een groepsruitje (#868) werkt op de hele groep.
       if (!group.every(member => selectedTaskIds.includes(member.id))) selectTasks(group.map(member => member.id), false);
-    } else if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false);
+      return;
+    }
+    if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false);
     // Welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
     // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
     // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.

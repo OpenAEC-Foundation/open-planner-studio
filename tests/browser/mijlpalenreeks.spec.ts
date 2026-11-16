@@ -103,6 +103,27 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect(page.locator('.gantt-tooltip')).toContainText('Betonstort');
   await page.mouse.click(group.x, group.y);
   await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
+  // Rechtsklik: een los ruitje opent het taakmenu, het groepsruitje kiest de groep zonder menu (review Sol ronde 2).
+  const taskMenu = page.getByText(/^(Insert above|Invoegen boven)$/);
+  const single = await barPoint(page, ids.m2);
+  await page.mouse.click(single.x, single.y, { button: 'right' });
+  await expect(taskMenu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(taskMenu).toHaveCount(0);
+  await page.mouse.click(group.x, group.y, { button: 'right' });
+  await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
+  await expect(taskMenu).toHaveCount(0);
+  // Een klik op het groepsruitje zet de tabelcursor op de reeksregel (review Sol ronde 2).
+  await nameCell(page, ids.work).click();
+  await page.mouse.click(group.x, group.y);
+  await expect(nameCell(page, runKey)).toHaveAttribute('data-grid-active', 'true');
+  // Ctrl+C op de reeksregel kopieert alle mijlpalen van de reeks (review Sol ronde 2).
+  await nameCell(page, runKey).click();
+  await page.keyboard.press('Control+c');
+  await expect.poll(() => page.evaluate(() => (window.__OPS__!.store.getState().taskClipboard?.tasks ?? []).map(t => t.id).sort()))
+    .toEqual([ids.m1, ids.m2, ids.m3].sort());
+  await page.mouse.click(group.x, group.y);
+  await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
   const groupDay = await day(ids.m1);
   await page.mouse.move(group.x, group.y);
   await page.mouse.down();
