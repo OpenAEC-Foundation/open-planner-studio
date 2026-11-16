@@ -4,7 +4,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { installNodeFileIpc } from './nodeFileIpc';
-import { saveBytePartsDialog, saveBytePartsToRef } from '@/services/fileAccess';
+import { saveBytePartsDialog, saveBytePartsToRef, sourceTargetContent } from '@/services/fileAccess';
+import { TARGET_CHUNK_BYTES } from '@/services/fileAccess/sourceTargetContent';
 import { BytePartsWriteError } from '@/services/fileAccess/byteParts';
 import { saveNewSiteFileParts, saveSiteFileVersionParts } from '@/services/fileAccess/siteBackend';
 
@@ -21,6 +22,24 @@ let failed = 0;
 async function check(name: string, run: () => Promise<void>) {
   try { await run(); passed++; console.log(`OK ${name}`); }
   catch (error) { failed++; console.error(`XX ${name}`, error); }
+}
+
+/** Een bron van ruim drie stukken, met afwijkingen aan het begin, op en vlak na een stukgrens, in het midden en aan
+ * het eind, en een kortere en een langere variant. */
+function contentFixture() {
+  const source = new Uint8Array(3 * TARGET_CHUNK_BYTES + 12_345);
+  for (let i = 0, x = 7; i < source.length; i++) { x = (x * 1103515245 + 12345) >>> 0; source[i] = x >>> 24; }
+  const flipped = (at: number) => { const copy = new Uint8Array(source); copy[at] ^= 0x20; return copy; };
+  const variants = new Map<string, Uint8Array>([
+    ['begin', flipped(0)],
+    ['laatste byte van stuk 1', flipped(TARGET_CHUNK_BYTES - 1)],
+    ['eerste byte van stuk 2', flipped(TARGET_CHUNK_BYTES)],
+    ['midden', flipped(Math.floor(source.length / 2))],
+    ['eind', flipped(source.length - 1)],
+    ['korter', source.subarray(0, source.length - 1)],
+    ['langer', Buffer.concat([source, new Uint8Array([0x0a])])],
+  ]);
+  return { source, variants };
 }
 
 async function main() {
@@ -72,6 +91,54 @@ async function main() {
         } finally { ipc.faults.writeErrorAfter = null; ipc.faults.closeError = null; }
       }
     });
+
+    // #804, knownbug 1131 stap 1: staat op het eigen doel nog precies de bron? Grootte eerst, dan stukken van 1 MiB.
+    const content = contentFixture();
+    const reads: number[] = [];
+    const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__;
+    const invoke = internals.invoke;
+    let failReadAt: number | null = null;
+    internals.invoke = async (command, args, options) => {
+      if (command === 'plugin:fs|read') {
+        reads.push(Number((args as { len: number }).len));
+        if (failReadAt !== null && reads.length === failReadAt) throw new Error('Input/output error (os error 5)');
+      }
+      return invoke(command, args, options);
+    };
+    const pathTarget = path.join(dir, 'bron.ifc');
+    const pathContent = async (bytes: Uint8Array) => {
+      fs.writeFileSync(pathTarget, bytes);
+      return sourceTargetContent({ kind: 'path', path: pathTarget }, content.source);
+    };
+    await check('Tauri-pad: inhoudscontrole gelijk, en elke afwijking de juiste uitkomst', async () => {
+      assert.equal(await pathContent(content.source), 'same');
+      for (const [name, bytes] of content.variants) assert.equal(await pathContent(bytes), 'changed', name);
+      fs.rmSync(pathTarget);
+      assert.equal(await sourceTargetContent({ kind: 'path', path: pathTarget }, content.source), 'missing');
+      assert.equal(ipc.openHandles(), 0);
+    });
+    await check('Tauri-pad: leesfout halverwege is onleesbaar, de handle gaat dicht', async () => {
+      reads.length = 0; failReadAt = 2;
+      try { assert.equal(await pathContent(content.source), 'unreadable'); }
+      finally { failReadAt = null; }
+      assert.equal(ipc.openHandles(), 0);
+    });
+    await check('Tauri-pad: nooit meer dan één stuk per lezing, nooit het hele bestand', async () => {
+      reads.length = 0;
+      const before = ipc.calls.length;
+      assert.equal(await pathContent(content.source), 'same');
+      assert.equal(reads.length, Math.ceil(content.source.length / TARGET_CHUNK_BYTES) + 1, 'stukken plus het einde');
+      assert(reads.every(len => len <= TARGET_CHUNK_BYTES), `grootste lezing ${Math.max(...reads)} bytes`);
+      assert.equal(ipc.calls.slice(before).some(c => c.command === 'plugin:fs|read_file'), false);
+      // Een andere grootte leest niets; een verschil in het eerste stuk leest één stuk.
+      reads.length = 0;
+      assert.equal(await pathContent(content.variants.get('korter')!), 'changed');
+      assert.equal(reads.length, 0);
+      assert.equal(await pathContent(content.variants.get('begin')!), 'changed');
+      assert.equal(reads.length, 1);
+      console.log(`  bron ${content.source.length} bytes in ${Math.ceil(content.source.length / TARGET_CHUNK_BYTES)} stukken van hoogstens ${TARGET_CHUNK_BYTES} bytes`);
+    });
+    internals.invoke = invoke;
   } finally { ipc.dispose(); fs.rmSync(dir, { recursive: true, force: true }); }
 
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -163,6 +230,34 @@ async function main() {
     if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
     else Reflect.deleteProperty(globalThis, 'document');
   }
+
+  await check('Browserhandle: inhoudscontrole gelijk, en elke afwijking de juiste uitkomst', async () => {
+    const content = contentFixture();
+    const slices: number[] = [];
+    let failSliceAt: number | null = null;
+    const handleFor = (bytes: Uint8Array | null, error?: string) => ({
+      kind: 'file',
+      async getFile() {
+        if (error) throw new DOMException('weg', error);
+        const file = new File([new Uint8Array(bytes!).buffer], 'bron.ifc');
+        return { size: file.size, slice(start: number, end: number) {
+          slices.push(end - start);
+          if (failSliceAt !== null && slices.length === failSliceAt) return { arrayBuffer: () => Promise.reject(new DOMException('gewijzigd', 'NotReadableError')) };
+          return file.slice(start, end);
+        }, arrayBuffer() { throw new Error('nooit het hele bestand in één buffer'); } };
+      },
+    }) as unknown as FileSystemFileHandle;
+    const handleContent = (bytes: Uint8Array | null, error?: string) =>
+      sourceTargetContent({ kind: 'handle', handle: handleFor(bytes, error) }, content.source);
+    assert.equal(await handleContent(content.source), 'same');
+    assert.equal(slices.length, Math.ceil(content.source.length / TARGET_CHUNK_BYTES));
+    assert(slices.every(len => len <= TARGET_CHUNK_BYTES));
+    for (const [name, bytes] of content.variants) assert.equal(await handleContent(bytes), 'changed', name);
+    assert.equal(await handleContent(null, 'NotFoundError'), 'missing');
+    assert.equal(await handleContent(null, 'NotAllowedError'), 'unreadable');
+    failSliceAt = slices.length + 2;
+    assert.equal(await handleContent(content.source), 'unreadable', 'leesfout halverwege');
+  });
   console.log(`Byte-delen: ${passed} geslaagd, ${failed} mislukt.`);
   if (failed) process.exitCode = 1;
 }
