@@ -735,18 +735,26 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
 // (a) Een baselinestart met een tijdzone: de writer op de lezing (O0) schrijft haar als `'2027-05-07'`; de lezing draagt de
 // waarde dus niet, (b) zet de JSON terug, en op een kalender die letterlijk wordt (de duur 1,5 dag) weigert de merge.
 // (b) Een baseline die de lezer wel draagt, maar die de planner wijzigde: dat is geen vorm van de writer, dus geen
-// verklaring; de merge weigert (de regel `plannerChanged` in `literalBaselineForm`). Zonder wijziging schrijft hij: zie
-// de proeven "kalendertijd" in `check-ifc-foreign-strikt.ts`.
+// verklaring (de regel `plannerChanged` in `literalBaselineForm`). Sinds PR 12c valt `OPS_Baselines` van deze bron onder de
+// andere toets (PR 12b): de owner history die het project met het model deelt, telt niet meer als vreemd lid. Dan hoeft de
+// wijziging geen verklaring en schrijft de merge; controle (c) en de controle na openen toetsen de uitvoer, en hier ook de
+// baselines na heropenen. Zonder wijziging schrijft hij: zie de proeven "kalendertijd" in `check-ifc-foreign-strikt.ts`.
 {
   const settled = text(await settle(latin1(readText('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'))));
   const zoned = settled.replace('"start":"2027-05-07"', '"start":"2027-05-07T07:00:00Z"');
   ok('baseline: de bron met tijdzone heeft er een', zoned.includes('"start":"2027-05-07T07:00:00Z"'));
   const halfDay = (d: Domain) => { d.tasks.find(t => !t.isMilestone && t.childIds.length === 0)!.time.scheduleDuration = 1.5; };
   await proof('baseline', 'een start met tijdzone, duur 1,5 dag (kalender letterlijk)', zoned, 'niet-gedragen', halfDay);
-  await proof('baseline', 'de planner verschuift een baselinestart, duur 1,5 dag (kalender letterlijk)', settled, 'niet-gedragen', (d) => {
-    halfDay(d);
-    d.baselines![0].tasks[1].start = '2027-05-10T07:00';
-  });
+  const shift = (d: Domain) => { halfDay(d); d.baselines![0].tasks[1].start = '2027-05-10T07:00'; };
+  await proof('baseline', 'de planner verschuift een baselinestart, duur 1,5 dag (kalender letterlijk)', settled, 'schrijft', shift,
+    has('"start":"2027-05-10T07:00"'));
+  const o = await openForeign(latin1(settled)), d = cloneDomain(o);
+  shift(d);
+  const r = await tryMerge(d, o.ifcSource!);
+  if (r.ok) {
+    const fields = (x: Opened) => JSON.stringify([x.baselines, x.activeBaselineId ?? null, x.comparedBaselineIds ?? null]);
+    ok('baseline: de verschoven start heropent met de baselines zoals de planner ze zag', fields(await openForeign(r.bytes)) === fields(await shownAfterOpen(d)));
+  }
 }
 
 console.log('| proef | uitkomst |');
