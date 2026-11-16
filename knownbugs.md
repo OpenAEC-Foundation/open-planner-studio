@@ -2010,7 +2010,9 @@ en noem het in je rapport of PR-tekst.
      of een echte browser na een herstart de leesrechten nog geeft, is niet gemeten. Zonder rechten valt het herstel
      op een bestaande kopie terug (PR 9b), anders op "bron ontbreekt" (opslag geweigerd, niets verloren).
      Voor handles wordt geen extra kopie gemaakt: dat zou voor grote bestanden extra opslag vragen en
-     afwijken van de afgesproken kopiegrens. Richting: een proef in een echte browser vóór de flag standaard aan gaat. Gevonden door de review van #929. — S
+     afwijken van de afgesproken kopiegrens. Ctrl+S via de handle (1131 stap 2) vraagt de schrijftoestemming bij het
+     gebaar, vóór de merge; ook dat is na een echte herstart niet gemeten (de browserproef gebruikt een OPFS-handle, die
+     geen toestemming vraagt). Richting: een proef in een echte browser vóór de flag standaard aan gaat. Gevonden door de review van #929. — S
 
 
 1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
@@ -2559,16 +2561,18 @@ en noem het in je rapport of PR-tekst.
      createNew via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone I/O-fout is
      best effort en biedt geen padslot tegen externe wissels. Onderzoek van 16 november 2026: zes stappen.
      1. Klaar (stap 1): de inhoudscontrole van het eigen doel (`sourceTargetContent`, pad en handle, in stukken van
-        1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5, `replaceWithRecoveryPending`). Nog
-        door geen route aangeroepen.
-     2. Ctrl+S in de browser via de handle: de uitzondering "eigen doel" in `refusedWriteTarget`, de inhoudscontrole
-        vóór de merge en vlak vóór `close()`, de helper om de schrijfactie.
+        1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5, `replaceWithRecoveryPending`).
+     2. Klaar (stap 2): Ctrl+S in de browser via de handle (Chrome, Edge), achter de flag: de uitzondering "eigen doel"
+        in `refusedWriteTarget` (alleen een handle), de inhoudscontrole vóór de merge en vlak vóór `close()`, de
+        vervanging in `replaceWithRecoveryPending`. De desktop (een pad) weigert nog zoals voorheen en wacht op stap 3
+        tot en met 5.
      3. Het Rust-commando `place_file_exclusive` met fsync, los en per platform getoetst (wacht op een productkeuze).
      4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
      6. Teksten en handleiding, met de eigenaar.
-     Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; crash, stroomuitval en externe
+     Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; van stap 2:
+     `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1760. **VERVOLG (#804, tekst): Opslaan als over een bestaand planningsbestand met een gebouwmodel geeft een interne fouttekst.**
@@ -2594,14 +2598,14 @@ en noem het in je rapport of PR-tekst.
      (`.github/workflows/mcp-real-app.yml:42, 74-75`); de builds op Windows en macOS in `ci.yml` draaien geen tests.
      Nodig vóór stap 3 van 1131; de workflowwijziging pusht Trias. Uit het onderzoek naar 1131. — B
 
-1764. **VERVOLG (#804, 1131 stap 2): zonder crashherstel weigert de helper elke vervanging.**
+1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
-     herstelronde draaien, dan zegt hij nee: IndexedDB geweigerd (sandbox-iframe zonder `allow-same-origin`, #582), de
-     herstelvraag bij de start nog open, of geen geregistreerde ronde. Ctrl+S met een gebouwmodel weigert daar dus
-     straks ook. Dat is de goede standaard (review van #965, Sol): de drie oorzaken geven dezelfde weigering, en een
-     ontoegankelijke IndexedDB bewijst niet dat er geen herstelset is die bescherming nodig heeft. Richting: de weigering
-     houden; een uitzondering mag niet op `not-recorded` alleen steunen, maar vraagt in stap 2 een eigen bewijs dat er
-     geen te beschermen herstelset is, met een eigen proef. Gevonden in stap 1 van 1131. — B (code)
+     herstelronde draaien (IndexedDB geweigerd, zoals een sandbox-iframe zonder `allow-same-origin`, #582; de
+     herstelvraag bij de start nog open; geen geregistreerde ronde), dan schrijft Ctrl+S met een gebouwmodel niet en
+     meldt `ifcForeignReplaceNotRecorded` dat het bestand nu niet veilig vervangen kan worden en dat Opslaan als wel kan.
+     Besluit (stap 2, review van #965): de weigering blijft de standaard, zonder uitzondering; een ontoegankelijke
+     IndexedDB bewijst niet dat er geen herstelset is die bescherming nodig heeft. Een uitzondering vraagt een eigen
+     besluit, voorwaarden en proef. Proef: `check-ifc-document-save.ts` (geen herstelronde, manifest geweigerd). — B
 
 1765. **VERVOLG (#804, stroomuitval): het manifest met `pendingSha256` staat na stroomuitval mogelijk niet op schijf.**
      De helper wacht tot de herstelronde klaar is, maar die schrijft op de desktop zonder fsync (`recoveryStore.ts`,
@@ -2610,6 +2614,19 @@ en noem het in je rapport of PR-tekst.
      "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
      gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: meenemen bij de fsync van 1761. Gevonden
      in stap 1 van 1131. — S
+
+1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
+     Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
+     `ifcForeignReplaceBlocked`: "Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig." In de
+     browser kan dat sinds 1131 stap 2 wel; de echte reden is het andere tabblad. Er gaat niets verloren (nul bytes,
+     `check-ifc-document-save.ts`). Richting: een eigen zin, of de zin algemener; met de teksten van stap 6. — B (proef)
+
+1767. **VERVOLG (#804, niet gemeten): Ctrl+S via een handle uit de bestandskiezer in een echte browser.** De
+     browserproef gebruikt een handle uit OPFS (`navigator.storage.getDirectory()`): geen toestemmingsvraag, geen
+     wisselbestand naast een bestand van de planner. Niet gemeten: een handle uit `showOpenFilePicker` in Chrome of Edge
+     (de vraag om schrijftoestemming, wat de browser na een crash midden in `close()` achterlaat), en de duur bij grote
+     bestanden: twee volledige inhoudscontroles en de merge, alle op de hoofdthread. Richting: meenemen in de proef in
+     een echte browser van 1574 en de meting van PR 6. — S
 
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna

@@ -73,6 +73,6 @@ met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliot
 met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blijft planOnly met een vreemd deel
 geweigerd. De exports vragen vóór de bestandskiezer en schrijven niet als het document tijdens de vraag veranderde
 (`refuseChangedExport` onder het schrijfslot); ze raken het document niet.
-De site-uitzondering in `refusedWriteTarget` bindt document-id, bronidentiteit, kenmerk en basisversie op één plek; exports geven haar niet mee. De voorbereiding
+De uitzondering "eigen doel" in `refusedWriteTarget` (`ownVersion`) bindt document-id, bronidentiteit en kenmerk op één plek; exports en Opslaan als geven haar niet mee. Site: met de basisversie. Handle (1131 stap 2, alleen Ctrl+S via `documentTargetCheck(…, true)`): dezelfde handle als document en kenmerk (`isSameEntry`); een ander open document met dat bestand als bron blijft geweigerd. Een pad krijgt haar niet. De route staat in `tauri-ifc.md`. De voorbereiding
 loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd.
 Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit.

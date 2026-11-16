@@ -62,7 +62,8 @@ Knownbug 1131 stap 1: `ifcSource.pendingSha256` (optioneel, v5) is de versie die
 doel komt. `replaceWithRecoveryPending` (`recoveryPendingSource.ts`, binnen `runProjectFileWrite`) legt het vast, wacht
 via `flushRecoveryNow` tot de gepersisteerde basis van `runRecoveryTick` het noemt (anders geen vervanging), zet na
 slagen eerst de nieuwe bron en wist dan het veld; na mislukken alleen wissen. Herstel aanvaardt een bron met `sha256`
-of `pendingSha256` en neemt de gevonden versie. Een oudere app negeert het veld. Nog door geen route aangeroepen.
+of `pendingSha256` en neemt de gevonden versie. Een oudere app negeert het veld. Ctrl+S via de browserhandle roept
+het aan (stap 2, `tauri-ifc.md`); zonder vastgelegd manifest schrijft hij niet (1764).
 PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
 met de bestaande ene melding per document per sessie; site-AutoSave blijft uit.
 
