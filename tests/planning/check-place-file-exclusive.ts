@@ -41,7 +41,7 @@ const refusedByRust: Array<[string, PlaceFileOutcome]> = [
   ['{"code":"target-exists"}', { code: 'target-exists' }],
   ['{"code":"unsupported","message":"m"}', { code: 'unsupported', message: 'm' }],
   ['{"code":"io","message":"m"}', { code: 'io', message: 'm' }],
-  ['{"code":"source-changed","restored":true}', { code: 'source-changed', restored: true }],
+  ['{"code":"source-changed"}', { code: 'source-changed' }],
   ...(['path-shape', 'helper-name', 'scope', 'not-regular-file'] as const).map((reason): [string, PlaceFileOutcome] =>
     [`{"code":"refused","reason":"${reason}"}`, { code: 'refused', reason }]),
 ];
@@ -83,7 +83,6 @@ async function main() {
       ['Command place_file_exclusive not found', { code: 'io', message: 'Command place_file_exclusive not found' }],
       [{ code: 'refused', reason: 'iets-anders' }, { code: 'io', message: '{"code":"refused","reason":"iets-anders"}' }],
       [{ code: 'geplaatst' }, { code: 'io', message: '{"code":"geplaatst"}' }],
-      [{ code: 'source-changed' }, { code: 'io', message: '{"code":"source-changed"}' }],
       [null, { code: 'io', message: 'null' }],
     ];
     for (const [value, expected] of odd) {

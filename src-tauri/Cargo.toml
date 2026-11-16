@@ -37,7 +37,7 @@ serde_json = "1"
 tauri-plugin-single-instance = "2"
 
 # Voor `place_file_exclusive` (src/commands/place_file.rs): de exclusieve hernoemstap per platform
-# (`renameat2`/`renamex_np`, `MoveFileExW`). Beide crates stonden al in Cargo.lock, als afhankelijkheid
+# (`renameat2`/`renameatx_np`, `SetFileInformationByHandle`). Beide crates stonden al in Cargo.lock, als afhankelijkheid
 # van andere crates; dezelfde versies, geen nieuwe crate.
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.186"

@@ -2567,14 +2567,14 @@ en noem het in je rapport of PR-tekst.
         vervanging in `replaceWithRecoveryPending`. De desktop (een pad) weigert nog zoals voorheen en wacht op stap 3
         tot en met 5.
      3. Gebouwd (stap 3, #972): het Rust-commando `place_file_exclusive` (`src-tauri/src/commands/place_file.rs`) en
-        de TS-ingang `placeFileExclusive.ts`; nog door geen route gebruikt. De scope is die van plugin-fs `rename` voor
-        de aanroepende webview (`resolve_command_scope` plus de runtime-scope; een verbod wint). Het plaatst de bron die
-        het controleerde: de map en de bron blijven open, de stap gaat via de open map (Windows: de open bron), en een
-        controle na de stap zet een wissel exclusief terug (`source-changed`). `rust-tests.yml` draait `cargo test
-        place_file` op Ubuntu 22.04 en macOS (21 tests) en Windows (18; de drie proeven met symbolische links alleen op
-        Unix), ook een bron- en een mapwissel tussen controle en stap met de echte systeemaanroep. Zes mutaties (gewone
-        `rename`, scope uit, hulpnaamcontrole uit; na de review: verbod niet gelezen, controle na de stap weg, absolute
-        paden zonder open map) maakten elk hun eigen proef rood.
+        de TS-ingang `placeFileExclusive.ts`; nog door geen route gebruikt. De grens van het commando (besluit van de
+        technisch beslisser, 16 november 2026) staat bovenaan `place_file.rs` en in ontwerp §4.10: nooit een bestaand
+        doel vervangen, nooit een pad dat plugin-fs weigert (de padteksten van de aanroeper en de echte map), een fout
+        van de stap blijft een fout, na de stap hoogstens één verplaatsing en geen herstel. Op Unix blijft een venster
+        tussen controle en stap (1799). `rust-tests.yml` draait `cargo test place_file` op Ubuntu 22.04, macOS en
+        Windows (aantallen in #972), ook wissels vóór en na de echte stap, een harde link op het doel en dezelfde
+        invoer door de IPC naar plugin-fs `rename` en dit commando. Elke controle kreeg een mutatie die haar eigen
+        proef rood maakte.
      4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
@@ -2659,13 +2659,38 @@ en noem het in je rapport of PR-tekst.
      doel opzij zetten) bij een alleen-lezen doel; opslaan stopt dan veilig. Verwant aan 162. Niet gemeten (geen
      Windows hier). Uit 1131 stap 3. — S
 
+1777. **VERVOLG (#804, scope): bij `requireLiteralLeadingDot: false` toetst `place_file_exclusive` een runtime-verbod anders dan plugin-fs.**
+     Plugin-fs toetst een verbod met zijn eigen config (`tauri-plugin-fs-2.5.0/src/commands.rs:1585`); het commando
+     gebruikt `is_forbidden` van de runtime-scope, die plugin-fs met de standaardpuntregel maakt (`lib.rs:490`). Zet
+     iemand op Unix `plugins.fs.requireLiteralLeadingDot` op `false`, dan kan een wildcardverbod in de runtime-scope
+     bij het commando een puntbestand missen dat plugin-fs wel weigert. De huidige config (leeg) raakt dat niet.
+     Gevonden door de review van #972 (ronde 2). — B (code)
+
 1795. **VERVOLG (#804, netwerkschijf): een hernoeming kan een fout geven nadat ze toch gebeurde.**
      Op NFS kan een herhaald verzoek na een verloren antwoord `EEXIST` of `ENOENT` geven terwijl de eerste poging de
-     naam al verplaatste. `place_file_exclusive` vangt dat op: geeft de stap een fout en staat de open bron daarna op
-     het doel, dan geldt hij als verplaatst en gaan de controle na de stap en de fsync van de map door (proef
-     `place_file_fout_na_uitgevoerde_hernoeming`, met een nep-stap). Wat het niet vangt: een fout bij het terugzetten
-     na `source-changed`, die dan `restored: false` zegt terwijl het terugzetten wel gebeurde. Op een echte
-     netwerkschijf niet gemeten. Uit 1131 stap 3 (review van #972). — S
+     naam al verplaatste. `place_file_exclusive` vangt dat niet: een fout van de stap blijft een fout (`io` of
+     `target-exists`), ook als de bron daarna op het doel staat. Een poging om het te vangen gaf bij een harde link van
+     de bron op het doel een valse `placed` (review #972, ronde 2). Stap 4 en 5 moeten na zo'n fout dus niet aannemen
+     dat de hulpnaam nog bestaat. De proef `place_file_fout_na_uitgevoerde_hernoeming` legt vast dat de fout terugkomt.
+     Op een echte netwerkschijf niet gemeten. Uit 1131 stap 3. — S
+
+1798. **VERVOLG (#804, Windows): een harde link van de bron op het doel geeft daar `placed`, niet `target-exists`.**
+     De grens van `place_file_exclusive` zegt dat een bestaand doel `target-exists` geeft, ook bij hetzelfde inode. Op
+     Unix klopt dat (`EEXIST`, beide namen blijven). Op Windows geeft `SetFileInformationByHandle` zonder vervangen geen
+     fout als het doel een harde link naar de bron zelf is: de uitkomst is `placed`, de hulpnaam is weg, het doel
+     bestaat en de inhoud is ongewijzigd (proef `place_file_harde_link_op_het_doel`, gemeten in de Rust-tests, run
+     43947435718). Er is één verplaatsing en geen ander bestand is vervangen; alleen de uitkomst wijkt af van Unix.
+     Stap 4 en 5 maken zelf geen harde link van een hulpbestand op het doel. Uit 1131 stap 3 (fixronde 2). — B (proef)
+
+1799. **VERVOLG (#804, Unix): tussen controle en stap kan een ander object onder de hulpnaam komen.**
+     Buiten de grens van `place_file_exclusive` (besluit van de technisch beslisser, 16 november 2026): op Unix kan
+     een partij met hernoemrechten in die map tussen controle en stap een ander object onder de hulpnaam zetten. Het
+     commando meldt `source-changed` als het dat achteraf ziet, en kan het missen bij een wissel-terug. Op Windows
+     speelt dit niet. Reden: op Linux en macOS hernoemt het systeem op naam, dus een strikte binding bestaat daar niet
+     zonder een omweg in twee stappen die alleen Linux heeft; wie tussen controle en stap een object onder de hulpnaam
+     kan zetten, heeft via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`. Gevonden door de review van
+     #972 (ronde 2, met de echte Linux-stap). Proeven: `place_file_bronwissel_tussen_controle_en_stap`,
+     `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
 
 1797. **VERVOLG (beveiliging): `tauri-plugin-fs` staat op 2.5.0; upstream is 2.7.1.**
      `src-tauri/Cargo.lock` vergrendelt 2.5.0 (`Cargo.toml` vraagt `2`, `tauri-plugin-persisted-scope` staat vast op
