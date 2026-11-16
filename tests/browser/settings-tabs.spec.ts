@@ -439,9 +439,13 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
       expect(saved.text).not.toBe(text);
       expect(saved.text).toContain('IFCWALL(');
       expect(saved.source).toBe(saved.mark);
+      // Eerst wachten tot het heropende document actief is: het bewerkte document heeft dezelfde duur.
+      const savedDocument = await page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId);
       const savedChooser = page.waitForEvent('filechooser');
       await page.keyboard.press('Control+o');
       await (await savedChooser).setFiles({ name: saved.name, mimeType: 'application/octet-stream', buffer: Buffer.from(saved.text) });
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).not.toBe(savedDocument);
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ifcSource?.foreign)).toBe(true);
       await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.time.scheduleDuration, task.id)).toBe(task.duration + 1);
       expect(await page.evaluate(() => {
         const source = window.__OPS__!.store.getState().ifcSource!;
