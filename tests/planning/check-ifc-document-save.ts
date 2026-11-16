@@ -23,7 +23,7 @@ import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
-import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
+import { flushRecoveryNow, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { installNodeFileIpc } from './nodeFileIpc';
@@ -942,6 +942,9 @@ await check('handle Ctrl+S, crash na close() en vóór het manifest: herstel vin
   const { store, name } = await openHandle(), unregister = recoveryRounds(store);
   try {
     const edit = longer(store), id = store.getState().activeDocumentId;
+    // De gewone herstelronde na een bewerking (in de app de 10 s-ronde): het manifest kent het document al.
+    await flushRecoveryNow();
+    assert.equal((await loadRecovery()).docs.find(d => d.id === id)?.ifcSource?.pendingSha256, undefined);
     let crash: Awaited<ReturnType<typeof loadRecovery>> | undefined;
     handleFaults.set(name, { afterClose: async () => { crash = await loadRecovery(); } });
     assert.equal(await ctrlS(store), true);
