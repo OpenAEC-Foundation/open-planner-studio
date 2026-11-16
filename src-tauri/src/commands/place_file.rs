@@ -637,8 +637,7 @@ pub(crate) fn place(
 
     // 2. De scope op de padteksten van de aanroeper, in de volgorde van plugin-fs `rename`. Een doel dat
     // nog niet bestaat, maakt Tauri niet canoniek: een link in de map telt dus mee zoals hij er staat.
-    // MUTATIE B2 (alleen bewijs, wordt teruggezet): geen scope op de padteksten, SafeFilePath blijft.
-    if false && (!in_scope(Path::new(from)) || !in_scope(Path::new(to))) {
+    if !in_scope(Path::new(from)) || !in_scope(Path::new(to)) {
         return Err(refused(RefusalReason::Scope));
     }
 
