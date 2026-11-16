@@ -789,7 +789,9 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const mspTaskType = mspTaskTypeFromRaw(raw.mspTaskTypeRaw);
 
     const task: Task = {
-      id: generateId('task'),
+      // Vast id uit de Unique ID (knownbug 837): MS Project houdt hem gelijk en hergebruikt hem nooit.
+      // Alleen MS Project schrijft `.mpp`, dus geen bestand met UID's op volgorde (zie `sourceKeys.ts`).
+      id: `mpp-uid:${raw.uniqueId}`,
       name: raw.name,
       description: '',
       wbsCode: '', // wordt hieronder gezet — outline-nummering volgt pas ná de hiërarchie-opbouw
@@ -1673,6 +1675,8 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     resourceCalendars: calResult.resourceCalendars,
     // Rekenprofielen: .mpp ⇒ MS Project.
     suggestedProfileId: 'msproject',
+    // De lezer kent geen projectsleutel in `.mpp` (knownbug 837).
+    generatedProjectId: true,
     // Alleen gezet als ≥1 taak een signaal draagt, zodat `fileSlice.ts` met
     // `parsed.sourceScheduleNotes?.total` volstaat.
     ...(scheduleNotes.total > 0 ? { sourceScheduleNotes: scheduleNotes } : {}),

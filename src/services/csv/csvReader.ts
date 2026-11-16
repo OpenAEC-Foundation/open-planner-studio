@@ -544,5 +544,8 @@ export function readCSV(content: string): ImportResult {
     // Rekenprofielen: CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
     suggestedProfileId: 'ops',
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'csv' as const } : {}),
+    // CSV draagt geen projectsleutel en geen vaste taaksleutel (knownbug 837): WBS en rijnummer
+    // verschuiven bij hernummeren, dus de taak-id's blijven willekeurig.
+    generatedProjectId: true,
   };
 }

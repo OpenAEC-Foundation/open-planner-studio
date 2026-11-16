@@ -11,6 +11,7 @@ import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, WorkingException } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
+import { sourceGuid } from '@/services/sourceKeys';
 import { parseInstant, localTodayIso, parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { UNNAMED_HOLIDAY_NAME, UNNAMED_WORKING_EXCEPTION_NAME } from '@/services/calendarRecurrence';
 import {
@@ -794,6 +795,22 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
 
   // Parse project
   const project = parseProject(scope.project, timeRule);
+  // Vaste id's (knownbug 837): project, WBS en activiteit op hun `GUID`, anders op hun `ObjectId` (de
+  // databasesleutel). Een export van OPS nummert de ObjectId's op volgorde (`p6xmlWriter.ts`, project
+  // altijd 1) en draagt geen GUID: daar blijven de id's willekeurig.
+  const opsFile = writtenByOps || isLegacyOpsP6Xml(scope.root);
+  const usedKeys = new Set<string>();
+  const stableId = (kind: 'act' | 'wbs', el: Element, objId: number): string => {
+    if (opsFile) return generateId('task');
+    const guid = sourceGuid(getElementText(el, 'GUID'));
+    // Een GUID die in dit bestand al een taak gaf, telt niet: dan de ObjectId (uniek per tabel).
+    const key = guid && !usedKeys.has(`${kind}:${guid}`) ? guid : String(objId);
+    usedKeys.add(`${kind}:${key}`);
+    return `p6xml-${kind}:${key}`;
+  };
+  const projectGuid = opsFile || !scope.project ? undefined : sourceGuid(getElementText(scope.project, 'GUID'));
+  const projectKey = opsFile ? undefined : projectGuid ?? (scope.projectObjectId !== null ? String(scope.projectObjectId) : undefined);
+  if (projectKey) project.id = `p6xml-proj:${projectKey}`;
   // Rekenopties: dezelfde afleiding als een XER (issue #775), uit `<ScheduleOptions>` en de kritiekvelden van
   // het project. Een P6 XML rekent daarmee als Primavera P6, net als een XER. Het projecteinde telt als
   // bruikbaar zoals bij XER: een MustFinishByDate of minstens één geplande einddatum van een activiteit.
@@ -851,7 +868,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const objId = getElementInt(wbsEl, 'ObjectId', -1);
     if (objId < 0) continue;
 
-    const id = generateId('task');
+    const id = stableId('wbs', wbsEl, objId);
     wbsObjIdToId.set(objId, id);
 
     const code = getElementText(wbsEl, 'Code');
@@ -1061,7 +1078,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const objId = getElementInt(actEl, 'ObjectId', -1);
     if (objId < 0) continue;
 
-    const id = generateId('task');
+    const id = stableId('act', actEl, objId);
     actObjIdToId.set(objId, id);
 
     const actId = getElementText(actEl, 'Id');
@@ -1531,6 +1548,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     // Rekenprofielen: P6 XML opent als Primavera P6, met de opties uit `<ScheduleOptions>`, net als een XER (#775).
     suggestedProfileId: P6XML_PROFILE_ID,
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'p6xml' as const } : {}),
+    ...(projectKey ? {} : { generatedProjectId: true as const }),
   };
   return { result, crossProjectRelations, activitiesRead: leafTasks.length };
 }
