@@ -1503,6 +1503,19 @@ mod tests {
             .unwrap();
         let webview: &tauri::Webview<_> = window.as_ref();
         let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
+        // Alleen zichtbaar als de proef faalt: wat de capability voor fs rename opleverde.
+        let resolved = webview
+            .resolve_command_scope::<FsScopeEntry>("fs", "rename")
+            .unwrap()
+            .unwrap();
+        println!(
+            "globaal toegestaan {:?}\nglobaal verboden {:?}\ncommando toegestaan {:?}\ncommando verboden {:?}\ningesteld {:?}",
+            resolved.global_scope().allows(),
+            resolved.global_scope().denies(),
+            resolved.command_scope().allows(),
+            resolved.command_scope().denies(),
+            scope.configured
+        );
 
         let home = app.path().home_dir().unwrap();
         let local = app.path().app_local_data_dir().unwrap();
