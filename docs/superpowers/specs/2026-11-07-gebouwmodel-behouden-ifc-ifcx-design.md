@@ -662,12 +662,22 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     het bestand met `createNew`.
   - **Fsync en scope in het commando** (knownbug 1761; 1131 stap 3). De eis noemt stroomuitval, en in stap 4 is het
     doel een vrije naam, waar `auto_da_alloc` van ext4 niet helpt. Daarom legt het commando zelf de inhoud van `from`
-    vast vóór de stap (`sync_all`; Windows `FlushFileBuffers`) en de map erna (Unix: de map openen en `sync_all`;
-    Windows: `MOVEFILE_WRITE_THROUGH`). Faalt alleen die laatste, dan is het bestand wel geplaatst; dat is een eigen
-    uitkomst, geen mislukking. De scopecontrole staat in de code, niet in een eigen permissie met `CommandScope`: het
-    pad staat in de scope die tijdens het draaien groeit (`app.fs_scope()`) of onder de thuismap, zoals
-    `fs:allow-home-write-recursive`, met dezelfde globregels als plugin-fs (besluit van de technisch beslisser,
-    16 november 2026).
+    vast vóór de stap (`sync_all`; Windows `FlushFileBuffers`) en de map erna (Unix: `sync_all` op de open map;
+    Windows: `FlushFileBuffers` op de open bron na de hernoeming). Faalt alleen die laatste, dan is het bestand wel
+    geplaatst; dat is een eigen uitkomst, geen mislukking. De scope is die van plugin-fs `rename` zelf, niet
+    nagebouwd: wat de capability voor de aanroepende webview toestaat en verbiedt (`Webview::resolve_command_scope`)
+    plus de scope die tijdens het draaien groeit (`fs_scope()`), met de regel van plugin-fs: een verbod in een van
+    beide wint, daarna moet een van beide het pad toestaan (review #972, blokkade 1; besluit van de technisch
+    beslisser, 16 november 2026: het commando mag niets wat plugin-fs weigert). Het standaardverbod van plugin-fs op
+    de webviewmap is in plugin-fs 2.5.0 leeg (knownbug 1796); het commando bouwt het niet zelf na.
+  - **Wat geplaatst wordt, is wat gecontroleerd is** (review #972, blokkade 2). Het commando opent de map één keer en
+    toetst de scope op het echte pad van die open map. Het opent de bron in die map zonder links te volgen en stelt op
+    de open bron vast dat het een gewoon bestand is; de fsync gaat op dezelfde open bron. De stap gaat relatief aan de
+    open map (Linux `renameat2`, macOS `renameatx_np`); op Windows zijn map en bron geopend zonder
+    `FILE_SHARE_DELETE`, zodat niemand ze kan verplaatsen, en hernoemt `SetFileInformationByHandle` de open bron zelf.
+    Na de stap moet op het doel de open bron staan, in de open map en via het pad van de aanroeper. Anders zet het
+    commando exclusief terug en geeft `source-changed` met `restored`, nooit "geplaatst". Geen terugval: wat de
+    gebonden stap niet kent, geeft *niet ondersteund*.
   - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
     (§4.14). Kan de app dat niet veilig vastleggen (herstelopslag niet beschikbaar of geblokkeerd), dan stopt opslaan
     hier: zonder `pendingReplace` vindt herstel de restbestanden niet terug. De melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de

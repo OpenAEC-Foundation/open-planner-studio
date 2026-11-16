@@ -25,22 +25,27 @@ De `invoke_handler` in `src-tauri/src/main.rs` telt precies vier commands: `inst
 
 ### `place_file_exclusive` (#804, knownbug 1131 stap 3)
 
-Eén bestand exclusief onder een nieuwe naam plaatsen, in dezelfde map: Linux `renameat2` met `RENAME_NOREPLACE`,
-macOS `renamex_np` met `RENAME_EXCL`, Windows `MoveFileExW` zonder `MOVEFILE_REPLACE_EXISTING` en met
-`MOVEFILE_WRITE_THROUGH`. Plugin-fs kan dit niet: zijn `rename` is `std::fs::rename` en vervangt een bestaand doel.
-Volgorde, bij de eerste weigering stopt het zonder wijziging: vorm (beide absoluut, gewone bestandsnaam, dezelfde
-echte map na `canonicalize`), precies één van beide namen een eigen hulpnaam (`save-<id>.ops-save.tmp` of
+Eén bestand exclusief onder een nieuwe naam plaatsen, in dezelfde map: Linux `renameat2` met `RENAME_NOREPLACE` en
+macOS `renameatx_np` met `RENAME_EXCL`, beide relatief aan de open map; Windows `SetFileInformationByHandle`
+(`FileRenameInfo`, `ReplaceIfExists` onwaar) op de open bron. Plugin-fs kan dit niet: zijn `rename` is
+`std::fs::rename` en vervangt een bestaand doel. Volgorde, bij de eerste weigering stopt het zonder wijziging: vorm
+(beide absoluut, gewone bestandsnaam, dezelfde map: de map van `from` één keer geopend en vastgehouden, die van `to`
+moet hetzelfde bestand zijn), precies één van beide namen een eigen hulpnaam (`save-<id>.ops-save.tmp` of
 `<naam>.ops-vorige-<id>`, `<id>` kleine letters en cijfers zoals `generateId`, één regel in `place_file.rs`), beide
-paden in de scope (de runtime-scope van plugin-fs of `$HOME`/`$HOME/**` zoals `fs:allow-home-write-recursive`, met
-dezelfde `tauri::scope::fs::Scope`), `from` een gewoon bestand (geen link, geen map; `to` wordt niet gevolgd), fsync
-van `from`, de exclusieve stap, fsync van de map. Uitkomsten op `code`: `placed`, `dir-not-synced` (wel verplaatst),
+paden in de scope van plugin-fs `rename` (het echte pad van de open map; `FsRenameScope`: de capability via
+`Webview::resolve_command_scope` plus de runtime-scope, een verbod wint, zoals `tauri-plugin-fs-2.5.0/src/commands.rs:1528-1570`),
+de bron geopend in de open map zonder link te volgen en een gewoon bestand, fsync van die open bron, de exclusieve
+stap, een controle na de stap (op het doel staat de open bron, in de open map én via het pad van de aanroeper; anders
+exclusief terugzetten), fsync van de map. Uitkomsten op `code`: `placed`, `dir-not-synced` (wel verplaatst),
 `target-exists`, `unsupported`, `refused` met `reason` (`path-shape`, `helper-name`, `scope`, `not-regular-file`),
-`io`. Geen terugval: `link()` + `unlink()` en "eerst kijken, dan hernoemen" laten een bestand verdwijnen dat tussendoor
-op het doel komt (review #839, ronde 4); een bestandssysteem zonder exclusieve stap geeft `unsupported`. De controles
-staan in de code, want een app-commando zonder ACL-manifest is vanuit elke lokale webview aan te roepen, ook vanuit
-extensiecode (`tauri-2.12.3/src/webview/mod.rs:2076-2083`). TS-ingang `fileAccess/placeFileExclusive.ts` (alleen
-dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven: `cargo test place_file` (naad `PlaceOps`; workflow `rust-tests.yml` op Linux, macOS en
-Windows) en `check-place-file-exclusive.ts`.
+`source-changed` met `restored`, `io`. Geen terugval: `link()` + `unlink()` en "eerst kijken, dan hernoemen" laten
+een bestand verdwijnen dat tussendoor op het doel komt (review #839, ronde 4); een bestandssysteem zonder gebonden
+exclusieve stap geeft `unsupported`. De controles staan in de code, want een app-commando zonder ACL-manifest is
+vanuit elke lokale webview aan te roepen, ook vanuit extensiecode (`tauri-2.12.3/src/webview/mod.rs:2076-2083`).
+Het standaardverbod van plugin-fs op de webviewmap is leeg (knownbug 1796); bouw het hier niet na. TS-ingang
+`fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven:
+`cargo test place_file` (naad `PlaceOps`, nep-app via de feature `tauri/test` voor de echte scope; workflow
+`rust-tests.yml` op Linux, macOS en Windows) en `check-place-file-exclusive.ts`.
 
 ## IFC is the native file format, not a sidecar
 

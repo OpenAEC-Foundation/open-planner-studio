@@ -209,9 +209,13 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
 - **Rust is thin.** Exactly four commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`,
   `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
   Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
-  same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renamex_np`/`RENAME_EXCL`,
-  `MoveFileExW` without replace); it refuses unless exactly one name is an own helper file and both paths are in the
-  fs scope, has no fallback, and is not yet used by any route (TS entry `fileAccess/placeFileExclusive.ts`). The command-less
+  same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
+  the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
+  exactly one name is an own helper file and plugin-fs `rename` allows both paths for the calling webview (its real
+  scope via `Webview::resolve_command_scope` plus the runtime scope, the plugin-fs rule: a deny wins). It places the
+  source it checked: folder and source stay open, a check after the step gives `source-changed` (restored
+  exclusively) if anything was swapped. No fallback; not yet used by any route (TS entry
+  `fileAccess/placeFileExclusive.ts`). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
   levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en

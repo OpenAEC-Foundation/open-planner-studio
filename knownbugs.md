@@ -2566,12 +2566,15 @@ en noem het in je rapport of PR-tekst.
         in `refusedWriteTarget` (alleen een handle), de inhoudscontrole vóór de merge en vlak vóór `close()`, de
         vervanging in `replaceWithRecoveryPending`. De desktop (een pad) weigert nog zoals voorheen en wacht op stap 3
         tot en met 5.
-     3. Gebouwd (stap 3, #972): het Rust-commando `place_file_exclusive` (`src-tauri/src/commands/place_file.rs`) met
-        fsync van `from` vóór en de map na de stap, de scopecontrole in de code en de TS-ingang
-        `placeFileExclusive.ts`; nog door geen route gebruikt. `rust-tests.yml` draait `cargo test place_file` op
-        Ubuntu 22.04 en macOS (16 tests) en Windows (13; de drie proeven met symbolische links alleen op Unix), ook
-        twee gelijktijdige aanroepen en een map op het doel (Windows: "bestaat al"). Drie mutaties (gewone `rename`,
-        scopecontrole uit, hulpnaamcontrole uit) maakten elk hun eigen proef rood op alle drie de platforms.
+     3. Gebouwd (stap 3, #972): het Rust-commando `place_file_exclusive` (`src-tauri/src/commands/place_file.rs`) en
+        de TS-ingang `placeFileExclusive.ts`; nog door geen route gebruikt. De scope is die van plugin-fs `rename` voor
+        de aanroepende webview (`resolve_command_scope` plus de runtime-scope; een verbod wint). Het plaatst de bron die
+        het controleerde: de map en de bron blijven open, de stap gaat via de open map (Windows: de open bron), en een
+        controle na de stap zet een wissel exclusief terug (`source-changed`). `rust-tests.yml` draait `cargo test
+        place_file` op Ubuntu 22.04 en macOS (21 tests) en Windows (18; de drie proeven met symbolische links alleen op
+        Unix), ook een bron- en een mapwissel tussen controle en stap met de echte systeemaanroep. Zes mutaties (gewone
+        `rename`, scope uit, hulpnaamcontrole uit; na de review: verbod niet gelezen, controle na de stap weg, absolute
+        paden zonder open map) maakten elk hun eigen proef rood.
      4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
@@ -2650,10 +2653,29 @@ en noem het in je rapport of PR-tekst.
      Uit 1131 stap 3. — B (gemeten)
 
 1779. **VERVOLG (#804, Windows): `place_file_exclusive` kan een alleen-lezen bestand niet als `from` gebruiken.**
-     Op Windows vraagt `FlushFileBuffers` een handle met schrijfrecht; het commando opent `from` daarom met schrijfrecht,
-     en een bestand met het kenmerk alleen-lezen geeft dan `io` (niets verplaatst). Dat raakt stap 3 van §4.10 (het
+     Op Windows opent het commando `from` met lees-, schrijf- en verwijderrecht (`FlushFileBuffers` vraagt schrijfrecht,
+     de hernoeming via de handle `DELETE`) en zonder `FILE_SHARE_DELETE`; een bestand met het kenmerk alleen-lezen geeft
+     dan `io` (niets verplaatst). Een ander programma dat het bestand open heeft zonder delen, geeft ook `io`. Dat raakt stap 3 van §4.10 (het
      doel opzij zetten) bij een alleen-lezen doel; opslaan stopt dan veilig. Verwant aan 162. Niet gemeten (geen
      Windows hier). Uit 1131 stap 3. — S
+
+1795. **VERVOLG (#804, netwerkschijf): een hernoeming kan een fout geven nadat ze toch gebeurde.**
+     Op NFS kan een herhaald verzoek na een verloren antwoord `EEXIST` of `ENOENT` geven terwijl de eerste poging de
+     naam al verplaatste. `place_file_exclusive` vangt dat op: geeft de stap een fout en staat de open bron daarna op
+     het doel, dan geldt hij als verplaatst en gaan de controle na de stap en de fsync van de map door (proef
+     `place_file_fout_na_uitgevoerde_hernoeming`, met een nep-stap). Wat het niet vangt: een fout bij het terugzetten
+     na `source-changed`, die dan `restored: false` zegt terwijl het terugzetten wel gebeurde. Op een echte
+     netwerkschijf niet gemeten. Uit 1131 stap 3 (review van #972). — S
+
+1796. **VERVOLG (#804, beveiliging): het standaardverbod van plugin-fs op de webviewmap is leeg.**
+     `tauri-plugin-fs` 2.5.0 `permissions/deny-webview-data.toml` schrijft `[[scope.deny]]` in plaats van
+     `[[permission.scope.deny]]`; `deny-default` levert in de opgeloste ACL daarom geen verbod. Gemeten in de proef
+     `place_file_scope_volgt_plugin_fs` (Rust-tests, 16 november 2026: de verboden van `fs`/`rename` zijn leeg; de
+     proef faalt zodra plugin-fs dat herstelt). Gevolg: plugin-fs zelf en `place_file_exclusive`, dat dezelfde scope
+     leest, verbieden `$APPLOCALDATA` (met de map `EBWebView` op Windows) niet. Op Linux staat de capability ook
+     `$APPDATA/**` toe, en dat is daar dezelfde map als `$APPLOCALDATA`; het herstel heeft die nodig. Richting: een
+     besluit of de app het verbod zelf in de capability zet (voor plugin-fs en dit commando samen) of op een
+     plugin-fs-versie met de reparatie wacht. — B (gemeten)
 
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
