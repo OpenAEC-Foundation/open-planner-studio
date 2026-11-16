@@ -276,8 +276,11 @@ mod sys {
 
     #[cfg(all(target_os = "linux", target_env = "gnu"))]
     pub fn rename_exclusive(dir: &OpenDir, _source: &File, from: &str, to: &str) -> io::Result<()> {
-        let (from, to) = (CString::new(from)?, CString::new(to)?);
-        let fd = dir.file.as_raw_fd();
+        // MUTATIE M3 (alleen bewijs, wordt teruggezet): absolute paden zonder open map.
+        use std::os::unix::ffi::OsStrExt;
+        let from = CString::new(dir.real.join(from).as_os_str().as_bytes())?;
+        let to = CString::new(dir.real.join(to).as_os_str().as_bytes())?;
+        let fd = libc::AT_FDCWD;
         // SAFETY: geldige map-descriptor; beide namen zijn met NUL afgesloten en leven tot na de aanroep.
         let rc =
             unsafe { libc::renameat2(fd, from.as_ptr(), fd, to.as_ptr(), libc::RENAME_NOREPLACE) };
@@ -290,8 +293,11 @@ mod sys {
 
     #[cfg(target_os = "macos")]
     pub fn rename_exclusive(dir: &OpenDir, _source: &File, from: &str, to: &str) -> io::Result<()> {
-        let (from, to) = (CString::new(from)?, CString::new(to)?);
-        let fd = dir.file.as_raw_fd();
+        // MUTATIE M3 (alleen bewijs, wordt teruggezet): absolute paden zonder open map.
+        use std::os::unix::ffi::OsStrExt;
+        let from = CString::new(dir.real.join(from).as_os_str().as_bytes())?;
+        let to = CString::new(dir.real.join(to).as_os_str().as_bytes())?;
+        let fd = libc::AT_FDCWD;
         // SAFETY: geldige map-descriptor; beide namen zijn met NUL afgesloten en leven tot na de aanroep.
         let rc =
             unsafe { libc::renameatx_np(fd, from.as_ptr(), fd, to.as_ptr(), libc::RENAME_EXCL) };
@@ -762,8 +768,8 @@ impl FsRenameScope {
     pub(crate) fn allows(&self, path: &Path) -> bool {
         let scopes: Vec<&tauri::scope::fs::Scope> =
             self.runtime.iter().chain([&self.configured]).collect();
-        !scopes.iter().any(|scope| scope.is_forbidden(path))
-            && scopes.iter().any(|scope| scope.is_allowed(path))
+        // MUTATIE M1 (alleen bewijs, wordt teruggezet): verboden paden niet meer toetsen.
+        scopes.iter().any(|scope| scope.is_allowed(path))
     }
 }
 
