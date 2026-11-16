@@ -2675,12 +2675,26 @@ en noem het in je rapport of PR-tekst.
      Op een echte netwerkschijf niet gemeten. Uit 1131 stap 3. — S
 
 1798. **VERVOLG (#804, Windows): een harde link van de bron op het doel geeft daar `placed`, niet `target-exists`.**
-     De grens van `place_file_exclusive` zegt dat een bestaand doel `target-exists` geeft, ook bij hetzelfde inode. Op
-     Unix klopt dat (`EEXIST`, beide namen blijven). Op Windows geeft `SetFileInformationByHandle` zonder vervangen geen
-     fout als het doel een harde link naar de bron zelf is: de uitkomst is `placed`, de hulpnaam is weg, het doel
+     De grens van `place_file_exclusive` eist dat een fout van de stap een fout blijft (`EEXIST` is `target-exists`, ook
+     bij hetzelfde inode). Op Unix geeft de stap die fout en blijven beide namen. Op Windows ontstaat er geen fout:
+     `SetFileInformationByHandle` zonder vervangen slaagt als het doel een harde link naar de bron zelf is: de uitkomst is `placed`, de hulpnaam is weg, het doel
      bestaat en de inhoud is ongewijzigd (proef `place_file_harde_link_op_het_doel`, gemeten in de Rust-tests, run
      43947435718). Er is één verplaatsing en geen ander bestand is vervangen; alleen de uitkomst wijkt af van Unix.
      Stap 4 en 5 maken zelf geen harde link van een hulpbestand op het doel. Uit 1131 stap 3 (fixronde 2). — B (proef)
+
+1744. **VERVOLG (#804, ontwerp): §4.10 zet na elke andere fout van stap 4 `.ops-vorige` terug, ook bij `source-changed`.**
+     Het ontwerp (§4.10, "Fouten") zegt: faalt stap 4 om een andere reden dan een bezet doel, dan zet de app
+     `.ops-vorige` exclusief terug op het doel. Het contract van `place_file_exclusive` zegt dat `source-changed` geen
+     schijfstand belooft. Stap 4 en 5 van 1131 moeten bij die uitkomst stoppen, de planner melden dat de stand op schijf
+     onbekend is en niets automatisch terugzetten of opruimen; de zin in §4.10 moet dat uitsluiten. Nu alleen tekst: er
+     is nog geen aanroeper. Op te lossen in stap 4 van 1131. Gevonden door de review van #972 (ronde 3). — B (tekst)
+
+1749. **VERVOLG (#804, tekst): drie plekken beloven een weigering bij elk bestaand doel, zonder de uitzondering van 1798.**
+     `src/services/fileAccess/placeFileExclusive.ts:3`, het commentaar bij `PlaceOps` in
+     `src-tauri/src/commands/place_file.rs:155` en `AGENTS.md:212` zeggen dat een bestaand doel altijd geweigerd wordt;
+     op Windows geldt dat niet voor een harde link van de bron zelf (1798). De oude samenvatting in het ontwerp
+     (regel 1601) noemt nog `MoveFileExW`; de code gebruikt `SetFileInformationByHandle`. Op te lossen in stap 4 van
+     1131, die deze bestanden toch raakt. Gevonden door de review van #972 (ronde 3). — B (tekst)
 
 1799. **VERVOLG (#804, Unix): tussen controle en stap kan een ander object onder de hulpnaam komen.**
      Buiten de grens van `place_file_exclusive` (besluit van de technisch beslisser, 16 november 2026): op Unix kan

@@ -2,8 +2,8 @@ name: Rust-tests per platform
 
 # De Rust-unit-tests van `place_file_exclusive` (src-tauri/src/commands/place_file.rs) op Linux, macOS en Windows.
 # Het commando plaatst een bestand exclusief onder een nieuwe naam; de systeemaanroep verschilt per platform
-# (`renameat2`, `renamex_np`, `MoveFileExW`), dus het bewijs moet per platform komen (besluit van 9 november 2026,
-# ontwerp #804 §11; knownbug 1763). Bewust NIET in de verplichte CI-keten: hij compileert de Rust-app op drie
+# (`renameat2`, `renameatx_np`, `SetFileInformationByHandle`), dus het bewijs moet per platform komen (besluit van
+# 9 november 2026, ontwerp #804 §11). Bewust NIET in de verplichte CI-keten: hij compileert de Rust-app op drie
 # platforms. Hij draait alleen als `src-tauri/` verandert, of met de hand.
 on:
   pull_request:
