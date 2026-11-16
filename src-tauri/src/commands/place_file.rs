@@ -1526,8 +1526,10 @@ mod tests {
         assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
     }
 
-    // Review #972 ronde 2, blokkade 2: een harde link van de bron op het doel. De echte stap weigert
-    // (`EEXIST`, Windows "bestaat al"); dat blijft `target-exists`, ook al is het hetzelfde bestand.
+    // Review #972 ronde 2, blokkade 2: een harde link van de bron op het doel. Unix: de echte stap weigert
+    // (`EEXIST`); dat blijft `target-exists`, ook al is het hetzelfde inode, en beide namen blijven.
+    // Windows: `SetFileInformationByHandle` zonder vervangen geeft hier geen fout (gemeten in de CI); de
+    // proef legt vast wat er dan op schijf staat.
     #[test]
     fn place_file_harde_link_op_het_doel() {
         let dir = TempDir::new("hardelink");
@@ -1536,13 +1538,16 @@ mod tests {
         std::fs::hard_link(dir.file(TMP), dir.file(DOEL)).unwrap();
         let to = text(&dir.file(DOEL));
         let ops = Recorder::default();
-        assert_eq!(
-            place(&from, &to, &dir.scope(), &ops),
-            Err(PlaceError::TargetExists)
-        );
-        assert_eq!(std::fs::read(dir.file(TMP)).unwrap(), bytes);
+        let uitkomst = place(&from, &to, &dir.scope(), &ops);
+        let stand = (uitkomst, exists(&dir.file(TMP)), exists(&dir.file(DOEL)));
+        if cfg!(unix) {
+            assert_eq!(stand, (Err(PlaceError::TargetExists), true, true));
+            assert_eq!(std::fs::read(dir.file(TMP)).unwrap(), bytes);
+            assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
+        } else {
+            assert_eq!(stand, (Ok(PlaceOutcome::Placed), false, true), "Windows");
+        }
         assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
-        assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
     }
 
     // Review #972 ronde 2, blokkade 1: na de stap zet een ander het doel opzij en een eigen bestand B op
