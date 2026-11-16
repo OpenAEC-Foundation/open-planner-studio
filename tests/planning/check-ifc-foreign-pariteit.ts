@@ -23,6 +23,9 @@
 //    en met het kenmerk (`fileSlice.ts`, `recordMark`; de pset leest `ifcReader.ts` bij `extractRecoveryForeignSource`),
 //    zodat Ctrl+S Opslaan als wordt. In 1a was dat een bewuste afwijking van main `2a66df33c` (aanvaard door wrakko op
 //    10 november 2026); sinds 1a in main staat (`14f979755`), doet main hetzelfde en eist de check gelijkheid.
+// Desktop rauwe bytes (los van #804): de padroute schrijft het halffabricaat met één `writeTextFile` met createNew
+// in plaats van open + `FileHandle.write` + close. In beide referenties zijn alleen die vastgelegde aanroepen met de
+// hand vervangen (48 keer); bytes, doelen en meldingen zijn ongewijzigd.
 // Bij een verschil schrijft de check de uitvoer van de branch naar een tijdelijke map; `--uitvoer <map>` van het script
 // geeft die van main, om te diffen.
 //

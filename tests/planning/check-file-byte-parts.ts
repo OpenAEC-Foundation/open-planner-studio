@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { installNodeFileIpc } from './nodeFileIpc';
+import { installNodeFileIpc, writeFileCall as fileWrite } from './nodeFileIpc';
 import { saveBytePartsDialog, saveBytePartsToRef } from '@/services/fileAccess';
 import { BytePartsWriteError } from '@/services/fileAccess/byteParts';
 import { saveNewSiteFileParts, saveSiteFileVersionParts } from '@/services/fileAccess/siteBackend';
@@ -16,6 +16,11 @@ const parts: readonly Uint8Array[] = [
 ];
 const expected = Buffer.concat(parts);
 const typedFailure = (error: unknown): boolean => error instanceof BytePartsWriteError;
+const reason = (expected: BytePartsWriteError['reason']) => (error: unknown): boolean =>
+  error instanceof BytePartsWriteError && error.reason === expected;
+/** Een schrijfaanroep die het doel zelf afkapt (geen eigen aanmaak, geen toevoegen). */
+const direct = (c: { command: string; options?: { createNew?: boolean; append?: boolean } }) =>
+  fileWrite(c) && !c.options?.createNew && !c.options?.append;
 let passed = 0;
 let failed = 0;
 async function check(name: string, run: () => Promise<void>) {
@@ -27,20 +32,29 @@ async function main() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ops-byte-parts-'));
   const ipc = installNodeFileIpc();
   try {
-    await check('Tauri: nieuw doel bytegelijk, korte writes afgemaakt, geen tekstroute', async () => {
-      ipc.faults.writeChunkSize = 2;
+    await check('Tauri: nieuw doel bytegelijk, elk deel als rauwe body, geen tekstroute', async () => {
       const target = path.join(dir, 'nieuw.ifc');
+      const before = ipc.calls.length;
       assert.equal(await saveBytePartsToRef({ kind: 'path', path: target }, parts), true);
       assert.deepEqual(fs.readFileSync(target), expected);
       assert.equal(ipc.openHandles(), 0);
-      assert.equal(ipc.calls.find(c => c.command === 'plugin:fs|open')?.options?.createNew, true);
-      assert.equal(ipc.calls.some(c => c.command === 'plugin:fs|write_text_file'), false);
+      const calls = ipc.calls.slice(before);
+      // Proef 1: nooit bytes in een object (Tauri maakt daar JSON van, één getal per byte).
+      assert.equal(calls.some(c => c.bytesInObject), false);
+      assert.equal(calls.some(c => c.command === 'plugin:fs|open' || c.command === 'plugin:fs|write'), false);
+      const writes = calls.filter(fileWrite);
+      // Het doel exclusief met het eerste deel, dan elk volgend deel apart erachter (append zonder
+      // create, dus nooit aanmaken of afkappen): geen samengevoegde kopie van het hele bestand.
+      assert.deepEqual(writes.map(c => [c.command, c.path, c.rawBody, c.options?.createNew, c.options?.append, c.options?.create]), [
+        ['plugin:fs|write_file', target, true, true, undefined, undefined],
+        ...parts.slice(1).map(() => ['plugin:fs|write_file', target, true, undefined, true, false]),
+      ]);
     });
     await check('Tauri: bestand verschijnt bij aanmaken; botsing laat het intact', async () => {
       const target = path.join(dir, 'botsing.ifc');
       ipc.faults.beforeOpen = p => { if (p === target) fs.writeFileSync(target, 'INTUSSEN'); };
       try {
-        await assert.rejects(saveBytePartsToRef({ kind: 'path', path: target }, parts), typedFailure);
+        await assert.rejects(saveBytePartsToRef({ kind: 'path', path: target }, parts), reason('create-new'));
         assert.equal(fs.readFileSync(target, 'utf8'), 'INTUSSEN');
       } finally { ipc.faults.beforeOpen = null; }
     });
@@ -53,23 +67,28 @@ async function main() {
         let error: unknown;
         try { await saveBytePartsToRef({ kind: 'path', path: target }, parts); } catch (caught) { error = caught; }
         assert.equal(fs.readFileSync(target, 'utf8'), 'OUD');
-        assert.ok(typedFailure(error));
-        // T1 maakt het uiteindelijke doel exclusief: een vervangende rename is nooit bereikbaar.
-        assert.equal(ipc.calls.slice(before).some(c => ['plugin:fs|rename', 'plugin:fs|write_file'].includes(c.command)), false);
+        assert.ok(reason('create-new')(error));
+        // T1 maakt het uiteindelijke doel exclusief: een vervangende rename is nooit bereikbaar, en na
+        // de geweigerde aanmaak volgt geen enkele schrijfaanroep of opruiming meer.
+        const calls = ipc.calls.slice(before);
+        assert.equal(calls.some(c => ['plugin:fs|rename', 'plugin:fs|remove', 'plugin:fs|write'].includes(c.command)), false);
+        assert.deepEqual(calls.filter(fileWrite).map(c => c.options?.createNew), [true]);
       } finally { ipc.faults.renameError = null; }
     });
-    await check('Tauri: schrijf-/sluitfout getypeerd, geen directe terugval of geslaagde opslag', async () => {
-      for (const fault of ['write', 'close'] as const) {
-        const target = path.join(dir, `${fault}.ifc`);
+    // plugin-fs schrijft elk deel met write_all en sluit binnen dezelfde aanroep: een aparte sluitfout
+    // bestaat op deze route niet meer. Een schijffout midden in een deel en een fout op een later deel wel.
+    await check('Tauri: schrijffout getypeerd, eigen doel opgeruimd, geen directe terugval of geslaagde opslag', async () => {
+      for (const [name, after] of [['eerste-deel', 2], ['later-deel', parts[0].length + 1]] as const) {
+        const target = path.join(dir, `${name}.ifc`);
         const before = ipc.calls.length;
-        if (fault === 'write') ipc.faults.writeErrorAfter = 2;
-        else ipc.faults.closeError = new Error('Sluiten geweigerd');
+        ipc.faults.writeErrorAfter = after;
         try {
-          await assert.rejects(saveBytePartsToRef({ kind: 'path', path: target }, parts), typedFailure);
+          await assert.rejects(saveBytePartsToRef({ kind: 'path', path: target }, parts), reason('write'));
           assert.equal(fs.existsSync(target), false);
           assert.equal(ipc.openHandles(), 0);
-          assert.equal(ipc.calls.slice(before).some(c => c.command === 'plugin:fs|write_file'), false);
-        } finally { ipc.faults.writeErrorAfter = null; ipc.faults.closeError = null; }
+          assert.equal(ipc.calls.slice(before).some(direct), false);
+          assert.equal(ipc.calls.slice(before).filter(c => c.command === 'plugin:fs|remove').length, 1);
+        } finally { ipc.faults.writeErrorAfter = null; }
       }
     });
   } finally { ipc.dispose(); fs.rmSync(dir, { recursive: true, force: true }); }

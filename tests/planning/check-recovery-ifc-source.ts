@@ -83,11 +83,12 @@ const evidenceDir = process.env.OPS_RECOVERY_IFC_EVIDENCE ?? dir;
 const hash = (data: Uint8Array | string) => createHash('sha256').update(data).digest('hex');
 type Store = Awaited<ReturnType<typeof openInStore>>['store'];
 function desktop() {
-  const ipc = installNodeFileIpc(), internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__;
+  const ipc = installNodeFileIpc(), internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__;
   const invoke = internals.invoke;
   let target: string | null = null;
-  internals.invoke = async (c, a) => c === 'plugin:dialog|save' ? target
-    : c === 'plugin:fs|read_file' ? new Uint8Array(readFileSync((a as { path: string }).path)) : invoke(c, a);
+  // De koppen (derde argument) gaan mee: `writeFile` geeft pad en opties daarin door.
+  internals.invoke = async (c, a, o) => c === 'plugin:dialog|save' ? target
+    : c === 'plugin:fs|read_file' ? new Uint8Array(readFileSync((a as { path: string }).path)) : invoke(c, a, o);
   return { ...ipc, choose: (p: string) => { target = p; } };
 }
 async function saveAs(store: Store, name: string) {

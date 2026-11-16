@@ -19,7 +19,7 @@ import { createFileAutoSaveController } from '@/services/actualAutosave/fileAuto
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
-import { installNodeFileIpc } from './nodeFileIpc';
+import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
 import { installDeterminism } from './ifcPariteitKern';
 import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
 
@@ -133,7 +133,7 @@ await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam, nul bytes
       unchanged(store, before);
       assertNotice(store, 'notifications.ifcForeignReplaceBlocked');
       assert.equal(hash(new Uint8Array(readFileSync(before.path!))), oldBytes);
-      assert.equal(ipc.calls.slice(calls).some(c => c.options?.write || c.command === 'plugin:fs|write_text_file'), false,
+      assert.equal(ipc.calls.slice(calls).some(c => c.options?.write || byteWrite(c)), false,
         'de doelcontrole stopt vóór iedere schrijfpoging');
       clearNotices(store);
       let closed = false;
@@ -201,7 +201,7 @@ for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', '
         assert.equal(store.getState().filePath, before.path);
       } else unchanged(store, before);
       if (fault === 'I/O-fout') {
-        assert(ipc.calls.some(c => c.command === 'plugin:fs|write'), 'de schrijffout is werkelijk bereikt');
+        assert(ipc.calls.some(c => c.wrote && c.path === target), 'de schrijffout is werkelijk bereikt');
         assertNotice(store, 'notifications.saveFailed');
       }
     } finally { ipc.dispose(); }
@@ -448,7 +448,7 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
     clearNotices(store); const result = await store.getState().exportAs('ifc');
     assert(result.ok && result.cancelled); unchanged(store, before);
     assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash);
-    assert.equal(ipc.calls.filter(c => c.command === 'plugin:fs|write').length, 0);
+    assert.equal(ipc.calls.filter(c => c.wrote).length, 0);
     assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignExportNewTarget' : 'notifications.ifcForeignTargetExport');
   } finally { ipc.dispose(); }
 });
@@ -500,7 +500,7 @@ for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-br
     });
     try {
       const result = await store.getState().exportAs('ifc'); assert(result.ok && result.cancelled);
-      assert.equal(existsSync(target), false); assert.equal(ipc.calls.filter(c => c.command === 'plugin:fs|write').length, 0);
+      assert.equal(existsSync(target), false); assert.equal(ipc.calls.filter(c => c.wrote).length, 0);
       if (cause === 'documentwissel') store.getState().switchDocument(id);
       if (other) assert(store.getState().ifcSource === other.source, 'de nieuwe opslagbron blijft staan');
       else assert(store.getState().ifcSource === before.source, 'de openingsbron blijft staan');
@@ -529,8 +529,7 @@ const withoutModel = { withoutBuildingModel: true } as const;
 /** De bibliotheek krijgt bij elke uitvoer een nieuw project (GlobalIds en intern id); de rest vergelijkt letterlijk. */
 const withoutGlobalIds = (text: string | null) => text?.replace(/'[0-9A-Za-z_$]{22}'/g, "'<GlobalId>'")
   .replace(/'proj-[0-9a-z]+'/g, "'proj-<id>'");
-const writeCalls = (ipc: ReturnType<typeof desktop>) => ipc.calls.filter(c => c.command === 'plugin:fs|write'
-  || c.command === 'plugin:fs|write_text_file' || c.options?.write).length;
+const writeCalls = (ipc: ReturnType<typeof desktop>) => ipc.calls.filter(c => byteWrite(c) || c.options?.write).length;
 /** De GlobalIds van de A- en V-stukken: het gebouwmodel en de gegevens van een ander programma. C (gedeelde context,
  *  zoals het `IfcProject`) houdt in de planning zijn GlobalId; dat is de planning zelf. */
 function foreignGlobalIds(source: Uint8Array): string[] {
