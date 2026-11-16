@@ -2785,6 +2785,14 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1780. **VERVOLG, VERMOED: de Perzische term voor een Gantt-balk kan met de Windows-taakbalk worden verward.**
+     `i18n/termbase/fa.json`, concept `gantt-bar`: `نوار وظیفه` (bron `existing-ui`, status `arbitrated`).
+     De Perzische Haiku-nalezer meldde bij `ui-menu-01` in de maandagrelease van 16 november 2026 dat deze
+     term ook de Windows-taakbalk kan aanduiden. Dat betekenisverschil is niet onafhankelijk taalkundig
+     getoetst en niet in de app nagespeeld; de huidige vertaling volgt de bestaande termbase. Richting:
+     laat de term in een afzonderlijke termbase-opdracht beoordelen en verwerk een eventuele wijziging
+     via de termenstraat. In deze release blijft de termbase ongewijzigd. — S
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
