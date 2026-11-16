@@ -84,8 +84,8 @@ schrijft in die groep hetzelfde, in de bronvorm van `sourceFormWhereUnchanged`; 
 de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main. De baselinekop (PR 12c,
 E1, `headsUnchanged` en `headsFollowBaselines`): valt `OPS_Baselines` onder de toets, veranderde het openen ook de koppen
 niet en zette (b) geen kop terug, dan mag in de aggregatie van het eigen werkplan een kop met zijn baseline wegvallen of
-erbij komen (hooguit zoveel als de planner wiste of maakte); de rest van die aggregatie blijft exact en in volgorde. Welke
-kop bij welke baseline hoort, toetst (c). Buiten de toets: de typenaam op de taak (stap 4), en alles buiten de eigen
+erbij komen (hooguit zoveel als de planner wiste of maakte); de rest van die aggregatie blijft exact en in volgorde. (c)
+bewaakt van de koppen het aantal, de inhoud en de plaats, niet hun identiteit (knownbug 1746). Buiten de toets: de typenaam op de taak (stap 4), en alles buiten de eigen
 projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen blijven tot stap 5. Proef:
 `check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
 

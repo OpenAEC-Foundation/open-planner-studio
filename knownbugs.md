@@ -2218,15 +2218,19 @@ en noem het in je rapport of PR-tekst.
      schrijft, schrijft het wissen ook op de bron (de proef van (a′) op de bronvorm). Richting: alleen als oude bestanden
      zonder StartTime op de kop vaak voorkomen; dan de lege StartTime van een kop als gedragen zien. — B
 
-1746. **VERVOLG (#804, de baselinekop): welke kop bij welke baseline hoort, toetst alleen controle (c).**
+1746. **VERVOLG (#804, de baselinekop): geen controle toetst de identiteit van een baselinekop.**
      De verliescontrole telt in de aggregatie van het werkplan de koppen die wegvallen of erbij komen (hooguit zoveel als
      de planner wiste of maakte) en eist de rest exact en in volgorde (PR 12c, `headsFollowBaselines`). Staat na het wissen
      van baseline A de kop van A er nog en die van een blijvende baseline niet, dan laat zij dat door
-     (`check-ifc-foreign-eigen-toets.ts`, "verwisselde kop", een nagebootste fout van de writer); (c) weigert het op de
-     echte uitvoer (`check-ifc-foreign-eigen-uitvoer.ts`, "een kop verwisseld"), en de volledige uitvoercontrole ook. Op de
-     basis weigerde de verliescontrole elk wissen van een baseline. Alleen een fout van de writer kan dit geven. Richting:
-     laten zoals het is (de koppeling via de GlobalId is de taak van (c)), tenzij de verliescontrole de GlobalId van de kop
-     per baseline gaat kennen. — B
+     (`check-ifc-foreign-eigen-toets.ts`, "verwisselde kop", een nagebootste fout van de writer). Controle (c) bewaakt per
+     kop het aantal, de inhoud (de argumenten vanaf de naam) en de plaats (`ownGroupTrees`, `aggregatedIn`), niet de
+     GlobalId of het STEP-id: zij weigert een verwisseling van koppen met verschillende inhoud
+     (`check-ifc-foreign-eigen-uitvoer.ts`, "een kop verwisseld"). Gemeten door de review van #962 (Sol): alleen de
+     GlobalIds van twee koppen verwisselen blijft onzichtbaar, en bij twee inhoudelijk gelijke koppen wordt een uitvoer
+     waarin de gewiste kop blijft staan en de blijvende verdwijnt door alle controles aanvaard. Op de basis weigerde de
+     verliescontrole elk wissen van een baseline. Alleen een fout van de writer kan dit geven: de gewone writer koppelt de
+     kop via baseline-id en GlobalId, en geen gewone bewerking liet de verkeerde kop verdwijnen. Richting: in (c) de
+     GlobalId van de kop per baseline meenemen, of de verliescontrole die laten kennen. — B
 
 1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
      In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
