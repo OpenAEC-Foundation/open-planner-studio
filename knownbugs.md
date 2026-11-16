@@ -2785,6 +2785,15 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1782. **VERVOLG: grote vertaalpakketten passen niet in één leesbeurt van een nalezer.**
+     Bij `ar/ui-report-01` (150 broneenheden) verloren twee Haiku-nalezers na een compactie de
+     bestandsopdracht en eindigden ze onvolledig met de algemene zin dat alleen tekst gevraagd was.
+     Richting, besluit eigenaar 16 november 2026: vanaf ongeveer 100 items lezen in plakken van
+     maximaal 40 items. Na elke plak opdracht, voortgang en bevindingen in het eigen reviewbestand
+     bewaren; de opdracht met het reviewpad staat boven- en onderaan de brief en als kop in dat bestand.
+     Alle items, waarschuwingen en de bestaande eindpoorten blijven verplicht. Mislukt de aanpak met
+     plakken tweemaal, dan alleen dat pakket door Sonnet 5.5 laten nalezen en dat melden. — B
+
 1781. **VERVOLG: de vertaalbrief moet de schrijfgrens van het station zelf expliciet noemen.**
      Tijdens de maandagrelease van 16 november 2026 schreef de Finse vertaler naast zijn toegestane
      `.out.json` ook een eigen reviewbestand. De algemene brief bevatte naleesinstructies die niet bij
