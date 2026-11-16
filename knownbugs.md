@@ -2172,6 +2172,20 @@ en noem het in je rapport of PR-tekst.
      waar de duur verandert (het openen, de herberekening of de bronvorm). Gevonden door de bouwer van PR 12e, gemeten
      door de review van #968. — B (proef)
 
+1773. **VERVOLG (#804, opruimen): het type van `ImportResult.baselineOrphanGuids` belooft tekst, maar geeft door wat in het bestand stond.**
+     `src/services/importTypes.ts` typeert het veld als een kaart van tekst naar tekst. De lezer zet er de waarde in
+     waarmee hij de rij zocht (`taskGuids?.[id] ?? ifcGuid(id)`), en bij een `TaskGuids`-kaart met een getal als waarde
+     is dat dat getal (proef: blok 8 van `check-ifc-foreign-eigen-uitvoer.ts`, `12345`). De gebruikers geven de waarde
+     ongewijzigd door; er is geen opslagfout gevonden. Richting: het type rechttrekken, zonder de lezing te normaliseren
+     en zonder nieuwe terugval. Gevonden door de review van #968, ronde 2. — B
+
+1774. **VERVOLG (#804, gemaakte bron): een `TaskGuids`-kaart die de sleutel van een weesrij mist, weigert bij een taak en een baseline erbij.**
+     Alleen met een bewerkte bron: de gewone writer schrijft voor elke niet-lege baselinerij een sleutel. Haal je de
+     sleutel van de rij van een gewiste taak uit de kaart, dan schrijft "alleen de projectbeschrijving wijzigen" wel,
+     maar "een taak en een baseline erbij" weigert met `niet-gedragen`. Zo was het ook vóór de fixronde van PR 12e
+     (dezelfde weigering op de merge-code van `cf5671d99`); er gaat niets verloren. De oorzaak is niet uitgezocht.
+     Gevonden door de bouwer van PR 12e, bevestigd door de review van #968, ronde 2. — B (proef)
+
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
      omdat de writer het kenmerk bij Opslaan bewust nooit schrijft. Een backup heeft nooit een model, dus de combinatie
