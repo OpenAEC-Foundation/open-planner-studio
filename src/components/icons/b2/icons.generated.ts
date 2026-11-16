@@ -1,4 +1,4 @@
-// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/datumkiezer (lokaal) (9a2c11a6cb22)
+// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch main (lokaal) (ca4e60ac187b)
 // (B2-revisie 107, 221 iconen). Niet met de hand bewerken; zie de kop van dat script.
 // Bron en licentie van de iconen: de Blueprint (voorlopig LGPL-3.0-only, besluit over een eigen
 // iconenlicentie open in issue #15 daar). Hoofdkleur `currentColor`, accent `var(--icon-accent)`.

@@ -1,8 +1,8 @@
 {
   "blueprint": "https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint",
   "source": "local",
-  "branch": "iconen/datumkiezer",
-  "commit": "9a2c11a6cb22e1cf744d6e3fff98613a91485a32",
+  "branch": "main",
+  "commit": "ca4e60ac187b3c6401ef557bb11000255c1f4d6a",
   "b2Revision": 107,
   "manifestSha256": "05671321f86dd1bcafb1fc9e1ab72b84faaa8c3f0fbca63c71683ee89f1e8d4f",
   "ids": "src/components/icons/b2/ids.json"
