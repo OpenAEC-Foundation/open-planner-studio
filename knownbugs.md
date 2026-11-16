@@ -2667,15 +2667,22 @@ en noem het in je rapport of PR-tekst.
      na `source-changed`, die dan `restored: false` zegt terwijl het terugzetten wel gebeurde. Op een echte
      netwerkschijf niet gemeten. Uit 1131 stap 3 (review van #972). — S
 
-1796. **VERVOLG (#804, beveiliging): het standaardverbod van plugin-fs op de webviewmap is leeg.**
-     `tauri-plugin-fs` 2.5.0 `permissions/deny-webview-data.toml` schrijft `[[scope.deny]]` in plaats van
-     `[[permission.scope.deny]]`; `deny-default` levert in de opgeloste ACL daarom geen verbod. Gemeten in de proef
-     `place_file_scope_volgt_plugin_fs` (Rust-tests, 16 november 2026: de verboden van `fs`/`rename` zijn leeg; de
-     proef faalt zodra plugin-fs dat herstelt). Gevolg: plugin-fs zelf en `place_file_exclusive`, dat dezelfde scope
-     leest, verbieden `$APPLOCALDATA` (met de map `EBWebView` op Windows) niet. Op Linux staat de capability ook
-     `$APPDATA/**` toe, en dat is daar dezelfde map als `$APPLOCALDATA`; het herstel heeft die nodig. Richting: een
-     besluit of de app het verbod zelf in de capability zet (voor plugin-fs en dit commando samen) of op een
-     plugin-fs-versie met de reparatie wacht. — B (gemeten)
+1797. **VERVOLG (beveiliging): `tauri-plugin-fs` staat op 2.5.0; upstream is 2.7.1.**
+     `src-tauri/Cargo.lock` vergrendelt 2.5.0 (`Cargo.toml` vraagt `2`, `tauri-plugin-persisted-scope` staat vast op
+     `=2.3.6` voor die versie). Wat de app daardoor mist, volgens de changelog van plugin-fs: in 2.5.2 het
+     standaardverbod op de webviewgegevens ("Fixed `deny-webview-data` has no effect"; de app zet het sinds #975 zelf
+     in `src-tauri/capabilities/webviewgegevens-*.json`) en "Fix `fs:default` … not giving any command scopes"; in
+     2.7.0 twee beveiligingsreparaties: de scopecontrole lost symbolische links in de bovenliggende mappen van een nog
+     niet bestaand pad op (daarvóór kwam een nieuw bestand onder een gelinkte map binnen de scope buiten de scope
+     terecht, bij `writeFile`, `mkdir`, `rename` en dergelijke), en `open` neemt geen `customFlags` meer aan uit de
+     webview (daarmee kon de webview willekeurige `open(2)`-vlaggen zoals `O_TRUNC` meegeven aan een bestand dat ze
+     alleen mag lezen). Wat een verhoging raakt: 2.6.0 laat `writeFile` en `writeTextFile` falen als de opties niet
+     te lezen zijn (eerder genegeerd, ook `createNew`), 2.7.1 maakt van de schrijfpermissies (`write-all`,
+     `allow-*-write[-recursive]`) sets van de `allow-*`-commando's, en de npm-versie `@tauri-apps/plugin-fs` moet
+     mee. Met de verhoging gaat de eigen capability `webviewgegevens-*.json` weg: `fs:default` levert dan hetzelfde
+     verbod, en met beide staat elk pad dubbel en faalt de bewering in `place_file_scope_volgt_plugin_fs`. Richting: een eigen PR direct na
+     de merge van #973, met een review, en een controle in de echte desktopapp vóór de merge: openen, opslaan,
+     Opslaan als, en herstel na een crash. — B (changelog en bron gelezen)
 
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna

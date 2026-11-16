@@ -42,7 +42,14 @@ exclusief terugzetten), fsync van de map. Uitkomsten op `code`: `placed`, `dir-n
 een bestand verdwijnen dat tussendoor op het doel komt (review #839, ronde 4); een bestandssysteem zonder gebonden
 exclusieve stap geeft `unsupported`. De controles staan in de code, want een app-commando zonder ACL-manifest is
 vanuit elke lokale webview aan te roepen, ook vanuit extensiecode (`tauri-2.12.3/src/webview/mod.rs:2076-2083`).
-Het standaardverbod van plugin-fs op de webviewmap is leeg (knownbug 1796); bouw het hier niet na. TS-ingang
+Het verbod op de webviewgegevens zet de app zelf, in de capabilities `webviewgegevens-linux.json` en
+`webviewgegevens-windows.json` (`fs:scope` met `deny`, per platform via `platforms`): het standaardverbod van
+plugin-fs 2.5.0 is leeg (knownbug 1797). Het geldt in de globale scope van fs, dus voor elk fs-commando en via
+`FsRenameScope` ook hier; bouw het in de code niet na. Linux: alleen de negen paden van WebKitGTK uit
+`deny-webview-data.toml` van plugin-fs 2.5.2+, nooit heel `$APPLOCALDATA` (op Linux dezelfde map als `$APPDATA`, met
+het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `$APPLOCALDATA/EBWebView/**`; macOS geen (WKWebView
+krijgt geen gegevensmap, `tauri-2.12.3/src/manager/webview.rs:559-568`). Wie een eigen bestand of map in de
+app-datamap toevoegt, zet het in `EIGEN_GEBRUIK` in `place_file.rs`. TS-ingang
 `fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven:
 `cargo test place_file` (naad `PlaceOps`, nep-app via de feature `tauri/test` voor de echte scope; workflow
 `rust-tests.yml` op Linux, macOS en Windows) en `check-place-file-exclusive.ts`.
