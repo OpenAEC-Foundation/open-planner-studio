@@ -29,6 +29,7 @@ import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { pendingIfcSourceSha256, replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { castDraft } from 'immer';
 
 installDeterminism();
 await loadStore();
@@ -590,7 +591,7 @@ for (const route of ['desktop', 'handle'] as const) {
       crashAfterWrite = await loadRecovery();
       return true;
     },
-    commit: () => { replacing.setState(s => { s.ifcSource = nextSource; }); },
+    commit: () => { replacing.setState(s => { s.ifcSource = castDraft(nextSource); }); },
   })));
   assert.equal(outcome, 'replaced', route);
   // Vastleggen vóór de vervanging: de oude bron plus de komende versie.
@@ -645,7 +646,7 @@ await two.getState().openOpenedFile({ name: 'helper-a.ifc', content: '', bytes, 
 durationEdit(two);
 const helperId = two.getState().activeDocumentId!;
 const helper = (replace: () => Promise<boolean>) => withFlush(two, () => runProjectFileWrite(() =>
-  replaceWithRecoveryPending(helperId, hash(nextVersion), { replace, commit: () => { two.setState(s => { s.ifcSource = nextSource; }); } })));
+  replaceWithRecoveryPending(helperId, hash(nextVersion), { replace, commit: () => { two.setState(s => { s.ifcSource = castDraft(nextSource); }); } })));
 await tick(two);
 const otherBefore = manifestDoc(await loadRecovery(), otherId).ifcSource;
 let seenDuring: Awaited<ReturnType<typeof loadRecovery>> | undefined;
