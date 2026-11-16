@@ -229,11 +229,12 @@ export interface LossCheckInput {
    */
   readonly ownGroups?: ReadonlyMap<number, string>;
   /**
-   * E1 (PR 12c): het openen veranderde de baselinekoppen niet (a′ voor de tweede vorm van `OPS_Baselines`, in dezelfde
-   * bronvorm als `ownGroups`). Alleen dan mag een kop met zijn baseline uit de aggregatie van het werkplan wegvallen of erbij
-   * komen (`headsFollowBaselines`).
+   * De tweede vormen buiten de psets (PR 12c en 12d, `SECOND_FORMS`): de psets waarvan het openen ook de tweede vorm niet
+   * veranderde (a′ voor die vorm, in dezelfde bronvorm als `ownGroups`). `OPS_Baselines`: de baselinekoppen in de aggregatie
+   * van het werkplan (E1); `OPS_TaskTypes`: de typenaam (`ObjectType`) op de taak (E2). Alleen dan mag die vorm met zijn
+   * pset meebewegen.
    */
-  readonly headsUnchanged?: boolean;
+  readonly secondFormsUnchanged?: ReadonlySet<string>;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -374,11 +375,13 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   // dat de planning gelijk blijft. Elke andere groep, en alles buiten de eigen groepen, blijft onder de controle hieronder.
   const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
   const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
-  // E1, de baselinekop (PR 12c): valt `OPS_Baselines` onder de toets hierboven (in de bron, gedragen, niet door het openen
-  // veranderd), veranderde het openen ook de koppen niet, en zette (b) geen kop terug, dan mag een kop met zijn baseline uit
-  // de aggregatie van het werkplan wegvallen of erbij komen (`headsFollowBaselines`). Anders geldt de controle van main.
-  const headsFollow = input.headsUnchanged === true && [...input.ownGroups?.values() ?? []].includes(PSET.Baselines)
-    && !uncarried.has(PSET.Baselines) && !restores.some(r => isBaselineHead(index, r.chunk));
+  // De tweede vormen (E1 de baselinekop, PR 12c; E2 de typenaam op de taak, PR 12d): valt de pset van een vorm onder de toets
+  // hierboven (in de bron, gedragen, niet door het openen veranderd), veranderde het openen ook de vorm zelf niet, en zette
+  // (b) niets in die vorm terug, dan mag de vorm meebewegen met wat de planner in de pset deed (`SECOND_FORMS`). Anders
+  // geldt voor die vorm de controle van main.
+  const psets = new Set(input.ownGroups?.values() ?? []);
+  const following = SECOND_FORMS.filter(f => input.secondFormsUnchanged?.has(f.pset) === true && psets.has(f.pset)
+    && !uncarried.has(f.pset) && !restores.some(r => f.restored(index, r)));
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
   const o0b = applyEdits(input.o0, restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
@@ -453,7 +456,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const ctx = o1Context(input, p1b, changed, carried);
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
-      if (ownGroupCarries(d.chunk) || (headsFollow && !lost.has(d.chunk) && headsFollowBaselines(ctx, d))) continue;
+      if (ownGroupCarries(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
@@ -2268,7 +2271,7 @@ function addedBaselineIds(ctx: O1Context): ReadonlySet<string> {
  * moet exact gelijk zijn, in dezelfde volgorde: elk ander lid (het live schema, of een lid van een ander programma) staat er
  * nog, op zijn plek. Hooguit zoveel koppen weg als de planner baselines wiste, en hooguit zoveel erbij als hij er maakte.
  * Welke kop bij welke baseline hoort en wat erin staat, toetst controle (c) op de echte uitvoer (`ownGroupTrees`: elke kop
- * met zijn naam, datums en de aggregatie waarin hij staat). Alleen als `headsFollow` in `lossCheck` geldt.
+ * met zijn naam, datums en de aggregatie waarin hij staat). Alleen als `following` in `lossCheck` deze vorm bevat.
  */
 function headsFollowBaselines(ctx: O1Context, d: LossDiff): boolean {
   const { input, p } = ctx;
@@ -2296,6 +2299,47 @@ function headsFollowBaselines(ctx: O1Context, d: LossDiff): boolean {
   }
   return added <= addedBaselineIds(ctx).size && kept.length === out.length && kept.every((c, i) => c === out[i]);
 }
+
+/**
+ * E2 (PR 12d; onderzoek van 14 november 2026, vraag 7, stap 4): de typenaam op de taak, de tweede vorm van `OPS_TaskTypes`.
+ * Hernoemt de planner een eigen taaktype, dan verandert `ObjectType` (slot 4) van elke taak met dat type, terwijl geen veld
+ * van die taak veranderde. Dat verschil is in orde als het precies dat is: slot 4 van een eigen taak die in de bron en in O1
+ * `PredefinedType .USERDEFINED.` heeft, met hetzelfde eigen type als bij openen, en de definitie van dat type heeft nu een
+ * andere naam dan bij openen. Elk ander slot van de taakregel, en slot 4 van elke andere taak, gaat door de controle van main.
+ * Welke naam er op de taak staat, toetst controle (c) op de echte uitvoer (`ownGroupTrees`: per taak GlobalId, typenaam en
+ * PredefinedType). Alleen als `following` in `lossCheck` deze vorm bevat.
+ */
+function typeNameFollowsDefinition(ctx: O1Context, d: LossDiff): boolean {
+  const { input, p } = ctx;
+  const { index } = input;
+  if (index.type(d.chunk) !== 'IFCTASK' || d.whole || d.arg !== 4 || (d.outArg ?? d.arg) !== 4) return false;
+  const userDefined = (t: string | undefined) => t?.trim() === '.USERDEFINED.';
+  const source = index.argTokens(d.chunk) ?? [];
+  const line = p.out.get(p.pairedOut.get(d.chunk)?.[0] ?? -1);
+  if (!userDefined(source[source.length - 1]) || !userDefined(line?.args[12])) return false;
+  const key = objectKey(input, d.chunk);
+  if (!key?.startsWith('task:') || !ctx.plannerChanged.has('customTaskTypes')) return false;
+  const before = input.opened ?? input.pristine;
+  const typeId = ctx.tasks1.get(key.slice(5))?.customTaskTypeId;
+  if (!typeId || before.tasks.find(t => t.id === key.slice(5))?.customTaskTypeId !== typeId) return false;
+  const name = (x: Pick<WriteIFCInput, 'customTaskTypes'>) => x.customTaskTypes?.find(t => t.id === typeId)?.name;
+  return name(input.domain) !== undefined && name(before) !== undefined && name(input.domain) !== name(before);
+}
+
+/**
+ * De tweede vormen buiten de psets (onderzoek, vraag 2, tegenvoorbeeld 5): twee eigen gegevens staan ook op een object dat
+ * andere gegevens draagt. Per vorm: de pset waar hij bij hoort, of een slot dat (b) terugzette in die vorm ligt (zoals
+ * `editedOwnGroup` in `ownGroups.ts` het afbakent), en welk verschil in O1 de vorm mag dragen. De namen van de vormen staan
+ * in `ownGroups.ts` (`SECOND_FORMS`); daar toetst (c) ze.
+ */
+const SECOND_FORMS: readonly {
+  readonly pset: string;
+  readonly restored: (index: StepIndex, r: SlotRestore) => boolean;
+  readonly follows: (ctx: O1Context, d: LossDiff) => boolean;
+}[] = [
+  { pset: PSET.Baselines, restored: (index, r) => isBaselineHead(index, r.chunk), follows: headsFollowBaselines },
+  { pset: PSET.TaskTypes, restored: (index, r) => index.type(r.chunk) === 'IFCTASK' && (r.outArg === 4 || r.outArg === 12), follows: typeNameFollowsDefinition },
+];
 
 /** Hoeveel baselines de planner wiste, tegenover de toestand bij openen. */
 function removedBaselineCount(ctx: O1Context): number {
