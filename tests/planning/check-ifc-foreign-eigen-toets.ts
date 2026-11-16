@@ -12,8 +12,8 @@
 //
 // 1. Wat de nieuwe toets laat schrijven: de knownbugs 1582, 1585, 1586 (laatste gebruik van één type), 1587, 1589, 1110 en
 //    de grens van 7d; de gevallen van 7c en 7d op drie bronnen; de reeksen; de sessieketen.
-// 2. Wat blijft weigeren: een typedefinitie hernoemen (stap 4), 1588 en een onbekend definitieveld (de groep is niet
-//    gedragen), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
+// 2. Wat blijft weigeren: 1588 en een onbekend definitieveld (de groep is niet gedragen; een typedefinitie hernoemen
+//    schrijft sinds PR 12d, blok 6), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
 //    volgorde in `IfcRelNests`).
 // 3. Een vreemd lid in een eigen pset.
 // 4. De klok: de reeksen en de sessieketen ook met een lopende klok.
@@ -36,7 +36,7 @@ import {
 } from './ifcMergeKern';
 import {
   SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, read, save, se, summary,
-  withForeignMember, withLines, withWall, type Outcome, type S,
+  withForeignMember, withLabelOnUntypedTask, withLines, withWall, type Outcome, type S,
 } from './ifcEigenKern';
 
 type Expect = 'schrijft' | 'weigert';
@@ -599,18 +599,7 @@ clock.mode = 'vast';
 await one('typenaam: 1588 ongebruikte brondefinitie, type A hernoemen', unused, hernoemA, 'weigert');
 await one('typenaam: onbekend definitieveld, dat type hernoemen', unknownField, hernoemA, 'weigert');
 await one('typenaam: vreemd lid in OPS_TaskTypes, type A hernoemen', withForeignMember(cat, PSET.TaskTypes), hernoemA, 'weigert');
-/** Een typenaam op een taak zonder eigen type (de writer schrijft daar `$`): (b) zet hem terug. */
-const labelZonderType = (() => {
-  let n = 0;
-  const text = latin1(cat).split('\n').map(t => {
-    const l = parseOutLine(t.replace(/\r$/, ''));
-    if (n || l?.type !== 'IFCTASK' || l.args[4].trim() !== '$' || l.args[12]?.trim() === '.USERDEFINED.') return t;
-    n++;
-    return `#${l.id}=${l.type}(${l.args.map((a, k) => k === 4 ? "'Type 0 7d'" : a).join(',')});${t.endsWith('\r') ? '\r' : ''}`;
-  }).join('\n');
-  assert(n === 1, 'een taak zonder eigen type');
-  return bytesOf(text);
-})();
+const labelZonderType = withLabelOnUntypedTask(cat, 'Type 0 7d');
 await one('typenaam: typenaam op een taak zonder type (b), projectbeschrijving', labelZonderType, beschrijving, 'schrijft');
 await one('typenaam: typenaam op een taak zonder type (b), type A hernoemen', labelZonderType, hernoemA, 'weigert');
 

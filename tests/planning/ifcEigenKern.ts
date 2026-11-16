@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { parseOutLine } from '@/services/ifc/foreign/lossCheck';
 import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { generateId } from '@/utils/id';
 import { storeWith } from './ifcAppRoute';
@@ -126,3 +127,17 @@ export function withForeignMember(bytes: Uint8Array, pset: string): Uint8Array {
 /** Staat het vreemde lid van `withForeignMember` nog in een pset met deze naam? */
 export const foreignMemberKept = (text: string, pset: string) => text.includes("#95000=IFCPROPERTYSINGLEVALUE('VendorNote'")
   && new RegExp(`=IFCPROPERTYSET\\('[^']*',#\\d+,'${pset}',\\$,\\([^)]*#95000[,)]`).test(text);
+
+/** Een typenaam (`ObjectType`) op de eerste eigen taak zonder eigen type, waar de writer `$` schrijft; de rest byte voor byte
+ *  gelijk. De lezer leest dat slot niet, dus de herleestoets (b) zet hem terug (PR 12d). */
+export function withLabelOnUntypedTask(bytes: Uint8Array, label: string): Uint8Array {
+  let n = 0;
+  const text = latin1(bytes).split('\n').map(t => {
+    const l = parseOutLine(t.replace(/\r$/, ''));
+    if (n || l?.type !== 'IFCTASK' || l.args[4].trim() !== '$' || l.args[12]?.trim() === '.USERDEFINED.') return t;
+    n++;
+    return `#${l.id}=${l.type}(${l.args.map((a, k) => k === 4 ? `'${label}'` : a).join(',')});${t.endsWith('\r') ? '\r' : ''}`;
+  }).join('\n');
+  assert(n === 1, 'een taak zonder eigen type');
+  return bytesOf(text);
+}
