@@ -365,6 +365,8 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
 
   // De brug zet alleen een geopende bestandsfixture. Ctrl+S is de echte gebruikershandeling.
   // De eigen planning wordt na openen niet bewerkt: ook dan moet de doelcontrole schrijven toelaten.
+  // Knownbug 1131 stap 2: de handle uit OPFS is een echte bestandshandle van Chromium. Ctrl+S op het eigen bestand
+  // met een gebouwmodel weigert niet meer vóór de merge; ongewijzigd schrijft de app de bronbytes zelf terug.
   for (const fixture of [
     { path: 'tests/fixtures/ifc-foreign/bonsai-4d.ifc', foreign: true },
     { path: 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc', foreign: true },
@@ -393,9 +395,10 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
     if (!fixture.foreign) expect(before.dirty, fixture.path).toBe(false);
     await page.keyboard.press('Control+s');
     if (fixture.foreign) {
-      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
-        .filter(n => n.messageKey === 'notifications.ifcForeignReplaceBlocked' || n.messageKey === 'notifications.ifcForeignMergeRefused').length)).toBeGreaterThan(0);
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
       expect(await page.evaluate(async () => (await window.__OPS__!.store.getState().fileHandle!.getFile()).text())).toBe(text);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+        .filter(n => n.messageKey === 'notifications.ifcForeignReplaceBlocked'))).toEqual([]);
     } else {
       await expect.poll(() => page.evaluate(async () =>
         (await window.__OPS__!.store.getState().fileHandle!.getFile()).lastModified)).toBeGreaterThan(before.modified);
@@ -422,7 +425,31 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
       await duration.press('Enter');
       await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, task.id)).toBe(task.duration + 1);
       await page.keyboard.press('F5');
-      // De eerdere Ctrl+S-weigeringen en openingsmeldingen eerst echt sluiten: zij kunnen de exportkaart bedekken.
+      // Knownbug 1131 stap 2: Ctrl+S na de bewerking schrijft het volledige bestand via de echte handle. Teruglezen via
+      // dezelfde handle en heropenen via de bestandskiezer: de nieuwe duur, het vreemde deel byte voor byte.
+      await page.keyboard.press('Control+s');
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+      const saved = await page.evaluate(async () => {
+        const state = window.__OPS__!.store.getState();
+        const file = await state.fileHandle!.getFile();
+        return { text: await file.text(), name: file.name, source: state.ifcSource!.sha256, mark: state.foreignSourceMark!.sha256,
+          refusals: state.ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey) };
+      });
+      expect(saved.refusals).toEqual([]);
+      expect(saved.text).not.toBe(text);
+      expect(saved.text).toContain('IFCWALL(');
+      expect(saved.source).toBe(saved.mark);
+      const savedChooser = page.waitForEvent('filechooser');
+      await page.keyboard.press('Control+o');
+      await (await savedChooser).setFiles({ name: saved.name, mimeType: 'application/octet-stream', buffer: Buffer.from(saved.text) });
+      await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)?.time.scheduleDuration, task.id)).toBe(task.duration + 1);
+      expect(await page.evaluate(() => {
+        const source = window.__OPS__!.store.getState().ifcSource!;
+        return Array.from(source.classes, (kind, i) => ({ kind, i })).filter(c => c.kind > 1).map(({ i }) => ({
+          id: source.chunkIds[i], bytes: btoa(String.fromCharCode(...source.bytes.subarray(source.chunkStarts[i], source.chunkStarts[i + 1]))),
+        }));
+      })).toEqual(task.foreign);
+      // De eerdere meldingen eerst echt sluiten: zij kunnen de exportkaart bedekken.
       while (await page.locator('[data-ops-toast-close]').count()) {
         await page.locator('[data-ops-toast-close]').last().click();
       }
