@@ -132,6 +132,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-16: teksten (#804, #971): zes meldingen noemen de reden en de uitweg (1563, 1596, 1741, 1760, 1766, 1709). Automatisch opslaan met de flag aan, bron ontbreekt met de flag uit, Opslaan naar een bestaande naam en Ctrl+S met hetzelfde bestand in een ander tabblad krijgen een eigen zin; de algemene blokkade en de vraag vóór Exporteren zonder gebouwmodel kregen een nieuwe tekst; `planning-na-openen` noemt het verschil in de vorm van de canon. Geen route schrijft of weigert anders. 1741 blijft voor de handleiding; 1775–1776 erbij.
 - 2026-11-16: knownbug 1131 stap 2 (#804): Ctrl+S (en Opslaan in de sluitvraag) op het eigen bestand via de bestandshandle in de browser, bij een document met een gebouwmodel en de flag aan. Vóór de merge de schrijftoestemming en de inhoudscontrole; de vervanging in het herstel in twee stappen, met een tweede inhoudscontrole vlak vóór `close()`. Zonder vastgelegd manifest weigert hij (1764, besloten). De desktop, de site, Opslaan als (download) en de echte AutoSave veranderen niet. 1131, 1574 en 1764 bijgewerkt; 1766–1767 erbij.
 - 2026-11-16: knownbug 1131 stap 1 (#804): de inhoudscontrole van het eigen doel (`sourceTargetContent`: gelijk, gewijzigd, weg, onleesbaar; pad en handle, stukken van 1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5; `replaceWithRecoveryPending` legt het vast en wacht op het manifest). Nog door geen route aangeroepen; Ctrl+S weigert zoals nu. 1131 bijgewerkt; 1760–1765 erbij.
 - 2026-11-16: fase 1c PR 12e (#804): de weesrij (de baselinerij van een gewiste taak) houdt in de merge haar GlobalId (de writer krijgt de GlobalId die de lezer voor die rij aanneemt), dus `OPS_Baselines` blijft na heropenen gedragen en de keten op het oude bestand schrijft ook na "taak wissen"; (c) toetst `TaskGuids` helemaal en de GlobalId van elke baselinekop. 1702, 1706 en 1746 opgelost; 1770 (de taak-id op een baseline van v2026.7.4–7.14) erbij; het weghalen van de oude verklaringen (stap 5) blijft.
@@ -481,32 +482,47 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 - `ifcExportWithoutModel.title` — Titel van de vraag vóór Exporteren → IFC zonder gebouwmodel en vóór de export met bibliotheek; Annuleren heeft de beginfocus.
   - nl: Exporteren zonder gebouwmodel?
   - en: Export without building model?
-- `ifcExportWithoutModel.body` — Tekst van die vraag bij Exporteren → IFC met het vinkje Zonder gebouwmodel.
-  - nl: Het nieuwe bestand bevat alleen de planning. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
-  - en: The new file will contain only the schedule. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?
-- `ifcExportWithoutModel.bodyWithPool` — Tekst van die vraag bij de export met de resourcebibliotheek.
-  - nl: Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
-  - en: The project file will contain only the schedule; the resource library goes into a second file. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?
+- `ifcExportWithoutModel.body` — Tekst van die vraag bij Exporteren → IFC met het vinkje Zonder gebouwmodel. Gewijzigd in #971 (1741).
+  - oud (nl): Het nieuwe bestand bevat alleen de planning. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
+  - nl: Het nieuwe bestand bevat alleen de planning. Het gebouwmodel, de koppelingen tussen taken en bouwdelen en de gegevens van een ander programma, zoals een planning uit dat programma, gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
+  - en: The new file will contain only the schedule. The building model, the links between tasks and building elements, and data from another program, such as a schedule from that program, are not included. The open file will remain unchanged. Do you want to continue?
+- `ifcExportWithoutModel.bodyWithPool` — Tekst van die vraag bij de export met de resourcebibliotheek. Gewijzigd in #971 (1741).
+  - oud (nl): Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
+  - nl: Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel, de koppelingen tussen taken en bouwdelen en de gegevens van een ander programma, zoals een planning uit dat programma, gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
+  - en: The project file will contain only the schedule; the resource library goes into a second file. The building model, the links between tasks and building elements, and data from another program, such as a schedule from that program, are not included. The open file will remain unchanged. Do you want to continue?
 - `ifcExportWithoutModel.continue`
   - nl: Exporteren
   - en: Export
 - `ifcExportWithoutModel.cancel`
   - nl: Annuleren
   - en: Cancel
-- `notifications.ifcForeignSourceMissing` — Bij alle andere IFC-opslag in die toestand; Opslaan als vraagt apart om bevestiging en blijft met de flag uit geweigerd.
+- `notifications.ifcForeignSourceMissing` — Bij alle andere IFC-opslag en -export in die toestand, met de flag aan (ook bij Automatisch opslaan); Opslaan als vraagt apart om bevestiging.
   - nl: Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.
   - en: File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.
+- `notifications.ifcForeignSourceMissingFlagOff` — Nieuw in #971 (1596). Dezelfde toestand met de flag uit, bij Ctrl+S, Opslaan als, Exporteren → IFC, de export met bibliotheek en Automatisch opslaan. Opslaan als weigert dan, en het oorspronkelijke bestand met een gebouwmodel openen kan met de flag uit ook niet; een export naar een ander formaat werkt wel. De tekst noemt de instelling Experimenteel niet (zoals de weigering bij openen met de flag uit).
+  - oud (nl): de tekst van `ifcForeignSourceMissing` hierboven
+  - nl: Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Exporteer alleen de planning naar een ander formaat om je wijzigingen te bewaren.
+  - en: File not saved. The building model or data from another program could not be found. Export only the schedule to another format to keep your changes.
 
 - `notifications.ifcSourceCopyFailed` — Eén keer na een mislukte bronkopie en een geslaagde planningcommit.
   - nl: De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.
   - en: The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.
 
-- `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route of de flag uit na openen.
-  - nl: Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
-  - en: This file contains a building model; saving is not possible yet.
-- `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel: op de desktop altijd, in de browser alleen als een ander open document hetzelfde bestand als bron heeft (1766).
+- `notifications.ifcForeignSaveBlocked` — Gewijzigd in #971 (1563). Een document met een gebouwmodel of gegevens van een ander programma en de flag uit (ingeschakeld bij het openen, daarna uitgezet): Ctrl+S, Opslaan als, Exporteren → IFC (ook met Zonder gebouwmodel), de export met bibliotheek en Automatisch opslaan. Met de flag aan bereikt alleen een ongeldig ja op de vraag "alleen de planning" haar (verdedigend, niet bereikbaar gevonden). De tekst noemt de instelling Experimenteel niet, zoals de weigering bij openen met de flag uit; de export naar een ander formaat werkt dan wel (proef).
+  - oud (nl): Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
+  - nl: Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Met de huidige instellingen kan de app het niet als IFC opslaan of exporteren. Exporteer alleen de planning naar een ander formaat om je wijzigingen te bewaren.
+  - en: This file contains a building model or data from another program. With the current settings, the app cannot save or export it as IFC. Export only the schedule to another format to keep your changes.
+- `notifications.ifcForeignAutoSaveBlocked` — Nieuw in #971 (1563). Automatisch opslaan staat aan bij een document met een gebouwmodel, de flag aan en de bron aanwezig: Automatisch opslaan schrijft zo'n bestand nooit. Eén keer per document per sessie.
+  - oud (nl): Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
+  - nl: Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Sla je wijzigingen zelf op met Opslaan of Opslaan als.
+  - en: Auto-save has stopped: this file contains a building model or data from another program. Save your changes yourself with Save or Save As.
+- `notifications.ifcForeignReplaceBlocked` — Ongewijzigd. Op de desktop bij Ctrl+S (en Opslaan in de sluitvraag) op het eigen bestand; op beide platforms bij Opslaan als naar het bestand waaruit een open document met een gebouwmodel kwam (1776: daar is "Gebruik Opslaan als" overbodig). In de browser niet meer bij Ctrl+S via de bestandskiezer (#967, 1766).
   - nl: Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.
   - en: File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.
+- `notifications.ifcForeignOpenElsewhere` — Nieuw in #971 (1766). Browser: Ctrl+S op het eigen bestand terwijl een ander tabblad hetzelfde bestand als bron heeft. Na het sluiten van dat tabblad schrijft Ctrl+S (proef).
+  - oud (nl): de tekst van `ifcForeignReplaceBlocked` hierboven
+  - nl: Niet opgeslagen. Dit bestand is ook in een ander tabblad geopend. Sluit dat tabblad en sla opnieuw op, of kies Opslaan als om je wijzigingen in een nieuw bestand te bewaren.
+  - en: Not saved. This file is also open in another tab. Close that tab and save again, or choose Save As to keep your changes in a new file.
 - `notifications.ifcForeignTargetChanged` — Ctrl+S via de handle (1131 stap 2): op het eigen bestand staat niet meer de bron, vóór de merge of vlak vóór `close()`. De knop *Opnieuw openen* uit het ontwerp is er niet; die keuze ligt bij de eigenaar.
   - nl: Niet opgeslagen. Het bestand is intussen door een ander programma gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.
   - en: Not saved. The file was changed by another program in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.
@@ -534,6 +550,10 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 - `notifications.ifcForeignTargetAutoSave` — Als Automatisch opslaan een beschermd bestaand doel weigert.
   - nl: Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.
   - en: Auto-save has stopped: this file contains a building model or data from another program. Choose another file to save to.
-- `notifications.ifcForeignExportNewTarget` — Als de volledige IFC-export geen exclusief nieuw doel kan aanmaken.
+- `notifications.ifcForeignSaveNewTarget` — Nieuw in #971 (1760). Desktop: Opslaan als (of Ctrl+S met de kiezer) bij een document met een gebouwmodel naar een bestand dat al bestaat. Een andere fout bij het aanmaken houdt "Opslaan mislukt" met de fout eronder.
+  - oud (nl): Opslaan mislukt (met als detail "Byte-delen konden niet worden opgeslagen (create-new).")
+  - nl: Niet opgeslagen. Dit IFC-bestand kan alleen onder een nieuwe bestandsnaam worden opgeslagen. Kies een naam die nog niet bestaat.
+  - en: Not saved. This IFC file can only be saved under a new file name. Choose a name that does not exist yet.
+- `notifications.ifcForeignExportNewTarget` — Als de volledige IFC-export geen exclusief nieuw doel kan aanmaken (ook bij een andere aanmaakfout, 1775).
   - nl: Niet geëxporteerd. Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geëxporteerd. Kies een naam die nog niet bestaat.
   - en: Not exported. This IFC file can only be exported to a new file name. Choose a name that does not exist yet.

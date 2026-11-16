@@ -29,7 +29,7 @@ export function ifcWriteBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0], f
   if (!s.foreignSourceMark?.sourceMissing) return IFC_FOREIGN_SAVE_BLOCKED_NOTICE;
   return ifcForeignContentEnabled(flags)
     ? refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissing', dedupeKey: 'ifc-foreign-source-missing' })
-    : refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissingFlagOff', dedupeKey: 'ifc-foreign-source-missing' });
+    : refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissingFlagOff', dedupeKey: 'ifc-foreign-source-missing-flag-off' });
 }
 
 /** AutoSave schrijft nooit naar een bestand met een gebouwmodel (`fileAutoSave.ts`). Met de flag aan en de bron aanwezig

@@ -2099,13 +2099,6 @@ en noem het in je rapport of PR-tekst.
      nieuwe naam" geven en zeggen dat veilig vervangen nog ontbreekt (1131); geen nieuwe foutklasse. Gevonden door de
      review van #928. — B
 
-1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
-     `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
-     planner ziet haar bij een geblokkeerde route (bijvoorbeeld pool-export of de flag uit), en ook
-     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de geweigerde route en het
-     passende alternatief niet. PR 9e geeft bron ontbreekt de uitweg Opslaan als naar een nieuw bestand na bevestigen,
-     voor crashherstel en geopende backups; de overige weigeringen blijven bij de lijst "Teksten voor de planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
-
 1593. **VERVOLG (#804, test): drie opslagscenario's staan nog niet blijvend in de klokproef.**
      `tests/planning/check-ifc-foreign-klok.ts` toetst een gewijzigde `modifiedAt`, een lege planstart en een baseline
      zonder eigen aanmaakdatum alleen op ongelijkheid van de canon, niet met daadwerkelijk schrijven en heropenen. De
@@ -2131,13 +2124,6 @@ en noem het in je rapport of PR-tekst.
      overheen, zoals main met elk gewoon document doet. Met de flag aan weigert de inhoudscontrole van het doel dit wel.
      Alleen uit de code gelezen, niet gemeten. Richting: bij fase 2 of 9c beslissen of de bescherming met het bestand
      mee moet. — S
-
-1596. **VERVOLG (#804, tekst): met de flag uit noemt de melding bij "bron ontbreekt" Opslaan als, dat dan weigert.**
-     `notifications.ifcForeignSourceMissing` zegt sinds PR 9e "Gebruik Opslaan als om alleen de planning in een nieuw
-     bestand te bewaren". Die uitweg bestaat alleen met `ifcForeignContent` aan. Een document met dat kenmerk ontstaat
-     alleen met de flag aan; zet iemand de flag uit tussen crash en herstel, dan weigert Opslaan als met dezelfde
-     melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
-     zin voor de flag uit. — S
 
 1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
      Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
@@ -2170,7 +2156,7 @@ en noem het in je rapport of PR-tekst.
      een tweede taak wissen weigert met `planning-na-openen`, met als verschil een duur
      (`task-ifc-h7C5E3LHT12RvX1VuT3fYF.time.scheduleDuration: 3 → 5`). De eerste opslag schrijft (22.419 bytes). Zo was
      het ook vóór PR 12e (dezelfde bytes en dezelfde weigering op `3fcd4d628`); er gaat niets verloren. De oorzaak is
-     niet uitgezocht; het is niet de toewijzings-id van 1709, en 1770 is niet als oorzaak bewezen. Richting: eerst meten
+     niet uitgezocht; het is niet de toewijzings-id van 1709 (opgelost in #971), en 1770 is niet als oorzaak bewezen. Richting: eerst meten
      waar de duur verandert (het openen, de herberekening of de bronvorm). Gevonden door de bouwer van PR 12e, gemeten
      door de review van #968. — B (proef)
 
@@ -2187,6 +2173,21 @@ en noem het in je rapport of PR-tekst.
      maar "een taak en een baseline erbij" weigert met `niet-gedragen`. Zo was het ook vóór de fixronde van PR 12e
      (dezelfde weigering op de merge-code van `cf5671d99`); er gaat niets verloren. De oorzaak is niet uitgezocht.
      Gevonden door de bouwer van PR 12e, bevestigd door de review van #968, ronde 2. — B (proef)
+
+1775. **VERVOLG (#804, tekst): Exporteren zegt bij elke mislukte aanmaak van het nieuwe bestand "Kies een naam die nog niet bestaat".**
+     Ook als het aanmaken om een andere reden mislukt (geen schrijfrecht in de map, een volle schijf), krijgt de planner
+     `ifcForeignExportNewTarget`. Sinds #971 onderscheidt de fout van de byte-delen `target-exists` (het doel bestond al)
+     van `create-new` (iets anders); Opslaan en Opslaan als gebruiken dat al, Exporteren bewust nog niet, om de export in
+     #971 niet te veranderen. `fileSlice.ts` (de catch van `writeAndRecord` in `exportAs`). Richting: alleen
+     `target-exists` krijgt de zin over de nieuwe naam, de rest "Opslaan mislukt" met de fout eronder. — B (code)
+
+1776. **VERVOLG (#804, tekst): Opslaan als naar de bron van een open document met een gebouwmodel zegt "Gebruik Opslaan als".**
+     Kiest de planner in Opslaan als het bestand waaruit een open document met een gebouwmodel kwam (dit tabblad of een
+     ander), dan weigert de app met `ifcForeignReplaceBlocked`: "… kan nog niet veilig. Gebruik Opslaan als en kies een
+     nieuwe naam." Hij zit al in Opslaan als; alleen "kies een nieuwe naam" helpt. Sluiten van het andere tabblad helpt
+     hier niet: het bestand bevat dan nog steeds een gebouwmodel en de doelcontrole weigert het met
+     `ifcForeignTargetSave`. #971 gaf alleen Ctrl+S op de eigen handle een eigen zin (1766). Richting: in Opslaan als een
+     zin zonder "Gebruik Opslaan als". Alleen uit de code gelezen (`documentTargetCheck` in `fileSlice.ts`). — S
 
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
@@ -2241,12 +2242,6 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-foreign-eigen-toets.ts` gebruiken die. Of de projectkopie mee moet met een hernoeming, is een productkeuze;
      niets gaat verloren. — S
 
-1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
-     In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
-     of weg) of in de baselines terecht met `planning-na-openen`, maar de melding noemt als eerste verschil
-     `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
-     `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
-
 1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
      Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
      Het model gaat niet mee." Nu exporteren CSV, MSPDI, XER en het voortgangsblad vanuit zo'n document zonder vraag; alleen
@@ -2256,15 +2251,15 @@ en noem het in je rapport of PR-tekst.
      echt bij moet, beslist de eigenaar. Richting als het ja wordt: dezelfde vraag "alleen de planning" met een eigen
      reden. — B
 
-1741. **VERVOLG (#804, uitleg): de vraag vóór Exporteren zonder gebouwmodel noemt niet wat er van de planning van een ander programma wegvalt.**
+1741. **VERVOLG (#804, uitleg): de handleiding noemt nog niet wat er bij Exporteren zonder gebouwmodel wegvalt.**
      Gemeten in fase 1c PR 13 op `tests/fixtures/ifc-foreign/bonsai-4d.ifc` (bewijs in `/tmp/fase1c-pr13-bewijs/proef2/`
      op aia09-mp50): het nieuwe bestand heeft alleen planning (82 stukken, geen gedeelde, gekoppelde of vreemde) en heropent
      met dezelfde 4 taken, 1 relatie, 1 resource, 1 toewijzing en 2 kalenders. Het `IfcProject` houdt zijn GlobalId. Weg zijn,
      zoals bedoeld: het gebouwmodel (wanden, geometrie, terrein, gebouw, verdieping), maar ook de koppelingen taak↔wand
      (`IfcRelAssignsToProduct`), het tweede werkschema en de baseline van het andere programma met hun drie taken, de
-     vreemde pset-waarden en de herkomst (owner history) van het andere programma. De vraag zegt alleen in het algemeen
-     dat "de gegevens van een ander programma" niet meegaan. Richting: in de handleiding (1566) opsommen wat wegvalt;
-     een telling in de vraag alleen als de eigenaar dat wil. — B
+     vreemde pset-waarden en de herkomst (owner history) van het andere programma. Sinds #971 noemt de vraag de koppelingen
+     tussen taken en bouwdelen en "een planning uit dat programma", zonder telling. Richting: de volledige opsomming in de
+     handleiding (1566). — B
 
 1742. **VERVOLG (browsertest): in `settings-tabs.spec.ts` verschijnt na de twee heropeningen nog een vierde document.**
      Na Exporteren → IFC (download, Ctrl+O) en Ctrl+Shift+S (download, Ctrl+O) staat het heropende bestand actief. Kort
@@ -2624,12 +2619,6 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
-1760. **VERVOLG (#804, tekst): Opslaan als over een bestaand planningsbestand met een gebouwmodel geeft een interne fouttekst.**
-     Desktop. De planner ziet "Opslaan mislukt" met als detail "Byte-delen konden niet worden opgeslagen (create-new)."
-     Exporteren heeft wel een eigen zin (`ifcForeignExportNewTarget`). `fileSlice.ts` (de catch van Opslaan als),
-     `byteParts.ts:8`; de proef `check-ifc-document-save.ts` toetst alleen de sleutel. Richting: dezelfde zin als bij
-     Exporteren. Uit het onderzoek naar 1131 (16 november 2026). — B (code)
-
 1761. **VERVOLG (#804, ontwerp): het ontwerp noemt geen fsync bij het vervangen, terwijl de eis stroomuitval noemt.**
      In stap 4 van §4.10 is het doel een vrije naam; daar helpt `auto_da_alloc` van ext4 niet, dus na stroomuitval kan
      het doel leeg of half zijn terwijl de opzijgezette versie volledig is. Richting: `sync_all` op het tijdelijke
@@ -2663,12 +2652,6 @@ en noem het in je rapport of PR-tekst.
      "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
      gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: meenemen bij de fsync van 1761. Gevonden
      in stap 1 van 1131. — S
-
-1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
-     Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
-     `ifcForeignReplaceBlocked`: "Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig." In de
-     browser kan dat sinds 1131 stap 2 wel; de echte reden is het andere tabblad. Er gaat niets verloren (nul bytes,
-     `check-ifc-document-save.ts`). Richting: een eigen zin, of de zin algemener; met de teksten van stap 6. — B (proef)
 
 1767. **VERVOLG (#804, niet gemeten): Ctrl+S via een handle uit de bestandskiezer in een echte browser.** De
      browserproef gebruikt een handle uit OPFS (`navigator.storage.getDirectory()`): geen toestemmingsvraag, geen
