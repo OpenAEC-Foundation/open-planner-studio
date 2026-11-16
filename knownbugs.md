@@ -2785,6 +2785,14 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1800. **Twee gidsen zeggen dat dubbelklik een tabelcel bewerkt; dubbelklik opent het eigenschappenpaneel.**
+      `public/docs/{nl,en}/howto-constraint-deadline-zetten.md:23` en `howto-voortgang-bijwerken.md:44-45`.
+      In de taakgrid selecteert dubbelklik de cel en opent het eigenschappenpaneel
+      (`src/components/task-grid/FullTaskGrid.tsx`, `onCellDoubleClick`); bewerken start met Enter, F2 of typen.
+      Gezien in een browserrun voor #970: na `dblclick` op een keuzelijstcel verscheen geen editor, wel het paneel.
+      Voorstel: "Klik op een cel en druk op Enter (of begin te typen)". Wacht op de productvraag over dubbelklik
+      bij #970: verandert dubbelklik, dan vervalt dit punt. — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
