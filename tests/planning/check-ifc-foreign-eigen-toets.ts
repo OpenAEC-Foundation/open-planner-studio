@@ -738,8 +738,8 @@ for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]
     ok(`${label}: taak wissen schrijft`, o1.ok, o1.ok ? '' : o1.detail);
   }
   if (!o1.ok) continue;
-  const shown = await orphanRows(d1, start, d1.ifcGlobalIds);
-  ok(`${label}: weesrijen`, shown.size >= (withSummary ? 2 : 1), rowsText(shown));
+  // De lezingen van `orphanRows` pas na de laatste opslag van dit geval: de lezer neemt ids van `generateId`, en een lezing
+  // tussen twee opslagen gaf een latere opslag dan andere ids dan op de basis (fixronde 1).
   const r1 = await openForeign(o1.bytes);
   if (legacy) {
     ok(`${label}: vreemd deel byte voor byte`, mergeProblems(start, o1.bytes).length === 0);
@@ -756,17 +756,20 @@ for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]
   // tot PR 12e kreeg de weesrij dan een nieuwe hash, en weigerde de merge (de groep was niet gedragen). Niet op de oude
   // showcase: daar weigert een baseline erbij al op het onbewerkte bestand.
   // Daarna die baseline weer wissen: dat schrijft alleen als `OPS_Baselines` gedragen is (de kop beweegt mee, E1).
-  let l4: Awaited<ReturnType<typeof orphanRows>> | undefined, l5: Awaited<ReturnType<typeof orphanRows>> | undefined;
+  let read4: [Domain, Uint8Array] | undefined, read5: [Domain, Uint8Array] | undefined;
   if (!legacy) {
     const o4 = await attempt(`${label}: daarna een baseline erbij`, start, r3.ifcSource!, await se(s => s.saveBaseline('Wees B2'))(cloneDomain(r3)), 'schrijft');
     if (o4.ok) {
       const r4 = await openForeign(o4.bytes);
-      l4 = await orphanRows(r4, o4.bytes);
+      read4 = [r4, o4.bytes];
       const o5 = await attempt(`${label}: daarna die baseline weer wissen`, start, r4.ifcSource!,
         await se(s => s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Wees B2').id))(cloneDomain(r4)), 'schrijft');
-      if (o5.ok) l5 = await orphanRows(await openForeign(o5.bytes), o5.bytes);
+      if (o5.ok) read5 = [await openForeign(o5.bytes), o5.bytes];
     }
   }
+  const shown = await orphanRows(d1, start, d1.ifcGlobalIds);
+  ok(`${label}: weesrijen`, shown.size >= (withSummary ? 2 : 1), rowsText(shown));
+  const l4 = read4 && await orphanRows(...read4), l5 = read5 && await orphanRows(...read5);
   const [l1, l2, l3] = [await orphanRows(r1, o1.bytes), await orphanRows(r2, again.ok ? again.bytes : o1.bytes), await orphanRows(r3, o3.ok ? o3.bytes : o1.bytes)];
   console.log(`WEESRIJ ${label}: domein ${rowsText(shown)}`);
   console.log(`WEESRIJ ${label}: lezing 1 ${rowsText(l1)}; lezing 2 ${rowsText(l2)}; lezing 3 ${rowsText(l3)}${l4 ? `; lezing 4 ${rowsText(l4)}` : ''}${l5 ? `; lezing 5 ${rowsText(l5)}` : ''}`);
@@ -779,20 +782,27 @@ for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]
     sameIds(shown, l1) === !legacy, `${rowsText(shown)} | ${rowsText(l1)}`);
 }
 // 7b. De keten, met na elke geschreven stap de meting op de uitvoer.
+// De lezingen van `orphanRows` komen pas na de hele keten (`settleMeasured`), om dezelfde reden als in 7a.
+const pendingRows: (() => Promise<void>)[] = [];
+async function settleMeasured() { for (const f of pendingRows.splice(0)) await f(); }
 const measured = (tag: string, carriedAfter: boolean) => async (label: string, before: Uint8Array, written: Uint8Array) => {
   const reread = await openForeign(written), prior = await openForeign(before);
   // Elke weesrij van de vorige uitvoer die er nog is, houdt haar taak-id en GlobalId (op baseline en plaats).
-  const was = await orphanRows(prior, before), now = await orphanRows(reread, written);
-  const kept = [...was].filter(([k]) => now.has(k));
-  ok(`keten ${tag}: stap ${label}: de weesrijen houden taak-id en GlobalId`, kept.every(([k, v]) => now.get(k)!.guid === v.guid && now.get(k)!.id === v.id),
-    `${rowsText(was)} | ${rowsText(now)}`);
+  pendingRows.push(async () => {
+    const was = await orphanRows(prior, before), now = await orphanRows(reread, written);
+    const kept = [...was].filter(([k]) => now.has(k));
+    console.log(`WEESRIJ keten ${tag}: na stap ${label}: ${rowsText(now) || 'geen'}`);
+    ok(`keten ${tag}: stap ${label}: de weesrijen houden taak-id en GlobalId`, kept.every(([k, v]) => now.get(k)!.guid === v.guid && now.get(k)!.id === v.id),
+      `${rowsText(was)} | ${rowsText(now)}`);
+  });
   if (!reread.baselines?.length) return;
   const probe = await save(await se(s => s.deleteBaseline(s.baselines[0].id))(cloneDomain(reread)), reread.ifcSource!);
-  console.log(`GEDRAGEN keten ${tag}: na stap ${label}: één baseline wissen ${summary(probe)}; weesrijen ${rowsText(now) || 'geen'}`);
+  console.log(`GEDRAGEN keten ${tag}: na stap ${label}: één baseline wissen ${summary(probe)}`);
   ok(`keten ${tag}: na stap ${label}: OPS_Baselines ${carriedAfter ? 'gedragen (één baseline wissen schrijft)' : 'niet gedragen, zoals op de onbewerkte bron'}`,
     probe.ok === carriedAfter, probe.ok ? 'schrijft' : `${probe.kinds.join(',')}: ${probe.detail}`);
 };
 await reopenedChain('weesrij oud', SOURCES.oud, CHAIN, measured('weesrij oud', true));
+await settleMeasured();
 // De oude showcase: `OPS_Baselines` is daar al op het onbewerkte bestand niet gedragen, en na een taak wissen ook niet.
 {
   nextCase();
@@ -803,6 +813,7 @@ await reopenedChain('weesrij oud', SOURCES.oud, CHAIN, measured('weesrij oud', t
   const wiped = await save(await se(s => s.deleteTask(orphanTarget(s, false)!.id))(cloneDomain(opened)), opened.ifcSource!);
   assert(wiped.ok, 'weesrij showcase: taak wissen schrijft');
   await measured('weesrij showcase', false)('1 een taak uit de baseline wissen', showcase, wiped.bytes);
+  await settleMeasured();
 }
 
 finish();
