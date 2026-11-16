@@ -669,7 +669,9 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     plus de scope die tijdens het draaien groeit (`fs_scope()`), met de regel van plugin-fs: een verbod in een van
     beide wint, daarna moet een van beide het pad toestaan. Het standaardverbod van plugin-fs op de webviewmap is in
     plugin-fs 2.5.0 leeg (knownbug 1797); de app zet het zelf in de capabilities `webviewgegevens-linux.json` en
-    `-windows.json` (#975), dus het geldt via die scope ook hier; het commando bouwt het niet zelf na. Bij een toekomstige
+    `-windows.json` (#975): de beschermde mappen zelf en alles eronder voor elk fs-commando, en `rename` en `remove`
+    van `$APPLOCALDATA` zelf (buiten die grens: de bovenmappen op Windows, knownbug 1770). Het geldt via die scope ook
+    hier; het commando bouwt het niet zelf na. Bij een toekomstige
     `requireLiteralLeadingDot: false` wijkt de toets op een verbod uit de runtime-scope af van plugin-fs (knownbug 1777).
   - **De grens van het commando** (besluit van de technisch beslisser, 16 november 2026; review #972 rondes 1 en 2).
     Eisen:

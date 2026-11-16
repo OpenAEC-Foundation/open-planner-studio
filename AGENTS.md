@@ -220,10 +220,13 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `fileAccess/placeFileExclusive.ts`). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
   The app itself denies the webview's data to every plugin-fs command and to `place_file_exclusive`: the capabilities
-  `webviewgegevens-linux.json` (the nine WebKitGTK paths in `$APPLOCALDATA`, which on Linux is the same folder as
-  `$APPDATA`) and `webviewgegevens-windows.json` (`$APPLOCALDATA/EBWebView/**`), via `fs:scope` and `platforms`;
-  macOS needs none. plugin-fs 2.5.0's own `deny-default` is empty (knownbug 1797); never deny all of `$APPLOCALDATA`
-  on Linux, crash recovery and the MCP files live there.
+  `webviewgegevens-linux.json` (the WebKitGTK folders and files in `$APPLOCALDATA`, which on Linux is the same folder
+  as `$APPDATA`) and `webviewgegevens-windows.json` (`$APPLOCALDATA/EBWebView`), via `platforms`; macOS needs none.
+  Each protected folder is denied itself as well as `folder/**` in `fs:scope` (`folder/**` does not match the folder,
+  and plugin-fs `rename`/`remove` only check the given paths), and `fs:allow-rename`/`fs:allow-remove` deny
+  `$APPLOCALDATA` itself; `mkdir`, `read_dir`, reading and writing there stay allowed (crash recovery and the MCP files
+  live there, so never deny all of `$APPLOCALDATA`). Out of bounds: renaming or removing a folder above it on Windows
+  (knownbug 1770). plugin-fs 2.5.0's own `deny-default` is empty (knownbug 1797).
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
   levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
   `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde

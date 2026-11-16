@@ -46,12 +46,19 @@ een bestand verdwijnen dat tussendoor op het doel komt (review #839, ronde 4); e
 exclusieve stap geeft `unsupported`. De controles staan in de code, want een app-commando zonder ACL-manifest is
 vanuit elke lokale webview aan te roepen, ook vanuit extensiecode (`tauri-2.12.3/src/webview/mod.rs:2076-2083`).
 Het verbod op de webviewgegevens zet de app zelf, in de capabilities `webviewgegevens-linux.json` en
-`webviewgegevens-windows.json` (`fs:scope` met `deny`, per platform via `platforms`): het standaardverbod van
-plugin-fs 2.5.0 is leeg (knownbug 1797). Het geldt in de globale scope van fs, dus voor elk fs-commando en via
-`FsRenameScope` ook hier; bouw het in de code niet na. Linux: alleen de negen paden van WebKitGTK uit
+`webviewgegevens-windows.json` (per platform via `platforms`): het standaardverbod van plugin-fs 2.5.0 is leeg
+(knownbug 1797). De grens (besluit van de technisch beslisser, 16 november 2026). Binnen de grens: per beschermde map
+óók de map zelf: geen fs-commando mag de map of iets eronder bereiken (`fs:scope` met `deny` op `map` én `map/**`, want
+`map/**` matcht `map` niet en `rename`/`remove` van plugin-fs toetsen alleen de opgegeven paden; plus de bestanden
+`cookies` en `hsts-storage.sqlite`); `rename` en `remove` van `$APPLOCALDATA` zelf (de app-datamap) zijn verboden
+(`fs:allow-rename` en `fs:allow-remove` met `deny`, een commandoscope); `mkdir`, `read_dir`, lezen en schrijven in
+`$APPLOCALDATA` blijven, zodat het herstel na een crash werkt. Buiten de grens (knownbug 1770): op Windows een map
+bóven de app-datamap (`AppData\Local`, `AppData`) hernoemen of verwijderen; "wie die mappen kan hernoemen of wissen,
+kan dat al met de hele thuismap." De globale scope geldt voor elk fs-commando, de commandoscope voor dat commando;
+`FsRenameScope` leest beide, dus ook hier; bouw het in de code niet na. Linux: de mappen en bestanden van WebKitGTK uit
 `deny-webview-data.toml` van plugin-fs 2.5.2+, nooit heel `$APPLOCALDATA` (op Linux dezelfde map als `$APPDATA`, met
-het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `$APPLOCALDATA/EBWebView/**`; macOS geen (WKWebView
-krijgt geen gegevensmap, `tauri-2.12.3/src/manager/webview.rs:559-568`). Wie een eigen bestand of map in de
+het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `EBWebView`; macOS geen (WKWebView krijgt geen
+gegevensmap, `tauri-2.12.3/src/manager/webview.rs:559-568`). Wie een eigen bestand of map in de
 app-datamap toevoegt, zet het in `EIGEN_GEBRUIK` in `place_file.rs`. TS-ingang
 `fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven:
 `cargo test place_file` (naad `PlaceOps`; nep-app via de feature `tauri/test` voor de echte scope en dezelfde invoer

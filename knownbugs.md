@@ -2706,6 +2706,16 @@ en noem het in je rapport of PR-tekst.
      #972 (ronde 2, met de echte Linux-stap). Proeven: `place_file_bronwissel_tussen_controle_en_stap`,
      `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
 
+1770. **VERVOLG (beveiliging, buiten de grens van #975): een map bóven de app-datamap kan hernoemd of verwijderd worden.**
+     De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en alles eronder, en `rename`
+     en `remove` van `$APPLOCALDATA` zelf. Een map daarboven valt erbuiten (besluit van de technisch beslisser, 16
+     november 2026): op Windows staat `$HOME/**` `AppData\Local` en `AppData` toe, en `rename` of recursief `remove`
+     daarvan neemt `$APPLOCALDATA` met `EBWebView` mee (plugin-fs toetst alleen de opgegeven paden). Reden, letterlijk:
+     "wie die mappen kan hernoemen of wissen, kan dat al met de hele thuismap." Op Linux liggen de bovenmappen onder
+     `~/.local` en vallen ze niet onder `$HOME/**` (een punt vooraan); op elk platform kan een map die de gebruiker via
+     de bestandsdialoog als map toestaat (`dependentFolder.ts`, `open({ directory: true })`) wel een bovenmap zijn.
+     Niet in een echte app nagegaan. — B (bron gelezen)
+
 1797. **VERVOLG (beveiliging): `tauri-plugin-fs` staat op 2.5.0; upstream is 2.7.1.**
      `src-tauri/Cargo.lock` vergrendelt 2.5.0 (`Cargo.toml` vraagt `2`, `tauri-plugin-persisted-scope` staat vast op
      `=2.3.6` voor die versie). Wat de app daardoor mist, volgens de changelog van plugin-fs: in 2.5.2 het
@@ -2718,8 +2728,13 @@ en noem het in je rapport of PR-tekst.
      alleen mag lezen). Wat een verhoging raakt: 2.6.0 laat `writeFile` en `writeTextFile` falen als de opties niet
      te lezen zijn (eerder genegeerd, ook `createNew`), 2.7.1 maakt van de schrijfpermissies (`write-all`,
      `allow-*-write[-recursive]`) sets van de `allow-*`-commando's, en de npm-versie `@tauri-apps/plugin-fs` moet
-     mee. Met de verhoging gaat de eigen capability `webviewgegevens-*.json` weg: `fs:default` levert dan hetzelfde
-     verbod, en met beide staat elk pad dubbel en faalt de bewering in `place_file_scope_volgt_plugin_fs`. Richting: een eigen PR direct na
+     mee. Ook 2.7.1 dekt de webviewgegevens niet helemaal: `deny-webview-data` verbiedt alleen `map/**` (dat matcht de
+     map zelf niet), en `remove` (`plugins/fs/src/commands.rs:771`, `remove_dir_all` op regel 800) en `rename` (regel
+     840) toetsen via `resolve_path` (regel 1552) alleen de opgegeven paden; een beschermde map of `$APPLOCALDATA` zelf
+     hernoemen of recursief verwijderen blijft daar mogelijk (gelezen in de tak `v2`). De eigen capabilities
+     `webviewgegevens-*.json` blijven dus ook na de verhoging nodig; alleen de regels die `fs:default` dan zelf levert
+     (`map/**` en de twee bestanden op Linux, `EBWebView/**` op Windows) vervallen, anders staan ze dubbel en faalt de
+     bewering in `place_file_scope_volgt_plugin_fs`. Richting: een eigen PR direct na
      de merge van #973, met een review, en een controle in de echte desktopapp vóór de merge: openen, opslaan,
      Opslaan als, en herstel na een crash. — B (changelog en bron gelezen)
 
