@@ -2585,6 +2585,35 @@ en noem het in je rapport of PR-tekst.
      nooit in een object naar Tauri gaan. Richting: dezelfde vorm als `atomicWrite.ts` (`writeTextFile` met
      `createNew` en modus 0600 in één aanroep, eigendom alleen bij de schrijffout na aanmaak). Gevonden bij #973,
      alleen in de code gelezen. — B (code)
+1792. **VERVOLG (#973, desktop): Opslaan als met een gebouwmodel voegt elk volgend deel op pad toe.**
+     `writeNewByteParts` maakt het nieuwe doel met `createNew` en het eerste deel, en opent het pad daarna voor elk
+     volgend deel opnieuw met `append`. Vóór #973 ging alles via één open bestand. Wisselt een ander programma het pad
+     tussen twee delen, dan krijgt het vervangende bestand de rest en meldt de app toch succes; bij een schrijffout
+     daarna kan het opruimen dat vervangende bestand verwijderen (opruimen op pad bestond al). De review van #973 toonde
+     het met een proef tegen basis en head: op de basis kreeg het oorspronkelijke bestand `DEEL1DEEL2` en bleef het
+     vervangende bestand heel, op de head kreeg het vervangende bestand `DEEL2` erbij. Meerdere delen zijn gewoon bij
+     een gewijzigde merge (`mergeWriter.ts`: bewaarde bronreeksen plus writerblokken van hoogstens 2.000 regels). Geen
+     synchronisatieclient aangetoond die dit bij een gewone opslag doet. Richting: de merge maakt voor de
+     uitvoercontrole al één volledige buffer en knipt die daarna weer in stukken; geef die ene buffer door, dan is het
+     één exclusieve aanroep en kunnen `ByteAppend` en de append-lus weg. Op te lossen bij stap 4 van 1131 (Opslaan als
+     op de desktop via een tijdelijk bestand), die deze route toch herschrijft. Gevonden door de review van #973
+     (Sol). — B (proef)
+1793. **VERVOLG (#973, proeven): de Node-adapter `tests/planning/nodeFileIpc.ts` doet `write_all` niet volledig na.**
+     Hij negeert het aantal bytes dat `fs.writeSync` teruggeeft: schrijft die aanroep één van vijf bytes, dan meldt de
+     adapter succes, terwijl de echte Rust-code met `write_all` doorloopt. Een echte fout van `writeSync` krijgt niet
+     de vaste tekst van een Rust-schrijffout, en de adapter toetst alleen of de optiekop JSON met een object is, niet
+     de types van `createNew`, `mode`, `append` en `create` (bij een verkeerd type laat Rust de hele kop vervallen en
+     valt het terug op aanmaken en afkappen; de app stuurt zulke types niet). Een fout in het bewijsinstrument, geen
+     aangetoonde fout in de app. Richting: korte writes afmaken, echte schrijffouten dezelfde tekst geven en de
+     gebruikte optievelden toetsen; geen tweede bestandssysteemlaag. Gevonden door de review van #973 (Sol). — B (proef)
+1794. **VERVOLG (#973, proeven): de pariteitsreferentie is niet meer rechtstreeks te maken uit haar basis.**
+     In `tests/planning/fixtures/main-pariteit.json` en `auteur-bedrijf/main.json` is 48 keer `open` + `write` +
+     `close` met de hand vervangen door één `write_text_file`. De review van #973 vergeleek beide bestanden veld voor
+     veld: verder is alles gelijk (uitvoerhash, lengte, doel, meldingen, basis). `scripts/proef/maak-main-pariteit.mjs`
+     bouwt nog tegen de oude basis en zou de oude aanroepvorm terugzetten. De referentie betekent nu "de basis plus
+     deze ene omzetting van de aanroepvorm". Richting: die omzetting reproduceerbaar maken in het script, of alleen dit
+     verschil normaliseren bij de vergelijking; niet de hele referentie opnieuw opnemen vanaf een featurebranch.
+     Gevonden door de review van #973 (Sol). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
