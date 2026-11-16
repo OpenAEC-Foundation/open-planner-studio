@@ -514,8 +514,9 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
   - en: This file contains a building model or data from another program. With the current settings, the app cannot save or export it as IFC. Export only the schedule to another format to keep your changes.
 - `notifications.ifcForeignAutoSaveBlocked` — Nieuw in #971 (1563). Automatisch opslaan staat aan bij een document met een gebouwmodel, de flag aan en de bron aanwezig: Automatisch opslaan schrijft zo'n bestand nooit. Eén keer per document per sessie.
   - oud (nl): Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
-  - nl: Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Sla je wijzigingen zelf op met Opslaan of Opslaan als.
-  - en: Auto-save has stopped: this file contains a building model or data from another program. Save your changes yourself with Save or Save As.
+  - nl: Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Sla je wijzigingen zelf op met Opslaan als.
+  - en: Auto-save has stopped: this file contains a building model or data from another program. Save your changes yourself with Save As.
+  - Alleen "Opslaan als", omdat Ctrl+S op de desktop bij een gebouwmodel nog weigert (besluit van de technisch beslisser, 16 november 2026: een melding noemt geen uitweg die niet werkt). Na stap 5 van knownbug 1131 kan de tekst terug naar "Opslaan of Opslaan als".
 - `notifications.ifcForeignReplaceBlocked` — Ongewijzigd. Op de desktop bij Ctrl+S (en Opslaan in de sluitvraag) op het eigen bestand; op beide platforms bij Opslaan als naar het bestand waaruit een open document met een gebouwmodel kwam (1776: daar is "Gebruik Opslaan als" overbodig). In de browser niet meer bij Ctrl+S via de bestandskiezer (#967, 1766).
   - nl: Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.
   - en: File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.

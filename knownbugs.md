@@ -2614,6 +2614,8 @@ en noem het in je rapport of PR-tekst.
      4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
+        Daarna kan de melding `notifications.ifcForeignAutoSaveBlocked` terug van "Sla je wijzigingen zelf op met
+        Opslaan als" naar "Opslaan of Opslaan als" (zolang Ctrl+S op de desktop weigert, noemt zij alleen Opslaan als).
      6. Teksten en handleiding, met de eigenaar.
      Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle). Crash, stroomuitval en externe

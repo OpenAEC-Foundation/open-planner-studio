@@ -80,7 +80,7 @@
     "ifcForeignTargetExport": "Dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om naar te exporteren.",
     "ifcExportChangedWhileWaiting": "De planning veranderde terwijl de export op een andere opslag wachtte. Er is niets geëxporteerd. Exporteer opnieuw.",
     "ifcForeignTargetAutoSave": "Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Kies een ander bestand om op te slaan.",
-    "ifcForeignAutoSaveBlocked": "Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Sla je wijzigingen zelf op met Opslaan of Opslaan als.",
+    "ifcForeignAutoSaveBlocked": "Automatisch opslaan is gestopt: dit bestand bevat een gebouwmodel of gegevens van een ander programma. Sla je wijzigingen zelf op met Opslaan als.",
     "ifcUnreadableTargetSave": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
     "ifcUnreadableTargetExport": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om naar te exporteren.",
     "ifcUnreadableTargetAutoSave": "Automatisch opslaan is gestopt: de app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
