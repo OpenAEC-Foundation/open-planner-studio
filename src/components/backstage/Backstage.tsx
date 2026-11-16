@@ -22,6 +22,8 @@ import { UnappliedChangesDialog } from './UnappliedChangesDialog';
 import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
+import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import './Backstage.css';
 
 // Bestand zelf (navigatie, opmaak, de lichte secties) zit in de eerste bundel, zodat het meteen af
@@ -464,6 +466,9 @@ function ExportSection() {
   const setUI = useAppStore(s => s.setUI);
   const companyId = useAppStore(s => s.project.companyId);
   const [alsoPool, setAlsoPool] = useState(false);
+  // #804 PR 13: alleen bij een document met een gebouwmodel (of gegevens van een ander programma) en de flag aan.
+  const modelPresent = useAppStore(s => hasForeignContent(s.ifcSource) && ifcForeignContentEnabled(s.ui.featureFlags));
+  const [withoutModel, setWithoutModel] = useState(false);
 
   // Geen stale true laten hangen als het project z'n bedrijfskoppeling verliest (bijv. door te
   // wisselen naar een ongekoppeld document) — anders blijft het vinkje aan staan voor een checkbox
@@ -471,6 +476,9 @@ function ExportSection() {
   useEffect(() => {
     if (!companyId) setAlsoPool(false);
   }, [companyId]);
+  useEffect(() => {
+    if (!modelPresent) setWithoutModel(false);
+  }, [modelPresent]);
 
   const formats: { format: ExportFormat; label: string; desc: string; icon: string; experimental: boolean }[] = EXPORT_FORMATS.map(
     (f) => ({ format: f.format, label: tMenu(f.labelKey), desc: tMenu(f.descKey), icon: f.icon, experimental: 'experimental' in f && f.experimental }),
@@ -485,10 +493,10 @@ function ExportSection() {
   const handleExport = async (format: ExportFormat) => {
     // Pool-ernaast geldt alleen voor de IFC-kaart (het is een IFC-tweede-bestand, geen
     // embed in CSV/MSPDI/P6). Beide paden geven hetzelfde ExportResult terug, dus de
-    // cyclus-foutafhandeling geldt voor allebei.
+    // cyclus-foutafhandeling geldt voor allebei. De export met bibliotheek is altijd zonder gebouwmodel.
     const result = format === 'ifc' && alsoPool
       ? await exportProjectWithPool()
-      : await exportAs(format);
+      : await exportAs(format, format === 'ifc' && modelPresent && withoutModel ? { withoutBuildingModel: true } : undefined);
     if (!result.ok) {
       // Blijf in Backstage zodat de fout zichtbaar is; ga niet terug naar het Start-tab.
       setExportError({ error: result.error, errorInfo: result.errorInfo });
@@ -525,6 +533,13 @@ function ExportSection() {
         <label className="flex items-center gap-2 mt-1 text-small leading-4">
           <input type="checkbox" checked={alsoPool} onChange={e => setAlsoPool(e.target.checked)} className="accent-accent" />
           <span>{tCommon('companyLibrary.exportWithPool')}</span>
+        </label>
+      )}
+      {modelPresent && (
+        <label className="flex items-center gap-2 mt-1 text-small leading-4">
+          <input type="checkbox" checked={withoutModel} onChange={e => setWithoutModel(e.target.checked)}
+            className="accent-accent" data-ops-export-without-model />
+          <span>{tCommon('ifcExportWithoutModel.option')}</span>
         </label>
       )}
     </>

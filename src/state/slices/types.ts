@@ -35,6 +35,7 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 // Opslag via de site: de VRAAG van de twee site-dialogen. Type-only import, net als hierboven.
 import type { SiteOpenRequest, SiteSaveRequest } from '@/services/fileAccess/siteDialogs';
 import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
+import type { PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
@@ -895,8 +896,9 @@ export interface UIState {
    *  of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
    *  `state/ifcSchemaQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingIfcSchemaQuestion: IfcSchemaQuestion | null;
-  /** Opslaan als zonder het ontbrekende gebouwmodel wacht op een bewuste keuze. */
-  pendingIfcMissingSourceSaveAs: boolean;
+  /** session — de openstaande vraag "alleen de planning" met haar reden (`services/ifc/planOnlyQuestion.ts`), of `null`.
+   *  Het antwoord gaat via `state/planOnlyQuestionBridge.ts`. Een wachtende modale vraag: bevriest sneltoetsen. */
+  pendingPlanOnlyQuestion: PlanOnlyReason | null;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg

@@ -130,6 +130,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-16: fase 1c PR 13 (#804): Exporteren → IFC met het vinkje "Zonder gebouwmodel" en de export met de resourcebibliotheek schrijven bij een document met gebouwmodel (flag aan) na één vraag alleen de planning; het document blijft ongewijzigd, de doelbescherming blijft heel, bij een ontbrekend gebouwmodel blijven beide geweigerd. De vraag van 9e is één vraag met een reden geworden; `prepareIfcOutput` laat planOnly alleen door met een ongebruikt ja (ook voor 9e). 1565 en 1597 opgelost; 1566 bijgewerkt; 1740–1742 erbij.
 - 2026-11-14: fase 1c PR 12a (#804) voegt controle (c) toe: na de uitvoercontrole moet elke eigen groep op projectniveau (`foreign/ownGroups.ts`, met baselinekop en typenaam op de taak) teruglezen tot wat de writer op de herlezing schrijft, met dezelfde schrijfklok; vreemde leden (in pset, template of relatie) en `#n` in tekst tellen niet mee, een pset of `IfcRelDeclares` met alleen vreemde leden is geen groep (een lege wel); anders `eigen-uitvoer`. Alleen extra weigeren; verliescontrole ongewijzigd. 1591 bijgewerkt, 1700–1705 erbij.
 - 2026-11-14: fase 1c PR 7e (#804) maakt alleen de planningsvergelijking klokvast; interne herlezingen hergebruiken ontbrekende projectdatums van het openen, opgeslagen datums blijven leidend en gewone opslag houdt haar echte schrijfklok. 1550/1567 opgelost; klokgrenzen, bronbytes, echte bewerkingen en uitvoer zonder vergelijkingsdatum bewaakt.
 - 2026-11-14: fase 1c PR 9e laat alleen met de flag aan bij `sourceMissing` Opslaan als toe na een vraag met Annuleren als standaard, voor crashherstel en geopende MCP-backups. De gewone planOnly-route schrijft naar een ander doel; het bestaande kenmerk blijft als doelbescherming met `sourceMissing: false`, ook in manifest-v5-metadata. Ctrl+S, bestands-AutoSave en sluiten werken daarna op het nieuwe doel; alle overige IFC-routes blijven bij ontbrekend model weigeren. 1112 opgelost; opnieuw koppelen blijft 9c (1575).
@@ -450,9 +451,9 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 
 ## Teksten voor de planner (te beoordelen vóór de flag aan mag)
 
-- `settings.ifcForeignContentHint` — Bij de experimentele IFC-schakelaar; stand na PR 9b.
-  - nl: Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken. Opslaan over een bestaand lokaal bestand en een project met resourcepool exporteren zijn nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.
-  - en: Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC. Saving over an existing local file and exporting a project with a resource pool are not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.
+- `settings.ifcForeignContentHint` — Bij de experimentele IFC-schakelaar; stand na PR 13.
+  - nl: Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken, ook zonder gebouwmodel of met de resourcebibliotheek ernaast (dan met alleen de planning). Opslaan over een bestaand lokaal bestand is nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.
+  - en: Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). Saving over an existing local file is not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.
 
 - `ifcMissingSourceSaveAs.title` — Vraag vóór Opslaan als bij ontbrekend gebouwmodel, na herstel én bij een geopende MCP-backup; Annuleren heeft de beginfocus.
   - nl: Alleen de planning opslaan?
@@ -464,6 +465,24 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
   - nl: Doorgaan
   - en: Continue
 - `ifcMissingSourceSaveAs.cancel`
+  - nl: Annuleren
+  - en: Cancel
+- `ifcExportWithoutModel.option` — Vinkje op de IFC-kaart in Bestand → Exporteren, alleen bij een document met gebouwmodel en de flag aan.
+  - nl: Zonder gebouwmodel
+  - en: Without building model
+- `ifcExportWithoutModel.title` — Titel van de vraag vóór Exporteren → IFC zonder gebouwmodel en vóór de export met bibliotheek; Annuleren heeft de beginfocus.
+  - nl: Exporteren zonder gebouwmodel?
+  - en: Export without building model?
+- `ifcExportWithoutModel.body` — Tekst van die vraag bij Exporteren → IFC met het vinkje Zonder gebouwmodel.
+  - nl: Het nieuwe bestand bevat alleen de planning. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
+  - en: The new file will contain only the schedule. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?
+- `ifcExportWithoutModel.bodyWithPool` — Tekst van die vraag bij de export met de resourcebibliotheek.
+  - nl: Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?
+  - en: The project file will contain only the schedule; the resource library goes into a second file. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?
+- `ifcExportWithoutModel.continue`
+  - nl: Exporteren
+  - en: Export
+- `ifcExportWithoutModel.cancel`
   - nl: Annuleren
   - en: Cancel
 - `notifications.ifcForeignSourceMissing` — Bij alle andere IFC-opslag in die toestand; Opslaan als vraagt apart om bevestiging en blijft met de flag uit geweigerd.
@@ -480,9 +499,9 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 - `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel.
   - nl: Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.
   - en: File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.
-- `notifications.ifcForeignMergeRefused` — Als de voorbereiding verlies zou geven en daarom niets schrijft.
-  - nl: Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan of exporteer de planning naar een ander formaat.
-  - en: The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change or export the schedule to another format.
+- `notifications.ifcForeignMergeRefused` — Als de voorbereiding verlies zou geven en daarom niets schrijft; stand na PR 13.
+  - nl: Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan, of exporteer alleen de planning: naar IFC met Zonder gebouwmodel, of naar een ander formaat.
+  - en: The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change, or export the schedule only: to IFC with Without building model, or to another format.
 - `notifications.ifcSaveChangedWhileWaiting` — Als document of bron tijdens voorbereiding of bestandskeuze veranderde.
   - nl: Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.
   - en: File not saved. The document or the building model source changed during preparation. Try saving again.

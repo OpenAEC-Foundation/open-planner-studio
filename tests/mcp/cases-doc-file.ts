@@ -1371,6 +1371,16 @@ test('dialoog-guard: een open modaal blokkeert de document-/bestands-tools en de
   } finally {
     useAppStore.setState({ ui: { ...S().ui, showTaskDialog: false } });
   }
+  // Knownbug 1597: ook de vraag "alleen de planning" (#804 PR 9e en 13) blokkeert en wordt bij naam genoemd.
+  useAppStore.setState({ ui: { ...S().ui, pendingPlanOnlyQuestion: 'export' } });
+  try {
+    const file = await callErr('planner_export_ifc', { path: `${HOME}/x.ifc` });
+    assertEq(file.code, 'DIALOG_OPEN', 'export_ifc wacht op de vraag');
+    assert(file.error.includes('pendingPlanOnlyQuestion'), 'de fout noemt de vraag bij naam');
+    assertEq(files.size, 0, 'er is niets geschreven');
+  } finally {
+    useAppStore.setState({ ui: { ...S().ui, pendingPlanOnlyQuestion: null } });
+  }
 
   // Dialoog dicht ⇒ dezelfde call slaagt weer (bewijst dat de vlag de oorzaak was).
   await callOk('planner_list_documents');

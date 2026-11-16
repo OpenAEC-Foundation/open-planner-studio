@@ -181,7 +181,7 @@ const noticeKeys = (store: Store) => modelNotices(store).map(n => [n.messageKey,
 const noticeCount = (store: Store, key: string) =>
   store.getState().ui.notifications.filter(n => n.messageKey === key).reduce((sum, n) => sum + n.count, 0);
 
-const { setIfcMissingSourceAsker, resetIfcMissingSourceAsker } = await import('@/services/ifc/ifcMissingSourceQuestion');
+const { setPlanOnlyAsker, resetPlanOnlyAsker } = await import('@/services/ifc/planOnlyQuestion');
 const { readRecoveryDocument } = await import('@/state/readRecoveryDocument');
 const { recoverySourceDocument } = await import('@/state/recoverySourceDocument');
 
@@ -1311,7 +1311,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     eq(`${label}: de werkelijke ingang geeft bron ontbreekt`, S().foreignSourceMark?.sourceMissing, true);
     ok(`${label}: de eerdere bewerking is hersteld`, S().tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
     const beforeMark = S().foreignSourceMark;
-    setIfcMissingSourceAsker(async () => { questions++; return answer; });
+    setPlanOnlyAsker(async () => { questions++; return answer; });
     pick = fresh; pickerCalls = 0;
     await S().saveFileAs();
     eq(`${label}: annuleren stelt één vraag, geen kiezer of write`, [questions, pickerCalls, dialogs, fresh.writables(), existsSync(newPath)], [1, 0, 0, 0, false]);
@@ -1408,7 +1408,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     await S().saveFileAs();
     eq(`${label}: ook na crash blijft het oorspronkelijke doel beschermd`, [orig.writables(), sha(readFileSync(sourcePath))], [0, sha(eigenPlus)]);
   } finally {
-    resetIfcMissingSourceAsker(); ipc?.dispose();
+    resetPlanOnlyAsker(); ipc?.dispose();
     (globalThis as { window?: unknown }).window = win;
     delete win.openaecHost; pick = null; rmSync(dir, { recursive: true, force: true });
   }
@@ -1459,7 +1459,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     let store = await restore(loaded);
     let S = () => store.getState();
     eq(`${label}: herstel geeft bron ontbreekt zonder sitedoel`, [S().foreignSourceMark?.sourceMissing, S().siteFileId], [true, null]);
-    setIfcMissingSourceAsker(async () => { questions++; return true; });
+    setPlanOnlyAsker(async () => { questions++; return true; });
     // Dezelfde naam als het oorspronkelijke sitebestand: Opslaan op de site maakt toch een nieuw bestand.
     setSiteSaveAsker(async () => ({ kind: 'site', name: 'model.ifc' }));
     await S().saveFileAs();
@@ -1490,7 +1490,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       [S().foreignSourceMark?.sourceMissing, S().foreignSourceMark?.siteFileId, S().siteFileId], [false, 'origineel', 'nieuw1']);
     eq(`${label}: geen vraag meer voor het gewone document`, questions, 1);
   } finally {
-    resetIfcMissingSourceAsker(); resetSiteAskers(); delete win.openaecHost;
+    resetPlanOnlyAsker(); resetSiteAskers(); delete win.openaecHost;
   }
 }
 
