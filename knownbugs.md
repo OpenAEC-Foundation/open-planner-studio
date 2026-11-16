@@ -2202,9 +2202,13 @@ en noem het in je rapport of PR-tekst.
      `onverwacht` in `TaskGuids`. Controle (c) laat hem door, omdat de weesregel van de canon (`orphanRowsWithoutId`)
      sleutels zonder taak niet meetelt, en de controle na openen ook. Op de basis ving de verliescontrole dit in O1; sinds
      PR 12b niet meer in een gedragen `OPS_Baselines`. Alleen een fout van de writer kan dit geven, en er gaat niets
-     verloren (een overbodige regel). VERMOED, niet gemeten: een verkeerde GlobalId bij de rij van een gewiste taak gaat om
-     dezelfde reden door. Richting: in (c) de sleutels van de weesrijen wel tellen en alleen hun waarde niet, na meten dat
-     dat op een oud bestand geen goede uitvoer weigert (1702). — B
+     verloren (een overbodige regel). Gemeten door de review van #960 (Sol): een verkeerde GlobalId bij de rij van een
+     gewiste taak gaat om dezelfde reden door (met een nagebootste writerfout weigert de basis op `TaskGuids`, PR 12b
+     schrijft); de weesrijen zelf, het vreemde deel en de getoonde planning blijven daarbij gelijk, en wijst de GlobalId
+     naar een taak die nog bestaat, dan weigert de merge met `bronvorm-leest-anders`. Geen verlies door een gewone
+     bewerking aangetoond. Richting: in (c) ook het verband tussen de sleutels van `TaskGuids` en de baselinerijen toetsen
+     in plaats van elke sleutel zonder levende taak weg te laten, na meten dat dat op een oud bestand geen goede uitvoer
+     weigert (1702). — B
 
 1707. **VERVOLG (#804, de andere toets): een eigen groep met een vreemd lid valt terug op de controle van main.**
      Een property van een ander programma in `OPS_Baselines`, `OPS_TaskTypes` of `OPS_StructureMeta` maakt de groep in
@@ -2220,8 +2224,11 @@ en noem het in je rapport of PR-tekst.
      Gemeten: de ruwe vorm ziet `OPS_Baselines` als "door openen veranderd" in 18 van de 227 opslagen (op
      `ifc-arity-oude-writer.ifc` en op de door de nieuwe toets geschreven uitvoer van de keten), de bronvorm nergens; maar in
      al die gevallen verklaart de controle van main de baselineverschillen zelf, of weigert om de baselinekop (stap 3). De
-     keuze volgt uit het onderzoek (vraag 2, tegenvoorbeeld 1). Richting: een geval met een baselinewijziging die alleen
-     de nieuwe toets laat schrijven (komt met stap 3), en dan deze mutatie opnieuw. — B
+     keuze volgt uit het onderzoek (vraag 2, tegenvoorbeeld 1). De review van #960 (Sol) mat dat de bronvorm een
+     inhoudelijke wijziging door het openen niet wegpoetst (`projectDuration` van een baseline +2 blijft zichtbaar en de
+     opslag weigert); wat ontbreekt is alleen een opslag die met de bronvorm schrijft en met de ruwe vorm zou weigeren.
+     Richting: een geval met een baselinewijziging die alleen de nieuwe toets laat schrijven (komt met stap 3), en dan
+     deze mutatie opnieuw. — B
 
 1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
      In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
