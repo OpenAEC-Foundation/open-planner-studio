@@ -2598,8 +2598,10 @@ en noem het in je rapport of PR-tekst.
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
      herstelronde draaien, dan zegt hij nee: IndexedDB geweigerd (sandbox-iframe zonder `allow-same-origin`, #582), de
      herstelvraag bij de start nog open, of geen geregistreerde ronde. Ctrl+S met een gebouwmodel weigert daar dus
-     straks ook. Veilig, maar in de browser zonder IndexedDB is er ook niets te herstellen. Richting: in stap 2 beslissen
-     of zo'n omgeving zonder vastlegging mag schrijven, met een eigen proef. Gevonden in stap 1 van 1131. — B (code)
+     straks ook. Dat is de goede standaard (review van #965, Sol): de drie oorzaken geven dezelfde weigering, en een
+     ontoegankelijke IndexedDB bewijst niet dat er geen herstelset is die bescherming nodig heeft. Richting: de weigering
+     houden; een uitzondering mag niet op `not-recorded` alleen steunen, maar vraagt in stap 2 een eigen bewijs dat er
+     geen te beschermen herstelset is, met een eigen proef. Gevonden in stap 1 van 1131. — B (code)
 
 1765. **VERVOLG (#804, stroomuitval): het manifest met `pendingSha256` staat na stroomuitval mogelijk niet op schijf.**
      De helper wacht tot de herstelronde klaar is, maar die schrijft op de desktop zonder fsync (`recoveryStore.ts`,
