@@ -1480,8 +1480,8 @@ mod tests {
     }
 
     // Blokkade 1 van de review van #972: de scope is die van plugin-fs `rename`, uit de echte
-    // `tauri.conf.json` en `capabilities/default.json`, met de verboden paden van `fs:default`.
-    // Een nep-app van Tauri (`tauri::test`, geen echte webview) levert de webview.
+    // `tauri.conf.json` en `capabilities/default.json`. Een nep-app van Tauri (`tauri::test`, geen echte
+    // webview) levert de webview; de opvraging en de omzetting van `$HOME` en dergelijke zijn echt.
     #[test]
     fn place_file_scope_volgt_plugin_fs() {
         use tauri::Manager;
@@ -1503,28 +1503,9 @@ mod tests {
             .unwrap();
         let webview: &tauri::Webview<_> = window.as_ref();
         let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
-        // Alleen zichtbaar als de proef faalt: wat de capability voor fs rename opleverde.
-        let resolved = webview
-            .resolve_command_scope::<FsScopeEntry>("fs", "rename")
-            .unwrap()
-            .unwrap();
-        println!(
-            "globaal toegestaan {:?}\nglobaal verboden {:?}\ncommando toegestaan {:?}\ncommando verboden {:?}\ningesteld {:?}",
-            resolved.global_scope().allows(),
-            resolved.global_scope().denies(),
-            resolved.command_scope().allows(),
-            resolved.command_scope().denies(),
-            scope.configured
-        );
 
         let home = app.path().home_dir().unwrap();
-        let local = app.path().app_local_data_dir().unwrap();
         assert!(scope.allows(&home.join("projecten").join("plan.ifc")));
-        // deny-default: `$APPLOCALDATA/**` en `$APPLOCALDATA/EBWebView/**`, beide onder `$HOME`.
-        let verboden = local.join("plan.ifc");
-        for pad in [verboden.clone(), local.join("EBWebView").join("plan.ifc")] {
-            assert!(!scope.allows(&pad), "{pad:?}");
-        }
         // Unix: een map met een punt vooraan valt niet onder `$HOME/**`.
         #[cfg(unix)]
         assert!(!scope.allows(&home.join(".verborgen").join("plan.ifc")));
@@ -1533,12 +1514,64 @@ mod tests {
         #[cfg(windows)]
         let buiten = PathBuf::from(r"C:\ops-place-file-buiten\plan.ifc");
         assert!(!scope.allows(&buiten));
-
-        // De scope die tijdens het draaien groeit (bestandsdialoog): wel een pad erbij, nooit een verbod eraf.
+        // De scope die tijdens het draaien groeit (bestandsdialoog) voegt een pad toe.
         let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
         runtime.allow_file(&buiten).unwrap();
-        runtime.allow_file(&verboden).unwrap();
         assert!(scope.allows(&buiten));
+
+        // Struikeldraad (knownbug 1796): `fs:default` bedoelt `$APPLOCALDATA/**` en
+        // `$APPLOCALDATA/EBWebView/**` te verbieden, maar `deny-webview-data.toml` van
+        // tauri-plugin-fs 2.5.0 zet ze onder `[[scope.deny]]` in plaats van `[[permission.scope.deny]]`,
+        // dus de opgeloste ACL heeft voor fs geen enkel verbod en plugin-fs `rename` laat die paden toe.
+        // Het commando volgt plugin-fs. Levert een nieuwere plugin-fs het verbod wel, dan faalt deze regel:
+        // toets dan hier dat `$APPLOCALDATA` geweigerd wordt.
+        let resolved = webview
+            .resolve_command_scope::<FsScopeEntry>("fs", "rename")
+            .unwrap()
+            .unwrap();
+        assert!(
+            resolved.global_scope().denies().is_empty()
+                && resolved.command_scope().denies().is_empty(),
+            "plugin-fs levert nu verboden paden: {:?} {:?}",
+            resolved.global_scope().denies(),
+            resolved.command_scope().denies()
+        );
+    }
+
+    // Blokkade 1: de regel van plugin-fs met een verbod erin. Echte `tauri::scope::fs::Scope`'s uit een
+    // nep-app; het verbod komt hier van de proef, omdat de capability er nu geen levert (zie hierboven).
+    #[test]
+    fn place_file_scope_verbod_wint() {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let app = tauri::test::mock_builder()
+            .plugin(tauri_plugin_fs::init())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("nep-app");
+        let configured = tauri::scope::fs::Scope::new(
+            &app,
+            &tauri::utils::config::FsScope::Scope {
+                allow: vec![PathBuf::from("$HOME"), PathBuf::from("$HOME/**")],
+                deny: vec![PathBuf::from("$HOME/verboden/**")],
+                require_literal_leading_dot: None,
+            },
+        )
+        .unwrap();
+        let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
+        let scope = FsRenameScope {
+            runtime: Some(runtime.clone()),
+            configured,
+        };
+        let home = app.path().home_dir().unwrap();
+        let verboden = home.join("verboden").join("plan.ifc");
+        assert!(scope.allows(&home.join("toegestaan").join("plan.ifc")));
         assert!(!scope.allows(&verboden));
+        // Een toestemming in de runtime-scope heft een verbod niet op.
+        runtime.allow_file(&verboden).unwrap();
+        assert!(!scope.allows(&verboden));
+        // En een verbod in de runtime-scope wint van de capability.
+        let ander = home.join("toegestaan").join("ander.ifc");
+        runtime.forbid_file(&ander).unwrap();
+        assert!(!scope.allows(&ander));
     }
 }
