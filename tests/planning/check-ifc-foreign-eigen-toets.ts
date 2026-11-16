@@ -669,8 +669,9 @@ const setSlot = (ls: readonly OutLine[], target: OutLine, k: number, v: string) 
 // `ifcGlobalIds` alleen de GlobalIds van taken die er zijn; tot PR 12e schreef de writer daarom na heropenen een nieuwe hash
 // in `TaskGuids` voor die rij, en was `OPS_Baselines` in het bestand daarna niet meer gedragen. De merge geeft de writer nu
 // de GlobalId die de lezer zelf voor de rij aanneemt (`withOrphanRowGuids`, `fileRowGuid` in `sourceForm.ts`).
-// 7a. De weesrij zelf: taak wissen → opslaan → heropenen → opslaan zonder bewerking (de bytes van de eerste) en met een
-//     kleine bewerking → heropenen. Per weesrij (baseline en plaats) de taak-id en de GlobalId zoals de lezer hem aanneemt:
+// 7a. De weesrij zelf: taak wissen → opslaan → heropenen → opslaan zonder bewerking (de bytes van de eerste), met een
+//     kleine bewerking, met een baseline erbij en die baseline weer wissen (dat vraagt een gedragen `OPS_Baselines`) →
+//     heropenen. Per weesrij (baseline en plaats) de taak-id en de GlobalId zoals de lezer hem aanneemt:
 //     gelijk in alle lezingen, en de GlobalId gelijk aan die in het domein. Op drie bronnen, met een gewone taak en met een
 //     samenvattingstaak (de rijen van de kinderen). Op de oude showcase (OPS v2026.7.12, baseline-JSON zonder `TaskGuids`
 //     en met de interne ids van toen) zet (b) het JSON in de vorm van de bron terug (#1104): daar krijgt de weesrij bij de
@@ -750,11 +751,27 @@ for (const [tag, raw] of ORPHAN_SOURCES) for (const withSummary of [false, true]
     : await attempt(`${label}: daarna alleen de projectbeschrijving`, start, r1.ifcSource!, await beschrijving(cloneDomain(r1)), 'schrijft');
   if (legacy) ok(`${label}: daarna alleen de projectbeschrijving schrijft`, o3.ok, o3.ok ? '' : o3.detail);
   const r3 = o3.ok ? await openForeign(o3.bytes) : r1;
+  // Een opslag die `OPS_Baselines` wel raakt (een baseline erbij): daar schrijft de writer `TaskGuids` uit de lezing, en
+  // tot PR 12e kreeg de weesrij dan een nieuwe hash, en weigerde de merge (de groep was niet gedragen). Niet op de oude
+  // showcase: daar weigert een baseline erbij al op het onbewerkte bestand.
+  // Daarna die baseline weer wissen: dat schrijft alleen als `OPS_Baselines` gedragen is (de kop beweegt mee, E1).
+  let l4: ReturnType<typeof orphanRows> | undefined, l5: ReturnType<typeof orphanRows> | undefined;
+  if (!legacy) {
+    const o4 = await attempt(`${label}: daarna een baseline erbij`, start, r3.ifcSource!, await se(s => s.saveBaseline('Wees B2'))(cloneDomain(r3)), 'schrijft');
+    if (o4.ok) {
+      const r4 = await openForeign(o4.bytes);
+      l4 = orphanRows(r4, o4.bytes);
+      const o5 = await attempt(`${label}: daarna die baseline weer wissen`, start, r4.ifcSource!,
+        await se(s => s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Wees B2').id))(cloneDomain(r4)), 'schrijft');
+      if (o5.ok) l5 = orphanRows(await openForeign(o5.bytes), o5.bytes);
+    }
+  }
   const [l1, l2, l3] = [orphanRows(r1, o1.bytes), orphanRows(r2, again.ok ? again.bytes : o1.bytes), orphanRows(r3, o3.ok ? o3.bytes : o1.bytes)];
   console.log(`WEESRIJ ${label}: domein ${rowsText(shown)}`);
-  console.log(`WEESRIJ ${label}: lezing 1 ${rowsText(l1)}; lezing 2 ${rowsText(l2)}; lezing 3 ${rowsText(l3)}`);
-  ok(`${label}: taak-id en GlobalId gelijk in alle lezingen`, rowsText(l1) === rowsText(l2) && rowsText(l1) === rowsText(l3) && l1.size === shown.size,
-    `${rowsText(l1)} | ${rowsText(l2)} | ${rowsText(l3)}`);
+  console.log(`WEESRIJ ${label}: lezing 1 ${rowsText(l1)}; lezing 2 ${rowsText(l2)}; lezing 3 ${rowsText(l3)}${l4 ? `; lezing 4 ${rowsText(l4)}` : ''}${l5 ? `; lezing 5 ${rowsText(l5)}` : ''}`);
+  ok(`${label}: taak-id en GlobalId gelijk in alle lezingen`, rowsText(l1) === rowsText(l2) && rowsText(l1) === rowsText(l3) && l1.size === shown.size
+    && (legacy || (l4 !== undefined && l5 !== undefined && rowsText(l4) === rowsText(l1) && rowsText(l5) === rowsText(l1))),
+    `${rowsText(l1)} | ${rowsText(l2)} | ${rowsText(l3)} | ${l4 ? rowsText(l4) : '-'} | ${l5 ? rowsText(l5) : '-'}`);
   ok(`${label}: de GlobalId van het domein blijft`, sameGuids(shown, l1), `${rowsText(shown)} | ${rowsText(l1)}`);
   // De taak-id van het domein: gelijk, behalve op de oude showcase (knownbug 1770).
   ok(`${label}: de taak-id van het domein ${legacy ? 'wordt bij de eerste lezing de interne id uit de bron (1770)' : 'blijft'}`,
