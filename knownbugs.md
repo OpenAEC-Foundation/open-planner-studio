@@ -2223,6 +2223,15 @@ en noem het in je rapport of PR-tekst.
      gezocht (mogelijk een tweede open-actie van dezelfde bestandskiezer). PR 13 zet zijn stappen daarom vóór die
      heropeningen. Richting: nagaan of de planner dit ook ziet (twee keer hetzelfde bestand open na één keer kiezen). — S
 
+1743. **VERVOLG (#804, Opslaan als zonder gebouwmodel): een bewerking tijdens de vraag gaat mee in het nieuwe bestand.**
+     Bij "bron ontbreekt" stelt Opslaan als de vraag "Alleen de planning opslaan?" (9e). Na het ja controleert
+     `saveActiveDocumentAs` (`src/state/slices/fileSlice.ts`) het document, de bron, het kenmerk en of de vraag nog past,
+     maar niet de inhoud; die wordt daarna opnieuw gelezen. Proef van de review van #961 (Sol): tijdens de vraag een
+     taaknaam wijzigen en dan ja geven schrijft het bestand met de nieuwe naam. De twee exportroutes van PR 13 vergelijken
+     de inhoud wel met hun momentopname. Een gemaakte toestand (de vraag is modaal; alleen MCP of een script komt ertussen)
+     en er gaat niets verloren. Het late lezen stond al in #935. Richting: direct na het antwoord ook de inhoud met de
+     momentopname van vóór de vraag vergelijken. — B
+
 1145. **VERVOLG: een gemaakte baseline-datumvariant zou twee dubbele GlobalIds schrijven.** De bestaande proef
      in `check-ifc-foreign-preserve.ts` zet alleen `CreationDate` van de baselinekop van `eigen-plus-model.ifc`
      op `2020-01-01T00:00:00`, na de bron-normalisatie van de proef. De baselinegegevens blijven ongewijzigd. Op
