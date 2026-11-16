@@ -2568,8 +2568,10 @@ en noem het in je rapport of PR-tekst.
         tot en met 5.
      3. Gebouwd (stap 3, #972): het Rust-commando `place_file_exclusive` (`src-tauri/src/commands/place_file.rs`) met
         fsync van `from` vóór en de map na de stap, de scopecontrole in de code en de TS-ingang
-        `placeFileExclusive.ts`; nog door geen route gebruikt. De code compileert in de builds van `ci.yml`; de
-        `cargo test place_file`-proeven per platform wachten op de workflow (1763).
+        `placeFileExclusive.ts`; nog door geen route gebruikt. `rust-tests.yml` draait `cargo test place_file` op
+        Ubuntu 22.04 en macOS (16 tests) en Windows (13; de drie proeven met symbolische links alleen op Unix), ook
+        twee gelijktijdige aanroepen en een map op het doel (Windows: "bestaat al"). Drie mutaties (gewone `rename`,
+        scopecontrole uit, hulpnaamcontrole uit) maakten elk hun eigen proef rood op alle drie de platforms.
      4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
@@ -2590,14 +2592,6 @@ en noem het in je rapport of PR-tekst.
      (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
      schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Richting:
      productkeuze 1 uit het onderzoek naar 1131. — B (code), geen proef in de app
-
-1763. **VERVOLG (#804, CI): de Rust-proeven per platform uit het besluit over `place_file_exclusive` hebben nog geen workflow.**
-     `cargo test` draait alleen op Ubuntu, voor `mcp_bridge` en `desktop_integration`
-     (`.github/workflows/mcp-real-app.yml:42, 74-75`); de builds op Windows en macOS in `ci.yml` draaien geen tests.
-     Stap 3 van 1131 staat (#972) met tests die zo heten dat `cargo test place_file` ze allemaal pakt; het concept
-     `.github/workflows/rust-tests.yml` (Ubuntu 22.04, macOS, Windows) is geschreven maar staat nog niet in de repo,
-     dus de proeven hebben op 16 november 2026 nog op geen platform gedraaid. De workflowwijziging pusht Trias.
-     Uit het onderzoek naar 1131. — B
 
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen

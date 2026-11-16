@@ -116,7 +116,8 @@ Workflows outside `verify` (depth: `ci-release` and `mcp` rules): `headless-api.
 `windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `appimage-im-check.yml`
 (builds only the AppImage and checks it ships the IBus/Fcitx input-method modules, issue #764; `release.yml` runs the
 same `scripts/check-appimage-im-modules.sh` before publishing), `mcp-real-app.yml` (MCP
-bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
+bridge tests against the real Rust bridge), `rust-tests.yml` (`cargo test place_file` on Ubuntu 22.04, macOS and
+Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
 
 ## Testing pitfalls
 

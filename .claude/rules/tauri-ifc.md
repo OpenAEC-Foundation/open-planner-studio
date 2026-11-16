@@ -39,8 +39,8 @@ van `from`, de exclusieve stap, fsync van de map. Uitkomsten op `code`: `placed`
 op het doel komt (review #839, ronde 4); een bestandssysteem zonder exclusieve stap geeft `unsupported`. De controles
 staan in de code, want een app-commando zonder ACL-manifest is vanuit elke lokale webview aan te roepen, ook vanuit
 extensiecode (`tauri-2.12.3/src/webview/mod.rs:2076-2083`). TS-ingang `fileAccess/placeFileExclusive.ts` (alleen
-dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven: `cargo test place_file` (naad `PlaceOps`) en
-`check-place-file-exclusive.ts`.
+dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven: `cargo test place_file` (naad `PlaceOps`; workflow `rust-tests.yml` op Linux, macOS en
+Windows) en `check-place-file-exclusive.ts`.
 
 ## IFC is the native file format, not a sidecar
 
