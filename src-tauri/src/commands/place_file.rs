@@ -2213,7 +2213,10 @@ mod tests {
                 if let Some(eerste) = naam.split('/').next().filter(|e| !e.is_empty()) {
                     assert!(!verboden_namen.contains(&eerste), "eigen naam {naam}");
                 }
-                assert!(rename.allows(&pad), "rename: {pad:?}");
+                // De scope van dit commando zelf (`FsRenameScope`) waar het onderdeel hernoemt.
+                if commands.contains(&"rename") {
+                    assert!(rename.allows(&pad), "rename: {pad:?}");
+                }
                 for command in commands.iter() {
                     let scope = scope_voor(webview, command, true)
                         .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
