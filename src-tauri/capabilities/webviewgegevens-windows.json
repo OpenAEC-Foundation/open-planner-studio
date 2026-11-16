@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "webviewgegevens-windows",
+  "description": "Verbiedt elk fs-commando de gegevens van WebView2 in $APPLOCALDATA/EBWebView (cookies, opslag, cache). Hetzelfde verbod als deny-webview-data-windows van tauri-plugin-fs vanaf 2.5.2; in 2.5.0 is dat verbod leeg (knownbug 1797).",
+  "windows": ["main"],
+  "platforms": ["windows"],
+  "permissions": [
+    {
+      "identifier": "fs:scope",
+      "deny": [{ "path": "$APPLOCALDATA/EBWebView/**" }]
+    }
+  ]
+}
