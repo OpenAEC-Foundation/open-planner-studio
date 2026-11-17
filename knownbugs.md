@@ -2871,9 +2871,10 @@ en noem het in je rapport of PR-tekst.
      benchmarkgenerator): de hele doelscan 1,33 s, waarvan de modelscan 0,80 s en de indeling 0,50 s; op de hoofdthread
      na stap 2 nog ongeveer 0,74 s. Op de stroomroute (Tauri-pad, FSA-bestand) komt die tijd in stukken van 1 MiB, met
      echt lezen ertussen (ongeveer 90 ms per stuk; of de webview daartussen tekent, is niet gemeten). Op de siteroute
-     (`scanForeignTargetBytesAsync`) is het één blok. Richting: de modelscan ook in de scanworker, of één Worker die
-     eerst de modelscan en dan de indeling doet; de vroege stop bij een modelentiteit en het terugspoelen moeten dan
-     mee. — B (meting)
+     (`scanForeignTargetBytesAsync`) is het één blok. Richting (bevestigd door de review van #985, Sol): dezelfde
+     scanworker doet eerst de modelcontrole en dan de indeling, met behoud van de vroege modelweigering, de grens van
+     300 MiB en het terugspoelen van de stroomroute; niet vooraf elk model volledig inlezen. Een volgende kleine PR.
+     — B (meting)
 
 ## Rondleiding, Help en extensie-gidsen
 
