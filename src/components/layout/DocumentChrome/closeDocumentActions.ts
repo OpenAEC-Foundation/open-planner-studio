@@ -11,7 +11,8 @@ export interface CloseDocumentDialogActionDependencies {
   pendingId: string;
   getActiveDocumentId: () => string;
   switchDocument: (id: string) => void;
-  closeDocument: (id: string) => void;
+  /** In de app `closeDocumentAfterSaves`: sluit pas als er geen opslag meer loopt of wacht (#804 stap 3). */
+  closeDocument: (id: string) => void | Promise<void>;
   saveFile: () => Promise<boolean>;
   clearPending: () => void;
   restoreOpenerFocus: () => void;
@@ -20,7 +21,7 @@ export interface CloseDocumentDialogActionDependencies {
 
 export interface CloseDocumentDialogActions {
   cancel: () => void;
-  discard: () => void;
+  discard: () => Promise<void>;
   save: () => Promise<void>;
 }
 
@@ -55,9 +56,9 @@ export function createCloseDocumentDialogActions(
       clearPending();
       restoreOpenerFocus();
     },
-    discard: () => {
+    discard: async () => {
       if (!claimAction()) return;
-      closeDocument(pendingId);
+      await closeDocument(pendingId);
       clearPending();
     },
     save: async () => {
@@ -68,7 +69,7 @@ export function createCloseDocumentDialogActions(
       try {
         const saved = await saveFile();
         if (saved) {
-          closeDocument(pendingId);
+          await closeDocument(pendingId);
           closed = true;
         }
       } catch {

@@ -9,6 +9,13 @@
 // ronde gaat door naar het volgende; Annuleren (of een mislukte opslag) laat het document open en
 // breekt het afsluiten af. Is er niets (meer) ongeopgeslagen, dan: crashherstel stoppen, de
 // herstelsnapshots opruimen (schone exit) en het venster echt sluiten.
+//
+// #804 stap 3 (besluit eigenaar 17 november 2026: "Wachten, dan sluiten"). Loopt of wacht er een projectopslag (ook
+// een ronde van Automatisch opslaan), dan doet de controller niets anders dan wachten tot de schrijfrij leeg is, met
+// "Wordt nog opgeslagen…"; geen vraag en geen knop om het wachten af te breken. Daarna begint de ronde opnieuw: kwam
+// er tijdens het wachten een foutmelding (een mislukte of geweigerde opslag), dan breekt het afsluiten af zoals een
+// mislukte opslag uit de sluitvraag; een document dat nog gewijzigd is, krijgt de gewone sluitvraag. Het herstel wordt
+// pas gestopt en gewist als er niets meer geschreven wordt. Zonder lopende opslag is de volgorde die van vóór stap 3.
 
 export interface AppQuitDocument {
   id: string;
@@ -29,6 +36,11 @@ export interface AppQuitDependencies {
   clearRecovery: () => Promise<void>;
   /** Sluit het venster definitief (Tauri `destroy`, geen nieuw `CloseRequested`). */
   destroyWindow: () => Promise<void>;
+  /** `null` als er geen projectopslag loopt of wacht; anders klaar als de schrijfrij leeg is. Toont intussen
+   *  "Wordt nog opgeslagen…". */
+  waitForSaves: () => Promise<void> | null;
+  /** Begint te kijken; de teruggegeven functie zegt of er sindsdien een foutmelding kwam. */
+  watchFailures: () => () => boolean;
 }
 
 export interface AppQuitController {
@@ -42,6 +54,8 @@ export interface AppQuitController {
 export function createAppQuitController(deps: AppQuitDependencies): AppQuitController {
   let active = false;
   let finishing = false;
+  /** Wacht de ronde op de schrijfrij? */
+  let waiting = false;
   /** Het document waarvoor we nu de bevestiging tonen. */
   let prompting: string | null = null;
 
@@ -65,9 +79,30 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
     await deps.destroyWindow();
   };
 
+  const waitThenStep = async (saving: Promise<void>) => {
+    waiting = true;
+    const failed = deps.watchFailures();
+    try {
+      await saving;
+    } finally {
+      waiting = false;
+    }
+    if (!active) return;
+    if (failed()) {
+      abort();
+      return;
+    }
+    step();
+  };
+
   const step = () => {
-    if (!active || finishing) return;
+    if (!active || finishing || waiting) return;
     if (deps.getPendingCloseDocId() !== null) return; // de bevestiging staat nog open
+    const saving = deps.waitForSaves();
+    if (saving) {
+      void waitThenStep(saving);
+      return;
+    }
     const docs = deps.listDocuments();
     if (prompting !== null) {
       const stillDirty = docs.some((doc) => doc.id === prompting && doc.isDirty);

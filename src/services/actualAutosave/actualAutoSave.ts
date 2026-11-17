@@ -46,7 +46,8 @@ export function createActualAutoSaveController(deps: {
   /** Stil naar het bestaande doel schrijven; false betekent geen beschikbaar schrijfdoel,
    *  `'stale'` dat de inhoud intussen gewijzigd is (niets geschreven, geen fout — een nieuwe ronde
    *  pakt de actuele inhoud op), `'refused'` dat de doelcontrole het doel weigerde (#804 fixronde 2: niets
-   *  geschreven, het document blijft gewijzigd; de aanroeper heeft het al gemeld). */
+   *  geschreven, het document blijft gewijzigd; de aanroeper heeft het al gemeld) of dat de poort onder het slot
+   *  dicht bleek (#804 stap 3, afsluiten: niets geschreven, niets te melden). */
   write: (candidate: ActualAutoSaveCandidate, content: string) => Promise<boolean | 'stale' | 'refused'>;
   /** Wist dirty uitsluitend wanneer exact deze bronversie nog actueel is. */
   markSavedIfUnchanged: (candidate: ActualAutoSaveCandidate) => void;

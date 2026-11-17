@@ -8,6 +8,17 @@ export function isProjectFileWriteBusy(): boolean {
   return busy;
 }
 
+/**
+ * #804 stap 3: `null` als er geen schrijfactie loopt of wacht; anders een belofte die klaar is zodra de rij leeg is
+ * (ook een schrijfactie die intussen achteraan aansloot). De ene plek waarop afsluiten, een document sluiten en de
+ * updater wachten. Nooit aanroepen en afwachten binnen `runProjectFileWrite`: dan wacht de rij op zichzelf.
+ */
+export function whenProjectFileWritesIdle(): Promise<void> | null {
+  if (!busy) return null;
+  const last = tail;
+  return last.then(() => whenProjectFileWritesIdle() ?? undefined);
+}
+
 export async function runProjectFileWrite<T>(work: () => Promise<T>): Promise<T> {
   busy = true;
   let release: (() => void) | undefined;

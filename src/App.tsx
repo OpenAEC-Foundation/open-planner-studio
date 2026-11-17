@@ -26,6 +26,7 @@ import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { NewOrOpenProjectDialog } from '@/components/dialogs/NewOrOpenProjectDialog';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
+import { SavingBeforeCloseNotice } from '@/components/layout/DocumentChrome/SavingBeforeCloseNotice';
 import { useMacOSMenu } from '@/hooks/useMacOSMenu';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
@@ -464,6 +465,8 @@ function AppContent() {
 
       {/* Sluit-bevestiging bij niet-opgeslagen wijzigingen (3-weg) */}
       <CloseDocumentDialog />
+      {/* "Wordt nog opgeslagen…": sluiten of afsluiten wacht op een lopende opslag (#804 stap 3). */}
+      <SavingBeforeCloseNotice />
 
       {/* Dialogs — lazy geladen; één Suspense-grens rond het hele blok. Alle dialogs
           zijn standaard verborgen (gated of intern `return null`), dus een null-fallback tijdens het

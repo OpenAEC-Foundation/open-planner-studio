@@ -20,6 +20,14 @@ export function appQuitDependencies(
     getPendingCloseDocId: () => store.getState().ui.pendingCloseDocId,
     setPendingCloseDocId: (id) => store.getState().setUI({ pendingCloseDocId: id }),
     setQuitPending: (pending) => store.getState().setUI({ appQuitPending: pending }),
+    waitForSaves: () => store.getState().waitForSavesBeforeClose(),
+    // Elke mislukte of geweigerde opslag meldt zich rood. Een nieuwe melding is een nieuw object, en een samengevouwen
+    // herhaling ("×2") vervangt het object van de bestaande (Immer); beide tellen dus als nieuw.
+    watchFailures: () => {
+      const errors = () => store.getState().ui.notifications.filter((n) => n.severity === 'error');
+      const seen = new Set(errors());
+      return () => errors().some((n) => !seen.has(n));
+    },
     ...edges,
   };
 }

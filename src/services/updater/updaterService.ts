@@ -10,7 +10,7 @@
 
 import { isTauri } from '@/utils/platform';
 import { GITHUB_REPO } from '@/services/githubRepo';
-import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
+import { flushRecoveryAfterWrites } from '@/services/recovery/recoveryFlush';
 
 export interface UpdateInfo {
   version: string;
@@ -167,12 +167,12 @@ export async function downloadAndInstall(
       }
     });
 
-    // Geen normale afsluiting (geen sluitvraag): leg vóór de installatie nog één herstelsnapshot
-    // vast, zodat bewerkingen van de laatste seconden na de update via het herstel-venster
-    // terugkomen.
+    // Geen normale afsluiting (geen sluitvraag): wacht eerst op een lopende projectopslag (#804 stap 3) en leg
+    // vóór de installatie nog één herstelsnapshot vast, zodat bewerkingen van de laatste seconden na de update via
+    // het herstel-venster terugkomen.
     // Een afgewezen flush blokkeert de installatie: die kan de app al afsluiten.
     // De bestaande buitenste catch toont de fout en laat opnieuw proberen toe.
-    await flushRecoveryNow();
+    await flushRecoveryAfterWrites();
     // Pas na de geslaagde download (inclusief handtekeningcontrole) en het herstelwerk installeren.
     onStatus?.({ kind: 'installing' });
     await update.install();

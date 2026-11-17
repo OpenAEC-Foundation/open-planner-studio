@@ -71,6 +71,10 @@ export function createFileAutoSaveController(deps: {
     serialize: candidate => serializeForSave(candidate.source),
     canWrite: canWriteToRefWithoutPrompt,
     write: (candidate, content) => runProjectFileWrite(async () => {
+      // #804 stap 3: de ronde koos haar kandidaten vóór het slot. Sloot het afsluiten intussen de poort (het wachtte op
+      // de rij, zag haar leeg en stopt nu het herstel), dan schrijft deze ronde niet meer: geen write na de schone exit.
+      // Niets geschreven en niets te melden; het document blijft gewijzigd.
+      if (!deps.enabled()) return 'refused';
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock, vóór de write.
       const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
       if (reason) {
