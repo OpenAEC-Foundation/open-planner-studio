@@ -253,7 +253,7 @@ function installTauri() {
           };
         }
         case 'plugin:fs|write_text_file': {
-          // Zoals `write_file_inner` (plugin-fs 2.5.0): opties uit de kop, de tekst als rauwe body.
+          // Zoals `write_file_inner` (plugin-fs 2.7.1): opties uit de kop, de tekst als rauwe body.
           const p = decodeURIComponent(options?.headers?.path ?? '');
           const o = JSON.parse(options?.headers?.options ?? 'null') as { createNew?: boolean; mode?: number } | null;
           if (o?.createNew) {

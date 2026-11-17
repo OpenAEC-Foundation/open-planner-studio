@@ -73,7 +73,8 @@ export async function writeBytesFileAtomic(dir: string, name: string, bytes: Uin
 // extra randen die in appDataDir niet spelen:
 //  - scope: de capability geeft schrijfrecht onder `$HOME`; buiten `$HOME` geeft de bestandskiezer
 //    alleen het gekozen bestand zelf vrij, dus een halffabricaat ernaast wordt geweigerd
-//    ("forbidden path"). Dan blijft alleen direct schrijven over.
+//    ("forbidden path"). Dan blijft alleen direct schrijven over. Sinds plugin-fs 2.7.0 geldt dat ook
+//    voor een map in `$HOME` die via een link naar buiten `$HOME` wijst: de scope toetst het echte pad.
 //  - links: een rename zet een gewoon bestand op de plek van een symlink (het doel van de link
 //    blijft dan oud), en bij een harde link houdt de andere naam de oude inhoud. Een gelinkt bestand
 //    wordt daarom direct beschreven.
@@ -169,8 +170,8 @@ export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: 
 }
 
 type TauriFs = typeof import('@tauri-apps/plugin-fs');
-/** Begin van de schrijffout van `write_file_inner` in tauri-plugin-fs 2.5.0 (`commands.rs`). Verandert
- *  die tekst bij een upgrade, dan blijft een onvolledig eigen halffabricaat staan; het doel niet. */
+/** Begin van de schrijffout van `write_file_inner` in tauri-plugin-fs (2.5.0 tot en met 2.7.1, `commands.rs`).
+ *  Verandert die tekst bij een upgrade, dan blijft een onvolledig eigen halffabricaat staan; het doel niet. */
 export const WRITE_AFTER_CREATE_ERROR = 'failed to write bytes to file at path:';
 type TauriWriteOptions = import('@tauri-apps/plugin-fs').WriteFileOptions;
 
@@ -179,8 +180,9 @@ type TauriWriteOptions = import('@tauri-apps/plugin-fs').WriteFileOptions;
  * Tauri stuurt een kale `Uint8Array` als rauwe body; een `Uint8Array` in een object (zoals
  * `FileHandle.write` doet: `{ rid, data }`) wordt JSON met `Array.from`, één getal per byte, synchroon
  * op de hoofdthread (`process-ipc-message-fn.js` in tauri 2.12.3). Rust opent bij `write_file` met
- * de opties uit de kop `options` en schrijft met `write_all` (tauri-plugin-fs 2.5.0, `write_file_inner`).
- * Die kop moet geldige JSON zijn: onleesbare opties vallen in Rust stil terug op aanmaken en afkappen.
+ * de opties uit de kop `options` en schrijft met `write_all` (tauri-plugin-fs 2.7.1, `write_file_inner`).
+ * Sinds 2.6.0 faalt de aanroep vóór het openen als die opties niet te lezen zijn; daarvóór vielen ze stil
+ * terug op aanmaken en afkappen (ook zonder `createNew`). De opties hieronder zijn altijd leesbaar.
  */
 function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> {
   return {
@@ -232,8 +234,8 @@ export type NewUserBytesFs = Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'
  * - `io`: eigen bestand weg, fout `write`.
  * Na `io` of `target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (knownbug 1795): het opruimen
  * is best effort en verbergt of vervangt de fout nooit, en de route leest het doel niet terug om succes te melden.
- * Mag het tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap; vanaf plugin-fs 2.7.1 ook in een map
- * die via een link naar buiten wijst, met 2.5.0 ontstaat het daar nog, zie 1754), dan blijft de directe exclusieve
+ * Mag het tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, en sinds plugin-fs 2.7.1 ook in een
+ * map die via een link naar buiten wijst), dan blijft de directe exclusieve
  * aanmaak de weg; die is niet crashvast (1131). Alleen de plaatsing via het tijdelijke bestand laat nooit een half
  * einddoel staan.
  * Per doel schrijft de route één regel in het app-log (kanaal `NEW_NAME_LOG_CHANNEL`): het doelpad en de weg, nooit

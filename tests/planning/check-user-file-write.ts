@@ -3,14 +3,14 @@
 //
 // Waarom deze batterij bestaat. `saveToRefTauri` en de opslaan-als-kiezers schreven met een kale
 // `writeTextFile`/`writeFile`. plugin-fs opent het doel met `truncate: true` en schrijft daarna
-// (tauri-plugin-fs 2.5.0, commands.rs `write_file_inner`), dus een volle schijf, I/O-fout of crash
+// (tauri-plugin-fs 2.5.0 tot en met 2.7.1, commands.rs `write_file_inner`), dus een volle schijf, I/O-fout of crash
 // midden in die write liet het projectbestand van de gebruiker leeg of afgekapt achter. De nep-fs
 // hieronder doet precies dat: `write` truncate't eerst en kan daarna "vol raken".
 //
 // Draaien: bundel met esbuild zoals run.sh dat doet en start met node. Exit 0 = alles groen.
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, readlinkSync, symlinkSync, linkSync, lstatSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { installNodeFileIpc, writeFileCall as fileWrite } from './nodeFileIpc';
+import { installNodeFileIpc, realPath, writeFileCall as fileWrite } from './nodeFileIpc';
 import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -371,6 +371,7 @@ for (const kind of ['text', 'bytes'] as const) {
     }
     ipc.faults.forbidden = null;
     ipc.faults.removeError = null;
+
     reset();
     writeFileSync(target, OUD);
     ipc.faults.directWriteError = new Error('direct schrijven geweigerd');
@@ -379,6 +380,41 @@ for (const kind of ['text', 'bytes'] as const) {
     eq(`7 ${kind}/rename+direct: doel compleet, eigen tmp weg`, [readFileSync(target, 'utf8'), readdirSync(root).sort()], [OUD, ['bron.ifc', 'kopie.ifc']]);
     ipc.faults.directWriteError = null;
     ipc.faults.renameError = null;
+
+    // Knownbug 1797 (plugin-fs 2.7.0): de map van het bestand is een link naar buiten de scope, zoals
+    // `~/projecten` → `/data/projecten`. `root` staat hier voor `$HOME/**`. De dialoog gaf het gekozen
+    // bestand vrij (Tauri neemt ook zijn echte vorm op), het halffabricaat ernaast niet, en 2.7.1 toetst
+    // de toestemming op het echte pad (de map van een nieuw bestand opgelost). Opslaan valt dan terug op
+    // direct schrijven; 2.5.0 toetste de tekst en schreef het halffabricaat buiten de scope. Een link
+    // binnen de scope houdt het halffabricaat.
+    if (sep !== '\\') {
+      const buiten = mkdtempSync(join(tmpdir(), 'ops-user-write-buiten-'));
+      try {
+        for (const link of ['buiten', 'binnen'] as const) {
+          reset();
+          const echteMap = link === 'buiten' ? buiten : join(root, 'echt');
+          if (link === 'binnen') mkdirSync(echteMap);
+          const map = join(root, 'projecten');
+          symlinkSync(echteMap, map);
+          const gekozen = join(map, 'plan.ifc');
+          writeFileSync(gekozen, OUD);
+          const wortel = `${realPath(root)}/`;
+          const vrijgegeven = realPath(gekozen);
+          ipc.faults.forbidden = p => { const echt = realPath(p); return echt !== vrijgegeven && !echt.startsWith(wortel); };
+          await save(gekozen);
+          eq(`7 ${kind}/link ${link}: uitvoer exact`, read(gekozen), [...payload]);
+          eq(`7 ${kind}/link ${link}: geen resten in de echte map`, readdirSync(echteMap), ['plan.ifc']);
+          // Per schrijfaanroep: exclusieve aanmaak of directe terugval, en of er werkelijk geschreven is.
+          const route = ipc.calls.filter(c => fileWrite(c) || c.command === 'plugin:fs|rename' || c.command === 'plugin:fs|remove')
+            .map(c => fileWrite(c) ? `${created(c) ? 'createNew' : direct(c) ? 'direct' : 'anders'}:${c.wrote ? 'geschreven' : 'geweigerd'}` : c.command);
+          eq(`7 ${kind}/link ${link}: route`, route, link === 'buiten'
+            ? ['createNew:geweigerd', 'direct:geschreven'] : ['createNew:geschreven', 'plugin:fs|rename']);
+        }
+      } finally {
+        ipc.faults.forbidden = null;
+        rmSync(buiten, { recursive: true, force: true });
+      }
+    }
 
     reset();
     writeFileSync(target, OUD);
@@ -508,6 +544,58 @@ for (const kind of ['text', 'bytes'] as const) {
   }
   eq('8j een ontbrekende bron bewijst niet dat een bestaand exportdoel veilig is',
     await compareFilePaths(fs, source, '/volume/verdwenen.ifc'), 'unknown');
+}
+
+// 9. plugin-fs 2.6.0+ (knownbug 1797): `writeFile`/`writeTextFile` falen als de opties in de kop niet te
+//    lezen zijn, vóór het openen; daarvóór vielen ze stil terug op aanmaken en afkappen, ook zonder
+//    `createNew`. Een JSON-lijst als inhoud moet uit bytes bestaan. De adapter volgt 2.7.1; de opslagroutes
+//    van blok 7 slagen er alleen mee als ze leesbare opties sturen.
+{
+  const root = mkdtempSync(join(tmpdir(), 'ops-write-options-'));
+  const ipc = installNodeFileIpc();
+  try {
+    const fs = await import('@tauri-apps/plugin-fs');
+    const invoke = (globalThis as unknown as { window: { __TAURI_INTERNALS__: { invoke(
+      cmd: string, args: unknown, options?: { headers?: Record<string, string> }): Promise<unknown> } } })
+      .window.__TAURI_INTERNALS__.invoke;
+    const bytes = new Uint8Array([1, 2, 3]);
+    const fout = (p: Promise<unknown>) => p.then(() => '', (e: unknown) => String(e));
+    const pad = (naam: string) => join(root, naam);
+    eq('9a de echte client stuurt een verkeerd type mee: geweigerd, geen bestand',
+      [/^invalid write file options /.test(await fout(fs.writeFile(pad('a.bin'), bytes, { append: 'ja' as unknown as boolean }))),
+        readdirSync(root)], [true, []]);
+    for (const kop of ['{kapot', '[]', '5', '{"createNew":1}', '{"mode":-1}', '{"mode":1.5}']) {
+      eq(`9b onleesbare kop ${kop}: geweigerd, geen bestand`,
+        [/^invalid write file options /.test(await fout(invoke('plugin:fs|write_file', bytes,
+          { headers: { path: encodeURIComponent(pad('b.bin')), options: kop } }))), readdirSync(root)], [true, []]);
+    }
+    for (const kop of ['undefined', 'null', '', '{"onbekend":true}']) {
+      eq(`9c kop ${J(kop)}: de standaarden, aanmaken en schrijven`,
+        [await fout(invoke('plugin:fs|write_file', bytes, { headers: { path: encodeURIComponent(pad('c.bin')), options: kop } })),
+          [...readFileSync(pad('c.bin'))]], ['', [1, 2, 3]]);
+    }
+    // In de volgorde van `write_file_inner`: eerst openen met de opties (standaard aanmaken en afkappen), dan
+    // de inhoud omzetten. De fout komt dus ná het openen: een nieuw bestand blijft leeg achter, een bestaand
+    // bestand is afgekapt. Met `createNew` weigert een bestaand doel al bij het openen.
+    for (const vooraf of [null, 'OUDE INHOUD'] as const) {
+      if (vooraf === null) rmSync(pad('d.bin'), { force: true }); else writeFileSync(pad('d.bin'), vooraf);
+      const melding = await fout(invoke('plugin:fs|write_file', [1, 256],
+        { headers: { path: encodeURIComponent(pad('d.bin')), options: 'null' } }));
+      eq(`9d een JSON-lijst met een waarde die geen byte is (${vooraf === null ? 'nieuw' : 'bestaand'} doel): geweigerd ná het openen`,
+        [/^invalid byte in the data to write: 256/.test(melding),
+          lstatSync(pad('d.bin'), { throwIfNoEntry: false }) ? [...readFileSync(pad('d.bin'))] : 'geen bestand'], [true, []]);
+    }
+    writeFileSync(pad('d.bin'), 'OUDE INHOUD');
+    eq('9d met createNew en een bestaand doel: geweigerd bij het openen, inhoud behouden',
+      [/^failed to open file at path: /.test(await fout(invoke('plugin:fs|write_file', [1, 256],
+        { headers: { path: encodeURIComponent(pad('d.bin')), options: '{"createNew":true}' } }))),
+      readFileSync(pad('d.bin'), 'utf8')], [true, 'OUDE INHOUD']);
+    eq('9e de opties van de opslagroute (createNew en modus) zijn leesbaar',
+      await fout(fs.writeFile(pad('e.bin'), bytes, { createNew: true, mode: 0o640 })), '');
+  } finally {
+    ipc.dispose();
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
 if (diffs.length === 0) {

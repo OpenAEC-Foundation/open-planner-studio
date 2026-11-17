@@ -645,7 +645,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - **Tauri: geen stap vervangt een bestaand bestand** (Sol en Terra, review #839, ronde 3: met twee gewone hernoemstappen
   verving de tweede een nieuw bestand dat na de eerste op het doelpad kwam, en de versie van de architect stond nergens
   meer). plugin-fs kan dat niet voorkomen: `rename` roept `std::fs::rename` aan en vervangt een bestaand doel altijd
-  (`tauri-plugin-fs-2.5.1/src/commands.rs:830`); er is geen exclusieve variant en geen harde link. Alleen `writeFile` en
+  (`tauri-plugin-fs-2.7.1/src/commands.rs:864`); er is geen exclusieve variant en geen harde link. Alleen `writeFile` en
   `open` kennen `createNew`.
   - **Keuze: één smal Rust-commando `place_file_exclusive(from, to)`.** Het plaatst een bestand onder een nieuwe naam en
     faalt als die naam al bestaat (op Windows niet als daar een harde link van de bron zelf staat: dan `placed`, knownbug
@@ -668,13 +668,13 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     Windows: `FlushFileBuffers` op de open bron na de hernoeming). Faalt alleen die laatste, dan is het bestand wel
     geplaatst; dat is een eigen uitkomst, geen mislukking. De scope is die van plugin-fs `rename` zelf, niet
     nagebouwd: wat de capability voor de aanroepende webview toestaat en verbiedt (`Webview::resolve_command_scope`)
-    plus de scope die tijdens het draaien groeit (`fs_scope()`), met de regel van plugin-fs: een verbod in een van
-    beide wint, daarna moet een van beide het pad toestaan. Het standaardverbod van plugin-fs op de webviewmap is in
-    plugin-fs 2.5.0 leeg (knownbug 1797); de app zet het zelf in de capabilities `webviewgegevens-linux.json` en
-    `-windows.json` (#975): de beschermde mappen zelf en alles eronder voor elk fs-commando, en `rename` en `remove`
-    van `$APPLOCALDATA` zelf (buiten die grens: de bovenmappen op Windows, knownbug 1775). Het geldt via die scope ook
-    hier; het commando bouwt het niet zelf na. Bij een toekomstige
-    `requireLiteralLeadingDot: false` wijkt de toets op een verbod uit de runtime-scope af van plugin-fs (knownbug 1777).
+    plus de scope die tijdens het draaien groeit (`fs_scope()`), met de regel van plugin-fs 2.7.1: een verbod in een
+    van beide wint, op de padtekst of op het echte pad (met de puntregel uit `plugins.fs`), daarna moet een van beide
+    het echte pad toestaan; het echte pad lost ook links in de bovenliggende mappen van een nog niet bestaand pad op.
+    Het verbod op de webviewgegevens komt van `fs:default` (`map/**`, op Linux ook `cookies` en `hsts-storage.sqlite`)
+    en van de capabilities `webviewgegevens-linux.json` en `-windows.json` (#975, #978): de beschermde mappen zelf, en
+    `rename` en `remove` van `$APPLOCALDATA` zelf (buiten die grens: de bovenmappen op Windows, knownbug 1775). Het
+    geldt via die scope ook hier; het commando bouwt het niet zelf na.
   - **De grens van het commando** (besluit van de technisch beslisser, 16 november 2026; review #972 rondes 1 en 2).
     Eisen:
     - nooit een bestaand doel vervangen;
@@ -708,8 +708,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     terug op de directe exclusieve aanmaak (één `createNew` op de naam); een andere weigering is een fout, zonder
     opruimen bij `not-regular-file`; `source-changed` stopt: niets terugzetten, niets opruimen, geen terugval, en de
     planner hoort dat de app niet weet of het bestand goed is opgeslagen; `io` ruimt op en is een fout. Mag het
-    tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap; vanaf plugin-fs 2.7.1 ook in een map die
-    via een link naar buiten de thuismap wijst, met 2.5.0 ontstaat het daar nog, knownbug 1754), dan blijft de directe
+    tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, en sinds plugin-fs 2.7.1 ook in een map
+    die via een link naar buiten de thuismap wijst), dan blijft de directe
     aanmaak de weg. Die vervangt nooit een bestand, maar is niet crashvast (knownbug 1131). Na een crash kan er een
     `save-<id>.ops-save.tmp` blijven staan; geen opruimronde bij de start.
   - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
