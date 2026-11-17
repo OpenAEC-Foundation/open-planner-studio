@@ -2645,6 +2645,15 @@ en noem het in je rapport of PR-tekst.
      schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Richting:
      productkeuze 1 uit het onderzoek naar 1131. — B (code), geen proef in de app
 
+1752. **VERVOLG (plugin-fs 2.7.1, desktop): in een map in de thuismap die via een link naar buiten wijst, schrijft Opslaan direct over het bestand.**
+     Bijvoorbeeld `~/projecten` → `/data/projecten`. Sinds plugin-fs 2.7.0 toetst de scope het echte pad: de dialoog
+     gaf het gekozen bestand vrij, het halffabricaat ernaast valt buiten `$HOME/**` en wordt geweigerd. `replaceUserFile`
+     (`atomicWrite.ts`) valt dan terug op direct schrijven, zoals buiten de thuismap al gold. Daar is de opslag niet
+     beschermd tegen een crash of een volle schijf midden in het schrijven: het bestand kan leeg of half achterblijven.
+     Met 2.5.0 schreef de app daar nog via een tijdelijk bestand. Proef: `check-user-file-write.ts` blok 7
+     (`link buiten`: route `createNew:geweigerd` → `direct:geschreven`). Richting: dezelfde oplossing als 1762
+     (Ctrl+S overal via een tijdelijk bestand, later). Gevonden door de review van #978. — B (proef)
+
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
      herstelronde draaien (IndexedDB geweigerd, zoals een sandbox-iframe zonder `allow-same-origin`, #582; de
