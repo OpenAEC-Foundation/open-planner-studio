@@ -6,11 +6,12 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DroogStop, ReleaseStop, ReleaseTaak, slotregel } from '../../scripts/release/uitkomst.mjs';
-import { inWeekendstop, volgRun, verslagTekst, SCRIPTMERK } from '../../scripts/release/github.mjs';
+import { BEGIN, EIND, inWeekendstop, volgRun, verslagTekst } from '../../scripts/release/github.mjs';
 import {
-  ciCheck, controleerOrigin, isAfgeschreven, kiesKandidaat, lever, originTags, release, teksten, vergelijk, vervangBlok, wachtOpReparatie, zetCijfers,
+  ciCheck, controleerOrigin, gewijzigdePaden, isAfgeschreven, kiesKandidaat, lever, vervolgRun, originTags, release, teksten, vergelijk, vervangBlok, wachtOpReparatie, zetCijfers,
 } from '../../scripts/release/stappen.mjs';
-import { claudeArgs, neemSlot } from '../../scripts/release/run.mjs';
+import { claudeArgs, maakContext, neemSlot } from '../../scripts/release/run.mjs';
+import { execFileSync } from 'node:child_process';
 
 const REPO = 'OpenAEC-Foundation/open-planner-studio';
 const SHA_TAG = 'a'.repeat(40);
@@ -62,24 +63,24 @@ function nep({ gh = [], git = [], run = [], http = {}, bestanden = {}, droog = f
 
 const run = (over = {}) => ({
   id: 1, status: 'completed', conclusion: 'success', run_attempt: 1, head_sha: SHA_TAG, head_branch: 'v2026.47.0',
-  event: 'push', created_at: '2026-11-17T04:00:00Z', html_url: 'https://github.com/x/actions/runs/1', ...over,
+  event: 'push', created_at: '2026-11-17T04:00:00Z', updated_at: '2026-11-17T04:29:30Z', html_url: 'https://github.com/x/actions/runs/1', ...over,
 });
 
 const assets = versie => ['Open.Planner.Studio_<v>_amd64.deb', 'Open.Planner.Studio_<v>_x64-setup.exe', 'latest.json', 'open-planner-studio-<v>.mcpb']
   .map(n => ({ name: n.replace('<v>', versie) }));
 
 /** Een vorige tag die helemaal is uitgeleverd: alle runs groen, AUR met het bewezen ontbrekende secret. */
-function uitgeleverd({ snap = run({ id: 30, event: 'workflow_run', head_branch: 'main' }), snapStap = 'success', aurStap = 'skipped', aurNotice = true } = {}) {
+function uitgeleverd({ snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' }), snapStap = 'success', aurStap = 'skipped', aurNotice = true } = {}) {
   return [
     [/releases\/tags\/v2026\.47\.0$/, { draft: false, prerelease: false, published_at: '2026-11-17T04:29:30Z', assets: assets('2026.47.0'), body: '- a\n\n### Downloads' }],
     [/workflows\/release\.yml\/runs/, { workflow_runs: [run({ id: 10 })] }],
     [/actions\/runs\/10$/, run({ id: 10 })],
-    [/workflows\/release-verify\.yml\/runs/, { workflow_runs: [run({ id: 20, event: 'workflow_run', head_branch: 'main' })] }],
+    [/workflows\/release-verify\.yml\/runs/, { workflow_runs: [run({ id: 20, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' })] }],
     [/actions\/runs\/20$/, run({ id: 20, event: 'workflow_run' })],
     [/workflows\/snap\.yml\/runs/, { workflow_runs: [snap] }],
     [/actions\/runs\/30$/, snap],
     [/actions\/runs\/30\/jobs/, { jobs: [{ name: 'build-snap', steps: [{ name: 'Publish to Snap Store', conclusion: snapStap }] }] }],
-    [/workflows\/aur\.yml\/runs/, { workflow_runs: [run({ id: 40, event: 'workflow_run', head_branch: 'main' })] }],
+    [/workflows\/aur\.yml\/runs/, { workflow_runs: [run({ id: 40, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' })] }],
     [/actions\/runs\/40$/, run({ id: 40, event: 'workflow_run' })],
     [/actions\/runs\/40\/jobs/, { jobs: [{ id: 400, name: 'aur', steps: [{ name: 'Push to AUR', conclusion: aurStap }] }] }],
     [/check-runs\/400\/annotations/, aurNotice ? [{ annotation_level: 'notice', message: 'AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.' }] : []],
@@ -140,6 +141,7 @@ test('versies: numeriek vergelijken en stabiele origin-tags, gepeld en nieuwste 
   assert.equal(vergelijk('2026.47.0', '2026.9.3'), 1);
   assert.equal(vergelijk('2026.47.0', '2026.47.0'), 0);
   assert.equal(vergelijk('2026.53.0', '2027.1.0'), -1);
+  assert.throws(() => vergelijk('2026.99.0', '2026.47.0'), e => e.code === 'kandidaat');
   const { ctx } = nep({ git: [['ls-remote', `1\trefs/tags/v2026.9.0\n2\trefs/tags/v2026.47.0\n3\trefs/tags/v2026.47.0^{}\n4\trefs/tags/v2026.48.0-rc1\n`]] });
   assert.deepEqual(originTags(ctx), [{ tag: 'v2026.47.0', sha: '3' }, { tag: 'v2026.9.0', sha: '1' }]);
 });
@@ -252,7 +254,7 @@ test('teksten: de agent mag niet buiten zijn bestanden schrijven', () => {
     claude,
   });
   const info = { versie: '2026.48.0', prev: 'v2026.47.0', base: SHA_MAIN, pad };
-  const buiten = opzet(' M src/App.tsx', () => ({ ok: true, result: 'klaar' }));
+  const buiten = opzet('1 .M N... 100644 100644 100644 a b src/App.tsx\0', () => ({ ok: true, result: 'klaar' }));
   assert.throws(() => teksten(buiten.ctx, pad, info), e => e.code === 'tekst-grens' && /src\/App\.tsx/.test(e.reden));
   const mislukt = opzet('', () => ({ ok: false, fout: 'claude -p faalde: budget' }));
   assert.throws(() => teksten(mislukt.ctx, pad, info), e => e.code === 'tekst-agent');
@@ -273,7 +275,7 @@ test('release: vorige tag helemaal uitgeleverd en niets veranderd: klaar zonder 
 });
 
 test('release: mislukte Snap-publicatie na de rerun stopt, met het verslag bijgewerkt', () => {
-  const snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', run_attempt: 2, conclusion: 'failure' });
+  const snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z', run_attempt: 2, conclusion: 'failure' });
   const { ctx, spoor } = nep({
     git: GIT_BASIS,
     gh: [...GH_BASIS, ...uitgeleverd({ snap }), [/issues\/969\/comments\?per_page/, []], [/-X POST .*issues\/969\/comments/, '']],
@@ -344,11 +346,53 @@ test('release (droog): nieuwe commits en groene main: de eerste schrijfstap is d
   assert.throws(() => release(ctx), e => e instanceof DroogStop && e.stap === 'werkplek release-werk maken');
 });
 
-test('verslag: een ouder verslag van een agent blijft eronder staan', () => {
-  const tekst = verslagTekst({ tag: 'v1', kop: 'uitgebracht', regels: ['a'], oud: '<!-- ops-release:v1 -->\nhandwerk' });
-  assert.ok(tekst.startsWith(`<!-- ops-release:v1 -->\n${SCRIPTMERK}\n**v1: uitgebracht**`));
-  assert.match(tekst, /<details><summary>Eerdere stand \(niet van het script\)<\/summary>\n\nhandwerk\n\n<\/details>$/);
-  assert.equal(tekst.split('<!-- ops-release:v1 -->').length, 2);
+test('verslag: het script schrijft alleen zijn eigen blok en vult zijn regels aan', () => {
+  const eerste = verslagTekst({ tag: 'v1', kop: 'PR groen', regels: ['PR-head groen.', 'Basis x.'], bestaand: '<!-- ops-release:v1 -->\nhandwerk van een agent' });
+  assert.ok(eerste.startsWith(`<!-- ops-release:v1 -->\n${BEGIN}\n**v1: PR groen**`));
+  assert.ok(eerste.endsWith(`${EIND}\n\nhandwerk van een agent`));
+  // De thread zet er een fix-PR en een review onder; het volgende verslag met een kortere lijst wist niets.
+  const metNotitie = `${eerste}\n\nFix-PR #1234, review-taak ABC, VERVOLG: 1801.`;
+  const tweede = verslagTekst({ tag: 'v1', kop: 'klaar voor de tag', regels: ['Te taggen SHA y.', 'Basis x.'], bestaand: metNotitie });
+  assert.match(tweede, /\*\*v1: klaar voor de tag\*\*\n\n- PR-head groen\.\n- Basis x\.\n- Te taggen SHA y\.\n/);
+  assert.match(tweede, /handwerk van een agent\n\nFix-PR #1234, review-taak ABC, VERVOLG: 1801\.$/);
+  assert.equal(tweede.split('<!-- ops-release:v1 -->').length, 2);
+  assert.equal(tweede.split(BEGIN).length, 2);
+});
+
+test('gewijzigdePaden: echte git-status via de echte adapter, ook het eerste pad en vreemde namen', () => {
+  const map = mkdtempSync(join(tmpdir(), 'ops-release-git-'));
+  try {
+    const git = (...args) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd: map, encoding: 'utf8' });
+    git('init', '-q');
+    for (const f of ['headless/a.json', 'docs/CHANGELOG.md', 'oud.txt', 'weg.txt']) {
+      execFileSync('mkdir', ['-p', join(map, f, '..')]);
+      writeFileSync(join(map, f), 'x\n');
+    }
+    git('add', '.');
+    git('commit', '-qm', 'begin');
+    writeFileSync(join(map, 'headless/a.json'), 'y\n');
+    writeFileSync(join(map, 'docs/CHANGELOG.md'), 'y\n');
+    writeFileSync(join(map, 'nieuw met spatie.md'), 'n\n');
+    git('mv', 'oud.txt', 'nieuw.txt');
+    git('rm', '-q', 'weg.txt');
+    const ctx = maakContext({ droog: true, scriptRoot: map, root: map, log: () => {} });
+    assert.deepEqual(gewijzigdePaden(ctx, map).sort(), ['docs/CHANGELOG.md', 'headless/a.json', 'nieuw met spatie.md', 'nieuw.txt', 'oud.txt', 'weg.txt']);
+  } finally {
+    rmSync(map, { recursive: true, force: true });
+  }
+});
+
+test('vervolgRun: workflow_run op de SHA van main, gekoppeld aan het einde van de release-run (v2026.45.0)', () => {
+  const release = run({ id: 42683918392, head_sha: 'fb617899c39dcd08089856f43b9a38df434741ad', updated_at: '2026-11-09T19:58:17Z' });
+  const snap = run({ id: 42688429475, event: 'workflow_run', head_branch: 'main', head_sha: '2a66df33c8854e296b638a3f0d39379280d1afb6', created_at: '2026-11-09T19:58:20Z' });
+  const vorigeWeek = run({ id: 1, event: 'workflow_run', head_branch: 'main', created_at: '2026-10-31T11:41:08Z' });
+  const pr = run({ id: 2, event: 'pull_request', head_branch: 'x', created_at: '2026-11-09T19:59:00Z' });
+  const { ctx, spoor } = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [pr, snap, vorigeWeek] }]] });
+  assert.equal(vervolgRun(ctx, 'snap.yml', { tag: 'v2026.45.0', releaseRun: release })?.id, 42688429475);
+  assert.match(spoor.gh[0], /created=%3E%3D2026-11-09T19%3A53%3A17/);
+  const later = run({ id: 3, event: 'workflow_dispatch', head_branch: 'v2026.45.0', created_at: '2026-11-10T08:00:00Z' });
+  const alleenDispatch = nep({ gh: [[/aur\.yml\/runs/, { workflow_runs: [later] }]] });
+  assert.equal(vervolgRun(alleenDispatch.ctx, 'aur.yml', { tag: 'v2026.45.0', releaseRun: release })?.id, 3);
 });
 
 test('slot: één run tegelijk; een dood proces laat geen slot achter', () => {

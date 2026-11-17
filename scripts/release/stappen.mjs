@@ -2,6 +2,7 @@
 // werkplek) of hij al af is; zo kan het script na elke stop of crash opnieuw beginnen.
 // Wat de stappen doen, staat in `.claude/skills/release/SKILL.md` en `referentie.md`.
 import { join } from 'node:path';
+import { parseVersion } from '../bump-version.js';
 import { DroogStop, ReleaseStop, ReleaseTaak } from './uitkomst.mjs';
 import { api, runs, volgRun, wacht, wachtOfNull, wachtOpChecks, schrijfVerslag } from './github.mjs';
 import { tekstOpdracht, herstelOpdracht, websiteOpdracht, TEKST_PADEN, WEBSITE_TEKST_PADEN, TEKST_TOOLS, WEBSITE_TOOLS } from './agent.mjs';
@@ -16,9 +17,11 @@ const WEBSITE = 'OpenAEC-Foundation/website';
 // Versies
 
 export function versieDelen(versie) {
-  const m = STABIELE_TAG.exec(`v${String(versie).replace(/^v/, '')}`);
-  if (!m) throw new ReleaseStop('kandidaat', `"${versie}" is geen versie JJJJ.W.N`);
-  return m.slice(1).map(Number);
+  try {
+    return parseVersion(String(versie).replace(/^v/, ''));
+  } catch (err) {
+    throw new ReleaseStop('kandidaat', err.message);
+  }
 }
 
 /** -1, 0 of 1, met jaar, week en volgnummer als getallen. */
@@ -29,6 +32,8 @@ export function vergelijk(a, b) {
   return 0;
 }
 
+const geldig = tag => { try { parseVersion(tag.slice(1)); return true; } catch { return false; } };
+
 /** De stabiele origin-tags met hun commit, nieuwste eerst. */
 export function originTags(ctx) {
   const regels = ctx.git(['ls-remote', '--tags', 'origin', 'v*']).split('\n').filter(Boolean);
@@ -37,7 +42,7 @@ export function originTags(ctx) {
     const [sha, ref] = regel.split('\t');
     const naam = ref.replace(/^refs\/tags\//, '');
     const kaal = naam.replace(/\^\{\}$/, '');
-    if (!STABIELE_TAG.test(kaal)) continue;
+    if (!STABIELE_TAG.test(kaal) || !geldig(kaal)) continue;
     // De gepelde regel (^{}) geeft de commit van een geannoteerde tag; die wint.
     if (naam.endsWith('^{}') || !tags.has(kaal)) tags.set(kaal, sha);
   }
@@ -207,7 +212,7 @@ export function lever(ctx, { tag, sha }, regels) {
   // Een vervolgrun die na een uur nog niet bestaat, is een stop: een dispatch van snap.yml publiceert niet,
   // en release-verify hoort vanzelf te starten.
   const vervolg = (workflow, label, stopcode, groen, ontbreekt = stopcode) => {
-    const zoek = () => vervolgRun(ctx, workflow, { tag, sha });
+    const zoek = () => vervolgRun(ctx, workflow, { tag, releaseRun });
     const gevonden = wachtOfNull(ctx, `${label} voor ${tag} start`, () => zoek() ?? undefined, { maxMs: UUR });
     if (!gevonden) throw new ReleaseStop(ontbreekt, `${tag}: geen ${workflow}-run na release.yml`);
     return volgRun(ctx, { label: `${label} ${tag}`, stopcode, zoek: () => zoek() ?? gevonden, maxMs: 3 * UUR, groen });
@@ -223,20 +228,27 @@ export function lever(ctx, { tag, sha }, regels) {
     'snap-ontbreekt');
   regels.push(`Snap: [${snap.id}](${snap.html_url}) groen, Publish to Snap Store gelukt.`);
 
-  regels.push(aur(ctx, { tag, sha, versie }));
+  regels.push(aur(ctx, { tag, versie, releaseRun }));
   regels.push(controleerAssets(ctx, { tag, versie, release }));
   regels.push(wiki(ctx, { tag, sha, versie }));
 }
 
-/** De run van een vervolgworkflow voor deze tag: via `workflow_run`, of een dispatch op de tag. */
-function vervolgRun(ctx, workflow, { tag, sha }) {
-  return runs(ctx, workflow, { head_sha: sha }).find(r => r.head_sha === sha
-    && (r.event === 'workflow_run' || (r.event === 'workflow_dispatch' && r.head_branch === tag))) ?? null;
+/**
+ * De run van een vervolgworkflow voor deze tag. Een `workflow_run`-run staat op de SHA van main op dat moment,
+ * niet op de tag (v2026.45.0: release op fb617899, Snap en Verify op 2a66df33). Hij start binnen seconden nadat de
+ * release-run klaar is; daaraan koppelt het script hem. Anders: een dispatch op de tag zelf.
+ */
+export function vervolgRun(ctx, workflow, { tag, releaseRun }) {
+  const klaar = Date.parse(releaseRun.updated_at);
+  const lijst = runs(ctx, workflow, { created: `>=${new Date(klaar - 5 * MINUUT).toISOString()}` });
+  const binnen = lijst.filter(r => r.event === 'workflow_run' && Math.abs(Date.parse(r.created_at) - klaar) <= 30 * MINUUT)
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  return binnen[0] ?? lijst.find(r => r.event === 'workflow_dispatch' && r.head_branch === tag) ?? null;
 }
 
 /** AUR: groen met push, of het bewezen ontbrekende secret (referentie.md, Ontbrekend AUR-secret). */
-function aur(ctx, { tag, sha, versie }) {
-  const zoek = () => vervolgRun(ctx, 'aur.yml', { tag, sha });
+function aur(ctx, { tag, versie, releaseRun }) {
+  const zoek = () => vervolgRun(ctx, 'aur.yml', { tag, releaseRun });
   if (!wachtOfNull(ctx, `aur.yml voor ${tag} start`, () => zoek() ?? undefined, { maxMs: 30 * MINUUT })) {
     ctx.act(`aur.yml starten voor ${tag} (publish=true)`, () =>
       ctx.gh(['workflow', 'run', 'aur.yml', '--repo', ctx.repo, '--ref', tag, '-f', `version=${tag}`, '-f', 'publish=true']));
@@ -300,7 +312,7 @@ function controleerAssets(ctx, { tag, versie, release }) {
 /** Wiki: af als de Changelog-pagina de sectie van deze versie heeft; anders publiceren vanaf de tag. */
 function wiki(ctx, { tag, sha, versie }) {
   const changelog = 'https://raw.githubusercontent.com/wiki/OpenAEC-Foundation/open-planner-studio/Changelog.md';
-  const heeftVersie = () => new RegExp(`^## v${versie.replace(/\./g, '\\.')} `, 'm').test(ctx.httpText(changelog) ?? '');
+  const heeftVersie = () => (ctx.httpText(changelog) ?? '').split('\n').some(r => r.startsWith(`## v${versie} `));
   if (heeftVersie()) return `Wiki: de Changelog-pagina heeft ${tag}.`;
   const pad = werkplek(ctx, 'release-wiki', { ref: sha });
   npmCi(ctx, pad);
@@ -444,9 +456,29 @@ function websitePr(ctx, { tag, versie, branch }) {
   return ctx.ghJson(['pr', 'view', branch, '--repo', WEBSITE, '--json', 'number,state,mergeCommit,url']);
 }
 
+/**
+ * De gewijzigde paden in een werkplek (ook nieuw en verwijderd; bij een hernoeming beide namen). Porcelain v2 met
+ * NUL-scheiding: geen betekenisvolle spatie vooraan, geen aanhalingstekens rond vreemde namen.
+ */
+export function gewijzigdePaden(ctx, pad) {
+  const delen = ctx.git(['status', '--porcelain=v2', '-z', '--untracked-files=all'], { cwd: pad }).split('\0');
+  const paden = [];
+  for (let i = 0; i < delen.length; i++) {
+    const regel = delen[i];
+    if (!regel) continue;
+    const velden = regel.split(' ');
+    if (regel.startsWith('1 ')) paden.push(velden.slice(8).join(' '));
+    else if (regel.startsWith('2 ')) paden.push(velden.slice(9).join(' '), delen[++i]);
+    else if (regel.startsWith('u ')) paden.push(velden.slice(10).join(' '));
+    else if (regel.startsWith('? ')) paden.push(regel.slice(2));
+    else if (!regel.startsWith('! ')) throw new Error(`onbekende statusregel: ${regel}`);
+  }
+  return paden;
+}
+
 /** De gewijzigde paden; een pad buiten `toegestaan` is een fout. */
 function buitenGrenzen(ctx, pad, toegestaan, wat) {
-  const paden = ctx.git(['status', '--porcelain', '--untracked-files=all'], { cwd: pad }).split('\n').filter(Boolean).map(r => r.slice(3));
+  const paden = gewijzigdePaden(ctx, pad);
   const mag = p => toegestaan.some(t => (t.endsWith('/') ? p.startsWith(t) : p === t));
   const fout = paden.filter(p => !mag(p));
   if (fout.length) {
@@ -587,7 +619,7 @@ export function vulCijfers(ctx, pad, { versie, prev, base }) {
 
 /** Commit alle wijzigingen (al binnen de grenzen gecontroleerd), na een blik op `git status -sb`. */
 function commitAlles(ctx, pad, bericht) {
-  const paden = ctx.git(['status', '--porcelain', '--untracked-files=all'], { cwd: pad }).split('\n').filter(Boolean).map(r => r.slice(3));
+  const paden = gewijzigdePaden(ctx, pad);
   if (paden.length === 0) return false;
   ctx.log(ctx.git(['status', '-sb'], { cwd: pad }));
   ctx.act(`commit "${bericht}"`, () => {

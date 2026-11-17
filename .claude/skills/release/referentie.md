@@ -91,7 +91,9 @@ Anders controleert het script, in deze volgorde, en stopt het bij elke onbekende
    draft zonder run: stop. Rood: eenmaal `gh run rerun <id> --failed`, nooit een hele rerun (na een geslaagde
    `create-release` zou die een tweede draft maken). Daarna moet de release gepubliceerd zijn
    (`draft=false`, `prerelease=false`, `published_at`). Alleen HTTP 404 telt als ontbrekend.
-2. **Vervolgworkflows.** `release-verify.yml`, `snap.yml` en `aur.yml` via `workflow_run` op de tag-SHA.
+2. **Vervolgworkflows.** `release-verify.yml`, `snap.yml` en `aur.yml` via `workflow_run`. Zo'n run staat op de
+   SHA van main op dat moment, niet op de tag; het script koppelt hem aan het einde van de release-run (hij start
+   binnen seconden daarna).
    Snap telt alleen met de stap `Publish to Snap Store` op `success`; een ontbrekende Snap-run is een stop
    (een dispatch publiceert niet). Een ontbrekende AUR-run krijgt eenmaal
    `gh workflow run aur.yml --ref "$TAG" -f "version=$TAG" -f publish=true`. AUR telt met `Push to AUR` op
@@ -103,9 +105,11 @@ Anders controleert het script, in deze volgorde, en stopt het bij elke onbekende
    de vorige. Zie [Website](#website).
 
 **Hervatverslag.** Eén reactie met `<!-- ops-release:TAG -->` op de PR `Release v<VERSION>`, door het script
-geschreven vóór de tag en na elke stap; een ouder verslag van een agent blijft eronder staan. Het script leest de
+geschreven vóór de tag en na elke stap. Het script schrijft alleen tussen `<!-- ops-release-script:begin -->` en
+`<!-- ops-release-script:end -->` en vult daar zijn regels aan; wat erbuiten staat (een ouder verslag, notities van
+de thread) laat het staan. Het script leest de
 stand niet uit het verslag maar uit GitHub, dus ook een verslag dat “klaar” zegt, wordt gecontroleerd. De thread
-zet fix-PR's, reruns, review-taak-ID's en BLOKKEERT/VERVOLG erbij als hij een stop herstelt.
+zet fix-PR's, reruns, review-taak-ID's en BLOKKEERT/VERVOLG eronder, buiten het scriptblok, als hij een stop herstelt.
 
 ### Ontbrekend AUR-secret
 

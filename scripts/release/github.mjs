@@ -126,24 +126,31 @@ export function wachtOpChecks(ctx, { sha, event, label, stopcode }) {
 // ---------------------------------------------------------------------------------------------------
 // Hervatverslag: één reactie met `<!-- ops-release:TAG -->` op de PR `Release vVERSION`.
 
-export const SCRIPTMERK = '<!-- ops-release-script -->';
+// Het script schrijft alleen tussen deze twee markers. Alles eromheen (een ouder verslag van een agent, notities
+// van de thread over fix-PR's en reviews) blijft staan. Eigen regels worden aangevuld, nooit weggehaald.
+export const BEGIN = '<!-- ops-release-script:begin -->';
+export const EIND = '<!-- ops-release-script:end -->';
 
-/** Maakt de tekst van het verslag. Een ouder verslag dat niet van het script is, blijft eronder staan. */
-export function verslagTekst({ tag, kop, regels, oud }) {
-  const delen = [
-    `<!-- ops-release:${tag} -->`,
-    SCRIPTMERK,
-    `**${tag}: ${kop}**`,
-    '',
-    ...regels.map(r => `- ${r}`),
-    '',
-    '*Bijgehouden door het releasescript (`scripts/release/run.mjs`), gestart door een AI-assistent.*',
-  ];
-  if (oud) {
-    const zonderMerk = oud.replace(`<!-- ops-release:${tag} -->`, '').trim();
-    delen.push('', '<details><summary>Eerdere stand (niet van het script)</summary>', '', zonderMerk, '', '</details>');
+export function verslagTekst({ tag, kop, regels, bestaand = null }) {
+  const marker = `<!-- ops-release:${tag} -->`;
+  let voor = `${marker}\n`;
+  let na = '';
+  let oud = [];
+  if (bestaand) {
+    const b = bestaand.indexOf(BEGIN);
+    const e = bestaand.indexOf(EIND);
+    if (b >= 0 && e > b) {
+      voor = bestaand.slice(0, b);
+      na = bestaand.slice(e + EIND.length);
+      oud = bestaand.slice(b, e).split('\n').filter(r => r.startsWith('- ')).map(r => r.slice(2));
+    } else {
+      na = `\n\n${bestaand.replace(marker, '').trim()}`;
+    }
   }
-  return delen.join('\n');
+  const nieuw = regels.map(r => String(r).replace(/\s+/g, ' ').trim()).filter(r => r && !oud.includes(r));
+  const blok = [BEGIN, `**${tag}: ${kop}**`, '', ...[...oud, ...nieuw].map(r => `- ${r}`), '',
+    '*Bijgehouden door het releasescript (`scripts/release/run.mjs`), gestart door een AI-assistent.*', EIND].join('\n');
+  return voor + blok + na;
 }
 
 /** Zoekt de reactie met de marker van `tag` op PR `nummer`. */
@@ -152,12 +159,10 @@ export function vindVerslag(ctx, nummer, tag) {
   return reacties.find(r => typeof r.body === 'string' && r.body.includes(`<!-- ops-release:${tag} -->`)) ?? null;
 }
 
-/** Schrijft het verslag bij of maakt het aan. Een ouder verslag van een agent blijft bewaard. */
+/** Schrijft het verslag bij of maakt het aan. */
 export function schrijfVerslag(ctx, { nummer, tag, kop, regels }) {
   const bestaand = vindVerslag(ctx, nummer, tag);
-  const oud = bestaand && !bestaand.body.includes(SCRIPTMERK) ? bestaand.body
-    : bestaand?.body.match(/<details><summary>Eerdere stand \(niet van het script\)<\/summary>\n\n([\s\S]*)\n\n<\/details>$/)?.[1];
-  const body = verslagTekst({ tag, kop, regels, oud });
+  const body = verslagTekst({ tag, kop, regels, bestaand: bestaand?.body ?? null });
   if (bestaand?.body === body) return;
   ctx.act(`hervatverslag ${tag} op PR #${nummer} bijwerken`, () => {
     const pad = bestaand ? `repos/${ctx.repo}/issues/comments/${bestaand.id}` : `repos/${ctx.repo}/issues/${nummer}/comments`;
