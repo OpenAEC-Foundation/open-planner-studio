@@ -807,7 +807,7 @@ impl FsRenameScope {
         let options = glob::MatchOptions {
             // Zoals plugin-fs: `map/*` matcht geen bestand in een submap.
             require_literal_separator: true,
-            require_literal_leading_dot: self.require_literal_leading_dot.unwrap_or(cfg!(unix)),
+            require_literal_leading_dot: cfg!(unix), // MUTATIE 1777: puntregel niet uit de config
             ..Default::default()
         };
         let denied = |scope: &tauri::scope::fs::Scope, path: &Path| {
