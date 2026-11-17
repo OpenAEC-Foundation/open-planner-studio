@@ -36,6 +36,20 @@ serde_json = "1"
 # vóór alle andere plugins staan en wordt in dev-instanties bewust overgeslagen.
 tauri-plugin-single-instance = "2"
 
+# Voor `place_file_exclusive` (src/commands/place_file.rs): de exclusieve hernoemstap per platform
+# (`renameat2`/`renameatx_np`, `SetFileInformationByHandle`). Beide crates stonden al in Cargo.lock, als afhankelijkheid
+# van andere crates; dezelfde versies, geen nieuwe crate.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.186"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
+
+# Alleen voor `cargo test`: een nep-app van Tauri (`tauri::test`), zodat de proef van `place_file_exclusive` de
+# echte scope van plugin-fs uit de eigen config en capability opvraagt. De feature `test` brengt geen crate mee.
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

@@ -649,7 +649,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   `open` kennen `createNew`.
   - **Keuze: één smal Rust-commando `place_file_exclusive(from, to)`.** Het plaatst een bestand onder een nieuwe naam en
     faalt als die naam al bestaat, in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
-    `renamex_np` met `RENAME_EXCL`, op Windows `MoveFileExW` zonder `MOVEFILE_REPLACE_EXISTING`. Kent het
+    `renameatx_np` met `RENAME_EXCL`, op Windows `SetFileInformationByHandle` (`FileRenameInfo`) zonder vervangen. Kent het
     bestandssysteem zo'n stap niet (`EINVAL`, `ENOTSUP`, bijvoorbeeld op sommige netwerkschijven), dan geeft het de fout
     *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
     verdwijnen dat tussen de twee aanroepen op het doel kwam (Sol, review #839, ronde 4, met echte bestanden). Het
@@ -660,6 +660,41 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     `writeFile(…, { createNew: true })`, en die kan een bestaand doel niet opzij zetten. Geeft het commando *niet
     ondersteund*, dan laat de app het doel staan en biedt hij *Opslaan als* aan; Opslaan als naar een nieuwe naam maakt
     het bestand met `createNew`.
+  - **Fsync en scope in het commando** (knownbug 1761; 1131 stap 3). De eis noemt stroomuitval, en in stap 4 is het
+    doel een vrije naam, waar `auto_da_alloc` van ext4 niet helpt. Daarom legt het commando zelf de inhoud van `from`
+    vast vóór de stap (`sync_all`; Windows `FlushFileBuffers`) en de map erna (Unix: `sync_all` op de open map;
+    Windows: `FlushFileBuffers` op de open bron na de hernoeming). Faalt alleen die laatste, dan is het bestand wel
+    geplaatst; dat is een eigen uitkomst, geen mislukking. De scope is die van plugin-fs `rename` zelf, niet
+    nagebouwd: wat de capability voor de aanroepende webview toestaat en verbiedt (`Webview::resolve_command_scope`)
+    plus de scope die tijdens het draaien groeit (`fs_scope()`), met de regel van plugin-fs: een verbod in een van
+    beide wint, daarna moet een van beide het pad toestaan. Het standaardverbod van plugin-fs op de webviewmap is in
+    plugin-fs 2.5.0 leeg (knownbug 1796); het commando bouwt het niet zelf na. Bij een toekomstige
+    `requireLiteralLeadingDot: false` wijkt de toets op een verbod uit de runtime-scope af van plugin-fs (knownbug 1777).
+  - **De grens van het commando** (besluit van de technisch beslisser, 16 november 2026; review #972 rondes 1 en 2).
+    Eisen:
+    - nooit een bestaand doel vervangen;
+    - nooit een pad toelaten dat plugin-fs weigert (de oorspronkelijke `from`/`to`-tekst plus de echte map);
+    - een fout van de stap blijft een fout (`EEXIST` is `target-exists`, ook bij hetzelfde inode);
+    - na de stap hoogstens één verplaatsing, geen herstel.
+
+    Buiten de grens (benoemd, knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen controle en
+    stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als het dat achteraf ziet, en
+    kan het missen bij een wissel-terug. Op Windows speelt dit niet.
+
+    Waarom: op Linux en macOS hernoemt het systeem op naam, dus een strikte binding bestaat daar niet zonder een omweg
+    in twee stappen die alleen Linux heeft. Wie tussen controle en stap een object onder de hulpnaam kan zetten, heeft
+    via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`.
+
+    Hoe: eerst de padteksten van de aanroeper zoals plugin-fs `rename` ze toetst (`SafeFilePath`, dan de scope van
+    `from` en daarna van `to`; een doel dat nog niet bestaat, maakt Tauri niet canoniek). Dan de map, één keer geopend
+    en vastgehouden, met de scope ook op het echte pad van die open map. De bron wordt in die map geopend zonder links
+    te volgen en op de open bron gecontroleerd en vastgelegd. De stap gaat relatief aan de open map (Linux
+    `renameat2`, macOS `renameatx_np`); op Windows zijn map en bron geopend zonder `FILE_SHARE_DELETE` en hernoemt
+    `SetFileInformationByHandle` de open bron zelf. Na de stap moet op het doel de open bron staan, in de open map en
+    via het pad van de aanroeper; anders geeft het commando `source-changed` en raakt het niets meer aan. Die uitkomst
+    belooft geen stand op schijf: de app leidt er geen eigendom of opruimen uit af. Geen terugval: wat de stap niet
+    kent, geeft *niet ondersteund*. Een netwerkschijf kan een fout geven nadat de hernoeming toch gebeurde; het
+    commando vangt dat niet (knownbug 1795).
   - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
     (§4.14). Kan de app dat niet veilig vastleggen (herstelopslag niet beschikbaar of geblokkeerd), dan stopt opslaan
     hier: zonder `pendingReplace` vindt herstel de restbestanden niet terug. De melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de

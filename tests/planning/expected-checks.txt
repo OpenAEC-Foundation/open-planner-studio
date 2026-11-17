@@ -306,6 +306,7 @@ check-p6xml-writer-labels.ts matrix
 check-p6xml-writer-p6.ts matrix
 check-p6xml-xer-parity.ts matrix
 check-paste-references.ts matrix
+check-place-file-exclusive.ts matrix
 check-placement-load.ts matrix
 check-print-bar-dates.ts matrix
 check-print-bar-moments.ts matrix

@@ -2614,13 +2614,22 @@ en noem het in je rapport of PR-tekst.
         in `refusedWriteTarget` (alleen een handle), de inhoudscontrole vóór de merge en vlak vóór `close()`, de
         vervanging in `replaceWithRecoveryPending`. De desktop (een pad) weigert nog zoals voorheen en wacht op stap 3
         tot en met 5.
-     3. Het Rust-commando `place_file_exclusive` met fsync, los en per platform getoetst (wacht op een productkeuze).
+     3. Gebouwd (stap 3, #972): het Rust-commando `place_file_exclusive` (`src-tauri/src/commands/place_file.rs`) en
+        de TS-ingang `placeFileExclusive.ts`; nog door geen route gebruikt. De grens van het commando (besluit van de
+        technisch beslisser, 16 november 2026) staat bovenaan `place_file.rs` en in ontwerp §4.10: nooit een bestaand
+        doel vervangen, nooit een pad dat plugin-fs weigert (de padteksten van de aanroeper en de echte map), een fout
+        van de stap blijft een fout, na de stap hoogstens één verplaatsing en geen herstel. Op Unix blijft een venster
+        tussen controle en stap (1799). `rust-tests.yml` draait `cargo test place_file` op Ubuntu 22.04, macOS en
+        Windows (aantallen in #972), ook wissels vóór en na de echte stap, een harde link op het doel en dezelfde
+        invoer door de IPC naar plugin-fs `rename` en dit commando. Elke controle kreeg een mutatie die haar eigen
+        proef rood maakte.
      4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
      6. Teksten en handleiding, met de eigenaar.
      Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; van stap 2:
-     `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle). Crash, stroomuitval en externe
+     `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
+     en `check-place-file-exclusive.ts`. Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1760. **VERVOLG (#804, tekst): Opslaan als over een bestaand planningsbestand met een gebouwmodel geeft een interne fouttekst.**
@@ -2629,22 +2638,11 @@ en noem het in je rapport of PR-tekst.
      `byteParts.ts:8`; de proef `check-ifc-document-save.ts` toetst alleen de sleutel. Richting: dezelfde zin als bij
      Exporteren. Uit het onderzoek naar 1131 (16 november 2026). — B (code)
 
-1761. **VERVOLG (#804, ontwerp): het ontwerp noemt geen fsync bij het vervangen, terwijl de eis stroomuitval noemt.**
-     In stap 4 van §4.10 is het doel een vrije naam; daar helpt `auto_da_alloc` van ext4 niet, dus na stroomuitval kan
-     het doel leeg of half zijn terwijl de opzijgezette versie volledig is. Richting: `sync_all` op het tijdelijke
-     bestand en een fsync van de map in `place_file_exclusive` (Windows: `FlushFileBuffers` en `MOVEFILE_WRITE_THROUGH`),
-     en §4.10 aanvullen. Uit het onderzoek naar 1131. — S
-
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
      De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
      (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
      schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Richting:
      productkeuze 1 uit het onderzoek naar 1131. — B (code), geen proef in de app
-
-1763. **VERVOLG (#804, CI): de Rust-proeven per platform uit het besluit over `place_file_exclusive` hebben nog geen workflow.**
-     `cargo test` draait alleen op Ubuntu, voor `mcp_bridge` en `desktop_integration`
-     (`.github/workflows/mcp-real-app.yml:42, 74-75`); de builds op Windows en macOS in `ci.yml` draaien geen tests.
-     Nodig vóór stap 3 van 1131; de workflowwijziging pusht Trias. Uit het onderzoek naar 1131. — B
 
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
@@ -2660,8 +2658,9 @@ en noem het in je rapport of PR-tekst.
      via plugin-fs) en in de browser met de standaardduurzaamheid van IndexedDB, zonder `durability: 'strict'`. Na
      stroomuitval kan de nieuwe versie op het doel staan terwijl het manifest nog de oude noemt: herstel geeft dan
      "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
-     gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: meenemen bij de fsync van 1761. Gevonden
-     in stap 1 van 1131. — S
+     gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: een eigen fsync voor de herstelopslag;
+     die van `place_file_exclusive` (1131 stap 3) dekt alleen het verplaatste bestand en zijn map. Gevonden in stap 1
+     van 1131. — S
 
 1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
      Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
@@ -2694,6 +2693,76 @@ en noem het in je rapport of PR-tekst.
      geschreven is. Het bewerkte deel van de proef schrijft wel andere bytes en heropent die. Richting: de begintoestand
      toetsen en wachten op een waargenomen schrijfronde, bijvoorbeeld via `lastModified` van het bestand. Niet gemeten
      door de reviewer (de run kwam niet aan de beurt). Gevonden door de review van #967. — S
+
+1778. **VERVOLG (Rust, opruimen): `cargo fmt --check` is rood op `desktop_integration.rs` en `mcp_bridge.rs`.**
+     Gemeten op de basis van #972 (`44ebc95d9`): rustfmt wil op vijf plekken in `mcp_bridge.rs` en op drie in
+     `desktop_integration.rs` anders afbreken (standaardinstellingen, geen `rustfmt.toml`). Geen CI-job draait
+     `cargo fmt --check`, dus het valt niemand op. Richting: één opmaakcommit, daarna eventueel een fmt-stap in CI.
+     Uit 1131 stap 3. — B (gemeten)
+
+1779. **VERVOLG (#804, Windows): `place_file_exclusive` kan een alleen-lezen bestand niet als `from` gebruiken.**
+     Op Windows opent het commando `from` met lees-, schrijf- en verwijderrecht (`FlushFileBuffers` vraagt schrijfrecht,
+     de hernoeming via de handle `DELETE`) en zonder `FILE_SHARE_DELETE`; een bestand met het kenmerk alleen-lezen geeft
+     dan `io` (niets verplaatst). Een ander programma dat het bestand open heeft zonder delen, geeft ook `io`. Dat raakt stap 3 van §4.10 (het
+     doel opzij zetten) bij een alleen-lezen doel; opslaan stopt dan veilig. Verwant aan 162. Niet gemeten (geen
+     Windows hier). Uit 1131 stap 3. — S
+
+1777. **VERVOLG (#804, scope): bij `requireLiteralLeadingDot: false` toetst `place_file_exclusive` een runtime-verbod anders dan plugin-fs.**
+     Plugin-fs toetst een verbod met zijn eigen config (`tauri-plugin-fs-2.5.0/src/commands.rs:1585`); het commando
+     gebruikt `is_forbidden` van de runtime-scope, die plugin-fs met de standaardpuntregel maakt (`lib.rs:490`). Zet
+     iemand op Unix `plugins.fs.requireLiteralLeadingDot` op `false`, dan kan een wildcardverbod in de runtime-scope
+     bij het commando een puntbestand missen dat plugin-fs wel weigert. De huidige config (leeg) raakt dat niet.
+     Gevonden door de review van #972 (ronde 2). — B (code)
+
+1795. **VERVOLG (#804, netwerkschijf): een hernoeming kan een fout geven nadat ze toch gebeurde.**
+     Op NFS kan een herhaald verzoek na een verloren antwoord `EEXIST` of `ENOENT` geven terwijl de eerste poging de
+     naam al verplaatste. `place_file_exclusive` vangt dat niet: een fout van de stap blijft een fout (`io` of
+     `target-exists`), ook als de bron daarna op het doel staat. Een poging om het te vangen gaf bij een harde link van
+     de bron op het doel een valse `placed` (review #972, ronde 2). Stap 4 en 5 moeten na zo'n fout dus niet aannemen
+     dat de hulpnaam nog bestaat. De proef `place_file_fout_na_uitgevoerde_hernoeming` legt vast dat de fout terugkomt.
+     Op een echte netwerkschijf niet gemeten. Uit 1131 stap 3. — S
+
+1798. **VERVOLG (#804, Windows): een harde link van de bron op het doel geeft daar `placed`, niet `target-exists`.**
+     De grens van `place_file_exclusive` eist dat een fout van de stap een fout blijft (`EEXIST` is `target-exists`, ook
+     bij hetzelfde inode). Op Unix geeft de stap die fout en blijven beide namen. Op Windows ontstaat er geen fout:
+     `SetFileInformationByHandle` zonder vervangen slaagt als het doel een harde link naar de bron zelf is: de uitkomst is `placed`, de hulpnaam is weg, het doel
+     bestaat en de inhoud is ongewijzigd (proef `place_file_harde_link_op_het_doel`, gemeten in de Rust-tests, run
+     43947435718). Er is één verplaatsing en geen ander bestand is vervangen; alleen de uitkomst wijkt af van Unix.
+     Stap 4 en 5 maken zelf geen harde link van een hulpbestand op het doel. Uit 1131 stap 3 (fixronde 2). — B (proef)
+
+1744. **VERVOLG (#804, ontwerp): §4.10 zet na elke andere fout van stap 4 `.ops-vorige` terug, ook bij `source-changed`.**
+     Het ontwerp (§4.10, "Fouten") zegt: faalt stap 4 om een andere reden dan een bezet doel, dan zet de app
+     `.ops-vorige` exclusief terug op het doel. Het contract van `place_file_exclusive` zegt dat `source-changed` geen
+     schijfstand belooft. Stap 4 en 5 van 1131 moeten bij die uitkomst stoppen, de planner melden dat de stand op schijf
+     onbekend is en niets automatisch terugzetten of opruimen; de zin in §4.10 moet dat uitsluiten. Nu alleen tekst: er
+     is nog geen aanroeper. Op te lossen in stap 4 van 1131. Gevonden door de review van #972 (ronde 3). — B (tekst)
+
+1749. **VERVOLG (#804, tekst): drie plekken beloven een weigering bij elk bestaand doel, zonder de uitzondering van 1798.**
+     `src/services/fileAccess/placeFileExclusive.ts:3`, het commentaar bij `PlaceOps` in
+     `src-tauri/src/commands/place_file.rs:155` en `AGENTS.md:212` zeggen dat een bestaand doel altijd geweigerd wordt;
+     op Windows geldt dat niet voor een harde link van de bron zelf (1798). De oude samenvatting in het ontwerp
+     (regel 1601) noemt nog `MoveFileExW`; de code gebruikt `SetFileInformationByHandle`. Op te lossen in stap 4 van
+     1131, die deze bestanden toch raakt. Gevonden door de review van #972 (ronde 3). — B (tekst)
+
+1799. **VERVOLG (#804, Unix): tussen controle en stap kan een ander object onder de hulpnaam komen.**
+     Buiten de grens van `place_file_exclusive` (besluit van de technisch beslisser, 16 november 2026): op Unix kan
+     een partij met hernoemrechten in die map tussen controle en stap een ander object onder de hulpnaam zetten. Het
+     commando meldt `source-changed` als het dat achteraf ziet, en kan het missen bij een wissel-terug. Op Windows
+     speelt dit niet. Reden: op Linux en macOS hernoemt het systeem op naam, dus een strikte binding bestaat daar niet
+     zonder een omweg in twee stappen die alleen Linux heeft; wie tussen controle en stap een object onder de hulpnaam
+     kan zetten, heeft via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`. Gevonden door de review van
+     #972 (ronde 2, met de echte Linux-stap). Proeven: `place_file_bronwissel_tussen_controle_en_stap`,
+     `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
+
+1796. **VERVOLG (#804, beveiliging): het standaardverbod van plugin-fs op de webviewmap is leeg.**
+     `tauri-plugin-fs` 2.5.0 `permissions/deny-webview-data.toml` schrijft `[[scope.deny]]` in plaats van
+     `[[permission.scope.deny]]`; `deny-default` levert in de opgeloste ACL daarom geen verbod. Gemeten in de proef
+     `place_file_scope_volgt_plugin_fs` (Rust-tests, 16 november 2026: de verboden van `fs`/`rename` zijn leeg; de
+     proef faalt zodra plugin-fs dat herstelt). Gevolg: plugin-fs zelf en `place_file_exclusive`, dat dezelfde scope
+     leest, verbieden `$APPLOCALDATA` (met de map `EBWebView` op Windows) niet. Op Linux staat de capability ook
+     `$APPDATA/**` toe, en dat is daar dezelfde map als `$APPLOCALDATA`; het herstel heeft die nodig. Richting: een
+     besluit of de app het verbod zelf in de capability zet (voor plugin-fs en dit commando samen) of op een
+     plugin-fs-versie met de reparatie wacht. — B (gemeten)
 
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
