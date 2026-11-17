@@ -43,6 +43,8 @@ You read a filled-in progress sheet back through *File › Import*. See [Importi
 
 **An export does not carry everything.** A CSV file has no resources or constraints, P6 XML has no baselines and deadlines. The calculation profile does not go along either: a reopened CSV or MS Project XML export calculates as *Open Planner Studio*, a reopened `.xer` or P6 XML export as *Primavera P6*. Only IFC carries everything. After an export to `.xer` the app reports *The XER export is saved. This was not included, or not exactly:*, with one line per kind, for example *2 deadlines*. See [Import and export formats](docs://ref-import-exportformaten). You find an example with numbers in [Files and formats](docs://uitleg-bestanden).
 
+**Multiple export notices stay together.** When several kinds of loss or conversion occur, they appear as detail lines in one notice. Information about splits, omitted cost resources, shortened names, replaced characters and the scheduling profile therefore does not displace the loss notice and its *Read more* link.
+
 **Two formats with the same extension.** MS Project XML and Primavera P6 XML both get the name *projectname.xml*. Give them different names yourself, otherwise you will not know later which file is which format.
 
 **A schedule with a circular dependency is not exported.** The app calculates first and stops if there is a loop. On the *Home* tab you get the message *Schedule could not be calculated*, with below it for example *Circular dependency between tasks: Set up site → Demolish existing extension → Set up site*. In *File › Export* only that second text is on the page. Resolve the loop and export again.

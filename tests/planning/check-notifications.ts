@@ -33,6 +33,7 @@ import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
 import { IndexedDbUpgradeBlockedError } from '@/utils/idb';
 import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
 import { isStickyOpenNotice, withOpenNoticeSticky } from '@/state/openNoticeSticky';
+import { bundleExportNotices } from '@/state/exportNoticeBundle';
 
 const S = () => useAppStore.getState();
 const N = () => S().ui.notifications;
@@ -99,6 +100,23 @@ eq('15 het detail is dat van de LAATSTE poging', N()[0]?.detail, 'poging 3');
   eq('15a dedupe neemt de actie van de nieuwe melding over', N()[0]?.action, action);
   S().notify({ severity: 'info', messageKey: 'notifications.schedulingProfileApplied', params: { profile: 'z' }, dedupeKey: 'profiel' });
   eq('15b een herhaling zonder actie laat de bestaande actie staan', N()[0]?.action, action);
+  // Knownbug 483: eerst één verlies, daarna extra details onder dezelfde exportsleutel.
+  clearAll();
+  const primary = { severity: 'info' as const, messageKey: 'notifications.exportDataLoss' as const,
+    dedupeKey: 'export-data-loss:test:mspdi' };
+  S().notify(bundleExportNotices([primary])!);
+  const firstExportId = N()[0]?.id;
+  eq('15c één exportmelding gebruikt de gewone leestijd', N()[0]?.durationMs, undefined);
+  S().notify(bundleExportNotices([primary, {
+    severity: 'info', messageKey: 'notifications.exportCostResourcesLost', params: { count: 1 },
+  }])!);
+  eq('15d herhaalde export blijft één melding met dezelfde id', [N().length, N()[0]?.id, N()[0]?.count],
+    [1, firstExportId, 2]);
+  eq('15e extra exportdetails verlengen ook na dedupe de leestijd', N()[0]?.durationMs, 15000);
+  eq('15f extra kostenverlies staat in het verlengde verslag', N()[0]?.detailLines?.map(line => line.messageKey),
+    ['notifications.exportCostResourcesLost']);
+  S().notify(primary);
+  eq('15g een herhaling zonder leestijd behoudt de bestaande leestijd', N()[0]?.durationMs, 15000);
   clearAll();
   S().notify({ severity: 'error', messageKey: 'notifications.autoSaveFailed', detail: 'poging 1', dedupeKey: 'autosave' });
   S().notify({ severity: 'error', messageKey: 'notifications.autoSaveFailed', detail: 'poging 2', dedupeKey: 'autosave' });

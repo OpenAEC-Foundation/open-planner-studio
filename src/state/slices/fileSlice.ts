@@ -14,6 +14,7 @@ import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
 import type { XerWriteLoss } from '@/services/xerWriteTypes';
 import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
+import { bundleExportNotices } from '@/state/exportNoticeBundle';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
@@ -2216,10 +2217,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           sequences: state.sequences, resources: state.resources, assignments: state.assignments,
           baselineCount: state.baselines.length,
         }, categories) : null;
+      const exportNotices: NotifyInput[] = [];
       if (xerLoss || format === 'p6') {
-        if (lossNotice) get().notify(lossNotice);
+        if (lossNotice) exportNotices.push(lossNotice);
       } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
-        get().notify({
+        exportNotices.push({
           severity: 'info',
           messageKey: 'notifications.xerExportLoss',
           params: { format: lossFormat },
@@ -2227,7 +2229,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
         });
       } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
-        get().notify({
+        exportNotices.push({
           severity: 'info',
           messageKey: 'notifications.exportDataLoss',
           params: { format: lossFormat },
@@ -2237,20 +2239,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
       const splitsLost = exportSplitsLostNotice(format, state.tasks);
-      if (splitsLost) get().notify(splitsLost);
+      if (splitsLost) exportNotices.push(splitsLost);
       const costLost = exportCostResourcesLostNotice(format, state.resources);
-      if (costLost) get().notify(costLost);
+      if (costLost) exportNotices.push(costLost);
       const truncated = exportP6TruncatedNotice(format, p6Truncated);
-      if (truncated) get().notify(truncated);
+      if (truncated) exportNotices.push(truncated);
       const invalidChars = exportInvalidXmlCharsNotice(format, invalidXmlChars);
-      if (invalidChars) get().notify(invalidChars);
+      if (invalidChars) exportNotices.push(invalidChars);
       const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
-      if (criticalHoursLost) get().notify(criticalHoursLost);
+      if (criticalHoursLost) exportNotices.push(criticalHoursLost);
       if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
         const profileNotice = exportProfileNotice(format, state.project.schedulingProfile, name => (
           i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name));
-        if (profileNotice) get().notify(profileNotice);
+        if (profileNotice) exportNotices.push(profileNotice);
       }
+      const bundledNotice = bundleExportNotices(exportNotices);
+      if (bundledNotice) get().notify(bundledNotice);
       return { ok: true, warnings };
     },
 

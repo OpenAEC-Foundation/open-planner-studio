@@ -91,7 +91,7 @@ for (const locale of locales) {
     eq(`${format}: export geslaagd`, [result.ok, captured - before], [true, 1]);
     const notes = S().ui.notifications;
     return {
-      params: notes.filter(n => n.messageKey === 'menu:export.profileHint').map(n => n.params),
+      params: notes.flatMap(n => [n, ...(n.detailLines ?? [])]).filter(n => n.messageKey === 'menu:export.profileHint').map(n => n.params),
       rules: notes.flatMap(n => n.detailLines ?? []).filter(l => l.messageKey === 'notifications.exportXerLossItem.schedulingRules').length,
     };
   };
