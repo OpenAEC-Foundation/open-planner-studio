@@ -70,6 +70,10 @@ de regel `BROWSERRUN=<id>` uit de uitvoer door. Daarna ga je verder.
 - Controleer eerst de fetch- én push-URL van `origin`. Beide moeten exact naar
   `OpenAEC-Foundation/open-planner-studio` op github.com wijzen, via HTTPS of SSH.
   Een andere repo, ontbrekende origin of netwerkfout: stop vóór schrijven of publiceren.
+- Wacht vóór de werkplek tot de nachtvertaling van maandag klaar is: zolang
+  `~/.local/state/ops-nachtvertalingen/actief` bestaat en jonger is dan 24 uur, of een PR
+  `vertalingen/<vandaag>` open staat, wacht de release. Een oudere markering meld je en negeer je.
+  Hervat je een bestaande releasebranch, neem dan de nieuwste `origin/main` erin op vóór de vertaalstap.
 - Gebruik een schone, eigen release-worktree vanaf vers opgehaalde `origin/main`.
   Neem geen ongecommit werk over. Haal volledige historie en origin-tags op.
   Alleen de maandagjob: eenmaal per run `npm ci` in die worktree vóór de eerste Node-stap.
@@ -127,9 +131,6 @@ De bump gebruikt actuele origin-tags én de huidige versie en synct alle eigen v
 - Draai `npm run gen:release-highlights-json`; commit `public/release-highlights.json` mee.
 - Volg de [wiki-skill](../wiki/SKILL.md). Toets documentatie tegen de releasecommits en werk
   `public/docs/{nl,en}/`, wiki-bronnen en zo nodig `AGENTS.md`/regels bij.
-- Wacht eerst tot de nachtvertaling van maandag klaar is: zolang `~/.local/state/ops-nachtvertalingen/actief`
-  bestaat en jonger is dan 24 uur, of een PR `vertalingen/<vandaag>` open staat, wacht de release.
-  Een oudere markering meld je en negeer je. Haal daarna `origin/main` opnieuw op.
 - Volg **elke release** de [update-ui-lang-skill](../update-ui-lang/SKILL.md), tot
   `npm run verify:translations` groen is. Alle 28 UI-talen moeten compleet en actueel zijn.
   `update-docs-lang` draait uitsluitend op een afzonderlijk verzoek van de eigenaar.

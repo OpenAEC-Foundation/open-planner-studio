@@ -31,7 +31,9 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     nameKey: 'settings.ifcForeignContent',
     descriptionKey: 'settings.ifcForeignContentHint',
     writesNewIfcData: true,
-    // De nl-sleutels uit de #804-merges op main (#864, #914, #927, #928, #931, #935, #961, #967).
+    // De nl-sleutels uit de #804-merges op main (#864, #914, #927, #928, #931, #935, #961, #967), plus de
+    // meldingen voor een onleesbaar doel uit #870: die geeft alleen de doelcontrole met de flag aan
+    // (`refusedWriteTarget` in src/state/ifcForeignGuard.ts).
     texts: [
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
@@ -52,6 +54,9 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcForeignTargetSave',
       'common:notifications.ifcSaveChangedWhileWaiting',
       'common:notifications.ifcSourceCopyFailed',
+      'common:notifications.ifcUnreadableTargetAutoSave',
+      'common:notifications.ifcUnreadableTargetExport',
+      'common:notifications.ifcUnreadableTargetSave',
       'menu:projectInfo.ifcSchema.foreignLocked',
     ],
   },

@@ -52,6 +52,9 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
   ok('ifcForeignContent: melding uit #804 is uitgesloten', r.keys.has('common:notifications.ifcForeignTargetSave'));
   ok('ifcForeignContent: dialoog via voorvoegsel', r.keys.has('common:ifcExportWithoutModel.title'));
   ok('ifcForeignContent: naam uit nameKey', r.keys.has('common:settings.ifcForeignContent'));
+  for (const k of ['Save', 'Export', 'AutoSave']) {
+    ok(`ifcForeignContent: onleesbaar doel (${k}) is uitgesloten`, r.keys.has(`common:notifications.ifcUnreadableTarget${k}`));
+  }
 }
 
 // ── 3. settledUnits op momentopnames ─────────────────────────────────────────────────────────
