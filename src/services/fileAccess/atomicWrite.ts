@@ -272,8 +272,9 @@ export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes:
       }
       if (outcome.reason !== 'not-regular-file') await removeOwnTemp();
       throw new ByteWriteError('write', new Error(`place_file_exclusive: refused (${outcome.reason})`));
-    case 'source-changed':
-      throw new ByteWriteError('source-changed');
+    case 'source-changed': // MUTATIE b
+      await removeOwnTemp();
+      throw new ByteWriteError('write', new Error('source-changed'));
     case 'io':
       await removeOwnTemp();
       throw new ByteWriteError('write', new Error(outcome.message));
