@@ -2,13 +2,16 @@
 // De bestaande stroomscanner houdt zijn vroege modelweigering en de strengere grammatica. Daarna gebruikt de controle
 // scanForeign; er staat hier geen tweede herkenning van vreemde psets of eigenaars naast classify.
 //
-// Opslaan in de achtergrond, stap 2: de indeling kost bij 10.000 taken ruim een seconde. De asynchrone ingangen van de
-// app laten haar daarom in de scanworker van het openen draaien (`runForeignScan`, één Worker per scan). De synchrone
-// `scanForeignTargetBytes` blijft voor de headless kern en de headless MCP-server (Node, geen Worker). Beide wegen
+// Opslaan in de achtergrond, stap 2 en knownbug 1758: bij 10.000 taken kost de modelscan ongeveer 0,7 s en de
+// indeling ongeveer 0,4 s. De asynchrone ingangen van de app laten allebei in de scanworker draaien (`withScanWorker`,
+// één Worker per scan). De hoofdthread leest alleen de stukken en stuurt ze één voor één; de Worker houdt de scanner en
+// antwoordt per stuk met de stap (verder, terugspoelen of de uitkomst). Zo blijven de vroege stop bij een
+// modelentiteit, het terugspoelen en de grens van 300 MiB precies zoals op de hoofdthread. De synchrone
+// `scanForeignTargetBytes` blijft voor de headless kern en de headless MCP-server (Node, geen Worker). Alle wegen
 // vertalen de uitkomst met dezelfde functie (`targetOf`).
 import { scanForeign, IFC_FOREIGN_SCAN_MAX_BYTES, type ForeignScanOutcome } from './foreignScan';
-import { ForeignScanFailure, runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner';
-import { scanTargetBytes, scanTargetSource, type TargetModelScan, type TargetSource } from './targetModelScan';
+import { ForeignScanFailure, withScanWorker, type ForeignScanRunOptions } from './foreignScanRunner';
+import { driveTargetScan, scanTargetBytes, targetScanPush, type TargetModelScan, type TargetScanStep, type TargetSource } from './targetModelScan';
 
 export type TargetForeignScan = TargetModelScan | 'foreign';
 
@@ -19,59 +22,81 @@ function targetOf(scan: ForeignScanOutcome): TargetForeignScan {
   return C + A + V > 0 ? 'foreign' : 'no-model';
 }
 
-/**
- * De indeling in de scanworker. Ook een inhoudelijke fout uit de Worker rekent de hoofdthread opnieuw: zo is de
- * uitkomst in elk geval die van de synchrone weg bij dezelfde bytes (een echte fout gooit daar opnieuw). Een fout van de
- * Worker is nooit 'no-model'.
- */
-async function classifyTarget(bytes: Uint8Array, opts: ForeignScanRunOptions): Promise<TargetForeignScan> {
-  try {
-    return targetOf(await runForeignScan(bytes, opts));
-  } catch (error) {
-    if (!(error instanceof ForeignScanFailure)) throw error;
-    return targetOf(scanForeign(bytes));
-  }
-}
-
-/** Het model en de grens vóór de indeling; `null` als de indeling moet beslissen. */
-function beforeClassify(bytes: Uint8Array): TargetForeignScan | null {
-  const model = scanTargetBytes(bytes);
-  if (model !== 'no-model') return model;
-  return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES ? 'unreadable' : null;
-}
-
 /** Bytes binnen de bestaande 300 MiB-scangrens; geen scanuitkomst is nooit toestemming om te overschrijven. Synchroon,
  *  zonder Worker: voor de headless kern (`src/core/`) en de headless MCP-server. */
 export function scanForeignTargetBytes(bytes: Uint8Array): TargetForeignScan {
-  return beforeClassify(bytes) ?? targetOf(scanForeign(bytes));
+  const model = scanTargetBytes(bytes);
+  if (model !== 'no-model') return model;
+  return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES ? 'unreadable' : targetOf(scanForeign(bytes));
 }
 
-/** Als `scanForeignTargetBytes`, met de indeling in de scanworker: voor de app. */
-export async function scanForeignTargetBytesAsync(bytes: Uint8Array, opts: ForeignScanRunOptions = {}): Promise<TargetForeignScan> {
-  return beforeClassify(bytes) ?? classifyTarget(bytes, opts);
+/** De hele bron vanaf het begin; `null` boven de grens van 300 MiB (zonder verder te lezen). */
+async function readWhole(source: Pick<TargetSource, 'next' | 'seek'>): Promise<Uint8Array | null> {
+  await source.seek(0);
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const chunk = await source.next();
+    if (chunk === null) break;
+    size += chunk.length;
+    if (size > IFC_FOREIGN_SCAN_MAX_BYTES) return null;
+    chunks.push(chunk);
+  }
+  if (chunks.length === 1) return chunks[0];
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const chunk of chunks) { bytes.set(chunk, at); at += chunk.length; }
+  return bytes;
 }
 
-/** Model eerst als stroom, daarna de volledige indeling in de scanworker. Sluit de bron ook bij fouten of een te groot
- *  doel. */
+/** Model eerst als stroom, daarna de volledige indeling; `push` en `classify` op de hoofdthread of in de Worker. */
+async function scanSource(
+  source: Pick<TargetSource, 'next' | 'seek'>,
+  push: (chunk: Uint8Array | null) => TargetScanStep | Promise<TargetScanStep>,
+  classify: (bytes: Uint8Array) => Promise<ForeignScanOutcome> | ForeignScanOutcome,
+): Promise<TargetForeignScan> {
+  const model = await driveTargetScan(source, push);
+  if (model !== 'no-model') return model;
+  const bytes = await readWhole(source);
+  return bytes ? targetOf(await classify(bytes)) : 'unreadable';
+}
+
+/**
+ * Model eerst als stroom, daarna de volledige indeling, allebei in de scanworker. Zonder Worker, bij een fout van het
+ * transport en ook bij een inhoudelijke fout uit de Worker rekent de hoofdthread het opnieuw vanaf het begin: zo is de
+ * uitkomst in elk geval die van de synchrone weg (een echte fout gooit daar opnieuw). Een fout van de Worker is nooit
+ * 'no-model'. Sluit de bron ook bij fouten of een te groot doel.
+ */
 export async function scanForeignTargetSource(source: TargetSource, opts: ForeignScanRunOptions = {}): Promise<TargetForeignScan> {
   try {
-    const model = await scanTargetSource({ next: () => source.next(), seek: n => source.seek(n) });
-    if (model !== 'no-model') return model;
-    await source.seek(0);
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    for (;;) {
-      const chunk = await source.next();
-      if (chunk === null) break;
-      size += chunk.length;
-      if (size > IFC_FOREIGN_SCAN_MAX_BYTES) return 'unreadable';
-      chunks.push(chunk);
+    let read = false;
+    const tracked = { next: () => { read = true; return source.next(); }, seek: (n: number) => source.seek(n) };
+    const onMain = async () => {
+      if (read) await source.seek(0);
+      return scanSource(source, targetScanPush(), scanForeign);
+    };
+    try {
+      return await withScanWorker(opts, session => scanSource(tracked, session.step, session.outcome), onMain);
+    } catch (error) {
+      if (!(error instanceof ForeignScanFailure)) throw error;
+      return await onMain();
     }
-    const bytes = new Uint8Array(size);
-    let at = 0;
-    for (const chunk of chunks) { bytes.set(chunk, at); at += chunk.length; }
-    return await classifyTarget(bytes, opts);
   } finally { await source.close?.(); }
+}
+
+/** Als `scanForeignTargetBytes`, in de scanworker: voor de app (de siteroute). De bytes zijn een bron met één stuk;
+ *  terugspoelen geeft het stuk vanaf die positie, zoals `scanTargetBytes`. */
+export function scanForeignTargetBytesAsync(bytes: Uint8Array, opts: ForeignScanRunOptions = {}): Promise<TargetForeignScan> {
+  let at: number | null = 0;
+  return scanForeignTargetSource({
+    next: async () => {
+      if (at === null) return null;
+      const chunk = bytes.subarray(at);
+      at = null;
+      return chunk;
+    },
+    seek: async (offset) => { at = offset; },
+  }, opts);
 }
 
 /** FSA-bestand; een lege, door de kiezer aangemaakte file blijft een normaal nieuw doel. */
