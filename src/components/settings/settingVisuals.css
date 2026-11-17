@@ -41,19 +41,25 @@
 .sv-chrome-bar {
   display: flex;
   align-items: flex-end;
-  gap: 3px;
-  height: 17px;
-  padding-inline: 8px;
+  gap: 2px;
+  height: 22px;
+  padding-inline: 6px;
   border-bottom: 1px solid var(--theme-control-border);
 }
+/* Tabbladen zoals in de app: alleen het actieve heeft een vlak, een rand en een accentlijn bovenaan. */
 .sv-chrome-tab {
-  width: 30px;
-  height: 12px;
-  border: 1px solid var(--theme-control-border);
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+  height: 17px;
+  padding-inline: 6px;
+  border: 1px solid transparent;
   border-bottom: none;
   border-radius: 3px 3px 0 0;
-  background: var(--theme-surface);
 }
+.sv-chrome-tab .sv-chrome-name { flex: 1; width: auto; }
 .sv-chrome-tab.is-active,
 .sv-chrome-tile.is-active,
 .sv-chrome-pill {
@@ -82,16 +88,16 @@
 .sv-chrome-pill {
   display: flex;
   align-items: center;
-  gap: 3px;
-  height: 12px;
-  padding-inline: 4px 2px;
+  gap: 4px;
+  height: 16px;
+  padding-inline: 6px 3px;
   border: 1px solid var(--theme-accent);
   border-radius: 999px;
 }
-.sv-chrome-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; background: var(--theme-text-muted); }
+.sv-chrome-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; background: var(--theme-text-muted); }
 .sv-chrome-pill .sv-chrome-dot,
-.sv-chrome-row.is-active .sv-chrome-dot { background: var(--theme-accent); }
-.sv-chrome-name { width: 22px; height: 2px; border-radius: 1px; background: var(--theme-text-dim); }
+.sv-chrome-tab.is-active .sv-chrome-dot { background: var(--theme-accent); }
+.sv-chrome-name { width: 34px; height: 3px; border-radius: 2px; background: var(--theme-text-dim); }
 .sv-chrome-chevron {
   width: 4px;
   height: 4px;
@@ -110,23 +116,7 @@
   font-weight: 600;
   text-align: center;
   line-height: 1;
-  transform: scale(0.85);
 }
-/* De uitgeklapte lijst hangt onder de pil: zo zie je dat je er documenten mee kiest. */
-.sv-chrome-list {
-  display: flex;
-  flex-direction: column;
-  width: 58px;
-  margin: 2px auto 0;
-  padding: 2px;
-  gap: 1px;
-  border: 1px solid var(--theme-control-border);
-  border-radius: 3px;
-  background: var(--theme-surface);
-}
-.sv-chrome-row { display: flex; align-items: center; gap: 3px; height: 7px; padding-inline: 3px; border-radius: 2px; }
-.sv-chrome-row.is-active { background: color-mix(in srgb, var(--theme-accent) 22%, transparent); }
-
 /* --- Raster (duurweergave) --- */
 .sv-grid { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding-inline: 6px; }
 .sv-grid-row { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 6px; }
