@@ -19,6 +19,8 @@ interface IpcCall {
   /** Er is werkelijk een bestand voor schrijven geopend (of via een handle geschreven); een geweigerde
    *  aanmaak of opening telt niet. */
   wrote: boolean;
+  /** `writeFile`/`writeTextFile`: de opties in de kop waren niet te lezen; de aanroep faalde. */
+  optionsError?: string;
 }
 
 /** `writeFile`/`writeTextFile`: de bytes als hele payload, met de opties in de kop. */
@@ -70,16 +72,29 @@ const isBytes = (value: unknown): boolean => value instanceof ArrayBuffer || Arr
 const containsBytes = (value: unknown): boolean => isBytes(value)
   || (value !== null && typeof value === 'object' && Object.values(value).some(containsBytes));
 
-/** De opties die `writeFile`/`writeTextFile` als JSON in de kop `options` meesturen. */
-function sentWriteOptions(header: string | undefined): OpenOptions | undefined {
-  try {
-    const o: unknown = header === undefined ? undefined : JSON.parse(header);
-    return o !== null && typeof o === 'object' ? o as OpenOptions : undefined;
-  } catch { return undefined; }
+/** De kop `options` van `writeFile`/`writeTextFile` zoals `parse_write_file_options` in tauri-plugin-fs
+ *  2.7.1 (`commands.rs:1212-1224`) hem leest: geen kop, leeg, `undefined` of `null` ⇒ de standaarden;
+ *  anders moet het `WriteFileOptions` zijn, of de aanroep faalt (sinds 2.6.0; daarvóór vielen onleesbare
+ *  opties stil terug op aanmaken en afkappen, ook zonder `createNew`). Onbekende velden telt serde niet. */
+function sentWriteOptions(header: string | undefined): { options?: OpenOptions; error?: string } {
+  const text = header?.trim() ?? '';
+  if (text === '' || text === 'undefined' || text === 'null') return {};
+  const invalid = (why: string) => ({ error: `invalid write file options ${text}: ${why}` });
+  let o: unknown;
+  try { o = JSON.parse(text); } catch (error) { return invalid(String(error)); }
+  if (o === null || typeof o !== 'object' || Array.isArray(o)) return invalid('expected struct WriteFileOptions');
+  const v = o as Record<string, unknown>;
+  for (const key of ['append', 'create', 'createNew'] as const) {
+    if (v[key] !== undefined && typeof v[key] !== 'boolean') return invalid(`invalid type for ${key}, expected a boolean`);
+  }
+  const u32 = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 0xffff_ffff;
+  if (v.mode !== undefined && v.mode !== null && !u32(v.mode)) return invalid('invalid type for mode, expected u32');
+  if (v.baseDir !== undefined && v.baseDir !== null && !u32(v.baseDir)) return invalid('invalid value for baseDir');
+  return { options: o as OpenOptions };
 }
 
-/** Zoals `write_file_inner` in tauri-plugin-fs 2.5.0 (`commands.rs`): uit de opties in de kop; zijn die
- *  er niet of niet te lezen, dan gelden de standaarden (aanmaken en afkappen). */
+/** Zoals `write_file_inner` in tauri-plugin-fs 2.7.1 (`commands.rs:1125-1210`): uit de opties in de kop;
+ *  zijn die er niet, dan gelden de standaarden (aanmaken en afkappen). */
 function writeFileOpenOptions(o: OpenOptions | undefined): OpenOptions {
   if (o === undefined) {
     return { read: false, write: true, create: true, truncate: true, append: false, createNew: false };
@@ -89,6 +104,30 @@ function writeFileOpenOptions(o: OpenOptions | undefined): OpenOptions {
     read: false, write: true, create: o.create ?? true, truncate: !append, append, createNew: o.createNew ?? false,
     ...(o.mode === undefined ? {} : { mode: o.mode }),
   };
+}
+
+/**
+ * Het pad waarop het systeem werkt, zoals `resolve_real_path` in tauri-plugin-fs 2.7.1
+ * (`commands.rs:1673-1725`): het canonieke pad als het bestaat, anders het canonieke pad van de
+ * dichtstbijzijnde bestaande bovenliggende map met de rest erachter; een dode link wordt gevolgd (een
+ * relatief doel vanaf de map van de link), een lus geeft een fout. Voor proeven die de scopecontrole van
+ * 2.7.1 nabootsen via `faults.forbidden` (alleen Unix-paden).
+ */
+export function realPath(path: string, followed = 0): string {
+  try { return fs.realpathSync.native(path); } catch { /* bestaat niet, of een dode link */ }
+  if (fs.lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink()) {
+    if (followed >= 40) throw new Error('too many levels of symbolic links');
+    const target = fs.readlinkSync(path);
+    const slash = path.lastIndexOf('/');
+    return realPath(target.startsWith('/') ? target : `${path.slice(0, slash + 1)}${target}`, followed + 1);
+  }
+  const trimmed = path.replace(/\/+$/, '');
+  const slash = trimmed.lastIndexOf('/');
+  if (slash <= 0) return path;
+  const parent = trimmed.slice(0, slash), last = trimmed.slice(slash + 1);
+  if (last === '..') return realPath(parent, followed).replace(/\/[^/]*$/, '') || '/';
+  if (last === '.' || last === '') return realPath(parent, followed);
+  return `${realPath(parent, followed)}/${last}`;
 }
 
 function openFlags(o: OpenOptions): number {
@@ -133,8 +172,9 @@ export function installNodeFileIpc() {
     const bytesInObject = !rawBody && containsBytes(args);
     const writeFile = command === 'plugin:fs|write_file' || command === 'plugin:fs|write_text_file';
     const path = writeFile ? decodeURIComponent(ipcOptions?.headers?.path ?? '') : typeof a.path === 'string' ? a.path : undefined;
-    const callOptions = writeFile ? sentWriteOptions(ipcOptions?.headers?.options) : a.options as OpenOptions | undefined;
-    const call: IpcCall = { command, path, options: callOptions, rawBody, bytesInObject, wrote: false };
+    const sent = writeFile ? sentWriteOptions(ipcOptions?.headers?.options) : {};
+    const callOptions = writeFile ? sent.options : a.options as OpenOptions | undefined;
+    const call: IpcCall = { command, path, options: callOptions, optionsError: sent.error, rawBody, bytesInObject, wrote: false };
     calls.push(call);
     switch (command) {
       case 'plugin:fs|stat':
@@ -143,7 +183,7 @@ export function installNodeFileIpc() {
         try {
           st = command === 'plugin:fs|stat' ? fs.statSync(String(path)) : fs.lstatSync(String(path));
         } catch (error) {
-          // plugin-fs 2.5.0 get_fs_metadata serialiseert ENOENT als deze string. Alleen Node's
+          // plugin-fs 2.7.1 get_fs_metadata serialiseert ENOENT als deze string (zoals 2.5.0). Alleen Node's
           // concrete ENOENT omzetten: andere fouten mogen geen ontbrekend doel suggereren.
           if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
             throw `failed to get metadata of path: ${path} with error: No such file or directory (os error 2)`;
@@ -159,7 +199,7 @@ export function installNodeFileIpc() {
         };
       }
       case 'plugin:fs|exists': {
-        // plugin-fs 2.5.0 `exists`: eerst de scope (`resolve_path`, buiten de scope de fout "forbidden path"), dan
+        // plugin-fs `exists` (2.5.0 en 2.7.1 gelijk): eerst de scope (`resolve_path`, buiten de scope de fout "forbidden path"), dan
         // `Path::exists`, dat links volgt en elke andere fout als `false` teruggeeft.
         const p = String(path);
         if (faults.forbidden?.(p)) throw `forbidden path: ${p}`;
@@ -190,7 +230,9 @@ export function installNodeFileIpc() {
         return written;
       }
       case 'plugin:fs|read': {
-        // plugin-fs 2.5.1 `FileHandle.read`: de gelezen bytes, met het aantal als 8 bytes big-endian erachter (0 = EOF).
+        // plugin-fs 2.7.1 `FileHandle.read` (`commands.rs:511-555`): alleen de gelezen bytes, met het aantal als
+        // 8 bytes big-endian erachter (0 = EOF). 2.5.x stuurde de hele gevraagde lengte; de JS-client leest in
+        // beide gevallen het aantal uit de laatste 8 bytes.
         const h = handles.get(Number(a.rid));
         if (!h) throw new Error('Onbekende bestandshandle');
         if (faults.readError !== null) throw faults.readError;
@@ -206,11 +248,15 @@ export function installNodeFileIpc() {
         return result;
       }
       case 'plugin:fs|seek': {
-        // plugin-fs 2.5.1 `FileHandle.seek(offset, whence)`: 0 = vanaf het begin, 1 = vanaf nu, 2 = vanaf het einde.
-        const h = handles.get(Number(a.rid));
-        if (!h) throw new Error('Onbekende bestandshandle');
+        // plugin-fs 2.7.1 `FileHandle.seek(offset, whence)`: 0 = vanaf het begin, 1 = vanaf nu, 2 = vanaf het einde;
+        // een negatieve offset vanaf het begin weigert het vóór de handle (`commands.rs:884-902`, sinds 2.7.0).
         const offset = Number(a.offset);
         const whence = Number(a.whence);
+        if (whence === 0 && offset < 0) {
+          throw `invalid seek offset ${offset}: it must not be negative with SeekMode.Start`;
+        }
+        const h = handles.get(Number(a.rid));
+        if (!h) throw new Error('Onbekende bestandshandle');
         const from = whence === 0 ? 0 : whence === 1 ? h.readAt : fs.fstatSync(h.fd).size;
         if (from + offset < 0) throw new Error('Invalid argument (os error 22)');
         h.readAt = from + offset;
@@ -227,22 +273,28 @@ export function installNodeFileIpc() {
       }
       case 'plugin:fs|write_text_file':
       case 'plugin:fs|write_file': {
-        // plugin-fs 2.5.0 `write_file_inner`: opent met de opties uit de kop en schrijft met write_all;
-        // een rauwe body gaat letterlijk door, een JSON-lijst van getallen wordt eerst bytes.
+        // plugin-fs 2.7.1 `write_file_inner` (`commands.rs:1125-1210`), in zijn volgorde: de opties uit de kop
+        // (onleesbaar ⇒ fout, vóór het openen), de scope en het openen met die opties (`create`/`truncate`
+        // gebeuren hier al), pas dan de inhoud: een rauwe body gaat letterlijk door, een JSON-lijst moet uit
+        // bytes bestaan (0–255, sinds 2.6.0), anders faalt de aanroep ná het openen en blijft een leeg of
+        // afgekapt bestand achter. Daarna write_all.
+        if (sent.error !== undefined) throw sent.error;
         const p = String(path), o = writeFileOpenOptions(callOptions);
         faults.beforeOpen?.(p);
         if (faults.forbidden?.(p)) throw `forbidden path: ${p}`;
         if (!o.createNew && !o.append && faults.directWriteError !== null) throw faults.directWriteError;
-        const data = ArrayBuffer.isView(args) ? new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
-          : args instanceof ArrayBuffer ? new Uint8Array(args)
-            : Array.isArray(args) ? Uint8Array.from(args as number[]) : null;
-        if (data === null) throw new Error('unexpected invoke body');
         // De fouttekst van `write_file_inner`: openen en schrijven geven elk hun eigen begin.
         let fd: number;
         try { fd = fs.openSync(p, openFlags(o), o.mode); }
         catch (error) { throw `failed to open file at path: ${p} with error: ${error instanceof Error ? error.message : String(error)}`; }
         call.wrote = true;
         try {
+          const notByte = Array.isArray(args) ? (args as unknown[]).find(v => !(Number.isInteger(v) && Number(v) >= 0 && Number(v) <= 255)) : undefined;
+          if (notByte !== undefined) throw `invalid byte in the data to write: ${JSON.stringify(notByte)}`;
+          const data = ArrayBuffer.isView(args) ? new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
+            : args instanceof ArrayBuffer ? new Uint8Array(args)
+              : Array.isArray(args) ? Uint8Array.from(args as number[]) : null;
+          if (data === null) throw new Error('unexpected invoke body');
           const size = fs.fstatSync(fd).size;
           const room = faults.writeErrorAfter === null ? data.length : Math.max(0, faults.writeErrorAfter - size);
           const n = Math.min(data.length, room);

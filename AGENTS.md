@@ -217,21 +217,25 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   name is a hard link of the source itself, knownbug 1798); it refuses unless
   exactly one name is an own helper file and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
   then the scope, as plugin-fs does) and the real open folder (its real scope via `Webview::resolve_command_scope`
-  plus the runtime scope, the plugin-fs rule: a deny wins). A step error stays an error; after the step it checks that
+  plus the runtime scope, the rule of plugin-fs 2.7.1: a deny on the path text or on the real path wins, the allow
+  applies to the real path, and the real path resolves symlinks in the ancestors of a path that does not exist yet). A step error stays an error; after the step it checks that
   the opened source is at the target and otherwise returns `source-changed` without touching anything again (no
   restore). Its boundary, including the Unix window it leaves open (knownbug 1799), is in the header of
   `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
   one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
-  The app itself denies the webview's data to every plugin-fs command and to `place_file_exclusive`: the capabilities
-  `webviewgegevens-linux.json` (the WebKitGTK folders and files in `$APPLOCALDATA`, which on Linux is the same folder
-  as `$APPDATA`) and `webviewgegevens-windows.json` (`$APPLOCALDATA/EBWebView`), via `platforms`; macOS needs none.
-  Each protected folder is denied itself as well as `folder/**` in `fs:scope` (`folder/**` does not match the folder,
-  and plugin-fs `rename`/`remove` only check the given paths), and `fs:allow-rename`/`fs:allow-remove` deny
-  `$APPLOCALDATA` itself; `mkdir`, `read_dir`, reading and writing there stay allowed (crash recovery and the MCP files
-  live there, so never deny all of `$APPLOCALDATA`). Out of bounds: renaming or removing a folder above it on Windows
+  The webview's data is denied to every plugin-fs command and to `place_file_exclusive` from two sides: `fs:default`
+  of plugin-fs 2.7.1 denies `folder/**` for the WebKitGTK folders in `$APPLOCALDATA` (on Linux the same folder as
+  `$APPDATA`, plus the files `cookies` and `hsts-storage.sqlite`) and `$APPLOCALDATA/EBWebView/**` on Windows; the
+  capabilities `webviewgegevens-linux.json` and `webviewgegevens-windows.json` (via `platforms`; macOS needs none) add
+  what upstream does not cover: each protected folder itself in `fs:scope` (`folder/**` does not match the folder, and
+  plugin-fs `rename`/`remove` only check the given paths), and `fs:allow-rename`/`fs:allow-remove` deny
+  `$APPLOCALDATA` itself. Never repeat a rule `fs:default` already supplies (it would appear twice and
+  `place_file_scope_volgt_plugin_fs` fails). `mkdir`, `read_dir`, reading and writing in `$APPLOCALDATA` stay allowed
+  (crash recovery and the MCP files live there, so never deny all of `$APPLOCALDATA`). Out of bounds: renaming or removing a folder above it on Windows
   (knownbug 1775), and a dot-named file inside a protected folder that the user picks in a file dialog (the
-  matcher's leading-dot rule keeps a deny from matching it; knownbug 1776). plugin-fs 2.5.0's own `deny-default` is empty (knownbug 1797).
+  matcher's leading-dot rule keeps a deny from matching it; knownbug 1776). `tauri-plugin-fs` is 2.7.1 (lower bound in
+  `Cargo.toml`, npm `@tauri-apps/plugin-fs` the same) and `tauri-plugin-persisted-scope` 2.4.3.
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
   levert de uitvoer als één buffer (`bytes`, dezelfde als `source.bytes`), sha256, de nieuwe `IfcSource` met
   sessiekaart en bevroren schrijfinvoer, en `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de bytes. Alleen een ongewijzigde

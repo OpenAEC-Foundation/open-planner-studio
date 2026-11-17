@@ -2630,10 +2630,9 @@ en noem het in je rapport of PR-tekst.
         `refused`/`scope` ruimen op en maken het doel direct met `createNew`; een andere weigering is een fout (zonder
         opruimen bij `not-regular-file`); `source-changed` stopt zonder terugzetten of opruimen, met een eigen zin;
         `io` ruimt op en is een fout. Blijft: buiten de thuismap mag het tijdelijke bestand niet ontstaan
-        (`forbidden path`) en maakt de app het doel direct met `createNew`; in een map die via een link naar buiten
-        wijst geldt dat pas vanaf plugin-fs 2.7.1 (#978). Met 2.5.0 ontstaat het tijdelijke bestand daar wel, geeft
-        `place_file_exclusive` `refused`/`scope` en blijft het daarna staan (1754); het doel komt er ook dan via de
-        directe `createNew`. Die weg vervangt nooit een bestand, maar een crash halverwege laat daar een onvolledig
+        (`forbidden path`) en maakt de app het doel direct met `createNew`; sinds plugin-fs 2.7.1 (#978) geldt dat ook
+        in een map die via een link naar buiten wijst (met 2.5.0 ontstond het tijdelijke bestand daar nog en bleef
+        het staan; dat was 1754). Die weg vervangt nooit een bestand, maar een crash halverwege laat daar een onvolledig
         bestand staan; alleen de plaatsing via het tijdelijke bestand laat nooit een half einddoel achter. Na een
         crash kan een `save-<id>.ops-save.tmp` blijven staan; er is geen opruimronde bij de start. In een echte app
         is de route alleen gemeten met `planner_export_ifc` naar een nieuwe naam in de thuismap, op Linux
@@ -2655,6 +2654,21 @@ en noem het in je rapport of PR-tekst.
      (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
      schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Richting:
      productkeuze 1 uit het onderzoek naar 1131. — B (code), geen proef in de app
+
+1752. **VERVOLG (plugin-fs 2.7.1, desktop): in een map in de thuismap die via een link naar buiten wijst, schrijft Opslaan direct over het bestand.**
+     Bijvoorbeeld `~/projecten` → `/data/projecten`. Sinds plugin-fs 2.7.0 toetst de scope het echte pad: de dialoog
+     gaf het gekozen bestand vrij, het halffabricaat ernaast valt buiten `$HOME/**` en wordt geweigerd. `replaceUserFile`
+     (`atomicWrite.ts`) valt dan terug op direct schrijven, zoals buiten de thuismap al gold. Daar is de opslag niet
+     beschermd tegen een crash of een volle schijf midden in het schrijven: het bestand kan leeg of half achterblijven.
+     Met 2.5.0 werd het tijdelijke bestand daar nog aangemaakt, maar mochten `rename` en `remove` het niet (die toetsten
+     het opgeloste pad): de app schreef ook toen direct en het hulpbestand bleef staan (was 1755). Nu ontstaat het niet
+     meer. Opslaan als met een nieuwe naam zonder extensie kost hier op Linux (GTK) twee vensters (#979: het venster
+     geeft de naam met extensie zelf vrij) en schrijft daarna ook direct; op macOS en Windows vult het venster de
+     extensie zelf aan en blijft het één venster. Blijft zoals onder 2.5.0: een bestand dat hier ooit zonder eigen
+     toestemming voor de naam met extensie ontstond (de eerste opslag zonder extensie vóór #979), kan Ctrl+S niet
+     vervangen. Proeven: `check-user-file-write.ts` blok 7 (`link buiten`: route `createNew:geweigerd` →
+     `direct:geschreven`) en `check-save-dialog-extension.ts` (g), per regel van plugin-fs. Richting: dezelfde
+     oplossing als 1762 (Ctrl+S overal via een tijdelijk bestand, later). Gevonden door de review van #978. — B (proef)
 
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
@@ -2719,13 +2733,6 @@ en noem het in je rapport of PR-tekst.
      doel opzij zetten) bij een alleen-lezen doel; opslaan stopt dan veilig. Verwant aan 162. Niet gemeten (geen
      Windows hier). Uit 1131 stap 3. — S
 
-1777. **VERVOLG (#804, scope): bij `requireLiteralLeadingDot: false` toetst `place_file_exclusive` een runtime-verbod anders dan plugin-fs.**
-     Plugin-fs toetst een verbod met zijn eigen config (`tauri-plugin-fs-2.5.0/src/commands.rs:1585`); het commando
-     gebruikt `is_forbidden` van de runtime-scope, die plugin-fs met de standaardpuntregel maakt (`lib.rs:490`). Zet
-     iemand op Unix `plugins.fs.requireLiteralLeadingDot` op `false`, dan kan een wildcardverbod in de runtime-scope
-     bij het commando een puntbestand missen dat plugin-fs wel weigert. De huidige config (leeg) raakt dat niet.
-     Gevonden door de review van #972 (ronde 2). — B (code)
-
 1795. **VERVOLG (#804, netwerkschijf): een hernoeming kan een fout geven nadat ze toch gebeurde.**
      Op NFS kan een herhaald verzoek na een verloren antwoord `EEXIST` of `ENOENT` geven terwijl de eerste poging de
      naam al verplaatste. `place_file_exclusive` vangt dat niet: een fout van de stap blijft een fout (`io` of
@@ -2775,28 +2782,6 @@ en noem het in je rapport of PR-tekst.
      Windows geldt de puntregel standaard niet. Gevonden door de review van #975 (ronde 2, uit de bron; niet uitgevoerd).
      — B (bron gelezen)
 
-1797. **VERVOLG (beveiliging): `tauri-plugin-fs` staat op 2.5.0; upstream is 2.7.1.**
-     `src-tauri/Cargo.lock` vergrendelt 2.5.0 (`Cargo.toml` vraagt `2`, `tauri-plugin-persisted-scope` staat vast op
-     `=2.3.6` voor die versie). Wat de app daardoor mist, volgens de changelog van plugin-fs: in 2.5.2 het
-     standaardverbod op de webviewgegevens ("Fixed `deny-webview-data` has no effect"; de app zet het sinds #975 zelf
-     in `src-tauri/capabilities/webviewgegevens-*.json`) en "Fix `fs:default` … not giving any command scopes"; in
-     2.7.0 twee beveiligingsreparaties: de scopecontrole lost symbolische links in de bovenliggende mappen van een nog
-     niet bestaand pad op (daarvóór kwam een nieuw bestand onder een gelinkte map binnen de scope buiten de scope
-     terecht, bij `writeFile`, `mkdir`, `rename` en dergelijke), en `open` neemt geen `customFlags` meer aan uit de
-     webview (daarmee kon de webview willekeurige `open(2)`-vlaggen zoals `O_TRUNC` meegeven aan een bestand dat ze
-     alleen mag lezen). Wat een verhoging raakt: 2.6.0 laat `writeFile` en `writeTextFile` falen als de opties niet
-     te lezen zijn (eerder genegeerd, ook `createNew`), 2.7.1 maakt van de schrijfpermissies (`write-all`,
-     `allow-*-write[-recursive]`) sets van de `allow-*`-commando's, en de npm-versie `@tauri-apps/plugin-fs` moet
-     mee. Ook 2.7.1 dekt de webviewgegevens niet helemaal: `deny-webview-data` verbiedt alleen `map/**` (dat matcht de
-     map zelf niet), en `remove` (`plugins/fs/src/commands.rs:771`, `remove_dir_all` op regel 800) en `rename` (regel
-     840) toetsen via `resolve_path` (regel 1552) alleen de opgegeven paden; een beschermde map of `$APPLOCALDATA` zelf
-     hernoemen of recursief verwijderen blijft daar mogelijk (gelezen in de tak `v2`). De eigen capabilities
-     `webviewgegevens-*.json` blijven dus ook na de verhoging nodig; alleen de regels die `fs:default` dan zelf levert
-     (`map/**` en de twee bestanden op Linux, `EBWebView/**` op Windows) vervallen, anders staan ze dubbel en faalt de
-     bewering in `place_file_scope_volgt_plugin_fs`. Richting: een eigen PR direct na
-     de merge van #973, met een review, en een controle in de echte desktopapp vóór de merge: openen, opslaan,
-     Opslaan als, en herstel na een crash. — B (changelog en bron gelezen)
-
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
      `new Uint8Array(await data.arrayBuffer())`, omdat het hostcontract één `Uint8Array` vraagt. De bytes blijven gelijk
@@ -2836,34 +2821,6 @@ en noem het in je rapport of PR-tekst.
      deze ene omzetting van de aanroepvorm". Richting: die omzetting reproduceerbaar maken in het script, of alleen dit
      verschil normaliseren bij de vergelijking; niet de hele referentie opnieuw opnemen vanaf een featurebranch.
      Gevonden door de review van #973 (Sol). — B
-1755. **VERVOLG (#979): opslaan in een map in de thuismap die een link naar buiten is, laat met plugin-fs 2.5.0 een
-     hulpbestand achter.** Uit de bron gelezen: tauri 2.12.3 `Scope::is_allowed` lost een BESTAAND pad eerst op
-     (`canonicalize`), een nieuw pad niet. Opslaan naar `~/projecten/kopie.ifc` (`~/projecten` → `/data/…`): het
-     hulpbestand `save-<id>.ops-save.tmp` wordt nog aangemaakt (nieuw pad, lexicaal onder `$HOME`), maar `rename` en
-     `remove` van dat bestaande hulpbestand toetsen het opgeloste pad `/data/…` en worden geweigerd; de terugval schrijft
-     het doel direct en het hulpbestand blijft staan. Een bestaand doel vervangen mislukt alleen als de eindnaam geen
-     eigen toestemming van het venster heeft, bijvoorbeeld Ctrl+S na een eerste opslag zonder extensie onder 2.5.0. Kiest
-     de gebruiker het doel in het venster, dan geeft Tauri ook het canonieke pad vrij (zie 1756) en slaagt de directe
-     terugval, ook na de tweede ronde van #979. Nagebootst in `check-save-dialog-extension.ts` (g), niet in de echte
-     app gezien. Met plugin-fs 2.7.1 (#978) mislukt al het aanmaken van het hulpbestand. Gevonden bij #979; aangescherpt
-     door de review van #979. — S
-1756. **VERVOLG (#979, proef): de nagebootste dialoog in `check-save-dialog-extension.ts` geeft alleen het letterlijke
-     pad vrij.** Tauri 2.12.3 zet bij `allow_file` via `push_pattern` en `canonicalize_parent` ook het canonieke pad in
-     de scope, ook voor een nieuw bestand waarvan alleen de bovenmap bestaat. De tweede ronde voor
-     `~/projecten/kopie.ifc` (`~/projecten` → `/data`) geeft dus ook `/data/kopie.ifc` vrij, en plugin-fs 2.7.1 kan die
-     toestemming gebruiken. De nabootsing mist die tweede padvorm; de review van #979 toonde met een gecorrigeerde
-     nabootsing 44 gevallen groen op de scoperegel van 2.5.0 en die van 2.7.1, ook bestaande doelen in een gelinkte map.
-     Een eerdere versie van dit punt las `allow_file` als alleen letterlijk; dat was onjuist. Richting: bij #978, die
-     de regel van 2.7.1 aan de proef toevoegt, de canonieke vorm in de nagebootste dialoog zetten. Gevonden door de
-     review van #979. — B (bron en proef van de review)
-1754. **VERVOLG (#804, 1131 stap 4): in een gelinkte map binnen de thuismap kan Opslaan als met een gebouwmodel een
-     hulpbestand laten staan.** Uit de code en 1755 afgeleid, niet in de app gezien. Met plugin-fs 2.5.0 ontstaat
-     `save-<id>.ops-save.tmp` in `~/projecten` (link naar `/data/…`) nog, want het nieuwe pad is lexicaal in de scope.
-     `place_file_exclusive` toetst ook de echte map en geeft `refused`/`scope`; `writeNewUserBytes` ruimt dan op en maakt
-     het doel direct met `createNew`. Dat opruimen gaat via plugin-fs `remove`, dat het bestaande hulpbestand op het
-     opgeloste pad toetst en weigert (zoals in 1755): het bestand blijft staan, de opslag zelf slaagt. Met plugin-fs
-     2.7.1 (#978) mislukt al de aanmaak (`forbidden path`) en ontstaat er geen hulpbestand. Richting: bij #978 nagaan;
-     anders een `refused`/`scope` vóór de aanmaak voorkomen. — S
 1759. **VERVOLG (#985, scanworker): de starttijd van 3 s is een inschatting; trage ontvangst kan een gezonde worker
      onnodig naar de hoofdthread terughalen.** `foreignScanRunner.ts` start de timer vóór het eerste `postMessage`; de
      worker stuurt zijn startbericht pas als dat eerste verzoek binnen is (`foreignScanHandler.ts`). Het laden van het
