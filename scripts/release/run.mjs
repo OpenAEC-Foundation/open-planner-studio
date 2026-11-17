@@ -61,7 +61,8 @@ function claude(prompt, { cwd, tools, toegestaan }) {
 }
 
 function http(url, { method = 'GET' } = {}) {
-  const res = draai('curl', ['-sS', '-L', '--max-time', '60', '-X', method, '-o', '-', '-w', '\n%{http_code}', url]);
+  // `-I` voor HEAD: met `-X HEAD` wacht curl op een body die niet komt.
+  const res = draai('curl', ['-sS', '-L', '--max-time', '60', ...(method === 'HEAD' ? ['-I'] : []), '-o', '-', '-w', '\n%{http_code}', url]);
   if (res.status !== 0) return { status: 0, text: null };
   const i = res.stdout.lastIndexOf('\n');
   return { status: Number(res.stdout.slice(i + 1)), text: res.stdout.slice(0, i) };
@@ -74,6 +75,12 @@ export function maakContext({ droog, scriptRoot, root, log }) {
     now: () => Date.now(),
     sleep: ms => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); },
     log,
+    // Een melding voor wrakko die de release niet stopt; de thread geeft elke RELEASE-MELDING-regel door.
+    meldingen: [],
+    meld: (code, tekst) => {
+      ctx.meldingen.push(code);
+      console.log(`RELEASE-MELDING ${code}: ${tekst.replace(/\s+/g, ' ')}`);
+    },
     act(stap, fn) {
       if (droog) throw new DroogStop(stap);
       log(`doe: ${stap}`);

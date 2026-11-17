@@ -215,7 +215,7 @@ export function lever(ctx, { tag, sha }, regels) {
     const zoek = () => vervolgRun(ctx, workflow, { tag, releaseRun });
     const gevonden = wachtOfNull(ctx, `${label} voor ${tag} start`, () => zoek() ?? undefined, { maxMs: UUR });
     if (!gevonden) throw new ReleaseStop(ontbreekt, `${tag}: geen ${workflow}-run na release.yml`);
-    return volgRun(ctx, { label: `${label} ${tag}`, stopcode, zoek: () => zoek() ?? gevonden, maxMs: 3 * UUR, groen });
+    return volgRun(ctx, { label: `${label} ${tag}`, stopcode, zoek: () => zoek() ?? gevonden, maxMs: 3 * UUR, groen, bewijs: run => hoortBijTag(ctx, run, tag) });
   };
   const verify = vervolg('release-verify.yml', 'release-verify.yml', 'release-verify-rood');
   regels.push(`Verify Release: [${verify.id}](${verify.html_url}) groen.`);
@@ -224,9 +224,17 @@ export function lever(ctx, { tag, sha }, regels) {
     const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
     return jobs.flatMap(j => j.steps ?? []).find(s => s.name === naam)?.conclusion ?? 'ontbreekt';
   };
-  const snap = vervolg('snap.yml', 'snap.yml', 'snap-mislukt', run => run.conclusion === 'success' && stapVan(run, 'Publish to Snap Store') === 'success',
+  const snap = vervolg('snap.yml', 'snap.yml', 'snap-mislukt',
+    run => (run.conclusion === 'success' && stapVan(run, 'Publish to Snap Store') === 'success') || snapLoginVerlopen(ctx, run),
     'snap-ontbreekt');
-  regels.push(`Snap: [${snap.id}](${snap.html_url}) groen, Publish to Snap Store gelukt.`);
+  if (snap.conclusion === 'success') {
+    regels.push(`Snap: [${snap.id}](${snap.html_url}) groen, Publish to Snap Store gelukt.`);
+  } else {
+    // Besluit wrakko, 2026-11-17: een verlopen Store-login is geen stop (zoals het AUR-secret); melden en door.
+    const tekst = `Snap ${tag}: de .snap is gebouwd, maar de Snap Store weigert de verlopen login (${snap.html_url}); de Snap Store kreeg ${tag} niet.`;
+    regels.push(tekst);
+    ctx.meld('snap-login', tekst);
+  }
 
   regels.push(aur(ctx, { tag, versie, releaseRun }));
   regels.push(controleerAssets(ctx, { tag, versie, release }));
@@ -235,15 +243,46 @@ export function lever(ctx, { tag, sha }, regels) {
 
 /**
  * De run van een vervolgworkflow voor deze tag. Een `workflow_run`-run staat op de SHA van main op dat moment,
- * niet op de tag (v2026.45.0: release op fb617899, Snap en Verify op 2a66df33). Hij start binnen seconden nadat de
- * release-run klaar is; daaraan koppelt het script hem. Anders: een dispatch op de tag zelf.
+ * niet op de tag (v2026.45.0: release op fb617899, Snap en Verify op 2a66df33), en er is geen veld dat naar de
+ * release-run wijst. Kandidaat: de oudste niet-overgeslagen run sinds de start van de release-run (een mislukte
+ * releasepoging geeft alleen overgeslagen vervolgruns). Bewijs: `hoortBijTag`. Anders: een dispatch op de tag.
  */
 export function vervolgRun(ctx, workflow, { tag, releaseRun }) {
-  const klaar = Date.parse(releaseRun.updated_at);
-  const lijst = runs(ctx, workflow, { created: `>=${new Date(klaar - 5 * MINUUT).toISOString()}` });
-  const binnen = lijst.filter(r => r.event === 'workflow_run' && Math.abs(Date.parse(r.created_at) - klaar) <= 30 * MINUUT)
-    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
-  return binnen[0] ?? lijst.find(r => r.event === 'workflow_dispatch' && r.head_branch === tag) ?? null;
+  const vanaf = Date.parse(releaseRun.created_at);
+  const lijst = runs(ctx, workflow, { created: `>=${new Date(vanaf).toISOString()}` });
+  // De oudste: een latere release (een week verder) geeft nieuwere vervolgruns. `lijst` is nieuwste eerst.
+  return lijst.filter(r => r.event === 'workflow_run' && Date.parse(r.created_at) >= vanaf && r.conclusion !== 'skipped').at(-1)
+    ?? lijst.find(r => r.event === 'workflow_dispatch' && r.head_branch === tag) ?? null;
+}
+
+/** De log van één job. `gh` 2.102 wil `--allow-escape-sequences`, `gh` 2.45 op aia kent die vlag niet. */
+export function jobLog(ctx, id) {
+  const pad = `repos/${ctx.repo}/actions/jobs/${id}/logs`;
+  try { return ctx.gh(['api', pad, '--allow-escape-sequences']); } catch { return ctx.gh(['api', pad]); }
+}
+
+/**
+ * Een afgeronde vervolgrun hoort bij de tag als een gedraaide job de tag logt zoals de workflow hem uit
+ * `workflow_run.head_branch` haalt: `HEAD_BRANCH: <tag>` (snap.yml, release-verify.yml) of `VERSION: <tag>` (aur.yml).
+ */
+export function hoortBijTag(ctx, run, tag) {
+  if (run.event === 'workflow_dispatch') return run.head_branch === tag;
+  const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
+  const regel = new Set([`HEAD_BRANCH: ${tag}`, `VERSION: ${tag}`]);
+  return jobs.filter(j => j.conclusion && j.conclusion !== 'skipped')
+    .some(j => jobLog(ctx, j.id).split('\n').some(r => regel.has(r.replace(/^\S+\s+/, '').trim())));
+}
+
+/**
+ * De bekende Snap-fout: alleen de stap `Publish to Snap Store` faalde, en de log zegt dat de geëxporteerde
+ * Store-login verlopen is. Elke andere Snap-fout blijft een stop.
+ */
+export const SNAP_LOGIN_VERLOPEN = 'credentials are no longer valid for the Snap Store';
+export function snapLoginVerlopen(ctx, run) {
+  if (run.conclusion !== 'failure') return false;
+  const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
+  const rood = jobs.flatMap(j => (j.steps ?? []).filter(st => st.conclusion === 'failure').map(st => ({ job: j, stap: st.name })));
+  return rood.length === 1 && rood[0].stap === 'Publish to Snap Store' && jobLog(ctx, rood[0].job.id).includes(SNAP_LOGIN_VERLOPEN);
 }
 
 /** AUR: groen met push, of het bewezen ontbrekende secret (referentie.md, Ontbrekend AUR-secret). */
@@ -254,7 +293,7 @@ function aur(ctx, { tag, versie, releaseRun }) {
       ctx.gh(['workflow', 'run', 'aur.yml', '--repo', ctx.repo, '--ref', tag, '-f', `version=${tag}`, '-f', 'publish=true']));
     wacht(ctx, `aur.yml voor ${tag} start`, () => zoek() ?? undefined, { maxMs: UUR });
   }
-  const run = volgRun(ctx, { label: `aur.yml ${tag}`, stopcode: 'aur-mislukt', zoek });
+  const run = volgRun(ctx, { label: `aur.yml ${tag}`, stopcode: 'aur-mislukt', zoek, bewijs: r => hoortBijTag(ctx, r, tag) });
   const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
   const job = jobs.find(j => j.name === 'aur');
   const push = job?.steps?.find(s => s.name === 'Push to AUR')?.conclusion;
@@ -267,7 +306,7 @@ function aur(ctx, { tag, versie, releaseRun }) {
   if (push === 'skipped' && job) {
     const notices = api(ctx, `repos/${ctx.repo}/check-runs/${job.id}/annotations`)
       .filter(a => a.annotation_level === 'notice').map(a => a.message);
-    const log = ctx.gh(['api', `repos/${ctx.repo}/actions/jobs/${job.id}/logs`]);
+    const log = jobLog(ctx, job.id);
     if (notices.includes('AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.')
       && log.includes(`Open.Planner.Studio_${versie}_amd64.deb:`)) {
       return `AUR: [${run.id}](${run.html_url}) groen; Arch kreeg nog geen pakket: secret \`AUR_SSH_PRIVATE_KEY\` ontbreekt.`;
@@ -652,11 +691,12 @@ export function release(ctx) {
   } else {
     const vorigeRegels = [];
     const acties = ctx.acties;
+    const meldingen = ctx.meldingen.length;
     const pr = releasePr(ctx, prev)[0];
     const fout = probeer(() => lever(ctx, vorige, vorigeRegels));
     // Alleen bijwerken als het script voor deze tag iets deed of iets niet af vond.
     verslagNa(ctx, fout, () => {
-      if (pr && (ctx.acties !== acties || fout)) {
+      if (pr && (ctx.acties !== acties || ctx.meldingen.length !== meldingen || fout)) {
         schrijfVerslag(ctx, { nummer: pr.number, tag: prev, kop: fout ? `uitlevering niet af: ${stopTekst(fout)}` : 'uitgeleverd (zonder website)', regels: vorigeRegels });
       }
     });
@@ -673,7 +713,7 @@ export function release(ctx) {
   if (kandidaat.mode === 'nieuw' && Number(ctx.git(['rev-list', '--count', `${prev}..${base}`])) === 0) {
     // Geen nieuwe release: de website van de vorige tag nog eens proberen.
     const site = afgeschreven ? null : website(ctx, { tag: prev, versie: prev.slice(1) });
-    return `niets veranderd sinds ${prev}${site?.open ? `; website open: ${site.regel}` : ''}`;
+    return `niets veranderd sinds ${prev}${site?.open ? `; website open: ${site.regel}` : ''}${meldingTekst(ctx)}`;
   }
   groeneMain(ctx, base);
 
@@ -700,8 +740,10 @@ export function release(ctx) {
   const site = website(ctx, { tag, versie });
   leverRegels.push(site.regel);
   schrijfVerslag(ctx, { nummer, tag, kop: site.open ? 'uitgebracht; website nog open (volgende maandag opnieuw)' : 'uitgebracht', regels: leverRegels });
-  return `${tag} uitgebracht op ${sha}${site.open ? '; website nog open' : ''}`;
+  return `${tag} uitgebracht op ${sha}${site.open ? '; website nog open' : ''}${meldingTekst(ctx)}`;
 }
+
+const meldingTekst = ctx => (ctx.meldingen.length ? `; meldingen: ${ctx.meldingen.join(', ')}` : '');
 
 function probeer(fn) {
   try { fn(); return null; } catch (err) { return err; }

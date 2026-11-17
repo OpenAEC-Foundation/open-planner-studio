@@ -77,9 +77,10 @@ const runUrl = (repo, run) => `https://github.com/${repo}/actions/runs/${run.id}
 /**
  * Volg één run tot zijn eindstatus. `zoek()` geeft de nieuwste passende run of null. Rood: eenmaal
  * `gh run rerun --failed` (alleen in poging 1; een latere poging betekent dat de rerun al gebruikt is),
- * daarna een stop met `stopcode`. Geeft de groene run terug, of null als `zoek()` niets vindt.
+ * daarna een stop met `stopcode`. `bewijs(run)` moet na afloop waar zijn, anders is het een stop.
+ * Geeft de groene run terug, of null als `zoek()` niets vindt.
  */
-export function volgRun(ctx, { label, zoek, stopcode, repo = ctx.repo, maxMs = 3 * UUR, groen = run => run.conclusion === 'success' }) {
+export function volgRun(ctx, { label, zoek, stopcode, repo = ctx.repo, maxMs = 3 * UUR, groen = run => run.conclusion === 'success', bewijs = () => true }) {
   let run = zoek();
   if (!run) return null;
   for (;;) {
@@ -88,6 +89,8 @@ export function volgRun(ctx, { label, zoek, stopcode, repo = ctx.repo, maxMs = 3
       const nu = api(ctx, `repos/${repo}/actions/runs/${id}`);
       return nu.status === 'completed' ? nu : undefined;
     }, { maxMs });
+    // Pas als vaststaat dat dit de goede run is, telt hij, of krijgt hij een rerun.
+    if (!bewijs(run)) throw new ReleaseStop('uitlevering', `${label}: run ${runUrl(repo, run)} is niet aan de tag te koppelen`);
     if (groen(run)) return run;
     // Een geslaagde run met een overgeslagen stap heeft niets om opnieuw te draaien.
     if ((run.run_attempt ?? 1) > 1 || run.conclusion === 'success') {
@@ -164,6 +167,8 @@ export function schrijfVerslag(ctx, { nummer, tag, kop, regels }) {
   const bestaand = vindVerslag(ctx, nummer, tag);
   const body = verslagTekst({ tag, kop, regels, bestaand: bestaand?.body ?? null });
   if (bestaand?.body === body) return;
+  // De droogloop schrijft niets, maar het verslag is geen reden om te stoppen: zo toont hij de stap erna.
+  if (ctx.droog) return ctx.log(`droog: hervatverslag ${tag} op PR #${nummer} niet bijgewerkt`);
   ctx.act(`hervatverslag ${tag} op PR #${nummer} bijwerken`, () => {
     const pad = bestaand ? `repos/${ctx.repo}/issues/comments/${bestaand.id}` : `repos/${ctx.repo}/issues/${nummer}/comments`;
     ctx.gh(['api', '-X', bestaand ? 'PATCH' : 'POST', pad, '--input', '-'], { input: JSON.stringify({ body }) });

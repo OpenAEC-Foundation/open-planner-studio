@@ -92,9 +92,11 @@ Anders controleert het script, in deze volgorde, en stopt het bij elke onbekende
    `create-release` zou die een tweede draft maken). Daarna moet de release gepubliceerd zijn
    (`draft=false`, `prerelease=false`, `published_at`). Alleen HTTP 404 telt als ontbrekend.
 2. **Vervolgworkflows.** `release-verify.yml`, `snap.yml` en `aur.yml` via `workflow_run`. Zo'n run staat op de
-   SHA van main op dat moment, niet op de tag; het script koppelt hem aan het einde van de release-run (hij start
-   binnen seconden daarna).
-   Snap telt alleen met de stap `Publish to Snap Store` op `success`; een ontbrekende Snap-run is een stop
+   SHA van main op dat moment, niet op de tag. Het script neemt de oudste niet-overgeslagen run sinds de start van
+   de release-run en volgt of herhaalt hem pas als een gedraaide job de tag logt (`HEAD_BRANCH: <tag>` of
+   `VERSION: <tag>`); anders is het een stop.
+   Snap telt met de stap `Publish to Snap Store` op `success`, of met de bewezen
+   [verlopen Store-login](#verlopen-snap-store-login); een ontbrekende Snap-run is een stop
    (een dispatch publiceert niet). Een ontbrekende AUR-run krijgt eenmaal
    `gh workflow run aur.yml --ref "$TAG" -f "version=$TAG" -f publish=true`. AUR telt met `Push to AUR` op
    `success` en de juiste versie in de AUR, of met het [ontbrekende secret](#ontbrekend-aur-secret).
@@ -144,6 +146,16 @@ met de verkeerde versie. Een overgeslagen push zonder deze notice is geen bewijs
 een handmatige test zonder `publish`. Er is geen schakelaar. Bestaat het secret, dan pusht de
 volgende `aur.yml`-run vanzelf, en gelden weer `success` en de `pkgver`-controle uit
 [Uitlevering controleren](#uitlevering-controleren).
+
+### Verlopen Snap Store-login
+
+Besluit wrakko, 2026-11-17 (na de verlopen login bij v2026.47.0). Faalt de Snap-publicatie op de bekende fout van een
+verlopen Store-login, dan houdt dat de release niet tegen, voor de vorige en voor de nieuwe tag, net als bij het
+[ontbrekende AUR-secret](#ontbrekend-aur-secret). Het script controleert dat vast (`snapLoginVerlopen`): de run is
+`failure`, de enige rode stap is `Publish to Snap Store`, en de joblog bevat
+`credentials are no longer valid for the Snap Store`. Dan geen rerun; het script zet het in het verslag en schrijft
+`RELEASE-MELDING snap-login: …` met de link, die de thread aan wrakko doorgeeft. Ethan herstelt de login; daarna
+herstart alleen wrakko de Snap-publicatie. Elke andere Snap-fout blijft een stop (`snap-mislukt`).
 
 ## Kandidaatselectie
 
@@ -380,7 +392,8 @@ Het script controleert dit na elke groene release-run (`controleerAssets` in `sc
   Is dit de nieuwste release, dan ook het publieke updater-adres, met 15 minuten ruimte voor de CDN.
 - De GitHub-body heeft het Downloads-blok.
 - Snap: stap **Publish to Snap Store** `success`; alleen een bijgevoegde `.snap` bewijst geen publicatie.
-  Ontbrekende credentials betekenen een onvolledige release; meld dit zonder secrets op te vragen of te wijzigen.
+  Uitzondering: de bewezen [verlopen Store-login](#verlopen-snap-store-login), gemeld en niet gestopt. Vraag of wijzig
+  geen secrets.
 - AUR: stap **Push to AUR** `success` en de AUR toont `<versie>-<pkgrel>`, of het bewezen
   [ontbrekende AUR-secret](#ontbrekend-aur-secret).
 - Bij een afwijking: rapporteer het bewijs. Verplaats nooit de tag en wijzig assets niet op goed geluk.

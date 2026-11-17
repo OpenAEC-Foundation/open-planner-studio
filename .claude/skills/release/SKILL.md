@@ -20,8 +20,9 @@ Node alleen volgens besluit 9: de [lijst in referentie.md](referentie.md#node-ui
 In deze volgorde; elke stap kijkt eerst op GitHub of hij al af is, dus het script mag altijd opnieuw starten.
 
 1. Origin controleren; wachten zolang het issue `Browsertests repareren` open is; `release-ci-check.mjs --browser`.
-2. De vorige tag afronden ([Hervatten](referentie.md#hervatten)): release-run, publicatie, Verify Release, Snap,
-   AUR (met het [ontbrekende secret](referentie.md#ontbrekend-aur-secret)), assets en `latest.json`, wiki.
+2. De vorige tag afronden ([Hervatten](referentie.md#hervatten)): release-run, publicatie, Verify Release, Snap
+   (met de [verlopen Store-login](referentie.md#verlopen-snap-store-login)), AUR (met het
+   [ontbrekende secret](referentie.md#ontbrekend-aur-secret)), assets en `latest.json`, wiki.
    Een afgeschreven tag slaat het over.
 3. Wachten tot de nachtvertaling van vandaag klaar is; [kandidaat kiezen](referentie.md#kandidaatselectie);
    niets veranderd: klaar. Groene `ci.yml`-pushrun op de basis.
@@ -49,7 +50,7 @@ git -C "$REPO" fetch --quiet origin
 git -C "$S" switch --quiet --detach origin/main
 LOG=~/.local/state/ops-release/run-$(date +%F-%H%M).log; mkdir -p "$(dirname "$LOG")"
 ( node "$S/scripts/release/run.mjs"; echo "EXIT:$?" ) > "$LOG" 2>&1
-tail -n 3 "$LOG"
+tail -n 1 "$LOG"; grep '^RELEASE-MELDING ' "$LOG"
 ```
 Het script wacht zelf op CI en runs (uren mogelijk). Draai het in de voorgrond, of start het losgekoppeld en wacht met een
 `until grep -q '^EXIT:' "$LOG"`-lus; beëindig je beurt niet terwijl het loopt. Een tweede run tegelijk stopt met `al-actief`.
@@ -57,7 +58,8 @@ Het script wacht zelf op CI en runs (uren mogelijk). Draai het in de voorgrond, 
 
 ## De uitkomst
 
-De laatste regel van het log beslist:
+De laatste regel van het log beslist. Stuur daarnaast elke regel `RELEASE-MELDING <code>: …` uit het log, bij elke
+uitkomst, letterlijk door aan wrakko (zie hieronder); een melding stopt de release niet.
 
 - `RELEASE-KLAAR …` (exit 0): stuur wrakko het eindrapport (hieronder).
 - `RELEASE-TAAK <code>: …` (exit 3): een vaste klus voor jou, geen fout. Doe hem en start het script opnieuw.
@@ -90,6 +92,6 @@ Een fout in het script zelf is ook een stop: herstel het script niet tijdens de 
 
 ## Eindrapport
 
-Aan wrakko, kort: de slotregel, versie en tag-SHA, de link naar de PR-reactie, fix-PR's en reviews, wat open bleef
-(website, Arch zonder pakket en waarom), en wat de tekstagent niet zeker wist. Verwijder daarna alleen eigen schone
+Aan wrakko, kort: de slotregel, de `RELEASE-MELDING`-regels, versie en tag-SHA, de link naar de PR-reactie, fix-PR's en
+reviews, wat open bleef (website, Snap Store of Arch zonder pakket en waarom), en wat de tekstagent niet zeker wist. Verwijder daarna alleen eigen schone
 worktrees zonder lopend werk (`git worktree remove` zonder force). Bijvangst gaat naar `knownbugs.md`.

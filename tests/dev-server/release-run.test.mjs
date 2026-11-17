@@ -21,7 +21,7 @@ const MAANDAG_0900 = Date.parse('2026-11-23T08:00:00Z');
 /** Een nep-omgeving. `gh`/`git`/`run` zijn lijsten [patroon, antwoord]; het eerste passende patroon wint. */
 function nep({ gh = [], git = [], run = [], http = {}, bestanden = {}, droog = false, claude } = {}) {
   const klok = { t: MAANDAG_0900 };
-  const spoor = { acts: [], gh: [], claude: 0 };
+  const spoor = { acts: [], gh: [], claude: 0, meldingen: [] };
   const zoek = (lijst, args, wat) => {
     const tekst = args.join(' ');
     const hit = lijst.find(([p]) => (p instanceof RegExp ? p.test(tekst) : tekst.includes(p)));
@@ -29,7 +29,8 @@ function nep({ gh = [], git = [], run = [], http = {}, bestanden = {}, droog = f
     return typeof hit[1] === 'function' ? hit[1](args) : hit[1];
   };
   const ctx = {
-    repo: REPO, root: '/repo', scriptRoot: '/script', home: '/home/x', droog, acties: 0, npmGedaan: new Set(),
+    repo: REPO, root: '/repo', scriptRoot: '/script', home: '/home/x', droog, acties: 0, npmGedaan: new Set(), meldingen: [],
+    meld: (code, tekst) => { ctx.meldingen.push(code); spoor.meldingen.push(`${code}: ${tekst}`); },
     now: () => klok.t,
     sleep: ms => { klok.t += ms; },
     log: () => {},
@@ -70,21 +71,24 @@ const assets = versie => ['Open.Planner.Studio_<v>_amd64.deb', 'Open.Planner.Stu
   .map(n => ({ name: n.replace('<v>', versie) }));
 
 /** Een vorige tag die helemaal is uitgeleverd: alle runs groen, AUR met het bewezen ontbrekende secret. */
-function uitgeleverd({ snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' }), snapStap = 'success', aurStap = 'skipped', aurNotice = true } = {}) {
+function uitgeleverd({ snapLog = '  HEAD_BRANCH: v2026.47.0\n', snapStappen, snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' }), snapStap = 'success', aurStap = 'skipped', aurNotice = true } = {}) {
   return [
     [/releases\/tags\/v2026\.47\.0$/, { draft: false, prerelease: false, published_at: '2026-11-17T04:29:30Z', assets: assets('2026.47.0'), body: '- a\n\n### Downloads' }],
     [/workflows\/release\.yml\/runs/, { workflow_runs: [run({ id: 10 })] }],
     [/actions\/runs\/10$/, run({ id: 10 })],
     [/workflows\/release-verify\.yml\/runs/, { workflow_runs: [run({ id: 20, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' })] }],
     [/actions\/runs\/20$/, run({ id: 20, event: 'workflow_run' })],
+    [/actions\/runs\/20\/jobs/, { jobs: [{ id: 200, name: 'resolve', conclusion: 'success' }] }],
+    [/actions\/jobs\/200\/logs/, '  HEAD_BRANCH: v2026.47.0\n'],
     [/workflows\/snap\.yml\/runs/, { workflow_runs: [snap] }],
     [/actions\/runs\/30$/, snap],
-    [/actions\/runs\/30\/jobs/, { jobs: [{ name: 'build-snap', steps: [{ name: 'Publish to Snap Store', conclusion: snapStap }] }] }],
+    [/actions\/runs\/30\/jobs/, { jobs: [{ id: 300, name: 'build-snap', conclusion: snap.conclusion, steps: snapStappen ?? [{ name: 'Publish to Snap Store', conclusion: snapStap }] }] }],
+    [/actions\/jobs\/300\/logs/, snapLog],
     [/workflows\/aur\.yml\/runs/, { workflow_runs: [run({ id: 40, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' })] }],
     [/actions\/runs\/40$/, run({ id: 40, event: 'workflow_run' })],
-    [/actions\/runs\/40\/jobs/, { jobs: [{ id: 400, name: 'aur', steps: [{ name: 'Push to AUR', conclusion: aurStap }] }] }],
+    [/actions\/runs\/40\/jobs/, { jobs: [{ id: 400, name: 'aur', conclusion: 'success', steps: [{ name: 'Push to AUR', conclusion: aurStap }] }] }],
     [/check-runs\/400\/annotations/, aurNotice ? [{ annotation_level: 'notice', message: 'AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.' }] : []],
-    [/actions\/jobs\/400\/logs/, 'x Open.Planner.Studio_2026.47.0_amd64.deb: 123'],
+    [/actions\/jobs\/400\/logs/, '2026-11-17T04:29:52.07Z   VERSION: v2026.47.0\nx Open.Planner.Studio_2026.47.0_amd64.deb: 123'],
     [/releases\?per_page=30/, [{ tag_name: 'v2026.45.0', draft: false, prerelease: false, published_at: '2026-11-09', assets: assets('2026.45.0') }]],
     ['release download v2026.47.0', { version: '2026.47.0', notes: '- a', platforms: { 'linux-x86_64': { url: 'https://dl/1' }, 'windows-x86_64': { url: 'https://dl/1' }, 'darwin-aarch64': { url: 'https://dl/1' } } }],
   ];
@@ -286,6 +290,28 @@ test('release: mislukte Snap-publicatie na de rerun stopt, met het verslag bijge
   assert.deepEqual(spoor.acts, ['hervatverslag v2026.47.0 op PR #969 bijwerken']);
 });
 
+test('release: een verlopen Snap Store-login is een melding en geen stop; elke andere Snap-fout wel', () => {
+  const rood = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z', run_attempt: 2, conclusion: 'failure' });
+  const log = '  HEAD_BRANCH: v2026.47.0\n2026-11-17T04:38:36.25Z Exported credentials are no longer valid for the Snap Store.\n';
+  const alleenPublish = [{ name: 'Build snap', conclusion: 'success' }, { name: 'Publish to Snap Store', conclusion: 'failure' }];
+  const { ctx, spoor } = nep({
+    git: [...GIT_BASIS, ['rev-list --count', '0']],
+    gh: [...GH_BASIS, ...uitgeleverd({ snap: rood, snapLog: log, snapStappen: alleenPublish }), [/issues\/969\/comments\?per_page/, []], [/-X POST .*issues\/969\/comments/, '']],
+    run: RUN_BASIS,
+    http: HTTP,
+  });
+  assert.equal(release(ctx), 'niets veranderd sinds v2026.47.0; meldingen: snap-login');
+  assert.equal(spoor.meldingen.length, 1);
+  assert.match(spoor.meldingen[0], /^snap-login: Snap v2026\.47\.0: .*verlopen login \(https:\/\/.*\); de Snap Store kreeg v2026\.47\.0 niet\.$/);
+  assert.deepEqual(spoor.acts, ['hervatverslag v2026.47.0 op PR #969 bijwerken'], 'geen rerun, wel het verslag');
+
+  const anders = (snapLog, snapStappen) => nep({
+    git: GIT_BASIS, gh: [...GH_BASIS, ...uitgeleverd({ snap: rood, snapLog, snapStappen }), [/issues\/969\/comments/, []]], run: RUN_BASIS, http: HTTP, droog: true,
+  }).ctx;
+  assert.throws(() => release(anders('  HEAD_BRANCH: v2026.47.0\nError: upload timed out\n', alleenPublish)), e => e.code === 'snap-mislukt', 'andere publicatiefout');
+  assert.throws(() => release(anders(log, [{ name: 'Build snap', conclusion: 'failure' }, { name: 'Publish to Snap Store', conclusion: 'failure' }])), e => e.code === 'snap-mislukt', 'ook de bouw faalde');
+});
+
 test('release: Snap groen maar de Store-stap overgeslagen is geen uitlevering', () => {
   const { ctx } = nep({ git: GIT_BASIS, gh: [...GH_BASIS, ...uitgeleverd({ snapStap: 'skipped' }), [/issues\/969\/comments/, []]], run: RUN_BASIS, http: HTTP, droog: true });
   assert.throws(() => release(ctx), e => e instanceof ReleaseStop && e.code === 'snap-mislukt');
@@ -382,17 +408,34 @@ test('gewijzigdePaden: echte git-status via de echte adapter, ook het eerste pad
   }
 });
 
-test('vervolgRun: workflow_run op de SHA van main, gekoppeld aan het einde van de release-run (v2026.45.0)', () => {
-  const release = run({ id: 42683918392, head_sha: 'fb617899c39dcd08089856f43b9a38df434741ad', updated_at: '2026-11-09T19:58:17Z' });
+test('vervolgRun: workflow_run op de SHA van main; een overgeslagen run van een mislukte poging telt niet', () => {
+  // v2026.45.0: release op fb617899, Snap op 2a66df33 (de SHA van main op dat moment).
+  const release = run({ id: 42683918392, head_sha: 'fb617899c39dcd08089856f43b9a38df434741ad', created_at: '2026-11-09T19:30:02Z' });
   const snap = run({ id: 42688429475, event: 'workflow_run', head_branch: 'main', head_sha: '2a66df33c8854e296b638a3f0d39379280d1afb6', created_at: '2026-11-09T19:58:20Z' });
-  const vorigeWeek = run({ id: 1, event: 'workflow_run', head_branch: 'main', created_at: '2026-10-31T11:41:08Z' });
   const pr = run({ id: 2, event: 'pull_request', head_branch: 'x', created_at: '2026-11-09T19:59:00Z' });
-  const { ctx, spoor } = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [pr, snap, vorigeWeek] }]] });
+  const volgendeRelease = run({ id: 44017547538, event: 'workflow_run', head_branch: 'main', created_at: '2026-11-17T04:29:37Z' });
+  const { ctx, spoor } = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [volgendeRelease, pr, snap] }]] });
   assert.equal(vervolgRun(ctx, 'snap.yml', { tag: 'v2026.45.0', releaseRun: release })?.id, 42688429475);
-  assert.match(spoor.gh[0], /created=%3E%3D2026-11-09T19%3A53%3A17/);
+  assert.match(spoor.gh[0], /created=%3E%3D2026-11-09T19%3A30%3A02/);
+  // Poging 1 van de release faalde (vervolgrun 201 overgeslagen), de rerun slaagde (vervolgrun 30 hoort erbij).
+  const overgeslagen = run({ id: 201, event: 'workflow_run', head_branch: 'main', created_at: '2026-11-17T04:27:00Z', conclusion: 'skipped' });
+  const goed = run({ id: 30, event: 'workflow_run', head_branch: 'main', created_at: '2026-11-17T04:29:37Z' });
+  const rerun = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [goed, overgeslagen] }]] });
+  assert.equal(vervolgRun(rerun.ctx, 'snap.yml', { tag: 'v2026.47.0', releaseRun: run({ run_attempt: 2 }) })?.id, 30);
+  // Vlak na de rerun bestaat run 30 nog niet: dan is er nog geen kandidaat (het script wacht), niet run 201.
+  const nogNiet = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [overgeslagen] }]] });
+  assert.equal(vervolgRun(nogNiet.ctx, 'snap.yml', { tag: 'v2026.47.0', releaseRun: run({ run_attempt: 2 }) }), null);
   const later = run({ id: 3, event: 'workflow_dispatch', head_branch: 'v2026.45.0', created_at: '2026-11-10T08:00:00Z' });
   const alleenDispatch = nep({ gh: [[/aur\.yml\/runs/, { workflow_runs: [later] }]] });
   assert.equal(vervolgRun(alleenDispatch.ctx, 'aur.yml', { tag: 'v2026.45.0', releaseRun: release })?.id, 3);
+});
+
+test('lever: een vervolgrun zonder HEAD_BRANCH van de tag in zijn log wordt niet gevolgd en krijgt geen rerun', () => {
+  const vreemd = run({ id: 20, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z', conclusion: 'failure' });
+  const gh = [[/actions\/runs\/20$/, vreemd], [/actions\/jobs\/200\/logs/, '  HEAD_BRANCH: v2026.46.0\n'], ...uitgeleverd()];
+  const { ctx, spoor } = nep({ gh, http: HTTP });
+  assert.throws(() => lever(ctx, { tag: 'v2026.47.0', sha: SHA_TAG }, []), e => e.code === 'uitlevering' && /niet aan de tag te koppelen/.test(e.reden));
+  assert.deepEqual(spoor.acts, []);
 });
 
 test('slot: één run tegelijk; een dood proces laat geen slot achter', () => {
