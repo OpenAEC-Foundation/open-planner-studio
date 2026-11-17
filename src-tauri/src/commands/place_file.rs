@@ -1982,8 +1982,10 @@ mod tests {
             std::os::unix::fs::symlink(&buiten.path, echt.join("buiten")).unwrap();
             gevallen.push((from.clone(), echt.join("buiten").join(DOEL), "scope"));
             // 2. Een verbod dat een link noemt: de runtime-scope verbiedt `$HOME/…/verboden` (zoals een
-            // verbod in de capability) vóórdat de link er is; daarna wijst de link naar een toegestane
-            // map. Het echte pad is toegestaan, de tekst is verboden.
+            // verbod in de capability) vóórdat de link er is; daarna wijst de link naar de toegestane map
+            // `toegestaan`. De bron via de link, het doel via de echte map: dezelfde map, het echte pad is
+            // toegestaan, alleen de tekst van de bron is verboden. De regel van 2.5.0 (Tauri maakt een
+            // bestaand pad canoniek) liet dit door.
             let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
             runtime
                 .forbid_directory(echt.join("verboden"), true)
@@ -1993,7 +1995,7 @@ mod tests {
             std::fs::write(echt.join("toegestaan").join(TMP), &bytes).unwrap();
             gevallen.push((
                 echt.join("verboden").join(TMP),
-                echt.join("verboden").join(DOEL),
+                echt.join("toegestaan").join(DOEL),
                 "scope",
             ));
         }
