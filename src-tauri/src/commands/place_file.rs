@@ -1997,25 +1997,33 @@ mod tests {
                 "scope",
             ));
         }
+        // Alle gevallen eerst, dan één bewering: zo toont een rode run elk geval dat afwijkt.
+        let mut afwijkingen = Vec::new();
         for (from, to, reden) in &gevallen {
             let fs = ipc(
                 &window,
                 "plugin:fs|rename",
                 json!({ "oldPath": text(from), "newPath": text(to) }),
             );
-            assert!(fs.is_err(), "plugin-fs nam {to:?} aan: {fs:?}");
-            assert_eq!(
-                ipc(
-                    &window,
-                    "place_file_exclusive",
-                    json!({ "from": text(from), "to": text(to) })
-                ),
-                Err(json!({ "code": "refused", "reason": reden })),
-                "{from:?} naar {to:?}"
+            if fs.is_ok() {
+                afwijkingen.push(format!("plugin-fs nam {from:?} naar {to:?} aan"));
+                continue;
+            }
+            let uitkomst = ipc(
+                &window,
+                "place_file_exclusive",
+                json!({ "from": text(from), "to": text(to) }),
             );
-            assert_eq!(std::fs::read(from).unwrap(), bytes);
-            assert!(!exists(to), "{to:?}");
+            if uitkomst != Err(json!({ "code": "refused", "reason": reden })) {
+                afwijkingen.push(format!(
+                    "{from:?} naar {to:?}: {uitkomst:?}, verwacht {reden}"
+                ));
+            }
+            if std::fs::read(from).ok().as_ref() != Some(&bytes) || exists(to) {
+                afwijkingen.push(format!("{from:?} naar {to:?}: op schijf veranderd"));
+            }
         }
+        assert!(afwijkingen.is_empty(), "{afwijkingen:#?}");
         #[cfg(unix)]
         assert!(!exists(&buiten.file(DOEL)));
 
