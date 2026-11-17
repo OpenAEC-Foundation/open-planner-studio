@@ -27,12 +27,14 @@ Opslaan als in Tauri (`pickSavePathTauri` in `fileAccess/tauriBackend.ts`) laat 
 opslagvenster gaan. Het venster geeft toestemming voor het pad dat het teruggeeft (plugin-dialog `save`: `allow_file`,
 dat `persisted-scope` voor Recent bewaart) en stelt de overschrijfvraag voor dat pad (GTK
 `set_do_overwrite_confirmation`). Op Linux komt een getypte naam zonder extensie terug (`kopie`) en plakt de app de
-extensie erachter; voor `kopie.ifc` gaf het venster dan geen toestemming (buiten `$HOME` volgt `forbidden path`) en
-geen overschrijfvraag. Daarom toetst de app de aangevulde naam met plugin-fs `exists`, dat eerst de scope toetst: een
+extensie erachter; voor `kopie.ifc` gaf het venster dan geen toestemming (buiten `$HOME` volgt `forbidden path`, en
+sinds plugin-fs 2.7.x ook in een map in `$HOME` die via een link buiten `$HOME` uitkomt, want de scope toetst het echte
+pad) en geen overschrijfvraag. Daarom toetst de app de aangevulde naam met plugin-fs `exists`, dat eerst de scope toetst: een
 scopeweigering of een bestaande naam opent het venster nog eens met de volledige naam ingevuld; komt er weer een naam
 zonder extensie terug, dan herhaalt die stap. In het gewone geval (binnen de scope, naam vrij) blijft het één venster.
 Windows (`SetDefaultExtension`) en macOS (`setAllowedFileTypes`) vullen de extensie in het venster zelf aan.
-Proef: `check-save-dialog-extension.ts`.
+Proef: `check-save-dialog-extension.ts`, per scoperegel van plugin-fs (2.5.0 en 2.7.1); het nagebootste venster geeft
+het pad vrij zoals tauri `allow_file` dat doet: zoals gegeven en met `canonicalize_parent`.
 
 ### `place_file_exclusive` (#804, knownbug 1131 stap 3)
 
