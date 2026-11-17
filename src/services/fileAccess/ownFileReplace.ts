@@ -152,8 +152,7 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
   }
 
   // Stap 5.
-  // MUTATIE (b): .ops-vorige verwijderen zonder narekenen.
-  const before: SourceTargetContent = 'same';
+  const before = await fs.content(previous, source);
   if (before === 'missing') return { code: 'replaced', otherVersion: null, leftOver: null };
   if (before === 'same') {
     try {
