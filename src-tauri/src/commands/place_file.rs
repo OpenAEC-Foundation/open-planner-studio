@@ -2704,4 +2704,42 @@ mod tests {
         runtime.forbid_file(&ander).unwrap();
         assert!(!scope.allows(&ander));
     }
+
+    // Was knownbug 1777: met `plugins.fs.requireLiteralLeadingDot: false` weigert plugin-fs een puntbestand
+    // onder een wildcardverbod in de runtime-scope (`*` matcht dan ook `.punt`). Het commando toetst dat
+    // verbod met dezelfde puntregel, niet met de standaard van de runtime-scope (op Unix: aan). De
+    // toestemming komt hier van de capability, het verbod alleen van de runtime-scope.
+    #[test]
+    fn place_file_scope_puntregel_uit_de_config() {
+        use tauri::Manager;
+        use tauri_plugin_fs::FsExt;
+        let app = tauri::test::mock_builder()
+            .plugin(tauri_plugin_fs::init())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("nep-app");
+        let configured = tauri::scope::fs::Scope::new(
+            &app,
+            &tauri::utils::config::FsScope::Scope {
+                allow: vec![PathBuf::from("$HOME"), PathBuf::from("$HOME/**")],
+                deny: vec![],
+                require_literal_leading_dot: Some(false),
+            },
+        )
+        .unwrap();
+        let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
+        let home = app.path().home_dir().unwrap();
+        // `forbid_directory` zonder `recursive` geeft het wildcardverbod `verboden/*`.
+        runtime
+            .forbid_directory(home.join("verboden"), false)
+            .unwrap();
+        let scope = FsRenameScope {
+            runtime: Some(runtime),
+            configured,
+            require_literal_leading_dot: Some(false),
+        };
+        // De toestemming dekt een puntbestand: een weigering hieronder komt van het verbod.
+        assert!(scope.allows(&home.join("toegestaan").join(".punt")));
+        assert!(!scope.allows(&home.join("verboden").join("plan.ifc")));
+        assert!(!scope.allows(&home.join("verboden").join(".punt")));
+    }
 }
