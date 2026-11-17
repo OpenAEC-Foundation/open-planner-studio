@@ -154,6 +154,13 @@ export function installNodeFileIpc() {
           uid: st.uid, gid: st.gid, rdev: st.rdev, blksize: st.blksize, blocks: st.blocks,
         };
       }
+      case 'plugin:fs|exists': {
+        // plugin-fs 2.5.0 `exists`: eerst de scope (`resolve_path`, buiten de scope de fout "forbidden path"), dan
+        // `Path::exists`, dat links volgt en elke andere fout als `false` teruggeeft.
+        const p = String(path);
+        if (faults.forbidden?.(p)) throw `forbidden path: ${p}`;
+        return fs.existsSync(p);
+      }
       case 'plugin:fs|open': {
         const p = String(path);
         faults.beforeOpen?.(p);

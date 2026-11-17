@@ -2832,6 +2832,26 @@ en noem het in je rapport of PR-tekst.
      deze ene omzetting van de aanroepvorm". Richting: die omzetting reproduceerbaar maken in het script, of alleen dit
      verschil normaliseren bij de vergelijking; niet de hele referentie opnieuw opnemen vanaf een featurebranch.
      Gevonden door de review van #973 (Sol). — B
+1755. **VERVOLG (#979): opslaan in een map in de thuismap die een link naar buiten is, laat met plugin-fs 2.5.0 een
+     hulpbestand achter.** Uit de bron gelezen: tauri 2.12.3 `Scope::is_allowed` lost een BESTAAND pad eerst op
+     (`canonicalize`), een nieuw pad niet. Opslaan naar `~/projecten/kopie.ifc` (`~/projecten` → `/data/…`): het
+     hulpbestand `save-<id>.ops-save.tmp` wordt nog aangemaakt (nieuw pad, lexicaal onder `$HOME`), maar `rename` en
+     `remove` van dat bestaande hulpbestand toetsen het opgeloste pad `/data/…` en worden geweigerd; de terugval schrijft
+     het doel direct en het hulpbestand blijft staan. Een bestaand doel vervangen mislukt alleen als de eindnaam geen
+     eigen toestemming van het venster heeft, bijvoorbeeld Ctrl+S na een eerste opslag zonder extensie onder 2.5.0. Kiest
+     de gebruiker het doel in het venster, dan geeft Tauri ook het canonieke pad vrij (zie 1756) en slaagt de directe
+     terugval, ook na de tweede ronde van #979. Nagebootst in `check-save-dialog-extension.ts` (g), niet in de echte
+     app gezien. Met plugin-fs 2.7.1 (#978) mislukt al het aanmaken van het hulpbestand. Gevonden bij #979; aangescherpt
+     door de review van #979. — S
+1756. **VERVOLG (#979, proef): de nagebootste dialoog in `check-save-dialog-extension.ts` geeft alleen het letterlijke
+     pad vrij.** Tauri 2.12.3 zet bij `allow_file` via `push_pattern` en `canonicalize_parent` ook het canonieke pad in
+     de scope, ook voor een nieuw bestand waarvan alleen de bovenmap bestaat. De tweede ronde voor
+     `~/projecten/kopie.ifc` (`~/projecten` → `/data`) geeft dus ook `/data/kopie.ifc` vrij, en plugin-fs 2.7.1 kan die
+     toestemming gebruiken. De nabootsing mist die tweede padvorm; de review van #979 toonde met een gecorrigeerde
+     nabootsing 44 gevallen groen op de scoperegel van 2.5.0 en die van 2.7.1, ook bestaande doelen in een gelinkte map.
+     Een eerdere versie van dit punt las `allow_file` als alleen letterlijk; dat was onjuist. Richting: bij #978, die
+     de regel van 2.7.1 aan de proef toevoegt, de canonieke vorm in de nagebootste dialoog zetten. Gevonden door de
+     review van #979. — B (bron en proef van de review)
 
 ## Rondleiding, Help en extensie-gidsen
 
