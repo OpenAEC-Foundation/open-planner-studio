@@ -12,8 +12,8 @@
 //
 // 1. Wat de nieuwe toets laat schrijven: de knownbugs 1582, 1585, 1586 (laatste gebruik van één type), 1587, 1589, 1110 en
 //    de grens van 7d; de gevallen van 7c en 7d op drie bronnen; de reeksen; de sessieketen.
-// 2. Wat blijft weigeren: een typedefinitie hernoemen (stap 4), 1588 en een onbekend definitieveld (de groep is niet
-//    gedragen), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
+// 2. Wat blijft weigeren: 1588 en een onbekend definitieveld (de groep is niet gedragen; een typedefinitie hernoemen
+//    schrijft sinds PR 12d, blok 6), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
 //    volgorde in `IfcRelNests`).
 // 3. Een vreemd lid in een eigen pset.
 // 4. De klok: de reeksen en de sessieketen ook met een lopende klok.
@@ -21,6 +21,10 @@
 //    baselinestappen van de reeksen en de sessieketen); de rest van die aggregatie blijft exact en in volgorde, ook in de
 //    verliescontrole zelf op een nagebootste fout van de writer (`lossProbe`); en wat moet blijven weigeren. Daarin ook de
 //    proef van knownbug 1708: (a′) op de bronvorm schrijft op `ifc-arity-oude-writer.ifc` waar de ruwe vorm zou weigeren.
+// 6. PR 12d, de typenaam op de taak (E2): hernoemt de planner een eigen taaktype, dan beweegt `ObjectType` (slot 4) van elke
+//    taak met dat type mee (1586), op drie bronnen, samen met andere bewerkingen, in een keten en in een sessie met een vaste
+//    en een lopende klok; wat moet blijven weigeren; en de verliescontrole zelf op een nagebootste fout van de writer.
+//    Een projecttype hernoemen kan in de app niet (de beheer-UI hernoemt alleen persoonlijke typen): dat deel is domeininvoer.
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
@@ -32,11 +36,15 @@ import {
 } from './ifcMergeKern';
 import {
   SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, read, save, se, summary,
-  withForeignMember, withLines, withWall, type Outcome, type S,
+  withForeignMember, withLabelOnUntypedTask, withLines, withWall, type Outcome, type S,
 } from './ifcEigenKern';
 
 type Expect = 'schrijft' | 'weigert';
 type Edit = (d: Domain) => Promise<Domain> | Domain;
+/** Eén stap van een keten of sessie: een plannerhandeling in de store, of een bewerking van het domein (voor wat de store
+ *  niet kan, zoals een eigen taaktype van het project hernoemen: knownbug 1586). */
+type Step = ((s: S) => void) | { readonly domain: Edit };
+const runStep = (f: Step, d: Domain): Promise<Domain> => typeof f === 'function' ? se(f)(d) : Promise.resolve(f.domain(d));
 
 // ── Heel-zijn van een geschreven uitvoer ──
 const FIELDS = ['activityCodeTypes', 'customTaskTypes', 'baselines', 'activeBaselineId', 'comparedBaselineIds'] as const;
@@ -93,12 +101,12 @@ async function applied(label: string, f: () => Promise<Domain>): Promise<Domain 
  * Een keten over opslaan en heropenen: elke stap opent de laatste uitvoer die schreef. Weigert een stap, dan gaat de keten
  * verder zonder die stap (de planner draait hem terug).
  */
-async function reopenedChain(tag: string, bytes: Uint8Array, steps: readonly [string, (s: S) => void, Expect][]) {
+async function reopenedChain(tag: string, bytes: Uint8Array, steps: readonly [string, Step, Expect][]) {
   nextCase();
   for (const [label, f, expect] of steps) {
     clock.start();
     const opened = await openForeign(bytes);
-    const d = await applied(`keten ${tag}: stap ${label}`, () => se(f)(cloneDomain(opened)));
+    const d = await applied(`keten ${tag}: stap ${label}`, () => runStep(f, cloneDomain(opened)));
     if (!d) continue;
     const o = await attempt(`keten ${tag}: stap ${label}`, bytes, opened.ifcSource!, d, expect);
     if (o.ok) bytes = o.bytes;
@@ -109,16 +117,16 @@ async function reopenedChain(tag: string, bytes: Uint8Array, steps: readonly [st
  * als bron (`prepared.source`, zoals `fileSlice`), en de volgende bewerking gaat verder op hetzelfde domein. Weigert een
  * stap, dan gaat de sessie verder zonder die stap.
  */
-async function session(tag: string, raw: Uint8Array, steps: readonly [string, (s: S) => void, Expect][]) {
+async function session(tag: string, raw: Uint8Array, steps: readonly [string, Step, Expect][]) {
   nextCase();
   const opened = await openForeign(raw);
   let source = opened.ifcSource!, d: Domain = cloneDomain(opened);
   for (const [label, f, expect] of steps) {
-    const next = await applied(`sessie ${tag}: stap ${label}`, () => se(f)(d));
+    const next = await applied(`sessie ${tag}: stap ${label}`, () => runStep(f, typeof f === 'function' ? d : structuredClone(d)));
     if (!next) continue;
     const o = await attempt(`sessie ${tag}: stap ${label}`, raw, source, next, expect);
     if (!o.ok) continue;
-    if (label.startsWith('7')) ok(`${clock.mode} sessie ${tag}: niets bewerkt geeft de vorige uitvoer terug`, sameBytes(o.bytes, source.bytes));
+    if (label.includes('niets bewerken')) ok(`${clock.mode} sessie ${tag}: niets bewerkt geeft de vorige uitvoer terug`, sameBytes(o.bytes, source.bytes));
     source = o.next; d = next;
   }
 }
@@ -195,7 +203,7 @@ await one('grens: onbekende baselinesleutel, baseline erbij', unknownKey, se(s =
 
 await one('1581 alle baselines wissen', eigen, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), 'schrijft');
 await one('1700 één baseline wissen', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }), 'schrijft');
-await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'weigert');
+await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'schrijft');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
 await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
 // (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken; (c) toetst zo'n groep niet.
@@ -311,7 +319,7 @@ async function series(which: Which) {
     ['5 taak en baseline erbij', s => { addTask(s, 'Keten na wissen'); s.saveBaseline('Keten B3'); }, which === 'oud' ? 'weigert' : 'schrijft'],
   ]);
 }
-const SESSION: [string, (s: S) => void, Expect][] = [
+const SESSION: [string, Step, Expect][] = [
   ['1 type, code en twee baselines maken', s => {
     s.ensureProjectTaskType({ id: 'type-s', name: 'Type sessie' });
     for (const t of leaves(s).slice(0, 2)) s.updateTask(t.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-s' });
@@ -514,6 +522,134 @@ async function probe(label: string, bytes: Uint8Array, edit: Edit) {
   const found = p.run(swapped);
   console.log(`VERLIESPROEF verwisselde kop: ${found.length ? 'geweigerd' : 'laat door'} (bekend: alleen (c) toetst welke kop bij welke baseline hoort)`);
   ok('verliesproef: een verwisselde kop laat de verliescontrole door (alleen (c) vangt hem)', found.length === 0);
+}
+
+// ── 6. PR 12d: de typenaam op de taak beweegt mee met de definitie (E2) ──
+// De catalogus van elke bron: type A (`type-7d-a`, 'Type 0 7d') op twee taken, type B (`type-7d-b`, 'Type 1 7d') op één.
+/** Een eigen taaktype van het project hernoemen. In de app kan dat niet (knownbug 1586: geen store-actie voor de projectkopie);
+ *  daarom domeininvoer. Gooit een `TypeError` als het type er niet is (dan is de stap niet van toepassing). */
+const renameType = (id: string, name: string): Edit => d => {
+  const t = d.customTaskTypes?.find(x => x.id === id);
+  if (!t) throw new TypeError(`geen taaktype ${id}`);
+  t.name = name; return d;
+};
+const then = (...edits: Edit[]): Edit => async d => { for (const e of edits) d = await e(d); return d; };
+const hernoemA = renameType('type-7d-a', 'Hernoemd type A');
+for (const which of ['eigen', 'kantoor', 'oud'] as const) {
+  const { saved } = prepared.get(which)!;
+  await one(`typenaam ${which}: type A hernoemen, twee taken (1586)`, saved, hernoemA, 'schrijft');
+  await one(`typenaam ${which}: type B hernoemen, één taak (1586)`, saved, renameType('type-7d-b', 'Hernoemd type B'), 'schrijft');
+  await one(`typenaam ${which}: beide typen hernoemen`, saved, then(hernoemA, renameType('type-7d-b', 'Hernoemd type B')), 'schrijft');
+  await one(`typenaam ${which}: hernoemen met een apostrof en een #`, saved, renameType('type-7d-a', "Type O'Brien #804"), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en weer terug`, saved, then(hernoemA, renameType('type-7d-a', 'Type 0 7d')), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en een A-taak hernoemen`, saved, then(hernoemA, se(s => {
+    const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a'); s.updateTask(t.id, { name: `${t.name} hernoemd` });
+  })), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en een duur wijzigen`, saved, then(hernoemA, d => applyEdit(ordinaryEdits(d).find(e => e.kind === 'duur')!, d)), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en type A aan een nieuwe taak`, saved, then(hernoemA, se(s => {
+    const id = addTask(s, 'Nieuwe taak typenaam'); s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7d-a' });
+  })), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en een A-taak wisselt naar B`, saved, then(hernoemA, se(s => {
+    s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { customTaskTypeId: 'type-7d-b' });
+  })), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en het type weghalen bij een A-taak`, saved, then(hernoemA, se(s => {
+    s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+  })), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en een nieuw type maken en toewijzen`, saved, then(hernoemA, se(s => {
+    s.ensureProjectTaskType({ id: 'type-12d', name: 'Nieuw type 12d' });
+    s.updateTask(leaves(s).find((t: any) => !t.customTaskTypeId).id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-12d' });
+  })), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en de B-taak wissen`, saved, then(hernoemA, se(s => {
+    s.deleteTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-b').id);
+  })), 'schrijft');
+  await one(`typenaam ${which}: hernoemen en een baseline wissen`, saved, then(hernoemA, wisEen), 'schrijft');
+  // Twee typen met dezelfde naam leest de lezer niet terug (hij laat de tweede vallen): dat mag niet schrijven.
+  await one(`typenaam ${which}: A krijgt de naam van B (botsing)`, saved, renameType('type-7d-a', 'Type 1 7d'), 'weigert');
+  await reopenedChain(`typenaam ${which}`, saved, [
+    ['1 type A hernoemen', { domain: hernoemA }, 'schrijft'],
+    ['2 een A-taak hernoemen', s => { const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a'); s.updateTask(t.id, { name: `${t.name} keten` }); }, 'schrijft'],
+    ['3 opnieuw hernoemen en A aan een nieuwe taak', { domain: then(renameType('type-7d-a', 'Type A keten'), se(s => {
+      const id = addTask(s, 'Keten typenaam'); s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7d-a' });
+    })) }, 'schrijft'],
+    ['4 het type weghalen bij alle A-taken', s => {
+      for (const t of s.tasks.filter((t: any) => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+    }, 'schrijft'],
+  ]);
+}
+const TYPE_SESSION: [string, Step, Expect][] = [
+  ['1 een type maken en aan twee taken geven', s => {
+    s.ensureProjectTaskType({ id: 'type-st', name: 'Type sessie typenaam' });
+    for (const t of leaves(s).slice(0, 2)) s.updateTask(t.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-st' });
+  }, 'schrijft'],
+  ['2 het type hernoemen', { domain: renameType('type-st', 'Type sessie hernoemd') }, 'schrijft'],
+  ['3 een taak met dat type hernoemen', s => { const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-st'); s.updateTask(t.id, { name: `${t.name} sessie` }); }, 'schrijft'],
+  ['4 opnieuw hernoemen en een taak verliest het type', { domain: then(renameType('type-st', 'Type sessie twee keer'), se(s => {
+    s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-st').id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+  })) }, 'schrijft'],
+  ['5 niets bewerken (opnieuw Ctrl+S)', () => {}, 'schrijft'],
+];
+for (const mode of ['vast', 'lopend'] as const) {
+  clock.mode = mode;
+  for (const which of ['eigen', 'kantoor'] as const) await session(`typenaam ${which}`, SOURCES[which], TYPE_SESSION);
+}
+clock.mode = 'vast';
+
+// Wat moet blijven weigeren: `OPS_TaskTypes` niet gedragen (1588, een onbekend definitieveld, een vreemd lid), en een
+// typenaam die de herleestoets (b) terugzet (dan beweegt de typenaam niet mee: (c) toetst die groep niet).
+await one('typenaam: 1588 ongebruikte brondefinitie, type A hernoemen', unused, hernoemA, 'weigert');
+await one('typenaam: onbekend definitieveld, dat type hernoemen', unknownField, hernoemA, 'weigert');
+await one('typenaam: vreemd lid in OPS_TaskTypes, type A hernoemen', withForeignMember(cat, PSET.TaskTypes), hernoemA, 'weigert');
+const labelZonderType = withLabelOnUntypedTask(cat, 'Type 0 7d');
+await one('typenaam: typenaam op een taak zonder type (b), projectbeschrijving', labelZonderType, beschrijving, 'schrijft');
+await one('typenaam: typenaam op een taak zonder type (b), type A hernoemen', labelZonderType, hernoemA, 'weigert');
+
+// De verliescontrole zelf, op een nagebootste fout van de writer in O1 (`lossProbe`, met de toets aan). De echte O1 van
+// "type A hernoemen" slaagt; elke andere fout op de taakregel weigert daar.
+const taskLines = (ls: readonly OutLine[], typeName: string) => ls.filter(l => l.type === 'IFCTASK' && l.args[4].trim() === `'${typeName}'`);
+const setSlot = (ls: readonly OutLine[], target: OutLine, k: number, v: string) => ls.map(l => l === target ? { ...l, args: l.args.map((a, i) => i === k ? v : a) } : l);
+{
+  const { o, d } = await one('typenaam: verliesproef, type A hernoemen', cat, hernoemA, 'schrijft');
+  assert(o.ok, 'verliesproef typenaam: de opslag schrijft');
+  const p = await lossProbe(cat, d, o.bytes, true);
+  ok('verliesproef typenaam: de echte O1 slaagt', p.run(p.o1).length === 0);
+  const [a1] = taskLines(p.o1, 'Hernoemd type A'), chunk = p.index.chunkOf(String(a1.id));
+  const refuses = (what: string, lines: OutLine[], edited?: Domain, at = chunk) => {
+    const found = p.run(lines, edited);
+    console.log(`VERLIESPROEF typenaam: ${what}: ${found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR'}`);
+    ok(`verliesproef typenaam: ${what} weigert op de taak`, found.includes(at));
+  };
+  refuses('een ander slot van een A-taak verandert (naam)', setSlot(p.o1, a1, 2, "'Verkeerde taaknaam'"));
+  refuses('een ander slot van een A-taak verandert (omschrijving)', setSlot(p.o1, a1, 3, "'Verkeerde omschrijving'"));
+  refuses('PredefinedType van een A-taak .USERDEFINED. → .NOTDEFINED.', setSlot(p.o1, a1, 12, '.NOTDEFINED.'));
+  const plain = p.o1.find(l => l.type === 'IFCTASK' && l.args[4].trim() === '$')!;
+  refuses('een typenaam op een taak zonder eigen type', setSlot(p.o1, plain, 4, "'Hernoemd type A'"), undefined, p.index.chunkOf(String(plain.id)));
+  const b1 = taskLines(p.o1, 'Type 1 7d')[0];
+  refuses('de B-taak krijgt de nieuwe naam van A', setSlot(p.o1, b1, 4, "'Hernoemd type A'"), undefined, p.index.chunkOf(String(b1.id)));
+}
+{
+  // Geen hernoeming: dan verandert geen typenaam. Hier verandert alleen de projectbeschrijving, en staat in O1 toch een
+  // andere naam op een A-taak.
+  const { o, d } = await one('typenaam: verliesproef, projectbeschrijving', cat, beschrijving, 'schrijft');
+  assert(o.ok, 'verliesproef typenaam: de opslag schrijft');
+  const p = await lossProbe(cat, d, o.bytes, true);
+  const [a1] = taskLines(p.o1, 'Type 0 7d');
+  const found = p.run(setSlot(p.o1, a1, 4, "'Hernoemd type A'"));
+  console.log(`VERLIESPROEF typenaam: zonder hernoeming verandert een typenaam: ${found.length ? 'geweigerd' : 'LAAT DOOR'}`);
+  ok('verliesproef typenaam: zonder hernoeming verandert een typenaam: weigert op de taak', found.includes(p.index.chunkOf(String(a1.id))));
+}
+{
+  // `OPS_TaskTypes` niet gedragen (een vreemd lid in de pset): dan beweegt geen typenaam mee. Een echte hernoeming weigert dan
+  // al op het JSON; hier verandert in O1 alleen de typenaam (een nagebootste fout van de writer), bij een domein waarin het
+  // type wel hernoemd is, zodat alleen deze voorwaarde de weigering draagt.
+  const bytes = withForeignMember(cat, PSET.TaskTypes);
+  const { o, d } = await one('typenaam: verliesproef, vreemd lid in OPS_TaskTypes, projectbeschrijving', bytes, beschrijving, 'schrijft');
+  assert(o.ok, 'verliesproef typenaam: de opslag schrijft');
+  const p = await lossProbe(bytes, d, o.bytes, true);
+  const lines = taskLines(p.o1, 'Type 0 7d');
+  const mutated = p.o1.map(l => lines.includes(l) ? { ...l, args: l.args.map((a, i) => i === 4 ? "'Hernoemd type A'" : a) } : l);
+  const found = p.run(mutated, await hernoemA(structuredClone(d)));
+  console.log(`VERLIESPROEF typenaam: niet gedragen, de typenaam beweegt zonder JSON: ${found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR'}`);
+  ok('verliesproef typenaam: niet gedragen: de typenaam weigert op de taak', found.includes(p.index.chunkOf(String(lines[0].id))));
 }
 
 finish();

@@ -2147,13 +2147,6 @@ en noem het in je rapport of PR-tekst.
      bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
      mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
-1701. **VERVOLG (#804, controle): de verliescontrole toetst de typenaam op de taak niet op zijn waarde.**
-     Een verkeerde `ObjectType` op de taak waarvan de planner het type veranderde (nieuw type, typewissel), lieten de
-     verliescontrole en de controle "planning na openen" allebei door: de verliescontrole ziet alleen dat dat slot mocht
-     veranderen, en de lezer leest het type uit het JSON. Alleen een fout van de writer kan dit geven. Sinds PR 12a vangt
-     controle (c) het in de echte uitvoer (`eigen-uitvoer`, `check-ifc-foreign-eigen-uitvoer.ts`). Open: de
-     verliescontrole zelf blijft het slot niet op waarde toetsen tot stap 4 van de overstap. — B
-
 1702. **VERVOLG (#804, gebouwmodel): een baselinerij van een gewiste taak verandert bij herlezen.**
      Op een oud bestand krijgt na een merge met "taak wissen" de rij van de gewiste taak bij heropenen een nieuwe taak-id
      (oude showcase) of een nieuwe GlobalId in `TaskGuids` (`oud-eigen-0.1-plus-model.ifc`); een gewone opslag houdt
@@ -2227,6 +2220,25 @@ en noem het in je rapport of PR-tekst.
      verliescontrole elk wissen van een baseline. Alleen een fout van de writer kan dit geven: de gewone writer koppelt de
      kop via baseline-id en GlobalId, en geen gewone bewerking liet de verkeerde kop verdwijnen. Richting: in (c) de
      GlobalId van de kop per baseline meenemen, of de verliescontrole die laten kennen. — B
+
+1747. **VERVOLG (#804, controle (c)): zette (b) ergens een typenaam terug, dan toetst geen controle de typenaam op de taak.**
+     Controle (c) slaat de groep `taak:ObjectType` over zodra de herleestoets (b) bij één taak slot 4 of 12 terugzette
+     (`editedOwnGroup` in `ownGroups.ts`): dan schrijft de writer die groep niet uit het domein. De verliescontrole van main
+     ziet bij een nieuw type of een typewissel alleen dat slot 4 mocht veranderen, niet waarin. Tegenproef in
+     `check-ifc-foreign-eigen-uitvoer.ts`: een bron met een typenaam op een taak zonder type (die zet (b) terug), een
+     typewissel, en in de echte uitvoer een verkeerde typenaam op de taak die wisselde: alle controles laten hem door. Zo was
+     het ook op de basis van PR 12d (zelfde overslagregel, zelfde controle van main); de typenaam beweegt in dat geval niet
+     mee met een hernoeming (E2 eist dat (b) geen typenaam terugzette), dus PR 12d maakt het niet groter. Alleen een fout van
+     de writer kan dit geven: de gewone writer schrijft de naam uit de definitie van het type van de taak. Richting: in (c)
+     alleen de taken overslaan waarvan (b) een slot terugzette, niet de hele groep. — B
+
+1748. **VERVOLG (#804, taaktypen): een eigen taaktype van het project kan in de app niet hernoemd worden.**
+     De beheer-UI (`TaskTypeField.tsx`) hernoemt alleen het persoonlijke type (`renamePersonalTaskType`); de kopie in het
+     project (`customTaskTypes`) houdt haar naam, en ook `planner_*` via MCP weigert een andere naam bij hetzelfde id
+     ("already exists with project snapshot"). Daardoor is de typenaam die sinds PR 12d bij een gebouwmodel meebeweegt met
+     een hernoemd type (E2, oud knownbug 1586) alleen met domeininvoer te bereiken; de proeven in
+     `check-ifc-foreign-eigen-toets.ts` gebruiken die. Of de projectkopie mee moet met een hernoeming, is een productkeuze;
+     niets gaat verloren. — S
 
 1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
      In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
@@ -4203,13 +4215,6 @@ en noem het in je rapport of PR-tekst.
      heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
      (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
      review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
-
-1586. **VERVOLG: een eigen taaktypedefinitie hernoemen bij een gebouwmodel weigert.** Sinds PR 12b schrijft het
-     laatste gebruik van één type weghalen terwijl een ander gebruikt blijft (de andere toets voor de eigen projectgroepen,
-     `check-ifc-foreign-eigen-toets.ts`). Open blijft het hernoemen van een projectdefinitie: de typenaam staat ook in
-     `ObjectType` (slot 4) van elke taak met dat type, en dat slot is een tweede vorm buiten de pset. Gemeten alleen op
-     domeininvoer: er is geen store-actie voor die projectkopie, de beheer-UI hernoemt persoonlijke typen. Richting: stap 4
-     van de overstap (de typenaam op de taak, samen met 1701). — B
 
 1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
      Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra

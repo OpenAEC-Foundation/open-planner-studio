@@ -10,6 +10,8 @@
 // 4. De klok: de gevallen van 1 ook met een lopende klok (elke "nu" een seconde later).
 // 5. PR 12c: fouten rond de baselinekop in de echte uitvoer van "één baseline wissen"; per tegenproef welke controle hem
 //    vangt, en dat de boomvorm van (c) zelf hem ziet (ook knownbug 1705: de aggregatie waarin een kop staat).
+// 6. PR 12d: fouten rond de typenaam op de taak in de echte uitvoer (een hernoemd type, een taak die haar type verloor);
+//    per tegenproef wat de verliescontrole (met de toets) en wat de uitvoercontrole zonder en met (c) ervan zegt.
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
@@ -23,12 +25,12 @@ import { classify } from '@/services/ifc/foreign/classify';
 import { PSET, ifcJson, ifcStr } from '@/services/ifc/ifcPsets';
 import { decodeStepText } from '@/services/ifc/stepText';
 import {
-  applyEdit, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, mergeProblems, openForeign, sameBytes,
+  applyEdit, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, lossProbe, mergeProblems, openForeign, sameBytes,
   savedCatalogStart, savedSequenceStart, type Domain,
 } from './ifcMergeKern';
 import {
   BASE, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, save, se, summary,
-  withForeignMember, withLines, type S,
+  withForeignMember, withLabelOnUntypedTask, withLines, type S,
 } from './ifcEigenKern';
 
 const clockStart = () => clock.start();
@@ -283,13 +285,14 @@ async function verdict(bytes: Uint8Array, input: WriteIFCInput, source: IfcSourc
   catch (e) { if (!(e instanceof MergeNeedsPhase2Error)) throw e; lastDetail = e.cases[0].detail.slice(0, 200); return e.cases[0].kind; }
 }
 /** Een basis: een geslaagde opslag, en wat (c) daarvoor nodig heeft (de sessiekaart en de klok van die opslag). */
-async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain) {
+/** `skip`: de groepen waar (b) bronwaarden terugzette, zoals de echte opslag ze aan (c) geeft. */
+async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, skip: ReadonlySet<string> = new Set()) {
   nextCase();
   const opened = await openForeign(bytes), source = opened.ifcSource!;
   const input = await edit(cloneDomain(opened));
   const o = await save(input, source);
   assert(o.ok, `basis ${label} schrijft`);
-  const own = { stepIds: o.next.stepIds, writtenAt: new Date(BASE), skip: new Set<string>() };
+  const own = { stepIds: o.next.stepIds, writtenAt: new Date(BASE), skip: new Set(skip) };
   ok(`basis ${label}: de echte uitvoer slaagt met (c)`, await verdict(o.bytes, input, source, own) === 'laat door');
   return { bytes: o.bytes, input, source, own };
 }
@@ -542,6 +545,65 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     ok(`indeling: ${g} is een groep`, groups.has(g));
   }
   for (const g of [PSET.TaskNotes, PSET.Assignments, PSET.Resource, PSET.Calendar, PSET.WorkRule]) ok(`indeling: ${g} (per object) is geen groep`, !groups.has(g));
+}
+
+// ── 6. PR 12d: de typenaam op de taak (E2) ──
+// Sinds PR 12d mag in de verliescontrole de typenaam (`ObjectType`) van een taak meebewegen als de planner haar type hernoemt
+// (knownbug 1586). Welke naam er staat, toetst (c): per taak (op GlobalId) de typenaam en het PredefinedType. Per
+// tegenproef: wat de verliescontrole met de toets ervan zegt (`lossProbe`), en de uitvoercontrole zonder en met (c). Staan
+// hier als laatste: op de basis schrijft "type A hernoemen" niet.
+{
+  const cat = await savedCatalog(SOURCES.eigen);
+  const isTask = (l: OutLine) => l.type === 'IFCTASK';
+  const named = (ls: OutLine[], name: string) => ls.filter(l => isTask(l) && l.args[4].trim() === `'${name}'`);
+  const typeProof = async (b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate, onlyC: boolean) => {
+    const m = mutated(b.bytes, mutate);
+    const p = await lossProbe(b.source.bytes, b.input, b.bytes, true);
+    const found = p.run(linesIn(m).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l));
+    console.log(`TEGENPROEF ${label}: verliescontrole met de toets ${found.length ? 'weigert' : 'laat door'}`);
+    await counterProof(b, label, m, onlyC);
+  };
+  {
+    const b = await base('typenaam: type A hernoemen', cat, d => { d.customTaskTypes!.find(t => t.id === 'type-7d-a')!.name = 'Hernoemd type A'; return d; });
+    const ls0 = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const a = named(ls0, 'Hernoemd type A');
+    assert(a.length === 2 && named(ls0, 'Type 0 7d').length === 0, 'typenaam: twee A-taken met de nieuwe naam');
+    const at = (ls: OutLine[], id: number) => ls.find(l => l.id === id)!;
+    await typeProof(b, 'typenaam: een verkeerde naam op één van de twee A-taken', ls => { setArg(at(ls, a[1].id), 4, "'Verkeerde typenaam'"); }, true);
+    await typeProof(b, 'typenaam: de oude naam op één A-taak na hernoemen', ls => { setArg(at(ls, a[0].id), 4, "'Type 0 7d'"); }, true);
+    await typeProof(b, 'typenaam: de oude naam op beide A-taken na hernoemen', ls => { for (const x of a) setArg(at(ls, x.id), 4, "'Type 0 7d'"); }, true);
+    await typeProof(b, 'typenaam: de nieuwe naam van A op de B-taak', ls => { setArg(at(ls, named(ls0, 'Type 1 7d')[0].id), 4, "'Hernoemd type A'"); }, true);
+    await typeProof(b, 'typenaam: een A-taak verliest .USERDEFINED., de naam blijft', ls => { setArg(at(ls, a[0].id), 12, '.NOTDEFINED.'); }, false);
+  }
+  {
+    // De taak verliest haar type: de writer schrijft `$`; een typenaam die blijft staan, hoort er niet.
+    const b = await base('typenaam: het type weghalen bij een A-taak', cat, se(s => {
+      s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+    }));
+    const was = b.source.opened!.tasks.find(t => t.customTaskTypeId === 'type-7d-a' && !b.input.tasks.find(x => x.id === t.id)?.customTaskTypeId)!;
+    const guid = b.input.ifcGlobalIds?.[`task:${was.id}`];
+    assert(guid, 'typenaam: GlobalId van de taak die haar type verloor');
+    await typeProof(b, 'typenaam: een typenaam op een taak die geen type meer heeft', ls => {
+      setArg(ls.find(l => isTask(l) && l.args[0] === `'${guid}'`)!, 4, "'Type 0 7d'");
+    }, true);
+  }
+  {
+    // Bekend gat (knownbug 1747): zette (b) ergens een typenaam terug, dan toetst (c) de typenamen van geen enkele taak
+    // (`editedOwnGroup`, de groep `taak:ObjectType`), en de verliescontrole van main ziet bij een typewissel alleen dat het
+    // slot mocht veranderen. Een verkeerde typenaam op de taak die van type wisselde, ziet dan niemand. Alleen een fout van
+    // de writer kan dit geven. Slaat deze proef om, dan is het gat dicht: werk dan 1747 bij.
+    const b = await base('typenaam: typewissel, (b) zet een typenaam terug', withLabelOnUntypedTask(cat, 'Type 0 7d'), d => applyEdit(fixedCatalogEdits(d)[2], d), new Set(['taak:ObjectType']));
+    const changed = b.input.tasks.find(t => t.customTaskTypeId && t.customTaskTypeId !== b.source.opened!.tasks.find(o => o.id === t.id)?.customTaskTypeId)!;
+    const guid = b.input.ifcGlobalIds?.[`task:${changed.id}`];
+    assert(guid, 'typenaam: GlobalId van de taak die van type wisselde');
+    const m = mutated(b.bytes, ls => { setArg(ls.find(l => isTask(l) && l.args[0] === `'${guid}'`)!, 4, "'Verkeerde typenaam'"); });
+    const p = await lossProbe(b.source.bytes, b.input, b.bytes, true);
+    const found = p.run(linesIn(m).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l));
+    const withC = await verdict(m, b.input, b.source, b.own);
+    console.log(`TEGENPROEF typenaam: (b) zet een typenaam terug, verkeerde naam na typewissel: verliescontrole ${found.length ? 'weigert' : 'laat door'}; met (c) ${withC} (bekend gat, knownbug 1747)`);
+    ok('tegenproef typenaam: (b) zet een typenaam terug, verkeerde naam na typewissel: laat door (bekend gat, knownbug 1747)', found.length === 0 && withC === 'laat door', `${found.length} / ${withC}`);
+  }
+  console.log(`BEWIJS alleen (c) vangt, met de typenaam: ${caughtOnlyByC.length}`);
 }
 
 finish();

@@ -25,8 +25,12 @@ import type { StepIndex } from './stepScanner';
 
 /** De tweede vorm van `OPS_Baselines`: de baselinekoppen en de aggregatie waarin ze staan (die van het eigen werkplan). */
 export const BASELINE_HEADS = `kop:${PSET.Baselines}`;
-/** De tweede vorm van `OPS_TaskTypes`: `ObjectType` van elke eigen taak met `PredefinedType .USERDEFINED.`. */
+/** De tweede vorm van `OPS_TaskTypes`: `ObjectType` van elke eigen taak met `PredefinedType .USERDEFINED.` (of met een
+ *  `ObjectType`, PR 12d: de writer schrijft er alleen een bij `.USERDEFINED.`). */
 export const TASK_OBJECT_TYPES = `taak:ObjectType`;
+/** Per pset zijn tweede vorm buiten de pset. Wat een vorm in de verliescontrole mag dragen, staat bij `SECOND_FORMS` in
+ *  `lossCheck.ts` (op pset); `openedOwnGroups` in `mergeWriter.ts` toetst per vorm dat het openen hem niet veranderde. */
+export const SECOND_FORMS: ReadonlyMap<string, string> = new Map([[PSET.Baselines, BASELINE_HEADS], [PSET.TaskTypes, TASK_OBJECT_TYPES]]);
 
 /**
  * Een kijk op een reeks regels. `line(id)`: een eigen regel (van de writer), anders `undefined`. `typeOf(id)`: het
@@ -211,7 +215,12 @@ export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>):
     // De kop met de aggregaties waarin hij staat (knownbug 1705): een kop in een andere aggregatie dan die van het eigen
     // werkplan (die van het project, of een vreemde) leest anders dan wat de writer schrijft.
     if (isBaselineHead(l)) add(BASELINE_HEADS, `${[...view.aggregatedIn.get(l.id) ?? ['los']].sort().join('+')}|${argsOf({ ...l, args: l.args.slice(2) }, 0).join(',')}`);
-    else if (l.type === 'IFCTASK' && l.args[12]?.trim() === '.USERDEFINED.') add(TASK_OBJECT_TYPES, `${l.args[0].trim()}|${l.args[4]?.trim()}`);
+    // De typenaam per taak (op GlobalId), met het PredefinedType erbij (PR 12d): ook een typenaam op een taak zonder
+    // `.USERDEFINED.`, en een `.USERDEFINED.` dat wegviel terwijl de taak haar type houdt, lezen anders dan wat de writer
+    // schrijft (de lezer leest het type per taak uit `OPS_TaskTypes`, niet uit deze twee slots).
+    else if (l.type === 'IFCTASK' && (l.args[12]?.trim() === '.USERDEFINED.' || (l.args[4]?.trim() ?? '$') !== '$')) {
+      add(TASK_OBJECT_TYPES, `${l.args[0].trim()}|${l.args[4]?.trim()}|${l.args[12]?.trim()}`);
+    }
   }
   for (const v of groups.values()) v.sort();
   return groups;
