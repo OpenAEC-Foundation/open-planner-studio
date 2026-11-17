@@ -19,6 +19,7 @@ import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
+import { settleReplaceOnOpen } from '../ownFileReplace';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
@@ -1968,6 +1969,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openOpenedFile: async (opened, labels, options) => {
       try {
+        // Knownbug 1131 stap 5: restbestanden van een onderbroken vervanging die bij herstel niet thuiskwamen.
+        if (opened.ref?.kind === 'path') for (const notice of await settleReplaceOnOpen(opened.ref.path)) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.

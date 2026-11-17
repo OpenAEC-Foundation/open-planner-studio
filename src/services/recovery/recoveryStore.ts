@@ -9,8 +9,8 @@ import {
 import { writeBytesFileAtomic, writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { parseForeignSourceTarget, sameForeignSourceTarget, type ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
-import { checkRecoveryDocumentIds, checkRecoveryDocuments, checkRecoveryManifestVersion, RecoveryManifestError, RECOVERY_MANIFEST_VERSION } from './recoveryManifest';
-export { RECOVERY_MANIFEST_VERSION, RecoveryManifestError } from './recoveryManifest';
+import { checkRecoveryDocumentIds, checkRecoveryDocuments, checkRecoveryManifestVersion, RecoveryManifestError, recoveryManifestVersion } from './recoveryManifest';
+export { RECOVERY_MANIFEST_VERSION, RECOVERY_MANIFEST_REPLACE_VERSION, RecoveryManifestError } from './recoveryManifest';
 
 /** Eén recovery-document (IFC-CONTENT, niet de bestandsnaam). */
 export interface RecoveryDocContent {
@@ -680,16 +680,17 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   for (const d of plan.carryOver) adoptedIfc.add(d.ifc);
 
   const currentIds = new Set(snapshotPlan.documents.map((document) => document.id));
+  const manifestDocuments = [
+    ...snapshotPlan.documents,
+    // Een vreemde instantie kan een doc-id hebben die intussen in onze actieve set voorkomt.
+    // Onze eigen, expliciete metadata wint dan; dubbele manifestregels zouden loadRecovery
+    // anders één document tweemaal kunnen herstellen.
+    ...plan.carryOver.filter((document) => !currentIds.has(document.id)),
+  ];
   const manifest: RecoveryManifest = {
-    version: RECOVERY_MANIFEST_VERSION,
+    version: recoveryManifestVersion(manifestDocuments),
     activeDocumentId: input.activeDocumentId,
-    documents: [
-      ...snapshotPlan.documents,
-      // Een vreemde instantie kan een doc-id hebben die intussen in onze actieve set voorkomt.
-      // Onze eigen, expliciete metadata wint dan; dubbele manifestregels zouden loadRecovery
-      // anders één document tweemaal kunnen herstellen.
-      ...plan.carryOver.filter((document) => !currentIds.has(document.id)),
-    ],
+    documents: manifestDocuments,
     ownerId: instanceId,
     heartbeatAt: Date.now(),
   };
@@ -1423,7 +1424,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
           // pad-/dirtywijziging exact één manifest-write, nooit een serie grote IFC-copies.
           const manifest: WebManifestRecord = {
             id: manifestKey(sid), kind: 'manifest', sessionId: sid,
-            version: RECOVERY_MANIFEST_VERSION,
+            version: recoveryManifestVersion(input.documents),
             activeDocumentId: input.activeDocumentId,
             documents: input.documents.map((document) => ({
               id: document.id,

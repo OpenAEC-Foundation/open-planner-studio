@@ -91,10 +91,21 @@ export const USER_FILE_TMP_SUFFIX = '.ops-save.tmp';
  * Een zelfstandige, korte basename laat ook lange doelnamen toe. Behoud de map letterlijk; in een absoluut
  * POSIX-pad is een backslash een geldig onderdeel van de bestandsnaam. `place_file.rs` herkent deze vorm
  * als eigen hulpnaam (`is_helper_name`). */
-export function userFileTempPath(path: string): string {
+export function userFileTempPath(path: string, id: string = userFileHelperId()): string {
+  return `${userFileDir(path)}save-${id}${USER_FILE_TMP_SUFFIX}`;
+}
+
+/** Een vers id voor de eigen hulpnamen (`save-<id>.ops-save.tmp`, `<naam>.ops-vorige-<id>`): kleine letters en cijfers,
+ *  zoals `place_file.rs` (`is_helper_id`) het eist. */
+export function userFileHelperId(): string {
+  return generateId();
+}
+
+/** De map van `path` met het scheidingsteken erachter, letterlijk; leeg als er geen map in staat. */
+export function userFileDir(path: string): string {
   const windowsPath = /^[a-z]:[\\/]|^\\\\/i.test(path);
   const lastSeparator = windowsPath ? Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) : path.lastIndexOf('/');
-  return `${path.slice(0, lastSeparator + 1)}${generateId('save')}${USER_FILE_TMP_SUFFIX}`;
+  return path.slice(0, lastSeparator + 1);
 }
 
 /** De bestandsoperaties die `replaceUserFile` nodig heeft — injecteerbaar voor tests. */
@@ -184,7 +195,7 @@ type TauriWriteOptions = import('@tauri-apps/plugin-fs').WriteFileOptions;
  * Sinds 2.6.0 faalt de aanroep vóór het openen als die opties niet te lezen zijn; daarvóór vielen ze stil
  * terug op aanmaken en afkappen (ook zonder `createNew`). De opties hieronder zijn altijd leesbaar.
  */
-function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> {
+export function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> {
   return {
     lstat: p => fs.lstat(p),
     createNew: async (p, data, mode) => {

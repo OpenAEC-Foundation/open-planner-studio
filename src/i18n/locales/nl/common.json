@@ -364,6 +364,12 @@
     "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.",
     "ifcForeignNewTargetOnly": "Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geschreven. Kies een naam die nog niet bestaat.",
     "ifcForeignPlaceUnknown": "De app weet niet of het bestand goed is opgeslagen: tijdens het opslaan veranderde er iets in de map. Je wijzigingen staan nog in de app. Kijk of het bestand klopt, of sla opnieuw op onder een nieuwe naam.",
+    "ifcForeignReplaceOtherVersion": "Een ander programma heeft {{file}} gewijzigd terwijl de app het opsloeg. Die versie is bewaard als {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "De app stopte terwijl hij {{file}} opsloeg. De planning die toen werd opgeslagen, staat in {{copy}}. Gooi dat bestand weg als je het niet meer nodig hebt.",
+    "ifcForeignReplaceTargetTaken": "Niet opgeslagen. Tijdens het opslaan zette een ander programma een nieuw bestand op {{target}}. Er staan nu drie bestanden: dat nieuwe bestand op {{target}}, je planning in {{temp}} en de vorige versie in {{previous}}. Je wijzigingen staan ook nog in de app.",
+    "ifcForeignReplacePreviousStranded": "Niet opgeslagen, en de vorige versie van het bestand kon niet terug op haar plek. Ze staat nu in {{previous}}. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
+    "ifcForeignReplaceSaveAsOnly": "Niet opgeslagen. Dit bestand kan op deze plek niet veilig worden vervangen. Het bestand is niet veranderd. Kies Opslaan als om je wijzigingen in een nieuw bestand te bewaren.",
+    "ifcForeignReplaceLeftOver": "Van een onderbroken opslag van {{file}} bleef dit bestand staan: {{path}}. Kijk of je het nog nodig hebt.",
     "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
     "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
   },
@@ -2024,5 +2030,9 @@
     "bodyWithPool": "Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?",
     "continue": "Exporteren",
     "cancel": "Annuleren"
+  },
+  "replaceCopy": {
+    "otherProgram": "versie van ander programma {{when}}",
+    "unsavedSchedule": "niet opgeslagen planning {{when}}"
   }
 }

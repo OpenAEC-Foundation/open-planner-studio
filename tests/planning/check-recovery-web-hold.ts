@@ -224,7 +224,8 @@ eq('sparse docIds-fixture heeft één afwezige positie na structured clone',
 
 // Elke geweigerde vorm blijft ook zonder voorafgaande read beschermd tegen schrijven/wissen/rotatie.
 const invalidWebManifests = [
-  ...[6, 999, 0, -1, 1.5, NaN, Infinity, '5', null, true, undefined].map(version => ({ ...webManifest, version })),
+  // 7: de eerste onbekende versie; 6 draagt sinds knownbug 1131 stap 5 een lopende vervanging op de desktop.
+  ...[7, 999, 0, -1, 1.5, NaN, Infinity, '5', null, true, undefined].map(version => ({ ...webManifest, version })),
   { ...webManifest, documents: sparseDocuments },
   { ...webManifest, documents: new Array<unknown>(1) }, // ook een uitsluitend ontbrekende positie is ongeldig
   ...[null, 1, 2].flatMap(version => [sparseDocIds, new Array<unknown>(1)].map(docIds => ({
@@ -607,7 +608,8 @@ for (const version of [1, 2, 3, 4, 5]) {
 
 const diskBytes = () => [...disk].sort(([a], [b]) => a.localeCompare(b)).map(([name, bytes]) => [name, [...bytes]]);
 const invalidTauriManifests = [
-  ...[6, 999, 0, -1, 1.5, '5', null, true, undefined].map(version => JSON.stringify({ version,
+  // 7: de eerste onbekende versie (zie hierboven).
+  ...[7, 999, 0, -1, 1.5, '5', null, true, undefined].map(version => JSON.stringify({ version,
     documents: [{ id: 'contract', ifc: N.ifcName('contract') }] })),
   '{"version":5,"documents":{}}', '{"version":5,"documents":[null]}',
   '{"version":5,"documents":[{"id":"contract"}]}', '[]', 'null',

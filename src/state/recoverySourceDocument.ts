@@ -2,7 +2,7 @@ import { isTauri } from '@/utils/platform';
 import type { DocumentPayload } from './documentContract';
 import { recoverySaveTarget } from './ifcForeignGuard';
 import { recoveryIfcSourceFields } from '@/services/recovery/recoveryIfcSource';
-import { pendingIfcSourceSha256 } from '@/services/recovery/recoveryPendingSource';
+import { pendingIfcReplace, pendingIfcSourceSha256 } from '@/services/recovery/recoveryPendingSource';
 import { foreignSourceTargetOf } from '@/services/ifc/foreign/foreignSourceMark';
 import type { RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
 
@@ -16,7 +16,7 @@ export function recoverySourceDocument(id: string, payload: DocumentPayload, ena
     source: enabled && payload.ifcSource && !payload.ifcSource.foreign && payload.foreignSourceMark?.sourceMissing === undefined
       ? { ...payload, foreignSourceMark: null } : payload,
     ...recoverySaveTarget(payload),
-    ...recoveryIfcSourceFields(payload, enabled, pendingIfcSourceSha256(id)),
+    ...recoveryIfcSourceFields(payload, enabled, pendingIfcSourceSha256(id), pendingIfcReplace(id)),
     ...(enabled && !isTauri() && payload.ifcSource?.foreign && !payload.foreignSourceMark?.sourceMissing
       && (payload.siteFileId || !payload.foreignSourceMark?.handle) ? { sourceCopy: {
         bytes: payload.ifcSource.bytes, siteFileId: payload.siteFileId, siteFileVersion: payload.siteFileVersion,
