@@ -259,9 +259,9 @@ export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes:
     case 'dir-not-synced':
       console.warn(`Opgeslagen, maar de map is niet vastgelegd: ${outcome.message}`);
       return;
-    case 'target-exists':
+    case 'target-exists': // MUTATIE c
       await removeOwnTemp();
-      throw new ByteWriteError('create-new');
+      return createNewDirectly(fs, path, bytes);
     case 'unsupported':
       await removeOwnTemp();
       return createNewDirectly(fs, path, bytes);
