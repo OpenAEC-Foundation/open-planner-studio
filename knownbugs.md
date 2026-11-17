@@ -2754,15 +2754,50 @@ en noem het in je rapport of PR-tekst.
      #972 (ronde 2, met de echte Linux-stap). Proeven: `place_file_bronwissel_tussen_controle_en_stap`,
      `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
 
-1796. **VERVOLG (#804, beveiliging): het standaardverbod van plugin-fs op de webviewmap is leeg.**
-     `tauri-plugin-fs` 2.5.0 `permissions/deny-webview-data.toml` schrijft `[[scope.deny]]` in plaats van
-     `[[permission.scope.deny]]`; `deny-default` levert in de opgeloste ACL daarom geen verbod. Gemeten in de proef
-     `place_file_scope_volgt_plugin_fs` (Rust-tests, 16 november 2026: de verboden van `fs`/`rename` zijn leeg; de
-     proef faalt zodra plugin-fs dat herstelt). Gevolg: plugin-fs zelf en `place_file_exclusive`, dat dezelfde scope
-     leest, verbieden `$APPLOCALDATA` (met de map `EBWebView` op Windows) niet. Op Linux staat de capability ook
-     `$APPDATA/**` toe, en dat is daar dezelfde map als `$APPLOCALDATA`; het herstel heeft die nodig. Richting: een
-     besluit of de app het verbod zelf in de capability zet (voor plugin-fs en dit commando samen) of op een
-     plugin-fs-versie met de reparatie wacht. — B (gemeten)
+1775. **VERVOLG (beveiliging, buiten de grens van #975): een map bóven de app-datamap kan hernoemd of verwijderd worden.**
+     De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en wat eronder ligt (op 1776
+     na), en `rename`
+     en `remove` van `$APPLOCALDATA` zelf. Een map daarboven valt erbuiten (besluit van de technisch beslisser, 16
+     november 2026): op Windows staat `$HOME/**` `AppData\Local` en `AppData` toe, en `rename` of recursief `remove`
+     daarvan neemt `$APPLOCALDATA` met `EBWebView` mee (plugin-fs toetst alleen de opgegeven paden). Reden, letterlijk:
+     "wie die mappen kan hernoemen of wissen, kan dat al met de hele thuismap." Op Linux liggen de bovenmappen onder
+     `~/.local` en vallen ze niet onder `$HOME/**` (een punt vooraan); op elk platform kan een map die de gebruiker via
+     de bestandsdialoog als map toestaat (`dependentFolder.ts`, `open({ directory: true })`) wel een bovenmap zijn.
+     Niet in een echte app nagegaan. — B (bron gelezen)
+
+1776. **VERVOLG (beveiliging, buiten de grens van #975): een puntbestand in een beschermde webviewmap dat de gebruiker zelf kiest.**
+     Buiten de grens (besluit van de technisch beslisser, 17 november 2026): een bestand met een punt vooraan (of onder
+     een map met een punt vooraan) in een beschermde map, dat de gebruiker zelf in een bestandsdialoog kiest. De
+     puntregel van de matcher laat het verbod dat pad niet raken; code in de webview komt er zonder die keuze van de
+     gebruiker niet. Hoe het werkt: op Unix staat `require_literal_leading_dot` aan, en dan matcht `map/**` geen
+     padcomponent die met een punt begint (`glob-0.3.3/src/lib.rs:818-820`); `$APPDATA/**` laat zo'n bestand om
+     dezelfde reden ook niet toe, maar de bestandsdialoog geeft het gekozen bestand een letterlijke toestemming
+     (`tauri-plugin-dialog-2.7.0/src/commands.rs:204-210`). Geen extra patronen: elke eindige lijst laat een volgende
+     nesting open (`map/.a/.b`), en de puntregel uitzetten zou `$HOME/**` verborgen thuismappen laten toelaten. Op
+     Windows geldt de puntregel standaard niet. Gevonden door de review van #975 (ronde 2, uit de bron; niet uitgevoerd).
+     — B (bron gelezen)
+
+1797. **VERVOLG (beveiliging): `tauri-plugin-fs` staat op 2.5.0; upstream is 2.7.1.**
+     `src-tauri/Cargo.lock` vergrendelt 2.5.0 (`Cargo.toml` vraagt `2`, `tauri-plugin-persisted-scope` staat vast op
+     `=2.3.6` voor die versie). Wat de app daardoor mist, volgens de changelog van plugin-fs: in 2.5.2 het
+     standaardverbod op de webviewgegevens ("Fixed `deny-webview-data` has no effect"; de app zet het sinds #975 zelf
+     in `src-tauri/capabilities/webviewgegevens-*.json`) en "Fix `fs:default` … not giving any command scopes"; in
+     2.7.0 twee beveiligingsreparaties: de scopecontrole lost symbolische links in de bovenliggende mappen van een nog
+     niet bestaand pad op (daarvóór kwam een nieuw bestand onder een gelinkte map binnen de scope buiten de scope
+     terecht, bij `writeFile`, `mkdir`, `rename` en dergelijke), en `open` neemt geen `customFlags` meer aan uit de
+     webview (daarmee kon de webview willekeurige `open(2)`-vlaggen zoals `O_TRUNC` meegeven aan een bestand dat ze
+     alleen mag lezen). Wat een verhoging raakt: 2.6.0 laat `writeFile` en `writeTextFile` falen als de opties niet
+     te lezen zijn (eerder genegeerd, ook `createNew`), 2.7.1 maakt van de schrijfpermissies (`write-all`,
+     `allow-*-write[-recursive]`) sets van de `allow-*`-commando's, en de npm-versie `@tauri-apps/plugin-fs` moet
+     mee. Ook 2.7.1 dekt de webviewgegevens niet helemaal: `deny-webview-data` verbiedt alleen `map/**` (dat matcht de
+     map zelf niet), en `remove` (`plugins/fs/src/commands.rs:771`, `remove_dir_all` op regel 800) en `rename` (regel
+     840) toetsen via `resolve_path` (regel 1552) alleen de opgegeven paden; een beschermde map of `$APPLOCALDATA` zelf
+     hernoemen of recursief verwijderen blijft daar mogelijk (gelezen in de tak `v2`). De eigen capabilities
+     `webviewgegevens-*.json` blijven dus ook na de verhoging nodig; alleen de regels die `fs:default` dan zelf levert
+     (`map/**` en de twee bestanden op Linux, `EBWebView/**` op Windows) vervallen, anders staan ze dubbel en faalt de
+     bewering in `place_file_scope_volgt_plugin_fs`. Richting: een eigen PR direct na
+     de merge van #973, met een review, en een controle in de echte desktopapp vóór de merge: openen, opslaan,
+     Opslaan als, en herstel na een crash. — B (changelog en bron gelezen)
 
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
