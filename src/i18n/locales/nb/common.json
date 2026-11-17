@@ -358,7 +358,6 @@
     "ifcForeignReplaceBlocked": "Ikke lagret. Overskriving av en eksisterende fil med en bygningsmodell er ikke trygt ennå. Bruk Lagre som og velg et nytt navn.",
     "ifcForeignMergeRefused": "IFC-filen ble ikke skrevet. Bygningsmodellen eller dataene fra et annet program ville ellers ikke blitt fullt bevart. Angre den siste endringen, eller eksporter bare tidsplanen: til IFC med Uten bygningsmodell, eller til et annet format.",
     "ifcSaveChangedWhileWaiting": "Ikke lagret. Dokumentet eller kilden til bygningsmodellen er endret under forberedelsen. Prøv å lagre på nytt.",
-    "ifcForeignExportNewTarget": "Ikke eksportert. Denne IFC-filen kan bare eksporteres til et nytt filnavn. Velg et navn som ikke finnes ennå.",
     "ifcSourceCopyFailed": "Tidsplanen lagres for gjenoppretting ved brudd, men kopien av bygningsmodellen kunne ikke lagres. Etter et brudd kan bygningsmodellen mangle. Lagre dokumentet selv som en komplett IFC-fil.",
     "ifcForeignSourceMissing": "Ikke lagret. Bygningsmodellen eller dataene fra et annet program ble ikke funnet. Bruk Lagre som for bare å lagre tidsplanen i en ny fil. Åpne den opprinnelige IFC-filen for å jobbe med hele filen igjen."
   },

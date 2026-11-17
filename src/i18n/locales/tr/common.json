@@ -358,7 +358,6 @@
     "ifcForeignReplaceBlocked": "Kaydedilmedi. Yapı modeli içeren mevcut bir dosyanın üzerine yazmak henüz güvenli değil. Farklı kaydet seçeneğini kullanın ve yeni bir ad seçin.",
     "ifcForeignMergeRefused": "IFC-dosyası yazılmadı. Yapı modeli veya başka bir programın verileri aksi halde tam olarak korunmazdı. Son değişikliği geri alın ya da yalnızca planlamayı dışa aktarın: IFC'ye Yapı modeli olmadan seçeneğiyle veya başka bir biçime.",
     "ifcSaveChangedWhileWaiting": "Kaydedilmedi. Belge veya yapı modelinin kaynağı hazırlık sırasında değişti. Yeniden kaydetmeyi deneyin.",
-    "ifcForeignExportNewTarget": "Dışa aktarılmadı. Bu IFC-dosyası yalnızca yeni bir dosya adına dışa aktarılabilir. Henüz var olmayan bir ad seçin.",
     "ifcSourceCopyFailed": "Planlama çökme kurtarma için kaydediliyor, ancak yapı modelinin kopyası kaydedilemedi. Bir çökmeden sonra yapı modeli eksik olabilir. Çalışmanızı kendiniz tam bir IFC-dosyası olarak kaydedin.",
     "ifcForeignSourceMissing": "Kaydedilmedi. Yapı modeli veya başka bir programın verileri bulunamadı. Yalnızca planlamayı yeni bir dosyada kaydetmek için Farklı kaydet kullanın. Dosyayla yeniden tam olarak çalışmak için özgün IFC-dosyasını açın."
   },

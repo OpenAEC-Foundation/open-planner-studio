@@ -11,6 +11,7 @@ import { isForeignSourceTarget, sameEntry, targetRefusal, type TargetReaders } f
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef } from '@/services/fileAccess';
+import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import type { DocumentPayload } from './documentContract';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
@@ -83,6 +84,29 @@ export function recoverySaveTarget(p: {
 // Fixronde 1 (BLOKKEERT 2 en 3): het gekozen doel van Opslaan als, Opslaan of een export is het bronbestand van een open
 // document met een vreemd deel. Dan schreef de app alleen planning (of CSV, XML, ...) over het modelbestand. Deze
 // weigering blijft ook na fase 1c bestaan: dan bewaart Opslaan het vreemde deel wel, maar alleen in het eigen document.
+
+/** Knownbug 1131 stap 4 (en 1760): een nieuwe naam voor een bestand met een gebouwmodel (Opslaan als, Exporteren →
+ *  IFC) kon niet exclusief ontstaan, meestal omdat er al een bestand met die naam staat. Eén zin voor beide routes. */
+export const IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignNewTargetOnly',
+  dedupeKey: 'ifc-foreign-new-target-only',
+});
+
+/** Knownbug 1131 stap 4: `place_file_exclusive` meldde `source-changed`. De stand op schijf is onbekend; de app zette
+ *  niets terug en ruimde niets op. Een echte fout, geen weigering: hij blijft ook na een documentwissel staan. */
+export const IFC_FOREIGN_PLACE_UNKNOWN_NOTICE: NotifyInput = {
+  severity: 'error',
+  messageKey: 'notifications.ifcForeignPlaceUnknown',
+  dedupeKey: 'ifc-foreign-place-unknown',
+};
+
+/** De melding bij een fout van de exclusieve byte-ingang naar een nieuwe naam; `null` voor een gewone schrijffout. */
+export function newTargetWriteNotice(error: unknown): NotifyInput | null {
+  if (!(error instanceof ByteWriteError)) return null;
+  if (error.reason === 'create-new') return IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE;
+  if (error.reason === 'source-changed') return IFC_FOREIGN_PLACE_UNKNOWN_NOTICE;
+  return null;
+}
 
 /** De weigering bij Opslaan en Opslaan als: "Kies een ander bestand om op te slaan." */
 export const IFC_FOREIGN_TARGET_SAVE_NOTICE: NotifyInput = refusalNotice({

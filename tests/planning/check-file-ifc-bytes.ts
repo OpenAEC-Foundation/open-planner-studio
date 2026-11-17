@@ -1,4 +1,5 @@
-// #804 fase 1c, T1: de voorbereide IFC-bytes alleen naar een nieuw lokaal doel, download of siteversie.
+// #804 fase 1c, T1 en knownbug 1131 stap 4: de voorbereide IFC-bytes alleen naar een nieuw lokaal doel (op de desktop
+// via een eigen tijdelijk bestand en `place_file_exclusive`), download of siteversie.
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -49,62 +50,185 @@ async function main() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ops-ifc-bytes-'));
   const ipc = installNodeFileIpc();
   try {
-    await check('Tauri: nieuw doel bytegelijk, de hele buffer als rauwe body, geen tekstroute', async () => {
-      const target = path.join(dir, 'nieuw.ifc');
-      const before = ipc.calls.length;
-      assert.equal(await saveNewBytesToRef({ kind: 'path', path: target }, bytes), true);
-      assert.deepEqual(fs.readFileSync(target), expected);
+    // #804, knownbug 1131 stap 4: een nieuwe naam krijgt eerst een eigen tijdelijk bestand (de hele buffer in één
+    // rauwe aanroep), en `place_file_exclusive` zet het op de naam. Elke proef heeft een eigen map, zodat de stand op
+    // schijf na afloop compleet te zien is: welke bestanden er staan, met welke bytes.
+    let caseNo = 0;
+    const caseDir = () => { const d = path.join(dir, `geval-${++caseNo}`); fs.mkdirSync(d); return d; };
+    const onDisk = (d: string) => Object.fromEntries(fs.readdirSync(d).sort().map(name => [name, fs.readFileSync(path.join(d, name)).toString('hex')]));
+    const hex = (data: Uint8Array | string) => Buffer.from(data).toString('hex');
+    const isTemp = (p: string | undefined) => /[\\/]save-[0-9a-z]+\.ops-save\.tmp$/.test(p ?? '');
+    const callsFrom = (before: number) => ipc.calls.slice(before);
+    const writesTo = (calls: typeof ipc.calls) => calls.filter(c => fileWrite(c) || c.command === 'plugin:fs|write');
+    const placeCalls = (calls: typeof ipc.calls) => calls.filter(c => c.command === 'place_file_exclusive');
+    const removes = (calls: typeof ipc.calls) => calls.filter(c => c.command === 'plugin:fs|remove');
+    const withPlace = async (answer: NonNullable<typeof ipc.faults.place>, run: () => Promise<void>) => {
+      ipc.faults.place = answer;
+      try { await run(); } finally { ipc.faults.place = null; }
+    };
+    const save = (target: string) => saveNewBytesToRef({ kind: 'path', path: target }, bytes);
+    const caught = async (run: Promise<unknown>) => { try { await run; } catch (error) { return error; } throw new Error('geen fout'); };
+
+    await check('1. Tauri: tijdelijk bestand met de hele buffer, één plaatsing, geen append; alleen het doel blijft', async () => {
+      const d = caseDir(), target = path.join(d, 'nieuw.ifc'), before = ipc.calls.length;
+      assert.equal(await save(target), true);
+      assert.deepEqual(onDisk(d), { 'nieuw.ifc': hex(bytes) });
       assert.equal(ipc.openHandles(), 0);
-      const calls = ipc.calls.slice(before);
-      // Proef 1: nooit bytes in een object (Tauri maakt daar JSON van, één getal per byte).
+      const calls = callsFrom(before);
+      // Nooit bytes in een object (Tauri maakt daar JSON van, één getal per byte), nooit een tekstroute.
       assert.equal(calls.some(c => c.bytesInObject), false);
       assert.equal(calls.some(c => c.command === 'plugin:fs|open' || c.command === 'plugin:fs|write'), false);
-      const writes = calls.filter(fileWrite);
-      // Het doel exclusief, met de hele buffer in één aanroep; geen append.
-      assert.deepEqual(writes.map(c => [c.command, c.path, c.rawBody, c.options?.createNew, c.options?.append, c.options?.create]), [
-        ['plugin:fs|write_file', target, true, true, undefined, undefined],
-      ]);
+      const writes = writesTo(calls);
+      assert.equal(writes.length, 1, 'één schrijfaanroep');
+      assert.equal(isTemp(writes[0].path), true, 'in het eigen tijdelijke bestand, niet in het doel');
+      assert.equal(path.dirname(writes[0].path!), d, 'in dezelfde map');
+      assert.deepEqual([writes[0].command, writes[0].rawBody, writes[0].options?.createNew, writes[0].options?.append],
+        ['plugin:fs|write_file', true, true, undefined]);
+      assert.deepEqual(placeCalls(calls).map(c => [c.command, c.path]), [['place_file_exclusive', target]]);
+      assert.equal(calls.some(c => c.command === 'plugin:fs|rename'), false, 'geen rename van plugin-fs (die vervangt)');
+      assert.equal(removes(calls).length, 0);
     });
-    await check('Tauri: bestand verschijnt bij aanmaken; botsing laat het intact', async () => {
-      const target = path.join(dir, 'botsing.ifc');
-      ipc.faults.beforeOpen = p => { if (p === target) fs.writeFileSync(target, 'INTUSSEN'); };
+    await check('2. Tauri: crash na het tijdelijke bestand laat geen (half) einddoel achter', async () => {
+      const d = caseDir(), target = path.join(d, 'crash.ifc');
+      let reached!: () => void;
+      const atPlace = new Promise<void>(resolve => { reached = resolve; });
+      // De route blijft voor altijd in de plaatsing hangen: de stand op schijf is die van een afgebroken app.
+      await withPlace(() => { reached(); return new Promise<undefined>(() => {}); }, async () => {
+        const route = save(target).then(() => 'klaar', () => 'fout');
+        assert.equal(await Promise.race([atPlace.then(() => 'plaatsing'), route]), 'plaatsing', 'de route kwam bij de plaatsing');
+        const files = onDisk(d);
+        assert.equal(fs.existsSync(target), false, 'het einddoel bestaat niet');
+        assert.deepEqual(Object.values(files), [hex(bytes)], 'alleen het tijdelijke bestand, compleet');
+        assert.equal(isTemp(path.join(d, Object.keys(files)[0])), true);
+      });
+    });
+    await check('3. Tauri: schrijffout in het tijdelijke bestand: geen doel, geen hulpbestand, fout write', async () => {
+      const d = caseDir(), target = path.join(d, 'schrijffout.ifc'), before = ipc.calls.length;
+      ipc.faults.writeErrorAfter = 3;
       try {
-        await assert.rejects(saveNewBytesToRef({ kind: 'path', path: target }, bytes), reason('create-new'));
-        assert.equal(fs.readFileSync(target, 'utf8'), 'INTUSSEN');
-      } finally { ipc.faults.beforeOpen = null; }
+        assert.ok(reason('write')(await caught(save(target))));
+      } finally { ipc.faults.writeErrorAfter = null; }
+      assert.deepEqual(onDisk(d), {});
+      const calls = callsFrom(before);
+      assert.equal(placeCalls(calls).length, 0, 'geen plaatsing');
+      assert.equal(calls.some(direct), false, 'geen directe terugval');
+      assert.deepEqual(removes(calls).map(c => isTemp(c.path)), [true], 'alleen het eigen bestand opgeruimd');
     });
-    await check('Tauri: bestaand doel blijft intact; ook geen oude rename/directe terugval', async () => {
-      const target = path.join(dir, 'bestaand.ifc');
+    await check('4. Tauri: doel verschijnt tussen kiezen en plaatsen: vreemd bestand bytegelijk, fout create-new', async () => {
+      const d = caseDir(), target = path.join(d, 'intussen.ifc'), before = ipc.calls.length;
+      await withPlace((_from, to, real) => { fs.writeFileSync(to, 'VAN EEN ANDER'); return real(); }, async () => {
+        assert.ok(reason('create-new')(await caught(save(target))));
+      });
+      assert.deepEqual(onDisk(d), { 'intussen.ifc': hex('VAN EEN ANDER') }, 'vreemd bestand intact, hulpbestand weg');
+      const calls = callsFrom(before);
+      assert.equal(writesTo(calls).length, 1, 'geen directe aanmaak als terugval');
+      assert.deepEqual(removes(calls).map(c => isTemp(c.path)), [true], 'nooit het doel verwijderd');
+    });
+    for (const [label, answer] of [
+      ['unsupported', { reject: { code: 'unsupported', message: 'geen RENAME_NOREPLACE' } }],
+      ['refused/scope', { reject: { code: 'refused', reason: 'scope' } }],
+    ] as const) {
+      await check(`5. Tauri: ${label}: hulpbestand weg, dan de directe exclusieve aanmaak`, async () => {
+        const d = caseDir(), target = path.join(d, 'direct.ifc'), before = ipc.calls.length;
+        await withPlace(() => answer, async () => { assert.equal(await save(target), true); });
+        assert.deepEqual(onDisk(d), { 'direct.ifc': hex(bytes) });
+        const writes = writesTo(callsFrom(before));
+        assert.deepEqual(writes.map(c => [isTemp(c.path), c.path === target, c.options?.createNew]), [[true, false, true], [false, true, true]]);
+        assert.equal(callsFrom(before).some(c => c.options?.append), false);
+      });
+      await check(`5. Tauri: ${label}, en het doel verschijnt intussen: het blijft bytegelijk`, async () => {
+        const d = caseDir(), target = path.join(d, 'bezet.ifc');
+        await withPlace((_from, to) => { fs.writeFileSync(to, 'BEZET'); return answer; }, async () => {
+          assert.ok(reason('create-new')(await caught(save(target))));
+        });
+        assert.deepEqual(onDisk(d), { 'bezet.ifc': hex('BEZET') });
+      });
+    }
+    await check('6. Tauri: tijdelijk bestand buiten de scope (forbidden path): directe aanmaak, één aanroep', async () => {
+      const d = caseDir(), target = path.join(d, 'buiten-thuismap.ifc'), before = ipc.calls.length;
+      ipc.faults.forbidden = p => isTemp(p);
+      try { assert.equal(await save(target), true); } finally { ipc.faults.forbidden = null; }
+      assert.deepEqual(onDisk(d), { 'buiten-thuismap.ifc': hex(bytes) });
+      const calls = callsFrom(before);
+      assert.deepEqual(writesTo(calls).filter(c => c.wrote).map(c => [c.path, c.options?.createNew, c.options?.append]), [[target, true, undefined]]);
+      assert.equal(placeCalls(calls).length, 0);
+      assert.equal(removes(calls).length, 0, 'geen eigendom, niets opgeruimd');
+    });
+    await check('6b. Tauri: een andere aanmaakfout van het hulpbestand: geen terugval, niets verwijderd', async () => {
+      const d = caseDir(), target = path.join(d, 'botsing-hulpnaam.ifc'), before = ipc.calls.length;
+      ipc.faults.beforeOpen = p => { if (isTemp(p)) fs.writeFileSync(p, 'AL DAAR'); };
+      try { assert.ok(reason('write')(await caught(save(target)))); } finally { ipc.faults.beforeOpen = null; }
+      assert.deepEqual(Object.values(onDisk(d)), [hex('AL DAAR')], 'het bestaande hulpbestand blijft, geen doel');
+      const calls = callsFrom(before);
+      assert.equal(placeCalls(calls).length + removes(calls).length, 0);
+      assert.equal(writesTo(calls).some(c => c.path === target), false);
+    });
+    await check('7. Tauri: source-changed: stoppen, geen schrijf- of verwijderactie meer, eigen foutreden', async () => {
+      const d = caseDir(), target = path.join(d, 'onbekend.ifc'), before = ipc.calls.length;
+      await withPlace((_from, _to, real) => { real(); return { reject: { code: 'source-changed' } }; }, async () => {
+        assert.ok(reason('source-changed')(await caught(save(target))));
+      });
+      const calls = callsFrom(before), at = calls.findIndex(c => c.command === 'place_file_exclusive');
+      assert.deepEqual(calls.slice(at + 1).map(c => c.command), [], 'na de plaatsing geen enkele aanroep');
+      assert.deepEqual(onDisk(d), { 'onbekend.ifc': hex(bytes) }, 'de stand op schijf is wat de stap achterliet');
+    });
+    await check('8. Tauri: io: fout write met de oorzaak, hulpbestand weg', async () => {
+      const d = caseDir(), target = path.join(d, 'io.ifc');
+      await withPlace(() => ({ reject: { code: 'io', message: 'Input/output error (os error 5)' } }), async () => {
+        const error = await caught(save(target));
+        assert.ok(reason('write')(error));
+        assert.match(String((error as ByteWriteError).cause), /os error 5/);
+      });
+      assert.deepEqual(onDisk(d), {});
+    });
+    await check('8b. Tauri: io nadat de hernoeming toch gebeurde (1795): dezelfde fout, opruimen verbergt niets', async () => {
+      const d = caseDir(), target = path.join(d, 'netwerkschijf.ifc'), before = ipc.calls.length;
+      await withPlace((_from, _to, real) => { real(); return { reject: { code: 'io', message: 'Stale file handle (os error 116)' } }; }, async () => {
+        const error = await caught(save(target));
+        assert.ok(reason('write')(error));
+        assert.match(String((error as ByteWriteError).cause), /os error 116/);
+      });
+      // De hulpnaam bestond niet meer: het opruimen faalde stil. Het doel wordt niet teruggelezen om succes te melden.
+      assert.deepEqual(onDisk(d), { 'netwerkschijf.ifc': hex(bytes) });
+      const calls = callsFrom(before);
+      assert.deepEqual(removes(calls).map(c => isTemp(c.path)), [true]);
+      assert.equal(calls.some(c => c.command === 'plugin:fs|read_file' || c.command === 'plugin:fs|open'), false);
+    });
+    for (const reasonCode of ['not-regular-file', 'helper-name'] as const) {
+      await check(`8c. Tauri: refused/${reasonCode}: fout, opruimen alleen als er geen ander object onder de hulpnaam kan staan`, async () => {
+        const d = caseDir(), target = path.join(d, `refused-${reasonCode}.ifc`), before = ipc.calls.length;
+        await withPlace(() => ({ reject: { code: 'refused', reason: reasonCode } }), async () => {
+          assert.ok(reason('write')(await caught(save(target))));
+        });
+        assert.equal(fs.existsSync(target), false);
+        assert.equal(removes(callsFrom(before)).length, reasonCode === 'not-regular-file' ? 0 : 1);
+        assert.equal(writesTo(callsFrom(before)).length, 1, 'geen directe terugval');
+      });
+    }
+    await check('9. Tauri: dir-not-synced: het bestand is geplaatst, dus geslaagd (met een waarschuwing)', async () => {
+      const d = caseDir(), target = path.join(d, 'niet-vastgelegd.ifc');
+      const warn = console.warn, warnings: unknown[][] = [];
+      console.warn = (...args: unknown[]) => { warnings.push(args); };
+      try {
+        await withPlace((_from, _to, real) => { real(); return { resolve: { code: 'dir-not-synced', message: 'fsync van de map mislukte' } }; }, async () => {
+          assert.equal(await save(target), true);
+        });
+      } finally { console.warn = warn; }
+      assert.deepEqual(onDisk(d), { 'niet-vastgelegd.ifc': hex(bytes) });
+      assert.match(warnings.map(w => w.map(String).join(' ')).join('\n'), /fsync van de map mislukte/);
+    });
+    await check('Tauri: bestaand doel blijft intact; geen rename van plugin-fs en geen directe terugval', async () => {
+      const d = caseDir(), target = path.join(d, 'bestaand.ifc');
       fs.writeFileSync(target, 'OUD');
       const before = ipc.calls.length;
       ipc.faults.renameError = new Error('Plaatsing geweigerd');
       try {
-        let error: unknown;
-        try { await saveNewBytesToRef({ kind: 'path', path: target }, bytes); } catch (caught) { error = caught; }
-        assert.equal(fs.readFileSync(target, 'utf8'), 'OUD');
-        assert.ok(reason('create-new')(error));
-        // T1 maakt het uiteindelijke doel exclusief: een vervangende rename is nooit bereikbaar, en na
-        // de geweigerde aanmaak volgt geen enkele schrijfaanroep of opruiming meer.
-        const calls = ipc.calls.slice(before);
-        assert.equal(calls.some(c => ['plugin:fs|rename', 'plugin:fs|remove', 'plugin:fs|write'].includes(c.command)), false);
-        assert.deepEqual(calls.filter(fileWrite).map(c => c.options?.createNew), [true]);
+        assert.ok(reason('create-new')(await caught(save(target))));
       } finally { ipc.faults.renameError = null; }
-    });
-    // plugin-fs schrijft de buffer met write_all en sluit binnen dezelfde aanroep: een aparte sluitfout
-    // bestaat op deze route niet. Een schijffout aan het begin of halverwege wel.
-    await check('Tauri: schrijffout getypeerd, eigen doel opgeruimd, geen directe terugval of geslaagde opslag', async () => {
-      for (const [name, after] of [['begin', 2], ['halverwege', bytes.length - 3]] as const) {
-        const target = path.join(dir, `${name}.ifc`);
-        const before = ipc.calls.length;
-        ipc.faults.writeErrorAfter = after;
-        try {
-          await assert.rejects(saveNewBytesToRef({ kind: 'path', path: target }, bytes), reason('write'));
-          assert.equal(fs.existsSync(target), false);
-          assert.equal(ipc.openHandles(), 0);
-          assert.equal(ipc.calls.slice(before).some(direct), false);
-          assert.equal(ipc.calls.slice(before).filter(c => c.command === 'plugin:fs|remove').length, 1);
-        } finally { ipc.faults.writeErrorAfter = null; }
-      }
+      assert.deepEqual(onDisk(d), { 'bestaand.ifc': hex('OUD') });
+      const calls = callsFrom(before);
+      assert.equal(calls.some(c => ['plugin:fs|rename', 'plugin:fs|write'].includes(c.command)), false);
+      assert.equal(writesTo(calls).some(c => c.path === target), false, 'het doel zelf is nooit geopend');
     });
 
     // #804, knownbug 1131 stap 1: staat op het eigen doel nog precies de bron? Grootte eerst, dan stukken van 1 MiB.
@@ -275,5 +399,11 @@ async function main() {
   });
   console.log(`IFC-bytes: ${passed} geslaagd, ${failed} mislukt.`);
   if (failed) process.exitCode = 1;
+  finished = true;
 }
+// Een route die blijft hangen mag de proef niet stil laten eindigen: dan is ze niet afgerond, dus rood.
+let finished = false;
+process.on('exit', () => {
+  if (!finished) { console.error('XX de proef is niet afgerond (een route bleef hangen)'); process.exitCode = 1; }
+});
 main().catch(error => { console.error(error); process.exitCode = 1; });

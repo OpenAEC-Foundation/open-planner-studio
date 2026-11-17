@@ -358,7 +358,6 @@
     "ifcForeignReplaceBlocked": "A fájl nem lett mentve. Egy épületmodellt tartalmazó meglévő fájl felülírása még nem biztonságos. Használja a „Mentés másként” parancsot, és válasszon új nevet.",
     "ifcForeignMergeRefused": "Az IFC-fájl nem lett megírva. Az épületmodell vagy más program adatai különben nem maradnának teljesen megőrizve. Vonja vissza az utolsó módosítást, vagy csak az ütemezést exportálja: IFC-be az „Épületmodell nélkül” beállítással, vagy más formátumba.",
     "ifcSaveChangedWhileWaiting": "A fájl nem lett mentve. A dokumentum vagy az épületmodell forrása megváltozott az előkészítés alatt. Próbálja meg újra menteni.",
-    "ifcForeignExportNewTarget": "Nem lett exportálva. Ez az IFC-fájl csak új fájlnévre exportálható. Válasszon olyan nevet, amely még nem létezik.",
     "ifcSourceCopyFailed": "Az ütemezés a visszaállás összeomlás után céljából van mentve, de az épületmodell másolatát nem lehetett elmenteni. Összeomlás után az épületmodell hiányozhat. Mentse el maga is a dokumentumot teljes IFC-fájlként.",
     "ifcForeignSourceMissing": "A fájl nem lett mentve. Az épületmodell vagy más program adatai nem találhatók. Használja a „Mentés másként” parancsot, ha csak az ütemezést szeretné új fájlba menteni. Nyissa meg az eredeti IFC-fájlt, hogy ismét a teljes fájllal dolgozhasson."
   },

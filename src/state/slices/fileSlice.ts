@@ -41,7 +41,7 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget,
+  refusedWriteTarget, newTargetWriteNotice,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
@@ -1406,6 +1406,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const failureNoticeKey = `project-save:${++saveAttemptSequence}`;
     const notifyWriteError = (err: unknown) => {
       console.error('Save failed:', err);
+      const newTarget = newTargetWriteNotice(err);
+      if (newTarget) { get().notify(newTarget); return; }
       get().notify({
         severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err),
         dedupeKey: failureNoticeKey, replaceOnDedupe: true,
@@ -1567,7 +1569,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         return;
       }
       console.error('Save As failed:', err);
-      get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err) });
+      get().notify(newTargetWriteNotice(err)
+        ?? { severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err) });
     }
   });
 
@@ -2185,11 +2188,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
               : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
         } catch (error) {
           if (!preparedExport) throw error;
-          get().notify(refusalNotice({
-            messageKey: error instanceof ByteWriteError && error.reason === 'create-new'
-              ? 'notifications.ifcForeignExportNewTarget' : 'notifications.saveFailed',
-            dedupeKey: 'ifc-export-write-failed',
-          }));
+          get().notify(newTargetWriteNotice(error)
+            ?? refusalNotice({ messageKey: 'notifications.saveFailed', dedupeKey: 'ifc-export-write-failed' }));
           return null;
         }
         // Na een ja op "alleen de planning" is het eigen bestand nooit het doel (het bevat het gebouwmodel).

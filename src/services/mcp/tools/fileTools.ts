@@ -48,6 +48,7 @@ import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards,
 import { guardBridgeFlags } from './documentTools';
 import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
 import { writeUserTextFileTauri, writeNewUserBytesTauri } from '@/services/fileAccess/atomicWrite';
+import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
@@ -104,7 +105,7 @@ export interface McpFileFs extends FileIdentityFs {
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
  *  `recoveryStore.ts`/`backup.ts`, zodat de web-build niet op een top-level `@tauri-apps`-import breekt. */
-async function realFs(): Promise<McpFileFs> {
+export async function realFs(): Promise<McpFileFs> {
   if (!isTauri()) {
     throw new Error(
       'The file tools only work in the desktop app (Tauri): the browser version has no direct file system ' +
@@ -419,7 +420,14 @@ export const fileTools: McpToolDef[] = [
           if (output.prepared) await fs.writeNewUserBytes!(path, output.prepared.bytes);
           else await fs.writeTextFile(path, output.content);
         } catch (e) {
-          return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
+          // Knownbug 1131 stap 4: de nieuwe naam bestond intussen, of de plaatsing liet een onbekende stand achter.
+          if (e instanceof ByteWriteError && e.reason === 'create-new') return toolError(ctx, 'VALIDATION',
+            `'${path}' exists now; IFC export with a building model or data from other programs requires a new file name. Nothing was written there.`);
+          if (e instanceof ByteWriteError && e.reason === 'source-changed') return toolError(ctx, 'INTERNAL',
+            `The app does not know whether '${path}' was written correctly: something changed in the folder during the write. ` +
+            'Nothing was restored or cleaned up. Check the file, or export again to a new file name.');
+          const cause = e instanceof ByteWriteError && e.cause !== undefined ? e.cause : e;
+          return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${cause instanceof Error ? cause.message : String(cause)}`);
         }
         if (!output.prepared && output.literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
           ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);

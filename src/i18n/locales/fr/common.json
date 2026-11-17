@@ -458,7 +458,6 @@
     "ifcForeignReplaceBlocked": "Non enregistré. Remplacer un fichier existant contenant un modèle de bâtiment n’est pas encore sûr. Utilisez «Enregistrer sous» et choisissez un nouveau nom.",
     "ifcForeignMergeRefused": "Le fichier IFC n’a pas été écrit. Le modèle de bâtiment ou les données d’un autre programme ne seraient pas entièrement conservés. Annulez la dernière modification, ou exportez seulement le planning : en IFC avec «Sans modèle de bâtiment», ou dans un autre format.",
     "ifcSaveChangedWhileWaiting": "Non enregistré. Le document ou le fichier source du modèle de bâtiment a changé pendant la préparation. Réessayez d’enregistrer.",
-    "ifcForeignExportNewTarget": "Non exporté. Ce fichier IFC ne peut être exporté que vers un nouveau nom de fichier. Choisissez un nom qui n’existe pas encore.",
     "ifcSourceCopyFailed": "Le planning est enregistré pour la récupération après un plantage, mais la copie du modèle de bâtiment n’a pas pu être enregistrée. Après un plantage, le modèle de bâtiment peut manquer. Enregistrez vous-même votre travail comme fichier IFC complet.",
     "ifcForeignSourceMissing": "Non enregistré. Le modèle de bâtiment ou les données d’un autre programme n’ont pas été trouvés. Utilisez «Enregistrer sous» pour n’enregistrer que le planning dans un nouveau fichier. Ouvrez le fichier IFC d’origine pour travailler de nouveau avec le fichier complet."
   },

@@ -2,7 +2,7 @@
 export class ByteWriteError extends Error {
   readonly code = 'BYTE_WRITE_FAILED';
   constructor(
-    readonly reason: 'create-new' | 'write' | 'close' | 'handle-not-exclusive' | 'base-version' | 'download',
+    readonly reason: 'create-new' | 'write' | 'close' | 'handle-not-exclusive' | 'base-version' | 'download' | 'source-changed',
     readonly cause?: unknown,
   ) {
     super(`Bytes konden niet worden opgeslagen (${reason}).`);

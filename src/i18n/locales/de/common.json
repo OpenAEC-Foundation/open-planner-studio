@@ -358,7 +358,6 @@
     "ifcForeignReplaceBlocked": "Nicht gespeichert. Das Überschreiben einer bestehenden Datei mit einem Gebäudemodell ist noch nicht sicher möglich. Verwenden Sie „Speichern unter“ und wählen Sie einen neuen Namen.",
     "ifcForeignMergeRefused": "Die IFC-Datei wurde nicht geschrieben. Das Gebäudemodell oder die Daten eines anderen Programms würden sonst nicht vollständig erhalten bleiben. Machen Sie die letzte Änderung rückgängig oder exportieren Sie nur den Terminplan: nach IFC mit Ohne Gebäudemodell oder in ein anderes Format.",
     "ifcSaveChangedWhileWaiting": "Nicht gespeichert. Das Dokument oder die Quelle des Gebäudemodells hat sich während der Vorbereitung geändert. Versuchen Sie erneut zu speichern.",
-    "ifcForeignExportNewTarget": "Nicht exportiert. Diese IFC-Datei kann nur in einen neuen Dateinamen exportiert werden. Wählen Sie einen Namen, den es noch nicht gibt.",
     "ifcSourceCopyFailed": "Der Terminplan wird für die Wiederherstellung nach einem Absturz gespeichert, aber die Kopie des Gebäudemodells konnte nicht gespeichert werden. Nach einem Absturz kann das Gebäudemodell fehlen. Speichern Sie Ihre Arbeit selbst als vollständige IFC-Datei.",
     "ifcForeignSourceMissing": "Nicht gespeichert. Das Gebäudemodell oder die Daten eines anderen Programms wurden nicht gefunden. Verwenden Sie „Speichern unter“, um nur den Terminplan in einer neuen Datei zu speichern. Öffnen Sie die ursprüngliche IFC-Datei, um wieder mit der vollständigen Datei zu arbeiten."
   },

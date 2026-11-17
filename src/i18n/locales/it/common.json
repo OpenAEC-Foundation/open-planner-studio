@@ -458,7 +458,6 @@
     "ifcForeignReplaceBlocked": "Non salvato. Sovrascrivere un file esistente con un modello di edificio non è ancora sicuro. Usa «Salva come» e scegli un nuovo nome.",
     "ifcForeignMergeRefused": "Il file IFC non è stato scritto. Il modello di edificio o i dati di un altro programma non verrebbero altrimenti conservati interamente. Annulla l'ultima modifica, oppure esporta solo la pianificazione: in IFC con «Senza modello di edificio», oppure in un altro formato.",
     "ifcSaveChangedWhileWaiting": "Non salvato. Il documento o la fonte del modello di edificio è cambiata durante la preparazione. Riprova a salvare.",
-    "ifcForeignExportNewTarget": "Non esportato. Questo file IFC può essere esportato solo con un nuovo nome di file. Scegli un nome che non esiste ancora.",
     "ifcSourceCopyFailed": "La pianificazione viene salvata per il recupero da crash, ma la copia del modello di edificio non è stata salvata. Dopo un crash il modello di edificio potrebbe mancare. Salva tu stesso il lavoro come file IFC completo.",
     "ifcForeignSourceMissing": "Non salvato. Il modello di edificio o i dati di un altro programma non sono stati trovati. Usa «Salva come» per salvare solo la pianificazione in un nuovo file. Apri il file IFC originale per lavorare di nuovo con il file completo."
   },
