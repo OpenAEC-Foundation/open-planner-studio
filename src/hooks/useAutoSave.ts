@@ -9,6 +9,7 @@ import { recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
+import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { actualAutoSaveDelay } from '@/services/actualAutosave/actualAutoSave';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
@@ -49,7 +50,8 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       // echte save blijven actieve-tab- en metadatawijzigingen echter wél bewaard, ook als geen
       // document op dat moment dirty is. `isDirty` is dus hoogstens een eerste-eligibilityflag,
       // nooit de identiteit van IFC-inhoud.
-      if (!docs.some((d) => d.payload.isDirty) && !recoveryDelta.hasPersistedSnapshot) return;
+      // Een lopende vervanging (knownbug 1131) wacht op haar manifest, ook in een schone sessie.
+      if (!docs.some((d) => d.payload.isDirty) && !recoveryDelta.hasPersistedSnapshot && !hasPendingIfcSource()) return;
       try {
         // Vergelijk de echte IFC-bronvelden (Immer-referenties) en niet `isDirty`: zo krijgt één
         // taakbewerking één volledige IFC-upsert, terwijl een actieve-tabwissel manifest-only is.

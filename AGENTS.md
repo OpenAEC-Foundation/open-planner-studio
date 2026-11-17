@@ -116,7 +116,8 @@ Workflows outside `verify` (depth: `ci-release` and `mcp` rules): `headless-api.
 `windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `appimage-im-check.yml`
 (builds only the AppImage and checks it ships the IBus/Fcitx input-method modules, issue #764; `release.yml` runs the
 same `scripts/check-appimage-im-modules.sh` before publishing), `mcp-real-app.yml` (MCP
-bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
+bridge tests against the real Rust bridge), `rust-tests.yml` (`cargo test place_file` on Ubuntu 22.04, macOS and
+Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
 
 ## Testing pitfalls
 
@@ -205,9 +206,28 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `config.ts`, `discovery.ts`, `headlessChild.ts`). Its manifest version is in the bump register;
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **macOS shell.** `src-tauri/tauri.macos.conf.json` restores native window decorations; custom window buttons stay Windows/Linux-only. `useMacOSMenu` installs translated native menus and `nativeMenuActions` reuses shortcut actions/guards and pending-text commits. Native Quit goes through window close so the unsaved-document guard remains active. The ribbon stays available on every platform.
-- **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
-  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. The command-less
+- **Rust is thin.** Exactly four commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`,
+  `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
+  Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
+  same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
+  the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
+  exactly one name is an own helper file and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
+  then the scope, as plugin-fs does) and the real open folder (its real scope via `Webview::resolve_command_scope`
+  plus the runtime scope, the plugin-fs rule: a deny wins). A step error stays an error; after the step it checks that
+  the opened source is at the target and otherwise returns `source-changed` without touching anything again (no
+  restore). Its boundary, including the Unix window it leaves open (knownbug 1799), is in the header of
+  `place_file.rs` and design §4.10. No fallback; not yet used by any route (TS entry
+  `fileAccess/placeFileExclusive.ts`). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  The app itself denies the webview's data to every plugin-fs command and to `place_file_exclusive`: the capabilities
+  `webviewgegevens-linux.json` (the WebKitGTK folders and files in `$APPLOCALDATA`, which on Linux is the same folder
+  as `$APPDATA`) and `webviewgegevens-windows.json` (`$APPLOCALDATA/EBWebView`), via `platforms`; macOS needs none.
+  Each protected folder is denied itself as well as `folder/**` in `fs:scope` (`folder/**` does not match the folder,
+  and plugin-fs `rename`/`remove` only check the given paths), and `fs:allow-rename`/`fs:allow-remove` deny
+  `$APPLOCALDATA` itself; `mkdir`, `read_dir`, reading and writing there stay allowed (crash recovery and the MCP files
+  live there, so never deny all of `$APPLOCALDATA`). Out of bounds: renaming or removing a folder above it on Windows
+  (knownbug 1770), and a dot-named file inside a protected folder that the user picks in a file dialog (the
+  matcher's leading-dot rule keeps a deny from matching it; knownbug 1771). plugin-fs 2.5.0's own `deny-default` is empty (knownbug 1797).
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
   levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
   `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde
@@ -224,7 +244,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
   accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
   directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
-  weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130). `saveNewSiteFileParts` en
+  weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130); alleen Ctrl+S op het eigen bestand achter een
+  handle vervangt, via `replaceHandleWithParts` (1131 stap 2). `saveNewSiteFileParts` en
   `saveSiteFileVersionParts` schrijven een Blob; de laatste eist een basisversie en bewaart de
   eventuele conflictkopie in het antwoord. Tekst en bestaande binaire exports houden hun gedrag.
   `ifcSaveBlocked` houdt de overige routes dicht; exclusieve vervanging/bronhash en crashvaste publicatie
@@ -257,7 +278,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
   with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
-  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131).
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131), except Ctrl+S on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`); desktop paths still refuse.
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
   write planning alone after a cancel-by-default question. The original target stays protected by the same mark
@@ -351,8 +372,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
   Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
   1–5 plus the historical unversioned web `docIds` form. With `ifcForeignContent`, an optional per-document
-  `ifcSource` reference (sha256, byteLength, foreign and optional browser handle) restores a foreign source through
-  the ordinary bytes-open route after hash verification; the snapshot supplies the edited planning. Foreign documents
+  `ifcSource` reference (sha256, byteLength, foreign, optional browser handle and, while a replacement runs,
+  `pendingSha256`) restores a foreign source through the ordinary bytes-open route after hash verification against
+  either hash; the snapshot supplies the edited planning. Foreign documents
   keep no save target in the manifest, so older readers restore planning with `sourceMissing` and no target.
   Desktop paths and browser handles read the source again. Browser files without a handle and site files use
   best-effort source copies in a separate `ops-ifc-sources.<recoveryBase>` IndexedDB database (created only when needed
@@ -520,5 +542,5 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 | IFC read/write | `src/services/ifc/ifcReader`, `ifcWriter` |
 | File I/O (Tauri↔web↔site) | `src/services/fileAccess/` (+ `recentFiles.ts`; site contract `siteHost.ts`) |
 | Auto-save / recovery | `src/hooks/useAutoSave.ts`, `src/services/recovery/recoveryStore.ts` |
-| Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |
+| Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/commands/place_file.rs` (`place_file_exclusive`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |
 | Tauri config | `src-tauri/tauri.conf.json` (app id `org.openaec.planner`) |

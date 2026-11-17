@@ -179,6 +179,7 @@ check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
@@ -303,6 +304,7 @@ check-p6xml-writer-labels.ts matrix
 check-p6xml-writer-p6.ts matrix
 check-p6xml-xer-parity.ts matrix
 check-paste-references.ts matrix
+check-place-file-exclusive.ts matrix
 check-placement-load.ts matrix
 check-print-bar-dates.ts matrix
 check-print-bar-moments.ts matrix

@@ -2693,8 +2693,9 @@ dependencies = [
 
 [[package]]
 name = "open-planner-studio"
-version = "2026.45.0"
+version = "2026.47.0"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
  "tauri",
@@ -2710,6 +2711,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tiny_http",
+ "windows-sys 0.61.2",
  "zip",
 ]
 

@@ -1,7 +1,7 @@
 import { isTauri } from '@/utils/platform';
 import {
   openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
-  fileIdentityFsTauri, scanTargetPathTauri,
+  fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
   saveBytePartsDialogTauri, saveBytePartsToRefTauri,
 } from './tauriBackend';
 import type { FileIdentityFs } from './fileIdentity';
@@ -9,9 +9,10 @@ import type { TargetReaders } from './foreignSourceTarget';
 import { readSiteSourceFile } from './siteBackend';
 import {
   openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
-  saveBytePartsDialogWeb, saveBytePartsToRefWeb,
+  saveBytePartsDialogWeb, saveBytePartsToRefWeb, handleWritePermissionWeb, replaceHandleWithPartsWeb,
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
+import { sourceTargetContentOfHandle, type SourceTargetContent } from './sourceTargetContent';
 
 /** Bestandsfilter (naam + extensies zonder punt), zoals de bestaande dialoog-aanroepen. */
 export interface FileFilter {
@@ -148,6 +149,30 @@ export function writeTargetReaders(): TargetReaders {
     ...(isTauri() ? { scanPath: scanTargetPathTauri } : {}),
     ...(siteStorageAvailable() ? { readSite: async (id: string) => (await readSiteSourceFile(id)).bytes() } : {}),
   };
+}
+
+/** Een lokaal doel om te vervangen: een pad (desktop) of een bestandshandle (browser). Een site-bestand en een
+ *  download hebben geen doel om op inhoud te vergelijken. */
+export type LocalTargetRef = Extract<FileRef, { kind: 'path' | 'handle' }>;
+
+/** #804, knownbug 1131 stap 1: staat op het eigen doel nog precies `expected` (de bronbytes)? Zie
+ *  `sourceTargetContent.ts`. Een pad is alleen op de desktop een doel. */
+export function sourceTargetContent(ref: LocalTargetRef, expected: Uint8Array): Promise<SourceTargetContent> {
+  if (ref.kind === 'handle') return sourceTargetContentOfHandle(ref.handle, expected);
+  if (!isTauri()) return Promise.reject(new Error('Een pad is in de browser geen doel om te vergelijken.'));
+  return sourceTargetContentOfPathTauri(ref.path, expected);
+}
+
+/** Knownbug 1131 stap 2: het eigen bestand van een document met een gebouwmodel achter een bestandshandle (alleen de
+ *  browser; de desktop heeft paden). Eerst de schrijftoestemming, vóór de merge; dan de vervanging met een tweede
+ *  inhoudscontrole vlak vóór `close()`. Zie `webBackend.ts`. */
+export function handleWritePermission(ref: Extract<FileRef, { kind: 'handle' }>): Promise<boolean> {
+  return handleWritePermissionWeb(ref.handle);
+}
+export function replaceHandleWithParts(
+  ref: Extract<FileRef, { kind: 'handle' }>, parts: readonly Uint8Array[], stillSource: () => Promise<boolean>,
+): Promise<boolean> {
+  return replaceHandleWithPartsWeb(ref.handle, parts, stillSource);
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */

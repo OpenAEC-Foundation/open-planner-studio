@@ -24,6 +24,8 @@
     "undo": "Desfazer",
     "redo": "Refazer",
     "delete": "Eliminar",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: elimina as tarefas selecionadas; cada predecessora fica vinculada a cada sucessora (fim-início, sem desfasamento)",
     "undoTitle": "Desfazer (Ctrl+Z)",
     "redoTitle": "Refazer (Ctrl+Y)",
     "deleteTitle": "Eliminar selecção (Delete)",
@@ -212,6 +214,7 @@
     "columnsHintGoToTable": "Escolher as colunas da vista Tabela — visíveis no separador Tabela",
     "toggleResourceAccent": "Acento de recurso",
     "toggleFloatBand": "Faixa de folga",
+    "toggleBarDates": "Datas junto às barras",
     "screenColors": "Cores das barras",
     "screenColors_critical": "Caminho crítico",
     "screenColors_auto": "Por tarefa — automático",
@@ -282,7 +285,8 @@
       "label": "Esquema IFC ao guardar",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (padrão)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "O ficheiro contém dados de outra aplicação. Por isso, o esquema do cabeçalho original é mantido."
     }
   },
   "newProject": {
@@ -290,7 +294,23 @@
     "template": "Modelo de fases",
     "tmplEmpty": "Vazio",
     "tmplWoningbouw": "Construção residencial",
-    "tmplUtiliteit": "Construção comercial / renovação"
+    "tmplUtiliteit": "Construção comercial / renovação",
+    "phase": {
+      "siteGroundwork": "Estaleiro & movimentação de terras",
+      "foundation": "Fundações",
+      "shell": "Estrutura / casco",
+      "roof": "Cobertura",
+      "facadeFitOut": "Fachada & acabamentos",
+      "services": "Instalações (MEP)",
+      "finishes": "Acabamentos",
+      "handover": "Entrega",
+      "demolitionStripOut": "Demolição & desmontagem",
+      "groundworkFoundation": "Movimentação de terras & fundações",
+      "mainStructure": "Estrutura principal",
+      "facadeRoof": "Fachada & cobertura",
+      "fitOut": "Acabamentos interiores",
+      "commissioning": "Regulação & ensaios"
+    }
   },
   "status": {
     "tasks": "Tarefas:",
@@ -317,12 +337,14 @@
     "recentTitle": "Projetos recentes",
     "recentSubtitle": "Clique para abrir.",
     "recentEmpty": "Ainda não há projetos abertos recentemente.",
+    "recentLoading": "A carregar ficheiros recentes…",
     "recentUnavailable": "Este navegador não consegue reabrir ficheiros locais abertos recentemente a partir de «Recentes». Use «Abrir» para escolher de novo o seu ficheiro de projeto.",
     "recentOnSite": "No estaleiro",
     "examples": "Exemplos",
     "examplesTitle": "Projetos de exemplo",
     "examplesSubtitle": "Planificações de obra incluídas. Clique para abrir num novo separador.",
     "examplesLoading": "A carregar exemplos…",
+    "loading": "A carregar…",
     "examplesEmpty": "Não há exemplos disponíveis.",
     "examplesError": "Não foi possível carregar os exemplos.",
     "examplesShowcaseHeading": "Planificações de demonstração completas",

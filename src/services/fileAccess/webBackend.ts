@@ -168,6 +168,50 @@ export async function saveBytePartsToRefWeb(ref: FileRef, _parts: readonly Uint8
   throw new BytePartsWriteError('handle-not-exclusive');
 }
 
+/**
+ * Knownbug 1131 stap 2: schrijftoestemming voor het eigen bestand van een document met een gebouwmodel, vóór de merge.
+ * De vraag van de browser hoort bij het gebaar van de planner (Ctrl+S); na een merge van enkele seconden kan dat
+ * gebaar verlopen zijn. Dezelfde weigeringen als `saveToRefWeb`: annuleren of een omgevingsweigering is `false`.
+ */
+export async function handleWritePermissionWeb(handle: FileSystemFileHandle): Promise<boolean> {
+  if (platformRefusesWrites) return false;
+  try {
+    return await readwriteGranted(handle);
+  } catch (err) {
+    if (!isAbort(err) && !isPlatformRefusal(err)) throw err;
+    if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
+    return false;
+  }
+}
+
+/**
+ * Knownbug 1131 stap 2: het eigen bestand achter een handle vervangen door de delen, zonder samengevoegde buffer.
+ * `createWritable()` schrijft naar een tijdelijk bestand van de browser; pas `close()` zet de inhoud op zijn plek.
+ * Vlak vóór `close()` vraagt deze functie `stillSource()`: staat op het doel nog de bron? Zo niet, dan `abort()` en
+ * `false`: het bestand blijft ongemoeid. Een wijziging tussen die controle en `close()` gaat verloren; de browser kent
+ * geen voorwaardelijk opslaan (ontwerp §4.10, §4.15). Een schrijf- of sluitfout gooit `BytePartsWriteError`.
+ */
+export async function replaceHandleWithPartsWeb(
+  handle: FileSystemFileHandle, parts: readonly Uint8Array[], stillSource: () => Promise<boolean>,
+): Promise<boolean> {
+  const writable = await handle.createWritable();
+  try {
+    for (const part of parts) await writable.write(part as BufferSource);
+  } catch (error) {
+    await writable.abort().catch(() => { /* de schrijffout hieronder telt */ });
+    throw new BytePartsWriteError('write', error);
+  }
+  let same: boolean;
+  try { same = await stillSource(); }
+  catch (error) { await writable.abort().catch(() => {}); throw error; }
+  if (!same) {
+    await writable.abort();
+    return false;
+  }
+  try { await writable.close(); } catch (error) { throw new BytePartsWriteError('close', error); }
+  return true;
+}
+
 /** Een bestand dat de planner koos, met het handvat als de browser dat geeft (Chromium). */
 export interface PickedWebFile {
   file: File;
@@ -319,6 +363,13 @@ export function saveBytesDialogWeb(
   return saveDataDialogWeb(defaultName, bytes, filters, opts);
 }
 
+/** In-place opslaan vereist readwrite; showOpenFilePicker geeft alleen read. Fouten gaan naar de aanroeper. */
+async function readwriteGranted(handle: FileSystemFileHandle): Promise<boolean> {
+  const opts: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' };
+  if ((await handle.queryPermission?.(opts)) === 'granted') return true;
+  return (await handle.requestPermission?.(opts)) === 'granted';
+}
+
 export async function saveToRefWeb(ref: FileRef, content: string): Promise<boolean> {
   if (ref.kind !== 'handle') return false;
   // Weet de omgeving al dat schrijven via handles hier niet kan? Dan de permissievraag overslaan:
@@ -326,12 +377,8 @@ export async function saveToRefWeb(ref: FileRef, content: string): Promise<boole
   // `saveFileDialog`, die dan meteen de download-route pakt.
   if (platformRefusesWrites) return false;
   const { handle } = ref;
-  const opts: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' };
-  // In-place opslaan vereist readwrite; showOpenFilePicker geeft alleen read.
   try {
-    if ((await handle.queryPermission?.(opts)) !== 'granted') {
-      if ((await handle.requestPermission?.(opts)) !== 'granted') return false;
-    }
+    if (!(await readwriteGranted(handle))) return false;
     const writable = await handle.createWritable();
     await writable.write(content);
     await writable.close();

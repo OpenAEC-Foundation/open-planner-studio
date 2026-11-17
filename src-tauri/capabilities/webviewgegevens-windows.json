@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "webviewgegevens-windows",
+  "description": "Verbiedt de fs-commando's de gegevens van WebView2 in $APPLOCALDATA/EBWebView ($APPLOCALDATA is de app-datamap): de map zelf en wat eronder ligt, en rename en remove van $APPLOCALDATA zelf. mkdir, read_dir, lezen en schrijven in $APPLOCALDATA blijven. De grens en wat erbuiten valt staan in .claude/rules/tauri-ifc.md en in knownbugs 1770 en 1771; tauri-plugin-fs 2.5.0 verbiedt hier zelf niets (knownbug 1797).",
+  "windows": ["main"],
+  "platforms": ["windows"],
+  "permissions": [
+    {
+      "identifier": "fs:scope",
+      "deny": [{ "path": "$APPLOCALDATA/EBWebView" }, { "path": "$APPLOCALDATA/EBWebView/**" }]
+    },
+    {
+      "identifier": "fs:allow-rename",
+      "deny": [{ "path": "$APPLOCALDATA" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "deny": [{ "path": "$APPLOCALDATA" }]
+    }
+  ]
+}

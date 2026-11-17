@@ -172,7 +172,9 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     await state.saveFile();
     eq(`${label}: schrijven of blokkeren`, writes.length, wall ? 0 : 1);
     if (wall) {
-      eq(`${label}: bestaand lokaal modeldoel krijgt de Opslaan-als-melding`, store.getState().ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignReplaceBlocked']);
+      // Knownbug 1131 stap 2: Ctrl+S via de handle weigert niet meer vóór de merge. Deze proef registreert geen
+      // herstelronde, dus de komende versie ligt niet vast in het herstelmanifest en de app schrijft niet (1764).
+      eq(`${label}: zonder herstelronde geen vervanging van het modeldoel`, store.getState().ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignReplaceNotRecorded']);
       eq(`${label}: volledige bron inclusief wand intact`, data, text);
     }
     // Ctrl+S bevestigt ook de bestaande minutenomzetting; vergelijk met de daardoor vastgelegde toestand.
