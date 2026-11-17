@@ -558,7 +558,6 @@
     "ifcForeignReplaceBlocked": "Neuložené. Prepísanie existujúceho súboru so stavebným modelom zatiaľ nie je bezpečné. Použite „Uložiť ako“ a vyberte nový názov.",
     "ifcForeignMergeRefused": "Súbor IFC nebol zapísaný. Stavebný model alebo údaje z iného programu by inak nezostali úplne zachované. Vráťte poslednú zmenu, alebo exportujte len plán: do IFC s voľbou „Bez stavebného modelu“ alebo do iného formátu.",
     "ifcSaveChangedWhileWaiting": "Neuložené. Dokument alebo zdroj stavebného modelu sa počas prípravy zmenil. Skúste uložiť znova.",
-    "ifcForeignExportNewTarget": "Neexportované. Tento súbor IFC sa dá exportovať len do nového názvu súboru. Vyberte názov, ktorý ešte neexistuje.",
     "ifcSourceCopyFailed": "Plán sa ukladá na zotavenie zo zlyhania, ale kópiu stavebného modelu sa nepodarilo uložiť. Po zlyhaní môže stavebný model chýbať. Uložte svoju prácu sami ako úplný súbor IFC.",
     "ifcForeignSourceMissing": "Neuložené. Stavebný model alebo údaje z iného programu sa nenašli. Použite „Uložiť ako“, ak chcete uložiť len plán do nového súboru. Otvorte pôvodný súbor IFC, aby ste mohli znova pracovať s úplným súborom."
   },

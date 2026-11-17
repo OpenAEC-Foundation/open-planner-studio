@@ -358,7 +358,6 @@
     "ifcForeignReplaceBlocked": "Ikke gemt. Overskrivning af en eksisterende fil med en bygningsmodel er endnu ikke sikker. Brug »Gem som« og vælg et nyt navn.",
     "ifcForeignMergeRefused": "IFC-filen blev ikke skrevet. Bygningsmodellen eller data fra et andet program ville ellers ikke blive fuldt bevaret. Fortryd din sidste ændring, eller eksportér kun tidsplanen: til IFC med »Uden bygningsmodel«, eller til et andet format.",
     "ifcSaveChangedWhileWaiting": "Ikke gemt. Dokumentet eller kilden til bygningsmodellen ændrede sig under forberedelsen. Prøv at gemme igen.",
-    "ifcForeignExportNewTarget": "Ikke eksporteret. Denne IFC-fil kan kun eksporteres til et nyt filnavn. Vælg et navn, der endnu ikke findes.",
     "ifcSourceCopyFailed": "Tidsplanen gemmes til genoprettelse efter nedbrud, men kopien af bygningsmodellen kunne ikke gemmes. Efter et nedbrud kan bygningsmodellen mangle. Gem selv dit arbejde som en komplet IFC-fil.",
     "ifcForeignSourceMissing": "Ikke gemt. Bygningsmodellen eller data fra et andet program blev ikke fundet. Brug »Gem som« for kun at gemme tidsplanen i en ny fil. Åbn den oprindelige IFC-fil for igen at arbejde med hele filen."
   },

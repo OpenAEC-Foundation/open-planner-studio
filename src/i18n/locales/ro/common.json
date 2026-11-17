@@ -458,7 +458,6 @@
     "ifcForeignReplaceBlocked": "Nu s-a salvat. Suprascrierea unui fișier existent cu un model de clădire nu este încă sigură. Folosiți „Salvare ca” și alegeți un nume nou.",
     "ifcForeignMergeRefused": "Fișierul IFC nu a fost scris. Modelul de clădire sau datele de la altă aplicație nu ar fi păstrate complet. Anulați ultima modificare sau exportați doar planificarea: în IFC cu „Fără model de clădire”, ori în alt format.",
     "ifcSaveChangedWhileWaiting": "Nu s-a salvat fișierul. Documentul sau sursa modelului de clădire s-a schimbat în timpul pregătirii. Încercați din nou să salvați.",
-    "ifcForeignExportNewTarget": "Nu s-a exportat. Acest fișier IFC poate fi exportat doar într-un nume de fișier nou. Alegeți un nume care nu există încă.",
     "ifcSourceCopyFailed": "Planificarea este salvată pentru refacerea în urma unei căderi, dar copia modelului de clădire nu a putut fi salvată. După o cădere, modelul de clădire ar putea lipsi. Salvați lucrul dumneavoastră ca fișier IFC complet.",
     "ifcForeignSourceMissing": "Nu s-a salvat. Modelul de clădire sau datele de la altă aplicație nu au fost găsite. Folosiți „Salvare ca” ca să salvați doar planificarea într-un fișier nou. Deschideți fișierul IFC original ca să continuați lucrul cu fișierul complet."
   },

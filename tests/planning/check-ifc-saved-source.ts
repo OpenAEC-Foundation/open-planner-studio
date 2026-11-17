@@ -14,7 +14,7 @@ import { planRecoveryDelta, persistedRecoveryState, type RecoverySourceDocument 
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { openInStore, lengthenedTask } from './ifcAppRoute';
-import { concat, mergeProblems, openForeign, sameBytes } from './ifcMergeKern';
+import { mergeProblems, openForeign, sameBytes } from './ifcMergeKern';
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
 
@@ -66,7 +66,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
       const saved = payload(store), input = buildWriteIFCInput(saved, 'merge');
       const expected = await prepareIfcWrite(input, reference);
       const prepared = await prepareIfcWrite(input, saved.ifcSource!);
-      assert(sameBytes(concat(prepared.parts), concat(expected.parts)), `stap ${step}: dezelfde invoer als de zelfstandige 8a-keten`);
+      assert(sameBytes(prepared.bytes, expected.bytes), `stap ${step}: dezelfde invoer als de zelfstandige 8a-keten`);
       assert.deepEqual(mergeProblems(bytes, prepared.source.bytes), []);
       if (sleeping) store.getState().switchDocument(other);
       const publications: { source: unknown; dirty: boolean; path: string | null }[] = [];
@@ -111,7 +111,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
     assert.equal(current.isDirty, true, 'een tussentijdse bewerking blijft ongeopgeslagen');
     assert(!prepared.source.opened!.tasks.some(t => t.name === lateName), 'opened is de geschreven, eerdere stand');
     const next = await prepareIfcWrite(buildWriteIFCInput(current, 'merge'), current.ifcSource!);
-    const reopened = await openForeign(concat(next.parts));
+    const reopened = await openForeign(next.bytes);
     assert.equal(reopened.tasks.find(t => t.id === task)!.name, lateName, 'de volgende opslag draagt het tussentijdse werk');
     assert.deepEqual(mergeProblems(bytes, next.source.bytes), []);
     store.getState().markAutoSaveVersionSaved(id, current, next);

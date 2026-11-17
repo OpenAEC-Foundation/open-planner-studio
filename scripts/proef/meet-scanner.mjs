@@ -154,17 +154,15 @@ if (!source) {
   console.log(JSON.stringify({ ...base, outcome: 'geen bron (terugval van de bytes-route)', maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 } else {
   let outcome = 'geschreven';
-  let parts: Uint8Array[] = [];
+  let written = new Uint8Array();
   t0 = t();
-  try { parts = await writeIfcMerge(input, source); } catch (e) {
+  try { written = await writeIfcMerge(input, source); } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     outcome = 'merge-needs-phase2: ' + [...new Set(e.cases.map(c => c.kind))].join(', ');
   }
   const mergeMs = t() - t0;
   const afterMerge = process.memoryUsage();
-  const outBytes = parts.reduce((a, p) => a + p.length, 0);
-  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, parts: parts.length, outBytes,
-    largestPartMB: mb(Math.max(0, ...parts.map(p => p.length))),
+  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, outBytes: written.length,
     heapAfterMergeMB: mb(afterMerge.heapUsed), arrayBuffersAfterMergeMB: mb(afterMerge.arrayBuffers),
     maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 }

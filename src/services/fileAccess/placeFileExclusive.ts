@@ -2,6 +2,8 @@
  * Ingang van het Rust-commando `place_file_exclusive` (#804, knownbug 1131, stap 3):
  * één bestand exclusief onder een nieuwe naam in dezelfde map plaatsen. Faalt als er op de nieuwe
  * naam al iets staat, in één systeemstap; nooit een terugval (`src-tauri/src/commands/place_file.rs`).
+ * Uitzondering op Windows (knownbug 1798): staat er een harde link van de bron zelf, dan slaagt de stap
+ * (`placed`), zonder dat een ander bestand vervangen wordt.
  *
  * Het commando weigert tenzij beide paden absoluut zijn, in dezelfde map staan, precies één van beide
  * namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`) en plugin-fs
@@ -16,7 +18,8 @@
  * en stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als het dat
  * achteraf ziet, en kan het missen bij een wissel-terug. Op Windows speelt dit niet.
  *
- * Nog door geen route gebruikt; Opslaan als en Ctrl+S op de desktop (stap 4 en 5) bouwen erop.
+ * Gebruikt door de nieuwe-naamroute `writeNewUserBytes` in `atomicWrite.ts` (Opslaan als, Exporteren → IFC en
+ * `planner_export_ifc` op de desktop; knownbug 1131 stap 4). Ctrl+S op de desktop (stap 5) bouwt erop.
  */
 
 import { isTauri } from '@/utils/platform';

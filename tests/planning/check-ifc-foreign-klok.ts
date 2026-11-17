@@ -12,7 +12,7 @@ import { prepareIfcWrite, MergeNeedsPhase2Error } from '@/services/ifc/foreign/m
 import { prepareIfcOutput } from '@/state/prepareIfcOutput';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { openInStore, lengthen, lengthenedTask, storeEdit } from './ifcAppRoute';
-import { concat, mergeProblems } from './ifcMergeKern';
+import { mergeProblems } from './ifcMergeKern';
 import { installDeterminism } from './ifcPariteitKern';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -59,7 +59,7 @@ async function check(name: string, action: () => void | Promise<void>) {
 async function outcome(input: WriteIFCInput, source: IfcSource) {
   try {
     const prepared = await prepareIfcWrite(input, source);
-    const bytes = concat(prepared.parts);
+    const bytes = prepared.bytes;
     realWriteClock(bytes);
     return { kind: 'geschreven', bytes } as const;
   } catch (error) {
@@ -91,12 +91,12 @@ try {
     const input = buildWriteIFCInput(state, 'merge');
     for (const mode of modes) await check(`${name}: onbewerkt / ${mode}`, async () => {
       clock(mode);
-      identical(concat((await prepareIfcWrite(input, source)).parts), bytes);
+      identical((await prepareIfcWrite(input, source)).bytes, bytes);
       assert.equal(canons, 4, 'ook de laatste twee canons zijn doorlopen');
       clock(mode);
       const output = await prepareIfcOutput(state, input);
       assert(output.prepared);
-      identical(concat(output.prepared.parts), bytes);
+      identical(output.prepared.bytes, bytes);
       assert.equal(canons, 4);
     });
     clock('milliseconde');
@@ -209,7 +209,7 @@ try {
       realWriteClock(output);
       const { store } = await openInStore(new TextEncoder().encode(output));
       const prepared = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
-      realWriteClock(concat(prepared.parts));
+      realWriteClock(prepared.bytes);
       const regular = await prepareIfcOutput(store.getState(), buildWriteIFCInput(store.getState(), 'merge'));
       assert.equal(typeof regular.content, 'string'); realWriteClock(regular.content!);
     } finally { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone; }

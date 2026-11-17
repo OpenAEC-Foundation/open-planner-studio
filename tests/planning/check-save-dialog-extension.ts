@@ -14,7 +14,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { installNodeFileIpc, writeFileCall } from './nodeFileIpc';
 import {
-  saveBytePartsDialogTauri, saveBytesDialogTauri, saveFileDialogTauri,
+  saveNewBytesDialogTauri, saveBytesDialogTauri, saveFileDialogTauri,
 } from '@/services/fileAccess/tauriBackend';
 import type { FileRef, SaveOutcome } from '@/services/fileAccess';
 
@@ -43,7 +43,7 @@ async function check(name: string, run: () => Promise<void>) {
 type Round = { pick: string; overwrite?: boolean } | 'annuleren';
 interface SeenRound { defaultPath: string | undefined; askedOverwrite: boolean }
 
-type Variant = 'tekst' | 'bytes' | 'byte-delen';
+type Variant = 'tekst' | 'bytes' | 'nieuwe-bytes';
 const VARIANTS: Variant[] = ['tekst', 'bytes'];
 
 async function main() {
@@ -105,7 +105,7 @@ async function main() {
       let outcome: SaveOutcome | null;
       if (variant === 'tekst') outcome = await saveFileDialogTauri('standaard.ifc', NEW_TEXT, FILTERS, opts);
       else if (variant === 'bytes') outcome = await saveBytesDialogTauri('standaard.ifc', Buffer.from(NEW_TEXT), FILTERS, opts);
-      else outcome = await saveBytePartsDialogTauri('standaard.ifc', [Buffer.from(NEW_TEXT)], FILTERS, opts);
+      else outcome = await saveNewBytesDialogTauri('standaard.ifc', Buffer.from(NEW_TEXT), FILTERS, opts);
       assert.equal(rounds.length, 0, 'elk verwacht venster is getoond');
       return outcome;
     };
@@ -117,7 +117,7 @@ async function main() {
     const tag = `${rule.plugin}`;
 
     try {
-      for (const variant of ['tekst', 'bytes', 'byte-delen'] as Variant[]) {
+      for (const variant of ['tekst', 'bytes', 'nieuwe-bytes'] as Variant[]) {
         await check(`${tag} (a) ${variant}: buiten de thuismap zonder extensie → tweede venster met de volle naam`, async () => {
           reset();
           const typed = path.join(outside, 'kopie'), full = `${typed}.ifc`;

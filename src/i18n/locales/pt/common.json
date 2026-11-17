@@ -458,7 +458,6 @@
     "ifcForeignReplaceBlocked": "Não guardado. Substituir um ficheiro existente com um modelo de edifício ainda não é seguro. Use «Guardar como» e escolha um novo nome.",
     "ifcForeignMergeRefused": "O ficheiro IFC não foi escrito. O modelo de edifício ou os dados de outro programa não ficariam totalmente preservados. Desfaça a última alteração, ou exporte apenas o planeamento: para IFC com «Sem modelo de edifício», ou para outro formato.",
     "ifcSaveChangedWhileWaiting": "Não guardado. O documento ou a fonte do modelo de edifício mudou durante a preparação. Tente guardar novamente.",
-    "ifcForeignExportNewTarget": "Não exportado. Este ficheiro IFC só pode ser exportado para um novo nome de ficheiro. Escolha um nome que ainda não exista.",
     "ifcSourceCopyFailed": "O planeamento está a ser guardado para recuperação após falha, mas a cópia do modelo de edifício não pôde ser guardada. Depois de uma falha, o modelo de edifício pode estar em falta. Guarde você mesmo o seu trabalho como ficheiro IFC completo.",
     "ifcForeignSourceMissing": "Não guardado. O modelo de edifício ou os dados de outro programa não foram encontrados. Use «Guardar como» para guardar apenas o planeamento num novo ficheiro. Abra o ficheiro IFC original para voltar a trabalhar com o ficheiro completo."
   },

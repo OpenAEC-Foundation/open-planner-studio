@@ -73,26 +73,38 @@ de matcher laat het verbod dat pad niet raken; code in de webview komt er zonder
 het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `EBWebView`; macOS geen (WKWebView krijgt geen
 gegevensmap, `tauri-2.12.3/src/manager/webview.rs:559-568`). Wie een eigen bestand of map in de
 app-datamap toevoegt, zet het in `EIGEN_GEBRUIK` in `place_file.rs`. TS-ingang
-`fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven:
+`fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); de enige aanroeper is de nieuwe-naamroute
+hieronder (1131 stap 4). Proeven:
 `cargo test place_file` (naad `PlaceOps`; nep-app via de feature `tauri/test` voor de echte scope en dezelfde invoer
 door de IPC naar plugin-fs `rename` en dit commando; workflow
 `rust-tests.yml` op Linux, macOS en Windows) en `check-place-file-exclusive.ts`.
 
 ## IFC is the native file format, not a sidecar
 
-De nieuwe delen-ingang (#804, T1) staat naast deze bestaande tekst-/binaire schrijfroutes:
-`saveBytePartsDialog` en `saveBytePartsToRef` nemen `readonly Uint8Array[]`. Tauri opent alleen
-een nieuw einddoel met `createNew` met het eerste deel erin, voegt elk volgend deel als rauwe body toe
-(`append`, zonder `create`; geen samengevoegde kopie) en valt nooit terug op direct
-overschrijven of rename. Dit is geen atomaire publicatie van een compleet bestand bij een crash
-(1131). Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
+De nieuwe byte-ingang (#804, T1) staat naast deze bestaande tekst-/binaire schrijfroutes:
+`saveNewBytesDialog` en `saveNewBytesToRef` nemen één `Uint8Array` (de buffer die de merge al heeft). Tauri
+(`writeNewUserBytes` in `atomicWrite.ts`, knownbug 1131 stap 4; ook `planner_export_ifc`) maakt in dezelfde map
+`save-<id>.ops-save.tmp` (`userFileTempPath`, dezelfde naam als `replaceUserFile`) met `createNew` en de hele buffer als
+rauwe body in één aanroep, en zet het met `place_file_exclusive` op de naam. Per uitkomst: `placed` klaar;
+`dir-not-synced` klaar met `console.warn`; `target-exists` eigen bestand weg (best effort) en `ByteWriteError('create-new')`;
+`unsupported` en `refused`/`scope` eigen bestand weg en de directe exclusieve aanmaak (één `createNew` op de naam);
+`refused` anders een fout, zonder opruimen bij `not-regular-file`; `source-changed` stoppen met `ByteWriteError('source-changed')`
+(niets terugzetten, opruimen of terugvallen); `io` eigen bestand weg en `write`. Een `forbidden path` op het tijdelijke
+bestand (buiten de thuismap; vanaf plugin-fs 2.7.1 ook een gelinkte map naar buiten) gaat naar de directe aanmaak; een
+andere aanmaakfout (ook `EEXIST` op de hulpnaam) geeft geen eigendom: niets verwijderen, geen terugval. Na `io` of
+`target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (1795): opruimen verbergt de fout nooit en het
+doel wordt niet teruggelezen. Nooit `rename` van plugin-fs (die vervangt). De directe aanmaak is niet crashvast, en na
+een crash kan een `save-<id>.ops-save.tmp` blijven staan (1131). Meldingen: `ifcForeignNewTargetOnly` (Opslaan als en
+Exporteren, 1760) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
+`check-file-ifc-bytes.ts` (nagebootst commando op echte bestanden in `nodeFileIpc.ts`), `check-ifc-document-save.ts` en
+`cases-doc-file.ts`. Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
 hieronder); de webdialoog
-downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileParts` en
-`saveSiteFileVersionParts` dragen een Blob; de laatste weigert vóór I/O zonder basisversie en
-behoudt de conflictkopie van de host. De aanroeper houdt de delen ongewijzigd tot voltooiing.
+downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileBytes` en
+`saveSiteFileVersionBytes` dragen een Blob; de laatste weigert vóór I/O zonder basisversie en
+behoudt de conflictkopie van de host. De aanroeper houdt de buffer ongewijzigd tot voltooiing.
 PR 11a sluit de documentroutes aan: nieuwe lokale naam, download en siteversie met basis.
 PR 11b sluit IFC-export en app-MCP aan op dezelfde `state/prepareIfcOutput.ts`, zonder documentcommit.
-De MCP-naad `writeNewByteParts` gebruikt dezelfde exclusieve byte-ingang; headless biedt haar nog niet. Bestaande tekst-/PDF-routes
+De MCP-naad `writeNewUserBytes` gebruikt dezelfde exclusieve byte-ingang; headless biedt haar nog niet. Bestaande tekst-/PDF-routes
 veranderen niet. Bestaande vreemde lokale doelen en de bronhash horen bij fase 2 (1131).
 
 The application's persistence model is IFC 4.3 (buildingSMART). Loading a project = parsing IFC via `src/services/ifc/ifcReader`; saving = serializing the entire app state via `ifcWriter`. There is no separate JSON project format. When adding new domain data (tasks, sequences, resources, assignments, calendar), it must round-trip through the IFC layer or it will be lost on save/reload. CSV/MS Project/P6 services in `src/services/` are import/export adapters, not the source of truth. The other `src/services/` areas — `fileAccess/` (Tauri↔web bestands-I/O + handle-backed recents), `recovery/` (auto-save/restore, Tauri fs + web IndexedDB), `actualAutosave/` (opt-in, promptvrije writes to an existing project file), `benchmark/` (ingebouwde benchmark-tool via Instellingen), `print/` (printvoorbeeld), `pdf/` (vector-PDF-export via `pdf-lib`; Arabic and Persian stay vector, while CJK rasterizes only without an optional `pdf-fonts` extension), `updater/`, `feedback/` (feedbackdialoog + screenshot-annotator), `mcp/` (AI-assistent, zie `.claude/rules/mcp.md`) and `debug/appLog` (log-bus achter de DebugTerminal) — are app plumbing with no IFC impact. `library/` is de uitzondering: bibliotheekdata is app-globaal, maar herkomststempels round-trippen wél door het project-IFC (zie *Resourcebibliotheken*).
@@ -115,12 +127,11 @@ getypeerd geweigerd. IFC2X3 zonder model houdt de ontwerpuitzondering met een op
 ### Voorbereid schrijfresultaat (#804)
 
 `prepareIfcWrite` (`foreign/mergeWriter.ts`, fase 1c PR 8a) levert één `PreparedIfcWrite`:
-`readonly Uint8Array[]`, sha256, de bron van die uitvoer met de writer-sessiekaart en bevroren
+`bytes` (één buffer), sha256, de bron van die uitvoer met de writer-sessiekaart en bevroren
 schrijfinvoer, en de letterlijke kalender-ids. De bestaande uitvoercontrole levert de scan;
 de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer gaan de bronbytes
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
-gewone writer. Delen van nieuwe uitvoer wijzen naar de nieuwe bronbuffer; het resultaat houdt
-daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
+gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
 haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel, dev-bridge en AutoSave blijven geblokkeerd.
 
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
@@ -215,7 +226,7 @@ of op een pad (desktop) of bestandshandle (browser) nog precies de bron staat: `
 `unreadable`. Eerst de grootte, dan stukken van 1 MiB byte voor byte; geen sha256 van het doel en nooit het hele doel in
 één buffer (afwijking van §4.10, besluit 16 november 2026). Het pad gebruikt dezelfde stukkenlezer als de doelscan
 (`openPathChunksTauri` in `tauriBackend.ts`), de handle `File.slice()`. Site en download hebben geen doel: de functie
-neemt alleen `path`/`handle`. Proef: `check-file-byte-parts.ts`.
+neemt alleen `path`/`handle`. Proef: `check-file-ifc-bytes.ts`.
 
 ### Ctrl+S op het eigen bestand via de handle (#804, knownbug 1131 stap 2)
 
@@ -223,8 +234,8 @@ Alleen de browser, alleen met de flag aan, voor Ctrl+S en *Opslaan* in de sluitv
 merge: de doelcontrole met de uitzondering "eigen doel" (`refusedWriteTarget`, zie `state.md`), de schrijftoestemming
 (`handleWritePermission`; geweigerd ⇒ de download, zoals bij een gewoon bestand) en `sourceTargetContent` (anders
 `ifcForeignTargetChanged`/`ifcForeignTargetGone`). Dan één merge (`prepareIfcOutput`, `'merge'`) en binnen
-`replaceWithRecoveryPending`: `replaceHandleWithParts` (`webBackend.ts`) opent `createWritable()`, schrijft de delen
-los, vraagt vlak vóór `close()` opnieuw `sourceTargetContent` (verschil ⇒ `abort()`, het bestand blijft ongemoeid) en
+`replaceWithRecoveryPending`: `replaceHandleWithBytes` (`webBackend.ts`) opent `createWritable()`, schrijft de buffer
+in één `write`, vraagt vlak vóór `close()` opnieuw `sourceTargetContent` (verschil ⇒ `abort()`, het bestand blijft ongemoeid) en
 sluit. Daarna `commitSavedDocument` met `prepared`. `'not-recorded'` ⇒ niet schrijven, `ifcForeignReplaceNotRecorded`
 (1764); een schrijf- of sluitfout ⇒ `ifcForeignReplaceFailed`; het document blijft dan zoals het was. Een wijziging
 door een ander programma tussen de tweede controle en `close()` gaat verloren (ontwerp §4.15; de beschrijving van de
