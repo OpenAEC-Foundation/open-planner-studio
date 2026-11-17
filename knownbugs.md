@@ -2875,6 +2875,14 @@ en noem het in je rapport of PR-tekst.
      MiB) is niet gemeten. Het commentaar bij de timer is bij 1758 versoberd. Richting: meten in de echte webview; een
      startbericht vóór het verzoek zou de kopie buiten de starttijd houden,
      maar bevestigt dan alleen dat het script geladen is. Gevonden door de review van #985 (Sol, ronde 2). — S
+1761. **VERVOLG (#986, scanworker): de afgeronde modelscanner houdt zijn invoerkopie vast tijdens de indeling.**
+     `foreignScanHandler.ts` bewaart de `push`-functie van de modelscanner tot de worker stopt. Na de uitkomst van de
+     modelscan is die scanner klaar, maar bij het volgende verzoek (de indeling) houdt hij zijn eerdere stukken nog
+     vast, naast de nieuwe volledige kopie. De review toonde het met de echte handler: bij een planning met 4 MiB
+     commentaar bleven 4.226.932 bytes van de eerste kopie bereikbaar tot de handler werd losgelaten. De scanner heeft
+     zijn eigen begrenzing en de worker stopt na elke scan: geen onbegrensd lek en geen extra volledige kopie van
+     300 MiB aangetoond. Richting: laat `push` los zodra een stap een uitkomst bevat. Gevonden door de review van #986
+     (Sol). — B (proef van de review)
 
 ## Rondleiding, Help en extensie-gidsen
 
