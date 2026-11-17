@@ -360,9 +360,16 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `workdayAxis.ts`); interaction in `src/components/canvas/hooks/`. Change visual Gantt behaviour in the
   renderer, not in components.
 - **Notifications go through one channel** from the store — no `alert()` or ad-hoc toasts.
-- **Pending modal questions.** While the actual-start, phase-assignment or missing-model Save As question waits,
-  `isGlobalShortcutFrozen` blocks global app shortcuts and the surrounding shell controls are inert,
+- **Pending modal questions.** While the actual-start, phase-assignment or missing-model Save As question waits, or
+  "Wordt nog opgeslagen…" shows (`ui.savingBeforeClose`), `isGlobalShortcutFrozen` blocks global app shortcuts and the
+  surrounding shell controls are inert,
   including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
+- **Closing waits for saves.** `runProjectFileWrite` (`src/services/fileAccess/writeCoordinator.ts`) is the one project
+  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Quitting the app, closing
+  a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
+  opgeslagen…" (#804, owner decision 2026-11-17). A save belongs to the document it was asked for: its re-checks
+  (`refuseChangedDocumentWrite`) and its commit use that document id, never the active document; at most one waiting
+  Ctrl+S per document.
 - **Tailwind sources.** `src/styles/globals.css` disables automatic detection with `source(none)` and
   registers only `src/` and `index.html` via `@source` (paths relative to that stylesheet). This includes
   extension UI and HTML strings in `src/`; imported component CSS and fonts still build normally.

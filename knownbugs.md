@@ -2883,6 +2883,29 @@ en noem het in je rapport of PR-tekst.
      zijn eigen begrenzing en de worker stopt na elke scan: geen onbegrensd lek en geen extra volledige kopie van
      300 MiB aangetoond. Richting: laat `push` los zodra een stap een uitkomst bevat. Gevonden door de review van #986
      (Sol). — B (proef van de review)
+1746. **Een opslag die nooit eindigt, houdt het afsluiten tegen; er is geen knop om het wachten af te breken.** Sinds
+     #804 stap 3 wachten afsluiten, een document sluiten en de updater tot de schrijfrij leeg is
+     (`whenProjectFileWritesIdle`, besluit eigenaar 17 november 2026: wachten, dan sluiten, zonder vraag). De I/O onder
+     het schrijfslot heeft geen eigen einde: de schrijfstappen van plugin-fs (`write_file`, `rename`,
+     `place_file_exclusive`), het lezen van het doel (`refusedWriteTarget`, `sourceTargetContent`), de schrijfstroom van
+     een browserhandle (`write`/`close()`), een verzoek aan de site en de herstelronde in `replaceWithRecoveryPending`.
+     Hangt er één (bijvoorbeeld een netwerkschijf die wegvalt), dan staat "Wordt nog opgeslagen…" er voor altijd, ligt
+     de schil stil en sluit de app alleen nog via het besturingssysteem; het herstel blijft dan wel staan. Een vraag
+     onder het slot (site, IFC-schema, alleen de planning, afhankelijke projecten) houdt het wachten ook tegen, maar
+     staat zichtbaar: de aanduiding gaat er niet overheen (`SavingBeforeCloseNotice`). De native opslaan-dialoog staat
+     als eigen venster bovenop; of `CloseRequested` op Windows, macOS en Linux überhaupt binnenkomt terwijl die open
+     is, is niet nagegaan. De updater toont tijdens het wachten "Installatie voorbereiden…" met een draaiend teken en
+     geen eigen aanduiding.
+     Richting (besluit nodig): na een vaste tijd een knop "Toch afsluiten" die het herstel laat staan, of een
+     tijdgrens per I/O-stap. Gevonden bij #804 stap 3, uit de code. — S
+1763. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
+     op.** Sinds #804 stap 3 hoort een opslag bij het document waarvoor hij gevraagd werd (`writeActiveDocument`,
+     `saveDocumentAsOnTurn` in `fileSlice.ts`). Drukt de planner Ctrl+S terwijl een eerdere opslag loopt en wisselt hij
+     daarna van tabblad, dan stopt de wachtende opslag bij zijn beurt zonder melding; het document blijft gewijzigd (er
+     gaat niets verloren, het herstel en de sluitvraag zien het). Vóór stap 3 sloeg diezelfde wachtende opslag het dan
+     actieve document op. Een opslag die al loopt, gaat wél door en wordt in zijn eigen document vastgelegd. Richting:
+     het slapende document opslaan vanuit zijn payload als er geen vraag nodig is (eigen doel, geen schemavraag, geen
+     afhankelijke projecten), anders één melding. Gevonden bij #804 stap 3, uit de code. — S
 
 ## Rondleiding, Help en extensie-gidsen
 
