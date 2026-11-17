@@ -539,7 +539,6 @@
     "documentChromeTabs": "Horizontal tabs",
     "documentChromeRail": "Vertical tabs",
     "documentChromeSwitcher": "Pill",
-    "documentChromeSampleNames": "Office, Bridge, Lock",
     "dateNotation": "Date format",
     "dateNotationHint": "How dates appear everywhere in the app; files and calculations don't change.",
     "dateNotationDmy": "dd-mm-yyyy",

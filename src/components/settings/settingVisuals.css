@@ -36,59 +36,66 @@
   color: var(--theme-text);
 }
 
-/* --- Documentwissel-stijl: een uitsnede op ware grootte, verkleind ---
-   Binnenin staan de echte klassen uit DocumentChrome.css op hun echte maten; `.sv-chrome-real` is
-   1 / 0,42 keer zo groot als het plaatje en wordt met een transform verkleind. In een
-   rechts-naar-links-taal verkleint hij naar rechtsboven, zodat de uitsnede meespiegelt. */
-.sv-chrome { height: 80px; }
-.sv-chrome-real {
-  --sv-chrome-scale: 0.42;
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 0;
+/* --- Documentwissel-stijl: waar de wisselaar staat. Het actieve document is accentvlak met accentrand,
+   zoals het belangrijke deel in de andere plaatjes. --- */
+.sv-chrome-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 17px;
+  padding-inline: 8px;
+  border-bottom: 1px solid var(--theme-control-border);
+}
+.sv-chrome-tab {
+  width: 30px;
+  height: 12px;
+  border: 1px solid var(--theme-control-border);
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+  background: var(--theme-surface);
+}
+.sv-chrome-tab.is-active,
+.sv-chrome-tile.is-active,
+.sv-chrome-pill {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 22%, transparent);
+}
+.sv-chrome-tab.is-active { box-shadow: inset 0 2px 0 var(--theme-accent); }
+.sv-chrome-rail-col {
   display: flex;
   flex-direction: column;
-  width: calc(100% / var(--sv-chrome-scale));
-  height: calc(100% / var(--sv-chrome-scale));
-  transform: scale(var(--sv-chrome-scale));
-  transform-origin: top left;
-  pointer-events: none;
+  justify-content: center;
+  gap: 3px;
+  width: 22px;
+  height: 100%;
+  padding-inline: 5px;
+  border-inline-end: 1px solid var(--theme-control-border);
 }
-[dir='rtl'] .sv-chrome-real { transform-origin: top right; }
-.sv-chrome-titlebar {
-  flex: none;
+.sv-chrome-tile {
+  height: 11px;
+  border: 1px solid var(--theme-control-border);
+  border-radius: 3px;
+  background: var(--theme-surface);
+}
+.sv-chrome-switcher .sv-chrome-bar { justify-content: center; align-items: center; }
+.sv-chrome-pill {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 32px;
-  background: var(--theme-titlebar-bg);
+  justify-content: flex-end;
+  width: 46px;
+  height: 11px;
+  padding-inline-end: 5px;
+  border: 1px solid var(--theme-accent);
+  border-radius: 999px;
 }
-.sv-chrome-ribbon {
-  flex: none;
-  height: 36px;
-  background: var(--theme-ribbon-content-bg);
+.sv-chrome-chevron {
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-inline-end: 1px solid var(--theme-text);
+  border-bottom: 1px solid var(--theme-text);
+  transform: rotate(45deg);
 }
-/* Tussen lint en werkvlak loopt in de app een accentlijn: onder de tabbladen, of direct onder het lint. */
-.sv-chrome .ops-tabstrip,
-.sv-chrome-rail .sv-chrome-ribbon,
-.sv-chrome-switcher .sv-chrome-ribbon { border-bottom: 2px solid var(--theme-accent); }
-.sv-chrome-switcher .sv-chrome-ribbon { flex: 1; }
-/* Drie tabbladen naast elkaar: zo breed als hun naam, niet de minimumbreedte van de app. */
-.sv-chrome .ops-tab-group { min-width: 0; }
-.sv-chrome-body { flex: 1; display: flex; min-height: 0; }
-/* De kolom past net met drie projecten: het lint erboven is hier lager, de ruimte tussen de tegels iets kleiner. */
-.sv-chrome-rail .sv-chrome-ribbon { height: 10px; }
-.sv-chrome .ops-rail { padding-top: 4px; gap: 5px; }
-.sv-chrome-workspace {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  padding-inline: 12px;
-  background: var(--theme-bg);
-}
-.sv-chrome-workspace span { height: 2px; background: var(--theme-border); }
-.sv-dim { opacity: 0.35; }
 
 /* --- Raster (duurweergave) --- */
 .sv-grid { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding-inline: 6px; }
