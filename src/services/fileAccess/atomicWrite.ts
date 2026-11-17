@@ -244,6 +244,7 @@ export const NEW_NAME_LOG_CHANNEL = 'nieuweNaam';
 const logWay = (path: string, way: string) => appLog.emit('event', NEW_NAME_LOG_CHANNEL, `${path}: ${way}`);
 
 export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes: Uint8Array): Promise<void> {
+  if (path) return createNewDirectly(fs, path, bytes, 'MUTATIE a'); // MUTATIE a
   const tmp = userFileTempPath(path);
   // Alleen ons eigen tijdelijke bestand, en alleen als het van ons kan zijn; een mislukt opruimen is geen fout.
   const removeOwnTemp = async () => {
