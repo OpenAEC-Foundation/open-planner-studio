@@ -707,7 +707,7 @@ pub(crate) fn place(
     }
 }
 
-// ── De scope: die van plugin-fs `rename`, niet nagebouwd ─────────────────────────────────────────
+// ── De scope: die van plugin-fs `rename`, met zijn regel ─────────────────────────────────────────
 
 /// Eén scope-item van plugin-fs. Zijn eigen type (`scope::Entry`) is privé
 /// (`tauri-plugin-fs-2.7.1/src/scope.rs:10-19`); dit is dezelfde vorm met dezelfde omzetting
