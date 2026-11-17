@@ -2652,8 +2652,9 @@ en noem het in je rapport of PR-tekst.
      beschermd tegen een crash of een volle schijf midden in het schrijven: het bestand kan leeg of half achterblijven.
      Met 2.5.0 werd het tijdelijke bestand daar nog aangemaakt, maar mochten `rename` en `remove` het niet (die toetsten
      het opgeloste pad): de app schreef ook toen direct en het hulpbestand bleef staan (was 1755). Nu ontstaat het niet
-     meer. Opslaan als met een nieuwe naam zonder extensie kost hier twee vensters (#979: het venster geeft de naam met
-     extensie zelf vrij) en schrijft daarna ook direct. Blijft zoals onder 2.5.0: een bestand dat hier ooit zonder eigen
+     meer. Opslaan als met een nieuwe naam zonder extensie kost hier op Linux (GTK) twee vensters (#979: het venster
+     geeft de naam met extensie zelf vrij) en schrijft daarna ook direct; op macOS en Windows vult het venster de
+     extensie zelf aan en blijft het één venster. Blijft zoals onder 2.5.0: een bestand dat hier ooit zonder eigen
      toestemming voor de naam met extensie ontstond (de eerste opslag zonder extensie vóór #979), kan Ctrl+S niet
      vervangen. Proeven: `check-user-file-write.ts` blok 7 (`link buiten`: route `createNew:geweigerd` →
      `direct:geschreven`) en `check-save-dialog-extension.ts` (g), per regel van plugin-fs. Richting: dezelfde
