@@ -361,7 +361,7 @@ export function readIFC(
   remapContourResourceIds(tasks, resourceGuidMap, new Set(resources.map(r => r.id)));
 
   // Baselines: autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
-  const { baselines, activeBaselineId, comparedBaselineIds } = extractBaselines(entities, entityMap, taskStepIdMap);
+  const { baselines, activeBaselineId, comparedBaselineIds, orphanGuids } = extractBaselines(entities, entityMap, taskStepIdMap);
 
   // Scheduling-options en rekenprofiel: eerst het profiel —
   // de OPS_SchedulingProfile-pset wint, anders `legacyOptionsToProfile` over het gelezen blok —, dán
@@ -476,6 +476,7 @@ export function readIFC(
     ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
     ...(xerArchiveIssue ? { xerArchiveIssue } : {}),
     ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
+    ...(Object.keys(orphanGuids).length > 0 ? { baselineOrphanGuids: orphanGuids } : {}),
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
 }
@@ -3753,7 +3754,8 @@ function extractBaselines(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
-): { baselines: Baseline[]; activeBaselineId: string | null; comparedBaselineIds: ComparedBaselineIds } {
+): { baselines: Baseline[]; activeBaselineId: string | null; comparedBaselineIds: ComparedBaselineIds;
+  orphanGuids: Record<string, string> } {
   // GlobalId → nieuwe taak-id (voor de taskId-remap).
   const guidToTaskId = new Map<string, string>();
   for (const e of entities) {
@@ -3800,7 +3802,9 @@ function extractBaselines(
     }
   }
 
-  // taskId-remap via GlobalId.
+  // taskId-remap via GlobalId. Een rij zonder match houdt haar id; de GlobalId waarmee de lezer hem zocht, gaat mee in
+  // `orphanGuids` (`ImportResult.baselineOrphanGuids`, PR 12e van #804).
+  const orphanGuids: Record<string, string> = {};
   for (const b of baselines) {
     if (!Array.isArray(b.tasks)) { b.tasks = []; continue; }
     for (const bt of b.tasks as BaselineTask[]) {
@@ -3809,6 +3813,7 @@ function extractBaselines(
       const guid = taskGuids?.[bt.taskId] ?? ifcGuid(bt.taskId);
       const remapped = guidToTaskId.get(guid);
       if (remapped) bt.taskId = remapped;
+      else orphanGuids[bt.taskId] = guid;
     }
   }
 
@@ -3823,7 +3828,7 @@ function extractBaselines(
     baselines, activeBaselineId,
   );
 
-  return { baselines, activeBaselineId, comparedBaselineIds };
+  return { baselines, activeBaselineId, comparedBaselineIds, orphanGuids };
 }
 
 /**
