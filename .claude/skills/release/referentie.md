@@ -12,53 +12,47 @@ Alleen de geplande wekelijkse releasejob op aia09-mp50 mag onderstaande Node-sta
 Zijn Haiku-vertaalstations mogen hun eigen pakketchecks uitvoeren binnen dezelfde job en worktree.
 Onderhoud aan de skill, losse releases, CI-fixagents en agents voor codereview krijgen geen uitzondering.
 
-Gebruik uitsluitend de eigen release-worktree. Houd de Node-stappen daar, ook bij hervatten of
-wisselen van releasecommit. Geen Node in de hoofdcheckout, een CI-fixworktree of een andere checkout.
-Alleen de vier websitegeneratoren draaien in een tijdelijke websitekopie binnen de release-worktree.
-
+Alleen in de eigen worktrees van de job onder `.claude/worktrees/`. Geen Node in de hoofdcheckout of een CI-fixworktree.
 De volledige lijst:
 
-- Eenmaal per run `npm ci` in de release-worktree. De hoofdcheckout heeft geen `node_modules`;
-  gebruik geen link daarheen en installeer niet opnieuw per stap of in de websitekopie.
-- `npm run bump` en `node scripts/bump-version.js --check "$VERSION"`.
-- De bestaande kleine inline `node`-blokken in deze skill: afschrijving herkennen,
-  kandidaatselectie, pakketversie lezen en jaar/week/volgnummer numeriek vergelijken.
-  Ook `node -p 'process.execPath'` om het Node-pad voor de vertaalstations vast te stellen.
-- `node scripts/release-notes.mjs "v$VERSION" --format=body` en dezelfde opdracht met `--format=notes`.
-- `npm run gen:release-highlights-json`, `npm run verify:release-highlights -- "$VERSION"`
-  en `npm run verify:release-highlights-json`.
-- `npm run translate -- prepare ui <taal> --missing`, `--stale` of `--avoid`;
-  `npm run translate -- apply ui <taal>`, `npm run translate -- packages ui <talen> [--red]`
-  en `npm run translate -- status [taal] [--strict]`.
-  Voor termbaseherstel uit `update-ui-lang`: `npm run translate -- terms-lookup <taal>`
-  en `npm run translate -- apply-terms <taal>`.
-- `node build/translate/check.mjs <pakket>` bij de ouder én zijn Haiku-vertaalstations.
-  Het absolute Node-pad mag ook; checker en pakket blijven in dezelfde release-worktree.
-- `npm run i18n:add -- ...`, `npm run i18n:fmt`, `npm run i18n:resolve`,
-  `npm run verify:i18n` en `npm run verify:translations`.
-- `node scripts/release-ci-check.mjs "$SHA"` (stap 3 van de skill) en met `--browser` (*Eerst: browsertests*).
-- `npm run verify:docs`, `npm run publish:wiki` (dry-run), `npm run publish:wiki -- --push`
-  en `node scripts/run-ts.mjs scripts/check-wiki-links.ts`.
-- Alleen in de tijdelijke websitekopie: `node scripts/generate-release-notes.js`,
-  `node scripts/generate-release-highlights.js`, `node scripts/build-i18n-pages.js`
-  en `node scripts/build-release-notes-static.js`.
+- `node scripts/release/run.mjs` (ook `--droog`) vanuit `release-script`, een losse worktree op `origin/main`.
+  Het script gebruikt alleen ingebouwde modules; daar geen `npm ci`. Het draait zelf
+  `node scripts/release-ci-check.mjs "$SHA"` en met `--browser`, vanuit dezelfde worktree.
+- In `release-werk` (de releasebranch, daarna los op de releasecommit), door het script:
+  eenmaal per run `npm ci`; `npm run bump`; `node scripts/bump-version.js --check "$VERSION"`;
+  `node scripts/release-notes.mjs "v$VERSION" --format=body` en `--format=notes`;
+  `npm run gen:release-highlights-json`, `npm run verify:release-highlights -- "$VERSION"` en
+  `npm run verify:release-highlights-json`; `npm run verify:translations`; `npm run verify:docs`;
+  `npm run publish:wiki` (proef) en `node scripts/run-ts.mjs scripts/check-wiki-links.ts`.
+- In `release-wiki` (alleen als de wiki van een tag nog niet gepubliceerd is, op de getagde commit):
+  eenmaal per run `npm ci`, `npm run publish:wiki` met en zonder `-- --push`, en de linkcheck.
+- In `release-website-generatie` (een tijdelijke kopie van de websitebranch, alleen daar):
+  `node scripts/generate-release-notes.js`, `node scripts/generate-release-highlights.js`,
+  `node scripts/build-i18n-pages.js` en `node scripts/build-release-notes-static.js`.
+- In `release-werk`, door de thread bij de taak `vertalen` ([update-ui-lang](../update-ui-lang/SKILL.md)):
+  `node -p 'process.execPath'`; `npm run translate -- prepare ui <taal> --missing`, `--stale` of `--avoid`;
+  `npm run translate -- apply ui <taal>`, `npm run translate -- packages ui <talen> [--red]`,
+  `npm run translate -- status [taal] [--strict]`, `npm run translate -- terms-lookup <taal>` en
+  `npm run translate -- apply-terms <taal>`; `node build/translate/check.mjs <pakket>` bij de ouder én zijn
+  Haiku-stations; `npm run i18n:add -- ...`, `npm run i18n:fmt`, `npm run i18n:resolve`, `npm run verify:i18n`
+  en `npm run verify:translations`.
 
-Interne helperprocessen van deze opdrachten horen bij die stap; dit staat geen andere losse Node-opdracht toe.
-Tests (`npm test`, alle suites en browsertests), app-builds (`npm run build`, `tauri:*`), de volledige
-`npm run verify` en dev-servers blijven hier verboden. Ook geen andere installatie of `npx`.
+De tekstagent (`claude -p`) draait geen Node; hij mag alleen lezen, de tekstbestanden schrijven en `git log`,
+`git show` en `git diff` draaien. Interne helperprocessen van deze opdrachten horen bij die stap; dit staat geen
+andere losse Node-opdracht toe. Tests (`npm test`, alle suites en browsertests), app-builds (`npm run build`,
+`tauri:*`), de volledige `npm run verify` en dev-servers blijven hier verboden. Ook geen andere installatie of `npx`.
 De verplichte volledige verify vóór de tag komt uit `ci.yml`: de pushrun op de exacte main-SHA
 plus de laatste browserrun op main. De `gate` van `release.yml` draait geen verify en leest alleen
-of die runs groen zijn, met dezelfde regels als stap 3 van de skill. Bekijk die runs met `gh`.
-Gerichte tests en foutreproducties horen eveneens in PR-CI; sla geen check over en verzwak niets.
+of die runs groen zijn, met dezelfde regels als het script. Gerichte tests en foutreproducties horen in PR-CI.
 
 ### Grenzen bij aangeroepen skills
 
 De [wiki-skill](../wiki/SKILL.md) vraagt alleen Node-stappen uit de lijst hierboven.
 Ook de lichte stappen uit [update-ui-lang](../update-ui-lang/SKILL.md) vallen binnen de lijst,
 inclusief pakketselectie, pakketchecks, i18n-onderhoud en termbaseherstel.
-Gebruik de bestaande release-worktree en zijn eenmaal geïnstalleerde dependencies. Sla de losse
+Gebruik `release-werk` en zijn eenmaal geïnstalleerde dependencies. Sla de losse
 werkplekinrichting van `update-ui-lang` over; geen extra worktree, installatie of `node_modules`-link.
-Geef elk T3-Haiku-station expliciet het maandagmandaat, de release-worktree en toestemming voor
+Geef elk T3-Haiku-station expliciet het maandagmandaat, de worktree `release-werk` en toestemming voor
 zijn eigen `build/translate/check.mjs`-pakketcheck uit deze lijst mee. Dit geldt voor vertalen,
 nalezen en herstellen, uitsluitend binnen deze maandagjob. De stations installeren niets.
 Behoud de bestaande pakketpoorten en wacht op alle vereiste stations vóór `apply ui`.
@@ -81,105 +75,43 @@ PR draait de rest.
 
 ## Hervatten
 
-Doe dit vóór “niets veranderd” en vóór `npm run bump`. Neem de numeriek nieuwste stabiele
-**origin-tag**, ook als zijn release ontbreekt of draft is. Zet `REPO=OpenAEC-Foundation/open-planner-studio`.
-`TAG` is die bestaande tag, `SHA` zijn gepelde commit en `VERSION="${TAG#v}"`.
-Werk voor publicatie in een schone worktree op `SHA`; CI-fixes krijgen apart een branch vanaf main.
+Het script doet dit bij elke start, vóór “niets veranderd” en vóór de bump (`lever` in `scripts/release/stappen.mjs`).
+Het neemt de numeriek nieuwste stabiele origin-tag, ook als zijn release ontbreekt of draft is.
 Een incomplete app-uitlevering wordt nooit stil als vorige voltooide release gebruikt.
-Alleen open websitewerk blokkeert een volgende app-release niet; probeer het de volgende maandag opnieuw.
-Een bewezen [ontbrekend AUR-secret](#ontbrekend-aur-secret) is geen open werk; meld het in het eindrapport.
 
-**Controleer eerst afschrijving**, vóór enige release-/workflowpoging voor deze tag.
-De vaste regel staat in de body van de gemergde app-release-PR, titel `Release v<VERSION>`:
-`Afgeschreven tag: v<VERSION>`. Alleen een volledige, exacte regel voor deze tag telt.
-Voer dit uitsluitend lezende blok uit en neem `actie` en `prev` over:
+**Afschrijving eerst.** De vaste regel staat in de body van de gemergde PR `Release v<VERSION>`:
+`Afgeschreven tag: v<VERSION>`. Alleen een volledige, exacte regel voor deze tag telt; een leesfout stopt.
+Een afgeschreven tag krijgt geen rerun, dispatch, publicatie, wiki of website meer; hij blijft `PREV` en de
+opvolger neemt zijn tekst over ([Herstel na de tag](#herstel-na-de-tag)).
 
-```bash
-TAG="$TAG" node --input-type=module <<'JS'
-import { execFileSync } from 'node:child_process';
-const tag = process.env.TAG;
-const prs = JSON.parse(execFileSync('gh', ['pr', 'list', '--repo', 'OpenAEC-Foundation/open-planner-studio',
-  '--base', 'main', '--state', 'merged', '--search', `"Release ${tag}" in:title`, '--limit', '1000',
-  '--json', 'title,body,url'], { encoding: 'utf8' }));
-const afgeschreven = prs.find(pr => pr.title === `Release ${tag}` &&
-  pr.body.split(/\r?\n/).includes(`Afgeschreven tag: ${tag}`));
-console.log(JSON.stringify({ actie: afgeschreven ? 'opvolger' : 'hervatten', prev: tag,
-  releasePr: afgeschreven?.url }));
-JS
-```
+Anders controleert het script, in deze volgorde, en stopt het bij elke onbekende toestand:
 
-- `actie=hervatten`: voer hieronder de normale hervatstappen uit. Een leesfout stopt de job.
-- `actie=opvolger`: zet `AFGESCHREVEN_TAG="$TAG"` en **`PREV="$TAG"`**, ook bij een draft of ontbrekende
-  GitHub-release. Sla hervatstappen 1–6 voor deze tag over: geen rerun, dispatch, publicatie, wiki of
-  website voor deze tag. Ga naar actuele main, rond eerst de bijbehorende fix-PR/review af en eis groene
-  main-CI. Voer daarna de kandidaatselectie uit. Een bestaande opvolger boven `PREV` gaat voor;
-  anders `RELEASE_MODE=nieuw`, dan pas `npm run bump` zonder argument. Volg [Herstel na de tag](#herstel-na-de-tag).
+1. **Release.** De `release.yml`-run op de tag (event `push` of een dispatch op de tag). Ontbreken run én
+   release: eenmaal `gh workflow run release.yml --ref "$TAG" -f "version=$TAG"`. Bestaat er wel een release of
+   draft zonder run: stop. Rood: eenmaal `gh run rerun <id> --failed`, nooit een hele rerun (na een geslaagde
+   `create-release` zou die een tweede draft maken). Daarna moet de release gepubliceerd zijn
+   (`draft=false`, `prerelease=false`, `published_at`). Alleen HTTP 404 telt als ontbrekend.
+2. **Vervolgworkflows.** `release-verify.yml`, `snap.yml` en `aur.yml` via `workflow_run`. Zo'n run staat op de
+   SHA van main op dat moment, niet op de tag. Het script neemt de oudste niet-overgeslagen run sinds de start van
+   de release-run en volgt of herhaalt hem pas als een gedraaide job de tag logt (`HEAD_BRANCH: <tag>` of
+   `VERSION: <tag>`); anders is het een stop.
+   Snap telt met de stap `Publish to Snap Store` op `success`, of met de bewezen
+   [verlopen Store-login](#verlopen-snap-store-login); een ontbrekende Snap-run is een stop
+   (een dispatch publiceert niet). Een ontbrekende AUR-run krijgt eenmaal
+   `gh workflow run aur.yml --ref "$TAG" -f "version=$TAG" -f publish=true`. AUR telt met `Push to AUR` op
+   `success` en de juiste versie in de AUR, of met het [ontbrekende secret](#ontbrekend-aur-secret).
+3. **Uitlevering.** Zie [Uitlevering controleren](#uitlevering-controleren).
+4. **Wiki.** Af als de wiki-pagina Changelog de sectie `## v<VERSION> ` heeft. Anders publiceert het script
+   vanaf de getagde commit (proef zonder waarschuwingen, linkcheck, `-- --push`) en controleert het de pagina en Home.
+5. **Website.** Pas aan het eind, en alleen als er geen nieuwe release komt: de website van een nieuwe tag dekt ook
+   de vorige. Zie [Website](#website).
 
-Bewaar in de app-release-PR (titel `Release v<VERSION>`) één bijwerkbaar commentaar met marker
-`<!-- ops-release:TAG -->`: tag/SHA, run-ID's en eindstatus van release/Snap/AUR, wiki-bron-SHA en
-wiki-commit, website-PR-URL, merge-SHA en deployrun, resterende fout. Leg ook reruns, fix-PR's,
-review-taak-ID's/head-SHA's, BLOKKEERT/VERVOLG en een eventuele blokkade vast. Vul `TAG` in de marker echt in.
-Schrijf het commentaar vóór de tag en na elke stap bij. Een lokaal bestand of chatbericht is geen
-hervatbewijs. Zonder bestaand verslag: reconstrueer dezelfde gegevens uit GitHub en de wiki;
-controleer de werkelijkheid ook als het verslag “klaar” zegt. Maak geen dubbele release of PR.
-Neem onafgerond websitewerk met de oorspronkelijke PR en merge-SHA over in het verslag van de
-volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
-
-1. **Publicatie en runs.** Lees `gh api "repos/$REPO/releases/tags/$TAG"`: de release moet bestaan,
-   `draft=false`, `prerelease=false` en een `published_at` hebben. Alleen HTTP 404 betekent
-   ontbrekend; auth-/netwerkfouten zijn geen aanleiding om opnieuw te publiceren.
-   Zoek de release-run met `gh run list --workflow release.yml --commit "$SHA"`.
-   Zoek vervolgruns met `gh run list --workflow snap.yml --event workflow_run` (idem `aur.yml`).
-   Hun eigen `head_sha` kan de defaultbranch zijn: koppel via getagde checkout/versie in de logs
-   en de vastgelegde run-ID's, niet blind via `--commit`. Een PR-run of overgeslagen publicatie
-   telt niet; alleen een [ontbrekend AUR-secret](#ontbrekend-aur-secret) is hierop een uitzondering.
-   Wacht op een lopende run; start geen tweede.
-2. **Release herstellen.** Is de bijbehorende `release.yml`-run mislukt of geannuleerd: bekijk
-   eerst de fout en de geslaagde jobs met `gh run view <run-id> --json jobs` en `--log-failed`.
-   Volg [CI herstellen](#ci-herstellen): eerst eenmaal `gh run rerun <run-id> --failed`, ook bij een
-   inhoudelijke fout. Blijft hij rood: fix-PR met Sol-review.
-   Dit is publiceren en valt onder het maandagmandaat. Bewaar de gebruikte rerunpoging.
-   Nooit een hele release-run opnieuw starten als `create-release` al slaagde: die maakt een nieuwe
-   draft met `createRelease`, zonder bestaande-releasecontrole. Gebruik de bestaande run en outputs.
-   Ontbreken zowel release als run: start eenmaal de gate op **de bestaande tag**:
-   `gh workflow run release.yml --ref "$TAG" -f "version=$TAG"`. Ontbreekt alleen de run maar
-   bestaat wel een draft/publicatie, of zijn de outputs onbruikbaar: stop met de exacte blokkade.
-   Een main-fix werkt niet vanzelf door in deze tag; volg [Herstel na de tag](#herstel-na-de-tag).
-   Bij afschrijving stopt dit hervatpad voor de oude tag. Geen poort omzeilen of tag verplaatsen.
-3. **Snap en AUR herstellen.** Na een groene release-run moeten de bijbehorende vervolgworkflows
-   groen zijn. Gebruik bestaande run-ID's en controleer de geselecteerde versie in hun logs.
-   Een mislukte run: volg CI herstellen, met dezelfde grens voor getagde broncode.
-   Ontbreekt een run: start niet de release opnieuw. `snap.yml`-dispatch is alleen een bouwtest
-   en publiceert niet. Stop daarvoor met de ontbrekende run als blokkade.
-   Voor een ontbrekende AUR-run mag de bestaande publicatieroute wel:
-   `gh workflow run aur.yml --ref "$TAG" -f "version=$TAG" -f publish=true`.
-   Controleer `Publish to Snap Store` en `Push to AUR` op `success`; ontbreken Snap-credentials, meld
-   de blokkade zonder secrets te wijzigen. Een ontbrekend AUR-secret is geen blokkade: volg
-   [Ontbrekend AUR-secret](#ontbrekend-aur-secret). Bestond een vervolgworkflow nog niet in deze historische
-   tag, leg “niet van toepassing” vast met bewijs uit `git cat-file -e "$TAG:.github/workflows/<naam>"`.
-4. **Gepubliceerde assets.** Voer [Uitlevering controleren](#uitlevering-controleren) uit voor `TAG`.
-   Een gepubliceerde release alleen is geen bewijs van complete of juiste assets.
-5. **Wiki hervatten.** Genereer uit `SHA` via de wiki-skill een dry-run en controleer links.
-   Clone/fetch de wiki. Een vastgelegde wiki-commit moet in de remote historie zitten en de
-   gegenereerde bestanden van `SHA` bevatten. Ontbreekt dat bewijs: vergelijk de beheerde
-   `.wiki-build/`-bestanden met de remote wiki. Bij ontbrekende wijzigingen opnieuw
-   `npm run publish:wiki -- --push` uit deze worktree. De generator doet niets als alles al gelijk is.
-   Controleer remote en live Home/gewijzigde pagina; noteer bron-SHA en wiki-commit. Bij fout stoppen.
-6. **Website hervatten.** Lees de bestaande website-PR uit het verslag; zoek bij ontbrekend verslag
-   in website-PR's op deze versie en controleer ook beide blokken op website-main/live.
-   Volg de [websiteprocedure](#website). Hergebruik een open versie-PR en merge direct met
-   `gh pr merge <nr> --repo OpenAEC-Foundation/website --merge --admin`.
-   Controleer een gemergde PR via [Websitedeploy controleren en herstellen](#websitedeploy-controleren-en-herstellen).
-   Een geslaagde deploy op de merge-SHA of een bewezen afstammeling telt, mits beide blokken live staan.
-   Staat de juiste inhoud al op main zonder PR, leg die main-SHA vast als basis voor dezelfde controle.
-   Bij ontbrekende wijziging maak je de versie-PR alsnog. Bij een gesloten, ongemergede PR of
-   blijvend mislukte/ontbrekende deploy: meld en bewaar het resterende werk voor de volgende maandag.
-   De app-release blijft staan; dit websitewerk blokkeert ook de volgende app-release niet.
-
-Na alle toepasselijke hervatstappen, uitgesteld websitewerk of vastgelegde afschrijving: noteer de tag als `PREV`.
-Ga terug naar actuele `origin/main` en voer de kandidaatselectie hieronder uit. Een bestaande kandidaat gaat vóór
-“niets veranderd” en vóór een nieuwe bump. `PREV` blijft de numerieke versieondergrens.
-Bij afschrijving blijft de oorspronkelijke releasetekst daarnaast de inhoudsbron voor de opvolger.
+**Hervatverslag.** Eén reactie met `<!-- ops-release:TAG -->` op de PR `Release v<VERSION>`, door het script
+geschreven vóór de tag en na elke stap. Het script schrijft alleen tussen `<!-- ops-release-script:begin -->` en
+`<!-- ops-release-script:end -->` en vult daar zijn regels aan; wat erbuiten staat (een ouder verslag, notities van
+de thread) laat het staan. Het script leest de
+stand niet uit het verslag maar uit GitHub, dus ook een verslag dat “klaar” zegt, wordt gecontroleerd. De thread
+zet fix-PR's, reruns, review-taak-ID's en BLOKKEERT/VERVOLG eronder, buiten het scriptblok, als hij een stop herstelt.
 
 ### Ontbrekend AUR-secret
 
@@ -192,8 +124,9 @@ Dit geldt alleen als de `aur.yml`-run van deze tag aan alle vier de punten voldo
 3. De job heeft de notice `AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.`
 4. De joblog toont de `.deb` van `VERSION`, dus deze run hoort bij deze tag.
 
-Lees de notice uit de annotaties, niet uit de joblog. De tekst staat daar altijd, want de log
-toont ook het script zelf. `AUR_RUN` is het run-ID uit hervatstap 1. De laatste opdracht heeft twee
+Het releasescript controleert deze vier punten zelf. Met de hand (bijvoorbeeld na een stop `aur-mislukt`):
+lees de notice uit de annotaties, niet uit de joblog. De tekst staat daar altijd, want de log
+toont ook het script zelf. `AUR_RUN` is het run-ID van de `aur.yml`-run. De laatste opdracht heeft twee
 vormen: `gh` 2.102.0 weigert deze log zonder `--allow-escape-sequences`, en `gh` 2.45.0 op aia kent die vlag niet.
 
 ```bash
@@ -214,69 +147,31 @@ een handmatige test zonder `publish`. Er is geen schakelaar. Bestaat het secret,
 volgende `aur.yml`-run vanzelf, en gelden weer `success` en de `pkgver`-controle uit
 [Uitlevering controleren](#uitlevering-controleren).
 
+### Verlopen Snap Store-login
+
+Besluit wrakko, 2026-11-17 (na de verlopen login bij v2026.47.0). Faalt de Snap-publicatie op de bekende fout van een
+verlopen Store-login, dan houdt dat de release niet tegen, voor de vorige en voor de nieuwe tag, net als bij het
+[ontbrekende AUR-secret](#ontbrekend-aur-secret). Het script controleert dat vast (`snapLoginVerlopen`): de run is
+`failure`, de enige rode stap is `Publish to Snap Store`, en de joblog bevat
+`credentials are no longer valid for the Snap Store`. Dan geen rerun; het script zet het in het verslag en schrijft
+`RELEASE-MELDING snap-login: …` met de link, die de thread aan wrakko doorgeeft. Ethan herstelt de login; daarna
+herstart alleen wrakko de Snap-publicatie. Elke andere Snap-fout blijft een stop (`snap-mislukt`).
+
 ## Kandidaatselectie
 
-Voer dit vóór **iedere** bump uit, na het afhandelen van de laatste tag. Een pakketversie zonder
-origin-tag is alleen hervatbaar als hij **numeriek hoger is dan `PREV`**. Vergelijk JJJJ, W en N
-als getallen, in die volgorde. Lager of gelijk: stoppen met versie en `PREV` in de melding;
-geen bump of tag. De kalenderweek van vandaag is geen ondergrens: een oudere week boven `PREV` mag.
+Het script doet dit vóór iedere bump (`kiesKandidaat` in `scripts/release/stappen.mjs`). Alleen PR's met precies de
+titel `Release v<versie>` tellen. Een ongetagde versie op main of een open release-PR is alleen hervatbaar als hij
+numeriek hoger is dan `PREV` (jaar, week, volgnummer als getallen); de kalenderweek van vandaag is geen ondergrens.
 
-Voer vanuit de repo dit uitsluitend lezende blok uit. Alleen titels `Release v<versie>` tellen als
-release-PR (de vaste titel uit stap 3); gewone feature-PR's worden genegeerd. Twee release-PR's
-betekenen stoppen. Lees hun echte pakketversie op de PR-head; titel en pakket moeten overeenkomen.
-Neem `mode`, `version` en de bestaande `pr` uit de JSON over; `mode` wordt `RELEASE_MODE`.
+- **Open release-PR:** de bestaande branch, versie en voortgang; geen tweede PR, geen bump, geen dubbel blok.
+  Het script merget actuele main erin en vernieuwt cijfers en CI.
+- **Ongetagde versie op main met een gemergde release-PR:** direct naar de poorten vóór de tag. Ontbreekt inhoud,
+  dan is dat een stop (`inhoud-ontbreekt`); de thread vult haar aan via een correctie-PR voor dezelfde versie.
+- **Geen van beide:** `npm run bump`, en alleen als er commits zijn sinds `PREV`.
 
-```bash
-PREV="$PREV" node --input-type=module <<'JS'
-import { execFileSync } from 'node:child_process';
-import { parseVersion } from './scripts/bump-version.js';
-const repo = 'OpenAEC-Foundation/open-planner-studio';
-const read = (cmd, ...args) => execFileSync(cmd, args, { encoding: 'utf8' }).trim();
-const previous = parseVersion(process.env.PREV.replace(/^v/, ''));
-const tags = new Set(read('git', 'ls-remote', '--tags', 'origin', 'v*').split('\n')
-  .map(line => line.split('\t')[1]?.replace(/^refs\/tags\//, '').replace(/\^\{\}$/, '')));
-const main = JSON.parse(read('git', 'show', 'origin/main:package.json')).version;
-const prs = JSON.parse(read('gh', 'pr', 'list', '--repo', repo, '--base', 'main', '--state', 'open',
-  '--limit', '1000', '--json', 'number,title,headRefName,headRefOid,url'))
-  .filter(pr => /^Release v[0-9]+\.[0-9]+\.[0-9]+$/.test(pr.title));
-if (prs.length > 1) throw new Error('Meerdere open release-PRs; stop zonder bump of tag');
-const candidates = tags.has(`v${main}`) ? [] : [{ mode: 'main', version: main }];
-for (const pr of prs) {
-  const version = JSON.parse(read('gh', 'api', `repos/${repo}/contents/package.json?ref=${pr.headRefOid}`,
-    '-H', 'Accept: application/vnd.github.raw+json')).version;
-  if (pr.title !== `Release v${version}`) throw new Error('Titel en PR-pakketversie verschillen; stop');
-  if (tags.has(`v${version}`)) throw new Error('PR-versie is al getagd; eerst het hervatpad volgen');
-  candidates.push({ mode: 'pr', version, pr });
-}
-for (const { version } of candidates) {
-  const fields = parseVersion(version);
-  const first = fields.findIndex((n, i) => n !== previous[i]);
-  if (first < 0 || fields[first] < previous[first]) {
-    throw new Error(`Kandidaat ${version} is niet hoger dan PREV ${process.env.PREV}; stop zonder tag`);
-  }
-}
-if (new Set(candidates.map(c => c.version)).size > 1) throw new Error('Kandidaatversies botsen; stop');
-console.log(JSON.stringify(candidates.find(c => c.mode === 'pr') ?? candidates[0] ?? { mode: 'nieuw' }));
-JS
-```
-
-- **Open release-PR:** `RELEASE_MODE=pr`. Gebruik zijn bestaande branch/head, versie en
-  hervatverslag. Maak geen tweede PR, bump niet en voeg geen dubbel notes-/highlights-/changelogblok toe.
-  Voeg zo nodig actuele main samen op die branch, behoud de kandidaatversie en vernieuw cijfers/CI.
-- **Ongetagde versie op main, geen open kandidaat-PR:** `RELEASE_MODE=main`. Gebruik die versie,
-  notes/highlights en de bestaande gemergde release-PR met zijn verslag. Hervat direct bij de
-  main-poorten van stap 3. Ontbreekt nog inhoud: vul die voor **dezelfde versie** aan via een
-  correctie-PR (`RELEASE_MODE=pr`) met normale PR/main-poorten; vernieuw de cijfers voor de extra
-  commit. Geen bump, ook niet op de volgende maandag.
-- **Geen van beide:** `RELEASE_MODE=nieuw`. Pas nu mag de wijzigingscontrole tot een nieuwe
-  `npm run bump` leiden. Een afgeschreven tag met nog te maken opvolger blijft onafgerond werk;
-  anders is er zonder nieuwe commits sinds `PREV` niets te releasen.
-
-Match PR en main op versie. Verschillende kandidaatversies of meerdere open PR's voor dezelfde
-versie: stop en meld de botsing; kies niet stil een nieuwe versie. Controleer dat de PR-head echt
-de kandidaatversie bevat. Reconstructeer ontbrekende voortgang uit de bestaande PR en bestanden.
-Een al getagde kandidaat gaat terug naar [Hervatten](#hervatten). Alleen vastgelegde afschrijving
-maakt de route naar een nieuwe opvolgversie vrij; een bestaande ongetagde opvolger krijgt geen extra bump.
+Stop zonder bump of tag bij: twee open release-PR's, een titel die niet bij de pakketversie past, een al getagde
+PR-versie, een kandidaat die niet hoger is dan `PREV`, of botsende kandidaatversies. Een bestaande ongetagde
+opvolger krijgt nooit een extra bump, ook niet na een weekwissel.
 
 ## CI herstellen
 
@@ -305,8 +200,8 @@ maak geen dubbele PR. Een al verbruikte rerunpoging begint na een weekwissel nie
 
 1. Lees de rode jobs en logs van de **exacte** main-/PR-head of getagde run:
    `gh run view <run-id> --json jobs` en `gh run view <run-id> --log-failed`.
-   Draai de mislukte checks eerst eenmaal opnieuw met `gh run rerun <run-id> --failed`.
-   Bewaar de poging en wacht op de uitkomst. Groen: hercontroleer de SHA en vervolg de poorten.
+   Het script draait de mislukte checks eerst zelf eenmaal opnieuw (`gh run rerun <run-id> --failed`) en stopt
+   pas als ook poging 2 rood is; een tweede rerun is er niet. Alleen buiten het script: eenmaal zelf rerunnen.
    Ontbrekende runs of auth-/netwerkfouten zijn geen rode check; verzin geen succes of nieuwe run.
 2. Nog rood: maak een eigen fixbranch vanaf vers opgehaalde `origin/main` en een fix-PR tegen main.
    Reproduceer de oorzaak in PR-CI en maak de kleinste fix die haar repareert. Geen test uitzetten of
@@ -323,10 +218,9 @@ maak geen dubbele PR. Een al verbruikte rerunpoging begint na een weekwissel nie
    De cijfercorrectie voegt zo precies één commit toe; bereken vanaf de actuele basis volgens
    [Releasecijfers](#releasecijfers). Na een inhoudelijke fix kan een aparte cijfercorrectie nodig zijn.
    Haal main opnieuw op en wacht op groene `ci.yml` met event `push`, branch `main` en exact de
-   merge-SHA; stap 3 van de skill controleert daarna ook de browserrun. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
-5. Hervat pas daarna de release. Bij een rode release-PR: neem de fix via een gewone merge van
-   main op in de bestaande releasebranch. Los conflicten op, behoud de kandidaatversie en vernieuw
-   cijfers/JSON volgens [Releasecijfers](#releasecijfers). Ook een fout die alleen in de kandidaat
+   merge-SHA; het script controleert daarna ook de browserrun. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
+5. Start daarna het script opnieuw. Bij een rode release-PR merget het main in de bestaande releasebranch,
+   behoudt de kandidaatversie en vernieuwt de cijfers; bij een conflict stopt het (`merge-conflict`). Ook een fout die alleen in de kandidaat
    optreedt moet in PR-CI op die kandidaat gereproduceerd en na de fix opnieuw getest worden.
    Wacht opnieuw op groene release-PR-CI en main-CI. Geen tweede bump.
    Een lokale releasepoort krijgt dezelfde kleinste fix en review; zonder run valt alleen de rerun weg.
@@ -409,6 +303,9 @@ punt 2 hieronder en maak een opvolgversie. Verander de gate niet om een tag door
 
 `scripts/verify-release-highlights.ts` vergelijkt exact met Git, niet met afgeronde schattingen.
 Een extra commit of een gewijzigde mergebasis verandert de cijfers. Plan daarom een squashmerge.
+Het script rekent stappen 1–5 zelf (`meetCijfers`), met als verwachte squashcommitdatum het moment van rekenen
+plus 30 minuten. Vlak vóór de merge rekent het opnieuw: is een dag omgesprongen of main verder, dan werkt het de
+cijfers bij en wacht het opnieuw op PR-CI. Een verschil na de merge (stap 6) is de stop `cijfers`.
 
 1. Noteer `BASE` = de groene `origin/main`-SHA bij de start en `PREV` = de vorige origin-tag.
 2. Neem voor `commitsSincePrevious` het aantal `git rev-list --count "$PREV..$BASE"` **plus 1**:
@@ -457,87 +354,46 @@ Daarmee komt de nieuwe release automatisch in het blok onderaan, nieuwste eerst.
 De dagelijkse run wijzigt ook andere gegenereerde gegevens, waaronder JSON-LD `softwareVersion`.
 Het highlight-blok `#whats-new` en zijn woordenboeken komen **niet** vanzelf mee.
 
-### Uitvoering na publicatie
+### Wat het script doet
 
-1. Wacht op de geslaagde webdeploy van de releasecommit en controleer dat de live highlights-JSON
-   `v$VERSION` bevat. `generate-release-highlights.js` kan exit 0 geven terwijl oude data blijft staan.
-2. Maak een eigen websitebranch vanaf actuele `origin/main`. Werk alleen `#whats-new` bij met de
-   nieuwe functies/fixes van deze release, uit dezelfde releasehistorie. Verzin geen functies.
-   Zet de versie in `whatsnew.label` en vertaal de aangepaste tekst in alle vier woordenboeken.
-   Bij een release met uitsluitend fixes benoemt het blok die verbeteringen.
-3. Genereer in een **aparte tijdelijke kopie** van de bijgewerkte websitecheckout:
-   ```bash
-   printf '%s\n' '{"type":"commonjs"}' > package.json # Alleen in de root van de tijdelijke websitekopie; nooit meenemen in de website-PR.
-   node scripts/generate-release-notes.js
-   node scripts/generate-release-highlights.js
-   node scripts/build-i18n-pages.js
-   node scripts/build-release-notes-static.js
-   ```
-   Deze scripts hebben geen productfilter en schrijven ook andere pagina's en metadata.
-   Neem uit die tijdelijke kopie uitsluitend de twee Planner-JSON-bronnen en de twee toegestane
-   HTML-blokken over naar de vijf Planner-pagina's van de branch: `#whats-new` en `rn:start`–`rn:end`.
-   Controleer dat `latestStable.tag` en de highlights beide de nieuwe versie bevatten.
-   Behoud de eerdere releases in de gegenereerde tijdlijn.
-4. De diff mag alleen die twee blokken, de twee Planner-databestanden en de `whatsnew`-objecten
-   bevatten. Geen feature-grid, FAQ, meta-teksten, JSON-LD, screenshots, nieuws, `/md/` of `llms.txt`.
-   Laat de dagelijkse Action zijn overige bestaande werk doen.
-5. Commit, push de websitebranch, open een PR tegen `main` en registreer die bij de T3-thread.
-   Merge direct: `gh pr merge <nr> --repo OpenAEC-Foundation/website --merge --admin`.
-   Nozzit heeft een bypass in `required_pull_request_reviews.bypass_pull_request_allowances.users`
-   (gecontroleerd via `gh api repos/OpenAEC-Foundation/website/branches/main/protection`).
-6. Lees `mergeCommit.oid` uit `gh pr view <nr> --repo OpenAEC-Foundation/website --json mergeCommit`.
-   Volg [Websitedeploy controleren en herstellen](#websitedeploy-controleren-en-herstellen), ook bij hervatten.
+Website-werk telt als af zodra `whatsnew.label` in het Engelse woordenboek op website-main deze versie (of een
+nieuwere) noemt, de nieuwste `deploy.yml`-run op main (`push` of `workflow_dispatch`) `success` is op inhoud met
+die versie, en de live pagina `https://open-aec.com/open-planner-studio/` die versie toont. Anders:
 
-Besluit: orkestrator na vraag aan eigenaar, gesprek 2026-10-22. De website heeft en behoeft
-geen PR-checks of websitecheckers. Generatoren, diffcontrole en de geslaagde `deploy.yml`-run
-(push naar main of `workflow_dispatch`) plus beide juiste blokken live zijn voldoende bewijs.
-De overige workflows zijn `update-stats.yml` (06:00 UTC) en `auto-assign-issues.yml`.
-Deze procedure voegt geen workflow of checkeis aan het website-repo toe.
+1. Wachten tot de live `release-highlights.json` de versie noemt.
+2. Websitebranch `release/open-planner-studio-<tag>` in de map `.claude/worktrees/release-website` (een kloon, geen
+   worktree). Bestaat er al een PR voor die branch, dan hergebruikt het script die.
+3. Een websiteagent (`claude -p`, Opus 5.5 high) schrijft alleen het Nederlandse `#whats-new` in
+   `open-planner-studio/index.html` en het object `whatsnew` in de vier woordenboeken, uit de releasetekst en de
+   highlights. Verzonnen functies horen er niet in.
+4. De vier generatoren draaien in de tijdelijke kopie `release-website-generatie` (met daar alleen een
+   `package.json` `{"type":"commonjs"}`). Het script neemt uit die kopie alleen over: het `rn:start`–`rn:end`-blok
+   in de vijf Planner-pagina's, `#whats-new` in de vier statische taalpagina's, en de twee Planner-databestanden.
+   `latestStable.tag` en de highlights moeten de nieuwe versie noemen. Elk ander gewijzigd pad is een fout.
+5. Commit, push, PR, direct `gh pr merge <nr> --repo OpenAEC-Foundation/website --merge --admin`.
+6. Deploy: een geslaagde `deploy.yml` op de merge-SHA of een afstammeling (`compare` geeft `ahead` of `identical`),
+   plus de live controle. Mislukt of geannuleerd: eenmaal `gh workflow run deploy.yml --repo OpenAEC-Foundation/website`
+   als er na die run nog geen dispatch was; de volgende run van het script controleert het resultaat.
 
-### Websitedeploy controleren en herstellen
-
-De website gebruikt `cancel-in-progress: true`. Een nieuwere push kan de oorspronkelijke deploy
-annuleren; soms ontbreekt die run geheel. De merge-SHA blijft de inhoudsbasis. Ook een afstammeling kan voldoen.
-
-1. Zoek eerst `gh run list --repo OpenAEC-Foundation/website --workflow deploy.yml --event push
-   --branch main --commit <merge-SHA>`. Lees ook nieuwere `deploy.yml`-runs op main, met event
-   `push` of `workflow_dispatch`. Wacht op een lopende toepasselijke run;
-   start geen tweede zolang die loopt. Auth-/netwerkfouten zijn geen bewijs van een ontbrekende run.
-2. Bewijs vereist `conclusion=success` én beide juiste releaseblokken live (`#whats-new` en de tijdlijn).
-   Een geslaagde run op de merge-SHA telt. Een geslaagde run op een afstammeling telt ook:
-   fetch de actuele websitehistorie en controleer `git merge-base --is-ancestor <merge-SHA> <deploy-SHA>`
-   in de websitecheckout (exit 0). Noteer beide SHA's en het voorouderbewijs. Een oudere of niet-verwante
-   groene deploy, alleen live inhoud of alleen de dagelijkse stats-run volstaat niet.
-3. Ontbreekt dit bewijs na een ontbrekende, geannuleerde of mislukte run, en loopt er geen
-   toepasselijke deploy: start binnen het maandagmandaat eenmaal per job
-   `gh workflow run deploy.yml --repo OpenAEC-Foundation/website`.
-   Noteer dispatchtijd en de actuele main-SHA. Zoek de bijbehorende `workflow_dispatch`-run,
-   wacht op de run en toets zijn SHA, conclusie en liveblokken volgens stap 2.
-   Dit is het herstelpad zonder bruikbaar run-ID; maak geen dubbele website-PR.
-4. Noteer website-PR, merge-SHA, deploy-SHA, run-ID/URL, conclusie en livecontrole in het hervatverslag.
-   Blijft de deploy rood, ontbreekt bevestiging of loopt de job vast: laat de app-release staan,
-   meld de fout in het eindrapport en bewaar het websitewerk. **Dit blokkeert de volgende app-release niet.**
-   Probeer het de volgende maandag opnieuw naast de nieuwe release en draag open werk over in diens verslag.
+Besluit: orkestrator na vraag aan eigenaar, gesprek 2026-10-22. De website heeft en behoeft geen PR-checks of
+websitecheckers; generatoren, diffcontrole, de geslaagde deploy en de live inhoud zijn genoeg. Nozzit heeft een
+bypass op de branchbescherming van website-main. Een websitefout laat de app-release staan, blokkeert de volgende
+app-release niet en staat in het verslag; de volgende maandag probeert het script het opnieuw.
 
 ## Uitlevering controleren
 
-Bij historisch hervatten vervallen alleen workflowcontroles die het hervatpad aantoonbaar als
-“niet van toepassing” heeft vastgelegd. De overige controles blijven verplicht.
+Het script controleert dit na elke groene release-run (`controleerAssets` in `scripts/release/stappen.mjs`).
 
-- Volg `release.yml`, `snap.yml` en `aur.yml` tot hun eindstatus; koppel run aan tag/SHA.
-- Vergelijk `gh release view "v$VERSION" --json body,assets` met de vorige release:
-  alle platforminstallers, updaterarchieven, `.sig`-bestanden, `latest.json` en de Claude Desktop-bundel
-  `open-planner-studio-<versie>.mcpb` (job `build-mcpb`) moeten aanwezig zijn.
-- Download `latest.json` van **deze tag** naar een eigen tijdelijke map met `gh release download`.
-  Controleer versie, niet-lege platte notes en alle platform-URL's (HTTP 200).
-  Controleer daarnaast het publieke updater-endpoint; houd rekening met kortdurende CDN-cache.
-- De GitHub-body bevat de bullets en Downloads. Dezelfde bullets staan als platte tekst in notes.
-- Controleer in `snap.yml` de stap **Publish to Snap Store**: conclusie `success`.
-  Alleen een bijgevoegde `.snap` bewijst geen publicatie. Ontbrekende credentials betekenen een
-  onvolledige release; meld dit zonder secrets op te vragen of te wijzigen.
-- Controleer ook `aur.yml`, stap **Push to AUR**: `success`; een groen pakket zonder publicatie
-  is geen afgeronde AUR-uitlevering. Controleer de gepubliceerde `pkgver` voor deze versie.
-  Uitzondering: bij een bewezen [ontbrekend AUR-secret](#ontbrekend-aur-secret) vervalt deze controle.
-- Een `latest.json` met ontbrekende darwin-entry kan duiden op een ontbrekend macOS `app`-target.
-  Windows-updaterarchief en `.sig` moeten ná Azure-signing opnieuw zijn gemaakt door de workflow.
+- `release.yml`, `release-verify.yml`, `snap.yml` en `aur.yml` tot hun eindstatus, gekoppeld aan tag en SHA.
+- Assets tegenover de vorige gepubliceerde release (namen met de versie vervangen): alle installers,
+  updaterarchieven, `.sig`-bestanden, `latest.json` en de Claude Desktop-bundel `open-planner-studio-<versie>.mcpb`.
+- `latest.json` van **deze tag** (`gh release download`): juiste versie, niet-lege notes, een entry voor linux,
+  windows en darwin (een ontbrekende darwin-entry wijst op een ontbrekend macOS `app`-target), alle download-URL's HTTP 200.
+  Is dit de nieuwste release, dan ook het publieke updater-adres, met 15 minuten ruimte voor de CDN.
+- De GitHub-body heeft het Downloads-blok.
+- Snap: stap **Publish to Snap Store** `success`; alleen een bijgevoegde `.snap` bewijst geen publicatie.
+  Uitzondering: de bewezen [verlopen Store-login](#verlopen-snap-store-login), gemeld en niet gestopt. Vraag of wijzig
+  geen secrets.
+- AUR: stap **Push to AUR** `success` en de AUR toont `<versie>-<pkgrel>`, of het bewezen
+  [ontbrekende AUR-secret](#ontbrekend-aur-secret).
 - Bij een afwijking: rapporteer het bewijs. Verplaats nooit de tag en wijzig assets niet op goed geluk.
