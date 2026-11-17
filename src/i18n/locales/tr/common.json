@@ -75,6 +75,14 @@
     "xmlUnknownSchedule": "Bilinmeyen XML planlama biçimi. Bir MS Project XML (Project) veya Primavera P6 XML (APIBusinessObjects) açın.",
     "mppEncrypted": "Bu .mpp dosyası parola ile korunuyor. MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
     "saveFailed": "Kaydetme başarısız",
+    "ifcForeignSaveBlocked": "Bu dosya bir yapı modeli içeriyor; henüz kaydedilemez.",
+    "ifcForeignTargetSave": "Bu dosya bir yapı modeli veya başka bir programın verilerini içeriyor. Kaydetmek için başka bir dosya seçin.",
+    "ifcForeignTargetExport": "Bu dosya bir yapı modeli veya başka bir programın verilerini içeriyor. Dışa aktarmak için başka bir dosya seçin.",
+    "ifcExportChangedWhileWaiting": "Dışa aktarma başka bir kayıt için beklerken planlama değişti. Hiçbir şey dışa aktarılmadı. Yeniden dışa aktarın.",
+    "ifcForeignTargetAutoSave": "Otomatik kaydetme durdu: bu dosya bir yapı modeli veya başka bir programın verilerini içeriyor. Kaydetmek için başka bir dosya seçin.",
+    "ifcUnreadableTargetSave": "Uygulama bu dosyayı düzgün okuyamıyor; bir yapı modeli içeriyor olabilir. Kaydetmek için başka bir dosya seçin.",
+    "ifcUnreadableTargetExport": "Uygulama bu dosyayı düzgün okuyamıyor; bir yapı modeli içeriyor olabilir. Dışa aktarmak için başka bir dosya seçin.",
+    "ifcUnreadableTargetAutoSave": "Otomatik kaydetme durdu: uygulama bu dosyayı düzgün okuyamıyor; bir yapı modeli içeriyor olabilir. Kaydetmek için başka bir dosya seçin.",
     "ambiguousThousands": "\"{{text}}\" belirsiz: ondalık sayı mı, binler mi? Ondalıkları \"{{separator}}\" ile (1{{separator}}5), binleri ayırıcı olmadan (1500) yazın. Değer değiştirilmedi.",
     "siteSaveConflict": "Kaydedilmedi: '{{name}}' bu arada sitede başka biri tarafından değiştirildi. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosya olarak saklamak için Farklı kaydet komutunu kullanın.",
     "siteSaveConflictCopy": "'{{original}}' sitede bu arada başka biri tarafından değiştirildi. Bu yüzden çalışmanız şu kopyada tutuluyor: '{{name}}'. Bundan sonra Kaydet bu kopyaya yazar.",
@@ -109,10 +117,14 @@
     "duplicateIdsRenamed": "Bu dosyada yinelenen kimliğe sahip nesneler: {{total}}. Kendi kimliklerini aldılar; onlara yapılan başvurular ilk örnekte kalır. İlişkileri ve atamaları kontrol edin.",
     "relationsSkippedOnInsert_one": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",
     "relationsSkippedOnInsert_other": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",
+    "relationsSkippedOnDissolve_one": "Dissolve uygulandı, ancak {{count}} ilişki oluşturulmadı: geçersiz bağlantı (ör. bir görevi kendi (üst) özet görevine bağlamak veya bir döngü).",
+    "relationsSkippedOnDissolve_other": "Dissolve uygulandı, ancak {{count}} ilişki oluşturulmadı: geçersiz bağlantı (ör. bir görevi kendi (üst) özet görevine bağlamak veya bir döngü).",
     "mppSourceScheduleNotes_one": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "mppSourceScheduleNotes_other": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "exportSplitsLost_one": "Kesintili {{count}} görev kesintileri olmadan dışa aktarıldı: MS Project/P6 bunları yalnızca iş dağılımı olarak tanır.",
     "exportSplitsLost_other": "Kesintili {{count}} görev kesintileri olmadan dışa aktarıldı: MS Project/P6 bunları yalnızca iş dağılımı olarak tanır.",
+    "exportCostResourcesLost_one": "{{count}} maliyet kaynağı dışa aktarılmadı; atamaları ve tutarlarıyla birlikte. Bu biçim maliyet kaynaklarını ancak bir sonraki sürümde destekler.",
+    "exportCostResourcesLost_other": "{{count}} maliyet kaynağı dışa aktarılmadı; atamaları ve tutarlarıyla birlikte. Bu biçim maliyet kaynaklarını ancak bir sonraki sürümde destekler.",
     "exportP6Truncated_one": "{{count}} ad veya kod, P6’nın izin verdiği uzunluğa kısaltıldı.",
     "exportP6Truncated_other": "{{count}} ad veya kod, P6’nın izin verdiği uzunluğa kısaltıldı.",
     "exportInvalidXmlChars_one": "{{count}} karakter XML'de izin verilmediği için dışa aktarımda � ile değiştirildi.",
@@ -147,6 +159,8 @@
     "dragDatesAreActual": "'{{name}}' tamamlandı: başlangıcı ve bitişi gerçek tarihlerdir ve kaymaz. Bunları ilerleme üzerinden değiştirin.",
     "referencesClearedOnPaste_one": "{{count}} başvuru bu belgede yoktu ve temizlendi (kaynak belgeden bir görev takvimi, özel iş kategorisi, etkinlik kodu veya özel alan).",
     "referencesClearedOnPaste_other": "{{count}} başvuru bu belgede yoktu ve temizlendi (kaynak belgeden görev takvimleri, özel iş kategorileri, etkinlik kodları veya özel alanlar).",
+    "assignmentsSkippedOnPaste_one": "{{count}} atama yapıştırılmadı: kaynak burada başka türde (maliyet veya iş) ya da bir kilometre taşı yalnızca maliyet taşıyor.",
+    "assignmentsSkippedOnPaste_other": "{{count}} atama yapıştırılmadı: kaynak burada başka türde (maliyet veya iş) ya da bir kilometre taşı yalnızca maliyet taşıyor.",
     "milestoneRefusedAssignments": "'{{task}}' kaynak atamalarına sahip ve kilometre taşı olamaz. Önce atamaları kaldırın.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} görevin kaynak atamaları var ve kilometre taşı olamaz. Önce atamaları kaldırın.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} görevin kaynak atamaları var ve kilometre taşı olamazlar. Önce atamaları kaldırın.",
@@ -295,6 +309,8 @@
       "noteStatus_other": "{{count}} onaylanmış not: notlar korunur, onay işaretleri korunmaz",
       "resourceTypes_one": "{{count}} ekip veya taşeron kaynağı işgücüne dönüştü",
       "resourceTypes_other": "{{count}} ekip veya taşeron kaynağı işgücüne dönüştü",
+      "costResources_one": "{{count}} maliyet kaynağı dışarıda bırakıldı, atamaları ve tutarlarıyla birlikte",
+      "costResources_other": "{{count}} maliyet kaynağı dışarıda bırakıldı, atamaları ve tutarlarıyla birlikte",
       "libraryLinks_one": "{{count}} bağlantı kaynak kitaplığıyla",
       "libraryLinks_other": "{{count}} bağlantı kaynak kitaplığıyla",
       "holidayNames_one": "{{count}} tatil gününün adı (gün kendisi korunur)",
@@ -330,7 +346,21 @@
     },
     "dependentProjectsFound": "Bağımlı projeler: {{projects}}. Bu projeye bağlantılar: {{links}}.",
     "dependentProjectsNone": "Bu planlamaya dış ilişkisi olan proje bulunamadı.",
-    "dependentProjectsFailed": "Bağımlı projelerin bulunduğu klasör okunamadı."
+    "dependentProjectsFailed": "Bağımlı projelerin bulunduğu klasör okunamadı.",
+    "costTypeChangeRefused": "Kaynak kitaplığı, maliyet ile başka bir tür arasında türü değiştirmek istiyor. Kaynağın bu projede atamaları var, bu yüzden tür aynı kalıyor. Kaynak şimdi kitaplıktan farklı olarak gösteriliyor.",
+    "reportLayoutGone": "Raporun düzeni artık mevcut değil. Rapor yeniden tüm görevleri gösteriyor.",
+    "reportFontNoBold": "{{name}} kalın stili içermiyor. Raporda kalın metin normal stille gösterilir.",
+    "reportFontMissing": "Kendi yazı tipiniz {{name}} artık bu cihazda yok. Rapor yeniden Inter kullanıyor.",
+    "layoutsNotSaved": "Düzenler kaydedilemedi. Hiçbir şey değişmedi. Lütfen yeniden deneyin.",
+    "ifcForeignOpenSchema": "Bu IFC-dosyası başka bir programın verilerini içeriyor ve şeması bilinmiyor ya da eksik. Kaydederken veri kaybını önlemek için açma durduruldu.",
+    "ifcForeignOpenUnsafe": "Bu IFC-dosyası güvenli şekilde sınıflandırılamıyor. Kaydederken veri kaybını önlemek için açma durduruldu.",
+    "ifc2x3PlanningOnly": "IFC2X3 planlama olarak açıldı. Kaydederken diğer programların verileri dahil edilmeyecek.",
+    "ifcForeignReplaceBlocked": "Kaydedilmedi. Yapı modeli içeren mevcut bir dosyanın üzerine yazmak henüz güvenli değil. Farklı kaydet seçeneğini kullanın ve yeni bir ad seçin.",
+    "ifcForeignMergeRefused": "IFC-dosyası yazılmadı. Yapı modeli veya başka bir programın verileri aksi halde tam olarak korunmazdı. Son değişikliği geri alın ya da yalnızca planlamayı dışa aktarın: IFC'ye Yapı modeli olmadan seçeneğiyle veya başka bir biçime.",
+    "ifcSaveChangedWhileWaiting": "Kaydedilmedi. Belge veya yapı modelinin kaynağı hazırlık sırasında değişti. Yeniden kaydetmeyi deneyin.",
+    "ifcForeignExportNewTarget": "Dışa aktarılmadı. Bu IFC-dosyası yalnızca yeni bir dosya adına dışa aktarılabilir. Henüz var olmayan bir ad seçin.",
+    "ifcSourceCopyFailed": "Planlama çökme kurtarma için kaydediliyor, ancak yapı modelinin kopyası kaydedilemedi. Bir çökmeden sonra yapı modeli eksik olabilir. Çalışmanızı kendiniz tam bir IFC-dosyası olarak kaydedin.",
+    "ifcForeignSourceMissing": "Kaydedilmedi. Yapı modeli veya başka bir programın verileri bulunamadı. Yalnızca planlamayı yeni bir dosyada kaydetmek için Farklı kaydet kullanın. Dosyayla yeniden tam olarak çalışmak için özgün IFC-dosyasını açın."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
@@ -370,6 +400,7 @@
     "addSubtask": "Alt görev ekle",
     "addMilestone": "Kilometre taşı ekle",
     "addRelation": "İlişki ekle",
+    "dissolve": "Dissolve (zinciri koru)",
     "delete": "Sil",
     "newTask": "Yeni görev",
     "tracePath": "Yolu izle",
@@ -434,6 +465,8 @@
     "experimentalHide": "Gizleyin",
     "demoTopbarAnimation": "Demo: üst çubukta animasyon",
     "demoTopbarAnimationHint": "Üst çubukta yumuşak bir turuncu parlama. Deneysel bir anahtarın nasıl çalıştığını gösterir.",
+    "ifcForeignContent": "Yapı modeli içeren IFC'yi aç",
+    "ifcForeignContentHint": "Yapı modeli veya başka programların verilerini içeren bir IFC-dosyasını da açar. Yeni bir dosyaya Farklı kaydet, siteye kaydetme, tarayıcıda indirme ve Dışa aktar → IFC kullanabilirsiniz; yapı modeli olmadan ya da yanında kaynak kitaplığıyla da (o zaman yalnızca planlamayla). Mevcut yerel bir dosyanın üzerine kaydetmek henüz mümkün değil. Bir çökmeden sonra yapı modelini geri yüklemek, özgün dosyaya erişim ya da tarayıcıda kaydedilmiş bir kopya gerektirir.",
     "tourHint": "Uygulamanın tanıtım turunu tekrar yapın.",
     "theme": "Tema",
     "themeHint": "Arayüzün renk şeması.",
@@ -444,6 +477,10 @@
     "themeSystemHint": "Sisteminizin renk şemasını izler (şu anda: {{theme}}).",
     "showTaskTypes": "Görev türlerini kullanın",
     "showTaskTypesHint": "Her görev için, süre, birim veya iş değiştiğinde neyin değişeceğini seçin. Bu, MS Project'teki Task Type ve P6'daki Duration Type gibidir. Kapalı: süre ve birimler sabit kalır. Görev türü veya kayıtlı iş içeren bir dosya bunları, bu ayar kapalı olsa bile gösterir.",
+    "dissolveSummaryMode": "Özet görevde Dissolve",
+    "dissolveSummaryBranch": "Tüm aşama, alt görevleriyle",
+    "dissolveSummaryHeader": "Yalnızca başlık satırı",
+    "dissolveSummaryModeHint": "Dissolve bir özet görevle ne yapar. Tüm aşama: alt görevler de Sil gibi birlikte gider. Yalnızca başlık satırı: alt görevler bir düzey yukarı çıkar ve yerinde kalır.",
     "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
     "defaultTaskDurationUnit": "Yeni görevler için varsayılan ölçü",
     "defaultTaskDurationUnitHint": "Gün ölçüsü: bir süre, takvimin iş günlerinde sayılır. Saat ölçüsü: bir süre, çalışma saatlerinde sayılır. Mevcut görevler değişmez. Sabit işi olan bir görev her zaman saat ölçüsünü kullanır.",
@@ -667,6 +704,7 @@
     "privacy": "Geri bildiriminiz ve ekran görüntünüz, OpenAEC’nin Open Feedback Studio uygulamasına gider. Bunlar GitHub’da herkese açık bir issue olarak görünebilir. Paylaşmak istemediğiniz hiçbir şeyi eklemeyin.",
     "sentWith": "Birlikte gönderildi: v{{version}} · {{os}} · {{language}}",
     "sentTitle": "Teşekkürler, geri bildiriminiz gönderildi.",
+    "sentIssue": "Bildiriminiz GitHub'da bir issue olarak yer alıyor. Yanıtımızı orada okuyabilirsiniz:",
     "alreadyIn": "Bu geri bildirim bize zaten ulaşmış. Bir şey eklemek ister misiniz? O zaman metni değiştirin ve yeniden gönderin.",
     "sentScreenshotDropped": "Ekran görüntüsü çok büyüktü ve gönderilmedi.",
     "errorValidation": "Geri bildirim kabul edilmedi. Metni (yalnızca bağlantılar değil) ve e-posta adresini kontrol edin; sonra yeniden deneyin.",
@@ -908,7 +946,8 @@
       "equipment": "Ekipman",
       "material": "Malzeme",
       "subcontractor": "Taşeron",
-      "crew": "Ekip"
+      "crew": "Ekip",
+      "cost": "Maliyet"
     },
     "name": "Ad",
     "typeLabel": "Tür",
@@ -917,6 +956,7 @@
     "costPerHour": "Ücret/saat",
     "total": "Toplam",
     "totalHint": "Yüklenen birim × saat/gün × ücret (F5 ile yeniden hesaplayın)",
+    "costTotalHint": "Tüm atamalardaki tutarların toplamı",
     "unitOfMeasure": "Birim",
     "unitOnlyMaterial": "Yalnızca Malzeme türündeki kaynaklar için doldurulur.",
     "parent": "Ekip",
@@ -1033,7 +1073,9 @@
       "documents": "Belgeler",
       "selectHint": "Histogramı görmek için bir kaynak seçin."
     },
-    "color": "Renk"
+    "color": "Renk",
+    "notForCost": "Maliyet kaynağı için geçerli değil: bunun atama başına yalnızca sabit bir tutarı var.",
+    "costTypeLocked": "Bu kaynağın atamaları var. Maliyet kaynağı ile başka bir tür arasında geçiş yapmak için önce bunları kaldırın."
   },
   "calendar": {
     "library": {
@@ -1883,6 +1925,26 @@
     "colOwnTask": "Buradaki görev",
     "colAnchor": "Bağlantı noktası: eski → yeni",
     "saveAnyway": "Yine de kaydet",
+    "cancel": "İptal"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "Yalnızca planlama kaydedilsin mi?",
+    "body": "Yapı modeli veya başka bir programın verileri bulunamadı. Yeni dosya yalnızca planlamayı içerecek. Özgün dosya değişmeden kalacak. Devam etmek istiyor musunuz?",
+    "continue": "Devam",
+    "cancel": "İptal"
+  },
+  "fatalError": {
+    "title": "Bir şeyler ters gitti",
+    "body": "Open Planner Studio devam edemiyor. Uygulamayı yeniden yükleyin. Bu sürekli olursa, lütfen bildirin ve aşağıdaki ayrıntıları ekleyin.",
+    "reload": "Yeniden yükle",
+    "details": "Ayrıntılar"
+  },
+  "ifcExportWithoutModel": {
+    "option": "Yapı modeli olmadan",
+    "title": "Yapı modeli olmadan dışa aktarılsın mı?",
+    "body": "Yeni dosya yalnızca planlamayı içerecek. Yapı modeli ve başka bir programın verileri dahil edilmeyecek. Açık dosya değişmeden kalacak. Devam etmek istiyor musunuz?",
+    "bodyWithPool": "Proje dosyası yalnızca planlamayı içerecek; kaynak kitaplığı ikinci bir dosyaya gidecek. Yapı modeli ve başka bir programın verileri dahil edilmeyecek. Açık dosya değişmeden kalacak. Devam etmek istiyor musunuz?",
+    "continue": "Dışa aktar",
     "cancel": "İptal"
   }
 }

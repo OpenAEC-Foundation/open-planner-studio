@@ -75,6 +75,14 @@
     "xmlUnknownSchedule": "Ismeretlen XML-ütemezési formátum. Nyisson meg MS Project XML-fájlt (Project) vagy Primavera P6 XML-fájlt (APIBusinessObjects).",
     "mppEncrypted": "Ez a .mpp-fájl jelszóval védett. Exportálja MS Project-ben XML-ként (Fájl → Mentés másként → XML), és nyissa meg azt a fájlt.",
     "saveFailed": "Mentés sikertelen",
+    "ifcForeignSaveBlocked": "Ez a fájl épületmodellt tartalmaz, ezért a mentés egyelőre nem lehetséges.",
+    "ifcForeignTargetSave": "Ez a fájl épületmodellt vagy más program adatait tartalmazza. Válasszon másik fájlt a mentéshez.",
+    "ifcForeignTargetExport": "Ez a fájl épületmodellt vagy más program adatait tartalmazza. Válasszon másik fájlt az exportáláshoz.",
+    "ifcExportChangedWhileWaiting": "Az ütemezés megváltozott, miközben az exportálás másik tárolóra várt. Semmi nem lett exportálva. Exportálja újra.",
+    "ifcForeignTargetAutoSave": "Az automatikus mentés leállt: ez a fájl épületmodellt vagy más program adatait tartalmazza. Válasszon másik fájlt a mentéshez.",
+    "ifcUnreadableTargetSave": "Az alkalmazás nem tudja megfelelően olvasni ezt a fájlt; épületmodellt tartalmazhat. Válasszon másik fájlt a mentéshez.",
+    "ifcUnreadableTargetExport": "Az alkalmazás nem tudja megfelelően olvasni ezt a fájlt; épületmodellt tartalmazhat. Válasszon másik fájlt az exportáláshoz.",
+    "ifcUnreadableTargetAutoSave": "Az automatikus mentés leállt: az alkalmazás nem tudja megfelelően olvasni ezt a fájlt; épületmodellt tartalmazhat. Válasszon másik fájlt a mentéshez.",
     "ambiguousThousands": "„{{text}}” kétértelmű: decimális számra vagy ezresekre gondol? Tizedesjegyeket a(z) „{{separator}}” jellel írjon (1{{separator}}5), ezreseket elválasztójel nélkül (1500). Az érték nem változott.",
     "siteSaveConflict": "Nem mentve: „{{name}}” közben valaki más módosította a webhelyen. A módosításai még benne vannak az alkalmazásban. Válassza a „Mentés másként” parancsot, ha új fájlként szeretné megőrizni őket.",
     "siteSaveConflictCopy": "„{{original}}” a webhelyen közben valaki más módosította. A módosításai ezért egy másolatban vannak: „{{name}}”. A „Mentés” mostantól erre a másolatra ír.",
@@ -109,10 +117,14 @@
     "duplicateIdsRenamed": "Duplikált azonosítójú objektumok ebben a fájlban: {{total}}. Új azonosítót kaptak; a rájuk mutató hivatkozások az első előfordulásnál maradnak. Ellenőrizze a kapcsolatokat és a hozzárendeléseket.",
     "relationsSkippedOnInsert_one": "{{count}} kapcsolat nem jött létre: érvénytelen összekapcsolás (pl. egy tevékenység a saját szülő- vagy nagyszülő-összefoglaló tevékenységével, vagy egy duplikátum).",
     "relationsSkippedOnInsert_other": "{{count}} kapcsolat nem jött létre: érvénytelen összekapcsolás (pl. egy tevékenység a saját szülő- vagy nagyszülő-összefoglaló tevékenységével, vagy egy duplikátum).",
+    "relationsSkippedOnDissolve_one": "A Dissolve végrehajtva, de {{count}} kapcsolat nem jött létre: érvénytelen összekapcsolás (például egy tevékenység a saját (felmenő) összefoglaló tevékenységéhez, vagy egy körkapcsolat).",
+    "relationsSkippedOnDissolve_other": "A Dissolve végrehajtva, de {{count}} kapcsolat nem jött létre: érvénytelen összekapcsolás (például egy tevékenység a saját (felmenő) összefoglaló tevékenységéhez, vagy egy körkapcsolat).",
     "mppSourceScheduleNotes_one": "Ez az MS Project-fájl {{count}} tevékenységet tartalmaz szünetes, simított vagy munkamennyiség alapú ütemezéssel. A program ilyenként olvassa be és jeleníti meg.",
     "mppSourceScheduleNotes_other": "Ez az MS Project-fájl {{count}} tevékenységet tartalmaz szünetes, simított vagy munkamennyiség alapú ütemezéssel. A program ilyenként olvassa be és jeleníti meg.",
     "exportSplitsLost_one": "{{count}} szünetes tevékenység szünetek nélkül lett exportálva. Az MS Project és a P6 csak munkaeloszlásként ismeri a szüneteket.",
     "exportSplitsLost_other": "{{count}} szünetes tevékenység szünetek nélkül lett exportálva. Az MS Project és a P6 csak munkaeloszlásként ismeri a szüneteket.",
+    "exportCostResourcesLost_one": "{{count}} költségerőforrás nem lett exportálva, a hozzárendelésével és összegével együtt: ez a formátum egy későbbi verzióban kap költségerőforrásokat.",
+    "exportCostResourcesLost_other": "{{count}} költségerőforrás nem lett exportálva, a hozzárendeléseivel és összegeivel együtt: ez a formátum egy későbbi verzióban kap költségerőforrásokat.",
     "exportP6Truncated_one": "Egy név vagy kód a P6 által megengedett hosszra lett rövidítve.",
     "exportP6Truncated_other": "{{count}} név vagy kód a P6 által megengedett hosszra lett rövidítve.",
     "exportInvalidXmlChars_one": "{{count}} karakter, amely XML-ben nem megengedett, az exportban �-re lett cserélve.",
@@ -147,6 +159,8 @@
     "dragDatesAreActual": "A(z) „{{name}}” kész: a kezdés és a befejezés a tényleges dátumai, ezért nem mozdulnak el. Módosítsa az előrehaladáson keresztül.",
     "referencesClearedOnPaste_one": "{{count}} hivatkozás nem létezett ebben a dokumentumban, ezért törölve lett (egy tevékenységnaptár, egyéni munkanem, tevékenységkód vagy egyéni mező a forrásdokumentumból).",
     "referencesClearedOnPaste_other": "{{count}} hivatkozás nem létezett ebben a dokumentumban, ezért törölve lett (tevékenységnaptárak, egyéni munkanemek, tevékenységkódok vagy egyéni mezők a forrásdokumentumból).",
+    "assignmentsSkippedOnPaste_one": "{{count}} hozzárendelés nem lett beillesztve: az erőforrás itt más fajtájú (költség vagy munka), vagy egy mérföldkő csak költséget kaphat.",
+    "assignmentsSkippedOnPaste_other": "{{count}} hozzárendelés nem lett beillesztve: az erőforrás itt más fajtájú (költség vagy munka), vagy egy mérföldkő csak költséget kaphat.",
     "milestoneRefusedAssignments": "A(z) „{{task}}” tevékenységnek erőforrás-hozzárendelései vannak, ezért nem lehet mérföldkő. Előbb távolítsa el a hozzárendeléseket.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} tevékenységnek vannak erőforrás-hozzárendelései, ezért nem válhat mérföldkővé. Először törölje a hozzárendeléseket.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} tevékenységnek vannak erőforrás-hozzárendelései, ezért nem válhatnak mérföldkővé. Először törölje a hozzárendeléseket.",
@@ -295,6 +309,8 @@
       "noteStatus_other": "{{count}} kipipált megjegyzés: a megjegyzések átkerülnek, a pipák nem",
       "resourceTypes_one": "{{count}} csapat- vagy alvállalkozói típusú erőforrás munkaerő lett",
       "resourceTypes_other": "{{count}} csapat- vagy alvállalkozói típusú erőforrás munkaerő lett",
+      "costResources_one": "{{count}} költségerőforrás ki lett hagyva, a hozzárendelésével és összegével együtt",
+      "costResources_other": "{{count}} költségerőforrás ki lett hagyva, a hozzárendeléseivel és összegeivel együtt",
       "libraryLinks_one": "{{count}} hivatkozás az erőforrástárra",
       "libraryLinks_other": "{{count}} hivatkozás az erőforrástárra",
       "holidayNames_one": "{{count}} ünnepnap neve (maga a nap átkerül)",
@@ -330,7 +346,21 @@
     },
     "dependentProjectsFound": "Függő projektek: {{projects}}. Kapcsolatok ehhez a projekthez: {{links}}.",
     "dependentProjectsNone": "Nem található olyan projekt, amely külső kapcsolattal kötődik ehhez az ütemtervhez.",
-    "dependentProjectsFailed": "A függő projekteket tartalmazó mappa nem olvasható."
+    "dependentProjectsFailed": "A függő projekteket tartalmazó mappa nem olvasható.",
+    "costTypeChangeRefused": "Az erőforrástár át akarja váltani a típust költség és egy másik típus között. Az erőforrásnak vannak hozzárendelései ebben a projektben, ezért a típus marad, ahogy van. Az erőforrás most az erőforrástártól eltérőként jelenik meg.",
+    "reportLayoutGone": "A jelentés elrendezése már nem létezik. A jelentés ismét az összes tevékenységet mutatja.",
+    "reportFontNoBold": "„{{name}}” nem rendelkezik félkövér változattal. A jelentésben a félkövér szöveg normál betűvel jelenik meg.",
+    "reportFontMissing": "Az Ön saját betűtípusa, „{{name}}”, már nincs meg ezen az eszközön. A jelentés ismét az Inter betűtípust használja.",
+    "layoutsNotSaved": "Az elrendezéseket nem lehetett menteni. Semmi nem változott. Próbálja újra.",
+    "ifcForeignOpenSchema": "Ez az IFC-fájl más alkalmazás adatait tartalmazza, és ismeretlen vagy hiányzó sémával rendelkezik. A megnyitás le lett állítva, hogy megelőzze az adatvesztést mentéskor.",
+    "ifcForeignOpenUnsafe": "Ez az IFC-fájl nem sorolható be biztonságosan. A megnyitás le lett állítva, hogy megelőzze az adatvesztést mentéskor.",
+    "ifc2x3PlanningOnly": "Az IFC2X3 ütemezésként lett megnyitva. Más program adatai nem kerülnek bele mentéskor.",
+    "ifcForeignReplaceBlocked": "A fájl nem lett mentve. Egy épületmodellt tartalmazó meglévő fájl felülírása még nem biztonságos. Használja a „Mentés másként” parancsot, és válasszon új nevet.",
+    "ifcForeignMergeRefused": "Az IFC-fájl nem lett megírva. Az épületmodell vagy más program adatai különben nem maradnának teljesen megőrizve. Vonja vissza az utolsó módosítást, vagy csak az ütemezést exportálja: IFC-be az „Épületmodell nélkül” beállítással, vagy más formátumba.",
+    "ifcSaveChangedWhileWaiting": "A fájl nem lett mentve. A dokumentum vagy az épületmodell forrása megváltozott az előkészítés alatt. Próbálja meg újra menteni.",
+    "ifcForeignExportNewTarget": "Nem lett exportálva. Ez az IFC-fájl csak új fájlnévre exportálható. Válasszon olyan nevet, amely még nem létezik.",
+    "ifcSourceCopyFailed": "Az ütemezés a visszaállás összeomlás után céljából van mentve, de az épületmodell másolatát nem lehetett elmenteni. Összeomlás után az épületmodell hiányozhat. Mentse el maga is a dokumentumot teljes IFC-fájlként.",
+    "ifcForeignSourceMissing": "A fájl nem lett mentve. Az épületmodell vagy más program adatai nem találhatók. Használja a „Mentés másként” parancsot, ha csak az ütemezést szeretné új fájlba menteni. Nyissa meg az eredeti IFC-fájlt, hogy ismét a teljes fájllal dolgozhasson."
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -370,6 +400,7 @@
     "addSubtask": "Altevékenység hozzáadása",
     "addMilestone": "Mérföldkő hozzáadása",
     "addRelation": "Kapcsolat hozzáadása",
+    "dissolve": "Dissolve (lánc megtartása)",
     "delete": "Törlés",
     "newTask": "Új tevékenység",
     "tracePath": "Útvonalkövetés",
@@ -434,6 +465,8 @@
     "experimentalHide": "Elrejtés",
     "demoTopbarAnimation": "Demó: animáció a felső sávban",
     "demoTopbarAnimationHint": "Egy finom narancssárga fényhullám fut végig a felső sávon. Megmutatja, hogyan működik egy kísérleti kapcsoló.",
+    "ifcForeignContent": "IFC megnyitása épületmodellel",
+    "ifcForeignContentHint": "Olyan IFC-fájl megnyitását is engedélyezi, amely épületmodellt vagy más programok adatait tartalmazza. Használhatja a „Mentés másként” parancsot új fájlhoz, a webhelyre mentést, a böngészőbeli letöltést és az „Exportálás → IFC” parancsot is, akár épületmodell nélkül, akár az erőforrástár mellett (ekkor csak az ütemezéssel). Meglévő helyi fájl fölé mentés még nem lehetséges. Az épületmodell visszaállás összeomlás után esetén az eredeti fájlhoz való hozzáférést vagy a böngészőben tárolt másolatot igényli.",
     "tourHint": "Indítsa újra az alkalmazás bevezető bemutatóját.",
     "theme": "Téma",
     "themeHint": "A felület színsémája.",
@@ -444,6 +477,10 @@
     "themeSystemHint": "A rendszer színsémáját követi (jelenleg: {{theme}}).",
     "showTaskTypes": "Tevékenységtípusok használata",
     "showTaskTypesHint": "Válassza ki tevékenységenként, mi változzon, ha az időtartam, a hozzárendelt mennyiség vagy a munka módosul, például az MS Project Task Type és a P6 Duration Type beállítása szerint. Ki: az időtartam és a hozzárendelt mennyiség megmarad. A tevékenységtípusokat vagy mentett munkát tartalmazó fájl ezeket akkor is megjeleníti, ha ki van kapcsolva.",
+    "dissolveSummaryMode": "Dissolve összefoglaló tevékenységnél",
+    "dissolveSummaryBranch": "A teljes fázis, az altevékenységekkel",
+    "dissolveSummaryHeader": "Csak a fejlécsor",
+    "dissolveSummaryModeHint": "Azt, amit a Dissolve tesz egy összefoglaló tevékenységgel. Teljes fázis: az altevékenységek együtt törlődnek, ahogy a Törlés esetén. Csak a fejlécsor: az altevékenységek egy szinttel feljebb lépnek, és megmaradnak.",
     "allowMixedDayHour": "Vegyes nap/óraalapú tervezés engedélyezése",
     "defaultTaskDurationUnit": "Alapértelmezett egység új tevékenységekhez",
     "defaultTaskDurationUnitHint": "Napi mértékegység: az időtartam a naptár munkanapjaiban számít. Órás mértékegység: az időtartam munkaórában számít. A meglévő tevékenységek nem változnak. A rögzített munkát tartalmazó tevékenység mindig az órás mértékegységet használja.",
@@ -667,6 +704,7 @@
     "privacy": "A bejelentése és a képernyőkép az OpenAEC Open Feedback Studio szolgáltatásába kerül, és nyilvános hibajegyként megjelenhet a GitHubon. Ne írjon bele olyat, amit nem szeretne megosztani.",
     "sentWith": "Mellékelve: v{{version}} · {{os}} · {{language}}",
     "sentTitle": "Köszönjük, a bejelentését elküldtük.",
+    "sentIssue": "A bejelentése GitHub-issue lett. Ott olvashatja a válaszunkat:",
     "alreadyIn": "Ez a bejelentés már megérkezett hozzánk. Szeretne valamit hozzáfűzni? Akkor módosítsa a szöveget, és küldje el újra.",
     "sentScreenshotDropped": "A képernyőkép túl nagy volt, ezért nem lett elküldve.",
     "errorValidation": "A bejelentést nem fogadtuk el. Ellenőrizze a szöveget (nem csak hivatkozásokat) és az e-mail-címet, majd próbálja újra.",
@@ -908,7 +946,8 @@
       "equipment": "Gép",
       "material": "Anyag",
       "subcontractor": "Alvállalkozó",
-      "crew": "Brigád"
+      "crew": "Brigád",
+      "cost": "Költség"
     },
     "name": "Név",
     "typeLabel": "Típus",
@@ -917,6 +956,7 @@
     "costPerHour": "Alapdíj/óra",
     "total": "Összesen",
     "totalHint": "Hozzárendelt mennyiség × óra/nap × alapdíj (újraszámítás: F5)",
+    "costTotalHint": "Az összes hozzárendelés összegeinek összege",
     "unitOfMeasure": "Mértékegység",
     "unitOnlyMaterial": "Csak az Anyag típusú erőforrásoknál tölthető ki.",
     "parent": "Brigád",
@@ -1033,7 +1073,9 @@
       "documents": "Dokumentumok",
       "selectHint": "Válasszon ki egy erőforrást a hisztogram megtekintéséhez."
     },
-    "color": "Szín"
+    "color": "Szín",
+    "notForCost": "Nem vonatkozik a költségerőforrásra: annak csak hozzárendelésenként egy rögzített összege van.",
+    "costTypeLocked": "Ennek az erőforrásnak vannak hozzárendelései. Előbb törölje azokat, ha költségerőforrás és más típus között szeretne váltani."
   },
   "calendar": {
     "library": {
@@ -1883,6 +1925,26 @@
     "colOwnTask": "Itteni feladat",
     "colAnchor": "Horgonydátum: régi → új",
     "saveAnyway": "Mentés mégis",
+    "cancel": "Mégse"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "Csak az ütemezést szeretné menteni?",
+    "body": "Az épületmodell vagy más program adatai nem találhatók. Az új fájl csak az ütemezést tartalmazza. Az eredeti fájl változatlan marad. Folytatni szeretné?",
+    "continue": "Folytatás",
+    "cancel": "Mégse"
+  },
+  "fatalError": {
+    "title": "Valami hiba történt",
+    "body": "Az Open Planner Studio nem tud tovább működni. Töltse újra az alkalmazást. Ha ez újra előfordul, jelentse be, és küldje el az alábbi részleteket.",
+    "reload": "Újratöltés",
+    "details": "Részletek"
+  },
+  "ifcExportWithoutModel": {
+    "option": "Épületmodell nélkül",
+    "title": "Exportálás épületmodell nélkül?",
+    "body": "Az új fájl csak az ütemezést tartalmazza. Az épületmodell és más program adatai nem kerülnek bele. A megnyitott fájl változatlan marad. Folytatni szeretné?",
+    "bodyWithPool": "A projektfájl csak az ütemezést tartalmazza; az erőforrástár egy második fájlba kerül. Az épületmodell és más program adatai nem kerülnek bele. A megnyitott fájl változatlan marad. Folytatni szeretné?",
+    "continue": "Exportálás",
     "cancel": "Mégse"
   }
 }

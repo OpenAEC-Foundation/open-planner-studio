@@ -1,3 +1,5 @@
+import { isInDatePicker } from '@/utils/datePickerFocus';
+
 /**
  * Zit de toetsenbordfocus in een tekst- of keuzeveld? Dan horen globale sneltoetsen de toets niet
  * te kapen. Eén definitie voor alle toetsenbordhooks: eerder kende de zoomhook `<select>` niet
@@ -33,6 +35,8 @@ export function isTypingTarget(
     if ((mod && (key === 'z' || key === 'y')) || (!mod && event.key === 'Escape')) return false;
   }
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return true;
+  // De open datumkiezer hoort bij zijn datumveld (#904): dezelfde sneltoetsen als in dat veld.
+  if (isInDatePicker(target)) return true;
   const trigger = target.closest('[aria-haspopup="listbox"]');
   if (!trigger) return false;
   const closed = trigger.getAttribute('aria-expanded') !== 'true';

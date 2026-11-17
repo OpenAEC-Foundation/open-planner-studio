@@ -48,6 +48,11 @@ interface SelectProps {
    *  keuze. Voor korte suffix-kiezers naast een invoerveld (duur-eenheid). De wrapper moet de
    *  breedte dan niet vastzetten (`shrink-0`, geen `w-*`). */
   fitWidestOption?: boolean;
+  /**
+   * Een teken dat al getypt is vóór de lijst opende (typen op een dichte gridcel). De lijst start op
+   * `value` en springt daarna naar de eerste optie die met dit teken begint, net als typen in de open lijst.
+   */
+  initialTypeahead?: string;
   /** Kiest de gebruiker de al gekozen optie opnieuw (klik, Enter of Spatie), dan roept `Select`
    *  `onChange` NIET aan, zoals een native `<select>`. Wie die keuze toch moet horen (de gridcel-
    *  editor legt vast en sluit bij elke keuze), geeft deze callback mee. */
@@ -107,6 +112,7 @@ export function Select({
   'aria-describedby': ariaDescribedBy,
   fitWidestOption = false,
   onReselect,
+  initialTypeahead,
 }: SelectProps) {
   const reactId = useId();
   const listboxId = `${id ?? reactId}-listbox`;
@@ -338,6 +344,15 @@ export function Select({
     },
     [options],
   );
+
+  // Na het openzetten van de highlight hierboven (dat effect staat eerder, dus draait eerst). De buffer
+  // wordt gelijkgezet, niet aangevuld: StrictMode draait mount-effecten dubbel, in dezelfde volgorde.
+  useEffect(() => {
+    if (!open || !initialTypeahead) return;
+    typeahead.current.buffer = '';
+    runTypeahead(initialTypeahead);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onTriggerKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;

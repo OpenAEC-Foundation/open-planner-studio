@@ -145,7 +145,7 @@ ok('Kalendereditor opent een keuzelijst met de kalendernaam, geen tekstveld met 
     && calendarMarkup.includes('aria-expanded="true"')
     && calendarMarkup.includes('Bouwkalender')
     && !calendarMarkup.includes('<datalist'));
-const autocompleteMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+const codeColumnMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   adapter,
   cell: { rowKey: 'occ-1', columnId: activityCodeColumnId('p-1', 'discipline') },
   label: 'Discipline',
@@ -153,10 +153,58 @@ const autocompleteMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-ok('Activity-code-autocomplete koppelt nog steeds een echte suggestielijst',
-  autocompleteMarkup.includes('data-task-editor-kind="autocomplete"')
-    && autocompleteMarkup.includes('<datalist')
-    && autocompleteMarkup.includes('Bouwdiscipline'));
+// Issue #970: een codekolom opent dezelfde keuzelijst als de ja/nee-kolommen, geen tekstveld met
+// een native suggestielijst (die was op macOS smal en toonde de interne id acv-… boven elke code).
+ok('Activity-codekolom opent de keuzelijst, geen tekstveld met suggestielijst',
+  codeColumnMarkup.includes('data-task-editor-kind="enum"')
+    && codeColumnMarkup.includes('ops-select__trigger')
+    && codeColumnMarkup.includes('aria-expanded="true"')
+    && !codeColumnMarkup.includes('<datalist')
+    && !codeColumnMarkup.includes('<input'));
+{
+  const codeTask = { ...task, activityCodes: { pcm: 'acv-rfq' } } as Task;
+  let codeCommit: readonly GridIntent[] | null = null;
+  const codeAdapter = createTaskGridAdapter({
+    surfaceId: 'full-task-grid', projectId: 'p-1',
+    rows: [{ kind: 'task', rowKey: 'occ-1', task: codeTask, depth: 0, dimmed: false }],
+    tasks: [codeTask], sequences: [], assignments: [], resources: [], baselines: [],
+    activityCodeTypes: [{ id: 'pcm', name: 'PCM', values: [
+      { id: 'acv-freeze', code: 'Design Freeze' },
+      { id: 'acv-rfq', code: 'RFQ Issued' },
+      { id: 'acv-quote', code: 'Quote Received', description: 'Offerte binnen' },
+    ] }],
+    customFieldDefs: [], scheduleStale: false, wbsAutoNumber: false,
+    selectedTaskIds: [], labelForColumn: key => key,
+    callbacks: {
+      onPrepareEdit: () => true,
+      onCommitEdit: (_target, intents) => { codeCommit = intents; return { ok: true, value: undefined }; },
+    },
+  });
+  const codeCell = { rowKey: 'occ-1', columnId: activityCodeColumnId('p-1', 'pcm') };
+  const descriptor = codeAdapter.descriptorsById.get(codeCell.columnId);
+  eq('Codekolom: lege optie "—" voorop, daarna de waarden in de volgorde van Codes en velden',
+    descriptor?.editorOptions?.map(option => option.label),
+    ['—', 'Design Freeze', 'RFQ Issued', 'Quote Received — Offerte binnen']);
+  ok('Codekolom: geen optie toont een interne id',
+    (descriptor?.editorOptions ?? []).every(option => !String(option.label).includes('acv-')));
+  eq('Codekolom: de editor start op de gekozen waarde', codeAdapter.getCell('occ-1', codeCell.columnId)?.editText, 'acv-rfq');
+  const codeMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+    adapter: codeAdapter, cell: codeCell, label: 'PCM', messageForError,
+    onCancel: () => undefined, onFocusCell: () => undefined,
+  }));
+  // Zichtbare tekst en toegankelijke namen; `data-value` op de trigger draagt de id bewust (niet zichtbaar).
+  const visibleCodeText = codeMarkup.replace(/<[^>]*>/g, ' ');
+  ok('Codekolom: de trigger toont de code, niet de id',
+    visibleCodeText.includes('RFQ Issued') && !visibleCodeText.includes('acv-')
+      && !/aria-label="[^"]*acv-/.test(codeMarkup) && !/title="[^"]*acv-/.test(codeMarkup));
+  eq('Codekolom: een gekozen waarde wordt vastgelegd',
+    commitTaskCellEditorValue({ adapter: codeAdapter, cell: codeCell, text: 'acv-quote', messageForError }), { ok: true });
+  eq('Codekolom: de keuze schrijft de waarde-id', (codeCommit as readonly GridIntent[] | null)?.map(intent => (intent as { value?: unknown }).value), ['acv-quote']);
+  codeCommit = null;
+  eq('Codekolom: "—" wist de waarde',
+    commitTaskCellEditorValue({ adapter: codeAdapter, cell: codeCell, text: '', messageForError }), { ok: true });
+  eq('Codekolom: wissen schrijft geen waarde', (codeCommit as readonly GridIntent[] | null)?.map(intent => (intent as { value?: unknown }).value), [undefined]);
+}
 const dateMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   adapter,
   cell: { rowKey: 'occ-1', columnId: taskColumnId('task.deadline') },
@@ -167,12 +215,15 @@ const dateMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onFocusCell: () => undefined,
 }));
 // Sinds F4b (spec "alleen uren" §3.6) is de deadline een eindachtig taakveld met een moment: de editor is
-// datum-met-tijd, met dezelfde combinatie van tekstinvoer en kalenderkiezer.
-ok('Datumeditor combineert persoonlijke tekstinvoer met een echte kalenderkiezer',
+// datum-met-tijd, met dezelfde combinatie van tekstinvoer en kalenderkiezer. Sinds #904 is dat de eigen
+// kiezer van de app achter een knop, niet die van de browser.
+ok('Datumeditor combineert persoonlijke tekstinvoer met de eigen kalenderkiezer',
   dateMarkup.includes('data-task-editor-kind="datetime"')
-    && dateMarkup.includes('data-task-editor-picker="datetime"')
-    && dateMarkup.includes('type="datetime-local"')
+    && /<button[^>]*data-task-editor-picker="datetime"/.test(dateMarkup)
+    && /<button[^>]*aria-haspopup="dialog"/.test(dateMarkup)
     && dateMarkup.includes('aria-label="Kies startdatum"'));
+ok('Datumeditor gebruikt geen native datum- of tijdkiezer',
+  !dateMarkup.includes('type="datetime-local"') && !dateMarkup.includes('type="date"'));
 
 let assignmentCommit: readonly GridIntent[] | null = null;
 const assignmentAdapter = createTaskGridAdapter({

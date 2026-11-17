@@ -57,6 +57,7 @@ check-dag-uur-lag.ts matrix
 check-dagenmaat-lopers.ts matrix
 check-date-format.ts matrix
 check-date-input-commit.ts matrix
+check-date-picker-month.ts matrix
 check-datetime.ts matrix
 check-dcma.ts matrix
 check-default-work-rule-switch.ts matrix
@@ -179,6 +180,7 @@ check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
@@ -247,6 +249,7 @@ check-mijlpaal-afmelden.ts matrix
 check-milestone-drag.ts matrix
 check-milestone-duration-render.ts matrix
 check-milestone-report-status.ts matrix
+check-milestone-run-rows.ts matrix
 check-minmax-spread.ts matrix
 check-minute-model-boundaries.ts matrix
 check-minute-model-compat.ts matrix
@@ -451,6 +454,7 @@ check-task-resource-scope.ts matrix
 check-task-slice.ts matrix
 check-task-tree.ts matrix
 check-task-trigger-changes.ts matrix
+check-tauri-capability-scopes.ts matrix
 check-tauri-refresh-evidence.ts matrix
 check-text-asset.ts matrix
 check-theme-bar-contrast.ts matrix

@@ -1313,14 +1313,21 @@ function activityCodeColumns(input: TaskColumnRegistryInput): TaskColumnDescript
       labelText: type.name,
       category: 'custom',
       valueKind: 'enum',
-      editorKind: 'autocomplete',
-      editorOptions: type.values.map(value => ({
-        value: value.id,
-        label: value.description ? `${value.code} — ${value.description}` : value.code,
-      })),
+      // Dezelfde keuzelijst als ja/nee en Eigenschappen › Codes en velden (#970): "—" wist de waarde,
+      // daarna de waarden in hun eigen volgorde. De editor werkt met de waarde-id; de planner ziet
+      // alleen code en omschrijving.
+      editorKind: 'enum',
+      editorOptions: [
+        { value: '', label: '—' },
+        ...type.values.map(value => ({
+          value: value.id,
+          label: value.description ? `${value.code} — ${value.description}` : value.code,
+        })),
+      ],
       route: 'activity-code',
       available: ctx => ctx.projectId === input.projectId,
       read: task => task.activityCodes?.[type.id],
+      editText: task => task.activityCodes?.[type.id] ?? '',
       format: value => {
         if (value === undefined) return '—';
         const item = type.values.find(candidate => candidate.id === value);

@@ -39,8 +39,11 @@ export function resolveDropTarget(
   draggedTaskId?: string,
 ): DropTarget | null {
   const row = rows[rowIndex];
-  if (!row || row.kind !== 'task') return null;
-  const refTask = row.task;
+  if (!row || row.kind === 'group') return null;
+  // Een ingeklapte mijlpalenreeks (#868): vóór de eerste of ná de laatste mijlpaal; geen nest-doel.
+  if (row.kind === 'milestones' && zone === 'nest') return null;
+  const refTask = row.kind === 'task' ? row.task
+    : zone === 'before' ? row.tasks[0] : row.tasks[row.tasks.length - 1];
 
   if (zone === 'nest') {
     if (isLeafTask(refTask)) return null; // mijlpaal/leaf: geen nest-doel
@@ -78,7 +81,8 @@ function siblingIdsOf(
   if (parentId !== null) {
     return tasksById.get(parentId)?.childIds ?? [];
   }
-  return rows
-    .filter((r): r is Extract<ViewRow, { kind: 'task' }> => r.kind === 'task' && r.task.parentId === null)
-    .map((r) => r.task.id);
+  // Een ingeklapte mijlpalenreeks bovenaan telt met al haar mijlpalen mee (#868).
+  return rows.flatMap((r) => (r.kind === 'task' ? [r.task] : r.kind === 'milestones' ? r.tasks : []))
+    .filter((t) => t.parentId === null)
+    .map((t) => t.id);
 }

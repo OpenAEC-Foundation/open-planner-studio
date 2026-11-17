@@ -60,6 +60,14 @@
     "xmlUnknownSchedule": "不明な XML スケジュール形式です。MS Project XML（Project）または Primavera P6 XML（APIBusinessObjects）を開いてください。",
     "mppEncrypted": "この .mpp ファイルはパスワードで保護されています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "saveFailed": "保存できませんでした",
+    "ifcForeignSaveBlocked": "このファイルには建築モデルが含まれているため、まだ保存できません。",
+    "ifcForeignTargetSave": "このファイルには建築モデルや他のプログラムのデータが含まれています。保存先として別のファイルを選んでください。",
+    "ifcForeignTargetExport": "このファイルには建築モデルや他のプログラムのデータが含まれています。エクスポート先として別のファイルを選んでください。",
+    "ifcExportChangedWhileWaiting": "別の保存を待っている間にスケジュールが変更されました。何もエクスポートされていません。もう一度エクスポートしてください。",
+    "ifcForeignTargetAutoSave": "自動保存を停止しました。このファイルには建築モデルや他のプログラムのデータが含まれています。保存先として別のファイルを選んでください。",
+    "ifcUnreadableTargetSave": "アプリはこのファイルを正しく読み取れません。建築モデルが含まれている可能性があります。保存先として別のファイルを選んでください。",
+    "ifcUnreadableTargetExport": "アプリはこのファイルを正しく読み取れません。建築モデルが含まれている可能性があります。エクスポート先として別のファイルを選んでください。",
+    "ifcUnreadableTargetAutoSave": "自動保存を停止しました。アプリはこのファイルを正しく読み取れません。建築モデルが含まれている可能性があります。保存先として別のファイルを選んでください。",
     "ambiguousThousands": "「{{text}}」はあいまいです。小数ですか、千の位ですか？小数は「{{separator}}」（1{{separator}}5）、千の位は区切りなし（1500）で入力してください。値は変更されていません。",
     "siteSaveConflict": "保存されていません。サイト上の「{{name}}」は、その間に他のユーザーによって変更されました。変更内容はまだアプリ内にあります。「名前を付けて保存」で新しいファイルとして残せます。",
     "siteSaveConflictCopy": "'{{original}}' はその間にサイト上で別の人によって変更されました。そのため、作業内容は「{{name}}」というコピーに保存されています。今後は「保存」でそのコピーに書き込まれます。",
@@ -91,8 +99,10 @@
     "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした。先行タスク列と後続タスク列を確認してください。",
     "duplicateIdsRenamed": "このファイル内で ID が重複しているオブジェクト: {{total}}。それぞれに独自の ID が付与されました。参照は最初のオブジェクトに残ります。関係と割り当てを確認してください。",
     "relationsSkippedOnInsert_other": "{{count}} 件の関係を作成しませんでした。リンクが無効です（例：タスクが自身の（上位）サマリータスクにリンクしている、または重複している）。",
+    "relationsSkippedOnDissolve_other": "Dissolve を実行しましたが、{{count}} 件の関係は作成されませんでした。無効なリンクです（例：タスクを自身の（上位の）親サマリータスクにリンクする場合、または循環）。",
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・山崩し・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
     "exportSplitsLost_other": "中断のあるタスク {{count}} 件は中断なしでエクスポートされました。MS Project/P6 では中断を作業配分としてしか扱えません。",
+    "exportCostResourcesLost_other": "{{count}} 件のコストリソースは、割り当てと金額とともにエクスポートされませんでした。この形式がコストリソースに対応するのは今後のバージョンです。",
     "exportP6Truncated_other": "{{count}} 件の名前またはコードは、P6 が許容する長さに短縮されました。",
     "exportInvalidXmlChars_other": "XML で使用できない文字 {{count}} 文字を、書き出しで � に置き換えました。",
     "exportCriticalHoursLost": "MS Project XML に書き出すと、時間単位のクリティカルしきい値が失われます。MS Project のしきい値は日単位のみです。",
@@ -117,6 +127,7 @@
     "dragStartIsActual": "「{{name}}」は開始しています。開始は実績開始のため移動しません。進捗から変更してください。",
     "dragDatesAreActual": "「{{name}}」は完了しています。開始と終了は実績日付のため移動しません。進捗から変更してください。",
     "referencesClearedOnPaste_other": "{{count}} 件の参照はこの文書に存在しなかったため、クリアしました（元の文書のタスクカレンダー、カスタムの作業区分、アクティビティコード、カスタムフィールド）。",
+    "assignmentsSkippedOnPaste_other": "{{count}} 件の割り当てを貼り付けられませんでした：リソースの種類がここでは異なる（コストまたは作業）か、マイルストーンはコストのみを受け付けます。",
     "milestoneRefusedAssignments": "「{{task}}」にはリソースの割り当てがあるため、マイルストーンにできません。先に割り当てを削除してください。",
     "milestoneRefusedAssignmentsMany_other": "リソース割り当てがある{{count}}件のタスクは、マイルストーンにできません。先に割り当てを削除してください。",
     "milestoneRefusedSummary": "「{{task}}」はサブタスクを持つサマリータスクのため、マイルストーンにできません。",
@@ -212,6 +223,7 @@
       "summaryNotes_other": "サマリータスクのメモ{{count}}件",
       "noteStatus_other": "チェック済みのメモ{{count}}件: メモは含まれますが、チェックは含まれません",
       "resourceTypes_other": "クルーまたは下請け業者のリソース{{count}}件は、労務になりました",
+      "costResources_other": "{{count}} 件のコストリソースを、割り当てと金額ごと省きました",
       "libraryLinks_other": "リソースライブラリへのリンク{{count}}件",
       "holidayNames_other": "祝日の名前{{count}}件(日付そのものは含まれます)",
       "projectDetails": "プロジェクトの説明、作成者、会社",
@@ -234,7 +246,21 @@
     },
     "dependentProjectsFound": "依存プロジェクト：{{projects}}。このプロジェクトへのリンク：{{links}}。",
     "dependentProjectsNone": "このスケジュールへの外部関係を持つプロジェクトは見つかりませんでした。",
-    "dependentProjectsFailed": "依存プロジェクトのフォルダーを読み取れませんでした。"
+    "dependentProjectsFailed": "依存プロジェクトのフォルダーを読み取れませんでした。",
+    "costTypeChangeRefused": "リソースライブラリがコストと別の種類の間で種類を切り替えようとしました。このリソースはこのプロジェクトに割り当てがあるため、種類はそのままです。リソースは現在、ライブラリと異なる状態として表示されています。",
+    "reportLayoutGone": "レポートのレイアウトが存在しなくなりました。レポートにはすべてのタスクが再び表示されます。",
+    "reportFontNoBold": "{{name}} にはボールドのスタイルがありません。レポート内の太字は通常のスタイルで表示されます。",
+    "reportFontMissing": "独自のフォント {{name}} はこの端末にもうありません。レポートは再び Inter を使用します。",
+    "layoutsNotSaved": "レイアウトを保存できませんでした。何も変更されていません。もう一度お試しください。",
+    "ifcForeignOpenSchema": "この IFC ファイルには別のアプリケーションのデータが含まれ、スキーマが不明または欠けています。保存時のデータ損失を防ぐため、開くのを停止しました。",
+    "ifcForeignOpenUnsafe": "この IFC ファイルは安全に分類できません。保存時のデータ損失を防ぐため、開くのを停止しました。",
+    "ifc2x3PlanningOnly": "IFC2X3 はスケジュールとして開きました。他のプログラムのデータは保存時に含まれません。",
+    "ifcForeignReplaceBlocked": "保存されていません。建築モデルを含む既存のファイルを上書き保存することは、まだ安全ではありません。「名前を付けて保存」を使い、新しい名前を選んでください。",
+    "ifcForeignMergeRefused": "IFC ファイルは書き込まれませんでした。建築モデルや他のプログラムのデータが完全には保持されないためです。直前の変更を元に戻すか、スケジュールだけをエクスポートしてください：IFC で「建築モデルなし」を選ぶか、別の形式を選んでください。",
+    "ifcSaveChangedWhileWaiting": "保存されていません。ドキュメントまたは建築モデルの元データが準備中に変更されました。もう一度保存をお試しください。",
+    "ifcForeignExportNewTarget": "エクスポートされていません。この IFC ファイルは新しいファイル名にのみエクスポートできます。まだ存在しない名前を選んでください。",
+    "ifcSourceCopyFailed": "スケジュールはクラッシュ復元のために保存されていますが、建築モデルのコピーは保存できませんでした。クラッシュ後に建築モデルが失われる可能性があります。作業内容は完全な IFC ファイルとして手動で保存してください。",
+    "ifcForeignSourceMissing": "保存されていません。建築モデルまたは他のプログラムのデータが見つかりませんでした。「名前を付けて保存」を使うと、スケジュールだけを新しいファイルに保存できます。元の IFC ファイルを開くと、完全なファイルで再び作業できます。"
   },
   "scheduleErrors": {
     "cycle": "タスク間に循環依存があります: {{path}}",
@@ -273,6 +299,7 @@
     "addSubtask": "サブタスクを追加",
     "addMilestone": "マイルストーンを追加",
     "addRelation": "関係を追加",
+    "dissolve": "Dissolve（連鎖を維持）",
     "delete": "削除",
     "newTask": "新しいタスク",
     "tracePath": "パスをトレース",
@@ -337,6 +364,8 @@
     "experimentalHide": "非表示",
     "demoTopbarAnimation": "デモ: 上部バーのアニメーション",
     "demoTopbarAnimationHint": "上部バーに穏やかなオレンジ色の光の帯が流れます。実験的な切り替えスイッチの動作を示します。",
+    "ifcForeignContent": "建築モデルを含む IFC を開く",
+    "ifcForeignContentHint": "建築モデルや他のプログラムのデータを含む IFC ファイルも開きます。「名前を付けて保存」で新しいファイルに保存したり、サイトに保存したり、ブラウザーでダウンロードしたり、エクスポート → IFC を使ったりできます。建築モデルなしでも、リソースライブラリを並べた状態でも使えます（その場合はスケジュールのみ）。既存のローカルファイルへの上書き保存はまだできません。クラッシュ後に建築モデルを復元するには、元のファイルへのアクセス、またはブラウザーに保存されたコピーが必要です。",
     "tourHint": "アプリの紹介ツアーをもう一度行います。",
     "theme": "テーマ",
     "themeHint": "インターフェースの配色。",
@@ -347,6 +376,10 @@
     "themeSystemHint": "システムの配色に従います（現在: {{theme}}）。",
     "showTaskTypes": "タスク種類を使用",
     "showTaskTypesHint": "タスクごとに、期間、単位数、作業のいずれかが変わったときに追従する項目を選びます。MS Project の Task Type や P6 の Duration Type と同じ考え方です。オフの場合、期間と単位数は変わりません。タスク種類または保存された作業を含むファイルは、この設定がオフでも表示されます。",
+    "dissolveSummaryMode": "サマリータスクの Dissolve",
+    "dissolveSummaryBranch": "フェーズ全体（サブタスク付き）",
+    "dissolveSummaryHeader": "サマリー行のみ",
+    "dissolveSummaryModeHint": "サマリータスクに対して Dissolve が何をするかを指定します。フェーズ全体：サブタスクも一緒に削除されます（削除と同じ）。サマリー行のみ：サブタスクは1階層上に移動し、そのまま残ります。",
     "allowMixedDayHour": "日単位と時間単位の混在計画を許可する",
     "defaultTaskDurationUnit": "新しいタスクの既定単位",
     "defaultTaskDurationUnitHint": "日単位：期間は、カレンダーの稼働日で数えます。時間単位：期間は、稼働時間で数えます。既存のタスクは変わりません。固定作業のタスクは、常に時間単位を使います。",
@@ -569,6 +602,7 @@
     "privacy": "お送りする内容とスクリーンショットは、OpenAEC の Open Feedback Studio に届き、GitHub の公開 issue として掲載されることがあります。共有したくない内容は含めないでください。",
     "sentWith": "一緒に送信: v{{version}} · {{os}} · {{language}}",
     "sentTitle": "ありがとうございます。報告を送信しました。",
+    "sentIssue": "報告は GitHub に issue として登録されています。返信はそちらでご確認いただけます：",
     "alreadyIn": "この報告はすでに届いています。何か追加したい場合は、テキストを変更してもう一度送信してください。",
     "sentScreenshotDropped": "スクリーンショットが大きすぎたため、送信されませんでした。",
     "errorValidation": "報告は受け付けられませんでした。テキスト（リンクだけでないこと）とメールアドレスを確認して、もう一度お試しください。",
@@ -806,7 +840,8 @@
       "equipment": "機材",
       "material": "資材",
       "subcontractor": "下請業者",
-      "crew": "班"
+      "crew": "班",
+      "cost": "コスト"
     },
     "name": "名前",
     "typeLabel": "種類",
@@ -815,6 +850,7 @@
     "costPerHour": "単価/時間",
     "total": "合計",
     "totalHint": "負荷単位数 × 時間/日 × 単価（F5 で再計算）",
+    "costTotalHint": "すべての割り当てにある金額の合計",
     "unitOfMeasure": "単位",
     "unitOnlyMaterial": "「資材」タイプのリソースにのみ入力できます。",
     "parent": "班",
@@ -927,7 +963,9 @@
       "documents": "ドキュメント",
       "selectHint": "ヒストグラムを表示するにはリソースを選択してください。"
     },
-    "color": "色"
+    "color": "色",
+    "notForCost": "コストリソースには適用されません：コストリソースは割り当てごとに固定額だけを持ちます。",
+    "costTypeLocked": "このリソースには割り当てがあります。コストリソースと別の種類を切り替えるには、先に割り当てを削除してください。"
   },
   "calendar": {
     "library": {
@@ -1758,6 +1796,26 @@
     "colOwnTask": "こちらのタスク",
     "colAnchor": "アンカー：旧 → 新",
     "saveAnyway": "このまま保存",
+    "cancel": "キャンセル"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "スケジュールのみ保存しますか？",
+    "body": "建築モデルまたは他のプログラムのデータが見つかりませんでした。新しいファイルにはスケジュールのみが含まれます。元のファイルは変更されません。続行しますか？",
+    "continue": "続行",
+    "cancel": "キャンセル"
+  },
+  "fatalError": {
+    "title": "問題が発生しました",
+    "body": "Open Planner Studio を続行できません。アプリを再読み込みしてください。繰り返し発生する場合は、報告の際に下の詳細をお送りください。",
+    "reload": "再読み込み",
+    "details": "詳細"
+  },
+  "ifcExportWithoutModel": {
+    "option": "建築モデルなし",
+    "title": "建築モデルなしでエクスポートしますか？",
+    "body": "新しいファイルにはスケジュールのみが含まれます。建築モデルと他のプログラムのデータは含まれません。開いているファイルは変更されません。続行しますか？",
+    "bodyWithPool": "プロジェクトファイルにはスケジュールのみが含まれます。リソースライブラリは2つ目のファイルに入ります。建築モデルと他のプログラムのデータは含まれません。開いているファイルは変更されません。続行しますか？",
+    "continue": "エクスポート",
     "cancel": "キャンセル"
   }
 }

@@ -17,6 +17,7 @@
 // een kale Escape-entry zonder `when` de presentatie-afsluiting nooit meer bereiken.
 
 import { useAppStore } from '@/state/appStore';
+import { milestoneGroups } from '@/engine/renderer/milestoneGroups';
 import type { ParseKeys } from 'i18next';
 import type { UIState } from '@/state/slices/types';
 import { isBlockingDialogOpen } from '@/state/blockingDialogs';
@@ -128,6 +129,14 @@ function isTaskListOutOfView(): boolean {
   if (ui.presentationMode) return false;
   if (ui.showResourcePanel && !ui.resourcePanelDocked) return true;
   return ui.activeRibbonTab === 'file' || ui.activeRibbonTab === 'report' || ui.activeRibbonTab === 'ifc';
+}
+
+/** De ene taak waarop F2 en Alt+↑/↓ werken: de eerste gekozen. Niets als die een ruitje deelt met andere
+ *  mijlpalen op dezelfde dag (#868): één lid daarvan bedien je na uitklappen, anders kiest de sneltoets er
+ *  willekeurig één. */
+function singleTarget(store: AppState): string | undefined {
+  const id = store.selectedTaskIds[0];
+  return id && !milestoneGroups(store.viewRows).has(id) ? id : undefined;
 }
 
 function hasSelection(): boolean {
@@ -420,7 +429,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'shortcuts.structure.moveUp',
     when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: (store) => {
-      const id = store.selectedTaskIds[0];
+      const id = singleTarget(store);
       if (id) store.reorderSibling(id, 'up');
     },
   },
@@ -431,7 +440,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'shortcuts.structure.moveDown',
     when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: (store) => {
-      const id = store.selectedTaskIds[0];
+      const id = singleTarget(store);
       if (id) store.reorderSibling(id, 'down');
     },
   },
@@ -442,7 +451,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'context.edit',
     when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: (store) => {
-      const id = store.selectedTaskIds[0];
+      const id = singleTarget(store);
       if (id) store.setUI({ showTaskDialog: true, editingTaskId: id });
     },
   },

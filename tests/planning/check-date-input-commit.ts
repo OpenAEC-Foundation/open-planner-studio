@@ -149,9 +149,11 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
     // Puur lokale draftstate (projectwizard) — geen store-schrijver, mét live afgeleide feedback.
     // Idem de vraag naar de werkelijke start (Z1b): lokale antwoordstaat met live foutmelding; pas
     // "Voortgang toepassen" schrijft, via de voortgangssetter met het antwoord (één undo-stap).
+    // Idem Project verplaatsen (#904): de nieuwe start is lokaal; pas "Verplaatsen" schrijft.
     const liveToegestaan = [
       joinPath(srcRoot, 'components', 'settings', 'ProjectInfoPanelContent.tsx'),
       joinPath(srcRoot, 'components', 'dialogs', 'ActualStartDialog.tsx'),
+      joinPath(srcRoot, 'components', 'dialogs', 'MoveProjectDialog.tsx'),
     ];
     // Bewust ruim: vangt zowel `commitMode="live"` als `commitMode={'live'}`/`{"live"}`.
     const liveGebruikers = bestanden.filter(f =>
@@ -176,9 +178,11 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   if (srcRoot) {
     const component = readFileSync(joinPath(srcRoot, 'components', 'common', 'DateTextInput.tsx'), 'utf8');
     // Blur van segment → segment binnen dezelfde groep mag NIET committen; alleen het verlaten van de
-    // héle groep rondt af. Zonder deze guard commit elke Tab tussen dd|mm|jjjj een halve datum.
-    check('f groepsblur committeert niet bij focuswissel BINNEN de groep',
-      /contains\(e\.relatedTarget[^)]*\)\)\s*return;/.test(component));
+    // héle groep rondt af. Zonder deze guard commit elke Tab tussen dd|mm|jjjj een halve datum. Het
+    // kalenderpaneel (#904) hangt via een portal elders in de DOM en telt ook als binnen.
+    check('f groepsblur committeert niet bij focuswissel BINNEN de groep (of naar het kalenderpaneel)',
+      /const next = e\.relatedTarget as Node \| null;\s*if \(e\.currentTarget\.contains\(next\) \|\| pickerPanelRef\.current\?\.contains\(next\)\) return;/
+        .test(component));
     check('f groepsblur rondt wél af als de focus de groep verlaat',
       /handleGroupBlur[\s\S]{0,600}?finish\(seg\)/.test(component));
     // Enter rondt eerst het veld af (commit) en laat de dialoog-Enter pas door als er niets meer

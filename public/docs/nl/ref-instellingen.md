@@ -31,13 +31,13 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 ## Notatie
 
-**Datumnotatie** — hoe datums in de app staan. Keuze uit *dd-mm-jjjj*, *mm-dd-jjjj* en *jjjj-mm-dd*. Standaard: *dd-mm-jjjj*. Effect: datums in de tabel, de dialogen, de rapporten en de afdruk. Bestanden en berekeningen veranderen niet: alleen de weergave. Waar: [Notatie](settings://dateNotation).
+**Datumnotatie** — hoe datums in de app staan. Keuze uit *dd-mm-jjjj*, *mm-dd-jjjj* en *jjjj-mm-dd*. Standaard: *dd-mm-jjjj*. Effect: datums in de tabel, de dialogen, de rapporten en de afdruk, en de volgorde van de drie vakjes in een datumveld. Bestanden en berekeningen veranderen niet: alleen de weergave. Waar: [Notatie](settings://dateNotation).
 
 **Tijdnotatie** — hoe kloktijden in de app staan. Keuze uit *24 uur (13:00)* en *12 uur (1:00 PM)*. Standaard: *24 uur (13:00)*. Effect: de tijden in het kalendervenster, de datum met tijd van taken in uren (tabel, splitsingen, meldingen) en de tijdschaal *Uur* in de Gantt. In een tijdveld mag je beide vormen typen: *13:00*, *1300*, *13*, *1:00 PM* of *1 pm*. Middernacht als einde van de dag is *24:00* of *12:00 AM*. Bestanden en berekeningen veranderen niet: die blijven 24 uur. Waar: [Notatie](settings://timeNotation).
 
 **Duurweergave** — in welke eenheid de duur van een taak staat. In het OPS-profiel staan de keuzes grijs, met de reden eronder: elke taak toont zijn eigen maat. Onder P6 en MSP is de keuze actief. Keuze uit *Automatisch (eigen eenheid per taak)*, *Altijd dagen* en *Altijd uren*. Standaard: *Automatisch (eigen eenheid per taak)*. Effect: in het taakraster, de balklabels van de Gantt, de tooltip, de afdruk en de rapporten. Bij *Automatisch* toont een dagtaak dagen en een urentaak uren. Bij *Altijd dagen* of *Altijd uren* rekent de app om met de uren per dag van de taakkalender en zet, als de eenheid van de taak verschilt, de eigen eenheid erachter tussen haakjes, bijvoorbeeld `2,25d(18u)`. Alleen de weergave verandert; de taak houdt haar eigen eenheid. Waar: [Notatie](settings://durationDisplay).
 
-**Week begint op** — de eerste dag van de week. Keuze uit *Maandag* en *Zondag*. Standaard: *Maandag*. Effect: de weekindeling en weeknummers van de tijdschaal in de Gantt en in de rapporten (de Gantt-afdruk), en de volgorde van de weekdagen in het venster *Kalenders*. Waar: [Notatie](settings://weekStartDay).
+**Week begint op** — de eerste dag van de week. Keuze uit *Maandag* en *Zondag*. Standaard: *Maandag*. Effect: de weekindeling en weeknummers van de tijdschaal in de Gantt en in de rapporten (de Gantt-afdruk), de volgorde van de weekdagen in het venster *Kalenders*, en de eerste kolom en de weeknummers van de kalender bij een datumveld (zie [Een datum invoeren](docs://howto-datum-invoeren)). Waar: [Notatie](settings://weekStartDay).
 
 ## Tijdlijn
 

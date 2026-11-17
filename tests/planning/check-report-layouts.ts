@@ -122,7 +122,8 @@ const base = (over: Partial<PrintOptions>): PrintOptions => ({
 
 const rowShape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group'
   ? ['g', r.rowKey, r.label, r.depth, r.count]
-  : ['t', r.rowKey, r.task.id, r.depth]));
+  : r.kind === 'milestones' ? ['m', r.rowKey, r.tasks.map(t => t.id).join('|'), r.depth]
+    : ['t', r.rowKey, r.task.id, r.depth]));
 
 /** Bladen zoals papier en PDF ze tegelen: aantal, en per blad het bereik op het papier. */
 function pages(options: PrintOptions) {

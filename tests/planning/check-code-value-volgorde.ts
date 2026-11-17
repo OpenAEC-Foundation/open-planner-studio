@@ -70,8 +70,9 @@ eq('C1 veldkiezer volgt de volgorde', labels(selectOptions({ src: 'activityCode'
 const col = buildTaskColumnRegistry({
   projectId: 'p', activityCodeTypes: S().activityCodeTypes, customFieldDefs: [], baselines: [],
 }).find(c => c.id === activityCodeColumnId('p', typeId));
+// De tabelkolom is een keuzelijst met "—" (wissen) voorop, net als het paneel (#970).
 eq('C2 tabelkolom volgt de volgorde', labels(col?.editorOptions ?? []),
-  ['Design freeze', 'RFQ issued', 'Quote received', 'Order placed']);
+  ['—', 'Design freeze', 'RFQ issued', 'Quote received', 'Order placed']);
 
 // D: IFC rondreis
 const reopened = createAppStoreContext();

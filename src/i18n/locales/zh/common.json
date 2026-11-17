@@ -60,6 +60,14 @@
     "xmlUnknownSchedule": "无法识别的 XML 计划格式。请打开 MS Project XML（Project）或 Primavera P6 XML（APIBusinessObjects）。",
     "mppEncrypted": "此 .mpp 文件受密码保护。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "saveFailed": "保存失败",
+    "ifcForeignSaveBlocked": "此文件包含建筑模型，暂时还无法保存。",
+    "ifcForeignTargetSave": "此文件包含建筑模型或其他程序的数据。请选择另一个文件来保存。",
+    "ifcForeignTargetExport": "此文件包含建筑模型或其他程序的数据。请选择另一个文件来导出。",
+    "ifcExportChangedWhileWaiting": "等待另一处保存期间，计划发生了变化。未导出任何内容。请重新导出。",
+    "ifcForeignTargetAutoSave": "自动保存已停止：此文件包含建筑模型或其他程序的数据。请选择另一个文件来保存。",
+    "ifcUnreadableTargetSave": "应用无法正确读取此文件；它可能包含建筑模型。请选择另一个文件来保存。",
+    "ifcUnreadableTargetExport": "应用无法正确读取此文件；它可能包含建筑模型。请选择另一个文件来导出。",
+    "ifcUnreadableTargetAutoSave": "自动保存已停止：应用无法正确读取此文件；它可能包含建筑模型。请选择另一个文件来保存。",
     "ambiguousThousands": "“{{text}}”有歧义：是小数还是千位数？小数请用“{{separator}}”（1{{separator}}5），千位数请不加分隔符（1500）。数值未更改。",
     "siteSaveConflict": "未保存：站点上的“{{name}}”已被他人修改。你的更改仍在应用中。请选择“另存为”，将其保存为新文件。",
     "siteSaveConflictCopy": "“{{original}}”在站点上已被其他人修改。因此，你的工作保存到了副本中：“{{name}}”。从现在起，保存会写入该副本。",
@@ -91,8 +99,10 @@
     "summaryRelationsDropped": "{{total}} 个关系未能计入计算。请检查前置任务和后续任务列。",
     "duplicateIdsRenamed": "此文件中 ID 重复的对象：{{total}}。它们已获得各自的 ID；对它们的引用仍指向第一次出现的对象。请检查关系和分配。",
     "relationsSkippedOnInsert_other": "有 {{count}} 个关系未创建：链接无效（例如任务链接到其自身的（祖）父级摘要任务，或重复关系）。",
+    "relationsSkippedOnDissolve_other": "已执行 Dissolve，但有 {{count}} 个关系未创建：链接无效（例如任务链接到它自己的（父级或祖父级）摘要任务，或形成循环）。",
     "mppSourceScheduleNotes_other": "此 MS Project 文件中有 {{count}} 项任务的计划被拆分、资源平衡或按资源驱动调整过。系统会按原样导入并显示。",
     "exportSplitsLost_other": "{{count}} 个带中断的任务在导出时未包含中断：MS Project/P6 只能以工时分布的形式识别中断。",
+    "exportCostResourcesLost_other": "{{count}} 个成本资源未导出，连同它们的分配和金额：此格式要到后续版本才支持成本资源。",
     "exportP6Truncated_other": "{{count}} 个名称或代码已缩短为 P6 允许的长度。",
     "exportInvalidXmlChars_other": "导出时，{{count}} 个 XML 不允许的字符已替换为 �。",
     "exportCriticalHoursLost": "导出为 MS Project XML 时，以小时计的关键阈值会丢失：MS Project 只支持以整天计的阈值。",
@@ -117,6 +127,7 @@
     "dragStartIsActual": "“{{name}}”已开始：其开始日期为实际开始日期，不会移动。请通过进度进行更改。",
     "dragDatesAreActual": "“{{name}}”已完成：其开始和完成日期为实际日期，不会移动。请通过进度进行更改。",
     "referencesClearedOnPaste_other": "{{count}} 个引用在本文档中不存在，已被清除（来自源文档的任务日历、自定义工作类别、活动代码或自定义字段）。",
+    "assignmentsSkippedOnPaste_other": "{{count}} 个分配未粘贴：该资源在此处是另一种类型（成本或工时），或里程碑只接受成本。",
     "milestoneRefusedAssignments": "“{{task}}”有资源分配，不能变为里程碑。请先删除这些分配。",
     "milestoneRefusedAssignmentsMany_other": "{{count}} 个任务有资源分配，无法变为里程碑。请先删除这些分配。",
     "milestoneRefusedSummary": "“{{task}}”是带子任务的摘要任务，不能变为里程碑。",
@@ -212,6 +223,7 @@
       "summaryNotes_other": "{{count}} 个摘要任务上的备注",
       "noteStatus_other": "{{count}} 个已勾选的备注：备注会保留，勾选标记不会",
       "resourceTypes_other": "{{count}} 个班组或分包商资源已变为人工资源",
+      "costResources_other": "已省略 {{count}} 个成本资源，连同它们的分配和金额",
       "libraryLinks_other": "{{count}} 个与资源库的链接",
       "holidayNames_other": "{{count}} 个假日名称（日期本身会保留）",
       "projectDetails": "项目描述、作者和公司",
@@ -234,7 +246,21 @@
     },
     "dependentProjectsFound": "依赖项目：{{projects}}。指向此项目的链接：{{links}}。",
     "dependentProjectsNone": "未找到与此进度计划有外部关系的项目。",
-    "dependentProjectsFailed": "无法读取依赖项目所在的文件夹。"
+    "dependentProjectsFailed": "无法读取依赖项目所在的文件夹。",
+    "costTypeChangeRefused": "资源库想在成本和另一种类型之间切换该资源的类型。该资源在此项目中有分配，因此类型保持不变。该资源现在显示为与资源库不一致。",
+    "reportLayoutGone": "报表的布局已不存在。报表会再次显示所有任务。",
+    "reportFontNoBold": "{{name}} 没有粗体样式。报表中的粗体文字将使用常规样式。",
+    "reportFontMissing": "你自己的字体 {{name}} 在这台设备上已不存在。报表再次使用 Inter。",
+    "layoutsNotSaved": "无法保存布局。未更改任何内容。请再试一次。",
+    "ifcForeignOpenSchema": "此 IFC 文件包含其他应用程序的数据，且架构未知或缺失。为避免保存时丢失数据，已停止打开。",
+    "ifcForeignOpenUnsafe": "此 IFC 文件无法安全归类。为避免保存时丢失数据，已停止打开。",
+    "ifc2x3PlanningOnly": "IFC2X3 已作为计划打开。保存时不会包含其他程序的数据。",
+    "ifcForeignReplaceBlocked": "未保存。暂时无法安全地覆盖包含建筑模型的现有文件。请使用“另存为”并选择一个新名称。",
+    "ifcForeignMergeRefused": "IFC 文件未写入。否则建筑模型或其他程序的数据将无法完整保留。请撤销上一次更改，或只导出计划：导出为 IFC 时选择“无建筑模型”，或导出为其他格式。",
+    "ifcSaveChangedWhileWaiting": "未保存。文档或建筑模型来源在准备期间已更改。请再次尝试保存。",
+    "ifcForeignExportNewTarget": "未导出。此 IFC 文件只能导出到新的文件名。请选择一个尚不存在的名称。",
+    "ifcSourceCopyFailed": "计划正在保存用于崩溃恢复，但建筑模型的副本未能保存。崩溃后建筑模型可能会丢失。请自行将你的工作保存为完整的 IFC 文件。",
+    "ifcForeignSourceMissing": "未保存。找不到建筑模型或其他程序的数据。请使用“另存为”，只将计划保存到新文件中。请打开原始 IFC 文件，以便再次处理完整文件。"
   },
   "scheduleErrors": {
     "cycle": "任务之间存在循环依赖：{{path}}",
@@ -273,6 +299,7 @@
     "addSubtask": "添加子任务",
     "addMilestone": "添加里程碑",
     "addRelation": "添加关系",
+    "dissolve": "Dissolve（保留关系链）",
     "delete": "删除",
     "newTask": "新建任务",
     "tracePath": "追踪路径",
@@ -337,6 +364,8 @@
     "experimentalHide": "隐藏",
     "demoTopbarAnimation": "演示：顶部栏动画",
     "demoTopbarAnimationHint": "顶部栏中有一道柔和的橙色光泽掠过。用于演示实验性开关的工作方式。",
+    "ifcForeignContent": "打开含建筑模型的 IFC",
+    "ifcForeignContentHint": "也可以打开含建筑模型或其他程序数据的 IFC 文件。你可以使用“另存为”保存为新文件、保存到站点、在浏览器中下载，以及使用 导出 → IFC，即使没有建筑模型，或与资源库一并使用（此时只包含计划）也可以。暂时还不能覆盖保存到现有的本地文件。崩溃后恢复建筑模型，需要访问原始文件或浏览器中保存的副本。",
     "tourHint": "重新查看应用的入门导览。",
     "theme": "主题",
     "themeHint": "界面的配色方案。",
@@ -347,6 +376,10 @@
     "themeSystemHint": "跟随系统的配色方案（当前：{{theme}}）。",
     "showTaskTypes": "使用任务类型",
     "showTaskTypesHint": "为每个任务选择：当工期、单位或工时变化时，哪一项随之调整，如同 MS Project 中的 Task Type 和 P6 中的 Duration Type。关闭时：工期和单位保持不变。即使关闭，含有任务类型或已保存工时的文件仍会显示它们。",
+    "dissolveSummaryMode": "摘要任务上的 Dissolve",
+    "dissolveSummaryBranch": "整个阶段，连同子任务",
+    "dissolveSummaryHeader": "仅标题行",
+    "dissolveSummaryModeHint": "Dissolve 对摘要任务的处理方式。整个阶段：子任务一并移除，与“删除”相同。仅标题行：子任务上移一级并保留在原位。",
     "allowMixedDayHour": "允许混合按天/按小时计划",
     "defaultTaskDurationUnit": "新任务的默认工期单位",
     "defaultTaskDurationUnitHint": "按天：工期按日历的工作日计算。按小时：工期按工作小时计算。现有任务不会改变。带固定工时的任务始终使用按小时。",
@@ -569,6 +602,7 @@
     "privacy": "你的反馈和截图会发送到 OpenAEC 的 Open Feedback Studio，并可能作为公开问题出现在 GitHub 上。请勿填写你不想分享的内容。",
     "sentWith": "随附：v{{version}} · {{os}} · {{language}}",
     "sentTitle": "谢谢，你的反馈已发送。",
+    "sentIssue": "你的反馈已作为 GitHub 议题提交。你可以在那里查看我们的回复：",
     "alreadyIn": "我们已收到此反馈。想补充些什么？请修改文本后再次发送。",
     "sentScreenshotDropped": "截图太大，未随附发送。",
     "errorValidation": "反馈未被接受。请检查文本（不能只包含链接）和电子邮件地址，然后重试。",
@@ -806,7 +840,8 @@
       "equipment": "设备",
       "material": "材料",
       "subcontractor": "分包商",
-      "crew": "班组"
+      "crew": "班组",
+      "cost": "成本"
     },
     "name": "名称",
     "typeLabel": "类型",
@@ -815,6 +850,7 @@
     "costPerHour": "费率/小时",
     "total": "总计",
     "totalHint": "负荷单位 × 小时/天 × 费率（按 F5 重新计算）",
+    "costTotalHint": "所有分配上金额的总和",
     "unitOfMeasure": "单位",
     "unitOnlyMaterial": "仅适用于「材料」类型的资源。",
     "parent": "班组",
@@ -927,7 +963,9 @@
       "documents": "文档",
       "selectHint": "选择一个资源以查看直方图。"
     },
-    "color": "颜色"
+    "color": "颜色",
+    "notForCost": "不适用于成本资源：它每个分配只有一个固定金额。",
+    "costTypeLocked": "此资源有分配。请先移除它们，才能在成本资源与其他类型之间切换。"
   },
   "calendar": {
     "library": {
@@ -1758,6 +1796,26 @@
     "colOwnTask": "本方任务",
     "colAnchor": "锚点：旧 → 新",
     "saveAnyway": "仍然保存",
+    "cancel": "取消"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "只保存计划吗？",
+    "body": "找不到建筑模型或其他程序的数据。新文件将只包含计划。原始文件保持不变。要继续吗？",
+    "continue": "继续",
+    "cancel": "取消"
+  },
+  "fatalError": {
+    "title": "出错了",
+    "body": "Open Planner Studio 无法继续运行。请重新加载应用。如果问题持续出现，请报告并附上下方的详细信息。",
+    "reload": "重新加载",
+    "details": "详细信息"
+  },
+  "ifcExportWithoutModel": {
+    "option": "无建筑模型",
+    "title": "导出时不含建筑模型？",
+    "body": "新文件将只包含计划。建筑模型和其他程序的数据不会包含在内。打开的文件保持不变。要继续吗？",
+    "bodyWithPool": "项目文件将只包含计划；资源库会放入第二个文件。建筑模型和其他程序的数据不会包含在内。打开的文件保持不变。要继续吗？",
+    "continue": "导出",
     "cancel": "取消"
   }
 }

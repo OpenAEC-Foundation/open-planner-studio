@@ -1,5 +1,8 @@
 import type { TaskViewRow, ViewRow } from '@/engine/view/visibleRows';
 
+/** Een ingeklapte mijlpalenreeks (#868): één kiesbare regel voor al haar mijlpalen. */
+export type MilestonesViewRow = Extract<ViewRow, { kind: 'milestones' }>;
+
 /**
  * Eén herbruikbare index over de actuele zichtbare rijen. De adapter bouwt hem alleen opnieuw
  * wanneer ViewRow[] verandert; toets- en enkelvoudige selectiecommando's blijven daarna O(1).
@@ -11,6 +14,8 @@ export interface TaskGridRowIndex {
   readonly taskIndexByRowKey: ReadonlyMap<string, number>;
   readonly absoluteIndexByRowKey: ReadonlyMap<string, number>;
   readonly taskAbsoluteIndices: readonly number[];
+  /** Ingeklapte mijlpalenreeksen: kiesbare regels naast de taakrijen, maar geen bewerkbare taak. */
+  readonly runByRowKey: ReadonlyMap<string, MilestonesViewRow>;
 }
 
 export function createTaskGridRowIndex(rows: readonly ViewRow[]): TaskGridRowIndex {
@@ -19,6 +24,7 @@ export function createTaskGridRowIndex(rows: readonly ViewRow[]): TaskGridRowInd
   const taskIndexByRowKey = new Map<string, number>();
   const absoluteIndexByRowKey = new Map<string, number>();
   const taskAbsoluteIndices: number[] = [];
+  const runByRowKey = new Map<string, MilestonesViewRow>();
 
   for (let absoluteIndex = 0; absoluteIndex < rows.length; absoluteIndex++) {
     const row = rows[absoluteIndex];
@@ -26,6 +32,7 @@ export function createTaskGridRowIndex(rows: readonly ViewRow[]): TaskGridRowInd
       throw new TypeError(`ViewRow.rowKey moet uniek zijn: ${row.rowKey}`);
     }
     absoluteIndexByRowKey.set(row.rowKey, absoluteIndex);
+    if (row.kind === 'milestones') runByRowKey.set(row.rowKey, row);
     if (row.kind !== 'task') continue;
     taskIndexByRowKey.set(row.rowKey, taskRows.length);
     taskByRowKey.set(row.rowKey, row);
@@ -40,6 +47,7 @@ export function createTaskGridRowIndex(rows: readonly ViewRow[]): TaskGridRowInd
     taskIndexByRowKey,
     absoluteIndexByRowKey,
     taskAbsoluteIndices,
+    runByRowKey,
   };
 }
 

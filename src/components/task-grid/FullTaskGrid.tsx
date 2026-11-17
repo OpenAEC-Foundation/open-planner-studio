@@ -249,6 +249,11 @@ export function TaskGridSurface({
   const recordedDates = useAppStore(state => state.recordedDates);
   const datesAsRecorded = useAppStore(state => state.datesAsRecorded);
   const viewRows = useAppStore(state => state.viewRows);
+  // Eerste mijlpalen van uitgeklapte reeksen (#868): die krijgen het pijltje om in te klappen.
+  const runHeadIds = useMemo(
+    () => new Set(viewRows.flatMap(row => (row.kind === 'task' && row.runSize ? [row.task.id] : []))),
+    [viewRows],
+  );
   const view = useAppStore(state => state.view);
   const dateNotation = useAppStore(state => state.ui.dateNotation);
   const timeNotation = useAppStore(state => state.ui.timeNotation);
@@ -555,8 +560,12 @@ export function TaskGridSurface({
         const preferredTaskIds = publishedActiveTaskId
           ? [publishedActiveTaskId, ...selectedTaskIds.filter(id => id !== publishedActiveTaskId)]
           : selectedTaskIds;
+        const runRows = [...rowIndex.runByRowKey.values()];
         const selectedRows = preferredTaskIds
-          .flatMap(id => rowIndex.taskRows.filter(row => row.task.id === id));
+          .flatMap(id => [
+            ...rowIndex.taskRows.filter(row => row.task.id === id),
+            ...runRows.filter(run => run.tasks.some(task => task.id === id)),
+          ]);
         // Nooit vanzelf op de spookregel beginnen: dan zie je zijn grijze label "Nieuwe taak" niet.
         const selected = selectedRows[0] ?? rowIndex.taskRows.find(row => row.rowKey !== GHOST_ROW_KEY);
         const columnId = visibleColumnIds[0];
@@ -834,7 +843,8 @@ export function TaskGridSurface({
     return {
       ...row,
       ghost: row.rowKey === GHOST_ROW_KEY,
-      dragging: meta?.kind === 'task' && dragState?.taskId === meta.taskId,
+      dragging: (meta?.kind === 'task' && dragState?.taskId === meta.taskId)
+        || (meta?.kind === 'milestones' && dragState?.taskId === meta.taskIds[0]),
       dropZone: dragState?.hoverRowIndex === absoluteIndex ? dragState.hoverZone : null,
     };
   }), [adapter.rowMetaByKey, adapter.rows, dragState]);
@@ -935,11 +945,13 @@ export function TaskGridSurface({
     // tekst. Dezelfde rij omhult ook de naameditor, zodat die de inspringing respecteert en de
     // resterende kolombreedte volledig benut.
     const renderNameRow = (summary: Task, body: ReactNode, editingName: boolean): ReactNode => {
-      const hasDisclosure = summary.childIds.length > 0;
+      const hasChildren = summary.childIds.length > 0;
+      // Een fase, of de eerste mijlpaal van een uitgeklapte reeks (#868): allebei een pijltje.
+      const hasDisclosure = hasChildren || runHeadIds.has(summary.id);
       // Samenvattingen en mijlpalen krijgen een licht typografisch accent in de
       // naamkolom, gestuurd via dit attribuut — CSS doet de rest (vet, tint, mijlpaalkleur).
       // Tijdens het bewerken van de naam blijft het editorveld ongemoeid (geen attribuut daarop).
-      const taskKind = summary.isMilestone ? 'milestone' : hasDisclosure ? 'summary' : undefined;
+      const taskKind = summary.isMilestone ? 'milestone' : hasChildren ? 'summary' : undefined;
       return (
         <span
           className="full-task-grid-name"
@@ -951,7 +963,9 @@ export function TaskGridSurface({
             <button
               type="button"
               className="full-task-grid-disclosure"
-              aria-label={tTask('table.toggleSummary', { defaultValue: 'Samenvatting in- of uitklappen' })}
+              aria-label={hasChildren
+                ? tTask('table.toggleSummary', { defaultValue: 'Samenvatting in- of uitklappen' })
+                : tTask('table.toggleMilestones', { defaultValue: 'Mijlpalen in- of uitklappen' })}
               aria-expanded={!collapsedTaskIds.includes(summary.id)}
               onPointerDown={event => event.stopPropagation()}
               onClick={event => { event.stopPropagation(); toggleCollapse(summary.id); }}
@@ -962,7 +976,7 @@ export function TaskGridSurface({
             </button>
           )}
           {body}
-          {hasDisclosure && !editingName && (
+          {hasChildren && !editingName && (
             <button
               type="button"
               className="task-grid-add-child"
@@ -982,6 +996,38 @@ export function TaskGridSurface({
         </span>
       );
     };
+    // Ingeklapte mijlpalenreeks (#868): "Mijlpalen (3)" met het pijltje om uit te klappen; de andere
+    // cellen komen alleen-lezen uit de adapter (Start = vroegste, Einde = laatste).
+    if (meta?.kind === 'milestones') {
+      const headId = meta.taskIds[0];
+      return {
+        text: base.text,
+        readOnly: true,
+        title: base.title,
+        content: isName ? (
+          <span
+            className="full-task-grid-name"
+            data-grid-name-depth={row.depth}
+            data-grid-task-kind="milestone"
+            style={{ paddingInlineStart: taskNameIndent(row.depth, true, nameIndentMode) }}
+          >
+            <button
+              type="button"
+              className="full-task-grid-disclosure"
+              aria-label={tTask('table.toggleMilestones', { defaultValue: 'Mijlpalen in- of uitklappen' })}
+              aria-expanded={false}
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => { event.stopPropagation(); toggleCollapse(headId); }}
+            >
+              <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
+            </button>
+            <span className="full-task-grid-name-label" {...{ [GRID_CLIP_ATTRIBUTE]: 'true' }}>
+              {tTask('table.milestonesRun', { n: meta.taskIds.length, defaultValue: `Mijlpalen (${meta.taskIds.length})` })}
+            </span>
+          </span>
+        ) : undefined,
+      };
+    }
     if (editing?.documentId === activeDocumentId && sameCellAddress(editing.cell, cell)) {
       const editor = (
           <TaskCellEditor
@@ -989,7 +1035,7 @@ export function TaskGridSurface({
             adapter={adapter}
             cell={cell}
             label={column.label}
-            calendarPickerLabel={column.label}
+            calendarPickerLabel={`${tCommon('dateInput.openCalendar')} — ${column.label}`}
             initialText={editing.replacement}
             previousCell={editorNeighbour(cell, rowIndex.taskRows, -1)}
             nextCell={editorNeighbour(cell, rowIndex.taskRows, 1)}
@@ -1078,7 +1124,7 @@ export function TaskGridSurface({
         false,
       ) : undefined,
     };
-  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, ghostTask, nameIndentMode, rowIndex, selection, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
+  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, ghostTask, nameIndentMode, rowIndex, runHeadIds, selection, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
 
   // Zelfde basis als de Gantt-tijdlijn (`taskGrid/rowHeight.ts`), zodat raster en balken rij-op-rij lopen.
   const rowHeight = Math.max(25, Math.round(TASK_ROW_HEIGHT * uiFontScale / 100));
@@ -1217,6 +1263,11 @@ export function TaskGridSurface({
           if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey
             || (event.target as HTMLElement).closest('button,input,select,textarea')) return;
           const meta = adapter.rowMetaByKey.get(row.rowKey);
+          // Een ingeklapte mijlpalenreeks verhuist als geheel (#868, punt 8).
+          if (meta?.kind === 'milestones') {
+            startRowDrag({ taskId: meta.taskIds[0], taskIds: meta.taskIds, startClientX: event.clientX, startClientY: event.clientY });
+            return;
+          }
           if (meta?.kind !== 'task') return;
           startRowDrag({ taskId: meta.taskId, startClientX: event.clientX, startClientY: event.clientY });
         }}

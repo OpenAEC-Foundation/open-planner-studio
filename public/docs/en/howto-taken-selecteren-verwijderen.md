@@ -52,6 +52,8 @@ If a new relation would create a loop or link a task to its own summary task, th
 
 A summary task has a triangle before its name in the task list; click it to hide or show its subtasks. With *View › Outline › Collapse* and *Expand* you do it for the selected summary tasks, or for all of them if nothing is selected. The right-click menu of a summary task also has *Collapse* and *Expand*. In a grouped view the buttons work on the groups.
 
+Two or more milestones directly below each other, under the same phase or on their own, form a series. An ordinary task in between breaks the series. The first milestone of a series also has a triangle; click it and the series becomes one row *Milestones (3)*. In the Gantt the diamonds then sit side by side on that row, each with its name, cut off before the next diamond; the full name is in the tooltip. In the table the row shows the earliest milestone under *Start* and the last one under *Finish*. A click on the row in the table selects the whole series, a click on a diamond only that milestone. You can drag a diamond and draw a relationship from it; if you drag the row in the table, you move the whole series. Milestones on the same day share one diamond with their number, for example ◆2; the tooltip lists them all. A click on such a diamond selects them all, and dragging moves them together. To select, drag or link just one of them, or to use its right-click menu, expand the series. *Collapse* and *Expand* include the series. With a filter, grouping or sorting, and in the printout and the PDF, the series are expanded.
+
 The app keeps collapsing and expanding per open document. It is not part of *Undo* and not in the project file.
 
 ### Undoing and redoing
