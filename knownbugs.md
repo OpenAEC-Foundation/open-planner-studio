@@ -2603,12 +2603,62 @@ en noem het in je rapport of PR-tekst.
      T1 laat alleen een nieuw einddoel met `createNew` toe; een bestaand doel blijft geweigerd.
      Verplicht vóór de flag aan mag: het gewone vervolg Opslaan als → Ctrl+S op het zojuist gemaakte bestand
      moet kunnen, net als bronherstel (1112). PR 11a meldt nu waarom dit nog weigert en verwijst naar Opslaan als.
-     Voor vervanging zijn de bron-sha256 en de exclusieve plaatsing uit ontwerp §4.10 nodig,
-     met `place_file_exclusive` (Rust, uitsluitend fase 2) en herstel na onderbreking. Plugin-fs-rename
-     vervangt bestaande bestanden en is daarvoor ongeschikt. De nieuwe route schrijft na createNew
-     via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone
-     I/O-fout is best effort en biedt geen padslot tegen externe wissels. Proeven toetsen botsing,
-     schrijf-/sluitfout en geen directe terugval; crash, stroomuitval en externe padwissels niet gemeten. — B (code/proef)
+     Plugin-fs-rename vervangt bestaande bestanden en is daarvoor ongeschikt. De route naar een nieuwe naam schrijft na
+     createNew via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone I/O-fout is
+     best effort en biedt geen padslot tegen externe wissels. Onderzoek van 16 november 2026: zes stappen.
+     1. Klaar (stap 1): de inhoudscontrole van het eigen doel (`sourceTargetContent`, pad en handle, in stukken van
+        1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5, `replaceWithRecoveryPending`). Nog
+        door geen route aangeroepen.
+     2. Ctrl+S in de browser via de handle: de uitzondering "eigen doel" in `refusedWriteTarget`, de inhoudscontrole
+        vóór de merge en vlak vóór `close()`, de helper om de schrijfactie.
+     3. Het Rust-commando `place_file_exclusive` met fsync, los en per platform getoetst (wacht op een productkeuze).
+     4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
+     5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
+        herstel- en conflictkopie.
+     6. Teksten en handleiding, met de eigenaar.
+     Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; crash, stroomuitval en externe
+     padwissels in een echte app niet gemeten. — B (code/proef)
+
+1760. **VERVOLG (#804, tekst): Opslaan als over een bestaand planningsbestand met een gebouwmodel geeft een interne fouttekst.**
+     Desktop. De planner ziet "Opslaan mislukt" met als detail "Byte-delen konden niet worden opgeslagen (create-new)."
+     Exporteren heeft wel een eigen zin (`ifcForeignExportNewTarget`). `fileSlice.ts` (de catch van Opslaan als),
+     `byteParts.ts:8`; de proef `check-ifc-document-save.ts` toetst alleen de sleutel. Richting: dezelfde zin als bij
+     Exporteren. Uit het onderzoek naar 1131 (16 november 2026). — B (code)
+
+1761. **VERVOLG (#804, ontwerp): het ontwerp noemt geen fsync bij het vervangen, terwijl de eis stroomuitval noemt.**
+     In stap 4 van §4.10 is het doel een vrije naam; daar helpt `auto_da_alloc` van ext4 niet, dus na stroomuitval kan
+     het doel leeg of half zijn terwijl de opzijgezette versie volledig is. Richting: `sync_all` op het tijdelijke
+     bestand en een fsync van de map in `place_file_exclusive` (Windows: `FlushFileBuffers` en `MOVEFILE_WRITE_THROUGH`),
+     en §4.10 aanvullen. Uit het onderzoek naar 1131. — S
+
+1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
+     De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
+     (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
+     schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Richting:
+     productkeuze 1 uit het onderzoek naar 1131. — B (code), geen proef in de app
+
+1763. **VERVOLG (#804, CI): de Rust-proeven per platform uit het besluit over `place_file_exclusive` hebben nog geen workflow.**
+     `cargo test` draait alleen op Ubuntu, voor `mcp_bridge` en `desktop_integration`
+     (`.github/workflows/mcp-real-app.yml:42, 74-75`); de builds op Windows en macOS in `ci.yml` draaien geen tests.
+     Nodig vóór stap 3 van 1131; de workflowwijziging pusht Trias. Uit het onderzoek naar 1131. — B
+
+1764. **VERVOLG (#804, 1131 stap 2): zonder crashherstel weigert de helper elke vervanging.**
+     `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
+     herstelronde draaien, dan zegt hij nee: IndexedDB geweigerd (sandbox-iframe zonder `allow-same-origin`, #582), de
+     herstelvraag bij de start nog open, of geen geregistreerde ronde. Ctrl+S met een gebouwmodel weigert daar dus
+     straks ook. Dat is de goede standaard (review van #965, Sol): de drie oorzaken geven dezelfde weigering, en een
+     ontoegankelijke IndexedDB bewijst niet dat er geen herstelset is die bescherming nodig heeft. Richting: de weigering
+     houden; een uitzondering mag niet op `not-recorded` alleen steunen, maar vraagt in stap 2 een eigen bewijs dat er
+     geen te beschermen herstelset is, met een eigen proef. Gevonden in stap 1 van 1131. — B (code)
+
+1765. **VERVOLG (#804, stroomuitval): het manifest met `pendingSha256` staat na stroomuitval mogelijk niet op schijf.**
+     De helper wacht tot de herstelronde klaar is, maar die schrijft op de desktop zonder fsync (`recoveryStore.ts`,
+     via plugin-fs) en in de browser met de standaardduurzaamheid van IndexedDB, zonder `durability: 'strict'`. Na
+     stroomuitval kan de nieuwe versie op het doel staan terwijl het manifest nog de oude noemt: herstel geeft dan
+     "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
+     gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: meenemen bij de fsync van 1761. Gevonden
+     in stap 1 van 1131. — S
+
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
      `new Uint8Array(await data.arrayBuffer())`, omdat het hostcontract één `Uint8Array` vraagt. De bytes blijven gelijk

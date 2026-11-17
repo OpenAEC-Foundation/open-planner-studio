@@ -150,3 +150,13 @@ alleen voor deze bevestigde opslag een momentopname zonder bron. De gedeelde `Di
 hetzelfde kenmerk blijft alleen als doelbescherming met `sourceMissing: false`. Die expliciete waarde staat ook in
 de bestaande `foreignSource`-manifestmetadata, zonder hogere manifest- of databaseversie. De gewone IFC krijgt geen
 herstelkenmerk; een volgende crash maakt er geen ontbrekend model meer van. Met de flag uit blijft de oude weigering.
+
+### Inhoudscontrole van het eigen doel (#804, knownbug 1131 stap 1)
+
+`sourceTargetContent(ref, ifcSource.bytes)` (`src/services/fileAccess/index.ts`, kern in `sourceTargetContent.ts`) zegt
+of op een pad (desktop) of bestandshandle (browser) nog precies de bron staat: `same`, `changed`, `missing` of
+`unreadable`. Eerst de grootte, dan stukken van 1 MiB byte voor byte; geen sha256 van het doel en nooit het hele doel in
+één buffer (afwijking van §4.10, besluit 16 november 2026). Het pad gebruikt dezelfde stukkenlezer als de doelscan
+(`openPathChunksTauri` in `tauriBackend.ts`), de handle `File.slice()`. Site en download hebben geen doel: de functie
+neemt alleen `path`/`handle`. Nog door geen route aangeroepen; Ctrl+S met een gebouwmodel weigert zoals voorheen.
+Proef: `check-file-byte-parts.ts`.

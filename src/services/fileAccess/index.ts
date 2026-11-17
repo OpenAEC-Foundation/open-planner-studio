@@ -1,7 +1,7 @@
 import { isTauri } from '@/utils/platform';
 import {
   openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
-  fileIdentityFsTauri, scanTargetPathTauri,
+  fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
   saveBytePartsDialogTauri, saveBytePartsToRefTauri,
 } from './tauriBackend';
 import type { FileIdentityFs } from './fileIdentity';
@@ -12,6 +12,7 @@ import {
   saveBytePartsDialogWeb, saveBytePartsToRefWeb,
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
+import { sourceTargetContentOfHandle, type SourceTargetContent } from './sourceTargetContent';
 
 /** Bestandsfilter (naam + extensies zonder punt), zoals de bestaande dialoog-aanroepen. */
 export interface FileFilter {
@@ -148,6 +149,18 @@ export function writeTargetReaders(): TargetReaders {
     ...(isTauri() ? { scanPath: scanTargetPathTauri } : {}),
     ...(siteStorageAvailable() ? { readSite: async (id: string) => (await readSiteSourceFile(id)).bytes() } : {}),
   };
+}
+
+/** Een lokaal doel om te vervangen: een pad (desktop) of een bestandshandle (browser). Een site-bestand en een
+ *  download hebben geen doel om op inhoud te vergelijken. */
+export type LocalTargetRef = Extract<FileRef, { kind: 'path' | 'handle' }>;
+
+/** #804, knownbug 1131 stap 1: staat op het eigen doel nog precies `expected` (de bronbytes)? Zie
+ *  `sourceTargetContent.ts`. Een pad is alleen op de desktop een doel. */
+export function sourceTargetContent(ref: LocalTargetRef, expected: Uint8Array): Promise<SourceTargetContent> {
+  if (ref.kind === 'handle') return sourceTargetContentOfHandle(ref.handle, expected);
+  if (!isTauri()) return Promise.reject(new Error('Een pad is in de browser geen doel om te vergelijken.'));
+  return sourceTargetContentOfPathTauri(ref.path, expected);
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */

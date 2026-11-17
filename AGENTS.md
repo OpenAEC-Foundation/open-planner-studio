@@ -351,8 +351,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
   Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
   1–5 plus the historical unversioned web `docIds` form. With `ifcForeignContent`, an optional per-document
-  `ifcSource` reference (sha256, byteLength, foreign and optional browser handle) restores a foreign source through
-  the ordinary bytes-open route after hash verification; the snapshot supplies the edited planning. Foreign documents
+  `ifcSource` reference (sha256, byteLength, foreign, optional browser handle and, while a replacement runs,
+  `pendingSha256`) restores a foreign source through the ordinary bytes-open route after hash verification against
+  either hash; the snapshot supplies the edited planning. Foreign documents
   keep no save target in the manifest, so older readers restore planning with `sourceMissing` and no target.
   Desktop paths and browser handles read the source again. Browser files without a handle and site files use
   best-effort source copies in a separate `ops-ifc-sources.<recoveryBase>` IndexedDB database (created only when needed

@@ -13,6 +13,7 @@ import { clearRecovery, loadRecovery, recoveryStorageUnavailable } from '@/servi
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryFlush, flushRecoveryNow } from '@/services/recovery/recoveryFlush';
+import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
@@ -71,6 +72,8 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     } },
     '@/services/recovery/recoveryTickQueue': { createRecoveryTickQueue },
     '@/services/recovery/recoveryFlush': { registerRecoveryFlush },
+    // Knownbug 1131 stap 1: een lopende vervanging vraagt een ronde, ook in een schone sessie.
+    '@/services/recovery/recoveryPendingSource': { hasPendingIfcSource },
     '@/services/fileAccess': {},
     '@/services/actualAutosave/actualAutoSave': {},
     // #804 fixronde 2: de controller van de werkelijke AutoSave staat in een eigen module; dat effect monteert hier niet.
