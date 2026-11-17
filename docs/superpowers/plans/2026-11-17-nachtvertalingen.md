@@ -90,8 +90,8 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
   (`src/services/formatRegistry.ts:368-369`, `menu:export.experimentalBadge`). Die staan niet achter
   een flag. **De nacht vertaalt ze wel** (besluit wrakko namens Trias, 2026-11-17, optie 1). Ethans
   reden was dat teksten definitief moeten zijn ("we hebben er niet veel aan als teksten nog niet
-  definitief zijn"). Deze teksten staan al maanden zichtbaar en ongewijzigd; het label "Experimenteel"
-  zegt iets over de functie, niet over de tekst. De grens is dus: achter een featureflag of nog in
+  definitief zijn"). Deze teksten staan zichtbaar op main (P6 XML sinds 12 juni 2026, XER en het label
+  sinds 31 oktober 2026, #393); het label "Experimenteel" zegt iets over de functie, niet over de tekst. De grens is dus: achter een featureflag of nog in
   beweging, niet het woord Experimenteel in een label. Verandert zo'n tekst toch, dan houdt de
   48 uursregel hem tegen zoals elke andere tekst.
 - De kop van het blok zelf (`common:settings.experimentalSection`, `…Empty`, `…Hide`) is vaste UI en
@@ -106,6 +106,10 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
    - `translate settled --out <bestand>`: vaste grens 48 uur, vaste bron `origin/main` (geen opties;
      er is één afgesproken grens en één bron). Doet de git-I/O van §1a, leest `FEATURE_FLAGS`, schrijft een JSON-lijst `["ns:pad", …]` (zelfde vorm als
      `--keys`) en meldt per reden hoeveel eenheden afvielen (nieuw/gewijzigd, flag).
+   - `translate night-guard <BASE>`: faalt (exit 1, met de commits) als een first-parent-commit van
+     `origin/main` na `BASE` een beschermd pad raakt (lijst in §3 stap 6). Uitvoering:
+     `git rev-list --first-parent <BASE>..origin/main -- <paden>` moet leeg zijn. Een commando in plaats
+     van een losse regel in de taaktekst, zodat de lijst op één plek staat en getest wordt.
    - `prepare ui <taal> --open --only <bestand>`: nieuwe selectie `open` = `missing` ∪ `stale`
      (`selectUnits`), beperkt tot de lijst. Ontbrekende items krijgen geen `previous`, verouderde wel,
      precies zoals in de twee aparte rondes nu. Eén ronde is nodig omdat `prepare` alle open
@@ -133,7 +137,7 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
    stations volgen `update-ui-lang/t3-stations.md`, dat een bundelvariant krijgt: één vertaal-, één
    naleesdelegatie per bundel, herstel alleen voor de pakketten met bevindingen.
 6. **Besluit 9**: `release/referentie.md` krijgt een kopje voor de nachttaak met dezelfde lichte
-   vertaalscripts plus `translate settled`, in de eigen nachtworktree.
+   vertaalscripts plus `translate settled` en `translate night-guard`, in de eigen nachtworktree.
    AGENTS.md (alinea over de releasejob) noemt de nachttaak ernaast.
 7. **Release**: `release/SKILL.md` stap vertalen: wacht eerst tot de nacht van maandag klaar is (§3,
    markering) en vertaal dan wat er nog ligt, zoals nu.
@@ -146,8 +150,12 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
    - `--open` = ontbrekend ∪ verouderd met `previous` alleen bij verouderd; `--only` snijdt elke selectie
      en laat een actuele sleutel uit de lijst weg (het verschil met `--keys`);
    - bundelen respecteert het maximum en splitst nooit een pakket;
+   - `night-guard` op een tijdelijke git-repo (`git init` in een tijdmap): geen wijziging → exit 0;
+     een commit buiten de paden → exit 0; A → B → A in nl ná `BASE` (eindstand gelijk aan `BASE`) →
+     exit 1; wijziging in `scripts/i18n-tools.ts` → exit 1;
    - mutatiebewijs: drie mutaties in `settled.ts` (48 uur-grens, momentopnames tussendoor overslaan,
-     flag-uitsluiting weglaten) maken de check rood; uitgevoerd met een kopie in `/tmp`, uitkomst in
+     flag-uitsluiting weglaten) en één in `night-guard` (eindstanden vergelijken in plaats van de
+     commits) maken de check rood; uitgevoerd met een kopie in `/tmp`, uitkomst in
      de PR.
 
 ## 3. De nachttaak
@@ -178,10 +186,13 @@ Stappen:
    las en het een geldige JSON-lijst is. Alle gevolgde bestanden, pakketten, zegel en checker blijven
    ongewijzigd (`git status --short` en de zegel voor en na); een run die daarbuiten schrijft telt niet
    en draait opnieuw. `OPEN_STATIONS` moet 0 zijn vóór de volgende stap.
-6. **Verse main.** `git fetch origin`; `NIEUW=$(git rev-parse origin/main)`. Veranderde tussen `BASE`
-   en `NIEUW` iets van de selectie-invoer, dan **vervalt de nacht**:
-   `git diff --quiet BASE NIEUW -- src/i18n/locales i18n/ui-sources i18n/termbase src/utils/featureFlags.ts scripts/translate package-lock.json`
-   moet exit 0 geven. Daarmee kan geen intussen gecorrigeerde doelvertaling of bronhash worden
+6. **Verse main.** `git fetch origin`; `NIEUW=$(git rev-parse origin/main)`. Raakte een commit tussen
+   `BASE` en `NIEUW` de selectie-invoer, dan **vervalt de nacht**: `npm run translate -- night-guard
+   "$BASE"` moet exit 0 geven. Beschermd: `src/i18n/locales`, `i18n/ui-sources`, `i18n/termbase`,
+   `src/utils/featureFlags.ts`, `scripts/translate`, `scripts/i18n-tools.ts`, `scripts/run-ts.mjs`,
+   `package.json`, `package-lock.json`. Het telt per commit, niet per eindstand: een nl-tekst die na
+   `BASE` verandert en terugverandert (A → B → A) laat de nacht ook vervallen, zoals §1a hem uitsluit.
+   Daarmee kan geen intussen gecorrigeerde doelvertaling of bronhash worden
    overschreven (`applyUiPackage` vervangt de doeltekst, `packageMismatch` toetst alleen nl), kan
    geen sleutel die intussen bij een flag hoort of opnieuw veranderde mee, en draait apply met
    dezelfde checker en dependencies als de stations. "Af" hoeft dan niet opnieuw te worden berekend:
