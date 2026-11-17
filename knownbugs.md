@@ -2605,8 +2605,9 @@ en noem het in je rapport of PR-tekst.
      T1 laat alleen een nieuw einddoel met `createNew` toe; een bestaand doel blijft geweigerd.
      Verplicht vóór de flag aan mag: het gewone vervolg Opslaan als → Ctrl+S op het zojuist gemaakte bestand
      moet kunnen, net als bronherstel (1112). PR 11a meldt nu waarom dit nog weigert en verwijst naar Opslaan als.
-     Plugin-fs-rename vervangt bestaande bestanden en is daarvoor ongeschikt. De route naar een nieuwe naam schrijft na
-     createNew via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone I/O-fout is
+     Plugin-fs-rename vervangt bestaande bestanden en is daarvoor ongeschikt. De route naar een nieuwe naam schrijft het
+     eerste deel in de createNew-aanroep en voegt volgende delen op pad toe (#973, knownbug 1792): een crash kan een
+     onvolledig nieuw bestand laten staan; cleanup na een gewone I/O-fout is
      best effort en biedt geen padslot tegen externe wissels. Onderzoek van 16 november 2026: zes stappen.
      1. Klaar (stap 1): de inhoudscontrole van het eigen doel (`sourceTargetContent`, pad en handle, in stukken van
         1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5, `replaceWithRecoveryPending`).
@@ -2806,6 +2807,51 @@ en noem het in je rapport of PR-tekst.
      gemeten. Bestaand gedrag, geen verbouwing voor PR 11. "Geen samenvoegen" geldt dus alleen voor Tauri en een host die
      de Blob rechtstreeks aanneemt. Richting: meten bij de grote-bestandenmeting vóór de flag aan mag (PR 6); een ruimer
      hostcontract zou de buffer wegnemen, geen tweede adapter. Gevonden door de review van #922. — B
+1790. **VERVOLG (#973, desktop rauwe bytes): niet gemeten in de echte app.** Sinds #973 schrijft de desktop een
+     bestand van de gebruiker met `writeFile`/`writeTextFile` (rauwe body) in plaats van `FileHandle.write`
+     (JSON, één getal per byte; in V8 274 ms per MiB, ongeveer 2,4 s per opslag bij 10.000 taken). Bewezen is alleen
+     de payload bij `window.__TAURI_INTERNALS__.invoke` (Node-adapter). Open: (1) of de webview het eigen
+     IPC-protocol gebruikt of terugvalt op `postMessage` (`ipc-protocol.js` in tauri 2.12.3: na één mislukte
+     `fetch` voor de hele sessie; dan wordt ook de rauwe body JSON); (2) de winst in WebView2, WebKitGTK en
+     WKWebView; (3) of een deel boven ongeveer 173 MB op Windows nu wel opslaat. Richting: in de echte app met
+     de ontwikkelaarstools een groot plan opslaan en de duur en de console (`IPC custom protocol failed`) nagaan,
+     op elk platform. — S
+1791. **`src/services/mcp/discoveryFiles.ts` schrijft de MCP-ontdekkingsbestanden nog via `FileHandle.write`.**
+     `createNew` geeft daar een handle en `file.write(bytes)` stuurt de bytes in een object (`{ rid, data }`), dus als
+     JSON met één getal per byte; ook de lus voor korte writes staat er nog. Het gaat om kleine JSON-bestanden in de
+     datamap van de app, dus de kosten zijn verwaarloosbaar, maar het botst met de regel in `tauri-ifc.md` dat bytes
+     nooit in een object naar Tauri gaan. Richting: dezelfde vorm als `atomicWrite.ts` (`writeTextFile` met
+     `createNew` en modus 0600 in één aanroep, eigendom alleen bij de schrijffout na aanmaak). Gevonden bij #973,
+     alleen in de code gelezen. — B (code)
+1792. **VERVOLG (#973, desktop): Opslaan als met een gebouwmodel voegt elk volgend deel op pad toe.**
+     `writeNewByteParts` maakt het nieuwe doel met `createNew` en het eerste deel, en opent het pad daarna voor elk
+     volgend deel opnieuw met `append`. Vóór #973 ging alles via één open bestand. Wisselt een ander programma het pad
+     tussen twee delen, dan krijgt het vervangende bestand de rest en meldt de app toch succes; bij een schrijffout
+     daarna kan het opruimen dat vervangende bestand verwijderen (opruimen op pad bestond al). De review van #973 toonde
+     het met een proef tegen basis en head: op de basis kreeg het oorspronkelijke bestand `DEEL1DEEL2` en bleef het
+     vervangende bestand heel, op de head kreeg het vervangende bestand `DEEL2` erbij. Meerdere delen zijn gewoon bij
+     een gewijzigde merge (`mergeWriter.ts`: bewaarde bronreeksen plus writerblokken van hoogstens 2.000 regels). Geen
+     synchronisatieclient aangetoond die dit bij een gewone opslag doet. Richting: de merge maakt voor de
+     uitvoercontrole al één volledige buffer en knipt die daarna weer in stukken; geef die ene buffer door, dan is het
+     één exclusieve aanroep en kunnen `ByteAppend` en de append-lus weg. Op te lossen bij stap 4 van 1131 (Opslaan als
+     op de desktop via een tijdelijk bestand), die deze route toch herschrijft. Gevonden door de review van #973
+     (Sol). — B (proef)
+1793. **VERVOLG (#973, proeven): de Node-adapter `tests/planning/nodeFileIpc.ts` doet `write_all` niet volledig na.**
+     Hij negeert het aantal bytes dat `fs.writeSync` teruggeeft: schrijft die aanroep één van vijf bytes, dan meldt de
+     adapter succes, terwijl de echte Rust-code met `write_all` doorloopt. Een echte fout van `writeSync` krijgt niet
+     de vaste tekst van een Rust-schrijffout, en de adapter toetst alleen of de optiekop JSON met een object is, niet
+     de types van `createNew`, `mode`, `append` en `create` (bij een verkeerd type laat Rust de hele kop vervallen en
+     valt het terug op aanmaken en afkappen; de app stuurt zulke types niet). Een fout in het bewijsinstrument, geen
+     aangetoonde fout in de app. Richting: korte writes afmaken, echte schrijffouten dezelfde tekst geven en de
+     gebruikte optievelden toetsen; geen tweede bestandssysteemlaag. Gevonden door de review van #973 (Sol). — B (proef)
+1794. **VERVOLG (#973, proeven): de pariteitsreferentie is niet meer rechtstreeks te maken uit haar basis.**
+     In `tests/planning/fixtures/main-pariteit.json` en `auteur-bedrijf/main.json` is 48 keer `open` + `write` +
+     `close` met de hand vervangen door één `write_text_file`. De review van #973 vergeleek beide bestanden veld voor
+     veld: verder is alles gelijk (uitvoerhash, lengte, doel, meldingen, basis). `scripts/proef/maak-main-pariteit.mjs`
+     bouwt nog tegen de oude basis en zou de oude aanroepvorm terugzetten. De referentie betekent nu "de basis plus
+     deze ene omzetting van de aanroepvorm". Richting: die omzetting reproduceerbaar maken in het script, of alleen dit
+     verschil normaliseren bij de vergelijking; niet de hele referentie opnieuw opnemen vanaf een featurebranch.
+     Gevonden door de review van #973 (Sol). — B
 
 ## Rondleiding, Help en extensie-gidsen
 

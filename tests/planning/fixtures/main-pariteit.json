@@ -85,9 +85,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -178,9 +176,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -271,9 +267,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -364,9 +358,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -457,9 +449,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -550,9 +540,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -643,9 +631,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -736,9 +722,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -829,9 +813,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -922,9 +904,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1015,9 +995,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1108,9 +1086,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1201,9 +1177,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1294,9 +1268,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1387,9 +1359,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1480,9 +1450,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1573,9 +1541,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1666,9 +1632,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1759,9 +1723,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1852,9 +1814,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -1945,9 +1905,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2038,9 +1996,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2131,9 +2087,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2224,9 +2178,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2317,9 +2269,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2410,9 +2360,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2503,9 +2451,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2596,9 +2542,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2689,9 +2633,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2782,9 +2724,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2875,9 +2815,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -2968,9 +2906,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3146,9 +3082,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3239,9 +3173,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3332,9 +3264,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3439,9 +3369,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3546,9 +3474,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3653,9 +3579,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3760,9 +3684,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3853,9 +3775,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -3946,9 +3866,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -4053,9 +3971,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -4160,9 +4076,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -4267,9 +4181,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -4374,9 +4286,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -4481,9 +4391,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },
@@ -4574,9 +4482,7 @@
      "meldingen": [],
      "aanroepen": [
       "plugin:fs|lstat",
-      "plugin:fs|open {\"read\":false,\"write\":true,\"createNew\":true,\"mode\":\"<umask>\"}",
-      "plugin:fs|write",
-      "plugin:resources|close",
+      "plugin:fs|write_text_file {\"createNew\":true,\"mode\":\"<umask>\"}",
       "plugin:fs|rename"
      ]
     },

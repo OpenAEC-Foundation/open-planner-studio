@@ -42,7 +42,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
-import { installNodeFileIpc } from './nodeFileIpc';
+import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
 import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -1801,7 +1801,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
         }
         eq(`1c ${name} ${route}: doel en link bytegelijk`, [sha(readFileSync(target)), sha(readFileSync(alias))], [sha(bytes), sha(bytes)]);
         // De tweede pooldialoog mag alleen het nieuwe projectbestand hebben geschreven.
-        const writes = ipc.calls.slice(before).filter(c => c.command === 'plugin:fs|write' || c.command === 'plugin:fs|write_text_file');
+        const writes = ipc.calls.slice(before).filter(c => c.wrote);
         ok(`1c ${name} ${route}: nul doelwrites`, route === 'pool-bibliotheek' ? writes.length > 0 && existsSync(projectPath) : writes.length === 0);
         const reason = await refusedWriteTarget(S(), { kind: 'path', path: alias }, { identityFs: fileIdentityFs, readers: writeTargetReaders });
         eq(`1c ${name} ${route}: getypeerde weigering`, reason, name === 'pset' ? 'foreign-content' : 'building-model');
@@ -1818,7 +1818,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     const libraryResult = await saveFileDialog('bibliotheek.ifc', library, [{ name: 'IFC', extensions: ['ifc'] }],
       { refuseTarget: libraryStore.getState().foreignTargetCheck('export') });
     ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', libraryResult !== null);
-    ok('1c: bestaande eigen bibliotheek echt geschreven', ipc.calls.slice(libraryWrites).some(c => c.command === 'plugin:fs|write'));
+    ok('1c: bestaande eigen bibliotheek echt geschreven', ipc.calls.slice(libraryWrites).some(c => c.wrote && byteWrite(c)));
     eq('1c: gewone bibliotheekwriter blijft bytegelijk', readFileSync(libraryPath, 'utf8'), library);
     eq('1c: alle echte bestanden gesloten', ipc.openHandles(), 0);
   } finally {
