@@ -9,11 +9,10 @@ import { flattenOrder, taskDepths } from '@/utils/wbs';
 import { shownStart, shownFinish } from '@/utils/taskDates';
 import { formatLagShort } from '@/utils/lagFormat';
 
-const DELIMITER = ';';
 const BOM = '\uFEFF';
 
 export function escapeCSV(value: string): string {
-  if (value.includes(DELIMITER) || value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+  if (value.includes(';') || value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
@@ -65,7 +64,16 @@ export function writeCSV(
    * en ⇒ `3FS+2h`; een taal zonder leesbare afkorting (bijv. ru) ⇒ `u`. `readCSV` leest beide.
    */
   lagHourSuffix: 'u' | 'h' = 'u',
+  /** Standaard de computerinstelling, onafhankelijk van de taal van de app. */
+  locale?: string,
 ): string {
+  // Alleen het decimaalteken komt uit Intl: geen afronding of duizendtalscheiding.
+  // Latijnse cijfers houden het bestand leesbaar voor spreadsheets en de CSV-lezer.
+  const decimal = new Intl.NumberFormat(locale, { numberingSystem: 'latn' })
+    .formatToParts(1.1).find(part => part.type === 'decimal')!.value;
+  const delimiter = decimal === ',' ? ';' : ',';
+  const numberCell = (value: number) => escapeCSV(String(value).replace('.', decimal));
+
   // De "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de relatie-lag, die "ed"/"e%"
   // al schrijft) — een taak met ELAPSEDTIME-duur (24/7-klokrekenen, bv. uit een `.mpp`-import)
   // schrijft daarom als gewone werktijdduur. Weggelaten-met-warn, zelfde patroon als de andere
@@ -101,7 +109,7 @@ export function writeCSV(
     // het uurteken van de app-taal (`lagHourSuffix`), % / e% = procent van de voorgangerduur. Via
     // `lagMinutes`, anders verdwijnt elke uur-lag (en in een uurproject óók elke dag-lag, die daar in
     // minuten staat) stil uit de export.
-    const lag = formatLagShort(seq, lagHourSuffix).replace('.', ',');
+    const lag = formatLagShort(seq, lagHourSuffix);
     const predStr = `${predTask.wbsCode}${abbrev}${lag}`;
     if (!predMap.has(seq.successorId)) {
       predMap.set(seq.successorId, []);
@@ -128,7 +136,7 @@ export function writeCSV(
   ];
 
   const rows: string[] = [];
-  rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));
+  rows.push(headers.map(h => escapeCSV(h)).join(delimiter));
 
   const depthById = taskDepths(tasks);
   for (const task of flattenOrder(tasks)) {
@@ -141,7 +149,7 @@ export function writeCSV(
       escapeCSV(task.wbsCode),
       String(depthById.get(task.id) ?? 1),
       escapeCSV(task.name),
-      escapeCSV(task.time.scheduleDuration.toString().replace('.', ',')),
+      numberCell(task.time.scheduleDuration),
       shownStart(task),
       shownFinish(task),
       escapeCSV(predecessors),
@@ -152,10 +160,10 @@ export function writeCSV(
       task.time.actualStart || '',
       task.time.actualFinish || '',
       unrecorded?.includes('isCritical') ? '' : (task.time.isCritical ? 'Yes' : 'No'),
-      unrecorded?.includes('totalFloat') ? '' : escapeCSV(task.time.totalFloat.toString().replace('.', ',')),
+      unrecorded?.includes('totalFloat') ? '' : numberCell(task.time.totalFloat),
       escapeCSV(task.description),
     ];
-    rows.push(row.join(DELIMITER));
+    rows.push(row.join(delimiter));
   }
 
   return BOM + rows.join('\r\n') + '\r\n';

@@ -75,8 +75,8 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   const firstRow = lines[1];
 
   ok('kop draagt de id-kolom', header.includes('OPS Task ID'));
-  eq('…als eerste kolom', header.split(';')[0].replace(/^﻿/, ''), 'OPS Task ID');
-  eq('…en de rij draagt het echte id', firstRow.split(';')[0], task.id);
+  eq('…als eerste kolom', header.split(/[;,]/)[0].replace(/^﻿/, ''), 'OPS Task ID');
+  eq('…en de rij draagt het echte id', firstRow.split(/[;,]/)[0], task.id);
   ok('de bestaande kolommen staan er nog', header.includes('OPS Custom Task Type ID') && header.includes('Actual Start'));
   ok('vervang-import mint een eigen id', readCSV(csvText).tasks[0].id !== task.id);
 }

@@ -1220,12 +1220,13 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const { out: csvText, warns: wC } = withWarnings(() => writeCSV(projZ, H8, zTasks, [], [], zAssignments));
     assert(wC.length === 0, `Z14 CSV: geen enkele warn voor de nieuwe velden, kreeg [${wC.join(' | ')}]`);
     const header = csvText.replace(/^﻿/, '').split('\r\n')[0];
+    const delimiter = header.includes(';') ? ';' : ',';
     const ZWANTED_HEADER = [
       'OPS Task ID', 'WBS', 'Outline Level', 'Name', 'Duration (days)', 'Start', 'Finish',
       'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
       'Actual Start', 'Actual Finish', 'Critical', 'Total Float', 'Description',
-    ].join(';');
-    assert(header.split(';').length === 17, `Z14 CSV: header blijft 17 kolommen, kreeg ${header.split(';').length} (${header})`);
+    ].join(delimiter);
+    assert(header.split(delimiter).length === 17, `Z14 CSV: header blijft 17 kolommen, kreeg ${header.split(delimiter).length} (${header})`);
     assert(header === ZWANTED_HEADER, `Z14 CSV: header komt niet exact overeen (issue #27 etappe 2: OPS Task ID hoort vooraan), kreeg (${header})`);
     assert(header.includes('OPS Custom Task Type ID'), `Z14 CSV: stabiele custom-type-id-kolom ontbreekt (${header})`);
   }

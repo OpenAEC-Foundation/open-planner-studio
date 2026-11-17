@@ -415,7 +415,7 @@
       "plannedReadOnly": "планирано, не мењати",
       "summaryRow": "— збирни задатак: не попуњавајте"
     },
-    "csvLabel": "CSV (раздвојено тачка-зарезом)",
+    "csvLabel": "CSV",
     "csvDesc": "Универзални извоз у табели. Сви задаци са датумима и трајањем.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Отвара се у програму Microsoft Project. Потпуна структура САП.",
@@ -427,7 +427,7 @@
     "profileHint": "Ваш пројекат тренутно користи профил {{name}}. Препоручујемо профил {{target}} за најбољу компатибилност са овим форматом датотеке.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART стандард, у IFC шеми пројекта (подразумевано IFC 4.3 ADD2). 4D повезивање са BIM моделима.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Проширења",

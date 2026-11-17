@@ -415,7 +415,7 @@
       "plannedReadOnly": "planirano, ne mijenjajte",
       "summaryRow": "— zadatak sažetka: ne unosite"
     },
-    "csvLabel": "CSV (odvojeno točka-zarezom)",
+    "csvLabel": "CSV",
     "csvDesc": "Univerzalni izvoz tablice. Svi zadaci s datumima i trajanjem.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Otvara se u programu Microsoft Project. Potpuna WBS-struktura.",
@@ -427,7 +427,7 @@
     "profileHint": "Vaš projekt trenutno koristi profil {{name}}. Preporučujemo profil {{target}} za najbolju kompatibilnost s ovim formatom datoteke.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, u IFC shemi projekta (zadano IFC 4.3 ADD2). 4D povezivanje s BIM modelima.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Proširenja",

@@ -413,7 +413,7 @@
       "plannedReadOnly": "suunniteltu, ei muuteta",
       "summaryRow": "— yhteenvetotehtävä: ei täytetä"
     },
-    "csvLabel": "CSV (puolipisteillä erotettu)",
+    "csvLabel": "CSV",
     "csvDesc": "Yleinen taulukkovienti. Kaikki tehtävät päivämäärineen ja kestoineen.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Avattavissa ohjelmassa Microsoft Project. Täysi WBS-rakenne.",
@@ -425,7 +425,7 @@
     "profileHint": "Projektissa käytetään tällä hetkellä profiilia {{name}}. Tämän tiedostomuodon kanssa parhaaseen yhteensopivuuteen suositellaan profiilia {{target}}.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standardi, projektin IFC-skeemassa (oletuksena IFC 4.3 ADD2). 4D-yhteys BIM-malleihin.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Laajennukset",

@@ -172,7 +172,8 @@ for (const [lang, u] of [['nl', 'u'], ['en', 'h'], ['ru', 'u']] as const) {
   await setLocale(lang);
   const csv = exportCsv();
   csvByLang[lang] = csv;
-  eq(`6a ${lang}: CSV-voorganger is ${wbsA}FS+2${u}`, csv.includes(`;${wbsA}FS+2${u};`), true);
+  const delimiter = csv.split('\r\n')[0].includes(';') ? ';' : ',';
+  eq(`6a ${lang}: CSV-voorganger is ${wbsA}FS+2${u}`, csv.includes(`${delimiter}${wbsA}FS+2${u}${delimiter}`), true);
   eq(`6b ${lang}: geen ander uurteken in de CSV`, csv.includes(`${wbsA}FS+2${u === 'u' ? 'h' : 'u'}`), false);
 }
 // 6d. Dezelfde keuze via de echte route: de store (`exportAs('csv')`, zoals de knop Exporteren), die
@@ -188,8 +189,9 @@ for (const [lang, u] of [['nl', 'u'], ['en', 'h'], ['ru', 'u']] as const) {
   const before = captured.length;
   const res = await S().exportAs('csv');
   const csv = captured.length > before ? captured[captured.length - 1] : '';
+  const delimiter = csv.split('\r\n')[0].includes(';') ? ';' : ',';
   eq(`6d ${lang}: exportAs('csv') slaagt`, res.ok, true);
-  eq(`6d ${lang}: exportAs('csv') schrijft ${wbsA}FS+2${u}`, csv.includes(`;${wbsA}FS+2${u};`), true);
+  eq(`6d ${lang}: exportAs('csv') schrijft ${wbsA}FS+2${u}`, csv.includes(`${delimiter}${wbsA}FS+2${u}${delimiter}`), true);
   eq(`6d ${lang}: die export leest terug als 120 minuten`, csvLag(csv), { lagDays: 0, lagMinutes: 120 });
 }
 g.Blob = saved.Blob; g.URL = saved.URL; g.document.createElement = saved.createElement;

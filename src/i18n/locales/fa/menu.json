@@ -413,7 +413,7 @@
       "plannedReadOnly": "برنامه‌ریزی‌شده، تغییر ندهید",
       "summaryRow": "— وظیفه خلاصه: پر نکنید"
     },
-    "csvLabel": "CSV (نقطه‌ویرگول‌جدا)",
+    "csvLabel": "CSV",
     "csvDesc": "خروجی جدول همه‌منظوره. تمام وظایف با تاریخ و مدت.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "در Microsoft Project باز می‌شود. ساختار کامل WBS.",
@@ -425,7 +425,7 @@
     "profileHint": "پروژه شما اکنون با نمایه {{name}} محاسبه می‌شود. برای بهترین سازگاری با این قالب فایل، نمایه {{target}} را استفاده کنید.",
     "ifcLabel": "IFC",
     "ifcDesc": "استاندارد BuildingSMART، در شِمای IFC پروژه (پیش‌فرض IFC 4.3 ADD2). پیوند چهاربُعدی با مدل‌های BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "افزونه‌ها",

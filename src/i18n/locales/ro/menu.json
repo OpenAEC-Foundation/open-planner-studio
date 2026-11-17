@@ -415,7 +415,7 @@
       "plannedReadOnly": "planificat, nu modificați",
       "summaryRow": "— activitate rezumat: nu completați"
     },
-    "csvLabel": "CSV (separat prin punct și virgulă)",
+    "csvLabel": "CSV",
     "csvDesc": "Export universal de tabel. Toate activitățile cu date și durate.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Se deschide în Microsoft Project. Structură WBS completă.",
@@ -427,7 +427,7 @@
     "profileHint": "Proiectul dumneavoastră utilizează în prezent profilul {{name}}. Vă recomandăm profilul {{target}} pentru cea mai bună compatibilitate cu acest format de fișier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, în schema IFC a proiectului (implicit IFC 4.3 ADD2). Legătură 4D cu modele BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Extensii",

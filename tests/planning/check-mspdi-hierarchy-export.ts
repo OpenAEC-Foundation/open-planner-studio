@@ -203,9 +203,10 @@ function taskBlocks(xml: string): { name: string; outlineLevel: number; summary:
   const tasks = treeTasks();
   const csv = writeCSV(project, H8, tasks, treeSequences(), [], []);
   const lines = csv.replace(/^﻿/, '').split('\r\n').filter(Boolean);
-  const header = lines[0].split(';');
+  const delimiter = lines[0].includes(';') ? ';' : ',';
+  const header = lines[0].split(delimiter);
   eq('4a kolom "Outline Level" direct na WBS', header.slice(1, 4), ['WBS', 'Outline Level', 'Name']);
-  const rows = lines.slice(1).map(l => l.split(';'));
+  const rows = lines.slice(1).map(l => l.split(delimiter));
   eq('4b rijen diepte-eerst', rows.map(r => r[0]), WANT_ORDER);
   eq('4c niveau per rij uit de ouderketen', rows.map(r => Number(r[2])), WANT_ORDER.map(id => WANT_DEPTH[id]));
   const back = readCSV(csv);
@@ -217,7 +218,7 @@ function taskBlocks(xml: string): { name: string; outlineLevel: number; summary:
   // Zonder de kolom (CSV van een andere tool / oudere export): gepunte WBS blijft de terugval.
   const dotted = treeTasks().map(t => ({ ...t, wbsCode: { R: '1', S1: '1.1', a: '1.1.1', b: '1.1.2', S2: '1.2', c: '1.2.1', d: '1.2.2', S3: '1.3', e: '1.3.1', S4: '1.4', f: '1.4.1', M: '1.4.2' }[t.id]! }));
   const legacy = writeCSV(project, H8, dotted, [], [], []).replace(/^﻿/, '').split('\r\n').filter(Boolean)
-    .map(l => { const c = l.split(';'); c.splice(2, 1); return c.join(';'); }).join('\r\n') + '\r\n';
+    .map(l => { const c = l.split(delimiter); c.splice(2, 1); return c.join(delimiter); }).join('\r\n') + '\r\n';
   assert(!legacy.split('\r\n')[0].includes('Outline Level'), '4e opzet: legacy-CSV zonder niveau-kolom');
   eq('4f readCSV zonder niveau-kolom: boom uit gepunte WBS', shape(readCSV(legacy).tasks), shape(dotted));
 }

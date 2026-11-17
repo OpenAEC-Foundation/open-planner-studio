@@ -413,7 +413,7 @@
       "plannedReadOnly": "planlagt, ændr ikke",
       "summaryRow": "— hovedopgave: udfyld ikke"
     },
-    "csvLabel": "CSV (semikolonsepareret)",
+    "csvLabel": "CSV",
     "csvDesc": "Universel tabeleksport. Alle opgaver med datoer og varighed.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Kan åbnes i Microsoft Project. Fuld WBS-struktur.",
@@ -425,7 +425,7 @@
     "profileHint": "Dit projekt bruger lige nu profilen {{name}}. Vi anbefaler profilen {{target}} for bedst mulig kompatibilitet med dette filformat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standard, i projektets IFC-skema (standard IFC 4.3 ADD2). 4D-kobling med BIM-modeller.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Udvidelser",

@@ -1437,13 +1437,14 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   // andere kolom.
   const kolommen = (csv: string) => {
     const [kop, ...regels] = csv.trim().replace(/^﻿/, '').split('\r\n');
-    const index = new Map(kop.split(';').map((h, i) => [h, i] as const));
+    const delimiter = kop.includes(';') ? ';' : ',';
+    const index = new Map(kop.split(delimiter).map((h, i) => [h, i] as const));
     const kol = (naam: string): number => {
       const i = index.get(naam);
       if (i === undefined) throw new Error(`13B: CSV-kolom '${naam}' ontbreekt in de kopregel`);
       return i;
     };
-    return regels.map(regel => regel.split(';')).map(rij => ({
+    return regels.map(regel => regel.split(delimiter)).map(rij => ({
       start: rij[kol('Start')], critical: rij[kol('Critical')], totalFloat: rij[kol('Total Float')],
     }));
   };

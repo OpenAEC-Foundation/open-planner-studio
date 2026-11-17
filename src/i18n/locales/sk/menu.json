@@ -417,7 +417,7 @@
       "plannedReadOnly": "plánované, nemeňte",
       "summaryRow": "— súhrnná úloha: nevypĺňajte"
     },
-    "csvLabel": "CSV (oddelené bodkočiarkou)",
+    "csvLabel": "CSV",
     "csvDesc": "Univerzálny export tabuľky. Všetky úlohy s dátumami a trvaním.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Otvára sa v Microsoft Project. Úplná WBS.",
@@ -429,7 +429,7 @@
     "profileHint": "Váš projekt momentálne počíta podľa profilu „{{name}}“. Odporúčame použiť profil „{{target}}“ pre najlepšiu kompatibilitu s týmto formátom súboru.",
     "ifcLabel": "IFC",
     "ifcDesc": "Štandard BuildingSMART v schéme IFC projektu (predvolená verzia IFC 4.3 ADD2). 4D prepojenie s modelmi BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Rozšírenia",
