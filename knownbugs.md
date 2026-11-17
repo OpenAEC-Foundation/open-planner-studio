@@ -2555,6 +2555,21 @@ en noem het in je rapport of PR-tekst.
      schrijft `, ` en houdt zijn betekenis. Richting: een melding als beide lezingen naar bestaande WBS-codes wijzen, of
      de normalisatie laten vallen samen met 1250. Uit de review van #876 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
+
+1257. **VERVOLG: uitleg verwijst nog naar de oude CSV-exportnaam.** `public/docs/nl/howto-exporteren.md:22`
+     en de Engelse gids noemen nog CSV (;) en CSV (puntkomma-gescheiden), terwijl het menu sinds de systeemnotatie-fix
+     kortweg CSV toont. Ook `src/i18n/locales/nl/common.json` (`formatNotice.formats.csv.save`, getoond in
+     `FormatNoticeDialog.tsx`) en de uitleg over rekenprofielen gebruiken de oude naam. Bij en-US belooft die bovendien
+     het verkeerde scheidingsteken. Richting: deze verwijzingen consequent CSV noemen, nl/en samen aanpassen en de
+     bronstempels voor gewijzigde UI-tekst bijwerken. Uit de review van de CSV-systeemnotatie (GPT-6.1-Sol, xhigh,
+     BEVESTIGD, VERVOLG). — B
+
+1258. **VERVOLG: het commentaar bij de CSV-lagparser beschrijft de oude schrijver.** `src/services/csv/csvReader.ts:166`
+     zegt dat nieuwe exports komma-lags schrijven en oude exports een punt. Sinds de systeemnotatie-fix schrijft de
+     export juist weer een punt, voor oudere lezers. De parser werkt; alleen het commentaar klopt niet. Richting:
+     benoem dat de komma-normalisatie de exports uit v2026.47.0 en handinvoer ondersteunt, terwijl nieuwe exports een
+     punt schrijven. Uit de review van de CSV-systeemnotatie (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
 1130. **VERVOLG (#804, T1): browserhandles kunnen een nieuwe IFC-naam niet exclusief plaatsen.**
      `FileSystemFileHandle.createWritable()` heeft geen `createNew` bij de uiteindelijke plaatsing;
      een leeg bestand of een voorafgaande controle sluit een intussen verschenen bestand niet uit.
