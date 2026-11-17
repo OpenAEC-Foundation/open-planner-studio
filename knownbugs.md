@@ -1953,16 +1953,6 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
-     writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
-     (`writeTaskTypeMeta` in `src/services/ifc/ifcWriter.ts`). Wist de planner de enige taak met zo'n type, dan staat de
-     pset niet meer in de uitvoer, en de merge weigert (`niet-gedragen`: "IFCPROPERTYSET (OPS_TaskTypes): ontbreekt in de
-     uitvoer na de bewerking"). Geen verlies: een gewone opslag laat de pset dan ook weg, en de weigering gaat over de taak
-     die de planner wiste. Gezien in de telling op `fixtures/ifc-arity-oude-writer.ifc + wand` (`taak-wissen`: 2 van de 5
-     geweigerd; bij één nagegaan dat dit de oorzaak is), nadat de lijst ids in `WorkingExceptionIds` niet meer weigerde.
-     Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
-     van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
-
 1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
      PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
      toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
@@ -2172,8 +2162,10 @@ en noem het in je rapport of PR-tekst.
      beide. De canon ziet het bewust niet (`orphanRowsWithoutId`), en controle (c) volgt die regel (PR 12a; zonder die
      regel weigert de keten op het oude bestand een goede uitvoer, gemeten met een mutatie). Gevolg: in de opslag daarna is
      `OPS_Baselines` niet gedragen, en dan weigert bijvoorbeeld "B1 wissen, B2 actief, type aan nieuwe taak". Gemeten in
-     het onderzoek van 14 november (`logs/wees.jsonl`, `logs/v1/taskguids-oud.jsonl`). Richting: vóór stap 5 van de
-     overstap de GlobalId en taak-id van zo'n rij stabiel maken. — B
+     het onderzoek van 14 november (`logs/wees.jsonl`, `logs/v1/taskguids-oud.jsonl`). Sinds PR 12b ook gezien in
+     `check-ifc-foreign-eigen-toets.ts`: in de keten op het oude bestand schrijft stap 2 (code hernoemen, getypeerde taak
+     wissen, baseline B2), en weigert daarna "taak en baseline erbij" op `TaskGuids` (de groep is dan niet gedragen).
+     Richting: vóór stap 5 van de overstap de GlobalId en taak-id van zo'n rij stabiel maken. — B
 
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
@@ -2195,6 +2187,45 @@ en noem het in je rapport of PR-tekst.
      verschil. De volledige uitvoercontrole weigert die proef nu wel (`uitvoer-controle`, extra niet-P-stuk), dus de
      opslag van nu heeft geen gat. Gevonden door de review van #953 (Sol, ronde 1). Richting: aanscherpen in stap 3, vóór
      de baselinekop een verschil mag dragen: de koppeling naar het eigen werkplan vastleggen. — B
+
+1706. **VERVOLG (#804, controle (c)): een extra sleutel zonder taak in `TaskGuids` ziet geen enkele controle meer.**
+     Tegenproef in `check-ifc-foreign-eigen-uitvoer.ts`: zet in de uitvoer van "taak + baseline" (7c) een extra sleutel
+     `onverwacht` in `TaskGuids`. Controle (c) laat hem door, omdat de weesregel van de canon (`orphanRowsWithoutId`)
+     sleutels zonder taak niet meetelt, en de controle na openen ook. Op de basis ving de verliescontrole dit in O1; sinds
+     PR 12b niet meer in een gedragen `OPS_Baselines`. Alleen een fout van de writer kan dit geven, en er gaat niets
+     verloren (een overbodige regel). Gemeten door de review van #960 (Sol): een verkeerde GlobalId bij de rij van een
+     gewiste taak gaat om dezelfde reden door (met een nagebootste writerfout weigert de basis op `TaskGuids`, PR 12b
+     schrijft); de weesrijen zelf, het vreemde deel en de getoonde planning blijven daarbij gelijk, en wijst de GlobalId
+     naar een taak die nog bestaat, dan weigert de merge met `bronvorm-leest-anders`. Geen verlies door een gewone
+     bewerking aangetoond. Richting: in (c) ook het verband tussen de sleutels van `TaskGuids` en de baselinerijen toetsen
+     in plaats van elke sleutel zonder levende taak weg te laten, na meten dat dat op een oud bestand geen goede uitvoer
+     weigert (1702). — B
+
+1707. **VERVOLG (#804, de andere toets): een eigen groep met een vreemd lid valt terug op de controle van main.**
+     Een property van een ander programma in `OPS_Baselines`, `OPS_TaskTypes` of `OPS_StructureMeta` maakt de groep in
+     PR 12b niet gedragen (`groupsWithForeignMembers` in `ownGroups.ts`): dat lid schrijft de writer niet. Daar weigert de
+     merge dus wat main weigert, ook als alleen het laatste eigen lid wegvalt (type weghalen bij de laatste taak, de
+     laatste code wissen). Zonder die regel schreven die twee, heel (vreemd deel bytegelijk, heropend zoals getoond), met
+     een pset die alleen het vreemde lid houdt; (c) ziet zo'n pset sinds de review van #953 niet als groep. Gemaakt geval:
+     een eigen pset met een vreemd lid ontstaat alleen met de hand. Richting: laten zoals het is, tenzij een ander
+     programma echt in OPS-psets schrijft; dan eerst bepalen wat een pset met alleen vreemde leden is. — B
+
+1708. **VERVOLG (#804, test): geen proef laat zien dat (a′) op de bronvorm moet toetsen in plaats van de ruwe vorm.**
+     Met (a′) op de ruwe vorm (`trees(opened)` in `openedOwnGroups`) blijft `check-ifc-foreign-eigen-toets.ts` groen.
+     Gemeten: de ruwe vorm ziet `OPS_Baselines` als "door openen veranderd" in 18 van de 227 opslagen (op
+     `ifc-arity-oude-writer.ifc` en op de door de nieuwe toets geschreven uitvoer van de keten), de bronvorm nergens; maar in
+     al die gevallen verklaart de controle van main de baselineverschillen zelf, of weigert om de baselinekop (stap 3). De
+     keuze volgt uit het onderzoek (vraag 2, tegenvoorbeeld 1). De review van #960 (Sol) mat dat de bronvorm een
+     inhoudelijke wijziging door het openen niet wegpoetst (`projectDuration` van een baseline +2 blijft zichtbaar en de
+     opslag weigert); wat ontbreekt is alleen een opslag die met de bronvorm schrijft en met de ruwe vorm zou weigeren.
+     Richting: een geval met een baselinewijziging die alleen de nieuwe toets laat schrijven (komt met stap 3), en dan
+     deze mutatie opnieuw. — B
+
+1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
+     In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
+     of weg) of in de baselines terecht met `planning-na-openen`, maar de melding noemt als eerste verschil
+     `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
+     `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
 
 1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
      Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
@@ -4145,42 +4176,16 @@ en noem het in je rapport of PR-tekst.
 1581. **VERVOLG, vóór de flag standaard aan gaat: alle baselines wissen bij een gebouwmodel weigert.** Open
      `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met de flag en wis de bestaande baseline via `deleteBaseline`.
      De merge weigert op `IFCRELAGGREGATES #45` slot 5 en de verdwenen `Baselines #319`, `TaskGuids #320`,
-     `ActiveBaselineId #321`, `OPS_Baselines #322` en relatie `#323`. Het verdwijnen van de complete pset vraagt
-     een afzonderlijke verklaring, zoals de taaktype-pset van 1110. Wissen → taak → nieuwe baseline schrijft wel
-     na 7c. Reproductie in `check-ifc-foreign-preserve.ts` (1581); eindlijst, verplicht vóór standaard aan. — B
+     `ActiveBaselineId #321`, `OPS_Baselines #322` en relatie `#323`. Sinds PR 12b (de andere toets voor de eigen
+     projectgroepen) hoeft het verdwijnen van de pset geen verklaring meer; open blijft de kop in de aggregatie van het
+     werkplan (stap 3, samen met 1700). Wissen → taak → nieuwe baseline schrijft wel na 7c. Reproductie in `check-ifc-foreign-preserve.ts` (1581); eindlijst, verplicht vóór standaard aan. — B
 
-1582. **VERVOLG, vóór de flag standaard aan gaat: het type weghalen bij de laatste getypeerde taak weigert.**
-     Maak in `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` een eigen taaktype, geef het aan één taak, sla via
-     de merge op en heropen. Zet die taak terug naar een standaardtype: de writer laat de volledige project-pset
-     `OPS_TaskTypes` weg en de merge weigert. Dezelfde levenscyclus als 1110 (laatste getypeerde taak wissen).
-     PR 7d verklaart nieuwe definities en gewijzigde/verwijderde koppelingen zolang alle oude definities behouden
-     blijven; het verdwijnen van de hele pset blijft afzonderlijk. Reproductie `1582 taaktype type-verliezen`
-     in `check-ifc-foreign-preserve.ts`. Eindlijst, verplicht vóór de flag standaard aan gaat. — B
-
-1585. **VERVOLG: een bestaande activiteitscodedefinitie hernoemen of wissen bij een gebouwmodel weigert.**
-     Begin met twee opgeslagen codedefinities met waarden en taaktoewijzingen (de drie bronnen van PR 7d).
-     `renameActivityCodeType` op de eerste of `removeActivityCodeType` op de eerste laat de bestaande
-     `OPS_ActivityCodes`-templatelijst veranderen en de oude template/enumeratie verdwijnen: `niet-gedragen`.
-     Gemeten op `eigen-plus-model.ifc` via echte acties, voorbereiding en volledige bytes-opening; proeven
-     `1585 code hernoemen met andere definitie over` en `1585 code wissen met andere definitie over` in
-     `check-ifc-foreign-preserve.ts`. Een waarde toevoegen aan een bestaande code schrijft en heropent al.
-     PR 7d verklaart uitsluitend toegevoegde definities met alle bestaande exact behouden. — B
-
-1586. **VERVOLG: het laatste gebruik van één eigen taaktype weghalen terwijl een ander gebruikt blijft weigert.**
-     Begin met twee opgeslagen gebruikte typen A en B, geef alle taken van A via `updateTask` het type B.
-     De gewone writer neemt alleen gebruikte definities op, dus `TaskTypes.definitions` verliest A; de merge
-     weigert `niet-gedragen` op waardeslot 2. Dit is definitieverwijdering, buiten de groei-/koppelingsregel van
-     PR 7d. Reproductie `1586 laatste gebruik van een definitie weg terwijl ander type blijft` op de opgeslagen
-     beginstand van `eigen-plus-model.ifc` in `check-ifc-foreign-preserve.ts`. Een projectdefinitie hernoemen
-     weigert eveneens, gemeten alleen op domeininvoer: er is geen store-actie voor die projectkopie, de beheer-UI
-     hernoemt persoonlijke typen. Die aparte grensproef claimt dus geen UI-route. — B
-
-1587. **VERVOLG, vóór de flag standaard aan gaat: de laatste activiteitscodedefinitie wissen weigert.**
-     Open de opgeslagen beginstand met één code uit PR 7d en wis die met `removeActivityCodeType`.
-     `OPS_StructureMeta`, de template/enumeratie en `OPS_ActivityCodes` verdwijnen geheel; de merge weigert
-     `niet-gedragen`. Reproductie `7d grens laatste codedefinitie wissen` in `check-ifc-foreign-preserve.ts`,
-     gemeten op `eigen-plus-model.ifc`. Het verdwijnen van een hele pset blijft naast 1110 en 1581 op de
-     eindlijst, verplicht vóór de flag standaard aan gaat. — B
+1586. **VERVOLG: een eigen taaktypedefinitie hernoemen bij een gebouwmodel weigert.** Sinds PR 12b schrijft het
+     laatste gebruik van één type weghalen terwijl een ander gebruikt blijft (de andere toets voor de eigen projectgroepen,
+     `check-ifc-foreign-eigen-toets.ts`). Open blijft het hernoemen van een projectdefinitie: de typenaam staat ook in
+     `ObjectType` (slot 4) van elke taak met dat type, en dat slot is een tweede vorm buiten de pset. Gemeten alleen op
+     domeininvoer: er is geen store-actie voor die projectkopie, de beheer-UI hernoemt persoonlijke typen. Richting: stap 4
+     van de overstap (de typenaam op de taak, samen met 1701). — B
 
 1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
      Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra
@@ -4189,18 +4194,10 @@ en noem het in je rapport of PR-tekst.
      een andere planning geeft bij de onafhankelijke heropening (`customTaskTypes`). Geen nieuw verlies en geen
      regressie van 7d; gemeten met de verliescontrole van main 648a75c0d en de nieuwe controle. Een onbekend veld
      binnen een gebruikte definitie blijft bij ander werk wel letterlijk behouden; bij typegroei blijft het geweigerd.
+     Ook met de andere toets van PR 12b weigert dit: `OPS_TaskTypes` is in de bron niet gedragen (de herleestoets (b)
+     zet de bronwaarde terug), dus geldt de controle van main (`check-ifc-foreign-eigen-toets.ts`).
      Reproductie `1588 ongebruikte brondefinitie bij alleen projectbeschrijving` in
      `check-ifc-foreign-preserve.ts`; basisbewijs in `/tmp/fase1c-pr7d-bewijs/ongebruikt-main.log`. — B
-
-1589. **VERVOLG (#804, gewone handeling): een taak met een eigen taaktype wissen bij een gebouwmodel weigert.** In een
-     opgeslagen beginstand met twee taken van type A en twee van type B: alleen de tweede A-taak wissen → de merge
-     weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (TaskTypes)`, waardeslot 2, terwijl beide definities en de
-     pset blijven bestaan. `explainOwnMapGrowth` in `src/services/ifc/foreign/lossCheck.ts` bekijkt alleen de taken
-     die overblijven; een koppeling die verdwijnt omdat haar taak is gewist, verklaart zij niet. Bestaat ook op main
-     `648a75c0d`. Dit is niet 1110 (de laatste getypeerde taak) en niet 1586 (een definitie verdwijnt). Besluit Trias
-     14 november 2026: geen nieuwe losse verklaringen meer; dit geval, 1585 en 1586 gaan mee in het onderzoek naar een
-     andere toets voor gegevens die volledig van de app zelf zijn. Gevonden door de review van #932 (eigen proef op
-     `council/r4-k1-na-opslaan.ifc`). — B
 
 1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle, en twee restjes uit PR 7d.**
      Regel A (`ownDefinitionsGrow`) is gedeeld door codes en taaktypes. Regel B (een bestaande waarde volgt een
@@ -4210,13 +4207,14 @@ en noem het in je rapport of PR-tekst.
      de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
      #932. — B
 
-1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft nodig tot de andere toets er is.**
+1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft tot stap 5.**
      De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates (`IFCSIMPLEPROPERTYTEMPLATE`,
      `IFCPROPERTYENUMERATION`) alleen als terugval, dus volledig heropenen ziet een fout in die tweede vorm niet. Sinds
-     PR 12a vangt controle (c) zo'n fout in de echte uitvoer wel: het enumeratielabel `WAND` → `DAK` bij een oude en bij
-     een nieuwe code weigert met `eigen-uitvoer` (`check-ifc-foreign-eigen-uitvoer.ts`). Open blijft alleen dat
-     `explainCodeDefinitions` in `lossCheck.ts` de vorm van de bron blijft bewaken tot stap 2 en 5 van de overstap
-     (onderzoek van 14 november, vraag 7); daar pas mag hij weg. — B
+     PR 12a vangt controle (c) zo'n fout in de echte uitvoer (`eigen-uitvoer`, `check-ifc-foreign-eigen-uitvoer.ts`), en
+     sinds PR 12b bereikt de verliescontrole `explainCodeDefinitions` in een gedragen `OPS_StructureMeta` niet meer. In een
+     niet-gedragen `OPS_StructureMeta` (een bronwaarde van (b), of een vreemd lid) bewaakt hij de vorm nog. Open: hem
+     weghalen in stap 5 van de overstap, als een meting laat zien dat main hem in een niet-gedragen groep niet meer nodig
+     heeft. — B
 
 1640. **VERVOLG (#770, eigen rapportlettertype): de terugval op Inter bij een verdwenen kopie werkt alleen als de
      keuzelijst Lettertype zichtbaar is.** De controle (`useCustomReportFontGuard` in

@@ -63,7 +63,7 @@ import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
-import { editedOwnGroup, linesView, ownGroupDifference, ownGroupMembers, ownGroupTrees, type OwnLinesView } from './ownGroups';
+import { BASELINE_HEADS, editedOwnGroup, groupsWithForeignMembers, indexView, linesView, ownGroupDifference, ownGroupMembers, ownGroupTrees } from './ownGroups';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -779,6 +779,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
+    // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
+    ...(source.opened ? { ownGroups: openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) } : {}),
   };
   const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
   // De eigen groepen waar (b) bronwaarden terugzette: daar toetst (c) niet, want de writer schrijft ze niet uit het domein.
@@ -981,24 +983,49 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
  */
 function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
   parsed: WriteIFCInput, own: OwnOutputCheck): string | undefined {
-  const typeOf = (id: number) => { const c = out.chunkOf(String(id)); return c >= 0 ? out.type(c) : undefined; };
-  const lines: OutLine[] = [];
-  const aggregated = new Set<number>();
-  for (let i = 0; i < out.count; i++) {
-    if (!out.isEntity(i)) continue;
-    if (out.type(i) === 'IFCRELAGGREGATES') for (const id of out.refsAt(i, 5)) aggregated.add(Number(out.id(id)));
-    const original = sourceIndex.chunkOf(out.id(i));
-    if (original >= 0 && sourceCls.classes[original] !== 1) continue;
-    const args = out.argTokens(i);
-    if (args) lines.push({ id: Number(out.id(i)), type: out.type(i), args });
-  }
-  const byId = new Map(lines.map(l => [l.id, l]));
-  const output: OwnLinesView = { lines, line: id => byId.get(id), typeOf, aggregated };
+  const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
   const rewritten = writeIfcMergeLines(parsed, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
     .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
   const taskIds = new Set(parsed.tasks.map(t => t.id));
-  return ownGroupDifference(ownGroupTrees(output, taskIds), ownGroupTrees(linesView(rewritten, typeOf), taskIds), own.skip)?.detail;
+  return ownGroupDifference(ownGroupTrees(output, taskIds), ownGroupTrees(linesView(rewritten, output.typeOf), taskIds), own.skip)?.detail;
+}
+
+/**
+ * De andere toets, PR 12b (onderzoek van 14 november 2026, vraag 2, voorwaarde a′): per bronstuk de eigen groep op
+ * projectniveau (`ownGroups.ts`, dezelfde indeling als (c), op de bronregels) waarvan het openen in de app niets veranderde.
+ * Het openen veranderde een groep niet als de writer in die groep op de lezing van de bron (`pristine`) hetzelfde schrijft
+ * als op wat de app na het openen liet zien (`opened`), in de bronvorm (`sourceFormWhereUnchanged`, zoals bij het
+ * schrijven: op de ruwe vorm verschilt een oud bestand al door de omzetting, en weigert de toets te veel). Zo valt een
+ * groep die het openen zelf veranderde (een herstelkenmerk dat bij openen verdwijnt, knownbug 1703) terug op de
+ * verliescontrole van main. Een groep die het openen nieuw maakt, staat niet in de bron en telt dus niet. De baselinekoppen
+ * horen er niet bij: hun toets komt in stap 3 (knownbug 1700).
+ *
+ * Voorwaarde (a), "de groep is in de bron gedragen": een groep met een vreemd lid is het niet (`groupsWithForeignMembers`:
+ * dat lid schrijft de writer niet), en verder toetst de verliescontrole dat geen stuk van de groep de herleestoets (b) nodig
+ * had (`lossCheck`, `ownGroups`).
+ */
+function openedOwnGroups(index: StepIndex, cls: Classification, plan: WriterMergeIds, pristine: ImportResult, opened: WriteIFCInput,
+  stepIds: Readonly<Record<string, number>>, writtenAt: Date): Map<number, string> {
+  const source = indexView(index, i => cls.classes[i] === 1);
+  const members = ownGroupMembers(source);
+  const out = new Map<number, string>();
+  if (members.size === 0) return out;
+  const withForeign = groupsWithForeignMembers(source, members);
+  const taskIds = new Set([...pristine.tasks, ...opened.tasks].map(t => t.id));
+  const trees = (d: WriteIFCInput) => {
+    const lines = writeIfcMergeLines(d, sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
+      .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
+    return ownGroupTrees(linesView(lines, source.typeOf), taskIds);
+  };
+  const read = trees(pristine), shown = trees(sourceFormWhereUnchanged(opened, opened, pristine).input);
+  const unchanged = (g: string) => (read.get(g) ?? []).join('\n') === (shown.get(g) ?? []).join('\n');
+  for (const [id, group] of members) {
+    if (group === BASELINE_HEADS || withForeign.has(group) || !unchanged(group)) continue;
+    const chunk = index.chunkOf(String(id));
+    if (chunk >= 0) out.set(chunk, group);
+  }
+  return out;
 }
 
 /** Het merge-plan met de keuzes voor de bronvorm (fixronde 7 van #867): wat de planner niet wijzigde, in de vorm van de bron. */
