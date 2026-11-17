@@ -29,7 +29,7 @@ async function classifyTarget(bytes: Uint8Array, opts: ForeignScanRunOptions): P
     return targetOf(await runForeignScan(bytes, opts));
   } catch (error) {
     if (!(error instanceof ForeignScanFailure)) throw error;
-    return 'no-model'; // MUTATIE: een fout uit de Worker geeft 'no-model'.
+    return targetOf(scanForeign(bytes));
   }
 }
 
