@@ -1104,7 +1104,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     prepared?: PreparedIfcWrite,
     missingSourceSaveAs = false,
   ): boolean => {
-    documentId = get().activeDocumentId; // MUTATIE (c): vastleggen in het actieve document
     const currentSource = saveSourceForDocument(get(), documentId);
     if (!currentSource) return false;
     const unchanged = sameIFCSource(savedSource, currentSource);
