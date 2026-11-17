@@ -4,8 +4,25 @@
 // (tests/planning/check-reports.ts); hier alleen de echte gebruikersflow door de DOM.
 import { readFile } from 'node:fs/promises';
 import { PDFDocument } from 'pdf-lib';
+import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
+
+/** Typ een datum (ISO, of `''` voor leeg) in het gedeelde datumveld (dd-mm-jjjj) en rond af met Tab. */
+async function typeDate(page: Page, field: Locator, iso: string): Promise<void> {
+  const [y, m, d] = iso ? iso.split('-') : ['', '', ''];
+  const segments = field.getByRole('textbox');
+  await segments.nth(0).fill(d);
+  await segments.nth(1).fill(m);
+  await segments.nth(2).fill(y);
+  await page.keyboard.press('Tab');
+}
+
+/** De datum die het gedeelde datumveld toont, als ISO. */
+async function shownDate(field: Locator): Promise<string> {
+  const [d, m, y] = await field.getByRole('textbox').evaluateAll(els => els.map(el => (el as HTMLInputElement).value));
+  return `${y}-${m}-${d}`;
+}
 
 test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-export gebruikt eigen suffix', async ({ page, ops: _ops }) => {
   await seedProject(page, [
@@ -102,8 +119,8 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   // rapport blijft op het laatste geldige venster staan.
   await periodField.getByLabel(/^(Reporting period:|Rapportageperiode:)$/).click();
   await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
-  await expect(fromInput).toBeEnabled();
-  await expect(fromInput).toHaveValue('2026-09-14');
+  await expect(fromInput.getByRole('textbox').first()).toBeEnabled();
+  await expect.poll(() => shownDate(fromInput)).toBe('2026-09-14');
   // De invoervelden moeten een volledige datum plus kalenderknop kunnen tonen (eerste review: 18 px),
   // en het label ervoor mag niet afkappen (tweede review: "Başlang" in het Turks).
   for (const input of [fromInput, toInput]) {
@@ -112,20 +129,20 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   for (const el of await periodField.locator('[data-ops-report-period-label]').all()) {
     expect(await el.evaluate(fitsOwnBox)).toBe(true);
   }
-  await toInput.fill('2026-10-16');
-  await fromInput.fill('2026-10-05');
+  await typeDate(page, toInput, '2026-10-16');
+  await typeDate(page, fromInput, '2026-10-05');
   await expect(rows).toHaveCount(2);
   await expect(report).toContainText('Casco');
-  await toInput.fill('2026-10-01');
+  await typeDate(page, toInput, '2026-10-01');
   await expect(periodField.getByRole('alert')).toBeVisible();
   await expect(rows).toHaveCount(2);
-  await toInput.fill('2026-10-16');
+  await typeDate(page, toInput, '2026-10-16');
   await expect(periodField.getByRole('alert')).toHaveCount(0);
   // Een leeggemaakt veld is óók ongeldig: gemeld, niet toegepast (het rapport houdt 5–16 okt).
-  await fromInput.fill('');
+  await typeDate(page, fromInput, '');
   await expect(periodField.getByRole('alert')).toBeVisible();
   await expect(report).toContainText('Casco');
-  await fromInput.fill('2026-10-05');
+  await typeDate(page, fromInput, '2026-10-05');
   await expect(periodField.getByRole('alert')).toHaveCount(0);
 
   // De lintknop moet het gekozen tabelrapport met diens periode en papier exporteren.
@@ -154,8 +171,8 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   await expect(report.locator('[role=note]')).toHaveCount(0);
   await expect(print).toBeFocused();
   await expect(typePicker).toContainText('Look-ahead');
-  await expect(fromInput).toHaveValue('2026-10-05');
-  await expect(toInput).toHaveValue('2026-10-16');
+  await expect.poll(() => shownDate(fromInput)).toBe('2026-10-05');
+  await expect.poll(() => shownDate(toInput)).toBe('2026-10-16');
   await expect(paper).toContainText('A2');
   await expect(orientation).toContainText(/^(Portrait|Staand)$/);
   const pdfPath = await download.path();

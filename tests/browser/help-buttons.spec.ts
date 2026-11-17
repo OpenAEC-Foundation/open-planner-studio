@@ -147,7 +147,12 @@ test('project verplaatsen: Opslaan zonder voorbeeld laat het venster staan, met 
 
   // Nieuwe startdatum zonder voorbeeld: de vraag komt; Opslaan kan nog niets toepassen.
   await open();
-  await dialog.locator('input[type="date"]').fill('2026-10-05');
+  // Het gedeelde datumveld (dd-mm-jjjj); Tab rondt het af.
+  const newStart = dialog.getByRole('group', { name: /^(New project start|Nieuwe projectstart)$/ }).getByRole('textbox');
+  await newStart.nth(0).fill('05');
+  await newStart.nth(1).fill('10');
+  await newStart.nth(2).fill('2026');
+  await page.keyboard.press('Tab');
   await help.click();
   await expect(leaveDialog(page)).toBeVisible();
   await choose(page, 'save');
