@@ -2818,6 +2818,30 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1800. **Twee gidsen zeggen dat dubbelklik een tabelcel bewerkt; dubbelklik opent het eigenschappenpaneel.**
+      `public/docs/{nl,en}/howto-constraint-deadline-zetten.md:23` en `howto-voortgang-bijwerken.md:44-45`.
+      In de taakgrid selecteert dubbelklik de cel en opent het eigenschappenpaneel
+      (`src/components/task-grid/FullTaskGrid.tsx`, `onCellDoubleClick`); bewerken start met Enter, F2 of typen.
+      Gezien in een browserrun voor #970: na `dblclick` op een keuzelijstcel verscheen geen editor, wel het paneel.
+      Voorstel: "Klik op een cel en druk op Enter (of begin te typen)". Wacht op de productvraag over dubbelklik
+      bij #970: verandert dubbelklik, dan vervalt dit punt. — B
+
+1801. **VERVOLG (#970): Alt+↓ opent een keuzelijstcel niet, zoals het issue vraagt.** Alt+↓ is in de hele app al
+      *Taak omlaag verplaatsen* (`src/hooks/keyboard/shortcutRegistry.ts`, `structure.moveDown`); de grid laat de
+      combinatie daarom door (`src/engine/taskGrid/navigation.ts`, `event.altKey`). Een keuzelijstcel (ja/nee,
+      keuze, code) opent met Enter, F2 of typen. Productkeuze voor de eigenaar: Alt+↓ op een keuzelijstcel de
+      lijst laten openen (dan verplaatst Alt+↓ daar geen taak meer), of zo laten. Uit de review van #974
+      (GPT-6.1-Sol, xhigh, op `badd1cfe9`, VERVOLG). — B
+
+1802. **VERVOLG (#974): na een geweigerde Shift+Enter in een keuzelijstcel gaat een latere muiskeuze een rij omhoog.**
+      `src/components/task-grid/TaskCellEditor.tsx` (`pickedWithShiftEnterRef`, gezet in `onListKeyDownCapture`)
+      onthoudt Shift+Enter tot de volgende toets. Weigert de cel de keuze (bijv. *Mijlpaal* op `—`: *Gebruik ja of
+      nee.*), dan blijft de editor open en de vlag staan; klik je daarna met de muis een geldige optie, dan wordt die
+      goed opgeslagen, maar gaat de focus naar de rij erboven in plaats van eronder. Nagespeeld in Tabel en Gantt.
+      Voorstel: de vlag wissen bij een pointeractie op trigger of menu, en het scenario in
+      `tests/browser/select-keys.spec.ts` uitbreiden met deze herstelroute. Uit de review van #974 (GPT-6.1-Sol,
+      xhigh, op `dbf5ed227`, VERVOLG). — B
+
 1789. **VERVOLG, BEVESTIGD: de Turkse hoofdletter İ geeft een onterechte termwaarschuwing.**
      Het stale-pakket tr/ui-report-01 heeft de kolomkop Voortgang → İlerleme, met vaste term
      ilerleme. De bestaande pakketchecker geeft GROEN met nul fouten maar meldt dat de term niet

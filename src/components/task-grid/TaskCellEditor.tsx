@@ -139,8 +139,14 @@ export function TaskCellEditor({
   onOpenExternal,
 }: TaskCellEditorProps) {
   const initialCell = adapter.getCell(cell.rowKey, cell.columnId);
+  const descriptor = adapter.descriptorsById.get(cell.columnId);
+  // Een keuzelijst (ja/nee, keuze, code) start altijd op de huidige waarde; een getypt teken springt
+  // in de open lijst naar een passende optie (#970) in plaats van als waarde te gelden.
+  const isListEditor = descriptor?.editorKind === 'boolean'
+    || (descriptor?.editorKind === 'enum' && descriptor.editorOptions !== undefined);
+  const listTypeahead = isListEditor && initialText ? initialText : undefined;
   const [text, setText] = useState(
-    () => initialText ?? initialCell?.editText ?? '',
+    () => (isListEditor ? undefined : initialText) ?? initialCell?.editText ?? '',
   );
   const [assignmentTokens, setAssignmentTokens] = useState<TaskAssignmentToken[]>(() => (
     Array.isArray(initialCell?.value)
@@ -148,7 +154,6 @@ export function TaskCellEditor({
       : []
   ));
   const [resourceQuery, setResourceQuery] = useState('');
-  const descriptor = adapter.descriptorsById.get(cell.columnId);
   const dateNotation = adapter.dateNotation ?? 'dmy';
   const dateEditorKind = descriptor?.editorKind === 'date' || descriptor?.editorKind === 'datetime'
     ? descriptor.editorKind
@@ -261,13 +266,15 @@ export function TaskCellEditor({
   // dus dit is de ENIGE plek die de commit voor een gekozen waarde triggert — geen dubbele afhandeling.
   // `Select` roept `onChange` niet aan als de gebruiker de al gekozen optie opnieuw kiest. De cel
   // legt dan via `onReselect` toch vast en sluit, bij klik, Enter en Spatie, net als bij een andere
-  // waarde.
+  // waarde. Shift+Enter gaat zoals overal in de grid een rij omhoog: de capture hieronder onthoudt of
+  // de laatste toets Shift+Enter was, want `Select` geeft bij een keuze alleen de waarde door.
+  const pickedWithShiftEnterRef = useRef(false);
   const commitPickedValue = (value: string, inputProps: GridEditorInputProps) => {
     textRef.current = value;
     setText(value);
     inputProps.onKeyDown({
       key: 'Enter',
-      shiftKey: false,
+      shiftKey: pickedWithShiftEnterRef.current,
       preventDefault: () => {},
       stopPropagation: () => {},
     } as KeyboardEvent<HTMLElement>);
@@ -275,7 +282,8 @@ export function TaskCellEditor({
 
   // Escape in een keuzelijst-editor (enum/boolean): annuleer de celbewerking vóórdat `Select` de
   // toets ziet. `Select` stopt Escape in een open lijst; zonder deze capture bleef de editor open.
-  const cancelOnEscapeCapture = (e: KeyboardEvent<HTMLElement>, inputProps: GridEditorInputProps) => {
+  const onListKeyDownCapture = (e: KeyboardEvent<HTMLElement>, inputProps: GridEditorInputProps) => {
+    pickedWithShiftEnterRef.current = e.key === 'Enter' && e.shiftKey;
     if (e.key === 'Escape') inputProps.onKeyDown(e);
   };
 
@@ -457,7 +465,7 @@ export function TaskCellEditor({
           // component (open/highlight/typeahead/Enter-commit/Escape-annuleer) — hier met `autoOpen`
           // zodat de volledige lijst er meteen staat. Select stopt Escape in een open lijst (anders
           // sloot dezelfde toets ook een omringende dialoog). Daarom vangt de WRAPPER Escape al in de
-          // capture-fase af (`cancelOnEscapeCapture`): één Escape sluit de lijst én annuleert de
+          // capture-fase af (`onListKeyDownCapture`): één Escape sluit de lijst én annuleert de
           // celbewerking, zoals vroeger. `onKeyDown={inputProps.onKeyDown}` op de wrapper (niet op
           // Select zelf, dat kent die prop niet) blijft voor de overige toetsen. Enter/klik op een
           // optie roept `onChange` hieronder aan (of `onReselect` bij de al gekozen optie), die de
@@ -466,11 +474,12 @@ export function TaskCellEditor({
           <div
             className="task-grid-editor-input"
             data-task-editor-kind="enum"
-            onKeyDownCapture={e => cancelOnEscapeCapture(e, inputProps)}
+            onKeyDownCapture={e => onListKeyDownCapture(e, inputProps)}
             onKeyDown={inputProps.onKeyDown}
           >
             <Select
               autoOpen
+              initialTypeahead={listTypeahead}
               aria-label={label}
               aria-invalid={inputProps['aria-invalid']}
               aria-describedby={inputProps['aria-describedby']}
@@ -487,11 +496,12 @@ export function TaskCellEditor({
           <div
             className="task-grid-editor-input"
             data-task-editor-kind="boolean"
-            onKeyDownCapture={e => cancelOnEscapeCapture(e, inputProps)}
+            onKeyDownCapture={e => onListKeyDownCapture(e, inputProps)}
             onKeyDown={inputProps.onKeyDown}
           >
             <Select
               autoOpen
+              initialTypeahead={listTypeahead}
               aria-label={label}
               aria-invalid={inputProps['aria-invalid']}
               aria-describedby={inputProps['aria-describedby']}
