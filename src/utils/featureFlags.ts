@@ -6,6 +6,12 @@ export interface FeatureFlag {
   descriptionKey?: ParseKeys<'common'>;
   /** Technische markering voor nieuwe IFC-data; beïnvloedt de schakelaar of activering niet. */
   writesNewIfcData: boolean;
+  /**
+   * De eigen UI-teksten van de functie: `ns:pad` of een voorvoegsel `ns:pad.*`. `nameKey` en
+   * `descriptionKey` tellen vanzelf mee. De nachtvertaling slaat ze over tot de flag weg is; de release
+   * vertaalt ze wel. Leeg alleen als de functie geen eigen tekst heeft. Getoetst in check-translate-night.ts.
+   */
+  texts: readonly string[];
 }
 
 /** Voeg hier tijdelijke functies toe; de demo maakt de verborgen bediening zichtbaar toetsbaar. */
@@ -16,6 +22,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     nameKey: 'settings.demoTopbarAnimation',
     descriptionKey: 'settings.demoTopbarAnimationHint',
     writesNewIfcData: false,
+    texts: [], // alleen naam en uitleg
   },
   // #804 fase 1: een IFC-bestand met een gebouwmodel of gegevens van andere programma's openen (bytes-route, scanner,
   // indeling, `ifcSource`). Opslaan van zo'n bestand komt in fase 1c; tot dan weigert de app het, met een melding.
@@ -24,6 +31,34 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     nameKey: 'settings.ifcForeignContent',
     descriptionKey: 'settings.ifcForeignContentHint',
     writesNewIfcData: true,
+    // De nl-sleutels uit de #804-merges op main (#864, #914, #927, #928, #931, #935, #961, #967), plus de
+    // meldingen voor een onleesbaar doel uit #870: die geeft alleen de doelcontrole met de flag aan
+    // (`refusedWriteTarget` in src/state/ifcForeignGuard.ts).
+    texts: [
+      'common:ifcExportWithoutModel.*',
+      'common:ifcMissingSourceSaveAs.*',
+      'common:notifications.ifc2x3PlanningOnly',
+      'common:notifications.ifcForeignExportNewTarget',
+      'common:notifications.ifcForeignMergeRefused',
+      'common:notifications.ifcForeignOpenSchema',
+      'common:notifications.ifcForeignOpenUnsafe',
+      'common:notifications.ifcForeignReplaceBlocked',
+      'common:notifications.ifcForeignReplaceFailed',
+      'common:notifications.ifcForeignReplaceNotRecorded',
+      'common:notifications.ifcForeignSaveBlocked',
+      'common:notifications.ifcForeignSourceMissing',
+      'common:notifications.ifcForeignTargetAutoSave',
+      'common:notifications.ifcForeignTargetChanged',
+      'common:notifications.ifcForeignTargetExport',
+      'common:notifications.ifcForeignTargetGone',
+      'common:notifications.ifcForeignTargetSave',
+      'common:notifications.ifcSaveChangedWhileWaiting',
+      'common:notifications.ifcSourceCopyFailed',
+      'common:notifications.ifcUnreadableTargetAutoSave',
+      'common:notifications.ifcUnreadableTargetExport',
+      'common:notifications.ifcUnreadableTargetSave',
+      'menu:projectInfo.ifcSchema.foreignLocked',
+    ],
   },
 ];
 

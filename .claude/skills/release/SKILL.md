@@ -70,6 +70,10 @@ de regel `BROWSERRUN=<id>` uit de uitvoer door. Daarna ga je verder.
 - Controleer eerst de fetch- én push-URL van `origin`. Beide moeten exact naar
   `OpenAEC-Foundation/open-planner-studio` op github.com wijzen, via HTTPS of SSH.
   Een andere repo, ontbrekende origin of netwerkfout: stop vóór schrijven of publiceren.
+- Wacht vóór de werkplek tot de nachtvertaling van maandag klaar is: zolang
+  `~/.local/state/ops-nachtvertalingen/actief` bestaat en jonger is dan 24 uur, of een PR
+  `vertalingen/<vandaag>` open staat, wacht de release. Een oudere markering meld je en negeer je.
+  Hervat je een bestaande releasebranch, neem dan de nieuwste `origin/main` erin op vóór de vertaalstap.
 - Gebruik een schone, eigen release-worktree vanaf vers opgehaalde `origin/main`.
   Neem geen ongecommit werk over. Haal volledige historie en origin-tags op.
   Alleen de maandagjob: eenmaal per run `npm ci` in die worktree vóór de eerste Node-stap.

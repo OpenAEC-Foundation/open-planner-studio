@@ -22,7 +22,9 @@ steps in its own release worktree, including package checks by its Haiku transla
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
 that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
-dev servers stay CI-only.
+dev servers stay CI-only. The scheduled nightly translation job (Monday to Saturday 01:00,
+[`.claude/skills/nachtvertalingen/SKILL.md`](.claude/skills/nachtvertalingen/SKILL.md)) has the same kind of
+exception for its own list in `referentie.md` (owner decision 2026-11-16).
 
 ## Commands
 
@@ -96,7 +98,8 @@ Translations: `npm run i18n:add` puts one string in `nl` + `en` (required) and a
 `npm run i18n:fmt` puts the locale files in the fixed format (one key per line, `nl` order),
 `npm run i18n:resolve` merges them per key after a `git merge` — run it even when git reports no conflict.
 `npm run translate -- <command>` is the translation pipeline (termbase `i18n/termbase/`, UI work packages in
-`build/translate/`, `apply ui`, `status`; the UI for all locales before every release via the `update-ui-lang` skill; design
+`build/translate/`, `apply ui`, `status`; the UI texts that are done every night via the `nachtvertalingen` skill
+(48 hours unchanged on `main`, not of a feature flag), the rest for all locales before every release via the `update-ui-lang` skill; design
 `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`,
 overview `scripts/README.md`). `i18n:add` also updates the source hashes in `i18n/ui-sources/` (and drops them
 for locales it did not write, so `prepare ui <locale> --missing`/`--stale` picks them up).
@@ -429,7 +432,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   Experimental block in Settings → Advanced is unlocked by activating its version number for
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
-  removes its flag and the corresponding checks.
+  removes its flag and the corresponding checks. List the flag's own UI texts in `texts` (`ns:path` or
+  `ns:path.*`): the nightly translation skips them until the flag is gone, the release translates them.
   Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik 5 seconden snel achter elkaar op het versienummer).
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
@@ -517,7 +521,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
+Skills in `.claude/skills/`: `release`, `nachtvertalingen` (nightly UI translations of finished texts), `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
 UI, a release step), `update-docs-lang` (pipeline for the guides, on request), `goed-plannen`, `progress-update` (source of the
 last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
 `planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).
