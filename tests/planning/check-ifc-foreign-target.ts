@@ -37,7 +37,10 @@
 //  10. opslaan in de achtergrond, stap 2 (9c): de indeling van het doel draait in de scanworker. Bytes, stroom en
 //      FSA-bestand geven met een geïnjecteerde Worker (ook een die niet start, niet antwoordt of een fout geeft) precies de
 //      uitkomst van de synchrone weg van de kern; boven 300 MiB 'unreadable' zonder Worker; `targetRefusal` gebruikt de
-//      module-Worker van `globalThis`.
+//      module-Worker van `globalThis`;
+//  11. fixronde 1 van #985 (9d): een Worker die niet start, houdt de doelcontrole en het schrijfslot hoogstens de korte
+//      starttijd op (productiewaarde); na een startbevestiging geldt de ruime rekentijd; late berichten doen niets; de
+//      echte handler van `foreignScan.worker.ts` antwoordt in de matrix van 9c.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -47,7 +50,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
-import { fakeScanWorker, fakeScanWorkerStats } from './fakeScanWorker';
+import { fakeScanWorker, fakeScanWorkerStats, LATE_MS, loadRealScanHandler } from './fakeScanWorker';
 import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -1788,10 +1791,14 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       return segmentSource(segments);
     };
     const stats = fakeScanWorkerStats();
+    const realWorker = await loadRealScanHandler();
     const modes = [
       ['ok', () => fakeScanWorker('ok', stats)],
+      ['echte handler', () => realWorker(stats)],
       ['transport', () => fakeScanWorker('transport', stats)],
       ['stil', () => fakeScanWorker('stil', stats)],
+      ['gestart-stil', () => fakeScanWorker('gestart-stil', stats)],
+      ['laat', () => fakeScanWorker('laat', stats)],
       ['indeling', () => fakeScanWorker('indeling', stats)],
       ['start gooit', () => { throw new Error('CSP'); }],
       ['geen Worker', () => null],
@@ -1814,7 +1821,8 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       eq(`9c ${c.name}: synchrone uitkomst`, sync, c.want);
       const classifies = scanTargetBytes(c.bytes) === 'no-model';
       for (const [mode, createWorker] of modes) {
-        const opts: RunOptions = { createWorker, timeoutMs: 20 };
+        // Korte grenzen alleen voor de matrix; 9d toetst de productiewaarde van de starttimer.
+        const opts: RunOptions = { createWorker, startTimeoutMs: 20, timeoutMs: 40 };
         const posts = stats.posts;
         const terminated = stats.terminated;
         const viaBytes = await scanForeignTargetBytesAsync(c.bytes, opts);
@@ -1860,6 +1868,64 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
         const failing = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => c.bytes });
         eq(`9c ${c.name}: een fout uit de Worker geeft dezelfde weigering`, failing, want);
       }
+    } finally { globalThis.Worker = originalWorker; }
+  }
+  // 9d. Fixronde 1 van #985 (Sol): een Worker die niet start, houdt de opslag niet twee minuten op. De runner wacht kort
+  // op de startbevestiging (`FOREIGN_SCAN_START_TIMEOUT_MS`) en daarna pas de ruime rekentijd.
+  {
+    const { scanForeignTargetBytes, scanForeignTargetBytesAsync } = await import('@/services/ifc/foreign/targetForeignScan');
+    const { FOREIGN_SCAN_START_TIMEOUT_MS } = await import('@/services/ifc/foreign/foreignScanRunner');
+    const { targetRefusal } = await import('@/services/fileAccess/foreignSourceTarget');
+    const { runProjectFileWrite, isProjectFileWriteBusy } = await import('@/services/fileAccess/writeCoordinator');
+    const stats = fakeScanWorkerStats();
+    const wait = (ms: number) => new Promise<void>(resolve => { setTimeout(resolve, ms); });
+    // Start en antwoord: het antwoord van de Worker geldt, zonder terugval (de 'vals'-Worker telt een C extra).
+    let before = stats.posts;
+    eq('9d start en antwoord: het antwoord van de Worker geldt, één scan in één Worker',
+      [await scanForeignTargetBytesAsync(showcase, { createWorker: () => fakeScanWorker('vals', stats) }), stats.posts - before],
+      ['foreign', 1]);
+    // Gestart, daarna stil: de ruime rekentijd geldt (hier 200 ms), niet de starttimer (hier 20 ms); daarna de terugval.
+    before = stats.terminated;
+    let t0 = performance.now();
+    const silentAfterStart = await scanForeignTargetBytesAsync(externalPset,
+      { createWorker: () => fakeScanWorker('gestart-stil', stats), startTimeoutMs: 20, timeoutMs: 200 });
+    const afterStart = performance.now() - t0;
+    eq('9d gestart en stil: na de rekentijd dezelfde uitkomst, Worker gestopt', [silentAfterStart, stats.terminated - before], ['foreign', 1]);
+    ok(`9d gestart en stil: de rekentijd gold, niet de starttimer (${Math.round(afterStart)} ms)`, afterStart >= 190);
+    // Een late start en een laat antwoord na de terugval doen niets: de uitkomst van de hoofdthread geldt, de Worker is
+    // gestopt en zijn berichten hebben geen luisteraar meer.
+    const ignored = stats.ignored;
+    before = stats.terminated;
+    const late = await scanForeignTargetBytesAsync(externalPset, { createWorker: () => fakeScanWorker('laat', stats), startTimeoutMs: 20 });
+    const stoppedBeforeLate = stats.terminated - before;
+    await wait(LATE_MS + 100);
+    eq('9d late start: terugval, Worker gestopt vóór zijn start, beide late berichten zonder luisteraar',
+      [late, stoppedBeforeLate, stats.ignored - ignored], ['foreign', 1, 2]);
+    // De route van de reviewer, met de PRODUCTIEWAARDE van de starttimer: `targetRefusal` onder het schrijfslot met een
+    // Worker die nooit iets meldt. De weigering komt binnen de starttijd, het slot komt vrij en de volgende opslag wacht
+    // niet langer.
+    ok(`9d de starttijd is kort (${FOREIGN_SCAN_START_TIMEOUT_MS} ms)`, FOREIGN_SCAN_START_TIMEOUT_MS > 0 && FOREIGN_SCAN_START_TIMEOUT_MS <= 5000);
+    const originalWorker = globalThis.Worker;
+    try {
+      globalThis.Worker = class { constructor() { return fakeScanWorker('stil', stats); } } as unknown as typeof Worker;
+      before = stats.terminated;
+      t0 = performance.now();
+      let refusedAt = 0;
+      let queuedAt = 0;
+      const save = runProjectFileWrite(() => targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => externalPset }))
+        .then(r => { refusedAt = performance.now() - t0; return r; });
+      await new Promise<void>(resolve => { setImmediate(resolve); });
+      const queued = runProjectFileWrite(async () => { queuedAt = performance.now() - t0; });
+      ok('9d stille Worker: het schrijfslot is bezet tijdens de doelcontrole', isProjectFileWriteBusy());
+      const refusal = await save;
+      await queued;
+      eq('9d stille Worker: dezelfde weigering als zonder Worker, Worker gestopt, slot vrij',
+        [refusal, refusal === scanForeignTargetBytes(externalPset), stats.terminated - before, isProjectFileWriteBusy()], ['foreign', true, 1, false]);
+      ok(`9d stille Worker: weigering na de starttijd en ruim binnen een seconde erna (${Math.round(refusedAt)} ms)`,
+        refusedAt >= FOREIGN_SCAN_START_TIMEOUT_MS - 5 && refusedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
+      console.log(`..  9d stille Worker: weigering na ${Math.round(refusedAt)} ms, volgende opslag na ${Math.round(queuedAt)} ms (starttijd ${FOREIGN_SCAN_START_TIMEOUT_MS} ms); gestart en stil: ${Math.round(afterStart)} ms`);
+      ok(`9d stille Worker: de volgende opslag liep direct daarna (${Math.round(queuedAt)} ms)`,
+        queuedAt >= refusedAt - 1 && queuedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
     } finally { globalThis.Worker = originalWorker; }
   }
 }

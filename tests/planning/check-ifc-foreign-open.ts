@@ -671,7 +671,8 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
           const outcome = scanForeign(msg.bytes);
           if (!outcome.ok) throw new Error(outcome.message);
           const data = { id: msg.id, outcome: { ...outcome, selection: { ...outcome.selection, resources: Int32Array.of(-1) } } };
-          queueMicrotask(() => this.onmessage?.({ data }));
+          // Eerst de startbevestiging, zoals `foreignScan.worker.ts`; anders valt de runner na de starttijd terug.
+          queueMicrotask(() => { this.onmessage?.({ data: { id: msg.id, started: true } }); this.onmessage?.({ data }); });
         }
       }
       globalThis.Worker = DifferentSelectionWorker as unknown as typeof Worker;
@@ -779,12 +780,13 @@ ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijk
   const without = await sourceOf({ createWorker: () => null });
   eq('Worker: met Worker hetzelfde als zonder', sha(await sourceOf({ createWorker: () => fakeWorker('ok') })), sha(without));
   eq('Worker: een transportfout valt terug, met dezelfde uitkomst', sha(await sourceOf({ createWorker: () => fakeWorker('transport') })), sha(without));
-  eq('Worker: geen antwoord op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('stil'), timeoutMs: 20 })), sha(without));
+  eq('Worker: geen start op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('stil'), startTimeoutMs: 20 })), sha(without));
+  eq('Worker: gestart, geen antwoord op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('gestart-stil'), timeoutMs: 20 })), sha(without));
   eq('Worker: een fout bij het maken valt terug', sha(await sourceOf({ createWorker: () => { throw new Error('CSP'); } })), sha(without));
   let failure = '';
   try { await readIfcBytesDetailed(bonsai, {}, { createWorker: () => fakeWorker('indeling') }); } catch (e) { failure = (e as Error).message; }
   eq('Worker: een fout in de indeling zelf valt niet terug', failure, 'indeling faalt');
-  eq('Worker: elke Worker is gestopt', stats.terminated, 4);
+  eq('Worker: elke Worker is gestopt', stats.terminated, 5);
 }
 
 // #885 / review Sol (#889): twee waarden met dezelfde codetekst in één type. De writer zet dan het waarde-id naast de
